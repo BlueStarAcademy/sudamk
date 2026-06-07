@@ -172,7 +172,7 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
         
         // 0개인 아이템을 선택한 경우 상점 열기
         if (!hasPotion) {
-            handlers.openShop('consumables');
+            handlers.openShop('consumables', { modal: true });
             // 창을 닫지 않음 (구매 후 돌아올 수 있도록)
             return;
         }

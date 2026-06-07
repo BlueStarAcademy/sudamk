@@ -75,7 +75,9 @@ const AdventureProfilePanel: React.FC<{
               : 'px-2.5 py-1.5 text-xs sm:text-sm'
     }`;
 
-    const understandingStatRowCls = `flex items-center justify-between gap-2 rounded-md border border-white/8 bg-black/25 px-2 py-1 text-[11px] sm:text-xs`;
+    const understandingLabelCls = 'text-sm font-bold uppercase tracking-wider text-zinc-500 sm:text-base';
+    const understandingStatRowCls =
+        'flex items-center justify-between gap-2 rounded-md border border-white/8 bg-black/25 px-2 py-1.5 text-xs sm:text-sm';
 
     const adventureBattleRecordPanel = (
         <div
@@ -195,7 +197,7 @@ const AdventureProfilePanel: React.FC<{
 
     const understandingBody = (
         <div className="relative min-w-0">
-            <p className={labelCls}>몬스터 이해도</p>
+            <p className={understandingLabelCls}>몬스터 이해도</p>
             <div className={`mt-2 flex items-start ${mobileOneScreen ? 'gap-2' : 'gap-3'}`}>
                 <div className="min-w-0 flex-1">
                     <div
@@ -267,10 +269,14 @@ const AdventureProfilePanel: React.FC<{
         </div>
     );
 
-    const understandingWithTopMonster = (
+    const understandingWithTopMonster = mobileOneScreen ? (
+        <div className="flex min-w-0 flex-col gap-2">
+            {understandingBody}
+        </div>
+    ) : (
         <div
             className={`flex min-w-0 flex-col ${
-                mobileOneScreen ? 'gap-1.5' : compact || tightLayout ? 'gap-2' : 'gap-2.5 sm:gap-3'
+                compact || tightLayout ? 'gap-2' : 'gap-2.5 sm:gap-3'
             }`}
         >
             {understandingBody}
@@ -316,6 +322,9 @@ const AdventureProfilePanel: React.FC<{
                 >
                     {understandingWithTopMonster}
                 </div>
+                {mobileOneScreen ? (
+                    <div className="relative z-[1] w-full min-w-0 shrink-0">{topHuntedMonsterPanel}</div>
+                ) : null}
             </div>
         </section>
     );

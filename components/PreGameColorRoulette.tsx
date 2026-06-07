@@ -135,15 +135,15 @@ const PreGameColorRoulette: React.FC<PreGameColorRouletteProps> = ({
         const compact = layout === 'cardsOnly';
 
         const portraitFrameClass = overrideUrl
-            ? `flex shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gray-800/90 ring-1 ring-white/12 ${
-                  compact ? 'h-[3.25rem] w-[3.25rem] sm:h-14 sm:w-14' : 'h-[3.75rem] w-[3.75rem] sm:h-16 sm:w-16'
+            ? `flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gray-800/90 ring-1 ring-white/12 ${
+                  compact ? 'h-11 w-11 sm:h-12 sm:w-12' : 'h-[3.75rem] w-[3.75rem] sm:h-16 sm:w-16'
               }`
             : '';
 
         return (
             <div
-                className={`min-w-0 flex-1 rounded-2xl border transition-all duration-200 ${
-                    compact ? 'p-2.5 sm:p-3' : 'p-3.5 sm:p-4'
+                className={`min-w-0 flex-1 rounded-xl border transition-all duration-200 ${
+                    compact ? 'p-2' : 'p-3.5 sm:p-4'
                 } ${
                     isActive
                         ? isBlack
@@ -152,7 +152,7 @@ const PreGameColorRoulette: React.FC<PreGameColorRouletteProps> = ({
                         : 'border-white/[0.08] bg-zinc-950/55 opacity-85'
                 }`}
             >
-                <div className={`flex flex-col items-center text-center ${compact ? 'gap-1.5' : 'gap-2.5'}`}>
+                <div className={`flex flex-col items-center text-center ${compact ? 'gap-1' : 'gap-2.5'}`}>
                     {overrideUrl ? (
                         <div className={portraitFrameClass}>
                             <img
@@ -166,20 +166,20 @@ const PreGameColorRoulette: React.FC<PreGameColorRouletteProps> = ({
                         <Avatar
                             userId={player.id}
                             userName={player.nickname}
-                            size={compact ? 48 : 60}
+                            size={compact ? 40 : 60}
                             avatarUrl={avatarUrl}
                             borderUrl={borderUrl}
                         />
                     )}
-                    <p className={`font-bold ${compact ? 'max-w-full truncate text-xs sm:text-[0.8125rem]' : ''}`}>
+                    <p className={`font-bold ${compact ? 'max-w-full truncate text-[11px] sm:text-xs' : ''}`}>
                         {player.nickname}
                     </p>
                     <div
-                        className={`rounded-full border-[3px] shadow-inner ${
+                        className={`rounded-full border-[2.5px] shadow-inner ${
                             isBlack ? 'border-stone-500 bg-black' : 'border-stone-400 bg-white'
-                        } ${compact ? 'h-12 w-12 sm:h-14 sm:w-14' : 'h-[3.25rem] w-[3.25rem] sm:h-14 sm:w-14'}`}
+                        } ${compact ? 'h-9 w-9 sm:h-10 sm:w-10' : 'h-[3.25rem] w-[3.25rem] sm:h-14 sm:w-14'}`}
                     />
-                    <p className={`font-bold tracking-tight text-stone-100 ${compact ? 'text-[0.7rem] sm:text-xs' : 'text-sm sm:text-base'}`}>
+                    <p className={`font-bold tracking-tight text-stone-100 ${compact ? 'text-[0.65rem] sm:text-[11px]' : 'text-sm sm:text-base'}`}>
                         {isBlack ? blackRoleLabel : whiteRoleLabel}
                     </p>
                 </div>
@@ -201,16 +201,17 @@ const PreGameColorRoulette: React.FC<PreGameColorRouletteProps> = ({
     );
 
     if (layout === 'cardsOnly') {
+        const cardsRowClass = 'mx-auto flex w-full max-w-[16.5rem] gap-2 sm:max-w-[17.5rem] sm:gap-2.5';
         if (flipMode) {
             return (
-                <div className="flex gap-2.5 sm:gap-3">
+                <div className={cardsRowClass}>
                     {renderPlayerCard(leftSeat, leftIsBlack, isFinished ? true : leftIsBlack)}
                     {renderPlayerCard(rightSeat, !leftIsBlack, isFinished ? true : !leftIsBlack)}
                 </div>
             );
         }
         return (
-            <div className="flex gap-2.5 sm:gap-3">
+            <div className={cardsRowClass}>
                 {renderPlayerCard(blackPlayer, true, isFinished ? true : activeColor === Player.Black)}
                 {renderPlayerCard(whitePlayer, false, isFinished ? true : activeColor === Player.White)}
             </div>

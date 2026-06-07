@@ -28,7 +28,7 @@ export interface PairPetBadukPhaseStripAndCoreGridProps {
     coreGridDensity?: 'default' | 'compact' | 'micro' | 'fit';
     /** 네이티브 홈 대표펫: 스트립·코어 그리드 세로·가로 여백 축소, 스크롤 없이 맞춤 */
     mobileHomeRepPet?: boolean;
-    /** 펫 관리 모달 정보 탭 — 작은 스트립·3×2 고정 */
+    /** 펫 관리 모달 정보 탭 — 작은 스트립·2×3 코어 그리드 */
     petManagementModal?: boolean;
     /** 홈 좌측 대표펫 — 프로필 능력치 배너와 비슷한 크기 */
     profileHomeColumn?: boolean;

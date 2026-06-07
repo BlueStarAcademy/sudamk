@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react';
-import Button from '../Button.js';
 import type { InventoryItem } from '../../types.js';
 import { ItemGrade } from '../../types/enums.js';
 import { gradeBackgrounds, gradeStyles, EQUIPMENT_GRADE_LABEL_KO } from '../../shared/constants/items.js';
@@ -7,28 +6,25 @@ import { PAIR_PET_GRADE_ORDER, pairPetSoulStoneTierGradeUpgradeUsage } from '../
 import { PAIR_PET_SHOP_SKUS, isPairPetShopSkuUnlimitedDaily } from '../../shared/constants/petLobby.js';
 import { PAIR_TRAINING_SLOT_DEFS } from '../../shared/constants/pairTraining.js';
 import { pairPetSoulConvertMaterialNameForGrade } from '../../shared/utils/pairPetSoulConvert.js';
+import { resolveBagItemAcquireLines } from '../../shared/utils/itemAcquireSourceLines.js';
 import { formatGoldAmountKoG, formatWalletDiamonds } from '../../shared/utils/walletAmountDisplay.js';
 import {
-    PET_INFO_ACTION_BTN,
-    PET_MGMT_ACTION_BAR_CLASS,
     PET_PANEL_BADGE,
     PET_PANEL_EXP,
     PET_PANEL_HERO_HEADER_ROW,
     PET_PANEL_HERO_META_COL,
     PET_PANEL_INFO_CARD_OUTER,
-    PET_PANEL_META_ROW,
+    PET_PANEL_ROW_PAD,
+    PET_PANEL_TRAIT_GAP,
     PET_PANEL_NAME,
     PET_PANEL_PORTRAIT_IMG,
     PET_PANEL_PORTRAIT_SHELL,
-    PET_PANEL_TRAIT_BODY,
-    PET_PANEL_TRAIT_BOX,
     PET_PANEL_TRAIT_TITLE,
 } from './pairPetDetailPanelUi.js';
 
 export type PairPetLobbySoulStoneViewerProps = {
     item: InventoryItem;
     isBusy: boolean;
-    primaryStackId: string | null;
     totalSoulQuantity: number;
     onSellOne: () => void;
     onOpenBulkSell: () => void;
@@ -77,12 +73,23 @@ function soulPetShopAcquireDetail(materialName: string): string {
     return `${price} [일일 ${sku.dailyLimit}회]`;
 }
 
-const soulStonePrimaryBtnClass = `${PET_INFO_ACTION_BTN} border-amber-400/55 bg-gradient-to-b from-amber-600/35 via-amber-950/55 to-black/85 text-amber-50 ring-1 ring-inset ring-amber-200/15`;
+/** `PET_PANEL_TRAIT_BOX`의 `flex-1 basis-0`는 세로 스택에서 높이 0으로 접힘 — 영혼석 전용 */
+const soulTraitBoxBase =
+    'flex w-full shrink-0 flex-col rounded-md border px-2 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]';
+const soulTraitBody = 'mt-0.5 min-w-0 text-[15px] font-semibold leading-snug antialiased';
 
-const soulStoneSecondaryBtnClass = `${PET_INFO_ACTION_BTN} border-violet-400/45 bg-gradient-to-b from-violet-700/30 via-violet-950/55 to-black/85 text-violet-50 ring-1 ring-inset ring-violet-200/12`;
+const traitBoxCyan = `${soulTraitBoxBase} border-cyan-500/30 bg-gradient-to-br from-cyan-950/40 to-zinc-950/85`;
+const traitBoxAmber = `${soulTraitBoxBase} border-amber-500/25 bg-gradient-to-br from-amber-950/30 to-zinc-950/85`;
 
-const traitBoxCyan = `${PET_PANEL_TRAIT_BOX} border-cyan-500/30 bg-gradient-to-br from-cyan-950/40 to-zinc-950/85`;
-const traitBoxAmber = `${PET_PANEL_TRAIT_BOX} border-amber-500/25 bg-gradient-to-br from-amber-950/30 to-zinc-950/85`;
+/** 가방 인벤 푸터와 동일 계열 — 반투명·backdrop-blur 없이 선명한 면 */
+const SOUL_STONE_ACTION_BAR_CLASS =
+    'relative z-[2] flex min-h-[3rem] shrink-0 flex-nowrap items-stretch gap-2 border-t border-white/15 bg-zinc-950 px-2 py-2';
+
+const SOUL_STONE_ACTION_BTN_BASE =
+    'inline-flex min-h-[2.55rem] min-w-0 flex-1 items-center justify-center rounded-xl border px-2 text-[0.875rem] font-bold leading-none tracking-wide shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_4px_14px_-4px_rgba(0,0,0,0.55)] transition-[transform,box-shadow,border-color] duration-150 hover:-translate-y-px active:translate-y-0 disabled:pointer-events-none disabled:opacity-55';
+
+const soulSellBtnClass = `${SOUL_STONE_ACTION_BTN_BASE} border-rose-900/55 bg-gradient-to-b from-rose-500 via-rose-600 to-rose-950 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_4px_16px_-2px_rgba(244,63,94,0.5)] hover:border-rose-400/55 hover:from-rose-400 hover:via-rose-500 hover:to-rose-900`;
+const soulBulkSellBtnClass = `${SOUL_STONE_ACTION_BTN_BASE} border-amber-800/50 bg-gradient-to-b from-amber-400 via-amber-500 to-amber-900 text-amber-950 shadow-[inset_0_1px_0_rgba(255,251,235,0.45),0_4px_16px_-2px_rgba(217,119,6,0.45)] hover:border-amber-300/55 hover:from-amber-300 hover:via-amber-400 hover:to-amber-800`;
 
 /**
  * 페어 경기장 정보 탭 — 영혼석: {@link PairPetDetailCardBody} panelFit과 동일 초상화·타이포.
@@ -90,7 +97,6 @@ const traitBoxAmber = `${PET_PANEL_TRAIT_BOX} border-amber-500/25 bg-gradient-to
 const PairPetLobbySoulStoneViewer: React.FC<PairPetLobbySoulStoneViewerProps> = ({
     item,
     isBusy,
-    primaryStackId,
     totalSoulQuantity,
     onSellOne,
     onOpenBulkSell,
@@ -112,6 +118,11 @@ const PairPetLobbySoulStoneViewer: React.FC<PairPetLobbySoulStoneViewerProps> = 
             acquireShop: soulPetShopAcquireDetail(mat),
         };
     }, [item.templateId, item.name]);
+
+    const acquireFallbackLines = useMemo(() => {
+        const lines = resolveBagItemAcquireLines(item);
+        return lines.filter((line) => !line.includes('사용'));
+    }, [item]);
 
     return (
         <div
@@ -143,15 +154,17 @@ const PairPetLobbySoulStoneViewer: React.FC<PairPetLobbySoulStoneViewerProps> = 
                             </span>
                         </div>
                         {item.description ? (
-                            <p className={`${PET_PANEL_TRAIT_BODY} text-slate-200/95 line-clamp-3`}>{item.description}</p>
+                            <p className={`${soulTraitBody} text-slate-200/95 line-clamp-3`}>{item.description}</p>
                         ) : null}
                     </div>
                 </div>
 
-                <div className={PET_PANEL_META_ROW}>
+                <div
+                    className={`relative z-[1] flex min-h-0 min-w-0 flex-col items-stretch bg-zinc-950/92 ${PET_PANEL_ROW_PAD} ${PET_PANEL_TRAIT_GAP}`}
+                >
                     <div className={traitBoxCyan}>
                         <p className={`${PET_PANEL_TRAIT_TITLE} text-cyan-200/90`}>사용처</p>
-                        <p className={`${PET_PANEL_TRAIT_BODY} text-slate-100/95`}>
+                        <p className={`${soulTraitBody} text-slate-100/95`}>
                             <span className="text-violet-300">[펫]</span>
                             <span className="mx-1 text-slate-500">-</span>
                             <span className="text-slate-200">[등급 강화]</span>
@@ -165,61 +178,73 @@ const PairPetLobbySoulStoneViewer: React.FC<PairPetLobbySoulStoneViewerProps> = 
                                         [{gradeStyles[usageUpgrade.to]?.name ?? ''}]
                                     </span>
                                     <span className="text-amber-200/95 tabular-nums">
-                                        · 펫 Lv.{usageUpgrade.minLevel}
+                                        · 펫 Lv.{usageUpgrade.minLevel} 이상
                                     </span>
                                 </span>
-                            ) : null}
+                            ) : (
+                                <span className="ml-1 text-slate-400">등급 강화에 사용</span>
+                            )}
                         </p>
                     </div>
                     <div className={traitBoxAmber}>
                         <p className={`${PET_PANEL_TRAIT_TITLE} text-amber-200/90`}>획득처</p>
                         <div className="flex flex-col gap-1">
-                            <p className={`${PET_PANEL_TRAIT_BODY} text-slate-100/95`}>
+                            <p className={`${soulTraitBody} text-slate-100/95`}>
                                 <span className="text-violet-300">[펫]</span>
                                 <span className="mx-1 text-slate-500">-</span>
                                 <span className="text-slate-200">[수련 보상]</span>
-                                {acquireTraining ? <span className="ml-1 text-cyan-200">{acquireTraining}</span> : null}
+                                <span className="ml-1 text-cyan-200">
+                                    {acquireTraining || '해당 슬롯 없음'}
+                                </span>
                             </p>
-                            <p className={`${PET_PANEL_TRAIT_BODY} text-slate-100/95`}>
+                            <p className={`${soulTraitBody} text-slate-100/95`}>
                                 <span className="text-violet-300">[펫]</span>
                                 <span className="mx-1 text-slate-500">-</span>
                                 <span className="text-slate-200">[영혼 변환]</span>
-                                {acquireConvert ? <span className="ml-1 text-fuchsia-200">{acquireConvert}</span> : null}
+                                <span className="ml-1 text-fuchsia-200">
+                                    {acquireConvert || '해당 등급 없음'}
+                                </span>
                             </p>
-                            <p className={`${PET_PANEL_TRAIT_BODY} text-slate-100/95`}>
+                            <p className={`${soulTraitBody} text-slate-100/95`}>
                                 <span className="text-violet-300">[펫]</span>
                                 <span className="mx-1 text-slate-500">-</span>
                                 <span className="text-slate-200">[펫 상점]</span>
-                                {acquireShop ? <span className="ml-1 text-amber-100">{acquireShop}</span> : null}
+                                <span className="ml-1 text-amber-100">{acquireShop || '판매 없음'}</span>
                             </p>
+                            {acquireFallbackLines.length > 0 &&
+                            !acquireTraining &&
+                            !acquireConvert &&
+                            !acquireShop ? (
+                                acquireFallbackLines.map((line) => (
+                                    <p key={line} className={`${soulTraitBody} text-slate-300/90`}>
+                                        {line}
+                                    </p>
+                                ))
+                            ) : null}
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div className={PET_MGMT_ACTION_BAR_CLASS}>
-                <div className="flex w-full flex-row flex-wrap items-center justify-center gap-1.5">
-                    <Button
+            <div className={SOUL_STONE_ACTION_BAR_CLASS}>
+                <button
+                    type="button"
+                    disabled={isBusy || qty < 1}
+                    onClick={onSellOne}
+                    className={soulSellBtnClass}
+                >
+                    판매
+                </button>
+                {totalSoulQuantity > 1 ? (
+                    <button
                         type="button"
-                        disabled={isBusy || !primaryStackId || qty < 1}
-                        onClick={onSellOne}
-                        colorScheme="none"
-                        className={`!mx-0 !inline-block !w-auto ${soulStonePrimaryBtnClass}`}
+                        disabled={isBusy || qty < 1}
+                        onClick={onOpenBulkSell}
+                        className={soulBulkSellBtnClass}
                     >
-                        판매
-                    </Button>
-                    {primaryStackId && totalSoulQuantity > 1 ? (
-                        <Button
-                            type="button"
-                            disabled={isBusy}
-                            onClick={onOpenBulkSell}
-                            colorScheme="none"
-                            className={`!mx-0 !inline-block !w-auto ${soulStoneSecondaryBtnClass}`}
-                        >
-                            일괄 판매
-                        </Button>
-                    ) : null}
-                </div>
+                        일괄 판매
+                    </button>
+                ) : null}
             </div>
         </div>
     );

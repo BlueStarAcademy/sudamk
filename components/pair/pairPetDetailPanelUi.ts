@@ -56,11 +56,14 @@ export const PET_PANEL_BADUK_PHASE_LABEL = 'text-[14px] font-semibold leading-no
 export const PET_PANEL_BADUK_PHASE_NUM = 'text-[15px] font-bold tabular-nums text-sky-100 antialiased';
 export const PET_PANEL_BADUK_BLOCK_GAP = 'gap-1';
 
-/** 6코어 3×2 */
+/** 6코어 2×3 — 펫 정보 뷰어(panelFit) */
 export const PET_PANEL_CORE_GRID =
-    'grid w-full min-w-0 grid-cols-3 grid-rows-2 gap-x-1.5 gap-y-1 text-[15px] leading-snug antialiased';
+    'grid w-full min-w-0 grid-cols-2 grid-rows-3 gap-x-1.5 gap-y-1 text-[15px] leading-snug antialiased';
 export const PET_PANEL_CORE_CELL =
     'flex min-w-0 flex-row items-center justify-between gap-1 rounded-md border border-white/10 bg-black/30 px-2 py-2';
+
+export const PET_PANEL_CORE_VALUE =
+    'shrink-0 text-[15px] font-bold tabular-nums sm:text-[17px]';
 
 /** 펫 관리·상세 — 하단 액션 버튼 */
 export const PET_MGMT_ACTION_BTN_TEXT = 'text-[0.75rem] font-bold leading-snug antialiased';

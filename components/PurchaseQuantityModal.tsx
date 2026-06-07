@@ -32,10 +32,19 @@ interface PurchaseQuantityModalProps {
         image?: string;
         badge?: string;
         description?: string;
+        /** 도전의 탑 아이템 — 보유·일일 구매 한도 표시 */
+        towerPurchaseLimits?: {
+            maxOwned: number;
+            currentOwned: number;
+            dailyPurchaseLimit: number;
+            todayPurchased: number;
+        };
     };
     currentUser: UserWithStatus;
     onClose: () => void;
-    onConfirm: (itemId: string, quantity: number) => void;
+    onConfirm: (itemId: string, quantity: number) => void | Promise<void>;
+    /** 도전의 탑 아이템 등 — 가방 슬롯 대신 보유·일일 한도만 적용 */
+    ignoreInventorySlotLimit?: boolean;
 }
 
 function typeLabelKo(it: InventoryItem): string {
@@ -213,12 +222,28 @@ const PurchaseModalItemShowcase: React.FC<{ preview: InventoryItem; shopBadge?: 
     );
 };
 
-const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({ item, currentUser, onClose, onConfirm }) => {
+const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({
+    item,
+    currentUser,
+    onClose,
+    onConfirm,
+    ignoreInventorySlotLimit = false,
+}) => {
     const [quantity, setQuantity] = useState(1);
+    const [isConfirming, setIsConfirming] = useState(false);
     const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
 
     const isTieredPriceItem = ['action_point_10', 'action_point_20', 'action_point_30'].includes(item.itemId);
-    const remainingDaily = item.limit ?? (isTieredPriceItem ? 0 : Infinity);
+    const towerLimits = item.towerPurchaseLimits;
+    const towerRemainingDaily = towerLimits
+        ? Math.max(0, towerLimits.dailyPurchaseLimit - towerLimits.todayPurchased)
+        : 0;
+    const towerRemainingOwned = towerLimits
+        ? Math.max(0, towerLimits.maxOwned - towerLimits.currentOwned)
+        : 0;
+    const remainingDaily = towerLimits
+        ? towerRemainingDaily
+        : item.limit ?? (isTieredPriceItem ? 0 : Infinity);
     const prices = item.prices;
     const purchasesToday = item.purchasesToday ?? 0;
 
@@ -239,6 +264,8 @@ const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({ item, cur
     const pricePerItem = item.price.gold || item.price.diamonds || 0;
 
     const maxByInventory = useMemo(() => {
+        if (ignoreInventorySlotLimit) return Infinity;
+
         if (item.type === 'equipment') {
             const equipmentCount = currentUser.inventory.filter(invItem => invItem.type === 'equipment').length;
             const inventorySlots = currentUser.inventorySlots?.equipment || BASE_SLOTS_PER_CATEGORY;
@@ -250,16 +277,23 @@ const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({ item, cur
         const inventorySlots = currentUser.inventorySlots?.[item.type] || BASE_SLOTS_PER_CATEGORY;
         const availableSlots = inventorySlots - currentItemCount;
         return Math.max(0, availableSlots);
-    }, [item.itemId, item.type, currentUser.inventory, currentUser.inventorySlots]);
+    }, [ignoreInventorySlotLimit, item.itemId, item.type, currentUser.inventory, currentUser.inventorySlots]);
 
     const maxQuantity = useMemo(() => {
         const currency = isGold ? (currentUser.gold ?? 0) : (currentUser.diamonds ?? 0);
         const maxByCurrency = !isTieredPriceItem && pricePerItem > 0 ? Math.floor(currency / pricePerItem) : (isTieredPriceItem ? maxAffordByTieredPrices : Infinity);
-        const byLimit = isTieredPriceItem ? remainingDaily : (item.limit ?? Infinity);
+        const byLimit = towerLimits
+            ? Math.min(towerRemainingDaily, towerRemainingOwned)
+            : isTieredPriceItem
+              ? remainingDaily
+              : (item.limit ?? Infinity);
         const cap = Math.min(byLimit, maxByCurrency, MAX_GAME_INTEGER_INPUT, maxByInventory);
         return Math.max(0, cap);
     }, [
         item.limit,
+        towerLimits,
+        towerRemainingDaily,
+        towerRemainingOwned,
         currentUser.gold,
         currentUser.diamonds,
         isGold,
@@ -292,8 +326,8 @@ const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({ item, cur
         if (noticeMessage) setNoticeMessage(null);
     }, [quantity, noticeMessage]);
 
-    const handleConfirm = () => {
-        if (quantity > maxByInventory) {
+    const handleConfirm = async () => {
+        if (!ignoreInventorySlotLimit && quantity > maxByInventory) {
             if (maxByInventory <= 0) {
                 setNoticeMessage('가방 공간이 부족합니다. 가방을 정리한 뒤 다시 구매해 주세요.');
             } else {
@@ -302,9 +336,14 @@ const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({ item, cur
             return;
         }
         if (quantity > 0 && quantity <= maxQuantity) {
-            onConfirm(item.itemId, quantity);
+            setIsConfirming(true);
+            try {
+                await onConfirm(item.itemId, quantity);
+                onClose();
+            } finally {
+                setIsConfirming(false);
+            }
         }
-        onClose();
     };
 
     const previewItem = useMemo(
@@ -395,10 +434,34 @@ const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({ item, cur
                             />
                         </div>
                         <div
-                            className="mt-1.5 flex min-h-[2.25rem] items-center justify-center text-center text-xs leading-snug text-slate-500 sm:min-h-[2.5rem] sm:text-[13px] sm:leading-snug"
+                            className="mt-1.5 flex min-h-[2.25rem] flex-col items-center justify-center gap-0.5 text-center text-xs leading-snug text-slate-500 sm:min-h-[2.5rem] sm:text-[13px] sm:leading-snug"
                             aria-live="polite"
                         >
-                            {remainingDaily !== Infinity && remainingDaily > 0 ? (
+                            {towerLimits ? (
+                                <>
+                                    <p className="leading-snug text-amber-200/85">
+                                        보유 제한: 최대 {towerLimits.maxOwned}개 보유 가능
+                                        <span className="text-amber-100/70">
+                                            {' '}
+                                            (현재 {towerLimits.currentOwned}/{towerLimits.maxOwned})
+                                        </span>
+                                    </p>
+                                    <p className="leading-snug text-amber-200/85">
+                                        구매 제한: 하루 최대 {towerLimits.dailyPurchaseLimit}개 구매 가능
+                                        <span className="text-amber-100/70">
+                                            {' '}
+                                            (오늘 {towerLimits.todayPurchased}/{towerLimits.dailyPurchaseLimit})
+                                        </span>
+                                    </p>
+                                    {towerRemainingOwned <= 0 ? (
+                                        <p className="leading-snug text-rose-300/95">보유 개수가 최대치여서 구매할 수 없습니다.</p>
+                                    ) : towerRemainingDaily <= 0 ? (
+                                        <p className="leading-snug text-rose-300/95">오늘 구매 한도에 도달했습니다.</p>
+                                    ) : (
+                                        <p className="leading-snug text-slate-400">최대 구매 가능: {maxQuantity}개</p>
+                                    )}
+                                </>
+                            ) : remainingDaily !== Infinity && remainingDaily > 0 ? (
                                 <p className="leading-snug">일일 남은 구매 가능: {remainingDaily}개</p>
                             ) : (
                                 <span className="invisible select-none leading-snug" aria-hidden>
@@ -442,10 +505,10 @@ const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({ item, cur
                     <button
                         type="button"
                         onClick={handleConfirm}
-                        disabled={quantity === 0 || quantity > maxQuantity}
+                        disabled={quantity === 0 || quantity > maxQuantity || isConfirming}
                         className="flex-1 rounded-md border border-emerald-500/35 bg-gradient-to-b from-emerald-600/85 to-emerald-950/50 py-1.5 text-[11px] font-semibold text-white shadow-sm transition-colors hover:border-emerald-400/45 hover:from-emerald-500/90 disabled:cursor-not-allowed disabled:opacity-45 active:scale-[0.99]"
                     >
-                        구매
+                        {isConfirming ? '구매 중...' : '구매'}
                     </button>
                 </div>
                 {noticeMessage && (

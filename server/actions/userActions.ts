@@ -42,7 +42,7 @@ import { getSelectiveUserUpdate } from '../utils/userUpdateHelper.js';
 import { generateSgfFromGame } from '../../utils/sgfGenerator.js';
 import { maxExchangeListPrice } from '../../shared/constants/numericLimits.js';
 import { exchangeListingFeeFromPrice } from '../../shared/utils/gameIntegerField.js';
-import { isStrategicPvpForGameRecord, isGameStatusSaveableForRecord, isShortGameStrategicNoContest } from '../../utils/strategicPvpGameRecord.js';
+import { isPvpHumanGameRecordEligible, isGameStatusSaveableForRecord, isShortGameStrategicNoContest, isGameRecordParticipant, resolveClientRecordSessionSnapshot } from '../../utils/strategicPvpGameRecord.js';
 import { resolveGameSessionForRecordSave } from '../gameRecordSnapshot.js';
 import { randomUUID } from 'crypto';
 import * as effectService from '../effectService.js';
@@ -77,6 +77,22 @@ import { changeSingleRegionalSlotBuff, enhanceSingleRegionalSlotBuff } from '../
 import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
 import { isRecognizedAdminUser } from '../../shared/utils/adminRecognition.js';
 import { handleShopAction } from './shopActions.js';
+import {
+    DETAILED_STAT_CATEGORY_RESET_COST,
+    DETAILED_STAT_SINGLE_RESET_COST,
+    hasPlayfulCategoryStatsToReset,
+    hasSingleModeStatsToReset,
+    hasStrategicCategoryStatsToReset,
+    isDetailedStatsResetMode,
+    resetPlayfulCategoryStats,
+    resetSingleModeStat,
+    resetStrategicCategoryStats,
+} from '../utils/detailedStatsReset.js';
+import {
+    DETAILED_STAT_NO_RESET_MESSAGE,
+    hasPairArenaCategoryStatsToReset,
+    hasPairArenaSingleStatsToReset,
+} from '../../shared/utils/detailedStatResetChecks.js';
 
 type HandleActionResult = {
     clientResponse?: any;
@@ -411,16 +427,9 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                 if (flatScore > 0) (game as any).adventureRegionalHumanFlatScoreBonus = flatScore;
                 await db.saveGame(game);
 
-                volatileState.userStatuses[game.player1.id] = {
-                    status: UserStatus.InGame,
-                    mode: game.mode,
-                    gameId: game.id,
-                };
-                volatileState.userStatuses[game.player2.id] = {
-                    status: UserStatus.InGame,
-                    mode: game.mode,
-                    gameId: game.id,
-                };
+                const { setInGameUserStatusForArena } = await import('./socialActions.js');
+                setInGameUserStatusForArena(volatileState, game.player1.id, game);
+                setInGameUserStatusForArena(volatileState, game.player2.id, game);
 
                 db.updateUser(user).catch((err) => {
                     console.error(`[UserAction] Failed to save user ${user.id} after START_ADVENTURE_MONSTER_BATTLE:`, err);
@@ -653,6 +662,60 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             
             return { clientResponse: { updatedUser } };
         }
+        case 'RESET_SINGLE_STAT': {
+            const { mode, scope = 'both' } = payload as { mode: types.GameMode; scope?: import('../../shared/types/detailedStatReset.js').DetailedStatResetScope };
+            if (!isDetailedStatsResetMode(mode)) {
+                return { error: '초기화할 수 없는 모드입니다.' };
+            }
+            if (scope !== 'pvp' && scope !== 'ai' && scope !== 'both') {
+                return { error: '잘못된 초기화 범위입니다.' };
+            }
+            if ((user.diamonds ?? 0) < DETAILED_STAT_SINGLE_RESET_COST && !user.isAdmin) {
+                return { error: `다이아가 부족합니다. (필요: ${DETAILED_STAT_SINGLE_RESET_COST})` };
+            }
+            if (!hasSingleModeStatsToReset(user, mode, scope)) {
+                return { error: DETAILED_STAT_NO_RESET_MESSAGE };
+            }
+            resetSingleModeStat(user, mode, scope);
+            if (!user.isAdmin) user.diamonds = (user.diamonds ?? 0) - DETAILED_STAT_SINGLE_RESET_COST;
+            const updatedUser = getSelectiveUserUpdate(user, 'RESET_SINGLE_STAT');
+            db.updateUser(user).catch((err) => console.error('[UserAction] RESET_SINGLE_STAT save failed:', err));
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(user, ['diamonds', 'stats']);
+            return { clientResponse: { updatedUser } };
+        }
+        case 'RESET_STATS_CATEGORY': {
+            const { category, scope = 'both' } = payload as {
+                category: 'strategic' | 'playful';
+                scope?: import('../../shared/types/detailedStatReset.js').DetailedStatResetScope;
+            };
+            if (category !== 'strategic' && category !== 'playful') {
+                return { error: '잘못된 전적 카테고리입니다.' };
+            }
+            if (scope !== 'pvp' && scope !== 'ai' && scope !== 'both') {
+                return { error: '잘못된 초기화 범위입니다.' };
+            }
+            if ((user.diamonds ?? 0) < DETAILED_STAT_CATEGORY_RESET_COST && !user.isAdmin) {
+                return { error: `다이아가 부족합니다. (필요: ${DETAILED_STAT_CATEGORY_RESET_COST})` };
+            }
+            if (category === 'strategic') {
+                if (!hasStrategicCategoryStatsToReset(user, scope)) {
+                    return { error: DETAILED_STAT_NO_RESET_MESSAGE };
+                }
+                resetStrategicCategoryStats(user, Date.now(), scope);
+            } else {
+                if (!hasPlayfulCategoryStatsToReset(user, scope)) {
+                    return { error: DETAILED_STAT_NO_RESET_MESSAGE };
+                }
+                resetPlayfulCategoryStats(user, scope);
+            }
+            if (!user.isAdmin) user.diamonds = (user.diamonds ?? 0) - DETAILED_STAT_CATEGORY_RESET_COST;
+            const updatedUser = getSelectiveUserUpdate(user, 'RESET_STATS_CATEGORY');
+            db.updateUser(user).catch((err) => console.error('[UserAction] RESET_STATS_CATEGORY save failed:', err));
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(user, ['diamonds', 'stats', 'dailyRankings', 'cumulativeRankingScore']);
+            return { clientResponse: { updatedUser } };
+        }
         case 'RESET_PAIR_ARENA_SINGLE_STAT': {
             const { mode } = payload as { mode: types.GameMode };
             if (!SPECIAL_GAME_MODES.some((m) => m.mode === mode)) {
@@ -663,11 +726,8 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                 return { error: `다이아가 부족합니다. (필요: ${SINGLE_RESET_COST})` };
             }
             const modeKey = String(mode);
-            const prev = user.pairArenaStatsByMode?.[modeKey] ?? { wins: 0, losses: 0 };
-            const pw = Math.max(0, prev.wins ?? 0);
-            const pl = Math.max(0, prev.losses ?? 0);
-            if (pw === 0 && pl === 0) {
-                return { error: '이 모드에 기록된 페어 경기장 전적이 없습니다.' };
+            if (!hasPairArenaSingleStatsToReset(user, mode)) {
+                return { error: DETAILED_STAT_NO_RESET_MESSAGE };
             }
             if (!user.pairArenaStatsByMode) user.pairArenaStatsByMode = {};
             user.pairArenaStatsByMode[modeKey] = { wins: 0, losses: 0 };
@@ -679,22 +739,39 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             return { clientResponse: { updatedUser } };
         }
         case 'RESET_PAIR_ARENA_STRATEGIC_ALL': {
+            const { scope = 'both' } = (payload ?? {}) as {
+                scope?: import('../../shared/types/detailedStatReset.js').DetailedStatResetScope;
+            };
             const CATEGORY_RESET_COST = 500;
+            if (scope !== 'pvp' && scope !== 'ai' && scope !== 'both') {
+                return { error: '잘못된 초기화 범위입니다.' };
+            }
             if ((user.diamonds ?? 0) < CATEGORY_RESET_COST && !user.isAdmin) {
                 return { error: `다이아가 부족합니다. (필요: ${CATEGORY_RESET_COST})` };
             }
             if (!user.stats) user.stats = {};
-            user.stats[PAIR_RANKED_MATCH_RECORD_KEY] = { wins: 0, losses: 0 };
-            user.stats[PAIR_ARENA_AI_MATCH_RECORD_KEY] = { wins: 0, losses: 0 };
-            user.stats[PAIR_RANKED_STAT_KEY] = { rankingScore: RANKED_ELO_BASE_SCORE };
-            if (!user.cumulativeRankingScore) user.cumulativeRankingScore = {};
-            user.cumulativeRankingScore.pair = 0;
-            user.pairArenaStatsByMode = {};
+
+            if (!hasPairArenaCategoryStatsToReset(user, scope)) {
+                return { error: DETAILED_STAT_NO_RESET_MESSAGE };
+            }
+
+            if (scope === 'pvp' || scope === 'both') {
+                user.stats[PAIR_RANKED_MATCH_RECORD_KEY] = { wins: 0, losses: 0 };
+                user.stats[PAIR_RANKED_STAT_KEY] = { rankingScore: RANKED_ELO_BASE_SCORE };
+                if (!user.cumulativeRankingScore) user.cumulativeRankingScore = {};
+                user.cumulativeRankingScore.pair = 0;
+                user.pairArenaStatsByMode = {};
+                if (!user.dailyRankings) user.dailyRankings = {};
+                user.dailyRankings.pair = { rank: 0, score: 0, lastUpdated: Date.now() };
+            }
+            if (scope === 'ai' || scope === 'both') {
+                user.stats[PAIR_ARENA_AI_MATCH_RECORD_KEY] = { wins: 0, losses: 0 };
+            }
             if (!user.isAdmin) user.diamonds = (user.diamonds ?? 0) - CATEGORY_RESET_COST;
             const updatedUser = getSelectiveUserUpdate(user, 'RESET_PAIR_ARENA_STRATEGIC_ALL');
             db.updateUser(user).catch((err) => console.error('[UserAction] RESET_PAIR_ARENA_STRATEGIC_ALL save failed:', err));
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['diamonds', 'stats', 'pairArenaStatsByMode', 'cumulativeRankingScore']);
+            broadcastUserUpdate(user, ['diamonds', 'stats', 'pairArenaStatsByMode', 'cumulativeRankingScore', 'dailyRankings']);
             return { clientResponse: { updatedUser } };
         }
         case 'CONFIRM_STAT_ALLOCATION': {
@@ -894,9 +971,12 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             return { clientResponse: { updatedUser } };
         }
         case 'SAVE_GAME_RECORD': {
-            const { gameId } = payload as { gameId: string };
+            const { gameId, sessionSnapshot } = payload as { gameId: string; sessionSnapshot?: types.LiveGameSession };
             
-            const game = await resolveGameSessionForRecordSave(volatileState, gameId);
+            let game = await resolveGameSessionForRecordSave(volatileState, gameId);
+            if (!game && sessionSnapshot) {
+                game = resolveClientRecordSessionSnapshot(gameId, user.id, sessionSnapshot);
+            }
             if (!game) {
                 return {
                     error:
@@ -904,9 +984,8 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                 };
             }
             
-            // 전략바둑 PVP만 (일반 로비는 gameCategory가 Normal일 수 있음 — truthy 체크 금지)
-            if (!isStrategicPvpForGameRecord(game)) {
-                return { error: '전략바둑 PVP 게임만 기보를 저장할 수 있습니다.' };
+            if (!isPvpHumanGameRecordEligible(game)) {
+                return { error: 'PVP 대국만 기보를 저장할 수 있습니다.' };
             }
 
             if (!isGameStatusSaveableForRecord(game.gameStatus)) {
@@ -917,8 +996,7 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                 return { error: '10수 미만 무효 대국은 기보를 저장할 수 없습니다.' };
             }
             
-            // 사용자가 게임 참가자인지 확인
-            if (game.player1.id !== user.id && game.player2.id !== user.id) {
+            if (!isGameRecordParticipant(game, user.id)) {
                 return { error: '게임 참가자만 기보를 저장할 수 있습니다.' };
             }
             

@@ -75,7 +75,7 @@ const GUIDE: Record<MobileRankingGuideVariant, GuideSections> = {
             body: '경기장 → 전략바둑 → 대기실에서 랭킹전 매칭을 이용하세요.',
         },
         cta: '전략 대기실',
-        hash: '#/waiting/strategic',
+        hash: '#/pvp/strategic',
     },
     'baduk-pair': {
         how: {
@@ -87,7 +87,7 @@ const GUIDE: Record<MobileRankingGuideVariant, GuideSections> = {
             body: '경기장 → 페어바둑에서 랭킹전 매칭을 이용하세요.',
         },
         cta: '페어 로비',
-        hash: '#/pair',
+        hash: '#/pvp/pair',
     },
 };
 

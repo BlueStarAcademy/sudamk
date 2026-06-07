@@ -6,22 +6,29 @@ import { NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH, isInsideSudamrAdUi } from '../consta
 import { clampQuestProgressToTarget } from '../utils/questProgressCap.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
+import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../shared/constants/pcShellLayout.js';
 import { formatGoldAmountKoG } from '../shared/utils/walletAmountDisplay.js';
 import type { User } from '../types.js';
 import { getAchievementProgressDisplay, isAchievementRequirementMet } from '../shared/utils/achievementProgress.js';
+import { useKeyedAsyncAction } from '../hooks/useAsyncAction.js';
 
 interface QuestsModalProps {
     currentUser: UserWithStatus;
     onClose: () => void;
     onAction: (action: ServerAction) => void;
     isTopmost?: boolean;
+    /** PC 로비 중앙 인라인 패널 — DraggableWindow 생략 */
+    embedded?: boolean;
 }
 
 type QuestTab = 'daily' | 'weekly' | 'monthly' | 'achievements';
 type QuestData = NonNullable<QuestLog['daily' | 'weekly' | 'monthly']>;
 
-/** 퀘스트 진행 막대: 카드 내에서 늘어나되 상한만 둠 */
+/** 퀘스트 진행 막대: 모바일에서만 상한 */
 const QUEST_ITEM_BAR_MAX_CLASS = 'max-w-[14rem]';
+
+/** 활약도 보상 아이콘만 구분선 대비 살짝 왼쪽 — 구분선 좌표는 변경하지 않음 */
+const ACTIVITY_REWARD_ICON_LEFT_NUDGE_PX = 4;
 
 const questTextScrollRowClass =
     'max-w-full overflow-x-auto overflow-y-hidden overscroll-x-contain [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.45)_transparent]';
@@ -52,9 +59,6 @@ const ActivityVitalityIcon: React.FC<{ className?: string; size?: number }> = ({
         </svg>
     );
 };
-
-/** 퀘스트 목록 제목 옆 아이콘 (퀵메뉴·에셋과 동일 계열) */
-const QUEST_LIST_ICON_SRC = '/images/quest.webp';
 
 /** 상점 소모품 탭과 동일: 행동력 회복제 카드는 ⚡ 배지 + 수치(아이템 이미지는 lightning.png, applus는 헤더 충전 버튼 전용) */
 const getShopActionPointBadgeFromReward = (reward: QuestReward): string | null => {
@@ -102,9 +106,12 @@ const AchievementTrackPanel: React.FC<{
     currentUser: UserWithStatus;
     onAction: (action: ServerAction) => void;
     isMobile: boolean;
-}> = ({ currentUser, onAction, isMobile }) => {
+    /** PC 2:1 분할 우측 사이드바 — 컴팩트 카드·인라인 상세 */
+    compact?: boolean;
+    claimPendingKey?: string | null;
+    onClaimAchievement: (trackId: string, stageIndex: number) => void;
+}> = ({ currentUser, onAction, isMobile, compact = false, claimPendingKey = null, onClaimAchievement }) => {
     const [viewIndices, setViewIndices] = useState<Record<string, number>>({});
-    const [detailOpenMap, setDetailOpenMap] = useState<Record<string, boolean>>({});
 
     const isRequirementMet = (stage: (typeof ACHIEVEMENT_TRACKS)[number]['stages'][number]) =>
         isAchievementRequirementMet(stage, currentUser as User);
@@ -116,17 +123,29 @@ const AchievementTrackPanel: React.FC<{
         return sum + claimedIndices.length;
     }, 0);
 
+    const shellClass = compact
+        ? 'flex h-full min-h-0 flex-col'
+        : `rounded-2xl border border-slate-400/15 bg-slate-950/75 shadow-[0_20px_56px_-24px_rgba(0,0,0,0.88),inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-400/[0.07] ${isMobile ? 'p-3' : 'p-4'}`;
+
     return (
-        <div className={`rounded-2xl border border-slate-400/15 bg-slate-950/75 shadow-[0_20px_56px_-24px_rgba(0,0,0,0.88),inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-400/[0.07] ${isMobile ? 'p-3' : 'p-4'}`}>
-            <div className="mb-4 flex items-center justify-between gap-3">
-                <div>
-                    <h3 className={`font-bold tracking-tight text-white ${isMobile ? 'text-sm' : 'text-lg'}`}>전체 업적</h3>
-                </div>
-                <span className={`rounded-full border border-amber-400/30 bg-gradient-to-b from-amber-950/90 via-slate-950/95 to-slate-950 px-3 py-1 font-bold tabular-nums text-amber-50 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+        <div className={shellClass}>
+            <div className={`flex shrink-0 items-center justify-between gap-2 ${compact ? 'mb-2.5 px-0.5' : 'mb-4 gap-3'}`}>
+                <h3
+                    className={`font-bold tracking-tight text-white ${compact ? 'text-base' : isMobile ? 'text-base' : 'text-lg'}`}
+                >
+                    {compact ? '업적' : '전체 업적'}
+                </h3>
+                <span
+                    className={`rounded-full border border-amber-400/30 bg-gradient-to-b from-amber-950/90 via-slate-950/95 to-slate-950 font-bold tabular-nums text-amber-50 ${
+                        compact ? 'px-2.5 py-1 text-xs' : `px-3 py-1 ${isMobile ? 'text-sm' : 'text-sm'}`
+                    }`}
+                >
                     {totalClaimed}/{totalStages}
                 </span>
             </div>
-            <ul className={`${isMobile ? 'space-y-2' : 'space-y-3'}`}>
+            <ul
+                className={`min-h-0 ${compact ? 'flex-1 space-y-2 overflow-y-auto overflow-x-hidden overscroll-contain pr-1 [scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.4)_transparent]' : isMobile ? 'space-y-2' : 'space-y-3'}`}
+            >
                 {ACHIEVEMENT_TRACKS.map((track) => {
                     const trackState = currentUser.quests?.achievements?.tracks?.[track.id] ?? { currentIndex: 0, claimedIndices: [] };
                     const claimedIndices = Array.isArray(trackState.claimedIndices) ? trackState.claimedIndices : [];
@@ -137,83 +156,133 @@ const AchievementTrackPanel: React.FC<{
                     const isClaimed = claimedIndices.includes(viewIndex);
                     const isCurrentStage = viewIndex === currentIndex;
                     const canClaim = isCurrentStage && isCleared && !isClaimed;
-                    const isDetailOpen = !!detailOpenMap[track.id];
                     const achProgress = getAchievementProgressDisplay(stage, currentUser as User);
 
+                    const navBtnClass = `flex shrink-0 flex-col items-center justify-center rounded-lg border border-slate-600/40 bg-slate-800/60 font-semibold text-slate-200 transition-colors hover:bg-slate-700/70 disabled:cursor-not-allowed disabled:opacity-35 ${
+                        compact ? 'min-w-[2.75rem] px-1.5 py-2' : 'min-w-[3.25rem] px-2 py-2.5'
+                    }`;
+                    const navArrowClass = compact ? 'text-xl leading-none' : 'text-2xl leading-none';
+                    const navLabelClass = compact ? 'text-[11px] leading-tight' : 'text-xs leading-tight';
+                    const claimLabel = isClaimed ? '완료' : canClaim ? '받기' : isCurrentStage ? '진행' : '기록';
+
                     return (
-                        <li key={track.id} className="rounded-2xl border border-slate-500/25 bg-gradient-to-br from-slate-900/95 via-[#0f1118]/98 to-[#080a0f] p-2.5 shadow-[0_12px_40px_-18px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-inset ring-amber-500/[0.07] sm:p-3">
-                            <div className="mb-2 flex items-center justify-between gap-2">
-                                <h4 className={`min-w-0 truncate font-semibold tracking-tight text-slate-100 ${isMobile ? 'text-[13px]' : 'text-[15px]'}`}>{track.title}</h4>
-                                <span className="shrink-0 rounded-full border border-amber-500/30 bg-black/30 px-2.5 py-1 text-[11px] font-semibold text-amber-100">
-                                    {viewIndex + 1}/{track.stages.length}
-                                </span>
-                            </div>
-                            <div className="flex items-start justify-between gap-2.5">
-                                <div className="relative min-w-0 flex-1">
-                                    <div className="flex min-w-0 flex-wrap items-center gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => setDetailOpenMap((prev) => ({ ...prev, [track.id]: !prev[track.id] }))}
-                                            className={`text-left font-bold tracking-tight text-slate-100 hover:text-amber-200 ${isMobile ? 'text-[15px]' : 'text-lg'}`}
-                                            title="클릭하여 상세 설명 보기"
-                                        >
-                                            {stage.title}
-                                        </button>
-                                        <span className={`rounded-md px-2 py-0.5 text-[11px] font-medium ${isCleared ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-700/50 text-slate-300'}`}>
-                                            {isCleared ? '조건 달성' : '미달성'}
-                                        </span>
-                                        {achProgress ? (
-                                            <span className="text-[10px] font-medium tabular-nums text-slate-400 sm:text-[11px]">
-                                                ({achProgress.current}/{achProgress.target})
-                                            </span>
-                                        ) : null}
-                                    </div>
-                                    {isDetailOpen ? (
-                                        <div
-                                            role="dialog"
-                                            aria-label="업적 상세"
-                                            className={`absolute left-0 z-20 mt-2 w-full rounded-xl border border-amber-500/25 bg-gradient-to-b from-[#1a1d28]/98 via-[#12151c]/98 to-[#0a0c10]/98 px-3 py-2 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.75),inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-400/10 backdrop-blur-md ${isMobile ? 'max-w-[20rem]' : 'max-w-[24rem]'}`}
-                                        >
-                                            <p className={`text-slate-200 ${isMobile ? 'text-[11px] leading-relaxed' : 'text-xs leading-relaxed'}`}>
-                                                {stage.description}
-                                            </p>
-                                        </div>
-                                    ) : null}
-                                </div>
-                                <div className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-amber-500/30 bg-black/30 px-2 py-1">
-                                    <img src="/images/icon/Zem.webp" alt="" className="h-4 w-4 object-contain" />
-                                    <span className="text-xs font-semibold text-amber-100 tabular-nums">{stage.rewardDiamonds}</span>
-                                </div>
-                            </div>
-                            <div className="mt-2.5 grid grid-cols-3 gap-1.5">
+                        <li
+                            key={track.id}
+                            className={`rounded-xl border border-slate-500/25 bg-gradient-to-br from-slate-900/95 via-[#0f1118]/98 to-[#080a0f] shadow-[0_12px_40px_-18px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-inset ring-amber-500/[0.07] ${
+                                compact ? 'p-2.5' : 'rounded-2xl p-2.5 sm:p-3'
+                            }`}
+                        >
+                            <div className={`flex items-stretch gap-1 ${compact ? 'mb-2' : 'mb-2.5 gap-1.5'}`}>
                                 <button
                                     type="button"
                                     onClick={() => setViewIndices((prev) => ({ ...prev, [track.id]: Math.max(0, viewIndex - 1) }))}
                                     disabled={viewIndex <= 0}
-                                    className="rounded-lg border border-slate-600/40 bg-slate-800/60 px-2 py-1.5 text-[11px] text-slate-200 disabled:opacity-40"
+                                    className={navBtnClass}
+                                    aria-label="이전 단계"
                                 >
-                                    이전
+                                    <span className={navArrowClass} aria-hidden>
+                                        ‹
+                                    </span>
+                                    <span className={navLabelClass}>이전</span>
                                 </button>
-                                <button
-                                    type="button"
-                                    onClick={() => onAction({ type: 'CLAIM_ACHIEVEMENT_REWARD', payload: { trackId: track.id, stageIndex: viewIndex } })}
-                                    disabled={!canClaim}
-                                    className={`rounded-lg border px-2 py-1.5 text-[11px] font-semibold ${
-                                        canClaim
-                                            ? 'border-amber-400/30 bg-gradient-to-b from-amber-500/25 via-amber-900/40 to-amber-950/85 text-amber-50'
-                                            : 'border-slate-600/40 bg-slate-800/60 text-slate-300'
+                                <div
+                                    className={`flex min-w-0 flex-1 items-center justify-center gap-2 rounded-lg border border-amber-500/35 bg-gradient-to-b from-slate-900/92 to-black/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-400/10 ${
+                                        compact ? 'px-2.5 py-1.5' : 'px-3 py-2'
                                     }`}
                                 >
-                                    {isClaimed ? '완료' : canClaim ? '보상 받기' : isCurrentStage ? '진행 중' : '기록 보기'}
-                                </button>
+                                    <span
+                                        className={`min-w-0 truncate font-semibold tracking-tight text-slate-100 ${
+                                            compact ? 'text-sm' : isMobile ? 'text-sm' : 'text-base'
+                                        }`}
+                                    >
+                                        {track.title}
+                                    </span>
+                                    <span
+                                        className={`shrink-0 rounded-full border border-amber-500/35 bg-black/45 font-bold tabular-nums text-amber-100 ${
+                                            compact ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-0.5 text-xs'
+                                        }`}
+                                    >
+                                        {viewIndex + 1}/{track.stages.length}
+                                    </span>
+                                </div>
                                 <button
                                     type="button"
-                                    onClick={() => setViewIndices((prev) => ({ ...prev, [track.id]: Math.min(track.stages.length - 1, viewIndex + 1) }))}
+                                    onClick={() =>
+                                        setViewIndices((prev) => ({
+                                            ...prev,
+                                            [track.id]: Math.min(track.stages.length - 1, viewIndex + 1),
+                                        }))
+                                    }
                                     disabled={viewIndex >= track.stages.length - 1}
-                                    className="rounded-lg border border-slate-600/40 bg-slate-800/60 px-2 py-1.5 text-[11px] text-slate-200 disabled:opacity-40"
+                                    className={navBtnClass}
+                                    aria-label="다음 단계"
                                 >
-                                    다음
+                                    <span className={navArrowClass} aria-hidden>
+                                        ›
+                                    </span>
+                                    <span className={navLabelClass}>다음</span>
                                 </button>
+                            </div>
+
+                            <div className="flex min-w-0 items-center gap-2">
+                                <div className="flex min-w-0 flex-1 flex-col gap-1 text-center">
+                                    <span
+                                        className={`line-clamp-2 font-bold leading-snug tracking-tight text-slate-100 ${
+                                            compact ? 'text-sm' : isMobile ? 'text-base' : 'text-lg'
+                                        }`}
+                                    >
+                                        {stage.title}
+                                    </span>
+                                    {achProgress ? (
+                                        <span
+                                            className={`text-center font-semibold tabular-nums ${
+                                                isCleared ? 'text-emerald-300' : 'text-slate-400'
+                                            } ${compact ? 'text-xs' : 'text-sm'}`}
+                                        >
+                                            달성 {achProgress.current}/{achProgress.target}
+                                        </span>
+                                    ) : (
+                                        <span
+                                            className={`text-center font-semibold ${
+                                                isCleared ? 'text-emerald-300' : 'text-slate-400'
+                                            } ${compact ? 'text-xs' : 'text-sm'}`}
+                                        >
+                                            {isCleared ? '달성' : '미달성'}
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="flex shrink-0 items-center gap-1.5 self-center">
+                                    <div
+                                        className={`inline-flex shrink-0 items-center gap-1 rounded-lg border border-amber-500/35 bg-black/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${
+                                            compact ? 'px-2 py-1.5' : 'px-2.5 py-2'
+                                        }`}
+                                    >
+                                        <img
+                                            src="/images/icon/Zem.webp"
+                                            alt=""
+                                            className={`object-contain ${compact ? 'h-5 w-5' : 'h-6 w-6'}`}
+                                        />
+                                        <span
+                                            className={`font-bold tabular-nums text-amber-100 ${compact ? 'text-sm' : 'text-base'}`}
+                                        >
+                                            {stage.rewardDiamonds}
+                                        </span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => onClaimAchievement(track.id, viewIndex)}
+                                        disabled={!canClaim || claimPendingKey === `achievement-${track.id}-${viewIndex}`}
+                                        className={`shrink-0 rounded-lg border font-semibold ${
+                                            compact ? 'w-[3.25rem] px-1 py-2 text-xs' : 'w-[3.75rem] px-1.5 py-2.5 text-sm'
+                                        } ${
+                                            canClaim
+                                                ? 'border-amber-400/30 bg-gradient-to-b from-amber-500/25 via-amber-900/40 to-amber-950/85 text-amber-50'
+                                                : 'border-slate-600/40 bg-slate-800/60 text-slate-300'
+                                        }`}
+                                    >
+                                        {claimPendingKey === `achievement-${track.id}-${viewIndex}` ? '수령 중...' : claimLabel}
+                                    </button>
+                                </div>
                             </div>
                         </li>
                     );
@@ -229,8 +298,9 @@ const QuestClaimStripButton: React.FC<{
     isComplete: boolean;
     onClaim: () => void;
     isMobile: boolean;
-}> = ({ isClaimed, isComplete, onClaim, isMobile }) => {
-    const size = isMobile ? 'px-2 py-1.5 text-[11px]' : 'px-2.5 py-2 text-xs';
+    isPending?: boolean;
+}> = ({ isClaimed, isComplete, onClaim, isMobile, isPending = false }) => {
+    const size = isMobile ? 'px-2.5 py-2 text-xs' : 'px-3 py-2.5 text-sm';
     const base =
         `w-full rounded-lg border text-center font-semibold leading-tight transition-[transform,box-shadow,border-color,background-color] duration-200 ` +
         `shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 ring-inset ring-white/[0.06] ${size}`;
@@ -252,14 +322,19 @@ const QuestClaimStripButton: React.FC<{
         <button
             type="button"
             onClick={onClaim}
-            className={`${base} border-amber-400/30 bg-gradient-to-b from-amber-500/25 via-amber-900/40 to-amber-950/85 text-amber-50 hover:border-amber-300/45 hover:from-amber-400/30 active:scale-[0.99]`}
+            disabled={isPending}
+            className={`${base} border-amber-400/30 bg-gradient-to-b from-amber-500/25 via-amber-900/40 to-amber-950/85 text-amber-50 hover:border-amber-300/45 hover:from-amber-400/30 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60`}
         >
-            보상 받기
+            {isPending ? '수령 중...' : '보상 받기'}
         </button>
     );
 };
 
-const QuestRewardPill: React.FC<{ quest: Quest; isMobile: boolean }> = ({ quest, isMobile }) => {
+const QuestRewardPill: React.FC<{ quest: Quest; isMobile: boolean; inline?: boolean }> = ({
+    quest,
+    isMobile,
+    inline = false,
+}) => {
     const hasGold = Boolean(quest.reward?.gold && quest.reward.gold > 0);
     const firstItem = quest.reward?.items?.[0];
     const resolvedItemName = firstItem ? resolveConsumableDisplayName(firstItem) : '';
@@ -276,16 +351,16 @@ const QuestRewardPill: React.FC<{ quest: Quest; isMobile: boolean }> = ({ quest,
 
     return (
         <div
-            className={`flex w-full min-w-0 flex-wrap items-center justify-center gap-x-2 gap-y-0.5 rounded-md border border-amber-500/20 bg-black/30 px-1.5 py-1 text-center ${
-                isMobile ? 'text-[10px]' : 'text-[11px]'
-            }`}
+            className={`flex min-w-0 items-center gap-x-2 gap-y-0.5 rounded-md border border-amber-500/20 bg-black/30 px-2 py-1.5 ${
+                inline ? 'shrink-0 flex-nowrap whitespace-nowrap' : 'w-full flex-wrap justify-center text-center'
+            } ${isMobile ? 'text-[11px]' : 'text-xs'}`}
             title="퀘스트 보상"
         >
             {hasGold || hasActivity ? (
                 <span className="inline-flex min-w-0 flex-nowrap items-center justify-center gap-x-2 font-semibold">
                     {hasGold ? (
                         <span className="inline-flex min-w-0 items-center gap-0.5 text-amber-100">
-                            <img src="/images/icon/Gold.webp" alt="" className="h-3 w-3 shrink-0 opacity-95" />
+                            <img src="/images/icon/Gold.webp" alt="" className="h-3.5 w-3.5 shrink-0 opacity-95 sm:h-4 sm:w-4" />
                             <span className="truncate tabular-nums">{formatGoldAmountKoG(quest.reward.gold!)}</span>
                         </span>
                     ) : null}
@@ -299,7 +374,7 @@ const QuestRewardPill: React.FC<{ quest: Quest; isMobile: boolean }> = ({ quest,
             {firstItem ? (
                 actionPointBadge ? (
                     <span className="inline-flex min-w-0 items-center gap-1 font-semibold text-slate-100">
-                        <span className="shrink-0 text-sm leading-none" aria-hidden>
+                        <span className="shrink-0 text-base leading-none sm:text-lg" aria-hidden>
                             ⚡
                         </span>
                         <span className="shrink-0 font-bold tabular-nums text-cyan-300">{actionPointBadge}</span>
@@ -307,7 +382,7 @@ const QuestRewardPill: React.FC<{ quest: Quest; isMobile: boolean }> = ({ quest,
                     </span>
                 ) : (
                     <span className="inline-flex min-w-0 items-center gap-0.5 font-semibold text-slate-100">
-                        {itemImage ? <img src={itemImage} alt="" className="h-3 w-3 object-contain" /> : null}
+                        {itemImage ? <img src={itemImage} alt="" className="h-3.5 w-3.5 object-contain sm:h-4 sm:w-4" /> : null}
                         <span className="truncate">{resolvedItemName}</span>
                         <span className="tabular-nums text-amber-200">x{itemQty}</span>
                     </span>
@@ -360,7 +435,7 @@ const QuestDetailBubble: React.FC<{
     </div>
 );
 
-const QuestItem: React.FC<{ quest: Quest; onClaim: (id: string) => void; isMobile: boolean }> = ({ quest, onClaim, isMobile }) => {
+const QuestItem: React.FC<{ quest: Quest; onClaim: (id: string) => void; isMobile: boolean; isClaimPending?: boolean }> = ({ quest, onClaim, isMobile, isClaimPending = false }) => {
     const [bubbleOpen, setBubbleOpen] = useState(false);
     const titleWrapRef = useRef<HTMLDivElement>(null);
     const bubbleRef = useRef<HTMLDivElement>(null);
@@ -388,55 +463,111 @@ const QuestItem: React.FC<{ quest: Quest; onClaim: (id: string) => void; isMobil
         return () => document.removeEventListener('mousedown', onDocDown);
     }, [bubbleOpen]);
 
-    const claimBlock = (
-        <div className="flex w-full min-w-0 flex-col items-stretch gap-1" data-quest-claim onClick={(e) => e.stopPropagation()}>
-            <QuestRewardPill quest={quest} isMobile={isMobile} />
+    const questIcon = (
+        <div
+            className={`flex shrink-0 items-center justify-center rounded-xl border border-amber-500/30 bg-slate-950/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-400/10 ${
+                isMobile ? 'h-9 w-9' : 'h-11 w-11'
+            }`}
+            aria-hidden
+        >
+            <img
+                src="/images/quest.webp"
+                alt=""
+                className={`object-contain opacity-95 ${isMobile ? 'h-5 w-5' : 'h-6 w-6'}`}
+            />
+        </div>
+    );
+
+    const titleButton = (
+        <button
+            type="button"
+            className="group flex min-w-0 items-center rounded-lg py-0.5 text-left outline-none transition-colors hover:bg-white/[0.03] focus-visible:ring-2 focus-visible:ring-amber-400/35"
+            onClick={() => setBubbleOpen((o) => !o)}
+            aria-expanded={bubbleOpen}
+            aria-haspopup="dialog"
+        >
+            <span
+                className={`min-w-0 font-semibold leading-snug tracking-tight text-slate-100 ${isMobile ? 'text-sm' : 'text-base'}`}
+            >
+                <span className={bubbleOpen ? '' : 'line-clamp-2'}>{displayTitle}</span>
+            </span>
+        </button>
+    );
+
+    const progressBar = (
+        <div className={`flex min-w-0 items-center gap-2 ${isMobile ? 'flex-1' : 'flex-1'}`}>
+            <div
+                className={`relative min-w-0 flex-1 overflow-hidden rounded-full border border-slate-600/40 bg-slate-950/85 shadow-[inset_0_2px_6px_rgba(0,0,0,0.5)] ${isMobile ? `h-2.5 ${QUEST_ITEM_BAR_MAX_CLASS}` : 'h-3'}`}
+            >
+                <div
+                    className="absolute inset-y-0 left-0 overflow-hidden rounded-full shadow-[0_0_10px_rgba(251,191,36,0.28)]"
+                    style={{ width: `${percentage}%` }}
+                >
+                    <div className="h-full w-full rounded-full bg-gradient-to-r from-amber-600 via-amber-400 to-amber-300" />
+                    <div className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-b from-white/[0.22] to-transparent" />
+                </div>
+            </div>
+            <span
+                className={`shrink-0 tabular-nums font-medium text-amber-200/85 ${isMobile ? 'text-[11px]' : 'text-sm'}`}
+            >
+                {displayProgress}/{quest.target}
+            </span>
+        </div>
+    );
+
+    const claimButton = (
+        <div data-quest-claim onClick={(e) => e.stopPropagation()}>
             <QuestClaimStripButton
                 isClaimed={quest.isClaimed}
                 isComplete={isComplete}
                 onClaim={handleClaimClick}
                 isMobile={isMobile}
+                isPending={isClaimPending}
             />
         </div>
     );
 
-    const iconBox = (
-        <div
-            className="flex h-[4.25rem] w-[4.25rem] shrink-0 items-center justify-center rounded-xl border border-amber-900/35 bg-gradient-to-b from-slate-800/80 to-slate-950/90 text-2xl text-slate-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10"
-            aria-hidden
-        >
-            📜
-        </div>
-    );
+    const cardShell =
+        'rounded-2xl border border-slate-500/25 bg-gradient-to-br from-slate-900/95 via-[#0f1118]/98 to-[#080a0f] p-3 shadow-[0_12px_40px_-18px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-inset ring-amber-500/[0.07] sm:p-3.5';
 
-    const mainColumn = (
-        <div className="min-w-0 flex-1">
-            <div ref={titleWrapRef} className="relative">
-                <button
-                    type="button"
-                    className="group flex w-full min-w-0 items-center gap-1.5 rounded-lg py-0.5 text-left outline-none transition-colors hover:bg-white/[0.03] focus-visible:ring-2 focus-visible:ring-amber-400/35"
-                    onClick={() => setBubbleOpen((o) => !o)}
-                    aria-expanded={bubbleOpen}
-                    aria-haspopup="dialog"
-                >
-                    <span
-                        className={`flex shrink-0 items-center justify-center rounded-lg border border-amber-500/30 bg-slate-950/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-400/10 ${
-                            isMobile ? 'h-7 w-7' : 'h-9 w-9'
-                        }`}
-                        aria-hidden
-                    >
-                        <img
-                            src={QUEST_LIST_ICON_SRC}
-                            alt=""
-                            className={`object-contain opacity-95 transition-opacity group-hover:opacity-100 ${isMobile ? 'h-4 w-4' : 'h-[1.35rem] w-[1.35rem]'}`}
-                        />
-                    </span>
-                    <span
-                        className={`min-w-0 flex-1 font-semibold leading-snug tracking-tight text-slate-100 ${isMobile ? 'text-[13px]' : 'text-[15px]'} ${bubbleOpen ? '' : 'truncate'}`}
-                    >
-                        {displayTitle}
-                    </span>
-                </button>
+    if (isMobile) {
+        return (
+            <div className={cardShell}>
+                <div className="flex min-w-0 gap-2.5">
+                    {questIcon}
+                    <div className="flex min-w-0 flex-1 flex-col gap-2">
+                        <div ref={titleWrapRef} className="relative min-w-0">
+                            {titleButton}
+                            {bubbleOpen ? (
+                                <div ref={bubbleRef}>
+                                    <QuestDetailBubble
+                                        description={quest.description}
+                                        activityPoints={quest.activityPoints}
+                                        gold={quest.reward.gold}
+                                        isMobile={isMobile}
+                                        onClose={() => setBubbleOpen(false)}
+                                    />
+                                </div>
+                            ) : null}
+                        </div>
+                        <div className="flex min-w-0 items-stretch gap-2.5">
+                            {progressBar}
+                            <div className="flex w-[6.25rem] shrink-0 flex-col justify-center gap-1.5">
+                                <QuestRewardPill quest={quest} isMobile={isMobile} />
+                                {claimButton}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className={`flex items-center gap-3 ${cardShell}`}>
+            {questIcon}
+            <div ref={titleWrapRef} className="relative w-[min(30%,9.5rem)] shrink-0">
+                {titleButton}
                 {bubbleOpen ? (
                     <div ref={bubbleRef}>
                         <QuestDetailBubble
@@ -449,45 +580,9 @@ const QuestItem: React.FC<{ quest: Quest; onClaim: (id: string) => void; isMobil
                     </div>
                 ) : null}
             </div>
-            <div className="mt-2 flex min-w-0 items-center gap-2.5">
-                <div
-                    className={`relative h-2.5 min-w-0 flex-1 overflow-hidden rounded-full border border-slate-600/40 bg-slate-950/85 shadow-[inset_0_2px_6px_rgba(0,0,0,0.5)] ${QUEST_ITEM_BAR_MAX_CLASS}`}
-                >
-                    <div
-                        className="absolute inset-y-0 left-0 overflow-hidden rounded-full shadow-[0_0_10px_rgba(251,191,36,0.28)]"
-                        style={{ width: `${percentage}%` }}
-                    >
-                        <div className="h-full w-full rounded-full bg-gradient-to-r from-amber-600 via-amber-400 to-amber-300" />
-                        <div className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-b from-white/[0.22] to-transparent" />
-                    </div>
-                </div>
-                <span
-                    className={`shrink-0 tabular-nums font-medium text-amber-200/85 ${isMobile ? 'text-[10px]' : 'text-xs'}`}
-                >
-                    {displayProgress}/{quest.target}
-                </span>
-            </div>
-        </div>
-    );
-
-    const cardShell = 'rounded-2xl border border-slate-500/25 bg-gradient-to-br from-slate-900/95 via-[#0f1118]/98 to-[#080a0f] p-2.5 shadow-[0_12px_40px_-18px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-inset ring-amber-500/[0.07] sm:p-3';
-
-    if (isMobile) {
-        return (
-            <div className={cardShell}>
-                <div className="flex min-w-0 items-stretch gap-2.5">
-                    {mainColumn}
-                    <div className="flex w-[5.75rem] shrink-0 flex-col justify-center">{claimBlock}</div>
-                </div>
-            </div>
-        );
-    }
-
-    return (
-        <div className={`flex items-stretch gap-3 ${cardShell}`}>
-            {iconBox}
-            {mainColumn}
-            <div className="flex w-[6.5rem] shrink-0 flex-col justify-center">{claimBlock}</div>
+            {progressBar}
+            <QuestRewardPill quest={quest} isMobile={isMobile} inline />
+            <div className="w-[6.75rem] shrink-0">{claimButton}</div>
         </div>
     );
 };
@@ -500,20 +595,17 @@ const ActivityPanel: React.FC<{
     questType: 'daily' | 'weekly' | 'monthly';
     onClaim: (index: number, type: 'daily' | 'weekly' | 'monthly') => void;
     isMobile: boolean;
-}> = ({ title, questData, thresholds, rewards, questType, onClaim, isMobile }) => {
+    claimPendingKey?: string | null;
+}> = ({ title, questData, thresholds, rewards, questType, onClaim, isMobile, claimPendingKey = null }) => {
     if (!questData) return null;
 
     const { activityProgress, claimedMilestones } = questData;
     const maxProgress = thresholds[thresholds.length - 1];
     const displayActivity = clampQuestProgressToTarget(activityProgress, maxProgress);
 
-    /** 마일스톤 N 보상은 구간 (이전~N]의 중앙에 둠 — 예: 20보상 → 0~20의 중앙(10/최대) */
-    const rewardCenterLeftPct = (index: number, milestone: number): number => {
-        if (maxProgress <= 0) return 0;
-        const prev = index === 0 ? 0 : thresholds[index - 1]!;
-        const segmentMid = (prev + milestone) / 2;
-        return (segmentMid / maxProgress) * 100;
-    };
+    /** 구분선·진행 막대 — 20/40/60/80/100% 정확히 5등분 */
+    const milestoneMarkerPct = (milestone: number): number =>
+        maxProgress > 0 ? (milestone / maxProgress) * 100 : 0;
 
     const getItemImage = (reward: QuestReward): string => {
         if (!reward.items || reward.items.length === 0) return '/images/Box/box.webp';
@@ -532,153 +624,139 @@ const ActivityPanel: React.FC<{
     };
 
     const trackWrap = 'mb-2 w-full';
-    const barHeight = 'h-3.5';
-    const milestoneIcon = 'h-8 w-8';
-    const milestoneMinH = isMobile ? '4rem' : '4.25rem';
+    const barHeight = 'h-3';
+    const milestoneIcon = isMobile ? 'h-7 w-7' : 'h-8 w-8';
+    const rewardRowMinH = isMobile ? '2.35rem' : '2.5rem';
     const fillPct = maxProgress > 0 ? (displayActivity / maxProgress) * 100 : 0;
 
     return (
         <div
-            className={`relative mb-4 flex-shrink-0 overflow-hidden rounded-2xl border border-slate-400/15 bg-slate-950/75 p-3 shadow-[0_20px_56px_-24px_rgba(0,0,0,0.88),inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-400/[0.07] backdrop-blur-md sm:p-4`}
+            className={`relative mb-3 flex-shrink-0 overflow-visible rounded-2xl border border-slate-400/15 bg-slate-950/75 p-2.5 shadow-[0_20px_56px_-24px_rgba(0,0,0,0.88),inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-400/[0.07] backdrop-blur-md sm:mb-4 sm:p-3`}
         >
             <div className="pointer-events-none absolute -right-6 -top-16 h-36 w-36 rounded-full bg-emerald-400/[0.09] blur-3xl" />
             <div className="pointer-events-none absolute -bottom-10 -left-8 h-28 w-28 rounded-full bg-amber-400/[0.08] blur-3xl" />
-            <div className="relative mb-3 flex min-w-0 items-end justify-between gap-3">
-                <div className="min-w-0">
-                    <p
-                        className={`mb-0.5 flex items-center gap-1 font-semibold uppercase tracking-[0.18em] text-amber-200/40 ${isMobile ? 'text-[9px]' : 'text-[10px]'}`}
-                    >
-                        <span className="text-sm leading-none text-amber-300 sm:text-base" aria-hidden>
-                            ⭐
-                        </span>
-                        활약도
-                    </p>
-                    <div className={questTextScrollRowClass}>
-                        <h3 className={`shrink-0 font-bold tracking-tight text-white ${isMobile ? 'text-sm' : 'text-lg'}`}>{title}</h3>
-                    </div>
-                </div>
-                <div className="flex shrink-0 flex-col items-end gap-0.5 text-right">
-                    <span
-                        className={`inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-gradient-to-b from-amber-950/90 via-slate-950/95 to-slate-950 px-2.5 py-1 font-bold tabular-nums text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:px-3 sm:py-1.5 ${isMobile ? 'text-xs' : 'text-sm'}`}
-                    >
-                        <span className={`leading-none text-amber-300 ${isMobile ? 'text-sm' : 'text-base'}`} aria-hidden>
-                            ⭐
-                        </span>
-                        {displayActivity}
-                        <span className="mx-0.5 font-normal text-amber-200/45">/</span>
-                        {maxProgress}
+            <div className={`relative mb-2 flex min-w-0 items-center gap-2 ${questTextScrollRowClass}`}>
+                <h3 className={`shrink-0 font-bold tracking-tight text-white ${isMobile ? 'text-sm' : 'text-base'}`}>
+                    {title}
+                </h3>
+                <span
+                    className={`inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-400/30 bg-gradient-to-b from-amber-950/90 via-slate-950/95 to-slate-950 px-2 py-0.5 font-bold tabular-nums text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:px-2.5 sm:py-1 ${isMobile ? 'text-xs' : 'text-sm'}`}
+                >
+                    <span className={`leading-none text-amber-300 ${isMobile ? 'text-sm' : 'text-base'}`} aria-hidden>
+                        ⭐
                     </span>
-                    <span className={`font-medium tabular-nums text-slate-500 ${isMobile ? 'text-[9px]' : 'text-[10px]'}`}>
-                        {Math.min(100, fillPct).toFixed(0)}% 달성
-                    </span>
-                </div>
+                    {displayActivity}
+                    <span className="mx-0.5 font-normal text-amber-200/45">/</span>
+                    {maxProgress}
+                </span>
             </div>
-            <div className={trackWrap}>
+            <div className={`${trackWrap} overflow-visible`}>
+                <div className="relative w-full overflow-visible" style={{ minHeight: rewardRowMinH }}>
+                    {thresholds.map((milestone, index) => {
+                        if (!rewards[index]) return null;
+                        const progressMet = activityProgress >= milestone;
+                        const isClaimed = claimedMilestones[index];
+                        const canClaim = progressMet && !isClaimed;
+                        const reward = rewards[index];
+                        const apBadge = getShopActionPointBadgeFromReward(reward);
+                        const itemImage = apBadge ? null : getItemImage(reward);
+                        const markerPct = milestoneMarkerPct(milestone);
+                        const isLastMilestone = milestone >= maxProgress;
+
+                        return (
+                            <div
+                                key={milestone}
+                                className="absolute top-0 flex flex-col items-center"
+                                style={
+                                    isLastMilestone
+                                        ? { right: 0, transform: 'none' }
+                                        : {
+                                              left: `${markerPct}%`,
+                                              transform: `translateX(calc(-50% - ${ACTIVITY_REWARD_ICON_LEFT_NUDGE_PX}px))`,
+                                          }
+                                }
+                            >
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (canClaim) {
+                                            onClaim(index, questType);
+                                        }
+                                    }}
+                                    disabled={!canClaim || claimPendingKey === `milestone-${questType}-${index}`}
+                                    className={`relative ${milestoneIcon} rounded-lg border border-slate-500/35 bg-gradient-to-b from-slate-800/90 to-slate-950/90 p-0.5 shadow-md transition-transform hover:scale-105 disabled:cursor-not-allowed ${canClaim ? 'ring-1 ring-amber-400/40 shadow-[0_0_16px_-6px_rgba(251,191,36,0.55)]' : ''}`}
+                                    title={isClaimed ? '수령 완료' : progressMet ? '보상 수령' : `${milestone} 활약도 필요`}
+                                >
+                                    <div
+                                        className={`relative h-full w-full rounded-md ${!progressMet && !isClaimed ? 'opacity-45 grayscale' : ''}`}
+                                        aria-label={
+                                            apBadge ? `${milestone} 활약도 보상 행동력 회복제` : `${milestone} 활약도 보상`
+                                        }
+                                    >
+                                        {apBadge ? (
+                                            <span
+                                                className="flex h-full w-full items-center justify-center text-[1.35rem] leading-none drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)] sm:text-[1.5rem]"
+                                                aria-hidden
+                                            >
+                                                ⚡
+                                            </span>
+                                        ) : (
+                                            <img
+                                                src={itemImage ?? '/images/Box/box.webp'}
+                                                alt=""
+                                                className="h-full w-full object-contain p-0.5"
+                                            />
+                                        )}
+                                        {apBadge ? (
+                                            <span className="absolute right-0 top-0 rounded-bl bg-gray-900/90 px-0.5 text-[9px] font-bold leading-tight text-cyan-300 shadow-md sm:px-1 sm:text-[10px]">
+                                                {apBadge}
+                                            </span>
+                                        ) : null}
+                                    </div>
+                                    {isClaimed && (
+                                        <div className="absolute inset-0 flex items-center justify-center rounded-md bg-black/65 text-sm text-emerald-400">
+                                            ✓
+                                        </div>
+                                    )}
+                                </button>
+                            </div>
+                        );
+                    })}
+                </div>
                 <div
-                    className="relative w-full rounded-full bg-gradient-to-r from-emerald-500/25 via-amber-500/20 to-teal-500/25 p-[2.5px] shadow-[0_0_20px_-8px_rgba(52,211,153,0.35)] sm:p-[3px]"
+                    className="relative w-full rounded-full bg-gradient-to-r from-emerald-500/25 via-amber-500/20 to-teal-500/25 p-[2px] shadow-[0_0_20px_-8px_rgba(52,211,153,0.35)] sm:p-[2.5px]"
                 >
                     <div
                         className={`relative w-full overflow-hidden rounded-full border border-slate-700/50 bg-slate-950/95 shadow-[inset_0_2px_10px_rgba(0,0,0,0.55)] ${barHeight}`}
                     >
-                    <div
-                        className="relative h-full overflow-hidden rounded-full shadow-[0_0_14px_rgba(52,211,153,0.22)]"
-                        style={{ width: `${Math.min(100, fillPct)}%` }}
-                    >
-                        <div className="h-full w-full rounded-full bg-gradient-to-r from-emerald-500 via-teal-400 to-lime-400" />
-                        <div className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-b from-white/[0.18] to-transparent" />
-                    </div>
-                    {thresholds.map((milestone, index) => {
-                        if (!rewards[index]) return null;
-                        if (milestone === maxProgress) return null;
-                        const milestonePosition = (milestone / maxProgress) * 100;
-                        const progressMet = activityProgress >= milestone;
-                        const isClaimed = claimedMilestones[index];
-
-                        return (
-                            <div
-                                key={`marker-${milestone}`}
-                                className="absolute bottom-0 top-0 -translate-x-1/2"
-                                style={{ left: `${milestonePosition}%` }}
-                            >
-                                <div
-                                    className={`h-full w-px ${
-                                        isClaimed ? 'bg-emerald-300/90' : progressMet ? 'bg-amber-300/85' : 'bg-slate-500/70'
-                                    }`}
-                                />
-                            </div>
-                        );
-                    })}
-                    </div>
-                </div>
-                <div className="relative w-full pb-0.5" style={{ minHeight: milestoneMinH }}>
-                {thresholds.map((milestone, index) => {
-                    if (!rewards[index]) return null;
-                    const progressMet = activityProgress >= milestone;
-                    const isClaimed = claimedMilestones[index];
-                    const canClaim = progressMet && !isClaimed;
-                    const reward = rewards[index];
-                    const apBadge = getShopActionPointBadgeFromReward(reward);
-                    const itemImage = apBadge ? null : getItemImage(reward);
-                    const leftPct = rewardCenterLeftPct(index, milestone);
-                    const iconClass = milestoneIcon;
-
-                    return (
                         <div
-                            key={milestone}
-                            className="absolute bottom-0 flex -translate-x-1/2 flex-col items-center"
-                            style={{ left: `${leftPct}%` }}
+                            className="relative h-full overflow-hidden rounded-full shadow-[0_0_14px_rgba(52,211,153,0.22)]"
+                            style={{ width: `${Math.min(100, fillPct)}%` }}
                         >
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    if (canClaim) {
-                                        onClaim(index, questType);
-                                    }
-                                }}
-                                disabled={!canClaim}
-                                className={`relative ${iconClass} rounded-lg border border-slate-500/35 bg-gradient-to-b from-slate-800/90 to-slate-950/90 p-0.5 shadow-md transition-transform hover:scale-105 disabled:cursor-not-allowed ${canClaim ? 'ring-1 ring-amber-400/40 shadow-[0_0_16px_-6px_rgba(251,191,36,0.55)]' : ''}`}
-                                title={isClaimed ? '수령 완료' : progressMet ? '보상 수령' : `${milestone} 활약도 필요`}
-                            >
-                                <div
-                                    className={`relative h-full w-full rounded-md ${!progressMet && !isClaimed ? 'opacity-45 grayscale' : ''}`}
-                                    aria-label={
-                                        apBadge ? `${milestone} 활약도 보상 행동력 회복제` : `${milestone} 활약도 보상`
-                                    }
-                                >
-                                    {apBadge ? (
-                                        <span
-                                            className="flex h-full w-full items-center justify-center text-[1.65rem] leading-none drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)]"
-                                            aria-hidden
-                                        >
-                                            ⚡
-                                        </span>
-                                    ) : (
-                                        <img
-                                            src={itemImage ?? '/images/Box/box.webp'}
-                                            alt=""
-                                            className="h-full w-full object-contain p-0.5"
-                                        />
-                                    )}
-                                    {apBadge ? (
-                                        <span className="absolute right-0 top-0 rounded-bl bg-gray-900/90 px-1 text-[10px] font-bold leading-tight text-cyan-300 shadow-md">
-                                            {apBadge}
-                                        </span>
-                                    ) : null}
-                                </div>
-                                {isClaimed && (
-                                    <div className="absolute inset-0 flex items-center justify-center rounded-md bg-black/65 text-sm text-emerald-400">
-                                        ✓
-                                    </div>
-                                )}
-                            </button>
-                            <span
-                                className={`mt-0.5 font-bold tabular-nums leading-none ${progressMet ? 'text-amber-200' : 'text-slate-500'} ${isMobile ? 'text-[10px]' : 'text-xs'}`}
-                            >
-                                {milestone}
-                            </span>
+                            <div className="h-full w-full rounded-full bg-gradient-to-r from-emerald-500 via-teal-400 to-lime-400" />
+                            <div className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-b from-white/[0.18] to-transparent" />
                         </div>
-                    );
-                })}
+                        {thresholds.map((milestone, index) => {
+                            if (!rewards[index]) return null;
+                            const milestonePosition = milestoneMarkerPct(milestone);
+                            const progressMet = activityProgress >= milestone;
+                            const isClaimed = claimedMilestones[index];
+
+                            return (
+                                <div
+                                    key={`marker-${milestone}`}
+                                    className="absolute bottom-0 top-0 -translate-x-1/2"
+                                    style={{ left: `${milestonePosition}%` }}
+                                >
+                                    <div
+                                        className={`h-full w-px ${
+                                            isClaimed ? 'bg-emerald-300/90' : progressMet ? 'bg-amber-300/85' : 'bg-slate-500/70'
+                                        }`}
+                                    />
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
         </div>
@@ -686,7 +764,13 @@ const ActivityPanel: React.FC<{
 };
 
 
-const QuestsModal: React.FC<QuestsModalProps> = ({ currentUser: propCurrentUser, onClose, onAction, isTopmost }) => {
+const QuestsModal: React.FC<QuestsModalProps> = ({
+    currentUser: propCurrentUser,
+    onClose,
+    onAction,
+    isTopmost,
+    embedded = false,
+}) => {
     const isCompactViewport = useIsHandheldDevice(1024);
     const { isNativeMobile } = useNativeMobileShell();
     const isMobile = isCompactViewport || isNativeMobile;
@@ -695,6 +779,34 @@ const QuestsModal: React.FC<QuestsModalProps> = ({ currentUser: propCurrentUser,
 
     const [activeTab, setActiveTab] = useState<QuestTab>('daily');
     const { quests } = currentUser;
+    const claimAction = useKeyedAsyncAction();
+
+    const handleClaim = (questId: string) => {
+        void claimAction.run(`quest-${questId}`, async () => {
+            await onAction({ type: 'CLAIM_QUEST_REWARD', payload: { questId } });
+        });
+    };
+
+    const handleClaimAchievement = (trackId: string, stageIndex: number) => {
+        void claimAction.run(`achievement-${trackId}-${stageIndex}`, async () => {
+            await onAction({
+                type: 'CLAIM_ACHIEVEMENT_REWARD',
+                payload: { trackId, stageIndex },
+            });
+        });
+    };
+
+    const handleClaimMilestone = (index: number, questType: 'daily' | 'weekly' | 'monthly') => {
+        void claimAction.run(`milestone-${questType}-${index}`, async () => {
+            await onAction({ type: 'CLAIM_ACTIVITY_MILESTONE', payload: { milestoneIndex: index, questType } });
+        });
+    };
+
+    useEffect(() => {
+        if (!isMobile && activeTab === 'achievements') {
+            setActiveTab('daily');
+        }
+    }, [isMobile, activeTab]);
 
     const modalInitialWidth = useMemo(() => {
         if (typeof window === 'undefined') return 800;
@@ -707,10 +819,6 @@ const QuestsModal: React.FC<QuestsModalProps> = ({ currentUser: propCurrentUser,
         if (!isMobile) return 900;
         return Math.min(920, Math.max(420, Math.round(window.innerHeight * 0.88)));
     }, [isMobile]);
-
-    const handleClaim = (questId: string) => {
-        onAction({ type: 'CLAIM_QUEST_REWARD', payload: { questId } });
-    };
 
     const questList =
         activeTab === 'daily'
@@ -765,7 +873,8 @@ const QuestsModal: React.FC<QuestsModalProps> = ({ currentUser: propCurrentUser,
                     rewards={DAILY_MILESTONE_REWARDS}
                     questType="daily"
                     isMobile={isMobile}
-                    onClaim={(index, type) => onAction({ type: 'CLAIM_ACTIVITY_MILESTONE', payload: { milestoneIndex: index, questType: type } })}
+                    onClaim={handleClaimMilestone}
+                    claimPendingKey={claimAction.pendingKey}
                 />
             );
         }
@@ -778,7 +887,8 @@ const QuestsModal: React.FC<QuestsModalProps> = ({ currentUser: propCurrentUser,
                     rewards={WEEKLY_MILESTONE_REWARDS}
                     questType="weekly"
                     isMobile={isMobile}
-                    onClaim={(index, type) => onAction({ type: 'CLAIM_ACTIVITY_MILESTONE', payload: { milestoneIndex: index, questType: type } })}
+                    onClaim={handleClaimMilestone}
+                    claimPendingKey={claimAction.pendingKey}
                 />
             );
         }
@@ -791,12 +901,143 @@ const QuestsModal: React.FC<QuestsModalProps> = ({ currentUser: propCurrentUser,
                     rewards={MONTHLY_MILESTONE_REWARDS}
                     questType="monthly"
                     isMobile={isMobile}
-                    onClaim={(index, type) => onAction({ type: 'CLAIM_ACTIVITY_MILESTONE', payload: { milestoneIndex: index, questType: type } })}
+                    onClaim={handleClaimMilestone}
+                    claimPendingKey={claimAction.pendingKey}
                 />
             );
         }
         return null;
     };
+
+    const questListScrollClass =
+        'min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.4)_transparent]';
+
+    const questTabs = (
+        <div
+            className={`mb-3 grid shrink-0 gap-0.5 rounded-xl border border-slate-600/35 bg-slate-950/70 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ring-1 ring-inset ring-amber-500/[0.08] sm:gap-1 ${
+                isMobile ? 'sticky top-0 z-20 mb-2 grid-cols-4 backdrop-blur-sm' : 'mb-3 grid-cols-3'
+            }`}
+        >
+            <button
+                type="button"
+                onClick={() => setActiveTab('daily')}
+                className={`relative rounded-lg py-1.5 text-[11px] font-semibold transition-all sm:py-2 sm:text-sm ${
+                    activeTab === 'daily'
+                        ? 'bg-gradient-to-b from-amber-500/90 to-amber-700/95 text-amber-950 shadow-md ring-1 ring-amber-300/40'
+                        : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
+                }`}
+            >
+                일일
+            </button>
+            <button
+                type="button"
+                onClick={() => setActiveTab('weekly')}
+                className={`relative rounded-lg py-1.5 text-[11px] font-semibold transition-all sm:py-2 sm:text-sm ${
+                    activeTab === 'weekly'
+                        ? 'bg-gradient-to-b from-amber-500/90 to-amber-700/95 text-amber-950 shadow-md ring-1 ring-amber-300/40'
+                        : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
+                }`}
+            >
+                주간
+                {hasClaimableWeekly && (
+                    <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-red-500 sm:right-1.5 sm:top-1.5 sm:h-2 sm:w-2" aria-hidden />
+                )}
+            </button>
+            <button
+                type="button"
+                onClick={() => setActiveTab('monthly')}
+                className={`relative rounded-lg py-1.5 text-[11px] font-semibold transition-all sm:py-2 sm:text-sm ${
+                    activeTab === 'monthly'
+                        ? 'bg-gradient-to-b from-amber-500/90 to-amber-700/95 text-amber-950 shadow-md ring-1 ring-amber-300/40'
+                        : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
+                }`}
+            >
+                월간
+                {hasClaimableMonthly && (
+                    <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-red-500 sm:right-1.5 sm:top-1.5 sm:h-2 sm:w-2" aria-hidden />
+                )}
+            </button>
+            {isMobile ? (
+                <button
+                    type="button"
+                    onClick={() => setActiveTab('achievements')}
+                    className={`relative rounded-lg py-1.5 text-[11px] font-semibold transition-all sm:py-2 sm:text-sm ${
+                        activeTab === 'achievements'
+                            ? 'bg-gradient-to-b from-violet-500/90 to-indigo-800/95 text-violet-50 shadow-md ring-1 ring-violet-300/35'
+                            : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
+                    }`}
+                >
+                    업적
+                    {hasClaimableAchievements && (
+                        <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-red-500 sm:right-1.5 sm:top-1.5 sm:h-2 sm:w-2" aria-hidden />
+                    )}
+                </button>
+            ) : null}
+        </div>
+    );
+
+    const questMainContent = (
+        <div className="flex min-h-0 flex-1 flex-col">
+            <div className="shrink-0">{renderActivityPanel()}</div>
+            <div className={`${questListScrollClass} ${isMobile ? 'w-full min-w-0 pb-1 pr-1' : 'pr-1'}`}>
+                {questList.length > 0 ? (
+                    <ul className={`${isMobile ? 'space-y-2' : 'space-y-2.5'}`}>
+                        {questList.map((quest) => (
+                            <li key={quest.id}>
+                                <QuestItem quest={quest} onClaim={handleClaim} isMobile={isMobile} isClaimPending={claimAction.isPending(`quest-${quest.id}`)} />
+                            </li>
+                        ))}
+                    </ul>
+                ) : (
+                    <div className="flex h-full min-h-[8rem] items-center justify-center text-slate-500">
+                        <p className="text-sm">진행 가능한 퀘스트가 없습니다.</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+
+    const questBody = (
+        <div className={`flex min-h-0 ${embedded || !isMobile ? 'h-full' : 'w-full'} ${isMobile ? 'flex-col' : 'flex-row gap-3'}`}>
+            {isMobile && activeTab === 'achievements' ? (
+                <>
+                    {questTabs}
+                    <div className="w-full min-w-0 overflow-x-hidden pb-1 pr-1">
+                        <AchievementTrackPanel currentUser={currentUser} onAction={onAction} isMobile={isMobile} claimPendingKey={claimAction.pendingKey} onClaimAchievement={handleClaimAchievement} />
+                    </div>
+                </>
+            ) : (
+                <>
+                    <div className={`flex min-h-0 min-w-0 flex-col ${isMobile ? 'flex-1' : 'flex-[2]'}`}>
+                        {questTabs}
+                        {questMainContent}
+                    </div>
+                    {!isMobile ? (
+                        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col border-l border-slate-600/35 pl-3">
+                            {hasClaimableAchievements ? (
+                                <span
+                                    className="absolute right-0 top-0 z-[1] h-2 w-2 rounded-full bg-red-500 ring-2 ring-red-500/30"
+                                    aria-label="수령 가능한 업적 있음"
+                                />
+                            ) : null}
+                            <AchievementTrackPanel
+                                compact
+                                currentUser={currentUser}
+                                onAction={onAction}
+                                isMobile={false}
+                                claimPendingKey={claimAction.pendingKey}
+                                onClaimAchievement={handleClaimAchievement}
+                            />
+                        </div>
+                    ) : null}
+                </>
+            )}
+        </div>
+    );
+
+    if (embedded) {
+        return <div className={PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS}>{questBody}</div>;
+    }
 
     return (
         <DraggableWindow
@@ -815,96 +1056,7 @@ const QuestsModal: React.FC<QuestsModalProps> = ({ currentUser: propCurrentUser,
             bodyNoScroll={false}
             bodyScrollable
         >
-            <div className={`flex min-h-0 flex-col ${isMobile ? 'w-full' : 'h-full'}`}>
-                <div
-                    className={`mb-3 grid shrink-0 grid-cols-4 gap-0.5 rounded-xl border border-slate-600/35 bg-slate-950/70 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ring-1 ring-inset ring-amber-500/[0.08] sm:gap-1 ${isMobile ? 'sticky top-0 z-20 mb-2 backdrop-blur-sm' : 'mb-4'}`}
-                >
-                    <button
-                        type="button"
-                        onClick={() => setActiveTab('daily')}
-                        className={`relative rounded-lg py-1.5 text-[11px] font-semibold transition-all sm:py-2 sm:text-sm ${
-                            activeTab === 'daily'
-                                ? 'bg-gradient-to-b from-amber-500/90 to-amber-700/95 text-amber-950 shadow-md ring-1 ring-amber-300/40'
-                                : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
-                        }`}
-                    >
-                        일일
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setActiveTab('weekly')}
-                        className={`relative rounded-lg py-1.5 text-[11px] font-semibold transition-all sm:py-2 sm:text-sm ${
-                            activeTab === 'weekly'
-                                ? 'bg-gradient-to-b from-amber-500/90 to-amber-700/95 text-amber-950 shadow-md ring-1 ring-amber-300/40'
-                                : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
-                        }`}
-                    >
-                        주간
-                        {hasClaimableWeekly && <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-red-500 sm:right-1.5 sm:top-1.5 sm:h-2 sm:w-2" aria-hidden />}
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setActiveTab('monthly')}
-                        className={`relative rounded-lg py-1.5 text-[11px] font-semibold transition-all sm:py-2 sm:text-sm ${
-                            activeTab === 'monthly'
-                                ? 'bg-gradient-to-b from-amber-500/90 to-amber-700/95 text-amber-950 shadow-md ring-1 ring-amber-300/40'
-                                : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
-                        }`}
-                    >
-                        월간
-                        {hasClaimableMonthly && <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-red-500 sm:right-1.5 sm:top-1.5 sm:h-2 sm:w-2" aria-hidden />}
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setActiveTab('achievements')}
-                        className={`relative rounded-lg py-1.5 text-[11px] font-semibold transition-all sm:py-2 sm:text-sm ${
-                            activeTab === 'achievements'
-                                ? 'bg-gradient-to-b from-violet-500/90 to-indigo-800/95 text-violet-50 shadow-md ring-1 ring-violet-300/35'
-                                : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
-                        }`}
-                    >
-                        업적
-                        {hasClaimableAchievements && <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-red-500 sm:right-1.5 sm:top-1.5 sm:h-2 sm:w-2" aria-hidden />}
-                    </button>
-                </div>
-
-                {activeTab === 'achievements' ? (
-                    <div
-                        className={
-                            isMobile
-                                ? 'w-full min-w-0 overflow-x-hidden pb-1 pr-1'
-                                : 'min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pr-2 [scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.4)_transparent]'
-                        }
-                    >
-                        <AchievementTrackPanel currentUser={currentUser} onAction={onAction} isMobile={isMobile} />
-                    </div>
-                ) : (
-                    <div className="flex min-h-0 flex-1 flex-col">
-                        <div className="shrink-0">{renderActivityPanel()}</div>
-                        <div
-                            className={
-                                isMobile
-                                    ? 'min-h-0 flex-1 w-full min-w-0 overflow-y-auto overflow-x-hidden overscroll-contain pb-1 pr-1 [scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.4)_transparent]'
-                                    : 'min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pr-2 [scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.4)_transparent]'
-                            }
-                        >
-                            {questList.length > 0 ? (
-                                <ul className={`${isMobile ? 'space-y-2' : 'space-y-3'}`}>
-                                    {questList.map((quest) => (
-                                        <li key={quest.id}>
-                                            <QuestItem quest={quest} onClaim={handleClaim} isMobile={isMobile} />
-                                        </li>
-                                    ))}
-                                </ul>
-                            ) : (
-                                <div className="flex h-full min-h-[8rem] items-center justify-center text-slate-500">
-                                    <p className="text-sm">진행 가능한 퀘스트가 없습니다.</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
-            </div>
+            {questBody}
         </DraggableWindow>
     );
 };

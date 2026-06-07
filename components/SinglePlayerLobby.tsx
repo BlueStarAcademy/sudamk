@@ -1,9 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAppContext } from '../hooks/useAppContext.js';
-import ClassNavigationPanel from './singleplayer/ClassNavigationPanel.js';
+import ClassNavigationPanel, { AcademyLobbyHeaderPanel } from './singleplayer/ClassNavigationPanel.js';
 import StageGrid from './singleplayer/StageGrid.js';
 import TrainingQuestPanel from './singleplayer/TrainingQuestPanel.js';
-import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from './QuickAccessSidebar.js';
+import QuickAccessSidebar from './QuickAccessSidebar.js';
+import PcLobbyCenterColumn from './shell/PcLobbyCenterColumn.js';
+import {
+    PC_HOME_LEFT_COLUMN_CLASS,
+    PC_LOBBY_THREE_COLUMN_ROW_GAP_CLASS,
+    PC_QUICK_RAIL_COLUMN_CLASS,
+    PC_QUICK_RAIL_WRAPPER_CLASS,
+} from '../shared/constants/pcShellLayout.js';
 import { SinglePlayerLevel, UserWithStatus } from '../types.js';
 import { getSinglePlayerStages } from '../constants/singlePlayerConstants.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
@@ -29,25 +36,23 @@ const DesktopSinglePlayerLobbyLayout: React.FC<{
     onBackToProfile: () => void;
     currentUserWithStatus: UserWithStatus;
 }> = ({ selectedClass, onClassSelect, onBackToProfile, currentUserWithStatus }) => (
-        <div className="grid min-h-0 flex-1 grid-cols-12 gap-2 sm:gap-3 xl:gap-4">
-            <div className="col-span-4 flex min-h-0 flex-col">
-                <ClassNavigationPanel
-                    selectedClass={selectedClass}
-                    onClassSelect={onClassSelect}
-                    currentUser={currentUserWithStatus}
-                    lobbyChrome={{
-                        onBack: onBackToProfile,
-                        screenTitle: SINGLE_PLAYER_LOBBY_TITLE,
-                        compactTitleBar: false,
-                    }}
-                />
+        <div className={`flex min-h-0 flex-1 flex-row overflow-hidden ${PC_LOBBY_THREE_COLUMN_ROW_GAP_CLASS}`}>
+            <div className={`flex h-full min-h-0 ${PC_HOME_LEFT_COLUMN_CLASS} flex-col gap-2 overflow-hidden`}>
+                <AcademyLobbyHeaderPanel onBack={onBackToProfile} title={SINGLE_PLAYER_LOBBY_TITLE} />
+                <div className="min-h-0 flex-1 overflow-hidden">
+                    <ClassNavigationPanel
+                        selectedClass={selectedClass}
+                        onClassSelect={onClassSelect}
+                        currentUser={currentUserWithStatus}
+                    />
+                </div>
             </div>
 
-            <div className="col-span-7 flex min-h-0 flex-col">
+            <PcLobbyCenterColumn transparentShell fullWidth>
                 <StageGrid selectedClass={selectedClass} currentUser={currentUserWithStatus} />
-            </div>
+            </PcLobbyCenterColumn>
             <div className={`flex min-h-0 ${PC_QUICK_RAIL_COLUMN_CLASS} flex-col overflow-hidden self-stretch`}>
-                <div className="flex h-full min-h-0 flex-col rounded-xl border-2 border-amber-600/55 bg-gradient-to-br from-zinc-900 via-amber-950 to-zinc-950 p-1 shadow-xl shadow-black/40">
+                <div className={PC_QUICK_RAIL_WRAPPER_CLASS}>
                     <QuickAccessSidebar fillHeight />
                 </div>
             </div>
@@ -106,7 +111,8 @@ const SinglePlayerLobby: React.FC = () => {
                 />
             )}
             {compactSpLobby ? (
-                <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-hidden px-0.5 pb-0.5">
+                <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden px-0.5 pb-0.5">
+                    <AcademyLobbyHeaderPanel onBack={onBackToProfile} title={SINGLE_PLAYER_LOBBY_TITLE} compact />
                     <div className="min-h-0 max-h-[min(30dvh,280px)] shrink-0 overflow-hidden rounded-xl sm:max-h-[min(32dvh,300px)]">
                         <ClassNavigationPanel
                             selectedClass={selectedClass}
@@ -114,11 +120,6 @@ const SinglePlayerLobby: React.FC = () => {
                             currentUser={currentUserWithStatus}
                             compact
                             lobbyMobileTop
-                            lobbyChrome={{
-                                onBack: onBackToProfile,
-                                screenTitle: SINGLE_PLAYER_LOBBY_TITLE,
-                                compactTitleBar: true,
-                            }}
                         />
                     </div>
                     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-emerald-500/20 bg-black/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:rounded-xl">

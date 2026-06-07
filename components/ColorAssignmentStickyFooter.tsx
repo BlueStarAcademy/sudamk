@@ -30,6 +30,11 @@ export const ColorAssignmentStickyFooter: React.FC<Props> = ({
     showCountdown = false,
 }) => {
     const autoConfirmSentRef = useRef(false);
+    const onConfirmRef = useRef(onConfirm);
+
+    useEffect(() => {
+        onConfirmRef.current = onConfirm;
+    }, [onConfirm]);
 
     const effectiveDeadline = useMemo(() => {
         if (!showCountdown) return undefined;
@@ -48,13 +53,13 @@ export const ColorAssignmentStickyFooter: React.FC<Props> = ({
             if (Date.now() < effectiveDeadline) return;
             if (autoConfirmSentRef.current) return;
             autoConfirmSentRef.current = true;
-            onConfirm();
+            onConfirmRef.current();
         };
 
         tryAutoConfirm();
         const timerId = window.setInterval(tryAutoConfirm, 250);
         return () => window.clearInterval(timerId);
-    }, [showCountdown, effectiveDeadline, hasConfirmed, rouletteBlockingStart, onConfirm]);
+    }, [showCountdown, effectiveDeadline, hasConfirmed, rouletteBlockingStart]);
 
     const label = hasConfirmed ? '상대방 확인 대기 중…' : '시작하기';
 

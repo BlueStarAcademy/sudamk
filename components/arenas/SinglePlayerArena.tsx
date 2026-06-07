@@ -531,6 +531,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                     myRevealedMoveIndices={myRevealedMoveIndices}
                     justCaptured={justCaptured}
                     captures={session.captures}
+                    speedTimePressureGranted={(session.settings as any)?.__speedTimePressureGranted}
                     baseStones={baseStones}
                     baseStones_p1={showPlacedBaseStoneArrays ? baseStones_p1 : undefined}
                     baseStones_p2={showPlacedBaseStoneArrays ? baseStones_p2 : undefined}

@@ -17,10 +17,13 @@ import {
     aiChallengePanelInnerGradientClass,
 } from './waiting-room/waitingLobbyHomePanelStyles.js';
 import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from './QuickAccessSidebar.js';
+import QuickUtilityPanel from './quick-panel/QuickUtilityPanel.js';
+import { PC_QUICK_UTILITY_CENTER_SHELL_CLASS } from '../shared/constants/pcShellLayout.js';
 import Button from './Button.js';
 import GameApplicationModal from './GameApplicationModal.js';
 import AiChallengeModal from './waiting-room/AiChallengeModal.js';
 import { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from './DraggableWindow.js';
+import { mergeWaitingRoomPublicChatMessages } from '../shared/utils/waitingRoomGlobalChatMerge.js';
 
 interface WaitingRoomComponentProps {
     mode: GameMode;
@@ -92,10 +95,12 @@ const AnnouncementBoard: React.FC<{ mode: GameMode; }> = ({ mode }) => {
 
 
 const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
-  const { 
-    currentUserWithStatus, onlineUsers, allUsers, liveGames, 
-    waitingRoomChats, handlers 
+  const {
+    currentUserWithStatus, onlineUsers, allUsers, liveGames,
+    waitingRoomChats, handlers, modals,
   } = useAppContext();
+
+  const activeQuickUtilityPanel = modals.activeQuickUtilityPanel;
 
   const isMobile = false;
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -106,7 +111,10 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
   const [isAiChallengeModalOpen, setIsAiChallengeModalOpen] = useState(false);
   const desktopContainerRef = useRef<HTMLDivElement>(null);
 
-  const chatMessages = waitingRoomChats['global'] || [];
+  const chatMessages = useMemo(
+    () => mergeWaitingRoomPublicChatMessages(waitingRoomChats),
+    [waitingRoomChats],
+  );
   const prevChatLength = usePrevious(chatMessages.length);
 
   useEffect(() => {
@@ -310,31 +318,47 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
         ) : (
           <div ref={desktopContainerRef} className="grid grid-cols-5 h-full gap-4">
             {/* Main Content Column */}
-            <div className="col-span-3 flex flex-col gap-4 min-h-0">
-                <div className="flex-shrink-0">
-                    <AnnouncementBoard mode={mode} />
-                </div>
-                 <div className="flex-shrink-0">
-                    <div className={`${aiChallengeFeatureShellClass} relative shrink-0 overflow-hidden p-2`}>
-                        <div className={aiChallengeFeatureTopHairlineClass} aria-hidden />
-                        <div className={aiChallengePanelInnerGradientClass}>
-                            <AiChallengePanel mode={mode} noOuterShell onOpenModal={() => setIsAiChallengeModalOpen(true)} />
-                        </div>
-                    </div>
-                </div>
-                <div className="grid grid-rows-2 gap-4 flex-1 min-h-0">
-                    <div className={`min-h-0 rounded-xl border p-1 ${theme.panel} ${theme.glow}`}>
-                        <GameList
-                            games={ongoingGames}
-                            onAction={handlers.handleAction}
-                            currentUser={currentUserWithStatus}
-                            lobbyTone={lobbyType}
+            <div className="col-span-3 flex min-h-0 flex-col">
+                {activeQuickUtilityPanel ? (
+                    <div className={`${PC_QUICK_UTILITY_CENTER_SHELL_CLASS} h-full min-h-0`}>
+                        <div
+                            className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-px bg-gradient-to-r from-transparent via-amber-300/35 to-transparent"
+                            aria-hidden
+                        />
+                        <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10" aria-hidden />
+                        <QuickUtilityPanel
+                            kind={activeQuickUtilityPanel}
+                            onBack={handlers.closeQuickUtilityPanel}
                         />
                     </div>
-                    <div className={`min-h-0 flex flex-col rounded-xl border p-1 ${theme.panelSoft} ${theme.glow}`}>
-                        <ChatWindow messages={chatMessages} mode={'global'} onAction={handlers.handleAction} locationPrefix={locationPrefix} onViewUser={handlers.openViewingUser} />
+                ) : (
+                    <div className="flex h-full min-h-0 flex-col gap-4">
+                        <div className="flex-shrink-0">
+                            <AnnouncementBoard mode={mode} />
+                        </div>
+                        <div className="flex-shrink-0">
+                            <div className={`${aiChallengeFeatureShellClass} relative shrink-0 overflow-hidden p-2`}>
+                                <div className={aiChallengeFeatureTopHairlineClass} aria-hidden />
+                                <div className={aiChallengePanelInnerGradientClass}>
+                                    <AiChallengePanel mode={mode} noOuterShell onOpenModal={() => setIsAiChallengeModalOpen(true)} />
+                                </div>
+                            </div>
+                        </div>
+                        <div className="grid min-h-0 flex-1 grid-rows-2 gap-4">
+                            <div className={`min-h-0 rounded-xl border p-1 ${theme.panel} ${theme.glow}`}>
+                                <GameList
+                                    games={ongoingGames}
+                                    onAction={handlers.handleAction}
+                                    currentUser={currentUserWithStatus}
+                                    lobbyTone={lobbyType}
+                                />
+                            </div>
+                            <div className={`min-h-0 flex flex-col rounded-xl border p-1 ${theme.panelSoft} ${theme.glow}`}>
+                                <ChatWindow messages={chatMessages} mode={'global'} onAction={handlers.handleAction} locationPrefix={locationPrefix} onViewUser={handlers.openViewingUser} />
+                            </div>
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
             
             {/* Right Sidebar Column */}

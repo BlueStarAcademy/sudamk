@@ -9,9 +9,19 @@ interface AvatarProps {
   className?: string;
   /** @deprecated 이미지 테두리는 항상 `size` 고정 프레임을 사용합니다. */
   fixedFrameSize?: boolean;
+  /** 프로필 테두리(z-[1]) 위에 표시할 하단 오버레이(경기 결과 승·패 리본 등) */
+  bottomOverlay?: React.ReactNode;
 }
 
-const Avatar: React.FC<AvatarProps> = ({ userId, userName, avatarUrl, borderUrl, size = 40, className = '' }) => {
+const Avatar: React.FC<AvatarProps> = ({
+  userId,
+  userName,
+  avatarUrl,
+  borderUrl,
+  size = 40,
+  className = '',
+  bottomOverlay,
+}) => {
   const remSize = size / 16;
   const isColorBorder = borderUrl && (borderUrl.startsWith('#') || borderUrl.startsWith('conic-gradient'));
   const isImageBorder = borderUrl && !isColorBorder;
@@ -62,6 +72,11 @@ const Avatar: React.FC<AvatarProps> = ({ userId, userName, avatarUrl, borderUrl,
           aria-hidden="true"
           loading="lazy"
         />
+        {bottomOverlay ? (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] flex justify-center">
+            {bottomOverlay}
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -85,6 +100,11 @@ const Avatar: React.FC<AvatarProps> = ({ userId, userName, avatarUrl, borderUrl,
         >
           <img src={finalAvatarUrl} alt={userName} className="w-full h-full object-cover" loading="lazy" />
         </div>
+        {bottomOverlay ? (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] flex justify-center">
+            {bottomOverlay}
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -92,10 +112,15 @@ const Avatar: React.FC<AvatarProps> = ({ userId, userName, avatarUrl, borderUrl,
   // Case 3: No Border (default)
   return (
     <div
-      className={`rounded-full overflow-hidden bg-gray-700 flex-shrink-0 ${className}`}
+      className={`relative rounded-full overflow-hidden bg-gray-700 flex-shrink-0 ${className}`}
       style={{ width: `${remSize}rem`, height: `${remSize}rem` }}
     >
       <img src={finalAvatarUrl} alt={userName} className="w-full h-full object-cover" />
+      {bottomOverlay ? (
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] flex justify-center">
+          {bottomOverlay}
+        </div>
+      ) : null}
     </div>
   );
 };

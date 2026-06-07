@@ -643,6 +643,8 @@ interface GoBoardProps {
   captureScoreFloatMinPoints?: number;
   /** 따낸 점수 플로트(+N)를 captures 증가분으로 계산할 때 사용. 없으면 justCaptured 슬라이스만 사용(교체형 페이로드에서 오차 가능) */
   captures?: { [key in Player]?: number };
+  /** 스피드 시간 압박으로 captures에 반영된 점수(따낸 돌 플로트에서 제외) */
+  speedTimePressureGranted?: { black?: number; white?: number };
   /** 모험 지역 이해도 시작 가산(캡처 점수) — 첫 수에서 이 값만 오른 따낸 점수 플로트는 표시하지 않음 */
   adventureRegionalHeadStartCaptureBonus?: number;
   /** 패·둘 수 없는 자리 등 — TurnDisplay 전광판 */
@@ -659,6 +661,8 @@ interface GoBoardProps {
   canPlaceMoreBaseStones?: boolean;
   /** 아이템 안내 등 바둑판 중앙 오버레이 문구 */
   boardRuleFlashMessage?: string | null;
+  /** 온라인 PVP 착수 전송 중 — 교차점 하이라이트만 (낙관적 돌 없음) */
+  isMoveSubmitting?: boolean;
 }
 
 const GoBoard: React.FC<GoBoardProps> = (props) => {
@@ -683,6 +687,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         isSinglePlayer = false, isRotated = false, pendingMove = null,
         captureScoreFloatMinPoints = 2,
         captures,
+        speedTimePressureGranted,
         adventureRegionalHeadStartCaptureBonus = 0,
         onBoardRuleFlash,
         strategicPetHintOverlay = null,
@@ -690,6 +695,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         isPairBasePlacementHost = false,
         canPlaceMoreBaseStones,
         boardRuleFlashMessage = null,
+        isMoveSubmitting = false,
     } = props;
     const baseHiddenMoveCtx = useMemo<BaseStoneOverlayContext>(
         () => ({ baseStones, baseStones_p1, baseStones_p2, gameStatus }),
@@ -722,6 +728,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
     const lastCaptureFloatSignatureAtRef = useRef<number>(0);
     const reservedCaptureFloatSignaturesRef = useRef<Set<string>>(new Set());
     const prevCapturesForFloatRef = useRef<Partial<Record<Player, number>> | null>(null);
+    const prevSpeedTimePressureGrantedForFloatRef = useRef<{ black: number; white: number } | null>(null);
     /** 미사일 연출 중 매 프레임 착지점 (애니 종료 후 null이 되어도 여기 남음) */
     const lastMissileAnimationToRef = useRef<Point | null>(null);
     /** missile_animating → playing 직후: 따내기 점수 플로트를 이동한 내 돌 위치에서 띄우기 위한 앵커 */
@@ -745,6 +752,12 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         lastCaptureFloatSignatureAtRef.current = 0;
         reservedCaptureFloatSignaturesRef.current.clear();
         prevCapturesForFloatRef.current = null;
+        prevSpeedTimePressureGrantedForFloatRef.current = speedTimePressureGranted
+            ? {
+                  black: Math.max(0, Number(speedTimePressureGranted.black ?? 0)),
+                  white: Math.max(0, Number(speedTimePressureGranted.white ?? 0)),
+              }
+            : null;
         lastMissileAnimationToRef.current = null;
         missileCaptureScoreAnchorRef.current = null;
         missileCaptureScoreAnchorMoveCountRef.current = null;
@@ -894,6 +907,18 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 return { x: p.x, y: p.y };
             };
 
+            const grantBlackNow = Math.max(0, Number(speedTimePressureGranted?.black ?? 0));
+            const grantWhiteNow = Math.max(0, Number(speedTimePressureGranted?.white ?? 0));
+            const prevGrantSnap = prevSpeedTimePressureGrantedForFloatRef.current;
+            const dGrantBlack = grantBlackNow - (prevGrantSnap ? prevGrantSnap.black : 0);
+            const dGrantWhite = grantWhiteNow - (prevGrantSnap ? prevGrantSnap.white : 0);
+            const syncGrantedSnapshot = () => {
+                prevSpeedTimePressureGrantedForFloatRef.current = {
+                    black: grantBlackNow,
+                    white: grantWhiteNow,
+                };
+            };
+
             if (captures && moveHistory?.length) {
                 const last = moveHistory[moveHistory.length - 1];
                 if (!last) return;
@@ -904,15 +929,17 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     Number(captures[Player.Black] ?? 0) - (prevSnap ? Number(prevSnap[Player.Black] ?? 0) : 0);
                 const dWhite =
                     Number(captures[Player.White] ?? 0) - (prevSnap ? Number(prevSnap[Player.White] ?? 0) : 0);
+                const stoneDBlack = dBlack - Math.max(0, dGrantBlack);
+                const stoneDWhite = dWhite - Math.max(0, dGrantWhite);
                 // 마지막 수를 둔 색의 증가분(일반 착점). 미사일 등 moveHistory 불변·점수만 오르는 경우는 다른 색 증가분을 사용
                 let floatPlayer = last.player;
-                let delta = floatPlayer === Player.Black ? dBlack : dWhite;
-                if (delta < minPts && dBlack >= minPts) {
+                let delta = floatPlayer === Player.Black ? stoneDBlack : stoneDWhite;
+                if (delta < minPts && stoneDBlack >= minPts) {
                     floatPlayer = Player.Black;
-                    delta = dBlack;
-                } else if (delta < minPts && dWhite >= minPts) {
+                    delta = stoneDBlack;
+                } else if (delta < minPts && stoneDWhite >= minPts) {
                     floatPlayer = Player.White;
-                    delta = dWhite;
+                    delta = stoneDWhite;
                 }
 
                 const sliceEntries = newJustCapturedEntries();
@@ -920,8 +947,16 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 // 이전 턴 포획 점수를 늦은 GAME_UPDATE에서 다시 본 것이다. 다음 AI 착수에 +5가 재생되는 버그 방지.
                 if (sliceEntries.length === 0 && delta >= minPts && floatPlayer !== last.player) {
                     prevCapturesForFloatRef.current = { ...captures };
+                    syncGrantedSnapshot();
                     processedJustCapturedCountRef.current = list.length;
                     lastFloatedMoveKeyRef.current = moveKey;
+                    return;
+                }
+                // 스피드 시간 압박(+1)만 captures에 반영된 경우 — 따낸 돌 플로트 생략
+                if (sliceEntries.length === 0 && delta <= 0 && (dGrantBlack > 0 || dGrantWhite > 0)) {
+                    prevCapturesForFloatRef.current = { ...captures };
+                    syncGrantedSnapshot();
+                    processedJustCapturedCountRef.current = list.length;
                     return;
                 }
                 const slicePts = sliceEntries.length > 0 ? sumCapturePoints(sliceEntries) : 0;
@@ -946,6 +981,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 ) {
                     lastFloatedMoveKeyRef.current = moveKey;
                     prevCapturesForFloatRef.current = { ...captures };
+                    syncGrantedSnapshot();
                     processedJustCapturedCountRef.current = list.length;
                     lastCaptureScoreFloatPushedMoveKeyRef.current = moveKey;
                     return;
@@ -954,6 +990,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 const commitMoveFloatState = () => {
                     lastFloatedMoveKeyRef.current = moveKey;
                     prevCapturesForFloatRef.current = { ...captures };
+                    syncGrantedSnapshot();
                     processedJustCapturedCountRef.current = list.length;
                 };
 
@@ -1048,6 +1085,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     : isMyCaptureByPlayer(capturer);
             if (!isMyCapture) {
                 if (captures) prevCapturesForFloatRef.current = { ...captures };
+                syncGrantedSnapshot();
                 return;
             }
             const missileAnchor = missileMovedStoneAnchorFor(capturer);
@@ -1059,12 +1097,14 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
             }
             if (moveKeyForSlice) lastCaptureScoreFloatPushedMoveKeyRef.current = moveKeyForSlice;
             if (captures) prevCapturesForFloatRef.current = { ...captures };
+            syncGrantedSnapshot();
             pushFloat(totalPts, anchor, 0);
         }, DEBOUNCE_MS);
         return () => clearTimeout(t);
     }, [
         justCaptured,
         captures,
+        speedTimePressureGranted,
         moveHistory,
         boardState,
         captureScoreFloatMinPoints,
@@ -2163,6 +2203,23 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 })}
 
                 {showHoverPreview && hoverPos && ( <g opacity="0.5"> <Stone player={stoneColor} cx={toSvgCoords(hoverPos).cx} cy={toSvgCoords(hoverPos).cy} radius={stone_radius} /> </g> )}
+                {isMoveSubmitting && hoverPos && (() => {
+                    const { cx, cy } = toSvgCoords(hoverPos);
+                    return (
+                        <g pointerEvents="none">
+                            <circle
+                                cx={cx}
+                                cy={cy}
+                                r={stone_radius * 0.55}
+                                fill="none"
+                                stroke="rgb(34, 197, 94)"
+                                strokeWidth={2.5}
+                                opacity={0.75}
+                                className="animate-pulse"
+                            />
+                        </g>
+                    );
+                })()}
                 {renderMissileLaunchPreview()}
                 {/* 계가/결과 모달 중에는 미사일 등 애니메이션 미표시 — 최종 보드만 표시 */}
                 {animation && !isScoringOrEnded && (() => {

@@ -10,8 +10,11 @@ import type { WinReason } from './enums.js';
 import type { ArenaEntranceKey } from '../../constants/arenaEntrance.js';
 import type { KataServerRuntimeOverrides } from './kataServerRuntime.js';
 import type { ChampionshipAbilityKataLadderRow } from '../constants/championshipRealMatch.js';
+import type { DetailedStatResetScope } from './detailedStatReset.js';
 
 export type ArenaChannel = 'strategic' | 'pair' | 'playful';
+
+export type ArenaLobbyIntent = 'pvp' | 'ai';
 
 /** 싱글/탑 PVE: 클라 전용 수순 반영 후 서버 캐시가 뒤처질 때 히든·스캔 액션과 함께 전송 */
 export type PveItemActionClientSync = {
@@ -252,6 +255,8 @@ export interface PairRoomState {
     listOccupiedHumans?: number;
     /** 펫 페어 랭킹전: 상단 패널 큐 전용 껍데기 방 — 슬롯·타인 목록에서 숨김 */
     pairPetRankedQueueShell?: boolean;
+    /** AI 2인 팀 대전: 초대 전용 껍데기 — 방 번호·타인 목록·번호 입장 불가 */
+    pairAiDuoInviteShell?: boolean;
     /** 방이 속한 경기장(미지정=페어) */
     lobbyChannel?: 'pair' | 'strategic' | 'playful';
     ownerLobbyPet?: PairLobbyPetSnapshot;
@@ -260,6 +265,10 @@ export interface PairRoomState {
     pairLobbySettingChangeProposal?: PairLobbySettingChangeProposal;
     /** 거절 후 동일 유저 재제안 쿨다운 — 유저 id → 만료 시각(ms) */
     pairLobbySettingChangeCooldownUntil?: Record<string, number>;
+    /** 모든 손님 준비 완료 후 방장 경기 시작 제한 만료 시각(ms) */
+    pairOwnerStartDeadlineAt?: number;
+    /** 손님 입장 순서(방장 제외, 먼저 들어온 순) — 방장 자동 위임 시 사용 */
+    pairGuestJoinOrder?: string[];
 }
 
 export interface PairTeamState {
@@ -303,6 +312,8 @@ export interface UserStatusInfo {
     waitingLobby?: 'strategic' | 'playful';
     /** 현재 위치한 경기장. 목록 배지와 방/AI/복귀 경로 분리에 사용 */
     arenaChannel?: ArenaChannel;
+    /** PVP vs AI 로비 구분 — 대기실 유저 목록·방 필터에 사용 */
+    lobbyIntent?: ArenaLobbyIntent;
     gameId?: string;
     spectatingGameId?: string;
     gameCategory?: GameCategory;
@@ -321,7 +332,7 @@ export type ServerAction =
     | { type: 'UPDATE_PAIR_PET_LOBBY_INVENTORY_SORT', payload: { sortMode: string } }
     | { type: 'SET_BLOCK_ARENA_PARTNER_INVITES', payload: { blocked: boolean } }
     | { type: 'DISMISS_SCREEN_GUIDE', payload: { guideId: string } }
-    | { type: 'ENTER_WAITING_ROOM', payload: { mode: GameMode | 'strategic' | 'playful' } }
+    | { type: 'ENTER_WAITING_ROOM', payload: { mode: GameMode | 'strategic' | 'playful'; lobbyIntent?: ArenaLobbyIntent } }
     | { type: 'LEAVE_WAITING_ROOM', payload?: never }
     | { type: 'LEAVE_GAME_ROOM', payload: { gameId: string } }
     | { type: 'SPECTATE_GAME', payload: { gameId: string } }
@@ -352,6 +363,7 @@ export type ServerAction =
               selectedGameMode?: GameMode;
               settings?: GameSettings;
               lobbyChannel?: 'pair' | 'strategic' | 'playful';
+              lobbyIntent?: ArenaLobbyIntent;
               pairPetRankedQueueShell?: boolean;
           };
       }
@@ -385,7 +397,7 @@ export type ServerAction =
           type: 'PAIR_LOBBY_ROOM_GRID_SLICE';
           payload: { lobbyChannel: 'pair' | 'strategic' | 'playful'; fromSlot: number; toSlot: number };
       }
-    | { type: 'PAIR_SET_LOBBY_SCREEN', payload: { active: boolean; clientId?: string; lobbyChannel?: ArenaChannel } }
+    | { type: 'PAIR_SET_LOBBY_SCREEN', payload: { active: boolean; clientId?: string; lobbyChannel?: ArenaChannel; lobbyIntent?: ArenaLobbyIntent } }
     | { type: 'PAIR_INVITE_PARTNER', payload: { targetUserId: string; targetTeam?: 'teamA' | 'teamB'; targetIndex?: 0 | 1 } }
     | { type: 'PAIR_RESPOND_PARTNER_INVITE', payload: { inviteId: string; accept: boolean } }
     | { type: 'PAIR_PET_PURCHASE', payload: { sku: string; quantity?: number } }
@@ -471,7 +483,7 @@ export type ServerAction =
     | { type: 'THIEF_ROLL_DICE', payload: { gameId: string; itemType?: 'high36' | 'noOne' } }
     | { type: 'THIEF_PLACE_STONE', payload: { gameId: string; x: number; y: number } }
     // Game Records
-    | { type: 'SAVE_GAME_RECORD', payload: { gameId: string } }
+    | { type: 'SAVE_GAME_RECORD', payload: { gameId: string; sessionSnapshot?: import('./entities.js').LiveGameSession } }
     | { type: 'DELETE_GAME_RECORD', payload: { recordId: string } }
     // Alkkagi
     | { type: 'CONFIRM_ALKKAGI_START', payload: { gameId: string } }
@@ -511,12 +523,12 @@ export type ServerAction =
     | { type: 'UPDATE_MBTI', payload: { mbti: string, isMbtiPublic: boolean, isFirstTime?: boolean } }
     | { type: 'RESET_STAT_POINTS', payload?: never }
     | { type: 'CONFIRM_STAT_ALLOCATION', payload: { newStatPoints: any } }
-    | { type: 'RESET_SINGLE_STAT', payload: { mode: GameMode } }
-    | { type: 'RESET_STATS_CATEGORY', payload: { category: 'strategic' | 'playful' } }
+    | { type: 'RESET_SINGLE_STAT', payload: { mode: GameMode; scope: DetailedStatResetScope } }
+    | { type: 'RESET_STATS_CATEGORY', payload: { category: 'strategic' | 'playful'; scope: DetailedStatResetScope } }
     /** 페어 경기장 상세 전적: 모드별 초기화 (전략 바둑 모드만) */
-    | { type: 'RESET_PAIR_ARENA_SINGLE_STAT', payload: { mode: GameMode } }
+    | { type: 'RESET_PAIR_ARENA_SINGLE_STAT', payload: { mode: GameMode; scope?: DetailedStatResetScope } }
     /** 페어 경기장: 모든 전략 모드 상세 전적 + 통합 페어 전적 초기화 */
-    | { type: 'RESET_PAIR_ARENA_STRATEGIC_ALL' }
+    | { type: 'RESET_PAIR_ARENA_STRATEGIC_ALL'; payload: { scope: DetailedStatResetScope } }
     | { type: 'APPLY_PRESET', payload: { presetName: string, equipment?: Partial<Record<EquipmentSlot, string>> } }
     | { type: 'SAVE_PRESET', payload: { preset: EquipmentPreset, index: number } }
     | {

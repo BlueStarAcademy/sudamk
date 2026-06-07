@@ -24,6 +24,7 @@ import { applyPassiveActionPointRegenToUser, recordActionPointSpend } from '../e
 import { updateQuestProgress } from '../questService.js';
 import { reconcileStrategicAiBoardSizeWithGroundTruth } from '../utils/effectiveBoardSize.js';
 import { resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
+import { isSessionSpeedTimePressureMode } from '../../shared/utils/speedTimePressureSessionSync.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
@@ -49,6 +50,30 @@ const normalizeTowerPlayingIfStarted = (game: LiveGameSession): void => {
     if (game.gameStatus !== 'pending') return;
     if (game.startTime == null) return;
     (game as any).gameStatus = 'playing';
+};
+
+/** 스피드·믹스(스피드): 패배용 시간 제한은 없지만 10초 누적 그래프·상대 +1점용 Fischer 시계는 필요 */
+const applyTowerSpeedTimePressureClock = (game: LiveGameSession, nowMs: number): void => {
+    const mainTimeMinutes = Math.max(0, Number(game.settings?.timeLimit ?? 0)) || 5;
+    const initialSec = mainTimeMinutes * 60;
+    game.blackTimeLeft = initialSec;
+    game.whiteTimeLeft = initialSec;
+    game.blackInitialTimeLeft = initialSec;
+    game.whiteInitialTimeLeft = initialSec;
+    game.blackByoyomiPeriodsLeft = 0;
+    game.whiteByoyomiPeriodsLeft = 0;
+    game.turnStartTime = nowMs;
+    game.turnDeadline = nowMs + initialSec * 1000;
+};
+
+/** 비스피드 탑: 제한시간·초읽기·turnDeadline 없음 */
+const clearTowerNonSpeedClock = (game: LiveGameSession, nowMs: number): void => {
+    game.turnDeadline = undefined;
+    game.blackTimeLeft = 0;
+    game.whiteTimeLeft = 0;
+    game.blackByoyomiPeriodsLeft = 0;
+    game.whiteByoyomiPeriodsLeft = 0;
+    game.turnStartTime = nowMs;
 };
 
 const getRandomTurnInRange = (minTurn: number, maxTurn: number): number => {
@@ -398,13 +423,11 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 initializeTowerPlayerHidden(game);
             }
             
-            // 도전의 탑은 시간 제한 없음 (제한시간/초읽기 미적용)
-            game.turnDeadline = undefined;
-            game.blackTimeLeft = 0;
-            game.whiteTimeLeft = 0;
-            game.blackByoyomiPeriodsLeft = 0;
-            game.whiteByoyomiPeriodsLeft = 0;
-            game.turnStartTime = now;
+            if (isSessionSpeedTimePressureMode(game)) {
+                applyTowerSpeedTimePressureClock(game, now);
+            } else {
+                clearTowerNonSpeedClock(game, now);
+            }
             
             const { seedStrategicPetHintBonusPresetsForGame } = await import('../strategicPetHintAction.js');
             await seedStrategicPetHintBonusPresetsForGame(game);
@@ -517,9 +540,12 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             (game as any).kataTowerOpeningBoardBackup = cloneBoardStateForKataOpeningSnapshot(board);
             reconcileStrategicAiBoardSizeWithGroundTruth(game);
 
-            // 도전의 탑은 시간 제한 미적용이므로 turnDeadline 복구하지 않음
-            game.turnDeadline = undefined;
-            game.turnStartTime = game.turnStartTime ?? Date.now();
+            const refreshNow = Date.now();
+            if (isSessionSpeedTimePressureMode(game)) {
+                applyTowerSpeedTimePressureClock(game, refreshNow);
+            } else {
+                clearTowerNonSpeedClock(game, refreshNow);
+            }
             if (game.totalTurns == null && game.moveHistory?.length === 0) {
                 (game as any).totalTurns = 0;
             }

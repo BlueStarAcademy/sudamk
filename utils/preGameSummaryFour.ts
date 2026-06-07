@@ -8,6 +8,11 @@ import {
 import { formatDiceGoSpecialDiceSummary } from '../shared/utils/diceGoSettings.js';
 import { formatThiefSpecialDiceSummary } from '../shared/utils/thiefGoSettings.js';
 import { countTowerLobbyItems, getTowerSessionFloor } from './towerPreGameDisplay.js';
+import { FISCHER_INCREMENT_SECONDS } from '../constants/gameSettings.js';
+import {
+  SPEED_GO_PVP_SPECIAL_HIGHLIGHT,
+  SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT,
+} from '../shared/constants/speedTimePressure.js';
 
 export type PreGameSpecialHighlight = {
   img: string;
@@ -54,8 +59,8 @@ const PATTERN_STONE_HIGHLIGHT_IMG = '/images/single/BlackDouble.webp';
 /** 게임 설명 모달「특수 규칙」— 베이스 모드는 짧은 두 줄로 표시 */
 function baseModePregameHighlights(): PreGameSpecialHighlight[] {
   return [
-    { img: '/images/simbols/simbol4.webp', text: '베이스돌 5점' },
-    { img: '/images/simbols/simbol4.webp', text: '덤 설정으로 흑/백 정하기' },
+    { img: '/images/simbols/simbol4.webp', text: '베이스돌 배치 공개 후 형세분석' },
+    { img: '/images/simbols/simbol4.webp', text: '상대에게 줄 덤 설정 · 원하는 돌 선택' },
   ];
 }
 
@@ -120,7 +125,11 @@ function timeLine(settings: GameSettings, mode: GameMode, mix: GameMode[]): stri
     return '시간 제한 없음';
   }
   if (mode === GameMode.Speed || hasMix(mix, GameMode.Speed)) {
-    return '피셔방식 +5초/수';
+    const inc = settings.timeIncrement ?? FISCHER_INCREMENT_SECONDS;
+    if (!settings.timeLimit || settings.timeLimit <= 0) {
+      return `피셔방식 +${inc}초/수`;
+    }
+    return `제한 ${settings.timeLimit}분 · 피셔 +${inc}초/수`;
   }
   if (byoyomiCount > 0 && byoyomiTime > 0) {
     return `제한 ${settings.timeLimit}분 · 초읽기 ${byoyomiTime}초×${byoyomiCount}회`;
@@ -133,7 +142,7 @@ function territoryScoreParts(settings: GameSettings, mode: GameMode, mix: GameMo
   const em = effectiveModesForRules(mode, mix);
   if (em.includes(GameMode.Base)) parts.push('베이스 보너스');
   if (em.includes(GameMode.Hidden)) parts.push('히든 보너스');
-  if (em.includes(GameMode.Speed)) parts.push('시간 보너스');
+  if (em.includes(GameMode.Speed)) parts.push(`사용 시간→상대 점수(${SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT}초당 1)`);
   if (em.includes(GameMode.Missile)) parts.push('미사일 연출 반영');
   return parts;
 }
@@ -361,7 +370,7 @@ function mixSpecialHighlights(
     h.push({ img: '/images/button/missile.webp', text: '미사일로 돌 직선 이동' });
   }
   if (hasMix(mix, GameMode.Speed) && includeFischerGuide) {
-    h.push({ img: '/images/icon/timer.webp', text: '피셔 시계 · 착수당 시간 가산 · 계가 시 시간 보너스' });
+    h.push({ img: '/images/icon/timer.webp', text: SPEED_GO_PVP_SPECIAL_HIGHLIGHT });
   }
   const auto = autoScoringLine(settings, GameMode.Mix, mix);
   if (auto) {
@@ -370,10 +379,15 @@ function mixSpecialHighlights(
   return h;
 }
 
-function singlePlayerStageTimeRules(_stage: SinglePlayerStageInfo, isSpeedMode: boolean): string {
+function singlePlayerStageTimeRules(
+  _stage: SinglePlayerStageInfo,
+  isSpeedMode: boolean,
+  settings?: GameSettings,
+): string {
   /** 싱글/탑 비스피드: 서버에서 제한시간·초읽기 미적용 — 스테이지 JSON의 분/초읽기는 표시하지 않음 */
   if (isSpeedMode) {
-    return '피셔방식 +5초/수';
+    const inc = settings?.timeIncrement ?? FISCHER_INCREMENT_SECONDS;
+    return `피셔방식 +${inc}초/수`;
   }
   return '제한없음';
 }
@@ -554,7 +568,7 @@ export function getPreGameSummaryFour(
       timeRules: timeLine(settings, mode, mix),
       specialHighlights: session.isAiGame
         ? []
-        : [{ img: '/images/icon/timer.webp', text: '피셔 시계 · 사용 시간에 따른 계가 시간 보너스' }],
+        : [{ img: '/images/icon/timer.webp', text: SPEED_GO_PVP_SPECIAL_HIGHLIGHT }],
       items: NONE,
       itemSlots: [],
     };
@@ -823,7 +837,7 @@ function getSinglePlayerStageSummary(
     winGoal,
     loseGoal,
     scoreFactors,
-    timeRules: singlePlayerStageTimeRules(stage, isSpeedMode),
+    timeRules: singlePlayerStageTimeRules(stage, isSpeedMode, session.settings),
     specialHighlights,
     items: itemBits.length ? itemBits.join(' · ') : NONE,
     itemSlots: buildSinglePlayerStageItemSlots(stage, {

@@ -23,6 +23,16 @@ export function getArenaTurnCount(game: types.LiveGameSession): number {
 export async function resolveArenaFixedScoringTurnLimit(game: types.LiveGameSession): Promise<number | undefined> {
     const policy = resolveArenaSessionPolicy(game as any);
     const scoringTurnLimit = Number((game.settings as any)?.scoringTurnLimit ?? 0);
+    // human 1v1 PVP: 수 제한 자동계가 금지 (상호 패스만 계가)
+    if (
+        policy.matchAxis === 'pvp' &&
+        policy.kind === GameCategory.Normal &&
+        !game.isAiGame &&
+        !game.isSinglePlayer &&
+        !policy.isPairGame
+    ) {
+        return undefined;
+    }
     if (policy.isPairGame) {
         return scoringTurnLimit > 0 && !modeIncludesCaptureRule(game.mode, game.settings)
             ? scoringTurnLimit

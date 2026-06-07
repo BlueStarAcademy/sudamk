@@ -32,7 +32,8 @@ import {
     pveIngameFooterReservedHeightClass,
 } from './arenaGameRoomStyles.js';
 import BaseGameFooterPanel, { BasePlacementControlStrip, isBaseGameFooterPhase } from './BaseGameFooterPanel.js';
-import TowerItemShopModal from '../TowerItemShopModal.js';
+import PurchaseQuantityModal from '../PurchaseQuantityModal.js';
+import { buildTowerShopPurchasableItem } from '../../shared/constants/towerShopItems.js';
 import { pairPetKataPhaseFromTotalPly, pairPetKataPliesRemainingInCurrentPhase } from '../../shared/constants/pairArena.js';
 import { getEquippedPairPetInventoryRow } from '../../shared/utils/pairEquippedPet.js';
 import { getPairPetDefinition } from '../../shared/constants/petLobby.js';
@@ -124,15 +125,18 @@ const TowerControls: React.FC<TowerControlsProps> = ({
     const [refreshConfirmModal, setRefreshConfirmModal] = useState(false);
     const [passConfirmModal, setPassConfirmModal] = useState(false);
     const [turnAddConfirmModal, setTurnAddConfirmModal] = useState(false);
-    const [towerItemShopOpen, setTowerItemShopOpen] = useState(false);
-    const [towerShopInitialItemId, setTowerShopInitialItemId] = useState<string | undefined>(undefined);
+    const [towerPurchasingItemId, setTowerPurchasingItemId] = useState<string | null>(null);
     const [petHintBusy, setPetHintBusy] = useState(false);
 
     const openTowerItemShop = (itemId: string) => {
         if (!currentUser) return;
-        setTowerShopInitialItemId(itemId);
-        setTowerItemShopOpen(true);
+        setTowerPurchasingItemId(itemId);
     };
+
+    const towerPurchasingItem = useMemo(() => {
+        if (!towerPurchasingItemId || !currentUser) return null;
+        return buildTowerShopPurchasableItem(currentUser, towerPurchasingItemId);
+    }, [towerPurchasingItemId, currentUser]);
     const myUserId = currentUser?.id;
     const floor = getTowerSessionFloor(session);
     const hasPendingRevealResolution = !!session.pendingCapture || !!session.revealAnimationEndTime;
@@ -770,32 +774,28 @@ const TowerControls: React.FC<TowerControlsProps> = ({
 		</>
 	);
 
-	const towerShopPortal =
-		towerItemShopOpen &&
+	const towerPurchasePortal =
+		towerPurchasingItem &&
 		currentUser &&
 		createPortal(
-			<div className="fixed inset-0 z-[220]">
-				<TowerItemShopModal
-					currentUser={currentUser}
-					initialSelectedItemId={towerShopInitialItemId}
-					onClose={() => {
-						setTowerItemShopOpen(false);
-						setTowerShopInitialItemId(undefined);
-					}}
-					onBuy={async (itemId, quantity) => {
-						await onAction({
-							type: 'BUY_TOWER_ITEM',
-							payload: { itemId, quantity, gameId: session.id },
-						} as any);
-					}}
-				/>
-			</div>,
+			<PurchaseQuantityModal
+				item={towerPurchasingItem}
+				currentUser={currentUser}
+				ignoreInventorySlotLimit
+				onClose={() => setTowerPurchasingItemId(null)}
+				onConfirm={async (itemId, quantity) => {
+					await onAction({
+						type: 'BUY_TOWER_ITEM',
+						payload: { itemId, quantity, gameId: session.id },
+					} as any);
+				}}
+			/>,
 			document.body
 		);
 
 	return (
 		<>
-		{towerShopPortal}
+		{towerPurchasePortal}
 		<footer
 			className={`responsive-controls flex-shrink-0 w-full ${arenaGameRoomIngameBottomBarShellClass} ${
 				isMobile

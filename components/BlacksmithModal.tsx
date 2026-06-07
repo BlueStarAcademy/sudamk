@@ -18,6 +18,8 @@ import { ItemGrade } from '../types/enums.js';
 import BlacksmithLevelEffectsSummary from './blacksmith/BlacksmithLevelEffectsSummary.js';
 import { isFunctionVipActive } from '../shared/utils/rewardVip.js';
 import { isPairArenaExclusiveBagItem } from '../shared/constants/petLobby.js';
+import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../shared/constants/pcShellLayout.js';
+import { MIN_ACTION_FEEDBACK_MS } from '../shared/constants/uiFeedback.js';
 
 const GRADE_ORDER: ItemGrade[] = [
     ItemGrade.Normal,
@@ -83,11 +85,20 @@ interface BlacksmithModalProps {
     activeTab: 'enhance' | 'combine' | 'disassemble' | 'convert' | 'refine';
     onSetActiveTab: (tab: 'enhance' | 'combine' | 'disassemble' | 'convert' | 'refine') => void;
     enhancementOutcome: EnhancementResult | null;
+    embedded?: boolean;
 }
 
 type SortOption = 'grade' | 'stars' | 'name' | 'date';
 
-const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, selectedItemForEnhancement, activeTab, onSetActiveTab, enhancementOutcome }) => {
+const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
+    onClose,
+    isTopmost,
+    selectedItemForEnhancement,
+    activeTab,
+    onSetActiveTab,
+    enhancementOutcome,
+    embedded = false,
+}) => {
     const { currentUserWithStatus, handlers, modals } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
     const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(selectedItemForEnhancement);
@@ -95,6 +106,8 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
     const [selectedForDisassembly, setSelectedForDisassembly] = useState<Set<string>>(new Set()); // New state
     const [sortOption, setSortOption] = useState<SortOption>('grade');
     const [disassemblyAutoSelectOpen, setDisassemblyAutoSelectOpen] = useState(false);
+    const [isBlacksmithBusy, setIsBlacksmithBusy] = useState(false);
+    const isBlacksmithBusyRef = useRef(false);
 
     // 좁은 가로 화면에서는 PC 레이아웃을 그대로 축소해서 사용
     const [windowWidth, setWindowWidth] = useState(window.innerWidth);
@@ -405,7 +418,20 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
     ];
 
     const handleActionWrapper = useCallback(async (action: ServerAction): Promise<void> => {
-        await handlers.handleAction(action);
+        if (isBlacksmithBusyRef.current) return;
+        isBlacksmithBusyRef.current = true;
+        setIsBlacksmithBusy(true);
+        const startedAt = Date.now();
+        try {
+            await handlers.handleAction(action);
+        } finally {
+            const elapsed = Date.now() - startedAt;
+            if (elapsed < MIN_ACTION_FEEDBACK_MS) {
+                await new Promise((resolve) => setTimeout(resolve, MIN_ACTION_FEEDBACK_MS - elapsed));
+            }
+            isBlacksmithBusyRef.current = false;
+            setIsBlacksmithBusy(false);
+        }
     }, [handlers.handleAction]);
 
     const stackedEquipmentViewport = useStackedBlacksmithLayout && mobileShowEquipmentWorkPanel;
@@ -433,16 +459,20 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                 onAction={handleActionWrapper} 
                 currentUser={currentUserWithStatus}
                 stackedViewport={stackedForDetail}
+                isBlacksmithBusy={isBlacksmithBusy}
             />;
             case 'disassemble': return (
                 <DisassemblyView
                     onAction={handleActionWrapper}
                     selectedForDisassembly={selectedForDisassembly}
                     onToggleDisassemblySelection={handleToggleDisassemblySelection}
+                    onOpenAutoSelect={() => setDisassemblyAutoSelectOpen(true)}
                     modalEquipmentSelectionFlow={useStackedBlacksmithLayout}
+                    pcViewer={pcViewer}
+                    isBlacksmithBusy={isBlacksmithBusy}
                 />
             );
-            case 'convert': return <ConversionView onAction={handleActionWrapper} />;
+            case 'convert': return <ConversionView onAction={handleActionWrapper} pcViewer={pcViewer} stackedViewport={useStackedBlacksmithLayout} isBlacksmithBusy={isBlacksmithBusy} />;
             case 'refine': return <RefinementView 
                 selectedItem={selectedItem} 
                 currentUser={currentUserWithStatus} 
@@ -510,8 +540,38 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
     }, [activeTab]);
     /** 재료 변환만 그리드·스크롤용 최소 높이; 장비 탭(선택/작업 안내)은 콘텐츠 높이로 두어 하단 여백 제거 */
     const mobileViewerMinH =
-        activeTab === 'convert' ? 'clamp(9.5rem, 28dvh, 17rem)' : undefined;
+        activeTab === 'convert' ? 'clamp(14rem, 38dvh, 22rem)' : undefined;
     const stackedMobileFillHeight = useStackedBlacksmithLayout && activeTab === 'convert';
+    const pcViewer = !useStackedBlacksmithLayout;
+    const inventoryViewportRef = useRef<HTMLDivElement>(null);
+    const [inventoryViewportHeightPx, setInventoryViewportHeightPx] = useState<number | null>(null);
+
+    useLayoutEffect(() => {
+        if (useStackedBlacksmithLayout) {
+            setInventoryViewportHeightPx(null);
+            return;
+        }
+        const el = inventoryViewportRef.current;
+        if (!el) return;
+
+        const cols = 10;
+        const gap = 4;
+        const gridPad = 8;
+        const visibleRows = 3;
+
+        const update = () => {
+            const w = el.clientWidth;
+            if (w <= 0) return;
+            const cell = (w - gridPad * 2 - gap * (cols - 1)) / cols;
+            const h = gridPad * 2 + visibleRows * cell + gap * (visibleRows - 1);
+            setInventoryViewportHeightPx(Math.round(h));
+        };
+
+        update();
+        const ro = new ResizeObserver(update);
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, [useStackedBlacksmithLayout, activeTab]);
 
     const mobilePickHint = useMemo(() => {
         switch (activeTab) {
@@ -558,38 +618,9 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
         }
     }, [activeTab]);
 
-    return (
-        <>
-            <DraggableWindow 
-                title="대장간" 
-                onClose={onClose} 
-                bodyScrollable
-                bodyNoScroll={false}
-                mobileViewportFit={useStackedBlacksmithLayout}
-                mobileViewportMaxHeightVh={useStackedBlacksmithLayout ? 92 : undefined}
-                mobileViewportMaxHeightCss={useStackedBlacksmithLayout ? 'min(94dvh, calc(100dvh - 12px))' : undefined}
-                bodyPaddingClassName={
-                    useStackedBlacksmithLayout
-                        ? '!px-2 !pt-2 sm:!px-2.5 sm:!pt-2.5 !pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]'
-                        : undefined
-                }
-                isTopmost={
-                    isTopmost &&
-                    !disassemblyAutoSelectOpen &&
-                    !equipmentPickerOpen &&
-                    !equipmentFeatureModalOpen &&
-                    !modals.isBlacksmithEffectsModalOpen &&
-                    !modals.disassemblyResult
-                }
-                initialWidth={1160}
-                // 데스크톱은 설계 높이를 소폭 낮춰(세로 제약 시) 체감 크기를 키운다.
-                initialHeight={useStackedBlacksmithLayout ? 760 : 860}
-                windowId="blacksmith"
-                zIndex={useStackedBlacksmithLayout ? 120 : 50}
-                variant="store"
-            >
+    const blacksmithMain = (
                 <div
-                    className={`flex min-h-0 w-full ${stackedMobileFillHeight ? 'flex-1' : useStackedBlacksmithLayout ? 'shrink-0' : 'flex-1'} ${useStackedBlacksmithLayout ? 'flex-col' : 'h-full flex-row'}`}
+                    className={`flex min-h-0 w-full ${embedded ? 'h-full flex-1 flex-row' : stackedMobileFillHeight ? 'flex-1' : useStackedBlacksmithLayout ? 'shrink-0' : 'flex-1'} ${embedded || !useStackedBlacksmithLayout ? 'h-full flex-row' : 'flex-col'}`}
                 >
                     {useStackedBlacksmithLayout ? (
                         <div
@@ -810,22 +841,13 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                                 </button>
                             ))}
                         </div>
-                        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-gradient-to-b from-slate-900/70 via-black/35 to-black/50 p-4">
+                        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-gradient-to-b from-slate-900/70 via-black/35 to-black/50 p-3">
                             {renderContent()}
                         </div>
-                        <div className="mt-4 flex flex-col rounded-xl border border-white/10 bg-black/25 p-3">
+                        <div className="mt-3 flex shrink-0 flex-col rounded-xl border border-white/10 bg-black/25 p-3">
                             <div className="mb-2 flex items-center justify-between gap-2">
                                 <h3 className="min-w-0 shrink text-lg font-black tracking-tight text-amber-100">{bagHeaderText}</h3>
                                 <div className="flex shrink-0 items-center gap-2">
-                                    {activeTab === 'disassemble' && (
-                                        <button
-                                            type="button"
-                                            onClick={() => setDisassemblyAutoSelectOpen(true)}
-                                            className="whitespace-nowrap rounded-md border border-amber-300/40 bg-gradient-to-r from-amber-600/90 via-amber-500/90 to-orange-500/85 px-2.5 py-1.5 text-xs font-bold text-amber-50 shadow-[0_10px_22px_-14px_rgba(251,191,36,0.75)] transition hover:from-amber-500 hover:via-amber-400 hover:to-orange-400"
-                                        >
-                                            자동 선택
-                                        </button>
-                                    )}
                                     <select
                                         value={sortOption}
                                         onChange={(e) => setSortOption(e.target.value as SortOption)}
@@ -838,7 +860,11 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                                     </select>
                                 </div>
                             </div>
-                            <div className="h-[130px] overflow-y-auto pr-1">
+                            <div
+                                ref={inventoryViewportRef}
+                                className="shrink-0 overflow-y-auto pr-1"
+                                style={inventoryViewportHeightPx != null ? { height: inventoryViewportHeightPx } : undefined}
+                            >
                                 <InventoryGrid 
                                     inventory={filteredInventory} 
                                     inventorySlots={inventorySlotsToDisplay} 
@@ -854,7 +880,43 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                     </>
                     )}
                 </div>
+    );
+
+    return (
+        <>
+            {embedded ? (
+                <div className={PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS}>{blacksmithMain}</div>
+            ) : (
+            <DraggableWindow 
+                title="대장간" 
+                onClose={onClose} 
+                bodyScrollable
+                bodyNoScroll={false}
+                mobileViewportFit={useStackedBlacksmithLayout}
+                mobileViewportMaxHeightVh={useStackedBlacksmithLayout ? 92 : undefined}
+                mobileViewportMaxHeightCss={useStackedBlacksmithLayout ? 'min(94dvh, calc(100dvh - 12px))' : undefined}
+                bodyPaddingClassName={
+                    useStackedBlacksmithLayout
+                        ? '!px-2 !pt-2 sm:!px-2.5 sm:!pt-2.5 !pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]'
+                        : undefined
+                }
+                isTopmost={
+                    isTopmost &&
+                    !disassemblyAutoSelectOpen &&
+                    !equipmentPickerOpen &&
+                    !equipmentFeatureModalOpen &&
+                    !modals.isBlacksmithEffectsModalOpen &&
+                    !modals.disassemblyResult
+                }
+                initialWidth={1160}
+                initialHeight={useStackedBlacksmithLayout ? 760 : 860}
+                windowId="blacksmith"
+                zIndex={useStackedBlacksmithLayout ? 120 : 50}
+                variant="store"
+            >
+                {blacksmithMain}
             </DraggableWindow>
+            )}
 
             {equipmentPickerOpen && useStackedBlacksmithLayout && isMobileEquipmentTab && (
                 <BlacksmithEquipmentPickerModal

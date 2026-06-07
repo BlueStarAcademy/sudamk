@@ -1,5 +1,6 @@
 import { useState, useLayoutEffect } from 'react';
 import { getModalScaleFitPaddingPx } from '../utils/modalViewportPadding.js';
+import { computeUniformFitScale } from '../utils/uniformCanvasScale.js';
 
 /**
  * `#sudamr-modal-root`(스케일 캔버스) 또는 visual viewport 기준으로
@@ -30,10 +31,11 @@ export function useViewportUniformScale(designWidth: number, designHeight: numbe
             }
             availW = Math.max(40, availW);
             availH = Math.max(40, availH);
-            const sx = availW / designWidth;
-            const sy = availH / designHeight;
-            const s = Math.min(1, sx, sy);
-            setScale(Math.max(0.08, Number.isFinite(s) ? s : 1));
+            setScale(
+                computeUniformFitScale(availW, availH, designWidth, designHeight, {
+                    snap: Boolean(root),
+                }),
+            );
         };
 
         read();

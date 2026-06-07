@@ -136,16 +136,13 @@ export const PAIR_SOULSTONE_TEMPLATE_IDS = [
     'pair-soul-5',
 ] as const;
 
-/** `PAIR_SOULSTONE_DISPLAY_DESCRIPTIONS` 풍미 문구 뒤에 공통으로 붙는 용도 */
-const PAIR_SOULSTONE_GRADE_UPGRADE_BLURB = ' 펫의 등급 강화에 사용됩니다.';
-
-/** 재료·상점·로비·도감 공통: 영혼석 짧은 풍미 설명 */
+/** 재료·상점·로비·도감 공통: 영혼석 설명 */
 export const PAIR_SOULSTONE_DISPLAY_DESCRIPTIONS: Record<(typeof PAIR_SOULSTONE_NAMES)[number], string> = {
-    새싹영혼석: `막 돋은 영기 한 알. 성장의 첫 스파크!${PAIR_SOULSTONE_GRADE_UPGRADE_BLURB}`,
-    파동영혼석: `결의 물결이 번져요—다음 층으로 밀어줍니다.${PAIR_SOULSTONE_GRADE_UPGRADE_BLURB}`,
-    심연영혼석: `깊은 심연에서 건져 올린 결정. 깊이 인증!${PAIR_SOULSTONE_GRADE_UPGRADE_BLURB}`,
-    화염영혼석: `작열하는 영혼의 숨. 진지 모드, 가동!${PAIR_SOULSTONE_GRADE_UPGRADE_BLURB}`,
-    천광영혼석: `하늘빛을 머금은 에이스 정수. 정점 각인!${PAIR_SOULSTONE_GRADE_UPGRADE_BLURB}`,
+    새싹영혼석: '일반 등급 펫을 고급 등급으로 올릴 때 필요한 재료입니다. 펫 Lv.10 이상부터 사용할 수 있습니다.',
+    파동영혼석: '고급 등급 펫을 희귀 등급으로 올릴 때 필요한 재료입니다. 펫 Lv.20 이상부터 사용할 수 있습니다.',
+    심연영혼석: '희귀 등급 펫을 에픽 등급으로 올릴 때 필요한 재료입니다. 펫 Lv.30 이상부터 사용할 수 있습니다.',
+    화염영혼석: '에픽 등급 펫을 전설 등급으로 올릴 때 필요한 재료입니다. 펫 Lv.40 이상부터 사용할 수 있습니다.',
+    천광영혼석: '전설 등급 펫을 신화 등급으로 올릴 때 필요한 재료입니다. 펫 Lv.50에서 사용할 수 있습니다.',
 };
 
 /** 알 수 없는 이름이면 빈 문자열 */
@@ -175,9 +172,10 @@ export type PairPetShopSku = {
     quantity: number;
     /** KST 일일 구매 상한 (`dailyShopPurchases[sku]`와 연동). 0 이하면 무제한 */
     dailyLimit: number;
-    /** 상점 카드 이미지(추후 교체 예정) */
-    image: string;
+    /** 상세 설명(호버·툴팁) */
     description: string;
+    /** 상점 카드 한 줄 요약 */
+    shortDescription: string;
 };
 
 /** 일괄 표시·구매 처리 순서 */
@@ -192,17 +190,20 @@ export const PAIR_PET_SHOP_SKUS: PairPetShopSku[] = [
         dailyLimit: 3,
         image: PAIR_EGG_DISPLAY_IMAGE,
         description: '부화장에서 무작위 AI 펫으로 부화할 수 있는 알입니다.',
+        shortDescription: '펫이 부화하는 알',
     },
     {
         id: 'pair_shop_egg_diamond',
-        label: PAIR_EGG_MATERIAL_NAME,
+        label: '신비로운알(특)',
         gold: 0,
-        diamonds: 50,
-        materialName: PAIR_EGG_MATERIAL_NAME,
+        diamonds: 200,
+        materialName: PAIR_WELCOME_EGG_MATERIAL_NAME,
         quantity: 1,
-        dailyLimit: 3,
+        dailyLimit: 1,
         image: PAIR_EGG_DISPLAY_IMAGE,
-        description: '부화장에서 무작위 AI 펫으로 부화할 수 있는 알입니다.',
+        description:
+            '신비로운 알과 같은 모습이지만, 어떤 부화 슬롯에서든 부화 시간이 1분이며 부화 시 레벨 5 AI 펫이 나옵니다.',
+        shortDescription: '5레벨 펫이 1분만에 부화하는 알',
     },
     {
         id: 'pair_shop_soul_1',
@@ -214,6 +215,7 @@ export const PAIR_PET_SHOP_SKUS: PairPetShopSku[] = [
         dailyLimit: 0,
         image: '/images/pets/soulstone1.webp',
         description: PAIR_SOULSTONE_DISPLAY_DESCRIPTIONS[PAIR_SOULSTONE_NAMES[0]],
+        shortDescription: '[일반] ➝ [고급] 펫 등급강화 재료',
     },
     {
         id: 'pair_shop_soul_2',
@@ -225,6 +227,7 @@ export const PAIR_PET_SHOP_SKUS: PairPetShopSku[] = [
         dailyLimit: 0,
         image: '/images/pets/soulstone2.webp',
         description: PAIR_SOULSTONE_DISPLAY_DESCRIPTIONS[PAIR_SOULSTONE_NAMES[1]],
+        shortDescription: '[고급] ➝ [희귀] 펫 등급강화 재료',
     },
     {
         id: 'pair_shop_soul_3',
@@ -236,6 +239,7 @@ export const PAIR_PET_SHOP_SKUS: PairPetShopSku[] = [
         dailyLimit: 5,
         image: '/images/pets/soulstone3.webp',
         description: PAIR_SOULSTONE_DISPLAY_DESCRIPTIONS[PAIR_SOULSTONE_NAMES[2]],
+        shortDescription: '[희귀] ➝ [에픽] 펫 등급강화 재료',
     },
     {
         id: 'pair_shop_soul_4',
@@ -247,6 +251,7 @@ export const PAIR_PET_SHOP_SKUS: PairPetShopSku[] = [
         dailyLimit: 0,
         image: '/images/pets/soulstone4.webp',
         description: PAIR_SOULSTONE_DISPLAY_DESCRIPTIONS[PAIR_SOULSTONE_NAMES[3]],
+        shortDescription: '[에픽] ➝ [전설] 펫 등급강화 재료',
     },
     {
         id: 'pair_shop_soul_5',
@@ -258,6 +263,7 @@ export const PAIR_PET_SHOP_SKUS: PairPetShopSku[] = [
         dailyLimit: 0,
         image: '/images/pets/soulstone5.webp',
         description: PAIR_SOULSTONE_DISPLAY_DESCRIPTIONS[PAIR_SOULSTONE_NAMES[4]],
+        shortDescription: '[전설] ➝ [신화] 펫 등급강화 재료',
     },
 ];
 

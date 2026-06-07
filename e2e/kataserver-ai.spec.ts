@@ -12,7 +12,7 @@ test.describe('KataServer AI games E2E', () => {
     test.setTimeout(90000);
 
     test('Standard mode: 1단계(입문) AI responds', async ({ page, authenticatedPage }) => {
-        await page.goto('/#/waiting/strategic');
+        await page.goto('/#/ai/strategic');
         await page.waitForLoadState('domcontentloaded');
         await page.waitForTimeout(3000);
 
@@ -56,7 +56,7 @@ test.describe('KataServer AI games E2E', () => {
     });
 
     test('Standard mode: 5단계(고수) AI responds', async ({ page, authenticatedPage }) => {
-        await page.goto('/#/waiting/strategic');
+        await page.goto('/#/ai/strategic');
         await page.waitForLoadState('domcontentloaded');
         await page.waitForTimeout(3000);
 
@@ -86,7 +86,7 @@ test.describe('KataServer AI games E2E', () => {
 
     test('Non-Standard strategic mode also uses 5-level KataServer selector', async ({ page, authenticatedPage }) => {
         // Capture(따내기) 모드에서도 동일한 5단계 AI 셀렉터 사용 확인
-        await page.goto('/#/waiting/strategic');
+        await page.goto('/#/ai/strategic');
         await page.waitForLoadState('domcontentloaded');
         await page.waitForTimeout(3000);
 
@@ -124,7 +124,7 @@ test.describe('KataServer AI games E2E', () => {
     });
 
     test('Playful mode AI game is unaffected by KataServer', async ({ page, authenticatedPage }) => {
-        await page.goto('/#/waiting/playful');
+        await page.goto('/#/ai/playful');
         await page.waitForLoadState('domcontentloaded');
         await page.waitForTimeout(3000);
 

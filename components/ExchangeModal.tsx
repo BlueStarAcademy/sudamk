@@ -22,6 +22,9 @@ import { getApiUrl } from '../utils/apiConfig.js';
 import { maxExchangeListPrice } from '../shared/constants/numericLimits.js';
 import { clampDigitsOnlyInputString, clampGameInt, exchangeListingFeeFromPrice } from '../shared/utils/gameIntegerField.js';
 import { formatGoldAmountKoG, formatWalletCurrencyAmount, formatWalletDiamonds } from '../shared/utils/walletAmountDisplay.js';
+import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../shared/constants/pcShellLayout.js';
+import { countTradeListingTickets, TRADE_LISTING_TICKET_NAME } from '../shared/utils/tradeListingTicket.js';
+import ExchangeTradeTicketBadge from './exchange/ExchangeTradeTicketBadge.js';
 
 type ExchangeTab = 'buy' | 'sell' | 'settlement' | 'history';
 type SaleCurrency = 'gold' | 'diamonds';
@@ -90,6 +93,7 @@ interface ExchangeModalProps {
     isTopmost?: boolean;
     /** 판매 등록·구매 미리보기 장비를 ItemDetailModal로 표시 (두 번째 인자: 내 소유 여부) */
     onViewListedEquipment?: (item: InventoryItem, isOwnedByCurrentUser?: boolean) => void;
+    embedded?: boolean;
 }
 
 /** 등록 직후 서버에 아직 없는 id는 유지하고, 동일 id는 서버 행으로 덮어씀 */
@@ -107,7 +111,6 @@ const mergeExchangeListingsPreferServer = (local: ExchangeListing[], server: Exc
 const MAX_SELL_SLOTS = 3;
 const LISTING_MAX_DURATION_MS = 5 * 24 * 60 * 60 * 1000;
 const VERIFICATION_MS = 30 * 1000;
-const TRADE_LISTING_TICKET_NAME = '거래 등록권';
 /** 모달 최초 오픈 시 구매 목록 API와 동시에 보여줄 최소 대기 시간(ms) */
 const EXCHANGE_MODAL_OPENING_LOAD_MS = 3000;
 /** 만료 물품 연속 회수 시 서버 검증·동기화 간격(회수 버튼 공통 쿨다운) */
@@ -331,7 +334,15 @@ const BUY_GRADE_FILTER_OPTIONS: Array<{ value: BuyGradeFilter; label: string }> 
     { value: ItemGrade.Transcendent, label: '초월' },
 ];
 
-const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, onClose, onAction, isTopmost, onViewListedEquipment }) => {
+const ExchangeModal: React.FC<ExchangeModalProps> = ({
+    currentUser,
+    allUsers,
+    onClose,
+    onAction,
+    isTopmost,
+    onViewListedEquipment,
+    embedded = false,
+}) => {
     const { isNativeMobile } = useNativeMobileShell();
     const mobileExchange = Boolean(isNativeMobile);
     const [activeTab, setActiveTab] = useState<ExchangeTab>('buy');
@@ -435,10 +446,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
     }, [sellableItems, inventorySortKey]);
     const myListedCount = listings.filter((listing) => listing.sellerId === currentUser.id && listing.status === 'listed').length;
     const tradeListingTicketCount = useMemo(
-        () =>
-            (currentUser.inventory ?? [])
-                .filter((item: InventoryItem) => item.type === 'material' && item.name === TRADE_LISTING_TICKET_NAME)
-                .reduce((sum, item) => sum + (item.quantity ?? 1), 0),
+        () => countTradeListingTickets(currentUser.inventory),
         [currentUser.inventory],
     );
     const allowedListingCount = isAdminUser ? Number.POSITIVE_INFINITY : functionVipActive ? MAX_SELL_SLOTS : tradeListingTicketCount;
@@ -1270,16 +1278,22 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
 
     const buyListingSelectedByUser = Boolean(selectedBuyListingId && selectedBuyListing && selectedBuyListing.id === selectedBuyListingId);
 
-    const renderBuyEquipmentOrFallback = (opts?: { comfortableTypography?: boolean; optionRowsSingleLine?: boolean }) => {
+    const renderBuyEquipmentOrFallback = (opts?: {
+        comfortableTypography?: boolean;
+        enlargedTypography?: boolean;
+        optionRowsSingleLine?: boolean;
+    }) => {
         if (!selectedBuyListing || !buyDetailDisplayItem) return null;
         const cozy = Boolean(opts?.comfortableTypography);
+        const enlarged = Boolean(opts?.enlargedTypography);
         const singleLineOpts = Boolean(opts?.optionRowsSingleLine);
         return (
             <EquipmentDetailPanel
                 item={buyDetailDisplayItem}
                 showTradeStatusUnderImage
                 comfortableTypography={cozy}
-                optionsScrollable={!cozy}
+                enlargedTypography={enlarged}
+                optionsScrollable={!cozy && !enlarged}
                 optionRowsSingleLine={singleLineOpts}
             />
         );
@@ -1289,8 +1303,15 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
         if (!selectedBuyListing) return null;
         const cozy = Boolean(opts?.comfortableTypography);
         const cardText =
-            cozy && mobileExchange ? 'text-[13px] leading-snug' : mobileExchange ? 'text-[12px] leading-snug' : 'text-xs';
-        const statIcon = cozy && mobileExchange ? 'h-4 w-4 object-contain' : 'h-3.5 w-3.5 object-contain';
+            cozy && mobileExchange
+                ? 'text-[13px] leading-snug'
+                : cozy
+                  ? 'text-sm leading-snug'
+                  : mobileExchange
+                    ? 'text-[12px] leading-snug'
+                    : 'text-xs';
+        const statIcon =
+            cozy && !mobileExchange ? 'h-4 w-4 object-contain' : cozy && mobileExchange ? 'h-4 w-4 object-contain' : 'h-3.5 w-3.5 object-contain';
         return (
             <div className={`rounded border border-slate-700/60 bg-slate-950/55 px-2 py-2 text-slate-200 ${cardText}`}>
                 <div className="flex items-center justify-between">
@@ -1359,14 +1380,19 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
 
     const sellFormText = mobileExchange
         ? 'text-[11px] font-medium leading-snug text-slate-200'
-        : 'text-xs font-medium leading-snug text-slate-200';
+        : 'text-sm font-medium leading-snug text-slate-200';
     const sellFormLabel = mobileExchange
         ? 'text-[11px] font-semibold leading-snug text-slate-300'
-        : 'text-xs font-semibold leading-snug text-slate-300';
-    const sellFormInputNums = mobileExchange ? 'text-[11px]' : 'text-xs';
-    const sellFormFeeBox = mobileExchange ? 'text-[11px] font-medium leading-snug text-cyan-100' : 'text-xs font-medium leading-snug text-cyan-100';
-    const sellCurrencyRadioIcon = mobileExchange ? 'h-3.5 w-3.5 object-contain' : 'h-4 w-4 object-contain';
-    const sellPrimarySidebarButtonClass = `${exchangePrimaryButtonClass} ${mobileExchange ? '!text-[11px] !leading-snug' : '!text-xs !leading-snug'}`;
+        : 'text-sm font-semibold leading-snug text-slate-300';
+    const sellFormInputNums = mobileExchange ? 'text-[11px]' : 'text-sm';
+    const sellFormFeeBox = mobileExchange ? 'text-[11px] font-medium leading-snug text-cyan-100' : 'text-sm font-medium leading-snug text-cyan-100';
+    const sellCurrencyRadioIcon = mobileExchange ? 'h-3.5 w-3.5 object-contain' : 'h-5 w-5 object-contain';
+    const sellPrimarySidebarButtonClass = `${exchangePrimaryButtonClass} ${mobileExchange ? '!text-[11px] !leading-snug' : '!text-sm !leading-snug'}`;
+    const settlementDetailText = mobileExchange ? 'text-[11px] leading-snug' : 'text-sm leading-snug';
+    const settlementDetailLabel = mobileExchange ? 'text-[11px] font-semibold text-slate-300' : 'text-sm font-semibold text-slate-300';
+    const settlementListHeaderText = mobileExchange ? 'px-1.5 py-1 text-[10px] leading-tight' : 'px-2 py-1.5 text-sm leading-snug';
+    const settlementCurrencyIcon = mobileExchange ? 'h-3.5 w-3.5 object-contain' : 'h-4 w-4 object-contain';
+    const settlementRowPriceText = mobileExchange ? 'text-[11px] leading-tight' : 'text-sm leading-snug';
 
     const renderSellRegistrationSidebar = (opts?: { hideSubmitButton?: boolean }) => (
         <div className="flex min-h-0 flex-col">
@@ -1424,7 +1450,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                         <img
                             src={saleCurrency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
                             alt={saleCurrency === 'gold' ? '골드' : '다이아'}
-                            className={`${mobileExchange ? 'h-3.5 w-3.5' : 'h-4 w-4'} shrink-0 object-contain`}
+                            className={`${mobileExchange ? 'h-3.5 w-3.5' : 'h-5 w-5'} shrink-0 object-contain`}
                         />
                     </div>
                 </label>
@@ -1479,6 +1505,13 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
 
     const exchangeSellAuxOpen = mobileExchange && (sellPickerOpen || sellComposerOpen);
     const mobileBuyDetailOpen = mobileExchange && activeTab === 'buy' && buyListingSelectedByUser;
+
+    const exchangeTitleContent = (
+        <span className="flex min-w-0 items-center gap-2 sm:gap-2.5">
+            <span className="truncate">거래소</span>
+            <ExchangeTradeTicketBadge count={tradeListingTicketCount} compact={mobileExchange} />
+        </span>
+    );
 
     return (
         <>
@@ -1864,54 +1897,9 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                     </div>
                 </DraggableWindow>
             )}
-            <DraggableWindow
-                title="거래소"
-                onClose={onClose}
-                windowId="exchange"
-                initialWidth={980}
-                initialHeight={820}
-                isTopmost={Boolean(isTopmost) && !mobileBuyDetailOpen && !exchangeSellAuxOpen}
-                variant="store"
-                headerShowTitle={!mobileExchange}
-                mobileViewportFit={mobileExchange}
-                mobileViewportMaxHeightVh={98}
-                mobileLockViewportHeight={mobileExchange}
-                bodyScrollable={!mobileExchange}
-                bodyPaddingClassName={
-                    mobileExchange
-                        ? 'flex min-h-0 min-w-0 flex-1 flex-col !px-2.5 !pb-[max(0.6rem,env(safe-area-inset-bottom,0px))] !pt-2'
-                        : undefined
-                }
-                headerContent={
-                    <div
-                        className={
-                            mobileExchange
-                                ? 'flex flex-wrap items-center gap-1.5 text-[11px] font-semibold leading-tight text-slate-100'
-                                : 'flex items-center gap-3 text-xs sm:text-sm'
-                        }
-                    >
-                        <div
-                            className={`flex items-center gap-1 rounded-md border border-amber-500/35 bg-amber-900/20 text-amber-200 ${mobileExchange ? 'px-1.5 py-0.5' : 'px-2 py-1'}`}
-                        >
-                            <img src="/images/icon/Gold.webp" alt="골드" className={mobileExchange ? 'h-3.5 w-3.5 object-contain' : 'h-4 w-4 object-contain'} />
-                            <span className="tabular-nums">{formatGoldAmountKoG(walletGold)}</span>
-                        </div>
-                        <div
-                            className={`flex items-center gap-1 rounded-md border border-sky-500/35 bg-sky-900/20 text-sky-200 ${mobileExchange ? 'px-1.5 py-0.5' : 'px-2 py-1'}`}
-                        >
-                            <img src="/images/icon/Zem.webp" alt="다이아" className={mobileExchange ? 'h-3.5 w-3.5 object-contain' : 'h-4 w-4 object-contain'} />
-                            <span className="tabular-nums">{formatWalletDiamonds(walletDiamonds)}</span>
-                        </div>
-                        <div
-                            className={`flex items-center gap-1 rounded-md border border-emerald-500/35 bg-emerald-900/20 text-emerald-200 ${mobileExchange ? 'px-1.5 py-0.5' : 'px-2 py-1'}`}
-                        >
-                            <img src="/images/use/allowtrade.webp" alt="거래 등록권" className={mobileExchange ? 'h-3.5 w-3.5 object-contain' : 'h-4 w-4 object-contain'} />
-                            <span className="tabular-nums">{tradeListingTicketCount.toLocaleString()}</span>
-                        </div>
-                    </div>
-                }
-            >
-                <div className={`flex h-full min-h-0 flex-col text-slate-100 ${mobileExchange ? exchM : ''}`}>
+            {(() => {
+                const exchangePanel = (
+                    <>
                     <div className={`grid grid-cols-4 gap-1 rounded-lg border border-slate-700/60 bg-slate-900/70 p-1 ${mobileExchange ? 'mb-2' : 'mb-3'}`}>
                         <button
                             onClick={() => setActiveTab('buy')}
@@ -1954,7 +1942,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
 
                     <div
                         className={`min-h-0 flex-1 overflow-hidden rounded-lg border border-slate-700/60 bg-slate-950/55 ${mobileExchange ? 'p-2' : 'p-3'} ${
-                            (activeTab === 'settlement' && mobileExchange) || activeTab === 'history' ? 'flex min-h-0 flex-col' : ''
+                            activeTab === 'settlement' || activeTab === 'history' ? 'flex min-h-0 flex-col' : ''
                         }`}
                     >
                         {activeTab === 'buy' && (
@@ -1962,7 +1950,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                 className={
                                     mobileExchange
                                         ? 'flex h-full min-h-0 flex-col gap-2'
-                                        : 'grid h-full min-h-0 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_340px]'
+                                        : 'grid h-full min-h-0 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(300px,380px)]'
                                 }
                             >
                                 {!exchangeBuyListingsRevealReady ? (
@@ -2196,8 +2184,10 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                         <div className="min-h-0 flex-1 overflow-hidden">
                                             {selectedBuyListing ? (
                                                 <div className="flex h-full min-h-0 flex-col gap-2">
-                                                    <div className="min-h-0 flex-1 overflow-hidden">{renderBuyEquipmentOrFallback()}</div>
-                                                    {renderBuyStatsCard()}
+                                                    <div className="min-h-0 flex-1 overflow-hidden">
+                                                        {renderBuyEquipmentOrFallback({ enlargedTypography: true })}
+                                                    </div>
+                                                    {renderBuyStatsCard({ comfortableTypography: true })}
                                                 </div>
                                             ) : (
                                                 <div className="h-full rounded border border-dashed border-slate-700/70 bg-slate-950/40" />
@@ -2380,9 +2370,9 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                 </div>
                             ) : (
                                 <div className="flex h-full min-h-0 flex-col gap-3">
-                                    <div className="shrink-0 grid min-h-0 grid-cols-1 gap-3 lg:grid-cols-[380px_minmax(0,1.15fr)_220px]">
+                                    <div className="shrink-0 grid min-h-0 grid-cols-1 gap-3 lg:grid-cols-[minmax(320px,400px)_minmax(0,1fr)_minmax(200px,228px)]">
                                         <div className="flex h-[340px] min-h-[340px] max-h-[340px] min-w-0 flex-col rounded-lg border border-slate-700/60 bg-slate-900/45 p-3">
-                                            <p className="text-xs font-semibold text-amber-200">등록된 아이템</p>
+                                            <p className="text-sm font-semibold text-amber-200">등록된 아이템</p>
                                             <div className={`min-h-0 flex-1 overflow-y-auto pr-1 ${BAG_SCROLLBAR_Y_CLASS}`}>
                                                 <div className="space-y-2">
                                                     {isAdminUser && sellSlots.length === 0 && (
@@ -2450,27 +2440,27 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                                         })()}
                                                                     </div>
                                                                     <div className="min-w-0 pl-1 text-center">
-                                                                        <span className={`block text-xs font-semibold leading-none ${slotGradeColor}`}>[{slotGradeLabel}]</span>
+                                                                        <span className={`block text-sm font-semibold leading-none ${slotGradeColor}`}>[{slotGradeLabel}]</span>
                                                                         <span
-                                                                            className="mt-0.5 block truncate whitespace-nowrap text-sm font-semibold leading-none text-slate-100"
+                                                                            className="mt-0.5 block truncate whitespace-nowrap text-base font-semibold leading-none text-slate-100"
                                                                             title={slot.itemName}
                                                                         >
                                                                             {slot.itemName}
                                                                         </span>
-                                                                        <div className="mt-1 flex items-center justify-center gap-1.5 text-xs font-semibold leading-tight text-slate-100">
+                                                                        <div className="mt-1 flex items-center justify-center gap-1.5 text-sm font-semibold leading-tight text-slate-100">
                                                                             <span className="tabular-nums">
                                                                                 {formatWalletCurrencyAmount(slot.price, slot.currency)}
                                                                             </span>
                                                                             <img
                                                                                 src={slot.currency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
                                                                                 alt={slot.currency === 'gold' ? '골드' : '다이아'}
-                                                                                className="h-3.5 w-3.5 object-contain"
+                                                                                className="h-4 w-4 object-contain"
                                                                             />
                                                                         </div>
                                                                     </div>
-                                                                    <div className="flex min-w-[6.5rem] shrink-0 flex-col items-center gap-1">
+                                                                    <div className="flex min-w-[5.75rem] shrink-0 flex-col items-center gap-1">
                                                                         <span
-                                                                            className={`w-full text-center text-xs font-semibold leading-tight ${verification === 'verifying' ? 'text-cyan-200' : isExpired ? 'text-rose-300' : 'text-emerald-200'}`}
+                                                                            className={`w-full text-center text-sm font-semibold leading-tight ${verification === 'verifying' ? 'text-cyan-200' : isExpired ? 'text-rose-300' : 'text-emerald-200'}`}
                                                                         >
                                                                             {verification === 'verifying' ? '등록중' : isExpired ? '만료됨' : `${remainingDays}일 ${remainingHours}시간`}
                                                                         </span>
@@ -2486,7 +2476,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                                                         ? `${listingRecoverCooldownSecondsLeft}초 뒤에 다시 회수할 수 있습니다.`
                                                                                         : undefined
                                                                                 }
-                                                                                className={`!flex !w-[78px] !shrink-0 !items-center !justify-center min-h-[26px] rounded-md !border px-1.5 py-0.5 text-xs leading-none font-semibold tracking-wide ${
+                                                                                className={`!flex !w-[4.5rem] !shrink-0 !items-center !justify-center min-h-[26px] rounded-md !border px-1 py-0.5 text-sm leading-none font-semibold tracking-wide ${
                                                                                     isExpired
                                                                                         ? '!border-rose-300/40 !bg-gradient-to-b !from-rose-500/80 !to-rose-700/90'
                                                                                         : '!border-slate-500/50 !bg-gradient-to-b !from-slate-700/90 !to-slate-900/95'
@@ -2515,11 +2505,12 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                             {selectedItem ? (
                                                 <div className="h-[340px] min-h-[340px] max-h-[340px] overflow-hidden">
                                                     <EquipmentDetailPanel
-                                            item={selectedItem}
-                                            showTradeStatusUnderImage
-                                            comfortableTypography={mobileExchange}
-                                            optionRowsSingleLine={mobileExchange}
-                                        />
+                                                        item={selectedItem}
+                                                        showTradeStatusUnderImage
+                                                        enlargedTypography={!mobileExchange}
+                                                        comfortableTypography={mobileExchange}
+                                                        optionRowsSingleLine={mobileExchange}
+                                                    />
                                                 </div>
                                             ) : (
                                                 <div className="h-[340px] min-h-[340px] max-h-[340px] rounded border border-dashed border-slate-700/70 bg-slate-950/40" />
@@ -2587,18 +2578,13 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                             ))}
 
                         {activeTab === 'settlement' && (
-                            <div className="flex min-h-0 flex-1 flex-col gap-2 lg:grid lg:grid-cols-[minmax(0,1fr)_280px] lg:gap-3">
+                            <div className="flex h-full min-h-0 flex-1 flex-col gap-2 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(280px,320px)] lg:gap-3">
                                 <div
-                                    className={`flex min-h-0 flex-col overflow-hidden rounded-lg border border-slate-700/60 bg-slate-900/40 ${mobileExchange ? 'min-h-0 flex-1 p-2' : 'min-h-0 p-3'}`}
+                                    className={`flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-slate-700/60 bg-slate-900/40 ${mobileExchange ? 'min-h-0 flex-1 p-2' : 'p-3'}`}
                                 >
-                                    <div
-                                        className={`min-h-0 overflow-y-auto pr-1 ${BAG_SCROLLBAR_Y_CLASS} ${mobileExchange ? 'flex-1' : ''}`}
-                                        style={mobileExchange ? undefined : { maxHeight: 'calc(100vh - 360px)' }}
-                                    >
+                                    <div className={`flex min-h-0 flex-1 flex-col overflow-y-auto pr-1 ${BAG_SCROLLBAR_Y_CLASS}`}>
                                         <div
-                                            className={`sticky top-0 z-10 mb-2 grid items-center rounded border border-slate-600/70 bg-slate-900/95 font-semibold text-slate-300 backdrop-blur-sm ${settlementListCols} ${
-                                                mobileExchange ? 'px-1.5 py-1 text-[10px] leading-tight' : 'px-2 py-1.5 text-[11px]'
-                                            }`}
+                                            className={`sticky top-0 z-10 mb-2 grid shrink-0 items-center rounded border border-slate-600/70 bg-slate-900/95 font-semibold text-slate-300 backdrop-blur-sm ${settlementListCols} ${settlementListHeaderText}`}
                                         >
                                             <span className="text-center">이름</span>
                                             <span className="text-center">판매가</span>
@@ -2607,7 +2593,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                         </div>
                                         {settlementDisplayItems.length === 0 && (
                                             <div
-                                                className={`rounded border border-slate-700/60 bg-slate-900/40 text-center text-slate-300 ${mobileExchange ? `px-2 py-6 ${exchM}` : 'px-3 py-8 text-xs leading-snug'}`}
+                                                className={`flex flex-1 items-center justify-center rounded border border-slate-700/60 bg-slate-900/40 text-center text-slate-300 ${mobileExchange ? `min-h-[8rem] px-2 py-6 ${exchM}` : 'min-h-0 px-3 py-8 text-sm leading-snug'}`}
                                             >
                                                 정산 가능한 판매 내역이 없습니다.
                                             </div>
@@ -2654,7 +2640,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                                 <p
                                                                     className="min-w-0 whitespace-nowrap text-center font-semibold"
                                                                     style={{
-                                                                        fontSize: `${Math.max(10, Math.min(14, Math.floor(14 - Math.max(0, (`[${gradeLabel}] ${entry.itemName}`).length - 16) * 0.24)))}px`,
+                                                                        fontSize: `${Math.max(12, Math.min(15, Math.floor(15 - Math.max(0, (`[${gradeLabel}] ${entry.itemName}`).length - 16) * 0.22)))}px`,
                                                                         letterSpacing: '-0.015em',
                                                                     }}
                                                                 >
@@ -2665,22 +2651,22 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                             {!mobileExchange ? <div className="h-14 w-14" aria-hidden /> : null}
                                                         </div>
                                                         <div
-                                                            className={`flex items-center justify-center gap-1 font-semibold text-amber-100 ${mobileExchange ? 'text-[11px] leading-tight' : 'text-sm'}`}
+                                                            className={`flex items-center justify-center gap-1 font-semibold text-amber-100 ${settlementRowPriceText}`}
                                                         >
                                                             <span className="tabular-nums">{formatWalletCurrencyAmount(entry.soldPrice, entry.currency)}</span>
-                                                            <img src={currencyIcon} alt={currencyAlt} className={mobileExchange ? 'h-3.5 w-3.5 object-contain' : 'h-4 w-4 object-contain'} />
+                                                            <img src={currencyIcon} alt={currencyAlt} className={settlementCurrencyIcon} />
                                                         </div>
                                                         <div
-                                                            className={`flex items-center justify-center gap-1 font-semibold text-rose-200 ${mobileExchange ? 'text-[11px] leading-tight' : 'text-sm'}`}
+                                                            className={`flex items-center justify-center gap-1 font-semibold text-rose-200 ${settlementRowPriceText}`}
                                                         >
                                                             <span className="tabular-nums">{formatWalletCurrencyAmount(entry.fee, entry.currency)}</span>
-                                                            <img src={currencyIcon} alt={currencyAlt} className={mobileExchange ? 'h-3.5 w-3.5 object-contain' : 'h-4 w-4 object-contain'} />
+                                                            <img src={currencyIcon} alt={currencyAlt} className={settlementCurrencyIcon} />
                                                         </div>
                                                         <div
-                                                            className={`flex items-center justify-center gap-1 font-bold text-emerald-200 ${mobileExchange ? 'text-[11px] leading-tight' : 'text-sm'}`}
+                                                            className={`flex items-center justify-center gap-1 font-bold text-emerald-200 ${settlementRowPriceText}`}
                                                         >
                                                             <span className="tabular-nums">{formatWalletCurrencyAmount(entry.net, entry.currency)}</span>
-                                                            <img src={currencyIcon} alt={currencyAlt} className={mobileExchange ? 'h-3.5 w-3.5 object-contain' : 'h-4 w-4 object-contain'} />
+                                                            <img src={currencyIcon} alt={currencyAlt} className={settlementCurrencyIcon} />
                                                         </div>
                                                     </button>
                                                 );
@@ -2689,16 +2675,16 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                     </div>
                                 </div>
                                 <div
-                                    className={`shrink-0 rounded-lg border border-slate-700/60 bg-slate-900/45 ${mobileExchange ? 'p-2' : 'p-3'} ${
+                                    className={`flex h-full min-h-0 flex-col rounded-lg border border-slate-700/60 bg-slate-900/45 ${mobileExchange ? 'shrink-0 p-2' : 'p-3'} ${
                                         mobileExchange
                                             ? 'border-t border-amber-500/35 bg-gradient-to-b from-slate-900/95 to-slate-950/98 shadow-[0_-10px_28px_-14px_rgba(0,0,0,0.5)]'
                                             : ''
                                     }`}
                                 >
                                     {selectedSettlement ? (
-                                        <div className="space-y-2">
-                                            <div className={`rounded border border-slate-700/60 bg-slate-950/55 px-3 py-2 text-slate-100 ${mobileExchange ? 'text-[11px] leading-snug' : 'text-xs'}`}>
-                                                <p className="mb-1 text-[11px] font-semibold text-slate-300">선택 항목</p>
+                                        <div className="flex h-full min-h-0 flex-col gap-3">
+                                            <div className={`rounded border border-slate-700/60 bg-slate-950/55 px-3 py-2.5 text-slate-100 ${settlementDetailText}`}>
+                                                <p className={`mb-1.5 ${settlementDetailLabel}`}>선택 항목</p>
                                                 <div className="flex items-center justify-between">
                                                     <span className="text-rose-200">수수료</span>
                                                     <span className="flex items-center gap-1 tabular-nums font-semibold text-rose-200">
@@ -2706,63 +2692,65 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                         <img
                                                             src={selectedSettlement.currency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
                                                             alt={selectedSettlement.currency === 'gold' ? '골드' : '다이아'}
-                                                            className="h-3.5 w-3.5 object-contain"
+                                                            className={settlementCurrencyIcon}
                                                         />
                                                     </span>
                                                 </div>
-                                                <div className="mt-1 flex items-center justify-between">
+                                                <div className="mt-1.5 flex items-center justify-between">
                                                     <span>수령액</span>
                                                     <span className="flex items-center gap-1 tabular-nums font-bold text-emerald-200">
                                                         <span>{formatWalletCurrencyAmount(selectedSettlement.net, selectedSettlement.currency)}</span>
                                                         <img
                                                             src={selectedSettlement.currency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
                                                             alt={selectedSettlement.currency === 'gold' ? '골드' : '다이아'}
-                                                            className="h-3.5 w-3.5 object-contain"
+                                                            className={settlementCurrencyIcon}
                                                         />
                                                     </span>
                                                 </div>
                                             </div>
-                                            <div className={`rounded border border-slate-700/60 bg-slate-950/55 px-3 py-2 text-slate-100 ${mobileExchange ? 'text-[11px] leading-snug' : 'text-xs'}`}>
-                                                <p className="mb-1 text-[11px] font-semibold text-slate-300">모든 항목</p>
-                                                <div className="space-y-1">
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="text-rose-200">수수료</span>
-                                                        <div className="grid grid-cols-2 items-center gap-1">
-                                                            <span className="flex min-w-[72px] items-center justify-end gap-1 tabular-nums font-semibold text-rose-200">
+                                            <div className={`rounded border border-slate-700/60 bg-slate-950/55 px-3 py-2.5 text-slate-100 ${settlementDetailText}`}>
+                                                <p className={`mb-1.5 ${settlementDetailLabel}`}>모든 항목</p>
+                                                <div className="space-y-1.5">
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <span className="shrink-0 text-rose-200">수수료</span>
+                                                        <div className="grid min-w-0 grid-cols-2 items-center gap-1.5">
+                                                            <span className="flex min-w-[4.5rem] items-center justify-end gap-1 tabular-nums font-semibold text-rose-200">
                                                                 <span>{formatGoldAmountKoG(settlementTotals.selectedFeeGold)}</span>
-                                                                <img src="/images/icon/Gold.webp" alt="골드" className="h-3.5 w-3.5 object-contain" />
+                                                                <img src="/images/icon/Gold.webp" alt="골드" className={settlementCurrencyIcon} />
                                                             </span>
-                                                            <span className="flex min-w-[72px] items-center justify-end gap-1 tabular-nums font-semibold text-rose-200">
+                                                            <span className="flex min-w-[4.5rem] items-center justify-end gap-1 tabular-nums font-semibold text-rose-200">
                                                                 <span>{formatWalletDiamonds(settlementTotals.selectedFeeDiamonds)}</span>
-                                                                <img src="/images/icon/Zem.webp" alt="다이아" className="h-3.5 w-3.5 object-contain" />
+                                                                <img src="/images/icon/Zem.webp" alt="다이아" className={settlementCurrencyIcon} />
                                                             </span>
                                                         </div>
                                                     </div>
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="text-emerald-200">수령액</span>
-                                                        <div className="grid grid-cols-2 items-center gap-1">
-                                                            <span className="flex min-w-[72px] items-center justify-end gap-1 tabular-nums font-bold text-emerald-200">
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <span className="shrink-0 text-emerald-200">수령액</span>
+                                                        <div className="grid min-w-0 grid-cols-2 items-center gap-1.5">
+                                                            <span className="flex min-w-[4.5rem] items-center justify-end gap-1 tabular-nums font-bold text-emerald-200">
                                                                 <span>{formatGoldAmountKoG(settlementTotals.selectedNetGold)}</span>
-                                                                <img src="/images/icon/Gold.webp" alt="골드" className="h-3.5 w-3.5 object-contain" />
+                                                                <img src="/images/icon/Gold.webp" alt="골드" className={settlementCurrencyIcon} />
                                                             </span>
-                                                            <span className="flex min-w-[72px] items-center justify-end gap-1 tabular-nums font-bold text-emerald-200">
+                                                            <span className="flex min-w-[4.5rem] items-center justify-end gap-1 tabular-nums font-bold text-emerald-200">
                                                                 <span>{formatWalletDiamonds(settlementTotals.selectedNetDiamonds)}</span>
-                                                                <img src="/images/icon/Zem.webp" alt="다이아" className="h-3.5 w-3.5 object-contain" />
+                                                                <img src="/images/icon/Zem.webp" alt="다이아" className={settlementCurrencyIcon} />
                                                             </span>
                                                         </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                            <Button onClick={() => handleClaimSettlement(selectedSettlement.listingId)} className={exchangePrimaryButtonClass}>
-                                                선택 항목 수령
-                                            </Button>
-                                            <Button onClick={handleClaimAllSettlements} disabled={settlementDisplayItems.length === 0} className={exchangeSecondaryButtonClass}>
-                                                모두 수령
-                                            </Button>
+                                            <div className="mt-auto shrink-0 space-y-2 pt-1">
+                                                <Button onClick={() => handleClaimSettlement(selectedSettlement.listingId)} className={exchangePrimaryButtonClass}>
+                                                    선택 항목 수령
+                                                </Button>
+                                                <Button onClick={handleClaimAllSettlements} disabled={settlementDisplayItems.length === 0} className={exchangeSecondaryButtonClass}>
+                                                    모두 수령
+                                                </Button>
+                                            </div>
                                         </div>
                                     ) : (
                                         <div
-                                            className={`rounded border border-dashed border-slate-700/70 bg-slate-950/40 text-center text-slate-300 ${mobileExchange ? `px-2 py-6 ${exchM}` : 'px-3 py-10 text-xs leading-snug'}`}
+                                            className={`flex h-full min-h-0 flex-1 items-center justify-center rounded border border-dashed border-slate-700/70 bg-slate-950/40 text-center text-slate-300 ${mobileExchange ? `px-2 py-6 ${exchM}` : 'px-3 py-10 text-sm leading-snug'}`}
                                         >
                                             정산 대기 항목이 없습니다.
                                         </div>
@@ -2919,8 +2907,42 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                             </div>
                         )}
                     </div>
-                </div>
-            </DraggableWindow>
+                    </>
+                );
+                if (embedded) {
+                    return (
+                        <div className={`${PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS} text-slate-100 ${mobileExchange ? exchM : ''}`}>
+                            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{exchangePanel}</div>
+                        </div>
+                    );
+                }
+                return (
+                    <DraggableWindow
+                        title="거래소"
+                        titleContent={exchangeTitleContent}
+                        onClose={onClose}
+                        windowId="exchange"
+                        initialWidth={980}
+                        initialHeight={820}
+                        isTopmost={Boolean(isTopmost) && !mobileBuyDetailOpen && !exchangeSellAuxOpen}
+                        variant="store"
+                        headerShowTitle
+                        mobileViewportFit={mobileExchange}
+                        mobileViewportMaxHeightVh={98}
+                        mobileLockViewportHeight={mobileExchange}
+                        bodyScrollable={!mobileExchange}
+                        bodyPaddingClassName={
+                            mobileExchange
+                                ? 'flex min-h-0 min-w-0 flex-1 flex-col !px-2.5 !pb-[max(0.6rem,env(safe-area-inset-bottom,0px))] !pt-2'
+                                : undefined
+                        }
+                    >
+                        <div className={`flex h-full min-h-0 flex-col text-slate-100 ${mobileExchange ? exchM : ''}`}>
+                            {exchangePanel}
+                        </div>
+                    </DraggableWindow>
+                );
+            })()}
         </>
     );
 };

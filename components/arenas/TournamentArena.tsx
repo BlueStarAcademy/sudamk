@@ -178,7 +178,7 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
                     onStartNextRound={() => handlers.handleAction({ type: 'START_TOURNAMENT_ROUND', payload: { type: type } })}
                     onReset={() => handlers.handleAction({ type: 'CLEAR_TOURNAMENT_SESSION', payload: { type: type } })}
                     onSkip={() => handlers.handleAction({ type: 'SKIP_TOURNAMENT_END', payload: { type: type } })}
-                    onOpenShop={() => handlers.openShop('consumables')}
+                    onOpenShop={() => handlers.openShop('consumables', { modal: true })}
                     isMobile={isChampionshipMobileLayout}
                 />
             )}

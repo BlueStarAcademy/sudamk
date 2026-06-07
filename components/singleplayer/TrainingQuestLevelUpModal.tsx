@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
 import { SinglePlayerMissionInfo } from '../../types.js';
 import Button from '../Button.js';
+import AlertModal from '../AlertModal.js';
 import DraggableWindow from '../DraggableWindow.js';
 import { PREMIUM_QUEST_BTN } from './trainingQuestPremiumButtons.js';
 import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
@@ -15,6 +16,8 @@ interface TrainingQuestLevelUpModalProps {
     currentLevel: number;
     upgradeCost: number;
     canLevelUp: boolean;
+    hasEnoughXp?: boolean;
+    hasUnlockStage?: boolean;
     nextLevelUnlockStage?: string;
     currentUserGold: number;
     accumulatedCollection: number;
@@ -29,6 +32,8 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
     currentLevel,
     upgradeCost,
     canLevelUp,
+    hasEnoughXp: hasEnoughXpProp,
+    hasUnlockStage: hasUnlockStageProp,
     nextLevelUnlockStage,
     currentUserGold,
     accumulatedCollection,
@@ -37,11 +42,16 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
     onConfirm,
     onClose,
 }) => {
+    const hasEnoughXp =
+        hasEnoughXpProp ??
+        (currentLevel === 0 || requiredCollection === 0 || accumulatedCollection >= requiredCollection);
+    const hasUnlockStage = hasUnlockStageProp ?? (!nextLevelUnlockStage || canLevelUp);
     const [isLevelingUp, setIsLevelingUp] = useState(false);
     const [displayLevel, setDisplayLevel] = useState(currentLevel);
     const [showLevelUpEffect, setShowLevelUpEffect] = useState(false);
     const [isEnhancing, setIsEnhancing] = useState(false);
     const [enhancementProgress, setEnhancementProgress] = useState(0);
+    const [alertMessage, setAlertMessage] = useState<string | null>(null);
     const enhanceIntervalRef = useRef<number | null>(null);
     const enhanceTimeoutRef = useRef<number | null>(null);
 
@@ -160,11 +170,24 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
     const normalizedRequired = Math.max(0, requiredCollection);
     const normalizedAccumulated = Math.max(0, accumulatedCollection);
     const xpPercent = normalizedRequired > 0
-        ? Math.min(100, Math.round((normalizedAccumulated / normalizedRequired) * 100))
-        : (canLevelUp ? 100 : Math.max(0, Math.round(progressPercent)));
+        ? Math.min(100, Math.floor((normalizedAccumulated / normalizedRequired) * 100))
+        : (canLevelUp ? 100 : Math.max(0, Math.floor(progressPercent)));
 
     const handleEnhance = async () => {
-        if (!canLevelUp || !hasEnoughGold || isEnhancing) return;
+        if (isEnhancing) return;
+
+        if (!hasEnoughXp) {
+            setAlertMessage('경험치가 부족합니다.');
+            return;
+        }
+        if (!hasUnlockStage && nextLevelUnlockStage) {
+            setAlertMessage(`${nextLevelUnlockStage} 클리어 후 강화할 수 있습니다.`);
+            return;
+        }
+        if (!hasEnoughGold) {
+            setAlertMessage('골드가 부족합니다.');
+            return;
+        }
 
         setIsEnhancing(true);
         setEnhancementProgress(0);
@@ -237,36 +260,35 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
         </div>
     );
 
+    const canStartEnhance = hasEnoughXp && hasUnlockStage && hasEnoughGold;
+    const enhanceButtonLabel = isEnhancing ? (
+        '강화 중...'
+    ) : (
+        <span className="flex items-center justify-center gap-[clamp(0.25rem,1.5vw,0.5rem)] font-semibold tracking-wide">
+            <img
+                src="/images/icon/Gold.webp"
+                alt="골드"
+                className={`flex-shrink-0 drop-shadow ${isCompactUi ? 'h-[clamp(1rem,4.2vw,1.25rem)] w-[clamp(1rem,4.2vw,1.25rem)]' : 'h-6 w-6'}`}
+            />
+            <span>{upgradeCost.toLocaleString()}</span>
+            <span>강화</span>
+        </span>
+    );
+
     const footerActions = (
         <>
             <div className="flex w-full justify-center">
                 <Button
                     onClick={handleEnhance}
                     colorScheme="none"
-                    className={`${PREMIUM_QUEST_BTN.upgrade} ${(!canLevelUp || !hasEnoughGold || isEnhancing) ? 'cursor-not-allowed opacity-50' : ''} !mx-auto !w-auto !max-w-[min(9.5rem,88vw)] !min-w-0 !shrink-0 !whitespace-normal !px-[clamp(0.5rem,3vw,0.75rem)] !py-[clamp(0.375rem,2vw,0.5rem)] !text-center !leading-tight ${
+                    className={`${PREMIUM_QUEST_BTN.upgrade} ${isEnhancing ? 'cursor-wait opacity-70' : !canStartEnhance ? 'opacity-90' : ''} !mx-auto !w-auto !max-w-[min(9.5rem,88vw)] !min-w-0 !shrink-0 !whitespace-normal !px-[clamp(0.5rem,3vw,0.75rem)] !py-[clamp(0.375rem,2vw,0.5rem)] !text-center !leading-tight ${
                         isCompactUi
                             ? '!text-[clamp(0.8125rem,3.5vw,0.9375rem)]'
                             : '!text-base'
                     }`}
-                    disabled={!canLevelUp || !hasEnoughGold || isEnhancing}
+                    disabled={isEnhancing}
                 >
-                    {isEnhancing ? (
-                        '강화 중...'
-                    ) : !canLevelUp ? (
-                        '조건 미충족'
-                    ) : !hasEnoughGold ? (
-                        '골드 부족'
-                    ) : (
-                        <span className="flex items-center justify-center gap-[clamp(0.25rem,1.5vw,0.5rem)] font-semibold tracking-wide">
-                            <img
-                                src="/images/icon/Gold.webp"
-                                alt="골드"
-                                className={`flex-shrink-0 drop-shadow ${isCompactUi ? 'h-[clamp(1rem,4.2vw,1.25rem)] w-[clamp(1rem,4.2vw,1.25rem)]' : 'h-6 w-6'}`}
-                            />
-                            <span>{upgradeCost.toLocaleString()}</span>
-                            <span>강화</span>
-                        </span>
-                    )}
+                    {enhanceButtonLabel}
                 </Button>
             </div>
             <div className="flex w-full items-center gap-[clamp(0.25rem,1.5vw,0.5rem)]">
@@ -293,6 +315,7 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
     );
 
     return (
+        <>
         <DraggableWindow
             title={isCompactUi ? `${mission.name} · 강화` : `${mission.name} 강화`}
             onClose={onClose}
@@ -581,22 +604,10 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
                             <Button
                                 onClick={handleEnhance}
                                 colorScheme="none"
-                                className={`${PREMIUM_QUEST_BTN.upgrade} !text-base !py-2.5 ${(!canLevelUp || !hasEnoughGold || isEnhancing) ? 'cursor-not-allowed opacity-50' : ''}`}
-                                disabled={!canLevelUp || !hasEnoughGold || isEnhancing}
+                                className={`${PREMIUM_QUEST_BTN.upgrade} !text-base !py-2.5 ${isEnhancing ? 'cursor-wait opacity-70' : !canStartEnhance ? 'opacity-90' : ''}`}
+                                disabled={isEnhancing}
                             >
-                                {isEnhancing ? (
-                                    '강화 중...'
-                                ) : !canLevelUp ? (
-                                    '조건 미충족'
-                                ) : !hasEnoughGold ? (
-                                    '골드 부족'
-                                ) : (
-                                    <span className="flex items-center justify-center gap-2 font-semibold tracking-wide">
-                                        <img src="/images/icon/Gold.webp" alt="골드" className="h-6 w-6 flex-shrink-0 drop-shadow" />
-                                        <span>{upgradeCost.toLocaleString()}</span>
-                                        <span>강화</span>
-                                    </span>
-                                )}
+                                {enhanceButtonLabel}
                             </Button>
                         </div>
                         <div className="flex w-full items-center gap-2">
@@ -613,6 +624,10 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
                 </div>
             )}
         </DraggableWindow>
+        {alertMessage ? (
+            <AlertModal message={alertMessage} onClose={() => setAlertMessage(null)} windowId="training-quest-levelup-alert" />
+        ) : null}
+        </>
     );
 };
 

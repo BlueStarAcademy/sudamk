@@ -7,6 +7,7 @@ import {
     createEmptyBoard,
     type SgfMoveLike,
 } from '../utils/sgfBoardLogic.js';
+import { GoStoneSvgDefs, GoStoneSvgLayers, useGoStoneSvgIds } from './game/goStoneSvgShared.js';
 
 export type SgfMove = SgfMoveLike;
 export { applyMoveToBoard, applySgfMoveToBoard, buildBoardFromMoves, createEmptyBoard } from '../utils/sgfBoardLogic.js';
@@ -26,9 +27,14 @@ interface SgfViewerProps {
     replayMoveCount?: number;
     /** 인게임 GoBoard와 동일한 viewBox 크기(기본 840) */
     boardSizePx?: number;
+    /** 저장 기보 재생: 바둑돌 위 수순 번호 표시 */
+    showMoveNumbers?: boolean;
     /** 놓아보기: 교차점 클릭으로 돌 배치 */
     interactive?: boolean;
     onIntersectionClick?: (point: Point) => void;
+    /** 바둑판 중심 기준 좌/우 클릭으로 1수 이전·다음 */
+    onHalfBoardNavBack?: () => void;
+    onHalfBoardNavForward?: () => void;
     /** 놓아보기로 추가한 수 (기보 수 위에 반투명 표시) */
     reviewMoves?: SgfMove[];
 }
@@ -75,14 +81,18 @@ const SgfViewer: React.FC<SgfViewerProps> = ({
     isRotated = false,
     replayMoveCount,
     boardSizePx = 840,
+    showMoveNumbers = false,
     interactive = false,
     onIntersectionClick,
+    onHalfBoardNavBack,
+    onHalfBoardNavForward,
     reviewMoves = [],
 }) => {
     const [sgfData, setSgfData] = useState<SgfData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const svgRef = useRef<SVGSVGElement>(null);
+    const stoneSvgIds = useGoStoneSvgIds();
 
     const totalDuration = 50;
 
@@ -213,12 +223,30 @@ const SgfViewer: React.FC<SgfViewerProps> = ({
 
     const handleBoardPointer = useCallback(
         (e: React.PointerEvent<SVGSVGElement>) => {
-            if (!interactive || !onIntersectionClick) return;
-            const pt = screenToBoardPoint(e.clientX, e.clientY);
-            if (pt) onIntersectionClick(pt);
+            const svg = svgRef.current;
+            if (!svg) return;
+
+            const rect = svg.getBoundingClientRect();
+            const isLeftHalf = e.clientX < rect.left + rect.width / 2;
+
+            if (interactive && onIntersectionClick) {
+                const pt = screenToBoardPoint(e.clientX, e.clientY);
+                if (pt && boardState[pt.y]?.[pt.x] === Player.None) {
+                    onIntersectionClick(pt);
+                    return;
+                }
+            }
+
+            if (isLeftHalf) {
+                onHalfBoardNavBack?.();
+            } else {
+                onHalfBoardNavForward?.();
+            }
         },
-        [interactive, onIntersectionClick, screenToBoardPoint],
+        [interactive, onIntersectionClick, onHalfBoardNavBack, onHalfBoardNavForward, screenToBoardPoint, boardState],
     );
+
+    const boardNavEnabled = !!(onHalfBoardNavBack || onHalfBoardNavForward);
 
     if (loading) return <div className="flex h-full items-center justify-center text-gray-400">기보 로딩 중...</div>;
     if (error) return <div className="flex h-full items-center justify-center text-red-400">오류: {error}</div>;
@@ -236,16 +264,16 @@ const SgfViewer: React.FC<SgfViewerProps> = ({
 
     const relevantMoves = moves.slice(0, currentMoveIndex);
     const reviewStoneSet = new Set(reviewMoves.map((m) => `${m.x},${m.y}`));
-    const replayStoneCount = currentMoveIndex;
 
     return (
         <div className="relative h-full w-full overflow-hidden rounded-lg border-2 border-[#54432a]/60 bg-[#1a1510]">
             <svg
                 ref={svgRef}
                 viewBox={`0 0 ${boardSizePx} ${boardSizePx}`}
-                className={`h-full w-full ${interactive ? 'cursor-crosshair' : ''}`}
-                onPointerDown={handleBoardPointer}
+                className={`h-full w-full ${interactive ? 'cursor-crosshair' : boardNavEnabled ? 'cursor-pointer' : ''}`}
+                onPointerDown={boardNavEnabled || interactive ? handleBoardPointer : undefined}
             >
+                <GoStoneSvgDefs ids={stoneSvgIds} />
                 <g transform={isRotated ? `rotate(180 ${boardSizePx / 2} ${boardSizePx / 2})` : undefined}>
                     <rect width={boardSizePx} height={boardSizePx} fill="#e0b484" />
                     {Array.from({ length: boardSize }).map((_, i) => (
@@ -288,17 +316,21 @@ const SgfViewer: React.FC<SgfViewerProps> = ({
                             const isLastReplayMove = moveIndex === currentMoveIndex - 1 && !isReviewStone;
 
                             return (
-                                <g key={`${x}-${y}`}>
-                                    <circle
+                                <g
+                                    key={`${x}-${y}`}
+                                    transform={isRotated ? `rotate(180 ${cx} ${cy})` : undefined}
+                                >
+                                    <GoStoneSvgLayers
+                                        player={player}
                                         cx={cx}
                                         cy={cy}
-                                        r={stoneRadius}
-                                        fill={player === Player.Black ? '#0a0a0a' : '#f5f5f4'}
+                                        radius={stoneRadius}
+                                        ids={stoneSvgIds}
                                         stroke={isReviewStone ? '#38bdf8' : undefined}
                                         strokeWidth={isReviewStone ? cellSize * 0.08 : 0}
                                         opacity={isReviewStone ? 0.92 : 1}
                                     />
-                                    {showLastMoveOnly && moveIndex !== -1 && (
+                                    {showMoveNumbers && moveIndex !== -1 && (
                                         <text
                                             x={cx}
                                             y={cy}
@@ -307,11 +339,14 @@ const SgfViewer: React.FC<SgfViewerProps> = ({
                                             fontSize={stoneRadius * 1.1}
                                             fontWeight="bold"
                                             fill={player === Player.Black ? 'white' : 'black'}
+                                            stroke={player === Player.Black ? '#111827' : '#f5f2e8'}
+                                            strokeWidth={stoneRadius * 0.12}
+                                            paintOrder="stroke"
                                         >
                                             {moveIndex + 1}
                                         </text>
                                     )}
-                                    {isLastReplayMove && (
+                                    {isLastReplayMove && !showMoveNumbers && (
                                         <circle
                                             cx={cx}
                                             cy={cy}
@@ -342,11 +377,6 @@ const SgfViewer: React.FC<SgfViewerProps> = ({
                         })}
                 </g>
             </svg>
-            {interactive && (
-                <div className="pointer-events-none absolute bottom-2 left-2 rounded-md bg-black/55 px-2 py-1 text-[10px] font-medium text-sky-200/95 sm:text-xs">
-                    놓아보기 · {replayStoneCount}수 기준
-                </div>
-            )}
         </div>
     );
 };

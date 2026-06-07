@@ -12,21 +12,14 @@ import {
   ALKKAGI_STONE_COUNTS, ALKKAGI_ROUNDS, ALKKAGI_GAUGE_SPEEDS, ALKKAGI_ITEM_COUNTS,
   CURLING_STONE_COUNTS, CURLING_ROUNDS, CURLING_GAUGE_SPEEDS, CURLING_ITEM_COUNTS,
   OMOK_BOARD_SIZES, HIDDEN_BOARD_SIZES, DICE_GO_ITEM_COUNTS, getStrategicBoardSizesByMode,
-  getScoringTurnLimitOptionsByBoardSize,
-  FISCHER_INCREMENT_SECONDS,
+  FISCHER_INCREMENT_SECONDS_OPTIONS,
+  applySpeedFischerDefaults,
 } from '../constants/gameSettings';
+import { getRankedGameSettings } from '../constants/rankedGameSettings';
 import { MAX_GAME_INTEGER_INPUT } from '../shared/constants/numericLimits.js';
 import { clampGameInt } from '../shared/utils/gameIntegerField.js';
 import { mixSubRuleDisplayName } from '../shared/utils/mixSubRuleDisplayName.js';
-/** 전략 로비에서 판 크기별 ‘계가까지 턴’ 옵션을 쓰는 모드 (따내기 바둑·따목 등 제외) */
-const STRATEGIC_MODES_WITH_SCORING_TURN: GameMode[] = [
-  GameMode.Standard,
-  GameMode.Speed,
-  GameMode.Base,
-  GameMode.Hidden,
-  GameMode.Missile,
-  GameMode.Mix,
-];
+import { sanitizePvpGameSettings, stripHumanPvpTurnLimitFields } from '../shared/utils/sanitizePvpGameSettings.js';
 import { AlkkagiPlacementType, AlkkagiLayoutType } from '../types';
 import Button from './Button';
 import DraggableWindow from './DraggableWindow';
@@ -166,35 +159,13 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
   }, [onlineUsers, opponent]);
   const [selectedMode, setSelectedMode] = useState<GameMode | null>(null);
   const [settings, setSettings] = useState<GameSettings>(DEFAULT_GAME_SETTINGS);
-  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
-  const [windowHeight, setWindowHeight] = useState(window.innerHeight);
   const hadNegotiationForThisOpponentRef = useRef(false);
-  
-  // 브라우저 크기에 따라 창 크기 계산
-  useEffect(() => {
-    const handleResize = () => {
-      setWindowWidth(window.innerWidth);
-      setWindowHeight(window.innerHeight);
-    };
-    
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-  
-  // 대국 설정·초읽기 드롭다운이 잘리지 않도록 가로 여유 확보
-  const calculatedWidth = Math.max(560, Math.min(980, Math.floor(windowWidth * 0.86)));
-  // 알까기 등 긴 설정 대비 세로 상한 유지
-  const calculatedHeight = Math.max(520, Math.min(840, Math.floor(windowHeight * 0.76)));
 
-  // 창 크기에 비례한 스케일 팩터 (기준 너비를 모달 상한에 맞춤)
-  const baseWidth = 960;
-  const scaleFactor = Math.max(0.7, Math.min(1.2, calculatedWidth / baseWidth));
+  /** PC 설계 캔버스 좌표 — App canvas scale로 균일 축소 */
+  const calculatedWidth = 900;
+  const calculatedHeight = 780;
+  const scaleFactor = 1;
   const isHandheldLobbyUi = useIsHandheldDevice(1024);
-
-  // 스케일 팩터를 CSS 변수로 전달
-  const containerStyle = {
-    '--scale-factor': scaleFactor,
-  } as React.CSSProperties;
   
   // 현재 negotiation 상태 확인 (모든 상태 포함)
   const currentNegotiation = useMemo(() => {
@@ -347,6 +318,23 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
       ? (timeRemaining / CHALLENGE_NEGOTIATION_WINDOW_SEC) * 100
       : 0;
 
+  const mergeModeSettings = useCallback((mode: GameMode, savedSettings?: Partial<GameSettings>): GameSettings => {
+    const base = savedSettings
+      ? ({ ...DEFAULT_GAME_SETTINGS, ...savedSettings } as GameSettings)
+      : ({ ...DEFAULT_GAME_SETTINGS, ...getRankedGameSettings(mode) } as GameSettings);
+    if (mode === GameMode.Capture) {
+      base.scoringTurnLimit = 0;
+      delete (base as { autoScoringTurns?: number }).autoScoringTurns;
+    }
+    if (
+      mode === GameMode.Speed ||
+      (mode === GameMode.Mix && base.mixedModes?.includes(GameMode.Speed))
+    ) {
+      return applySpeedFischerDefaults(base);
+    }
+    return base;
+  }, []);
+
   const handleGameSelect = (mode: GameMode) => {
     try {
       if (selectedMode && selectedMode !== mode) {
@@ -361,18 +349,12 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
       const storageKey = `preferredGameSettings_${mode}`;
       const savedSettingsJSON = localStorage.getItem(storageKey);
       if (savedSettingsJSON) {
-        const savedSettings = JSON.parse(savedSettingsJSON);
-        const merged = { ...DEFAULT_GAME_SETTINGS, ...savedSettings } as GameSettings;
-        if (mode === GameMode.Capture) {
-          merged.scoringTurnLimit = 0;
-          delete (merged as { autoScoringTurns?: number }).autoScoringTurns;
-        }
-        setSettings(merged);
+        setSettings(mergeModeSettings(mode, JSON.parse(savedSettingsJSON)));
       } else {
-        setSettings({ ...DEFAULT_GAME_SETTINGS });
+        setSettings(mergeModeSettings(mode));
       }
     } catch (e) {
-      setSettings({ ...DEFAULT_GAME_SETTINGS });
+      setSettings(mergeModeSettings(mode));
     }
   };
 
@@ -388,6 +370,9 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
       if (mode === GameMode.Base && checked) {
         next.komi = 0.5;
       }
+      if (mode === GameMode.Speed && checked) {
+        return applySpeedFischerDefaults(next);
+      }
       return next;
     });
   };
@@ -399,18 +384,6 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
       handleSettingChange('boardSize', boardSizeOptions[0] as GameSettings['boardSize']);
     }
   }, [selectedMode, settings.boardSize]);
-
-  /** 판 크기에 허용된 계가까지 턴만 유지 (전략·해당 모드만) */
-  useEffect(() => {
-    if (lobbyType !== 'strategic' || !selectedMode) return;
-    if (!STRATEGIC_MODES_WITH_SCORING_TURN.includes(selectedMode)) return;
-    const nonZero = getScoringTurnLimitOptionsByBoardSize(settings.boardSize).filter((l) => l > 0);
-    if (nonZero.length === 0) return;
-    const cur = settings.scoringTurnLimit ?? 0;
-    if (!nonZero.includes(cur)) {
-      setSettings((prev) => ({ ...prev, scoringTurnLimit: nonZero[0] }));
-    }
-  }, [lobbyType, selectedMode, settings.boardSize, settings.scoringTurnLimit]);
 
   const handleChallenge = async () => {
     if (!selectedMode) return;
@@ -425,13 +398,16 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
       return;
     }
 
-    const finalSettings: GameSettings = { ...settings };
+    let finalSettings: GameSettings = { ...settings };
     const mixHasCapture =
       selectedMode === GameMode.Mix && (finalSettings.mixedModes || []).includes(GameMode.Capture);
     if (selectedMode === GameMode.Capture || mixHasCapture) {
-      finalSettings.scoringTurnLimit = 0;
-      delete (finalSettings as { autoScoringTurns?: number }).autoScoringTurns;
+      finalSettings = stripHumanPvpTurnLimitFields(finalSettings);
     }
+    if (lobbyType === 'strategic') {
+      finalSettings = stripHumanPvpTurnLimitFields(finalSettings);
+    }
+    finalSettings = sanitizePvpGameSettings(selectedMode, finalSettings, { isAiGame: false });
 
     // 현재 유저가 대기 상태인지 확인하고, 아니면 대기 상태로 설정
     if (currentUser && currentUser.status !== 'waiting' && currentUser.status !== 'resting') {
@@ -582,35 +558,6 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
           </div>
         )}
 
-        {lobbyType === 'strategic' && STRATEGIC_MODES_WITH_SCORING_TURN.includes(selectedMode) && (
-          <div
-            className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3"
-            style={settingRowStyle}
-          >
-            <label className={settingsLabelClass} style={labelStyle}>
-              계가까지 턴
-            </label>
-            <select
-              value={
-                settings.scoringTurnLimit ??
-                getScoringTurnLimitOptionsByBoardSize(settings.boardSize).filter((l) => l > 0)[0] ??
-                1
-              }
-              onChange={(e) => handleSettingChange('scoringTurnLimit', parseInt(e.target.value, 10))}
-              className={`${settingsSelectFullClass} min-h-[2.75rem]`}
-              style={selectFontStyle}
-            >
-              {getScoringTurnLimitOptionsByBoardSize(settings.boardSize)
-                .filter((l) => l > 0)
-                .map((limit) => (
-                  <option key={limit} value={limit}>
-                    {limit}수
-                  </option>
-                ))}
-            </select>
-          </div>
-        )}
-
         {showKomi && (
           <div 
             className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3"
@@ -672,7 +619,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
         </SettingsSection>
 
         {showTimeControls && (
-          <SettingsSection title="제한 시간·초읽기" scaleFactor={scaleFactor}>
+          <SettingsSection title={showFischer ? '제한 시간·피셔' : '제한 시간·초읽기'} scaleFactor={scaleFactor}>
             {showFischer ? (
               <>
                 <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
@@ -694,11 +641,20 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                 </div>
                 <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
                   <label className={settingsLabelClass} style={labelStyle}>
-                    초읽기 시간
+                    추가 시간 (피셔)
                   </label>
-                  <p className="text-gray-300" style={labelStyle}>
-                    {FISCHER_INCREMENT_SECONDS}초 (피셔 방식)
-                  </p>
+                  <select
+                    value={settings.timeIncrement ?? 5}
+                    onChange={(e) => handleSettingChange('timeIncrement', parseInt(e.target.value, 10))}
+                    className={`${settingsSelectFullClass} min-h-[2.75rem]`}
+                    style={selectFontStyle}
+                  >
+                    {FISCHER_INCREMENT_SECONDS_OPTIONS.map((sec) => (
+                      <option key={sec} value={sec}>
+                        {sec}초/수
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </>
             ) : (
@@ -1111,7 +1067,6 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
       <div
         onMouseDown={(e) => e.stopPropagation()}
         className="h-full flex flex-col overflow-hidden antialiased subpixel-antialiased [text-rendering:optimizeLegibility]"
-        style={containerStyle}
       >
         <div
           className="flex min-h-0 flex-1 flex-col overflow-hidden"

@@ -109,20 +109,20 @@ const SinglePlayerClassBarRewardsPanel: React.FC<SinglePlayerClassBarRewardsPane
                   : '유단자';
 
     const shellClass = isCompact
-        ? 'flex flex-col gap-0.5 rounded-md border border-emerald-500/30 bg-gradient-to-r from-emerald-950/40 via-zinc-900/50 to-amber-950/30 px-1.5 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:rounded-lg sm:px-2 sm:py-1.5'
-        : 'mb-2 flex flex-shrink-0 flex-col gap-1 rounded-xl border border-emerald-500/25 bg-gradient-to-r from-emerald-950/35 via-zinc-900/45 to-amber-950/25 px-3 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]';
+        ? 'flex w-full min-w-0 flex-col gap-0.5 rounded-md border border-emerald-500/30 bg-gradient-to-r from-emerald-950/40 via-zinc-900/50 to-amber-950/30 px-1.5 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:rounded-lg sm:px-2 sm:py-1.5'
+        : 'flex w-full min-w-0 flex-col gap-1.5 rounded-xl border border-emerald-500/25 bg-gradient-to-r from-emerald-950/35 via-zinc-900/45 to-amber-950/25 px-2 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:px-2.5';
 
     const titleRowClass = isCompact
         ? 'flex items-center justify-between gap-1 text-[9px] font-semibold tracking-tight text-slate-200/95 sm:text-[10px]'
-        : 'flex items-center justify-between gap-2 text-[11px] font-semibold tracking-tight text-slate-200/95';
+        : 'flex items-center justify-between gap-2 text-xs font-semibold tracking-tight text-slate-200/95 sm:text-[13px]';
 
     const barTrackClass = isCompact
-        ? 'relative h-3.5 w-full overflow-hidden rounded-full border border-slate-700/50 shadow-[inset_0_2px_6px_rgba(0,0,0,0.55)] sm:h-4'
-        : 'relative h-5 w-full overflow-hidden rounded-full border border-slate-700/50 shadow-[inset_0_2px_10px_rgba(0,0,0,0.55)]';
+        ? 'relative h-4 w-full overflow-hidden rounded-full border border-slate-700/50 shadow-[inset_0_2px_6px_rgba(0,0,0,0.55)] sm:h-[1.125rem]'
+        : 'relative h-6 w-full overflow-hidden rounded-full border border-slate-700/50 shadow-[inset_0_2px_10px_rgba(0,0,0,0.55)] sm:h-7';
 
-    const rewardRowClass = isCompact ? 'relative h-7 w-full sm:h-8' : 'relative h-9 w-full';
+    const rewardRowClass = isCompact ? 'relative h-9 w-full sm:h-10' : 'relative h-10 w-full sm:h-11';
     const rewardBtnClass = isCompact
-        ? 'relative h-5 w-5 rounded border border-slate-500/35 bg-gradient-to-b from-slate-800/90 to-slate-950/90 p-px shadow-md transition-transform hover:scale-105 disabled:cursor-not-allowed sm:h-6 sm:w-6 sm:rounded-md sm:p-0.5'
+        ? 'relative h-6 w-6 rounded border border-slate-500/35 bg-gradient-to-b from-slate-800/90 to-slate-950/90 p-px shadow-md transition-transform hover:scale-105 disabled:cursor-not-allowed sm:h-7 sm:w-7 sm:rounded-md sm:p-0.5'
         : 'relative h-7 w-7 rounded-md border border-slate-500/35 bg-gradient-to-b from-slate-800/90 to-slate-950/90 p-0.5 shadow-md transition-transform hover:scale-105 disabled:cursor-not-allowed';
 
     return (

@@ -1,11 +1,12 @@
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { UserWithStatus, ServerAction, InventoryItemType } from '../types.js';
 import { ItemGrade } from '../types/enums.js';
 import { gradeStyles } from '../shared/constants/items.js';
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
 import { ACTION_POINT_PURCHASE_COSTS_DIAMONDS, MAX_ACTION_POINT_PURCHASES_PER_DAY, ACTION_POINT_PURCHASE_REFILL_AMOUNT } from '../constants';
+import { useKeyedAsyncAction } from '../hooks/useAsyncAction.js';
 import {
     isSameDayKST,
     isDifferentWeekKST,
@@ -23,10 +24,11 @@ import PurchaseQuantityModal from './PurchaseQuantityModal.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useKSTCalendarDayTick } from '../hooks/useKSTCalendarDayTick.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
+import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../shared/constants/pcShellLayout.js';
 import { useAdContext } from './ads/AdProvider.js';
 import {
     formatShopItemDescription as formatDescription,
-    ShopMobileImageDescriptionPortal,
+    StandardEquipmentBoxShopDescription,
 } from './shopImageDescriptionPopover.js';
 
 interface ShopModalProps {
@@ -35,6 +37,7 @@ interface ShopModalProps {
     onAction: (action: ServerAction) => Promise<unknown> | unknown;
     isTopmost?: boolean;
     initialTab?: ShopTab;
+    embedded?: boolean;
 }
 
 type ShopTab = 'equipment' | 'materials' | 'consumables' | 'diamonds' | 'misc' | 'vip';
@@ -120,7 +123,7 @@ function getShopAdRemainingForTab(user: UserWithStatus, tab: ShopAdRewardTab, no
     return Math.max(0, SHOP_AD_TAB_DAILY_LIMIT - getShopAdTabClaimsToday(user, tab, nowMs));
 }
 
-const ActionPointCard: React.FC<{ currentUser: UserWithStatus, onBuy: () => void }> = ({ currentUser, onBuy }) => {
+const ActionPointCard: React.FC<{ currentUser: UserWithStatus, onBuy: () => void; isPurchasePending?: boolean }> = ({ currentUser, onBuy, isPurchasePending = false }) => {
     const now = Date.now();
     const apPurchaseMs = shopPurchaseRecordDateMs(currentUser.lastActionPointPurchaseDate);
     const purchasesToday =
@@ -155,12 +158,16 @@ const ActionPointCard: React.FC<{ currentUser: UserWithStatus, onBuy: () => void
             <div className="mt-4 flex flex-col items-center justify-center gap-2 w-full">
                 <Button
                     onClick={handlePurchase}
-                    disabled={!canPurchase}
+                    disabled={!canPurchase || isPurchasePending}
                     colorScheme="none"
                     bare
                     className="flex min-h-[3.5rem] w-full flex-col items-center justify-center gap-0.5 rounded-xl border border-cyan-400/60 bg-gradient-to-r from-cyan-400/90 via-sky-400/90 to-blue-500/90 px-3 py-2 text-center font-semibold tracking-wide text-slate-900 shadow-[0_10px_30px_-12px_rgba(14,165,233,0.65)] transition-all duration-150 hover:from-cyan-300 hover:to-blue-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                     <div className="flex w-full min-w-0 flex-col items-center justify-center gap-0.5">
+                        {isPurchasePending ? (
+                            <span className="text-sm font-semibold">구매 중...</span>
+                        ) : (
+                            <>
                         <div className="flex items-center justify-center gap-2 text-sm sm:text-base">
                             <img src="/images/icon/Zem.webp" alt="다이아" className="h-5 w-5 shrink-0 drop-shadow-md" />
                             <span className="tabular-nums">{cost.toLocaleString()}</span>
@@ -168,6 +175,8 @@ const ActionPointCard: React.FC<{ currentUser: UserWithStatus, onBuy: () => void
                         <span className="px-1 text-center text-[10px] leading-tight text-slate-800/95 tracking-wide">
                             오늘 구매 {purchasesToday}/{MAX_ACTION_POINT_PURCHASES_PER_DAY}
                         </span>
+                            </>
+                        )}
                     </div>
                 </Button>
                 {!canPurchase && (
@@ -185,11 +194,10 @@ const ShopAdRewardCard: React.FC<{
     claimableRemaining: number;
     onClaim: (tab: ShopAdRewardTab) => void;
     mobile?: boolean;
-}> = ({ tab, rewardDescription, claimableRemaining, onClaim, mobile = false }) => {
+    isClaimPending?: boolean;
+}> = ({ tab, rewardDescription, claimableRemaining, onClaim, mobile = false, isClaimPending = false }) => {
     const { isAdFree } = useAdContext();
     const exhausted = claimableRemaining <= 0;
-    const [showDescription, setShowDescription] = useState(false);
-    const imageAnchorRef = useRef<HTMLDivElement>(null);
     const refinedDescription = formatDescription(rewardDescription);
 
     return (
@@ -199,15 +207,7 @@ const ShopAdRewardCard: React.FC<{
             <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-300/80 to-transparent" />
             <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-20 bg-[radial-gradient(circle_at_top,rgba(79,70,229,0.35),transparent_65%)]" />
             <div
-                ref={imageAnchorRef}
-                className="relative mb-1.5 flex h-16 w-16 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent shadow-[0_0_25px_-8px_rgba(129,140,248,0.65)] transition-transform hover:scale-105"
-                onClick={() => setShowDescription(!showDescription)}
-                onMouseEnter={() => {
-                    if (!mobile) setShowDescription(true);
-                }}
-                onMouseLeave={() => {
-                    if (!mobile) setShowDescription(false);
-                }}
+                className="relative mb-1.5 flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent shadow-[0_0_25px_-8px_rgba(129,140,248,0.65)]"
             >
                 {isAdFree ? (
                     <img
@@ -231,31 +231,26 @@ const ShopAdRewardCard: React.FC<{
             >
                 광고 보상
             </h3>
-            {showDescription && mobile && (
-                <ShopMobileImageDescriptionPortal
-                    open
-                    anchorRef={imageAnchorRef}
-                    onRequestClose={() => setShowDescription(false)}
+            <div
+                className={`mt-1 flex w-full flex-1 items-start justify-center px-0.5 ${mobile ? 'min-h-[2rem]' : 'min-h-[2.5rem]'}`}
+            >
+                <p
+                    className={`w-full text-center leading-snug text-slate-300/90 line-clamp-2 ${mobile ? 'text-[10px]' : 'text-xs sm:text-sm'}`}
                 >
-                    <p className="text-left text-[11px] leading-relaxed text-slate-100">{refinedDescription}</p>
-                </ShopMobileImageDescriptionPortal>
-            )}
-            {showDescription && !mobile && (
-                <div className="absolute left-1/2 top-20 z-50 w-52 -translate-x-1/2 rounded-lg border border-indigo-400/50 bg-[#0b1220] p-2 shadow-xl">
-                    <p className="text-left text-[10px] leading-relaxed text-slate-100">{refinedDescription}</p>
-                </div>
-            )}
+                    {refinedDescription}
+                </p>
+            </div>
             <div className="mt-1.5 flex w-full flex-shrink-0 flex-col items-stretch justify-center gap-1">
                 <Button
                     onClick={() => onClaim(tab)}
-                    disabled={exhausted}
+                    disabled={exhausted || isClaimPending}
                     colorScheme="none"
                     bare
-                    className={`flex w-full flex-col items-center justify-center gap-0.5 rounded-lg border border-emerald-300/45 bg-gradient-to-r from-emerald-400/90 to-cyan-500/90 px-2 py-1.5 text-center font-semibold leading-tight text-slate-900 transition-colors hover:from-emerald-300 hover:to-cyan-400 disabled:cursor-not-allowed disabled:opacity-50 ${mobile ? 'h-[2.95rem] min-h-[2.95rem] max-h-[2.95rem] text-[11px]' : 'min-h-[3.5rem] py-2 text-xs sm:text-sm'}`}
+                    className={`flex w-full flex-col items-center justify-center gap-0.5 rounded-lg border border-emerald-300/45 bg-gradient-to-r from-emerald-400/90 to-cyan-500/90 px-2 py-1.5 text-center font-semibold leading-tight text-slate-900 transition-colors hover:from-emerald-300 hover:to-cyan-400 disabled:cursor-not-allowed disabled:opacity-50 ${mobile ? 'h-[2.95rem] min-h-[2.95rem] max-h-[2.95rem] text-sm' : 'min-h-[3.5rem] py-2 text-sm sm:text-base'}`}
                 >
                     <span className="flex flex-wrap items-center justify-center gap-x-1">
                         <span className="font-bold">
-                            {exhausted ? '오늘 수령 완료' : isAdFree ? '무료 보상' : '광고 보기'}
+                            {isClaimPending ? '수령 중...' : exhausted ? '오늘 수령 완료' : isAdFree ? '무료 보상' : '광고 보기'}
                         </span>
                         <span className="tabular-nums font-extrabold opacity-90">
                             ({claimableRemaining}/{SHOP_AD_TAB_DAILY_LIMIT})
@@ -272,18 +267,18 @@ const ShopItemCard: React.FC<{
     onBuy: (item: PurchasableItem) => void; 
     currentUser: UserWithStatus;
     mobile?: boolean;
-}> = ({ item, onBuy, currentUser, mobile = false }) => {
+    isShopBusy?: boolean;
+}> = ({ item, onBuy, currentUser, mobile = false, isShopBusy = false }) => {
     const { name, description, price, image, dailyLimit, weeklyLimit, badge } = item;
     const isGold = !!price.gold;
     const priceAmount = price.gold || price.diamonds || 0;
     const PriceIcon = isGold ? (
-        <img src="/images/icon/Gold.webp" alt="골드" className="h-4 w-4 shrink-0 drop-shadow-md sm:h-5 sm:w-5" />
+        <img src="/images/icon/Gold.webp" alt="골드" className="h-5 w-5 shrink-0 drop-shadow-md sm:h-6 sm:w-6" />
     ) : (
-        <img src="/images/icon/Zem.webp" alt="다이아" className="h-4 w-4 shrink-0 drop-shadow-md sm:h-5 sm:w-5" />
+        <img src="/images/icon/Zem.webp" alt="다이아" className="h-5 w-5 shrink-0 drop-shadow-md sm:h-6 sm:w-6" />
     );
     const refinedDescription = formatDescription(description);
-    const [showDescription, setShowDescription] = useState(false);
-    const imageAnchorRef = useRef<HTMLDivElement>(null);
+    const subtitleTextClass = mobile ? 'text-[10px] leading-snug' : 'text-xs sm:text-sm leading-snug';
 
     const now = Date.now();
     const purchaseRecord = currentUser.dailyShopPurchases?.[item.itemId];
@@ -309,19 +304,11 @@ const ShopItemCard: React.FC<{
     };
 
     return (
-        <div className={`group relative overflow-hidden rounded-xl bg-gradient-to-br from-[#1f2239]/95 via-[#0f172a]/95 to-[#060b12]/95 border border-indigo-400/35 shadow-[0_22px_55px_-30px_rgba(99,102,241,0.65)] flex flex-col items-center text-center transition-transform duration-300 hover:-translate-y-1 hover:shadow-[0_30px_70px_-32px_rgba(129,140,248,0.65)] ${mobile ? 'p-2.5' : 'p-3'}`}>
+        <div className={`group relative flex h-full min-h-0 flex-col items-center overflow-hidden rounded-xl border border-indigo-400/35 bg-gradient-to-br from-[#1f2239]/95 via-[#0f172a]/95 to-[#060b12]/95 text-center shadow-[0_22px_55px_-30px_rgba(99,102,241,0.65)] transition-transform duration-300 hover:-translate-y-1 hover:shadow-[0_30px_70px_-32px_rgba(129,140,248,0.65)] ${mobile ? 'p-2.5' : 'p-3'}`}>
             <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-300/80 to-transparent pointer-events-none" />
             <div className="absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity duration-500 bg-[radial-gradient(circle_at_top,rgba(79,70,229,0.35),transparent_65%)] pointer-events-none" />
-            <div 
-                ref={imageAnchorRef}
-                className={`relative bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent rounded-lg mb-1.5 flex items-center justify-center shadow-[0_0_25px_-8px_rgba(129,140,248,0.65)] cursor-pointer hover:scale-105 transition-transform ${mobile ? 'w-16 h-16' : 'w-16 h-16'}`}
-                onClick={() => setShowDescription(!showDescription)}
-                onMouseEnter={() => {
-                    if (!mobile) setShowDescription(true);
-                }}
-                onMouseLeave={() => {
-                    if (!mobile) setShowDescription(false);
-                }}
+            <div
+                className="relative mb-1.5 flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent shadow-[0_0_25px_-8px_rgba(129,140,248,0.65)]"
             >
                 {(item.itemId === 'action_point_10' || item.itemId === 'action_point_20' || item.itemId === 'action_point_30') ? (
                     <span className="text-3xl drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)]" aria-label={name}>⚡</span>
@@ -344,24 +331,23 @@ const ShopItemCard: React.FC<{
             >
                 {name}
             </h3>
-            {showDescription && mobile && (
-                <ShopMobileImageDescriptionPortal
-                    open
-                    anchorRef={imageAnchorRef}
-                    onRequestClose={() => setShowDescription(false)}
-                >
-                    <p className="text-[11px] leading-relaxed text-slate-100">{refinedDescription}</p>
-                </ShopMobileImageDescriptionPortal>
-            )}
-            {showDescription && !mobile && (
-                <div className="absolute left-1/2 top-20 z-50 w-48 -translate-x-1/2 rounded-lg border border-indigo-400/50 bg-[#0b1220] p-2 shadow-xl">
-                    <p className="text-[10px] leading-relaxed text-slate-100">{refinedDescription}</p>
-                </div>
-            )}
+            <div
+                className={`mt-1 flex w-full flex-1 items-start justify-center px-0.5 ${mobile ? 'min-h-[2rem]' : 'min-h-[2.5rem]'}`}
+            >
+                <StandardEquipmentBoxShopDescription
+                    itemId={item.itemId}
+                    textClassName={`text-center ${subtitleTextClass}`}
+                    fallback={
+                        <p className={`w-full text-center text-slate-300/90 line-clamp-2 ${subtitleTextClass}`}>
+                            {refinedDescription}
+                        </p>
+                    }
+                />
+            </div>
             <div className="mt-1.5 flex w-full flex-shrink-0 flex-col items-stretch justify-center gap-1">
                 <Button
                     onClick={handleBuyClick}
-                    disabled={remaining === 0}
+                    disabled={remaining === 0 || isShopBusy}
                     colorScheme="none"
                     bare
                     className={`flex w-full flex-col items-center justify-center gap-0.5 rounded-lg border px-1 text-center font-semibold leading-tight transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60 disabled:cursor-not-allowed disabled:opacity-60 ${mobile ? 'h-[2.95rem] min-h-[2.95rem] max-h-[2.95rem] py-1' : 'min-h-[3.5rem] py-2'} ${
@@ -371,13 +357,13 @@ const ShopItemCard: React.FC<{
                     }`}
                 >
                     <div className="flex w-full min-w-0 flex-col items-center justify-center gap-0.5">
-                        <div className={`flex min-w-0 items-center justify-center gap-1 font-semibold tracking-tight ${mobile ? 'text-[11px]' : 'text-[11px] sm:text-xs'}`}>
+                        <div className={`flex min-w-0 items-center justify-center gap-1.5 font-semibold tracking-tight ${mobile ? 'text-sm' : 'text-sm sm:text-base'}`}>
                             {PriceIcon}
                             <span className="min-w-0 tabular-nums">{priceAmount.toLocaleString()}</span>
                         </div>
                         {limit > 0 && (
                             <span
-                                className={`max-w-full px-0 text-center leading-tight ${mobile ? 'text-[9px]' : 'text-[9px]'} ${isGold ? 'text-slate-800/95' : 'text-white/85'} tracking-tight`}
+                                className={`max-w-full px-0 text-center leading-tight ${mobile ? 'text-[10px]' : 'text-[10px] sm:text-xs'} ${isGold ? 'text-slate-800/95' : 'text-white/85'} tracking-tight`}
                             >
                                 {limitText} 한도 {remaining}/{limit}
                             </span>
@@ -583,7 +569,8 @@ const MiscShopCard: React.FC<{
     currentUser: UserWithStatus;
     onBuyCashPackage: (packageId: string) => void;
     setToastMessage: (msg: string | null) => void;
-}> = ({ product, mobile = false, threeColumn = false, currentUser, onBuyCashPackage, setToastMessage }) => {
+    isPurchasePending?: boolean;
+}> = ({ product, mobile = false, threeColumn = false, currentUser, onBuyCashPackage, setToastMessage, isPurchasePending = false }) => {
     const visual = product.packageVisual;
     const compact = threeColumn;
     const denseNested = Boolean(compact && mobile);
@@ -738,7 +725,7 @@ const MiscShopCard: React.FC<{
             <div className="mt-auto shrink-0 pt-1.5">
                 <Button
                     type="button"
-                    disabled={purchaseDisabled}
+                    disabled={purchaseDisabled || isPurchasePending}
                     disabledWithoutDim
                     colorScheme="none"
                     bare
@@ -751,7 +738,7 @@ const MiscShopCard: React.FC<{
                             : 'min-h-[2.65rem] px-2 py-2 text-sm sm:min-h-[2.75rem] sm:text-base'
                     }`}
                 >
-                    {removeAdsBlocked ? '보유 중' : `${product.priceKRW.toLocaleString()}원`}
+                    {removeAdsBlocked ? '보유 중' : isPurchasePending ? '구매 중...' : `${product.priceKRW.toLocaleString()}원`}
                 </Button>
             </div>
         </div>
@@ -901,11 +888,13 @@ const DiamondShopCard: React.FC<{
         'flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-0 rounded-lg border border-cyan-500/28 bg-cyan-950/22 px-0.5 py-1 shadow-[inset_0_0_12px_-8px_rgba(34,211,238,0.25)]';
     const segmentBoxSingleClass =
         'mx-auto flex min-h-0 w-[4.75rem] shrink-0 flex-col items-center justify-center gap-0 rounded-lg border border-cyan-500/28 bg-cyan-950/22 px-1 py-1 shadow-[inset_0_0_12px_-8px_rgba(34,211,238,0.25)] sm:w-[5.25rem] sm:py-1.5';
+
     return (
         <div
             className={`group relative flex h-full min-h-0 flex-col items-center overflow-hidden rounded-xl border border-indigo-400/35 bg-gradient-to-br from-[#1f2239]/95 via-[#0f172a]/95 to-[#060b12]/95 text-center shadow-[0_22px_55px_-30px_rgba(99,102,241,0.65)] transition-transform duration-300 hover:-translate-y-1 hover:shadow-[0_30px_70px_-32px_rgba(129,140,248,0.65)] ${mobile ? 'p-2.5' : 'p-3'}`}
         >
             <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-300/80 to-transparent" />
+            <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-20 bg-[radial-gradient(circle_at_top,rgba(79,70,229,0.35),transparent_65%)]" />
             {segments ? (
                 <div
                     className={`relative mx-auto mb-1.5 flex w-full min-w-0 shrink-0 items-stretch justify-center gap-0.5 ${mobile ? 'min-h-[3.25rem]' : 'min-h-[3.75rem] gap-1 sm:min-h-[4rem]'}`}
@@ -960,6 +949,10 @@ const DiamondShopCard: React.FC<{
             >
                 {countLabel}개
             </h3>
+            <div
+                className={`mt-1 flex w-full flex-1 items-start justify-center px-0.5 ${mobile ? 'min-h-[2rem]' : 'min-h-[2.5rem]'}`}
+                aria-hidden
+            />
             <div className="mt-1.5 flex w-full flex-shrink-0 flex-col items-stretch justify-center gap-1">
                 <Button
                     type="button"
@@ -968,7 +961,7 @@ const DiamondShopCard: React.FC<{
                     title={CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE}
                     onClick={onCashPriceClick}
                     className={`flex w-full flex-col items-center justify-center gap-0.5 rounded-lg border border-amber-400/55 bg-gradient-to-r from-amber-400/90 via-amber-300/90 to-amber-500/90 px-2 py-1.5 text-center font-bold tabular-nums text-slate-900 shadow-[0_10px_28px_-14px_rgba(251,191,36,0.85)] transition-all duration-150 hover:from-amber-300 hover:to-amber-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 ${
-                        mobile ? 'h-[2.95rem] min-h-[2.95rem] max-h-[2.95rem] text-[11px]' : 'min-h-[3.5rem] py-2 text-xs sm:text-sm'
+                        mobile ? 'h-[2.95rem] min-h-[2.95rem] max-h-[2.95rem] text-sm' : 'min-h-[3.5rem] py-2 text-sm sm:text-base'
                     }`}
                 >
                     {product.priceKRW.toLocaleString()}원
@@ -978,7 +971,14 @@ const DiamondShopCard: React.FC<{
     );
 };
 
-const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onClose, onAction, isTopmost, initialTab }) => {
+const ShopModal: React.FC<ShopModalProps> = ({
+    currentUser: propCurrentUser,
+    onClose,
+    onAction,
+    isTopmost,
+    initialTab,
+    embedded = false,
+}) => {
     const { currentUserWithStatus } = useAppContext();
     const { showShopAdRewardInterstitial } = useAdContext();
     const { isNativeMobile } = useNativeMobileShell();
@@ -995,6 +995,7 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
     const [activeTab, setActiveTab] = useState<ShopTab>(initialTab || 'equipment');
     const [toastMessage, setToastMessage] = useState<string | null>(null);
     const [purchasingItem, setPurchasingItem] = useState<PurchasableItem | null>(null);
+    const shopAction = useKeyedAsyncAction();
 
     useEffect(() => {
         if (toastMessage) {
@@ -1020,7 +1021,7 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
         {
             itemId: 'equipment_unbind_ticket',
             name: '귀속 해제권',
-            description: '귀속된 장비를 거래가능 상태로 변경. 사용처 : [가방]-[장비선택]-[귀속해제].',
+            description: '귀속 장비 거래가능 상태로 변경',
             price: { diamonds: 50 },
             image: '/images/use/belong.webp',
             dailyLimit: 10,
@@ -1029,15 +1030,15 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
         {
             itemId: 'refinement_charm',
             name: '제련의 부적',
-            description: '제련이 불가능한 장비의 제련가능 횟수를 1추가. 사용처 : [대장간]-[장비제련] 제련불가 장비 선택.',
+            description: '제련불가 장비 제련 횟수 1회 추가',
             price: { diamonds: 100 },
             image: '/images/use/refine.webp',
             dailyLimit: 1,
             type: 'material' as const,
         },
-        { itemId: 'option_type_change_ticket', name: "옵션 종류 변경권", description: "장비의 주옵션, 부옵션, 특수옵션 중 하나를 다른 종류로 변경", price: { gold: 2000 }, image: "/images/use/change1.webp", dailyLimit: 3, type: 'material' as const },
-        { itemId: 'option_value_change_ticket', name: "옵션 수치 변경권", description: "장비의 부옵션 또는 특수옵션 중 하나의 수치를 변경", price: { gold: 500 }, image: "/images/use/change2.webp", dailyLimit: 10, type: 'material' as const },
-        { itemId: 'mythic_option_change_ticket', name: "스페셜 옵션 변경권", description: "신화 또는 초월 장비의 스페셜 옵션을 다른 스페셜 옵션으로 변경", price: { gold: 500 }, image: "/images/use/change3.webp", dailyLimit: 10, type: 'material' as const },
+        { itemId: 'option_type_change_ticket', name: "옵션 종류 변경권", description: "주·부·특수 옵션 종류 변경", price: { gold: 2000 }, image: "/images/use/change1.webp", dailyLimit: 3, type: 'material' as const },
+        { itemId: 'option_value_change_ticket', name: "옵션 수치 변경권", description: "부·특수 옵션 수치 변경", price: { gold: 500 }, image: "/images/use/change2.webp", dailyLimit: 10, type: 'material' as const },
+        { itemId: 'mythic_option_change_ticket', name: "스페셜 옵션 변경권", description: "신화·초월 스페셜 옵션 변경", price: { gold: 500 }, image: "/images/use/change3.webp", dailyLimit: 10, type: 'material' as const },
     ];
     const vipProducts: MiscShopProduct[] = [
         {
@@ -1208,7 +1209,9 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
             return;
         }
         showShopAdRewardInterstitial(() => {
-            onAction({ type: 'CLAIM_SHOP_AD_REWARD', payload: { tab } });
+            void shopAction.run(`ad-reward-${tab}`, async () => {
+                await onAction({ type: 'CLAIM_SHOP_AD_REWARD', payload: { tab } });
+            });
         });
     };
 
@@ -1220,89 +1223,96 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
         const item = purchasingItem;
         if (!item) return;
 
-        // 컨디션 회복제는 별도의 액션 사용
-        if (itemId.startsWith('condition_potion_')) {
-            const potionType = itemId.replace('condition_potion_', '') as 'small' | 'medium' | 'large';
-            const result = await onAction({ type: 'BUY_CONDITION_POTION', payload: { potionType, quantity } });
-            const err =
-                result &&
-                typeof result === 'object' &&
-                'error' in result &&
-                typeof (result as { error?: unknown }).error === 'string'
-                    ? (result as { error: string }).error
-                    : undefined;
-            if (err) {
-                setToastMessage(err);
-            } else if (!result) {
-                setToastMessage('구매 요청이 처리되지 않았습니다. 잠시 후 다시 시도해 주세요.');
+        await shopAction.run(`purchase-${itemId}`, async () => {
+            if (itemId.startsWith('condition_potion_')) {
+                const potionType = itemId.replace('condition_potion_', '') as 'small' | 'medium' | 'large';
+                const result = await onAction({ type: 'BUY_CONDITION_POTION', payload: { potionType, quantity } });
+                const err =
+                    result &&
+                    typeof result === 'object' &&
+                    'error' in result &&
+                    typeof (result as { error?: unknown }).error === 'string'
+                        ? (result as { error: string }).error
+                        : undefined;
+                if (err) {
+                    setToastMessage(err);
+                } else if (!result) {
+                    setToastMessage('구매 요청이 처리되지 않았습니다. 잠시 후 다시 시도해 주세요.');
+                } else {
+                    setToastMessage('컨디션 회복제 구매 완료! 회복 모달에서 사용할 수 있습니다.');
+                }
+            } else if (
+                itemId === 'option_type_change_ticket' ||
+                itemId === 'option_value_change_ticket' ||
+                itemId === 'mythic_option_change_ticket' ||
+                itemId === 'equipment_unbind_ticket' ||
+                itemId === 'refinement_charm' ||
+                itemId === 'action_point_10' ||
+                itemId === 'action_point_20' ||
+                itemId === 'action_point_30'
+            ) {
+                await onAction({ type: 'BUY_CONSUMABLE', payload: { itemId, quantity } });
             } else {
-                setToastMessage('컨디션 회복제 구매 완료! 회복 모달에서 사용할 수 있습니다.');
+                const actionType = item.type === 'equipment' ? 'BUY_SHOP_ITEM' : 'BUY_MATERIAL_BOX';
+                await onAction({ type: actionType, payload: { itemId, quantity } });
             }
-        } else if (
-            itemId === 'option_type_change_ticket' ||
-            itemId === 'option_value_change_ticket' ||
-            itemId === 'mythic_option_change_ticket' ||
-            itemId === 'equipment_unbind_ticket' ||
-            itemId === 'refinement_charm' ||
-            itemId === 'action_point_10' ||
-            itemId === 'action_point_20' ||
-            itemId === 'action_point_30'
-        ) {
-            // 변경권·행동력 회복제 구매
-            onAction({ type: 'BUY_CONSUMABLE', payload: { itemId, quantity } });
-        } else {
-            const actionType = item.type === 'equipment' ? 'BUY_SHOP_ITEM' : 'BUY_MATERIAL_BOX';
-            onAction({ type: actionType, payload: { itemId, quantity } });
-        }
-        // 컨디션 회복제는 서버 검증(골드·일일한도·인벤) 후에만 성공이며, 실패해도 이전에는 여기서 먼저 "구매 완료"가 떠 오해가 생겼음.
-        if (!itemId.startsWith('condition_potion_')) {
-            setToastMessage('구매 완료! 가방을 확인하세요.');
-        }
-        setPurchasingItem(null);
+            if (!itemId.startsWith('condition_potion_')) {
+                setToastMessage('구매 완료! 가방을 확인하세요.');
+            }
+            setPurchasingItem(null);
+        });
     };
     
     const handleBuyActionPoints = () => {
-        onAction({ type: 'PURCHASE_ACTION_POINTS' });
-        setToastMessage('행동력 구매 완료!');
+        void shopAction.run('purchase-action-points', async () => {
+            await onAction({ type: 'PURCHASE_ACTION_POINTS' });
+            setToastMessage('행동력 구매 완료!');
+        });
     };
 
     const handleBuyCashPackage = (packageId: string) => {
-        if (!currentUser.isAdmin) {
-            setToastMessage(CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE);
-            return;
-        }
-        const now = Date.now();
-        if ((CASH_SHOP_DIAMOND_PACKAGE_IDS as readonly string[]).includes(packageId)) {
-            if (!currentUser.isAdmin && (currentUser.diamondPackageExpiresAt ?? 0) > now) {
-                setToastMessage('진행 중인 다이아 패키지가 있을 때는 추가 구매할 수 없습니다.');
+        void shopAction.run(`cash-package-${packageId}`, async () => {
+            if (!currentUser.isAdmin) {
+                setToastMessage(CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE);
                 return;
             }
-        } else if ((CASH_SHOP_EQUIPMENT_PACKAGE_IDS as readonly string[]).includes(packageId)) {
-            const limit = EQUIPMENT_PACKAGE_MONTHLY_LIMIT[packageId as keyof typeof EQUIPMENT_PACKAGE_MONTHLY_LIMIT];
-            const rec = currentUser.dailyShopPurchases?.[packageId];
-            const qty = rec && !isDifferentMonthKST(rec.date, now) ? rec.quantity : 0;
-            if (!currentUser.isAdmin && qty >= limit) {
-                setToastMessage('이번 달 구매 한도에 도달했습니다.');
-                return;
+            const now = Date.now();
+            if ((CASH_SHOP_DIAMOND_PACKAGE_IDS as readonly string[]).includes(packageId)) {
+                if (!currentUser.isAdmin && (currentUser.diamondPackageExpiresAt ?? 0) > now) {
+                    setToastMessage('진행 중인 다이아 패키지가 있을 때는 추가 구매할 수 없습니다.');
+                    return;
+                }
+            } else if ((CASH_SHOP_EQUIPMENT_PACKAGE_IDS as readonly string[]).includes(packageId)) {
+                const limit = EQUIPMENT_PACKAGE_MONTHLY_LIMIT[packageId as keyof typeof EQUIPMENT_PACKAGE_MONTHLY_LIMIT];
+                const rec = currentUser.dailyShopPurchases?.[packageId];
+                const qty = rec && !isDifferentMonthKST(rec.date, now) ? rec.quantity : 0;
+                if (!currentUser.isAdmin && qty >= limit) {
+                    setToastMessage('이번 달 구매 한도에 도달했습니다.');
+                    return;
+                }
             }
-        }
-        onAction({ type: 'BUY_CASH_PACKAGE', payload: { packageId } });
+            await onAction({ type: 'BUY_CASH_PACKAGE', payload: { packageId } });
+        });
     };
 
     const handleBuyVipPackage = (packageId: string, billing: 'one_time' | 'subscription' = 'one_time') => {
-        if (!currentUser.isAdmin) {
-            setToastMessage(CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE);
-            return;
-        }
-        onAction({ type: 'BUY_VIP_PACKAGE', payload: { packageId, billing } });
+        void shopAction.run(`vip-package-${packageId}-${billing}`, async () => {
+            if (!currentUser.isAdmin) {
+                setToastMessage(CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE);
+                return;
+            }
+            await onAction({ type: 'BUY_VIP_PACKAGE', payload: { packageId, billing } });
+        });
     };
 
     const handleCancelVipSubscription = (packageId: string) => {
-        if (!currentUser.isAdmin) {
-            setToastMessage(CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE);
-            return;
-        }
-        onAction({ type: 'CANCEL_VIP_SHOP_AUTO_RENEW', payload: { packageId } });
+        void shopAction.run(`vip-cancel-${packageId}`, async () => {
+            if (!currentUser.isAdmin) {
+                setToastMessage(CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE);
+                return;
+            }
+            await onAction({ type: 'CANCEL_VIP_SHOP_AUTO_RENEW', payload: { packageId } });
+        });
     };
 
     const renderContent = () => {
@@ -1321,12 +1331,13 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                     <div className={gridClassName}>
                         <ShopAdRewardCard
                             tab="equipment"
-                            rewardDescription="장비 상자 II를 1회 연 것과 동일한 규칙으로 장비 1개가 지급됩니다. 일반~에픽 등급 장비입니다."
+                            rewardDescription="일반 ~ 에픽 등급 장비 1개"
                             claimableRemaining={getShopAdRemainingForTab(currentUser, 'equipment', Date.now())}
                             onClaim={handleClaimShopAdReward}
                             mobile={mobileShop}
+                            isClaimPending={shopAction.isAnyPending}
                         />
-                        {equipmentItems.map(item => <ShopItemCard key={item.itemId} item={item} onBuy={handleInitiatePurchase} currentUser={currentUser} mobile={mobileShop} />)}
+                        {equipmentItems.map(item => <ShopItemCard key={item.itemId} item={item} onBuy={handleInitiatePurchase} currentUser={currentUser} mobile={mobileShop} isShopBusy={shopAction.isAnyPending} />)}
                     </div>
                 );
             case 'materials':
@@ -1334,12 +1345,13 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                     <div className={gridClassName}>
                         <ShopAdRewardCard
                             tab="materials"
-                            rewardDescription="재료 상자 II를 1회 연 것과 동일한 규칙으로 강화석 5개가 지급됩니다. 하급~상급 강화석이 포함됩니다."
+                            rewardDescription="하급 ~ 상급 강화석 5개"
                             claimableRemaining={getShopAdRemainingForTab(currentUser, 'materials', Date.now())}
                             onClaim={handleClaimShopAdReward}
                             mobile={mobileShop}
+                            isClaimPending={shopAction.isAnyPending}
                         />
-                        {materialItems.map(item => <ShopItemCard key={item.itemId} item={item} onBuy={handleInitiatePurchase} currentUser={currentUser} mobile={mobileShop} />)}
+                        {materialItems.map(item => <ShopItemCard key={item.itemId} item={item} onBuy={handleInitiatePurchase} currentUser={currentUser} mobile={mobileShop} isShopBusy={shopAction.isAnyPending} />)}
                     </div>
                 );
             case 'diamonds':
@@ -1347,10 +1359,11 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                     <div className={gridClassName}>
                         <ShopAdRewardCard
                             tab="diamonds"
-                            rewardDescription="다이아몬드 10개가 지급됩니다. 서버 보상 설정에 따라 추가 보너스가 더해질 수 있습니다."
+                            rewardDescription="다이아몬드 10개"
                             claimableRemaining={getShopAdRemainingForTab(currentUser, 'diamonds', Date.now())}
                             onClaim={handleClaimShopAdReward}
                             mobile={mobileShop}
+                            isClaimPending={shopAction.isAnyPending}
                         />
                         {diamondProducts.map(product => (
                             <DiamondShopCard
@@ -1378,6 +1391,7 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                                 currentUser={currentUser}
                                 onBuyCashPackage={handleBuyCashPackage}
                                 setToastMessage={setToastMessage}
+                                isPurchasePending={shopAction.isPending(`cash-package-${product.id}`)}
                             />
                         ))}
                     </div>
@@ -1440,13 +1454,14 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                     <div className={gridClassName}>
                         <ShopAdRewardCard
                             tab="consumables"
-                            rewardDescription="행동력 회복제(+10) 1개가 지급됩니다."
+                            rewardDescription="행동력 회복제(+10) 1개"
                             claimableRemaining={getShopAdRemainingForTab(currentUser, 'consumables', Date.now())}
                             onClaim={handleClaimShopAdReward}
                             mobile={mobileShop}
+                            isClaimPending={shopAction.isAnyPending}
                         />
                         {consumableItems.map(item => (
-                            <ShopItemCard key={item.itemId} item={item} onBuy={handleInitiatePurchase} currentUser={currentUser} mobile={mobileShop} />
+                            <ShopItemCard key={item.itemId} item={item} onBuy={handleInitiatePurchase} currentUser={currentUser} mobile={mobileShop} isShopBusy={shopAction.isAnyPending} />
                         ))}
                     </div>
                 );
@@ -1454,34 +1469,14 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
         }
     };
 
-    return (
-        <>
-            {purchasingItem && (
-                <PurchaseQuantityModal 
-                    item={purchasingItem}
-                    currentUser={currentUser}
-                    onClose={() => setPurchasingItem(null)}
-                    onConfirm={handleConfirmPurchase}
-                />
-            )}
-            <DraggableWindow
-                title="상점"
-                onClose={onClose}
-                windowId="shop"
-                initialWidth={900}
-                initialHeight={750}
-                isTopmost={isTopmost && !purchasingItem}
-                bodyScrollable={!mobileShop}
-                mobileViewportFit={mobileShop}
-                mobileViewportMaxHeightVh={90}
-                bodyNoScroll={false}
-                bodyPaddingClassName={mobileShop ? 'flex min-h-0 min-w-0 flex-1 flex-col !px-2.5 !pt-2.5 !pb-[max(0.8rem,env(safe-area-inset-bottom,0px))]' : undefined}
-            >
+    const shopBody = (
                 <div
                     className={
-                        mobileShop
-                            ? 'relative flex min-h-0 w-full flex-col'
-                            : 'relative flex h-full min-h-0 flex-col'
+                        embedded
+                            ? 'relative flex h-full min-h-0 flex-col'
+                            : mobileShop
+                              ? 'relative flex min-h-0 w-full flex-col'
+                              : 'relative flex h-full min-h-0 flex-col'
                     }
                     data-kst-calendar-day={kstCalendarDay}
                 >
@@ -1512,7 +1507,37 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                         </div>
                     )}
                 </div>
-            </DraggableWindow>
+    );
+
+    return (
+        <>
+            {purchasingItem && (
+                <PurchaseQuantityModal 
+                    item={purchasingItem}
+                    currentUser={currentUser}
+                    onClose={() => setPurchasingItem(null)}
+                    onConfirm={handleConfirmPurchase}
+                />
+            )}
+            {embedded ? (
+                <div className={PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS}>{shopBody}</div>
+            ) : (
+                <DraggableWindow
+                    title="상점"
+                    onClose={onClose}
+                    windowId="shop"
+                    initialWidth={900}
+                    initialHeight={750}
+                    isTopmost={isTopmost && !purchasingItem}
+                    bodyScrollable={!mobileShop}
+                    mobileViewportFit={mobileShop}
+                    mobileViewportMaxHeightVh={90}
+                    bodyNoScroll={false}
+                    bodyPaddingClassName={mobileShop ? 'flex min-h-0 min-w-0 flex-1 flex-col !px-2.5 !pt-2.5 !pb-[max(0.8rem,env(safe-area-inset-bottom,0px))]' : undefined}
+                >
+                    {shopBody}
+                </DraggableWindow>
+            )}
         </>
     );
 };

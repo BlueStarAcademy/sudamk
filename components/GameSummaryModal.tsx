@@ -1191,9 +1191,19 @@ const MatchPlayersRoster: React.FC<{
     const whiteIsMonster = !!(adventureMonster && whitePlayer.id === aiUserId);
     const winnerEnum = session && (session.winner === Player.Black || session.winner === Player.White) ? session.winner : null;
     const showWinLoseBadge = !!session && PLAYFUL_GAME_MODES.some((m) => m.mode === session.mode) && winnerEnum != null;
-    /** 테두리 PNG(z-[1])보다 위에 승·패 리본이 오도록 */
-    const winLoseRibbonClass =
-        'pointer-events-none absolute inset-x-0 bottom-0 z-[35] flex justify-center rounded-b-md py-[2px] text-[10px] font-black leading-none text-white shadow-[0_-1px_10px_rgba(0,0,0,0.55)] ring-1 ring-black/50';
+    const winLoseRibbonContentClass =
+        'w-full rounded-b-md py-[2px] text-center text-[10px] font-black leading-none text-white shadow-[0_-1px_10px_rgba(0,0,0,0.55)] ring-1 ring-black/50';
+    const winLoseRibbonSiblingClass =
+        'pointer-events-none absolute inset-x-0 bottom-0 z-[2] flex justify-center';
+    const winLoseBottomOverlay = (stone: Player.Black | Player.White) => {
+        if (!showWinLoseBadge || winnerEnum == null) return undefined;
+        const isWin = winnerEnum === stone;
+        return (
+            <span className={`${winLoseRibbonContentClass} ${isWin ? 'bg-blue-600/95' : 'bg-red-600/95'}`}>
+                {isWin ? '승' : '패'}
+            </span>
+        );
+    };
 
     const pairTeams = useMemo(() => {
         const pairGame = session?.settings?.pairGame;
@@ -1373,13 +1383,12 @@ const MatchPlayersRoster: React.FC<{
                                 size={avatarPxAlk}
                                 avatarUrl={blackAvatarUrl}
                                 borderUrl={blackBorderUrl}
+                                bottomOverlay={winLoseBottomOverlay(Player.Black)}
                             />
                         )}
-                        {showWinLoseBadge && (
-                            <span
-                                className={`${winLoseRibbonClass} ${winnerEnum === Player.Black ? 'bg-blue-600/95' : 'bg-red-600/95'}`}
-                            >
-                                {winnerEnum === Player.Black ? '승' : '패'}
+                        {showWinLoseBadge && blackIsMonster && adventureMonster && (
+                            <span className={winLoseRibbonSiblingClass}>
+                                {winLoseBottomOverlay(Player.Black)}
                             </span>
                         )}
                     </div>
@@ -1409,13 +1418,12 @@ const MatchPlayersRoster: React.FC<{
                                 size={avatarPxAlk}
                                 avatarUrl={whiteAvatarUrl}
                                 borderUrl={whiteBorderUrl}
+                                bottomOverlay={winLoseBottomOverlay(Player.White)}
                             />
                         )}
-                        {showWinLoseBadge && (
-                            <span
-                                className={`${winLoseRibbonClass} ${winnerEnum === Player.White ? 'bg-blue-600/95' : 'bg-red-600/95'}`}
-                            >
-                                {winnerEnum === Player.White ? '승' : '패'}
+                        {showWinLoseBadge && whiteIsMonster && adventureMonster && (
+                            <span className={winLoseRibbonSiblingClass}>
+                                {winLoseBottomOverlay(Player.White)}
                             </span>
                         )}
                     </div>
@@ -1453,13 +1461,12 @@ const MatchPlayersRoster: React.FC<{
                                 size={avatarPx}
                                 avatarUrl={blackAvatarUrl}
                                 borderUrl={blackBorderUrl}
+                                bottomOverlay={winLoseBottomOverlay(Player.Black)}
                             />
                         )}
-                        {showWinLoseBadge && (
-                            <span
-                                className={`${winLoseRibbonClass} ${winnerEnum === Player.Black ? 'bg-blue-600/95' : 'bg-red-600/95'}`}
-                            >
-                                {winnerEnum === Player.Black ? '승' : '패'}
+                        {showWinLoseBadge && blackIsMonster && adventureMonster && (
+                            <span className={winLoseRibbonSiblingClass}>
+                                {winLoseBottomOverlay(Player.Black)}
                             </span>
                         )}
                     </div>
@@ -1512,13 +1519,12 @@ const MatchPlayersRoster: React.FC<{
                                 size={avatarPx}
                                 avatarUrl={whiteAvatarUrl}
                                 borderUrl={whiteBorderUrl}
+                                bottomOverlay={winLoseBottomOverlay(Player.White)}
                             />
                         )}
-                        {showWinLoseBadge && (
-                            <span
-                                className={`${winLoseRibbonClass} ${winnerEnum === Player.White ? 'bg-blue-600/95' : 'bg-red-600/95'}`}
-                            >
-                                {winnerEnum === Player.White ? '승' : '패'}
+                        {showWinLoseBadge && whiteIsMonster && adventureMonster && (
+                            <span className={winLoseRibbonSiblingClass}>
+                                {winLoseBottomOverlay(Player.White)}
                             </span>
                         )}
                     </div>
@@ -2154,7 +2160,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                     isPlayful={isPlayful}
                                     compact={useCompactRewardSlots}
                                     vipPlayRewardSlot={vipSlotForRender}
-                                    onVipLockedClick={() => handlers.openShop('vip')}
+                                    onVipLockedClick={() => handlers.openShop('vip', { modal: true })}
                                     pairPetGradeUpgradeNeeded={showPetGradeUpgradeInsteadOfXp && !isPlayful}
                                 />
                             </div>
@@ -2258,7 +2264,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                 slot={vipSlotForRender}
                                 compact={useCompactRewardSlots}
                                 rouletteActive={vipUnlockRouletteActive}
-                                onLockedClick={vipSlotForRender.locked ? () => handlers.openShop('vip') : undefined}
+                                onLockedClick={vipSlotForRender.locked ? () => handlers.openShop('vip', { modal: true }) : undefined}
                             />
                         ) : null}
                             </>

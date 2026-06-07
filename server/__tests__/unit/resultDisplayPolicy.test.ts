@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { GameCategory, GameMode, Player } from '../../../shared/types/enums.js';
 import type { GameSettings, LiveGameSession } from '../../../shared/types/index.js';
-import { shouldOpenResultModalByPolicy } from '../../../utils/resultDisplayPolicy.js';
+import {
+    shouldOpenResultModalAfterScoringOverlay,
+    shouldOpenResultModalByPolicy,
+    shouldWaitForScoreBasedScoringOverlay,
+} from '../../../utils/resultDisplayPolicy.js';
 
 const settings = (patch: Partial<GameSettings> = {}): GameSettings =>
     ({
@@ -27,7 +31,7 @@ const session = (patch: Partial<LiveGameSession> = {}): LiveGameSession =>
     }) as LiveGameSession;
 
 describe('shouldOpenResultModalByPolicy', () => {
-    it('opens instantEnd (normal PVP) on transition to ended even when showResultModal is false', () => {
+    it('defers instantEnd score PVP until analysisResult is ready', () => {
         const s = session({ gameStatus: 'ended', winReason: 'score' });
         expect(
             shouldOpenResultModalByPolicy({
@@ -36,14 +40,46 @@ describe('shouldOpenResultModalByPolicy', () => {
                 gameHasJustEnded: true,
                 prevGameStatus: 'playing',
                 hasAnalysisResult: false,
-                playfulResultModalWaitSummary: false,
+                resultModalWaitSummary: true,
+                hasMyGameSummary: true,
+                gameSummaryJustArrived: false,
+            }),
+        ).toBe(false);
+    });
+
+    it('defers instantEnd score PVP until summary row exists', () => {
+        const s = session({ gameStatus: 'ended', winReason: 'score' });
+        expect(
+            shouldOpenResultModalByPolicy({
+                session: s,
+                showResultModal: false,
+                gameHasJustEnded: true,
+                prevGameStatus: 'playing',
+                hasAnalysisResult: true,
+                resultModalWaitSummary: true,
                 hasMyGameSummary: false,
-                playfulGameSummaryJustArrived: false,
+                gameSummaryJustArrived: false,
+            }),
+        ).toBe(false);
+    });
+
+    it('opens instantEnd score PVP when ended, analysis, and summary are ready', () => {
+        const s = session({ gameStatus: 'ended', winReason: 'score' });
+        expect(
+            shouldOpenResultModalByPolicy({
+                session: s,
+                showResultModal: false,
+                gameHasJustEnded: true,
+                prevGameStatus: 'playing',
+                hasAnalysisResult: true,
+                resultModalWaitSummary: true,
+                hasMyGameSummary: true,
+                gameSummaryJustArrived: false,
             }),
         ).toBe(true);
     });
 
-    it('opens instantEnd when analysis arrives with scoring→ended transition', () => {
+    it('opens instantEnd when analysis arrives with scoring→ended transition and summary ready', () => {
         const s = session({ gameStatus: 'ended' });
         expect(
             shouldOpenResultModalByPolicy({
@@ -52,11 +88,27 @@ describe('shouldOpenResultModalByPolicy', () => {
                 gameHasJustEnded: false,
                 prevGameStatus: 'scoring',
                 hasAnalysisResult: true,
-                playfulResultModalWaitSummary: false,
-                hasMyGameSummary: false,
-                playfulGameSummaryJustArrived: false,
+                resultModalWaitSummary: true,
+                hasMyGameSummary: true,
+                gameSummaryJustArrived: false,
             }),
         ).toBe(true);
+    });
+
+    it('defers instantEnd scoring→ended until summary row exists', () => {
+        const s = session({ gameStatus: 'ended' });
+        expect(
+            shouldOpenResultModalByPolicy({
+                session: s,
+                showResultModal: false,
+                gameHasJustEnded: false,
+                prevGameStatus: 'scoring',
+                hasAnalysisResult: true,
+                resultModalWaitSummary: true,
+                hasMyGameSummary: false,
+                gameSummaryJustArrived: false,
+            }),
+        ).toBe(false);
     });
 
     it('defers instantEnd playful result until my summary row exists', () => {
@@ -73,14 +125,14 @@ describe('shouldOpenResultModalByPolicy', () => {
                 gameHasJustEnded: true,
                 prevGameStatus: 'playing',
                 hasAnalysisResult: false,
-                playfulResultModalWaitSummary: true,
+                resultModalWaitSummary: true,
                 hasMyGameSummary: false,
-                playfulGameSummaryJustArrived: false,
+                gameSummaryJustArrived: false,
             }),
         ).toBe(false);
     });
 
-    it('opens instantEnd playful when summary row just arrived', () => {
+    it('opens instantEnd when summary row just arrived', () => {
         const s = session({
             gameStatus: 'ended',
             mode: GameMode.Dice,
@@ -94,11 +146,82 @@ describe('shouldOpenResultModalByPolicy', () => {
                 gameHasJustEnded: false,
                 prevGameStatus: 'ended',
                 hasAnalysisResult: false,
-                playfulResultModalWaitSummary: true,
+                resultModalWaitSummary: true,
                 hasMyGameSummary: true,
-                playfulGameSummaryJustArrived: true,
+                gameSummaryJustArrived: true,
             }),
         ).toBe(true);
+    });
+
+    it('waits for score-based overlay during scoring (PVP included)', () => {
+        expect(
+            shouldWaitForScoreBasedScoringOverlay({
+                isScoreBasedPresentation: true,
+                scoringOverlayCompleted: false,
+                winReason: 'score',
+            }),
+        ).toBe(true);
+    });
+
+    it('does not wait for overlay on immediate resign end', () => {
+        expect(
+            shouldWaitForScoreBasedScoringOverlay({
+                isScoreBasedPresentation: true,
+                scoringOverlayCompleted: false,
+                winReason: 'resign',
+            }),
+        ).toBe(false);
+    });
+
+    it('does not open result after overlay on ended without analysis', () => {
+        expect(
+            shouldOpenResultModalAfterScoringOverlay({
+                isScoreBasedPresentation: true,
+                scoringOverlayCompleted: true,
+                gameStatus: 'ended',
+                postGameSummaryAcknowledged: false,
+            }),
+        ).toBe(false);
+    });
+
+    it('opens result after overlay completes on ended when analysis and summary are ready', () => {
+        expect(
+            shouldOpenResultModalAfterScoringOverlay({
+                isScoreBasedPresentation: true,
+                scoringOverlayCompleted: true,
+                gameStatus: 'ended',
+                postGameSummaryAcknowledged: false,
+                hasAnalysisResult: true,
+                resultModalWaitSummary: true,
+                hasMyGameSummary: true,
+            }),
+        ).toBe(true);
+    });
+
+    it('does not open result after overlay during scoring even with analysis', () => {
+        expect(
+            shouldOpenResultModalAfterScoringOverlay({
+                isScoreBasedPresentation: true,
+                scoringOverlayCompleted: true,
+                gameStatus: 'scoring',
+                postGameSummaryAcknowledged: false,
+                hasAnalysisResult: true,
+            }),
+        ).toBe(false);
+    });
+
+    it('does not open result after overlay when summary is still missing', () => {
+        expect(
+            shouldOpenResultModalAfterScoringOverlay({
+                isScoreBasedPresentation: true,
+                scoringOverlayCompleted: true,
+                gameStatus: 'ended',
+                postGameSummaryAcknowledged: false,
+                hasAnalysisResult: true,
+                resultModalWaitSummary: true,
+                hasMyGameSummary: false,
+            }),
+        ).toBe(false);
     });
 
     it('opens singleplayer (waitScoringOverlay) on gameHasJustEnded', () => {
@@ -114,9 +237,9 @@ describe('shouldOpenResultModalByPolicy', () => {
                 gameHasJustEnded: true,
                 prevGameStatus: 'scoring',
                 hasAnalysisResult: false,
-                playfulResultModalWaitSummary: false,
+                resultModalWaitSummary: false,
                 hasMyGameSummary: false,
-                playfulGameSummaryJustArrived: false,
+                gameSummaryJustArrived: false,
             }),
         ).toBe(true);
     });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Player } from '../../../types/index.js';
 import type { GameRecord } from '../../../types/index.js';
-import { formatGameRecordResultLabel } from '../../../utils/gameRecordResultLabel.js';
+import { formatGameRecordResultLabel, formatGameRecordInfoDate, formatGameRecordInfoResult } from '../../../utils/gameRecordResultLabel.js';
 
 const baseRecord = (overrides: Partial<GameRecord['gameResult']> & { myColor?: Player }): GameRecord => ({
     id: '1',
@@ -48,5 +48,34 @@ describe('formatGameRecordResultLabel', () => {
             whiteScore: 54,
         });
         expect(formatGameRecordResultLabel(r).text).toBe('4집승');
+    });
+});
+
+describe('formatGameRecordInfoDate', () => {
+    it('formats timestamp in Korean date style', () => {
+        const ts = new Date(2025, 5, 7, 15, 45).getTime();
+        expect(formatGameRecordInfoDate(ts)).toBe('2025. 6. 7. 오후 3:45');
+    });
+});
+
+describe('formatGameRecordInfoResult', () => {
+    it('returns user stone color and spaced score win text', () => {
+        const r = baseRecord({
+            winReason: 'score',
+            scoreMargin: 3.5,
+            winner: Player.Black,
+            myColor: Player.Black,
+        });
+        expect(formatGameRecordInfoResult(r)).toEqual({ userStoneColor: 'black', text: '3.5집 승' });
+    });
+
+    it('returns spaced resignation loss for white player', () => {
+        const r = baseRecord({ winReason: 'resign', winner: Player.Black, myColor: Player.White });
+        expect(formatGameRecordInfoResult(r)).toEqual({ userStoneColor: 'white', text: '기권 패' });
+    });
+
+    it('returns draw without stone color', () => {
+        const r = baseRecord({ winner: Player.None, myColor: Player.Black });
+        expect(formatGameRecordInfoResult(r)).toEqual({ userStoneColor: null, text: '무승부' });
     });
 });

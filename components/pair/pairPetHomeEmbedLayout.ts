@@ -26,7 +26,7 @@ export function resolvePetInfoViewerEmbedLayout(
         detailVariant: 'panelFit',
         contentHeight: 'hug',
         mobileHomeRepPet: false,
-        profileHomeColumn: false,
+        profileHomeColumn: true,
         enlargedModalHero: false,
         suppressDetailFitScale: true,
         petManagementModal: true,
@@ -70,4 +70,28 @@ export function resolvePairPetHomeEmbedLayout(
 /** @deprecated {@link resolvePetInfoViewerEmbedLayout} 사용 */
 export function resolvePetManagementInfoEmbedLayout(): ReturnType<typeof resolvePetInfoViewerEmbedLayout> {
     return resolvePetInfoViewerEmbedLayout();
+}
+
+/** 챔피언십 모바일 능력치 탭 — 펫 6코어 3×2 그리드 */
+export function resolveChampionshipMobilePetEmbedLayout(): Pick<
+    PairPetDetailEmbedPanelProps,
+    | 'detailVariant'
+    | 'contentHeight'
+    | 'mobileHomeRepPet'
+    | 'profileHomeColumn'
+    | 'enlargedModalHero'
+    | 'suppressDetailFitScale'
+    | 'petManagementModal'
+    | 'enlargeHomeRepPhaseStrip'
+> {
+    return {
+        detailVariant: 'panelFit',
+        contentHeight: 'hug',
+        mobileHomeRepPet: false,
+        profileHomeColumn: true,
+        enlargedModalHero: false,
+        suppressDetailFitScale: true,
+        petManagementModal: false,
+        enlargeHomeRepPhaseStrip: true,
+    };
 }

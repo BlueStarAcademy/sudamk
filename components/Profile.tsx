@@ -7,12 +7,19 @@ import ProfileHomeIdentityHeader from './profile/ProfileHomeIdentityHeader.js';
 import ProfileMannerSeal from './profile/ProfileMannerSeal.js';
 import UserNicknameText from './UserNicknameText.js';
 import Button from './Button.js';
-import DetailedStatsModal from './DetailedStatsModal.js';
 import ProfileEditModal from './ProfileEditModal.js';
 import { getMannerScore, getMannerRank } from '../services/manner.js';
 import { calculateUserEffects } from '../services/effectService.js';
 import { useAppContext } from '../hooks/useAppContext.js';
-import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from './QuickAccessSidebar.js';
+import QuickAccessSidebar from './QuickAccessSidebar.js';
+import PcLobbyCenterColumn from './shell/PcLobbyCenterColumn.js';
+import {
+    PC_HOME_LEFT_COLUMN_CLASS,
+    PC_HOME_LEFT_COLUMN_GAP_CLASS,
+    PC_LOBBY_THREE_COLUMN_ROW_GAP_CLASS,
+    PC_QUICK_RAIL_COLUMN_CLASS,
+    PC_QUICK_RAIL_WRAPPER_CLASS,
+} from '../shared/constants/pcShellLayout.js';
 import { BADUK_ABILITY_STAT_CAP, BADUK_ABILITY_TOTAL_CAP, CORE_STAT_RADAR_ORDER } from './CoreStatsHexagonChart.js';
 import GameRankingBoard from './GameRankingBoard.js';
 import BadukRankingBoard from './BadukRankingBoard.js';
@@ -39,14 +46,17 @@ import {
     normalizePairPetTrainingSlots,
     isPairTrainingSlotUnlocked,
 } from '../shared/constants/pairTraining.js';
+import { mergeWaitingRoomPublicChatMessages } from '../shared/utils/waitingRoomGlobalChatMerge.js';
 import {
-    PAIR_HATCHERY_SESSION_SLOT_COUNT,
+    PAIR_HATCHERY_MAIN_SLOT_INDEX,
+    PAIR_HATCHERY_VIP_SLOT_INDEX,
     normalizePairPetHatcherySessions,
     canUsePairHatcherySlot,
 } from '../shared/constants/pairHatchery.js';
 import { isClientAdmin } from '../utils/clientAdmin.js';
+import { arenaLobbyHash } from '../shared/utils/arenaLobbyDestination.js';
+import { sumLobbyAiMatchRecordFromStats } from '../shared/utils/lobbyAiMatchRecord.js';
 import { getAdventureCodexCompletionBreakdown } from '../utils/adventureCodexCompletion.js';
-import TrainingQuestModal from './singleplayer/TrainingQuestModal.js';
 import { userHasFullTrainingQuestReward } from '../utils/trainingQuestRewardNotify.js';
 import { computeCoreStatFinalFromBonuses } from '../shared/utils/coreStatComposition.js';
 import {
@@ -55,19 +65,21 @@ import {
     getCombinedStrategyPlayfulLevel,
 } from '../shared/constants/guildConstants.js';
 import { getXpRequirementForLevel } from '../shared/utils/strategyLevelXp.js';
-import { readStrategicRankedBlock, readPairRankedBlock } from '../shared/utils/unifiedRankedStatsMigration.js';
+import {
+    readStrategicRankedBlock,
+    readPairRankedBlock,
+    readPairArenaAiMatchRecord,
+} from '../shared/utils/unifiedRankedStatsMigration.js';
 import { RANKED_ELO_BASE_SCORE } from '../shared/constants/rules.js';
 import { getSeasonalRankingTierName } from '../shared/constants/ranking.js';
 import { getChampionshipVersusDisplayRating } from '../shared/utils/championshipVersusElo.js';
 import { NEW_FEATURE_BADGE_CLASS } from '../utils/newFeatureBadges.js';
 import PairPetProfilePanel from './pair/PairPetProfilePanel.js';
-import PairPetDetailEmbedPanel from './pair/PairPetDetailEmbedPanel.js';
-import PairPetHomeEmptyDetailFrame from './pair/PairPetHomeEmptyDetailFrame.js';
-import { resolveProfileHomePetEmbedLayout } from './pair/pairPetHomeEmbedLayout.js';
 import HomeNativeMergedEquipmentAbilityPanel from './HomeNativeMergedEquipmentAbilityPanel.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
 import { useScreenGuide } from '../hooks/useScreenGuide.js';
 import ScreenGuideModal from './ScreenGuideModal.js';
+import ChatWindow from './waiting-room/ChatWindow.js';
 
 function isVipExpiresActive(exp?: number): boolean {
     return typeof exp === 'number' && Number.isFinite(exp) && exp > Date.now();
@@ -426,7 +438,7 @@ const PveCard: React.FC<{ title: string; imageUrl: string; layout: 'grid' | 'tal
     );
 };
 
-/** PVP 카드: 상단 전략(1인) 대기실 · 하단 페어 경기장 */
+/** @deprecated split PVP/AI entry — use Profile arena cards */
 const StrategicPairPvpSymbolCard: React.FC<{
     onSelectStrategic: () => void;
     onSelectPair: () => void;
@@ -616,6 +628,66 @@ const ArenaMobileStatStrip: React.FC<{
     );
 };
 
+type PvpArenaHomeTierSnapshot = {
+    bestScore: number;
+    bestTier: { name: string; icon: string };
+    strategicWins: number;
+    strategicLosses: number;
+    pairWins: number;
+    pairLosses: number;
+};
+
+/** 홈·경기장 탭 PVP 카드 우측: 최고 점수+티어 + 전략·페어·놀이 전적 */
+const PvpArenaHomeInfoMiddle: React.FC<{
+    tiers: PvpArenaHomeTierSnapshot;
+    playfulWins: number;
+    playfulLosses: number;
+    infoPanelMiddleClass: string;
+    infoLabelClass: string;
+    infoValueClass: string;
+}> = ({ tiers, playfulWins, playfulLosses, infoPanelMiddleClass, infoLabelClass, infoValueClass }) => {
+    const recordInnerRowClass =
+        'grid w-full min-w-0 grid-cols-[minmax(4.25rem,auto)_minmax(0,1fr)] items-center gap-x-2 py-0.5 text-[12.5px] leading-snug';
+    return (
+        <div className={infoPanelMiddleClass}>
+            <div className="flex w-full items-center gap-2 rounded-md border border-white/10 bg-white/[0.05] px-2 py-2">
+                <img
+                    src={tiers.bestTier.icon}
+                    alt=""
+                    title={tiers.bestTier.name}
+                    className="h-9 w-9 shrink-0 object-contain sm:h-10 sm:w-10"
+                />
+                <div className="min-w-0 flex-1 text-center">
+                    <span className={`${infoLabelClass} block text-[11px]`}>{tiers.bestTier.name}</span>
+                    <span className={`${infoValueClass} block font-mono text-base text-fuchsia-100 sm:text-lg`}>
+                        {tiers.bestScore}점
+                    </span>
+                </div>
+            </div>
+            <div className="flex w-full flex-col gap-1 rounded-md border border-white/10 bg-white/[0.05] px-2.5 py-1.5">
+                <div className={recordInnerRowClass}>
+                    <span className={infoLabelClass}>전략 전적</span>
+                    <span className={`${infoValueClass} font-mono whitespace-nowrap`}>
+                        {tiers.strategicWins}승{tiers.strategicLosses}패
+                    </span>
+                </div>
+                <div className={recordInnerRowClass}>
+                    <span className={infoLabelClass}>페어 전적</span>
+                    <span className={`${infoValueClass} font-mono whitespace-nowrap`}>
+                        {tiers.pairWins}승{tiers.pairLosses}패
+                    </span>
+                </div>
+                <div className={recordInnerRowClass}>
+                    <span className={infoLabelClass}>놀이 전적</span>
+                    <span className={`${infoValueClass} font-mono whitespace-nowrap`}>
+                        {playfulWins}승{playfulLosses}패
+                    </span>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 /** 모험 행 — 입장카드 높이에 맞춘 플레이스홀더 */
 const ArenaMobilePvpStatStrip: React.FC = () => (
     <div className="relative flex h-full min-h-0 w-full flex-col items-center justify-center overflow-hidden rounded-2xl border border-dashed border-purple-500/30 bg-gradient-to-b from-purple-950/40 via-slate-950/90 to-slate-950/98 p-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-white/[0.05]">
@@ -637,16 +709,21 @@ const Profile: React.FC<ProfileProps> = () => {
         arenaEntranceAvailability,
         arenaEntranceFromServer,
         singlePlayerStagesListRevision,
+        waitingRoomChats,
     } = useAppContext();
     const adventureCodexDonutGradId = useId().replace(/:/g, '');
     const { isNativeMobile } = useNativeMobileShell();
     const profileTab = (currentRoute.params?.tab as 'home' | 'ranking' | 'arena' | undefined) ?? 'home';
     /** 홈 탭: PC와 동일 패널·타이포 */
     const readableHome = profileTab === 'home';
-    /** 홈: 유저 패널(장비·능력치·길드) + 펫 패널 2단 구성 */
+    /** 홈: 유저 패널(프로필·길드·능력치·대표펫 한 줄) + 채팅 패널 2단 구성 */
     const homeLeftColumnMerge = profileTab === 'home';
     /** 네이티브 앱 홈: PC와 동일 구조, 타이포·썸네일·펫 카드만 축소해 통일 */
     const nativeCompactHome = isNativeMobile && homeLeftColumnMerge;
+    const mergedPublicChatMessages = useMemo(
+        () => mergeWaitingRoomPublicChatMessages(waitingRoomChats),
+        [waitingRoomChats],
+    );
     /** 챔피언십 경기장: 통합 ELO + 경기장별 시즌 전적 */
     const championshipVenueStrip = useMemo(() => {
         const u = currentUserWithStatus;
@@ -684,8 +761,6 @@ const Profile: React.FC<ProfileProps> = () => {
             ],
         };
     }, [currentUserWithStatus]);
-    const [detailedStatsType, setDetailedStatsType] = useState<'strategic' | 'playful' | 'both' | null>(null);
-    const [trainingQuestModalOpen, setTrainingQuestModalOpen] = useState(false);
     const [towerTimeLeft, setTowerTimeLeft] = useState('');
     const [selectedPreset, setSelectedPreset] = useState(0);
     const [showMannerRankModal, setShowMannerRankModal] = useState(false);
@@ -977,10 +1052,10 @@ const Profile: React.FC<ProfileProps> = () => {
         }
         const hatchSessions = normalizePairPetHatcherySessions(u.pairPetHatcherySessions);
         let hatchUsed = 0;
-        let hatchOpen = 0;
-        for (let i = 0; i < PAIR_HATCHERY_SESSION_SLOT_COUNT; i++) {
-            if (canUsePairHatcherySlot(u, i)) hatchOpen++;
-            if (hatchSessions[i]) hatchUsed++;
+        let hatchOpen = canUsePairHatcherySlot(u, PAIR_HATCHERY_MAIN_SLOT_INDEX) ? 1 : 0;
+        if (canUsePairHatcherySlot(u, PAIR_HATCHERY_VIP_SLOT_INDEX)) hatchOpen += 1;
+        for (let i = 0; i < hatchSessions.length; i += 1) {
+            if (hatchSessions[i]) hatchUsed += 1;
         }
         const ps = u.stats?.['pair' as keyof typeof u.stats] as { wins?: number; losses?: number } | undefined;
         return {
@@ -1070,43 +1145,20 @@ const Profile: React.FC<ProfileProps> = () => {
         [arenaAdminBypass, mergedArena, serverArena, currentUserWithStatus.clearedSinglePlayerStages],
     );
 
-    const onSelectLobby = (type: 'strategic' | 'playful') => {
-        const key: ArenaEntranceKey = type === 'strategic' ? 'strategicLobby' : 'playfulLobby';
-        try {
-            sessionStorage.setItem('sudamr_pvp_lobby_pref', type);
-        } catch {
-            // ignore
-        }
-        tryArenaEnter(key, () => { window.location.hash = `#/waiting/${type}`; });
-    };
-    const onSelectUnifiedPvpLobby = () => {
-        let preferred: 'strategic' | 'playful' = 'strategic';
-        try {
-            const saved = sessionStorage.getItem('sudamr_pvp_lobby_pref');
-            if (saved === 'strategic' || saved === 'playful') preferred = saved;
-            else if (currentUserWithStatus.waitingLobby === 'strategic' || currentUserWithStatus.waitingLobby === 'playful') preferred = currentUserWithStatus.waitingLobby;
-        } catch {
-            // ignore
-        }
-        const fallback: 'strategic' | 'playful' = preferred === 'strategic' ? 'playful' : 'strategic';
-        const key = preferred === 'strategic' ? 'strategicLobby' : 'playfulLobby';
-        const fallbackKey = fallback === 'strategic' ? 'strategicLobby' : 'playfulLobby';
-        if (arenaAdminBypass || mergedArena[key]) {
-            onSelectLobby(preferred);
-            return;
-        }
-        if (arenaAdminBypass || mergedArena[fallbackKey]) {
-            onSelectLobby(fallback);
-            return;
-        }
-        const reason = getArenaLobbyLockReason('strategicLobby') || getArenaLobbyLockReason('playfulLobby') || '입장 불가';
-        window.alert(`PVP경기장 입장 불가: ${reason}`);
+    const onSelectArenaIntent = (intent: 'pvp' | 'ai') => {
+        tryArenaEnter('strategicLobby', () => {
+            window.location.hash = arenaLobbyHash({ intent, channel: 'strategic' });
+        });
     };
     const onSelectTournamentLobby = () => tryArenaEnter('championship', () => { window.location.hash = '#/tournament'; });
     const onSelectSinglePlayerLobby = () => tryArenaEnter('singleplayer', () => { window.location.hash = '#/singleplayer'; });
-    const onSelectPairLobby = () => tryArenaEnter('pairLobby', () => {
-        window.location.hash = '#/pair';
-    });
+
+    const aiLobbyRecordByKind = useMemo(() => {
+        const strategic = sumLobbyAiMatchRecordFromStats(stats, 'strategic');
+        const pair = readPairArenaAiMatchRecord(stats as Record<string, { wins?: number; losses?: number }>);
+        const playful = sumLobbyAiMatchRecordFromStats(stats, 'playful');
+        return { strategic, pair, playful };
+    }, [stats]);
 
     const openEquippedPairPetDetailFromProfileHome = useCallback(() => {
         const u = currentUserWithStatus;
@@ -1122,7 +1174,7 @@ const Profile: React.FC<ProfileProps> = () => {
             } catch {
                 // ignore
             }
-            window.location.hash = '#/pair';
+            window.location.hash = '#/pvp/pair';
         });
     }, [tryArenaEnter]);
 
@@ -1136,36 +1188,52 @@ const Profile: React.FC<ProfileProps> = () => {
 
     const overallTiers = useMemo(() => {
         const statsMap = (currentUserWithStatus.stats ?? {}) as NonNullable<User['stats']>;
-        const strategicScores = allUsers
-            .map((u) => ({
-                id: u.id,
-                score: readStrategicRankedBlock((u.stats ?? {}) as NonNullable<User['stats']>).rankingScore,
-            }))
-            .sort((a, b) => b.score - a.score);
-
-        const myStrategicRank = strategicScores.findIndex((u) => u.id === currentUserWithStatus.id) + 1;
         const strategicBlock = readStrategicRankedBlock(statsMap);
-        const myStrategicScore = strategicBlock.rankingScore;
+        const pairBlock = readPairRankedBlock(statsMap);
 
-        const strategicTier = getTier(myStrategicScore, myStrategicRank, strategicScores.length);
+        const strategicDr = currentUserWithStatus.dailyRankings?.strategic;
+        const strategicTotalGames = strategicBlock.wins + strategicBlock.losses;
+        let strategicScore: number;
+        let strategicRank: number;
+        if (strategicDr && typeof strategicDr.rank === 'number') {
+            strategicScore =
+                RANKED_ELO_BASE_SCORE + (typeof strategicDr.score === 'number' ? strategicDr.score : 0);
+            strategicRank = strategicDr.rank;
+        } else {
+            strategicScore = strategicBlock.rankingScore;
+            strategicRank = 99_999;
+        }
+        const strategicTier = getTier(strategicScore, strategicRank, strategicTotalGames);
 
         const pairDr = currentUserWithStatus.dailyRankings?.pair;
-        const pairBlock = readPairRankedBlock(statsMap);
-        const pairSeasonScore =
-            pairDr && typeof pairDr.rank === 'number'
-                ? RANKED_ELO_BASE_SCORE + (typeof pairDr.score === 'number' ? pairDr.score : 0)
-                : pairBlock.rankingScore;
+        const pairTotalGames = pairBlock.wins + pairBlock.losses;
+        let pairScore: number;
+        let pairRank: number;
+        if (pairDr && typeof pairDr.rank === 'number') {
+            pairScore = RANKED_ELO_BASE_SCORE + (typeof pairDr.score === 'number' ? pairDr.score : 0);
+            pairRank = pairDr.rank;
+        } else {
+            pairScore = pairBlock.rankingScore;
+            pairRank = 99_999;
+        }
+        const pairTier = getTier(pairScore, pairRank, pairTotalGames);
+
+        const bestScore = Math.max(strategicScore, pairScore);
+        const bestTier = pairScore > strategicScore ? pairTier : strategicTier;
 
         return {
             strategicTier,
-            strategicIntegratedScore: Math.round(myStrategicScore),
+            strategicIntegratedScore: Math.round(strategicScore),
             strategicWins: strategicBlock.wins,
             strategicLosses: strategicBlock.losses,
-            pairSeasonScore: Math.round(pairSeasonScore),
+            pairTier,
+            pairSeasonScore: Math.round(pairScore),
             pairWins: pairBlock.wins,
             pairLosses: pairBlock.losses,
+            bestScore: Math.round(bestScore),
+            bestTier,
         };
-    }, [currentUserWithStatus, allUsers]);
+    }, [currentUserWithStatus]);
     
     const coreStatAbbreviations: Record<CoreStat, string> = {
         [CoreStat.Concentration]: '집중',
@@ -1239,9 +1307,6 @@ const Profile: React.FC<ProfileProps> = () => {
     /** 스크롤 영역: 가로는 꽉 채우고 세로는 중앙 정렬 */
     const profileStackScrollInnerClass =
         'flex min-h-full w-full flex-col items-stretch justify-center gap-0 py-0.5';
-    /** 네이티브 홈: 세로 스크롤 유발하는 min-h-full·중앙 정렬 대신 위부터 채움 */
-    const profileStackScrollInnerNativeHome =
-        'flex min-h-0 w-full flex-col items-stretch justify-start gap-0 py-0';
 
     const ProfileGuildPanelContent = useMemo(() => {
         const nh = isNativeMobile && !readableHome;
@@ -1432,7 +1497,7 @@ const Profile: React.FC<ProfileProps> = () => {
             const homeEquipGrid = ch
                 ? 'grid w-full grid-cols-3 gap-x-1 gap-y-0.5 auto-rows-auto sm:gap-x-1.5 sm:gap-y-1'
                 : 'grid w-full grid-cols-3 gap-1.5 auto-rows-auto sm:gap-2';
-            /** 네이티브 홈: 슬롯 칸을 살짝만 줄여 대표펫 패널에 세로 여유 확보(아이콘만 축소로는 aspect-square 행 높이가 거의 안 줄어듦) */
+            /** 네이티브 홈: 슬롯 칸을 살짝만 줄여 탭 영역에 세로 여유 확보 */
             const mergeEquipScale = ch ? 0.82 : 1.18;
             const mergeSlotCapClass = ch ? 'mx-auto w-full max-w-[min(100%,4.55rem)]' : 'w-full';
             return (
@@ -1899,57 +1964,34 @@ const Profile: React.FC<ProfileProps> = () => {
         nativeCompactHome,
     ]);
 
-    const HomeLeftPetColumnContent = useMemo(() => {
-        const ch = nativeCompactHome;
-        const homeEmbed = resolveProfileHomePetEmbedLayout({ nativeCompactHome: ch });
-        const equippedPetRow = getEquippedPairPetInventoryRow(currentUserWithStatus);
-        return (
-            <div
-                className={`relative flex h-full min-h-0 w-full flex-col overflow-hidden rounded-xl border-2 border-amber-500/45 bg-gradient-to-b from-zinc-800 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_50px_-22px_rgba(0,0,0,0.78)] ring-1 ring-amber-100/15 ${ch ? 'box-border p-1.5 sm:p-2' : 'p-1 sm:p-1.5'}`}
-            >
+    const HomeLeftChatColumnContent = useMemo(
+        () => (
+            <div className="relative flex h-full min-h-0 w-full flex-col overflow-hidden rounded-xl border-2 border-amber-500/45 bg-gradient-to-b from-zinc-800 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_50px_-22px_rgba(0,0,0,0.78)] ring-1 ring-amber-100/15">
                 <div className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-px bg-gradient-to-r from-transparent via-amber-300/35 to-transparent" aria-hidden />
                 <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10" aria-hidden />
-                <div className="relative z-[1] flex min-h-0 flex-1 flex-col overflow-hidden">
-                    {equippedPetRow ? (
-                        <div className="flex min-h-0 flex-1 flex-col items-stretch justify-start overflow-y-auto overflow-x-hidden overscroll-y-contain [scrollbar-width:thin]">
-                            <div className="flex min-h-0 w-full min-w-0 shrink-0 flex-col">
-                                <PairPetDetailEmbedPanel
-                                    currentUser={currentUserWithStatus}
-                                    item={equippedPetRow}
-                                    detailVariant={homeEmbed.detailVariant}
-                                    contentHeight={homeEmbed.contentHeight}
-                                    showRepresentativeBadge
-                                    mobileHomeRepPet={homeEmbed.mobileHomeRepPet}
-                                    enlargedModalHero={homeEmbed.enlargedModalHero}
-                                    suppressDetailFitScale={homeEmbed.suppressDetailFitScale}
-                                    profileHomeColumn={homeEmbed.profileHomeColumn}
-                                    petManagementModal={homeEmbed.petManagementModal}
-                                />
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="flex min-h-0 flex-1 flex-col items-stretch justify-start overflow-y-auto overflow-x-hidden overscroll-y-contain [scrollbar-width:thin]">
-                            <div className="flex min-h-0 w-full min-w-0 shrink-0 flex-col">
-                                <PairPetHomeEmptyDetailFrame
-                                    variant={homeEmbed.detailVariant}
-                                    petManagementModal={homeEmbed.petManagementModal}
-                                    onRequestEquip={focusPairPetInventoryFromProfileHome}
-                                />
-                            </div>
-                        </div>
-                    )}
+                <div className={`relative z-[1] flex min-h-0 flex-1 flex-col overflow-hidden ${nativeCompactHome ? 'p-1 sm:p-1.5' : 'p-1.5 sm:p-2'}`}>
+                    <ChatWindow
+                        messages={mergedPublicChatMessages}
+                        mode="global"
+                        onAction={handlers.handleAction}
+                        onViewUser={handlers.openViewingUser}
+                        locationPrefix="[홈]"
+                        compactTournamentMobile
+                    />
                 </div>
             </div>
-        );
-    }, [currentUserWithStatus, openEquippedPairPetDetailFromProfileHome, focusPairPetInventoryFromProfileHome, nativeCompactHome]);
+        ),
+        [mergedPublicChatMessages, handlers, nativeCompactHome],
+    );
 
     const HomeMergedUserStackContent = useMemo(
         () => (
             <div
-                className={`flex min-h-0 w-full min-w-0 flex-col ${nativeCompactHome ? 'gap-[clamp(0.08rem,0.5dvh,0.22rem)]' : 'gap-[clamp(0.14rem,0.65dvh,0.32rem)]'} ${profileStackScrollInnerNativeHome}`}
+                className={`flex h-full min-h-0 w-full min-w-0 flex-col ${nativeCompactHome ? 'gap-[clamp(0.08rem,0.5dvh,0.22rem)]' : 'gap-[clamp(0.14rem,0.65dvh,0.32rem)]'}`}
             >
-                {ProfilePanelContent}
-                <div className="min-h-0 w-full min-w-0 border-t border-amber-500/25 pt-1">
+                <div className="w-full min-w-0 shrink-0">{ProfilePanelContent}</div>
+                <div className="w-full min-w-0 shrink-0 border-t border-amber-500/25 pt-1">{ProfileGuildPanelContent}</div>
+                <div className="min-h-0 w-full min-w-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain border-t border-amber-500/25 pt-1 [scrollbar-width:thin]">
                     <HomeNativeMergedEquipmentAbilityPanel
                         equippedItems={equippedItems}
                         presets={presets}
@@ -1964,14 +2006,45 @@ const Profile: React.FC<ProfileProps> = () => {
                         availablePoints={availablePoints}
                         framed={false}
                         compactLayout={nativeCompactHome}
+                        bannerAside={
+                            nativeCompactHome ? (
+                                <div className="flex h-full min-h-0 flex-col justify-center rounded-xl border border-violet-400/35 bg-gradient-to-br from-violet-950/45 via-black/40 to-fuchsia-950/30 px-1 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+                                    <PairPetProfilePanel
+                                        currentUser={currentUserWithStatus}
+                                        currentUserId={currentUserWithStatus.id}
+                                        isBusy={false}
+                                        embed
+                                        compact
+                                        profileHomeFooter
+                                        showRepresentativeBadge={Boolean(getEquippedPairPetInventoryRow(currentUserWithStatus))}
+                                        onOpenEquippedPetDetail={openEquippedPairPetDetailFromProfileHome}
+                                        onFocusPetInventory={focusPairPetInventoryFromProfileHome}
+                                    />
+                                </div>
+                            ) : undefined
+                        }
                     />
                 </div>
-                <div className="min-h-0 w-full min-w-0 shrink-0 pt-0.5">{ProfileGuildPanelContent}</div>
+                {!nativeCompactHome ? (
+                    <div className="w-full min-w-0 shrink-0 overflow-visible border-t border-amber-500/25 px-1 py-2">
+                        <PairPetProfilePanel
+                            currentUser={currentUserWithStatus}
+                            currentUserId={currentUserWithStatus.id}
+                            isBusy={false}
+                            embed
+                            profileHomeFooter
+                            showRepresentativeBadge={Boolean(getEquippedPairPetInventoryRow(currentUserWithStatus))}
+                            onOpenEquippedPetDetail={openEquippedPairPetDetailFromProfileHome}
+                            onFocusPetInventory={focusPairPetInventoryFromProfileHome}
+                        />
+                    </div>
+                ) : null}
             </div>
         ),
         [
             ProfilePanelContent,
             ProfileGuildPanelContent,
+            currentUserWithStatus,
             equippedItems,
             presets,
             selectedPreset,
@@ -1980,6 +2053,8 @@ const Profile: React.FC<ProfileProps> = () => {
             coreStatComputeBundle,
             availablePoints,
             nativeCompactHome,
+            openEquippedPairPetDetailFromProfileHome,
+            focusPairPetInventoryFromProfileHome,
         ],
     );
 
@@ -2060,7 +2135,7 @@ const Profile: React.FC<ProfileProps> = () => {
                             {!isNativeMobile && (
                                 <Button
                                     type="button"
-                                    onClick={() => setTrainingQuestModalOpen(true)}
+                                    onClick={() => handlers.openTrainingQuest()}
                                     colorScheme="none"
                                     aria-label={
                                         hasPcHomeTrainingQuestReward
@@ -2113,42 +2188,28 @@ const Profile: React.FC<ProfileProps> = () => {
             >
                 <div className={mergedCardClass}>
                     <div className={imagePaneClass}>
-                        <StrategicPairPvpSymbolCard
-                            onSelectStrategic={() => onSelectLobby('strategic')}
-                            onSelectPair={onSelectPairLobby}
-                            strategicLocked={!!getArenaLobbyLockReason('strategicLobby')}
-                            strategicLockReason={getArenaLobbyLockReason('strategicLobby') ?? undefined}
-                            pairLocked={!!getArenaEntryLockReason('pairLobby')}
-                            pairLockReason={getArenaEntryLockReason('pairLobby') ?? undefined}
+                        <PveCard
+                            title="PVP 경기장"
+                            imageUrl={STRATEGIC_GO_LOBBY_IMG}
+                            layout="tall"
+                            onClick={() => onSelectArenaIntent('pvp')}
+                            compact={false}
+                            hideOverlayText
                         />
                     </div>
                     <div className={`${infoPanelShellClass} border-fuchsia-300/25`}>
-                        <div className={`${infoTitleClass} text-fuchsia-100`}>PVP경기장</div>
-                        <div className={infoPanelMiddleClass}>
-                            <div className={infoRowClass}>
-                                <span className={infoLabelClass}>전략 점수</span>
-                                <span className={`${infoValueClass} font-mono text-cyan-200`}>{overallTiers.strategicIntegratedScore}점</span>
-                            </div>
-                            <div className={infoRowClass}>
-                                <span className={infoLabelClass}>전략 전적</span>
-                                <span className={`${infoValueClass} font-mono whitespace-nowrap`}>
-                                    {overallTiers.strategicWins}승{overallTiers.strategicLosses}패
-                                </span>
-                            </div>
-                            <div className={infoRowClass}>
-                                <span className={infoLabelClass}>페어 점수</span>
-                                <span className={`${infoValueClass} font-mono text-violet-200`}>{overallTiers.pairSeasonScore}점</span>
-                            </div>
-                            <div className={infoRowClass}>
-                                <span className={infoLabelClass}>페어 전적</span>
-                                <span className={`${infoValueClass} font-mono whitespace-nowrap`}>
-                                    {overallTiers.pairWins}승{overallTiers.pairLosses}패
-                                </span>
-                            </div>
-                        </div>
+                        <div className={`${infoTitleClass} text-fuchsia-100`}>PVP 경기장</div>
+                        <PvpArenaHomeInfoMiddle
+                            tiers={overallTiers}
+                            playfulWins={aggregatedStats.playful.wins}
+                            playfulLosses={aggregatedStats.playful.losses}
+                            infoPanelMiddleClass={infoPanelMiddleClass}
+                            infoLabelClass={infoLabelClass}
+                            infoValueClass={infoValueClass}
+                        />
                         <Button
                             type="button"
-                            onClick={() => setDetailedStatsType('both')}
+                            onClick={() => handlers.openDetailedStats('both')}
                             colorScheme="none"
                             className="w-full shrink-0 !justify-center rounded-lg border border-fuchsia-300/45 bg-gradient-to-r from-cyan-950/50 via-fuchsia-950/40 to-violet-950/45 !px-2 !py-1.5 !text-[12px] !font-bold !text-fuchsia-50 hover:from-cyan-900/55 hover:via-fuchsia-900/45 hover:to-violet-900/50"
                         >
@@ -2159,34 +2220,36 @@ const Profile: React.FC<ProfileProps> = () => {
                 <div className={mergedCardClass}>
                     <div className={imagePaneClass}>
                         <PveCard
-                            title="놀이바둑 대기실"
+                            title="AI 대전"
                             imageUrl={PLAYFUL_GO_LOBBY_IMG}
                             layout="tall"
-                            onClick={() => onSelectLobby('playful')}
+                            onClick={() => onSelectArenaIntent('ai')}
                             compact={false}
                             hideOverlayText
-                            locked={!!getArenaLobbyLockReason('playfulLobby')}
-                            lockReason={getArenaLobbyLockReason('playfulLobby') ?? undefined}
                         />
                     </div>
-                    <div className={`${infoPanelShellClass} border-amber-300/25`}>
-                        <div className={`${infoTitleClass} text-amber-100`}>놀이바둑</div>
+                    <div className={`${infoPanelShellClass} border-violet-300/25`}>
+                        <div className={`${infoTitleClass} text-violet-100`}>AI 대전</div>
                         <div className={infoPanelMiddleClass}>
                             <div className={infoRowClass}>
-                                <span className={infoLabelClass}>전적</span>
+                                <span className={infoLabelClass}>전략AI 전적</span>
                                 <span className={`${infoValueClass} font-mono whitespace-nowrap`}>
-                                    {aggregatedStats.playful.wins}승{aggregatedStats.playful.losses}패
+                                    {aiLobbyRecordByKind.strategic.wins}승{aiLobbyRecordByKind.strategic.losses}패
+                                </span>
+                            </div>
+                            <div className={infoRowClass}>
+                                <span className={infoLabelClass}>페어AI 전적</span>
+                                <span className={`${infoValueClass} font-mono whitespace-nowrap`}>
+                                    {aiLobbyRecordByKind.pair.wins}승{aiLobbyRecordByKind.pair.losses}패
+                                </span>
+                            </div>
+                            <div className={infoRowClass}>
+                                <span className={infoLabelClass}>놀이AI 전적</span>
+                                <span className={`${infoValueClass} font-mono whitespace-nowrap`}>
+                                    {aiLobbyRecordByKind.playful.wins}승{aiLobbyRecordByKind.playful.losses}패
                                 </span>
                             </div>
                         </div>
-                        <Button
-                            type="button"
-                            onClick={() => setDetailedStatsType('playful')}
-                            colorScheme="none"
-                            className="w-full shrink-0 !justify-center rounded-lg border border-amber-300/50 bg-gradient-to-r from-amber-950/55 via-zinc-950/80 to-amber-950/45 !px-2 !py-1.5 !text-[12px] !font-bold !text-amber-50 hover:from-amber-900/60 hover:to-amber-900/50"
-                        >
-                            상세전적
-                        </Button>
                     </div>
                 </div>
             </div>
@@ -2493,16 +2556,16 @@ const Profile: React.FC<ProfileProps> = () => {
 
     const nativeMobileHome = isNativeMobile && profileTab === 'home';
     const profileHomeLeftGridClassPc =
-        'grid h-full min-h-0 w-[min(43%,500px)] min-w-[292px] max-w-[500px] shrink-0 gap-[clamp(0.22rem,0.7dvh,0.38rem)] overflow-hidden ' +
-        (homeLeftColumnMerge ? 'grid-rows-[auto_minmax(0,1fr)]' : 'grid-rows-[repeat(3,minmax(0,1fr))]');
+        `grid h-full min-h-0 ${PC_HOME_LEFT_COLUMN_CLASS} ${PC_HOME_LEFT_COLUMN_GAP_CLASS} overflow-hidden ` +
+        (homeLeftColumnMerge ? 'grid-rows-[minmax(0,1fr)_minmax(10rem,0.52fr)]' : 'grid-rows-[repeat(3,minmax(0,1fr))]');
     const profileHomeLeftGridClassNative =
-        'grid h-full min-h-0 w-full min-w-0 flex-1 gap-[clamp(0.22rem,0.7dvh,0.38rem)] overflow-hidden grid-rows-[auto_minmax(0,1fr)]';
+        'grid h-full min-h-0 w-full min-w-0 flex-1 gap-[clamp(0.22rem,0.7dvh,0.38rem)] overflow-hidden grid-rows-[minmax(0,1fr)_minmax(9.5rem,0.48fr)]';
 
     const renderProfileHomeLeftColumn = (gridClassName: string) => (
         <div className={gridClassName}>
             <div
                 className={`relative flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border-2 border-amber-500/45 bg-gradient-to-b from-zinc-800 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_50px_-22px_rgba(0,0,0,0.78)] ring-1 ring-amber-100/15 ${
-                    homeLeftColumnMerge ? 'h-auto shrink-0' : 'h-full'
+                    homeLeftColumnMerge ? 'h-full min-h-0' : 'h-full'
                 }`}
             >
                 <div className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-px bg-gradient-to-r from-transparent via-amber-300/35 to-transparent" aria-hidden />
@@ -2579,17 +2642,17 @@ const Profile: React.FC<ProfileProps> = () => {
                 <div
                     className={`flex min-h-0 min-w-0 flex-col overflow-hidden text-on-panel ${
                         nativeCompactHome ? profileStackPanelPadNativeHome : profileStackPanelPadProfilePc
-                    } ${homeLeftColumnMerge ? 'h-auto shrink-0' : 'h-full min-h-0 flex-1'}`}
+                    } ${homeLeftColumnMerge ? 'h-full min-h-0 flex-1' : 'h-full min-h-0 flex-1'}`}
                 >
                     <div
                         className={
                             homeLeftColumnMerge
-                                ? 'overflow-x-hidden overflow-y-auto overscroll-y-contain'
+                                ? 'flex min-h-0 flex-1 flex-col overflow-hidden'
                                 : 'min-h-0 flex-1 overflow-y-auto overscroll-y-contain [scrollbar-gutter:auto]'
                         }
                     >
                         {homeLeftColumnMerge ? (
-                            <>{HomeMergedUserStackContent}</>
+                            HomeMergedUserStackContent
                         ) : (
                             <div className={profileStackScrollInnerClass}>{ProfilePanelContent}</div>
                         )}
@@ -2620,7 +2683,7 @@ const Profile: React.FC<ProfileProps> = () => {
             )}
             {homeLeftColumnMerge && (
                 <div className="relative flex min-h-0 h-full min-w-0 flex-col overflow-hidden">
-                    {HomeLeftPetColumnContent}
+                    {HomeLeftChatColumnContent}
                 </div>
             )}
         </div>
@@ -2653,84 +2716,72 @@ const Profile: React.FC<ProfileProps> = () => {
                             </div>
                         )}
                         {profileTab === 'arena' && (
-                            <div className="flex min-h-0 flex-1 items-center justify-center overflow-x-hidden overflow-y-auto overscroll-y-contain px-1 pb-1">
-                                <div className="flex w-full max-w-3xl min-h-0 flex-col gap-2.5">
-                                    <div className={mergedCardClass}>
+                            <div className="flex min-h-0 flex-1 items-stretch justify-center overflow-x-hidden overflow-y-auto overscroll-y-contain px-1 pb-1">
+                                <div className="flex w-full max-w-3xl min-h-0 flex-1 flex-col gap-2.5">
+                                    <div className={`${mergedCardClass} min-h-0 flex-1`}>
                                         <div className={imagePaneClass}>
-                                            <StrategicPairPvpSymbolCard
-                                                onSelectStrategic={() => onSelectLobby('strategic')}
-                                                onSelectPair={onSelectPairLobby}
-                                                strategicLocked={!!getArenaLobbyLockReason('strategicLobby')}
-                                                strategicLockReason={getArenaLobbyLockReason('strategicLobby') ?? undefined}
-                                                pairLocked={!!getArenaEntryLockReason('pairLobby')}
-                                                pairLockReason={getArenaEntryLockReason('pairLobby') ?? undefined}
+                                            <PveCard
+                                                title="PVP 경기장"
+                                                imageUrl={STRATEGIC_GO_LOBBY_IMG}
+                                                layout="tall"
+                                                onClick={() => onSelectArenaIntent('pvp')}
+                                                compact={false}
+                                                hideOverlayText
                                             />
                                         </div>
                                         <div className={`${infoPanelShellClass} border-fuchsia-300/25`}>
-                                            <div className={`${infoTitleClass} text-fuchsia-100`}>PVP경기장</div>
-                                            <div className={infoPanelMiddleClass}>
-                                                <div className={infoRowClass}>
-                                                    <span className={infoLabelClass}>전략 점수</span>
-                                                    <span className={`${infoValueClass} font-mono text-cyan-200`}>{overallTiers.strategicIntegratedScore}점</span>
-                                                </div>
-                                                <div className={infoRowClass}>
-                                                    <span className={infoLabelClass}>전략 전적</span>
-                                                    <span className={`${infoValueClass} font-mono whitespace-nowrap`}>
-                                                        {overallTiers.strategicWins}승{overallTiers.strategicLosses}패
-                                                    </span>
-                                                </div>
-                                                <div className={infoRowClass}>
-                                                    <span className={infoLabelClass}>페어 점수</span>
-                                                    <span className={`${infoValueClass} font-mono text-violet-200`}>{overallTiers.pairSeasonScore}점</span>
-                                                </div>
-                                                <div className={infoRowClass}>
-                                                    <span className={infoLabelClass}>페어 전적</span>
-                                                    <span className={`${infoValueClass} font-mono whitespace-nowrap`}>
-                                                        {overallTiers.pairWins}승{overallTiers.pairLosses}패
-                                                    </span>
-                                                </div>
-                                            </div>
+                                            <div className={`${infoTitleClass} text-fuchsia-100`}>PVP 경기장</div>
+                                            <PvpArenaHomeInfoMiddle
+                                                tiers={overallTiers}
+                                                playfulWins={aggregatedStats.playful.wins}
+                                                playfulLosses={aggregatedStats.playful.losses}
+                                                infoPanelMiddleClass={infoPanelMiddleClass}
+                                                infoLabelClass={infoLabelClass}
+                                                infoValueClass={infoValueClass}
+                                            />
                                             <Button
                                                 type="button"
-                                                onClick={() => setDetailedStatsType('both')}
+                                                onClick={() => handlers.openDetailedStats('both')}
                                                 colorScheme="none"
-                                                className="w-full shrink-0 !justify-center rounded-lg border border-fuchsia-300/45 bg-gradient-to-r from-cyan-950/50 via-fuchsia-950/40 to-violet-950/45 !px-2 !py-1.5 !text-[12px] !font-bold !text-fuchsia-50 hover:from-cyan-900/55 hover:via-fuchsia-900/45 hover:to-violet-900/50"
+                                                className="w-full shrink-0 !justify-center rounded-lg border border-fuchsia-300/45 bg-gradient-to-r from-cyan-950/50 via-fuchsia-950/40 to-violet-950/45 !px-2 !py-1.5 !text-[12px] !font-bold !text-fuchsia-50"
                                             >
                                                 상세전적
                                             </Button>
                                         </div>
                                     </div>
-                                    <div className={mergedCardClass}>
+                                    <div className={`${mergedCardClass} min-h-0 flex-1`}>
                                         <div className={imagePaneClass}>
                                             <PveCard
-                                                title="놀이바둑 대기실"
+                                                title="AI 대전"
                                                 imageUrl={PLAYFUL_GO_LOBBY_IMG}
                                                 layout="tall"
-                                                onClick={() => onSelectLobby('playful')}
+                                                onClick={() => onSelectArenaIntent('ai')}
                                                 compact={false}
                                                 hideOverlayText
-                                                locked={!!getArenaLobbyLockReason('playfulLobby')}
-                                                lockReason={getArenaLobbyLockReason('playfulLobby') ?? undefined}
                                             />
                                         </div>
-                                        <div className={`${infoPanelShellClass} border-amber-300/25`}>
-                                            <div className={`${infoTitleClass} text-amber-100`}>놀이바둑</div>
+                                        <div className={`${infoPanelShellClass} border-violet-300/25`}>
+                                            <div className={`${infoTitleClass} text-violet-100`}>AI 대전</div>
                                             <div className={infoPanelMiddleClass}>
                                                 <div className={infoRowClass}>
-                                                    <span className={infoLabelClass}>전적</span>
+                                                    <span className={infoLabelClass}>전략AI 전적</span>
                                                     <span className={`${infoValueClass} font-mono whitespace-nowrap`}>
-                                                        {aggregatedStats.playful.wins}승{aggregatedStats.playful.losses}패
+                                                        {aiLobbyRecordByKind.strategic.wins}승{aiLobbyRecordByKind.strategic.losses}패
+                                                    </span>
+                                                </div>
+                                                <div className={infoRowClass}>
+                                                    <span className={infoLabelClass}>페어AI 전적</span>
+                                                    <span className={`${infoValueClass} font-mono whitespace-nowrap`}>
+                                                        {aiLobbyRecordByKind.pair.wins}승{aiLobbyRecordByKind.pair.losses}패
+                                                    </span>
+                                                </div>
+                                                <div className={infoRowClass}>
+                                                    <span className={infoLabelClass}>놀이AI 전적</span>
+                                                    <span className={`${infoValueClass} font-mono whitespace-nowrap`}>
+                                                        {aiLobbyRecordByKind.playful.wins}승{aiLobbyRecordByKind.playful.losses}패
                                                     </span>
                                                 </div>
                                             </div>
-                                            <Button
-                                                type="button"
-                                                onClick={() => setDetailedStatsType('playful')}
-                                                colorScheme="none"
-                                                className="w-full shrink-0 !justify-center rounded-lg border border-amber-300/50 bg-gradient-to-r from-amber-950/55 via-zinc-950/80 to-amber-950/45 !px-2 !py-1.5 !text-[12px] !font-bold !text-amber-50 hover:from-amber-900/60 hover:to-amber-900/50"
-                                            >
-                                                상세전적
-                                            </Button>
                                         </div>
                                     </div>
                                 </div>
@@ -2742,33 +2793,21 @@ const Profile: React.FC<ProfileProps> = () => {
                         {renderProfileHomeLeftColumn(profileHomeLeftGridClassNative)}
                     </div>
                 ) : (
-                    <div className="flex h-full min-h-0 min-w-0 flex-1 flex-row gap-1.5 overflow-hidden">
+                    <div className={`flex h-full min-h-0 min-w-0 flex-1 flex-row overflow-hidden ${PC_LOBBY_THREE_COLUMN_ROW_GAP_CLASS}`}>
                         {/* 좌: 유저·펫 / 중: 로비 카드 / 우: 퀵 메뉴 (PC·웹) */}
                         {renderProfileHomeLeftColumn(profileHomeLeftGridClassPc)}
-                        <div className="flex min-h-0 min-w-0 flex-1 flex-col items-center overflow-hidden rounded-lg border border-zinc-600/80 bg-panel p-1 shadow-inner">
-                            <div className="mx-auto flex h-full min-h-0 w-full max-w-[min(100%,1040px)] flex-col justify-center">
-                                {LobbyCards}
-                            </div>
-                        </div>
+                        <PcLobbyCenterColumn>{LobbyCards}</PcLobbyCenterColumn>
                         <div
                             className={`flex h-full min-h-0 ${PC_QUICK_RAIL_COLUMN_CLASS} flex-col overflow-hidden self-stretch`}
                             aria-label="퀵 메뉴"
                         >
-                            <div className="flex h-full min-h-0 flex-col rounded-xl border-2 border-amber-600/55 bg-gradient-to-br from-zinc-900 via-amber-950 to-zinc-950 p-1 shadow-xl shadow-black/40">
+                            <div className={PC_QUICK_RAIL_WRAPPER_CLASS}>
                                 <QuickAccessSidebar fillHeight={true} />
                             </div>
                         </div>
                     </div>
                 )}
             </main>
-            {detailedStatsType && (
-                <DetailedStatsModal
-                    currentUser={currentUserWithStatus}
-                    statsType={detailedStatsType}
-                    onClose={() => setDetailedStatsType(null)}
-                    onAction={handlers.handleAction}
-                />
-            )}
             {showMannerRankModal && currentUserWithStatus && (
                 <MannerRankModal
                     user={currentUserWithStatus}
@@ -2794,13 +2833,6 @@ const Profile: React.FC<ProfileProps> = () => {
                         setIsGuildJoinModalOpen(false);
                         window.location.hash = '#/guild';
                     }}
-                />
-            )}
-            {trainingQuestModalOpen && (
-                <TrainingQuestModal
-                    open={trainingQuestModalOpen}
-                    onClose={() => setTrainingQuestModalOpen(false)}
-                    currentUser={currentUserWithStatus}
                 />
             )}
             {homeScreenGuide.isOpen && (

@@ -5,6 +5,7 @@ import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
 import { PRE_GAME_PVP_COUNTDOWN_SECONDS } from '../shared/constants/preGameCountdown.js';
+import { usePreGameDeadlineAutoSubmit } from '../hooks/usePreGameDeadlineAutoSubmit.js';
 
 interface CaptureBidModalProps {
     session: LiveGameSession;
@@ -91,6 +92,13 @@ const CaptureBidModal: React.FC<CaptureBidModalProps> = (props) => {
         currentOnAction({ type: 'UPDATE_CAPTURE_BID', payload: { gameId, bid: localBid } });
         setTimeout(() => setIsSubmitting(false), 5000);
     }, [isSubmitting, gameId, localBid]);
+
+    usePreGameDeadlineAutoSubmit({
+        deadline: hasBidCountdown && typeof myBid !== 'number' ? captureBidDeadline : undefined,
+        enabled: canSubmitPairBid,
+        alreadySubmitted: typeof myBid === 'number' || isSubmitting,
+        onSubmit: handleBidSubmit,
+    });
 
     useEffect(() => {
         if (typeof myBid === 'number' || !hasBidCountdown || !captureBidDeadline) {

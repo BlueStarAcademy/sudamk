@@ -215,6 +215,9 @@ function clampMobileRoutePrefetchUrls(view: string, urls: readonly string[]): re
         case 'lobby':
         case 'waiting':
         case 'pair':
+        case 'pvp':
+        case 'ai':
+        case 'arena':
         case 'singleplayer':
         case 'tower':
         case 'tournament':
@@ -244,6 +247,9 @@ export function scheduleRouteImagePrefetch(view: string): void {
         case 'lobby':
         case 'waiting':
         case 'pair':
+        case 'pvp':
+        case 'ai':
+        case 'arena':
         case 'singleplayer':
         case 'tower':
         case 'tournament':

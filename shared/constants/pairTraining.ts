@@ -156,6 +156,26 @@ export function isPairTrainingSlotUnlocked(user: User, slotIndex: number): boole
     return getPairWins(user) >= PAIR_TRAINING_UNLOCK_WINS[slotIndex]!;
 }
 
+/** 수련 슬롯 해금 조건 달성도 — UI `(N/N)` 표기용 */
+export function getPairTrainingSlotUnlockProgress(
+    user: User,
+    slotIndex: number,
+): { current: number; required: number; kind: 'wins' | 'functionVip' } {
+    const def = getPairTrainingSlotDef(slotIndex);
+    if (def?.requiresFunctionVip) {
+        return {
+            current: isFunctionVipActive(user) ? 1 : 0,
+            required: 1,
+            kind: 'functionVip',
+        };
+    }
+    return {
+        current: getPairWins(user),
+        required: PAIR_TRAINING_UNLOCK_WINS[slotIndex] ?? 0,
+        kind: 'wins',
+    };
+}
+
 export function minPetLevelForTrainingSlot(slotIndex: number): number {
     if (slotIndex < 0 || slotIndex >= PAIR_TRAINING_SLOT_COUNT) return 999;
     return PAIR_TRAINING_MIN_PET_LEVEL[slotIndex]!;

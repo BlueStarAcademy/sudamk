@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { type ReactNode } from 'react';
 import { CoreStat, EquipmentSlot, InventoryItem, ItemGrade } from '../types.js';
 import { CORE_STATS_DATA, emptySlotImages, GRADE_LEVEL_REQUIREMENTS, formatEquipLevelRequirement } from '../constants';
 import Button from './Button.js';
@@ -123,6 +123,12 @@ export interface HomeNativeMergedEquipmentAbilityPanelProps {
     championshipPhaseAbilityScores?: ChampionshipPhaseAbilityScores;
     /** 챔피언십 PC: 하단이 상점 패널과 맞닿도록 하단 라운드·테두리 제거 */
     joinShopBelow?: boolean;
+    /** 전투 중 등 프리셋 변경 불가 */
+    presetSelectDisabled?: boolean;
+    /** 길드 보스전 우측 패널: 텍스트 확대·장비 열 폭 축소 */
+    guildBossPanel?: boolean;
+    /** 바둑능력 배너 우측에 나란히 표시(네이티브 홈 대표펫 등) */
+    bannerAside?: ReactNode;
 }
 
 /**
@@ -145,26 +151,36 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
     compactLayout = true,
     championshipPhaseAbilityScores,
     joinShopBelow = false,
+    presetSelectDisabled = false,
+    guildBossPanel = false,
+    bannerAside,
 }) => {
     const ch = compactLayout;
+    const gb = guildBossPanel;
     const getItemForSlot = (slot: EquipmentSlot) => equippedItems.find((it) => it.slot === slot);
 
-    const mergeEquipScale = joinShopBelow
-        ? championshipPhaseAbilityScores != null
-            ? 0.96
-            : 0.93
-        : ch
-          ? 0.82
-          : 1.18;
+    const mergeEquipScale = gb
+        ? 1.5
+        : joinShopBelow
+          ? championshipPhaseAbilityScores != null
+              ? 0.96
+              : 0.93
+          : ch
+            ? 0.82
+            : 1.18;
     const lobbyChampionshipUser = Boolean(joinShopBelow && championshipPhaseAbilityScores != null);
-    const homeEquipGrid = ch
-        ? `grid w-full grid-cols-3 auto-rows-auto ${lobbyChampionshipUser ? 'gap-x-1.5 gap-y-1 sm:gap-x-2 sm:gap-y-1' : 'gap-x-1 gap-y-0.5 sm:gap-x-1.5 sm:gap-y-1'}`
-        : 'grid w-full grid-cols-3 gap-1.5 auto-rows-auto sm:gap-2';
-    const mergeSlotCapClass = ch
-        ? lobbyChampionshipUser
-            ? 'mx-auto w-full max-w-[min(100%,5.35rem)]'
-            : 'mx-auto w-full max-w-[min(100%,5rem)]'
-        : 'w-full';
+    const homeEquipGrid = gb
+        ? 'grid w-full grid-cols-3 auto-rows-auto gap-1 sm:gap-1.5'
+        : ch
+          ? `grid w-full grid-cols-3 auto-rows-auto ${lobbyChampionshipUser ? 'gap-x-1.5 gap-y-1 sm:gap-x-2 sm:gap-y-1' : 'gap-x-1 gap-y-0.5 sm:gap-x-1.5 sm:gap-y-1'}`
+          : 'grid w-full grid-cols-3 gap-1.5 auto-rows-auto sm:gap-2';
+    const mergeSlotCapClass = gb
+        ? 'w-full'
+        : ch
+          ? lobbyChampionshipUser
+              ? 'mx-auto w-full max-w-[min(100%,5.35rem)]'
+              : 'mx-auto w-full max-w-[min(100%,5rem)]'
+          : 'w-full';
 
     const equipmentBlock = (
         <div className="flex min-h-0 w-full flex-col items-stretch gap-1 overflow-x-hidden overflow-y-visible">
@@ -185,11 +201,14 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
                     );
                 })}
             </div>
-            <div className="relative z-20 flex w-full min-w-0 flex-row items-stretch gap-1.5 overflow-visible border-t border-amber-500/25 px-0.5 pt-1.5">
+            <div className={`relative z-20 flex w-full min-w-0 flex-row items-stretch gap-1.5 overflow-visible border-t border-amber-500/25 px-0.5 ${gb ? 'pt-1' : 'pt-1.5'}`}>
                 <select
                     value={selectedPreset}
                     onChange={onPresetChange}
-                    className="min-h-[26px] min-w-0 flex-1 rounded-md border border-color bg-secondary px-1.5 py-0.5 text-[11px] shadow-sm focus:border-accent focus:ring-1 focus:ring-accent sm:min-h-[28px] sm:text-xs"
+                    disabled={presetSelectDisabled}
+                    className={`min-w-0 flex-1 rounded-md border border-color bg-secondary px-1.5 py-0.5 shadow-sm focus:border-accent focus:ring-1 focus:ring-accent disabled:cursor-not-allowed disabled:opacity-45 ${
+                        gb ? 'min-h-[28px] text-xs sm:min-h-[30px] sm:text-sm' : 'min-h-[26px] text-[11px] sm:min-h-[28px] sm:text-xs'
+                    }`}
                     title={presets?.[selectedPreset]?.name}
                 >
                     {presets &&
@@ -202,7 +221,9 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
                 <Button
                     onClick={onOpenEquipmentEffects}
                     colorScheme="none"
-                    className={`!shrink-0 !whitespace-nowrap !justify-center rounded-md border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white ${ch ? '!px-1.5 !py-0.5 !text-[10px] sm:!text-[11px]' : '!px-2 !py-0.5 !text-[10px] sm:!text-xs'}`}
+                    className={`!shrink-0 !whitespace-nowrap !justify-center rounded-md border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white ${
+                        gb ? '!px-2 !py-1 !text-xs sm:!text-sm' : ch ? '!px-1.5 !py-0.5 !text-[10px] sm:!text-[11px]' : '!px-2 !py-0.5 !text-[10px] sm:!text-xs'
+                    }`}
                 >
                     장비 효과
                 </Button>
@@ -212,57 +233,70 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
 
     const bannerBlock = (
         <div
-            className={`relative w-full shrink-0 rounded-xl border border-amber-600/45 bg-gradient-to-r from-zinc-800 via-zinc-900 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ${
-                lobbyChampionshipUser
-                    ? 'px-2 py-1.5 sm:px-2.5 sm:py-2'
-                    : ch
-                      ? 'px-1.5 py-1 sm:px-2 sm:py-1.5'
-                      : 'px-2 py-1.5 sm:px-2.5 sm:py-2'
-            }`}
+            className={`flex w-full min-w-0 shrink-0 items-stretch ${bannerAside ? 'gap-1 sm:gap-1.5' : ''}`}
         >
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/40 to-transparent" aria-hidden />
-            <div className={`relative flex min-w-0 flex-nowrap items-center justify-between ${ch ? 'gap-1' : 'gap-1.5'}`}>
-                <div className={`flex min-w-0 items-baseline ${ch ? 'gap-1 sm:gap-1.5' : 'gap-1.5 sm:gap-2'}`}>
-                    <span
-                        className={`shrink-0 bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200/90 bg-clip-text font-bold tracking-tight text-transparent drop-shadow-[0_0_20px_rgba(251,191,36,0.22)] ${
-                            lobbyChampionshipUser ? 'text-sm sm:text-base' : ch ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'
-                        }`}
-                        title="6개 핵심 능력치 합계"
-                    >
-                        바둑능력
-                    </span>
-                    <span
-                        className={`min-w-0 font-mono font-black tabular-nums leading-none text-amber-100 drop-shadow-[0_1px_0_rgba(0,0,0,0.35)] ${
-                            lobbyChampionshipUser ? 'text-xl sm:text-2xl' : ch ? 'text-lg sm:text-xl' : 'text-2xl sm:text-[1.75rem]'
-                        }`}
-                        title="6개 핵심 능력치 합계"
-                    >
-                        {badukAbilityTotal}
-                    </span>
-                </div>
-                <div className={`flex shrink-0 items-center ${ch ? 'gap-1 sm:gap-1.5' : 'gap-1.5 sm:gap-2'}`}>
-                    <span
-                        className={`whitespace-nowrap font-medium text-amber-100/90 ${
-                            lobbyChampionshipUser ? 'text-xs sm:text-sm' : ch ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'
-                        }`}
-                        title={`보너스: ${availablePoints}P`}
-                    >
-                        보너스 <span className="font-bold tabular-nums text-emerald-300">{availablePoints}</span>
-                        <span className="text-amber-100/50">P</span>
-                    </span>
-                    <Button
-                        onClick={onOpenStatAllocation}
-                        colorScheme="none"
-                        className={`!shrink-0 !whitespace-nowrap !rounded-lg !border-2 !border-cyan-300/65 !bg-gradient-to-r !from-indigo-500 !via-violet-500 !to-fuchsia-500 !font-bold !text-white !shadow-[0_10px_26px_-10px_rgba(99,102,241,0.75)] hover:!brightness-110 ${
-                            ch
-                                ? '!px-2 !py-1 !text-[11px] sm:!px-2.5 sm:!py-1 sm:!text-xs'
-                                : '!px-3 !py-1.5 !text-xs sm:!px-3.5 sm:!py-1.5 sm:!text-sm'
-                        }`}
-                    >
-                        분배
-                    </Button>
+            <div
+                className={`relative min-w-0 rounded-xl border border-amber-600/45 bg-gradient-to-r from-zinc-800 via-zinc-900 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ${
+                    bannerAside ? 'flex-1' : 'w-full'
+                } ${
+                    gb
+                        ? 'px-2 py-1 sm:px-2.5'
+                        : lobbyChampionshipUser
+                          ? 'px-2 py-1.5 sm:px-2.5 sm:py-2'
+                          : ch
+                            ? 'px-1.5 py-1 sm:px-2 sm:py-1.5'
+                            : 'px-2 py-1.5 sm:px-2.5 sm:py-2'
+                }`}
+            >
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/40 to-transparent" aria-hidden />
+                <div className={`relative flex min-w-0 flex-nowrap items-center justify-between ${ch ? 'gap-1' : 'gap-1.5'}`}>
+                    <div className={`flex min-w-0 items-baseline ${ch ? 'gap-1 sm:gap-1.5' : 'gap-1.5 sm:gap-2'}`}>
+                        <span
+                            className={`shrink-0 bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200/90 bg-clip-text font-bold tracking-tight text-transparent drop-shadow-[0_0_20px_rgba(251,191,36,0.22)] ${
+                                gb ? 'text-base sm:text-lg' : lobbyChampionshipUser ? 'text-sm sm:text-base' : ch ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'
+                            }`}
+                            title="6개 핵심 능력치 합계"
+                        >
+                            바둑능력
+                        </span>
+                        <span
+                            className={`min-w-0 font-mono font-black tabular-nums leading-none text-amber-100 drop-shadow-[0_1px_0_rgba(0,0,0,0.35)] ${
+                                gb ? 'text-2xl sm:text-3xl' : lobbyChampionshipUser ? 'text-xl sm:text-2xl' : ch ? 'text-lg sm:text-xl' : 'text-2xl sm:text-[1.75rem]'
+                            }`}
+                            title="6개 핵심 능력치 합계"
+                        >
+                            {badukAbilityTotal}
+                        </span>
+                    </div>
+                    <div className={`flex shrink-0 items-center ${ch ? 'gap-1 sm:gap-1.5' : 'gap-1.5 sm:gap-2'}`}>
+                        <span
+                            className={`whitespace-nowrap font-medium text-amber-100/90 ${
+                                gb ? 'text-sm sm:text-base' : lobbyChampionshipUser ? 'text-xs sm:text-sm' : ch ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'
+                            }`}
+                            title={`보너스: ${availablePoints}P`}
+                        >
+                            보너스 <span className="font-bold tabular-nums text-emerald-300">{availablePoints}</span>
+                            <span className="text-amber-100/50">P</span>
+                        </span>
+                        <Button
+                            onClick={onOpenStatAllocation}
+                            colorScheme="none"
+                            className={`!shrink-0 !whitespace-nowrap !rounded-lg !border-2 !border-cyan-300/65 !bg-gradient-to-r !from-indigo-500 !via-violet-500 !to-fuchsia-500 !font-bold !text-white !shadow-[0_10px_26px_-10px_rgba(99,102,241,0.75)] hover:!brightness-110 ${
+                                gb
+                                    ? '!px-2.5 !py-1.5 !text-sm sm:!px-3 sm:!py-1.5'
+                                    : ch
+                                      ? '!px-2 !py-1 !text-[11px] sm:!px-2.5 sm:!py-1 sm:!text-xs'
+                                      : '!px-3 !py-1.5 !text-xs sm:!px-3.5 sm:!py-1.5 sm:!text-sm'
+                            }`}
+                        >
+                            분배
+                        </Button>
+                    </div>
                 </div>
             </div>
+            {bannerAside ? (
+                <div className="flex min-h-0 w-[min(42%,9.5rem)] shrink-0 flex-col justify-stretch self-stretch">{bannerAside}</div>
+            ) : null}
         </div>
     );
 
@@ -276,23 +310,30 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
         const bonusRounded = Math.round(bonus);
         const hasBonus = bonusRounded > 0;
         const label = CORE_STATS_DATA[stat]?.name ?? stat;
-        const statLabelClass = lobbyChampionshipUser
-            ? 'max-w-[46%] truncate text-left text-[10px] font-semibold leading-tight text-slate-300 sm:text-[11px]'
-            : 'max-w-[58%] truncate text-left text-[11px] font-semibold leading-snug text-slate-300 sm:text-xs';
-        const statValueClass = lobbyChampionshipUser
-            ? 'font-mono text-[11px] font-bold tabular-nums text-amber-100 sm:text-xs'
-            : 'font-mono text-xs font-bold tabular-nums text-amber-100 sm:text-sm';
-        const statBonusClass = lobbyChampionshipUser
-            ? 'shrink-0 font-mono text-[9px] font-semibold tabular-nums text-emerald-400/95 sm:text-[10px]'
-            : ch
-              ? 'shrink-0 font-mono text-[10px] font-semibold tabular-nums text-emerald-400/95 sm:text-[11px]'
-              : 'shrink-0 font-mono text-[10px] font-semibold tabular-nums text-emerald-400/95 sm:text-xs';
-        const rowShell =
-            lobbyChampionshipUser
-                ? 'flex min-h-0 min-w-0 flex-1 basis-0 flex-row items-center justify-between gap-0.5 rounded-md border border-white/10 bg-black/30 px-1 py-0.5 sm:gap-1 sm:px-1.5 sm:py-0.5'
-                : ch
-                  ? 'flex min-w-0 flex-row items-center justify-between gap-1 rounded-md border border-white/10 bg-black/30 px-1 py-0.5 sm:px-1.5 sm:py-1'
-                  : 'flex min-w-0 flex-row items-center justify-between gap-1.5 rounded-md border border-white/10 bg-black/30 px-1.5 py-1 sm:px-2';
+        const statLabelClass = gb
+            ? 'shrink-0 whitespace-nowrap text-left text-sm font-semibold leading-snug text-slate-300'
+            : lobbyChampionshipUser
+              ? 'max-w-[46%] truncate text-left text-[10px] font-semibold leading-tight text-slate-300 sm:text-[11px]'
+              : 'max-w-[58%] truncate text-left text-[11px] font-semibold leading-snug text-slate-300 sm:text-xs';
+        const statValueClass = gb
+            ? 'font-mono text-sm font-bold tabular-nums text-amber-100 sm:text-base'
+            : lobbyChampionshipUser
+              ? 'font-mono text-[11px] font-bold tabular-nums text-amber-100 sm:text-xs'
+              : 'font-mono text-xs font-bold tabular-nums text-amber-100 sm:text-sm';
+        const statBonusClass = gb
+            ? 'shrink-0 font-mono text-xs font-semibold tabular-nums text-emerald-400/95 sm:text-sm'
+            : lobbyChampionshipUser
+              ? 'shrink-0 font-mono text-[9px] font-semibold tabular-nums text-emerald-400/95 sm:text-[10px]'
+              : ch
+                ? 'shrink-0 font-mono text-[10px] font-semibold tabular-nums text-emerald-400/95 sm:text-[11px]'
+                : 'shrink-0 font-mono text-[10px] font-semibold tabular-nums text-emerald-400/95 sm:text-xs';
+        const rowShell = gb
+            ? 'flex flex-row items-center justify-between gap-1.5 rounded-md border border-white/10 bg-black/30 px-1.5 py-0.5 sm:px-2 sm:py-1'
+            : lobbyChampionshipUser
+              ? 'flex min-h-0 min-w-0 flex-1 basis-0 flex-row items-center justify-between gap-0.5 rounded-md border border-white/10 bg-black/30 px-1 py-0.5 sm:gap-1 sm:px-1.5 sm:py-0.5'
+              : ch
+                ? 'flex min-w-0 flex-row items-center justify-between gap-1 rounded-md border border-white/10 bg-black/30 px-1 py-0.5 sm:px-1.5 sm:py-1'
+                : 'flex min-w-0 flex-row items-center justify-between gap-1.5 rounded-md border border-white/10 bg-black/30 px-1.5 py-1 sm:px-2';
         return (
             <div
                 key={stat}
@@ -306,7 +347,7 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
                 }
             >
                 <span className={statLabelClass}>{label}</span>
-                <span className="flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-x-1 leading-tight">
+                <span className={`flex shrink-0 flex-wrap items-center justify-end gap-x-1 leading-tight ${gb ? '' : 'min-w-0'}`}>
                     <span className={statValueClass}>{v}</span>
                     {hasBonus ? <span className={statBonusClass}>(+{bonusRounded})</span> : null}
                 </span>
@@ -316,6 +357,8 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
 
     const coreStatsGrid = lobbyChampionshipUser ? (
         <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-0.5 overflow-hidden sm:gap-1">{coreStatRows}</div>
+    ) : gb ? (
+        <div className="grid w-full min-w-0 shrink-0 grid-cols-1 gap-0.5">{coreStatRows}</div>
     ) : (
         <div className={`grid w-full min-w-0 shrink-0 grid-cols-1 ${ch ? 'gap-0.5 sm:gap-1' : 'gap-1 sm:gap-1.5'}`}>{coreStatRows}</div>
     );
@@ -369,20 +412,36 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
         <>
             {bannerBlock}
             <div
-                className={`mt-1 flex min-h-0 w-full min-w-0 flex-row items-stretch ${ch ? 'gap-1.5 sm:gap-2' : 'gap-2 sm:gap-2.5'} ${
+                className={`${gb ? 'mt-0.5' : 'mt-1'} flex min-h-0 w-full min-w-0 flex-row items-stretch ${gb ? 'gap-1.5' : ch ? 'gap-1.5 sm:gap-2' : 'gap-2 sm:gap-2.5'} ${
                     joinShopBelow ? 'min-h-0 flex-1' : ''
                 }`}
             >
-                <div className={`flex flex-none flex-col justify-start ${compactLayout ? (lobbyChampionshipUser ? 'w-[min(16.25rem,100%)]' : 'w-[min(15.5rem,100%)]') : 'w-[min(18rem,100%)]'}`}>{equipmentBlock}</div>
+                <div
+                    className={`flex flex-none flex-col justify-start ${
+                        gb
+                            ? 'w-[min(18rem,64%)] shrink-0'
+                            : compactLayout
+                              ? lobbyChampionshipUser
+                                  ? 'w-[min(16.25rem,100%)]'
+                                  : 'w-[min(15.5rem,100%)]'
+                              : 'w-[min(18rem,100%)]'
+                    }`}
+                >
+                    {equipmentBlock}
+                </div>
                 <div
                     className="w-px shrink-0 self-stretch bg-gradient-to-b from-amber-600/5 via-amber-400/50 to-amber-600/5"
                     aria-hidden
                 />
                 <div
-                    className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden ${
-                        lobbyChampionshipUser
-                            ? 'overflow-hidden py-0.5 sm:py-1'
-                            : `overflow-y-auto ${joinShopBelow ? 'justify-evenly py-1 sm:py-1.5' : 'justify-center py-0.5'}`
+                    className={`flex min-h-0 min-w-0 flex-col overflow-x-hidden ${
+                        gb
+                            ? 'min-w-0 flex-1 overflow-y-auto justify-start py-0'
+                            : `flex-1 ${
+                                  lobbyChampionshipUser
+                                      ? 'overflow-hidden py-0.5 sm:py-1'
+                                      : `overflow-y-auto ${joinShopBelow ? 'justify-evenly py-1 sm:py-1.5' : 'justify-center py-0.5'}`
+                              }`
                     }`}
                 >
                     {coreStatsGrid}

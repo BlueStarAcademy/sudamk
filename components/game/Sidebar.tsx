@@ -409,7 +409,7 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
     const drawerUi = sidebarLayout === 'mobileDrawer';
     const tabActiveClass = drawerUi ? arenaGameRoomChatTabActiveDrawerClass : arenaGameRoomChatTabActiveClass;
     const tabInactiveClass = drawerUi ? arenaGameRoomChatTabInactiveDrawerClass : arenaGameRoomChatTabInactiveClass;
-    const chatMsgClass = drawerUi ? 'text-[13px] leading-snug' : 'text-sm';
+    const chatMsgClass = drawerUi ? 'text-sm leading-snug' : 'text-base leading-snug';
     const { mode } = session;
     const { currentUserWithStatus, handlers, allUsers } = useAppContext();
 

@@ -3,11 +3,13 @@ import { UserStatus } from '../types/enums.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants/gameModes.js';
 import * as db from './db.js';
 import { getCachedGame, getStaleCachedGame } from './gameCache.js';
-import { isStrategicPvpForGameRecord } from '../utils/strategicPvpGameRecord.js';
+import { isPvpHumanGameRecordEligible } from '../utils/strategicPvpGameRecord.js';
 import { broadcast } from './socket.js';
 
 /** 대국실 이탈·GC 후에도 기보 저장이 가능하도록 종료 PVP 세션을 메모리에 보관 */
 export const ENDED_PVP_GAME_RECORD_SNAPSHOT_TTL_MS = 4 * 60 * 60 * 1000;
+
+const RECORD_SNAPSHOT_STATUSES = new Set(['ended', 'no_contest', 'rematch_pending', 'scoring']);
 
 function ensureSnapshotMap(volatileState: VolatileState): Map<string, { game: LiveGameSession; savedAt: number }> {
     if (!volatileState.endedPvpGameRecordSnapshots) {
@@ -26,15 +28,13 @@ function pruneExpiredSnapshots(volatileState: VolatileState, now = Date.now()): 
     }
 }
 
-/** 종료된 전략 PVP 대국 — DB 삭제 전·후 기보 저장용 */
+/** 종료·계가 중 PVP 대국 — DB 삭제 전·후 기보 저장용 */
 export function stashEndedPvpGameRecordSnapshot(
     volatileState: VolatileState,
     game: LiveGameSession,
 ): void {
-    if (!isStrategicPvpForGameRecord(game)) return;
-    if (game.gameStatus !== 'ended' && game.gameStatus !== 'no_contest' && game.gameStatus !== 'rematch_pending') {
-        return;
-    }
+    if (!isPvpHumanGameRecordEligible(game)) return;
+    if (!RECORD_SNAPSHOT_STATUSES.has(game.gameStatus)) return;
     const now = Date.now();
     pruneExpiredSnapshots(volatileState, now);
     const map = ensureSnapshotMap(volatileState);

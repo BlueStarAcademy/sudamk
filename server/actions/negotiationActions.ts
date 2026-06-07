@@ -1,7 +1,8 @@
 import { randomUUID } from 'crypto';
 import * as db from '../db.js';
 import { type ServerAction, type User, type VolatileState, type GameSettings, Negotiation, GameMode, UserStatus, Player } from '../../types/index.js';
-import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, DEFAULT_GAME_SETTINGS, OPPONENT_INSUFFICIENT_ACTION_POINTS_MESSAGE, getAiScoringTurnLimitByBoardSize } from '../../constants';
+import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, DEFAULT_GAME_SETTINGS, OPPONENT_INSUFFICIENT_ACTION_POINTS_MESSAGE } from '../../constants';
+import { sanitizePvpGameSettings } from '../../shared/utils/sanitizePvpGameSettings.js';
 import { initializeGame } from '../gameModes.js';
 import { aiUserId, getAiUser } from '../aiPlayer.js';
 import { broadcast } from '../socket.js';
@@ -10,33 +11,17 @@ import { applyPassiveActionPointRegenToUser, recordActionPointSpend, recordActio
 import { maybeDeleteDetachedEndedPvpGame } from '../maybeDeleteDetachedEndedPvpGame.js';
 import { clampAiLobbyStrategicItemCaps } from '../../shared/utils/strategicAiLobbyItemCaps.js';
 import { isPairClassicGame } from '../../shared/utils/pairGameTurn.js';
-import { arenaChannelForGameMode, arenaChannelForGameSession } from '../../shared/utils/arenaChannel.js';
+import { arenaChannelForGameMode } from '../../shared/utils/arenaChannel.js';
 import {
     effectiveAiLobbyApCostForUser,
     effectiveNegotiationApCostForUser,
 } from '../../shared/utils/pairPetArenaApDiscount.js';
+import { setInGameUserStatusForArena } from './socialActions.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
     error?: string;
 };
-
-function modeIncludesCaptureRule(mode: GameMode, settings: Pick<GameSettings, 'mixedModes'>): boolean {
-    return mode === GameMode.Capture || (mode === GameMode.Mix && Boolean(settings.mixedModes?.includes(GameMode.Capture)));
-}
-
-function normalizeStrategicAiScoringSettings(mode: GameMode, settings: GameSettings): GameSettings {
-    if (!SPECIAL_GAME_MODES.some((m) => m.mode === mode)) return settings;
-    if (modeIncludesCaptureRule(mode, settings)) {
-        const next = { ...settings, scoringTurnLimit: 0 };
-        delete (next as any).autoScoringTurns;
-        return next;
-    }
-    return {
-        ...settings,
-        scoringTurnLimit: getAiScoringTurnLimitByBoardSize(settings.boardSize || DEFAULT_GAME_SETTINGS.boardSize),
-    };
-}
 
 /** 협상 종료 후 대기실 복귀: 전략/놀이 집계 로비는 waitingLobby로 복원 */
 async function restoreUserToWaitingLobby(
@@ -189,7 +174,11 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
             }
         
             const negotiationId = `neg-${randomUUID()}`;
-            const mergedSettings = settings ? { ...DEFAULT_GAME_SETTINGS, ...settings } : { ...DEFAULT_GAME_SETTINGS };
+            const mergedSettings = sanitizePvpGameSettings(
+                mode,
+                settings ? { ...DEFAULT_GAME_SETTINGS, ...settings } : { ...DEFAULT_GAME_SETTINGS },
+                { isAiGame: opponentId === aiUserId },
+            );
             // 1:1 대국 신청에는 페어 방 메타(`pairGame`)가 들어가면 인게임이 페어 UI로 분기할 수 있어 제거한다.
             if (opponentId !== aiUserId) {
                 delete (mergedSettings as { pairGame?: unknown }).pairGame;
@@ -275,7 +264,11 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                     ? JSON.parse(JSON.stringify(negotiation.settings.pairGame))
                     : undefined;
             // settings를 깊은 복사로 저장하여 전달
-            negotiation.settings = JSON.parse(JSON.stringify(settings));
+            negotiation.settings = sanitizePvpGameSettings(
+                negotiation.mode,
+                JSON.parse(JSON.stringify(settings)),
+                { isAiGame: opponent.id === aiUserId },
+            );
             if (rematchPairGameSnapshot) {
                 negotiation.settings = { ...negotiation.settings, pairGame: rematchPairGameSnapshot };
             }
@@ -313,7 +306,11 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                 negotiation.rematchOfGameId && negotiation.settings?.pairGame
                     ? JSON.parse(JSON.stringify(negotiation.settings.pairGame))
                     : undefined;
-            negotiation.settings = settings;
+            negotiation.settings = sanitizePvpGameSettings(
+                negotiation.mode,
+                settings,
+                { isAiGame: negotiation.opponent.id === aiUserId },
+            );
             if (rematchPairGameSnapshot) {
                 negotiation.settings = { ...negotiation.settings, pairGame: rematchPairGameSnapshot };
             }
@@ -409,8 +406,8 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
             }
             await db.saveGame(game);
             
-            volatileState.userStatuses[game.player1.id] = { status: UserStatus.InGame, mode: game.mode, gameId: game.id };
-            volatileState.userStatuses[game.player2.id] = { status: UserStatus.InGame, mode: game.mode, gameId: game.id };
+            setInGameUserStatusForArena(volatileState, game.player1.id, game);
+            setInGameUserStatusForArena(volatileState, game.player2.id, game);
             
             if (negotiation.rematchOfGameId) {
                 const originalGame = await db.getLiveGame(negotiation.rematchOfGameId);
@@ -514,11 +511,11 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                 const settings = SPECIAL_GAME_MODES.some((m) => m.mode === mode)
                     ? clampAiLobbyStrategicItemCaps(
                           mode,
-                          normalizeStrategicAiScoringSettings(mode, {
+                          sanitizePvpGameSettings(mode, {
                               ...DEFAULT_GAME_SETTINGS,
                               ...incomingSettings,
                               useClientSideAi: false,
-                          }),
+                          }, { isAiGame: true }),
                       )
                     : incomingSettings;
                 // 대기실 AI 대국은 페어 전용 `pairGame` 메타와 무관 — 잔존 시 인게임 분기 오류 방지
@@ -560,18 +557,8 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                 const game = await initializeGame(negotiation);
                 await db.saveGame(game);
                 
-                volatileState.userStatuses[game.player1.id] = {
-                    status: UserStatus.InGame,
-                    mode: game.mode,
-                    gameId: game.id,
-                    arenaChannel: arenaChannelForGameSession(game) ?? undefined,
-                };
-                volatileState.userStatuses[game.player2.id] = {
-                    status: UserStatus.InGame,
-                    mode: game.mode,
-                    gameId: game.id,
-                    arenaChannel: arenaChannelForGameSession(game) ?? undefined,
-                };
+                setInGameUserStatusForArena(volatileState, game.player1.id, game);
+                setInGameUserStatusForArena(volatileState, game.player2.id, game);
                 
                 const draftNegId = Object.keys(volatileState.negotiations).find(id => {
                     const neg = volatileState.negotiations[id];

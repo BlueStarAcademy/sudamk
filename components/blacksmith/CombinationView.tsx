@@ -1,9 +1,10 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { InventoryItem, ServerAction, ItemGrade, EquipmentSlot, UserWithStatus } from '../../types.js';
 import ResourceActionButton from '../ui/ResourceActionButton.js';
 import { BLACKSMITH_COMBINATION_GREAT_SUCCESS_RATES } from '../../constants/rules.js';
 import { formatBlacksmithPercentInt } from '../../shared/utils/formatBlacksmithPercentInt.js';
+import { getBlacksmithViewerTypography } from '../../shared/constants/blacksmithViewerTypography.js';
 
 const gradeStyles: Record<ItemGrade, { name: string; color: string; background: string; }> = {
     normal: { name: '일반', color: 'text-gray-300', background: '/images/equipments/normalbgi.webp' },
@@ -25,14 +26,39 @@ const SLOT_NAMES_KO: Record<EquipmentSlot, string> = {
     stones: '바둑돌',
 };
 
-const ItemSlot: React.FC<{ item: InventoryItem | null; onRemove: () => void; isCompact?: boolean; }> = ({
+const getProbabilityPanelTypography = (pcViewer: boolean) => {
+    const typo = getBlacksmithViewerTypography(pcViewer);
+    if (pcViewer) {
+        return {
+            heading: `${typo.headingLg} mb-2`,
+            list: 'mx-auto flex w-full max-w-[13rem] flex-col gap-1.5 text-lg leading-snug',
+            row: 'flex items-baseline justify-between gap-8',
+            label: 'text-slate-400',
+            value: 'min-w-[3.25rem] text-right font-bold tabular-nums',
+        };
+    }
+    return {
+        heading: `${typo.heading} mb-1.5`,
+        list: 'mx-auto flex w-full max-w-[10rem] flex-col gap-1 text-xs leading-snug',
+        row: 'flex items-baseline justify-between gap-4',
+        label: 'text-slate-400',
+        value: 'min-w-[2.25rem] text-right font-semibold tabular-nums',
+    };
+};
+
+const getMaterialSlotHeightClass = (isCompact: boolean) =>
+    isCompact ? 'h-[6.25rem] w-full' : 'h-[8.25rem] w-1/3';
+
+const ItemSlot: React.FC<{ item: InventoryItem | null; onRemove: () => void; isCompact?: boolean; pcViewer?: boolean }> = ({
     item,
     onRemove,
     isCompact = false,
+    pcViewer = false,
 }) => {
+    const typo = getBlacksmithViewerTypography(pcViewer);
     if (!item) {
         return (
-            <div className={`${isCompact ? 'h-[5.25rem] w-full' : 'h-28 w-1/3'} rounded-lg border-2 border-dashed border-amber-500/30 bg-black/35 text-xs text-amber-100/70 flex items-center justify-center`}>
+            <div className={`${getMaterialSlotHeightClass(isCompact)} rounded-lg border-2 border-dashed border-amber-500/30 bg-black/35 ${typo.body} text-amber-100/70 flex items-center justify-center`}>
                 재료
             </div>
         );
@@ -47,18 +73,18 @@ const ItemSlot: React.FC<{ item: InventoryItem | null; onRemove: () => void; isC
             onClick={onRemove}
             title="재료 해제"
             aria-label={`${item.name} 재료 해제`}
-            className={`${isCompact ? 'h-[5.25rem] w-full p-1.5' : 'h-28 w-1/3 p-2'} relative cursor-pointer rounded-lg border border-amber-400/20 bg-gradient-to-b from-[#191e2b]/80 via-[#121724]/90 to-[#0c1018]/95 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] flex flex-col items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70`}
+            className={`${getMaterialSlotHeightClass(isCompact)} ${isCompact ? 'p-1.5' : 'p-2.5'} relative cursor-pointer rounded-lg border border-amber-400/20 bg-gradient-to-b from-[#191e2b]/80 via-[#121724]/90 to-[#0c1018]/95 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] flex flex-col items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70`}
         >
             <div
-                className={`relative ${isCompact ? 'h-12 w-12' : 'h-14 w-14'} flex-shrink-0 overflow-hidden rounded-lg border border-slate-500/50 bg-transparent ${isTranscendent ? 'transcendent-grade-slot' : ''}`}
+                className={`relative ${isCompact ? 'h-14 w-14' : 'h-16 w-16'} flex-shrink-0 overflow-hidden rounded-lg border border-slate-500/50 bg-transparent ${isTranscendent ? 'transcendent-grade-slot' : ''}`}
             >
                 <img src={styles.background} alt="" className="absolute inset-0 h-full w-full rounded-lg object-cover" />
                 {item.image && (
                     <img src={item.image} alt="" className="pointer-events-none absolute object-contain p-1" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
                 )}
             </div>
-            <p className={`${isCompact ? 'text-[10px]' : 'text-xs'} font-bold ${styles.color} whitespace-nowrap overflow-hidden text-ellipsis w-full`} title={item.name}>{item.name}</p>
-            <p className={`${isCompact ? 'text-[10px]' : 'text-[11px]'} text-slate-400`}>{SLOT_NAMES_KO[item.slot!] || '기타'}</p>
+            <p className={`${isCompact ? typo.caption : typo.bodySemi} font-bold ${styles.color} whitespace-nowrap overflow-hidden text-ellipsis w-full`} title={item.name}>{item.name}</p>
+            <p className={`${isCompact ? typo.caption : typo.body} text-slate-400`}>{SLOT_NAMES_KO[item.slot!] || '기타'}</p>
         </button>
     );
 };
@@ -67,12 +93,19 @@ const OutcomeProbability: React.FC<{
     items: (InventoryItem | null)[];
     isRandom: boolean;
     className?: string;
-}> = ({ items, isRandom, className = '' }) => {
+    pcViewer?: boolean;
+}> = ({ items, isRandom, className = '', pcViewer = false }) => {
+    const probTypo = getProbabilityPanelTypography(pcViewer);
     const probabilities = useMemo(() => {
-        const validItems = items.filter((i): i is InventoryItem => i !== null);
-        if (validItems.length !== 3) return [];
-
         const probs = new Map<EquipmentSlot, number>();
+        for (const slot of ALL_SLOTS) {
+            probs.set(slot, 0);
+        }
+
+        const validItems = items.filter((i): i is InventoryItem => i !== null);
+        if (validItems.length !== 3) {
+            return probs;
+        }
 
         if (isRandom) {
             const prob = 1 / ALL_SLOTS.length;
@@ -86,25 +119,23 @@ const OutcomeProbability: React.FC<{
                     slotCounts.set(item.slot, (slotCounts.get(item.slot) || 0) + 1);
                 }
             }
-            for (const [slot, count] of slotCounts.entries()) {
-                probs.set(slot, count / 3);
+            for (const slot of ALL_SLOTS) {
+                probs.set(slot, (slotCounts.get(slot) ?? 0) / 3);
             }
         }
-        return Array.from(probs.entries()).sort((a, b) => b[1] - a[1]);
+        return probs;
     }, [items, isRandom]);
-
-    if (probabilities.length === 0) return null;
 
     return (
         <div
-            className={`w-full rounded-xl border border-amber-400/20 bg-gradient-to-b from-[#171c29]/75 via-black/35 to-black/45 p-2 ${className}`.trim()}
+            className={`w-full rounded-xl border border-amber-400/20 bg-gradient-to-b from-[#171c29]/75 via-black/35 to-black/45 p-2.5 ${className}`.trim()}
         >
-            <h4 className="mb-1.5 text-center text-[11px] font-bold text-amber-100">결과물 종류 확률</h4>
-            <div className="grid grid-cols-3 gap-x-2 gap-y-0.5 text-[10px] sm:text-[11px]">
-                {probabilities.map(([slot, prob]) => (
-                    <div key={slot} className="flex justify-between">
-                        <span className="text-slate-400">{SLOT_NAMES_KO[slot]}:</span>
-                        <span className="font-semibold text-emerald-200">{formatBlacksmithPercentInt(prob * 100)}%</span>
+            <h4 className={`text-center text-amber-100 ${probTypo.heading}`}>결과물 종류 확률</h4>
+            <div className={probTypo.list}>
+                {ALL_SLOTS.map((slot) => (
+                    <div key={slot} className={probTypo.row}>
+                        <span className={probTypo.label}>{SLOT_NAMES_KO[slot]}:</span>
+                        <span className={`${probTypo.value} text-emerald-200`}>{formatBlacksmithPercentInt((probabilities.get(slot) ?? 0) * 100)}%</span>
                     </div>
                 ))}
             </div>
@@ -116,11 +147,15 @@ const GradeProbability: React.FC<{
     items: (InventoryItem | null)[];
     currentUser: UserWithStatus;
     className?: string;
-}> = ({ items, currentUser, className = '' }) => {
+    pcViewer?: boolean;
+}> = ({ items, currentUser, className = '', pcViewer = false }) => {
+    const probTypo = getProbabilityPanelTypography(pcViewer);
     const { blacksmithLevel } = currentUser;
     const probabilities = useMemo(() => {
         const validItems = items.filter((i): i is InventoryItem => i !== null);
-        if (validItems.length !== 3 || new Set(validItems.map(i => i.grade)).size !== 1) return null;
+        if (validItems.length !== 3 || new Set(validItems.map(i => i.grade)).size !== 1) {
+            return { successRate: 0, greatSuccessRate: 0 };
+        }
 
         const grade = validItems[0].grade;
         const levelIndex = (blacksmithLevel ?? 1) - 1;
@@ -130,21 +165,19 @@ const GradeProbability: React.FC<{
         return { successRate, greatSuccessRate };
     }, [items, blacksmithLevel]);
 
-    if (!probabilities) return null;
-
     return (
         <div
-            className={`w-full rounded-xl border border-amber-400/20 bg-gradient-to-b from-[#171c29]/75 via-black/35 to-black/45 p-2 ${className}`.trim()}
+            className={`w-full rounded-xl border border-amber-400/20 bg-gradient-to-b from-[#171c29]/75 via-black/35 to-black/45 p-2.5 ${className}`.trim()}
         >
-            <h4 className="mb-1.5 text-center text-[11px] font-bold text-amber-100">결과물 등급 확률</h4>
-            <div className="grid grid-cols-2 gap-x-3 text-[10px] sm:text-[11px]">
-                <div className="flex justify-between">
-                    <span className="text-slate-400">성공:</span>
-                    <span className="font-semibold text-emerald-200">{formatBlacksmithPercentInt(probabilities.successRate)}%</span>
+            <h4 className={`text-center text-amber-100 ${probTypo.heading}`}>결과물 등급 확률</h4>
+            <div className={probTypo.list}>
+                <div className={probTypo.row}>
+                    <span className={probTypo.label}>성공:</span>
+                    <span className={`${probTypo.value} text-emerald-200`}>{formatBlacksmithPercentInt(probabilities.successRate)}%</span>
                 </div>
-                <div className="flex justify-between">
+                <div className={probTypo.row}>
                     <span className="text-yellow-400">대성공:</span>
-                    <span className="font-semibold text-amber-200">{formatBlacksmithPercentInt(probabilities.greatSuccessRate)}%</span>
+                    <span className={`${probTypo.value} text-amber-200`}>{formatBlacksmithPercentInt(probabilities.greatSuccessRate)}%</span>
                 </div>
             </div>
         </div>
@@ -157,6 +190,7 @@ interface CombinationViewProps {
     onAction: (action: ServerAction) => Promise<void>;
     currentUser: UserWithStatus;
     stackedViewport?: boolean;
+    isBlacksmithBusy?: boolean;
 }
 
 const CombinationView: React.FC<CombinationViewProps> = ({
@@ -165,22 +199,21 @@ const CombinationView: React.FC<CombinationViewProps> = ({
     onAction,
     currentUser,
     stackedViewport = false,
+    isBlacksmithBusy = false,
 }) => {
     const isMobile = stackedViewport;
+    const pcViewer = !isMobile;
+    const typo = getBlacksmithViewerTypography(pcViewer);
     const [isRandom, setIsRandom] = useState(false);
 
     const handleCombine = () => {
         const itemIds = items.map(i => i?.id).filter((id): id is string => !!id);
         if (itemIds.length === 3) {
-            onAction({ type: 'COMBINE_ITEMS', payload: { itemIds, isRandom } });
+            void onAction({ type: 'COMBINE_ITEMS', payload: { itemIds, isRandom } });
         }
     };
     
     const canCombine = items.every(item => item !== null) && new Set(items.map(i => i?.grade)).size === 1;
-    const filledCount = items.filter((i) => i !== null).length;
-    const showOutcomeProb = filledCount === 3;
-    const showGradeProb =
-        filledCount === 3 && new Set(items.filter((i) => i !== null).map((i) => i!.grade)).size === 1;
 
     return (
         <div className={`${isMobile ? 'h-auto min-h-0' : 'h-full min-h-0'} flex w-full flex-col items-center gap-2`}>
@@ -191,36 +224,37 @@ const CombinationView: React.FC<CombinationViewProps> = ({
                         item={item}
                         onRemove={() => onRemoveItem(index)}
                         isCompact={isMobile}
+                        pcViewer={pcViewer}
                     />
                 ))}
             </div>
 
-            {(showOutcomeProb || showGradeProb) && (
-                <div
-                    className={`grid w-full shrink-0 gap-1.5 ${
-                        showOutcomeProb && showGradeProb ? 'grid-cols-2' : 'grid-cols-1'
-                    }`}
-                >
-                    {showOutcomeProb ? <OutcomeProbability items={items} isRandom={isRandom} /> : null}
-                    {showGradeProb ? <GradeProbability items={items} currentUser={currentUser} /> : null}
-                </div>
-            )}
+            <div className="grid w-full shrink-0 grid-cols-2 items-stretch gap-1.5">
+                <OutcomeProbability items={items} isRandom={isRandom} pcViewer={pcViewer} />
+                <div className="flex min-h-0 flex-col gap-1.5">
+                    <GradeProbability items={items} currentUser={currentUser} pcViewer={pcViewer} className="flex-1" />
+                    <div className={`mt-auto flex flex-col items-center ${isMobile ? 'space-y-1.5' : 'space-y-2 pt-1'}`}>
+                        <div className={`flex w-full items-center justify-center gap-2 ${typo.body} text-slate-300`}>
+                            <input
+                                type="checkbox"
+                                id="random-combine"
+                                checked={isRandom}
+                                onChange={(e) => setIsRandom(e.target.checked)}
+                                className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'} rounded text-accent bg-slate-800 border-slate-600 focus:ring-accent`}
+                            />
+                            <label htmlFor="random-combine" className={`${typo.body} text-slate-200`}>완전 랜덤 종류로 받기</label>
+                        </div>
 
-            <div className={`w-full shrink-0 ${isMobile ? 'space-y-1.5' : 'space-y-2'} ${isMobile ? '' : 'mt-auto pt-1'}`}>
-                <div className={`flex items-center justify-center gap-2 ${isMobile ? 'text-[10px]' : 'text-xs'} text-slate-300`}>
-                    <input 
-                        type="checkbox" 
-                        id="random-combine" 
-                        checked={isRandom} 
-                        onChange={(e) => setIsRandom(e.target.checked)} 
-                        className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'} rounded text-accent bg-slate-800 border-slate-600 focus:ring-accent`}
-                    />
-                    <label htmlFor="random-combine" className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-slate-200`}>완전 랜덤 종류로 받기</label>
+                        <ResourceActionButton
+                            onClick={handleCombine}
+                            disabled={!canCombine || isBlacksmithBusy}
+                            variant="materials"
+                            className={`shrink-0 ${isMobile ? 'min-w-[8.5rem] text-[10px] py-1 px-3' : `min-w-[11.5rem] ${typo.bodySemi} py-2.5 px-8`}`}
+                        >
+                            {isBlacksmithBusy ? '합성 중...' : '합성'}
+                        </ResourceActionButton>
+                    </div>
                 </div>
-
-                <ResourceActionButton onClick={handleCombine} disabled={!canCombine} variant="materials" className={`mx-auto w-auto min-w-[8.5rem] ${isMobile ? 'text-[10px] py-1 px-3' : 'text-sm py-2 px-5'}`}>
-                    합성
-                </ResourceActionButton>
             </div>
         </div>
     );

@@ -17,13 +17,15 @@ import {
     PAIR_PET_MODAL_MOBILE_MAX_HEIGHT_CSS,
 } from '../shared/constants/pairPetModal.js';
 import type { ServerAction } from '../types.js';
+import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../shared/constants/pcShellLayout.js';
 
 interface PetManagementModalProps {
     onClose: () => void;
     isTopmost?: boolean;
+    embedded?: boolean;
 }
 
-const PetManagementModal: React.FC<PetManagementModalProps> = ({ onClose, isTopmost }) => {
+const PetManagementModal: React.FC<PetManagementModalProps> = ({ onClose, isTopmost, embedded = false }) => {
     const { currentUserWithStatus, handlers } = useAppContext();
     const petGuide = useScreenGuide('petManagement');
     const isCompactViewport = useIsHandheldDevice(1024);
@@ -48,8 +50,24 @@ const PetManagementModal: React.FC<PetManagementModalProps> = ({ onClose, isTopm
 
     if (!currentUserWithStatus) return null;
 
+    const petBody = (
+            <div
+                className={`${waitingLobbyPcPanelShellClass('pair')} flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden p-1.5`}
+            >
+                    <PairPetLobbyPanel
+                        currentUser={currentUserWithStatus}
+                        currentUserId={currentUserWithStatus.id}
+                        isBusy={petModalBusy}
+                        applyPetAction={applyPetAction}
+                    />
+            </div>
+    );
+
     return (
         <>
+        {embedded ? (
+            <div className={PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS}>{petBody}</div>
+        ) : (
         <DraggableWindow
             title="펫 관리"
             onClose={onClose}
@@ -68,17 +86,9 @@ const PetManagementModal: React.FC<PetManagementModalProps> = ({ onClose, isTopm
             bodyNoScroll
             hideFooter
         >
-            <div
-                className={`${waitingLobbyPcPanelShellClass('pair')} flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden p-1.5`}
-            >
-                    <PairPetLobbyPanel
-                        currentUser={currentUserWithStatus}
-                        currentUserId={currentUserWithStatus.id}
-                        isBusy={petModalBusy}
-                        applyPetAction={applyPetAction}
-                    />
-            </div>
+            {petBody}
         </DraggableWindow>
+        )}
         {petGuide.isOpen && (
             <ScreenGuideModal
                 guideId="petManagement"

@@ -95,6 +95,7 @@ import {
     isItemPhaseTransientAnimationType,
     wasItemPhaseAnimatingStatus,
 } from '../shared/utils/itemPhaseAnimationTypes.js';
+import { resolvePveScoringBoardAndMoveHistory } from './deferredWsBoardSnapshot.js';
 
 /** 정책 기반: 아이템 페이즈 연출 종료 후 playing 패킷에서 animation 잔존 방지 */
 export function shouldClearItemPhaseAnimationOnPlayingMerge(
@@ -143,6 +144,132 @@ function mergeStrategicItemInventoryMonotonic(
         }
     }
     return changed ? ({ ...incoming, ...patch } as LiveGameSession) : incoming;
+}
+
+/**
+ * human PVP/페어 liveGames: 계가·종료 직후 늦게 도착한 playing/pending 패킷이 로컬 상태를 되돌리면
+ * 계가 연출만 끝나고 영토·결과 모달·종료 푸터가 영원히 갱신되지 않는다.
+ */
+export function shouldIgnoreStaleLiveTerminalGameUpdate(
+    incoming: LiveGameSession,
+    existing: LiveGameSession | undefined,
+): boolean {
+    if (!existing) return false;
+
+    const localAdvanced =
+        existing.gameStatus === 'scoring' ||
+        existing.gameStatus === 'hidden_final_reveal' ||
+        existing.gameStatus === 'ended' ||
+        existing.gameStatus === 'no_contest';
+    if (!localAdvanced) return false;
+
+    const incomingPostPlayOk =
+        incoming.gameStatus === 'ended' ||
+        incoming.gameStatus === 'no_contest' ||
+        incoming.gameStatus === 'scoring' ||
+        incoming.gameStatus === 'hidden_final_reveal';
+
+    if (
+        (existing.gameStatus === 'ended' || existing.gameStatus === 'no_contest') &&
+        !incomingPostPlayOk
+    ) {
+        return true;
+    }
+
+    if (existing.gameStatus === 'scoring' && incoming.gameStatus === 'pending') {
+        return true;
+    }
+
+    const incomingMoves = Array.isArray(incoming.moveHistory) ? incoming.moveHistory.length : 0;
+    const existingMoves = Array.isArray(existing.moveHistory) ? existing.moveHistory.length : 0;
+    if (
+        existing.gameStatus === 'scoring' &&
+        incoming.gameStatus === 'playing' &&
+        incomingMoves <= existingMoves
+    ) {
+        return true;
+    }
+
+    return false;
+}
+
+function mergeCaptureCountMonotonic(
+    existing: LiveGameSession['captures'] | undefined,
+    incoming: LiveGameSession['captures'] | undefined,
+): LiveGameSession['captures'] | undefined {
+    if (!existing || !incoming) return incoming ?? existing;
+    const patch: Record<number, number> = { ...(incoming as Record<number, number>) };
+    let changed = false;
+    for (const key of [0, 1, 2] as const) {
+        const ext = (existing as Record<number, number>)[key];
+        const inc = (incoming as Record<number, number>)[key];
+        if (typeof ext === 'number' && typeof inc === 'number' && ext > inc) {
+            patch[key] = ext;
+            changed = true;
+        }
+    }
+    return changed ? (patch as LiveGameSession['captures']) : incoming;
+}
+
+/** rejoin·계가 폴링·INITIAL_STATE 직후: 슬림 서버 스냅샷이 로컬 판·수순·계가를 덮지 않게 병합한다. */
+export function mergeLiveRejoinResponseWithExistingBoard(
+    existing: LiveGameSession | undefined,
+    incoming: LiveGameSession,
+): LiveGameSession {
+    if (!existing) return incoming;
+    const { boardState, moveHistory } = resolvePveScoringBoardAndMoveHistory(incoming, existing);
+    let merged: LiveGameSession = {
+        ...incoming,
+        boardState,
+        moveHistory,
+        captures: mergeCaptureCountMonotonic(existing.captures, incoming.captures) ?? incoming.captures ?? existing.captures,
+        baseStoneCaptures:
+            mergeCaptureCountMonotonic(
+                existing.baseStoneCaptures as LiveGameSession['captures'],
+                incoming.baseStoneCaptures as LiveGameSession['captures'],
+            ) ?? incoming.baseStoneCaptures ?? existing.baseStoneCaptures,
+        hiddenStoneCaptures:
+            mergeCaptureCountMonotonic(
+                existing.hiddenStoneCaptures as LiveGameSession['captures'],
+                incoming.hiddenStoneCaptures as LiveGameSession['captures'],
+            ) ?? incoming.hiddenStoneCaptures ?? existing.hiddenStoneCaptures,
+    };
+    merged = preserveTerminalAnalysisResultOnMerge(merged, existing);
+    const incomingSummaryKeys =
+        merged.summary && typeof merged.summary === 'object' ? Object.keys(merged.summary as object) : [];
+    if (
+        (merged.gameStatus === 'ended' || merged.gameStatus === 'no_contest') &&
+        incomingSummaryKeys.length === 0 &&
+        existing.summary &&
+        typeof existing.summary === 'object' &&
+        Object.keys(existing.summary as object).length > 0
+    ) {
+        merged = { ...merged, summary: existing.summary };
+    }
+    return merged;
+}
+
+/** ended 슬림 패킷에 analysisResult가 빠지면 계가 영토·결과 모달이 비는 레이스를 막는다. */
+export function preserveTerminalAnalysisResultOnMerge(
+    merged: LiveGameSession,
+    existing: LiveGameSession | undefined,
+): LiveGameSession {
+    if (
+        (merged.gameStatus === 'ended' || merged.gameStatus === 'no_contest') &&
+        existing?.analysisResult &&
+        (existing.analysisResult as Record<string, unknown>)['system'] &&
+        (!(merged as { analysisResult?: Record<string, unknown> }).analysisResult ||
+            !(merged as { analysisResult?: Record<string, unknown> }).analysisResult!['system'])
+    ) {
+        return {
+            ...merged,
+            analysisResult: {
+                ...((merged as { analysisResult?: Record<string, unknown> }).analysisResult || {}),
+                system: (existing.analysisResult as Record<string, unknown>)['system'],
+            },
+        } as LiveGameSession;
+    }
+    return merged;
 }
 
 export function mergeGameUpdateByArena(

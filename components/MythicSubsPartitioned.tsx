@@ -1,10 +1,11 @@
 import React from 'react';
 import type { ItemOption } from '../types.js';
 import { partitionMythicSubsWithIndex } from '../shared/utils/specialOptionGearEffects.js';
-import { MythicOptionAbbrev } from './MythicStatAbbrev.js';
+import { EquipmentBagStyleOptionRow } from './equipment/EquipmentBagStyleOptionRow.js';
 
 export const MythicSubsPartitioned: React.FC<{
     subs: ItemOption[] | undefined | null;
+    itemStars?: number;
     mythicTextClass?: string;
     transcendentTextClass?: string;
     /** true면 옵션 블록 본문·소제목을 text-xs로 한 단계 키움 */
@@ -13,6 +14,7 @@ export const MythicSubsPartitioned: React.FC<{
     rowsNoWrap?: boolean;
 }> = ({
     subs,
+    itemStars = 0,
     mythicTextClass = 'text-red-400',
     transcendentTextClass = 'text-cyan-300',
     enlargeBody = false,
@@ -29,9 +31,13 @@ export const MythicSubsPartitioned: React.FC<{
                 <div className="space-y-0.5">
                     <p className={`${headText} text-rose-200/90`}>신화 스페셜 옵션</p>
                     {mythicGradeRows.map(({ sub, index }) => (
-                        <p key={`mythic-sp-${index}`} className={`leading-snug ${mythicTextClass} ${rowWrap}`}>
-                            <MythicOptionAbbrev option={sub} textClassName={mythicTextClass} />
-                        </p>
+                        <EquipmentBagStyleOptionRow
+                            key={`mythic-sp-${index}`}
+                            opt={sub}
+                            itemStars={itemStars}
+                            colorClass={mythicTextClass}
+                            className={rowWrap}
+                        />
                     ))}
                 </div>
             ) : null}
@@ -39,9 +45,13 @@ export const MythicSubsPartitioned: React.FC<{
                 <div className="space-y-0.5">
                     <p className={`${headText} text-cyan-200/90`}>초월 스페셜 옵션</p>
                     {transcendentGradeRows.map(({ sub, index }) => (
-                        <p key={`trans-sp-${index}`} className={`leading-snug ${transcendentTextClass} ${rowWrap}`}>
-                            <MythicOptionAbbrev option={sub} textClassName={transcendentTextClass} />
-                        </p>
+                        <EquipmentBagStyleOptionRow
+                            key={`trans-sp-${index}`}
+                            opt={sub}
+                            itemStars={itemStars}
+                            colorClass={transcendentTextClass}
+                            className={rowWrap}
+                        />
                     ))}
                 </div>
             ) : null}

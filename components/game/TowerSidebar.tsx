@@ -3,6 +3,7 @@ import { LiveGameSession, GameProps } from '../../types.js';
 import { GameInfoPanel, ChatPanel } from './Sidebar.js';
 import Button from '../Button.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
+import { mergeWaitingRoomPublicChatMessages } from '../../shared/utils/waitingRoomGlobalChatMerge.js';
 
 interface TowerSidebarProps {
     session: LiveGameSession;
@@ -28,6 +29,10 @@ const TowerSidebar: React.FC<TowerSidebarProps> = ({
     pauseButtonCooldown = 0
 }) => {
     const { activeNegotiation, negotiations, onlineUsers, waitingRoomChats } = useAppContext();
+    const publicChatMessages = React.useMemo(
+        () => mergeWaitingRoomPublicChatMessages(waitingRoomChats),
+        [waitingRoomChats],
+    );
     if (!currentUser) return null;
     const floor = session.towerFloor ?? 1;
 
@@ -47,7 +52,7 @@ const TowerSidebar: React.FC<TowerSidebarProps> = ({
                     session={session}
                     isSpectator={false}
                     onAction={onAction || (() => {})}
-                    waitingRoomChat={waitingRoomChats['global'] || []}
+                    waitingRoomChat={publicChatMessages}
                     gameChat={gameChat}
                     onViewUser={() => {}}
                     onlineUsers={onlineUsers}

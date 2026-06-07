@@ -25,7 +25,14 @@ import Avatar from './Avatar.js';
 import { isSameDayKST } from '../utils/timeUtils.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import LeagueTierInfoModal from './LeagueTierInfoModal.js';
-import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from './QuickAccessSidebar.js';
+import QuickAccessSidebar from './QuickAccessSidebar.js';
+import PcLobbyCenterColumn from './shell/PcLobbyCenterColumn.js';
+import {
+    PC_HOME_LEFT_COLUMN_CLASS,
+    PC_LOBBY_THREE_COLUMN_ROW_GAP_CLASS,
+    PC_QUICK_RAIL_COLUMN_CLASS,
+    PC_QUICK_RAIL_WRAPPER_CLASS,
+} from '../shared/constants/pcShellLayout.js';
 import { calculateUserEffects } from '../services/effectService.js';
 import { computeCoreStatFinalFromBonuses } from '../shared/utils/coreStatComposition.js';
 import ChampionshipVenueEntryModal from './ChampionshipVenueEntryModal.js';
@@ -37,7 +44,7 @@ import { specialResourceIcons } from './resourceIcons.js';
 import ChampionshipShopPanel from './championship/ChampionshipShopPanel.js';
 import PairPetDetailEmbedPanel from './pair/PairPetDetailEmbedPanel.js';
 import PairPetHomeEmptyDetailFrame from './pair/PairPetHomeEmptyDetailFrame.js';
-import { resolvePetInfoViewerEmbedLayout } from './pair/pairPetHomeEmbedLayout.js';
+import { resolvePetInfoViewerEmbedLayout, resolveChampionshipMobilePetEmbedLayout } from './pair/pairPetHomeEmbedLayout.js';
 import { PairPetDetailFitScale } from './pair/PairPetDetailCardBody.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
 import { getChampionshipVersusDisplayRating } from '../shared/utils/championshipVersusElo.js';
@@ -1082,7 +1089,7 @@ const TournamentLobby: React.FC = () => {
         } catch {
             // ignore
         }
-        window.location.hash = '#/pair';
+        window.location.hash = '#/pvp/pair';
     }, []);
 
     const equippedItems = useMemo(() => {
@@ -1147,7 +1154,10 @@ const TournamentLobby: React.FC = () => {
         () => getEquippedPairPetInventoryRow(currentUserWithStatus),
         [currentUserWithStatus],
     );
-    const championshipPetEmbed = useMemo(() => resolvePetInfoViewerEmbedLayout(), []);
+    const championshipPetEmbed = useMemo(
+        () => (isHandheldChampionshipLobby ? resolveChampionshipMobilePetEmbedLayout() : resolvePetInfoViewerEmbedLayout()),
+        [isHandheldChampionshipLobby],
+    );
     return (
         <div
             className={`relative flex w-full flex-col bg-lobby-shell-championship text-primary ${
@@ -1268,7 +1278,7 @@ const TournamentLobby: React.FC = () => {
                                         aria-hidden
                                     />
                                     <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10" aria-hidden />
-                                    <div className="relative z-[1] flex min-h-0 max-h-[min(48dvh,22rem)] flex-col overflow-hidden p-1.5 sm:max-h-[min(50dvh,24rem)]">
+                                    <div className="relative z-[1] flex min-h-0 flex-col overflow-hidden p-1.5 sm:p-2">
                                         {equippedPairPetRowNative ? (
                                             <PairPetDetailEmbedPanel
                                                 currentUser={currentUserWithStatus}
@@ -1377,10 +1387,10 @@ const TournamentLobby: React.FC = () => {
                 </div>
             </>
             ) : (
-            <div className="flex h-full min-h-0 min-w-0 flex-1 flex-row gap-1.5 overflow-hidden">
-                <div className="min-h-0 flex-1 flex flex-col gap-1.5 overflow-hidden">
-                    <div className="flex min-h-0 flex-1 flex-row gap-1.5 overflow-hidden">
-                    <aside className="flex h-full min-h-0 w-[min(42%,480px)] min-w-[288px] max-w-[480px] shrink-0 flex-col gap-1 overflow-hidden">
+            <div className={`flex h-full min-h-0 min-w-0 flex-1 flex-row overflow-hidden ${PC_LOBBY_THREE_COLUMN_ROW_GAP_CLASS}`}>
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-1.5 overflow-hidden">
+                    <div className={`flex min-h-0 flex-1 flex-row overflow-hidden ${PC_LOBBY_THREE_COLUMN_ROW_GAP_CLASS}`}>
+                    <aside className={`flex h-full min-h-0 ${PC_HOME_LEFT_COLUMN_CLASS} flex-col gap-1 overflow-hidden`}>
                         <div className="relative shrink-0 overflow-hidden rounded-xl border-2 border-amber-500/45 bg-gradient-to-b from-zinc-800 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_50px_-22px_rgba(0,0,0,0.78)] ring-1 ring-amber-100/15">
                             <div className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-px bg-gradient-to-r from-transparent via-amber-300/35 to-transparent" aria-hidden />
                             <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10" aria-hidden />
@@ -1534,9 +1544,8 @@ const TournamentLobby: React.FC = () => {
                             </section>
                         </div>
                     </aside>
-                    <main className="min-h-0 flex-1 flex flex-col items-center overflow-hidden rounded-lg border border-zinc-600/80 bg-panel p-1 shadow-inner">
-                        <div className="mx-auto flex h-full min-h-0 w-full max-w-[min(100%,1280px)] flex-col justify-center px-0.5">
-                            <div className={CHAMPIONSHIP_ENTRY_GRID_DESKTOP_HOME_MATCH}>
+                    <PcLobbyCenterColumn>
+                            <div className={`${CHAMPIONSHIP_ENTRY_GRID_DESKTOP_HOME_MATCH} px-0.5`}>
                                     <div className="flex h-full min-h-0 min-w-0 flex-col">
                                         <TournamentCard
                                             type="neighborhood"
@@ -1589,17 +1598,14 @@ const TournamentLobby: React.FC = () => {
                                         <ChampionshipVersusLobbyCard kind="petpair" compactMerged={false} fillLobbyGridCell />
                                     </div>
                                 </div>
-                        </div>
-                    </main>
+                    </PcLobbyCenterColumn>
                     </div>
                 </div>
-                    <aside className="flex h-full min-h-0 flex-shrink-0 flex-col overflow-hidden self-stretch">
-                    <div className="flex h-full min-h-0 flex-shrink-0 flex-row gap-2 items-stretch">
-                        <div className={`${PC_QUICK_RAIL_COLUMN_CLASS} ml-auto overflow-hidden`}>
+                    <aside className={`flex h-full min-h-0 ${PC_QUICK_RAIL_COLUMN_CLASS} flex-col overflow-hidden self-stretch`} aria-label="퀵 메뉴">
+                        <div className={PC_QUICK_RAIL_WRAPPER_CLASS}>
                             <QuickAccessSidebar fillHeight={true} compact={false} className={CHAMPIONSHIP_PANEL_GLASS} />
                         </div>
-                    </div>
-                </aside>
+                    </aside>
             </div>
             )}
             <ChampionshipVersusDuelHistoryModal

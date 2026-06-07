@@ -14,6 +14,8 @@ interface HomeBoardPanelProps {
     fitViewport?: boolean;
     /** 풀스크린 모달(반투명 배경): 게시판형·큰 글자 */
     modalMode?: boolean;
+    /** PC 로비 인라인 패널 — NavTitleBar가 제목/뒤로를 담당 */
+    embedded?: boolean;
     /** modalMode일 때 상단 닫기 */
     onClose?: () => void;
 }
@@ -129,9 +131,10 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
     onAction,
     fitViewport = false,
     modalMode = false,
+    embedded = false,
     onClose,
 }) => {
-    const useCompactList = fitViewport && !modalMode;
+    const useCompactList = fitViewport && !modalMode && !embedded;
     const [selectedPost, setSelectedPost] = useState<HomeBoardPost | null>(null);
     const [isManageOpen, setIsManageOpen] = useState(false);
     const [editingPost, setEditingPost] = useState<HomeBoardPost | null>(null);
@@ -375,13 +378,16 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
         );
     };
 
-    const shellClass = modalMode
+    const shellClass = embedded
+        ? 'min-h-0 flex h-full flex-col overflow-hidden text-on-panel'
+        : modalMode
         ? 'min-h-0 flex h-full flex-col overflow-hidden rounded-xl border-2 border-amber-800/40 bg-gradient-to-b from-amber-950/50 via-zinc-900 to-zinc-950 text-on-panel shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_24px_64px_-28px_rgba(0,0,0,0.85)] ring-1 ring-amber-200/15'
         : 'bg-panel border border-color text-on-panel rounded-lg min-h-0 flex flex-col h-full overflow-hidden';
 
     return (
         <>
             <div className={shellClass}>
+                {!embedded && (
                 <div
                     className={`flex shrink-0 items-center justify-between border-b border-amber-200/15 bg-gradient-to-r from-amber-950/55 via-zinc-900/90 to-amber-950/40 ${
                         useCompactList ? 'px-1.5 py-1 sm:px-2' : modalMode ? 'px-4 py-3 sm:px-5' : 'px-3 py-2.5 sm:px-4'
@@ -451,6 +457,38 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
                         )}
                     </div>
                 </div>
+                )}
+                {embedded && isAdmin && onAction && (
+                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-1 border-b border-amber-200/10 px-1 py-1.5 sm:gap-2 sm:px-2">
+                        <button
+                            type="button"
+                            className="rounded-md border border-cyan-400/45 bg-cyan-950/40 px-2 py-1 text-[10px] font-semibold text-cyan-100 hover:bg-cyan-900/45 sm:text-xs"
+                            onClick={() => {
+                                openCreate('notice');
+                                setIsManageOpen(false);
+                            }}
+                        >
+                            공지 작성
+                        </button>
+                        <button
+                            type="button"
+                            className="rounded-md border border-amber-400/45 bg-amber-950/40 px-2 py-1 text-[10px] font-semibold text-amber-100 hover:bg-amber-900/45 sm:text-xs"
+                            onClick={() => {
+                                openCreate('patch');
+                                setIsManageOpen(false);
+                            }}
+                        >
+                            패치 작성
+                        </button>
+                        <button
+                            type="button"
+                            className="rounded-md border border-amber-400/50 bg-amber-900/30 px-2 py-1 text-[10px] font-semibold text-amber-200 hover:bg-amber-800/35 sm:text-xs"
+                            onClick={() => setIsManageOpen(true)}
+                        >
+                            관리
+                        </button>
+                    </div>
+                )}
                 {editorOpen && isAdmin && onAction && modalMode && !isManageOpen && (
                     <div className="shrink-0 border-b border-amber-200/15 px-2 pb-2 pt-1 sm:px-4 sm:pb-3">
                         <HomeBoardDraftEditor
@@ -604,43 +642,47 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
                         </div>
                     )}
                     {(!modalMode || !isManageOpen) && (
-                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                        <div
-                            className={`mb-1 shrink-0 border-b border-amber-200/10 ${useCompactList ? 'px-0.5 pb-0.5' : modalMode ? 'px-1 pb-2' : 'px-1 pb-1'}`}
-                        >
-                            <h4
-                                className={
-                                    useCompactList
-                                        ? 'text-[11px] font-bold text-cyan-200'
-                                        : modalMode
-                                          ? 'text-base font-bold text-cyan-200 sm:text-lg'
-                                          : 'text-sm font-bold text-cyan-200'
-                                }
+                    <div className="grid min-h-0 flex-1 grid-cols-2 gap-2 overflow-hidden sm:gap-3">
+                        <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border border-cyan-400/25 bg-slate-900/20">
+                            <div
+                                className={`shrink-0 border-b border-cyan-400/20 ${useCompactList ? 'px-1.5 py-1' : modalMode ? 'px-3 py-2' : 'px-2 py-1.5'}`}
                             >
-                                공지사항
-                            </h4>
+                                <h4
+                                    className={
+                                        useCompactList
+                                            ? 'text-[11px] font-bold text-cyan-200'
+                                            : modalMode
+                                              ? 'text-base font-bold text-cyan-200 sm:text-lg'
+                                              : 'text-sm font-bold text-cyan-200'
+                                    }
+                                >
+                                    공지사항
+                                </h4>
+                            </div>
+                            <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-1 sm:p-1.5">
+                                {renderPostList(noticePosts, '공지사항이 없습니다.')}
+                            </div>
                         </div>
-                        {renderPostList(noticePosts, '공지사항이 없습니다.')}
-                    </div>
-                    )}
-                    {(!modalMode || !isManageOpen) && (
-                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-t border-amber-200/10 pt-2 sm:pt-3">
-                        <div
-                            className={`mb-1 shrink-0 border-b border-amber-200/10 ${useCompactList ? 'px-0.5 pb-0.5' : modalMode ? 'px-1 pb-2' : 'px-1 pb-1'}`}
-                        >
-                            <h4
-                                className={
-                                    useCompactList
-                                        ? 'text-[11px] font-bold text-amber-200'
-                                        : modalMode
-                                          ? 'text-base font-bold text-amber-200 sm:text-lg'
-                                          : 'text-sm font-bold text-amber-200'
-                                }
+                        <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border border-amber-400/25 bg-slate-900/20">
+                            <div
+                                className={`shrink-0 border-b border-amber-400/20 ${useCompactList ? 'px-1.5 py-1' : modalMode ? 'px-3 py-2' : 'px-2 py-1.5'}`}
                             >
-                                패치 / 업데이트
-                            </h4>
+                                <h4
+                                    className={
+                                        useCompactList
+                                            ? 'text-[11px] font-bold text-amber-200'
+                                            : modalMode
+                                              ? 'text-base font-bold text-amber-200 sm:text-lg'
+                                              : 'text-sm font-bold text-amber-200'
+                                    }
+                                >
+                                    패치 / 업데이트
+                                </h4>
+                            </div>
+                            <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-1 sm:p-1.5">
+                                {renderPostList(patchPosts, '패치/업데이트 내역이 없습니다.')}
+                            </div>
                         </div>
-                        {renderPostList(patchPosts, '패치/업데이트 내역이 없습니다.')}
                     </div>
                     )}
                 </div>

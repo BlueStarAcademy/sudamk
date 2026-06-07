@@ -35,6 +35,7 @@ export const RANKED_GAME_SETTINGS: Record<GameMode, GameSettings> = {
     [GameMode.Base]: {
         boardSize: 13,
         komi: 0, // 베이스바둑은 입찰로 결정
+        baseStones: 4,
         timeLimit: 3, // 3분
         byoyomiTime: 30, // 30초
         byoyomiCount: 3,

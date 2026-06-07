@@ -23,6 +23,11 @@ import { syncDocumentViewportHeightVar } from './utils/layoutViewportCss.js';
 import { staleChunkReloadFlagResetEffect } from './utils/chunkReloadRecovery.js';
 import { isMessagingInAppBrowser } from './utils/inAppBrowserEscape.js';
 import InAppBrowserEscapeGate from './components/InAppBrowserEscapeGate.js';
+import {
+    PC_DESIGN_CANVAS_HEIGHT,
+    PC_DESIGN_CANVAS_WIDTH,
+} from './shared/constants/viewportDesign.js';
+import { snapUniformCanvasScale } from './utils/uniformCanvasScale.js';
 
 function usePrevious<T>(value: T): T | undefined {
     const ref = useRef<T | undefined>(undefined);
@@ -30,33 +35,6 @@ function usePrevious<T>(value: T): T | undefined {
         ref.current = value;
     }, [value]);
     return ref.current;
-}
-
-/**
- * PC 셸의 transform: scale()이 소수 배율이면 글리프가 뭉개져 보이기 쉬움.
- * 1) 스케일 후 논리 크기가 정수 CSS 픽셀에 가깝게
- * 2) devicePixelRatio 그리드에 맞춰(125%/150% 윈도 배율 등) 래스터 정렬
- */
-function snapUniformCanvasScale(fitW: number, fitH: number, designW: number, designH: number): number {
-    const raw = Math.min(fitW / designW, fitH / designH, 1);
-    if (!Number.isFinite(raw) || raw <= 0) return 1;
-    const wPx = Math.max(1, Math.floor(designW * raw));
-    const hPx = Math.max(1, Math.floor(designH * raw));
-    let scale = Math.min(wPx / designW, hPx / designH);
-
-    if (typeof window !== 'undefined' && window.devicePixelRatio) {
-        const dpr = window.devicePixelRatio;
-        const alignToDevicePx = (s: number) => {
-            const dev = designW * s * dpr;
-            const r = Math.max(1, Math.round(dev));
-            return r / (designW * dpr);
-        };
-        scale = alignToDevicePx(scale);
-        if (designW * scale > fitW + 1e-4) scale = fitW / designW;
-        if (designH * scale > fitH + 1e-4) scale = Math.min(scale, fitH / designH);
-    }
-
-    return scale;
 }
 
 // AppContent is the part of the app that can access the context
@@ -347,15 +325,16 @@ const AppContent: React.FC = () => {
         ((currentRoute.view === 'profile' &&
             ['home', 'arena'].includes(((currentRoute.params?.tab as string | undefined) ?? 'home')) ) ||
             currentRoute.view === 'tower' ||
-            currentRoute.view === 'waiting' ||
-            currentRoute.view === 'pair' ||
+            currentRoute.view === 'pvp' ||
+            currentRoute.view === 'ai' ||
+            currentRoute.view === 'arena' ||
             currentRoute.view === 'guild' ||
             currentRoute.view === 'adventure' ||
             (currentRoute.view === 'tournament' && !hideNativeTopQuickStripForChampionshipArena));
 
     // 전체 화면을 하나의 그림처럼 동일 비율로 스케일 (고정 캔버스 1920x1080 → 컨테이너에 맞춤)
-    const DESIGN_W = 1920;
-    const DESIGN_H = 1080;
+    const DESIGN_W = PC_DESIGN_CANVAS_WIDTH;
+    const DESIGN_H = PC_DESIGN_CANVAS_HEIGHT;
     const getInitialScale = () => {
         if (typeof window === 'undefined') return 1;
         const w = window.innerWidth;

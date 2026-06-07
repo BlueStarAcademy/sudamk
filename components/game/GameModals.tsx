@@ -181,13 +181,14 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
         // scoring 상태일 때는 분석 결과가 준비될 때까지 게임 화면을 유지 (바둑판 초기화 방지)
         // 도전의 탑과 싱글플레이어는 이미 위에서 처리했으므로 제외
         // 싱글/탑과 동일: `ended`만으로는 모달을 띄우지 않음 — 확인으로 showResultModal을 false로 내린 뒤 ended여도 다시 뜨는 무한 루프 방지
+        const pvpResultShellReady =
+            showResultModal && (gameStatus === 'ended' || gameStatus === 'no_contest');
         if (
-            showResultModal &&
-            (gameStatus === 'ended' || gameStatus === 'no_contest') &&
+            pvpResultShellReady &&
             arenaPolicy.kind !== 'singleplayer' &&
             arenaPolicy.kind !== 'tower'
         ) {
-            if (gameStatus === 'ended') return (
+            if (gameStatus === 'ended' || gameStatus === 'scoring') return (
                 <GameSummaryModal
                     session={session}
                     currentUser={currentUser}

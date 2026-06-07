@@ -10,6 +10,7 @@ import {
     ServerAction,
 } from './types/index.js';
 import type { ChatMessage } from './types/api.js';
+import { mergeWaitingRoomPublicChatMessages } from './shared/utils/waitingRoomGlobalChatMerge.js';
 import GameArena from './components/GameArena.js';
 import Avatar from './components/Avatar.js';
 import Header from './components/Header.js';
@@ -54,7 +55,11 @@ import { calculateSimpleAiMove } from './client/goAiBotClient.js';
 import { processMoveClient } from './client/goLogicClient.js';
 import { isDiceGoLibertyPlacement, isThiefGoValidPlacement } from './client/logic/goLogic.js';
 import { buildPveItemActionClientSync } from './utils/pveItemClientSync.js';
-import { shouldOpenResultModalByPolicy } from './utils/resultDisplayPolicy.js';
+import {
+    shouldOpenResultModalAfterScoringOverlay,
+    shouldOpenResultModalByPolicy,
+    shouldWaitForScoreBasedScoringOverlay,
+} from './utils/resultDisplayPolicy.js';
 import { consumeSkipGameHashLeaveInterceptOnce, replaceAppHash } from './utils/appUtils.js';
 import { getTowerInGameBackgroundUrl, getTowerSessionFloor } from './utils/towerPreGameDisplay.js';
 import { getSinglePlayerInGameBackgroundUrl } from './utils/singlePlayerPreGameDisplay.js';
@@ -87,6 +92,7 @@ import {
     isPairArenaAiMatchSession,
     transformPairArenaAiMatchSettings,
 } from './shared/utils/pairArenaAiMatchSettings.js';
+import { arenaLobbyHashFromSession } from './shared/utils/arenaLobbyDestination.js';
 import type { GameSettings } from './types/index.js';
 import { AI_HIDDEN_ITEM_THINKING_DURATION_MS } from './shared/constants/gameSettings.js';
 // AI 유저 ID (싱글플레이에서 AI 차례 판단용)
@@ -1075,15 +1081,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         gameStatus,
         prevGameStatus,
         winReason: session.winReason ?? undefined,
+        hasAnalysisResult: Boolean(session.analysisResult?.['system']),
     });
-    const shouldWaitForScoringOverlay =
-        sessionPolicy.resultDisplayModel === 'waitScoringOverlay' &&
-        isScoreBasedPresentation &&
-        !scoringOverlayCompleted;
-    const blockScoringBoardAnalysis =
-        sessionPolicy.resultDisplayModel === 'waitScoringOverlay' &&
-        isScoreBasedPresentation &&
-        !scoringOverlayCompleted;
+    const shouldWaitForScoringOverlay = shouldWaitForScoreBasedScoringOverlay({
+        isScoreBasedPresentation,
+        scoringOverlayCompleted,
+        winReason: session.winReason,
+    });
+    const blockScoringBoardAnalysis = shouldWaitForScoringOverlay;
     const isSinglePlayer = sessionPolicy.kind === 'singleplayer';
     const isTower = sessionPolicy.kind === 'tower';
     const isAdventureGame = sessionPolicy.kind === 'adventure';
@@ -1093,13 +1098,16 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const isGuildWarTowerStyleUi =
         isGuildWarGame && (mode === GameMode.Missile || mode === GameMode.Hidden);
     const isPlayfulMode = PLAYFUL_GAME_MODES.some(m => m.mode === mode);
-    /** 놀이바둑(대기실 AI·PVP): `session.summary`가 WS로 늦게 붙을 수 있어, 내 보상 행이 붙은 뒤에 결과 모달을 연다. */
-    const playfulResultModalWaitSummary =
-        isPlayfulMode && !isSinglePlayer && !isTower && !isSpectator;
+    /** 참가자: `session.summary`가 WS로 늦게 붙을 수 있어, 내 보상 행이 붙은 뒤에 결과 모달을 연다 */
+    const resultModalWaitSummary =
+        sessionPolicy.resultDisplayModel !== 'waitScoringOverlay' &&
+        !isSinglePlayer &&
+        !isTower &&
+        !isSpectator;
     const hasMyGameSummary = Boolean(session.summary?.[currentUser.id]);
     const prevHasMyGameSummary = usePrevious(hasMyGameSummary) ?? false;
-    const playfulGameSummaryJustArrived =
-        playfulResultModalWaitSummary &&
+    const gameSummaryJustArrived =
+        resultModalWaitSummary &&
         gameStatus === 'ended' &&
         hasMyGameSummary &&
         !prevHasMyGameSummary;
@@ -1421,6 +1429,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                               pairArenaRestore: {
                                   roomId: session.settings.pairGame.roomId,
                                   lobbyChannel: session.settings.pairGame.lobbyChannel ?? 'pair',
+                                  lobbyIntent:
+                                      session.settings.pairGame.pairMode === 'ai' || session.isAiGame
+                                          ? 'ai'
+                                          : 'pvp',
                               },
                           }
                         : {}),
@@ -1440,6 +1452,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         pairArenaRestore: {
                             roomId: rid,
                             lobbyChannel: session.settings?.pairGame?.lobbyChannel ?? 'pair',
+                            lobbyIntent:
+                                session.settings?.pairGame?.pairMode === 'ai' || session.isAiGame ? 'ai' : 'pvp',
                         },
                     };
                     const existing = sessionStorage.getItem(key);
@@ -1449,6 +1463,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             merged.pairArenaRestore = {
                                 roomId: rid,
                                 lobbyChannel: session.settings?.pairGame?.lobbyChannel ?? 'pair',
+                                lobbyIntent:
+                                    session.settings?.pairGame?.pairMode === 'ai' || session.isAiGame ? 'ai' : 'pvp',
                             };
                         } catch {
                             // ignore
@@ -1734,16 +1750,19 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             gameHasJustEnded,
             prevGameStatus,
             hasAnalysisResult: Boolean(currentAnalysisResult),
-            playfulResultModalWaitSummary,
+            resultModalWaitSummary,
             hasMyGameSummary,
-            playfulGameSummaryJustArrived,
+            gameSummaryJustArrived,
         });
-        const shouldShowAfterScoringOverlay =
-            sessionPolicy.resultDisplayModel === 'waitScoringOverlay' &&
-            isScoreBasedPresentation &&
-            scoringOverlayCompleted &&
-            gameStatus === 'ended' &&
-            !postGameSummaryAcknowledged;
+        const shouldShowAfterScoringOverlay = shouldOpenResultModalAfterScoringOverlay({
+            isScoreBasedPresentation,
+            scoringOverlayCompleted,
+            gameStatus,
+            postGameSummaryAcknowledged,
+            hasAnalysisResult: Boolean(currentAnalysisResult),
+            resultModalWaitSummary,
+            hasMyGameSummary,
+        });
         const shouldShowModal = shouldShowModalByPolicy || shouldShowAfterScoringOverlay;
 
         /** 따내기 승: 계가 연출 직후 ended인 경우(prev scoring)에도 착수·포획 연출 대기 후 모달을 연다 */
@@ -1771,11 +1790,13 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             }
         }
         
-        // 계가가 완료되었을 때(analysisResult가 있을 때) 영토 표시 활성화 — scoring 중에는 계가 오버레이·판면 연출 후 ended에서 켠다
-        if (gameStatus === 'ended' && !shouldWaitForScoringOverlay) {
-            if (currentAnalysisResult) {
-                setShowFinalTerritory(true);
-            }
+        // 계가가 완료되었을 때(analysisResult가 있을 때) 영토 표시 활성화 — 연출 완료 후 ended(또는 analysis 선도착 scoring)에서 켠다
+        if (
+            !shouldWaitForScoringOverlay &&
+            currentAnalysisResult &&
+            (gameStatus === 'ended' || (gameStatus === 'scoring' && scoringOverlayCompleted))
+        ) {
+            setShowFinalTerritory(true);
         }
     }, [
         gameStatus,
@@ -1791,9 +1812,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         postGameSummaryAcknowledged,
         session.winReason,
         session.justCaptured,
-        playfulResultModalWaitSummary,
+        resultModalWaitSummary,
         hasMyGameSummary,
-        playfulGameSummaryJustArrived,
+        gameSummaryJustArrived,
     ]);
 
     /** 다른 대국으로 바뀌거나 화면을 떠날 때만 지연 모달 타이머 정리 (이펙트 재실행마다 지우면 모달이 영원히 안 뜸) */
@@ -3732,14 +3753,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 const stageId = session.adventureStageId;
                 sessionStorage.setItem('postGameRedirect', stageId ? `#/adventure/${stageId}` : '#/adventure');
             } else if (session.settings?.pairGame) {
-                const pairCh = session.settings.pairGame?.lobbyChannel ?? 'pair';
-                if (pairCh === 'strategic') {
-                    sessionStorage.setItem('postGameRedirect', '#/waiting/strategic');
-                } else if (pairCh === 'playful') {
-                    sessionStorage.setItem('postGameRedirect', '#/waiting/playful');
-                } else {
-                    sessionStorage.setItem('postGameRedirect', '#/pair');
-                }
+                sessionStorage.setItem('postGameRedirect', arenaLobbyHashFromSession(session));
                 const rid = session.settings.pairGame?.roomId;
                 if (rid) {
                     try {
@@ -3750,14 +3764,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     }
                 }
             } else if (session.isAiGame && (SPECIAL_GAME_MODES.some(m => m.mode === session.mode) || PLAYFUL_GAME_MODES.some(m => m.mode === session.mode))) {
-                const waitingRoomMode = SPECIAL_GAME_MODES.some(m => m.mode === session.mode) ? 'strategic' as const : 'playful' as const;
-                sessionStorage.setItem('postGameRedirect', `#/waiting/${waitingRoomMode}`);
+                sessionStorage.setItem('postGameRedirect', arenaLobbyHashFromSession(session));
             } else if (isSinglePlayer) {
                 sessionStorage.setItem('postGameRedirect', '#/singleplayer');
             } else {
-                // 일반 게임(전략/놀이바둑): 전략이면 전략 대기실, 그 외는 놀이바둑 대기실로 이동
-                const waitingRoomMode = SPECIAL_GAME_MODES.some(m => m.mode === session.mode) ? 'strategic' as const : 'playful' as const;
-                sessionStorage.setItem('postGameRedirect', `#/waiting/${waitingRoomMode}`);
+                sessionStorage.setItem('postGameRedirect', arenaLobbyHashFromSession(session));
             }
             handlers.handleAction({ type: actionType, payload: { gameId } });
             return;
@@ -4587,7 +4598,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         isGuildWarGame,
     ]);
     
-    const globalChat = useMemo(() => waitingRoomChats['global'] || [], [waitingRoomChats]);
+    const globalChat = useMemo(
+        () => mergeWaitingRoomPublicChatMessages(waitingRoomChats),
+        [waitingRoomChats],
+    );
     
     const handleAdventureLeaveToMap = useCallback(() => {
         if (!gameId || session.gameCategory !== 'adventure') return;
@@ -4826,7 +4840,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         pauseButtonCooldown: isPausableAiGame ? pauseButtonCooldown : undefined,
         onPauseToggle: isPausableAiGame ? handlePauseToggle : undefined,
         onOpenRematchSettings: isAiOrPairAiRematchEligible ? () => setIsAiRematchModalOpen(true) : undefined,
-        onOpenGameRecordList: handlers.openGameRecordList,
+        onOpenGameRecordList: () => handlers.openGameRecordList({ modal: true }),
         onLeaveOrResign: handleLeaveOrResignClick,
         strategicPetHintFooterBubble:
             strategicPetHintBoardOverlay?.showBubble && strategicPetHintBoardOverlay.message
@@ -4905,6 +4919,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         boardRuleFlashMessage={boardRuleFlashMessage}
                                         blockScoringBoardAnalysis={blockScoringBoardAnalysis}
                                         itemAimIntroBoardBlocked={itemAimIntroBoardBlocked}
+                                        isMoveSubmitting={isMoveInFlight}
                                     />
                                     {boardHydrationOverlayEl}
                                     {showScoringOverlay && <ScoringOverlay />}
@@ -4986,7 +5001,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     onHideConfirmModal={() => setConfirmModalType(null)}
                     showResultModal={showResultModal}
                     onCloseResults={handleCloseResults}
-                    onOpenGameRecordList={handlers.openGameRecordList}
+                    onOpenGameRecordList={() => handlers.openGameRecordList({ modal: true })}
                     onAdventureLeaveToMap={handleAdventureLeaveToMap}
                 />
             </div>
@@ -5069,6 +5084,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         boardRuleFlashMessage={boardRuleFlashMessage}
                                         blockScoringBoardAnalysis={blockScoringBoardAnalysis}
                                         itemAimIntroBoardBlocked={itemAimIntroBoardBlocked}
+                                        isMoveSubmitting={isMoveInFlight}
                                     />
                                     {boardHydrationOverlayEl}
                                     {showScoringOverlay && <ScoringOverlay />}
@@ -5150,7 +5166,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     onHideConfirmModal={() => setConfirmModalType(null)}
                     showResultModal={showResultModal}
                     onCloseResults={handleCloseResults}
-                    onOpenGameRecordList={handlers.openGameRecordList}
+                    onOpenGameRecordList={() => handlers.openGameRecordList({ modal: true })}
                     onAdventureLeaveToMap={handleAdventureLeaveToMap}
                 />
             </div>
@@ -5338,6 +5354,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                                         boardRuleFlashMessage={boardRuleFlashMessage}
                                                         blockScoringBoardAnalysis={blockScoringBoardAnalysis}
                                                         itemAimIntroBoardBlocked={itemAimIntroBoardBlocked}
+                                        isMoveSubmitting={isMoveInFlight}
                                                     />
                                                     {boardHydrationOverlayEl}
                                                     {showScoringOverlay && <ScoringOverlay />}
@@ -5364,6 +5381,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                                 boardRuleFlashMessage={boardRuleFlashMessage}
                                                 blockScoringBoardAnalysis={blockScoringBoardAnalysis}
                                                 itemAimIntroBoardBlocked={itemAimIntroBoardBlocked}
+                                        isMoveSubmitting={isMoveInFlight}
                                             />
                                         )}
                                         {boardHydrationOverlayEl}
@@ -5537,7 +5555,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 onHideConfirmModal={() => setConfirmModalType(null)}
                 showResultModal={showResultModal}
                 onCloseResults={handleCloseResults}
-                onOpenGameRecordList={handlers.openGameRecordList}
+                onOpenGameRecordList={() => handlers.openGameRecordList({ modal: true })}
                 onAdventureLeaveToMap={handleAdventureLeaveToMap}
             />
         </div>

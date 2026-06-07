@@ -41,7 +41,12 @@ export function arenaChannelForUserStatus(status: UserStatusInfo | null | undefi
     return arenaChannelForGameMode(status.mode);
 }
 
-export function arenaChannelRoute(channel: ArenaChannel): string {
-    if (channel === 'pair') return '#/pair';
-    return `#/waiting/${channel}`;
+import type { ArenaLobbyIntent } from './arenaLobbyDestination.js';
+import { arenaLobbyHash } from './arenaLobbyDestination.js';
+
+export function arenaChannelRoute(
+    channel: ArenaChannel,
+    intent: ArenaLobbyIntent = 'pvp',
+): string {
+    return arenaLobbyHash({ intent, channel });
 }

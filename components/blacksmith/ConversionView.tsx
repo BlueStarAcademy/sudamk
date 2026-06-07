@@ -2,60 +2,73 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { InventoryItem, ServerAction } from '../../types.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import ResourceActionButton from '../ui/ResourceActionButton.js';
-import DraggableWindow from '../DraggableWindow.js';
 import { MATERIAL_ITEMS } from '../../constants';
 import { BLACKSMITH_DISASSEMBLY_JACKPOT_RATES } from '../../constants/rules.js';
 import { formatBlacksmithPercentInt } from '../../shared/utils/formatBlacksmithPercentInt.js';
+import { getBlacksmithViewerTypography } from '../../shared/constants/blacksmithViewerTypography.js';
 
-const CraftingDetailModal: React.FC<{
-    details: { materialName: string, craftType: 'upgrade' | 'downgrade' };
+const MATERIAL_TIERS = ['하급 강화석', '중급 강화석', '상급 강화석', '최상급 강화석', '신비의 강화석'] as const;
+
+function getMaterialDisplayName(materialName: string): string {
+    if (materialName === '신비의 강화석') return '신비 강화석';
+    return materialName;
+}
+
+type CraftType = 'upgrade' | 'downgrade';
+
+function getAvailableCraftTypes(tierIndex: number): CraftType[] {
+    const types: CraftType[] = [];
+    if (tierIndex > 0) types.push('downgrade');
+    if (tierIndex < MATERIAL_TIERS.length - 1) types.push('upgrade');
+    return types;
+}
+
+const QUANTITY_BADGE_CLASS =
+    'absolute bottom-0 right-0 rounded-tl-md bg-black/60 px-1 py-0.5 text-[9px] font-bold leading-none text-white sm:text-[10px]';
+
+const PANEL_QUANTITY_BADGE_CLASS =
+    'absolute bottom-0 right-0 rounded-tl-md bg-black/60 px-1 py-0.5 text-[10px] font-bold leading-none text-white sm:text-xs';
+
+const ConversionCraftSection: React.FC<{
+    materialName: string;
+    craftType: CraftType;
     inventory: InventoryItem[];
-    blacksmithLevel: number;
-    onClose: () => void;
-    onAction: (action: ServerAction) => void;
-}> = ({ details, inventory, blacksmithLevel, onClose, onAction }) => {
-    const { materialName, craftType } = details;
+    onAction: (action: ServerAction) => void | Promise<void>;
+    pcViewer: boolean;
+    sliderId: string;
+    isBlacksmithBusy?: boolean;
+}> = ({ materialName, craftType, inventory, onAction, pcViewer, sliderId, isBlacksmithBusy = false }) => {
     const isUpgrade = craftType === 'upgrade';
-    
-    const materialTiers = ['하급 강화석', '중급 강화석', '상급 강화석', '최상급 강화석', '신비의 강화석'];
-    const tierIndex = materialTiers.indexOf(materialName);
+    const typo = getBlacksmithViewerTypography(pcViewer);
+    const tierIndex = MATERIAL_TIERS.indexOf(materialName as (typeof MATERIAL_TIERS)[number]);
 
-    // tierIndex가 유효하지 않은 경우 처리
-    if (tierIndex === -1) {
-        return null;
-    }
+    if (tierIndex === -1) return null;
 
     const sourceMaterialName = materialName;
-    const targetMaterialName = isUpgrade ? materialTiers[tierIndex + 1] : materialTiers[tierIndex - 1];
-
-    // targetMaterialName이 유효하지 않은 경우 처리
-    if (!targetMaterialName) {
-        return null;
-    }
+    const targetMaterialName = isUpgrade ? MATERIAL_TIERS[tierIndex + 1] : MATERIAL_TIERS[tierIndex - 1];
+    if (!targetMaterialName) return null;
 
     const sourceTemplate = MATERIAL_ITEMS[sourceMaterialName];
     const targetTemplate = MATERIAL_ITEMS[targetMaterialName];
-
     const conversionRate = isUpgrade ? 10 : 1;
-    // 재료 합성: 기본 1개 (대박 시 2배)
-    // 재료 분해: 기본 3~5개 랜덤 (대박 시 2배)
     const yieldMin = isUpgrade ? 1 : 3;
     const yieldMax = isUpgrade ? 1 : 5;
 
-    const sourceMaterialCount = useMemo(() => {
-        return inventory
-            .filter(i => i.name === sourceMaterialName)
-            .reduce((sum, i) => sum + (i.quantity || 0), 0);
-    }, [inventory, sourceMaterialName]);
+    const sourceMaterialCount = useMemo(
+        () =>
+            inventory
+                .filter((i) => i.name === sourceMaterialName)
+                .reduce((sum, i) => sum + (i.quantity || 0), 0),
+        [inventory, sourceMaterialName]
+    );
 
     const maxQuantity = Math.floor(sourceMaterialCount / conversionRate);
     const [quantity, setQuantity] = useState(maxQuantity > 0 ? 1 : 0);
 
-    // Update quantity when inventory changes
     useEffect(() => {
         const newMaxQuantity = Math.floor(sourceMaterialCount / conversionRate);
-        setQuantity(prev => Math.min(prev, newMaxQuantity));
-    }, [sourceMaterialCount, conversionRate]);
+        setQuantity((prev) => (newMaxQuantity > 0 ? Math.min(Math.max(prev, 1), newMaxQuantity) : 0));
+    }, [sourceMaterialCount, conversionRate, materialName, craftType]);
 
     const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = parseInt(e.target.value, 10);
@@ -65,138 +78,103 @@ const CraftingDetailModal: React.FC<{
             setQuantity(0);
         }
     };
-    
+
     const handleConfirm = async () => {
         if (quantity > 0) {
             await onAction({ type: 'CRAFT_MATERIAL', payload: { materialName, craftType, quantity } });
         }
-        onClose();
     };
 
     return (
-        <DraggableWindow 
-            title={isUpgrade ? '재료 합성' : '재료 분해'} 
-            onClose={onClose} 
-            windowId={`crafting-${materialName}-${craftType}`}
-            initialWidth={480}
-            initialHeight={600}
-            isTopmost
-            variant="store"
+        <section
+            className={`flex h-full min-h-0 flex-col rounded-lg border ${
+                isUpgrade ? 'border-cyan-400/25 bg-cyan-950/20' : 'border-slate-500/30 bg-slate-900/25'
+            } p-2.5 sm:p-3`}
         >
-            <div className="flex flex-col h-full min-h-0 text-slate-100">
-                <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pr-2">
-                    <div className="grid gap-3">
-                        <div className="grid grid-cols-2 gap-2 bg-gradient-to-br from-[#1c2642] via-[#141f35] to-[#0c1424] border border-cyan-300/20 rounded-xl p-3">
-                            <div className="flex flex-col items-center gap-1.5">
-                                <div className="relative w-12 h-12 rounded-lg overflow-hidden bg-slate-900/40 border border-slate-500/40 shadow-inner">
-                                    {sourceTemplate?.image && <img src={sourceTemplate.image} alt={sourceMaterialName} className="absolute inset-0 w-full h-full object-contain" />}
-                                </div>
-                                <span className="text-sm font-semibold text-center leading-tight">{sourceMaterialName}</span>
-                                <span className="text-xs text-cyan-200/80 text-center">보유 {sourceMaterialCount.toLocaleString()}개</span>
-                            </div>
-                            <div className="flex flex-col items-center gap-1.5">
-                                <div className="relative w-12 h-12 rounded-lg overflow-hidden bg-emerald-900/30 border border-emerald-400/40 shadow-[0_0_20px_-10px_rgba(16,185,129,0.85)]">
-                                    {targetTemplate?.image && <img src={targetTemplate.image} alt={targetMaterialName} className="absolute inset-0 w-full h-full object-contain" />}
-                                </div>
-                                <span className="text-sm font-semibold text-emerald-200 text-center leading-tight">{targetMaterialName}</span>
-                                <span className="text-xs text-emerald-300/90 text-center">
-                                    예상 획득{' '}
-                                    {yieldMin === yieldMax
-                                        ? `${(quantity * yieldMin).toLocaleString()}개`
-                                        : `${(quantity * yieldMin).toLocaleString()}~${(quantity * yieldMax).toLocaleString()}개`}
-                                </span>
-                            </div>
-                        </div>
-                        
-                        <div className="bg-gradient-to-br from-[#141f33] via-[#10192a] to-[#0b1221] border border-slate-500/30 rounded-xl p-3 space-y-2">
-                            <p className="text-sm text-center text-cyan-200">
-                                {isUpgrade ? '합성' : '분해'}에 사용될 수량을 조절하세요.
-                            </p>
-                            <div className="flex flex-col gap-1.5">
-                                <label htmlFor="quantity-slider" className="text-xs font-medium text-slate-200 text-center">
-                                    {sourceMaterialName} 소비{' '}
-                                    <span className="text-amber-200 font-semibold">
-                                        {(quantity * conversionRate).toLocaleString()}
-                                    </span>
-                                    <span className="text-slate-400"> / {sourceMaterialCount.toLocaleString()}개</span>
-                                </label>
-                                <input
-                                    id="quantity-slider"
-                                    type="range"
-                                    min="0"
-                                    max={maxQuantity}
-                                    value={quantity}
-                                    onChange={handleQuantityChange}
-                                    disabled={maxQuantity === 0}
-                                    className="w-full h-1.5 rounded-full appearance-none bg-slate-800 accent-cyan-300"
-                                />
-                                <div className="flex justify-between text-xs text-slate-400 px-1">
-                                    <span>0회</span>
-                                    <span>{maxQuantity}회</span>
-                                </div>
-                                <div className="flex justify-between text-xs px-1 text-slate-200/90">
-                                    <span>총 시도</span>
-                                    <span className="font-semibold text-cyan-200">{quantity.toLocaleString()}회</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+            <div className="mb-3 shrink-0 text-center">
+                <span className={`block font-bold ${isUpgrade ? 'text-cyan-200' : 'text-slate-100'} ${typo.heading}`}>
+                    {isUpgrade ? '합성' : '분해'}
+                </span>
+            </div>
 
-                    <div className="bg-gradient-to-br from-[#101a2f] via-[#0c1527] to-[#09101d] border border-cyan-300/20 rounded-xl p-3 text-center text-sm text-cyan-200/90 leading-relaxed">
-                        대박 확률{' '}
-                        <span className="text-emerald-300 font-semibold">
-                            {formatBlacksmithPercentInt(BLACKSMITH_DISASSEMBLY_JACKPOT_RATES[Math.max(0, blacksmithLevel - 1)])}%
-                        </span>
-                    </div>
+            <div className="mb-3 flex shrink-0 items-center justify-center gap-2 sm:gap-2.5">
+                <div className="relative h-14 w-14 shrink-0 rounded-md border border-black/20 bg-slate-900/50 sm:h-16 sm:w-16">
+                    {sourceTemplate?.image && (
+                        <img src={sourceTemplate.image} alt={getMaterialDisplayName(sourceMaterialName)} className="h-full w-full object-contain p-1" />
+                    )}
+                    <span className={PANEL_QUANTITY_BADGE_CLASS}>{sourceMaterialCount.toLocaleString()}</span>
                 </div>
-
-                <div className="flex-shrink-0 flex justify-end gap-2 pt-3 border-t border-gray-700/50 mt-3">
-                    <ResourceActionButton onClick={onClose} variant="neutral" className="!w-auto !px-4 !py-1.5 text-xs">
-                        취소
-                    </ResourceActionButton>
-                    <ResourceActionButton
-                        onClick={handleConfirm}
-                        variant="materials"
-                        disabled={quantity === 0}
-                        className="!w-auto !px-5 !py-1.5 text-xs"
-                    >
-                        {quantity}회 {isUpgrade ? '합성' : '분해'}
-                    </ResourceActionButton>
+                <span className={`shrink-0 text-lg sm:text-xl ${isUpgrade ? 'text-cyan-300/80' : 'text-slate-400'}`}>→</span>
+                <div
+                    className={`relative h-14 w-14 shrink-0 rounded-md border bg-slate-900/40 sm:h-16 sm:w-16 ${
+                        isUpgrade ? 'border-emerald-400/35' : 'border-slate-500/35'
+                    }`}
+                >
+                    {targetTemplate?.image && (
+                        <img src={targetTemplate.image} alt={getMaterialDisplayName(targetMaterialName)} className="h-full w-full object-contain p-1" />
+                    )}
                 </div>
             </div>
-        </DraggableWindow>
+
+            <div className="mt-auto flex min-h-0 flex-1 flex-col justify-end gap-2">
+                <p className={`shrink-0 text-center text-secondary ${typo.body}`}>
+                    예상{' '}
+                    {yieldMin === yieldMax
+                        ? `${(quantity * yieldMin).toLocaleString()}개`
+                        : `${(quantity * yieldMin).toLocaleString()}~${(quantity * yieldMax).toLocaleString()}개`}
+                </p>
+                <input
+                    id={sliderId}
+                    type="range"
+                    min="0"
+                    max={maxQuantity}
+                    value={quantity}
+                    onChange={handleQuantityChange}
+                    disabled={maxQuantity === 0}
+                    className="h-2 w-full shrink-0 appearance-none rounded-full bg-slate-800 accent-cyan-300"
+                    aria-label={`${isUpgrade ? '합성' : '분해'} 횟수`}
+                />
+                <div className={`flex shrink-0 justify-between tabular-nums text-slate-300 ${typo.body}`}>
+                    <span>
+                        {(quantity * conversionRate).toLocaleString()} / {sourceMaterialCount.toLocaleString()}
+                    </span>
+                    <span>{quantity}회</span>
+                </div>
+                <ResourceActionButton
+                    onClick={handleConfirm}
+                    variant={isUpgrade ? 'accent' : 'neutral'}
+                    disabled={quantity === 0 || isBlacksmithBusy}
+                    className={`!w-full shrink-0 !py-2.5 ${typo.bodySemi}`}
+                >
+                    {isBlacksmithBusy ? '처리 중...' : `${quantity}회 ${isUpgrade ? '합성' : '분해'}`}
+                </ResourceActionButton>
+            </div>
+        </section>
     );
 };
 
 interface ConversionViewProps {
     onAction: (action: ServerAction) => Promise<void>;
+    pcViewer?: boolean;
+    stackedViewport?: boolean;
+    isBlacksmithBusy?: boolean;
 }
 
-const MOBILE_CONVERSION_BREAKPOINT_PX = 1025;
-
-const ConversionView: React.FC<ConversionViewProps> = ({ onAction }) => {
+const ConversionView: React.FC<ConversionViewProps> = ({ onAction, pcViewer = false, stackedViewport = false, isBlacksmithBusy = false }) => {
     const { currentUserWithStatus } = useAppContext();
-    const [craftingDetails, setCraftingDetails] = useState<{ materialName: string, craftType: 'upgrade' | 'downgrade' } | null>(null);
-    const [useMobileConversionRow, setUseMobileConversionRow] = useState(
-        () => typeof window !== 'undefined' && window.innerWidth < MOBILE_CONVERSION_BREAKPOINT_PX
-    );
-
-    useEffect(() => {
-        const sync = () => setUseMobileConversionRow(window.innerWidth < MOBILE_CONVERSION_BREAKPOINT_PX);
-        sync();
-        window.addEventListener('resize', sync);
-        return () => window.removeEventListener('resize', sync);
-    }, []);
+    const [selectedMaterialName, setSelectedMaterialName] = useState<string>(MATERIAL_TIERS[0]);
 
     if (!currentUserWithStatus) return null;
 
+    const useLargeTypo = pcViewer || stackedViewport;
+    const typo = getBlacksmithViewerTypography(useLargeTypo);
     const { inventory } = currentUserWithStatus;
 
     const materialCategories = useMemo(() => {
         const categories: Record<string, InventoryItem[]> = {};
         inventory
-            .filter(item => item.type === 'material')
-            .forEach(item => {
+            .filter((item) => item.type === 'material')
+            .forEach((item) => {
                 if (!categories[item.name]) {
                     categories[item.name] = [];
                 }
@@ -205,148 +183,111 @@ const ConversionView: React.FC<ConversionViewProps> = ({ onAction }) => {
         return categories;
     }, [inventory]);
 
-    const materialTiers = ['하급 강화석', '중급 강화석', '상급 강화석', '최상급 강화석', '신비의 강화석'];
+    const getMaterialQuantity = (materialName: string) =>
+        materialCategories[materialName]?.reduce((sum, item) => sum + (item.quantity || 0), 0) ?? 0;
 
-    const renderStoneCard = (materialName: string) => {
-        const quantity = materialCategories[materialName]
-            ? materialCategories[materialName].reduce((sum, item) => sum + (item.quantity || 0), 0)
-            : 0;
-        const materialData = MATERIAL_ITEMS[materialName];
-        return (
-            <div
-                className={`flex shrink-0 flex-col items-center justify-center rounded-lg border border-white/10 bg-gradient-to-b from-slate-900/80 to-black/55 p-1.5 ${
-                    useMobileConversionRow ? 'w-[5.1rem] min-w-[5.1rem]' : 'min-w-[92px] sm:min-w-[110px] sm:p-2'
-                }`}
-            >
-                <img
-                    src={materialData.image as string | undefined}
-                    alt={materialName}
-                    className={`mb-0.5 object-contain ${useMobileConversionRow ? 'h-8 w-8' : 'h-9 w-9 sm:mb-1 sm:h-11 sm:w-11'}`}
-                />
-                <h4
-                    className={`mb-0.5 text-center font-bold text-secondary sm:mb-1 sm:text-xs ${
-                        useMobileConversionRow ? 'max-w-[5rem] text-[10px] leading-tight' : 'text-[11px] whitespace-nowrap'
-                    }`}
-                >
-                    {materialName}
-                </h4>
-                <p className={`text-center text-tertiary ${useMobileConversionRow ? 'text-[9px]' : 'mb-1 text-[10px] sm:mb-1.5 sm:text-[11px]'}`}>
-                    보유 {quantity.toLocaleString()}
-                </p>
-            </div>
-        );
-    };
-
-    const renderConversionBridge = (leftTierName: string, leftTierIndex: number) => {
-        const higherName = materialTiers[leftTierIndex + 1];
-        const leftQty =
-            materialCategories[leftTierName]?.reduce((sum, item) => sum + (item.quantity || 0), 0) ?? 0;
-        const materialExists = materialCategories[leftTierName] && materialCategories[leftTierName].length > 0;
-        return (
-            <div
-                key={`bridge-${leftTierName}`}
-                className={`flex shrink-0 flex-col items-center justify-center gap-0.5 ${
-                    useMobileConversionRow ? 'px-0.5' : 'gap-1'
-                }`}
-            >
-                <span className={`font-medium text-secondary ${useMobileConversionRow ? 'text-[9px]' : 'text-[10px] sm:text-[11px]'}`}>합성</span>
-                <ResourceActionButton
-                    onClick={() => setCraftingDetails({ materialName: leftTierName, craftType: 'upgrade' })}
-                    variant="accent"
-                    className={`!w-auto whitespace-nowrap ${
-                        useMobileConversionRow ? '!px-2 !py-1 text-[11px]' : '!px-2.5 !py-1 text-[11px] sm:!px-3 sm:!py-1.5 sm:text-xs'
-                    }`}
-                    disabled={!materialExists || leftQty < 10}
-                    title={`${leftTierName} 10개 → ${higherName} 합성`}
-                >
-                    →
-                </ResourceActionButton>
-                <ResourceActionButton
-                    onClick={() => setCraftingDetails({ materialName: higherName, craftType: 'downgrade' })}
-                    variant="neutral"
-                    className={`!w-auto whitespace-nowrap ${
-                        useMobileConversionRow ? '!px-2 !py-1 text-[11px]' : '!px-2.5 !py-1 text-[11px] sm:!px-3 sm:!py-1.5 sm:text-xs'
-                    }`}
-                    disabled={
-                        !materialCategories[higherName] ||
-                        (materialCategories[higherName]?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0) < 1
-                    }
-                    title={`${higherName} → ${leftTierName} 분해`}
-                >
-                    ←
-                </ResourceActionButton>
-                <span className={`font-medium text-secondary ${useMobileConversionRow ? 'text-[9px]' : 'text-[10px] sm:text-[11px]'}`}>분해</span>
-            </div>
-        );
-    };
+    const selectedTierIndex = MATERIAL_TIERS.indexOf(selectedMaterialName as (typeof MATERIAL_TIERS)[number]);
+    const availableCraftTypes = selectedTierIndex >= 0 ? getAvailableCraftTypes(selectedTierIndex) : [];
+    const blacksmithLevel = currentUserWithStatus.blacksmithLevel ?? 1;
 
     return (
         <div className="flex h-full min-h-0 w-full flex-col">
-            {craftingDetails && (
-                <CraftingDetailModal 
-                    details={craftingDetails} 
-                    inventory={inventory} 
-                    blacksmithLevel={currentUserWithStatus.blacksmithLevel ?? 1}
-                    onClose={() => setCraftingDetails(null)} 
-                    onAction={onAction} 
-                />
-            )}
-
             <div
-                className={`flex min-h-0 flex-1 rounded-xl border border-amber-400/20 bg-gradient-to-b from-[#171c2a]/70 via-[#101522]/88 to-[#0b1018]/92 p-2 sm:p-2.5 ${
-                    useMobileConversionRow
-                        ? 'flex-col justify-center overflow-x-hidden overflow-y-hidden py-1.5'
-                        : 'flex-col items-center justify-center gap-2.5 overflow-hidden'
+                className={`flex min-h-0 flex-1 overflow-hidden rounded-xl border border-amber-400/20 bg-gradient-to-b from-[#171c2a]/70 via-[#101522]/88 to-[#0b1018]/92 ${
+                    stackedViewport ? 'flex-row gap-1.5 p-1.5' : 'flex-row gap-2 p-2 sm:gap-2.5 sm:p-2.5'
                 }`}
             >
-                {useMobileConversionRow ? (
-                    <div className="flex w-full min-w-0 flex-col gap-1">
-                        <p className="shrink-0 px-0.5 text-center text-[9px] leading-tight text-amber-200/75 sm:text-[10px]">
-                            좌우로 스크롤하여 강화석 단계를 선택하세요
-                        </p>
-                        <div className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-x-contain pb-1 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]">
-                            <div className="inline-flex min-h-[6.25rem] flex-nowrap items-stretch gap-1 px-0.5 py-0.5">
-                                {materialTiers.map((materialName, index) => (
-                                    <React.Fragment key={materialName}>
-                                        {renderStoneCard(materialName)}
-                                        {index < materialTiers.length - 1 && renderConversionBridge(materialName, index)}
-                                    </React.Fragment>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                ) : (
-                    <>
-                        {/* PC: 두 행 레이아웃 유지 */}
-                        <div className="flex w-full min-w-0 justify-center overflow-x-auto pb-1 [scrollbar-width:thin] [-webkit-overflow-scrolling:touch]">
-                            <div className="inline-flex max-w-none flex-nowrap items-start justify-center gap-2">
-                                {['하급 강화석', '중급 강화석', '상급 강화석'].map((materialName, index, row) => {
-                                    const tierIndex = materialTiers.indexOf(materialName);
-                                    return (
-                                        <React.Fragment key={materialName}>
-                                            {renderStoneCard(materialName)}
-                                            {index < row.length - 1 && renderConversionBridge(materialName, tierIndex)}
-                                        </React.Fragment>
-                                    );
-                                })}
-                            </div>
-                        </div>
+                <nav
+                    className={`flex h-full w-[4.75rem] shrink-0 flex-col justify-between gap-1 overflow-hidden sm:w-[5.5rem] ${
+                        stackedViewport ? 'py-0.5' : 'py-1'
+                    }`}
+                    aria-label="강화석 선택"
+                >
+                    {MATERIAL_TIERS.map((materialName) => {
+                        const quantity = getMaterialQuantity(materialName);
+                        const materialData = MATERIAL_ITEMS[materialName];
+                        const isSelected = selectedMaterialName === materialName;
 
-                        <div className="flex w-full min-w-0 justify-center overflow-x-auto pb-1 [scrollbar-width:thin] [-webkit-overflow-scrolling:touch]">
-                            <div className="inline-flex max-w-none flex-nowrap items-start justify-center gap-2">
-                                {['상급 강화석', '최상급 강화석', '신비의 강화석'].map((materialName, index, row) => {
-                                    const tierIndex = materialTiers.indexOf(materialName);
-                                    return (
-                                        <React.Fragment key={materialName}>
-                                            {renderStoneCard(materialName)}
-                                            {index < row.length - 1 && renderConversionBridge(materialName, tierIndex)}
-                                        </React.Fragment>
-                                    );
-                                })}
+                        return (
+                            <button
+                                key={materialName}
+                                type="button"
+                                onClick={() => setSelectedMaterialName(materialName)}
+                                className={`flex min-h-0 flex-1 flex-col items-center justify-center rounded-md border px-1 py-1 transition ${
+                                    isSelected
+                                        ? 'border-amber-400/70 bg-gradient-to-b from-amber-900/35 to-slate-900/80 shadow-[0_0_10px_-6px_rgba(251,191,36,0.55)]'
+                                        : 'border-white/10 bg-gradient-to-b from-slate-900/80 to-black/55 hover:border-cyan-400/30 hover:bg-slate-800/70'
+                                }`}
+                                title={getMaterialDisplayName(materialName)}
+                            >
+                                <div className="relative flex min-h-0 w-full flex-1 items-center justify-center">
+                                    <img
+                                        src={materialData.image as string | undefined}
+                                        alt={getMaterialDisplayName(materialName)}
+                                        className="max-h-full max-w-full object-contain p-0.5"
+                                    />
+                                    <span className={QUANTITY_BADGE_CLASS}>{quantity.toLocaleString()}</span>
+                                </div>
+                            </button>
+                        );
+                    })}
+                </nav>
+
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-white/10 bg-gradient-to-b from-[#131722]/90 via-[#0f131d]/95 to-[#0a0d15]/95 p-2 sm:p-2.5">
+                    {selectedTierIndex >= 0 && (
+                        <>
+                            <div className="mb-2 shrink-0 text-center">
+                                <h3 className={`font-bold text-amber-100 ${typo.headingLg}`}>{getMaterialDisplayName(selectedMaterialName)}</h3>
                             </div>
-                        </div>
-                    </>
-                )}
+
+                            <div className="grid min-h-0 flex-1 grid-cols-2 gap-2.5 overflow-hidden sm:gap-3">
+                                <div className="flex min-h-0 min-w-0 flex-col">
+                                    {availableCraftTypes.includes('downgrade') ? (
+                                        <ConversionCraftSection
+                                            materialName={selectedMaterialName}
+                                            craftType="downgrade"
+                                            inventory={inventory}
+                                            onAction={onAction}
+                                            pcViewer={useLargeTypo}
+                                            sliderId={`conversion-downgrade-${selectedMaterialName}`}
+                                            isBlacksmithBusy={isBlacksmithBusy}
+                                        />
+                                    ) : (
+                                        <div className={`flex h-full items-center justify-center rounded-lg border border-dashed border-white/10 bg-black/15 px-2 text-center text-slate-500 ${typo.body}`}>
+                                            분해 불가
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex min-h-0 min-w-0 flex-col">
+                                    {availableCraftTypes.includes('upgrade') ? (
+                                        <ConversionCraftSection
+                                            materialName={selectedMaterialName}
+                                            craftType="upgrade"
+                                            inventory={inventory}
+                                            onAction={onAction}
+                                            pcViewer={useLargeTypo}
+                                            sliderId={`conversion-upgrade-${selectedMaterialName}`}
+                                            isBlacksmithBusy={isBlacksmithBusy}
+                                        />
+                                    ) : (
+                                        <div className={`flex h-full items-center justify-center rounded-lg border border-dashed border-white/10 bg-black/15 px-2 text-center text-slate-500 ${typo.body}`}>
+                                            합성 불가
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div
+                                className={`mt-2.5 shrink-0 rounded-lg border border-cyan-300/20 bg-gradient-to-br from-[#101a2f] via-[#0c1527] to-[#09101d] px-3 py-2 text-center text-cyan-200/90 ${typo.body}`}
+                            >
+                                대박 확률{' '}
+                                <span className="font-semibold text-emerald-300">
+                                    {formatBlacksmithPercentInt(BLACKSMITH_DISASSEMBLY_JACKPOT_RATES[Math.max(0, blacksmithLevel - 1)])}%
+                                </span>
+                            </div>
+                        </>
+                    )}
+                </div>
             </div>
         </div>
     );

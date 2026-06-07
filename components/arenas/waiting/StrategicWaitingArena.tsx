@@ -1,10 +1,9 @@
 import React from 'react';
-import PairWaitingLobby from '../../PairWaitingLobby.js';
+import IntentWaitingArena from './IntentWaitingArena.js';
 
+/** @deprecated Use `#/pvp/strategic` via Router → IntentWaitingArena */
 const StrategicWaitingArena: React.FC = () => (
-    <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden">
-        <PairWaitingLobby lobbyChannel="strategic" />
-    </div>
+    <IntentWaitingArena lobbyChannel="strategic" lobbyIntent="pvp" />
 );
 
 export default StrategicWaitingArena;

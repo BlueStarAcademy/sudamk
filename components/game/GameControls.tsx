@@ -6,6 +6,7 @@ import {
     PAIR_LOBBY_FOCUS_ROOM_TAB_SESSION_KEY,
     POST_GAME_PAIR_ROOM_RESTORE_SESSION_KEY,
 } from '../../shared/constants/pairArena.js';
+import { arenaLobbyHashFromSession } from '../../shared/utils/arenaLobbyDestination.js';
 import { aiUserId } from '../../constants/auth.js';
 import { canSaveStrategicPvpGameRecord, GAME_RECORD_SLOT_FULL_MESSAGE } from '../../utils/strategicPvpGameRecord.js';
 import { getSinglePlayerStages } from '../../constants/singlePlayerConstants.js';
@@ -361,33 +362,38 @@ const ActionButtonsPanel: React.FC<ActionButtonsPanelProps> = ({ session, isSpec
         }
     };
 
-    const actionNodes =
-        hasButtons && !hasUsedThisCycle
-            ? myActionButtons.map((button) => (
-                  <Button
-                      key={button.name}
-                      bare
-                      onClick={() => void handleUseActionButton(button.name)}
-                      colorScheme="none"
-                      className={arenaGameRoomMannerChipClass(isMobile, button.type === 'manner' ? 'manner' : 'other')}
-                      title={button.message}
-                      disabled={isSpectator || !isGameActive || actionButtonBusy}
-                  >
-                      {button.name}
-                  </Button>
-              ))
-            : [<span key="wait" className={`shrink-0 text-slate-500 ${isMobile ? 'text-[10px]' : 'text-xs'}`}>다음 액션 대기중...</span>];
+    const isWaitingForNextAction = !hasButtons || hasUsedThisCycle;
+
+    if (isWaitingForNextAction) {
+        return (
+            <div className={`flex w-full min-w-0 flex-col items-center justify-center ${isMobile ? 'py-0.5' : 'py-0.5'}`}>
+                <span
+                    className={`font-mono font-semibold tabular-nums ${isMobile ? 'text-sm' : 'text-base min-[1025px]:text-[15px]'} ${isReady ? 'text-emerald-400' : 'text-slate-300'}`}
+                >
+                    {cooldownTime}
+                </span>
+                <span className={`text-slate-500 ${isMobile ? 'text-[8px]' : 'text-[10px] min-[1025px]:text-[9px]'}`}>다음 액션 대기중</span>
+            </div>
+        );
+    }
 
     return (
-        <div className={`flex min-w-0 items-center gap-2 ${isMobile ? 'w-full py-0.5' : ''}`}>
-            <ArenaControlStrip className="min-w-0 flex-1" gapClass={isMobile ? 'gap-1' : 'gap-2'}>
-                {actionNodes}
+        <div className={`flex w-full min-w-0 items-center justify-center ${isMobile ? 'py-0.5' : 'py-0.5'}`}>
+            <ArenaControlStrip layout="cluster" className="min-w-0 max-w-full" gapClass={isMobile ? 'gap-1' : 'gap-2'}>
+                {myActionButtons.map((button) => (
+                    <Button
+                        key={button.name}
+                        bare
+                        onClick={() => void handleUseActionButton(button.name)}
+                        colorScheme="none"
+                        className={arenaGameRoomMannerChipClass(isMobile, button.type === 'manner' ? 'manner' : 'other')}
+                        title={button.message}
+                        disabled={isSpectator || !isGameActive || actionButtonBusy}
+                    >
+                        {button.name}
+                    </Button>
+                ))}
             </ArenaControlStrip>
-            <span
-                className={`shrink-0 font-mono tabular-nums ${isMobile ? 'text-[10px]' : 'text-xs'} ${isReady && !hasUsedThisCycle ? 'text-emerald-400' : 'text-slate-500'}`}
-            >
-                {cooldownTime}
-            </span>
         </div>
     );
 };
@@ -1987,14 +1993,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             } else if (session.gameCategory === 'tower') {
                 redirectHash = '#/tower';
             } else if (session.settings?.pairGame) {
-                const pairCh = session.settings.pairGame?.lobbyChannel ?? 'pair';
-                if (pairCh === 'strategic') {
-                    redirectHash = '#/waiting/strategic';
-                } else if (pairCh === 'playful') {
-                    redirectHash = '#/waiting/playful';
-                } else {
-                    redirectHash = '#/pair';
-                }
+                redirectHash = arenaLobbyHashFromSession(session);
                 const rid = session.settings.pairGame?.roomId;
                 if (rid) {
                     try {
@@ -2005,20 +2004,11 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                     }
                 }
             } else if (session.isAiGame && (SPECIAL_GAME_MODES.some(m => m.mode === session.mode) || PLAYFUL_GAME_MODES.some(m => m.mode === session.mode))) {
-                const waitingRoomMode = SPECIAL_GAME_MODES.some(m => m.mode === session.mode) ? 'strategic' as const : 'playful' as const;
-                redirectHash = `#/waiting/${waitingRoomMode}`;
+                redirectHash = arenaLobbyHashFromSession(session);
             } else if (session.gameCategory === 'singleplayer' || session.isSinglePlayer) {
                 redirectHash = '#/singleplayer';
             } else {
-                let waitingRoomMode: 'strategic' | 'playful' | null = null;
-                if (SPECIAL_GAME_MODES.some(m => m.mode === session.mode)) {
-                    waitingRoomMode = 'strategic';
-                } else if (PLAYFUL_GAME_MODES.some(m => m.mode === session.mode)) {
-                    waitingRoomMode = 'playful';
-                }
-                if (waitingRoomMode) {
-                    redirectHash = `#/waiting/${waitingRoomMode}`;
-                }
+                redirectHash = arenaLobbyHashFromSession(session);
             }
 
             if (redirectHash) {
@@ -2353,7 +2343,10 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                             }
                                             setSavingGameRecord(true);
                                             try {
-                                                const out = await onAction({ type: 'SAVE_GAME_RECORD', payload: { gameId } });
+                                                const out = await onAction({
+                                                    type: 'SAVE_GAME_RECORD',
+                                                    payload: { gameId, sessionSnapshot: session },
+                                                });
                                                 const saveErr =
                                                     out && typeof out === 'object' && 'error' in out
                                                         ? (out as { error?: string }).error
@@ -2436,7 +2429,10 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                         }
                                         setSavingGameRecord(true);
                                         try {
-                                            const out = await onAction({ type: 'SAVE_GAME_RECORD', payload: { gameId } });
+                                            const out = await onAction({
+                                                type: 'SAVE_GAME_RECORD',
+                                                payload: { gameId, sessionSnapshot: session },
+                                            });
                                             const saveErr =
                                                 out && typeof out === 'object' && 'error' in out
                                                     ? (out as { error?: string }).error

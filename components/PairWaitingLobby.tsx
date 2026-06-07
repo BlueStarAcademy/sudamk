@@ -1,30 +1,44 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
-import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from './QuickAccessSidebar.js';
+import PcLobbyCenterRightColumn from './shell/PcLobbyCenterRightColumn.js';
+import PcLobbyQuickRailColumn from './shell/PcLobbyQuickRailColumn.js';
+import QuickAccessSidebar from './QuickAccessSidebar.js';
+import {
+    PC_HOME_LEFT_COLUMN_CLASS,
+    PC_LOBBY_DESKTOP_SHELL_PADDING_CLASS,
+    PC_LOBBY_THREE_COLUMN_ROW_GAP_CLASS,
+    PC_LOBBY_USERS_COLUMN_CLASS,
+} from '../shared/constants/pcShellLayout.js';
 import PlayerList from './waiting-room/PlayerList.js';
 import MatchFoundModal from './waiting-room/MatchFoundModal.js';
 import {
     userInUnifiedArenaLobbyUserList,
     userMatchesAggregateWaitingLobby,
 } from './waiting-room/aggregateWaitingLobbyUserFilter.js';
+import { ArenaLobbyNavTitleBar, type ArenaLobbyNavKind } from './waiting-room/ArenaLobbyNavTitleBar.js';
+import { ArenaLobbySwitchGrid } from './waiting-room/ArenaLobbySwitchGrid.js';
 import {
-    ArenaLobbyNavTitleBar,
-    ArenaLobbyArenaSwitcherPanel,
-    type ArenaLobbyNavKind,
-} from './waiting-room/ArenaLobbyNavTitleBar.js';
+    AiLobbyCenterPanel,
+    AiLobbyMobileWorkspace,
+    AiLobbyStandaloneCenterPanel,
+    AiLobbyWorkspaceProvider,
+    useAiLobbyWorkspace,
+    type PairAiLobbyMatchMode,
+} from './waiting-room/AiLobbyInlineWorkspace.js';
 import { mergeArenaEntranceAvailability } from '../constants/arenaEntrance.js';
 import { isClientAdmin } from '../utils/clientAdmin.js';
 import PairRoomSeatGrid, { type PairSeatMember } from './pair/PairRoomSeatGrid.js';
 import PairRoomChatPanel, { type PairRoomChatScope } from './pair/PairRoomChatPanel.js';
-import type { PairLobbyPetSnapshot, PairRoomChatLine } from '../types/api.js';
+import type { PairLobbyPetSnapshot, PairRoomChatLine, ArenaLobbyIntent } from '../types/api.js';
 import type { InventoryItem } from '../types.js';
 import PairPartnerInviteModal from './pair/PairPartnerInviteModal.js';
 import PairPetRankedMatchOfferModal from './pair/PairPetRankedMatchOfferModal.js';
 import PairPetRankedMatchModeModal, { resolveMyPairRankedTierForPairArena } from './pair/PairPetRankedMatchModeModal.js';
 import AiChallengeModal, { type AiLobbyPreferredGameSettingsBucket } from './waiting-room/AiChallengeModal.js';
-import AiChallengePanel, { formatLobbyAiRecordLine } from './waiting-room/AiChallengePanel.js';
 import RankedMatchPanel from './waiting-room/RankedMatchPanel.js';
+import ChatWindow from './waiting-room/ChatWindow.js';
+import { mergeWaitingRoomPublicChatMessages } from '../shared/utils/waitingRoomGlobalChatMerge.js';
 import { GameMode, type GameSettings, type ServerAction } from '../types.js';
 import {
     AVATAR_POOL,
@@ -43,14 +57,10 @@ import {
     effectiveStrategicRankedQueueApCostForUser,
     formatActionPointCostWithPetDiscount,
 } from '../shared/utils/pairPetArenaApDiscount.js';
-import { sumLobbyAiMatchRecordFromStats } from '../shared/utils/lobbyAiMatchRecord.js';
 import { useScreenGuide } from '../hooks/useScreenGuide.js';
 import ScreenGuideModal from './ScreenGuideModal.js';
 import {
     type WaitingLobbyPanelTone,
-    aiChallengeFeatureShellClass,
-    aiChallengeFeatureTopHairlineClass,
-    aiChallengePanelInnerGradientClass,
     pairLobbyListFilterSelectClassForTone,
     pairLobbyOrphanInGamePillClass,
     pairLobbyOrphanRoomChipInGameClass,
@@ -95,7 +105,7 @@ import {
     waitingLobbyPcPanelTopHairlineClassFor,
     waitingLobbyToneFromPairChannel,
 } from './waiting-room/waitingLobbyHomePanelStyles.js';
-import { WaitingLobbyAnnouncementBoard } from './waiting-room/WaitingLobbyAnnouncementBoard.js';
+import { WaitingLobbyAnnouncementBoard, type WaitingLobbyAnnouncementBoardMode } from './waiting-room/WaitingLobbyAnnouncementBoard.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
@@ -115,8 +125,9 @@ import { RANKED_STRATEGIC_MODES, getRankedGameSettings } from '../constants/rank
 import { PAIR_GO_GAME_MODES } from '../shared/utils/pairGameTurn.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
 import { resolvePairPetMetaFromInventoryRow } from '../shared/utils/pairPetRoll.js';
-import { readPairRankedBlock, readPairArenaAiMatchRecord } from '../shared/utils/unifiedRankedStatsMigration.js';
+import { readPairRankedBlock } from '../shared/utils/unifiedRankedStatsMigration.js';
 import {
+    buildPairLobbySettingChangeDiffRows,
     buildPairRoomLobbyGameSettingRows,
     normalizePairListRoomKind,
     pairLobbyGameModeIconAndName,
@@ -124,7 +135,19 @@ import {
     sanitizePairLobbyDraftModeSettings,
     truncatePlayfulLobbySettingDisplayValue,
 } from '../shared/utils/pairLobbyGameSettingRows.js';
+import PairLobbySettingChangeDiffTable from './waiting-room/PairLobbySettingChangeDiffTable.js';
 import { replaceAppHash, stableStringify } from '../utils/appUtils.js';
+import {
+    arenaLobbyHash,
+    isPairAiDuoInviteOnlyRoom,
+    isPairRoomVisibleInLobbyIntent,
+    pairRoomRequiresLeaveConfirmation,
+    roomKindsForLobbyDestination,
+    isRoomKindAllowedForLobby,
+} from '../shared/utils/arenaLobbyDestination.js';
+import type { PairAiDuoRoomEnsureResult } from './waiting-room/AiLobbyInlineWorkspace.js';
+
+const PAIR_ALREADY_IN_ROOM_SERVER_ERROR = '이미 참여 중인 페어 방이 있습니다.';
 import { getCurrentSeason, getPreviousSeason } from '../utils/timeUtils.js';
 
 function pairLobbyPairModeOrDefault(mode: unknown): GameMode {
@@ -175,6 +198,12 @@ const PAIR_LOBBY_ROOM_SLOT_ROWS = Math.ceil(PAIR_LOBBY_GRID_SLOT_COUNT / PAIR_LO
 /** 스크롤 뷰포트 측정 전·최소 높이 가정용 행 높이(px) — PC는 뷰÷10, 모바일은 더 큰 카드용 별도 계산 */
 const PAIR_LOBBY_ROOM_SLOT_ROW_FALLBACK_PX = 58;
 const PAIR_LOBBY_ROOM_SLOT_ROW_FALLBACK_HANDHELD_PX = 88;
+/** 스크롤 뷰포트 측정 전·가상화 범위 계산용 최소 높이(px) */
+const PAIR_LOBBY_ROOM_SLOT_VIEWPORT_FALLBACK_PX = 560;
+const PAIR_LOBBY_ROOM_SLOT_VIEWPORT_FALLBACK_HANDHELD_PX = 400;
+/** 입장 직후 그리드 슬롯 선로드(측정 전 5칸만 fetch 되는 문제 방지) */
+const PAIR_LOBBY_ROOM_SLOT_INITIAL_FETCH_DESKTOP = 30;
+const PAIR_LOBBY_ROOM_SLOT_INITIAL_FETCH_HANDHELD = 18;
 const PAIR_LOBBY_ROOM_SLOT_VIRTUAL_OVERSCAN_ROWS = 4;
 
 /** 방 내부 채팅: 전송 성공 후 전송 UI 비활성화 시간(ms) */
@@ -198,6 +227,38 @@ const PAIR_LOBBY_ROOM_LIST_SCROLLBAR_CLASS =
 
 type RoomKind = 'ai_duel' | 'duo_match' | 'friendly_4p' | 'friendly_2p' | 'arena_ai';
 export type PairWaitingLobbyChannel = 'pair' | 'strategic' | 'playful';
+
+const PAIR_LOBBY_PRESENCE_CLIENT_ID_SESSION_KEY = 'sudamr_pair_lobby_presence_client_id';
+
+/** 전략·놀이 집계 AI 등 — `AiLobbyWorkspaceProvider` 없이 중앙·유저 2열 + 퀵레일 */
+const PcLobbyCenterRightWorkspace: React.FC<{
+    center: React.ReactNode;
+    usersPanel: React.ReactNode;
+}> = ({ center, usersPanel }) => (
+    <div className={`flex min-h-0 min-w-0 flex-1 flex-row overflow-hidden ${PC_LOBBY_THREE_COLUMN_ROW_GAP_CLASS}`}>
+        <PcLobbyCenterRightColumn center={center} right={usersPanel} rightClassName={PC_LOBBY_USERS_COLUMN_CLASS} />
+        <PcLobbyQuickRailColumn />
+    </div>
+);
+
+/** 페어 AI — `AiLobbyWorkspaceProvider` 안에서만 사용 (2인 팀 모드에 따라 유저 열 전환) */
+const PairAiDesktopMainWorkspace: React.FC<{
+    center: React.ReactNode;
+    usersPanel: React.ReactNode;
+    duoUsersPanel: React.ReactNode;
+}> = ({ center, usersPanel, duoUsersPanel }) => {
+    const { pairMatchMode } = useAiLobbyWorkspace();
+    return (
+        <div className={`flex min-h-0 min-w-0 flex-1 flex-row overflow-hidden ${PC_LOBBY_THREE_COLUMN_ROW_GAP_CLASS}`}>
+            <PcLobbyCenterRightColumn
+                center={center}
+                right={pairMatchMode === 'duo' ? duoUsersPanel : usersPanel}
+                rightClassName={PC_LOBBY_USERS_COLUMN_CLASS}
+            />
+            <PcLobbyQuickRailColumn />
+        </div>
+    );
+};
 type Visibility = 'public' | 'private';
 
 type PairRoom = {
@@ -260,8 +321,49 @@ type PairRoom = {
         };
     };
     pairLobbySettingChangeCooldownUntil?: Record<string, number>;
+    pairOwnerStartDeadlineAt?: number;
+    pairGuestJoinOrder?: string[];
     pairPetRankedQueueShell?: boolean;
+    pairAiDuoInviteShell?: boolean;
 };
+
+/** 페어 AI 로비 2인 팀 — 초대 전용 팀 로비(플래그 없는 구형 방 포함) */
+function isPairAiDuoTeamLobbyContext(
+    room: PairRoom | null | undefined,
+    lobbyIntent: 'pvp' | 'ai',
+    lobbyChannel: PairWaitingLobbyChannel,
+): boolean {
+    return Boolean(lobbyIntent === 'ai' && lobbyChannel === 'pair' && room?.roomKind === 'duo_match');
+}
+
+function pairLobbyMyRoomTabLabel(
+    room: PairRoom,
+    lobbyIntent: 'pvp' | 'ai',
+    lobbyChannel: PairWaitingLobbyChannel,
+): string {
+    if (isPairAiDuoTeamLobbyContext(room, lobbyIntent, lobbyChannel)) return '파트너';
+    return `${room.code}번방`;
+}
+
+/** 모바일: 페어 AI 2인 팀 — 파트너 슬롯은 AI설정 탭에 통합, 별도 「파트너」탭 숨김 */
+function showHandheldPairLobbyMyRoomTab(
+    room: PairRoom | null | undefined,
+    lobbyIntent: 'pvp' | 'ai',
+    lobbyChannel: PairWaitingLobbyChannel,
+): boolean {
+    if (!room) return false;
+    if (isPairAiDuoTeamLobbyContext(room, lobbyIntent, lobbyChannel)) return false;
+    return true;
+}
+
+function handheldPairLobbyRoomFocusTab(
+    room: PairRoom,
+    lobbyIntent: 'pvp' | 'ai',
+    lobbyChannel: PairWaitingLobbyChannel,
+): 'room' | 'ai' {
+    if (isPairAiDuoTeamLobbyContext(room, lobbyIntent, lobbyChannel)) return 'ai';
+    return 'room';
+}
 
 function lobbySpectatorPetSnapshotToInventoryItem(snap: PairLobbyPetSnapshot): InventoryItem | null {
     const tid = snap.templateId;
@@ -373,8 +475,44 @@ const ROOM_KIND_OPTIONS: { value: RoomKind; label: string }[] = [
 /** 전략·놀이 방 만들기: 친선전만 — 선택 UI는 옵션이 2개 이상일 때만 표시 */
 const STRATEGIC_PLAYFUL_CREATE_ROOM_KIND_OPTIONS: { value: RoomKind; label: string }[] = [{ value: 'duo_match', label: '친선전' }];
 
-function pairLobbyCreateModalRoomKindOptions(lobbyChannel: PairWaitingLobbyChannel): readonly { value: RoomKind; label: string }[] {
-    return lobbyChannel === 'pair' ? ROOM_KIND_OPTIONS : STRATEGIC_PLAYFUL_CREATE_ROOM_KIND_OPTIONS;
+function resolveCreateModalRoomKind(
+    lobbyChannel: PairWaitingLobbyChannel,
+    lobbyIntent: ArenaLobbyIntent,
+    hasEquippedPairPet: boolean,
+): RoomKind {
+    const kindOptions = pairLobbyCreateModalRoomKindOptions(lobbyChannel, lobbyIntent);
+    let rk: RoomKind = kindOptions[0]?.value ?? (lobbyChannel === 'pair' ? 'friendly_4p' : 'duo_match');
+    if (
+        !normalizeStoredRoomKind(rk) ||
+        !isRoomKindAllowedForLobby(rk, { intent: lobbyIntent, channel: lobbyChannel })
+    ) {
+        rk = kindOptions[0]?.value ?? (lobbyChannel === 'pair' ? 'friendly_4p' : 'duo_match');
+    }
+    if (rk === 'friendly_2p' && !hasEquippedPairPet) {
+        rk = kindOptions.find((o) => o.value !== 'friendly_2p')?.value ?? rk;
+    }
+    return rk;
+}
+
+function loadCreateModalDraftBundleForRoomKind(
+    lobbyChannel: PairWaitingLobbyChannel,
+    rk: RoomKind,
+): PairCreateModalDraftBundle {
+    const doc = loadPairLobbyCreatePrefsDoc(lobbyChannel);
+    const slotRaw = doc?.draftsByRoomKind[rk];
+    const norm = normalizeRoomKindDraftSlot(slotRaw, lobbyChannel);
+    if (norm) return buildDraftBundleFromNormalizedSlot(norm, lobbyChannel, rk);
+    return defaultDraftBundleForLobbyChannel(lobbyChannel);
+}
+
+function pairLobbyCreateModalRoomKindOptions(
+    lobbyChannel: PairWaitingLobbyChannel,
+    lobbyIntent: ArenaLobbyIntent,
+): readonly { value: RoomKind; label: string }[] {
+    const dest = { intent: lobbyIntent, channel: lobbyChannel };
+    const kinds = roomKindsForLobbyDestination(dest);
+    const labelFor = (k: RoomKind) => roomKindLabel(k, lobbyChannel);
+    return kinds.map((value) => ({ value, label: labelFor(value) }));
 }
 
 /** 모바일 방 내부 하단 액션 버튼 — 세로 폭 최소화 */
@@ -475,28 +613,32 @@ type PairLobbyListRoomKindFilter = 'all' | RoomKind;
 
 function pairLobbyListRoomKindFilterOptionsForChannel(
     lobbyChannel: 'pair' | 'strategic' | 'playful',
+    lobbyIntent: ArenaLobbyIntent = 'pvp',
 ): ReadonlyArray<{ value: PairLobbyListRoomKindFilter; label: string }> {
     const all = { value: 'all' as const, label: '전체(방 종류)' };
     if (lobbyChannel === 'playful') {
-        return [
+        const opts: Array<{ value: PairLobbyListRoomKindFilter; label: string }> = [
             all,
             { value: 'duo_match', label: '친선전' },
-            { value: 'arena_ai', label: 'AI와 대결' },
         ];
+        if (lobbyIntent === 'ai') opts.push({ value: 'arena_ai', label: 'AI와 대결' });
+        return opts;
     }
     if (lobbyChannel === 'strategic') {
-        return [
+        const opts: Array<{ value: PairLobbyListRoomKindFilter; label: string }> = [
             all,
             { value: 'duo_match', label: '친선전' },
-            { value: 'arena_ai', label: 'AI와 대결' },
         ];
+        if (lobbyIntent === 'ai') opts.push({ value: 'arena_ai', label: 'AI와 대결' });
+        return opts;
     }
-    return [
+    const opts: Array<{ value: PairLobbyListRoomKindFilter; label: string }> = [
         all,
         { value: 'friendly_4p', label: '4인 친선' },
         { value: 'friendly_2p', label: '2인 친선' },
-        { value: 'duo_match', label: '2인 AI대전' },
     ];
+    if (lobbyIntent === 'ai') opts.push({ value: 'duo_match', label: '2인 AI대전' });
+    return opts;
 }
 
 function pairLobbyListGameModeFilterShortLabel(name: string): string {
@@ -1012,9 +1154,12 @@ type JoinPasswordModal = {
     roomTitle: string;
 };
 
-export type PairWaitingLobbyProps = { lobbyChannel?: PairWaitingLobbyChannel };
+export type PairWaitingLobbyProps = {
+    lobbyChannel?: PairWaitingLobbyChannel;
+    lobbyIntent?: ArenaLobbyIntent;
+};
 
-const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pair' }) => {
+const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pair', lobbyIntent = 'pvp' }) => {
     const { isNativeMobile } = useNativeMobileShell();
     const isHandheld = useIsHandheldDevice(1024);
     const {
@@ -1029,7 +1174,12 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         rankedMatchingQueue,
         arenaEntranceAvailability,
         arenaEntranceFromServer,
+        waitingRoomChats,
     } = useAppContext();
+    const mergedPublicChatMessages = useMemo(
+        () => mergeWaitingRoomPublicChatMessages(waitingRoomChats),
+        [waitingRoomChats],
+    );
     const [joinRoomNumber, setJoinRoomNumber] = useState('');
     const [pairLobbyListRoomKindFilter, setPairLobbyListRoomKindFilter] = useState<PairLobbyListRoomKindFilter>('all');
     const [pairLobbyListGameModeFilter, setPairLobbyListGameModeFilter] = useState<'all' | GameMode>('all');
@@ -1041,6 +1191,10 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
     >('rooms');
     /** PC·모바일 우측(유저 열): 방 내부 UI ↔ 유저 목록 ↔ AI대결(전략·놀이 집계만) */
     const [pairLobbyRightTab, setPairLobbyRightTab] = useState<'room' | 'users' | 'ai'>('room');
+    /** PVP 중앙 열: 방목록 ↔ 내 방(N번방) */
+    const [pairLobbyCenterTab, setPairLobbyCenterTab] = useState<'rooms' | 'room'>('rooms');
+    /** 페어 AI 솔로↔2인 팀 — 유저 열·모바일 탭이 duo 껍데기 방을 방으로 보지 않게 동기화 */
+    const [pairAiLobbyMatchMode, setPairAiLobbyMatchMode] = useState<PairAiLobbyMatchMode>('solo');
     const [isBusy, setIsBusy] = useState(false);
     const [pairRoomChatSendCooldownUi, setPairRoomChatSendCooldownUi] = useState(false);
     const pairRoomChatSendCooldownRef = useRef(false);
@@ -1052,6 +1206,9 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
     const hasEnteredAggregateLobby = useRef(false);
     /** 제출 시점에 항상 최신 경기장 채널을 쓰도록 함(모달 비동기·탭 전환 등으로 클로저가 옛값을 잡는 경우 방지) */
     const lobbyChannelRef = useRef<PairWaitingLobbyChannel>(lobbyChannel);
+    const lobbyIntentRef = useRef<ArenaLobbyIntent>(lobbyIntent);
+    const intentNavDebounceRef = useRef<number | null>(null);
+    const handleActionRef = useRef(handlers.handleAction);
     /** 방 만들기: 방 종류 변경 직전 값 — 시계·덤이 AI무제한/친선·랭킹 프리셋 사이에 섞이지 않게 동기화 */
     const prevCreateModalRoomKindForClockRef = useRef<RoomKind | null>(null);
     /** 인게임「대기실로」복귀 시 POST_GAME_PAIR_ROOM_RESTORE 한 번만 처리 */
@@ -1060,8 +1217,18 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         lobbyChannelRef.current = lobbyChannel;
     }, [lobbyChannel]);
     useEffect(() => {
+        lobbyIntentRef.current = lobbyIntent;
+    }, [lobbyIntent]);
+    useEffect(() => {
+        handleActionRef.current = handlers.handleAction;
+    }, [handlers.handleAction]);
+    const stableLobbyHandleAction = useCallback(
+        (action: ServerAction) => handleActionRef.current(action),
+        [],
+    );
+    useEffect(() => {
         hasEnteredAggregateLobby.current = false;
-    }, [lobbyChannel]);
+    }, [lobbyChannel, lobbyIntent]);
     useEffect(() => {
         postGamePairRoomRestoreDoneRef.current = false;
     }, [lobbyChannel]);
@@ -1069,16 +1236,12 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
     const pvpArenaScreenGuide = useScreenGuide('pvpArena');
 
     const aggregateLobbyMode = lobbyChannel === 'strategic' || lobbyChannel === 'playful' ? lobbyChannel : null;
-    const aggregateLobbyAiRecord = useMemo(() => {
-        if (!aggregateLobbyMode || !currentUserWithStatus?.stats) return { wins: 0, losses: 0 };
-        return sumLobbyAiMatchRecordFromStats(currentUserWithStatus.stats, aggregateLobbyMode);
-    }, [aggregateLobbyMode, currentUserWithStatus?.stats]);
     /** 모바일 상단 탭에 「랭킹전」 분리 표시 (전략 집계·페어 본로비) */
     const showHandheldRankedTab = lobbyChannel === 'strategic' || lobbyChannel === 'pair';
 
     const pairLobbyListRoomKindFilterOptions = useMemo(
-        () => pairLobbyListRoomKindFilterOptionsForChannel(lobbyChannel),
-        [lobbyChannel],
+        () => pairLobbyListRoomKindFilterOptionsForChannel(lobbyChannel, lobbyIntent),
+        [lobbyChannel, lobbyIntent],
     );
     const pairLobbyListGameModeFilterOptions = useMemo(
         () => pairLobbyListGameModeFilterOptionsForChannel(lobbyChannel),
@@ -1087,33 +1250,39 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
 
     useEffect(() => {
         setPairLobbyListRoomKindFilter((prev) =>
-            pairLobbyListRoomKindFilterOptionsForChannel(lobbyChannel).some((o) => o.value === prev) ? prev : 'all',
+            pairLobbyListRoomKindFilterOptionsForChannel(lobbyChannel, lobbyIntent).some((o) => o.value === prev)
+                ? prev
+                : 'all',
         );
         setPairLobbyListGameModeFilter((prev) =>
             pairLobbyListGameModeFilterOptionsForChannel(lobbyChannel).some((o) => o.value === prev) ? prev : 'all',
         );
-    }, [lobbyChannel]);
+    }, [lobbyChannel, lobbyIntent]);
 
     useEffect(() => {
         try {
             if (lobbyChannel !== 'pair') return;
             if (sessionStorage.getItem('sudamr_pair_lobby_open_pet_tab') === '1') {
                 sessionStorage.removeItem('sudamr_pair_lobby_open_pet_tab');
-                handlers.openPetManagementModal();
+                handlers.openPetManagementModal({ modal: true });
             }
         } catch {
             // ignore
         }
     }, [lobbyChannel, handlers]);
 
-    /** 전략/놀이: 펫은 퀵메뉴 모달로 — 모바일도 방목록이 기본 탭 */
+    /** 전략/놀이: 펫은 퀵메뉴 모달로 — PVP는 방목록, AI는 AI설정이 기본 탭 */
     useEffect(() => {
+        if (lobbyIntent === 'ai') {
+            setPairLobbyMobileTab('ai');
+            return;
+        }
         if (lobbyChannel === 'strategic' || lobbyChannel === 'playful') {
             setPairLobbyMobileTab('rooms');
         } else {
             setPairLobbyMobileTab((t) => (t === 'rankedAi' || t === 'ai' ? 'rooms' : t));
         }
-    }, [lobbyChannel]);
+    }, [lobbyChannel, lobbyIntent]);
 
     useEffect(() => {
         if (!showHandheldRankedTab && (pairLobbyMobileTab === 'ranked' || pairLobbyMobileTab === 'rankedAi')) {
@@ -1121,13 +1290,11 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         }
     }, [showHandheldRankedTab, pairLobbyMobileTab]);
 
-    /** 전략 집계 로비: 예전 분리 탭(ai / ranked) → 통합 탭 */
     useEffect(() => {
-        if (lobbyChannel !== 'strategic') return;
-        if (pairLobbyMobileTab === 'ai' || pairLobbyMobileTab === 'ranked') {
-            setPairLobbyMobileTab('rankedAi');
+        if (pairLobbyMobileTab === 'rankedAi') {
+            setPairLobbyMobileTab(showHandheldRankedTab && lobbyIntent === 'pvp' ? 'ranked' : 'rooms');
         }
-    }, [lobbyChannel, pairLobbyMobileTab]);
+    }, [pairLobbyMobileTab, showHandheldRankedTab, lobbyIntent]);
 
     useEffect(() => {
         if (!aggregateLobbyMode || !currentUserWithStatus) return;
@@ -1147,11 +1314,14 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
             (aggregateLobbyMode === 'playful' && PLAYFUL_GAME_MODES.some((x) => x.mode === currentUserWithStatus.mode));
         if (!isAlready || !modeMatches) {
             hasEnteredAggregateLobby.current = true;
-            void handlers.handleAction({ type: 'ENTER_WAITING_ROOM', payload: { mode: aggregateLobbyMode } });
+            void handleActionRef.current({
+                type: 'ENTER_WAITING_ROOM',
+                payload: { mode: aggregateLobbyMode, lobbyIntent },
+            });
         } else {
             hasEnteredAggregateLobby.current = true;
         }
-    }, [aggregateLobbyMode, currentUserWithStatus, handlers]);
+    }, [aggregateLobbyMode, currentUserWithStatus, lobbyIntent]);
 
     useEffect(() => {
         if (!rankedMatchFound || !currentUserWithStatus?.id) return;
@@ -1189,60 +1359,29 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
     const [ownerLobbySettingProposalStep, setOwnerLobbySettingProposalStep] = useState<'none' | 'notice' | 'review'>('none');
     const ownerLobbyProposalNoticeIdRef = useRef<string | null>(null);
     const preLobbyChangeProposalDigestRef = useRef<string | null>(null);
+    const guestLobbyProposalOutcomeShownIdRef = useRef<string | null>(null);
     const prevPairLobbySettingProposalRef = useRef<
         | { proposalId: string; fromUserId: string; fromUserName: string; createdAt: number; payload: unknown }
         | undefined
     >(undefined);
-    const [guestLobbyChangeProposalRejectedOpen, setGuestLobbyChangeProposalRejectedOpen] = useState(false);
+    const [guestLobbyChangeProposalOutcome, setGuestLobbyChangeProposalOutcome] = useState<'accepted' | 'rejected' | null>(
+        null,
+    );
+    const [guestLobbyChangeProposeConfirmOpen, setGuestLobbyChangeProposeConfirmOpen] = useState(false);
     /** 핸드헬드「페어 방 만들기」모달: AiChallengeModal 단계 초기화용 키 */
     const [pairCreateRoomModalNonce, setPairCreateRoomModalNonce] = useState(0);
     const [createModalTitle, setCreateModalTitle] = useState('');
-    const [createModalRoomKind, setCreateModalRoomKind] = useState<RoomKind>(() => {
-        const doc = loadPairLobbyCreatePrefsDoc(lobbyChannel);
-        let rk: RoomKind = doc?.lastRoomKind ?? (lobbyChannel === 'pair' ? 'friendly_4p' : 'duo_match');
-        if (!normalizeStoredRoomKind(rk)) rk = lobbyChannel === 'pair' ? 'friendly_4p' : 'duo_match';
-        if (lobbyChannel === 'strategic' || lobbyChannel === 'playful') rk = 'duo_match';
-        else if (lobbyChannel === 'pair') {
-            if (rk === 'arena_ai' || rk === 'ai_duel') rk = 'friendly_4p';
-            const pairCreateKinds: RoomKind[] = ['friendly_4p', 'friendly_2p', 'duo_match'];
-            if (!pairCreateKinds.includes(rk)) rk = 'friendly_4p';
-        }
-        return rk;
-    });
+    const [createModalRoomKind, setCreateModalRoomKind] = useState<RoomKind>(() =>
+        resolveCreateModalRoomKind(lobbyChannel, lobbyIntent, false),
+    );
     const [createModalVisibility, setCreateModalVisibility] = useState<Visibility>('public');
     const [createModalPassword, setCreateModalPassword] = useState('');
     /** 비밀번호 칸: 안내 placeholder는 포커스 시 숨김, 비우고 블러하면 다시 표시 */
     const [createModalPasswordFieldFocused, setCreateModalPasswordFieldFocused] = useState(false);
     const [createModalDraftGame, setCreateModalDraftGame] = useState<PairCreateModalDraftBundle>(() => {
-        const doc = loadPairLobbyCreatePrefsDoc(lobbyChannel);
-        let rk: RoomKind = doc?.lastRoomKind ?? (lobbyChannel === 'pair' ? 'friendly_4p' : 'duo_match');
-        if (!normalizeStoredRoomKind(rk)) rk = lobbyChannel === 'pair' ? 'friendly_4p' : 'duo_match';
-        if (lobbyChannel === 'strategic' || lobbyChannel === 'playful') rk = 'duo_match';
-        else if (lobbyChannel === 'pair') {
-            if (rk === 'arena_ai' || rk === 'ai_duel') rk = 'friendly_4p';
-            const pairCreateKinds: RoomKind[] = ['friendly_4p', 'friendly_2p', 'duo_match'];
-            if (!pairCreateKinds.includes(rk)) rk = 'friendly_4p';
-        }
-        const slotRaw = doc?.draftsByRoomKind[rk];
-        const norm = normalizeRoomKindDraftSlot(slotRaw, lobbyChannel);
-        if (norm) return buildDraftBundleFromNormalizedSlot(norm, lobbyChannel, rk);
-        return defaultDraftBundleForLobbyChannel(lobbyChannel);
+        const rk = resolveCreateModalRoomKind(lobbyChannel, lobbyIntent, false);
+        return loadCreateModalDraftBundleForRoomKind(lobbyChannel, rk);
     });
-
-    useEffect(() => {
-        if (lobbyChannel === 'strategic' || lobbyChannel === 'playful') {
-            if (
-                createModalRoomKind === 'ai_duel' ||
-                createModalRoomKind === 'friendly_4p' ||
-                createModalRoomKind === 'friendly_2p'
-            ) {
-                setCreateModalRoomKind('duo_match');
-            }
-        }
-        if (lobbyChannel === 'pair' && (createModalRoomKind === 'arena_ai' || createModalRoomKind === 'ai_duel')) {
-            setCreateModalRoomKind('friendly_4p');
-        }
-    }, [lobbyChannel, createModalRoomKind]);
 
     const [partnerInviteModalOpen, setPartnerInviteModalOpen] = useState(false);
     const [partnerInviteTargetSlot, setPartnerInviteTargetSlot] = useState<{ team: 'teamA' | 'teamB'; index: 0 | 1 } | null>(null);
@@ -1255,9 +1394,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
     /** 전략·놀이 집계 로비: 유저 목록 상단 `RankedMatchPanel`과 동기 */
     const [aggregateLobbyRankedMatching, setAggregateLobbyRankedMatching] = useState(false);
     const [aggregateLobbyRankedMatchingStartTime, setAggregateLobbyRankedMatchingStartTime] = useState(0);
-    const [aggregateLobbyAiModalOpen, setAggregateLobbyAiModalOpen] = useState(false);
     /** 페어 본로비: 유저 목록 상단 AI(페어 껍데기) */
-    const [pairLobbyAiModalOpen, setPairLobbyAiModalOpen] = useState(false);
     const [kickConfirmModal, setKickConfirmModal] = useState<{ userId: string; userName: string } | null>(null);
     const [kickConfirmBusy, setKickConfirmBusy] = useState(false);
     const [delegateConfirmModal, setDelegateConfirmModal] = useState<{ userId: string; userName: string } | null>(null);
@@ -1268,47 +1405,83 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
     const [pairLeaveNavTargetHash, setPairLeaveNavTargetHash] = useState<string | null>(null);
     /** 방 참여 중 경기장 탭(전략/페어/놀이) 전환 시 — 해시 이동과 동일하게 나가기 확인 후 이동 */
     const [pendingArenaNavTarget, setPendingArenaNavTarget] = useState<ArenaLobbyNavKind | null>(null);
-    const handleActionRef = useRef(handlers.handleAction);
+    const [pendingIntentNavTarget, setPendingIntentNavTarget] = useState<ArenaLobbyIntent | null>(null);
     const pairLobbyPresenceClientIdRef = useRef<string | null>(null);
     /** handleAction 직후 `hashchange`가 리렌더보다 먼저 오는 경우 — 페어 껍데기 경기장 입장은 가로채지 않음 */
     const pairShellGameNavAllowIdRef = useRef<string | null>(null);
 
     const getPairLobbyPresenceClientId = () => {
-        if (!pairLobbyPresenceClientIdRef.current) {
-            pairLobbyPresenceClientIdRef.current =
-                typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-                    ? crypto.randomUUID()
-                    : `pair-lobby-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        if (pairLobbyPresenceClientIdRef.current) {
+            return pairLobbyPresenceClientIdRef.current;
         }
-        return pairLobbyPresenceClientIdRef.current;
+        try {
+            const stored = sessionStorage.getItem(PAIR_LOBBY_PRESENCE_CLIENT_ID_SESSION_KEY);
+            if (stored) {
+                pairLobbyPresenceClientIdRef.current = stored;
+                return stored;
+            }
+        } catch {
+            // ignore
+        }
+        const id =
+            typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+                ? crypto.randomUUID()
+                : `pair-lobby-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        pairLobbyPresenceClientIdRef.current = id;
+        try {
+            sessionStorage.setItem(PAIR_LOBBY_PRESENCE_CLIENT_ID_SESSION_KEY, id);
+        } catch {
+            // ignore
+        }
+        return id;
     };
 
     useEffect(() => {
-        handleActionRef.current = handlers.handleAction;
-    }, [handlers.handleAction]);
+        lobbyChannelRef.current = lobbyChannel;
+        lobbyIntentRef.current = lobbyIntent;
 
-    useEffect(() => {
-        const id = window.setInterval(() => setCooldownUiTick((t) => t + 1), 500);
-        return () => window.clearInterval(id);
-    }, []);
-
-    useEffect(() => {
         const clientId = getPairLobbyPresenceClientId();
-        const markActive = () =>
-            handleActionRef.current({
+        let lastActiveKey = '';
+        let lastActiveAt = 0;
+
+        const markActive = (force = false) => {
+            const ch = lobbyChannelRef.current;
+            const intent = lobbyIntentRef.current;
+            const key = `${clientId}|${ch}|${intent}`;
+            const now = Date.now();
+            if (!force && key === lastActiveKey && now - lastActiveAt < 1000) return;
+            lastActiveKey = key;
+            lastActiveAt = now;
+            void handleActionRef.current({
                 type: 'PAIR_SET_LOBBY_SCREEN',
-                payload: { active: true, clientId, lobbyChannel: lobbyChannelRef.current },
-            }).catch(() => undefined);
-        markActive();
-        const heartbeatId = window.setInterval(markActive, 15000);
-        return () => {
-            window.clearInterval(heartbeatId);
-            handleActionRef.current({
-                type: 'PAIR_SET_LOBBY_SCREEN',
-                payload: { active: false, clientId, lobbyChannel: lobbyChannelRef.current },
+                payload: {
+                    active: true,
+                    clientId,
+                    lobbyChannel: ch,
+                    lobbyIntent: intent,
+                },
             }).catch(() => undefined);
         };
-    }, []);
+
+        markActive(true);
+        const heartbeatId = window.setInterval(() => markActive(true), 15000);
+        return () => {
+            window.clearInterval(heartbeatId);
+            if (intentNavDebounceRef.current != null) {
+                window.clearTimeout(intentNavDebounceRef.current);
+                intentNavDebounceRef.current = null;
+            }
+            void handleActionRef.current({
+                type: 'PAIR_SET_LOBBY_SCREEN',
+                payload: {
+                    active: false,
+                    clientId,
+                    lobbyChannel: lobbyChannelRef.current,
+                    lobbyIntent: lobbyIntentRef.current,
+                },
+            }).catch(() => undefined);
+        };
+    }, [lobbyChannel, lobbyIntent]);
 
     useEffect(() => {
         handleActionRef.current({ type: 'PAIR_SYNC' }).catch(() => undefined);
@@ -1317,7 +1490,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
 
     const mergedInviteCooldownUntilByInviteeId = useMemo(
         () => ({ ...pairInviteCooldownUntilByInviteeId, ...localInviteCooldownUntilByInviteeId }),
-        [pairInviteCooldownUntilByInviteeId, localInviteCooldownUntilByInviteeId, cooldownUiTick]
+        [pairInviteCooldownUntilByInviteeId, localInviteCooldownUntilByInviteeId],
     );
 
     const pairRoomsAllChannels = useMemo(
@@ -1329,13 +1502,18 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         () => pairRoomsAllChannels.filter((r) => (r.lobbyChannel ?? 'pair') === lobbyChannel),
         [pairRoomsAllChannels, lobbyChannel],
     );
-    /** 타인에게는 보이지 않는 펫 랭킹 큐 껍데기 방 제외(본인 것만 목록·슬롯에 반영) */
+    const lobbyDestination = useMemo(
+        () => ({ intent: lobbyIntent, channel: lobbyChannel }),
+        [lobbyIntent, lobbyChannel],
+    );
+    const roomVisibleInLobby = useCallback(
+        (r: PairRoom) => isPairRoomVisibleInLobbyIntent(r, lobbyDestination, currentUserId),
+        [lobbyDestination, currentUserId],
+    );
+    /** intent·pairMode·껍데기 방 규칙으로 목록 노출 방 필터 */
     const rooms = useMemo(
-        () =>
-            roomsAllInLobbyChannel.filter(
-                (r) => !(r.pairPetRankedQueueShell && r.ownerId !== currentUserId),
-            ),
-        [roomsAllInLobbyChannel, currentUserId],
+        () => roomsAllInLobbyChannel.filter(roomVisibleInLobby),
+        [roomsAllInLobbyChannel, roomVisibleInLobby],
     );
     const pairPetRankedQueueCountsByMode = useMemo(() => {
         const counts: Partial<Record<GameMode, number>> = {};
@@ -1386,6 +1564,10 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         [pairRoomsAllChannels, currentUserId],
     );
     const userParticipatingInAnyPairRoom = Boolean(myRoomAnyLobbyChannel);
+    /** PVP 방만 이동 시 나가기 확인 — AI 로비 껍데기 방은 자유 이동 */
+    const pairRoomBlockingNavigation = Boolean(
+        myRoomAnyLobbyChannel && pairRoomRequiresLeaveConfirmation(myRoomAnyLobbyChannel),
+    );
     const lobbyTone: WaitingLobbyPanelTone =
         lobbyChannel === 'playful' ? 'playful' : lobbyChannel === 'pair' ? 'pair' : 'strategic';
 
@@ -1406,7 +1588,9 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
     const usersInAggregateLobby = useMemo(() => {
         if (!aggregateLobbyMode || !currentUserWithStatus) return [] as UserWithStatus[];
         const isStrategicLobby = aggregateLobbyMode === 'strategic';
-        const all = onlineUsers.filter((u) => u && userInUnifiedArenaLobbyUserList(u));
+        const matchesIntent = (u: { lobbyIntent?: ArenaLobbyIntent }) =>
+            !u.lobbyIntent || u.lobbyIntent === lobbyIntent;
+        const all = onlineUsers.filter((u) => u && userInUnifiedArenaLobbyUserList(u) && matchesIntent(u));
         const me = all.find((u) => u.id === currentUserWithStatus.id);
         if (!me) {
             const { waitingLobby: _w, mode: _m, ...userBase } = currentUserWithStatus;
@@ -1415,27 +1599,56 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                 status: UserStatus.Waiting,
                 waitingLobby: isStrategicLobby ? 'strategic' : 'playful',
                 arenaChannel: isStrategicLobby ? 'strategic' : 'playful',
+                lobbyIntent,
             };
             return [currentUserInRoom, ...all];
         }
         return [me, ...all.filter((u) => u.id !== currentUserWithStatus.id)];
-    }, [aggregateLobbyMode, onlineUsers, currentUserWithStatus]);
+    }, [aggregateLobbyMode, onlineUsers, currentUserWithStatus, lobbyIntent]);
+
+    const leaveAiShellRoomSilently = useCallback(() => {
+        const room = myRoomAnyLobbyChannel;
+        if (!room || pairRoomRequiresLeaveConfirmation(room)) return;
+        void handlers.handleAction({ type: 'PAIR_LEAVE_ROOM' }).catch(() => undefined);
+    }, [myRoomAnyLobbyChannel, handlers]);
 
     const navigateArenaTab = useCallback(
         (target: ArenaLobbyNavKind) => {
             if (target === (lobbyChannel as ArenaLobbyNavKind)) return;
-            if (userParticipatingInAnyPairRoom) {
+            if (pairRoomBlockingNavigation) {
                 setPendingArenaNavTarget(target);
                 return;
             }
+            leaveAiShellRoomSilently();
             if (lobbyChannel === 'strategic' || lobbyChannel === 'playful') {
                 void handlers.handleAction({ type: 'LEAVE_WAITING_ROOM' });
             }
-            if (target === 'strategic') replaceAppHash('#/waiting/strategic');
-            else if (target === 'playful') replaceAppHash('#/waiting/playful');
-            else replaceAppHash('#/pair');
+            replaceAppHash(arenaLobbyHash({ intent: lobbyIntent, channel: target }));
         },
-        [lobbyChannel, handlers, userParticipatingInAnyPairRoom],
+        [lobbyChannel, lobbyIntent, handlers, pairRoomBlockingNavigation, leaveAiShellRoomSilently],
+    );
+
+    const navigateIntentTab = useCallback(
+        (target: ArenaLobbyIntent) => {
+            if (target === lobbyIntent) return;
+            if (pairRoomBlockingNavigation) {
+                setPendingIntentNavTarget(target);
+                return;
+            }
+            setPairLobbyRoomForm('closed');
+            if (intentNavDebounceRef.current != null) {
+                window.clearTimeout(intentNavDebounceRef.current);
+            }
+            intentNavDebounceRef.current = window.setTimeout(() => {
+                intentNavDebounceRef.current = null;
+                leaveAiShellRoomSilently();
+                if (lobbyChannel === 'strategic' || lobbyChannel === 'playful') {
+                    void handlers.handleAction({ type: 'LEAVE_WAITING_ROOM' });
+                }
+                replaceAppHash(arenaLobbyHash({ intent: target, channel: lobbyChannel }));
+            }, 120);
+        },
+        [lobbyChannel, lobbyIntent, handlers, pairRoomBlockingNavigation, leaveAiShellRoomSilently],
     );
 
     const backToProfile = useCallback(() => {
@@ -1496,6 +1709,46 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         () => rooms.find((r) => userInPairRoomClient(r, currentUserId)) || null,
         [rooms, currentUserId],
     );
+    /** 솔로 모드에서 남은 2인 AI 초대 껍데기 방은 유저 열·모바일 방 탭에 노출하지 않음 */
+    const myRoomForUsersColumnChrome = useMemo(() => {
+        if (!myRoom) return null;
+        if (
+            lobbyChannel === 'pair' &&
+            lobbyIntent === 'ai' &&
+            pairAiLobbyMatchMode === 'solo' &&
+            isPairAiDuoInviteOnlyRoom(myRoom)
+        ) {
+            return null;
+        }
+        return myRoom;
+    }, [myRoom, lobbyChannel, lobbyIntent, pairAiLobbyMatchMode]);
+
+    const showHandheldMyRoomTab = useMemo(
+        () => showHandheldPairLobbyMyRoomTab(myRoomForUsersColumnChrome, lobbyIntent, lobbyChannel),
+        [myRoomForUsersColumnChrome, lobbyIntent, lobbyChannel],
+    );
+
+    /** 활성 쿨다운이 있을 때만 500ms 틱 — 전략 AI 대기실(방 없음) 등에서는 전체 로비 리렌더 방지 */
+    useEffect(() => {
+        const lobbyChangeCooldownUntil = myRoom?.pairLobbySettingChangeCooldownUntil?.[currentUserId];
+        const lobbyChangeCooldownActive =
+            typeof lobbyChangeCooldownUntil === 'number' && lobbyChangeCooldownUntil > Date.now();
+        const inviteCooldownActive = Object.values({
+            ...pairInviteCooldownUntilByInviteeId,
+            ...localInviteCooldownUntilByInviteeId,
+        }).some((until) => until > Date.now());
+        if (!lobbyChangeCooldownActive && !inviteCooldownActive) {
+            return;
+        }
+        const id = window.setInterval(() => setCooldownUiTick((t) => t + 1), 500);
+        return () => window.clearInterval(id);
+    }, [
+        myRoom,
+        currentUserId,
+        pairInviteCooldownUntilByInviteeId,
+        localInviteCooldownUntilByInviteeId,
+    ]);
+
     /** 페어 펫 랭킹전 큐 껍데기로 매칭 대기 중 — 중앙 슬롯 목록에는 비표시, 포커스는 랭킹 패널(전략 경기장 랭킹전과 동일) */
     const isPairPetRankedQueueShellMatching = Boolean(
         lobbyChannel === 'pair' &&
@@ -1528,27 +1781,38 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
     );
 
     const handheldLobbyMainTabGridColsClass = useMemo(() => {
-        let n = 1;
-        if (myRoom) n += 1;
+        let n = 0;
+        if (lobbyIntent === 'pvp') n += 1;
+        if (showHandheldMyRoomTab) n += 1;
         n += 1;
-        if (aggregateLobbyMode === 'strategic') {
-            n += 1;
-        }
-        if (lobbyChannel === 'playful') {
-            n += 1;
-        }
-        if (lobbyChannel === 'pair' && showHandheldRankedTab) {
-            n += 1;
-        }
+        if (lobbyIntent === 'ai') n += 1;
+        if (showHandheldRankedTab && lobbyIntent === 'pvp') n += 1;
         if (n <= 3) return 'grid-cols-3';
         if (n === 4) return 'grid-cols-4';
         if (n === 5) return 'grid-cols-5';
         return 'grid-cols-6';
-    }, [myRoom, aggregateLobbyMode, lobbyChannel, showHandheldRankedTab]);
+    }, [showHandheldMyRoomTab, lobbyIntent, showHandheldRankedTab]);
 
     useEffect(() => {
-        if (!aggregateLobbyMode && pairLobbyMobileTab === 'ai') setPairLobbyMobileTab('users');
-    }, [aggregateLobbyMode, pairLobbyMobileTab]);
+        if (!isHandheld || pairLobbyMobileTab !== 'room') return;
+        if (!showHandheldMyRoomTab) {
+            setPairLobbyMobileTab(lobbyIntent === 'ai' ? 'ai' : 'users');
+        }
+    }, [isHandheld, pairLobbyMobileTab, showHandheldMyRoomTab, lobbyIntent]);
+
+    useEffect(() => {
+        if (lobbyIntent === 'ai' && pairLobbyMobileTab === 'rooms') {
+            setPairLobbyMobileTab('ai');
+        } else if (lobbyIntent === 'pvp' && pairLobbyMobileTab === 'ai') {
+            setPairLobbyMobileTab('rooms');
+        }
+    }, [lobbyIntent, pairLobbyMobileTab]);
+
+    useEffect(() => {
+        if (!aggregateLobbyMode && lobbyIntent !== 'ai' && pairLobbyMobileTab === 'ai') {
+            setPairLobbyMobileTab('users');
+        }
+    }, [aggregateLobbyMode, pairLobbyMobileTab, lobbyIntent]);
 
     useEffect(() => {
         if (!aggregateLobbyMode && pairLobbyRightTab === 'ai') setPairLobbyRightTab('users');
@@ -1566,33 +1830,49 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         if (pairLobbyRightTab === 'ai') setPairLobbyRightTab('users');
     }, [aggregateLobbyMode, isHandheld, pairLobbyRightTab]);
 
-    /** 방 입장 시 우측을 방 탭으로 — 펫 랭킹 큐 껍데기 방(PC)은 방 UI 대신 유저 열(랭킹·매칭 패널) 유지 */
+    /** 페어 AI 솔로 전환 시 유저 열을 방 탭이 아닌 목록으로 */
     useEffect(() => {
-        if (!myRoom) return;
+        if (lobbyChannel !== 'pair' || lobbyIntent !== 'ai' || pairAiLobbyMatchMode !== 'solo') return;
+        setPairLobbyRightTab('users');
+        if (isHandheld && pairLobbyMobileTab === 'room' && !myRoomForUsersColumnChrome) {
+            setPairLobbyMobileTab('ai');
+        }
+    }, [lobbyChannel, lobbyIntent, pairAiLobbyMatchMode, isHandheld, pairLobbyMobileTab, myRoomForUsersColumnChrome]);
+
+    /** 방 입장 시 우측을 방 탭으로 — 펫 랭킹 큐 껍데기 방(PC)은 방 UI 대신 유저 열(랭킹·매칭 패널) 유지 (AI·비-PVP) */
+    useEffect(() => {
+        if (!myRoomForUsersColumnChrome || lobbyIntent === 'pvp') return;
         if (isPairPetRankedQueueShellMatching && !isHandheld) {
             setPairLobbyRightTab('users');
             return;
         }
         setPairLobbyRightTab('room');
     }, [
-        myRoom,
-        myRoom?.id,
+        myRoomForUsersColumnChrome,
+        myRoomForUsersColumnChrome?.id,
+        lobbyIntent,
         isHandheld,
         isPairPetRankedQueueShellMatching,
     ]);
 
+    /** PVP PC: 참여 중인 방이 생기면 중앙 열을 내 방 탭으로 */
+    useEffect(() => {
+        if (!myRoom || lobbyIntent !== 'pvp' || isHandheld) return;
+        if (isPairPetRankedQueueShellMatching) return;
+        setPairLobbyCenterTab('room');
+    }, [myRoom?.id, lobbyIntent, isHandheld, isPairPetRankedQueueShellMatching]);
+
     useEffect(() => {
         if (!myRoom) {
-            setPairLobbyMobileTab((t) => (t === 'room' ? 'rooms' : t));
+            setPairLobbyCenterTab('rooms');
+            setPairLobbyMobileTab((t) => (t === 'room' ? (lobbyIntent === 'ai' ? 'ai' : 'rooms') : t));
             setPairRankedMatchModalOpen(false);
             setDuoRankedMatchModalOpen(false);
             setStrategicArenaRankedModalOpen(false);
             setPairLobbyPetRankedModalOpen(false);
-            setAggregateLobbyAiModalOpen(false);
-            setPairLobbyAiModalOpen(false);
             setPendingArenaNavTarget(null);
         }
-    }, [myRoom]);
+    }, [myRoom, lobbyIntent]);
 
     /** 방 퇴장·강퇴 등으로 `myRoom`이 없어지면 제안/수정 모달이 열린 채로 남는 문제 방지 */
     useEffect(() => {
@@ -1610,8 +1890,17 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         ) {
             return;
         }
-        setPairLobbyMobileTab('room');
-    }, [isHandheld, myRoom?.id, myRoom?.pairPetRankedQueueShell, myRoom?.phase, myRoom?.pairRankedPetProposal]);
+        setPairLobbyMobileTab(handheldPairLobbyRoomFocusTab(myRoom, lobbyIntent, lobbyChannel));
+    }, [
+        isHandheld,
+        myRoom?.id,
+        myRoom?.roomKind,
+        myRoom?.pairPetRankedQueueShell,
+        myRoom?.phase,
+        myRoom?.pairRankedPetProposal,
+        lobbyIntent,
+        lobbyChannel,
+    ]);
 
     /** 초대 수락 직후 등: 펫/방목록에 머물지 않고 N번방 탭으로 이동(모바일) */
     useEffect(() => {
@@ -1619,11 +1908,11 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         try {
             if (sessionStorage.getItem(PAIR_LOBBY_FOCUS_ROOM_TAB_SESSION_KEY) !== '1') return;
             sessionStorage.removeItem(PAIR_LOBBY_FOCUS_ROOM_TAB_SESSION_KEY);
-            setPairLobbyMobileTab('room');
+            setPairLobbyMobileTab(handheldPairLobbyRoomFocusTab(myRoom, lobbyIntent, lobbyChannel));
         } catch {
             // ignore
         }
-    }, [isHandheld, myRoom?.id]);
+    }, [isHandheld, myRoom?.id, myRoom?.roomKind, lobbyIntent, lobbyChannel]);
 
     useEffect(() => {
         pairRoomChatSendCooldownRef.current = false;
@@ -1678,7 +1967,10 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
     const orphanPairRoomsForLobbyGrid = useMemo(
         () =>
             sortedRoomsMatchingFilters.filter(
-                (r) => pairLobbyGridSlotFromRoomCode(r.code) === null && !r.pairPetRankedQueueShell,
+                (r) =>
+                    pairLobbyGridSlotFromRoomCode(r.code) === null &&
+                    !r.pairPetRankedQueueShell &&
+                    !isPairAiDuoInviteOnlyRoom(r),
             ),
         [sortedRoomsMatchingFilters],
     );
@@ -1706,29 +1998,42 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         const ro = new ResizeObserver(() => sync());
         ro.observe(el);
         return () => ro.disconnect();
-    }, []);
+    }, [pairLobbyMobileTab, pairLobbyCenterTab, pairLobbyRoomForm, lobbyChannel, lobbyIntent]);
 
-    /** PC: 한 화면에 약 10행. 모바일: 행 수를 줄이고 카드 높이를 키워 제목·모드·방장 등을 한 줄로 표시 */
+    const pairLobbySlotGridEffectiveViewportHeightPx = useMemo(() => {
+        const measured = pairLobbySlotGridViewport.clientHeight;
+        const fallback = isHandheld
+            ? PAIR_LOBBY_ROOM_SLOT_VIEWPORT_FALLBACK_HANDHELD_PX
+            : PAIR_LOBBY_ROOM_SLOT_VIEWPORT_FALLBACK_PX;
+        if (measured >= 72) return measured;
+        return Math.max(measured, fallback);
+    }, [pairLobbySlotGridViewport.clientHeight, isHandheld]);
+
+    /** PC: 한 화면에 약 10행. 모바일: 카드 가독성 유지하며 7~8행 노출 */
     const pairLobbySlotRowHeightPx = useMemo(() => {
-        const ch = pairLobbySlotGridViewport.clientHeight;
+        const ch = pairLobbySlotGridEffectiveViewportHeightPx;
         if (ch < 40) return isHandheld ? PAIR_LOBBY_ROOM_SLOT_ROW_FALLBACK_HANDHELD_PX : PAIR_LOBBY_ROOM_SLOT_ROW_FALLBACK_PX;
         if (isHandheld) {
-            return Math.max(76, Math.min(118, Math.round(ch / 5.25)));
+            return Math.max(68, Math.min(104, Math.round(ch / 8)));
         }
-        return Math.max(40, Math.min(78, Math.round(ch / 10)));
-    }, [pairLobbySlotGridViewport.clientHeight, isHandheld]);
+        return Math.max(36, Math.min(72, Math.round(ch / 10)));
+    }, [pairLobbySlotGridEffectiveViewportHeightPx, isHandheld]);
 
     const pairLobbySlotGridVisibleRange = useMemo(() => {
         const rh = pairLobbySlotRowHeightPx;
         const maxRow = PAIR_LOBBY_ROOM_SLOT_ROWS - 1;
-        const ch = Math.max(1, pairLobbySlotGridViewport.clientHeight);
+        const ch = Math.max(1, pairLobbySlotGridEffectiveViewportHeightPx);
         const st = pairLobbySlotGridViewport.scrollTop;
         const buf = PAIR_LOBBY_ROOM_SLOT_VIRTUAL_OVERSCAN_ROWS;
         const firstRow = Math.max(0, Math.floor(st / rh) - buf);
         const lastVisibleRow = Math.min(maxRow, Math.ceil((st + ch) / rh) - 1);
         const lastRow = Math.max(firstRow, Math.min(maxRow, lastVisibleRow + buf));
         return { firstRow, lastRow };
-    }, [pairLobbySlotGridViewport.scrollTop, pairLobbySlotGridViewport.clientHeight, pairLobbySlotRowHeightPx]);
+    }, [
+        pairLobbySlotGridViewport.scrollTop,
+        pairLobbySlotGridEffectiveViewportHeightPx,
+        pairLobbySlotRowHeightPx,
+    ]);
 
     useEffect(() => {
         fetchedGridSlotsRef.current = new Set();
@@ -1770,7 +2075,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
             try {
                 const result = await handlers.handleAction({
                     type: 'PAIR_LOBBY_ROOM_GRID_SLICE',
-                    payload: { lobbyChannel, fromSlot: from, toSlot: to },
+                    payload: { lobbyChannel, lobbyIntent, fromSlot: from, toSlot: to },
                 } as ServerAction);
                 if (seq !== lobbyGridSliceRequestSeqRef.current) return;
                 const partial = (result as any)?.clientResponse?.pairRooms as Record<string, PairRoom> | undefined;
@@ -1785,7 +2090,9 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                     }
                     if (partial && typeof partial === 'object') {
                         for (const [id, r] of Object.entries(partial)) {
-                            next[id] = r as PairRoom;
+                            const room = r as PairRoom;
+                            if (!roomVisibleInLobby(room)) continue;
+                            next[id] = room;
                         }
                     }
                     return next;
@@ -1794,8 +2101,15 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                 /* ignore */
             }
         },
-        [handlers, lobbyChannel],
+        [handlers, lobbyChannel, lobbyIntent, roomVisibleInLobby],
     );
+
+    useEffect(() => {
+        const initialEnd = isHandheld
+            ? PAIR_LOBBY_ROOM_SLOT_INITIAL_FETCH_HANDHELD
+            : PAIR_LOBBY_ROOM_SLOT_INITIAL_FETCH_DESKTOP;
+        void fetchLobbyGridSlice(1, initialEnd);
+    }, [lobbyChannel, lobbyIntent, fetchLobbyGridSlice, isHandheld]);
 
     useEffect(() => {
         if (lobbyGridSliceDebounceRef.current) {
@@ -1851,12 +2165,10 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
             setPendingArenaNavTarget(null);
             return;
         }
-        const lobbyHomeHash =
-            lobbyChannelRef.current === 'pair'
-                ? '#/pair'
-                : lobbyChannelRef.current === 'strategic'
-                  ? '#/waiting/strategic'
-                  : '#/waiting/playful';
+        const lobbyHomeHash = arenaLobbyHash({
+            intent: lobbyIntentRef.current,
+            channel: lobbyChannelRef.current,
+        });
         const onHashOrPop = () => {
             const h = window.location.hash || '';
             if (!h || h === lobbyHomeHash) return;
@@ -1877,6 +2189,11 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                 if (pairShellGameRoomIdMatchesMyRoom(shellRoomId, room.id)) return;
             }
 
+            if (!pairRoomRequiresLeaveConfirmation(room)) {
+                void handleActionRef.current({ type: 'PAIR_LEAVE_ROOM' }).catch(() => undefined);
+                return;
+            }
+
             setPairLeaveNavTargetHash(h);
             replaceAppHash(lobbyHomeHash);
         };
@@ -1894,10 +2211,17 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
             (currentUserWithStatus ? getEquippedPairPetInventoryRow(currentUserWithStatus) : null),
     );
     useEffect(() => {
-        if (pairLobbyRoomForm !== 'closed' && createModalRoomKind === 'friendly_2p' && !hasEquippedPairPet) {
-            setCreateModalRoomKind(lobbyChannel === 'pair' ? 'friendly_4p' : 'duo_match');
+        if (
+            !isRoomKindAllowedForLobby(createModalRoomKind, { intent: lobbyIntent, channel: lobbyChannel })
+        ) {
+            setCreateModalRoomKind(resolveCreateModalRoomKind(lobbyChannel, lobbyIntent, hasEquippedPairPet));
         }
-    }, [pairLobbyRoomForm, createModalRoomKind, hasEquippedPairPet, lobbyChannel]);
+    }, [lobbyChannel, lobbyIntent, createModalRoomKind, hasEquippedPairPet]);
+    useEffect(() => {
+        if (pairLobbyRoomForm !== 'closed' && createModalRoomKind === 'friendly_2p' && !hasEquippedPairPet) {
+            setCreateModalRoomKind(resolveCreateModalRoomKind(lobbyChannel, lobbyIntent, hasEquippedPairPet));
+        }
+    }, [pairLobbyRoomForm, createModalRoomKind, hasEquippedPairPet, lobbyChannel, lobbyIntent]);
 
     useEffect(() => {
         if (createModalVisibility !== 'private') setCreateModalPasswordFieldFocused(false);
@@ -1923,8 +2247,15 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
     const guildId = currentUserWithStatus?.guildId;
 
     const pairUsers = useMemo(
-        () => onlineUsers.filter((u) => userInUnifiedArenaLobbyUserList(u)),
-        [onlineUsers],
+        () =>
+            onlineUsers.filter(
+                (u) =>
+                    userInUnifiedArenaLobbyUserList(u) &&
+                    (!u.lobbyIntent || u.lobbyIntent === lobbyIntent) &&
+                    ((u.inPairLobby && (u.arenaChannel ?? 'pair') === lobbyChannel) ||
+                        (!u.inPairLobby && aggregateLobbyMode != null)),
+            ),
+        [onlineUsers, lobbyIntent, lobbyChannel, aggregateLobbyMode],
     );
 
     const displayedUsers = useMemo(() => {
@@ -1956,30 +2287,56 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                   ? `${nick}님의 놀이바둑방`
                   : `${nick}님의 페어방`;
         setCreateModalTitle(clampPairRoomTitle(defaultRoomTitle));
-        const doc = loadPairLobbyCreatePrefsDoc(lobbyChannel);
-        let rk: RoomKind = doc?.lastRoomKind ?? (lobbyChannel === 'pair' ? 'friendly_4p' : 'duo_match');
-        if (!normalizeStoredRoomKind(rk)) rk = lobbyChannel === 'pair' ? 'friendly_4p' : 'duo_match';
-        if (rk === 'ai_duel') rk = lobbyChannel === 'pair' ? 'friendly_4p' : 'duo_match';
-        if (rk === 'friendly_2p' && !hasEquippedPairPet) rk = lobbyChannel === 'pair' ? 'friendly_4p' : 'duo_match';
-        if (lobbyChannel === 'strategic' || lobbyChannel === 'playful') {
-            rk = 'duo_match';
-        } else if (lobbyChannel === 'pair') {
-            if (rk === 'arena_ai') rk = 'friendly_4p';
-            const pairCreateKinds: RoomKind[] = ['friendly_4p', 'friendly_2p', 'duo_match'];
-            if (!pairCreateKinds.includes(rk)) rk = 'friendly_4p';
-        }
+        const rk = resolveCreateModalRoomKind(lobbyChannel, lobbyIntent, hasEquippedPairPet);
         setCreateModalRoomKind(rk);
         setCreateModalVisibility('public');
         setCreateModalPassword('');
         setCreateModalPasswordFieldFocused(false);
-        const slotRawOc = doc?.draftsByRoomKind[rk];
-        const normOc = normalizeRoomKindDraftSlot(slotRawOc, lobbyChannel);
-        const baseBundleOc = normOc ? buildDraftBundleFromNormalizedSlot(normOc, lobbyChannel, rk) : defaultDraftBundleForLobbyChannel(lobbyChannel);
+        const baseBundleOc = loadCreateModalDraftBundleForRoomKind(lobbyChannel, rk);
         setCreateModalDraftGame(applyDraftBundleTransforms(baseBundleOc, transformPairDraftLobbySettings, lobbyChannel));
         setPairCreateRoomModalNonce((n) => n + 1);
         setPairLobbyRoomForm('create');
+        if (lobbyIntent === 'pvp') {
+            setPairLobbyCenterTab('rooms');
+        }
         if (isHandheld) setPairLobbyMobileTab('rooms');
     };
+
+    const createAiDuoMatchRoom = useCallback(async (): Promise<PairAiDuoRoomEnsureResult> => {
+        if (!currentUserWithStatus) return 'error';
+        const existing = myRoomAnyLobbyChannel;
+        if (existing) {
+            if (isPairAiDuoInviteOnlyRoom(existing)) return 'exists';
+            window.alert('이미 참여 중인 방이 있습니다.');
+            return 'error';
+        }
+        setIsBusy(true);
+        try {
+            const result = await handlers.handleAction({
+                type: 'PAIR_CREATE_ROOM',
+                payload: {
+                    roomKind: 'duo_match',
+                    lobbyChannel: 'pair',
+                    lobbyIntent: 'ai',
+                    visibility: 'public',
+                    selectedGameMode: GameMode.Standard,
+                    settings: { ...DEFAULT_GAME_SETTINGS },
+                },
+            } as ServerAction);
+            const error = (result as { error?: string } | undefined)?.error;
+            if (error === PAIR_ALREADY_IN_ROOM_SERVER_ERROR) {
+                await handlers.handleAction({ type: 'PAIR_SYNC' } as ServerAction).catch(() => undefined);
+                return 'exists';
+            }
+            if (error) {
+                window.alert(error);
+                return 'error';
+            }
+            return 'ok';
+        } finally {
+            setIsBusy(false);
+        }
+    }, [currentUserWithStatus, myRoomAnyLobbyChannel, handlers]);
 
     const openEditRoomModal = () => {
         if (!myRoom || myRoom.ownerId !== currentUserId) return;
@@ -2091,6 +2448,18 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         }
     };
 
+    const focusPairLobbyMyRoomTab = useCallback(() => {
+        if (lobbyIntentRef.current === 'pvp') {
+            setPairLobbyCenterTab('room');
+        }
+        if (isHandheld) {
+            const room = myRoom ?? myRoomForUsersColumnChrome;
+            setPairLobbyMobileTab(
+                room ? handheldPairLobbyRoomFocusTab(room, lobbyIntent, lobbyChannel) : 'room',
+            );
+        }
+    }, [isHandheld, myRoom, myRoomForUsersColumnChrome, lobbyIntent, lobbyChannel]);
+
     const submitPairRoomFormModal = async () => {
         if (!currentUserId) return;
         if (pairLobbyRoomForm === 'create' && myRoomAnyLobbyChannel) {
@@ -2141,6 +2510,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                         selectedGameMode: createModalDraftGame.mode,
                         settings: createModalDraftGame.settings,
                         lobbyChannel: lobbyChannelRef.current,
+                        lobbyIntent: lobbyIntentRef.current,
                     },
                 });
                 const error = (result as any)?.error;
@@ -2163,7 +2533,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                     window.location.hash = `#/game/${gameId}`;
                 }
                 setPairLobbyRoomForm('closed');
-                if (isHandheld) setPairLobbyMobileTab('room');
+                focusPairLobbyMyRoomTab();
             } else if (pairLobbyRoomForm === 'edit') {
                 const result = await handlers.handleAction({
                     type: 'PAIR_UPDATE_ROOM_LOBBY',
@@ -2225,6 +2595,35 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         } finally {
             setIsBusy(false);
         }
+    };
+
+    const pairLobbyProposeSettingDiffRows = useMemo(() => {
+        if (pairLobbyRoomForm !== 'propose' || !myRoom) return [];
+        return buildPairLobbySettingChangeDiffRows(
+            {
+                selectedGameMode: myRoom.selectedGameMode,
+                settings: myRoom.settings,
+                roomKind: myRoom.roomKind,
+                lobbyChannel: myRoom.lobbyChannel ?? lobbyChannel,
+            },
+            createModalDraftGame.settings,
+            { lobbyChannelFallback: lobbyChannel },
+        );
+    }, [pairLobbyRoomForm, myRoom, createModalDraftGame.settings, lobbyChannel]);
+
+    const pairLobbyProposeHasChanges = pairLobbyProposeSettingDiffRows.length > 0;
+
+    useEffect(() => {
+        if (pairLobbyRoomForm !== 'propose') setGuestLobbyChangeProposeConfirmOpen(false);
+    }, [pairLobbyRoomForm]);
+
+    const handlePairLobbyRoomFormPrimarySubmit = () => {
+        if (pairLobbyRoomForm === 'propose') {
+            if (!pairLobbyProposeHasChanges) return;
+            setGuestLobbyChangeProposeConfirmOpen(true);
+            return;
+        }
+        void submitPairRoomFormModal();
     };
 
     const attemptJoinRoom = async (opts: { roomId?: string; code?: string }) => {
@@ -2341,9 +2740,11 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
     const confirmLeaveNav = async () => {
         const dest = pairLeaveNavTargetHash;
         const arenaPending = pendingArenaNavTarget;
+        const intentPending = pendingIntentNavTarget;
         setPairLeaveNavTargetHash(null);
         setPendingArenaNavTarget(null);
-        if (!dest && arenaPending == null) return;
+        setPendingIntentNavTarget(null);
+        if (!dest && arenaPending == null && intentPending == null) return;
         setIsBusy(true);
         try {
             const result = await handlers.handleAction({ type: 'PAIR_LEAVE_ROOM' });
@@ -2354,13 +2755,13 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
             }
             setPairLobbyRoomForm('closed');
             await handlers.handleAction({ type: 'PAIR_SYNC' } as ServerAction).catch(() => undefined);
-            if (arenaPending != null) {
+            if (arenaPending != null || intentPending != null) {
                 if (lobbyChannel === 'strategic' || lobbyChannel === 'playful') {
                     await handlers.handleAction({ type: 'LEAVE_WAITING_ROOM' }).catch(() => undefined);
                 }
-                if (arenaPending === 'strategic') replaceAppHash('#/waiting/strategic');
-                else if (arenaPending === 'playful') replaceAppHash('#/waiting/playful');
-                else replaceAppHash('#/pair');
+                const nextIntent = intentPending ?? lobbyIntent;
+                const nextChannel = arenaPending ?? lobbyChannel;
+                replaceAppHash(arenaLobbyHash({ intent: nextIntent, channel: nextChannel }));
             } else if (dest) {
                 window.location.hash = dest.startsWith('#') ? dest : `#${dest}`;
             }
@@ -2372,6 +2773,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
     const cancelLeaveNav = () => {
         setPairLeaveNavTargetHash(null);
         setPendingArenaNavTarget(null);
+        setPendingIntentNavTarget(null);
     };
     const setReady = async (ready: boolean) => applyAction({ type: 'PAIR_SET_READY', payload: { ready } });
     const proposeDuoRankedMatchWithMode = async (mode: GameMode) => {
@@ -2524,7 +2926,6 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                 pairShellGameNavAllowIdRef.current = gameId;
                 window.location.hash = `#/game/${gameId}`;
             }
-            setPairLobbyAiModalOpen(false);
         } finally {
             setIsBusy(false);
         }
@@ -2690,7 +3091,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                 } catch {
                     /* ignore */
                 }
-                setPairLobbyMobileTab('room');
+                setPairLobbyMobileTab(handheldPairLobbyRoomFocusTab(room, lobbyIntent, lobbyChannel));
             }
             return;
         }
@@ -2769,24 +3170,16 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
 
     useEffect(() => {
         if (pairLobbyRoomForm !== 'closed') return;
-        const doc = loadPairLobbyCreatePrefsDoc(lobbyChannel);
-        let rk: RoomKind = doc?.lastRoomKind ?? (lobbyChannel === 'pair' ? 'friendly_4p' : 'duo_match');
-        if (!normalizeStoredRoomKind(rk)) rk = lobbyChannel === 'pair' ? 'friendly_4p' : 'duo_match';
-        if (rk === 'ai_duel') rk = lobbyChannel === 'pair' ? 'friendly_4p' : 'duo_match';
-        if (rk === 'friendly_2p' && !hasEquippedPairPet) rk = lobbyChannel === 'pair' ? 'friendly_4p' : 'duo_match';
-        if (lobbyChannel === 'strategic' || lobbyChannel === 'playful') {
-            rk = 'duo_match';
-        } else if (lobbyChannel === 'pair') {
-            if (rk === 'arena_ai') rk = 'friendly_4p';
-            const pairCreateKinds: RoomKind[] = ['friendly_4p', 'friendly_2p', 'duo_match'];
-            if (!pairCreateKinds.includes(rk)) rk = 'friendly_4p';
-        }
+        const rk = resolveCreateModalRoomKind(lobbyChannel, lobbyIntent, hasEquippedPairPet);
         setCreateModalRoomKind(rk);
-        const slotRawFx = doc?.draftsByRoomKind[rk];
-        const normFx = normalizeRoomKindDraftSlot(slotRawFx, lobbyChannel);
-        const baseFx = normFx ? buildDraftBundleFromNormalizedSlot(normFx, lobbyChannel, rk) : defaultDraftBundleForLobbyChannel(lobbyChannel);
-        setCreateModalDraftGame(applyDraftBundleTransforms(baseFx, transformPairDraftLobbySettings, lobbyChannel));
-    }, [lobbyChannel, pairLobbyRoomForm, hasEquippedPairPet, transformPairDraftLobbySettings]);
+        setCreateModalDraftGame(
+            applyDraftBundleTransforms(
+                loadCreateModalDraftBundleForRoomKind(lobbyChannel, rk),
+                transformPairDraftLobbySettings,
+                lobbyChannel,
+            ),
+        );
+    }, [lobbyChannel, lobbyIntent, pairLobbyRoomForm, hasEquippedPairPet, transformPairDraftLobbySettings]);
 
     const pairDraftSettingsFingerprint = stableStringify(createModalDraftGame.settings);
     const pairDraftSettingsByModeFingerprint = stableStringify(createModalDraftGame.settingsByMode);
@@ -2804,17 +3197,16 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
             setCreateModalDraftGame((prev) => {
                 const lockedMode =
                     pairLobbyRoomForm === 'propose' && myRoom?.selectedGameMode != null ? myRoom.selectedGameMode : mode;
-                const lobbyType = pairLobbyDraftLobbyType(lobbyChannel);
-                const sanitized = sanitizePairLobbyDraftModeSettings(lockedMode, settings, lobbyType);
-                if (prev.mode === lockedMode && stableStringify(prev.settings) === stableStringify(sanitized)) return prev;
+                if (prev.mode === lockedMode && stableStringify(prev.settings) === stableStringify(settings)) return prev;
+                /** 자식 `buildFinalSettingsForApply` 결과를 그대로 저장 — sanitize 재적용 시 resolveEmbedded와 왕복 루프 */
                 const settingsByMode = filterSettingsByModeForLobbyChannel(
                     { ...prev.settingsByMode, [prev.mode]: prev.settings },
                     lobbyChannel,
                 );
-                settingsByMode[lockedMode] = sanitized;
+                settingsByMode[lockedMode] = settings;
                 return {
                     mode: lockedMode,
-                    settings: sanitized,
+                    settings,
                     settingsByMode: filterSettingsByModeForLobbyChannel(settingsByMode, lobbyChannel),
                 };
             });
@@ -2886,11 +3278,6 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                 ? readPairRankedBlock(currentUserWithStatus.stats as User['stats'])
                 : { wins: 0, losses: 0 };
         return { ...tierInfo, wins: blk.wins, losses: blk.losses };
-    }, [currentUserWithStatus]);
-
-    const pairLobbyPairArenaAiRecord = useMemo(() => {
-        if (!currentUserWithStatus) return { wins: 0, losses: 0 };
-        return readPairArenaAiMatchRecord(currentUserWithStatus.stats as User['stats']);
     }, [currentUserWithStatus]);
 
     const pairLobbyPairRankedCurrentSeasonName = getCurrentSeason().name;
@@ -2969,6 +3356,17 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
 
     const isOwner = myRoom?.ownerId === currentUserId;
 
+    const [pairOwnerStartDeadlineTick, setPairOwnerStartDeadlineTick] = useState(0);
+    useEffect(() => {
+        if (!myRoom?.pairOwnerStartDeadlineAt) return;
+        const id = window.setInterval(() => setPairOwnerStartDeadlineTick((t) => t + 1), 1000);
+        return () => window.clearInterval(id);
+    }, [myRoom?.pairOwnerStartDeadlineAt]);
+    const pairOwnerStartDeadlineRemainingSec = useMemo(() => {
+        if (!myRoom?.pairOwnerStartDeadlineAt) return null;
+        return Math.max(0, Math.ceil((myRoom.pairOwnerStartDeadlineAt - Date.now()) / 1000));
+    }, [myRoom?.pairOwnerStartDeadlineAt, pairOwnerStartDeadlineTick]);
+
     useEffect(() => {
         if (!isOwner || !myRoom?.pairLobbySettingChangeProposal) {
             ownerLobbyProposalNoticeIdRef.current = null;
@@ -2985,21 +3383,42 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
     useEffect(() => {
         const prev = prevPairLobbySettingProposalRef.current;
         const cur = myRoom?.pairLobbySettingChangeProposal;
-        if (currentUserId && prev?.fromUserId === currentUserId && !cur && myRoom && preLobbyChangeProposalDigestRef.current) {
-            const post = stableStringify({
-                settings: myRoom.settings,
-                title: myRoom.title,
-                visibility: myRoom.visibility,
-                roomKind: myRoom.roomKind,
-                selectedGameMode: myRoom.selectedGameMode,
-            });
-            if (post === preLobbyChangeProposalDigestRef.current) {
-                setGuestLobbyChangeProposalRejectedOpen(true);
+        if (currentUserId && prev?.fromUserId === currentUserId && !cur && myRoom) {
+            if (guestLobbyProposalOutcomeShownIdRef.current !== prev.proposalId) {
+                const postDigest = stableStringify({
+                    settings: myRoom.settings,
+                    title: myRoom.title,
+                    visibility: myRoom.visibility,
+                    roomKind: myRoom.roomKind,
+                    selectedGameMode: myRoom.selectedGameMode,
+                });
+                const preDigest = preLobbyChangeProposalDigestRef.current;
+                const proposedPayload = prev.payload as { settings?: GameSettings } | undefined;
+                const diffVsProposed = buildPairLobbySettingChangeDiffRows(
+                    {
+                        selectedGameMode: myRoom.selectedGameMode,
+                        settings: myRoom.settings,
+                        roomKind: myRoom.roomKind,
+                        lobbyChannel: myRoom.lobbyChannel ?? lobbyChannel,
+                    },
+                    proposedPayload?.settings,
+                    { lobbyChannelFallback: lobbyChannel },
+                );
+                const outcome: 'accepted' | 'rejected' =
+                    preDigest != null
+                        ? postDigest === preDigest
+                            ? 'rejected'
+                            : 'accepted'
+                        : diffVsProposed.length === 0
+                          ? 'accepted'
+                          : 'rejected';
+                guestLobbyProposalOutcomeShownIdRef.current = prev.proposalId;
+                setGuestLobbyChangeProposalOutcome(outcome);
             }
             preLobbyChangeProposalDigestRef.current = null;
         }
         prevPairLobbySettingProposalRef.current = cur ?? undefined;
-    }, [myRoom, currentUserId]);
+    }, [myRoom, currentUserId, lobbyChannel]);
 
     const isPartner = myRoom?.partnerId === currentUserId;
     const extraMemberForMe = myRoom?.extraPairMembers?.find((m) => m.id === currentUserId);
@@ -3023,6 +3442,13 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         if (!room) return true;
         return pairLobbyAllNonOwnerHumansReady(room);
     })();
+    const pairOwnerStartCountdownOnStartButton = Boolean(
+        isOwner &&
+            pairOwnerStartDeadlineRemainingSec != null &&
+            pairOwnerStartDeadlineRemainingSec > 0 &&
+            pairLobbyHumanGuestsReadyForOwnerActions &&
+            pairLobbyHasAnyNonOwnerHuman(myRoom),
+    );
     /** 2인 친선: 상대 입장·준비(팀/슬롯 통합) — 대표 펫은 서버에서 검증 */
     const friendlyTwoPetStartRequirementsMet = Boolean(
         myRoom && petPairOpponent && pairLobbyAllNonOwnerHumansReady(myRoom),
@@ -3068,6 +3494,50 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
             !isPairRoomMatching &&
             !isPairRoomMatchPending,
     );
+    const pairAiDuoStartBlockReason = useMemo(() => {
+        if (!myRoom || myRoom.roomKind !== 'duo_match') {
+            return isBusy ? '2인 AI 방을 준비하는 중입니다.' : '2인 AI 방을 여는 중입니다.';
+        }
+        if (!isOwner) return '방장만 AI 대전을 시작할 수 있습니다.';
+        const hasPartner = Boolean(myRoom.partnerId && !String(myRoom.partnerId).startsWith('pet-ai-'));
+        if (!hasPartner) return '좌측 패널에서 파트너를 초대해 주세요.';
+        if (!duoPairAiPartnerReady) return '파트너 준비완료를 기다려 주세요.';
+        return undefined;
+    }, [myRoom, isOwner, duoPairAiPartnerReady, isBusy]);
+    /** 필터된 `myRoom`이 비어도 서버·전체 채널에 2인 AI 껍데기 방이 있으면 인식 */
+    const pairAiLobbyDuoRoom = useMemo(() => {
+        if (myRoom?.roomKind === 'duo_match' && isPairAiDuoInviteOnlyRoom(myRoom)) return myRoom;
+        if (myRoomAnyLobbyChannel && isPairAiDuoInviteOnlyRoom(myRoomAnyLobbyChannel)) return myRoomAnyLobbyChannel;
+        return myRoom?.roomKind === 'duo_match' ? myRoom : null;
+    }, [myRoom, myRoomAnyLobbyChannel]);
+    const pairAiDuoLobbyContext = useMemo(() => {
+        if (lobbyChannel !== 'pair' || lobbyIntent !== 'ai') return undefined;
+        const duoRoom = pairAiLobbyDuoRoom;
+        const activeRoom =
+            myRoom?.roomKind === 'ai_duel'
+                ? { id: myRoom.id, roomKind: myRoom.roomKind }
+                : duoRoom
+                  ? { id: duoRoom.id, roomKind: duoRoom.roomKind }
+                  : myRoom
+                    ? { id: myRoom.id, roomKind: myRoom.roomKind }
+                    : null;
+        return {
+            myRoom: activeRoom,
+            canStartAiMatch: Boolean(canStartAiMatch && duoRoom?.roomKind === 'duo_match'),
+            startBlockReason: pairAiDuoStartBlockReason,
+            onEnsureDuoRoom: createAiDuoMatchRoom,
+            onRequestLeaveRoomForModeSwitch: () => leaveRoom(),
+        };
+    }, [
+        lobbyChannel,
+        lobbyIntent,
+        myRoom,
+        pairAiLobbyDuoRoom,
+        canStartAiMatch,
+        pairAiDuoStartBlockReason,
+        createAiDuoMatchRoom,
+        leaveRoom,
+    ]);
     const showReadyButton = Boolean(myRoom && !isOwner && (isPartner || isExtraPairMember));
     const showPairRankedPetDuoMatchingCancelButton = Boolean(
         myRoom &&
@@ -3272,10 +3742,16 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         [handlers, myRoom],
     );
 
-    const renderPairLobbyPairRankedStats = () => {
+    const renderPairLobbyPairRankedStats = (embeddedInUsersColumn = false) => {
         if (lobbyChannel !== 'pair') return null;
         return (
-            <div className={`${waitingLobbyPcPanelShellClass(lobbyTone)} mb-2 shrink-0 overflow-hidden p-2`}>
+            <div
+                className={
+                    embeddedInUsersColumn
+                        ? 'shrink-0 overflow-hidden px-2 pt-2 pb-1 sm:px-2.5 sm:pt-2.5'
+                        : `${waitingLobbyPcPanelShellClass(lobbyTone)} mb-2 shrink-0 overflow-hidden p-2`
+                }
+            >
                 <div
                     className={`relative flex min-h-0 flex-col overflow-visible text-on-panel ${
                         isHandheld ? 'overflow-y-auto overflow-x-hidden p-2' : 'overflow-x-auto p-3 sm:p-3.5'
@@ -3542,137 +4018,182 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         );
     };
 
-    const handheldStrategicRankedMatchPanel =
-        aggregateLobbyMode === 'strategic' ? (
+    const renderStrategicPvpRankedMatchPanel = (embeddedInUsersColumn = false) => {
+        if (!(aggregateLobbyMode === 'strategic' && lobbyIntent === 'pvp')) return null;
+        const panel = (
+            <RankedMatchPanel
+                currentUser={currentUserWithStatus}
+                onAction={handlers.handleAction}
+                isMatching={aggregateLobbyRankedMatching}
+                matchingStartTime={aggregateLobbyRankedMatchingStartTime}
+                shrinkToContent
+                onMatchingStateChange={(isMatching, startTime) => {
+                    setAggregateLobbyRankedMatching(isMatching);
+                    setAggregateLobbyRankedMatchingStartTime(startTime);
+                }}
+                onCancelMatching={() => {
+                    setAggregateLobbyRankedMatching(false);
+                    setAggregateLobbyRankedMatchingStartTime(0);
+                }}
+            />
+        );
+        if (embeddedInUsersColumn) {
+            return (
+                <div className="shrink-0 overflow-hidden px-2 pt-2 pb-1 sm:px-2.5 sm:pt-2.5">{panel}</div>
+            );
+        }
+        return (
             <div className={`${waitingLobbyPcPanelShellClass(lobbyTone)} mb-2 shrink-0 overflow-hidden p-2`}>
-                <RankedMatchPanel
-                    currentUser={currentUserWithStatus}
-                    onAction={handlers.handleAction}
-                    isMatching={aggregateLobbyRankedMatching}
-                    matchingStartTime={aggregateLobbyRankedMatchingStartTime}
-                    shrinkToContent
-                    onMatchingStateChange={(isMatching, startTime) => {
-                        setAggregateLobbyRankedMatching(isMatching);
-                        setAggregateLobbyRankedMatchingStartTime(startTime);
-                    }}
-                    onCancelMatching={() => {
-                        setAggregateLobbyRankedMatching(false);
-                        setAggregateLobbyRankedMatchingStartTime(0);
-                    }}
+                {panel}
+            </div>
+        );
+    };
+
+    const renderLobbyLeftRankedSection = (opts?: { embeddedInUsersColumn?: boolean }) => {
+        const embeddedInUsersColumn = opts?.embeddedInUsersColumn ?? false;
+        return (
+            <>
+                {lobbyChannel === 'strategic' && lobbyIntent === 'pvp'
+                    ? renderStrategicPvpRankedMatchPanel(embeddedInUsersColumn)
+                    : null}
+                {lobbyChannel === 'pair' && lobbyIntent === 'pvp'
+                    ? renderPairLobbyPairRankedStats(embeddedInUsersColumn)
+                    : null}
+            </>
+        );
+    };
+
+    const showPvpRankedInLeftPanel =
+        lobbyIntent === 'pvp' && (lobbyChannel === 'strategic' || lobbyChannel === 'pair');
+
+    const desktopLobbyChatConfig = useMemo(() => {
+        if (aggregateLobbyMode === 'strategic') {
+            return { mode: 'strategic' as const, prefix: '[전략바둑]' };
+        }
+        if (aggregateLobbyMode === 'playful') {
+            return { mode: 'playful' as const, prefix: '[놀이바둑]' };
+        }
+        if (lobbyChannel === 'pair') {
+            return { mode: 'global' as const, prefix: '[페어바둑]' };
+        }
+        return null;
+    }, [aggregateLobbyMode, lobbyChannel]);
+
+    const desktopLobbyChatPanel =
+        !isHandheld && desktopLobbyChatConfig ? (
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                <div
+                    className={`${waitingLobbyPcPanelShellClass(lobbyTone)} flex min-h-0 flex-1 flex-col overflow-hidden`}
+                >
+                    <ChatWindow
+                        messages={mergedPublicChatMessages}
+                        mode={desktopLobbyChatConfig.mode}
+                        onAction={handlers.handleAction}
+                        onViewUser={handlers.openViewingUser}
+                        locationPrefix={desktopLobbyChatConfig.prefix}
+                        compactTournamentMobile
+                    />
+                </div>
+            </div>
+        ) : null;
+
+    const aiLobbyWorkspaceProps = useMemo(
+        () => ({
+            channel: lobbyChannel,
+            onSelectChannel: navigateArenaTab,
+            onAction: handlers.handleAction,
+            onPairAiAction: (a: ServerAction) => void handlePairLobbyAiChallengeAction(a),
+            transformPairAiSettings,
+            hasEquippedPairPet,
+            isBusy,
+            pairDuoContext: pairAiDuoLobbyContext,
+            onPairMatchModeChange: setPairAiLobbyMatchMode,
+        }),
+        [
+            lobbyChannel,
+            navigateArenaTab,
+            handlers.handleAction,
+            handlePairLobbyAiChallengeAction,
+            transformPairAiSettings,
+            hasEquippedPairPet,
+            isBusy,
+            pairAiDuoLobbyContext,
+        ],
+    );
+
+    const pairLobbyAnnouncementBoardMode = useMemo(
+        (): WaitingLobbyAnnouncementBoardMode =>
+            lobbyChannel === 'playful' ? 'playful' : lobbyChannel === 'strategic' ? 'strategic' : 'pair',
+        [lobbyChannel],
+    );
+
+    const pairLobbyAnnouncementBoardEl = useMemo(
+        () => (
+            <div className="relative z-[2] shrink-0 px-0.5 pt-0.5 sm:px-1">
+                <WaitingLobbyAnnouncementBoard mode={pairLobbyAnnouncementBoardMode} />
+            </div>
+        ),
+        [pairLobbyAnnouncementBoardMode],
+    );
+
+    const renderAiLobbyAnnouncement = () => pairLobbyAnnouncementBoardEl;
+
+    const aggregateAiDesktopCenterColumn = useMemo(() => {
+        if (!aggregateLobbyMode) return null;
+        return (
+            <div className={waitingLobbyPcCenterColumnClass(lobbyTone)}>
+                <div className={waitingLobbyPcPanelTopHairlineClassFor(lobbyTone)} aria-hidden />
+                {pairLobbyAnnouncementBoardEl}
+                <AiLobbyStandaloneCenterPanel
+                    channel={aggregateLobbyMode}
+                    onAction={stableLobbyHandleAction}
+                    className="min-h-0 flex-1 p-1.5 sm:p-2"
+                    remountKey={lobbyIntent}
                 />
             </div>
-        ) : null;
+        );
+    }, [
+        aggregateLobbyMode,
+        lobbyTone,
+        pairLobbyAnnouncementBoardEl,
+        stableLobbyHandleAction,
+        lobbyIntent,
+    ]);
 
-    const pairLobbyAiDuelQuickMatchCard =
-        lobbyChannel === 'pair' ? (
-            <div className={`${aiChallengeFeatureShellClass} relative mb-2 shrink-0 overflow-hidden p-2`}>
-                <div className={aiChallengeFeatureTopHairlineClass} aria-hidden />
-                <div className={aiChallengePanelInnerGradientClass}>
-                    <div className="flex min-h-[58px] items-center justify-between gap-2 sm:gap-3">
-                        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-                            <div
-                                className="relative shrink-0"
-                                style={{ width: 60, height: 40 }}
-                                aria-hidden
-                            >
-                                <img
-                                    src="/images/pets/pet1.webp"
-                                    alt=""
-                                    draggable={false}
-                                    className="absolute left-0 top-0 z-[2] h-10 w-10 rounded-full border-2 border-fuchsia-400/85 bg-zinc-900 object-cover shadow-[0_0_12px_rgba(217,70,239,0.45)] ring-1 ring-white/10"
-                                />
-                                <img
-                                    src="/images/pets/pet2.webp"
-                                    alt=""
-                                    draggable={false}
-                                    className="absolute left-5 top-0 z-[1] h-10 w-10 rounded-full border-2 border-purple-400/80 bg-zinc-900 object-cover shadow-[0_0_12px_rgba(167,139,250,0.4)] ring-1 ring-white/10"
-                                />
-                            </div>
-                            <div className="min-w-0">
-                                <h3 className="truncate text-base font-extrabold tracking-tight text-fuchsia-100 drop-shadow-[0_0_10px_rgba(217,70,239,0.35)]">
-                                    페어 AI 대전
-                                </h3>
-                                <p className="mt-0.5 text-[11px] font-semibold tabular-nums text-fuchsia-200/85 sm:text-xs">
-                                    {formatLobbyAiRecordLine(pairLobbyPairArenaAiRecord)}
-                                </p>
-                            </div>
-                        </div>
-                        <Button
-                            type="button"
-                            colorScheme="purple"
-                            onClick={() => {
-                                if (!hasEquippedPairPet) {
-                                    window.alert('페어 AI 대전을 하려면 페어 펫을 장착해야 합니다.');
-                                    return;
-                                }
-                                if (
-                                    myRoom &&
-                                    myRoom.roomKind !== 'ai_duel' &&
-                                    myRoom.roomKind !== 'duo_match' &&
-                                    myRoom.roomKind !== 'arena_ai'
-                                ) {
-                                    window.alert('페어 AI 대전을 시작할 수 있는 방이 아닙니다. 다른 페어 방에서 나온 뒤 시도해 주세요.');
-                                    return;
-                                }
-                                if (myRoom && myRoom.ownerId !== currentUserId) {
-                                    window.alert('방장만 AI 대전을 시작할 수 있습니다.');
-                                    return;
-                                }
-                                setPairLobbyAiModalOpen(true);
-                            }}
-                            disabled={isBusy}
-                            className="!px-3.5 !py-2 !text-sm !font-bold shadow-[0_6px_16px_rgba(139,92,246,0.45)]"
-                        >
-                            설정 및 시작
-                        </Button>
-                    </div>
+    const renderAiLobbyDesktopCenterShell = (centerPanel: React.ReactNode) => (
+        <div className={waitingLobbyPcCenterColumnClass(lobbyTone)}>
+            <div className={waitingLobbyPcPanelTopHairlineClassFor(lobbyTone)} aria-hidden />
+            {renderAiLobbyAnnouncement()}
+            {centerPanel}
+        </div>
+    );
+
+    const renderDesktopAiLobbyUsersPanel = (opts?: { forceUsersOnly?: boolean }) => {
+        const forceUsersOnly = opts?.forceUsersOnly ?? false;
+        const showRankedAboveUsers = !forceUsersOnly && showPvpRankedInLeftPanel && lobbyIntent === 'pvp';
+        return (
+            <div className={`${waitingLobbyPcPanelShellClass(lobbyTone)} flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden`}>
+                {showRankedAboveUsers ? (
+                    <div className="shrink-0 border-b border-white/10">{renderLobbyLeftRankedSection({ embeddedInUsersColumn: true })}</div>
+                ) : null}
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                    {renderPairLobbyUsersColumn(opts)}
                 </div>
             </div>
-        ) : null;
+        );
+    };
 
-    /** 전략·놀이 집계 로비: 가로형 AI 패널(랭킹전 상단·유저열 AI 탭 등) */
-    const pairLobbyAggregateAiChallengeCardEl =
-        aggregateLobbyMode === 'strategic' ? (
-            <div className={`${aiChallengeFeatureShellClass} relative overflow-hidden p-2`}>
-                <div className={aiChallengeFeatureTopHairlineClass} aria-hidden />
-                <div className={aiChallengePanelInnerGradientClass}>
-                    <AiChallengePanel
-                        mode="strategic"
-                        noOuterShell
-                        headingTitle="전략 AI대전"
-                        aiRecord={aggregateLobbyAiRecord}
-                        onOpenModal={() => setAggregateLobbyAiModalOpen(true)}
-                    />
-                </div>
-            </div>
-        ) : aggregateLobbyMode === 'playful' ? (
-            <div className={`${aiChallengeFeatureShellClass} relative overflow-hidden p-2`}>
-                <div className={aiChallengeFeatureTopHairlineClass} aria-hidden />
-                <div className={aiChallengePanelInnerGradientClass}>
-                    <AiChallengePanel
-                        mode="playful"
-                        noOuterShell
-                        headingTitle="놀이 AI대전"
-                        aiRecord={aggregateLobbyAiRecord}
-                        onOpenModal={() => setAggregateLobbyAiModalOpen(true)}
-                    />
-                </div>
-            </div>
-        ) : null;
-
-    const showAggregateLobbyAiAboveRanked =
-        Boolean(pairLobbyAggregateAiChallengeCardEl) &&
-        (aggregateLobbyMode === 'playful' || (aggregateLobbyMode === 'strategic' && !myRoom));
-
-    /** PC 좌측: 집계 AI·전략 랭킹전 → 페어 AI 대전 → 페어 랭킹전 */
-    const pairLobbyDesktopLeftRankedAiStack = (
-        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden overscroll-contain [-webkit-overflow-scrolling:touch] pr-0.5">
-            {showAggregateLobbyAiAboveRanked ? (
-                <div className="shrink-0">{pairLobbyAggregateAiChallengeCardEl}</div>
-            ) : null}
-            {handheldStrategicRankedMatchPanel}
-            {pairLobbyAiDuelQuickMatchCard}
-            {renderPairLobbyPairRankedStats()}
+    const renderDesktopCenterRightWorkspace = (
+        center: React.ReactNode,
+        usersOpts?: { forceUsersOnly?: boolean },
+    ) => (
+        <div className={`flex min-h-0 min-w-0 flex-1 flex-row overflow-hidden ${PC_LOBBY_THREE_COLUMN_ROW_GAP_CLASS}`}>
+            <PcLobbyCenterRightColumn
+                center={center}
+                right={renderDesktopAiLobbyUsersPanel(usersOpts)}
+                rightClassName={PC_LOBBY_USERS_COLUMN_CLASS}
+            />
+            <PcLobbyQuickRailColumn />
         </div>
     );
 
@@ -3718,34 +4239,8 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
             </div>
     );
 
-    const pairLobbyMobileRankedTabPanel = (
-        <div className={`${waitingLobbyPcPanelShellClass(lobbyTone)} flex min-h-0 flex-1 flex-col overflow-hidden p-1.5 sm:p-2`}>
-            <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden overscroll-contain [-webkit-overflow-scrolling:touch] pr-0.5">
-                {pairLobbyAiDuelQuickMatchCard}
-                {handheldStrategicRankedMatchPanel}
-                {renderPairLobbyPairRankedStats()}
-            </div>
-        </div>
-    );
-
-    /** 모바일 전략 경기장: AI 대전 → 랭킹전 패널 */
-    const pairLobbyMobileStrategicRankedAiTabPanel = (
-        <div className={`${waitingLobbyPcPanelShellClass(lobbyTone)} flex min-h-0 flex-1 flex-col overflow-hidden p-1.5 sm:p-2`}>
-            <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden overscroll-contain [-webkit-overflow-scrolling:touch] pr-0.5">
-                {showAggregateLobbyAiAboveRanked ? (
-                    <div className="shrink-0">{pairLobbyAggregateAiChallengeCardEl}</div>
-                ) : null}
-                {handheldStrategicRankedMatchPanel}
-                {renderPairLobbyPairRankedStats()}
-            </div>
-        </div>
-    );
-
     const pairLobbyMobileUsersTabPanel = (
-        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
-            {lobbyChannel === 'pair' && showHandheldRankedTab ? null : pairLobbyAiDuelQuickMatchCard}
-            {pairLobbyPlayerListSection}
-        </div>
+        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">{pairLobbyPlayerListSection}</div>
     );
 
     const userListPanel = (
@@ -3760,11 +4255,11 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
     const pairLobbySlotBoxPx = pairLobbySlotBoxPxForRow(pairLobbySlotRowHeightPx);
     const pairLobbyJoinButtonBoxPx = pairLobbyJoinButtonBoxPxForRow(pairLobbySlotRowHeightPx);
     const pairLobbyRoomListBlock = (
-        <div className={`flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden ${pairLobbyRoomListOuterShellClass(lobbyTone)}`}>
+        <div className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden ${pairLobbyRoomListOuterShellClass(lobbyTone)}`}>
             <div
                 ref={pairLobbySlotGridScrollRef}
                 onScroll={onPairLobbySlotGridScroll}
-                className={`min-h-0 h-full min-w-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain p-1 [-webkit-overflow-scrolling:touch] sm:p-1.5 ${pairLobbyRoomListScrollAreaClass(lobbyTone)} ${PAIR_LOBBY_ROOM_LIST_SCROLLBAR_CLASS}`}
+                className={`min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain p-1 [-webkit-overflow-scrolling:touch] sm:p-1.5 ${pairLobbyRoomListScrollAreaClass(lobbyTone)} ${PAIR_LOBBY_ROOM_LIST_SCROLLBAR_CLASS}`}
             >
                 <div
                     className="flex flex-col"
@@ -4122,11 +4617,25 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                         <Button
                             bare
                             type="button"
-                            disabled={isBusy || userParticipatingInAnyPairRoom}
-                            onClick={openCreateRoomModal}
-                            className="min-w-0 shrink-0 rounded-md border border-emerald-400/30 bg-gradient-to-b from-emerald-800/40 via-emerald-950/70 to-black/80 px-3 py-1.5 text-[10px] font-semibold tracking-wide text-emerald-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_8px_24px_-8px_rgba(16,185,129,0.35)] ring-1 ring-emerald-500/15 transition hover:border-emerald-300/45 hover:from-emerald-700/45 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_10px_28px_-6px_rgba(52,211,153,0.28)] disabled:pointer-events-none disabled:opacity-45 sm:px-5 sm:py-2 sm:text-xs"
+                            disabled={
+                                isBusy ||
+                                (userParticipatingInAnyPairRoom &&
+                                    !(lobbyIntent === 'pvp' && pairLobbyRoomForm === 'create'))
+                            }
+                            onClick={() => {
+                                if (lobbyIntent === 'pvp' && pairLobbyRoomForm === 'create') {
+                                    if (!isBusy) setPairLobbyRoomForm('closed');
+                                    return;
+                                }
+                                openCreateRoomModal();
+                            }}
+                            className={`min-w-0 shrink-0 rounded-md border px-3 py-1.5 text-[10px] font-semibold tracking-wide shadow-[inset_0_1px_0_rgba(255,255,255,0.14)] ring-1 transition disabled:pointer-events-none disabled:opacity-45 sm:px-5 sm:py-2 sm:text-xs ${
+                                lobbyIntent === 'pvp' && pairLobbyRoomForm === 'create'
+                                    ? 'border-white/25 bg-zinc-800/70 text-zinc-100 ring-white/10 hover:border-white/35 hover:bg-zinc-700/70'
+                                    : 'border-emerald-400/30 bg-gradient-to-b from-emerald-800/40 via-emerald-950/70 to-black/80 text-emerald-50 shadow-[0_8px_24px_-8px_rgba(16,185,129,0.35)] ring-emerald-500/15 hover:border-emerald-300/45 hover:from-emerald-700/45 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_10px_28px_-6px_rgba(52,211,153,0.28)]'
+                            }`}
                         >
-                            방만들기
+                            {lobbyIntent === 'pvp' && pairLobbyRoomForm === 'create' ? '취소' : '방만들기'}
                         </Button>
                     </div>
                 </div>
@@ -4134,20 +4643,24 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         </div>
     );
 
-    const pairLobbyRightTabButtonClass = (active: boolean, tone: 'violet' | 'amber') => {
+    const pairLobbyRightTabButtonClass = (active: boolean, tone: 'violet' | 'fuchsia' | 'amber') => {
         const on =
             tone === 'violet'
                 ? 'bg-violet-500 text-violet-950'
-                : 'bg-amber-500 text-amber-950';
+                : tone === 'fuchsia'
+                  ? 'bg-fuchsia-600 text-fuchsia-50'
+                  : 'bg-amber-500 text-amber-950';
         const off =
             tone === 'violet'
                 ? 'text-violet-100 hover:bg-violet-950/45'
-                : 'text-amber-100 hover:bg-amber-950/45';
+                : tone === 'fuchsia'
+                  ? 'text-fuchsia-100 hover:bg-fuchsia-950/40'
+                  : 'text-amber-100 hover:bg-amber-950/45';
         return `rounded-lg px-2 py-1.5 text-xs font-extrabold transition sm:py-2 sm:text-sm ${active ? on : off}`;
     };
 
     /** 방 내부 — `isHandheld`일 때 채팅·하단 액션 등 밀도 높은 UI */
-    const renderPairLobbyRoomInteriorPanel = () => {
+    const renderPairLobbyRoomInteriorPanel = (opts?: { pairAiDuoSlotsOnly?: boolean }) => {
         if (!myRoom) return null;
         void cooldownUiTick;
         const lobbyChangeCooldownMs = myRoom.pairLobbySettingChangeCooldownUntil?.[currentUserId];
@@ -4170,8 +4683,218 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                 ? '준비 완료 상태에서는 변경 제안을 할 수 없습니다.'
                 : undefined;
         const useHandheldRoomChrome = isHandheld;
-        const scheduledGameVisual = pairLobbyGameModeIconAndName(myRoom.selectedGameMode);
-        const scheduledGameDetailRows = buildPairRoomLobbyGameSettingRows(myRoom, { lobbyChannelFallback: lobbyChannel });
+        const isPairAiDuoInviteLobby = isPairAiDuoTeamLobbyContext(myRoom, lobbyIntent, lobbyChannel);
+        const pairAiDuoSlotsOnly = Boolean(
+            opts?.pairAiDuoSlotsOnly ?? (lobbyIntent === 'ai' && isPairAiDuoInviteLobby && useHandheldRoomChrome),
+        );
+        const hidePairChat = lobbyIntent === 'ai';
+        const scheduledGameVisual = isPairAiDuoInviteLobby
+            ? null
+            : pairLobbyGameModeIconAndName(myRoom.selectedGameMode);
+        const scheduledGameDetailRows = isPairAiDuoInviteLobby
+            ? []
+            : buildPairRoomLobbyGameSettingRows(myRoom, { lobbyChannelFallback: lobbyChannel });
+        const showScheduledGameSettings = Boolean(scheduledGameVisual);
+        const pcInlineSeatsBesideSettings = !useHandheldRoomChrome && showScheduledGameSettings;
+        const pairRoomSeatGridBoxEl = (
+            <div
+                className={`min-h-0 min-w-0 ${
+                    useHandheldRoomChrome
+                        ? `shrink-0 ${pairAggregateRoomInteriorTeamBoxHandheldClass(lobbyTone)} overflow-x-auto`
+                        : pcInlineSeatsBesideSettings
+                          ? 'w-full'
+                          : `shrink-0 ${pairAggregateRoomInteriorTeamBoxClass(lobbyTone)}`
+                }`}
+            >
+                <PairRoomSeatGrid
+                    compact={useHandheldRoomChrome}
+                    seatChromeTone={lobbyTone}
+                    oneSlotPerTeam={Boolean(
+                        (aggregateLobbyMode && myRoom.roomKind === 'arena_ai') ||
+                            ((lobbyChannel === 'playful' || lobbyChannel === 'strategic') &&
+                                myRoom.roomKind === 'duo_match'),
+                    )}
+                    arenaAiGameMode={
+                        myRoom.roomKind === 'arena_ai' ||
+                        myRoom.roomKind === 'duo_match' ||
+                        myRoom.roomKind === 'ai_duel'
+                            ? myRoom.selectedGameMode
+                            : undefined
+                    }
+                    pairAiLobbyRoomId={
+                        myRoom.roomKind === 'duo_match' || myRoom.roomKind === 'ai_duel' ? myRoom.id : undefined
+                    }
+                    pairAiLobbySettings={
+                        myRoom.roomKind === 'duo_match' || myRoom.roomKind === 'ai_duel' ? myRoom.settings : undefined
+                    }
+                    hideDuoAiOpponentColumn={lobbyChannel === 'pair' && myRoom.roomKind === 'duo_match'}
+                    roomKind={myRoom.roomKind}
+                    ownerId={myRoom.ownerId}
+                    ownerName={myRoom.ownerName}
+                    partnerId={myRoom.partnerId}
+                    partnerName={myRoom.partnerName}
+                    ownerReady={myRoom.ownerReady}
+                    partnerReady={myRoom.partnerReady}
+                    teamAMembers={seatTeamAMembers}
+                    teamBMembers={seatTeamBMembers}
+                    statusOverlayByUserId={seatStatusOverlayByUserId}
+                    viewerId={currentUserId}
+                    viewerEquippedPairPetPortraitSrc={viewerEquippedPairPetPortraitSrc}
+                    viewerEquippedPairPetName={viewerEquippedPairPetInfo.name}
+                    viewerEquippedPairPetLevel={viewerEquippedPairPetInfo.level}
+                    onViewSeatUserProfile={(userId) => {
+                        if (!userId || userId.startsWith('pet-ai-')) return;
+                        handlers.openViewingUser(userId);
+                    }}
+                    onViewOwnerEquippedPetDetail={openViewerEquippedPairPetDetail}
+                    onViewOtherSeatPetDetail={
+                        myRoom.roomKind === 'ai_duel' || myRoom.roomKind === 'friendly_2p'
+                            ? openLobbySpectatorPairPetDetail
+                            : undefined
+                    }
+                    onInvitePartnerSlot={
+                        isOwner && myRoom.roomKind === 'duo_match' && lobbyChannel !== 'playful'
+                            ? () => {
+                                  setPartnerInviteTargetSlot({ team: 'teamA', index: 1 });
+                                  setPartnerInviteModalOpen(true);
+                              }
+                            : undefined
+                    }
+                    onInviteEmptySlot={
+                        isOwner &&
+                        (myRoom.roomKind === 'duo_match' ||
+                            myRoom.roomKind === 'friendly_4p' ||
+                            myRoom.roomKind === 'friendly_2p')
+                            ? (team, index) => {
+                                  setPartnerInviteTargetSlot({ team, index });
+                                  setPartnerInviteModalOpen(true);
+                              }
+                            : undefined
+                    }
+                    onCommitSeatAssignments={
+                        isOwner
+                            ? async (teamA, teamB) => {
+                                  const result = await handlers.handleAction({
+                                      type: 'PAIR_SET_SEAT_ASSIGNMENTS',
+                                      payload: { roomId: myRoom.id, teamA, teamB },
+                                  } as ServerAction);
+                                  const error = (result as { error?: string } | undefined)?.error;
+                                  if (error) window.alert(error);
+                              }
+                            : undefined
+                    }
+                    onKickRoomMemberRequest={isOwner ? openKickConfirmForUser : undefined}
+                    onDelegateRoomOwnershipRequest={isOwner ? openDelegateConfirmForUser : undefined}
+                    kickUiDisabled={
+                        isBusy ||
+                        isPairRoomMatching ||
+                        isPairRoomMatchPending ||
+                        (myRoom.phase ?? 'waiting') === 'in_game'
+                    }
+                />
+            </div>
+        );
+        const scheduledGameSettingsBlock = scheduledGameVisual ? (
+            <div
+                className={
+                    pcInlineSeatsBesideSettings
+                        ? 'w-full min-w-0 rounded-xl border border-white/10 bg-black/30 px-2.5 py-2 sm:px-3 sm:py-2.5'
+                        : pairAggregateRoomInteriorGameSettingsOuterClass(lobbyTone, useHandheldRoomChrome)
+                }
+            >
+                <div className={pairAggregateRoomInteriorGameSettingsHeadingRowClass(lobbyTone, useHandheldRoomChrome)}>
+                    대국 설정
+                </div>
+                <div
+                    className={`flex w-full min-w-0 flex-row items-stretch ${
+                        useHandheldRoomChrome ? 'mt-1.5 gap-2' : 'mt-2.5 gap-2.5 sm:mt-3 sm:gap-3'
+                    }`}
+                >
+                    <div className={pairAggregateRoomInteriorGameModeColumnClass(lobbyTone, useHandheldRoomChrome)}>
+                        <div className={pairAggregateRoomInteriorGameModeColumnHeaderClass(lobbyTone, useHandheldRoomChrome)}>
+                            게임 모드
+                        </div>
+                        <div
+                            className={`flex min-h-0 flex-1 flex-col items-center justify-center ${
+                                useHandheldRoomChrome ? 'gap-1' : 'gap-2 sm:gap-2.5'
+                            }`}
+                        >
+                            <img
+                                src={scheduledGameVisual.image}
+                                alt=""
+                                className={`shrink-0 object-contain ${pairAggregateRoomInteriorGameModeIconDropShadowClass(lobbyTone)} ${
+                                    useHandheldRoomChrome ? 'h-[3rem] w-[3rem]' : 'h-[4.5rem] w-[4.5rem] sm:h-[5.25rem] sm:w-[5.25rem]'
+                                }`}
+                            />
+                            <div className={pairAggregateRoomInteriorGameModeNameBoxClass(lobbyTone, useHandheldRoomChrome)}>
+                                {scheduledGameVisual.name}
+                            </div>
+                        </div>
+                    </div>
+                    <div className={pairAggregateRoomInteriorDetailColumnOuterClass(lobbyTone)}>
+                        <div className={pairAggregateRoomInteriorDetailColumnHeaderClass(lobbyTone, useHandheldRoomChrome)}>
+                            세부 조건
+                        </div>
+                        <div
+                            className={`min-h-0 flex-1 overflow-y-auto ${
+                                useHandheldRoomChrome
+                                    ? 'max-h-[min(8.5rem,26vh)] px-1.5 py-1'
+                                    : 'max-h-[min(14rem,34vh)] px-2 py-2 sm:px-2.5 sm:py-2.5'
+                            }`}
+                        >
+                            {scheduledGameDetailRows.length > 0 ? (
+                                <dl
+                                    className={
+                                        useHandheldRoomChrome
+                                            ? 'grid grid-cols-2 gap-1.5'
+                                            : 'grid grid-cols-2 gap-1.5 sm:gap-2'
+                                    }
+                                >
+                                    {scheduledGameDetailRows.map((row) => (
+                                        <div
+                                            key={`${row.label}:${row.value}`}
+                                            className={`flex min-h-0 flex-col gap-0.5 rounded-lg border border-white/12 bg-black/55 px-1.5 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:gap-1 sm:px-2 sm:py-1.5`}
+                                        >
+                                            <dt
+                                                className={`min-w-0 w-full text-slate-400 [overflow-wrap:anywhere] ${useHandheldRoomChrome ? 'text-[9px] leading-tight' : 'text-[11px] leading-snug sm:text-xs'}`}
+                                            >
+                                                {row.label}
+                                            </dt>
+                                            <dd
+                                                className={`min-w-0 w-full font-bold leading-tight text-slate-100 [overflow-wrap:anywhere] sm:leading-snug ${
+                                                    useHandheldRoomChrome ? 'text-[9px]' : 'text-[11px] sm:text-xs'
+                                                }`}
+                                            >
+                                                {lobbyChannel === 'playful'
+                                                    ? truncatePlayfulLobbySettingDisplayValue(row.value)
+                                                    : row.value}
+                                            </dd>
+                                        </div>
+                                    ))}
+                                </dl>
+                            ) : (
+                                <p
+                                    className={`rounded-lg border border-dashed border-white/15 bg-black/40 px-2 py-3 text-center leading-snug text-slate-500 ${useHandheldRoomChrome ? 'text-[13px]' : 'text-sm'}`}
+                                >
+                                    표시할 세부 설정이 없습니다.
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        ) : null;
+        const roomSettingsAndSeatsBlock = useHandheldRoomChrome ? (
+            <>
+                {scheduledGameSettingsBlock}
+                {pairRoomSeatGridBoxEl}
+            </>
+        ) : (
+            <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,46%)] items-center gap-3">
+                {scheduledGameSettingsBlock ? <div className="min-h-0 min-w-0 self-center">{scheduledGameSettingsBlock}</div> : null}
+                <div className="flex min-h-0 min-w-0 items-center justify-center self-center overflow-x-auto">{pairRoomSeatGridBoxEl}</div>
+            </div>
+        );
         const chatPanelEl = (
             <PairRoomChatPanel
                 roomId={myRoom.id}
@@ -4188,6 +4911,12 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         );
         const roomHeaderSettingsAndSeats = (
             <>
+                {isPairAiDuoInviteLobby && useHandheldRoomChrome ? (
+                    <p className="shrink-0 rounded-lg border border-violet-400/35 bg-violet-950/40 px-2 py-1.5 text-center text-[10px] font-bold leading-snug text-violet-100 sm:text-xs">
+                        대국 설정·시작은 AI 탭에서 진행합니다.
+                    </p>
+                ) : null}
+                {!isPairAiDuoInviteLobby ? (
                 <div
                     className={`flex w-full min-w-0 shrink-0 flex-col ${
                         useHandheldRoomChrome
@@ -4196,26 +4925,24 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                     }`}
                 >
                                 <div
-                                    className={`flex w-full flex-wrap items-center justify-between gap-x-1.5 gap-y-2 sm:gap-x-2 ${
-                                        isPairPetRoom || isFriendlyTwoPetRoom
-                                            ? useHandheldRoomChrome
-                                                ? 'min-h-0'
-                                                : 'min-h-[3.5rem] sm:min-h-16'
-                                            : ''
-                                    }`}
+                                    className="flex w-full flex-wrap items-center justify-between gap-x-1.5 gap-y-2 sm:gap-x-2"
                                 >
                                     <div className="flex min-h-0 min-w-0 flex-1 flex-nowrap items-center gap-x-1.5 overflow-hidden sm:gap-x-2">
-                                        <span
-                                            className={`shrink-0 font-mono font-extrabold tabular-nums text-amber-200/95 drop-shadow-[0_0_10px_rgba(251,191,36,0.18)] ${useHandheldRoomChrome ? 'text-[11px]' : 'text-sm'}`}
-                                        >
-                                            #{myRoom.code}
-                                        </span>
-                                        <span
-                                            className={`${pairAggregateRoomInteriorTitleTextClass(lobbyTone)} ${useHandheldRoomChrome ? 'text-[11px]' : 'text-sm'}`}
-                                            title={myRoom.title}
-                                        >
-                                            {myRoom.title}
-                                        </span>
+                                        {!isPairAiDuoInviteLobby ? (
+                                            <>
+                                                <span
+                                                    className={`shrink-0 font-mono font-extrabold tabular-nums text-amber-200/95 drop-shadow-[0_0_10px_rgba(251,191,36,0.18)] ${useHandheldRoomChrome ? 'text-[11px]' : 'text-sm'}`}
+                                                >
+                                                    #{myRoom.code}
+                                                </span>
+                                                <span
+                                                    className={`${pairAggregateRoomInteriorTitleTextClass(lobbyTone)} ${useHandheldRoomChrome ? 'text-[11px]' : 'text-sm'}`}
+                                                    title={myRoom.title}
+                                                >
+                                                    {myRoom.title}
+                                                </span>
+                                            </>
+                                        ) : null}
                                         <span
                                             className={`shrink-0 whitespace-nowrap rounded-md border font-extrabold sm:rounded-lg ${
                                                 useHandheldRoomChrome ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-1 text-[11px] sm:text-xs'
@@ -4224,20 +4951,22 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                                         >
                                             {roomKindLabel(pairLobbyListDisplayRoomKind(myRoom, lobbyChannel), lobbyChannel)}
                                         </span>
-                                        <span
-                                            className={
-                                                myRoom.visibility === 'private'
-                                                    ? pairAggregateRoomInteriorVisibilityPrivateClass(lobbyTone, useHandheldRoomChrome)
-                                                    : `shrink-0 rounded-md border font-extrabold sm:rounded-lg ${
-                                                          useHandheldRoomChrome ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-1 text-[11px] sm:text-xs'
-                                                      } border-emerald-400/40 bg-emerald-950/45 text-emerald-100`
-                                            }
-                                        >
-                                            {myRoom.visibility === 'private' ? '비공개' : '공개'}
-                                            {myRoom.passwordProtected ? ' · 암호' : ''}
-                                        </span>
+                                        {!isPairAiDuoInviteLobby ? (
+                                            <span
+                                                className={
+                                                    myRoom.visibility === 'private'
+                                                        ? pairAggregateRoomInteriorVisibilityPrivateClass(lobbyTone, useHandheldRoomChrome)
+                                                        : `shrink-0 rounded-md border font-extrabold sm:rounded-lg ${
+                                                              useHandheldRoomChrome ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-1 text-[11px] sm:text-xs'
+                                                          } border-emerald-400/40 bg-emerald-950/45 text-emerald-100`
+                                                }
+                                            >
+                                                {myRoom.visibility === 'private' ? '비공개' : '공개'}
+                                                {myRoom.passwordProtected ? ' · 암호' : ''}
+                                            </span>
+                                        ) : null}
                                     </div>
-                                    {isOwner ? (
+                                    {isOwner && !isPairAiDuoInviteLobby ? (
                                         <button
                                             type="button"
                                             disabled={
@@ -4267,255 +4996,90 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                                             변경 제안
                                         </button>
                                     ) : null}
-                                    {isPairPetRoom || isDuoArenaRanked ? (
+                                    {isPairRoomMatching && (isPairPetRoom || isDuoArenaRanked) ? (
                                         <div
-                                            className={`pointer-events-none flex shrink-0 items-center rounded-lg border-2 sm:rounded-xl ${
-                                                useHandheldRoomChrome ? 'gap-1.5 px-2 py-1' : 'gap-2 rounded-xl px-2.5 py-1.5 sm:gap-2.5 sm:px-3 sm:py-2'
-                                            } ${
-                                                isPairRoomMatching
-                                                    ? 'pointer-events-auto border-yellow-500/55 bg-gradient-to-br from-yellow-900/45 via-amber-900/35 to-yellow-900/45 shadow-[0_4px_20px_rgba(234,179,8,0.25)]'
-                                                    : 'border-transparent bg-transparent shadow-none'
+                                            className={`pointer-events-auto flex shrink-0 items-center rounded-lg border-2 border-yellow-500/55 bg-gradient-to-br from-yellow-900/45 via-amber-900/35 to-yellow-900/45 shadow-[0_4px_20px_rgba(234,179,8,0.25)] sm:rounded-xl ${
+                                                useHandheldRoomChrome ? 'gap-1.5 px-2 py-1' : 'gap-2 px-2.5 py-1.5 sm:gap-2.5 sm:px-3 sm:py-2'
                                             }`}
-                                            aria-hidden={!isPairRoomMatching}
                                         >
-                                            {isPairRoomMatching ? (
-                                                <>
-                                                    <div className={`relative shrink-0 ${useHandheldRoomChrome ? 'h-7 w-7' : 'h-9 w-9 sm:h-10 sm:w-10'}`}>
-                                                        <div
-                                                            className={`absolute inset-0 rounded-full border-yellow-400 border-t-transparent animate-spin ${useHandheldRoomChrome ? 'border-2' : 'border-[3px] sm:border-4'}`}
-                                                        />
-                                                        <div
-                                                            className={`absolute rounded-full border-amber-400 border-t-transparent animate-spin ${useHandheldRoomChrome ? 'inset-1 border-2' : 'inset-1.5 border-[3px] sm:inset-2 sm:border-4'}`}
-                                                            style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}
-                                                        />
-                                                    </div>
-                                                    <div className="min-w-0 text-right">
-                                                        <p
-                                                            className={`font-extrabold uppercase tracking-wide text-yellow-200/95 ${useHandheldRoomChrome ? 'text-[9px]' : 'text-[10px] sm:text-xs'}`}
-                                                        >
-                                                            매칭중
-                                                        </p>
-                                                        <p
-                                                            className={`font-mono font-bold tabular-nums text-yellow-50 ${useHandheldRoomChrome ? 'text-[10px]' : 'text-xs sm:text-sm'}`}
-                                                        >
-                                                            {formatElapsedHhMmSs(matchElapsedSec)}
-                                                        </p>
-                                                    </div>
-                                                </>
-                                            ) : (
-                                                <div className="flex items-center gap-2 opacity-0" aria-hidden>
-                                                    <div className={`relative shrink-0 ${useHandheldRoomChrome ? 'h-7 w-7' : 'h-9 w-9 sm:h-10 sm:w-10'}`} />
-                                                    <div className="min-w-0 text-right">
-                                                        <p className="text-[10px] font-extrabold uppercase tracking-wide sm:text-xs">매칭중</p>
-                                                        <p className="font-mono text-xs font-bold tabular-nums sm:text-sm">00:00:00</p>
-                                                    </div>
-                                                </div>
-                                            )}
+                                            <div className={`relative shrink-0 ${useHandheldRoomChrome ? 'h-7 w-7' : 'h-9 w-9 sm:h-10 sm:w-10'}`}>
+                                                <div
+                                                    className={`absolute inset-0 rounded-full border-yellow-400 border-t-transparent animate-spin ${useHandheldRoomChrome ? 'border-2' : 'border-[3px] sm:border-4'}`}
+                                                />
+                                                <div
+                                                    className={`absolute rounded-full border-amber-400 border-t-transparent animate-spin ${useHandheldRoomChrome ? 'inset-1 border-2' : 'inset-1.5 border-[3px] sm:inset-2 sm:border-4'}`}
+                                                    style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}
+                                                />
+                                            </div>
+                                            <div className="min-w-0 text-right">
+                                                <p
+                                                    className={`font-extrabold uppercase tracking-wide text-yellow-200/95 ${useHandheldRoomChrome ? 'text-[9px]' : 'text-[10px] sm:text-xs'}`}
+                                                >
+                                                    매칭중
+                                                </p>
+                                                <p
+                                                    className={`font-mono font-bold tabular-nums text-yellow-50 ${useHandheldRoomChrome ? 'text-[10px]' : 'text-xs sm:text-sm'}`}
+                                                >
+                                                    {formatElapsedHhMmSs(matchElapsedSec)}
+                                                </p>
+                                            </div>
                                         </div>
                                     ) : null}
                                 </div>
-                                <div className={pairAggregateRoomInteriorGameSettingsOuterClass(lobbyTone, useHandheldRoomChrome)}>
-                                    <div className={pairAggregateRoomInteriorGameSettingsHeadingRowClass(lobbyTone, useHandheldRoomChrome)}>
-                                        대국 설정
-                                    </div>
-                                    <div
-                                        className={`flex w-full min-w-0 flex-row items-stretch ${
-                                            useHandheldRoomChrome ? 'mt-1.5 gap-2' : 'mt-2.5 gap-2.5 sm:mt-3 sm:gap-3'
-                                        }`}
-                                    >
-                                        <div className={pairAggregateRoomInteriorGameModeColumnClass(lobbyTone, useHandheldRoomChrome)}>
-                                            <div className={pairAggregateRoomInteriorGameModeColumnHeaderClass(lobbyTone, useHandheldRoomChrome)}>
-                                                게임 모드
-                                            </div>
-                                            <div
-                                                className={`flex min-h-0 flex-1 flex-col items-center justify-center ${
-                                                    useHandheldRoomChrome ? 'gap-1' : 'gap-2 sm:gap-2.5'
-                                                }`}
-                                            >
-                                                <img
-                                                    src={scheduledGameVisual.image}
-                                                    alt=""
-                                                    className={`shrink-0 object-contain ${pairAggregateRoomInteriorGameModeIconDropShadowClass(lobbyTone)} ${
-                                                        useHandheldRoomChrome ? 'h-[3rem] w-[3rem]' : 'h-[4.5rem] w-[4.5rem] sm:h-[5.25rem] sm:w-[5.25rem]'
-                                                    }`}
-                                                />
-                                                <div className={pairAggregateRoomInteriorGameModeNameBoxClass(lobbyTone, useHandheldRoomChrome)}>
-                                                    {scheduledGameVisual.name}
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className={pairAggregateRoomInteriorDetailColumnOuterClass(lobbyTone)}>
-                                            <div className={pairAggregateRoomInteriorDetailColumnHeaderClass(lobbyTone, useHandheldRoomChrome)}>
-                                                세부 조건
-                                            </div>
-                                            <div
-                                                className={`min-h-0 flex-1 overflow-y-auto ${
-                                                    useHandheldRoomChrome
-                                                        ? 'max-h-[min(8.5rem,26vh)] px-1.5 py-1'
-                                                        : 'max-h-[min(22rem,40vh)] px-2 py-2 sm:px-2.5 sm:py-2.5'
-                                                }`}
-                                            >
-                                                {scheduledGameDetailRows.length > 0 ? (
-                                                    <dl
-                                                        className={
-                                                            useHandheldRoomChrome
-                                                                ? 'grid grid-cols-2 gap-1.5'
-                                                                : 'grid grid-cols-2 gap-1.5 sm:gap-2'
-                                                        }
-                                                    >
-                                                        {scheduledGameDetailRows.map((row) => (
-                                                            <div
-                                                                key={`${row.label}:${row.value}`}
-                                                                className={`flex min-h-0 flex-row items-center justify-between gap-2 rounded-lg border border-white/12 bg-black/55 px-1.5 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:gap-2.5 sm:px-2 sm:py-1.5`}
-                                                            >
-                                                                <dt
-                                                                    className={`min-w-0 shrink text-slate-400 [overflow-wrap:anywhere] ${useHandheldRoomChrome ? 'max-w-[46%] text-[9px] leading-tight' : 'max-w-[48%] text-[11px] leading-snug sm:text-xs'}`}
-                                                                >
-                                                                    {row.label}
-                                                                </dt>
-                                                                <dd
-                                                                    className={`min-w-0 max-w-[52%] text-right font-bold leading-tight text-slate-100 [overflow-wrap:anywhere] sm:leading-snug ${
-                                                                        useHandheldRoomChrome ? 'text-[9px]' : 'text-[11px] sm:text-xs'
-                                                                    }`}
-                                                                >
-                                                                    {lobbyChannel === 'playful'
-                                                                        ? truncatePlayfulLobbySettingDisplayValue(row.value)
-                                                                        : row.value}
-                                                                </dd>
-                                                            </div>
-                                                        ))}
-                                                    </dl>
-                                                ) : (
-                                                    <p
-                                                        className={`rounded-lg border border-dashed border-white/15 bg-black/40 px-2 py-3 text-center leading-snug text-slate-500 ${useHandheldRoomChrome ? 'text-[13px]' : 'text-sm'}`}
-                                                    >
-                                                        표시할 세부 설정이 없습니다.
-                                                    </p>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                                {roomSettingsAndSeatsBlock}
                             </div>
-                            <div
-                                className={`min-h-0 shrink-0 ${
-                                    useHandheldRoomChrome
-                                        ? `${pairAggregateRoomInteriorTeamBoxHandheldClass(lobbyTone)} overflow-x-auto`
-                                        : pairAggregateRoomInteriorTeamBoxClass(lobbyTone)
-                                }`}
-                            >
-                                <PairRoomSeatGrid
-                                    compact={useHandheldRoomChrome}
-                                    seatChromeTone={lobbyTone}
-                                    oneSlotPerTeam={Boolean(
-                                        (aggregateLobbyMode && myRoom.roomKind === 'arena_ai') ||
-                                            ((lobbyChannel === 'playful' || lobbyChannel === 'strategic') &&
-                                                myRoom.roomKind === 'duo_match'),
-                                    )}
-                                    arenaAiGameMode={
-                                        myRoom.roomKind === 'arena_ai' ||
-                                        myRoom.roomKind === 'duo_match' ||
-                                        myRoom.roomKind === 'ai_duel'
-                                            ? myRoom.selectedGameMode
-                                            : undefined
-                                    }
-                                    pairAiLobbyRoomId={
-                                        myRoom.roomKind === 'duo_match' || myRoom.roomKind === 'ai_duel'
-                                            ? myRoom.id
-                                            : undefined
-                                    }
-                                    pairAiLobbySettings={
-                                        myRoom.roomKind === 'duo_match' || myRoom.roomKind === 'ai_duel'
-                                            ? myRoom.settings
-                                            : undefined
-                                    }
-                                    hideDuoAiOpponentColumn={
-                                        lobbyChannel === 'pair' && myRoom.roomKind === 'duo_match'
-                                    }
-                                    roomKind={myRoom.roomKind}
-                                    ownerId={myRoom.ownerId}
-                                    ownerName={myRoom.ownerName}
-                                    partnerId={myRoom.partnerId}
-                                    partnerName={myRoom.partnerName}
-                                    ownerReady={myRoom.ownerReady}
-                                    partnerReady={myRoom.partnerReady}
-                                    teamAMembers={seatTeamAMembers}
-                                    teamBMembers={seatTeamBMembers}
-                                    statusOverlayByUserId={seatStatusOverlayByUserId}
-                                    viewerId={currentUserId}
-                                    viewerEquippedPairPetPortraitSrc={viewerEquippedPairPetPortraitSrc}
-                                    viewerEquippedPairPetName={viewerEquippedPairPetInfo.name}
-                                    viewerEquippedPairPetLevel={viewerEquippedPairPetInfo.level}
-                                    onViewSeatUserProfile={(userId) => {
-                                        if (!userId || userId.startsWith('pet-ai-')) return;
-                                        handlers.openViewingUser(userId);
-                                    }}
-                                    onViewOwnerEquippedPetDetail={openViewerEquippedPairPetDetail}
-                                    onViewOtherSeatPetDetail={
-                                        myRoom.roomKind === 'ai_duel' || myRoom.roomKind === 'friendly_2p'
-                                            ? openLobbySpectatorPairPetDetail
-                                            : undefined
-                                    }
-                                    onInvitePartnerSlot={
-                                        isOwner && myRoom.roomKind === 'duo_match' && lobbyChannel !== 'playful'
-                                            ? () => {
-                                                  setPartnerInviteTargetSlot({ team: 'teamA', index: 1 });
-                                                  setPartnerInviteModalOpen(true);
-                                              }
-                                            : undefined
-                                    }
-                                    onInviteEmptySlot={
-                                        isOwner &&
-                                        (myRoom.roomKind === 'duo_match' ||
-                                            myRoom.roomKind === 'friendly_4p' ||
-                                            myRoom.roomKind === 'friendly_2p')
-                                            ? (team, index) => {
-                                                  setPartnerInviteTargetSlot({ team, index });
-                                                  setPartnerInviteModalOpen(true);
-                                              }
-                                            : undefined
-                                    }
-                                    onCommitSeatAssignments={
-                                        isOwner
-                                            ? async (teamA, teamB) => {
-                                                  const result = await handlers.handleAction({
-                                                      type: 'PAIR_SET_SEAT_ASSIGNMENTS',
-                                                      payload: { roomId: myRoom.id, teamA, teamB },
-                                                  } as ServerAction);
-                                                  const error = (result as { error?: string } | undefined)?.error;
-                                                  if (error) window.alert(error);
-                                              }
-                                            : undefined
-                                    }
-                                    onKickRoomMemberRequest={isOwner ? openKickConfirmForUser : undefined}
-                                    onDelegateRoomOwnershipRequest={isOwner ? openDelegateConfirmForUser : undefined}
-                                    kickUiDisabled={
-                                        isBusy ||
-                                        isPairRoomMatching ||
-                                        isPairRoomMatchPending ||
-                                        (myRoom.phase ?? 'waiting') === 'in_game'
-                                    }
-                                />
-                            </div>
+                ) : (
+                    pairRoomSeatGridBoxEl
+                )}
             </>
         );
+        if (pairAiDuoSlotsOnly) {
+            return (
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden gap-2">
+                    {pairRoomSeatGridBoxEl}
+                    {showReadyButton ? (
+                        <button
+                            type="button"
+                            disabled={isBusy || (currentUserPairReady && rankedMatchingBlocksPartnerUnready)}
+                            title={
+                                currentUserPairReady && rankedMatchingBlocksPartnerUnready
+                                    ? '랭킹전 매칭 중에는 준비를 해제할 수 없습니다.'
+                                    : undefined
+                            }
+                            onClick={() => {
+                                if (currentUserPairReady && rankedMatchingBlocksPartnerUnready) return;
+                                void setReady(!currentUserPairReady);
+                            }}
+                            aria-label={currentUserPairReady ? '준비 해제' : '준비'}
+                            className={
+                                useHandheldRoomChrome
+                                    ? `${PAIR_ROOM_HANDHELD_ACTION_BTN} border-emerald-300/70 bg-gradient-to-b from-emerald-600/90 to-emerald-950/95 text-emerald-50 shadow-[0_3px_12px_-4px_rgba(16,185,129,0.45),inset_0_1px_0_rgba(255,255,255,0.1)]`
+                                    : `rounded-lg border-2 border-emerald-300/70 bg-gradient-to-b from-emerald-600/90 to-emerald-950/95 px-4 py-3.5 text-sm font-extrabold leading-tight text-emerald-50 shadow-[0_6px_20px_-6px_rgba(16,185,129,0.55),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:brightness-110 disabled:pointer-events-none disabled:opacity-45 sm:rounded-xl min-h-[3.35rem]`
+                            }
+                        >
+                            {currentUserPairReady ? '준비 해제' : '준비'}
+                        </button>
+                    ) : null}
+                </div>
+            );
+        }
         return (
             <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
                 <div className={`flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden ${useHandheldRoomChrome ? 'gap-1.5' : 'gap-2'}`}>
                     <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden">
                         <div
                             className={`flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden ${
-                                useHandheldRoomChrome
-                                    ? `gap-2 ${pairAggregateRoomInteriorShellHandheldClass(lobbyTone)}`
-                                    : `gap-3 ${pairAggregateRoomInteriorShellClass(lobbyTone)}`
+                                useHandheldRoomChrome ? `gap-2 ${pairAggregateRoomInteriorShellHandheldClass(lobbyTone)}` : 'gap-2'
                             }`}
                         >
                             {roomHeaderSettingsAndSeats}
-                            <div
-                                className={`flex min-w-0 flex-1 flex-col ${useHandheldRoomChrome ? 'min-h-0 pt-0.5' : 'min-h-[10.5rem] pt-1'}`}
-                            >
-                                {chatPanelEl}
-                            </div>
+                            {!hidePairChat ? (
+                                <div
+                                    className={`flex min-w-0 flex-1 flex-col min-h-0 ${useHandheldRoomChrome ? 'pt-0.5' : 'pt-1'}`}
+                                >
+                                    {chatPanelEl}
+                                </div>
+                            ) : null}
                         </div>
                     </div>
                 </div>
@@ -4616,7 +5180,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                             >
                                 랭킹전 매칭 (⚡{strategicArenaRankedApButtonLabel})
                             </button>
-                        ) : aggregateLobbyMode && isArenaStrategicAiRoom ? null : lobbyChannel === 'pair' && isPairPetRoom ? null : (
+                        ) : aggregateLobbyMode && isArenaStrategicAiRoom ? null : lobbyChannel === 'pair' && isPairPetRoom ? null : isPairAiDuoInviteLobby ? null : (
                             <button
                                 type="button"
                                 disabled={isBusy || !(isPairChannelDuoAiRoom ? canStartAiMatch : canStart)}
@@ -4627,16 +5191,31 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                                         : `rounded-lg border-2 border-amber-400/80 bg-gradient-to-b from-amber-600/95 to-amber-950/95 px-4 py-3.5 text-sm font-extrabold text-amber-50 shadow-[0_6px_22px_-6px_rgba(251,191,36,0.55),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:brightness-110 disabled:pointer-events-none disabled:opacity-45 sm:rounded-xl min-h-[3.35rem]`
                                 }
                             >
-                                {isPairChannelDuoAiRoom
-                                    ? 'AI대전 시작'
-                                    : isPairPetRoom
-                                    ? `랭킹전 매칭 (⚡${pairRankedMatchApButtonLabel})`
-                                    : myRoom?.roomKind === 'friendly_4p' ||
-                                        myRoom?.roomKind === 'friendly_2p' ||
-                                        (aggregateLobbyMode && !isDuoArenaRanked) ||
-                                        (isArenaFriendlyDuoRoom && !isDuoArenaRanked)
-                                      ? '경기 시작'
-                                      : '매칭 시작'}
+                                {isPairChannelDuoAiRoom ? (
+                                    'AI대전 시작'
+                                ) : isPairPetRoom ? (
+                                    `랭킹전 매칭 (⚡${pairRankedMatchApButtonLabel})`
+                                ) : myRoom?.roomKind === 'friendly_4p' ||
+                                  myRoom?.roomKind === 'friendly_2p' ||
+                                  (aggregateLobbyMode && !isDuoArenaRanked) ||
+                                  (isArenaFriendlyDuoRoom && !isDuoArenaRanked) ? (
+                                    pairOwnerStartCountdownOnStartButton ? (
+                                        <span className="inline-flex items-center justify-center gap-2">
+                                            <span>경기 시작</span>
+                                            <span
+                                                className={`font-mono font-black tabular-nums leading-none ${
+                                                    useHandheldRoomChrome ? 'text-base' : 'text-lg'
+                                                }`}
+                                            >
+                                                {pairOwnerStartDeadlineRemainingSec}
+                                            </span>
+                                        </span>
+                                    ) : (
+                                        '경기 시작'
+                                    )
+                                ) : (
+                                    '매칭 시작'
+                                )}
                             </button>
                         ))}
                     {isOwner &&
@@ -4674,45 +5253,431 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         );
     };
 
+    const pairAiDuoRoomInteriorSlot =
+        myRoom?.roomKind === 'duo_match'
+            ? renderPairLobbyRoomInteriorPanel({ pairAiDuoSlotsOnly: true })
+            : undefined;
+
+    const renderPairLobbyMobileAiSettingsTabPanel = () =>
+        lobbyChannel === 'pair' ? (
+            <div className={`${waitingLobbyPcPanelShellClass(lobbyTone)} flex min-h-0 flex-1 flex-col overflow-hidden p-1.5 sm:p-2`}>
+                <AiLobbyWorkspaceProvider {...aiLobbyWorkspaceProps} duoRoomInteriorSlot={pairAiDuoRoomInteriorSlot}>
+                    <AiLobbyMobileWorkspace className="min-h-0 flex-1" />
+                </AiLobbyWorkspaceProvider>
+            </div>
+        ) : (
+            <div className={`${waitingLobbyPcPanelShellClass(lobbyTone)} flex min-h-0 flex-1 flex-col overflow-hidden p-1.5 sm:p-2`}>
+                <AiLobbyStandaloneCenterPanel
+                    channel={lobbyChannel}
+                    onAction={stableLobbyHandleAction}
+                    className="min-h-0 flex-1"
+                    remountKey={lobbyIntent}
+                />
+            </div>
+        );
+
+    const pvpInlineRoomCreate = lobbyIntent === 'pvp' && pairLobbyRoomForm === 'create';
+    const showPairLobbyRoomFormModal = pairLobbyRoomForm !== 'closed' && !pvpInlineRoomCreate;
+    const showPvpCenterRoomTabs = Boolean(
+        lobbyIntent === 'pvp' &&
+            myRoom &&
+            !pvpInlineRoomCreate &&
+            !(isPairPetRankedQueueShellMatching && !isHandheld),
+    );
+
+    const pairLobbyRoomFormTitle =
+        pairLobbyRoomForm === 'edit'
+            ? lobbyChannel === 'strategic'
+                ? '전략바둑 방 설정'
+                : lobbyChannel === 'playful'
+                  ? '놀이바둑 방 설정'
+                  : '페어 방 설정'
+            : pairLobbyRoomForm === 'propose'
+              ? lobbyChannel === 'strategic'
+                  ? '전략바둑 조건 변경 제안'
+                  : lobbyChannel === 'playful'
+                    ? '놀이바둑 조건 변경 제안'
+                    : '대국 조건 변경 제안'
+              : lobbyChannel === 'strategic'
+                ? '전략바둑 방 만들기'
+                : lobbyChannel === 'playful'
+                  ? '놀이바둑 방 만들기'
+                  : '페어 방 만들기';
+
+    const renderPairLobbyRoomFormAiChallengeModal = () => (
+        <AiChallengeModal
+            key={
+                pairLobbyRoomForm === 'create'
+                    ? `pair-room-create-${pairCreateRoomModalNonce}-${createModalRoomKind}`
+                    : pairLobbyRoomForm === 'propose'
+                      ? `pair-room-propose-${myRoom?.id ?? 'x'}`
+                      : `pair-room-edit`
+            }
+            embeddedPanel
+            embeddedPanelStackedLayout={lobbyIntent === 'pvp' && pairLobbyRoomForm === 'create'}
+            embeddedPanelFillParent={lobbyIntent === 'pvp' && pairLobbyRoomForm === 'create'}
+            configureOnly
+            pairRoomLobbyChangePropose={pairLobbyRoomForm === 'propose'}
+            lobbyType={lobbyChannel === 'playful' ? 'playful' : 'strategic'}
+            preferredGameSettingsBucket={pairLobbyPreferredBucketForEmbeddedRoomCreate(lobbyChannel, createModalRoomKind)}
+            seedFromSession={pairDraftGameSeed}
+            onClose={() => {
+                if (!isBusy) setPairLobbyRoomForm('closed');
+            }}
+            onConfigureApply={handlePairDraftConfigureApply}
+            transformSettingsBeforeStart={transformPairDraftLobbySettings}
+            title=""
+            submitLabel="이 설정으로 저장"
+            showActionPointCost={false}
+            hideScoringTurnLimit={
+                lobbyChannel === 'playful' ||
+                (lobbyChannel === 'pair' && createModalRoomKind === 'friendly_2p') ||
+                (createModalRoomKind !== 'ai_duel' &&
+                    createModalRoomKind !== 'arena_ai' &&
+                    (lobbyChannel !== 'pair' || createModalRoomKind !== 'friendly_2p'))
+            }
+            pairRoomHideGoAiLevel={
+                lobbyChannel === 'playful' ||
+                createModalRoomKind === 'friendly_4p' ||
+                createModalRoomKind === 'friendly_2p' ||
+                (lobbyChannel === 'strategic' && createModalRoomKind === 'duo_match')
+            }
+            pairDuoRankedLobbyReadOnly={false}
+            pairFriendlyHumanClock={
+                (lobbyChannel === 'pair' &&
+                    (createModalRoomKind === 'friendly_4p' || createModalRoomKind === 'friendly_2p')) ||
+                ((lobbyChannel === 'strategic' || lobbyChannel === 'playful') && createModalRoomKind === 'duo_match')
+            }
+            pairRoomHidePlayerOrderRole={lobbyChannel === 'playful' && createModalRoomKind === 'duo_match'}
+            pairRoomDenseSettingsGrid
+            pairRoomHandheldCreateStackedFooter={
+                isHandheld &&
+                (pairLobbyRoomForm === 'create' || pairLobbyRoomForm === 'edit' || pairLobbyRoomForm === 'propose')
+            }
+            pairRoomHandheldBusy={isBusy}
+            onPairRoomHandheldCancel={() => {
+                if (!isBusy) setPairLobbyRoomForm('closed');
+            }}
+            onPairRoomHandheldSubmit={() => handlePairLobbyRoomFormPrimarySubmit()}
+            pairRoomEmbeddedColumnFooter={
+                <>
+                    <Button
+                        type="button"
+                        disabled={isBusy}
+                        onClick={() => setPairLobbyRoomForm('closed')}
+                        colorScheme="none"
+                        className={`!justify-center rounded-xl border border-white/20 bg-zinc-800/60 !font-bold !text-zinc-200 ${
+                            isHandheld ? '!py-2 !text-xs' : '!py-2.5 !text-sm'
+                        }`}
+                    >
+                        취소
+                    </Button>
+                    <Button
+                        type="button"
+                        disabled={isBusy || (pairLobbyRoomForm === 'propose' && !pairLobbyProposeHasChanges)}
+                        title={
+                            pairLobbyRoomForm === 'propose' && !pairLobbyProposeHasChanges
+                                ? '변경된 대국 설정이 없습니다.'
+                                : undefined
+                        }
+                        onClick={() => handlePairLobbyRoomFormPrimarySubmit()}
+                        colorScheme="none"
+                        className={`!justify-center rounded-xl border border-emerald-400/50 bg-emerald-900/55 !font-extrabold !text-emerald-50 ${
+                            isHandheld ? '!py-2 !text-xs' : '!py-2.5 !text-sm'
+                        }`}
+                    >
+                        {pairLobbyRoomForm === 'edit' ? '저장' : pairLobbyRoomForm === 'propose' ? '제안하기' : '만들기'}
+                    </Button>
+                </>
+            }
+            pairRoomEmbeddedRightSlot={(gameSettingsBlock) => (
+                <div
+                    className={`flex min-h-0 w-full min-w-0 flex-1 flex-col bg-primary text-on-panel ${
+                        isHandheld ? 'gap-1 p-2' : 'gap-0 p-3 sm:p-4'
+                    }`}
+                >
+                    {pairLobbyRoomForm === 'propose' ? (
+                        <p className="shrink-0 rounded-lg border border-amber-500/25 bg-amber-950/20 px-2 py-2 text-center text-[10px] font-semibold leading-snug text-amber-100/90 sm:text-xs">
+                            방 이름·공개 여부는 방장 설정이며, 변경 제안에 포함되지 않습니다.
+                        </p>
+                    ) : isHandheld ? (
+                        <div className="flex min-w-0 shrink-0 flex-col gap-2">
+                            <div className="flex min-w-0 items-center gap-2">
+                                <label
+                                    htmlFor="pair-create-room-title-input"
+                                    className="w-[3.25rem] shrink-0 text-sm font-bold leading-tight text-cyan-100"
+                                >
+                                    방 이름
+                                </label>
+                                <input
+                                    id="pair-create-room-title-input"
+                                    value={createModalTitle}
+                                    onChange={(e) => setCreateModalTitle(clampPairRoomTitle(e.target.value))}
+                                    className="h-9 min-w-0 flex-1 rounded-lg border border-white/15 bg-black/40 px-2 text-sm text-slate-100 outline-none ring-0 focus:border-cyan-400/50"
+                                    maxLength={PAIR_ROOM_TITLE_MAX_CHARS}
+                                    autoComplete="off"
+                                />
+                            </div>
+                            <div className="flex min-w-0 flex-wrap items-center gap-2">
+                                <label className="sr-only" htmlFor="pair-create-room-visibility">
+                                    공개 여부
+                                </label>
+                                <select
+                                    id="pair-create-room-visibility"
+                                    value={createModalVisibility}
+                                    onChange={(e) => setCreateModalVisibility(e.target.value as Visibility)}
+                                    className="h-9 min-w-0 flex-1 rounded-lg border border-white/15 bg-black/35 px-2 text-sm font-semibold text-slate-100"
+                                >
+                                    <option value="public">공개방</option>
+                                    <option value="private">비공개방</option>
+                                </select>
+                                <input
+                                    id="pair-create-room-password-input"
+                                    type="password"
+                                    value={createModalPassword}
+                                    onChange={(e) => setCreateModalPassword(e.target.value)}
+                                    onFocus={() => {
+                                        if (createModalVisibility === 'private') {
+                                            setCreateModalPasswordFieldFocused(true);
+                                        }
+                                    }}
+                                    onBlur={() => setCreateModalPasswordFieldFocused(false)}
+                                    disabled={createModalVisibility !== 'private'}
+                                    placeholder={
+                                        createModalVisibility === 'private' &&
+                                        !createModalPasswordFieldFocused &&
+                                        createModalPassword.length === 0
+                                            ? '암호 4자'
+                                            : undefined
+                                    }
+                                    aria-label="비공개 방 비밀번호 4자"
+                                    maxLength={4}
+                                    inputMode="text"
+                                    autoComplete="new-password"
+                                    className="h-9 w-[6.75rem] shrink-0 rounded-lg border border-white/15 bg-black/35 px-2 text-left text-sm text-slate-100 placeholder:text-slate-500 disabled:opacity-45"
+                                />
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex min-w-0 shrink-0 flex-nowrap items-center gap-x-2 overflow-x-auto pb-0.5 sm:gap-x-2.5">
+                            <label
+                                htmlFor="pair-create-room-title-input"
+                                className="shrink-0 text-xs font-bold text-cyan-100 whitespace-nowrap"
+                            >
+                                방 이름
+                            </label>
+                            <input
+                                id="pair-create-room-title-input"
+                                value={createModalTitle}
+                                onChange={(e) => setCreateModalTitle(clampPairRoomTitle(e.target.value))}
+                                className="h-9 min-w-0 w-0 flex-1 rounded-lg border border-white/15 bg-black/40 px-2.5 text-sm text-slate-100 outline-none ring-0 focus:border-cyan-400/50"
+                                maxLength={PAIR_ROOM_TITLE_MAX_CHARS}
+                                autoComplete="off"
+                            />
+                            <label className="sr-only" htmlFor="pair-create-room-visibility">
+                                공개 여부
+                            </label>
+                            <select
+                                id="pair-create-room-visibility"
+                                value={createModalVisibility}
+                                onChange={(e) => setCreateModalVisibility(e.target.value as Visibility)}
+                                className="h-9 w-[5.75rem] shrink-0 rounded-lg border border-white/15 bg-black/35 px-1.5 text-sm font-semibold text-slate-100 sm:w-[6rem] sm:px-2"
+                            >
+                                <option value="public">공개방</option>
+                                <option value="private">비공개방</option>
+                            </select>
+                            <input
+                                id="pair-create-room-password-input"
+                                type="password"
+                                value={createModalPassword}
+                                onChange={(e) => setCreateModalPassword(e.target.value)}
+                                onFocus={() => {
+                                    if (createModalVisibility === 'private') {
+                                        setCreateModalPasswordFieldFocused(true);
+                                    }
+                                }}
+                                onBlur={() => setCreateModalPasswordFieldFocused(false)}
+                                disabled={createModalVisibility !== 'private'}
+                                placeholder={
+                                    createModalVisibility === 'private' &&
+                                    !createModalPasswordFieldFocused &&
+                                    createModalPassword.length === 0
+                                        ? '(비밀번호 4자)'
+                                        : undefined
+                                }
+                                aria-label="비공개 방 비밀번호 4자"
+                                maxLength={4}
+                                inputMode="text"
+                                autoComplete="new-password"
+                                className="h-9 min-w-[7.25rem] w-[8.5rem] shrink-0 rounded-lg border border-white/15 bg-black/35 px-2 text-left text-xs text-slate-100 placeholder:text-slate-500 disabled:opacity-45 sm:min-w-[7.75rem] sm:w-[9.25rem] sm:tracking-widest"
+                            />
+                        </div>
+                    )}
+                    {pairLobbyRoomForm !== 'propose' &&
+                    pairLobbyCreateModalRoomKindOptions(lobbyChannel, lobbyIntent).length > 1 ? (
+                        <>
+                            <hr className={`shrink-0 border-white/10 ${isHandheld ? 'my-2' : 'my-2.5'}`} />
+                            <div className="shrink-0">
+                                <div className={`font-bold text-cyan-100 ${isHandheld ? 'text-sm' : 'text-xs'}`}>방 종류</div>
+                                <div
+                                    className={`grid ${
+                                        isHandheld
+                                            ? 'grid-cols-2'
+                                            : `grid-cols-1 ${lobbyChannel === 'pair' ? 'sm:grid-cols-2' : ''}`
+                                    } ${isHandheld ? 'mt-1 gap-1' : 'mt-1.5 gap-1.5 sm:gap-2'}`}
+                                >
+                                    {pairLobbyCreateModalRoomKindOptions(lobbyChannel, lobbyIntent).map((opt) => {
+                                        const petPairLocked =
+                                            lobbyChannel === 'pair' && opt.value === 'friendly_2p' && !hasEquippedPairPet;
+                                        const sel = createModalRoomKind === opt.value;
+                                        return (
+                                            <button
+                                                key={opt.value}
+                                                type="button"
+                                                disabled={petPairLocked}
+                                                onClick={() => {
+                                                    if (petPairLocked) {
+                                                        window.alert('이 방 종류를 만들려면 페어 펫을 장착해야 합니다.');
+                                                        return;
+                                                    }
+                                                    setCreateModalRoomKind(opt.value);
+                                                }}
+                                                className={`flex min-w-0 flex-col items-center justify-center rounded-lg border px-1 text-center transition sm:rounded-xl sm:px-2 ${
+                                                    isHandheld ? 'min-h-[2rem] py-1' : 'min-h-[2.75rem] py-2'
+                                                } ${
+                                                    petPairLocked
+                                                        ? 'cursor-not-allowed border-white/5 bg-zinc-950/60 opacity-50'
+                                                        : sel
+                                                          ? 'border-cyan-400/60 bg-cyan-950/50 ring-1 ring-cyan-300/25'
+                                                          : 'border-white/10 bg-black/30 hover:border-white/20'
+                                                }`}
+                                            >
+                                                <div
+                                                    className={`font-extrabold leading-tight text-white ${
+                                                        isHandheld ? 'text-[10px]' : 'text-[11px] sm:text-sm'
+                                                    }`}
+                                                >
+                                                    {opt.label}
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                            <hr className={`shrink-0 border-white/10 ${isHandheld ? 'my-2' : 'my-2.5'}`} />
+                        </>
+                    ) : null}
+                    <div
+                        className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-t border-white/10 ${
+                            isHandheld ? 'mt-1 pt-1.5' : 'mt-2 pt-2'
+                        }`}
+                    >
+                        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
+                            {gameSettingsBlock}
+                        </div>
+                    </div>
+                </div>
+            )}
+        />
+    );
+
     const renderPairLobbyCenterColumn = () => (
         <div className={waitingLobbyPcCenterColumnClass(lobbyTone)}>
             <div className={waitingLobbyPcPanelTopHairlineClassFor(lobbyTone)} aria-hidden />
-            <div className="relative z-[2] shrink-0 px-0.5 pt-0.5 sm:px-1">
-                <WaitingLobbyAnnouncementBoard
-                    mode={lobbyChannel === 'playful' ? 'playful' : lobbyChannel === 'strategic' ? 'strategic' : 'pair'}
-                />
-            </div>
-            <div className="shrink-0">{pairLobbyRoomQuickJoinToolbar}</div>
-            <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{pairLobbyRoomListBlock}</div>
+            {!(pvpInlineRoomCreate && isHandheld) ? pairLobbyAnnouncementBoardEl : null}
+            {pvpInlineRoomCreate ? (
+                <div
+                    className={`mx-0.5 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden sm:mx-1 ${pairLobbyRoomListOuterShellClass(lobbyTone)}`}
+                >
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-1 sm:p-1.5">
+                        {renderPairLobbyRoomFormAiChallengeModal()}
+                    </div>
+                </div>
+            ) : (
+                <>
+                    <div className="shrink-0">{pairLobbyRoomQuickJoinToolbar}</div>
+                    {showPvpCenterRoomTabs && myRoom ? (
+                <>
+                    <div className="mx-0.5 shrink-0 sm:mx-1">
+                        <div className="grid grid-cols-2 gap-1 rounded-xl border border-white/10 bg-black/25 p-1">
+                            <button
+                                type="button"
+                                onClick={() => setPairLobbyCenterTab('rooms')}
+                                className={pairLobbyRightTabButtonClass(pairLobbyCenterTab === 'rooms', 'violet')}
+                            >
+                                방목록
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setPairLobbyCenterTab('room')}
+                                className={`min-w-0 truncate ${pairLobbyRightTabButtonClass(pairLobbyCenterTab === 'room', 'fuchsia')}`}
+                                title={pairLobbyMyRoomTabLabel(myRoom, lobbyIntent, lobbyChannel)}
+                            >
+                                {pairLobbyMyRoomTabLabel(myRoom, lobbyIntent, lobbyChannel)}
+                            </button>
+                        </div>
+                    </div>
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                        {pairLobbyCenterTab === 'rooms' ? (
+                            <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                                {pairLobbyRoomListBlock}
+                            </div>
+                        ) : (
+                            <div
+                                className={`${waitingLobbyPcPanelShellClass(lobbyTone)} mx-0.5 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-1.5 sm:mx-1 sm:p-2`}
+                            >
+                                {renderPairLobbyRoomInteriorPanel()}
+                            </div>
+                        )}
+                    </div>
+                </>
+            ) : (
+                <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{pairLobbyRoomListBlock}</div>
+            )}
+                </>
+            )}
         </div>
     );
 
-    /** PC 페어 랭킹 큐 껍데기 방: 「N번방」·방 내부 UI를 숨겨 방 생성처럼 보이지 않게 함 */
+    const arenaLobbySwitchGridEl = (
+        <ArenaLobbySwitchGrid
+            channel={lobbyChannel}
+            intent={lobbyIntent}
+            onSelectChannel={navigateArenaTab}
+            onSelectIntent={navigateIntentTab}
+            currentUser={currentUserWithStatus}
+            arenaEntranceFromServer={arenaEntranceFromServer}
+            arenaEntranceAvailability={arenaEntranceAvailability}
+            layout={isHandheld ? 'scroll' : 'grid'}
+        />
+    );
+
+    /** PC 페어 랭킹 큐 껍데기 방: 「N번방」·방 내부 UI를 숨겨 방 생성처럼 보이지 않게 함. PVP는 중앙 열 탭으로 분리 */
     const showRoomUserSplitInUsersColumn = Boolean(
-        myRoom && (!isHandheld || aggregateLobbyMode) && !(isPairPetRankedQueueShellMatching && !isHandheld),
+        lobbyIntent !== 'pvp' &&
+            myRoomForUsersColumnChrome &&
+            (!isHandheld || aggregateLobbyMode) &&
+            !(isPairPetRankedQueueShellMatching && !isHandheld),
     );
 
     const handheldOrDesktopUsersColumnPanel = isHandheld ? pairLobbyMobileUsersTabPanel : userListPanel;
 
-    const renderPairLobbyUsersColumn = () => (
+    const renderPairLobbyUsersColumn = (opts?: { forceUsersOnly?: boolean }) => {
+        const forceUsersOnly = opts?.forceUsersOnly ?? false;
+        const showRoomSplit = !forceUsersOnly && showRoomUserSplitInUsersColumn;
+        return (
         <>
-            {showRoomUserSplitInUsersColumn && myRoom ? (
+            {showRoomSplit && myRoomForUsersColumnChrome ? (
                 <>
                     <div
-                        className={`grid shrink-0 gap-1 border-b border-white/10 bg-black/25 p-1 ${
-                            aggregateLobbyMode
-                                ? isHandheld
-                                    ? 'grid-cols-3'
-                                    : 'grid-cols-2'
-                                : 'grid-cols-2'
-                        }`}
+                        className="grid shrink-0 grid-cols-2 gap-1 border-b border-white/10 bg-black/25 p-1"
                     >
                         <button
                             type="button"
                             onClick={() => setPairLobbyRightTab('room')}
                             className={pairLobbyRightTabButtonClass(pairLobbyRightTab === 'room', 'violet')}
                         >
-                            {`${myRoom.code}번방`}
+                            {pairLobbyMyRoomTabLabel(myRoomForUsersColumnChrome, lobbyIntent, lobbyChannel)}
                         </button>
                         <button
                             type="button"
@@ -4721,23 +5686,10 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                         >
                             유저목록
                         </button>
-                        {aggregateLobbyMode && isHandheld ? (
-                            <button
-                                type="button"
-                                onClick={() => setPairLobbyRightTab('ai')}
-                                className={pairLobbyRightTabButtonClass(pairLobbyRightTab === 'ai', 'violet')}
-                            >
-                                AI대전
-                            </button>
-                        ) : null}
                     </div>
                     <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-1.5 sm:p-2">
                         {pairLobbyRightTab === 'room' ? (
                             renderPairLobbyRoomInteriorPanel()
-                        ) : pairLobbyRightTab === 'ai' && aggregateLobbyMode && isHandheld ? (
-                            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden">
-                                {pairLobbyAggregateAiChallengeCardEl}
-                            </div>
                         ) : (
                             handheldOrDesktopUsersColumnPanel
                         )}
@@ -4747,7 +5699,8 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                 <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{handheldOrDesktopUsersColumnPanel}</div>
             )}
         </>
-    );
+        );
+    };
 
     return (
         <div
@@ -4762,10 +5715,10 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                     ? 'min-h-0 gap-2 overflow-hidden px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2'
                     : isNativeMobile
                       ? 'gap-2 overflow-y-auto px-2 pb-2 pt-2'
-                      : 'px-3 pb-3 pt-3'
+                      : PC_LOBBY_DESKTOP_SHELL_PADDING_CLASS
             }`}
         >
-            {pairLobbyRoomForm !== 'closed' && (
+            {showPairLobbyRoomFormModal && (
                 <div
                     className={`fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm ${
                         isHandheld ? 'flex flex-col justify-end p-0 sm:p-3 sm:justify-center' : 'flex items-center justify-center p-3'
@@ -4804,314 +5757,11 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                                     isHandheld ? 'px-8 text-sm leading-snug' : 'px-14 text-base sm:px-16'
                                 }`}
                             >
-                                {pairLobbyRoomForm === 'edit'
-                                    ? lobbyChannel === 'strategic'
-                                        ? '전략바둑 방 설정'
-                                        : lobbyChannel === 'playful'
-                                          ? '놀이바둑 방 설정'
-                                          : '페어 방 설정'
-                                    : pairLobbyRoomForm === 'propose'
-                                      ? lobbyChannel === 'strategic'
-                                          ? '전략바둑 조건 변경 제안'
-                                          : lobbyChannel === 'playful'
-                                            ? '놀이바둑 조건 변경 제안'
-                                            : '대국 조건 변경 제안'
-                                      : lobbyChannel === 'strategic'
-                                        ? '전략바둑 방 만들기'
-                                        : lobbyChannel === 'playful'
-                                          ? '놀이바둑 방 만들기'
-                                          : '페어 방 만들기'}
+                                {pairLobbyRoomFormTitle}
                             </h2>
 
                             <div className="mt-3 flex min-h-0 min-w-0 flex-1 flex-col">
-                                <AiChallengeModal
-                                    key={
-                                        pairLobbyRoomForm === 'create'
-                                            ? `pair-room-create-${pairCreateRoomModalNonce}-${createModalRoomKind}`
-                                            : pairLobbyRoomForm === 'propose'
-                                              ? `pair-room-propose-${myRoom?.id ?? 'x'}`
-                                              : `pair-room-edit`
-                                    }
-                                    embeddedPanel
-                                    configureOnly
-                                    pairRoomLobbyChangePropose={pairLobbyRoomForm === 'propose'}
-                                    lobbyType={lobbyChannel === 'playful' ? 'playful' : 'strategic'}
-                                    preferredGameSettingsBucket={pairLobbyPreferredBucketForEmbeddedRoomCreate(
-                                        lobbyChannel,
-                                        createModalRoomKind,
-                                    )}
-                                    seedFromSession={pairDraftGameSeed}
-                                    onClose={() => {
-                                        if (!isBusy) setPairLobbyRoomForm('closed');
-                                    }}
-                                    onConfigureApply={handlePairDraftConfigureApply}
-                                    transformSettingsBeforeStart={transformPairDraftLobbySettings}
-                                    title=""
-                                    submitLabel="이 설정으로 저장"
-                                    showActionPointCost={false}
-                                    hideScoringTurnLimit={
-                                        lobbyChannel === 'playful' ||
-                                        (lobbyChannel === 'pair' && createModalRoomKind === 'friendly_2p') ||
-                                        (createModalRoomKind !== 'ai_duel' &&
-                                            createModalRoomKind !== 'arena_ai' &&
-                                            (lobbyChannel !== 'pair' || createModalRoomKind !== 'friendly_2p'))
-                                    }
-                                    pairRoomHideGoAiLevel={
-                                        lobbyChannel === 'playful' ||
-                                        createModalRoomKind === 'friendly_4p' ||
-                                        createModalRoomKind === 'friendly_2p' ||
-                                        (lobbyChannel === 'strategic' && createModalRoomKind === 'duo_match')
-                                    }
-                                    pairDuoRankedLobbyReadOnly={false}
-                                    pairFriendlyHumanClock={
-                                        (lobbyChannel === 'pair' &&
-                                            (createModalRoomKind === 'friendly_4p' ||
-                                                createModalRoomKind === 'friendly_2p')) ||
-                                        ((lobbyChannel === 'strategic' || lobbyChannel === 'playful') &&
-                                            createModalRoomKind === 'duo_match')
-                                    }
-                                    pairRoomHidePlayerOrderRole={
-                                        lobbyChannel === 'playful' && createModalRoomKind === 'duo_match'
-                                    }
-                                    pairRoomDenseSettingsGrid
-                                    pairRoomHandheldCreateStackedFooter={
-                                        isHandheld &&
-                                        (pairLobbyRoomForm === 'create' ||
-                                            pairLobbyRoomForm === 'edit' ||
-                                            pairLobbyRoomForm === 'propose')
-                                    }
-                                    pairRoomHandheldBusy={isBusy}
-                                    onPairRoomHandheldCancel={() => {
-                                        if (!isBusy) setPairLobbyRoomForm('closed');
-                                    }}
-                                    onPairRoomHandheldSubmit={() => void submitPairRoomFormModal()}
-                                    pairRoomEmbeddedColumnFooter={
-                                        <>
-                                            <Button
-                                                type="button"
-                                                disabled={isBusy}
-                                                onClick={() => setPairLobbyRoomForm('closed')}
-                                                colorScheme="none"
-                                                className={`!justify-center rounded-xl border border-white/20 bg-zinc-800/60 !font-bold !text-zinc-200 ${
-                                                    isHandheld ? '!py-2 !text-xs' : '!py-2.5 !text-sm'
-                                                }`}
-                                            >
-                                                취소
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                disabled={isBusy}
-                                                onClick={() => void submitPairRoomFormModal()}
-                                                colorScheme="none"
-                                                className={`!justify-center rounded-xl border border-emerald-400/50 bg-emerald-900/55 !font-extrabold !text-emerald-50 ${
-                                                    isHandheld ? '!py-2 !text-xs' : '!py-2.5 !text-sm'
-                                                }`}
-                                            >
-                                                {pairLobbyRoomForm === 'edit'
-                                                    ? '저장'
-                                                    : pairLobbyRoomForm === 'propose'
-                                                      ? '제안하기'
-                                                      : '만들기'}
-                                            </Button>
-                                        </>
-                                    }
-                                    pairRoomEmbeddedRightSlot={(gameSettingsBlock) => (
-                                        <div
-                                            className={`flex min-h-0 w-full min-w-0 flex-1 flex-col bg-primary text-on-panel ${
-                                                isHandheld ? 'gap-1 p-2' : 'gap-0 p-3 sm:p-4'
-                                            }`}
-                                        >
-                                            {pairLobbyRoomForm === 'propose' ? (
-                                                <p className="shrink-0 rounded-lg border border-amber-500/25 bg-amber-950/20 px-2 py-2 text-center text-[10px] font-semibold leading-snug text-amber-100/90 sm:text-xs">
-                                                    방 이름·공개 여부는 방장 설정이며, 변경 제안에 포함되지 않습니다.
-                                                </p>
-                                            ) : isHandheld ? (
-                                                <div className="flex min-w-0 shrink-0 flex-col gap-2">
-                                                    <div className="flex min-w-0 items-center gap-2">
-                                                        <label
-                                                            htmlFor="pair-create-room-title-input"
-                                                            className="w-[3.25rem] shrink-0 text-sm font-bold leading-tight text-cyan-100"
-                                                        >
-                                                            방 이름
-                                                        </label>
-                                                        <input
-                                                            id="pair-create-room-title-input"
-                                                            value={createModalTitle}
-                                                            onChange={(e) => setCreateModalTitle(clampPairRoomTitle(e.target.value))}
-                                                            className="h-9 min-w-0 flex-1 rounded-lg border border-white/15 bg-black/40 px-2 text-sm text-slate-100 outline-none ring-0 focus:border-cyan-400/50"
-                                                            maxLength={PAIR_ROOM_TITLE_MAX_CHARS}
-                                                            autoComplete="off"
-                                                        />
-                                                    </div>
-                                                    <div className="flex min-w-0 flex-wrap items-center gap-2">
-                                                        <label className="sr-only" htmlFor="pair-create-room-visibility">
-                                                            공개 여부
-                                                        </label>
-                                                        <select
-                                                            id="pair-create-room-visibility"
-                                                            value={createModalVisibility}
-                                                            onChange={(e) => setCreateModalVisibility(e.target.value as Visibility)}
-                                                            className="h-9 min-w-0 flex-1 rounded-lg border border-white/15 bg-black/35 px-2 text-sm font-semibold text-slate-100"
-                                                        >
-                                                            <option value="public">공개방</option>
-                                                            <option value="private">비공개방</option>
-                                                        </select>
-                                                        <input
-                                                            id="pair-create-room-password-input"
-                                                            type="password"
-                                                            value={createModalPassword}
-                                                            onChange={(e) => setCreateModalPassword(e.target.value)}
-                                                            onFocus={() => {
-                                                                if (createModalVisibility === 'private') {
-                                                                    setCreateModalPasswordFieldFocused(true);
-                                                                }
-                                                            }}
-                                                            onBlur={() => setCreateModalPasswordFieldFocused(false)}
-                                                            disabled={createModalVisibility !== 'private'}
-                                                            placeholder={
-                                                                createModalVisibility === 'private' &&
-                                                                !createModalPasswordFieldFocused &&
-                                                                createModalPassword.length === 0
-                                                                    ? '암호 4자'
-                                                                    : undefined
-                                                            }
-                                                            aria-label="비공개 방 비밀번호 4자"
-                                                            maxLength={4}
-                                                            inputMode="text"
-                                                            autoComplete="new-password"
-                                                            className="h-9 w-[6.75rem] shrink-0 rounded-lg border border-white/15 bg-black/35 px-2 text-left text-sm text-slate-100 placeholder:text-slate-500 disabled:opacity-45"
-                                                        />
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <div className="flex min-w-0 shrink-0 flex-nowrap items-center gap-x-2 overflow-x-auto pb-0.5 sm:gap-x-2.5">
-                                                    <label
-                                                        htmlFor="pair-create-room-title-input"
-                                                        className="shrink-0 text-xs font-bold text-cyan-100 whitespace-nowrap"
-                                                    >
-                                                        방 이름
-                                                    </label>
-                                                    <input
-                                                        id="pair-create-room-title-input"
-                                                        value={createModalTitle}
-                                                        onChange={(e) => setCreateModalTitle(clampPairRoomTitle(e.target.value))}
-                                                        className="h-9 min-w-0 w-0 flex-1 rounded-lg border border-white/15 bg-black/40 px-2.5 text-sm text-slate-100 outline-none ring-0 focus:border-cyan-400/50"
-                                                        maxLength={PAIR_ROOM_TITLE_MAX_CHARS}
-                                                        autoComplete="off"
-                                                    />
-                                                    <label className="sr-only" htmlFor="pair-create-room-visibility">
-                                                        공개 여부
-                                                    </label>
-                                                    <select
-                                                        id="pair-create-room-visibility"
-                                                        value={createModalVisibility}
-                                                        onChange={(e) => setCreateModalVisibility(e.target.value as Visibility)}
-                                                        className="h-9 w-[5.75rem] shrink-0 rounded-lg border border-white/15 bg-black/35 px-1.5 text-sm font-semibold text-slate-100 sm:w-[6rem] sm:px-2"
-                                                    >
-                                                        <option value="public">공개방</option>
-                                                        <option value="private">비공개방</option>
-                                                    </select>
-                                                    <input
-                                                        id="pair-create-room-password-input"
-                                                        type="password"
-                                                        value={createModalPassword}
-                                                        onChange={(e) => setCreateModalPassword(e.target.value)}
-                                                        onFocus={() => {
-                                                            if (createModalVisibility === 'private') {
-                                                                setCreateModalPasswordFieldFocused(true);
-                                                            }
-                                                        }}
-                                                        onBlur={() => setCreateModalPasswordFieldFocused(false)}
-                                                        disabled={createModalVisibility !== 'private'}
-                                                        placeholder={
-                                                            createModalVisibility === 'private' &&
-                                                            !createModalPasswordFieldFocused &&
-                                                            createModalPassword.length === 0
-                                                                ? '(비밀번호 4자)'
-                                                                : undefined
-                                                        }
-                                                        aria-label="비공개 방 비밀번호 4자"
-                                                        maxLength={4}
-                                                        inputMode="text"
-                                                        autoComplete="new-password"
-                                                        className="h-9 min-w-[7.25rem] w-[8.5rem] shrink-0 rounded-lg border border-white/15 bg-black/35 px-2 text-left text-xs text-slate-100 placeholder:text-slate-500 disabled:opacity-45 sm:min-w-[7.75rem] sm:w-[9.25rem] sm:tracking-widest"
-                                                    />
-                                                </div>
-                                            )}
-                                            {pairLobbyRoomForm !== 'propose' &&
-                                            pairLobbyCreateModalRoomKindOptions(lobbyChannel).length > 1 ? (
-                                                <>
-                                                    <hr className={`shrink-0 border-white/10 ${isHandheld ? 'my-2' : 'my-2.5'}`} />
-                                                    <div className="shrink-0">
-                                                        <div
-                                                            className={`font-bold text-cyan-100 ${isHandheld ? 'text-sm' : 'text-xs'}`}
-                                                        >
-                                                            방 종류
-                                                        </div>
-                                                        <div
-                                                            className={`grid ${
-                                                                isHandheld
-                                                                    ? 'grid-cols-2'
-                                                                    : `grid-cols-1 ${lobbyChannel === 'pair' ? 'sm:grid-cols-2' : ''}`
-                                                            } ${isHandheld ? 'mt-1 gap-1' : 'mt-1.5 gap-1.5 sm:gap-2'}`}
-                                                        >
-                                                            {pairLobbyCreateModalRoomKindOptions(lobbyChannel).map((opt) => {
-                                                                const petPairLocked =
-                                                                    lobbyChannel === 'pair' &&
-                                                                    opt.value === 'friendly_2p' &&
-                                                                    !hasEquippedPairPet;
-                                                                const sel = createModalRoomKind === opt.value;
-                                                                return (
-                                                                    <button
-                                                                        key={opt.value}
-                                                                        type="button"
-                                                                        disabled={petPairLocked}
-                                                                        onClick={() => {
-                                                                            if (petPairLocked) {
-                                                                                window.alert(
-                                                                                    '이 방 종류를 만들려면 페어 펫을 장착해야 합니다.',
-                                                                                );
-                                                                                return;
-                                                                            }
-                                                                            setCreateModalRoomKind(opt.value);
-                                                                        }}
-                                                                        className={`flex min-w-0 flex-col items-center justify-center rounded-lg border px-1 text-center transition sm:rounded-xl sm:px-2 ${
-                                                                            isHandheld ? 'min-h-[2rem] py-1' : 'min-h-[2.75rem] py-2'
-                                                                        } ${
-                                                                            petPairLocked
-                                                                                ? 'cursor-not-allowed border-white/5 bg-zinc-950/60 opacity-50'
-                                                                                : sel
-                                                                                  ? 'border-cyan-400/60 bg-cyan-950/50 ring-1 ring-cyan-300/25'
-                                                                                  : 'border-white/10 bg-black/30 hover:border-white/20'
-                                                                        }`}
-                                                                    >
-                                                                        <div
-                                                                            className={`font-extrabold leading-tight text-white ${
-                                                                                isHandheld ? 'text-[10px]' : 'text-[11px] sm:text-sm'
-                                                                            }`}
-                                                                        >
-                                                                            {opt.label}
-                                                                        </div>
-                                                                    </button>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    </div>
-                                                    <hr className={`shrink-0 border-white/10 ${isHandheld ? 'my-2' : 'my-2.5'}`} />
-                                                </>
-                                            ) : null}
-                                            <div
-                                                className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-t border-white/10 ${
-                                                    isHandheld ? 'mt-1 pt-1.5' : 'mt-2 pt-2'
-                                                }`}
-                                            >
-                                                <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
-                                                    {gameSettingsBlock}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-                                />
+                                {renderPairLobbyRoomFormAiChallengeModal()}
                             </div>
                         </div>
                     </div>
@@ -5331,35 +5981,18 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                     {(() => {
                         const prop = myRoom.pairLobbySettingChangeProposal!;
                         const pl = prop.payload;
-                        const proposedTitle =
-                            typeof pl.title === 'string' && pl.title.trim() !== ''
-                                ? clampPairRoomTitle(pl.title)
-                                : myRoom.title;
-                        const proposedVisibility = (pl.visibility ?? myRoom.visibility) as Visibility;
-                        const proposedRoomKind = (pl.roomKind ?? myRoom.roomKind) as RoomKind;
                         const proposedMode = pl.selectedGameMode ?? myRoom.selectedGameMode ?? GameMode.Standard;
-                        const proposedSettings = {
-                            ...DEFAULT_GAME_SETTINGS,
-                            ...(myRoom.settings ?? {}),
-                            ...(pl.settings ?? {}),
-                        } as GameSettings;
                         const gameVisual = pairLobbyGameModeIconAndName(proposedMode);
-                        const settingRows = buildPairRoomLobbyGameSettingRows(
+                        const settingDiffRows = buildPairLobbySettingChangeDiffRows(
                             {
-                                selectedGameMode: proposedMode,
-                                settings: proposedSettings,
-                                roomKind: proposedRoomKind,
-                                title: proposedTitle,
-                                lobbyChannel: myRoom.lobbyChannel,
+                                selectedGameMode: myRoom.selectedGameMode,
+                                settings: myRoom.settings,
+                                roomKind: myRoom.roomKind,
+                                lobbyChannel: myRoom.lobbyChannel ?? lobbyChannel,
                             },
+                            pl.settings,
                             { lobbyChannelFallback: lobbyChannel },
                         );
-                        const pwNote =
-                            typeof pl.password === 'string' && pl.password.trim().length === 4
-                                ? '비공개 방 비밀번호가 새 4자로 적용됩니다.'
-                                : proposedVisibility === 'private' && myRoom.visibility === 'public'
-                                  ? '공개에서 비공개로 전환됩니다.'
-                                  : null;
                         return (
                             <div className="relative overflow-hidden">
                                 <div
@@ -5369,34 +6002,11 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                                 <div className="relative px-4 pb-5 pt-5 text-center sm:px-6 sm:pb-6 sm:pt-6">
                                     <p className="text-sm font-bold leading-snug text-amber-100/95 sm:text-base">
                                         <span className="font-black text-amber-50">{prop.fromUserName}</span>님의 제안
-                                        내용입니다. 우측 하단에서 수락 또는 거절해 주세요.
+                                        내용입니다. 기존 설정과 제안 내용을 비교한 뒤 수락 또는 거절해 주세요.
                                     </p>
-                                    <dl className="mx-auto mt-4 max-w-md space-y-2 rounded-lg border border-white/10 bg-black/35 px-3 py-3 text-left text-[0.7rem] sm:text-xs">
-                                        <div className="flex justify-between gap-2 border-b border-white/[0.06] pb-1.5">
-                                            <dt className="shrink-0 text-slate-400">방 이름</dt>
-                                            <dd className="min-w-0 max-w-[65%] text-right font-semibold leading-snug text-slate-100">
-                                                {proposedTitle}
-                                            </dd>
-                                        </div>
-                                        <div className="flex justify-between gap-2 border-b border-white/[0.06] pb-1.5">
-                                            <dt className="shrink-0 text-slate-400">공개 여부</dt>
-                                            <dd className="font-semibold text-slate-100">
-                                                {proposedVisibility === 'private' ? '비공개' : '공개'}
-                                                {myRoom.visibility !== proposedVisibility ? (
-                                                    <span className="ml-1 text-[0.65rem] font-bold text-amber-200/90">(변경)</span>
-                                                ) : null}
-                                            </dd>
-                                        </div>
-                                        <div className="flex justify-between gap-2">
-                                            <dt className="shrink-0 text-slate-400">방 종류</dt>
-                                            <dd className="font-semibold text-slate-100">{roomKindLabel(proposedRoomKind, lobbyChannel)}</dd>
-                                        </div>
-                                        {pwNote ? (
-                                            <p className="border-t border-white/[0.06] pt-2 text-[0.68rem] leading-relaxed text-amber-200/90">
-                                                {pwNote}
-                                            </p>
-                                        ) : null}
-                                    </dl>
+                                    <p className="mx-auto mt-3 max-w-md text-[0.68rem] leading-relaxed text-slate-400 sm:text-xs">
+                                        방 이름·공개 여부·게임 모드는 방장 설정이며 변경 제안에 포함되지 않습니다.
+                                    </p>
                                     <div className="mx-auto mt-4 max-w-md rounded-lg border border-violet-400/25 bg-violet-950/20 px-2 py-2 text-left sm:px-3 sm:py-2.5">
                                         <div className="flex items-center gap-2.5 sm:gap-3">
                                             <img
@@ -5409,25 +6019,13 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                                                 {gameVisual.name}
                                             </p>
                                         </div>
-                                        {settingRows.length > 0 ? (
-                                            <dl className="mt-2 grid max-h-[min(42vh,18rem)] grid-cols-2 gap-x-2 gap-y-1 overflow-y-auto text-[0.68rem] leading-tight sm:text-xs sm:leading-snug">
-                                                {settingRows.map((row, idx) => (
-                                                    <div
-                                                        key={`${idx}:${row.label}`}
-                                                        className="flex min-h-0 items-center justify-between gap-2 border-b border-white/[0.05] py-1 last:border-b-0"
-                                                    >
-                                                        <dt className="min-w-0 max-w-[48%] shrink text-slate-500 [overflow-wrap:anywhere]">
-                                                            {row.label}
-                                                        </dt>
-                                                        <dd className="min-w-0 max-w-[52%] text-right font-semibold text-slate-100 [overflow-wrap:anywhere]">
-                                                            {row.value}
-                                                        </dd>
-                                                    </div>
-                                                ))}
-                                            </dl>
-                                        ) : (
-                                            <p className="mt-2 text-center text-[0.65rem] text-slate-500">세부 설정 변경 없음</p>
-                                        )}
+                                        <div className="mt-3">
+                                            <PairLobbySettingChangeDiffTable
+                                                rows={settingDiffRows}
+                                                playfulTruncate={lobbyChannel === 'playful'}
+                                                compact
+                                            />
+                                        </div>
                                     </div>
                                     <div className="mx-auto mt-5 flex max-w-md flex-col items-stretch justify-end gap-2.5 sm:flex-row sm:justify-end sm:gap-3">
                                         <Button
@@ -5469,26 +6067,123 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                 </DraggableWindow>
             ) : null}
 
-            {guestLobbyChangeProposalRejectedOpen ? (
+            {guestLobbyChangeProposeConfirmOpen && pairLobbyRoomForm === 'propose' && myRoom ? (
+                <div
+                    className="fixed inset-0 z-[88] flex items-center justify-center bg-black/75 p-3 backdrop-blur-sm"
+                    role="dialog"
+                    aria-modal
+                    aria-labelledby="pair-lobby-guest-propose-confirm-title"
+                    onClick={() => !isBusy && setGuestLobbyChangeProposeConfirmOpen(false)}
+                >
+                    <div
+                        className="w-full max-w-md overflow-hidden rounded-2xl border border-cyan-400/35 bg-gradient-to-b from-zinc-900 to-black shadow-2xl shadow-black/60 ring-1 ring-white/10"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="border-b border-white/10 px-4 py-4 text-center sm:px-5">
+                            <h2
+                                id="pair-lobby-guest-propose-confirm-title"
+                                className="text-base font-extrabold text-cyan-50 sm:text-lg"
+                            >
+                                대국 설정 변경 제안
+                            </h2>
+                            <p className="mt-2 text-xs leading-relaxed text-slate-300 sm:text-sm">
+                                아래 내용으로 방장에게 변경을 제안합니다. 기존 설정과 제안 내용을 확인해 주세요.
+                            </p>
+                        </div>
+                        <div className="px-4 py-4 sm:px-5">
+                            <div className="mb-3 flex items-center gap-2.5 rounded-lg border border-violet-400/25 bg-violet-950/20 px-2.5 py-2">
+                                {(() => {
+                                    const gameVisual = pairLobbyGameModeIconAndName(
+                                        myRoom.selectedGameMode ?? GameMode.Standard,
+                                    );
+                                    return (
+                                        <>
+                                            <img
+                                                src={gameVisual.image}
+                                                alt=""
+                                                className="h-9 w-9 shrink-0 object-contain sm:h-10 sm:w-10"
+                                                loading="lazy"
+                                            />
+                                            <p className="min-w-0 flex-1 text-sm font-extrabold leading-snug text-white">
+                                                {gameVisual.name}
+                                            </p>
+                                        </>
+                                    );
+                                })()}
+                            </div>
+                            <PairLobbySettingChangeDiffTable
+                                rows={pairLobbyProposeSettingDiffRows}
+                                playfulTruncate={lobbyChannel === 'playful'}
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 border-t border-white/10 px-4 py-4 sm:px-5">
+                            <Button
+                                type="button"
+                                bare
+                                disabled={isBusy}
+                                onClick={() => setGuestLobbyChangeProposeConfirmOpen(false)}
+                                className="rounded-xl border border-white/20 bg-zinc-800/60 py-2.5 text-sm font-bold text-zinc-200"
+                            >
+                                취소
+                            </Button>
+                            <Button
+                                type="button"
+                                bare
+                                disabled={isBusy || !pairLobbyProposeHasChanges}
+                                onClick={() => {
+                                    setGuestLobbyChangeProposeConfirmOpen(false);
+                                    void submitPairRoomFormModal();
+                                }}
+                                className="rounded-xl border border-emerald-400/55 bg-emerald-900/55 py-2.5 text-sm font-black text-emerald-50"
+                            >
+                                제안하기
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+
+            {guestLobbyChangeProposalOutcome ? (
                 <div
                     className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm"
                     role="dialog"
                     aria-modal
-                    aria-labelledby="pair-lobby-guest-reject-title"
+                    aria-labelledby="pair-lobby-guest-proposal-outcome-title"
                 >
                     <div
-                        className="w-full max-w-sm rounded-2xl border border-slate-500/40 bg-gradient-to-b from-zinc-900 to-black p-5 shadow-2xl ring-1 ring-white/10"
+                        className={`w-full max-w-sm rounded-2xl border bg-gradient-to-b from-zinc-900 to-black p-5 shadow-2xl ring-1 ring-white/10 ${
+                            guestLobbyChangeProposalOutcome === 'accepted'
+                                ? 'border-emerald-400/40'
+                                : 'border-slate-500/40'
+                        }`}
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <h2 id="pair-lobby-guest-reject-title" className="text-center text-base font-extrabold text-slate-100">
+                        <h2
+                            id="pair-lobby-guest-proposal-outcome-title"
+                            className={`text-center text-base font-extrabold ${
+                                guestLobbyChangeProposalOutcome === 'accepted' ? 'text-emerald-50' : 'text-slate-100'
+                            }`}
+                        >
                             변경 제안
                         </h2>
-                        <p className="mt-3 text-center text-sm leading-relaxed text-slate-300">변경 제안이 거절되었습니다.</p>
+                        <p
+                            className={`mt-3 text-center text-sm leading-relaxed ${
+                                guestLobbyChangeProposalOutcome === 'accepted' ? 'text-emerald-100/90' : 'text-slate-300'
+                            }`}
+                        >
+                            {guestLobbyChangeProposalOutcome === 'accepted'
+                                ? '변경 제안이 수락되었습니다. 방장이 제안 내용을 반영했습니다.'
+                                : '변경 제안이 거절되었습니다.'}
+                        </p>
                         <Button
                             type="button"
                             bare
-                            className="mt-5 w-full rounded-xl border border-cyan-400/45 bg-cyan-950/50 py-2.5 text-sm font-extrabold text-cyan-50"
-                            onClick={() => setGuestLobbyChangeProposalRejectedOpen(false)}
+                            className={`mt-5 w-full rounded-xl py-2.5 text-sm font-extrabold ${
+                                guestLobbyChangeProposalOutcome === 'accepted'
+                                    ? 'border border-emerald-400/55 bg-emerald-900/55 text-emerald-50'
+                                    : 'border border-cyan-400/45 bg-cyan-950/50 text-cyan-50'
+                            }`}
+                            onClick={() => setGuestLobbyChangeProposalOutcome(null)}
                         >
                             확인
                         </Button>
@@ -5576,7 +6271,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                 />
             )}
 
-            {(pairLeaveNavTargetHash || pendingArenaNavTarget) && (
+            {(pairLeaveNavTargetHash || pendingArenaNavTarget || pendingIntentNavTarget) && (
                 <div
                     className="fixed inset-0 z-[90] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
                     role="presentation"
@@ -5641,48 +6336,46 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                     )}
                     <ArenaLobbyNavTitleBar
                         kind={lobbyChannel as ArenaLobbyNavKind}
+                        lobbyIntent={lobbyIntent}
                         onBackToProfile={backToProfile}
                         titleHeadingClass={titleHeadingClass}
-                        embeddedArenaSwitcher={{
-                            currentUser: currentUserWithStatus,
-                            arenaEntranceFromServer,
-                            arenaEntranceAvailability,
-                            onSelectArena: navigateArenaTab,
-                        }}
                     />
+                    {!(pvpInlineRoomCreate && isHandheld) ? arenaLobbySwitchGridEl : null}
                     <div
                         className={`grid shrink-0 gap-0.5 rounded-xl border border-white/10 bg-black/30 p-0.5 sm:gap-1 sm:p-1 ${handheldLobbyMainTabGridColsClass}`}
                     >
-                        <button
-                            type="button"
-                            onClick={() => setPairLobbyMobileTab('rooms')}
-                            className={`min-w-0 rounded-lg px-1 py-1.5 text-[0.58rem] font-extrabold leading-tight sm:px-2 sm:py-2 sm:text-xs ${
-                                pairLobbyMobileTab === 'rooms'
-                                    ? 'bg-violet-500 text-violet-950'
-                                    : 'text-violet-100 hover:bg-violet-950/45'
-                            }`}
-                            title={
-                                lobbyChannel === 'playful'
-                                    ? '놀이바둑 방 목록'
-                                    : lobbyChannel === 'strategic'
-                                      ? '전략바둑 방 목록'
-                                      : '페어 방 목록'
-                            }
-                        >
-                            방목록
-                        </button>
-                        {myRoom ? (
+                        {lobbyIntent === 'pvp' ? (
+                            <button
+                                type="button"
+                                onClick={() => setPairLobbyMobileTab('rooms')}
+                                className={`min-w-0 rounded-lg px-1 py-1.5 text-[0.58rem] font-extrabold leading-tight sm:px-2 sm:py-2 sm:text-xs ${
+                                    pairLobbyMobileTab === 'rooms'
+                                        ? 'bg-violet-500 text-violet-950'
+                                        : 'text-violet-100 hover:bg-violet-950/45'
+                                }`}
+                                title={
+                                    lobbyChannel === 'playful'
+                                        ? '놀이바둑 방 목록'
+                                        : lobbyChannel === 'strategic'
+                                          ? '전략바둑 방 목록'
+                                          : '페어 방 목록'
+                                }
+                            >
+                                방목록
+                            </button>
+                        ) : null}
+                        {showHandheldMyRoomTab && myRoomForUsersColumnChrome ? (
                             <button
                                 type="button"
                                 onClick={() => setPairLobbyMobileTab('room')}
-                                title={`${myRoom.code}번 방`}
+                                title={pairLobbyMyRoomTabLabel(myRoomForUsersColumnChrome, lobbyIntent, lobbyChannel)}
                                 className={`min-w-0 truncate rounded-lg px-1 py-1.5 text-[0.58rem] font-extrabold leading-tight sm:px-2 sm:py-2 sm:text-xs ${
                                     pairLobbyMobileTab === 'room'
                                         ? 'bg-fuchsia-600 text-fuchsia-50'
                                         : 'text-fuchsia-100 hover:bg-fuchsia-950/40'
                                 }`}
                             >
-                                {`${myRoom.code}번방`}
+                                {pairLobbyMyRoomTabLabel(myRoomForUsersColumnChrome, lobbyIntent, lobbyChannel)}
                             </button>
                         ) : null}
                         <button
@@ -5705,7 +6398,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                         >
                             유저목록
                         </button>
-                        {lobbyChannel === 'playful' ? (
+                        {lobbyIntent === 'ai' ? (
                             <button
                                 type="button"
                                 onClick={() => setPairLobbyMobileTab('ai')}
@@ -5714,47 +6407,37 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                                         ? 'bg-violet-600 text-violet-50'
                                         : 'text-violet-100 hover:bg-violet-950/45'
                                 }`}
-                                title="놀이 AI대전"
+                                title="AI 대전 설정"
                             >
-                                AI대전
+                                AI설정
                             </button>
                         ) : null}
-                        {aggregateLobbyMode === 'strategic' ? (
-                            <button
-                                type="button"
-                                onClick={() => setPairLobbyMobileTab('rankedAi')}
-                                className={`min-w-0 rounded-lg px-1 py-1.5 text-[0.58rem] font-extrabold leading-tight sm:px-2 sm:py-2 sm:text-xs ${
-                                    pairLobbyMobileTab === 'rankedAi'
-                                        ? 'bg-emerald-600 text-emerald-50'
-                                        : 'text-emerald-100 hover:bg-emerald-950/45'
-                                }`}
-                                title="AI와 대결 · 전략바둑 랭킹전 매칭"
-                            >
-                                AI대전/랭킹전
-                            </button>
-                        ) : null}
-                        {lobbyChannel === 'pair' && showHandheldRankedTab ? (
+                        {showHandheldRankedTab && lobbyIntent === 'pvp' ? (
                             <button
                                 type="button"
                                 onClick={() => setPairLobbyMobileTab('ranked')}
                                 className={`min-w-0 rounded-lg px-1 py-1.5 text-[0.58rem] font-extrabold leading-tight sm:px-2 sm:py-2 sm:text-xs ${
                                     pairLobbyMobileTab === 'ranked'
-                                        ? 'bg-emerald-600 text-emerald-50'
-                                        : 'text-emerald-100 hover:bg-emerald-950/45'
+                                        ? 'bg-cyan-500 text-cyan-950'
+                                        : 'text-cyan-100 hover:bg-cyan-950/45'
                                 }`}
-                                title="페어 랭킹전 · 시즌 정보 · AI와 대전"
+                                title="랭킹전 매칭"
                             >
-                                AI대전/랭킹전
+                                랭킹전
                             </button>
                         ) : null}
                     </div>
                     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
                         {pairLobbyMobileTab === 'rooms' ? (
-                            <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-0.5">
+                            <div
+                                className={`flex min-h-0 flex-1 flex-col overflow-hidden px-0.5 ${
+                                    pvpInlineRoomCreate && isHandheld ? 'min-h-0 flex-1' : ''
+                                }`}
+                            >
                                 {renderPairLobbyCenterColumn()}
                             </div>
                         ) : pairLobbyMobileTab === 'room' ? (
-                            myRoom ? (
+                            myRoomForUsersColumnChrome ? (
                                 <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-0.5">
                                     {renderPairLobbyRoomInteriorPanel()}
                                 </div>
@@ -5763,15 +6446,11 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                                     방 정보를 불러오는 중…
                                 </div>
                             )
-                        ) : pairLobbyMobileTab === 'rankedAi' && lobbyChannel === 'strategic' ? (
-                            pairLobbyMobileStrategicRankedAiTabPanel
-                        ) : pairLobbyMobileTab === 'ranked' && lobbyChannel === 'pair' ? (
-                            pairLobbyMobileRankedTabPanel
-                        ) : pairLobbyMobileTab === 'ai' && lobbyChannel === 'playful' ? (
+                        ) : pairLobbyMobileTab === 'ai' && lobbyIntent === 'ai' ? (
+                            renderPairLobbyMobileAiSettingsTabPanel()
+                        ) : pairLobbyMobileTab === 'ranked' && showHandheldRankedTab && lobbyIntent === 'pvp' ? (
                             <div className={`${waitingLobbyPcPanelShellClass(lobbyTone)} flex min-h-0 flex-1 flex-col overflow-hidden p-1.5 sm:p-2`}>
-                                <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden overscroll-contain [-webkit-overflow-scrolling:touch] pr-0.5">
-                                    {pairLobbyAggregateAiChallengeCardEl}
-                                </div>
+                                {renderLobbyLeftRankedSection()}
                             </div>
                         ) : (
                             <div
@@ -5782,43 +6461,62 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                         )}
                     </div>
                 </div>
-            ) : (
-                <div className="flex h-full min-h-0 w-full flex-1 flex-row gap-2 overflow-hidden">
-                    <div className="flex h-full min-h-0 w-[min(43%,500px)] min-w-[292px] max-w-[500px] shrink-0 flex-col gap-2 overflow-hidden">
+            ) : lobbyIntent === 'ai' && lobbyChannel === 'pair' ? (
+                <AiLobbyWorkspaceProvider {...aiLobbyWorkspaceProps} duoRoomInteriorSlot={pairAiDuoRoomInteriorSlot}>
+                    <div className={`flex h-full min-h-0 w-full flex-1 flex-row overflow-hidden ${PC_LOBBY_THREE_COLUMN_ROW_GAP_CLASS}`}>
+                        <div className={`flex h-full min-h-0 ${PC_HOME_LEFT_COLUMN_CLASS} flex-col gap-2 overflow-hidden`}>
+                            <ArenaLobbyNavTitleBar
+                                kind={lobbyChannel as ArenaLobbyNavKind}
+                                lobbyIntent={lobbyIntent}
+                                onBackToProfile={backToProfile}
+                                titleHeadingClass={`${titleHeadingClass} text-base sm:text-lg lg:text-xl`}
+                            />
+                            {arenaLobbySwitchGridEl}
+                            {desktopLobbyChatPanel}
+                        </div>
+                        <PairAiDesktopMainWorkspace
+                            center={renderAiLobbyDesktopCenterShell(
+                                <AiLobbyCenterPanel className="min-h-0 flex-1 p-1.5 sm:p-2" />,
+                            )}
+                            usersPanel={renderDesktopAiLobbyUsersPanel()}
+                            duoUsersPanel={renderDesktopAiLobbyUsersPanel({ forceUsersOnly: true })}
+                        />
+                    </div>
+                </AiLobbyWorkspaceProvider>
+            ) : lobbyIntent === 'ai' && aggregateLobbyMode ? (
+                <div className={`flex h-full min-h-0 w-full flex-1 flex-row overflow-hidden ${PC_LOBBY_THREE_COLUMN_ROW_GAP_CLASS}`}>
+                    <div className={`flex h-full min-h-0 ${PC_HOME_LEFT_COLUMN_CLASS} flex-col gap-2 overflow-hidden`}>
                         <ArenaLobbyNavTitleBar
                             kind={lobbyChannel as ArenaLobbyNavKind}
+                            lobbyIntent={lobbyIntent}
                             onBackToProfile={backToProfile}
                             titleHeadingClass={`${titleHeadingClass} text-base sm:text-lg lg:text-xl`}
                         />
-                        <ArenaLobbyArenaSwitcherPanel
-                            kind={lobbyChannel as ArenaLobbyNavKind}
-                            currentUser={currentUserWithStatus}
-                            arenaEntranceFromServer={arenaEntranceFromServer}
-                            arenaEntranceAvailability={arenaEntranceAvailability}
-                            onSelectArena={navigateArenaTab}
+                        {arenaLobbySwitchGridEl}
+                        {desktopLobbyChatPanel}
+                    </div>
+                    {aggregateAiDesktopCenterColumn ? (
+                        <PcLobbyCenterRightWorkspace
+                            center={aggregateAiDesktopCenterColumn}
+                            usersPanel={renderDesktopAiLobbyUsersPanel()}
                         />
-                        <div className={`${waitingLobbyPcPanelShellClass(lobbyTone)} flex min-h-0 flex-1 flex-col overflow-hidden p-2 sm:p-2.5`}>
-                            {pairLobbyDesktopLeftRankedAiStack}
-                        </div>
+                    ) : null}
+                </div>
+            ) : (
+                <div className={`flex h-full min-h-0 w-full flex-1 flex-row overflow-hidden ${PC_LOBBY_THREE_COLUMN_ROW_GAP_CLASS}`}>
+                    <div className={`flex h-full min-h-0 ${PC_HOME_LEFT_COLUMN_CLASS} flex-col gap-2 overflow-hidden`}>
+                        <ArenaLobbyNavTitleBar
+                            kind={lobbyChannel as ArenaLobbyNavKind}
+                            lobbyIntent={lobbyIntent}
+                            onBackToProfile={backToProfile}
+                            titleHeadingClass={`${titleHeadingClass} text-base sm:text-lg lg:text-xl`}
+                        />
+                        {arenaLobbySwitchGridEl}
+                        {desktopLobbyChatPanel}
                     </div>
-                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-                        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{renderPairLobbyCenterColumn()}</div>
-                    </div>
-                    <div className="flex h-full min-h-0 shrink-0 flex-1 flex-row gap-2 overflow-hidden">
-                        <div className="flex h-full min-h-0 min-w-[25rem] max-w-[34rem] flex-1 flex-col gap-2 overflow-hidden">
-                            <div className={`${waitingLobbyPcPanelShellClass(lobbyTone)} flex min-h-0 flex-1 flex-col overflow-hidden`}>
-                                {renderPairLobbyUsersColumn()}
-                            </div>
-                        </div>
-                        <aside
-                            className={`flex h-full min-h-0 ${PC_QUICK_RAIL_COLUMN_CLASS} flex-col overflow-hidden`}
-                            aria-label="퀵 메뉴"
-                        >
-                            <div className="flex h-full min-h-0 flex-col rounded-xl border-2 border-amber-600/55 bg-gradient-to-br from-zinc-900 via-amber-950 to-zinc-950 p-1 shadow-xl shadow-black/40">
-                                <QuickAccessSidebar fillHeight />
-                            </div>
-                        </aside>
-                    </div>
+                    {renderDesktopCenterRightWorkspace(
+                        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{renderPairLobbyCenterColumn()}</div>,
+                    )}
                 </div>
             )}
             {((pairRankedMatchModalOpen && myRoom?.roomKind === 'ai_duel' && lobbyChannel === 'pair') ||
@@ -5844,29 +6542,6 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                     isBusy={isBusy}
                     onClose={() => setStrategicArenaRankedModalOpen(false)}
                     onQueue={(mode) => void queueStrategicRankedWithMode(mode)}
-                />
-            )}
-            {aggregateLobbyAiModalOpen && (lobbyChannel === 'strategic' || lobbyChannel === 'playful') && (
-                <AiChallengeModal
-                    lobbyType={lobbyChannel === 'playful' ? 'playful' : 'strategic'}
-                    preferredGameSettingsBucket={lobbyChannel === 'playful' ? 'playful_ai_challenge' : 'strategic_ai_challenge'}
-                    title={lobbyChannel === 'playful' ? '놀이 AI대전' : '전략 AI대전'}
-                    onClose={() => setAggregateLobbyAiModalOpen(false)}
-                    onAction={handlers.handleAction}
-                />
-            )}
-            {pairLobbyAiModalOpen && lobbyChannel === 'pair' && (
-                <AiChallengeModal
-                    lobbyType="strategic"
-                    preferredGameSettingsBucket="pair_ai_match_modal"
-                    onClose={() => setPairLobbyAiModalOpen(false)}
-                    onAction={(a) => void handlePairLobbyAiChallengeAction(a)}
-                    startActionType="PAIR_START_AI_MATCH"
-                    title="페어바둑 AI와 대결하기"
-                    submitLabel="AI와 대국 시작"
-                    showActionPointCost
-                    transformSettingsBeforeStart={transformPairAiSettings}
-                    hideScoringTurnLimit
                 />
             )}
             {pairMatchSettingsModalOpen && (

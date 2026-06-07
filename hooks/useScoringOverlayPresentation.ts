@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { BOARD_SETTLE_BEFORE_SCORING_MS } from '../shared/constants/boardSettleTiming.js';
-import { SCORING_PROGRESS_DURATION_MS } from '../shared/constants/scoringOverlayTiming.js';
+import {
+    SCORING_PROGRESS_DURATION_MS,
+    SCORING_OVERLAY_MIN_BEFORE_EARLY_COMPLETE_MS,
+} from '../shared/constants/scoringOverlayTiming.js';
 import { consumePveBoardSettledForScoring } from '../shared/utils/pveScoringBoardSettleSignal.js';
 
 /** 계가(집 계산) 종료·연출 대상인지 — 따내기·기권·시간패 등은 제외 */
@@ -24,16 +27,21 @@ export function useScoringOverlayPresentation(params: {
     gameStatus: string;
     prevGameStatus: string | undefined;
     winReason: string | undefined;
+    hasAnalysisResult?: boolean;
 }): {
     showScoringOverlay: boolean;
     scoringOverlayCompleted: boolean;
     isScoreBasedPresentation: boolean;
 } {
-    const { gameId, gameStatus, prevGameStatus, winReason } = params;
+    const { gameId, gameStatus, prevGameStatus, winReason, hasAnalysisResult = false } = params;
     const [showScoringOverlay, setShowScoringOverlay] = useState(false);
     const [scoringOverlayCompleted, setScoringOverlayCompleted] = useState(false);
     const sequenceStartedRef = useRef(false);
+    const overlayShownAtRef = useRef<number | null>(null);
+    const analysisReadyRef = useRef(hasAnalysisResult);
     const timerIdsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+    analysisReadyRef.current = hasAnalysisResult;
 
     const isScoreBasedPresentation = isScoreBasedScoringPresentation(
         gameStatus,
@@ -50,6 +58,7 @@ export function useScoringOverlayPresentation(params: {
 
     useEffect(() => {
         sequenceStartedRef.current = false;
+        overlayShownAtRef.current = null;
         setShowScoringOverlay(false);
         setScoringOverlayCompleted(false);
         clearTimers();
@@ -80,12 +89,18 @@ export function useScoringOverlayPresentation(params: {
                   ? BOARD_SETTLE_BEFORE_SCORING_MS
                   : 0;
 
+        const completeOverlay = () => {
+            setShowScoringOverlay(false);
+            setScoringOverlayCompleted(true);
+        };
+
         const showTimer = setTimeout(() => {
+            overlayShownAtRef.current = Date.now();
             setShowScoringOverlay(true);
-            const hideTimer = setTimeout(() => {
-                setShowScoringOverlay(false);
-                setScoringOverlayCompleted(true);
-            }, SCORING_PROGRESS_DURATION_MS);
+            const overlayDurationMs = analysisReadyRef.current
+                ? SCORING_OVERLAY_MIN_BEFORE_EARLY_COMPLETE_MS
+                : SCORING_PROGRESS_DURATION_MS;
+            const hideTimer = setTimeout(completeOverlay, overlayDurationMs);
             timerIdsRef.current.push(hideTimer);
         }, settleMs);
         timerIdsRef.current.push(showTimer);
@@ -96,6 +111,20 @@ export function useScoringOverlayPresentation(params: {
         winReason,
         isScoreBasedPresentation,
     ]);
+
+    useEffect(() => {
+        if (!hasAnalysisResult || !showScoringOverlay || scoringOverlayCompleted) return;
+        const shownAt = overlayShownAtRef.current ?? Date.now();
+        const elapsed = Date.now() - shownAt;
+        const remainingMin = Math.max(0, SCORING_OVERLAY_MIN_BEFORE_EARLY_COMPLETE_MS - elapsed);
+        const earlyTimer = setTimeout(() => {
+            clearTimers();
+            setShowScoringOverlay(false);
+            setScoringOverlayCompleted(true);
+        }, remainingMin);
+        timerIdsRef.current.push(earlyTimer);
+        return () => clearTimeout(earlyTimer);
+    }, [hasAnalysisResult, showScoringOverlay, scoringOverlayCompleted]);
 
     return { showScoringOverlay, scoringOverlayCompleted, isScoreBasedPresentation };
 }

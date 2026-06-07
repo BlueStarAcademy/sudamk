@@ -7,9 +7,10 @@ type ResultDisplayParams = {
     gameHasJustEnded: boolean;
     prevGameStatus?: string;
     hasAnalysisResult: boolean;
-    playfulResultModalWaitSummary: boolean;
+    /** instantEnd 참가자: 보상·XP·랭킹 행(`session.summary`)이 붙은 뒤에만 결과 모달을 연다 */
+    resultModalWaitSummary: boolean;
     hasMyGameSummary: boolean;
-    playfulGameSummaryJustArrived: boolean;
+    gameSummaryJustArrived: boolean;
 };
 
 function shouldOpenResultModalForSummaryLikeEnd(params: ResultDisplayParams): boolean {
@@ -18,15 +19,63 @@ function shouldOpenResultModalForSummaryLikeEnd(params: ResultDisplayParams): bo
         gameHasJustEnded,
         prevGameStatus,
         hasAnalysisResult,
-        playfulResultModalWaitSummary,
+        resultModalWaitSummary,
         hasMyGameSummary,
-        playfulGameSummaryJustArrived,
+        gameSummaryJustArrived,
     } = params;
+    const scoreEndNeedsAnalysis = session.winReason === 'score' && !hasAnalysisResult;
+    const summaryNotReady = resultModalWaitSummary && !hasMyGameSummary;
     return (
         (gameHasJustEnded &&
-            !(playfulResultModalWaitSummary && session.gameStatus === 'ended' && !hasMyGameSummary)) ||
-        (session.gameStatus === 'ended' && hasAnalysisResult && prevGameStatus !== 'ended') ||
-        playfulGameSummaryJustArrived
+            !scoreEndNeedsAnalysis &&
+            !(resultModalWaitSummary && session.gameStatus === 'ended' && !hasMyGameSummary)) ||
+        (session.gameStatus === 'ended' &&
+            hasAnalysisResult &&
+            prevGameStatus !== 'ended' &&
+            !summaryNotReady) ||
+        gameSummaryJustArrived
+    );
+}
+
+/** 계가(집) 연출이 끝날 때까지 결과 모달·영토 표시를 지연한다. 기권/접속끊김/시간패는 즉시 허용. */
+export function shouldWaitForScoreBasedScoringOverlay(params: {
+    isScoreBasedPresentation: boolean;
+    scoringOverlayCompleted: boolean;
+    winReason?: string | null;
+}): boolean {
+    const { isScoreBasedPresentation, scoringOverlayCompleted, winReason } = params;
+    const immediateEnd =
+        winReason === 'resign' || winReason === 'disconnect' || winReason === 'timeout';
+    return isScoreBasedPresentation && !scoringOverlayCompleted && !immediateEnd;
+}
+
+/** PVP 등 instantEnd: gameHasJustEnded를 놓쳐도 연출 완료 후 ended면 결과 모달을 연다. */
+export function shouldOpenResultModalAfterScoringOverlay(params: {
+    isScoreBasedPresentation: boolean;
+    scoringOverlayCompleted: boolean;
+    gameStatus: string;
+    postGameSummaryAcknowledged: boolean;
+    hasAnalysisResult?: boolean;
+    resultModalWaitSummary?: boolean;
+    hasMyGameSummary?: boolean;
+}): boolean {
+    const {
+        isScoreBasedPresentation,
+        scoringOverlayCompleted,
+        gameStatus,
+        postGameSummaryAcknowledged,
+        hasAnalysisResult = false,
+        resultModalWaitSummary = false,
+        hasMyGameSummary = false,
+    } = params;
+    const summaryReady = !resultModalWaitSummary || hasMyGameSummary;
+    return (
+        isScoreBasedPresentation &&
+        scoringOverlayCompleted &&
+        !postGameSummaryAcknowledged &&
+        hasAnalysisResult &&
+        summaryReady &&
+        gameStatus === 'ended'
     );
 }
 
@@ -38,9 +87,10 @@ export function shouldOpenResultModalByPolicy(params: ResultDisplayParams): bool
         (session.winReason === 'resign' || session.winReason === 'disconnect' || session.winReason === 'timeout');
 
     if (policy.resultDisplayModel === 'waitScoringOverlay') {
+        const scoreEndNeedsAnalysis = session.winReason === 'score' && !hasAnalysisResult;
         return (
             immediateEnd ||
-            gameHasJustEnded ||
+            (gameHasJustEnded && !scoreEndNeedsAnalysis) ||
             (session.gameStatus === 'ended' && hasAnalysisResult && prevGameStatus !== 'ended')
         );
     }

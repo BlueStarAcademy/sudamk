@@ -4,51 +4,75 @@ import { UserWithStatus } from '../../types.js';
 import TrainingQuestPanel from './TrainingQuestPanel.js';
 import { useScreenGuide } from '../../hooks/useScreenGuide.js';
 import ScreenGuideModal from '../ScreenGuideModal.js';
+import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../../shared/constants/pcShellLayout.js';
 
 interface TrainingQuestModalProps {
-    open: boolean;
+    open?: boolean;
     onClose: () => void;
     currentUser: UserWithStatus;
+    /** PC 로비 중앙 인라인 패널 — DraggableWindow 생략 */
+    embedded?: boolean;
 }
 
-const TrainingQuestModal: React.FC<TrainingQuestModalProps> = ({ open, onClose, currentUser }) => {
-    const trainingGuide = useScreenGuide('trainingQuest', { active: open });
+const TrainingQuestModal: React.FC<TrainingQuestModalProps> = ({
+    open = true,
+    onClose,
+    currentUser,
+    embedded = false,
+}) => {
+    const trainingGuide = useScreenGuide('trainingQuest', { active: embedded || open });
 
-    if (!open) return null;
-
-    return (
-        <>
-        <DraggableWindow
-            title="수련과제"
-            windowId="training-quest-modal"
-            onClose={onClose}
-            initialWidth={860}
-            shrinkHeightToContent
-            modal
-            closeOnOutsideClick
-            mobileViewportFit
-            bodyScrollable={false}
-            hideFooter
-        >
-            <div className="flex min-h-0 w-full min-w-0 flex-col bg-gradient-to-b from-zinc-950/80 via-black/30 to-emerald-950/20">
-                <div
-                    className="box-border flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden px-1.5 pb-1 pt-0.5 sm:px-2 sm:pb-1.5 sm:pt-1"
-                    role="region"
-                    aria-label="수련 과제 목록"
-                >
-                    <div className="flex h-full min-h-0 w-full max-w-full flex-col">
-                        <TrainingQuestPanel currentUser={currentUser} embeddedInModal />
-                    </div>
+    const questBody = (
+        <div className="flex min-h-0 w-full min-w-0 flex-col bg-gradient-to-b from-zinc-950/80 via-black/30 to-emerald-950/20">
+            <div
+                className="box-border flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden px-1 pb-0.5 pt-0 sm:px-1.5 sm:pb-1 sm:pt-0.5"
+                role="region"
+                aria-label="수련 과제 목록"
+            >
+                <div className="flex h-full min-h-0 w-full max-w-full flex-col">
+                    <TrainingQuestPanel currentUser={currentUser} embeddedInModal />
                 </div>
             </div>
-        </DraggableWindow>
-        {trainingGuide.isOpen && (
+        </div>
+    );
+
+    const guideNode =
+        trainingGuide.isOpen ? (
             <ScreenGuideModal
                 guideId="trainingQuest"
                 onClose={trainingGuide.close}
                 onDismissForever={trainingGuide.dismissForever}
             />
-        )}
+        ) : null;
+
+    if (embedded) {
+        return (
+            <>
+                <div className={PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS}>{questBody}</div>
+                {guideNode}
+            </>
+        );
+    }
+
+    if (!open) return null;
+
+    return (
+        <>
+            <DraggableWindow
+                title="수련과제"
+                windowId="training-quest-modal"
+                onClose={onClose}
+                initialWidth={860}
+                shrinkHeightToContent
+                modal
+                closeOnOutsideClick
+                mobileViewportFit
+                bodyScrollable={false}
+                hideFooter
+            >
+                {questBody}
+            </DraggableWindow>
+            {guideNode}
         </>
     );
 };

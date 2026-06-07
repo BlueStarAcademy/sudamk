@@ -39,6 +39,8 @@ export interface PairPetProfilePanelProps {
     readOnly?: boolean;
     /** 펫 관리 모달 상단: compact여도 글자·아바타를 한 단계 키움 */
     petManagementModal?: boolean;
+    /** 홈 좌측 하단: 좌측 펫 정보·우측 바둑능력 분리, 글자 크기 통일 */
+    profileHomeFooter?: boolean;
 }
 
 const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
@@ -56,27 +58,32 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
     detailButtonLabel,
     readOnly = false,
     petManagementModal = false,
+    profileHomeFooter = false,
 }) => {
     const lineFontMax =
-        pairLobbyProminent && !compact
-            ? 17
-            : petManagementModal && compact
-              ? 14.5
-              : homeColumn && compact
-                ? 9.75
-                : compact
-                  ? 11.5
-                  : PET_PROFILE_LINE_FONT_MAX;
+        profileHomeFooter
+            ? 14
+            : pairLobbyProminent && !compact
+              ? 17
+              : petManagementModal && compact
+                ? 14.5
+                : homeColumn && compact
+                  ? 9.75
+                  : compact
+                    ? 11.5
+                    : PET_PROFILE_LINE_FONT_MAX;
     const lineFontMin =
-        pairLobbyProminent && !compact
-            ? 8
-            : petManagementModal && compact
-              ? 7.5
-              : homeColumn && compact
-                ? 5.25
-                : compact
-                  ? 6
-                  : PET_PROFILE_LINE_FONT_MIN;
+        profileHomeFooter
+            ? 11.5
+            : pairLobbyProminent && !compact
+              ? 8
+              : petManagementModal && compact
+                ? 7.5
+                : homeColumn && compact
+                  ? 5.25
+                  : compact
+                    ? 6
+                    : PET_PROFILE_LINE_FONT_MIN;
     const equippedTid = currentUser.equippedPairPetTemplateId ?? null;
     const equippedDef = equippedTid ? getPairPetDefinition(equippedTid) : null;
     const equippedItem = useMemo(
@@ -113,7 +120,7 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
     const lineInnerRef = useRef<HTMLDivElement>(null);
 
     useLayoutEffect(() => {
-        if (!equippedItem) return;
+        if (!equippedItem || profileHomeFooter) return;
         const outer = lineOuterRef.current;
         const inner = lineInnerRef.current;
         if (!outer || !inner) return;
@@ -144,12 +151,15 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
         hideInlineBadukChip,
         showRepresentativeBadge,
         homeColumn,
+        profileHomeFooter,
         pairLobbyProminent,
         compact,
     ]);
 
     const panelClassName = embed
-        ? 'shrink-0 rounded-lg border-0 bg-transparent p-0 shadow-none'
+        ? profileHomeFooter
+          ? 'shrink-0 rounded-lg border-0 bg-transparent px-1 py-1.5 shadow-none'
+          : 'shrink-0 rounded-lg border-0 bg-transparent p-0 shadow-none'
         : pairLobbyProminent && !compact
           ? 'shrink-0 rounded-xl border border-violet-400/35 bg-gradient-to-br from-violet-950/50 via-black/40 to-fuchsia-950/30 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 ring-inset ring-violet-400/10 sm:p-3'
           : compact
@@ -157,9 +167,115 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
             : 'shrink-0 rounded-lg border border-violet-400/25 bg-gradient-to-br from-violet-950/40 via-black/35 to-fuchsia-950/25 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:p-2.5';
 
     const avatarSize =
-        pairLobbyProminent && !compact ? 52 : homeColumn && compact ? 28 : compact ? 32 : 40;
+        profileHomeFooter
+            ? 44
+            : pairLobbyProminent && !compact
+              ? 52
+              : homeColumn && compact
+                ? 28
+                : compact
+                  ? 32
+                  : 40;
     const detailBtnText = detailButtonLabel ?? (homeColumn && compact ? '상세' : '상세정보');
-    const body = (
+
+    const identityLineClass =
+        'inline-flex max-w-none flex-nowrap items-center gap-x-[0.35em] gap-y-0 whitespace-nowrap leading-none';
+    const identityChipClass =
+        'inline-flex shrink-0 items-center rounded-md border border-white/18 bg-black/50 px-[0.35em] py-px font-extrabold leading-none';
+    const identityTextClass = 'shrink-0 font-semibold leading-none text-violet-100/95';
+    const identityLevelClass = 'shrink-0 font-black tabular-nums leading-none text-amber-200';
+
+    const badukChipClass =
+        'relative inline-flex shrink-0 items-baseline gap-x-[0.3em] rounded-md border border-amber-600/45 bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950 px-[0.4em] py-[0.22em] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]';
+    const badukLabelClass =
+        'relative shrink-0 bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200/90 bg-clip-text font-bold leading-none tracking-tight text-transparent';
+    const badukValueClass =
+        'relative shrink-0 bg-gradient-to-br from-yellow-50 via-amber-200 to-amber-700 bg-clip-text font-mono font-black tabular-nums leading-none tracking-tight text-transparent';
+
+    const profileHomeBadukFontPx = lineFontMax + 4;
+
+    const renderBadukChip = (fontSizePx: number, homeFooter = false) =>
+        !hideInlineBadukChip && badukTotal != null ? (
+            <span
+                className={
+                    homeFooter
+                        ? `${badukChipClass} px-[0.55em] py-[0.34em] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_4px_14px_-8px_rgba(251,191,36,0.25)]`
+                        : badukChipClass
+                }
+                style={{ fontSize: `${homeFooter ? profileHomeBadukFontPx : fontSizePx}px` }}
+                title="6코어 표시값과 성향 보너스 합계"
+            >
+                <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/35 to-transparent" aria-hidden />
+                <span className={badukLabelClass}>바둑능력</span>
+                <span className={badukValueClass} title="6개 핵심 능력치 합계">
+                    {badukTotal}
+                </span>
+            </span>
+        ) : null;
+
+    const renderProfileHomeIdentity = (fontSizePx: number) => (
+        <div ref={lineInnerRef} className="flex min-w-0 flex-col gap-y-1" style={{ fontSize: `${fontSizePx}px` }}>
+            <div className="flex flex-wrap items-center gap-x-[0.35em] leading-none">
+                <span className={`${identityChipClass} ${gradeStyle.color}`}>{gradeKo}</span>
+                {showRepresentativeBadge ? (
+                    <span className={`${identityChipClass} border-cyan-400/55 bg-cyan-950/65 text-cyan-50`}>대표펫</span>
+                ) : null}
+            </div>
+            <div className="flex min-w-0 items-center gap-x-[0.35em] leading-none">
+                {levelSafe != null ? <span className={identityLevelClass}>Lv.{levelSafe}</span> : null}
+                <span className={`min-w-0 truncate ${identityTextClass}`} title={displayName}>
+                    {displayName}
+                </span>
+            </div>
+        </div>
+    );
+
+    const renderIdentityLine = (fontSizePx: number) => (
+        <div ref={lineInnerRef} className="flex min-w-0 max-w-full items-center gap-x-[0.35em] whitespace-nowrap leading-none" style={{ fontSize: `${fontSizePx}px` }}>
+            <span className={`${identityChipClass} ${gradeStyle.color}`}>{gradeKo}</span>
+            {showRepresentativeBadge ? (
+                <span className={`${identityChipClass} border-cyan-400/55 bg-cyan-950/65 text-cyan-50`}>대표펫</span>
+            ) : null}
+            {levelSafe != null ? <span className={identityLevelClass}>Lv.{levelSafe}</span> : null}
+            <span className={`min-w-0 truncate ${identityTextClass}`} title={displayName}>
+                {displayName}
+            </span>
+        </div>
+    );
+
+    const body = profileHomeFooter ? (
+        <div className="flex min-h-[3.75rem] min-w-0 w-full flex-nowrap items-center gap-2 overflow-visible sm:gap-2.5">
+            {equippedItem && petAvatarUrl ? (
+                <Avatar
+                    userId={`pet-ai-${currentUserId}`}
+                    userName={displayName}
+                    size={avatarSize}
+                    avatarUrl={petAvatarUrl}
+                    className="shrink-0 self-center ring-2 ring-violet-400/40"
+                />
+            ) : (
+                <div
+                    className="flex h-11 w-11 shrink-0 items-center justify-center self-center rounded-full border-2 border-dashed border-violet-300/45 bg-black/35 shadow-inner ring-2 ring-violet-400/25"
+                    title={emptyTitle}
+                    aria-label={emptyTitle}
+                >
+                    <div className="h-7 w-7 rounded-md border border-violet-200/45 bg-violet-950/35" />
+                </div>
+            )}
+            {equippedItem ? (
+                <>
+                    <div ref={lineOuterRef} className="min-w-0 flex-1 overflow-visible">
+                        {renderProfileHomeIdentity(lineFontMax)}
+                    </div>
+                    <div className="ml-auto flex shrink-0 self-center pl-0.5">{renderBadukChip(lineFontMax, true)}</div>
+                </>
+            ) : (
+                <p className="min-w-0 flex-1 text-left text-sm font-semibold leading-snug text-violet-200/95 sm:text-base">
+                    대표펫을 지정해 주세요.
+                </p>
+            )}
+        </div>
+    ) : (
             <div
                 className={`flex min-h-0 min-w-0 flex-nowrap items-center ${
                     pairLobbyProminent && !compact ? 'gap-2 sm:gap-3' : homeColumn && compact ? 'gap-0.5' : compact ? 'gap-1' : 'gap-1.5 sm:gap-2.5'

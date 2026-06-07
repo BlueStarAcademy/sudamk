@@ -302,7 +302,7 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction, readOnly =
                 visual={rewardVisual}
                 isMobileSheet={isMobileSheet}
                 placement={isAdventure ? 'titlePanel' : 'headerInline'}
-                onVipLockedClick={() => handlers.openShop('vip')}
+                onVipLockedClick={() => handlers.openShop('vip', { modal: true })}
               />
             </div>
           ) : null}

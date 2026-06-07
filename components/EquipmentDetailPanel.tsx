@@ -4,7 +4,7 @@ import { useAppContext } from '../hooks/useAppContext.js';
 import { GRADE_LEVEL_REQUIREMENTS, formatEquipLevelRequirement } from '../constants';
 import { isActionPointConsumable } from '../constants/items';
 import { MythicSubsPartitioned } from './MythicSubsPartitioned.js';
-import { formatSpecialSubLineForPanel } from '../shared/utils/specialStatMilestones.js';
+import { EquipmentBagStyleOptionRow } from './equipment/EquipmentBagStyleOptionRow.js';
 import {
     AP_CONSUMABLE_LIGHTNING_FONT_SIZE_CQ,
     AP_CONSUMABLE_PLUS_FONT_SIZE_CQ,
@@ -32,7 +32,59 @@ export const equipmentDetailGradeStyles: Record<ItemGrade, { name: string; color
     },
 };
 
-const renderStarDisplay = (stars: number, comfortableTypography?: boolean) => {
+type DetailTypography = {
+    mainBodyPx: number;
+    metaText: string;
+    metaSemi: string;
+    optsBlock: string;
+    sectionLabel: string;
+    tradeBadge: string;
+    tradeLine: string;
+    bodyLeading: string;
+    starLarge: boolean;
+};
+
+const getDetailTypography = (comfortableTypography: boolean, enlargedTypography: boolean): DetailTypography => {
+    if (enlargedTypography) {
+        return {
+            mainBodyPx: 14,
+            metaText: 'text-[14px] font-medium leading-snug',
+            metaSemi: 'text-[14px] font-semibold leading-snug',
+            optsBlock: 'w-full space-y-1.5 text-left text-[14px] leading-snug',
+            sectionLabel: 'text-[12px] font-bold uppercase tracking-wide text-slate-500',
+            tradeBadge: 'text-[12px] font-semibold leading-none',
+            tradeLine: 'text-[12px] font-semibold leading-snug',
+            bodyLeading: 'text-[14px] leading-snug',
+            starLarge: true,
+        };
+    }
+    if (comfortableTypography) {
+        return {
+            mainBodyPx: 13,
+            metaText: 'text-[13px] font-medium leading-snug',
+            metaSemi: 'text-[13px] font-semibold leading-snug',
+            optsBlock: 'w-full space-y-2 text-left text-[13px] leading-snug',
+            sectionLabel: 'text-[11px] font-bold uppercase tracking-wide text-slate-500',
+            tradeBadge: 'text-[11px] font-semibold leading-none',
+            tradeLine: 'text-[11px] font-semibold leading-snug',
+            bodyLeading: 'text-[13px] leading-snug',
+            starLarge: true,
+        };
+    }
+    return {
+        mainBodyPx: 12,
+        metaText: 'text-[12px] font-medium leading-snug',
+        metaSemi: 'text-[12px] font-semibold leading-snug',
+        optsBlock: 'w-full space-y-1.5 text-left text-[12px] leading-snug',
+        sectionLabel: 'text-[10px] font-bold uppercase tracking-wide text-slate-500',
+        tradeBadge: 'text-[11px] font-semibold leading-none',
+        tradeLine: 'text-[11px] font-semibold leading-snug',
+        bodyLeading: 'text-[12px] leading-snug',
+        starLarge: false,
+    };
+};
+
+const renderStarDisplay = (stars: number, starLarge?: boolean) => {
     if (stars === 0) return null;
 
     let starImage = '';
@@ -52,8 +104,8 @@ const renderStarDisplay = (stars: number, comfortableTypography?: boolean) => {
         numberColor = 'text-white';
     }
 
-    const starImgCls = comfortableTypography ? 'h-3.5 w-3.5' : 'h-3 w-3';
-    const starNumCls = comfortableTypography ? 'text-[13px] font-bold leading-none' : 'text-[12px] font-bold leading-none';
+    const starImgCls = starLarge ? 'h-4 w-4' : 'h-3 w-3';
+    const starNumCls = starLarge ? 'text-[14px] font-bold leading-none' : 'text-[12px] font-bold leading-none';
 
     return (
         <div
@@ -86,6 +138,8 @@ export interface EquipmentDetailPanelProps {
     showTradeStatusUnderImage?: boolean;
     /** 본문·부옵션 글자를 한 단계 키움(거래소 모바일 구매 상세 등) */
     comfortableTypography?: boolean;
+    /** 거래소 PC 구매·판매 뷰어 등 — comfortable보다 한 단계 더 큼 */
+    enlargedTypography?: boolean;
     /** 각 부옵션 줄을 줄바꿈 없이 한 줄로(길면 가로 스크롤) */
     optionRowsSingleLine?: boolean;
     /**
@@ -111,6 +165,7 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
     optionsScrollable = true,
     showTradeStatusUnderImage = false,
     comfortableTypography = false,
+    enlargedTypography = false,
     optionRowsSingleLine = false,
     iconSlotPx,
     showAcquireSources = false,
@@ -120,6 +175,7 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
 }) => {
     const { currentUserWithStatus } = useAppContext();
     const styles = equipmentDetailGradeStyles[item.grade];
+    const typo = getDetailTypography(comfortableTypography, enlargedTypography);
 
     const requiredLevel = GRADE_LEVEL_REQUIREMENTS[item.grade];
     const userLevelSum = currentUserWithStatus?.userLevel ?? 0;
@@ -139,17 +195,15 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
         const typeLabel = item.type === 'consumable' ? '소모품' : '재료';
         const acquireLines = showAcquireSources ? resolveBagItemAcquireLines(item) : [];
 
-        const mainBodyPx = comfortableTypography ? 13 : 12;
+        const mainBodyPx = typo.mainBodyPx;
         const computedNameFontPx = Math.max(
             mainBodyPx + 1,
             Math.min(mainBodyPx + 4, Math.round(mainBodyPx + 3 - Math.max(0, nameLength - 14) * 0.22))
         );
-        const metaText = comfortableTypography ? 'text-[13px] font-medium leading-snug' : 'text-[12px] font-medium leading-snug';
-        const metaSemi = comfortableTypography ? 'text-[13px] font-semibold leading-snug' : 'text-[12px] font-semibold leading-snug';
-        const optsBlock = comfortableTypography
-            ? 'w-full space-y-2 text-left text-[13px] leading-snug'
-            : 'w-full space-y-2 text-left text-[12px] leading-snug';
-        const sectionLabelClass = comfortableTypography ? 'text-[11px] font-bold uppercase tracking-wide text-slate-500' : 'text-[10px] font-bold uppercase tracking-wide text-slate-500';
+        const metaText = typo.metaText;
+        const metaSemi = typo.metaSemi;
+        const optsBlock = typo.optsBlock;
+        const sectionLabelClass = typo.sectionLabel;
 
         const iconSlotBoxClass = iconSlotPx
             ? `relative overflow-hidden rounded-lg shadow-inner ring-1 ring-black/40 ${isTranscendent ? 'transcendent-grade-slot' : ''}`
@@ -296,7 +350,7 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
         );
     }
     /** 주옵션·부옵션·메타 공통 본문 크기(px). 이름만 이보다 항상 조금 더 크게 */
-    const mainBodyPx = comfortableTypography ? 13 : 12;
+    const mainBodyPx = typo.mainBodyPx;
     const computedNameFontPx = Math.max(
         mainBodyPx + 1,
         Math.min(
@@ -304,18 +358,12 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
             Math.round(mainBodyPx + 3 - Math.max(0, nameLength - 14) * 0.22)
         )
     );
-    const metaText = comfortableTypography ? 'text-[13px] font-medium leading-snug' : 'text-[12px] font-medium leading-snug';
-    const metaSemi = comfortableTypography ? 'text-[13px] font-semibold leading-snug' : 'text-[12px] font-semibold leading-snug';
-    const optsBlock = comfortableTypography
-        ? 'w-full space-y-1.5 text-left text-[13px] leading-snug'
-        : 'w-full space-y-1.5 text-left text-[12px] leading-snug';
-    /** 귀속·거래가능만 본문보다 한 단계 작게 */
-    const tradeStatusBadgeClass = 'text-[11px] font-semibold leading-none';
-    const tradeStatusLineClass = 'text-[11px] font-semibold leading-snug';
-    const optLine = optionRowsSingleLine ? 'whitespace-nowrap' : '';
-    const equipSectionLabelClass = comfortableTypography
-        ? 'text-[11px] font-bold uppercase tracking-wide text-slate-500'
-        : 'text-[10px] font-bold uppercase tracking-wide text-slate-500';
+    const metaText = typo.metaText;
+    const metaSemi = typo.metaSemi;
+    const optsBlock = typo.optsBlock;
+    const tradeStatusBadgeClass = typo.tradeBadge;
+    const tradeStatusLineClass = typo.tradeLine;
+    const equipSectionLabelClass = typo.sectionLabel;
     const acquireEquipLines = showAcquireSources ? resolveBagItemAcquireLines(item) : [];
 
     const optionsSectionClass = optionsScrollable
@@ -333,6 +381,7 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
         iconSlotPx != null
             ? Math.max(12, Math.round(13 * (iconSlotPx / Math.max(52, 80))))
             : computedNameFontPx;
+    const itemStars = item.stars ?? 0;
 
     return (
         <div className={optionsScrollable ? 'flex h-full min-h-0 flex-col' : 'flex flex-col'}>
@@ -364,7 +413,7 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
                                     style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
                                 />
                             ) : null}
-                            {renderStarDisplay(item.stars, comfortableTypography)}
+                            {renderStarDisplay(item.stars, typo.starLarge)}
                         </div>
                         {showTradeStatusUnderImage && item.type === 'equipment' && (
                             <div
@@ -396,21 +445,12 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
                                 {item.isBound ? '귀속' : '거래가능'}
                             </p>
                         )}
-                        <p className={`${comfortableTypography ? 'text-[13px] leading-snug' : 'text-[12px] leading-snug'} ${canEquip ? 'text-gray-500' : 'text-red-500'}`}>
+                        <p className={`${typo.bodyLeading} ${canEquip ? 'text-gray-500' : 'text-red-500'}`}>
                             ({formatEquipLevelRequirement(requiredLevel)})
                         </p>
                         {item.type === 'equipment' && item.grade !== 'normal' && (
                             <p className={`${metaSemi} ${refinementCount > 0 ? 'text-amber-400' : 'text-red-400'}`}>
                                 제련 가능: {refinementCount > 0 ? `${refinementCount}회` : '제련불가'}
-                            </p>
-                        )}
-                        {item.options?.main && (
-                            <p
-                                className={`mt-0.5 min-w-0 max-w-full ${metaSemi} text-amber-300/95 drop-shadow-sm ${optLine} ${
-                                    optionRowsSingleLine ? 'overflow-x-auto' : ''
-                                }`}
-                            >
-                                {item.options.main.display}
                             </p>
                         )}
                     </div>
@@ -419,35 +459,40 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
 
             <div className={optionsSectionClass}>
                 <div className={`${optsBlock} ${optionRowsSingleLine ? 'min-w-0 overflow-x-auto' : ''}`}>
+                    {item.options?.main && (
+                        <EquipmentBagStyleOptionRow opt={item.options.main} itemStars={itemStars} isMain />
+                    )}
                     {item.options?.combatSubs && item.options.combatSubs.length > 0 && (
                         <div className="space-y-0.5">
                             {item.options.combatSubs.map((opt, i) => (
-                                <p key={i} className={`text-blue-300 ${optLine}`}>
-                                    {opt.display}
-                                </p>
+                                <EquipmentBagStyleOptionRow key={`combat-${i}`} opt={opt} itemStars={itemStars} />
                             ))}
                         </div>
                     )}
                     {item.options?.specialSubs && item.options.specialSubs.length > 0 && (
                         <div className="space-y-0.5">
                             {item.options.specialSubs.map((opt, i) => (
-                                <p key={i} className={`text-green-300 ${optLine}`}>
-                                    {formatSpecialSubLineForPanel(opt, item.stars ?? 0)}
-                                </p>
+                                <EquipmentBagStyleOptionRow
+                                    key={`special-${i}`}
+                                    opt={opt}
+                                    itemStars={itemStars}
+                                    colorClass="text-green-300"
+                                />
                             ))}
                         </div>
                     )}
                     {item.options?.mythicSubs && item.options.mythicSubs.length > 0 ? (
                         <MythicSubsPartitioned
                             subs={item.options.mythicSubs}
-                            enlargeBody={comfortableTypography}
+                            itemStars={itemStars}
+                            enlargeBody={comfortableTypography || enlargedTypography}
                             rowsNoWrap={optionRowsSingleLine}
                         />
                     ) : null}
                     {showAcquireSources && item.description?.trim() ? (
                         <div className="mt-2 border-t border-white/10 pt-2">
                             <p className={equipSectionLabelClass}>설명</p>
-                            <p className={`mt-1 text-slate-200/95 ${comfortableTypography ? 'text-[13px] leading-snug' : 'text-[12px] leading-snug'}`}>
+                            <p className={`mt-1 text-slate-200/95 ${typo.bodyLeading}`}>
                                 {item.description.trim()}
                             </p>
                         </div>

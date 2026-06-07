@@ -54,6 +54,67 @@ function soulPetShopAcquireSnippet(materialName: string): string {
     return `${price}, 일일 ${sku.dailyLimit}회`;
 }
 
+function resolveSoulStoneUsageLines(item: InventoryItem): string[] {
+    const tier = soulStoneTierFromTemplateId(item.templateId);
+    const upgradeUsage = pairPetSoulStoneTierGradeUpgradeUsage(tier);
+    if (upgradeUsage) {
+        return [
+            `[펫 · 등급 강화] ${gradeStyles[upgradeUsage.from]?.name ?? ''}→${gradeStyles[upgradeUsage.to]?.name ?? ''} (펫 Lv.${upgradeUsage.minLevel} 이상)`,
+        ];
+    }
+    return ['[펫 · 등급 강화] 페어 경기장 동료 AI 펫의 등급 상승에 사용'];
+}
+
+function resolveSoulStoneAcquireLines(materialName: string): string[] {
+    const lines: string[] = [];
+    const train = soulTrainingRewardSlots(materialName);
+    if (train) lines.push(`[펫 · 수련 보상] ${train}`);
+    const conv = soulConvertAcquireGradesLabel(materialName);
+    if (conv) lines.push(`[펫 · 영혼 변환] ${conv} 펫 분해 시 획득 가능`);
+    const shop = soulPetShopAcquireSnippet(materialName);
+    if (shop) lines.push(`[펫 · 펫 상점] ${shop}`);
+    if (!lines.length) lines.push('[펫] 페어 경기장·부화장 관련 콘텐츠에서 획득·교환할 수 있습니다.');
+    return lines;
+}
+
+function resolveEggUsageLines(name: string): string[] {
+    if (name === PAIR_EGG_MATERIAL_NAME) {
+        return ['[펫 · 부화장] 슬롯에 배치해 무작위 종류의 AI 펫으로 부화'];
+    }
+    if (name === PAIR_WELCOME_EGG_MATERIAL_NAME) {
+        return ['[펫 · 부화장] 슬롯에 배치 — 부화 시간 1분, 부화 시 레벨 5 AI 펫'];
+    }
+    return [];
+}
+
+function resolveEggAcquireLines(name: string): string[] {
+    if (name === PAIR_EGG_MATERIAL_NAME) {
+        return [
+            '[펫 · 펫 상점] 골드·다이아로 구매 가능(일일 한도)',
+            '[펫 · 수련·이벤트] 일부 보상으로 획득',
+        ];
+    }
+    if (name === PAIR_WELCOME_EGG_MATERIAL_NAME) {
+        return [
+            '[우편] 신규 환영·운영 지급 등으로 획득할 수 있습니다.',
+            '[펫 · 펫 상점] 다이아로 구매 가능(일일 1개)',
+        ];
+    }
+    return [];
+}
+
+/** 도감 펫 탭 — 알·영혼석 사용처 */
+export function resolvePetTabEggOrSoulUsageLines(item: InventoryItem): string[] {
+    if (isPairSoulStoneMaterialName(item.name)) return resolveSoulStoneUsageLines(item);
+    return resolveEggUsageLines(item.name);
+}
+
+/** 도감 펫 탭 — 알·영혼석 획득처 */
+export function resolvePetTabEggOrSoulAcquireLines(item: InventoryItem): string[] {
+    if (isPairSoulStoneMaterialName(item.name)) return resolveSoulStoneAcquireLines(item.name);
+    return resolveEggAcquireLines(item.name);
+}
+
 /**
  * 가방·도감 수준의 「획득처」 안내(정적 요약). 상점 구매 미리보기 등에서 사용.
  */
@@ -76,34 +137,15 @@ export function resolveBagItemAcquireLines(item: InventoryItem): string[] {
     }
 
     if (isPairSoulStoneMaterialName(n)) {
-        const tier = soulStoneTierFromTemplateId(item.templateId);
-        const upgradeUsage = pairPetSoulStoneTierGradeUpgradeUsage(tier);
-        if (upgradeUsage) {
-            lines.push(
-                `[펫 · 사용] ${gradeStyles[upgradeUsage.from]?.name ?? ''}→${gradeStyles[upgradeUsage.to]?.name ?? ''} 등급 강화 (펫 Lv.${upgradeUsage.minLevel} 이상)`
-            );
-        }
-        const train = soulTrainingRewardSlots(n);
-        if (train) lines.push(`[펫 · 수련 보상] ${train}`);
-        const conv = soulConvertAcquireGradesLabel(n);
-        if (conv) lines.push(`[펫 · 영혼 변환] ${conv} 펫 분해 시 획득 가능`);
-        const shop = soulPetShopAcquireSnippet(n);
-        if (shop) lines.push(`[펫 · 펫 상점] ${shop}`);
-        if (!lines.length) lines.push('[펫] 페어 경기장·부화장 관련 콘텐츠에서 획득·교환할 수 있습니다.');
-        return lines;
+        return [...resolveSoulStoneUsageLines(item).map((line) => line.replace('[펫 · 등급 강화]', '[펫 · 사용]')), ...resolveSoulStoneAcquireLines(n)];
     }
 
     if (n === PAIR_EGG_MATERIAL_NAME) {
-        lines.push('[펫 · 부화장] 신비로운알을 부화할 때 소모');
-        lines.push('[펫 · 펫 상점] 골드·다이아로 구매 가능(일일 한도)');
-        lines.push('[펫 · 수련·이벤트] 일부 보상으로 획득');
-        return lines;
+        return [...resolveEggUsageLines(n), ...resolveEggAcquireLines(n)];
     }
 
     if (n === PAIR_WELCOME_EGG_MATERIAL_NAME) {
-        lines.push('[우편] 신규 환영·운영 지급 등으로 획득할 수 있습니다.');
-        lines.push('[펫 · 부화장] 어떤 슬롯에서든 부화 시간 1분, 부화 시 레벨 5 펫');
-        return lines;
+        return [...resolveEggAcquireLines(n), ...resolveEggUsageLines(n)];
     }
 
     if (TOWER_SHOP_CONSUMABLE_NAMES.has(n)) {

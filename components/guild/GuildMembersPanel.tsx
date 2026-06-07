@@ -24,6 +24,8 @@ interface GuildMembersPanelProps {
     myMemberInfo: GuildMember | undefined;
     /** 모바일 길드홈 전체 화면 목록: 글자·아바타 축소, 줄바꿈 최소화 */
     compact?: boolean;
+    /** 길드 관리 모달 등 임베드: 외곽 카드·타이포 축소 */
+    embedded?: boolean;
 }
 
 const MemberManagementModal: React.FC<{
@@ -133,7 +135,8 @@ const MemberManagementModal: React.FC<{
     );
 };
 
-const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberInfo, compact = false }) => {
+const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberInfo, compact = false, embedded = false }) => {
+    const dense = compact || embedded;
     const { handlers, allUsers, onlineUsers, currentUserWithStatus } = useAppContext();
     const effectiveUserId = currentUserWithStatus?.isAdmin ? ADMIN_USER_ID : currentUserWithStatus?.id;
     const [managingMember, setManagingMember] = useState<GuildMember | null>(null);
@@ -325,73 +328,81 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
         }
     };
 
+    const shellClass = embedded
+        ? 'relative flex h-full min-h-0 flex-col overflow-hidden p-1'
+        : `relative flex h-full flex-col overflow-visible rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 shadow-2xl backdrop-blur-md ${
+              dense ? 'p-3' : 'p-6'
+          }`;
+
     return (
-        <div
-            className={`relative flex h-full flex-col overflow-visible rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 shadow-2xl backdrop-blur-md ${
-                compact ? 'p-3' : 'p-6'
-            }`}
-        >
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10"></div>
+        <div className={shellClass}>
+            {!embedded && (
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10"></div>
+            )}
             <div className="relative z-10 flex h-full flex-col">
-                <div className={`flex flex-shrink-0 flex-col ${compact ? 'mb-2 gap-2' : 'mb-6 gap-3'}`}>
-                    <div className="flex items-center justify-between gap-1">
+                <div className={`flex flex-shrink-0 items-center justify-between gap-2 ${dense ? 'mb-2' : 'mb-6'}`}>
+                    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1.5">
                         <h3
-                            className={`font-bold text-highlight drop-shadow-lg flex min-w-0 items-center gap-1 ${
-                                compact ? 'text-base' : 'gap-2 text-2xl'
+                            className={`flex min-w-0 shrink-0 items-center gap-1 font-bold text-highlight drop-shadow-lg ${
+                                dense ? 'text-base' : 'gap-2 text-2xl'
                             }`}
                         >
-                            <span className={compact ? 'text-lg' : 'text-2xl'}>👥</span>
-                            <span className="min-w-0 truncate">
+                            <span className={dense ? 'text-lg' : 'text-2xl'}>👥</span>
+                            <span className="whitespace-nowrap">
                                 길드원{' '}
-                                <span className={compact ? 'text-sm text-primary' : 'text-lg text-primary'}>
+                                <span className={`text-primary ${dense ? 'text-sm' : 'text-lg'}`}>
                                     ({displayMembers.length}/{memberLimit})
                                 </span>
                             </span>
                         </h3>
-                        {myMemberInfo && myMemberInfo.role !== 'leader' && (
-                            <Button
-                                onClick={handleLeaveGuild}
-                                colorScheme="red"
-                                className={`shrink-0 border-2 border-red-500/50 shadow-lg transition-all hover:shadow-xl ${compact ? '!px-3 !py-2 !text-xs' : '!px-4 !py-2 !text-xs'}`}
+                        <div className="flex min-w-0 items-center gap-1.5">
+                            <span className={`shrink-0 text-stone-400 ${dense ? 'text-xs' : 'text-sm'}`}>정렬</span>
+                            <select
+                                value={sortMode}
+                                onChange={(e) => setSortMode(e.target.value as GuildMemberSortMode)}
+                                aria-label="길드원 목록 정렬"
+                                className={`min-w-[6.5rem] max-w-[9.5rem] shrink-0 rounded-lg border border-stone-500/50 bg-stone-800/90 text-stone-100 shadow-inner outline-none focus:border-cyan-500/60 ${
+                                    dense ? 'py-1.5 pl-2 pr-7 text-xs' : 'py-1.5 pl-2.5 pr-8 text-sm'
+                                }`}
                             >
-                                탈퇴
-                            </Button>
-                        )}
-                        {myMemberInfo && myMemberInfo.role === 'leader' && displayMembers.length === 1 && (
-                            <Button
-                                onClick={handleLeaveGuild}
-                                colorScheme="red"
-                                className={`shrink-0 border-2 border-red-500/50 shadow-lg transition-all hover:shadow-xl ${compact ? '!px-3 !py-2 !text-xs' : '!px-4 !py-2 !text-xs'}`}
-                            >
-                                해체
-                            </Button>
-                        )}
+                                {MEMBER_SORT_OPTIONS.map((o) => (
+                                    <option key={o.value} value={o.value}>
+                                        {o.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
-                    <div className={`flex min-w-0 items-center gap-2 ${compact ? '' : 'max-w-md'}`}>
-                        <span className="shrink-0 text-sm text-stone-400">정렬</span>
-                        <select
-                            value={sortMode}
-                            onChange={(e) => setSortMode(e.target.value as GuildMemberSortMode)}
-                            aria-label="길드원 목록 정렬"
-                            className={`min-w-0 flex-1 rounded-lg border border-stone-500/50 bg-stone-800/90 text-stone-100 shadow-inner outline-none focus:border-cyan-500/60 ${
-                                compact ? 'py-2.5 pl-2.5 pr-8 text-sm' : 'py-2 pl-3 pr-8 text-sm'
+                    {myMemberInfo && myMemberInfo.role !== 'leader' && (
+                        <Button
+                            onClick={handleLeaveGuild}
+                            colorScheme="red"
+                            className={`shrink-0 border-2 border-red-500/50 shadow-lg transition-all hover:shadow-xl ${
+                                dense ? '!px-3 !py-1.5 !text-xs' : '!px-4 !py-2 !text-xs'
                             }`}
                         >
-                            {MEMBER_SORT_OPTIONS.map((o) => (
-                                <option key={o.value} value={o.value}>
-                                    {o.label}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                            탈퇴
+                        </Button>
+                    )}
+                    {myMemberInfo && myMemberInfo.role === 'leader' && displayMembers.length === 1 && (
+                        <Button
+                            onClick={handleLeaveGuild}
+                            colorScheme="red"
+                            className={`shrink-0 border-2 border-red-500/50 shadow-lg transition-all hover:shadow-xl ${
+                                dense ? '!px-3 !py-1.5 !text-xs' : '!px-4 !py-2 !text-xs'
+                            }`}
+                        >
+                            해체
+                        </Button>
+                    )}
                 </div>
                 <div className="flex min-h-0 flex-grow flex-col overflow-hidden">
-                <div className={`min-h-0 min-w-0 flex-grow overflow-y-auto ${compact ? 'pr-1' : 'pr-3'}`}>
+                <div className={`min-h-0 min-w-0 flex-grow overflow-y-auto ${dense ? 'pr-0.5' : 'pr-3'}`}>
                     {displayMembers.length === 0 ? (
-                        <div className={`flex h-full items-center justify-center ${compact ? 'py-6' : 'py-12'}`}>
+                        <div className={`flex h-full items-center justify-center ${dense ? 'py-4' : 'py-12'}`}>
                             <div className="text-center">
-                                <p className={`text-tertiary font-semibold ${compact ? 'mb-1 text-base' : 'mb-2 text-xl'}`}>길드원이 없습니다</p>
-                                <p className={compact ? 'text-sm text-gray-500' : 'text-sm text-gray-500'}>아직 가입한 길드원이 없습니다.</p>
+                                <p className={`text-tertiary font-semibold ${dense ? 'mb-1 text-sm' : 'mb-2 text-xl'}`}>길드원이 없습니다</p>
+                                <p className="text-sm text-gray-500">아직 가입한 길드원이 없습니다.</p>
                             </div>
                         </div>
                     ) : (
@@ -399,14 +410,14 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
                         <thead className="sticky top-0 z-10">
                             <tr
                                 className={`border-b-2 border-stone-600/50 bg-gradient-to-r from-stone-800/95 via-neutral-700/85 to-stone-800/95 font-bold text-highlight ${
-                                    compact ? 'text-xs' : 'text-sm'
+                                    dense ? 'text-xs' : 'text-sm'
                                 }`}
                             >
-                                <th className={`text-left ${compact ? 'px-2 py-2.5' : 'px-5 py-4 text-base'}`}>길드원</th>
-                                <th className={`text-center ${compact ? 'px-2 py-2.5' : 'w-24 py-4'}`}>주간</th>
-                                <th className={`text-center ${compact ? 'px-2 py-2.5' : 'w-24 py-4'}`}>누적</th>
-                                <th className={`text-center ${compact ? 'px-2 py-2.5' : 'w-28 py-4'}`}>접속</th>
-                                {canManage && <th className={`text-center ${compact ? 'px-2 py-2.5' : 'w-20 py-4'}`}>관리</th>}
+                                <th className={`text-left ${dense ? 'px-2 py-2' : 'px-5 py-4 text-base'}`}>길드원</th>
+                                <th className={`text-center ${dense ? 'px-2 py-2' : 'w-24 py-4'}`}>주간</th>
+                                <th className={`text-center ${dense ? 'px-2 py-2' : 'w-24 py-4'}`}>누적</th>
+                                <th className={`text-center ${dense ? 'px-2 py-2' : 'w-28 py-4'}`}>접속</th>
+                                {canManage && <th className={`text-center ${dense ? 'px-2 py-2' : 'w-20 py-4'}`}>관리</th>}
                             </tr>
                         </thead>
                         <tbody>
@@ -427,7 +438,7 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
                                     onClick={isClickable ? (e) => { e?.stopPropagation(); handlers.openViewingUser(member.userId); } : undefined}
                                     title={isClickable ? `${memberDisplayName} 프로필 보기` : ''}
                                     className={`transition-all duration-200 ${
-                                        compact ? 'border-b border-stone-600/40' : 'border-b-2 border-stone-600/50'
+                                        dense ? 'border-b border-stone-600/40' : 'border-b-2 border-stone-600/50'
                                     } ${
                                         isClickable 
                                             ? 'cursor-pointer hover:bg-stone-700/50' 
@@ -440,42 +451,42 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
                                             : 'bg-gradient-to-r from-stone-800/95 via-neutral-700/90 to-stone-800/95'
                                     }`}
                                 >
-                                    <td className={compact ? 'px-2 py-2.5' : 'px-5 py-4'}>
-                                        <div className={`flex min-w-0 items-center ${compact ? 'gap-2.5' : 'gap-5'}`}>
+                                    <td className={dense ? 'px-2 py-2' : 'px-5 py-4'}>
+                                        <div className={`flex min-w-0 items-center ${dense ? 'gap-2' : 'gap-5'}`}>
                                             <div className="relative flex-shrink-0">
-                                                 <Avatar userId={member.userId} userName={memberDisplayName} size={compact ? 44 : 56} avatarUrl={avatarUrl} borderUrl={borderUrl} />
+                                                 <Avatar userId={member.userId} userName={memberDisplayName} size={dense ? 40 : 56} avatarUrl={avatarUrl} borderUrl={borderUrl} />
                                             </div>
                                             <div className="min-w-0 flex-1 overflow-hidden">
                                                 <p
                                                     className={`flex items-center gap-1.5 font-bold drop-shadow-lg ${
-                                                        compact ? 'text-[11px] leading-snug' : 'mb-1 gap-2 text-lg'
+                                                        dense ? 'text-xs leading-snug' : 'mb-1 gap-2 text-lg'
                                                     }`}
                                                 >
-                                                    <span className={`flex-shrink-0 rounded-full ${compact ? 'h-2 w-2' : 'h-2.5 w-2.5'} ${isOnline ? 'bg-green-500' : 'bg-red-500'}`} title={isOnline ? '온라인' : '오프라인'} />
+                                                    <span className={`flex-shrink-0 rounded-full ${dense ? 'h-2 w-2' : 'h-2.5 w-2.5'} ${isOnline ? 'bg-green-500' : 'bg-red-500'}`} title={isOnline ? '온라인' : '오프라인'} />
                                                     <span className="whitespace-normal break-words">{memberDisplayName}</span>
                                                 </p>
-                                                <p className={`font-bold ${getRoleColor(member.role)} drop-shadow-md ${compact ? 'text-[10px] leading-snug' : 'text-sm'}`}>{getRoleName(member.role)}</p>
+                                                <p className={`font-bold ${getRoleColor(member.role)} drop-shadow-md ${dense ? 'text-[11px] leading-snug' : 'text-sm'}`}>{getRoleName(member.role)}</p>
                                             </div>
                                         </div>
                                     </td>
-                                    <td className={`text-center align-middle ${compact ? 'px-2 py-2' : 'w-24'}`}>
-                                        <p className={`font-bold tabular-nums text-primary drop-shadow-lg ${compact ? 'text-sm leading-tight' : 'text-lg'}`}>{member.weeklyContribution || 0}</p>
+                                    <td className={`text-center align-middle ${dense ? 'px-2 py-2' : 'w-24'}`}>
+                                        <p className={`font-bold tabular-nums text-primary drop-shadow-lg ${dense ? 'text-xs leading-tight' : 'text-lg'}`}>{member.weeklyContribution || 0}</p>
                                     </td>
-                                    <td className={`text-center align-middle ${compact ? 'px-2 py-2' : 'w-24'}`}>
-                                        <p className={`font-bold tabular-nums text-accent drop-shadow-lg ${compact ? 'text-sm leading-tight' : 'text-lg'}`}>{member.contributionTotal || 0}</p>
+                                    <td className={`text-center align-middle ${dense ? 'px-2 py-2' : 'w-24'}`}>
+                                        <p className={`font-bold tabular-nums text-accent drop-shadow-lg ${dense ? 'text-xs leading-tight' : 'text-lg'}`}>{member.contributionTotal || 0}</p>
                                     </td>
-                                    <td className={`min-w-0 text-center align-middle ${compact ? 'px-2 py-2' : 'w-28'}`}>
-                                        <p className={`font-semibold ${compact ? 'text-[10px] leading-snug' : 'text-sm'}`}>
+                                    <td className={`min-w-0 text-center align-middle ${dense ? 'px-2 py-2' : 'w-28'}`}>
+                                        <p className={`font-semibold ${dense ? 'text-[11px] leading-snug' : 'text-sm'}`}>
                                             {isOnline ? <span className="text-green-400 drop-shadow-lg">온라인</span> : <span className="text-tertiary">{formatLastSeenGuild(member.lastLoginAt ?? user?.lastLoginAt)}</span>}
                                         </p>
                                     </td>
                                     {canManage && (
-                                        <td className={`text-center align-middle ${compact ? 'px-2 py-2' : 'w-20'}`} onClick={(e) => e.stopPropagation()}>
+                                        <td className={`text-center align-middle ${dense ? 'px-2 py-2' : 'w-20'}`} onClick={(e) => e.stopPropagation()}>
                                             {member.userId !== myMemberInfo?.userId && (
                                                 <Button
                                                     onClick={() => setManagingMember(member)}
                                                     className={
-                                                        compact
+                                                        dense
                                                             ? '!px-2 !py-1.5 !text-xs border border-cyan-500/60 bg-gradient-to-r from-cyan-600/95 via-blue-600/95 to-indigo-600/95 font-semibold text-white shadow-md'
                                                             : '!px-4 !py-2.5 !text-xs border-2 border-cyan-500/60 bg-gradient-to-r from-cyan-600/95 via-blue-600/95 to-indigo-600/95 font-semibold text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200'
                                                     }

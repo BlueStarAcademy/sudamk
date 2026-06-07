@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
     mergeGameUpdateByArena,
+    mergeLiveRejoinResponseWithExistingBoard,
+    preserveTerminalAnalysisResultOnMerge,
     shouldClearMissileFlightAnimationOnPlayingMerge,
+    shouldIgnoreStaleLiveTerminalGameUpdate,
 } from '../../../utils/clientGameMergePolicy.js';
 import { resolveArenaSessionPolicy } from '../../../shared/utils/liveSessionArenaKind.js';
 import { GameMode, Player } from '../../../shared/types/enums.js';
@@ -140,5 +143,81 @@ describe('mergeGameUpdateByArena', () => {
         });
         const merged = mergeGameUpdateByArena(incoming, existing, { source: 'game_update' });
         expect(merged.animation).toEqual(anim);
+    });
+});
+
+describe('shouldIgnoreStaleLiveTerminalGameUpdate', () => {
+    it('ignores playing regression while local is scoring', () => {
+        const existing = minimalSession({
+            isAiGame: false,
+            gameStatus: 'scoring',
+            moveHistory: [{ x: 0, y: 0, player: Player.Black }],
+        });
+        const incoming = minimalSession({
+            isAiGame: false,
+            gameStatus: 'playing',
+            moveHistory: [{ x: 0, y: 0, player: Player.Black }],
+        });
+        expect(shouldIgnoreStaleLiveTerminalGameUpdate(incoming, existing)).toBe(true);
+    });
+
+    it('accepts ended transition from local scoring', () => {
+        const existing = minimalSession({
+            isAiGame: false,
+            gameStatus: 'scoring',
+            moveHistory: [{ x: 0, y: 0, player: Player.Black }],
+        });
+        const incoming = minimalSession({
+            isAiGame: false,
+            gameStatus: 'ended',
+            moveHistory: [{ x: 0, y: 0, player: Player.Black }],
+        });
+        expect(shouldIgnoreStaleLiveTerminalGameUpdate(incoming, existing)).toBe(false);
+    });
+
+    it('ignores non-terminal updates after local ended', () => {
+        const existing = minimalSession({ isAiGame: false, gameStatus: 'ended' });
+        const incoming = minimalSession({ isAiGame: false, gameStatus: 'playing' });
+        expect(shouldIgnoreStaleLiveTerminalGameUpdate(incoming, existing)).toBe(true);
+    });
+});
+
+describe('mergeLiveRejoinResponseWithExistingBoard', () => {
+    it('keeps substantive client board when rejoin payload is an empty grid', () => {
+        const board = Array.from({ length: 9 }, () => Array(9).fill(Player.None));
+        board[3][3] = Player.Black;
+        const existing = minimalSession({
+            isAiGame: false,
+            boardState: board,
+            moveHistory: [{ x: 3, y: 3, player: Player.Black }],
+        });
+        const emptyGrid = Array.from({ length: 9 }, () => Array(9).fill(Player.None));
+        const incoming = minimalSession({
+            isAiGame: false,
+            gameStatus: 'scoring',
+            boardState: emptyGrid,
+            moveHistory: [],
+        });
+        const merged = mergeLiveRejoinResponseWithExistingBoard(existing, incoming);
+        expect(merged.boardState?.[3]?.[3]).toBe(Player.Black);
+        expect(merged.moveHistory?.length).toBe(1);
+    });
+});
+
+describe('preserveTerminalAnalysisResultOnMerge', () => {
+    it('keeps system analysis when ended packet omits it', () => {
+        const analysis = { scoreDetails: { black: { total: 10 }, white: { total: 8 } } };
+        const existing = minimalSession({
+            isAiGame: false,
+            gameStatus: 'scoring',
+            analysisResult: { system: analysis } as any,
+        });
+        const incoming = minimalSession({
+            isAiGame: false,
+            gameStatus: 'ended',
+            summary: { p1: { gold: 100 } } as any,
+        });
+        const merged = preserveTerminalAnalysisResultOnMerge(incoming, existing);
+        expect((merged.analysisResult as any)?.system).toEqual(analysis);
     });
 });

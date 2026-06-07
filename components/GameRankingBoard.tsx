@@ -11,8 +11,9 @@ import { getAdventureHuntingScore } from '../shared/utils/adventureHuntingScore.
 import MobileRankingGuidePanel from './MobileRankingGuidePanel.js';
 
 const IS_DEV = import.meta.env.DEV;
+/** 모바일·랭킹 모달 다열: 바둑랭킹(splitStack) 행과 동일한 글자·아바타 스케일 */
 const MOBILE_RANK_ROW_CLASS = 'min-h-[3rem]';
-const MOBILE_RANK_TEXT_CLASS = 'text-xs sm:text-[13px]';
+const MOBILE_RANK_TEXT_CLASS = 'text-xs sm:text-sm';
 
 /** 랭킹 모달용: 1~3위 강조 / 본인 행 강조 */
 function rankRowAccent(rank: number | string, isCurrentUser: boolean, dense: boolean, mobileWide: boolean): string {
@@ -56,14 +57,16 @@ const RankingRow = ({
     const accent = rankRowAccent(rank, isCurrentUser, Boolean(dense), Boolean(mobileWide));
 
     if (mobileWide) {
+        const isTopThree = typeof rank === 'number' && rank >= 1 && rank <= 3;
+        const avatarSize = isTopThree ? 40 : 38;
         return (
             <div
-                className={`flex ${MOBILE_RANK_ROW_CLASS} items-center rounded-lg px-1.5 py-0.5 transition-colors ${accent} ${!isCurrentUser && onViewUser ? 'cursor-pointer hover:bg-white/[0.04]' : ''}`}
+                className={`flex ${MOBILE_RANK_ROW_CLASS} items-center gap-1.5 rounded-lg p-1.5 transition-colors sm:gap-2 sm:p-2 ${accent} ${!isCurrentUser && onViewUser ? 'cursor-pointer hover:bg-white/[0.04]' : ''}`}
                 onClick={handleClick}
                 title={!isCurrentUser && onViewUser ? `${user.nickname} 프로필 보기` : ''}
             >
                 <span
-                    className={`w-9 shrink-0 text-center ${MOBILE_RANK_TEXT_CLASS} font-black tabular-nums ${
+                    className={`w-10 shrink-0 text-center sm:w-11 ${MOBILE_RANK_TEXT_CLASS} font-black tabular-nums ${
                         typeof rank === 'number' && rank === 1
                             ? 'text-amber-300'
                             : typeof rank === 'number' && rank === 2
@@ -75,16 +78,16 @@ const RankingRow = ({
                 >
                     {rank}
                 </span>
-                <Avatar userId={user.id} userName={user.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={38} fixedFrameSize />
+                <Avatar userId={user.id} userName={user.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={avatarSize} fixedFrameSize />
                 <UserNicknameText
                     user={{
                         nickname: user.nickname,
                         isAdmin: user.isAdmin,
                         staffNicknameDisplayEligibility: user.staffNicknameDisplayEligibility,
                     }}
-                    className={`ml-1.5 min-w-0 flex-1 truncate ${MOBILE_RANK_TEXT_CLASS} font-semibold`}
+                    className={`min-w-0 flex-1 truncate ${MOBILE_RANK_TEXT_CLASS} font-bold`}
                 />
-                <span className={`w-[4.75rem] shrink-0 text-right font-mono ${MOBILE_RANK_TEXT_CLASS} tabular-nums`}>{value.toLocaleString()}</span>
+                <span className={`w-[4.5rem] shrink-0 text-right font-mono ${MOBILE_RANK_TEXT_CLASS} font-semibold tabular-nums sm:w-20`}>{value.toLocaleString()}</span>
             </div>
         );
     }

@@ -31,7 +31,11 @@ if (!process.env.RAILWAY_ENVIRONMENT &&
     console.log('[Server] Railway environment auto-detected');
 }
 import { handleAction, resetAndGenerateQuests, updateQuestProgress } from './gameActions.js';
-import { leavePairWaitingRoomIfPresent, tickPairPartnerInviteExpiry } from './actions/socialActions.js';
+import {
+    leavePairWaitingRoomIfPresent,
+    tickPairOwnerStartDeadlines,
+    tickPairPartnerInviteExpiry,
+} from './actions/socialActions.js';
 import { regenerateActionPoints } from './effectService.js';
 import { mergeGamesWithLatestCache, updateGameStates } from './gameModes.js';
 import { isSessionSpeedTimePressureMode } from './utils/speedTimePressureLiveCaptures.js';
@@ -105,6 +109,9 @@ let lastDailyTaskCheckAt = 0;
 /** VIP 상점 30일 자동갱신(만료 시 연장) — 전체 유저 스캔 부하 분산 */
 const VIP_SHOP_AUTO_RENEW_INTERVAL_MS = 60_000;
 let lastVipShopAutoRenewAt = 0;
+/** 점심(13시)·저녁(19시) KST 전체 우편 발송 */
+const SCHEDULED_BROADCAST_MAIL_INTERVAL_MS = 60_000;
+let lastScheduledBroadcastMailCheckAt = 0;
 /** 0시 스케줄러 완료 브로드캐스트를 해당 날짜에 이미 보냈는지 (KST 0시 기준 타임스탬프) */
 let lastSchedulerMidnightBroadcastDay = 0;
 let lastBotScoreUpdateAt = 0;
@@ -1528,6 +1535,19 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                     console.error('[MainLoop] Error in processVipShopAutoRenewals:', vipRenewErr?.message || vipRenewErr);
                 }
             }
+
+            if (now - lastScheduledBroadcastMailCheckAt >= SCHEDULED_BROADCAST_MAIL_INTERVAL_MS) {
+                lastScheduledBroadcastMailCheckAt = now;
+                try {
+                    const { processScheduledBroadcastMails } = await import('./scheduledBroadcastMails.js');
+                    await processScheduledBroadcastMails(now);
+                } catch (broadcastMailErr: any) {
+                    console.error(
+                        '[MainLoop] Error in processScheduledBroadcastMails:',
+                        broadcastMailErr?.message || broadcastMailErr,
+                    );
+                }
+            }
             
             // 만료된 메일 정리 (5일 지난 메일 자동 삭제)
             if (now - (lastDailyTaskCheckAt || 0) >= DAILY_TASK_CHECK_INTERVAL_MS) {
@@ -2079,51 +2099,70 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                         db.getUser(userId),
                         userTimeout
                     ]) as types.User | null;
-                    if (!user) continue;
+                    if (!user) {
+                        const staleStatus = volatileState.userStatuses[userId];
+                        const staleGameId = staleStatus?.gameId;
+                        if (staleGameId) {
+                            try {
+                                const staleGame =
+                                    activeGames.find((g) => g.id === staleGameId) ?? (await db.getLiveGame(staleGameId));
+                                if (staleGame) {
+                                    const { applyPveAbandonOnPlayerLeave, isPveSessionAbandonOnLeave } = await import(
+                                        './utils/pveAbandonOnDisconnect.js',
+                                    );
+                                    if (isPveSessionAbandonOnLeave(staleGame)) {
+                                        await applyPveAbandonOnPlayerLeave(
+                                            volatileState,
+                                            userId,
+                                            staleGame,
+                                            'session_expired',
+                                        );
+                                    }
+                                }
+                            } catch (stalePveErr: any) {
+                                console.warn(
+                                    `[MainLoop] Stale PVE abandon failed for missing user ${userId}:`,
+                                    stalePveErr?.message,
+                                );
+                            }
+                        }
+                        releaseIpBindingForUser(volatileState, userId);
+                        delete volatileState.userConnections[userId];
+                        delete volatileState.userStatuses[userId];
+                        continue;
+                    }
 
                     const userStatus = volatileState.userStatuses[userId];
                     const activeGame = activeGames.find(g => (g.player1.id === userId || g.player2.id === userId));
                     const timeoutDuration = (activeGame || (userStatus?.status === 'in-game' && userStatus?.gameId)) ? GAME_DISCONNECT_TIMEOUT_MS : LOBBY_TIMEOUT_MS;
 
                     if (now - volatileState.userConnections[userId] > timeoutDuration) {
-                    // User timed out. Check if they are in a local PVE game first.
-                    // 온라인 AI 대국(isAiGame): WS만으로 오래 대기해도 /api/state가 안 불리면 90초마다 "접속 끊김"이 걸리는 문제가 있어
-                    // 로컬 PVE와 같이 타임스탬프만 갱신한다 (실제 WS 종료 시 applyPvpInGameDisconnect는 AI에서 no-op).
-                    const isLocalPveGame =
-                        activeGame &&
-                        (activeGame.isSinglePlayer ||
-                            activeGame.gameCategory === 'tower' ||
-                            activeGame.gameCategory === 'singleplayer' ||
-                            activeGame.isAiGame);
-                    
-                    // 싱글플레이 게임에서는 타임아웃이 발생해도 연결을 유지하고 게임을 계속 진행
-                    if (isLocalPveGame) {
-                        // 연결 시간을 갱신하여 타임아웃을 방지 (게임이 진행 중이므로)
-                        volatileState.userConnections[userId] = now;
-                        continue;
-                    }
-                    
-                        // 일반 게임에서만 타임아웃 처리
                         // User timed out. They are now disconnected. Remove them from active connections.
                         releaseIpBindingForUser(volatileState, userId);
                         delete volatileState.userConnections[userId];
                         volatileState.activeTournamentViewers.delete(userId);
                         // 브라우저 종료·로그아웃 등으로 타임아웃된 세션은 페어 방에서도 강제 이탈 처리.
                         leavePairWaitingRoomIfPresent(volatileState, userId);
-                
+
                         if (activeGame) {
-                            // User was in a game. Set the disconnection state for the single-player-disconnect logic.
-                            // Their userStatus remains for now, so we know they were in this game.
-                            // 도전의 탑/싱글플레이는 접속 끊김 패널티 없음
-                            // (온라인 AI 대국은 여기서 삭제하지 않고 재접속 복구를 허용)
-                            const isNoPenaltyGame =
-                                activeGame.isSinglePlayer ||
-                                activeGame.gameCategory === 'tower' ||
-                                activeGame.gameCategory === 'singleplayer' ||
-                                activeGame.isAiGame;
-                            if (!activeGame.disconnectionState) {
-                                if (!isNoPenaltyGame) {
-                                    // 일반 게임에서만 접속 끊김 카운트 및 패널티 적용
+                            if (
+                                !activeGame.disconnectionState &&
+                                activeGame.gameStatus !== 'ended' &&
+                                activeGame.gameStatus !== 'no_contest' &&
+                                activeGame.gameStatus !== 'scoring'
+                            ) {
+                                const { applyPveAbandonOnPlayerLeave, isPveSessionAbandonOnLeave } = await import(
+                                    './utils/pveAbandonOnDisconnect.js',
+                                );
+                                if (isPveSessionAbandonOnLeave(activeGame)) {
+                                    await applyPveAbandonOnPlayerLeave(
+                                        volatileState,
+                                        userId,
+                                        activeGame,
+                                        'connection_timeout',
+                                    );
+                                } else {
+                                    // PVP: 접속 끊김 카운트 및 disconnectionState
                                     if (!activeGame.disconnectionCounts) activeGame.disconnectionCounts = {};
                                     activeGame.disconnectionCounts[userId] = (activeGame.disconnectionCounts[userId] || 0) + 1;
                                     if (activeGame.disconnectionCounts[userId] >= 3) {
@@ -2137,40 +2176,6 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                                             activeGame.canRequestNoContest[otherPlayerId] = true;
                                         }
                                         await db.saveGame(activeGame);
-                                    }
-                                } else {
-                                    // 로컬 PVE(싱글/탑)만 연결 끊김 시 즉시 삭제.
-                                    // 온라인 AI 대국(모험 포함)은 여기서 삭제하지 않고 유저 재접속을 허용한다.
-                                    const shouldDeleteLocalPveGame =
-                                        activeGame.isSinglePlayer ||
-                                        activeGame.gameCategory === 'tower' ||
-                                        activeGame.gameCategory === 'singleplayer';
-                                    if (shouldDeleteLocalPveGame) {
-                                        console.log(`[Disconnect] Deleting local PVE game ${activeGame.id} for user ${userId} due to disconnect`);
-                                        
-                                        // 사용자 상태에서 gameId 제거
-                                        if (volatileState.userStatuses[userId]) {
-                                            delete volatileState.userStatuses[userId].gameId;
-                                            volatileState.userStatuses[userId].status = types.UserStatus.Waiting;
-                                        }
-                                        
-                                        // AI 세션 정리
-                                        clearAiSession(activeGame.id);
-                                        
-                                        // 게임 삭제
-                                        await db.deleteGame(activeGame.id);
-                                        delete volatileState.gameChats[activeGame.id];
-                                        // 게임 삭제 브로드캐스트
-                                        broadcast({ type: 'GAME_DELETED', payload: { gameId: activeGame.id } });
-                                    } else if (activeGame.isAiGame) {
-                                        // 온라인 AI 대국은 접속 끊김으로 삭제/강제종료하지 않음.
-                                        // userStatus(gameId)를 유지해 재접속 시 같은 게임으로 복귀 가능하게 한다.
-                                        console.log(
-                                            `[Disconnect] Keeping online AI game ${activeGame.id} for reconnect recovery (user=${userId})`
-                                        );
-                                    } else {
-                                        const winner = activeGame.blackPlayerId === userId ? types.Player.White : types.Player.Black;
-                                        await endGame(activeGame, winner, 'disconnect');
                                     }
                                 }
                             }
@@ -2257,6 +2262,12 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 tickPairPartnerInviteExpiry(volatileState);
             } catch (pairInviteExpiryError: any) {
                 console.warn('[MainLoop] tickPairPartnerInviteExpiry:', pairInviteExpiryError?.message);
+            }
+
+            try {
+                tickPairOwnerStartDeadlines(volatileState);
+            } catch (pairOwnerStartDeadlineError: any) {
+                console.warn('[MainLoop] tickPairOwnerStartDeadlines:', pairOwnerStartDeadlineError?.message);
             }
 
             const onlineUserIds = Object.keys(volatileState.userConnections);
@@ -3715,24 +3726,8 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 const gameStatePromise = (async () => {
                     if (activeGame) {
                         // 90초 내에 재접속한 경우 경기 재개
-                        if (activeGame.disconnectionState?.disconnectedPlayerId === userForLogin.id) {
-                            // 90초 내에 재접속했는지 확인
-                            const now = Date.now();
-                            const timeSinceDisconnect = now - activeGame.disconnectionState.timerStartedAt;
-                            if (timeSinceDisconnect <= GAME_DISCONNECT_TIMEOUT_MS) {
-                                // 재접속 성공: disconnectionState 제거하고 경기 재개
-                                activeGame.disconnectionState = null;
-                                const otherPlayerId = activeGame.player1.id === userForLogin.id ? activeGame.player2.id : activeGame.player1.id;
-                                if (activeGame.canRequestNoContest?.[otherPlayerId]) {
-                                    delete activeGame.canRequestNoContest[otherPlayerId];
-                                }
-                                await db.saveGame(activeGame);
-                                
-                                // 게임 업데이트 브로드캐스트
-                                const { broadcastToGameParticipants } = await import('./socket.js');
-                                broadcastToGameParticipants(activeGame.id, { type: 'GAME_UPDATE', payload: { [activeGame.id]: activeGame } }, activeGame);
-                            }
-                        }
+                        const { clearPvpDisconnectOnPlayerReconnect } = await import('./actions/socialActions.js');
+                        await clearPvpDisconnectOnPlayerReconnect(activeGame, userForLogin.id);
                         // 재접속한 유저를 게임 상태로 설정 (자동으로 게임으로 리다이렉트)
                         volatileState.userStatuses[userForLogin.id] = { status: types.UserStatus.InGame, mode: activeGame.mode, gameId: activeGame.id };
                     } else {
@@ -4408,6 +4403,10 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 game = await db.getLiveGame(gameId);
             }
             if (!game) {
+                const { resolveGameSessionForRecordSave } = await import('./gameRecordSnapshot.js');
+                game = await resolveGameSessionForRecordSave(volatileState, gameId);
+            }
+            if (!game) {
                 return res.status(404).json({ error: '게임을 찾을 수 없습니다.' });
             }
             const isParticipant = game.player1?.id === userId || game.player2?.id === userId;
@@ -4422,21 +4421,8 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 return res.status(400).json({ error: '이어하기할 수 없는 게임 상태입니다.' });
             }
             // PVP: 새로고침으로 끊긴 플레이어가 90초 내 재접속 시 disconnectionState 해제하여 경기 재개
-            if (game.disconnectionState?.disconnectedPlayerId === userId) {
-                const now = Date.now();
-                const timerStartedAt = game.disconnectionState?.timerStartedAt ?? now;
-                const timeSinceDisconnect = now - timerStartedAt;
-                if (timeSinceDisconnect <= GAME_DISCONNECT_TIMEOUT_MS) {
-                    game.disconnectionState = null;
-                    const otherPlayerId = game.player1?.id === userId ? game.player2?.id : game.player1?.id;
-                    if (otherPlayerId && game.canRequestNoContest?.[otherPlayerId]) {
-                        delete game.canRequestNoContest[otherPlayerId];
-                    }
-                    await db.saveGame(game);
-                    const { broadcastToGameParticipants } = await import('./socket.js');
-                    broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
-                }
-            }
+            const { clearPvpDisconnectOnPlayerReconnect } = await import('./actions/socialActions.js');
+            await clearPvpDisconnectOnPlayerReconnect(game, userId);
             // 서버 상태 복원: 재접속한 유저를 in-game으로 설정 (새로고침 후 라우팅/activeGame 일치)
             const rejoinIp = await ensureClientIpAllowsSession(volatileState, req, res, userId, !!user.isAdmin);
             if (!rejoinIp.ok) {
@@ -4503,8 +4489,31 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             if (isDev) console.log('[/api/state] User retrieved from cache/DB');
             if (!user) {
                 if (isDev) console.log(`[API/State] User ${userId} not found, cleaning up connection and returning 401.`);
+                try {
+                    const staleStatus = volatileState.userStatuses[userId];
+                    const staleGameId = staleStatus?.gameId;
+                    if (staleGameId) {
+                        const staleGame = await db.getLiveGame(staleGameId);
+                        if (staleGame) {
+                            const { applyPveAbandonOnPlayerLeave, isPveSessionAbandonOnLeave } = await import(
+                                './utils/pveAbandonOnDisconnect.js',
+                            );
+                            if (isPveSessionAbandonOnLeave(staleGame)) {
+                                await applyPveAbandonOnPlayerLeave(
+                                    volatileState,
+                                    userId,
+                                    staleGame,
+                                    'session_expired',
+                                );
+                            }
+                        }
+                    }
+                } catch (stalePveErr: any) {
+                    console.warn(`[/api/state] Stale PVE abandon failed for ${userId}:`, stalePveErr?.message);
+                }
                 releaseIpBindingForUser(volatileState, userId);
                 delete volatileState.userConnections[userId]; // Clean up just in case
+                delete volatileState.userStatuses[userId];
                 return res.status(401).json({ message: '세션이 만료되었습니다. 다시 로그인해주세요.' });
             }
             if (isDev) console.log(`[API/State] User ${user.nickname} found.`);
@@ -4568,7 +4577,13 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             }
 
             volatileState.userConnections[userId] = Date.now();
-            
+            try {
+                const { clearPvpDisconnectOnPlayerReconnectByStatus } = await import('./actions/socialActions.js');
+                await clearPvpDisconnectOnPlayerReconnectByStatus(volatileState, userId);
+            } catch (reconnectClearErr: any) {
+                console.warn(`[/api/state] clearPvpDisconnectOnPlayerReconnectByStatus failed for ${userId}:`, reconnectClearErr?.message);
+            }
+
             const userBeforeUpdate = JSON.stringify(user);
             if (isDev) console.log(`[API/State] User ${user.nickname}: Processing quests, league updates, AP regen, and weekly competitors.`);
             let updatedUser = await resetAndGenerateQuests(user);
@@ -4778,8 +4793,31 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             const getUserDuration = Date.now() - getUserStartTime;
             
             if (!user) {
+                try {
+                    const staleStatus = volatileState.userStatuses[userId];
+                    const staleGameId = staleStatus?.gameId;
+                    if (staleGameId) {
+                        const staleGame = await db.getLiveGame(staleGameId);
+                        if (staleGame) {
+                            const { applyPveAbandonOnPlayerLeave, isPveSessionAbandonOnLeave } = await import(
+                                './utils/pveAbandonOnDisconnect.js',
+                            );
+                            if (isPveSessionAbandonOnLeave(staleGame)) {
+                                await applyPveAbandonOnPlayerLeave(
+                                    volatileState,
+                                    userId,
+                                    staleGame,
+                                    'session_expired',
+                                );
+                            }
+                        }
+                    }
+                } catch (stalePveErr: any) {
+                    console.warn(`[/api/action] Stale PVE abandon failed for ${userId}:`, stalePveErr?.message);
+                }
                 releaseIpBindingForUser(volatileState, userId);
                 delete volatileState.userConnections[userId];
+                delete volatileState.userStatuses[userId];
                 respondAction(401, { message: '유효하지 않은 사용자입니다.' });
                 return;
             }
@@ -4836,6 +4874,12 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             }
             
             volatileState.userConnections[userId] = Date.now();
+            try {
+                const { clearPvpDisconnectOnPlayerReconnectByStatus } = await import('./actions/socialActions.js');
+                await clearPvpDisconnectOnPlayerReconnectByStatus(volatileState, userId);
+            } catch (reconnectClearErr: any) {
+                console.warn(`[/api/action] clearPvpDisconnectOnPlayerReconnectByStatus failed for ${userId}:`, reconnectClearErr?.message);
+            }
 
             // 반복 액션 로그는 필요할 때만 켠다. 예: DEBUG_ACTION_LOGS=1 npm run start-server
             if (VERBOSE_ACTION_LOGS) {

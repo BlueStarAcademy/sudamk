@@ -27,6 +27,7 @@ import {
     subscribeModalStack,
     unregisterModalStackEntry,
 } from '../utils/modalStack.js';
+import { resolvePcModalPortalPolicy } from '../utils/pcModalPortalPolicy.js';
 
 /** 공지 게시판 모달과 동일한 텍스트 「닫기」 버튼 스타일 (DraggableWindow·커스텀 모달 공통) */
 export const SUDAMR_MODAL_CLOSE_BUTTON_CLASS =
@@ -463,7 +464,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     const isCompactViewport = useIsHandheldDevice(1025);
     const { isNativeMobile } = useNativeMobileShell();
-    const { modalLayerUsesDesignPixels: appModalLayerUsesDesignPixels } = useAppContext();
+    const { modalLayerUsesDesignPixels: appModalLayerUsesDesignPixels, pcUniformScalePolicy } = useAppContext();
 
     /** 대국 화면(Game)에서만 true — 모달을 바둑판 패널 크기·위치에 맞춤 */
     const ingameBoardFrame = useInGameModalLayout();
@@ -482,18 +483,19 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         !shrinkHeightToContent &&
         typeof initialHeight === 'number' &&
         initialHeight >= 400;
-    const useReadableSmallPcViewportPortal =
-        !viewportPortal &&
-        appModalLayerUsesDesignPixels &&
-        !isNativeMobile &&
-        !isCompactViewport &&
-        (autoViewportPortalOnSmallDesktop || isSmallPcViewport) &&
-        !isScrollableDesignFrameCandidate;
-    // 로비: modal-root(z≈60)와 body 혼용 시 z-index가 깨지므로 대국 화면이 아니면 body 포털로 통일.
-    // 대국 화면(ingameBoardFrame)은 설계 픽셀·보드 프레임 정렬을 위해 modal-root 유지.
-    const effectiveViewportPortal =
-        viewportPortal || useReadableSmallPcViewportPortal || !ingameBoardFrame;
-    const modalLayerUsesDesignPixels = appModalLayerUsesDesignPixels && !effectiveViewportPortal;
+    const { useReadableSmallPcViewportPortal, effectiveViewportPortal, modalLayerUsesDesignPixels } =
+        resolvePcModalPortalPolicy({
+            viewportPortal,
+            autoViewportPortalOnSmallDesktop,
+            appModalLayerUsesDesignPixels,
+            preferInCanvasModalPortal: pcUniformScalePolicy.preferInCanvasModalPortal,
+            disableSmallPcViewportPortal: pcUniformScalePolicy.disableSmallPcViewportPortal,
+            isNativeMobile,
+            isCompactViewport,
+            ingameBoardFrame,
+            isSmallPcViewport,
+            isScrollableDesignFrameCandidate,
+        });
 
     // PC 16:9 캔버스 안의 모달 루트(설계 픽셀)일 때만 true. 세로형 네이티브 셸에서는 false라 뷰포트·균일축소 분기가 동작함.
     const effectiveIsCompactViewport = modalLayerUsesDesignPixels ? false : isCompactViewport;
@@ -717,20 +719,20 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
      * 게임 내 설계 픽셀 레이어에서는 기존처럼 `mobileViewportFit === true`일 때만(중첩·특수 모달).
      */
     const wantsMobileViewportFitShell =
-        mobileViewportFit === true ||
+        (mobileViewportFit === true && !modalLayerUsesDesignPixels) ||
         useReadableSmallPcViewportPortal ||
         (!modalLayerUsesDesignPixels && (effectiveIsCompactViewport || isNativeMobile));
 
     const useMobileViewportFitLayout =
         wantsMobileViewportFitShell &&
         (effectiveIsCompactViewport ||
-            modalLayerUsesDesignPixels ||
             isNativeMobile ||
             useReadableSmallPcViewportPortal ||
             /** `mobileViewportFit`만 켠 데스크톱(짧은 창 등): 예전엔 여기가 false여 셸·스티키 푸터가 비활성 → 일괄 사용 등 하단 버튼 잘림 */
-            mobileViewportFit === true);
+            (mobileViewportFit === true && !modalLayerUsesDesignPixels));
 
-    const useUniformPcScaleLayout = uniformPcScale && !useMobileViewportFitLayout;
+    /** in-canvas modal-root는 App 캔버스 scale을 이미 따름 — 이중 transform scale 방지 */
+    const useUniformPcScaleLayout = uniformPcScale && !useMobileViewportFitLayout && !modalLayerUsesDesignPixels;
 
     /** uniform scale: initialHeight가 푸터 미포함일 때 실측 셸 높이를 넣어 하단이 잘리지 않게 함 */
     const [uniformShellMeasuredH, setUniformShellMeasuredH] = useState(0);

@@ -2,7 +2,6 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { UserWithStatus } from '../types.js';
 import Button from './Button.js';
 import { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from './DraggableWindow.js';
-import { isSameDayKST } from '../utils/timeUtils.js';
 import { countTowerLobbyInventoryQty, towerShopInventoryNameOrIdsForItem } from '../utils/towerLobbyInventory.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { useAppContext } from '../hooks/useAppContext.js';
@@ -10,17 +9,17 @@ import { MAX_GAME_INTEGER_INPUT } from '../shared/constants/numericLimits.js';
 import { clampGameInt } from '../shared/utils/gameIntegerField.js';
 import { formatGoldAmountKoG, formatWalletDiamonds } from '../shared/utils/walletAmountDisplay.js';
 import { buildInventoryItemPreviewForPurchase } from '../shared/utils/bagItemDetailHelpers.js';
+import {
+    getTowerItemPurchaseLimit,
+    getTowerItemTodayPurchased,
+    resolveTowerShopItem,
+    TOWER_SHOP_ITEMS,
+    towerShopItemIdFromSlotKey,
+    type TowerShopItemDef,
+} from '../shared/constants/towerShopItems.js';
 import { EquipmentDetailPanel } from './EquipmentDetailPanel.js';
 
-interface TowerItem {
-    itemId: string;
-    name: string;
-    icon: string;
-    price: { gold?: number; diamonds?: number };
-    maxOwned: number; // 최대 보유 개수
-    dailyPurchaseLimit: number; // 하루 구매 제한
-    description: string;
-}
+export { towerShopItemIdFromSlotKey };
 
 interface CartItem {
     itemId: string;
@@ -35,85 +34,13 @@ interface TowerItemShopModalProps {
     initialSelectedItemId?: string | null;
 }
 
-const TOWER_ITEMS: TowerItem[] = [
-    {
-        itemId: '턴 추가',
-        name: '턴 추가',
-        icon: '/images/button/addturn.webp',
-        price: { gold: 300 },
-        maxOwned: 3,
-        dailyPurchaseLimit: 3,
-        description: '도전의 탑 1~20층에서 사용 가능한 아이템입니다. 흑의 턴이 부족할 때 사용하면 턴수 제한이 3턴 증가합니다.'
-    },
-    {
-        itemId: '미사일',
-        name: '미사일',
-        icon: '/images/button/missile.webp',
-        price: { gold: 300 },
-        maxOwned: 2,
-        dailyPurchaseLimit: 2,
-        description: '도전의 탑 21~100층에서 사용 가능한 아이템입니다. 이미 놓여진 내 돌을 발사하여 이동시킬 수 있습니다.'
-    },
-    {
-        itemId: '히든',
-        name: '히든',
-        icon: '/images/button/hidden.webp',
-        price: { gold: 500 },
-        maxOwned: 2,
-        dailyPurchaseLimit: 2,
-        description: '도전의 탑 21~100층에서 사용 가능한 히든 아이템입니다. 상대에게 보이지 않는 돌을 배치할 수 있습니다.'
-    },
-    {
-        itemId: '스캔',
-        name: '스캔',
-        icon: '/images/button/scan.webp',
-        price: { gold: 400 },
-        maxOwned: 2,
-        dailyPurchaseLimit: 2,
-        description: '도전의 탑 21~100층에서 사용 가능한 스캔 아이템입니다. 상대방의 히든 돌을 찾아낼 수 있습니다.'
-    },
-    {
-        itemId: '배치변경',
-        name: '배치변경',
-        icon: '/images/button/reflesh.webp',
-        price: { gold: 100 },
-        maxOwned: 5,
-        dailyPurchaseLimit: 5,
-        description: '도전의 탑 모든 층에서 사용 가능한 배치변경 아이템입니다. 초기 돌 배치를 다시 랜덤하게 변경할 수 있습니다.'
-    }
-];
-
-function resolveTowerShopItem(itemId?: string | null): TowerItem {
-    if (itemId) {
-        const found = TOWER_ITEMS.find((i) => i.itemId === itemId);
-        if (found) return found;
-    }
-    return TOWER_ITEMS[0];
-}
-
-/** 게임 설명 그리드 슬롯 key 등 → 상점 itemId */
-export function towerShopItemIdFromSlotKey(slotKey: string): string | undefined {
-    switch (slotKey) {
-        case 'turn-add':
-            return '턴 추가';
-        case 'missile':
-            return '미사일';
-        case 'hidden':
-            return '히든';
-        case 'scan':
-            return '스캔';
-        case 'refresh':
-            return '배치변경';
-        default:
-            if (TOWER_ITEMS.some((i) => i.itemId === slotKey)) return slotKey;
-            return undefined;
-    }
-}
+const TOWER_ITEMS = TOWER_SHOP_ITEMS;
+type TowerItem = TowerShopItemDef;
 
 const TowerItemShopModal: React.FC<TowerItemShopModalProps> = ({ currentUser, onClose, onBuy, initialSelectedItemId }) => {
     const { isNativeMobile } = useNativeMobileShell();
     const { updateTrigger } = useAppContext();
-    const [selectedItem, setSelectedItem] = useState<TowerItem | null>(() => resolveTowerShopItem(initialSelectedItemId));
+    const [selectedItem, setSelectedItem] = useState<TowerShopItemDef | null>(() => resolveTowerShopItem(initialSelectedItemId));
     const [cart, setCart] = useState<Record<string, number>>({});
 
     useEffect(() => {
@@ -142,33 +69,14 @@ const TowerItemShopModal: React.FC<TowerItemShopModalProps> = ({ currentUser, on
         });
     }, [selectedItem]);
 
-    // 오늘(KST) 구매한 개수 계산 — 서버와 동일 키(itemId)·날짜 기준
-    const getTodayPurchased = (itemId: string): number => {
-        const dailyPurchases = currentUser.dailyShopPurchases ?? {};
-        const purchaseRecord = dailyPurchases[itemId];
-        if (!purchaseRecord || typeof purchaseRecord !== 'object') return 0;
-        const date = typeof purchaseRecord.date === 'number' ? purchaseRecord.date : undefined;
-        if (date == null || !isSameDayKST(date, Date.now())) return 0;
-        const qty = typeof purchaseRecord.quantity === 'number' ? purchaseRecord.quantity : 0;
-        return Math.max(0, qty);
-    };
-
-    // 각 아이템의 구매 가능 여부 및 최대 구매 가능 개수 계산
     const getItemPurchaseInfo = (item: TowerItem) => {
         const currentOwned = getCurrentOwned(item.itemId);
-        const todayPurchased = getTodayPurchased(item.itemId);
+        const todayPurchased = getTowerItemTodayPurchased(currentUser, item.itemId);
         const cartQuantity = cart[item.itemId] || 0;
+        const { maxCanBuy } = getTowerItemPurchaseLimit(currentUser, item);
         const atMaxOwned = currentOwned >= item.maxOwned;
         const atDailyLimit = todayPurchased >= item.dailyPurchaseLimit;
-        const canBuyMore = !atMaxOwned && !atDailyLimit;
-        const maxCanBuy = atMaxOwned
-            ? 0
-            : Math.min(
-                item.maxOwned - currentOwned,
-                item.dailyPurchaseLimit - todayPurchased,
-                item.price.gold ? Math.floor((currentUser.gold || 0) / item.price.gold) : Infinity,
-                item.price.diamonds ? Math.floor((currentUser.diamonds || 0) / item.price.diamonds) : Infinity
-            );
+        const canBuyMore = maxCanBuy > 0;
         return { canBuyMore, maxCanBuy, currentOwned, todayPurchased, cartQuantity, atMaxOwned, atDailyLimit };
     };
 

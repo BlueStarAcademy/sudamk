@@ -104,11 +104,11 @@ const CapturedStones: React.FC<{
     }
 
     const widthClass =
-        isMobile && isCurling ? 'w-[5.35rem] min-w-[5.35rem]' : isMobile ? 'w-[4.25rem]' : isCurling ? 'w-[clamp(5rem,17vmin,6.5rem)]' : 'w-[clamp(4.5rem,16vmin,6rem)]';
+        isMobile && isCurling ? 'w-[5.35rem] min-w-[5.35rem]' : isMobile ? 'w-[4.25rem]' : isCurling ? 'w-[6.5rem]' : 'w-[6rem]';
     const paddingClass = isCurling ? (isMobile ? 'px-1 py-1.5' : 'px-1.5 py-1.5') : isMobile ? 'p-1' : 'p-1';
-    const labelSize = isMobile ? 'text-[0.65rem]' : 'text-[clamp(0.6rem,2vmin,0.75rem)]';
-    const countSize = isMobile && isCurling ? 'text-base' : isMobile ? 'text-sm' : 'text-[clamp(1rem,5vmin,2rem)]';
-    const diceSize = isMobile ? 'h-2.5 w-2.5' : 'w-[clamp(0.8rem,3vmin,1rem)] h-[clamp(0.8rem,3vmin,1rem)]';
+    const labelSize = isMobile ? 'text-[0.65rem]' : 'text-[0.75rem]';
+    const countSize = isMobile && isCurling ? 'text-base' : isMobile ? 'text-sm' : 'text-[2rem]';
+    const diceSize = isMobile ? 'h-2.5 w-2.5' : 'h-[1rem] w-[1rem]';
     const marginClass = isCurling ? 'my-0' : isMobile ? 'my-0.5' : 'my-1';
 
     const heightStretchClass = isCurling ? 'min-h-0 self-stretch' : fillStretchHeight ? 'h-full' : 'h-auto min-h-0';
@@ -143,7 +143,7 @@ const CapturedStones: React.FC<{
                     <span>{count}</span>
                     {inlineHeadStartBonus != null && inlineHeadStartBonus > 0 ? (
                         <span
-                            className={`font-semibold leading-none ${isMobile ? 'text-[0.58rem]' : 'text-[clamp(0.58rem,2.2vmin,0.72rem)]'} ${
+                            className={`font-semibold leading-none ${isMobile ? 'text-[0.58rem]' : 'text-[0.72rem]'} ${
                                 panelType === 'white' ? 'text-slate-600' : 'text-amber-200/95'
                             }`}
                         >
@@ -151,14 +151,14 @@ const CapturedStones: React.FC<{
                         </span>
                     ) : null}
                     {typeof target === 'number' && target > 0 ? (
-                        <span className={`font-bold ${isMobile ? 'text-sm' : 'text-[clamp(0.85rem,3.5vmin,1.35rem)]'} opacity-95`}>
+                        <span className={`font-bold ${isMobile ? 'text-sm' : 'text-[1.35rem]'} opacity-95`}>
                             /{target}
                         </span>
                     ) : null}
                 </div>
             )}
             {inlineScoreBonusText ? (
-                <div className={`mt-0.5 font-semibold leading-none ${isMobile ? 'text-[0.6rem]' : 'text-[clamp(0.58rem,2.2vmin,0.74rem)]'} ${
+                <div className={`mt-0.5 font-semibold leading-none ${isMobile ? 'text-[0.6rem]' : 'text-[0.74rem]'} ${
                     panelType === 'white' ? 'text-emerald-700' : 'text-emerald-300'
                 }`}>
                     {inlineScoreBonusText}
@@ -200,11 +200,10 @@ const TimeBar: React.FC<{
              return turnTime > 0 ? (timeLeft / turnTime) * 100 : 0;
         }
         if (isInByoyomi) {
-            if (!isActive) return 100;
             return byoyomiTime > 0 ? (timeLeft / byoyomiTime) * 100 : 0;
         }
         return totalTime > 0 ? (timeLeft / totalTime) * 100 : 0;
-    }, [timeLeft, totalTime, byoyomiTime, isInByoyomi, isFoulMode, isActive]);
+    }, [timeLeft, totalTime, byoyomiTime, isInByoyomi, isFoulMode]);
 
     const clampedPercent = Math.max(0, Math.min(100, percent));
 
@@ -358,7 +357,11 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
     const isWinner = (winner === Player.Black && blackPlayerId === user.id) || (winner === Player.White && whitePlayerId === user.id);
     const isLoser = (winner === Player.Black || winner === Player.White) && !isWinner;
     
-    const isInByoyomi = !isFoulMode && mainTimeLeft <= 0 && totalByoyomi > 0;
+    const isInByoyomi =
+        !isFoulMode &&
+        totalByoyomi > 0 &&
+        ((typeof mainTimeLeft === 'number' && mainTimeLeft <= 0) ||
+            effectiveByoyomiPeriodsLeft < effectiveTotalByoyomi);
 
     const useAdventureMatchCountdown =
         adventureEncounterCountdownUiActive(session.gameCategory, session.gameStatus) &&
@@ -443,13 +446,13 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
         ? 'text-[clamp(0.5625rem,2.35vmin,0.8125rem)] min-[380px]:text-[clamp(0.625rem,2.15vmin,0.875rem)]'
         : isMobile
           ? 'text-sm'
-          : 'text-[clamp(0.8rem,3vmin,1.125rem)]';
+          : 'text-[1.125rem]';
     const levelTextSize = fluidTextLayout
         ? 'text-[clamp(0.5rem,2.05vmin,0.6875rem)] min-[380px]:text-[clamp(0.5625rem,1.9vmin,0.75rem)]'
         : isMobile
           ? 'text-xs'
-          : 'text-[clamp(0.6rem,2vmin,0.75rem)]';
-    const timeTextSize = isMobile ? 'text-base' : 'text-[clamp(1rem,3.5vmin,1.25rem)]';
+          : 'text-[0.75rem]';
+    const timeTextSize = isMobile ? 'text-base' : 'text-[1.25rem]';
     /** 좁은 상단 바: 타이머·승패가 닉네임과 겹치지 않도록 더 작게 */
     const displayTimeTextSize =
         fluidTextLayout && isMobile ? 'text-[clamp(0.625rem,2.35vmin,0.8125rem)]' : timeTextSize;
@@ -459,8 +462,8 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
     /** 모바일: 이름 옆 승·패가 flex-1 닉네임과 경쟁해 말줄임 발생 → 아바타 위 오버레이만 사용 */
     const showWinLoseAvatarOverlay = isMobile && isGameEnded && (isWinner || isLoser);
     const winLoseAvatarRibbonClass =
-        'pointer-events-none absolute inset-x-0 bottom-0 flex justify-center rounded-b-md py-[2px] text-[10px] font-black leading-none text-white shadow-[0_-1px_6px_rgba(0,0,0,0.45)]';
-    const winLoseAvatarRibbon =
+        'w-full rounded-b-md py-[2px] text-center text-[10px] font-black leading-none text-white shadow-[0_-1px_6px_rgba(0,0,0,0.45)]';
+    const winLoseAvatarRibbonOverlay =
         showWinLoseAvatarOverlay && isWinner ? (
             <span className={`${winLoseAvatarRibbonClass} bg-blue-600/95`} aria-hidden>
                 승
@@ -469,6 +472,10 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
             <span className={`${winLoseAvatarRibbonClass} bg-red-600/95`} aria-hidden>
                 패
             </span>
+        ) : undefined;
+    const winLoseAvatarRibbonSibling =
+        winLoseAvatarRibbonOverlay != null ? (
+            <span className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center">{winLoseAvatarRibbonOverlay}</span>
         ) : null;
     const padding = isMobile ? 'p-1.5' : 'p-1';
     const gap = isMobile ? 'gap-1.5' : 'gap-2';
@@ -653,13 +660,18 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                                     className="h-full w-full object-contain object-center"
                                 />
                             </div>
-                            {winLoseAvatarRibbon}
+                            {winLoseAvatarRibbonSibling}
                         </div>
                     ) : (
-                        <div className="relative shrink-0 self-center">
-                            <Avatar userId={user.id} userName={user.nickname} size={avatarSize} avatarUrl={avatarUrl} borderUrl={borderUrl} />
-                            {winLoseAvatarRibbon}
-                        </div>
+                        <Avatar
+                            userId={user.id}
+                            userName={user.nickname}
+                            size={avatarSize}
+                            avatarUrl={avatarUrl}
+                            borderUrl={borderUrl}
+                            bottomOverlay={winLoseAvatarRibbonOverlay}
+                            className="shrink-0 self-center"
+                        />
                     )}
                     <div className="min-w-0 w-full flex-1 basis-0">
                         <div
@@ -757,13 +769,18 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                                     className="h-full w-full object-contain object-center"
                                 />
                             </div>
-                            {winLoseAvatarRibbon}
+                            {winLoseAvatarRibbonSibling}
                         </div>
                     ) : (
-                        <div className="relative shrink-0 self-center">
-                            <Avatar userId={user.id} userName={user.nickname} size={avatarSize} avatarUrl={avatarUrl} borderUrl={borderUrl} />
-                            {winLoseAvatarRibbon}
-                        </div>
+                        <Avatar
+                            userId={user.id}
+                            userName={user.nickname}
+                            size={avatarSize}
+                            avatarUrl={avatarUrl}
+                            borderUrl={borderUrl}
+                            bottomOverlay={winLoseAvatarRibbonOverlay}
+                            className="shrink-0 self-center"
+                        />
                     )}
                     <div className="min-w-0 w-full flex-1 basis-0">
                         <div
@@ -1223,12 +1240,32 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         typeof (session as { aiHiddenItemAnimationEndTime?: number }).aiHiddenItemAnimationEndTime === 'number' &&
         speedBonusNowMs < Number((session as { aiHiddenItemAnimationEndTime: number }).aiHiddenItemAnimationEndTime);
     /** 유저 좌석의 스피드 보너스용 "지금 이 마감이 내 소모인가" (동기화 오류·연출 중 오탐 방지) */
-    const humanLiveSpeedTurnClockActive = (playerEnum: Player) =>
-        session.currentPlayer === playerEnum &&
-        typeof session.turnDeadline === 'number' &&
-        !(isPveLikeSpeedSession &&
+    const resolvePveSpeedTurnBudgetSec = (playerEnum: Player): number => {
+        const stored =
+            playerEnum === Player.Black
+                ? Math.max(0, Number(session.blackTimeLeft ?? 0))
+                : Math.max(0, Number(session.whiteTimeLeft ?? 0));
+        if (stored > 0) return stored;
+        const mainMin = Math.max(0, Number(session.settings?.timeLimit ?? 0));
+        return mainMin > 0 ? mainMin * 60 : 0;
+    };
+    const humanLiveSpeedTurnClockActive = (playerEnum: Player) => {
+        if (session.currentPlayer !== playerEnum) return false;
+        if (
+            isPveLikeSpeedSession &&
             isHumanSeatForAiSpeedBonus(playerEnum) &&
-            isAiHiddenItemThinkPresentationForSpeed);
+            isAiHiddenItemThinkPresentationForSpeed
+        ) {
+            return false;
+        }
+        if (typeof session.turnDeadline === 'number') return true;
+        return (
+            isPveLikeSpeedSession &&
+            isHumanSeatForAiSpeedBonus(playerEnum) &&
+            typeof session.turnStartTime === 'number' &&
+            resolvePveSpeedTurnBudgetSec(playerEnum) > 0
+        );
+    };
     /**
      * 턴 직후 deadline·클라 시각이 한 프레임 어긋나면 (remaining≈0) stored−remaining이 턴 전체로 폭주해
      * 진행 막대가 비었다가 차는 것처럼 보인다. turnStartTime 기준 경과로 상한을 둔다.
@@ -1247,8 +1284,13 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         if (!isSpeedLiveBonusUi) return storedMainTimeLeft;
         if (humanLiveSpeedTurnClockActive(playerEnum)) {
             const deadline = session.turnDeadline;
-            if (typeof deadline !== 'number') return storedMainTimeLeft;
-            return Math.max(0, (deadline - speedBonusNowMs) / 1000);
+            if (typeof deadline === 'number') {
+                return Math.max(0, (deadline - speedBonusNowMs) / 1000);
+            }
+            const budgetSec = resolvePveSpeedTurnBudgetSec(playerEnum);
+            const turnStart = typeof session.turnStartTime === 'number' ? session.turnStartTime : speedBonusNowMs;
+            const elapsedSec = Math.max(0, (speedBonusNowMs - turnStart) / 1000);
+            return Math.max(0, budgetSec - elapsedSec);
         }
         return storedMainTimeLeft;
     };
@@ -1806,13 +1848,13 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                 >
                     {thiefUiRound != null && (
                         <span
-                            className={`${compactPlayerBar ? 'text-[0.65rem]' : 'text-[clamp(0.55rem,1.8vmin,0.72rem)]'} mb-0.5 text-center font-bold tabular-nums leading-none text-amber-100/95`}
+                            className={`${compactPlayerBar ? 'text-[0.65rem]' : 'text-[0.72rem]'} mb-0.5 text-center font-bold tabular-nums leading-none text-amber-100/95`}
                         >
                             라운드 {thiefUiRound}/{THIEF_NIGHTS_PER_SEGMENT}
                         </span>
                     )}
                     <span
-                        className={`${compactPlayerBar ? 'text-xs' : 'text-[clamp(0.55rem,1.8vmin,0.7rem)]'} text-center font-semibold leading-tight whitespace-nowrap text-amber-200/85`}
+                        className={`${compactPlayerBar ? 'text-xs' : 'text-[0.7rem]'} text-center font-semibold leading-tight whitespace-nowrap text-amber-200/85`}
                     >
                         남은 돌
                     </span>
@@ -2183,13 +2225,13 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                 >
                     {thiefUiRound != null && (
                         <span
-                            className={`${compactPlayerBar ? 'text-[0.65rem]' : 'text-[clamp(0.55rem,1.8vmin,0.72rem)]'} mb-0.5 text-center font-bold tabular-nums leading-none text-amber-100/95`}
+                            className={`${compactPlayerBar ? 'text-[0.65rem]' : 'text-[0.72rem]'} mb-0.5 text-center font-bold tabular-nums leading-none text-amber-100/95`}
                         >
                             라운드 {thiefUiRound}/{THIEF_NIGHTS_PER_SEGMENT}
                         </span>
                     )}
                     <span
-                        className={`${compactPlayerBar ? 'text-xs' : 'text-[clamp(0.55rem,1.8vmin,0.7rem)]'} text-center font-semibold leading-tight whitespace-nowrap text-amber-200/85`}
+                        className={`${compactPlayerBar ? 'text-xs' : 'text-[0.7rem]'} text-center font-semibold leading-tight whitespace-nowrap text-amber-200/85`}
                     >
                         남은 돌
                     </span>

@@ -7,7 +7,7 @@ import {
 } from '../shared/utils/pairPetArenaApDiscount.js';
 import { 
     BOARD_SIZES, TIME_LIMITS, BYOYOMI_COUNTS, BYOYOMI_TIMES, DEFAULT_KOMI, CAPTURE_TARGETS, SPEED_BOARD_SIZES,
-    SPEED_TIME_LIMITS, FISCHER_INCREMENT_SECONDS, BASE_STONE_COUNTS, HIDDEN_STONE_COUNTS, SCAN_COUNTS,
+    SPEED_TIME_LIMITS, FISCHER_INCREMENT_SECONDS_OPTIONS, applySpeedFischerDefaults, BASE_STONE_COUNTS, HIDDEN_STONE_COUNTS, SCAN_COUNTS,
     CAPTURE_BOARD_SIZES, OMOK_BOARD_SIZES, TTAMOK_CAPTURE_TARGETS, ALKKAGI_STONE_COUNTS,
     ALKKAGI_GAUGE_SPEEDS, CURLING_GAUGE_SPEEDS, CURLING_STONE_COUNTS, HIDDEN_BOARD_SIZES, THIEF_BOARD_SIZES,
     MISSILE_BOARD_SIZES, MISSILE_COUNTS, SPECIAL_GAME_MODES, DEFAULT_GAME_SETTINGS, aiUserId, DICE_GO_ITEM_COUNTS, CURLING_ITEM_COUNTS, ALKKAGI_ITEM_COUNTS, ALKKAGI_ROUNDS,
@@ -221,6 +221,9 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
       const next: GameSettings = { ...prev, mixedModes };
       if (mode === GameMode.Base && checked) {
         next.komi = 0.5;
+      }
+      if (mode === GameMode.Speed && checked) {
+        return applySpeedFischerDefaults(next);
       }
       return next;
     });
@@ -575,7 +578,17 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                                 {SPEED_TIME_LIMITS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                                 </Select>
                             </SettingRow>
-                            <SettingRow label="초읽기 시간"> <p className="text-base text-gray-300">{FISCHER_INCREMENT_SECONDS}초 (피셔 방식)</p> </SettingRow>
+                            <SettingRow label="추가 시간 (피셔)">
+                                <Select
+                                    value={settings.timeIncrement ?? 5}
+                                    onChange={v => handleSettingChange('timeIncrement', parseInt(v))}
+                                    disabled={isReadOnly}
+                                >
+                                    {FISCHER_INCREMENT_SECONDS_OPTIONS.map(sec => (
+                                        <option key={sec} value={sec}>{sec}초/수</option>
+                                    ))}
+                                </Select>
+                            </SettingRow>
                         </>
                     ) : (
                         <>

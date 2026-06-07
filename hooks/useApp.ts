@@ -26,6 +26,7 @@ import {
     isOpponentInsufficientActionPointsError,
 } from '../constants.js';
 import { defaultSettings, SETTINGS_STORAGE_KEY } from './useAppSettings.js';
+import type { QuickUtilityPanelKind } from '../shared/types/quickUtilityPanel.js';
 import { syncDismissedScreenGuidesFromUser } from '../utils/screenGuideDismiss.js';
 import {
     useIsHandheldDevice,
@@ -69,12 +70,15 @@ import {
     readPairArenaRestoreFromGameStateStorage,
     stashPairArenaRoomRestoreForLobbyNavigation,
 } from '../shared/utils/pairArenaSessionRestore.js';
+import { arenaLobbyHash, arenaLobbyHashFromSession } from '../shared/utils/arenaLobbyDestination.js';
+import { isSyntheticOnlineUserId } from '../shared/utils/syntheticOnlineUserIds.js';
 import {
     hasPairPetClaimReadyForQuickMenu,
     pairPetQuickMenuNeedsSecondTick,
 } from '../shared/utils/pairPetQuickClaimNotification.js';
 import { stampObtainedItemsBulk } from '../shared/utils/obtainedItemsBulk.js';
 import { advancePairTurn, getCurrentPairTurnSeat, isPairAiSeat, resetPairPasses } from '../shared/utils/pairGameTurn.js';
+import { mergePairPetTrainingSlotsPreserveRecentRestart } from '../shared/utils/pairPetTrainingSlotsClientMerge.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
 import {
     countConditionPotionsInInventory,
@@ -134,8 +138,15 @@ import {
     coerceAdventureLiveGameScoringTurnLimit,
     getClientArenaStateBucket,
     mergeGameUpdateByArena,
+    mergeLiveRejoinResponseWithExistingBoard,
+    preserveTerminalAnalysisResultOnMerge,
     shouldClearMissileFlightAnimationOnPlayingMerge,
+    shouldIgnoreStaleLiveTerminalGameUpdate,
 } from '../utils/clientGameMergePolicy.js';
+import {
+    loadEndedPvpGameFromSessionStorage,
+    persistEndedPvpGameToSessionStorage,
+} from '../utils/endedPvpSessionStorage.js';
 import { BOARD_SETTLE_BEFORE_SCORING_MS } from '../shared/constants/boardSettleTiming.js';
 import { markPveBoardSettledForScoring } from '../shared/utils/pveScoringBoardSettleSignal.js';
 
@@ -1648,6 +1659,13 @@ export const useApp = () => {
                     : base.adventureProfile,
             // inventory는 배열이므로 완전히 교체 (새로운 참조로)
             inventory: mergedInventory,
+            pairPetTrainingSlots:
+                patch.pairPetTrainingSlots !== undefined
+                    ? mergePairPetTrainingSlotsPreserveRecentRestart(
+                          base.pairPetTrainingSlots,
+                          patch.pairPetTrainingSlots,
+                      )
+                    : base.pairPetTrainingSlots,
             // equipment는 객체이므로 완전히 교체 (서버에서 보내는 equipment는 항상 전체 상태)
             equipment: patch.equipment !== undefined ? (patch.equipment || {}) : base.equipment,
             // actionPoints는 객체이므로 병합
@@ -1732,9 +1750,17 @@ export const useApp = () => {
         let hasActualChanges = !prevUser;
         if (prevUser) {
             // inventory 배열 길이와 내용 비교 (더 정확한 변경 감지)
-            const inventoryChanged = 
+            const isPairPetTrainingUserMerge =
+                source.includes('PAIR_PET_CLAIM_TRAINING') ||
+                source.includes('PAIR_PET_START_TRAINING');
+            const inventoryChanged =
                 prevUser.inventory?.length !== mergedUser.inventory?.length ||
-                JSON.stringify(prevUser.inventory) !== JSON.stringify(mergedUser.inventory);
+                (isPairPetTrainingUserMerge
+                    ? prevUser.inventory !== mergedUser.inventory
+                    : JSON.stringify(prevUser.inventory) !== JSON.stringify(mergedUser.inventory));
+
+            const pairPetTrainingSlotsChanged =
+                JSON.stringify(prevUser.pairPetTrainingSlots) !== JSON.stringify(mergedUser.pairPetTrainingSlots);
             
             // 주요 필드 직접 비교 (챔피언십 던전 입장 시 토너먼트 상태 변경 감지 포함)
             const tournamentStateChanged =
@@ -1756,14 +1782,16 @@ export const useApp = () => {
                 prevUser.mannerScore !== mergedUser.mannerScore ||
                 prevUser.mannerMasteryApplied !== mergedUser.mannerMasteryApplied ||
                 inventoryChanged ||
+                pairPetTrainingSlotsChanged ||
                 tournamentStateChanged ||
                 JSON.stringify(prevUser.dailyShopPurchases) !== JSON.stringify(mergedUser.dailyShopPurchases) ||
                 JSON.stringify(prevUser.equipment) !== JSON.stringify(mergedUser.equipment) ||
                 JSON.stringify(prevUser.singlePlayerMissions) !== JSON.stringify(mergedUser.singlePlayerMissions) ||
                 JSON.stringify(prevUser.actionPoints) !== JSON.stringify(mergedUser.actionPoints);
             
-            // stableStringify로 전체 비교 (백업)
-            const fullComparison = stableStringify(prevUser) !== stableStringify(mergedUser);
+            // stableStringify로 전체 비교 (백업) — 펫 수련은 슬롯·골드 등 키 필드만으로 충분(대형 인벤에서 전체 직렬화 지연 방지)
+            const fullComparison =
+                !isPairPetTrainingUserMerge && stableStringify(prevUser) !== stableStringify(mergedUser);
             
             hasActualChanges = keyFieldsChanged || fullComparison;
             
@@ -2027,6 +2055,25 @@ export const useApp = () => {
     /** `#sudamr-modal-root`가 1920×1080 설계 좌표계 안에 있을 때 true (변환 scale 적용) */
     const modalLayerUsesDesignPixels = !usePortraitFirstShell;
 
+    /** PC 16:9 캔버스 셸에서 모달·임베드 UI 비율 통일 정책 */
+    const pcUniformScalePolicy = useMemo(
+        () => ({
+            modalLayerUsesDesignPixels,
+            preferInCanvasModalPortal: modalLayerUsesDesignPixels,
+            disableSmallPcViewportPortal: modalLayerUsesDesignPixels,
+        }),
+        [modalLayerUsesDesignPixels],
+    );
+
+    useLayoutEffect(() => {
+        if (typeof document === 'undefined') return;
+        if (modalLayerUsesDesignPixels) {
+            document.documentElement.setAttribute('data-pc-design-canvas', '1');
+        } else {
+            document.documentElement.removeAttribute('data-pc-design-canvas');
+        }
+    }, [modalLayerUsesDesignPixels]);
+
     const showPcLikeMobileLayoutSetting = !isPhoneHandheldTouch && !isLargeTouchTablet;
 
     useEffect(() => {
@@ -2157,6 +2204,8 @@ export const useApp = () => {
     const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
     const [isPetManagementModalOpen, setIsPetManagementModalOpen] = useState(false);
     const [isAdventureMonsterCodexModalOpen, setIsAdventureMonsterCodexModalOpen] = useState(false);
+    const [isTrainingQuestModalOpen, setIsTrainingQuestModalOpen] = useState(false);
+    const [detailedStatsType, setDetailedStatsType] = useState<'strategic' | 'playful' | 'both' | null>(null);
     const [isInventoryOpen, setIsInventoryOpen] = useState(false);
     const [isMailboxOpen, setIsMailboxOpen] = useState(false);
     const [isQuestsOpen, setIsQuestsOpen] = useState(false);
@@ -2237,6 +2286,8 @@ export const useApp = () => {
     const [isInsufficientActionPointsModalOpen, setIsInsufficientActionPointsModalOpen] = useState(false);
     const [isOpponentInsufficientActionPointsModalOpen, setIsOpponentInsufficientActionPointsModalOpen] = useState(false);
     const [isActionPointModalOpen, setIsActionPointModalOpen] = useState(false);
+    /** PC 로비 중앙 뷰포트 인라인 퀵 유틸 패널 (해시 변경 없음) */
+    const [activeQuickUtilityPanel, setActiveQuickUtilityPanel] = useState<QuickUtilityPanelKind | null>(null);
 
     const homeBoardReadStorageKey = useMemo(
         () => `${HOME_BOARD_READ_STORAGE_PREFIX}:${currentUser?.id ?? 'guest'}`,
@@ -2311,9 +2362,11 @@ export const useApp = () => {
     );
 
     useEffect(() => {
-        if (!isAnnouncementsModalOpen || !sortedHomeBoardPostIdsKey) return;
+        const announcementsOpen =
+            isAnnouncementsModalOpen || activeQuickUtilityPanel === 'announcements';
+        if (!announcementsOpen || !sortedHomeBoardPostIdsKey) return;
         markAllHomeBoardPostsReadFromRef();
-    }, [isAnnouncementsModalOpen, sortedHomeBoardPostIdsKey, markAllHomeBoardPostsReadFromRef]);
+    }, [isAnnouncementsModalOpen, activeQuickUtilityPanel, sortedHomeBoardPostIdsKey, markAllHomeBoardPostsReadFromRef]);
 
     const markHomeBoardPostRead = useCallback((postId: string) => {
         if (!postId) return;
@@ -2969,7 +3022,9 @@ export const useApp = () => {
             action.type !== 'CLAIM_TOURNAMENT_REWARD' &&
             action.type !== 'CLAIM_GUILD_WAR_REWARD' &&
             action.type !== 'BUY_CONDITION_POTION' &&
-            action.type !== 'USE_CONDITION_POTION'
+            action.type !== 'USE_CONDITION_POTION' &&
+            action.type !== 'PAIR_PET_CLAIM_TRAINING' &&
+            action.type !== 'PAIR_PET_START_TRAINING'
         ) {
             const debouncePayload = 'payload' in action ? (action as { payload?: unknown }).payload : undefined;
             const actionKey = `${action.type}_${JSON.stringify(debouncePayload ?? {})}`;
@@ -5933,8 +5988,13 @@ export const useApp = () => {
                     const isInventoryCriticalAction = inventoryCriticalActions.includes(action.type);
                     
                     if (isInventoryCriticalAction && updatedUserFromResponse.inventory) {
-                        // inventory가 있는 경우 깊은 복사로 새로운 참조 생성하여 React가 변경을 확실히 감지하도록 함
-                        updatedUserFromResponse.inventory = JSON.parse(JSON.stringify(updatedUserFromResponse.inventory));
+                        // 서버 selective update가 이미 deepClone — 펫 수련은 추가 전체 복제 생략
+                        if (
+                            action.type !== 'PAIR_PET_CLAIM_TRAINING' &&
+                            action.type !== 'PAIR_PET_START_TRAINING'
+                        ) {
+                            updatedUserFromResponse.inventory = JSON.parse(JSON.stringify(updatedUserFromResponse.inventory));
+                        }
                         console.log(`[handleAction] ${action.type} - Forcing inventory update`, {
                             inventoryLength: updatedUserFromResponse.inventory?.length,
                             inventoryItems: updatedUserFromResponse.inventory?.slice(0, 3).map((i: any) => i.name)
@@ -6109,8 +6169,12 @@ export const useApp = () => {
                  // 변경권 사용 시 대장간 제련 탭으로 이동
                  if (action.type === 'USE_ITEM' && result.clientResponse?.openBlacksmithRefineTab) {
                      setIsInventoryOpen(false);
-                     setIsBlacksmithModalOpen(true);
                      setBlacksmithActiveTab('refine');
+                     if (modalLayerUsesDesignPixels) {
+                         setActiveQuickUtilityPanel('blacksmith');
+                     } else {
+                         setIsBlacksmithModalOpen(true);
+                     }
                      // 선택된 아이템이 있으면 해당 아이템 선택
                      if (result.clientResponse?.selectedItemId && currentUser) {
                          const selectedItem = currentUser.inventory.find(i => i.id === result.clientResponse.selectedItemId);
@@ -6129,12 +6193,12 @@ export const useApp = () => {
                  }
                  
                 const obtainedItemsBulkRaw = result.clientResponse?.obtainedItemsBulk || result.obtainedItemsBulk;
-                // 도전의 탑 전용 상점 구매: 인벤은 갱신되지만 획득 아이템 모달은 띄우지 않음
+                // 도전의 탑 전용 상점 구매: 인벤은 갱신되며 획득 아이템 모달(ItemObtainedModal) 표시
                 const skipObtainedModalForOptimisticConvert =
                     action.type === 'PAIR_PET_CONVERT_PET' &&
                     Boolean((action.payload as { __clientSkipObtainedModal?: boolean } | undefined)?.__clientSkipObtainedModal);
 
-                if (obtainedItemsBulkRaw && action.type !== 'BUY_TOWER_ITEM' && !skipObtainedModalForOptimisticConvert) {
+                if (obtainedItemsBulkRaw && !skipObtainedModalForOptimisticConvert) {
                     let obtainedItemsBulk: InventoryItem[] = obtainedItemsBulkRaw as InventoryItem[];
                     try {
                         obtainedItemsBulk = JSON.parse(JSON.stringify(obtainedItemsBulkRaw)) as InventoryItem[];
@@ -7260,15 +7324,38 @@ export const useApp = () => {
                 if (otherData.singlePlayerStages !== undefined) {
                     setSinglePlayerStagesFromServer(otherData.singlePlayerStages as any);
                 }
-                if (otherData.onlineUsers !== undefined) setOnlineUsers(otherData.onlineUsers || []);
+                if (otherData.onlineUsers !== undefined) {
+                    setOnlineUsers(
+                        (otherData.onlineUsers || []).filter(
+                            (u: { id?: string }) => u?.id && !isSyntheticOnlineUserId(u.id),
+                        ),
+                    );
+                }
                 // liveGames: 전략/놀이바둑 수순 제한 또는 AI봇 대결 시 totalTurns·moveHistory·currentPlayer를 sessionStorage에서 복원 (싱글/탑과 동일)
                 if (otherData.liveGames !== undefined) {
                     const incomingLive = otherData.liveGames || {};
                     setLiveGames(prev => {
                         const next = { ...incomingLive };
+                        for (const id of Object.keys(prev)) {
+                            if (next[id]) continue;
+                            const prevG = prev[id];
+                            if (
+                                prevG &&
+                                ['scoring', 'ended', 'no_contest', 'hidden_final_reveal', 'rematch_pending'].includes(
+                                    prevG.gameStatus || '',
+                                )
+                            ) {
+                                next[id] = prevG;
+                            }
+                        }
                         for (const id of Object.keys(next)) {
                             const g = next[id];
                             if (!g) continue;
+                            const prevG = prev[id];
+                            if (prevG && shouldIgnoreStaleLiveTerminalGameUpdate(g, prevG)) {
+                                next[id] = prevG;
+                                continue;
+                            }
                             const limit = (g.settings as any)?.scoringTurnLimit ?? (g.settings as any)?.autoScoringTurns;
                             const isTurnLimitGame = (limit != null && limit > 0);
                             const strategicAiLike = isSessionStrategicAiLike(g);
@@ -7495,7 +7582,25 @@ export const useApp = () => {
                                 }
                             }
                             if (next[id]) {
-                                next[id] = coerceAdventureLiveGameScoringTurnLimit(next[id]!);
+                                let mergedLive = next[id]!;
+                                if (prevG) {
+                                    mergedLive = mergeLiveRejoinResponseWithExistingBoard(prevG, mergedLive);
+                                }
+                                try {
+                                    const storedLive =
+                                        typeof sessionStorage !== 'undefined'
+                                            ? sessionStorage.getItem(`gameState_${id}`)
+                                            : null;
+                                    if (storedLive) {
+                                        mergedLive = augmentPveFromSessionStorageSnapshot(
+                                            mergedLive,
+                                            JSON.parse(storedLive),
+                                        );
+                                    }
+                                } catch {
+                                    /* ignore */
+                                }
+                                next[id] = coerceAdventureLiveGameScoringTurnLimit(mergedLive);
                             }
                         }
                         return next;
@@ -8346,7 +8451,9 @@ export const useApp = () => {
                                     }
                                     return rawPayload as Record<string, unknown>;
                                 })();
-                                const onlineStatuses = Object.entries(statusMap || {}).map(([id, statusInfo]: [string, any]) => {
+                                const onlineStatuses = Object.entries(statusMap || {})
+                                    .filter(([id]) => !isSyntheticOnlineUserId(id))
+                                    .map(([id, statusInfo]: [string, any]) => {
                                     let user: User | undefined = currentUsersMap[id];
                                     if (!user) {
                                         const allUsersArray = Object.values(currentUsersMap);
@@ -8361,7 +8468,8 @@ export const useApp = () => {
                                     const minimalUser = (isCurrentUser ? { ...currentUser, ...statusInfo } : { id, ...statusInfo }) as UserWithStatus;
                                     if (isCurrentUser) updatedUsersMap[id] = minimalUser;
                                     return minimalUser;
-                                }).filter(Boolean) as UserWithStatus[];
+                                    })
+                                    .filter(Boolean) as UserWithStatus[];
                                 setOnlineUsers(onlineStatuses);
 
                                 if (currentUser) {
@@ -8453,7 +8561,9 @@ export const useApp = () => {
                                                             if ((currentGame.settings as { pairGame?: unknown } | undefined)?.pairGame) {
                                                                 console.log('[WebSocket] Pair game session → 페어 경기장');
                                                                 setTimeout(() => {
-                                                                    replaceAppHash('#/pair');
+                                                                    replaceAppHash(
+                                                                        arenaLobbyHashFromSession(currentGame as any),
+                                                                    );
                                                                 }, 100);
                                                             } else {
                                                                 let waitingRoomMode: 'strategic' | 'playful' | null = null;
@@ -8465,7 +8575,12 @@ export const useApp = () => {
                                                                 if (waitingRoomMode) {
                                                                     console.log('[WebSocket] Routing to waiting room based on game mode:', waitingRoomMode);
                                                                     setTimeout(() => {
-                                                                        replaceAppHash(`#/waiting/${waitingRoomMode}`);
+                                                                        replaceAppHash(
+                                                                            arenaLobbyHash({
+                                                                                intent: currentGame.isAiGame ? 'ai' : 'pvp',
+                                                                                channel: waitingRoomMode,
+                                                                            }),
+                                                                        );
                                                                     }, 100);
                                                                 }
                                                             }
@@ -9756,6 +9871,15 @@ export const useApp = () => {
                                         if (shouldIgnoreOutdatedPlayfulUpdate(game, existingGame, { source: 'ws_game_update' })) {
                                             return currentGames;
                                         }
+                                        if (shouldIgnoreStaleLiveTerminalGameUpdate(game, existingGame)) {
+                                            if (process.env.NODE_ENV === 'development') {
+                                                console.warn(
+                                                    '[WebSocket] Live: ignoring stale GAME_UPDATE during local scoring/terminal',
+                                                    { gameId, incoming: game.gameStatus, local: existingGame?.gameStatus },
+                                                );
+                                            }
+                                            return currentGames;
+                                        }
                                         const incomingMoveCount = (game.moveHistory && Array.isArray(game.moveHistory)) ? game.moveHistory.length : 0;
                                         const existingMoveCount = (existingGame?.moveHistory && Array.isArray(existingGame.moveHistory)) ? existingGame.moveHistory.length : 0;
                                         // 새 수(AI 수 등)가 있으면 반드시 반영 - 서명 일치해도 스킵하지 않음 (AI가 둔 수가 사라지는 버그 방지)
@@ -10200,7 +10324,19 @@ export const useApp = () => {
                                                 moveHistory: scoringResolved.moveHistory,
                                             };
                                         }
+                                        liveMerged = preserveTerminalAnalysisResultOnMerge(
+                                            liveMerged,
+                                            liveRicherExisting ?? existingGame,
+                                        );
                                         updatedGames[gameId] = liveMerged;
+                                        if (
+                                            liveMerged.gameStatus === 'scoring' ||
+                                            liveMerged.gameStatus === 'ended' ||
+                                            liveMerged.gameStatus === 'no_contest' ||
+                                            liveMerged.gameStatus === 'rematch_pending'
+                                        ) {
+                                            persistEndedPvpGameToSessionStorage(liveMerged);
+                                        }
                                         if (
                                             game.gameStatus === 'scoring' ||
                                             game.gameStatus === 'hidden_final_reveal' ||
@@ -10802,25 +10938,37 @@ export const useApp = () => {
                         pairArenaRestore.lobbyChannel,
                     );
                     setGameRejoinFailure((prev) => (prev?.gameId === urlGameId ? null : prev));
-                    const h = pairArenaLobbyHash(pairArenaRestore.lobbyChannel);
+                    const h = pairArenaLobbyHash(
+                        pairArenaRestore.lobbyChannel,
+                        pairArenaRestore.lobbyIntent ?? 'pvp',
+                    );
                     if (currentHash !== h) replaceAppHash(h);
                     return;
                 }
                 let targetHash = '#/profile';
                 if (currentUserWithStatus?.status === 'waiting') {
+                    const intent = currentUserWithStatus.lobbyIntent === 'ai' ? 'ai' : 'pvp';
                     if (currentUserWithStatus.arenaChannel === 'pair') {
-                        targetHash = '#/pair';
-                    } else if (currentUserWithStatus.waitingLobby === 'strategic' || currentUserWithStatus.arenaChannel === 'strategic') {
-                        targetHash = '#/waiting/strategic';
-                    } else if (currentUserWithStatus.waitingLobby === 'playful' || currentUserWithStatus.arenaChannel === 'playful') {
-                        targetHash = '#/waiting/playful';
+                        targetHash = arenaLobbyHash({ intent, channel: 'pair' });
+                    } else if (
+                        currentUserWithStatus.waitingLobby === 'strategic' ||
+                        currentUserWithStatus.arenaChannel === 'strategic'
+                    ) {
+                        targetHash = arenaLobbyHash({ intent, channel: 'strategic' });
+                    } else if (
+                        currentUserWithStatus.waitingLobby === 'playful' ||
+                        currentUserWithStatus.arenaChannel === 'playful'
+                    ) {
+                        targetHash = arenaLobbyHash({ intent, channel: 'playful' });
                     } else if (currentUserWithStatus.mode) {
                         const waitingRoomMode = SPECIAL_GAME_MODES.some((m) => m.mode === currentUserWithStatus.mode)
                             ? 'strategic'
                             : PLAYFUL_GAME_MODES.some((m) => m.mode === currentUserWithStatus.mode)
                               ? 'playful'
                               : null;
-                        if (waitingRoomMode) targetHash = `#/waiting/${waitingRoomMode}`;
+                        if (waitingRoomMode) {
+                            targetHash = arenaLobbyHash({ intent, channel: waitingRoomMode });
+                        }
                     }
                 }
                 if (currentHash !== targetHash) {
@@ -10924,7 +11072,10 @@ export const useApp = () => {
                             [g.id]: mergePveRejoinResponseWithExistingBoard(prev[g.id], g),
                         }));
                     } else {
-                        setLiveGames(prev => ({ ...prev, [g.id]: g }));
+                        setLiveGames(prev => ({
+                            ...prev,
+                            [g.id]: mergeLiveRejoinResponseWithExistingBoard(prev[g.id], g),
+                        }));
                     }
                     setGameRejoinFailure(prev => (prev?.gameId === gid ? null : prev));
                 }
@@ -10949,20 +11100,34 @@ export const useApp = () => {
             if (gameId) setGameRejoinFailure(prev => (prev?.gameId === gameId ? null : prev));
             return;
         }
-        const gameInStore = liveGames[gameId] || singlePlayerGames[gameId] || towerGames[gameId];
+        let gameInStore = liveGames[gameId] || singlePlayerGames[gameId] || towerGames[gameId];
+        if (!gameInStore) {
+            const storedEndedPvp = loadEndedPvpGameFromSessionStorage(gameId);
+            if (storedEndedPvp) {
+                setLiveGames((prev) => ({ ...prev, [gameId]: storedEndedPvp }));
+                gameInStore = storedEndedPvp;
+                setGameRejoinFailure((prev) => (prev?.gameId === gameId ? null : prev));
+            }
+        }
         const gameCategoryInStore = getSessionArenaKind(gameInStore);
         const isPveGameInStore = gameCategoryInStore === 'singleplayer' || gameCategoryInStore === 'tower';
+        const isEndedPvpInStore =
+            !!gameInStore &&
+            gameCategoryInStore === 'normal' &&
+            !isSessionStrategicAiLike(gameInStore) &&
+            ['ended', 'no_contest', 'scoring', 'rematch_pending'].includes(gameInStore.gameStatus || '');
         const isLiveMatchNow =
             !!gameInStore &&
             !['ended', 'no_contest', 'scoring', 'hidden_final_reveal', 'rematch_pending'].includes(
                 gameInStore.gameStatus || '',
             );
-        // 싱글/타워는 서버 DB 스냅샷이 로컬 최신판보다 늦을 수 있어,
-        // 종료 직후 rejoin으로 다시 덮어쓰면 "맵 초기화"처럼 보이는 회귀가 난다.
+        // 싱글/타워·종료 PVP: 서버 DB/GC 이후 rejoin이 404면 홈으로 튕기므로 로컬·sessionStorage 유지
         if (
-            isPveGameInStore &&
+            (isPveGameInStore || isEndedPvpInStore) &&
             !!gameInStore &&
-            ['ended', 'no_contest', 'scoring', 'hidden_final_reveal'].includes(gameInStore.gameStatus || '')
+            ['ended', 'no_contest', 'scoring', 'hidden_final_reveal', 'rematch_pending'].includes(
+                gameInStore.gameStatus || '',
+            )
         ) {
             setGameRejoinFailure(prev => (prev?.gameId === gameId ? null : prev));
             return;
@@ -11001,9 +11166,22 @@ export const useApp = () => {
                             [g.id]: mergePveRejoinResponseWithExistingBoard(prev[g.id], g),
                         }));
                     } else {
-                        setLiveGames(prev => ({ ...prev, [g.id]: g }));
+                        setLiveGames(prev => ({
+                            ...prev,
+                            [g.id]: mergeLiveRejoinResponseWithExistingBoard(prev[g.id], g),
+                        }));
                     }
                     setGameRejoinFailure(prev => (prev?.gameId === gameId ? null : prev));
+                    markConnectionRestored();
+                    return;
+                }
+                const storedEndedPvp = loadEndedPvpGameFromSessionStorage(gameId);
+                if (storedEndedPvp) {
+                    setLiveGames((prev) => ({
+                        ...prev,
+                        [gameId]: mergeLiveRejoinResponseWithExistingBoard(prev[gameId], storedEndedPvp),
+                    }));
+                    setGameRejoinFailure((prev) => (prev?.gameId === gameId ? null : prev));
                     markConnectionRestored();
                     return;
                 }
@@ -11060,21 +11238,19 @@ export const useApp = () => {
                 const data = await res.json().catch(() => ({}));
                 if (!res.ok || !data.game) return;
                 const g = data.game as LiveGameSession;
-                if (g.gameStatus !== 'scoring' && g.gameStatus !== 'hidden_final_reveal') {
-                    const category = getSessionArenaKind(g);
-                    if (category === 'singleplayer') {
-                        setSinglePlayerGames(prev => ({
-                            ...prev,
-                            [g.id]: mergePveRejoinResponseWithExistingBoard(prev[g.id], g),
-                        }));
-                    } else if (category === 'tower') {
-                        setTowerGames(prev => ({
-                            ...prev,
-                            [g.id]: mergePveRejoinResponseWithExistingBoard(prev[g.id], g),
-                        }));
-                    } else {
-                        setLiveGames(prev => ({ ...prev, [g.id]: g }));
-                    }
+                const category = getSessionArenaKind(g);
+                const applyRejoinGame = (
+                    setter: React.Dispatch<React.SetStateAction<Record<string, LiveGameSession>>>,
+                    merge: (prev: LiveGameSession | undefined, next: LiveGameSession) => LiveGameSession,
+                ) => {
+                    setter(prev => ({ ...prev, [g.id]: merge(prev[g.id], g) }));
+                };
+                if (category === 'singleplayer') {
+                    applyRejoinGame(setSinglePlayerGames, mergePveRejoinResponseWithExistingBoard);
+                } else if (category === 'tower') {
+                    applyRejoinGame(setTowerGames, mergePveRejoinResponseWithExistingBoard);
+                } else {
+                    applyRejoinGame(setLiveGames, mergeLiveRejoinResponseWithExistingBoard);
                 }
             } catch {
                 // ignore
@@ -11131,8 +11307,8 @@ export const useApp = () => {
             window.location.hash = '#/profile';
             return;
         }
-        handleAction({ type: 'ENTER_WAITING_ROOM', payload: { mode: waitingRoomMode } });
-        window.location.hash = `#/waiting/${waitingRoomMode}`;
+        handleAction({ type: 'ENTER_WAITING_ROOM', payload: { mode: waitingRoomMode, lobbyIntent: 'pvp' } });
+        window.location.hash = arenaLobbyHash({ intent: 'pvp', channel: waitingRoomMode });
     };
     
     const handleViewUser = useCallback(async (userId: string) => {
@@ -11230,26 +11406,47 @@ export const useApp = () => {
     const openEnhancingItem = useCallback((item: InventoryItem) => {
         setBlacksmithSelectedItemForEnhancement(item);
         setBlacksmithActiveTab('enhance');
-        setIsBlacksmithModalOpen(true);
-    }, []);
+        if (modalLayerUsesDesignPixels) {
+            setActiveQuickUtilityPanel('blacksmith');
+        } else {
+            setIsBlacksmithModalOpen(true);
+        }
+    }, [modalLayerUsesDesignPixels]);
 
     const openEnhancementFromDetail = useCallback((item: InventoryItem) => {
+        setViewingItem(null);
         setBlacksmithSelectedItemForEnhancement(item);
         setBlacksmithActiveTab('enhance');
-        setIsBlacksmithModalOpen(true);
-    }, []);
+        if (modalLayerUsesDesignPixels) {
+            setActiveQuickUtilityPanel('blacksmith');
+        } else {
+            setIsBlacksmithModalOpen(true);
+        }
+    }, [modalLayerUsesDesignPixels]);
 
     const openRefinementFromDetail = useCallback((item: InventoryItem) => {
+        setViewingItem(null);
         setBlacksmithSelectedItemForEnhancement(item);
         setBlacksmithActiveTab('refine');
-        setIsBlacksmithModalOpen(true);
-    }, []);
+        if (modalLayerUsesDesignPixels) {
+            setActiveQuickUtilityPanel('blacksmith');
+        } else {
+            setIsBlacksmithModalOpen(true);
+        }
+    }, [modalLayerUsesDesignPixels]);
 
-    const openBlacksmithTabFromInventory = useCallback((tab: 'convert' | 'refine') => {
-        setBlacksmithSelectedItemForEnhancement(null);
-        setBlacksmithActiveTab(tab);
-        setIsBlacksmithModalOpen(true);
-    }, []);
+    const openBlacksmithTabFromInventory = useCallback(
+        (tab: 'convert' | 'refine') => {
+            setBlacksmithSelectedItemForEnhancement(null);
+            setBlacksmithActiveTab(tab);
+            if (modalLayerUsesDesignPixels) {
+                setActiveQuickUtilityPanel('blacksmith');
+            } else {
+                setIsBlacksmithModalOpen(true);
+            }
+        },
+        [modalLayerUsesDesignPixels],
+    );
 
     const openViewingItem = useCallback(
         (item: InventoryItem, isOwnedByCurrentUser: boolean, opts?: { hideEnhanceActions?: boolean }) => {
@@ -11460,6 +11657,7 @@ export const useApp = () => {
         isNativeMobile,
         usePortraitFirstShell,
         modalLayerUsesDesignPixels,
+        pcUniformScalePolicy,
         isPhoneHandheldTouch,
         isLargeTouchTablet,
         showPcLikeMobileLayoutSetting,
@@ -11475,7 +11673,8 @@ export const useApp = () => {
         specialStatBonuses,
         aggregatedMythicStats,
         modals: {
-            isSettingsModalOpen, isPetManagementModalOpen, isAdventureMonsterCodexModalOpen, isInventoryOpen, isMailboxOpen, isQuestsOpen, isShopOpen, isExchangeOpen, shopInitialTab, lastUsedItemResult, pairPetDetailModal,
+            activeQuickUtilityPanel,
+            isSettingsModalOpen, isPetManagementModalOpen, isAdventureMonsterCodexModalOpen, isTrainingQuestModalOpen, detailedStatsType, isInventoryOpen, isMailboxOpen, isQuestsOpen, isShopOpen, isExchangeOpen, shopInitialTab, lastUsedItemResult, pairPetDetailModal,
             disassemblyResult, craftResult, rewardSummary, viewingUser, isInfoModalOpen, isAnnouncementsModalOpen, isRankingQuickModalOpen, isChatQuickModalOpen, isEncyclopediaOpen, isStatAllocationModalOpen, enhancementAnimationTarget,
             isGameRecordListOpen, viewingGameRecord,
             pastRankingsInfo, viewingItem, isProfileEditModalOpen, moderatingUser,
@@ -11515,19 +11714,86 @@ export const useApp = () => {
             applyPreset,
             openSettingsModal: () => setIsSettingsModalOpen(true),
             closeSettingsModal: () => setIsSettingsModalOpen(false),
-            openPetManagementModal: () => setIsPetManagementModalOpen(true),
+            openPetManagementModal: (opts?: { modal?: boolean }) => {
+                if (!modalLayerUsesDesignPixels || opts?.modal) {
+                    setIsPetManagementModalOpen(true);
+                } else {
+                    setActiveQuickUtilityPanel('pet');
+                }
+            },
             closePetManagementModal: () => setIsPetManagementModalOpen(false),
-            openAdventureMonsterCodexModal: () => setIsAdventureMonsterCodexModalOpen(true),
-            closeAdventureMonsterCodexModal: () => setIsAdventureMonsterCodexModalOpen(false),
-            openInventory: () => setIsInventoryOpen(true),
+            openAdventureMonsterCodexModal: (opts?: { modal?: boolean }) => {
+                if (modalLayerUsesDesignPixels && !opts?.modal) {
+                    setActiveQuickUtilityPanel('monsterCodex');
+                } else {
+                    setIsAdventureMonsterCodexModalOpen(true);
+                }
+            },
+            closeAdventureMonsterCodexModal: () => {
+                setIsAdventureMonsterCodexModalOpen(false);
+                setActiveQuickUtilityPanel((prev) => (prev === 'monsterCodex' ? null : prev));
+            },
+            openTrainingQuest: (opts?: { modal?: boolean }) => {
+                if (modalLayerUsesDesignPixels && !opts?.modal) {
+                    setActiveQuickUtilityPanel('trainingQuest');
+                } else {
+                    setIsTrainingQuestModalOpen(true);
+                }
+            },
+            closeTrainingQuest: () => {
+                setIsTrainingQuestModalOpen(false);
+                setActiveQuickUtilityPanel((prev) => (prev === 'trainingQuest' ? null : prev));
+            },
+            openDetailedStats: (
+                statsType: 'strategic' | 'playful' | 'both',
+                opts?: { modal?: boolean },
+            ) => {
+                setDetailedStatsType(statsType);
+                if (modalLayerUsesDesignPixels && !opts?.modal) {
+                    setActiveQuickUtilityPanel('detailedStats');
+                }
+            },
+            closeDetailedStats: () => {
+                setDetailedStatsType(null);
+                setActiveQuickUtilityPanel((prev) => (prev === 'detailedStats' ? null : prev));
+            },
+            openInventory: () => {
+                if (modalLayerUsesDesignPixels) {
+                    setActiveQuickUtilityPanel('inventory');
+                } else {
+                    setIsInventoryOpen(true);
+                }
+            },
             closeInventory: () => setIsInventoryOpen(false),
             openMailbox: () => setIsMailboxOpen(true),
             closeMailbox: () => setIsMailboxOpen(false),
-            openQuests: () => setIsQuestsOpen(true),
+            openQuests: () => {
+                if (modalLayerUsesDesignPixels) {
+                    setActiveQuickUtilityPanel('quests');
+                } else {
+                    setIsQuestsOpen(true);
+                }
+            },
             closeQuests: () => setIsQuestsOpen(false),
-            openShop: (tab?: 'equipment' | 'materials' | 'consumables' | 'misc' | 'diamonds' | 'vip') => {
+            closeQuickUtilityPanel: () => {
+                setActiveQuickUtilityPanel((prev) => {
+                    if (prev === 'detailedStats') setDetailedStatsType(null);
+                    if (prev === 'trainingQuest') setIsTrainingQuestModalOpen(false);
+                    if (prev === 'monsterCodex') setIsAdventureMonsterCodexModalOpen(false);
+                    if (prev === 'announcements') markAllHomeBoardPostsReadFromRef();
+                    return null;
+                });
+            },
+            openShop: (
+                tab?: 'equipment' | 'materials' | 'consumables' | 'misc' | 'diamonds' | 'vip',
+                opts?: { modal?: boolean },
+            ) => {
                 setShopInitialTab(tab);
-                setIsShopOpen(true);
+                if (!modalLayerUsesDesignPixels || opts?.modal) {
+                    setIsShopOpen(true);
+                } else {
+                    setActiveQuickUtilityPanel('shop');
+                }
             },
             closeShop: () => {
                 setIsShopOpen(false);
@@ -11535,7 +11801,11 @@ export const useApp = () => {
             },
             openExchange: () => {
                 void import('../components/ExchangeModal.js').catch(() => {});
-                setIsExchangeOpen(true);
+                if (modalLayerUsesDesignPixels) {
+                    setActiveQuickUtilityPanel('exchange');
+                } else {
+                    setIsExchangeOpen(true);
+                }
             },
             closeExchange: () => setIsExchangeOpen(false),
             openActionPointModal: () => setIsActionPointModalOpen(true),
@@ -11563,18 +11833,43 @@ export const useApp = () => {
             closeViewingUser: () => setViewingUser(null),
             openInfoModal: () => setIsInfoModalOpen(true),
             closeInfoModal: () => setIsInfoModalOpen(false),
-            openAnnouncementsModal: () => setIsAnnouncementsModalOpen(true),
+            openAnnouncementsModal: () => {
+                if (modalLayerUsesDesignPixels) {
+                    setActiveQuickUtilityPanel('announcements');
+                } else {
+                    setIsAnnouncementsModalOpen(true);
+                }
+            },
             closeAnnouncementsModal: () => {
                 markAllHomeBoardPostsReadFromRef();
                 setIsAnnouncementsModalOpen(false);
+                setActiveQuickUtilityPanel((prev) => (prev === 'announcements' ? null : prev));
             },
             markHomeBoardPostRead,
-            openRankingQuickModal: () => setIsRankingQuickModalOpen(true),
-            closeRankingQuickModal: () => setIsRankingQuickModalOpen(false),
+            openRankingQuickModal: () => {
+                if (modalLayerUsesDesignPixels) {
+                    setActiveQuickUtilityPanel('ranking');
+                } else {
+                    setIsRankingQuickModalOpen(true);
+                }
+            },
+            closeRankingQuickModal: () => {
+                setIsRankingQuickModalOpen(false);
+                setActiveQuickUtilityPanel((prev) => (prev === 'ranking' ? null : prev));
+            },
             openChatQuickModal: () => setIsChatQuickModalOpen(true),
             closeChatQuickModal: () => setIsChatQuickModalOpen(false),
-            openEncyclopedia: () => setIsEncyclopediaOpen(true),
-            closeEncyclopedia: () => setIsEncyclopediaOpen(false),
+            openEncyclopedia: () => {
+                if (modalLayerUsesDesignPixels) {
+                    setActiveQuickUtilityPanel('encyclopedia');
+                } else {
+                    setIsEncyclopediaOpen(true);
+                }
+            },
+            closeEncyclopedia: () => {
+                setIsEncyclopediaOpen(false);
+                setActiveQuickUtilityPanel((prev) => (prev === 'encyclopedia' ? null : prev));
+            },
             openStatAllocationModal: () => setIsStatAllocationModalOpen(true),
             closeStatAllocationModal: () => setIsStatAllocationModalOpen(false),
             openProfileEditModal: () => setIsProfileEditModalOpen(true),
@@ -11612,17 +11907,33 @@ export const useApp = () => {
             },
             openEquipmentEffectsModal: () => setIsEquipmentEffectsModalOpen(true),
             closeEquipmentEffectsModal: () => setIsEquipmentEffectsModalOpen(false),
-            openBlacksmithModal: () => setIsBlacksmithModalOpen(true),
+            openBlacksmithModal: () => {
+                if (modalLayerUsesDesignPixels) {
+                    setActiveQuickUtilityPanel('blacksmith');
+                } else {
+                    setIsBlacksmithModalOpen(true);
+                }
+            },
             closeBlacksmithModal: () => {
                 setIsBlacksmithModalOpen(false);
+                setActiveQuickUtilityPanel((prev) => (prev === 'blacksmith' ? null : prev));
                 setBlacksmithSelectedItemForEnhancement(null);
                 setBlacksmithActiveTab('enhance'); // Reset to default tab
                 setIsBlacksmithEffectsModalOpen(false);
             },
             openBlacksmithEffectsModal: () => setIsBlacksmithEffectsModalOpen(true),
             closeBlacksmithEffectsModal: () => setIsBlacksmithEffectsModalOpen(false),
-            openGameRecordList: () => setIsGameRecordListOpen(true),
-            closeGameRecordList: () => setIsGameRecordListOpen(false),
+            openGameRecordList: (opts?: { modal?: boolean }) => {
+                if (modalLayerUsesDesignPixels && !opts?.modal) {
+                    setActiveQuickUtilityPanel('gameRecords');
+                } else {
+                    setIsGameRecordListOpen(true);
+                }
+            },
+            closeGameRecordList: () => {
+                setIsGameRecordListOpen(false);
+                setActiveQuickUtilityPanel((prev) => (prev === 'gameRecords' ? null : prev));
+            },
             openGameRecordViewer: (record: GameRecord) => setViewingGameRecord(record),
             closeGameRecordViewer: () => setViewingGameRecord(null),
             setBlacksmithActiveTab,

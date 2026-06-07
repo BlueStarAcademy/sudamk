@@ -486,7 +486,8 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         type.startsWith('START_GUILD') || 
         type.startsWith('DONATE_TO_GUILD') || 
         type.startsWith('PURCHASE_GUILD') || 
-        type.startsWith('END_GUILD')) {
+        type.startsWith('END_GUILD') ||
+        type === 'CLAIM_GUILD_WAR_REWARD') {
         if (VERBOSE_ACTION_LOGS) {
             console.log(`[handleAction] Routing GUILD action: ${type} to handleGuildAction`);
         }
@@ -507,6 +508,11 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
     // 나가기: 게임이 DB/GC에서 이미 없어도 소셜 핸들러가 상태만 정리해야 함 (모바일 기보 저장 전 이탈 400 방지)
     if (type === 'LEAVE_GAME_ROOM' || type === 'LEAVE_AI_GAME') {
         return handleSocialAction(volatileState, action, userData);
+    }
+
+    // 기보 저장/삭제: DB·GC 이후에도 endedPvpGameRecordSnapshots로 복원 — gameId 블록의 Game not found 우회
+    if (type === 'SAVE_GAME_RECORD' || type === 'DELETE_GAME_RECORD') {
+        return handleUserAction(volatileState, action, userData);
     }
 
     // Game Actions (require gameId)
@@ -1689,17 +1695,20 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 }
             }
 
-            // 캐시 업데이트
-            updateGameCache(game);
-            // PVP 턴 전환: 다음 요청(다른 인스턴스/캐시 미스)이 DB에서 최신 currentPlayer를 읽도록 먼저 저장 후 브로드캐스트
-            try {
-                await db.saveGame(game);
-            } catch (err) {
-                console.error(`[GameActions] Failed to save game ${game.id}:`, err);
+            // 계가·종료·무효는 getGameResult/summaryService가 이미 저장·브로드캐스트함.
+            // 여기서 playing 스냅샷을 다시 쓰면 KataGo 완료 후 계가가 스킵되는 레이스가 난다.
+            const skipPostActionPersist = ['scoring', 'ended', 'no_contest'].includes(game.gameStatus || '');
+            if (!skipPostActionPersist) {
+                updateGameCache(game);
+                // PVP 턴 전환: 다음 요청(다른 인스턴스/캐시 미스)이 DB에서 최신 currentPlayer를 읽도록 먼저 저장 후 브로드캐스트
+                try {
+                    await db.saveGame(game);
+                } catch (err) {
+                    console.error(`[GameActions] Failed to save game ${game.id}:`, err);
+                }
+                const { broadcastToGameParticipants } = await import('./socket.js');
+                broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
             }
-            // 게임 상태 변경 후 실시간 브로드캐스트 (게임 참가자에게만 전송)
-            const { broadcastToGameParticipants } = await import('./socket.js');
-            broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
 
             // PVE 전략국 서버 AI: 메인 루프의 setImmediate(makeAiMove)가 startAiProcessing 잠금과 겹치면 봇이 스킵되는 간헐 이슈 방지
             // (모험·길드전 + 싱글/도전의 탑 공통 인라인 fallback)
@@ -2014,7 +2023,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         }
     }
     
-    if (['UPDATE_AVATAR', 'UPDATE_BORDER', 'SAVE_EXCHANGE_STATE', 'PURCHASE_EXCHANGE_LISTING', 'CLAIM_EXCHANGE_SETTLEMENT', 'CHANGE_NICKNAME', 'RESET_STAT_POINTS', 'CONFIRM_STAT_ALLOCATION', 'UPDATE_MBTI', 'SAVE_PRESET', 'APPLY_PRESET', 'UPDATE_REJECTION_SETTINGS', 'UPDATE_PAIR_PET_LOBBY_INVENTORY_SORT', 'SET_BLOCK_ARENA_PARTNER_INVITES', 'DISMISS_SCREEN_GUIDE', 'SAVE_GAME_RECORD', 'DELETE_GAME_RECORD', 'RECORD_ADVENTURE_MONSTER_DEFEAT', 'START_ADVENTURE_MONSTER_BATTLE', 'PREPARE_ADVENTURE_MAP_TREASURE_CHEST', 'CONFIRM_ADVENTURE_MAP_TREASURE_CHEST', 'ABANDON_ADVENTURE_MAP_TREASURE_PICK', 'REROLL_ADVENTURE_REGIONAL_BUFF', 'ENHANCE_ADVENTURE_REGIONAL_BUFF', 'ADMIN_SET_VIP_TEST_FLAGS', 'ADMIN_SET_DIAMOND_PACKAGE_TEST', 'RESET_PAIR_ARENA_SINGLE_STAT', 'RESET_PAIR_ARENA_STRATEGIC_ALL'].includes(type)) return handleUserAction(volatileState, action, userData);
+    if (['UPDATE_AVATAR', 'UPDATE_BORDER', 'SAVE_EXCHANGE_STATE', 'PURCHASE_EXCHANGE_LISTING', 'CLAIM_EXCHANGE_SETTLEMENT', 'CHANGE_NICKNAME', 'RESET_STAT_POINTS', 'CONFIRM_STAT_ALLOCATION', 'UPDATE_MBTI', 'SAVE_PRESET', 'APPLY_PRESET', 'UPDATE_REJECTION_SETTINGS', 'UPDATE_PAIR_PET_LOBBY_INVENTORY_SORT', 'SET_BLOCK_ARENA_PARTNER_INVITES', 'DISMISS_SCREEN_GUIDE', 'SAVE_GAME_RECORD', 'DELETE_GAME_RECORD', 'RECORD_ADVENTURE_MONSTER_DEFEAT', 'START_ADVENTURE_MONSTER_BATTLE', 'PREPARE_ADVENTURE_MAP_TREASURE_CHEST', 'CONFIRM_ADVENTURE_MAP_TREASURE_CHEST', 'ABANDON_ADVENTURE_MAP_TREASURE_PICK', 'REROLL_ADVENTURE_REGIONAL_BUFF', 'ENHANCE_ADVENTURE_REGIONAL_BUFF', 'ADMIN_SET_VIP_TEST_FLAGS', 'ADMIN_SET_DIAMOND_PACKAGE_TEST', 'RESET_SINGLE_STAT', 'RESET_STATS_CATEGORY', 'RESET_PAIR_ARENA_SINGLE_STAT', 'RESET_PAIR_ARENA_STRATEGIC_ALL'].includes(type)) return handleUserAction(volatileState, action, userData);
     // CLAIM_SHOP_AD_REWARD는 상점 전용 — `CLAIM_` 보상 분기보다 먼저 두면 안 됨(보상 핸들러 default 오류).
     if (
         (type.startsWith('CLAIM_') && type !== 'CLAIM_SHOP_AD_REWARD') ||

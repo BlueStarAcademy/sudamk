@@ -92,6 +92,27 @@ export const BYOYOMI_TIMES = [10, 20, 30, 40, 50, 60]; // in seconds
 export const BASE_STONE_COUNTS = [3, 4, 5, 6, 7, 8, 9, 10];
 export const DEFAULT_KOMI = 6.5;
 export const FISCHER_INCREMENT_SECONDS = 5;
+/** 스피드 바둑·믹스(스피드 포함) 피셔 추가초 선택지 */
+export const FISCHER_INCREMENT_SECONDS_OPTIONS = [3, 5, 10, 15, 20, 30] as const;
+
+export function normalizeFischerIncrementSeconds(value: number | undefined): number {
+  if (
+    typeof value === 'number' &&
+    (FISCHER_INCREMENT_SECONDS_OPTIONS as readonly number[]).includes(value)
+  ) {
+    return value;
+  }
+  return FISCHER_INCREMENT_SECONDS;
+}
+
+export function applySpeedFischerDefaults(settings: GameSettings): GameSettings {
+  return {
+    ...settings,
+    byoyomiCount: 0,
+    byoyomiTime: 0,
+    timeIncrement: normalizeFischerIncrementSeconds(settings.timeIncrement),
+  };
+}
 export const TIME_BONUS_SECONDS_PER_POINT = 5;
 export const DICE_GO_ITEM_COUNTS = [0, 1, 2, 3, 4, 5];
 export const ALKKAGI_ITEM_COUNTS = [0, 1, 2, 3];

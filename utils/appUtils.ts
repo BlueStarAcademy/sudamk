@@ -1,10 +1,21 @@
 
 import { GameMode } from "../types/index.js";
+import type { ArenaChannel, ArenaLobbyIntent } from "../shared/types/api.js";
 
 export type AppRoute = {
-    view: 'login' | 'register' | 'kakao-callback' | 'google-callback' | 'set-nickname' | 'profile' | 'lobby' | 'waiting' | 'pair' | 'game' | 'admin' | 'tournament' | 'singleplayer' | 'guild' | 'guildboss' | 'guildwar' | 'tower' | 'adventure';
+    view: 'login' | 'register' | 'kakao-callback' | 'google-callback' | 'set-nickname' | 'profile' | 'arena' | 'pvp' | 'ai' | 'game' | 'admin' | 'tournament' | 'singleplayer' | 'guild' | 'guildboss' | 'guildwar' | 'tower' | 'adventure';
     params: any;
 };
+
+function parseLobbyChannel(value: string | undefined): ArenaChannel | null {
+    if (value === 'strategic' || value === 'pair' || value === 'playful') return value;
+    return null;
+}
+
+function parseLobbyIntent(value: string | undefined): ArenaLobbyIntent | null {
+    if (value === 'pvp' || value === 'ai') return value;
+    return null;
+}
 
 /**
  * 경기장(4뎁스)에서 대기실·홈 등으로 나갈 때 사용.
@@ -82,9 +93,25 @@ export function parseHash(hash: string): AppRoute {
     const [view, ...rest] = path.split('/');
 
     switch (view) {
-        case 'lobby': return { view: 'lobby', params: { type: rest[0] || 'strategic' } };
-        case 'waiting': return { view: 'waiting', params: { mode: rest[0] ? decodeURIComponent(rest[0]) as GameMode : null } };
-        case 'pair': return { view: 'pair', params: {} };
+        case 'arena': {
+            const intent = parseLobbyIntent(rest[0]);
+            if (intent) return { view: 'arena', params: { intent } };
+            return { view: 'profile', params: { tab: 'arena' as const } };
+        }
+        case 'pvp': {
+            const channel = parseLobbyChannel(rest[0]);
+            if (channel) return { view: 'pvp', params: { channel } };
+            return { view: 'profile', params: { tab: 'arena' as const } };
+        }
+        case 'ai': {
+            const channel = parseLobbyChannel(rest[0]);
+            if (channel) return { view: 'ai', params: { channel } };
+            return { view: 'profile', params: { tab: 'arena' as const } };
+        }
+        case 'waiting':
+        case 'pair':
+        case 'lobby':
+            return { view: 'profile', params: { tab: 'arena' as const } };
         case 'game': return { view: 'game', params: { id: rest[0] } };
         case 'tournament': return { view: 'tournament', params: { type: rest[0] || null } };
         case 'singleplayer': return { view: 'singleplayer', params: {} };

@@ -23,6 +23,7 @@ import {
     getCodexComprehensionItemGrade,
 } from '../../utils/adventureCodexComprehension.js';
 import { formatAdventureUnderstandingBonusPercent, getMonsterCodexComprehensionBuffTotals } from '../../utils/adventureUnderstanding.js';
+import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../../shared/constants/pcShellLayout.js';
 
 type ChapterComprehensionBuffSummary = {
     goldBonusPercent: number;
@@ -130,6 +131,8 @@ export type AdventureMonsterCodexMapSituationProps = {
 interface Props {
     onClose: () => void;
     isTopmost?: boolean;
+    /** PC 로비 중앙 인라인 패널 — DraggableWindow 생략 */
+    embedded?: boolean;
     /** 맵 등: 출현 상황 탭 표시 */
     mapSituation?: AdventureMonsterCodexMapSituationProps | null;
     /** mapSituation 있을 때 첫 탭 (기본: situation) */
@@ -141,6 +144,7 @@ interface Props {
 const AdventureMonsterCodexModal: React.FC<Props> = ({
     onClose,
     isTopmost,
+    embedded = false,
     mapSituation,
     initialMainTab,
     defaultCodexStageId,
@@ -173,22 +177,24 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
     );
     const situationNowMs = Date.now();
 
+    /** 도감 카드 — 몬스터 설명(기준)보다 한 단계 큰 정보 텍스트 */
+    const codexInfoText = 'text-sm sm:text-base';
+    const codexDescText = 'text-xs leading-relaxed text-zinc-200/95 sm:text-sm';
+
     const mainTabBtn =
         'min-w-0 flex-1 rounded-lg border px-2 py-2 text-center text-xs font-bold transition sm:px-3 sm:py-2.5 sm:text-sm';
     const mainTabOn = 'border-amber-400/55 bg-amber-500/15 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]';
     const mainTabOff =
         'border-transparent bg-zinc-900/50 text-zinc-500 hover:border-white/12 hover:bg-zinc-900/70 hover:text-zinc-200';
 
-    return (
-        <DraggableWindow
-            title={showSituationTab ? '모험 몬스터' : '모험 몬스터 도감'}
-            onClose={onClose}
-            windowId="adventure-monster-codex"
-            initialWidth={1160}
-            initialHeight={780}
-            isTopmost={isTopmost}
-        >
-            <div className="flex max-h-[min(85vh,800px)] flex-col overflow-hidden">
+    const codexBody = (
+            <div
+                className={
+                    embedded
+                        ? 'flex h-full min-h-0 flex-col overflow-hidden'
+                        : 'flex max-h-[min(85vh,800px)] flex-col overflow-hidden'
+                }
+            >
                 {showSituationTab ? (
                     <div
                         role="tablist"
@@ -281,21 +287,21 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
                             })}
                         </div>
                         <div className="rounded-xl border border-cyan-500/25 bg-cyan-950/15 p-3">
-                            <p className="text-[11px] font-bold uppercase tracking-wide text-cyan-200/95">몬스터 이해도 효과</p>
+                            <p className={`font-bold uppercase tracking-wide text-cyan-200/95 ${codexInfoText}`}>몬스터 이해도 효과</p>
                             <div className="mt-2 grid grid-cols-1 gap-1.5">
-                                <p className="rounded-md border border-white/10 bg-black/25 px-2 py-1.5 text-[11px] font-semibold text-zinc-100">
+                                <p className={`rounded-md border border-white/10 bg-black/25 px-2 py-1.5 font-semibold text-zinc-100 ${codexInfoText}`}>
                                     모험 골드 +{formatAdventureUnderstandingBonusPercent(chapterMonsterComprehensionBuff.goldBonusPercent)}%
                                 </p>
-                                <p className="rounded-md border border-white/10 bg-black/25 px-2 py-1.5 text-[11px] font-semibold text-zinc-100">
+                                <p className={`rounded-md border border-white/10 bg-black/25 px-2 py-1.5 font-semibold text-zinc-100 ${codexInfoText}`}>
                                     장비 획득 +{formatAdventureUnderstandingBonusPercent(chapterMonsterComprehensionBuff.equipmentDropPercent)}%
                                 </p>
-                                <p className="rounded-md border border-white/10 bg-black/25 px-2 py-1.5 text-[11px] font-semibold text-zinc-100">
+                                <p className={`rounded-md border border-white/10 bg-black/25 px-2 py-1.5 font-semibold text-zinc-100 ${codexInfoText}`}>
                                     고급 장비 +{formatAdventureUnderstandingBonusPercent(chapterMonsterComprehensionBuff.highGradeEquipmentPercent)}%
                                 </p>
-                                <p className="rounded-md border border-white/10 bg-black/25 px-2 py-1.5 text-[11px] font-semibold text-zinc-100">
+                                <p className={`rounded-md border border-white/10 bg-black/25 px-2 py-1.5 font-semibold text-zinc-100 ${codexInfoText}`}>
                                     재료 획득 +{formatAdventureUnderstandingBonusPercent(chapterMonsterComprehensionBuff.materialDropPercent)}%
                                 </p>
-                                <p className="rounded-md border border-white/10 bg-black/25 px-2 py-1.5 text-[11px] font-semibold text-zinc-100">
+                                <p className={`rounded-md border border-white/10 bg-black/25 px-2 py-1.5 font-semibold text-zinc-100 ${codexInfoText}`}>
                                     고급 재료 +{formatAdventureUnderstandingBonusPercent(chapterMonsterComprehensionBuff.highGradeMaterialPercent)}%
                                 </p>
                             </div>
@@ -358,11 +364,11 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
                 >
                     <div className={`rounded-xl border p-3 sm:p-4 ${chapterUi.panelClass}`}>
                         <div className="flex flex-wrap items-center gap-2 border-b border-white/12 pb-3">
-                            <span className="rounded-md border border-white/20 bg-black/35 px-2 py-0.5 font-mono text-[10px] font-bold text-white/90 sm:text-xs">
+                            <span className={`rounded-md border border-white/20 bg-black/35 px-2 py-0.5 font-mono font-bold text-white/90 ${codexInfoText}`}>
                                 CHAPTER {String(stage.stageIndex).padStart(2, '0')}
                             </span>
-                            <span className="text-sm font-semibold text-zinc-100 sm:text-base">{stage.title}</span>
-                            <span className="text-[10px] text-zinc-400 sm:text-xs">({stage.monsters.length}종)</span>
+                            <span className={`font-semibold text-zinc-100 ${codexInfoText}`}>{stage.title}</span>
+                            <span className={`text-zinc-400 ${codexInfoText}`}>({stage.monsters.length}종)</span>
                         </div>
                         <ul className="mt-4 grid grid-cols-1 gap-4 sm:gap-5 lg:grid-cols-2 lg:gap-5">
                             {[...stage.monsters]
@@ -418,7 +424,7 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
                                                     <div
                                                         className={`flex min-h-[2.35rem] shrink-0 flex-col items-center justify-center gap-0.5 bg-gradient-to-b px-1.5 py-1.5 sm:min-h-[2.65rem] sm:px-2 sm:py-1.5 ${chapterUi.nameBarClass}`}
                                                     >
-                                                        <p className="line-clamp-2 text-center text-[11px] font-black leading-snug tracking-wide text-amber-50 [text-shadow:0_0_12px_rgba(0,0,0,0.9),0_1px_0_rgba(0,0,0,0.95),0_0_1px_rgba(0,0,0,1)] sm:text-[13px] sm:leading-tight">
+                                                        <p className={`line-clamp-2 text-center font-black leading-snug tracking-wide text-amber-50 [text-shadow:0_0_12px_rgba(0,0,0,0.9),0_1px_0_rgba(0,0,0,0.95),0_0_1px_rgba(0,0,0,1)] sm:leading-tight ${codexInfoText}`}>
                                                             {m.name}
                                                         </p>
                                                         {bossBonus ? (
@@ -441,10 +447,10 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
                                             </div>
 
                                             <div className="min-w-0 flex-1">
-                                                <p className="text-xs leading-relaxed text-zinc-200/95 sm:text-sm">{m.codexDescription}</p>
-                                                <div className="mt-2.5 flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-white/8 pb-2.5 sm:gap-x-5">
-                                                    <span className="text-[10px] font-semibold text-zinc-400 sm:text-[11px]">이해도</span>
-                                                    <span className="text-[10px] tabular-nums text-zinc-200 sm:text-xs">
+                                                <p className={codexDescText}>{m.codexDescription}</p>
+                                                <div className={`mt-2.5 flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-white/8 pb-2.5 sm:gap-x-5 ${codexInfoText}`}>
+                                                    <span className="font-semibold text-zinc-400">이해도</span>
+                                                    <span className="tabular-nums text-zinc-200">
                                                         {level <= 0 ? (
                                                             <span className="font-semibold text-zinc-500">미활성</span>
                                                         ) : (
@@ -456,27 +462,27 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
                                                             </>
                                                         )}
                                                     </span>
-                                                    <span className="text-[10px] text-zinc-500 sm:text-xs">·</span>
-                                                    <span className="text-[10px] tabular-nums text-zinc-300 sm:text-xs">
+                                                    <span className="text-zinc-500">·</span>
+                                                    <span className="tabular-nums text-zinc-300">
                                                         승리{' '}
                                                         <span className="font-mono font-bold text-amber-200/95">{wins}</span>회
                                                     </span>
                                                 </div>
                                                 {bossBonus ? (
-                                                    <p className="mt-2 text-[10px] leading-snug text-amber-200/85 sm:text-[11px]">
+                                                    <p className={`mt-2 leading-snug text-amber-200/85 ${codexInfoText}`}>
                                                         챕터 보스: {adventureCodexPercentBossBonusLabelKo(bossBonus)} — 이해도 레벨당 +
                                                         {ADVENTURE_CODEX_BOSS_PERCENT_PER_LEVEL}% (최대{' '}
                                                         {ADVENTURE_CODEX_MAX_LEVEL * ADVENTURE_CODEX_BOSS_PERCENT_PER_LEVEL}%)
                                                     </p>
                                                 ) : null}
                                                 {bossBonus && level > 0 ? (
-                                                    <p className="mt-1.5 text-[10px] font-semibold text-amber-100/90 sm:text-[11px]">
+                                                    <p className={`mt-1.5 font-semibold text-amber-100/90 ${codexInfoText}`}>
                                                         현재 보스 보너스 합: +
                                                         {bossPctActive}% ({adventureCodexPercentBossBonusLabelKo(bossBonus)})
                                                     </p>
                                                 ) : null}
                                                 {!bossBonus && design && level > 0 && (
-                                                    <div className="mt-3 rounded-lg border border-cyan-500/20 bg-cyan-950/10 px-2.5 py-2 text-[10px] text-zinc-300 sm:px-3 sm:text-[11px]">
+                                                    <div className={`mt-3 rounded-lg border border-cyan-500/20 bg-cyan-950/10 px-2.5 py-2 text-zinc-300 sm:px-3 ${codexInfoText}`}>
                                                         <p className="mb-1 font-semibold text-cyan-100/90">이해도 능력치 (현재 합)</p>
                                                         <ul className="grid grid-cols-2 gap-x-2 gap-y-0.5">
                                                             {Object.values(CoreStat).map((stat) => {
@@ -506,7 +512,7 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
                                         </div>
 
                                         <div className="w-full border-t border-white/8 pt-2.5">
-                                            <div className="mb-1 flex flex-wrap items-end justify-between gap-1 text-[10px] text-zinc-500 sm:text-xs">
+                                            <div className={`mb-1 flex flex-wrap items-end justify-between gap-1 text-zinc-500 ${codexInfoText}`}>
                                                 <span className="font-semibold text-zinc-400">이해도 경험치</span>
                                                 <span className="font-mono tabular-nums text-zinc-400">
                                                     {atMax ? (
@@ -541,6 +547,22 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
                     </>
                 )}
             </div>
+    );
+
+    if (embedded) {
+        return <div className={PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS}>{codexBody}</div>;
+    }
+
+    return (
+        <DraggableWindow
+            title={showSituationTab ? '모험 몬스터' : '모험 몬스터 도감'}
+            onClose={onClose}
+            windowId="adventure-monster-codex"
+            initialWidth={1160}
+            initialHeight={780}
+            isTopmost={isTopmost}
+        >
+            {codexBody}
         </DraggableWindow>
     );
 };

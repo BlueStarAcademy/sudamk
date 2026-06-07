@@ -209,7 +209,7 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
                         colorScheme="none"
                         className={`${PET_MGMT_ACTION_BTN_CLASS} !border !border-cyan-400/50 !bg-cyan-950/55 !text-cyan-50`}
                     >
-                        대표펫
+                        대표펫 장착
                     </Button>
                 )}
                 <Button

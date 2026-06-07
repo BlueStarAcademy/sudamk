@@ -9,14 +9,12 @@ import KakaoCallback from './KakaoCallback.js';
 import GoogleCallback from './GoogleCallback.js';
 import SetNickname from './SetNickname.js';
 import Profile from './Profile.js';
-import Lobby from './Lobby.js';
 import Game from '../Game.js';
 import Admin from './Admin.js';
 import TournamentLobby from './TournamentLobby.js';
 import TournamentArena from './arenas/TournamentArena.js';
-import StrategicWaitingArena from './arenas/waiting/StrategicWaitingArena.js';
-import PairWaitingArena from './arenas/waiting/PairWaitingArena.js';
-import PlayfulWaitingArena from './arenas/waiting/PlayfulWaitingArena.js';
+import IntentWaitingArena from './arenas/waiting/IntentWaitingArena.js';
+import { arenaLobbyHash } from '../shared/utils/arenaLobbyDestination.js';
 import SinglePlayerLobby from './SinglePlayerLobby.js';
 import TowerLobby from './TowerLobby.js';
 import GuildHome from './guild/GuildHome.js';
@@ -25,6 +23,7 @@ import GuildWar from './guild/GuildWar.js';
 import AdventureLobby from './adventure/AdventureLobby.js';
 import AdventureStageMap from './adventure/AdventureStageMap.js';
 import { replaceAppHash } from '../utils/appUtils.js';
+import InlineLoadingSpinner from './ui/InlineLoadingSpinner.js';
 import {
     pairArenaLobbyHash,
     readPairArenaRestoreFromGameStateStorage,
@@ -32,6 +31,7 @@ import {
 } from '../shared/utils/pairArenaSessionRestore.js';
 import { userMeetsGuildFeatureLevelRequirement } from '../shared/constants/guildConstants.js';
 import { scheduleRouteImagePrefetch } from '../services/assetService.js';
+import type { ArenaChannel, ArenaLobbyIntent } from '../shared/types/api.js';
 
 const routeShellClass = 'flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden';
 
@@ -59,7 +59,12 @@ const GameRouteLoader: React.FC<{ gameId: string }> = ({ gameId }) => {
                         pairArenaRestore.roomId,
                         pairArenaRestore.lobbyChannel,
                     );
-                    replaceAppHash(pairArenaLobbyHash(pairArenaRestore.lobbyChannel));
+                    replaceAppHash(
+                        pairArenaLobbyHash(
+                            pairArenaRestore.lobbyChannel,
+                            pairArenaRestore.lobbyIntent ?? 'pvp',
+                        ),
+                    );
                     return;
                 }
                 setHasTimedOut(true);
@@ -111,7 +116,11 @@ const GameRouteLoader: React.FC<{ gameId: string }> = ({ gameId }) => {
         return <div className="flex items-center justify-center h-full">게임을 찾을 수 없습니다. 프로필로 이동합니다...</div>;
     }
 
-    return <div className="flex items-center justify-center h-full">게임 정보 동기화 중...</div>;
+    return (
+        <div className="flex h-full flex-col items-center justify-center gap-3">
+            <InlineLoadingSpinner label="게임 정보 동기화 중..." />
+        </div>
+    );
 };
 
 const Router: React.FC = () => {
@@ -132,26 +141,20 @@ const Router: React.FC = () => {
     useEffect(() => {
         if (!currentUser || arenaAdminBypass) return;
         const v = currentRoute.view;
-        if (v === 'lobby') {
-            const t = currentRoute.params?.type === 'playful' ? 'playful' : 'strategic';
-            const ok = t === 'playful' ? mergedArena.playfulLobby : mergedArena.strategicLobby;
-            if (!ok) replaceAppHash('#/profile');
-            return;
-        }
-        if (v === 'waiting') {
-            const m = currentRoute.params?.mode;
-            if (m === 'strategic' && !mergedArena.strategicLobby) replaceAppHash('#/profile');
-            if (m === 'playful' && !mergedArena.playfulLobby) replaceAppHash('#/profile');
+        const channel = currentRoute.params?.channel as ArenaChannel | undefined;
+        if (v === 'pvp' || v === 'ai') {
+            if (channel === 'strategic' && !mergedArena.strategicLobby) replaceAppHash('#/profile/arena');
+            if (channel === 'playful' && !mergedArena.playfulLobby) replaceAppHash('#/profile/arena');
+            if (channel === 'pair' && !mergedArena.pairLobby) replaceAppHash('#/profile/arena');
             return;
         }
         if (v === 'singleplayer' && !mergedArena.singleplayer) replaceAppHash('#/profile');
         if (v === 'tower' && !mergedArena.tower) replaceAppHash('#/profile');
-        if (v === 'pair' && !mergedArena.pairLobby) replaceAppHash('#/profile');
         if (v === 'tournament' && !mergedArena.championship) replaceAppHash('#/profile');
         if (v === 'adventure' && !mergedArena.adventure) replaceAppHash('#/profile');
         const guildOk = userMeetsGuildFeatureLevelRequirement(currentUser);
         if (!guildOk && (v === 'guild' || v === 'guildboss' || v === 'guildwar')) replaceAppHash('#/profile');
-    }, [currentUser, arenaAdminBypass, currentRoute.view, currentRoute.params?.type, currentRoute.params?.mode, mergedArena]);
+    }, [currentUser, arenaAdminBypass, currentRoute.view, currentRoute.params?.channel, mergedArena]);
 
     if (!currentUser) {
         if (currentRoute.view === 'register') {
@@ -231,23 +234,29 @@ const Router: React.FC = () => {
                     <Profile />
                 </div>
             );
-        case 'lobby':
-            const lobbyType = currentRoute.params.type === 'playful' ? 'playful' : 'strategic';
-            return <Lobby lobbyType={lobbyType} />;
-        case 'waiting':
-            if (currentRoute.params.mode) {
-                const mode = currentRoute.params.mode;
-                if (mode === 'strategic' || mode === 'playful') {
-                    return mode === 'strategic' ? <StrategicWaitingArena /> : <PlayfulWaitingArena />;
-                }
-                console.warn('Router: Individual game mode waiting room access denied, redirecting to profile:', mode);
-                window.location.hash = '#/profile';
+        case 'arena': {
+            const intent = currentRoute.params?.intent as ArenaLobbyIntent | undefined;
+            if (intent === 'pvp' || intent === 'ai') {
+                replaceAppHash(arenaLobbyHash({ intent, channel: 'strategic' }));
                 return null;
             }
-            window.location.hash = '#/profile';
+            replaceAppHash('#/profile/arena');
             return null;
-        case 'pair':
-            return <PairWaitingArena />;
+        }
+        case 'pvp':
+        case 'ai': {
+            const channel = currentRoute.params?.channel as ArenaChannel | undefined;
+            const intent: ArenaLobbyIntent = currentRoute.view === 'ai' ? 'ai' : 'pvp';
+            if (channel === 'strategic' || channel === 'pair' || channel === 'playful') {
+                return (
+                    <div className={routeShellClass}>
+                        <IntentWaitingArena lobbyChannel={channel} lobbyIntent={intent} />
+                    </div>
+                );
+            }
+            replaceAppHash('#/profile/arena');
+            return null;
+        }
         case 'game':
             if (currentRoute.params.id) {
                 const gameId = currentRoute.params.id;

@@ -4,11 +4,13 @@ import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import { ADVENTURE_STAGES } from '../../constants/adventureConstants.js';
 import { replaceAppHash } from '../../utils/appUtils.js';
 import AdventureProfilePanel from './AdventureProfilePanel.js';
-import AdventureMonsterCodexModal from './AdventureMonsterCodexModal.js';
 import AdventureChapterRegionalSummary from './AdventureChapterRegionalSummary.js';
 import AdventureRegionalBuffModal from './AdventureRegionalBuffModal.js';
 import { buildAdventureStageUnderstandingRows } from '../../utils/adventureStageUnderstandingRows.js';
-import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from '../QuickAccessSidebar.js';
+import PcLobbyThreeColumnShell from '../shell/PcLobbyThreeColumnShell.js';
+import {
+    PC_HOME_LEFT_COLUMN_CLASS,
+} from '../../shared/constants/pcShellLayout.js';
 import { useScreenGuide } from '../../hooks/useScreenGuide.js';
 import ScreenGuideModal from '../ScreenGuideModal.js';
 import {
@@ -25,6 +27,10 @@ const ADVENTURE_CHAPTER_GRID_DESKTOP =
 /** 모바일: 챕터 카드 가로 1열 · 세로 스크롤 */
 const ADVENTURE_CHAPTER_LIST_MOBILE =
     'flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain py-0.5 [&>*]:shrink-0';
+
+/** PC 우측 챕터 뷰어 — Profile `mergedCardClass`·대기실 뒷판 패널과 동일 톤 */
+const ADVENTURE_CHAPTER_VIEWER_SHELL_CLASS =
+    'flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-amber-500/40 bg-gradient-to-br from-zinc-900 via-zinc-900 to-black p-2 shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 ring-white/10 sm:p-2.5';
 
 const STAGE_CARD_RINGS: readonly string[] = [
     'ring-emerald-400/40',
@@ -52,12 +58,11 @@ const ChapterLockGlyph: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 const AdventureLobby: React.FC = () => {
-    const { currentUserWithStatus } = useAppContext();
+    const { currentUserWithStatus, handlers } = useAppContext();
     const { isNativeMobile, isNarrowViewport, pcLikeMobileLayout } = useNativeMobileShell();
 
     /** 네이티브 앱 또는 모바일 웹(좁은 화면·PC동일 레이아웃 Off) — 챕터·일지 탭 */
     const mobileAdventureShell = isNativeMobile || (isNarrowViewport && !pcLikeMobileLayout);
-    const [monsterCodexOpen, setMonsterCodexOpen] = useState(false);
     const [regionalBuffStageId, setRegionalBuffStageId] = useState<string | null>(null);
     /** 네이티브 모바일: 챕터(기본) · 모험 일지 */
     const [mobileLobbyTab, setMobileLobbyTab] = useState<'chapter' | 'journal'>('chapter');
@@ -98,14 +103,18 @@ const AdventureLobby: React.FC = () => {
         const mobileScrollableList = !!opts?.mobileScrollableList;
         return (
         <section
-            className="flex min-h-0 min-w-0 flex-1 flex-col lg:h-full lg:min-h-0"
+            className={
+                showSectionHeading
+                    ? ADVENTURE_CHAPTER_VIEWER_SHELL_CLASS
+                    : 'flex min-h-0 min-w-0 flex-1 flex-col lg:h-full lg:min-h-0'
+            }
             aria-label="챕터 입장"
         >
             {showSectionHeading ? (
-                <h2 className="mb-2 flex shrink-0 items-center gap-2 text-xs font-bold uppercase tracking-wider text-zinc-500 sm:text-sm">
-                    <span className="h-px max-w-[2rem] flex-1 bg-gradient-to-r from-transparent to-zinc-600/60" aria-hidden />
+                <h2 className="mb-2 flex shrink-0 items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-400/85 sm:text-sm">
+                    <span className="h-px max-w-[2rem] flex-1 bg-gradient-to-r from-transparent to-amber-600/35" aria-hidden />
                     챕터
-                    <span className="h-px flex-1 bg-gradient-to-l from-transparent to-zinc-600/60" aria-hidden />
+                    <span className="h-px flex-1 bg-gradient-to-l from-transparent to-amber-600/35" aria-hidden />
                 </h2>
             ) : null}
             <div
@@ -261,6 +270,30 @@ const AdventureLobby: React.FC = () => {
         'border border-amber-400/55 bg-gradient-to-b from-amber-800/40 to-zinc-950 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]';
     const mobileTabBtnOff = 'border border-transparent text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200';
 
+    const desktopLeftColumn = (
+        <div className={`flex h-full min-h-0 ${PC_HOME_LEFT_COLUMN_CLASS} flex-col overflow-hidden`}>
+            <div className="flex shrink-0 items-center gap-2 pb-2">
+                <button
+                    type="button"
+                    onClick={onBack}
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg p-0 transition-transform hover:bg-zinc-800 hover:drop-shadow-lg active:scale-90 sm:h-11 sm:w-11"
+                    aria-label="뒤로가기"
+                >
+                    <img src="/images/button/back.webp" alt="" className="h-full w-full" />
+                </button>
+                <div className="min-w-0 flex-1">{titleBlock}</div>
+            </div>
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                <AdventureProfilePanel
+                    profile={currentUserWithStatus?.adventureProfile}
+                    userGold={currentUserWithStatus?.gold ?? 0}
+                    compact={false}
+                    onOpenMonsterCodex={() => handlers.openAdventureMonsterCodexModal()}
+                />
+            </div>
+        </div>
+    );
+
     return (
         <div
             className={`relative mx-auto flex w-full bg-gradient-to-b from-zinc-900 via-zinc-950 to-black text-zinc-100 ${
@@ -268,111 +301,65 @@ const AdventureLobby: React.FC = () => {
                     ? isNativeMobile
                         ? 'sudamr-native-route-root min-h-0 flex-1 flex-col overflow-hidden px-0.5'
                         : 'h-full min-h-0 max-h-[100dvh] flex-1 flex-col overflow-hidden px-0.5'
-                    : 'h-full min-h-0 flex-row gap-2 p-2 sm:gap-3 sm:p-3 lg:p-4'
+                    : 'h-full min-h-0 flex-1 flex-col overflow-hidden p-2 sm:p-4 lg:p-2'
             }`}
         >
-            <div className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden ${isNativeMobile ? '' : ''}`}>
-                <header
-                    className={`flex shrink-0 items-center gap-2 ${mobileAdventureShell ? 'px-1 py-0.5' : 'px-0 pb-2 sm:pb-3'}`}
-                >
-                    {!mobileAdventureShell && (
-                        <button
-                            type="button"
-                            onClick={onBack}
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg p-0 transition-transform hover:bg-zinc-800 hover:drop-shadow-lg active:scale-90 sm:h-11 sm:w-11"
-                            aria-label="뒤로가기"
-                        >
-                            <img src="/images/button/back.webp" alt="" className="h-full w-full" />
-                        </button>
-                    )}
-                    <div className={`flex min-w-0 flex-1 items-start gap-2 ${mobileAdventureShell ? 'justify-center' : ''}`}>
-                        {mobileAdventureShell ? (
-                            <>
-                                <div className="w-9 shrink-0" aria-hidden />
-                                <div className="min-w-0 flex-1 text-center">{titleBlock}</div>
-                                <div className="w-9 shrink-0" aria-hidden />
-                            </>
-                        ) : (
-                            titleBlock
-                        )}
-                    </div>
-                </header>
-
-                <div
-                    className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden overscroll-contain ${mobileAdventureShell ? 'px-0.5 pb-0.5' : 'overflow-y-auto'}`}
-                >
-                    {mobileAdventureShell ? (
-                        <>
-                            <div className="mb-0.5 flex shrink-0 gap-1 px-0.5 sm:gap-1.5" role="tablist" aria-label="모험 로비">
-                                <button
-                                    type="button"
-                                    role="tab"
-                                    aria-selected={mobileLobbyTab === 'chapter'}
-                                    onClick={() => setMobileLobbyTab('chapter')}
-                                    className={`${mobileTabBtnBase} ${mobileLobbyTab === 'chapter' ? mobileTabBtnOn : mobileTabBtnOff}`}
-                                >
-                                    챕터
-                                </button>
-                                <button
-                                    type="button"
-                                    role="tab"
-                                    aria-selected={mobileLobbyTab === 'journal'}
-                                    onClick={() => setMobileLobbyTab('journal')}
-                                    className={`${mobileTabBtnBase} ${mobileLobbyTab === 'journal' ? mobileTabBtnOn : mobileTabBtnOff}`}
-                                >
-                                    모험 일지
-                                </button>
-                            </div>
-                            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden" role="tabpanel">
-                                {mobileLobbyTab === 'chapter' ? (
-                                    chapterColumn(false, { mobileScrollableList: mobileAdventureShell })
-                                ) : (
-                                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-                                        <AdventureProfilePanel
-                                            profile={currentUserWithStatus?.adventureProfile}
-                                            userGold={currentUserWithStatus?.gold ?? 0}
-                                            compact
-                                            mobileOneScreen={mobileAdventureShell}
-                                            onOpenMonsterCodex={() => setMonsterCodexOpen(true)}
-                                        />
-                                    </div>
-                                )}
-                            </div>
-                        </>
-                    ) : (
-                        <div
-                            className={`flex min-h-0 min-w-0 flex-1 flex-col gap-3 lg:flex-row lg:items-stretch lg:gap-5 xl:gap-6 ${!isNativeMobile ? 'pr-0' : ''}`}
-                        >
-                            <aside
-                                className={`flex w-full min-w-0 shrink-0 flex-col lg:max-w-none lg:self-stretch lg:w-[min(100%,clamp(22rem,34vw,38rem))] xl:w-[min(100%,40rem)]`}
-                            >
-                                <AdventureProfilePanel
-                                    profile={currentUserWithStatus?.adventureProfile}
-                                    userGold={currentUserWithStatus?.gold ?? 0}
-                                    compact={false}
-                                    onOpenMonsterCodex={() => setMonsterCodexOpen(true)}
-                                />
-                            </aside>
-
-                            <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:min-h-0 lg:overflow-hidden">
-                                {chapterColumn(true)}
-                            </div>
+            {mobileAdventureShell ? (
+                <>
+                    <header className="flex shrink-0 items-center gap-2 px-1 py-0.5">
+                        <div className="flex min-w-0 flex-1 items-start justify-center gap-2">
+                            <div className="w-9 shrink-0" aria-hidden />
+                            <div className="min-w-0 flex-1 text-center">{titleBlock}</div>
+                            <div className="w-9 shrink-0" aria-hidden />
                         </div>
-                    )}
-                </div>
-            </div>
-
-            {!mobileAdventureShell && (
-                <div className={`flex shrink-0 flex-col self-stretch ${PC_QUICK_RAIL_COLUMN_CLASS}`}>
-                    <div className="flex h-full min-h-0 flex-col rounded-xl border border-violet-500/35 bg-gradient-to-b from-violet-950/45 via-zinc-950/80 to-black/90 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-sm">
-                        <QuickAccessSidebar fillHeight compact={false} />
+                    </header>
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden overscroll-contain px-0.5 pb-0.5">
+                        <div className="mb-0.5 flex shrink-0 gap-1 px-0.5 sm:gap-1.5" role="tablist" aria-label="모험 로비">
+                            <button
+                                type="button"
+                                role="tab"
+                                aria-selected={mobileLobbyTab === 'chapter'}
+                                onClick={() => setMobileLobbyTab('chapter')}
+                                className={`${mobileTabBtnBase} ${mobileLobbyTab === 'chapter' ? mobileTabBtnOn : mobileTabBtnOff}`}
+                            >
+                                챕터
+                            </button>
+                            <button
+                                type="button"
+                                role="tab"
+                                aria-selected={mobileLobbyTab === 'journal'}
+                                onClick={() => setMobileLobbyTab('journal')}
+                                className={`${mobileTabBtnBase} ${mobileLobbyTab === 'journal' ? mobileTabBtnOn : mobileTabBtnOff}`}
+                            >
+                                모험 일지
+                            </button>
+                        </div>
+                        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden" role="tabpanel">
+                            {mobileLobbyTab === 'chapter' ? (
+                                chapterColumn(false, { mobileScrollableList: mobileAdventureShell })
+                            ) : (
+                                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                                    <AdventureProfilePanel
+                                        profile={currentUserWithStatus?.adventureProfile}
+                                        userGold={currentUserWithStatus?.gold ?? 0}
+                                        compact
+                                        mobileOneScreen={mobileAdventureShell}
+                                        onOpenMonsterCodex={() => handlers.openAdventureMonsterCodexModal()}
+                                    />
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
+                </>
+            ) : (
+                <PcLobbyThreeColumnShell
+                    left={desktopLeftColumn}
+                    center={chapterColumn(true)}
+                    centerTransparentShell
+                    centerFullWidth
+                />
             )}
 
-            {monsterCodexOpen && (
-                <AdventureMonsterCodexModal onClose={() => setMonsterCodexOpen(false)} isTopmost />
-            )}
             {regionalBuffStageId && (
                 <AdventureRegionalBuffModal
                     stageId={regionalBuffStageId}

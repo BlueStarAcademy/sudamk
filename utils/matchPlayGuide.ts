@@ -140,17 +140,22 @@ function captureGuide(session: LiveGameSession): MatchPlayGuide {
 
 function speedGuide(session: LiveGameSession): MatchPlayGuide {
     const g = standardLike(session, '스피드 바둑');
-    g.sections[0].items.unshift('기본적으로는 집이 많은 쪽이 이기며, 종료 시 남은 시간으로 보너스 집이 더해질 수 있습니다.');
-    g.sections[2].items.push('시간이 줄어들수록 보너스도 줄어듭니다. 무리한 장고보다 리듬 있는 착수가 유리합니다.');
-    g.sections[3].items.push('익숙한 정석을 두어 시간을 아끼고, 난전은 짧게 끊는 것도 전략입니다.');
+    g.sections[0].items.unshift(
+        '기본적으로는 집이 많은 쪽이 이기지만, 내가 쓴 시간 10초마다 상대에게 1점이 더해집니다.',
+    );
+    g.sections[2].items.push('시간을 끌면 상대 점수만 불어납니다. 익숙한 수·짧은 읽기로 리듬을 유지하세요.');
+    g.sections[3].items.push('정석·단순한 형세를 선호하고, 불필요한 장고는 피하세요.');
     return g;
 }
 
 function baseGuide(session: LiveGameSession): MatchPlayGuide {
     const g = standardLike(session, '베이스 바둑');
-    g.sections[0].items.push('상대 베이스돌을 따내면 추가 보너스 집이 있어, 초반 형세가 크게 흔들릴 수 있습니다.');
-    g.sections[1].items.unshift('베이스 배치와 이후 흑백·덤 입찰 결과를 보고, 자신의 역할에 맞는 집·전투 계획을 세웁니다.');
-    g.sections[2].items.push('베이스가 겹치거나 애매한 형태면 실수가 나오기 쉬우니, 공개 직후 판을 차분히 다시 읽으세요.');
+    g.sections[0].items.unshift(
+        '베이스돌 배치를 보고 상대에게 줄 덤을 설정해 원하는 돌로 두는, 형세분석 중심의 바둑입니다.',
+    );
+    g.sections[1].items.unshift('베이스 공개 직후 판세를 읽고, 유리한 색·덤 조건을 입찰로 가져가세요.');
+    g.sections[2].items.push('덤을 과하게 주면 불리해지고, 너무 적으면 원하는 돌을 못 잡을 수 있습니다.');
+    g.sections[3].items.push('상대 베이스돌을 따내면 보너스 집도 챙길 수 있습니다.');
     return g;
 }
 

@@ -7,6 +7,7 @@ import { LiveGameSession, GameProps } from '../../types.js';
 import { GameInfoPanel, ChatPanel } from './Sidebar.js';
 import Button from '../Button.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
+import { mergeWaitingRoomPublicChatMessages } from '../../shared/utils/waitingRoomGlobalChatMerge.js';
 import { getGuildWarBoardDisplayName } from '../../constants/index.js';
 
 interface GuildWarTowerSidebarProps {
@@ -36,6 +37,10 @@ const GuildWarTowerSidebar: React.FC<GuildWarTowerSidebarProps> = ({
     pauseButtonCooldown = 0,
 }) => {
     const { activeNegotiation, negotiations, onlineUsers, waitingRoomChats } = useAppContext();
+    const publicChatMessages = React.useMemo(
+        () => mergeWaitingRoomPublicChatMessages(waitingRoomChats),
+        [waitingRoomChats],
+    );
     if (!currentUser) return null;
     const boardId = (session as any).guildWarBoardId as string | undefined;
     const boardLabel = boardId ? getGuildWarBoardDisplayName(boardId) : '길드 전쟁';
@@ -56,7 +61,7 @@ const GuildWarTowerSidebar: React.FC<GuildWarTowerSidebarProps> = ({
                     session={session}
                     isSpectator={false}
                     onAction={onAction || (() => {})}
-                    waitingRoomChat={waitingRoomChats['global'] || []}
+                    waitingRoomChat={publicChatMessages}
                     gameChat={gameChat}
                     onViewUser={() => {}}
                     onlineUsers={onlineUsers}

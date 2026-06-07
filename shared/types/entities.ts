@@ -762,9 +762,9 @@ export type User = {
   pairPetLobbySlotCount?: number;
   /** 페어 펫 수련장: 슬롯별 진행 중 세션(null = 비어 있음) */
   pairPetTrainingSlots?: (PairPetTrainingSlotState | null)[];
-  /** 부화장 일반 슬롯 0~3 해금(0번은 항상 true로 정규화). VIP 슬롯은 별도 플래그 없음 */
+  /** 부화장 1번 슬롯 강화 I~III 해금 여부 `[tier1, tier2, tier3]` (레거시 4칸 해금 배열도 마이그레이션) */
   pairPetHatcherySlotUnlocked?: boolean[];
-  /** 부화장: 일반 4칸 + VIP 1칸 진행 세션 */
+  /** 부화장: 1번 슬롯 + VIP 슬롯 진행 세션 */
   pairPetHatcherySessions?: (PairPetHatcherySession | null)[];
   /** 페어 펫 로비 인벤 정렬(저장 시 다음 접속에 유지) */
   pairPetLobbyInventorySort?: PairPetLobbyInventorySortMode;

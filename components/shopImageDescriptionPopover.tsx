@@ -8,20 +8,11 @@ export const SHOP_IMAGE_DESC_POPOVER_Z = 130_000;
 
 export function formatShopItemDescription(desc: string): string {
     if (!desc) return '';
-    const cleaned = desc
+    return desc
         .replace(/~/g, ' ~ ')
         .replace(/\s+/g, ' ')
-        .trim();
-
-    if (cleaned.endsWith('획득')) {
-        return `${cleaned}합니다.`;
-    }
-
-    if (!/[.!?]$/.test(cleaned)) {
-        return `${cleaned}.`;
-    }
-
-    return cleaned;
+        .trim()
+        .replace(/\.+$/, '');
 }
 
 /** 골드/다이아 상점 `equipment_box_1`~`6` 설명 — 등급명만 `gradeStyles` 색상(챔피언십 상점과 동일 팔레트) */
@@ -39,9 +30,9 @@ export const StandardEquipmentBoxShopDescription: React.FC<{
     const high = grades[grades.length - 1]!;
     const lowSt = gradeStyles[low];
     const highSt = gradeStyles[high];
-    const cls = textClassName ?? 'text-[11px] sm:text-xs';
+    const cls = textClassName ?? 'text-center text-[11px] sm:text-xs';
     return (
-        <p className={`text-left leading-relaxed text-slate-100 ${cls}`}>
+        <p className={`leading-relaxed text-slate-300/90 ${cls}`}>
             <span className={`font-bold ${lowSt.color}`}>{lowSt.name}</span>
             {low !== high ? (
                 <>
@@ -49,7 +40,7 @@ export const StandardEquipmentBoxShopDescription: React.FC<{
                     <span className={`font-bold ${highSt.color}`}>{highSt.name}</span>
                 </>
             ) : null}
-            <span> 등급 장비.</span>
+            <span> 등급 장비</span>
         </p>
     );
 };

@@ -55,7 +55,7 @@ const NativeMobileDock: React.FC = () => {
             if (t === 'arena') return 'arena';
             return 'home';
         }
-        if (v === 'waiting' || v === 'lobby') return 'arena';
+        if (v === 'waiting' || v === 'lobby' || v === 'pvp' || v === 'ai' || v === 'arena') return 'arena';
         return null;
     }, [currentRoute.view, currentRoute.params?.tab]);
 

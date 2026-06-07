@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { LiveGameSession, User, Player, ServerAction } from '../types.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
 import { PRE_GAME_PVP_COUNTDOWN_SECONDS } from '../shared/constants/preGameCountdown.js';
+import { usePreGameDeadlineAutoSubmit } from '../hooks/usePreGameDeadlineAutoSubmit.js';
 
 const COLOR_CHOICE_SEC = PRE_GAME_PVP_COUNTDOWN_SECONDS;
 
@@ -51,6 +52,19 @@ const BaseStoneColorChoicePanel: React.FC<Props> = ({
         const id = setInterval(tick, 250);
         return () => clearInterval(id);
     }, [colorChoicePhaseDone, session.baseColorChoiceDeadline, showCountdown]);
+
+    const autoPickColor = useCallback(() => {
+        if (colorChoicePhaseDone || isPairHostChoice) return;
+        const color = Math.random() < 0.5 ? Player.Black : Player.White;
+        onAction({ type: 'SUBMIT_BASE_STONE_COLOR_CHOICE', payload: { gameId, color } });
+    }, [colorChoicePhaseDone, isPairHostChoice, gameId, onAction]);
+
+    usePreGameDeadlineAutoSubmit({
+        deadline: showCountdown && !colorChoicePhaseDone ? session.baseColorChoiceDeadline : undefined,
+        enabled: !isPairHostChoice,
+        alreadySubmitted: colorChoicePhaseDone,
+        onSubmit: autoPickColor,
+    });
 
     const btnBase = `rounded-lg border text-center font-bold transition-colors ${
         isSinglePlayer

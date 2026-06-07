@@ -8,6 +8,7 @@ export * from './ranking.js';
 export * from './rules.js';
 export * from './tournaments.js';
 export * from './ui.js';
+export * from './uiFeedback.js';
 export * from './singlePlayerConstants.js';
 export * from './towerConstants.js';
 export * from './guildConstants.js';

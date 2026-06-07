@@ -13,7 +13,8 @@ import {
   SCAN_COUNTS, MISSILE_BOARD_SIZES, MISSILE_COUNTS,
   ALKKAGI_STONE_COUNTS, ALKKAGI_ROUNDS, ALKKAGI_GAUGE_SPEEDS, ALKKAGI_ITEM_COUNTS,
   CURLING_STONE_COUNTS, CURLING_ROUNDS, CURLING_GAUGE_SPEEDS, CURLING_ITEM_COUNTS,
-  HIDDEN_BOARD_SIZES, DICE_GO_ITEM_COUNTS, getScoringTurnLimitOptionsByBoardSize, getAiScoringTurnLimitByBoardSize
+  HIDDEN_BOARD_SIZES, DICE_GO_ITEM_COUNTS, getScoringTurnLimitOptionsByBoardSize, getAiScoringTurnLimitByBoardSize,
+  FISCHER_INCREMENT_SECONDS_OPTIONS,
 } from '../../constants/gameSettings.js';
 import { profileStepFromKataServerLevel } from '../../shared/utils/strategicAiDifficulty.js';
 import { clampGameInt } from '../../shared/utils/gameIntegerField.js';
@@ -52,7 +53,10 @@ import {
     aiChallengeModalBodyFrameClass,
     aiChallengeModalChromeFromBucket,
     aiChallengeModalDenseSettingsHeadingClass,
+    aiChallengeModalGameCardSelectedRingOverlayClass,
+    aiChallengeModalGameCardSelectedTitleClass,
     aiChallengeModalGameCardSurfaceClass,
+    aiChallengeModalGameModeOverlayTone,
     aiChallengeModalHandheldModeStepShellClass,
     aiChallengeModalHandheldSettingsScrollShellClass,
     aiChallengeModalHandheldSummaryOuterClass,
@@ -96,6 +100,8 @@ interface AiChallengeModalProps {
     hideScoringTurnLimit?: boolean;
     title?: string;
     submitLabel?: string;
+    /** 임베드 인라인 시작 버튼 비활성(2인 팀 AI 등 부모 게이트) */
+    submitDisabled?: boolean;
     showActionPointCost?: boolean;
     /** 대국 시작 없이 모드·설정만 확정(페어 방 만들기·방 변경 등) */
     configureOnly?: boolean;
@@ -105,6 +111,16 @@ interface AiChallengeModalProps {
      * `configureOnly`와 함께 쓰며, 설정 변경 시 `onConfigureApply`로 부모 상태를 갱신한다.
      */
     embeddedPanel?: boolean;
+    /**
+     * AI 로비 중앙 패널·PVP 방 만들기 등: 게임 모드(상단) + 대국 설정(하단)을 한 열로 쌓는다.
+     * `embeddedPanel` + (`!configureOnly` 또는 `pairRoomEmbeddedRightSlot`)과 함께 쓴다.
+     */
+    embeddedPanelStackedLayout?: boolean;
+    /** 데스크톱 split: 게임 모드 피커를 좌측 패널로 분리했을 때 중앙에서 숨김 */
+    hideInlineModePicker?: boolean;
+    /** 부모(AiLobbyWorkspace)가 모드 선택 state를 소유할 때 */
+    controlledSelectedGameMode?: GameMode | null;
+    onControlledSelectedGameModeChange?: (mode: GameMode) => void;
     /**
      * 페어 방 만들기: 좌측=게임 모드, 우측은 이 함수로 감싼 `대국 설정` 블록 위에 방 이름·종류·공개 등 배치.
      * `configureOnly` + `embeddedPanel` + 전략 로비에서만 사용한다.
@@ -126,6 +142,8 @@ interface AiChallengeModalProps {
     onPairRoomHandheldSubmit?: () => void | Promise<void>;
     /** 핸드헬드 푸터 버튼 비활성(제출 중 등) */
     pairRoomHandheldBusy?: boolean;
+    /** PVP 인라인 방 만들기: 중앙 열(퀵조인·방목록) 높이를 꽉 채움 */
+    embeddedPanelFillParent?: boolean;
     /** 페어/전략 방 만들기: 친선전(`duo_match`) 등에서 대국 설정에 AI단계(카타 단계) 숨김 */
     pairRoomHideGoAiLevel?: boolean;
     /** 놀이바둑 친선전 등: 순서·역할 UI 숨김(유저 대전은 자동 랜덤). AI대결 방에서는 숨기지 않음 */
@@ -170,6 +188,21 @@ function lobbyGameModeBriefDescription(description: string | undefined, fallback
     const sp = slice.lastIndexOf(' ');
     if (sp > 72) return `${slice.slice(0, sp)}…`;
     return `${slice}…`;
+}
+
+type LobbyGameModeDefinition = { mode: GameMode; name: string; image: string; description?: string };
+
+/** UI 표시용: 유효한 선택 모드 → 없으면 목록 첫 모드(기본 선택과 동일) */
+function resolveLobbySelectedGameModeDefinition(
+    availableGameModes: LobbyGameModeDefinition[],
+    ...modeCandidates: (GameMode | null | undefined)[]
+): LobbyGameModeDefinition | undefined {
+    for (const candidate of modeCandidates) {
+        if (candidate == null) continue;
+        const found = availableGameModes.find((m) => m.mode === candidate);
+        if (found) return found;
+    }
+    return availableGameModes[0];
 }
 
 /** 전략바둑 대기실 「AI와 대결하기」: 베이스돌 최대 4개 */
@@ -347,6 +380,62 @@ function resolveEmbeddedConfigureSeedSettings(
     );
 }
 
+const GameModeDescriptionBanner: React.FC<{
+    modeName: string;
+    modeImage: string;
+    descriptionText: string;
+    chromeKind: AiChallengeModalChromeKind;
+}> = ({ modeName, modeImage, descriptionText, chromeKind }) => {
+    const tone = aiChallengeModalGameModeOverlayTone(chromeKind);
+
+    return (
+        <div
+            className={`mb-2 shrink-0 rounded-xl border-2 px-3 py-2.5 sm:mb-2.5 sm:px-3.5 sm:py-3 ${tone.panel}`}
+            role="status"
+            aria-live="polite"
+        >
+            <div className="flex items-start gap-2.5 sm:gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/20 bg-black/35 p-1 shadow-inner sm:h-12 sm:w-12">
+                    <img src={modeImage} alt="" className="max-h-full max-w-full object-contain" />
+                </div>
+                <div className="min-w-0 flex-1">
+                    <h4 className={`text-sm font-extrabold leading-snug sm:text-base ${tone.title}`}>{modeName}</h4>
+                    <p className="mt-0.5 max-h-[5.5rem] overflow-y-auto text-[11px] font-medium leading-relaxed text-zinc-100/95 sm:text-xs">
+                        {descriptionText}
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const GameModePickerSection: React.FC<{
+    className?: string;
+    chromeKind: AiChallengeModalChromeKind;
+    selectedMode: { name: string; image: string; description?: string } | null | undefined;
+    descriptionFallback: string;
+    /** 믹스 바둑 등 설정 UI가 설명 역할을 할 때 말풍선 오버레이 생략 */
+    suppressDescriptionOverlay?: boolean;
+    children: ReactNode;
+}> = ({ className, chromeKind, selectedMode, descriptionFallback, suppressDescriptionOverlay = false, children }) => {
+    const descriptionText = selectedMode
+        ? lobbyGameModeBriefDescription(selectedMode.description, descriptionFallback)
+        : null;
+    return (
+        <div className={`flex flex-col ${className ?? ''}`}>
+            {selectedMode && descriptionText && !suppressDescriptionOverlay ? (
+                <GameModeDescriptionBanner
+                    modeName={selectedMode.name}
+                    modeImage={selectedMode.image}
+                    descriptionText={descriptionText}
+                    chromeKind={chromeKind}
+                />
+            ) : null}
+            {children}
+        </div>
+    );
+};
+
 const GameCard: React.FC<{
     mode: GameMode;
     image: string;
@@ -362,11 +451,19 @@ const GameCard: React.FC<{
 
     return (
         <div
-            className={aiChallengeModalGameCardSurfaceClass(chromeKind, isSelected, Boolean(compact))}
+            className={`${aiChallengeModalGameCardSurfaceClass(chromeKind, isSelected, Boolean(compact))} relative rounded-lg ${
+                isSelected ? 'z-[15]' : 'z-0'
+            }`}
             onClick={() => onSelect(mode)}
         >
+            {isSelected ? (
+                <span
+                    className={`pointer-events-none absolute inset-0 z-20 rounded-[inherit] ${aiChallengeModalGameCardSelectedRingOverlayClass(chromeKind)}`}
+                    aria-hidden
+                />
+            ) : null}
             <div
-                className="bg-tertiary text-tertiary relative flex w-full flex-shrink-0 items-center justify-center overflow-hidden rounded-md p-1 shadow-inner"
+                className="relative z-[1] flex w-full flex-shrink-0 items-center justify-center overflow-hidden rounded-md bg-tertiary p-1 text-tertiary shadow-inner"
                 style={{ height: `${imgH}px` }}
             >
                 {!imgError ? (
@@ -381,13 +478,89 @@ const GameCard: React.FC<{
                 )}
             </div>
             <h3
-                className={`text-primary w-full min-w-0 shrink-0 truncate px-0.5 font-bold leading-snug ${
+                className={`relative z-[1] text-primary w-full min-w-0 shrink-0 truncate px-0.5 font-bold leading-snug ${
                     compact ? 'text-xs' : 'text-sm sm:text-base'
-                }`}
+                } ${isSelected ? aiChallengeModalGameCardSelectedTitleClass(chromeKind) : ''}`}
             >
                 {displayName}
             </h3>
         </div>
+    );
+};
+
+/** AI 로비 좌측 패널 — 게임 모드 가로/그리드 피커 */
+export type AiChallengeModePickerStripProps = {
+    lobbyType: 'strategic' | 'playful';
+    preferredGameSettingsBucket: AiLobbyPreferredGameSettingsBucket;
+    selectedGameMode: GameMode | null;
+    onSelectGameMode: (mode: GameMode) => void;
+    className?: string;
+    verticalGrid?: boolean;
+};
+
+export const AiChallengeModePickerStrip: React.FC<AiChallengeModePickerStripProps> = ({
+    lobbyType,
+    preferredGameSettingsBucket,
+    selectedGameMode,
+    onSelectGameMode,
+    className,
+    verticalGrid = false,
+}) => {
+    const modalChrome = useMemo(
+        () => aiChallengeModalChromeFromBucket(preferredGameSettingsBucket),
+        [preferredGameSettingsBucket],
+    );
+    const modeTitleToneClass = aiChallengeModalModeTitleTextClass(modalChrome);
+    const availableGameModes = useMemo(
+        () => (lobbyType === 'strategic' ? SPECIAL_GAME_MODES : PLAYFUL_GAME_MODES),
+        [lobbyType],
+    );
+    const modeBriefFallbackForPicker =
+        lobbyType === 'strategic'
+            ? '판 크기·시간·AI 난이도 등은 아래 대국 설정에서 조정합니다.'
+            : '대국 옵션은 아래 설정에서 조정합니다.';
+    const selectedModeDefinition = useMemo(
+        () => resolveLobbySelectedGameModeDefinition(availableGameModes, selectedGameMode),
+        [availableGameModes, selectedGameMode],
+    );
+    const displaySelectedGameMode = selectedModeDefinition?.mode ?? null;
+    return (
+        <GameModePickerSection
+            className={`shrink-0 border-white/10 bg-gradient-to-b from-black/35 to-black/15 px-2 py-2.5 sm:px-2.5 ${
+                verticalGrid ? 'flex min-h-0 flex-1 flex-col overflow-hidden border-t' : 'border-b px-2.5 py-3'
+            } ${className ?? ''}`}
+            chromeKind={modalChrome}
+            selectedMode={selectedModeDefinition}
+            descriptionFallback={modeBriefFallbackForPicker}
+        >
+            <div className="mb-2 flex shrink-0 items-baseline justify-between gap-2">
+                <h3 className={`text-sm font-extrabold tracking-tight ${modeTitleToneClass}`}>게임 모드 선택</h3>
+                <span className="shrink-0 text-[10px] font-semibold text-zinc-500 sm:text-[11px]">
+                    {availableGameModes.length}종
+                </span>
+            </div>
+            <div
+                className={
+                    verticalGrid
+                        ? 'grid min-h-0 flex-1 grid-cols-2 gap-2 overflow-y-auto overscroll-contain pr-0.5 [-webkit-overflow-scrolling:touch]'
+                        : 'flex min-h-[7.25rem] gap-2 overflow-x-auto overscroll-x-contain pb-0.5 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] sm:min-h-[7.75rem] md:grid md:min-h-0 md:max-h-none md:grid-cols-2 md:gap-2 md:overflow-x-hidden md:overflow-y-auto lg:grid-cols-2'
+                }
+            >
+                {availableGameModes.map((game) => (
+                    <div key={game.mode} className={verticalGrid ? 'min-w-0' : 'w-[5.35rem] shrink-0 sm:w-[5.75rem] md:w-auto md:shrink'}>
+                        <GameCard
+                            mode={game.mode}
+                            image={game.image}
+                            displayName={game.name ?? String(game.mode)}
+                            onSelect={onSelectGameMode}
+                            isSelected={displaySelectedGameMode === game.mode}
+                            compact
+                            chromeKind={modalChrome}
+                        />
+                    </div>
+                ))}
+            </div>
+        </GameModePickerSection>
     );
 };
 
@@ -401,10 +574,15 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
     hideScoringTurnLimit = false,
     title = 'AI와 대결하기',
     submitLabel = '시작',
+    submitDisabled = false,
     showActionPointCost = true,
     configureOnly = false,
     onConfigureApply,
     embeddedPanel = false,
+    embeddedPanelStackedLayout = false,
+    hideInlineModePicker = false,
+    controlledSelectedGameMode,
+    onControlledSelectedGameModeChange,
     pairRoomEmbeddedRightSlot,
     pairRoomEmbeddedColumnFooter,
     pairRoomDenseSettingsGrid = false,
@@ -412,6 +590,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
     onPairRoomHandheldCancel,
     onPairRoomHandheldSubmit,
     pairRoomHandheldBusy = false,
+    embeddedPanelFillParent = false,
     pairRoomHideGoAiLevel = false,
     pairRoomHidePlayerOrderRole = false,
     pairDuoRankedLobbyReadOnly = false,
@@ -426,6 +605,9 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
         [preferredGameSettingsBucket],
     );
     const embeddedShellClass = aiChallengeModalBodyFrameClass(modalChrome);
+    const embeddedPanelShellClass = embeddedPanelFillParent
+        ? `${embeddedShellClass} min-h-0 flex-1`
+        : embeddedShellClass;
     const modePickerColumnClassName = aiChallengeModalModePickerColumnClass(modalChrome);
     const modeTitleToneClass = aiChallengeModalModeTitleTextClass(modalChrome);
     const denseSettingsHeadingToneClass = aiChallengeModalDenseSettingsHeadingClass(modalChrome);
@@ -435,12 +617,28 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
         () => (lobbyType === 'strategic' ? SPECIAL_GAME_MODES : PLAYFUL_GAME_MODES),
         [lobbyType],
     );
+    const isModeControlled =
+        controlledSelectedGameMode !== undefined && onControlledSelectedGameModeChange !== undefined;
     const [selectedGameMode, setSelectedGameMode] = useState<GameMode | null>(() => {
+        if (
+            controlledSelectedGameMode &&
+            availableGameModes.some((m) => m.mode === controlledSelectedGameMode)
+        ) {
+            return controlledSelectedGameMode;
+        }
         if (seedFromSession?.mode && availableGameModes.some(m => m.mode === seedFromSession.mode)) {
             return seedFromSession.mode;
         }
         return availableGameModes[0]?.mode || null;
     });
+    const effectiveSelectedGameMode = isModeControlled ? controlledSelectedGameMode : selectedGameMode;
+
+    useEffect(() => {
+        if (!isModeControlled || !controlledSelectedGameMode) return;
+        if (controlledSelectedGameMode !== selectedGameMode) {
+            setSelectedGameMode(controlledSelectedGameMode);
+        }
+    }, [isModeControlled, controlledSelectedGameMode, selectedGameMode]);
     const [settings, setSettings] = useState<GameSettings>(DEFAULT_GAME_SETTINGS);
     const prevSelectedGameModeRef = useRef<GameMode | null>(null);
     const [mobileStep, setMobileStep] = useState<'pickMode' | 'settings'>(() => (seedFromSession ? 'settings' : 'pickMode'));
@@ -461,6 +659,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
         embeddedPanel && configureOnly
             ? `${seedFromSession?.mode ?? ''}\0${stableStringify(seedFromSession?.settings ?? {})}\0${stableStringify(seedFromSession?.settingsByMode ?? {})}`
             : '__no_embed_parent_sync__';
+    const lastEmbeddedPushKeyRef = useRef('');
 
     const aiApLobbyChannel = useMemo((): PairPetArenaApLobbyChannel => {
         if (startActionType === 'START_AI_GAME') {
@@ -497,12 +696,24 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
     const calculatedHeight = isMobile ? 680 : 803;
     const mobileTextScale = 1.0;
 
-    /** 방 만들기 우측과 동일한 밀집 대국 설정 그리드·행 스타일(독립 AI 모달은 자동 적용) */
+      /** 방 만들기 우측·로비 임베드 AI 패널: 밀집 2열 대국 설정 그리드 (독립 AI 모달은 자동 적용) */
     const useLobbyDenseGameSettingsLayout =
-        pairRoomDenseSettingsGrid || (!embeddedPanel && !configureOnly);
+        pairRoomDenseSettingsGrid ||
+        (!embeddedPanel && !configureOnly) ||
+        (embeddedPanel && embeddedPanelStackedLayout && !configureOnly);
 
-    const selectedGameDefinition = useMemo(() => {
-        return availableGameModes.find(mode => mode.mode === selectedGameMode);
+    const selectedGameDefinition = useMemo(
+        () => resolveLobbySelectedGameModeDefinition(availableGameModes, effectiveSelectedGameMode, selectedGameMode),
+        [availableGameModes, effectiveSelectedGameMode, selectedGameMode],
+    );
+    const displaySelectedGameMode = selectedGameDefinition?.mode ?? null;
+
+    /** 목록 첫 모드가 기본 선택 — state가 비어 있거나 무효면 즉시 맞춤 */
+    useEffect(() => {
+        const defaultMode = availableGameModes[0]?.mode ?? null;
+        if (!defaultMode) return;
+        if (selectedGameMode != null && availableGameModes.some((m) => m.mode === selectedGameMode)) return;
+        setSelectedGameMode(defaultMode);
     }, [availableGameModes, selectedGameMode]);
 
     // 게임 모드 변경 시 설정 초기화 (재대결 시드는 직전 대국 설정을 우선·localStorage에 동기화)
@@ -523,6 +734,8 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                 pairFriendlyHumanClock,
                 transformSettingsBeforeStart,
             );
+            const canonicalKey = `${selectedGameMode}\0${stableStringify(canonical)}`;
+            if (canonicalKey === lastEmbeddedPushKeyRef.current) return;
             setSettings((prev) => (stableStringify(prev) === stableStringify(canonical) ? prev : canonical));
             return;
         }
@@ -586,15 +799,21 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
         }
     }, [pairDuoRankedLobbyReadOnly, embeddedParentDraftFingerprint, availableGameModes, selectedGameMode]);
 
-    /** 임베드 방 만들기: 부모 `createModalDraftGame.mode`와 자식 선택 모드가 어긋나면 설정·드롭다운이 롤링됨 */
+    /** 임베드 방 만들기: 부모 시드의 mode가 바뀐 경우에만 자식 모드 동기화 (클릭마다 되돌리면 설명이 스와핑됨) */
+    const lastSyncedEmbeddedParentModeRef = useRef<GameMode | null | undefined>(undefined);
     useEffect(() => {
         if (!embeddedPanel || !configureOnly || pairDuoRankedLobbyReadOnly) return;
-        const parentMode = embeddedSeedLiveRef.current?.mode;
-        if (!parentMode || !availableGameModes.some((a) => a.mode === parentMode)) return;
-        if (selectedGameMode !== parentMode) {
+        const parentMode = embeddedSeedLiveRef.current?.mode ?? null;
+        if (lastSyncedEmbeddedParentModeRef.current === undefined) {
+            lastSyncedEmbeddedParentModeRef.current = parentMode;
+            return;
+        }
+        if (parentMode === lastSyncedEmbeddedParentModeRef.current) return;
+        lastSyncedEmbeddedParentModeRef.current = parentMode;
+        if (parentMode && availableGameModes.some((a) => a.mode === parentMode)) {
             setSelectedGameMode(parentMode);
         }
-    }, [embeddedPanel, configureOnly, pairDuoRankedLobbyReadOnly, embeddedParentDraftFingerprint, availableGameModes, selectedGameMode]);
+    }, [embeddedPanel, configureOnly, pairDuoRankedLobbyReadOnly, embeddedParentDraftFingerprint, availableGameModes]);
 
     useEffect(() => {
         if (!pairDuoRankedLobbyReadOnly || !selectedGameMode) return;
@@ -616,11 +835,29 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                 : typeof rawCur === 'string' && String(rawCur).trim() !== ''
                   ? Number.parseInt(String(rawCur), 10)
                   : NaN;
-        /** 비정규 타입(문자열 boardSize 등)만 숫자로 통일. `19 !== "19"`로 매번 `handleSettingChange`가 돌면 부모 시드↔푸시 루프로 셀렉트가 깜빡인다 */
+        /** 비정규 타입(문자열 boardSize 등)만 숫자로 통일. 자동 보정은 localStorage에 쓰지 않아 PVP↔AI 전환·시드 동기화 루프를 막는다 */
         if (!Number.isFinite(curNum) || !boardSizeOptions.includes(curNum)) {
-            handleSettingChange('boardSize', boardSizeOptions[0] as GameSettings['boardSize']);
+            setSettings((prev) => {
+                const next = clampAiLobbyStrategicItemCaps(
+                    selectedGameMode,
+                    normalizeAiScoringTurnLimit(selectedGameMode, {
+                        ...prev,
+                        boardSize: boardSizeOptions[0] as GameSettings['boardSize'],
+                    }),
+                );
+                return stableStringify(prev) === stableStringify(next) ? prev : next;
+            });
         } else if (typeof rawCur === 'string') {
-            handleSettingChange('boardSize', curNum as GameSettings['boardSize']);
+            setSettings((prev) => {
+                const next = clampAiLobbyStrategicItemCaps(
+                    selectedGameMode,
+                    normalizeAiScoringTurnLimit(selectedGameMode, {
+                        ...prev,
+                        boardSize: curNum as GameSettings['boardSize'],
+                    }),
+                );
+                return stableStringify(prev) === stableStringify(next) ? prev : next;
+            });
         }
     }, [selectedGameMode, settings.boardSize, lobbyType, pairDuoRankedLobbyReadOnly, embeddedPanel, configureOnly]);
 
@@ -633,7 +870,13 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
             : getAiScoringTurnLimitByBoardSize(settings.boardSize);
         const currentLimit = settings.scoringTurnLimit ?? 0;
         if (currentLimit !== requiredLimit) {
-            handleSettingChange('scoringTurnLimit', requiredLimit);
+            setSettings((prev) => {
+                const next = clampAiLobbyStrategicItemCaps(
+                    selectedGameMode,
+                    normalizeAiScoringTurnLimit(selectedGameMode, { ...prev, scoringTurnLimit: requiredLimit }),
+                );
+                return stableStringify(prev) === stableStringify(next) ? prev : next;
+            });
         }
     }, [hideScoringTurnLimit, selectedGameMode, settings.boardSize, settings.mixedModes, settings.scoringTurnLimit, pairDuoRankedLobbyReadOnly]);
 
@@ -738,17 +981,20 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
     /** 방 만들기 임베드: 모드 전환 직전 부모에 현재 모드 초안을 밀어 넣고, 다음 모드 설정을 같은 틱에 반영해 셀렉트 롤링·한 프레임 어긋남 방지 */
     const selectGameModeForLobby = useCallback(
         (mode: GameMode) => {
+            if (isModeControlled && onControlledSelectedGameModeChange) {
+                onControlledSelectedGameModeChange(mode);
+                if (!(embeddedPanel && configureOnly)) return;
+            }
             if (pairDuoRankedLobbyReadOnly) {
                 setSelectedGameMode(mode);
                 return;
             }
-            if (embeddedPanel && configureOnly && onConfigureApply && selectedGameMode && selectedGameMode !== mode) {
-                const built = buildFinalSettingsForApply();
-                if (built) onConfigureApply(built.mode, built.settings);
-            }
-            const liveSnapshot = embeddedPanel && configureOnly ? embeddedSeedLiveRef.current : undefined;
-            setSelectedGameMode(mode);
             if (embeddedPanel && configureOnly && !pairDuoRankedLobbyReadOnly) {
+                if (onConfigureApply && selectedGameMode && selectedGameMode !== mode) {
+                    const built = buildFinalSettingsForApply();
+                    if (built) onConfigureApply(built.mode, built.settings);
+                }
+                const liveSnapshot = embeddedSeedLiveRef.current;
                 const canonical = resolveEmbeddedConfigureSeedSettings(
                     mode,
                     liveSnapshot ?? undefined,
@@ -756,10 +1002,20 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                     pairFriendlyHumanClock,
                     transformSettingsBeforeStart,
                 );
+                setSelectedGameMode(mode);
                 setSettings((prev) => (stableStringify(prev) === stableStringify(canonical) ? prev : canonical));
+                if (onConfigureApply) {
+                    onConfigureApply(mode, canonical);
+                    lastEmbeddedPushKeyRef.current = `${mode}\0${stableStringify(canonical)}`;
+                    lastSyncedEmbeddedParentModeRef.current = mode;
+                }
+                return;
             }
+            setSelectedGameMode(mode);
         },
         [
+            isModeControlled,
+            onControlledSelectedGameModeChange,
             pairDuoRankedLobbyReadOnly,
             embeddedPanel,
             configureOnly,
@@ -771,17 +1027,24 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
             transformSettingsBeforeStart,
         ],
     );
-
-    const lastEmbeddedPushKeyRef = useRef('');
     useEffect(() => {
         if (!embeddedPanel || !configureOnly || !onConfigureApply) return;
         const built = buildFinalSettingsForApply();
         if (!built) return;
         const key = `${built.mode}\0${stableStringify(built.settings)}`;
         if (key === lastEmbeddedPushKeyRef.current) return;
+        const live = embeddedSeedLiveRef.current;
+        const parentSlice =
+            live?.settingsByMode?.[built.mode] ??
+            (live?.mode === built.mode && live.settings ? live.settings : undefined);
+        if (parentSlice && stableStringify(parentSlice) === stableStringify(built.settings)) {
+            lastEmbeddedPushKeyRef.current = key;
+            return;
+        }
         lastEmbeddedPushKeyRef.current = key;
         onConfigureApply(built.mode, built.settings);
-    }, [embeddedPanel, configureOnly, onConfigureApply, buildFinalSettingsForApply]);
+        lastSyncedEmbeddedParentModeRef.current = built.mode;
+    }, [embeddedPanel, configureOnly, onConfigureApply, buildFinalSettingsForApply, embeddedParentDraftFingerprint]);
 
     const handleChallenge = async () => {
         if (!selectedGameMode) return;
@@ -819,6 +1082,15 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
     );
     /** 손님 조건 변경 제안 모달(모바일): 라벨·드롭다운 가로 2분할 대신 세로 스택 + 바깥은 1열 그리드 */
     const proposeMobileStackedLayout = Boolean(pairRoomLobbyChangePropose && isMobile && pairRoomEmbeddedRightSlot);
+    /** PC·모바일 방 만들기·AI 경기장 임베드: 대국 설정 드롭다운을 가로 3열 */
+    const pairRoomCreateThreeColumnGrid = Boolean(
+        useLobbyDenseGameSettingsLayout &&
+            !proposeMobileStackedLayout &&
+            (pairRoomEmbeddedRightSlot ||
+                (embeddedPanel && embeddedPanelStackedLayout && !configureOnly)) &&
+            (!isMobile ||
+                (pairRoomHandheldCreateStackedFooter && pairEmbedMobileStep === 'details')),
+    );
 
     // 게임 모드별 설정 UI 렌더링
     const renderGameSettings = () => {
@@ -850,9 +1122,11 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                 className={
                                     handheldCompact
                                         ? 'mt-1.5 grid w-full min-w-0 grid-cols-2 content-start gap-x-1.5 gap-y-1.5 sm:mt-2 [&>div]:min-w-0'
-                                        : pairRoomEmbeddedRightSlot
-                                          ? 'mt-1.5 grid w-full min-w-0 grid-cols-2 content-start justify-center gap-x-2.5 gap-y-2 sm:mt-2 [&>div]:min-w-0'
-                                          : `mt-1.5 sm:mt-2 ${PAIR_LOBBY_DENSE_SETTINGS_RULE_GRID_CLASS}`
+                                        : pairRoomCreateThreeColumnGrid
+                                          ? 'mt-1.5 grid w-full min-w-0 grid-cols-3 content-start justify-center gap-x-2.5 gap-y-2 sm:mt-2 [&>div]:min-w-0'
+                                          : pairRoomEmbeddedRightSlot
+                                            ? 'mt-1.5 grid w-full min-w-0 grid-cols-2 content-start justify-center gap-x-2.5 gap-y-2 sm:mt-2 [&>div]:min-w-0'
+                                            : `mt-1.5 sm:mt-2 ${PAIR_LOBBY_DENSE_SETTINGS_RULE_GRID_CLASS}`
                                 }
                             >
                                 {ruleRows.map((row, idx) => (
@@ -880,47 +1154,63 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
         }
 
         const denseSettings = useLobbyDenseGameSettingsLayout;
+        /** 핸드헬드 「방 만들기」2단계만 극소 타이포 — 그 외 로비·AI 임베드는 가독성 우선 */
+        const lobbySettingsTypographyCompact = Boolean(denseSettings && handheldPairRoomDetailsCompact);
         /** 단독 AI 모달(모바일): `PAIR_LOBBY_DENSE_SETTINGS_RULE_GRID_CLASS`의 14rem 열 때문에 1열로 붕괴하지 않도록 2열 고정 */
         const handheldStandaloneAiSettingsGrid = Boolean(denseSettings && layoutMobile);
+        /** 로비 임베드 AI(전략·놀이·페어) 모바일: 드롭다운 설정을 가로 2열로 */
+        const embeddedStackedAiSettingsGrid = Boolean(
+            denseSettings &&
+                embeddedPanel &&
+                embeddedPanelStackedLayout &&
+                !configureOnly &&
+                !pairRoomEmbeddedRightSlot &&
+                !pairRoomCreateThreeColumnGrid,
+        );
+        const aiSettingsTwoColumnGrid = handheldStandaloneAiSettingsGrid || embeddedStackedAiSettingsGrid;
         /** 핸드헬드 「방 만들기」2단계: 드롭다운·라벨을 단독 AI 모달 본문과 동일한 본문 크기(text-sm)에 맞춤 */
         const handheldRoomCreateDenseTypography = Boolean(denseSettings && isMobile && pairRoomHandheldCreateStackedFooter);
         const gameSettingsSelectClass = proposeMobileStackedLayout
-            ? 'h-8 min-h-8 w-full box-border rounded-lg border border-white/15 bg-black/35 pl-2 pr-9 text-left text-[12px] font-semibold leading-tight text-slate-100 outline-none ring-0 focus:border-cyan-400/50 disabled:opacity-50'
+            ? 'h-9 min-h-9 w-full box-border rounded-lg border border-white/15 bg-black/35 pl-2 pr-9 text-left text-[13px] font-semibold leading-tight text-slate-100 outline-none ring-0 focus:border-cyan-400/50 disabled:opacity-50 sm:text-sm'
             : denseSettings
-              ? handheldPairRoomDetailsCompact
+              ? lobbySettingsTypographyCompact
                   ? 'h-7 min-h-7 w-full min-w-[5rem] box-border rounded-lg border border-white/15 bg-black/35 pl-2 pr-9 text-left text-[11px] font-semibold leading-tight text-slate-100 outline-none ring-0 focus:border-cyan-400/50 disabled:opacity-50'
-                  : handheldStandaloneAiSettingsGrid
-                    ? 'h-8 min-h-8 w-full min-w-[5.25rem] box-border rounded-lg border border-white/15 bg-black/35 pl-2 pr-9 text-left text-[11px] font-semibold leading-tight text-slate-100 outline-none ring-0 focus:border-cyan-400/50 disabled:opacity-50'
-                    : 'h-9 min-h-9 w-full min-w-[5.5rem] box-border rounded-lg border border-white/15 bg-black/35 pl-2 pr-10 text-left text-sm font-semibold text-slate-100 outline-none ring-0 focus:border-cyan-400/50 disabled:opacity-50'
+                  : aiSettingsTwoColumnGrid
+                    ? 'h-9 min-h-9 w-full min-w-[5.25rem] box-border rounded-lg border border-white/15 bg-black/35 pl-2 pr-9 text-left text-[13px] font-semibold leading-tight text-slate-100 outline-none ring-0 focus:border-cyan-400/50 disabled:opacity-50 sm:text-sm'
+                    : 'h-10 min-h-10 w-full min-w-[5.5rem] box-border rounded-lg border border-white/15 bg-black/35 pl-2 pr-10 text-left text-sm font-semibold text-slate-100 outline-none ring-0 focus:border-cyan-400/50 disabled:opacity-50'
               : 'w-full bg-gray-700 border border-gray-600 text-center text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2';
         const gameSettingsSelectFlexClass = proposeMobileStackedLayout
-            ? 'h-8 min-h-8 w-full flex-1 box-border rounded-lg border border-white/15 bg-black/35 pl-2 pr-9 text-left text-[12px] font-semibold leading-tight text-slate-100 outline-none ring-0 focus:border-cyan-400/50'
+            ? 'h-9 min-h-9 w-full flex-1 box-border rounded-lg border border-white/15 bg-black/35 pl-2 pr-9 text-left text-[13px] font-semibold leading-tight text-slate-100 outline-none ring-0 focus:border-cyan-400/50 sm:text-sm'
             : denseSettings
-              ? handheldPairRoomDetailsCompact
+              ? lobbySettingsTypographyCompact
                   ? 'h-7 min-h-7 w-full min-w-[5rem] flex-1 box-border rounded-lg border border-white/15 bg-black/35 pl-2 pr-9 text-left text-[11px] font-semibold leading-tight text-slate-100 outline-none ring-0 focus:border-cyan-400/50'
-                  : handheldStandaloneAiSettingsGrid
-                    ? 'h-8 min-h-8 w-full min-w-[5.25rem] flex-1 box-border rounded-lg border border-white/15 bg-black/35 pl-2 pr-9 text-left text-[11px] font-semibold leading-tight text-slate-100 outline-none ring-0 focus:border-cyan-400/50'
-                    : 'h-9 min-h-9 w-full min-w-[5.5rem] flex-1 box-border rounded-lg border border-white/15 bg-black/35 pl-2 pr-10 text-left text-sm font-semibold text-slate-100 outline-none ring-0 focus:border-cyan-400/50'
+                  : aiSettingsTwoColumnGrid
+                    ? 'h-9 min-h-9 w-full min-w-[5.25rem] flex-1 box-border rounded-lg border border-white/15 bg-black/35 pl-2 pr-9 text-left text-[13px] font-semibold leading-tight text-slate-100 outline-none ring-0 focus:border-cyan-400/50 sm:text-sm'
+                    : 'h-10 min-h-10 w-full min-w-[5.5rem] flex-1 box-border rounded-lg border border-white/15 bg-black/35 pl-2 pr-10 text-left text-sm font-semibold text-slate-100 outline-none ring-0 focus:border-cyan-400/50'
               : 'flex-1 bg-gray-700 border border-gray-600 text-center text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2';
         const denseLobbyAccentLabelClass = lobbyType === 'playful' ? 'text-amber-100' : 'text-cyan-100';
         const gameSettingsLabelClass = proposeMobileStackedLayout
             ? lobbyType === 'playful'
-                ? 'pl-0.5 text-left text-[10px] font-bold leading-snug text-amber-100/90'
-                : 'pl-0.5 text-left text-[10px] font-bold leading-snug text-cyan-100/90'
+                ? 'pl-0.5 text-left text-xs font-bold leading-snug text-amber-100/90 sm:text-[13px]'
+                : 'pl-0.5 text-left text-xs font-bold leading-snug text-cyan-100/90 sm:text-[13px]'
             : denseSettings
-              ? handheldPairRoomDetailsCompact
+              ? lobbySettingsTypographyCompact
                   ? `min-w-0 w-full text-left text-[10px] font-bold leading-tight ${denseLobbyAccentLabelClass}`
                   : handheldRoomCreateDenseTypography
                     ? `min-w-0 w-full text-left text-sm font-bold leading-tight ${denseLobbyAccentLabelClass}`
-                    : handheldStandaloneAiSettingsGrid
-                      ? `min-w-0 w-full text-left text-[10px] font-bold leading-tight ${denseLobbyAccentLabelClass}`
-                      : `min-w-0 w-full text-left text-xs font-bold leading-tight ${denseLobbyAccentLabelClass}`
-              : 'font-semibold text-gray-300 flex-shrink-0';
+                    : aiSettingsTwoColumnGrid
+                      ? `min-w-0 w-full text-left text-xs font-bold leading-tight sm:text-[13px] ${denseLobbyAccentLabelClass}`
+                      : `min-w-0 w-full text-left text-sm font-bold leading-tight ${denseLobbyAccentLabelClass}`
+              : 'font-semibold text-gray-300 flex-shrink-0 text-sm sm:text-base';
 
         const showBoardSize = ![GameMode.Alkkagi, GameMode.Curling, GameMode.Dice].includes(selectedGameMode);
         const showKomi = ![GameMode.Capture, GameMode.Omok, GameMode.Ttamok, GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Thief, GameMode.Base].includes(selectedGameMode);
         /** 알까기·컬링·주사위·도둑은 시계 UI 없음. 페어 4인·2인 친선은 사람 대전이므로 시계 표시 */
         const modesWithoutClockUi = [GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Thief];
+        const mixModes = settings.mixedModes ?? [];
+        const isMixMode = selectedGameMode === GameMode.Mix;
+        const showFischer =
+            selectedGameMode === GameMode.Speed || (isMixMode && mixModes.includes(GameMode.Speed));
         const showTimeControls = pairFriendlyHumanClock && !modesWithoutClockUi.includes(selectedGameMode);
         const showCaptureTarget = selectedGameMode === GameMode.Capture;
         const showTtamokCaptureTarget = selectedGameMode === GameMode.Ttamok;
@@ -969,7 +1259,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
               ? `${PAIR_LOBBY_DENSE_SETTING_ROW_CLASS}${
                     handheldPairRoomDetailsCompact
                         ? ` ${HANDHELD_PAIR_ROOM_CREATE_DETAILS_SETTING_ROW_EXTRA_CLASS}`
-                        : handheldStandaloneAiSettingsGrid
+                        : aiSettingsTwoColumnGrid
                           ? ` ${HANDHELD_STANDALONE_AI_SETTING_ROW_EXTRA_CLASS}`
                           : ''
                 }`
@@ -983,22 +1273,28 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                             ? proposeMobileStackedLayout
                                 ? 'grid w-full min-h-0 auto-rows-min min-w-0 grid-cols-1 content-start gap-y-1.5 overflow-y-auto overflow-x-hidden pr-1 [&>div]:min-w-0'
                                 : handheldPairRoomDetailsCompact
-                                  ? 'grid w-full min-h-0 auto-rows-min min-w-0 content-start justify-center gap-x-1 gap-y-0.5 overflow-y-auto overflow-x-hidden pr-1 grid-cols-2 [&>div]:min-w-0'
-                                  : 'grid w-full min-h-0 auto-rows-min min-w-0 content-start justify-center gap-x-2.5 gap-y-2 overflow-y-auto overflow-x-hidden pr-1 grid-cols-2 [&>div]:min-w-0'
-                            : handheldStandaloneAiSettingsGrid
-                              ? 'grid h-full max-h-full min-h-0 w-full auto-rows-min min-w-0 grid-cols-2 content-start gap-x-1.5 gap-y-1.5 overflow-y-auto overflow-x-hidden pr-1 [&>div]:min-w-0'
-                              : `${PAIR_LOBBY_DENSE_SETTINGS_RULE_GRID_CLASS} h-full max-h-full overflow-y-auto overflow-x-hidden pr-1`
+                                  ? 'grid w-full min-h-0 auto-rows-min min-w-0 content-start justify-center gap-x-1 gap-y-0.5 overflow-y-auto overflow-x-hidden pr-1 grid-cols-3 [&>div]:min-w-0'
+                                  : pairRoomCreateThreeColumnGrid
+                                    ? 'grid w-full min-h-0 auto-rows-min min-w-0 content-start justify-center gap-x-2.5 gap-y-2 overflow-y-auto overflow-x-hidden pr-1 grid-cols-3 [&>div]:min-w-0'
+                                    : 'grid w-full min-h-0 auto-rows-min min-w-0 content-start justify-center gap-x-2.5 gap-y-2 overflow-y-auto overflow-x-hidden pr-1 grid-cols-2 [&>div]:min-w-0'
+                            : pairRoomCreateThreeColumnGrid
+                              ? 'grid w-full min-h-0 auto-rows-min min-w-0 content-start justify-center gap-x-2.5 gap-y-2 overflow-y-auto overflow-x-hidden pr-1 grid-cols-3 [&>div]:min-w-0'
+                              : aiSettingsTwoColumnGrid
+                                ? `grid h-full max-h-full min-h-0 w-full auto-rows-min min-w-0 grid-cols-2 content-start overflow-y-auto overflow-x-hidden pr-1 [&>div]:min-w-0 ${
+                                      embeddedStackedAiSettingsGrid ? 'gap-x-2 gap-y-2' : 'gap-x-1.5 gap-y-1.5'
+                                  }`
+                                : `${PAIR_LOBBY_DENSE_SETTINGS_RULE_GRID_CLASS} h-full max-h-full overflow-y-auto overflow-x-hidden pr-1`
                         : 'flex h-full flex-col gap-2 overflow-y-auto pr-2'
                 }
             >
                 {showGoAiLevel && (
                     <div className={settingRowClass}>
-                        <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>AI단계</label>
+                        <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>AI단계</label>
                         <select
                             value={settings.kataServerLevel ?? -12}
                             onChange={e => handleSettingChange('kataServerLevel', parseInt(e.target.value, 10))}
                             className={gameSettingsSelectClass}
-                            style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                            style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                         >
                             {AI_LEVELS.map(({ value, label }) => (
                                 <option key={value} value={value}>{label}</option>
@@ -1009,12 +1305,12 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
 
                 {showBoardSize && (
                     <div className={settingRowClass}>
-                        <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>판 크기</label>
+                        <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>판 크기</label>
                         <select 
                             value={settings.boardSize} 
                             onChange={e => handleSettingChange('boardSize', parseInt(e.target.value, 10) as GameSettings['boardSize'])}
                             className={gameSettingsSelectClass}
-                            style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                            style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                         >
                             {boardSizeOptions.map(size => (
                                 <option key={size} value={size}>{size}줄</option>
@@ -1025,13 +1321,13 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
 
                 {showScoringTurnLimit && (
                     <div className={settingRowClass}>
-                        <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>계가까지 턴</label>
+                        <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>계가까지 턴</label>
                         <select 
                             value={requiredScoringTurnLimit}
                             onChange={e => handleSettingChange('scoringTurnLimit', parseInt(e.target.value, 10))}
                             disabled
                             className={gameSettingsSelectClass}
-                            style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                            style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                         >
                             {nonZeroScoringTurnLimitOptions.map(limit => (
                                 <option key={limit} value={limit}>
@@ -1059,10 +1355,12 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                 }`}
                                 style={{
                                     fontSize: denseSettings
-                                        ? handheldStandaloneAiSettingsGrid
+                                        ? lobbySettingsTypographyCompact
                                             ? `${Math.max(10, Math.round(10 * mobileTextScale))}px`
-                                            : `${Math.max(10, Math.round(11 * mobileTextScale))}px`
-                                        : `${Math.max(12, Math.round(14 * mobileTextScale))}px`,
+                                            : handheldStandaloneAiSettingsGrid
+                                              ? `${Math.max(12, Math.round(12 * mobileTextScale))}px`
+                                              : `${Math.max(13, Math.round(13 * mobileTextScale))}px`
+                                        : `${Math.max(13, Math.round(15 * mobileTextScale))}px`,
                                 }}
                             >
                                 <input
@@ -1081,246 +1379,142 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                             </label>
                         );
                     });
-                    return (
-                        <div
-                            className={`w-full border-t border-gray-700 ${denseSettings ? 'col-span-full mt-1 space-y-2 pt-2' : 'mt-1 space-y-3 pt-3'}`}
-                        >
-                            {mixEmbedCompactHeader ? (
-                                <div className="min-w-0 space-y-1">
-                                    <h3
-                                        className="mb-0 font-semibold leading-tight text-gray-300"
-                                        style={{ fontSize: `${Math.max(12, Math.round(13 * mobileTextScale))}px` }}
+                    const mixModeSettingFields = (
+                        <>
+                            {settings.mixedModes?.includes(GameMode.Base) && (
+                                <div className={settingRowClass}>
+                                    <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>베이스돌 개수</label>
+                                    <select
+                                        value={settings.baseStones}
+                                        disabled={pairRoomLobbyChangePropose}
+                                        onChange={(e) => handleSettingChange('baseStones', parseInt(e.target.value, 10))}
+                                        className={gameSettingsSelectClass}
+                                        style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                                     >
-                                        믹스룰 (2개 이상)
-                                    </h3>
-                                    <div className="flex min-h-[1.75rem] min-w-0 flex-nowrap gap-1 overflow-x-auto overscroll-x-contain pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                                        {mixCheckboxes}
-                                    </div>
+                                        {AI_CHALLENGE_BASE_STONE_COUNTS.map((c) => (
+                                            <option key={c} value={c}>
+                                                {c}개
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
-                            ) : (
+                            )}
+                            {settings.mixedModes?.includes(GameMode.Hidden) && (
                                 <>
-                                    <div className={denseSettings ? 'flex flex-wrap items-end gap-x-2 gap-y-1' : ''}>
-                                        <h3
-                                            className={`font-semibold text-gray-300 ${denseSettings ? 'mb-0 shrink-0 leading-none' : 'mb-1'}`}
-                                            style={{ fontSize: `${Math.max(14, Math.round(16 * mobileTextScale))}px` }}
+                                    <div className={settingRowClass}>
+                                        <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>히든돌 개수</label>
+                                        <select
+                                            value={settings.hiddenStoneCount}
+                                            onChange={(e) => handleSettingChange('hiddenStoneCount', parseInt(e.target.value, 10))}
+                                            className={gameSettingsSelectClass}
+                                            style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                                         >
-                                            믹스룰 조합 (2개 이상 선택)
-                                        </h3>
-                                        {!pairRoomEmbeddedRightSlot && !handheldStandaloneAiSettingsGrid ? (
-                                            <p className="text-gray-500 text-xs leading-snug">
-                                                PVP 신청 화면과 같이, 함께 적용할 규칙을 고릅니다. (클래식 바둑은 기본으로 포함됩니다.)
-                                            </p>
-                                        ) : null}
+                                            {AI_CHALLENGE_HIDDEN_STONE_COUNTS.map((c) => (
+                                                <option key={c} value={c}>
+                                                    {c}개
+                                                </option>
+                                            ))}
+                                        </select>
                                     </div>
-                                    <div
-                                        className={
-                                            denseSettings
-                                                ? handheldStandaloneAiSettingsGrid
-                                                    ? 'grid min-w-0 grid-cols-2 gap-1'
-                                                    : 'flex min-w-0 flex-nowrap gap-1 overflow-x-auto overscroll-x-contain pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
-                                                : 'grid grid-cols-2 gap-2 text-sm'
-                                        }
+                                    <div className={settingRowClass}>
+                                        <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>스캔 개수</label>
+                                        <select
+                                            value={settings.scanCount ?? AI_LOBBY_SCAN_MAX}
+                                            onChange={(e) => handleSettingChange('scanCount', parseInt(e.target.value, 10))}
+                                            className={gameSettingsSelectClass}
+                                            style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
+                                        >
+                                            {AI_CHALLENGE_SCAN_COUNTS.map((c) => (
+                                                <option key={c} value={c}>
+                                                    {c}개
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </>
+                            )}
+                            {settings.mixedModes?.includes(GameMode.Missile) && (
+                                <div className={settingRowClass}>
+                                    <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>미사일 개수</label>
+                                    <select
+                                        value={settings.missileCount ?? 3}
+                                        onChange={(e) => handleSettingChange('missileCount', parseInt(e.target.value, 10))}
+                                        className={gameSettingsSelectClass}
+                                        style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                                     >
-                                        {mixCheckboxes}
-                                    </div>
-                                </>
-                            )}
-                            {denseSettings ? (
-                                <div
-                                    className={`grid min-w-0 ${proposeMobileStackedLayout ? 'grid-cols-1' : 'grid-cols-2'} ${handheldStandaloneAiSettingsGrid ? 'gap-1.5' : 'gap-2'}`}
-                                >
-                                    {settings.mixedModes?.includes(GameMode.Base) && (
-                                        <div className={settingRowClass}>
-                                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>베이스돌 개수</label>
-                                            <select
-                                                value={settings.baseStones}
-                                                disabled={pairRoomLobbyChangePropose}
-                                                onChange={(e) => handleSettingChange('baseStones', parseInt(e.target.value, 10))}
-                                                className={gameSettingsSelectClass}
-                                                style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
-                                            >
-                                                {AI_CHALLENGE_BASE_STONE_COUNTS.map((c) => (
-                                                    <option key={c} value={c}>
-                                                        {c}개
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    )}
-                                    {settings.mixedModes?.includes(GameMode.Hidden) && (
-                                        <>
-                                            <div className={settingRowClass}>
-                                                <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>히든돌 개수</label>
-                                                <select
-                                                    value={settings.hiddenStoneCount}
-                                                    onChange={(e) => handleSettingChange('hiddenStoneCount', parseInt(e.target.value, 10))}
-                                                    className={gameSettingsSelectClass}
-                                                    style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
-                                                >
-                                                    {AI_CHALLENGE_HIDDEN_STONE_COUNTS.map((c) => (
-                                                        <option key={c} value={c}>
-                                                            {c}개
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                            <div className={settingRowClass}>
-                                                <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>스캔 개수</label>
-                                                <select
-                                                    value={settings.scanCount ?? AI_LOBBY_SCAN_MAX}
-                                                    onChange={(e) => handleSettingChange('scanCount', parseInt(e.target.value, 10))}
-                                                    className={gameSettingsSelectClass}
-                                                    style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
-                                                >
-                                                    {AI_CHALLENGE_SCAN_COUNTS.map((c) => (
-                                                        <option key={c} value={c}>
-                                                            {c}개
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                        </>
-                                    )}
-                                    {settings.mixedModes?.includes(GameMode.Missile) && (
-                                        <div className={settingRowClass}>
-                                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>미사일 개수</label>
-                                            <select
-                                                value={settings.missileCount ?? 3}
-                                                onChange={(e) => handleSettingChange('missileCount', parseInt(e.target.value, 10))}
-                                                className={gameSettingsSelectClass}
-                                                style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
-                                            >
-                                                {AI_CHALLENGE_MISSILE_COUNTS.map((c) => (
-                                                    <option key={c} value={c}>
-                                                        {c}개
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    )}
-                                    {settings.mixedModes?.includes(GameMode.Capture) && (
-                                        <div className={settingRowClass}>
-                                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>목표점수</label>
-                                            <select
-                                                value={settings.captureTarget}
-                                                disabled={pairRoomLobbyChangePropose}
-                                                onChange={(e) => handleSettingChange('captureTarget', parseInt(e.target.value, 10))}
-                                                className={gameSettingsSelectClass}
-                                                style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
-                                            >
-                                                {CAPTURE_TARGETS.map((t) => (
-                                                    <option key={t} value={t}>
-                                                        {t}개
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    )}
-                                    {settings.mixedModes && settings.mixedModes.length < 2 ? (
-                                        <p className="col-span-2 text-amber-300/90 text-xs">규칙을 2개 이상 선택해 주세요.</p>
-                                    ) : null}
+                                        {AI_CHALLENGE_MISSILE_COUNTS.map((c) => (
+                                            <option key={c} value={c}>
+                                                {c}개
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
-                            ) : (
-                                <>
-                                    {settings.mixedModes?.includes(GameMode.Base) && (
-                                        <div className={settingRowClass}>
-                                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>베이스돌 개수</label>
-                                            <select
-                                                value={settings.baseStones}
-                                                disabled={pairRoomLobbyChangePropose}
-                                                onChange={(e) => handleSettingChange('baseStones', parseInt(e.target.value, 10))}
-                                                className={gameSettingsSelectClass}
-                                                style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
-                                            >
-                                                {AI_CHALLENGE_BASE_STONE_COUNTS.map((c) => (
-                                                    <option key={c} value={c}>
-                                                        {c}개
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    )}
-                                    {settings.mixedModes?.includes(GameMode.Hidden) && (
-                                        <>
-                                            <div className={settingRowClass}>
-                                                <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>히든돌 개수</label>
-                                                <select
-                                                    value={settings.hiddenStoneCount}
-                                                    onChange={(e) => handleSettingChange('hiddenStoneCount', parseInt(e.target.value, 10))}
-                                                    className={gameSettingsSelectClass}
-                                                    style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
-                                                >
-                                                    {AI_CHALLENGE_HIDDEN_STONE_COUNTS.map((c) => (
-                                                        <option key={c} value={c}>
-                                                            {c}개
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                            <div className={settingRowClass}>
-                                                <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>스캔 개수</label>
-                                                <select
-                                                    value={settings.scanCount ?? AI_LOBBY_SCAN_MAX}
-                                                    onChange={(e) => handleSettingChange('scanCount', parseInt(e.target.value, 10))}
-                                                    className={gameSettingsSelectClass}
-                                                    style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
-                                                >
-                                                    {AI_CHALLENGE_SCAN_COUNTS.map((c) => (
-                                                        <option key={c} value={c}>
-                                                            {c}개
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                        </>
-                                    )}
-                                    {settings.mixedModes?.includes(GameMode.Missile) && (
-                                        <div className={settingRowClass}>
-                                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>미사일 개수</label>
-                                            <select
-                                                value={settings.missileCount ?? 3}
-                                                onChange={(e) => handleSettingChange('missileCount', parseInt(e.target.value, 10))}
-                                                className={gameSettingsSelectClass}
-                                                style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
-                                            >
-                                                {AI_CHALLENGE_MISSILE_COUNTS.map((c) => (
-                                                    <option key={c} value={c}>
-                                                        {c}개
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    )}
-                                    {settings.mixedModes?.includes(GameMode.Capture) && (
-                                        <div className={settingRowClass}>
-                                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>목표점수</label>
-                                            <select
-                                                value={settings.captureTarget}
-                                                disabled={pairRoomLobbyChangePropose}
-                                                onChange={(e) => handleSettingChange('captureTarget', parseInt(e.target.value, 10))}
-                                                className={gameSettingsSelectClass}
-                                                style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
-                                            >
-                                                {CAPTURE_TARGETS.map((t) => (
-                                                    <option key={t} value={t}>
-                                                        {t}개
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    )}
-                                    {settings.mixedModes && settings.mixedModes.length < 2 ? (
-                                        <p className="text-amber-300/90 text-xs">규칙을 2개 이상 선택해 주세요.</p>
-                                    ) : null}
-                                </>
                             )}
-                        </div>
+                            {settings.mixedModes?.includes(GameMode.Capture) && (
+                                <div className={settingRowClass}>
+                                    <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>목표점수</label>
+                                    <select
+                                        value={settings.captureTarget}
+                                        disabled={pairRoomLobbyChangePropose}
+                                        onChange={(e) => handleSettingChange('captureTarget', parseInt(e.target.value, 10))}
+                                        className={gameSettingsSelectClass}
+                                        style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
+                                    >
+                                        {CAPTURE_TARGETS.map((t) => (
+                                            <option key={t} value={t}>
+                                                {t}개
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+                        </>
+                    );
+                    return (
+                        <>
+                            <div
+                                className={`w-full min-w-0 border-t border-gray-700 ${denseSettings ? 'col-span-full mt-1 pt-2' : 'mt-1 pt-3'}`}
+                            >
+                                {mixEmbedCompactHeader ? (
+                                    <div className="min-w-0 space-y-1">
+                                        <h3
+                                            className="mb-0 text-sm font-semibold leading-tight text-gray-300 sm:text-[15px]"
+                                        >
+                                            믹스룰
+                                        </h3>
+                                        <div className="flex min-h-[1.75rem] min-w-0 flex-nowrap gap-1 overflow-x-auto overscroll-x-contain pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                                            {mixCheckboxes}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <h3
+                                            className={`font-semibold text-gray-300 ${denseSettings ? 'mb-1 text-sm sm:text-[15px]' : 'mb-1 text-base'}`}
+                                        >
+                                            믹스룰
+                                        </h3>
+                                        <div
+                                            className={
+                                                denseSettings
+                                                    ? handheldStandaloneAiSettingsGrid
+                                                        ? 'grid min-w-0 grid-cols-2 gap-1'
+                                                        : 'flex min-w-0 flex-nowrap gap-1 overflow-x-auto overscroll-x-contain pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
+                                                    : 'grid grid-cols-2 gap-2 text-sm'
+                                            }
+                                        >
+                                            {mixCheckboxes}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                            {mixModeSettingFields}
+                        </>
                     );
                 })()}
 
                 {showKomi && (
                     <div className={settingRowClass}>
-                        <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>덤 (백)</label>
+                        <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>덤 (백)</label>
                         <div className="flex items-center gap-2">
                             <input 
                                 type="number" 
@@ -1339,7 +1533,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                     )
                                 }
                                 className={gameSettingsSelectClass}
-                                style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                                style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                             />
                             <span className="font-bold text-gray-300 whitespace-nowrap" style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>.5 집</span>
                         </div>
@@ -1347,57 +1541,86 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                 )}
 
                 {showTimeControls && (
-                    <>
-                        <div className={settingRowClass}>
-                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>제한 시간</label>
-                            <select 
-                                value={settings.timeLimit} 
-                                onChange={e => handleSettingChange('timeLimit', parseInt(e.target.value))}
-                                className={gameSettingsSelectClass}
-                                style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
-                            >
-                                {TIME_LIMITS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                            </select>
-                        </div>
-                        <div className={settingRowClass}>
-                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>초읽기</label>
-                            <div
-                                className={
-                                    denseSettings
-                                        ? 'grid w-full min-w-0 grid-cols-2 gap-x-2 gap-y-0'
-                                        : 'flex w-full min-w-0 gap-2'
-                                }
-                            >
-                                <select 
-                                    value={settings.byoyomiTime} 
-                                    onChange={e => handleSettingChange('byoyomiTime', parseInt(e.target.value))}
-                                    className={denseSettings ? gameSettingsSelectClass : gameSettingsSelectFlexClass}
-                                    style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                    showFischer ? (
+                        <>
+                            <div className={settingRowClass}>
+                                <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>제한 시간</label>
+                                <select
+                                    value={settings.timeLimit}
+                                    onChange={e => handleSettingChange('timeLimit', parseInt(e.target.value))}
+                                    className={gameSettingsSelectClass}
+                                    style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                                 >
-                                    {BYOYOMI_TIMES.map(t => <option key={t} value={t}>{t}초</option>)}
-                                </select>
-                                <select 
-                                    value={settings.byoyomiCount} 
-                                    onChange={e => handleSettingChange('byoyomiCount', parseInt(e.target.value))}
-                                    className={denseSettings ? gameSettingsSelectClass : gameSettingsSelectFlexClass}
-                                    style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
-                                >
-                                    {BYOYOMI_COUNTS.map(c => <option key={c} value={c}>{c}회</option>)}
+                                    {SPEED_TIME_LIMITS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                                 </select>
                             </div>
-                        </div>
-                    </>
+                            <div className={settingRowClass}>
+                                <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>추가 시간 (피셔)</label>
+                                <select
+                                    value={settings.timeIncrement ?? 5}
+                                    onChange={e => handleSettingChange('timeIncrement', parseInt(e.target.value))}
+                                    className={gameSettingsSelectClass}
+                                    style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
+                                >
+                                    {FISCHER_INCREMENT_SECONDS_OPTIONS.map(sec => (
+                                        <option key={sec} value={sec}>{sec}초/수</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div className={settingRowClass}>
+                                <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>제한 시간</label>
+                                <select 
+                                    value={settings.timeLimit} 
+                                    onChange={e => handleSettingChange('timeLimit', parseInt(e.target.value))}
+                                    className={gameSettingsSelectClass}
+                                    style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
+                                >
+                                    {TIME_LIMITS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                                </select>
+                            </div>
+                            <div className={settingRowClass}>
+                                <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>초읽기</label>
+                                <div
+                                    className={
+                                        denseSettings
+                                            ? 'grid w-full min-w-0 grid-cols-2 gap-x-2 gap-y-0'
+                                            : 'flex w-full min-w-0 gap-2'
+                                    }
+                                >
+                                    <select 
+                                        value={settings.byoyomiTime} 
+                                        onChange={e => handleSettingChange('byoyomiTime', parseInt(e.target.value))}
+                                        className={denseSettings ? gameSettingsSelectClass : gameSettingsSelectFlexClass}
+                                        style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
+                                    >
+                                        {BYOYOMI_TIMES.map(t => <option key={t} value={t}>{t}초</option>)}
+                                    </select>
+                                    <select 
+                                        value={settings.byoyomiCount} 
+                                        onChange={e => handleSettingChange('byoyomiCount', parseInt(e.target.value))}
+                                        className={denseSettings ? gameSettingsSelectClass : gameSettingsSelectFlexClass}
+                                        style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
+                                    >
+                                        {BYOYOMI_COUNTS.map(c => <option key={c} value={c}>{c}회</option>)}
+                                    </select>
+                                </div>
+                            </div>
+                        </>
+                    )
                 )}
 
                 {showCaptureTarget && (
                     <div className={settingRowClass}>
-                        <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>포획 목표</label>
+                        <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>포획 목표</label>
                         <select 
                             value={settings.captureTarget} 
                             disabled={pairRoomLobbyChangePropose}
                             onChange={e => handleSettingChange('captureTarget', parseInt(e.target.value))}
                             className={gameSettingsSelectClass}
-                            style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                            style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                         >
                             {CAPTURE_TARGETS.map(t => <option key={t} value={t}>{t}점</option>)}
                         </select>
@@ -1406,13 +1629,13 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
 
                 {showTtamokCaptureTarget && (
                     <div className={settingRowClass}>
-                        <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>포획 목표</label>
+                        <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>포획 목표</label>
                         <select 
                             value={settings.captureTarget || 5} 
                             disabled={pairRoomLobbyChangePropose}
                             onChange={e => handleSettingChange('captureTarget', parseInt(e.target.value))}
                             className={gameSettingsSelectClass}
-                            style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                            style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                         >
                             {TTAMOK_CAPTURE_TARGETS.map(t => <option key={t} value={t}>{t}점</option>)}
                         </select>
@@ -1422,7 +1645,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                 {showOmokForbiddenRules && (
                     <>
                         <div className={settingRowClass}>
-                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>삼삼 금지</label>
+                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>삼삼 금지</label>
                             <input 
                                 type="checkbox" 
                                 checked={settings.has33Forbidden ?? true} 
@@ -1431,7 +1654,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                             />
                         </div>
                         <div className={settingRowClass}>
-                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>장목 금지</label>
+                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>장목 금지</label>
                             <input 
                                 type="checkbox" 
                                 checked={settings.hasOverlineForbidden ?? true} 
@@ -1445,7 +1668,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                 {showTtamokForbiddenRules && (
                     <>
                         <div className={settingRowClass}>
-                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>삼삼 금지</label>
+                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>삼삼 금지</label>
                             <input 
                                 type="checkbox" 
                                 checked={settings.has33Forbidden ?? true} 
@@ -1454,7 +1677,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                             />
                         </div>
                         <div className={settingRowClass}>
-                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>장목 금지</label>
+                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>장목 금지</label>
                             <input 
                                 type="checkbox" 
                                 checked={settings.hasOverlineForbidden ?? true} 
@@ -1467,7 +1690,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
 
                 {showPlayerColor && !pairRoomHidePlayerOrderRole && (
                     <div className={settingRowClass}>
-                        <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>순서</label>
+                        <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>순서</label>
                         <select 
                             value={settings.player1Color === Player.Black ? 'black' : settings.player1Color === Player.White ? 'white' : 'random'} 
                             onChange={e => {
@@ -1480,7 +1703,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                 }
                             }}
                             className={gameSettingsSelectClass}
-                            style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                            style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                         >
                             <option value="random">랜덤</option>
                             <option value="black">{selectedGameMode === GameMode.Dice ? '선공' : '선공 (흑)'}</option>
@@ -1493,7 +1716,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                     <>
                     {!pairRoomHidePlayerOrderRole ? (
                     <div className={settingRowClass}>
-                        <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>역할</label>
+                        <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>역할</label>
                         <select 
                             value={settings.player1Color === Player.Black ? 'thief' : settings.player1Color === Player.White ? 'police' : 'random'} 
                             onChange={e => {
@@ -1506,7 +1729,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                 }
                             }}
                             className={gameSettingsSelectClass}
-                            style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                            style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                         >
                             <option value="random">랜덤</option>
                             <option value="thief">도둑 (흑)</option>
@@ -1515,12 +1738,12 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                     </div>
                     ) : null}
                     <div className={settingRowClass}>
-                        <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>(고)주사위</label>
+                        <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>(고)주사위</label>
                         <select
                             value={settings.thiefHigh36ItemCount ?? 1}
                             onChange={(e) => handleSettingChange('thiefHigh36ItemCount', parseInt(e.target.value, 10))}
                             className={gameSettingsSelectClass}
-                            style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                            style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                         >
                             {DICE_GO_ITEM_COUNTS.map((c) => (
                                 <option key={c} value={c}>
@@ -1530,12 +1753,12 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                         </select>
                     </div>
                     <div className={settingRowClass}>
-                        <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>방지주사위</label>
+                        <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>방지주사위</label>
                         <select
                             value={settings.thiefNoOneItemCount ?? 1}
                             onChange={(e) => handleSettingChange('thiefNoOneItemCount', parseInt(e.target.value, 10))}
                             className={gameSettingsSelectClass}
-                            style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                            style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                         >
                             {DICE_GO_ITEM_COUNTS.map((c) => (
                                 <option key={c} value={c}>
@@ -1549,13 +1772,13 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
 
                 {showBaseStones && (
                     <div className={settingRowClass}>
-                        <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>베이스 돌</label>
+                        <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>베이스 돌</label>
                         <select 
                             value={settings.baseStones} 
                             disabled={pairRoomLobbyChangePropose}
                             onChange={e => handleSettingChange('baseStones', parseInt(e.target.value))}
                             className={gameSettingsSelectClass}
-                            style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                            style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                         >
                             {AI_CHALLENGE_BASE_STONE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                         </select>
@@ -1565,23 +1788,23 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                 {showHiddenStones && (
                     <>
                         <div className={settingRowClass}>
-                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>히든아이템</label>
+                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>히든아이템</label>
                             <select 
                                 value={settings.hiddenStoneCount} 
                                 onChange={e => handleSettingChange('hiddenStoneCount', parseInt(e.target.value))}
                                 className={gameSettingsSelectClass}
-                                style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                                style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                             >
                                 {AI_CHALLENGE_HIDDEN_STONE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                             </select>
                         </div>
                         <div className={settingRowClass}>
-                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>스캔아이템</label>
+                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>스캔아이템</label>
                             <select 
                                 value={settings.scanCount || AI_LOBBY_SCAN_MAX} 
                                 onChange={e => handleSettingChange('scanCount', parseInt(e.target.value))}
                                 className={gameSettingsSelectClass}
-                                style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                                style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                             >
                                 {AI_CHALLENGE_SCAN_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                             </select>
@@ -1591,12 +1814,12 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
 
                 {showMissileCount && (
                     <div className={settingRowClass}>
-                        <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>미사일 개수</label>
+                        <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>미사일 개수</label>
                         <select 
                             value={settings.missileCount || 3} 
                             onChange={e => handleSettingChange('missileCount', parseInt(e.target.value))}
                             className={gameSettingsSelectClass}
-                            style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                            style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                         >
                             {AI_CHALLENGE_MISSILE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                         </select>
@@ -1606,23 +1829,23 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                 {showDiceGoSettings && (
                     <>
                         <div className={settingRowClass}>
-                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>라운드</label>
+                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>라운드</label>
                             <select 
                                 value={settings.diceGoRounds ?? 3} 
                                 onChange={e => handleSettingChange('diceGoRounds', parseInt(e.target.value, 10) as 1 | 2 | 3)}
                                 className={gameSettingsSelectClass}
-                                style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                                style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                             >
                                 {[1, 2, 3].map(r => <option key={r} value={r}>{r}라운드</option>)}
                             </select>
                         </div>
                         <div className={settingRowClass}>
-                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>홀수주사위</label>
+                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>홀수주사위</label>
                             <select
                                 value={settings.oddDiceCount ?? 1}
                                 onChange={(e) => handleSettingChange('oddDiceCount', parseInt(e.target.value, 10))}
                                 className={gameSettingsSelectClass}
-                                style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                                style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                             >
                                 {DICE_GO_ITEM_COUNTS.map((c) => (
                                     <option key={c} value={c}>
@@ -1632,12 +1855,12 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                             </select>
                         </div>
                         <div className={settingRowClass}>
-                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>짝수주사위</label>
+                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>짝수주사위</label>
                             <select
                                 value={settings.evenDiceCount ?? 1}
                                 onChange={(e) => handleSettingChange('evenDiceCount', parseInt(e.target.value, 10))}
                                 className={gameSettingsSelectClass}
-                                style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                                style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                             >
                                 {DICE_GO_ITEM_COUNTS.map((c) => (
                                     <option key={c} value={c}>
@@ -1647,12 +1870,12 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                             </select>
                         </div>
                         <div className={settingRowClass}>
-                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>(고)주사위</label>
+                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>(고)주사위</label>
                             <select
                                 value={settings.highDiceCount ?? 1}
                                 onChange={(e) => handleSettingChange('highDiceCount', parseInt(e.target.value, 10))}
                                 className={gameSettingsSelectClass}
-                                style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                                style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                             >
                                 {DICE_GO_ITEM_COUNTS.map((c) => (
                                     <option key={c} value={c}>
@@ -1662,12 +1885,12 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                             </select>
                         </div>
                         <div className={settingRowClass}>
-                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>(저)주사위</label>
+                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>(저)주사위</label>
                             <select
                                 value={settings.lowDiceCount ?? 1}
                                 onChange={(e) => handleSettingChange('lowDiceCount', parseInt(e.target.value, 10))}
                                 className={gameSettingsSelectClass}
-                                style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                                style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                             >
                                 {DICE_GO_ITEM_COUNTS.map((c) => (
                                     <option key={c} value={c}>
@@ -1682,67 +1905,67 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                 {showAlkkagiSettings && (
                     <>
                         <div className={settingRowClass}>
-                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>돌 개수</label>
+                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>돌 개수</label>
                             <select 
                                 value={settings.alkkagiStoneCount ?? 5} 
                                 onChange={e => handleSettingChange('alkkagiStoneCount', parseInt(e.target.value))}
                                 className={gameSettingsSelectClass}
-                                style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                                style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                             >
                                 {ALKKAGI_STONE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                             </select>
                         </div>
                         <div className={settingRowClass}>
-                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>라운드</label>
+                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>라운드</label>
                             <select 
                                 value={settings.alkkagiRounds ?? 3} 
                                 onChange={e => handleSettingChange('alkkagiRounds', parseInt(e.target.value) as 1 | 2 | 3)}
                                 className={gameSettingsSelectClass}
-                                style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                                style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                             >
                                 {ALKKAGI_ROUNDS.map(r => <option key={r} value={r}>{r}라운드</option>)}
                             </select>
                         </div>
                         <div className={settingRowClass}>
-                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>배치 방식</label>
+                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>배치 방식</label>
                             <select 
                                 value={settings.alkkagiPlacementType ?? AlkkagiPlacementType.TurnByTurn} 
                                 onChange={e => handleSettingChange('alkkagiPlacementType', e.target.value as AlkkagiPlacementType)}
                                 className={gameSettingsSelectClass}
-                                style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                                style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                             >
                                 {Object.values(AlkkagiPlacementType).map(type => <option key={type} value={type}>{type}</option>)}
                             </select>
                         </div>
                         <div className={settingRowClass}>
-                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>힘 속도</label>
+                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>힘 속도</label>
                             <select 
                                 value={settings.alkkagiGaugeSpeed ?? 700} 
                                 onChange={e => handleSettingChange('alkkagiGaugeSpeed', parseInt(e.target.value))}
                                 className={gameSettingsSelectClass}
-                                style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                                style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                             >
                                 {ALKKAGI_GAUGE_SPEEDS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                             </select>
                         </div>
                         <div className={settingRowClass}>
-                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>슬로우</label>
+                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>슬로우</label>
                             <select 
                                 value={settings.alkkagiSlowItemCount ?? 2} 
                                 onChange={e => handleSettingChange('alkkagiSlowItemCount', parseInt(e.target.value))}
                                 className={gameSettingsSelectClass}
-                                style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                                style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                             >
                                 {ALKKAGI_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                             </select>
                         </div>
                         <div className={settingRowClass}>
-                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>조준선</label>
+                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>조준선</label>
                             <select 
                                 value={settings.alkkagiAimingLineItemCount ?? 2} 
                                 onChange={e => handleSettingChange('alkkagiAimingLineItemCount', parseInt(e.target.value))}
                                 className={gameSettingsSelectClass}
-                                style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                                style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                             >
                                 {ALKKAGI_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                             </select>
@@ -1753,56 +1976,56 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                 {showCurlingSettings && (
                     <>
                         <div className={settingRowClass}>
-                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>돌 개수</label>
+                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>돌 개수</label>
                             <select 
                                 value={settings.curlingStoneCount ?? 5} 
                                 onChange={e => handleSettingChange('curlingStoneCount', parseInt(e.target.value))}
                                 className={gameSettingsSelectClass}
-                                style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                                style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                             >
                                 {CURLING_STONE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                             </select>
                         </div>
                         <div className={settingRowClass}>
-                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>라운드</label>
+                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>라운드</label>
                             <select 
                                 value={settings.curlingRounds ?? 3} 
                                 onChange={e => handleSettingChange('curlingRounds', parseInt(e.target.value) as 1 | 2 | 3)}
                                 className={gameSettingsSelectClass}
-                                style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                                style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                             >
                                 {CURLING_ROUNDS.map(r => <option key={r} value={r}>{r}라운드</option>)}
                             </select>
                         </div>
                         <div className={settingRowClass}>
-                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>힘 속도</label>
+                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>힘 속도</label>
                             <select 
                                 value={settings.curlingGaugeSpeed ?? 700} 
                                 onChange={e => handleSettingChange('curlingGaugeSpeed', parseInt(e.target.value))}
                                 className={gameSettingsSelectClass}
-                                style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                                style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                             >
                                 {CURLING_GAUGE_SPEEDS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                             </select>
                         </div>
                         <div className={settingRowClass}>
-                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>슬로우</label>
+                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>슬로우</label>
                             <select 
                                 value={settings.curlingSlowItemCount ?? 2} 
                                 onChange={e => handleSettingChange('curlingSlowItemCount', parseInt(e.target.value))}
                                 className={gameSettingsSelectClass}
-                                style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                                style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                             >
                                 {CURLING_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                             </select>
                         </div>
                         <div className={settingRowClass}>
-                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>조준선</label>
+                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>조준선</label>
                             <select 
                                 value={settings.curlingAimingLineItemCount ?? 2} 
                                 onChange={e => handleSettingChange('curlingAimingLineItemCount', parseInt(e.target.value))}
                                 className={gameSettingsSelectClass}
-                                style={denseSettings ? undefined : { fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
+                                style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                             >
                                 {CURLING_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                             </select>
@@ -1813,10 +2036,19 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
         );
     };
 
+    const useStackedInlineLayout = embeddedPanel && embeddedPanelStackedLayout && !configureOnly;
+    const pairRoomConfigureStackedLayout = Boolean(
+        embeddedPanelStackedLayout && embeddedPanel && configureOnly && pairRoomEmbeddedRightSlot,
+    );
+
     const modeBriefFallback =
-        lobbyType === 'strategic'
-            ? '왼쪽에서 게임 모드를 고른 뒤, 아래에서 판 크기·시간·AI 난이도 등을 설정합니다.'
-            : '왼쪽에서 놀이 모드를 고른 뒤, 아래에서 대국 옵션을 설정합니다.';
+        useStackedInlineLayout || pairRoomConfigureStackedLayout
+            ? lobbyType === 'strategic'
+                ? '위에서 게임 모드를 고른 뒤, 아래에서 판 크기·시간·AI 난이도 등을 설정합니다.'
+                : '위에서 놀이 모드를 고른 뒤, 아래에서 대국 옵션을 설정합니다.'
+            : lobbyType === 'strategic'
+              ? '왼쪽에서 게임 모드를 고른 뒤, 아래에서 판 크기·시간·AI 난이도 등을 설정합니다.'
+              : '왼쪽에서 놀이 모드를 고른 뒤, 아래에서 대국 옵션을 설정합니다.';
 
     /** 모바일 단독 AI 모달 상단과 동일: 선택 모드 아이콘 + 간략 설명 */
     const selectedModeBriefSummaryPanel = (
@@ -1898,7 +2130,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                         image={game.image}
                         displayName={game.name ?? String(game.mode)}
                         onSelect={selectGameModeForLobby}
-                        isSelected={selectedGameMode === game.mode}
+                        isSelected={displaySelectedGameMode === game.mode}
                         chromeKind={modalChrome}
                     />
                 ))}
@@ -1913,7 +2145,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                     className={`mb-2 flex-shrink-0 font-semibold ${
                         useLobbyDenseGameSettingsLayout ? denseSettingsHeadingToneClass : 'text-gray-300'
                     }`}
-                    style={{ fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
+                    style={{ fontSize: `${Math.max(14, Math.round(16 * mobileTextScale))}px` }}
                 >
                     대국 설정
                 </h4>
@@ -1941,6 +2173,71 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
     const handheldStackedFooterBtnClass =
         '!justify-center rounded-xl !py-2 !text-xs disabled:cursor-not-allowed disabled:opacity-60';
 
+    const stackedInlineModeDescriptionBanner =
+        selectedGameDefinition && !hideInlineModePicker ? (
+            <GameModeDescriptionBanner
+                modeName={selectedGameDefinition.name}
+                modeImage={selectedGameDefinition.image}
+                descriptionText={lobbyGameModeBriefDescription(selectedGameDefinition.description, modeBriefFallback)}
+                chromeKind={modalChrome}
+            />
+        ) : null;
+
+    const stackedInlineModePickerStrip = (
+        <div className="shrink-0 border-b border-white/10 bg-gradient-to-b from-black/35 to-black/15 px-2.5 py-2.5 sm:px-3.5 sm:py-3">
+            {stackedInlineModeDescriptionBanner}
+            <div className="mb-2 flex items-baseline justify-between gap-2">
+                <h3 className={`text-sm font-extrabold tracking-tight ${modeTitleToneClass}`}>게임 모드 선택</h3>
+                <span className="shrink-0 text-[10px] font-semibold text-zinc-500 sm:text-[11px]">
+                    {availableGameModes.length}종
+                </span>
+            </div>
+            <div className="flex min-h-[7.25rem] flex-nowrap gap-2 overflow-x-auto overscroll-x-contain pb-0.5 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] sm:min-h-[7.75rem]">
+                {availableGameModes.map((game) => (
+                    <div key={game.mode} className="w-[5.35rem] shrink-0 sm:w-[5.75rem]">
+                        <GameCard
+                            mode={game.mode}
+                            image={game.image}
+                            displayName={game.name ?? String(game.mode)}
+                            onSelect={selectGameModeForLobby}
+                            isSelected={displaySelectedGameMode === game.mode}
+                            compact
+                            chromeKind={modalChrome}
+                        />
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+
+    const stackedInlineStartFooter = (
+        <div className="shrink-0 border-t border-white/10 bg-gradient-to-t from-black/70 via-black/50 to-black/30 px-2.5 py-2.5 sm:px-3.5 sm:py-3">
+            <Button
+                type="button"
+                onClick={handleChallenge}
+                colorScheme="none"
+                disabled={!selectedGameMode || submitDisabled}
+                className="min-h-[2.85rem] w-full rounded-xl border border-emerald-400/55 bg-gradient-to-r from-emerald-900/70 via-emerald-800/65 to-teal-900/60 px-5 py-2.5 text-sm font-extrabold text-emerald-50 shadow-[0_8px_24px_-8px_rgba(16,185,129,0.55),inset_0_1px_0_rgba(255,255,255,0.12)] sm:min-h-[3rem] sm:text-base disabled:cursor-not-allowed disabled:opacity-45"
+            >
+                {showActionPointCost ? `${submitLabel} (⚡${actionPointCostDisplay})` : submitLabel}
+            </Button>
+        </div>
+    );
+
+    const stackedInlineBody = (
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            {!hideInlineModePicker ? stackedInlineModePickerStrip : null}
+            <div
+                className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-2.5 py-2 sm:px-3.5 sm:py-2.5 ${
+                    hideInlineModePicker ? '' : 'border-t border-white/8'
+                }`}
+            >
+                {desktopGameSettingsBlock}
+            </div>
+            <div className="relative z-40 shrink-0">{stackedInlineStartFooter}</div>
+        </div>
+    );
+
     const innerBody = layoutMobile ? (
                 <div
                     className={`${standaloneLobbyFrameClass} relative flex min-h-0 max-h-[min(94dvh,880px)] flex-1 flex-col gap-2 overflow-hidden p-2 sm:gap-2.5 sm:p-2.5`}
@@ -1951,30 +2248,37 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                     <div className={aiChallengeModalHandheldSummaryOuterClass(modalChrome)}>{selectedModeBriefSummaryPanel}</div>
 
                     {mobileStep === 'pickMode' ? (
-                        <div className={aiChallengeModalHandheldModeStepShellClass(modalChrome)}>
-                            <div className="flex shrink-0 flex-col gap-1 border-b border-white/10 pb-2">
-                                <h3 className={`text-sm font-extrabold tracking-tight ${modeTitleToneClass}`}>게임 모드 선택</h3>
-                                <p className="text-[11px] font-medium leading-snug text-zinc-400/95">
-                                    항목을 눌러 선택한 뒤 「다음」에서 대국 설정으로 이동합니다.
-                                </p>
-                            </div>
-                            <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain py-2 [-webkit-overflow-scrolling:touch]">
-                                <div className="grid grid-cols-2 gap-1.5 pb-0.5 sm:gap-2">
-                                    {availableGameModes.map((game) => (
-                                        <GameCard
-                                            key={game.mode}
-                                            mode={game.mode}
-                                            image={game.image}
-                                            displayName={game.name ?? String(game.mode)}
-                                            onSelect={selectGameModeForLobby}
-                                            isSelected={selectedGameMode === game.mode}
-                                            compact
-                                            chromeKind={modalChrome}
-                                        />
-                                    ))}
+                        <div className={`${aiChallengeModalHandheldModeStepShellClass(modalChrome)} flex min-h-0 flex-1 flex-col overflow-hidden`}>
+                            <GameModePickerSection
+                                className="relative flex min-h-0 flex-1 flex-col overflow-hidden"
+                                chromeKind={modalChrome}
+                                selectedMode={selectedGameDefinition}
+                                descriptionFallback={modeBriefFallback}
+                            >
+                                <div className="flex shrink-0 flex-col gap-1 border-b border-white/10 pb-2">
+                                    <h3 className={`text-sm font-extrabold tracking-tight ${modeTitleToneClass}`}>게임 모드 선택</h3>
+                                    <p className="text-[11px] font-medium leading-snug text-zinc-400/95">
+                                        항목을 눌러 선택한 뒤 「다음」에서 대국 설정으로 이동합니다.
+                                    </p>
                                 </div>
-                            </div>
-                            <div className={handheldAiDetailsFooterClass}>
+                                <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain py-2 [-webkit-overflow-scrolling:touch]">
+                                    <div className="grid grid-cols-2 gap-1.5 pb-0.5 sm:gap-2">
+                                        {availableGameModes.map((game) => (
+                                            <GameCard
+                                                key={game.mode}
+                                                mode={game.mode}
+                                                image={game.image}
+                                                displayName={game.name ?? String(game.mode)}
+                                                onSelect={selectGameModeForLobby}
+                                                isSelected={displaySelectedGameMode === game.mode}
+                                                compact
+                                                chromeKind={modalChrome}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            </GameModePickerSection>
+                            <div className={`relative z-40 shrink-0 ${handheldAiDetailsFooterClass}`}>
                                 <div className="col-span-2 flex justify-center px-0.5">
                                     <Button
                                         bare
@@ -2042,6 +2346,8 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                         </div>
                     )}
                 </div>
+            ) : useStackedInlineLayout ? (
+                stackedInlineBody
             ) : (
                 <div
                     className={
@@ -2052,7 +2358,14 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                 >
                         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden lg:max-h-[min(82vh,760px)] lg:flex-row">
                         <div className={modePickerColumnClassName}>
-                            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{desktopModePickerInner}</div>
+                            <GameModePickerSection
+                                className="flex min-h-0 flex-1 flex-col overflow-hidden"
+                                chromeKind={modalChrome}
+                                selectedMode={selectedGameDefinition}
+                                descriptionFallback={modeBriefFallback}
+                            >
+                                {desktopModePickerInner}
+                            </GameModePickerSection>
                         </div>
 
                         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-primary text-on-panel">
@@ -2108,14 +2421,16 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
 
                                 {!(embeddedPanel && configureOnly) ? (
                                     <div className="mt-3 flex shrink-0 justify-end gap-2 border-t border-white/10 pt-3 sm:mt-4 sm:gap-3 sm:pt-4">
-                                        <Button
-                                            type="button"
-                                            onClick={onClose}
-                                            colorScheme="none"
-                                            className="min-h-[2.75rem] rounded-xl border border-white/20 bg-zinc-800/60 px-5 py-2.5 text-sm font-bold text-zinc-200 sm:min-h-[2.85rem] sm:text-base"
-                                        >
-                                            취소
-                                        </Button>
+                                        {!(embeddedPanel && !configureOnly) ? (
+                                            <Button
+                                                type="button"
+                                                onClick={onClose}
+                                                colorScheme="none"
+                                                className="min-h-[2.75rem] rounded-xl border border-white/20 bg-zinc-800/60 px-5 py-2.5 text-sm font-bold text-zinc-200 sm:min-h-[2.85rem] sm:text-base"
+                                            >
+                                                취소
+                                            </Button>
+                                        ) : null}
                                         <Button
                                             type="button"
                                             onClick={handleChallenge}
@@ -2145,7 +2460,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
         /** 손님 변경 제안: 모바일에서 게임 모드 단계 생략(고정 모드 요약 + 설정 폼만) */
         if (handheldStackedCreate && pairRoomLobbyChangePropose) {
             return (
-                <div className={`${embeddedShellClass} relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden`}>
+                <div className={`${embeddedPanelShellClass} relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden`}>
                     <div className="shrink-0 px-2.5 pt-2.5">{selectedModeBriefSummaryPanel}</div>
                     <div className="relative z-[2] isolate flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#070708]">
                         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden pt-2">
@@ -2163,13 +2478,18 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
 
         if (handheldStackedCreate) {
             return (
-                <div className={`${embeddedShellClass} relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden`}>
+                <div className={`${embeddedPanelShellClass} relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden`}>
                     <div className={`shrink-0 px-2.5 pt-2.5 ${pairEmbedMobileStep === 'details' ? 'pointer-events-none' : ''}`}>
                         {selectedModeBriefSummaryPanel}
                     </div>
                     {pairEmbedMobileStep === 'game' ? (
                         <>
-                            <div className={`${modePickerColumnClassName} p-2.5 sm:p-4`}>
+                            <GameModePickerSection
+                                className={`${modePickerColumnClassName} flex min-h-0 flex-1 flex-col overflow-hidden p-2.5 sm:p-4`}
+                                chromeKind={modalChrome}
+                                selectedMode={selectedGameDefinition}
+                                descriptionFallback={modeBriefFallback}
+                            >
                                 <h3 className="mb-2 shrink-0 text-sm font-bold tracking-tight text-amber-100/95">게임 모드 선택</h3>
                                 <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]">
                                     <div className="grid grid-cols-2 gap-1.5 pb-0.5 sm:gap-2">
@@ -2180,15 +2500,15 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                                 image={game.image}
                                                 displayName={game.name ?? String(game.mode)}
                                                 onSelect={selectGameModeForLobby}
-                                                isSelected={selectedGameMode === game.mode}
+                                                isSelected={displaySelectedGameMode === game.mode}
                                                 compact
                                                 chromeKind={modalChrome}
                                             />
                                         ))}
                                     </div>
                                 </div>
-                            </div>
-                            <div className={handheldPairCreateFooterClass}>
+                            </GameModePickerSection>
+                            <div className={`relative z-40 shrink-0 ${handheldPairCreateFooterClass}`}>
                                 <Button
                                     type="button"
                                     colorScheme="none"
@@ -2237,12 +2557,39 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
             );
         }
 
+        if (pairRoomConfigureStackedLayout && !handheldStackedCreate) {
+            return (
+                <div className={`${embeddedPanelShellClass} relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden`}>
+                    {stackedInlineModePickerStrip}
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-t border-white/8">
+                        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-1 pb-1 pt-2 sm:px-2 sm:pb-2">
+                            {pairRoomEmbeddedRightSlot(desktopGameSettingsBlock)}
+                        </div>
+                        {showPairEmbeddedColumnFooter ? (
+                            <div className="relative z-40 grid shrink-0 grid-cols-2 gap-2 border-t border-white/10 bg-black/50 px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4 sm:pb-4">
+                                {pairRoomEmbeddedColumnFooter}
+                            </div>
+                        ) : null}
+                    </div>
+                </div>
+            );
+        }
+
         return (
-            <div className={`${embeddedShellClass} min-h-0 flex-1`}>
-                <div className="flex min-h-0 min-w-0 max-h-[min(78vh,740px)] flex-1 flex-col overflow-hidden lg:max-h-[min(82vh,760px)] lg:flex-row">
+            <div className={`${embeddedPanelShellClass} min-h-0 flex-1`}>
+                <div
+                    className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden lg:flex-row ${
+                        embeddedPanelFillParent ? '' : 'max-h-[min(78vh,740px)] lg:max-h-[min(82vh,760px)]'
+                    }`}
+                >
                     {/* 모바일 세로 레이아웃: shrink-0만 있으면 열 높이가 콘텐츠 전체로 늘어나 overflow-y-auto가 동작하지 않음 */}
                     <div className={modePickerColumnClassName}>
-                        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                        <GameModePickerSection
+                            className="flex min-h-0 flex-1 flex-col overflow-hidden"
+                            chromeKind={modalChrome}
+                            selectedMode={pairRoomLobbyChangePropose ? null : selectedGameDefinition}
+                            descriptionFallback={modeBriefFallback}
+                        >
                             {pairRoomLobbyChangePropose ? (
                                 <>
                                     <h3 className="mb-2 shrink-0 px-3 pt-3 text-sm font-bold tracking-tight text-amber-100/95 sm:mb-3 sm:px-4 sm:pt-4 sm:text-base">
@@ -2255,7 +2602,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                             ) : (
                                 desktopModePickerInner
                             )}
-                        </div>
+                        </GameModePickerSection>
                     </div>
                     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
                         {!pairRoomLobbyChangePropose ? (
@@ -2283,6 +2630,20 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                 <div className="max-h-[min(58vh,560px)] min-h-[240px] min-w-0 overflow-x-auto overflow-y-auto overscroll-contain md:max-h-[min(70vh,640px)]">
                     {innerBody}
                 </div>
+            </div>
+        );
+    }
+
+    if (embeddedPanel && !configureOnly) {
+        return (
+            <div className={`${embeddedShellClass} flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden`}>
+                {embeddedPanelStackedLayout ? (
+                    innerBody
+                ) : (
+                    <div className="min-h-[240px] min-w-0 flex-1 overflow-x-auto overflow-y-auto overscroll-contain">
+                        {innerBody}
+                    </div>
+                )}
             </div>
         );
     }

@@ -26,9 +26,8 @@ interface QuickAccessSidebarProps {
 /** 길드·대기실 등 좁은 우측 열 폭 (퀵 메뉴 제거 후에도 활동 레일 등에 사용) */
 export const NATIVE_QUICK_RAIL_WIDTH_CLASS = 'w-[5.5rem] min-w-[5.5rem] max-w-[5.5rem]';
 
-/** PC·캔버스 등 세로 퀵 메뉴(QuickAccessSidebar) 외곽 열 폭 — 기존 6rem(w-24)보다 약간 넓게 */
-export const PC_QUICK_RAIL_COLUMN_CLASS =
-    'w-[7.5rem] min-w-[120px] max-w-[8.5rem] shrink-0';
+/** @deprecated import from shared/constants/pcShellLayout — re-export for 기존 import 호환 */
+export { PC_QUICK_RAIL_COLUMN_CLASS } from '../shared/constants/pcShellLayout.js';
 
 type QuickBtn = {
     label: string;
@@ -138,10 +137,10 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 notification: false,
             },
             {
-                label: '채팅',
+                label: '기보',
                 gameplay: false,
-                emoji: '💬',
-                handler: handlers.openChatQuickModal,
+                iconUrl: '/images/quickmenu/gibo.webp',
+                handler: handlers.openGameRecordList,
                 disabled: false,
                 notification: false,
             },
@@ -154,20 +153,20 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 notification: false,
             },
             {
-                label: '도움말',
-                gameplay: false,
-                iconUrl: '/images/button/help.webp',
-                handler: handlers.openInfoModal,
-                disabled: false,
-                notification: false,
-            },
-            {
                 label: '공지',
                 gameplay: false,
                 emoji: '📢',
                 handler: handlers.openAnnouncementsModal,
                 disabled: false,
                 notification: hasUnreadHomeBoardPosts,
+            },
+            {
+                label: '도움말',
+                gameplay: false,
+                iconUrl: '/images/button/help.webp',
+                handler: handlers.openInfoModal,
+                disabled: false,
+                notification: false,
             },
         ],
         [

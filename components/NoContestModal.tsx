@@ -69,7 +69,10 @@ const NoContestModal: React.FC<NoContestModalProps> = ({ session, currentUser, o
                                     }
                                     setSavingRecord(true);
                                     try {
-                                        const out = await onAction({ type: 'SAVE_GAME_RECORD', payload: { gameId: session.id } });
+                                        const out = await onAction({
+                                            type: 'SAVE_GAME_RECORD',
+                                            payload: { gameId: session.id, sessionSnapshot: session },
+                                        });
                                         if (out && typeof out === 'object' && 'error' in out && (out as { error?: string }).error) return;
                                         setSavedOptimistic(true);
                                     } catch (e) {

@@ -6,6 +6,13 @@ import {
     arenaChannelForUserStatus,
     arenaChannelRoute,
 } from '../../../shared/utils/arenaChannel.js';
+import {
+    arenaLobbyHash,
+    arenaLobbyHashFromSession,
+    arenaLobbyIntentFromPairRoom,
+    pairRoomRequiresLeaveConfirmation,
+    parseArenaLobbyHash,
+} from '../../../shared/utils/arenaLobbyDestination.js';
 import { userArenaChannelBadge } from '../../../shared/utils/unifiedArenaLobbyUserList.js';
 
 describe('arena channel utilities', () => {
@@ -38,9 +45,47 @@ describe('arena channel utilities', () => {
         expect(userArenaChannelBadge({ status: UserStatus.Waiting, arenaChannel: 'playful' })?.label).toBe('놀이');
     });
 
-    it('builds stable arena routes', () => {
-        expect(arenaChannelRoute('strategic')).toBe('#/waiting/strategic');
-        expect(arenaChannelRoute('playful')).toBe('#/waiting/playful');
-        expect(arenaChannelRoute('pair')).toBe('#/pair');
+    it('derives lobby intent from pair room pairMode', () => {
+        expect(arenaLobbyIntentFromPairRoom({ pairMode: 'ai', roomKind: 'duo_match' })).toBe('ai');
+        expect(arenaLobbyIntentFromPairRoom({ pairMode: 'pvp', roomKind: 'friendly_4p' })).toBe('pvp');
+        expect(arenaLobbyIntentFromPairRoom({ roomKind: 'arena_ai' })).toBe('ai');
+    });
+
+    it('skips leave confirmation for AI lobby shell rooms only', () => {
+        expect(pairRoomRequiresLeaveConfirmation({ roomKind: 'arena_ai' })).toBe(false);
+        expect(pairRoomRequiresLeaveConfirmation({ roomKind: 'ai_duel', pairMode: 'ai' })).toBe(false);
+        expect(
+            pairRoomRequiresLeaveConfirmation({
+                roomKind: 'duo_match',
+                pairMode: 'ai',
+                lobbyChannel: 'pair',
+                pairAiDuoInviteShell: true,
+            }),
+        ).toBe(false);
+        expect(pairRoomRequiresLeaveConfirmation({ roomKind: 'friendly_4p', pairMode: 'pvp' })).toBe(true);
+        expect(pairRoomRequiresLeaveConfirmation({ roomKind: 'duo_match', pairMode: 'pvp' })).toBe(true);
+    });
+
+    it('builds stable arena routes with intent', () => {
+        expect(arenaChannelRoute('strategic')).toBe('#/pvp/strategic');
+        expect(arenaChannelRoute('playful', 'ai')).toBe('#/ai/playful');
+        expect(arenaChannelRoute('pair')).toBe('#/pvp/pair');
+        expect(arenaLobbyHash({ intent: 'ai', channel: 'strategic' })).toBe('#/ai/strategic');
+        expect(parseArenaLobbyHash('#/pvp/playful')).toEqual({ intent: 'pvp', channel: 'playful' });
+    });
+
+    it('derives lobby hash from game session ai/pvp axis', () => {
+        expect(
+            arenaLobbyHashFromSession({
+                isAiGame: true,
+                mode: GameMode.Standard,
+            }),
+        ).toBe('#/ai/strategic');
+        expect(
+            arenaLobbyHashFromSession({
+                isAiGame: false,
+                mode: GameMode.Dice,
+            }),
+        ).toBe('#/pvp/playful');
     });
 });

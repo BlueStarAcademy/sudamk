@@ -407,7 +407,7 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
                             <ResultModalVipRewardSlot
                                 slot={vipSlot}
                                 compact
-                                onLockedClick={vipSlot.locked ? () => handlers.openShop('vip') : undefined}
+                                onLockedClick={vipSlot.locked ? () => handlers.openShop('vip', { modal: true }) : undefined}
                             />
                         </div>
                     </div>

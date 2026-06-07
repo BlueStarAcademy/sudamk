@@ -65,12 +65,12 @@ export const arenaGameRoomChatTabBarClass =
     'flex rounded-lg p-1 gap-0.5 mb-2 flex-shrink-0 bg-black/32 ring-1 ring-inset ring-white/[0.06]';
 
 export const arenaGameRoomChatTabActiveClass =
-    'flex-1 py-1.5 text-xs sm:text-sm font-semibold rounded-md transition-all duration-200 ' +
+    'flex-1 py-1.5 text-sm sm:text-base font-semibold rounded-md transition-all duration-200 ' +
     'bg-gradient-to-b from-sky-600/95 to-sky-900/98 text-white ' +
     'shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_4px_16px_-6px_rgba(56,189,248,0.42)] ring-1 ring-sky-400/22';
 
 export const arenaGameRoomChatTabInactiveClass =
-    'flex-1 py-1.5 text-xs sm:text-sm font-semibold rounded-md text-slate-400 transition-colors duration-200 ' +
+    'flex-1 py-1.5 text-sm sm:text-base font-semibold rounded-md text-slate-400 transition-colors duration-200 ' +
     'hover:bg-white/[0.05] hover:text-slate-100';
 
 /** 모바일 인게임 서랍: 탭·본문과 동일 13px 계열로 통일 */
@@ -99,12 +99,12 @@ export const arenaGameRoomQuickChatEmojiBtnClass =
     'border border-transparent hover:border-sky-500/35 hover:bg-sky-950/50 hover:shadow-[0_0_16px_-6px_rgba(56,189,248,0.35)]';
 
 export const arenaGameRoomQuickChatPhraseBtnClass =
-    'w-full rounded-lg p-2 text-left text-sm text-slate-200 transition-all duration-150 ' +
+    'w-full rounded-lg p-2 text-left text-base text-slate-200 transition-all duration-150 ' +
     'border border-transparent hover:border-slate-500/40 hover:bg-slate-800/70';
 
 /** 채팅 입력 */
 export const arenaGameRoomChatInputClass =
-    'flex-grow rounded-lg border border-slate-600/48 bg-slate-950/85 px-2.5 py-2 text-sm text-slate-100 ' +
+    'flex-grow rounded-lg border border-slate-600/48 bg-slate-950/85 px-2.5 py-2 text-base text-slate-100 ' +
     'placeholder:text-slate-500 shadow-[inset_0_2px_8px_rgba(0,0,0,0.38)] ' +
     'focus:border-sky-500/50 focus:outline-none focus:ring-2 focus:ring-sky-500/18 ' +
     'disabled:bg-slate-900/65 disabled:text-slate-500';
@@ -198,7 +198,7 @@ const MANNER_CHIP_BASE =
 export function arenaGameRoomMannerChipClass(isMobile: boolean, type: 'manner' | 'other'): string {
     const sizing = isMobile
         ? 'max-w-[5rem] px-1 py-0.5 text-[8px] leading-[1.15] min-h-[1.35rem] whitespace-normal text-center line-clamp-2 break-words overflow-hidden'
-        : 'whitespace-nowrap text-[clamp(0.48rem,1.5vmin,0.72rem)] px-[clamp(0.3rem,1.2vmin,0.5rem)] py-[clamp(0.22rem,0.85vmin,0.36rem)] min-h-[1.5rem]';
+        : 'whitespace-nowrap text-[0.72rem] px-[0.5rem] py-[0.36rem] min-h-[1.5rem]';
     const tone =
         type === 'manner'
             ? 'border-lime-300/85 bg-gradient-to-b from-lime-500 via-green-600 to-emerald-900 text-white shadow-[0_0_18px_-4px_rgba(34,197,94,0.55)]'

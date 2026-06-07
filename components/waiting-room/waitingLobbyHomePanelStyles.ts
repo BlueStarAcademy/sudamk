@@ -808,32 +808,73 @@ export function aiChallengeModalHandheldSettingsScrollShellClass(kind: AiChallen
     return `${base} ring-amber-500/10`;
 }
 
+export function aiChallengeModalGameModeOverlayTone(kind: AiChallengeModalChromeKind): {
+    panel: string;
+    title: string;
+} {
+    if (kind === 'ai_feature') {
+        return {
+            panel: 'border-fuchsia-300/60 bg-gradient-to-b from-fuchsia-950/97 via-zinc-950/95 to-black/94 shadow-[0_20px_48px_-12px_rgba(217,70,239,0.55)]',
+            title: 'text-fuchsia-50',
+        };
+    }
+    if (kind === 'strategic') {
+        return {
+            panel: 'border-cyan-300/60 bg-gradient-to-b from-cyan-950/97 via-zinc-950/95 to-black/94 shadow-[0_20px_48px_-12px_rgba(34,211,238,0.45)]',
+            title: 'text-cyan-50',
+        };
+    }
+    if (kind === 'pair') {
+        return {
+            panel: 'border-violet-300/60 bg-gradient-to-b from-violet-950/97 via-zinc-950/95 to-black/94 shadow-[0_20px_48px_-12px_rgba(139,92,246,0.5)]',
+            title: 'text-violet-50',
+        };
+    }
+    return {
+        panel: 'border-amber-300/60 bg-gradient-to-b from-amber-950/97 via-zinc-950/95 to-black/94 shadow-[0_20px_48px_-12px_rgba(251,191,36,0.42)]',
+        title: 'text-amber-50',
+    };
+}
+
+export function aiChallengeModalGameCardSelectedTitleClass(kind: AiChallengeModalChromeKind): string {
+    if (kind === 'ai_feature') return 'text-fuchsia-50';
+    if (kind === 'strategic') return 'text-cyan-50';
+    if (kind === 'pair') return 'text-violet-50';
+    return 'text-amber-50';
+}
+
+export function aiChallengeModalGameCardSelectedRingOverlayClass(kind: AiChallengeModalChromeKind): string {
+    if (kind === 'ai_feature') {
+        return 'border-2 border-fuchsia-300 shadow-[0_0_0_1px_rgba(232,121,249,0.55),0_0_14px_rgba(217,70,239,0.55)]';
+    }
+    if (kind === 'strategic') {
+        return 'border-2 border-cyan-300 shadow-[0_0_0_1px_rgba(34,211,238,0.5),0_0_14px_rgba(34,211,238,0.5)]';
+    }
+    if (kind === 'pair') {
+        return 'border-2 border-violet-300 shadow-[0_0_0_1px_rgba(167,139,250,0.52),0_0_14px_rgba(139,92,246,0.52)]';
+    }
+    return 'border-2 border-amber-300 shadow-[0_0_0_1px_rgba(251,191,36,0.48),0_0_14px_rgba(251,191,36,0.45)]';
+}
+
 export function aiChallengeModalGameCardSurfaceClass(
     kind: AiChallengeModalChromeKind,
     isSelected: boolean,
     compact: boolean,
 ): string {
     const base =
-        'box-border bg-panel text-on-panel flex w-full touch-manipulation flex-col items-center gap-1 rounded-lg p-2 text-center text-sm transition-all';
+        'box-border bg-panel text-on-panel flex w-full touch-manipulation flex-col items-center gap-1 rounded-lg p-2 text-center text-sm transition-[box-shadow,background-color]';
     if (isSelected) {
-        if (kind === 'ai_feature') {
-            return compact
-                ? `${base} cursor-pointer border-2 border-fuchsia-400 ring-2 ring-fuchsia-400/65 ring-offset-2 ring-offset-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_10px_28px_-8px_rgba(217,70,239,0.42)] active:scale-[0.98]`
-                : `${base} cursor-pointer border-2 border-fuchsia-400 shadow-lg ring-2 ring-fuchsia-500/55 active:scale-[0.98]`;
-        }
-        if (kind === 'strategic') {
-            return compact
-                ? `${base} cursor-pointer border-2 border-cyan-400 ring-2 ring-cyan-400/65 ring-offset-2 ring-offset-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_10px_28px_-8px_rgba(34,211,238,0.38)] active:scale-[0.98]`
-                : `${base} cursor-pointer border-2 border-cyan-400 shadow-lg ring-2 ring-cyan-500/55 active:scale-[0.98]`;
-        }
-        if (kind === 'pair') {
-            return compact
-                ? `${base} cursor-pointer border-2 border-violet-400 ring-2 ring-violet-400/70 ring-offset-2 ring-offset-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_10px_28px_-8px_rgba(139,92,246,0.45)] active:scale-[0.98]`
-                : `${base} cursor-pointer border-2 border-violet-400 shadow-lg ring-2 ring-violet-500/60 active:scale-[0.98]`;
-        }
+        const selectedGlow =
+            kind === 'ai_feature'
+                ? 'shadow-[0_12px_32px_-10px_rgba(217,70,239,0.45)]'
+                : kind === 'strategic'
+                  ? 'shadow-[0_12px_32px_-10px_rgba(34,211,238,0.42)]'
+                  : kind === 'pair'
+                    ? 'shadow-[0_12px_32px_-10px_rgba(139,92,246,0.45)]'
+                    : 'shadow-[0_12px_32px_-10px_rgba(251,191,36,0.38)]';
         return compact
-            ? `${base} cursor-pointer border-2 border-amber-400 ring-2 ring-amber-400/65 ring-offset-2 ring-offset-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_10px_28px_-8px_rgba(251,191,36,0.35)] active:scale-[0.98]`
-            : `${base} cursor-pointer border-2 border-amber-400 shadow-lg ring-2 ring-amber-500/55 active:scale-[0.98]`;
+            ? `${base} cursor-pointer ${selectedGlow}`
+            : `${base} cursor-pointer ${selectedGlow} active:scale-[0.98]`;
     }
     if (kind === 'ai_feature') {
         return `${base} cursor-pointer border-2 border-transparent shadow-lg active:scale-[0.98] hover:border-fuchsia-400/45 hover:ring-1 hover:ring-fuchsia-400/35`;

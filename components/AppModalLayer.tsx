@@ -35,6 +35,8 @@ import CraftingResultModal from './CraftingResultModal.js';
 import SettingsModal from './SettingsModal.js';
 import PetManagementModal from './PetManagementModal.js';
 import AdventureMonsterCodexModal from './adventure/AdventureMonsterCodexModal.js';
+const TrainingQuestModal = lazy(() => import('./singleplayer/TrainingQuestModal.js'));
+const DetailedStatsModal = lazy(() => import('./DetailedStatsModal.js'));
 import ClaimAllSummaryModal from './ClaimAllSummaryModal.js';
 import MbtiInfoModal from './MbtiInfoModal.js';
 import CombinationResultModal from './blacksmith/CombinationResultModal.js';
@@ -46,11 +48,14 @@ import LevelUpCelebrationModal from './LevelUpCelebrationModal.js';
 import MannerGradeChangeModal from './MannerGradeChangeModal.js';
 import ContentUnlockNoticeModal from './ContentUnlockNoticeModal.js';
 import PairIncomingPartnerInviteModal from './pair/PairIncomingPartnerInviteModal.js';
+import { arenaLobbyHash, arenaLobbyIntentFromPairRoom } from '../shared/utils/arenaLobbyDestination.js';
 import { replaceAppHash } from '../utils/appUtils.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { PAIR_LOBBY_FOCUS_ROOM_TAB_SESSION_KEY } from '../shared/constants/pairArena.js';
+import { mergeWaitingRoomPublicChatMessages } from '../shared/utils/waitingRoomGlobalChatMerge.js';
+import ModalChunkFallback from './ui/ModalChunkFallback.js';
 
-const ModalLoadingFallback = () => null;
+const ModalLoadingFallback = () => <ModalChunkFallback />;
 
 const AppModalLayer: React.FC = () => {
     const { isNativeMobile } = useNativeMobileShell();
@@ -75,6 +80,11 @@ const AppModalLayer: React.FC = () => {
         pairRooms,
         pairPartnerInvites,
     } = useAppContext();
+
+    const mergedPublicChatMessages = useMemo(
+        () => mergeWaitingRoomPublicChatMessages(waitingRoomChats ?? {}),
+        [waitingRoomChats],
+    );
 
     const incomingPairPartnerInvite = useMemo(() => {
         if (!currentUserWithStatus) return null;
@@ -109,6 +119,8 @@ const AppModalLayer: React.FC = () => {
         if (modals.isSettingsModalOpen) ids.push('settings');
         if (modals.isPetManagementModalOpen) ids.push('petManagement');
         if (modals.isAdventureMonsterCodexModalOpen) ids.push('adventureMonsterCodex');
+        if (modals.isTrainingQuestModalOpen) ids.push('trainingQuest');
+        if (modals.detailedStatsType) ids.push('detailedStats');
         if (modals.isInventoryOpen) ids.push('inventory');
         if (modals.isMailboxOpen) ids.push('mailbox');
         if (modals.isQuestsOpen) ids.push('quests');
@@ -153,6 +165,8 @@ const AppModalLayer: React.FC = () => {
     }, [modals, activeNegotiation, hasItemObtainedResult, hasScoreOnlyItemObtained]);
 
     const topmostModalId = activeModalIds.length > 0 ? activeModalIds[activeModalIds.length - 1] : null;
+    /** PC 인라인 퀵 패널이 열려 있으면 동일 유틸 모달을 AppModalLayer에서 중복 렌더하지 않음 */
+    const inlineQuickUtilityActive = Boolean(modals.activeQuickUtilityPanel);
 
     if (!currentUserWithStatus) return null;
 
@@ -168,14 +182,14 @@ const AppModalLayer: React.FC = () => {
             if (!accept || !inviteRoomId) return;
 
             const prMap = (result as any)?.clientResponse?.pairRooms ?? (result as any)?.pairRooms;
-            const room = prMap && typeof prMap === 'object' ? (prMap as Record<string, { lobbyChannel?: string }>)[inviteRoomId] : undefined;
+            const joinedRoom =
+                prMap && typeof prMap === 'object'
+                    ? (prMap as Record<string, PairRoomState>)[inviteRoomId]
+                    : undefined;
+            const room = joinedRoom ?? incomingInvitePairRoom;
             const lobbyChannel = (room?.lobbyChannel ?? 'pair') as 'pair' | 'strategic' | 'playful';
-            const targetHash =
-                lobbyChannel === 'strategic'
-                    ? '#/waiting/strategic'
-                    : lobbyChannel === 'playful'
-                      ? '#/waiting/playful'
-                      : '#/pair';
+            const lobbyIntent = arenaLobbyIntentFromPairRoom(room);
+            const targetHash = arenaLobbyHash({ intent: lobbyIntent, channel: lobbyChannel });
 
             const norm = (h: string) => h.replace(/^#\/?/, '').split('?')[0];
             const needNav = norm(window.location.hash) !== norm(targetHash);
@@ -218,16 +232,35 @@ const AppModalLayer: React.FC = () => {
                 />
             )}
             {modals.isSettingsModalOpen && <SettingsModal onClose={handlers.closeSettingsModal} isTopmost={topmostModalId === 'settings'} />}
-            {modals.isPetManagementModalOpen && (
+            {modals.isPetManagementModalOpen && modals.activeQuickUtilityPanel !== 'pet' && (
                 <PetManagementModal onClose={handlers.closePetManagementModal} isTopmost={topmostModalId === 'petManagement'} />
             )}
-            {modals.isAdventureMonsterCodexModalOpen && (
+            {modals.isAdventureMonsterCodexModalOpen && modals.activeQuickUtilityPanel !== 'monsterCodex' && (
                 <AdventureMonsterCodexModal
                     onClose={handlers.closeAdventureMonsterCodexModal}
                     isTopmost={topmostModalId === 'adventureMonsterCodex'}
                 />
             )}
-            {modals.isInventoryOpen && (
+            {modals.isTrainingQuestModalOpen && modals.activeQuickUtilityPanel !== 'trainingQuest' && currentUserWithStatus && (
+                <Suspense fallback={ModalLoadingFallback()}>
+                    <TrainingQuestModal
+                        open
+                        currentUser={currentUserWithStatus}
+                        onClose={handlers.closeTrainingQuest}
+                    />
+                </Suspense>
+            )}
+            {modals.detailedStatsType && modals.activeQuickUtilityPanel !== 'detailedStats' && currentUserWithStatus && (
+                <Suspense fallback={ModalLoadingFallback()}>
+                    <DetailedStatsModal
+                        currentUser={currentUserWithStatus}
+                        statsType={modals.detailedStatsType}
+                        onClose={handlers.closeDetailedStats}
+                        onAction={handlers.handleAction}
+                    />
+                </Suspense>
+            )}
+            {modals.isInventoryOpen && !inlineQuickUtilityActive && (
                 <Suspense fallback={ModalLoadingFallback()}>
                     <InventoryModal currentUser={currentUserWithStatus} onClose={handlers.closeInventory} onAction={handlers.handleAction} onStartEnhance={handlers.openEnhancingItem} onOpenBlacksmithTab={handlers.openBlacksmithTabFromInventory} enhancementAnimationTarget={modals.enhancementAnimationTarget} onAnimationComplete={handlers.clearEnhancementAnimation} isTopmost={topmostModalId === 'inventory'} />
                 </Suspense>
@@ -237,19 +270,19 @@ const AppModalLayer: React.FC = () => {
                     <MailboxModal currentUser={currentUserWithStatus} onClose={handlers.closeMailbox} onAction={handlers.handleAction} isTopmost={topmostModalId === 'mailbox'} />
                 </Suspense>
             )}
-            {modals.isQuestsOpen && (
+            {modals.isQuestsOpen && !inlineQuickUtilityActive && (
                 <Suspense fallback={ModalLoadingFallback()}>
                     <QuestsModal currentUser={currentUserWithStatus} onClose={handlers.closeQuests} onAction={handlers.handleAction} isTopmost={topmostModalId === 'quests'} />
                 </Suspense>
             )}
             {modals.rewardSummary && <RewardSummaryModal summary={modals.rewardSummary} onClose={handlers.closeRewardSummary} isTopmost={topmostModalId === 'rewardSummary'} />}
             {modals.isClaimAllSummaryOpen && modals.claimAllSummary && <ClaimAllSummaryModal summary={modals.claimAllSummary} onClose={handlers.closeClaimAllSummary} isTopmost={topmostModalId === 'claimAllSummary'} />}
-            {modals.isShopOpen && (
+            {modals.isShopOpen && !inlineQuickUtilityActive && (
                 <Suspense fallback={ModalLoadingFallback()}>
                     <ShopModal currentUser={currentUserWithStatus} onClose={handlers.closeShop} onAction={handlers.handleAction} isTopmost={topmostModalId === 'shop'} initialTab={modals.shopInitialTab} />
                 </Suspense>
             )}
-            {modals.isExchangeOpen && (
+            {modals.isExchangeOpen && !inlineQuickUtilityActive && (
                 <Suspense fallback={ModalLoadingFallback()}>
                     <ExchangeModal
                         currentUser={currentUserWithStatus}
@@ -293,7 +326,7 @@ const AppModalLayer: React.FC = () => {
                 </Suspense>
             )}
             {modals.isInfoModalOpen && <InfoModal onClose={handlers.closeInfoModal} isTopmost={topmostModalId === 'infoModal'} />}
-            {modals.isAnnouncementsModalOpen && (
+            {modals.isAnnouncementsModalOpen && modals.activeQuickUtilityPanel !== 'announcements' && (
                 <div
                     className="sudamr-modal-overlay z-[230]"
                     role="dialog"
@@ -317,12 +350,12 @@ const AppModalLayer: React.FC = () => {
                     </div>
                 </div>
             )}
-            {modals.isRankingQuickModalOpen && (
+            {modals.isRankingQuickModalOpen && modals.activeQuickUtilityPanel !== 'ranking' && (
                 <RankingQuickModal onClose={handlers.closeRankingQuickModal} isTopmost={topmostModalId === 'rankingQuickModal'} />
             )}
             {modals.isChatQuickModalOpen && (
                 <ChatQuickModal
-                    messages={waitingRoomChats?.global ?? []}
+                    messages={mergedPublicChatMessages}
                     onAction={handlers.handleAction}
                     onViewUser={handlers.openViewingUser}
                     onClose={handlers.closeChatQuickModal}
@@ -334,7 +367,7 @@ const AppModalLayer: React.FC = () => {
                     onClose={handlers.closeInsufficientActionPointsModal}
                     onOpenShopConsumables={() => {
                         handlers.closeInsufficientActionPointsModal();
-                        handlers.openShop('consumables');
+                        handlers.openShop('consumables', { modal: true });
                     }}
                     onOpenDiamondRecharge={() => {
                         handlers.closeInsufficientActionPointsModal();
@@ -349,7 +382,7 @@ const AppModalLayer: React.FC = () => {
                     isTopmost={topmostModalId === 'opponentInsufficientActionPoints'}
                 />
             )}
-            {modals.isEncyclopediaOpen && (
+            {modals.isEncyclopediaOpen && modals.activeQuickUtilityPanel !== 'encyclopedia' && (
                 <Suspense fallback={ModalLoadingFallback()}>
                     <EncyclopediaModal onClose={handlers.closeEncyclopedia} isTopmost={topmostModalId === 'encyclopedia'} />
                 </Suspense>
@@ -434,7 +467,7 @@ const AppModalLayer: React.FC = () => {
                     </div>
                 </div>
             )}
-            {modals.isBlacksmithModalOpen && (
+            {modals.isBlacksmithModalOpen && !inlineQuickUtilityActive && (
                 <Suspense fallback={ModalLoadingFallback()}>
                     <BlacksmithModal
                         onClose={handlers.closeBlacksmithModal}
@@ -460,18 +493,19 @@ const AppModalLayer: React.FC = () => {
             {modals.isEnhancementResultModalOpen && enhancementOutcome && <EnhancementResultModal result={enhancementOutcome} onClose={handlers.closeEnhancementModal} isTopmost={topmostModalId === 'enhancementResult'} />}
             {modals.isClaimAllSummaryOpen && modals.claimAllSummary && <ClaimAllSummaryModal summary={modals.claimAllSummary} onClose={handlers.closeClaimAllSummary} isTopmost={topmostModalId === 'claimAllSummary'} />}
             {modals.isEquipmentEffectsModalOpen && <EquipmentEffectsModal onClose={handlers.closeEquipmentEffectsModal} isTopmost={topmostModalId === 'equipmentEffects'} mainOptionBonuses={mainOptionBonuses} combatSubOptionBonuses={combatSubOptionBonuses} specialStatBonuses={specialStatBonuses} aggregatedMythicStats={aggregatedMythicStats} />}
-            {modals.isGameRecordListOpen && (
+            {modals.isGameRecordListOpen && modals.activeQuickUtilityPanel !== 'gameRecords' && (
                 <Suspense fallback={ModalLoadingFallback()}>
                     <GameRecordListModal
                         currentUser={currentUserWithStatus}
                         onClose={handlers.closeGameRecordList}
                         onAction={handlers.handleAction}
-                        onViewRecord={handlers.openGameRecordViewer}
                         isTopmost={topmostModalId === 'gameRecordList'}
                     />
                 </Suspense>
             )}
-            {modals.viewingGameRecord && (
+            {modals.viewingGameRecord &&
+                !modals.isGameRecordListOpen &&
+                modals.activeQuickUtilityPanel !== 'gameRecords' && (
                 <Suspense fallback={ModalLoadingFallback()}>
                     <GameRecordViewerModal
                         record={modals.viewingGameRecord}

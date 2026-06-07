@@ -9,7 +9,13 @@ import GameList from './GameList.js';
 import ChatWindow from './ChatWindow.js';
 import TierInfoModal from '../TierInfoModal.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants';
-import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from '../QuickAccessSidebar.js';
+import QuickAccessSidebar from '../QuickAccessSidebar.js';
+import {
+    PC_HOME_LEFT_COLUMN_CLASS,
+    PC_LOBBY_THREE_COLUMN_ROW_GAP_CLASS,
+    PC_LOBBY_USERS_COLUMN_CLASS,
+    PC_QUICK_RAIL_COLUMN_CLASS,
+} from '../../shared/constants/pcShellLayout.js';
 import AiChallengeModal from './AiChallengeModal.js';
 import AiChallengePanel from './AiChallengePanel.js';
 import RankedMatchPanel from './RankedMatchPanel.js';
@@ -31,6 +37,7 @@ import {
 import { WaitingLobbyAnnouncementBoard, WAITING_LOBBY_PANEL_GLASS } from './WaitingLobbyAnnouncementBoard.js';
 import { userInUnifiedArenaLobbyUserList } from './aggregateWaitingLobbyUserFilter.js';
 import { sumLobbyAiMatchRecordFromStats } from '../../shared/utils/lobbyAiMatchRecord.js';
+import { mergeWaitingRoomPublicChatMessages } from '../../shared/utils/waitingRoomGlobalChatMerge.js';
 
 interface WaitingRoomComponentProps {
     mode: GameMode | 'strategic' | 'playful';
@@ -70,9 +77,10 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
     if (mode === 'playful' && !m.playfulLobby) replaceAppHash('#/profile');
   }, [mode, arenaEntranceAvailability, currentUserWithStatus]);
 
-  // 전략바둑과 놀이바둑 대기실은 각각의 채널 사용
-  const chatChannel = mode === 'strategic' ? 'strategic' : mode === 'playful' ? 'playful' : 'global';
-  const chatMessages = waitingRoomChats[chatChannel] || [];
+  const chatMessages = useMemo(
+    () => mergeWaitingRoomPublicChatMessages(waitingRoomChats),
+    [waitingRoomChats],
+  );
 
   const isStrategic = useMemo(() => {
     if (mode === 'strategic') return true;
@@ -135,11 +143,9 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
     }
   }, [mode, nativeWaitingTab]);
 
-  /** 이전 분리 탭(ai / ranked) 상태를 합친 탭으로 이월 */
   useEffect(() => {
-    if (mode !== 'strategic') return;
-    if (nativeWaitingTab === 'ai' || nativeWaitingTab === 'ranked') {
-      setNativeWaitingTab('rankedAi');
+    if (mode === 'strategic' && nativeWaitingTab === 'rankedAi') {
+      setNativeWaitingTab('ai');
     }
   }, [mode, nativeWaitingTab]);
 
@@ -467,7 +473,8 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                       ]
                     : [
                           { id: 'users' as const, label: '유저목록' },
-                          { id: 'rankedAi' as const, label: 'AI대전/랭킹전' },
+                          { id: 'ai' as const, label: 'AI대전' },
+                          { id: 'ranked' as const, label: '랭킹전' },
                           { id: 'games' as const, label: '대국실목록' },
                           { id: 'rankingInfo' as const, label: '랭킹정보' },
                       ]
@@ -525,8 +532,8 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                     </div>
                   </div>
                 )}
-                {nativeWaitingTab === 'rankedAi' && mode === 'strategic' && (
-                  <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden pb-0.5">
+                {nativeWaitingTab === 'ai' && mode === 'strategic' && (
+                  <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden pb-0.5">
                     <div className={`${aiChallengeFeatureShellClass} relative shrink-0 overflow-hidden p-2`}>
                       <div className={aiChallengeFeatureTopHairlineClass} aria-hidden />
                       <div className={aiChallengePanelInnerGradientClass}>
@@ -539,25 +546,27 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                         />
                       </div>
                     </div>
-                    <div
-                      className={`flex min-h-0 shrink-0 flex-col overflow-hidden rounded-lg border border-color bg-panel shadow-lg ${waitingLobbyGlass}`}
-                    >
-                      <RankedMatchPanel
-                        currentUser={currentUserWithStatus}
-                        onAction={handlers.handleAction}
-                        isMatching={isRankedMatching}
-                        matchingStartTime={rankedMatchingStartTime}
-                        variant="nativeNarrow"
-                        onMatchingStateChange={(isMatching, startTime) => {
-                          setIsRankedMatching(isMatching);
-                          setRankedMatchingStartTime(startTime);
-                        }}
-                        onCancelMatching={() => {
-                          setIsRankedMatching(false);
-                          setRankedMatchingStartTime(0);
-                        }}
-                      />
-                    </div>
+                  </div>
+                )}
+                {nativeWaitingTab === 'ranked' && mode === 'strategic' && (
+                  <div
+                    className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-color bg-panel shadow-lg ${waitingLobbyGlass}`}
+                  >
+                    <RankedMatchPanel
+                      currentUser={currentUserWithStatus}
+                      onAction={handlers.handleAction}
+                      isMatching={isRankedMatching}
+                      matchingStartTime={rankedMatchingStartTime}
+                      variant="nativeNarrow"
+                      onMatchingStateChange={(isMatching, startTime) => {
+                        setIsRankedMatching(isMatching);
+                        setRankedMatchingStartTime(startTime);
+                      }}
+                      onCancelMatching={() => {
+                        setIsRankedMatching(false);
+                        setRankedMatchingStartTime(0);
+                      }}
+                    />
                   </div>
                 )}
                 {nativeWaitingTab === 'games' && (
@@ -594,10 +603,10 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
           ) : isStrategicPlayfulLobby ? (
             <div
               ref={desktopContainerRef}
-              className="flex h-full min-h-0 w-full flex-row gap-1.5 overflow-hidden sm:gap-2 lg:gap-2"
+              className={`flex h-full min-h-0 w-full flex-row overflow-hidden ${PC_LOBBY_THREE_COLUMN_ROW_GAP_CLASS}`}
             >
               {/* 좌: 챔피언십형 타이틀 + 랭킹전 + 랭킹보드 — 중·우열은 타이틀 행 상단부터 같은 높이로 확장 */}
-              <div className="flex h-full min-h-0 w-[min(43%,500px)] min-w-[292px] max-w-[500px] shrink-0 flex-col gap-[clamp(0.3rem,0.9dvh,0.45rem)] overflow-hidden">
+              <div className={`flex h-full min-h-0 ${PC_HOME_LEFT_COLUMN_CLASS} flex-col gap-[clamp(0.3rem,0.9dvh,0.45rem)] overflow-hidden`}>
                 <div className={waitingLobbyTitleStripRow}>
                   <button
                     type="button"
@@ -695,9 +704,9 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                   />
                 </div>
               </div>
-              {/* 우: 유저 목록(하단까지) + 퀵 메뉴 — shrink-0으로 중앙 대국 열이 유저 폭을 과도하게 잡아먹지 않도록 */}
-              <div className="flex h-full min-h-0 shrink-0 flex-row gap-1.5 overflow-hidden sm:gap-2">
-                <div className="flex h-full min-h-0 min-w-0 w-[min(100%,40rem)] max-w-2xl flex-1 flex-col overflow-hidden sm:min-w-[30rem]">
+              {/* 우: 유저 목록(하단까지) + 퀵 메뉴 */}
+              <div className={`flex h-full min-h-0 shrink-0 flex-row overflow-hidden ${PC_LOBBY_THREE_COLUMN_ROW_GAP_CLASS}`}>
+                <div className={PC_LOBBY_USERS_COLUMN_CLASS}>
                   <div className={`flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-black/15 ${waitingLobbyPcShellClass}`}>
                     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                       <PlayerList
@@ -745,7 +754,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                   >
                     <ChatWindow
                       messages={chatMessages}
-                      mode={chatChannel}
+                      mode={isStrategic ? 'strategic' : 'playful'}
                       onAction={handlers.handleAction}
                       locationPrefix={locationPrefix}
                       onViewUser={handlers.openViewingUser}

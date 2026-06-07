@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { useAppContext } from '../hooks/useAppContext.js';
 import { useModalStackLayer } from '../hooks/useModalStackLayer.js';
+import { getSudamrModalPortalTarget } from '../utils/modalPortalTarget.js';
 import { UserWithStatus } from '../types.js';
 import type { MannerGradeChangePayload } from '../types/mannerGradeChangeModal.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants.js';
@@ -25,6 +27,7 @@ const MannerGradeChangeModal: React.FC<MannerGradeChangeModalProps> = ({ user, p
     const delta = payload.newScore - payload.previousScore;
     const isUp = payload.direction === 'up';
 
+    const { modalLayerUsesDesignPixels } = useAppContext();
     const { zIndex } = useModalStackLayer({ zIndexFloor: 12_045, promoteOnMount: isTopmost });
 
     const chrome = isUp
@@ -53,7 +56,7 @@ const MannerGradeChangeModal: React.FC<MannerGradeChangeModalProps> = ({ user, p
 
     const node = (
         <div
-            className="fixed inset-0 flex items-center justify-center overscroll-contain px-3 pt-[max(0.75rem,env(safe-area-inset-top,0px))] pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]"
+            className={`${modalLayerUsesDesignPixels ? 'absolute' : 'fixed'} inset-0 flex items-center justify-center overscroll-contain px-3 pt-[max(0.75rem,env(safe-area-inset-top,0px))] pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]`}
             style={{ zIndex }}
             role="dialog"
             aria-modal="true"
@@ -184,7 +187,7 @@ const MannerGradeChangeModal: React.FC<MannerGradeChangeModalProps> = ({ user, p
     );
 
     if (typeof document === 'undefined') return node;
-    return createPortal(node, document.body);
+    return createPortal(node, getSudamrModalPortalTarget(modalLayerUsesDesignPixels));
 };
 
 export default MannerGradeChangeModal;

@@ -8,13 +8,16 @@ import MailRewardItemTile from './MailRewardItemTile.js';
 import { formatGoldAmountKoG, formatWalletDiamonds } from '../shared/utils/walletAmountDisplay.js';
 import { CASH_SHOP_PACKAGE_KO_LABEL, type CashShopPackageId } from '../shared/constants/cashShopPackages.js';
 import { isMailRewardsClaimExpired } from '../shared/utils/mailRewardsExpiry.js';
+import { useKeyedAsyncAction } from '../hooks/useAsyncAction.js';
 
 interface MailboxModalProps {
     currentUser: UserWithStatus;
     onClose: () => void;
-    onAction: (action: ServerAction) => void;
+    onAction: (action: ServerAction) => void | Promise<void>;
     isTopmost?: boolean;
 }
+
+type MailActionPending = 'claim-one' | 'claim-all' | 'delete-one' | 'delete-all' | null;
 
 const formatRemainingTime = (expiresAt: number): string => {
     const remainingSeconds = Math.max(0, (expiresAt - Date.now()) / 1000);
@@ -133,12 +136,15 @@ function renderAttachmentsBlock(m: Mail, compact?: boolean) {
 const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUser, onClose, onAction, isTopmost }) => {
     const { currentUserWithStatus } = useAppContext();
     const isHandheld = useIsHandheldDevice(1025);
+    const mailAction = useKeyedAsyncAction();
 
     const currentUser = currentUserWithStatus || propCurrentUser;
     const { mail } = currentUser;
 
     const [detailMail, setDetailMail] = useState<Mail | null>(null);
     const [remainingTime, setRemainingTime] = useState<string | null>(null);
+
+    const mailActionPending = mailAction.pendingKey as MailActionPending;
 
     useEffect(() => {
         if (!detailMail) return;
@@ -174,15 +180,19 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
             !detailMail.attachmentsClaimed &&
             !isMailRewardsClaimExpired(detailMail)
         ) {
-            onAction({ type: 'CLAIM_MAIL_ATTACHMENTS', payload: { mailId: detailMail.id } });
+            void mailAction.run('claim-one', async () => {
+                await onAction({ type: 'CLAIM_MAIL_ATTACHMENTS', payload: { mailId: detailMail.id } });
+            });
         }
-    }, [detailMail, onAction]);
+    }, [detailMail, onAction, mailAction]);
 
     const handleDelete = useCallback(() => {
         if (!detailMail) return;
-        onAction({ type: 'DELETE_MAIL', payload: { mailId: detailMail.id } });
-        setDetailMail(null);
-    }, [detailMail, onAction]);
+        void mailAction.run('delete-one', async () => {
+            await onAction({ type: 'DELETE_MAIL', payload: { mailId: detailMail.id } });
+            setDetailMail(null);
+        });
+    }, [detailMail, onAction, mailAction]);
 
     const hasUnclaimedMail = mail.some(
         (m) => m.attachments && !m.attachmentsClaimed && !isMailRewardsClaimExpired(m)
@@ -190,13 +200,17 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
     const hasClaimedMail = mail.some((m) => m.attachmentsClaimed);
 
     const handleClaimAll = () => {
-        onAction({ type: 'CLAIM_ALL_MAIL_ATTACHMENTS' });
+        void mailAction.run('claim-all', async () => {
+            await onAction({ type: 'CLAIM_ALL_MAIL_ATTACHMENTS' });
+        });
     };
 
     const handleDeleteAllClaimed = () => {
         if (window.confirm('수령 완료된 모든 메일을 삭제하시겠습니까?')) {
-            onAction({ type: 'DELETE_ALL_CLAIMED_MAIL' });
-            setDetailMail((d) => (d && d.attachmentsClaimed ? null : d));
+            void mailAction.run('delete-all', async () => {
+                await onAction({ type: 'DELETE_ALL_CLAIMED_MAIL' });
+                setDetailMail((d) => (d && d.attachmentsClaimed ? null : d));
+            });
         }
     };
 
@@ -204,7 +218,8 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
     const claimDisabled =
         !detailMail?.attachments ||
         Boolean(detailMail.attachmentsClaimed) ||
-        detailMailRewardExpired;
+        detailMailRewardExpired ||
+        mailAction.isAnyPending;
 
     const premiumDeleteClass =
         'group relative flex min-h-[48px] min-w-0 flex-1 items-center justify-center gap-2 overflow-hidden rounded-2xl border border-rose-400/40 ' +
@@ -212,7 +227,8 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
         'shadow-[0_10px_36px_-14px_rgba(225,29,72,0.55),inset_0_1px_0_rgba(255,255,255,0.12),inset_0_-1px_0_rgba(0,0,0,0.35)] ' +
         'ring-1 ring-inset ring-white/10 transition-[transform,box-shadow,border-color,filter] duration-200 ' +
         'hover:border-rose-300/55 hover:from-rose-800/95 hover:shadow-[0_14px_40px_-12px_rgba(244,63,94,0.5)] active:scale-[0.98] ' +
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950';
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 ' +
+        'disabled:pointer-events-none disabled:opacity-50';
 
     const premiumClaimClass =
         'relative flex min-h-[48px] min-w-0 flex-[1.15] items-center justify-center gap-2 overflow-hidden rounded-2xl border border-emerald-300/50 ' +
@@ -230,12 +246,12 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
                 isHandheld ? '' : 'pt-1'
             }`}
         >
-            <button type="button" onClick={handleDelete} className={premiumDeleteClass}>
+            <button type="button" onClick={handleDelete} disabled={mailAction.isAnyPending} className={premiumDeleteClass}>
                 <span
                     className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent opacity-60 transition-opacity group-hover:opacity-80"
                     aria-hidden
                 />
-                <span className="relative">삭제</span>
+                <span className="relative">{mailActionPending === 'delete-one' ? '삭제 중...' : '삭제'}</span>
             </button>
             <button type="button" onClick={handleClaim} disabled={claimDisabled} className={premiumClaimClass}>
                 <span
@@ -243,11 +259,13 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
                     aria-hidden
                 />
                 <span className="relative drop-shadow-sm">
-                    {detailMail.attachmentsClaimed
-                        ? '수령 완료'
-                        : detailMailRewardExpired
-                          ? '만료됨'
-                          : '보상 받기'}
+                    {mailActionPending === 'claim-one'
+                        ? '수령 중...'
+                        : detailMail.attachmentsClaimed
+                          ? '수령 완료'
+                          : detailMailRewardExpired
+                            ? '만료됨'
+                            : '보상 받기'}
                 </span>
             </button>
         </div>
@@ -266,19 +284,19 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
             <div className="mb-3 flex shrink-0 flex-row items-stretch gap-2">
                 <Button
                     onClick={handleClaimAll}
-                    disabled={!hasUnclaimedMail}
+                    disabled={!hasUnclaimedMail || mailAction.isAnyPending}
                     colorScheme="green"
                     className="!min-h-[42px] min-w-0 flex-1 !rounded-xl !py-2.5 !text-xs font-semibold shadow-lg shadow-emerald-900/20 sm:!text-sm"
                 >
-                    일괄 수령
+                    {mailActionPending === 'claim-all' ? '수령 중...' : '일괄 수령'}
                 </Button>
                 <Button
                     onClick={handleDeleteAllClaimed}
-                    disabled={!hasClaimedMail}
+                    disabled={!hasClaimedMail || mailAction.isAnyPending}
                     colorScheme="red"
                     className="!min-h-[42px] min-w-0 flex-1 !rounded-xl !border !border-red-500/30 !bg-red-950/40 !px-2 !py-2 !text-[11px] leading-snug hover:!bg-red-900/50 sm:!px-3 sm:!text-sm"
                 >
-                    수령 완료 메일 삭제
+                    {mailActionPending === 'delete-all' ? '삭제 중...' : '수령 완료 메일 삭제'}
                 </Button>
             </div>
             <ul className={mailScrollClass}>

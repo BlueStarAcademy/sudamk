@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { LiveGameSession, User, ServerAction } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
 import PreGameColorRoulette from './PreGameColorRoulette.js';
@@ -9,6 +9,7 @@ import { getAdventureCodexMonsterById } from '../constants/adventureMonstersCode
 import { getSessionPlayerDisplayName } from '../utils/gameDisplayNames.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
 import { PRE_GAME_PVP_COUNTDOWN_SECONDS } from '../shared/constants/preGameCountdown.js';
+import { usePreGameDeadlineAutoSubmit } from '../hooks/usePreGameDeadlineAutoSubmit.js';
 
 interface NigiriModalProps {
     session: LiveGameSession;
@@ -24,6 +25,26 @@ const NigiriModal: React.FC<NigiriModalProps> = ({ session, currentUser, onActio
     useEffect(() => {
         setColorRouletteDone(false);
     }, [gameId, blackPlayerId, whitePlayerId]);
+
+    const showCountdown = resolveArenaSessionPolicy(session).matchAxis === 'pvp';
+    const countdownDeadline = useMemo(() => {
+        if (!showCountdown) return undefined;
+        const serverDeadline = session.revealEndTime;
+        if (serverDeadline != null && Number.isFinite(serverDeadline)) return serverDeadline;
+        return Date.now() + PRE_GAME_PVP_COUNTDOWN_SECONDS * 1000;
+    }, [showCountdown, session.revealEndTime, gameId]);
+
+    const handleConfirm = useCallback(() => {
+        onAction({ type: 'CONFIRM_COLOR_START', payload: { gameId } });
+    }, [onAction, gameId]);
+
+    usePreGameDeadlineAutoSubmit({
+        deadline: showCountdown ? countdownDeadline : undefined,
+        enabled: showCountdown,
+        alreadySubmitted: hasConfirmed,
+        blocking: !colorRouletteDone,
+        onSubmit: handleConfirm,
+    });
 
     if (!blackPlayerId || !whitePlayerId) return null;
 
@@ -60,21 +81,21 @@ const NigiriModal: React.FC<NigiriModalProps> = ({ session, currentUser, onActio
             variant="sticky"
             hasConfirmed={hasConfirmed}
             rouletteBlockingStart={!colorRouletteDone}
-            showCountdown={resolveArenaSessionPolicy(session).matchAxis === 'pvp'}
-            countdownDeadline={session.revealEndTime}
+            showCountdown={showCountdown}
+            countdownDeadline={countdownDeadline}
             countdownSeconds={PRE_GAME_PVP_COUNTDOWN_SECONDS}
-            onConfirm={() => onAction({ type: 'CONFIRM_COLOR_START', payload: { gameId } })}
+            onConfirm={handleConfirm}
         />
     );
 
     const scrollMainClass = isHandheld
-        ? 'flex min-h-0 flex-1 flex-col justify-center overflow-y-auto overflow-x-hidden overscroll-y-contain text-white'
-        : 'flex min-h-0 flex-1 flex-col justify-center overflow-y-auto overflow-x-hidden overscroll-y-contain py-3 text-white sm:py-4';
+        ? 'flex min-h-0 flex-1 flex-col justify-center overflow-y-auto overflow-x-hidden overscroll-y-contain px-3 text-white'
+        : 'flex min-h-0 flex-1 flex-col justify-center overflow-y-auto overflow-x-hidden overscroll-y-contain px-3 py-2 text-white sm:px-4 sm:py-2.5';
 
     return (
         <DraggableWindow
             title="흑·백 확인"
-            initialWidth={420}
+            initialWidth={340}
             shrinkHeightToContent
             windowId="nigiri"
             transparentModalBackdrop
@@ -86,7 +107,7 @@ const NigiriModal: React.FC<NigiriModalProps> = ({ session, currentUser, onActio
             mobileViewportDvhBottomGapPx={8}
             bodyPaddingClassName="p-0"
             bodyNoScroll
-            containerExtraClassName="!max-w-[min(94vw,26.25rem)]"
+            containerExtraClassName="!max-w-[min(94vw,21.25rem)]"
         >
             <>
                 <div className={scrollMainClass}>{cards}</div>

@@ -9,6 +9,8 @@ import { aiUserId, makeAiMove, getAiUser, getAiUserForGuildWar } from './aiPlaye
 import { syncAiSession } from './aiSessionManager.js';
 // FIX: The imported functions were not found. They are now exported from `standard.ts` with the correct names.
 import { initializeStrategicGame, updateStrategicGameState } from './modes/standard.js';
+import { applyHumanPvpStrategicSettingsInvariants } from './modes/pvpStrategicPipeline.js';
+import { sanitizePvpGameSettings } from '../shared/utils/sanitizePvpGameSettings.js';
 import { initializePlayfulGame, updatePlayfulGameState } from './modes/playful.js';
 import { randomUUID } from 'crypto';
 import * as db from './db.js';
@@ -35,7 +37,7 @@ import {
     isSessionSpeedTimePressureMode,
     SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT,
 } from './utils/speedTimePressureLiveCaptures.js';
-import { modeIncludesCaptureRule } from '../shared/utils/liveSessionArenaKind.js';
+import { modeIncludesCaptureRule, resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
 import { isAiLobbyManualClockPause } from './modes/shared.js';
 
 // 정확한 계가 결과는 1회만 표시한다는 전제 하에,
@@ -43,7 +45,19 @@ import { isAiLobbyManualClockPause } from './modes/shared.js';
 // - 히든돌 최종 공개 애니메이션 중 + 일반 계가 직전 `startScoringKataGoPrecomputeIfNeeded`
 // - `runAnalysisWithRetries`는 동일 gameId의 프리컴퓨트 Promise를 재사용
 // - 클라이언트는 연출(착점·따낸 점수·계가 중 오버레이) 후에 영토/결과를 표시
-const scoringPrecompute = new Map<string, { startedAt: number; promise: Promise<types.AnalysisResult> }>();
+type ScoringPrecomputeEntry = {
+    startedAt: number;
+    promise: Promise<types.AnalysisResult>;
+    preservedGameState?: Record<string, unknown>;
+    preservedTimeInfo?: {
+        blackTimeLeft?: number;
+        whiteTimeLeft?: number;
+        blackInitialTimeLeft?: number;
+        whiteInitialTimeLeft?: number;
+    };
+};
+
+const scoringPrecompute = new Map<string, ScoringPrecomputeEntry>();
 const PRECOMPUTE_TTL_MS = 60_000;
 
 function cleanupScoringPrecompute(nowMs: number): void {
@@ -55,12 +69,113 @@ function cleanupScoringPrecompute(nowMs: number): void {
     }
 }
 
+export function invalidateScoringPrecompute(gameId: string): void {
+    scoringPrecompute.delete(gameId);
+}
+
+function isAnticipatedScoringPrecomputeEligible(game: types.LiveGameSession): boolean {
+    if (game.isSinglePlayer || game.gameCategory === 'tower' || game.gameCategory === 'singleplayer') {
+        return false;
+    }
+    if (game.gameStatus !== 'playing') return false;
+    const policy = resolveArenaSessionPolicy(game);
+    return policy.matchAxis === 'pvp' && game.winReason !== 'resign';
+}
+
 /**
- * 계가 상태 브로드캐스트·UI 연출 전에 KataGo 분석을 백그라운드로 시작한다.
- * - 히든 최종 공개 애니 중(기존) + 일반 계가 직전(추가) 모두 동일 경로.
- * - 클라이언트에서 착점/따낸 점수/계가 중 오버레이를 보여주는 동안 서버가 결과를 준비한다.
+ * 상대 패스 대기 중(첫 패스 직후) KataGo를 미리 돌려, 상호 패스 시 계가 결과를 더 빨리 낸다.
+ * 착수로 passCount가 리셋되면 `invalidateScoringPrecompute`로 무효화한다.
  */
-function startScoringKataGoPrecomputeIfNeeded(game: types.LiveGameSession, logLabel: string): void {
+export function maybeStartAnticipatedScoringPrecompute(game: types.LiveGameSession): void {
+    if (!isAnticipatedScoringPrecomputeEligible(game)) return;
+    if ((game.passCount ?? 0) < 1) return;
+    startScoringKataGoPrecomputeIfNeeded(game, 'anticipated_first_pass');
+}
+
+async function broadcastScoringAnalysisWhenReady(
+    gameId: string,
+    baseAnalysis: types.AnalysisResult,
+    entry?: ScoringPrecomputeEntry,
+): Promise<void> {
+    const { getCachedGame, updateGameCache } = await import('./gameCache.js');
+    let freshGame = await getCachedGame(gameId);
+    if (!freshGame) {
+        freshGame = await db.getLiveGame(gameId);
+    }
+    if (!freshGame || freshGame.gameStatus !== 'scoring') return;
+    if (freshGame.analysisResult?.['system']) return;
+
+    const preservedState =
+        (freshGame as { preservedGameState?: Record<string, unknown> }).preservedGameState ||
+        entry?.preservedGameState;
+    if (preservedState && typeof preservedState === 'object') {
+        const ps = preservedState as Record<string, unknown>;
+        if (Array.isArray(ps.moveHistory) && ps.moveHistory.length > 0) {
+            freshGame.moveHistory = ps.moveHistory as types.LiveGameSession['moveHistory'];
+        }
+        if (Array.isArray(ps.boardState) && ps.boardState.length > 0) {
+            freshGame.boardState = ps.boardState as types.LiveGameSession['boardState'];
+        }
+        if (ps.captures && typeof ps.captures === 'object') {
+            freshGame.captures = ps.captures as types.LiveGameSession['captures'];
+        }
+        if (ps.totalTurns !== undefined) {
+            freshGame.totalTurns = ps.totalTurns as number;
+        }
+    }
+
+    const timeInfoToUse =
+        entry?.preservedTimeInfo ||
+        (freshGame as { preservedTimeInfo?: ScoringPrecomputeEntry['preservedTimeInfo'] }).preservedTimeInfo || {
+            blackTimeLeft: freshGame.blackTimeLeft,
+            whiteTimeLeft: freshGame.whiteTimeLeft,
+            blackInitialTimeLeft: freshGame.blackInitialTimeLeft,
+            whiteInitialTimeLeft: freshGame.whiteInitialTimeLeft,
+        };
+    const finalAnalysis = finalizeAnalysisResult(baseAnalysis, freshGame, timeInfoToUse);
+    finalAnalysis.source = 'katago';
+    finalAnalysis.isProvisional = false;
+
+    if (!freshGame.analysisResult) freshGame.analysisResult = {};
+    freshGame.analysisResult['system'] = finalAnalysis;
+    freshGame.finalScores = {
+        black: finalAnalysis.scoreDetails.black.total,
+        white: finalAnalysis.scoreDetails.white.total,
+    };
+    freshGame.isAnalyzing = false;
+
+    updateGameCache(freshGame);
+    await db.saveGame(freshGame);
+
+    const gameToBroadcast = {
+        ...freshGame,
+        moveHistory: preservedState?.moveHistory || freshGame.moveHistory,
+        totalTurns: (preservedState?.totalTurns as number | undefined) ?? freshGame.totalTurns,
+        blackTimeLeft: timeInfoToUse.blackTimeLeft ?? freshGame.blackTimeLeft,
+        whiteTimeLeft: timeInfoToUse.whiteTimeLeft ?? freshGame.whiteTimeLeft,
+        captures: preservedState?.captures || freshGame.captures,
+        baseStoneCaptures: preservedState?.baseStoneCaptures || freshGame.baseStoneCaptures,
+        hiddenStoneCaptures: preservedState?.hiddenStoneCaptures || freshGame.hiddenStoneCaptures,
+    };
+    if (!freshGame.isSinglePlayer) {
+        delete (gameToBroadcast as { boardState?: unknown }).boardState;
+    }
+    const { broadcastToGameParticipants } = await import('./socket.js');
+    broadcastToGameParticipants(
+        freshGame.id,
+        { type: 'GAME_UPDATE', payload: { [freshGame.id]: gameToBroadcast } },
+        freshGame,
+    );
+    console.log(
+        `[getGameResult] Early scoring analysis broadcast for game ${freshGame.id} (Black ${finalAnalysis.scoreDetails.black.total}, White ${finalAnalysis.scoreDetails.white.total})`,
+    );
+}
+
+function startScoringKataGoPrecomputeCore(
+    game: types.LiveGameSession,
+    logLabel: string,
+    meta?: Pick<ScoringPrecomputeEntry, 'preservedGameState' | 'preservedTimeInfo'>,
+): void {
     cleanupScoringPrecompute(Date.now());
     const existing = scoringPrecompute.get(game.id);
     const nowMs = Date.now();
@@ -77,16 +192,40 @@ function startScoringKataGoPrecomputeIfNeeded(game: types.LiveGameSession, logLa
     ) as types.LiveGameSession;
     finalizeHiddenStonesForScoring(snapshot);
     const scoringLim = getScoringKataGoLimits();
-    const p = analyzeGame(snapshot, {
+    let entry: ScoringPrecomputeEntry;
+    const promise = analyzeGame(snapshot, {
         includePolicy: false,
         includeOwnership: true,
         maxVisits: scoringLim.maxVisits,
         maxTimeSec: scoringLim.maxTimeSec,
-    }).catch((e) => {
-        throw e;
-    });
-    scoringPrecompute.set(game.id, { startedAt: nowMs, promise: p });
+    })
+        .then(async (baseAnalysis) => {
+            await broadcastScoringAnalysisWhenReady(game.id, baseAnalysis, entry);
+            return baseAnalysis;
+        })
+        .catch((e) => {
+            throw e;
+        });
+    entry = {
+        startedAt: nowMs,
+        promise,
+        preservedGameState: meta?.preservedGameState,
+        preservedTimeInfo: meta?.preservedTimeInfo,
+    };
+    scoringPrecompute.set(game.id, entry);
     console.log(`[getGameResult] Started KataGo scoring precompute (${logLabel}) for game ${game.id}`);
+}
+
+/**
+ * 계가 상태 브로드캐스트·UI 연출 전에 KataGo 분석을 백그라운드로 시작한다.
+ * - 히든 최종 공개 애니 중(기존) + 일반 계가 직전(추가) 모두 동일 경로.
+ * - 클라이언트에서 착점/따낸 점수/계가 중 오버레이를 보여주는 동안 서버가 결과를 준비한다.
+ */
+function startScoringKataGoPrecomputeIfNeeded(game: types.LiveGameSession, logLabel: string): void {
+    const preservedGameState = (game as { preservedGameState?: Record<string, unknown> }).preservedGameState;
+    const preservedTimeInfo = (game as { preservedTimeInfo?: ScoringPrecomputeEntry['preservedTimeInfo'] })
+        .preservedTimeInfo;
+    startScoringKataGoPrecomputeCore(game, logLabel, { preservedGameState, preservedTimeInfo });
 }
 
 function shouldDeferScoringForHiddenRevealAnimation(game: types.LiveGameSession, now: number): boolean {
@@ -264,6 +403,59 @@ export const finalizeAnalysisResult = (baseAnalysis: types.AnalysisResult, sessi
     
     return finalAnalysis;
 };
+
+/**
+ * KataGo 비동기 계가 완료 후 세션을 다시 조회한다.
+ * PVP는 DB 저장 지연·캐시 TTL·Prisma 일시 오류로 miss 될 수 있어, 계가 중 in-flight 세션으로 폴백한다.
+ */
+export async function resolveFreshGameForScoringFinalize(
+    sourceGame: types.LiveGameSession,
+    savedPreservedGameState?: Record<string, unknown>,
+): Promise<types.LiveGameSession | null> {
+    const { getCachedGame, getStaleCachedGame, updateGameCache } = await import('./gameCache.js');
+
+    let freshGame = await getCachedGame(sourceGame.id);
+    if (!freshGame) {
+        freshGame = await db.getLiveGame(sourceGame.id);
+    }
+    if (!freshGame) {
+        freshGame = getStaleCachedGame(sourceGame.id);
+    }
+    if (freshGame) return freshGame;
+
+    const inFlightScoring =
+        sourceGame.gameStatus === 'scoring' ||
+        Boolean((sourceGame as { isScoringProtected?: boolean }).isScoringProtected) ||
+        Boolean((sourceGame as { preservedGameState?: unknown }).preservedGameState);
+    if (!inFlightScoring) return null;
+
+    console.warn(
+        `[getGameResult] Cache/DB miss for ${sourceGame.id}; finalizing from in-flight scoring session`,
+    );
+    const fallback = JSON.parse(JSON.stringify(sourceGame)) as types.LiveGameSession;
+    const preserved =
+        (sourceGame as { preservedGameState?: Record<string, unknown> }).preservedGameState ||
+        savedPreservedGameState;
+    if (preserved && typeof preserved === 'object') {
+        const ps = preserved as Record<string, unknown>;
+        if (Array.isArray(ps.moveHistory) && ps.moveHistory.length > 0) {
+            fallback.moveHistory = ps.moveHistory as types.LiveGameSession['moveHistory'];
+        }
+        if (Array.isArray(ps.boardState) && ps.boardState.length > 0) {
+            fallback.boardState = ps.boardState as types.LiveGameSession['boardState'];
+        }
+        if (ps.captures && typeof ps.captures === 'object') {
+            fallback.captures = ps.captures as types.LiveGameSession['captures'];
+        }
+        if (ps.totalTurns !== undefined) {
+            fallback.totalTurns = ps.totalTurns as number;
+        }
+    }
+    fallback.gameStatus = 'scoring';
+    (fallback as { isScoringProtected?: boolean }).isScoringProtected = true;
+    updateGameCache(fallback);
+    return fallback;
+}
 
 
 export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSession> => {
@@ -506,6 +698,13 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
     game.winReason = 'score';
     game.isAnalyzing = true;
     game.animation = null;
+    try {
+        const { stashEndedPvpGameRecordSnapshot } = await import('./gameRecordSnapshot.js');
+        const { volatileState } = await import('./state.js');
+        stashEndedPvpGameRecordSnapshot(volatileState, game);
+    } catch (stashErr) {
+        console.warn('[getGameResult] stashEndedPvpGameRecordSnapshot failed:', (stashErr as Error)?.message);
+    }
     const scoringTotalStart = Date.now(); // 계가 총 소요 시간 측정 (연출/로깅용)
 
     if (preservedGameState.boardState && Array.isArray(preservedGameState.boardState) && preservedGameState.boardState.length > 0) {
@@ -539,7 +738,10 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
         console.error(`[getGameResult] ERROR: boardState invalid for game ${game.id}, cannot start analysis`);
     } else {
         // 클라이언트 연출(착점·따낸 점수·계가 중 UI)과 병렬로 KataGo 요청을 시작한다. 브로드캐스트는 아래에서 수행.
-        startScoringKataGoPrecomputeIfNeeded(game, 'before_scoring_broadcast');
+        startScoringKataGoPrecomputeCore(game, 'before_scoring_broadcast', {
+            preservedGameState: preservedGameState as Record<string, unknown>,
+            preservedTimeInfo,
+        });
     }
     
     await db.saveGame(game);
@@ -643,12 +845,10 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
     const runManualFallbackIfStillScoring = async () => {
         if (!ENABLE_MANUAL_SCORING_FALLBACK || !(SCORING_FALLBACK_AFTER_MS > 0)) return;
         try {
-            let freshGame: types.LiveGameSession | null = null;
-            if (game.isSinglePlayer || game.gameCategory === 'tower' || game.gameCategory === 'singleplayer') {
-                const { getCachedGame } = await import('./gameCache.js');
-                freshGame = await getCachedGame(game.id);
-            }
-            if (!freshGame) freshGame = await db.getLiveGame(game.id);
+            const freshGame = await resolveFreshGameForScoringFinalize(
+                game,
+                savedPreservedGameState as Record<string, unknown>,
+            );
             if (!freshGame) return;
             if (freshGame.gameStatus !== 'scoring') return;
             if (freshGame.analysisResult?.['system']) return;
@@ -710,26 +910,33 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
             }
             const analysisDuration = Date.now() - analysisStartTime;
             console.log(`[getGameResult] KataGo 분석(API) 소요: ${(analysisDuration / 1000).toFixed(2)}초 (${analysisDuration}ms), game ${game.id} — fresh game state 조회 중...`);
-            // 싱글/타워/singleplayer 카테고리는 메모리 캐시 우선 (DB에 없을 수 있음 — 탑은 isSinglePlayer=false)
-            let freshGame = null;
-            if (game.isSinglePlayer || game.gameCategory === 'tower' || game.gameCategory === 'singleplayer') {
-                const { getCachedGame } = await import('./gameCache.js');
-                freshGame = await getCachedGame(game.id);
-            }
-            if (!freshGame) {
-                freshGame = await db.getLiveGame(game.id);
-            }
+            const freshGame = await resolveFreshGameForScoringFinalize(
+                game,
+                savedPreservedGameState as Record<string, unknown>,
+            );
             if (!freshGame) {
                 console.error(`[getGameResult] Game ${game.id} not found in cache or database after analysis`);
                 return;
             }
             
-            // 게임 상태가 playing으로 변경되었으면 다시 scoring으로 변경 (게임 루프가 재시작한 경우)
-            if (
+            const isOnlinePvpStrategic =
+                !game.isSinglePlayer &&
+                game.gameCategory !== 'tower' &&
+                game.gameCategory !== 'singleplayer';
+
+            // 게임 상태가 playing으로 되돌아갔으면 scoring 복구 (PVE 스테이지 루프·PVP 상호통과 후 레이스)
+            const shouldRestoreScoringFromPlaying =
                 freshGame.gameStatus === 'playing' &&
-                (freshGame.isSinglePlayer || freshGame.gameCategory === 'tower' || freshGame.gameCategory === 'singleplayer') &&
-                freshGame.stageId
-            ) {
+                (((freshGame.isSinglePlayer ||
+                    freshGame.gameCategory === 'tower' ||
+                    freshGame.gameCategory === 'singleplayer') &&
+                    freshGame.stageId) ||
+                    (isOnlinePvpStrategic &&
+                        ((freshGame as any).isScoringProtected ||
+                            (freshGame.passCount ?? 0) >= 2 ||
+                            Boolean((freshGame as any).preservedGameState))));
+
+            if (shouldRestoreScoringFromPlaying) {
                 console.log(`[getGameResult] Game ${game.id} was reset to playing during analysis, restoring scoring state`);
                 
                 // 보존된 게임 상태 복원
@@ -841,12 +1048,10 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
             return;
         }
 
-        let freshGame: types.LiveGameSession | null = null;
-        if (game.isSinglePlayer || game.gameCategory === 'tower' || game.gameCategory === 'singleplayer') {
-            const { getCachedGame } = await import('./gameCache.js');
-            freshGame = await getCachedGame(game.id);
-        }
-        if (!freshGame) freshGame = await db.getLiveGame(game.id);
+        const freshGame = await resolveFreshGameForScoringFinalize(
+            game,
+            savedPreservedGameState as Record<string, unknown>,
+        );
 
         const isOnlinePvpStrategic =
             !game.isSinglePlayer &&
@@ -1003,6 +1208,11 @@ export const initializeGame = async (neg: Negotiation): Promise<LiveGameSession>
         (settings as any).scoringTurnLimit = 0;
         delete (settings as any).autoScoringTurns;
     }
+
+    // human PVP: 수 제한 자동계가 필드 제거 (상호 패스만 계가)
+    if (!isAiGame && SPECIAL_GAME_MODES.some((m) => m.mode === mode)) {
+        Object.assign(settings, sanitizePvpGameSettings(mode, settings as types.GameSettings, { isAiGame: false }));
+    }
     
     const descriptions = RANDOM_DESCRIPTIONS[mode] || [`${mode} 한 판!`];
     const randomDescription = descriptions[Math.floor(Math.random() * descriptions.length)];
@@ -1064,6 +1274,7 @@ export const initializeGame = async (neg: Negotiation): Promise<LiveGameSession>
     if (!isAiGame) {
         if (SPECIAL_GAME_MODES.some(m => m.mode === mode)) {
             await initializeStrategicGame(game, neg, now);
+            applyHumanPvpStrategicSettingsInvariants(game);
         } else if (PLAYFUL_GAME_MODES.some((m: { mode: GameMode; }) => m.mode === mode)) {
             await initializePlayfulGame(game, neg, now);
         }

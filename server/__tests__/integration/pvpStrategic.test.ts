@@ -104,7 +104,7 @@ describe('PVP Strategic mode', () => {
     describe('button actions', () => {
         it('PASS_TURN switches turn and applies time rule', async () => {
             const game = makePvpStrategicGame();
-            const { handleStrategicGameAction } = await import('../../modes/strategic.js');
+            const { handleStrategicGameAction } = await import('../../modes/standard.js');
             const res = await handleStrategicGameAction(volatileState, game, {
                 type: 'PASS_TURN',
                 payload: {},
@@ -116,9 +116,40 @@ describe('PVP Strategic mode', () => {
             expect(game.lastMove).toEqual({ x: -1, y: -1 });
         });
 
+        it('mutual PASS_TURN awaits getGameResult and enters scoring', async () => {
+            const game = makePvpStrategicGame({ mode: GameMode.Standard, settings: { boardSize: 9, komi: 6.5, timeLimit: 5, byoyomiCount: 3, byoyomiTime: 30 } });
+            for (let i = 0; i < 10; i++) {
+                game.moveHistory.push({
+                    player: i % 2 === 0 ? Player.Black : Player.White,
+                    x: i % 9,
+                    y: Math.floor(i / 9),
+                });
+            }
+            const gameModes = await import('../../gameModes.js');
+            const getGameResultSpy = vi.spyOn(gameModes, 'getGameResult').mockImplementation(async (g) => {
+                g.gameStatus = 'scoring';
+                (g as any).isScoringProtected = true;
+                return g;
+            });
+            const { handleStrategicGameAction } = await import('../../modes/standard.js');
+            await handleStrategicGameAction(volatileState, game, {
+                type: 'PASS_TURN',
+                payload: {},
+                userId: p1.id,
+            } as any, p1);
+            await handleStrategicGameAction(volatileState, game, {
+                type: 'PASS_TURN',
+                payload: {},
+                userId: p2.id,
+            } as any, p2);
+            expect(getGameResultSpy).toHaveBeenCalledTimes(1);
+            expect(game.gameStatus).toBe('scoring');
+            getGameResultSpy.mockRestore();
+        });
+
         it('PASS_TURN rejects when not my turn', async () => {
             const game = makePvpStrategicGame();
-            const { handleStrategicGameAction } = await import('../../modes/strategic.js');
+            const { handleStrategicGameAction } = await import('../../modes/standard.js');
             const res = await handleStrategicGameAction(volatileState, game, {
                 type: 'PASS_TURN',
                 payload: {},
@@ -132,7 +163,7 @@ describe('PVP Strategic mode', () => {
         it('RESIGN_GAME ends game and sets winner', async () => {
             const game = makePvpStrategicGame();
             const summaryService = await import('../../summaryService.js');
-            const { handleStrategicGameAction } = await import('../../modes/strategic.js');
+            const { handleStrategicGameAction } = await import('../../modes/standard.js');
             const res = await handleStrategicGameAction(volatileState, game, {
                 type: 'RESIGN_GAME',
                 payload: {},
@@ -154,7 +185,7 @@ describe('PVP Strategic mode', () => {
             game.whiteByoyomiPeriodsLeft = 3;
             game.turnDeadline = Date.now() - 1000;
             game.currentPlayer = Player.Black;
-            const { updateStrategicGameState } = await import('../../modes/strategic.js');
+            const { updateStrategicGameState } = await import('../../modes/standard.js');
             const summaryService = await import('../../summaryService.js');
             await updateStrategicGameState(game, Date.now());
             expect(summaryService.endGame).toHaveBeenCalledWith(game, Player.White, 'timeout');
@@ -166,7 +197,7 @@ describe('PVP Strategic mode', () => {
             const game = makePvpStrategicGame();
             game.hidden_stones_p1 = 2;
             game.hidden_stones_p2 = 2;
-            const { handleStrategicGameAction } = await import('../../modes/strategic.js');
+            const { handleStrategicGameAction } = await import('../../modes/standard.js');
             const res = await handleStrategicGameAction(volatileState, game, {
                 type: 'START_HIDDEN_PLACEMENT',
                 payload: {},
@@ -182,7 +213,7 @@ describe('PVP Strategic mode', () => {
             game.hidden_stones_p1 = 2;
             game.gameStatus = 'hidden_placing';
             game.itemUseDeadline = Date.now() + 20000;
-            const { handleStrategicGameAction } = await import('../../modes/strategic.js');
+            const { handleStrategicGameAction } = await import('../../modes/standard.js');
             const res = await handleStrategicGameAction(volatileState, game, {
                 type: 'START_HIDDEN_PLACEMENT',
                 payload: {},
@@ -196,7 +227,7 @@ describe('PVP Strategic mode', () => {
             const game = makePvpStrategicGame();
             (game as any).hidden_stones_p1 = 0;
             (game as any).hidden_stones_p2 = 2;
-            const { handleStrategicGameAction } = await import('../../modes/strategic.js');
+            const { handleStrategicGameAction } = await import('../../modes/standard.js');
             const res = await handleStrategicGameAction(volatileState, game, {
                 type: 'START_HIDDEN_PLACEMENT',
                 payload: {},
@@ -232,7 +263,7 @@ describe('PVP Strategic mode', () => {
             game.gameStatus = 'hidden_placing';
             game.hidden_stones_p1 = 2;
             game.itemUseDeadline = Date.now() + 30000;
-            const { handleStrategicGameAction } = await import('../../modes/strategic.js');
+            const { handleStrategicGameAction } = await import('../../modes/standard.js');
             const res = await handleStrategicGameAction(volatileState, game, {
                 type: 'PLACE_STONE',
                 payload: { x: 3, y: 3, isHidden: true },
@@ -252,7 +283,7 @@ describe('PVP Strategic mode', () => {
                 hidden_stones_p1: 2,
                 hidden_stones_p2: 2,
             });
-            const { handleStrategicGameAction } = await import('../../modes/strategic.js');
+            const { handleStrategicGameAction } = await import('../../modes/standard.js');
 
             let res = await handleStrategicGameAction(volatileState, game, {
                 type: 'START_HIDDEN_PLACEMENT',
@@ -291,7 +322,7 @@ describe('PVP Strategic mode', () => {
                 itemUseDeadline: Date.now() - 1000,
                 itemPhaseActingPlayer: Player.White,
             });
-            const { handleStrategicGameAction } = await import('../../modes/strategic.js');
+            const { handleStrategicGameAction } = await import('../../modes/standard.js');
             const { updateHiddenState } = await import('../../modes/hidden.js');
 
             const res = await handleStrategicGameAction(volatileState, game, {
@@ -320,7 +351,7 @@ describe('PVP Strategic mode', () => {
             game.permanentlyRevealedStones = [];
             game.currentPlayer = Player.Black;
 
-            const { handleStrategicGameAction } = await import('../../modes/strategic.js');
+            const { handleStrategicGameAction } = await import('../../modes/standard.js');
             const res = await handleStrategicGameAction(
                 volatileState,
                 game,
@@ -358,7 +389,7 @@ describe('PVP Strategic mode', () => {
             game.hiddenMoves = { 0: true };
             game.permanentlyRevealedStones = [];
 
-            const { handleStrategicGameAction } = await import('../../modes/strategic.js');
+            const { handleStrategicGameAction } = await import('../../modes/standard.js');
             const res = await handleStrategicGameAction(
                 volatileState,
                 game,
@@ -394,7 +425,7 @@ describe('PVP Strategic mode', () => {
             game.boardState[y][x + 1] = opponent;
             game.currentPlayer = Player.Black;
 
-            const { handleStrategicGameAction } = await import('../../modes/strategic.js');
+            const { handleStrategicGameAction } = await import('../../modes/standard.js');
             const res = await handleStrategicGameAction(
                 volatileState,
                 game,
@@ -521,7 +552,7 @@ describe('PVP Strategic mode', () => {
             ];
             game.hiddenMoves = { 0: true };
             game.boardState[4][4] = Player.White;
-            const { handleStrategicGameAction } = await import('../../modes/strategic.js');
+            const { handleStrategicGameAction } = await import('../../modes/standard.js');
             const res = await handleStrategicGameAction(volatileState, game, {
                 type: 'START_SCANNING',
                 payload: {},
@@ -537,7 +568,7 @@ describe('PVP Strategic mode', () => {
             game.scans_p1 = 2;
             game.gameStatus = 'scanning';
             game.itemUseDeadline = Date.now() + 20000;
-            const { handleStrategicGameAction } = await import('../../modes/strategic.js');
+            const { handleStrategicGameAction } = await import('../../modes/standard.js');
             const res = await handleStrategicGameAction(volatileState, game, {
                 type: 'START_SCANNING',
                 payload: {},
@@ -555,7 +586,7 @@ describe('PVP Strategic mode', () => {
             game.hiddenMoves = { 0: true };
             game.boardState[4][4] = Player.White;
             game.currentPlayer = Player.Black;
-            const { handleStrategicGameAction } = await import('../../modes/strategic.js');
+            const { handleStrategicGameAction } = await import('../../modes/standard.js');
             const res = await handleStrategicGameAction(volatileState, game, {
                 type: 'SCAN_BOARD',
                 payload: { x: 4, y: 4 },
@@ -578,7 +609,7 @@ describe('PVP Strategic mode', () => {
             const game = makePvpStrategicGame();
             game.missiles_p1 = 2;
             game.missiles_p2 = 2;
-            const { handleStrategicGameAction } = await import('../../modes/strategic.js');
+            const { handleStrategicGameAction } = await import('../../modes/standard.js');
             const res = await handleStrategicGameAction(volatileState, game, {
                 type: 'START_MISSILE_SELECTION',
                 payload: {},
@@ -594,7 +625,7 @@ describe('PVP Strategic mode', () => {
             game.missiles_p1 = 2;
             game.gameStatus = 'missile_selecting';
             game.itemUseDeadline = Date.now() + 20000;
-            const { handleStrategicGameAction } = await import('../../modes/strategic.js');
+            const { handleStrategicGameAction } = await import('../../modes/standard.js');
             const res = await handleStrategicGameAction(volatileState, game, {
                 type: 'START_MISSILE_SELECTION',
                 payload: {},
@@ -608,7 +639,7 @@ describe('PVP Strategic mode', () => {
             const game = makePvpStrategicGame();
             game.missiles_p1 = 0;
             game.missiles_p2 = 2;
-            const { handleStrategicGameAction } = await import('../../modes/strategic.js');
+            const { handleStrategicGameAction } = await import('../../modes/standard.js');
             const res = await handleStrategicGameAction(volatileState, game, {
                 type: 'START_MISSILE_SELECTION',
                 payload: {},
@@ -625,7 +656,7 @@ describe('PVP Strategic mode', () => {
             game.missiles_p1 = 2;
             game.gameStatus = 'missile_selecting';
             game.itemUseDeadline = Date.now() + 30000;
-            const { handleStrategicGameAction } = await import('../../modes/strategic.js');
+            const { handleStrategicGameAction } = await import('../../modes/standard.js');
             const res = await handleStrategicGameAction(volatileState, game, {
                 type: 'LAUNCH_MISSILE',
                 payload: { from: { x: 4, y: 4 }, direction: 'up' },
@@ -642,7 +673,7 @@ describe('PVP Strategic mode', () => {
             game.missiles_p1 = 1;
             game.gameStatus = 'missile_animating';
             game.animation = null as any;
-            const { handleStrategicGameAction } = await import('../../modes/strategic.js');
+            const { handleStrategicGameAction } = await import('../../modes/standard.js');
             const res = await handleStrategicGameAction(volatileState, game, {
                 type: 'START_MISSILE_SELECTION',
                 payload: {},
@@ -660,7 +691,7 @@ describe('PVP Strategic mode', () => {
             });
             game.boardState[4][4] = Player.White;
             game.moveHistory = [{ player: Player.White, x: 4, y: 4 }];
-            const { handleStrategicGameAction } = await import('../../modes/strategic.js');
+            const { handleStrategicGameAction } = await import('../../modes/standard.js');
 
             let res = await handleStrategicGameAction(volatileState, game, {
                 type: 'START_MISSILE_SELECTION',
@@ -727,7 +758,7 @@ describe('PVP Strategic mode', () => {
                 x: i % 9,
                 y: (i + 1) % 9,
             }));
-            const { handleStrategicGameAction } = await import('../../modes/strategic.js');
+            const { handleStrategicGameAction } = await import('../../modes/standard.js');
             const res = await handleStrategicGameAction(volatileState, game, {
                 type: 'LAUNCH_MISSILE',
                 payload: {

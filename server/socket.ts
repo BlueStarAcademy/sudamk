@@ -5,7 +5,46 @@ import { volatileState } from './state.js';
 import { releaseIpBindingForUser } from './ipLoginPolicy.js';
 import { scheduleWebSocketMetricsSample } from './serverLoadMetrics.js';
 import { WEBSOCKET_ADMIN_FORCE_LOGOUT_CLOSE_CODE } from '../shared/constants/auth.js';
+import { isSyntheticOnlineUserId } from '../shared/utils/syntheticOnlineUserIds.js';
+import { PVP_WS_DISCONNECT_GRACE_MS } from '../shared/utils/pvpDisconnectPolicy.js';
 import { getArenaTurnCount } from './utils/arenaTurnPolicy.js';
+
+const pendingPvpDisconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function cancelPendingPvpDisconnect(userId: string): void {
+    const timer = pendingPvpDisconnectTimers.get(userId);
+    if (timer) {
+        clearTimeout(timer);
+        pendingPvpDisconnectTimers.delete(userId);
+    }
+}
+
+function scheduleInGameDisconnectAfterWsClose(userId: string): void {
+    cancelPendingPvpDisconnect(userId);
+    const timer = setTimeout(() => {
+        pendingPvpDisconnectTimers.delete(userId);
+        void import('./actions/socialActions.js')
+            .then(({ applyInGameDisconnectAfterWsClose }) =>
+                applyInGameDisconnectAfterWsClose(volatileState, userId).then((handled) => {
+                    const currentStatus = volatileState.userStatuses[userId];
+                    const isInGameStatus =
+                        currentStatus?.status === 'in-game' && Boolean(currentStatus.gameId);
+                    if (!handled) {
+                        if (!isInGameStatus) {
+                            schedulePairWaitingRoomLeaveWithGrace(userId);
+                        }
+                    }
+                    if (handled) {
+                        clearPendingPairWaitingRoomLeave(userId);
+                        releaseIpBindingForUser(volatileState, userId);
+                        delete volatileState.userConnections[userId];
+                    }
+                }),
+            )
+            .catch(() => {});
+    }, PVP_WS_DISCONNECT_GRACE_MS);
+    pendingPvpDisconnectTimers.set(userId, timer);
+}
 
 /**
  * 베이스 세션의 본경기 단계 좌석 잠금 보호:
@@ -182,28 +221,8 @@ export const createWebSocketServer = (server: Server) => {
                     set.delete(ws);
                     if (set.size === 0) {
                         userIdToClients.delete(userId);
-                        // PVP: 탭 닫기·네트워크 끊김 등 로그아웃 API 없이 WS만 끊긴 경우에도 상대에게 즉시 접속 끊김 표시
-                        void import('./actions/socialActions.js')
-                            .then(({ applyPvpInGameDisconnect, leavePairWaitingRoomIfPresent }) =>
-                                applyPvpInGameDisconnect(volatileState, userId).then((touched) => {
-                                    const currentStatus = volatileState.userStatuses[userId];
-                                    const isInGameStatus =
-                                        currentStatus?.status === 'in-game' && Boolean(currentStatus.gameId);
-                                    if (!touched) {
-                                        // AI/싱글 인게임은 applyPvpInGameDisconnect가 false를 반환할 수 있다.
-                                        // 이 경우 대기방 이탈을 예약하면 in_game shell이 삭제되어 재접속 복구가 꼬일 수 있으므로 스킵.
-                                        if (!isInGameStatus) {
-                                            schedulePairWaitingRoomLeaveWithGrace(userId);
-                                        }
-                                    }
-                                    if (touched) {
-                                        clearPendingPairWaitingRoomLeave(userId);
-                                        releaseIpBindingForUser(volatileState, userId);
-                                        delete volatileState.userConnections[userId];
-                                    }
-                                }),
-                            )
-                            .catch(() => {});
+                        // PVP: WS 순간 끊김·재연결 시 오탐 방지를 위해 짧은 유예 후 접속 끊김 처리
+                        scheduleInGameDisconnectAfterWsClose(userId);
                     }
                 }
             }
@@ -217,6 +236,7 @@ export const createWebSocketServer = (server: Server) => {
                 const message = JSON.parse(data.toString());
                 if (message.type === 'AUTH' && message.userId) {
                     const uid = message.userId as string;
+                    cancelPendingPvpDisconnect(uid);
                     clearPendingPairWaitingRoomLeave(uid);
                     wsUserIdMap.set(ws, uid);
                     let set = userIdToClients.get(uid);
@@ -226,6 +246,11 @@ export const createWebSocketServer = (server: Server) => {
                     }
                     set.add(ws);
                     scheduleWebSocketMetricsSample(getWebSocketConnectionStats);
+                    void import('./actions/socialActions.js')
+                        .then(({ clearPvpDisconnectOnPlayerReconnectByStatus }) =>
+                            clearPvpDisconnectOnPlayerReconnectByStatus(volatileState, uid),
+                        )
+                        .catch(() => {});
                     // PVP 양쪽 끊김 안내: 재접속 시 한 번만 전송 후 제거
                     const pendingMsg = volatileState.pendingMutualDisconnectByUser?.[uid];
                     if (pendingMsg && ws.readyState === WebSocket.OPEN) {
@@ -319,10 +344,12 @@ export const createWebSocketServer = (server: Server) => {
                 
                 // 점진적 로딩: 유저 정보는 DB에서 미리 로드하지 않음 (온디맨드)
                 // id, status, mode만 전송 → 클라이언트가 /api/users/brief로 필요 시 요청
-                const onlineUsers = Object.entries(volatileState.userStatuses).map(([id, status]) => ({
-                    id,
-                    ...status
-                }));
+                const onlineUsers = Object.entries(volatileState.userStatuses)
+                    .filter(([id]) => !isSyntheticOnlineUserId(id))
+                    .map(([id, status]) => ({
+                        id,
+                        ...status,
+                    }));
                 
                 // 게임 데이터 로드: 캐시 우선 (DB 부하 최소화 → 로그인 응답 지연 방지)
                 // 캐시 없을 때만 DB 조회, 타임아웃 5초로 단축하여 빠르게 응답

@@ -1,5 +1,5 @@
 import { LiveGameSession, User, Player, GameMode, WinReason, Point } from '../types/index.js';
-import { SPECIAL_GAME_MODES } from '../constants/gameModes.js';
+import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants/gameModes.js';
 import {
     applyMoveToBoard,
     cloneBoard,
@@ -27,7 +27,8 @@ const escapeSgfString = (str: string): string => {
  * 게임 모드 이름 가져오기
  */
 const getGameModeName = (mode: GameMode): string => {
-    const modeInfo = SPECIAL_GAME_MODES.find((m) => m.mode === mode);
+    const modeInfo =
+        SPECIAL_GAME_MODES.find((m) => m.mode === mode) ?? PLAYFUL_GAME_MODES.find((m) => m.mode === mode);
     return modeInfo ? modeInfo.name : mode;
 };
 

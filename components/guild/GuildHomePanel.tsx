@@ -1,17 +1,15 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Guild as GuildType, ChatMessage, GuildMemberRole, GuildMember } from '../../types/index.js';
+import { Guild as GuildType, ChatMessage, GuildMember } from '../../types/index.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import Button from '../Button.js';
 import { GUILD_CHECK_IN_MILESTONE_REWARDS } from '../../constants/index.js';
-import { isSameDayKST, formatDateTimeKST, getTodayKSTDateString } from '../../utils/timeUtils.js';
-import Avatar from '../Avatar.js';
+import { isSameDayKST, getTodayKSTDateString } from '../../utils/timeUtils.js';
 import { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from '../DraggableWindow.js';
-
-const ensureTimestamp = (v: number | string | undefined): number =>
-    typeof v === 'number' ? v : new Date((v as string) || 0).getTime();
-import { AVATAR_POOL, BORDER_POOL } from '../../constants/index.js';
-import { GAME_CHAT_MESSAGES, GAME_CHAT_EMOJIS, ADMIN_USER_ID, ADMIN_NICKNAME } from '../../constants/index.js';
+import { GAME_CHAT_MESSAGES, GAME_CHAT_EMOJIS, ADMIN_USER_ID } from '../../constants/index.js';
 import { containsProfanity } from '../../profanity.js';
+import { mergeWaitingRoomPublicChatMessages } from '../../shared/utils/waitingRoomGlobalChatMerge.js';
+import ChatInlineMessageRow from '../waiting-room/ChatInlineMessageRow.js';
+import { guildChatHistoryEntryToChatMessage } from '../../shared/utils/guildChatMessageAdapter.js';
 
 // 고급 버튼 스타일 함수
 const luxuryButtonBase =
@@ -221,32 +219,92 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType; leftAction?: React.
     );
 };
 
-export const GuildAnnouncementPanel: React.FC<{ guild: GuildType; compact?: boolean }> = ({ guild, compact = false }) => (
-    <div
-        className={`relative flex h-full flex-col overflow-hidden rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/85 via-neutral-800/80 to-stone-900/85 shadow-lg ${
-            compact ? 'p-2' : 'p-4'
-        }`}
-    >
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10"></div>
-        <h3
-            className={`relative z-10 flex flex-shrink-0 items-center font-bold text-highlight drop-shadow-lg ${
-                compact ? 'mb-1.5 gap-1 text-sm' : 'mb-3 gap-2 text-lg'
-            }`}
-        >
-            <span className={compact ? 'text-base' : 'text-xl'}>📢</span>
-            <span>길드 공지</span>
-        </h3>
+export const GuildAnnouncementPanel: React.FC<{
+    guild: GuildType;
+    compact?: boolean;
+    stretch?: boolean;
+    /** 부길드장 이상: 홈 화면에서 공지 직접 편집 */
+    canEdit?: boolean;
+}> = ({ guild, compact = false, stretch = false, canEdit = false }) => {
+    const { handlers } = useAppContext();
+    const [announcement, setAnnouncement] = useState(guild.announcement || '');
+    const [isEditing, setIsEditing] = useState(false);
+
+    useEffect(() => {
+        if (!isEditing) {
+            setAnnouncement(guild.announcement || '');
+        }
+    }, [guild.announcement, isEditing]);
+
+    const handleSave = () => {
+        handlers.handleAction({ type: 'GUILD_UPDATE_ANNOUNCEMENT', payload: { guildId: guild.id, announcement } });
+        setIsEditing(false);
+    };
+
+    return (
         <div
-            className={`relative z-10 min-h-0 flex-grow overflow-y-auto rounded-lg border-2 border-black/20 bg-tertiary/50 shadow-inner ${
-                compact ? 'p-2 pr-1.5' : 'p-4 pr-2'
-            }`}
+            className={`relative flex flex-col overflow-hidden rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/85 via-neutral-800/80 to-stone-900/85 shadow-lg ${
+                stretch ? 'h-full min-h-0' : 'h-full'
+            } ${compact ? 'p-2' : 'p-4'}`}
         >
-            <p className={`whitespace-pre-wrap text-primary leading-relaxed ${compact ? 'text-xs' : 'text-sm'}`}>
-                {guild.announcement || <span className="text-tertiary italic">등록된 공지사항이 없습니다.</span>}
-            </p>
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10"></div>
+            <div
+                className={`relative z-10 flex flex-shrink-0 items-center justify-between gap-2 ${
+                    compact ? 'mb-1.5' : 'mb-3'
+                }`}
+            >
+                <h3
+                    className={`flex items-center font-bold text-highlight drop-shadow-lg ${
+                        compact ? 'gap-1 text-sm' : 'gap-2 text-lg'
+                    }`}
+                >
+                    <span className={compact ? 'text-base' : 'text-xl'}>📢</span>
+                    <span>길드 공지</span>
+                </h3>
+                {canEdit && (
+                    <Button
+                        type="button"
+                        onClick={() => setIsEditing((prev) => !prev)}
+                        colorScheme="none"
+                        className={`${getLuxuryButtonClasses('primary')} ${compact ? '!px-2 !py-1 !text-[10px]' : '!px-3 !py-1.5 !text-xs'}`}
+                    >
+                        {isEditing ? '취소' : '편집'}
+                    </Button>
+                )}
+            </div>
+            <div
+                className={`relative z-10 min-h-0 flex-grow overflow-y-auto rounded-lg border-2 border-black/20 bg-tertiary/50 shadow-inner ${
+                    compact ? 'p-2 pr-1.5' : 'p-4 pr-2'
+                }`}
+            >
+                {isEditing ? (
+                    <div className="flex h-full min-h-0 flex-col gap-2">
+                        <textarea
+                            value={announcement}
+                            onChange={(e) => setAnnouncement(e.target.value)}
+                            maxLength={150}
+                            className={`min-h-0 w-full flex-1 resize-none rounded-lg border border-stone-600/50 bg-stone-900/80 p-2 text-primary focus:border-accent/50 focus:outline-none ${
+                                compact ? 'text-xs leading-snug' : 'text-sm leading-relaxed'
+                            }`}
+                        />
+                        <Button
+                            type="button"
+                            onClick={handleSave}
+                            colorScheme="none"
+                            className={`${getLuxuryButtonClasses('green')} w-full ${compact ? '!py-1.5 !text-xs' : '!py-2 !text-sm'}`}
+                        >
+                            저장
+                        </Button>
+                    </div>
+                ) : (
+                    <p className={`whitespace-pre-wrap text-primary leading-relaxed ${compact ? 'text-xs' : 'text-sm'}`}>
+                        {guild.announcement || <span className="text-tertiary italic">등록된 공지사항이 없습니다.</span>}
+                    </p>
+                )}
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
 export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember | undefined }> = ({ guild, myMemberInfo }) => {
     const { handlers, allUsers, currentUserWithStatus, waitingRoomChats, isNativeMobile } = useAppContext();
@@ -256,10 +314,12 @@ export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember |
     const [cooldown, setCooldown] = useState(0);
     const chatBodyRef = useRef<HTMLDivElement>(null);
     const quickChatRef = useRef<HTMLDivElement>(null);
-    const userMap = useMemo(() => new Map(allUsers.map(u => [u.id, u])), [allUsers]);
     
     // 전체 채팅 메시지 가져오기
-    const globalChatMessages = waitingRoomChats['global'] || [];
+    const globalChatMessages = useMemo(
+        () => mergeWaitingRoomPublicChatMessages(waitingRoomChats),
+        [waitingRoomChats],
+    );
 
     useEffect(() => {
         if (chatBodyRef.current) {
@@ -339,6 +399,19 @@ export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember |
         }
     };
 
+    const msgClass = isNativeMobile ? 'text-sm leading-snug' : 'text-base leading-snug';
+    const emptyClass = isNativeMobile ? 'text-sm leading-snug' : 'text-base';
+
+    const handleChatUserClick = (userId: string) => {
+        if (userId !== currentUserWithStatus?.id) {
+            handlers.openViewingUser(userId);
+        }
+    };
+
+    const activeMessages = activeTab === 'global'
+        ? globalChatMessages
+        : (guild.chatHistory ?? []).map((msg) => guildChatHistoryEntryToChatMessage(msg, allUsers));
+
     return (
         <div
             className={`relative flex h-full flex-col overflow-hidden rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/85 via-neutral-800/80 to-stone-900/85 shadow-lg ${
@@ -369,92 +442,48 @@ export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember |
             )}
             <div
                 ref={chatBodyRef}
-                className={`relative z-10 min-h-0 flex-grow overflow-y-auto rounded-lg border-2 border-black/20 bg-tertiary/50 shadow-inner ${isNativeMobile ? 'mb-1 space-y-0.5 p-1 pr-1' : 'mb-3 space-y-3 p-4 pr-2'}`}
+                className={`relative z-10 min-h-0 flex-grow overflow-y-auto rounded-lg border-2 border-black/20 bg-tertiary/50 shadow-inner ${isNativeMobile ? 'mb-1 space-y-0.5 p-1 pr-1' : 'mb-3 space-y-0.5 p-2 pr-2'}`}
             >
-                {activeTab === 'global' ? (
-                    // 전체 채팅 메시지 표시 (길드채팅과 동일한 형태)
-                    globalChatMessages.length > 0 ? (
-                        globalChatMessages.map((msg: any) => {
-                            const senderId = msg.user?.id;
-                            const sender = senderId ? userMap.get(senderId) : undefined;
-                            const isSystem = msg.system || senderId === 'system';
-                            const isBotMessage = isSystem && msg.user?.nickname === 'AI 보안관봇';
-                            const displayName = isSystem ? (isBotMessage ? 'AI 보안관봇' : '시스템') : (msg.user?.nickname || (senderId === ADMIN_USER_ID || sender?.isAdmin ? ADMIN_NICKNAME : sender?.nickname) || 'Unknown');
-                            const avatarUrl = sender ? AVATAR_POOL.find(a => a.id === sender.avatarId)?.url : undefined;
-                            const borderUrl = sender ? BORDER_POOL.find(b => b.id === sender.borderId)?.url : undefined;
-                            return (
-                                <div key={msg.id} className="flex items-start gap-3 group p-2 rounded-lg hover:bg-black/10 transition-colors">
-                                    <div className="flex-shrink-0 mt-1">
-                                        <Avatar userId={senderId ?? ''} userName={displayName} avatarUrl={avatarUrl} borderUrl={borderUrl} size={36} />
-                                    </div>
-                                    <div className="flex-grow">
-                                        <div className="flex items-center justify-between mb-1">
-                                            <div className="flex items-baseline gap-2">
-                                                <span className={`font-semibold text-sm ${
-                                                    isSystem ? 'text-blue-400' : 'text-blue-300'
-                                                }`}>
-                                                    {displayName}
-                                                </span>
-                                                <span className="text-xs text-tertiary">{formatDateTimeKST(ensureTimestamp(msg.timestamp ?? msg.createdAt))}</span>
-                                            </div>
-                                        </div>
-                                        <p className={`text-sm break-words whitespace-pre-wrap leading-relaxed ${
-                                            isSystem ? 'text-blue-300' : 'text-blue-300'
-                                        }`}>{msg.text || msg.content || ''}</p>
-                                    </div>
-                                </div>
-                            );
-                        })
-                    ) : (
-                        <div className="h-full flex items-center justify-center text-tertiary"><p className="italic">전체 채팅 메시지가 없습니다.</p></div>
-                    )
-                ) : activeTab === 'guild' ? (
-                    // 길드 채팅 메시지 표시 (파란색)
-                    guild.chatHistory && guild.chatHistory.length > 0 ? (
-                    guild.chatHistory.map(msg => {
-                        const senderId = msg.user?.id || msg.authorId;
-                        const sender = senderId ? userMap.get(senderId) : undefined;
-                        const guildMemberSender = senderId ? guild.members?.find(m => m.userId === senderId) : undefined;
-                        const displayName = senderId === 'system' ? '시스템' : (msg.user?.nickname || sender?.nickname || guildMemberSender?.nickname || (senderId === ADMIN_USER_ID ? ADMIN_NICKNAME : 'Unknown'));
-                        const avatarUrl = sender ? AVATAR_POOL.find(a => a.id === sender.avatarId)?.url : undefined;
-                        const borderUrl = sender ? BORDER_POOL.find(b => b.id === sender.borderId)?.url : undefined;
+                {activeMessages.length > 0 ? (
+                    activeMessages.map((msg) => {
+                        const senderId = msg.user.id;
                         const isMyMessage = senderId === currentUserWithStatus?.id;
                         const canManage = myMemberInfo?.role === 'leader' || myMemberInfo?.role === 'officer';
+                        const canDelete = activeTab === 'guild' && (isMyMessage || canManage) && !msg.system && msg.id;
 
                         return (
-                            <div key={msg.id || msg.timestamp || msg.createdAt} className="flex items-start gap-3 group p-2 rounded-lg hover:bg-black/10 transition-colors">
-                                <div className="flex-shrink-0 mt-1">
-                                    {(sender || displayName !== 'Unknown') && <Avatar userId={sender?.id ?? senderId ?? ''} userName={displayName} avatarUrl={avatarUrl} borderUrl={borderUrl} size={36} />}
-                                </div>
-                                <div className="flex-grow">
-                                    <div className="flex items-center justify-between mb-1">
-                                        <div className="flex items-baseline gap-2">
-                                            <span className={`font-semibold text-sm ${
-                                                senderId === 'system' 
-                                                    ? 'text-blue-400' 
-                                                    : 'text-blue-300'
-                                            }`}>
-                                                {displayName}
-                                            </span>
-                                            <span className="text-xs text-tertiary">{formatDateTimeKST(ensureTimestamp(msg.timestamp ?? msg.createdAt))}</span>
-                                        </div>
-                                        {(isMyMessage || canManage) && !msg.system && msg.id && (
-                                            <button onClick={() => handleDelete(msg as ChatMessage)} className="text-xs text-red-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity font-semibold px-2 py-1 rounded hover:bg-red-500/20" aria-label="Delete message" title="메시지 삭제">삭제</button>
-                                        )}
-                                    </div>
-                                    <p className={`text-sm break-words whitespace-pre-wrap leading-relaxed ${
-                                        msg.authorId === 'system' || senderId === 'system' 
-                                            ? 'text-blue-300' 
-                                            : 'text-blue-300'
-                                    }`}>{msg.text || msg.content || ''}</p>
-                                </div>
-                            </div>
+                            <ChatInlineMessageRow
+                                key={msg.id}
+                                message={msg}
+                                rowClassName={msgClass}
+                                onUserClick={handleChatUserClick}
+                                onViewUser={handlers.openViewingUser}
+                                allUsers={allUsers}
+                                currentUserId={currentUserWithStatus?.id}
+                                onOpenViewingItem={(item, isOwn) => handlers.openViewingItem(item, isOwn)}
+                                suffix={
+                                    canDelete ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleDelete(msg)}
+                                            className="ml-2 align-middle text-xs font-semibold text-red-400 opacity-0 transition-opacity hover:text-red-300 group-hover:opacity-100"
+                                            aria-label="메시지 삭제"
+                                            title="메시지 삭제"
+                                        >
+                                            삭제
+                                        </button>
+                                    ) : undefined
+                                }
+                            />
                         );
                     })
-                    ) : (
-                        <div className="h-full flex items-center justify-center text-tertiary"><p className="italic">길드 채팅 메시지가 없습니다.</p></div>
-                    )
-                ) : null}
+                ) : (
+                    <div className={`flex h-full items-center justify-center text-tertiary ${emptyClass}`}>
+                        <p className="italic">
+                            {activeTab === 'guild' ? '길드 채팅 메시지가 없습니다.' : '전체 채팅 메시지가 없습니다.'}
+                        </p>
+                    </div>
+                )}
             </div>
             <div className="relative flex-shrink-0">
                 {showQuickChat && (

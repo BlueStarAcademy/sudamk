@@ -4,6 +4,7 @@ import ProverbPanel from './SinglePlayerInfoPanel.js';
 import { GameInfoPanel, ChatPanel } from './Sidebar.js';
 import Button from '../Button.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
+import { mergeWaitingRoomPublicChatMessages } from '../../shared/utils/waitingRoomGlobalChatMerge.js';
 
 interface SinglePlayerSidebarProps {
     session: LiveGameSession;
@@ -29,6 +30,10 @@ const SinglePlayerSidebar: React.FC<SinglePlayerSidebarProps> = ({
     onClose
 }) => {
     const { activeNegotiation, negotiations, onlineUsers, waitingRoomChats } = useAppContext();
+    const publicChatMessages = React.useMemo(
+        () => mergeWaitingRoomPublicChatMessages(waitingRoomChats),
+        [waitingRoomChats],
+    );
     if (!currentUser) return null;
 
     return (
@@ -42,7 +47,7 @@ const SinglePlayerSidebar: React.FC<SinglePlayerSidebarProps> = ({
                     session={session}
                     isSpectator={false}
                     onAction={onAction || (() => {})}
-                    waitingRoomChat={waitingRoomChats['global'] || []}
+                    waitingRoomChat={publicChatMessages}
                     gameChat={gameChat}
                     onViewUser={() => {}}
                     onlineUsers={onlineUsers}

@@ -340,6 +340,52 @@ export function buildPairRoomLobbyGameSettingRows(
     return rows;
 }
 
+export type PairLobbySettingChangeDiffRow = {
+    label: string;
+    before: string;
+    after: string;
+};
+
+/** 손님 변경 제안 시 방장 전용 필드 — 서버 `stripPairLobbyGuestForbiddenSettingsPatch`와 동일 */
+export function stripPairLobbyGuestProposableSettings(settings: GameSettings): GameSettings {
+    const next = { ...settings };
+    delete (next as { komi?: number }).komi;
+    delete (next as { baseStones?: number }).baseStones;
+    delete (next as { captureTarget?: number }).captureTarget;
+    return next;
+}
+
+/** 방 내부 표시 행 기준으로 기존·제안 대국 설정 차이만 추출 */
+export function buildPairLobbySettingChangeDiffRows(
+    baseRoom: PairLobbyGameSettingRoomInput,
+    proposedSettings: Partial<GameSettings> | null | undefined,
+    options?: BuildPairLobbyGameSettingRowsOptions,
+): PairLobbySettingChangeDiffRow[] {
+    const baseSettings = { ...DEFAULT_GAME_SETTINGS, ...(baseRoom.settings ?? {}) } as GameSettings;
+    const mergedProposed = stripPairLobbyGuestProposableSettings({
+        ...baseSettings,
+        ...(proposedSettings && typeof proposedSettings === 'object' ? proposedSettings : {}),
+    });
+    const beforeRows = buildPairRoomLobbyGameSettingRows({ ...baseRoom, settings: baseSettings }, options);
+    const afterRows = buildPairRoomLobbyGameSettingRows({ ...baseRoom, settings: mergedProposed }, options);
+    const beforeMap = new Map(beforeRows.map((row) => [row.label, row.value]));
+    const afterMap = new Map(afterRows.map((row) => [row.label, row.value]));
+    const labelOrder: string[] = [];
+    for (const row of beforeRows) {
+        if (!labelOrder.includes(row.label)) labelOrder.push(row.label);
+    }
+    for (const row of afterRows) {
+        if (!labelOrder.includes(row.label)) labelOrder.push(row.label);
+    }
+    const diffs: PairLobbySettingChangeDiffRow[] = [];
+    for (const label of labelOrder) {
+        const before = beforeMap.get(label) ?? '—';
+        const after = afterMap.get(label) ?? '—';
+        if (before !== after) diffs.push({ label, before, after });
+    }
+    return diffs;
+}
+
 /** 전략바둑 랭킹전 매칭 모달용: `getRankedGameSettings` + 방 만들기와 동일한 행 구성 */
 export function buildRankedStrategicMatchLobbySettingRows(mode: GameMode): { label: string; value: string }[] {
     const g: GameSettings = {

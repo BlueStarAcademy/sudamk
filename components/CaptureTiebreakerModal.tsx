@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { LiveGameSession, Player, ServerAction, User } from '../types.js';
 import Avatar from './Avatar.js';
 import Button from './Button.js';
@@ -8,6 +8,7 @@ import { getSessionPlayerDisplayName } from '../utils/gameDisplayNames.js';
 import RoundCountdownIndicator from './RoundCountdownIndicator.js';
 import { modeIncludesBaseCaptureMix, resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
 import { PRE_GAME_PVP_COUNTDOWN_SECONDS } from '../shared/constants/preGameCountdown.js';
+import { usePreGameDeadlineAutoSubmit } from '../hooks/usePreGameDeadlineAutoSubmit.js';
 
 interface CaptureTiebreakerModalProps {
     session: LiveGameSession;
@@ -61,6 +62,23 @@ const CaptureTiebreakerModal: React.FC<CaptureTiebreakerModalProps> = ({ session
             clearInterval(timerId);
         };
     }, [hasRevealCountdown, revealEndTime]);
+
+    const handleStartConfirm = useCallback(() => {
+        if (hasConfirmed || (isTiebreaker && !rouletteDone)) return;
+        onAction(
+            isBaseStartConfirmation
+                ? { type: 'CONFIRM_BASE_REVEAL', payload: { gameId } }
+                : { type: 'CONFIRM_CAPTURE_REVEAL', payload: { gameId } },
+        );
+    }, [hasConfirmed, isTiebreaker, rouletteDone, onAction, isBaseStartConfirmation, gameId]);
+
+    usePreGameDeadlineAutoSubmit({
+        deadline: hasRevealCountdown && (!isTiebreaker || rouletteDone) ? revealEndTime : undefined,
+        enabled: hasRevealCountdown,
+        alreadySubmitted: !!hasConfirmed,
+        blocking: isTiebreaker && !rouletteDone,
+        onSubmit: handleStartConfirm,
+    });
 
     if (!blackPlayerId || !whitePlayerId) return null;
     if (!isBaseStartConfirmation && !effectiveCaptureTargets) return null;
@@ -309,13 +327,7 @@ const CaptureTiebreakerModal: React.FC<CaptureTiebreakerModalProps> = ({ session
                     <Button
                         colorScheme="none"
                         disabledWithoutDim
-                        onClick={() =>
-                            onAction(
-                                isBaseStartConfirmation
-                                    ? { type: 'CONFIRM_BASE_REVEAL', payload: { gameId } }
-                                    : { type: 'CONFIRM_CAPTURE_REVEAL', payload: { gameId } },
-                            )
-                        }
+                        onClick={handleStartConfirm}
                         disabled={!!hasConfirmed || (isTiebreaker && !rouletteDone)}
                         className={[
                             '!w-full !max-w-[min(100%,18.5rem)] !whitespace-normal !rounded-full !border !border-emerald-400/45',

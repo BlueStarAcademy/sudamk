@@ -82,8 +82,8 @@ export const SHOP_BORDER_ITEMS: ShopBorderItem[] = [
 export const RANDOM_DESCRIPTIONS: Partial<Record<GameMode, string[]>> = {
   [GameMode.Standard]: ["정통의 미학, 클래식 바둑 한 판!", "고요한 수읽기의 세계로 초대합니다.", "최고의 전략가가 누구인지 가려봅시다."],
   [GameMode.Capture]: ["돌 따내기 스피드전!", "누가 먼저 목표를 달성할까요?", "짜릿한 따내기 바둑 한 판!"],
-  [GameMode.Speed]: ["시간이 생명! 스피드 바둑!", "초읽기 속에서 피어나는 묘수", "빠른 판단력의 대결"],
-  [GameMode.Base]: ["나만의 포석, 베이스 바둑!", "초반 전략의 모든 것", "상대의 허를 찌르는 베이스돌!"],
+  [GameMode.Speed]: ["시간이 곧 점수! 스피드 바둑!", "10초마다 상대에게 1점", "신속·정확한 착수가 승부"],
+  [GameMode.Base]: ["형세분석의 승부, 베이스 바둑!", "덤 설정으로 원하는 돌", "베이스돌 배치를 읽어라"],
   [GameMode.Hidden]: ["보이지 않는 위협, 히든 바둑!", "심리전의 대가를 가려봅시다.", "재미있는 히든 바둑 시간!"],
   [GameMode.Missile]: ["신의 한 수, 미사일 발사!", "예측불허 미사일 바둑!", "판을 뒤흔드는 전략!"],
   [GameMode.Mix]: ["규칙이 뒤섞인 믹스룰 바둑!", "혼돈 속에서 피어나는 전략", "어떤 조합이 기다릴까요?"],

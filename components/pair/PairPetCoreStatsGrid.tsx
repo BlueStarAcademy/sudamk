@@ -4,7 +4,7 @@ import { calculateTotalStats } from '../../services/statService.js';
 import type { PairPetMeta, User } from '../../types.js';
 import { CoreStat, ItemGrade } from '../../types/enums.js';
 import { pairPetRawBaseCoreNoLevel } from '../../shared/utils/pairPetKataStatsFromMeta.js';
-import { PET_PANEL_CORE_CELL, PET_PANEL_CORE_GRID } from './pairPetDetailPanelUi.js';
+import { PET_PANEL_CORE_CELL, PET_PANEL_CORE_GRID, PET_PANEL_CORE_VALUE } from './pairPetDetailPanelUi.js';
 
 const CORE_LIST = Object.values(CoreStat) as CoreStat[];
 
@@ -96,7 +96,7 @@ export interface PairPetCoreStatsGridProps {
 }
 
 /**
- * 페어 펫 6코어 능력치 — 라벨·수치(+보너스)를 한 줄로, 3×2 그리드.
+ * 페어 펫 6코어 능력치 — 라벨·수치(+보너스)를 한 줄로. panelFit은 2×3, 모달 등은 3×2.
  * 획득 모달·펫 정보 뷰에서 공통 사용.
  */
 const PairPetCoreStatsGrid: React.FC<PairPetCoreStatsGridProps> = ({
@@ -187,7 +187,7 @@ const PairPetCoreStatsGrid: React.FC<PairPetCoreStatsGridProps> = ({
                         <span
                             className={`whitespace-nowrap font-mono font-bold tabular-nums ${
                                 mgmt || panelCompact
-                                    ? 'shrink-0 text-[12px] font-bold'
+                                    ? PET_PANEL_CORE_VALUE
                                     : profileHome
                                       ? 'shrink-0 text-sm font-bold sm:text-base'
                                       : micro

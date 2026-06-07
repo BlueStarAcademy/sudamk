@@ -31,6 +31,7 @@ interface GoGameArenaProps extends GameProps {
     /** Game.tsx 계가 5초 연출이 끝나기 전에는 보드에 영토·계가 분석을 표시하지 않음 */
     blockScoringBoardAnalysis?: boolean;
     itemAimIntroBoardBlocked?: boolean;
+    isMoveSubmitting?: boolean;
 }
 
 function modeIncludesCaptureRule(mode: GameMode, settings: { mixedModes?: GameMode[] }): boolean {
@@ -60,6 +61,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
         boardRuleFlashMessage = null,
         blockScoringBoardAnalysis = false,
         itemAimIntroBoardBlocked = false,
+        isMoveSubmitting = false,
     } = props;
 
     const { blackPlayerId, whitePlayerId, player1, player2, settings, lastMove, gameStatus, mode, moveHistory, hiddenMoves } = session;
@@ -338,6 +340,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 newlyRevealed={session.newlyRevealed}
                 justCaptured={session.justCaptured}
                 captures={session.captures}
+                speedTimePressureGranted={(session.settings as any)?.__speedTimePressureGranted}
                 permanentlyRevealedStones={session.permanentlyRevealedStones}
                 isSpectator={props.isSpectator}
                 analysisResult={
@@ -372,6 +375,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 boardRuleFlashMessage={boardRuleFlashMessage}
                 isPairBasePlacementHost={isPairBasePlacementHost}
                 canPlaceMoreBaseStones={canPlaceMoreBaseStones}
+                isMoveSubmitting={isMoveSubmitting}
                 />
                 </div>
             </div>

@@ -12,6 +12,7 @@ import {
 } from '../../constants';
 import { BLACKSMITH_DISASSEMBLY_JACKPOT_RATES } from '../../constants/rules.js';
 import { formatBlacksmithPercentInt } from '../../shared/utils/formatBlacksmithPercentInt.js';
+import { getBlacksmithViewerTypography } from '../../shared/constants/blacksmithViewerTypography.js';
 
 const gradeStyles: Record<ItemGrade, { color: string; background: string }> = {
     normal: { color: 'text-gray-300', background: '/images/equipments/normalbgi.webp' },
@@ -77,16 +78,18 @@ const renderStarDisplay = (stars: number, compact?: boolean) => {
 };
 
 /** 하단 대장간 장비 인벤(10열·130px 높이) 셀과 비슷하게 맞춘 고정 크기 */
-const SELECTED_DISASSEMBLY_CELL_PX = 52;
+const getSelectedDisassemblyCellPx = (pcViewer: boolean) => (pcViewer ? 72 : 58);
 
 /** 인벤토리 슬롯과 동일: 등급 배경판 + 장비 이미지(+초월 오버레이·강화 별) */
 const DisassemblySelectedInventoryCell: React.FC<{
     item: InventoryItem;
     onToggleDisassemblySelection: (itemId: string) => void;
-}> = ({ item, onToggleDisassemblySelection }) => {
+    pcViewer?: boolean;
+}> = ({ item, onToggleDisassemblySelection, pcViewer = false }) => {
     const styles = gradeStyles[item.grade];
     const iconBoxPct = '88%';
-    const cellPx = SELECTED_DISASSEMBLY_CELL_PX;
+    const cellPx = getSelectedDisassemblyCellPx(pcViewer);
+    const compactStars = cellPx < 64;
     return (
         <button
             type="button"
@@ -121,7 +124,7 @@ const DisassemblySelectedInventoryCell: React.FC<{
             {item.grade === ItemGrade.Transcendent && (
                 <div className="pointer-events-none absolute inset-0 z-[2] rounded-md transcendent-inventory-slot-overlay" aria-hidden />
             )}
-            {renderStarDisplay(item.stars ?? 0, true)}
+            {renderStarDisplay(item.stars ?? 0, compactStars)}
         </button>
     );
 };
@@ -130,7 +133,10 @@ const SelectedDisassemblyItemsPanel: React.FC<{
     selectedIds: Set<string>;
     inventory: InventoryItem[];
     onToggleDisassemblySelection: (itemId: string) => void;
-}> = ({ selectedIds, inventory, onToggleDisassemblySelection }) => {
+    onOpenAutoSelect?: () => void;
+    pcViewer?: boolean;
+}> = ({ selectedIds, inventory, onToggleDisassemblySelection, onOpenAutoSelect, pcViewer = false }) => {
+    const typo = getBlacksmithViewerTypography(pcViewer);
     const items = useMemo(
         () => inventory.filter(item => selectedIds.has(item.id)),
         [inventory, selectedIds]
@@ -139,26 +145,38 @@ const SelectedDisassemblyItemsPanel: React.FC<{
     return (
         <div className="flex h-full min-h-0 w-full flex-col rounded-xl border border-amber-400/20 bg-gradient-to-b from-[#171d2b]/85 via-[#101524]/92 to-[#0a0e17]/95 p-2">
             <div className="mb-1.5 flex shrink-0 items-center justify-between gap-2 px-0.5">
-                <p className="text-xs font-semibold text-cyan-200/90">선택된 장비</p>
-                <span className="text-[11px] text-slate-400">{items.length.toLocaleString()}개</span>
+                <p className={`${typo.heading} text-cyan-200/90`}>선택된 장비</p>
+                <span className={`${typo.body} text-slate-400`}>{items.length.toLocaleString()}개</span>
             </div>
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-slate-600/35 bg-tertiary/30 pr-1">
                 {items.length === 0 ? (
-                    <div className="flex flex-1 items-center justify-center px-2 py-2 text-center text-xs text-slate-500">
+                    <div className={`flex flex-1 items-center justify-center px-2 py-2 text-center ${typo.body} text-slate-500`}>
                         인벤토리에서 분해할 장비를 선택하세요
                     </div>
                 ) : (
-                    <div className="grid h-full min-h-0 auto-rows-max grid-cols-5 justify-items-center gap-1.5 overflow-y-auto overflow-x-hidden p-1.5 [scrollbar-gutter:stable]">
+                    <div className={`grid h-full min-h-0 auto-rows-max ${pcViewer ? 'grid-cols-4' : 'grid-cols-5'} justify-items-center gap-2 overflow-y-auto overflow-x-hidden p-2 [scrollbar-gutter:stable]`}>
                         {items.map(item => (
                             <DisassemblySelectedInventoryCell
                                 key={item.id}
                                 item={item}
                                 onToggleDisassemblySelection={onToggleDisassemblySelection}
+                                pcViewer={pcViewer}
                             />
                         ))}
                     </div>
                 )}
             </div>
+            {onOpenAutoSelect ? (
+                <div className="mt-3 flex shrink-0 justify-center border-t border-slate-600/35 pt-3">
+                    <button
+                        type="button"
+                        onClick={onOpenAutoSelect}
+                        className={`whitespace-nowrap rounded-md border border-amber-300/40 bg-gradient-to-r from-amber-600/90 via-amber-500/90 to-orange-500/85 px-4 py-2 font-bold text-amber-50 shadow-[0_10px_22px_-14px_rgba(251,191,36,0.75)] transition hover:from-amber-500 hover:via-amber-400 hover:to-orange-400 ${pcViewer ? typo.bodySemi : 'text-xs'}`}
+                    >
+                        자동 선택
+                    </button>
+                </div>
+            ) : null}
         </div>
     );
 };
@@ -173,6 +191,8 @@ const DisassemblyPreviewPanel: React.FC<{
     modalEquipmentSelectionFlow?: boolean;
     onDisassemble: () => void;
     selectedCount: number;
+    pcViewer?: boolean;
+    isBlacksmithBusy?: boolean;
 }> = ({
     selectedIds,
     inventory,
@@ -181,7 +201,10 @@ const DisassemblyPreviewPanel: React.FC<{
     modalEquipmentSelectionFlow,
     onDisassemble,
     selectedCount,
+    pcViewer = false,
+    isBlacksmithBusy = false,
 }) => {
+    const typo = getBlacksmithViewerTypography(pcViewer && !nativeMobile);
     const jackpotRatePct = BLACKSMITH_DISASSEMBLY_JACKPOT_RATES[Math.max(0, blacksmithLevel - 1)];
     const jackpotHint = `${formatBlacksmithPercentInt(jackpotRatePct)}%확률로 대박 발생(재료2배)`;
 
@@ -249,7 +272,7 @@ const DisassemblyPreviewPanel: React.FC<{
             <div className="flex-shrink-0 space-y-1.5 text-center">
                 <p
                     className={`font-semibold ${
-                        nativeMobile ? 'text-base font-bold text-cyan-100' : 'text-sm text-amber-100'
+                        nativeMobile ? 'text-base font-bold text-cyan-100' : `${typo.headingLg} text-amber-100`
                     }`}
                 >
                     예상 획득 재료
@@ -278,7 +301,7 @@ const DisassemblyPreviewPanel: React.FC<{
                                 >
                                     <div
                                         className={`flex min-w-0 items-center gap-2.5 text-slate-100 ${
-                                            nativeMobile ? 'text-sm' : 'gap-3 text-sm'
+                                            nativeMobile ? 'text-sm' : `gap-3 ${typo.body}`
                                         }`}
                                     >
                                         <div
@@ -298,7 +321,7 @@ const DisassemblyPreviewPanel: React.FC<{
                                     </div>
                                     <span
                                         className={`flex-shrink-0 font-mono tabular-nums text-emerald-300 ${
-                                            nativeMobile ? 'text-[15px] font-semibold' : 'text-sm'
+                                            nativeMobile ? 'text-[15px] font-semibold' : typo.bodySemi
                                         }`}
                                     >
                                         {range ? formatDisassemblyExpectedYield(range.min, range.max) : '0'}
@@ -310,7 +333,7 @@ const DisassemblyPreviewPanel: React.FC<{
                 ) : (
                     <div
                         className={`flex flex-1 items-center justify-center text-center ${
-                            nativeMobile ? 'px-2 text-sm leading-relaxed text-slate-300' : 'text-sm text-slate-400'
+                            nativeMobile ? 'px-2 text-sm leading-relaxed text-slate-300' : `${typo.body} text-slate-400`
                         }`}
                     >
                         {itemCount === 0
@@ -323,7 +346,7 @@ const DisassemblyPreviewPanel: React.FC<{
             <div className={`flex flex-shrink-0 flex-col items-stretch ${nativeMobile ? 'gap-2 pt-2' : 'gap-2.5 pt-2.5'}`}>
                 <p
                     className={`text-center font-semibold leading-snug text-amber-100/95 ${
-                        nativeMobile ? 'rounded-md border border-amber-400/25 bg-[#0f172a]/90 px-2 py-2 text-[11px]' : 'text-xs'
+                        nativeMobile ? 'rounded-md border border-amber-400/25 bg-[#0f172a]/90 px-2 py-2 text-[11px]' : typo.body
                     }`}
                     title="분해 대박 시 획득 재료 2배"
                 >
@@ -332,11 +355,11 @@ const DisassemblyPreviewPanel: React.FC<{
                 <ResourceActionButton
                     type="button"
                     onClick={onDisassemble}
-                    disabled={selectedCount === 0}
+                    disabled={selectedCount === 0 || isBlacksmithBusy}
                     variant="materials"
                     className={`mx-auto w-auto min-w-[9.5rem] min-h-[44px] !rounded-lg !border !border-rose-300/45 !bg-gradient-to-r !from-rose-600/90 !via-rose-500/90 !to-orange-500/85 !px-3 !py-2.5 !text-sm !font-bold !text-rose-50 !shadow-[0_14px_26px_-18px_rgba(244,63,94,0.85)] hover:!from-rose-500 hover:!via-rose-400 hover:!to-orange-400 disabled:!opacity-50 disabled:!cursor-not-allowed leading-snug`}
                 >
-                    분해({selectedCount})
+                    {isBlacksmithBusy ? '분해 중...' : `분해(${selectedCount})`}
                 </ResourceActionButton>
             </div>
         </div>
@@ -439,14 +462,20 @@ interface DisassemblyViewProps {
     onAction: (action: ServerAction) => Promise<void>;
     selectedForDisassembly: Set<string>;
     onToggleDisassemblySelection: (itemId: string) => void;
+    onOpenAutoSelect?: () => void;
     modalEquipmentSelectionFlow?: boolean;
+    pcViewer?: boolean;
+    isBlacksmithBusy?: boolean;
 }
 
 const DisassemblyView: React.FC<DisassemblyViewProps> = ({
     onAction,
     selectedForDisassembly = new Set(),
     onToggleDisassemblySelection,
+    onOpenAutoSelect,
     modalEquipmentSelectionFlow = false,
+    pcViewer = false,
+    isBlacksmithBusy = false,
 }) => {
     const { isNativeMobile } = useNativeMobileShell();
     const { currentUserWithStatus } = useAppContext();
@@ -502,9 +531,7 @@ const DisassemblyView: React.FC<DisassemblyViewProps> = ({
     };
 
     const executeDisassemble = () => {
-        onAction({ type: 'DISASSEMBLE_ITEM', payload: { itemIds: Array.from(selectedForDisassembly) } });
-        // No need to clear selectedForDisassembly here, as it's managed by BlacksmithModal
-        // and will be cleared when the action is processed and state updates.
+        void onAction({ type: 'DISASSEMBLE_ITEM', payload: { itemIds: Array.from(selectedForDisassembly) } });
     };
 
     return (
@@ -521,6 +548,8 @@ const DisassemblyView: React.FC<DisassemblyViewProps> = ({
                         selectedIds={selectedForDisassembly}
                         inventory={inventory}
                         onToggleDisassemblySelection={onToggleDisassemblySelection}
+                        onOpenAutoSelect={onOpenAutoSelect}
+                        pcViewer={pcViewer}
                     />
                 </div>
                 <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">
@@ -532,6 +561,8 @@ const DisassemblyView: React.FC<DisassemblyViewProps> = ({
                         modalEquipmentSelectionFlow={modalEquipmentSelectionFlow}
                         onDisassemble={handleDisassemble}
                         selectedCount={selectedForDisassembly.size}
+                        pcViewer={pcViewer}
+                        isBlacksmithBusy={isBlacksmithBusy}
                     />
                 </div>
             </div>

@@ -10,6 +10,8 @@ interface ClientTimerOptions {
 
 export const useClientTimer = (session: LiveGameSession, options: ClientTimerOptions = {}) => {
     const coerce = (v: any) => (typeof v === 'number' && isFinite(v) && v > 0 ? v : 0);
+    const readMainTimeLeft = (v: unknown, fallbackSec: number) =>
+        typeof v === 'number' && isFinite(v) ? Math.max(0, v) : fallbackSec;
     // 게임이 pending 상태이고 시간이 없으면 설정에서 기본값 가져오기
     const defaultTime = session.settings?.timeLimit ? session.settings.timeLimit * 60 : 0;
     const initialBlackTime = session.gameStatus === 'pending' && !session.blackTimeLeft ? defaultTime : coerce(session.blackTimeLeft);
@@ -68,8 +70,8 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
             byoyomiDeadlineRef.current = null;
             // 서버 시간이 있으면 그대로, 없으면 설정 기본값 사용
             const defaultTime = session.settings?.timeLimit ? session.settings.timeLimit * 60 : 0;
-            const blackTime = session.blackTimeLeft ? coerce(session.blackTimeLeft) : defaultTime;
-            const whiteTime = session.whiteTimeLeft ? coerce(session.whiteTimeLeft) : defaultTime;
+            const blackTime = session.blackTimeLeft != null ? readMainTimeLeft(session.blackTimeLeft, 0) : defaultTime;
+            const whiteTime = session.whiteTimeLeft != null ? readMainTimeLeft(session.whiteTimeLeft, 0) : defaultTime;
             setClientTimes({ black: blackTime, white: whiteTime });
             return;
         }
@@ -193,6 +195,7 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
             ? (session.blackByoyomiPeriodsLeft ?? session.settings?.byoyomiCount ?? 0)
             : (session.whiteByoyomiPeriodsLeft ?? session.settings?.byoyomiCount ?? 0);
         const hasByoyomi = !isFischer && byoyomiTimeSec > 0 && byoyomiPeriodsLeft > 0;
+        const isServerMainTimeExhausted = serverTimeLeft <= 0;
 
         // turnDeadline이 없을 때: 서버 timeLeft로 마감 시각 생성. 단, 이미 더 여유 있는 ref가 있으면 뒤로 점프하지 않음
         if (!baseDeadline && playingStatuses.includes(session.gameStatus) && (curPlayer === Player.Black || curPlayer === Player.White)) {
@@ -233,17 +236,48 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
             }
         }
 
+        // 초읽기 구간: 메인 시간이 0이면 turnDeadline/byoyomi ref 기준으로만 카운트다운 (만료된 메인 deadline로 재시작하지 않음)
+        if (
+            isServerMainTimeExhausted &&
+            hasByoyomi &&
+            playingStatuses.includes(session.gameStatus) &&
+            (curPlayer === Player.Black || curPlayer === Player.White)
+        ) {
+            const byoyomiFromRef =
+                byoyomiDeadlineRef.current?.gameId === session.id && byoyomiDeadlineRef.current?.player === curPlayer
+                    ? byoyomiDeadlineRef.current.deadline
+                    : null;
+            const turnDeadlineFuture =
+                typeof session.turnDeadline === 'number' && session.turnDeadline > now
+                    ? session.turnDeadline
+                    : null;
+            const preferredByoyomiDeadline =
+                byoyomiFromRef != null && byoyomiFromRef > now
+                    ? byoyomiFromRef
+                    : turnDeadlineFuture;
+            if (preferredByoyomiDeadline != null) {
+                baseDeadline = preferredByoyomiDeadline;
+                deadlineRef.current = { deadline: preferredByoyomiDeadline, player: curPlayer, gameId: session.id };
+                byoyomiDeadlineRef.current = { deadline: preferredByoyomiDeadline, player: curPlayer, gameId: session.id };
+            }
+        }
+
         // 서버에서 내려준 미래 turnDeadline이 있으면 그걸 기준으로 하고 ref 갱신 (풀 시간 반영)
         if (baseDeadline && baseDeadline > now && (curPlayer === Player.Black || curPlayer === Player.White)) {
             deadlineRef.current = { deadline: baseDeadline, player: curPlayer, gameId: session.id };
+            if (isServerMainTimeExhausted && hasByoyomi) {
+                byoyomiDeadlineRef.current = { deadline: baseDeadline, player: curPlayer, gameId: session.id };
+            }
         }
 
         if (!baseDeadline) {
             // deadline이 없으면 서버 시간 사용, 없으면 설정에서 기본값 사용
             // 단, 현재 클라이언트 시간이 서버 시간보다 작으면 클라이언트 시간 유지 (제한시간 모드)
             const defaultTime = session.settings?.timeLimit ? session.settings.timeLimit * 60 : 0;
-            const serverBlackTime = session.blackTimeLeft ? coerce(session.blackTimeLeft) : defaultTime;
-            const serverWhiteTime = session.whiteTimeLeft ? coerce(session.whiteTimeLeft) : defaultTime;
+            const serverBlackTime =
+                session.blackTimeLeft != null ? readMainTimeLeft(session.blackTimeLeft, 0) : defaultTime;
+            const serverWhiteTime =
+                session.whiteTimeLeft != null ? readMainTimeLeft(session.whiteTimeLeft, 0) : defaultTime;
             
             // 클라이언트 시간이 서버 시간보다 작으면 클라이언트 시간 유지 (시간이 흐르고 있는 중)
             setClientTimes(prev => ({
@@ -293,7 +327,10 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
                 setClientTimes({ black: newTimeLeft, white: newTimeLeft });
             } else if (session.currentPlayer === Player.Black) {
                 // 흑의 턴: 흑은 deadline 기반, 백은 서버 시간 사용
-                const serverWhiteTime = session.whiteTimeLeft ? coerce(session.whiteTimeLeft) : (session.settings?.timeLimit ? session.settings.timeLimit * 60 : 0);
+                const serverWhiteTime =
+                    session.whiteTimeLeft != null
+                        ? readMainTimeLeft(session.whiteTimeLeft, 0)
+                        : (session.settings?.timeLimit ? session.settings.timeLimit * 60 : 0);
                 // 피셔 방식이면 백의 시간도 서버 시간 직접 사용 (수를 두지 않았으므로)
                 // 피셔 방식이 아니면 백의 시간도 서버 시간 직접 사용 (턴이 바뀌었으므로)
                 setClientTimes(prev => ({
@@ -302,7 +339,10 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
                 }));
             } else if (session.currentPlayer === Player.White) {
                 // 백의 턴: 백은 deadline 기반, 흑은 서버 시간 사용
-                const serverBlackTime = session.blackTimeLeft ? coerce(session.blackTimeLeft) : (session.settings?.timeLimit ? session.settings.timeLimit * 60 : 0);
+                const serverBlackTime =
+                    session.blackTimeLeft != null
+                        ? readMainTimeLeft(session.blackTimeLeft, 0)
+                        : (session.settings?.timeLimit ? session.settings.timeLimit * 60 : 0);
                 // 피셔 방식이면 흑의 시간도 서버 시간 직접 사용 (수를 두지 않았으므로)
                 // 피셔 방식이 아니면 흑의 시간도 서버 시간 직접 사용 (턴이 바뀌었으므로)
                 setClientTimes(prev => ({
@@ -312,8 +352,10 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
             } else {
                 // 턴이 없는 경우: 서버 시간 사용 (피셔 방식이면 직접 사용)
                 const defaultTime = session.settings?.timeLimit ? session.settings.timeLimit * 60 : 0;
-                const serverBlackTime = session.blackTimeLeft ? coerce(session.blackTimeLeft) : defaultTime;
-                const serverWhiteTime = session.whiteTimeLeft ? coerce(session.whiteTimeLeft) : defaultTime;
+                const serverBlackTime =
+                    session.blackTimeLeft != null ? readMainTimeLeft(session.blackTimeLeft, 0) : defaultTime;
+                const serverWhiteTime =
+                    session.whiteTimeLeft != null ? readMainTimeLeft(session.whiteTimeLeft, 0) : defaultTime;
                 setClientTimes(prev => ({
                     black: isFischer ? serverBlackTime : (serverBlackTime > 0 && prev.black > 0 && prev.black < serverBlackTime ? prev.black : serverBlackTime),
                     white: isFischer ? serverWhiteTime : (serverWhiteTime > 0 && prev.white > 0 && prev.white < serverWhiteTime ? prev.white : serverWhiteTime)

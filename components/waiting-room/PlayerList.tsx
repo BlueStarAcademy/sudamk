@@ -4,7 +4,6 @@ import Avatar from '../Avatar.js';
 import UserNicknameText from '../UserNicknameText.js';
 import { AVATAR_POOL, BORDER_POOL, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants';
 import Button from '../Button.js';
-import { useAppContext } from '../../hooks/useAppContext.js';
 import { readPairRankedBlock } from '../../shared/utils/unifiedRankedStatsMigration.js';
 import { RANKED_ELO_BASE_SCORE } from '../../shared/constants/rules.js';
 import { userArenaChannelBadge } from '../../shared/utils/unifiedArenaLobbyUserList.js';
@@ -121,8 +120,6 @@ const PlayerList: React.FC<PlayerListProps> = ({
     listScopeTabs,
     showArenaPartnerInviteBlockToggle = false,
 }) => {
-    const { handlers } = useAppContext();
-    const isStrategicLobby = lobbyType === 'strategic';
     const me =
         users.find((user) => user.id === currentUser.id) ??
         users.find((user) => String(user?.id) === String(currentUser?.id));
@@ -130,8 +127,6 @@ const PlayerList: React.FC<PlayerListProps> = ({
     const otherUsers = users
         .filter((user) => user.id !== currentUser.id && String(user.id) !== String(currentUser.id))
         .sort((a, b) => a.nickname.localeCompare(b.nickname));
-
-    const isPairArenaList = mode === 'pair' && !pairInvite;
 
     const renderUserItem = (user: UserWithStatus, isCurrentUser: boolean) => {
         const statusInfo = statusDisplay[user.status] ?? statusDisplay.offline;
@@ -233,17 +228,6 @@ const PlayerList: React.FC<PlayerListProps> = ({
                 </div>
                 {isCurrentUser ? (
                     <div className="flex items-center gap-1.5">
-                        {isStrategicLobby && !isPairArenaList && (
-                            <Button
-                                onClick={() => handlers.openGameRecordList()}
-                                colorScheme="none"
-                                className={`!py-0.5 !px-1.5 lg:!text-xs bg-gradient-to-r from-amber-500/90 to-orange-500/90 text-white font-bold rounded-md shadow-sm whitespace-nowrap ${
-                                    pairAlignedNativeCompact ? '!text-[0.65rem] sm:!text-xs' : '!text-[10px]'
-                                }`}
-                            >
-                                기보
-                            </Button>
-                        )}
                         <select
                             value={currentUser.status}
                             onChange={(e) => onAction({ type: 'SET_USER_STATUS', payload: { status: e.target.value } })}

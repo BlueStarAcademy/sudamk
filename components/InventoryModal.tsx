@@ -5,6 +5,7 @@ import Button from './Button.js';
 import ResourceActionButton from './ui/ResourceActionButton.js';
 import { emptySlotImages, GRADE_LEVEL_REQUIREMENTS, formatEquipLevelRequirement, ITEM_SELL_PRICES, MATERIAL_SELL_PRICES, gradeBackgrounds, gradeStyles, BASE_SLOTS_PER_CATEGORY, EXPANSION_AMOUNT, MAX_EQUIPMENT_SLOTS, MAX_CONSUMABLE_SLOTS, MAX_MATERIAL_SLOTS, ENHANCEMENT_COSTS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, isActionPointConsumable, isConditionPotionConsumable, isTowerOnlyConsumable, isRefinementTicketMaterial, normalizeRefinementTicketInventoryName } from '../constants/items';
 import { isPairArenaExclusiveBagItem, isPairPetMaterial } from '../shared/constants/petLobby.js';
+import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../shared/constants/pcShellLayout.js';
 
 import { calculateUserEffects } from '../services/effectService.js';
 import { calculateTotalStats } from '../services/statService.js';
@@ -19,6 +20,7 @@ import UseQuantityModal from './UseQuantityModal.js';
 import AlertModal from './AlertModal.js';
 import { MythicOptionAbbrev } from './MythicStatAbbrev.js';
 import { coerceSpecialStatType } from '../shared/utils/specialStatMilestones.js';
+import { EquipmentBagStyleOptionRow, resolveEquipmentOptionColorClass } from './equipment/EquipmentBagStyleOptionRow.js';
 import {
     AP_CONSUMABLE_LIGHTNING_FONT_SIZE_CQ,
     AP_CONSUMABLE_PLUS_FONT_SIZE_CQ,
@@ -51,6 +53,7 @@ interface InventoryModalProps {
     enhancementAnimationTarget: { itemId: string; stars: number } | null;
     onAnimationComplete: () => void;
     isTopmost?: boolean;
+    embedded?: boolean;
 }
 
 type Tab = 'all' | 'equipment' | 'consumable' | 'material';
@@ -520,13 +523,6 @@ const LocalItemDetailDisplay: React.FC<{
         ].filter(Boolean) as ItemOption[];
     };
 
-    const getOptionValue = (invItem: InventoryItem | null | undefined, optionType: ItemOptionType): number => {
-        if (!invItem || !invItem.options) return 0;
-        const allOptions = getAllOptions(invItem);
-        const foundOption = allOptions.find(opt => opt.type === optionType);
-        return foundOption ? foundOption.value : 0;
-    };
-
     const currentItemOptions = getAllOptions(item);
     const comparisonItemOptions = getAllOptions(comparisonItem);
 
@@ -559,6 +555,18 @@ const LocalItemDetailDisplay: React.FC<{
         return String(a).localeCompare(String(b));
     });
 
+    const itemStars = item.stars ?? 0;
+
+    const renderBagInventoryOptionRow = (opt: ItemOption, colorClass: string, extraClass = '') => (
+        <EquipmentBagStyleOptionRow
+            key={opt.type}
+            opt={opt}
+            itemStars={itemStars}
+            colorClass={colorClass}
+            className={extraClass}
+        />
+    );
+
     const optionRows = sortedOptionTypes.map(type => {
         const { current, comparison } = optionMap.get(type)!;
 
@@ -566,83 +574,13 @@ const LocalItemDetailDisplay: React.FC<{
         if (item.options?.main?.type === type) return null;
 
         if (current && comparison) {
-            const difference = current.value - comparison.value;
-            const differenceText = difference > 0 ? ` (+${difference})` : (difference < 0 ? ` (${difference})` : '');
-            const differenceColorClass = difference > 0 ? 'text-green-400' : (difference < 0 ? 'text-red-400' : '');
-            let colorClass = 'text-blue-300';
-            if (coerceSpecialStatType(current.type)) colorClass = 'text-green-300';
-            if (Object.values(MythicStat).includes(current.type as MythicStat)) colorClass = 'text-orange-400';
-            const rangeText = current.range && !current.display.includes('[') ? ` [${current.range[0]}~${current.range[1]}]` : '';
-            const isMythicOpt = Object.values(MythicStat).includes(current.type as MythicStat);
-            return (
-                <p key={type} className={`${colorClass} flex justify-between items-center`}>
-                    <span>
-                        {isMythicOpt ? (
-                            <>
-                                <MythicOptionAbbrev option={current} textClassName={colorClass} />
-                                {rangeText}
-                            </>
-                        ) : (
-                            <>
-                                {current.display}{rangeText}
-                            </>
-                        )}
-                    </span>
-                    {difference !== 0 && (
-                        <span className={`font-bold ${differenceColorClass} text-right`}>{differenceText}</span>
-                    )}
-                </p>
-            );
-        } else if (current && !comparison) {
-            const difference = current.value;
-            const differenceText = difference > 0 ? ` (+${difference})` : (difference < 0 ? ` (${difference})` : '');
-            const differenceColorClass = difference > 0 ? 'text-green-400' : (difference < 0 ? 'text-red-400' : '');
-            let colorClass = 'text-blue-300';
-            if (coerceSpecialStatType(current.type)) colorClass = 'text-green-300';
-            if (Object.values(MythicStat).includes(current.type as MythicStat)) colorClass = 'text-orange-400';
-            const rangeText = current.range && !current.display.includes('[') ? ` [${current.range[0]}~${current.range[1]}]` : '';
-            const isMythicOpt = Object.values(MythicStat).includes(current.type as MythicStat);
-            return (
-                <p key={type} className={`${colorClass} flex justify-between items-center`}>
-                    <span>
-                        {isMythicOpt ? (
-                            <>
-                                <MythicOptionAbbrev option={current} textClassName={colorClass} />
-                                {rangeText}
-                            </>
-                        ) : (
-                            <>
-                                {current.display}{rangeText}
-                            </>
-                        )}
-                    </span>
-                    {difference !== 0 && (
-                        <span className={`font-bold ${differenceColorClass} text-right`}>{differenceText}</span>
-                    )}
-                </p>
-            );
-        } else if (!current && comparison) {
-            let colorClass = 'text-red-400';
-            if (coerceSpecialStatType(comparison.type)) colorClass = 'text-green-300';
-            if (Object.values(MythicStat).includes(comparison.type as MythicStat)) colorClass = 'text-orange-400';
-            const rangeText = comparison.range && !comparison.display.includes('[') ? ` [${comparison.range[0]}~${comparison.range[1]}]` : '';
-            const isMythicRm = Object.values(MythicStat).includes(comparison.type as MythicStat);
-            return (
-                <p key={type} className={`${colorClass} line-through flex justify-between items-center`}>
-                    <span>
-                        {isMythicRm ? (
-                            <>
-                                <MythicOptionAbbrev option={comparison} textClassName={colorClass} />
-                                {rangeText}
-                            </>
-                        ) : (
-                            <>
-                                {comparison.display}{rangeText}
-                            </>
-                        )}
-                    </span>
-                </p>
-            );
+            return renderBagInventoryOptionRow(current, resolveEquipmentOptionColorClass(current.type));
+        }
+        if (current && !comparison) {
+            return renderBagInventoryOptionRow(current, resolveEquipmentOptionColorClass(current.type));
+        }
+        if (!current && comparison) {
+            return renderBagInventoryOptionRow(comparison, resolveEquipmentOptionColorClass(comparison.type), 'line-through');
         }
         return null;
     });
@@ -858,7 +796,7 @@ const LocalItemDetailDisplay: React.FC<{
     return (
         <div
             className={`flex min-h-0 w-full flex-col ${expandOptionsToFill ? 'h-full' : ''}`}
-            style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}
+            style={{ fontSize: `${Math.max(13, Math.round(14 * scaleFactor * mobileTextScale))}px` }}
         >
             {/* Top Section: Image (left), Name & Main Option (right) */}
             <div className="flex shrink-0 items-start justify-between mb-2">
@@ -936,38 +874,20 @@ const LocalItemDetailDisplay: React.FC<{
                 {/* Right: Name & Main Option */}
                 <div className="min-w-0 flex-grow text-right ml-2">
                     <div className="flex items-baseline justify-end gap-0.5">
-                        <h3 className={`max-w-full whitespace-nowrap font-bold ${styles.color}`} title={item.name} style={{ fontSize: `${resolveNoWrapTextFontPx(item.name, Math.max(12, Math.round(13 * scaleFactor * mobileTextScale)), 8, 9, 0.62)}px` }}>{item.name}</h3>
+                        <h3 className={`max-w-full whitespace-nowrap font-bold ${styles.color}`} title={item.name} style={{ fontSize: `${resolveNoWrapTextFontPx(item.name, Math.max(14, Math.round(15 * scaleFactor * mobileTextScale)), 8, 9, 0.62)}px` }}>{item.name}</h3>
                     </div>
-                    <div className="flex items-center justify-end gap-2 mt-0.5" style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>
+                    <div className="flex items-center justify-end gap-2 mt-0.5" style={{ fontSize: `${Math.max(12, Math.round(13 * scaleFactor * mobileTextScale))}px` }}>
                         <span className={styles.color}>[{styles.name}]</span>
                         {showRequirement && (
-                            <span className={`${levelRequirementMet ? 'text-gray-300' : 'text-red-400'} whitespace-nowrap`} style={{ fontSize: `${Math.max(9, Math.round(10 * scaleFactor * mobileTextScale))}px` }}>
+                            <span className={`${levelRequirementMet ? 'text-gray-300' : 'text-red-400'} whitespace-nowrap`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
                                 {formatEquipLevelRequirement(requiredLevel)}
                             </span>
                         )}
                     </div>
                     {/* 제련 가능 횟수 표시 (장비인 경우에만) */}
                     {item.type === 'equipment' && (
-                        <p className={`text-xs font-semibold ${item.grade !== 'normal' && (item as any).refinementCount > 0 ? 'text-amber-400' : 'text-red-400'}`} style={{ fontSize: `${Math.max(9, Math.round(10 * scaleFactor * mobileTextScale))}px` }}>
+                        <p className={`text-xs font-semibold ${item.grade !== 'normal' && (item as any).refinementCount > 0 ? 'text-amber-400' : 'text-red-400'}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
                             제련 가능: {item.grade !== 'normal' && (item as any).refinementCount > 0 ? `${(item as any).refinementCount}회` : '제련불가'}
-                        </p>
-                    )}
-                    {item.options?.main && ( // Only display main option if it exists
-                        <p className="font-semibold text-yellow-300 flex justify-between items-center" style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
-                            <span>
-                                {item.options.main.display}
-                                {/* display에 이미 범위값이 포함되어 있으면 추가하지 않음 */}
-                                {item.options.main.range && !item.options.main.display.includes('[') && ` [${item.options.main.range[0]}~${item.options.main.range[1]}]`}
-                            </span>
-                            {item.options.main.type && (
-                                (() => {
-                                    const comparisonValue = getOptionValue(comparisonItem, item.options.main.type);
-                                    const difference = item.options.main.value - comparisonValue;
-                                    const differenceText = difference > 0 ? ` (+${difference})` : (difference < 0 ? ` (${difference})` : '');
-                                    const differenceColorClass = difference > 0 ? 'text-green-400' : (difference < 0 ? 'text-red-400' : '');
-                                    return difference !== 0 && <span className={`font-bold ${differenceColorClass} text-right`}>{differenceText}</span>;
-                                })()
-                            )}
                         </p>
                     )}
                 </div>
@@ -981,7 +901,7 @@ const LocalItemDetailDisplay: React.FC<{
                         : 'flex-shrink-0 overflow-y-auto rounded-lg'
                 }`}
                 style={{
-                    fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px`,
+                    fontSize: `${Math.max(12, Math.round(13 * scaleFactor * mobileTextScale))}px`,
                     ...(expandOptionsToFill
                         ? {}
                         : {
@@ -991,6 +911,9 @@ const LocalItemDetailDisplay: React.FC<{
                           }),
                 }}
             >
+                {item.options?.main && (
+                    <EquipmentBagStyleOptionRow opt={item.options.main} itemStars={itemStars} isMain />
+                )}
                 {optionRows}
             </div>
         </div>
@@ -1090,7 +1013,17 @@ const BAG_INVENTORY_FOOTER_ITEM_BTN = {
     success: `${BAG_INVENTORY_FOOTER_ITEM_BTN_BASE} ring-0 border-emerald-900/50 bg-gradient-to-b from-emerald-500 via-emerald-700 to-emerald-950 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_4px_16px_-2px_rgba(16,185,129,0.5)] hover:border-emerald-400/50 hover:from-emerald-400 hover:via-emerald-600 hover:to-emerald-950 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_6px_22px_-2px_rgba(52,211,153,0.55)]`,
 } as const;
 
-const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurrentUser, onClose, onAction, onStartEnhance, onOpenBlacksmithTab, enhancementAnimationTarget, onAnimationComplete, isTopmost }) => {
+const InventoryModal: React.FC<InventoryModalProps> = ({
+    currentUser: propCurrentUser,
+    onClose,
+    onAction,
+    onStartEnhance,
+    onOpenBlacksmithTab,
+    enhancementAnimationTarget,
+    onAnimationComplete,
+    isTopmost,
+    embedded = false,
+}) => {
     const { presets, handlers, currentUserWithStatus, updateTrigger, modalLayerUsesDesignPixels } = useAppContext();
     
     // useAppContext의 currentUserWithStatus를 우선 사용 (최신 상태 보장)
@@ -1172,7 +1105,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
     /** 16:9 설계 캔버스 안에서는 모바일 재배치로 갈아타지 않고 비율 축소(scale)를 유지 */
     const narrowInventoryLayout = effectiveIsCompactViewport;
     // 가방/하위 모달은 캔버스 프레임 상한의 영향을 받지 않도록 브라우저 뷰포트 레이어에 고정 렌더링한다.
-    const useViewportSizedBagModal = true;
+    const useViewportSizedBagModal = !modalLayerUsesDesignPixels;
     const hasInventoryChildModal =
         showUseQuantityModal ||
         !!itemToSell ||
@@ -1219,20 +1152,32 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
     // 상세 패널 텍스트는 모달 축소 비율을 따르되, PC 가독성을 위해 과도한 축소만 방지한다.
     const detailTextScale = narrowInventoryLayout
         ? mobileTextScale
-        : mobileTextScale * Math.max(0.96, Math.min(1.1, 0.92 + bagFrame.scale * 0.16));
-    /** PC 상단 밴드 높이: 옵션은 패널 안에서 flex로 채움 — 최소 확보만 합성(인벤에 세로 양보) */
-    const desktopBagViewerRowPx = useMemo(() => {
+        : mobileTextScale * Math.max(0.96, Math.min(1.1, 0.92 + bagFrame.scale * 0.16)) * 1.24;
+    /** PC 상단 밴드: 좌열(장착·스탯·프리셋) 전체가 보이도록 최소 높이 — 인벤은 flex 비율로 양보 */
+    const desktopEquippedPanelHeightPx = useMemo(() => {
         if (narrowInventoryLayout) return null;
-        const imgBox = Math.max(52, Math.round(80 * scaleFactor));
-        const topInfo = Math.round(92 * scaleFactor + 18 * detailTextScale);
-        const titleBar = 34;
-        const buttonBar = 50;
-        const panelPadding = Math.round(36 * scaleFactor + 22);
-        const minOptionsStretch = Math.max(112, Math.round(132 * scaleFactor));
-        const composed = titleBar + imgBox + topInfo + minOptionsStretch + buttonBar + panelPadding;
-        const h = Math.max(1, windowHeight);
-        return Math.round(Math.min(500, Math.max(284, composed, h * 0.28)));
-    }, [narrowInventoryLayout, scaleFactor, detailTextScale, windowHeight]);
+        const outerPad = Math.max(12, Math.round(16 * scaleFactor)) * 2;
+        const heading = Math.max(28, Math.round(22 * scaleFactor * mobileTextScale + 10));
+        const slotGap = Math.max(6, Math.round(8 * scaleFactor));
+        const slotRow = Math.round(84 * scaleFactor + 32);
+        const slotGrid = slotRow * 2 + slotGap;
+        const statsSectionTop = Math.max(16, Math.round(16 * scaleFactor));
+        const statRow = Math.max(30, Math.round(34 * scaleFactor * mobileTextScale));
+        const statsGrid = statRow * 3 + Math.max(4, Math.round(4 * scaleFactor)) * 2;
+        const statsPresetGap = Math.max(8, Math.round(8 * scaleFactor));
+        const presetRow = Math.max(42, Math.round(46 * scaleFactor * mobileTextScale));
+        const belowPresetSlack = Math.max(16, Math.round(20 * scaleFactor));
+        const composed =
+            outerPad +
+            heading +
+            slotGrid +
+            statsSectionTop +
+            statsGrid +
+            statsPresetGap +
+            presetRow +
+            belowPresetSlack;
+        return Math.max(composed, Math.round(340 * scaleFactor + 112));
+    }, [narrowInventoryLayout, scaleFactor, mobileTextScale]);
     const compareModalTextScale = narrowInventoryLayout ? mobileTextScale : mobileTextScale * 1.35;
     const inventoryGridGapPx = useMemo(
         () => Math.max(narrowInventoryLayout ? 2 : 3, Math.round((narrowInventoryLayout ? 3 : 7) * scaleFactor)),
@@ -1265,8 +1210,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
         return Math.max(14, inner / Math.max(1, inventoryGridColumns));
     }, [inventoryGridViewportWidth, calculatedWidth, scaleFactor, inventoryGridGapPx, inventoryGridColumns]);
     const inventoryGridMinHeightPx = useMemo(() => {
-        // 하단 인벤토리는 어떤 축소 구간에서도 최소 2줄 이상이 항상 보이게 유지
-        const minVisibleRows = 2;
+        const minVisibleRows = narrowInventoryLayout ? 2 : 3;
         const bottomPadding = Math.max(12, Math.round(20 * scaleFactor));
         return Math.max(
             76,
@@ -1276,27 +1220,15 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                     bottomPadding,
             ),
         );
-    }, [inventoryCellSizePx, inventoryGridGapPx, scaleFactor]);
+    }, [inventoryCellSizePx, inventoryGridGapPx, scaleFactor, narrowInventoryLayout]);
     const inventoryBottomSectionMinHeightPx = useMemo(() => {
-        // 탭/정렬 헤더 + 섹션 패딩 + 2줄 그리드 최소 높이를 함께 보장
         const sectionPadding = Math.max(16, Math.round(22 * scaleFactor));
         const headerBlock = narrowInventoryLayout
             ? Math.max(84, Math.round(100 * scaleFactor))
             : Math.max(42, Math.round(50 * scaleFactor));
         return Math.round(inventoryGridMinHeightPx + sectionPadding + headerBlock);
     }, [inventoryGridMinHeightPx, narrowInventoryLayout, scaleFactor]);
-    const inventoryBottomSectionHeightPx = useMemo(() => {
-        // 하단 인벤은 "2줄 보이는 상태"를 유지하는 고정 높이로 운용(내부 스크롤 전제)
-        return Math.max(200, Math.min(300, inventoryBottomSectionMinHeightPx));
-    }, [inventoryBottomSectionMinHeightPx]);
-    const desktopTopSectionHeightPx = useMemo(() => {
-        if (narrowInventoryLayout || desktopBagViewerRowPx == null) return desktopBagViewerRowPx;
-        // 모달 총 높이(90vh)에서 하단 고정 영역을 뺀 나머지를 상단에 배정.
-        // 상단은 스크롤 없이 내용을 보여야 하므로 최소 높이를 높게 보장.
-        const modalBodyBudget = Math.max(460, calculatedHeight - 110);
-        const remaining = modalBodyBudget - inventoryBottomSectionHeightPx;
-        return Math.max(400, Math.min(640, remaining, desktopBagViewerRowPx));
-    }, [narrowInventoryLayout, desktopBagViewerRowPx, calculatedHeight, inventoryBottomSectionHeightPx]);
+    const desktopTopSectionMinHeightPx = desktopEquippedPanelHeightPx;
     const luxuryTabButtonBase = 'rounded-lg border font-semibold tracking-wide transition-all duration-200 shadow-[0_12px_24px_-16px_rgba(15,23,42,0.85)] hover:-translate-y-0.5 active:translate-y-0';
     const getLuxuryTabButtonClass = (isActive: boolean) =>
         isActive
@@ -1633,28 +1565,8 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
         return { currentStats, afterStats, delta, currentSum, afterSum, sumDelta: afterSum - currentSum };
     }, [selectedItem, currentUser]);
 
-    return (
-        <DraggableWindow
-            title="가방"
-            onClose={onClose}
-            windowId="inventory"
-            isTopmost={isTopmost && !hasInventoryChildModal}
-            initialWidth={calculatedWidth}
-            initialHeight={calculatedHeight}
-            variant="store"
-            bodyScrollable={false}
-            mobileViewportFit={narrowInventoryLayout}
-            mobileLockViewportHeight={useViewportSizedBagModal}
-            mobileViewportMaxHeightVh={92}
-            mobileViewportMaxHeightCss={undefined}
-            mobileViewportDvhBottomGapPx={undefined}
-            bodyPaddingClassName={narrowInventoryLayout ? 'p-2 sm:p-3' : undefined}
-            uniformPcScale={!narrowInventoryLayout}
-            pcViewportMaxHeightCss="min(94dvh, calc(100dvh - 16px))"
-            pcViewportMaxWidthCss="90vw"
-            viewportPortal={useViewportSizedBagModal}
-            skipIngameBoardFrameSizeCap
-        >
+    const inventoryBody = (
+        <>
             <div 
                 className="flex min-h-0 h-full w-full flex-col overflow-hidden"
                 style={{ margin: 0, padding: 0 }}
@@ -1673,25 +1585,21 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                     </div>
                 ) : (
                     <div
-                        className="bg-gray-800 mb-2 flex min-h-0 shrink-0 flex-row overflow-hidden rounded-md shadow-inner"
+                        className="mb-2 flex min-h-0 flex-[0.98] flex-row overflow-hidden rounded-md bg-gray-800 shadow-inner"
                         style={{
                             padding: `${Math.max(12, Math.round(16 * scaleFactor))}px`,
-                            ...(desktopTopSectionHeightPx != null
-                                ? {
-                                      height: desktopTopSectionHeightPx,
-                                      minHeight: desktopTopSectionHeightPx,
-                                      maxHeight: desktopTopSectionHeightPx,
-                                  }
+                            ...(desktopTopSectionMinHeightPx != null
+                                ? { minHeight: desktopTopSectionMinHeightPx }
                                 : {}),
                         }}
                     >
                         <>
                             {/* 데스크톱: 좌 1/3 장착+스탯, 우측 상세 */}
                             <div
-                                className="flex h-full min-h-0 w-1/3 flex-shrink-0 flex-col overflow-hidden border-r border-gray-700"
+                                className={`flex h-full min-h-0 w-1/3 flex-shrink-0 flex-col overflow-hidden border-r border-gray-700 ${BAG_SCROLLBAR_Y_CLASS}`}
                                 style={{ paddingRight: `${Math.max(12, Math.round(16 * scaleFactor))}px` }}
                             >
-                                <>
+                                <div className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden ${BAG_SCROLLBAR_Y_CLASS}`}>
                                     <h3 className="font-bold text-on-panel" style={{ fontSize: `${Math.max(14, Math.round(18 * scaleFactor * mobileTextScale))}px`, marginBottom: `${Math.max(6, Math.round(8 * scaleFactor))}px` }}>장착 장비</h3>
                                     <div
                                         className="grid"
@@ -1727,35 +1635,35 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                 const finalValue = computeCoreStatFinalFromBonuses(baseValue, flatBonus, percentBonus);
                                                 const bonus = finalValue - baseValue;
                                                 return (
-                                                    <div key={stat} className="flex items-center justify-between rounded-md bg-tertiary/40 p-1" style={{ fontSize: `${Math.max(13, Math.round(14 * scaleFactor * mobileTextScale))}px` }}>
+                                                    <div key={stat} className="flex items-center justify-between rounded-md bg-tertiary/40 p-1" style={{ fontSize: `${Math.max(14, Math.round(15.5 * scaleFactor * mobileTextScale))}px` }}>
                                                         <span className="whitespace-nowrap font-semibold text-secondary">{stat}</span>
                                                         <span className="whitespace-nowrap font-mono font-bold" title={`기본: ${baseValue}, 장비: ${bonus}`}>
                                                             {isNaN(finalValue) ? 0 : finalValue}
-                                                            {bonus > 0 && <span className="ml-0.5 text-green-400" style={{ fontSize: `${Math.max(11, Math.round(12.5 * scaleFactor * mobileTextScale))}px` }}>(+{bonus})</span>}
+                                                            {bonus > 0 && <span className="ml-0.5 text-green-400" style={{ fontSize: `${Math.max(12, Math.round(13.5 * scaleFactor * mobileTextScale))}px` }}>(+{bonus})</span>}
                                                         </span>
                                                     </div>
                                                 );
                                             })}
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            <select
-                                                value={selectedPreset}
-                                                onChange={(e) => handlePresetChange(Number(e.target.value))}
-                                                className="flex-grow rounded-md border border-color bg-secondary p-1.5 focus:border-accent focus:ring-accent"
-                                                style={{ fontSize: `${Math.max(13, Math.round(14 * scaleFactor * mobileTextScale))}px` }}
-                                            >
-                                                {presets.map((preset, index) => (
-                                                    <option key={index} value={index}>
-                                                        {preset.name}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            <Button onClick={handleOpenRenameModal} colorScheme="blue" className={`!py-1 ${viewerActionButtonClass.info}`} style={{ fontSize: `${Math.max(13, Math.round(14 * scaleFactor * mobileTextScale))}px` }}>
-                                                저장
-                                            </Button>
-                                        </div>
                                     </div>
-                                </>
+                                </div>
+                                <div className="mt-2 flex shrink-0 items-center gap-2 border-t border-gray-700/60 pt-2">
+                                    <select
+                                        value={selectedPreset}
+                                        onChange={(e) => handlePresetChange(Number(e.target.value))}
+                                        className="min-w-0 flex-grow rounded-md border border-color bg-secondary p-1.5 focus:border-accent focus:ring-accent"
+                                        style={{ fontSize: `${Math.max(13, Math.round(14 * scaleFactor * mobileTextScale))}px` }}
+                                    >
+                                        {presets.map((preset, index) => (
+                                            <option key={index} value={index}>
+                                                {preset.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <Button onClick={handleOpenRenameModal} colorScheme="blue" className={`!shrink-0 !py-1 ${viewerActionButtonClass.info}`} style={{ fontSize: `${Math.max(13, Math.round(14 * scaleFactor * mobileTextScale))}px` }}>
+                                        저장
+                                    </Button>
+                                </div>
                             </div>
 
                     {/* Conditional middle and right panels (데스크톱) — 장비·소모품·재료: 동일 2열(현재 장착 | 선택) */}
@@ -2241,14 +2149,12 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
 
                 {/* Bottom section: 가방 슬롯 — 부모가 flex-1·min-h-0일 때만 세로 스크롤이 생김(bodyAvoidVerticalStretch 제거로 체인 유지) */}
                 <div
-                    className="flex min-h-0 shrink-0 flex-col overflow-hidden bg-gray-900"
+                    className="flex min-h-0 flex-1 flex-col overflow-hidden bg-gray-900"
                     style={{
-                        minHeight: `${inventoryBottomSectionHeightPx}px`,
-                        height: `${inventoryBottomSectionHeightPx}px`,
-                        maxHeight: `${inventoryBottomSectionHeightPx}px`,
+                        minHeight: `${inventoryBottomSectionMinHeightPx}px`,
                         padding: `${Math.max(12, Math.round(16 * scaleFactor))}px`,
                         paddingTop: `${Math.max(12, Math.round(16 * scaleFactor))}px`,
-                        paddingBottom: `${Math.max(12, Math.round(16 * scaleFactor))}px`,
+                        paddingBottom: `${Math.max(8, Math.round(10 * scaleFactor))}px`,
                         marginBottom: 0,
                     }}
                 >
@@ -3370,6 +3276,40 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                     </div>
                 </DraggableWindow>
             )}
+        </>
+    );
+
+    if (embedded) {
+        return (
+            <div className={PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS}>
+                {inventoryBody}
+            </div>
+        );
+    }
+
+    return (
+        <DraggableWindow
+            title="가방"
+            onClose={onClose}
+            windowId="inventory"
+            isTopmost={isTopmost && !hasInventoryChildModal}
+            initialWidth={calculatedWidth}
+            initialHeight={calculatedHeight}
+            variant="store"
+            bodyScrollable={false}
+            mobileViewportFit={narrowInventoryLayout}
+            mobileLockViewportHeight={useViewportSizedBagModal}
+            mobileViewportMaxHeightVh={92}
+            mobileViewportMaxHeightCss={undefined}
+            mobileViewportDvhBottomGapPx={undefined}
+            bodyPaddingClassName={narrowInventoryLayout ? 'p-2 sm:p-3' : undefined}
+            uniformPcScale={!narrowInventoryLayout && !modalLayerUsesDesignPixels}
+            pcViewportMaxHeightCss="min(94dvh, calc(100dvh - 16px))"
+            pcViewportMaxWidthCss="90vw"
+            viewportPortal={useViewportSizedBagModal}
+            skipIngameBoardFrameSizeCap
+        >
+            {inventoryBody}
         </DraggableWindow>
     );
 };

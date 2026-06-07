@@ -12,7 +12,7 @@ const ANNOUNCEMENT_MARQUEE_SPEED_PX_PER_SEC = 90;
 
 export type WaitingLobbyAnnouncementBoardMode = GameMode | 'strategic' | 'playful' | 'pair';
 
-export const WaitingLobbyAnnouncementBoard: React.FC<{ mode: WaitingLobbyAnnouncementBoardMode }> = ({ mode }) => {
+const WaitingLobbyAnnouncementBoardInner: React.FC<{ mode: WaitingLobbyAnnouncementBoardMode }> = ({ mode }) => {
     const { announcements, globalOverrideAnnouncement, announcementInterval } = useAppContext();
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isMarqueeRunning, setIsMarqueeRunning] = useState(true);
@@ -21,27 +21,53 @@ export const WaitingLobbyAnnouncementBoard: React.FC<{ mode: WaitingLobbyAnnounc
     const waitTimerRef = useRef<number | null>(null);
     const viewportRef = useRef<HTMLDivElement>(null);
     const textRef = useRef<HTMLSpanElement>(null);
+    const announcementsRef = useRef(announcements);
+    const measureRafRef = useRef<number | null>(null);
     const announcementIds = useMemo(() => announcements.map((a) => a.id).join(','), [announcements]);
     const strategicModes = useMemo(() => SPECIAL_GAME_MODES.map((m) => m.mode), []);
     const playfulModes = useMemo(() => PLAYFUL_GAME_MODES.map((m) => m.mode), []);
 
     useEffect(() => {
+        announcementsRef.current = announcements;
+    }, [announcements]);
+
+    useEffect(() => {
         if (!announcements || announcements.length <= 0) {
             setCurrentIndex(0);
             setIsMarqueeRunning(true);
+            return;
         }
+        setCurrentIndex((prev) => (prev >= announcements.length ? 0 : prev));
     }, [announcementIds, announcements.length]);
 
     useEffect(() => {
         if (!announcements || announcements.length === 0 || !isMarqueeRunning) return;
-        const viewportWidth = viewportRef.current?.clientWidth ?? 0;
-        const textWidth = textRef.current?.scrollWidth ?? 0;
-        if (viewportWidth <= 0 || textWidth <= 0) return;
 
-        const distancePx = viewportWidth + textWidth;
-        const duration = Math.max(6, distancePx / ANNOUNCEMENT_MARQUEE_SPEED_PX_PER_SEC);
-        setTravelDistancePx(distancePx);
-        setTravelDurationSec(duration);
+        const measure = () => {
+            const viewportWidth = viewportRef.current?.clientWidth ?? 0;
+            const textWidth = textRef.current?.scrollWidth ?? 0;
+            if (viewportWidth <= 0 || textWidth <= 0) return;
+
+            const distancePx = viewportWidth + textWidth;
+            const duration = Math.max(6, distancePx / ANNOUNCEMENT_MARQUEE_SPEED_PX_PER_SEC);
+            setTravelDistancePx((prev) => (Math.abs(prev - distancePx) < 1 ? prev : distancePx));
+            setTravelDurationSec((prev) => (Math.abs(prev - duration) < 0.05 ? prev : duration));
+        };
+
+        if (measureRafRef.current != null) {
+            window.cancelAnimationFrame(measureRafRef.current);
+        }
+        measureRafRef.current = window.requestAnimationFrame(() => {
+            measureRafRef.current = null;
+            measure();
+        });
+
+        return () => {
+            if (measureRafRef.current != null) {
+                window.cancelAnimationFrame(measureRafRef.current);
+                measureRafRef.current = null;
+            }
+        };
     }, [currentIndex, announcementIds, isMarqueeRunning, announcements.length]);
 
     useEffect(() => {
@@ -49,11 +75,15 @@ export const WaitingLobbyAnnouncementBoard: React.FC<{ mode: WaitingLobbyAnnounc
             if (waitTimerRef.current != null) {
                 window.clearTimeout(waitTimerRef.current);
             }
+            if (measureRafRef.current != null) {
+                window.cancelAnimationFrame(measureRafRef.current);
+            }
         };
     }, []);
 
     const handleMarqueeEnd = useCallback(() => {
-        if (!announcements || announcements.length <= 1) {
+        const list = announcementsRef.current;
+        if (!list || list.length <= 1) {
             setIsMarqueeRunning(true);
             return;
         }
@@ -63,10 +93,10 @@ export const WaitingLobbyAnnouncementBoard: React.FC<{ mode: WaitingLobbyAnnounc
         setIsMarqueeRunning(false);
         const waitMs = Math.max(1000, (announcementInterval ?? 3) * 1000);
         waitTimerRef.current = window.setTimeout(() => {
-            setCurrentIndex((prevIndex) => (prevIndex + 1) % announcements.length);
+            setCurrentIndex((prevIndex) => (prevIndex + 1) % list.length);
             setIsMarqueeRunning(true);
         }, waitMs);
-    }, [announcementInterval, announcements]);
+    }, [announcementInterval]);
 
     const isLobbyGlass = mode === 'strategic' || mode === 'playful' || mode === 'pair';
     const glassCls = isLobbyGlass ? WAITING_LOBBY_PANEL_GLASS : '';
@@ -159,3 +189,5 @@ export const WaitingLobbyAnnouncementBoard: React.FC<{ mode: WaitingLobbyAnnounc
         </div>
     );
 };
+
+export const WaitingLobbyAnnouncementBoard = React.memo(WaitingLobbyAnnouncementBoardInner);

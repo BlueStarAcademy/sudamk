@@ -1,5 +1,5 @@
 /** 펫 관리 모달 — PC 가로(px) */
-export const PAIR_PET_MANAGEMENT_MODAL_WIDTH_DESKTOP = 540;
+export const PAIR_PET_MANAGEMENT_MODAL_WIDTH_DESKTOP = 800;
 
 /** 펫 관리 모달 — 좁은 휴대·소형 태블릿 가로(px) */
 export const PAIR_PET_MANAGEMENT_MODAL_WIDTH_MOBILE = 580;

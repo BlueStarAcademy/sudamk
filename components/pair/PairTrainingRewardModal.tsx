@@ -1,9 +1,9 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
-import { normalizePairPetTrainingSlots } from '../../shared/constants/pairTraining.js';
 import {
     ResultModalGoldCurrencySlot,
     ResultModalItemRewardSlot,
@@ -14,9 +14,18 @@ import { MATERIAL_ITEMS } from '../../shared/constants/items.js';
 import { ItemGrade } from '../../types/enums.js';
 import type { InventoryItem, ServerAction } from '../../types.js';
 import type { PairTrainingClaimClientSummary } from '../../shared/types/pairTrainingClaim.js';
-import { pairTrainingClaimInFlightBySlotIndex, parsePairTrainingClaimResponse } from './pairTrainingClaimInFlight.js';
+import {
+    awaitPairTrainingClaimSettled,
+    clearPairTrainingClaimCompleted,
+    markPairTrainingClaimCompleted,
+    PAIR_TRAINING_CLAIM_ALREADY_CLAIMED_ERROR,
+    pairTrainingClaimInFlightBySlotIndex,
+    parsePairTrainingClaimResponse,
+    registerPairTrainingClaimInflight,
+} from './pairTrainingClaimInFlight.js';
 import PairPetLevelUpCoreDelta from './PairPetLevelUpCoreDelta.js';
 import { effectivePairPetGradeFromRow, pairPetShowsGradeUpgradeNeededInsteadOfXp } from '../../shared/constants/pairPetGrade.js';
+import { buildOptimisticPairPetTrainingStartUpdate } from '../../shared/utils/pairPetTrainingSlotsClientMerge.js';
 
 const XP_BAR_BASE_MS = 700;
 const XP_BAR_GAIN_MS = 600;
@@ -244,6 +253,7 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
     const commitClaimRef = useRef(commitClaimWithoutBusy ?? applyPetAction);
     const onCloseRef = useRef(onClose);
     const trainAgainInFlightRef = useRef(false);
+    const [trainAgainBusy, setTrainAgainBusy] = useState(false);
     applyPetActionRef.current = applyPetAction;
     commitClaimRef.current = commitClaimWithoutBusy ?? applyPetAction;
     onCloseRef.current = onClose;
@@ -276,49 +286,68 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
         }
         setSummary(s);
         setPhase('done');
+        markPairTrainingClaimCompleted(slotIndex);
     };
 
-    /** 수령 직후 슬롯은 비었으므로 같은 슬롯·같은 인벤 행으로 수련 재시작(슬롯·타이머 즉시 반영, 보상 롤은 서버 동기화) */
+    /** 수령 완료 후 재수련 — UI는 즉시 반영, CLAIM·START는 백그라운드(순서 보장) */
     const handleTrainAgain = () => {
         if (trainAgainInFlightRef.current) return;
         const user = currentUserWithStatus;
         if (!user) return;
 
         trainAgainInFlightRef.current = true;
-        const prevSlots = normalizePairPetTrainingSlots(user.pairPetTrainingSlots);
-        const prevSlotsSnapshot = JSON.parse(JSON.stringify(prevSlots)) as ReturnType<
-            typeof normalizePairPetTrainingSlots
-        >;
-        const nextSlots = [...prevSlots];
-        nextSlots[slotIndex] = {
+        setTrainAgainBusy(true);
+
+        const { nextSlots, prevSlotsSnapshot } = buildOptimisticPairPetTrainingStartUpdate(
+            user.pairPetTrainingSlots,
             slotIndex,
-            itemId: petItem.id,
-            startedAt: Date.now(),
-        };
+            petItem.id,
+        );
+        flushSync(() => onCloseRef.current());
         handlers.applyDeferredUserUpdate(
             { pairPetTrainingSlots: nextSlots },
-            'PAIR_PET_START_TRAINING-optimistic',
+            'PAIR_PET_START_TRAINING-optimistic-post-claim',
         );
-        onCloseRef.current();
 
-        void handlers
-            .handleAction({
-                type: 'PAIR_PET_START_TRAINING',
-                payload: { slotIndex, itemId: petItem.id },
-            })
-            .then((raw) => {
-                const err = (raw as { error?: string } | null)?.error;
-                if (err) {
+        void (async () => {
+            try {
+                const { error: claimErr } = await awaitPairTrainingClaimSettled(slotIndex, {
+                    petItemId: petItem.id,
+                    commitClaim: () =>
+                        commitClaimRef.current({
+                            type: 'PAIR_PET_CLAIM_TRAINING',
+                            payload: { slotIndex },
+                        }),
+                    getTrainingSlots: () => currentUserWithStatus?.pairPetTrainingSlots,
+                });
+                if (claimErr) {
                     handlers.applyDeferredUserUpdate(
                         { pairPetTrainingSlots: prevSlotsSnapshot },
                         'PAIR_PET_START_TRAINING-optimistic-rollback',
                     );
-                    window.alert(err);
+                    window.alert(claimErr);
+                    return;
                 }
-            })
-            .finally(() => {
+
+                const startRaw = await handlers.handleAction({
+                    type: 'PAIR_PET_START_TRAINING',
+                    payload: { slotIndex, itemId: petItem.id },
+                });
+                const startErr = (startRaw as { error?: string } | null)?.error;
+                if (startErr) {
+                    handlers.applyDeferredUserUpdate(
+                        { pairPetTrainingSlots: prevSlotsSnapshot },
+                        'PAIR_PET_START_TRAINING-optimistic-rollback',
+                    );
+                    window.alert(startErr);
+                } else {
+                    clearPairTrainingClaimCompleted(slotIndex);
+                }
+            } finally {
                 trainAgainInFlightRef.current = false;
-            });
+                setTrainAgainBusy(false);
+            }
+        })();
     };
 
     useLayoutEffect(() => {
@@ -334,34 +363,33 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
                     type: 'PAIR_PET_CLAIM_TRAINING',
                     payload: { slotIndex },
                 });
-                pairTrainingClaimInFlightBySlotIndex.set(slotIndex, inflight);
-                void inflight.finally(() => {
-                    if (pairTrainingClaimInFlightBySlotIndex.get(slotIndex) === inflight) {
-                        pairTrainingClaimInFlightBySlotIndex.delete(slotIndex);
-                    }
-                });
+                registerPairTrainingClaimInflight(slotIndex, inflight);
             }
 
-            void inflight.then((raw) => {
-                if (cancelled) return;
-                const { error, summary: serverSummary } = parsePairTrainingClaimResponse(raw);
-                if (error) {
-                    window.alert(error);
-                    onCloseRef.current();
-                    return;
-                }
-                if (!serverSummary) {
-                    window.alert('보상 정보를 불러오지 못했습니다.');
-                    onCloseRef.current();
-                    return;
-                }
-                const coreDelta = serverSummary.pairPetLevelUpCoreBonuses;
-                if (coreDelta && Object.values(coreDelta).some((v) => typeof v === 'number' && v !== 0)) {
-                    setSummary((prev) =>
-                        prev ? { ...prev, pairPetLevelUpCoreBonuses: coreDelta } : serverSummary,
-                    );
-                }
-            });
+            void inflight
+                .then((raw) => {
+                    if (cancelled) return;
+                    const { error, summary: serverSummary } = parsePairTrainingClaimResponse(raw);
+                    if (error) {
+                        if (error !== PAIR_TRAINING_CLAIM_ALREADY_CLAIMED_ERROR) {
+                            window.alert(error);
+                            onCloseRef.current();
+                        }
+                        return;
+                    }
+                    if (!serverSummary) {
+                        window.alert('보상 정보를 불러오지 못했습니다.');
+                        onCloseRef.current();
+                        return;
+                    }
+                    markPairTrainingClaimCompleted(slotIndex);
+                    const coreDelta = serverSummary.pairPetLevelUpCoreBonuses;
+                    if (coreDelta && Object.values(coreDelta).some((v) => typeof v === 'number' && v !== 0)) {
+                        setSummary((prev) =>
+                            prev ? { ...prev, pairPetLevelUpCoreBonuses: coreDelta } : serverSummary,
+                        );
+                    }
+                });
 
             return () => {
                 cancelled = true;
@@ -375,34 +403,31 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
 
         let inflight = pairTrainingClaimInFlightBySlotIndex.get(slotIndex);
         if (!inflight) {
-            inflight = applyPetActionRef.current({
+            inflight = commitClaimRef.current({
                 type: 'PAIR_PET_CLAIM_TRAINING',
                 payload: { slotIndex },
             });
-            pairTrainingClaimInFlightBySlotIndex.set(slotIndex, inflight);
-            void inflight.finally(() => {
-                if (pairTrainingClaimInFlightBySlotIndex.get(slotIndex) === inflight) {
-                    pairTrainingClaimInFlightBySlotIndex.delete(slotIndex);
-                }
-            });
+            registerPairTrainingClaimInflight(slotIndex, inflight);
         }
 
-        void inflight.then((raw) => {
-            if (cancelled) return;
-            const { error, summary: s } = parsePairTrainingClaimResponse(raw);
-            if (error) {
-                window.alert(error);
-                onCloseRef.current();
-                return;
-            }
-            if (!s) {
-                window.alert('보상 정보를 불러오지 못했습니다.');
-                onCloseRef.current();
-                return;
-            }
-            setSummary(s);
-            setPhase('done');
-        });
+        void inflight
+            .then((raw) => {
+                if (cancelled) return;
+                const { error, summary: s } = parsePairTrainingClaimResponse(raw);
+                if (error) {
+                    window.alert(error);
+                    onCloseRef.current();
+                    return;
+                }
+                if (!s) {
+                    window.alert('보상 정보를 불러오지 못했습니다.');
+                    onCloseRef.current();
+                    return;
+                }
+                markPairTrainingClaimCompleted(slotIndex);
+                setSummary(s);
+                setPhase('done');
+            });
 
         return () => {
             cancelled = true;
@@ -610,10 +635,11 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
                             <div className="mx-auto mt-4 flex w-full max-w-sm flex-row items-stretch justify-center gap-2 sm:mt-5 sm:gap-3">
                                 <button
                                     type="button"
-                                    onClick={() => handleTrainAgain()}
+                                    disabled={trainAgainBusy || isBusy}
+                                    onClick={() => void handleTrainAgain()}
                                     className="min-w-0 flex-1 rounded-xl border border-violet-400/45 bg-violet-950/35 px-2 py-2 text-[0.65rem] font-bold leading-snug text-violet-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-violet-300/55 hover:bg-violet-900/40 disabled:cursor-not-allowed disabled:opacity-45 sm:px-3 sm:py-2.5 sm:text-sm sm:font-black"
                                 >
-                                    한번 더 수련
+                                    {trainAgainBusy ? '수련 시작 중…' : '한번 더 수련'}
                                 </button>
                                 <Button
                                     type="button"

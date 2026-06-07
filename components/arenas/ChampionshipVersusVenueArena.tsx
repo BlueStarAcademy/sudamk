@@ -615,6 +615,7 @@ const VersusRailPlayerCard: React.FC<{
     );
     const recordWins = player?.wins ?? 0;
     const recordLosses = player?.losses ?? 0;
+    const isEmptySlot = !player;
 
     return (
         <div
@@ -648,57 +649,65 @@ const VersusRailPlayerCard: React.FC<{
                 )}
             </button>
             <div className="min-w-0 flex-1">
-                <div className={`flex items-center gap-2 ${isRightSide ? 'justify-end' : ''}`}>
-                    <span className={`truncate text-sm font-bold ${strongText}`}>
-                        {primaryLineOverride ?? player?.nickname ?? '선수 대기'}
-                    </span>
-                    {isCurrentUser ? (
-                        <span
-                            className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ${
-                                tone === 'black' ? 'bg-amber-500/25 text-amber-100' : 'bg-amber-400/30 text-amber-50'
-                            }`}
+                {isEmptySlot ? null : (
+                    <>
+                        <div className={`flex items-center gap-2 ${isRightSide ? 'justify-end' : ''}`}>
+                            <span className={`truncate text-sm font-bold ${strongText}`}>
+                                {primaryLineOverride ?? player?.nickname ?? ''}
+                            </span>
+                            {isCurrentUser ? (
+                                <span
+                                    className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ${
+                                        tone === 'black' ? 'bg-amber-500/25 text-amber-100' : 'bg-amber-400/30 text-amber-50'
+                                    }`}
+                                >
+                                    나
+                                </span>
+                            ) : null}
+                            <span className={`inline-flex items-center gap-1 whitespace-nowrap text-[12px] font-semibold ${mutedText}`}>
+                                컨디션{' '}
+                                <b className={`text-base tabular-nums ${conditionTone}`}>
+                                    {displayCondition == null ? '-' : displayCondition}
+                                </b>
+                                {isCurrentUser && canUseConditionPotion && onOpenConditionPotion ? (
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (typeof displayCondition === 'number' && displayCondition >= 100) return;
+                                            onOpenConditionPotion();
+                                        }}
+                                        disabled={typeof displayCondition === 'number' && displayCondition >= 100}
+                                        className={`ml-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white transition-colors ${
+                                            typeof displayCondition === 'number' && displayCondition >= 100
+                                                ? 'cursor-not-allowed bg-gray-600 opacity-50'
+                                                : 'bg-green-600 hover:bg-green-700'
+                                        }`}
+                                        title={
+                                            typeof displayCondition === 'number' && displayCondition >= 100
+                                                ? '컨디션이 이미 최대입니다'
+                                                : '컨디션 회복제 사용'
+                                        }
+                                    >
+                                        +
+                                    </button>
+                                ) : null}
+                            </span>
+                        </div>
+                        <div
+                            className={`mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] ${isRightSide ? 'justify-end' : ''} ${mutedText}`}
                         >
-                            나
-                        </span>
-                    ) : null}
-                    <span className={`inline-flex items-center gap-1 whitespace-nowrap text-[12px] font-semibold ${mutedText}`}>
-                        컨디션{' '}
-                        <b className={`text-base tabular-nums ${conditionTone}`}>{displayCondition == null ? '-' : displayCondition}</b>
-                        {isCurrentUser && canUseConditionPotion && onOpenConditionPotion ? (
-                            <button
-                                type="button"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (typeof displayCondition === 'number' && displayCondition >= 100) return;
-                                    onOpenConditionPotion();
-                                }}
-                                disabled={typeof displayCondition === 'number' && displayCondition >= 100}
-                                className={`ml-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white transition-colors ${
-                                    typeof displayCondition === 'number' && displayCondition >= 100
-                                        ? 'cursor-not-allowed bg-gray-600 opacity-50'
-                                        : 'bg-green-600 hover:bg-green-700'
-                                }`}
-                                title={
-                                    typeof displayCondition === 'number' && displayCondition >= 100
-                                        ? '컨디션이 이미 최대입니다'
-                                        : '컨디션 회복제 사용'
-                                }
-                            >
-                                +
-                            </button>
-                        ) : null}
-                    </span>
-                </div>
-                <div className={`mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] ${isRightSide ? 'justify-end' : ''} ${mutedText}`}>
-                    <span>
-                        전적{' '}
-                        <b className={`tabular-nums ${strongText}`}>
-                            {recordWins}승 {recordLosses}패
-                        </b>
-                    </span>
-                </div>
+                            <span>
+                                전적{' '}
+                                <b className={`tabular-nums ${strongText}`}>
+                                    {recordWins}승 {recordLosses}패
+                                </b>
+                            </span>
+                        </div>
+                    </>
+                )}
             </div>
-            {scoreBox}
+            {isEmptySlot ? null : scoreBox}
         </div>
     );
 };
@@ -749,6 +758,7 @@ const VersusMobilePureInfoCard: React.FC<{
                 : 'text-slate-50';
     const recordWins = player?.wins ?? 0;
     const recordLosses = player?.losses ?? 0;
+    const isEmptySlot = !player;
     const toneSurface =
         side === 'left'
             ? 'bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950 text-stone-100'
@@ -797,48 +807,56 @@ const VersusMobilePureInfoCard: React.FC<{
                 )}
             </button>
             <div className="min-w-0 flex-1">
-                <div className={`flex items-center gap-1 ${isRightSide ? 'justify-end' : ''}`}>
-                    <span className={`truncate text-[11px] font-bold ${strongText}`}>
-                        {primaryLineOverride ?? player?.nickname ?? '선수'}
-                    </span>
-                    {isCurrentUser ? (
-                        <span
-                            className={`rounded px-1 py-0.5 text-[8px] font-black ${
-                                side === 'left' ? 'bg-amber-500/25 text-amber-100' : 'bg-amber-400/30 text-amber-50'
-                            }`}
+                {isEmptySlot ? null : (
+                    <>
+                        <div className={`flex items-center gap-1 ${isRightSide ? 'justify-end' : ''}`}>
+                            <span className={`truncate text-[11px] font-bold ${strongText}`}>
+                                {primaryLineOverride ?? player?.nickname ?? ''}
+                            </span>
+                            {isCurrentUser ? (
+                                <span
+                                    className={`rounded px-1 py-0.5 text-[8px] font-black ${
+                                        side === 'left' ? 'bg-amber-500/25 text-amber-100' : 'bg-amber-400/30 text-amber-50'
+                                    }`}
+                                >
+                                    나
+                                </span>
+                            ) : null}
+                        </div>
+                        <div
+                            className={`mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[9px] ${isRightSide ? 'justify-end' : ''} ${mutedText}`}
                         >
-                            나
-                        </span>
-                    ) : null}
-                </div>
-                <div className={`mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[9px] ${isRightSide ? 'justify-end' : ''} ${mutedText}`}>
-                    <span>
-                        전적 <b className={`tabular-nums ${strongText}`}>{recordWins}승</b>{' '}
-                        <b className={`tabular-nums ${side === 'left' ? 'text-orange-200' : 'text-orange-100'}`}>{recordLosses}패</b>
-                    </span>
-                    <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                        컨디션 <b className={`text-[12px] tabular-nums ${conditionTone}`}>{condDisplay}</b>
-                        {isCurrentUser && canUseConditionPotion && onOpenConditionPotion ? (
-                            <button
-                                type="button"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (typeof effectiveCondition === 'number' && effectiveCondition >= 100) return;
-                                    onOpenConditionPotion();
-                                }}
-                                disabled={typeof effectiveCondition === 'number' && effectiveCondition >= 100}
-                                className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-emerald-300/55 bg-emerald-600/85 text-[10px] font-black leading-none text-white shadow"
-                                title={
-                                    typeof effectiveCondition === 'number' && effectiveCondition >= 100
-                                        ? '컨디션이 이미 최대입니다'
-                                        : '컨디션 회복'
-                                }
-                            >
-                                +
-                            </button>
-                        ) : null}
-                    </span>
-                </div>
+                            <span>
+                                전적 <b className={`tabular-nums ${strongText}`}>{recordWins}승</b>{' '}
+                                <b className={`tabular-nums ${side === 'left' ? 'text-orange-200' : 'text-orange-100'}`}>
+                                    {recordLosses}패
+                                </b>
+                            </span>
+                            <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                                컨디션 <b className={`text-[12px] tabular-nums ${conditionTone}`}>{condDisplay}</b>
+                                {isCurrentUser && canUseConditionPotion && onOpenConditionPotion ? (
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (typeof effectiveCondition === 'number' && effectiveCondition >= 100) return;
+                                            onOpenConditionPotion();
+                                        }}
+                                        disabled={typeof effectiveCondition === 'number' && effectiveCondition >= 100}
+                                        className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-emerald-300/55 bg-emerald-600/85 text-[10px] font-black leading-none text-white shadow"
+                                        title={
+                                            typeof effectiveCondition === 'number' && effectiveCondition >= 100
+                                                ? '컨디션이 이미 최대입니다'
+                                                : '컨디션 회복'
+                                        }
+                                    >
+                                        +
+                                    </button>
+                                ) : null}
+                            </span>
+                        </div>
+                    </>
+                )}
             </div>
             {petMini}
         </div>
@@ -1335,16 +1353,14 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
         if (typeof e?.ratingSeasonKey === 'string') setRatingSeasonKey(e.ratingSeasonKey);
     }, [currentUserWithStatus?.championshipVersusVenueRatings, currentUserWithStatus?.id, venue]);
 
+    /** 목록 갱신 시에도 첫 입장·재입장 시 상대를 자동 선택하지 않는다. 유효한 기존 선택만 유지한다. */
     React.useEffect(() => {
         if (opponents.length === 0) return;
         setSelectedId((cur) => {
-            const inList = (id: string | null) => Boolean(id && opponents.some((o) => o.userId === id));
-            /** 승리 확정 후에도 직전 상대에 머문다 — 확인 직후 자동으로 다른 줄을 고르면 `selectedRow`가 바뀌며 종료 판이 지워진다. 다음 상대는 사용자가 직접 고른 뒤 「경기 시작」으로 넘긴다. */
-            if (cur && inList(cur)) return cur;
-            const firstOpen = opponents.find((o) => !beatenOpponentIds.includes(o.userId));
-            return (firstOpen ?? opponents[0])!.userId;
+            if (!cur) return null;
+            return opponents.some((o) => o.userId === cur) ? cur : null;
         });
-    }, [opponents, beatenOpponentIds]);
+    }, [opponents]);
 
     React.useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -1401,9 +1417,8 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
     const myAvatarUrl = AVATAR_POOL.find((a) => a.id === user.avatarId)?.url;
     const myBorderUrl = BORDER_POOL.find((b) => b.id === user.borderId)?.url;
     const selectedRow = React.useMemo(() => {
-        if (opponents.length === 0) return null;
-        const sid = selectedId ?? opponents[0].userId;
-        return opponents.find((o) => o.userId === sid) ?? opponents[0];
+        if (!selectedId || opponents.length === 0) return null;
+        return opponents.find((o) => o.userId === selectedId) ?? null;
     }, [opponents, selectedId]);
 
     /** 상대만 바꿀 때는 직전 대국 판면을 유지한다. 초기화는 `runVersusKataDuel` 시작 또는 경기장(`venue`) 변경 시에만 수행한다. */
@@ -1431,13 +1446,13 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
 
     const p1 = React.useMemo(() => userToTournamentPlayer(user, venue), [user, venue]);
     const p2Seed = selectedRow ? opponents.indexOf(selectedRow) + 1 : 1;
-    const p2 = React.useMemo(() => {
-        if (!selectedRow) return opponentRowToTournamentPlayer(makeDemoOpponentRows(venue)[0]!, venue, 1);
+    const p2 = React.useMemo((): PlayerForTournament | null => {
+        if (!selectedRow) return null;
         return opponentRowToTournamentPlayer(selectedRow, venue, p2Seed);
     }, [selectedRow, p2Seed, opponents, venue]);
 
     const p1Stats = p1.stats as Record<string, number>;
-    const p2Stats = p2.stats as Record<string, number>;
+    const p2Stats = (p2?.stats ?? {}) as Record<string, number>;
 
     const p1PairSplit = React.useMemo(() => {
         if (venue !== 'petpair') return null;
@@ -1505,7 +1520,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
     );
 
     type VersusSideSeat = {
-        player: PlayerForTournament;
+        player: PlayerForTournament | null;
         stats: Record<string, number>;
         pairSplit: typeof p1PairSplit;
         petVisual: typeof p1EquippedPetVisual;
@@ -1908,35 +1923,12 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
         <ChampionshipDesktopScoringCountdownBox remaining={remainingPlyToScoring} max={maxPlyToScoring} />
     );
 
-    const championshipPlayerRail =
-        matchForBoard && (versusSeatBlack.player || versusSeatWhite.player) ? (
-            <div className="flex w-full flex-shrink-0 justify-center">
-                <div className="min-w-0 w-full min-[1025px]:px-1 flex-1 px-2 pt-1">
-                    <section className="flex min-h-[74px] shrink-0 flex-row items-stretch gap-2 overflow-hidden rounded-lg border-2 border-zinc-600 bg-zinc-950 p-2 shadow-xl">
-                        {venue === 'petpair' ? (
-                            <div className="flex min-w-0 flex-1 items-stretch gap-2">
-                                <VersusRailPlayerCard
-                                    player={versusSeatBlack.player}
-                                    tone="black"
-                                    currentUserId={user.id}
-                                    onViewUser={onViewUser}
-                                    canUseConditionPotion={canUseVersusConditionPotion && versusSeatBlack.player.id === user.id}
-                                    onOpenConditionPotion={() => setShowConditionPotionModal(true)}
-                                    isTurnToMove={versusChampionshipTurnUi.blackUser}
-                                    scoreValue={versusPanelScores?.black ?? null}
-                                    scoreKind={versusPanelScoreKind}
-                                />
-                                {versusSeatBlack.petVisual ? (
-                                    <VersusRailPetMini
-                                        tone="black"
-                                        imageUrl={versusSeatBlack.petVisual.url}
-                                        name={versusSeatBlack.petVisual.name}
-                                        level={versusSeatBlack.petVisual.level}
-                                        isTurnToMove={versusChampionshipTurnUi.blackPet}
-                                    />
-                                ) : null}
-                            </div>
-                        ) : (
+    const championshipPlayerRail = versusSeatBlack.player ? (
+        <div className="flex w-full flex-shrink-0 justify-center">
+            <div className="min-w-0 w-full min-[1025px]:px-1 flex-1 px-2 pt-1">
+                <section className="flex min-h-[74px] shrink-0 flex-row items-stretch gap-2 overflow-hidden rounded-lg border-2 border-zinc-600 bg-zinc-950 p-2 shadow-xl">
+                    {venue === 'petpair' ? (
+                        <div className="flex min-w-0 flex-1 items-stretch gap-2">
                             <VersusRailPlayerCard
                                 player={versusSeatBlack.player}
                                 tone="black"
@@ -1944,54 +1936,78 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                                 onViewUser={onViewUser}
                                 canUseConditionPotion={canUseVersusConditionPotion && versusSeatBlack.player.id === user.id}
                                 onOpenConditionPotion={() => setShowConditionPotionModal(true)}
-                                portraitSrcOverride={venue === 'pet' ? versusSeatBlack.petVisual?.url ?? null : null}
                                 isTurnToMove={versusChampionshipTurnUi.blackUser}
                                 scoreValue={versusPanelScores?.black ?? null}
                                 scoreKind={versusPanelScoreKind}
                             />
-                        )}
-                        {championshipScoringCountdownPanel}
-                        {venue === 'petpair' ? (
-                            <div className="flex min-w-0 flex-1 flex-row-reverse items-stretch gap-2">
-                                <VersusRailPlayerCard
-                                    player={versusSeatWhite.player}
-                                    tone="white"
-                                    currentUserId={user.id}
-                                    onViewUser={onViewUser}
-                                    canUseConditionPotion={canUseVersusConditionPotion && versusSeatWhite.player.id === user.id}
-                                    onOpenConditionPotion={() => setShowConditionPotionModal(true)}
-                                    isTurnToMove={versusChampionshipTurnUi.whiteUser}
-                                    scoreValue={versusPanelScores?.white ?? null}
-                                    scoreKind={versusPanelScoreKind}
+                            {versusSeatBlack.petVisual ? (
+                                <VersusRailPetMini
+                                    tone="black"
+                                    imageUrl={versusSeatBlack.petVisual.url}
+                                    name={versusSeatBlack.petVisual.name}
+                                    level={versusSeatBlack.petVisual.level}
+                                    isTurnToMove={versusChampionshipTurnUi.blackPet}
                                 />
-                                {versusSeatWhite.petVisual ? (
-                                    <VersusRailPetMini
-                                        tone="white"
-                                        imageUrl={versusSeatWhite.petVisual.url}
-                                        name={versusSeatWhite.petVisual.name}
-                                        level={versusSeatWhite.petVisual.level}
-                                        isTurnToMove={versusChampionshipTurnUi.whitePet}
-                                    />
-                                ) : null}
-                            </div>
-                        ) : (
+                            ) : null}
+                        </div>
+                    ) : (
+                        <VersusRailPlayerCard
+                            player={versusSeatBlack.player}
+                            tone="black"
+                            currentUserId={user.id}
+                            onViewUser={onViewUser}
+                            canUseConditionPotion={canUseVersusConditionPotion && versusSeatBlack.player.id === user.id}
+                            onOpenConditionPotion={() => setShowConditionPotionModal(true)}
+                            portraitSrcOverride={venue === 'pet' ? versusSeatBlack.petVisual?.url ?? null : null}
+                            isTurnToMove={versusChampionshipTurnUi.blackUser}
+                            scoreValue={versusPanelScores?.black ?? null}
+                            scoreKind={versusPanelScoreKind}
+                        />
+                    )}
+                    {championshipScoringCountdownPanel}
+                    {venue === 'petpair' ? (
+                        <div className="flex min-w-0 flex-1 flex-row-reverse items-stretch gap-2">
                             <VersusRailPlayerCard
-                                player={versusSeatWhite.player}
+                                player={selectedRow ? versusSeatWhite.player : null}
                                 tone="white"
                                 currentUserId={user.id}
                                 onViewUser={onViewUser}
-                                canUseConditionPotion={canUseVersusConditionPotion && versusSeatWhite.player.id === user.id}
+                                canUseConditionPotion={canUseVersusConditionPotion && versusSeatWhite.player?.id === user.id}
                                 onOpenConditionPotion={() => setShowConditionPotionModal(true)}
-                                portraitSrcOverride={venue === 'pet' ? versusSeatWhite.petVisual?.url ?? null : null}
                                 isTurnToMove={versusChampionshipTurnUi.whiteUser}
-                                scoreValue={versusPanelScores?.white ?? null}
+                                scoreValue={selectedRow ? (versusPanelScores?.white ?? null) : null}
                                 scoreKind={versusPanelScoreKind}
                             />
-                        )}
-                    </section>
-                </div>
+                            {selectedRow && versusSeatWhite.petVisual ? (
+                                <VersusRailPetMini
+                                    tone="white"
+                                    imageUrl={versusSeatWhite.petVisual.url}
+                                    name={versusSeatWhite.petVisual.name}
+                                    level={versusSeatWhite.petVisual.level}
+                                    isTurnToMove={versusChampionshipTurnUi.whitePet}
+                                />
+                            ) : null}
+                        </div>
+                    ) : (
+                        <VersusRailPlayerCard
+                            player={selectedRow ? versusSeatWhite.player : null}
+                            tone="white"
+                            currentUserId={user.id}
+                            onViewUser={onViewUser}
+                            canUseConditionPotion={canUseVersusConditionPotion && versusSeatWhite.player?.id === user.id}
+                            onOpenConditionPotion={() => setShowConditionPotionModal(true)}
+                            portraitSrcOverride={
+                                selectedRow && venue === 'pet' ? versusSeatWhite.petVisual?.url ?? null : null
+                            }
+                            isTurnToMove={versusChampionshipTurnUi.whiteUser}
+                            scoreValue={selectedRow ? (versusPanelScores?.white ?? null) : null}
+                            scoreKind={versusPanelScoreKind}
+                        />
+                    )}
+                </section>
             </div>
-        ) : null;
+        </div>
+    ) : null;
 
     const versusSeasonRewardRow = (
         <div className="flex min-w-0 w-full min-[720px]:flex-1 flex-wrap items-center gap-x-2.5 gap-y-2 sm:gap-x-3 sm:gap-y-2">
@@ -2269,35 +2285,42 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                                             territoryAnalysis={versusTerritoryAnalysis}
                                         />
                                     </div>
-                                    <ChampionshipAbilityPlayerPanel
-                                        player={versusSeatWhite.player}
-                                        stats={versusSeatWhite.stats}
-                                        match={matchForBoard}
-                                        currentPhase={versusChampionshipAbilityPhase}
-                                        tone="white"
-                                        sideLabel={venue === 'petpair' ? '페어 능력치' : '챔피언십 능력치'}
-                                        abilityKataLadder={versusUserAbilityKataLadder}
-                                        pairPetAbilityKataLadder={versusPairPetAbilityKataLadder}
-                                        singleBlockStatKind={venue === 'pet' ? 'pet' : 'user'}
-                                        splitPairAbilities={
-                                            versusSeatWhite.pairSplit
-                                                ? {
-                                                      userBlockTitle: '유저',
-                                                      userStats: versusSeatWhite.pairSplit.userStats,
-                                                      petBlockTitle: '펫 능력치',
-                                                      petStats: versusSeatWhite.pairSplit.petStats,
-                                                  }
-                                                : null
-                                        }
-                                        pairSplitTurnHighlight={
-                                            venue === 'petpair' && versusSeatWhite.pairSplit
-                                                ? {
-                                                      user: versusChampionshipTurnUi.whiteUser,
-                                                      pet: versusChampionshipTurnUi.whitePet,
-                                                  }
-                                                : null
-                                        }
-                                    />
+                                    {selectedRow ? (
+                                        <ChampionshipAbilityPlayerPanel
+                                            player={versusSeatWhite.player}
+                                            stats={versusSeatWhite.stats}
+                                            match={matchForBoard}
+                                            currentPhase={versusChampionshipAbilityPhase}
+                                            tone="white"
+                                            sideLabel={venue === 'petpair' ? '페어 능력치' : '챔피언십 능력치'}
+                                            abilityKataLadder={versusUserAbilityKataLadder}
+                                            pairPetAbilityKataLadder={versusPairPetAbilityKataLadder}
+                                            singleBlockStatKind={venue === 'pet' ? 'pet' : 'user'}
+                                            splitPairAbilities={
+                                                versusSeatWhite.pairSplit
+                                                    ? {
+                                                          userBlockTitle: '유저',
+                                                          userStats: versusSeatWhite.pairSplit.userStats,
+                                                          petBlockTitle: '펫 능력치',
+                                                          petStats: versusSeatWhite.pairSplit.petStats,
+                                                      }
+                                                    : null
+                                            }
+                                            pairSplitTurnHighlight={
+                                                venue === 'petpair' && versusSeatWhite.pairSplit
+                                                    ? {
+                                                          user: versusChampionshipTurnUi.whiteUser,
+                                                          pet: versusChampionshipTurnUi.whitePet,
+                                                      }
+                                                    : null
+                                            }
+                                        />
+                                    ) : (
+                                        <aside
+                                            className="flex h-fit max-h-full w-[165px] min-w-[165px] max-w-[165px] shrink-0 flex-col self-start rounded-xl border-2 border-slate-500/45 bg-gradient-to-b from-slate-700/35 via-slate-800/30 to-slate-900/35 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] xl:w-[185px] xl:min-w-[185px] xl:max-w-[185px]"
+                                            aria-label="상대 능력치"
+                                        />
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -2407,56 +2430,11 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
         ],
     );
 
-    const mobileChampionshipPlayerInfoRow =
-        matchForBoard && (versusSeatBlack.player || versusSeatWhite.player) ? (
-            <section className="flex shrink-0 flex-row items-stretch gap-1 rounded-md border border-stone-500/70 bg-stone-900/90 p-1 shadow-md">
-                {venue === 'petpair' ? (
-                    <>
-                        <div className="flex min-w-0 flex-1 items-stretch gap-0.5">
-                            <VersusMobilePureInfoCard
-                                player={versusSeatBlack.player}
-                                side="left"
-                                currentUserId={user.id}
-                                onViewUser={onViewUser}
-                                canUseConditionPotion={canUseVersusConditionPotion && versusSeatBlack.player.id === user.id}
-                                onOpenConditionPotion={() => setShowConditionPotionModal(true)}
-                                isTurnToMove={versusChampionshipTurnUi.blackUser}
-                            />
-                            {versusSeatBlack.petVisual ? (
-                                <VersusRailPetMini
-                                    compact
-                                    tone="black"
-                                    imageUrl={versusSeatBlack.petVisual.url}
-                                    name={versusSeatBlack.petVisual.name}
-                                    level={versusSeatBlack.petVisual.level}
-                                    isTurnToMove={versusChampionshipTurnUi.blackPet}
-                                />
-                            ) : null}
-                        </div>
-                        <div className="flex min-w-0 flex-1 flex-row-reverse items-stretch gap-0.5">
-                            <VersusMobilePureInfoCard
-                                player={versusSeatWhite.player}
-                                side="right"
-                                currentUserId={user.id}
-                                onViewUser={onViewUser}
-                                canUseConditionPotion={canUseVersusConditionPotion && versusSeatWhite.player.id === user.id}
-                                onOpenConditionPotion={() => setShowConditionPotionModal(true)}
-                                isTurnToMove={versusChampionshipTurnUi.whiteUser}
-                            />
-                            {versusSeatWhite.petVisual ? (
-                                <VersusRailPetMini
-                                    compact
-                                    tone="white"
-                                    imageUrl={versusSeatWhite.petVisual.url}
-                                    name={versusSeatWhite.petVisual.name}
-                                    level={versusSeatWhite.petVisual.level}
-                                    isTurnToMove={versusChampionshipTurnUi.whitePet}
-                                />
-                            ) : null}
-                        </div>
-                    </>
-                ) : (
-                    <>
+    const mobileChampionshipPlayerInfoRow = versusSeatBlack.player ? (
+        <section className="flex shrink-0 flex-row items-stretch gap-1 rounded-md border border-stone-500/70 bg-stone-900/90 p-1 shadow-md">
+            {venue === 'petpair' ? (
+                <>
+                    <div className="flex min-w-0 flex-1 items-stretch gap-0.5">
                         <VersusMobilePureInfoCard
                             player={versusSeatBlack.player}
                             side="left"
@@ -2464,47 +2442,94 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                             onViewUser={onViewUser}
                             canUseConditionPotion={canUseVersusConditionPotion && versusSeatBlack.player.id === user.id}
                             onOpenConditionPotion={() => setShowConditionPotionModal(true)}
-                            portraitSrcOverride={venue === 'pet' ? versusSeatBlack.petVisual?.url ?? null : null}
                             isTurnToMove={versusChampionshipTurnUi.blackUser}
                         />
+                        {versusSeatBlack.petVisual ? (
+                            <VersusRailPetMini
+                                compact
+                                tone="black"
+                                imageUrl={versusSeatBlack.petVisual.url}
+                                name={versusSeatBlack.petVisual.name}
+                                level={versusSeatBlack.petVisual.level}
+                                isTurnToMove={versusChampionshipTurnUi.blackPet}
+                            />
+                        ) : null}
+                    </div>
+                    <div className="flex min-w-0 flex-1 flex-row-reverse items-stretch gap-0.5">
                         <VersusMobilePureInfoCard
-                            player={versusSeatWhite.player}
+                            player={selectedRow ? versusSeatWhite.player : null}
                             side="right"
                             currentUserId={user.id}
                             onViewUser={onViewUser}
-                            canUseConditionPotion={canUseVersusConditionPotion && versusSeatWhite.player.id === user.id}
+                            canUseConditionPotion={canUseVersusConditionPotion && versusSeatWhite.player?.id === user.id}
                             onOpenConditionPotion={() => setShowConditionPotionModal(true)}
-                            portraitSrcOverride={venue === 'pet' ? versusSeatWhite.petVisual?.url ?? null : null}
                             isTurnToMove={versusChampionshipTurnUi.whiteUser}
                         />
-                    </>
-                )}
-            </section>
-        ) : null;
+                        {selectedRow && versusSeatWhite.petVisual ? (
+                            <VersusRailPetMini
+                                compact
+                                tone="white"
+                                imageUrl={versusSeatWhite.petVisual.url}
+                                name={versusSeatWhite.petVisual.name}
+                                level={versusSeatWhite.petVisual.level}
+                                isTurnToMove={versusChampionshipTurnUi.whitePet}
+                            />
+                        ) : null}
+                    </div>
+                </>
+            ) : (
+                <>
+                    <VersusMobilePureInfoCard
+                        player={versusSeatBlack.player}
+                        side="left"
+                        currentUserId={user.id}
+                        onViewUser={onViewUser}
+                        canUseConditionPotion={canUseVersusConditionPotion && versusSeatBlack.player.id === user.id}
+                        onOpenConditionPotion={() => setShowConditionPotionModal(true)}
+                        portraitSrcOverride={venue === 'pet' ? versusSeatBlack.petVisual?.url ?? null : null}
+                        isTurnToMove={versusChampionshipTurnUi.blackUser}
+                    />
+                    <VersusMobilePureInfoCard
+                        player={selectedRow ? versusSeatWhite.player : null}
+                        side="right"
+                        currentUserId={user.id}
+                        onViewUser={onViewUser}
+                        canUseConditionPotion={canUseVersusConditionPotion && versusSeatWhite.player?.id === user.id}
+                        onOpenConditionPotion={() => setShowConditionPotionModal(true)}
+                        portraitSrcOverride={
+                            selectedRow && venue === 'pet' ? versusSeatWhite.petVisual?.url ?? null : null
+                        }
+                        isTurnToMove={versusChampionshipTurnUi.whiteUser}
+                    />
+                </>
+            )}
+        </section>
+    ) : null;
 
-    const mobileChampionshipAbilityRow =
-        matchForBoard && (versusSeatBlack.player || versusSeatWhite.player) ? (
-            <section className="flex shrink-0 flex-row items-stretch gap-1 overflow-hidden rounded-md border border-slate-700/45 bg-gradient-to-b from-[#111827]/88 to-[#070b12]/90 p-1 shadow-md">
-                {renderMobileChampionshipAbilityPanel(
-                    versusSeatBlack.player,
-                    versusSeatBlack.stats,
-                    'black',
-                    versusSeatBlack.pairSplit,
-                    venue === 'petpair' && versusSeatBlack.pairSplit
-                        ? { user: versusChampionshipTurnUi.blackUser, pet: versusChampionshipTurnUi.blackPet }
-                        : null,
-                )}
-                {renderMobileChampionshipAbilityPanel(
-                    versusSeatWhite.player,
-                    versusSeatWhite.stats,
-                    'white',
-                    versusSeatWhite.pairSplit,
-                    venue === 'petpair' && versusSeatWhite.pairSplit
-                        ? { user: versusChampionshipTurnUi.whiteUser, pet: versusChampionshipTurnUi.whitePet }
-                        : null,
-                )}
-            </section>
-        ) : null;
+    const mobileChampionshipAbilityRow = versusSeatBlack.player ? (
+        <section className="flex shrink-0 flex-row items-stretch gap-1 overflow-hidden rounded-md border border-slate-700/45 bg-gradient-to-b from-[#111827]/88 to-[#070b12]/90 p-1 shadow-md">
+            {renderMobileChampionshipAbilityPanel(
+                versusSeatBlack.player,
+                versusSeatBlack.stats,
+                'black',
+                versusSeatBlack.pairSplit,
+                venue === 'petpair' && versusSeatBlack.pairSplit
+                    ? { user: versusChampionshipTurnUi.blackUser, pet: versusChampionshipTurnUi.blackPet }
+                    : null,
+            )}
+            {selectedRow
+                ? renderMobileChampionshipAbilityPanel(
+                      versusSeatWhite.player,
+                      versusSeatWhite.stats,
+                      'white',
+                      versusSeatWhite.pairSplit,
+                      venue === 'petpair' && versusSeatWhite.pairSplit
+                          ? { user: versusChampionshipTurnUi.whiteUser, pet: versusChampionshipTurnUi.whitePet }
+                          : null,
+                  )
+                : <div className="min-w-0 flex-1 rounded-md border border-slate-500/35 bg-slate-800/20" aria-hidden />}
+        </section>
+    ) : null;
 
     const mobileChampionshipScoreCountdownRow = (() => {
         const realGame = matchForBoard?.championshipRealGame;
@@ -2602,7 +2627,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                         ) : (
                             <ul className="flex list-none flex-col gap-1.5 p-0">
                                 {opponents.map((o) => {
-                                    const selected = (selectedId ?? opponents[0]?.userId) === o.userId;
+                                    const selected = selectedId === o.userId;
                                     const demoRow = o.userId.startsWith('versus-demo-');
                                     const isSessionBeaten =
                                         CHAMPIONSHIP_VERSUS_VENUE_USE_LIVE_OPPONENT_LIST && beatenOpponentIds.includes(o.userId);

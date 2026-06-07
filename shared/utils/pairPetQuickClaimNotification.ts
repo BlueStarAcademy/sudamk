@@ -6,7 +6,7 @@ import {
     trainingEndsAt,
 } from '../constants/pairTraining.js';
 import {
-    PAIR_HATCHERY_SLOT_DEFS,
+    PAIR_HATCHERY_SESSION_SLOT_DEFS,
     canUsePairHatcherySlot,
     hatcheryEndsAt,
     normalizePairPetHatcherySessions,
@@ -33,12 +33,12 @@ export function hasPairPetTrainingClaimReadyForQuickMenu(user: User, now: number
 /** 부화장: 부화 시간 경과 후 펫 획득 가능(로비·퀵메뉴 알림 공통) */
 export function hasPairPetHatcheryClaimReadyForQuickMenu(user: User, now: number): boolean {
     const sessions = normalizePairPetHatcherySessions(user.pairPetHatcherySessions);
-    for (const def of PAIR_HATCHERY_SLOT_DEFS) {
+    for (const def of PAIR_HATCHERY_SESSION_SLOT_DEFS) {
         const idx = def.slotIndex;
         if (!canUsePairHatcherySlot(user, idx)) continue;
         const session = sessions[idx];
         if (!session) continue;
-        if (now >= hatcheryEndsAt(session.startedAt, idx, session)) return true;
+        if (now >= hatcheryEndsAt(session.startedAt, idx, session, user)) return true;
     }
     return false;
 }
@@ -54,12 +54,12 @@ export function hasPairPetClaimReadyForQuickMenu(user: User, now: number): boole
 export function pairPetQuickMenuNeedsSecondTick(user: User, now: number): boolean {
     const inventory = user.inventory || [];
     const sessions = normalizePairPetHatcherySessions(user.pairPetHatcherySessions);
-    for (const def of PAIR_HATCHERY_SLOT_DEFS) {
+    for (const def of PAIR_HATCHERY_SESSION_SLOT_DEFS) {
         const idx = def.slotIndex;
         if (!canUsePairHatcherySlot(user, idx)) continue;
         const session = sessions[idx];
         if (!session) continue;
-        const end = hatcheryEndsAt(session.startedAt, idx, session);
+        const end = hatcheryEndsAt(session.startedAt, idx, session, user);
         if (now < end) return true;
     }
     const slots = normalizePairPetTrainingSlots(user.pairPetTrainingSlots);

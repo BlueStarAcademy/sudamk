@@ -6,14 +6,25 @@ import DraggableWindow from './DraggableWindow.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { getCurrentSeason } from '../utils/timeUtils.js';
 import { PairArenaStatsPanel } from './PairArenaDetailedStatsModal.js';
-import ConfirmModal from './ConfirmModal.js';
+import AlertModal from './AlertModal.js';
+import DetailedStatsResetConfirmModal from './DetailedStatsResetConfirmModal.js';
+import type { DetailedStatResetScope } from '../shared/types/detailedStatReset.js';
+import {
+    DETAILED_STAT_NO_RESET_MESSAGE,
+    hasPlayfulCategoryStatsToReset,
+    hasSingleModeStatsToReset,
+    hasStrategicCategoryStatsToReset,
+} from '../shared/utils/detailedStatResetChecks.js';
 import { readStrategicRankedMatchRecord } from '../shared/utils/unifiedRankedStatsMigration.js';
+import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../shared/constants/pcShellLayout.js';
 
 interface DetailedStatsModalProps {
     currentUser: UserWithStatus;
     statsType: 'strategic' | 'playful' | 'both';
     onClose: () => void;
     onAction: (action: ServerAction) => void;
+    /** PC 로비 중앙 인라인 패널 — DraggableWindow 생략 */
+    embedded?: boolean;
 }
 
 const DIAMOND_ICON = '/images/icon/Zem.webp';
@@ -50,12 +61,70 @@ const DiamondPrice: React.FC<{ amount: number; className?: string; iconClassName
     </span>
 );
 
-const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({ currentUser, statsType, onClose, onAction }) => {
-    const [combinedTab, setCombinedTab] = useState<'strategic' | 'pair'>('strategic');
+type StatsPanelTheme = {
+    accent: string;
+    rowHover: string;
+    labelMuted: string;
+    unifiedBg: string;
+    unifiedScore: string;
+    winText: string;
+    singleBtn: string;
+    categoryBtn: string;
+    columnTitle: string;
+    columnDivider: string;
+};
+
+const STRATEGIC_STATS_THEME: StatsPanelTheme = {
+    accent: 'border-amber-500/35',
+    rowHover: 'hover:bg-amber-400/[0.07]',
+    labelMuted: 'text-amber-200/55',
+    unifiedBg:
+        'border-amber-400/35 bg-gradient-to-r from-amber-950/45 via-zinc-950/80 to-black/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_28px_-18px_rgba(251,191,36,0.35)]',
+    unifiedScore: 'text-amber-100',
+    winText: 'text-amber-100/95',
+    singleBtn:
+        'border border-amber-400/45 bg-gradient-to-r from-amber-900/45 to-zinc-900/85 text-amber-50 hover:border-amber-300/70 hover:from-amber-800/50 hover:to-zinc-800/90 active:translate-y-px disabled:opacity-40',
+    categoryBtn:
+        'border border-amber-400/40 bg-gradient-to-r from-slate-950/90 via-zinc-950/90 to-amber-950/35 text-amber-50/95 hover:border-amber-300/55 hover:from-zinc-900/90 hover:to-amber-900/40 active:translate-y-px disabled:opacity-40',
+    columnTitle: 'text-amber-100',
+    columnDivider: 'border-amber-500/20',
+};
+
+const PLAYFUL_STATS_THEME: StatsPanelTheme = {
+    accent: 'border-fuchsia-500/35',
+    rowHover: 'hover:bg-fuchsia-400/[0.07]',
+    labelMuted: 'text-fuchsia-200/50',
+    unifiedBg:
+        'border-fuchsia-400/35 bg-gradient-to-r from-fuchsia-950/40 via-zinc-950/80 to-black/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_28px_-18px_rgba(217,70,239,0.35)]',
+    unifiedScore: 'text-fuchsia-100',
+    winText: 'text-fuchsia-100/95',
+    singleBtn:
+        'border border-fuchsia-400/45 bg-gradient-to-r from-fuchsia-900/40 to-zinc-900/85 text-fuchsia-50 hover:border-fuchsia-300/65 hover:from-fuchsia-800/45 hover:to-zinc-800/90 active:translate-y-px disabled:opacity-40',
+    categoryBtn:
+        'border border-fuchsia-400/40 bg-gradient-to-r from-slate-950/90 via-zinc-950/90 to-fuchsia-950/30 text-fuchsia-50/95 hover:border-fuchsia-300/55 hover:from-zinc-900/90 hover:to-fuchsia-900/38 active:translate-y-px disabled:opacity-40',
+    columnTitle: 'text-fuchsia-100',
+    columnDivider: 'border-fuchsia-500/20',
+};
+
+const PAIR_COLUMN_TITLE_CLASS = 'text-violet-100';
+const PAIR_COLUMN_DIVIDER_CLASS = 'border-violet-500/20';
+
+const SEASON_INFO_BAR_SHELL_CLASS =
+    'relative shrink-0 overflow-hidden rounded-xl border px-2.5 py-2 sm:px-3 sm:py-2.5 min-h-[3.5rem] sm:min-h-[4.25rem]';
+const SEASON_INFO_BAR_INNER_CLASS =
+    'flex min-h-[2.5rem] w-full items-center justify-center gap-2 sm:min-h-[3rem] sm:gap-2.5';
+
+const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({
+    currentUser,
+    statsType,
+    onClose,
+    onAction,
+    embedded = false,
+}) => {
     const [statsResetConfirm, setStatsResetConfirm] = useState<StatsResetConfirm | null>(null);
-    const isPairTab = statsType === 'both' && combinedTab === 'pair';
-    const isStrategic =
-        statsType === 'playful' ? false : statsType === 'strategic' ? true : statsType === 'both' ? combinedTab === 'strategic' : true;
+    const [statsResetAlert, setStatsResetAlert] = useState<string | null>(null);
+    const isPvpCombined = statsType === 'both';
+    const isStrategic = statsType !== 'playful';
     const showUnifiedRanking = isStrategic;
     /** 카테고리 일괄 초기화: 놀이는 전적만, 전략은 시즌 랭킹 연동 초기화 */
     const categoryResetTarget: 'strategic' | 'playful' = statsType === 'playful' ? 'playful' : 'strategic';
@@ -68,40 +137,10 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({ currentUser, st
     const canAffordSingle = diamonds >= SINGLE_RESET_COST;
     const canAffordCategory = diamonds >= CATEGORY_RESET_COST;
 
-    const theme = useMemo(
-        () =>
-            isStrategic
-                ? {
-                      accent: 'border-amber-500/35',
-                      rowHover: 'hover:bg-amber-400/[0.07]',
-                      labelMuted: 'text-amber-200/55',
-                      unifiedBg:
-                          'border-amber-400/35 bg-gradient-to-r from-amber-950/45 via-zinc-950/80 to-black/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_28px_-18px_rgba(251,191,36,0.35)]',
-                      unifiedScore: 'text-amber-100',
-                      winText: 'text-amber-100/95',
-                      singleBtn:
-                          'border border-amber-400/45 bg-gradient-to-r from-amber-900/45 to-zinc-900/85 text-amber-50 hover:border-amber-300/70 hover:from-amber-800/50 hover:to-zinc-800/90 active:translate-y-px disabled:opacity-40',
-                      categoryBtn:
-                          'border border-amber-400/40 bg-gradient-to-r from-slate-950/90 via-zinc-950/90 to-amber-950/35 text-amber-50/95 hover:border-amber-300/55 hover:from-zinc-900/90 hover:to-amber-900/40 active:translate-y-px disabled:opacity-40',
-                  }
-                : {
-                      accent: 'border-fuchsia-500/35',
-                      rowHover: 'hover:bg-fuchsia-400/[0.07]',
-                      labelMuted: 'text-fuchsia-200/50',
-                      unifiedBg:
-                          'border-fuchsia-400/35 bg-gradient-to-r from-fuchsia-950/40 via-zinc-950/80 to-black/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_28px_-18px_rgba(217,70,239,0.35)]',
-                      unifiedScore: 'text-fuchsia-100',
-                      winText: 'text-fuchsia-100/95',
-                      singleBtn:
-                          'border border-fuchsia-400/45 bg-gradient-to-r from-fuchsia-900/40 to-zinc-900/85 text-fuchsia-50 hover:border-fuchsia-300/65 hover:from-fuchsia-800/45 hover:to-zinc-800/90 active:translate-y-px disabled:opacity-40',
-                      categoryBtn:
-                          'border border-fuchsia-400/40 bg-gradient-to-r from-slate-950/90 via-zinc-950/90 to-fuchsia-950/30 text-fuchsia-50/95 hover:border-fuchsia-300/55 hover:from-zinc-900/90 hover:to-fuchsia-900/38 active:translate-y-px disabled:opacity-40',
-                  },
-        [isStrategic]
-    );
+    const theme = isStrategic ? STRATEGIC_STATS_THEME : PLAYFUL_STATS_THEME;
 
     const unifiedRanking = useMemo(() => {
-        if (!isStrategic) {
+        if (statsType === 'playful') {
             return { score: SEASON_BASE_SCORE, rank: null as number | null, totalGames: 0 };
         }
         const dr = currentUser.dailyRankings?.strategic;
@@ -132,253 +171,443 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({ currentUser, st
             rank: null as number | null,
             totalGames,
         };
-    }, [currentUser.dailyRankings, currentUser.stats, isStrategic]);
+    }, [currentUser.dailyRankings, currentUser.stats, statsType]);
 
     const strategicSeasonTier = useMemo(() => {
-        if (!isStrategic) return null;
+        if (statsType === 'playful') return null;
         const rank = unifiedRanking.rank ?? 99_999;
         return {
             tier: getTier(unifiedRanking.score, rank, unifiedRanking.totalGames),
             seasonLabel: getCurrentSeason().name,
             rank: unifiedRanking.rank,
         };
-    }, [isStrategic, unifiedRanking]);
+    }, [statsType, unifiedRanking]);
 
-    const statsResetConfirmMessage = useMemo(() => {
-        if (!statsResetConfirm) return '';
+    const strategicAggregate = useMemo(() => {
+        let wins = 0;
+        let losses = 0;
+        for (const { mode } of SPECIAL_GAME_MODES) {
+            const row = stats?.[mode];
+            wins += row?.wins ?? 0;
+            losses += row?.losses ?? 0;
+        }
+        const total = wins + losses;
+        return { wins, losses, winRate: total > 0 ? Math.round((wins / total) * 100) : 0 };
+    }, [stats]);
+
+    const playfulAggregate = useMemo(() => {
+        let wins = 0;
+        let losses = 0;
+        for (const { mode } of PLAYFUL_GAME_MODES) {
+            const row = stats?.[mode];
+            wins += row?.wins ?? 0;
+            losses += row?.losses ?? 0;
+        }
+        const total = wins + losses;
+        return { wins, losses, winRate: total > 0 ? Math.round((wins / total) * 100) : 0 };
+    }, [stats]);
+
+    const handleResetCategory = (category: 'strategic' | 'playful') => {
+        if (!canAffordCategory) return;
+        const hasStats =
+            category === 'strategic'
+                ? hasStrategicCategoryStatsToReset(currentUser, 'both')
+                : hasPlayfulCategoryStatsToReset(currentUser, 'both');
+        if (!hasStats) {
+            setStatsResetAlert(DETAILED_STAT_NO_RESET_MESSAGE);
+            return;
+        }
+        setStatsResetConfirm({ type: 'category', category });
+    };
+
+    const statsResetPreview = useMemo(() => {
+        if (!statsResetConfirm) return null;
         if (statsResetConfirm.type === 'single') {
-            return `「${statsResetConfirm.displayName}」 모드의 승·패만 초기화합니다.`;
+            const row = stats?.[statsResetConfirm.mode];
+            return {
+                targetLabel: `「${statsResetConfirm.displayName}」`,
+                pvp: { wins: row?.wins ?? 0, losses: row?.losses ?? 0 },
+                ai: { wins: row?.aiWins ?? 0, losses: row?.aiLosses ?? 0 },
+                ledgerCost: SINGLE_RESET_COST,
+                seasonResetNote: undefined as string | undefined,
+            };
+        }
+        const modeList = statsResetConfirm.category === 'strategic' ? SPECIAL_GAME_MODES : PLAYFUL_GAME_MODES;
+        let pvpWins = 0;
+        let pvpLosses = 0;
+        let aiWins = 0;
+        let aiLosses = 0;
+        for (const { mode } of modeList) {
+            const row = stats?.[mode];
+            pvpWins += row?.wins ?? 0;
+            pvpLosses += row?.losses ?? 0;
+            aiWins += row?.aiWins ?? 0;
+            aiLosses += row?.aiLosses ?? 0;
         }
         if (statsResetConfirm.category === 'strategic') {
-            return '전략 모드 전체와 시즌 랭킹 점수를 함께 초기화합니다.';
+            const ranked = readStrategicRankedMatchRecord(stats);
+            pvpWins += ranked.wins;
+            pvpLosses += ranked.losses;
+            return {
+                targetLabel: '전략 바둑 전체',
+                pvp: { wins: pvpWins, losses: pvpLosses },
+                ai: { wins: aiWins, losses: aiLosses },
+                ledgerCost: CATEGORY_RESET_COST,
+                seasonResetNote: 'PVP 전적 초기화 시 시즌 랭킹 점수도 함께 초기화됩니다.',
+            };
         }
-        return '놀이 모드 전체의 승·패를 초기화합니다.';
-    }, [statsResetConfirm]);
+        return {
+            targetLabel: '놀이 바둑 전체',
+            pvp: { wins: pvpWins, losses: pvpLosses },
+            ai: { wins: aiWins, losses: aiLosses },
+            ledgerCost: CATEGORY_RESET_COST,
+            seasonResetNote: undefined as string | undefined,
+        };
+    }, [statsResetConfirm, stats]);
 
     const handleResetSingle = (mode: GameMode, displayName: string) => {
         if (!canAffordSingle) return;
+        if (!hasSingleModeStatsToReset(currentUser, mode, 'both')) {
+            setStatsResetAlert(DETAILED_STAT_NO_RESET_MESSAGE);
+            return;
+        }
         setStatsResetConfirm({ type: 'single', mode, displayName });
     };
 
     const handleResetAll = () => {
-        if (!canAffordCategory) return;
-        setStatsResetConfirm({ type: 'category', category: categoryResetTarget });
+        handleResetCategory(categoryResetTarget);
     };
 
-    const executeStatsResetConfirm = () => {
+    const executeStatsResetConfirm = (scope: DetailedStatResetScope) => {
         const c = statsResetConfirm;
         if (!c) return;
+        const hasStats =
+            c.type === 'single'
+                ? hasSingleModeStatsToReset(currentUser, c.mode, scope)
+                : c.category === 'strategic'
+                  ? hasStrategicCategoryStatsToReset(currentUser, scope)
+                  : hasPlayfulCategoryStatsToReset(currentUser, scope);
+        if (!hasStats) {
+            setStatsResetConfirm(null);
+            setStatsResetAlert(DETAILED_STAT_NO_RESET_MESSAGE);
+            return;
+        }
         if (c.type === 'single') {
-            onAction({ type: 'RESET_SINGLE_STAT', payload: { mode: c.mode } });
+            onAction({ type: 'RESET_SINGLE_STAT', payload: { mode: c.mode, scope } });
         } else {
-            onAction({ type: 'RESET_STATS_CATEGORY', payload: { category: c.category } });
+            onAction({ type: 'RESET_STATS_CATEGORY', payload: { category: c.category, scope } });
         }
     };
 
-    const unifiedLabel = '전략 바둑 통합 랭킹';
+    const renderSeasonInfoBar = (seasonLabel: string, tierIcon: string, score: number, panelTheme: StatsPanelTheme) => (
+        <div className={`${SEASON_INFO_BAR_SHELL_CLASS} ${panelTheme.unifiedBg}`}>
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent" aria-hidden />
+            <div className={SEASON_INFO_BAR_INNER_CLASS}>
+                <span className="shrink-0 text-xs font-bold tabular-nums sm:text-sm">{seasonLabel}</span>
+                <img
+                    src={tierIcon}
+                    alt=""
+                    className="h-10 w-10 shrink-0 rounded-lg border border-white/15 bg-black/30 object-contain p-0.5 shadow-sm ring-1 ring-white/10 sm:h-12 sm:w-12"
+                    aria-hidden
+                />
+                <p className={`font-black tabular-nums tracking-tight text-lg sm:text-xl ${panelTheme.unifiedScore}`}>
+                    {score.toLocaleString()}
+                    <span className="ml-0.5 text-[0.7em] font-semibold text-secondary/85">점</span>
+                </p>
+            </div>
+        </div>
+    );
 
-    return (
-        <>
-            <DraggableWindow
-                title={title}
-                onClose={onClose}
-                windowId="detailed-stats"
-                initialWidth={isNativeMobile ? 420 : 660}
-                initialHeight={isNativeMobile ? 620 : 640}
-                bodyPaddingClassName={isNativeMobile ? 'p-2.5' : 'p-2.5 sm:p-3.5'}
-            >
-                <div className="space-y-2.5 text-primary sm:space-y-3">
-                    {statsType === 'both' && (
-                        <div className="flex gap-1 rounded-lg border border-white/10 bg-black/30 p-1" role="tablist" aria-label="상세 전적 구분">
-                            <button
-                                type="button"
-                                role="tab"
-                                aria-selected={combinedTab === 'strategic'}
-                                onClick={() => setCombinedTab('strategic')}
-                                className={`min-h-0 min-w-0 flex-1 rounded-md px-2.5 py-2.5 text-sm font-bold transition-all sm:px-3 sm:py-2.5 sm:text-base ${
-                                    combinedTab === 'strategic'
-                                        ? 'border border-cyan-400/50 bg-cyan-950/60 text-cyan-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
-                                        : 'border border-transparent text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200'
-                                }`}
-                            >
-                                전략
-                            </button>
-                            <button
-                                type="button"
-                                role="tab"
-                                aria-selected={combinedTab === 'pair'}
-                                onClick={() => setCombinedTab('pair')}
-                                className={`min-h-0 min-w-0 flex-1 rounded-md px-2.5 py-2.5 text-sm font-bold transition-all sm:px-3 sm:py-2.5 sm:text-base ${
-                                    combinedTab === 'pair'
-                                        ? 'border border-violet-400/50 bg-violet-950/55 text-violet-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
-                                        : 'border border-transparent text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200'
-                                }`}
-                            >
-                                페어
-                            </button>
-                        </div>
-                    )}
-                    {showUnifiedRanking && strategicSeasonTier && (
-                        <div
-                            className={`relative overflow-hidden rounded-xl border px-3.5 py-3 sm:px-4 sm:py-3.5 ${theme.unifiedBg}`}
-                        >
-                            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent" aria-hidden />
-                            <div className="flex items-center justify-between gap-2 sm:gap-3">
-                                <div className="min-w-0">
-                                    <p className={`text-xs font-semibold uppercase tracking-[0.11em] ${theme.labelMuted}`}>{unifiedLabel}</p>
-                                    <p className="mt-1 text-xs font-semibold text-amber-100/75 sm:text-sm">
-                                        현재 시즌 · {strategicSeasonTier.seasonLabel}
-                                    </p>
-                                    <div className="mt-2 flex flex-wrap items-center gap-2.5 sm:gap-3">
-                                        <img
-                                            src={strategicSeasonTier.tier.icon}
-                                            alt=""
-                                            className="h-11 w-11 shrink-0 rounded-lg border border-white/15 bg-black/30 object-contain p-1 shadow-sm ring-1 ring-white/10 sm:h-12 sm:w-12"
-                                            aria-hidden
-                                        />
-                                        <span className={`text-base font-bold sm:text-lg ${strategicSeasonTier.tier.color}`}>
-                                            {strategicSeasonTier.tier.name}
-                                        </span>
-                                        <p className={`text-2xl font-black tabular-nums tracking-tight sm:text-3xl ${theme.unifiedScore}`}>
-                                            {unifiedRanking.score.toLocaleString()}
-                                            <span className="ml-1 text-[0.7em] font-semibold text-secondary/85">점</span>
+    const renderPlayfulSeasonInfoBar = (panelTheme: StatsPanelTheme) => (
+        <div className={`${SEASON_INFO_BAR_SHELL_CLASS} ${panelTheme.unifiedBg}`}>
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent" aria-hidden />
+            <div className={SEASON_INFO_BAR_INNER_CLASS}>
+                <p className={`text-center text-xs font-semibold sm:text-sm ${panelTheme.labelMuted}`}>놀이 바둑은 랭킹전이 없습니다</p>
+            </div>
+        </div>
+    );
+
+    const renderAggregateStatsPanel = (
+        wins: number,
+        losses: number,
+        winRate: number,
+        panelTheme: StatsPanelTheme,
+        onResetAll: () => void,
+        resetTitle: string,
+    ) => (
+        <div className={`shrink-0 rounded-xl border px-2.5 py-2 sm:px-3 sm:py-2.5 ${panelTheme.accent} bg-slate-950/45`}>
+            <div className="flex items-center justify-between gap-2 sm:gap-3">
+                <div className={`min-w-0 text-xs tabular-nums sm:text-sm ${panelTheme.winText}`}>
+                    <span className={`mr-1.5 font-semibold ${panelTheme.labelMuted}`}>합계</span>
+                    <span className="font-bold">{wins.toLocaleString()}</span>
+                    <span className="text-secondary/75">승 </span>
+                    <span className="font-bold text-slate-200">{losses.toLocaleString()}</span>
+                    <span className="text-secondary/75">패</span>
+                    <span className="ml-1.5 text-sky-200/95">({winRate}%)</span>
+                </div>
+                <button
+                    type="button"
+                    disabled={!canAffordCategory}
+                    title={canAffordCategory ? resetTitle : `다이아 부족 (필요 ${CATEGORY_RESET_COST.toLocaleString()})`}
+                    onClick={onResetAll}
+                    className={`inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-bold sm:px-3 sm:py-2.5 sm:text-sm ${panelTheme.categoryBtn}`}
+                >
+                    <span>전체 초기화</span>
+                    <DiamondPrice amount={CATEGORY_RESET_COST} iconClassName="h-4 w-4 min-w-[1rem] sm:h-5 sm:w-5 sm:min-w-[1.25rem]" className="text-cyan-100/90" />
+                </button>
+            </div>
+        </div>
+    );
+
+    const renderModeStatsGrid = (
+        modeList: typeof SPECIAL_GAME_MODES,
+        gridTheme: StatsPanelTheme,
+        columnLayout: boolean,
+    ) => (
+        <div className="overflow-x-hidden">
+            <div className={`rounded-lg border ${columnLayout ? 'p-2.5 sm:p-3' : 'p-2.5 sm:p-3'} ${gridTheme.accent} bg-slate-950/40`}>
+                <div className={`grid ${columnLayout ? 'grid-cols-1 gap-2.5' : 'grid-cols-3 gap-2.5 sm:gap-3'}`}>
+                    {modeList.map(({ mode, name, image }) => {
+                        const gameStats = stats?.[mode];
+                        const wins = gameStats?.wins ?? 0;
+                        const losses = gameStats?.losses ?? 0;
+                        const totalGames = wins + losses;
+                        const winRate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
+                        const aiW = gameStats?.aiWins ?? 0;
+                        const aiL = gameStats?.aiLosses ?? 0;
+                        const aiTot = aiW + aiL;
+                        const aiWr = aiTot > 0 ? Math.round((aiW / aiTot) * 100) : 0;
+
+                        if (columnLayout) {
+                            return (
+                                <div
+                                    key={mode}
+                                    className={`flex items-center gap-2.5 rounded-lg border border-white/10 bg-black/25 px-2.5 py-2 shadow-sm transition-colors sm:gap-3 sm:px-3 sm:py-2.5 ${gridTheme.rowHover}`}
+                                >
+                                    <img
+                                        src={image}
+                                        alt=""
+                                        className="h-12 w-12 shrink-0 rounded-md border border-white/15 bg-black/25 object-contain p-0.5 sm:h-14 sm:w-14"
+                                        aria-hidden
+                                    />
+                                    <div className="min-w-0 flex-1">
+                                        <p className="truncate text-sm font-semibold text-primary sm:text-base">{name}</p>
+                                        <p className={`text-xs tabular-nums sm:text-sm ${gridTheme.winText}`}>
+                                            <span className="text-secondary/80">PVP </span>
+                                            <span className="font-bold">{wins}</span>승{' '}
+                                            <span className="font-bold text-slate-200">{losses}</span>패 ({winRate}%)
                                         </p>
+                                        {aiTot > 0 ? (
+                                            <p className="text-xs tabular-nums text-violet-200/90 sm:text-sm">
+                                                AI {aiW}승 {aiL}패 ({aiWr}%)
+                                            </p>
+                                        ) : null}
                                     </div>
-                                    {typeof strategicSeasonTier.rank === 'number' && (
-                                        <p className="mt-1.5 text-xs font-semibold text-amber-200/60 tabular-nums sm:text-[13px]">
-                                            랭킹 {strategicSeasonTier.rank.toLocaleString()}위
-                                        </p>
-                                    )}
+                                    <button
+                                        type="button"
+                                        disabled={!canAffordSingle}
+                                        title={
+                                            canAffordSingle
+                                                ? `다이아 ${SINGLE_RESET_COST} — 이 모드만 초기화`
+                                                : `다이아 부족 (필요 ${SINGLE_RESET_COST})`
+                                        }
+                                        onClick={() => handleResetSingle(mode, name)}
+                                        className={`inline-flex min-w-[4.25rem] shrink-0 flex-col items-center justify-center gap-1 rounded-lg px-2.5 py-2 text-xs font-bold sm:min-w-[4.75rem] sm:px-3 sm:py-2.5 sm:text-sm ${gridTheme.singleBtn}`}
+                                    >
+                                        <span>초기화</span>
+                                        <DiamondPrice amount={SINGLE_RESET_COST} iconClassName="h-4 w-4 min-w-[1rem] sm:h-[1.125rem] sm:w-[1.125rem] sm:min-w-[1.125rem]" />
+                                    </button>
+                                </div>
+                            );
+                        }
+
+                        return (
+                            <div
+                                key={mode}
+                                className={`flex min-h-[10.75rem] flex-col items-center rounded-lg border border-white/10 bg-black/25 px-2 py-3 shadow-sm transition-colors sm:min-h-[11.5rem] sm:px-2.5 ${gridTheme.rowHover}`}
+                            >
+                                <div className="mb-2 flex flex-col items-center gap-2 text-center">
+                                    <img
+                                        src={image}
+                                        alt=""
+                                        className="h-[4.25rem] w-[4.25rem] shrink-0 rounded-lg border border-white/15 bg-black/25 object-contain p-1 sm:h-[5rem] sm:w-[5rem]"
+                                        aria-hidden
+                                    />
+                                    <p className="line-clamp-2 text-center text-base font-semibold leading-snug tracking-tight text-primary sm:line-clamp-1 sm:text-lg">
+                                        {name}
+                                    </p>
+                                </div>
+                                <div
+                                    className={`mb-1 flex min-w-0 flex-col items-center justify-center gap-y-0.5 text-xs tabular-nums sm:text-sm ${gridTheme.winText}`}
+                                >
+                                    <span className="shrink-0 text-center leading-tight">
+                                        <span className="text-secondary/80">PVP </span>
+                                        <span className="font-bold">{wins}</span>
+                                        <span className="text-secondary/75">승 </span>
+                                        <span className="font-bold text-slate-200">{losses}</span>
+                                        <span className="text-secondary/75">패</span>
+                                        <span className="ml-1 text-sky-200/95">({winRate}%)</span>
+                                    </span>
+                                    {aiTot > 0 ? (
+                                        <span className="shrink-0 text-center leading-tight text-violet-200/90">
+                                            <span className="text-violet-300/70">AI </span>
+                                            <span className="font-bold">{aiW}</span>승{' '}
+                                            <span className="font-bold">{aiL}</span>패 ({aiWr}%)
+                                        </span>
+                                    ) : null}
                                 </div>
                                 <button
                                     type="button"
-                                    disabled={!canAffordCategory}
+                                    disabled={!canAffordSingle}
                                     title={
-                                        canAffordCategory
-                                            ? `다이아 ${CATEGORY_RESET_COST.toLocaleString()} — 전략 전체`
-                                            : `다이아 부족 (필요 ${CATEGORY_RESET_COST.toLocaleString()})`
+                                        canAffordSingle
+                                            ? `다이아 ${SINGLE_RESET_COST} — 이 모드만 초기화`
+                                            : `다이아 부족 (필요 ${SINGLE_RESET_COST})`
                                     }
-                                    onClick={handleResetAll}
-                                    className={`inline-flex shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold sm:text-sm ${theme.categoryBtn}`}
+                                    onClick={() => handleResetSingle(mode, name)}
+                                    className={`mt-auto inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-bold transition-colors sm:h-10 sm:px-3.5 sm:text-base ${gridTheme.singleBtn}`}
                                 >
-                                    <span>전체 초기화</span>
-                                    <DiamondPrice amount={CATEGORY_RESET_COST} iconClassName="h-4 w-4 min-w-[1rem] sm:h-[1.125rem] sm:w-[1.125rem] sm:min-w-[1.125rem]" className="text-cyan-100/90" />
+                                    <span>초기화</span>
+                                    <DiamondPrice
+                                        amount={SINGLE_RESET_COST}
+                                        className="text-cyan-100/90"
+                                        iconClassName="h-4 w-4 min-w-[1rem] sm:h-5 sm:w-5 sm:min-w-[1.25rem]"
+                                    />
                                 </button>
                             </div>
-                        </div>
-                    )}
-
-                    {!showUnifiedRanking && statsType === 'playful' && (
-                        <div className="flex justify-end">
-                            <button
-                                type="button"
-                                disabled={!canAffordCategory}
-                                title={
-                                    canAffordCategory
-                                        ? `다이아 ${CATEGORY_RESET_COST.toLocaleString()} — 놀이 전체`
-                                        : `다이아 부족 (필요 ${CATEGORY_RESET_COST.toLocaleString()})`
-                                }
-                                onClick={handleResetAll}
-                                className={`inline-flex shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold sm:text-sm ${theme.categoryBtn}`}
-                            >
-                                <span>전체 초기화</span>
-                                <DiamondPrice amount={CATEGORY_RESET_COST} iconClassName="h-4 w-4 min-w-[1rem] sm:h-[1.125rem] sm:w-[1.125rem] sm:min-w-[1.125rem]" className="text-cyan-100/90" />
-                            </button>
-                        </div>
-                    )}
-
-                    {isPairTab ? (
-                        <PairArenaStatsPanel currentUser={currentUser} onAction={onAction} />
-                    ) : (
-                        <div className="overflow-x-hidden">
-                            <div className={`rounded-lg border p-2.5 sm:p-3 ${theme.accent} bg-slate-950/40`}>
-                                <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
-                                    {modes.map(({ mode, name, image }) => {
-                                        const gameStats = stats?.[mode];
-                                        const wins = gameStats?.wins ?? 0;
-                                        const losses = gameStats?.losses ?? 0;
-                                        const totalGames = wins + losses;
-                                        const winRate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
-                                        const aiW = gameStats?.aiWins ?? 0;
-                                        const aiL = gameStats?.aiLosses ?? 0;
-                                        const aiTot = aiW + aiL;
-                                        const aiWr = aiTot > 0 ? Math.round((aiW / aiTot) * 100) : 0;
-
-                                        return (
-                                            <div
-                                                key={mode}
-                                                className={`flex min-h-[10.75rem] flex-col items-center rounded-lg border border-white/10 bg-black/25 px-2 py-3 shadow-sm transition-colors sm:min-h-[11.5rem] sm:px-2.5 ${theme.rowHover}`}
-                                            >
-                                                <div className="mb-2 flex flex-col items-center gap-2 text-center">
-                                                    <img
-                                                        src={image}
-                                                        alt=""
-                                                        className="h-[3.75rem] w-[3.75rem] shrink-0 rounded-lg border border-white/15 bg-black/25 object-contain p-1 sm:h-[4.25rem] sm:w-[4.25rem]"
-                                                        aria-hidden
-                                                    />
-                                                    <p className="line-clamp-2 text-center text-sm font-semibold leading-snug tracking-tight text-primary sm:line-clamp-1 sm:text-base">
-                                                        {name}
-                                                    </p>
-                                                </div>
-                                                <div
-                                                    className={`mb-1 flex min-w-0 flex-col items-center justify-center gap-y-0.5 text-[11px] tabular-nums sm:text-xs ${theme.winText}`}
-                                                >
-                                                    <span className="shrink-0 text-center leading-tight">
-                                                        <span className="text-secondary/80">PVP </span>
-                                                        <span className="font-bold">{wins}</span>
-                                                        <span className="text-secondary/75">승 </span>
-                                                        <span className="font-bold text-slate-200">{losses}</span>
-                                                        <span className="text-secondary/75">패</span>
-                                                        <span className="ml-1 text-sky-200/95">({winRate}%)</span>
-                                                    </span>
-                                                    {aiTot > 0 ? (
-                                                        <span className="shrink-0 text-center leading-tight text-violet-200/90">
-                                                            <span className="text-violet-300/70">AI </span>
-                                                            <span className="font-bold">{aiW}</span>승{' '}
-                                                            <span className="font-bold">{aiL}</span>패 ({aiWr}%)
-                                                        </span>
-                                                    ) : null}
-                                                </div>
-                                                <button
-                                                    type="button"
-                                                    disabled={!canAffordSingle}
-                                                    title={
-                                                        canAffordSingle
-                                                            ? `다이아 ${SINGLE_RESET_COST} — 이 모드만 초기화`
-                                                            : `다이아 부족 (필요 ${SINGLE_RESET_COST})`
-                                                    }
-                                                    onClick={() => handleResetSingle(mode, name)}
-                                                    className={`mt-auto inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors sm:h-9 sm:px-3 sm:text-sm ${theme.singleBtn}`}
-                                                >
-                                                    <span>초기화</span>
-                                                    <DiamondPrice
-                                                        amount={SINGLE_RESET_COST}
-                                                        className="text-cyan-100/90"
-                                                        iconClassName="h-4 w-4 min-w-[1rem] sm:h-[1.125rem] sm:w-[1.125rem] sm:min-w-[1.125rem]"
-                                                    />
-                                                </button>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                        );
+                    })}
                 </div>
-            </DraggableWindow>
-            {statsResetConfirm && (
-                <ConfirmModal
-                    title="전적 초기화"
-                    variant="premium-ledger"
-                    ledgerCost={
-                        statsResetConfirm.type === 'single' ? SINGLE_RESET_COST : CATEGORY_RESET_COST
-                    }
-                    message={statsResetConfirmMessage}
-                    confirmText="초기화하기"
-                    cancelText="취소"
+            </div>
+        </div>
+    );
+
+    const statsBody = isPvpCombined ? (
+        <div className="flex h-full min-h-0 flex-col text-primary">
+            <div className="grid min-h-0 flex-1 grid-cols-3 divide-x divide-white/10">
+                <section className={`flex min-h-0 min-w-0 flex-col gap-2 overflow-hidden px-1.5 sm:px-2 ${STRATEGIC_STATS_THEME.columnDivider}`}>
+                    <h3 className={`shrink-0 text-center text-sm font-bold uppercase tracking-[0.12em] sm:text-base ${STRATEGIC_STATS_THEME.columnTitle}`}>
+                        전략
+                    </h3>
+                    {strategicSeasonTier &&
+                        renderSeasonInfoBar(
+                            strategicSeasonTier.seasonLabel,
+                            strategicSeasonTier.tier.icon,
+                            unifiedRanking.score,
+                            STRATEGIC_STATS_THEME,
+                        )}
+                    {renderAggregateStatsPanel(
+                        strategicAggregate.wins,
+                        strategicAggregate.losses,
+                        strategicAggregate.winRate,
+                        STRATEGIC_STATS_THEME,
+                        () => handleResetCategory('strategic'),
+                        `다이아 ${CATEGORY_RESET_COST.toLocaleString()} — 전략 전체`,
+                    )}
+                    <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain pr-0.5">
+                        {renderModeStatsGrid(SPECIAL_GAME_MODES, STRATEGIC_STATS_THEME, true)}
+                    </div>
+                </section>
+                <section className={`flex min-h-0 min-w-0 flex-col gap-2 overflow-hidden px-1.5 sm:px-2 ${PAIR_COLUMN_DIVIDER_CLASS}`}>
+                    <h3 className={`shrink-0 text-center text-sm font-bold uppercase tracking-[0.12em] sm:text-base ${PAIR_COLUMN_TITLE_CLASS}`}>
+                        페어
+                    </h3>
+                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                        <PairArenaStatsPanel currentUser={currentUser} onAction={onAction} columnLayout />
+                    </div>
+                </section>
+                <section className={`flex min-h-0 min-w-0 flex-col gap-2 overflow-hidden px-1.5 sm:px-2 ${PLAYFUL_STATS_THEME.columnDivider}`}>
+                    <h3 className={`shrink-0 text-center text-sm font-bold uppercase tracking-[0.12em] sm:text-base ${PLAYFUL_STATS_THEME.columnTitle}`}>
+                        놀이
+                    </h3>
+                    {renderPlayfulSeasonInfoBar(PLAYFUL_STATS_THEME)}
+                    {renderAggregateStatsPanel(
+                        playfulAggregate.wins,
+                        playfulAggregate.losses,
+                        playfulAggregate.winRate,
+                        PLAYFUL_STATS_THEME,
+                        () => handleResetCategory('playful'),
+                        `다이아 ${CATEGORY_RESET_COST.toLocaleString()} — 놀이 전체`,
+                    )}
+                    <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain pr-0.5">
+                        {renderModeStatsGrid(PLAYFUL_GAME_MODES, PLAYFUL_STATS_THEME, true)}
+                    </div>
+                </section>
+            </div>
+        </div>
+    ) : (
+        <div className="space-y-2.5 text-primary sm:space-y-3">
+            {showUnifiedRanking &&
+                strategicSeasonTier &&
+                renderSeasonInfoBar(
+                    strategicSeasonTier.seasonLabel,
+                    strategicSeasonTier.tier.icon,
+                    unifiedRanking.score,
+                    STRATEGIC_STATS_THEME,
+                )}
+
+            {showUnifiedRanking &&
+                renderAggregateStatsPanel(
+                    strategicAggregate.wins,
+                    strategicAggregate.losses,
+                    strategicAggregate.winRate,
+                    STRATEGIC_STATS_THEME,
+                    () => handleResetCategory('strategic'),
+                    `다이아 ${CATEGORY_RESET_COST.toLocaleString()} — 전략 전체`,
+                )}
+
+            {!showUnifiedRanking && statsType === 'playful' && renderPlayfulSeasonInfoBar(PLAYFUL_STATS_THEME)}
+
+            {!showUnifiedRanking &&
+                statsType === 'playful' &&
+                renderAggregateStatsPanel(
+                    playfulAggregate.wins,
+                    playfulAggregate.losses,
+                    playfulAggregate.winRate,
+                    PLAYFUL_STATS_THEME,
+                    handleResetAll,
+                    `다이아 ${CATEGORY_RESET_COST.toLocaleString()} — 놀이 전체`,
+                )}
+
+            {renderModeStatsGrid(modes, theme, false)}
+        </div>
+    );
+
+    return (
+        <>
+            {embedded ? (
+                <div className={`${PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS} ${isPvpCombined ? '' : 'overflow-y-auto overscroll-y-contain'} p-1.5 sm:p-2`}>
+                    {statsBody}
+                </div>
+            ) : (
+                <DraggableWindow
+                    title={title}
+                    onClose={onClose}
+                    windowId="detailed-stats"
+                    initialWidth={isNativeMobile ? 420 : isPvpCombined ? 960 : 660}
+                    initialHeight={isNativeMobile ? 620 : isPvpCombined ? 680 : 640}
+                    bodyPaddingClassName={isNativeMobile ? 'p-2.5' : 'p-2.5 sm:p-3.5'}
+                >
+                    {statsBody}
+                </DraggableWindow>
+            )}
+            {statsResetConfirm && statsResetPreview && (
+                <DetailedStatsResetConfirmModal
+                    targetLabel={statsResetPreview.targetLabel}
+                    pvpRecord={statsResetPreview.pvp}
+                    aiRecord={statsResetPreview.ai}
+                    ledgerCost={statsResetPreview.ledgerCost}
+                    seasonResetNote={statsResetPreview.seasonResetNote}
                     onCancel={() => setStatsResetConfirm(null)}
                     onConfirm={executeStatsResetConfirm}
                     windowId="detailed-stats-reset-confirm"
+                />
+            )}
+            {statsResetAlert && (
+                <AlertModal
+                    message={statsResetAlert}
+                    onClose={() => setStatsResetAlert(null)}
+                    windowId="detailed-stats-reset-alert"
                     isTopmost
                 />
             )}

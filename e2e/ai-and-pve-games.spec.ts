@@ -31,7 +31,7 @@ test.describe('AI and PvE games E2E', () => {
     test.setTimeout(60000);
 
     test('strategic lobby: open AI challenge modal and start Standard vs AI', async ({ page, authenticatedPage }) => {
-        await goToAppHashFromStableProfile(page, '#/waiting/strategic');
+        await goToAppHashFromStableProfile(page, '#/ai/strategic');
         await page.waitForTimeout(2500);
 
         await expect(page.getByRole('heading', { name: '전략바둑 대기실' })).toBeVisible({ timeout: 20000 });
@@ -55,7 +55,7 @@ test.describe('AI and PvE games E2E', () => {
     });
 
     test('playful lobby: open AI challenge modal and start one playful mode vs AI', async ({ page, authenticatedPage }) => {
-        await goToAppHashFromStableProfile(page, '#/waiting/playful');
+        await goToAppHashFromStableProfile(page, '#/ai/playful');
         await page.waitForTimeout(2500);
 
         await expect(page.getByRole('heading', { name: '놀이바둑 대기실' })).toBeVisible({ timeout: 20000 });

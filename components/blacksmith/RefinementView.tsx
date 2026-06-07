@@ -18,6 +18,7 @@ import { MythicOptionAbbrev, MythicStatAbbrev } from '../MythicStatAbbrev.js';
 import { PortalHoverBubble } from '../PortalHoverBubble.js';
 import RefinementResultModal from './RefinementResultModal.js';
 import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
+import { getBlacksmithViewerTypography } from '../../shared/constants/blacksmithViewerTypography.js';
 
 const REFINEMENT_TICKET_DEFS: { id: 'type' | 'value' | 'mythic'; itemKey: keyof typeof MATERIAL_ITEMS }[] = [
     { id: 'type', itemKey: '옵션 종류 변경권' },
@@ -141,13 +142,15 @@ const renderStarDisplay = (stars: number) => {
     );
 };
 
-const ItemDisplay: React.FC<{ 
-    item: InventoryItem; 
+const ItemDisplay: React.FC<{
+    item: InventoryItem;
     selectedOption: { type: 'main' | 'combatSub' | 'specialSub' | 'mythicSub'; index: number } | null;
     onOptionClick: (type: 'main' | 'combatSub' | 'specialSub' | 'mythicSub', index: number) => void;
-}> = ({ item, selectedOption, onOptionClick }) => {
+    pcViewer?: boolean;
+}> = ({ item, selectedOption, onOptionClick, pcViewer = false }) => {
     const { currentUserWithStatus } = useAppContext();
     const styles = gradeStyles[item.grade];
+    const typo = getBlacksmithViewerTypography(pcViewer);
 
     const requiredLevel = GRADE_LEVEL_REQUIREMENTS[item.grade];
     const userLevelSum = currentUserWithStatus?.userLevel ?? 0;
@@ -168,19 +171,19 @@ const ItemDisplay: React.FC<{
                     {renderStarDisplay(item.stars)}
                 </div>
                 <div className="min-w-0 flex-grow pt-0.5">
-                    <h3 className={`text-[12px] font-bold leading-snug whitespace-nowrap overflow-hidden text-ellipsis ${styles.color}`} title={item.name}>
+                    <h3 className={`${typo.headingLg} leading-snug whitespace-nowrap overflow-hidden text-ellipsis ${styles.color}`} title={item.name}>
                         {item.name}
                     </h3>
-                    <p className={`text-[11px] leading-snug ${canEquip ? 'text-gray-500' : 'text-red-500'}`}>
+                    <p className={`${typo.body} ${canEquip ? 'text-gray-500' : 'text-red-500'}`}>
                         ({formatEquipLevelRequirement(requiredLevel)})
                     </p>
-                    <p className={`text-[11px] font-semibold leading-snug ${(item as any).refinementCount > 0 ? 'text-amber-400' : 'text-red-400'}`}>
+                    <p className={`${typo.bodySemi} ${(item as any).refinementCount > 0 ? 'text-amber-400' : 'text-red-400'}`}>
                         제련 가능: {(item as any).refinementCount > 0 ? `${(item as any).refinementCount}회` : '제련불가'}
                     </p>
                 </div>
             </div>
             {/* Bottom section: Clickable options */}
-            <div className="w-full flex-grow space-y-0.5 overflow-y-auto rounded-lg bg-black/30 p-1.5 text-left text-[11px] leading-snug">
+            <div className={`w-full flex-grow space-y-0.5 overflow-y-auto rounded-lg bg-black/30 p-1.5 text-left ${typo.body}`}>
                 {/* Main Option */}
                 <button
                     onClick={() => onOptionClick('main', 0)}
@@ -222,7 +225,7 @@ const ItemDisplay: React.FC<{
                 ))}
                 {/* Mythic / Transcendent 스페셜 — 원본 mythicSubs 인덱스 유지 */}
                 {mythicGradeRows.length > 0 ? (
-                    <p className="px-1 pt-0.5 text-[11px] font-semibold leading-snug text-rose-200/85">신화 스페셜 옵션</p>
+                    <p className={`px-1 pt-0.5 ${typo.caption} font-semibold text-rose-200/85`}>신화 스페셜 옵션</p>
                 ) : null}
                 {mythicGradeRows.map(({ sub, index: idx }) => (
                     <button
@@ -241,7 +244,7 @@ const ItemDisplay: React.FC<{
                     </button>
                 ))}
                 {transcendentGradeRows.length > 0 ? (
-                    <p className="px-1 pt-1 text-[11px] font-semibold leading-snug text-cyan-200/85">초월 스페셜 옵션</p>
+                    <p className={`px-1 pt-1 ${typo.caption} font-semibold text-cyan-200/85`}>초월 스페셜 옵션</p>
                 ) : null}
                 {transcendentGradeRows.map(({ sub, index: idx }) => (
                     <button
@@ -283,6 +286,8 @@ const RefinementView: React.FC<RefinementViewProps> = ({
     onResultConfirm,
     stackedViewport = false,
 }) => {
+    const pcViewer = !stackedViewport;
+    const typo = getBlacksmithViewerTypography(pcViewer);
     const [selectedOption, setSelectedOption] = useState<{ type: 'main' | 'combatSub' | 'specialSub' | 'mythicSub'; index: number } | null>(null);
     const [refinementType, setRefinementType] = useState<RefinementType | null>(null);
     const [isRefining, setIsRefining] = useState(false);
@@ -612,7 +617,7 @@ const RefinementView: React.FC<RefinementViewProps> = ({
 
     if (!selectedItem) {
         return (
-            <div className="flex items-center justify-center h-full text-gray-400 text-sm">
+            <div className={`flex items-center justify-center h-full text-gray-400 ${typo.empty}`}>
                 장비를 선택해주세요.
             </div>
         );
@@ -620,7 +625,7 @@ const RefinementView: React.FC<RefinementViewProps> = ({
 
     if (!selectedItem.options) {
         return (
-            <div className="flex items-center justify-center h-full text-gray-400 text-sm">
+            <div className={`flex items-center justify-center h-full text-gray-400 ${typo.empty}`}>
                 옵션이 없는 장비입니다.
             </div>
         );
@@ -628,7 +633,7 @@ const RefinementView: React.FC<RefinementViewProps> = ({
 
     if (!canRefineAtAll) {
         return (
-            <div className="flex items-center justify-center h-full text-gray-400 text-sm">
+            <div className={`flex items-center justify-center h-full text-gray-400 ${typo.empty}`}>
                 일반 등급 장비는 제련할 수 없습니다.
             </div>
         );
@@ -647,11 +652,12 @@ const RefinementView: React.FC<RefinementViewProps> = ({
                         stackedViewport ? 'min-h-0 flex-1 overflow-y-auto' : ''
                     }`}
                 >
-                    <h3 className="mb-1 text-xs font-bold text-amber-100">선택된 장비</h3>
+                    <h3 className={`mb-1 ${typo.heading} text-amber-100`}>선택된 장비</h3>
                     <div className="min-h-0 flex-1">
                         <ItemDisplay
                             item={selectedItem}
                             selectedOption={selectedOption}
+                            pcViewer={pcViewer}
                             onOptionClick={(type, index) => {
                                 setSelectedOption({ type, index });
                                 setRefinementType(null);
@@ -666,7 +672,7 @@ const RefinementView: React.FC<RefinementViewProps> = ({
                     }`}
                 >
                     <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
-                        <h3 className="text-xs font-bold text-amber-100">제련 정보</h3>
+                        <h3 className={`${typo.heading} text-amber-100`}>제련 정보</h3>
                         {stackedViewport && selectedOption && (
                             <button
                                 type="button"
@@ -682,15 +688,15 @@ const RefinementView: React.FC<RefinementViewProps> = ({
                     </div>
                         <div className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden">
                     {refinementExhausted ? (
-                        <div className="flex flex-col justify-center gap-2 rounded-lg bg-gray-900/40 p-3 text-sm text-amber-200/95 min-h-[120px]">
+                        <div className={`flex flex-col justify-center gap-2 rounded-lg bg-gray-900/40 p-3 text-amber-200/95 min-h-[120px] ${typo.body}`}>
                             <p className="font-semibold leading-snug">제련 가능 횟수가 모두 소진되었습니다.</p>
-                            <p className="text-xs text-gray-400 leading-relaxed">
+                            <p className={`${typo.caption} text-gray-400 leading-relaxed`}>
                                 제련이 불가능한 장비의 제련가능 횟수를 1추가합니다. 사용처 : [대장간]-[장비제련] 제련불가 장비 선택
                             </p>
                             <div className="mt-1 flex items-center justify-between gap-2 rounded border border-amber-500/30 bg-black/30 px-2 py-1.5">
                                 <div className="flex items-center gap-2">
                                     <img src={refinementCharmInfo.image} alt={refinementCharmInfo.name} className="h-7 w-7 object-contain" />
-                                    <div className="text-xs leading-tight">
+                                    <div className={`${typo.body} leading-tight`}>
                                         <p className="font-semibold text-amber-100">{refinementCharmInfo.name}</p>
                                         <p className="text-gray-300">보유: {ticketCounts.charm}</p>
                                     </div>
@@ -705,10 +711,10 @@ const RefinementView: React.FC<RefinementViewProps> = ({
                             </div>
                         </div>
                     ) : selectedOption ? (
-                        <div className="flex flex-col gap-2 text-xs">
+                        <div className={`flex flex-col gap-2 ${typo.body}`}>
                             {/* 선택된 옵션 표시 */}
                             <div className="rounded border border-white/10 bg-black/35 p-1.5">
-                                <div className="text-gray-400 text-xs mb-0.5">선택된 옵션</div>
+                                <div className={`text-gray-400 ${typo.caption} mb-0.5`}>선택된 옵션</div>
                                 <div className="text-yellow-300 font-semibold">
                                     {selectedOption?.type === 'mythicSub' && selectedOptionData ? (
                                         <MythicOptionAbbrev option={selectedOptionData} textClassName="text-yellow-300 font-semibold" />
@@ -732,7 +738,7 @@ const RefinementView: React.FC<RefinementViewProps> = ({
                                     <>
                                         <button
                                             onClick={() => setRefinementType('type')}
-                                            className={`group relative min-w-0 w-full py-1.5 px-1 rounded-lg text-[10px] sm:text-xs font-bold transition-all duration-300 overflow-hidden ${
+                                            className={`group relative min-w-0 w-full py-1.5 px-1 rounded-lg ${pcViewer ? typo.body : 'text-[10px] sm:text-xs'} font-bold transition-all duration-300 overflow-hidden ${
                                                 refinementType === 'type'
                                                     ? 'bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 text-white shadow-[0_0_16px_rgba(168,85,247,0.55)] ring-1 ring-white/30'
                                                     : 'bg-gradient-to-r from-gray-700 to-gray-800 text-gray-300 hover:from-gray-600 hover:to-gray-700 hover:shadow-lg'
@@ -747,7 +753,7 @@ const RefinementView: React.FC<RefinementViewProps> = ({
                                         {(selectedOption.type === 'combatSub' || selectedOption.type === 'specialSub') && (
                                             <button
                                                 onClick={() => setRefinementType('value')}
-                                                className={`group relative min-w-0 w-full py-1.5 px-1 rounded-lg text-[10px] sm:text-xs font-bold transition-all duration-300 overflow-hidden ${
+                                                className={`group relative min-w-0 w-full py-1.5 px-1 rounded-lg ${pcViewer ? typo.body : 'text-[10px] sm:text-xs'} font-bold transition-all duration-300 overflow-hidden ${
                                                     refinementType === 'value'
                                                         ? 'bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-white shadow-[0_0_16px_rgba(20,184,166,0.55)] ring-1 ring-white/30'
                                                         : 'bg-gradient-to-r from-gray-700 to-gray-800 text-gray-300 hover:from-gray-600 hover:to-gray-700 hover:shadow-lg'
@@ -765,7 +771,7 @@ const RefinementView: React.FC<RefinementViewProps> = ({
                                 {selectedOption.type === 'mythicSub' && (
                                     <button
                                         onClick={() => setRefinementType('mythic')}
-                                        className={`group relative min-w-0 w-full py-1.5 px-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all duration-300 overflow-hidden ${
+                                        className={`group relative min-w-0 w-full py-1.5 px-1.5 rounded-lg ${pcViewer ? typo.body : 'text-[10px] sm:text-xs'} font-bold transition-all duration-300 overflow-hidden ${
                                             refinementType === 'mythic'
                                                 ? 'bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 text-white shadow-[0_0_16px_rgba(249,115,22,0.55)] ring-1 ring-white/30'
                                                 : 'bg-gradient-to-r from-gray-700 to-gray-800 text-gray-300 hover:from-gray-600 hover:to-gray-700 hover:shadow-lg'
@@ -784,10 +790,10 @@ const RefinementView: React.FC<RefinementViewProps> = ({
                                 <>
                                     {/* 변경 가능한 옵션/수치 표시 */}
                                     <div className="rounded border border-white/10 bg-black/35 p-1.5">
-                                        <div className="text-gray-400 text-xs mb-1">
+                                        <div className={`text-gray-400 ${typo.caption} mb-1`}>
                                             {refinementType === 'value' ? '변경 가능한 수치 범위' : '변경 가능한 옵션'}
                                         </div>
-                                        <div className="text-xs space-y-0.5 max-h-24 overflow-y-auto">
+                                        <div className={`${typo.body} space-y-0.5 max-h-24 overflow-y-auto`}>
                                             {availableOptions.length > 0 ? (
                                                 availableOptions.map((opt, idx) => (
                                                     <div key={idx} className="text-green-300">
@@ -819,7 +825,7 @@ const RefinementView: React.FC<RefinementViewProps> = ({
 
                                     {/* 필요 재료 (이미지로 표시) */}
                                     <div className="rounded border border-white/10 bg-black/35 p-1.5">
-                                        <div className="text-gray-400 text-xs mb-1">필요 재료</div>
+                                        <div className={`mb-1 text-gray-400 ${pcViewer ? typo.caption : 'text-xs'}`}>필요 재료</div>
                                         <div className="flex flex-wrap gap-2 items-center">
                                             {/* 변경권 */}
                                             {ticketItemInfo && (
@@ -833,7 +839,7 @@ const RefinementView: React.FC<RefinementViewProps> = ({
                                                         className="w-6 h-6 object-contain"
                                                     />
                                                     <span
-                                                        className={`text-xs whitespace-nowrap ${
+                                                        className={`whitespace-nowrap ${pcViewer ? typo.body : 'text-xs'} ${
                                                             ticketCounts[
                                                                 refinementType === 'type'
                                                                     ? 'type'
@@ -863,7 +869,7 @@ const RefinementView: React.FC<RefinementViewProps> = ({
                                                     alt="골드"
                                                     className="w-6 h-6 object-contain"
                                                 />
-                                                <span className={`text-xs ${currentUser.gold >= requiredGold ? 'text-white' : 'text-red-400'}`}>
+                                                <span className={`${pcViewer ? typo.body : 'text-xs'} ${currentUser.gold >= requiredGold ? 'text-white' : 'text-red-400'}`}>
                                                     {formatGoldAmountKoG(requiredGold)}
                                                 </span>
                                             </div>
@@ -874,7 +880,7 @@ const RefinementView: React.FC<RefinementViewProps> = ({
                                     <button
                                         onClick={handleRefine}
                                         disabled={!canRefine || isRefining}
-                                        className={`group relative mx-auto block w-full max-w-[92%] min-w-0 py-2 px-2.5 rounded-lg text-xs font-bold transition-all duration-300 overflow-hidden ${
+                                        className={`group relative mx-auto block w-full max-w-[92%] min-w-0 py-2 px-2.5 rounded-lg font-bold transition-all duration-300 overflow-hidden ${pcViewer ? typo.bodySemi : 'text-xs'} ${
                                             canRefine && !isRefining
                                                 ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 text-white shadow-[0_0_14px_rgba(251,146,60,0.55)] hover:shadow-[0_0_20px_rgba(251,146,60,0.75)]'
                                                 : 'bg-gray-700 text-gray-400 cursor-not-allowed opacity-50'
@@ -891,14 +897,14 @@ const RefinementView: React.FC<RefinementViewProps> = ({
                             )}
                         </div>
                     ) : (
-                        <div className="text-gray-500 text-xs text-center py-4">
+                        <div className={`text-center py-4 text-gray-500 ${pcViewer ? typo.body : 'text-xs'}`}>
                             좌측에서 옵션을 선택해주세요.
                         </div>
                     )}
                         </div>
                         {isRefining && (
                             <div className="mt-2 shrink-0 border-t border-white/10 pt-2">
-                                <div className="mb-1 flex items-center justify-between text-[10px] text-cyan-200/90">
+                                <div className={`mb-1 flex items-center justify-between ${pcViewer ? typo.caption : 'text-[10px]'} text-cyan-200/90`}>
                                     <span className="font-semibold">제련 진행도</span>
                                     <span className="font-mono tabular-nums">{Math.max(0, Math.min(100, refinementProgress))}%</span>
                                 </div>

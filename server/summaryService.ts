@@ -26,7 +26,7 @@ import { getSelectiveUserUpdate } from './utils/userUpdateHelper.js';
 import * as mannerService from './mannerService.js';
 import { openEquipmentBox1, openGuildGradeBox, rollRandomEquipmentFromGradeWeights } from './shop.js';
 import * as effectService from './effectService.js';
-import { recordActionPointRestore } from '../shared/utils/actionPointRegen.js';
+import { isPveAbandonForfeitGame } from './utils/pveAbandonOnDisconnect.js';
 import { randomUUID } from 'crypto';
 // FIX: Correctly import aiUser and getAiUser.
 import { aiUserId, getAiUser } from './aiPlayer.js';
@@ -1567,6 +1567,8 @@ const processPlayerSummary = async (
     const isPlayful = PLAYFUL_GAME_MODES.some(m => m.mode === mode);
     /** 기권한 쪽만 완주 실패 처리 — 상대(승자)는 놀이바둑도 골드·아이템 등은 정상 지급(EXP는 놀이바둑 전부 0) */
     const isPlayfulResignLoser = isPlayful && winReason === 'resign' && !isWinner;
+    const isPveAbandonForfeitLoser =
+        isPveAbandonForfeitGame(game) && !isWinner && !isDraw && player.id !== aiUserId;
     const initialLevel = updatedPlayer.userLevel;
     const opponentLevel = opponent.userLevel;
     const initialXp = updatedPlayer.userXp;
@@ -1688,7 +1690,7 @@ const processPlayerSummary = async (
     if (!isNoContest && isPlayful) {
         xpGain = 0;
     }
-    if (isPvpHumanResignLoser) {
+    if (isPvpHumanResignLoser || isPveAbandonForfeitLoser) {
         xpGain = 0;
     }
     // --- END NEW LOGIC ---
@@ -2062,7 +2064,7 @@ const processPlayerSummary = async (
         delete rewards.adventureGoldUnderstandingBonus;
     }
     // 기권한 플레이어만 재화/아이템 없음(승자·기권 승리 상대는 정상 지급)
-    if (isPlayfulResignLoser || isPvpHumanResignLoser) {
+    if (isPlayfulResignLoser || isPvpHumanResignLoser || isPveAbandonForfeitLoser) {
         rewards.gold = 0;
         rewards.diamonds = 0;
         rewards.items = [];

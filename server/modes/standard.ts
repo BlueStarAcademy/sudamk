@@ -3,7 +3,7 @@ import * as types from '../../types/index.js';
 import { GameCategory } from '../../types/enums.js';
 import * as db from '../db.js';
 import { getGoLogic, processMove } from '../goLogic.js';
-import { getGameResult } from '../gameModes.js';
+import { getGameResult, invalidateScoringPrecompute, maybeStartAnticipatedScoringPrecompute } from '../gameModes.js';
 import {
     initializeNigiri,
     updateNigiriState,
@@ -73,6 +73,10 @@ import {
 import { modeIncludesBaseRule } from '../../shared/utils/liveSessionArenaKind.js';
 import { findLatestMoveIndexAtExcludingRecordedBaseStones } from '../../shared/utils/baseHiddenMoveIndex.js';
 import { schedulePairAiTurnIfNeeded as enqueuePairAiTurnIfNeeded } from '../utils/pairAiTurnSchedule.js';
+import {
+    humanPvpAllowsMoveCountAutoScoring,
+    applyHumanPvpStrategicSettingsInvariants,
+} from './pvpStrategicPipeline.js';
 import {
     mixGoClearHiddenItemPhaseTimers,
     mixGoHiddenInventoryKeyForPlayer,
@@ -271,7 +275,9 @@ async function finalizePveHiddenPlacementFromAuthoritativeClient(
         game.turnStartTime = undefined;
     }
 
-    const autoScoringTurns = await resolveArenaFixedScoringTurnLimit(game);
+    const autoScoringTurns = humanPvpAllowsMoveCountAutoScoring(game)
+        ? await resolveArenaFixedScoringTurnLimit(game)
+        : undefined;
     if (autoScoringTurns != null && autoScoringTurns > 0) {
         game.totalTurns = getArenaTurnCount(game);
         if (game.totalTurns >= autoScoringTurns) {
@@ -453,6 +459,7 @@ const transitionPlayingOrAdventureNigiriReveal = (game: types.LiveGameSession, n
 };
 
 export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.Negotiation, now: number) => {
+    applyHumanPvpStrategicSettingsInvariants(game);
     const p1 = game.player1;
     const p2 = game.player2;
 
@@ -1606,6 +1613,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             game.koInfo = result.newKoInfo;
             game.passCount = 0;
             if (pairCurrentSeat) resetPairPasses(game.settings);
+            invalidateScoringPrecompute(game.id);
 
             if (effectiveIsHidden) {
                 if (!game.hiddenMoves) game.hiddenMoves = {};
@@ -1830,7 +1838,9 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             }
 
             // 싱글플레이/도전의 탑/길드전(히든·미사일) 자동 계가: 사용자가 돌을 놓은 후 totalTurns 업데이트 및 계가 트리거
-            const autoScoringTurns = await resolveArenaFixedScoringTurnLimit(game);
+            const autoScoringTurns = humanPvpAllowsMoveCountAutoScoring(game)
+                ? await resolveArenaFixedScoringTurnLimit(game)
+                : undefined;
             const isAutoScoringMode = autoScoringTurns != null && autoScoringTurns > 0;
             if (isAutoScoringMode) {
                 if (autoScoringTurns !== undefined) {
@@ -1979,6 +1989,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             // 통과 시 단순 코(ko) 금지 해제 — 이전 턴 koInfo가 남아 상대 다점 따내기 직후 재따내기가 막히는 버그 방지
             game.koInfo = null;
             game.passCount++;
+            maybeStartAnticipatedScoringPrecompute(game);
             game.lastMove = { x: -1, y: -1 };
             game.lastTurnStones = null;
             game.moveHistory.push({
@@ -2047,10 +2058,24 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                         if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
                         game.permanentlyRevealedStones.push(...unrevealedStones.map(s => s.point));
                     } else {
-                        getGameResult(game);
+                        try {
+                            await getGameResult(game);
+                        } catch (e: any) {
+                            console.error(
+                                `[handleStandardAction] getGameResult failed after mutual PASS_TURN (hidden, no reveal) for game ${game.id}:`,
+                                e?.message,
+                            );
+                        }
                     }
                 } else {
-                    getGameResult(game);
+                    try {
+                        await getGameResult(game);
+                    } catch (e: any) {
+                        console.error(
+                            `[handleStandardAction] getGameResult failed after mutual PASS_TURN for game ${game.id}:`,
+                            e?.message,
+                        );
+                    }
                 }
             } else {
                 const playerWhoMoved = myPlayerEnum;

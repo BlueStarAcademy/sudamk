@@ -12,8 +12,16 @@ import {
 } from '../shared/utils/towerStageRules.js';
 import { TOWER_CHALLENGE_LOBBY_IMG, TOWER_MOBILE_HERO_WEBP } from '../assets.js';
 import { getKSTDate, getKSTMonth, getKSTFullYear } from '../utils/timeUtils.js';
-import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from './QuickAccessSidebar.js';
-import TowerItemShopModal from './TowerItemShopModal.js';
+import QuickAccessSidebar from './QuickAccessSidebar.js';
+import PcLobbyCenterColumn from './shell/PcLobbyCenterColumn.js';
+import {
+    PC_HOME_LEFT_COLUMN_CLASS,
+    PC_LOBBY_THREE_COLUMN_ROW_GAP_CLASS,
+    PC_QUICK_RAIL_COLUMN_CLASS,
+    PC_QUICK_RAIL_WRAPPER_CLASS,
+} from '../shared/constants/pcShellLayout.js';
+import PurchaseQuantityModal from './PurchaseQuantityModal.js';
+import { buildTowerShopPurchasableItem } from '../shared/constants/towerShopItems.js';
 import DraggableWindow from './DraggableWindow.js';
 import {
     countTowerLobbyInventoryQty,
@@ -24,6 +32,7 @@ import {
     TOWER_ITEM_REFRESH_NAMES,
 } from '../utils/towerLobbyInventory.js';
 import { formatGoldAmountKoG } from '../shared/utils/walletAmountDisplay.js';
+import { RANKING_MODAL_SLIM_SCROLL_Y } from '../shared/constants/rankingModalScrollbar.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { useScreenGuide } from '../hooks/useScreenGuide.js';
 import ScreenGuideModal from './ScreenGuideModal.js';
@@ -131,12 +140,20 @@ const resolveTowerRewardImage = (itemId: string): string => {
     return itemTemplate?.image || '/images/icon/item_box.webp';
 };
 
+const TOWER_LOBBY_INVENTORY_ITEMS = [
+    { itemId: '턴 추가', name: '턴 추가', icon: '/images/button/addturn.webp', namesOrIds: TOWER_ITEM_TURN_ADD_NAMES },
+    { itemId: '미사일', name: '미사일', icon: '/images/button/missile.webp', namesOrIds: TOWER_ITEM_MISSILE_NAMES },
+    { itemId: '히든', name: '히든', icon: '/images/button/hidden.webp', namesOrIds: TOWER_ITEM_HIDDEN_NAMES },
+    { itemId: '스캔', name: '스캔', icon: '/images/button/scan.webp', namesOrIds: TOWER_ITEM_SCAN_NAMES },
+    { itemId: '배치변경', name: '배치변경', icon: '/images/button/reflesh.webp', namesOrIds: TOWER_ITEM_REFRESH_NAMES },
+] as const;
+
 const TowerLobby: React.FC = () => {
         const { currentUser, currentUserWithStatus, handlers, towerRankingsRefetchTrigger } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
     const towerScreenGuide = useScreenGuide('tower');
     const [isRewardModalOpen, setIsRewardModalOpen] = useState(false);
-    const [isItemShopOpen, setIsItemShopOpen] = useState(false);
+    const [towerPurchasingItemId, setTowerPurchasingItemId] = useState<string | null>(null);
     /** 네이티브 모바일: 도전의 탑 히어로 우측 슬라이드 패널 */
     const [mobileHeroDrawer, setMobileHeroDrawer] = useState<null | 'record' | 'ranking' | 'inventory'>(null);
     const [mobileRewardTooltipKey, setMobileRewardTooltipKey] = useState<string | null>(null);
@@ -188,6 +205,15 @@ const TowerLobby: React.FC = () => {
     }, []);
 
     const onBackToProfile = () => window.location.hash = '#/profile';
+
+    const openTowerItemPurchase = (itemId: string) => {
+        setTowerPurchasingItemId(itemId);
+    };
+
+    const towerPurchasingItem =
+        towerPurchasingItemId && currentUserWithStatus
+            ? buildTowerShopPurchasableItem(currentUserWithStatus, towerPurchasingItemId)
+            : null;
 
     if (!currentUser || !currentUserWithStatus) {
         return null;
@@ -279,14 +305,12 @@ const TowerLobby: React.FC = () => {
 
     const rankingColClass = isNativeMobile
         ? 'flex max-h-[32dvh] min-h-0 w-full flex-none flex-col gap-1 overflow-hidden pb-0.5'
-        : 'flex-[4_1_0%] min-w-0 flex flex-col gap-2 min-h-0 overflow-hidden';
-    const imageColClass = isNativeMobile
-        ? 'relative h-[14dvh] max-h-[120px] min-h-[72px] w-full flex-shrink-0 overflow-hidden rounded-lg border-2 border-amber-600/40 bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 shadow-lg shadow-amber-900/40 backdrop-blur-md'
-        : 'flex-[5_1_0%] min-w-0 bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl overflow-hidden backdrop-blur-md shadow-2xl shadow-amber-900/50 relative min-h-0';
+        : `flex h-full min-h-0 ${PC_HOME_LEFT_COLUMN_CLASS} flex-col gap-2 overflow-hidden`;
+    const pcImageColClass =
+        'relative min-h-0 min-w-0 flex-[5_1_0%] overflow-hidden rounded-xl border-2 border-amber-600/40 bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 shadow-2xl shadow-amber-900/50 backdrop-blur-md';
     const stageColClass = isNativeMobile
         ? 'flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-lg border-2 border-amber-600/40 bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 p-1 shadow-lg shadow-amber-900/40 backdrop-blur-md sm:p-2'
-        : 'flex-[7_1_0%] min-w-0 bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl p-2 sm:p-3 flex flex-col min-h-0 overflow-hidden backdrop-blur-md shadow-2xl shadow-amber-900/50';
-    /** 프로필 홈(Profile) 우측 퀵 레일과 동일한 열 래핑 */
+        : 'flex min-h-0 min-w-0 flex-[7_1_0%] flex-col overflow-hidden rounded-xl border-2 border-amber-600/40 bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 p-2 sm:p-3 shadow-2xl shadow-amber-900/50 backdrop-blur-md';
     const quickColClass = `flex h-full min-h-0 ${PC_QUICK_RAIL_COLUMN_CLASS} flex-col overflow-hidden self-stretch`;
 
     const renderTowerFloorRows = () =>
@@ -595,13 +619,10 @@ const TowerLobby: React.FC = () => {
             const inventory = currentUserWithStatus?.inventory || [];
             const getItemCount = (namesOrIds: readonly string[]): number =>
                 countTowerLobbyInventoryQty(inventory, namesOrIds);
-            const mobileTowerItems = [
-                { name: '턴 추가', icon: '/images/button/addturn.webp', count: getItemCount(TOWER_ITEM_TURN_ADD_NAMES) },
-                { name: '미사일', icon: '/images/button/missile.webp', count: getItemCount(TOWER_ITEM_MISSILE_NAMES) },
-                { name: '히든', icon: '/images/button/hidden.webp', count: getItemCount(TOWER_ITEM_HIDDEN_NAMES) },
-                { name: '스캔', icon: '/images/button/scan.webp', count: getItemCount(TOWER_ITEM_SCAN_NAMES) },
-                { name: '배치변경', icon: '/images/button/reflesh.webp', count: getItemCount(TOWER_ITEM_REFRESH_NAMES) },
-            ] as const;
+            const mobileTowerItems = TOWER_LOBBY_INVENTORY_ITEMS.map((item) => ({
+                ...item,
+                count: getItemCount(item.namesOrIds),
+            }));
 
             const mobileHeroDrawerOpen = mobileHeroDrawer !== null;
             const setMobileDrawer = (next: 'record' | 'ranking' | 'inventory') => {
@@ -843,12 +864,12 @@ const TowerLobby: React.FC = () => {
                                     {mobileHeroDrawer === 'inventory' && (
                                         <div className="space-y-2">
                                             <div className="grid grid-cols-3 gap-1.5">
-                                                {mobileTowerItems.map((item, index) => (
+                                                {mobileTowerItems.map((item) => (
                                                     <button
-                                                        key={index}
+                                                        key={item.itemId}
                                                         type="button"
                                                         className="flex flex-col items-center justify-center gap-0.5 rounded-lg border border-amber-700/35 bg-gray-800/50 px-1 py-1.5 transition-colors hover:border-amber-600/55 hover:bg-gray-700/50"
-                                                        onClick={() => setIsItemShopOpen(true)}
+                                                        onClick={() => openTowerItemPurchase(item.itemId)}
                                                     >
                                                         <div className="relative h-9 w-9 flex-shrink-0">
                                                             <img src={item.icon} alt={item.name} className="h-full w-full object-contain" />
@@ -864,13 +885,6 @@ const TowerLobby: React.FC = () => {
                                                     </button>
                                                 ))}
                                             </div>
-                                            <Button
-                                                onClick={() => setIsItemShopOpen(true)}
-                                                colorScheme="none"
-                                                className="w-full !py-1.5 !text-xs font-semibold border border-amber-600/50 bg-amber-900/45 hover:bg-amber-800/60 text-amber-100"
-                                            >
-                                                구매하기
-                                            </Button>
                                         </div>
                                     )}
                                 </div>
@@ -884,7 +898,7 @@ const TowerLobby: React.FC = () => {
                             </h2>
                             <div
                                 ref={stageScrollRef}
-                                className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-0.5"
+                                className={`min-h-0 flex-1 overflow-y-auto overscroll-contain pr-0.5 ${RANKING_MODAL_SLIM_SCROLL_Y}`}
                             >
                                 <div className="space-y-2 pb-1">{renderTowerFloorRows()}</div>
                             </div>
@@ -1105,72 +1119,62 @@ const TowerLobby: React.FC = () => {
                             <h3 className="text-xs sm:text-sm font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-300 drop-shadow-[0_0_4px_rgba(217,119,6,0.8)]">
                                 보유 아이템
                             </h3>
-                            <Button
-                                onClick={() => setIsItemShopOpen(true)}
-                                colorScheme="none"
-                                className="!py-1 !px-2 !min-w-0 text-xs font-semibold border border-amber-600/50 bg-amber-900/40 hover:bg-amber-800/60 text-amber-200"
-                            >
-                                구매하기
-                            </Button>
                         </div>
                         <div className="flex flex-row gap-2 justify-center items-center flex-wrap">
                             {(() => {
                                 const inventory = currentUserWithStatus?.inventory || [];
                                 const getItemCount = (namesOrIds: readonly string[]): number =>
                                     countTowerLobbyInventoryQty(inventory, namesOrIds);
-                                const items = [
-                                    { name: '턴 추가', icon: '/images/button/addturn.webp', count: getItemCount(TOWER_ITEM_TURN_ADD_NAMES) },
-                                    { name: '미사일', icon: '/images/button/missile.webp', count: getItemCount(TOWER_ITEM_MISSILE_NAMES) },
-                                    { name: '히든', icon: '/images/button/hidden.webp', count: getItemCount(TOWER_ITEM_HIDDEN_NAMES) },
-                                    { name: '스캔', icon: '/images/button/scan.webp', count: getItemCount(TOWER_ITEM_SCAN_NAMES) },
-                                    { name: '배치변경', icon: '/images/button/reflesh.webp', count: getItemCount(TOWER_ITEM_REFRESH_NAMES) },
-                                ];
-                                return items.map((item, index) => (
+                                return TOWER_LOBBY_INVENTORY_ITEMS.map((item) => {
+                                    const count = getItemCount(item.namesOrIds);
+                                    return (
                                     <button
-                                        key={index}
+                                        key={item.itemId}
+                                        type="button"
                                         className="flex flex-col items-center gap-0.5 bg-gray-800/40 border border-amber-700/30 rounded-lg p-2 hover:bg-gray-700/50 hover:border-amber-600/50 transition-colors"
-                                        onClick={() => setIsItemShopOpen(true)}
+                                        onClick={() => openTowerItemPurchase(item.itemId)}
                                     >
                                         <div className="relative w-9 h-9 flex-shrink-0">
                                             <img src={item.icon} alt={item.name} className="w-full h-full object-contain" />
-                                            <div className={`absolute -bottom-0.5 -right-0.5 text-[8px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center border border-amber-900 ${item.count > 0 ? 'bg-yellow-400 text-gray-900' : 'bg-gray-600 text-gray-300'}`}>
-                                                {item.count}
+                                            <div className={`absolute -bottom-0.5 -right-0.5 text-[8px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center border border-amber-900 ${count > 0 ? 'bg-yellow-400 text-gray-900' : 'bg-gray-600 text-gray-300'}`}>
+                                                {count}
                                             </div>
                                         </div>
                                         <p className="text-[10px] font-semibold text-amber-100 text-center leading-tight">{item.name}</p>
                                     </button>
-                                ));
+                                    );
+                                });
                             })()}
                         </div>
                     </div>
                     </div>
 
-                    {/* 가운데: 도전의 탑 이미지 */}
-                    <div className={imageColClass}>
-                    <div className="absolute inset-0 bg-gradient-to-br from-amber-600/10 via-transparent to-yellow-600/10 rounded-xl"></div>
-                    <img
-                        src={TOWER_CHALLENGE_LOBBY_IMG}
-                        alt="도전의 탑"
-                        className="w-full h-full object-cover object-center relative z-10"
-                    />
-                </div>
+                    <PcLobbyCenterColumn transparentShell fullWidth>
+                        <div className="flex h-full min-h-0 w-full flex-row gap-2 overflow-hidden sm:gap-3">
+                            <div className={pcImageColClass}>
+                                <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-amber-600/10 via-transparent to-yellow-600/10" />
+                                <img
+                                    src={TOWER_CHALLENGE_LOBBY_IMG}
+                                    alt="도전의 탑"
+                                    className="relative z-10 h-full w-full object-cover object-center"
+                                />
+                            </div>
+                            <div className={stageColClass}>
+                                <h2 className="mb-3 flex-shrink-0 bg-gradient-to-r from-amber-300 to-yellow-300 bg-clip-text text-base font-bold text-transparent drop-shadow-[0_0_4px_rgba(217,119,6,0.8)] sm:text-lg">
+                                    스테이지
+                                </h2>
+                                <div
+                                    ref={stageScrollRef}
+                                    className={`min-h-0 flex-1 space-y-1.5 overflow-y-auto ${RANKING_MODAL_SLIM_SCROLL_Y}`}
+                                >
+                                    {renderTowerFloorRows()}
+                                </div>
+                            </div>
+                        </div>
+                    </PcLobbyCenterColumn>
 
-                    {/* 우측: 스테이지 */}
-                    <div className={stageColClass}>
-                    <h2 className="text-base sm:text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-300 mb-3 flex-shrink-0 drop-shadow-[0_0_4px_rgba(217,119,6,0.8)]">
-                        스테이지
-                    </h2>
-                    <div
-                        ref={stageScrollRef}
-                        className="flex-1 overflow-y-auto space-y-1.5 pr-1"
-                    >
-                                                {renderTowerFloorRows()}
-                    </div>
-                </div>
-
-                {/* 우측 끝: 퀵메뉴 — 프로필 홈과 동일 패널(App 네이티브 상단 퀵스트립과 동일 컴포넌트) */}
                 <div className={quickColClass} aria-label="퀵 메뉴">
-                    <div className="flex h-full min-h-0 flex-col rounded-xl border-2 border-amber-600/55 bg-gradient-to-br from-zinc-900 via-amber-950 to-zinc-950 p-1 shadow-xl shadow-black/40">
+                    <div className={PC_QUICK_RAIL_WRAPPER_CLASS}>
                         <QuickAccessSidebar fillHeight={true} />
                     </div>
                 </div>
@@ -1277,19 +1281,20 @@ const TowerLobby: React.FC = () => {
                     {renderTowerMainColumns()}
                 </div>
             ) : (
-                <div className="flex min-h-0 w-full min-w-0 flex-1 flex-row gap-2 overflow-hidden px-2 py-2 sm:gap-3 sm:px-3 sm:py-3 lg:gap-4 lg:px-4 lg:py-4">
+                <div className={`flex min-h-0 w-full min-w-0 flex-1 flex-row overflow-hidden px-2 py-2 sm:px-3 sm:py-3 ${PC_LOBBY_THREE_COLUMN_ROW_GAP_CLASS}`}>
                     {renderTowerMainColumns()}
                 </div>
             )}
-            {/* 아이템 구매 모달 */}
-            {isItemShopOpen && currentUserWithStatus && (
-                <TowerItemShopModal
+            {towerPurchasingItem && currentUserWithStatus && (
+                <PurchaseQuantityModal
+                    item={towerPurchasingItem}
                     currentUser={currentUserWithStatus}
-                    onClose={() => setIsItemShopOpen(false)}
-                    onBuy={async (itemId, quantity) => {
+                    ignoreInventorySlotLimit
+                    onClose={() => setTowerPurchasingItemId(null)}
+                    onConfirm={async (itemId, quantity) => {
                         await handlers.handleAction({
                             type: 'BUY_TOWER_ITEM',
-                            payload: { itemId, quantity }
+                            payload: { itemId, quantity },
                         } as any);
                     }}
                 />
