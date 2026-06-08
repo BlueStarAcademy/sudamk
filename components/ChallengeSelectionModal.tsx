@@ -12,8 +12,7 @@ import {
   ALKKAGI_STONE_COUNTS, ALKKAGI_ROUNDS, ALKKAGI_GAUGE_SPEEDS, ALKKAGI_ITEM_COUNTS,
   CURLING_STONE_COUNTS, CURLING_ROUNDS, CURLING_GAUGE_SPEEDS, CURLING_ITEM_COUNTS,
   OMOK_BOARD_SIZES, HIDDEN_BOARD_SIZES, DICE_GO_ITEM_COUNTS, getStrategicBoardSizesByMode,
-  FISCHER_INCREMENT_SECONDS_OPTIONS,
-  applySpeedFischerDefaults,
+  applySpeedByoyomiDefaults,
 } from '../constants/gameSettings';
 import { getRankedGameSettings } from '../constants/rankedGameSettings';
 import { MAX_GAME_INTEGER_INPUT } from '../shared/constants/numericLimits.js';
@@ -330,7 +329,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
       mode === GameMode.Speed ||
       (mode === GameMode.Mix && base.mixedModes?.includes(GameMode.Speed))
     ) {
-      return applySpeedFischerDefaults(base);
+      return applySpeedByoyomiDefaults(base);
     }
     return base;
   }, []);
@@ -371,7 +370,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
         next.komi = 0.5;
       }
       if (mode === GameMode.Speed && checked) {
-        return applySpeedFischerDefaults(next);
+        return applySpeedByoyomiDefaults(next);
       }
       return next;
     });
@@ -453,7 +452,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
       ![GameMode.Capture, GameMode.Omok, GameMode.Ttamok, GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Thief, GameMode.Base].includes(selectedMode) &&
       !(isMix && mix.includes(GameMode.Base));
     const showTimeControls = ![GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Thief].includes(selectedMode);
-    const showFischer = selectedMode === GameMode.Speed || (isMix && mix.includes(GameMode.Speed));
+    const showSpeedTimeControls = selectedMode === GameMode.Speed || (isMix && mix.includes(GameMode.Speed));
 
     const showMixModeSelection = isMix;
     const showCaptureTarget = selectedMode === GameMode.Capture || (isMix && mix.includes(GameMode.Capture));
@@ -619,12 +618,12 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
         </SettingsSection>
 
         {showTimeControls && (
-          <SettingsSection title={showFischer ? '제한 시간·피셔' : '제한 시간·초읽기'} scaleFactor={scaleFactor}>
-            {showFischer ? (
+          <SettingsSection title={showSpeedTimeControls ? '스피드 시간 규칙' : '제한 시간·초읽기'} scaleFactor={scaleFactor}>
+            {showSpeedTimeControls ? (
               <>
                 <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
                   <label className={settingsLabelClass} style={labelStyle}>
-                    제한 시간
+                    메인 제한 시간
                   </label>
                   <select
                     value={settings.timeLimit}
@@ -639,23 +638,9 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                     ))}
                   </select>
                 </div>
-                <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-                  <label className={settingsLabelClass} style={labelStyle}>
-                    추가 시간 (피셔)
-                  </label>
-                  <select
-                    value={settings.timeIncrement ?? 5}
-                    onChange={(e) => handleSettingChange('timeIncrement', parseInt(e.target.value, 10))}
-                    className={`${settingsSelectFullClass} min-h-[2.75rem]`}
-                    style={selectFontStyle}
-                  >
-                    {FISCHER_INCREMENT_SECONDS_OPTIONS.map((sec) => (
-                      <option key={sec} value={sec}>
-                        {sec}초/수
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <p className="text-sm text-gray-300" style={labelStyle}>
+                  한 수당 10초 초읽기 · 10초 초과마다 상대 +1점 · 메인 시간 소진 시 시간패
+                </p>
               </>
             ) : (
               <>

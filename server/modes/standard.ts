@@ -22,7 +22,11 @@ import {
     shouldEnforceTimeControl,
     enforceBaseSeatLockIfDriftedDuringPlay,
 } from './shared.js';
-import { isFischerStyleTimeControl, getFischerIncrementSeconds } from '../../shared/utils/gameTimeControl.js';
+import { isFischerStyleTimeControl, getFischerIncrementSeconds, isSpeedPerMoveTimeControl } from '../../shared/utils/gameTimeControl.js';
+import {
+    applySpeedMoveClockEnd,
+    applySpeedNextTurnClockStart,
+} from '../../shared/utils/speedTimePressureSessionSync.js';
 import {
     advancePairTurn,
     confirmPairOrderReveal,
@@ -89,28 +93,46 @@ function modeIncludesCaptureRule(game: types.LiveGameSession): boolean {
         (game.mode === types.GameMode.Mix && Boolean(game.settings?.mixedModes?.includes(types.GameMode.Capture)));
 }
 
-const resolveEffectiveFischerIncrement = (game: types.LiveGameSession): number => {
-    const isSpeedMode =
-        game.mode === types.GameMode.Speed ||
-        (game.mode === types.GameMode.Mix && !!game.settings?.mixedModes?.includes(types.GameMode.Speed));
-    // AI 대국 스피드는 피셔 증분을 비활성화한다.
-    if (game.isAiGame && isSpeedMode) return 0;
-    return getFischerIncrementSeconds(game as any);
+const accountMainClockAfterMove = (game: types.LiveGameSession, playerWhoMoved: types.Player, now: number): void => {
+    if (isSpeedPerMoveTimeControl(game)) {
+        applySpeedMoveClockEnd(game, playerWhoMoved, now, aiUserId);
+        return;
+    }
+    const timeKey = playerWhoMoved === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+    const byoyomiKey = playerWhoMoved === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
+    const fischerIncrement = getFischerIncrementSeconds(game as any);
+    const isFischer = isFischerStyleTimeControl(game as any);
+    const isInByoyomi =
+        game[timeKey] <= 0 && game.settings.byoyomiCount > 0 && game[byoyomiKey] > 0 && !isFischer;
+    if (isInByoyomi) {
+        game[timeKey] = 0;
+        return;
+    }
+    if (game.turnDeadline) {
+        const timeRemaining = Math.max(0, (game.turnDeadline - now) / 1000);
+        game[timeKey] = timeRemaining + fischerIncrement;
+    } else if (game.pausedTurnTimeLeft) {
+        game[timeKey] = game.pausedTurnTimeLeft + fischerIncrement;
+    } else {
+        game[timeKey] += fischerIncrement;
+    }
 };
 
-const addSpeedConsumedSeconds = (game: types.LiveGameSession, player: types.Player, consumedSec: number): void => {
-    if (consumedSec <= 0) return;
-    const isSpeedMode =
-        game.mode === types.GameMode.Speed ||
-        (game.mode === types.GameMode.Mix && !!game.settings?.mixedModes?.includes(types.GameMode.Speed));
-    if (!isSpeedMode) return;
-    const bag = (((game.settings as any).__speedBonusConsumedSec ??= {}) as { black?: number; white?: number });
-    if (player === types.Player.Black) {
-        bag.black = Math.max(0, Number(bag.black ?? 0)) + consumedSec;
-    } else if (player === types.Player.White) {
-        bag.white = Math.max(0, Number(bag.white ?? 0)) + consumedSec;
+const startNextTurnClock = (game: types.LiveGameSession, now: number): void => {
+    if (isSpeedPerMoveTimeControl(game)) {
+        applySpeedNextTurnClockStart(game, now);
+        return;
     }
-    syncSpeedTimePressureCaptures(game, Date.now());
+    const nextPlayer = game.currentPlayer;
+    const nextTimeKey = nextPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+    const nextByoyomiKey = nextPlayer === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
+    const isFischer = isFischerStyleTimeControl(game as any);
+    const isNextInByoyomi =
+        game[nextTimeKey] <= 0 && game.settings.byoyomiCount > 0 && game[nextByoyomiKey] > 0 && !isFischer;
+    game.turnDeadline = isNextInByoyomi
+        ? now + game.settings.byoyomiTime * 1000
+        : now + game[nextTimeKey] * 1000;
+    game.turnStartTime = now;
 };
 
 function findLatestMoveIndexAt(
@@ -260,16 +282,7 @@ async function finalizePveHiddenPlacementFromAuthoritativeClient(
     mixGoClearHiddenItemPhaseTimers(game);
 
     if (shouldRunGoClockAccountingForSession(game)) {
-        const nextPlayer = game.currentPlayer;
-        const nextTimeKey = nextPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-        const nextByoyomiKey = nextPlayer === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
-        const isFischer = isFischerStyleTimeControl(game as any);
-        const isNextInByoyomi =
-            game[nextTimeKey] <= 0 && game.settings.byoyomiCount > 0 && game[nextByoyomiKey] > 0 && !isFischer;
-        game.turnDeadline = isNextInByoyomi
-            ? now + game.settings.byoyomiTime * 1000
-            : now + game[nextTimeKey] * 1000;
-        game.turnStartTime = now;
+        startNextTurnClock(game, now);
     } else {
         game.turnDeadline = undefined;
         game.turnStartTime = undefined;
@@ -631,7 +644,13 @@ export const updateStrategicGameState = async (game: types.LiveGameSession, now:
 
     // 플레이어가 차례를 시작할 때 초읽기 모드인지 확인하고, 초읽기 시간을 30초로 리셋
     // (초읽기 모드에서 수를 두면 다음 턴에서 30초로 꽉 채워짐)
-    if (game.gameStatus === 'playing' && hasTimeControl(game.settings) && shouldEnforceTimeControl(game) && game.turnStartTime) {
+    if (
+        game.gameStatus === 'playing' &&
+        hasTimeControl(game.settings) &&
+        shouldEnforceTimeControl(game) &&
+        game.turnStartTime &&
+        !isSpeedPerMoveTimeControl(game)
+    ) {
         const timeSinceTurnStart = now - game.turnStartTime;
         // 턴이 시작된 직후 (100ms 이내)에만 체크하여 중복 방지
         if (timeSinceTurnStart >= 0 && timeSinceTurnStart < 100) {
@@ -651,8 +670,22 @@ export const updateStrategicGameState = async (game: types.LiveGameSession, now:
             }
         }
     }
+
+    if (game.gameStatus === 'playing' && shouldEnforceTimeControl(game) && isSpeedPerMoveTimeControl(game) && game.turnStartTime) {
+        const timedOutPlayer = game.currentPlayer;
+        const timeKey = timedOutPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+        const mainLeft = Math.max(0, Number(game[timeKey] ?? 0));
+        const elapsed = Math.max(0, (now - game.turnStartTime) / 1000);
+        if (mainLeft - elapsed <= 0) {
+            const winner = timedOutPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
+            game.lastTimeoutPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
+            game.lastTimeoutPlayerIdClearTime = now + 5000;
+            summaryService.endGame(game, winner, 'timeout');
+            return;
+        }
+    }
     
-    if (game.gameStatus === 'playing' && shouldEnforceTimeControl(game) && game.turnDeadline && now > game.turnDeadline) {
+    if (game.gameStatus === 'playing' && shouldEnforceTimeControl(game) && game.turnDeadline && now > game.turnDeadline && !isSpeedPerMoveTimeControl(game)) {
         const timedOutPlayer = game.currentPlayer;
         const timeKey = timedOutPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
         const byoyomiKey = timedOutPlayer === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
@@ -1766,39 +1799,9 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             }
 
             const playerWhoMoved = myPlayerEnum;
-            // 수를 둔 플레이어가 초읽기 모드에서 수를 두었는지 기록 (다음 턴에서 30초로 리셋하기 위해)
-            let movedPlayerWasInByoyomi = false;
             
             if (shouldRunGoClockAccountingForSession(game)) {
-                const timeKey = playerWhoMoved === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-                const byoyomiKey = playerWhoMoved === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
-                const fischerIncrement = resolveEffectiveFischerIncrement(game);
-                const isFischer = isFischerStyleTimeControl(game as any);
-                
-                // 초읽기 모드인지 확인 (메인 시간이 0이고 초읽기 횟수가 남아있는 경우)
-                const isInByoyomi = game[timeKey] <= 0 && game.settings.byoyomiCount > 0 && game[byoyomiKey] > 0 && !isFischer;
-                movedPlayerWasInByoyomi = isInByoyomi;
-                
-                if (isInByoyomi) {
-                    // 초읽기 모드에서 수를 두면 다음 턴에서 30초로 리셋됨
-                    // 현재는 시간을 0으로 유지 (다음 턴에서 30초로 설정됨)
-                    game[timeKey] = 0; // 초읽기 모드이므로 메인 시간은 0으로 유지
-                } else {
-                    // 일반 모드: 남은 시간 저장
-                    if (game.turnDeadline) {
-                        const prevTime = Math.max(0, Number(game[timeKey] ?? 0));
-                        const timeRemaining = Math.max(0, (game.turnDeadline - now) / 1000);
-                        addSpeedConsumedSeconds(game, playerWhoMoved, Math.max(0, prevTime - timeRemaining));
-                        game[timeKey] = timeRemaining + fischerIncrement;
-                    } else if(game.pausedTurnTimeLeft) {
-                        const prevTime = Math.max(0, Number(game[timeKey] ?? 0));
-                        const resumed = Math.max(0, Number(game.pausedTurnTimeLeft ?? 0));
-                        addSpeedConsumedSeconds(game, playerWhoMoved, Math.max(0, prevTime - resumed));
-                        game[timeKey] = game.pausedTurnTimeLeft + fischerIncrement;
-                    } else {
-                        game[timeKey] += fischerIncrement;
-                    }
-                }
+                accountMainClockAfterMove(game, playerWhoMoved, now);
             }
 
             // 따내기 목표 달성 시 턴을 넘기기 전에 종료(상대가 한 수 더 두는 레이스 방지)
@@ -1814,24 +1817,11 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             game.missileUsedThisTurn = false;
             
             game.gameStatus = 'playing';
-            game.itemUseDeadline = undefined;
-            game.pausedTurnTimeLeft = undefined;
+            mixGoClearHiddenItemPhaseTimers(game);
 
 
             if (shouldRunGoClockAccountingForSession(game)) {
-                const nextPlayer = game.currentPlayer;
-                const nextTimeKey = nextPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-                const nextByoyomiKey = nextPlayer === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
-                const isFischer = isFischerStyleTimeControl(game as any);
-                const isNextInByoyomi = game[nextTimeKey] <= 0 && game.settings.byoyomiCount > 0 && game[nextByoyomiKey] > 0 && !isFischer;
-
-                if (isNextInByoyomi) {
-                    // 다음 플레이어가 초읽기 모드인 경우 초읽기 시간 설정
-                    game.turnDeadline = now + game.settings.byoyomiTime * 1000;
-                } else {
-                    game.turnDeadline = now + game[nextTimeKey] * 1000;
-                }
-                game.turnStartTime = now;
+                startNextTurnClock(game, now);
             } else {
                  game.turnDeadline = undefined;
                  game.turnStartTime = undefined;
@@ -2080,14 +2070,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             } else {
                 const playerWhoMoved = myPlayerEnum;
                 if (shouldRunGoClockAccountingForSession(game)) {
-                    const timeKey = playerWhoMoved === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-                    
-                    if (game.turnDeadline) {
-                        const prevTime = Math.max(0, Number(game[timeKey] ?? 0));
-                        const timeRemaining = Math.max(0, (game.turnDeadline - now) / 1000);
-                        addSpeedConsumedSeconds(game, playerWhoMoved, Math.max(0, prevTime - timeRemaining));
-                        game[timeKey] = timeRemaining;
-                    }
+                    accountMainClockAfterMove(game, playerWhoMoved, now);
                 }
                 if (pairCurrentSeat) {
                     advancePairTurnAfterAction(game, now);
@@ -2095,17 +2078,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                     game.currentPlayer = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
                 }
                 if (shouldRunGoClockAccountingForSession(game)) {
-                    const nextPlayer = game.currentPlayer;
-                    const nextTimeKey = nextPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-                    const nextByoyomiKey = nextPlayer === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
-                     const isFischer = isFischerStyleTimeControl(game as any);
-                    const isNextInByoyomi = game[nextTimeKey] <= 0 && game.settings.byoyomiCount > 0 && game[nextByoyomiKey] > 0 && !isFischer;
-                    if (isNextInByoyomi) {
-                        game.turnDeadline = now + game.settings.byoyomiTime * 1000;
-                    } else {
-                        game.turnDeadline = now + game[nextTimeKey] * 1000;
-                    }
-                    game.turnStartTime = now;
+                    startNextTurnClock(game, now);
                 } else {
                     game.turnDeadline = undefined;
                     game.turnStartTime = undefined;

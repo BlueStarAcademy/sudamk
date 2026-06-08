@@ -33,7 +33,6 @@ import { PVP_DISCONNECT_REJOIN_GRACE_MS } from '../shared/utils/pvpDisconnectPol
 import { aiProcessingQueue } from './aiProcessingQueue.js';
 import {
     getSpeedTimeBonusPointsDesired,
-    getSpeedTimePressureConsumptionSnapshot,
     isSessionSpeedTimePressureMode,
     SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT,
 } from './utils/speedTimePressureLiveCaptures.js';
@@ -334,27 +333,23 @@ export const finalizeAnalysisResult = (baseAnalysis: types.AnalysisResult, sessi
     finalAnalysis.scoreDetails.white.hiddenStoneBonus = 0;
     
     // Time bonus (speed unified):
-    // - PVP/AI/싱글 공통: 스피드 시간 압박 — 내가 사용한 시간이 `shared/constants/speedTimePressure`의 공통 간격(초)마다 상대 +1점
-    // - 피셔 등으로 시간이 회복되어도 누적 사용시간은 감소하지 않는다.
+    // - PVP/AI/싱글 공통: 수당 10초 초과마다 해당 수에서 상대 +1점 (수 단위, 대국 전체 누적 아님)
     const isSpeedMode =
         session.mode === types.GameMode.Speed ||
         (session.mode === types.GameMode.Mix && session.settings.mixedModes?.includes(types.GameMode.Speed));
     if (isSpeedMode) {
         const nowMs = Date.now();
-        const { blackConsumed, whiteConsumed } = getSpeedTimePressureConsumptionSnapshot(session, nowMs);
         const desired = getSpeedTimeBonusPointsDesired(session, nowMs);
-        const speedConsumed = ((session.settings as any)?.__speedBonusConsumedSec ?? {}) as { black?: number; white?: number };
-        const committedBlackConsumed = Math.max(0, Number(speedConsumed.black ?? 0));
-        const committedWhiteConsumed = Math.max(0, Number(speedConsumed.white ?? 0));
-        const liveBlackTurnUsed = Math.max(0, blackConsumed - committedBlackConsumed);
-        const liveWhiteTurnUsed = Math.max(0, whiteConsumed - committedWhiteConsumed);
+        const penaltyCommitted = ((session.settings as any)?.__speedTurnPenaltyCommitted ?? {}) as { black?: number; white?: number };
+        const committedBlackPenalty = Math.max(0, Number(penaltyCommitted.black ?? 0));
+        const committedWhitePenalty = Math.max(0, Number(penaltyCommitted.white ?? 0));
         const grant = ((session.settings as any).__speedTimePressureGranted ?? {}) as { black?: number; white?: number };
         const gb = Math.max(0, Number(grant.black ?? 0));
         const gw = Math.max(0, Number(grant.white ?? 0));
         finalAnalysis.scoreDetails.black.timeBonus = Math.max(0, desired.blackBonus - gb);
         finalAnalysis.scoreDetails.white.timeBonus = Math.max(0, desired.whiteBonus - gw);
         console.log(
-            `[finalizeAnalysisResult] Speed time bonus (unified): committedBlack=${committedBlackConsumed}, committedWhite=${committedWhiteConsumed}, liveBlackTurnUsed=${liveBlackTurnUsed}, liveWhiteTurnUsed=${liveWhiteTurnUsed}, blackConsumed=${blackConsumed}, whiteConsumed=${whiteConsumed}, desiredBlack=${desired.blackBonus}, desiredWhite=${desired.whiteBonus}, grantedBlack=${gb}, grantedWhite=${gw}, timeBonusBlack=${finalAnalysis.scoreDetails.black.timeBonus}, timeBonusWhite=${finalAnalysis.scoreDetails.white.timeBonus} (secPerPoint=${SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT})`,
+            `[finalizeAnalysisResult] Speed time bonus (unified): committedBlackPenalty=${committedBlackPenalty}, committedWhitePenalty=${committedWhitePenalty}, desiredBlack=${desired.blackBonus}, desiredWhite=${desired.whiteBonus}, grantedBlack=${gb}, grantedWhite=${gw}, timeBonusBlack=${finalAnalysis.scoreDetails.black.timeBonus}, timeBonusWhite=${finalAnalysis.scoreDetails.white.timeBonus} (secPerPoint=${SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT})`,
         );
     } else {
         finalAnalysis.scoreDetails.black.timeBonus = 0;

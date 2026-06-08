@@ -1,4 +1,5 @@
 import {
+    SPEED_PER_MOVE_SECONDS,
     SPEED_TIME_PRESSURE_BAR_SECONDS_PER_POINT,
     SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT,
     SPEED_TIME_PRESSURE_UI_COUNTDOWN_MAX_SECONDS,
@@ -22,12 +23,20 @@ export function getSpeedTimePressureUiCountdownSeconds(usedSec: number): number 
     return Math.max(1, Math.min(max, Math.ceil((1 - progress) * max)));
 }
 
-/** 누적 소비 초 → 상대 시간 보너스 집수 */
+/** 해당 수 경과 초 → 상대 시간 보너스 집수 (10초 이내 0, 초과 시 floor(elapsed/10)) */
+export function getSpeedTurnPenaltyPointsFromElapsedSec(elapsedSec: number): number {
+    const elapsed = Math.max(0, elapsedSec);
+    if (elapsed <= SPEED_PER_MOVE_SECONDS) return 0;
+    return Math.floor(elapsed / SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT);
+}
+
+/** @deprecated 수 단위 규칙 — {@link getSpeedTurnPenaltyPointsFromElapsedSec} */
 export function getSpeedTimePressureBonusPointsFromConsumedSec(consumedSec: number): number {
-    return Math.floor(Math.max(0, consumedSec) / SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT);
+    return getSpeedTurnPenaltyPointsFromElapsedSec(consumedSec);
 }
 
 export {
+    SPEED_PER_MOVE_SECONDS,
     SPEED_TIME_PRESSURE_BAR_SECONDS_PER_POINT,
     SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT,
     SPEED_TIME_PRESSURE_UI_COUNTDOWN_MAX_SECONDS,

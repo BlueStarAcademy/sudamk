@@ -230,8 +230,8 @@ const applyLatestPendingSinglePlayerStage = async (
     const baseCaptureTargetWhite =
         !isCaptureGoalMode || hasAutoScoring ? 999 : (stage.targetScore.white > 0 ? stage.targetScore.white : 999);
     const enforcedMainTimeMinutes = isSpeedMode ? (stage.timeControl?.mainTime ?? 5) : 0;
-    const enforcedByoyomiTimeSeconds = isSpeedMode ? (stage.timeControl?.byoyomiTime ?? 0) : 0;
-    const enforcedIncrement = isSpeedMode ? (stage.timeControl?.increment ?? 0) : 0;
+    const enforcedByoyomiTimeSeconds = isSpeedMode ? 10 : 0;
+    const enforcedIncrement = 0;
 
     game.mode = gameMode;
     game.currentPlayer = Player.Black;
@@ -451,11 +451,11 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             const isSurvivalMode = resolveSinglePlayerSurvivalMode(stage);
             const survivalTurnsResolved = isSurvivalMode ? resolveSinglePlayerSurvivalTurnCount(stage) : undefined;
 
-            // 시간룰 설정: 스피드바둑은 피셔, 비스피드 싱글플레이는 무제한(제한시간/초읽기 없음, 소리 없음)
+            // 시간룰 설정: 스피드바둑은 메인+수당 10초, 비스피드 싱글플레이는 무제한
             const enforcedMainTimeMinutes = isSpeedMode ? (stage.timeControl?.mainTime ?? 5) : 0;
-            const enforcedByoyomiTimeSeconds = isSpeedMode ? (stage.timeControl?.byoyomiTime ?? 0) : 0;
-            const enforcedByoyomiCount = isSpeedMode ? 0 : 0;
-            const enforcedIncrement = isSpeedMode ? (stage.timeControl?.increment ?? 0) : 0;
+            const enforcedByoyomiTimeSeconds = isSpeedMode ? 10 : 0;
+            const enforcedByoyomiCount = 0;
+            const enforcedIncrement = 0;
 
 
             const gameId = `sp-game-${randomUUID()}`;
@@ -675,13 +675,6 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
 
             // 싱글플레이 시간 설정: 비스피드 모드는 무제한(제한시간/초읽기 0, 초읽기 소리 없음)
             const enforcedMainTimeMinutes = isSpeedMode ? (game.settings.timeLimit || 5) : 0;
-            const enforcedByoyomiCount = isSpeedMode ? 0 : 0;
-            const enforcedByoyomiTimeSeconds = isSpeedMode ? (game.settings.byoyomiTime ?? 0) : 0;
-            
-            // 최신 스테이지 동기화 직후 상태 기준으로 increment 사용
-            const enforcedIncrement = isSpeedMode
-                ? (latestStage.timeControl?.increment ?? game.settings.timeIncrement ?? 0)
-                : 0;
 
             // 비스피드 모드는 무제한(시간/초읽기 소리 없음)
             if (!isSpeedMode) {
@@ -690,19 +683,21 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 game.settings.byoyomiTime = 0;
                 game.settings.timeIncrement = 0;
             } else {
-                game.settings.timeIncrement = enforcedIncrement;
+                game.settings.timeIncrement = 0;
                 game.settings.timeLimit = enforcedMainTimeMinutes;
+                game.settings.byoyomiTime = 10;
+                game.settings.byoyomiCount = 0;
             }
 
-            // 싱글플레이 스피드: 초기 시간 설정 (유저 사용 시간이 공통 간격(초)마다 AI +1점 계산용 blackInitialTimeLeft/whiteInitialTimeLeft 보관)
-            // 비스피드: 시간 제한 없음 (제한시간/초읽기 미적용, 결과까지 소요 시간만 표시)
+            // 싱글플레이 스피드: 메인 시계 + 수당 10초 이중 시계
             if (isSpeedMode) {
                 const initialSec = enforcedMainTimeMinutes * 60;
                 game.blackTimeLeft = initialSec;
                 game.whiteTimeLeft = initialSec;
                 game.blackInitialTimeLeft = initialSec;
                 game.whiteInitialTimeLeft = initialSec;
-                game.turnDeadline = now + initialSec * 1000;
+                const { applySpeedNextTurnClockStart } = await import('../../shared/utils/speedTimePressureSessionSync.js');
+                applySpeedNextTurnClockStart(game, now);
             } else {
                 game.turnDeadline = undefined;
                 game.blackTimeLeft = 0;

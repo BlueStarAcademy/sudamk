@@ -1145,7 +1145,9 @@ const GuildWar = () => {
                                                     <div className="min-w-0">
                                                         <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 sm:text-xs">대국 시계</p>
                                                         <p className={`text-sm font-bold whitespace-nowrap sm:text-base ${detailAccentText}`}>
-                                                            {GUILD_WAR_MAIN_TIME_MINUTES}분(피셔 {GUILD_WAR_FISCHER_INCREMENT_SECONDS}초)
+                                                            {board.gameMode === 'speed'
+                                                                ? `${GUILD_WAR_MAIN_TIME_MINUTES}분 · 수당 10초`
+                                                                : `${GUILD_WAR_MAIN_TIME_MINUTES}분(피셔 ${GUILD_WAR_FISCHER_INCREMENT_SECONDS}초)`}
                                                         </p>
                                                     </div>
                                                 </div>

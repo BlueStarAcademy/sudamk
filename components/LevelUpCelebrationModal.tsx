@@ -1,8 +1,6 @@
 import React, { useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { useAppContext } from '../hooks/useAppContext.js';
 import { useModalStackLayer } from '../hooks/useModalStackLayer.js';
-import { getSudamrModalPortalTarget } from '../utils/modalPortalTarget.js';
 import { UserWithStatus } from '../types.js';
 import type { LevelUpCelebrationPayload } from '../types/levelUpModal.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants.js';
@@ -14,7 +12,6 @@ type LevelUpCelebrationModalProps = {
     user: UserWithStatus;
     payload: LevelUpCelebrationPayload;
     onClose: () => void;
-    isTopmost?: boolean;
 };
 
 const BranchCard: React.FC<{
@@ -78,7 +75,7 @@ const BranchCard: React.FC<{
     );
 };
 
-const LevelUpCelebrationModal: React.FC<LevelUpCelebrationModalProps> = ({ user, payload, onClose, isTopmost = true }) => {
+const LevelUpCelebrationModal: React.FC<LevelUpCelebrationModalProps> = ({ user, payload, onClose }) => {
     const avatarUrl = useMemo(() => AVATAR_POOL.find((a) => a.id === user.avatarId)?.url, [user.avatarId]);
     const borderUrl = useMemo(() => BORDER_POOL.find((b) => b.id === user.borderId)?.url, [user.borderId]);
     const displayName = user.nickname || user.username || user.id;
@@ -90,12 +87,12 @@ const LevelUpCelebrationModal: React.FC<LevelUpCelebrationModalProps> = ({ user,
     );
     const hasFeatureUnlocks = unlockLines.strategy.length > 0 || unlockLines.combined.length > 0;
 
-    const { modalLayerUsesDesignPixels } = useAppContext();
-    const { zIndex } = useModalStackLayer({ zIndexFloor: 12_040, promoteOnMount: isTopmost });
+    // 대국 결과 등 viewportPortal(body) 모달 위에서도 클릭을 받도록 body + 전역 스택 최상단 승격
+    const { zIndex } = useModalStackLayer({ zIndexFloor: 12_052, promoteOnMount: true });
 
     const node = (
         <div
-            className={`${modalLayerUsesDesignPixels ? 'absolute' : 'fixed'} inset-0 flex items-center justify-center overscroll-contain px-3 pt-[max(0.75rem,env(safe-area-inset-top,0px))] pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]`}
+            className="pointer-events-auto fixed inset-0 flex items-center justify-center overscroll-contain px-3 pt-[max(0.75rem,env(safe-area-inset-top,0px))] pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]"
             style={{ zIndex }}
             role="dialog"
             aria-modal="true"
@@ -250,7 +247,7 @@ const LevelUpCelebrationModal: React.FC<LevelUpCelebrationModalProps> = ({ user,
     );
 
     if (typeof document === 'undefined') return node;
-    return createPortal(node, getSudamrModalPortalTarget(modalLayerUsesDesignPixels));
+    return createPortal(node, document.body);
 };
 
 export default LevelUpCelebrationModal;

@@ -162,9 +162,9 @@ const ItemDisplay: React.FC<{
     const { mythicGradeRows, transcendentGradeRows } = partitionMythicSubsWithIndex(mythicSubs);
 
     return (
-        <div className="flex flex-col w-full h-full p-1">
+        <div className="flex h-full min-h-0 w-full flex-col p-1">
             {/* Top section: Image and Name/Main Option */}
-            <div className="mb-1.5 flex">
+            <div className="mb-1.5 flex shrink-0">
                 <div className={`relative mr-2 h-16 w-16 flex-shrink-0 rounded-lg ${item.grade === ItemGrade.Transcendent ? 'transcendent-grade-slot' : ''}`}>
                     <img src={styles.background} alt={item.grade} className="absolute inset-0 w-full h-full object-cover rounded-lg" />
                     {item.image && <img src={item.image} alt={item.name} className="absolute object-contain p-1" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />}
@@ -183,7 +183,7 @@ const ItemDisplay: React.FC<{
                 </div>
             </div>
             {/* Bottom section: Clickable options */}
-            <div className={`w-full flex-grow space-y-0.5 overflow-y-auto rounded-lg bg-black/30 p-1.5 text-left ${typo.body}`}>
+            <div className={`min-h-0 flex-1 space-y-0.5 overflow-y-auto overflow-x-hidden rounded-lg bg-black/30 p-1.5 text-left ${typo.body} [scrollbar-gutter:stable]`}>
                 {/* Main Option */}
                 <button
                     onClick={() => onOptionClick('main', 0)}
@@ -641,19 +641,133 @@ const RefinementView: React.FC<RefinementViewProps> = ({
 
     const refinementExhausted = refinementCount <= 0;
 
+    const ownedTicketBar = (
+        <div
+            className="mt-2 shrink-0 border-t border-white/15 pt-1.5"
+            role="group"
+            aria-label="보유 옵션 변경권"
+        >
+            <div className="flex items-end justify-between gap-1">
+                {REFINEMENT_TICKET_DEFS.map(({ id, itemKey }) => {
+                    const def = MATERIAL_ITEMS[itemKey];
+                    return (
+                        <RefinementOwnedTicketSlot
+                            key={id}
+                            id={id}
+                            name={def.name}
+                            description={def.description}
+                            image={def.image}
+                            count={ticketCounts[id]}
+                        />
+                    );
+                })}
+                <RefinementOwnedTicketSlot
+                    id="charm"
+                    name={refinementCharmInfo.name}
+                    description={refinementCharmInfo.description}
+                    image={refinementCharmInfo.image}
+                    count={ticketCounts.charm}
+                />
+            </div>
+        </div>
+    );
+
+    const refinementActionFooter =
+        selectedOption && !refinementExhausted ? (
+            <div className="mt-2 shrink-0 space-y-2 border-t border-white/10 pt-2">
+                <div className="rounded border border-white/10 bg-black/35 p-1.5">
+                    <div className={`mb-1 text-gray-400 ${pcViewer ? typo.caption : 'text-xs'}`}>필요 재료</div>
+                    {refinementType && ticketItemInfo ? (
+                        <div className="flex flex-wrap items-center gap-2">
+                            <div
+                                className="flex items-center gap-1 rounded bg-gray-800/50 p-1"
+                                title={`${ticketItemInfo.name}\n${ticketItemInfo.description}`}
+                            >
+                                <img
+                                    src={ticketItemInfo.image}
+                                    alt={ticketItemInfo.name}
+                                    className="h-6 w-6 object-contain"
+                                />
+                                <span
+                                    className={`whitespace-nowrap ${pcViewer ? typo.body : 'text-xs'} ${
+                                        ticketCounts[
+                                            refinementType === 'type'
+                                                ? 'type'
+                                                : refinementType === 'value'
+                                                  ? 'value'
+                                                  : 'mythic'
+                                        ] >= requiredTickets
+                                            ? 'text-white'
+                                            : 'text-red-400'
+                                    }`}
+                                >
+                                    {ticketCounts[
+                                        refinementType === 'type'
+                                            ? 'type'
+                                            : refinementType === 'value'
+                                              ? 'value'
+                                              : 'mythic'
+                                    ]}
+                                    /{requiredTickets}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-1 rounded bg-gray-800/50 p-1">
+                                <img src="/images/icon/Gold.webp" alt="골드" className="h-6 w-6 object-contain" />
+                                <span className={`${pcViewer ? typo.body : 'text-xs'} ${currentUser.gold >= requiredGold ? 'text-white' : 'text-red-400'}`}>
+                                    {formatGoldAmountKoG(requiredGold)}
+                                </span>
+                            </div>
+                        </div>
+                    ) : (
+                        <p className={`${typo.caption} text-slate-400`}>제련 방식을 선택하면 재료가 표시됩니다.</p>
+                    )}
+                </div>
+
+                <button
+                    onClick={handleRefine}
+                    disabled={!canRefine || isRefining}
+                    className={`group relative mx-auto block w-full min-w-0 rounded-lg px-2.5 py-2 font-bold transition-all duration-300 overflow-hidden ${pcViewer ? typo.bodySemi : 'text-xs'} ${
+                        canRefine && !isRefining
+                            ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 text-white shadow-[0_0_14px_rgba(251,146,60,0.55)] hover:shadow-[0_0_20px_rgba(251,146,60,0.75)]'
+                            : 'cursor-not-allowed bg-gray-700 text-gray-400 opacity-50'
+                    }`}
+                >
+                    <div className="absolute inset-0 translate-x-[-200%] transform bg-gradient-to-r from-transparent via-white/30 to-transparent opacity-0 transition-opacity duration-500 group-hover:translate-x-[200%] group-hover:opacity-100" />
+                    <span className="relative z-10 flex items-center justify-center gap-2">
+                        <span className="text-base">⚒️</span>
+                        <span>제련하기</span>
+                    </span>
+                </button>
+
+                {isRefining ? (
+                    <div>
+                        <div className={`mb-1 flex items-center justify-between ${pcViewer ? typo.caption : 'text-[10px]'} text-cyan-200/90`}>
+                            <span className="font-semibold">제련 진행도</span>
+                            <span className="font-mono tabular-nums">{Math.max(0, Math.min(100, refinementProgress))}%</span>
+                        </div>
+                        <div className="h-2 w-full rounded-full bg-gray-700/90">
+                            <div
+                                className="h-2 rounded-full bg-blue-600 transition-all duration-100"
+                                style={{ width: `${refinementProgress}%` }}
+                            />
+                        </div>
+                    </div>
+                ) : null}
+            </div>
+        ) : null;
+
     return (
-        <div className="flex h-full flex-col gap-2 p-2">
-            {/* 좌우 분할 레이아웃(모바일: 단계형 전환) */}
+        <div className="flex h-full min-h-0 flex-col p-2">
             <div
-                className={`min-h-0 min-w-0 ${stackedViewport ? 'flex flex-1 flex-row gap-2' : 'grid flex-1 grid-cols-2 gap-3'}`}
+                className={`min-h-0 min-w-0 flex-1 ${stackedViewport ? 'flex flex-row gap-2' : 'grid grid-cols-2 gap-3'}`}
             >
                 <div
                     className={`flex min-h-0 min-w-0 flex-col rounded-lg border border-amber-400/20 bg-gradient-to-b from-[#181d2a]/80 via-[#111623]/90 to-[#0b1018]/95 p-2 ${
-                        stackedViewport ? 'min-h-0 flex-1 overflow-y-auto' : ''
+                        stackedViewport ? 'min-h-0 flex-1 overflow-hidden' : 'min-h-0'
                     }`}
                 >
-                    <h3 className={`mb-1 ${typo.heading} text-amber-100`}>선택된 장비</h3>
-                    <div className="min-h-0 flex-1">
+                    <h3 className={`mb-1 shrink-0 ${typo.heading} text-amber-100`}>선택된 장비</h3>
+                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                         <ItemDisplay
                             item={selectedItem}
                             selectedOption={selectedOption}
@@ -664,11 +778,12 @@ const RefinementView: React.FC<RefinementViewProps> = ({
                             }}
                         />
                     </div>
+                    {ownedTicketBar}
                 </div>
 
                 <div
                     className={`flex min-h-0 min-w-0 flex-col rounded-lg border border-amber-400/20 bg-gradient-to-b from-[#181d2a]/80 via-[#111623]/90 to-[#0b1018]/95 p-2 ${
-                        stackedViewport ? 'w-[min(11.5rem,42vw)] max-w-[14rem] shrink-0' : ''
+                        stackedViewport ? 'w-[min(11.5rem,42vw)] max-w-[14rem] shrink-0' : 'min-h-0'
                     }`}
                 >
                     <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
@@ -686,265 +801,155 @@ const RefinementView: React.FC<RefinementViewProps> = ({
                             </button>
                         )}
                     </div>
-                        <div className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden">
-                    {refinementExhausted ? (
-                        <div className={`flex flex-col justify-center gap-2 rounded-lg bg-gray-900/40 p-3 text-amber-200/95 min-h-[120px] ${typo.body}`}>
-                            <p className="font-semibold leading-snug">제련 가능 횟수가 모두 소진되었습니다.</p>
-                            <p className={`${typo.caption} text-gray-400 leading-relaxed`}>
-                                제련이 불가능한 장비의 제련가능 횟수를 1추가합니다. 사용처 : [대장간]-[장비제련] 제련불가 장비 선택
-                            </p>
-                            <div className="mt-1 flex items-center justify-between gap-2 rounded border border-amber-500/30 bg-black/30 px-2 py-1.5">
-                                <div className="flex items-center gap-2">
-                                    <img src={refinementCharmInfo.image} alt={refinementCharmInfo.name} className="h-7 w-7 object-contain" />
-                                    <div className={`${typo.body} leading-tight`}>
-                                        <p className="font-semibold text-amber-100">{refinementCharmInfo.name}</p>
-                                        <p className="text-gray-300">보유: {ticketCounts.charm}</p>
+
+                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                            {refinementExhausted ? (
+                                <div className={`flex min-h-0 flex-1 flex-col justify-center gap-2 rounded-lg bg-gray-900/40 p-3 text-amber-200/95 ${typo.body}`}>
+                                    <p className="font-semibold leading-snug">제련 가능 횟수가 모두 소진되었습니다.</p>
+                                    <p className={`${typo.caption} leading-relaxed text-gray-400`}>
+                                        제련이 불가능한 장비의 제련가능 횟수를 1추가합니다. 사용처 : [대장간]-[장비제련] 제련불가 장비 선택
+                                    </p>
+                                    <div className="mt-1 flex items-center justify-between gap-2 rounded border border-amber-500/30 bg-black/30 px-2 py-1.5">
+                                        <div className="flex items-center gap-2">
+                                            <img src={refinementCharmInfo.image} alt={refinementCharmInfo.name} className="h-7 w-7 object-contain" />
+                                            <div className={`${typo.body} leading-tight`}>
+                                                <p className="font-semibold text-amber-100">{refinementCharmInfo.name}</p>
+                                                <p className="text-gray-300">보유: {ticketCounts.charm}</p>
+                                            </div>
+                                        </div>
+                                        <Button
+                                            onClick={() => void handleUseRefinementCharm()}
+                                            disabled={ticketCounts.charm <= 0}
+                                            className="!px-3 !py-1.5 !text-xs !font-semibold"
+                                        >
+                                            사용하기
+                                        </Button>
                                     </div>
                                 </div>
-                                <Button
-                                    onClick={() => void handleUseRefinementCharm()}
-                                    disabled={ticketCounts.charm <= 0}
-                                    className="!px-3 !py-1.5 !text-xs !font-semibold"
-                                >
-                                    사용하기
-                                </Button>
-                            </div>
-                        </div>
-                    ) : selectedOption ? (
-                        <div className={`flex flex-col gap-2 ${typo.body}`}>
-                            {/* 선택된 옵션 표시 */}
-                            <div className="rounded border border-white/10 bg-black/35 p-1.5">
-                                <div className={`text-gray-400 ${typo.caption} mb-0.5`}>선택된 옵션</div>
-                                <div className="text-yellow-300 font-semibold">
-                                    {selectedOption?.type === 'mythicSub' && selectedOptionData ? (
-                                        <MythicOptionAbbrev option={selectedOptionData} textClassName="text-yellow-300 font-semibold" />
-                                    ) : (
-                                        selectedOptionData?.display || 'N/A'
-                                    )}
-                                </div>
-                            </div>
-                            
-                            {/* 제련 타입 선택 버튼 (좁은 열에서도 잘리지 않도록 grid + min-w-0, scale 제거) */}
-                            <div
-                                className={`grid w-full min-w-0 gap-1.5 ${
-                                    selectedOption.type === 'mythicSub'
-                                        ? 'grid-cols-1'
-                                        : selectedOption.type === 'main'
-                                          ? 'grid-cols-1'
-                                          : 'grid-cols-2'
-                                }`}
-                            >
-                                {(selectedOption.type === 'main' || selectedOption.type === 'combatSub' || selectedOption.type === 'specialSub') && (
-                                    <>
-                                        <button
-                                            onClick={() => setRefinementType('type')}
-                                            className={`group relative min-w-0 w-full py-1.5 px-1 rounded-lg ${pcViewer ? typo.body : 'text-[10px] sm:text-xs'} font-bold transition-all duration-300 overflow-hidden ${
-                                                refinementType === 'type'
-                                                    ? 'bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 text-white shadow-[0_0_16px_rgba(168,85,247,0.55)] ring-1 ring-white/30'
-                                                    : 'bg-gradient-to-r from-gray-700 to-gray-800 text-gray-300 hover:from-gray-600 hover:to-gray-700 hover:shadow-lg'
-                                            }`}
-                                        >
-                                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform -skew-x-12 translate-x-[-200%] group-hover:translate-x-[200%]" />
-                                            <span className="relative z-10 flex items-center justify-center gap-0.5 sm:gap-1">
-                                                <span className="text-xs sm:text-sm shrink-0">🔄</span>
-                                                <span className="truncate">종류변경</span>
-                                            </span>
-                                        </button>
-                                        {(selectedOption.type === 'combatSub' || selectedOption.type === 'specialSub') && (
+                            ) : selectedOption ? (
+                                <div className={`flex min-h-0 flex-1 flex-col gap-2 ${typo.body}`}>
+                                    <div className="shrink-0 rounded border border-white/10 bg-black/35 p-1.5">
+                                        <div className={`mb-0.5 text-gray-400 ${typo.caption}`}>선택된 옵션</div>
+                                        <div className="font-semibold text-yellow-300">
+                                            {selectedOption?.type === 'mythicSub' && selectedOptionData ? (
+                                                <MythicOptionAbbrev option={selectedOptionData} textClassName="text-yellow-300 font-semibold" />
+                                            ) : (
+                                                selectedOptionData?.display || 'N/A'
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div
+                                        className={`grid w-full min-w-0 shrink-0 gap-1.5 ${
+                                            selectedOption.type === 'mythicSub'
+                                                ? 'grid-cols-1'
+                                                : selectedOption.type === 'main'
+                                                  ? 'grid-cols-1'
+                                                  : 'grid-cols-2'
+                                        }`}
+                                    >
+                                        {(selectedOption.type === 'main' || selectedOption.type === 'combatSub' || selectedOption.type === 'specialSub') && (
+                                            <>
+                                                <button
+                                                    onClick={() => setRefinementType('type')}
+                                                    className={`group relative min-w-0 w-full overflow-hidden rounded-lg px-1 py-1.5 ${pcViewer ? typo.body : 'text-[10px] sm:text-xs'} font-bold transition-all duration-300 ${
+                                                        refinementType === 'type'
+                                                            ? 'bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 text-white shadow-[0_0_16px_rgba(168,85,247,0.55)] ring-1 ring-white/30'
+                                                            : 'bg-gradient-to-r from-gray-700 to-gray-800 text-gray-300 hover:from-gray-600 hover:to-gray-700 hover:shadow-lg'
+                                                    }`}
+                                                >
+                                                    <div className="absolute inset-0 translate-x-[-200%] transform bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:translate-x-[200%] group-hover:opacity-100" />
+                                                    <span className="relative z-10 flex items-center justify-center gap-0.5 sm:gap-1">
+                                                        <span className="shrink-0 text-xs sm:text-sm">🔄</span>
+                                                        <span className="truncate">종류변경</span>
+                                                    </span>
+                                                </button>
+                                                {(selectedOption.type === 'combatSub' || selectedOption.type === 'specialSub') && (
+                                                    <button
+                                                        onClick={() => setRefinementType('value')}
+                                                        className={`group relative min-w-0 w-full overflow-hidden rounded-lg px-1 py-1.5 ${pcViewer ? typo.body : 'text-[10px] sm:text-xs'} font-bold transition-all duration-300 ${
+                                                            refinementType === 'value'
+                                                                ? 'bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-white shadow-[0_0_16px_rgba(20,184,166,0.55)] ring-1 ring-white/30'
+                                                                : 'bg-gradient-to-r from-gray-700 to-gray-800 text-gray-300 hover:from-gray-600 hover:to-gray-700 hover:shadow-lg'
+                                                        }`}
+                                                    >
+                                                        <div className="absolute inset-0 translate-x-[-200%] transform bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:translate-x-[200%] group-hover:opacity-100" />
+                                                        <span className="relative z-10 flex items-center justify-center gap-0.5 sm:gap-1">
+                                                            <span className="shrink-0 text-xs sm:text-sm">📊</span>
+                                                            <span className="truncate">수치변경</span>
+                                                        </span>
+                                                    </button>
+                                                )}
+                                            </>
+                                        )}
+                                        {selectedOption.type === 'mythicSub' && (
                                             <button
-                                                onClick={() => setRefinementType('value')}
-                                                className={`group relative min-w-0 w-full py-1.5 px-1 rounded-lg ${pcViewer ? typo.body : 'text-[10px] sm:text-xs'} font-bold transition-all duration-300 overflow-hidden ${
-                                                    refinementType === 'value'
-                                                        ? 'bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-white shadow-[0_0_16px_rgba(20,184,166,0.55)] ring-1 ring-white/30'
+                                                onClick={() => setRefinementType('mythic')}
+                                                className={`group relative min-w-0 w-full overflow-hidden rounded-lg px-1.5 py-1.5 ${pcViewer ? typo.body : 'text-[10px] sm:text-xs'} font-bold transition-all duration-300 ${
+                                                    refinementType === 'mythic'
+                                                        ? 'bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 text-white shadow-[0_0_16px_rgba(249,115,22,0.55)] ring-1 ring-white/30'
                                                         : 'bg-gradient-to-r from-gray-700 to-gray-800 text-gray-300 hover:from-gray-600 hover:to-gray-700 hover:shadow-lg'
                                                 }`}
                                             >
-                                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform -skew-x-12 translate-x-[-200%] group-hover:translate-x-[200%]" />
+                                                <div className="absolute inset-0 translate-x-[-200%] transform bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:translate-x-[200%] group-hover:opacity-100" />
                                                 <span className="relative z-10 flex items-center justify-center gap-0.5 sm:gap-1">
-                                                    <span className="text-xs sm:text-sm shrink-0">📊</span>
-                                                    <span className="truncate">수치변경</span>
+                                                    <span className="shrink-0 text-xs sm:text-sm">✨</span>
+                                                    <span className="truncate">스페셜 옵션 변경</span>
                                                 </span>
                                             </button>
                                         )}
-                                    </>
-                                )}
-                                {selectedOption.type === 'mythicSub' && (
-                                    <button
-                                        onClick={() => setRefinementType('mythic')}
-                                        className={`group relative min-w-0 w-full py-1.5 px-1.5 rounded-lg ${pcViewer ? typo.body : 'text-[10px] sm:text-xs'} font-bold transition-all duration-300 overflow-hidden ${
-                                            refinementType === 'mythic'
-                                                ? 'bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 text-white shadow-[0_0_16px_rgba(249,115,22,0.55)] ring-1 ring-white/30'
-                                                : 'bg-gradient-to-r from-gray-700 to-gray-800 text-gray-300 hover:from-gray-600 hover:to-gray-700 hover:shadow-lg'
-                                        }`}
-                                    >
-                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform -skew-x-12 translate-x-[-200%] group-hover:translate-x-[200%]" />
-                                        <span className="relative z-10 flex items-center justify-center gap-0.5 sm:gap-1">
-                                            <span className="text-xs sm:text-sm shrink-0">✨</span>
-                                            <span className="truncate">스페셜 옵션 변경</span>
-                                        </span>
-                                    </button>
-                                )}
-                            </div>
-
-                            {refinementType && (
-                                <>
-                                    {/* 변경 가능한 옵션/수치 표시 */}
-                                    <div className="rounded border border-white/10 bg-black/35 p-1.5">
-                                        <div className={`text-gray-400 ${typo.caption} mb-1`}>
-                                            {refinementType === 'value' ? '변경 가능한 수치 범위' : '변경 가능한 옵션'}
-                                        </div>
-                                        <div className={`${typo.body} space-y-0.5 max-h-24 overflow-y-auto`}>
-                                            {availableOptions.length > 0 ? (
-                                                availableOptions.map((opt, idx) => (
-                                                    <div key={idx} className="text-green-300">
-                                                        {refinementType === 'mythic' ? (
-                                                            <MythicStatAbbrev stat={opt.type as MythicStat} textClassName="text-green-300" bubbleSide="right" />
-                                                        ) : (
-                                                            <>
-                                                                {opt.name}
-                                                                {(opt as { valueAtCurrentEnhancement?: number }).valueAtCurrentEnhancement != null && (
-                                                                    <span className="text-yellow-300">
-                                                                        {' '}+{((opt as { valueAtCurrentEnhancement?: number }).valueAtCurrentEnhancement)}
-                                                                        {opt.isPercentage ? '%' : ''}
-                                                                    </span>
-                                                                )}
-                                                                {opt.range && (
-                                                                    <span className="text-yellow-300">
-                                                                        {' '}{opt.range[0]}~{opt.range[1]}{opt.isPercentage ? '%' : ''}
-                                                                    </span>
-                                                                )}
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                ))
-                                            ) : (
-                                                <div className="text-red-400">변경 가능한 옵션이 없습니다.</div>
-                                            )}
-                                        </div>
                                     </div>
 
-                                    {/* 필요 재료 (이미지로 표시) */}
-                                    <div className="rounded border border-white/10 bg-black/35 p-1.5">
-                                        <div className={`mb-1 text-gray-400 ${pcViewer ? typo.caption : 'text-xs'}`}>필요 재료</div>
-                                        <div className="flex flex-wrap gap-2 items-center">
-                                            {/* 변경권 */}
-                                            {ticketItemInfo && (
-                                                <div
-                                                    className="flex items-center gap-1 bg-gray-800/50 p-1 rounded"
-                                                    title={`${ticketItemInfo.name}\n${ticketItemInfo.description}`}
-                                                >
-                                                    <img
-                                                        src={ticketItemInfo.image}
-                                                        alt={ticketItemInfo.name}
-                                                        className="w-6 h-6 object-contain"
-                                                    />
-                                                    <span
-                                                        className={`whitespace-nowrap ${pcViewer ? typo.body : 'text-xs'} ${
-                                                            ticketCounts[
-                                                                refinementType === 'type'
-                                                                    ? 'type'
-                                                                    : refinementType === 'value'
-                                                                      ? 'value'
-                                                                      : 'mythic'
-                                                            ] >= requiredTickets
-                                                                ? 'text-white'
-                                                                : 'text-red-400'
-                                                        }`}
-                                                    >
-                                                        {ticketCounts[
-                                                            refinementType === 'type'
-                                                                ? 'type'
-                                                                : refinementType === 'value'
-                                                                  ? 'value'
-                                                                  : 'mythic'
-                                                        ]}
-                                                        /{requiredTickets}
-                                                    </span>
-                                                </div>
-                                            )}
-                                            {/* 골드 */}
-                                            <div className="flex items-center gap-1 bg-gray-800/50 p-1 rounded">
-                                                <img 
-                                                    src="/images/icon/Gold.webp" 
-                                                    alt="골드"
-                                                    className="w-6 h-6 object-contain"
-                                                />
-                                                <span className={`${pcViewer ? typo.body : 'text-xs'} ${currentUser.gold >= requiredGold ? 'text-white' : 'text-red-400'}`}>
-                                                    {formatGoldAmountKoG(requiredGold)}
-                                                </span>
+                                    {refinementType ? (
+                                        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded border border-white/10 bg-black/35 p-1.5">
+                                            <div className={`mb-1 shrink-0 text-gray-400 ${typo.caption}`}>
+                                                {refinementType === 'value' ? '변경 가능한 수치 범위' : '변경 가능한 옵션'}
+                                            </div>
+                                            <div className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden ${typo.body} space-y-0.5 [scrollbar-gutter:stable]`}>
+                                                {availableOptions.length > 0 ? (
+                                                    availableOptions.map((opt, idx) => (
+                                                        <div key={idx} className="text-green-300">
+                                                            {refinementType === 'mythic' ? (
+                                                                <MythicStatAbbrev stat={opt.type as MythicStat} textClassName="text-green-300" bubbleSide="right" />
+                                                            ) : (
+                                                                <>
+                                                                    {opt.name}
+                                                                    {(opt as { valueAtCurrentEnhancement?: number }).valueAtCurrentEnhancement != null && (
+                                                                        <span className="text-yellow-300">
+                                                                            {' '}+{((opt as { valueAtCurrentEnhancement?: number }).valueAtCurrentEnhancement)}
+                                                                            {opt.isPercentage ? '%' : ''}
+                                                                        </span>
+                                                                    )}
+                                                                    {opt.range && (
+                                                                        <span className="text-yellow-300">
+                                                                            {' '}{opt.range[0]}~{opt.range[1]}{opt.isPercentage ? '%' : ''}
+                                                                        </span>
+                                                                    )}
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    ))
+                                                ) : (
+                                                    <div className="text-red-400">변경 가능한 옵션이 없습니다.</div>
+                                                )}
                                             </div>
                                         </div>
-                                    </div>
-
-                                    {/* 제련하기 버튼 (호버 scale 제거 + 폭 살짝 여유로 좌우 스크롤 방지) */}
-                                    <button
-                                        onClick={handleRefine}
-                                        disabled={!canRefine || isRefining}
-                                        className={`group relative mx-auto block w-full max-w-[92%] min-w-0 py-2 px-2.5 rounded-lg font-bold transition-all duration-300 overflow-hidden ${pcViewer ? typo.bodySemi : 'text-xs'} ${
-                                            canRefine && !isRefining
-                                                ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 text-white shadow-[0_0_14px_rgba(251,146,60,0.55)] hover:shadow-[0_0_20px_rgba(251,146,60,0.75)]'
-                                                : 'bg-gray-700 text-gray-400 cursor-not-allowed opacity-50'
-                                        }`}
-                                    >
-                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 transform -skew-x-12 translate-x-[-200%] group-hover:translate-x-[200%]"></div>
-                                        <span className="relative z-10 flex items-center justify-center gap-2">
-                                            <span className="text-base">⚒️</span>
-                                            <span>제련하기</span>
-                                        </span>
-                                    </button>
-
-                                </>
+                                    ) : (
+                                        <div className={`flex min-h-0 flex-1 items-center justify-center rounded border border-dashed border-white/10 bg-black/20 px-2 text-center text-slate-500 ${typo.caption}`}>
+                                            제련 방식을 선택하세요.
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className={`flex flex-1 items-center justify-center py-4 text-center text-gray-500 ${pcViewer ? typo.body : 'text-xs'}`}>
+                                    좌측에서 옵션을 선택해주세요.
+                                </div>
                             )}
                         </div>
-                    ) : (
-                        <div className={`text-center py-4 text-gray-500 ${pcViewer ? typo.body : 'text-xs'}`}>
-                            좌측에서 옵션을 선택해주세요.
-                        </div>
-                    )}
-                        </div>
-                        {isRefining && (
-                            <div className="mt-2 shrink-0 border-t border-white/10 pt-2">
-                                <div className={`mb-1 flex items-center justify-between ${pcViewer ? typo.caption : 'text-[10px]'} text-cyan-200/90`}>
-                                    <span className="font-semibold">제련 진행도</span>
-                                    <span className="font-mono tabular-nums">{Math.max(0, Math.min(100, refinementProgress))}%</span>
-                                </div>
-                                <div className="w-full rounded-full bg-gray-700/90 h-2">
-                                    <div
-                                        className="h-2 rounded-full bg-blue-600 transition-all duration-100"
-                                        style={{ width: `${refinementProgress}%` }}
-                                    />
-                                </div>
-                            </div>
-                        )}
-                </div>
-            </div>
 
-            <div
-                className="shrink-0 border-t border-white/15 pt-1.5"
-                role="group"
-                aria-label="보유 옵션 변경권"
-            >
-                <div className="flex gap-1 justify-between items-end">
-                    {REFINEMENT_TICKET_DEFS.map(({ id, itemKey }) => {
-                        const def = MATERIAL_ITEMS[itemKey];
-                        return (
-                            <RefinementOwnedTicketSlot
-                                key={id}
-                                id={id}
-                                name={def.name}
-                                description={def.description}
-                                image={def.image}
-                                count={ticketCounts[id]}
-                            />
-                        );
-                    })}
-                    <RefinementOwnedTicketSlot
-                        id="charm"
-                        name={refinementCharmInfo.name}
-                        description={refinementCharmInfo.description}
-                        image={refinementCharmInfo.image}
-                        count={ticketCounts.charm}
-                    />
+                        {refinementActionFooter}
+                    </div>
                 </div>
             </div>
             <RefinementResultModal

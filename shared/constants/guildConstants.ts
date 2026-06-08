@@ -164,9 +164,10 @@ export function getGuildWarAutoScoringTurnsByBoardId(boardId: string): number {
     return getGuildWarBoardLineSize(boardId) >= 13 ? 80 : GUILD_WAR_DEFAULT_AUTO_SCORING_TURNS;
 }
 
-/** 길드 전쟁 경기장 공통: 메인 시계(분) + 피셔 증가(초/수) */
+/** 길드 전쟁 경기장 공통: 메인 시계(분). 비스피드는 피셔 증가, 스피드는 수당 10초 초읽기 */
 export const GUILD_WAR_MAIN_TIME_MINUTES = 5;
 export const GUILD_WAR_FISCHER_INCREMENT_SECONDS = 3;
+export const GUILD_WAR_SPEED_PER_MOVE_SECONDS = 10;
 
 /** 길드전 9칸 보드 ID (표시 순서: 좌상귀 → 우하귀) */
 export const GUILD_WAR_BOARD_ORDER = [

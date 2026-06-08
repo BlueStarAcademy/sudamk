@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     getSpeedTimePressureBarProgress,
-    getSpeedTimePressureBonusPointsFromConsumedSec,
+    getSpeedTurnPenaltyPointsFromElapsedSec,
     getSpeedTimePressureUiCountdownSeconds,
 } from '../../../shared/utils/speedTimePressureDisplay.js';
 
@@ -21,12 +21,14 @@ describe('speedTimePressureDisplay', () => {
         expect(allAtSecondTicks.includes(11)).toBe(false);
     });
 
-    it('awards bonus points every 10 consumed seconds', () => {
-        expect(getSpeedTimePressureBonusPointsFromConsumedSec(0)).toBe(0);
-        expect(getSpeedTimePressureBonusPointsFromConsumedSec(9.9)).toBe(0);
-        expect(getSpeedTimePressureBonusPointsFromConsumedSec(10)).toBe(1);
-        expect(getSpeedTimePressureBonusPointsFromConsumedSec(19)).toBe(1);
-        expect(getSpeedTimePressureBonusPointsFromConsumedSec(20)).toBe(2);
+    it('awards penalty points only after 10 seconds on the current move', () => {
+        expect(getSpeedTurnPenaltyPointsFromElapsedSec(0)).toBe(0);
+        expect(getSpeedTurnPenaltyPointsFromElapsedSec(9.9)).toBe(0);
+        expect(getSpeedTurnPenaltyPointsFromElapsedSec(10)).toBe(0);
+        expect(getSpeedTurnPenaltyPointsFromElapsedSec(11)).toBe(1);
+        expect(getSpeedTurnPenaltyPointsFromElapsedSec(19)).toBe(1);
+        expect(getSpeedTurnPenaltyPointsFromElapsedSec(20)).toBe(2);
+        expect(getSpeedTurnPenaltyPointsFromElapsedSec(25)).toBe(2);
     });
 
     it('fills bar over 11 seconds per cycle', () => {

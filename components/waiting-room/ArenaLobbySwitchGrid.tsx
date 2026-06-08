@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
-import { STRATEGIC_GO_LOBBY_IMG, PLAYFUL_GO_LOBBY_IMG, PAIR_GO_LOBBY_IMG } from '../../assets.js';
+import { AI_ARENA_ENTRY_IMG, PVP_ARENA_ENTRY_IMG, STRATEGIC_GO_LOBBY_IMG, PLAYFUL_GO_LOBBY_IMG, PAIR_GO_LOBBY_IMG } from '../../assets.js';
 import {
     mergeArenaEntranceAvailability,
     ARENA_ENTRANCE_CLOSED_MESSAGE,
@@ -31,7 +31,7 @@ const INTENT_TOGGLE: Record<
     pvp: {
         label: 'AI 경기장',
         opposite: 'ai',
-        image: PLAYFUL_GO_LOBBY_IMG,
+        image: AI_ARENA_ENTRY_IMG,
         toneBorder: 'border-violet-400/45',
         toneRing: 'ring-violet-300/75',
         badgeClass: 'border-violet-400/55 bg-black text-violet-100',
@@ -39,7 +39,7 @@ const INTENT_TOGGLE: Record<
     ai: {
         label: 'PVP 경기장',
         opposite: 'pvp',
-        image: STRATEGIC_GO_LOBBY_IMG,
+        image: PVP_ARENA_ENTRY_IMG,
         toneBorder: 'border-fuchsia-400/45',
         toneRing: 'ring-fuchsia-300/75',
         badgeClass: 'border-fuchsia-400/55 bg-black text-fuchsia-100',

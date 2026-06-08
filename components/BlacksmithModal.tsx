@@ -472,7 +472,14 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
                     isBlacksmithBusy={isBlacksmithBusy}
                 />
             );
-            case 'convert': return <ConversionView onAction={handleActionWrapper} />;
+            case 'convert': return (
+                <ConversionView
+                    onAction={handleActionWrapper}
+                    pcViewer={pcViewer}
+                    stackedViewport={useStackedBlacksmithLayout}
+                    isBlacksmithBusy={isBlacksmithBusy}
+                />
+            );
             case 'refine': return <RefinementView 
                 selectedItem={selectedItem} 
                 currentUser={currentUserWithStatus} 

@@ -160,7 +160,7 @@ describe('capture target winner detection', () => {
             settings: {
                 captureTarget: 20,
                 mixedModes: [GameMode.Speed, GameMode.Capture],
-                __speedBonusConsumedSec: { black: 200, white: 0 },
+                __speedTurnPenaltyCommitted: { black: 20, white: 0 },
             },
             captures: {
                 [Player.None]: 0,
@@ -169,7 +169,7 @@ describe('capture target winner detection', () => {
             },
         });
 
-        // 흑이 200초를 사용 -> 백 시간 보너스 +20, 목표 20 도달로 즉시 백 승리
+        // 흑이 누적 20점 페널티 -> 백 시간 보너스 +20, 목표 20 도달로 즉시 백 승리
         expect(getCaptureTargetWinner(game, Player.Black)).toBe(Player.White);
     });
 
@@ -185,7 +185,7 @@ describe('capture target winner detection', () => {
             settings: {
                 captureTarget: 20,
                 mixedModes: [GameMode.Speed, GameMode.Capture],
-                __speedBonusConsumedSec: { black: 0, white: 200 },
+                __speedTurnPenaltyCommitted: { black: 0, white: 20 },
             },
             captures: {
                 [Player.None]: 0,
@@ -194,7 +194,7 @@ describe('capture target winner detection', () => {
             },
         });
 
-        // AI(백)가 200초 사용해도 유저(흑) 보너스는 무시되어 즉시 종료되지 않아야 한다.
+        // AI(백) 페널티는 유저(흑) 보너스에 반영되지 않아 즉시 종료되지 않아야 한다.
         expect(getCaptureTargetWinner(game, Player.White)).toBeNull();
     });
 

@@ -12,6 +12,7 @@ import {
     MATERIAL_ITEMS,
 } from '../constants.js';
 import { ADVENTURE_STAGES } from '../constants/adventureConstants.js';
+import { CHAMPIONSHIP_PVP_VENUE_BG_WEBP } from '../constants/tournaments.js';
 import { getMainBackgroundUrl } from '../utils/publicAssetUrl.js';
 import {
     WHITE_BASE_STONE_IMG,
@@ -20,6 +21,8 @@ import {
     BLACK_HIDDEN_STONE_IMG,
     STRATEGIC_GO_LOBBY_IMG,
     PLAYFUL_GO_LOBBY_IMG,
+    PVP_ARENA_ENTRY_IMG,
+    AI_ARENA_ENTRY_IMG,
     TOURNAMENT_LOBBY_IMG,
     SINGLE_PLAYER_LOBBY_IMG,
     TOWER_CHALLENGE_LOBBY_IMG,
@@ -97,6 +100,9 @@ const ENTRY_ARENA_LOBBY_URLS = dedupePaths([
     ...LEAGUE_DATA.map((l) => l.icon),
     STRATEGIC_GO_LOBBY_IMG,
     PLAYFUL_GO_LOBBY_IMG,
+    PVP_ARENA_ENTRY_IMG,
+    AI_ARENA_ENTRY_IMG,
+    CHAMPIONSHIP_PVP_VENUE_BG_WEBP,
     TOURNAMENT_LOBBY_IMG,
     SINGLE_PLAYER_LOBBY_IMG,
     TOWER_CHALLENGE_LOBBY_IMG,

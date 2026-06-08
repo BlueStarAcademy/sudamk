@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 // FIX: Import missing types from the centralized types file.
 import { LiveGameSession, Player, GameCategory } from '../types/index.js';
 import { aiUserId } from '../constants/index.js';
-import { isFischerStyleTimeControl } from '../shared/utils/gameTimeControl.js';
+import { isFischerStyleTimeControl, isSpeedPerMoveTimeControl } from '../shared/utils/gameTimeControl.js';
 
 interface ClientTimerOptions {
     isPaused?: boolean;
@@ -127,6 +127,30 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
                 ? { black: session.pausedTurnTimeLeft!, white: prev.white }
                 : { black: prev.black, white: session.pausedTurnTimeLeft! });
             return;
+        }
+
+        const isSpeedPerMove = isSpeedPerMoveTimeControl(session as any);
+        if (
+            isSpeedPerMove &&
+            playingStatuses.includes(session.gameStatus) &&
+            (curPlayer === Player.Black || curPlayer === Player.White) &&
+            typeof session.turnStartTime === 'number'
+        ) {
+            let animationFrameId: number;
+            const updateSpeedMainClock = () => {
+                const nowInLoop = Date.now();
+                const turnElapsed = Math.max(0, (nowInLoop - session.turnStartTime!) / 1000);
+                const serverBlack = coerce(session.blackTimeLeft);
+                const serverWhite = coerce(session.whiteTimeLeft);
+                const liveBlack =
+                    session.currentPlayer === Player.Black ? Math.max(0, serverBlack - turnElapsed) : serverBlack;
+                const liveWhite =
+                    session.currentPlayer === Player.White ? Math.max(0, serverWhite - turnElapsed) : serverWhite;
+                setClientTimes({ black: liveBlack, white: liveWhite });
+                animationFrameId = requestAnimationFrame(updateSpeedMainClock);
+            };
+            animationFrameId = requestAnimationFrame(updateSpeedMainClock);
+            return () => cancelAnimationFrame(animationFrameId);
         }
 
         let baseDeadline = session.turnDeadline

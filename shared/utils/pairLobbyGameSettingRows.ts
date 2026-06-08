@@ -5,7 +5,7 @@ import {
     PLAYFUL_GAME_MODES,
     SPECIAL_GAME_MODES,
 } from '../../constants.js';
-import { isFischerStyleTimeControl } from './gameTimeControl.js';
+import { isFischerStyleTimeControl, isSpeedPerMoveTimeControl } from './gameTimeControl.js';
 import { getRankedGameSettings } from '../../constants/rankedGameSettings.js';
 import { getAiScoringTurnLimitByBoardSize } from '../constants/gameSettings.js';
 import { formatAlkkagiCurlingGaugeSpeedForLobbyDisplay } from './alkkagiCurlingGaugeLobbyDisplay.js';
@@ -223,21 +223,28 @@ export function buildPairRoomLobbyGameSettingRows(
         }
         const clockSettings = { ...g, timeLimit, byoyomiTime, byoyomiCount, timeIncrement };
         const pseudoSession = { mode, settings: clockSettings };
+        const isSpeed = isSpeedPerMoveTimeControl(pseudoSession as Parameters<typeof isSpeedPerMoveTimeControl>[0]);
         const isFischer = isFischerStyleTimeControl(pseudoSession as Parameters<typeof isFischerStyleTimeControl>[0]);
         if (timeLimit > 0) {
             rows.push({ label: '제한시간', value: `${timeLimit}분` });
             rows.push({
                 label: '초읽기',
-                value: isFischer
-                    ? `${timeIncrement}초 피셔`
-                    : `${byoyomiTime}초 ${byoyomiCount}회`,
+                value: isSpeed
+                    ? `수당 ${byoyomiTime || 10}초`
+                    : isFischer
+                      ? `${timeIncrement}초 피셔`
+                      : `${byoyomiTime}초 ${byoyomiCount}회`,
             });
         } else {
             rows.push({ label: '제한시간', value: '없음' });
             if (byoyomiTime > 0 && byoyomiCount > 0) {
                 rows.push({
                     label: '초읽기',
-                    value: isFischer ? `${timeIncrement}초 피셔` : `${byoyomiTime}초 ${byoyomiCount}회`,
+                    value: isSpeed
+                        ? `수당 ${byoyomiTime || 10}초`
+                        : isFischer
+                          ? `${timeIncrement}초 피셔`
+                          : `${byoyomiTime}초 ${byoyomiCount}회`,
                 });
             }
         }

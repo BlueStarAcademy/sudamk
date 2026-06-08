@@ -1,6 +1,6 @@
 import { GameMode, GameSettings } from '../types/index.js';
 import {
-    applySpeedFischerDefaults,
+    applySpeedByoyomiDefaults,
     BASE_STONE_COUNTS,
     CAPTURE_TARGETS,
     DEFAULT_GAME_SETTINGS,
@@ -64,7 +64,7 @@ export function sanitizePvpGameSettings(
     }
 
     if (mode === GameMode.Speed || modeIncludesSpeedRuleForSettings(mode, next)) {
-        next = applySpeedFischerDefaults(next);
+        next = applySpeedByoyomiDefaults(next);
     }
 
     if (mode === GameMode.Capture || modeIncludesCaptureRuleForSettings(mode, next)) {

@@ -10,6 +10,7 @@ import {
     mixGoShouldUnstickHiddenItemSelectionPhase,
     mixGoTreatMoveAsHiddenPlacement,
     mixGoUniqueCombinableModes,
+    shouldIgnoreStaleServerHiddenPlacingAfterClientCommit,
 } from '../../../shared/utils/mixGoRules.js';
 import { Player } from '../../../shared/types/enums.js';
 
@@ -73,6 +74,33 @@ describe('mixGoRules', () => {
         expect(mixGoIsPveHiddenItemSelectionStatus('hidden_placing')).toBe(true);
         expect(mixGoIsPveHiddenItemSelectionStatus('scanning')).toBe(true);
         expect(mixGoIsPveHiddenItemSelectionStatus('playing')).toBe(false);
+    });
+
+    it('shouldIgnoreStaleServerHiddenPlacingAfterClientCommit ignores playing→hidden_placing regression', () => {
+        expect(
+            shouldIgnoreStaleServerHiddenPlacingAfterClientCommit(
+                { gameStatus: 'playing', moveHistory: [{ x: 1, y: 1 }, { x: 2, y: 2 }] },
+                { gameStatus: 'hidden_placing', moveHistory: [{ x: 1, y: 1 }] },
+            ),
+        ).toBe(true);
+        expect(
+            shouldIgnoreStaleServerHiddenPlacingAfterClientCommit(
+                { gameStatus: 'hidden_placing', moveHistory: [{ x: 1, y: 1 }] },
+                { gameStatus: 'hidden_placing', moveHistory: [{ x: 1, y: 1 }] },
+            ),
+        ).toBe(false);
+        expect(
+            shouldIgnoreStaleServerHiddenPlacingAfterClientCommit(
+                { gameStatus: 'playing', moveHistory: [] },
+                { gameStatus: 'hidden_placing', moveHistory: [] },
+            ),
+        ).toBe(false);
+        expect(
+            shouldIgnoreStaleServerHiddenPlacingAfterClientCommit(
+                { gameStatus: 'playing', moveHistory: [{ x: 1, y: 1 }] },
+                { gameStatus: 'playing', moveHistory: [{ x: 1, y: 1 }] },
+            ),
+        ).toBe(false);
     });
 
     it('mixGoPveHiddenPlacementAlreadyCommitted detects client-authoritative hidden move', () => {

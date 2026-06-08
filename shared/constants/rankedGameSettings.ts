@@ -26,10 +26,10 @@ export const RANKED_GAME_SETTINGS: Record<GameMode, GameSettings> = {
     [GameMode.Speed]: {
         boardSize: 13,
         komi: 6.5,
-        timeLimit: 1, // 1분
-        byoyomiTime: 0,
+        timeLimit: 1, // 1분 메인 시계 (시간패)
+        byoyomiTime: 10, // 수당 초읽기 10초
         byoyomiCount: 0,
-        timeIncrement: 5, // 피셔 방식 5초 추가
+        timeIncrement: 0,
         autoScoring: true, // 서로 통과시 계가
     },
     [GameMode.Base]: {

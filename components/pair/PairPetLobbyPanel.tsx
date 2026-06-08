@@ -29,9 +29,19 @@ import {
     PET_MGMT_TR_HINT_TEXT,
     PET_MGMT_TR_ICON_BOX,
     PET_MGMT_TR_ICON_IMG,
-    PET_MGMT_TR_REWARD_PANEL_CLASS,
-    PET_MGMT_TR_REWARD_BLOCK_MOBILE_CLASS,
-    PET_MGMT_TR_REWARD_ROW_CLASS,
+    PET_MGMT_TR_ICON_BOX_2_CLASS,
+    PET_MGMT_TR_ICON_BOX_3_CLASS,
+    PET_MGMT_TR_REWARD_AMT_CLASS,
+    PET_MGMT_TR_REWARD_BLOCK_CLASS,
+    PET_MGMT_TR_REWARD_BOX_CLASS,
+    PET_MGMT_TR_REWARD_LBL_CLASS,
+    PET_MGMT_TR_REWARD_ROW_INNER_CLASS,
+    PET_MGMT_TR_SOUL_COL_2_CLASS,
+    PET_MGMT_TR_SOUL_COL_3_CLASS,
+    PET_MGMT_TR_SOUL_FG_IMG_CLASS,
+    PET_MGMT_TR_SOUL_FG_IMG_MD_CLASS,
+    PET_MGMT_TR_SOUL_FG_IMG_SM_CLASS,
+    PET_MGMT_TR_SLOTS_DESKTOP_CLASS,
     PET_MGMT_TR_SLOTS_GRID_CLASS,
     PET_MGMT_TR_PET_IMG_CLASS,
     PET_MGMT_TR_PET_IMG_MOBILE_CLASS,
@@ -51,30 +61,43 @@ import {
     PET_MGMT_HATCHERY_SLOT_HEADER_CLASS,
     PET_MGMT_HATCHERY_SLOT_OUTER_CLASS,
     PET_MGMT_HATCHERY_SLOT_OUTER_MOBILE_CLASS,
-    PET_MGMT_INV_DOCK_CLASS,
-    PET_MGMT_INV_GRID_CLASS,
+    PET_MGMT_INFO_COLUMN_CLASS,
+    PET_MGMT_INFO_SCROLL_CLASS,
+    PET_MGMT_INV_DOCK_DESKTOP_CLASS,
+    PET_MGMT_INV_DOCK_MOBILE_CLASS,
+    PET_MGMT_INV_GRID_DESKTOP_CLASS,
+    PET_MGMT_INV_GRID_MOBILE_CLASS,
     PET_MGMT_INV_GRID_SCROLL_CLASS,
     PET_MGMT_INV_HEADER_CLASS,
     PET_MGMT_MAIN_COLUMN_CLASS,
+    PET_MGMT_MAIN_TAB_BAR,
+    PET_MGMT_RIGHT_COLUMN_CLASS,
     PET_MGMT_ROOT_CLASS,
     PET_MGMT_SCROLL_CLASS,
     PET_MGMT_SEMI,
-    PET_MGMT_SOUL_GRID_CLASS,
+    PET_MGMT_SHOP_GRID_DESKTOP_CLASS,
+    PET_MGMT_SHOP_SCROLL_CLASS,
+    PET_MGMT_SHOP_SECTION_CLASS,
+    PET_MGMT_SHOP_SECTION_TITLE,
+    PET_MGMT_SHOP_SHORT_TEXT,
+    PET_MGMT_SOUL_GRID_DESKTOP_CLASS,
+    PET_MGMT_SOUL_GRID_MOBILE_CLASS,
     PET_MGMT_TAB_BTN_BASE,
     PET_MGMT_TAB_PANEL_CLASS,
     PET_MGMT_TITLE,
+    PET_MGMT_TOP_SPLIT_CLASS,
     PET_MGMT_VIEWER_FRAME_CLASS,
     PET_MGMT_XBOLD,
+    petMgmtMainTabClass,
 } from './pairPetManagementModalUi.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
-import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import PurchaseQuantityModal from '../PurchaseQuantityModal.js';
 import { ShopMobileImageDescriptionPortal } from '../shopImageDescriptionPopover.js';
 import SellItemConfirmModal from '../SellItemConfirmModal.js';
 import SellMaterialBulkModal from '../SellMaterialBulkModal.js';
 import type { User, UserWithStatus, InventoryItem, ServerAction, PairPetLobbyInventorySortMode } from '../../types.js';
-import { MATERIAL_ITEMS, gradeBackgrounds } from '../../shared/constants/items.js';
+import { MATERIAL_ITEMS, gradeBackgrounds, gradeStyles, EQUIPMENT_GRADE_LABEL_KO } from '../../shared/constants/items.js';
 import { ItemGrade } from '../../types/enums.js';
 import { isSameDayKST } from '../../utils/timeUtils.js';
 import { effectivePairPetGradeFromRow, PAIR_PET_MAX_LEVEL, pairPetGradeIndex } from '../../shared/constants/pairPetGrade.js';
@@ -107,8 +130,8 @@ import {
 } from '../../shared/constants/petLobby.js';
 import {
     PAIR_TRAINING_SLOT_DEFS,
-    PAIR_TRAINING_UNLOCK_WINS,
     getPairTrainingSlotDisplayName,
+    getPairTrainingSlotUnlockProgress,
     getPairWins,
     isItemIdInPairTraining,
     isPairTrainingSlotUnlocked,
@@ -452,6 +475,57 @@ function formatPairShopDescription(desc: string): string {
     return t;
 }
 
+const PAIR_PET_SHOP_GRADE_ARROW = '➝';
+
+const PAIR_PET_SHOP_GRADE_NAME_COLOR: Record<string, string> = Object.fromEntries(
+    Object.entries(EQUIPMENT_GRADE_LABEL_KO).map(([gradeKey, gradeName]) => [
+        gradeName,
+        gradeStyles[gradeKey as ItemGrade]?.color ?? 'text-slate-200',
+    ]),
+);
+
+function renderPairPetShopBracketGrades(segment: string, segmentKey: string) {
+    const parts = segment.split(/(\[[^\]]+\])/g).filter((part) => part.length > 0);
+    return parts.map((part, partIndex) => {
+        const bracketMatch = part.match(/^\[([^\]]+)\]$/);
+        if (!bracketMatch) {
+            return <React.Fragment key={`${segmentKey}-plain-${partIndex}`}>{part}</React.Fragment>;
+        }
+        const gradeName = bracketMatch[1];
+        const gradeColor = PAIR_PET_SHOP_GRADE_NAME_COLOR[gradeName] ?? 'text-slate-200';
+        return (
+            <span key={`${segmentKey}-grade-${partIndex}`} className={`font-semibold ${gradeColor}`}>
+                [{gradeName}]
+            </span>
+        );
+    });
+}
+
+function PairPetShopShortDescription({ text }: { text: string }) {
+    const segments = text.split(PAIR_PET_SHOP_GRADE_ARROW);
+    if (segments.length < 2) {
+        return (
+            <p className={PET_MGMT_SHOP_SHORT_TEXT} title={text}>
+                {renderPairPetShopBracketGrades(text, 'single')}
+            </p>
+        );
+    }
+    return (
+        <p className={PET_MGMT_SHOP_SHORT_TEXT} title={text}>
+            {segments.map((segment, index) => (
+                <React.Fragment key={`${index}-${segment}`}>
+                    {index > 0 ? (
+                        <span className="mx-0.5 inline-block bg-gradient-to-r from-amber-200 via-amber-300 to-amber-400 bg-clip-text font-bold text-transparent drop-shadow-[0_0_8px_rgba(251,191,36,0.35)]">
+                            {PAIR_PET_SHOP_GRADE_ARROW}
+                        </span>
+                    ) : null}
+                    {renderPairPetShopBracketGrades(segment, `seg-${index}`)}
+                </React.Fragment>
+            ))}
+        </p>
+    );
+}
+
 /** 메인 상점 `ShopItemCard`와 유사한 카드형 레이아웃 */
 function PairPetShopSkuCard({
     sku,
@@ -535,6 +609,7 @@ function PairPetShopSkuCard({
             >
                 {sku.label}
             </h3>
+            {sku.shortDescription ? <PairPetShopShortDescription text={sku.shortDescription} /> : null}
             <div className="mt-1.5 flex w-full shrink-0 flex-col items-stretch justify-center gap-1">
                 <Button
                     type="button"
@@ -583,9 +658,9 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
     const { isNativeMobile, isNarrowViewport, pcLikeMobileLayout } = useNativeMobileShell();
     /** 터치·좁은 화면: 드롭 대신 슬롯 탭 → 펫 탭 */
     const useTapTrainingFlow = isNativeMobile || (isNarrowViewport && !pcLikeMobileLayout);
-    /** 페어 로비 모바일 셸과 동일(1024): 부화장 등에서 세로 여유 확보 */
-    const pairLobbyHandheld = useIsHandheldDevice(1024);
-    const [aiTab, setAiTab] = useState<AiTab>('info');
+    /** 모바일 전용 레이아웃(부화장 스택·인벤 축소 등) — PC 뷰포트 폭과 분리 */
+    const petMgmtMobileShell = useTapTrainingFlow;
+    const [aiTab, setAiTab] = useState<AiTab>(() => (petMgmtMobileShell ? 'info' : 'training'));
     const [shopSkuTab, setShopSkuTab] = useState<ShopSkuTab>('egg');
     const [shopDescSkuId, setShopDescSkuId] = useState<string | null>(null);
     const [pairShopPurchaseSku, setPairShopPurchaseSku] = useState<PairPetShopSku | null>(null);
@@ -595,6 +670,10 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
     const [invSort, setInvSort] = useState<PairPetLobbyInventorySortMode>(() =>
         normalizePairPetLobbyInventorySort(currentUser.pairPetLobbyInventorySort) ?? 'recent',
     );
+
+    useEffect(() => {
+        if (!petMgmtMobileShell && aiTab === 'info') setAiTab('training');
+    }, [petMgmtMobileShell, aiTab]);
 
     useEffect(() => {
         const persisted = normalizePairPetLobbyInventorySort(currentUser.pairPetLobbyInventorySort);
@@ -705,6 +784,15 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                 shopSkuTab === 'egg' ? sku.id.startsWith('pair_shop_egg_') : sku.id.startsWith('pair_shop_soul_')
             ),
         [shopSkuTab]
+    );
+
+    const shopEggSkus = useMemo(
+        () => PAIR_PET_SHOP_SKUS.filter((sku) => sku.id.startsWith('pair_shop_egg_')),
+        [],
+    );
+    const shopSoulSkus = useMemo(
+        () => PAIR_PET_SHOP_SKUS.filter((sku) => sku.id.startsWith('pair_shop_soul_')),
+        [],
     );
 
     /** 수련 탭은 펫 인벤만 사용 (영혼석 탭 없음). 정보 탭은 기존 펫/영혼석 필터 유지. */
@@ -903,10 +991,10 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
     }, [currentUser, handlers]);
 
     const focusInfoPetInventory = useCallback(() => {
-        setAiTab('info');
+        if (petMgmtMobileShell) setAiTab('info');
         setInvFilter('pet');
         setExpandTarget(null);
-    }, []);
+    }, [petMgmtMobileShell]);
 
     const confirmSoulConvert = () => {
         if (!soulConvertItem || soulConvertInFlightRef.current) return;
@@ -1180,7 +1268,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
             return (
                 <div
                     key={`hatch-def-${slotIndex}`}
-                    className={`group relative ${pairLobbyHandheld ? PET_MGMT_HATCHERY_SLOT_OUTER_MOBILE_CLASS : PET_MGMT_HATCHERY_SLOT_OUTER_CLASS} gap-0.5 rounded-lg border p-1 shadow-md ${PET_MGMT_BASE} ${
+                    className={`group relative ${petMgmtMobileShell ? PET_MGMT_HATCHERY_SLOT_OUTER_MOBILE_CLASS : PET_MGMT_HATCHERY_SLOT_OUTER_CLASS} gap-0.5 rounded-lg border p-1 shadow-md ${PET_MGMT_BASE} ${
                         usable ? outerUsable : outerLocked
                     }`}
                 >
@@ -1201,7 +1289,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                     </div>
                     <div className="relative z-10 flex min-h-0 min-w-0 flex-col py-px">
                             <div
-                                className={`${PET_MGMT_HATCHERY_CHAMBER_CLASS} min-h-0 flex-1 p-0.5 ${pairLobbyHandheld ? '!overflow-visible' : ''} ${
+                                className={`${PET_MGMT_HATCHERY_CHAMBER_CLASS} min-h-0 flex-1 p-0.5 ${petMgmtMobileShell ? '!overflow-visible' : ''} ${
                                     !usable
                                         ? isVip
                                             ? 'border-amber-900/25 bg-gradient-to-b from-amber-950/35 to-black/72'
@@ -1231,7 +1319,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                     </div>
                                 ) : (
                                     <>
-                                        <div className={`flex min-h-0 items-center justify-center p-px ${pairLobbyHandheld ? 'overflow-visible' : 'overflow-hidden'}`}>
+                                        <div className={`flex min-h-0 items-center justify-center p-px ${petMgmtMobileShell ? 'overflow-visible' : 'overflow-hidden'}`}>
                                             <div className="relative flex shrink-0 items-center justify-center">
                                                 <div
                                                     className={`absolute inset-0 rounded-full blur-md ${
@@ -1250,7 +1338,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                 <img
                                                     src={eggImgForSlot}
                                                     alt=""
-                                                    className={`relative ${pairLobbyHandheld ? PET_MGMT_HATCHERY_EGG_IMG_MOBILE_CLASS : PET_MGMT_HATCHERY_EGG_IMG_CLASS} ring-[3px] ring-offset-2 ${
+                                                    className={`relative ${petMgmtMobileShell ? PET_MGMT_HATCHERY_EGG_IMG_MOBILE_CLASS : PET_MGMT_HATCHERY_EGG_IMG_CLASS} ring-[3px] ring-offset-2 ${
                                                         session
                                                             ? isVip
                                                                 ? 'ring-amber-300/65 ring-offset-amber-950/85 shadow-[0_0_20px_rgba(245,158,11,0.42),inset_0_1px_0_rgba(255,255,255,0.15)]'
@@ -1376,7 +1464,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
             MATERIAL_ITEMS[PAIR_WELCOME_EGG_MATERIAL_NAME as keyof typeof MATERIAL_ITEMS]?.image ?? eggThumbSrc;
 
         const renderEggInventoryCell = () =>
-            pairLobbyHandheld ? (
+            petMgmtMobileShell ? (
                 <div key="hatch-egg-inventory" className={PET_MGMT_HATCHERY_EGG_INVENTORY_MOBILE_CLASS}>
                     <div className="flex min-w-0 shrink-0 flex-col leading-none">
                         <span className={`${PET_MGMT_XBOLD} text-[11px] text-slate-300`}>보유 알</span>
@@ -1426,12 +1514,12 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
             );
 
         const upgradeTierPanel = (
-            <div className={`grid w-full gap-2 ${pairLobbyHandheld ? 'grid-cols-1' : 'grid-cols-3'}`}>
+            <div className={`grid w-full gap-2 ${petMgmtMobileShell ? 'grid-cols-1' : 'grid-cols-3'}`}>
                 {PAIR_HATCHERY_UPGRADE_TIER_DEFS.map((tierDef) => renderUpgradeTierCard(tierDef))}
             </div>
         );
 
-        if (pairLobbyHandheld) {
+        if (petMgmtMobileShell) {
             return (
                 <div className={PET_MGMT_HATCHERY_MOBILE_STACK_CLASS}>
                     {renderEggInventoryCell()}
@@ -1646,8 +1734,8 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
 
         const padTime2 = (n: number) => String(n).padStart(2, '0');
 
-        const trLbl = `whitespace-nowrap ${PET_MGMT_XBOLD}`;
-        const trAmt = `text-center tabular-nums ${PET_MGMT_BOLD}`;
+        const trLbl = PET_MGMT_TR_REWARD_LBL_CLASS;
+        const trAmt = PET_MGMT_TR_REWARD_AMT_CLASS;
         const trSlotTitle = `${PET_MGMT_TITLE} text-violet-100`;
         const trMono = `tabular-nums font-mono ${PET_MGMT_BOLD}`;
         const trIconBox = useTapTrainingFlow ? 'h-[2.5rem] w-[2.5rem] shrink-0' : PET_MGMT_TR_ICON_BOX;
@@ -1657,6 +1745,27 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
         const trPetImgClass = useTapTrainingFlow ? PET_MGMT_TR_PET_IMG_MOBILE_CLASS : PET_MGMT_TR_PET_IMG_CLASS;
         const trSlotDropClass = useTapTrainingFlow ? PET_MGMT_TR_SLOT_DROP_MOBILE_CLASS : PET_MGMT_TR_SLOT_DROP_CLASS;
         const trSlotCardClass = useTapTrainingFlow ? PET_MGMT_TR_SLOT_CARD_MOBILE_CLASS : PET_MGMT_TR_SLOT_CARD_CLASS;
+        const getSoulRewardSizing = (soulItemCount: number) => {
+            if (soulItemCount >= 3) {
+                return {
+                    colClass: PET_MGMT_TR_SOUL_COL_3_CLASS,
+                    iconBoxClass: PET_MGMT_TR_ICON_BOX_3_CLASS,
+                    fgImgClass: PET_MGMT_TR_SOUL_FG_IMG_SM_CLASS,
+                };
+            }
+            if (soulItemCount === 2) {
+                return {
+                    colClass: PET_MGMT_TR_SOUL_COL_2_CLASS,
+                    iconBoxClass: PET_MGMT_TR_ICON_BOX_2_CLASS,
+                    fgImgClass: PET_MGMT_TR_SOUL_FG_IMG_MD_CLASS,
+                };
+            }
+            return {
+                colClass: `flex shrink-0 flex-col items-center justify-center ${trSoulCol}`,
+                iconBoxClass: trIconBox,
+                fgImgClass: PET_MGMT_TR_SOUL_FG_IMG_CLASS,
+            };
+        };
 
         return (
             <div className="flex h-full min-h-0 w-full flex-1 flex-col gap-2 pb-1">
@@ -1669,13 +1778,13 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                         펫을 슬롯에 놓으면 수련 시작
                     </p>
                 )}
-                <div className={PET_MGMT_TR_SLOTS_GRID_CLASS}>
+                <div className={petMgmtMobileShell ? PET_MGMT_TR_SLOTS_GRID_CLASS : PET_MGMT_TR_SLOTS_DESKTOP_CLASS}>
                     {[...PAIR_TRAINING_SLOT_DEFS]
                         .sort((a, b) => Number(!!b.requiresFunctionVip) - Number(!!a.requiresFunctionVip))
                         .map((def) => {
                         const i = def.slotIndex;
                         const unlocked = isPairTrainingSlotUnlocked(currentUser, i);
-                        const reqW = PAIR_TRAINING_UNLOCK_WINS[i]!;
+                        const unlockProgress = getPairTrainingSlotUnlockProgress(currentUser, i);
                         const minLv = minPetLevelForTrainingSlot(i);
                         const isVipTrainingSlot = Boolean(def.requiresFunctionVip);
                         const session = trainingSlots[i];
@@ -1696,27 +1805,34 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                             def.goldMin === def.goldMax
                                 ? formatGoldAmountKoG(def.goldMin)
                                 : `${formatGoldAmountKoG(def.goldMin)}~${formatGoldAmountKoG(def.goldMax)}`;
-                        const trRewardBoxWrap = useTapTrainingFlow ? 'w-full shrink-0' : 'min-w-0 flex-1';
+                        const soulRewardSizing = getSoulRewardSizing(def.soulTable.length);
+
                         const fixedRewardBox = (
-                            <div className={`${trRewardBoxWrap} rounded-md border border-amber-400/30 bg-gradient-to-br from-amber-950/35 via-black/30 to-zinc-950/40 px-1 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]`}>
-                                <div className={PET_MGMT_TR_REWARD_ROW_CLASS}>
-                                    <div className="flex shrink-0 flex-col items-center gap-0.5">
+                            <div className={`${PET_MGMT_TR_REWARD_BOX_CLASS} border-amber-400/35 bg-amber-950/45`}>
+                                <div className={PET_MGMT_TR_REWARD_ROW_INNER_CLASS}>
+                                    <div className="flex shrink-0 flex-col items-center justify-center gap-0.5">
                                         <div
-                                            className={`flex items-center justify-center rounded-md border border-amber-400/35 bg-black/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${trIconBox}`}
+                                            className={`flex items-center justify-center rounded-md border border-amber-400/40 bg-black/50 ${trIconBox}`}
                                         >
-                                            <img src="/images/icon/Gold.webp" alt="" className={`object-contain ${trIconImg}`} loading="lazy" />
+                                            <img
+                                                src="/images/icon/Gold.webp"
+                                                alt=""
+                                                className={`shrink-0 object-contain ${trIconImg}`}
+                                                loading="lazy"
+                                                decoding="sync"
+                                            />
                                         </div>
                                         <span className={`${trAmt} whitespace-nowrap text-amber-50`} title={goldDisplay}>
                                             {goldDisplay}
                                         </span>
                                     </div>
-                                    <div className="flex shrink-0 flex-col items-center gap-0.5">
+                                    <div className="flex shrink-0 flex-col items-center justify-center gap-0.5">
                                         <div
-                                            className={`flex flex-col items-center justify-center rounded-md border border-violet-400/45 bg-violet-950/55 px-px shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ${trIconBox}`}
+                                            className={`flex flex-col items-center justify-center rounded-md border border-violet-400/45 bg-violet-950/60 px-0.5 ${trIconBox}`}
                                             title="펫 경험치"
                                         >
                                             <span className={`${PET_MGMT_TR_EXP_LABEL} text-violet-100`}>펫</span>
-                                            <span className={`mt-px ${PET_MGMT_TR_EXP_LABEL} text-violet-100`}>EXP</span>
+                                            <span className={`${PET_MGMT_TR_EXP_LABEL} text-violet-100`}>EXP</span>
                                         </div>
                                         <span className={`${trAmt} text-violet-100`}>
                                             {def.xpMin}~{def.xpMax}
@@ -1726,8 +1842,8 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                             </div>
                         );
                         const soulRewardBox = showSoulCandidates ? (
-                            <div className={`${trRewardBoxWrap} rounded-md border border-cyan-500/25 bg-black/30 px-1 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]`}>
-                                <div className={PET_MGMT_TR_REWARD_ROW_CLASS}>
+                            <div className={`${PET_MGMT_TR_REWARD_BOX_CLASS} border-cyan-500/30 bg-zinc-950/55`}>
+                                <div className={PET_MGMT_TR_REWARD_ROW_INNER_CLASS}>
                                     {def.soulTable.map((row, si) => {
                                         const mat = MATERIAL_ITEMS[row.materialName as keyof typeof MATERIAL_ITEMS];
                                         const src = mat?.image ?? '/images/pets/soulstone1.webp';
@@ -1737,22 +1853,29 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                         return (
                                             <div
                                                 key={`train-soul-${i}-${si}`}
-                                                className={`flex shrink-0 flex-col items-center ${trSoulCol}`}
+                                                className={soulRewardSizing.colClass}
                                                 title={row.materialName}
                                             >
                                                 <div
-                                                    className={`relative flex items-center justify-center overflow-hidden rounded-md border ${trIconBox} ${
+                                                    className={`relative isolate flex items-center justify-center overflow-hidden rounded-md border bg-black/40 ${soulRewardSizing.iconBoxClass} ${
                                                         isTranscendent
                                                             ? 'transcendent-grade-slot border-white/25'
                                                             : 'border-white/20'
                                                     }`}
                                                 >
-                                                    <img src={bgSrc} alt="" className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
+                                                    <img
+                                                        src={bgSrc}
+                                                        alt=""
+                                                        className="absolute inset-0 z-0 h-full w-full object-cover"
+                                                        loading="lazy"
+                                                        decoding="sync"
+                                                    />
                                                     <img
                                                         src={src}
                                                         alt=""
-                                                        className="relative z-[1] h-[68%] w-[68%] object-contain drop-shadow-[0_1px_3px_rgba(0,0,0,0.65)]"
+                                                        className={soulRewardSizing.fgImgClass}
                                                         loading="lazy"
+                                                        decoding="sync"
                                                     />
                                                 </div>
                                                 <span className={`${trAmt} text-slate-100`}>×{row.quantity}</span>
@@ -1762,37 +1885,20 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                 </div>
                             </div>
                         ) : null;
-                        const rewardPanel = !useTapTrainingFlow ? (
-                            <div className={`${PET_MGMT_TR_REWARD_PANEL_CLASS} ${isVipTrainingSlot ? '!border-amber-500/25' : ''}`}>
-                                <div className="flex min-w-0 shrink-0 flex-col items-center gap-0.5">
-                                    <span className={`${trLbl} whitespace-nowrap text-amber-100/95`}>확정보상</span>
-                                    {fixedRewardBox}
-                                </div>
-                                {showSoulCandidates ? (
-                                    <div className="flex min-w-0 shrink-0 flex-col items-center gap-0.5">
-                                        <span className={`${trLbl} whitespace-nowrap text-center leading-tight text-cyan-100/95`}>
-                                            {def.soulTable.length > 1 ? '확률(1종)' : '확률보상'}
-                                        </span>
-                                        {soulRewardBox}
-                                    </div>
-                                ) : null}
-                            </div>
-                        ) : null;
-                        const mobileFixedRewardBlock = useTapTrainingFlow ? (
-                            <div className={PET_MGMT_TR_REWARD_BLOCK_MOBILE_CLASS}>
+                        const fixedRewardBlock = (
+                            <div className={PET_MGMT_TR_REWARD_BLOCK_CLASS}>
                                 <span className={`${trLbl} whitespace-nowrap text-amber-100/95`}>확정보상</span>
                                 {fixedRewardBox}
                             </div>
+                        );
+                        const soulRewardBlock = showSoulCandidates ? (
+                            <div className={PET_MGMT_TR_REWARD_BLOCK_CLASS}>
+                                <span className={`${trLbl} whitespace-nowrap text-center leading-tight text-cyan-100/95`}>
+                                    {def.soulTable.length > 1 ? '확률(1종)' : '확률보상'}
+                                </span>
+                                {soulRewardBox}
+                            </div>
                         ) : null;
-                        const mobileSoulRewardBlock =
-                            useTapTrainingFlow && showSoulCandidates ? (
-                                <div className={PET_MGMT_TR_REWARD_BLOCK_MOBILE_CLASS}>
-                                    <span className={`${trLbl} whitespace-nowrap text-center leading-tight text-cyan-100/95`}>
-                                        {def.soulTable.length > 1 ? '확률(1종)' : '확률보상'}
-                                    </span>
-                                    {soulRewardBox}
-                                </div>
-                            ) : null;
 
                         return (
                             <div
@@ -1811,7 +1917,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                             : 'border-white/10 bg-black/30'
                                 }`}
                             >
-                                <div className={useTapTrainingFlow ? trSlotCol : `flex shrink-0 flex-col items-stretch gap-0.5 ${trSlotCol}`}>
+                                <div className={trSlotCol}>
                                     <span
                                         className={`${trSlotTitle} flex w-full min-w-0 flex-row flex-wrap items-center justify-center gap-0.5 ${
                                             isVipTrainingSlot ? 'text-amber-100' : ''
@@ -1886,11 +1992,18 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                 </span>
                                                 {isVipTrainingSlot ? (
                                                     <p className={`text-center font-extrabold leading-tight text-amber-200/95 ${PET_MGMT_BOLD}`}>
-                                                        기능VIP활성화
+                                                        기능VIP{' '}
+                                                        <span className="tabular-nums">
+                                                            ({unlockProgress.current}/{unlockProgress.required})
+                                                        </span>
                                                     </p>
                                                 ) : (
                                                     <p className={`text-center font-semibold leading-tight text-amber-200/95 ${PET_MGMT_SEMI}`}>
-                                                        페어 {reqW}승
+                                                        페어{' '}
+                                                        <span className="tabular-nums">
+                                                            ({unlockProgress.current}/{unlockProgress.required})
+                                                        </span>
+                                                        승
                                                     </p>
                                                 )}
                                                 {minLv > 1 ? (
@@ -2000,34 +2113,19 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                         >
                                             수련 취소
                                         </button>
-                                    ) : (
+                                    ) : unlocked && session && petRow && canClaim ? null : (
                                         <span
                                             className={`${trMono} text-center tracking-tight ${
-                                                unlocked && session && petRow && canClaim
-                                                    ? 'font-black text-lime-200 drop-shadow-[0_0_10px_rgba(163,230,53,0.55)]'
-                                                    : isVipTrainingSlot
-                                                      ? 'text-amber-200/90'
-                                                      : 'text-violet-200/90'
+                                                isVipTrainingSlot ? 'text-amber-200/90' : 'text-violet-200/90'
                                             }`}
-                                            aria-label={
-                                                unlocked && session && petRow
-                                                    ? canClaim
-                                                        ? '수련 완료'
-                                                        : `남은 시간 ${formatRemainHMS(remainMs)}`
-                                                    : `수련 소요 ${durationHhMmSs}`
-                                            }
+                                            aria-label={`수련 소요 ${durationHhMmSs}`}
                                         >
-                                            {unlocked && session && petRow
-                                                ? canClaim
-                                                    ? '완료'
-                                                    : formatRemainHMS(remainMs)
-                                                : durationHhMmSs}
+                                            {durationHhMmSs}
                                         </span>
                                     )}
                                 </div>
-                                {mobileFixedRewardBlock}
-                                {mobileSoulRewardBlock}
-                                {rewardPanel}
+                                {fixedRewardBlock}
+                                {soulRewardBlock}
                             </div>
                         );
                     })}
@@ -2041,56 +2139,219 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
         selectedItem && isPairPetMaterial(selectedItem) && isItemIdInPairTraining(trainingSlotsForUi, selectedItem.id),
     );
 
-    const infoDetailPanel =
-        aiTab === 'info' ? (
-            !selectedItem ? (
-                <div
-                    className={`flex h-full min-h-0 flex-1 flex-col items-center justify-center overflow-hidden px-2 py-3 ${PET_MGMT_SEMI} text-slate-400`}
-                >
-                    아래 인벤에서 펫 또는 영혼석을 선택하세요
-                </div>
-            ) : isPairPetMaterial(selectedItem) && selectedItem.templateId ? (
-                <PairPetLobbyInfoPetViewer
-                    currentUser={currentUser}
-                    item={selectedItem}
-                    isBusy={isBusy}
-                    equippedTemplateId={equippedTid}
-                    petInTraining={selectedPetInTraining}
-                    onSetRepresentative={(templateId, inventoryItemId) => void equipPet(templateId, inventoryItemId)}
-                    onClearRepresentative={() => void clearEquip()}
-                    onSoulConvert={(item) => setSoulConvertItem(item)}
-                    applyPetAction={applyPetAction}
-                />
-            ) : isPairSoulStoneItem(selectedItem) ? (
-                <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-                    <PairPetLobbySoulStoneViewer
-                        item={selectedItem}
+    const infoDetailPanelBody = !selectedItem ? (
+        <div
+            className={`flex h-full min-h-0 flex-1 flex-col items-center justify-center overflow-hidden px-2 py-3 ${PET_MGMT_SEMI} text-slate-400`}
+        >
+            아래 인벤에서 펫 또는 영혼석을 선택하세요
+        </div>
+    ) : isPairPetMaterial(selectedItem) && selectedItem.templateId ? (
+        <PairPetLobbyInfoPetViewer
+            currentUser={currentUser}
+            item={selectedItem}
+            isBusy={isBusy}
+            equippedTemplateId={equippedTid}
+            petInTraining={selectedPetInTraining}
+            onSetRepresentative={(templateId, inventoryItemId) => void equipPet(templateId, inventoryItemId)}
+            onClearRepresentative={() => void clearEquip()}
+            onSoulConvert={(item) => setSoulConvertItem(item)}
+            applyPetAction={applyPetAction}
+        />
+    ) : isPairSoulStoneItem(selectedItem) ? (
+        <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            <PairPetLobbySoulStoneViewer
+                item={selectedItem}
+                isBusy={isBusy}
+                totalSoulQuantity={selectedItem.quantity ?? 0}
+                onSellOne={() => {
+                    const tid = selectedItem.templateId;
+                    if (!tid) return;
+                    const row =
+                        (selectedSoulPrimaryStackId
+                            ? inventory.find((i) => i.id === selectedSoulPrimaryStackId)
+                            : null) ??
+                        inventory.find((i) => i.templateId === tid && isPairSoulStoneItem(i));
+                    if (row) setSoulStoneSellConfirm({ stackItem: row, quantity: 1 });
+                }}
+                onOpenBulkSell={() => {
+                    if (!selectedItem || !isPairSoulStoneItem(selectedItem)) return;
+                    setSoulStoneSellBulkItem(selectedItem);
+                }}
+            />
+        </div>
+    ) : (
+        <div
+            className={`min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-1.5 sm:p-2 ${PET_LOBBY_BAG_SCROLLBAR_Y_CLASS}`}
+        >
+            <p className="text-xs text-slate-400 sm:text-sm">이 카테고리에서 지원하지 않는 아이템입니다.</p>
+        </div>
+    );
+
+    const infoDetailPanelMobile = aiTab === 'info' ? infoDetailPanelBody : null;
+
+    const renderShopSkuSection = (title: string, skus: PairPetShopSku[]) => (
+        <section className={PET_MGMT_SHOP_SECTION_CLASS}>
+            <h3 className={PET_MGMT_SHOP_SECTION_TITLE}>{title}</h3>
+            <div className={PET_MGMT_SHOP_GRID_DESKTOP_CLASS}>
+                {skus.map((sku) => (
+                    <PairPetShopSkuCard
+                        key={sku.id}
+                        sku={sku}
+                        currentUser={currentUser}
                         isBusy={isBusy}
-                        totalSoulQuantity={selectedItem.quantity ?? 0}
-                        onSellOne={() => {
-                            const tid = selectedItem.templateId;
-                            if (!tid) return;
-                            const row =
-                                (selectedSoulPrimaryStackId
-                                    ? inventory.find((i) => i.id === selectedSoulPrimaryStackId)
-                                    : null) ??
-                                inventory.find((i) => i.templateId === tid && isPairSoulStoneItem(i));
-                            if (row) setSoulStoneSellConfirm({ stackItem: row, quantity: 1 });
-                        }}
-                        onOpenBulkSell={() => {
-                            if (!selectedItem || !isPairSoulStoneItem(selectedItem)) return;
-                            setSoulStoneSellBulkItem(selectedItem);
-                        }}
+                        mobile={false}
+                        onBuyClick={onPairPetShopBuyClick}
+                        descOpen={shopDescSkuId === sku.id}
+                        onOpenDesc={() => setShopDescSkuId(sku.id)}
+                        onCloseDesc={() => setShopDescSkuId((cur) => (cur === sku.id ? null : cur))}
                     />
+                ))}
+            </div>
+        </section>
+    );
+
+    const shopTabContent = (
+        <>
+            {renderShopSkuSection('알', shopEggSkus)}
+            {renderShopSkuSection('영혼석', shopSoulSkus)}
+        </>
+    );
+
+    const invDockClass = petMgmtMobileShell ? PET_MGMT_INV_DOCK_MOBILE_CLASS : PET_MGMT_INV_DOCK_DESKTOP_CLASS;
+    const invGridClass = petMgmtMobileShell ? PET_MGMT_INV_GRID_MOBILE_CLASS : PET_MGMT_INV_GRID_DESKTOP_CLASS;
+    const soulGridClass = petMgmtMobileShell ? PET_MGMT_SOUL_GRID_MOBILE_CLASS : PET_MGMT_SOUL_GRID_DESKTOP_CLASS;
+    const soulThumbDisabled = isBusy || (petMgmtMobileShell && aiTab !== 'info');
+    const soulThumbSelected = petMgmtMobileShell
+        ? aiTab === 'info' && selectedLobbyItemId !== null
+        : selectedLobbyItemId !== null;
+
+    const invDockPanel = (
+        <div className={petMgmtMobileShell ? `${invDockClass} !h-[11rem]` : invDockClass}>
+            <div className={PET_MGMT_INV_HEADER_CLASS}>
+                <div className="grid shrink-0 grid-cols-2 gap-0.5 rounded border border-white/10 bg-black/40 p-0.5">
+                    {(
+                        [
+                            { id: 'pet' as const, label: '펫' },
+                            { id: 'soul' as const, label: '영혼석' },
+                        ] as const
+                    ).map(({ id, label }) => {
+                        const soulLocked = id === 'soul' && aiTab === 'training';
+                        const tabDisabled = soulLocked;
+                        return (
+                            <button
+                                key={id}
+                                type="button"
+                                disabled={tabDisabled}
+                                onClick={() => {
+                                    if (tabDisabled) return;
+                                    setInvFilter(id);
+                                    setExpandTarget(null);
+                                }}
+                                title={soulLocked ? '수련에서는 펫 인벤만 사용합니다.' : undefined}
+                                className={`${PET_MGMT_TAB_BTN_BASE} px-1 py-0.5 ${
+                                    invStripTabHighlight === id
+                                        ? 'bg-cyan-600 text-white'
+                                        : 'text-slate-300 hover:bg-white/10 hover:text-slate-100'
+                                } ${soulLocked ? 'cursor-not-allowed opacity-45 hover:bg-transparent hover:text-slate-300' : ''}`}
+                            >
+                                {label}
+                            </button>
+                        );
+                    })}
                 </div>
-            ) : (
+                <label className={`flex shrink-0 items-center gap-0.5 ${PET_MGMT_SEMI} text-slate-400`}>
+                    <span className="sr-only">정렬</span>
+                    <select
+                        value={invSort}
+                        onChange={(e) => {
+                            const next = normalizePairPetLobbyInventorySort(e.target.value);
+                            if (!next) return;
+                            setInvSort(next);
+                            void applyPetAction({
+                                type: 'UPDATE_PAIR_PET_LOBBY_INVENTORY_SORT',
+                                payload: { sortMode: next },
+                            });
+                        }}
+                        disabled={isBusy || effectiveInvFilter === 'soul'}
+                        className={`max-w-[7.5rem] rounded border border-white/15 bg-black/50 py-px pl-1 pr-4 ${PET_MGMT_BOLD} text-slate-100 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/35 disabled:cursor-not-allowed disabled:opacity-45 ${
+                            effectiveInvFilter === 'pet' ? 'cursor-pointer' : ''
+                        }`}
+                    >
+                        <option value="recent">최근 획득순</option>
+                        <option value="oldest">오래된순</option>
+                        <option value="name">이름순</option>
+                        <option value="petLevel">펫 레벨순</option>
+                        <option value="gradeHigh">높은 등급순</option>
+                        <option value="petNumber">종류순</option>
+                    </select>
+                </label>
                 <div
-                    className={`min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-1.5 sm:p-2 ${PET_LOBBY_BAG_SCROLLBAR_Y_CLASS}`}
+                    className="ml-auto min-w-[6ch] shrink-0 tabular-nums text-right"
+                    title={
+                        effectiveInvFilter === 'pet' && hiddenInvCount > 0
+                            ? `슬롯 밖 ${hiddenInvCount}개`
+                            : undefined
+                    }
                 >
-                    <p className="text-xs text-slate-400 sm:text-sm">이 카테고리에서 지원하지 않는 아이템입니다.</p>
+                    <div
+                        className={`${PET_MGMT_XBOLD} tracking-tight text-slate-100 ${
+                            effectiveInvFilter === 'soul' ? 'invisible' : ''
+                        }`}
+                    >
+                        {pairPetMaterialCount} / {slotCountPet}
+                    </div>
                 </div>
-            )
-        ) : null;
+            </div>
+            <div
+                className={`${PET_MGMT_INV_GRID_SCROLL_CLASS} ${PET_LOBBY_BAG_SCROLLBAR_Y_CLASS}`}
+                style={{ WebkitOverflowScrolling: 'touch' }}
+            >
+                {effectiveInvFilter === 'soul' ? (
+                    <div className={soulGridClass}>
+                        {PAIR_SOULSTONE_TEMPLATE_IDS.map((tid, idx) => {
+                            const name = PAIR_SOULSTONE_NAMES[idx]!;
+                            const meta = MATERIAL_ITEMS[name as keyof typeof MATERIAL_ITEMS];
+                            const img = meta?.image ?? `/images/pets/soulstone${idx + 1}.webp`;
+                            const soulGrade = meta?.grade ?? ItemGrade.Normal;
+                            const qty = soulQtyByTemplateId.get(tid) ?? 0;
+                            const slotKey = `${SOUL_SLOT_PREFIX}${tid}`;
+                            return (
+                                <SoulStoneFixedThumb
+                                    key={tid}
+                                    imageUrl={img}
+                                    qty={qty}
+                                    grade={soulGrade}
+                                    selected={soulThumbSelected && selectedLobbyItemId === slotKey}
+                                    disabled={soulThumbDisabled}
+                                    onClick={() => setSelectedLobbyItemId(slotKey)}
+                                />
+                            );
+                        })}
+                    </div>
+                ) : (
+                    <div className={invGridClass}>
+                        {Array.from({ length: Math.max(slotCount, sortedFilteredInv.length) }, (_, i) =>
+                            renderLobbyGridSlot(sortedFilteredInv[i], i)
+                        )}
+                        {canExpandSlots ? (
+                            <button
+                                type="button"
+                                key="pair-pet-inv-expand"
+                                disabled={isBusy}
+                                onClick={() => {
+                                    if (effectiveInvFilter === 'pet') setExpandTarget('pet');
+                                }}
+                                title="슬롯 확장"
+                                className="flex aspect-square w-full min-w-0 items-center justify-center rounded-lg border-2 border-gray-700/50 bg-gray-800/50 text-4xl font-light leading-none text-gray-400 transition hover:border-accent hover:bg-gray-700/50 hover:text-gray-200 active:bg-gray-600/50 disabled:opacity-40"
+                            >
+                                +
+                            </button>
+                        ) : null}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
 
     const tabContent = (
         <>
@@ -2128,7 +2389,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                 sku={sku}
                                 currentUser={currentUser}
                                 isBusy={isBusy}
-                                mobile={pairLobbyHandheld}
+                                mobile={petMgmtMobileShell}
                                 onBuyClick={onPairPetShopBuyClick}
                                 descOpen={shopDescSkuId === sku.id}
                                 onOpenDesc={() => setShopDescSkuId(sku.id)}
@@ -2144,228 +2405,215 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
 
     return (
         <div className={PET_MGMT_ROOT_CLASS}>
-            <div className="flex shrink-0 flex-col gap-0.5">
-                <PairPetProfilePanel
-                    currentUser={currentUser}
-                    currentUserId={currentUserId}
-                    isBusy={isBusy}
-                    compact
-                    petManagementModal
-                    detailButtonLabel="상세보기"
-                    hideInlineBadukChip
-                    showRepresentativeBadge={Boolean(equippedPetRow)}
-                    onOpenEquippedPetDetail={openEquippedPetDetail}
-                    onFocusPetInventory={focusInfoPetInventory}
-                />
-            </div>
-
-            <div className="grid shrink-0 grid-cols-4 gap-1 rounded-lg border border-white/10 bg-black/30 p-1">
-                <button
-                    type="button"
-                    onClick={() => setAiTab('info')}
-                    className={`${PET_MGMT_TAB_BTN_BASE} ${aiTab === 'info' ? 'bg-sky-500 text-sky-950' : 'text-sky-100 hover:bg-sky-950/45'}`}
-                >
-                    정보
-                </button>
-                <button
-                    type="button"
-                    onClick={() => setAiTab('training')}
-                    title={pairTrainingHasClaimReady ? '수련 보상을 수령할 수 있습니다' : undefined}
-                    className={`relative ${PET_MGMT_TAB_BTN_BASE} ${aiTab === 'training' ? 'bg-violet-500 text-violet-950' : 'text-violet-100 hover:bg-violet-950/45'}`}
-                >
-                    수련
-                    {pairTrainingHasClaimReady ? (
-                        <span
-                            className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-red-500 ring-1 ring-zinc-900/90"
-                            aria-hidden
+            {petMgmtMobileShell ? (
+                <>
+                    <div className="flex shrink-0 flex-col gap-0.5">
+                        <PairPetProfilePanel
+                            currentUser={currentUser}
+                            currentUserId={currentUserId}
+                            isBusy={isBusy}
+                            compact
+                            petManagementModal
+                            detailButtonLabel="상세보기"
+                            hideInlineBadukChip
+                            showRepresentativeBadge={Boolean(equippedPetRow)}
+                            onOpenEquippedPetDetail={openEquippedPetDetail}
+                            onFocusPetInventory={focusInfoPetInventory}
                         />
-                    ) : null}
-                </button>
-                <button
-                    type="button"
-                    onClick={() => setAiTab('hatchery')}
-                    title={pairHatcheryHasClaimReady ? '부화가 완료된 슬롯이 있습니다' : undefined}
-                    className={`relative ${PET_MGMT_TAB_BTN_BASE} ${aiTab === 'hatchery' ? 'bg-fuchsia-600 text-fuchsia-50' : 'text-fuchsia-100 hover:bg-fuchsia-950/45'}`}
-                >
-                    부화장
-                    {pairHatcheryHasClaimReady ? (
-                        <span
-                            className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-red-500 ring-1 ring-zinc-900/90"
-                            aria-hidden
-                        />
-                    ) : null}
-                </button>
-                <button
-                    type="button"
-                    onClick={() => setAiTab('shop')}
-                    className={`${PET_MGMT_TAB_BTN_BASE} ${aiTab === 'shop' ? 'bg-amber-500 text-amber-950' : 'text-amber-100 hover:bg-amber-950/45'}`}
-                >
-                    펫 상점
-                </button>
-            </div>
+                    </div>
 
-            <div className={PET_MGMT_MAIN_COLUMN_CLASS}>
-                {showInvStrip ? (
-                    <>
-                        <div className={PET_MGMT_VIEWER_FRAME_CLASS}>
-                            <div className={`flex h-full min-h-0 w-full flex-1 flex-col rounded-lg border border-white/10 bg-black/25 ${PET_MGMT_TAB_PANEL_CLASS}`}>
-                                {aiTab === 'info' ? (
-                                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-                                        {infoDetailPanel}
-                                    </div>
-                                ) : null}
-                                {aiTab === 'training' ? (
-                                    <div className={`${PET_MGMT_SCROLL_CLASS} ${PET_LOBBY_BAG_SCROLLBAR_Y_CLASS} min-h-0 flex-1 px-0.5`}>
-                                        {trainingTabContent}
-                                    </div>
-                                ) : null}
-                                {aiTab === 'hatchery' ? (
-                                    <div className={`${PET_MGMT_SCROLL_CLASS} ${PET_LOBBY_BAG_SCROLLBAR_Y_CLASS} min-h-0 flex-1 px-0.5`}>
-                                        {hatcheryTabContent}
-                                    </div>
-                                ) : null}
-                            </div>
-                        </div>
-                        {aiTab !== 'hatchery' ? (
-                        <div className={pairLobbyHandheld ? `${PET_MGMT_INV_DOCK_CLASS} !h-[11rem]` : PET_MGMT_INV_DOCK_CLASS}>
-                            <div className={PET_MGMT_INV_HEADER_CLASS}>
-                                <div className="grid shrink-0 grid-cols-2 gap-0.5 rounded border border-white/10 bg-black/40 p-0.5">
-                                    {(
-                                        [
-                                            { id: 'pet' as const, label: '펫' },
-                                            { id: 'soul' as const, label: '영혼석' },
-                                        ] as const
-                                    ).map(({ id, label }) => {
-                                        const soulLocked = id === 'soul' && aiTab === 'training';
-                                        const tabDisabled = soulLocked;
-                                        return (
-                                            <button
-                                                key={id}
-                                                type="button"
-                                                disabled={tabDisabled}
-                                                onClick={() => {
-                                                    if (tabDisabled) return;
-                                                    setInvFilter(id);
-                                                    setExpandTarget(null);
-                                                }}
-                                                title={soulLocked ? '수련에서는 펫 인벤만 사용합니다.' : undefined}
-                                                className={`${PET_MGMT_TAB_BTN_BASE} px-1 py-0.5 ${
-                                                    invStripTabHighlight === id
-                                                        ? 'bg-cyan-600 text-white'
-                                                        : 'text-slate-300 hover:bg-white/10 hover:text-slate-100'
-                                                } ${soulLocked ? 'cursor-not-allowed opacity-45 hover:bg-transparent hover:text-slate-300' : ''}`}
-                                            >
-                                                {label}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                                <label className={`flex shrink-0 items-center gap-0.5 ${PET_MGMT_SEMI} text-slate-400`}>
-                                    <span className="sr-only">정렬</span>
-                                    <select
-                                        value={invSort}
-                                        onChange={(e) => {
-                                            const next = normalizePairPetLobbyInventorySort(e.target.value);
-                                            if (!next) return;
-                                            setInvSort(next);
-                                            void applyPetAction({
-                                                type: 'UPDATE_PAIR_PET_LOBBY_INVENTORY_SORT',
-                                                payload: { sortMode: next },
-                                            });
-                                        }}
-                                        disabled={isBusy || effectiveInvFilter === 'soul'}
-                                        className={`max-w-[7.5rem] rounded border border-white/15 bg-black/50 py-px pl-1 pr-4 ${PET_MGMT_BOLD} text-slate-100 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/35 disabled:cursor-not-allowed disabled:opacity-45 ${
-                                            effectiveInvFilter === 'pet' ? 'cursor-pointer' : ''
-                                        }`}
-                                    >
-                                        <option value="recent">최근 획득순</option>
-                                        <option value="oldest">오래된순</option>
-                                        <option value="name">이름순</option>
-                                        <option value="petLevel">펫 레벨순</option>
-                                        <option value="gradeHigh">높은 등급순</option>
-                                        <option value="petNumber">종류순</option>
-                                    </select>
-                                </label>
-                                <div
-                                    className="ml-auto min-w-[6ch] shrink-0 tabular-nums text-right"
-                                    title={
-                                        effectiveInvFilter === 'pet' && hiddenInvCount > 0
-                                            ? `슬롯 밖 ${hiddenInvCount}개`
-                                            : undefined
-                                    }
-                                >
+                    <div className="grid shrink-0 grid-cols-4 gap-1 rounded-lg border border-white/10 bg-black/30 p-1">
+                        <button
+                            type="button"
+                            onClick={() => setAiTab('info')}
+                            className={`${PET_MGMT_TAB_BTN_BASE} ${aiTab === 'info' ? 'bg-sky-500 text-sky-950' : 'text-sky-100 hover:bg-sky-950/45'}`}
+                        >
+                            정보
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setAiTab('training')}
+                            title={pairTrainingHasClaimReady ? '수련 보상을 수령할 수 있습니다' : undefined}
+                            className={`relative ${PET_MGMT_TAB_BTN_BASE} ${aiTab === 'training' ? 'bg-violet-500 text-violet-950' : 'text-violet-100 hover:bg-violet-950/45'}`}
+                        >
+                            수련
+                            {pairTrainingHasClaimReady ? (
+                                <span
+                                    className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-red-500 ring-1 ring-zinc-900/90"
+                                    aria-hidden
+                                />
+                            ) : null}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setAiTab('hatchery')}
+                            title={pairHatcheryHasClaimReady ? '부화가 완료된 슬롯이 있습니다' : undefined}
+                            className={`relative ${PET_MGMT_TAB_BTN_BASE} ${aiTab === 'hatchery' ? 'bg-fuchsia-600 text-fuchsia-50' : 'text-fuchsia-100 hover:bg-fuchsia-950/45'}`}
+                        >
+                            부화장
+                            {pairHatcheryHasClaimReady ? (
+                                <span
+                                    className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-red-500 ring-1 ring-zinc-900/90"
+                                    aria-hidden
+                                />
+                            ) : null}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setAiTab('shop')}
+                            className={`${PET_MGMT_TAB_BTN_BASE} ${aiTab === 'shop' ? 'bg-amber-500 text-amber-950' : 'text-amber-100 hover:bg-amber-950/45'}`}
+                        >
+                            펫 상점
+                        </button>
+                    </div>
+
+                    <div className={PET_MGMT_MAIN_COLUMN_CLASS}>
+                        {showInvStrip ? (
+                            <>
+                                <div className={PET_MGMT_VIEWER_FRAME_CLASS}>
                                     <div
-                                        className={`${PET_MGMT_XBOLD} tracking-tight text-slate-100 ${
-                                            effectiveInvFilter === 'soul' ? 'invisible' : ''
-                                        }`}
+                                        className={`flex h-full min-h-0 w-full flex-1 flex-col rounded-lg border border-white/10 bg-black/25 ${PET_MGMT_TAB_PANEL_CLASS}`}
                                     >
-                                        {pairPetMaterialCount} / {slotCountPet}
-                                    </div>
-                                </div>
-                            </div>
-                            <div
-                                className={`${PET_MGMT_INV_GRID_SCROLL_CLASS} ${PET_LOBBY_BAG_SCROLLBAR_Y_CLASS}`}
-                                style={{ WebkitOverflowScrolling: 'touch' }}
-                            >
-                                {effectiveInvFilter === 'soul' ? (
-                                    <div className={PET_MGMT_SOUL_GRID_CLASS}>
-                                        {PAIR_SOULSTONE_TEMPLATE_IDS.map((tid, idx) => {
-                                            const name = PAIR_SOULSTONE_NAMES[idx]!;
-                                            const meta = MATERIAL_ITEMS[name as keyof typeof MATERIAL_ITEMS];
-                                            const img = meta?.image ?? `/images/pets/soulstone${idx + 1}.webp`;
-                                            const soulGrade = meta?.grade ?? ItemGrade.Normal;
-                                            const qty = soulQtyByTemplateId.get(tid) ?? 0;
-                                            const slotKey = `${SOUL_SLOT_PREFIX}${tid}`;
-                                            return (
-                                                <SoulStoneFixedThumb
-                                                    key={tid}
-                                                    imageUrl={img}
-                                                    qty={qty}
-                                                    grade={soulGrade}
-                                                    selected={aiTab === 'info' && selectedLobbyItemId === slotKey}
-                                                    disabled={isBusy || aiTab !== 'info'}
-                                                    onClick={() => setSelectedLobbyItemId(slotKey)}
-                                                />
-                                            );
-                                        })}
-                                    </div>
-                                ) : (
-                                    <div className={PET_MGMT_INV_GRID_CLASS}>
-                                        {Array.from({ length: Math.max(slotCount, sortedFilteredInv.length) }, (_, i) =>
-                                            renderLobbyGridSlot(sortedFilteredInv[i], i)
-                                        )}
-                                        {canExpandSlots ? (
-                                            <button
-                                                type="button"
-                                                key="pair-pet-inv-expand"
-                                                disabled={isBusy}
-                                                onClick={() => {
-                                                    if (effectiveInvFilter === 'pet') setExpandTarget('pet');
-                                                }}
-                                                title="슬롯 확장"
-                                                className="flex aspect-square w-full min-w-0 items-center justify-center rounded-lg border-2 border-gray-700/50 bg-gray-800/50 text-4xl font-light leading-none text-gray-400 transition hover:border-accent hover:bg-gray-700/50 hover:text-gray-200 active:bg-gray-600/50 disabled:opacity-40"
+                                        {aiTab === 'info' ? (
+                                            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                                                {infoDetailPanelMobile}
+                                            </div>
+                                        ) : null}
+                                        {aiTab === 'training' ? (
+                                            <div
+                                                className={`${PET_MGMT_SCROLL_CLASS} ${PET_LOBBY_BAG_SCROLLBAR_Y_CLASS} min-h-0 flex-1 px-0.5`}
                                             >
-                                                +
-                                            </button>
+                                                {trainingTabContent}
+                                            </div>
+                                        ) : null}
+                                        {aiTab === 'hatchery' ? (
+                                            <div
+                                                className={`${PET_MGMT_SCROLL_CLASS} ${PET_LOBBY_BAG_SCROLLBAR_Y_CLASS} min-h-0 flex-1 px-0.5`}
+                                            >
+                                                {hatcheryTabContent}
+                                            </div>
                                         ) : null}
                                     </div>
-                                )}
+                                </div>
+                                {aiTab !== 'hatchery' ? invDockPanel : null}
+                            </>
+                        ) : (
+                            <div className={PET_MGMT_VIEWER_FRAME_CLASS}>
+                                <div
+                                    className={`flex h-full min-h-0 w-full flex-1 flex-col rounded-lg border border-white/10 bg-black/25 ${PET_MGMT_TAB_PANEL_CLASS}`}
+                                >
+                                    {aiTab === 'shop' ? (
+                                        <div
+                                            className={`${PET_MGMT_SCROLL_CLASS} ${PET_LOBBY_BAG_SCROLLBAR_Y_CLASS} min-h-0 flex-1`}
+                                        >
+                                            {tabContent}
+                                        </div>
+                                    ) : null}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </>
+            ) : (
+                <div className={PET_MGMT_MAIN_COLUMN_CLASS}>
+                    <div className={PET_MGMT_TOP_SPLIT_CLASS}>
+                        <div className={PET_MGMT_INFO_COLUMN_CLASS}>
+                            <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+                                <div className="shrink-0 border-b border-white/10 bg-black/25 px-2 py-1.5">
+                                    <PairPetProfilePanel
+                                        currentUser={currentUser}
+                                        currentUserId={currentUserId}
+                                        isBusy={isBusy}
+                                        compact
+                                        embed
+                                        petManagementModal
+                                        detailButtonLabel="상세보기"
+                                        hideInlineBadukChip
+                                        showRepresentativeBadge={Boolean(equippedPetRow)}
+                                        onOpenEquippedPetDetail={openEquippedPetDetail}
+                                        onFocusPetInventory={focusInfoPetInventory}
+                                    />
+                                </div>
+                                <div
+                                    className={`${PET_MGMT_INFO_SCROLL_CLASS} ${PET_MGMT_TAB_PANEL_CLASS} ${PET_LOBBY_BAG_SCROLLBAR_Y_CLASS} min-h-0 flex-1`}
+                                >
+                                    {infoDetailPanelBody}
+                                </div>
                             </div>
                         </div>
-                        ) : null}
-                    </>
-                ) : (
-                    <div className={PET_MGMT_VIEWER_FRAME_CLASS}>
-                        <div className={`flex h-full min-h-0 w-full flex-1 flex-col rounded-lg border border-white/10 bg-black/25 ${PET_MGMT_TAB_PANEL_CLASS}`}>
-                            {aiTab === 'shop' ? (
-                                <div className={`${PET_MGMT_SCROLL_CLASS} ${PET_LOBBY_BAG_SCROLLBAR_Y_CLASS} min-h-0 flex-1`}>
-                                    {tabContent}
+
+                        <div className={PET_MGMT_RIGHT_COLUMN_CLASS}>
+                            <div className={PET_MGMT_MAIN_TAB_BAR}>
+                                <button
+                                    type="button"
+                                    onClick={() => setAiTab('training')}
+                                    title={pairTrainingHasClaimReady ? '수련 보상을 수령할 수 있습니다' : undefined}
+                                    className={`relative ${petMgmtMainTabClass(aiTab === 'training', 'training')}`}
+                                >
+                                    수련
+                                    {pairTrainingHasClaimReady ? (
+                                        <span
+                                            className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500 ring-2 ring-zinc-900/90"
+                                            aria-hidden
+                                        />
+                                    ) : null}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setAiTab('hatchery')}
+                                    title={pairHatcheryHasClaimReady ? '부화가 완료된 슬롯이 있습니다' : undefined}
+                                    className={`relative ${petMgmtMainTabClass(aiTab === 'hatchery', 'hatchery')}`}
+                                >
+                                    부화장
+                                    {pairHatcheryHasClaimReady ? (
+                                        <span
+                                            className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500 ring-2 ring-zinc-900/90"
+                                            aria-hidden
+                                        />
+                                    ) : null}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setAiTab('shop')}
+                                    className={petMgmtMainTabClass(aiTab === 'shop', 'shop')}
+                                >
+                                    펫 상점
+                                </button>
+                            </div>
+
+                            <div className={PET_MGMT_VIEWER_FRAME_CLASS}>
+                                <div
+                                    className={`flex h-full min-h-0 w-full flex-1 flex-col rounded-lg border border-white/10 bg-black/25 ${PET_MGMT_TAB_PANEL_CLASS}`}
+                                >
+                                    {aiTab === 'training' ? (
+                                        <div
+                                            className={`${PET_MGMT_SCROLL_CLASS} ${PET_LOBBY_BAG_SCROLLBAR_Y_CLASS} min-h-0 flex-1 px-0.5`}
+                                        >
+                                            {trainingTabContent}
+                                        </div>
+                                    ) : null}
+                                    {aiTab === 'hatchery' ? (
+                                        <div
+                                            className={`${PET_MGMT_SCROLL_CLASS} ${PET_LOBBY_BAG_SCROLLBAR_Y_CLASS} min-h-0 flex-1 px-0.5`}
+                                        >
+                                            {hatcheryTabContent}
+                                        </div>
+                                    ) : null}
+                                    {aiTab === 'shop' ? (
+                                        <div
+                                            className={`${PET_MGMT_SHOP_SCROLL_CLASS} ${PET_LOBBY_BAG_SCROLLBAR_Y_CLASS} min-h-0 flex-1 px-0.5`}
+                                        >
+                                            {shopTabContent}
+                                        </div>
+                                    ) : null}
                                 </div>
-                            ) : null}
+                            </div>
                         </div>
                     </div>
-                )}
-            </div>
+
+                    {invDockPanel}
+                </div>
+            )}
 
             {expandTarget ? (
                 <DraggableWindow

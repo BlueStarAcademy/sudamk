@@ -895,64 +895,64 @@ const DiamondShopCard: React.FC<{
         >
             <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-300/80 to-transparent" />
             <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-20 bg-[radial-gradient(circle_at_top,rgba(79,70,229,0.35),transparent_65%)]" />
-            {segments ? (
-                <div
-                    className={`relative mx-auto mb-1.5 flex w-full min-w-0 shrink-0 items-stretch justify-center gap-0.5 ${mobile ? 'min-h-[3.25rem]' : 'min-h-[3.75rem] gap-1 sm:min-h-[4rem]'}`}
-                    aria-hidden
-                >
-                    <div className={segmentBoxSplitClass}>
-                        <img
-                            src={SHOP_DIAMOND_ICON}
-                            alt=""
-                            className={`${segmentGemClass} object-contain drop-shadow-[0_0_12px_rgba(34,211,238,0.5)]`}
-                        />
-                        <span className={segmentNumClass}>{segments[0].toLocaleString()}</span>
-                    </div>
-                    <span
-                        className={`flex shrink-0 items-center self-center font-bold tabular-nums text-slate-400/95 ${
-                            mobile ? 'px-0 text-[10px]' : 'px-0.5 text-xs sm:text-sm'
-                        }`}
-                    >
-                        +
-                    </span>
-                    <div className={segmentBoxSplitClass}>
-                        <img
-                            src={SHOP_DIAMOND_ICON}
-                            alt=""
-                            className={`${segmentGemClass} object-contain drop-shadow-[0_0_12px_rgba(34,211,238,0.5)]`}
-                        />
-                        <span className={segmentNumClass}>{segments[1].toLocaleString()}</span>
-                    </div>
-                </div>
-            ) : (
-                <div
-                    className={`relative mx-auto mb-1.5 flex shrink-0 justify-center ${mobile ? 'min-h-[3.25rem]' : 'min-h-[3.75rem]'}`}
-                    aria-hidden
-                >
-                    <div className={segmentBoxSingleClass}>
-                        <img
-                            src={SHOP_DIAMOND_ICON}
-                            alt=""
-                            className={`${segmentGemClass} object-contain drop-shadow-[0_0_12px_rgba(34,211,238,0.5)]`}
-                        />
-                        <span className={segmentNumClass}>{product.diamonds.toLocaleString()}</span>
-                    </div>
-                </div>
-            )}
-            <h3
-                className={`w-full min-w-0 shrink-0 px-0 text-center font-semibold tabular-nums tracking-tight text-white drop-shadow-[0_2px_12px_rgba(99,102,241,0.55)] ${
-                    mobile
-                        ? 'h-[1.1rem] whitespace-nowrap text-[10px] leading-[1.1rem]'
-                        : 'min-h-[2.5rem] break-keep text-[11px] leading-snug sm:min-h-0 sm:text-sm'
-                }`}
-                title={`${countLabel}개`}
-            >
-                {countLabel}개
-            </h3>
             <div
-                className={`mt-1 flex w-full flex-1 items-start justify-center px-0.5 ${mobile ? 'min-h-[2rem]' : 'min-h-[2.5rem]'}`}
-                aria-hidden
-            />
+                className={`flex min-h-0 w-full flex-1 flex-col items-center justify-center ${mobile ? 'gap-1' : 'gap-1.5'}`}
+            >
+                {segments ? (
+                    <div
+                        className={`relative mx-auto flex w-full min-w-0 shrink-0 items-stretch justify-center gap-0.5 ${mobile ? 'min-h-[3.25rem]' : 'min-h-[3.75rem] gap-1 sm:min-h-[4rem]'}`}
+                        aria-hidden
+                    >
+                        <div className={segmentBoxSplitClass}>
+                            <img
+                                src={SHOP_DIAMOND_ICON}
+                                alt=""
+                                className={`${segmentGemClass} object-contain drop-shadow-[0_0_12px_rgba(34,211,238,0.5)]`}
+                            />
+                            <span className={segmentNumClass}>{segments[0].toLocaleString()}</span>
+                        </div>
+                        <span
+                            className={`flex shrink-0 items-center self-center font-bold tabular-nums text-slate-400/95 ${
+                                mobile ? 'px-0 text-[10px]' : 'px-0.5 text-xs sm:text-sm'
+                            }`}
+                        >
+                            +
+                        </span>
+                        <div className={segmentBoxSplitClass}>
+                            <img
+                                src={SHOP_DIAMOND_ICON}
+                                alt=""
+                                className={`${segmentGemClass} object-contain drop-shadow-[0_0_12px_rgba(34,211,238,0.5)]`}
+                            />
+                            <span className={segmentNumClass}>{segments[1].toLocaleString()}</span>
+                        </div>
+                    </div>
+                ) : (
+                    <div
+                        className={`relative mx-auto flex shrink-0 items-center justify-center ${mobile ? 'min-h-[3.25rem]' : 'min-h-[3.75rem]'}`}
+                        aria-hidden
+                    >
+                        <div className={segmentBoxSingleClass}>
+                            <img
+                                src={SHOP_DIAMOND_ICON}
+                                alt=""
+                                className={`${segmentGemClass} object-contain drop-shadow-[0_0_12px_rgba(34,211,238,0.5)]`}
+                            />
+                            <span className={segmentNumClass}>{product.diamonds.toLocaleString()}</span>
+                        </div>
+                    </div>
+                )}
+                <h3
+                    className={`w-full min-w-0 shrink-0 px-0 text-center font-semibold tabular-nums tracking-tight text-white drop-shadow-[0_2px_12px_rgba(99,102,241,0.55)] ${
+                        mobile
+                            ? 'h-[1.1rem] whitespace-nowrap text-[10px] leading-[1.1rem]'
+                            : 'min-h-[2.5rem] break-keep text-[11px] leading-snug sm:min-h-0 sm:text-sm'
+                    }`}
+                    title={`${countLabel}개`}
+                >
+                    {countLabel}개
+                </h3>
+            </div>
             <div className="mt-1.5 flex w-full flex-shrink-0 flex-col items-stretch justify-center gap-1">
                 <Button
                     type="button"

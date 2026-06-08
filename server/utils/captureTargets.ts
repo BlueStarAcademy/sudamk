@@ -2,8 +2,8 @@ import type { LiveGameSession } from '../../types/index.js';
 import { Player } from '../../types/index.js';
 import { GameCategory, GameMode } from '../../types/enums.js';
 import * as summaryService from '../summaryService.js';
-import { getSpeedTimePressureBonusPointsFromConsumedSec } from '../../shared/utils/speedTimePressureDisplay.js';
-import { getSpeedTimePressureConsumptionSnapshot } from './speedTimePressureLiveCaptures.js';
+import { getSpeedTurnPenaltySnapshot } from '../../shared/utils/speedTimePressureSessionSync.js';
+import { aiUserId } from '../aiPlayer.js';
 
 export const NO_CAPTURE_TARGET = 999;
 
@@ -53,26 +53,21 @@ function resolveSpeedTimeBonusForCaptureTarget(game: LiveGameSession): { black: 
     if (!isSpeedCaptureMix) return { black: 0, white: 0 };
 
     const nowMs = Date.now();
-    const { blackConsumed, whiteConsumed } = getSpeedTimePressureConsumptionSnapshot(game, nowMs);
+    const { blackPenaltyPoints, whitePenaltyPoints } = getSpeedTurnPenaltySnapshot(game, nowMs, aiUserId);
 
     if (game.isAiGame) {
-        // AI전: 유저 소모 시간만 AI 보너스로 반영.
         const humanId = game.player1?.id;
         const humanPlayer =
             humanId && humanId === game.blackPlayerId ? Player.Black : humanId && humanId === game.whitePlayerId ? Player.White : Player.None;
         if (humanPlayer === Player.Black) {
-            return { black: 0, white: getSpeedTimePressureBonusPointsFromConsumedSec(blackConsumed) };
+            return { black: 0, white: blackPenaltyPoints };
         }
         if (humanPlayer === Player.White) {
-            return { black: getSpeedTimePressureBonusPointsFromConsumedSec(whiteConsumed), white: 0 };
+            return { black: whitePenaltyPoints, white: 0 };
         }
     }
 
-    // PVP/일반 믹스: 내가 사용한 시간이 공통 간격(초)마다 상대 +1점
-    return {
-        black: getSpeedTimePressureBonusPointsFromConsumedSec(whiteConsumed),
-        white: getSpeedTimePressureBonusPointsFromConsumedSec(blackConsumed),
-    };
+    return { black: whitePenaltyPoints, white: blackPenaltyPoints };
 }
 
 export function getCaptureTargetWinner(game: LiveGameSession, preferredScorer?: Player): Player | null {

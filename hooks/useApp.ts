@@ -126,6 +126,7 @@ import { calculateTotalStats } from '../services/statService.js';
 import { isClientAdmin } from '../utils/clientAdmin.js';
 import { processMoveClient } from '../client/goLogicClient.js';
 import { applyMissileCaptureProcessResult } from '../shared/utils/missileLandingCapture.js';
+import { shouldIgnoreStaleServerHiddenPlacingAfterClientCommit } from '../shared/utils/mixGoRules.js';
 import { isIntersectionRecordedAsBaseStone } from '../shared/utils/removeCapturedBaseStoneMarkers.js';
 import { findLatestMoveIndexAtExcludingRecordedBaseStones } from '../shared/utils/baseHiddenMoveIndex.js';
 import { buildWeightedJustCapturedForStones } from '../shared/utils/sumWeightedCapturePointsForCapturedStones.js';
@@ -251,12 +252,12 @@ function mergeSpeedTimePressureSettingsMonotonic(
     if (!prevSettings) return nextSettings;
 
     const merged: any = { ...prevSettings, ...nextSettings };
-    const prevConsumed = (prevSettings as any).__speedBonusConsumedSec as { black?: number; white?: number } | undefined;
-    const nextConsumed = (nextSettings as any).__speedBonusConsumedSec as { black?: number; white?: number } | undefined;
-    if (prevConsumed || nextConsumed) {
-        merged.__speedBonusConsumedSec = {
-            black: Math.max(0, Number(prevConsumed?.black ?? 0), Number(nextConsumed?.black ?? 0)),
-            white: Math.max(0, Number(prevConsumed?.white ?? 0), Number(nextConsumed?.white ?? 0)),
+    const prevPenalty = (prevSettings as any).__speedTurnPenaltyCommitted as { black?: number; white?: number } | undefined;
+    const nextPenalty = (nextSettings as any).__speedTurnPenaltyCommitted as { black?: number; white?: number } | undefined;
+    if (prevPenalty || nextPenalty) {
+        merged.__speedTurnPenaltyCommitted = {
+            black: Math.max(0, Number(prevPenalty?.black ?? 0), Number(nextPenalty?.black ?? 0)),
+            white: Math.max(0, Number(prevPenalty?.white ?? 0), Number(nextPenalty?.white ?? 0)),
         };
     }
 
@@ -353,6 +354,10 @@ function mergeTowerServerGameWithClientBoardIfStale(
     const bonusMerged = serverBonusDefined
         ? Number(srvBonusRaw) || 0
         : Math.max(Number((serverGame as any).blackTurnLimitBonus) || 0, Number((clientGame as any).blackTurnLimitBonus) || 0);
+    const preserveClientTurnAfterHiddenCommit = shouldIgnoreStaleServerHiddenPlacingAfterClientCommit(
+        clientGame,
+        serverGame,
+    );
     return {
         ...serverGame,
         // 서버 페이로드에 settings 키가 덜 실릴 때 클라이언트 값(kataServerLevel 등)을 보존한 뒤 서버가 준 필드로 덮음.
@@ -395,6 +400,17 @@ function mergeTowerServerGameWithClientBoardIfStale(
         scans_p2: (serverGame as any).scans_p2 ?? (clientGame as any).scans_p2,
         baseStoneCaptures: mergeMonotonicCountRecord(serverGame.baseStoneCaptures, clientGame.baseStoneCaptures),
         hiddenStoneCaptures: mergeMonotonicCountRecord(serverGame.hiddenStoneCaptures, clientGame.hiddenStoneCaptures),
+        ...(preserveClientTurnAfterHiddenCommit
+            ? {
+                  gameStatus: clientGame.gameStatus,
+                  currentPlayer: clientGame.currentPlayer,
+                  itemUseDeadline: clientGame.itemUseDeadline,
+                  itemPhaseActingPlayer: (clientGame as any).itemPhaseActingPlayer,
+                  pausedTurnTimeLeft: clientGame.pausedTurnTimeLeft,
+                  turnDeadline: clientGame.turnDeadline,
+                  turnStartTime: clientGame.turnStartTime,
+              }
+            : {}),
     };
 }
 
@@ -8665,7 +8681,8 @@ export const useApp = () => {
                                     game.gameStatus === 'playing';
                                 const isHiddenPlacingEntry =
                                     game.gameStatus === 'hidden_placing' &&
-                                    existingForThrottle?.gameStatus !== 'hidden_placing';
+                                    existingForThrottle?.gameStatus !== 'hidden_placing' &&
+                                    !shouldIgnoreStaleServerHiddenPlacingAfterClientCommit(existingForThrottle, game);
                                 const isScanningEntry =
                                     game.gameStatus === 'scanning' &&
                                     existingForThrottle?.gameStatus !== 'scanning';
@@ -8818,6 +8835,19 @@ export const useApp = () => {
                                                 console.warn(
                                                     '[WebSocket] SinglePlayer: ignoring stale base pre-play GAME_UPDATE while local already past base flow',
                                                     { gameId, incoming: game.gameStatus, local: existingGame?.gameStatus },
+                                                );
+                                            }
+                                            return currentGames;
+                                        }
+                                        if (shouldIgnoreStaleServerHiddenPlacingAfterClientCommit(existingGame, game)) {
+                                            if (process.env.NODE_ENV === 'development') {
+                                                console.warn(
+                                                    '[WebSocket] SinglePlayer: ignoring stale hidden_placing GAME_UPDATE after local hidden commit',
+                                                    {
+                                                        gameId,
+                                                        incomingMoves: game.moveHistory?.length ?? 0,
+                                                        localMoves: existingGame?.moveHistory?.length ?? 0,
+                                                    },
                                                 );
                                             }
                                             return currentGames;
@@ -9091,12 +9121,16 @@ export const useApp = () => {
                                                     mergedRevealAnimationEndTime =
                                                         existingGame.revealAnimationEndTime ?? mergedRevealAnimationEndTime;
                                                 }
+                                                const ignoreStaleHiddenPlacingRegression =
+                                                    shouldIgnoreStaleServerHiddenPlacingAfterClientCommit(existingGame, game);
                                                 const mergedGameStatus =
                                                     localRevealClockLive &&
                                                     !incomingItemPhase &&
                                                     existingGame?.gameStatus === 'hidden_reveal_animating'
                                                         ? ('hidden_reveal_animating' as const)
-                                                        : game.gameStatus;
+                                                        : ignoreStaleHiddenPlacingRegression && existingGame
+                                                          ? existingGame.gameStatus
+                                                          : game.gameStatus;
                                                 const mergedHiddenMoves = mergeHiddenMovesByStableHistory(game, existingGame);
                                                 const mergedHumanHiddenStonePoints = mergeHumanHiddenStonePointsForSession(
                                                     game,
@@ -9111,6 +9145,16 @@ export const useApp = () => {
                                                 updatedGames[gameId] = {
                                                     ...game,
                                                     gameStatus: mergedGameStatus,
+                                                    ...(ignoreStaleHiddenPlacingRegression && existingGame
+                                                        ? {
+                                                              currentPlayer: existingGame.currentPlayer,
+                                                              itemUseDeadline: existingGame.itemUseDeadline,
+                                                              itemPhaseActingPlayer: (existingGame as any).itemPhaseActingPlayer,
+                                                              pausedTurnTimeLeft: existingGame.pausedTurnTimeLeft,
+                                                              turnDeadline: existingGame.turnDeadline,
+                                                              turnStartTime: existingGame.turnStartTime,
+                                                          }
+                                                        : {}),
                                                     boardState: finalBoardState,
                                                     moveHistory: finalMoveHistory,
                                                     hiddenMoves: mergedHiddenMoves,
@@ -9501,6 +9545,19 @@ export const useApp = () => {
                                                 console.warn(
                                                     '[WebSocket] Tower: ignoring stale base pre-play GAME_UPDATE while local already past base flow',
                                                     { gameId, incoming: game.gameStatus, local: existingGame?.gameStatus },
+                                                );
+                                            }
+                                            return currentGames;
+                                        }
+                                        if (shouldIgnoreStaleServerHiddenPlacingAfterClientCommit(existingGame, game)) {
+                                            if (process.env.NODE_ENV === 'development') {
+                                                console.warn(
+                                                    '[WebSocket] Tower: ignoring stale hidden_placing GAME_UPDATE after local hidden commit',
+                                                    {
+                                                        gameId,
+                                                        incomingMoves: game.moveHistory?.length ?? 0,
+                                                        localMoves: existingGame?.moveHistory?.length ?? 0,
+                                                    },
                                                 );
                                             }
                                             return currentGames;

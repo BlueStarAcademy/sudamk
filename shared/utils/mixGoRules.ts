@@ -129,6 +129,27 @@ type MoveLike = { x?: number; y?: number; player?: Player };
  * PVE: 클라이언트가 SINGLE_PLAYER_CLIENT_MOVE로 이미 반영한 뒤 PLACE_STONE(isHidden)으로
  * board·moveHistory를 보낸 경우 — 서버가 processMove를 다시 돌리면 "이미 돌이 있음"으로 거절된다.
  */
+type GameStatusMoveHistoryLike = {
+    gameStatus?: string;
+    moveHistory?: readonly unknown[] | null;
+};
+
+/**
+ * PVE: 클라가 히든 착수를 로컬에 이미 반영(playing, 수순 ≥ 서버)한 뒤
+ * 늦게 도착한 WS/HTTP의 hidden_placing 패킷은 무시한다.
+ */
+export function shouldIgnoreStaleServerHiddenPlacingAfterClientCommit(
+    existing: GameStatusMoveHistoryLike | null | undefined,
+    incoming: GameStatusMoveHistoryLike | null | undefined,
+): boolean {
+    if (!existing || !incoming) return false;
+    if (String(incoming.gameStatus ?? '') !== 'hidden_placing') return false;
+    if (String(existing.gameStatus ?? '') !== 'playing') return false;
+    const existingMoves = existing.moveHistory?.length ?? 0;
+    const incomingMoves = incoming.moveHistory?.length ?? 0;
+    return existingMoves >= incomingMoves && existingMoves > 0;
+}
+
 export function mixGoPveHiddenPlacementAlreadyCommitted(
     game: {
         gameStatus?: string;

@@ -14,7 +14,6 @@ import type { GameMode, GameSettings } from '../../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants';
 import AiChallengeModal from './AiChallengeModal.js';
 import type { ArenaLobbyNavKind } from './ArenaLobbyNavTitleBar.js';
-import ConfirmModal from '../ConfirmModal.js';
 import AlertModal from '../AlertModal.js';
 
 export type PairAiLobbyMatchMode = 'solo' | 'duo';
@@ -91,7 +90,6 @@ export const AiLobbyWorkspaceProvider: React.FC<AiLobbyInlineWorkspaceProps & { 
     children,
 }) => {
     const [pairMatchMode, setPairMatchMode] = useState<PairAiLobbyMatchMode>('solo');
-    const [modeSwitchPrompt, setModeSwitchPrompt] = useState<PairAiLobbyMatchMode | null>(null);
     const [alertMessage, setAlertMessage] = useState<string | null>(null);
     const pairMatchModeRef = useRef<PairAiLobbyMatchMode>('solo');
     const duoAutoCreateInFlightRef = useRef(false);
@@ -182,15 +180,11 @@ export const AiLobbyWorkspaceProvider: React.FC<AiLobbyInlineWorkspaceProps & { 
         async (next: PairAiLobbyMatchMode) => {
             if (next === pairMatchMode) return;
             const room = pairDuoContext?.myRoom;
-            const incompatible =
+            const needsLeave =
                 Boolean(room) &&
                 ((next === 'duo' && room!.roomKind === 'ai_duel') ||
                     (next === 'solo' && room!.roomKind === 'duo_match'));
-            if (incompatible) {
-                setModeSwitchPrompt(next);
-                return;
-            }
-            await finalizePairMatchMode(next, false);
+            await finalizePairMatchMode(next, needsLeave);
         },
         [pairMatchMode, pairDuoContext, finalizePairMatchMode],
     );
@@ -260,22 +254,6 @@ export const AiLobbyWorkspaceProvider: React.FC<AiLobbyInlineWorkspaceProps & { 
     return (
         <>
             <AiLobbyWorkspaceContext.Provider value={value}>{children}</AiLobbyWorkspaceContext.Provider>
-            {modeSwitchPrompt != null ? (
-                <ConfirmModal
-                    title="대전 형태 변경"
-                    message="대전 형태를 바꾸려면 참여 중인 방에서 나가야 합니다. 계속하시겠습니까?"
-                    confirmText="나가고 변경"
-                    cancelText="취소"
-                    confirmColorScheme="blue"
-                    windowId="pair-ai-mode-switch-confirm"
-                    onConfirm={() => {
-                        const next = modeSwitchPrompt;
-                        setModeSwitchPrompt(null);
-                        if (next) void finalizePairMatchMode(next, true);
-                    }}
-                    onCancel={() => setModeSwitchPrompt(null)}
-                />
-            ) : null}
             {alertMessage ? (
                 <AlertModal
                     message={alertMessage}

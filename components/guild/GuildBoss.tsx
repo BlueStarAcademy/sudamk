@@ -23,22 +23,41 @@ import {
 } from '../../utils/guildBossBattlePersistence.js';
 import { getCurrentGuildBossStage, scaleGuildBossForStage } from '../../utils/guildBossStageUtils.js';
 import type { BattleLogEntry, GuildBossBattleResult } from '../../types/index.js';
-import { calculateTotalStats, calculateUserEffects } from '../../utils/statUtils.js';
-import { computeCoreStatFinalFromBonuses } from '../../shared/utils/coreStatComposition.js';
+import { calculateTotalStats } from '../../utils/statUtils.js';
 import Avatar from '../Avatar.js';
 import UserNicknameText from '../UserNicknameText.js';
 import { GUILD_ATTACK_ICON, GUILD_RESEARCH_HEAL_BLOCK_IMG, GUILD_RESEARCH_IGNITE_IMG, GUILD_RESEARCH_REGEN_IMG } from '../../assets.js';
+import HomeNativeMergedEquipmentAbilityPanel from '../HomeNativeMergedEquipmentAbilityPanel.js';
+import { BADUK_ABILITY_STAT_CAP, BADUK_ABILITY_TOTAL_CAP } from '../CoreStatsHexagonChart.js';
 import GuildBossBattleResultModal from './GuildBossBattleResultModal.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import { LOBBY_MOBILE_BTN_PRIMARY_CLASS, PRE_GAME_MODAL_PRIMARY_BTN_CLASS } from '../game/PreGameDescriptionLayout.js';
 
-const CORE_STAT_CAP = 1500;
 /** 모바일 보스전: 보스·유저(및 하단 로그) 가로 비율 4.5 : 5.5 */
 const GUILD_BOSS_MOBILE_BOSS_COLUMN_CLASS = 'min-w-0 basis-0 flex-[4.5]';
 const GUILD_BOSS_MOBILE_USER_COLUMN_CLASS = 'min-w-0 basis-0 flex-[5.5]';
-/** PC 보스전: 보스·유저 열 가로 비율 4.5 : 5.5 (중앙 로그는 flex-1) */
-const GUILD_BOSS_DESKTOP_BOSS_RAIL_CLASS = 'w-[calc(17.5rem*4.5/5.5)] shrink-0';
-const GUILD_BOSS_DESKTOP_USER_RAIL_CLASS = 'w-[min(22rem,17.5rem)] min-w-[17.5rem] shrink-0';
+/** PC 보스전: 좌 보스(이미지 폭) → 우 유저(콘텐츠 폭) → 중 로그(남는 공간 flex-1) */
+const GUILD_BOSS_DESKTOP_LEFT_RAIL_CLASS =
+    'flex h-full min-h-0 w-[min(32vw,28rem)] min-w-[16rem] shrink-0 flex-col items-stretch gap-2 overflow-hidden';
+const GUILD_BOSS_DESKTOP_LOG_RAIL_CLASS = 'flex min-h-0 min-w-0 flex-1 flex-col gap-3';
+const GUILD_BOSS_DESKTOP_USER_RAIL_CLASS = 'flex min-h-0 w-[32rem] min-w-[32rem] shrink-0 flex-col gap-4';
+
+const GUILD_BOSS_TOP_RANK_BADGE_CLASS: Record<1 | 2 | 3, string> = {
+    1: 'bg-gradient-to-br from-amber-100 via-yellow-400 to-amber-700 text-amber-950 ring-2 ring-amber-200/90 shadow-[0_0_12px_rgba(251,191,36,0.42)]',
+    2: 'bg-gradient-to-br from-slate-50 via-slate-300 to-slate-600 text-slate-900 ring-2 ring-slate-200/85 shadow-[0_2px_8px_rgba(148,163,184,0.35)]',
+    3: 'bg-gradient-to-br from-orange-200 via-amber-700 to-orange-950 text-orange-50 ring-2 ring-orange-300/75 shadow-[0_2px_8px_rgba(194,65,12,0.28)]',
+};
+
+const GuildBossTopRankBadge: React.FC<{ place: 1 | 2 | 3; compact?: boolean }> = ({ place, compact = false }) => (
+    <span
+        className={`inline-flex shrink-0 items-center justify-center rounded-full font-black tabular-nums ${
+            compact ? 'h-6 w-6 text-[11px]' : 'h-8 w-8 text-sm'
+        } ${GUILD_BOSS_TOP_RANK_BADGE_CLASS[place]}`}
+        aria-label={`${place}위`}
+    >
+        {place}
+    </span>
+);
 
 const getResearchSkillDisplay = (researchId: GuildResearchId, level: number): { chance?: number; description: string; } | null => {
     if (level === 0) return null;
@@ -159,17 +178,15 @@ interface UserStatsPanelProps {
     hp: number;
     maxHp: number;
     damageNumbers: { id: number; text: string; color: string }[];
-    onOpenEffects: () => void;
-    onOpenPresets: () => void;
     isSimulating: boolean;
-    activeDebuffs: Record<string, { value: number; turns: number }>;
     /** 네이티브 모바일 보스전 한 화면 레이아웃용 압축 UI */
     compact?: boolean;
 }
 
-const UserStatsPanel: React.FC<UserStatsPanelProps> = ({ user, guild, hp, maxHp, damageNumbers, onOpenEffects, onOpenPresets, isSimulating, activeDebuffs, compact = false }) => {
+const UserStatsPanel: React.FC<UserStatsPanelProps> = ({ user, guild, hp, maxHp, damageNumbers, isSimulating, compact = false }) => {
     const { handlers } = useAppContext();
     const myGuild = guild;
+    const [selectedPreset, setSelectedPreset] = useState(0);
     
     const totalStats = useMemo(() => calculateTotalStats(user, myGuild, 'guildBoss'), [user, myGuild]);
     const baseWithSpent = useMemo(() => {
@@ -180,19 +197,27 @@ const UserStatsPanel: React.FC<UserStatsPanelProps> = ({ user, guild, hp, maxHp,
         return stats;
     }, [user.baseStats, user.spentStatPoints]);
 
-    const equipmentOnlyEffects = useMemo(() => calculateUserEffects(user, null), [user]);
+    const coreStatComputeBundle = useMemo(() => {
+        const finalByStat = { ...totalStats };
+        const baseByStat = baseWithSpent;
+        const badukAbilityTotal = Math.min(
+            BADUK_ABILITY_TOTAL_CAP,
+            Object.values(finalByStat).reduce((sum, v) => {
+                const safeValue = Number.isFinite(v) ? Math.max(0, v) : 0;
+                return sum + Math.min(BADUK_ABILITY_STAT_CAP, safeValue);
+            }, 0),
+        );
+        return { finalByStat, baseByStat, badukAbilityTotal };
+    }, [totalStats, baseWithSpent]);
 
-    const equipmentBonuses = useMemo(() => {
-        const bonuses: Partial<Record<CoreStat, number>> = {};
-        for (const key of Object.values(CoreStat)) {
-            const baseValue = baseWithSpent[key];
-            const flatBonus = equipmentOnlyEffects.coreStatBonuses[key].flat;
-            const percentBonus = equipmentOnlyEffects.coreStatBonuses[key].percent;
-            const finalValue = computeCoreStatFinalFromBonuses(baseValue, Number(flatBonus) || 0, Number(percentBonus) || 0);
-            bonuses[key] = finalValue - baseValue;
-        }
-        return bonuses;
-    }, [baseWithSpent, equipmentOnlyEffects]);
+    const levelPoints = (user.userLevel - 1) * 2;
+    const bonusPoints = user.bonusStatPoints || 0;
+    const totalPoints = levelPoints + bonusPoints;
+    const spentPoints = useMemo(
+        () => Object.values(user.spentStatPoints || {}).reduce((sum, points) => sum + points, 0),
+        [user.spentStatPoints],
+    );
+    const availablePoints = totalPoints - spentPoints;
 
     const avatarUrl = useMemo(() => AVATAR_POOL.find(a => a.id === user.avatarId)?.url, [user.avatarId]);
     const borderUrl = useMemo(() => BORDER_POOL.find(b => b.id === user.borderId)?.url, [user.borderId]);
@@ -201,10 +226,6 @@ const UserStatsPanel: React.FC<UserStatsPanelProps> = ({ user, guild, hp, maxHp,
         return (user.inventory || []).filter(item => item.isEquipped);
     }, [user.inventory]);
 
-    const getItemForSlot = (slot: EquipmentSlot) => {
-        return equippedItems.find(e => e && e.slot === slot);
-    };
-    
     const hpPercent = maxHp > 0 ? (hp / maxHp) * 100 : 0;
     
     const allBossResearch = useMemo(() => {
@@ -224,10 +245,11 @@ const UserStatsPanel: React.FC<UserStatsPanelProps> = ({ user, guild, hp, maxHp,
         );
     }, [user.equipmentPresets]);
 
-    const handleLoadPreset = (index: number) => {
-        if (window.confirm(`'${presets[index].name}' 프리셋을 불러오시겠습니까? 현재 장착된 모든 장비가 해제됩니다.`)) {
-            handlers.handleAction({ type: 'LOAD_EQUIPMENT_PRESET', payload: { presetIndex: index } });
-        }
+    const handlePresetChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+        const presetIndex = Number(event.target.value);
+        setSelectedPreset(presetIndex);
+        const selectedPresetData = presets[presetIndex];
+        handlers.applyPreset(selectedPresetData || { name: `프리셋 ${presetIndex + 1}`, equipment: {} });
     };
 
     return (
@@ -271,75 +293,24 @@ const UserStatsPanel: React.FC<UserStatsPanelProps> = ({ user, guild, hp, maxHp,
                 </div>
             </div>
             
-            <div className={`flex flex-row items-stretch ${compact ? 'gap-1.5 mb-1' : 'gap-2 mb-2'}`}>
-                <div className={`grid shrink-0 grid-cols-2 ${compact ? 'w-[5.35rem] gap-0.5' : 'w-[8.1rem] gap-1'}`}>
-                    {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map((slot) => (
-                        <div key={slot} className="w-full">
-                            <EquipmentSlotDisplay
-                                slot={slot}
-                                item={getItemForSlot(slot)}
-                                onClick={() => {
-                                    const item = getItemForSlot(slot);
-                                    if (item) handlers.openViewingItem(item, true);
-                                }}
-                            />
-                        </div>
-                    ))}
-                </div>
-                <div className={`min-w-0 flex-1 grid grid-cols-1 gap-1 ${compact ? 'text-[10px]' : 'text-xs'}`}>
-                    {Object.values(CoreStat).map(stat => {
-                        const bonus = equipmentBonuses[stat] || 0;
-                        const isDebuffed = stat === CoreStat.CombatPower && activeDebuffs['user_combat_power_reduction_percent']?.turns > 0;
-                        const statValue = Number(totalStats[stat]) || 0;
-                        const isCapped = statValue >= CORE_STAT_CAP;
-                        return (
-                            <div key={stat} className={`flex items-center justify-between gap-1.5 whitespace-nowrap bg-tertiary/40 rounded-md ${compact ? 'px-1 py-0.5' : 'px-1.5 py-1'}`}>
-                                <span className={`shrink-0 font-semibold text-secondary ${isDebuffed ? 'text-red-400' : ''}`}>{stat}</span>
-                                <div className="flex shrink-0 items-baseline tabular-nums">
-                                    <span className={`font-mono font-bold ${isDebuffed || isCapped ? 'text-red-400' : 'text-primary'}`}>
-                                        {isCapped ? CORE_STAT_CAP : statValue}
-                                    </span>
-                                    {bonus > 0 && <span className={`font-mono text-green-400 ${compact ? 'ml-0.5 text-[9px]' : 'ml-0.5 text-xs'}`}>(+{bonus})</span>}
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            </div>
-            
-            <div className={`flex items-center justify-end gap-2 ${compact ? 'mt-1' : 'mt-2'}`}>
-                {/* FIX: Corrected typo from openEquipmentEffectsModal to openGuildEffectsModal, then corrected back to openEquipmentEffectsModal as it's for user equipment. */}
-                <Button
-                    bare
-                    colorScheme="none"
-                    onClick={handlers.openEquipmentEffectsModal}
-                    className={`flex-1 touch-manipulation ${PRE_GAME_MODAL_PRIMARY_BTN_CLASS} ${
-                        compact
-                            ? '!min-h-[2rem] !rounded-lg !px-2 !py-1 !text-[10px] !font-bold !tracking-tight'
-                            : '!min-h-[2.35rem] !rounded-[0.55rem] !px-3 !py-1.5 !text-xs !font-bold'
-                    }`}
-                >
-                    장비 효과
-                </Button>
-                <select
-                    onChange={(e) => {
-                        const index = parseInt(e.target.value, 10);
-                        if (!isNaN(index)) {
-                            handleLoadPreset(index);
-                        }
-                        e.target.value = "";
-                    }}
-                    disabled={isSimulating}
-                    className={`rounded-lg border border-violet-400/30 bg-gradient-to-b from-zinc-700/90 to-zinc-950 font-bold text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_4px_0_0_rgba(15,23,42,0.65)] ring-1 ring-white/[0.06] transition-all hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50 disabled:cursor-not-allowed disabled:opacity-45 ${compact ? 'p-1 text-[10px] w-24' : 'p-1.5 text-xs w-32'}`}
-                    defaultValue=""
-                >
-                    <option value="" disabled>프리셋 불러오기</option>
-                    {presets.map((preset, index) => (
-                        <option key={index} value={index}>
-                            {preset.name}
-                        </option>
-                    ))}
-                </select>
+            <div className={`min-w-0 flex-shrink-0 ${compact ? 'mb-1' : 'mb-2'}`}>
+                <HomeNativeMergedEquipmentAbilityPanel
+                    equippedItems={equippedItems}
+                    presets={presets}
+                    selectedPreset={selectedPreset}
+                    onPresetChange={handlePresetChange}
+                    onOpenEquipmentEffects={handlers.openEquipmentEffectsModal}
+                    onOpenStatAllocation={handlers.openStatAllocationModal}
+                    onViewEquippedItem={(item) => handlers.openViewingItem(item, true)}
+                    finalByStat={coreStatComputeBundle.finalByStat}
+                    baseByStat={coreStatComputeBundle.baseByStat}
+                    badukAbilityTotal={coreStatComputeBundle.badukAbilityTotal}
+                    availablePoints={availablePoints}
+                    framed={false}
+                    compactLayout={compact}
+                    guildBossPanel
+                    presetSelectDisabled={isSimulating}
+                />
             </div>
 
             <div className={`border-t border-color flex-1 min-h-0 flex flex-col ${compact ? 'mt-1 pt-1' : 'mt-2 pt-2'}`}>
@@ -364,7 +335,7 @@ const UserStatsPanel: React.FC<UserStatsPanelProps> = ({ user, guild, hp, maxHp,
                                 </div>
                                 <div className="min-w-0 flex-1 text-right">
                                     {displayInfo ? (
-                                        <p className={`font-mono font-bold text-yellow-400 ${compact ? 'text-xs leading-snug' : ''}`}>
+                                        <p className={`font-mono font-bold text-yellow-400 leading-snug ${compact ? 'text-sm' : 'text-sm sm:text-base'}`}>
                                             {displayInfo.chance !== undefined ? `[${displayInfo.chance}%] ` : ''}{displayInfo.description}
                                         </p>
                                     ) : (
@@ -388,6 +359,10 @@ interface BossPanelProps {
     difficultyStage: number;
     damageNumbers: { id: number; text: string; color: string; isHeal: boolean; isCrit?: boolean }[];
     compact?: boolean;
+    /** PC 좌측: 이미지 실제 가로폭에 열 맞춤 */
+    fitContentWidth?: boolean;
+    /** PC 좌측: 랭킹 위 남는 세로 공간을 채우도록 이미지 확대 */
+    fillAvailableHeight?: boolean;
 }
 
 const BossSkillTile: React.FC<{ skill: GuildBossInfo['skills'][number]; className?: string }> = ({ skill, className = '' }) => {
@@ -492,18 +467,54 @@ const BossRecommendedStatsTip: React.FC<{ stats: CoreStat[]; compact?: boolean }
     </button>
 );
 
-const BossPanel: React.FC<BossPanelProps> = ({ boss, hp, maxHp, difficultyStage, damageNumbers, compact = false }) => {
+const BossPanel: React.FC<BossPanelProps> = ({
+    boss,
+    hp,
+    maxHp,
+    difficultyStage,
+    damageNumbers,
+    compact = false,
+    fitContentWidth = false,
+    fillAvailableHeight = false,
+}) => {
     const hpPercent = maxHp > 0 ? (hp / maxHp) * 100 : 0;
+    const desktopFitFill = fitContentWidth && fillAvailableHeight && !compact;
 
     return (
-        <div className={`flex h-full flex-col ${compact ? 'min-h-0 gap-1' : 'gap-2'}`}>
+        <div
+            className={`flex flex-col ${
+                compact
+                    ? 'h-full min-h-0 gap-1'
+                    : desktopFitFill
+                      ? 'h-full min-h-0 w-full gap-2'
+                      : fitContentWidth
+                        ? 'w-fit max-w-full shrink-0 gap-2'
+                        : 'h-full gap-2'
+            }`}
+        >
             <div
-                className={`relative min-h-0 group ${compact ? 'flex min-h-0 flex-1 flex-col items-center justify-center' : 'flex-shrink-0'}`}
+                className={`relative group ${
+                    compact
+                        ? 'flex min-h-0 flex-1 flex-col items-center justify-center'
+                        : desktopFitFill
+                          ? 'mx-auto h-full w-fit max-w-full'
+                          : fitContentWidth
+                            ? 'w-fit max-w-full shrink-0'
+                            : 'flex min-h-0 flex-1 flex-col items-center justify-center'
+                }`}
             >
                 <img
                     src={boss.image}
                     alt={boss.name}
-                    className={`mx-auto rounded-lg object-contain ${compact ? 'h-full w-auto max-w-full min-h-0' : 'h-auto w-full max-w-full max-h-[min(72vh,640px)]'}`}
+                    className={`rounded-lg object-contain ${
+                        compact
+                            ? 'mx-auto h-full w-auto max-w-full min-h-0'
+                            : desktopFitFill
+                              ? 'block h-full w-auto max-w-full'
+                              : fitContentWidth
+                                ? 'block h-auto w-auto max-h-[min(58vh,520px)]'
+                                : 'mx-auto h-full w-full max-h-[min(88vh,820px)] min-h-[min(58vh,480px)]'
+                    }`}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/50 rounded-lg pointer-events-none"></div>
                 
@@ -564,78 +575,186 @@ interface DamageRankingPanelProps {
     myRankData: { userId: string; nickname: string; damage: number; rank: number } | null;
     myCurrentBattleDamage: number;
     compact?: boolean;
+    /** PC 좌측: Top3 행만 딱 맞는 높이 */
+    desktopTightTop3?: boolean;
 }
 
 
-const DamageRankingPanel: React.FC<DamageRankingPanelProps> = ({ fullDamageRanking, myRankData, myCurrentBattleDamage, compact = false }) => {
+const getDamageRankingGridClass = (compact: boolean) =>
+    compact
+        ? 'grid grid-cols-[1.5rem_minmax(0,1fr)_auto] items-center gap-x-1.5'
+        : 'grid grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-x-2';
+
+const DAMAGE_RANKING_NICK_COL_CLASS =
+    'min-w-0 truncate border-r border-color/40 pr-2 text-left font-semibold leading-tight';
+const DAMAGE_RANKING_DMG_COL_CLASS =
+    'shrink-0 pl-1.5 text-right font-mono tabular-nums text-highlight leading-tight';
+const DAMAGE_RANKING_RANK_COL_CLASS = 'flex items-center justify-center';
+
+const DamageRankingPanel: React.FC<DamageRankingPanelProps> = ({
+    fullDamageRanking,
+    myRankData,
+    myCurrentBattleDamage,
+    compact = false,
+    desktopTightTop3 = false,
+}) => {
     const { handlers, allUsers } = useAppContext();
     const top3 = fullDamageRanking.slice(0, 3);
     const amIInTop3 = myRankData ? myRankData.rank <= 3 : false;
     const myRankUser = myRankData ? allUsers?.find((u) => u.id === myRankData.userId) : undefined;
 
+    const top3RowClass = compact
+        ? 'h-[2.15rem] px-1 text-sm'
+        : desktopTightTop3
+          ? 'h-[2.4rem] px-1.5 text-[15px] leading-tight'
+          : 'p-1.5 text-base';
+    const rankingGridClass = getDamageRankingGridClass(compact);
+
     return (
-        <div className={`bg-panel border border-color rounded-lg flex flex-col min-h-0 h-full ${compact ? 'p-2' : 'p-3'}`}>
-            <h4 className={`font-bold text-yellow-300 text-center flex-shrink-0 ${compact ? 'text-sm mb-1' : 'text-base mb-2'}`}>
+        <div
+            className={`bg-panel border border-color flex min-h-0 flex-col rounded-lg ${
+                compact ? 'h-full p-2' : desktopTightTop3 ? 'shrink-0 p-2.5' : 'h-full p-3'
+            }`}
+        >
+            <h4
+                className={`flex-shrink-0 text-center font-bold text-yellow-300 ${
+                    compact ? 'mb-1 text-base' : desktopTightTop3 ? 'mb-1.5 text-base' : 'mb-2 text-lg'
+                }`}
+            >
                 {compact ? '누적 피해 Top 3' : '누적 피해 랭킹 Top 3'}
             </h4>
-            
-            <div className="flex-grow min-h-0 overflow-y-auto pr-1">
+
+            <div
+                className={
+                    desktopTightTop3
+                        ? 'flex shrink-0 flex-col justify-center gap-1'
+                        : 'min-h-0 flex-grow overflow-y-auto pr-1'
+                }
+            >
                 {top3.length > 0 ? (
-                    <ul className={compact ? 'space-y-1' : 'space-y-1'}>
+                    <ul className={desktopTightTop3 ? 'flex flex-col gap-1' : 'space-y-1'}>
                         {top3.map((rank, index) => {
                             const ru = allUsers?.find((u) => u.id === rank.userId);
+                            const place = (index + 1) as 1 | 2 | 3;
                             return (
-                            <li key={rank.userId} onClick={() => handlers.openViewingUser(rank.userId)} className="flex cursor-pointer items-center justify-between rounded-md bg-tertiary/50 p-1.5 text-xs hover:bg-secondary">
-                                <div className="flex items-center gap-1.5">
-                                    <span className={`font-bold text-center ${compact ? 'w-6' : 'w-5'}`}>{index + 1}.</span>
-                                    <UserNicknameText
-                                        user={{
-                                            nickname: rank.nickname,
-                                            isAdmin: ru?.isAdmin,
-                                            staffNicknameDisplayEligibility: ru?.staffNicknameDisplayEligibility,
-                                        }}
-                                        className="font-semibold truncate"
-                                    />
+                            <li
+                                key={rank.userId}
+                                onClick={() => handlers.openViewingUser(rank.userId)}
+                                className={`${rankingGridClass} cursor-pointer rounded-md bg-tertiary/50 hover:bg-secondary ${top3RowClass}`}
+                            >
+                                <div className={DAMAGE_RANKING_RANK_COL_CLASS}>
+                                    <GuildBossTopRankBadge place={place} compact={compact} />
                                 </div>
-                                <span className="font-mono text-highlight">{rank.damage.toLocaleString()}</span>
+                                <UserNicknameText
+                                    user={{
+                                        nickname: rank.nickname,
+                                        isAdmin: ru?.isAdmin,
+                                        staffNicknameDisplayEligibility: ru?.staffNicknameDisplayEligibility,
+                                    }}
+                                    className={DAMAGE_RANKING_NICK_COL_CLASS}
+                                />
+                                <span className={DAMAGE_RANKING_DMG_COL_CLASS}>
+                                    {rank.damage.toLocaleString()}
+                                </span>
                             </li>
                             );
                         })}
                     </ul>
                 ) : (
-                    <div className={`h-full flex items-center justify-center text-tertiary ${compact ? 'text-xs' : 'text-sm'}`}>기록 없음</div>
+                    <div
+                        className={`flex items-center justify-center text-tertiary ${
+                            desktopTightTop3 ? 'h-[7.6rem] text-sm' : compact ? 'h-full text-sm' : 'h-full text-base'
+                        }`}
+                    >
+                        기록 없음
+                    </div>
                 )}
             </div>
             {myRankData && !amIInTop3 && (
                 <div className={`border-t border-color/50 flex-shrink-0 ${compact ? 'mt-1 pt-1' : 'mt-2 pt-2'}`}>
-                    <div className={`flex items-center justify-between bg-blue-900/40 rounded-md ${compact ? 'p-1.5 text-xs' : 'p-1.5 text-xs'}`}>
-                         <div className="flex items-center gap-1.5">
-                            <span className="font-bold w-5 text-center">{myRankData.rank}</span>
-                            <span className="inline-flex min-w-0 items-center gap-1 font-semibold">
-                                <UserNicknameText
-                                    user={{
-                                        nickname: myRankData.nickname,
-                                        isAdmin: myRankUser?.isAdmin,
-                                        staffNicknameDisplayEligibility: myRankUser?.staffNicknameDisplayEligibility,
-                                    }}
-                                    className="truncate"
-                                />
-                                <span className="shrink-0"> (나)</span>
-                            </span>
-                        </div>
-                        <span className="font-mono text-highlight">{myRankData.damage.toLocaleString()}</span>
+                    <div className={`${rankingGridClass} rounded-md bg-blue-900/40 ${compact ? 'p-1.5 text-xs' : 'p-1.5 text-xs'}`}>
+                        <span
+                            className={`${DAMAGE_RANKING_RANK_COL_CLASS} font-bold tabular-nums ${
+                                compact ? 'h-6 w-6 text-[11px]' : 'h-8 w-8 text-sm'
+                            }`}
+                        >
+                            {myRankData.rank}
+                        </span>
+                        <span className={`${DAMAGE_RANKING_NICK_COL_CLASS} inline-flex min-w-0 items-center gap-1`}>
+                            <UserNicknameText
+                                user={{
+                                    nickname: myRankData.nickname,
+                                    isAdmin: myRankUser?.isAdmin,
+                                    staffNicknameDisplayEligibility: myRankUser?.staffNicknameDisplayEligibility,
+                                }}
+                                className="min-w-0 truncate"
+                            />
+                            <span className="shrink-0">(나)</span>
+                        </span>
+                        <span className={DAMAGE_RANKING_DMG_COL_CLASS}>
+                            {myRankData.damage.toLocaleString()}
+                        </span>
                     </div>
                 </div>
             )}
-            <div className={`border-t border-color/50 flex-shrink-0 text-center ${compact ? 'mt-1 pt-1' : 'mt-2 pt-2'}`}>
-                <p className={compact ? 'text-xs' : 'text-sm'}>
-                    {compact ? '이번 전투: ' : '이번 전투 피해량: '}
-                    <span className="font-bold text-yellow-300">{myCurrentBattleDamage.toLocaleString()}</span>
+            <div className={`flex-shrink-0 border-t border-color/50 ${compact ? 'mt-1 pt-1' : 'mt-2 pt-2'}`}>
+                <p className={`${rankingGridClass} ${compact ? 'text-xs' : 'text-sm'}`}>
+                    <span aria-hidden />
+                    <span className={`${DAMAGE_RANKING_NICK_COL_CLASS} text-secondary`}>
+                        {compact ? '이번 전투:' : '이번 전투 피해량:'}
+                    </span>
+                    <span className={`${DAMAGE_RANKING_DMG_COL_CLASS} font-bold text-yellow-300`}>
+                        {myCurrentBattleDamage.toLocaleString()}
+                    </span>
                 </p>
             </div>
         </div>
     );
 };
+
+interface GuildBossDesktopLeftRailProps {
+    boss: GuildBossInfo;
+    hp: number;
+    maxHp: number;
+    difficultyStage: number;
+    bossDamageNumbers: BossPanelProps['damageNumbers'];
+    fullDamageRanking: DamageRankingPanelProps['fullDamageRanking'];
+    myRankData: DamageRankingPanelProps['myRankData'];
+    myCurrentBattleDamage: number;
+}
+
+const GuildBossDesktopLeftRail: React.FC<GuildBossDesktopLeftRailProps> = ({
+    boss,
+    hp,
+    maxHp,
+    difficultyStage,
+    bossDamageNumbers,
+    fullDamageRanking,
+    myRankData,
+    myCurrentBattleDamage,
+}) => (
+    <div className={GUILD_BOSS_DESKTOP_LEFT_RAIL_CLASS}>
+        <div className="flex min-h-0 w-full flex-1 items-center justify-center overflow-hidden">
+            <BossPanel
+                boss={boss}
+                hp={hp}
+                maxHp={maxHp}
+                difficultyStage={difficultyStage}
+                damageNumbers={bossDamageNumbers}
+                fitContentWidth
+                fillAvailableHeight
+            />
+        </div>
+        <div className="min-w-0 w-full shrink-0">
+            <DamageRankingPanel
+                fullDamageRanking={fullDamageRanking}
+                myRankData={myRankData}
+                myCurrentBattleDamage={myCurrentBattleDamage}
+                desktopTightTop3
+            />
+        </div>
+    </div>
+);
 
 const GuildBoss: React.FC = () => {
     const { currentUserWithStatus, guilds, handlers } = useAppContext();
@@ -1139,10 +1258,7 @@ const GuildBoss: React.FC = () => {
                                 hp={userHp}
                                 maxHp={maxUserHp}
                                 damageNumbers={damageNumbers}
-                                onOpenEffects={handlers.openEquipmentEffectsModal}
-                                onOpenPresets={handlers.openPresetModal}
                                 isSimulating={isSimulating}
-                                activeDebuffs={activeDebuffs}
                                 compact
                             />
                         </div>
@@ -1198,22 +1314,22 @@ const GuildBoss: React.FC = () => {
                     </div>
                 </main>
             ) : (
-            <main className="flex min-h-0 min-w-0 flex-1 flex-row gap-4">
-                <div className={`flex min-w-0 ${GUILD_BOSS_DESKTOP_BOSS_RAIL_CLASS} flex-col gap-4`}>
-                    <BossPanel
-                        boss={currentBoss}
-                        hp={simulatedBossHp}
-                        maxHp={scaledBoss.maxHp}
-                        difficultyStage={bossDifficultyStage}
-                        damageNumbers={bossDamageNumbers}
-                    />
-                    <DamageRankingPanel fullDamageRanking={fullDamageRanking} myRankData={myRankData} myCurrentBattleDamage={currentBattleDamage} />
-                </div>
+            <main className="flex min-h-0 min-w-0 flex-1 flex-row gap-3">
+                <GuildBossDesktopLeftRail
+                    boss={currentBoss}
+                    hp={simulatedBossHp}
+                    maxHp={scaledBoss.maxHp}
+                    difficultyStage={bossDifficultyStage}
+                    bossDamageNumbers={bossDamageNumbers}
+                    fullDamageRanking={fullDamageRanking}
+                    myRankData={myRankData}
+                    myCurrentBattleDamage={currentBattleDamage}
+                />
 
-                <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
-                    <div className="bg-panel border border-color flex h-1/2 min-h-0 flex-col rounded-lg p-4">
-                        <h3 className="mb-2 flex-shrink-0 text-center text-lg font-bold text-red-300">보스의 공격</h3>
-                        <div ref={bossLogContainerRef} className="flex-grow overflow-y-auto rounded-md bg-tertiary/50 p-2 pr-2 text-sm space-y-2">
+                <div className={GUILD_BOSS_DESKTOP_LOG_RAIL_CLASS}>
+                    <div className="bg-panel border border-color flex h-1/2 min-h-0 flex-col rounded-lg p-3">
+                        <h3 className="mb-1.5 flex-shrink-0 text-center text-base font-bold text-red-300">보스의 공격</h3>
+                        <div ref={bossLogContainerRef} className="min-h-0 flex-grow overflow-y-auto rounded-md bg-tertiary/50 p-1.5 pr-1.5 text-xs leading-snug space-y-1.5">
                             {bossLogs.map((entry, index) => (
                                 <div key={index} className="flex items-center gap-2 animate-fade-in">
                                     <span className="font-bold text-yellow-300 mr-2 flex-shrink-0">[{entry.turn}턴]</span>
@@ -1223,9 +1339,9 @@ const GuildBoss: React.FC = () => {
                             ))}
                         </div>
                     </div>
-                    <div className="bg-panel border border-color flex h-1/2 min-h-0 flex-col rounded-lg p-4">
-                        <h3 className="mb-2 flex-shrink-0 text-center text-lg font-bold text-blue-300">나의 공격</h3>
-                        <div ref={userLogContainerRef} className="flex-grow overflow-y-auto rounded-md bg-tertiary/50 p-2 pr-2 text-sm space-y-2">
+                    <div className="bg-panel border border-color flex h-1/2 min-h-0 flex-col rounded-lg p-3">
+                        <h3 className="mb-1.5 flex-shrink-0 text-center text-base font-bold text-blue-300">나의 공격</h3>
+                        <div ref={userLogContainerRef} className="min-h-0 flex-grow overflow-y-auto rounded-md bg-tertiary/50 p-1.5 pr-1.5 text-xs leading-snug space-y-1.5">
                             {userLogs.map((entry, index) => (
                                 <div key={index} className="flex items-center gap-2 animate-fade-in justify-start">
                                     <span className="font-bold text-yellow-300 mr-2 flex-shrink-0">[{entry.turn}턴]</span>
@@ -1237,17 +1353,14 @@ const GuildBoss: React.FC = () => {
                     </div>
                 </div>
                 
-                <div className={`flex min-w-0 ${GUILD_BOSS_DESKTOP_USER_RAIL_CLASS} flex-col gap-4`}>
+                <div className={GUILD_BOSS_DESKTOP_USER_RAIL_CLASS}>
                     <UserStatsPanel 
                         user={currentUserWithStatus} 
                         guild={myGuild} 
                         hp={userHp} 
                         maxHp={maxUserHp} 
                         damageNumbers={damageNumbers}
-                        onOpenEffects={handlers.openEquipmentEffectsModal}
-                        onOpenPresets={handlers.openPresetModal}
                         isSimulating={isSimulating}
-                        activeDebuffs={activeDebuffs}
                     />
                      <div className="flex-shrink-0 space-y-2 rounded-lg border border-amber-400/30 bg-gradient-to-t from-[#060508] via-[#0f0d14] to-[#16131f] p-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.07)]">
                          <Button

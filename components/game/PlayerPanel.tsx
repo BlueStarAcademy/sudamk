@@ -31,7 +31,7 @@ import { adventureEncounterCountdownUiActive } from '../../shared/utils/adventur
 import { getAdventureEncounterCountdownMinutes } from '../../shared/utils/adventureBattleBoard.js';
 import {
     getSpeedTimePressureBarProgress,
-    getSpeedTimePressureBonusPointsFromConsumedSec,
+    getSpeedTurnPenaltyPointsFromElapsedSec,
     getSpeedTimePressureUiCountdownSeconds,
 } from '../../shared/utils/speedTimePressureDisplay.js';
 import { applyPveSpeedTimePressureGraceToLiveUsedSec } from '../../shared/utils/speedTimePveGrace.js';
@@ -1266,19 +1266,11 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             resolvePveSpeedTurnBudgetSec(playerEnum) > 0
         );
     };
-    /**
-     * 턴 직후 deadline·클라 시각이 한 프레임 어긋나면 (remaining≈0) stored−remaining이 턴 전체로 폭주해
-     * 진행 막대가 비었다가 차는 것처럼 보인다. turnStartTime 기준 경과로 상한을 둔다.
-     */
-    const getLiveTurnUsedSecRawForSpeedBonusUi = (playerEnum: Player, storedAtTurnStart: number, currentMainRemaining: number): number => {
+    /** 현재 수 경과 초 (수당 10초 바·페널티 UI용) */
+    const getLiveTurnElapsedSecForSpeedUi = (playerEnum: Player): number => {
         if (!humanLiveSpeedTurnClockActive(playerEnum)) return 0;
-        const stored = Math.max(0, Number(storedAtTurnStart));
-        const cur = Math.max(0, Number(currentMainRemaining) || 0);
-        const fromFischer = Math.max(0, stored - cur);
         const turnStart = typeof session.turnStartTime === 'number' ? session.turnStartTime : speedBonusNowMs;
-        const wallElapsedSec = Math.max(0, (speedBonusNowMs - turnStart) / 1000);
-        const clockSkewSlackSec = 0.5;
-        return Math.max(0, Math.min(fromFischer, wallElapsedSec + clockSkewSlackSec));
+        return Math.max(0, (speedBonusNowMs - turnStart) / 1000);
     };
     const getLiveMainTimeForBonus = (playerEnum: Player, storedMainTimeLeft: number): number => {
         if (!isSpeedLiveBonusUi) return storedMainTimeLeft;
@@ -1294,22 +1286,19 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         }
         return storedMainTimeLeft;
     };
-    const getLiveSpeedTimeBonusScore = (playerEnum: Player, playerId: string, currentMainTimeLeft: number): number | null => {
+    const getLiveSpeedTimeBonusScore = (playerEnum: Player, playerId: string, _currentMainTimeLeft: number): number | null => {
         if (!isSpeedLiveBonusUi) return null;
         if (playerId === aiUserId && !isPvpHumanSpeedLiveBonusUi) return null;
-        const speedConsumed = ((session.settings as any)?.__speedBonusConsumedSec ?? {}) as { black?: number; white?: number };
-        const committedUsedSec =
+        const penaltyCommitted = ((session.settings as any)?.__speedTurnPenaltyCommitted ?? {}) as {
+            black?: number;
+            white?: number;
+        };
+        const committedPts =
             playerEnum === Player.Black
-                ? Math.max(0, Number(speedConsumed.black ?? 0))
-                : Math.max(0, Number(speedConsumed.white ?? 0));
-        const storedAtTurnStart =
-            playerEnum === Player.Black
-                ? Math.max(0, Number(session.blackTimeLeft ?? 0))
-                : Math.max(0, Number(session.whiteTimeLeft ?? 0));
-        const current = Math.max(0, Number(currentMainTimeLeft) || 0);
-        const liveTurnUsedSecRaw = getLiveTurnUsedSecRawForSpeedBonusUi(playerEnum, storedAtTurnStart, current);
-        const usedSec = committedUsedSec + liveTurnUsedSecRaw;
-        return getSpeedTimePressureBonusPointsFromConsumedSec(usedSec);
+                ? Math.max(0, Number(penaltyCommitted.black ?? 0))
+                : Math.max(0, Number(penaltyCommitted.white ?? 0));
+        const livePts = getSpeedTurnPenaltyPointsFromElapsedSec(getLiveTurnElapsedSecForSpeedUi(playerEnum));
+        return committedPts + livePts;
     };
     const speedBonusStableRef = useRef<{ gameId: string; byPlayerId: Record<string, number | null> }>({
         gameId: '',
@@ -1352,30 +1341,18 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
               getLiveSpeedTimeBonusScore(humanSide.playerEnum, humanSide.userId, humanSide.liveMainTime),
           )
         : null;
-    const getSpeedBonusTickState = (playerEnum: Player, playerId: string, currentMainTimeLeft: number) => {
+    const getSpeedBonusTickState = (playerEnum: Player, playerId: string, _currentMainTimeLeft: number) => {
         if (!isSpeedLiveBonusUi) return { progress: null as number | null, secToNextDrop: null as number | null };
         if (playerId === aiUserId && !isPvpHumanSpeedLiveBonusUi) return { progress: null as number | null, secToNextDrop: null as number | null };
-        const speedConsumed = ((session.settings as any)?.__speedBonusConsumedSec ?? {}) as { black?: number; white?: number };
-        const committedUsedSec =
-            playerEnum === Player.Black
-                ? Math.max(0, Number(speedConsumed.black ?? 0))
-                : Math.max(0, Number(speedConsumed.white ?? 0));
-        const storedAtTurnStart =
-            playerEnum === Player.Black
-                ? Math.max(0, Number(session.blackTimeLeft ?? 0))
-                : Math.max(0, Number(session.whiteTimeLeft ?? 0));
-        const current = Math.max(0, Number(currentMainTimeLeft) || 0);
-        const liveTurnUsedSecRaw = getLiveTurnUsedSecRawForSpeedBonusUi(playerEnum, storedAtTurnStart, current);
         const liveTurnUsedSecForBar = applyPveSpeedTimePressureGraceToLiveUsedSec(
             session as any,
             playerEnum,
-            liveTurnUsedSecRaw,
+            getLiveTurnElapsedSecForSpeedUi(playerEnum),
             aiUserId,
         );
-        const usedSecForBar = committedUsedSec + liveTurnUsedSecForBar;
         return {
-            progress: getSpeedTimePressureBarProgress(usedSecForBar),
-            secToNextDrop: getSpeedTimePressureUiCountdownSeconds(usedSecForBar),
+            progress: getSpeedTimePressureBarProgress(liveTurnUsedSecForBar),
+            secToNextDrop: getSpeedTimePressureUiCountdownSeconds(liveTurnUsedSecForBar),
         };
     };
     const humanSpeedBonusTick = humanSide
@@ -1482,35 +1459,22 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         rightSpeedBonusTick.secToNextDrop != null &&
         (isPvpHumanSpeedLiveBonusUi || rightPlayerUser.id === currentUser?.id);
 
-    const buildCumulativeUsedSecForPlayer = (
-        playerEnum: Player,
-        playerId: string,
-        liveMainTime: number,
-    ): number | null => {
+    const buildHumanPenaltyPointsForPlayer = (playerEnum: Player, playerId: string): number | null => {
         if (!isSpeedLiveBonusUi || playerId === aiUserId) return null;
-        const speedConsumed = ((session.settings as any)?.__speedBonusConsumedSec ?? {}) as {
+        const penaltyCommitted = ((session.settings as any)?.__speedTurnPenaltyCommitted ?? {}) as {
             black?: number;
             white?: number;
         };
-        const committedUsedSec =
+        const committedPts =
             playerEnum === Player.Black
-                ? Math.max(0, Number(speedConsumed.black ?? 0))
-                : Math.max(0, Number(speedConsumed.white ?? 0));
-        const storedAtTurnStart =
-            playerEnum === Player.Black
-                ? Math.max(0, Number(session.blackTimeLeft ?? 0))
-                : Math.max(0, Number(session.whiteTimeLeft ?? 0));
-        const current = Math.max(0, Number(liveMainTime) || 0);
-        const liveTurnUsedSecRaw = getLiveTurnUsedSecRawForSpeedBonusUi(playerEnum, storedAtTurnStart, current);
-        return committedUsedSec + liveTurnUsedSecRaw;
+                ? Math.max(0, Number(penaltyCommitted.black ?? 0))
+                : Math.max(0, Number(penaltyCommitted.white ?? 0));
+        const livePts = getSpeedTurnPenaltyPointsFromElapsedSec(getLiveTurnElapsedSecForSpeedUi(playerEnum));
+        return committedPts + livePts;
     };
-    const humanCumulativeUsedSecForAiSpeed =
+    const humanPenaltyPointsForAiSpeed =
         humanSide && isPveSideSpeedLiveBonusUi
-            ? buildCumulativeUsedSecForPlayer(
-                  humanSide.playerEnum,
-                  humanSide.userId,
-                  humanSide.liveMainTime,
-              )
+            ? buildHumanPenaltyPointsForPlayer(humanSide.playerEnum, humanSide.userId)
             : null;
     /** 서버 `syncSpeedTimePressureCaptures` 틱 사이에도 (서버 기준 초수당) 상대 집(+1)이 바로 보이도록 */
     const liveSpeedTimePressureCaptureBonusDelta = (playerEnum: Player): number => {
@@ -1522,14 +1486,14 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                   ? Player.White
                   : Player.None;
         if (aiEnum === Player.None || playerEnum !== aiEnum) return 0;
-        const liveHumanUsed = humanCumulativeUsedSecForAiSpeed;
-        if (liveHumanUsed == null) return 0;
+        const liveHumanPenalty = humanPenaltyPointsForAiSpeed;
+        if (liveHumanPenalty == null) return 0;
         const grant = ((session.settings as any).__speedTimePressureGranted ?? {}) as { black?: number; white?: number };
         const g =
             playerEnum === Player.Black
                 ? Math.max(0, Number(grant.black ?? 0))
                 : Math.max(0, Number(grant.white ?? 0));
-        return Math.max(0, getSpeedTimePressureBonusPointsFromConsumedSec(liveHumanUsed) - g);
+        return Math.max(0, liveHumanPenalty - g);
     };
     const speedCaptureDisplayMaxRef = useRef<{ gameId: string; byEnum: Partial<Record<Player, number>> }>({
         gameId: '',

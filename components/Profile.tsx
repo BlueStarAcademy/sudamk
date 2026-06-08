@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useCallback, useEffect, useRef, useId } from 'react';
 import { UserWithStatus, GameMode, EquipmentSlot, InventoryItem, ItemGrade, ServerAction, LeagueTier, CoreStat, SpecialStat, MythicStat, ItemOptionType, TournamentState, User } from '../types.js';
-import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, AVATAR_POOL, BORDER_POOL, LEAGUE_DATA, CORE_STATS_DATA, SPECIAL_STATS_DATA, MYTHIC_STATS_DATA, emptySlotImages, TOURNAMENT_DEFINITIONS, GRADE_LEVEL_REQUIREMENTS, formatEquipLevelRequirement, RANKING_TIERS, getSinglePlayerStages } from '../constants';
-import { STRATEGIC_GO_LOBBY_IMG, PLAYFUL_GO_LOBBY_IMG, PAIR_GO_LOBBY_IMG, TOURNAMENT_LOBBY_IMG, SINGLE_PLAYER_LOBBY_IMG, TOWER_CHALLENGE_LOBBY_IMG } from '../assets.js';
+import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, AVATAR_POOL, BORDER_POOL, LEAGUE_DATA, CORE_STATS_DATA, SPECIAL_STATS_DATA, MYTHIC_STATS_DATA, emptySlotImages, TOURNAMENT_DEFINITIONS, CHAMPIONSHIP_PVP_VENUE_BG_WEBP, GRADE_LEVEL_REQUIREMENTS, formatEquipLevelRequirement, RANKING_TIERS, getSinglePlayerStages } from '../constants';
+import { PVP_ARENA_ENTRY_IMG, AI_ARENA_ENTRY_IMG, STRATEGIC_GO_LOBBY_IMG, PLAYFUL_GO_LOBBY_IMG, PAIR_GO_LOBBY_IMG, SINGLE_PLAYER_LOBBY_IMG, TOWER_CHALLENGE_LOBBY_IMG } from '../assets.js';
 import Avatar from './Avatar.js';
 import ProfileHomeIdentityHeader from './profile/ProfileHomeIdentityHeader.js';
 import ProfileMannerSeal from './profile/ProfileMannerSeal.js';
@@ -2007,39 +2007,27 @@ const Profile: React.FC<ProfileProps> = () => {
                         framed={false}
                         compactLayout={nativeCompactHome}
                         bannerAside={
-                            nativeCompactHome ? (
-                                <div className="flex h-full min-h-0 w-full flex-col items-center justify-center rounded-xl border border-violet-400/35 bg-gradient-to-br from-violet-950/45 via-black/40 to-fuchsia-950/30 px-1 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-                                    <PairPetProfilePanel
-                                        currentUser={currentUserWithStatus}
-                                        currentUserId={currentUserWithStatus.id}
-                                        isBusy={false}
-                                        embed
-                                        compact
-                                        profileHomeBannerAside
-                                        hideInlineBadukChip
-                                        showRepresentativeBadge={Boolean(getEquippedPairPetInventoryRow(currentUserWithStatus))}
-                                        onOpenEquippedPetDetail={openEquippedPairPetDetailFromProfileHome}
-                                        onFocusPetInventory={focusPairPetInventoryFromProfileHome}
-                                    />
-                                </div>
-                            ) : undefined
+                            <div
+                                className={`flex h-full min-h-0 w-full flex-col items-center justify-center rounded-xl border border-violet-400/35 bg-gradient-to-br from-violet-950/45 via-black/40 to-fuchsia-950/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${
+                                    nativeCompactHome ? 'px-1 py-1' : 'px-2 py-1.5 sm:px-2.5 sm:py-2'
+                                }`}
+                            >
+                                <PairPetProfilePanel
+                                    currentUser={currentUserWithStatus}
+                                    currentUserId={currentUserWithStatus.id}
+                                    isBusy={false}
+                                    embed
+                                    compact
+                                    profileHomeBannerAside
+                                    hideInlineBadukChip
+                                    showRepresentativeBadge={Boolean(getEquippedPairPetInventoryRow(currentUserWithStatus))}
+                                    onOpenEquippedPetDetail={openEquippedPairPetDetailFromProfileHome}
+                                    onFocusPetInventory={focusPairPetInventoryFromProfileHome}
+                                />
+                            </div>
                         }
                     />
                 </div>
-                {!nativeCompactHome ? (
-                    <div className="w-full min-w-0 shrink-0 overflow-visible border-t border-amber-500/25 px-1 py-2">
-                        <PairPetProfilePanel
-                            currentUser={currentUserWithStatus}
-                            currentUserId={currentUserWithStatus.id}
-                            isBusy={false}
-                            embed
-                            profileHomeFooter
-                            showRepresentativeBadge={Boolean(getEquippedPairPetInventoryRow(currentUserWithStatus))}
-                            onOpenEquippedPetDetail={openEquippedPairPetDetailFromProfileHome}
-                            onFocusPetInventory={focusPairPetInventoryFromProfileHome}
-                        />
-                    </div>
-                ) : null}
             </div>
         ),
         [
@@ -2191,7 +2179,7 @@ const Profile: React.FC<ProfileProps> = () => {
                     <div className={imagePaneClass}>
                         <PveCard
                             title="PVP 경기장"
-                            imageUrl={STRATEGIC_GO_LOBBY_IMG}
+                            imageUrl={PVP_ARENA_ENTRY_IMG}
                             layout="tall"
                             onClick={() => onSelectArenaIntent('pvp')}
                             compact={false}
@@ -2222,7 +2210,7 @@ const Profile: React.FC<ProfileProps> = () => {
                     <div className={imagePaneClass}>
                         <PveCard
                             title="AI 대전"
-                            imageUrl={PLAYFUL_GO_LOBBY_IMG}
+                            imageUrl={AI_ARENA_ENTRY_IMG}
                             layout="tall"
                             onClick={() => onSelectArenaIntent('ai')}
                             compact={false}
@@ -2258,7 +2246,7 @@ const Profile: React.FC<ProfileProps> = () => {
             <div className="flex h-full min-h-0 min-w-0 flex-col">
                 {isNativeMobile && profileTab !== 'home' ? (
                     <div onClick={getArenaEntryLockReason('championship') ? undefined : onSelectTournamentLobby} className={`group border border-fuchsia-400/40 flex h-full min-h-0 w-full flex-col rounded-xl text-center shadow-[0_14px_34px_-18px_rgba(0,0,0,0.8)] ring-1 ring-white/10 transition-all transform text-on-panel p-1 relative overflow-hidden ${getArenaEntryLockReason('championship') ? 'cursor-not-allowed grayscale-[0.25] opacity-75' : 'cursor-pointer hover:-translate-y-1 hover:shadow-purple-500/30'}`}>
-                        <img src={TOURNAMENT_LOBBY_IMG} alt="챔피언십" className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
+                        <img src={CHAMPIONSHIP_PVP_VENUE_BG_WEBP} alt="챔피언십" className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
                         <div className="pointer-events-none absolute inset-0 rounded-md bg-gradient-to-b from-black/4 via-black/0 to-black/14" />
                         {getArenaEntryLockReason('championship') && (
                             <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/50 px-2 text-center">
@@ -2275,7 +2263,7 @@ const Profile: React.FC<ProfileProps> = () => {
                     <div className={mergedCardClass}>
                         <div className={imagePaneClass}>
                             <div onClick={getArenaEntryLockReason('championship') ? undefined : onSelectTournamentLobby} className={`group flex h-full min-h-0 w-full flex-col text-center transition-all transform text-on-panel relative overflow-hidden rounded-xl ${getArenaEntryLockReason('championship') ? 'cursor-not-allowed grayscale-[0.25] opacity-75' : 'cursor-pointer hover:-translate-y-1 hover:shadow-purple-500/30'}`}>
-                                <img src={TOURNAMENT_LOBBY_IMG} alt="챔피언십" className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
+                                <img src={CHAMPIONSHIP_PVP_VENUE_BG_WEBP} alt="챔피언십" className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
                                 <div className="pointer-events-none absolute inset-0 rounded-md bg-gradient-to-b from-black/4 via-black/0 to-black/14" />
                                 {getArenaEntryLockReason('championship') && (
                                     <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/50 px-2 text-center">
@@ -2556,9 +2544,10 @@ const Profile: React.FC<ProfileProps> = () => {
         ) : null;
 
     const nativeMobileHome = isNativeMobile && profileTab === 'home';
+    /** PC 홈: 대표펫 푸터 제거로 확보된 높이(≈ min-h 3.75rem + py-2)만큼 채팅 행 확대 */
     const profileHomeLeftGridClassPc =
         `grid h-full min-h-0 ${PC_HOME_LEFT_COLUMN_CLASS} ${PC_HOME_LEFT_COLUMN_GAP_CLASS} overflow-hidden ` +
-        (homeLeftColumnMerge ? 'grid-rows-[minmax(0,1fr)_minmax(10rem,0.52fr)]' : 'grid-rows-[repeat(3,minmax(0,1fr))]');
+        (homeLeftColumnMerge ? 'grid-rows-[minmax(0,1fr)_minmax(14.75rem,0.68fr)]' : 'grid-rows-[repeat(3,minmax(0,1fr))]');
     const profileHomeLeftGridClassNative =
         'grid h-full min-h-0 w-full min-w-0 flex-1 gap-[clamp(0.22rem,0.7dvh,0.38rem)] overflow-hidden grid-rows-[minmax(0,1fr)_minmax(9.5rem,0.48fr)]';
 
@@ -2723,7 +2712,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                         <div className={imagePaneClass}>
                                             <PveCard
                                                 title="PVP 경기장"
-                                                imageUrl={STRATEGIC_GO_LOBBY_IMG}
+                                                imageUrl={PVP_ARENA_ENTRY_IMG}
                                                 layout="tall"
                                                 onClick={() => onSelectArenaIntent('pvp')}
                                                 compact={false}
@@ -2754,7 +2743,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                         <div className={imagePaneClass}>
                                             <PveCard
                                                 title="AI 대전"
-                                                imageUrl={PLAYFUL_GO_LOBBY_IMG}
+                                                imageUrl={AI_ARENA_ENTRY_IMG}
                                                 layout="tall"
                                                 onClick={() => onSelectArenaIntent('ai')}
                                                 compact={false}

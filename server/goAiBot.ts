@@ -18,7 +18,11 @@ import { volatileState } from './state.js';
 import { broadcastToGameParticipants } from './socket.js';
 import { hasTimeControl, isAiLobbyManualClockPause, shouldEnforceTimeControl } from './modes/shared.js';
 import { shouldRunGoClockAccountingForSession } from './utils/speedTimePressureLiveCaptures.js';
-import { isFischerStyleTimeControl } from '../shared/utils/gameTimeControl.js';
+import { isFischerStyleTimeControl, isSpeedPerMoveTimeControl } from '../shared/utils/gameTimeControl.js';
+import {
+    applySpeedMoveClockEnd,
+    applySpeedNextTurnClockStart,
+} from '../shared/utils/speedTimePressureSessionSync.js';
 import { generateKataServerMoveCandidateDetails, isKataServerAvailable } from './kataServerService.js';
 import {
     advancePairTurn,
@@ -3122,10 +3126,17 @@ export async function makeGoAiBotMove(
     }
 
     // 8. 시간 업데이트 및 턴 종료
-    const aiPlayerTimeKey = aiPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-    if (game.turnDeadline) {
-        const timeRemaining = Math.max(0, (game.turnDeadline - now) / 1000);
-        game[aiPlayerTimeKey] = timeRemaining;
+    if (shouldRunGoClockAccountingForSession(game)) {
+        if (isSpeedPerMoveTimeControl(game)) {
+            const { aiUserId: speedAiUserId } = await import('./aiPlayer.js');
+            applySpeedMoveClockEnd(game, aiPlayerEnum, now, speedAiUserId);
+        } else {
+            const aiPlayerTimeKey = aiPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+            if (game.turnDeadline) {
+                const timeRemaining = Math.max(0, (game.turnDeadline - now) / 1000);
+                game[aiPlayerTimeKey] = timeRemaining;
+            }
+        }
     }
 
     // 싱글플레이/AI봇 대결 자동 계가 트리거 체크 (AI가 수를 둔 후)
@@ -3314,17 +3325,21 @@ export async function makeGoAiBotMove(
         }
         
         if (shouldRunGoClockAccountingForSession(game)) {
-            const timeKey = game.currentPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-            const byoyomiKey = game.currentPlayer === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
-            const isFischer = isFischerStyleTimeControl(game as any);
-            const isNextInByoyomi = game[timeKey] <= 0 && game.settings.byoyomiCount > 0 && game[byoyomiKey] > 0 && !isFischer;
-            
-            if (isNextInByoyomi) {
-                game.turnDeadline = now + game.settings.byoyomiTime * 1000;
+            if (isSpeedPerMoveTimeControl(game)) {
+                applySpeedNextTurnClockStart(game, now);
             } else {
-                game.turnDeadline = now + game[timeKey] * 1000;
+                const timeKey = game.currentPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+                const byoyomiKey = game.currentPlayer === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
+                const isFischer = isFischerStyleTimeControl(game as any);
+                const isNextInByoyomi = game[timeKey] <= 0 && game.settings.byoyomiCount > 0 && game[byoyomiKey] > 0 && !isFischer;
+
+                if (isNextInByoyomi) {
+                    game.turnDeadline = now + game.settings.byoyomiTime * 1000;
+                } else {
+                    game.turnDeadline = now + game[timeKey] * 1000;
+                }
+                game.turnStartTime = now;
             }
-            game.turnStartTime = now;
         } else {
             game.turnDeadline = undefined;
             game.turnStartTime = undefined;

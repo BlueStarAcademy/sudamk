@@ -53,18 +53,18 @@ describe('sanitizePvpGameSettings', () => {
             { isAiGame: false },
         );
         expect(out.byoyomiCount).toBe(0);
-        expect(out.byoyomiTime).toBe(0);
-        expect(out.timeIncrement).toBe(5);
+        expect(out.byoyomiTime).toBe(10);
+        expect(out.timeIncrement).toBe(0);
         expect(out.scoringTurnLimit).toBe(0);
     });
 
-    it('defaults invalid fischer increment for speed', () => {
+    it('clears fischer increment for speed', () => {
         const out = sanitizePvpGameSettings(
             GameMode.Speed,
             { boardSize: 13, komi: 6.5, timeLimit: 1, timeIncrement: 99 },
             { isAiGame: false },
         );
-        expect(out.timeIncrement).toBe(5);
+        expect(out.timeIncrement).toBe(0);
     });
 });
 

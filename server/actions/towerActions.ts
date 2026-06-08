@@ -24,7 +24,10 @@ import { applyPassiveActionPointRegenToUser, recordActionPointSpend } from '../e
 import { updateQuestProgress } from '../questService.js';
 import { reconcileStrategicAiBoardSizeWithGroundTruth } from '../utils/effectiveBoardSize.js';
 import { resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
-import { isSessionSpeedTimePressureMode } from '../../shared/utils/speedTimePressureSessionSync.js';
+import {
+    applySpeedNextTurnClockStart,
+    isSessionSpeedTimePressureMode,
+} from '../../shared/utils/speedTimePressureSessionSync.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
@@ -52,7 +55,7 @@ const normalizeTowerPlayingIfStarted = (game: LiveGameSession): void => {
     (game as any).gameStatus = 'playing';
 };
 
-/** 스피드·믹스(스피드): 패배용 시간 제한은 없지만 10초 누적 그래프·상대 +1점용 Fischer 시계는 필요 */
+/** 스피드·믹스(스피드): 메인 시계(시간패 없음) + 수당 10초 이중 시계 */
 const applyTowerSpeedTimePressureClock = (game: LiveGameSession, nowMs: number): void => {
     const mainTimeMinutes = Math.max(0, Number(game.settings?.timeLimit ?? 0)) || 5;
     const initialSec = mainTimeMinutes * 60;
@@ -62,8 +65,7 @@ const applyTowerSpeedTimePressureClock = (game: LiveGameSession, nowMs: number):
     game.whiteInitialTimeLeft = initialSec;
     game.blackByoyomiPeriodsLeft = 0;
     game.whiteByoyomiPeriodsLeft = 0;
-    game.turnStartTime = nowMs;
-    game.turnDeadline = nowMs + initialSec * 1000;
+    applySpeedNextTurnClockStart(game, nowMs);
 };
 
 /** 비스피드 탑: 제한시간·초읽기·turnDeadline 없음 */

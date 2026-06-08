@@ -7,7 +7,8 @@ import { aiUserId, scheduleAiTurnStartForFreshUi } from '../aiPlayer.js';
 import { updateQuestProgress } from '../questService.js';
 import * as types from '../../types/index.js';
 import { broadcast, broadcastToGameParticipants } from '../socket.js';
-import { isFischerStyleTimeControl } from '../../shared/utils/gameTimeControl.js';
+import { isFischerStyleTimeControl, isSpeedPerMoveTimeControl } from '../../shared/utils/gameTimeControl.js';
+import { applySpeedNextTurnClockStart } from '../../shared/utils/speedTimePressureSessionSync.js';
 import { getAdventureEncounterCountdownMinutes } from '../../shared/utils/adventureBattleBoard.js';
 import {
     getCurrentPairTurnSeat,
@@ -157,12 +158,12 @@ export const transitionToPlaying = (game: types.LiveGameSession, now: number) =>
         if (!(game.whiteTimeLeft != null && game.whiteTimeLeft > 0)) {
             game.whiteTimeLeft = secondsPerPlayer;
         }
-        game.turnDeadline = now + game.blackTimeLeft * 1000;
-        // 스피드바둑 PVP: 기본시간 대비 ± 5초당 1점 계가용
-        const isSpeed = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed));
-        if (isSpeed) {
+        if (isSpeedPerMoveTimeControl(game)) {
             game.blackInitialTimeLeft = secondsPerPlayer;
             game.whiteInitialTimeLeft = secondsPerPlayer;
+            applySpeedNextTurnClockStart(game, now);
+        } else {
+            game.turnDeadline = now + game.blackTimeLeft * 1000;
         }
     } else if (enforceTime && byoyomiCount >= MIN_BYOYOMI_COUNT && byoyomiTimeSec > 0) {
         // 제한시간 0: 즉시 초읽기 모드로 시작 (메인 시간 없음)
@@ -177,11 +178,8 @@ export const transitionToPlaying = (game: types.LiveGameSession, now: number) =>
         game.turnDeadline = now + byoyomiTimeSec * 1000;
     } else {
         game.turnDeadline = undefined;
-        // 스피드 바둑 AI/싱글플레이: 유저 사용 시간이 공통 간격(초)마다 AI +1점 계산용 초기 시간 저장 (서버는 시간을 강제하지 않음)
-        const isSpeed =
-            game.mode === types.GameMode.Speed ||
-            (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed));
-        if (isSpeed && (game.isAiGame || game.isSinglePlayer) && game.blackTimeLeft != null && game.whiteTimeLeft != null) {
+        // 스피드 바둑 PVE: 메인 시계(시간패 없음) + 수당 10초 이중 시계
+        if (isSpeedPerMoveTimeControl(game) && (game.isAiGame || game.isSinglePlayer) && game.blackTimeLeft != null && game.whiteTimeLeft != null) {
             let b = Math.max(0, Number(game.blackTimeLeft));
             let w = Math.max(0, Number(game.whiteTimeLeft));
             const mainMin = Math.max(0, Number(game.settings?.timeLimit ?? 0));
@@ -194,16 +192,7 @@ export const transitionToPlaying = (game: types.LiveGameSession, now: number) =>
             }
             game.blackInitialTimeLeft = b;
             game.whiteInitialTimeLeft = w;
-            const curPlayer = game.currentPlayer as types.Player;
-            if (
-                typeof curPlayer === 'number' &&
-                curPlayer !== types.Player.None &&
-                b > 0 &&
-                w > 0
-            ) {
-                const curSec = curPlayer === types.Player.Black ? b : w;
-                game.turnDeadline = now + curSec * 1000;
-            }
+            applySpeedNextTurnClockStart(game, now);
         }
     }
 

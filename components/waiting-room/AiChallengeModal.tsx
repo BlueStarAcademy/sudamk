@@ -14,7 +14,6 @@ import {
   ALKKAGI_STONE_COUNTS, ALKKAGI_ROUNDS, ALKKAGI_GAUGE_SPEEDS, ALKKAGI_ITEM_COUNTS,
   CURLING_STONE_COUNTS, CURLING_ROUNDS, CURLING_GAUGE_SPEEDS, CURLING_ITEM_COUNTS,
   HIDDEN_BOARD_SIZES, DICE_GO_ITEM_COUNTS, getScoringTurnLimitOptionsByBoardSize, getAiScoringTurnLimitByBoardSize,
-  FISCHER_INCREMENT_SECONDS_OPTIONS,
 } from '../../constants/gameSettings.js';
 import { profileStepFromKataServerLevel } from '../../shared/utils/strategicAiDifficulty.js';
 import { clampGameInt } from '../../shared/utils/gameIntegerField.js';
@@ -1209,7 +1208,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
         const modesWithoutClockUi = [GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Thief];
         const mixModes = settings.mixedModes ?? [];
         const isMixMode = selectedGameMode === GameMode.Mix;
-        const showFischer =
+        const showSpeedTimeControls =
             selectedGameMode === GameMode.Speed || (isMixMode && mixModes.includes(GameMode.Speed));
         const showTimeControls = pairFriendlyHumanClock && !modesWithoutClockUi.includes(selectedGameMode);
         const showCaptureTarget = selectedGameMode === GameMode.Capture;
@@ -1541,10 +1540,10 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                 )}
 
                 {showTimeControls && (
-                    showFischer ? (
+                    showSpeedTimeControls ? (
                         <>
                             <div className={settingRowClass}>
-                                <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>제한 시간</label>
+                                <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>메인 제한 시간</label>
                                 <select
                                     value={settings.timeLimit}
                                     onChange={e => handleSettingChange('timeLimit', parseInt(e.target.value))}
@@ -1554,19 +1553,9 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                     {SPEED_TIME_LIMITS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                                 </select>
                             </div>
-                            <div className={settingRowClass}>
-                                <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>추가 시간 (피셔)</label>
-                                <select
-                                    value={settings.timeIncrement ?? 5}
-                                    onChange={e => handleSettingChange('timeIncrement', parseInt(e.target.value))}
-                                    className={gameSettingsSelectClass}
-                                    style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
-                                >
-                                    {FISCHER_INCREMENT_SECONDS_OPTIONS.map(sec => (
-                                        <option key={sec} value={sec}>{sec}초/수</option>
-                                    ))}
-                                </select>
-                            </div>
+                            <p className="col-span-2 text-xs text-gray-300 sm:text-sm">
+                                한 수당 10초 초읽기 · 10초 초과마다 상대 +1점
+                            </p>
                         </>
                     ) : (
                         <>

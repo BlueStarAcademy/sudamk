@@ -1,4 +1,5 @@
 import { GameMode, DiceGoVariant, GameSettings, Player, AlkkagiPlacementType, AlkkagiLayoutType, ItemGrade } from '../types/index.js';
+import { SPEED_PER_MOVE_SECONDS } from '../shared/constants/speedTimePressure.js';
 
 // --- Negotiation Settings ---
 export const BOARD_SIZES = [19, 13, 9];
@@ -105,15 +106,20 @@ export function normalizeFischerIncrementSeconds(value: number | undefined): num
   return FISCHER_INCREMENT_SECONDS;
 }
 
-export function applySpeedFischerDefaults(settings: GameSettings): GameSettings {
+/** 스피드 바둑: 메인 timeLimit 유지, 수당 초읽기 10초, Fischer 증분 없음 */
+export function applySpeedByoyomiDefaults(settings: GameSettings): GameSettings {
   return {
     ...settings,
     byoyomiCount: 0,
-    byoyomiTime: 0,
-    timeIncrement: normalizeFischerIncrementSeconds(settings.timeIncrement),
+    byoyomiTime: SPEED_PER_MOVE_SECONDS,
+    timeIncrement: 0,
   };
 }
-export const TIME_BONUS_SECONDS_PER_POINT = 5;
+
+/** @deprecated {@link applySpeedByoyomiDefaults} */
+export function applySpeedFischerDefaults(settings: GameSettings): GameSettings {
+  return applySpeedByoyomiDefaults(settings);
+}
 export const DICE_GO_ITEM_COUNTS = [0, 1, 2, 3, 4, 5];
 export const ALKKAGI_ITEM_COUNTS = [0, 1, 2, 3];
 export const ALKKAGI_ROUNDS = [1, 2, 3] as const;

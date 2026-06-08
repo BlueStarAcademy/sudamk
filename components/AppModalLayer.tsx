@@ -157,10 +157,10 @@ const AppModalLayer: React.FC = () => {
         // 행동력 안내는 전역 오버레이·DraggableWindow 스택 모두에서 최상단에 두기
         if (modals.isInsufficientActionPointsModalOpen) ids.push('insufficientActionPoints');
         if (modals.isOpponentInsufficientActionPointsModalOpen) ids.push('opponentInsufficientActionPoints');
-        if (modals.levelUpCelebration) ids.push('levelUpCelebration');
         if (modals.mannerGradeChange) ids.push('mannerGradeChange');
         if (modals.contentUnlockNotice) ids.push('contentUnlockNotice');
         if (modals.pairPetDetailModal) ids.push('pairPetDetail');
+        if (modals.levelUpCelebration) ids.push('levelUpCelebration');
         return ids;
     }, [modals, activeNegotiation, hasItemObtainedResult, hasScoreOnlyItemObtained]);
 
@@ -518,7 +518,6 @@ const AppModalLayer: React.FC = () => {
                     user={currentUserWithStatus}
                     payload={modals.levelUpCelebration}
                     onClose={handlers.closeLevelUpCelebration}
-                    isTopmost={topmostModalId === 'levelUpCelebration'}
                 />
             )}
             {modals.mannerGradeChange && (

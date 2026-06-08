@@ -15,6 +15,7 @@ import {
 import { getTowerSessionFloor } from '../utils/towerPreGameDisplay.js';
 import { findLatestMoveIndexAtExcludingRecordedBaseStones } from '../shared/utils/baseHiddenMoveIndex.js';
 import { mixGoClearHiddenItemPhaseTimers, mixGoSessionHasHiddenItems } from '../shared/utils/mixGoRules.js';
+import { getSpeedPerMoveSeconds } from '../shared/utils/gameTimeControl.js';
 import {
     applySpeedTimePressureAfterClientMove,
     isSessionSpeedTimePressureMode,
@@ -317,52 +318,66 @@ export function updateGameStateAfterMove(
     let updatedTurnDeadline = game.turnDeadline;
     let updatedTurnStartTime = game.turnStartTime;
 
-    const timeIncrement = getEffectiveFischerIncrementForClient(game);
-    const byoyomiTime = game.settings?.byoyomiTime ?? 0;
-
-    if (movePlayer === Player.Black) {
-        let currentTime = game.turnDeadline
-            ? Math.max(0, (game.turnDeadline - now) / 1000)
-            : (game.blackTimeLeft || 0);
-        if (timeIncrement > 0) currentTime += timeIncrement;
-        if (currentTime <= 0 && updatedBlackByoyomiPeriodsLeft > 0 && byoyomiTime > 0) {
-            updatedBlackTimeLeft = 0;
-            updatedBlackByoyomiPeriodsLeft = Math.max(0, updatedBlackByoyomiPeriodsLeft - 1);
+    if (isSessionSpeedTimePressureMode(game)) {
+        const turnElapsed =
+            typeof game.turnStartTime === 'number' ? Math.max(0, (now - game.turnStartTime) / 1000) : 0;
+        if (movePlayer === Player.Black) {
+            updatedBlackTimeLeft = Math.max(0, (game.blackTimeLeft ?? 0) - turnElapsed);
         } else {
-            updatedBlackTimeLeft = Math.max(0, currentTime);
+            updatedWhiteTimeLeft = Math.max(0, (game.whiteTimeLeft ?? 0) - turnElapsed);
         }
+        const perMoveSec = getSpeedPerMoveSeconds(game as any);
+        updatedTurnDeadline = now + perMoveSec * 1000;
+        updatedTurnStartTime = now;
     } else {
-        let currentTime = game.turnDeadline
-            ? Math.max(0, (game.turnDeadline - now) / 1000)
-            : (game.whiteTimeLeft || 0);
-        if (timeIncrement > 0) currentTime += timeIncrement;
-        if (currentTime <= 0 && updatedWhiteByoyomiPeriodsLeft > 0 && byoyomiTime > 0) {
-            updatedWhiteTimeLeft = 0;
-            updatedWhiteByoyomiPeriodsLeft = Math.max(0, updatedWhiteByoyomiPeriodsLeft - 1);
+        const timeIncrement = getEffectiveFischerIncrementForClient(game);
+        const byoyomiTime = game.settings?.byoyomiTime ?? 0;
+
+        if (movePlayer === Player.Black) {
+            let currentTime = game.turnDeadline
+                ? Math.max(0, (game.turnDeadline - now) / 1000)
+                : (game.blackTimeLeft || 0);
+            if (timeIncrement > 0) currentTime += timeIncrement;
+            if (currentTime <= 0 && updatedBlackByoyomiPeriodsLeft > 0 && byoyomiTime > 0) {
+                updatedBlackTimeLeft = 0;
+                updatedBlackByoyomiPeriodsLeft = Math.max(0, updatedBlackByoyomiPeriodsLeft - 1);
+            } else {
+                updatedBlackTimeLeft = Math.max(0, currentTime);
+            }
         } else {
-            updatedWhiteTimeLeft = Math.max(0, currentTime);
+            let currentTime = game.turnDeadline
+                ? Math.max(0, (game.turnDeadline - now) / 1000)
+                : (game.whiteTimeLeft || 0);
+            if (timeIncrement > 0) currentTime += timeIncrement;
+            if (currentTime <= 0 && updatedWhiteByoyomiPeriodsLeft > 0 && byoyomiTime > 0) {
+                updatedWhiteTimeLeft = 0;
+                updatedWhiteByoyomiPeriodsLeft = Math.max(0, updatedWhiteByoyomiPeriodsLeft - 1);
+            } else {
+                updatedWhiteTimeLeft = Math.max(0, currentTime);
+            }
         }
-    }
 
-    const nextPlayer = movePlayer === Player.Black ? Player.White : Player.Black;
-    let nextTime = nextPlayer === Player.Black ? updatedBlackTimeLeft : updatedWhiteTimeLeft;
-    const nextByoyomiPeriods = nextPlayer === Player.Black ? updatedBlackByoyomiPeriodsLeft : updatedWhiteByoyomiPeriodsLeft;
+        const nextPlayer = movePlayer === Player.Black ? Player.White : Player.Black;
+        let nextTime = nextPlayer === Player.Black ? updatedBlackTimeLeft : updatedWhiteTimeLeft;
+        const nextByoyomiPeriods =
+            nextPlayer === Player.Black ? updatedBlackByoyomiPeriodsLeft : updatedWhiteByoyomiPeriodsLeft;
 
-    if (nextTime <= 0 && nextByoyomiPeriods <= 0) {
-        nextTime = game.settings?.timeLimit ? game.settings.timeLimit * 60 : 0;
-    }
-
-    if (nextTime <= 0 && nextByoyomiPeriods > 0 && byoyomiTime > 0) {
-        updatedTurnDeadline = now + (byoyomiTime * 1000);
-        updatedTurnStartTime = now;
-        if (nextPlayer === Player.Black) {
-            updatedBlackTimeLeft = 0;
-        } else {
-            updatedWhiteTimeLeft = 0;
+        if (nextTime <= 0 && nextByoyomiPeriods <= 0) {
+            nextTime = game.settings?.timeLimit ? game.settings.timeLimit * 60 : 0;
         }
-    } else if (nextTime > 0) {
-        updatedTurnDeadline = now + (nextTime * 1000);
-        updatedTurnStartTime = now;
+
+        if (nextTime <= 0 && nextByoyomiPeriods > 0 && byoyomiTime > 0) {
+            updatedTurnDeadline = now + byoyomiTime * 1000;
+            updatedTurnStartTime = now;
+            if (nextPlayer === Player.Black) {
+                updatedBlackTimeLeft = 0;
+            } else {
+                updatedWhiteTimeLeft = 0;
+            }
+        } else if (nextTime > 0) {
+            updatedTurnDeadline = now + nextTime * 1000;
+            updatedTurnStartTime = now;
+        }
     }
 
     const finalKoInfo = newKoInfo || null;

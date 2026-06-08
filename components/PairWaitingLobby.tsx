@@ -1564,9 +1564,12 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         [pairRoomsAllChannels, currentUserId],
     );
     const userParticipatingInAnyPairRoom = Boolean(myRoomAnyLobbyChannel);
-    /** PVP 방만 이동 시 나가기 확인 — AI 로비 껍데기 방은 자유 이동 */
+    const isPairAiWaitingLobby = lobbyChannel === 'pair' && lobbyIntent === 'ai';
+    /** PVP 방만 이동 시 나가기 확인 — 페어 AI 대전·AI 로비 껍데기 방은 자유 이동 */
     const pairRoomBlockingNavigation = Boolean(
-        myRoomAnyLobbyChannel && pairRoomRequiresLeaveConfirmation(myRoomAnyLobbyChannel),
+        !isPairAiWaitingLobby &&
+            myRoomAnyLobbyChannel &&
+            pairRoomRequiresLeaveConfirmation(myRoomAnyLobbyChannel),
     );
     const lobbyTone: WaitingLobbyPanelTone =
         lobbyChannel === 'playful' ? 'playful' : lobbyChannel === 'pair' ? 'pair' : 'strategic';
@@ -1608,9 +1611,10 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
 
     const leaveAiShellRoomSilently = useCallback(() => {
         const room = myRoomAnyLobbyChannel;
-        if (!room || pairRoomRequiresLeaveConfirmation(room)) return;
+        if (!room) return;
+        if (!isPairAiWaitingLobby && pairRoomRequiresLeaveConfirmation(room)) return;
         void handlers.handleAction({ type: 'PAIR_LEAVE_ROOM' }).catch(() => undefined);
-    }, [myRoomAnyLobbyChannel, handlers]);
+    }, [myRoomAnyLobbyChannel, handlers, isPairAiWaitingLobby]);
 
     const navigateArenaTab = useCallback(
         (target: ArenaLobbyNavKind) => {
@@ -2189,7 +2193,9 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                 if (pairShellGameRoomIdMatchesMyRoom(shellRoomId, room.id)) return;
             }
 
-            if (!pairRoomRequiresLeaveConfirmation(room)) {
+            const inPairAiWaitingLobby =
+                lobbyChannelRef.current === 'pair' && lobbyIntentRef.current === 'ai';
+            if (inPairAiWaitingLobby || !pairRoomRequiresLeaveConfirmation(room)) {
                 void handleActionRef.current({ type: 'PAIR_LEAVE_ROOM' }).catch(() => undefined);
                 return;
             }

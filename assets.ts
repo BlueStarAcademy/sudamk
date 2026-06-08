@@ -14,6 +14,9 @@ export const BLACK_HIDDEN_STONE_IMG = "/images/Hidden.webp";
 // Lobby card images
 export const STRATEGIC_GO_LOBBY_IMG = "/images/RatingArena.webp";
 export const PLAYFUL_GO_LOBBY_IMG = "/images/PlayingArena.webp";
+/** 경기장 홈 PVP / AI 대전 입장 카드 */
+export const PVP_ARENA_ENTRY_IMG = "/images/bg/pvp.webp";
+export const AI_ARENA_ENTRY_IMG = "/images/bg/ai.webp";
 export const PAIR_GO_LOBBY_IMG = "/images/2v2.webp";
 export const TOURNAMENT_LOBBY_IMG = "/images/Championship.webp";
 export const SINGLE_PLAYER_LOBBY_IMG = "/images/single/Map.webp";

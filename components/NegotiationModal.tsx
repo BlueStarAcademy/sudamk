@@ -7,7 +7,7 @@ import {
 } from '../shared/utils/pairPetArenaApDiscount.js';
 import { 
     BOARD_SIZES, TIME_LIMITS, BYOYOMI_COUNTS, BYOYOMI_TIMES, DEFAULT_KOMI, CAPTURE_TARGETS, SPEED_BOARD_SIZES,
-    SPEED_TIME_LIMITS, FISCHER_INCREMENT_SECONDS_OPTIONS, applySpeedFischerDefaults, BASE_STONE_COUNTS, HIDDEN_STONE_COUNTS, SCAN_COUNTS,
+    SPEED_TIME_LIMITS, applySpeedByoyomiDefaults, BASE_STONE_COUNTS, HIDDEN_STONE_COUNTS, SCAN_COUNTS,
     CAPTURE_BOARD_SIZES, OMOK_BOARD_SIZES, TTAMOK_CAPTURE_TARGETS, ALKKAGI_STONE_COUNTS,
     ALKKAGI_GAUGE_SPEEDS, CURLING_GAUGE_SPEEDS, CURLING_STONE_COUNTS, HIDDEN_BOARD_SIZES, THIEF_BOARD_SIZES,
     MISSILE_BOARD_SIZES, MISSILE_COUNTS, SPECIAL_GAME_MODES, DEFAULT_GAME_SETTINGS, aiUserId, DICE_GO_ITEM_COUNTS, CURLING_ITEM_COUNTS, ALKKAGI_ITEM_COUNTS, ALKKAGI_ROUNDS,
@@ -223,7 +223,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
         next.komi = 0.5;
       }
       if (mode === GameMode.Speed && checked) {
-        return applySpeedFischerDefaults(next);
+        return applySpeedByoyomiDefaults(next);
       }
       return next;
     });
@@ -381,7 +381,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
         !(mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Base));
     const showTimeControls = ![GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Thief].includes(mode);
     
-    const showFischer = mode === GameMode.Speed || (mode === GameMode.Mix && !!settings.mixedModes?.includes(GameMode.Speed));
+    const showSpeedTimeControls = mode === GameMode.Speed || (mode === GameMode.Mix && !!settings.mixedModes?.includes(GameMode.Speed));
     
     const showCaptureTarget = mode === GameMode.Capture;
     const showTtamokCaptureTarget = mode === GameMode.Ttamok;
@@ -571,23 +571,15 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                 )}
 
                 {showTimeControls && (
-                    showFischer ? (
+                    showSpeedTimeControls ? (
                         <>
-                            <SettingRow label="제한 시간">
+                            <SettingRow label="메인 제한 시간">
                                 <Select value={settings.timeLimit} onChange={v => handleSettingChange('timeLimit', parseInt(v))} disabled={isReadOnly}>
                                 {SPEED_TIME_LIMITS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                                 </Select>
                             </SettingRow>
-                            <SettingRow label="추가 시간 (피셔)">
-                                <Select
-                                    value={settings.timeIncrement ?? 5}
-                                    onChange={v => handleSettingChange('timeIncrement', parseInt(v))}
-                                    disabled={isReadOnly}
-                                >
-                                    {FISCHER_INCREMENT_SECONDS_OPTIONS.map(sec => (
-                                        <option key={sec} value={sec}>{sec}초/수</option>
-                                    ))}
-                                </Select>
+                            <SettingRow label="수당 초읽기">
+                                <span className="text-sm text-gray-300">한 수당 10초 · 10초 초과마다 상대 +1점</span>
                             </SettingRow>
                         </>
                     ) : (

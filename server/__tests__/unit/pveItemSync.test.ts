@@ -476,6 +476,42 @@ describe('PVE item client sync', () => {
         ]);
     });
 
+    it('allows hidden_placing to playing when client sync advances move history after hidden commit', () => {
+        const board = emptyBoard(5);
+        board[0][0] = Player.Black;
+        const game: any = {
+            id: 'pve-hidden-commit-playing',
+            isSinglePlayer: true,
+            gameCategory: 'singleplayer',
+            blackPlayerId: 'human-1',
+            whitePlayerId: 'ai-player-01',
+            boardState: emptyBoard(5),
+            moveHistory: [],
+            currentPlayer: Player.Black,
+            gameStatus: 'hidden_placing',
+            mode: 'hidden',
+            settings: { mixedModes: [] },
+            hiddenMoves: {},
+            itemUseDeadline: Date.now() + 30000,
+            itemPhaseActingPlayer: Player.Black,
+        };
+
+        applyPveItemActionClientSync(game, {
+            clientSync: {
+                boardState: board,
+                moveHistory: [{ x: 0, y: 0, player: Player.Black }],
+                hiddenMoves: { '0': true },
+                currentPlayer: Player.White,
+                gameStatus: 'playing',
+            },
+        });
+
+        expect(game.gameStatus).toBe('playing');
+        expect(game.currentPlayer).toBe(Player.White);
+        expect(game.itemUseDeadline).toBeUndefined();
+        expect(game.itemPhaseActingPlayer).toBeUndefined();
+    });
+
     it('carries PVE overlay metadata from the client before a server AI hidden move', () => {
         const board = emptyBoard(5);
         board[1][1] = Player.Black;

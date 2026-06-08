@@ -30,8 +30,10 @@ const getStarDisplayInfo = (stars: number) => {
     return { text: '', colorClass: 'text-white' };
 };
 
+const EQUIPMENT_SLOT_ORDER: EquipmentSlot[] = ['fan', 'top', 'bottom', 'board', 'bowl', 'stones'];
+
 /** Profile 홈(네이티브·홈 탭·좌측 통합 스택)과 동일 슬롯 렌더링 */
-const EquipmentSlotDisplay: React.FC<{
+export const HomeEquippedSlotDisplay: React.FC<{
     slot: EquipmentSlot;
     item?: InventoryItem;
     onClick?: () => void;
@@ -95,6 +97,54 @@ const EquipmentSlotDisplay: React.FC<{
         />
     );
 };
+
+export type HomeEquippedEquipmentGridLayout = 'homeCompact' | 'guildBossCompact' | 'guildBossDesktop';
+
+/** 홈 장착 장비 3×2 그리드 (길드 보스전 우측 패널 등) */
+export const HomeEquippedEquipmentGrid: React.FC<{
+    equippedItems: InventoryItem[];
+    onViewItem: (item: InventoryItem) => void;
+    layout: HomeEquippedEquipmentGridLayout;
+    className?: string;
+}> = ({ equippedItems, onViewItem, layout, className }) => {
+    const getItemForSlot = (slot: EquipmentSlot) => equippedItems.find((it) => it.slot === slot);
+    const gridClass =
+        layout === 'guildBossCompact'
+            ? 'grid w-[8.2rem] shrink-0 grid-cols-3 auto-rows-auto gap-0.5'
+            : layout === 'guildBossDesktop'
+              ? 'grid w-full grid-cols-3 auto-rows-auto gap-1 px-1'
+              : 'grid w-full grid-cols-3 auto-rows-auto gap-x-1 gap-y-0.5 sm:gap-x-1.5 sm:gap-y-1';
+    const slotCapClass =
+        layout === 'guildBossCompact'
+            ? 'mx-auto w-full max-w-[2.65rem]'
+            : layout === 'guildBossDesktop'
+              ? 'mx-auto w-full max-w-[3.65rem]'
+              : 'mx-auto w-full max-w-[min(100%,4.55rem)]';
+    const scaleFactor = layout === 'guildBossDesktop' ? 1 : layout === 'guildBossCompact' ? 0.98 : 0.82;
+
+    return (
+        <div className={`${gridClass} min-w-0 ${className ?? ''}`}>
+            {EQUIPMENT_SLOT_ORDER.map((slot) => {
+                const item = getItemForSlot(slot);
+                return (
+                    <div key={slot} className="flex w-full items-center justify-center">
+                        <div className={slotCapClass}>
+                            <HomeEquippedSlotDisplay
+                                slot={slot}
+                                item={item}
+                                onClick={() => item && onViewItem(item)}
+                                compact
+                                scaleFactor={scaleFactor}
+                            />
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
+};
+
+const EquipmentSlotDisplay = HomeEquippedSlotDisplay;
 
 /** 챔피언십 실전 KATA 가중 합산 점수(로비·경기장 패널과 동일 공식) */
 export type ChampionshipPhaseAbilityScores = {
@@ -161,7 +211,7 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
     const getItemForSlot = (slot: EquipmentSlot) => equippedItems.find((it) => it.slot === slot);
 
     const mergeEquipScale = gb
-        ? 1.5
+        ? 1.58
         : joinShopBelow
           ? championshipPhaseAbilityScores != null
               ? 0.96
@@ -171,7 +221,7 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
             : 1.18;
     const lobbyChampionshipUser = Boolean(joinShopBelow && championshipPhaseAbilityScores != null);
     const homeEquipGrid = gb
-        ? 'grid w-full grid-cols-3 auto-rows-auto gap-1 sm:gap-1.5'
+        ? 'grid w-full grid-cols-3 auto-rows-auto gap-0.5'
         : ch
           ? `grid w-full grid-cols-3 auto-rows-auto ${lobbyChampionshipUser ? 'gap-x-1.5 gap-y-1 sm:gap-x-2 sm:gap-y-1' : 'gap-x-1 gap-y-0.5 sm:gap-x-1.5 sm:gap-y-1'}`
           : 'grid w-full grid-cols-3 gap-1.5 auto-rows-auto sm:gap-2';
@@ -186,7 +236,7 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
     const equipmentBlock = (
         <div className="flex min-h-0 w-full flex-col items-stretch gap-1 overflow-x-hidden overflow-y-visible">
             <div className={`${homeEquipGrid} min-w-0`}>
-                {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map((slot) => {
+                {EQUIPMENT_SLOT_ORDER.map((slot) => {
                     const item = getItemForSlot(slot);
                     return (
                         <div key={slot} className="flex w-full items-center justify-center">
@@ -369,7 +419,7 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
                 ? 'shrink-0 font-mono text-[11px] font-semibold tabular-nums text-emerald-400/95 sm:text-xs'
                 : 'shrink-0 font-mono text-[10px] font-semibold tabular-nums text-emerald-400/95 sm:text-xs';
         const rowShell = gb
-            ? 'flex flex-row items-center justify-between gap-1.5 rounded-md border border-white/10 bg-black/30 px-1.5 py-0.5 sm:px-2 sm:py-1'
+            ? 'flex flex-row flex-nowrap items-center justify-between gap-1.5 rounded-md border border-white/10 bg-black/30 px-1.5 py-0.5 sm:px-2 sm:py-1'
             : lobbyChampionshipUser
               ? 'flex min-h-0 min-w-0 flex-1 basis-0 flex-row items-center justify-between gap-0.5 rounded-md border border-white/10 bg-black/30 px-1 py-0.5 sm:gap-1 sm:px-1.5 sm:py-0.5'
               : ch
@@ -453,14 +503,14 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
         <>
             {bannerBlock}
             <div
-                className={`${gb ? 'mt-0.5' : 'mt-1'} flex min-h-0 w-full min-w-0 flex-row items-stretch ${gb ? 'gap-1.5' : ch ? 'gap-1.5 sm:gap-2' : 'gap-2 sm:gap-2.5'} ${
+                className={`${gb ? 'mt-0.5' : 'mt-1'} flex min-h-0 w-full min-w-0 flex-row items-stretch ${gb ? 'gap-0' : ch ? 'gap-1.5 sm:gap-2' : 'gap-2 sm:gap-2.5'} ${
                     joinShopBelow ? 'min-h-0 flex-1' : ''
                 }`}
             >
                 <div
                     className={`flex flex-none flex-col justify-start ${
                         gb
-                            ? 'w-[min(18rem,64%)] shrink-0'
+                            ? 'min-w-0 basis-[60%] shrink-0'
                             : compactLayout
                               ? lobbyChampionshipUser
                                   ? 'w-[min(16.25rem,100%)]'
@@ -475,9 +525,9 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
                     aria-hidden
                 />
                 <div
-                    className={`flex min-h-0 min-w-0 flex-col overflow-x-hidden ${
+                    className={`flex min-h-0 flex-col ${
                         gb
-                            ? 'min-w-0 flex-1 overflow-y-auto justify-start py-0'
+                            ? 'min-w-0 basis-[40%] shrink-0 overflow-x-visible overflow-y-auto justify-start py-0'
                             : `flex-1 ${
                                   lobbyChampionshipUser
                                       ? 'overflow-hidden py-0.5 sm:py-1'

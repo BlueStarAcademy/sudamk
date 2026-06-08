@@ -999,6 +999,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const aiHiddenMoveExecutedRef = useRef(false);
     /** 탑·싱글: 서버 ai_thinking 만료 후 REQUEST_SERVER_AI_MOVE를 이미 보낸 경우 `${gameId}:${endTime}` */
     const pveAiHiddenPostAnimRequestDoneRef = useRef<string | null>(null);
+    /** PVE: hidden_placing→playing 전환 후 AI kick 1회 `${gameId}:${moveHistoryLen}` */
+    const pveHiddenPlacementAiKickDoneRef = useRef<string | null>(null);
     const sessionRefForPveAiHiddenFollowup = useRef(session);
     sessionRefForPveAiHiddenFollowup.current = session;
     // 연출 중 시간 경과로 빛/일시정지 갱신용 (0.5초마다)
@@ -2353,10 +2355,89 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         session.whitePlayerId,
     ]);
 
+    useEffect(() => {
+        const hiddenPlacingToPlaying = prevGameStatus === 'hidden_placing' && gameStatus === 'playing';
+        if (!hiddenPlacingToPlaying) return;
+
+        const isStrategicAiLobbyKick =
+            !!session.isAiGame &&
+            !isSinglePlayer &&
+            !isTower &&
+            !isGuildWarGame &&
+            KATA_STYLE_AI_GO_MODES.has(mode) &&
+            !isPairClassicGame(session.settings, mode);
+        const needsAiKickAfterHiddenPlacement =
+            isTower ||
+            isSinglePlayer ||
+            isGuildWarGame ||
+            isAdventureGame ||
+            isStrategicAiLobbyKick;
+        if (!needsAiKickAfterHiddenPlacement) return;
+        if (currentPlayer !== Player.White && currentPlayer !== Player.Black) return;
+        const aiSeatId = currentPlayer === Player.Black ? session.blackPlayerId : session.whitePlayerId;
+        const isAiTurn =
+            aiSeatId === AI_USER_ID ||
+            (session.isAiGame && aiSeatId === 'ai-player-01') ||
+            (!!aiSeatId && String(aiSeatId).startsWith('dungeon-bot-'));
+        if (!isAiTurn) return;
+
+        const kickKey = `${session.id}:${session.moveHistory?.length ?? 0}`;
+        if (pveHiddenPlacementAiKickDoneRef.current === kickKey) return;
+
+        const kickTimer = window.setTimeout(() => {
+            const latestSession = sessionRefForPveAiHiddenFollowup.current;
+            if (latestSession.gameStatus !== 'playing') return;
+            const latestAiSeatId =
+                latestSession.currentPlayer === Player.Black
+                    ? latestSession.blackPlayerId
+                    : latestSession.whitePlayerId;
+            const stillAiTurn =
+                latestAiSeatId === AI_USER_ID ||
+                (latestSession.isAiGame && latestAiSeatId === 'ai-player-01') ||
+                (!!latestAiSeatId && String(latestAiSeatId).startsWith('dungeon-bot-'));
+            if (!stillAiTurn) return;
+
+            pveHiddenPlacementAiKickDoneRef.current = kickKey;
+            if (isStrategicAiLobbyKick) {
+                void handleActionRef.current({
+                    type: 'REQUEST_GAME_STATE_SYNC',
+                    payload: { gameId: latestSession.id },
+                } as ServerAction);
+                return;
+            }
+            const clientSync = buildPveItemActionClientSync(latestSession);
+            void handleActionRef.current({
+                type: 'REQUEST_SERVER_AI_MOVE',
+                payload: clientSync
+                    ? { gameId: latestSession.id, clientSync }
+                    : { gameId: latestSession.id },
+            } as ServerAction);
+        }, 120);
+
+        return () => window.clearTimeout(kickTimer);
+    }, [
+        prevGameStatus,
+        gameStatus,
+        currentPlayer,
+        session.id,
+        session.moveHistory?.length,
+        session.gameCategory,
+        session.settings,
+        mode,
+        isSinglePlayer,
+        isTower,
+        isGuildWarGame,
+        isAdventureGame,
+        session.isAiGame,
+        session.blackPlayerId,
+        session.whitePlayerId,
+    ]);
+
     // 게임이 바뀌면 히든 연출 실행 여부 ref 초기화 (새 게임에서 1회 히든 턴이 동작하도록)
     useEffect(() => {
         aiHiddenMoveExecutedRef.current = false;
         pveAiHiddenPostAnimRequestDoneRef.current = null;
+        pveHiddenPlacementAiKickDoneRef.current = null;
     }, [session.id]);
 
     // 길드전 히든: 클라 타이머 종료 시 휴리스틱으로 AI 히든 착수 (한 번만)
@@ -2894,8 +2975,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             x,
                             y,
                             isHidden: true,
-                            boardState: boardStateToUse,
-                            moveHistory: session.moveHistory || [],
+                            boardState: moveResult.newBoardState,
+                            moveHistory: [...(session.moveHistory || []), { x, y, player: myPlayerEnum }],
                             hiddenMoves: session.hiddenMoves || {},
                             humanHiddenStonePoints: (session as any).humanHiddenStonePoints || [],
                         }

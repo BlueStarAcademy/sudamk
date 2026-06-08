@@ -10,6 +10,7 @@ import { MythicSubsPartitioned } from '../MythicSubsPartitioned.js';
 import { formatSpecialSubLineForPanel } from '../../shared/utils/specialStatMilestones.js';
 import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 import { formatBlacksmithPercentInt } from '../../shared/utils/formatBlacksmithPercentInt.js';
+import { getBlacksmithViewerTypography } from '../../shared/constants/blacksmithViewerTypography.js';
 
 const gradeStyles: Record<ItemGrade, { name: string; color: string; background: string; }> = {
     normal: { name: '일반', color: 'text-gray-300', background: '/images/equipments/normalbgi.webp' },
@@ -84,9 +85,15 @@ const renderStarDisplay = (stars: number, previousStars?: number, isAnimating?: 
     );
 };
 
-const ItemDisplay: React.FC<{ item: InventoryItem; previousStars?: number; isAnimating?: boolean }> = ({ item, previousStars, isAnimating }) => {
+const ItemDisplay: React.FC<{ item: InventoryItem; previousStars?: number; isAnimating?: boolean; pcViewer?: boolean }> = ({
+    item,
+    previousStars,
+    isAnimating,
+    pcViewer = false,
+}) => {
     const { currentUserWithStatus } = useAppContext();
     const styles = gradeStyles[item.grade];
+    const typo = getBlacksmithViewerTypography(pcViewer);
 
     const requiredLevel = GRADE_LEVEL_REQUIREMENTS[item.grade];
     const userLevelSum = currentUserWithStatus?.userLevel ?? 0;
@@ -102,15 +109,15 @@ const ItemDisplay: React.FC<{ item: InventoryItem; previousStars?: number; isAni
                     {renderStarDisplay(item.stars, previousStars, isAnimating)}
                 </div>
                 <div className="min-w-0 flex-grow pt-1">
-                    <h3 className={`text-sm font-bold leading-snug whitespace-nowrap overflow-hidden text-ellipsis ${styles.color}`} title={item.name}>
+                    <h3 className={`${typo.headingLg} leading-snug whitespace-nowrap overflow-hidden text-ellipsis ${styles.color}`} title={item.name}>
                         {item.name}
                     </h3>
-                    <p className={`text-[11px] leading-snug ${canEquip ? 'text-gray-500' : 'text-red-500'}`}>
+                    <p className={`${typo.body} ${canEquip ? 'text-gray-500' : 'text-red-500'}`}>
                         ({formatEquipLevelRequirement(requiredLevel)})
                     </p>
                     {item.options?.main && (
                         <p
-                            className="text-[11px] font-semibold leading-snug text-yellow-300 whitespace-nowrap overflow-hidden text-ellipsis"
+                            className={`${typo.bodySemi} text-yellow-300 whitespace-nowrap overflow-hidden text-ellipsis`}
                             title={item.options.main.display}
                         >
                             {item.options.main.display}
@@ -119,7 +126,7 @@ const ItemDisplay: React.FC<{ item: InventoryItem; previousStars?: number; isAni
                 </div>
             </div>
             {/* Bottom section: Full-width sub-options */}
-            <div className="w-full flex-grow space-y-0.5 overflow-y-auto rounded-lg bg-black/30 p-1.5 text-left text-[11px] leading-snug">
+            <div className={`w-full flex-grow space-y-0.5 overflow-y-auto rounded-lg bg-black/30 p-1.5 text-left ${typo.body}`}>
                 {item.options?.combatSubs && item.options.combatSubs.length > 0 && (
                     <div className="space-y-0.5">
                         {item.options.combatSubs.map((opt, i) => (
@@ -137,7 +144,7 @@ const ItemDisplay: React.FC<{ item: InventoryItem; previousStars?: number; isAni
                     </div>
                 )}
                 {item.options?.mythicSubs && item.options.mythicSubs.length > 0 ? (
-                    <MythicSubsPartitioned subs={item.options.mythicSubs} />
+                    <MythicSubsPartitioned subs={item.options.mythicSubs} enlargeBody={pcViewer} />
                 ) : null}
             </div>
         </div>
@@ -232,6 +239,8 @@ const EnhancementView: React.FC<EnhancementViewProps> = ({
     onStartEnhancement,
     stackedViewport = false,
 }) => {
+    const pcViewer = !stackedViewport;
+    const typo = getBlacksmithViewerTypography(pcViewer);
     const [isEnhancing, setIsEnhancing] = useState(false);
     const [enhancementProgress, setEnhancementProgress] = useState(0);
     const [previousStars, setPreviousStars] = useState<number | undefined>(undefined);
@@ -398,7 +407,7 @@ useEffect(() => {
 
     if (!selectedItem) {
         return (
-            <div className="flex items-center justify-center h-full text-gray-500">
+            <div className={`flex items-center justify-center h-full text-gray-500 ${typo.empty}`}>
                 <p>강화할 장비를 선택해주세요.</p>
             </div>
         );
@@ -463,10 +472,10 @@ useEffect(() => {
         }, duration);
     };
 
-    const detailValueClass = 'text-xs font-mono';
+    const detailValueClass = typo.mono;
     const rateMainClass = stackedViewport
         ? 'text-base font-bold leading-tight text-yellow-300'
-        : 'text-lg font-bold leading-tight text-yellow-300 sm:text-xl';
+        : 'text-2xl font-bold leading-tight text-yellow-300';
 
     return (
             <div className={`relative flex min-h-0 flex-col ${stackedViewport ? 'flex-1' : 'h-full'}`}>
@@ -478,10 +487,11 @@ useEffect(() => {
                         stackedViewport ? 'max-h-[min(16rem,42dvh)] shrink-0 overflow-y-auto' : 'h-full w-[55%]'
                     }`}
                 >
-                    <ItemDisplay 
-                        item={selectedItem} 
+                    <ItemDisplay
+                        item={selectedItem}
                         previousStars={previousStars}
                         isAnimating={isStarAnimating}
+                        pcViewer={pcViewer}
                     />
                 </div>
 
@@ -490,8 +500,8 @@ useEffect(() => {
                 >
                     {/* 강화 성공 시 정보 */}
                     <div className="flex-shrink-0 rounded-xl border border-emerald-400/25 bg-gradient-to-b from-emerald-950/25 via-black/40 to-black/30 p-2">
-                        <h4 className="mb-1.5 text-center text-xs font-bold text-emerald-200">강화 성공 시</h4>
-                        <div className={`space-y-1.5 text-left ${stackedViewport ? 'text-xs' : 'text-xs'}`}>
+                        <h4 className={`mb-1.5 text-center ${typo.heading} text-emerald-200`}>강화 성공 시</h4>
+                        <div className={`space-y-1.5 text-left ${typo.body}`}>
                             <div className="flex justify-between items-center gap-2 min-w-0">
                                 <span className="flex-shrink-0 whitespace-nowrap text-gray-400">등급:</span>
                                 <div className={`flex min-w-0 items-center gap-1 whitespace-nowrap text-white ${detailValueClass}`}>
@@ -512,9 +522,9 @@ useEffect(() => {
                     </div>
                     
                     {/* 필요 재료 | 성공확률 */}
-                    <div className={`flex min-w-0 flex-shrink-0 items-stretch gap-2 ${stackedViewport ? 'flex-col' : 'flex-row'}`}>
-                        <div className="min-w-0 flex-1 rounded-xl border border-white/10 bg-gradient-to-b from-slate-900/75 via-black/35 to-black/45 p-2">
-                            <h4 className="mb-2 text-center text-xs font-bold text-amber-100">필요 재료</h4>
+                    <div className="flex min-w-0 flex-shrink-0 flex-col items-stretch gap-2">
+                        <div className="min-w-0 w-full rounded-xl border border-white/10 bg-gradient-to-b from-slate-900/75 via-black/35 to-black/45 p-2">
+                            <h4 className={`mb-2 text-center ${typo.heading} text-amber-100`}>필요 재료</h4>
                             <div className="flex flex-wrap items-end justify-center gap-x-3 gap-y-2">
                                 <div
                                     className="relative flex min-w-[3.25rem] flex-col items-center px-0.5"
@@ -524,7 +534,7 @@ useEffect(() => {
                                         <img src="/images/icon/Gold.webp" alt="골드" className="h-full w-full" style={{ background: 'transparent', borderRadius: 0, padding: 0, margin: 0, objectFit: 'contain', display: 'block', border: 'none', boxShadow: 'none' }} />
                                         {!hasEnoughGold && <div className="absolute inset-0 rounded-full bg-red-500/30" />}
                                     </div>
-                                    <span className={`mt-0.5 w-full text-center font-mono text-xs leading-tight ${hasEnoughGold ? 'text-green-400' : 'text-red-400'}`}>
+                                    <span className={`mt-0.5 w-full text-center ${typo.mono} leading-tight ${hasEnoughGold ? 'text-green-400' : 'text-red-400'}`}>
                                         {stackedViewport ? (
                                             <>
                                                 <span className="block text-[10px] font-medium text-slate-400">보유 / 필요</span>
@@ -546,7 +556,7 @@ useEffect(() => {
                                                 <img src={MATERIAL_ITEMS[cost.name].image!} alt={cost.name} className="h-full w-full" style={{ background: 'transparent', borderRadius: 0, padding: 0, margin: 0, objectFit: 'contain', display: 'block', border: 'none', boxShadow: 'none' }} />
                                                 {!hasEnough && <div className="absolute inset-0 rounded-full bg-red-500/30" />}
                                             </div>
-                                            <span className={`mt-0.5 w-full max-w-full text-center font-mono text-xs leading-tight ${hasEnough ? 'text-green-400' : 'text-red-400'}`}>
+                                            <span className={`mt-0.5 w-full max-w-full text-center ${typo.mono} leading-tight ${hasEnough ? 'text-green-400' : 'text-red-400'}`}>
                                                 {stackedViewport ? (
                                                     <>
                                                         <span className="block truncate text-[10px] font-semibold text-slate-300" title={cost.name}>
@@ -566,15 +576,11 @@ useEffect(() => {
                                 })}
                             </div>
                         </div>
-                        <div
-                            className={`flex min-w-0 flex-col justify-center rounded-xl border border-amber-300/20 bg-gradient-to-b from-amber-950/25 via-black/45 to-black/30 p-2 text-center ${
-                                stackedViewport ? 'w-full shrink-0' : 'w-[7.25rem] min-w-[6.5rem] shrink-0 sm:w-32'
-                            }`}
-                        >
-                            <h4 className="mb-1 text-xs font-bold leading-tight text-amber-100">성공확률</h4>
+                        <div className="flex min-w-0 w-full shrink-0 flex-col justify-center rounded-xl border border-amber-300/20 bg-gradient-to-b from-amber-950/25 via-black/45 to-black/30 p-2 text-center">
+                            <h4 className={`mb-1 ${typo.heading} leading-tight text-amber-100`}>성공확률</h4>
                             <p className={rateMainClass}>{successRateDisplay}</p>
                             {selectedItem.stars < 10 && successRateBreakdownParts.length > 0 ? (
-                                <p className="mt-1 text-[10px] leading-snug text-slate-400">{successRateBreakdownParts.join(' · ')}</p>
+                                <p className={`mt-1 ${typo.caption} text-slate-400`}>{successRateBreakdownParts.join(' · ')}</p>
                             ) : null}
                         </div>
                     </div>
@@ -585,8 +591,7 @@ useEffect(() => {
                                 onClick={handleEnhanceClick}
                                 disabled={!canEnhance || isEnhancing || selectedItem.stars >= 10}
                                 variant="gold"
-                                className={`w-full whitespace-nowrap py-2 ${stackedViewport ? '!text-xs' : ''}`}
-                                style={stackedViewport ? undefined : { fontSize: 'clamp(0.75rem, 2vw, 0.875rem)' }}
+                                className={`w-full whitespace-nowrap py-2 ${stackedViewport ? '!text-xs' : typo.bodySemi}`}
                             >
                                 {buttonText}
                             </ResourceActionButton>

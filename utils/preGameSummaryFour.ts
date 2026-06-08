@@ -8,7 +8,6 @@ import {
 import { formatDiceGoSpecialDiceSummary } from '../shared/utils/diceGoSettings.js';
 import { formatThiefSpecialDiceSummary } from '../shared/utils/thiefGoSettings.js';
 import { countTowerLobbyItems, getTowerSessionFloor } from './towerPreGameDisplay.js';
-import { FISCHER_INCREMENT_SECONDS } from '../constants/gameSettings.js';
 import {
   SPEED_GO_PVP_SPECIAL_HIGHLIGHT,
   SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT,
@@ -125,11 +124,10 @@ function timeLine(settings: GameSettings, mode: GameMode, mix: GameMode[]): stri
     return '시간 제한 없음';
   }
   if (mode === GameMode.Speed || hasMix(mix, GameMode.Speed)) {
-    const inc = settings.timeIncrement ?? FISCHER_INCREMENT_SECONDS;
     if (!settings.timeLimit || settings.timeLimit <= 0) {
-      return `피셔방식 +${inc}초/수`;
+      return `수당 ${SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT}초 초읽기`;
     }
-    return `제한 ${settings.timeLimit}분 · 피셔 +${inc}초/수`;
+    return `메인 ${settings.timeLimit}분 · 수당 ${SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT}초 초읽기`;
   }
   if (byoyomiCount > 0 && byoyomiTime > 0) {
     return `제한 ${settings.timeLimit}분 · 초읽기 ${byoyomiTime}초×${byoyomiCount}회`;
@@ -142,7 +140,7 @@ function territoryScoreParts(settings: GameSettings, mode: GameMode, mix: GameMo
   const em = effectiveModesForRules(mode, mix);
   if (em.includes(GameMode.Base)) parts.push('베이스 보너스');
   if (em.includes(GameMode.Hidden)) parts.push('히든 보너스');
-  if (em.includes(GameMode.Speed)) parts.push(`사용 시간→상대 점수(${SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT}초당 1)`);
+  if (em.includes(GameMode.Speed)) parts.push(`수당 ${SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT}초 초과→상대 +1`);
   if (em.includes(GameMode.Missile)) parts.push('미사일 연출 반영');
   return parts;
 }
@@ -386,8 +384,11 @@ function singlePlayerStageTimeRules(
 ): string {
   /** 싱글/탑 비스피드: 서버에서 제한시간·초읽기 미적용 — 스테이지 JSON의 분/초읽기는 표시하지 않음 */
   if (isSpeedMode) {
-    const inc = settings?.timeIncrement ?? FISCHER_INCREMENT_SECONDS;
-    return `피셔방식 +${inc}초/수`;
+    const mainMin = settings?.timeLimit ?? 0;
+    if (mainMin > 0) {
+      return `메인 ${mainMin}분 · 수당 ${SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT}초 초읽기`;
+    }
+    return `수당 ${SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT}초 초읽기`;
   }
   return '제한없음';
 }

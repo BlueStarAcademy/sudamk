@@ -1,6 +1,7 @@
 import type { LiveGameSession, PveItemActionClientSync } from '../shared/types/index.js';
 import { GameMode, Player } from '../types/index.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
+import { mixGoClearHiddenItemPhaseTimers } from '../shared/utils/mixGoRules.js';
 
 /** 히든/스캔 모드 진입 등: 클라 `hiddenMoves`·`aiInitialHiddenStone` 병합으로 잘못된 돌이 히든으로 보이는 것을 막음 */
 export type ApplyPveItemActionClientSyncOptions = {
@@ -462,8 +463,15 @@ export function applyPveItemActionClientSync(
             !syncCanReplaceServerProgress &&
             (srv === 'playing' || srv === 'hidden_placing') &&
             BASE_PRE_PLAY_STATUSES.has(cli);
-        if (!(serverItemUi && cli === 'playing') && !staleBasePrePlayRewind) {
+        const blockPlayingOverServerItemUi =
+            serverItemUi &&
+            cli === 'playing' &&
+            !(srv === 'hidden_placing' && syncAdvancesServerMoves);
+        if (!blockPlayingOverServerItemUi && !staleBasePrePlayRewind) {
             (game as { gameStatus: LiveGameSession['gameStatus'] }).gameStatus = sync.gameStatus;
+            if (srv === 'hidden_placing' && cli === 'playing' && syncAdvancesServerMoves) {
+                mixGoClearHiddenItemPhaseTimers(game);
+            }
         }
     }
     if (sync.captures && typeof sync.captures === 'object') {
