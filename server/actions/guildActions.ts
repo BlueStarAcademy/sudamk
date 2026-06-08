@@ -252,6 +252,15 @@ function computeGuildWarSideTicketUsage(
     return { used, total };
 }
 
+/** 직전·완료 길드전에서 해당 유저가 소모한 도전권 합(보상 수령 참여 판정용) */
+function getGuildWarUserTicketsUsedInWar(war: any, userId: string): number {
+    const cumulativeUsed = Number((war.userAttempts as Record<string, unknown> | undefined)?.[userId] ?? 0) || 0;
+    if (cumulativeUsed > 0) return cumulativeUsed;
+    const dayMap = war.dailyAttempts?.[userId] as Record<string, number> | undefined;
+    if (!dayMap) return 0;
+    return Object.values(dayMap).reduce((sum, n) => sum + (Number(n) || 0), 0);
+}
+
 /** 출전 명단 기준 길드원 총 도전권(사용/총량) — 상황판용 */
 function buildGuildWarTicketSummary(
     war: any,
@@ -649,29 +658,21 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 }
             }
             
-            // 중간???�성??길드???�음 매칭(?�요???�는 금요????참여
+            // 중간에 생성된 길드는 다음 참여 가능 시각(화·금 0시) 안내
             const { getKSTDay, getStartOfDayKST } = await import('../../utils/timeUtils.js');
             const now = Date.now();
             const kstDay = getKSTDay(now);
             const todayStart = getStartOfDayKST(now);
             
-            // ?�음 매칭 ?�짜 계산
             let daysUntilNext = 0;
             if (kstDay === 1) {
-                // ?�요??- 금요?�까지 (4????
-                daysUntilNext = 4;
+                daysUntilNext = 1;
             } else if (kstDay === 2 || kstDay === 3) {
-                // ?�요?? ?�요??- 금요?�까지
                 daysUntilNext = 5 - kstDay;
             } else if (kstDay === 4) {
-                // 목요??- ?�음 ?�요?�까지 (3????
-                daysUntilNext = 3;
-            } else if (kstDay === 5) {
-                // 금요??- ?�음 ?�요?�까지 (3????
-                daysUntilNext = 3;
+                daysUntilNext = 1;
             } else {
-                // ?�요?? ?�요??- ?�음 ?�요?�까지
-                daysUntilNext = (8 - kstDay) % 7;
+                daysUntilNext = (2 - kstDay + 7) % 7 || 7;
             }
             
             const nextMatchDate = todayStart + (daysUntilNext * 24 * 60 * 60 * 1000);
@@ -2414,7 +2415,13 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 console.warn('[GET_GUILD_WAR_DATA] processGuildWarEnd (non-fatal):', e?.message);
             }
             const { guildWarIsChronologicallyActive } = await import('../guildWarActiveUtils.js');
+            const {
+                isGuildWarPrepTimeKst,
+                getNextGuildWarEntryOpenDateKst,
+            } = await import('../../shared/utils/guildWarSchedule.js');
             const now = Date.now();
+            const guildWarIsPrepTime = isGuildWarPrepTimeKst(now);
+            const guildWarNextEntryOpenAt = getNextGuildWarEntryOpenDateKst(now);
 
             let activeWars = (await db.getKV<any[]>('activeGuildWars')) || [];
             let warInProgress = activeWars.find(
@@ -2697,6 +2704,8 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     occupierProfileByUserId,
                     guildWarLatestCompletedRewardClaimed,
                     guildWarRewardClaimable,
+                    guildWarIsPrepTime,
+                    guildWarNextEntryOpenAt,
                 },
             };
             guildWarDataCacheByUser.set(cacheKey, {
@@ -2906,8 +2915,11 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     console.warn('[START_GUILD_WAR_GAME] processGuildWarEnd (non-fatal):', e?.message);
                 }
                 const { guildWarIsChronologicallyActive } = await import('../guildWarActiveUtils.js');
-                const { guildWarIsOpenForPlay, guildWarStartMs } = await import('../../shared/utils/guildWarSchedule.js');
+                const { guildWarIsOpenForPlay, guildWarStartMs, isGuildWarPrepTimeKst } = await import('../../shared/utils/guildWarSchedule.js');
                 const nowG = Date.now();
+                if (!user.isAdmin && isGuildWarPrepTimeKst(nowG)) {
+                    return { error: '다음 길드전 준비시간입니다. 월·목 0시~23시59분(KST)에는 입장할 수 없습니다.' };
+                }
                 const activeWars = (await db.getKV<any[]>('activeGuildWars')) || [];
                 activeWar = activeWars.find(
                     (w) =>
@@ -3898,6 +3910,9 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             }
             if (now < rewardAvailableAt) {
                 return { error: '전쟁 종료 1시간 후(목요일·월요일 0시)부터 보상을 수령할 수 있습니다.' };
+            }
+            if (!user.isAdmin && getGuildWarUserTicketsUsedInWar(myWar, effectiveUserId) <= 0) {
+                return { error: '길드 전쟁에 참여한 길드원만 보상을 수령할 수 있습니다.' };
             }
             
             const isWinner = myWar.result?.winnerId === user.guildId;

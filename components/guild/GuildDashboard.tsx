@@ -34,6 +34,7 @@ import { replaceAppHash } from '../../utils/appUtils.js';
 import { getTimeUntilNextMondayKST, isSameDayKST, isDifferentWeekKST, formatDateTimeKST, getStartOfDayKST, getTodayKSTDateString } from '../../utils/timeUtils.js';
 import { getCurrentGuildBossStage, getScaledGuildBossMaxHp } from '../../utils/guildBossStageUtils.js';
 import { getGuildWarBotBoardDisplayTally } from '../../shared/utils/guildWarBoardOwner.js';
+import { isGuildWarPrepTimeKst, getNextGuildWarEntryOpenDateKst } from '../../shared/utils/guildWarSchedule.js';
 import { useModalStackLayer } from '../../hooks/useModalStackLayer.js';
 import { SHOP_IMAGE_DESC_POPOVER_Z } from '../shopImageDescriptionPopover.js';
 // 고급 버튼 스타일 (길드 패널용)
@@ -1402,6 +1403,8 @@ function readGuildWarActionPayload(result: any) {
         myRecordInCurrentWar: pick<GuildWarDashboardMyRecord>('myRecordInCurrentWar'),
         guildWarRewardClaimable: pick<boolean>('guildWarRewardClaimable'),
         guildWarLatestCompletedRewardClaimed: pick<boolean>('guildWarLatestCompletedRewardClaimed'),
+        guildWarIsPrepTime: pick<boolean>('guildWarIsPrepTime'),
+        guildWarNextEntryOpenAt: pick<number>('guildWarNextEntryOpenAt'),
         warActionCooldown: pick<number>('warActionCooldown'),
         message: pick<string>('message'),
         cooldownUntil: pick<number>('cooldownUntil'),
@@ -1442,6 +1445,8 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
     const [warStats, setWarStats] = React.useState<GuildWarDashboardWarStats | null>(null);
     const [myRecordInCurrentWar, setMyRecordInCurrentWar] = React.useState<GuildWarDashboardMyRecord | null>(null);
     const [isUpdatingWarParticipation, setIsUpdatingWarParticipation] = React.useState(false);
+    const [isWarPrepTime, setIsWarPrepTime] = React.useState(() => isGuildWarPrepTimeKst());
+    const [warNextEntryOpenAt, setWarNextEntryOpenAt] = React.useState<number>(() => getNextGuildWarEntryOpenDateKst());
     
     // 길드장/부길드장 권한 확인 (관리자는 effectiveUserId로 비교 - 서버와 동일)
     const effectiveUserId = currentUserWithStatus?.isAdmin ? ADMIN_USER_ID : currentUserWithStatus?.id;
@@ -1543,6 +1548,8 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                 setMyRecordInCurrentWar(p.myRecordInCurrentWar ?? null);
                 setCanClaimReward(!!p.guildWarRewardClaimable);
                 setIsClaimed(!!p.guildWarLatestCompletedRewardClaimed);
+                setIsWarPrepTime(p.guildWarIsPrepTime ?? isGuildWarPrepTimeKst());
+                setWarNextEntryOpenAt(p.guildWarNextEntryOpenAt ?? getNextGuildWarEntryOpenDateKst());
                 
                 if (!war) {
                     setActiveWar(null);
@@ -1739,7 +1746,21 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
         return () => clearInterval(interval);
     }, [warActionCooldown]);
     
+    React.useEffect(() => {
+        const tick = () => {
+            setIsWarPrepTime(isGuildWarPrepTimeKst());
+            setWarNextEntryOpenAt(getNextGuildWarEntryOpenDateKst());
+        };
+        tick();
+        const interval = setInterval(tick, 30_000);
+        return () => clearInterval(interval);
+    }, []);
+
     const myWarTickets = GUILD_WAR_PERSONAL_DAILY_ATTEMPTS - myWarAttempts;
+    const canEnterWar = !isWarPrepTime;
+    const warEntryDisabledTitle = isWarPrepTime
+        ? `다음 길드전 준비시간입니다. ${formatDateTimeKST(warNextEntryOpenAt)}(KST)부터 입장할 수 있습니다.`
+        : '길드전 화면으로 이동합니다';
 
     const handleClaimReward = async () => {
         try {
@@ -2125,9 +2146,13 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                     <div className={`flex-shrink-0 ${isMobile || isCompact ? 'mt-1 pt-1' : 'mt-1.5 pt-1.5'} border-t border-stone-600/40 flex flex-wrap justify-center gap-2`}>
                         <button
                             type="button"
-                            onClick={() => replaceAppHash('#/guildwar')}
-                            title="길드전 화면으로 이동합니다"
-                            className={guildPanelBtn.war}
+                            disabled={!canEnterWar}
+                            onClick={() => {
+                                if (!canEnterWar) return;
+                                replaceAppHash('#/guildwar');
+                            }}
+                            title={warEntryDisabledTitle}
+                            className={canEnterWar ? guildPanelBtn.war : guildPanelBtn.disabled}
                         >
                             <img src="/images/guild/warticket.webp" alt="길드전 공격권" className="w-4 h-4" />
                             <span>{myWarTickets}/{GUILD_WAR_PERSONAL_DAILY_ATTEMPTS}</span>

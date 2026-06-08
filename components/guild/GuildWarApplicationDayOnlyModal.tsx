@@ -22,13 +22,13 @@ const GuildWarApplicationDayOnlyModal: React.FC<GuildWarApplicationDayOnlyModalP
                     <div className="flex-shrink-0 w-16 h-16 rounded-xl bg-amber-900/50 border-2 border-amber-500/40 flex items-center justify-center mb-4">
                         <span className="text-3xl">📅</span>
                     </div>
-                    <h2 className="flex-shrink-0 text-lg font-bold text-amber-100 mb-3">신청 가능한 날이 아닙니다</h2>
+                    <h2 className="flex-shrink-0 text-lg font-bold text-amber-100 mb-3">다음 길드전 준비시간</h2>
                     <div className="flex-1 min-h-0 w-full overflow-y-auto flex flex-col items-center justify-center text-center">
                         <p className="text-stone-200 text-sm leading-relaxed mb-2">
-                            길드 전쟁 참여 신청은 <strong className="text-amber-200">월요일</strong>과 <strong className="text-amber-200">목요일</strong>에만 가능합니다.
+                            길드 전쟁은 <strong className="text-amber-200">화요일 0시</strong>와 <strong className="text-amber-200">금요일 0시</strong>(KST)부터 참여할 수 있습니다.
                         </p>
                         <p className="text-stone-300 text-sm">
-                            다른 요일에는 참여 신청을 할 수 없습니다.
+                            월·목 0시~23시59분은 다음 길드전 준비시간으로 입장할 수 없습니다.
                         </p>
                         <p className="text-amber-200/90 text-sm font-medium mt-4">
                             다음 신청 가능일: {nextApplicationDayLabel} (KST)

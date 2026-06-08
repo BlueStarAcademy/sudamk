@@ -345,8 +345,10 @@ function InvThumb({
         const m = resolvePairPetMetaFromInventoryRow(item);
         return resolvePairPetRpsAttributeFromMeta(m, item.id, item.createdAt ?? Date.now());
     }, [petThumb, item]);
-    const badgeChip =
-        'whitespace-nowrap px-[2px] py-px text-[0.45rem] font-black leading-none tracking-tight text-white shadow-sm ring-1 ring-black/35';
+    const statusBadgeChip =
+        'whitespace-nowrap rounded-bl px-0.5 py-0.5 text-[0.55rem] font-black leading-none tracking-tight text-white shadow-sm ring-1 ring-black/35 sm:px-1 sm:py-0.5 sm:text-[0.65rem]';
+    const levelBadgeChip =
+        'whitespace-nowrap rounded-md border-[1.5px] border-amber-200/95 px-1 py-0.5 text-[0.55rem] font-black leading-none tracking-tight tabular-nums text-amber-50 shadow-[0_1px_3px_rgba(0,0,0,0.55),inset_0_0_0_1px_rgba(251,191,36,0.35)] sm:px-1.5 sm:py-0.5 sm:text-[0.65rem]';
     return (
         <button
             type="button"
@@ -358,38 +360,30 @@ function InvThumb({
             } ${petTrans ? 'transcendent-grade-slot' : ''} disabled:opacity-40`}
         >
             {petThumb && (showRepresentativeBadge || showTrainingBadge) ? (
-                <span className="pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-col items-center gap-px px-0.5 pt-px">
+                <span className="pointer-events-none absolute right-0 top-0 z-20 flex max-w-[52%] flex-col items-end gap-0.5 px-0.5 pt-0.5">
                     {showRepresentativeBadge ? (
-                        <span className="flex w-full justify-center" title="대표 펫">
-                            <span className={`${badgeChip} rounded-b bg-cyan-600`}>대표펫</span>
+                        <span className={`${statusBadgeChip} bg-cyan-600`} title="대표 펫">
+                            대표펫
                         </span>
                     ) : null}
                     {showTrainingBadge ? (
                         <span
-                            className="flex w-full justify-center"
+                            className={`${statusBadgeChip} ${
+                                trainingBadgeVariant === 'claim_ready' ? 'bg-lime-600' : 'bg-violet-600'
+                            }`}
                             title={trainingBadgeVariant === 'claim_ready' ? '수련 완료 — 슬롯에서 보상 수령' : '수련 중'}
                         >
-                            <span
-                                className={`${badgeChip} rounded-b ${
-                                    trainingBadgeVariant === 'claim_ready' ? 'bg-lime-600' : 'bg-violet-600'
-                                }`}
-                            >
-                                {trainingBadgeVariant === 'claim_ready' ? '수련완료' : '수련중'}
-                            </span>
+                            {trainingBadgeVariant === 'claim_ready' ? '수련완료' : '수련중'}
                         </span>
                     ) : null}
                 </span>
             ) : null}
             {petThumb && petLevel != null ? (
                 <span
-                    className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center px-0.5 pb-px"
+                    className={`${levelBadgeChip} pointer-events-none absolute bottom-1.5 left-1/2 z-20 min-w-[1.85rem] -translate-x-1/2 bg-slate-950/95 text-center sm:bottom-2 sm:min-w-[2.1rem]`}
                     title={`레벨 ${petLevel}`}
                 >
-                    <span
-                        className={`${badgeChip} rounded-t bg-slate-900/92 tabular-nums text-amber-100 ring-amber-500/25`}
-                    >
-                        Lv.{petLevel}
-                    </span>
+                    Lv.{petLevel}
                 </span>
             ) : null}
             {petBg ? (
@@ -795,8 +789,8 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
         [],
     );
 
-    /** 수련 탭은 펫 인벤만 사용 (영혼석 탭 없음). 정보 탭은 기존 펫/영혼석 필터 유지. */
-    const effectiveInvFilter: InvFilter = aiTab === 'training' ? 'pet' : invFilter;
+    /** 수련 탭에서도 영혼석 탭·뷰어 선택은 가능. 수련 슬롯에는 펫만 배치. */
+    const effectiveInvFilter: InvFilter = invFilter;
 
     const filteredInv = useMemo(() => {
         if (effectiveInvFilter === 'pet') return inventory.filter(isPairPetMaterial);
@@ -920,12 +914,17 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
     }, [inventory, selectedLobbyItemId]);
 
     useEffect(() => {
-        setSelectedLobbyItemId(null);
+        setSelectedLobbyItemId((cur) => {
+            if (!cur) return null;
+            if (invFilter === 'soul') return cur.startsWith(SOUL_SLOT_PREFIX) ? cur : null;
+            if (cur.startsWith(SOUL_SLOT_PREFIX)) return null;
+            return inventory.some((i) => i.id === cur) ? cur : null;
+        });
         setInvSort('recent');
-    }, [invFilter]);
+    }, [invFilter, inventory]);
 
     useEffect(() => {
-        if (aiTab !== 'info') setSelectedLobbyItemId(null);
+        if (aiTab === 'hatchery') setSelectedLobbyItemId(null);
     }, [aiTab]);
 
     useEffect(() => {
@@ -995,6 +994,16 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
         setInvFilter('pet');
         setExpandTarget(null);
     }, [petMgmtMobileShell]);
+
+    const selectLobbyPetItem = useCallback((itemId: string) => {
+        setInvFilter('pet');
+        setSelectedLobbyItemId(itemId);
+    }, []);
+
+    const selectLobbySoulSlot = useCallback((slotKey: string) => {
+        setInvFilter('soul');
+        setSelectedLobbyItemId(slotKey);
+    }, []);
 
     const confirmSoulConvert = () => {
         if (!soulConvertItem || soulConvertInFlightRef.current) return;
@@ -1091,8 +1100,8 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
 
     const showInvStrip = aiTab === 'info' || aiTab === 'training' || aiTab === 'hatchery';
 
-    /** 수련 탭은 펫 인벤만 쓰므로 탭 하이라이트는 항상 펫; 영혼석 버튼은 비활성 */
-    const invStripTabHighlight: InvFilter = aiTab === 'training' ? 'pet' : invFilter;
+    /** 인벤 펫/영혼석 탭 하이라이트 */
+    const invStripTabHighlight: InvFilter = invFilter;
 
     const hatcheryTabContent = (() => {
         void hatcheryTick;
@@ -1567,34 +1576,13 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
         const inTraining =
             isPairPetMaterial(it) && !isPairEggItem(it) && isItemIdInPairTraining(trainingSlotsNorm, it.id);
         const trainingBadgeVariant = inTraining ? pairTrainingBadgeVariantForItem(currentUser, it.id) : undefined;
-        if (aiTab === 'info') {
-            return (
-                <InvThumb
-                    key={it.id}
-                    item={it}
-                    selected={selectedLobbyItemId === it.id}
-                    disabled={isBusy}
-                    onClick={() => {
-                        if (inTraining && !isBusy) {
-                            handlers.openPairPetDetailModal(it, 'view');
-                            return;
-                        }
-                        setSelectedLobbyItemId(it.id);
-                    }}
-                    showRepresentativeBadge={representativeThumb}
-                    showTrainingBadge={inTraining}
-                    trainingBadgeVariant={trainingBadgeVariant}
-                    title={
-                        inTraining
-                            ? trainingBadgeVariant === 'claim_ready'
-                                ? '수련 완료 — 클릭하면 상세 정보'
-                                : '수련 중 — 클릭하면 상세 정보'
-                            : undefined
-                    }
-                />
-            );
-        }
-        if (aiTab === 'training') {
+        const petViewerTitle = inTraining
+            ? trainingBadgeVariant === 'claim_ready'
+                ? '수련 완료 — 좌측 뷰어에 상세 정보'
+                : '수련 중 — 좌측 뷰어에 상세 정보'
+            : undefined;
+
+        if (aiTab === 'info' || aiTab === 'training' || aiTab === 'shop') {
             const isRepPet = Boolean(
                 isPairPetMaterial(it) &&
                     !isPairEggItem(it) &&
@@ -1604,25 +1592,33 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                     (!equippedItemId || equippedItemId === it.id),
             );
             const dragPet =
-                isPairPetMaterial(it) && !isPairEggItem(it) && !inTraining && !isRepPet && !useTapTrainingFlow;
+                aiTab === 'training' &&
+                isPairPetMaterial(it) &&
+                !isPairEggItem(it) &&
+                !inTraining &&
+                !isRepPet &&
+                !useTapTrainingFlow;
             const canTapPetToTrain =
-                useTapTrainingFlow && isPairPetMaterial(it) && !isPairEggItem(it) && !inTraining && !isRepPet;
-            const trainInvTitle = useTapTrainingFlow
-                ? trainingMobilePickSlotIndex == null
-                    ? '빈 수련 슬롯을 먼저 터치한 뒤 펫을 선택하세요.'
-                    : isRepPet
+                aiTab === 'training' &&
+                useTapTrainingFlow &&
+                isPairPetMaterial(it) &&
+                !isPairEggItem(it) &&
+                !inTraining &&
+                !isRepPet;
+            const trainInvTitle =
+                aiTab === 'training' && useTapTrainingFlow
+                    ? trainingMobilePickSlotIndex == null
+                        ? '빈 수련 슬롯을 먼저 터치한 뒤 펫을 선택하세요.'
+                        : isRepPet
+                          ? '대표 펫은 수련에 보낼 수 없습니다.'
+                          : undefined
+                    : aiTab === 'training' && isRepPet
                       ? '대표 펫은 수련에 보낼 수 없습니다.'
-                      : undefined
-                : isRepPet
-                  ? '대표 펫은 수련에 보낼 수 없습니다.'
-                  : undefined;
-            const petDetailTitle = inTraining
-                ? trainingBadgeVariant === 'claim_ready'
-                    ? '수련 완료 — 클릭하면 상세 정보'
-                    : '수련 중 — 클릭하면 상세 정보'
-                : isRepPet
-                  ? '대표 펫 — 클릭하면 상세 정보'
-                  : trainInvTitle;
+                      : undefined;
+            const thumbTitle =
+                petViewerTitle ??
+                (aiTab === 'training' && isRepPet ? '대표 펫 — 좌측 뷰어에 상세 정보' : trainInvTitle);
+
             return (
                 <div
                     key={it.id}
@@ -1632,65 +1628,42 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                         e.dataTransfer.setData('text/pair-training-pet', it.id);
                         e.dataTransfer.effectAllowed = 'copy';
                     }}
-                    className={`min-w-0${inTraining || isRepPet ? ' opacity-[0.72]' : ''}`}
+                    className={`min-w-0${aiTab === 'training' && (inTraining || isRepPet) ? ' opacity-[0.72]' : ''}`}
                 >
                     <InvThumb
                         item={it}
-                        selected={false}
+                        selected={selectedLobbyItemId === it.id}
                         disabled={isBusy}
                         onClick={() => {
                             const canDetail = isPairPetMaterial(it) && !isPairEggItem(it) && it.templateId;
                             if (!canDetail) return;
-                            if (inTraining && !isBusy) {
-                                handlers.openPairPetDetailModal(it, 'view');
-                                return;
-                            }
+                            selectLobbyPetItem(it.id);
                             if (canTapPetToTrain && trainingMobilePickSlotIndex != null) {
                                 setTrainingStartConfirm({ slotIndex: trainingMobilePickSlotIndex, itemId: it.id });
                                 setTrainingMobilePickSlotIndex(null);
-                                return;
                             }
-                            handlers.openPairPetDetailModal(it, 'view');
                         }}
                         showRepresentativeBadge={representativeThumb}
                         showTrainingBadge={inTraining}
                         trainingBadgeVariant={trainingBadgeVariant}
-                        title={petDetailTitle}
+                        title={thumbTitle}
                     />
                 </div>
             );
         }
         const tid = it.templateId;
-        const sel = Boolean(
-            tid &&
-                equippedTid === tid &&
-                isPairPetMaterial(it) &&
-                (!equippedItemId || equippedItemId === it.id),
-        );
         if (isPairPetMaterial(it) && tid) {
             return (
                 <InvThumb
                     key={it.id}
                     item={it}
-                    selected={sel}
+                    selected={selectedLobbyItemId === it.id}
                     disabled={isBusy}
-                    onClick={() => {
-                        if (inTraining && !isBusy) {
-                            handlers.openPairPetDetailModal(it, 'view');
-                            return;
-                        }
-                        void equipPet(tid, it.id);
-                    }}
+                    onClick={() => selectLobbyPetItem(it.id)}
                     showRepresentativeBadge={representativeThumb}
                     showTrainingBadge={inTraining}
                     trainingBadgeVariant={trainingBadgeVariant}
-                    title={
-                        inTraining
-                            ? trainingBadgeVariant === 'claim_ready'
-                                ? '수련 완료 — 클릭하면 상세 정보'
-                                : '수련 중 — 클릭하면 상세 정보'
-                            : undefined
-                    }
+                    title={petViewerTitle}
                 />
             );
         }
@@ -2220,10 +2193,8 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
     const invDockClass = petMgmtMobileShell ? PET_MGMT_INV_DOCK_MOBILE_CLASS : PET_MGMT_INV_DOCK_DESKTOP_CLASS;
     const invGridClass = petMgmtMobileShell ? PET_MGMT_INV_GRID_MOBILE_CLASS : PET_MGMT_INV_GRID_DESKTOP_CLASS;
     const soulGridClass = petMgmtMobileShell ? PET_MGMT_SOUL_GRID_MOBILE_CLASS : PET_MGMT_SOUL_GRID_DESKTOP_CLASS;
-    const soulThumbDisabled = isBusy || (petMgmtMobileShell && aiTab !== 'info');
-    const soulThumbSelected = petMgmtMobileShell
-        ? aiTab === 'info' && selectedLobbyItemId !== null
-        : selectedLobbyItemId !== null;
+    const soulThumbDisabled = isBusy;
+    const soulThumbSelected = selectedLobbyItemId !== null;
 
     const invDockPanel = (
         <div className={petMgmtMobileShell ? `${invDockClass} !h-[11rem]` : invDockClass}>
@@ -2234,30 +2205,24 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                             { id: 'pet' as const, label: '펫' },
                             { id: 'soul' as const, label: '영혼석' },
                         ] as const
-                    ).map(({ id, label }) => {
-                        const soulLocked = id === 'soul' && aiTab === 'training';
-                        const tabDisabled = soulLocked;
-                        return (
+                    ).map(({ id, label }) => (
                             <button
                                 key={id}
                                 type="button"
-                                disabled={tabDisabled}
                                 onClick={() => {
-                                    if (tabDisabled) return;
                                     setInvFilter(id);
                                     setExpandTarget(null);
+                                    setSelectedLobbyItemId(null);
                                 }}
-                                title={soulLocked ? '수련에서는 펫 인벤만 사용합니다.' : undefined}
                                 className={`${PET_MGMT_TAB_BTN_BASE} px-1 py-0.5 ${
                                     invStripTabHighlight === id
                                         ? 'bg-cyan-600 text-white'
                                         : 'text-slate-300 hover:bg-white/10 hover:text-slate-100'
-                                } ${soulLocked ? 'cursor-not-allowed opacity-45 hover:bg-transparent hover:text-slate-300' : ''}`}
+                                }`}
                             >
                                 {label}
                             </button>
-                        );
-                    })}
+                        ))}
                 </div>
                 <label className={`flex shrink-0 items-center gap-0.5 ${PET_MGMT_SEMI} text-slate-400`}>
                     <span className="sr-only">정렬</span>
@@ -2323,7 +2288,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                     grade={soulGrade}
                                     selected={soulThumbSelected && selectedLobbyItemId === slotKey}
                                     disabled={soulThumbDisabled}
-                                    onClick={() => setSelectedLobbyItemId(slotKey)}
+                                    onClick={() => selectLobbySoulSlot(slotKey)}
                                 />
                             );
                         })}
@@ -2480,10 +2445,17 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                             </div>
                                         ) : null}
                                         {aiTab === 'training' ? (
-                                            <div
-                                                className={`${PET_MGMT_SCROLL_CLASS} ${PET_LOBBY_BAG_SCROLLBAR_Y_CLASS} min-h-0 flex-1 px-0.5`}
-                                            >
-                                                {trainingTabContent}
+                                            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                                                {selectedItem ? (
+                                                    <div className="flex max-h-[42%] min-h-[7.5rem] shrink-0 flex-col overflow-hidden border-b border-white/10">
+                                                        {infoDetailPanelBody}
+                                                    </div>
+                                                ) : null}
+                                                <div
+                                                    className={`${PET_MGMT_SCROLL_CLASS} ${PET_LOBBY_BAG_SCROLLBAR_Y_CLASS} min-h-0 flex-1 px-0.5`}
+                                                >
+                                                    {trainingTabContent}
+                                                </div>
                                             </div>
                                         ) : null}
                                         {aiTab === 'hatchery' ? (

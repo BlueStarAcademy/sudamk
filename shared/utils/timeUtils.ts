@@ -317,11 +317,11 @@ export const formatLastSeenGuild = (timestamp: number | undefined): string => {
     return '장기미접속';
 };
 
-/** 길드전 매칭 연출: 월·수 23:00 KST. 전쟁 개시: 화·목 0:00 KST. */
+/** 길드전 매칭 연출: 월·목 23:00 KST. 전쟁 개시·참여: 화·금 0:00 KST. 준비(입장 불가): 월·목 0:00~23:59 KST. */
 
 const GUILD_WAR_MATCH_HOUR_MS = 23 * 60 * 60 * 1000;
 
-/** 다음 길드전 매칭 시각 (월요일 23:00 또는 수요일 23:00 KST, 가까운 쪽) */
+/** 다음 길드전 매칭 시각 (월요일 23:00 또는 목요일 23:00 KST, 가까운 쪽) */
 export const getNextGuildWarMatchDate = (now: number = Date.now()): number => {
     const kstDay = getKSTDay(now);
     const kstHours = getKSTHours(now);
@@ -330,51 +330,53 @@ export const getNextGuildWarMatchDate = (now: number = Date.now()): number => {
     const oneDay = 24 * 60 * 60 * 1000;
 
     const inMonMatchWindow = kstDay === 1 && kstHours === 23 && kstMinutes < 60;
-    const inWedMatchWindow = kstDay === 3 && kstHours === 23 && kstMinutes < 60;
-    if (inMonMatchWindow) return todayStart + 2 * oneDay + GUILD_WAR_MATCH_HOUR_MS;
-    if (inWedMatchWindow) {
+    const inThuMatchWindow = kstDay === 4 && kstHours === 23 && kstMinutes < 60;
+    if (inMonMatchWindow) return todayStart + 3 * oneDay + GUILD_WAR_MATCH_HOUR_MS;
+    if (inThuMatchWindow) {
         let daysUntilMon = (1 - kstDay + 7) % 7;
         if (daysUntilMon === 0) daysUntilMon = 7;
         return todayStart + daysUntilMon * oneDay + GUILD_WAR_MATCH_HOUR_MS;
     }
 
     if (kstDay === 1 && kstHours < 23) return todayStart + GUILD_WAR_MATCH_HOUR_MS;
-    if (kstDay === 3 && kstHours < 23) return todayStart + GUILD_WAR_MATCH_HOUR_MS;
+    if (kstDay === 4 && kstHours < 23) return todayStart + GUILD_WAR_MATCH_HOUR_MS;
 
     let daysUntilMon = (1 - kstDay + 7) % 7;
     if (daysUntilMon === 0) daysUntilMon = 7;
-    let daysUntilWed = (3 - kstDay + 7) % 7;
-    if (daysUntilWed === 0) daysUntilWed = 7;
+    let daysUntilThu = (4 - kstDay + 7) % 7;
+    if (daysUntilThu === 0) daysUntilThu = 7;
     const nextMon = todayStart + daysUntilMon * oneDay + GUILD_WAR_MATCH_HOUR_MS;
-    const nextWed = todayStart + daysUntilWed * oneDay + GUILD_WAR_MATCH_HOUR_MS;
-    return Math.min(nextMon, nextWed);
+    const nextThu = todayStart + daysUntilThu * oneDay + GUILD_WAR_MATCH_HOUR_MS;
+    return Math.min(nextMon, nextThu);
 };
 
-/** 다음 길드전 전쟁 개시 시각 (화요일 0:00 또는 목요일 0:00 KST) */
+/** 다음 길드전 전쟁 개시·참여 가능 시각 (화요일 0:00 또는 금요일 0:00 KST) */
 export const getNextGuildWarStartDate = (now: number = Date.now()): number => {
     const matchAt = getNextGuildWarMatchDate(now);
     const matchDay = getKSTDay(matchAt);
     const matchDayStart = getStartOfDayKST(matchAt);
     const oneDay = 24 * 60 * 60 * 1000;
     if (matchDay === 1) return matchDayStart + oneDay;
-    if (matchDay === 3) return matchDayStart + oneDay;
+    if (matchDay === 4) return matchDayStart + oneDay;
     return matchDayStart;
 };
 
-/** 다음 길드전 신청 마감 시각 (전쟁 개시 1시간 전 = 월·수 23:00 KST) */
+/** 다음 길드전 신청 마감 시각 (전쟁 개시 1시간 전 = 월·목 23:00 KST) */
 export const getNextGuildWarApplicationDeadline = (now: number = Date.now()): number => {
     return getNextGuildWarStartDate(now) - 60 * 60 * 1000;
 };
 
-/** 전쟁 개시·매칭 시각 기준 라운드 타입 (화 0시 → tue_wed, 목 0시 → fri_sun) */
+/** 전쟁 개시·매칭 시각 기준 라운드 타입 (화 0시 → tue_wed, 금 0시 → fri_sun) */
 export const getGuildWarTypeFromMatchTime = (matchTimeMs: number): 'tue_wed' | 'fri_sun' => {
     const d = getKSTDay(matchTimeMs);
     const h = getKSTHours(matchTimeMs);
     if (d === 1 && h === 23) return 'tue_wed';
     if (d === 2 && h === 0) return 'tue_wed';
-    if (d === 3 && h === 23) return 'fri_sun';
-    if (d === 4 && h === 0) return 'fri_sun';
-    if (d === 2 || (d === 3 && h < 23)) return 'tue_wed';
+    if (d === 4 && h === 23) return 'fri_sun';
+    if (d === 5 && h === 0) return 'fri_sun';
+    if (d === 2 || d === 3) return 'tue_wed';
+    if (d === 5 || d === 6 || d === 0) return 'fri_sun';
+    if (d === 1) return 'tue_wed';
     return 'fri_sun';
 };
 

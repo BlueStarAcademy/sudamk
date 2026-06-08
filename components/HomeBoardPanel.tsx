@@ -140,7 +140,6 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
     const useCompactList = fitViewport && !modalMode && !embedded;
     const useStackedPanels = isMobileBoard;
     const [selectedPost, setSelectedPost] = useState<HomeBoardPost | null>(null);
-    const [isManageOpen, setIsManageOpen] = useState(false);
     const [editingPost, setEditingPost] = useState<HomeBoardPost | null>(null);
     const [draftTitle, setDraftTitle] = useState('');
     const [draftContent, setDraftContent] = useState('');
@@ -279,8 +278,8 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
                             ? 'flex flex-1 items-center justify-center py-2 text-center text-xs text-tertiary'
                             : modalMode
                               ? isMobileBoard
-                                  ? 'flex flex-1 items-center justify-center py-6 text-center text-sm text-tertiary'
-                                  : 'flex flex-1 items-center justify-center py-8 text-center text-base text-tertiary'
+                                  ? 'flex flex-1 items-center justify-center py-6 text-center text-xs text-tertiary'
+                                  : 'flex flex-1 items-center justify-center py-8 text-center text-sm text-tertiary'
                               : isMobileBoard
                                 ? 'flex flex-1 items-center justify-center py-4 text-center text-sm text-tertiary'
                                 : 'flex flex-1 items-center justify-center py-4 text-center text-sm text-tertiary'
@@ -331,13 +330,13 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
 
         const rowTitleClass = modalMode
             ? isMobileBoard
-                ? 'min-w-0 flex-1 truncate text-[15px] font-semibold leading-snug text-slate-100 sm:text-lg'
-                : 'min-w-0 flex-1 truncate text-base font-semibold text-slate-100 sm:text-lg'
+                ? 'min-w-0 flex-1 truncate text-sm font-semibold leading-snug text-slate-100 sm:text-base'
+                : 'min-w-0 flex-1 truncate text-sm font-semibold text-slate-100 sm:text-base'
             : isMobileBoard
               ? 'min-w-0 flex-1 truncate text-sm font-semibold leading-snug text-primary'
               : 'min-w-0 flex-1 truncate text-sm font-semibold text-primary';
         const rowDateDesktopClass = modalMode
-            ? 'hidden w-[9.5rem] flex-shrink-0 text-right text-sm tabular-nums text-slate-400 sm:inline-block'
+            ? 'hidden w-[9rem] flex-shrink-0 text-right text-xs tabular-nums text-slate-400 sm:inline-block'
             : 'hidden w-[8.5rem] flex-shrink-0 text-right text-xs tabular-nums text-tertiary sm:inline-block';
         const rowDateMobileClass = modalMode
             ? isMobileBoard
@@ -346,22 +345,22 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
             : 'flex w-[5.5rem] flex-shrink-0 flex-col items-end justify-center gap-0.5 text-right leading-tight sm:hidden';
         const rowDateMobileTextClass = modalMode
             ? isMobileBoard
-                ? 'text-[11px] font-medium tabular-nums text-slate-400'
-                : 'text-sm font-medium tabular-nums text-slate-400'
+                ? 'text-[10px] font-medium tabular-nums text-slate-400'
+                : 'text-[11px] font-medium tabular-nums text-slate-400'
             : isMobileBoard
               ? 'text-[11px] font-medium tabular-nums text-tertiary'
               : 'text-xs font-medium tabular-nums text-tertiary';
         const pinClass = modalMode
             ? isMobileBoard
-                ? 'w-5 flex-shrink-0 text-center text-base leading-none'
-                : 'w-6 flex-shrink-0 text-center text-lg leading-none'
+                ? 'w-5 flex-shrink-0 text-center text-sm leading-none'
+                : 'w-5 flex-shrink-0 text-center text-base leading-none'
             : 'w-5 flex-shrink-0 text-center text-base leading-none';
-        const pinEmoji = modalMode ? 'text-amber-300 drop-shadow text-xl' : 'text-amber-300 drop-shadow';
+        const pinEmoji = modalMode ? 'text-amber-300 drop-shadow text-lg' : 'text-amber-300 drop-shadow';
         const listBorder = modalMode ? 'border border-amber-200/15 bg-gradient-to-b from-white/[0.06] to-black/20 shadow-inner' : 'border border-color/60 bg-secondary/20';
         const rowMinH = modalMode
             ? isMobileBoard
-                ? 'min-h-[2.85rem]'
-                : 'min-h-[3.25rem]'
+                ? 'min-h-[2.65rem]'
+                : 'min-h-[3rem]'
             : isMobileBoard
               ? 'min-h-[2.65rem]'
               : 'min-h-[2.5rem]';
@@ -435,28 +434,13 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
                             useCompactList
                                 ? 'text-[12px] font-bold leading-tight text-primary sm:text-[13px]'
                                 : modalMode
-                                  ? 'text-lg font-black tracking-tight text-amber-50 sm:text-xl'
+                                  ? 'text-base font-black tracking-tight text-amber-50 sm:text-lg'
                                   : 'text-base font-bold leading-tight text-primary sm:text-lg'
                         }
                     >
                         {modalMode ? '공지 게시판' : '홈 게시판'}
                     </h3>
                     <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-1 sm:gap-2">
-                        {isAdmin && onAction && (
-                            <button
-                                type="button"
-                                className={
-                                    useCompactList
-                                        ? 'rounded-md border border-amber-400/50 bg-amber-900/30 px-2 py-0.5 text-[10px] font-semibold text-amber-200 hover:bg-amber-800/35'
-                                        : modalMode
-                                          ? 'rounded-md border border-amber-400/50 bg-amber-900/30 px-2 py-1 text-[10px] font-semibold text-amber-200 hover:bg-amber-800/35 sm:px-2.5 sm:text-xs'
-                                          : 'rounded-md border border-amber-400/50 bg-amber-900/30 px-2.5 py-1 text-xs font-semibold text-amber-200 hover:bg-amber-800/35'
-                                }
-                                onClick={() => setIsManageOpen(true)}
-                            >
-                                관리
-                            </button>
-                        )}
                         {modalMode && onClose && (
                             <button
                                 type="button"
@@ -470,18 +454,7 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
                     </div>
                 </div>
                 )}
-                {embedded && isAdmin && onAction && (
-                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-1 border-b border-amber-200/10 px-1 py-1.5 sm:gap-2 sm:px-2">
-                        <button
-                            type="button"
-                            className="rounded-md border border-amber-400/50 bg-amber-900/30 px-2 py-1 text-[10px] font-semibold text-amber-200 hover:bg-amber-800/35 sm:text-xs"
-                            onClick={() => setIsManageOpen(true)}
-                        >
-                            관리
-                        </button>
-                    </div>
-                )}
-                {editorOpen && isAdmin && onAction && modalMode && !isManageOpen && (
+                {editorOpen && isAdmin && onAction && modalMode && (
                     <div className="shrink-0 border-b border-amber-200/15 px-2 pb-2 pt-1 sm:px-4 sm:pb-3">
                         <HomeBoardDraftEditor
                             editingPost={editingPost}
@@ -508,132 +481,6 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
                               : 'flex min-h-0 flex-1 flex-col gap-2 overflow-hidden px-2 pb-2 pt-1 sm:px-3'
                     }
                 >
-                    {modalMode && isManageOpen && isAdmin && onAction && (
-                        <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-amber-300/25 bg-black/35 p-2.5 sm:p-3">
-                            <div className="mb-2 flex items-center justify-between gap-2 border-b border-amber-200/15 pb-2">
-                                <h4 className="text-sm font-bold text-amber-100 sm:text-base">공지 게시판 관리</h4>
-                                <button
-                                    type="button"
-                                    className="rounded-md border border-slate-500/45 bg-slate-900/40 px-2.5 py-1 text-xs font-semibold text-slate-200 hover:bg-slate-800/45"
-                                    onClick={() => {
-                                        setIsManageOpen(false);
-                                        closeEditor();
-                                    }}
-                                >
-                                    닫기
-                                </button>
-                            </div>
-                            <div className="flex h-full min-h-0 flex-col gap-2">
-                                <div className="flex shrink-0 flex-wrap gap-2">
-                                    <button
-                                        type="button"
-                                        className="rounded-md border border-cyan-400/40 bg-cyan-900/30 px-3 py-1.5 text-xs font-semibold text-cyan-100 hover:bg-cyan-800/35"
-                                        onClick={() => openCreate('notice')}
-                                    >
-                                        공지사항 작성
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="rounded-md border border-amber-400/40 bg-amber-900/30 px-3 py-1.5 text-xs font-semibold text-amber-100 hover:bg-amber-800/35"
-                                        onClick={() => openCreate('patch')}
-                                    >
-                                        패치/업데이트 작성
-                                    </button>
-                                </div>
-                                {editorOpen && (
-                                    <HomeBoardDraftEditor
-                                        editingPost={editingPost}
-                                        draftTitle={draftTitle}
-                                        setDraftTitle={setDraftTitle}
-                                        draftContent={draftContent}
-                                        setDraftContent={setDraftContent}
-                                        draftPinned={draftPinned}
-                                        setDraftPinned={setDraftPinned}
-                                        draftCategory={draftCategory}
-                                        setDraftCategory={setDraftCategory}
-                                        onSave={handleSave}
-                                        onCancel={closeEditor}
-                                        layout="modalInline"
-                                    />
-                                )}
-                                <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-2">
-                                    <div className="min-h-0 overflow-hidden rounded-lg border border-cyan-400/25 bg-slate-900/35">
-                                        <div className="border-b border-cyan-400/20 px-3 py-2 text-sm font-bold text-cyan-200">
-                                            공지사항 ({noticePosts.length})
-                                        </div>
-                                        <div className="min-h-0 h-[calc(100%-2.25rem)] overflow-y-auto p-2">
-                                            <div className="flex flex-col gap-2">
-                                                {noticePosts.map((post) => (
-                                                    <div key={post.id} className="rounded border border-slate-600/40 bg-slate-800/60 p-2">
-                                                        <div className="mb-1 flex items-center justify-between gap-2">
-                                                            <div className="truncate text-xs font-semibold">
-                                                                {post.isPinned && <span className="mr-1 text-amber-300">📌</span>}
-                                                                {stripCategoryPrefix(post.title)}
-                                                            </div>
-                                                            <div className="flex gap-1">
-                                                                <button
-                                                                    type="button"
-                                                                    className="rounded border border-blue-400/40 px-1.5 py-0.5 text-[10px] text-blue-100 hover:bg-blue-900/35"
-                                                                    onClick={() => openEdit(post)}
-                                                                >
-                                                                    수정
-                                                                </button>
-                                                                <button
-                                                                    type="button"
-                                                                    className="rounded border border-rose-400/40 px-1.5 py-0.5 text-[10px] text-rose-100 hover:bg-rose-900/35"
-                                                                    onClick={() => handleDelete(post.id)}
-                                                                >
-                                                                    삭제
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                        <p className="line-clamp-2 text-[11px] text-slate-300">{post.content}</p>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="min-h-0 overflow-hidden rounded-lg border border-amber-400/25 bg-slate-900/35">
-                                        <div className="border-b border-amber-400/20 px-3 py-2 text-sm font-bold text-amber-200">
-                                            패치 / 업데이트 ({patchPosts.length})
-                                        </div>
-                                        <div className="min-h-0 h-[calc(100%-2.25rem)] overflow-y-auto p-2">
-                                            <div className="flex flex-col gap-2">
-                                                {patchPosts.map((post) => (
-                                                    <div key={post.id} className="rounded border border-slate-600/40 bg-slate-800/60 p-2">
-                                                        <div className="mb-1 flex items-center justify-between gap-2">
-                                                            <div className="truncate text-xs font-semibold">
-                                                                {post.isPinned && <span className="mr-1 text-amber-300">📌</span>}
-                                                                {stripCategoryPrefix(post.title)}
-                                                            </div>
-                                                            <div className="flex gap-1">
-                                                                <button
-                                                                    type="button"
-                                                                    className="rounded border border-blue-400/40 px-1.5 py-0.5 text-[10px] text-blue-100 hover:bg-blue-900/35"
-                                                                    onClick={() => openEdit(post)}
-                                                                >
-                                                                    수정
-                                                                </button>
-                                                                <button
-                                                                    type="button"
-                                                                    className="rounded border border-rose-400/40 px-1.5 py-0.5 text-[10px] text-rose-100 hover:bg-rose-900/35"
-                                                                    onClick={() => handleDelete(post.id)}
-                                                                >
-                                                                    삭제
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                        <p className="line-clamp-2 text-[11px] text-slate-300">{post.content}</p>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                    {(!modalMode || !isManageOpen) && (
                     <div
                         className={`min-h-0 flex-1 overflow-hidden ${
                             useStackedPanels ? 'flex flex-col gap-2' : 'grid grid-cols-2 gap-2 sm:gap-3'
@@ -649,8 +496,8 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
                                 ? 'text-xs font-bold text-cyan-200'
                                 : modalMode
                                   ? isMobileBoard
-                                      ? 'text-[15px] font-bold text-cyan-200 sm:text-lg'
-                                      : 'text-base font-bold text-cyan-200 sm:text-lg'
+                                      ? 'text-sm font-bold text-cyan-200 sm:text-base'
+                                      : 'text-sm font-bold text-cyan-200 sm:text-base'
                                   : isMobileBoard
                                     ? 'text-sm font-bold text-cyan-200'
                                     : 'text-sm font-bold text-cyan-200'
@@ -666,10 +513,7 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
                                                 ? 'px-1.5 py-0.5 text-[10px]'
                                                 : 'px-2 py-1 text-[10px] sm:px-2.5 sm:text-xs'
                                         }`}
-                                        onClick={() => {
-                                            openCreate('notice');
-                                            setIsManageOpen(false);
-                                        }}
+                                        onClick={() => openCreate('notice')}
                                     >
                                         공지 작성
                                     </button>
@@ -693,8 +537,8 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
                                 ? 'text-xs font-bold text-amber-200'
                                 : modalMode
                                   ? isMobileBoard
-                                      ? 'text-[15px] font-bold text-amber-200 sm:text-lg'
-                                      : 'text-base font-bold text-amber-200 sm:text-lg'
+                                      ? 'text-sm font-bold text-amber-200 sm:text-base'
+                                      : 'text-sm font-bold text-amber-200 sm:text-base'
                                   : isMobileBoard
                                     ? 'text-sm font-bold text-amber-200'
                                     : 'text-sm font-bold text-amber-200'
@@ -710,10 +554,7 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
                                                 ? 'px-1.5 py-0.5 text-[10px]'
                                                 : 'px-2 py-1 text-[10px] sm:px-2.5 sm:text-xs'
                                         }`}
-                                        onClick={() => {
-                                            openCreate('patch');
-                                            setIsManageOpen(false);
-                                        }}
+                                        onClick={() => openCreate('patch')}
                                     >
                                         패치 작성
                                     </button>
@@ -724,7 +565,6 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
                             </div>
                         </div>
                     </div>
-                    )}
                 </div>
             </div>
 
@@ -739,21 +579,21 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
                     <div
                         className={`sudamr-modal-panel flex w-full flex-col overflow-hidden border border-amber-200/20 bg-gradient-to-b from-[#16181f] via-[#111319] to-[#0a0b0f] p-0 shadow-[0_24px_70px_-24px_rgba(0,0,0,0.9)] ring-1 ring-white/[0.07] ${
                             modalMode
-                                ? 'h-[min(88dvh,44rem)] min-h-[30rem] max-w-xl sm:max-w-3xl'
-                                : 'h-[min(85dvh,32rem)] min-h-[24rem] max-w-lg'
+                                ? 'max-h-[min(88dvh,44rem)] max-w-xl sm:max-w-3xl'
+                                : 'max-h-[min(85dvh,32rem)] max-w-lg'
                         }`}
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <div className="flex shrink-0 items-start justify-between gap-2 border-b border-amber-200/15 bg-gradient-to-r from-amber-900/30 via-slate-900/90 to-cyan-950/30 px-3 py-2.5 sm:px-4 sm:py-3">
+                        <div className="flex shrink-0 items-start justify-between gap-2 border-b border-amber-200/15 bg-gradient-to-r from-amber-900/30 via-slate-900/90 to-cyan-950/30 px-3 py-2 sm:px-4 sm:py-2.5">
                             <div className="min-w-0 flex-1">
                                 <h2
                                     id="home-board-modal-title"
                                     className={
                                         modalMode
                                             ? isMobileBoard
-                                                ? 'text-base font-black leading-snug tracking-tight text-slate-100 sm:text-2xl'
-                                                : 'text-lg font-black leading-snug tracking-tight text-slate-100 sm:text-2xl'
-                                            : 'text-sm font-bold leading-snug text-slate-100 sm:text-lg'
+                                                ? 'text-sm font-black leading-snug tracking-tight text-slate-100 sm:text-lg'
+                                                : 'text-base font-black leading-snug tracking-tight text-slate-100 sm:text-xl'
+                                            : 'text-sm font-bold leading-snug text-slate-100 sm:text-base'
                                     }
                                 >
                                     {selectedPost.isPinned && <span className="mr-1 text-amber-400">📌</span>}
@@ -763,9 +603,9 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
                                     className={
                                         modalMode
                                             ? isMobileBoard
-                                                ? 'mt-1 text-xs text-slate-400 sm:text-base'
-                                                : 'mt-1.5 text-sm text-slate-400 sm:text-base'
-                                            : 'mt-1 text-xs text-slate-400 sm:text-xs'
+                                                ? 'mt-0.5 text-[11px] text-slate-400 sm:text-xs'
+                                                : 'mt-1 text-xs text-slate-400 sm:text-sm'
+                                            : 'mt-1 text-[11px] text-slate-400 sm:text-xs'
                                     }
                                 >
                                     {formatDateTime(selectedPost.createdAt)}
@@ -776,26 +616,51 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
                                     )}
                                 </p>
                             </div>
-                            <button
-                                type="button"
-                                className={`shrink-0 rounded-lg border border-amber-300/40 bg-amber-950/40 font-semibold text-amber-100 transition-colors hover:bg-amber-900/45 ${
-                                    modalMode ? 'px-3 py-1.5 text-sm sm:px-4 sm:py-2' : 'px-2.5 py-1 text-xs'
-                                }`}
-                                onClick={() => setSelectedPost(null)}
-                            >
-                                닫기
-                            </button>
+                            <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+                                {isAdmin && onAction && (
+                                    <>
+                                        <button
+                                            type="button"
+                                            className={`rounded-lg border border-blue-400/45 bg-blue-950/40 font-semibold text-blue-100 transition-colors hover:bg-blue-900/45 ${
+                                                modalMode ? 'px-2 py-1 text-[11px] sm:px-2.5 sm:py-1.5 sm:text-xs' : 'px-2 py-1 text-[10px]'
+                                            }`}
+                                            onClick={() => {
+                                                openEdit(selectedPost);
+                                                setSelectedPost(null);
+                                            }}
+                                        >
+                                            수정
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className={`rounded-lg border border-rose-400/45 bg-rose-950/40 font-semibold text-rose-100 transition-colors hover:bg-rose-900/45 ${
+                                                modalMode ? 'px-2 py-1 text-[11px] sm:px-2.5 sm:py-1.5 sm:text-xs' : 'px-2 py-1 text-[10px]'
+                                            }`}
+                                            onClick={() => handleDelete(selectedPost.id)}
+                                        >
+                                            삭제
+                                        </button>
+                                    </>
+                                )}
+                                <button
+                                    type="button"
+                                    className={`rounded-lg border border-amber-300/40 bg-amber-950/40 font-semibold text-amber-100 transition-colors hover:bg-amber-900/45 ${
+                                        modalMode ? 'px-2.5 py-1 text-xs sm:px-3 sm:py-1.5 sm:text-sm' : 'px-2 py-1 text-[11px]'
+                                    }`}
+                                    onClick={() => setSelectedPost(null)}
+                                >
+                                    닫기
+                                </button>
+                            </div>
                         </div>
                         <div
-                            className={`min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-3 py-3 leading-relaxed text-slate-100 whitespace-pre-wrap sm:px-5 sm:py-4 ${
+                            className={`overflow-y-auto overscroll-y-contain px-3 py-2.5 leading-relaxed text-slate-100 whitespace-pre-wrap sm:px-4 sm:py-3 ${
                                 modalMode
-                                    ? isMobileBoard
-                                        ? 'text-[15px] sm:text-lg'
-                                        : 'text-base sm:text-lg'
-                                    : 'text-sm sm:text-[15px]'
+                                    ? 'max-h-[calc(min(88dvh,44rem)-5.5rem)] text-sm sm:text-base'
+                                    : 'max-h-[calc(min(85dvh,32rem)-5rem)] text-xs sm:text-sm'
                             }`}
                         >
-                            <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:px-4 sm:py-4">
+                            <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:px-3.5 sm:py-3">
                                 {selectedPost.content}
                             </div>
                         </div>
@@ -813,35 +678,53 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
                     isTopmost={true}
                 >
                     <div className="h-full min-h-0 bg-gradient-to-b from-[#171920] via-[#12141b] to-[#0c0d12] p-4 text-slate-100">
-                        <div className="mb-4 flex items-center justify-between border-b border-amber-200/20 pb-2">
-                            <div className="flex items-center gap-2">
+                        <div className="mb-4 flex items-center justify-between gap-2 border-b border-amber-200/20 pb-2">
+                            <div className="flex min-w-0 items-center gap-2">
                                 {selectedPost.isPinned && <span className="text-base font-bold text-yellow-500">📌</span>}
-                                <span className="text-sm text-slate-400 sm:text-base">
+                                <span className="text-xs text-slate-400 sm:text-sm">
                                     {formatDateTime(selectedPost.createdAt)}
                                     {selectedPost.updatedAt !== selectedPost.createdAt && (
                                         <span className="ml-2">(수정됨: {formatDateTime(selectedPost.updatedAt)})</span>
                                     )}
                                 </span>
                             </div>
+                            {isAdmin && onAction && (
+                                <div className="flex shrink-0 items-center gap-1.5">
+                                    <button
+                                        type="button"
+                                        className="rounded border border-blue-400/40 px-1.5 py-0.5 text-[11px] font-semibold text-blue-100 hover:bg-blue-900/35"
+                                        onClick={() => {
+                                            openEdit(selectedPost);
+                                            setSelectedPost(null);
+                                        }}
+                                    >
+                                        수정
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="rounded border border-rose-400/40 px-1.5 py-0.5 text-[11px] font-semibold text-rose-100 hover:bg-rose-900/35"
+                                        onClick={() => handleDelete(selectedPost.id)}
+                                    >
+                                        삭제
+                                    </button>
+                                </div>
+                            )}
                         </div>
                         <div className="h-[calc(100%-3.5rem)] overflow-y-auto">
-                            <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-4 text-base leading-relaxed text-slate-100 whitespace-pre-wrap shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:text-lg">
+                            <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 text-sm leading-relaxed text-slate-100 whitespace-pre-wrap shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:px-4 sm:py-3.5 sm:text-base">
                                 {selectedPost.content}
                             </div>
                         </div>
                     </div>
                 </DraggableWindow>
             )}
-            {isManageOpen && isAdmin && onAction && !modalMode && (
+            {editorOpen && isAdmin && onAction && !modalMode && (
                 <DraggableWindow
-                    title="홈 게시판 관리"
-                    onClose={() => {
-                        setIsManageOpen(false);
-                        closeEditor();
-                    }}
-                    windowId="home-board-manager"
-                    initialWidth={760}
-                    initialHeight={680}
+                    title={editingPost ? '게시글 수정' : '새 게시글 작성'}
+                    onClose={closeEditor}
+                    windowId="home-board-editor"
+                    initialWidth={560}
+                    initialHeight={520}
                     isTopmost
                     variant="store"
                     modal
@@ -849,117 +732,20 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
                     mobileViewportMaxHeightCss="92dvh"
                     bodyPaddingClassName="!p-3 sm:!p-4"
                 >
-                    <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto overflow-x-hidden overscroll-y-contain text-slate-100">
-                        <div className="flex shrink-0 flex-wrap gap-2">
-                            <button
-                                type="button"
-                                className="rounded-md border border-cyan-400/40 bg-cyan-900/30 px-3 py-1.5 text-xs font-semibold text-cyan-100 hover:bg-cyan-800/35"
-                                onClick={() => openCreate('notice')}
-                            >
-                                공지사항 작성
-                            </button>
-                            <button
-                                type="button"
-                                className="rounded-md border border-amber-400/40 bg-amber-900/30 px-3 py-1.5 text-xs font-semibold text-amber-100 hover:bg-amber-800/35"
-                                onClick={() => openCreate('patch')}
-                            >
-                                패치/업데이트 작성
-                            </button>
-                        </div>
-
-                        {editorOpen && (
-                            <HomeBoardDraftEditor
-                                editingPost={editingPost}
-                                draftTitle={draftTitle}
-                                setDraftTitle={setDraftTitle}
-                                draftContent={draftContent}
-                                setDraftContent={setDraftContent}
-                                draftPinned={draftPinned}
-                                setDraftPinned={setDraftPinned}
-                                draftCategory={draftCategory}
-                                setDraftCategory={setDraftCategory}
-                                onSave={handleSave}
-                                onCancel={closeEditor}
-                                layout="manage"
-                            />
-                        )}
-
-                        <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2">
-                            <div className="min-h-0 overflow-hidden rounded-lg border border-cyan-400/25 bg-slate-900/35">
-                                <div className="border-b border-cyan-400/20 px-3 py-2 text-sm font-bold text-cyan-200">
-                                    공지사항 ({noticePosts.length})
-                                </div>
-                                <div className="min-h-0 h-[calc(100%-2.25rem)] overflow-y-auto p-2">
-                                    <div className="flex flex-col gap-2">
-                                        {noticePosts.map((post) => (
-                                            <div key={post.id} className="rounded border border-slate-600/40 bg-slate-800/60 p-2">
-                                                <div className="mb-1 flex items-center justify-between gap-2">
-                                                    <div className="truncate text-xs font-semibold">
-                                                        {post.isPinned && <span className="mr-1 text-amber-300">📌</span>}
-                                                        {stripCategoryPrefix(post.title)}
-                                                    </div>
-                                                    <div className="flex gap-1">
-                                                        <button
-                                                            type="button"
-                                                            className="rounded border border-blue-400/40 px-1.5 py-0.5 text-[10px] text-blue-100 hover:bg-blue-900/35"
-                                                            onClick={() => openEdit(post)}
-                                                        >
-                                                            수정
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            className="rounded border border-rose-400/40 px-1.5 py-0.5 text-[10px] text-rose-100 hover:bg-rose-900/35"
-                                                            onClick={() => handleDelete(post.id)}
-                                                        >
-                                                            삭제
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                                <p className="line-clamp-2 text-[11px] text-slate-300">{post.content}</p>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="min-h-0 overflow-hidden rounded-lg border border-amber-400/25 bg-slate-900/35">
-                                <div className="border-b border-amber-400/20 px-3 py-2 text-sm font-bold text-amber-200">
-                                    패치 / 업데이트 ({patchPosts.length})
-                                </div>
-                                <div className="min-h-0 h-[calc(100%-2.25rem)] overflow-y-auto p-2">
-                                    <div className="flex flex-col gap-2">
-                                        {patchPosts.map((post) => (
-                                            <div key={post.id} className="rounded border border-slate-600/40 bg-slate-800/60 p-2">
-                                                <div className="mb-1 flex items-center justify-between gap-2">
-                                                    <div className="truncate text-xs font-semibold">
-                                                        {post.isPinned && <span className="mr-1 text-amber-300">📌</span>}
-                                                        {stripCategoryPrefix(post.title)}
-                                                    </div>
-                                                    <div className="flex gap-1">
-                                                        <button
-                                                            type="button"
-                                                            className="rounded border border-blue-400/40 px-1.5 py-0.5 text-[10px] text-blue-100 hover:bg-blue-900/35"
-                                                            onClick={() => openEdit(post)}
-                                                        >
-                                                            수정
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            className="rounded border border-rose-400/40 px-1.5 py-0.5 text-[10px] text-rose-100 hover:bg-rose-900/35"
-                                                            onClick={() => handleDelete(post.id)}
-                                                        >
-                                                            삭제
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                                <p className="line-clamp-2 text-[11px] text-slate-300">{post.content}</p>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <HomeBoardDraftEditor
+                        editingPost={editingPost}
+                        draftTitle={draftTitle}
+                        setDraftTitle={setDraftTitle}
+                        draftContent={draftContent}
+                        setDraftContent={setDraftContent}
+                        draftPinned={draftPinned}
+                        setDraftPinned={setDraftPinned}
+                        draftCategory={draftCategory}
+                        setDraftCategory={setDraftCategory}
+                        onSave={handleSave}
+                        onCancel={closeEditor}
+                        layout="manage"
+                    />
                 </DraggableWindow>
             )}
         </>

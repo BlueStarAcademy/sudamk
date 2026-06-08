@@ -19,10 +19,10 @@ export const PVP_ARENA_ENTRY_IMG = "/images/bg/pvp.webp";
 export const AI_ARENA_ENTRY_IMG = "/images/bg/ai.webp";
 export const PAIR_GO_LOBBY_IMG = "/images/2v2.webp";
 export const TOURNAMENT_LOBBY_IMG = "/images/Championship.webp";
-export const SINGLE_PLAYER_LOBBY_IMG = "/images/single/Map.webp";
-export const TOWER_CHALLENGE_LOBBY_IMG = "/images/tower/Tower.webp";
-/** 네이티브 모바일 도전의 탑 대기실 히어로(가로형 WebP, `public/images/tower/Tower1.webp`) */
-export const TOWER_MOBILE_HERO_WEBP = "/images/tower/Tower1.webp";
+export const SINGLE_PLAYER_LOBBY_IMG = "/images/single/single.webp";
+export const TOWER_CHALLENGE_LOBBY_IMG = "/images/tower/towergo.webp";
+/** 네이티브 모바일 도전의 탑 대기실 히어로(가로형 WebP, `public/images/tower/towergo.webp`) */
+export const TOWER_MOBILE_HERO_WEBP = "/images/tower/towergo.webp";
 
 // Guild Boss Images
 export const GUILD_BOSS_1_IMG = "/images/guild/boss/boss1.webp";

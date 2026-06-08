@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useCallback, useEffect, useRef, useId } from 'react';
 import { UserWithStatus, GameMode, EquipmentSlot, InventoryItem, ItemGrade, ServerAction, LeagueTier, CoreStat, SpecialStat, MythicStat, ItemOptionType, TournamentState, User } from '../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, AVATAR_POOL, BORDER_POOL, LEAGUE_DATA, CORE_STATS_DATA, SPECIAL_STATS_DATA, MYTHIC_STATS_DATA, emptySlotImages, TOURNAMENT_DEFINITIONS, CHAMPIONSHIP_PVP_VENUE_BG_WEBP, GRADE_LEVEL_REQUIREMENTS, formatEquipLevelRequirement, RANKING_TIERS, getSinglePlayerStages } from '../constants';
-import { PVP_ARENA_ENTRY_IMG, AI_ARENA_ENTRY_IMG, STRATEGIC_GO_LOBBY_IMG, PLAYFUL_GO_LOBBY_IMG, PAIR_GO_LOBBY_IMG, SINGLE_PLAYER_LOBBY_IMG, TOWER_CHALLENGE_LOBBY_IMG } from '../assets.js';
+import { PVP_ARENA_ENTRY_IMG, AI_ARENA_ENTRY_IMG, STRATEGIC_GO_LOBBY_IMG, PLAYFUL_GO_LOBBY_IMG, PAIR_GO_LOBBY_IMG, SINGLE_PLAYER_LOBBY_IMG, TOWER_CHALLENGE_LOBBY_IMG, TOWER_MOBILE_HERO_WEBP } from '../assets.js';
 import Avatar from './Avatar.js';
 import ProfileHomeIdentityHeader from './profile/ProfileHomeIdentityHeader.js';
 import ProfileMannerSeal from './profile/ProfileMannerSeal.js';
@@ -2150,11 +2150,11 @@ const Profile: React.FC<ProfileProps> = () => {
 
             <div className="flex h-full min-h-0 min-w-0 flex-col">
                 {isNativeMobile && profileTab !== 'home' ? (
-                    <PveCard title="도전의 탑" imageUrl="/images/tower/Tower1.webp" layout="tall" onClick={() => tryArenaEnter('tower', () => { window.location.hash = '#/tower'; })} compact={true} locked={!!getArenaEntryLockReason('tower')} lockReason={getArenaEntryLockReason('tower') ?? undefined} />
+                    <PveCard title="도전의 탑" imageUrl={TOWER_MOBILE_HERO_WEBP} layout="tall" onClick={() => tryArenaEnter('tower', () => { window.location.hash = '#/tower'; })} compact={true} locked={!!getArenaEntryLockReason('tower')} lockReason={getArenaEntryLockReason('tower') ?? undefined} />
                 ) : (
                     <div className={mergedCardClass}>
                         <div className={imagePaneClass}>
-                            <PveCard title="도전의 탑" imageUrl="/images/tower/Tower1.webp" layout="tall" onClick={() => tryArenaEnter('tower', () => { window.location.hash = '#/tower'; })} compact={false} hideOverlayText={true} locked={!!getArenaEntryLockReason('tower')} lockReason={getArenaEntryLockReason('tower') ?? undefined} />
+                            <PveCard title="도전의 탑" imageUrl={TOWER_MOBILE_HERO_WEBP} layout="tall" onClick={() => tryArenaEnter('tower', () => { window.location.hash = '#/tower'; })} compact={false} hideOverlayText={true} locked={!!getArenaEntryLockReason('tower')} lockReason={getArenaEntryLockReason('tower') ?? undefined} />
                         </div>
                         <div className={infoPanelShellClass}>
                             <div className={infoTitleClass}>도전의 탑</div>

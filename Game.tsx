@@ -56,6 +56,15 @@ import { processMoveClient } from './client/goLogicClient.js';
 import { isDiceGoLibertyPlacement, isThiefGoValidPlacement } from './client/logic/goLogic.js';
 import { buildPveItemActionClientSync } from './utils/pveItemClientSync.js';
 import {
+    isEligibleForPveAiTurnStuckRecovery,
+    isManuallyPausedAiGame,
+    PVE_AI_TURN_STUCK_NO_MOVE_MS,
+    PVE_AI_TURN_STUCK_POST_SYNC_FALLBACK_MS,
+    PVE_AI_TURN_STUCK_SYNC_COOLDOWN_MS,
+    shouldDeferStuckRecoveryDuringHiddenReveal,
+    shouldUseServerAiKickForStuckRecovery,
+} from './utils/pveAiTurnRecoveryPolicy.js';
+import {
     shouldOpenResultModalAfterScoringOverlay,
     shouldOpenResultModalByPolicy,
     shouldWaitForScoreBasedScoringOverlay,
@@ -4096,26 +4105,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             clearTimeout(aiStuckPostSyncFallbackRef.current);
             aiStuckPostSyncFallbackRef.current = null;
         }
-        const kataServerAiCategories = new Set(['tower', 'singleplayer', 'guildwar', 'adventure']);
-        const isKataServerAiContext =
-            !!session.isAiGame &&
-            (isSinglePlayer || kataServerAiCategories.has(String(sessionPolicy.kind ?? '')));
-        const eligibleKataContext =
-            session.isAiGame &&
-            KATA_STYLE_AI_GO_MODES.has(mode) &&
-            (isKataServerAiContext || session.gameCategory !== 'tower');
-        if (!eligibleKataContext || !STRATEGIC_AI_STUCK_RECOVERABLE_STATUSES.has(gameStatus)) return;
-        if (isKataServerAiContext && gameStatus === 'hidden_reveal_animating') return;
+        const eligibleForStuckRecovery =
+            KATA_STYLE_AI_GO_MODES.has(mode) && isEligibleForPveAiTurnStuckRecovery(session);
+        if (!eligibleForStuckRecovery || !STRATEGIC_AI_STUCK_RECOVERABLE_STATUSES.has(gameStatus)) return;
+        if (gameStatus === 'hidden_reveal_animating' && shouldDeferStuckRecoveryDuringHiddenReveal(session)) {
+            return;
+        }
 
-        const manuallyPausedAi =
-            session.isAiGame &&
-            !isSinglePlayer &&
-            session.gameCategory !== 'tower' &&
-            session.gameCategory !== 'singleplayer' &&
-            session.pausedTurnTimeLeft !== undefined &&
-            !session.turnDeadline &&
-            !session.itemUseDeadline;
-        if (manuallyPausedAi) return;
+        if (isManuallyPausedAiGame(session)) return;
 
         if (currentPlayer === Player.None) return;
 
@@ -4131,14 +4128,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             (!!currentPlayerId && String(currentPlayerId).startsWith('dungeon-bot-'));
         if (!isAiBotTurn) return;
 
-        const AI_STUCK_NO_MOVE_MS = 12_000;
-        const POST_SYNC_FALLBACK_MS = 7_000;
-        const STUCK_SYNC_COOLDOWN_MS = 8_000;
         const gameIdForSync = session.id;
         aiStuckGameStateSyncTimeoutRef.current = setTimeout(() => {
             aiStuckGameStateSyncTimeoutRef.current = null;
             const now = Date.now();
-            if (now - lastStuckRecoverySyncAtRef.current < STUCK_SYNC_COOLDOWN_MS) return;
+            if (now - lastStuckRecoverySyncAtRef.current < PVE_AI_TURN_STUCK_SYNC_COOLDOWN_MS) return;
             lastStuckRecoverySyncAtRef.current = now;
             const w = aiStuckWatchRef.current;
             if (w.id !== gameIdForSync) return;
@@ -4146,10 +4140,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             const latestForKick = sessionRefForPveAiHiddenFollowup.current;
             const useServerAiKick =
                 w.isAiGame &&
-                (latestForKick.isSinglePlayer ||
-                    kataServerAiCategories.has(String(latestForKick.gameCategory ?? '')) ||
-                    w.isPairAiTurn ||
-                    isPairArenaAiMatchSession(latestForKick));
+                shouldUseServerAiKickForStuckRecovery(latestForKick, { isPairAiTurn: w.isPairAiTurn });
             if (useServerAiKick) {
                 const latestSession = sessionRefForPveAiHiddenFollowup.current;
                 const clientSync = buildPveItemActionClientSync(latestSession);
@@ -4207,8 +4198,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         payload: { gameId: gameIdForSync },
                     } as ServerAction);
                 }
-            }, POST_SYNC_FALLBACK_MS);
-        }, AI_STUCK_NO_MOVE_MS);
+            }, PVE_AI_TURN_STUCK_POST_SYNC_FALLBACK_MS);
+        }, PVE_AI_TURN_STUCK_NO_MOVE_MS);
         return () => {
             if (aiStuckGameStateSyncTimeoutRef.current) {
                 clearTimeout(aiStuckGameStateSyncTimeoutRef.current);
@@ -4220,10 +4211,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             }
         };
     }, [
+        session,
         session.id,
         session.isAiGame,
-        isSinglePlayer,
-        session.gameCategory,
         session.pausedTurnTimeLeft,
         session.turnDeadline,
         session.itemUseDeadline,

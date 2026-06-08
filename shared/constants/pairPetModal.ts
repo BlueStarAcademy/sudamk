@@ -20,7 +20,7 @@ export const PAIR_PET_DETAIL_MODAL_INITIAL_HEIGHT = 600;
 export const PAIR_PET_DETAIL_VIEW_BODY_MAX_HEIGHT_CSS = 'min(72dvh, 600px)';
 
 /** 펫 등급 강화 모달 — 설계 높이(px) */
-export const PAIR_PET_GRADE_UPGRADE_MODAL_INITIAL_HEIGHT = 720;
+export const PAIR_PET_GRADE_UPGRADE_MODAL_INITIAL_HEIGHT = 820;
 
 /** 펫 모달 공통 — 모바일 max-height (safe-area 여유) */
 export const PAIR_PET_MODAL_MOBILE_MAX_HEIGHT_CSS =

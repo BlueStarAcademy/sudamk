@@ -60,7 +60,7 @@ let lastDailyRankingUpdateTimestamp: number | null = null;
 let lastDailyQuestResetTimestamp: number | null = null;
 let lastTowerRankingRewardTimestamp: number | null = null;
 let lastGuildWarMatchTimestamp: number | null = null;
-/** 화/금 0시대 큐 잔여분 1회 처리(월·목 23시 매칭 누락·지연 대비) — 같은 KST 일+요일에 한 번만 */
+/** 화·금 0시대 큐 잔여분 1회 처리(월·목 23시 매칭 누락·지연 대비) — 같은 KST 일+요일에 한 번만 */
 let lastGuildWarCatchupMark: string | null = null;
 
 const KV_GUILD_WAR_BOOTSTRAP_ONCE = 'guildWarBootstrapMatchOnce';
@@ -2403,7 +2403,7 @@ export async function processTowerRankingRewards(): Promise<void> {
     console.log(`[TowerRankingReward] Sent monthly rewards to ${rewardCount} users`);
 }
 
-// 길드전 매칭: 월·수 23:00~23:59 KST 연출·짝 매칭 + 화·목 0:00~0:59 캐치업. 전쟁 개시는 화·목 0:00 KST(스케줄 고정). 비데모에서는 짝 길드끼리 매칭 후 홀수 1팀만 봇과 매칭.
+// 길드전 매칭: 월·목 23:00~23:59 KST 연출·짝 매칭 + 화·금 0:00~0:59 캐치업. 전쟁 개시·참여는 화·금 0:00 KST. 월·목 0:00~23:59 KST는 준비(입장 불가).
 // 예약 시간 외 매칭 큐가 있으면 매 분(메인 루프)에서 동일 규칙으로 처리(짝·홀수 봇). 데모만 큐 전체를 봇과 즉시 매칭.
 /** `processGuildWarMatching` 두 번째 인자 — `GUILD_WAR_MATCH_TEST_MODE=1` 일 때만 test 옵션이 적용된다. */
 export type ProcessGuildWarMatchingOptions = {

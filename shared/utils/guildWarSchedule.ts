@@ -13,28 +13,53 @@ const DAY_MS = 24 * HOUR_MS;
 /** 화 0:00 KST ~ 수 23:00 KST */
 export const GUILD_WAR_TUE_WED_DURATION_MS = 47 * HOUR_MS;
 
-/** 목 0:00 KST ~ 일 23:00 KST */
-export const GUILD_WAR_THU_SUN_DURATION_MS = 95 * HOUR_MS;
+/** 금 0:00 KST ~ 일 23:00 KST */
+export const GUILD_WAR_FRI_SUN_DURATION_MS = 71 * HOUR_MS;
+
+/** @deprecated {@link GUILD_WAR_FRI_SUN_DURATION_MS} */
+export const GUILD_WAR_THU_SUN_DURATION_MS = GUILD_WAR_FRI_SUN_DURATION_MS;
 
 export const GUILD_WAR_DURATION_MS_BY_TYPE: Record<GuildWarRoundType, number> = {
     tue_wed: GUILD_WAR_TUE_WED_DURATION_MS,
-    fri_sun: GUILD_WAR_THU_SUN_DURATION_MS,
+    fri_sun: GUILD_WAR_FRI_SUN_DURATION_MS,
 };
 
-/** 정규 매칭 연출 창: 월·수 23:00~23:59 KST */
+/** 정규 매칭 연출 창: 월·목 23:00~23:59 KST (화·금 0시 개시 전) */
 export function isGuildWarPrimeMatchWindowKst(now: number = Date.now()): boolean {
     const d = getKSTDay(now);
     const h = getKSTHours(now);
     const m = getKSTMinutes(now);
-    return (d === 1 || d === 3) && h === 23 && m < 60;
+    return (d === 1 || d === 4) && h === 23 && m < 60;
 }
 
-/** 매칭 누락 캐치업: 화·목 0:00~0:59 KST */
+/** 매칭 누락 캐치업: 화·금 0:00~0:59 KST */
 export function isGuildWarCatchUpMatchWindowKst(now: number = Date.now()): boolean {
     const d = getKSTDay(now);
     const h = getKSTHours(now);
     const m = getKSTMinutes(now);
-    return (d === 2 || d === 4) && h === 0 && m < 60;
+    return (d === 2 || d === 5) && h === 0 && m < 60;
+}
+
+/** 월·목 0:00~23:59 KST — 다음 길드전 준비 시간(입장 불가) */
+export function isGuildWarPrepTimeKst(now: number = Date.now()): boolean {
+    const d = getKSTDay(now);
+    return d === 1 || d === 4;
+}
+
+/** 준비 시간이 끝나 참여(입장) 가능해지는 다음 시각 — 화 0:00 또는 금 0:00 KST */
+export function getNextGuildWarEntryOpenDateKst(now: number = Date.now()): number {
+    const kstDay = getKSTDay(now);
+    const todayStart = getStartOfDayKST(now);
+    if (kstDay === 1 || kstDay === 4) {
+        return todayStart + DAY_MS;
+    }
+    if (kstDay === 2 || kstDay === 3) {
+        const daysUntilFri = (5 - kstDay + 7) % 7;
+        return todayStart + daysUntilFri * DAY_MS;
+    }
+    let daysUntilTue = (2 - kstDay + 7) % 7;
+    if (daysUntilTue === 0) daysUntilTue = 7;
+    return todayStart + daysUntilTue * DAY_MS;
 }
 
 /** 매칭 시각(또는 즉시 매칭 시각)으로 이번 라운드 타입 추론 */
@@ -43,17 +68,18 @@ export function inferGuildWarRoundTypeFromMatchKst(matchAtMs: number): GuildWarR
     const h = getKSTHours(matchAtMs);
     if (d === 1 && h === 23) return 'tue_wed';
     if (d === 2 && h === 0) return 'tue_wed';
-    if (d === 3 && h === 23) return 'fri_sun';
-    if (d === 4 && h === 0) return 'fri_sun';
-    // 화~수: tue_wed 라운드 진행 구간 / 목~일: fri_sun 라운드 진행 구간
-    if (d === 2 || (d === 3 && h < 23)) return 'tue_wed';
+    if (d === 4 && h === 23) return 'fri_sun';
+    if (d === 5 && h === 0) return 'fri_sun';
+    if (d === 2 || d === 3) return 'tue_wed';
+    if (d === 5 || d === 6 || d === 0) return 'fri_sun';
+    if (d === 1) return 'tue_wed';
     return 'fri_sun';
 }
 
 /**
  * 매칭 완료 시각 기준으로 전쟁 개시·종료 시각(KST 달력 고정)을 계산한다.
  * - tue_wed: 다음(또는 당일) 화 0:00 시작 → 수 23:00 종료
- * - fri_sun: 다음(또는 당일) 목 0:00 시작 → 일 23:00 종료
+ * - fri_sun: 다음(또는 당일) 금 0:00 시작 → 일 23:00 종료
  */
 export function resolveGuildWarStartEndTimes(
     warType: GuildWarRoundType,
@@ -69,9 +95,9 @@ export function resolveGuildWarStartEndTimes(
         return { startTime, endTime };
     }
 
-    const daysUntilThu = (4 - kstDay + 7) % 7;
-    const startTime = todayStart + daysUntilThu * DAY_MS;
-    const endTime = startTime + GUILD_WAR_THU_SUN_DURATION_MS;
+    const daysUntilFri = (5 - kstDay + 7) % 7;
+    const startTime = todayStart + daysUntilFri * DAY_MS;
+    const endTime = startTime + GUILD_WAR_FRI_SUN_DURATION_MS;
     return { startTime, endTime };
 }
 

@@ -135,10 +135,10 @@ const PairPetGradeUpgradeResultModal: React.FC<PairPetGradeUpgradeResultModalPro
             hideFooter
             bodyPaddingClassName="!p-0"
         >
-            <div className="flex max-h-[min(88dvh,46rem)] min-h-0 flex-col gap-2 overflow-y-auto overflow-x-hidden px-1.5 pb-2 pt-1.5 sm:gap-3 sm:px-2.5 sm:pb-3 sm:pt-2">
+            <div className="flex flex-col gap-2 overflow-x-hidden px-1.5 pb-2 pt-1.5 sm:gap-2.5 sm:px-2.5 sm:pb-2.5 sm:pt-2">
                 <div className="relative min-w-0 rounded-2xl border border-emerald-500/25 bg-gradient-to-b from-zinc-900/95 via-emerald-950/25 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_0_0_1px_rgba(0,0,0,0.4)] ring-1 ring-emerald-400/15">
                     <div className="pointer-events-none absolute -right-6 -top-10 h-36 w-36 rounded-full bg-emerald-400/12 blur-3xl" aria-hidden />
-                    <div className="relative flex min-w-0 flex-col gap-3 p-2.5 sm:gap-4 sm:p-4">
+                    <div className="relative flex min-w-0 flex-col gap-2.5 p-2.5 sm:gap-3 sm:p-3.5">
                         <div className="flex items-start gap-2.5 sm:items-center sm:gap-3">
                             <div
                                 className={`relative h-[3.75rem] w-[3.75rem] shrink-0 overflow-hidden rounded-xl border border-white/15 shadow-lg sm:h-[4.75rem] sm:w-[4.75rem] ${
@@ -205,28 +205,24 @@ const PairPetGradeUpgradeResultModal: React.FC<PairPetGradeUpgradeResultModalPro
                             </div>
                         </div>
 
-                        <div className="min-w-0 rounded-xl border border-white/10 bg-black/40 px-2.5 py-2 sm:px-3 sm:py-2.5">
-                            <p className="text-center text-sm font-medium leading-snug text-slate-300 sm:text-[0.9375rem]">
-                                레벨업 시 추가 능력치(랜덤)
-                            </p>
-                            <p className="mt-1 text-center text-sm font-black tabular-nums text-amber-100 sm:text-base">
-                                {budgetBefore}
-                                <span className="mx-1.5 font-bold text-slate-500">→</span>
-                                {budgetAfter}
-                                <span className="ml-1.5 text-xs font-bold text-emerald-300 sm:text-sm">
+                        <div className="rounded-xl border border-sky-500/25 bg-gradient-to-r from-sky-950/35 to-zinc-950/80 px-2 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:px-2.5 sm:py-2">
+                            <div className="flex flex-wrap items-baseline justify-center gap-x-1.5 gap-y-0.5 text-center text-xs sm:text-sm">
+                                <span className="font-semibold text-slate-400">레벨업 추가능력치(랜덤)</span>
+                                <span className="font-mono font-bold tabular-nums text-amber-100">{budgetBefore}</span>
+                                <span className="font-bold text-slate-500">→</span>
+                                <span className="font-mono font-bold tabular-nums text-amber-100">{budgetAfter}</span>
+                                <span className="font-bold tabular-nums text-emerald-300">
                                     (+{budgetAfter - budgetBefore})
                                 </span>
-                            </p>
-                        </div>
-
-                        <div className="rounded-xl border border-sky-500/25 bg-gradient-to-r from-sky-950/35 to-zinc-950/80 px-2 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:px-2.5 sm:py-2.5">
-                            <div className="flex flex-wrap items-baseline justify-center gap-x-2 gap-y-1 text-center">
+                            </div>
+                            <div className="my-1.5 border-t border-white/10" />
+                            <div className="flex flex-wrap items-baseline justify-center gap-x-2 gap-y-0.5 text-center">
                                 <span className="text-[0.65rem] font-bold text-amber-100/95 sm:text-xs">바둑능력</span>
-                                <span className="font-mono text-base font-black tabular-nums text-amber-50 sm:text-lg">{powerBefore}</span>
+                                <span className="font-mono text-sm font-black tabular-nums text-amber-50 sm:text-base">{powerBefore}</span>
                                 <span className="text-xs font-bold text-slate-500">→</span>
-                                <span className="font-mono text-base font-black tabular-nums text-amber-50 sm:text-lg">{powerAfter}</span>
+                                <span className="font-mono text-sm font-black tabular-nums text-amber-50 sm:text-base">{powerAfter}</span>
                                 <span
-                                    className={`text-sm font-black tabular-nums ${
+                                    className={`text-xs font-black tabular-nums sm:text-sm ${
                                         powerDelta > 0 ? 'text-emerald-300' : powerDelta < 0 ? 'text-rose-300' : 'text-slate-500'
                                     }`}
                                 >
@@ -234,7 +230,7 @@ const PairPetGradeUpgradeResultModal: React.FC<PairPetGradeUpgradeResultModalPro
                                     {powerDelta})
                                 </span>
                             </div>
-                            <div className="mt-1.5 flex flex-col gap-1.5 border-t border-white/10 pt-1.5 text-xs sm:flex-row sm:flex-wrap sm:items-center sm:justify-center sm:gap-x-2 sm:gap-y-1">
+                            <div className="mt-1.5 flex flex-col gap-1 border-t border-white/10 pt-1.5 text-xs sm:flex-row sm:flex-wrap sm:items-center sm:justify-center sm:gap-x-2 sm:gap-y-0.5">
                                 {PHASE_DEFS.map(({ phase, label }) => {
                                     const b = pairPetKataAbilityScore(phase, kataBefore);
                                     const a = pairPetKataAbilityScore(phase, kataAfter);
@@ -256,10 +252,10 @@ const PairPetGradeUpgradeResultModal: React.FC<PairPetGradeUpgradeResultModalPro
                         </div>
 
                         <div className="min-w-0">
-                            <p className="mb-2 text-center text-sm font-medium leading-snug text-slate-300 sm:text-[0.9375rem]">
+                            <p className="mb-1.5 text-center text-sm font-medium leading-snug text-slate-300 sm:text-[0.9375rem]">
                                 능력치 변화
                             </p>
-                            <ul className="flex min-w-0 flex-col gap-1.5">
+                            <ul className="grid min-w-0 grid-cols-2 gap-1.5 sm:gap-2">
                                 {CORE_LIST.map((stat) => {
                                     const label = CORE_STATS_DATA[stat]?.name ?? stat;
                                     const bShown = beforeCells[stat]!.shown + beforeCells[stat]!.bonus;
@@ -268,24 +264,24 @@ const PairPetGradeUpgradeResultModal: React.FC<PairPetGradeUpgradeResultModalPro
                                     return (
                                         <li
                                             key={stat}
-                                            className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-black/35 px-2.5 py-2 ring-1 ring-inset ring-white/[0.04] sm:px-3"
+                                            className="min-w-0 rounded-lg border border-white/10 bg-black/35 px-2 py-1.5 ring-1 ring-inset ring-white/[0.04] sm:px-2.5 sm:py-2"
                                         >
-                                            <span className="shrink-0 text-xs font-semibold text-slate-400 sm:text-sm">{label}</span>
-                                            <div className="flex min-w-0 flex-col items-end gap-0.5 text-right">
-                                                <span className="text-xs font-mono font-bold tabular-nums leading-snug text-slate-100 sm:text-sm">
-                                                    <span>{bShown}</span>
-                                                    <span className="text-slate-500"> → </span>
-                                                    <span>{aShown}</span>
-                                                </span>
+                                            <p className="truncate text-[0.65rem] font-semibold leading-tight text-slate-400 sm:text-xs">
+                                                {label}
+                                            </p>
+                                            <p className="mt-0.5 whitespace-nowrap text-[0.7rem] font-mono font-bold leading-tight tabular-nums text-slate-100 sm:text-xs">
+                                                <span>{bShown}</span>
+                                                <span className="text-slate-500"> → </span>
+                                                <span>{aShown}</span>
                                                 <span
-                                                    className={`text-xs font-semibold tabular-nums sm:text-sm ${
+                                                    className={`ml-1 ${
                                                         d > 0 ? 'text-emerald-300' : d < 0 ? 'text-rose-300' : 'text-slate-500'
                                                     }`}
                                                 >
                                                     ({d > 0 ? '+' : ''}
                                                     {d})
                                                 </span>
-                                            </div>
+                                            </p>
                                         </li>
                                     );
                                 })}

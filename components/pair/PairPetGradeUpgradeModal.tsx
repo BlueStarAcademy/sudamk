@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import DraggableWindow from '../DraggableWindow.js';
-import { PairPetDetailFitScale } from './PairPetDetailCardBody.js';
 import type { InventoryItem, User } from '../../types.js';
 import { ItemGrade } from '../../types/enums.js';
 import {
@@ -141,12 +140,10 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
             mobileViewportMaxHeightCss={PAIR_PET_MODAL_MOBILE_MAX_HEIGHT_CSS}
             mobileViewportDvhBottomGapPx={PAIR_PET_MODAL_MOBILE_BOTTOM_GAP_PX}
             hideFooter
-            bodyNoScroll
             bodyPaddingClassName="flex min-h-0 min-w-0 flex-1 flex-col !p-0"
         >
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-2 pb-2.5 pt-1.5">
-                <PairPetDetailFitScale itemId={mainItem.id} outerClassName="min-h-0 flex-1" stretchInnerHeightWhenUnscaled>
-                <div className="flex flex-col gap-2 sm:gap-3">
+            <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto overflow-x-hidden px-3 pb-4 pt-2 sm:gap-3.5 sm:px-4 sm:pb-5 sm:pt-2.5">
+                <div className="flex flex-col gap-2.5 sm:gap-3.5">
                 <div className="relative rounded-2xl border border-amber-500/20 bg-gradient-to-b from-zinc-900/95 via-violet-950/40 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_0_0_1px_rgba(0,0,0,0.4)] ring-1 ring-amber-400/10">
                     <div
                         className="pointer-events-none absolute -right-8 -top-12 h-40 w-40 rounded-full bg-amber-400/10 blur-3xl"
@@ -157,33 +154,33 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
                         aria-hidden
                     />
 
-                    <div className="relative flex flex-col gap-2.5 p-2 sm:gap-4 sm:p-4">
-                        <div className="flex items-start gap-2 sm:items-center sm:gap-3">
+                    <div className="relative flex flex-col gap-3 p-3 sm:gap-4 sm:p-4">
+                        <div className="flex items-start gap-2.5 sm:items-center sm:gap-3.5">
                             <div
-                                className={`relative h-[3.5rem] w-[3.5rem] shrink-0 overflow-hidden rounded-lg border border-white/15 shadow-lg sm:h-[4.5rem] sm:w-[4.5rem] sm:rounded-xl ${mainGradeStored === ItemGrade.Transcendent ? 'transcendent-grade-slot' : ''}`}
+                                className={`relative h-[4.25rem] w-[4.25rem] shrink-0 overflow-hidden rounded-lg border border-white/15 shadow-lg sm:h-[5rem] sm:w-[5rem] sm:rounded-xl ${mainGradeStored === ItemGrade.Transcendent ? 'transcendent-grade-slot' : ''}`}
                             >
                                 <img src={mainBg} alt="" className="absolute inset-0 h-full w-full object-cover opacity-95" />
                                 <img src={mainItem.image} alt="" className="relative z-[1] h-full w-full object-contain p-1 sm:p-1.5" />
                             </div>
                             <div className="min-w-0 flex-1 text-left">
                                 <p
-                                    className={`break-words text-sm font-black leading-snug tracking-tight sm:text-base ${mainSt.color}`}
+                                    className={`break-words text-base font-black leading-snug tracking-tight sm:text-lg ${mainSt.color}`}
                                 >
                                     <span className="mr-1.5 font-black tabular-nums text-amber-200">Lv.{levelSafe}</span>
                                     {getPairPetDisplayName(mainItem)}
                                 </p>
                                 {levelSafe < needLv ? (
-                                    <p className="mt-1 text-[11px] font-semibold text-amber-300/95">등급 강화까지 Lv.{needLv}</p>
+                                    <p className="mt-1 text-xs font-semibold text-amber-300/95 sm:text-sm">등급 강화까지 Lv.{needLv}</p>
                                 ) : null}
                             </div>
                         </div>
 
                         {nextG && nextSt && nextBg && nextGradeKo ? (
-                            <div className="flex flex-row items-center gap-1.5 sm:gap-3">
-                                <div className="flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl border border-white/10 bg-black/45 px-1.5 py-2 shadow-inner sm:gap-2 sm:px-3 sm:py-3">
-                                    <span className="text-[0.6rem] font-bold uppercase tracking-[0.14em] text-slate-500 sm:text-[0.65rem] sm:tracking-[0.2em]">현재</span>
+                            <div className="flex flex-row items-center gap-2 sm:gap-3.5">
+                                <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5 rounded-xl border border-white/10 bg-black/45 px-2 py-2.5 shadow-inner sm:gap-2 sm:px-3 sm:py-3.5">
+                                    <span className="text-[0.7rem] font-bold uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.2em]">현재</span>
                                     <div
-                                        className="relative h-11 w-11 overflow-hidden rounded-lg border border-white/15 sm:h-14 sm:w-14"
+                                        className="relative h-14 w-14 overflow-hidden rounded-lg border border-white/15 sm:h-16 sm:w-16"
                                         aria-hidden
                                     >
                                         <img src={mainBg} alt="" className="absolute inset-0 h-full w-full object-cover opacity-90" />
@@ -193,12 +190,12 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
                                             className="relative z-[1] h-full w-full object-contain p-1 sm:p-1.5 drop-shadow-[0_6px_10px_rgba(0,0,0,0.45)]"
                                         />
                                     </div>
-                                    <span className={`text-center text-xs font-black leading-tight sm:text-sm ${mainSt.color}`}>{gradeKo}</span>
+                                    <span className={`text-center text-sm font-black leading-tight sm:text-base ${mainSt.color}`}>{gradeKo}</span>
                                 </div>
 
                                 <div className="flex shrink-0 items-center justify-center px-0.5" aria-hidden>
-                                    <div className="flex h-8 w-8 items-center justify-center rounded-full border border-amber-400/35 bg-gradient-to-b from-amber-600/30 to-amber-950/60 text-amber-100 shadow-[0_0_20px_rgba(251,191,36,0.15)] sm:h-9 sm:w-9">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="opacity-95 sm:h-[18px] sm:w-[18px]">
+                                    <div className="flex h-9 w-9 items-center justify-center rounded-full border border-amber-400/35 bg-gradient-to-b from-amber-600/30 to-amber-950/60 text-amber-100 shadow-[0_0_20px_rgba(251,191,36,0.15)] sm:h-10 sm:w-10">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="opacity-95 sm:h-5 sm:w-5">
                                             <path
                                                 d="M5 12h14m0 0-4-4m4 4-4 4"
                                                 stroke="currentColor"
@@ -210,9 +207,9 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
                                     </div>
                                 </div>
 
-                                <div className="flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl border border-amber-400/25 bg-gradient-to-b from-amber-950/50 to-black/50 px-1.5 py-2 shadow-[inset_0_1px_0_rgba(251,191,36,0.12)] sm:gap-2 sm:px-3 sm:py-3">
-                                    <span className="text-[0.6rem] font-bold uppercase tracking-[0.14em] text-amber-200/70 sm:text-[0.65rem] sm:tracking-[0.2em]">다음</span>
-                                    <div className="relative h-11 w-11 overflow-hidden rounded-lg border border-amber-300/25 sm:h-14 sm:w-14">
+                                <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5 rounded-xl border border-amber-400/25 bg-gradient-to-b from-amber-950/50 to-black/50 px-2 py-2.5 shadow-[inset_0_1px_0_rgba(251,191,36,0.12)] sm:gap-2 sm:px-3 sm:py-3.5">
+                                    <span className="text-[0.7rem] font-bold uppercase tracking-[0.14em] text-amber-200/70 sm:text-xs sm:tracking-[0.2em]">다음</span>
+                                    <div className="relative h-14 w-14 overflow-hidden rounded-lg border border-amber-300/25 sm:h-16 sm:w-16">
                                         <img src={nextBg} alt="" className="absolute inset-0 h-full w-full object-cover opacity-90" />
                                         <img
                                             src={mainItem.image}
@@ -220,18 +217,18 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
                                             className="relative z-[1] h-full w-full object-contain p-1 sm:p-1.5 drop-shadow-[0_6px_10px_rgba(0,0,0,0.45)]"
                                         />
                                     </div>
-                                    <span className={`text-center text-xs font-black leading-tight sm:text-sm ${nextSt.color}`}>{nextGradeKo}</span>
+                                    <span className={`text-center text-sm font-black leading-tight sm:text-base ${nextSt.color}`}>{nextGradeKo}</span>
                                 </div>
                             </div>
                         ) : (
-                            <p className="rounded-lg border border-white/10 bg-black/40 py-3 text-center text-sm text-slate-400">
+                            <p className="rounded-lg border border-white/10 bg-black/40 py-3 text-center text-base text-slate-400">
                                 더 올릴 수 있는 등급이 없습니다.
                             </p>
                         )}
 
                         {nextG && budgetNext != null ? (
-                            <div className="rounded-xl border border-white/[0.08] bg-black/50 p-2.5 backdrop-blur-sm sm:p-3">
-                                <dl className="space-y-3 text-xs sm:text-[0.8125rem]">
+                            <div className="rounded-xl border border-white/[0.08] bg-black/50 p-3 backdrop-blur-sm sm:p-3.5">
+                                <dl className="space-y-3 text-sm sm:text-[0.9375rem]">
                                     <div className="flex flex-col gap-1 border-b border-white/[0.06] pb-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
                                         <dt className="text-slate-400">기본 능력치 증가</dt>
                                         <dd className="tabular-nums font-mono font-black text-amber-200 sm:text-right">+10%</dd>
@@ -244,8 +241,8 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
                                     </div>
                                 </dl>
                                 <div className="mt-2.5 min-w-0 border-t border-white/[0.06] pt-2.5">
-                                    <p className="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-fuchsia-300/90">성향 강화</p>
-                                    <p className="mt-1.5 break-words text-left text-xs font-semibold tabular-nums leading-relaxed text-fuchsia-100/95 sm:text-[0.8125rem] sm:leading-snug">
+                                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-fuchsia-300/90 sm:text-[0.8125rem]">성향 강화</p>
+                                    <p className="mt-1.5 break-words text-left text-sm font-semibold tabular-nums leading-relaxed text-fuchsia-100/95 sm:text-[0.9375rem] sm:leading-snug">
                                         {dispositionUpgradePreview}
                                     </p>
                                 </div>
@@ -255,10 +252,10 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
                 </div>
 
                 {nextG ? (
-                    <div className="rounded-xl border border-violet-500/20 bg-gradient-to-br from-violet-950/35 to-black/40 p-3 shadow-inner ring-1 ring-inset ring-white/[0.04]">
-                        <p className="mb-2 text-[0.65rem] font-bold uppercase tracking-[0.16em] text-violet-300/85">필요 재료</p>
-                        <div className="flex flex-wrap items-center gap-3">
-                            <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-white/15 bg-black/50 shadow-md">
+                    <div className="rounded-xl border border-violet-500/20 bg-gradient-to-br from-violet-950/35 to-black/40 p-3.5 shadow-inner ring-1 ring-inset ring-white/[0.04] sm:p-4">
+                        <p className="mb-2.5 text-xs font-bold uppercase tracking-[0.16em] text-violet-300/85 sm:text-[0.8125rem]">필요 재료</p>
+                        <div className="flex flex-wrap items-center gap-3.5">
+                            <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-white/15 bg-black/50 shadow-md sm:h-[4.5rem] sm:w-[4.5rem]">
                                 {soulMat?.image ? (
                                     <img src={soulMat.image} alt="" className="h-full w-full object-contain p-1" loading="lazy" />
                                 ) : (
@@ -266,8 +263,8 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
                                 )}
                             </div>
                             <div className="min-w-0 flex-1">
-                                <p className="text-sm font-extrabold text-violet-50">{soulMat?.name ?? soulMatName ?? '영혼석'}</p>
-                                <p className="mt-0.5 tabular-nums text-xs font-bold text-slate-300">
+                                <p className="text-base font-extrabold text-violet-50 sm:text-lg">{soulMat?.name ?? soulMatName ?? '영혼석'}</p>
+                                <p className="mt-1 tabular-nums text-sm font-bold text-slate-300">
                                     보유 <span className="text-fuchsia-200">{ownedSoul}</span>
                                     <span className="text-slate-500"> / 필요 </span>
                                     <span className="text-amber-200">{soulNeed ?? '—'}</span>
@@ -275,23 +272,22 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
                             </div>
                         </div>
                         {ownedSoul < (soulNeed ?? 0) ? (
-                            <p className="mt-2 text-xs font-semibold text-rose-300/95">영혼석이 부족합니다.</p>
+                            <p className="mt-2 text-sm font-semibold text-rose-300/95">영혼석이 부족합니다.</p>
                         ) : null}
                     </div>
                 ) : null}
 
-                <div className="flex shrink-0 justify-center border-t border-white/10 pt-2">
+                <div className="flex shrink-0 justify-center border-t border-white/10 pb-0.5 pt-3">
                     <button
                         type="button"
                         disabled={isBusy}
                         onClick={() => tryConfirm()}
-                        className="min-w-[9rem] rounded-lg border border-amber-400/45 bg-gradient-to-b from-amber-600/95 to-amber-950 px-5 py-2 text-sm font-extrabold text-amber-50 shadow-[0_0_24px_rgba(245,158,11,0.12)] disabled:cursor-not-allowed disabled:opacity-40"
+                        className="min-w-[10rem] rounded-lg border border-amber-400/45 bg-gradient-to-b from-amber-600/95 to-amber-950 px-6 py-2.5 text-base font-extrabold text-amber-50 shadow-[0_0_24px_rgba(245,158,11,0.12)] disabled:cursor-not-allowed disabled:opacity-40 sm:min-w-[11rem] sm:py-3"
                     >
                         등급 강화
                     </button>
                 </div>
                 </div>
-                </PairPetDetailFitScale>
             </div>
             {gradeBlockHint ? (
                 <DraggableWindow

@@ -705,7 +705,7 @@ const TowerLobby: React.FC = () => {
                                 className="absolute inset-0 h-full w-full object-cover object-[center_40%]"
                                 onError={(e) => {
                                     const el = e.currentTarget;
-                                    if (el.src.includes('Tower1.webp')) el.src = TOWER_CHALLENGE_LOBBY_IMG;
+                                    if (el.src.includes('towergo.webp')) el.src = TOWER_CHALLENGE_LOBBY_IMG;
                                 }}
                             />
                             <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/50 via-black/35 to-black/70" />

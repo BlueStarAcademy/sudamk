@@ -1,8 +1,6 @@
 import React, { useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { useAppContext } from '../hooks/useAppContext.js';
 import { useModalStackLayer } from '../hooks/useModalStackLayer.js';
-import { getSudamrModalPortalTarget } from '../utils/modalPortalTarget.js';
 import { UserWithStatus } from '../types.js';
 import type { MannerGradeChangePayload } from '../types/mannerGradeChangeModal.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants.js';
@@ -17,7 +15,7 @@ type MannerGradeChangeModalProps = {
     isTopmost?: boolean;
 };
 
-const MannerGradeChangeModal: React.FC<MannerGradeChangeModalProps> = ({ user, payload, onClose, isTopmost = true }) => {
+const MannerGradeChangeModal: React.FC<MannerGradeChangeModalProps> = ({ user, payload, onClose }) => {
     const avatarUrl = useMemo(() => AVATAR_POOL.find((a) => a.id === user.avatarId)?.url, [user.avatarId]);
     const borderUrl = useMemo(() => BORDER_POOL.find((b) => b.id === user.borderId)?.url, [user.borderId]);
     const displayName = user.nickname || user.username || user.id;
@@ -27,8 +25,8 @@ const MannerGradeChangeModal: React.FC<MannerGradeChangeModalProps> = ({ user, p
     const delta = payload.newScore - payload.previousScore;
     const isUp = payload.direction === 'up';
 
-    const { modalLayerUsesDesignPixels } = useAppContext();
-    const { zIndex } = useModalStackLayer({ zIndexFloor: 12_045, promoteOnMount: isTopmost });
+    // 대국 결과·설계 캔버스 modal-root(pointer-events:none) 위에서도 클릭을 받도록 body + 전역 스택 최상단 승격
+    const { zIndex } = useModalStackLayer({ zIndexFloor: 12_045, promoteOnMount: true });
 
     const chrome = isUp
         ? {
@@ -56,15 +54,15 @@ const MannerGradeChangeModal: React.FC<MannerGradeChangeModalProps> = ({ user, p
 
     const node = (
         <div
-            className={`${modalLayerUsesDesignPixels ? 'absolute' : 'fixed'} inset-0 flex items-center justify-center overscroll-contain px-3 pt-[max(0.75rem,env(safe-area-inset-top,0px))] pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]`}
+            className="pointer-events-auto fixed inset-0 flex items-center justify-center overscroll-contain px-3 pt-[max(0.75rem,env(safe-area-inset-top,0px))] pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]"
             style={{ zIndex }}
             role="dialog"
             aria-modal="true"
             aria-labelledby="manner-grade-change-title"
         >
-            <button type="button" className="absolute inset-0 bg-[#020408]/90 backdrop-blur-md" aria-label="배경 닫기" onClick={onClose} />
+            <button type="button" className="absolute inset-0 z-0 bg-[#020408]/90 backdrop-blur-md" aria-label="배경 닫기" onClick={onClose} />
             <div
-                className="relative w-full max-w-md animate-[mannerGradePop_0.48s_cubic-bezier(0.22,1,0.36,1)_both]"
+                className="relative z-10 w-full max-w-md animate-[mannerGradePop_0.48s_cubic-bezier(0.22,1,0.36,1)_both]"
                 onClick={(e) => e.stopPropagation()}
             >
                 <style>{`
@@ -172,9 +170,10 @@ const MannerGradeChangeModal: React.FC<MannerGradeChangeModalProps> = ({ user, p
 
                             <div className="mt-7 flex justify-center">
                                 <Button
+                                    type="button"
                                     onClick={onClose}
                                     colorScheme={isUp ? 'blue' : 'gray'}
-                                    className="min-h-[2.85rem] w-full max-w-xs font-bold shadow-[0_12px_32px_-12px_rgba(0,0,0,0.65)]"
+                                    className="relative z-10 min-h-[2.85rem] w-full max-w-xs font-bold shadow-[0_12px_32px_-12px_rgba(0,0,0,0.65)]"
                                 >
                                     확인
                                 </Button>
@@ -187,7 +186,7 @@ const MannerGradeChangeModal: React.FC<MannerGradeChangeModalProps> = ({ user, p
     );
 
     if (typeof document === 'undefined') return node;
-    return createPortal(node, getSudamrModalPortalTarget(modalLayerUsesDesignPixels));
+    return createPortal(node, document.body);
 };
 
 export default MannerGradeChangeModal;

@@ -16,8 +16,8 @@ const PROFILE_EDIT_GUIDE_BORDER =
 /** 도움말·홈 안내용 — `assets.ts`·로비 UI와 동일한 경로 */
 const ADVENTURE_HELP_IMAGE = '/images/adventure.png';
 const ADVENTURE_HOME_ENTRY_IMAGE = ADVENTURE_STAGES[0].mapWebp;
-const SINGLE_PLAYER_ACADEMY_IMAGE = '/images/single/Academy1.webp';
-const TOWER_ENTRY_IMAGE = '/images/tower/Tower1.webp';
+const SINGLE_PLAYER_ACADEMY_IMAGE = '/images/single/single.webp';
+const TOWER_ENTRY_IMAGE = '/images/tower/towergo.webp';
 const CHAMPIONSHIP_ENTRY_IMAGE = '/images/championship/Champ1.webp';
 const STRATEGIC_LOBBY_IMAGE = '/images/RatingArena.webp';
 const PLAYFUL_LOBBY_IMAGE = '/images/PlayingArena.webp';
