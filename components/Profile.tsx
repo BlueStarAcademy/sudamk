@@ -2008,14 +2008,15 @@ const Profile: React.FC<ProfileProps> = () => {
                         compactLayout={nativeCompactHome}
                         bannerAside={
                             nativeCompactHome ? (
-                                <div className="flex h-full min-h-0 flex-col justify-center rounded-xl border border-violet-400/35 bg-gradient-to-br from-violet-950/45 via-black/40 to-fuchsia-950/30 px-1 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+                                <div className="flex h-full min-h-0 w-full flex-col items-center justify-center rounded-xl border border-violet-400/35 bg-gradient-to-br from-violet-950/45 via-black/40 to-fuchsia-950/30 px-1 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
                                     <PairPetProfilePanel
                                         currentUser={currentUserWithStatus}
                                         currentUserId={currentUserWithStatus.id}
                                         isBusy={false}
                                         embed
                                         compact
-                                        profileHomeFooter
+                                        profileHomeBannerAside
+                                        hideInlineBadukChip
                                         showRepresentativeBadge={Boolean(getEquippedPairPetInventoryRow(currentUserWithStatus))}
                                         onOpenEquippedPetDetail={openEquippedPairPetDetailFromProfileHome}
                                         onFocusPetInventory={focusPairPetInventoryFromProfileHome}

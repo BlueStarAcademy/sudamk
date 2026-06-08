@@ -24,7 +24,7 @@ interface QuestsModalProps {
 type QuestTab = 'daily' | 'weekly' | 'monthly' | 'achievements';
 type QuestData = NonNullable<QuestLog['daily' | 'weekly' | 'monthly']>;
 
-/** 퀘스트 진행 막대: 모바일에서만 상한 */
+/** 퀘스트 진행 막대: PC에서만 상한 (모바일은 카드 전체 너비 사용) */
 const QUEST_ITEM_BAR_MAX_CLASS = 'max-w-[14rem]';
 
 /** 활약도 보상 아이콘만 구분선 대비 살짝 왼쪽 — 구분선 좌표는 변경하지 않음 */
@@ -159,11 +159,18 @@ const AchievementTrackPanel: React.FC<{
                     const achProgress = getAchievementProgressDisplay(stage, currentUser as User);
 
                     const navBtnClass = `flex shrink-0 flex-col items-center justify-center rounded-lg border border-slate-600/40 bg-slate-800/60 font-semibold text-slate-200 transition-colors hover:bg-slate-700/70 disabled:cursor-not-allowed disabled:opacity-35 ${
-                        compact ? 'min-w-[2.75rem] px-1.5 py-2' : 'min-w-[3.25rem] px-2 py-2.5'
+                        compact
+                            ? 'min-w-[2.75rem] px-1.5 py-2'
+                            : isMobile
+                              ? 'min-w-[2.25rem] px-1 py-1.5'
+                              : 'min-w-[3.25rem] px-2 py-2.5'
                     }`;
-                    const navArrowClass = compact ? 'text-xl leading-none' : 'text-2xl leading-none';
-                    const navLabelClass = compact ? 'text-[11px] leading-tight' : 'text-xs leading-tight';
+                    const navArrowClass =
+                        compact ? 'text-xl leading-none' : isMobile ? 'text-lg leading-none' : 'text-2xl leading-none';
+                    const navLabelClass =
+                        compact ? 'text-[11px] leading-tight' : isMobile ? 'text-[10px] leading-tight' : 'text-xs leading-tight';
                     const claimLabel = isClaimed ? '완료' : canClaim ? '받기' : isCurrentStage ? '진행' : '기록';
+                    const mobileAchievementLayout = isMobile && !compact;
 
                     return (
                         <li
@@ -186,20 +193,32 @@ const AchievementTrackPanel: React.FC<{
                                     <span className={navLabelClass}>이전</span>
                                 </button>
                                 <div
-                                    className={`flex min-w-0 flex-1 items-center justify-center gap-2 rounded-lg border border-amber-500/35 bg-gradient-to-b from-slate-900/92 to-black/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-400/10 ${
-                                        compact ? 'px-2.5 py-1.5' : 'px-3 py-2'
+                                    className={`flex min-w-0 flex-1 items-center justify-center rounded-lg border border-amber-500/35 bg-gradient-to-b from-slate-900/92 to-black/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-400/10 ${
+                                        compact
+                                            ? 'gap-2 px-2.5 py-1.5'
+                                            : mobileAchievementLayout
+                                              ? 'flex-col gap-0.5 px-2 py-1.5'
+                                              : 'gap-2 px-3 py-2'
                                     }`}
                                 >
                                     <span
-                                        className={`min-w-0 truncate font-semibold tracking-tight text-slate-100 ${
-                                            compact ? 'text-sm' : isMobile ? 'text-sm' : 'text-base'
+                                        className={`font-semibold tracking-tight text-slate-100 ${
+                                            compact
+                                                ? 'min-w-0 truncate text-sm'
+                                                : mobileAchievementLayout
+                                                  ? 'w-full text-center text-xs leading-snug'
+                                                  : 'min-w-0 truncate text-base'
                                         }`}
                                     >
                                         {track.title}
                                     </span>
                                     <span
                                         className={`shrink-0 rounded-full border border-amber-500/35 bg-black/45 font-bold tabular-nums text-amber-100 ${
-                                            compact ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-0.5 text-xs'
+                                            compact
+                                                ? 'px-2 py-0.5 text-[11px]'
+                                                : mobileAchievementLayout
+                                                  ? 'px-2 py-px text-[10px]'
+                                                  : 'px-2.5 py-0.5 text-xs'
                                         }`}
                                     >
                                         {viewIndex + 1}/{track.stages.length}
@@ -224,11 +243,55 @@ const AchievementTrackPanel: React.FC<{
                                 </button>
                             </div>
 
+                            {mobileAchievementLayout ? (
+                                <div className="flex flex-col gap-1.5">
+                                    <div className="w-full text-center">
+                                        <span className="block text-sm font-bold leading-snug tracking-tight text-slate-100">
+                                            {stage.title}
+                                        </span>
+                                        {achProgress ? (
+                                            <span
+                                                className={`mt-1 block text-center text-xs font-semibold tabular-nums ${
+                                                    isCleared ? 'text-emerald-300' : 'text-slate-400'
+                                                }`}
+                                            >
+                                                달성 {achProgress.current}/{achProgress.target}
+                                            </span>
+                                        ) : (
+                                            <span
+                                                className={`mt-1 block text-center text-xs font-semibold ${
+                                                    isCleared ? 'text-emerald-300' : 'text-slate-400'
+                                                }`}
+                                            >
+                                                {isCleared ? '달성' : '미달성'}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center justify-center gap-1.5">
+                                        <div className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-amber-500/35 bg-black/35 px-2 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+                                            <img src="/images/icon/Zem.webp" alt="" className="h-5 w-5 object-contain" />
+                                            <span className="text-sm font-bold tabular-nums text-amber-100">{stage.rewardDiamonds}</span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => onClaimAchievement(track.id, viewIndex)}
+                                            disabled={!canClaim || claimPendingKey === `achievement-${track.id}-${viewIndex}`}
+                                            className={`shrink-0 rounded-lg border px-2 py-1.5 text-xs font-semibold ${
+                                                canClaim
+                                                    ? 'border-amber-400/30 bg-gradient-to-b from-amber-500/25 via-amber-900/40 to-amber-950/85 text-amber-50'
+                                                    : 'border-slate-600/40 bg-slate-800/60 text-slate-300'
+                                            }`}
+                                        >
+                                            {claimPendingKey === `achievement-${track.id}-${viewIndex}` ? '수령 중...' : claimLabel}
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
                             <div className="flex min-w-0 items-center gap-2">
                                 <div className="flex min-w-0 flex-1 flex-col gap-1 text-center">
                                     <span
-                                        className={`line-clamp-2 font-bold leading-snug tracking-tight text-slate-100 ${
-                                            compact ? 'text-sm' : isMobile ? 'text-base' : 'text-lg'
+                                        className={`font-bold leading-snug tracking-tight text-slate-100 ${
+                                            compact ? 'line-clamp-2 text-sm' : 'line-clamp-2 text-lg'
                                         }`}
                                     >
                                         {stage.title}
@@ -284,6 +347,7 @@ const AchievementTrackPanel: React.FC<{
                                     </button>
                                 </div>
                             </div>
+                            )}
                         </li>
                     );
                 })}
@@ -361,7 +425,7 @@ const QuestRewardPill: React.FC<{ quest: Quest; isMobile: boolean; inline?: bool
                     {hasGold ? (
                         <span className="inline-flex min-w-0 items-center gap-0.5 text-amber-100">
                             <img src="/images/icon/Gold.webp" alt="" className="h-3.5 w-3.5 shrink-0 opacity-95 sm:h-4 sm:w-4" />
-                            <span className="truncate tabular-nums">{formatGoldAmountKoG(quest.reward.gold!)}</span>
+                            <span className={`tabular-nums ${isMobile ? '' : 'truncate'}`}>{formatGoldAmountKoG(quest.reward.gold!)}</span>
                         </span>
                     ) : null}
                     {hasActivity ? (
@@ -383,7 +447,7 @@ const QuestRewardPill: React.FC<{ quest: Quest; isMobile: boolean; inline?: bool
                 ) : (
                     <span className="inline-flex min-w-0 items-center gap-0.5 font-semibold text-slate-100">
                         {itemImage ? <img src={itemImage} alt="" className="h-3.5 w-3.5 object-contain sm:h-4 sm:w-4" /> : null}
-                        <span className="truncate">{resolvedItemName}</span>
+                        <span className={isMobile ? '' : 'truncate'}>{resolvedItemName}</span>
                         <span className="tabular-nums text-amber-200">x{itemQty}</span>
                     </span>
                 )
@@ -481,23 +545,25 @@ const QuestItem: React.FC<{ quest: Quest; onClaim: (id: string) => void; isMobil
     const titleButton = (
         <button
             type="button"
-            className="group flex min-w-0 items-center rounded-lg py-0.5 text-left outline-none transition-colors hover:bg-white/[0.03] focus-visible:ring-2 focus-visible:ring-amber-400/35"
+            className={`group flex min-w-0 rounded-lg py-0.5 text-left outline-none transition-colors hover:bg-white/[0.03] focus-visible:ring-2 focus-visible:ring-amber-400/35 ${
+                isMobile ? 'w-full items-start' : 'items-center'
+            }`}
             onClick={() => setBubbleOpen((o) => !o)}
             aria-expanded={bubbleOpen}
             aria-haspopup="dialog"
         >
             <span
-                className={`min-w-0 font-semibold leading-snug tracking-tight text-slate-100 ${isMobile ? 'text-sm' : 'text-base'}`}
+                className={`font-semibold leading-snug tracking-tight text-slate-100 ${isMobile ? 'text-sm' : 'text-base'}`}
             >
-                <span className={bubbleOpen ? '' : 'line-clamp-2'}>{displayTitle}</span>
+                {displayTitle}
             </span>
         </button>
     );
 
     const progressBar = (
-        <div className={`flex min-w-0 items-center gap-2 ${isMobile ? 'flex-1' : 'flex-1'}`}>
+        <div className={`flex min-w-0 items-center gap-2 ${isMobile ? 'w-full' : 'flex-1'}`}>
             <div
-                className={`relative min-w-0 flex-1 overflow-hidden rounded-full border border-slate-600/40 bg-slate-950/85 shadow-[inset_0_2px_6px_rgba(0,0,0,0.5)] ${isMobile ? `h-2.5 ${QUEST_ITEM_BAR_MAX_CLASS}` : 'h-3'}`}
+                className={`relative min-w-0 flex-1 overflow-hidden rounded-full border border-slate-600/40 bg-slate-950/85 shadow-[inset_0_2px_6px_rgba(0,0,0,0.5)] ${isMobile ? 'h-2.5' : `h-3 ${QUEST_ITEM_BAR_MAX_CLASS}`}`}
             >
                 <div
                     className="absolute inset-y-0 left-0 overflow-hidden rounded-full shadow-[0_0_10px_rgba(251,191,36,0.28)]"
@@ -535,28 +601,32 @@ const QuestItem: React.FC<{ quest: Quest; onClaim: (id: string) => void; isMobil
             <div className={cardShell}>
                 <div className="flex min-w-0 gap-2.5">
                     {questIcon}
-                    <div className="flex min-w-0 flex-1 flex-col gap-2">
-                        <div ref={titleWrapRef} className="relative min-w-0">
-                            {titleButton}
-                            {bubbleOpen ? (
-                                <div ref={bubbleRef}>
-                                    <QuestDetailBubble
-                                        description={quest.description}
-                                        activityPoints={quest.activityPoints}
-                                        gold={quest.reward.gold}
-                                        isMobile={isMobile}
-                                        onClose={() => setBubbleOpen(false)}
-                                    />
-                                </div>
-                            ) : null}
-                        </div>
-                        <div className="flex min-w-0 items-stretch gap-2.5">
-                            {progressBar}
-                            <div className="flex w-[6.25rem] shrink-0 flex-col justify-center gap-1.5">
-                                <QuestRewardPill quest={quest} isMobile={isMobile} />
-                                {claimButton}
+                    <div ref={titleWrapRef} className="relative min-w-0 flex-1">
+                        {titleButton}
+                        {bubbleOpen ? (
+                            <div ref={bubbleRef}>
+                                <QuestDetailBubble
+                                    description={quest.description}
+                                    activityPoints={quest.activityPoints}
+                                    gold={quest.reward.gold}
+                                    isMobile={isMobile}
+                                    onClose={() => setBubbleOpen(false)}
+                                />
                             </div>
-                        </div>
+                        ) : null}
+                    </div>
+                </div>
+                <div className="mt-2">{progressBar}</div>
+                <div className="mt-2 flex items-stretch justify-center gap-2">
+                    <QuestRewardPill quest={quest} isMobile={isMobile} inline />
+                    <div className="w-[5.5rem] shrink-0" data-quest-claim onClick={(e) => e.stopPropagation()}>
+                        <QuestClaimStripButton
+                            isClaimed={quest.isClaimed}
+                            isComplete={isComplete}
+                            onClaim={handleClaimClick}
+                            isMobile={isMobile}
+                            isPending={isClaimPending}
+                        />
                     </div>
                 </div>
             </div>
@@ -566,7 +636,7 @@ const QuestItem: React.FC<{ quest: Quest; onClaim: (id: string) => void; isMobil
     return (
         <div className={`flex items-center gap-3 ${cardShell}`}>
             {questIcon}
-            <div ref={titleWrapRef} className="relative w-[min(30%,9.5rem)] shrink-0">
+            <div ref={titleWrapRef} className="relative min-w-0 flex-1 shrink">
                 {titleButton}
                 {bubbleOpen ? (
                     <div ref={bubbleRef}>

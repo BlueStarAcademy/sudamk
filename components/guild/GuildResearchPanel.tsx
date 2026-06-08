@@ -6,6 +6,7 @@ import Button from '../Button.js';
 import { GUILD_RESEARCH_PROJECTS, ADMIN_USER_ID } from '../../constants/index.js';
 import DraggableWindow from '../DraggableWindow.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
+import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
 
 interface GuildResearchPanelProps {
     guild: Guild;
@@ -262,6 +263,7 @@ const ResearchItemPanel: React.FC<{
 
 const GuildResearchPanel: React.FC<GuildResearchPanelProps & { onClose: () => void }> = ({ guild, myMemberInfo, onClose }) => {
     const { isNativeMobile } = useNativeMobileShell();
+    const isHandheld = useIsHandheldDevice();
     // FIX: Replaced string literal with GuildResearchCategory enum member for initial state.
     const [activeTab, setActiveTab] = useState<GuildResearchCategory>(GuildResearchCategory.development);
     const researchInProgressId = guild.researchTask?.researchId;
@@ -290,11 +292,14 @@ const GuildResearchPanel: React.FC<GuildResearchPanelProps & { onClose: () => vo
             variant="store"
             mobileViewportFit={isNativeMobile}
             mobileViewportMaxHeightVh={94}
+            mobileLockViewportHeight={isHandheld}
+            bodyNoScroll={isHandheld}
+            hideFooter={isHandheld}
             bodyPaddingClassName={isNativeMobile ? 'p-2' : 'p-2.5'}
         >
-            <div className="flex flex-col h-full relative overflow-hidden rounded-2xl">
-                <div className="absolute inset-0 bg-[radial-gradient(90%_65%_at_0%_0%,rgba(217,70,239,0.18),transparent_55%),radial-gradient(70%_60%_at_100%_100%,rgba(45,212,191,0.16),transparent_55%),linear-gradient(145deg,rgba(8,6,20,0.95),rgba(22,18,40,0.92))] pointer-events-none"></div>
-                <div className="relative z-10 flex h-full flex-col px-1 pt-1 pb-0.5">
+            <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl">
+                <div className="pointer-events-none absolute inset-0 rounded-2xl bg-[radial-gradient(90%_65%_at_0%_0%,rgba(217,70,239,0.18),transparent_55%),radial-gradient(70%_60%_at_100%_100%,rgba(45,212,191,0.16),transparent_55%),linear-gradient(145deg,rgba(8,6,20,0.95),rgba(22,18,40,0.92))]" aria-hidden />
+                <div className="relative z-10 flex min-h-0 min-w-0 flex-1 flex-col px-1 pt-1 pb-0.5">
                 <div className="mb-2 flex flex-shrink-0 items-center justify-end">
                     <div className="inline-flex items-center gap-1 rounded-lg border border-fuchsia-400/45 bg-gradient-to-br from-fuchsia-900/80 via-violet-800/75 to-cyan-900/75 px-2 py-1 shadow-md">
                         <img src="/images/guild/button/guildlab.webp" alt="" className="h-3.5 w-3.5 object-contain" />
@@ -328,7 +333,7 @@ const GuildResearchPanel: React.FC<GuildResearchPanelProps & { onClose: () => vo
                     })}
                 </div>
                 <div
-                    className="flex-1 space-y-2 overflow-y-auto pr-1 [scrollbar-width:thin] [scrollbar-color:rgba(167,139,250,0.42)_transparent] [&::-webkit-scrollbar]:w-[4px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-violet-400/45"
+                    className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch] space-y-2 pr-1 [scrollbar-width:thin] [scrollbar-color:rgba(167,139,250,0.42)_transparent] [&::-webkit-scrollbar]:w-[4px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-violet-400/45"
                 >
                     {researchProjectsForTab.map(({ id, project }) => (
                         <ResearchItemPanel

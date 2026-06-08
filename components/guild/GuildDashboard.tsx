@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import { Guild as GuildType, UserWithStatus, GuildBossInfo, QuestReward, GuildMember, GuildMemberRole, CoreStat, GuildResearchId, GuildResearchCategory, ItemGrade, ServerAction, GuildBossSkill } from '../../types/index.js';
@@ -35,6 +35,7 @@ import { getTimeUntilNextMondayKST, isSameDayKST, isDifferentWeekKST, formatDate
 import { getCurrentGuildBossStage, getScaledGuildBossMaxHp } from '../../utils/guildBossStageUtils.js';
 import { getGuildWarBotBoardDisplayTally } from '../../shared/utils/guildWarBoardOwner.js';
 import { useModalStackLayer } from '../../hooks/useModalStackLayer.js';
+import { SHOP_IMAGE_DESC_POPOVER_Z } from '../shopImageDescriptionPopover.js';
 // 고급 버튼 스타일 (길드 패널용)
 const guildPanelBtnBase =
     'inline-flex items-center justify-center gap-1.5 rounded-xl border px-4 py-2 text-sm font-semibold tracking-wide transition-all duration-200';
@@ -736,6 +737,121 @@ const GuildActivityRailStrip: React.FC<{
 };
 
 const BOSS_SKILL_TOOLTIP_HIDE_DELAY_MS = 200;
+const BOSS_SKILL_TOOLTIP_WIDTH_PX = 256;
+
+type BossSkillTooltipBox = { left: number; top: number; maxW: number; transform: string };
+
+function computeBossSkillTooltipBox(
+    anchor: HTMLElement,
+    preferHorizontal: 'auto' | 'left' = 'auto',
+): BossSkillTooltipBox {
+    const rect = anchor.getBoundingClientRect();
+    const margin = 10;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const gap = 8;
+
+    if (preferHorizontal === 'left') {
+        const maxW = Math.min(BOSS_SKILL_TOOLTIP_WIDTH_PX, Math.max(168, rect.left - margin - gap));
+        let anchorX = rect.left - gap;
+        if (anchorX - maxW < margin) {
+            anchorX = margin + maxW;
+        }
+        const centerY = rect.top + rect.height / 2;
+        const top = Math.max(margin + 24, Math.min(vh - margin - 24, centerY));
+        return { left: anchorX, top, maxW, transform: 'translate(-100%, -50%)' };
+    }
+
+    const maxW = Math.min(BOSS_SKILL_TOOLTIP_WIDTH_PX, vw - margin * 2);
+    const centerX = rect.left + rect.width / 2;
+    const left = Math.max(margin + maxW / 2, Math.min(vw - margin - maxW / 2, centerX));
+    const spaceAbove = rect.top - margin;
+    const spaceBelow = vh - rect.bottom - margin;
+    const preferAbove = spaceAbove >= 96 || spaceAbove >= spaceBelow;
+    if (preferAbove) {
+        return { left, top: rect.top - gap, maxW, transform: 'translate(-50%, -100%)' };
+    }
+    return { left, top: rect.bottom + gap, maxW, transform: 'translate(-50%, 0)' };
+}
+
+const BossSkillTooltipPortal: React.FC<{
+    open: boolean;
+    anchorEl: HTMLElement | null;
+    skill: GuildBossSkill;
+    onRequestClose: () => void;
+    fullscreenBackdrop?: boolean;
+    preferHorizontal?: 'auto' | 'left';
+}> = ({ open, anchorEl, skill, onRequestClose, fullscreenBackdrop = false, preferHorizontal = 'auto' }) => {
+    const [box, setBox] = useState<BossSkillTooltipBox | null>(null);
+
+    const recompute = useCallback(() => {
+        if (!open || !anchorEl) {
+            setBox(null);
+            return;
+        }
+        setBox(computeBossSkillTooltipBox(anchorEl, preferHorizontal));
+    }, [open, anchorEl, preferHorizontal]);
+
+    useLayoutEffect(() => {
+        if (!open) {
+            setBox(null);
+            return;
+        }
+        recompute();
+        const ro = typeof ResizeObserver !== 'undefined' && anchorEl ? new ResizeObserver(recompute) : null;
+        if (anchorEl && ro) ro.observe(anchorEl);
+        window.addEventListener('resize', recompute);
+        window.addEventListener('scroll', recompute, true);
+        return () => {
+            ro?.disconnect();
+            window.removeEventListener('resize', recompute);
+            window.removeEventListener('scroll', recompute, true);
+        };
+    }, [open, recompute, anchorEl]);
+
+    if (!open || typeof document === 'undefined' || !box) return null;
+
+    return createPortal(
+        <>
+            {fullscreenBackdrop ? (
+                <div
+                    className="fixed inset-0 bg-transparent"
+                    style={{ zIndex: SHOP_IMAGE_DESC_POPOVER_Z - 1, touchAction: 'manipulation' }}
+                    aria-hidden
+                    onPointerDown={(e) => {
+                        e.preventDefault();
+                        onRequestClose();
+                    }}
+                />
+            ) : null}
+            <div
+                role="tooltip"
+                className="pointer-events-auto fixed max-h-[min(50dvh,320px)] overflow-y-auto rounded-xl border-2 border-stone-500/80 bg-stone-900 p-3 text-stone-100 shadow-[0_12px_40px_rgba(0,0,0,0.65)] [scrollbar-width:thin]"
+                style={{
+                    zIndex: SHOP_IMAGE_DESC_POPOVER_Z,
+                    left: box.left,
+                    top: box.top,
+                    transform: box.transform,
+                    width: box.maxW,
+                    maxWidth: box.maxW,
+                }}
+                onPointerDown={(e) => e.stopPropagation()}
+            >
+                <div className="mb-2 flex items-center gap-2">
+                    <img src={skill.image} alt="" className="h-10 w-10 object-contain" />
+                    <div>
+                        <h4 className="text-sm font-bold text-highlight">{skill.name}</h4>
+                        <span className={`text-[10px] ${skill.type === 'active' ? 'text-blue-400' : 'text-purple-400'}`}>
+                            {skill.type === 'active' ? '액티브' : '패시브'}
+                        </span>
+                    </div>
+                </div>
+                <p className="text-xs leading-relaxed text-stone-300">{skill.description}</p>
+            </div>
+        </>,
+        document.body
+    );
+};
 
 const BossPanel: React.FC<{
     guild: GuildType;
@@ -751,12 +867,10 @@ const BossPanel: React.FC<{
     onOpenBossGuide,
 }) => {
     const { currentUserWithStatus, isNativeMobile } = useAppContext();
-    const [hoveredSkill, setHoveredSkill] = useState<GuildBossSkill | null>(null);
-    const [clickedSkill, setClickedSkill] = useState<GuildBossSkill | null>(null);
+    const [activeSkillTooltip, setActiveSkillTooltip] = useState<GuildBossSkill | null>(null);
     const skillIconRefs = useRef<Record<string, HTMLDivElement | null>>({});
     const tooltipHideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [showBossParticipantsModal, setShowBossParticipantsModal] = useState(false);
-    const guildBossSkillDetailLayer = useModalStackLayer({ enabled: Boolean(clickedSkill) });
     const guildBossParticipantsLayer = useModalStackLayer({ enabled: showBossParticipantsModal });
 
     useEffect(() => () => {
@@ -962,16 +1076,61 @@ const BossPanel: React.FC<{
                     </p>
                 </div>
 
-                <div className={`grid min-h-0 w-full flex-1 overflow-y-auto ${isMobile ? 'grid-cols-1 gap-1.5' : isCompact ? 'grid-cols-[1.1fr_1fr] gap-1.5' : 'grid-cols-[1.3fr_1fr] gap-2'}`}>
-                    <div className={`flex min-h-0 flex-col rounded-xl border border-stone-600/50 bg-black/20 ${isCompact ? 'p-1.5' : 'p-2'}`}>
-                        <div className="flex min-h-0 flex-1 flex-col items-center">
-                            <div className={`relative ${isMobile ? 'h-36 w-36' : isCompact ? 'h-24 w-24' : 'h-full max-h-[19rem] w-full max-w-[19rem]'} bg-gradient-to-br from-stone-700/50 to-stone-800/40 rounded-xl flex items-center justify-center border border-stone-600/50 shadow-lg overflow-hidden`}>
-                                <img src={currentBoss.image} alt={currentBoss.name} className={`${isMobile ? 'w-32 h-32' : isCompact ? 'h-20 w-20' : 'h-[92%] w-[92%]'} drop-shadow-lg object-contain`} />
-                                <div className={`absolute inset-x-0 bottom-0 flex flex-col items-stretch ${isMobile ? 'gap-0.5 px-1.5 pb-1.5 pt-6' : 'gap-1 px-2 pb-2 pt-8'} bg-gradient-to-t from-black/75 via-black/45 to-transparent`}>
-                                    <div className={`text-center font-bold tabular-nums text-white ${isMobile ? 'text-[10px]' : 'text-[12px]'} drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]`} style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>
+                <div className={`min-h-0 w-full flex-1 ${isMobile ? 'flex flex-col gap-1.5 overflow-hidden' : isCompact ? 'grid grid-cols-[1.1fr_1fr] gap-1.5 overflow-y-auto' : 'grid grid-cols-[1.3fr_1fr] gap-2 overflow-y-auto'}`}>
+                    <div className={`flex min-h-0 flex-col rounded-xl border border-stone-600/50 bg-black/20 ${isCompact ? 'p-1.5' : isMobile ? 'shrink min-h-0 p-1.5' : 'p-2'}`}>
+                        {isMobile ? (
+                            <div className="flex w-full min-h-0 flex-col">
+                                <div className="relative flex h-[18.5rem] w-full items-center justify-center overflow-hidden rounded-xl border border-stone-600/50 bg-gradient-to-br from-stone-700/50 to-stone-800/40 shadow-lg">
+                                    <div className="flex items-center justify-center gap-0">
+                                        <img src={currentBoss.image} alt={currentBoss.name} className="max-h-[15.5rem] w-auto max-w-[min(62vw,15.5rem)] shrink object-contain drop-shadow-lg" />
+                                        {currentBoss.skills && currentBoss.skills.length > 0 ? (
+                                            <div className="-ml-1 flex shrink-0 flex-col gap-1">
+                                                {currentBoss.skills.slice(0, 3).map((skill) => (
+                                                    <div key={skill.id} className="relative">
+                                                        <div
+                                                            ref={(el) => { skillIconRefs.current[skill.id] = el; }}
+                                                            className="relative z-20 flex h-12 w-12 cursor-pointer items-center justify-center rounded-xl border border-stone-500/70 bg-stone-900 shadow-[0_4px_14px_rgba(0,0,0,0.5)] ring-1 ring-white/15 transition-transform active:scale-95"
+                                                            onClick={() => {
+                                                                setActiveSkillTooltip((prev) => (prev?.id === skill.id ? null : skill));
+                                                            }}
+                                                        >
+                                                            <img src={skill.image} alt={skill.name} className="h-9 w-9 object-contain drop-shadow-md" />
+                                                            {skill.type === 'passive' ? (
+                                                                <div className="absolute -right-0.5 -top-0.5 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-purple-500 ring-1 ring-stone-900/80">
+                                                                    <span className="text-[6px] font-bold text-white">P</span>
+                                                                </div>
+                                                            ) : null}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                    <div className="absolute inset-x-0 bottom-0 z-10 flex flex-col items-stretch gap-0.5 bg-gradient-to-t from-black/75 via-black/45 to-transparent px-1.5 pb-1 pt-6">
+                                        <div className="text-center text-[11px] font-bold tabular-nums text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>
+                                            {formatHpWithK(remainingHp)} / {formatHpWithK(maxHp)} ({clampedHpPercent.toFixed(1)}%)
+                                        </div>
+                                        <div className="h-2 w-full overflow-hidden rounded-full border border-gray-600/60 bg-gray-800/85 shadow-inner">
+                                            <div
+                                                className="h-full rounded-full bg-gradient-to-r from-amber-600 via-orange-500 to-amber-600 transition-all duration-500 shadow-[0_0_8px_rgba(217,119,6,0.5)]"
+                                                style={{ width: `${clampedHpPercent}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="mt-0.5 flex w-full shrink-0 justify-center">
+                                    <p className="w-full truncate rounded-md bg-gray-800/50 px-2 py-0.5 text-center text-[10px] text-tertiary" title={timeLeft}>{timeLeft}</p>
+                                </div>
+                            </div>
+                        ) : (
+                        <div className="flex min-h-0 flex-col items-center">
+                            <div className={`relative flex w-full items-center justify-center bg-gradient-to-br from-stone-700/50 to-stone-800/40 rounded-xl border border-stone-600/50 shadow-lg overflow-hidden ${isCompact ? 'h-24 w-24' : 'h-full max-h-[19rem] w-full max-w-[19rem] flex-1 min-h-0'}`}>
+                                <img src={currentBoss.image} alt={currentBoss.name} className={`drop-shadow-lg object-contain ${isCompact ? 'h-20 w-20' : 'h-[92%] w-[92%]'}`} />
+                                <div className={`absolute inset-x-0 bottom-0 flex flex-col items-stretch gap-1 px-2 pb-2 pt-8 bg-gradient-to-t from-black/75 via-black/45 to-transparent`}>
+                                    <div className={`text-center font-bold tabular-nums text-white text-[12px] drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]`} style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>
                                         {formatHpWithK(remainingHp)} / {formatHpWithK(maxHp)} ({clampedHpPercent.toFixed(1)}%)
                                     </div>
-                                    <div className={`w-full bg-gray-800/85 rounded-full ${isMobile ? 'h-2' : 'h-3'} border border-gray-600/60 overflow-hidden shadow-inner`}>
+                                    <div className={`w-full bg-gray-800/85 rounded-full h-3 border border-gray-600/60 overflow-hidden shadow-inner`}>
                                         <div
                                             className="bg-gradient-to-r from-amber-600 via-orange-500 to-amber-600 h-full rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(217,119,6,0.5)]"
                                             style={{ width: `${clampedHpPercent}%` }}
@@ -979,109 +1138,82 @@ const BossPanel: React.FC<{
                                     </div>
                                 </div>
                             </div>
-                            <div className={`${isMobile ? 'mt-1 w-full max-w-[10rem]' : 'mt-2 w-full max-w-[19rem]'} flex shrink-0 justify-center`}>
-                                <p className={`w-full ${isMobile ? 'text-[10px]' : 'text-sm'} text-tertiary bg-gray-800/50 px-2 py-1 rounded-md text-center truncate`} title={timeLeft}>{timeLeft}</p>
+                            <div className={`mt-2 w-full max-w-[19rem] flex shrink-0 justify-center`}>
+                                <p className={`w-full text-sm text-tertiary bg-gray-800/50 px-2 py-1 rounded-md text-center truncate`} title={timeLeft}>{timeLeft}</p>
                             </div>
                         </div>
+                        )}
 
-                        <div className={`${isMobile ? 'mt-1' : 'mt-2'} flex shrink-0 items-center justify-center`}>
-                            {/* 스킬들 - 이미지 아래 가로 배치 */}
-                                {currentBoss.skills && currentBoss.skills.length > 0 && (
-                                <div className={`flex relative ${isMobile ? 'flex-row gap-1' : 'flex-row gap-2'} items-center justify-center`}>
+                        {!isMobile ? (
+                        <div className={`mt-2 flex shrink-0 items-center justify-center`}>
+                            {currentBoss.skills && currentBoss.skills.length > 0 && (
+                                <div className={`flex relative flex-row gap-2 items-center justify-center`}>
                                     {currentBoss.skills.slice(0, 3).map((skill) => (
                                         <div key={skill.id} className="relative">
                                             <div
                                                 ref={(el) => { skillIconRefs.current[skill.id] = el; }}
-                                                        className={`${isMobile ? 'w-9 h-9' : 'w-12 h-12'} bg-gradient-to-br from-stone-700/50 to-stone-800/40 rounded-lg flex items-center justify-center border border-stone-600/50 shadow-lg cursor-pointer hover:scale-110 transition-transform`}
-                                            onMouseEnter={(e) => {
-                                                if (tooltipHideTimeoutRef.current) {
-                                                    clearTimeout(tooltipHideTimeoutRef.current);
-                                                    tooltipHideTimeoutRef.current = null;
-                                                }
-                                                setHoveredSkill(skill);
-                                            }}
-                                            onMouseLeave={() => {
-                                                tooltipHideTimeoutRef.current = setTimeout(() => {
-                                                    setHoveredSkill(null);
-                                                    tooltipHideTimeoutRef.current = null;
-                                                }, BOSS_SKILL_TOOLTIP_HIDE_DELAY_MS);
-                                            }}
-                                            onClick={() => setClickedSkill(clickedSkill?.id === skill.id ? null : skill)}
-                                        >
-                                                        <img src={skill.image} alt={skill.name} className={`${isMobile ? 'w-7 h-7' : 'w-10 h-10'} object-contain drop-shadow-md`} />
-                                                {skill.type === 'passive' && (
-                                                            <div className={`absolute -top-0.5 -right-0.5 ${isMobile ? 'w-2 h-2' : 'w-2.5 h-2.5'} bg-purple-500 rounded-full flex items-center justify-center`}>
-                                                                <span className={`${isMobile ? 'text-[5px]' : 'text-[6px]'} text-white font-bold`}>P</span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                            {/* 호버 시 툴팁 */}
-                                            {hoveredSkill?.id === skill.id && (
-                                            <div 
-                                                className="absolute bottom-full left-1/2 z-[9999] mb-2 w-64 -translate-x-1/2 rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/98 via-neutral-800/95 to-stone-900/98 p-3 shadow-2xl"
-                                                onMouseEnter={(e) => {
-                                                    e.stopPropagation();
+                                                className={`w-12 h-12 bg-gradient-to-br from-stone-700/50 to-stone-800/40 rounded-lg flex items-center justify-center border border-stone-600/50 shadow-lg cursor-pointer hover:scale-110 transition-transform`}
+                                                onMouseEnter={() => {
                                                     if (tooltipHideTimeoutRef.current) {
                                                         clearTimeout(tooltipHideTimeoutRef.current);
                                                         tooltipHideTimeoutRef.current = null;
                                                     }
-                                                    setHoveredSkill(skill);
+                                                    setActiveSkillTooltip(skill);
                                                 }}
                                                 onMouseLeave={() => {
-                                                    setHoveredSkill(null);
+                                                    tooltipHideTimeoutRef.current = setTimeout(() => {
+                                                        setActiveSkillTooltip(null);
+                                                        tooltipHideTimeoutRef.current = null;
+                                                    }, BOSS_SKILL_TOOLTIP_HIDE_DELAY_MS);
                                                 }}
                                             >
-                                                <div className="flex items-center gap-2 mb-2">
-                                                    <img src={skill.image} alt={skill.name} className="w-10 h-10 object-contain" />
-                                                    <div>
-                                                        <h4 className="text-sm font-bold text-highlight">{skill.name}</h4>
-                                                        <span className={`text-[10px] ${skill.type === 'active' ? 'text-blue-400' : 'text-purple-400'}`}>
-                                                            {skill.type === 'active' ? '액티브' : '패시브'}
-                                                        </span>
+                                                <img src={skill.image} alt={skill.name} className={`w-10 h-10 object-contain drop-shadow-md`} />
+                                                {skill.type === 'passive' && (
+                                                    <div className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-purple-500 rounded-full flex items-center justify-center`}>
+                                                        <span className={`text-[6px] text-white font-bold`}>P</span>
                                                     </div>
-                                                </div>
-                                                <p className="text-xs text-stone-300 leading-relaxed">{skill.description}</p>
+                                                )}
                                             </div>
-                                            )}
                                         </div>
                                     ))}
                                 </div>
-                                )}
+                            )}
                         </div>
+                        ) : null}
                     </div>
 
-                    <div className="flex min-h-0 flex-col gap-2 rounded-xl border border-stone-600/50 bg-black/20 p-2">
+                    <div className={`flex min-h-0 flex-col rounded-xl border border-stone-600/50 bg-black/20 ${isMobile ? 'shrink-0 gap-1.5 p-2' : 'gap-2 p-2'}`}>
                         <div className="flex justify-center">
                             <button
                                 type="button"
                                 onClick={() => setShowBossParticipantsModal(true)}
-                                className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-md border border-cyan-500/40 bg-cyan-900/20 hover:bg-cyan-800/30 text-cyan-200 text-xs font-semibold transition-colors"
+                                className={`inline-flex items-center justify-center gap-1 rounded-md border border-cyan-500/40 bg-cyan-900/20 hover:bg-cyan-800/30 text-cyan-200 font-semibold transition-colors ${isMobile ? 'px-3 py-1.5 text-xs' : 'px-3 py-1.5 text-xs'}`}
                             >
                                 참여길드원
                             </button>
                         </div>
-                        <div className="min-h-0 flex-1 rounded-lg bg-stone-800/50 px-3 py-2">
-                            <div className={`${isMobile ? 'text-[9px]' : 'text-xs'} text-stone-400 mb-2 font-semibold`}>나의 기록</div>
-                            <div className="flex flex-col gap-1.5">
+                        <div className={`min-h-0 rounded-lg bg-stone-800/50 ${isMobile ? 'px-2.5 py-1.5' : 'flex-1 px-3 py-2'}`}>
+                            <div className={`${isMobile ? 'mb-1.5 text-xs' : 'text-xs mb-2'} font-semibold text-stone-400`}>나의 기록</div>
+                            <div className={`flex flex-col ${isMobile ? 'gap-1' : 'gap-1.5'}`}>
                                 <div className="flex items-center justify-between">
-                                    <span className={`${isMobile ? 'text-[10px]' : 'text-sm'} text-stone-300`}>랭킹</span>
-                                    <span className={`${isMobile ? 'text-[10px]' : 'text-sm'} font-bold text-highlight`}>
+                                    <span className={`${isMobile ? 'text-xs' : 'text-sm'} text-stone-300`}>랭킹</span>
+                                    <span className={`${isMobile ? 'text-sm' : 'text-sm'} font-bold text-highlight`}>
                                         {myRank !== null ? `${myRank}위` : '-'}
                                     </span>
                                 </div>
                                 <div className="flex items-center justify-between">
-                                    <span className={`${isMobile ? 'text-[10px]' : 'text-sm'} text-stone-300`}>총 데미지</span>
-                                    <span className={`${isMobile ? 'text-[10px]' : 'text-sm'} font-bold text-amber-300`}>{myDamage.toLocaleString()}</span>
+                                    <span className={`${isMobile ? 'text-xs' : 'text-sm'} text-stone-300`}>총 데미지</span>
+                                    <span className={`${isMobile ? 'text-sm' : 'text-sm'} font-bold text-amber-300`}>{myDamage.toLocaleString()}</span>
                                 </div>
                                 <div className="flex items-center justify-between">
-                                    <span className={`${isMobile ? 'text-[10px]' : 'text-sm'} text-stone-300`}>현재순위</span>
-                                    <span className={`${isMobile ? 'text-[10px]' : 'text-sm'} font-bold text-cyan-300`}>
+                                    <span className={`${isMobile ? 'text-xs' : 'text-sm'} text-stone-300`}>현재순위</span>
+                                    <span className={`${isMobile ? 'text-sm' : 'text-sm'} font-bold text-cyan-300`}>
                                         {totalParticipants > 0 && myRank !== null ? `${totalParticipants}명 중 ${myRank}위` : '-'}
                                     </span>
                                 </div>
                                 <div className="flex items-center justify-between">
-                                    <span className={`${isMobile ? 'text-[10px]' : 'text-sm'} text-stone-300`}>역대 최고 기록</span>
-                                    <span className={`${isMobile ? 'text-[10px]' : 'text-sm'} font-bold text-yellow-300`}>
+                                    <span className={`${isMobile ? 'text-xs' : 'text-sm'} text-stone-300`}>역대 최고 기록</span>
+                                    <span className={`${isMobile ? 'text-sm' : 'text-sm'} font-bold text-yellow-300`}>
                                         {(guild.guildBossState?.maxDamageLog?.[effectiveUserId || ''] || 0).toLocaleString()}
                                     </span>
                                 </div>
@@ -1101,40 +1233,19 @@ const BossPanel: React.FC<{
                         </div>
                     </div>
                 </div>
-                    
-                    {/* 스킬 상세·참여 기록: 길드 홈 z-10/overflow 스택에 묶이지 않도록 모달 루트로 포털 */}
-                    {typeof document !== 'undefined' &&
-                        clickedSkill &&
-                        createPortal(
-                            <div
-                                className="sudamr-modal-overlay pointer-events-auto"
-                                style={{ zIndex: guildBossSkillDetailLayer.zIndex }}
-                                onClick={() => setClickedSkill(null)}
-                            >
-                                <div
-                                    className="sudamr-modal-panel mx-4 max-w-md border-stone-600/50 p-5 ring-1 ring-white/[0.05]"
-                                    onClick={(e) => e.stopPropagation()}
-                                >
-                                    <div className="flex items-center gap-3 mb-3">
-                                        <img src={clickedSkill.image} alt={clickedSkill.name} className="w-12 h-12 object-contain" />
-                                        <div>
-                                            <h3 className="text-lg font-bold text-highlight">{clickedSkill.name}</h3>
-                                            <span className={`text-xs ${clickedSkill.type === 'active' ? 'text-blue-400' : 'text-purple-400'}`}>
-                                                {clickedSkill.type === 'active' ? '액티브 스킬' : '패시브 스킬'}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <p className="text-sm text-stone-300 leading-relaxed mb-3">{clickedSkill.description}</p>
-                                    <button
-                                        onClick={() => setClickedSkill(null)}
-                                        className="w-full py-2 px-4 bg-stone-700/50 hover:bg-stone-600/50 text-white rounded-lg transition-colors"
-                                    >
-                                        닫기
-                                    </button>
-                                </div>
-                            </div>,
-                            document.body
-                        )}
+
+                    {activeSkillTooltip ? (
+                        <BossSkillTooltipPortal
+                            open
+                            anchorEl={skillIconRefs.current[activeSkillTooltip.id] ?? null}
+                            skill={activeSkillTooltip}
+                            onRequestClose={() => setActiveSkillTooltip(null)}
+                            fullscreenBackdrop={isMobile}
+                            preferHorizontal={isMobile ? 'left' : 'auto'}
+                        />
+                    ) : null}
+
+                    {/* 참여 기록: 길드 홈 z-10/overflow 스택에 묶이지 않도록 모달 루트로 포털 */}
                     {typeof document !== 'undefined' &&
                         showBossParticipantsModal &&
                         createPortal(
@@ -1769,8 +1880,8 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                         )}
                     </div>
 
-                    <div className={`${isMobile ? 'mb-1.5 grid min-h-0 w-full flex-1 grid-cols-1 gap-1.5' : isCompact ? 'mb-1 grid min-h-0 w-full flex-1 grid-cols-1 gap-1.5' : 'mb-2 grid min-h-0 w-full flex-1 grid-cols-1 gap-2 sm:grid-cols-2'}`}>
-                        <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-stone-600/50 bg-gradient-to-b from-stone-900/75 to-black/50 shadow-inner">
+                    <div className={`${isMobile ? 'mb-1.5 flex min-h-0 w-full flex-1 flex-col gap-1.5 overflow-hidden' : isCompact ? 'mb-1 grid min-h-0 w-full flex-1 grid-cols-1 gap-1.5' : 'mb-2 grid min-h-0 w-full flex-1 grid-cols-1 gap-2 sm:grid-cols-2'}`}>
+                        <div className={`flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-stone-600/50 bg-gradient-to-b from-stone-900/75 to-black/50 shadow-inner ${isMobile ? 'order-2 shrink min-h-0' : ''}`}>
                             <div
                                 className={`border-b border-stone-600/40 bg-gradient-to-r from-orange-950/55 via-stone-950/60 to-stone-950/55 px-2 py-1.5 text-center font-bold tracking-wide text-orange-100/95 ${isMobile ? 'text-[10px]' : 'text-xs'}`}
                             >
@@ -1843,7 +1954,7 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                         </div>
                         {!isCompact ? (
                         <div
-                            className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-stone-600/50 bg-gradient-to-b from-stone-900/75 to-black/50 shadow-inner"
+                            className={`flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-stone-600/50 bg-gradient-to-b from-stone-900/75 to-black/50 shadow-inner ${isMobile ? 'order-1 shrink-0' : ''}`}
                         >
                             <div
                                 className={`border-b border-stone-600/40 bg-gradient-to-r from-amber-950/45 via-stone-950/55 to-stone-950/55 px-2 py-1.5 text-center font-bold tracking-wide text-amber-100/95 ${isMobile ? 'text-[10px]' : 'text-xs'}`}
@@ -2250,6 +2361,14 @@ interface GuildDashboardProps {
     onDonationComplete?: (coins: number, research: number, type: 'gold' | 'diamond') => void;
 }
 
+type GuildMobileMainTab = 'home' | 'boss' | 'war';
+
+const GUILD_MOBILE_MAIN_TABS: { id: GuildMobileMainTab; label: string }[] = [
+    { id: 'home', label: '길드홈' },
+    { id: 'boss', label: '길드보스전' },
+    { id: 'war', label: '길드전쟁' },
+];
+
 export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDonationAnimation, onDonationComplete }) => {
     const { currentUserWithStatus, handlers, guilds, isNativeMobile: isGuildPhone, modals } = useAppContext();
     const activeQuickUtilityPanel = modals.activeQuickUtilityPanel;
@@ -2289,6 +2408,7 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
     const [isShopOpen, setIsShopOpen] = useState(false);
     const [isMobileDonationOpen, setIsMobileDonationOpen] = useState(false);
     const [isIconSelectOpen, setIsIconSelectOpen] = useState(false);
+    const [guildMobileMainTab, setGuildMobileMainTab] = useState<GuildMobileMainTab>('home');
     const goldButtonRef = useRef<HTMLDivElement>(null);
     const diamondButtonRef = useRef<HTMLDivElement>(null);
     const [goldButtonPos, setGoldButtonPos] = useState<{ top: number; left: number } | null>(null);
@@ -2556,15 +2676,25 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                         )}
                     </div>
                     <div className="flex min-w-0 flex-1 flex-col justify-center gap-1">
-                        <h1
-                            className="w-full min-w-0 font-bold text-highlight drop-shadow-md flex flex-wrap items-center justify-center text-center gap-x-1.5 gap-y-0.5"
-                            title={guildDisplayName ? `Lv.${guildLevel} ${guildDisplayName}` : ''}
-                        >
-                            <span className="shrink-0 text-sm font-semibold text-secondary tabular-nums">Lv.{guildLevel}</span>
-                            <span className="min-w-0 max-w-full truncate text-base">
-                                {currentGuild ? guildDisplayName : '로딩 중...'}
-                            </span>
-                        </h1>
+                        <div className="flex min-w-0 items-center gap-1.5">
+                            <h1
+                                className="min-w-0 flex-1 font-bold text-highlight drop-shadow-md flex flex-wrap items-center justify-center text-center gap-x-1.5 gap-y-0.5"
+                                title={guildDisplayName ? `Lv.${guildLevel} ${guildDisplayName}` : ''}
+                            >
+                                <span className="shrink-0 text-sm font-semibold text-secondary tabular-nums">Lv.{guildLevel}</span>
+                                <span className="min-w-0 max-w-full truncate text-base">
+                                    {currentGuild ? guildDisplayName : '로딩 중...'}
+                                </span>
+                            </h1>
+                            <button
+                                type="button"
+                                onClick={() => setIsMobileDonationOpen(true)}
+                                title="길드 기부"
+                                className={`${getLuxuryButtonClasses('accent')} shrink-0 !px-2 !py-1.5 !text-[11px] !leading-tight`}
+                            >
+                                💰 기부
+                            </button>
+                        </div>
                         <div className="w-full min-w-0 px-0">
                             <div className="w-full bg-gray-700/50 rounded-full h-2 sm:h-2.5 border border-gray-600/50 overflow-hidden shadow-inner">
                                 <div
@@ -2581,52 +2711,65 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                 </div>
             </header>
 
-            <main className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
-                <div className="grid flex-shrink-0 grid-cols-2 items-stretch gap-2">
-                    <GuildCheckInPanel guild={currentGuild || guild} />
+            <div className="mb-2 grid shrink-0 grid-cols-3 gap-0.5 rounded-xl border border-stone-600/35 bg-stone-950/70 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ring-1 ring-inset ring-amber-500/[0.08] backdrop-blur-sm">
+                {GUILD_MOBILE_MAIN_TABS.map((tab) => (
                     <button
+                        key={tab.id}
                         type="button"
-                        onClick={() => setIsMobileDonationOpen(true)}
-                        className="flex min-h-0 flex-col overflow-hidden rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/85 via-neutral-800/80 to-stone-900/85 p-2 text-left shadow-lg transition-all hover:brightness-110 active:scale-[0.99]"
+                        onClick={() => setGuildMobileMainTab(tab.id)}
+                        className={`rounded-lg px-1 py-1.5 text-[11px] font-semibold leading-tight transition-all ${
+                            guildMobileMainTab === tab.id
+                                ? 'bg-gradient-to-b from-amber-500/90 to-amber-700/95 text-amber-950 shadow-md ring-1 ring-amber-300/40'
+                                : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
+                        }`}
                     >
-                        <div className="mb-1 flex items-center gap-1.5 text-sm font-bold text-highlight">
-                            <span>💰</span>
-                            <span>길드 기부</span>
-                        </div>
-                        <p className="text-[11px] leading-snug text-tertiary">탭하여 골드·다이아 기부</p>
+                        {tab.label}
                     </button>
-                </div>
-                <GuildAnnouncementPanel guild={currentGuild || guild} compact stretch canEdit={canManage} />
-                <div className="grid flex-shrink-0 grid-cols-4 gap-1.5">
-                    {guildHomeActions.map((act) => (
-                        <button
-                            key={act.key}
-                            type="button"
-                            onClick={act.action}
-                            title={act.name}
-                            className="relative flex min-h-0 flex-col items-center justify-center gap-1 rounded-lg border border-stone-600/50 bg-gradient-to-br from-stone-800/85 to-stone-900/80 px-1 py-1.5 transition-all hover:brightness-110 active:scale-[0.98]"
-                        >
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-stone-600/40 bg-stone-700/50">
-                                <img src={act.icon} alt="" className="h-8 w-8 object-contain drop-shadow-md" />
-                            </div>
-                            <span className="max-w-full break-keep px-0.5 text-center text-[10px] font-semibold leading-tight text-highlight">
-                                {act.name}
-                            </span>
-                            {act.notification && (
-                                <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full border border-stone-800 bg-red-500 shadow-sm" aria-hidden />
-                            )}
-                        </button>
-                    ))}
-                </div>
-                <div className="flex min-h-0 flex-1 flex-col gap-2">
+                ))}
+            </div>
+
+            <main className={`flex min-h-0 flex-1 flex-col gap-2 overflow-x-hidden overscroll-y-contain ${guildMobileMainTab === 'boss' || guildMobileMainTab === 'war' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+                {guildMobileMainTab === 'home' ? (
+                    <>
+                        <div className="grid flex-shrink-0 grid-cols-4 gap-1.5">
+                            {guildHomeActions.map((act) => (
+                                <button
+                                    key={act.key}
+                                    type="button"
+                                    onClick={act.action}
+                                    title={act.name}
+                                    className="relative flex min-h-0 flex-col items-center justify-center gap-1 rounded-lg border border-stone-600/50 bg-gradient-to-br from-stone-800/85 to-stone-900/80 px-1 py-1.5 transition-all hover:brightness-110 active:scale-[0.98]"
+                                >
+                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-stone-600/40 bg-stone-700/50">
+                                        <img src={act.icon} alt="" className="h-8 w-8 object-contain drop-shadow-md" />
+                                    </div>
+                                    <span className="max-w-full break-keep px-0.5 text-center text-[10px] font-semibold leading-tight text-highlight">
+                                        {act.name}
+                                    </span>
+                                    {act.notification && (
+                                        <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full border border-stone-800 bg-red-500 shadow-sm" aria-hidden />
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="flex-shrink-0">
+                            <GuildCheckInPanel guild={currentGuild || guild} />
+                        </div>
+                        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+                            <GuildAnnouncementPanel guild={currentGuild || guild} compact stretch canEdit={canManage} />
+                        </div>
+                    </>
+                ) : null}
+                {guildMobileMainTab === 'boss' ? (
                     <BossPanel
                         guild={currentGuild || guild}
-                        className="min-h-[280px]"
-                        forceDesktopPanelLayout
+                        className="min-h-0 flex-1 overflow-hidden"
                         onOpenBossGuide={() => setIsBossGuideOpen(true)}
                     />
-                    <WarPanel guild={currentGuild || guild} className="min-h-[280px]" forceDesktopPanelLayout />
-                </div>
+                ) : null}
+                {guildMobileMainTab === 'war' ? (
+                    <WarPanel guild={currentGuild || guild} className="min-h-0 flex-1 overflow-hidden w-full" />
+                ) : null}
             </main>
             </>
             )}

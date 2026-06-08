@@ -15,6 +15,7 @@ import {
     PAIR_PET_MANAGEMENT_MODAL_WIDTH_MOBILE,
     PAIR_PET_MODAL_MOBILE_BOTTOM_GAP_PX,
     PAIR_PET_MODAL_MOBILE_MAX_HEIGHT_CSS,
+    PAIR_PET_MODAL_MOBILE_DEFAULT_Y_OFFSET,
 } from '../shared/constants/pairPetModal.js';
 import type { ServerAction } from '../types.js';
 import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../shared/constants/pcShellLayout.js';
@@ -77,10 +78,13 @@ const PetManagementModal: React.FC<PetManagementModalProps> = ({ onClose, isTopm
             isTopmost={isTopmost}
             variant="store"
             mobileViewportFit={isMobile}
-            mobileViewportMaxHeightVh={99}
+            mobileViewportMaxHeightVh={96}
             mobileViewportMaxHeightCss={PAIR_PET_MODAL_MOBILE_MAX_HEIGHT_CSS}
             mobileViewportDvhBottomGapPx={PAIR_PET_MODAL_MOBILE_BOTTOM_GAP_PX}
             mobileLockViewportHeight={isMobile}
+            defaultPosition={isMobile ? { x: 0, y: PAIR_PET_MODAL_MOBILE_DEFAULT_Y_OFFSET } : undefined}
+            skipSavedPosition={isMobile}
+            containerExtraClassName={isNativeMobile ? '!max-w-[100vw]' : undefined}
             bodyPaddingClassName="!p-0"
             bodyScrollable
             bodyNoScroll

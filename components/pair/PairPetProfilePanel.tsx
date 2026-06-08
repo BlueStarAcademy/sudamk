@@ -41,6 +41,8 @@ export interface PairPetProfilePanelProps {
     petManagementModal?: boolean;
     /** 홈 좌측 하단: 좌측 펫 정보·우측 바둑능력 분리, 글자 크기 통일 */
     profileHomeFooter?: boolean;
+    /** 네이티브 홈 배너 50% 칸: 아바타·한 줄 중앙 정렬 */
+    profileHomeBannerAside?: boolean;
 }
 
 const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
@@ -59,31 +61,36 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
     readOnly = false,
     petManagementModal = false,
     profileHomeFooter = false,
+    profileHomeBannerAside = false,
 }) => {
     const lineFontMax =
-        profileHomeFooter
-            ? 14
-            : pairLobbyProminent && !compact
-              ? 17
-              : petManagementModal && compact
-                ? 14.5
-                : homeColumn && compact
-                  ? 9.75
-                  : compact
-                    ? 11.5
-                    : PET_PROFILE_LINE_FONT_MAX;
-    const lineFontMin =
-        profileHomeFooter
+        profileHomeBannerAside
             ? 11.5
-            : pairLobbyProminent && !compact
-              ? 8
-              : petManagementModal && compact
-                ? 7.5
-                : homeColumn && compact
-                  ? 5.25
-                  : compact
-                    ? 6
-                    : PET_PROFILE_LINE_FONT_MIN;
+            : profileHomeFooter
+              ? 14
+              : pairLobbyProminent && !compact
+                ? 17
+                : petManagementModal && compact
+                  ? 14.5
+                  : homeColumn && compact
+                    ? 9.75
+                    : compact
+                      ? 11.5
+                      : PET_PROFILE_LINE_FONT_MAX;
+    const lineFontMin =
+        profileHomeBannerAside
+            ? 7.5
+            : profileHomeFooter
+              ? 11.5
+              : pairLobbyProminent && !compact
+                ? 8
+                : petManagementModal && compact
+                  ? 7.5
+                  : homeColumn && compact
+                    ? 5.25
+                    : compact
+                      ? 6
+                      : PET_PROFILE_LINE_FONT_MIN;
     const equippedTid = currentUser.equippedPairPetTemplateId ?? null;
     const equippedDef = equippedTid ? getPairPetDefinition(equippedTid) : null;
     const equippedItem = useMemo(
@@ -152,14 +159,17 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
         showRepresentativeBadge,
         homeColumn,
         profileHomeFooter,
+        profileHomeBannerAside,
         pairLobbyProminent,
         compact,
     ]);
 
     const panelClassName = embed
-        ? profileHomeFooter
-          ? 'shrink-0 rounded-lg border-0 bg-transparent px-1 py-1.5 shadow-none'
-          : 'shrink-0 rounded-lg border-0 bg-transparent p-0 shadow-none'
+        ? profileHomeBannerAside
+          ? 'shrink-0 rounded-lg border-0 bg-transparent p-0 shadow-none'
+          : profileHomeFooter
+            ? 'shrink-0 rounded-lg border-0 bg-transparent px-1 py-1.5 shadow-none'
+            : 'shrink-0 rounded-lg border-0 bg-transparent p-0 shadow-none'
         : pairLobbyProminent && !compact
           ? 'shrink-0 rounded-xl border border-violet-400/35 bg-gradient-to-br from-violet-950/50 via-black/40 to-fuchsia-950/30 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 ring-inset ring-violet-400/10 sm:p-3'
           : compact
@@ -167,15 +177,17 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
             : 'shrink-0 rounded-lg border border-violet-400/25 bg-gradient-to-br from-violet-950/40 via-black/35 to-fuchsia-950/25 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:p-2.5';
 
     const avatarSize =
-        profileHomeFooter
-            ? 44
-            : pairLobbyProminent && !compact
-              ? 52
-              : homeColumn && compact
-                ? 28
-                : compact
-                  ? 32
-                  : 40;
+        profileHomeBannerAside
+            ? 34
+            : profileHomeFooter
+              ? 44
+              : pairLobbyProminent && !compact
+                ? 52
+                : homeColumn && compact
+                  ? 28
+                  : compact
+                    ? 32
+                    : 40;
     const detailBtnText = detailButtonLabel ?? (homeColumn && compact ? '상세' : '상세정보');
 
     const identityLineClass =
@@ -243,7 +255,36 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
         </div>
     );
 
-    const body = profileHomeFooter ? (
+    const body = profileHomeBannerAside ? (
+        <div className="flex min-w-0 w-full flex-col items-center justify-center gap-1 px-0.5 py-0.5">
+            {equippedItem && petAvatarUrl ? (
+                <Avatar
+                    userId={`pet-ai-${currentUserId}`}
+                    userName={displayName}
+                    size={avatarSize}
+                    avatarUrl={petAvatarUrl}
+                    className="shrink-0 ring-2 ring-violet-400/40"
+                />
+            ) : (
+                <div
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-dashed border-violet-300/45 bg-black/35 shadow-inner ring-2 ring-violet-400/25"
+                    title={emptyTitle}
+                    aria-label={emptyTitle}
+                >
+                    <div className="h-5 w-5 rounded-md border border-violet-200/45 bg-violet-950/35" />
+                </div>
+            )}
+            {equippedItem ? (
+                <div ref={lineOuterRef} className="flex w-full min-w-0 justify-center overflow-hidden">
+                    {renderIdentityLine(lineFontMax)}
+                </div>
+            ) : (
+                <p className="w-full text-center text-[10px] font-semibold leading-snug text-violet-200/95 sm:text-[11px]">
+                    대표펫을 지정해 주세요.
+                </p>
+            )}
+        </div>
+    ) : profileHomeFooter ? (
         <div className="flex min-h-[3.75rem] min-w-0 w-full flex-nowrap items-center gap-2 overflow-visible sm:gap-2.5">
             {equippedItem && petAvatarUrl ? (
                 <Avatar

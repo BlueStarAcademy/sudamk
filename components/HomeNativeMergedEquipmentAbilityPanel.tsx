@@ -157,6 +157,7 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
 }) => {
     const ch = compactLayout;
     const gb = guildBossPanel;
+    const bannerSplit = Boolean(bannerAside);
     const getItemForSlot = (slot: EquipmentSlot) => equippedItems.find((it) => it.slot === slot);
 
     const mergeEquipScale = gb
@@ -231,14 +232,49 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
         </div>
     );
 
-    const bannerBlock = (
-        <div
-            className={`flex w-full min-w-0 shrink-0 items-stretch ${bannerAside ? 'gap-1 sm:gap-1.5' : ''}`}
-        >
+    const bannerBlock = bannerSplit ? (
+        <div className="grid w-full min-w-0 shrink-0 grid-cols-2 items-stretch gap-1 sm:gap-1.5">
             <div
-                className={`relative min-w-0 rounded-xl border border-amber-600/45 bg-gradient-to-r from-zinc-800 via-zinc-900 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ${
-                    bannerAside ? 'flex-1' : 'w-full'
-                } ${
+                className={`relative flex min-h-0 min-w-0 flex-col items-center justify-center rounded-xl border border-amber-600/45 bg-gradient-to-r from-zinc-800 via-zinc-900 to-zinc-950 px-1 py-1 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] sm:px-1.5 sm:py-1.5`}
+            >
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/40 to-transparent" aria-hidden />
+                <div className="relative flex w-full min-w-0 flex-col items-center gap-0.5">
+                    <span
+                        className="shrink-0 bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200/90 bg-clip-text text-[10px] font-bold tracking-tight text-transparent drop-shadow-[0_0_20px_rgba(251,191,36,0.22)] sm:text-xs"
+                        title="6개 핵심 능력치 합계"
+                    >
+                        바둑능력
+                    </span>
+                    <span
+                        className="min-w-0 font-mono text-base font-black tabular-nums leading-none text-amber-100 drop-shadow-[0_1px_0_rgba(0,0,0,0.35)] sm:text-lg"
+                        title="6개 핵심 능력치 합계"
+                    >
+                        {badukAbilityTotal}
+                    </span>
+                </div>
+                <div className="relative mt-1 flex w-full min-w-0 flex-wrap items-center justify-center gap-x-1 gap-y-0.5">
+                    <span
+                        className="whitespace-nowrap text-[10px] font-medium text-amber-100/90 sm:text-[11px]"
+                        title={`보너스: ${availablePoints}P`}
+                    >
+                        보너스 <span className="font-bold tabular-nums text-emerald-300">{availablePoints}</span>
+                        <span className="text-amber-100/50">P</span>
+                    </span>
+                    <Button
+                        onClick={onOpenStatAllocation}
+                        colorScheme="none"
+                        className="!shrink-0 !whitespace-nowrap !rounded-lg !border-2 !border-cyan-300/65 !bg-gradient-to-r !from-indigo-500 !via-violet-500 !to-fuchsia-500 !px-2 !py-0.5 !text-[10px] !font-bold !text-white !shadow-[0_10px_26px_-10px_rgba(99,102,241,0.75)] hover:!brightness-110 sm:!px-2.5 sm:!py-1 sm:!text-[11px]"
+                    >
+                        분배
+                    </Button>
+                </div>
+            </div>
+            <div className="flex min-h-0 min-w-0 flex-col items-center justify-center self-stretch">{bannerAside}</div>
+        </div>
+    ) : (
+        <div className="flex w-full min-w-0 shrink-0 items-stretch">
+            <div
+                className={`relative min-w-0 w-full rounded-xl border border-amber-600/45 bg-gradient-to-r from-zinc-800 via-zinc-900 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ${
                     gb
                         ? 'px-2 py-1 sm:px-2.5'
                         : lobbyChampionshipUser
@@ -294,9 +330,6 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
                     </div>
                 </div>
             </div>
-            {bannerAside ? (
-                <div className="flex min-h-0 w-[min(42%,9.5rem)] shrink-0 flex-col justify-stretch self-stretch">{bannerAside}</div>
-            ) : null}
         </div>
     );
 
@@ -314,18 +347,22 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
             ? 'shrink-0 whitespace-nowrap text-left text-sm font-semibold leading-snug text-slate-300'
             : lobbyChampionshipUser
               ? 'max-w-[46%] truncate text-left text-[10px] font-semibold leading-tight text-slate-300 sm:text-[11px]'
-              : 'max-w-[58%] truncate text-left text-[11px] font-semibold leading-snug text-slate-300 sm:text-xs';
+              : ch
+                ? 'max-w-[58%] truncate text-left text-xs font-semibold leading-snug text-slate-300 sm:text-sm'
+                : 'max-w-[58%] truncate text-left text-[11px] font-semibold leading-snug text-slate-300 sm:text-xs';
         const statValueClass = gb
             ? 'font-mono text-sm font-bold tabular-nums text-amber-100 sm:text-base'
             : lobbyChampionshipUser
               ? 'font-mono text-[11px] font-bold tabular-nums text-amber-100 sm:text-xs'
-              : 'font-mono text-xs font-bold tabular-nums text-amber-100 sm:text-sm';
+              : ch
+                ? 'font-mono text-sm font-bold tabular-nums text-amber-100 sm:text-base'
+                : 'font-mono text-xs font-bold tabular-nums text-amber-100 sm:text-sm';
         const statBonusClass = gb
             ? 'shrink-0 font-mono text-xs font-semibold tabular-nums text-emerald-400/95 sm:text-sm'
             : lobbyChampionshipUser
               ? 'shrink-0 font-mono text-[9px] font-semibold tabular-nums text-emerald-400/95 sm:text-[10px]'
               : ch
-                ? 'shrink-0 font-mono text-[10px] font-semibold tabular-nums text-emerald-400/95 sm:text-[11px]'
+                ? 'shrink-0 font-mono text-[11px] font-semibold tabular-nums text-emerald-400/95 sm:text-xs'
                 : 'shrink-0 font-mono text-[10px] font-semibold tabular-nums text-emerald-400/95 sm:text-xs';
         const rowShell = gb
             ? 'flex flex-row items-center justify-between gap-1.5 rounded-md border border-white/10 bg-black/30 px-1.5 py-0.5 sm:px-2 sm:py-1'

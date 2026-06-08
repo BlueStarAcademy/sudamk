@@ -79,35 +79,69 @@ const AdventureProfilePanel: React.FC<{
     const understandingStatRowCls =
         'flex items-center justify-between gap-2 rounded-md border border-white/8 bg-black/25 px-2 py-1.5 text-xs sm:text-sm';
 
+    const battleRecordRowCls =
+        'flex min-w-0 items-center justify-between gap-2 rounded-lg border border-white/10 bg-black/30 px-2 py-1.5';
+
     const adventureBattleRecordPanel = (
         <div
             className={`w-full min-w-0 rounded-xl border border-cyan-500/30 bg-gradient-to-br from-cyan-950/35 via-zinc-950/80 to-zinc-950/95 ${panelPad}`}
         >
             <p className={`${labelCls} text-center`}>모험 전적</p>
-            <div className="mt-2 grid grid-cols-2 gap-2">
-                {battleRecord.byMode.map((row) => (
-                    <div
-                        key={row.mode}
-                        className="flex min-w-0 flex-col items-center justify-center rounded-lg border border-white/10 bg-black/30 px-2 py-2 text-center"
-                        title={`${row.label} ${formatAdventureModeWinLossRecord(row.wins, row.losses, row.winRatePercent)}`}
-                    >
-                        <span className={modeLabelCls}>{row.label}</span>
-                        <span className={`mt-0.5 ${modeValueCls}`}>
-                            {formatAdventureModeWinLossRecord(row.wins, row.losses, row.winRatePercent)}
-                        </span>
+            {mobileOneScreen ? (
+                <>
+                    <div className="mt-2 grid grid-cols-2 gap-1.5">
+                        {battleRecord.byMode.map((row) => (
+                            <div
+                                key={row.mode}
+                                className={battleRecordRowCls}
+                                title={`${row.label} ${formatAdventureModeWinLossRecord(row.wins, row.losses, row.winRatePercent)}`}
+                            >
+                                <span className={`min-w-0 truncate ${modeLabelCls}`}>{row.label}</span>
+                                <span className={`shrink-0 text-right ${modeValueCls}`}>
+                                    {formatAdventureModeWinLossRecord(row.wins, row.losses, row.winRatePercent)}
+                                </span>
+                            </div>
+                        ))}
                     </div>
-                ))}
-            </div>
-            <div className="mt-2 grid grid-cols-2 gap-2">
-                <div className="flex flex-col items-center justify-center rounded-lg border border-emerald-500/30 bg-emerald-950/30 px-2.5 py-2 text-center">
-                    <p className={statLabelCls}>잡은 몬스터</p>
-                    <p className={`mt-0.5 text-emerald-200 ${statValueCls}`}>{battleRecord.caught.toLocaleString()}</p>
-                </div>
-                <div className="flex flex-col items-center justify-center rounded-lg border border-rose-500/30 bg-rose-950/25 px-2.5 py-2 text-center">
-                    <p className={statLabelCls}>놓친 몬스터</p>
-                    <p className={`mt-0.5 text-rose-200 ${statValueCls}`}>{battleRecord.missed.toLocaleString()}</p>
-                </div>
-            </div>
+                    <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+                        <div className={`${battleRecordRowCls} border-emerald-500/30 bg-emerald-950/30`}>
+                            <p className={`min-w-0 truncate ${statLabelCls}`}>잡은 몬스터</p>
+                            <p className={`shrink-0 text-emerald-200 ${statValueCls}`}>{battleRecord.caught.toLocaleString()}</p>
+                        </div>
+                        <div className={`${battleRecordRowCls} border-rose-500/30 bg-rose-950/25`}>
+                            <p className={`min-w-0 truncate ${statLabelCls}`}>놓친 몬스터</p>
+                            <p className={`shrink-0 text-rose-200 ${statValueCls}`}>{battleRecord.missed.toLocaleString()}</p>
+                        </div>
+                    </div>
+                </>
+            ) : (
+                <>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                        {battleRecord.byMode.map((row) => (
+                            <div
+                                key={row.mode}
+                                className="flex min-w-0 flex-col items-center justify-center rounded-lg border border-white/10 bg-black/30 px-2 py-2 text-center"
+                                title={`${row.label} ${formatAdventureModeWinLossRecord(row.wins, row.losses, row.winRatePercent)}`}
+                            >
+                                <span className={modeLabelCls}>{row.label}</span>
+                                <span className={`mt-0.5 ${modeValueCls}`}>
+                                    {formatAdventureModeWinLossRecord(row.wins, row.losses, row.winRatePercent)}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                        <div className="flex flex-col items-center justify-center rounded-lg border border-emerald-500/30 bg-emerald-950/30 px-2.5 py-2 text-center">
+                            <p className={statLabelCls}>잡은 몬스터</p>
+                            <p className={`mt-0.5 text-emerald-200 ${statValueCls}`}>{battleRecord.caught.toLocaleString()}</p>
+                        </div>
+                        <div className="flex flex-col items-center justify-center rounded-lg border border-rose-500/30 bg-rose-950/25 px-2.5 py-2 text-center">
+                            <p className={statLabelCls}>놓친 몬스터</p>
+                            <p className={`mt-0.5 text-rose-200 ${statValueCls}`}>{battleRecord.missed.toLocaleString()}</p>
+                        </div>
+                    </div>
+                </>
+            )}
         </div>
     );
 

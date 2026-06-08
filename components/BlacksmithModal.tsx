@@ -472,7 +472,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
                     isBlacksmithBusy={isBlacksmithBusy}
                 />
             );
-            case 'convert': return <ConversionView onAction={handleActionWrapper} pcViewer={pcViewer} stackedViewport={useStackedBlacksmithLayout} isBlacksmithBusy={isBlacksmithBusy} />;
+            case 'convert': return <ConversionView onAction={handleActionWrapper} />;
             case 'refine': return <RefinementView 
                 selectedItem={selectedItem} 
                 currentUser={currentUserWithStatus} 
@@ -540,7 +540,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
     }, [activeTab]);
     /** 재료 변환만 그리드·스크롤용 최소 높이; 장비 탭(선택/작업 안내)은 콘텐츠 높이로 두어 하단 여백 제거 */
     const mobileViewerMinH =
-        activeTab === 'convert' ? 'clamp(14rem, 38dvh, 22rem)' : undefined;
+        activeTab === 'convert' ? 'clamp(9.5rem, 28dvh, 17rem)' : undefined;
     const stackedMobileFillHeight = useStackedBlacksmithLayout && activeTab === 'convert';
     const pcViewer = !useStackedBlacksmithLayout;
     const inventoryViewportRef = useRef<HTMLDivElement>(null);
