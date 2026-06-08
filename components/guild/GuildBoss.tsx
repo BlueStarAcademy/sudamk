@@ -28,12 +28,17 @@ import { computeCoreStatFinalFromBonuses } from '../../shared/utils/coreStatComp
 import Avatar from '../Avatar.js';
 import UserNicknameText from '../UserNicknameText.js';
 import { GUILD_ATTACK_ICON, GUILD_RESEARCH_HEAL_BLOCK_IMG, GUILD_RESEARCH_IGNITE_IMG, GUILD_RESEARCH_REGEN_IMG } from '../../assets.js';
-import RadarChart from '../RadarChart.js';
 import GuildBossBattleResultModal from './GuildBossBattleResultModal.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import { LOBBY_MOBILE_BTN_PRIMARY_CLASS, PRE_GAME_MODAL_PRIMARY_BTN_CLASS } from '../game/PreGameDescriptionLayout.js';
 
 const CORE_STAT_CAP = 1500;
+/** 모바일 보스전: 보스·유저(및 하단 로그) 가로 비율 4.5 : 5.5 */
+const GUILD_BOSS_MOBILE_BOSS_COLUMN_CLASS = 'min-w-0 basis-0 flex-[4.5]';
+const GUILD_BOSS_MOBILE_USER_COLUMN_CLASS = 'min-w-0 basis-0 flex-[5.5]';
+/** PC 보스전: 보스·유저 열 가로 비율 4.5 : 5.5 (중앙 로그는 flex-1) */
+const GUILD_BOSS_DESKTOP_BOSS_RAIL_CLASS = 'w-[calc(17.5rem*4.5/5.5)] shrink-0';
+const GUILD_BOSS_DESKTOP_USER_RAIL_CLASS = 'w-[min(22rem,17.5rem)] min-w-[17.5rem] shrink-0';
 
 const getResearchSkillDisplay = (researchId: GuildResearchId, level: number): { chance?: number; description: string; } | null => {
     if (level === 0) return null;
@@ -192,12 +197,6 @@ const UserStatsPanel: React.FC<UserStatsPanelProps> = ({ user, guild, hp, maxHp,
     const avatarUrl = useMemo(() => AVATAR_POOL.find(a => a.id === user.avatarId)?.url, [user.avatarId]);
     const borderUrl = useMemo(() => BORDER_POOL.find(b => b.id === user.borderId)?.url, [user.borderId]);
 
-    const radarDataset = useMemo(() => [{
-        stats: totalStats,
-        color: '#60a5fa',
-        fill: 'rgba(59, 130, 246, 0.4)',
-    }], [totalStats]);
-    
     const equippedItems = useMemo(() => {
         return (user.inventory || []).filter(item => item.isEquipped);
     }, [user.inventory]);
@@ -272,44 +271,40 @@ const UserStatsPanel: React.FC<UserStatsPanelProps> = ({ user, guild, hp, maxHp,
                 </div>
             </div>
             
-            <div className={`flex flex-row items-center ${compact ? 'gap-1.5 mb-1' : 'gap-2 mb-2'}`}>
-                <div className="w-1/2 flex justify-center">
-                    <RadarChart datasets={radarDataset} maxStatValue={CORE_STAT_CAP} size={compact ? 88 : 150} />
+            <div className={`flex flex-row items-stretch ${compact ? 'gap-1.5 mb-1' : 'gap-2 mb-2'}`}>
+                <div className={`grid shrink-0 grid-cols-2 ${compact ? 'w-[5.35rem] gap-0.5' : 'w-[8.1rem] gap-1'}`}>
+                    {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map((slot) => (
+                        <div key={slot} className="w-full">
+                            <EquipmentSlotDisplay
+                                slot={slot}
+                                item={getItemForSlot(slot)}
+                                onClick={() => {
+                                    const item = getItemForSlot(slot);
+                                    if (item) handlers.openViewingItem(item, true);
+                                }}
+                            />
+                        </div>
+                    ))}
                 </div>
-                <div className={`w-1/2 grid grid-cols-1 gap-1 ${compact ? 'text-[10px]' : 'text-xs'}`}>
+                <div className={`min-w-0 flex-1 grid grid-cols-1 gap-1 ${compact ? 'text-[10px]' : 'text-xs'}`}>
                     {Object.values(CoreStat).map(stat => {
                         const bonus = equipmentBonuses[stat] || 0;
                         const isDebuffed = stat === CoreStat.CombatPower && activeDebuffs['user_combat_power_reduction_percent']?.turns > 0;
                         const statValue = Number(totalStats[stat]) || 0;
                         const isCapped = statValue >= CORE_STAT_CAP;
                         return (
-                            <div key={stat} className={`flex justify-between items-center bg-tertiary/40 rounded-md ${compact ? 'p-0.5' : 'p-1'}`}>
-                                <span className={`font-semibold text-secondary ${isDebuffed ? 'text-red-400' : ''}`}>{stat}</span>
-                                <div className="flex items-baseline">
+                            <div key={stat} className={`flex items-center justify-between gap-1.5 whitespace-nowrap bg-tertiary/40 rounded-md ${compact ? 'px-1 py-0.5' : 'px-1.5 py-1'}`}>
+                                <span className={`shrink-0 font-semibold text-secondary ${isDebuffed ? 'text-red-400' : ''}`}>{stat}</span>
+                                <div className="flex shrink-0 items-baseline tabular-nums">
                                     <span className={`font-mono font-bold ${isDebuffed || isCapped ? 'text-red-400' : 'text-primary'}`}>
                                         {isCapped ? CORE_STAT_CAP : statValue}
                                     </span>
-                                    {bonus > 0 && <span className="font-mono text-xs text-green-400 ml-0.5">(+{bonus})</span>}
+                                    {bonus > 0 && <span className={`font-mono text-green-400 ${compact ? 'ml-0.5 text-[9px]' : 'ml-0.5 text-xs'}`}>(+{bonus})</span>}
                                 </div>
                             </div>
                         );
                     })}
                 </div>
-            </div>
-            
-            <div className={`grid grid-cols-6 px-1 ${compact ? 'gap-0.5' : 'gap-1'}`}>
-                {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => (
-                    <div key={slot} className="w-full">
-                        <EquipmentSlotDisplay
-                            slot={slot}
-                            item={getItemForSlot(slot)}
-                            onClick={() => {
-                                const item = getItemForSlot(slot);
-                                if (item) handlers.openViewingItem(item, true);
-                            }}
-                        />
-                    </div>
-                ))}
             </div>
             
             <div className={`flex items-center justify-end gap-2 ${compact ? 'mt-1' : 'mt-2'}`}>
@@ -503,12 +498,12 @@ const BossPanel: React.FC<BossPanelProps> = ({ boss, hp, maxHp, difficultyStage,
     return (
         <div className={`flex h-full flex-col ${compact ? 'min-h-0 gap-1' : 'gap-2'}`}>
             <div
-                className={`relative min-h-0 group ${compact ? 'flex min-h-0 flex-1 flex-col' : 'flex-shrink-0'}`}
+                className={`relative min-h-0 group ${compact ? 'flex min-h-0 flex-1 flex-col items-center justify-center' : 'flex-shrink-0'}`}
             >
                 <img
                     src={boss.image}
                     alt={boss.name}
-                    className={`mx-auto w-full rounded-lg object-contain ${compact ? 'min-h-0 flex-1' : 'max-h-[min(72vh,640px)]'}`}
+                    className={`mx-auto rounded-lg object-contain ${compact ? 'h-full w-auto max-w-full min-h-0' : 'h-auto w-full max-w-full max-h-[min(72vh,640px)]'}`}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/50 rounded-lg pointer-events-none"></div>
                 
@@ -1117,7 +1112,7 @@ const GuildBoss: React.FC = () => {
             {isNativeMobile ? (
                 <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-1.5">
                     <div className="flex min-h-0 flex-1 flex-row gap-1.5 overflow-hidden">
-                        <div className="flex min-h-0 w-[50%] max-w-[50%] flex-col gap-1.5 overflow-hidden">
+                        <div className={`flex min-h-0 ${GUILD_BOSS_MOBILE_BOSS_COLUMN_CLASS} flex-col gap-1.5 overflow-hidden`}>
                             <div className="min-h-0 flex-[1.55] overflow-hidden">
                                 <BossPanel
                                     boss={currentBoss}
@@ -1137,7 +1132,7 @@ const GuildBoss: React.FC = () => {
                                 />
                             </div>
                         </div>
-                        <div className="flex min-h-0 min-w-0 w-[50%] max-w-[50%] flex-1 flex-col overflow-y-auto overflow-x-hidden">
+                        <div className={`flex min-h-0 ${GUILD_BOSS_MOBILE_USER_COLUMN_CLASS} flex-col overflow-y-auto overflow-x-hidden`}>
                             <UserStatsPanel
                                 user={currentUserWithStatus}
                                 guild={myGuild}
@@ -1157,7 +1152,7 @@ const GuildBoss: React.FC = () => {
                         className="flex min-h-0 shrink-0 basis-[min(30vh,200px)] flex-row gap-1.5"
                         aria-label="공격 정보"
                     >
-                        <div className="bg-panel border border-color flex min-h-0 min-w-0 flex-1 flex-col rounded-lg p-1.5">
+                        <div className={`bg-panel border border-color flex min-h-0 ${GUILD_BOSS_MOBILE_BOSS_COLUMN_CLASS} flex-col rounded-lg p-1.5`}>
                             <h3 className="mb-0.5 flex-shrink-0 text-center text-[11px] font-bold text-red-300">보스의 공격</h3>
                             <div
                                 ref={bossLogContainerRef}
@@ -1172,7 +1167,7 @@ const GuildBoss: React.FC = () => {
                                 ))}
                             </div>
                         </div>
-                        <div className="bg-panel border border-color flex min-h-0 min-w-0 flex-1 flex-col rounded-lg p-1.5">
+                        <div className={`bg-panel border border-color flex min-h-0 ${GUILD_BOSS_MOBILE_USER_COLUMN_CLASS} flex-col rounded-lg p-1.5`}>
                             <h3 className="mb-0.5 flex-shrink-0 text-center text-[11px] font-bold text-blue-300">나의 공격</h3>
                             <div
                                 ref={userLogContainerRef}
@@ -1204,7 +1199,7 @@ const GuildBoss: React.FC = () => {
                 </main>
             ) : (
             <main className="flex min-h-0 min-w-0 flex-1 flex-row gap-4">
-                <div className="flex w-[20%] min-w-0 shrink-0 flex-col gap-4">
+                <div className={`flex min-w-0 ${GUILD_BOSS_DESKTOP_BOSS_RAIL_CLASS} flex-col gap-4`}>
                     <BossPanel
                         boss={currentBoss}
                         hp={simulatedBossHp}
@@ -1242,7 +1237,7 @@ const GuildBoss: React.FC = () => {
                     </div>
                 </div>
                 
-                <div className="flex w-[26%] min-w-0 shrink-0 flex-col gap-4">
+                <div className={`flex min-w-0 ${GUILD_BOSS_DESKTOP_USER_RAIL_CLASS} flex-col gap-4`}>
                     <UserStatsPanel 
                         user={currentUserWithStatus} 
                         guild={myGuild} 

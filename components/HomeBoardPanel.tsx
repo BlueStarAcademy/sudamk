@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { HomeBoardPost } from '../types/entities.js';
 import DraggableWindow, { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from './DraggableWindow.js';
+import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 
 type BoardCategory = 'notice' | 'patch';
 
@@ -134,7 +135,9 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
     embedded = false,
     onClose,
 }) => {
+    const { isNativeMobile, isNarrowViewport } = useNativeMobileShell();
     const useCompactList = fitViewport && !modalMode && !embedded;
+    const useStackedPanels = !embedded && (isNativeMobile || isNarrowViewport);
     const [selectedPost, setSelectedPost] = useState<HomeBoardPost | null>(null);
     const [isManageOpen, setIsManageOpen] = useState(false);
     const [editingPost, setEditingPost] = useState<HomeBoardPost | null>(null);
@@ -642,8 +645,12 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
                         </div>
                     )}
                     {(!modalMode || !isManageOpen) && (
-                    <div className="grid min-h-0 flex-1 grid-cols-2 gap-2 overflow-hidden sm:gap-3">
-                        <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border border-cyan-400/25 bg-slate-900/20">
+                    <div
+                        className={`min-h-0 flex-1 overflow-hidden ${
+                            useStackedPanels ? 'flex flex-col gap-2' : 'grid grid-cols-2 gap-2 sm:gap-3'
+                        }`}
+                    >
+                        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-cyan-400/25 bg-slate-900/20">
                             <div
                                 className={`shrink-0 border-b border-cyan-400/20 ${useCompactList ? 'px-1.5 py-1' : modalMode ? 'px-3 py-2' : 'px-2 py-1.5'}`}
                             >
@@ -663,7 +670,11 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
                                 {renderPostList(noticePosts, '공지사항이 없습니다.')}
                             </div>
                         </div>
-                        <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border border-amber-400/25 bg-slate-900/20">
+                        <div
+                            className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-amber-400/25 bg-slate-900/20 ${
+                                useStackedPanels ? 'border-t border-amber-400/20 pt-0' : ''
+                            }`}
+                        >
                             <div
                                 className={`shrink-0 border-b border-amber-400/20 ${useCompactList ? 'px-1.5 py-1' : modalMode ? 'px-3 py-2' : 'px-2 py-1.5'}`}
                             >

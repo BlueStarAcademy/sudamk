@@ -235,10 +235,10 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
     const bannerBlock = bannerSplit ? (
         <div className="grid w-full min-w-0 shrink-0 grid-cols-2 items-stretch gap-1 sm:gap-1.5">
             <div
-                className={`relative flex min-h-0 min-w-0 flex-col items-center justify-center rounded-xl border border-amber-600/45 bg-gradient-to-r from-zinc-800 via-zinc-900 to-zinc-950 px-1 py-1 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] sm:px-1.5 sm:py-1.5`}
+                className={`relative flex min-h-0 min-w-0 flex-row items-stretch justify-center gap-2 rounded-xl border border-amber-600/45 bg-gradient-to-r from-zinc-800 via-zinc-900 to-zinc-950 px-2 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] sm:gap-2.5 sm:px-2.5 sm:py-1.5`}
             >
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/40 to-transparent" aria-hidden />
-                <div className="relative flex w-full min-w-0 flex-col items-center gap-0.5">
+                <div className="relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-center">
                     <span
                         className="shrink-0 bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200/90 bg-clip-text text-[10px] font-bold tracking-tight text-transparent drop-shadow-[0_0_20px_rgba(251,191,36,0.22)] sm:text-xs"
                         title="6개 핵심 능력치 합계"
@@ -252,7 +252,11 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
                         {badukAbilityTotal}
                     </span>
                 </div>
-                <div className="relative mt-1 flex w-full min-w-0 flex-wrap items-center justify-center gap-x-1 gap-y-0.5">
+                <div
+                    className="w-px shrink-0 self-stretch bg-gradient-to-b from-amber-600/5 via-amber-400/50 to-amber-600/5"
+                    aria-hidden
+                />
+                <div className="relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-center">
                     <span
                         className="whitespace-nowrap text-[10px] font-medium text-amber-100/90 sm:text-[11px]"
                         title={`보너스: ${availablePoints}P`}

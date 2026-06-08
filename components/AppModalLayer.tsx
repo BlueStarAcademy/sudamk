@@ -504,7 +504,6 @@ const AppModalLayer: React.FC = () => {
                 </Suspense>
             )}
             {modals.viewingGameRecord &&
-                !modals.isGameRecordListOpen &&
                 modals.activeQuickUtilityPanel !== 'gameRecords' && (
                 <Suspense fallback={ModalLoadingFallback()}>
                     <GameRecordViewerModal

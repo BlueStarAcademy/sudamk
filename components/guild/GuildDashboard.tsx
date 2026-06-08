@@ -1077,24 +1077,48 @@ const BossPanel: React.FC<{
                 </div>
 
                 <div className={`min-h-0 w-full flex-1 ${isMobile ? 'flex flex-col gap-1.5 overflow-hidden' : isCompact ? 'grid grid-cols-[1.1fr_1fr] gap-1.5 overflow-y-auto' : 'grid grid-cols-[1.3fr_1fr] gap-2 overflow-y-auto'}`}>
-                    <div className={`flex min-h-0 flex-col rounded-xl border border-stone-600/50 bg-black/20 ${isCompact ? 'p-1.5' : isMobile ? 'shrink min-h-0 p-1.5' : 'p-2'}`}>
-                        {isMobile ? (
-                            <div className="flex w-full min-h-0 flex-col">
-                                <div className="relative flex h-[18.5rem] w-full items-center justify-center overflow-hidden rounded-xl border border-stone-600/50 bg-gradient-to-br from-stone-700/50 to-stone-800/40 shadow-lg">
-                                    <div className="flex items-center justify-center gap-0">
-                                        <img src={currentBoss.image} alt={currentBoss.name} className="max-h-[15.5rem] w-auto max-w-[min(62vw,15.5rem)] shrink object-contain drop-shadow-lg" />
+                    {isMobile ? (
+                        <>
+                            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-stone-600/50 bg-black/20">
+                                <div className="relative flex min-h-0 flex-1 w-full flex-row items-stretch gap-1.5 overflow-hidden bg-gradient-to-br from-stone-700/50 to-stone-800/40 p-1.5">
+                                    <div className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden rounded-lg">
+                                        <img
+                                            src={currentBoss.image}
+                                            alt={currentBoss.name}
+                                            className="h-full w-full max-h-full object-contain object-center drop-shadow-lg"
+                                        />
+                                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/45" />
+                                        <div className="absolute inset-x-0 top-0 z-10 flex flex-col gap-0.5 bg-gradient-to-b from-black/88 via-black/55 to-transparent px-1 pb-2 pt-1">
+                                            <div
+                                                className="text-center text-[11px] font-bold tabular-nums text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]"
+                                                style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}
+                                            >
+                                                {formatHpWithK(remainingHp)} / {formatHpWithK(maxHp)} ({clampedHpPercent.toFixed(1)}%)
+                                            </div>
+                                            <div className="h-2 w-full overflow-hidden rounded-full border border-gray-600/60 bg-gray-800/85 shadow-inner">
+                                                <div
+                                                    className="h-full rounded-full bg-gradient-to-r from-amber-600 via-orange-500 to-amber-600 transition-all duration-500 shadow-[0_0_8px_rgba(217,119,6,0.5)]"
+                                                    style={{ width: `${clampedHpPercent}%` }}
+                                                />
+                                            </div>
+                                        </div>
                                         {currentBoss.skills && currentBoss.skills.length > 0 ? (
-                                            <div className="-ml-1 flex shrink-0 flex-col gap-1">
+                                            <div
+                                                className="absolute inset-x-0 bottom-1 z-10 flex flex-row flex-nowrap items-center justify-center gap-1 overflow-visible px-1"
+                                                aria-label="보스 스킬"
+                                            >
                                                 {currentBoss.skills.slice(0, 3).map((skill) => (
-                                                    <div key={skill.id} className="relative">
+                                                    <div key={skill.id} className="relative shrink-0">
                                                         <div
-                                                            ref={(el) => { skillIconRefs.current[skill.id] = el; }}
-                                                            className="relative z-20 flex h-12 w-12 cursor-pointer items-center justify-center rounded-xl border border-stone-500/70 bg-stone-900 shadow-[0_4px_14px_rgba(0,0,0,0.5)] ring-1 ring-white/15 transition-transform active:scale-95"
+                                                            ref={(el) => {
+                                                                skillIconRefs.current[skill.id] = el;
+                                                            }}
+                                                            className="relative z-20 flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg border border-stone-500/70 bg-stone-900/90 shadow-md ring-1 ring-white/15 backdrop-blur-[1px] transition-transform active:scale-95"
                                                             onClick={() => {
                                                                 setActiveSkillTooltip((prev) => (prev?.id === skill.id ? null : skill));
                                                             }}
                                                         >
-                                                            <img src={skill.image} alt={skill.name} className="h-9 w-9 object-contain drop-shadow-md" />
+                                                            <img src={skill.image} alt={skill.name} className="h-8 w-8 object-contain drop-shadow-md" />
                                                             {skill.type === 'passive' ? (
                                                                 <div className="absolute -right-0.5 -top-0.5 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-purple-500 ring-1 ring-stone-900/80">
                                                                     <span className="text-[6px] font-bold text-white">P</span>
@@ -1106,132 +1130,174 @@ const BossPanel: React.FC<{
                                             </div>
                                         ) : null}
                                     </div>
-                                    <div className="absolute inset-x-0 bottom-0 z-10 flex flex-col items-stretch gap-0.5 bg-gradient-to-t from-black/75 via-black/45 to-transparent px-1.5 pb-1 pt-6">
-                                        <div className="text-center text-[11px] font-bold tabular-nums text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>
-                                            {formatHpWithK(remainingHp)} / {formatHpWithK(maxHp)} ({clampedHpPercent.toFixed(1)}%)
-                                        </div>
-                                        <div className="h-2 w-full overflow-hidden rounded-full border border-gray-600/60 bg-gray-800/85 shadow-inner">
-                                            <div
-                                                className="h-full rounded-full bg-gradient-to-r from-amber-600 via-orange-500 to-amber-600 transition-all duration-500 shadow-[0_0_8px_rgba(217,119,6,0.5)]"
-                                                style={{ width: `${clampedHpPercent}%` }}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="mt-0.5 flex w-full shrink-0 justify-center">
-                                    <p className="w-full truncate rounded-md bg-gray-800/50 px-2 py-0.5 text-center text-[10px] text-tertiary" title={timeLeft}>{timeLeft}</p>
-                                </div>
-                            </div>
-                        ) : (
-                        <div className="flex min-h-0 flex-col items-center">
-                            <div className={`relative flex w-full items-center justify-center bg-gradient-to-br from-stone-700/50 to-stone-800/40 rounded-xl border border-stone-600/50 shadow-lg overflow-hidden ${isCompact ? 'h-24 w-24' : 'h-full max-h-[19rem] w-full max-w-[19rem] flex-1 min-h-0'}`}>
-                                <img src={currentBoss.image} alt={currentBoss.name} className={`drop-shadow-lg object-contain ${isCompact ? 'h-20 w-20' : 'h-[92%] w-[92%]'}`} />
-                                <div className={`absolute inset-x-0 bottom-0 flex flex-col items-stretch gap-1 px-2 pb-2 pt-8 bg-gradient-to-t from-black/75 via-black/45 to-transparent`}>
-                                    <div className={`text-center font-bold tabular-nums text-white text-[12px] drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]`} style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>
-                                        {formatHpWithK(remainingHp)} / {formatHpWithK(maxHp)} ({clampedHpPercent.toFixed(1)}%)
-                                    </div>
-                                    <div className={`w-full bg-gray-800/85 rounded-full h-3 border border-gray-600/60 overflow-hidden shadow-inner`}>
-                                        <div
-                                            className="bg-gradient-to-r from-amber-600 via-orange-500 to-amber-600 h-full rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(217,119,6,0.5)]"
-                                            style={{ width: `${clampedHpPercent}%` }}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                            <div className={`mt-2 w-full max-w-[19rem] flex shrink-0 justify-center`}>
-                                <p className={`w-full text-sm text-tertiary bg-gray-800/50 px-2 py-1 rounded-md text-center truncate`} title={timeLeft}>{timeLeft}</p>
-                            </div>
-                        </div>
-                        )}
-
-                        {!isMobile ? (
-                        <div className={`mt-2 flex shrink-0 items-center justify-center`}>
-                            {currentBoss.skills && currentBoss.skills.length > 0 && (
-                                <div className={`flex relative flex-row gap-2 items-center justify-center`}>
-                                    {currentBoss.skills.slice(0, 3).map((skill) => (
-                                        <div key={skill.id} className="relative">
-                                            <div
-                                                ref={(el) => { skillIconRefs.current[skill.id] = el; }}
-                                                className={`w-12 h-12 bg-gradient-to-br from-stone-700/50 to-stone-800/40 rounded-lg flex items-center justify-center border border-stone-600/50 shadow-lg cursor-pointer hover:scale-110 transition-transform`}
-                                                onMouseEnter={() => {
-                                                    if (tooltipHideTimeoutRef.current) {
-                                                        clearTimeout(tooltipHideTimeoutRef.current);
-                                                        tooltipHideTimeoutRef.current = null;
-                                                    }
-                                                    setActiveSkillTooltip(skill);
-                                                }}
-                                                onMouseLeave={() => {
-                                                    tooltipHideTimeoutRef.current = setTimeout(() => {
-                                                        setActiveSkillTooltip(null);
-                                                        tooltipHideTimeoutRef.current = null;
-                                                    }, BOSS_SKILL_TOOLTIP_HIDE_DELAY_MS);
-                                                }}
-                                            >
-                                                <img src={skill.image} alt={skill.name} className={`w-10 h-10 object-contain drop-shadow-md`} />
-                                                {skill.type === 'passive' && (
-                                                    <div className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-purple-500 rounded-full flex items-center justify-center`}>
-                                                        <span className={`text-[6px] text-white font-bold`}>P</span>
-                                                    </div>
-                                                )}
+                                    <div className="flex w-[min(40%,9.75rem)] shrink-0 flex-col rounded-lg border border-stone-600/55 bg-black/55 px-2 py-1.5 backdrop-blur-sm">
+                                        <p className="truncate text-center text-[10px] leading-tight text-tertiary" title={timeLeft}>
+                                            {timeLeft}
+                                        </p>
+                                        <div className="my-1.5 border-t border-stone-600/50" aria-hidden />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowBossParticipantsModal(true)}
+                                            className="inline-flex w-full items-center justify-center gap-1 rounded-md border border-cyan-500/40 bg-cyan-900/20 px-2 py-1 text-[11px] font-semibold text-cyan-200 transition-colors hover:bg-cyan-800/30"
+                                        >
+                                            참여길드원
+                                        </button>
+                                        <div className="mb-1 mt-2 text-[9px] font-semibold text-stone-400">나의 기록</div>
+                                        <div className="flex min-h-0 flex-1 flex-col gap-0.5">
+                                            <div className="flex items-center justify-between gap-1">
+                                                <span className="text-[9px] text-stone-400">랭킹</span>
+                                                <span className="text-[10px] font-bold tabular-nums text-highlight">
+                                                    {myRank !== null ? `${myRank}위` : '-'}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center justify-between gap-1">
+                                                <span className="text-[9px] text-stone-400">총 데미지</span>
+                                                <span className="text-[10px] font-bold tabular-nums text-amber-300">{myDamage.toLocaleString()}</span>
+                                            </div>
+                                            <div className="flex items-center justify-between gap-1">
+                                                <span className="text-[9px] text-stone-400">현재순위</span>
+                                                <span className="max-w-[4.5rem] truncate text-right text-[10px] font-bold tabular-nums text-cyan-300">
+                                                    {totalParticipants > 0 && myRank !== null ? `${totalParticipants}명 중 ${myRank}위` : '-'}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center justify-between gap-1">
+                                                <span className="text-[9px] text-stone-400">역대 최고</span>
+                                                <span className="text-[10px] font-bold tabular-nums text-yellow-300">
+                                                    {(guild.guildBossState?.maxDamageLog?.[effectiveUserId || ''] || 0).toLocaleString()}
+                                                </span>
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                        ) : null}
-                    </div>
-
-                    <div className={`flex min-h-0 flex-col rounded-xl border border-stone-600/50 bg-black/20 ${isMobile ? 'shrink-0 gap-1.5 p-2' : 'gap-2 p-2'}`}>
-                        <div className="flex justify-center">
-                            <button
-                                type="button"
-                                onClick={() => setShowBossParticipantsModal(true)}
-                                className={`inline-flex items-center justify-center gap-1 rounded-md border border-cyan-500/40 bg-cyan-900/20 hover:bg-cyan-800/30 text-cyan-200 font-semibold transition-colors ${isMobile ? 'px-3 py-1.5 text-xs' : 'px-3 py-1.5 text-xs'}`}
-                            >
-                                참여길드원
-                            </button>
-                        </div>
-                        <div className={`min-h-0 rounded-lg bg-stone-800/50 ${isMobile ? 'px-2.5 py-1.5' : 'flex-1 px-3 py-2'}`}>
-                            <div className={`${isMobile ? 'mb-1.5 text-xs' : 'text-xs mb-2'} font-semibold text-stone-400`}>나의 기록</div>
-                            <div className={`flex flex-col ${isMobile ? 'gap-1' : 'gap-1.5'}`}>
-                                <div className="flex items-center justify-between">
-                                    <span className={`${isMobile ? 'text-xs' : 'text-sm'} text-stone-300`}>랭킹</span>
-                                    <span className={`${isMobile ? 'text-sm' : 'text-sm'} font-bold text-highlight`}>
-                                        {myRank !== null ? `${myRank}위` : '-'}
-                                    </span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <span className={`${isMobile ? 'text-xs' : 'text-sm'} text-stone-300`}>총 데미지</span>
-                                    <span className={`${isMobile ? 'text-sm' : 'text-sm'} font-bold text-amber-300`}>{myDamage.toLocaleString()}</span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <span className={`${isMobile ? 'text-xs' : 'text-sm'} text-stone-300`}>현재순위</span>
-                                    <span className={`${isMobile ? 'text-sm' : 'text-sm'} font-bold text-cyan-300`}>
-                                        {totalParticipants > 0 && myRank !== null ? `${totalParticipants}명 중 ${myRank}위` : '-'}
-                                    </span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <span className={`${isMobile ? 'text-xs' : 'text-sm'} text-stone-300`}>역대 최고 기록</span>
-                                    <span className={`${isMobile ? 'text-sm' : 'text-sm'} font-bold text-yellow-300`}>
-                                        {(guild.guildBossState?.maxDamageLog?.[effectiveUserId || ''] || 0).toLocaleString()}
-                                    </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                window.location.hash = '#/guildboss';
+                                            }}
+                                            disabled={!canEnter}
+                                            className={`${canEnter ? guildPanelBtn.boss : guildPanelBtn.disabled} mt-2 w-full`}
+                                        >
+                                            <img src="/images/guild/ticket.webp" alt="보스전 티켓" className="h-4 w-4" />
+                                            <span>
+                                                {myBossTickets}/{GUILD_BOSS_MAX_ATTEMPTS}
+                                            </span>
+                                            <span>입장</span>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        <div className="flex justify-center">
-                            <button
-                                type="button"
-                                onClick={() => window.location.hash = '#/guildboss'}
-                                disabled={!canEnter}
-                                className={`${canEnter ? guildPanelBtn.boss : guildPanelBtn.disabled}`}
-                            >
-                                <img src="/images/guild/ticket.webp" alt="보스전 티켓" className="w-4 h-4" />
-                                <span>{myBossTickets}/{GUILD_BOSS_MAX_ATTEMPTS}</span>
-                                <span>입장</span>
-                            </button>
-                        </div>
-                    </div>
+                        </>
+                    ) : (
+                        <>
+                            <div className={`flex min-h-0 flex-col rounded-xl border border-stone-600/50 bg-black/20 ${isCompact ? 'p-1.5' : 'p-2'}`}>
+                                <div className="flex min-h-0 flex-col items-center">
+                                    <div className={`relative flex w-full items-center justify-center bg-gradient-to-br from-stone-700/50 to-stone-800/40 rounded-xl border border-stone-600/50 shadow-lg overflow-hidden ${isCompact ? 'h-24 w-24' : 'h-full max-h-[19rem] w-full max-w-[19rem] flex-1 min-h-0'}`}>
+                                        <img src={currentBoss.image} alt={currentBoss.name} className={`drop-shadow-lg object-contain ${isCompact ? 'h-20 w-20' : 'h-[92%] w-[92%]'}`} />
+                                        <div className={`absolute inset-x-0 bottom-0 flex flex-col items-stretch gap-1 px-2 pb-2 pt-8 bg-gradient-to-t from-black/75 via-black/45 to-transparent`}>
+                                            <div className={`text-center font-bold tabular-nums text-white text-[12px] drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]`} style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>
+                                                {formatHpWithK(remainingHp)} / {formatHpWithK(maxHp)} ({clampedHpPercent.toFixed(1)}%)
+                                            </div>
+                                            <div className={`w-full bg-gray-800/85 rounded-full h-3 border border-gray-600/60 overflow-hidden shadow-inner`}>
+                                                <div
+                                                    className="bg-gradient-to-r from-amber-600 via-orange-500 to-amber-600 h-full rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(217,119,6,0.5)]"
+                                                    style={{ width: `${clampedHpPercent}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className={`mt-2 w-full max-w-[19rem] flex shrink-0 justify-center`}>
+                                        <p className={`w-full text-sm text-tertiary bg-gray-800/50 px-2 py-1 rounded-md text-center truncate`} title={timeLeft}>{timeLeft}</p>
+                                    </div>
+                                </div>
+
+                                <div className={`mt-2 flex shrink-0 items-center justify-center`}>
+                                    {currentBoss.skills && currentBoss.skills.length > 0 && (
+                                        <div className={`flex relative flex-row gap-2 items-center justify-center`}>
+                                            {currentBoss.skills.slice(0, 3).map((skill) => (
+                                                <div key={skill.id} className="relative">
+                                                    <div
+                                                        ref={(el) => { skillIconRefs.current[skill.id] = el; }}
+                                                        className={`w-12 h-12 bg-gradient-to-br from-stone-700/50 to-stone-800/40 rounded-lg flex items-center justify-center border border-stone-600/50 shadow-lg cursor-pointer hover:scale-110 transition-transform`}
+                                                        onMouseEnter={() => {
+                                                            if (tooltipHideTimeoutRef.current) {
+                                                                clearTimeout(tooltipHideTimeoutRef.current);
+                                                                tooltipHideTimeoutRef.current = null;
+                                                            }
+                                                            setActiveSkillTooltip(skill);
+                                                        }}
+                                                        onMouseLeave={() => {
+                                                            tooltipHideTimeoutRef.current = setTimeout(() => {
+                                                                setActiveSkillTooltip(null);
+                                                                tooltipHideTimeoutRef.current = null;
+                                                            }, BOSS_SKILL_TOOLTIP_HIDE_DELAY_MS);
+                                                        }}
+                                                    >
+                                                        <img src={skill.image} alt={skill.name} className={`w-10 h-10 object-contain drop-shadow-md`} />
+                                                        {skill.type === 'passive' && (
+                                                            <div className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-purple-500 rounded-full flex items-center justify-center`}>
+                                                                <span className={`text-[6px] text-white font-bold`}>P</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className={`flex min-h-0 flex-col rounded-xl border border-stone-600/50 bg-black/20 gap-2 p-2`}>
+                                <div className="flex justify-center">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowBossParticipantsModal(true)}
+                                        className="inline-flex items-center justify-center gap-1 rounded-md border border-cyan-500/40 bg-cyan-900/20 px-3 py-1.5 text-xs font-semibold text-cyan-200 transition-colors hover:bg-cyan-800/30"
+                                    >
+                                        참여길드원
+                                    </button>
+                                </div>
+                                <div className="min-h-0 flex-1 rounded-lg bg-stone-800/50 px-3 py-2">
+                                    <div className="text-xs mb-2 font-semibold text-stone-400">나의 기록</div>
+                                    <div className="flex flex-col gap-1.5">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-stone-300">랭킹</span>
+                                            <span className="text-sm font-bold text-highlight">
+                                                {myRank !== null ? `${myRank}위` : '-'}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-stone-300">총 데미지</span>
+                                            <span className="text-sm font-bold text-amber-300">{myDamage.toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-stone-300">현재순위</span>
+                                            <span className="text-sm font-bold text-cyan-300">
+                                                {totalParticipants > 0 && myRank !== null ? `${totalParticipants}명 중 ${myRank}위` : '-'}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-stone-300">역대 최고 기록</span>
+                                            <span className="text-sm font-bold text-yellow-300">
+                                                {(guild.guildBossState?.maxDamageLog?.[effectiveUserId || ''] || 0).toLocaleString()}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex justify-center">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            window.location.hash = '#/guildboss';
+                                        }}
+                                        disabled={!canEnter}
+                                        className={`${canEnter ? guildPanelBtn.boss : guildPanelBtn.disabled}`}
+                                    >
+                                        <img src="/images/guild/ticket.webp" alt="보스전 티켓" className="w-4 h-4" />
+                                        <span>{myBossTickets}/{GUILD_BOSS_MAX_ATTEMPTS}</span>
+                                        <span>입장</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </>
+                    )}
                 </div>
 
                     {activeSkillTooltip ? (

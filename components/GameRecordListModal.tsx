@@ -6,6 +6,9 @@ import { formatGameRecordResultLabel } from '../utils/gameRecordResultLabel.js';
 import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../shared/constants/pcShellLayout.js';
 import GameRecordViewerPanel from './gameRecord/GameRecordViewerPanel.js';
 import GameRecordInfoPanel from './gameRecord/GameRecordInfoPanel.js';
+import { useAppContext } from '../hooks/useAppContext.js';
+import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
+import Button from './Button.js';
 
 interface GameRecordListModalProps {
     currentUser: User;
@@ -23,6 +26,10 @@ const GameRecordListModal: React.FC<GameRecordListModalProps> = ({
     isTopmost,
     embedded = false,
 }) => {
+    const { handlers } = useAppContext();
+    const { isNativeMobile, isNarrowViewport } = useNativeMobileShell();
+    const useMobileListOnly = !embedded && (isNativeMobile || isNarrowViewport);
+
     const records = currentUser.savedGameRecords || [];
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
@@ -78,7 +85,9 @@ const GameRecordListModal: React.FC<GameRecordListModalProps> = ({
 
     const listPanelWidthClass = embedded
         ? 'w-[18rem] max-w-[42%] shrink-0 sm:w-[22rem]'
-        : 'w-full sm:w-[18rem] sm:max-w-[42%] sm:shrink-0 lg:w-[22rem]';
+        : useMobileListOnly
+          ? 'w-full min-w-0 flex-1'
+          : 'w-full sm:w-[18rem] sm:max-w-[42%] sm:shrink-0 lg:w-[22rem]';
 
     const listScrollClass = 'min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-2 py-2 [-webkit-overflow-scrolling:touch]';
 
@@ -192,7 +201,9 @@ const GameRecordListModal: React.FC<GameRecordListModalProps> = ({
     const splitBody = (
         <div className={shellClass}>
             <div
-                className={`flex min-h-0 flex-1 gap-2 overflow-hidden sm:gap-3 ${embedded ? 'flex-row' : 'flex-col sm:flex-row'}`}
+                className={`flex min-h-0 flex-1 gap-2 overflow-hidden sm:gap-3 ${
+                    embedded ? 'flex-row' : useMobileListOnly ? 'flex-col' : 'flex-col sm:flex-row'
+                }`}
             >
                 <div className={`flex min-h-0 flex-col gap-2 ${listPanelWidthClass}`}>
                     <div className={`${panelShellClass} min-h-0 flex-1`}>
@@ -207,16 +218,33 @@ const GameRecordListModal: React.FC<GameRecordListModalProps> = ({
                         </div>
                         {renderListPanel()}
                     </div>
-                    <div className={`${panelShellClass} min-h-0 max-h-[45%] shrink-0 sm:max-h-[40%]`}>
+                    <div
+                        className={`${panelShellClass} min-h-0 shrink-0 ${
+                            useMobileListOnly ? 'max-h-[42%]' : 'max-h-[45%] sm:max-h-[40%]'
+                        }`}
+                    >
                         <div className="mb-2 shrink-0 border-b border-amber-500/20 pb-1.5 text-center">
                             <h3 className="text-sm font-bold uppercase tracking-widest text-amber-200 sm:text-base">
                                 대국 정보
                             </h3>
                         </div>
                         <GameRecordInfoPanel record={selectedRecord} myNickname={currentUser.nickname} />
+                        {useMobileListOnly && selectedRecord ? (
+                            <div className="mt-2 shrink-0 border-t border-amber-500/15 pt-2">
+                                <Button
+                                    type="button"
+                                    onClick={() => handlers.openGameRecordViewer(selectedRecord)}
+                                    className="w-full rounded-lg border border-amber-400/40 bg-gradient-to-b from-amber-600/90 to-amber-800/90 px-3 py-2 text-sm font-bold text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.15)]"
+                                >
+                                    바둑판 복기
+                                </Button>
+                            </div>
+                        ) : null}
                     </div>
                 </div>
-                <div className={`${panelShellClass} min-h-0 min-w-0 flex-1`}>{renderViewerPanel()}</div>
+                {!useMobileListOnly ? (
+                    <div className={`${panelShellClass} min-h-0 min-w-0 flex-1`}>{renderViewerPanel()}</div>
+                ) : null}
             </div>
         </div>
     );
