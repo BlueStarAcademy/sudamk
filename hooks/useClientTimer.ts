@@ -55,6 +55,7 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
 
         const playingStatuses = ['playing', 'hidden_placing'];
         const now = Date.now();
+        const curPlayer = session.currentPlayer;
 
         // 대국 시작 전(베이스·덤·니기리 등): 서버 값으로만 표시. 싱글/탑 일시정지(isPaused)보다 먼저 동기화
         const preStartStatuses = [
@@ -164,8 +165,6 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
             || session.komiBiddingDeadline
             || session.captureBidDeadline;
             // || session.itemUseDeadline; // 아이템 사용시간은 선수패널에 표시하지 않음
-
-        const curPlayer = session.currentPlayer;
 
         // 모험 AI 대국: 턴당 마감은 유저에게만 적용 — 클라이언트에서 몬스터 턴에도 카운트다운하지 않음
         if (

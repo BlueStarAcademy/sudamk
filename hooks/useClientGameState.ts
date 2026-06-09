@@ -243,6 +243,7 @@ export function updateGameStateAfterMove(
             ? payloadMovePlayer
             : game.currentPlayer;
     const opponentPlayer = movePlayer === Player.Black ? Player.White : Player.Black;
+    const nextPlayer = opponentPlayer;
     const currentMoveHistory = game.moveHistory || [];
     const payloadBaseMoveHistory = Array.isArray(payload.moveHistoryBeforeMove)
         ? payload.moveHistoryBeforeMove
@@ -357,7 +358,6 @@ export function updateGameStateAfterMove(
             }
         }
 
-        const nextPlayer = movePlayer === Player.Black ? Player.White : Player.Black;
         let nextTime = nextPlayer === Player.Black ? updatedBlackTimeLeft : updatedWhiteTimeLeft;
         const nextByoyomiPeriods =
             nextPlayer === Player.Black ? updatedBlackByoyomiPeriodsLeft : updatedWhiteByoyomiPeriodsLeft;

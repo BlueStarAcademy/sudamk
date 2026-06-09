@@ -1177,6 +1177,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         arenaEntranceFromServer,
         waitingRoomChats,
     } = useAppContext();
+    const currentUserId = currentUserWithStatus?.id || '';
     const mergedPublicChatMessages = useMemo(
         () => mergeWaitingRoomPublicChatMessages(waitingRoomChats),
         [waitingRoomChats],
@@ -1521,7 +1522,6 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         () => Object.values((pairRooms || {}) as Record<string, PairRoom>),
         [pairRooms],
     );
-    const currentUserId = currentUserWithStatus?.id || '';
     const roomsAllInLobbyChannel = useMemo(
         () => pairRoomsAllChannels.filter((r) => (r.lobbyChannel ?? 'pair') === lobbyChannel),
         [pairRoomsAllChannels, lobbyChannel],
