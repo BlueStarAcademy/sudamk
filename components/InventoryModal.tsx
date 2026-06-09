@@ -1568,7 +1568,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
     const inventoryBody = (
         <>
             <div 
-                className="flex min-h-0 h-full w-full flex-col overflow-hidden"
+                className="relative flex min-h-0 h-full w-full flex-col overflow-hidden"
                 style={{ margin: 0, padding: 0 }}
             >
                 {narrowInventoryLayout ? (
@@ -2240,7 +2240,11 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                             item={item}
                                             onClick={() => {
                                                 setSelectedItemId(item.id);
-                                                if (narrowInventoryLayout) setIsMobileItemDetailOpen(true);
+                                                if (embedded && narrowInventoryLayout) {
+                                                    handlers.openViewingItem(item, true);
+                                                } else if (narrowInventoryLayout) {
+                                                    setIsMobileItemDetailOpen(true);
+                                                }
                                             }}
                                             isSelected={selectedItemId === item.id}
                                             isEquipped={item.isEquipped || false}
@@ -2274,7 +2278,51 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                 </div>
             </div>
 
-            {narrowInventoryLayout && isMobileEquippedModalOpen && (
+            {embedded && narrowInventoryLayout && isMobileEquippedModalOpen && (
+                <div className="absolute inset-0 z-30 flex min-h-0 flex-col overflow-hidden bg-gray-900/98 p-2">
+                    <button
+                        type="button"
+                        onClick={() => setIsMobileEquippedModalOpen(false)}
+                        className="mb-2 shrink-0 self-start rounded-lg border border-white/15 bg-black/35 px-3 py-1.5 text-sm font-semibold text-amber-100"
+                    >
+                        가방으로
+                    </button>
+                    <div className={`flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto ${BAG_SCROLLBAR_Y_CLASS}`}>
+                        <h3 className="font-bold text-on-panel" style={{ fontSize: `${Math.max(14, Math.round(17 * mobileEquippedLayoutScale * mobileTextScale))}px` }}>
+                            장착 슬롯
+                        </h3>
+                        <div
+                            className="grid"
+                            style={{
+                                gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                                gap: `${Math.max(2, Math.round(3.5 * mobileEquippedLayoutScale))}px`,
+                            }}
+                        >
+                            {EQUIPMENT_SLOTS.map((slot) => {
+                                const equippedItem = getItemForSlot(slot);
+                                return (
+                                    <div key={slot} style={{ width: '100%', minWidth: 0 }}>
+                                        <EquipmentSlotDisplay
+                                            slot={slot}
+                                            item={equippedItem}
+                                            scaleFactor={Math.max(0.22, Math.min(0.38, mobileEquippedLayoutScale * 0.82))}
+                                            compactIconLayout
+                                            onClick={
+                                                equippedItem
+                                                    ? () => handlers.openViewingItem(equippedItem, true)
+                                                    : undefined
+                                            }
+                                            isSelected={equippedItem ? selectedItemId === equippedItem.id : false}
+                                        />
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {narrowInventoryLayout && isMobileEquippedModalOpen && !embedded && (
                 <DraggableWindow
                     title="장착 장비"
                     onClose={() => setIsMobileEquippedModalOpen(false)}
@@ -2380,7 +2428,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                 </DraggableWindow>
             )}
 
-            {narrowInventoryLayout && isMobileItemDetailOpen && selectedItem && (
+            {narrowInventoryLayout && isMobileItemDetailOpen && selectedItem && !embedded && (
                 <DraggableWindow
                     title="아이템 정보"
                     onClose={() => setIsMobileItemDetailOpen(false)}

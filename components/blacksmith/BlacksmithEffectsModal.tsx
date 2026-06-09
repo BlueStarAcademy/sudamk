@@ -4,15 +4,17 @@ import BlacksmithLevelEffectsSummary from './BlacksmithLevelEffectsSummary.js';
 import { User } from '../../types.js';
 import { isFunctionVipActive } from '../../shared/utils/rewardVip.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
+import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../../shared/constants/pcShellLayout.js';
 
 interface BlacksmithEffectsModalProps {
     onClose: () => void;
     isTopmost?: boolean;
     blacksmithLevel: number;
     currentUser: User;
+    embedded?: boolean;
 }
 
-const BlacksmithEffectsModal: React.FC<BlacksmithEffectsModalProps> = ({ onClose, isTopmost, blacksmithLevel, currentUser }) => {
+const BlacksmithEffectsModal: React.FC<BlacksmithEffectsModalProps> = ({ onClose, isTopmost, blacksmithLevel, currentUser, embedded = false }) => {
     const { isNativeMobile } = useNativeMobileShell();
     const [viewportCompact, setViewportCompact] = useState(
         () => typeof window !== 'undefined' && window.innerWidth < 1025
@@ -28,6 +30,27 @@ const BlacksmithEffectsModal: React.FC<BlacksmithEffectsModalProps> = ({ onClose
     const vipBonus = isFunctionVipActive(currentUser) ? 10 : 0;
     const disassemblyJackpotBonusPercent = vipBonus;
     const combinationGreatSuccessBonusPercent = vipBonus;
+
+    const effectsBody = (
+            <div
+                className={
+                    compactLayout
+                        ? 'max-h-[min(86dvh,640px)] overflow-y-auto pr-1.5 [scrollbar-gutter:stable]'
+                        : 'max-h-[min(72dvh,560px)] overflow-y-auto pr-2'
+                }
+            >
+                <BlacksmithLevelEffectsSummary
+                    blacksmithLevel={blacksmithLevel}
+                    disassemblyJackpotBonusPercent={disassemblyJackpotBonusPercent}
+                    combinationGreatSuccessBonusPercent={combinationGreatSuccessBonusPercent}
+                    compact={compactLayout}
+                />
+            </div>
+    );
+
+    if (embedded) {
+        return <div className={PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS}>{effectsBody}</div>;
+    }
 
     return (
         <DraggableWindow
@@ -47,20 +70,7 @@ const BlacksmithEffectsModal: React.FC<BlacksmithEffectsModalProps> = ({ onClose
                     : undefined
             }
         >
-            <div
-                className={
-                    compactLayout
-                        ? 'max-h-[min(86dvh,640px)] overflow-y-auto pr-1.5 [scrollbar-gutter:stable]'
-                        : 'max-h-[min(72dvh,560px)] overflow-y-auto pr-2'
-                }
-            >
-                <BlacksmithLevelEffectsSummary
-                    blacksmithLevel={blacksmithLevel}
-                    disassemblyJackpotBonusPercent={disassemblyJackpotBonusPercent}
-                    combinationGreatSuccessBonusPercent={combinationGreatSuccessBonusPercent}
-                    compact={compactLayout}
-                />
-            </div>
+            {effectsBody}
         </DraggableWindow>
     );
 };

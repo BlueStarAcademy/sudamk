@@ -1,7 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { HomeBoardPost } from '../types/entities.js';
 import DraggableWindow, { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from './DraggableWindow.js';
+import MobileModalTitleBar from './mobile/MobileModalTitleBar.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
+import { useMobileModalChrome } from '../hooks/useMobileModalChrome.js';
 
 type BoardCategory = 'notice' | 'patch';
 
@@ -136,7 +138,7 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
     onClose,
 }) => {
     const { isNativeMobile, isNarrowViewport } = useNativeMobileShell();
-    const isMobileBoard = isNativeMobile || isNarrowViewport;
+    const isMobileBoard = useMobileModalChrome();
     const useCompactList = fitViewport && !modalMode && !embedded;
     const useStackedPanels = isMobileBoard;
     const [selectedPost, setSelectedPost] = useState<HomeBoardPost | null>(null);
@@ -423,6 +425,14 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
         <>
             <div className={shellClass}>
                 {!embedded && (
+                modalMode && isMobileBoard ? (
+                    <MobileModalTitleBar
+                        title="공지 게시판"
+                        titleId="announcements-board-shell-title"
+                        onClose={onClose}
+                        topRoundedClass="rounded-t-xl"
+                    />
+                ) : (
                 <div
                     className={`flex shrink-0 items-center justify-between border-b border-amber-200/15 bg-gradient-to-r from-amber-950/55 via-zinc-900/90 to-amber-950/40 ${
                         useCompactList ? 'px-1.5 py-1 sm:px-2' : modalMode ? 'px-4 py-3 sm:px-5' : 'px-3 py-2.5 sm:px-4'
@@ -453,6 +463,7 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
                         )}
                     </div>
                 </div>
+                )
                 )}
                 {editorOpen && isAdmin && onAction && modalMode && (
                     <div className="shrink-0 border-b border-amber-200/15 px-2 pb-2 pt-1 sm:px-4 sm:pb-3">

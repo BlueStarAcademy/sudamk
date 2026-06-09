@@ -10,7 +10,7 @@ import { MythicSubsPartitioned } from '../MythicSubsPartitioned.js';
 import { formatSpecialSubLineForPanel } from '../../shared/utils/specialStatMilestones.js';
 import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 import { formatBlacksmithPercentInt } from '../../shared/utils/formatBlacksmithPercentInt.js';
-import { getBlacksmithViewerTypography } from '../../shared/constants/blacksmithViewerTypography.js';
+import { getBlacksmithViewerTypography, BLACKSMITH_MOBILE_WORK_ROOT_CLASS } from '../../shared/constants/blacksmithViewerTypography.js';
 
 const gradeStyles: Record<ItemGrade, { name: string; color: string; background: string; }> = {
     normal: { name: '일반', color: 'text-gray-300', background: '/images/equipments/normalbgi.webp' },
@@ -85,15 +85,22 @@ const renderStarDisplay = (stars: number, previousStars?: number, isAnimating?: 
     );
 };
 
-const ItemDisplay: React.FC<{ item: InventoryItem; previousStars?: number; isAnimating?: boolean; pcViewer?: boolean }> = ({
+const ItemDisplay: React.FC<{
+    item: InventoryItem;
+    previousStars?: number;
+    isAnimating?: boolean;
+    pcViewer?: boolean;
+    mobileWork?: boolean;
+}> = ({
     item,
     previousStars,
     isAnimating,
     pcViewer = false,
+    mobileWork = false,
 }) => {
     const { currentUserWithStatus } = useAppContext();
     const styles = gradeStyles[item.grade];
-    const typo = getBlacksmithViewerTypography(pcViewer);
+    const typo = getBlacksmithViewerTypography(pcViewer, { mobileWork });
 
     const requiredLevel = GRADE_LEVEL_REQUIREMENTS[item.grade];
     const userLevelSum = currentUserWithStatus?.userLevel ?? 0;
@@ -144,7 +151,7 @@ const ItemDisplay: React.FC<{ item: InventoryItem; previousStars?: number; isAni
                     </div>
                 )}
                 {item.options?.mythicSubs && item.options.mythicSubs.length > 0 ? (
-                    <MythicSubsPartitioned subs={item.options.mythicSubs} enlargeBody={pcViewer} />
+                    <MythicSubsPartitioned subs={item.options.mythicSubs} enlargeBody={pcViewer || mobileWork} />
                 ) : null}
             </div>
         </div>
@@ -240,7 +247,7 @@ const EnhancementView: React.FC<EnhancementViewProps> = ({
     stackedViewport = false,
 }) => {
     const pcViewer = !stackedViewport;
-    const typo = getBlacksmithViewerTypography(pcViewer);
+    const typo = getBlacksmithViewerTypography(pcViewer, { mobileWork: stackedViewport });
     const [isEnhancing, setIsEnhancing] = useState(false);
     const [enhancementProgress, setEnhancementProgress] = useState(0);
     const [previousStars, setPreviousStars] = useState<number | undefined>(undefined);
@@ -474,17 +481,17 @@ useEffect(() => {
 
     const detailValueClass = typo.mono;
     const rateMainClass = stackedViewport
-        ? 'text-base font-bold leading-tight text-yellow-300'
+        ? 'text-lg font-bold leading-tight text-yellow-300'
         : 'text-2xl font-bold leading-tight text-yellow-300';
 
     return (
-            <div className={`relative flex min-h-0 flex-col ${stackedViewport ? 'flex-1' : 'h-full'}`}>
+            <div className={`relative flex min-h-0 flex-col ${stackedViewport ? `${BLACKSMITH_MOBILE_WORK_ROOT_CLASS} min-h-[min(72dvh,100%)]` : 'h-full'}`}>
             <div
-                className={`flex min-h-0 ${stackedViewport ? 'min-h-0 flex-1 flex-col gap-2' : 'h-full flex-row gap-4'}`}
+                className={`flex min-h-0 ${stackedViewport ? 'min-h-0 w-full flex-1 flex-col gap-2.5' : 'h-full flex-row gap-4'}`}
             >
                 <div
                     className={`flex min-h-0 min-w-0 flex-col rounded-xl border border-amber-400/20 bg-gradient-to-b from-[#1a1f2d]/80 via-[#121724]/90 to-[#0c1018]/95 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${
-                        stackedViewport ? 'max-h-[min(16rem,42dvh)] shrink-0 overflow-y-auto' : 'h-full w-[55%]'
+                        stackedViewport ? 'max-h-[min(14rem,36dvh)] shrink-0 overflow-y-auto' : 'h-full w-[55%]'
                     }`}
                 >
                     <ItemDisplay
@@ -492,16 +499,17 @@ useEffect(() => {
                         previousStars={previousStars}
                         isAnimating={isStarAnimating}
                         pcViewer={pcViewer}
+                        mobileWork={stackedViewport}
                     />
                 </div>
 
                 <div
-                    className={`flex min-h-0 min-w-0 flex-col gap-2 ${stackedViewport ? 'min-h-0 w-full flex-1 overflow-y-auto' : 'h-full flex-1'}`}
+                    className={`flex min-h-0 min-w-0 flex-col gap-2 ${stackedViewport ? 'min-h-0 w-full flex-1 justify-center overflow-y-auto' : 'h-full flex-1'}`}
                 >
                     {/* 강화 성공 시 정보 */}
-                    <div className="flex-shrink-0 rounded-xl border border-emerald-400/25 bg-gradient-to-b from-emerald-950/25 via-black/40 to-black/30 p-2">
+                    <div className="flex-shrink-0 rounded-xl border border-emerald-400/25 bg-gradient-to-b from-emerald-950/25 via-black/40 to-black/30 p-2.5">
                         <h4 className={`mb-1.5 text-center ${typo.heading} text-emerald-200`}>강화 성공 시</h4>
-                        <div className={`space-y-1.5 text-left ${typo.body}`}>
+                        <div className={`mx-auto w-full max-w-sm space-y-1.5 text-left ${typo.body}`}>
                             <div className="flex justify-between items-center gap-2 min-w-0">
                                 <span className="flex-shrink-0 whitespace-nowrap text-gray-400">등급:</span>
                                 <div className={`flex min-w-0 items-center gap-1 whitespace-nowrap text-white ${detailValueClass}`}>
@@ -537,7 +545,7 @@ useEffect(() => {
                                     <span className={`mt-0.5 w-full text-center ${typo.mono} leading-tight ${hasEnoughGold ? 'text-green-400' : 'text-red-400'}`}>
                                         {stackedViewport ? (
                                             <>
-                                                <span className="block text-[10px] font-medium text-slate-400">보유 / 필요</span>
+                                                <span className={`block ${typo.caption} font-medium text-slate-400`}>보유 / 필요</span>
                                                 <span className="whitespace-nowrap">
                                                     {formatGoldAmountKoG(currentUser?.gold ?? 0)} / {formatGoldAmountKoG(goldCost)}
                                                 </span>
@@ -559,10 +567,10 @@ useEffect(() => {
                                             <span className={`mt-0.5 w-full max-w-full text-center ${typo.mono} leading-tight ${hasEnough ? 'text-green-400' : 'text-red-400'}`}>
                                                 {stackedViewport ? (
                                                     <>
-                                                        <span className="block truncate text-[10px] font-semibold text-slate-300" title={cost.name}>
+                                                        <span className={`block truncate ${typo.caption} font-semibold text-slate-300`} title={cost.name}>
                                                             {cost.name}
                                                         </span>
-                                                        <span className="block text-[10px] font-medium text-slate-400">보유 / 필요</span>
+                                                        <span className={`block ${typo.caption} font-medium text-slate-400`}>보유 / 필요</span>
                                                         <span className="whitespace-nowrap">
                                                             {userHas.toLocaleString()} / {cost.amount.toLocaleString()}
                                                         </span>
@@ -591,7 +599,7 @@ useEffect(() => {
                                 onClick={handleEnhanceClick}
                                 disabled={!canEnhance || isEnhancing || selectedItem.stars >= 10}
                                 variant="gold"
-                                className={`w-full whitespace-nowrap py-2 ${stackedViewport ? '!text-xs' : typo.bodySemi}`}
+                                className={`w-full whitespace-nowrap py-2.5 ${typo.bodySemi}`}
                             >
                                 {buttonText}
                             </ResourceActionButton>

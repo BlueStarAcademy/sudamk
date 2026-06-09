@@ -1412,11 +1412,12 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                             }
                 
                 // 랭킹전 매칭 처리 (1초마다) - 에러 핸들링 추가
-                if (volatileState.rankedMatchingQueue) {
+                if (volatileState.rankedMatchingQueue || volatileState.rankedMatchProposals) {
                     try {
-                        const { tryMatchPlayers } = await import('./actions/socialActions.js');
+                        const { tryMatchPlayers, expireStaleRankedMatchProposals } = await import('./actions/socialActions.js');
+                        expireStaleRankedMatchProposals(volatileState, now);
                         for (const lobbyType of ['strategic'] as const) {
-                            if (volatileState.rankedMatchingQueue[lobbyType] && Object.keys(volatileState.rankedMatchingQueue[lobbyType]).length >= 2) {
+                            if (volatileState.rankedMatchingQueue?.[lobbyType] && Object.keys(volatileState.rankedMatchingQueue[lobbyType]).length >= 2) {
                                 try {
                                     await tryMatchPlayers(volatileState, lobbyType);
                                 } catch (matchError: any) {

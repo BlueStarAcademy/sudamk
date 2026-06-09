@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { QUICK_UTILITY_PANEL_TITLES, type QuickUtilityPanelKind } from '../../../shared/types/quickUtilityPanel.js';
+import type { InventoryItem } from '../../../types.js';
+import {
+    MOBILE_VIEWPORT_ENTRY_TITLES,
+    type MobileViewportEntry,
+} from '../../../shared/types/mobileViewportStack.js';
+import {
+    getQuickUtilityKindFromStack,
+    getMobileViewportStackTop,
+    isMobileViewportEntryTypeActive,
+    mobileViewportStacksEqual,
+} from '../../../shared/utils/mobileViewportStackUtils.js';
 import {
     PC_HOME_CENTER_INNER_MAX_CLASS,
     PC_HOME_CENTER_SHELL_CLASS,
@@ -26,6 +37,7 @@ describe('quickUtilityPanel', () => {
             'gameRecords',
             'encyclopedia',
             'announcements',
+            'help',
         ];
         for (const kind of kinds) {
             expect(QUICK_UTILITY_PANEL_TITLES[kind].length).toBeGreaterThan(0);
@@ -49,5 +61,36 @@ describe('quickUtilityPanel chrome', () => {
     it('defines accent chrome for each utility kind', () => {
         expect(QUICK_UTILITY_PANEL_CHROME.shop.iconUrl).toContain('store');
         expect(QUICK_UTILITY_PANEL_CHROME.pet.iconEmoji).toBe('🐾');
+        expect(QUICK_UTILITY_PANEL_CHROME.help.iconEmoji).toBe('❓');
+    });
+});
+
+describe('mobileViewportStack', () => {
+    it('maps all entry types to Korean titles', () => {
+        const types = Object.keys(MOBILE_VIEWPORT_ENTRY_TITLES) as Array<keyof typeof MOBILE_VIEWPORT_ENTRY_TITLES>;
+        for (const type of types) {
+            if (type === 'quickUtility') continue;
+            expect(MOBILE_VIEWPORT_ENTRY_TITLES[type].length).toBeGreaterThan(0);
+        }
+    });
+
+    it('resolves quick utility kind from stack tail', () => {
+        const mockItem = { id: 'item-1', name: 'Test', type: 'equipment' } as InventoryItem;
+        const stack: MobileViewportEntry[] = [
+            { type: 'quickUtility', kind: 'inventory' },
+            { type: 'itemDetail', item: mockItem, isOwnedByCurrentUser: true },
+        ];
+        expect(getQuickUtilityKindFromStack(stack)).toBe('inventory');
+        expect(getMobileViewportStackTop(stack)?.type).toBe('itemDetail');
+        expect(isMobileViewportEntryTypeActive(stack, 'itemDetail')).toBe(true);
+        expect(isMobileViewportEntryTypeActive(stack, 'settings')).toBe(false);
+    });
+
+    it('compares stacks by entry type sequence', () => {
+        const a: MobileViewportEntry[] = [{ type: 'settings' }, { type: 'mailbox' }];
+        const b: MobileViewportEntry[] = [{ type: 'settings' }, { type: 'mailbox' }];
+        const c: MobileViewportEntry[] = [{ type: 'settings' }];
+        expect(mobileViewportStacksEqual(a, b)).toBe(true);
+        expect(mobileViewportStacksEqual(a, c)).toBe(false);
     });
 });

@@ -12,6 +12,7 @@ import AdInterstitial from './components/ads/AdInterstitial.js';
 import NativeMobileDock from './components/mobile/NativeMobileDock.js';
 import NativeMobileScaledContent from './components/mobile/NativeMobileScaledContent.js';
 import QuickAccessSidebar from './components/QuickAccessSidebar.js';
+import MobileViewportHost from './components/mobile/MobileViewportHost.js';
 import MainBackgroundLayer from './components/MainBackgroundLayer.js';
 import {
     NATIVE_MOBILE_SHELL_MAX_WIDTH,
@@ -53,6 +54,8 @@ const AppContent: React.FC = () => {
         isPhoneHandheldTouch,
         usePortraitFirstShell,
         isNarrowViewport,
+        modals,
+        handlers,
     } = useAppContext();
     
     const [showQuestToast, setShowQuestToast] = useState(false);
@@ -457,7 +460,14 @@ const AppContent: React.FC = () => {
                                         </>
                                     )}
                                     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-                                        <Router />
+                                        {modals.mobileViewportStack.length > 0 ? (
+                                            <MobileViewportHost
+                                                stack={modals.mobileViewportStack}
+                                                onBack={handlers.popMobileViewport}
+                                            />
+                                        ) : (
+                                            <Router />
+                                        )}
                                     </div>
                                     {!isGameView && !hideAppHeader && (
                                         <>

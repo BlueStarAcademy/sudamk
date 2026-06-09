@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { UserWithStatus, EquipmentSlot, InventoryItem, ItemGrade, GameMode, CoreStat } from '../types.js';
 import Avatar from './Avatar.js';
 import DraggableWindow from './DraggableWindow.js';
+import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../shared/constants/pcShellLayout.js';
 import { AVATAR_POOL, BORDER_POOL, emptySlotImages, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, RANKING_TIERS, CORE_STATS_DATA } from '../constants';
 import { getMannerScore, getMannerRank, getMannerStyle } from '../services/manner.js';
 import { calculateTotalStats } from '../services/statService.js';
@@ -184,6 +185,7 @@ interface UserProfileModalProps {
   onClose: () => void;
   onViewItem: (item: InventoryItem, isOwnedByCurrentUser: boolean) => void;
   isTopmost?: boolean;
+  embedded?: boolean;
 }
 
 /** 페어: 랭킹전 전적(`pairRankedMatchRecord`) + 경기장 전략 모드별(`pairArenaStatsByMode`) */
@@ -336,7 +338,7 @@ const getTier = (score: number, rank: number, totalGames: number) => {
     return RANKING_TIERS[RANKING_TIERS.length - 1];
 };
 
-const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onViewItem, isTopmost }) => {
+const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onViewItem, isTopmost, embedded = false }) => {
     const { inventory, stats, nickname, avatarId, borderId, equipment } = user;
     const [showMbtiComparison, setShowMbtiComparison] = useState(false);
     const [adminToolsOpen, setAdminToolsOpen] = useState(false);
@@ -537,35 +539,8 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
 
     const PROFILE_MODAL_WIDTH = 900;
 
-    return (
+    const profileBody = (
         <>
-        <DraggableWindow
-            title={`${user.nickname}님의 프로필`}
-            onClose={() => {
-                setAdminToolsOpen(false);
-                onClose();
-            }}
-            windowId={`view-user-${user.id}`}
-            initialWidth={PROFILE_MODAL_WIDTH}
-            initialHeight={700}
-            isTopmost={isTopmost}
-            mobileViewportFit
-            headerContent={
-                isAdminViewingOtherUser ? (
-                    <button
-                        type="button"
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setAdminToolsOpen(true);
-                        }}
-                        className="z-30 shrink-0 rounded-lg border border-rose-400/45 bg-gradient-to-br from-rose-950/90 to-red-950/80 px-2.5 py-1.5 text-xs font-bold text-rose-50 shadow-[0_8px_24px_-8px_rgba(244,63,94,0.45)] ring-1 ring-inset ring-white/10 transition hover:border-rose-300/55 hover:from-rose-900/90 sm:px-3 sm:py-2 sm:text-sm"
-                    >
-                        관리자 기능
-                    </button>
-                ) : undefined
-            }
-        >
             {showMbtiComparison && <MbtiComparisonModal opponentUser={user} onClose={() => setShowMbtiComparison(false)} isTopmost={true} />}
             <div className="h-full min-h-0 overflow-y-auto overflow-x-hidden bg-gradient-to-b from-slate-950/40 via-transparent to-black/25 pr-0.5">
                 <div className="grid min-h-0 grid-cols-1 gap-3 lg:grid-cols-2 lg:gap-4">
@@ -803,7 +778,47 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                     </div>
                 </div>
             </div>
+        </>
+    );
+
+    const adminToolsButton = isAdminViewingOtherUser ? (
+        <button
+            type="button"
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+                e.stopPropagation();
+                setAdminToolsOpen(true);
+            }}
+            className="z-30 mb-2 shrink-0 self-start rounded-lg border border-rose-400/45 bg-gradient-to-br from-rose-950/90 to-red-950/80 px-2.5 py-1.5 text-xs font-bold text-rose-50 shadow-[0_8px_24px_-8px_rgba(244,63,94,0.45)] ring-1 ring-inset ring-white/10 transition hover:border-rose-300/55 hover:from-rose-900/90 sm:px-3 sm:py-2 sm:text-sm"
+        >
+            관리자 기능
+        </button>
+    ) : null;
+
+    return (
+        <>
+        {embedded ? (
+            <div className={`${PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS} flex min-h-0 flex-1 flex-col`}>
+                {adminToolsButton}
+                {profileBody}
+            </div>
+        ) : (
+        <DraggableWindow
+            title={`${user.nickname}님의 프로필`}
+            onClose={() => {
+                setAdminToolsOpen(false);
+                onClose();
+            }}
+            windowId={`view-user-${user.id}`}
+            initialWidth={PROFILE_MODAL_WIDTH}
+            initialHeight={700}
+            isTopmost={isTopmost}
+            mobileViewportFit
+            headerContent={adminToolsButton ?? undefined}
+        >
+            {profileBody}
         </DraggableWindow>
+        )}
 
         {adminToolsOpen && isAdminViewingOtherUser && (
             <DraggableWindow

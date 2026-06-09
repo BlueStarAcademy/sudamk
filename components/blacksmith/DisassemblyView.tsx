@@ -12,7 +12,7 @@ import {
 } from '../../constants';
 import { BLACKSMITH_DISASSEMBLY_JACKPOT_RATES } from '../../constants/rules.js';
 import { formatBlacksmithPercentInt } from '../../shared/utils/formatBlacksmithPercentInt.js';
-import { getBlacksmithViewerTypography } from '../../shared/constants/blacksmithViewerTypography.js';
+import { getBlacksmithViewerTypography, BLACKSMITH_MOBILE_WORK_ROOT_CLASS } from '../../shared/constants/blacksmithViewerTypography.js';
 
 const gradeStyles: Record<ItemGrade, { color: string; background: string }> = {
     normal: { color: 'text-gray-300', background: '/images/equipments/normalbgi.webp' },
@@ -135,8 +135,9 @@ const SelectedDisassemblyItemsPanel: React.FC<{
     onToggleDisassemblySelection: (itemId: string) => void;
     onOpenAutoSelect?: () => void;
     pcViewer?: boolean;
-}> = ({ selectedIds, inventory, onToggleDisassemblySelection, onOpenAutoSelect, pcViewer = false }) => {
-    const typo = getBlacksmithViewerTypography(pcViewer);
+    mobileWork?: boolean;
+}> = ({ selectedIds, inventory, onToggleDisassemblySelection, onOpenAutoSelect, pcViewer = false, mobileWork = false }) => {
+    const typo = getBlacksmithViewerTypography(pcViewer, { mobileWork });
     const items = useMemo(
         () => inventory.filter(item => selectedIds.has(item.id)),
         [inventory, selectedIds]
@@ -145,8 +146,8 @@ const SelectedDisassemblyItemsPanel: React.FC<{
     return (
         <div className="flex h-full min-h-0 w-full flex-col rounded-xl border border-amber-400/20 bg-gradient-to-b from-[#171d2b]/85 via-[#101524]/92 to-[#0a0e17]/95 p-2">
             <div className="mb-1.5 flex shrink-0 items-center justify-between gap-2 px-0.5">
-                <p className={`${typo.heading} text-cyan-200/90`}>선택된 장비</p>
-                <span className={`${typo.body} text-slate-400`}>{items.length.toLocaleString()}개</span>
+                <p className={`${typo.heading} text-center flex-1 text-cyan-200/90`}>선택된 장비</p>
+                <span className={`${typo.body} shrink-0 text-slate-400`}>{items.length.toLocaleString()}개</span>
             </div>
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-slate-600/35 bg-tertiary/30 pr-1">
                 {items.length === 0 ? (
@@ -171,7 +172,7 @@ const SelectedDisassemblyItemsPanel: React.FC<{
                     <button
                         type="button"
                         onClick={onOpenAutoSelect}
-                        className={`whitespace-nowrap rounded-md border border-amber-300/40 bg-gradient-to-r from-amber-600/90 via-amber-500/90 to-orange-500/85 px-4 py-2 font-bold text-amber-50 shadow-[0_10px_22px_-14px_rgba(251,191,36,0.75)] transition hover:from-amber-500 hover:via-amber-400 hover:to-orange-400 ${pcViewer ? typo.bodySemi : 'text-xs'}`}
+                        className={`whitespace-nowrap rounded-md border border-amber-300/40 bg-gradient-to-r from-amber-600/90 via-amber-500/90 to-orange-500/85 px-4 py-2.5 font-bold text-amber-50 shadow-[0_10px_22px_-14px_rgba(251,191,36,0.75)] transition hover:from-amber-500 hover:via-amber-400 hover:to-orange-400 ${typo.bodySemi}`}
                     >
                         자동 선택
                     </button>
@@ -535,9 +536,9 @@ const DisassemblyView: React.FC<DisassemblyViewProps> = ({
     };
 
     return (
-        <div className="flex h-full min-h-0 flex-col">
+        <div className={`flex h-full min-h-0 flex-col ${useStackedDisassemblyLayout ? `${BLACKSMITH_MOBILE_WORK_ROOT_CLASS} min-h-[min(72dvh,100%)]` : ''}`}>
             <div
-                className={`grid min-h-0 w-full min-w-0 flex-1 gap-2 ${
+                className={`grid min-h-0 w-full min-w-0 flex-1 gap-2.5 ${
                     useStackedDisassemblyLayout
                         ? '[grid-template-rows:repeat(2,minmax(0,1fr))]'
                         : '[grid-template-columns:minmax(0,1fr)_minmax(0,1fr)]'
@@ -550,6 +551,7 @@ const DisassemblyView: React.FC<DisassemblyViewProps> = ({
                         onToggleDisassemblySelection={onToggleDisassemblySelection}
                         onOpenAutoSelect={onOpenAutoSelect}
                         pcViewer={pcViewer}
+                        mobileWork={useStackedDisassemblyLayout}
                     />
                 </div>
                 <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">

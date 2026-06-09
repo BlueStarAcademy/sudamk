@@ -36,9 +36,12 @@ import {
 import { resolvePairSeatPetNicknameForChat } from './pairPetKataHydration.js';
 import {
     pairPetKataAbilityScore,
-    pairPetKataLevelForTotalPly,
     pairPetKataPhaseFromTotalPly,
 } from '../shared/constants/pairArena.js';
+import {
+    resolvePairGoKataLevelForSeat,
+    resolvePairGoPetKataStatsSixForSeat,
+} from '../shared/utils/pairGoKataResolve.js';
 import { SPECIAL_GAME_MODES } from '../constants/index.js';
 import { AI_HIDDEN_ITEM_THINKING_DURATION_MS } from '../shared/constants/gameSettings.js';
 import {
@@ -292,6 +295,19 @@ async function resolveKataLevelForHiddenRevealPrime(game: types.LiveGameSession)
                 configuredKataLevel = guildWarKataLevelFromSnapshot(kataRuntimeSnap, boardId);
             }
         }
+    }
+    const pairSeat = isPairClassicGame(game.settings, game.mode) ? getCurrentPairTurnSeat(game.settings) : null;
+    if (pairSeat && isPairAiSeat(pairSeat)) {
+        const pairValidPly = (game.moveHistory || []).filter((m) => m && m.x !== -1 && m.y !== -1).length + 1;
+        return resolvePairGoKataLevelForSeat({
+            settings: game.settings,
+            seat: pairSeat,
+            totalPly: pairValidPly,
+            goAiProfileLevel,
+            kataRuntime: kataRuntimeSnap,
+            configuredKataLevel,
+            session: game,
+        });
     }
     return configuredKataLevel ?? strategicKataLevelFromSnapshot(kataRuntimeSnap, goAiProfileLevel);
 }
@@ -2272,38 +2288,30 @@ export async function makeGoAiBotMove(
             (game.settings as any).kataServerLevel = configuredKataLevel;
         }
     }
-    let resolvedKataLevel =
-        configuredKataLevel ?? strategicKataLevelFromSnapshot(kataRuntimeSnap, goAiProfileLevel);
     const pairValidPlyForNextMove = (game.moveHistory || []).filter((m) => m && m.x !== -1 && m.y !== -1).length + 1;
     const pairKataPhase = pairCurrentSeat
         ? pairPetKataPhaseFromTotalPly(game.settings.boardSize || 19, pairValidPlyForNextMove)
         : null;
     const pairKataStats =
         pairCurrentSeat && isPairAiSeat(pairCurrentSeat)
-            ? game.settings.pairGame?.petKataStatsByParticipantId?.[pairCurrentSeat.participantId] ??
-              {
-                  concentration: 100,
-                  thinkingSpeed: 100,
-                  judgment: 100,
-                  calculation: 100,
-                  combatPower: 100,
-                  stability: 100,
-              }
+            ? resolvePairGoPetKataStatsSixForSeat(game.settings, pairCurrentSeat, game)
             : null;
     const pairFixedKataLevel =
         pairCurrentSeat && isPairAiSeat(pairCurrentSeat)
             ? game.settings.pairGame?.pairKataFixedLevelByParticipantId?.[pairCurrentSeat.participantId]
             : undefined;
-    if (pairCurrentSeat && Number.isFinite(pairFixedKataLevel)) {
-        resolvedKataLevel = Number(pairFixedKataLevel);
-    } else if (pairCurrentSeat && pairKataStats) {
-        resolvedKataLevel = pairPetKataLevelForTotalPly(
-            game.settings.boardSize || 19,
-            pairValidPlyForNextMove,
-            pairKataStats,
-            kataRuntimeSnap.pairPet,
-        );
-    }
+    let resolvedKataLevel =
+        pairClassicGame && pairCurrentSeat && isPairAiSeat(pairCurrentSeat)
+            ? resolvePairGoKataLevelForSeat({
+                  settings: game.settings,
+                  seat: pairCurrentSeat,
+                  totalPly: pairValidPlyForNextMove,
+                  goAiProfileLevel,
+                  kataRuntime: kataRuntimeSnap,
+                  configuredKataLevel,
+                  session: game,
+              })
+            : configuredKataLevel ?? strategicKataLevelFromSnapshot(kataRuntimeSnap, goAiProfileLevel);
     const pairHasFixedScoringTurnLimit =
         pairClassicGame &&
         !captureRuleGame &&

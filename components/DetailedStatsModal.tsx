@@ -17,6 +17,9 @@ import {
 } from '../shared/utils/detailedStatResetChecks.js';
 import { readStrategicRankedMatchRecord } from '../shared/utils/unifiedRankedStatsMigration.js';
 import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../shared/constants/pcShellLayout.js';
+import { useMobileModalChrome } from '../hooks/useMobileModalChrome.js';
+
+type PvpStatsTab = 'strategic' | 'pair' | 'playful';
 
 interface DetailedStatsModalProps {
     currentUser: UserWithStatus;
@@ -129,6 +132,8 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({
     /** 카테고리 일괄 초기화: 놀이는 전적만, 전략은 시즌 랭킹 연동 초기화 */
     const categoryResetTarget: 'strategic' | 'playful' = statsType === 'playful' ? 'playful' : 'strategic';
     const { isNativeMobile } = useNativeMobileShell();
+    const useMobileChrome = useMobileModalChrome();
+    const [pvpStatsTab, setPvpStatsTab] = useState<PvpStatsTab>('strategic');
     const title =
         statsType === 'both' ? 'PVP 경기장 상세 전적' : isStrategic ? '전략 바둑 상세 전적' : '놀이 바둑 상세 전적';
     const modes = isStrategic ? SPECIAL_GAME_MODES : PLAYFUL_GAME_MODES;
@@ -482,59 +487,155 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({
         </div>
     );
 
+    const useMobilePvpTabLayout = isPvpCombined && useMobileChrome;
+
+    const renderStrategicStatsSection = (showColumnHeading: boolean, innerScroll = !useMobilePvpTabLayout) => (
+        <section
+            className={`flex min-w-0 flex-col gap-2 ${
+                innerScroll ? 'min-h-0 overflow-hidden' : ''
+            } ${showColumnHeading ? `h-full px-1.5 sm:px-2 ${STRATEGIC_STATS_THEME.columnDivider}` : ''}`}
+        >
+            {showColumnHeading && (
+                <h3 className={`shrink-0 text-center text-sm font-bold uppercase tracking-[0.12em] sm:text-base ${STRATEGIC_STATS_THEME.columnTitle}`}>
+                    전략
+                </h3>
+            )}
+            {strategicSeasonTier &&
+                renderSeasonInfoBar(
+                    strategicSeasonTier.seasonLabel,
+                    strategicSeasonTier.tier.icon,
+                    unifiedRanking.score,
+                    STRATEGIC_STATS_THEME,
+                )}
+            {renderAggregateStatsPanel(
+                strategicAggregate.wins,
+                strategicAggregate.losses,
+                strategicAggregate.winRate,
+                STRATEGIC_STATS_THEME,
+                () => handleResetCategory('strategic'),
+                `다이아 ${CATEGORY_RESET_COST.toLocaleString()} — 전략 전체`,
+            )}
+            {innerScroll ? (
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain pr-0.5 [-webkit-overflow-scrolling:touch]">
+                    {renderModeStatsGrid(SPECIAL_GAME_MODES, STRATEGIC_STATS_THEME, true)}
+                </div>
+            ) : (
+                renderModeStatsGrid(SPECIAL_GAME_MODES, STRATEGIC_STATS_THEME, true)
+            )}
+        </section>
+    );
+
+    const renderPairStatsSection = (showColumnHeading: boolean, innerScroll = !useMobilePvpTabLayout) => (
+        <section
+            className={`flex min-w-0 flex-col gap-2 ${
+                innerScroll ? 'min-h-0 overflow-hidden' : ''
+            } ${showColumnHeading ? `h-full px-1.5 sm:px-2 ${PAIR_COLUMN_DIVIDER_CLASS}` : ''}`}
+        >
+            {showColumnHeading && (
+                <h3 className={`shrink-0 text-center text-sm font-bold uppercase tracking-[0.12em] sm:text-base ${PAIR_COLUMN_TITLE_CLASS}`}>
+                    페어
+                </h3>
+            )}
+            <div className={innerScroll ? 'flex min-h-0 flex-1 flex-col overflow-hidden' : ''}>
+                <PairArenaStatsPanel
+                    currentUser={currentUser}
+                    onAction={onAction}
+                    columnLayout
+                    scrollModesInPanel={innerScroll}
+                />
+            </div>
+        </section>
+    );
+
+    const renderPlayfulStatsSection = (showColumnHeading: boolean, innerScroll = !useMobilePvpTabLayout) => (
+        <section
+            className={`flex min-w-0 flex-col gap-2 ${
+                innerScroll ? 'min-h-0 overflow-hidden' : ''
+            } ${showColumnHeading ? `h-full px-1.5 sm:px-2 ${PLAYFUL_STATS_THEME.columnDivider}` : ''}`}
+        >
+            {showColumnHeading && (
+                <h3 className={`shrink-0 text-center text-sm font-bold uppercase tracking-[0.12em] sm:text-base ${PLAYFUL_STATS_THEME.columnTitle}`}>
+                    놀이
+                </h3>
+            )}
+            {renderPlayfulSeasonInfoBar(PLAYFUL_STATS_THEME)}
+            {renderAggregateStatsPanel(
+                playfulAggregate.wins,
+                playfulAggregate.losses,
+                playfulAggregate.winRate,
+                PLAYFUL_STATS_THEME,
+                () => handleResetCategory('playful'),
+                `다이아 ${CATEGORY_RESET_COST.toLocaleString()} — 놀이 전체`,
+            )}
+            {innerScroll ? (
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain pr-0.5 [-webkit-overflow-scrolling:touch]">
+                    {renderModeStatsGrid(PLAYFUL_GAME_MODES, PLAYFUL_STATS_THEME, true)}
+                </div>
+            ) : (
+                renderModeStatsGrid(PLAYFUL_GAME_MODES, PLAYFUL_STATS_THEME, true)
+            )}
+        </section>
+    );
+
+    const pvpCombinedMobileTabs: { id: PvpStatsTab; label: string; activeClass: string; idleClass: string }[] = [
+        {
+            id: 'strategic',
+            label: '전략',
+            activeClass: 'border-amber-400/55 bg-gradient-to-b from-amber-900/70 to-amber-950/80 text-amber-50 shadow-inner',
+            idleClass: 'border-transparent text-amber-200/55 hover:bg-amber-950/35 hover:text-amber-100/90',
+        },
+        {
+            id: 'pair',
+            label: '페어',
+            activeClass: 'border-violet-400/55 bg-gradient-to-b from-violet-900/70 to-violet-950/80 text-violet-50 shadow-inner',
+            idleClass: 'border-transparent text-violet-200/55 hover:bg-violet-950/35 hover:text-violet-100/90',
+        },
+        {
+            id: 'playful',
+            label: '놀이',
+            activeClass: 'border-fuchsia-400/55 bg-gradient-to-b from-fuchsia-900/70 to-fuchsia-950/80 text-fuchsia-50 shadow-inner',
+            idleClass: 'border-transparent text-fuchsia-200/55 hover:bg-fuchsia-950/35 hover:text-fuchsia-100/90',
+        },
+    ];
+
     const statsBody = isPvpCombined ? (
+        useMobilePvpTabLayout ? (
+            <div className="flex h-full min-h-0 flex-col text-primary">
+                <div
+                    className="mb-2 flex shrink-0 gap-1 rounded-xl border border-white/10 bg-black/35 p-1"
+                    role="tablist"
+                    aria-label="PVP 경기장 상세 전적"
+                >
+                    {pvpCombinedMobileTabs.map((tab) => (
+                        <button
+                            key={tab.id}
+                            type="button"
+                            role="tab"
+                            aria-selected={pvpStatsTab === tab.id}
+                            onClick={() => setPvpStatsTab(tab.id)}
+                            className={`min-h-[2.5rem] flex-1 rounded-lg border px-2 py-2 text-sm font-bold transition-colors sm:text-base ${
+                                pvpStatsTab === tab.id ? tab.activeClass : tab.idleClass
+                            }`}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]">
+                    {pvpStatsTab === 'strategic' && renderStrategicStatsSection(false, false)}
+                    {pvpStatsTab === 'pair' && renderPairStatsSection(false, false)}
+                    {pvpStatsTab === 'playful' && renderPlayfulStatsSection(false, false)}
+                </div>
+            </div>
+        ) : (
         <div className="flex h-full min-h-0 flex-col text-primary">
             <div className="grid min-h-0 flex-1 grid-cols-3 divide-x divide-white/10">
-                <section className={`flex min-h-0 min-w-0 flex-col gap-2 overflow-hidden px-1.5 sm:px-2 ${STRATEGIC_STATS_THEME.columnDivider}`}>
-                    <h3 className={`shrink-0 text-center text-sm font-bold uppercase tracking-[0.12em] sm:text-base ${STRATEGIC_STATS_THEME.columnTitle}`}>
-                        전략
-                    </h3>
-                    {strategicSeasonTier &&
-                        renderSeasonInfoBar(
-                            strategicSeasonTier.seasonLabel,
-                            strategicSeasonTier.tier.icon,
-                            unifiedRanking.score,
-                            STRATEGIC_STATS_THEME,
-                        )}
-                    {renderAggregateStatsPanel(
-                        strategicAggregate.wins,
-                        strategicAggregate.losses,
-                        strategicAggregate.winRate,
-                        STRATEGIC_STATS_THEME,
-                        () => handleResetCategory('strategic'),
-                        `다이아 ${CATEGORY_RESET_COST.toLocaleString()} — 전략 전체`,
-                    )}
-                    <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain pr-0.5">
-                        {renderModeStatsGrid(SPECIAL_GAME_MODES, STRATEGIC_STATS_THEME, true)}
-                    </div>
-                </section>
-                <section className={`flex min-h-0 min-w-0 flex-col gap-2 overflow-hidden px-1.5 sm:px-2 ${PAIR_COLUMN_DIVIDER_CLASS}`}>
-                    <h3 className={`shrink-0 text-center text-sm font-bold uppercase tracking-[0.12em] sm:text-base ${PAIR_COLUMN_TITLE_CLASS}`}>
-                        페어
-                    </h3>
-                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                        <PairArenaStatsPanel currentUser={currentUser} onAction={onAction} columnLayout />
-                    </div>
-                </section>
-                <section className={`flex min-h-0 min-w-0 flex-col gap-2 overflow-hidden px-1.5 sm:px-2 ${PLAYFUL_STATS_THEME.columnDivider}`}>
-                    <h3 className={`shrink-0 text-center text-sm font-bold uppercase tracking-[0.12em] sm:text-base ${PLAYFUL_STATS_THEME.columnTitle}`}>
-                        놀이
-                    </h3>
-                    {renderPlayfulSeasonInfoBar(PLAYFUL_STATS_THEME)}
-                    {renderAggregateStatsPanel(
-                        playfulAggregate.wins,
-                        playfulAggregate.losses,
-                        playfulAggregate.winRate,
-                        PLAYFUL_STATS_THEME,
-                        () => handleResetCategory('playful'),
-                        `다이아 ${CATEGORY_RESET_COST.toLocaleString()} — 놀이 전체`,
-                    )}
-                    <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain pr-0.5">
-                        {renderModeStatsGrid(PLAYFUL_GAME_MODES, PLAYFUL_STATS_THEME, true)}
-                    </div>
-                </section>
+                {renderStrategicStatsSection(true)}
+                {renderPairStatsSection(true)}
+                {renderPlayfulStatsSection(true)}
             </div>
         </div>
+        )
     ) : (
         <div className="space-y-2.5 text-primary sm:space-y-3">
             {showUnifiedRanking &&
@@ -576,7 +677,13 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({
     return (
         <>
             {embedded ? (
-                <div className={`${PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS} ${isPvpCombined ? '' : 'overflow-y-auto overscroll-y-contain'} p-1.5 sm:p-2`}>
+                <div
+                    className={
+                        useMobilePvpTabLayout
+                            ? 'flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden p-1.5 sm:p-2'
+                            : `${PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS} flex min-h-0 flex-1 flex-col p-1.5 sm:p-2`
+                    }
+                >
                     {statsBody}
                 </div>
             ) : (
@@ -587,6 +694,9 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({
                     initialWidth={isNativeMobile ? 420 : isPvpCombined ? 960 : 660}
                     initialHeight={isNativeMobile ? 620 : isPvpCombined ? 680 : 640}
                     bodyPaddingClassName={isNativeMobile ? 'p-2.5' : 'p-2.5 sm:p-3.5'}
+                    mobileViewportFit={isNativeMobile || useMobilePvpTabLayout}
+                    mobileLockViewportHeight={isNativeMobile || useMobilePvpTabLayout}
+                    bodyNoScroll={useMobilePvpTabLayout}
                 >
                     {statsBody}
                 </DraggableWindow>

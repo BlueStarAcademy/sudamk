@@ -47,6 +47,14 @@ export const PC_HOME_CENTER_INNER_LOBBY_CLASS =
 export const PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS =
     'flex h-full min-h-0 w-full flex-col overflow-y-auto overflow-x-hidden';
 
+/** 모바일 퀵 유틸 패널 — Router 영역 전체 높이 */
+export const MOBILE_QUICK_UTILITY_SHELL_CLASS =
+    'relative flex h-full min-h-0 w-full flex-col overflow-hidden';
+
+/** 모바일 퀵 유틸 본문 스크롤 루트 */
+export const MOBILE_QUICK_UTILITY_BODY_SCROLL_CLASS =
+    'flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden pb-[max(0.25rem,env(safe-area-inset-bottom,0px))]';
+
 /** 길드 홈 PC 우측 뷰포트 — 배경·테두리 없는 투명 셸 */
 export const PC_GUILD_CENTER_SHELL_CLASS =
     'flex min-h-0 min-w-0 flex-1 flex-col items-center overflow-hidden';

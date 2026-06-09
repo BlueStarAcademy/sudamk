@@ -10,6 +10,8 @@ import GuildMembersPanel from './GuildMembersPanel.js';
 import GuildManagementPanel from './GuildManagementPanel.js';
 import { GUILD_XP_PER_LEVEL, GUILD_BOSSES, GUILD_RESEARCH_PROJECTS, AVATAR_POOL, BORDER_POOL, emptySlotImages, slotNames, GUILD_BOSS_MAX_ATTEMPTS, GUILD_INITIAL_MEMBER_LIMIT, GUILD_DONATION_GOLD_LIMIT, GUILD_DONATION_DIAMOND_LIMIT, GUILD_DONATION_GOLD_COST, GUILD_DONATION_DIAMOND_COST, GUILD_CHECK_IN_MILESTONE_REWARDS, GUILD_DONATION_GOLD_REWARDS, GUILD_DONATION_DIAMOND_REWARDS, ADMIN_USER_ID, ADMIN_NICKNAME, GUILD_WAR_BOT_GUILD_ID, GUILD_WAR_PERSONAL_DAILY_ATTEMPTS } from '../../constants/index.js';
 import DraggableWindow, { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from '../DraggableWindow.js';
+import MobileModalTitleBar from '../mobile/MobileModalTitleBar.js';
+import { useMobileModalChrome } from '../../hooks/useMobileModalChrome.js';
 import GuildResearchPanel from './GuildResearchPanel.js';
 import GuildMissionsPanel from './GuildMissionsPanel.js';
 import GuildShopModal from './GuildShopModal.js';
@@ -79,6 +81,7 @@ const toEpochMs = (value: unknown): number | null => {
 };
 
 const GuildDonationPanel: React.FC<{ guild?: GuildType | null; guildDonationAnimation: { coins: number; research: number; type: 'gold' | 'diamond' } | null; onDonationComplete?: (coins: number, research: number, type: 'gold' | 'diamond') => void; goldButtonRef: React.RefObject<HTMLDivElement>; diamondButtonRef: React.RefObject<HTMLDivElement> }> = ({ guild, guildDonationAnimation, onDonationComplete, goldButtonRef, diamondButtonRef }) => {
+    const useMobileChrome = useMobileModalChrome();
     const { handlers, currentUserWithStatus } = useAppContext();
     const [isDonating, setIsDonating] = useState(false);
     const [donationType, setDonationType] = useState<'gold' | 'diamond' | null>(null);
@@ -256,7 +259,13 @@ const GuildDonationPanel: React.FC<{ guild?: GuildType | null; guildDonationAnim
                         className={`sudamr-panel-edge-host relative z-10 mx-4 max-w-sm w-full overflow-hidden rounded-2xl border-2 shadow-2xl pointer-events-auto ${donationModal.type === 'gold' ? 'border-amber-400/50 shadow-amber-500/20' : 'border-sky-400/50 shadow-sky-500/20'}`}
                         onClick={e => e.stopPropagation()}
                     >
-                        {/* 헤더 - 그라데이션 */}
+                        {useMobileChrome ? (
+                            <MobileModalTitleBar
+                                title={`${donationModal.type === 'gold' ? '골드' : '다이아'} 기부`}
+                                onClose={() => setDonationModal(null)}
+                                topRoundedClass="rounded-t-2xl"
+                            />
+                        ) : (
                         <div className={`px-6 py-4 ${donationModal.type === 'gold' ? 'bg-gradient-to-r from-amber-600/90 via-amber-500/90 to-yellow-500/90' : 'bg-gradient-to-r from-sky-600/90 via-blue-500/90 to-indigo-500/90'}`}>
                             <div className="flex items-center gap-2">
                                 <img src={donationModal.type === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'} alt="" className="w-8 h-8 drop-shadow-lg" />
@@ -265,6 +274,7 @@ const GuildDonationPanel: React.FC<{ guild?: GuildType | null; guildDonationAnim
                                 </h3>
                             </div>
                         </div>
+                        )}
                         {/* 본문 */}
                         <div className="bg-gradient-to-br from-stone-900 via-stone-800 to-stone-900 p-6">
                             {/* 보상 미리보기 카드 */}
@@ -339,6 +349,7 @@ const GuildDonationPanel: React.FC<{ guild?: GuildType | null; guildDonationAnim
 };
 
 const GuildDonationPanelPhone: React.FC<{ guild?: GuildType | null; guildDonationAnimation: { coins: number; research: number; type: 'gold' | 'diamond' } | null; onDonationComplete?: (coins: number, research: number, type: 'gold' | 'diamond') => void; goldButtonRef: React.RefObject<HTMLDivElement>; diamondButtonRef: React.RefObject<HTMLDivElement> }> = ({ guild, guildDonationAnimation, onDonationComplete, goldButtonRef, diamondButtonRef }) => {
+    const useMobileChrome = useMobileModalChrome();
     const { handlers, currentUserWithStatus } = useAppContext();
     const [isDonating, setIsDonating] = useState(false);
     const [donationType, setDonationType] = useState<'gold' | 'diamond' | null>(null);
@@ -507,7 +518,13 @@ const GuildDonationPanelPhone: React.FC<{ guild?: GuildType | null; guildDonatio
                         className={`sudamr-panel-edge-host relative z-10 mx-4 max-w-sm w-full overflow-hidden rounded-2xl border-2 shadow-2xl pointer-events-auto ${donationModal.type === 'gold' ? 'border-amber-400/50 shadow-amber-500/20' : 'border-sky-400/50 shadow-sky-500/20'}`}
                         onClick={e => e.stopPropagation()}
                     >
-                        {/* 헤더 - 그라데이션 */}
+                        {useMobileChrome ? (
+                            <MobileModalTitleBar
+                                title={`${donationModal.type === 'gold' ? '골드' : '다이아'} 기부`}
+                                onClose={() => setDonationModal(null)}
+                                topRoundedClass="rounded-t-2xl"
+                            />
+                        ) : (
                         <div className={`px-5 py-3 ${donationModal.type === 'gold' ? 'bg-gradient-to-r from-amber-600/90 via-amber-500/90 to-yellow-500/90' : 'bg-gradient-to-r from-sky-600/90 via-blue-500/90 to-indigo-500/90'}`}>
                             <div className="flex items-center gap-2">
                                 <img src={donationModal.type === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'} alt="" className="w-7 h-7 drop-shadow-lg" />
@@ -516,6 +533,7 @@ const GuildDonationPanelPhone: React.FC<{ guild?: GuildType | null; guildDonatio
                                 </h3>
                             </div>
                         </div>
+                        )}
                         {/* 본문 */}
                         <div className="bg-gradient-to-br from-stone-900 via-stone-800 to-stone-900 p-4">
                             {/* 보상 미리보기 카드 */}
@@ -868,6 +886,7 @@ const BossPanel: React.FC<{
     onOpenBossGuide,
 }) => {
     const { currentUserWithStatus, isNativeMobile } = useAppContext();
+    const useMobileChrome = useMobileModalChrome();
     const [activeSkillTooltip, setActiveSkillTooltip] = useState<GuildBossSkill | null>(null);
     const skillIconRefs = useRef<Record<string, HTMLDivElement | null>>({});
     const tooltipHideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1322,10 +1341,16 @@ const BossPanel: React.FC<{
                                 onClick={() => setShowBossParticipantsModal(false)}
                             >
                                 <div
-                                    className="sudamr-modal-panel flex w-[min(92vw,28rem)] max-h-[70vh] flex-col border-stone-600/50 p-4 ring-1 ring-white/[0.05]"
+                                    className={`sudamr-modal-panel flex w-[min(92vw,28rem)] max-h-[70vh] flex-col overflow-hidden border-stone-600/50 ring-1 ring-white/[0.05] ${useMobileChrome ? 'p-0' : 'p-4'}`}
                                     onClick={(e) => e.stopPropagation()}
                                 >
-                                    <div className="flex items-center justify-between mb-3">
+                                    {useMobileChrome ? (
+                                        <MobileModalTitleBar
+                                            title="참여 길드원 기록"
+                                            onClose={() => setShowBossParticipantsModal(false)}
+                                        />
+                                    ) : (
+                                    <div className="mb-3 flex items-center justify-between">
                                         <h3 className="text-base font-bold text-highlight">참여 길드원 기록</h3>
                                         <button
                                             type="button"
@@ -1336,6 +1361,8 @@ const BossPanel: React.FC<{
                                             닫기
                                         </button>
                                     </div>
+                                    )}
+                                    <div className={useMobileChrome ? 'min-h-0 flex-1 overflow-y-auto p-4' : undefined}>
                                     {bossParticipantRanking.length > 0 ? (
                                         <div className="overflow-y-auto pr-1 space-y-1">
                                             {bossParticipantRanking.map((row, index) => (
@@ -1348,6 +1375,7 @@ const BossPanel: React.FC<{
                                     ) : (
                                         <div className="text-center text-sm text-stone-400 py-8">아직 참여 기록이 없습니다.</div>
                                     )}
+                                    </div>
                                 </div>
                             </div>,
                             document.body
@@ -2777,14 +2805,6 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                                     {currentGuild ? guildDisplayName : '로딩 중...'}
                                 </span>
                             </h1>
-                            <button
-                                type="button"
-                                onClick={() => setIsMobileDonationOpen(true)}
-                                title="길드 기부"
-                                className={`${getLuxuryButtonClasses('accent')} shrink-0 !px-2 !py-1.5 !text-[11px] !leading-tight`}
-                            >
-                                💰 기부
-                            </button>
                         </div>
                         <div className="w-full min-w-0 px-0">
                             <div className="w-full bg-gray-700/50 rounded-full h-2 sm:h-2.5 border border-gray-600/50 overflow-hidden shadow-inner">
@@ -2844,7 +2864,19 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                             ))}
                         </div>
                         <div className="flex-shrink-0">
-                            <GuildCheckInPanel guild={currentGuild || guild} />
+                            <GuildCheckInPanel
+                                guild={currentGuild || guild}
+                                leftAction={
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsMobileDonationOpen(true)}
+                                        title="길드 기부"
+                                        className={`${getLuxuryButtonClasses('accent')} !text-xs sm:!text-sm !py-1 sm:!py-2 !px-2 sm:!px-4`}
+                                    >
+                                        기부
+                                    </button>
+                                }
+                            />
                         </div>
                         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
                             <GuildAnnouncementPanel guild={currentGuild || guild} compact stretch canEdit={canManage} />

@@ -8,10 +8,12 @@ import {
 } from '../shared/utils/specialOptionGearEffects.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
+import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../shared/constants/pcShellLayout.js';
 
 interface EquipmentEffectsModalProps {
     onClose: () => void;
     isTopmost?: boolean;
+    embedded?: boolean;
     mainOptionBonuses: Record<string, { flat: number; percent: number }>;
     combatSubOptionBonuses: Record<string, { flat: number; percent: number }>;
     specialStatBonuses: Record<string, { flat: number; percent: number }>;
@@ -104,6 +106,7 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
     combatSubOptionBonuses,
     specialStatBonuses,
     aggregatedMythicStats,
+    embedded = false,
 }) => {
     const { isNativeMobile, isNarrowViewport } = useNativeMobileShell();
     const isHandheld = useIsHandheldDevice(1025);
@@ -163,20 +166,7 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
 
     const sectionShell = `${shell} p-3 sm:p-3.5`;
 
-    return (
-        <DraggableWindow
-            title="장비 장착 효과"
-            onClose={onClose}
-            windowId="equipment-effects"
-            initialWidth={compactChrome ? 420 : 720}
-            initialHeight={compactChrome ? 560 : 620}
-            isTopmost={isTopmost}
-            variant="store"
-            mobileViewportFit={compactChrome}
-            mobileViewportMaxHeightVh={92}
-            containerExtraClassName="sudamr-panel-edge-host !rounded-2xl !shadow-[0_26px_85px_rgba(0,0,0,0.72)] ring-1 ring-amber-400/22"
-            bodyPaddingClassName={compactChrome ? 'p-2.5 sm:p-3' : 'p-3 sm:p-4'}
-        >
+    const effectsBody = (
             <div className="flex min-h-0 min-w-0 flex-col gap-2.5 text-on-panel">
                 <p className="px-0.5 text-[13px] leading-snug text-amber-100/70 sm:text-sm">
                     장착 중인 장비에서 합산된 옵션입니다. 탭으로 구역을 나눠 볼 수 있습니다.
@@ -437,6 +427,27 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
                     )}
                 </div>
             </div>
+    );
+
+    if (embedded) {
+        return <div className={PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS}>{effectsBody}</div>;
+    }
+
+    return (
+        <DraggableWindow
+            title="장비 장착 효과"
+            onClose={onClose}
+            windowId="equipment-effects"
+            initialWidth={compactChrome ? 420 : 720}
+            initialHeight={compactChrome ? 560 : 620}
+            isTopmost={isTopmost}
+            variant="store"
+            mobileViewportFit={compactChrome}
+            mobileViewportMaxHeightVh={92}
+            containerExtraClassName="sudamr-panel-edge-host !rounded-2xl !shadow-[0_26px_85px_rgba(0,0,0,0.72)] ring-1 ring-amber-400/22"
+            bodyPaddingClassName={compactChrome ? 'p-2.5 sm:p-3' : 'p-3 sm:p-4'}
+        >
+            {effectsBody}
         </DraggableWindow>
     );
 };

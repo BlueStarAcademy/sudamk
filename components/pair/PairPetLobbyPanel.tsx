@@ -129,6 +129,11 @@ import {
     pairPetLobbyInventoryKindOrderIndex,
 } from '../../shared/constants/petLobby.js';
 import {
+    PAIR_PET_MANAGEMENT_MODAL_WIDTH_MOBILE,
+    PAIR_PET_MODAL_MOBILE_BOTTOM_GAP_PX,
+    PAIR_PET_MODAL_MOBILE_MAX_HEIGHT_CSS,
+} from '../../shared/constants/pairPetModal.js';
+import {
     PAIR_TRAINING_SLOT_DEFS,
     getPairTrainingSlotDisplayName,
     getPairTrainingSlotUnlockProgress,
@@ -670,6 +675,12 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
     }, [petMgmtMobileShell, aiTab]);
 
     useEffect(() => {
+        if (petMgmtMobileShell && aiTab === 'training') {
+            setSelectedLobbyItemId(null);
+        }
+    }, [petMgmtMobileShell, aiTab]);
+
+    useEffect(() => {
         const persisted = normalizePairPetLobbyInventorySort(currentUser.pairPetLobbyInventorySort);
         if (persisted !== undefined) setInvSort(persisted);
     }, [currentUser.pairPetLobbyInventorySort]);
@@ -701,6 +712,8 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
     const [trainingMobilePickSlotIndex, setTrainingMobilePickSlotIndex] = useState<number | null>(null);
     /** 수련 시작 직전 확인(드롭·모바일 탭 공통) */
     const [trainingStartConfirm, setTrainingStartConfirm] = useState<{ slotIndex: number; itemId: string } | null>(null);
+    /** 모바일 수련 탭 — 영혼석 인벤 터치 시 상세 모달 */
+    const [soulStoneViewModalItem, setSoulStoneViewModalItem] = useState<InventoryItem | null>(null);
     /** 수련 완료 보상 모달: 수령 후에도 슬롯이 비워져도 펫·슬롯 정보 유지 */
     const [trainingRewardModal, setTrainingRewardModal] = useState<PairTrainingRewardModalOpen | null>(null);
     /** 수련 진행 중 취소 확인 모달(슬롯 인덱스) */
@@ -1004,6 +1017,45 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
         setInvFilter('soul');
         setSelectedLobbyItemId(slotKey);
     }, []);
+
+    const buildLobbySoulSlotItem = useCallback(
+        (slotKey: string): InventoryItem | null => {
+            if (!slotKey.startsWith(SOUL_SLOT_PREFIX)) return null;
+            const tid = slotKey.slice(SOUL_SLOT_PREFIX.length);
+            const stacks = inventory.filter((i) => i.templateId === tid && isPairSoulStoneItem(i));
+            const sum = stacks.reduce((s, it) => s + (it.quantity ?? 1), 0);
+            const first = stacks[0];
+            const tierMatch = /^pair-soul-(\d+)$/.exec(tid);
+            const tier = tierMatch ? Math.min(5, Math.max(1, parseInt(tierMatch[1]!, 10))) : 1;
+            const displayName = PAIR_SOULSTONE_NAMES[tier - 1]!;
+            const meta = MATERIAL_ITEMS[displayName as keyof typeof MATERIAL_ITEMS];
+            if (!meta) return null;
+            return {
+                id: first?.id ?? `${SOUL_SLOT_PREFIX}${tid}-virt`,
+                name: meta.name,
+                description: meta.description,
+                type: 'material',
+                slot: null,
+                level: 1,
+                stars: 0,
+                isEquipped: false,
+                createdAt: first?.createdAt ?? Date.now(),
+                image: meta.image,
+                grade: meta.grade,
+                quantity: sum,
+                templateId: tid,
+            } as InventoryItem;
+        },
+        [inventory],
+    );
+
+    const openMobileTrainingSoulDetail = useCallback(
+        (slotKey: string) => {
+            const row = buildLobbySoulSlotItem(slotKey);
+            if (row) setSoulStoneViewModalItem(row);
+        },
+        [buildLobbySoulSlotItem],
+    );
 
     const confirmSoulConvert = () => {
         if (!soulConvertItem || soulConvertInFlightRef.current) return;
@@ -1637,11 +1689,16 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                         onClick={() => {
                             const canDetail = isPairPetMaterial(it) && !isPairEggItem(it) && it.templateId;
                             if (!canDetail) return;
-                            selectLobbyPetItem(it.id);
                             if (canTapPetToTrain && trainingMobilePickSlotIndex != null) {
                                 setTrainingStartConfirm({ slotIndex: trainingMobilePickSlotIndex, itemId: it.id });
                                 setTrainingMobilePickSlotIndex(null);
+                                return;
                             }
+                            if (useTapTrainingFlow && aiTab === 'training') {
+                                handlers.openPairPetDetailModal(it, 'view');
+                                return;
+                            }
+                            selectLobbyPetItem(it.id);
                         }}
                         showRepresentativeBadge={representativeThumb}
                         showTrainingBadge={inTraining}
@@ -2288,7 +2345,13 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                     grade={soulGrade}
                                     selected={soulThumbSelected && selectedLobbyItemId === slotKey}
                                     disabled={soulThumbDisabled}
-                                    onClick={() => selectLobbySoulSlot(slotKey)}
+                                    onClick={() => {
+                                        if (useTapTrainingFlow && aiTab === 'training') {
+                                            openMobileTrainingSoulDetail(slotKey);
+                                            return;
+                                        }
+                                        selectLobbySoulSlot(slotKey);
+                                    }}
                                 />
                             );
                         })}
@@ -2446,7 +2509,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                         ) : null}
                                         {aiTab === 'training' ? (
                                             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-                                                {selectedItem ? (
+                                                {selectedItem && !useTapTrainingFlow ? (
                                                     <div className="flex max-h-[42%] min-h-[7.5rem] shrink-0 flex-col overflow-hidden border-b border-white/10">
                                                         {infoDetailPanelBody}
                                                     </div>
@@ -2673,10 +2736,16 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                     windowId="pairPetTrainingStartConfirm"
                     isTopmost
                     variant="store"
-                    initialWidth={520}
-                    shrinkHeightToContent
+                    initialWidth={petMgmtMobileShell ? PAIR_PET_MANAGEMENT_MODAL_WIDTH_MOBILE : 520}
+                    shrinkHeightToContent={!petMgmtMobileShell}
+                    mobileViewportFit={petMgmtMobileShell}
+                    mobileLockViewportHeight={petMgmtMobileShell}
+                    mobileViewportMaxHeightCss={PAIR_PET_MODAL_MOBILE_MAX_HEIGHT_CSS}
+                    mobileViewportDvhBottomGapPx={PAIR_PET_MODAL_MOBILE_BOTTOM_GAP_PX}
                     bodyNoScroll
-                    bodyPaddingClassName="p-0"
+                    bodyPaddingClassName="!p-0"
+                    hideFooter
+                    zIndex={73}
                 >
                     {(() => {
                         const { slotIndex, itemId } = trainingStartConfirm;
@@ -2687,65 +2756,114 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                             : '펫';
                         const repPet = getEquippedPairPetInventoryRow(currentUser);
                         return (
-                            <div className="relative overflow-hidden">
+                            <div className="relative flex h-full min-h-0 flex-col overflow-hidden">
                                 <div
                                     className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_75%_55%_at_50%_-18%,rgba(139,92,246,0.32),transparent_55%),linear-gradient(165deg,rgba(24,24,27,0.98)0%,rgba(9,9,11,0.99)48%,rgba(59,7,100,0.32)100%)]"
                                     aria-hidden
                                 />
-                                <div className="relative px-3 pb-4 pt-4 text-center sm:px-5 sm:pb-6 sm:pt-6">
-                                    <h3 className="text-sm font-bold leading-snug text-violet-50 sm:text-lg sm:font-black">
-                                        <span className="text-white">{petName}</span> 펫을
-                                        <br />
-                                        <span className="text-violet-200">{slotLabel}</span>에 보낼까요?
-                                    </h3>
-                                    {petRow ? (
-                                        <div
-                                            className={`mx-auto mt-4 w-full max-w-[min(100%,30rem)] text-left ${PET_LOBBY_BAG_SCROLLBAR_Y_CLASS} max-h-[min(52vh,480px)] overflow-y-auto overflow-x-hidden px-0.5 sm:px-1`}
-                                        >
-                                            <PairPetDetailCardBody
-                                                currentUser={currentUser}
-                                                item={petRow}
-                                                statsGridVariant="panelFit"
-                                                petManagementModal
-                                                showRepresentativeBadge={repPet?.id === petRow.id}
-                                            />
+                                <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+                                    <div className="shrink-0 px-3 pt-4 text-center sm:px-5 sm:pt-6">
+                                        <h3 className="text-sm font-bold leading-snug text-violet-50 sm:text-lg sm:font-black">
+                                            <span className="text-white">{petName}</span> 펫을
+                                            <br />
+                                            <span className="text-violet-200">{slotLabel}</span>에 보낼까요?
+                                        </h3>
+                                    </div>
+                                    <div
+                                        className={`relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain [-webkit-overflow-scrolling:touch] px-3 sm:px-5 ${PET_LOBBY_BAG_SCROLLBAR_Y_CLASS}`}
+                                        style={{ WebkitOverflowScrolling: 'touch' }}
+                                    >
+                                        {petRow ? (
+                                            <div className="mx-auto mt-3 w-full max-w-[min(100%,30rem)] text-left sm:mt-4">
+                                                <PairPetDetailCardBody
+                                                    currentUser={currentUser}
+                                                    item={petRow}
+                                                    statsGridVariant="panelFit"
+                                                    petManagementModal
+                                                    showRepresentativeBadge={repPet?.id === petRow.id}
+                                                />
+                                            </div>
+                                        ) : null}
+                                        <p className="mx-auto mt-3 max-w-sm text-left text-[0.65rem] font-medium leading-relaxed text-slate-400 sm:mt-4 sm:text-xs sm:font-semibold sm:text-slate-300">
+                                            수련이 진행되는 동안 이 펫은 페어바둑에 출전할 수 없습니다. 대표 펫으로 지정된 펫은 수련에 보낼 수 없으며, 수련 중에는
+                                            대표 펫으로 바꿀 수 없습니다.
+                                        </p>
+                                    </div>
+                                    <div className="relative shrink-0 border-t border-white/10 bg-zinc-950/95 px-3 py-3 sm:px-5 sm:py-4">
+                                        <div className="mx-auto flex max-w-sm flex-row items-stretch justify-center gap-2 sm:gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => setTrainingStartConfirm(null)}
+                                                disabled={isBusy}
+                                                className="min-w-0 flex-1 rounded-full border border-white/15 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-white/25 hover:bg-white/[0.08] disabled:opacity-45 sm:min-w-[8rem] sm:flex-none sm:px-5 sm:py-2.5 sm:text-sm"
+                                            >
+                                                취소
+                                            </button>
+                                            <Button
+                                                type="button"
+                                                disabled={isBusy || !petRow}
+                                                onClick={async () => {
+                                                    if (!petRow) return;
+                                                    const res = await applyPetAction({
+                                                        type: 'PAIR_PET_START_TRAINING',
+                                                        payload: { slotIndex, itemId },
+                                                    });
+                                                    if (res && (res as { error?: string }).error) return;
+                                                    setTrainingStartConfirm(null);
+                                                }}
+                                                colorScheme="none"
+                                                className="min-w-0 flex-1 !rounded-full !border !border-violet-400/50 !bg-gradient-to-r !from-violet-600 !via-violet-500 !to-fuchsia-600 !px-3 !py-2 !text-xs !font-bold !text-white !shadow-[0_6px_20px_rgba(124,58,237,0.35),inset_0_1px_0_rgba(255,255,255,0.16)] hover:!from-violet-500 hover:!via-violet-400 hover:!to-fuchsia-500 disabled:!opacity-40 sm:!min-w-[8rem] sm:!flex-none sm:!px-6 sm:!py-2.5 sm:!text-sm sm:!font-black sm:!shadow-[0_8px_26px_rgba(124,58,237,0.4),inset_0_1px_0_rgba(255,255,255,0.18)]"
+                                            >
+                                                수련 보내기
+                                            </Button>
                                         </div>
-                                    ) : null}
-                                    <p className="mx-auto mt-3 max-w-sm text-left text-[0.65rem] font-medium leading-relaxed text-slate-400 sm:mt-4 sm:text-xs sm:font-semibold sm:text-slate-300">
-                                        수련이 진행되는 동안 이 펫은 페어바둑에 출전할 수 없습니다. 대표 펫으로 지정된 펫은 수련에 보낼 수 없으며, 수련 중에는
-                                        대표 펫으로 바꿀 수 없습니다.
-                                    </p>
-                                    <div className="mx-auto mt-4 flex max-w-sm flex-row items-stretch justify-center gap-2 sm:mt-5 sm:gap-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => setTrainingStartConfirm(null)}
-                                            disabled={isBusy}
-                                            className="min-w-0 flex-1 rounded-full border border-white/15 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-white/25 hover:bg-white/[0.08] disabled:opacity-45 sm:min-w-[8rem] sm:flex-none sm:px-5 sm:py-2.5 sm:text-sm"
-                                        >
-                                            취소
-                                        </button>
-                                        <Button
-                                            type="button"
-                                            disabled={isBusy || !petRow}
-                                            onClick={async () => {
-                                                if (!petRow) return;
-                                                const res = await applyPetAction({
-                                                    type: 'PAIR_PET_START_TRAINING',
-                                                    payload: { slotIndex, itemId },
-                                                });
-                                                if (res && (res as { error?: string }).error) return;
-                                                setTrainingStartConfirm(null);
-                                            }}
-                                            colorScheme="none"
-                                            className="min-w-0 flex-1 !rounded-full !border !border-violet-400/50 !bg-gradient-to-r !from-violet-600 !via-violet-500 !to-fuchsia-600 !px-3 !py-2 !text-xs !font-bold !text-white !shadow-[0_6px_20px_rgba(124,58,237,0.35),inset_0_1px_0_rgba(255,255,255,0.16)] hover:!from-violet-500 hover:!via-violet-400 hover:!to-fuchsia-500 disabled:!opacity-40 sm:!min-w-[8rem] sm:!flex-none sm:!px-6 sm:!py-2.5 sm:!text-sm sm:!font-black sm:!shadow-[0_8px_26px_rgba(124,58,237,0.4),inset_0_1px_0_rgba(255,255,255,0.18)]"
-                                        >
-                                            수련 보내기
-                                        </Button>
                                     </div>
                                 </div>
                             </div>
                         );
                     })()}
+                </DraggableWindow>
+            ) : null}
+
+            {soulStoneViewModalItem ? (
+                <DraggableWindow
+                    title="영혼석 정보"
+                    onClose={() => setSoulStoneViewModalItem(null)}
+                    windowId="pair-pet-soul-stone-view-modal"
+                    isTopmost
+                    variant="store"
+                    initialWidth={petMgmtMobileShell ? PAIR_PET_MANAGEMENT_MODAL_WIDTH_MOBILE : 480}
+                    mobileViewportFit={petMgmtMobileShell}
+                    mobileLockViewportHeight={petMgmtMobileShell}
+                    mobileViewportMaxHeightCss={PAIR_PET_MODAL_MOBILE_MAX_HEIGHT_CSS}
+                    mobileViewportDvhBottomGapPx={PAIR_PET_MODAL_MOBILE_BOTTOM_GAP_PX}
+                    bodyNoScroll
+                    bodyPaddingClassName="!p-0"
+                    hideFooter
+                    zIndex={73}
+                >
+                    <div className="flex min-h-0 max-h-[min(85dvh,560px)] flex-col overflow-hidden">
+                        <div
+                            className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain [-webkit-overflow-scrolling:touch] ${PET_LOBBY_BAG_SCROLLBAR_Y_CLASS}`}
+                            style={{ WebkitOverflowScrolling: 'touch' }}
+                        >
+                            <PairPetLobbySoulStoneViewer
+                                item={soulStoneViewModalItem}
+                                isBusy={isBusy}
+                                totalSoulQuantity={soulStoneViewModalItem.quantity ?? 0}
+                                onSellOne={() => {
+                                    const tid = soulStoneViewModalItem.templateId;
+                                    if (!tid) return;
+                                    const row = inventory.find((i) => i.templateId === tid && isPairSoulStoneItem(i));
+                                    if (row) setSoulStoneSellConfirm({ stackItem: row, quantity: 1 });
+                                }}
+                                onOpenBulkSell={() => {
+                                    if (!isPairSoulStoneItem(soulStoneViewModalItem)) return;
+                                    setSoulStoneSellBulkItem(soulStoneViewModalItem);
+                                }}
+                            />
+                        </div>
+                    </div>
                 </DraggableWindow>
             ) : null}
 

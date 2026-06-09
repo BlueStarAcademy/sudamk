@@ -28,6 +28,10 @@ import {
 import {
     PAIR_LOBBY_DENSE_SETTING_ROW_CLASS,
     PAIR_LOBBY_DENSE_SETTINGS_RULE_GRID_CLASS,
+    LOBBY_DENSE_SETTINGS_GRID_CONTAINER_CLASS,
+    LOBBY_DENSE_SETTINGS_RESPONSIVE_COLS_GRID_CLASS,
+    LOBBY_HORIZONTAL_MODE_PICKER_ITEM_CLASS,
+    LOBBY_HORIZONTAL_MODE_PICKER_ROW_CLASS,
     PAIR_LOBBY_DENSE_SETTING_VALUE_READONLY_CLASS,
 } from '../../shared/constants/pairLobbyDenseSettingFieldLayout.js';
 import { getRankedGameSettings } from '../../constants/rankedGameSettings.js';
@@ -165,11 +169,11 @@ const HANDHELD_PAIR_DUO_RANKED_RULE_ROW_EXTRA_CLASS =
 
 /** 모바일 「AI와 대결」2단계: 한 줄에 설정 카드 2개 — 컨트롤 높이·패딩만 밀집 */
 const HANDHELD_STANDALONE_AI_SETTING_ROW_EXTRA_CLASS =
-    '!py-1 !px-1.5 gap-x-0.5 [&_select]:!h-8 [&_select]:!min-h-8 [&_select]:!pl-2 [&_select]:!pr-8 [&_select]:!text-[11px] [&_select]:!leading-tight [&_input[type=number]]:!h-8 [&_input[type=number]]:!min-h-8 [&_input[type=number]]:!text-[11px] [&_input[type=number]]:!px-1.5 [&_input[type=number]]:!leading-tight';
+    '!py-1 !px-1.5 gap-x-0.5 [&_select]:!h-9 [&_select]:!min-h-9 [&_select]:!pl-2 [&_select]:!pr-9 [&_select]:!text-[13px] [&_select]:!leading-tight [&_input[type=number]]:!h-9 [&_input[type=number]]:!min-h-9 [&_input[type=number]]:!text-[13px] [&_input[type=number]]:!px-1.5 [&_input[type=number]]:!leading-tight';
 
 /** 핸드헬드 「방 만들기」2단계(임베드): 설정 행·컨트롤을 한 단계 더 밀집(드롭다운 화살표·글자 잘림 완화) */
 const HANDHELD_PAIR_ROOM_CREATE_DETAILS_SETTING_ROW_EXTRA_CLASS =
-    '!py-0.5 !px-1 gap-x-0.5 [&_select]:!h-7 [&_select]:!min-h-7 [&_select]:!pl-2 [&_select]:!pr-9 [&_select]:!text-left [&_select]:!text-[11px] [&_select]:!leading-tight [&_input[type=number]]:!h-7 [&_input[type=number]]:!min-h-7 [&_input[type=number]]:!text-[10px] [&_input[type=number]]:!px-1 [&_input[type=number]]:!leading-tight';
+    '!py-0.5 !px-1 gap-x-0.5 [&_select]:!h-8 [&_select]:!min-h-8 [&_select]:!pl-2 [&_select]:!pr-9 [&_select]:!text-left [&_select]:!text-[13px] [&_select]:!leading-tight [&_input[type=number]]:!h-8 [&_input[type=number]]:!min-h-8 [&_input[type=number]]:!text-[12px] [&_input[type=number]]:!px-1 [&_input[type=number]]:!leading-tight';
 
 /**
  * 손님 「조건 변경 제안」모바일: 좌우 2열 그리드 안에서 라벨 열이 찌그러짐 → 라벨을 드롭다운 위(왼쪽) 작은 글씨로만 표시.
@@ -442,8 +446,10 @@ const GameCard: React.FC<{
     onSelect: (mode: GameMode) => void;
     isSelected: boolean;
     compact?: boolean;
+    /** 가로 스크롤 피커: 카드 너비를 제목 길이에 맞춤(줄임표 없음) */
+    scrollStripItem?: boolean;
     chromeKind: AiChallengeModalChromeKind;
-}> = ({ mode, image, displayName, onSelect, isSelected, compact, chromeKind }) => {
+}> = ({ mode, image, displayName, onSelect, isSelected, compact, scrollStripItem, chromeKind }) => {
     const [imgError, setImgError] = useState(false);
     /** `PairPetRankedMatchModeModal`의 `ModePickCard`와 동일 높이·간격(이름 아래 불필요한 flex-grow 공간 제거) */
     const imgH = compact ? 70 : 88;
@@ -451,8 +457,8 @@ const GameCard: React.FC<{
     return (
         <div
             className={`${aiChallengeModalGameCardSurfaceClass(chromeKind, isSelected, Boolean(compact))} relative rounded-lg ${
-                isSelected ? 'z-[15]' : 'z-0'
-            }`}
+                scrollStripItem ? 'w-max max-w-none' : ''
+            } ${isSelected ? 'z-[15]' : 'z-0'}`}
             onClick={() => onSelect(mode)}
         >
             {isSelected ? (
@@ -477,9 +483,11 @@ const GameCard: React.FC<{
                 )}
             </div>
             <h3
-                className={`relative z-[1] text-primary w-full min-w-0 shrink-0 truncate px-0.5 font-bold leading-snug ${
-                    compact ? 'text-xs' : 'text-sm sm:text-base'
-                } ${isSelected ? aiChallengeModalGameCardSelectedTitleClass(chromeKind) : ''}`}
+                className={`relative z-[1] text-primary w-full shrink-0 px-0.5 text-center font-bold ${
+                    scrollStripItem ? 'whitespace-nowrap leading-snug' : 'min-w-0 leading-snug'
+                } ${compact ? 'text-xs' : 'text-sm sm:text-base'} ${
+                    isSelected ? aiChallengeModalGameCardSelectedTitleClass(chromeKind) : ''
+                }`}
             >
                 {displayName}
             </h3>
@@ -542,11 +550,14 @@ export const AiChallengeModePickerStrip: React.FC<AiChallengeModePickerStripProp
                 className={
                     verticalGrid
                         ? 'grid min-h-0 flex-1 grid-cols-2 gap-2 overflow-y-auto overscroll-contain pr-0.5 [-webkit-overflow-scrolling:touch]'
-                        : 'flex min-h-[7.25rem] gap-2 overflow-x-auto overscroll-x-contain pb-0.5 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] sm:min-h-[7.75rem] md:grid md:min-h-0 md:max-h-none md:grid-cols-2 md:gap-2 md:overflow-x-hidden md:overflow-y-auto lg:grid-cols-2'
+                        : `${LOBBY_HORIZONTAL_MODE_PICKER_ROW_CLASS} md:grid md:min-h-0 md:max-h-none md:grid-cols-2 md:gap-2 md:overflow-x-hidden md:overflow-y-auto lg:grid-cols-2`
                 }
             >
                 {availableGameModes.map((game) => (
-                    <div key={game.mode} className={verticalGrid ? 'min-w-0' : 'w-[5.35rem] shrink-0 sm:w-[5.75rem] md:w-auto md:shrink'}>
+                    <div
+                        key={game.mode}
+                        className={verticalGrid ? 'min-w-0' : `${LOBBY_HORIZONTAL_MODE_PICKER_ITEM_CLASS} md:w-auto md:shrink`}
+                    >
                         <GameCard
                             mode={game.mode}
                             image={game.image}
@@ -554,6 +565,7 @@ export const AiChallengeModePickerStrip: React.FC<AiChallengeModePickerStripProp
                             onSelect={onSelectGameMode}
                             isSelected={displaySelectedGameMode === game.mode}
                             compact
+                            scrollStripItem={!verticalGrid}
                             chromeKind={modalChrome}
                         />
                     </div>
@@ -1120,9 +1132,9 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                             <div
                                 className={
                                     handheldCompact
-                                        ? 'mt-1.5 grid w-full min-w-0 grid-cols-2 content-start gap-x-1.5 gap-y-1.5 sm:mt-2 [&>div]:min-w-0'
+                                        ? `${LOBBY_DENSE_SETTINGS_GRID_CONTAINER_CLASS} mt-1.5 ${LOBBY_DENSE_SETTINGS_RESPONSIVE_COLS_GRID_CLASS} sm:mt-2`
                                         : pairRoomCreateThreeColumnGrid
-                                          ? 'mt-1.5 grid w-full min-w-0 grid-cols-3 content-start justify-center gap-x-2.5 gap-y-2 sm:mt-2 [&>div]:min-w-0'
+                                          ? `${LOBBY_DENSE_SETTINGS_GRID_CONTAINER_CLASS} mt-1.5 ${LOBBY_DENSE_SETTINGS_RESPONSIVE_COLS_GRID_CLASS} sm:mt-2`
                                           : pairRoomEmbeddedRightSlot
                                             ? 'mt-1.5 grid w-full min-w-0 grid-cols-2 content-start justify-center gap-x-2.5 gap-y-2 sm:mt-2 [&>div]:min-w-0'
                                             : `mt-1.5 sm:mt-2 ${PAIR_LOBBY_DENSE_SETTINGS_RULE_GRID_CLASS}`
@@ -1170,21 +1182,21 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
         /** 핸드헬드 「방 만들기」2단계: 드롭다운·라벨을 단독 AI 모달 본문과 동일한 본문 크기(text-sm)에 맞춤 */
         const handheldRoomCreateDenseTypography = Boolean(denseSettings && isMobile && pairRoomHandheldCreateStackedFooter);
         const gameSettingsSelectClass = proposeMobileStackedLayout
-            ? 'h-9 min-h-9 w-full box-border rounded-lg border border-white/15 bg-black/35 pl-2 pr-9 text-left text-[13px] font-semibold leading-tight text-slate-100 outline-none ring-0 focus:border-cyan-400/50 disabled:opacity-50 sm:text-sm'
+            ? 'h-9 min-h-9 w-full box-border rounded-lg border border-white/15 bg-black/35 pl-2 pr-9 text-left text-sm font-semibold leading-tight text-slate-100 outline-none ring-0 focus:border-cyan-400/50 disabled:opacity-50'
             : denseSettings
               ? lobbySettingsTypographyCompact
-                  ? 'h-7 min-h-7 w-full min-w-[5rem] box-border rounded-lg border border-white/15 bg-black/35 pl-2 pr-9 text-left text-[11px] font-semibold leading-tight text-slate-100 outline-none ring-0 focus:border-cyan-400/50 disabled:opacity-50'
+                  ? 'h-8 min-h-8 w-full min-w-0 box-border rounded-lg border border-white/15 bg-black/35 pl-2 pr-9 text-left text-[13px] font-semibold leading-tight text-slate-100 outline-none ring-0 focus:border-cyan-400/50 disabled:opacity-50'
                   : aiSettingsTwoColumnGrid
-                    ? 'h-9 min-h-9 w-full min-w-[5.25rem] box-border rounded-lg border border-white/15 bg-black/35 pl-2 pr-9 text-left text-[13px] font-semibold leading-tight text-slate-100 outline-none ring-0 focus:border-cyan-400/50 disabled:opacity-50 sm:text-sm'
+                    ? 'h-9 min-h-9 w-full min-w-0 box-border rounded-lg border border-white/15 bg-black/35 pl-2 pr-9 text-left text-sm font-semibold leading-tight text-slate-100 outline-none ring-0 focus:border-cyan-400/50 disabled:opacity-50'
                     : 'h-10 min-h-10 w-full min-w-[5.5rem] box-border rounded-lg border border-white/15 bg-black/35 pl-2 pr-10 text-left text-sm font-semibold text-slate-100 outline-none ring-0 focus:border-cyan-400/50 disabled:opacity-50'
               : 'w-full bg-gray-700 border border-gray-600 text-center text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2';
         const gameSettingsSelectFlexClass = proposeMobileStackedLayout
-            ? 'h-9 min-h-9 w-full flex-1 box-border rounded-lg border border-white/15 bg-black/35 pl-2 pr-9 text-left text-[13px] font-semibold leading-tight text-slate-100 outline-none ring-0 focus:border-cyan-400/50 sm:text-sm'
+            ? 'h-9 min-h-9 w-full flex-1 box-border rounded-lg border border-white/15 bg-black/35 pl-2 pr-9 text-left text-sm font-semibold leading-tight text-slate-100 outline-none ring-0 focus:border-cyan-400/50'
             : denseSettings
               ? lobbySettingsTypographyCompact
-                  ? 'h-7 min-h-7 w-full min-w-[5rem] flex-1 box-border rounded-lg border border-white/15 bg-black/35 pl-2 pr-9 text-left text-[11px] font-semibold leading-tight text-slate-100 outline-none ring-0 focus:border-cyan-400/50'
+                  ? 'h-8 min-h-8 w-full min-w-0 flex-1 box-border rounded-lg border border-white/15 bg-black/35 pl-2 pr-9 text-left text-[13px] font-semibold leading-tight text-slate-100 outline-none ring-0 focus:border-cyan-400/50'
                   : aiSettingsTwoColumnGrid
-                    ? 'h-9 min-h-9 w-full min-w-[5.25rem] flex-1 box-border rounded-lg border border-white/15 bg-black/35 pl-2 pr-9 text-left text-[13px] font-semibold leading-tight text-slate-100 outline-none ring-0 focus:border-cyan-400/50 sm:text-sm'
+                    ? 'h-9 min-h-9 w-full min-w-0 flex-1 box-border rounded-lg border border-white/15 bg-black/35 pl-2 pr-9 text-left text-sm font-semibold leading-tight text-slate-100 outline-none ring-0 focus:border-cyan-400/50'
                     : 'h-10 min-h-10 w-full min-w-[5.5rem] flex-1 box-border rounded-lg border border-white/15 bg-black/35 pl-2 pr-10 text-left text-sm font-semibold text-slate-100 outline-none ring-0 focus:border-cyan-400/50'
               : 'flex-1 bg-gray-700 border border-gray-600 text-center text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2';
         const denseLobbyAccentLabelClass = lobbyType === 'playful' ? 'text-amber-100' : 'text-cyan-100';
@@ -1264,25 +1276,35 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                 }`
               : defaultSettingRowClass;
 
+        const useResponsiveDenseSettingsGrid = Boolean(
+            denseSettings &&
+                (aiSettingsTwoColumnGrid ||
+                    pairRoomCreateThreeColumnGrid ||
+                    (handheldPairRoomDetailsCompact && pairRoomEmbeddedRightSlot)),
+        );
+        const denseSettingsGridClass = proposeMobileStackedLayout
+            ? 'grid w-full min-h-0 auto-rows-min min-w-0 grid-cols-1 content-start gap-y-1.5 overflow-y-auto overflow-x-hidden pr-1 [&>div]:min-w-0'
+            : useResponsiveDenseSettingsGrid
+              ? `${LOBBY_DENSE_SETTINGS_RESPONSIVE_COLS_GRID_CLASS} h-full max-h-full`
+              : pairRoomEmbeddedRightSlot
+                ? 'grid w-full min-h-0 auto-rows-min min-w-0 content-start justify-center gap-x-2.5 gap-y-2 overflow-y-auto overflow-x-hidden pr-1 grid-cols-2 [&>div]:min-w-0'
+                : pairRoomCreateThreeColumnGrid
+                  ? `${LOBBY_DENSE_SETTINGS_RESPONSIVE_COLS_GRID_CLASS} h-full max-h-full`
+                  : `${PAIR_LOBBY_DENSE_SETTINGS_RULE_GRID_CLASS} h-full max-h-full overflow-y-auto overflow-x-hidden pr-1`;
+
         return (
             <div
                 className={
                     denseSettings
                         ? pairRoomEmbeddedRightSlot
                             ? proposeMobileStackedLayout
-                                ? 'grid w-full min-h-0 auto-rows-min min-w-0 grid-cols-1 content-start gap-y-1.5 overflow-y-auto overflow-x-hidden pr-1 [&>div]:min-w-0'
-                                : handheldPairRoomDetailsCompact
-                                  ? 'grid w-full min-h-0 auto-rows-min min-w-0 content-start justify-center gap-x-1 gap-y-0.5 overflow-y-auto overflow-x-hidden pr-1 grid-cols-3 [&>div]:min-w-0'
-                                  : pairRoomCreateThreeColumnGrid
-                                    ? 'grid w-full min-h-0 auto-rows-min min-w-0 content-start justify-center gap-x-2.5 gap-y-2 overflow-y-auto overflow-x-hidden pr-1 grid-cols-3 [&>div]:min-w-0'
-                                    : 'grid w-full min-h-0 auto-rows-min min-w-0 content-start justify-center gap-x-2.5 gap-y-2 overflow-y-auto overflow-x-hidden pr-1 grid-cols-2 [&>div]:min-w-0'
-                            : pairRoomCreateThreeColumnGrid
-                              ? 'grid w-full min-h-0 auto-rows-min min-w-0 content-start justify-center gap-x-2.5 gap-y-2 overflow-y-auto overflow-x-hidden pr-1 grid-cols-3 [&>div]:min-w-0'
-                              : aiSettingsTwoColumnGrid
-                                ? `grid h-full max-h-full min-h-0 w-full auto-rows-min min-w-0 grid-cols-2 content-start overflow-y-auto overflow-x-hidden pr-1 [&>div]:min-w-0 ${
-                                      embeddedStackedAiSettingsGrid ? 'gap-x-2 gap-y-2' : 'gap-x-1.5 gap-y-1.5'
+                                ? denseSettingsGridClass
+                                : `${LOBBY_DENSE_SETTINGS_GRID_CONTAINER_CLASS} min-h-0 flex-1 ${denseSettingsGridClass}${
+                                      handheldPairRoomDetailsCompact ? ' gap-x-1 gap-y-0.5' : ''
                                   }`
-                                : `${PAIR_LOBBY_DENSE_SETTINGS_RULE_GRID_CLASS} h-full max-h-full overflow-y-auto overflow-x-hidden pr-1`
+                            : useResponsiveDenseSettingsGrid || pairRoomCreateThreeColumnGrid
+                              ? `${LOBBY_DENSE_SETTINGS_GRID_CONTAINER_CLASS} min-h-0 flex-1 ${denseSettingsGridClass}`
+                              : denseSettingsGridClass
                         : 'flex h-full flex-col gap-2 overflow-y-auto pr-2'
                 }
             >
@@ -2181,9 +2203,9 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                     {availableGameModes.length}종
                 </span>
             </div>
-            <div className="flex min-h-[7.25rem] flex-nowrap gap-2 overflow-x-auto overscroll-x-contain pb-0.5 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] sm:min-h-[7.75rem]">
+            <div className={LOBBY_HORIZONTAL_MODE_PICKER_ROW_CLASS}>
                 {availableGameModes.map((game) => (
-                    <div key={game.mode} className="w-[5.35rem] shrink-0 sm:w-[5.75rem]">
+                    <div key={game.mode} className={LOBBY_HORIZONTAL_MODE_PICKER_ITEM_CLASS}>
                         <GameCard
                             mode={game.mode}
                             image={game.image}
@@ -2191,6 +2213,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                             onSelect={selectGameModeForLobby}
                             isSelected={displaySelectedGameMode === game.mode}
                             compact
+                            scrollStripItem
                             chromeKind={modalChrome}
                         />
                     </div>
@@ -2250,19 +2273,21 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                         항목을 눌러 선택한 뒤 「다음」에서 대국 설정으로 이동합니다.
                                     </p>
                                 </div>
-                                <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain py-2 [-webkit-overflow-scrolling:touch]">
-                                    <div className="grid grid-cols-2 gap-1.5 pb-0.5 sm:gap-2">
+                                <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-x-contain py-2 [-webkit-overflow-scrolling:touch]">
+                                    <div className={`${LOBBY_HORIZONTAL_MODE_PICKER_ROW_CLASS} min-h-0 pb-1`}>
                                         {availableGameModes.map((game) => (
-                                            <GameCard
-                                                key={game.mode}
-                                                mode={game.mode}
-                                                image={game.image}
-                                                displayName={game.name ?? String(game.mode)}
-                                                onSelect={selectGameModeForLobby}
-                                                isSelected={displaySelectedGameMode === game.mode}
-                                                compact
-                                                chromeKind={modalChrome}
-                                            />
+                                            <div key={game.mode} className={LOBBY_HORIZONTAL_MODE_PICKER_ITEM_CLASS}>
+                                                <GameCard
+                                                    mode={game.mode}
+                                                    image={game.image}
+                                                    displayName={game.name ?? String(game.mode)}
+                                                    onSelect={selectGameModeForLobby}
+                                                    isSelected={displaySelectedGameMode === game.mode}
+                                                    compact
+                                                    scrollStripItem
+                                                    chromeKind={modalChrome}
+                                                />
+                                            </div>
                                         ))}
                                     </div>
                                 </div>
@@ -2480,19 +2505,21 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                 descriptionFallback={modeBriefFallback}
                             >
                                 <h3 className="mb-2 shrink-0 text-sm font-bold tracking-tight text-amber-100/95">게임 모드 선택</h3>
-                                <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]">
-                                    <div className="grid grid-cols-2 gap-1.5 pb-0.5 sm:gap-2">
+                                <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-x-contain [-webkit-overflow-scrolling:touch]">
+                                    <div className={`${LOBBY_HORIZONTAL_MODE_PICKER_ROW_CLASS} min-h-0 pb-1`}>
                                         {availableGameModes.map((game) => (
-                                            <GameCard
-                                                key={game.mode}
-                                                mode={game.mode}
-                                                image={game.image}
-                                                displayName={game.name ?? String(game.mode)}
-                                                onSelect={selectGameModeForLobby}
-                                                isSelected={displaySelectedGameMode === game.mode}
-                                                compact
-                                                chromeKind={modalChrome}
-                                            />
+                                            <div key={game.mode} className={LOBBY_HORIZONTAL_MODE_PICKER_ITEM_CLASS}>
+                                                <GameCard
+                                                    mode={game.mode}
+                                                    image={game.image}
+                                                    displayName={game.name ?? String(game.mode)}
+                                                    onSelect={selectGameModeForLobby}
+                                                    isSelected={displaySelectedGameMode === game.mode}
+                                                    compact
+                                                    scrollStripItem
+                                                    chromeKind={modalChrome}
+                                                />
+                                            </div>
                                         ))}
                                     </div>
                                 </div>

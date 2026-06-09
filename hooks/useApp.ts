@@ -27,6 +27,8 @@ import {
 } from '../constants.js';
 import { defaultSettings, SETTINGS_STORAGE_KEY } from './useAppSettings.js';
 import type { QuickUtilityPanelKind } from '../shared/types/quickUtilityPanel.js';
+import type { MobileViewportEntry } from '../shared/types/mobileViewportStack.js';
+import { getQuickUtilityKindFromStack } from '../shared/utils/mobileViewportStackUtils.js';
 import { syncDismissedScreenGuidesFromUser } from '../utils/screenGuideDismiss.js';
 import {
     useIsHandheldDevice,
@@ -2280,6 +2282,12 @@ export const useApp = () => {
     const [isMbtiInfoModalOpen, setIsMbtiInfoModalOpen] = useState(false);
     const [mutualDisconnectMessage, setMutualDisconnectMessage] = useState<string | null>(null);
     const [rankedMatchingQueue, setRankedMatchingQueue] = useState<Record<string, Record<string, any>>>({});
+    const [rankedMatchProposal, setRankedMatchProposal] = useState<{
+        proposalId: string;
+        acceptDeadlineAt: number;
+        player1: { id: string; nickname: string; rating: number; winChange: number; lossChange: number; accepted: boolean };
+        player2: { id: string; nickname: string; rating: number; winChange: number; lossChange: number; accepted: boolean };
+    } | null>(null);
     const [rankedMatchFound, setRankedMatchFound] = useState<{ gameId: string; player1: any; player2: any } | null>(null);
     const [pairRooms, setPairRooms] = useState<Record<string, any>>({});
     /** 페어 방 채팅(전체+우리팀 본인 기준 병합본) — PAIR_ROOM_CHAT·PAIR_ROOM_UPDATE·HTTP pairRoomChatHistory로 동기 */
@@ -2304,6 +2312,8 @@ export const useApp = () => {
     const [isActionPointModalOpen, setIsActionPointModalOpen] = useState(false);
     /** PC 로비 중앙 뷰포트 인라인 퀵 유틸 패널 (해시 변경 없음) */
     const [activeQuickUtilityPanel, setActiveQuickUtilityPanel] = useState<QuickUtilityPanelKind | null>(null);
+    /** 모바일 portrait 셸: Router 영역 뷰포트 스택 (퀵메뉴·2차 화면·로비 모달) */
+    const [mobileViewportStack, setMobileViewportStack] = useState<MobileViewportEntry[]>([]);
 
     const homeBoardReadStorageKey = useMemo(
         () => `${HOME_BOARD_READ_STORAGE_PREFIX}:${currentUser?.id ?? 'guest'}`,
@@ -2388,6 +2398,206 @@ export const useApp = () => {
         if (!postId) return;
         setReadHomeBoardPostIds((prev) => (prev.includes(postId) ? prev : [...prev, postId]));
     }, []);
+
+    const activeQuickUtilityPanelRef = useRef<QuickUtilityPanelKind | null>(null);
+    const mobileViewportStackRef = useRef<MobileViewportEntry[]>([]);
+    const closingMobileViewportFromUiRef = useRef(false);
+
+    useEffect(() => {
+        activeQuickUtilityPanelRef.current = activeQuickUtilityPanel;
+    }, [activeQuickUtilityPanel]);
+
+    useEffect(() => {
+        mobileViewportStackRef.current = mobileViewportStack;
+    }, [mobileViewportStack]);
+
+    const applyQuickUtilitySideEffectsOnClose = useCallback(
+        (kind: QuickUtilityPanelKind | null) => {
+            if (!kind) return;
+            if (kind === 'detailedStats') setDetailedStatsType(null);
+            if (kind === 'trainingQuest') setIsTrainingQuestModalOpen(false);
+            if (kind === 'monsterCodex') setIsAdventureMonsterCodexModalOpen(false);
+            if (kind === 'announcements') markAllHomeBoardPostsReadFromRef();
+            if (kind === 'help') setIsInfoModalOpen(false);
+        },
+        [markAllHomeBoardPostsReadFromRef],
+    );
+
+    const syncActiveQuickUtilityFromStack = useCallback((stack: MobileViewportEntry[]) => {
+        setActiveQuickUtilityPanel(getQuickUtilityKindFromStack(stack));
+    }, []);
+
+    const applyMobileViewportPopSideEffects = useCallback((entry: MobileViewportEntry) => {
+        switch (entry.type) {
+            case 'itemDetail':
+                setViewingItem(null);
+                break;
+            case 'gameRecordViewer':
+                setViewingGameRecord(null);
+                break;
+            case 'settings':
+                setIsSettingsModalOpen(false);
+                break;
+            case 'mailbox':
+                setIsMailboxOpen(false);
+                break;
+            case 'profileEdit':
+                setIsProfileEditModalOpen(false);
+                break;
+            case 'statAllocation':
+                setIsStatAllocationModalOpen(false);
+                break;
+            case 'userProfile':
+                setViewingUser(null);
+                break;
+            case 'pastRankings':
+                setPastRankingsInfo(null);
+                break;
+            case 'equipmentEffects':
+                setIsEquipmentEffectsModalOpen(false);
+                break;
+            case 'blacksmithEffects':
+                setIsBlacksmithEffectsModalOpen(false);
+                break;
+            case 'chatQuick':
+                setIsChatQuickModalOpen(false);
+                break;
+            case 'actionPoint':
+                setIsActionPointModalOpen(false);
+                break;
+            case 'quickUtility':
+                applyQuickUtilitySideEffectsOnClose(entry.kind);
+                break;
+            default:
+                break;
+        }
+    }, [applyQuickUtilitySideEffectsOnClose]);
+
+    const replaceMobileViewport = useCallback(
+        (entry: MobileViewportEntry) => {
+            if (!usePortraitFirstShell) return false;
+            setMobileViewportStack([entry]);
+            syncActiveQuickUtilityFromStack([entry]);
+            return true;
+        },
+        [syncActiveQuickUtilityFromStack, usePortraitFirstShell],
+    );
+
+    const pushMobileViewport = useCallback(
+        (entry: MobileViewportEntry) => {
+            if (!usePortraitFirstShell) return false;
+            setMobileViewportStack((prev) => {
+                const next = [...prev, entry];
+                syncActiveQuickUtilityFromStack(next);
+                return next;
+            });
+            return true;
+        },
+        [syncActiveQuickUtilityFromStack, usePortraitFirstShell],
+    );
+
+    const popMobileViewport = useCallback(
+        (opts?: { fromPopState?: boolean }) => {
+            if (!usePortraitFirstShell) return;
+            setMobileViewportStack((prev) => {
+                if (prev.length === 0) return prev;
+                const popped = prev[prev.length - 1];
+                applyMobileViewportPopSideEffects(popped);
+                const next = prev.slice(0, -1);
+                syncActiveQuickUtilityFromStack(next);
+                return next;
+            });
+            if (
+                !opts?.fromPopState &&
+                typeof window !== 'undefined' &&
+                (window.history.state as { sudamrMobileViewport?: boolean } | null)?.sudamrMobileViewport
+            ) {
+                closingMobileViewportFromUiRef.current = true;
+                window.history.back();
+            }
+        },
+        [applyMobileViewportPopSideEffects, syncActiveQuickUtilityFromStack, usePortraitFirstShell],
+    );
+
+    const clearMobileViewport = useCallback(
+        (opts?: { fromPopState?: boolean }) => {
+            if (!usePortraitFirstShell) return;
+            setMobileViewportStack((prev) => {
+                for (let i = prev.length - 1; i >= 0; i -= 1) {
+                    applyMobileViewportPopSideEffects(prev[i]);
+                }
+                syncActiveQuickUtilityFromStack([]);
+                return [];
+            });
+            if (
+                !opts?.fromPopState &&
+                typeof window !== 'undefined' &&
+                (window.history.state as { sudamrMobileViewport?: boolean } | null)?.sudamrMobileViewport
+            ) {
+                closingMobileViewportFromUiRef.current = true;
+                window.history.back();
+            }
+        },
+        [applyMobileViewportPopSideEffects, syncActiveQuickUtilityFromStack, usePortraitFirstShell],
+    );
+
+    const openQuickUtilityViewport = useCallback(
+        (kind: QuickUtilityPanelKind, opts?: { modal?: boolean }) => {
+            if (opts?.modal) return false;
+            if (replaceMobileViewport({ type: 'quickUtility', kind })) return true;
+            setActiveQuickUtilityPanel(kind);
+            return false;
+        },
+        [replaceMobileViewport],
+    );
+
+    const closeQuickUtilityPanel = useCallback(
+        (opts?: { fromPopState?: boolean }) => {
+            if (usePortraitFirstShell && mobileViewportStackRef.current.length > 0) {
+                clearMobileViewport(opts);
+                return;
+            }
+            setActiveQuickUtilityPanel((prev) => {
+                if (!prev) return prev;
+                applyQuickUtilitySideEffectsOnClose(prev);
+                return null;
+            });
+            if (
+                usePortraitFirstShell &&
+                !opts?.fromPopState &&
+                typeof window !== 'undefined' &&
+                (window.history.state as { sudamrMobileViewport?: boolean } | null)?.sudamrMobileViewport
+            ) {
+                closingMobileViewportFromUiRef.current = true;
+                window.history.back();
+            }
+        },
+        [applyQuickUtilitySideEffectsOnClose, clearMobileViewport, usePortraitFirstShell],
+    );
+
+    useEffect(() => {
+        if (!usePortraitFirstShell || mobileViewportStack.length === 0) return;
+
+        const hash = window.location.hash || '#/profile';
+        window.history.pushState({ sudamrMobileViewport: true }, '', hash);
+
+        const onPopState = () => {
+            if (closingMobileViewportFromUiRef.current) {
+                closingMobileViewportFromUiRef.current = false;
+                return;
+            }
+            if (mobileViewportStackRef.current.length > 0) {
+                if (mobileViewportStackRef.current.length === 1) {
+                    clearMobileViewport({ fromPopState: true });
+                } else {
+                    popMobileViewport({ fromPopState: true });
+                }
+            }
+        };
+
+        window.addEventListener('popstate', onPopState);
+        return () => window.removeEventListener('popstate', onPopState);
+    }, [mobileViewportStack.length, usePortraitFirstShell, clearMobileViewport, popMobileViewport]);
 
     useEffect(() => {
         try {
@@ -6186,11 +6396,7 @@ export const useApp = () => {
                  if (action.type === 'USE_ITEM' && result.clientResponse?.openBlacksmithRefineTab) {
                      setIsInventoryOpen(false);
                      setBlacksmithActiveTab('refine');
-                     if (modalLayerUsesDesignPixels) {
-                         setActiveQuickUtilityPanel('blacksmith');
-                     } else {
-                         setIsBlacksmithModalOpen(true);
-                     }
+                     setActiveQuickUtilityPanel('blacksmith');
                      // 선택된 아이템이 있으면 해당 아이템 선택
                      if (result.clientResponse?.selectedItemId && currentUser) {
                          const selectedItem = currentUser.inventory.find(i => i.id === result.clientResponse.selectedItemId);
@@ -8383,8 +8589,36 @@ export const useApp = () => {
                             setRankedMatchingQueue(queue && typeof queue === 'object' ? queue : {});
                             return;
                         }
+                        case 'RANKED_MATCH_PROPOSAL': {
+                            const payload = message.payload;
+                            const meId = currentUserRef.current?.id;
+                            if (
+                                payload?.proposalId &&
+                                payload?.player1?.id &&
+                                payload?.player2?.id &&
+                                meId &&
+                                (payload.player1.id === meId || payload.player2.id === meId)
+                            ) {
+                                setRankedMatchProposal({
+                                    proposalId: payload.proposalId,
+                                    acceptDeadlineAt: payload.acceptDeadlineAt ?? Date.now() + 30_000,
+                                    player1: payload.player1,
+                                    player2: payload.player2,
+                                });
+                            }
+                            return;
+                        }
+                        case 'RANKED_MATCH_PROPOSAL_CANCELLED': {
+                            const userIds = message.payload?.userIds as string[] | undefined;
+                            const meId = currentUserRef.current?.id;
+                            if (meId && Array.isArray(userIds) && userIds.includes(meId)) {
+                                setRankedMatchProposal(null);
+                            }
+                            return;
+                        }
                         case 'RANKED_MATCH_FOUND': {
                             if (message.payload?.gameId && message.payload?.player1 && message.payload?.player2) {
+                                setRankedMatchProposal(null);
                                 setRankedMatchFound({
                                     gameId: message.payload.gameId,
                                     player1: message.payload.player1,
@@ -10740,7 +10974,7 @@ export const useApp = () => {
                                 setGuilds(prev => ({ ...prev, ...message.payload.guilds }));
                             }
                             // 기존 default 처리 (이미 다른 case에서 처리되지 않은 경우)
-                            if (message.type && !['USER_UPDATE', 'USER_STATUS_UPDATE', 'GAME_UPDATE', 'NEGOTIATION_UPDATE', 'CHAT_MESSAGE', 'WAITING_ROOM_CHAT', 'GAME_CHAT', 'TOURNAMENT_UPDATE', 'RANKED_MATCHING_UPDATE', 'RANKED_MATCH_FOUND', 'PAIR_ROOM_UPDATE', 'PAIR_ROOM_CHAT', 'PAIR_PARTNER_INVITE_UPDATE', 'PAIR_PARTNER_INVITE_DECLINED', 'GUILD_UPDATE', 'GUILD_MESSAGE', 'GUILD_MISSION_UPDATE', 'GUILD_WAR_UPDATE', 'ERROR', 'INITIAL_STATE', 'INITIAL_STATE_START', 'INITIAL_STATE_CHUNK', 'CONNECTION_ESTABLISHED', 'MUTUAL_DISCONNECT_ENDED', 'OTHER_DEVICE_LOGIN', 'SCHEDULER_MIDNIGHT_COMPLETE', 'ARENA_ENTRANCE_AVAILABILITY_UPDATE', 'KATA_SERVER_RUNTIME_CONFIG_UPDATE', 'CHAMPIONSHIP_ABILITY_KATA_LADDER_UPDATE'].includes(message.type)) {
+                            if (message.type && !['USER_UPDATE', 'USER_STATUS_UPDATE', 'GAME_UPDATE', 'NEGOTIATION_UPDATE', 'CHAT_MESSAGE', 'WAITING_ROOM_CHAT', 'GAME_CHAT', 'TOURNAMENT_UPDATE', 'RANKED_MATCHING_UPDATE', 'RANKED_MATCH_PROPOSAL', 'RANKED_MATCH_PROPOSAL_CANCELLED', 'RANKED_MATCH_FOUND', 'PAIR_ROOM_UPDATE', 'PAIR_ROOM_CHAT', 'PAIR_PARTNER_INVITE_UPDATE', 'PAIR_PARTNER_INVITE_DECLINED', 'GUILD_UPDATE', 'GUILD_MESSAGE', 'GUILD_MISSION_UPDATE', 'GUILD_WAR_UPDATE', 'ERROR', 'INITIAL_STATE', 'INITIAL_STATE_START', 'INITIAL_STATE_CHUNK', 'CONNECTION_ESTABLISHED', 'MUTUAL_DISCONNECT_ENDED', 'OTHER_DEVICE_LOGIN', 'SCHEDULER_MIDNIGHT_COMPLETE', 'ARENA_ENTRANCE_AVAILABILITY_UPDATE', 'KATA_SERVER_RUNTIME_CONFIG_UPDATE', 'CHAMPIONSHIP_ABILITY_KATA_LADDER_UPDATE'].includes(message.type)) {
                                 console.warn('[WebSocket] Unhandled message type:', message.type);
                             }
                             return;
@@ -11374,15 +11608,25 @@ export const useApp = () => {
             ...u,
             ...(statusInfo || { status: UserStatus.Online }),
         });
+        const showUserInViewport = (user: UserWithStatus, pushStack = true) => {
+            setViewingUser(user);
+            if (usePortraitFirstShell && pushStack) {
+                const top = mobileViewportStackRef.current[mobileViewportStackRef.current.length - 1];
+                if (top?.type === 'userProfile' && top.user.id === user.id) {
+                    return;
+                }
+                pushMobileViewport({ type: 'userProfile', user });
+            }
+        };
 
         if (currentUserWithStatus?.id === userId) {
-            setViewingUser(withOnlineStatus(currentUserWithStatus));
+            showUserInViewport(withOnlineStatus(currentUserWithStatus));
             return;
         }
 
         const cached = usersMap[userId];
         if (cached) {
-            setViewingUser(withOnlineStatus(cached as UserWithStatus));
+            showUserInViewport(withOnlineStatus(cached as UserWithStatus));
         }
 
         try {
@@ -11399,7 +11643,7 @@ export const useApp = () => {
                 equipment: userData.equipment || {},
                 inventory: userData.inventory || [],
             } as UserWithStatus);
-            setViewingUser(merged);
+            showUserInViewport(merged, !cached);
             setUsersMap((prev) => ({ ...prev, [userId]: userData }));
             setUserBriefCache((prev) => ({
                 ...prev,
@@ -11414,7 +11658,7 @@ export const useApp = () => {
                 console.error(`[handleViewUser] Error fetching user ${userId}:`, error);
             }
         }
-    }, [currentUserWithStatus, onlineUsers, usersMap]);
+    }, [currentUserWithStatus, onlineUsers, pushMobileViewport, usePortraitFirstShell, usersMap]);
 
     const openModerationModal = useCallback((userId: string) => {
         if (!Array.isArray(onlineUsers) || !Array.isArray(allUsers)) return;
@@ -11463,58 +11707,104 @@ export const useApp = () => {
     const openEnhancingItem = useCallback((item: InventoryItem) => {
         setBlacksmithSelectedItemForEnhancement(item);
         setBlacksmithActiveTab('enhance');
-        if (modalLayerUsesDesignPixels) {
-            setActiveQuickUtilityPanel('blacksmith');
-        } else {
-            setIsBlacksmithModalOpen(true);
-        }
-    }, [modalLayerUsesDesignPixels]);
+        openQuickUtilityViewport('blacksmith');
+    }, [openQuickUtilityViewport]);
 
     const openEnhancementFromDetail = useCallback((item: InventoryItem) => {
         setViewingItem(null);
         setBlacksmithSelectedItemForEnhancement(item);
         setBlacksmithActiveTab('enhance');
-        if (modalLayerUsesDesignPixels) {
-            setActiveQuickUtilityPanel('blacksmith');
+        if (usePortraitFirstShell) {
+            setMobileViewportStack((prev) => {
+                const withoutDetail = prev[prev.length - 1]?.type === 'itemDetail' ? prev.slice(0, -1) : prev;
+                const next: MobileViewportEntry[] = withoutDetail.some((entry) => entry.type === 'quickUtility')
+                    ? withoutDetail.map((entry) =>
+                          entry.type === 'quickUtility' ? { type: 'quickUtility', kind: 'blacksmith' as const } : entry,
+                      )
+                    : [{ type: 'quickUtility', kind: 'blacksmith' }];
+                syncActiveQuickUtilityFromStack(next);
+                return next;
+            });
         } else {
-            setIsBlacksmithModalOpen(true);
+            setActiveQuickUtilityPanel('blacksmith');
         }
-    }, [modalLayerUsesDesignPixels]);
+    }, [syncActiveQuickUtilityFromStack, usePortraitFirstShell]);
 
     const openRefinementFromDetail = useCallback((item: InventoryItem) => {
         setViewingItem(null);
         setBlacksmithSelectedItemForEnhancement(item);
         setBlacksmithActiveTab('refine');
-        if (modalLayerUsesDesignPixels) {
-            setActiveQuickUtilityPanel('blacksmith');
+        if (usePortraitFirstShell) {
+            setMobileViewportStack((prev) => {
+                const withoutDetail = prev[prev.length - 1]?.type === 'itemDetail' ? prev.slice(0, -1) : prev;
+                const next: MobileViewportEntry[] = withoutDetail.some((entry) => entry.type === 'quickUtility')
+                    ? withoutDetail.map((entry) =>
+                          entry.type === 'quickUtility' ? { type: 'quickUtility', kind: 'blacksmith' as const } : entry,
+                      )
+                    : [{ type: 'quickUtility', kind: 'blacksmith' }];
+                syncActiveQuickUtilityFromStack(next);
+                return next;
+            });
         } else {
-            setIsBlacksmithModalOpen(true);
+            setActiveQuickUtilityPanel('blacksmith');
         }
-    }, [modalLayerUsesDesignPixels]);
+    }, [syncActiveQuickUtilityFromStack, usePortraitFirstShell]);
 
     const openBlacksmithTabFromInventory = useCallback(
         (tab: 'convert' | 'refine') => {
             setBlacksmithSelectedItemForEnhancement(null);
             setBlacksmithActiveTab(tab);
-            if (modalLayerUsesDesignPixels) {
-                setActiveQuickUtilityPanel('blacksmith');
-            } else {
-                setIsBlacksmithModalOpen(true);
-            }
+            openQuickUtilityViewport('blacksmith');
         },
-        [modalLayerUsesDesignPixels],
+        [openQuickUtilityViewport],
     );
 
     const openViewingItem = useCallback(
         (item: InventoryItem, isOwnedByCurrentUser: boolean, opts?: { hideEnhanceActions?: boolean }) => {
-            setViewingItem({
+            const payload = {
                 item,
                 isOwnedByCurrentUser,
                 ...(opts?.hideEnhanceActions ? { hideEnhanceActions: true as const } : {}),
-            });
+            };
+            setViewingItem(payload);
+            if (usePortraitFirstShell) {
+                pushMobileViewport({
+                    type: 'itemDetail',
+                    item,
+                    isOwnedByCurrentUser,
+                    hideEnhanceActions: opts?.hideEnhanceActions,
+                });
+            }
         },
-        []
+        [pushMobileViewport, usePortraitFirstShell],
     );
+
+    const closeViewingItem = useCallback(() => {
+        setViewingItem(null);
+        if (usePortraitFirstShell && mobileViewportStackRef.current[mobileViewportStackRef.current.length - 1]?.type === 'itemDetail') {
+            popMobileViewport();
+        }
+    }, [popMobileViewport, usePortraitFirstShell]);
+
+    const openGameRecordViewer = useCallback(
+        (record: GameRecord) => {
+            setViewingGameRecord(record);
+            if (usePortraitFirstShell) {
+                pushMobileViewport({ type: 'gameRecordViewer', record });
+            }
+        },
+        [pushMobileViewport, usePortraitFirstShell],
+    );
+
+    const closeGameRecordViewer = useCallback(() => {
+        setViewingGameRecord(null);
+        if (
+            usePortraitFirstShell &&
+            mobileViewportStackRef.current[mobileViewportStackRef.current.length - 1]?.type === 'gameRecordViewer'
+        ) {
+            popMobileViewport();
+        }
+    }, [popMobileViewport, usePortraitFirstShell]);
 
     const openPairPetDetailModal = useCallback((item: InventoryItem, mode: 'obtain' | 'view') => {
         setPairPetDetailModal({ item: JSON.parse(JSON.stringify(item)) as InventoryItem, mode });
@@ -11684,6 +11974,7 @@ export const useApp = () => {
         kataServerRuntimeConfig,
         championshipAbilityKataLadder,
         rankedMatchingQueue,
+        rankedMatchProposal,
         rankedMatchFound,
         pairRooms,
         pairRoomChatByRoomId,
@@ -11731,6 +12022,7 @@ export const useApp = () => {
         aggregatedMythicStats,
         modals: {
             activeQuickUtilityPanel,
+            mobileViewportStack,
             isSettingsModalOpen, isPetManagementModalOpen, isAdventureMonsterCodexModalOpen, isTrainingQuestModalOpen, detailedStatsType, isInventoryOpen, isMailboxOpen, isQuestsOpen, isShopOpen, isExchangeOpen, shopInitialTab, lastUsedItemResult, pairPetDetailModal,
             disassemblyResult, craftResult, rewardSummary, viewingUser, isInfoModalOpen, isAnnouncementsModalOpen, isRankingQuickModalOpen, isChatQuickModalOpen, isEncyclopediaOpen, isStatAllocationModalOpen, enhancementAnimationTarget,
             isGameRecordListOpen, viewingGameRecord,
@@ -11769,21 +12061,33 @@ export const useApp = () => {
             handleEnterWaitingRoom,
             requestGameRejoinRetry,
             applyPreset,
-            openSettingsModal: () => setIsSettingsModalOpen(true),
-            closeSettingsModal: () => setIsSettingsModalOpen(false),
+            openSettingsModal: () => {
+                if (!replaceMobileViewport({ type: 'settings' })) {
+                    setIsSettingsModalOpen(true);
+                }
+            },
+            closeSettingsModal: () => {
+                setIsSettingsModalOpen(false);
+                if (usePortraitFirstShell) {
+                    setMobileViewportStack((prev) => prev.filter((entry) => entry.type !== 'settings'));
+                }
+            },
             openPetManagementModal: (opts?: { modal?: boolean }) => {
-                if (!modalLayerUsesDesignPixels || opts?.modal) {
+                if (opts?.modal) {
                     setIsPetManagementModalOpen(true);
-                } else {
+                } else if (!openQuickUtilityViewport('pet')) {
                     setActiveQuickUtilityPanel('pet');
                 }
             },
-            closePetManagementModal: () => setIsPetManagementModalOpen(false),
+            closePetManagementModal: () => {
+                setIsPetManagementModalOpen(false);
+                setActiveQuickUtilityPanel((prev) => (prev === 'pet' ? null : prev));
+            },
             openAdventureMonsterCodexModal: (opts?: { modal?: boolean }) => {
-                if (modalLayerUsesDesignPixels && !opts?.modal) {
-                    setActiveQuickUtilityPanel('monsterCodex');
-                } else {
+                if (opts?.modal) {
                     setIsAdventureMonsterCodexModalOpen(true);
+                } else if (!openQuickUtilityViewport('monsterCodex')) {
+                    setActiveQuickUtilityPanel('monsterCodex');
                 }
             },
             closeAdventureMonsterCodexModal: () => {
@@ -11791,10 +12095,10 @@ export const useApp = () => {
                 setActiveQuickUtilityPanel((prev) => (prev === 'monsterCodex' ? null : prev));
             },
             openTrainingQuest: (opts?: { modal?: boolean }) => {
-                if (modalLayerUsesDesignPixels && !opts?.modal) {
-                    setActiveQuickUtilityPanel('trainingQuest');
-                } else {
+                if (opts?.modal) {
                     setIsTrainingQuestModalOpen(true);
+                } else if (!openQuickUtilityViewport('trainingQuest')) {
+                    setActiveQuickUtilityPanel('trainingQuest');
                 }
             },
             closeTrainingQuest: () => {
@@ -11806,71 +12110,96 @@ export const useApp = () => {
                 opts?: { modal?: boolean },
             ) => {
                 setDetailedStatsType(statsType);
-                if (modalLayerUsesDesignPixels && !opts?.modal) {
-                    setActiveQuickUtilityPanel('detailedStats');
+                if (!opts?.modal) {
+                    if (!openQuickUtilityViewport('detailedStats')) {
+                        setActiveQuickUtilityPanel('detailedStats');
+                    }
                 }
             },
             closeDetailedStats: () => {
                 setDetailedStatsType(null);
                 setActiveQuickUtilityPanel((prev) => (prev === 'detailedStats' ? null : prev));
             },
-            openInventory: () => {
-                if (modalLayerUsesDesignPixels) {
-                    setActiveQuickUtilityPanel('inventory');
-                } else {
+            openInventory: (opts?: { modal?: boolean }) => {
+                if (opts?.modal) {
                     setIsInventoryOpen(true);
+                } else if (!openQuickUtilityViewport('inventory')) {
+                    setActiveQuickUtilityPanel('inventory');
                 }
             },
-            closeInventory: () => setIsInventoryOpen(false),
-            openMailbox: () => setIsMailboxOpen(true),
-            closeMailbox: () => setIsMailboxOpen(false),
-            openQuests: () => {
-                if (modalLayerUsesDesignPixels) {
-                    setActiveQuickUtilityPanel('quests');
-                } else {
+            closeInventory: () => {
+                setIsInventoryOpen(false);
+                setActiveQuickUtilityPanel((prev) => (prev === 'inventory' ? null : prev));
+            },
+            openMailbox: () => {
+                if (!replaceMobileViewport({ type: 'mailbox' })) {
+                    setIsMailboxOpen(true);
+                }
+            },
+            closeMailbox: () => {
+                setIsMailboxOpen(false);
+                if (usePortraitFirstShell) {
+                    setMobileViewportStack((prev) => prev.filter((entry) => entry.type !== 'mailbox'));
+                }
+            },
+            openQuests: (opts?: { modal?: boolean }) => {
+                if (opts?.modal) {
                     setIsQuestsOpen(true);
+                } else if (!openQuickUtilityViewport('quests')) {
+                    setActiveQuickUtilityPanel('quests');
                 }
             },
-            closeQuests: () => setIsQuestsOpen(false),
-            closeQuickUtilityPanel: () => {
-                setActiveQuickUtilityPanel((prev) => {
-                    if (prev === 'detailedStats') setDetailedStatsType(null);
-                    if (prev === 'trainingQuest') setIsTrainingQuestModalOpen(false);
-                    if (prev === 'monsterCodex') setIsAdventureMonsterCodexModalOpen(false);
-                    if (prev === 'announcements') markAllHomeBoardPostsReadFromRef();
-                    return null;
-                });
+            closeQuests: () => {
+                setIsQuestsOpen(false);
+                setActiveQuickUtilityPanel((prev) => (prev === 'quests' ? null : prev));
             },
+            closeQuickUtilityPanel: () => closeQuickUtilityPanel(),
+            popMobileViewport: () => popMobileViewport(),
+            clearMobileViewport: () => clearMobileViewport(),
             openShop: (
                 tab?: 'equipment' | 'materials' | 'consumables' | 'misc' | 'diamonds' | 'vip',
                 opts?: { modal?: boolean },
             ) => {
                 setShopInitialTab(tab);
-                if (!modalLayerUsesDesignPixels || opts?.modal) {
+                if (opts?.modal) {
                     setIsShopOpen(true);
-                } else {
+                } else if (!openQuickUtilityViewport('shop')) {
                     setActiveQuickUtilityPanel('shop');
                 }
             },
             closeShop: () => {
                 setIsShopOpen(false);
                 setShopInitialTab(undefined);
+                setActiveQuickUtilityPanel((prev) => (prev === 'shop' ? null : prev));
             },
-            openExchange: () => {
+            openExchange: (opts?: { modal?: boolean }) => {
                 void import('../components/ExchangeModal.js').catch(() => {});
-                if (modalLayerUsesDesignPixels) {
-                    setActiveQuickUtilityPanel('exchange');
-                } else {
+                if (opts?.modal) {
                     setIsExchangeOpen(true);
+                } else if (!openQuickUtilityViewport('exchange')) {
+                    setActiveQuickUtilityPanel('exchange');
                 }
             },
-            closeExchange: () => setIsExchangeOpen(false),
-            openActionPointModal: () => setIsActionPointModalOpen(true),
-            closeActionPointModal: () => setIsActionPointModalOpen(false),
+            closeExchange: () => {
+                setIsExchangeOpen(false);
+                setActiveQuickUtilityPanel((prev) => (prev === 'exchange' ? null : prev));
+            },
+            openActionPointModal: () => {
+                if (!replaceMobileViewport({ type: 'actionPoint' })) {
+                    setIsActionPointModalOpen(true);
+                }
+            },
+            closeActionPointModal: () => {
+                setIsActionPointModalOpen(false);
+                if (usePortraitFirstShell) {
+                    setMobileViewportStack((prev) => prev.filter((entry) => entry.type !== 'actionPoint'));
+                }
+            },
             closeInsufficientActionPointsModal: () => setIsInsufficientActionPointsModalOpen(false),
             openOpponentInsufficientActionPointsModal: () => setIsOpponentInsufficientActionPointsModalOpen(true),
             closeOpponentInsufficientActionPointsModal: () => setIsOpponentInsufficientActionPointsModalOpen(false),
             clearRankedMatchFound: () => setRankedMatchFound(null),
+            clearRankedMatchProposal: () => setRankedMatchProposal(null),
             closeItemObtained: async () => {
                 setLastUsedItemResult(null);
                 setTournamentScoreChange(null);
@@ -11887,14 +12216,28 @@ export const useApp = () => {
             previewAdminContentUnlockNoticeModal,
             closeClaimAllSummary,
             openViewingUser: handleViewUser,
-            closeViewingUser: () => setViewingUser(null),
-            openInfoModal: () => setIsInfoModalOpen(true),
-            closeInfoModal: () => setIsInfoModalOpen(false),
-            openAnnouncementsModal: () => {
-                if (modalLayerUsesDesignPixels) {
-                    setActiveQuickUtilityPanel('announcements');
-                } else {
+            closeViewingUser: () => {
+                setViewingUser(null);
+                if (usePortraitFirstShell) {
+                    setMobileViewportStack((prev) => prev.filter((entry) => entry.type !== 'userProfile'));
+                }
+            },
+            openInfoModal: (opts?: { modal?: boolean }) => {
+                if (opts?.modal) {
+                    setIsInfoModalOpen(true);
+                } else if (!openQuickUtilityViewport('help')) {
+                    setActiveQuickUtilityPanel('help');
+                }
+            },
+            closeInfoModal: () => {
+                setIsInfoModalOpen(false);
+                setActiveQuickUtilityPanel((prev) => (prev === 'help' ? null : prev));
+            },
+            openAnnouncementsModal: (opts?: { modal?: boolean }) => {
+                if (opts?.modal) {
                     setIsAnnouncementsModalOpen(true);
+                } else if (!openQuickUtilityViewport('announcements')) {
+                    setActiveQuickUtilityPanel('announcements');
                 }
             },
             closeAnnouncementsModal: () => {
@@ -11903,41 +12246,80 @@ export const useApp = () => {
                 setActiveQuickUtilityPanel((prev) => (prev === 'announcements' ? null : prev));
             },
             markHomeBoardPostRead,
-            openRankingQuickModal: () => {
-                if (modalLayerUsesDesignPixels) {
-                    setActiveQuickUtilityPanel('ranking');
-                } else {
+            openRankingQuickModal: (opts?: { modal?: boolean }) => {
+                if (opts?.modal) {
                     setIsRankingQuickModalOpen(true);
+                } else if (!openQuickUtilityViewport('ranking')) {
+                    setActiveQuickUtilityPanel('ranking');
                 }
             },
             closeRankingQuickModal: () => {
                 setIsRankingQuickModalOpen(false);
                 setActiveQuickUtilityPanel((prev) => (prev === 'ranking' ? null : prev));
             },
-            openChatQuickModal: () => setIsChatQuickModalOpen(true),
-            closeChatQuickModal: () => setIsChatQuickModalOpen(false),
-            openEncyclopedia: () => {
-                if (modalLayerUsesDesignPixels) {
-                    setActiveQuickUtilityPanel('encyclopedia');
-                } else {
+            openChatQuickModal: () => {
+                if (!replaceMobileViewport({ type: 'chatQuick' })) {
+                    setIsChatQuickModalOpen(true);
+                }
+            },
+            closeChatQuickModal: () => {
+                setIsChatQuickModalOpen(false);
+                if (usePortraitFirstShell) {
+                    setMobileViewportStack((prev) => prev.filter((entry) => entry.type !== 'chatQuick'));
+                }
+            },
+            openEncyclopedia: (opts?: { modal?: boolean }) => {
+                if (opts?.modal) {
                     setIsEncyclopediaOpen(true);
+                } else if (!openQuickUtilityViewport('encyclopedia')) {
+                    setActiveQuickUtilityPanel('encyclopedia');
                 }
             },
             closeEncyclopedia: () => {
                 setIsEncyclopediaOpen(false);
                 setActiveQuickUtilityPanel((prev) => (prev === 'encyclopedia' ? null : prev));
             },
-            openStatAllocationModal: () => setIsStatAllocationModalOpen(true),
-            closeStatAllocationModal: () => setIsStatAllocationModalOpen(false),
-            openProfileEditModal: () => setIsProfileEditModalOpen(true),
-            closeProfileEditModal: () => setIsProfileEditModalOpen(false),
-            openPastRankings: (info: { user: UserWithStatus; mode: GameMode | 'strategic' | 'pair' | 'unified' }) =>
-                setPastRankingsInfo(info),
-            closePastRankings: () => setPastRankingsInfo(null),
+            openStatAllocationModal: () => {
+                if (!replaceMobileViewport({ type: 'statAllocation' })) {
+                    setIsStatAllocationModalOpen(true);
+                }
+            },
+            closeStatAllocationModal: () => {
+                setIsStatAllocationModalOpen(false);
+                if (usePortraitFirstShell) {
+                    setMobileViewportStack((prev) => prev.filter((entry) => entry.type !== 'statAllocation'));
+                }
+            },
+            openProfileEditModal: () => {
+                if (!replaceMobileViewport({ type: 'profileEdit' })) {
+                    setIsProfileEditModalOpen(true);
+                }
+            },
+            closeProfileEditModal: () => {
+                setIsProfileEditModalOpen(false);
+                if (usePortraitFirstShell) {
+                    setMobileViewportStack((prev) => prev.filter((entry) => entry.type !== 'profileEdit'));
+                }
+            },
+            openPastRankings: (info: { user: UserWithStatus; mode: GameMode | 'strategic' | 'pair' | 'unified' }) => {
+                setPastRankingsInfo(info);
+                if (usePortraitFirstShell) {
+                    pushMobileViewport({ type: 'pastRankings', info });
+                }
+            },
+            closePastRankings: () => {
+                setPastRankingsInfo(null);
+                if (
+                    usePortraitFirstShell &&
+                    mobileViewportStackRef.current[mobileViewportStackRef.current.length - 1]?.type === 'pastRankings'
+                ) {
+                    popMobileViewport();
+                }
+            },
             openViewingItem,
+            closeViewingItem,
             openPairPetDetailModal,
             closePairPetDetailModal,
-            closeViewingItem: () => setViewingItem(null),
             openEnhancingItem,
             startEnhancement,
             openEnhancementFromDetail,
@@ -11962,13 +12344,22 @@ export const useApp = () => {
                 setShowOtherDeviceLoginModal(false);
                 window.location.hash = '#/login';
             },
-            openEquipmentEffectsModal: () => setIsEquipmentEffectsModalOpen(true),
-            closeEquipmentEffectsModal: () => setIsEquipmentEffectsModalOpen(false),
-            openBlacksmithModal: () => {
-                if (modalLayerUsesDesignPixels) {
-                    setActiveQuickUtilityPanel('blacksmith');
-                } else {
+            openEquipmentEffectsModal: () => {
+                if (!replaceMobileViewport({ type: 'equipmentEffects' })) {
+                    setIsEquipmentEffectsModalOpen(true);
+                }
+            },
+            closeEquipmentEffectsModal: () => {
+                setIsEquipmentEffectsModalOpen(false);
+                if (usePortraitFirstShell) {
+                    setMobileViewportStack((prev) => prev.filter((entry) => entry.type !== 'equipmentEffects'));
+                }
+            },
+            openBlacksmithModal: (opts?: { modal?: boolean }) => {
+                if (opts?.modal) {
                     setIsBlacksmithModalOpen(true);
+                } else if (!openQuickUtilityViewport('blacksmith')) {
+                    setActiveQuickUtilityPanel('blacksmith');
                 }
             },
             closeBlacksmithModal: () => {
@@ -11978,21 +12369,30 @@ export const useApp = () => {
                 setBlacksmithActiveTab('enhance'); // Reset to default tab
                 setIsBlacksmithEffectsModalOpen(false);
             },
-            openBlacksmithEffectsModal: () => setIsBlacksmithEffectsModalOpen(true),
-            closeBlacksmithEffectsModal: () => setIsBlacksmithEffectsModalOpen(false),
+            openBlacksmithEffectsModal: () => {
+                if (!replaceMobileViewport({ type: 'blacksmithEffects' })) {
+                    setIsBlacksmithEffectsModalOpen(true);
+                }
+            },
+            closeBlacksmithEffectsModal: () => {
+                setIsBlacksmithEffectsModalOpen(false);
+                if (usePortraitFirstShell) {
+                    setMobileViewportStack((prev) => prev.filter((entry) => entry.type !== 'blacksmithEffects'));
+                }
+            },
             openGameRecordList: (opts?: { modal?: boolean }) => {
-                if (modalLayerUsesDesignPixels && !opts?.modal) {
-                    setActiveQuickUtilityPanel('gameRecords');
-                } else {
+                if (opts?.modal) {
                     setIsGameRecordListOpen(true);
+                } else if (!openQuickUtilityViewport('gameRecords')) {
+                    setActiveQuickUtilityPanel('gameRecords');
                 }
             },
             closeGameRecordList: () => {
                 setIsGameRecordListOpen(false);
                 setActiveQuickUtilityPanel((prev) => (prev === 'gameRecords' ? null : prev));
             },
-            openGameRecordViewer: (record: GameRecord) => setViewingGameRecord(record),
-            closeGameRecordViewer: () => setViewingGameRecord(null),
+            openGameRecordViewer,
+            closeGameRecordViewer,
             setBlacksmithActiveTab,
             closeEnhancementModal,
             openPresetModal: () => setIsPresetModalOpen(true),

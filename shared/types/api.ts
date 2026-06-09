@@ -102,6 +102,8 @@ export interface RankedMatchingEntry {
     startTime: number;
     rating: number;
     modeRatings?: Partial<Record<GameMode, number>>;
+    /** 상대 거절·타임아웃 등으로 재큐잉된 횟수 — 매칭 우선순위에 반영 */
+    matchPriority?: number;
 }
 
 /** 동일 공인 IP 기준 일반 계정 1슬롯(관리자는 별도 슬롯으로 공존 가능) */
@@ -145,6 +147,22 @@ export interface VolatileState {
     /** `${userId}` -> pair screen client id -> last heartbeat timestamp */
     pairLobbyScreenClients?: Record<string, Record<string, number>>;
     pairRoomTeamChats?: Record<string, { teamA?: PairRoomChatLine[]; teamB?: PairRoomChatLine[] }>;
+    /** 전략 랭킹전: 1:1 매칭 확정 후 양쪽 수락 전까지(서버 메모리) */
+    rankedMatchProposals?: Record<
+        string,
+        {
+            user1Id: string;
+            user2Id: string;
+            lobbyType: 'strategic';
+            selectedMode: GameMode;
+            acceptUser1: boolean;
+            acceptUser2: boolean;
+            createdAt: number;
+            acceptDeadlineAt: number;
+            user1QueueEntry: RankedMatchingEntry;
+            user2QueueEntry: RankedMatchingEntry;
+        }
+    >;
     /** 페어 펫 랭크: 상대 확정 후 양 방장 수락 전까지(서버 메모리) */
     pairRankedPetProposals?: Record<
         string,
@@ -352,6 +370,7 @@ export type ServerAction =
     // Ranked Matching
     | { type: 'START_RANKED_MATCHING', payload: { lobbyType: 'strategic'; selectedModes: GameMode[] } }
     | { type: 'CANCEL_RANKED_MATCHING', payload?: never }
+    | { type: 'RESPOND_RANKED_MATCH', payload: { proposalId: string; accept: boolean } }
     | {
           type: 'PAIR_CREATE_ROOM';
           payload: {

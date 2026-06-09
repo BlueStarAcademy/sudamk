@@ -3,7 +3,9 @@ import type { PairRoomState } from '../types/api.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH, NATIVE_MOBILE_MODAL_MAX_WIDTH_VW } from '../constants/ads.js';
-import NegotiationModal from './NegotiationModal.js';
+import { isMobileViewportEntryTypeActive } from '../shared/utils/mobileViewportStackUtils.js';
+import type { MobileViewportEntryType } from '../shared/types/mobileViewportStack.js';
+import { useMobileModalChrome } from '../hooks/useMobileModalChrome.js';
 
 const InventoryModal = lazy(() => import('./InventoryModal.js'));
 const MailboxModal = lazy(() => import('./MailboxModal.js'));
@@ -47,6 +49,7 @@ import OpponentInsufficientActionPointsModal from './OpponentInsufficientActionP
 import LevelUpCelebrationModal from './LevelUpCelebrationModal.js';
 import MannerGradeChangeModal from './MannerGradeChangeModal.js';
 import ContentUnlockNoticeModal from './ContentUnlockNoticeModal.js';
+import MobileModalTitleBar from './mobile/MobileModalTitleBar.js';
 import PairIncomingPartnerInviteModal from './pair/PairIncomingPartnerInviteModal.js';
 import { arenaLobbyHash, arenaLobbyIntentFromPairRoom } from '../shared/utils/arenaLobbyDestination.js';
 import { replaceAppHash } from '../utils/appUtils.js';
@@ -60,6 +63,7 @@ const ModalLoadingFallback = () => <ModalChunkFallback />;
 const AppModalLayer: React.FC = () => {
     const { isNativeMobile } = useNativeMobileShell();
     const isHandheld = useIsHandheldDevice(1024);
+    const isMobileModalChrome = useMobileModalChrome();
     const {
         allUsers,
         currentUserWithStatus,
@@ -165,8 +169,13 @@ const AppModalLayer: React.FC = () => {
     }, [modals, activeNegotiation, hasItemObtainedResult, hasScoreOnlyItemObtained]);
 
     const topmostModalId = activeModalIds.length > 0 ? activeModalIds[activeModalIds.length - 1] : null;
-    /** PC 인라인 퀵 패널이 열려 있으면 동일 유틸 모달을 AppModalLayer에서 중복 렌더하지 않음 */
-    const inlineQuickUtilityActive = Boolean(modals.activeQuickUtilityPanel);
+    const mobileViewportStack = modals.mobileViewportStack ?? [];
+    const mobileViewportActive = (type: MobileViewportEntryType) =>
+        isMobileViewportEntryTypeActive(mobileViewportStack, type);
+    /** PC 인라인 퀵 패널·모바일 뷰포트 스택이 열려 있으면 동일 유틸 모달을 AppModalLayer에서 중복 렌더하지 않음 */
+    const inlineQuickUtilityActive =
+        Boolean(modals.activeQuickUtilityPanel) ||
+        mobileViewportStack.some((entry) => entry.type === 'quickUtility');
 
     if (!currentUserWithStatus) return null;
 
@@ -231,7 +240,9 @@ const AppModalLayer: React.FC = () => {
                     onDecline={() => void respondIncomingPairInvite(incomingPairPartnerInvite.id, false)}
                 />
             )}
-            {modals.isSettingsModalOpen && <SettingsModal onClose={handlers.closeSettingsModal} isTopmost={topmostModalId === 'settings'} />}
+            {modals.isSettingsModalOpen && !mobileViewportActive('settings') && (
+                <SettingsModal onClose={handlers.closeSettingsModal} isTopmost={topmostModalId === 'settings'} />
+            )}
             {modals.isPetManagementModalOpen && modals.activeQuickUtilityPanel !== 'pet' && (
                 <PetManagementModal onClose={handlers.closePetManagementModal} isTopmost={topmostModalId === 'petManagement'} />
             )}
@@ -265,7 +276,7 @@ const AppModalLayer: React.FC = () => {
                     <InventoryModal currentUser={currentUserWithStatus} onClose={handlers.closeInventory} onAction={handlers.handleAction} onStartEnhance={handlers.openEnhancingItem} onOpenBlacksmithTab={handlers.openBlacksmithTabFromInventory} enhancementAnimationTarget={modals.enhancementAnimationTarget} onAnimationComplete={handlers.clearEnhancementAnimation} isTopmost={topmostModalId === 'inventory'} />
                 </Suspense>
             )}
-            {modals.isMailboxOpen && (
+            {modals.isMailboxOpen && !mobileViewportActive('mailbox') && (
                 <Suspense fallback={ModalLoadingFallback()}>
                     <MailboxModal currentUser={currentUserWithStatus} onClose={handlers.closeMailbox} onAction={handlers.handleAction} isTopmost={topmostModalId === 'mailbox'} />
                 </Suspense>
@@ -296,7 +307,7 @@ const AppModalLayer: React.FC = () => {
                     />
                 </Suspense>
             )}
-            {modals.isActionPointModalOpen && (
+            {modals.isActionPointModalOpen && !mobileViewportActive('actionPoint') && (
                 <Suspense fallback={ModalLoadingFallback()}>
                     <ActionPointModal
                         currentUser={currentUserWithStatus}
@@ -320,12 +331,14 @@ const AppModalLayer: React.FC = () => {
             )}
             {modals.disassemblyResult && <DisassemblyResultModal result={modals.disassemblyResult} onClose={handlers.closeDisassemblyResult} isTopmost={topmostModalId === 'disassemblyResult'} isOpen={true} />}
             {modals.craftResult && <CraftingResultModal result={modals.craftResult} onClose={handlers.closeCraftResult} isTopmost={topmostModalId === 'craftResult'} />}
-            {modals.viewingUser && (
+            {modals.viewingUser && !mobileViewportActive('userProfile') && (
                 <Suspense fallback={ModalLoadingFallback()}>
                     <UserProfileModal user={modals.viewingUser} onClose={handlers.closeViewingUser} onViewItem={handlers.openViewingItem} isTopmost={topmostModalId === 'viewingUser'} />
                 </Suspense>
             )}
-            {modals.isInfoModalOpen && <InfoModal onClose={handlers.closeInfoModal} isTopmost={topmostModalId === 'infoModal'} />}
+            {modals.isInfoModalOpen && modals.activeQuickUtilityPanel !== 'help' && (
+                <InfoModal onClose={handlers.closeInfoModal} isTopmost={topmostModalId === 'infoModal'} />
+            )}
             {modals.isAnnouncementsModalOpen && modals.activeQuickUtilityPanel !== 'announcements' && (
                 <div
                     className="sudamr-modal-overlay z-[230]"
@@ -353,7 +366,7 @@ const AppModalLayer: React.FC = () => {
             {modals.isRankingQuickModalOpen && modals.activeQuickUtilityPanel !== 'ranking' && (
                 <RankingQuickModal onClose={handlers.closeRankingQuickModal} isTopmost={topmostModalId === 'rankingQuickModal'} />
             )}
-            {modals.isChatQuickModalOpen && (
+            {modals.isChatQuickModalOpen && !mobileViewportActive('chatQuick') && (
                 <ChatQuickModal
                     messages={mergedPublicChatMessages}
                     onAction={handlers.handleAction}
@@ -387,9 +400,13 @@ const AppModalLayer: React.FC = () => {
                     <EncyclopediaModal onClose={handlers.closeEncyclopedia} isTopmost={topmostModalId === 'encyclopedia'} />
                 </Suspense>
             )}
-            {modals.isStatAllocationModalOpen && <StatAllocationModal currentUser={currentUserWithStatus} onClose={handlers.closeStatAllocationModal} onAction={handlers.handleAction} isTopmost={topmostModalId === 'statAllocation'} />}
-            {modals.isProfileEditModalOpen && <ProfileEditModal currentUser={currentUserWithStatus} onClose={handlers.closeProfileEditModal} onAction={handlers.handleAction} isTopmost={topmostModalId === 'profileEdit'} />}
-            {modals.pastRankingsInfo && (
+            {modals.isStatAllocationModalOpen && !mobileViewportActive('statAllocation') && (
+                <StatAllocationModal currentUser={currentUserWithStatus} onClose={handlers.closeStatAllocationModal} onAction={handlers.handleAction} isTopmost={topmostModalId === 'statAllocation'} />
+            )}
+            {modals.isProfileEditModalOpen && !mobileViewportActive('profileEdit') && (
+                <ProfileEditModal currentUser={currentUserWithStatus} onClose={handlers.closeProfileEditModal} onAction={handlers.handleAction} isTopmost={topmostModalId === 'profileEdit'} />
+            )}
+            {modals.pastRankingsInfo && !mobileViewportActive('pastRankings') && (
                 <Suspense fallback={ModalLoadingFallback()}>
                     <PastRankingsModal info={modals.pastRankingsInfo} onClose={handlers.closePastRankings} isTopmost={topmostModalId === 'pastRankings'} />
                 </Suspense>
@@ -399,7 +416,7 @@ const AppModalLayer: React.FC = () => {
                     <AdminModerationModal user={modals.moderatingUser} currentUser={currentUserWithStatus} onClose={handlers.closeModerationModal} onAction={handlers.handleAction} isTopmost={topmostModalId === 'moderatingUser'} />
                 </Suspense>
             )}
-            {modals.viewingItem && (
+            {modals.viewingItem && !mobileViewportActive('itemDetail') && (
                 <ItemDetailModal
                     item={modals.viewingItem.item}
                     isOwnedByCurrentUser={modals.viewingItem.isOwnedByCurrentUser}
@@ -423,7 +440,9 @@ const AppModalLayer: React.FC = () => {
             {modals.mutualDisconnectMessage && (
                 <div className="sudamr-modal-overlay z-[200]" role="dialog" aria-modal="true" aria-labelledby="mutual-disconnect-title">
                     <div
-                        className={`sudamr-modal-panel mx-4 w-full max-w-md p-6 text-center shadow-2xl ${isNativeMobile ? 'mx-auto max-w-[calc(100vw-24px)]' : ''}`}
+                        className={`sudamr-modal-panel mx-4 flex w-full max-w-md flex-col overflow-hidden shadow-2xl ${
+                            isMobileModalChrome ? 'mx-auto max-w-[calc(100vw-24px)] p-0' : 'p-6 text-center'
+                        }`}
                         style={
                             isNativeMobile
                                 ? {
@@ -433,16 +452,31 @@ const AppModalLayer: React.FC = () => {
                                 : undefined
                         }
                     >
-                        <h2 id="mutual-disconnect-title" className="mb-3 text-lg font-bold tracking-tight text-primary">대국 종료 안내</h2>
-                        <p className="mb-6 text-sm leading-relaxed text-secondary">{modals.mutualDisconnectMessage}</p>
-                        <button type="button" onClick={handlers.closeMutualDisconnectModal} className="rounded-xl border border-white/15 bg-gradient-to-b from-secondary/90 to-tertiary px-8 py-2.5 text-sm font-semibold text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] transition hover:brightness-110">확인</button>
+                        {isMobileModalChrome && (
+                            <MobileModalTitleBar
+                                title="대국 종료 안내"
+                                titleId="mutual-disconnect-title"
+                                onClose={handlers.closeMutualDisconnectModal}
+                            />
+                        )}
+                        <div className={isMobileModalChrome ? 'p-4 text-center sm:p-6' : undefined}>
+                            {!isMobileModalChrome && (
+                                <h2 id="mutual-disconnect-title" className="mb-3 text-lg font-bold tracking-tight text-primary">
+                                    대국 종료 안내
+                                </h2>
+                            )}
+                            <p className="mb-6 text-sm leading-relaxed text-secondary">{modals.mutualDisconnectMessage}</p>
+                            <button type="button" onClick={handlers.closeMutualDisconnectModal} className="rounded-xl border border-white/15 bg-gradient-to-b from-secondary/90 to-tertiary px-8 py-2.5 text-sm font-semibold text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] transition hover:brightness-110">확인</button>
+                        </div>
                     </div>
                 </div>
             )}
             {modals.showOtherDeviceLoginModal && (
                 <div className="sudamr-modal-overlay z-[200]" role="dialog" aria-modal="true" aria-labelledby="other-device-login-title">
                     <div
-                        className={`sudamr-modal-panel mx-4 w-full max-w-md p-6 text-center shadow-2xl ${isNativeMobile ? 'mx-auto max-w-[calc(100vw-24px)]' : ''}`}
+                        className={`sudamr-modal-panel mx-4 flex w-full max-w-md flex-col overflow-hidden shadow-2xl ${
+                            isMobileModalChrome ? 'mx-auto max-w-[calc(100vw-24px)] p-0' : 'p-6 text-center'
+                        }`}
                         style={
                             isNativeMobile
                                 ? {
@@ -452,18 +486,31 @@ const AppModalLayer: React.FC = () => {
                                 : undefined
                         }
                     >
-                        <h2 id="other-device-login-title" className="mb-3 text-lg font-bold tracking-tight text-primary">로그아웃 안내</h2>
-                        <p className="mb-6 text-sm leading-relaxed text-secondary">
-                            <span className="block">다른 곳에서 로그인 되었습니다.</span>
-                            <span className="block">로그아웃 됩니다.</span>
-                        </p>
-                        <button
-                            type="button"
-                            onClick={handlers.confirmOtherDeviceLoginAndLogout}
-                            className="rounded-xl border border-red-400/45 bg-gradient-to-r from-red-500/95 via-rose-600/95 to-red-700/95 px-8 py-2.5 text-sm font-bold text-white shadow-[0_16px_34px_-20px_rgba(248,113,113,0.85)] transition hover:brightness-110"
-                        >
-                            확인
-                        </button>
+                        {isMobileModalChrome && (
+                            <MobileModalTitleBar
+                                title="로그아웃 안내"
+                                titleId="other-device-login-title"
+                                onClose={handlers.confirmOtherDeviceLoginAndLogout}
+                            />
+                        )}
+                        <div className={isMobileModalChrome ? 'p-4 text-center sm:p-6' : undefined}>
+                            {!isMobileModalChrome && (
+                                <h2 id="other-device-login-title" className="mb-3 text-lg font-bold tracking-tight text-primary">
+                                    로그아웃 안내
+                                </h2>
+                            )}
+                            <p className="mb-6 text-sm leading-relaxed text-secondary">
+                                <span className="block">다른 곳에서 로그인 되었습니다.</span>
+                                <span className="block">로그아웃 됩니다.</span>
+                            </p>
+                            <button
+                                type="button"
+                                onClick={handlers.confirmOtherDeviceLoginAndLogout}
+                                className="rounded-xl border border-red-400/45 bg-gradient-to-r from-red-500/95 via-rose-600/95 to-red-700/95 px-8 py-2.5 text-sm font-bold text-white shadow-[0_16px_34px_-20px_rgba(248,113,113,0.85)] transition hover:brightness-110"
+                            >
+                                확인
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
@@ -480,7 +527,7 @@ const AppModalLayer: React.FC = () => {
                 </Suspense>
             )}
             {modals.combinationResult && <CombinationResultModal result={modals.combinationResult} onClose={handlers.closeCombinationResult} isTopmost={topmostModalId === 'combinationResult'} />}
-            {modals.isBlacksmithEffectsModalOpen && currentUserWithStatus && (
+            {modals.isBlacksmithEffectsModalOpen && currentUserWithStatus && !mobileViewportActive('blacksmithEffects') && (
                 <Suspense fallback={ModalLoadingFallback()}>
                     <BlacksmithEffectsModal
                         onClose={handlers.closeBlacksmithEffectsModal}
@@ -492,7 +539,9 @@ const AppModalLayer: React.FC = () => {
             )}
             {modals.isEnhancementResultModalOpen && enhancementOutcome && <EnhancementResultModal result={enhancementOutcome} onClose={handlers.closeEnhancementModal} isTopmost={topmostModalId === 'enhancementResult'} />}
             {modals.isClaimAllSummaryOpen && modals.claimAllSummary && <ClaimAllSummaryModal summary={modals.claimAllSummary} onClose={handlers.closeClaimAllSummary} isTopmost={topmostModalId === 'claimAllSummary'} />}
-            {modals.isEquipmentEffectsModalOpen && <EquipmentEffectsModal onClose={handlers.closeEquipmentEffectsModal} isTopmost={topmostModalId === 'equipmentEffects'} mainOptionBonuses={mainOptionBonuses} combatSubOptionBonuses={combatSubOptionBonuses} specialStatBonuses={specialStatBonuses} aggregatedMythicStats={aggregatedMythicStats} />}
+            {modals.isEquipmentEffectsModalOpen && !mobileViewportActive('equipmentEffects') && (
+                <EquipmentEffectsModal onClose={handlers.closeEquipmentEffectsModal} isTopmost={topmostModalId === 'equipmentEffects'} mainOptionBonuses={mainOptionBonuses} combatSubOptionBonuses={combatSubOptionBonuses} specialStatBonuses={specialStatBonuses} aggregatedMythicStats={aggregatedMythicStats} />
+            )}
             {modals.isGameRecordListOpen && modals.activeQuickUtilityPanel !== 'gameRecords' && (
                 <Suspense fallback={ModalLoadingFallback()}>
                     <GameRecordListModal
@@ -504,7 +553,8 @@ const AppModalLayer: React.FC = () => {
                 </Suspense>
             )}
             {modals.viewingGameRecord &&
-                modals.activeQuickUtilityPanel !== 'gameRecords' && (
+                modals.activeQuickUtilityPanel !== 'gameRecords' &&
+                !mobileViewportActive('gameRecordViewer') && (
                 <Suspense fallback={ModalLoadingFallback()}>
                     <GameRecordViewerModal
                         record={modals.viewingGameRecord}

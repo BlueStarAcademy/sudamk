@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from '../DraggableWindow.js';
+import MobileModalTitleBar from '../mobile/MobileModalTitleBar.js';
+import { useMobileModalChrome } from '../../hooks/useMobileModalChrome.js';
 import GuildExpBadge from './GuildExpBadge.js';
 import { formatGoldAmountKoG, formatWalletDiamonds } from '../../shared/utils/walletAmountDisplay.js';
 import { PRE_GAME_MODAL_ACCENT_BTN_CLASS, PRE_GAME_MODAL_SHELL_CLASS } from '../game/PreGameDescriptionLayout.js';
@@ -67,6 +69,7 @@ const GuildWarRewardCard: React.FC<{
 );
 
 const GuildWarRewardModal: React.FC<GuildWarRewardModalProps> = ({ onClose, warResult, rewards }) => {
+    const useMobileChrome = useMobileModalChrome();
     const isWinner = warResult.isWinner;
     const [revealed, setRevealed] = useState(false);
 
@@ -170,9 +173,11 @@ const GuildWarRewardModal: React.FC<GuildWarRewardModalProps> = ({ onClose, warR
     return (
         <div className="sudamr-modal-overlay z-50 flex items-center justify-center p-3 sm:p-4" onClick={onClose}>
             <div
-                className={`${PRE_GAME_MODAL_SHELL_CLASS} sudamr-panel-edge-host relative w-full max-w-[min(100%,34rem)] overflow-hidden`}
+                className={`${PRE_GAME_MODAL_SHELL_CLASS} sudamr-panel-edge-host relative w-full max-w-[min(100%,34rem)] overflow-hidden ${useMobileChrome ? 'flex max-h-[min(92dvh,52rem)] flex-col' : ''}`}
                 onClick={(e) => e.stopPropagation()}
             >
+                {!useMobileChrome && (
+                <>
                 <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${headerRing}`} />
                 <div className="pointer-events-none absolute -top-24 left-1/2 h-48 w-48 -translate-x-1/2 rounded-full bg-amber-400/10 blur-3xl" />
 
@@ -184,8 +189,16 @@ const GuildWarRewardModal: React.FC<GuildWarRewardModalProps> = ({ onClose, warR
                 >
                     닫기
                 </button>
+                </>
+                )}
+                {useMobileChrome && (
+                    <MobileModalTitleBar
+                        title={isWinner ? '길드 전쟁 승리' : '길드 전쟁 패배'}
+                        onClose={onClose}
+                    />
+                )}
 
-                <div className="relative z-10 flex max-h-[min(92dvh,52rem)] flex-col overflow-y-auto p-5 sm:p-6">
+                <div className={`relative z-10 flex flex-col overflow-y-auto ${useMobileChrome ? 'min-h-0 flex-1' : 'max-h-[min(92dvh,52rem)]'} p-5 sm:p-6`}>
                     <div className="mb-4 flex flex-col items-center text-center sm:mb-5">
                         <div className="mb-3 flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-2xl border border-white/10 bg-gradient-to-br from-stone-900/90 to-stone-950/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_12px_32px_-16px_rgba(0,0,0,0.8)] sm:h-20 sm:w-20">
                             <img

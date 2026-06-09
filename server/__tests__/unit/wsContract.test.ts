@@ -12,6 +12,23 @@ describe('WebSocket event contract', () => {
         expect((msg.payload as Record<string, unknown>)[gameId]).toHaveProperty('gameStatus');
     });
 
+    it('RANKED_MATCH_PROPOSAL payload has proposalId, acceptDeadlineAt, player1, player2', () => {
+        const msg = {
+            type: 'RANKED_MATCH_PROPOSAL',
+            payload: {
+                proposalId: 'proposal-1',
+                acceptDeadlineAt: Date.now() + 30_000,
+                selectedMode: '클래식 바둑',
+                player1: { id: 'p1', nickname: 'P1', rating: 1200, winChange: 20, lossChange: -20, accepted: false },
+                player2: { id: 'p2', nickname: 'P2', rating: 1180, winChange: 20, lossChange: -20, accepted: false },
+            },
+        };
+        expect(msg.type).toBe('RANKED_MATCH_PROPOSAL');
+        expect(msg.payload).toHaveProperty('proposalId', 'proposal-1');
+        expect(msg.payload.player1).toHaveProperty('accepted', false);
+        expect(msg.payload.player2).toHaveProperty('accepted', false);
+    });
+
     it('RANKED_MATCH_FOUND payload has gameId, player1, player2 with required fields', () => {
         const msg = {
             type: 'RANKED_MATCH_FOUND',

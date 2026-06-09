@@ -22,6 +22,7 @@ export const volatileState: VolatileState = {
     pairPartnerInvites: {},
     pairPartnerInviteCooldowns: {},
     pairRoomTeamChats: {},
+    rankedMatchProposals: {},
     pairRankedPetProposals: {},
     // PVP 양쪽 접속 끊김 시 재접속 후 안내
     pendingMutualDisconnectByUser: {},

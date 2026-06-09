@@ -49,7 +49,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
   const { 
     currentUserWithStatus, onlineUsers, allUsers, liveGames, 
     waitingRoomChats, handlers, arenaEntranceAvailability,
-    rankedMatchingQueue, rankedMatchFound,
+    rankedMatchingQueue, rankedMatchProposal, rankedMatchFound,
   } = useAppContext();
   const { isNativeMobile } = useNativeMobileShell();
 
@@ -60,7 +60,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
   >('users');
   const [isRankedMatching, setIsRankedMatching] = useState(false);
   const [rankedMatchingStartTime, setRankedMatchingStartTime] = useState(0);
-  const [matchFoundData, setMatchFoundData] = useState<{ gameId: string; player1: any; player2: any } | null>(null);
+  const [rankedMatchBusy, setRankedMatchBusy] = useState(false);
   /** 전략·놀이 대기실 유저 목록 패널: 전체 / 친구 / 길드원 */
   const [waitingUserListScope, setWaitingUserListScope] = useState<'all' | 'friends' | 'guild'>('all');
   const desktopContainerRef = useRef<HTMLDivElement>(null);
@@ -150,14 +150,35 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
   }, [mode, nativeWaitingTab]);
 
   useEffect(() => {
-    if (!rankedMatchFound) return;
-    if (rankedMatchFound.player1?.id !== currentUserWithStatus?.id && rankedMatchFound.player2?.id !== currentUserWithStatus?.id) {
+    if (!rankedMatchFound?.gameId || !currentUserWithStatus?.id) return;
+    if (
+      rankedMatchFound.player1?.id !== currentUserWithStatus.id &&
+      rankedMatchFound.player2?.id !== currentUserWithStatus.id
+    ) {
       return;
     }
-    setIsRankedMatching(false);
-    setRankedMatchingStartTime(0);
-    setMatchFoundData(rankedMatchFound);
-  }, [rankedMatchFound, currentUserWithStatus?.id]);
+    handlers.clearRankedMatchFound?.();
+    window.location.hash = `#/game/${rankedMatchFound.gameId}`;
+  }, [rankedMatchFound, currentUserWithStatus?.id, handlers]);
+
+  const respondRankedMatch = useCallback(
+    async (accept: boolean) => {
+      if (!rankedMatchProposal?.proposalId || rankedMatchBusy) return;
+      setRankedMatchBusy(true);
+      try {
+        await handlers.handleAction({
+          type: 'RESPOND_RANKED_MATCH',
+          payload: { proposalId: rankedMatchProposal.proposalId, accept },
+        });
+        if (!accept) {
+          handlers.clearRankedMatchProposal?.();
+        }
+      } finally {
+        setRankedMatchBusy(false);
+      }
+    },
+    [rankedMatchProposal?.proposalId, rankedMatchBusy, handlers],
+  );
 
   useEffect(() => {
     if (mode === 'strategic' || mode === 'playful') setWaitingUserListScope('all');
@@ -873,20 +894,15 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
           onAction={handlers.handleAction}
         />
       )}
-      {matchFoundData && (
+      {rankedMatchProposal && currentUserWithStatus && (
         <MatchFoundModal
-          gameId={matchFoundData.gameId}
-          player1={matchFoundData.player1}
-          player2={matchFoundData.player2}
+          proposal={rankedMatchProposal}
           currentUserId={currentUserWithStatus.id}
-          onClose={() => {
-            setMatchFoundData(null);
-            handlers.clearRankedMatchFound?.();
-          }}
-          onEnterGame={(gameId) => {
-            setMatchFoundData(null);
-            handlers.clearRankedMatchFound?.();
-            window.location.hash = `#/game/${gameId}`;
+          isBusy={rankedMatchBusy}
+          onAccept={() => void respondRankedMatch(true)}
+          onReject={() => void respondRankedMatch(false)}
+          onDeadlineElapsed={() => {
+            handlers.clearRankedMatchProposal?.();
           }}
         />
       )}

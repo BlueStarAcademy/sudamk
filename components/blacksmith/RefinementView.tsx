@@ -18,7 +18,7 @@ import { MythicOptionAbbrev, MythicStatAbbrev } from '../MythicStatAbbrev.js';
 import { PortalHoverBubble } from '../PortalHoverBubble.js';
 import RefinementResultModal from './RefinementResultModal.js';
 import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
-import { getBlacksmithViewerTypography } from '../../shared/constants/blacksmithViewerTypography.js';
+import { getBlacksmithViewerTypography, BLACKSMITH_MOBILE_WORK_ROOT_CLASS } from '../../shared/constants/blacksmithViewerTypography.js';
 
 const REFINEMENT_TICKET_DEFS: { id: 'type' | 'value' | 'mythic'; itemKey: keyof typeof MATERIAL_ITEMS }[] = [
     { id: 'type', itemKey: '옵션 종류 변경권' },
@@ -147,10 +147,11 @@ const ItemDisplay: React.FC<{
     selectedOption: { type: 'main' | 'combatSub' | 'specialSub' | 'mythicSub'; index: number } | null;
     onOptionClick: (type: 'main' | 'combatSub' | 'specialSub' | 'mythicSub', index: number) => void;
     pcViewer?: boolean;
-}> = ({ item, selectedOption, onOptionClick, pcViewer = false }) => {
+    mobileWork?: boolean;
+}> = ({ item, selectedOption, onOptionClick, pcViewer = false, mobileWork = false }) => {
     const { currentUserWithStatus } = useAppContext();
     const styles = gradeStyles[item.grade];
-    const typo = getBlacksmithViewerTypography(pcViewer);
+    const typo = getBlacksmithViewerTypography(pcViewer, { mobileWork });
 
     const requiredLevel = GRADE_LEVEL_REQUIREMENTS[item.grade];
     const userLevelSum = currentUserWithStatus?.userLevel ?? 0;
@@ -287,7 +288,7 @@ const RefinementView: React.FC<RefinementViewProps> = ({
     stackedViewport = false,
 }) => {
     const pcViewer = !stackedViewport;
-    const typo = getBlacksmithViewerTypography(pcViewer);
+    const typo = getBlacksmithViewerTypography(pcViewer, { mobileWork: stackedViewport });
     const [selectedOption, setSelectedOption] = useState<{ type: 'main' | 'combatSub' | 'specialSub' | 'mythicSub'; index: number } | null>(null);
     const [refinementType, setRefinementType] = useState<RefinementType | null>(null);
     const [isRefining, setIsRefining] = useState(false);
@@ -676,7 +677,7 @@ const RefinementView: React.FC<RefinementViewProps> = ({
         selectedOption && !refinementExhausted ? (
             <div className="mt-2 shrink-0 space-y-2 border-t border-white/10 pt-2">
                 <div className="rounded border border-white/10 bg-black/35 p-1.5">
-                    <div className={`mb-1 text-gray-400 ${pcViewer ? typo.caption : 'text-xs'}`}>필요 재료</div>
+                    <div className={`mb-1 text-gray-400 ${typo.caption}`}>필요 재료</div>
                     {refinementType && ticketItemInfo ? (
                         <div className="flex flex-wrap items-center gap-2">
                             <div
@@ -689,7 +690,7 @@ const RefinementView: React.FC<RefinementViewProps> = ({
                                     className="h-6 w-6 object-contain"
                                 />
                                 <span
-                                    className={`whitespace-nowrap ${pcViewer ? typo.body : 'text-xs'} ${
+                                    className={`whitespace-nowrap ${typo.body} ${
                                         ticketCounts[
                                             refinementType === 'type'
                                                 ? 'type'
@@ -713,7 +714,7 @@ const RefinementView: React.FC<RefinementViewProps> = ({
                             </div>
                             <div className="flex items-center gap-1 rounded bg-gray-800/50 p-1">
                                 <img src="/images/icon/Gold.webp" alt="골드" className="h-6 w-6 object-contain" />
-                                <span className={`${pcViewer ? typo.body : 'text-xs'} ${currentUser.gold >= requiredGold ? 'text-white' : 'text-red-400'}`}>
+                                <span className={`${typo.body} ${currentUser.gold >= requiredGold ? 'text-white' : 'text-red-400'}`}>
                                     {formatGoldAmountKoG(requiredGold)}
                                 </span>
                             </div>
@@ -726,7 +727,7 @@ const RefinementView: React.FC<RefinementViewProps> = ({
                 <button
                     onClick={handleRefine}
                     disabled={!canRefine || isRefining}
-                    className={`group relative mx-auto block w-full min-w-0 rounded-lg px-2.5 py-2 font-bold transition-all duration-300 overflow-hidden ${pcViewer ? typo.bodySemi : 'text-xs'} ${
+                    className={`group relative mx-auto block w-full min-w-0 rounded-lg px-2.5 py-2.5 font-bold transition-all duration-300 overflow-hidden ${typo.bodySemi} ${
                         canRefine && !isRefining
                             ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 text-white shadow-[0_0_14px_rgba(251,146,60,0.55)] hover:shadow-[0_0_20px_rgba(251,146,60,0.75)]'
                             : 'cursor-not-allowed bg-gray-700 text-gray-400 opacity-50'
@@ -741,7 +742,7 @@ const RefinementView: React.FC<RefinementViewProps> = ({
 
                 {isRefining ? (
                     <div>
-                        <div className={`mb-1 flex items-center justify-between ${pcViewer ? typo.caption : 'text-[10px]'} text-cyan-200/90`}>
+                        <div className={`mb-1 flex items-center justify-between ${typo.caption} text-cyan-200/90`}>
                             <span className="font-semibold">제련 진행도</span>
                             <span className="font-mono tabular-nums">{Math.max(0, Math.min(100, refinementProgress))}%</span>
                         </div>
@@ -756,202 +757,264 @@ const RefinementView: React.FC<RefinementViewProps> = ({
             </div>
         ) : null;
 
-    return (
-        <div className="flex h-full min-h-0 flex-col p-2">
-            <div
-                className={`min-h-0 min-w-0 flex-1 ${stackedViewport ? 'flex flex-row gap-2' : 'grid grid-cols-2 gap-3'}`}
+    const handleBackToEquipmentStep = () => {
+        setSelectedOption(null);
+        setRefinementType(null);
+    };
+
+    const mobileStepIndicator = stackedViewport ? (
+        <div className={`mb-2 flex shrink-0 items-center justify-center gap-2 ${typo.caption} font-bold`}>
+            <span
+                className={`rounded-full px-2 py-0.5 ${
+                    !selectedOption ? 'bg-amber-500/25 text-amber-100 ring-1 ring-amber-400/40' : 'text-slate-500'
+                }`}
             >
-                <div
-                    className={`flex min-h-0 min-w-0 flex-col rounded-lg border border-amber-400/20 bg-gradient-to-b from-[#181d2a]/80 via-[#111623]/90 to-[#0b1018]/95 p-2 ${
-                        stackedViewport ? 'min-h-0 flex-1 overflow-hidden' : 'min-h-0'
-                    }`}
+                ① 옵션 선택
+            </span>
+            <span className="text-slate-600" aria-hidden>
+                ›
+            </span>
+            <span
+                className={`rounded-full px-2 py-0.5 ${
+                    selectedOption ? 'bg-cyan-500/20 text-cyan-100 ring-1 ring-cyan-400/35' : 'text-slate-500'
+                }`}
+            >
+                ② 제련 정보
+            </span>
+        </div>
+    ) : null;
+
+    const refinementExhaustedPanel = (
+        <div className={`flex min-h-0 flex-1 flex-col justify-center gap-2 rounded-lg bg-gray-900/40 p-3 text-amber-200/95 ${typo.body}`}>
+            <p className="font-semibold leading-snug">제련 가능 횟수가 모두 소진되었습니다.</p>
+            <p className={`${typo.caption} leading-relaxed text-gray-400`}>
+                제련이 불가능한 장비의 제련가능 횟수를 1추가합니다. 사용처 : [대장간]-[장비제련] 제련불가 장비 선택
+            </p>
+            <div className="mt-1 flex items-center justify-between gap-2 rounded border border-amber-500/30 bg-black/30 px-2 py-1.5">
+                <div className="flex items-center gap-2">
+                    <img src={refinementCharmInfo.image} alt={refinementCharmInfo.name} className="h-7 w-7 object-contain" />
+                    <div className={`${typo.body} leading-tight`}>
+                        <p className="font-semibold text-amber-100">{refinementCharmInfo.name}</p>
+                        <p className="text-gray-300">보유: {ticketCounts.charm}</p>
+                    </div>
+                </div>
+                <Button
+                    onClick={() => void handleUseRefinementCharm()}
+                    disabled={ticketCounts.charm <= 0}
+                    className="!px-3 !py-1.5 !text-xs !font-semibold"
                 >
-                    <h3 className={`mb-1 shrink-0 ${typo.heading} text-amber-100`}>선택된 장비</h3>
-                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                    사용하기
+                </Button>
+            </div>
+        </div>
+    );
+
+    const refinementInfoBody = selectedOption ? (
+        <div className={`flex min-h-0 flex-1 flex-col gap-2 ${typo.body}`}>
+            <div className="shrink-0 rounded border border-white/10 bg-black/35 p-1.5">
+                <div className={`mb-0.5 text-gray-400 ${typo.caption}`}>선택된 옵션</div>
+                <div className="font-semibold text-yellow-300">
+                    {selectedOption?.type === 'mythicSub' && selectedOptionData ? (
+                        <MythicOptionAbbrev option={selectedOptionData} textClassName="text-yellow-300 font-semibold" />
+                    ) : (
+                        selectedOptionData?.display || 'N/A'
+                    )}
+                </div>
+            </div>
+
+            <div
+                className={`grid w-full min-w-0 shrink-0 gap-1.5 ${
+                    selectedOption.type === 'mythicSub'
+                        ? 'grid-cols-1'
+                        : selectedOption.type === 'main'
+                          ? 'grid-cols-1'
+                          : 'grid-cols-2'
+                }`}
+            >
+                {(selectedOption.type === 'main' || selectedOption.type === 'combatSub' || selectedOption.type === 'specialSub') && (
+                    <>
+                        <button
+                            onClick={() => setRefinementType('type')}
+                            className={`group relative min-w-0 w-full overflow-hidden rounded-lg px-1.5 py-2 ${typo.bodySemi} font-bold transition-all duration-300 ${
+                                refinementType === 'type'
+                                    ? 'bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 text-white shadow-[0_0_16px_rgba(168,85,247,0.55)] ring-1 ring-white/30'
+                                    : 'bg-gradient-to-r from-gray-700 to-gray-800 text-gray-300 hover:from-gray-600 hover:to-gray-700 hover:shadow-lg'
+                            }`}
+                        >
+                            <div className="absolute inset-0 translate-x-[-200%] transform bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:translate-x-[200%] group-hover:opacity-100" />
+                            <span className="relative z-10 flex items-center justify-center gap-0.5 sm:gap-1">
+                                <span className="shrink-0 text-xs sm:text-sm">🔄</span>
+                                <span className="truncate">종류변경</span>
+                            </span>
+                        </button>
+                        {(selectedOption.type === 'combatSub' || selectedOption.type === 'specialSub') && (
+                            <button
+                                onClick={() => setRefinementType('value')}
+                                className={`group relative min-w-0 w-full overflow-hidden rounded-lg px-1.5 py-2 ${typo.bodySemi} font-bold transition-all duration-300 ${
+                                    refinementType === 'value'
+                                        ? 'bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-white shadow-[0_0_16px_rgba(20,184,166,0.55)] ring-1 ring-white/30'
+                                        : 'bg-gradient-to-r from-gray-700 to-gray-800 text-gray-300 hover:from-gray-600 hover:to-gray-700 hover:shadow-lg'
+                                }`}
+                            >
+                                <div className="absolute inset-0 translate-x-[-200%] transform bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:translate-x-[200%] group-hover:opacity-100" />
+                                <span className="relative z-10 flex items-center justify-center gap-0.5 sm:gap-1">
+                                    <span className="shrink-0 text-xs sm:text-sm">📊</span>
+                                    <span className="truncate">수치변경</span>
+                                </span>
+                            </button>
+                        )}
+                    </>
+                )}
+                {selectedOption.type === 'mythicSub' && (
+                    <button
+                        onClick={() => setRefinementType('mythic')}
+                        className={`group relative min-w-0 w-full overflow-hidden rounded-lg px-1.5 py-2 ${typo.bodySemi} font-bold transition-all duration-300 ${
+                            refinementType === 'mythic'
+                                ? 'bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 text-white shadow-[0_0_16px_rgba(249,115,22,0.55)] ring-1 ring-white/30'
+                                : 'bg-gradient-to-r from-gray-700 to-gray-800 text-gray-300 hover:from-gray-600 hover:to-gray-700 hover:shadow-lg'
+                        }`}
+                    >
+                        <div className="absolute inset-0 translate-x-[-200%] transform bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:translate-x-[200%] group-hover:opacity-100" />
+                        <span className="relative z-10 flex items-center justify-center gap-0.5 sm:gap-1">
+                            <span className="shrink-0 text-xs sm:text-sm">✨</span>
+                            <span className="truncate">스페셜 옵션 변경</span>
+                        </span>
+                    </button>
+                )}
+            </div>
+
+            {refinementType ? (
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded border border-white/10 bg-black/35 p-1.5">
+                    <div className={`mb-1 shrink-0 text-gray-400 ${typo.caption}`}>
+                        {refinementType === 'value' ? '변경 가능한 수치 범위' : '변경 가능한 옵션'}
+                    </div>
+                    <div className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden ${typo.body} space-y-0.5 [scrollbar-gutter:stable]`}>
+                        {availableOptions.length > 0 ? (
+                            availableOptions.map((opt, idx) => (
+                                <div key={idx} className="text-green-300">
+                                    {refinementType === 'mythic' ? (
+                                        <MythicStatAbbrev stat={opt.type as MythicStat} textClassName="text-green-300" bubbleSide="right" />
+                                    ) : (
+                                        <>
+                                            {opt.name}
+                                            {(opt as { valueAtCurrentEnhancement?: number }).valueAtCurrentEnhancement != null && (
+                                                <span className="text-yellow-300">
+                                                    {' '}+{((opt as { valueAtCurrentEnhancement?: number }).valueAtCurrentEnhancement)}
+                                                    {opt.isPercentage ? '%' : ''}
+                                                </span>
+                                            )}
+                                            {opt.range && (
+                                                <span className="text-yellow-300">
+                                                    {' '}
+                                                    {opt.range[0]}~{opt.range[1]}
+                                                    {opt.isPercentage ? '%' : ''}
+                                                </span>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+                            ))
+                        ) : (
+                            <div className="text-red-400">변경 가능한 옵션이 없습니다.</div>
+                        )}
+                    </div>
+                </div>
+            ) : (
+                <div className={`flex min-h-0 flex-1 items-center justify-center rounded border border-dashed border-white/10 bg-black/20 px-2 text-center text-slate-500 ${typo.caption}`}>
+                    제련 방식을 선택하세요.
+                </div>
+            )}
+        </div>
+    ) : (
+        <div className={`flex flex-1 items-center justify-center py-4 text-center text-gray-500 ${typo.body}`}>
+            {stackedViewport ? '제련할 옵션을 선택해주세요.' : '좌측에서 옵션을 선택해주세요.'}
+        </div>
+    );
+
+    const equipmentPanel = (
+        <div
+            className={`flex min-h-0 min-w-0 flex-col rounded-lg border border-amber-400/20 bg-gradient-to-b from-[#181d2a]/80 via-[#111623]/90 to-[#0b1018]/95 p-2 ${
+                stackedViewport ? 'min-h-0 flex-1 overflow-hidden' : 'min-h-0'
+            }`}
+        >
+            <h3 className={`mb-1 shrink-0 text-center ${typo.heading} text-amber-100`}>선택된 장비</h3>
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                {refinementExhausted ? (
+                    refinementExhaustedPanel
+                ) : (
+                    <>
                         <ItemDisplay
                             item={selectedItem}
                             selectedOption={selectedOption}
                             pcViewer={pcViewer}
+                            mobileWork={stackedViewport}
                             onOptionClick={(type, index) => {
                                 setSelectedOption({ type, index });
                                 setRefinementType(null);
                             }}
                         />
-                    </div>
-                    {ownedTicketBar}
-                </div>
-
-                <div
-                    className={`flex min-h-0 min-w-0 flex-col rounded-lg border border-amber-400/20 bg-gradient-to-b from-[#181d2a]/80 via-[#111623]/90 to-[#0b1018]/95 p-2 ${
-                        stackedViewport ? 'w-[min(11.5rem,42vw)] max-w-[14rem] shrink-0' : 'min-h-0'
-                    }`}
-                >
-                    <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
-                        <h3 className={`${typo.heading} text-amber-100`}>제련 정보</h3>
-                        {stackedViewport && selectedOption && (
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setSelectedOption(null);
-                                    setRefinementType(null);
-                                }}
-                                className="rounded border border-slate-500/60 bg-slate-800/70 px-2 py-1 text-[10px] font-semibold text-slate-200 hover:border-cyan-400/50"
-                            >
-                                초기화
-                            </button>
-                        )}
-                    </div>
-
-                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                            {refinementExhausted ? (
-                                <div className={`flex min-h-0 flex-1 flex-col justify-center gap-2 rounded-lg bg-gray-900/40 p-3 text-amber-200/95 ${typo.body}`}>
-                                    <p className="font-semibold leading-snug">제련 가능 횟수가 모두 소진되었습니다.</p>
-                                    <p className={`${typo.caption} leading-relaxed text-gray-400`}>
-                                        제련이 불가능한 장비의 제련가능 횟수를 1추가합니다. 사용처 : [대장간]-[장비제련] 제련불가 장비 선택
-                                    </p>
-                                    <div className="mt-1 flex items-center justify-between gap-2 rounded border border-amber-500/30 bg-black/30 px-2 py-1.5">
-                                        <div className="flex items-center gap-2">
-                                            <img src={refinementCharmInfo.image} alt={refinementCharmInfo.name} className="h-7 w-7 object-contain" />
-                                            <div className={`${typo.body} leading-tight`}>
-                                                <p className="font-semibold text-amber-100">{refinementCharmInfo.name}</p>
-                                                <p className="text-gray-300">보유: {ticketCounts.charm}</p>
-                                            </div>
-                                        </div>
-                                        <Button
-                                            onClick={() => void handleUseRefinementCharm()}
-                                            disabled={ticketCounts.charm <= 0}
-                                            className="!px-3 !py-1.5 !text-xs !font-semibold"
-                                        >
-                                            사용하기
-                                        </Button>
-                                    </div>
-                                </div>
-                            ) : selectedOption ? (
-                                <div className={`flex min-h-0 flex-1 flex-col gap-2 ${typo.body}`}>
-                                    <div className="shrink-0 rounded border border-white/10 bg-black/35 p-1.5">
-                                        <div className={`mb-0.5 text-gray-400 ${typo.caption}`}>선택된 옵션</div>
-                                        <div className="font-semibold text-yellow-300">
-                                            {selectedOption?.type === 'mythicSub' && selectedOptionData ? (
-                                                <MythicOptionAbbrev option={selectedOptionData} textClassName="text-yellow-300 font-semibold" />
-                                            ) : (
-                                                selectedOptionData?.display || 'N/A'
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <div
-                                        className={`grid w-full min-w-0 shrink-0 gap-1.5 ${
-                                            selectedOption.type === 'mythicSub'
-                                                ? 'grid-cols-1'
-                                                : selectedOption.type === 'main'
-                                                  ? 'grid-cols-1'
-                                                  : 'grid-cols-2'
-                                        }`}
-                                    >
-                                        {(selectedOption.type === 'main' || selectedOption.type === 'combatSub' || selectedOption.type === 'specialSub') && (
-                                            <>
-                                                <button
-                                                    onClick={() => setRefinementType('type')}
-                                                    className={`group relative min-w-0 w-full overflow-hidden rounded-lg px-1 py-1.5 ${pcViewer ? typo.body : 'text-[10px] sm:text-xs'} font-bold transition-all duration-300 ${
-                                                        refinementType === 'type'
-                                                            ? 'bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 text-white shadow-[0_0_16px_rgba(168,85,247,0.55)] ring-1 ring-white/30'
-                                                            : 'bg-gradient-to-r from-gray-700 to-gray-800 text-gray-300 hover:from-gray-600 hover:to-gray-700 hover:shadow-lg'
-                                                    }`}
-                                                >
-                                                    <div className="absolute inset-0 translate-x-[-200%] transform bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:translate-x-[200%] group-hover:opacity-100" />
-                                                    <span className="relative z-10 flex items-center justify-center gap-0.5 sm:gap-1">
-                                                        <span className="shrink-0 text-xs sm:text-sm">🔄</span>
-                                                        <span className="truncate">종류변경</span>
-                                                    </span>
-                                                </button>
-                                                {(selectedOption.type === 'combatSub' || selectedOption.type === 'specialSub') && (
-                                                    <button
-                                                        onClick={() => setRefinementType('value')}
-                                                        className={`group relative min-w-0 w-full overflow-hidden rounded-lg px-1 py-1.5 ${pcViewer ? typo.body : 'text-[10px] sm:text-xs'} font-bold transition-all duration-300 ${
-                                                            refinementType === 'value'
-                                                                ? 'bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-white shadow-[0_0_16px_rgba(20,184,166,0.55)] ring-1 ring-white/30'
-                                                                : 'bg-gradient-to-r from-gray-700 to-gray-800 text-gray-300 hover:from-gray-600 hover:to-gray-700 hover:shadow-lg'
-                                                        }`}
-                                                    >
-                                                        <div className="absolute inset-0 translate-x-[-200%] transform bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:translate-x-[200%] group-hover:opacity-100" />
-                                                        <span className="relative z-10 flex items-center justify-center gap-0.5 sm:gap-1">
-                                                            <span className="shrink-0 text-xs sm:text-sm">📊</span>
-                                                            <span className="truncate">수치변경</span>
-                                                        </span>
-                                                    </button>
-                                                )}
-                                            </>
-                                        )}
-                                        {selectedOption.type === 'mythicSub' && (
-                                            <button
-                                                onClick={() => setRefinementType('mythic')}
-                                                className={`group relative min-w-0 w-full overflow-hidden rounded-lg px-1.5 py-1.5 ${pcViewer ? typo.body : 'text-[10px] sm:text-xs'} font-bold transition-all duration-300 ${
-                                                    refinementType === 'mythic'
-                                                        ? 'bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 text-white shadow-[0_0_16px_rgba(249,115,22,0.55)] ring-1 ring-white/30'
-                                                        : 'bg-gradient-to-r from-gray-700 to-gray-800 text-gray-300 hover:from-gray-600 hover:to-gray-700 hover:shadow-lg'
-                                                }`}
-                                            >
-                                                <div className="absolute inset-0 translate-x-[-200%] transform bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:translate-x-[200%] group-hover:opacity-100" />
-                                                <span className="relative z-10 flex items-center justify-center gap-0.5 sm:gap-1">
-                                                    <span className="shrink-0 text-xs sm:text-sm">✨</span>
-                                                    <span className="truncate">스페셜 옵션 변경</span>
-                                                </span>
-                                            </button>
-                                        )}
-                                    </div>
-
-                                    {refinementType ? (
-                                        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded border border-white/10 bg-black/35 p-1.5">
-                                            <div className={`mb-1 shrink-0 text-gray-400 ${typo.caption}`}>
-                                                {refinementType === 'value' ? '변경 가능한 수치 범위' : '변경 가능한 옵션'}
-                                            </div>
-                                            <div className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden ${typo.body} space-y-0.5 [scrollbar-gutter:stable]`}>
-                                                {availableOptions.length > 0 ? (
-                                                    availableOptions.map((opt, idx) => (
-                                                        <div key={idx} className="text-green-300">
-                                                            {refinementType === 'mythic' ? (
-                                                                <MythicStatAbbrev stat={opt.type as MythicStat} textClassName="text-green-300" bubbleSide="right" />
-                                                            ) : (
-                                                                <>
-                                                                    {opt.name}
-                                                                    {(opt as { valueAtCurrentEnhancement?: number }).valueAtCurrentEnhancement != null && (
-                                                                        <span className="text-yellow-300">
-                                                                            {' '}+{((opt as { valueAtCurrentEnhancement?: number }).valueAtCurrentEnhancement)}
-                                                                            {opt.isPercentage ? '%' : ''}
-                                                                        </span>
-                                                                    )}
-                                                                    {opt.range && (
-                                                                        <span className="text-yellow-300">
-                                                                            {' '}{opt.range[0]}~{opt.range[1]}{opt.isPercentage ? '%' : ''}
-                                                                        </span>
-                                                                    )}
-                                                                </>
-                                                            )}
-                                                        </div>
-                                                    ))
-                                                ) : (
-                                                    <div className="text-red-400">변경 가능한 옵션이 없습니다.</div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className={`flex min-h-0 flex-1 items-center justify-center rounded border border-dashed border-white/10 bg-black/20 px-2 text-center text-slate-500 ${typo.caption}`}>
-                                            제련 방식을 선택하세요.
-                                        </div>
-                                    )}
-                                </div>
-                            ) : (
-                                <div className={`flex flex-1 items-center justify-center py-4 text-center text-gray-500 ${pcViewer ? typo.body : 'text-xs'}`}>
-                                    좌측에서 옵션을 선택해주세요.
-                                </div>
-                            )}
-                        </div>
-
-                        {refinementActionFooter}
-                    </div>
-                </div>
+                        {stackedViewport && !selectedOption ? (
+                            <p className={`mt-2 shrink-0 px-2 text-center ${typo.caption} text-slate-400`}>
+                                제련할 옵션을 탭하면 제련 정보 화면으로 이동합니다.
+                            </p>
+                        ) : null}
+                    </>
+                )}
             </div>
+            {ownedTicketBar}
+        </div>
+    );
+
+    const refinementPanel = (
+        <div
+            className={`flex min-h-0 min-w-0 flex-col rounded-lg border border-amber-400/20 bg-gradient-to-b from-[#181d2a]/80 via-[#111623]/90 to-[#0b1018]/95 p-2 ${
+                stackedViewport ? 'min-h-0 flex-1 overflow-hidden' : 'min-h-0'
+            }`}
+        >
+            <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
+                <h3 className={`flex-1 text-center ${typo.heading} text-amber-100`}>제련 정보</h3>
+                {stackedViewport && selectedOption ? (
+                    <button
+                        type="button"
+                        onClick={handleBackToEquipmentStep}
+                        className="rounded border border-slate-500/60 bg-slate-800/70 px-2 py-1 text-[10px] font-semibold text-slate-200 hover:border-cyan-400/50"
+                    >
+                        ← 옵션 선택
+                    </button>
+                ) : null}
+                {!stackedViewport && selectedOption ? (
+                    <button
+                        type="button"
+                        onClick={handleBackToEquipmentStep}
+                        className="rounded border border-slate-500/60 bg-slate-800/70 px-2 py-1 text-[10px] font-semibold text-slate-200 hover:border-cyan-400/50"
+                    >
+                        초기화
+                    </button>
+                ) : null}
+            </div>
+
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                    {refinementExhausted ? refinementExhaustedPanel : refinementInfoBody}
+                </div>
+                {refinementActionFooter}
+            </div>
+        </div>
+    );
+
+    return (
+        <div className={`flex h-full min-h-0 flex-col p-2 ${stackedViewport ? 'min-h-[min(72dvh,100%)]' : ''}`}>
+            {mobileStepIndicator}
+            {stackedViewport ? (
+                <div className={`${BLACKSMITH_MOBILE_WORK_ROOT_CLASS} min-h-0 flex-1`}>
+                    {!selectedOption || refinementExhausted ? equipmentPanel : refinementPanel}
+                </div>
+            ) : (
+                <div className="grid min-h-0 min-w-0 flex-1 grid-cols-2 gap-3">
+                    {equipmentPanel}
+                    {refinementPanel}
+                </div>
+            )}
             <RefinementResultModal
                 result={refinementResult}
                 onClose={onResultConfirm}

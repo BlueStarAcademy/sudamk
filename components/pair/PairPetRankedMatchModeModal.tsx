@@ -18,6 +18,10 @@ import {
 import { RANKED_STRATEGIC_MODES } from '../../constants/rankedGameSettings.js';
 import { buildRankedStrategicMatchLobbySettingRows } from '../../shared/utils/pairLobbyGameSettingRows.js';
 import {
+    LOBBY_DENSE_SETTINGS_GRID_CONTAINER_CLASS,
+    LOBBY_DENSE_SETTINGS_RESPONSIVE_COLS_GRID_CLASS,
+    LOBBY_HORIZONTAL_MODE_PICKER_ITEM_CLASS,
+    LOBBY_HORIZONTAL_MODE_PICKER_ROW_CLASS,
     PAIR_LOBBY_DENSE_SETTING_ROW_CLASS,
     PAIR_LOBBY_DENSE_SETTING_VALUE_READONLY_CLASS,
 } from '../../shared/constants/pairLobbyDenseSettingFieldLayout.js';
@@ -47,7 +51,7 @@ const LOBBY_ROOM_CREATE_CLOSE_BTN_CLASS =
 
 /** 모바일 2열 대국 설정 행 — 라벨·값 박스를 한 줄에 두 칸이 들어가게 압축 */
 const HANDHELD_RANKED_RULE_ROW_EXTRA_CLASS =
-    '!py-1 !px-1.5 gap-x-1 [&>label]:text-[10px] [&>label]:!leading-none [&>div:nth-child(2)]:!h-8 [&>div:nth-child(2)]:!min-h-8 [&>div:nth-child(2)]:!px-1 [&>div:nth-child(2)]:!text-[11px] [&>div:nth-child(2)]:!leading-none';
+    '!py-1 !px-1.5 gap-x-1 [&>label]:text-[11px] [&>label]:!leading-none [&>div:nth-child(2)]:!h-9 [&>div:nth-child(2)]:!min-h-9 [&>div:nth-child(2)]:!px-1.5 [&>div:nth-child(2)]:!text-[13px] [&>div:nth-child(2)]:!leading-none';
 
 /** 모달 상단 간략 설명 — `AiChallengeModal`과 동일 로직 */
 function lobbyGameModeBriefDescription(description: string | undefined, fallback: string): string {
@@ -136,8 +140,9 @@ const ModePickCard: React.FC<{
     isSelected: boolean;
     disabled: boolean;
     compact: boolean;
+    scrollStripItem?: boolean;
     onSelect: () => void;
-}> = ({ def, queueCount, isSelected, disabled, compact, onSelect }) => {
+}> = ({ def, queueCount, isSelected, disabled, compact, scrollStripItem, onSelect }) => {
     const [imgError, setImgError] = useState(false);
     const imgH = compact ? 70 : 88;
 
@@ -146,7 +151,9 @@ const ModePickCard: React.FC<{
             type="button"
             disabled={disabled}
             onClick={onSelect}
-            className={`bg-panel text-on-panel flex w-full touch-manipulation flex-col items-center gap-1 rounded-lg p-2 text-center text-sm transition-all active:scale-[0.98] disabled:pointer-events-none disabled:opacity-45 ${
+            className={`bg-panel text-on-panel flex touch-manipulation flex-col items-center gap-1 rounded-lg p-2 text-center text-sm transition-all active:scale-[0.98] disabled:pointer-events-none disabled:opacity-45 ${
+                scrollStripItem ? 'w-max max-w-none' : 'w-full'
+            } ${
                 isSelected
                     ? compact
                         ? 'ring-2 ring-violet-400/85 ring-offset-2 ring-offset-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_0_0_1px_rgba(167,139,250,0.35),0_10px_28px_-8px_rgba(139,92,246,0.45)]'
@@ -169,7 +176,13 @@ const ModePickCard: React.FC<{
                     <span className="text-sm">{def.name}</span>
                 )}
             </div>
-            <h3 className="text-primary w-full min-w-0 truncate px-0.5 text-sm font-bold leading-snug sm:text-base">{def.name}</h3>
+            <h3
+                className={`text-primary w-full shrink-0 px-0.5 text-center text-sm font-bold sm:text-base ${
+                    scrollStripItem ? 'whitespace-nowrap leading-snug' : 'min-w-0 leading-snug'
+                }`}
+            >
+                {def.name}
+            </h3>
             <p className="w-full text-xs font-semibold tabular-nums text-cyan-100 sm:text-sm">대기 {queueCount}팀</p>
         </button>
     );
@@ -337,8 +350,8 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                 <div
                     className={
                         isHandheld
-                            ? 'mt-1.5 grid w-full min-w-0 grid-cols-2 content-start gap-x-1.5 gap-y-1.5 sm:mt-2 [&>div]:min-w-0'
-                            : 'mt-1.5 grid w-full min-w-0 grid-cols-2 content-start justify-center gap-x-2.5 gap-y-2 sm:mt-2 [&>div]:min-w-0'
+                            ? `${LOBBY_DENSE_SETTINGS_GRID_CONTAINER_CLASS} mt-1.5 ${LOBBY_DENSE_SETTINGS_RESPONSIVE_COLS_GRID_CLASS} sm:mt-2`
+                            : `${LOBBY_DENSE_SETTINGS_GRID_CONTAINER_CLASS} mt-1.5 ${LOBBY_DENSE_SETTINGS_RESPONSIVE_COLS_GRID_CLASS} sm:mt-2`
                     }
                 >
                     {ruleRows.map((row, idx) => (
@@ -378,17 +391,19 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
             }`}
         >
             <h3 className="mb-2 shrink-0 text-sm font-bold tracking-tight text-amber-100/95 sm:mb-3 sm:text-base">게임 모드 선택</h3>
-            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+            <div className={isHandheld ? LOBBY_HORIZONTAL_MODE_PICKER_ROW_CLASS : 'grid grid-cols-2 gap-2 sm:gap-3'}>
                 {modes.map((def) => (
-                    <ModePickCard
-                        key={def.mode}
-                        def={def}
-                        queueCount={queueCountByMode[def.mode] ?? 0}
-                        isSelected={selected === def.mode}
-                        disabled={isBusy}
-                        compact={isHandheld}
-                        onSelect={() => setSelected(def.mode)}
-                    />
+                    <div key={def.mode} className={isHandheld ? LOBBY_HORIZONTAL_MODE_PICKER_ITEM_CLASS : 'min-w-0'}>
+                        <ModePickCard
+                            def={def}
+                            queueCount={queueCountByMode[def.mode] ?? 0}
+                            isSelected={selected === def.mode}
+                            disabled={isBusy}
+                            compact={isHandheld}
+                            scrollStripItem={isHandheld}
+                            onSelect={() => setSelected(def.mode)}
+                        />
+                    </div>
                 ))}
             </div>
         </div>
@@ -467,18 +482,20 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                         <p className="shrink-0 text-[11px] leading-snug text-zinc-500">
                             종목을 눌러 선택한 뒤 다음에서 랭킹 정보와 규칙을 확인하세요.
                         </p>
-                        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-0.5 -mr-0.5">
-                            <div className="grid grid-cols-2 gap-2 pb-1 sm:gap-3">
+                        <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-x-contain pr-0.5 -mr-0.5 [-webkit-overflow-scrolling:touch]">
+                            <div className={`${LOBBY_HORIZONTAL_MODE_PICKER_ROW_CLASS} min-h-0 pb-1`}>
                                 {modes.map((def) => (
-                                    <ModePickCard
-                                        key={def.mode}
-                                        def={def}
-                                        queueCount={queueCountByMode[def.mode] ?? 0}
-                                        isSelected={selected === def.mode}
-                                        disabled={isBusy}
-                                        compact
-                                        onSelect={() => setSelected(def.mode)}
-                                    />
+                                    <div key={def.mode} className={LOBBY_HORIZONTAL_MODE_PICKER_ITEM_CLASS}>
+                                        <ModePickCard
+                                            def={def}
+                                            queueCount={queueCountByMode[def.mode] ?? 0}
+                                            isSelected={selected === def.mode}
+                                            disabled={isBusy}
+                                            compact
+                                            scrollStripItem
+                                            onSelect={() => setSelected(def.mode)}
+                                        />
+                                    </div>
                                 ))}
                             </div>
                         </div>

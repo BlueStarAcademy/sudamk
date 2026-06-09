@@ -5,6 +5,7 @@ import type { ChatMessage, ServerAction } from '../types.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { NATIVE_MOBILE_CHAT_MODAL_MAX_HEIGHT_VH, NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH } from '../constants/ads.js';
+import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../shared/constants/pcShellLayout.js';
 
 interface ChatQuickModalProps {
     messages: ChatMessage[];
@@ -12,6 +13,7 @@ interface ChatQuickModalProps {
     onViewUser: (userId: string) => void;
     onClose: () => void;
     isTopmost?: boolean;
+    embedded?: boolean;
 }
 
 const ChatQuickModal: React.FC<ChatQuickModalProps> = ({
@@ -20,6 +22,7 @@ const ChatQuickModal: React.FC<ChatQuickModalProps> = ({
     onViewUser,
     onClose,
     isTopmost,
+    embedded = false,
 }) => {
     const isCompactViewport = useIsHandheldDevice(1024);
     const { isNativeMobile } = useNativeMobileShell();
@@ -34,26 +37,7 @@ const ChatQuickModal: React.FC<ChatQuickModalProps> = ({
         [isMobile],
     );
 
-    return (
-        <DraggableWindow
-            title="채팅"
-            onClose={onClose}
-            windowId="chat-quick-modal"
-            initialWidth={isMobile ? 720 : 520}
-            initialHeight={isMobile ? 720 : 840}
-            isTopmost={isTopmost}
-            variant="store"
-            mobileViewportFit={isMobile}
-            mobileLockViewportHeight={isMobile}
-            mobileViewportMaxHeightVh={isMobile ? NATIVE_MOBILE_CHAT_MODAL_MAX_HEIGHT_VH : NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}
-            bodyPaddingClassName={
-                isMobile
-                    ? '!p-2 !pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]'
-                    : undefined
-            }
-            bodyNoScroll
-            bodyScrollable={false}
-        >
+    const chatBody = (
             <div className={bodyClass}>
                 <div
                     className={`relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-sky-500/18 bg-gradient-to-br from-slate-900/94 via-slate-950/97 to-[#050608] shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_20px_56px_-24px_rgba(0,0,0,0.82)] ring-1 ring-inset ring-white/[0.05] ${
@@ -81,6 +65,33 @@ const ChatQuickModal: React.FC<ChatQuickModalProps> = ({
                     </div>
                 </div>
             </div>
+    );
+
+    if (embedded) {
+        return <div className={`${PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS} min-h-0 flex-1`}>{chatBody}</div>;
+    }
+
+    return (
+        <DraggableWindow
+            title="채팅"
+            onClose={onClose}
+            windowId="chat-quick-modal"
+            initialWidth={isMobile ? 720 : 520}
+            initialHeight={isMobile ? 720 : 840}
+            isTopmost={isTopmost}
+            variant="store"
+            mobileViewportFit={isMobile}
+            mobileLockViewportHeight={isMobile}
+            mobileViewportMaxHeightVh={isMobile ? NATIVE_MOBILE_CHAT_MODAL_MAX_HEIGHT_VH : NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}
+            bodyPaddingClassName={
+                isMobile
+                    ? '!p-2 !pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]'
+                    : undefined
+            }
+            bodyNoScroll
+            bodyScrollable={false}
+        >
+            {chatBody}
         </DraggableWindow>
     );
 };

@@ -7,18 +7,20 @@ import RadarChart from './RadarChart.js';
 import { CORE_STATS_DATA } from '../constants';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { useModalStackLayer } from '../hooks/useModalStackLayer.js';
+import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../shared/constants/pcShellLayout.js';
 
 interface StatAllocationModalProps {
     currentUser: UserWithStatus;
     onClose: () => void;
     onAction: (action: ServerAction) => void;
     isTopmost?: boolean;
+    embedded?: boolean;
 }
 
 /** `DraggableWindow`의 `windowId`와 동일 — `createPortal(document.body)` UI가 바깥 클릭으로 본 창을 닫지 않게 함 */
 const STAT_ALLOCATION_WINDOW_ID = 'stat-allocation';
 
-const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, onClose, onAction, isTopmost }) => {
+const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, onClose, onAction, isTopmost, embedded = false }) => {
     const { isNativeMobile, isNarrowViewport } = useNativeMobileShell();
     const isMobile = isNativeMobile || isNarrowViewport;
     
@@ -384,15 +386,7 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
         </div>
     );
 
-    return (
-        <DraggableWindow
-            title="능력치 포인트 분배"
-            onClose={onClose}
-            windowId={STAT_ALLOCATION_WINDOW_ID}
-            initialWidth={isMobile ? 360 : 460}
-            isTopmost={isTopmost}
-            shrinkHeightToContent={!isMobile}
-        >
+    const allocationBody = (
             <div
                 className={`${shellClass} flex min-h-0 w-full max-w-full flex-col ${
                     isMobile ? 'h-[min(72vh,520px)] gap-1.5' : 'gap-2'
@@ -405,28 +399,52 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
                 <div className="grid min-h-0 w-full flex-1 grid-cols-3 grid-rows-2 gap-1 sm:gap-1.5">{statButtons}</div>
                 {resetFooter}
             </div>
-            {typeof document !== 'undefined' &&
-                selectedStat &&
-                createPortal(
-                    <div
-                        className="fixed inset-0 flex items-center justify-center bg-black/55 p-3 backdrop-blur-[2px] sm:p-5"
-                        style={{ zIndex: statEditorLayer.zIndex }}
-                        role="presentation"
-                        data-draggable-satellite={STAT_ALLOCATION_WINDOW_ID}
-                        onClick={() => setSelectedStat(null)}
-                    >
-                        <div
-                            className="max-h-[min(88dvh,28rem)] w-full max-w-[min(calc(100vw-1.5rem),20rem)] overflow-y-auto rounded-xl border border-amber-400/35 bg-zinc-950/98 p-3 shadow-[0_20px_50px_-18px_rgba(0,0,0,0.88)] ring-1 ring-white/5 sm:max-w-[22rem] sm:p-3.5"
-                            role="dialog"
-                            aria-modal="true"
-                            aria-label={`${CORE_STATS_DATA[selectedStat].name} 분배`}
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            {statEditorInner}
-                        </div>
-                    </div>,
-                    document.body
-                )}
+    );
+
+    const statEditorPortal =
+        typeof document !== 'undefined' && selectedStat
+            ? createPortal(
+                  <div
+                      className="fixed inset-0 flex items-center justify-center bg-black/55 p-3 backdrop-blur-[2px] sm:p-5"
+                      style={{ zIndex: statEditorLayer.zIndex }}
+                      role="presentation"
+                      data-draggable-satellite={STAT_ALLOCATION_WINDOW_ID}
+                      onClick={() => setSelectedStat(null)}
+                  >
+                      <div
+                          className="max-h-[min(88dvh,28rem)] w-full max-w-[min(calc(100vw-1.5rem),20rem)] overflow-y-auto rounded-xl border border-amber-400/35 bg-zinc-950/98 p-3 shadow-[0_20px_50px_-18px_rgba(0,0,0,0.88)] ring-1 ring-white/5 sm:max-w-[22rem] sm:p-3.5"
+                          role="dialog"
+                          aria-modal="true"
+                          aria-label={`${CORE_STATS_DATA[selectedStat].name} 분배`}
+                          onClick={(e) => e.stopPropagation()}
+                      >
+                          {statEditorInner}
+                      </div>
+                  </div>,
+                  document.body,
+              )
+            : null;
+
+    if (embedded) {
+        return (
+            <>
+                <div className={PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS}>{allocationBody}</div>
+                {statEditorPortal}
+            </>
+        );
+    }
+
+    return (
+        <DraggableWindow
+            title="능력치 포인트 분배"
+            onClose={onClose}
+            windowId={STAT_ALLOCATION_WINDOW_ID}
+            initialWidth={isMobile ? 360 : 460}
+            isTopmost={isTopmost}
+            shrinkHeightToContent={!isMobile}
+        >
+            {allocationBody}
+            {statEditorPortal}
         </DraggableWindow>
     );
 };

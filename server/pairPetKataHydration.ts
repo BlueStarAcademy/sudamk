@@ -173,7 +173,7 @@ function appendPairPetRpsDebuffChats(game: LiveGameSession, debuffedParticipantI
 
  * 페어 국: 전략 초기화·첫 착수 전에 호출되어야 KATA가 RPS 반영 6코어를 본다.
 
- * `pairPetRpsAttributeByParticipantId`가 이미 채워져 있으면 아무 것도 하지 않는다(인게임에서
+ * `pairPetRpsAttributeByParticipantId`와 `petKataStatsByParticipantId`가 모두 채워져 있으면 아무 것도 하지 않는다(인게임에서
 
  * `configurePairClassicGameStart` 등으로 재호출되어도 RPS가 이중 적용되지 않음).
 
@@ -185,10 +185,14 @@ export function hydratePairGamePetKataAndRpsIfNeeded(game: LiveGameSession, owne
 
     const pairGame = game.settings.pairGame;
 
-    if (pairGame.pairPetRpsAttributeByParticipantId && Object.keys(pairGame.pairPetRpsAttributeByParticipantId).length > 0) {
-
+    const rpsReady =
+        pairGame.pairPetRpsAttributeByParticipantId &&
+        Object.keys(pairGame.pairPetRpsAttributeByParticipantId).length > 0;
+    const statsReady =
+        pairGame.petKataStatsByParticipantId &&
+        Object.keys(pairGame.petKataStatsByParticipantId).length > 0;
+    if (rpsReady && statsReady) {
         return;
-
     }
 
     const turnOrder =
@@ -218,33 +222,23 @@ export function hydratePairGamePetKataAndRpsIfNeeded(game: LiveGameSession, owne
     pairGame.petKataStatsByParticipantId = {};
 
     for (const seat of turnOrder) {
-
-        if (seat.kind === 'pet' || seat.kind === 'ai') {
-
-            pairGame.petKataStatsByParticipantId[seat.participantId] =
-
-                petStatsByUserPetId.get(seat.participantId) ??
-
-                (seat.slot === 'ownerPet' ? petStatsByUserPetId.get(`pet-ai-${ownerUser.id}`) : undefined) ??
-
-                {
-
-                    concentration: 100,
-
-                    thinkingSpeed: 100,
-
-                    judgment: 100,
-
-                    calculation: 100,
-
-                    combatPower: 100,
-
-                    stability: 100,
-
-                };
-
-        }
-
+        if (seat.kind !== 'pet' && seat.kind !== 'ai') continue;
+        const ownerPetKey = seat.participantId.startsWith('pet-ai-')
+            ? seat.participantId
+            : seat.slot === 'ownerPet'
+              ? `pet-ai-${ownerUser.id}`
+              : null;
+        pairGame.petKataStatsByParticipantId[seat.participantId] =
+            petStatsByUserPetId.get(seat.participantId) ??
+            (ownerPetKey ? petStatsByUserPetId.get(ownerPetKey) : undefined) ??
+            {
+                concentration: 100,
+                thinkingSpeed: 100,
+                judgment: 100,
+                calculation: 100,
+                combatPower: 100,
+                stability: 100,
+            };
     }
 
     const debuffedIds = applyPairPetRpsForPairGameStart(pairGame, turnOrder, petStatUsers, game.id);

@@ -173,7 +173,10 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
             }
             style={!fillParent && bodyMaxHeightCss ? { maxHeight: bodyMaxHeightCss } : undefined}
         >
-            <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain [scrollbar-width:thin]">
+            <div
+                className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]"
+                style={{ WebkitOverflowScrolling: 'touch' }}
+            >
                 <PairPetDetailEmbedPanel
                     currentUser={currentUser}
                     item={item}

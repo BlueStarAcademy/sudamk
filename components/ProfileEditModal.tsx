@@ -16,12 +16,14 @@ import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { formatGoldAmountKoG, formatWalletDiamonds } from '../shared/utils/walletAmountDisplay.js';
 import { useScreenGuide } from '../hooks/useScreenGuide.js';
 import ScreenGuideModal from './ScreenGuideModal.js';
+import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../shared/constants/pcShellLayout.js';
 
 interface ProfileEditModalProps {
     currentUser: UserWithStatus;
     onClose: () => void;
     onAction: (action: ServerAction) => void;
     isTopmost?: boolean;
+    embedded?: boolean;
 }
 
 
@@ -73,7 +75,7 @@ const formatVipRemainingPlain = (expiresAt: number | undefined, nowMs: number): 
     return `${parts.join(' ')} 남음`;
 };
 
-const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClose, onAction, isTopmost }) => {
+const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClose, onAction, isTopmost, embedded = false }) => {
     const profileEditGuide = useScreenGuide('profileEdit');
     const { isNativeMobile } = useNativeMobileShell();
     const isPcMode = !isNativeMobile;
@@ -893,16 +895,7 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
         { id: 'mbti', label: 'MBTI' },
     ];
 
-    return (
-        <>
-        <DraggableWindow
-            title="프로필 설정"
-            onClose={onClose}
-            windowId="profile-edit"
-            initialWidth={isNativeMobile ? 640 : 960}
-            initialHeight={isNativeMobile ? 560 : 800}
-            isTopmost={isTopmost}
-        >
+    const profileEditBody = (
             <div className="relative flex h-full min-h-0 flex-col bg-gradient-to-b from-zinc-950/40 via-zinc-950/80 to-black/90">
                 <div className="pointer-events-none absolute inset-x-8 top-0 z-[1] h-px bg-gradient-to-r from-transparent via-amber-400/35 to-transparent" aria-hidden />
                 <div className={`shrink-0 px-1 ${isNativeMobile ? 'pb-2 pt-0.5' : 'pb-3 pt-1'}`}>
@@ -956,16 +949,40 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
                     </div>
                 </div>
             </div>
-        </DraggableWindow>
-        {profileEditGuide.isOpen && (
-            <ScreenGuideModal
-                guideId="profileEdit"
-                onClose={profileEditGuide.close}
-                onDismissForever={profileEditGuide.dismissForever}
+    );
+
+    const guideModal = profileEditGuide.isOpen ? (
+        <ScreenGuideModal
+            guideId="profileEdit"
+            onClose={profileEditGuide.close}
+            onDismissForever={profileEditGuide.dismissForever}
+            isTopmost={isTopmost}
+        />
+    ) : null;
+
+    if (embedded) {
+        return (
+            <>
+                <div className={PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS}>{profileEditBody}</div>
+                {guideModal}
+            </>
+        );
+    }
+
+    return (
+        <>
+            <DraggableWindow
+                title="프로필 설정"
+                onClose={onClose}
+                windowId="profile-edit"
+                initialWidth={isNativeMobile ? 640 : 960}
+                initialHeight={isNativeMobile ? 560 : 800}
                 isTopmost={isTopmost}
-            />
-        )}
-    </>
+            >
+                {profileEditBody}
+            </DraggableWindow>
+            {guideModal}
+        </>
     );
 };
 

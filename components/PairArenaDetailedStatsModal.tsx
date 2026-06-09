@@ -36,6 +36,8 @@ export interface PairArenaStatsPanelProps {
     onAction: (action: ServerAction) => void;
     /** PVP 상세 전적 3열 레이아웃 — 좁은 열에 맞춘 단일 컬럼 카드 */
     columnLayout?: boolean;
+    /** false면 모드 목록 스크롤을 부모(탭 패널)에 맡김 */
+    scrollModesInPanel?: boolean;
 }
 
 type PairArenaResetConfirm = { type: 'single'; mode: GameMode; displayName: string } | { type: 'all' };
@@ -76,7 +78,12 @@ const pairArenaPanelTheme = {
 /**
  * 페어 경기장: 통합 전적 + 전략 모드별 승패 (PVP 상세 모달 페어 탭·단독 모달 공용).
  */
-export const PairArenaStatsPanel: React.FC<PairArenaStatsPanelProps> = ({ currentUser, onAction, columnLayout = false }) => {
+export const PairArenaStatsPanel: React.FC<PairArenaStatsPanelProps> = ({
+    currentUser,
+    onAction,
+    columnLayout = false,
+    scrollModesInPanel = true,
+}) => {
     const { stats, diamonds, pairArenaStatsByMode } = currentUser;
     const [pairResetConfirm, setPairResetConfirm] = useState<PairArenaResetConfirm | null>(null);
     const [pairResetAlert, setPairResetAlert] = useState<string | null>(null);
@@ -189,7 +196,15 @@ export const PairArenaStatsPanel: React.FC<PairArenaStatsPanelProps> = ({ curren
 
     return (
         <>
-        <div className={`text-primary ${columnLayout ? 'flex h-full min-h-0 flex-col gap-2' : 'space-y-2.5 sm:space-y-3'}`}>
+        <div
+            className={`text-primary ${
+                columnLayout
+                    ? scrollModesInPanel
+                        ? 'flex h-full min-h-0 flex-col gap-2'
+                        : 'flex flex-col gap-2'
+                    : 'space-y-2.5 sm:space-y-3'
+            }`}
+        >
             <div className={`relative shrink-0 overflow-hidden rounded-xl border px-2.5 py-2 sm:px-3 sm:py-2.5 min-h-[3.5rem] sm:min-h-[4.25rem] ${theme.unifiedBg}`}>
                 <div
                     className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent"
@@ -241,7 +256,13 @@ export const PairArenaStatsPanel: React.FC<PairArenaStatsPanelProps> = ({ curren
                 </div>
             </div>
 
-            <div className={`overflow-x-hidden ${columnLayout ? 'min-h-0 flex-1 overflow-y-auto overscroll-y-contain pr-0.5' : ''}`}>
+            <div
+                className={`overflow-x-hidden ${
+                    columnLayout && scrollModesInPanel
+                        ? 'min-h-0 flex-1 overflow-y-auto overscroll-y-contain pr-0.5'
+                        : ''
+                }`}
+            >
                 <div className={`rounded-lg border p-2.5 sm:p-3 ${theme.accent} bg-slate-950/40`}>
                     <div className={`grid ${columnLayout ? 'grid-cols-1 gap-2.5' : 'grid-cols-3 gap-2.5 sm:gap-3'}`}>
                         {SPECIAL_GAME_MODES.map(({ mode, name, image }) => {

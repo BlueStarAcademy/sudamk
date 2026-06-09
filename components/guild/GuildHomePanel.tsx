@@ -5,6 +5,8 @@ import Button from '../Button.js';
 import { GUILD_CHECK_IN_MILESTONE_REWARDS } from '../../constants/index.js';
 import { isSameDayKST, getTodayKSTDateString } from '../../utils/timeUtils.js';
 import { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from '../DraggableWindow.js';
+import MobileModalTitleBar from '../mobile/MobileModalTitleBar.js';
+import { useMobileModalChrome } from '../../hooks/useMobileModalChrome.js';
 import { GAME_CHAT_MESSAGES, GAME_CHAT_EMOJIS, ADMIN_USER_ID } from '../../constants/index.js';
 import { containsProfanity } from '../../profanity.js';
 import { mergeWaitingRoomPublicChatMessages } from '../../shared/utils/waitingRoomGlobalChatMerge.js';
@@ -29,6 +31,7 @@ export const getLuxuryButtonClasses = (variant: 'primary' | 'danger' | 'neutral'
 };
 
 export const GuildCheckInPanel: React.FC<{ guild: GuildType; leftAction?: React.ReactNode }> = ({ guild, leftAction }) => {
+    const useMobileChrome = useMobileModalChrome();
     const { handlers, currentUserWithStatus } = useAppContext();
     const effectiveUserId = currentUserWithStatus?.isAdmin ? ADMIN_USER_ID : currentUserWithStatus?.id;
 
@@ -183,9 +186,16 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType; leftAction?: React.
                 aria-labelledby="guild-checkin-coin-title"
             >
                 <div
-                    className="sudamr-modal-panel relative max-w-sm border border-amber-400/35 p-5 shadow-[0_0_48px_-16px_rgba(245,158,11,0.2)] ring-1 ring-amber-500/20 sm:p-6"
+                    className={`sudamr-modal-panel relative max-w-sm border border-amber-400/35 shadow-[0_0_48px_-16px_rgba(245,158,11,0.2)] ring-1 ring-amber-500/20 ${useMobileChrome ? 'flex flex-col overflow-hidden p-0' : 'p-5 sm:p-6'}`}
                     onClick={(e) => e.stopPropagation()}
                 >
+                    {useMobileChrome ? (
+                        <MobileModalTitleBar
+                            title="길드 코인 획득"
+                            titleId="guild-checkin-coin-title"
+                            onClose={() => setGuildCoinRewardModal(null)}
+                        />
+                    ) : (
                     <button
                         type="button"
                         onClick={() => setGuildCoinRewardModal(null)}
@@ -194,9 +204,13 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType; leftAction?: React.
                     >
                         닫기
                     </button>
+                    )}
+                    <div className={useMobileChrome ? 'p-4 sm:p-6' : undefined}>
+                    {!useMobileChrome && (
                     <h2 id="guild-checkin-coin-title" className="text-lg sm:text-xl font-bold text-highlight text-center mb-3 pr-6">
                         길드 코인 획득
                     </h2>
+                    )}
                     <p className="text-sm text-primary text-center leading-relaxed mb-4">
                         오늘 출석 인원 <span className="font-bold text-amber-300">{guildCoinRewardModal.attendeeCount}명</span> 달성 보상으로 길드 코인{' '}
                         <span className="font-bold text-yellow-300">{guildCoinRewardModal.amount.toLocaleString()}개</span>를 받았습니다.
@@ -212,6 +226,7 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType; leftAction?: React.
                     >
                         확인
                     </Button>
+                    </div>
                 </div>
             </div>
         )}

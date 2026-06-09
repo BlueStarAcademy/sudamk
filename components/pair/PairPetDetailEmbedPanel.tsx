@@ -60,7 +60,8 @@ const PairPetDetailEmbedPanel: React.FC<PairPetDetailEmbedPanelProps> = ({
     const hug = contentHeight === 'hug';
     const infoViewerPack = Boolean(petManagementModal && !isModalLayout);
     const homePack = Boolean((mobileHomeRepPet || profileHomeColumn || infoViewerPack) && !isModalLayout);
-    const homeFill = homePack && contentHeight === 'fill';
+    /** 펫 관리 정보 탭: 부모 스크롤 영역이 콘텐츠 높이를 측정할 수 있도록 hug 유지 */
+    const infoViewerHugScroll = infoViewerPack && hug;
     const readableEmbed = suppressDetailFitScale && (detailVariant === 'panelFit' || detailVariant === 'modal');
     const scrollablePetInfo = readableEmbed && hug && !homePack;
     const modalScrollClass =
@@ -80,7 +81,9 @@ const PairPetDetailEmbedPanel: React.FC<PairPetDetailEmbedPanelProps> = ({
                 ? 'h-full min-h-0 w-full flex-1'
                 : hug
                   ? homePack
-                      ? 'h-full min-h-0 w-full flex-1'
+                      ? infoViewerHugScroll
+                          ? 'w-full min-h-0 shrink-0'
+                          : 'h-full min-h-0 w-full flex-1'
                       : 'w-full min-h-0 shrink-0'
                   : parentOuterFitScale
                     ? 'w-full shrink-0'
@@ -92,7 +95,9 @@ const PairPetDetailEmbedPanel: React.FC<PairPetDetailEmbedPanelProps> = ({
                 scrollablePetInfo
                     ? 'min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain [scrollbar-width:thin]'
                     : hug
-                      ? `h-full w-full shrink-0 overflow-hidden ${homePack && !infoViewerPack ? 'px-0.5 pb-0.5 pt-0.5 sm:px-1 sm:pb-1 sm:pt-0.5' : ''}`
+                      ? infoViewerHugScroll
+                          ? 'w-full shrink-0'
+                          : `h-full w-full shrink-0 overflow-hidden ${homePack && !infoViewerPack ? 'px-0.5 pb-0.5 pt-0.5 sm:px-1 sm:pb-1 sm:pt-0.5' : ''}`
                       : parentOuterFitScale
                         ? `w-full shrink-0 ${modalScrollClass}`
                         : `min-h-0 flex-1 ${modalScrollClass}`

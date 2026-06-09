@@ -1171,6 +1171,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         pairRoomChatByRoomId,
         pairInviteCooldownUntilByInviteeId,
         rankedMatchFound,
+        rankedMatchProposal,
         rankedMatchingQueue,
         arenaEntranceAvailability,
         arenaEntranceFromServer,
@@ -1200,7 +1201,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
     const pairRoomChatSendCooldownRef = useRef(false);
     const pairRoomChatSendInFlightRef = useRef(false);
     const pairRoomChatCooldownTimerRef = useRef<number | null>(null);
-    const [matchFoundData, setMatchFoundData] = useState<{ gameId: string; player1: unknown; player2: unknown } | null>(null);
+    const [rankedMatchBusy, setRankedMatchBusy] = useState(false);
     /** 슬롯 1~100 그리드 — `PAIR_LOBBY_ROOM_GRID_SLICE`로 채우고, `pairRooms`로 동기 */
     const [lobbyGridRooms, setLobbyGridRooms] = useState<Record<string, PairRoom>>({});
     const hasEnteredAggregateLobby = useRef(false);
@@ -1324,12 +1325,35 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
     }, [aggregateLobbyMode, currentUserWithStatus, lobbyIntent]);
 
     useEffect(() => {
-        if (!rankedMatchFound || !currentUserWithStatus?.id) return;
-        if (rankedMatchFound.player1?.id !== currentUserWithStatus.id && rankedMatchFound.player2?.id !== currentUserWithStatus.id) {
-            return;
+        if (!rankedMatchFound?.gameId || !currentUserId) return;
+        const matched =
+            rankedMatchFound.player1?.id === currentUserId ||
+            rankedMatchFound.player2?.id === currentUserId;
+        if (matched) {
+            handlers.clearRankedMatchFound?.();
+            pairShellGameNavAllowIdRef.current = rankedMatchFound.gameId;
+            replaceAppHash(`/game/${rankedMatchFound.gameId}`);
         }
-        setMatchFoundData(rankedMatchFound);
-    }, [rankedMatchFound, currentUserWithStatus?.id]);
+    }, [rankedMatchFound, currentUserId, handlers]);
+
+    const respondAggregateRankedMatch = useCallback(
+        async (accept: boolean) => {
+            if (!rankedMatchProposal?.proposalId || rankedMatchBusy) return;
+            setRankedMatchBusy(true);
+            try {
+                await handlers.handleAction({
+                    type: 'RESPOND_RANKED_MATCH',
+                    payload: { proposalId: rankedMatchProposal.proposalId, accept },
+                });
+                if (!accept) {
+                    handlers.clearRankedMatchProposal?.();
+                }
+            } finally {
+                setRankedMatchBusy(false);
+            }
+        },
+        [rankedMatchProposal?.proposalId, rankedMatchBusy, handlers],
+    );
 
     useEffect(() => {
         if (lobbyChannel !== 'strategic') {
@@ -1668,17 +1692,6 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
             : lobbyChannel === 'pair'
               ? 'relative z-[1] min-w-0 flex-1 truncate text-left text-sm font-bold sm:text-lg lg:text-xl bg-gradient-to-r from-violet-200 via-fuchsia-200 to-violet-300 bg-clip-text text-transparent drop-shadow-[0_0_16px_rgba(167,139,250,0.35)]'
               : 'relative z-[1] min-w-0 flex-1 truncate text-left text-sm font-bold sm:text-lg lg:text-xl bg-gradient-to-r from-cyan-100 via-sky-100 to-cyan-200 bg-clip-text text-transparent drop-shadow-[0_0_18px_rgba(34,211,238,0.22)]';
-
-    useEffect(() => {
-        if (!rankedMatchFound?.gameId || !currentUserId) return;
-        const matched =
-            rankedMatchFound.player1?.id === currentUserId ||
-            rankedMatchFound.player2?.id === currentUserId;
-        if (matched) {
-            pairShellGameNavAllowIdRef.current = rankedMatchFound.gameId;
-            replaceAppHash(`/game/${rankedMatchFound.gameId}`);
-        }
-    }, [rankedMatchFound, currentUserId]);
 
     const pairRoomCodeSortKey = (code: string): number => {
         const s = String(code).trim();
@@ -6565,20 +6578,15 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                     hideScoringTurnLimit
                 />
             )}
-            {aggregateLobbyMode && matchFoundData && currentUserWithStatus && (
+            {aggregateLobbyMode && rankedMatchProposal && currentUserWithStatus && (
                 <MatchFoundModal
-                    gameId={matchFoundData.gameId}
-                    player1={matchFoundData.player1 as any}
-                    player2={matchFoundData.player2 as any}
+                    proposal={rankedMatchProposal}
                     currentUserId={currentUserWithStatus.id}
-                    onClose={() => {
-                        setMatchFoundData(null);
-                        handlers.clearRankedMatchFound?.();
-                    }}
-                    onEnterGame={(gameId) => {
-                        setMatchFoundData(null);
-                        handlers.clearRankedMatchFound?.();
-                        window.location.hash = `#/game/${gameId}`;
+                    isBusy={rankedMatchBusy || isBusy}
+                    onAccept={() => void respondAggregateRankedMatch(true)}
+                    onReject={() => void respondAggregateRankedMatch(false)}
+                    onDeadlineElapsed={() => {
+                        handlers.clearRankedMatchProposal?.();
                     }}
                 />
             )}

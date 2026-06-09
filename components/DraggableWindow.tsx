@@ -8,6 +8,7 @@ import {
 } from '../hooks/useIsMobileLayout.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
+import { useMobileModalChrome } from '../hooks/useMobileModalChrome.js';
 import { useViewportUniformScale } from '../hooks/useViewportUniformScale.js';
 import {
     NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH,
@@ -28,10 +29,11 @@ import {
     unregisterModalStackEntry,
 } from '../utils/modalStack.js';
 import { resolvePcModalPortalPolicy } from '../utils/pcModalPortalPolicy.js';
+import MobileModalTitleBar from './mobile/MobileModalTitleBar.js';
+import { SUDAMR_MODAL_CLOSE_BUTTON_CLASS as MOBILE_MODAL_CLOSE_BUTTON_CLASS } from '../shared/constants/mobileModalChrome.js';
 
 /** 공지 게시판 모달과 동일한 텍스트 「닫기」 버튼 스타일 (DraggableWindow·커스텀 모달 공통) */
-export const SUDAMR_MODAL_CLOSE_BUTTON_CLASS =
-    'rounded-lg border border-white/15 bg-black/35 px-3 py-1.5 text-sm font-semibold text-amber-50 shadow-sm hover:bg-black/50 sm:px-4 sm:py-2';
+export const SUDAMR_MODAL_CLOSE_BUTTON_CLASS = MOBILE_MODAL_CLOSE_BUTTON_CLASS;
 
 interface DraggableWindowProps {
 
@@ -499,6 +501,9 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     // PC 16:9 캔버스 안의 모달 루트(설계 픽셀)일 때만 true. 세로형 네이티브 셸에서는 false라 뷰포트·균일축소 분기가 동작함.
     const effectiveIsCompactViewport = modalLayerUsesDesignPixels ? false : isCompactViewport;
+
+    /** 모바일 로비 오버레이: 드래그·위치 기억·플로팅 창 크롬 없이 타이틀 바 + 닫기 */
+    const useMobileMinimalChrome = useMobileModalChrome();
 
     const designInitialWidth = useMemo(() => {
         const w = initialWidth ?? 800;
@@ -1003,6 +1008,13 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
      useEffect(() => {
 
+        if (useMobileMinimalChrome) {
+            setPosition({ ...effectiveDefaultPosition });
+            setRememberPosition(false);
+            setIsInitialized(true);
+            return;
+        }
+
         try {
 
             const settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
@@ -1053,7 +1065,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
         setIsInitialized(true);
 
-    }, [windowId, effectiveDefaultPosition.x, effectiveDefaultPosition.y, skipSavedPosition, ingameBoardFrame]);
+    }, [windowId, effectiveDefaultPosition.x, effectiveDefaultPosition.y, skipSavedPosition, ingameBoardFrame, useMobileMinimalChrome]);
 
 
 
@@ -1096,6 +1108,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     }, [effectiveIsTopmost, handleDragStart]);
 
     const applyBoundsClamp = useCallback(() => {
+        if (useMobileMinimalChrome) return;
         /** 회전 셸: visualViewport ∩ getBoundingClientRect 클램프가 매 프레임 미세히 달라져 setPosition → effect 무한 루프가 난다 */
         if (isHandheldPortraitLockActive()) return;
         setPosition((prev) => {
@@ -1114,7 +1127,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
             if (Math.abs(nx - prev.x) < 0.5 && Math.abs(ny - prev.y) < 0.5) return prev;
             return { x: nx, y: ny };
         });
-    }, [effectiveViewportPortal]);
+    }, [effectiveViewportPortal, useMobileMinimalChrome]);
 
     const handleDragMove = useCallback((clientX: number, clientY: number) => {
 
@@ -1302,8 +1315,10 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
 
 
-    /** 항상 center 기준 + 드래그 오프셋 (모바일 네이티브·viewportFit에서도 동일하게 적용) */
-    const positionTranslate = `translate(calc(-50% + ${position.x}px), calc(-50% + ${position.y}px))`;
+    /** 항상 center 기준 + 드래그 오프셋 (모바일 미니멀 크롬은 항상 중앙 고정) */
+    const positionTranslate = useMobileMinimalChrome
+        ? 'translate(-50%, -50%)'
+        : `translate(calc(-50% + ${position.x}px), calc(-50% + ${position.y}px))`;
     const transformStyle = positionTranslate;
 
 
@@ -1312,7 +1327,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     
 
-    const headerCursor = effectiveIsTopmost ? 'cursor-move' : '';
+    const headerCursor = useMobileMinimalChrome ? '' : effectiveIsTopmost ? 'cursor-move' : '';
     const useLargeCorners = Boolean(containerExtraClassName?.includes('rounded-2xl'));
     const headerTopRounded = useLargeCorners ? 'rounded-t-2xl' : 'rounded-t-xl';
     const footerBottomRounded = useLargeCorners ? 'rounded-b-2xl' : 'rounded-b-xl';
@@ -1324,22 +1339,25 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         ? `absolute top-1/2 left-1/2 flex flex-col ${outerOverflowClass} rounded-xl transition-shadow duration-200`
         : `fixed top-1/2 left-1/2 flex flex-col ${outerOverflowClass} rounded-xl transition-shadow duration-200`;
     /** store/default 통일: 글로벌 sudamr-floating-modal-surface + 앰버 톤 헤더·푸터 */
-    const containerVariantClass = 'sudamr-floating-modal-surface text-on-panel ring-1 ring-inset ring-amber-400/15';
+    const containerVariantClass = useMobileMinimalChrome
+        ? 'sudamr-modal-panel text-on-panel ring-1 ring-inset ring-amber-400/15'
+        : 'sudamr-floating-modal-surface text-on-panel ring-1 ring-inset ring-amber-400/15';
     const headerVariantClass =
         'relative z-[11] border-b border-amber-400/28 bg-gradient-to-b from-zinc-800/98 via-zinc-950 to-zinc-950 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.09)]';
     const footerVariantClass =
         'relative z-[11] border-t border-amber-400/25 bg-gradient-to-t from-zinc-950 via-zinc-900/96 to-zinc-900/92 text-amber-100/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]';
     /** 좁은 뷰포트·네이티브: 본문 글자·여백을 키워 가독성 확보 */
     const isMobileModalShell = effectiveIsCompactViewport || isNativeMobile || useReadableSmallPcViewportPortal;
-    const bodyPaddingClass =
-        bodyPaddingClassName ??
-        (uniformLayout
-            ? 'p-5'
-            : useReadableSmallPcViewportPortal
-              ? 'p-2'
-            : isMobileModalShell
-              ? 'p-4 min-[390px]:p-5 max-[360px]:p-3'
-              : 'p-4');
+    const bodyPaddingClass = useMobileMinimalChrome
+        ? bodyPaddingClassName ?? 'p-4 min-[390px]:p-5 max-[360px]:p-3'
+        : bodyPaddingClassName ??
+          (uniformLayout
+              ? 'p-5'
+              : useReadableSmallPcViewportPortal
+                ? 'p-2'
+                : isMobileModalShell
+                  ? 'p-4 min-[390px]:p-5 max-[360px]:p-3'
+                  : 'p-4');
     const viewportMaxWidthCss = '95vw';
     const viewportMaxHeightCss = '80dvh';
     const mobileViewportFitMaxHeightCss = mobileViewportMaxHeightCss ?? (isNativeMobile ? viewportMaxHeightCss : 'calc(100dvh - 8px)');
@@ -1428,7 +1446,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                 ref={windowRef}
                 data-draggable-window={windowId}
                 data-uniform-pc-scale={useUniformPcScaleLayout ? '1' : undefined}
-                aria-label={!headerShowTitle ? title : undefined}
+                aria-label={useMobileMinimalChrome || !headerShowTitle ? title : undefined}
                 className={`${containerBaseClass} ${containerVariantClass} min-h-0 ${
                     relaxOuterMaxHeight ? 'max-h-none' : 'max-h-[min(100dvh,100vh)]'
                 }${containerExtraClassName ? ` ${containerExtraClassName}` : ''}`}
@@ -1520,6 +1538,15 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                 {!effectiveIsTopmost && (
                     <div className={`absolute inset-0 z-20 cursor-not-allowed bg-black/30 ${overlayCornerRounded}`} />
                 )}
+                {useMobileMinimalChrome ? (
+                    <MobileModalTitleBar
+                        title={title}
+                        titleContent={titleContent}
+                        onClose={onClose}
+                        headerContent={headerContent}
+                        topRoundedClass={headerTopRounded}
+                    />
+                ) : (
                 <div
                     className={`${headerVariantClass} ${headerTopRounded} flex shrink-0 items-center justify-between px-3 py-1.5 sm:py-2 ${headerCursor}`}
                     style={{
@@ -1574,6 +1601,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                         )}
                     </div>
                 </div>
+                )}
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
                     {useStickyMobileFooter ? (
                         <>
@@ -1599,7 +1627,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                             {renderSmallPcScaledBodyContent(children)}
                         </div>
                     )}
-                    {!hideFooter && (
+                    {!hideFooter && !useMobileMinimalChrome && (
                         <div
                             className={
                                 footerClassName

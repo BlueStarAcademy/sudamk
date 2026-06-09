@@ -10,10 +10,12 @@ import Slider from './ui/Slider.js';
 import ColorSwatch from './ui/ColorSwatch.js';
 import { getPanelEdgeImages } from '../constants/panelEdges.js';
 import { markSkipGameHashLeaveInterceptOnce, navigateFromGameIfApplicable } from '../utils/appUtils.js';
+import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../shared/constants/pcShellLayout.js';
 
 interface SettingsModalProps {
     onClose: () => void;
     isTopmost?: boolean;
+    embedded?: boolean;
 }
 
 type SettingsTab = 'graphics' | 'sound' | 'features' | 'account';
@@ -60,7 +62,7 @@ const dangerOutlineBtnClass = (active: boolean) =>
             : 'border-red-500/35 bg-gradient-to-b from-red-950/40 to-black/50 text-red-100/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:border-red-400/45 hover:shadow-[0_0_28px_-10px_rgba(239,68,68,0.3)]'
     }`;
 
-const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => {
+const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost, embedded = false }) => {
     const {
         settings,
         updateSoundSetting,
@@ -610,35 +612,43 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
         }
     };
     
+    const settingsBody = (
+        <div className="flex h-full min-h-0 flex-1 flex-col rounded-2xl border border-amber-900/25 bg-gradient-to-b from-[#12141c] via-[#0e1016] to-[#08090e] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:p-2.5">
+            <div className="mb-2 flex shrink-0 gap-0.5 rounded-xl border border-white/[0.08] bg-black/40 p-0.5 shadow-inner backdrop-blur-md sm:mb-2 sm:gap-1 sm:p-1">
+                {tabs.map(tab => (
+                    <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`relative flex-1 overflow-hidden rounded-lg py-1.5 text-[11px] font-semibold transition-all duration-200 sm:py-2 sm:text-xs ${
+                            activeTab === tab.id
+                                ? 'text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_0_24px_-4px_rgba(251,191,36,0.35)]'
+                                : 'text-slate-400 hover:bg-white/[0.06] hover:text-amber-100/90'
+                        }`}
+                    >
+                        {activeTab === tab.id && (
+                            <span
+                                className="pointer-events-none absolute inset-0 bg-gradient-to-b from-amber-600/35 via-amber-700/25 to-amber-900/35"
+                                aria-hidden
+                            />
+                        )}
+                        <span className="relative z-[1]">{tab.label}</span>
+                    </button>
+                ))}
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-0.5 py-0.5 pr-1.5 sm:px-1">
+                {renderContent()}
+            </div>
+        </div>
+    );
+
+    if (embedded) {
+        return <div className={PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS}>{settingsBody}</div>;
+    }
+
     return (
         <DraggableWindow title="설정" onClose={onClose} windowId="settings" initialWidth={600} initialHeight={720} isTopmost={isTopmost}>
-            <div className="flex h-full min-h-0 flex-1 flex-col rounded-2xl border border-amber-900/25 bg-gradient-to-b from-[#12141c] via-[#0e1016] to-[#08090e] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:p-2.5">
-                <div className="mb-2 flex shrink-0 gap-0.5 rounded-xl border border-white/[0.08] bg-black/40 p-0.5 shadow-inner backdrop-blur-md sm:mb-2 sm:gap-1 sm:p-1">
-                    {tabs.map(tab => (
-                        <button
-                            key={tab.id}
-                            type="button"
-                            onClick={() => setActiveTab(tab.id)}
-                            className={`relative flex-1 overflow-hidden rounded-lg py-1.5 text-[11px] font-semibold transition-all duration-200 sm:py-2 sm:text-xs ${
-                                activeTab === tab.id
-                                    ? 'text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_0_24px_-4px_rgba(251,191,36,0.35)]'
-                                    : 'text-slate-400 hover:bg-white/[0.06] hover:text-amber-100/90'
-                            }`}
-                        >
-                            {activeTab === tab.id && (
-                                <span
-                                    className="pointer-events-none absolute inset-0 bg-gradient-to-b from-amber-600/35 via-amber-700/25 to-amber-900/35"
-                                    aria-hidden
-                                />
-                            )}
-                            <span className="relative z-[1]">{tab.label}</span>
-                        </button>
-                    ))}
-                </div>
-                <div className="min-h-0 flex-1 overflow-y-auto px-0.5 py-0.5 pr-1.5 sm:px-1">
-                    {renderContent()}
-                </div>
-            </div>
+            {settingsBody}
         </DraggableWindow>
     );
 };

@@ -17,3 +17,15 @@ export const PAIR_LOBBY_DENSE_SETTING_VALUE_READONLY_CLASS =
 /** 페어 방 만들기 우측 열과 같은 auto-fill 카드 그리드(규칙 행 나열) */
 export const PAIR_LOBBY_DENSE_SETTINGS_RULE_GRID_CLASS =
     'grid w-full min-w-0 auto-rows-min content-start justify-center gap-x-2.5 gap-y-2 [grid-template-columns:repeat(auto-fill,minmax(15rem,15rem))] [&>div]:min-w-0';
+
+/** 경기장 모바일 대국 설정: 셀당 ~7.25rem 이상이면 3열, 좁으면 2열 */
+export const LOBBY_DENSE_SETTINGS_GRID_CONTAINER_CLASS = '@container/lobby-settings';
+
+export const LOBBY_DENSE_SETTINGS_RESPONSIVE_COLS_GRID_CLASS =
+    'grid w-full min-h-0 auto-rows-min min-w-0 grid-cols-2 content-start gap-x-2 gap-y-2 overflow-y-auto overflow-x-hidden pr-1 @[22rem]/lobby-settings:grid-cols-3 [&>div]:min-w-0';
+
+/** 모바일 경기장 게임 모드 가로 스크롤 피커 */
+export const LOBBY_HORIZONTAL_MODE_PICKER_ROW_CLASS =
+    'flex min-h-[7.25rem] flex-nowrap gap-2 overflow-x-auto overscroll-x-contain pb-0.5 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] sm:min-h-[7.75rem]';
+
+export const LOBBY_HORIZONTAL_MODE_PICKER_ITEM_CLASS = 'w-max shrink-0';

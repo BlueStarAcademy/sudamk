@@ -5,7 +5,7 @@ import ResourceActionButton from '../ui/ResourceActionButton.js';
 import { MATERIAL_ITEMS } from '../../constants';
 import { BLACKSMITH_DISASSEMBLY_JACKPOT_RATES } from '../../constants/rules.js';
 import { formatBlacksmithPercentInt } from '../../shared/utils/formatBlacksmithPercentInt.js';
-import { getBlacksmithViewerTypography } from '../../shared/constants/blacksmithViewerTypography.js';
+import { getBlacksmithViewerTypography, BLACKSMITH_MOBILE_WORK_ROOT_CLASS } from '../../shared/constants/blacksmithViewerTypography.js';
 
 const MATERIAL_TIERS = ['하급 강화석', '중급 강화석', '상급 강화석', '최상급 강화석', '신비의 강화석'] as const;
 
@@ -35,11 +35,12 @@ const ConversionCraftSection: React.FC<{
     inventory: InventoryItem[];
     onAction: (action: ServerAction) => void | Promise<void>;
     pcViewer: boolean;
+    mobileWork?: boolean;
     sliderId: string;
     isBlacksmithBusy?: boolean;
-}> = ({ materialName, craftType, inventory, onAction, pcViewer, sliderId, isBlacksmithBusy = false }) => {
+}> = ({ materialName, craftType, inventory, onAction, pcViewer, mobileWork = false, sliderId, isBlacksmithBusy = false }) => {
     const isUpgrade = craftType === 'upgrade';
-    const typo = getBlacksmithViewerTypography(pcViewer);
+    const typo = getBlacksmithViewerTypography(pcViewer, { mobileWork });
     const tierIndex = MATERIAL_TIERS.indexOf(materialName as (typeof MATERIAL_TIERS)[number]);
 
     if (tierIndex === -1) return null;
@@ -166,8 +167,7 @@ const ConversionView: React.FC<ConversionViewProps> = ({ onAction, pcViewer = fa
 
     if (!currentUserWithStatus) return null;
 
-    const useLargeTypo = pcViewer || stackedViewport;
-    const typo = getBlacksmithViewerTypography(useLargeTypo);
+    const typo = getBlacksmithViewerTypography(pcViewer, { mobileWork: stackedViewport && !pcViewer });
     const { inventory } = currentUserWithStatus;
 
     const materialCategories = useMemo(() => {
@@ -191,7 +191,7 @@ const ConversionView: React.FC<ConversionViewProps> = ({ onAction, pcViewer = fa
     const blacksmithLevel = currentUserWithStatus.blacksmithLevel ?? 1;
 
     return (
-        <div className="flex h-full min-h-0 w-full flex-col">
+        <div className={`flex h-full min-h-0 w-full flex-col ${stackedViewport ? `${BLACKSMITH_MOBILE_WORK_ROOT_CLASS} min-h-[min(72dvh,100%)]` : ''}`}>
             <div
                 className={`flex min-h-0 flex-1 overflow-hidden rounded-xl border border-amber-400/20 bg-gradient-to-b from-[#171c2a]/70 via-[#101522]/88 to-[#0b1018]/92 ${
                     stackedViewport ? 'flex-row gap-1.5 p-1.5' : 'flex-row gap-2 p-2 sm:gap-2.5 sm:p-2.5'
@@ -248,7 +248,8 @@ const ConversionView: React.FC<ConversionViewProps> = ({ onAction, pcViewer = fa
                                             craftType="downgrade"
                                             inventory={inventory}
                                             onAction={onAction}
-                                            pcViewer={useLargeTypo}
+                                            pcViewer={pcViewer}
+                                            mobileWork={stackedViewport && !pcViewer}
                                             sliderId={`conversion-downgrade-${selectedMaterialName}`}
                                             isBlacksmithBusy={isBlacksmithBusy}
                                         />
@@ -265,7 +266,8 @@ const ConversionView: React.FC<ConversionViewProps> = ({ onAction, pcViewer = fa
                                             craftType="upgrade"
                                             inventory={inventory}
                                             onAction={onAction}
-                                            pcViewer={useLargeTypo}
+                                            pcViewer={pcViewer}
+                                            mobileWork={stackedViewport && !pcViewer}
                                             sliderId={`conversion-upgrade-${selectedMaterialName}`}
                                             isBlacksmithBusy={isBlacksmithBusy}
                                         />

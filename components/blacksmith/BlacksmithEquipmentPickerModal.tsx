@@ -3,8 +3,12 @@ import DraggableWindow from '../DraggableWindow.js';
 import InventoryGrid from './InventoryGrid.js';
 import ResourceActionButton from '../ui/ResourceActionButton.js';
 import { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from '../DraggableWindow.js';
+import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../../shared/constants/pcShellLayout.js';
 import { InventoryItem } from '../../types.js';
 import { ItemGrade } from '../../types/enums.js';
+import { getBlacksmithViewerTypography } from '../../shared/constants/blacksmithViewerTypography.js';
+
+const mobilePickerTypo = getBlacksmithViewerTypography(false, { mobileWork: true });
 
 type SortOption = 'grade' | 'stars' | 'name' | 'date';
 
@@ -33,7 +37,7 @@ const CombineSlotPreview: React.FC<{
 }> = ({ item, onRemove }) => {
     if (!item) {
         return (
-            <div className="flex h-20 min-w-0 flex-1 items-center justify-center rounded-lg border-2 border-dashed border-amber-500/35 bg-black/35 text-[10px] text-amber-100/65">
+            <div className="flex h-20 min-w-0 flex-1 items-center justify-center rounded-lg border-2 border-dashed border-amber-500/35 bg-black/35 text-sm text-amber-100/70">
                 재료
             </div>
         );
@@ -69,10 +73,10 @@ const CombineSlotPreview: React.FC<{
                     />
                 )}
             </button>
-            <p className={`mt-0.5 w-full truncate px-0.5 text-center text-[9px] font-bold ${styles.color}`} title={item.name}>
+            <p className={`mt-0.5 w-full truncate px-0.5 text-center font-bold ${styles.color} ${mobilePickerTypo.caption}`} title={item.name}>
                 {item.name}
             </p>
-            <p className="text-[8px] text-slate-500">{item.slot ? SLOT_NAMES_KO[item.slot] ?? '' : ''}</p>
+            <p className={`${mobilePickerTypo.caption} text-slate-500`}>{item.slot ? SLOT_NAMES_KO[item.slot] ?? '' : ''}</p>
         </div>
     );
 };
@@ -105,6 +109,7 @@ export interface BlacksmithEquipmentPickerModalProps {
     /** 분해 자동 선택 모달이 열려 있을 때 피커가 위로 덮이지 않도록 */
     disassemblyAutoSelectOpen?: boolean;
     isTopmost?: boolean;
+    embedded?: boolean;
 }
 
 const BlacksmithEquipmentPickerModal: React.FC<BlacksmithEquipmentPickerModalProps> = ({
@@ -129,6 +134,7 @@ const BlacksmithEquipmentPickerModal: React.FC<BlacksmithEquipmentPickerModalPro
     onOpenDisassemblyAutoSelect,
     disassemblyAutoSelectOpen = false,
     isTopmost = true,
+    embedded = false,
 }) => {
     const canCombine =
         pickerCombine.every(i => i !== null) &&
@@ -165,6 +171,93 @@ const BlacksmithEquipmentPickerModal: React.FC<BlacksmithEquipmentPickerModalPro
               ? '강화·제련할 장비 하나를 탭하면 작업 화면으로 이동합니다.'
               : '강화·제련할 장비 하나를 탭한 뒤 선택 완료를 누르세요.';
 
+    const pickerBody = (
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2.5 pb-2 pt-2">
+                <p className={`mb-2 text-center ${mobilePickerTypo.body} text-slate-400`}>{helpText}</p>
+
+                {mode === 'combine' && (
+                    <div className="mb-2 flex gap-1.5">
+                        {pickerCombine.map((item, index) => (
+                            <CombineSlotPreview
+                                key={index}
+                                item={item}
+                                onRemove={() => onRemoveCombineSlot(index)}
+                            />
+                        ))}
+                    </div>
+                )}
+
+                <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className={`min-w-0 shrink ${mobilePickerTypo.heading} text-on-panel`}>장비</span>
+                    <div className="flex shrink-0 items-center gap-2">
+                        {mode === 'disassemble' && onOpenDisassemblyAutoSelect && (
+                            <button
+                                type="button"
+                                onClick={onOpenDisassemblyAutoSelect}
+                                className={`whitespace-nowrap rounded border border-amber-300/40 bg-gradient-to-r from-amber-600/90 via-amber-500/90 to-orange-500/85 px-2.5 py-1.5 ${mobilePickerTypo.caption} font-bold text-amber-50 shadow-[0_10px_22px_-14px_rgba(251,191,36,0.75)] transition hover:from-amber-500 hover:via-amber-400 hover:to-orange-400`}
+                            >
+                                자동 선택
+                            </button>
+                        )}
+                        <select
+                            value={sortOption}
+                            onChange={e => onSortChange(e.target.value as SortOption)}
+                            className={`rounded border border-color bg-secondary px-2 py-1.5 ${mobilePickerTypo.caption} text-on-panel`}
+                        >
+                            <option value="grade">등급순</option>
+                            <option value="stars">강화순</option>
+                            <option value="name">이름순</option>
+                            <option value="date">최신순</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div className="max-h-[min(52dvh,24rem)] min-h-[12rem] overflow-y-auto overflow-x-hidden pr-1 [scrollbar-gutter:stable]">
+                    <InventoryGrid
+                        inventory={filteredInventory}
+                        inventorySlots={inventorySlots}
+                        onSelectItem={handleGridSelect}
+                        selectedItemId={selectedItemIdForGrid}
+                        disabledItemIds={disabledItemIds}
+                        selectedItemIdsForDisassembly={mode === 'disassemble' ? pickerDisassemble : undefined}
+                        onToggleDisassemblySelection={mode === 'disassemble' ? onToggleDisassembly : undefined}
+                        columnCount={columnCount}
+                        gapPx={gapPx}
+                    />
+                </div>
+            </div>
+
+            <div
+                className={`flex shrink-0 gap-2 border-t border-color/50 bg-primary/50 px-2.5 py-2.5 ${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS}`}
+            >
+                <ResourceActionButton
+                    type="button"
+                    onClick={onClose}
+                    variant="neutral"
+                    className={`min-h-[44px] !py-2.5 text-sm font-bold ${onPickSingleComplete ? 'w-full' : 'flex-1'}`}
+                >
+                    취소
+                </ResourceActionButton>
+                {!onPickSingleComplete && (
+                    <ResourceActionButton
+                        type="button"
+                        onClick={onConfirm}
+                        variant="accent"
+                        disabled={!canConfirm}
+                        className="min-h-[44px] flex-1 !py-2.5 text-sm font-bold"
+                    >
+                        선택 완료
+                    </ResourceActionButton>
+                )}
+            </div>
+        </div>
+    );
+
+    if (embedded) {
+        return <div className={`${PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS} flex min-h-0 flex-1 flex-col`}>{pickerBody}</div>;
+    }
+
     return (
         <DraggableWindow
             title="장비 선택"
@@ -181,86 +274,7 @@ const BlacksmithEquipmentPickerModal: React.FC<BlacksmithEquipmentPickerModalPro
             bodyNoScroll
             bodyPaddingClassName="!p-0 !flex !flex-col !min-h-0 !h-full"
         >
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2.5 pb-2 pt-2">
-                    <p className="mb-2 text-center text-xs leading-snug text-slate-400">{helpText}</p>
-
-                    {mode === 'combine' && (
-                        <div className="mb-2 flex gap-1.5">
-                            {pickerCombine.map((item, index) => (
-                                <CombineSlotPreview
-                                    key={index}
-                                    item={item}
-                                    onRemove={() => onRemoveCombineSlot(index)}
-                                />
-                            ))}
-                        </div>
-                    )}
-
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                        <span className="min-w-0 shrink text-sm font-bold text-on-panel">장비</span>
-                        <div className="flex shrink-0 items-center gap-2">
-                            {mode === 'disassemble' && onOpenDisassemblyAutoSelect && (
-                                <button
-                                    type="button"
-                                    onClick={onOpenDisassemblyAutoSelect}
-                                    className="whitespace-nowrap rounded border border-amber-300/40 bg-gradient-to-r from-amber-600/90 via-amber-500/90 to-orange-500/85 px-2 py-1 text-[11px] font-bold text-amber-50 shadow-[0_10px_22px_-14px_rgba(251,191,36,0.75)] transition hover:from-amber-500 hover:via-amber-400 hover:to-orange-400"
-                                >
-                                    자동 선택
-                                </button>
-                            )}
-                            <select
-                                value={sortOption}
-                                onChange={e => onSortChange(e.target.value as SortOption)}
-                                className="rounded border border-color bg-secondary px-2 py-1 text-xs text-on-panel"
-                            >
-                                <option value="grade">등급순</option>
-                                <option value="stars">강화순</option>
-                                <option value="name">이름순</option>
-                                <option value="date">최신순</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div className="max-h-[min(52dvh,24rem)] min-h-[12rem] overflow-y-auto overflow-x-hidden pr-1 [scrollbar-gutter:stable]">
-                        <InventoryGrid
-                            inventory={filteredInventory}
-                            inventorySlots={inventorySlots}
-                            onSelectItem={handleGridSelect}
-                            selectedItemId={selectedItemIdForGrid}
-                            disabledItemIds={disabledItemIds}
-                            selectedItemIdsForDisassembly={mode === 'disassemble' ? pickerDisassemble : undefined}
-                            onToggleDisassemblySelection={mode === 'disassemble' ? onToggleDisassembly : undefined}
-                            columnCount={columnCount}
-                            gapPx={gapPx}
-                        />
-                    </div>
-                </div>
-
-                <div
-                    className={`flex shrink-0 gap-2 border-t border-color/50 bg-primary/50 px-2.5 py-2.5 ${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS}`}
-                >
-                    <ResourceActionButton
-                        type="button"
-                        onClick={onClose}
-                        variant="neutral"
-                        className={`min-h-[44px] !py-2.5 text-sm font-bold ${onPickSingleComplete ? 'w-full' : 'flex-1'}`}
-                    >
-                        취소
-                    </ResourceActionButton>
-                    {!onPickSingleComplete && (
-                        <ResourceActionButton
-                            type="button"
-                            onClick={onConfirm}
-                            variant="accent"
-                            disabled={!canConfirm}
-                            className="min-h-[44px] flex-1 !py-2.5 text-sm font-bold"
-                        >
-                            선택 완료
-                        </ResourceActionButton>
-                    )}
-                </div>
-            </div>
+            {pickerBody}
         </DraggableWindow>
     );
 };

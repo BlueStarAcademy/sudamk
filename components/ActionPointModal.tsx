@@ -5,15 +5,17 @@ import UseQuantityModal from './UseQuantityModal.js';
 import { UserWithStatus, InventoryItem, ServerAction } from '../types.js';
 import { isActionPointConsumable } from '../constants/items.js';
 import { ACTION_POINT_PURCHASE_COSTS_DIAMONDS, MAX_ACTION_POINT_PURCHASES_PER_DAY, ACTION_POINT_PURCHASE_REFILL_AMOUNT } from '../constants';
+import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../shared/constants/pcShellLayout.js';
 
 interface ActionPointModalProps {
     currentUser: UserWithStatus;
     onClose: () => void;
     onAction: (action: ServerAction) => Promise<unknown> | void;
     isTopmost?: boolean;
+    embedded?: boolean;
 }
 
-const ActionPointModal: React.FC<ActionPointModalProps> = ({ currentUser, onClose, onAction, isTopmost }) => {
+const ActionPointModal: React.FC<ActionPointModalProps> = ({ currentUser, onClose, onAction, isTopmost, embedded = false }) => {
     const [itemToUse, setItemToUse] = useState<InventoryItem | null>(null);
     const [showUseQuantityModal, setShowUseQuantityModal] = useState(false);
 
@@ -66,18 +68,7 @@ const ActionPointModal: React.FC<ActionPointModalProps> = ({ currentUser, onClos
         return match ? `+${match[1]}` : '';
     };
 
-    return (
-        <>
-            <DraggableWindow
-                title="행동력 관리"
-                windowId="action-point-modal"
-                onClose={onClose}
-                initialWidth={700}
-                initialHeight={500}
-                isTopmost={isTopmost}
-                hideFooter
-                bodyNoScroll
-            >
+    const actionPointBody = (
                 <div className="flex h-full min-h-0 flex-col overflow-hidden bg-slate-950/90">
                     <div className="shrink-0 border-b border-slate-700/80 p-3 sm:p-4">
                         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -183,29 +174,54 @@ const ActionPointModal: React.FC<ActionPointModalProps> = ({ currentUser, onClos
                     </div>
 
                 </div>
-            </DraggableWindow>
+    );
 
-            {showUseQuantityModal && itemToUse && (
-                <UseQuantityModal
-                    item={itemToUse}
-                    currentUser={currentUser}
-                    onClose={() => {
-                        setShowUseQuantityModal(false);
-                        setItemToUse(null);
-                    }}
-                    onConfirm={async (itemId, quantity, itemName) => {
-                        try {
-                            await onAction({ type: 'USE_ITEM', payload: { itemId, quantity, itemName } });
-                        } catch (error) {
-                            console.error('[ActionPointModal] Failed to use item:', error);
-                        } finally {
-                            setShowUseQuantityModal(false);
-                            setItemToUse(null);
-                        }
-                    }}
-                    isTopmost={!!isTopmost}
-                />
-            )}
+    const quantityModal = showUseQuantityModal && itemToUse ? (
+        <UseQuantityModal
+            item={itemToUse}
+            currentUser={currentUser}
+            onClose={() => {
+                setShowUseQuantityModal(false);
+                setItemToUse(null);
+            }}
+            onConfirm={async (itemId, quantity, itemName) => {
+                try {
+                    await onAction({ type: 'USE_ITEM', payload: { itemId, quantity, itemName } });
+                } catch (error) {
+                    console.error('[ActionPointModal] Failed to use item:', error);
+                } finally {
+                    setShowUseQuantityModal(false);
+                    setItemToUse(null);
+                }
+            }}
+            isTopmost={!!isTopmost}
+        />
+    ) : null;
+
+    if (embedded) {
+        return (
+            <>
+                <div className={PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS}>{actionPointBody}</div>
+                {quantityModal}
+            </>
+        );
+    }
+
+    return (
+        <>
+            <DraggableWindow
+                title="행동력 관리"
+                windowId="action-point-modal"
+                onClose={onClose}
+                initialWidth={700}
+                initialHeight={500}
+                isTopmost={isTopmost}
+                hideFooter
+                bodyNoScroll
+            >
+                {actionPointBody}
+            </DraggableWindow>
+            {quantityModal}
         </>
     );
 };

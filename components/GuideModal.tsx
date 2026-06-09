@@ -2,6 +2,7 @@ import React from 'react';
 import DraggableWindow, { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from './DraggableWindow.js';
 import GuidePanelLayout, { type GuideSelection } from './guide/GuidePanelLayout.js';
 import type { HelpCategory } from '../shared/constants/helpCenterContent.js';
+import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../shared/constants/pcShellLayout.js';
 
 export type GuideModalProps = {
     title: string;
@@ -14,6 +15,8 @@ export type GuideModalProps = {
     /** 화면 첫 안내용 — 다시 보지 않기 버튼 */
     showDismissForever?: boolean;
     onDismissForever?: () => void;
+    /** PC/모바일 퀵 유틸 인라인 패널 — DraggableWindow 생략 */
+    embedded?: boolean;
 };
 
 const GuideModal: React.FC<GuideModalProps> = ({
@@ -26,6 +29,7 @@ const GuideModal: React.FC<GuideModalProps> = ({
     extraCategories,
     showDismissForever = false,
     onDismissForever,
+    embedded = false,
 }) => {
     const footer =
         showDismissForever && onDismissForever ? (
@@ -56,6 +60,19 @@ const GuideModal: React.FC<GuideModalProps> = ({
             </div>
         ) : null;
 
+    const body = (
+        <GuidePanelLayout
+            categoryFilter={categoryFilter}
+            extraCategories={extraCategories}
+            initialSelection={initialSelection}
+            footer={footer}
+        />
+    );
+
+    if (embedded) {
+        return <div className={`${PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS} min-h-0 flex-1`}>{body}</div>;
+    }
+
     return (
         <DraggableWindow
             title={title}
@@ -72,12 +89,7 @@ const GuideModal: React.FC<GuideModalProps> = ({
             pcViewportMaxHeightCss="min(85vh, 720px)"
             containerExtraClassName="!max-w-[min(96vw,1040px)]"
         >
-            <GuidePanelLayout
-                categoryFilter={categoryFilter}
-                extraCategories={extraCategories}
-                initialSelection={initialSelection}
-                footer={footer}
-            />
+            {body}
         </DraggableWindow>
     );
 };

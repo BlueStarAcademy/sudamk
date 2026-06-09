@@ -11,7 +11,8 @@ export type QuickUtilityPanelKind =
     | 'ranking'
     | 'gameRecords'
     | 'encyclopedia'
-    | 'announcements';
+    | 'announcements'
+    | 'help';
 
 export const QUICK_UTILITY_PANEL_TITLES: Record<QuickUtilityPanelKind, string> = {
     quests: '퀘스트',
@@ -27,6 +28,7 @@ export const QUICK_UTILITY_PANEL_TITLES: Record<QuickUtilityPanelKind, string> =
     gameRecords: '기보',
     encyclopedia: '도감',
     announcements: '공지',
+    help: '도움말 센터',
 };
 
 export type QuickUtilityPanelChrome = {
@@ -143,5 +145,13 @@ export const QUICK_UTILITY_PANEL_CHROME: Record<QuickUtilityPanelKind, QuickUtil
             'bg-gradient-to-r from-rose-50 via-amber-100 to-rose-200/90 bg-clip-text text-base font-black tracking-tight text-transparent sm:text-lg',
         hairlineViaClass: 'via-rose-300/38',
         bodyRingClass: 'ring-rose-400/20',
+    },
+    help: {
+        iconEmoji: '❓',
+        titleChromeClass: 'border-sky-400/45 bg-gradient-to-r from-sky-950/50 via-zinc-900/80 to-indigo-950/45',
+        titleHeadingClass:
+            'bg-gradient-to-r from-sky-50 via-blue-100 to-indigo-200/90 bg-clip-text text-base font-black tracking-tight text-transparent sm:text-lg',
+        hairlineViaClass: 'via-sky-300/38',
+        bodyRingClass: 'ring-sky-400/20',
     },
 };

@@ -11,6 +11,8 @@ import {
     MOBILE_ITEM_DETAIL_EQUIPMENT_ICON_SLOT_PX,
 } from '../shared/constants/mobileEquipmentDetailModal.js';
 
+import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../shared/constants/pcShellLayout.js';
+
 interface ItemDetailModalProps {
     item: InventoryItem;
     isOwnedByCurrentUser: boolean;
@@ -20,6 +22,7 @@ interface ItemDetailModalProps {
     onStartEnhance: (item: InventoryItem) => void;
     onStartRefine: (item: InventoryItem) => void;
     isTopmost?: boolean;
+    embedded?: boolean;
 }
 
 const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
@@ -30,6 +33,7 @@ const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
     onStartEnhance,
     onStartRefine,
     isTopmost,
+    embedded = false,
 }) => {
     const refinementCount = (item as { refinementCount?: number }).refinementCount ?? 0;
     const canRefine = item.type === 'equipment' && item.grade !== ItemGrade.Normal && refinementCount > 0;
@@ -46,25 +50,8 @@ const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
                 ? '재료 상세'
                 : '아이템 상세';
 
-    return (
-        <DraggableWindow
-            title={detailTitle}
-            onClose={onClose}
-            windowId={`item-detail-${item.id}`}
-            initialWidth={mobileDetailChrome ? MOBILE_EQUIPMENT_DETAIL_MODAL_WIDTH : 400}
-            initialHeight={mobileDetailChrome ? undefined : 600}
-            isTopmost={isTopmost}
-            variant="store"
-            shrinkHeightToContent={mobileDetailChrome}
-            mobileViewportFit={mobileDetailChrome}
-            mobileViewportMaxHeightVh={mobileDetailChrome ? 98 : undefined}
-            mobileViewportMaxHeightCss={mobileDetailChrome ? MOBILE_EQUIPMENT_DETAIL_MAX_HEIGHT_CSS : undefined}
-            mobileViewportDvhBottomGapPx={mobileDetailChrome ? 8 : undefined}
-            bodyScrollable={mobileDetailChrome}
-            bodyPaddingClassName={mobileDetailChrome ? MOBILE_EQUIPMENT_DETAIL_BODY_PADDING_CLASS : undefined}
-            hideFooter={mobileDetailChrome}
-        >
-            <div className={mobileDetailChrome ? 'flex min-h-0 w-full min-w-0 flex-col gap-1.5' : 'flex h-full flex-col'}>
+    const body = (
+        <div className={mobileDetailChrome || embedded ? 'flex min-h-0 w-full min-w-0 flex-col gap-1.5' : 'flex h-full flex-col'}>
                 {mobileDetailChrome ? (
                     <div className="min-h-0 w-full min-w-0 flex-1 overflow-y-auto overflow-x-hidden [scrollbar-width:thin]">
                         <EquipmentDetailPanel
@@ -133,7 +120,32 @@ const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
                         </div>
                     </div>
                 ) : null}
-            </div>
+        </div>
+    );
+
+    if (embedded) {
+        return <div className={PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS}>{body}</div>;
+    }
+
+    return (
+        <DraggableWindow
+            title={detailTitle}
+            onClose={onClose}
+            windowId={`item-detail-${item.id}`}
+            initialWidth={mobileDetailChrome ? MOBILE_EQUIPMENT_DETAIL_MODAL_WIDTH : 400}
+            initialHeight={mobileDetailChrome ? undefined : 600}
+            isTopmost={isTopmost}
+            variant="store"
+            shrinkHeightToContent={mobileDetailChrome}
+            mobileViewportFit={mobileDetailChrome}
+            mobileViewportMaxHeightVh={mobileDetailChrome ? 98 : undefined}
+            mobileViewportMaxHeightCss={mobileDetailChrome ? MOBILE_EQUIPMENT_DETAIL_MAX_HEIGHT_CSS : undefined}
+            mobileViewportDvhBottomGapPx={mobileDetailChrome ? 8 : undefined}
+            bodyScrollable={mobileDetailChrome}
+            bodyPaddingClassName={mobileDetailChrome ? MOBILE_EQUIPMENT_DETAIL_BODY_PADDING_CLASS : undefined}
+            hideFooter={mobileDetailChrome}
+        >
+            {body}
         </DraggableWindow>
     );
 };

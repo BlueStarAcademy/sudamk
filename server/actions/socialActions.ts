@@ -3017,6 +3017,9 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             if (volatileState.rankedMatchingQueue?.strategic?.[user.id]) {
                 return { error: '이미 매칭 중입니다.' };
             }
+            if (findRankedMatchProposalForUser(volatileState, user.id)) {
+                return { error: '매칭 수락 대기 중입니다.' };
+            }
             
             // 선택된 모드가 없으면 에러
             if (!selectedModes || selectedModes.length === 0) {
@@ -3094,6 +3097,48 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             broadcast({ type: 'RANKED_MATCHING_UPDATE', payload: { queue: volatileState.rankedMatchingQueue } });
             
             return { clientResponse: { success: true } };
+        }
+        case 'RESPOND_RANKED_MATCH': {
+            const { proposalId, accept } = payload as { proposalId?: string; accept?: boolean };
+            if (!proposalId || typeof accept !== 'boolean') return { error: '요청이 올바르지 않습니다.' };
+            const prop = volatileState.rankedMatchProposals?.[proposalId];
+            if (!prop) return { error: '이미 처리되었거나 만료된 매칭입니다.' };
+            if (user.id !== prop.user1Id && user.id !== prop.user2Id) {
+                return { error: '이 매칭에 참가할 수 없습니다.' };
+            }
+            const deadline = prop.acceptDeadlineAt ?? prop.createdAt + RANKED_MATCH_ACCEPT_WINDOW_MS;
+            if (now > deadline) {
+                abortRankedMatchProposal(volatileState, proposalId);
+                return { error: '매칭 수락 시간이 지났습니다.' };
+            }
+            if (!accept) {
+                abortRankedMatchProposal(volatileState, proposalId);
+                return { clientResponse: { success: true } };
+            }
+            if (user.id === prop.user1Id) prop.acceptUser1 = true;
+            else prop.acceptUser2 = true;
+            broadcastRankedMatchProposal(volatileState, proposalId);
+            if (!prop.acceptUser1 || !prop.acceptUser2) {
+                return { clientResponse: { success: true } };
+            }
+            const player1 = await db.getUser(prop.user1Id);
+            const player2 = await db.getUser(prop.user2Id);
+            if (!player1 || !player2) {
+                abortRankedMatchProposal(volatileState, proposalId);
+                return { error: '유저 정보를 찾지 못해 매칭이 취소되었습니다.' };
+            }
+            const finalizeResult = await finalizeRankedStrategicMatchGame(
+                volatileState,
+                prop,
+                proposalId,
+                player1,
+                player2,
+            );
+            if (!finalizeResult.ok) {
+                abortRankedMatchProposal(volatileState, proposalId);
+                return { error: finalizeResult.error };
+            }
+            return { clientResponse: { success: true, gameId: finalizeResult.gameId } };
         }
         case 'PAIR_SYNC': {
             if (!volatileState.pairRooms) volatileState.pairRooms = {};
@@ -5619,6 +5664,275 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
 };
 
 // 매칭 알고리즘: 실제 공통 모드 기준으로 가장 비슷한 랭킹 점수 유저 매칭
+const RANKED_MATCH_ACCEPT_WINDOW_MS = 30_000;
+
+function findRankedMatchProposalForUser(
+    volatileState: VolatileState,
+    userId: string,
+): { proposalId: string; prop: NonNullable<VolatileState['rankedMatchProposals']>[string] } | null {
+    const props = volatileState.rankedMatchProposals;
+    if (!props) return null;
+    for (const [proposalId, prop] of Object.entries(props)) {
+        if (prop.user1Id === userId || prop.user2Id === userId) return { proposalId, prop };
+    }
+    return null;
+}
+
+function cloneRankedQueueEntry(entry: RankedQueueEntry): RankedQueueEntry {
+    return {
+        ...entry,
+        selectedModes: [...entry.selectedModes],
+        modeRatings: entry.modeRatings ? { ...entry.modeRatings } : undefined,
+    };
+}
+
+function restoreAcceptedUsersToRankedQueue(
+    volatileState: VolatileState,
+    prop: NonNullable<VolatileState['rankedMatchProposals']>[string],
+): string[] {
+    const requeuedUserIds: string[] = [];
+    if (!prop.acceptUser1 && !prop.acceptUser2) return requeuedUserIds;
+
+    if (!volatileState.rankedMatchingQueue) volatileState.rankedMatchingQueue = { strategic: {} };
+    if (!volatileState.rankedMatchingQueue.strategic) volatileState.rankedMatchingQueue.strategic = {};
+    const queue = volatileState.rankedMatchingQueue.strategic;
+
+    const restoreOne = (userId: string, accepted: boolean, queueEntry: RankedQueueEntry | undefined) => {
+        if (!accepted || !queueEntry) return;
+        requeuedUserIds.push(userId);
+        queue[userId] = {
+            ...cloneRankedQueueEntry(queueEntry),
+            startTime: queueEntry.startTime,
+            matchPriority: (queueEntry.matchPriority ?? 0) + 1,
+        };
+    };
+
+    restoreOne(prop.user1Id, prop.acceptUser1, prop.user1QueueEntry);
+    restoreOne(prop.user2Id, prop.acceptUser2, prop.user2QueueEntry);
+
+    if (requeuedUserIds.length > 0) {
+        broadcast({ type: 'RANKED_MATCHING_UPDATE', payload: { queue: volatileState.rankedMatchingQueue } });
+        void tryMatchPlayers(volatileState, 'strategic');
+    }
+    return requeuedUserIds;
+}
+
+function abortRankedMatchProposal(
+    volatileState: VolatileState,
+    proposalId: string,
+    options?: { requeueAcceptedUsers?: boolean },
+): void {
+    const prop = volatileState.rankedMatchProposals?.[proposalId];
+    if (!prop) return;
+    const requeueAcceptedUsers = options?.requeueAcceptedUsers !== false;
+    const requeuedUserIds = requeueAcceptedUsers ? restoreAcceptedUsersToRankedQueue(volatileState, prop) : [];
+    delete volatileState.rankedMatchProposals![proposalId];
+    broadcast({
+        type: 'RANKED_MATCH_PROPOSAL_CANCELLED',
+        payload: { userIds: [prop.user1Id, prop.user2Id], proposalId, requeuedUserIds },
+    });
+}
+
+export function expireStaleRankedMatchProposals(volatileState: VolatileState, nowMs: number): void {
+    const props = volatileState.rankedMatchProposals;
+    if (!props) return;
+    for (const [proposalId, prop] of Object.entries(props)) {
+        const deadline = prop.acceptDeadlineAt ?? prop.createdAt + RANKED_MATCH_ACCEPT_WINDOW_MS;
+        if (nowMs <= deadline) continue;
+        if (prop.acceptUser1 && prop.acceptUser2) continue;
+        abortRankedMatchProposal(volatileState, proposalId);
+    }
+}
+
+async function buildRankedMatchProposalPayload(
+    volatileState: VolatileState,
+    proposalId: string,
+    prop: NonNullable<VolatileState['rankedMatchProposals']>[string],
+) {
+    const player1 = await db.getUser(prop.user1Id);
+    const player2 = await db.getUser(prop.user2Id);
+    if (!player1 || !player2) return null;
+    const { calculateEloChange } = await import('../summaryService.js');
+    const player1Rating = getRankedRatingForMode(player1, prop.selectedMode);
+    const player2Rating = getRankedRatingForMode(player2, prop.selectedMode);
+    return {
+        proposalId,
+        acceptDeadlineAt: prop.acceptDeadlineAt ?? prop.createdAt + RANKED_MATCH_ACCEPT_WINDOW_MS,
+        selectedMode: prop.selectedMode,
+        player1: {
+            id: player1.id,
+            nickname: player1.nickname,
+            rating: player1Rating,
+            winChange: calculateEloChange(player1Rating, player2Rating, 'win'),
+            lossChange: calculateEloChange(player1Rating, player2Rating, 'loss'),
+            accepted: prop.acceptUser1,
+        },
+        player2: {
+            id: player2.id,
+            nickname: player2.nickname,
+            rating: player2Rating,
+            winChange: calculateEloChange(player2Rating, player1Rating, 'win'),
+            lossChange: calculateEloChange(player2Rating, player1Rating, 'loss'),
+            accepted: prop.acceptUser2,
+        },
+    };
+}
+
+function broadcastRankedMatchProposal(volatileState: VolatileState, proposalId: string): void {
+    void (async () => {
+        const prop = volatileState.rankedMatchProposals?.[proposalId];
+        if (!prop) return;
+        const payload = await buildRankedMatchProposalPayload(volatileState, proposalId, prop);
+        if (!payload) {
+            abortRankedMatchProposal(volatileState, proposalId);
+            return;
+        }
+        broadcast({ type: 'RANKED_MATCH_PROPOSAL', payload });
+    })();
+}
+
+async function openRankedStrategicMatchProposal(
+    volatileState: VolatileState,
+    lobbyType: RankedLobbyType,
+    entry1: RankedQueueEntry,
+    entry2: RankedQueueEntry,
+    selectedMode: GameMode,
+): Promise<void> {
+    const player1 = await db.getUser(entry1.userId);
+    const player2 = await db.getUser(entry2.userId);
+    if (!player1 || !player2) {
+        const queue = volatileState.rankedMatchingQueue?.[lobbyType];
+        if (queue) {
+            if (!player1) delete queue[entry1.userId];
+            if (!player2) delete queue[entry2.userId];
+        }
+        broadcast({ type: 'RANKED_MATCHING_UPDATE', payload: { queue: volatileState.rankedMatchingQueue } });
+        return;
+    }
+
+    const proposalId = randomUUID();
+    const createdAt = Date.now();
+    const acceptDeadlineAt = createdAt + RANKED_MATCH_ACCEPT_WINDOW_MS;
+    if (!volatileState.rankedMatchProposals) volatileState.rankedMatchProposals = {};
+    volatileState.rankedMatchProposals[proposalId] = {
+        user1Id: entry1.userId,
+        user2Id: entry2.userId,
+        lobbyType,
+        selectedMode,
+        acceptUser1: false,
+        acceptUser2: false,
+        createdAt,
+        acceptDeadlineAt,
+        user1QueueEntry: cloneRankedQueueEntry(entry1),
+        user2QueueEntry: cloneRankedQueueEntry(entry2),
+    };
+
+    if (volatileState.rankedMatchingQueue?.[lobbyType]) {
+        delete volatileState.rankedMatchingQueue[lobbyType][entry1.userId];
+        delete volatileState.rankedMatchingQueue[lobbyType][entry2.userId];
+    }
+
+    const payload = await buildRankedMatchProposalPayload(volatileState, proposalId, volatileState.rankedMatchProposals[proposalId]);
+    if (!payload) {
+        abortRankedMatchProposal(volatileState, proposalId);
+        return;
+    }
+    broadcast({ type: 'RANKED_MATCH_PROPOSAL', payload });
+    broadcast({ type: 'RANKED_MATCHING_UPDATE', payload: { queue: volatileState.rankedMatchingQueue } });
+}
+
+async function finalizeRankedStrategicMatchGame(
+    volatileState: VolatileState,
+    prop: NonNullable<VolatileState['rankedMatchProposals']>[string],
+    proposalId: string,
+    player1: User,
+    player2: User,
+): Promise<{ ok: true; gameId: string } | { ok: false; error: string }> {
+    const selectedMode = prop.selectedMode;
+    const matchNowMs = Date.now();
+    await applyPassiveActionPointRegenToUser(player1, matchNowMs);
+    await applyPassiveActionPointRegenToUser(player2, matchNowMs);
+    const rankedAp1 = effectiveStrategicRankedQueueApCostForUser(player1);
+    const rankedAp2 = effectiveStrategicRankedQueueApCostForUser(player2);
+    if ((!player1.isAdmin && player1.actionPoints.current < rankedAp1) || (!player2.isAdmin && player2.actionPoints.current < rankedAp2)) {
+        return { ok: false, error: '행동력이 부족해 매칭을 진행할 수 없습니다.' };
+    }
+    if (!player1.isAdmin && rankedAp1 > 0) {
+        recordActionPointSpend(player1, rankedAp1, matchNowMs);
+    }
+    if (!player2.isAdmin && rankedAp2 > 0) {
+        recordActionPointSpend(player2, rankedAp2, matchNowMs);
+    }
+    await db.updateUser(player1);
+    await db.updateUser(player2);
+    broadcastUserUpdate(player1, ['actionPoints', 'lastActionPointUpdate']);
+    broadcastUserUpdate(player2, ['actionPoints', 'lastActionPointUpdate']);
+
+    const { getRankedGameSettings } = await import('../../constants/rankedGameSettings.js');
+    const settings = sanitizePvpGameSettings(selectedMode, getRankedGameSettings(selectedMode), { isAiGame: false });
+    const negotiation: Negotiation = {
+        id: `neg-ranked-${randomUUID()}`,
+        challenger: player1,
+        opponent: player2,
+        mode: selectedMode,
+        settings,
+        proposerId: player1.id,
+        status: 'pending',
+        turnCount: 0,
+        deadline: Date.now(),
+        isRanked: true,
+    };
+
+    const { initializeGame } = await import('../gameModes.js');
+    const game = await initializeGame(negotiation);
+    await db.saveGame(game);
+
+    delete volatileState.rankedMatchProposals![proposalId];
+    broadcast({
+        type: 'RANKED_MATCH_PROPOSAL_CANCELLED',
+        payload: { userIds: [prop.user1Id, prop.user2Id], proposalId },
+    });
+
+    setInGameUserStatusForArena(volatileState, game.player1.id, game);
+    setInGameUserStatusForArena(volatileState, game.player2.id, game);
+
+    const { calculateEloChange } = await import('../summaryService.js');
+    const player1Rating = getRankedRatingForMode(player1, selectedMode);
+    const player2Rating = getRankedRatingForMode(player2, selectedMode);
+    const player1WinChange = calculateEloChange(player1Rating, player2Rating, 'win');
+    const player1LossChange = calculateEloChange(player1Rating, player2Rating, 'loss');
+    const player2WinChange = calculateEloChange(player2Rating, player1Rating, 'win');
+    const player2LossChange = calculateEloChange(player2Rating, player1Rating, 'loss');
+
+    broadcast({
+        type: 'RANKED_MATCH_FOUND',
+        payload: {
+            gameId: game.id,
+            player1: {
+                id: player1.id,
+                nickname: player1.nickname,
+                rating: player1Rating,
+                winChange: player1WinChange,
+                lossChange: player1LossChange,
+            },
+            player2: {
+                id: player2.id,
+                nickname: player2.nickname,
+                rating: player2Rating,
+                winChange: player2WinChange,
+                lossChange: player2LossChange,
+            },
+        },
+    });
+
+    const { broadcastToGameParticipants, broadcastLiveGameToList } = await import('../socket.js');
+    broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+    broadcastLiveGameToList(game);
+    broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
+    broadcast({ type: 'RANKED_MATCHING_UPDATE', payload: { queue: volatileState.rankedMatchingQueue } });
+    return { ok: true, gameId: game.id };
+}
+
 export const tryMatchPlayers = async (volatileState: VolatileState, lobbyType: RankedLobbyType): Promise<void> => {
     if (rankedMatchingLocks[lobbyType]) return;
     rankedMatchingLocks[lobbyType] = true;
@@ -5630,6 +5944,7 @@ export const tryMatchPlayers = async (volatileState: VolatileState, lobbyType: R
 };
 
 const tryMatchPlayersUnlocked = async (volatileState: VolatileState, lobbyType: RankedLobbyType): Promise<void> => {
+    expireStaleRankedMatchProposals(volatileState, Date.now());
     const queue = volatileState.rankedMatchingQueue?.[lobbyType];
     if (!queue || Object.keys(queue).length < 2) return;
 
@@ -5644,6 +5959,11 @@ const tryMatchPlayersUnlocked = async (volatileState: VolatileState, lobbyType: 
         if (status?.status === UserStatus.InGame || status?.status === UserStatus.Negotiating) {
             delete queue[userId];
             queueChanged = true;
+            continue;
+        }
+        if (findRankedMatchProposalForUser(volatileState, userId)) {
+            delete queue[userId];
+            queueChanged = true;
         }
     }
     if (queueChanged) {
@@ -5651,7 +5971,10 @@ const tryMatchPlayersUnlocked = async (volatileState: VolatileState, lobbyType: 
     }
     if (Object.keys(queue).length < 2) return;
 
-    const entries = Object.values(queue);
+    const entries = Object.values(queue).filter(
+        (entry) => !findRankedMatchProposalForUser(volatileState, entry.userId),
+    );
+    if (entries.length < 2) return;
     
     // 모든 가능한 쌍을 확인하여 가장 비슷한 점수 차이의 쌍 찾기
     let bestMatch: {
@@ -5660,6 +5983,7 @@ const tryMatchPlayersUnlocked = async (volatileState: VolatileState, lobbyType: 
         selectedMode: GameMode;
         scoreDiff: number;
         prioritySum: number;
+        pairMaxPriority: number;
     } | null = null;
     
     for (let i = 0; i < entries.length; i++) {
@@ -5677,14 +6001,22 @@ const tryMatchPlayersUnlocked = async (volatileState: VolatileState, lobbyType: 
 
                 const prioritySum = entry1.selectedModes.indexOf(mode) + entry2.selectedModes.indexOf(mode);
                 const olderStart = Math.min(entry1.startTime, entry2.startTime);
+                const pairMaxPriority = Math.max(entry1.matchPriority ?? 0, entry2.matchPriority ?? 0);
                 const bestOlderStart = bestMatch ? Math.min(bestMatch.player1.startTime, bestMatch.player2.startTime) : Infinity;
+                const bestMaxPriority = bestMatch?.pairMaxPriority ?? -1;
                 if (
                     !bestMatch ||
                     scoreDiff < bestMatch.scoreDiff ||
                     (scoreDiff === bestMatch.scoreDiff && prioritySum < bestMatch.prioritySum) ||
-                    (scoreDiff === bestMatch.scoreDiff && prioritySum === bestMatch.prioritySum && olderStart < bestOlderStart)
+                    (scoreDiff === bestMatch.scoreDiff &&
+                        prioritySum === bestMatch.prioritySum &&
+                        pairMaxPriority > bestMaxPriority) ||
+                    (scoreDiff === bestMatch.scoreDiff &&
+                        prioritySum === bestMatch.prioritySum &&
+                        pairMaxPriority === bestMaxPriority &&
+                        olderStart < bestOlderStart)
                 ) {
-                    bestMatch = { player1: entry1, player2: entry2, selectedMode: mode, scoreDiff, prioritySum };
+                    bestMatch = { player1: entry1, player2: entry2, selectedMode: mode, scoreDiff, prioritySum, pairMaxPriority };
                 }
             }
         }
@@ -5692,110 +6024,6 @@ const tryMatchPlayersUnlocked = async (volatileState: VolatileState, lobbyType: 
     
     if (!bestMatch) return;
     
-    // 매칭 성공: 게임 생성
     const { player1: entry1, player2: entry2, selectedMode } = bestMatch;
-    
-    // 랭킹전 기본 설정 가져오기
-    const { getRankedGameSettings } = await import('../../constants/rankedGameSettings.js');
-    const settings = sanitizePvpGameSettings(selectedMode, getRankedGameSettings(selectedMode), { isAiGame: false });
-    
-    // Negotiation 생성 (랭킹전)
-    const player1 = await db.getUser(entry1.userId);
-    const player2 = await db.getUser(entry2.userId);
-    
-    if (!player1 || !player2) {
-        if (!player1) delete queue[entry1.userId];
-        if (!player2) delete queue[entry2.userId];
-        broadcast({ type: 'RANKED_MATCHING_UPDATE', payload: { queue: volatileState.rankedMatchingQueue } });
-        return;
-    }
-
-    const matchNowMs = Date.now();
-    await applyPassiveActionPointRegenToUser(player1, matchNowMs);
-    await applyPassiveActionPointRegenToUser(player2, matchNowMs);
-    const rankedAp1 = effectiveStrategicRankedQueueApCostForUser(player1);
-    const rankedAp2 = effectiveStrategicRankedQueueApCostForUser(player2);
-    if ((!player1.isAdmin && player1.actionPoints.current < rankedAp1) || (!player2.isAdmin && player2.actionPoints.current < rankedAp2)) {
-        if (!player1.isAdmin && player1.actionPoints.current < rankedAp1) delete queue[entry1.userId];
-        if (!player2.isAdmin && player2.actionPoints.current < rankedAp2) delete queue[entry2.userId];
-        broadcast({ type: 'RANKED_MATCHING_UPDATE', payload: { queue: volatileState.rankedMatchingQueue } });
-        return;
-    }
-    if (!player1.isAdmin && rankedAp1 > 0) {
-        recordActionPointSpend(player1, rankedAp1, matchNowMs);
-    }
-    if (!player2.isAdmin && rankedAp2 > 0) {
-        recordActionPointSpend(player2, rankedAp2, matchNowMs);
-    }
-    await db.updateUser(player1);
-    await db.updateUser(player2);
-    broadcastUserUpdate(player1, ['actionPoints', 'lastActionPointUpdate']);
-    broadcastUserUpdate(player2, ['actionPoints', 'lastActionPointUpdate']);
-    
-    const negotiation: Negotiation = {
-        id: `neg-ranked-${randomUUID()}`,
-        challenger: player1,
-        opponent: player2,
-        mode: selectedMode,
-        settings,
-        proposerId: player1.id,
-        status: 'pending',
-        turnCount: 0,
-        deadline: Date.now(),
-        isRanked: true, // 랭킹전
-    };
-    
-    // 게임 생성
-    const { initializeGame } = await import('../gameModes.js');
-    const game = await initializeGame(negotiation);
-    await db.saveGame(game);
-    
-    // 큐에서 제거
-    if (volatileState.rankedMatchingQueue && volatileState.rankedMatchingQueue[lobbyType]) {
-        delete volatileState.rankedMatchingQueue[lobbyType][entry1.userId];
-        delete volatileState.rankedMatchingQueue[lobbyType][entry2.userId];
-    }
-    
-    // 사용자 상태 업데이트
-    setInGameUserStatusForArena(volatileState, game.player1.id, game);
-    setInGameUserStatusForArena(volatileState, game.player2.id, game);
-    
-    // 예상 랭킹 점수 변동 계산
-    const { calculateEloChange } = await import('../summaryService.js');
-    const player1Rating = getRankedRatingForMode(player1, selectedMode);
-    const player2Rating = getRankedRatingForMode(player2, selectedMode);
-    const player1WinChange = calculateEloChange(player1Rating, player2Rating, 'win');
-    const player1LossChange = calculateEloChange(player1Rating, player2Rating, 'loss');
-    const player2WinChange = calculateEloChange(player2Rating, player1Rating, 'win');
-    const player2LossChange = calculateEloChange(player2Rating, player1Rating, 'loss');
-    
-    // 매칭 성공 알림 브로드캐스트
-    broadcast({ 
-        type: 'RANKED_MATCH_FOUND', 
-        payload: { 
-            gameId: game.id,
-            player1: {
-                id: player1.id,
-                nickname: player1.nickname,
-                rating: player1Rating,
-                winChange: player1WinChange,
-                lossChange: player1LossChange,
-            },
-            player2: {
-                id: player2.id,
-                nickname: player2.nickname,
-                rating: player2Rating,
-                winChange: player2WinChange,
-                lossChange: player2LossChange,
-            },
-        } 
-    });
-    
-    // 게임 정보 브로드캐스트
-    const { broadcastToGameParticipants, broadcastLiveGameToList } = await import('../socket.js');
-    broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
-    // PVP(랭크매칭)이므로 진행중인 대국 목록에 표시·관전 가능하도록 전체 브로드캐스트
-    broadcastLiveGameToList(game);
-    broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
-    broadcast({ type: 'RANKED_MATCHING_UPDATE', payload: { queue: volatileState.rankedMatchingQueue } });
+    await openRankedStrategicMatchProposal(volatileState, lobbyType, entry1, entry2, selectedMode);
 };

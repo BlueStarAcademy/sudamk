@@ -9,12 +9,14 @@ import { formatGoldAmountKoG, formatWalletDiamonds } from '../shared/utils/walle
 import { CASH_SHOP_PACKAGE_KO_LABEL, type CashShopPackageId } from '../shared/constants/cashShopPackages.js';
 import { isMailRewardsClaimExpired } from '../shared/utils/mailRewardsExpiry.js';
 import { useKeyedAsyncAction } from '../hooks/useAsyncAction.js';
+import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../shared/constants/pcShellLayout.js';
 
 interface MailboxModalProps {
     currentUser: UserWithStatus;
     onClose: () => void;
     onAction: (action: ServerAction) => void | Promise<void>;
     isTopmost?: boolean;
+    embedded?: boolean;
 }
 
 type MailActionPending = 'claim-one' | 'claim-all' | 'delete-one' | 'delete-all' | null;
@@ -133,7 +135,7 @@ function renderAttachmentsBlock(m: Mail, compact?: boolean) {
     );
 }
 
-const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUser, onClose, onAction, isTopmost }) => {
+const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUser, onClose, onAction, isTopmost, embedded = false }) => {
     const { currentUserWithStatus } = useAppContext();
     const isHandheld = useIsHandheldDevice(1025);
     const mailAction = useKeyedAsyncAction();
@@ -374,6 +376,28 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
             </div>
         </>
     ) : null;
+
+    if (embedded) {
+        return (
+            <div className={`${PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS} flex min-h-0 flex-1 flex-col`}>
+                {detailMail ? (
+                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                        <button
+                            type="button"
+                            onClick={() => setDetailMail(null)}
+                            className="mb-2 shrink-0 self-start rounded-lg border border-white/15 bg-black/35 px-3 py-1.5 text-sm font-semibold text-amber-100"
+                        >
+                            목록으로
+                        </button>
+                        {detailBody}
+                        <div className="mt-3 shrink-0 border-t border-white/5 pt-3">{detailFooter}</div>
+                    </div>
+                ) : (
+                    <div className="flex min-h-0 flex-1 flex-col">{listPanel}</div>
+                )}
+            </div>
+        );
+    }
 
     return (
         <>

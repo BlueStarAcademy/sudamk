@@ -21,7 +21,12 @@ const AdventureMonsterCodexModal = lazy(() => import('../adventure/AdventureMons
 const RankingQuickModal = lazy(() => import('../RankingQuickModal.js'));
 const GameRecordListModal = lazy(() => import('../GameRecordListModal.js'));
 const EncyclopediaModal = lazy(() => import('../modals/EncyclopediaModal.js'));
+const GuideModal = lazy(() => import('../GuideModal.js'));
 import HomeBoardPanel from '../HomeBoardPanel.js';
+import {
+    MOBILE_QUICK_UTILITY_BODY_SCROLL_CLASS,
+    MOBILE_QUICK_UTILITY_SHELL_CLASS,
+} from '../../shared/constants/pcShellLayout.js';
 
 import ModalChunkFallback from '../ui/ModalChunkFallback.js';
 
@@ -30,9 +35,10 @@ const PanelLoadingFallback = () => <ModalChunkFallback />;
 type QuickUtilityPanelProps = {
     kind: QuickUtilityPanelKind;
     onBack: () => void;
+    shellVariant?: 'pc' | 'mobile';
 };
 
-const QuickUtilityPanel: React.FC<QuickUtilityPanelProps> = ({ kind, onBack }) => {
+const QuickUtilityPanel: React.FC<QuickUtilityPanelProps> = ({ kind, onBack, shellVariant = 'pc' }) => {
     const {
         currentUserWithStatus,
         handlers,
@@ -66,6 +72,9 @@ const QuickUtilityPanel: React.FC<QuickUtilityPanelProps> = ({ kind, onBack }) =
                         currentUser={currentUserWithStatus}
                         onClose={onBack}
                         onAction={handlers.handleAction}
+                        onViewListedEquipment={(item, isOwned) =>
+                            handlers.openViewingItem(item, isOwned ?? true, { hideEnhanceActions: true })
+                        }
                     />
                 );
             case 'blacksmith':
@@ -151,17 +160,34 @@ const QuickUtilityPanel: React.FC<QuickUtilityPanelProps> = ({ kind, onBack }) =
                         onAction={handlers.handleAction}
                     />
                 );
+            case 'help':
+                return (
+                    <GuideModal
+                        embedded
+                        title="도움말 센터"
+                        windowId="info-modal"
+                        onClose={onBack}
+                    />
+                );
             default:
                 return null;
         }
     };
 
+    const isMobileShell = shellVariant === 'mobile';
+
     return (
-        <div className="relative flex h-full min-h-0 w-full flex-col overflow-hidden p-1 sm:p-1.5">
+        <div
+            className={
+                isMobileShell
+                    ? MOBILE_QUICK_UTILITY_SHELL_CLASS
+                    : 'relative flex h-full min-h-0 w-full flex-col overflow-hidden p-1 sm:p-1.5'
+            }
+        >
             <NavTitleBar
                 title={title}
                 onBack={onBack}
-                className="shrink-0"
+                className={`shrink-0 ${isMobileShell ? 'px-1 pt-0.5' : ''}`}
                 chromeClass={chrome.titleChromeClass}
                 titleHeadingClass={chrome.titleHeadingClass}
                 iconUrl={chrome.iconUrl}
@@ -174,13 +200,25 @@ const QuickUtilityPanel: React.FC<QuickUtilityPanelProps> = ({ kind, onBack }) =
                 flush
             />
             <div
-                className={`relative mt-1 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-black/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 backdrop-blur-[2px] ${chrome.bodyRingClass} sm:mt-1.5`}
+                className={
+                    isMobileShell
+                        ? `relative flex min-h-0 flex-1 flex-col overflow-hidden ${MOBILE_QUICK_UTILITY_BODY_SCROLL_CLASS}`
+                        : `relative mt-1 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-black/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 backdrop-blur-[2px] ${chrome.bodyRingClass} sm:mt-1.5`
+                }
             >
+                {!isMobileShell && (
+                    <div
+                        className={`pointer-events-none absolute inset-x-2 top-0 z-[1] h-px bg-gradient-to-r from-transparent ${chrome.hairlineViaClass} to-transparent sm:inset-x-3`}
+                        aria-hidden
+                    />
+                )}
                 <div
-                    className={`pointer-events-none absolute inset-x-2 top-0 z-[1] h-px bg-gradient-to-r from-transparent ${chrome.hairlineViaClass} to-transparent sm:inset-x-3`}
-                    aria-hidden
-                />
-                <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden p-0.5 sm:p-1">
+                    className={
+                        isMobileShell
+                            ? 'flex min-h-0 flex-1 flex-col overflow-hidden'
+                            : 'flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden p-0.5 sm:p-1'
+                    }
+                >
                     <Suspense fallback={<PanelLoadingFallback />}>{renderBody()}</Suspense>
                 </div>
             </div>
