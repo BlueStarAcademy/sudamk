@@ -1084,6 +1084,15 @@ function mergeHumanHiddenStonePointsForSession(
     }
     if (hiddenByPlayerPoint.size === 0) return undefined;
     const sanitized = mergedPoints.filter((point) => {
+        const consumed =
+            (incoming as any).consumedPatternIntersections ??
+            (existing as any)?.consumedPatternIntersections;
+        if (
+            Array.isArray(consumed) &&
+            consumed.some((p: Point) => p.x === point.x && p.y === point.y)
+        ) {
+            return false;
+        }
         if (point.player !== undefined) {
             return hiddenByPlayerPoint.has(`${point.player}:${point.x}:${point.y}`);
         }
@@ -7252,6 +7261,7 @@ export const useApp = () => {
                     result.guilds ||
                     /** `/api/action` 평탄화: `clientResponse`만 스프레드되어 최상위로만 오는 필드 */
                     (result as any).strategicPetHint ||
+                    (result as any).strategicPetHintBonus ||
                     /** `/api/action` 평탄화: `updatedUser`만 최상위에 있는 응답(페어 부화 수령 등)도 호출부에 전달 */
                     !!(result as any).updatedUser ||
                     /** 페어 펫 수련 수령: `pairTrainingClaimSummary`만 추가로 오는 경우에도 호출부(모달)로 전달 */

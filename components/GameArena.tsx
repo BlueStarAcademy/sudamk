@@ -35,8 +35,6 @@ interface GameArenaProps extends GameProps {
     strategicPetHintRewardAnimation?: { id: string; x: number; y: number; iconSrc: string; quantityLabel: string } | null;
     boardRuleFlashMessage?: string | null;
     blockScoringBoardAnalysis?: boolean;
-    /** 히든/스캔/미사일 진입 직후 안내 2초 구간 — 보드 포인터 입력 전부 차단 */
-    itemAimIntroBoardBlocked?: boolean;
     /** 온라인 PVP 착수 HTTP/WS 대기 중 */
     isMoveSubmitting?: boolean;
 }

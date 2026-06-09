@@ -818,10 +818,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     );
 
     const claimStrategicPetHintBonusIfMatched = useCallback(
-        (x: number, y: number, expectedMoveHistoryLength: number) => {
+        (x: number, y: number, expectedMoveHistoryLength: number, options?: { missileLand?: boolean }) => {
             const hint = strategicPetHintBoardOverlay;
             if (!hint || hint.x !== x || hint.y !== y) return;
-            const key = `${session.id}|${x}|${y}|${expectedMoveHistoryLength}`;
+            const key = `${session.id}|${x}|${y}|${options?.missileLand ? 'missile' : 'place'}|${expectedMoveHistoryLength}`;
             if (strategicPetHintBonusClaimKeyRef.current === key) return;
             strategicPetHintBonusClaimKeyRef.current = key;
             const pendingReward = strategicPetHintPendingRewardRef.current;
@@ -831,7 +831,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             void Promise.resolve(
                 handlers.handleAction({
                     type: 'CLAIM_STRATEGIC_PET_HINT_BONUS',
-                    payload: { gameId: session.id, x, y, expectedMoveHistoryLength },
+                    payload: {
+                        gameId: session.id,
+                        x,
+                        y,
+                        ...(options?.missileLand
+                            ? { missileLand: true }
+                            : { expectedMoveHistoryLength }),
+                    },
                 } as ServerAction),
             )
                 .then(handleStrategicPetHintActionResult)
@@ -861,14 +868,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     const ingameHandleAction = useCallback(
         async (action: ServerAction) => {
-            if (
-                (action.type === 'LAUNCH_MISSILE' ||
-                    action.type === 'SCAN_BOARD' ||
-                    (action.type === 'PLACE_STONE' && !!(action as any)?.payload?.isHidden)) &&
-                itemAimIntroBlockUntilRef.current > Date.now()
-            ) {
-                return { error: '아이템 연출 중입니다. 잠시 후 시도해주세요.' } as StrategicPetHintActionResult;
-            }
             const moveLenBefore =
                 action.type === 'REQUEST_STRATEGIC_PET_HINT' ? session.moveHistory?.length ?? 0 : null;
             const r = (await handlers.handleAction(action)) as
@@ -909,10 +908,31 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     }, 5000);
                 }
             }
+            if (action.type === 'LAUNCH_MISSILE') {
+                const bonus =
+                    (r as StrategicPetHintActionResult | undefined)?.strategicPetHintBonus ??
+                    (r as StrategicPetHintActionResult | undefined)?.clientResponse?.strategicPetHintBonus;
+                if (bonus?.reward) {
+                    showStrategicPetHintRewardAnimation({
+                        x: bonus.x,
+                        y: bonus.y,
+                        reward: bonus.reward,
+                    });
+                    setStrategicPetHintBoardOverlay(null);
+                    strategicPetHintMoveLenRef.current = null;
+                    strategicPetHintPendingRewardRef.current = null;
+                }
+            }
             handleStrategicPetHintActionResult(r);
             return r;
         },
-        [handleStrategicPetHintActionResult, handlers.handleAction, session.moveHistory?.length, session.id],
+        [
+            handleStrategicPetHintActionResult,
+            handlers.handleAction,
+            session.moveHistory?.length,
+            session.id,
+            showStrategicPetHintRewardAnimation,
+        ],
     );
 
     useEffect(() => {
@@ -969,11 +989,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     const [boardRuleFlashMessage, setBoardRuleFlashMessage] = useState<string | null>(null);
     const boardRuleFlashClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const hiddenPlacementDelayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const itemAimIntroUnlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const itemAimIntroBlockUntilRef = useRef<number>(0);
-    const itemAimIntroModeRef = useRef<'hidden_placing' | 'scanning' | 'missile_selecting' | null>(null);
-    const [itemAimIntroBoardBlocked, setItemAimIntroBoardBlocked] = useState(false);
     const flashBoardRuleMessage = useCallback((message: string, durationMs = 3500) => {
         if (boardRuleFlashClearRef.current) clearTimeout(boardRuleFlashClearRef.current);
         setBoardRuleFlashMessage(message);
@@ -2077,46 +2092,16 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     }, [gameStatus, prevGameStatus]);
 
     useEffect(() => {
-        const clearIntroUnlockTimer = () => {
-            if (itemAimIntroUnlockTimerRef.current) {
-                clearTimeout(itemAimIntroUnlockTimerRef.current);
-                itemAimIntroUnlockTimerRef.current = null;
-            }
-        };
-        const scheduleIntroBoardUnlock = () => {
-            clearIntroUnlockTimer();
-            setItemAimIntroBoardBlocked(true);
-            itemAimIntroUnlockTimerRef.current = setTimeout(() => {
-                itemAimIntroUnlockTimerRef.current = null;
-                setItemAimIntroBoardBlocked(false);
-            }, HIDDEN_PLACEMENT_DELAY_MS);
-        };
         if (gameStatus === 'hidden_placing' && prevGameStatus !== 'hidden_placing') {
-            itemAimIntroModeRef.current = 'hidden_placing';
-            itemAimIntroBlockUntilRef.current = Date.now() + HIDDEN_PLACEMENT_DELAY_MS;
-            scheduleIntroBoardUnlock();
             flashBoardRuleMessage(HIDDEN_PLACEMENT_DELAY_MESSAGE, HIDDEN_PLACEMENT_DELAY_MS - 250);
             return;
         }
         if (gameStatus === 'scanning' && prevGameStatus !== 'scanning') {
-            itemAimIntroModeRef.current = 'scanning';
-            itemAimIntroBlockUntilRef.current = Date.now() + HIDDEN_PLACEMENT_DELAY_MS;
-            scheduleIntroBoardUnlock();
             flashBoardRuleMessage(SCAN_TARGET_DELAY_MESSAGE, HIDDEN_PLACEMENT_DELAY_MS - 250);
             return;
         }
         if (gameStatus === 'missile_selecting' && prevGameStatus !== 'missile_selecting') {
-            itemAimIntroModeRef.current = 'missile_selecting';
-            itemAimIntroBlockUntilRef.current = Date.now() + HIDDEN_PLACEMENT_DELAY_MS;
-            scheduleIntroBoardUnlock();
             flashBoardRuleMessage(MISSILE_DIRECTION_DELAY_MESSAGE, HIDDEN_PLACEMENT_DELAY_MS - 250);
-            return;
-        }
-        if (gameStatus !== 'hidden_placing' && gameStatus !== 'scanning' && gameStatus !== 'missile_selecting') {
-            itemAimIntroModeRef.current = null;
-            itemAimIntroBlockUntilRef.current = 0;
-            clearIntroUnlockTimer();
-            setItemAimIntroBoardBlocked(false);
         }
     }, [gameStatus, prevGameStatus, flashBoardRuleMessage]);
 
@@ -2769,8 +2754,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     useEffect(() => () => {
         if (boardRuleFlashClearRef.current) clearTimeout(boardRuleFlashClearRef.current);
-        if (hiddenPlacementDelayTimerRef.current) clearTimeout(hiddenPlacementDelayTimerRef.current);
-        if (itemAimIntroUnlockTimerRef.current) clearTimeout(itemAimIntroUnlockTimerRef.current);
     }, []);
 
     const isItemModeActive = ['hidden_placing', 'scanning', 'missile_selecting', 'missile_animating', 'scanning_animating'].includes(gameStatus);
@@ -2781,14 +2764,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         if (isSpectator || gameStatus === 'missile_animating') return;
         if (gameStatus === 'ended' || gameStatus === 'no_contest' || gameStatus === 'scoring') {
             setPendingMove(null);
-            return;
-        }
-        if (
-            itemAimIntroBlockUntilRef.current > Date.now() &&
-            ((gameStatus === 'hidden_placing' && itemAimIntroModeRef.current === 'hidden_placing') ||
-                (gameStatus === 'scanning' && itemAimIntroModeRef.current === 'scanning') ||
-                (gameStatus === 'missile_selecting' && itemAimIntroModeRef.current === 'missile_selecting'))
-        ) {
             return;
         }
         const isPausableAiGame =
@@ -4989,7 +4964,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         strategicPetHintRewardAnimation={strategicPetHintRewardAnimation}
                                         boardRuleFlashMessage={boardRuleFlashMessage}
                                         blockScoringBoardAnalysis={blockScoringBoardAnalysis}
-                                        itemAimIntroBoardBlocked={itemAimIntroBoardBlocked}
                                         isMoveSubmitting={isMoveInFlight}
                                     />
                                     {boardHydrationOverlayEl}
@@ -5154,7 +5128,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         strategicPetHintRewardAnimation={strategicPetHintRewardAnimation}
                                         boardRuleFlashMessage={boardRuleFlashMessage}
                                         blockScoringBoardAnalysis={blockScoringBoardAnalysis}
-                                        itemAimIntroBoardBlocked={itemAimIntroBoardBlocked}
                                         isMoveSubmitting={isMoveInFlight}
                                     />
                                     {boardHydrationOverlayEl}
@@ -5424,7 +5397,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                                         strategicPetHintRewardAnimation={strategicPetHintRewardAnimation}
                                                         boardRuleFlashMessage={boardRuleFlashMessage}
                                                         blockScoringBoardAnalysis={blockScoringBoardAnalysis}
-                                                        itemAimIntroBoardBlocked={itemAimIntroBoardBlocked}
                                         isMoveSubmitting={isMoveInFlight}
                                                     />
                                                     {boardHydrationOverlayEl}
@@ -5451,7 +5423,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                                 showBoardGlow={boardGlowForHiddenScanItem}
                                                 boardRuleFlashMessage={boardRuleFlashMessage}
                                                 blockScoringBoardAnalysis={blockScoringBoardAnalysis}
-                                                itemAimIntroBoardBlocked={itemAimIntroBoardBlocked}
                                         isMoveSubmitting={isMoveInFlight}
                                             />
                                         )}

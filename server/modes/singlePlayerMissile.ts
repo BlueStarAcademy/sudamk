@@ -1126,7 +1126,16 @@ export const handleSinglePlayerMissileAction = async (game: types.LiveGameSessio
             console.log(`[SinglePlayer Missile] LAUNCH_MISSILE: Broadcasting GAME_UPDATE after launch, gameId=${game.id}, missilesLeft=${missilesAfter}`);
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
             
-            return {};
+            const petHintBonusResult = await (async () => {
+                const { handleStrategicPetHintBonusClaim } = await import('../strategicPetHintAction.js');
+                return handleStrategicPetHintBonusClaim(game, user, {
+                    x: to.x,
+                    y: to.y,
+                    missileLand: true,
+                });
+            })();
+
+            return petHintBonusResult ?? {};
         }
         
         case 'MISSILE_INVALID_SELECTION': {

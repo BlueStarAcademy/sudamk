@@ -30,7 +30,6 @@ interface GoGameArenaProps extends GameProps {
     boardRuleFlashMessage?: string | null;
     /** Game.tsx 계가 5초 연출이 끝나기 전에는 보드에 영토·계가 분석을 표시하지 않음 */
     blockScoringBoardAnalysis?: boolean;
-    itemAimIntroBoardBlocked?: boolean;
     isMoveSubmitting?: boolean;
 }
 
@@ -60,7 +59,6 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
         strategicPetHintRewardAnimation = null,
         boardRuleFlashMessage = null,
         blockScoringBoardAnalysis = false,
-        itemAimIntroBoardBlocked = false,
         isMoveSubmitting = false,
     } = props;
 
@@ -315,8 +313,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 isBoardDisabled={
                     props.isSpectator ||
                     (!isMyTurn && gameStatus !== 'base_placement') ||
-                    isBoardDisabledDueToTurnLimit ||
-                    itemAimIntroBoardBlocked
+                    isBoardDisabledDueToTurnLimit
                 }
                 stoneColor={myPlayerEnum}
                 winningLine={session.winningLine}

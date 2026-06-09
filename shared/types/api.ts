@@ -451,7 +451,7 @@ export type ServerAction =
     | { type: 'REQUEST_NO_CONTEST_LEAVE', payload: { gameId: string } }
     | { type: 'REQUEST_SERVER_AI_MOVE', payload: { gameId: string; clientSync?: PveItemActionClientSync } }
     | { type: 'REQUEST_STRATEGIC_PET_HINT', payload: { gameId: string } }
-    | { type: 'CLAIM_STRATEGIC_PET_HINT_BONUS', payload: { gameId: string; x: number; y: number; expectedMoveHistoryLength: number } }
+    | { type: 'CLAIM_STRATEGIC_PET_HINT_BONUS', payload: { gameId: string; x: number; y: number; expectedMoveHistoryLength?: number; missileLand?: boolean } }
     /** 모험/길드전·로비 Kata AI 대국: 클라이언트가 장시간 미착수 등으로 서버 상태를 다시 맞출 때 */
     | { type: 'REQUEST_GAME_STATE_SYNC', payload: { gameId: string } }
     | { type: 'EMERGENCY_EXIT', payload?: never }

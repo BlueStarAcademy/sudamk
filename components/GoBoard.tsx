@@ -472,20 +472,18 @@ const RecommendedMoveMarker: React.FC<{
     );
 };
 
-const Stone: React.FC<{ player: Player, cx: number, cy: number, isLastMove?: boolean, isSelectedMissile?: boolean, isHoverSelectableMissile?: boolean, isKnownHidden?: boolean, isNewlyRevealed?: boolean, animationClass?: string, isPending?: boolean, isBaseStone?: boolean, isPatternStone?: boolean, radius: number, isFaint?: boolean, keepUpright?: boolean }> = ({ player, cx, cy, isLastMove, isSelectedMissile, isHoverSelectableMissile, isKnownHidden, isNewlyRevealed, animationClass, isPending, isBaseStone, isPatternStone, radius, isFaint, keepUpright }) => {
+const Stone: React.FC<{ player: Player, cx: number, cy: number, isLastMove?: boolean, isSelectedMissile?: boolean, isHoverSelectableMissile?: boolean, isKnownHidden?: boolean, isNewlyRevealed?: boolean, animationClass?: string, isBaseStone?: boolean, isPatternStone?: boolean, radius: number, isFaint?: boolean, keepUpright?: boolean }> = ({ player, cx, cy, isLastMove, isSelectedMissile, isHoverSelectableMissile, isKnownHidden, isNewlyRevealed, animationClass, isBaseStone, isPatternStone, radius, isFaint, keepUpright }) => {
     const specialImageSize = radius * 2 * 0.7;
     const specialImageOffset = specialImageSize / 2;
 
-    const strokeColor = isPending ? 'rgb(34, 197, 94)'
-        : isSelectedMissile ? 'rgb(239, 68, 68)'
-        : 'none';
+    const strokeColor = isSelectedMissile ? 'rgb(239, 68, 68)' : 'none';
     
-    const strokeWidth = isSelectedMissile || isPending ? 3.5 : 0;
+    const strokeWidth = isSelectedMissile ? 3.5 : 0;
 
     return (
         <g
             className={`${animationClass || ''} ${isHoverSelectableMissile ? 'missile-selectable-stone' : ''}`}
-            opacity={isPending ? 0.6 : (isFaint ? 0.52 : 1)}
+            opacity={isFaint ? 0.52 : 1}
             transform={keepUpright ? `rotate(180 ${cx} ${cy})` : undefined}
         >
             <circle
@@ -1379,6 +1377,22 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
 
         return { x, y };
     };
+
+    /** 드래그 끝점(보드 격자 밖·레터박스 포함) 기준 미사일 방향 — `getBoardCoordinates`는 판 밖에서 null */
+    const resolveMissileDirectionFromScreenPoint = (
+        startStone: Point,
+        clientX: number,
+        clientY: number,
+    ): 'up' | 'down' | 'left' | 'right' | null => {
+        const svgEnd = screenToSvgRootPoint(clientX, clientY);
+        if (!svgEnd) return null;
+        const { cx, cy } = toSvgCoords(startStone);
+        const dx = svgEnd.x - cx;
+        const dy = svgEnd.y - cy;
+        if (Math.hypot(dx, dy) < 8) return null;
+        if (Math.abs(dx) > Math.abs(dy)) return dx > 0 ? 'right' : 'left';
+        return dy > 0 ? 'down' : 'up';
+    };
     
     const getNeighbors = useCallback((p: Point): Point[] => {
         const neighbors: Point[] = [];
@@ -1438,17 +1452,14 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
             if (!isMobile && dragDistance < 10) {
                 // It's a click, leave the stone selected for the arrow-based launch.
                 return;
-            } else if (startStone && boardPos && onMissileLaunch) {
-                const dx = boardPos.x - startStone.x;
-                const dy = boardPos.y - startStone.y;
-
-                if (dx !== 0 || dy !== 0) {
-                    let direction: 'up' | 'down' | 'left' | 'right';
-                    if (Math.abs(dx) > Math.abs(dy)) {
-                        direction = dx > 0 ? 'right' : 'left';
-                    } else {
-                        direction = dy > 0 ? 'down' : 'up';
-                    }
+            } else if (startStone && onMissileLaunch) {
+                const releaseClient = dragEndPoint ?? { x: e.clientX, y: e.clientY };
+                const direction = resolveMissileDirectionFromScreenPoint(
+                    startStone,
+                    releaseClient.x,
+                    releaseClient.y,
+                );
+                if (direction) {
                     onMissileLaunch(startStone, direction);
                     setSelectedMissileStone(null);
                 }
@@ -1981,10 +1992,11 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     const isHiddenMove =
                         !isPlainStoneReuseIntersection &&
                         !!histMove &&
+                        isHiddenMoveByHistory &&
                         (
-                            actualPlayer === myPlayerEnum && hasHumanHiddenPointMarkers
-                                ? (!!isHumanHiddenPointMarker || isHiddenMoveByHistory)
-                                : isHiddenMoveByHistory
+                            actualPlayer !== myPlayerEnum ||
+                            !hasHumanHiddenPointMarkers ||
+                            !!isHumanHiddenPointMarker
                         );
                     const isInRevealAnimation =
                         isHiddenRevealStatus &&
@@ -2159,14 +2171,12 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 {pendingMove && (() => {
                     const { cx, cy } = toSvgCoords({ x: pendingMove.x, y: pendingMove.y });
                     return (
-                        <g opacity={0.45} style={{ pointerEvents: 'none' }}>
+                        <g style={{ pointerEvents: 'none' }}>
                             <Stone
                                 player={pendingMove.player}
                                 cx={cx}
                                 cy={cy}
                                 radius={stone_radius}
-                                isLastMove={false}
-                                isPending={true}
                             />
                         </g>
                     );
@@ -2202,24 +2212,16 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     );
                 })}
 
-                {showHoverPreview && hoverPos && ( <g opacity="0.5"> <Stone player={stoneColor} cx={toSvgCoords(hoverPos).cx} cy={toSvgCoords(hoverPos).cy} radius={stone_radius} /> </g> )}
-                {isMoveSubmitting && hoverPos && (() => {
-                    const { cx, cy } = toSvgCoords(hoverPos);
-                    return (
-                        <g pointerEvents="none">
-                            <circle
-                                cx={cx}
-                                cy={cy}
-                                r={stone_radius * 0.55}
-                                fill="none"
-                                stroke="rgb(34, 197, 94)"
-                                strokeWidth={2.5}
-                                opacity={0.75}
-                                className="animate-pulse"
-                            />
-                        </g>
-                    );
-                })()}
+                {(showHoverPreview || isMoveSubmitting) && hoverPos && (
+                    <g style={{ pointerEvents: 'none' }}>
+                        <Stone
+                            player={stoneColor}
+                            cx={toSvgCoords(hoverPos).cx}
+                            cy={toSvgCoords(hoverPos).cy}
+                            radius={stone_radius}
+                        />
+                    </g>
+                )}
                 {renderMissileLaunchPreview()}
                 {/* 계가/결과 모달 중에는 미사일 등 애니메이션 미표시 — 최종 보드만 표시 */}
                 {animation && !isScoringOrEnded && (() => {

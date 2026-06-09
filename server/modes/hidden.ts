@@ -7,6 +7,7 @@ import {
     consumeOpponentPatternStoneIfAny,
     recordPatternStoneConsumed,
     stripPatternStonesAtConsumedIntersections,
+    removeHumanHiddenStonePointsForPlayer,
 } from '../../shared/utils/patternStoneConsume.js';
 import {
     isIntersectionRecordedAsBaseStone,
@@ -199,6 +200,7 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                                 points = 5;
                                 wasHiddenForEntry = true;
                                 recordPatternStoneConsumed(game, stone);
+                                removeHumanHiddenStonePointsForPlayer(game, stone, opponentPlayerEnum);
                             }
                         }
                         game.captures[myPlayerEnum] += points;

@@ -332,18 +332,38 @@ export async function handleStrategicPetHintRequest(
     };
 }
 
+function playerEnumForUser(game: types.LiveGameSession, userId: string): types.Player {
+    if (game.blackPlayerId === userId) return types.Player.Black;
+    if (game.whitePlayerId === userId) return types.Player.White;
+    return types.Player.None;
+}
+
 export async function handleStrategicPetHintBonusClaim(
     game: types.LiveGameSession,
     user: types.User,
-    point: { x: number; y: number; expectedMoveHistoryLength?: number },
+    point: {
+        x: number;
+        y: number;
+        expectedMoveHistoryLength?: number;
+        /** 미사일 착지 등 수순 길이가 늘지 않는 힌트 이행 */
+        missileLand?: boolean;
+    },
 ): Promise<types.HandleActionResult | null> {
     if (!isStrategicPetHintContext(game) || !isStrategicPetHintBonusEligible(game)) return null;
 
     const pending = readPendingHint(game, user.id);
     if (!pending || pending.claimed || pending.x !== point.x || pending.y !== point.y) return null;
 
-    const expectedMoveHistoryLength = Number(point.expectedMoveHistoryLength ?? game.moveHistory?.length ?? 0);
-    if (expectedMoveHistoryLength !== pending.moveHistoryLength + 1) return null;
+    if (point.missileLand) {
+        const currentLen = game.moveHistory?.length ?? 0;
+        if (currentLen !== pending.moveHistoryLength) return null;
+        const myPlayerEnum = playerEnumForUser(game, user.id);
+        if (myPlayerEnum === types.Player.None) return null;
+        if (game.boardState?.[point.y]?.[point.x] !== myPlayerEnum) return null;
+    } else {
+        const expectedMoveHistoryLength = Number(point.expectedMoveHistoryLength ?? game.moveHistory?.length ?? 0);
+        if (expectedMoveHistoryLength !== pending.moveHistoryLength + 1) return null;
+    }
 
     const freshUser = await db.getUser(user.id);
     if (!freshUser) return null;

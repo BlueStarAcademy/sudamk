@@ -43,6 +43,8 @@ import {
     consumeOpponentPatternStoneIfAny,
     recordPatternStoneConsumed,
     stripPatternStonesAtConsumedIntersections,
+    removeHumanHiddenStonePointsForPlayer,
+    clearHumanHiddenStonePointsAtIntersection,
 } from '../../shared/utils/patternStoneConsume.js';
 import {
     isIntersectionRecordedAsBaseStone,
@@ -925,6 +927,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             x: Number(payload?.x),
             y: Number(payload?.y),
             expectedMoveHistoryLength: Number(payload?.expectedMoveHistoryLength),
+            missileLand: payload?.missileLand === true,
         });
     }
 
@@ -1753,11 +1756,14 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                         if (isBaseStone) {
                             game.baseStoneCaptures[myPlayerEnum]++;
                             points = 5;
+                            recordPatternStoneConsumed(game, stone);
                         } else if (consumeOpponentPatternStoneIfAny(game, stone, capturedPlayerEnum)) {
                             points = 2;
                         } else if (wasHidden || wasRevealedHidden) {
                             game.hiddenStoneCaptures[myPlayerEnum]++;
                             points = 5;
+                            recordPatternStoneConsumed(game, stone);
+                            removeHumanHiddenStonePointsForPlayer(game, stone, capturedPlayerEnum);
                             if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
                             game.permanentlyRevealedStones.push(stone);
                         }
@@ -1794,8 +1800,11 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
 
             // 같은 교차점에 일반 착수 시, 과거 히든 공개 마커가 남아 문양이 꼬이지 않게 한다.
             // 베이스 마커는 실제로 따인 좌표만 위 removeCapturedBaseStoneMarkersFromSession에서 제거한다.
-            if (!effectiveIsHidden && game.permanentlyRevealedStones?.length) {
-                game.permanentlyRevealedStones = game.permanentlyRevealedStones.filter((p) => !(p.x === x && p.y === y));
+            if (!effectiveIsHidden) {
+                if (game.permanentlyRevealedStones?.length) {
+                    game.permanentlyRevealedStones = game.permanentlyRevealedStones.filter((p) => !(p.x === x && p.y === y));
+                }
+                clearHumanHiddenStonePointsAtIntersection(game, { x, y });
             }
 
             const playerWhoMoved = myPlayerEnum;

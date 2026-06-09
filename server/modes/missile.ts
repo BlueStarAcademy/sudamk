@@ -659,8 +659,17 @@ export const handleMissileAction = (game: types.LiveGameSession, action: types.S
             game.totalTurns = (game.moveHistory || []).length;
             
             // 미사일 아이템은 턴을 사용하는 행동이 아니므로 totalTurns를 증가시키지 않음
+
+            const petHintBonusResult = await (async () => {
+                const { handleStrategicPetHintBonusClaim } = await import('../strategicPetHintAction.js');
+                return handleStrategicPetHintBonusClaim(game, user, {
+                    x: to.x,
+                    y: to.y,
+                    missileLand: true,
+                });
+            })();
             
-            return {};
+            return petHintBonusResult ?? {};
         }
         
         case 'MISSILE_INVALID_SELECTION': {
