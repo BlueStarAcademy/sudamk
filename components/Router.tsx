@@ -38,6 +38,7 @@ const routeShellClass = 'flex h-full min-h-0 w-full min-w-0 flex-1 flex-col over
 // 게임 라우트 로더 컴포넌트 (게임이 로드될 때까지 대기, 새로고침 시 재입장 대기)
 const GameRouteLoader: React.FC<{ gameId: string }> = ({ gameId }) => {
     const { activeGame, singlePlayerGames, towerGames, liveGames, currentUser, gameRejoinFailure, handlers } = useAppContext();
+    const { recoverPveGameFromSessionStorage } = handlers;
     const [hasTimedOut, setHasTimedOut] = useState(false);
     const currentRejoinFailure = gameRejoinFailure?.gameId === gameId ? gameRejoinFailure : null;
     // 새로고침(F5) 시 재입장은 INITIAL_STATE 직후 지연(약 2.5초) + 네트워크 여유
@@ -51,6 +52,9 @@ const GameRouteLoader: React.FC<{ gameId: string }> = ({ gameId }) => {
                 const allGamesCheck = { ...(liveGames || {}), ...(singlePlayerGames || {}), ...(towerGames || {}) };
                 const game = allGamesCheck[gameId];
                 if (game && currentUser && (game.player1?.id === currentUser.id || game.player2?.id === currentUser.id)) {
+                    return;
+                }
+                if (recoverPveGameFromSessionStorage(gameId)) {
                     return;
                 }
                 const pairArenaRestore = readPairArenaRestoreFromGameStateStorage(gameId);
@@ -80,7 +84,7 @@ const GameRouteLoader: React.FC<{ gameId: string }> = ({ gameId }) => {
         }, maxWaitTime);
 
         return () => clearTimeout(timeout);
-    }, [gameId, activeGame, singlePlayerGames, towerGames, liveGames, currentUser, currentRejoinFailure?.reason]);
+    }, [gameId, activeGame, singlePlayerGames, towerGames, liveGames, currentUser, currentRejoinFailure?.reason, recoverPveGameFromSessionStorage]);
 
     // activeGame이 로드되면 즉시 렌더링 (status 기반 또는 URL 폴백)
     if (activeGame && activeGame.id === gameId) {

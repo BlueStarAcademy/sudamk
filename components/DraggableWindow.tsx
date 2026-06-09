@@ -18,6 +18,8 @@ import {
 import {
     INGAME_BOARD_FRAME_MAX_HEIGHT_PX,
     INGAME_BOARD_FRAME_MAX_WIDTH_PX,
+    INGAME_RESULT_PANEL_BOARD_GAP_PX,
+    INGAME_RESULT_PANEL_WIDTH_PX,
 } from '../constants/ingameModalFrame.js';
 import { useInGameModalLayout } from '../contexts/InGameModalLayoutContext.js';
 import { getModalScaleFitPaddingPx } from '../utils/modalViewportPadding.js';
@@ -185,6 +187,12 @@ interface DraggableWindowProps {
     /** true면 인게임 보드 프레임 기준 폭/높이 상한을 적용하지 않음 */
     skipIngameBoardFrameSizeCap?: boolean;
 
+    /**
+     * 인게임 경기 결과: 바둑판 중앙이 아니라 보드 오른쪽(사이드바 열)에 세로 패널로 도킹.
+     * `modalBackdrop`/`transparentModalBackdrop`과 함께 쓰면 보드가 그대로 보인다.
+     */
+    ingameResultSideDock?: boolean;
+
 }
 
 
@@ -339,6 +347,61 @@ function screenDeltaToPositionDelta(dScreenX: number, dScreenY: number): { dx: n
     return { dx: dScreenX * rx, dy: dScreenY * ry };
 }
 
+/** 인게임 경기 결과: 바둑판 우측(사이드바 열)에 세로 패널 도킹 — viewportPortal/fixed 기준 */
+function getIngameResultPanelSideDockPositionScreen(
+    base: { x: number; y: number },
+    panelWidthPx: number = INGAME_RESULT_PANEL_WIDTH_PX,
+): { x: number; y: number } {
+    if (typeof document === 'undefined' || typeof window === 'undefined') return base;
+    const boardEl = document.querySelector('.go-board-panel') as HTMLElement | null;
+    if (!boardEl) return base;
+
+    const boardRect = boardEl.getBoundingClientRect();
+    if (boardRect.width <= 0 || boardRect.height <= 0) return base;
+
+    const vv = window.visualViewport;
+    const refCx = vv ? vv.offsetLeft + vv.width / 2 : window.innerWidth / 2;
+    const refCy = vv ? vv.offsetTop + vv.height / 2 : window.innerHeight / 2;
+    const layoutW = vv?.width ?? window.innerWidth;
+
+    const halfW = panelWidthPx / 2;
+    const maxCx = layoutW - halfW - 8;
+    const preferredCx = boardRect.right + INGAME_RESULT_PANEL_BOARD_GAP_PX + halfW;
+    const targetCx = Math.min(Math.max(preferredCx, halfW + 8), maxCx);
+    const boardCy = boardRect.top + boardRect.height / 2;
+
+    return {
+        x: base.x + (targetCx - refCx),
+        y: base.y + (boardCy - refCy),
+    };
+}
+
+/** 인게임 결과 패널: 설계 픽셀 modal-root 기준으로 보드 우측에 도킹 */
+function getIngameResultPanelSideDockPosition(base: { x: number; y: number }): { x: number; y: number } {
+    if (typeof document === 'undefined') return base;
+    const modalRoot = document.getElementById('sudamr-modal-root');
+    const boardEl = document.querySelector('.go-board-panel') as HTMLElement | null;
+    if (!modalRoot || !boardEl) return getIngameResultPanelSideDockPositionScreen(base);
+
+    const rootRect = modalRoot.getBoundingClientRect();
+    const boardRect = boardEl.getBoundingClientRect();
+    if (rootRect.width <= 0 || rootRect.height <= 0 || boardRect.width <= 0 || boardRect.height <= 0) {
+        return getIngameResultPanelSideDockPositionScreen(base);
+    }
+
+    const rootCx = rootRect.left + rootRect.width / 2;
+    const halfW = INGAME_RESULT_PANEL_WIDTH_PX / 2;
+    const maxScreenCx = rootRect.right - halfW - 8;
+    const preferredScreenCx = boardRect.right + INGAME_RESULT_PANEL_BOARD_GAP_PX + halfW;
+    const targetScreenCx = Math.min(Math.max(preferredScreenCx, rootRect.left + halfW + 8), maxScreenCx);
+    const boardCy = boardRect.top + boardRect.height / 2;
+    const rootCy = rootRect.top + rootRect.height / 2;
+    const dScreenX = targetScreenCx - rootCx;
+    const dScreenY = boardCy - rootCy;
+    const { dx, dy } = screenDeltaToPositionDelta(dScreenX, dScreenY);
+    return { x: base.x + dx, y: base.y + dy };
+}
+
 /** 인게임 모달 기본 위치: 바둑판(.go-board-panel) 중심점으로 정렬 */
 function getIngameBoardCenteredDefaultPosition(base: { x: number; y: number }): { x: number; y: number } {
     if (typeof document === 'undefined') return base;
@@ -427,6 +490,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     viewportPortal = false,
     autoViewportPortalOnSmallDesktop = false,
     skipIngameBoardFrameSizeCap = false,
+    ingameResultSideDock = false,
 }) => {
     const stackEntryId = useId();
     const [effectiveZIndex, setEffectiveZIndex] = useState(10_000);
@@ -516,11 +580,17 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     const effectiveDefaultPosition = useMemo(() => {
         const base = { x: defaultPosition?.x ?? 0, y: defaultPosition?.y ?? 0 };
         if (!ingameBoardFrame) return base;
+        if (ingameResultSideDock) {
+            if (modalLayerUsesDesignPixels) {
+                return getIngameResultPanelSideDockPosition(base);
+            }
+            return getIngameResultPanelSideDockPositionScreen(base);
+        }
         if (modalLayerUsesDesignPixels) {
             return getIngameBoardCenteredDefaultPosition(base);
         }
         return getIngameBoardCenteredDefaultPositionViewportFixed(base);
-    }, [defaultPosition, modalLayerUsesDesignPixels, ingameBoardFrame, windowWidth, windowHeight]);
+    }, [defaultPosition, modalLayerUsesDesignPixels, ingameBoardFrame, ingameResultSideDock, windowWidth, windowHeight]);
 
     const [rememberPosition, setRememberPosition] = useState(true);
 

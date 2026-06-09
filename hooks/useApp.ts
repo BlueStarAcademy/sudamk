@@ -79,7 +79,7 @@ import {
     pairPetQuickMenuNeedsSecondTick,
 } from '../shared/utils/pairPetQuickClaimNotification.js';
 import { stampObtainedItemsBulk } from '../shared/utils/obtainedItemsBulk.js';
-import { advancePairTurn, getCurrentPairTurnSeat, isPairAiSeat, resetPairPasses } from '../shared/utils/pairGameTurn.js';
+import { advancePairTurn, getCurrentPairTurnSeat, isPairAiSeat, isPairClassicGame, normalizePairTurnIndex, resetPairPasses } from '../shared/utils/pairGameTurn.js';
 import { mergePairPetTrainingSlotsPreserveRecentRestart } from '../shared/utils/pairPetTrainingSlotsClientMerge.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
 import {
@@ -146,6 +146,13 @@ import {
     shouldClearMissileFlightAnimationOnPlayingMerge,
     shouldIgnoreStaleLiveTerminalGameUpdate,
 } from '../utils/clientGameMergePolicy.js';
+import {
+    augmentPveFromSessionStorageSnapshot,
+    boardGridHasAnyStones,
+    getArenaStoreBucketForSession,
+    isSessionPveArena,
+    loadRecoverablePveGameFromSessionStorage,
+} from '../utils/pveSessionStorageRestore.js';
 import {
     loadEndedPvpGameFromSessionStorage,
     persistEndedPvpGameToSessionStorage,
@@ -870,6 +877,116 @@ function patchLiveGameInMapById(
     return { ...currentGames, [gameId]: next };
 }
 
+/** 온라인·페어 AI: LAUNCH 직후 서버가 이미 보드를 반영했으므로 연출 필드만 정리한다. */
+function mutateLiveMissilePresentationComplete(game: LiveGameSession): LiveGameSession | null {
+    const isTerminal =
+        game.gameStatus === 'ended' || game.gameStatus === 'no_contest' || game.gameStatus === 'scoring';
+    const hasMissileAnim =
+        !!game.animation &&
+        (game.animation.type === 'missile' || game.animation.type === 'hidden_missile');
+    if (!hasMissileAnim && game.gameStatus !== 'missile_animating') {
+        return null;
+    }
+
+    const animPlayer = (game.animation as { player?: Player } | null | undefined)?.player;
+    const playerWhoMoved =
+        animPlayer === Player.Black || animPlayer === Player.White ? animPlayer : game.currentPlayer;
+
+    let updatedBlackTime = game.blackTimeLeft;
+    let updatedWhiteTime = game.whiteTimeLeft;
+    if (game.pausedTurnTimeLeft !== undefined && playerWhoMoved !== Player.None) {
+        if (playerWhoMoved === Player.Black) {
+            updatedBlackTime = game.pausedTurnTimeLeft;
+        } else {
+            updatedWhiteTime = game.pausedTurnTimeLeft;
+        }
+    }
+
+    return {
+        ...game,
+        animation: null,
+        gameStatus: isTerminal ? game.gameStatus : 'playing',
+        blackTimeLeft: updatedBlackTime,
+        whiteTimeLeft: updatedWhiteTime,
+        pausedTurnTimeLeft: undefined,
+        itemUseDeadline: undefined,
+    };
+}
+
+/** 페어 4인 수순: 낡은 GAME_UPDATE가 currentTurnIndex·currentPlayer를 되돌리면 유저 턴만 반복되는 버그 */
+function preservePairTurnIfExistingAhead(
+    existing: LiveGameSession | undefined,
+    merged: LiveGameSession,
+): LiveGameSession {
+    if (!existing || !isPairClassicGame(merged.settings, merged.mode)) return merged;
+    const epg = existing.settings?.pairGame;
+    const mpg = merged.settings?.pairGame;
+    if (!epg?.turnOrder?.length || !mpg?.turnOrder?.length) return merged;
+
+    const em = existing.moveHistory?.length ?? 0;
+    const mm = merged.moveHistory?.length ?? 0;
+    if (em > mm) {
+        const serverMoves = merged.moveHistory ?? [];
+        const clientMoves = existing.moveHistory ?? [];
+        const prefixMatches =
+            mm === 0 ||
+            serverMoves.every(
+                (m, i) =>
+                    (m as { x?: number; y?: number; player?: Player }).x ===
+                        (clientMoves[i] as { x?: number; y?: number; player?: Player })?.x &&
+                    (m as { x?: number; y?: number; player?: Player }).y ===
+                        (clientMoves[i] as { x?: number; y?: number; player?: Player })?.y &&
+                    (m as { x?: number; y?: number; player?: Player }).player ===
+                        (clientMoves[i] as { x?: number; y?: number; player?: Player })?.player,
+            );
+        if (!prefixMatches) return merged;
+
+        return {
+            ...merged,
+            settings: {
+                ...merged.settings,
+                pairGame: {
+                    ...mpg,
+                    ...epg,
+                    turnOrder: epg.turnOrder,
+                    currentTurnIndex: epg.currentTurnIndex,
+                    passSeatIds: epg.passSeatIds,
+                },
+            },
+            boardState: existing.boardState,
+            moveHistory: existing.moveHistory,
+            currentPlayer: existing.currentPlayer,
+            captures: existing.captures ?? merged.captures,
+            koInfo: existing.koInfo ?? merged.koInfo,
+            lastMove: existing.lastMove ?? merged.lastMove,
+        };
+    }
+    if (em !== mm) return merged;
+
+    const eIdx = normalizePairTurnIndex(epg);
+    const mIdx = normalizePairTurnIndex(mpg);
+    if (eIdx === mIdx) return merged;
+
+    const len = epg.turnOrder.length;
+    const expectedIdx = len > 0 ? em % len : 0;
+    if (eIdx === expectedIdx && mIdx !== expectedIdx) {
+        return {
+            ...merged,
+            settings: {
+                ...merged.settings,
+                pairGame: {
+                    ...mpg,
+                    currentTurnIndex: eIdx,
+                    turnOrder: epg.turnOrder,
+                    passSeatIds: epg.passSeatIds,
+                },
+            },
+            currentPlayer: existing.currentPlayer,
+        };
+    }
+    return merged;
+}
+
 function shouldDropStaleStrategicGameUpdate(
     incoming: LiveGameSession,
     existing: LiveGameSession | undefined
@@ -1323,8 +1440,7 @@ function mergePveRejoinResponseWithExistingBoard(
     incoming: LiveGameSession,
 ): LiveGameSession {
     if (!existing) return incoming;
-    const isPve =
-        isSessionSingleOrTower(incoming);
+    const isPve = isSessionPveArena(incoming);
     if (!isPve) return incoming;
     const terminal = incoming.gameStatus === 'ended' || incoming.gameStatus === 'no_contest';
     if (!terminal) return incoming;
@@ -1345,129 +1461,18 @@ function mergePveRejoinResponseWithExistingBoard(
     };
 }
 
-/**
- * INITIAL_STATE가 pending·무수순으로 올 때 sessionStorage에 진행 중 대국이 있으면(새로고침)
- * 경기 시작 모달·따낸 돌·시간·턴이 초기화되는 것을 막는다.
- */
-function augmentPveFromSessionStorageSnapshot(
-    incoming: LiveGameSession,
-    parsed: Record<string, unknown> | null | undefined
-): LiveGameSession {
-    if (!parsed || (parsed as { gameId?: string }).gameId !== incoming.id) return incoming;
-
-    const stMoves = Array.isArray((parsed as { moveHistory?: unknown }).moveHistory)
-        ? ((parsed as { moveHistory: unknown[] }).moveHistory?.length ?? 0)
-        : 0;
-    const incMoves = Array.isArray(incoming.moveHistory) ? incoming.moveHistory.length : 0;
-    const stTotalRaw = (parsed as { totalTurns?: unknown }).totalTurns;
-    const stTotal = typeof stTotalRaw === 'number' && Number.isFinite(stTotalRaw) ? stTotalRaw : 0;
-    const incTotal = incoming.totalTurns ?? 0;
-    const cap = (parsed as { captures?: Record<number, number> }).captures;
-    const hasStoredCaptures =
-        cap &&
-        typeof cap === 'object' &&
-        ((cap[Player.Black] ?? 0) > 0 || (cap[Player.White] ?? 0) > 0);
-
-    const midGame =
-        stMoves > 0 ||
-        stTotal > incTotal ||
-        (stTotal > 0 && incMoves === 0) ||
-        !!hasStoredCaptures;
-
-    if (!midGame) return incoming;
-
-    /** 서버(INITIAL/rejoin) 수순이 더 길면 sessionStorage는 과거 스냅샷 — 옛 판·짧은 수순으로 덮어쓰면 베이스 재배치·초기화처럼 보임 */
-    const serverAheadOnMoves = incMoves > stMoves;
-    const incHasBoardGrid = hasHydratedBoardGridForRejoin(incoming);
-
-    const incPending = (incoming.gameStatus || '') === 'pending';
-    const storedStatus = String((parsed as { gameStatus?: string }).gameStatus || '');
-    const playingish = [
-        'playing',
-        'hidden_placing',
-        'scanning',
-        'missile_selecting',
-        'missile_animating',
-        'scanning_animating',
-        'hidden_reveal_animating',
-        'scoring',
-        'hidden_final_reveal',
-    ].includes(storedStatus);
-
-    const out: LiveGameSession = { ...incoming };
-    const pm = (parsed as { moveHistory?: LiveGameSession['moveHistory'] }).moveHistory;
-    if (stMoves > incMoves && Array.isArray(pm)) {
-        out.moveHistory = pm;
+function augmentPveRejoinWithSessionStorage(merged: LiveGameSession): LiveGameSession {
+    if (!isSessionPveArena(merged)) return merged;
+    try {
+        const stored =
+            typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(`gameState_${merged.id}`) : null;
+        if (!stored) return merged;
+        const parsed = JSON.parse(stored) as Record<string, unknown>;
+        if (parsed.gameId !== merged.id) return merged;
+        return augmentPveFromSessionStorageSnapshot(merged, parsed);
+    } catch {
+        return merged;
     }
-    const pb = (parsed as { boardState?: LiveGameSession['boardState'] }).boardState;
-    if (
-        !serverAheadOnMoves &&
-        Array.isArray(pb) &&
-        pb.length > 0 &&
-        Array.isArray(pb[0]) &&
-        (pb[0] as unknown[]).length > 0
-    ) {
-        const pbOk = pb.some(
-            (row: unknown) =>
-                Array.isArray(row) && row.some((c: unknown) => c !== 0 && c !== null && c !== undefined)
-        );
-        if (pbOk && (stMoves > incMoves || !incHasBoardGrid)) {
-            out.boardState = pb;
-        }
-    }
-    if (typeof stTotalRaw === 'number' && Number.isFinite(stTotalRaw) && stTotalRaw > (out.totalTurns ?? 0)) {
-        (out as { totalTurns?: number }).totalTurns = stTotalRaw;
-    }
-    if (!serverAheadOnMoves && cap && typeof cap === 'object') out.captures = cap as LiveGameSession['captures'];
-    const bsc = (parsed as { baseStoneCaptures?: unknown }).baseStoneCaptures;
-    if (!serverAheadOnMoves && bsc && typeof bsc === 'object')
-        (out as { baseStoneCaptures?: unknown }).baseStoneCaptures = bsc;
-    const hsc = (parsed as { hiddenStoneCaptures?: unknown }).hiddenStoneCaptures;
-    if (!serverAheadOnMoves && hsc && typeof hsc === 'object')
-        (out as { hiddenStoneCaptures?: unknown }).hiddenStoneCaptures = hsc;
-
-    if (incPending && (playingish || stMoves > 0)) {
-        if (playingish && storedStatus) (out as { gameStatus?: string }).gameStatus = storedStatus as LiveGameSession['gameStatus'];
-        else out.gameStatus = 'playing';
-        const st = (parsed as { startTime?: unknown }).startTime;
-        if (typeof st === 'number') (out as { startTime?: number }).startTime = st;
-        const cp = (parsed as { currentPlayer?: unknown }).currentPlayer;
-        if (typeof cp === 'number') out.currentPlayer = cp as Player;
-    }
-
-    const btl = (parsed as { blackTimeLeft?: unknown }).blackTimeLeft;
-    if (typeof btl === 'number') out.blackTimeLeft = btl;
-    const wtl = (parsed as { whiteTimeLeft?: unknown }).whiteTimeLeft;
-    if (typeof wtl === 'number') out.whiteTimeLeft = wtl;
-    if ((parsed as { turnDeadline?: unknown }).turnDeadline != null)
-        out.turnDeadline = (parsed as { turnDeadline: number | undefined }).turnDeadline;
-    if ((parsed as { turnStartTime?: unknown }).turnStartTime != null)
-        out.turnStartTime = (parsed as { turnStartTime: number | undefined }).turnStartTime;
-    const gst = (parsed as { gameStartTime?: unknown }).gameStartTime;
-    if (typeof gst === 'number') (out as { gameStartTime?: number }).gameStartTime = gst;
-    const btb = (parsed as { blackTurnLimitBonus?: unknown }).blackTurnLimitBonus;
-    if (btb != null) (out as { blackTurnLimitBonus?: number }).blackTurnLimitBonus = Number(btb) || 0;
-
-    const sbp = (parsed as { blackPatternStones?: unknown }).blackPatternStones;
-    if (!serverAheadOnMoves && (stMoves > incMoves || incMoves === 0) && Array.isArray(sbp))
-        out.blackPatternStones = sbp as LiveGameSession['blackPatternStones'];
-    const swp = (parsed as { whitePatternStones?: unknown }).whitePatternStones;
-    if (!serverAheadOnMoves && (stMoves > incMoves || incMoves === 0) && Array.isArray(swp))
-        out.whitePatternStones = swp as LiveGameSession['whitePatternStones'];
-    if (!serverAheadOnMoves && (parsed as { lastMove?: unknown }).lastMove != null)
-        out.lastMove = (parsed as { lastMove: LiveGameSession['lastMove'] }).lastMove;
-    if (!serverAheadOnMoves && (parsed as { koInfo?: unknown }).koInfo !== undefined)
-        out.koInfo = (parsed as { koInfo: LiveGameSession['koInfo'] }).koInfo;
-    const hm = (parsed as { hiddenMoves?: unknown }).hiddenMoves;
-    if (!serverAheadOnMoves && hm && typeof hm === 'object') out.hiddenMoves = hm as LiveGameSession['hiddenMoves'];
-    const pr = (parsed as { permanentlyRevealedStones?: unknown }).permanentlyRevealedStones;
-    if (!serverAheadOnMoves && Array.isArray(pr)) out.permanentlyRevealedStones = pr as LiveGameSession['permanentlyRevealedStones'];
-    const h1 = (parsed as { hidden_stones_p1?: unknown }).hidden_stones_p1;
-    if (!serverAheadOnMoves && typeof h1 === 'number') (out as { hidden_stones_p1?: number }).hidden_stones_p1 = h1;
-    const h2 = (parsed as { hidden_stones_p2?: unknown }).hidden_stones_p2;
-    if (!serverAheadOnMoves && typeof h2 === 'number') (out as { hidden_stones_p2?: number }).hidden_stones_p2 = h2;
-
-    return coerceClassicPveHumanBlackSeatsIfSwapped(out);
 }
 
 /** PLACE_STONE 패(코) 불가 — Game 전광판으로 안내하므로 전역 에러 모달은 생략 */
@@ -2157,6 +2162,8 @@ export const useApp = () => {
     const pvpDicePlaceInFlightRef = useRef<Record<string, number>>({});
     /** 낙관 착수 실패 시 복구용 스냅샷 (해당 gameId당 1개) */
     const pvpDicePlaceRevertRef = useRef<Record<string, LiveGameSession>>({});
+    /** PVP 일반 착수(PLACE_STONE) 낙관 반영 실패 시 복구용 스냅샷 */
+    const pvpPlaceStoneRevertRef = useRef<Record<string, LiveGameSession>>({});
     /** TOWER_ADD_TURNS: fetch 전 낙관 보너스(+3) 적용분 — 실패 시 롤백 */
     const towerAddTurnOptimisticPendingByGameRef = useRef<Record<string, number>>({});
     /** 싱글/탑 기권: 서버 정산(processSinglePlayerGameSummary 등) 지연 동안 즉시 ended 반영 후 실패 시 롤백 */
@@ -3212,6 +3219,44 @@ export const useApp = () => {
         });
     }, [setConnectionNotice]);
 
+    const applyRecoveredPveGameToStore = useCallback((game: LiveGameSession) => {
+        const bucket = getArenaStoreBucketForSession(game);
+        const merge = (prev: Record<string, LiveGameSession>) => ({
+            ...prev,
+            [game.id]: mergePveRejoinResponseWithExistingBoard(prev[game.id], game),
+        });
+        if (bucket === 'singlePlayerGames') {
+            setSinglePlayerGames(merge);
+        } else if (bucket === 'towerGames') {
+            setTowerGames(merge);
+        } else {
+            setLiveGames(merge);
+        }
+    }, []);
+
+    const recoverPveGameFromSessionStorage = useCallback(
+        (gameId: string): boolean => {
+            if (!currentUser?.id || !gameId) return false;
+            const shell =
+                liveGames[gameId] || singlePlayerGames[gameId] || towerGames[gameId];
+            const recovered = loadRecoverablePveGameFromSessionStorage(gameId, {
+                shell,
+                userId: currentUser.id,
+            });
+            if (!recovered) return false;
+            applyRecoveredPveGameToStore(recovered);
+            setGameRejoinFailure((prev) => (prev?.gameId === gameId ? null : prev));
+            return true;
+        },
+        [
+            currentUser?.id,
+            liveGames,
+            singlePlayerGames,
+            towerGames,
+            applyRecoveredPveGameToStore,
+        ],
+    );
+
     useEffect(() => {
         return () => {
             if (connectionNoticeTimerRef.current !== null) {
@@ -3708,9 +3753,11 @@ export const useApp = () => {
                         );
                     }
 
-                    // 미사일 착지 따내기: 서버와 동일하게 문양돌 소모·consumedPatternIntersections 반영 (미사일로 따낸 뒤 같은 자리에 두면 일반돌로 보이게)
+                    // 미사일 착지 따내기: LAUNCH에서 이미 반영됐으면 생략(중복 점수 방지)
+                    const missileCapturesAlreadyApplied = !!(g.animation as { capturesAppliedAtLaunch?: boolean })
+                        ?.capturesAppliedAtLaunch;
                     const workingBoard = updatedGame.boardState ?? boardState;
-                    if (Array.isArray(workingBoard) && workingBoard.length > 0) {
+                    if (!missileCapturesAlreadyApplied && Array.isArray(workingBoard) && workingBoard.length > 0) {
                         const opponentEnum =
                             playerWhoMoved === Player.Black ? Player.White : Player.Black;
                         const boardForCapture = workingBoard.map((row: Player[]) => [...row]);
@@ -3858,6 +3905,10 @@ export const useApp = () => {
                 const game = currentGames[gameId];
                 if (!game || game.gameStatus === 'ended' || game.gameStatus === 'no_contest' || game.gameStatus === 'scoring') return currentGames;
 
+                if (!game.isAiGame && !isSessionSingleOrTower(game)) {
+                    pvpPlaceStoneRevertRef.current[gameId] = JSON.parse(JSON.stringify(game)) as LiveGameSession;
+                }
+
                 const movePlayer: Player = (payloadMovePlayer ?? game.currentPlayer) as Player;
                 const weighted = buildWeightedJustCapturedForStones(game, capturedStones || [], movePlayer);
                 const newCaptures = {
@@ -3892,6 +3943,8 @@ export const useApp = () => {
                 if (!game || game.gameStatus === 'ended' || game.gameStatus === 'no_contest' || game.gameStatus === 'scoring') return currentGames;
                 const pg = game.settings?.pairGame;
                 if (!pg?.turnOrder?.length) return currentGames;
+
+                pvpPlaceStoneRevertRef.current[gameId] = JSON.parse(JSON.stringify(game)) as LiveGameSession;
 
                 const movePlayer: Player = (payloadMovePlayer ?? game.currentPlayer) as Player;
                 const pairSeat = getCurrentPairTurnSeat(game.settings);
@@ -5136,6 +5189,18 @@ export const useApp = () => {
                 delete pvpDicePlaceRevertRef.current[gid];
             };
 
+            const revertPvpPlaceStoneSnapshot = () => {
+                const gid =
+                    action.type === 'PLACE_STONE'
+                        ? (action.payload as { gameId?: string })?.gameId
+                        : undefined;
+                if (!gid) return;
+                const snap = pvpPlaceStoneRevertRef.current[gid];
+                if (!snap) return;
+                setLiveGames((c) => (c[gid] ? { ...c, [gid]: snap } : c));
+                delete pvpPlaceStoneRevertRef.current[gid];
+            };
+
             const revertPveResignOptimistic = () => {
                 const entry = pveResignOptimisticRevertRef.current;
                 if (!entry) return;
@@ -5418,6 +5483,7 @@ export const useApp = () => {
                             });
                         }
                         revertPvpDicePlaceSnapshot();
+                        revertPvpPlaceStoneSnapshot();
                         rollbackTowerAddTurnOptimistic();
                         revertPveResignOptimistic();
                         return { error: errorMessage } as HandleActionResult;
@@ -5459,6 +5525,7 @@ export const useApp = () => {
                                         (action.type === 'THIEF_ROLL_DICE' && synced.gameStatus === 'thief_rolling');
                                     if (rollingStatusOk && isMyTurnAfterSync) {
                                         revertPvpDicePlaceSnapshot();
+                                        revertPvpPlaceStoneSnapshot();
                                         rollbackTowerAddTurnOptimistic();
                                         revertPveResignOptimistic();
                                         return await handleAction({
@@ -5491,6 +5558,7 @@ export const useApp = () => {
                         console.debug(`[handleAction] SUBMIT_BASE_STONE_COLOR_CHOICE benign HTTP 400:`, errorMessage);
                     }
                     revertPvpDicePlaceSnapshot();
+                    revertPvpPlaceStoneSnapshot();
                     rollbackTowerAddTurnOptimistic();
                     revertPveResignOptimistic();
                     return {} as HandleActionResult;
@@ -5506,6 +5574,7 @@ export const useApp = () => {
                         showError('로그인이 필요합니다.');
                     }
                     revertPvpDicePlaceSnapshot();
+                    revertPvpPlaceStoneSnapshot();
                     rollbackTowerAddTurnOptimistic();
                     revertPveResignOptimistic();
                     return;
@@ -5538,6 +5607,7 @@ export const useApp = () => {
                     setUpdateTrigger(prev => prev + 1);
                 }
                 revertPvpDicePlaceSnapshot();
+                revertPvpPlaceStoneSnapshot();
                 rollbackTowerAddTurnOptimistic();
                 revertPveResignOptimistic();
 
@@ -5646,6 +5716,7 @@ export const useApp = () => {
                         showError(errorMessage);
                     }
                     revertPvpDicePlaceSnapshot();
+                    revertPvpPlaceStoneSnapshot();
                     rollbackTowerAddTurnOptimistic();
                     revertPveResignOptimistic();
                     return { error: errorMessage } as HandleActionResult;
@@ -5656,6 +5727,13 @@ export const useApp = () => {
                 }
                 if (action.type === 'RESIGN_GAME') {
                     pveResignOptimisticRevertRef.current = null;
+                }
+                if (action.type === 'PLACE_STONE') {
+                    const gid = (action.payload as { gameId?: string })?.gameId;
+                    if (gid) delete pvpPlaceStoneRevertRef.current[gid];
+                }
+                if (action.type === 'MISSILE_ANIMATION_COMPLETE' && typeof actionGameId === 'string' && actionGameId.length > 0) {
+                    setLiveGames((c) => patchLiveGameInMapById(c, actionGameId, mutateLiveMissilePresentationComplete));
                 }
                 const currencyCapNotices = (result as { currencyCapNotices?: unknown }).currencyCapNotices;
                 if (Array.isArray(currencyCapNotices) && currencyCapNotices.length > 0) {
@@ -7293,6 +7371,16 @@ export const useApp = () => {
                         delete pvpDicePlaceRevertRef.current[gid];
                     }
                     delete pvpDicePlaceInFlightRef.current[gid];
+                }
+            }
+            if (action.type === 'PLACE_STONE') {
+                const gid = (action.payload as { gameId?: string })?.gameId;
+                if (gid) {
+                    const snap = pvpPlaceStoneRevertRef.current[gid];
+                    if (snap) {
+                        setLiveGames((c) => (c[gid] ? { ...c, [gid]: snap } : c));
+                        delete pvpPlaceStoneRevertRef.current[gid];
+                    }
                 }
             }
             if (action.type === 'RESIGN_GAME') {
@@ -10453,6 +10541,7 @@ export const useApp = () => {
                                         }
                                         // 전략바둑 AI 대국: 같은 수인데 서버가 낡은 GAME_UPDATE인 경우 보드/수순/턴 유지 (돌 위치 바뀜·시간승 버그 방지)
                                         // 주사위/도둑 착수는 위에서 처리 — 여기서 sameLastMove로 서버 보드를 덮어쓰면 안 됨
+                                        // 페어 4인 수순은 moveHistory 흑/백 교대만으로 턴을 추론할 수 없고 currentTurnIndex가 권위 → 제외
                                         const playfulPlacingStaleMerge =
                                             (game.mode === GameMode.Dice && game.gameStatus === 'dice_placing') ||
                                             (game.mode === GameMode.Thief && game.gameStatus === 'thief_placing');
@@ -10460,6 +10549,7 @@ export const useApp = () => {
                                         // AI가 백일 때 오버샷 후 서버가 currentPlayer를 흑(유저)으로내도 stale로 오판해 AI 턴으로 되돌리는 버그가 난다.
                                         if (
                                             (isSessionStrategicAiLike(game) || getSessionArenaKind(game) === 'guildwar') &&
+                                            !isPairClassicGame(game.settings, game.mode) &&
                                             !playfulPlacingStaleMerge &&
                                             game.mode !== GameMode.Dice &&
                                             game.mode !== GameMode.Thief &&
@@ -10610,6 +10700,15 @@ export const useApp = () => {
                                             source: 'game_update',
                                         });
                                         if (
+                                            existingGame?.gameStatus === 'missile_animating' &&
+                                            liveMerged.gameStatus === 'playing' &&
+                                            liveMerged.animation &&
+                                            (liveMerged.animation.type === 'missile' ||
+                                                liveMerged.animation.type === 'hidden_missile')
+                                        ) {
+                                            liveMerged = { ...liveMerged, animation: null };
+                                        }
+                                        if (
                                             liveRicherExisting &&
                                             (liveMerged.gameStatus === 'scoring' ||
                                                 liveMerged.gameStatus === 'ended' ||
@@ -10629,6 +10728,7 @@ export const useApp = () => {
                                             liveMerged,
                                             liveRicherExisting ?? existingGame,
                                         );
+                                        liveMerged = preservePairTurnIfExistingAhead(existingGame, liveMerged);
                                         updatedGames[gameId] = liveMerged;
                                         if (
                                             liveMerged.gameStatus === 'scoring' ||
@@ -11232,6 +11332,9 @@ export const useApp = () => {
             }
             // 새로고침(F5) 후 서버가 게임 없음/권한 없음으로 확정한 경우에만 리다이렉트한다.
             if (gameRejoinFailure?.gameId === urlGameId && gameRejoinFailure.reason === 'notFound') {
+                if (recoverPveGameFromSessionStorage(urlGameId)) {
+                    return;
+                }
                 const pairArenaRestore = readPairArenaRestoreFromGameStateStorage(urlGameId);
                 if (pairArenaRestore) {
                     stashPairArenaRoomRestoreForLobbyNavigation(
@@ -11294,7 +11397,28 @@ export const useApp = () => {
             }
             // 기존: AI 게임이거나 pending entry면 리다이렉트하지 않음 (게임 페이지 유지)
         }
-    }, [currentUser, activeGame, currentUserWithStatus, liveGames, singlePlayerGames, towerGames, gameRejoinFailure]);
+    }, [currentUser, activeGame, currentUserWithStatus, liveGames, singlePlayerGames, towerGames, gameRejoinFailure, recoverPveGameFromSessionStorage]);
+
+    /** F5 직후 rejoin 전에 sessionStorage로 PVE 판·수순을 스토어에 올려 홈으로 튕기는 것을 방지 */
+    useEffect(() => {
+        const gameId = currentRoute?.view === 'game' ? (currentRoute.params?.id ?? '') : '';
+        if (!currentUser?.id || !gameId) return;
+        const shell = liveGames[gameId] || singlePlayerGames[gameId] || towerGames[gameId];
+        const needsRecovery =
+            !shell ||
+            !boardGridHasAnyStones(shell.boardState) ||
+            (shell.gameStatus === 'pending' && (shell.moveHistory?.length ?? 0) === 0);
+        if (!needsRecovery) return;
+        recoverPveGameFromSessionStorage(gameId);
+    }, [
+        currentRoute?.view,
+        currentRoute?.params?.id,
+        currentUser?.id,
+        liveGames,
+        singlePlayerGames,
+        towerGames,
+        recoverPveGameFromSessionStorage,
+    ]);
 
     /**
      * 서버 userStatuses는 in-game인데 INITIAL_STATE의 liveGames 등에 해당 방이 없을 때(목록 상한·타이밍 등).
@@ -11410,8 +11534,9 @@ export const useApp = () => {
                 setGameRejoinFailure((prev) => (prev?.gameId === gameId ? null : prev));
             }
         }
-        const gameCategoryInStore = getSessionArenaKind(gameInStore);
-        const isPveGameInStore = gameCategoryInStore === 'singleplayer' || gameCategoryInStore === 'tower';
+        const isPveGameInStore = !!gameInStore && isSessionPveArena(gameInStore);
+        const gameCategoryInStore =
+            gameInStore?.gameCategory ?? (gameInStore?.isSinglePlayer ? 'singleplayer' : 'normal');
         const isEndedPvpInStore =
             !!gameInStore &&
             gameCategoryInStore === 'normal' &&
@@ -11459,12 +11584,23 @@ export const useApp = () => {
                     if (category === 'singleplayer') {
                         setSinglePlayerGames(prev => ({
                             ...prev,
-                            [g.id]: mergePveRejoinResponseWithExistingBoard(prev[g.id], g),
+                            [g.id]: augmentPveRejoinWithSessionStorage(
+                                mergePveRejoinResponseWithExistingBoard(prev[g.id], g),
+                            ),
                         }));
                     } else if (category === 'tower') {
                         setTowerGames(prev => ({
                             ...prev,
-                            [g.id]: mergePveRejoinResponseWithExistingBoard(prev[g.id], g),
+                            [g.id]: augmentPveRejoinWithSessionStorage(
+                                mergePveRejoinResponseWithExistingBoard(prev[g.id], g),
+                            ),
+                        }));
+                    } else if (isSessionPveArena(g)) {
+                        setLiveGames(prev => ({
+                            ...prev,
+                            [g.id]: augmentPveRejoinWithSessionStorage(
+                                mergePveRejoinResponseWithExistingBoard(prev[g.id], g),
+                            ),
                         }));
                     } else {
                         setLiveGames(prev => ({
@@ -11483,6 +11619,10 @@ export const useApp = () => {
                         [gameId]: mergeLiveRejoinResponseWithExistingBoard(prev[gameId], storedEndedPvp),
                     }));
                     setGameRejoinFailure((prev) => (prev?.gameId === gameId ? null : prev));
+                    markConnectionRestored();
+                    return;
+                }
+                if (recoverPveGameFromSessionStorage(gameId)) {
                     markConnectionRestored();
                     return;
                 }
@@ -11518,7 +11658,7 @@ export const useApp = () => {
             }
         }, 2500);
         return () => clearTimeout(t);
-    }, [currentUser, currentRoute?.view, currentRoute?.params?.id, liveGames, singlePlayerGames, towerGames, gameRejoinRetryNonce, markConnectionRestored, setConnectionNotice]);
+    }, [currentUser, currentRoute?.view, currentRoute?.params?.id, liveGames, singlePlayerGames, towerGames, gameRejoinRetryNonce, markConnectionRestored, setConnectionNotice, recoverPveGameFromSessionStorage]);
 
     // 계가 중(scoring) 새로고침 시 KataGo 결과 수신: scoring 상태인 활성 게임이 있으면 rejoin 폴링하여 결과 반영
     useEffect(() => {
@@ -12070,6 +12210,7 @@ export const useApp = () => {
             handleLogout,
             handleEnterWaitingRoom,
             requestGameRejoinRetry,
+            recoverPveGameFromSessionStorage,
             applyPreset,
             openSettingsModal: () => {
                 if (!replaceMobileViewport({ type: 'settings' })) {

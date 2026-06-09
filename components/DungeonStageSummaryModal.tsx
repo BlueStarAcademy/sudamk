@@ -61,6 +61,7 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
         isMobile,
         designWidth: 820,
         designHeight: 760,
+        desktopSideDock: false,
     });
 
     const tournamentName = TOURNAMENT_DEFINITIONS[dungeonType].name;
@@ -521,14 +522,14 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
             title={`${tournamentName} ${stage}단계 결과`}
             onClose={onClose}
             windowId="dungeon-stage-summary"
-            initialWidth={isMobile ? Math.min(560, typeof window !== 'undefined' ? window.innerWidth - 16 : 560) : 700}
-            initialHeight={isMobile ? 780 : 640}
             closeOnOutsideClick={false}
             isTopmost={isTopmost}
             zIndex={isMobile ? 85 : 70}
             viewportPortal={isMobile}
             modal
             {...commonResultWindowProps}
+            initialWidth={isMobile ? Math.min(560, typeof window !== 'undefined' ? window.innerWidth - 16 : 560) : 700}
+            initialHeight={isMobile ? 780 : 640}
             hideFooter={isMobile}
             bodyScrollable={!isMobile}
             bodyNoScroll={isMobile}

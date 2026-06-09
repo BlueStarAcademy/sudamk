@@ -847,7 +847,7 @@ export const handleStrategicGameAction = async (volatileState: types.VolatileSta
     result = handleHiddenAction(volatileState, game, action, user);
     if (result) return result;
 
-    result = handleMissileAction(game, action, user);
+    result = await handleMissileAction(game, action, user);
     if (result) return result;
     
     // Fallback to standard actions if no other handler caught it.

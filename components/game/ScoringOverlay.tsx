@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { SCORING_PROGRESS_DURATION_MS } from '../../shared/constants/scoringOverlayTiming.js';
 
-const SCAN_CYCLE_MS = 5_000; // 좌→우 스캔 1회 주기(진행 시간과 맞춰 한 사이클에 걸치도록)
+const SCAN_CYCLE_MS = SCORING_PROGRESS_DURATION_MS;
 
-/** 계가 중 오버레이: 스피너 + 텍스트 + 진행 막대. 결과 수신 시 부모에서 언마운트되어 즉시 종료 */
+/** 계가 중 오버레이: 스피너 + 텍스트 + 진행 막대. 결과 준비·최소 연출 시간 충족 시 부모에서 언마운트 */
 export function ScoringOverlay({ variant = 'fullscreen' }: { variant?: 'fullscreen' | 'inline' }) {
   const [progress, setProgress] = useState(0);
   const [elapsedMs, setElapsedMs] = useState(0);

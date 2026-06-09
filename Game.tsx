@@ -65,6 +65,7 @@ import {
     shouldUseServerAiKickForStuckRecovery,
 } from './utils/pveAiTurnRecoveryPolicy.js';
 import {
+    isScoringResultContentReady,
     shouldOpenResultModalAfterScoringOverlay,
     shouldOpenResultModalByPolicy,
     shouldWaitForScoreBasedScoringOverlay,
@@ -1098,6 +1099,22 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const prevMyBaseStoneCountForUnlock = usePrevious(myBaseStoneCountForUnlock);
     const prevAnalysisResult = usePrevious(session.analysisResult?.['system']);
     const sessionPolicy = useMemo(() => resolveArenaSessionPolicy(session), [session]);
+    const isSinglePlayer = sessionPolicy.kind === 'singleplayer';
+    const isTower = sessionPolicy.kind === 'tower';
+    /** 참가자: `session.summary`가 WS로 늦게 붙을 수 있어, 내 보상 행이 붙은 뒤에 결과 모달을 연다 */
+    const resultModalWaitSummary =
+        sessionPolicy.resultDisplayModel !== 'waitScoringOverlay' &&
+        !isSinglePlayer &&
+        !isTower &&
+        !isSpectator;
+    const hasMyGameSummary = Boolean(session.summary?.[currentUser.id]);
+    const scoringResultContentReady = isScoringResultContentReady({
+        gameStatus,
+        winReason: session.winReason,
+        analysisResult: session.analysisResult?.['system'],
+        resultModalWaitSummary,
+        hasMyGameSummary,
+    });
     const {
         showScoringOverlay,
         scoringOverlayCompleted,
@@ -1107,7 +1124,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         gameStatus,
         prevGameStatus,
         winReason: session.winReason ?? undefined,
-        hasAnalysisResult: Boolean(session.analysisResult?.['system']),
+        resultContentReady: scoringResultContentReady,
     });
     const shouldWaitForScoringOverlay = shouldWaitForScoreBasedScoringOverlay({
         isScoreBasedPresentation,
@@ -1115,8 +1132,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         winReason: session.winReason,
     });
     const blockScoringBoardAnalysis = shouldWaitForScoringOverlay;
-    const isSinglePlayer = sessionPolicy.kind === 'singleplayer';
-    const isTower = sessionPolicy.kind === 'tower';
     const isAdventureGame = sessionPolicy.kind === 'adventure';
     const isGuildWarGame = sessionPolicy.kind === 'guildwar';
     const adventureBackgroundImage =
@@ -1124,13 +1139,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const isGuildWarTowerStyleUi =
         isGuildWarGame && (mode === GameMode.Missile || mode === GameMode.Hidden);
     const isPlayfulMode = PLAYFUL_GAME_MODES.some(m => m.mode === mode);
-    /** 참가자: `session.summary`가 WS로 늦게 붙을 수 있어, 내 보상 행이 붙은 뒤에 결과 모달을 연다 */
-    const resultModalWaitSummary =
-        sessionPolicy.resultDisplayModel !== 'waitScoringOverlay' &&
-        !isSinglePlayer &&
-        !isTower &&
-        !isSpectator;
-    const hasMyGameSummary = Boolean(session.summary?.[currentUser.id]);
     const prevHasMyGameSummary = usePrevious(hasMyGameSummary) ?? false;
     const gameSummaryJustArrived =
         resultModalWaitSummary &&
@@ -1407,6 +1415,18 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 }
                 const gameStateToSave = {
                     gameId,
+                    mode: session.mode,
+                    gameCategory: session.gameCategory,
+                    isSinglePlayer: session.isSinglePlayer,
+                    isAiGame: session.isAiGame,
+                    player1: session.player1,
+                    player2: session.player2,
+                    blackPlayerId: session.blackPlayerId,
+                    whitePlayerId: session.whitePlayerId,
+                    settings: session.settings,
+                    stageId: session.stageId,
+                    towerFloor: session.towerFloor,
+                    adventureStageId: (session as any).adventureStageId,
                     round: session.round ?? 1,
                     isBoardRotated,
                     boardState: restoredBoardState,
@@ -3281,6 +3301,15 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 gameStatus === 'playing' &&
                 x >= 0 &&
                 y >= 0;
+            const optimisticPvpStonePlace =
+                actionType === 'PLACE_STONE' &&
+                !isPairClassicOnline &&
+                !session.isAiGame &&
+                !isSinglePlayer &&
+                !isTower &&
+                gameStatus === 'playing' &&
+                x >= 0 &&
+                y >= 0;
             const optimisticPairStonePlace =
                 isPairClassicOnline &&
                 actionType === 'PLACE_STONE' &&
@@ -3298,6 +3327,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 optimisticAiStonePlace &&
                 boardForOptimistic &&
                 boardForOptimistic[y]?.[x] === Player.None;
+            const canOptimisticPvpPlace =
+                optimisticPvpStonePlace &&
+                boardForOptimistic &&
+                boardForOptimistic[y]?.[x] === Player.None;
             const canOptimisticPairPlace =
                 optimisticPairStonePlace &&
                 boardForOptimistic &&
@@ -3306,6 +3339,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 // 잠금은 위에서 이미 설정됨(PLACE_STONE)
             } else if (canOptimisticAiPlace && applyOptimisticAiUserMove(x, y)) {
                 // 잠금은 위에서 이미 설정됨(PLACE_STONE)
+            } else if (canOptimisticPvpPlace && applyOptimisticAiUserMove(x, y)) {
+                // PVP: 서버 응답 전 보드에 즉시 반영(대기 표시 없이 일반 착수처럼)
             }
             void Promise.resolve(handlers.handleAction({ type: actionType, payload } as ServerAction))
                 .then((res) => {
@@ -3559,6 +3594,15 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 gameStatus === 'playing' &&
                 x >= 0 &&
                 y >= 0;
+            const optimisticPvpStonePlaceConfirm =
+                actionType === 'PLACE_STONE' &&
+                !isPairClassicOnlineConfirm &&
+                !session.isAiGame &&
+                !isSinglePlayer &&
+                sessionPolicy.kind !== 'tower' &&
+                gameStatus === 'playing' &&
+                x >= 0 &&
+                y >= 0;
             const optimisticPairStonePlaceConfirm =
                 isPairClassicOnlineConfirm &&
                 actionType === 'PLACE_STONE' &&
@@ -3575,6 +3619,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 optimisticAiStonePlaceConfirm &&
                 boardForOptimisticConfirm &&
                 boardForOptimisticConfirm[y]?.[x] === Player.None;
+            const canOptimisticPvpPlaceConfirm =
+                optimisticPvpStonePlaceConfirm &&
+                boardForOptimisticConfirm &&
+                boardForOptimisticConfirm[y]?.[x] === Player.None;
             const canOptimisticPairPlaceConfirm =
                 optimisticPairStonePlaceConfirm &&
                 boardForOptimisticConfirm &&
@@ -3583,6 +3631,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 // 잠금은 위에서 이미 설정됨(PLACE_STONE)
             } else if (canOptimisticAiPlaceConfirm && applyOptimisticAiUserMove(x, y)) {
                 // 잠금은 위에서 이미 설정됨(PLACE_STONE)
+            } else if (canOptimisticPvpPlaceConfirm && applyOptimisticAiUserMove(x, y)) {
+                // PVP: 서버 응답 전 보드에 즉시 반영
             }
             const at = actionType;
             void Promise.resolve(handlers.handleAction({ type: at, payload } as ServerAction))

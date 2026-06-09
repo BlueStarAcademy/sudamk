@@ -36,7 +36,12 @@ import { replaceAppHash } from '../../utils/appUtils.js';
 import { getTimeUntilNextMondayKST, isSameDayKST, isDifferentWeekKST, formatDateTimeKST, getStartOfDayKST, getTodayKSTDateString } from '../../utils/timeUtils.js';
 import { getCurrentGuildBossStage, getScaledGuildBossMaxHp } from '../../utils/guildBossStageUtils.js';
 import { getGuildWarBotBoardDisplayTally } from '../../shared/utils/guildWarBoardOwner.js';
-import { isGuildWarPrepTimeKst, getNextGuildWarEntryOpenDateKst } from '../../shared/utils/guildWarSchedule.js';
+import {
+    isGuildWarPrepTimeKst,
+    getNextGuildWarEntryOpenDateKst,
+    guildWarIsOpenForPlay,
+    guildWarStartMs,
+} from '../../shared/utils/guildWarSchedule.js';
 import { useModalStackLayer } from '../../hooks/useModalStackLayer.js';
 import { SHOP_IMAGE_DESC_POPOVER_Z } from '../shopImageDescriptionPopover.js';
 // 고급 버튼 스타일 (길드 패널용)
@@ -1470,6 +1475,8 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
     const [cancelDeadline, setCancelDeadline] = React.useState<number | null>(null);
     const [cooldownRemaining, setCooldownRemaining] = React.useState<string>('');
     const [currentWarRemaining, setCurrentWarRemaining] = React.useState<string>('');
+    const [currentWarRemainingLabel, setCurrentWarRemainingLabel] = React.useState<string>('남은 시간');
+    const [isWarOpenForPlay, setIsWarOpenForPlay] = React.useState(false);
     const [warStats, setWarStats] = React.useState<GuildWarDashboardWarStats | null>(null);
     const [myRecordInCurrentWar, setMyRecordInCurrentWar] = React.useState<GuildWarDashboardMyRecord | null>(null);
     const [isUpdatingWarParticipation, setIsUpdatingWarParticipation] = React.useState(false);
@@ -1704,6 +1711,8 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
         const warEndTime = toEpochMs((activeWar as { endTime?: unknown } | null)?.endTime);
         if (!activeWar || !warEndTime) {
             setCurrentWarRemaining('');
+            setCurrentWarRemainingLabel('남은 시간');
+            setIsWarOpenForPlay(false);
             return;
         }
 
@@ -1711,34 +1720,29 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
 
         const updateCurrentWarRemaining = () => {
             const now = Date.now();
+            setIsWarOpenForPlay(guildWarIsOpenForPlay(activeWar, now));
+            const formatCountdown = (remainingMs: number) => {
+                const hours = Math.floor(remainingMs / (1000 * 60 * 60));
+                const minutes = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((remainingMs % (1000 * 60)) / 1000);
+                if (hours > 0) return `${hours}시간 ${minutes}분`;
+                if (minutes > 0) return `${minutes}분 ${seconds}초`;
+                return `${seconds}초`;
+            };
+
             if (warStartTime != null && now < warStartTime) {
-                const untilOpen = warStartTime - now;
-                const hours = Math.floor(untilOpen / (1000 * 60 * 60));
-                const minutes = Math.floor((untilOpen % (1000 * 60 * 60)) / (1000 * 60));
-                if (hours > 0) {
-                    setCurrentWarRemaining(`개시까지 ${hours}시간 ${minutes}분`);
-                } else {
-                    const seconds = Math.floor((untilOpen % (1000 * 60)) / 1000);
-                    setCurrentWarRemaining(`개시까지 ${minutes}분 ${seconds}초`);
-                }
+                setCurrentWarRemainingLabel('개시까지');
+                setCurrentWarRemaining(formatCountdown(warStartTime - now));
                 return;
             }
             const remaining = warEndTime - now;
             if (remaining <= 0) {
+                setCurrentWarRemainingLabel('상태');
                 setCurrentWarRemaining('종료');
                 return;
             }
-            const hours = Math.floor(remaining / (1000 * 60 * 60));
-            const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
-            const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
-
-            if (hours > 0) {
-                setCurrentWarRemaining(`${hours}시간 ${minutes}분`);
-            } else if (minutes > 0) {
-                setCurrentWarRemaining(`${minutes}분 ${seconds}초`);
-            } else {
-                setCurrentWarRemaining(`${seconds}초`);
-            }
+            setCurrentWarRemainingLabel('종료까지');
+            setCurrentWarRemaining(formatCountdown(remaining));
         };
 
         updateCurrentWarRemaining();
@@ -1785,10 +1789,44 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
     }, []);
 
     const myWarTickets = GUILD_WAR_PERSONAL_DAILY_ATTEMPTS - myWarAttempts;
-    const canEnterWar = !isWarPrepTime;
+    const canEnterWar = !isWarPrepTime && isWarOpenForPlay;
     const warEntryDisabledTitle = isWarPrepTime
         ? `다음 길드전 준비시간입니다. ${formatDateTimeKST(warNextEntryOpenAt)}(KST)부터 입장할 수 있습니다.`
-        : '길드전 화면으로 이동합니다';
+        : activeWar && !isWarOpenForPlay
+          ? (() => {
+                const openMs = guildWarStartMs(activeWar);
+                return openMs > Date.now()
+                    ? `길드전 개시 전입니다. ${formatDateTimeKST(openMs)}(KST)부터 입장할 수 있습니다.`
+                    : '진행 중인 길드전이 없습니다.';
+            })()
+          : !activeWar
+            ? '진행 중인 길드전이 없습니다.'
+            : '길드전 화면으로 이동합니다';
+
+    const handleWarEntryClick = () => {
+        if (isWarPrepTime) {
+            alert(`다음 길드전 준비시간입니다.\n${formatDateTimeKST(warNextEntryOpenAt)}(KST)부터 입장할 수 있습니다.`);
+            return;
+        }
+        if (!activeWar) {
+            alert(
+                isMatching
+                    ? '매칭이 완료되면 입장할 수 있습니다. 잠시 후 다시 확인해 주세요.'
+                    : '진행 중인 길드전이 없습니다.',
+            );
+            return;
+        }
+        if (!guildWarIsOpenForPlay(activeWar, Date.now())) {
+            const openMs = guildWarStartMs(activeWar);
+            if (openMs > Date.now()) {
+                alert(`길드전이 아직 시작되지 않았습니다.\n${formatDateTimeKST(openMs)}(KST)부터 입장할 수 있습니다.`);
+            } else {
+                alert('진행 중인 길드전이 없습니다.');
+            }
+            return;
+        }
+        replaceAppHash('#/guildwar');
+    };
 
     const handleClaimReward = async () => {
         try {
@@ -2024,7 +2062,7 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                                             <span
                                                 className={`inline-flex items-center gap-1 rounded-lg border border-cyan-500/30 bg-cyan-950/30 px-2 py-1 font-semibold tabular-nums text-cyan-100/95 ${isMobile ? 'text-[10px]' : 'text-xs'}`}
                                             >
-                                                <span>남은 시간</span>
+                                                <span>{currentWarRemainingLabel}</span>
                                                 <span>{currentWarRemaining || '확인 중...'}</span>
                                             </span>
                                             {myRecordInCurrentWar?.contributedStars != null && myRecordInCurrentWar.contributedStars > 0 ? (
@@ -2174,11 +2212,7 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                     <div className={`flex-shrink-0 ${isMobile || isCompact ? 'mt-1 pt-1' : 'mt-1.5 pt-1.5'} border-t border-stone-600/40 flex flex-wrap justify-center gap-2`}>
                         <button
                             type="button"
-                            disabled={!canEnterWar}
-                            onClick={() => {
-                                if (!canEnterWar) return;
-                                replaceAppHash('#/guildwar');
-                            }}
+                            onClick={handleWarEntryClick}
                             title={warEntryDisabledTitle}
                             className={canEnterWar ? guildPanelBtn.war : guildPanelBtn.disabled}
                         >

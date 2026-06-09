@@ -36,7 +36,8 @@ import {
     GUILD_WAR_CAPTURE_AI_TARGET,
     type GuildWarBoardRuleMode,
 } from '../../constants/index.js';
-import { getTodayKSTDateString } from '../../utils/timeUtils.js';
+import { getTodayKSTDateString, formatDateTimeKST } from '../../utils/timeUtils.js';
+import { guildWarIsOpenForPlay, guildWarStartMs } from '../../shared/utils/guildWarSchedule.js';
 import {
     getGuildWarBoardOwnerGuildId,
     getGuildWarBoardOwnerGuildIdWithBotAttemptsFallback,
@@ -325,6 +326,24 @@ const GuildWar = () => {
                     return;
                 }
 
+                if (!guildWarIsOpenForPlay(war, Date.now())) {
+                    const openMs = guildWarStartMs(war);
+                    if (openMs > Date.now()) {
+                        alert(
+                            `길드전이 아직 시작되지 않았습니다.\n${formatDateTimeKST(openMs)}(KST)부터 입장할 수 있습니다.`,
+                        );
+                    } else {
+                        alert('진행 중인 길드전이 없습니다.');
+                    }
+                    replaceAppHash('#/guild');
+                    setActiveWar(null);
+                    setMyGuild(null);
+                    setOpponentGuild(null);
+                    setBoards([]);
+                    setIsDemoMode(false);
+                    return;
+                }
+
                 setIsDemoMode(false);
                 setActiveWar(war);
                 
@@ -555,8 +574,9 @@ const GuildWar = () => {
                     setOpponentTeamTickets({ used: 0, total: 0, unknown: false });
                 }
                 
-                // 남은 시간 계산
+                // 남은 시간 계산 (개시 전·종료 전 구분)
                 const warEndMs = toEpochMs((war as any).endTime);
+                const warStartMs = toEpochMs((war as any).startTime);
                 if (warEndMs) {
                     if (remainingTimeInterval) {
                         clearInterval(remainingTimeInterval);
@@ -564,6 +584,13 @@ const GuildWar = () => {
                     }
                     const updateRemainingTime = () => {
                         const now = Date.now();
+                        if (warStartMs != null && now < warStartMs) {
+                            const untilOpen = warStartMs - now;
+                            const days = Math.floor(untilOpen / (24 * 60 * 60 * 1000));
+                            const hours = Math.floor((untilOpen % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+                            setRemainingTime(`개시까지 ${days > 0 ? `${days}일 ` : ''}${hours}시간`);
+                            return;
+                        }
                         const remaining = warEndMs - now;
                         if (remaining <= 0) {
                             setRemainingTime('종료됨');
@@ -571,7 +598,7 @@ const GuildWar = () => {
                         }
                         const days = Math.floor(remaining / (24 * 60 * 60 * 1000));
                         const hours = Math.floor((remaining % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
-                        setRemainingTime(`${days}일 ${hours}시간`);
+                        setRemainingTime(`종료까지 ${days}일 ${hours}시간`);
                     };
                     updateRemainingTime();
                     remainingTimeInterval = setInterval(updateRemainingTime, 60000); // 1분마다 업데이트
@@ -1364,7 +1391,7 @@ const GuildWar = () => {
                 <div
                     className={`shrink-0 rounded-xl border border-amber-400/30 bg-black/55 px-2.5 py-1.5 text-right shadow-inner ring-1 ring-white/5 backdrop-blur-sm sm:px-3 sm:py-2 ${isNativeMobile ? 'max-w-[40%]' : 'min-w-[9rem]'}`}
                 >
-                    <p className="text-[9px] font-semibold uppercase tracking-wide text-amber-200/75">남은 기간</p>
+                    <p className="text-[9px] font-semibold uppercase tracking-wide text-amber-200/75">길드전 일정</p>
                     <p className={`font-bold tabular-nums text-amber-50 ${isNativeMobile ? 'text-[11px] leading-tight' : 'text-sm'}`}>
                         {isDemoMode ? '데모 모드' : remainingTime || '계산 중...'}
                     </p>

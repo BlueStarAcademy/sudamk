@@ -1322,6 +1322,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 'RESUME_AI_GAME',
                 'LEAVE_AI_GAME',
                 'LEAVE_GAME_ROOM',
+                'RESIGN_GAME',
                 'SEND_CHAT_MESSAGE',
                 'LEAVE_SPECTATING',
                 'SET_USER_STATUS',
@@ -1329,6 +1330,14 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             ]);
             if (!allowedWhilePaused.has(type)) {
                 return { error: '일시 정지 상태에서는 해당 동작을 할 수 없습니다.' };
+            }
+        }
+
+        // HTTP 액션은 타이머 루프 없이 들어올 수 있어 missile_animating에 남으면 playing이 아니라 400이 난다.
+        if (game.gameStatus === 'missile_animating' || game.gameStatus === 'missile_selecting') {
+            const { updateMissileState } = await import('./modes/missile.js');
+            if (updateMissileState(game, Date.now())) {
+                updateGameCache(game);
             }
         }
         
@@ -1449,6 +1458,12 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
 
                     // MISSILE_ANIMATION_COMPLETE: 착지 따내기 점수가 이번 요청에서 반영된 뒤 즉시 목표 달성 종료(메인 루프 틱을 기다리지 않음)
                     if (type === 'MISSILE_ANIMATION_COMPLETE' && game.gameStatus === 'playing') {
+                        const { tryEndGameWhenCaptureTargetReached } = await import('./utils/captureTargets.js');
+                        await tryEndGameWhenCaptureTargetReached(game, game.currentPlayer);
+                    }
+
+                    // LAUNCH_MISSILE: 따내기를 발사 직후 반영하므로 목표 달성 종료도 즉시 검사
+                    if (type === 'LAUNCH_MISSILE' && game.gameStatus === 'missile_animating') {
                         const { tryEndGameWhenCaptureTargetReached } = await import('./utils/captureTargets.js');
                         await tryEndGameWhenCaptureTargetReached(game, game.currentPlayer);
                     }

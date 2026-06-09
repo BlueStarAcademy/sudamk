@@ -659,7 +659,7 @@ interface GoBoardProps {
   canPlaceMoreBaseStones?: boolean;
   /** 아이템 안내 등 바둑판 중앙 오버레이 문구 */
   boardRuleFlashMessage?: string | null;
-  /** 온라인 PVP 착수 전송 중 — 교차점 하이라이트만 (낙관적 돌 없음) */
+  /** @deprecated 낙관적 보드 반영으로 대체됨 — 하위 호환용, 렌더에 사용하지 않음 */
   isMoveSubmitting?: boolean;
 }
 
@@ -693,7 +693,6 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         isPairBasePlacementHost = false,
         canPlaceMoreBaseStones,
         boardRuleFlashMessage = null,
-        isMoveSubmitting = false,
     } = props;
     const baseHiddenMoveCtx = useMemo<BaseStoneOverlayContext>(
         () => ({ baseStones, baseStones_p1, baseStones_p2, gameStatus }),
@@ -1125,6 +1124,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
     const preservedBoardStateRef = useRef<BoardState | null>(null);
     const missileAnimationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const lastMissileCompletionSignalKeyRef = useRef<string>('');
+    const missileCompletionInFlightRef = useRef<string>('');
     const boardSizePx = 840;
     
     // scoring 상태일 때 boardState를 보존하여 초기화 방지
@@ -1189,34 +1189,56 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
     /** 따내기 직후 `ended`여도 +점수 플로트는 재생되게 함(`index.css` 2.85s 애니). 계가·무승부만 숨김 */
     const hideCaptureScoreFloatOverlay = gameStatus === 'scoring' || gameStatus === 'no_contest';
 
+    const missileAnimType = animation?.type;
+    const missileAnimStartTime = animation?.startTime;
+    const missileAnimDuration = animation?.duration;
+    const isMissileFlightAnimation =
+        missileAnimType === 'missile' || missileAnimType === 'hidden_missile';
+
     // 미사일 애니메이션 완료 감지 및 처리
     useEffect(() => {
         const makeMissileCompletionSignalKey = () => {
-            if (!gameId || !animation || (animation.type !== 'missile' && animation.type !== 'hidden_missile')) {
+            if (!gameId || !isMissileFlightAnimation || missileAnimStartTime == null) {
                 return '';
             }
-            return `${gameId}:${animation.type}:${animation.startTime}`;
+            return `${gameId}:${missileAnimType}:${missileAnimStartTime}`;
         };
         const sendMissileCompletionOnce = (singlePlayer: boolean) => {
-            const dispatch = onActionRef.current;
-            if (!dispatch || !gameId) return;
-            const signalKey = makeMissileCompletionSignalKey();
-            if (!signalKey) return;
-            if (lastMissileCompletionSignalKeyRef.current === signalKey) {
-                return;
-            }
-            lastMissileCompletionSignalKeyRef.current = signalKey;
-            if (singlePlayer) {
-                dispatch({
-                    type: 'SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE',
-                    payload: { gameId }
-                } as any);
-            } else {
-                dispatch({
-                    type: 'MISSILE_ANIMATION_COMPLETE',
-                    payload: { gameId }
-                });
-            }
+            void (async () => {
+                const dispatch = onActionRef.current;
+                if (!dispatch || !gameId) return;
+                const signalKey = makeMissileCompletionSignalKey();
+                if (!signalKey) return;
+                if (lastMissileCompletionSignalKeyRef.current === signalKey) {
+                    return;
+                }
+                if (missileCompletionInFlightRef.current === signalKey) {
+                    return;
+                }
+
+                missileCompletionInFlightRef.current = signalKey;
+                try {
+                    const result = singlePlayer
+                        ? await dispatch({
+                              type: 'SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE',
+                              payload: { gameId },
+                          } as any)
+                        : await dispatch({
+                              type: 'MISSILE_ANIMATION_COMPLETE',
+                              payload: { gameId },
+                          });
+                    if (result && typeof result === 'object' && 'error' in result && (result as { error?: unknown }).error) {
+                        throw new Error(String((result as { error?: unknown }).error));
+                    }
+                    lastMissileCompletionSignalKeyRef.current = signalKey;
+                } catch (err) {
+                    console.warn('[GoBoard] Missile completion dispatch failed, retry allowed:', err);
+                } finally {
+                    if (missileCompletionInFlightRef.current === signalKey) {
+                        missileCompletionInFlightRef.current = '';
+                    }
+                }
+            })();
         };
 
         // 이전 타임아웃 정리
@@ -1227,7 +1249,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
 
         // 게임 상태가 playing으로 변경되었고 애니메이션이 없으면 애니메이션 완료로 간주
         // (서버에서 GAME_UPDATE를 받아 gameStatus가 playing으로 변경되고 animation이 null이 된 경우)
-        if (gameStatus === 'playing' && (!animation || (animation.type !== 'missile' && animation.type !== 'hidden_missile'))) {
+        if (gameStatus === 'playing' && !isMissileFlightAnimation) {
             console.log(`[GoBoard] Game status changed to playing, animation cleared. Animation:`, animation);
             lastMissileCompletionSignalKeyRef.current = '';
             // 애니메이션 타임아웃이 남아있으면 정리
@@ -1242,24 +1264,27 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         // - 멀티플레이: 기본은 missile_animating. 다만 병합 버그로 playing인데 미사일 애니만 남은 경우도 타이머를 걸어
         //   MISSILE_ANIMATION_COMPLETE를 보내 서버·다른 클라와 맞춘다(슬림 WS에서 animation 필드 생략 시).
         // - 싱글플레이/도전의 탑: 서버/클라이언트 상태가 약간 어긋나도 애니메이션이 존재하면 항상 완료 타이머를 건다
-        const isMissileAnimation = animation && (animation.type === 'missile' || animation.type === 'hidden_missile');
         const shouldTrackMissileAnimation =
-            !!isMissileAnimation &&
+            isMissileFlightAnimation &&
+            missileAnimStartTime != null &&
+            missileAnimDuration != null &&
             (gameStatus === 'missile_animating' || gameStatus === 'playing' || isSinglePlayer);
 
         if (shouldTrackMissileAnimation) {
+            const startTime = missileAnimStartTime;
+            const duration = missileAnimDuration;
             const now = Date.now();
-            const elapsed = now - animation.startTime;
-            const remaining = Math.max(0, animation.duration - elapsed);
-            const animationEndTime = animation.startTime + animation.duration;
+            const elapsed = now - startTime;
+            const remaining = Math.max(0, duration - elapsed);
+            const animationEndTime = startTime + duration;
 
-            console.log(`[GoBoard] Missile animation detected: type=${animation.type}, startTime=${animation.startTime}, now=${now}, elapsed=${elapsed}ms, duration=${animation.duration}ms, remaining=${remaining}ms, endTime=${animationEndTime}`);
+            console.log(`[GoBoard] Missile animation detected: type=${missileAnimType}, startTime=${startTime}, now=${now}, elapsed=${elapsed}ms, duration=${duration}ms, remaining=${remaining}ms, endTime=${animationEndTime}`);
 
             // 싱글플레이 게임은 클라이언트에서 직접 처리
             if (isSinglePlayer) {
                 // 이미 애니메이션이 완료되었으면 즉시 처리
-                if (elapsed >= animation.duration) {
-                    console.log(`[GoBoard] SinglePlayer missile animation already completed (elapsed=${elapsed}ms >= duration=${animation.duration}ms), triggering completion immediately`);
+                if (elapsed >= duration) {
+                    console.log(`[GoBoard] SinglePlayer missile animation already completed (elapsed=${elapsed}ms >= duration=${duration}ms), triggering completion immediately`);
                     sendMissileCompletionOnce(true);
                     return;
                 }
@@ -1269,8 +1294,8 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 
                 missileAnimationTimeoutRef.current = setTimeout(() => {
                     const currentTime = Date.now();
-                    const currentElapsed = currentTime - animation.startTime;
-                    console.log(`[GoBoard] SinglePlayer missile animation timeout triggered. Expected end time: ${animationEndTime}, current time: ${currentTime}, elapsed: ${currentElapsed}ms, duration: ${animation.duration}ms`);
+                    const currentElapsed = currentTime - startTime;
+                    console.log(`[GoBoard] SinglePlayer missile animation timeout triggered. Expected end time: ${animationEndTime}, current time: ${currentTime}, elapsed: ${currentElapsed}ms, duration: ${duration}ms`);
                     
                     sendMissileCompletionOnce(true);
                     missileAnimationTimeoutRef.current = null;
@@ -1278,8 +1303,8 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
             } else {
                 // 멀티플레이어 게임은 서버에 완료 신호 전송
                 // 이미 애니메이션이 완료되었으면 즉시 처리
-                if (elapsed >= animation.duration) {
-                    console.log(`[GoBoard] Missile animation already completed (elapsed=${elapsed}ms >= duration=${animation.duration}ms), triggering completion immediately`);
+                if (elapsed >= duration) {
+                    console.log(`[GoBoard] Missile animation already completed (elapsed=${elapsed}ms >= duration=${duration}ms), triggering completion immediately`);
                     sendMissileCompletionOnce(false);
                     return;
                 }
@@ -1289,8 +1314,8 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 
                 missileAnimationTimeoutRef.current = setTimeout(() => {
                     const currentTime = Date.now();
-                    const currentElapsed = currentTime - animation.startTime;
-                    console.log(`[GoBoard] Missile animation timeout triggered. Expected end time: ${animationEndTime}, current time: ${currentTime}, elapsed: ${currentElapsed}ms, duration: ${animation.duration}ms`);
+                    const currentElapsed = currentTime - startTime;
+                    console.log(`[GoBoard] Missile animation timeout triggered. Expected end time: ${animationEndTime}, current time: ${currentTime}, elapsed: ${currentElapsed}ms, duration: ${duration}ms`);
                     
                     sendMissileCompletionOnce(false);
                     missileAnimationTimeoutRef.current = null;
@@ -1304,7 +1329,15 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 missileAnimationTimeoutRef.current = null;
             }
         };
-    }, [animation, gameStatus, gameId, isSinglePlayer]);
+    }, [
+        missileAnimType,
+        missileAnimStartTime,
+        missileAnimDuration,
+        isMissileFlightAnimation,
+        gameStatus,
+        gameId,
+        isSinglePlayer,
+    ]);
 
     const isLastMoveMarkerEnabled = useMemo(() => {
         const strategicModes = SPECIAL_GAME_MODES.map(m => m.mode);
@@ -2212,8 +2245,8 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     );
                 })}
 
-                {(showHoverPreview || isMoveSubmitting) && hoverPos && (
-                    <g style={{ pointerEvents: 'none' }}>
+                {showHoverPreview && hoverPos && (
+                    <g opacity={0.5} style={{ pointerEvents: 'none' }}>
                         <Stone
                             player={stoneColor}
                             cx={toSvgCoords(hoverPos).cx}

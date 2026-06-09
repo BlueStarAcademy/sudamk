@@ -24,7 +24,7 @@ import {
     tryFinalizeMissileFlightFromAnimationState,
     type FinalizeItemPhaseOptions,
 } from './finalizeItemPhase.js';
-import { relocateMissileStoneMetadata } from './missileBoardUtils.js';
+import { applyMissileLandingCaptures, relocateMissileStoneMetadata } from './missileBoardUtils.js';
 import { isMissileFlightAnimationType } from '../../shared/utils/itemPhaseAnimationTypes.js';
 
 type HandleActionResult = types.HandleActionResult;
@@ -383,7 +383,7 @@ function tryRecoverStuckMissileAnimatingBeforeSelection(
     return { blocked: true, error: '미사일 애니메이션이 진행 중입니다. 잠시 후 다시 시도해주세요.' };
 }
 
-export const handleMissileAction = (game: types.LiveGameSession, action: types.ServerAction & { userId: string }, user: types.User): HandleActionResult | null => {
+export const handleMissileAction = async (game: types.LiveGameSession, action: types.ServerAction & { userId: string }, user: types.User): Promise<HandleActionResult | null> => {
     const { type, payload } = action as any;
     const now = Date.now();
     const pairClassicGame = isPairClassicGame(game.settings, game.mode);
@@ -577,7 +577,6 @@ export const handleMissileAction = (game: types.LiveGameSession, action: types.S
             // 보드 상태 변경: 미사일은 돌을 "이동"시킴 (복사 아님) — 원래 자리 제거, 목적지에 배치
             game.boardState[from.y][from.x] = types.Player.None;
             game.boardState[to.y][to.x] = myPlayerEnum;
-            // 따내기는 이동 애니메이션 종료 시점에 적용(updateMissileState / MISSILE_ANIMATION_COMPLETE) — 점수 연출 순서
 
             // 배치돌 업데이트: 원래 자리의 배치돌을 목적지로 이동
             if (game.baseStones) {
@@ -608,6 +607,9 @@ export const handleMissileAction = (game: types.LiveGameSession, action: types.S
 
             // 문양/공개 히든 좌표 메타를 함께 이동시켜 원래 위치에 잔상이 남지 않게 한다.
             relocateMissileStoneMetadata(game, from, to, myPlayerEnum);
+
+            // 따내기는 발사 직후 보드에서 제거(비행 연출 중에도 따낸 돌이 사라지도록)
+            applyMissileLandingCaptures(game, to, myPlayerEnum);
             
             // 아이템 사용 시간 일시 정지 (애니메이션 중)
             game.itemUseDeadline = undefined;
@@ -641,6 +643,7 @@ export const handleMissileAction = (game: types.LiveGameSession, action: types.S
             if (revealedHiddenStone) {
                 animationData.revealedHiddenStone = revealedHiddenStone;
             }
+            animationData.capturesAppliedAtLaunch = true;
             
             game.animation = animationData;
             game.gameStatus = 'missile_animating';
@@ -753,6 +756,12 @@ export const handleMissileAction = (game: types.LiveGameSession, action: types.S
                 skipBoardRelocation: true,
                 reason: 'client-complete',
             });
+            const pairSeatAfterComplete = isPairClassicGame(game.settings, game.mode)
+                ? getCurrentPairTurnSeat(game.settings)
+                : null;
+            if (pairSeatAfterComplete && isPairAiSeat(pairSeatAfterComplete) && game.gameStatus === 'playing') {
+                schedulePairAiTurnIfNeeded(game, now);
+            }
             console.log(`[Missile Go] MISSILE_ANIMATION_COMPLETE: animation completed, gameId=${game.id}, gameStatus=${game.gameStatus}`);
             return { clientResponse: { gameUpdated: true } };
         }

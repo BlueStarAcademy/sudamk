@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { BOARD_SETTLE_BEFORE_SCORING_MS } from '../shared/constants/boardSettleTiming.js';
 import {
+    SCORING_OVERLAY_MAX_WAIT_MS,
     SCORING_PROGRESS_DURATION_MS,
-    SCORING_OVERLAY_MIN_BEFORE_EARLY_COMPLETE_MS,
 } from '../shared/constants/scoringOverlayTiming.js';
 import { consumePveBoardSettledForScoring } from '../shared/utils/pveScoringBoardSettleSignal.js';
 
@@ -19,29 +19,29 @@ export function isScoreBasedScoringPresentation(
 }
 
 /**
- * 계가 중 5초 스캔 오버레이를 한 번 재생하고, 완료 후에만 결과 모달·영토 표시를 허용한다.
- * - `scoring` 진입 또는 서버가 `ended`(score)로 바로 넘어와도 동일하게 5초 연출을 보장한다.
+ * 계가 중 스캔 오버레이를 재생하고, 최소 연출 시간(7초)과 결과 데이터 준비가
+ * 모두 충족된 뒤에만 결과 모달·영토 표시를 허용한다.
  */
 export function useScoringOverlayPresentation(params: {
     gameId: string;
     gameStatus: string;
     prevGameStatus: string | undefined;
     winReason: string | undefined;
-    hasAnalysisResult?: boolean;
+    resultContentReady?: boolean;
 }): {
     showScoringOverlay: boolean;
     scoringOverlayCompleted: boolean;
     isScoreBasedPresentation: boolean;
 } {
-    const { gameId, gameStatus, prevGameStatus, winReason, hasAnalysisResult = false } = params;
+    const { gameId, gameStatus, prevGameStatus, winReason, resultContentReady = false } = params;
     const [showScoringOverlay, setShowScoringOverlay] = useState(false);
     const [scoringOverlayCompleted, setScoringOverlayCompleted] = useState(false);
     const sequenceStartedRef = useRef(false);
     const overlayShownAtRef = useRef<number | null>(null);
-    const analysisReadyRef = useRef(hasAnalysisResult);
+    const resultContentReadyRef = useRef(resultContentReady);
     const timerIdsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-    analysisReadyRef.current = hasAnalysisResult;
+    resultContentReadyRef.current = resultContentReady;
 
     const isScoreBasedPresentation = isScoreBasedScoringPresentation(
         gameStatus,
@@ -54,6 +54,12 @@ export function useScoringOverlayPresentation(params: {
             clearTimeout(id);
         }
         timerIdsRef.current = [];
+    };
+
+    const completeOverlay = () => {
+        clearTimers();
+        setShowScoringOverlay(false);
+        setScoringOverlayCompleted(true);
     };
 
     useEffect(() => {
@@ -89,19 +95,21 @@ export function useScoringOverlayPresentation(params: {
                   ? BOARD_SETTLE_BEFORE_SCORING_MS
                   : 0;
 
-        const completeOverlay = () => {
-            setShowScoringOverlay(false);
-            setScoringOverlayCompleted(true);
+        const tryCompleteOverlay = () => {
+            const shownAt = overlayShownAtRef.current;
+            if (shownAt == null) return;
+            const elapsed = Date.now() - shownAt;
+            if (elapsed >= SCORING_PROGRESS_DURATION_MS && resultContentReadyRef.current) {
+                completeOverlay();
+            }
         };
 
         const showTimer = setTimeout(() => {
             overlayShownAtRef.current = Date.now();
             setShowScoringOverlay(true);
-            const overlayDurationMs = analysisReadyRef.current
-                ? SCORING_OVERLAY_MIN_BEFORE_EARLY_COMPLETE_MS
-                : SCORING_PROGRESS_DURATION_MS;
-            const hideTimer = setTimeout(completeOverlay, overlayDurationMs);
-            timerIdsRef.current.push(hideTimer);
+            const minDurationTimer = setTimeout(tryCompleteOverlay, SCORING_PROGRESS_DURATION_MS);
+            const maxWaitTimer = setTimeout(completeOverlay, SCORING_OVERLAY_MAX_WAIT_MS);
+            timerIdsRef.current.push(minDurationTimer, maxWaitTimer);
         }, settleMs);
         timerIdsRef.current.push(showTimer);
     }, [
@@ -113,18 +121,24 @@ export function useScoringOverlayPresentation(params: {
     ]);
 
     useEffect(() => {
-        if (!hasAnalysisResult || !showScoringOverlay || scoringOverlayCompleted) return;
-        const shownAt = overlayShownAtRef.current ?? Date.now();
+        if (!showScoringOverlay || scoringOverlayCompleted) return;
+        const shownAt = overlayShownAtRef.current;
+        if (shownAt == null) return;
         const elapsed = Date.now() - shownAt;
-        const remainingMin = Math.max(0, SCORING_OVERLAY_MIN_BEFORE_EARLY_COMPLETE_MS - elapsed);
-        const earlyTimer = setTimeout(() => {
-            clearTimers();
-            setShowScoringOverlay(false);
-            setScoringOverlayCompleted(true);
-        }, remainingMin);
-        timerIdsRef.current.push(earlyTimer);
-        return () => clearTimeout(earlyTimer);
-    }, [hasAnalysisResult, showScoringOverlay, scoringOverlayCompleted]);
+        if (elapsed >= SCORING_PROGRESS_DURATION_MS && resultContentReady) {
+            completeOverlay();
+            return;
+        }
+        if (!resultContentReady) return;
+        const remaining = Math.max(0, SCORING_PROGRESS_DURATION_MS - elapsed);
+        const waitTimer = setTimeout(() => {
+            if (resultContentReadyRef.current) {
+                completeOverlay();
+            }
+        }, remaining);
+        timerIdsRef.current.push(waitTimer);
+        return () => clearTimeout(waitTimer);
+    }, [resultContentReady, showScoringOverlay, scoringOverlayCompleted]);
 
     return { showScoringOverlay, scoringOverlayCompleted, isScoreBasedPresentation };
 }

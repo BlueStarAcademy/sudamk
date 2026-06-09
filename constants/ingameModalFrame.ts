@@ -11,3 +11,8 @@ export const INGAME_BOARD_FRAME_MAX_HEIGHT_PX = 860;
  */
 export const INGAME_MODAL_DEFAULT_OFFSET_X = -112;
 export const INGAME_MODAL_DEFAULT_OFFSET_Y = 20;
+
+/** 인게임 경기 결과: 바둑판 오른쪽(사이드바 쪽)에 세로로 도킹할 때의 설계 폭 */
+export const INGAME_RESULT_PANEL_WIDTH_PX = 400;
+/** 바둑판 우측 가장자리와 결과 패널 사이 간격(스크린 px 기준) */
+export const INGAME_RESULT_PANEL_BOARD_GAP_PX = 16;

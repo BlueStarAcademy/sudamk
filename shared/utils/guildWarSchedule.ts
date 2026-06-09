@@ -32,12 +32,28 @@ export function isGuildWarPrimeMatchWindowKst(now: number = Date.now()): boolean
     return (d === 1 || d === 4) && h === 23 && m < 60;
 }
 
-/** 매칭 누락 캐치업: 화·금 0:00~0:59 KST */
+/** 매칭 누락 캐치업: 화·금 종일 KST (월·목 23시 정규 매칭이 누락된 경우 당일 재시도) */
 export function isGuildWarCatchUpMatchWindowKst(now: number = Date.now()): boolean {
     const d = getKSTDay(now);
+    return d === 2 || d === 5;
+}
+
+/** 화 0:00~수 23:00 KST 진행 중인 tue_wed 라운드 안인지 */
+function isWithinOngoingTueWedRoundKst(now: number): boolean {
+    const d = getKSTDay(now);
     const h = getKSTHours(now);
-    const m = getKSTMinutes(now);
-    return (d === 2 || d === 5) && h === 0 && m < 60;
+    if (d === 2) return true;
+    if (d === 3) return h < 23;
+    return false;
+}
+
+/** 금 0:00~일 23:00 KST 진행 중인 fri_sun 라운드 안인지 */
+function isWithinOngoingFriSunRoundKst(now: number): boolean {
+    const d = getKSTDay(now);
+    const h = getKSTHours(now);
+    if (d === 5 || d === 6) return true;
+    if (d === 0) return h < 23;
+    return false;
 }
 
 /** 월·목 0:00~23:59 KST — 다음 길드전 준비 시간(입장 불가) */
@@ -89,14 +105,27 @@ export function resolveGuildWarStartEndTimes(
     const todayStart = getStartOfDayKST(matchCompletedAtMs);
 
     if (warType === 'tue_wed') {
-        const daysUntilTue = (2 - kstDay + 7) % 7;
-        const startTime = todayStart + daysUntilTue * DAY_MS;
+        let startTime: number;
+        if (isWithinOngoingTueWedRoundKst(matchCompletedAtMs)) {
+            // 수요일 늦은 등록 등: 이번 주 화 0:00에 맞춤 (다음 주 화로 밀리지 않게)
+            startTime = kstDay === 2 ? todayStart : todayStart - DAY_MS;
+        } else {
+            const daysUntilTue = (2 - kstDay + 7) % 7;
+            startTime = todayStart + daysUntilTue * DAY_MS;
+        }
         const endTime = startTime + GUILD_WAR_TUE_WED_DURATION_MS;
         return { startTime, endTime };
     }
 
-    const daysUntilFri = (5 - kstDay + 7) % 7;
-    const startTime = todayStart + daysUntilFri * DAY_MS;
+    let startTime: number;
+    if (isWithinOngoingFriSunRoundKst(matchCompletedAtMs)) {
+        if (kstDay === 5) startTime = todayStart;
+        else if (kstDay === 6) startTime = todayStart - DAY_MS;
+        else startTime = todayStart - 2 * DAY_MS;
+    } else {
+        const daysUntilFri = (5 - kstDay + 7) % 7;
+        startTime = todayStart + daysUntilFri * DAY_MS;
+    }
     const endTime = startTime + GUILD_WAR_FRI_SUN_DURATION_MS;
     return { startTime, endTime };
 }

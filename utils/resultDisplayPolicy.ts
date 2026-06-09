@@ -1,6 +1,6 @@
+import type { AnalysisResult } from '../shared/types/index.js';
 import type { LiveGameSession } from '../shared/types/entities.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
-
 type ResultDisplayParams = {
     session: LiveGameSession;
     showResultModal: boolean;
@@ -35,6 +35,23 @@ function shouldOpenResultModalForSummaryLikeEnd(params: ResultDisplayParams): bo
             !summaryNotReady) ||
         gameSummaryJustArrived
     );
+}
+
+/** 계가 결과 모달에 필요한 데이터(ended·점수·보상 summary)가 모두 준비됐는지 */
+export function isScoringResultContentReady(params: {
+    gameStatus: string;
+    winReason?: string | null;
+    analysisResult?: AnalysisResult | null;
+    resultModalWaitSummary: boolean;
+    hasMyGameSummary: boolean;
+}): boolean {
+    const { gameStatus, winReason, analysisResult, resultModalWaitSummary, hasMyGameSummary } = params;
+    if (gameStatus !== 'ended') return false;
+    if (resultModalWaitSummary && !hasMyGameSummary) return false;
+    if (winReason === 'score') {
+        return Boolean(analysisResult);
+    }
+    return true;
 }
 
 /** 계가(집) 연출이 끝날 때까지 결과 모달·영토 표시를 지연한다. 기권/접속끊김/시간패는 즉시 허용. */

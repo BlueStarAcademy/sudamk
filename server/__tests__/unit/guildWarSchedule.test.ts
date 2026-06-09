@@ -48,11 +48,29 @@ describe('guildWarSchedule', () => {
         expect(startTime).toBe(getStartOfDayKST(matchAt));
     });
 
+    it('화요일 낮에도 캐치업 창(월 23시 매칭 누락 대비)', () => {
+        const matchAt = kstToUtcMs(2026, 5, 12, 14, 30);
+        expect(isGuildWarCatchUpMatchWindowKst(matchAt)).toBe(true);
+        const { startTime } = resolveGuildWarStartEndTimes('tue_wed', matchAt);
+        expect(startTime).toBe(getStartOfDayKST(kstToUtcMs(2026, 5, 12, 0, 0)));
+    });
+
     it('금 0시 캐치업 → 당일 금 0시 개시', () => {
         const matchAt = kstToUtcMs(2026, 5, 15, 0, 20);
         expect(isGuildWarCatchUpMatchWindowKst(matchAt)).toBe(true);
         const { startTime } = resolveGuildWarStartEndTimes('fri_sun', matchAt);
         expect(startTime).toBe(getStartOfDayKST(matchAt));
+    });
+
+    it('수요일 오후 즉시 매칭도 이번 주 화 0시 개시(다음 주로 밀리지 않음)', () => {
+        const matchAt = kstToUtcMs(2026, 5, 13, 15, 0);
+        const warType = inferGuildWarRoundTypeFromMatchKst(matchAt);
+        expect(warType).toBe('tue_wed');
+        const { startTime, endTime } = resolveGuildWarStartEndTimes(warType, matchAt);
+        expect(startTime).toBe(getStartOfDayKST(kstToUtcMs(2026, 5, 12, 0, 0)));
+        expect(endTime - startTime).toBe(GUILD_WAR_TUE_WED_DURATION_MS);
+        expect(matchAt).toBeGreaterThan(startTime);
+        expect(matchAt).toBeLessThan(endTime);
     });
 
     it('월·목 0시~23시59분은 준비 시간(입장 불가)', () => {

@@ -39,7 +39,6 @@ import { useAppContext } from '../hooks/useAppContext.js';
 import { isRewardVipActive } from '../shared/utils/rewardVip.js';
 import { VIP_PLAY_REWARD_SLOT_PREVIEW_IMAGE } from '../shared/constants/vipPlayReward.js';
 import { useResilientImgSrc } from '../hooks/useResilientImgSrc.js';
-import { MobileGameResultTabBar, MobileResultTabPanelStack, type MobileGameResultTab } from './game/MobileGameResultTabBar.js';
 import { useGameResultModalLayout } from './game/useGameResultModalLayout.js';
 import { GoStoneIcon } from './game/arenaRoundEndShared.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
@@ -1759,7 +1758,6 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
         winner === Player.White;
     const blackPlayer = player1.id === blackPlayerId ? player1 : player2;
     const whitePlayer = player1.id === whitePlayerId ? player1 : player2;
-    const [mobileResultTab, setMobileResultTab] = useState<MobileGameResultTab>('match');
 
     const avatarUrl = useMemo(() => AVATAR_POOL.find((a: AvatarInfo) => a.id === currentUser.avatarId)?.url, [currentUser.avatarId]);
     const borderUrl = useMemo(() => BORDER_POOL.find((b: BorderInfo) => b.id === currentUser.borderId)?.url, [currentUser.borderId]);
@@ -1794,10 +1792,6 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
         soundPlayed.current = true;
     }, [isWinner, mySummary]);
 
-    useEffect(() => {
-        setMobileResultTab('match');
-    }, [session.id]);
-    
     const isDraw = winner === Player.None;
     const winnerUser = winner === Player.Black 
         ? (player1.id === blackPlayerId ? player1 : player2)
@@ -2283,17 +2277,13 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
             onClose={onConfirm}
             /** 전역 레벨업·콘텐츠 해금 등(document.body)과 같은 z 스택에서 겹치게 — 스케일 캔버스 내부 modal-root에만 두면 가려질 수 있음 */
             viewportPortal
-            initialWidth={isMobile ? 1000 : 1140}
-            /** 데스크톱도 내용 높이에 맞춰 하단 빈 프레임을 줄임(긴 내용은 pcViewportMaxHeightCss로 스크롤) */
-            initialHeight={undefined}
-            shrinkHeightToContent
             {...commonResultWindowProps}
             bodyShrinkToContent
             bodyAvoidVerticalStretch={!isMobile}
             hideFooter={isMobile}
             windowId="game-summary"
             variant="store"
-            modalBackdrop={!adventureResultChrome}
+            modalBackdrop={isMobile && !adventureResultChrome}
             closeOnOutsideClick={!adventureResultChrome}
             bodyPaddingClassName={
                 isMobile
@@ -2326,18 +2316,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                 </h1>
                 )}
                 {isMobile ? (
-                    <>
-                        <MobileGameResultTabBar
-                            active={mobileResultTab}
-                            onChange={setMobileResultTab}
-                            recordLabel={isGuildWar ? '보상·기록' : '대국 결과'}
-                        />
-                        <div className="flex min-h-0 flex-1 basis-0 flex-col gap-1 overflow-hidden">
-                            <div className="min-h-0 flex-1 basis-0 overflow-x-hidden overflow-y-auto overscroll-y-contain [scrollbar-gutter:auto] [scrollbar-width:thin]">
-                                <MobileResultTabPanelStack
-                                    className="min-h-0"
-                                    active={mobileResultTab}
-                                    matchPanel={
+                    <div className="flex min-h-0 flex-1 basis-0 flex-col gap-1.5 overflow-x-hidden overflow-y-auto overscroll-y-contain [scrollbar-gutter:auto] [scrollbar-width:thin]">
                                     <div className="flex flex-col items-center rounded-xl border border-amber-500/25 bg-gradient-to-b from-slate-900/90 via-[#121318] to-[#0a0a0e] p-1.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10">
                                         <h2
                                             className="mb-0 w-full flex-shrink-0 border-b border-amber-500/25 pb-1 text-center text-xs font-bold uppercase tracking-[0.12em] text-amber-200/85"
@@ -2392,8 +2371,6 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                             {renderGameContent()}
                                         </div>
                                     </div>
-                                    }
-                                    recordPanel={
                                     <div className="flex min-w-0 flex-col gap-1 rounded-xl border border-amber-500/25 bg-gradient-to-b from-slate-900/92 via-[#121318] to-[#0a0a0e] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10">
                                         <h2
                                             className="mb-0 flex-shrink-0 border-b border-violet-500/25 pb-0.5 text-center text-xs font-bold uppercase tracking-[0.12em] text-violet-200/85"
@@ -2661,14 +2638,11 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                             </div>
                                         ) : null}
                                     </div>
-                                    }
-                                />
-                            </div>
-                        </div>
-                    </>
+                        {pvpRewardsSection}
+                    </div>
                 ) : (
-                    <div className="flex min-h-0 flex-row items-stretch gap-2 overflow-visible sm:gap-3">
-                        <div className="flex min-h-0 w-1/2 min-w-0 shrink-0 flex-col items-center overflow-visible rounded-xl border border-amber-500/25 bg-gradient-to-b from-slate-900/90 via-[#121318] to-[#0a0a0e] p-2.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10 sm:p-3">
+                    <div className="flex min-h-0 max-h-[min(90dvh,calc(100vh-72px))] flex-col gap-2 overflow-y-auto overflow-x-hidden [scrollbar-width:thin] sm:gap-2.5">
+                        <div className="flex shrink-0 flex-col items-center overflow-visible rounded-xl border border-amber-500/25 bg-gradient-to-b from-slate-900/90 via-[#121318] to-[#0a0a0e] p-2.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10 sm:p-3">
                             <h2 className="mb-0 w-full flex-shrink-0 border-b border-amber-500/20 pb-1 text-center text-[0.65rem] font-bold uppercase tracking-[0.12em] text-amber-200/85 sm:text-xs min-[1024px]:text-sm">
                                 경기 내용
                             </h2>
@@ -2709,8 +2683,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                 {renderGameContent()}
                             </div>
                         </div>
-                        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-1.5 overflow-visible sm:gap-2">
-                            <div className="flex min-h-0 min-w-0 flex-col gap-1.5 overflow-visible rounded-xl border border-amber-500/25 bg-gradient-to-b from-slate-900/92 via-[#121318] to-[#0a0a0e] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10 sm:p-2.5">
+                        <div className="flex min-h-0 min-w-0 shrink-0 flex-col gap-1.5 overflow-visible rounded-xl border border-amber-500/25 bg-gradient-to-b from-slate-900/92 via-[#121318] to-[#0a0a0e] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10 sm:p-2.5">
                                 <h2 className="mb-0 flex-shrink-0 border-b border-violet-500/25 pb-1 text-center text-[0.65rem] font-bold uppercase tracking-[0.12em] text-violet-200/85 sm:text-xs min-[1024px]:text-sm">
                                     {isGuildWar ? '보상·기록' : '대국 결과'}
                                 </h2>
@@ -2928,9 +2901,8 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                         </div>
                                     </div>
                                 ) : null}
-                            </div>
-                            {pvpRewardsSection}
                         </div>
+                        {pvpRewardsSection}
                     </div>
                 )}
             </div>
@@ -2938,7 +2910,6 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                 <div
                     className={`${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS} flex flex-col ${isMobile ? 'mt-1 gap-1 pt-1.5' : 'mt-3 gap-1.5 pt-2.5'} flex-shrink-0 border-t border-amber-500/20 bg-gradient-to-t from-zinc-950/95 via-zinc-900/90 to-transparent px-1 pb-1 sm:px-2 sm:pb-1.5`}
                 >
-                    {isMobile ? <div className="min-w-0 w-full shrink-0">{pvpRewardsSection}</div> : null}
                     <div className={`${arenaPostGameSingleConfirmFooterClass} shrink-0`}>
                         {resultModalSecondaryAction ? (
                             <button

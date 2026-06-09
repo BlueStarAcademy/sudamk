@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { GameCategory, GameMode, Player } from '../../../shared/types/enums.js';
 import type { GameSettings, LiveGameSession } from '../../../shared/types/index.js';
 import {
+    isScoringResultContentReady,
     shouldOpenResultModalAfterScoringOverlay,
     shouldOpenResultModalByPolicy,
     shouldWaitForScoreBasedScoringOverlay,
@@ -29,6 +30,81 @@ const session = (patch: Partial<LiveGameSession> = {}): LiveGameSession =>
         currentPlayer: Player.Black,
         ...patch,
     }) as LiveGameSession;
+
+describe('isScoringResultContentReady', () => {
+    const scoreAnalysis = {
+        scoreDetails: {
+            black: { total: 85.5 },
+            white: { total: 78.5 },
+        },
+    };
+
+    it('is false while still scoring or before analysis', () => {
+        expect(
+            isScoringResultContentReady({
+                gameStatus: 'scoring',
+                winReason: 'score',
+                analysisResult: scoreAnalysis,
+                resultModalWaitSummary: false,
+                hasMyGameSummary: false,
+            }),
+        ).toBe(false);
+        expect(
+            isScoringResultContentReady({
+                gameStatus: 'ended',
+                winReason: 'score',
+                analysisResult: null,
+                resultModalWaitSummary: false,
+                hasMyGameSummary: false,
+            }),
+        ).toBe(false);
+    });
+
+    it('is true on ended score win with analysis result', () => {
+        expect(
+            isScoringResultContentReady({
+                gameStatus: 'ended',
+                winReason: 'score',
+                analysisResult: scoreAnalysis,
+                resultModalWaitSummary: false,
+                hasMyGameSummary: false,
+            }),
+        ).toBe(true);
+    });
+
+    it('is false on ended score win without analysis', () => {
+        expect(
+            isScoringResultContentReady({
+                gameStatus: 'ended',
+                winReason: 'score',
+                analysisResult: null,
+                resultModalWaitSummary: false,
+                hasMyGameSummary: false,
+            }),
+        ).toBe(false);
+    });
+
+    it('waits for summary when PVP participant needs reward row', () => {
+        expect(
+            isScoringResultContentReady({
+                gameStatus: 'ended',
+                winReason: 'score',
+                analysisResult: scoreAnalysis,
+                resultModalWaitSummary: true,
+                hasMyGameSummary: false,
+            }),
+        ).toBe(false);
+        expect(
+            isScoringResultContentReady({
+                gameStatus: 'ended',
+                winReason: 'score',
+                analysisResult: scoreAnalysis,
+                resultModalWaitSummary: true,
+                hasMyGameSummary: true,
+            }),
+        ).toBe(true);
+    });
+});
 
 describe('shouldOpenResultModalByPolicy', () => {
     it('defers instantEnd score PVP until analysisResult is ready', () => {

@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useViewportUniformScale } from '../../hooks/useViewportUniformScale.js';
+import { INGAME_RESULT_PANEL_WIDTH_PX } from '../../constants/ingameModalFrame.js';
 import {
     GAME_RESULT_MOBILE_DVH_BOTTOM_GAP_PX,
     GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_CSS,
@@ -11,6 +12,8 @@ type UseGameResultModalLayoutArgs = {
     designWidth: number;
     designHeight: number;
     minUniformScale?: number;
+    /** false면 데스크톱 좁은 사이드 도킹·투명 배경 미적용(던전 결과 등) */
+    desktopSideDock?: boolean;
 };
 
 /**
@@ -24,6 +27,7 @@ export function useGameResultModalLayout({
     designWidth,
     designHeight,
     minUniformScale = 0.56,
+    desktopSideDock = true,
 }: UseGameResultModalLayoutArgs) {
     // 결과 모달은 패널/텍스트 밀도가 높아 "딱 맞춤"보다 약간 더 줄여야 스크롤이 사라지고 가독성이 유지된다.
     const measuredUniformScale = useViewportUniformScale(designWidth * 1.14, designHeight * 1.16, true);
@@ -47,18 +51,30 @@ export function useGameResultModalLayout({
         [uniformScale],
     );
 
+    const useDesktopSideDock = !isMobile && desktopSideDock;
+
     const commonWindowProps = useMemo(
         () => ({
             uniformPcScale: true as const,
-            pcViewportMaxHeightCss: 'min(97dvh, calc(100vh - 8px))',
+            pcViewportMaxHeightCss: isMobile
+                ? undefined
+                : 'min(96dvh, calc(100vh - 12px))',
+            pcViewportMaxWidthCss: useDesktopSideDock ? `${INGAME_RESULT_PANEL_WIDTH_PX}px` : undefined,
             bodyNoScroll: true as const,
             mobileViewportFit: isMobile,
             mobileLockViewportHeight: isMobile,
             mobileViewportMaxHeightVh: isMobile ? GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_VH : 92,
             mobileViewportMaxHeightCss: isMobile ? GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_CSS : undefined,
             mobileViewportDvhBottomGapPx: isMobile ? GAME_RESULT_MOBILE_DVH_BOTTOM_GAP_PX : undefined,
+            ingameResultSideDock: useDesktopSideDock,
+            skipIngameBoardFrameSizeCap: useDesktopSideDock,
+            transparentModalBackdrop: useDesktopSideDock,
+            modalBackdrop: isMobile,
+            shrinkHeightToContent: useDesktopSideDock,
+            initialWidth: isMobile ? designWidth : useDesktopSideDock ? INGAME_RESULT_PANEL_WIDTH_PX : designWidth,
+            initialHeight: isMobile ? designHeight : undefined,
         }),
-        [isMobile],
+        [isMobile, designWidth, designHeight, useDesktopSideDock],
     );
 
     return {
@@ -67,6 +83,7 @@ export function useGameResultModalLayout({
         mobileTextScale,
         mobileImageScale,
         commonWindowProps,
+        desktopPanelWidth: INGAME_RESULT_PANEL_WIDTH_PX,
     };
 }
 

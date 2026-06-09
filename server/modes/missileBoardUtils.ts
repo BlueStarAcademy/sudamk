@@ -30,7 +30,15 @@ export type MissileFlightAnimationSnapshot = {
     to?: types.Point;
     revealedHiddenStone?: types.Point | null;
     startTime: number;
+    /** LAUNCH_MISSILE 직후 따내기를 반영했으면 애니 종료 시 재적용하지 않는다. */
+    capturesAppliedAtLaunch?: boolean;
 };
+
+export function missileAnimationCapturesAppliedAtLaunch(
+    anim: MissileFlightAnimationSnapshot | null | undefined,
+): boolean {
+    return !!anim?.capturesAppliedAtLaunch;
+}
 
 import { isMissileFlightAnimationType } from '../../shared/utils/itemPhaseAnimationTypes.js';
 
@@ -101,7 +109,7 @@ export function applyMissileFlightBoardFromAnimation(
     }
 
     if (options?.skipBoardRelocation) {
-        if (anim.to) {
+        if (anim.to && !missileAnimationCapturesAppliedAtLaunch(anim)) {
             applyMissileLandingCaptures(game, anim.to, playerWhoMoved);
         }
         return;
@@ -155,7 +163,7 @@ export function applyMissileFlightBoardFromAnimation(
         relocateMissileStoneMetadata(game, af, at, playerWhoMoved);
     }
 
-    if (animationTo) {
+    if (animationTo && !missileAnimationCapturesAppliedAtLaunch(anim)) {
         applyMissileLandingCaptures(game, animationTo, playerWhoMoved);
     }
 }
@@ -171,5 +179,6 @@ export function snapshotMissileFlightAnimation(
         to: (anim as any).to as types.Point | undefined,
         revealedHiddenStone: (anim as any).revealedHiddenStone as types.Point | null | undefined,
         startTime: anim.startTime,
+        capturesAppliedAtLaunch: (anim as { capturesAppliedAtLaunch?: boolean }).capturesAppliedAtLaunch,
     };
 }

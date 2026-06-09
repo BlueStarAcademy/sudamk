@@ -49,9 +49,9 @@ import {
     pairSeatMatchesViewerUser,
 } from '../../shared/utils/pairGameTurn.js';
 import {
-    basePvpActionPointCostForMode,
-    effectiveNegotiationApCostForUser,
-    effectivePvpEntryApCostForUser,
+    baseAiLobbyActionPointCostForModeAndSettings,
+    effectiveAiLobbyApCostForUser,
+    effectivePairAiLobbyApCostForUser,
     formatActionPointCostWithPetDiscount,
 } from '../../shared/utils/pairPetArenaApDiscount.js';
 import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
@@ -1368,16 +1368,28 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
     const showMannerActionRow = !isSinglePlayer && !session.isAiGame && !pairCoopTwoHumansVsAi && !hideMannerRowForBaseCaptureBid;
     const showMannerAiLobbyHintRow = !isSinglePlayer && session.isAiGame && !pairCoopTwoHumansVsAi;
     const aiLobbyRematchActionPointCostLabel = useMemo(() => {
-        const base = basePvpActionPointCostForMode(mode);
+        const aiSettings = {
+            kataServerLevel: session.settings?.kataServerLevel,
+            goAiBotLevel: session.settings?.goAiBotLevel,
+            aiDifficulty: session.settings?.aiDifficulty,
+        };
+        const base = baseAiLobbyActionPointCostForModeAndSettings(mode, aiSettings);
+        if (!currentUser) return String(base);
         const eff = isPairAiAutoScoringMatch
-            ? effectivePvpEntryApCostForUser(
-                  currentUser as User,
-                  mode,
-                  session.settings?.pairGame?.lobbyChannel ?? 'pair',
-              )
-            : effectiveNegotiationApCostForUser(currentUser as User, mode);
+            ? effectivePairAiLobbyApCostForUser(currentUser as User, mode, aiSettings, {
+                  lobbyChannel: session.settings?.pairGame?.lobbyChannel ?? 'pair',
+              })
+            : effectiveAiLobbyApCostForUser(currentUser as User, mode, aiSettings);
         return formatActionPointCostWithPetDiscount(base, eff);
-    }, [mode, currentUser, isPairAiAutoScoringMatch, session.settings?.pairGame?.lobbyChannel]);
+    }, [
+        mode,
+        currentUser,
+        isPairAiAutoScoringMatch,
+        session.settings?.kataServerLevel,
+        session.settings?.goAiBotLevel,
+        session.settings?.aiDifficulty,
+        session.settings?.pairGame?.lobbyChannel,
+    ]);
     const isAiLobbyGame =
         session.isAiGame &&
         !session.isSinglePlayer &&

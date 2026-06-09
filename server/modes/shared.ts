@@ -819,6 +819,15 @@ export const handleSharedAction = async (volatileState: VolatileState, game: Liv
                 return { error: 'Game has already ended.' };
             }
 
+            if (game.gameStatus === 'missile_animating' || game.gameStatus === 'missile_selecting') {
+                const { updateMissileState } = await import('./missile.js');
+                updateMissileState(game, now);
+                if (game.gameStatus === 'missile_animating' || game.gameStatus === 'missile_selecting') {
+                    const { finalizeItemPhase } = await import('./finalizeItemPhase.js');
+                    finalizeItemPhase(game, 'missile', now, { cleanupOnly: true, reason: 'resign' });
+                }
+            }
+
             if (isPairHumanHumanPvpForTeamResign(game)) {
                 return { error: '페어 휴먼 대전에서는 팀원 동의 후 기권됩니다. 기권 요청을 사용해 주세요.' };
             }
