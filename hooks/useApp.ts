@@ -28,6 +28,7 @@ import {
 import { defaultSettings, SETTINGS_STORAGE_KEY } from './useAppSettings.js';
 import type { QuickUtilityPanelKind } from '../shared/types/quickUtilityPanel.js';
 import type { MobileViewportEntry } from '../shared/types/mobileViewportStack.js';
+import { getAppRouteNavigationKey } from '../shared/types/navigation.js';
 import { getQuickUtilityKindFromStack } from '../shared/utils/mobileViewportStackUtils.js';
 import { syncDismissedScreenGuidesFromUser } from '../utils/screenGuideDismiss.js';
 import {
@@ -2590,6 +2591,43 @@ export const useApp = () => {
         },
         [applyQuickUtilitySideEffectsOnClose, clearMobileViewport, usePortraitFirstShell],
     );
+
+    const dismissQuickMenuOnNavigation = useCallback(
+        (opts?: { fromPopState?: boolean }) => {
+            if (usePortraitFirstShell && mobileViewportStackRef.current.length > 0) {
+                clearMobileViewport(opts);
+            } else if (activeQuickUtilityPanelRef.current) {
+                closeQuickUtilityPanel(opts);
+            }
+
+            setIsPetManagementModalOpen(false);
+            setIsAdventureMonsterCodexModalOpen(false);
+            setIsTrainingQuestModalOpen(false);
+            setDetailedStatsType(null);
+            setIsInventoryOpen(false);
+            setIsQuestsOpen(false);
+            setIsShopOpen(false);
+            setShopInitialTab(undefined);
+            setIsExchangeOpen(false);
+            setIsInfoModalOpen(false);
+            setIsAnnouncementsModalOpen(false);
+            setIsRankingQuickModalOpen(false);
+            setIsEncyclopediaOpen(false);
+            setIsBlacksmithModalOpen(false);
+            setIsGameRecordListOpen(false);
+        },
+        [clearMobileViewport, closeQuickUtilityPanel, usePortraitFirstShell],
+    );
+
+    const routeNavigationKeyRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        const key = getAppRouteNavigationKey(currentRoute);
+        const prevKey = routeNavigationKeyRef.current;
+        routeNavigationKeyRef.current = key;
+        if (prevKey === null || prevKey === key) return;
+        dismissQuickMenuOnNavigation({ fromPopState: true });
+    }, [currentRoute, dismissQuickMenuOnNavigation]);
 
     useEffect(() => {
         if (!usePortraitFirstShell || mobileViewportStack.length === 0) return;

@@ -472,18 +472,22 @@ const RecommendedMoveMarker: React.FC<{
     );
 };
 
-const Stone: React.FC<{ player: Player, cx: number, cy: number, isLastMove?: boolean, isSelectedMissile?: boolean, isHoverSelectableMissile?: boolean, isKnownHidden?: boolean, isNewlyRevealed?: boolean, animationClass?: string, isBaseStone?: boolean, isPatternStone?: boolean, radius: number, isFaint?: boolean, keepUpright?: boolean }> = ({ player, cx, cy, isLastMove, isSelectedMissile, isHoverSelectableMissile, isKnownHidden, isNewlyRevealed, animationClass, isBaseStone, isPatternStone, radius, isFaint, keepUpright }) => {
+const Stone: React.FC<{ player: Player, cx: number, cy: number, isLastMove?: boolean, isSelectedMissile?: boolean, isHoverSelectableMissile?: boolean, isKnownHidden?: boolean, isNewlyRevealed?: boolean, animationClass?: string, isBaseStone?: boolean, isPatternStone?: boolean, radius: number, isFaint?: boolean, keepUpright?: boolean, isPlacementPreview?: boolean }> = ({ player, cx, cy, isLastMove, isSelectedMissile, isHoverSelectableMissile, isKnownHidden, isNewlyRevealed, animationClass, isBaseStone, isPatternStone, radius, isFaint, keepUpright, isPlacementPreview }) => {
     const specialImageSize = radius * 2 * 0.7;
     const specialImageOffset = specialImageSize / 2;
 
-    const strokeColor = isSelectedMissile ? 'rgb(239, 68, 68)' : 'none';
+    const strokeColor = isSelectedMissile
+        ? 'rgb(239, 68, 68)'
+        : isPlacementPreview
+          ? 'rgb(34, 197, 94)'
+          : 'none';
     
-    const strokeWidth = isSelectedMissile ? 3.5 : 0;
+    const strokeWidth = isSelectedMissile || isPlacementPreview ? 3.5 : 0;
 
     return (
         <g
             className={`${animationClass || ''} ${isHoverSelectableMissile ? 'missile-selectable-stone' : ''}`}
-            opacity={isFaint ? 0.52 : 1}
+            opacity={isFaint ? 0.52 : isPlacementPreview ? 0.5 : 1}
             transform={keepUpright ? `rotate(180 ${cx} ${cy})` : undefined}
         >
             <circle
@@ -2210,6 +2214,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                                 cx={cx}
                                 cy={cy}
                                 radius={stone_radius}
+                                isPlacementPreview
                             />
                         </g>
                     );
@@ -2246,12 +2251,13 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 })}
 
                 {showHoverPreview && hoverPos && (
-                    <g opacity={0.5} style={{ pointerEvents: 'none' }}>
+                    <g style={{ pointerEvents: 'none' }}>
                         <Stone
                             player={stoneColor}
                             cx={toSvgCoords(hoverPos).cx}
                             cy={toSvgCoords(hoverPos).cy}
                             radius={stone_radius}
+                            isPlacementPreview
                         />
                     </g>
                 )}

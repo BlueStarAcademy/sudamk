@@ -1,5 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useState, useMemo, useEffect } from 'react';
 import { InventoryItem, InventoryItemType, EquipmentSlot, ItemGrade, MythicStat } from '../../types.js';
 import {
     EQUIPMENT_POOL,
@@ -93,54 +92,6 @@ const gradeOrder: Record<ItemGrade, number> = {
 /** 신화/초월 등 동일 표시명 장비 구분용 (이름만으로는 목록 키·선택이 충돌함) */
 function encyclopediaItemKey(item: EncyclopediaItem): string {
     return `${item.type}|${item.name}|${item.grade}|${item.slot ?? ''}`;
-}
-
-function encyclopediaItemsEqual(a: EncyclopediaItem, b: EncyclopediaItem): boolean {
-    return a.name === b.name && a.grade === b.grade && a.type === b.type && (a.slot ?? null) === (b.slot ?? null);
-}
-
-function computeBubblePlacementInModal(
-    anchor: DOMRect,
-    modalBounds: DOMRect,
-    bubbleSize?: { height: number },
-): {
-    left: number;
-    top: number;
-    maxW: number;
-    maxH: number;
-    placeBelow: boolean;
-    arrowOffset: number;
-} {
-    const pad = 14;
-    const gap = 10;
-    const modalLeft = modalBounds.left + pad;
-    const modalRight = modalBounds.right - pad;
-    const modalTop = modalBounds.top + pad;
-    const modalBottom = modalBounds.bottom - pad;
-    const modalInnerW = Math.max(240, modalRight - modalLeft);
-    const modalInnerH = Math.max(220, modalBottom - modalTop);
-
-    const maxW = Math.min(520, modalInnerW);
-    const cx = anchor.left + anchor.width / 2;
-    const rightSpace = modalRight - anchor.right;
-    const leftSpace = anchor.left - modalLeft;
-    const placeRight = rightSpace >= maxW || rightSpace >= leftSpace;
-    const preferredLeft = placeRight ? anchor.right + gap : anchor.left - maxW - gap;
-    const left = Math.min(Math.max(preferredLeft, modalLeft), modalRight - maxW);
-
-    const estimatedBubbleH = Math.min(420, Math.max(240, modalInnerH * 0.5));
-    const measuredBubbleH = bubbleSize?.height ?? estimatedBubbleH;
-    const clampedBubbleH = Math.min(measuredBubbleH, modalInnerH);
-    const topSpace = anchor.top - modalTop;
-    const bottomSpace = modalBottom - anchor.bottom;
-    const placeBelow = bottomSpace >= clampedBubbleH || bottomSpace >= topSpace;
-    const preferredTop = placeBelow ? anchor.bottom + gap : anchor.top - clampedBubbleH - gap;
-    const top = Math.min(Math.max(preferredTop, modalTop), modalBottom - clampedBubbleH);
-
-    const edgePad = 10;
-    const maxH = Math.max(120, Math.min(modalBottom - top - edgePad, modalInnerH));
-    const arrowOffset = Math.min(Math.max(cx - left - 7, 16), maxW - 32);
-    return { left, top, maxW, maxH, placeBelow, arrowOffset };
 }
 
 /** 도감 재료 탭에서 제외 — 펫 탭(알·영혼석)으로만 표시 */
@@ -246,14 +197,14 @@ function encyclopediaItemAsInventoryPreview(item: EncyclopediaItem): InventoryIt
 const EncyclopediaIconCell: React.FC<{
     item: EncyclopediaItem;
     active: boolean;
-    onClick: (anchor: HTMLElement) => void;
+    onClick: () => void;
 }> = ({ item, active, onClick }) => (
     <button
         type="button"
         title={item.name}
         onClick={(e) => {
             e.stopPropagation();
-            onClick(e.currentTarget);
+            onClick();
         }}
         className={`group relative w-full rounded-lg p-0.5 transition-all duration-200 ${
             active
@@ -287,7 +238,8 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
     type MainTab = 'equipment' | 'material' | 'consumable' | 'pet';
 
     const { isNativeMobile, isNarrowViewport } = useNativeMobileShell();
-    const useBubbleDetail = !embedded && (isNativeMobile || isNarrowViewport);
+    /** 모바일: 목록 → 아이템 클릭 시 패널 전체를 상세 화면으로 전환(말풍선 뷰포트 없음) */
+    const useMobileItemDetailScreen = isNativeMobile || isNarrowViewport;
 
     const [mainTab, setMainTab] = useState<MainTab>('equipment');
 
@@ -303,12 +255,8 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
         transcendent: { name: '초월', color: 'text-cyan-200' },
     };
 
-    /** PC 뷰어 패널에서 선택된 항목 */
+    /** PC·임베드(데스크톱) 뷰어 패널 / 모바일 전체 상세 화면 공통 선택 항목 */
     const [selectedItem, setSelectedItem] = useState<EncyclopediaItem | null>(null);
-    /** 모바일 말풍선 상세 */
-    const [itemBubble, setItemBubble] = useState<{ item: EncyclopediaItem; anchor: DOMRect; modalBounds: DOMRect } | null>(null);
-    const bubbleContentRef = useRef<HTMLDivElement>(null);
-    const [bubbleSize, setBubbleSize] = useState<{ height: number } | null>(null);
     /** 장비 도감: 주옵·전투부옵 범위 미리보기 강화 단계 0~10 */
     const [encyclopediaEquipStars, setEncyclopediaEquipStars] = useState(0);
 
@@ -481,90 +429,30 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
     const selectedItemKey = selectedItem ? encyclopediaItemKey(selectedItem) : null;
 
     useEffect(() => {
-        setItemBubble(null);
-        if (useBubbleDetail) {
+        setEncyclopediaEquipStars(0);
+        if (useMobileItemDetailScreen) {
             setSelectedItem(null);
             return;
         }
-        setEncyclopediaEquipStars(0);
         const first = listSections.flatMap((s) => s.items)[0] ?? null;
         setSelectedItem(first);
-    }, [mainTab, listSections, useBubbleDetail]);
+    }, [mainTab, listSections, useMobileItemDetailScreen]);
 
     useEffect(() => {
-        if (useBubbleDetail || !selectedItem) return;
+        if (useMobileItemDetailScreen || !selectedItem) return;
         const stillExists = listSections.some((s) =>
             s.items.some((it) => encyclopediaItemKey(it) === selectedItemKey),
         );
         if (!stillExists) {
             setSelectedItem(listSections.flatMap((s) => s.items)[0] ?? null);
         }
-    }, [listSections, selectedItem, selectedItemKey, useBubbleDetail]);
+    }, [listSections, selectedItem, selectedItemKey, useMobileItemDetailScreen]);
 
-    const encyclopediaEquipKey = useBubbleDetail
-        ? itemBubble?.item?.type === 'equipment'
-            ? encyclopediaItemKey(itemBubble.item)
-            : null
-        : selectedItem?.type === 'equipment'
-          ? encyclopediaItemKey(selectedItem)
-          : null;
+    const encyclopediaEquipKey =
+        selectedItem?.type === 'equipment' ? encyclopediaItemKey(selectedItem) : null;
     useEffect(() => {
         setEncyclopediaEquipStars(0);
     }, [encyclopediaEquipKey]);
-
-    useEffect(() => {
-        if (!itemBubble) return;
-        const onKey = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') setItemBubble(null);
-        };
-        const onDocClick = (e: MouseEvent) => {
-            if (bubbleContentRef.current?.contains(e.target as Node)) return;
-            setItemBubble(null);
-        };
-        document.addEventListener('keydown', onKey);
-        const t = window.setTimeout(() => document.addEventListener('click', onDocClick), 0);
-        return () => {
-            document.removeEventListener('keydown', onKey);
-            window.clearTimeout(t);
-            document.removeEventListener('click', onDocClick);
-        };
-    }, [itemBubble]);
-
-    useLayoutEffect(() => {
-        if (!itemBubble) {
-            setBubbleSize(null);
-            return;
-        }
-        const bubbleEl = bubbleContentRef.current;
-        if (!bubbleEl) return;
-        const measure = () => {
-            const rect = bubbleEl.getBoundingClientRect();
-            setBubbleSize({ height: rect.height });
-        };
-        measure();
-        const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
-        if (ro) ro.observe(bubbleEl);
-        return () => ro?.disconnect();
-    }, [itemBubble]);
-
-    const isBubbleForItem = useCallback(
-        (item: EncyclopediaItem) => !!(itemBubble && encyclopediaItemsEqual(itemBubble.item, item)),
-        [itemBubble],
-    );
-
-    const toggleItemBubble = useCallback((item: EncyclopediaItem, anchorEl: HTMLElement) => {
-        setItemBubble((prev) => {
-            if (prev && encyclopediaItemsEqual(prev.item, item)) return null;
-            const modalEl = anchorEl.closest('[data-draggable-window="encyclopedia"]') as HTMLElement | null;
-            const modalBounds = modalEl?.getBoundingClientRect() ?? anchorEl.getBoundingClientRect();
-            return { item, anchor: anchorEl.getBoundingClientRect(), modalBounds };
-        });
-    }, []);
-
-    const bubblePlacement = useMemo(() => {
-        if (!itemBubble) return null;
-        return computeBubblePlacementInModal(itemBubble.anchor, itemBubble.modalBounds, bubbleSize ?? undefined);
-    }, [itemBubble, bubbleSize]);
 
     const mainTabBtn = (id: MainTab, label: string) => (
         <button
@@ -686,11 +574,12 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
     const listScrollClass = 'min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-2 py-2 [-webkit-overflow-scrolling:touch]';
 
     /** 7열 아이콘(약 58px) + 간격·패딩 — 좌측 목록 최소 가로폭 */
-    const listPanelWidthClass = embedded
-        ? 'w-[32rem] max-w-[58%] shrink-0'
-        : useBubbleDetail
-          ? 'w-full min-w-0 flex-1'
-          : 'w-full sm:w-[32rem] sm:max-w-[58%] sm:shrink-0';
+    const listPanelWidthClass =
+        embedded && !useMobileItemDetailScreen
+            ? 'w-[32rem] max-w-[58%] shrink-0'
+            : useMobileItemDetailScreen
+              ? 'w-full min-w-0 flex-1'
+              : 'w-full sm:w-[32rem] sm:max-w-[58%] sm:shrink-0';
 
     const iconGridClass = 'grid grid-cols-7 gap-1.5 sm:gap-2';
 
@@ -724,14 +613,8 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
                                         <EncyclopediaIconCell
                                             key={itemKey}
                                             item={item}
-                                            active={useBubbleDetail ? isBubbleForItem(item) : selectedItemKey === itemKey}
-                                            onClick={(anchor) => {
-                                                if (useBubbleDetail) {
-                                                    toggleItemBubble(item, anchor);
-                                                } else {
-                                                    setSelectedItem(item);
-                                                }
-                                            }}
+                                            active={selectedItemKey === itemKey}
+                                            onClick={() => setSelectedItem(item)}
                                         />
                                     );
                                 })}
@@ -1130,7 +1013,47 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
 
     const panelShellClass = `${subPanelClass} flex min-h-0 flex-col overflow-hidden`;
 
-    const encyclopediaBody = (
+    const showMobileDetailScreen = useMobileItemDetailScreen && !!selectedItem;
+
+    const renderMobileDetailScreen = () => {
+        if (!selectedItem) return null;
+        const isDenseEquipViewer = isHighTierEncyclopediaEquipment(selectedItem) && !!selectedItem.slot;
+        return (
+            <div className={`${shellClass} flex min-h-0 flex-1 flex-col overflow-hidden`}>
+                <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 px-3 py-2.5">
+                    <h3 className="min-w-0 truncate text-sm font-bold text-amber-100">아이템 정보</h3>
+                    <button
+                        type="button"
+                        onClick={() => setSelectedItem(null)}
+                        className="shrink-0 rounded-lg border border-white/20 bg-zinc-800/90 px-3 py-1.5 text-xs font-semibold text-zinc-100 active:scale-[0.98]"
+                    >
+                        닫기
+                    </button>
+                </div>
+                <div
+                    className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain p-2 sm:p-3 [-webkit-overflow-scrolling:touch] ${
+                        isDenseEquipViewer ? 'flex flex-col' : ''
+                    }`}
+                >
+                    <div
+                        className={`rounded-xl border border-amber-400/30 bg-gradient-to-b from-[#14151c] via-black/95 to-[#0a0a10] shadow-[0_12px_48px_-8px_rgba(0,0,0,0.9),0_0_40px_-16px_rgba(251,191,36,0.22)] ${
+                            isDenseEquipViewer
+                                ? 'flex min-h-0 flex-1 flex-col px-2 pb-2 pt-2 sm:px-3 sm:pb-2.5 sm:pt-2.5'
+                                : 'min-h-full px-2.5 pb-3 pt-2.5 sm:px-4 sm:pb-4 sm:pt-3'
+                        }`}
+                        role="region"
+                        aria-label="아이템 상세"
+                    >
+                        {renderItemDetail(selectedItem)}
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    const encyclopediaBody = showMobileDetailScreen ? (
+        renderMobileDetailScreen()
+    ) : (
         <div className={shellClass}>
             <div
                 className="mb-3 flex shrink-0 gap-1 rounded-xl border border-white/[0.06] bg-black/40 p-1 shadow-inner backdrop-blur-md sm:mb-4"
@@ -1144,13 +1067,17 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
             </div>
             <div
                 className={`flex min-h-0 flex-1 gap-2 overflow-hidden sm:gap-3 ${
-                    embedded ? 'flex-row' : useBubbleDetail ? 'flex-col' : 'flex-col sm:flex-row'
+                    embedded && !useMobileItemDetailScreen
+                        ? 'flex-row'
+                        : useMobileItemDetailScreen
+                          ? 'flex-col'
+                          : 'flex-col sm:flex-row'
                 }`}
             >
                 <div className={`${panelShellClass} min-h-0 ${listPanelWidthClass}`}>
                     {renderItemList()}
                 </div>
-                {!useBubbleDetail ? (
+                {!useMobileItemDetailScreen ? (
                     <div className={`${panelShellClass} min-h-0 min-w-0 flex-1`}>
                         {renderViewerPanel()}
                     </div>
@@ -1159,67 +1086,24 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
         </div>
     );
 
-    const itemBubblePortal =
-        useBubbleDetail && itemBubble && bubblePlacement && typeof document !== 'undefined'
-            ? createPortal(
-                  <div
-                      ref={bubbleContentRef}
-                      data-draggable-satellite="encyclopedia"
-                      role="dialog"
-                      aria-label="아이템 상세"
-                      className="pointer-events-auto max-h-[min(100dvh-24px,100vh-24px)] overflow-y-auto overflow-x-hidden overscroll-y-contain rounded-xl border border-amber-400/30 bg-gradient-to-b from-[#14151c] via-black/95 to-[#0a0a10] shadow-[0_12px_48px_-8px_rgba(0,0,0,0.9),0_0_40px_-16px_rgba(251,191,36,0.22)] [-webkit-overflow-scrolling:touch]"
-                      style={{
-                          position: 'fixed',
-                          zIndex: 100000,
-                          left: bubblePlacement.left,
-                          top: bubblePlacement.top,
-                          width: bubblePlacement.maxW,
-                          maxHeight: bubblePlacement.maxH,
-                      }}
-                  >
-                      {bubblePlacement.placeBelow ? (
-                          <div
-                              className="pointer-events-none absolute -top-[7px]"
-                              style={{ left: bubblePlacement.arrowOffset }}
-                              aria-hidden
-                          >
-                              <div className="h-0 w-0 border-x-[7px] border-b-[8px] border-x-transparent border-b-amber-500/45" />
-                          </div>
-                      ) : (
-                          <div
-                              className="pointer-events-none absolute -bottom-[7px]"
-                              style={{ left: bubblePlacement.arrowOffset }}
-                              aria-hidden
-                          >
-                              <div className="h-0 w-0 border-x-[7px] border-t-[8px] border-x-transparent border-t-amber-500/45" />
-                          </div>
-                      )}
-                      <div className="min-h-0 px-2.5 pb-3 pt-2.5 sm:px-4 sm:pb-4 sm:pt-3">
-                          {renderItemDetail(itemBubble.item)}
-                      </div>
-                  </div>,
-                  document.body,
-              )
-            : null;
-
     if (embedded) {
-        return <div className={PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS}>{encyclopediaBody}</div>;
+        return <div className={`${PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS} flex min-h-0 flex-1 flex-col overflow-hidden`}>{encyclopediaBody}</div>;
     }
 
     return (
-        <>
-            <DraggableWindow
-                title="도감"
-                onClose={onClose}
-                windowId="encyclopedia"
-                initialWidth={useBubbleDetail ? 700 : 1040}
-                initialHeight={880}
-                isTopmost={isTopmost}
-            >
-                {encyclopediaBody}
-            </DraggableWindow>
-            {itemBubblePortal}
-        </>
+        <DraggableWindow
+            title="도감"
+            onClose={onClose}
+            windowId="encyclopedia"
+            initialWidth={useMobileItemDetailScreen ? 700 : 1040}
+            initialHeight={880}
+            isTopmost={isTopmost}
+            mobileViewportFit={useMobileItemDetailScreen}
+            mobileViewportMaxHeightVh={useMobileItemDetailScreen ? 92 : undefined}
+            bodyScrollable={false}
+        >
+            {encyclopediaBody}
+        </DraggableWindow>
     );
 };
 

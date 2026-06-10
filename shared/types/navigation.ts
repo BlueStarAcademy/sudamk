@@ -100,5 +100,27 @@ export function parseHash(hash: string): AppRoute {
     }
 }
 
+/** Dock·로비·길드 등 "메인 화면" 이동 감지용 라우트 키 (퀵메뉴 자동 닫기 등) */
+export function getAppRouteNavigationKey(route: AppRoute): string {
+    switch (route.view) {
+        case 'profile':
+            return `profile:${route.params?.tab ?? 'home'}`;
+        case 'tournament':
+            return `tournament:${route.params?.type ?? ''}`;
+        case 'pvp':
+            return `pvp:${route.params?.channel ?? ''}`;
+        case 'ai':
+            return `ai:${route.params?.channel ?? ''}`;
+        case 'arena':
+            return `arena:${route.params?.intent ?? ''}`;
+        case 'adventure':
+            return `adventure:${route.params?.stageId ?? ''}`;
+        case 'game':
+            return `game:${route.params?.id ?? ''}`;
+        default:
+            return route.view;
+    }
+}
+
 /** @deprecated legacy GameMode waiting routes — use arena lobby hash helpers instead */
 export type LegacyWaitingMode = GameMode;

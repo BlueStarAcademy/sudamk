@@ -79,6 +79,19 @@ const MobileViewportHost: React.FC<MobileViewportHostProps> = ({ stack, onBack }
         );
     }
 
+    if (entry.type === 'gameRecordViewer') {
+        return (
+            <Suspense fallback={<PanelLoadingFallback />}>
+                <GameRecordViewerModal
+                    embedded
+                    mobileFullScreen
+                    record={entry.record}
+                    onClose={onBack}
+                />
+            </Suspense>
+        );
+    }
+
     const renderEntryBody = () => {
         switch (entry.type) {
             case 'itemDetail':
@@ -93,8 +106,6 @@ const MobileViewportHost: React.FC<MobileViewportHostProps> = ({ stack, onBack }
                         onStartRefine={handlers.openRefinementFromDetail}
                     />
                 );
-            case 'gameRecordViewer':
-                return <GameRecordViewerModal embedded record={entry.record} onClose={onBack} />;
             case 'settings':
                 return <SettingsModal embedded onClose={onBack} />;
             case 'mailbox':

@@ -68,6 +68,8 @@ const TAB_LABELS: Record<Tab, string> = {
 
 /** 모바일 「장착 장비」 팝업 설계 너비(DraggableWindow initialWidth) — 본문·슬롯 스케일 기준 */
 const MOBILE_EQUIPPED_MODAL_DESIGN_WIDTH = 350;
+/** 모바일 장착 장비 3×3 그리드 최대 너비(슬롯당 ~72px) */
+const MOBILE_EQUIPPED_GRID_MAX_WIDTH_PX = 216;
 
 const calculateExpansionCost = (currentCategorySlots: number): number => {
     const expansionsMade = Math.max(0, (currentCategorySlots - BASE_SLOTS_PER_CATEGORY) / EXPANSION_AMOUNT);
@@ -193,7 +195,7 @@ const EquipmentSlotDisplay: React.FC<{
     };
 
     if (item) {
-        const iconPct = compactIconLayout ? '70%' : '80%';
+        const iconPct = compactIconLayout ? '62%' : '80%';
         const padding = Math.max(
             compactIconLayout ? 3 : 4,
             Math.round((compactIconLayout ? 5 : 6) * scaleFactor)
@@ -327,8 +329,9 @@ const EquipmentSlotDisplay: React.FC<{
             </div>
         );
     } else {
-        const padding = Math.max(4, Math.round(6 * scaleFactor));
+        const padding = Math.max(compactIconLayout ? 3 : 4, Math.round((compactIconLayout ? 5 : 6) * scaleFactor));
         const borderWidth = Math.max(1, Math.round(2 * scaleFactor));
+        const emptyIconPct = compactIconLayout ? '76%' : '100%';
         return (
             <div
                 className={`relative aspect-square rounded-lg bg-tertiary/50 ring-1 ring-transparent`}
@@ -340,7 +343,8 @@ const EquipmentSlotDisplay: React.FC<{
                     maxWidth: '100%', 
                     maxHeight: '100%',
                     border: `${borderWidth}px solid rgba(255, 255, 255, 0.1)`,
-                    boxSizing: 'border-box'
+                    boxSizing: 'border-box',
+                    containerType: compactIconLayout ? 'size' : undefined,
                 }}
             >
                 {/* 배경 레이어 (장비가 있을 때와 동일한 구조) */}
@@ -357,15 +361,22 @@ const EquipmentSlotDisplay: React.FC<{
                 <img 
                     src={emptySlotImages[slot]} 
                     alt={`${slot} empty slot`} 
-                    className="relative object-contain" 
+                    className={compactIconLayout ? 'absolute object-contain' : 'relative object-contain'}
                     style={{ 
-                        width: '100%', 
-                        height: '100%', 
+                        width: emptyIconPct, 
+                        height: emptyIconPct, 
                         padding: `${padding}px`, 
-                        maxWidth: '100%', 
-                        maxHeight: '100%',
+                        maxWidth: emptyIconPct, 
+                        maxHeight: emptyIconPct,
                         boxSizing: 'border-box',
-                        objectFit: 'contain'
+                        objectFit: 'contain',
+                        ...(compactIconLayout
+                            ? {
+                                  left: '50%',
+                                  top: '50%',
+                                  transform: 'translate(-50%, -50%)',
+                              }
+                            : {}),
                     }}
                 />
             </div>
@@ -1024,7 +1035,8 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
     isTopmost,
     embedded = false,
 }) => {
-    const { presets, handlers, currentUserWithStatus, updateTrigger, modalLayerUsesDesignPixels } = useAppContext();
+    const { presets, handlers, currentUserWithStatus, updateTrigger, modalLayerUsesDesignPixels, usePortraitFirstShell } =
+        useAppContext();
     
     // useAppContext의 currentUserWithStatus를 우선 사용 (최신 상태 보장)
     const currentUser = currentUserWithStatus || propCurrentUser;
@@ -1104,6 +1116,8 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
     const effectiveIsCompactViewport = modalLayerUsesDesignPixels ? false : isCompactViewport;
     /** 16:9 설계 캔버스 안에서는 모바일 재배치로 갈아타지 않고 비율 축소(scale)를 유지 */
     const narrowInventoryLayout = effectiveIsCompactViewport;
+    /** 모바일 가방: 아이템 탭 시 PC 선택 패널과 동일 내용을 오버레이 모달로 표시 */
+    const useMobileBagItemDetailModal = narrowInventoryLayout || Boolean(embedded && usePortraitFirstShell);
     // 가방/하위 모달은 캔버스 프레임 상한의 영향을 받지 않도록 브라우저 뷰포트 레이어에 고정 렌더링한다.
     const useViewportSizedBagModal = !modalLayerUsesDesignPixels;
     const hasInventoryChildModal =
@@ -1116,8 +1130,8 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
         !!pendingBindEquipItemId ||
         !!pendingUnbindItemId ||
         isEquipCompareOpen ||
-        (narrowInventoryLayout && isMobileEquippedModalOpen) ||
-        (narrowInventoryLayout && isMobileItemDetailOpen);
+        (useMobileBagItemDetailModal && isMobileEquippedModalOpen) ||
+        (useMobileBagItemDetailModal && isMobileItemDetailOpen);
 
     /** 모바일 가방: 가로 한 줄 6칸. PC는 기존처럼 한 줄 12칸 */
     const mobileInventoryColumns = useMemo(() => {
@@ -1564,6 +1578,266 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
         const afterSum = Object.values(afterStats).reduce((a, b) => a + b, 0);
         return { currentStats, afterStats, delta, currentSum, afterSum, sumDelta: afterSum - currentSum };
     }, [selectedItem, currentUser]);
+
+    const renderMobileBagItemDetailPanel = () => {
+        if (!selectedItem) return null;
+        return (
+            <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-1.5">
+                <div className="min-h-0 w-full min-w-0 flex-1 overflow-y-auto overflow-x-hidden [scrollbar-width:thin]">
+                    {selectedItem.type === 'equipment' ||
+                    selectedItem.type === 'consumable' ||
+                    selectedItem.type === 'material' ? (
+                        <EquipmentDetailPanel
+                            item={selectedItem}
+                            iconSlotPx={Math.max(
+                                52,
+                                Math.round(
+                                    80 *
+                                        Math.max(0.35, scaleFactor * MOBILE_EQUIPMENT_DETAIL_LAYOUT_SCALE * 1.15) *
+                                        0.88
+                                )
+                            )}
+                            comfortableTypography
+                            optionRowsSingleLine={selectedItem.type === 'equipment'}
+                            showTradeStatusUnderImage
+                            optionsScrollable={false}
+                        />
+                    ) : (
+                        <div className="flex min-h-0 flex-col overflow-hidden rounded-lg bg-panel-secondary p-2">
+                            <LocalItemDetailDisplay
+                                item={selectedItem}
+                                title="선택된 아이템 없음"
+                                comparisonItem={undefined}
+                                scaleFactor={Math.max(0.35, scaleFactor * MOBILE_EQUIPMENT_DETAIL_LAYOUT_SCALE * 1.15)}
+                                mobileTextScale={mobileTextScale}
+                                userLevelSum={currentUser.userLevel}
+                                detailScaleMultiplier={0.88}
+                                expandOptionsToFill={false}
+                            />
+                        </div>
+                    )}
+                </div>
+                <div
+                    className={`shrink-0 border-t border-slate-700/50 pt-2 pb-[max(0.35rem,env(safe-area-inset-bottom))] ${BAG_INVENTORY_FOOTER_ROW_CLASS}`}
+                >
+                    {selectedItem.type === 'equipment' && (
+                        <>
+                            {selectedItem.id === correspondingEquippedItem?.id ? (
+                                <Button bare colorScheme="none" onClick={() => handleEquipToggle(selectedItem.id)} className={BAG_INVENTORY_FOOTER_BTN.danger}>
+                                    해제
+                                </Button>
+                            ) : (
+                                <Button
+                                    bare
+                                    colorScheme="none"
+                                    onClick={() => handleEquipToggle(selectedItem.id)}
+                                    className={BAG_INVENTORY_FOOTER_BTN.success}
+                                    disabled={!canEquip}
+                                >
+                                    장착
+                                </Button>
+                            )}
+                            {selectedItem.slot && selectedItem.id !== correspondingEquippedItem?.id && (
+                                <Button type="button" bare colorScheme="none" onClick={() => setIsEquipCompareOpen(true)} className={BAG_INVENTORY_FOOTER_BTN.info}>
+                                    장비 비교
+                                </Button>
+                            )}
+                            <Button bare colorScheme="none" onClick={() => onStartEnhance(selectedItem)} disabled={selectedItem.stars >= 10} className={BAG_INVENTORY_FOOTER_BTN.warning}>
+                                {selectedItem.stars >= 10 ? '최대 강화' : '강화'}
+                            </Button>
+                            <Button bare colorScheme="none" onClick={() => setItemToSell(selectedItem)} className={BAG_INVENTORY_FOOTER_BTN.danger}>
+                                판매
+                            </Button>
+                            {selectedItem.isBound && (
+                                <Button
+                                    bare
+                                    colorScheme="none"
+                                    onClick={() => handleUnbindEquipment(selectedItem.id)}
+                                    className={BAG_INVENTORY_FOOTER_BTN.info}
+                                >
+                                    귀속해제
+                                </Button>
+                            )}
+                        </>
+                    )}
+                    {selectedItem.type === 'consumable' &&
+                        (() => {
+                            const consumableItem = findConsumableItem(selectedItem.name);
+                            const isUsable = consumableItem?.usable !== false;
+                            const isRefinementTicket = isRefinementTicketMaterial(selectedItem.name);
+                            const isSellable = isRefinementTicket || consumableItem?.sellable !== false;
+                            const hideBagUse = isConditionPotionConsumable(selectedItem.name);
+                            return (
+                                <>
+                                    {isUsable && !hideBagUse && (
+                                        <>
+                                            <Button
+                                                bare
+                                                colorScheme="none"
+                                                onClick={() => {
+                                                    void onAction({ type: 'USE_ITEM', payload: { itemId: selectedItem.id, itemName: selectedItem.name } });
+                                                }}
+                                                className={BAG_INVENTORY_FOOTER_BTN.info}
+                                            >
+                                                사용
+                                            </Button>
+                                            {!isRefinementTicket && selectedItem.quantity && selectedItem.quantity > 1 && (
+                                                <Button
+                                                    bare
+                                                    colorScheme="none"
+                                                    onClick={() => {
+                                                        setItemToUseBulk(selectedItem);
+                                                        setShowUseQuantityModal(true);
+                                                    }}
+                                                    className={BAG_INVENTORY_FOOTER_BTN.accent}
+                                                >
+                                                    일괄 사용
+                                                </Button>
+                                            )}
+                                        </>
+                                    )}
+                                    {isSellable && (
+                                        <>
+                                            <Button bare colorScheme="none" onClick={() => setItemToSell(selectedItem)} className={BAG_INVENTORY_FOOTER_BTN.danger}>
+                                                판매
+                                            </Button>
+                                            {selectedItem.quantity && selectedItem.quantity > 1 && (
+                                                <Button bare colorScheme="none" onClick={() => setItemToSellBulk(selectedItem)} className={BAG_INVENTORY_FOOTER_BTN.warning}>
+                                                    일괄 판매
+                                                </Button>
+                                            )}
+                                        </>
+                                    )}
+                                </>
+                            );
+                        })()}
+                    {selectedItem.type === 'material' && (
+                        <>
+                            <Button bare colorScheme="none" onClick={() => setItemToSell(selectedItem)} className={BAG_INVENTORY_FOOTER_BTN.danger}>
+                                판매
+                            </Button>
+                            <Button bare colorScheme="none" onClick={() => setItemToSellBulk(selectedItem)} className={BAG_INVENTORY_FOOTER_BTN.warning}>
+                                일괄 판매
+                            </Button>
+                            {!isRefinementTicketMaterial(selectedItem.name) && getEnhancementMaterialUsageLinesForBag(selectedItem.name).length > 0 && (
+                                <Button bare colorScheme="none" onClick={() => onOpenBlacksmithTab('convert')} className={BAG_INVENTORY_FOOTER_BTN.info}>
+                                    재료변환
+                                </Button>
+                            )}
+                            {isRefinementTicketMaterial(selectedItem.name) && (
+                                <Button bare colorScheme="none" onClick={() => onOpenBlacksmithTab('refine')} className={BAG_INVENTORY_FOOTER_BTN.info}>
+                                    사용
+                                </Button>
+                            )}
+                        </>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
+    const renderMobileBagEquippedPanel = () => {
+        const slotScale = Math.max(0.22, Math.min(0.38, mobileEquippedLayoutScale * 0.82));
+        const titleFs = Math.max(14, Math.round(17 * mobileEquippedLayoutScale * mobileTextScale));
+        const eqStatFs = Math.max(14, Math.round(16 * mobileEquippedLayoutScale * mobileTextScale));
+        const eqBonusFs = Math.max(12, Math.round(14 * mobileEquippedLayoutScale * mobileTextScale));
+        const presetFs = Math.max(14, Math.round(15.5 * mobileEquippedLayoutScale * mobileTextScale));
+        const saveFs = Math.max(13, Math.round(15 * mobileEquippedLayoutScale * mobileTextScale));
+
+        return (
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                <div className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden ${BAG_SCROLLBAR_Y_CLASS}`}>
+                    <h3 className="mb-2 font-bold text-on-panel" style={{ fontSize: `${titleFs}px` }}>
+                        장착 장비
+                    </h3>
+                    <div
+                        className="mx-auto grid w-full"
+                        style={{
+                            maxWidth: `${MOBILE_EQUIPPED_GRID_MAX_WIDTH_PX}px`,
+                            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                            gap: `${Math.max(6, Math.round(8 * mobileEquippedLayoutScale))}px`,
+                        }}
+                    >
+                        {EQUIPMENT_SLOTS.map((slot) => {
+                            const equippedItem = getItemForSlot(slot);
+                            return (
+                                <div key={slot} style={{ width: '100%', minWidth: 0 }}>
+                                    <EquipmentSlotDisplay
+                                        slot={slot}
+                                        item={equippedItem}
+                                        scaleFactor={slotScale}
+                                        compactIconLayout
+                                        onClick={
+                                            equippedItem
+                                                ? () => {
+                                                      setSelectedItemId(equippedItem.id);
+                                                      setIsMobileItemDetailOpen(true);
+                                                  }
+                                                : undefined
+                                        }
+                                        isSelected={equippedItem ? selectedItemId === equippedItem.id : false}
+                                    />
+                                </div>
+                            );
+                        })}
+                    </div>
+                    <div className="mt-4">
+                        <div className="mb-2 grid grid-cols-2 gap-x-3 gap-y-1">
+                            {Object.values(CoreStat).map((stat) => {
+                                const baseStats = currentUser.baseStats || {};
+                                const spentStatPoints = currentUser.spentStatPoints || {};
+                                const baseValue = (baseStats[stat] || 0) + (spentStatPoints[stat] || 0);
+                                const bonusInfo = coreStatBonuses[stat] || { percent: 0, flat: 0 };
+                                const flatBonus = Number(bonusInfo.flat) || 0;
+                                const percentBonus = Number(bonusInfo.percent) || 0;
+                                const finalValue = computeCoreStatFinalFromBonuses(baseValue, flatBonus, percentBonus);
+                                const bonus = finalValue - baseValue;
+                                return (
+                                    <div
+                                        key={stat}
+                                        className="flex items-center justify-between rounded-md bg-tertiary/40 px-1.5 py-1"
+                                        style={{ fontSize: `${eqStatFs}px` }}
+                                    >
+                                        <span className="whitespace-nowrap font-semibold text-secondary">{stat}</span>
+                                        <span className="whitespace-nowrap font-mono font-bold" title={`기본: ${baseValue}, 장비: ${bonus}`}>
+                                            {isNaN(finalValue) ? 0 : finalValue}
+                                            {bonus > 0 && (
+                                                <span className="ml-0.5 text-green-400" style={{ fontSize: `${eqBonusFs}px` }}>
+                                                    (+{bonus})
+                                                </span>
+                                            )}
+                                        </span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+                <div className="mt-2 flex shrink-0 items-center gap-2 border-t border-gray-700/60 pt-2 pb-[max(0.35rem,env(safe-area-inset-bottom))]">
+                    <select
+                        value={selectedPreset}
+                        onChange={(e) => handlePresetChange(Number(e.target.value))}
+                        className="min-w-0 flex-1 rounded-md border border-color bg-secondary py-1.5 pl-2 pr-1 focus:border-accent focus:ring-accent"
+                        style={{ fontSize: `${presetFs}px` }}
+                    >
+                        {presets.map((preset, index) => (
+                            <option key={index} value={index}>
+                                {preset.name}
+                            </option>
+                        ))}
+                    </select>
+                    <Button
+                        onClick={handleOpenRenameModal}
+                        colorScheme="blue"
+                        className={`!shrink-0 !py-1.5 !px-2 ${viewerActionButtonClass.info}`}
+                        style={{ fontSize: `${saveFs}px` }}
+                    >
+                        저장
+                    </Button>
+                </div>
+            </div>
+        );
+    };
 
     const inventoryBody = (
         <>
@@ -2240,9 +2514,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                             item={item}
                                             onClick={() => {
                                                 setSelectedItemId(item.id);
-                                                if (embedded && narrowInventoryLayout) {
-                                                    handlers.openViewingItem(item, true);
-                                                } else if (narrowInventoryLayout) {
+                                                if (useMobileBagItemDetailModal) {
                                                     setIsMobileItemDetailOpen(true);
                                                 }
                                             }}
@@ -2278,157 +2550,47 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                 </div>
             </div>
 
-            {embedded && narrowInventoryLayout && isMobileEquippedModalOpen && (
-                <div className="absolute inset-0 z-30 flex min-h-0 flex-col overflow-hidden bg-gray-900/98 p-2">
-                    <button
-                        type="button"
-                        onClick={() => setIsMobileEquippedModalOpen(false)}
-                        className="mb-2 shrink-0 self-start rounded-lg border border-white/15 bg-black/35 px-3 py-1.5 text-sm font-semibold text-amber-100"
-                    >
-                        가방으로
-                    </button>
-                    <div className={`flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto ${BAG_SCROLLBAR_Y_CLASS}`}>
-                        <h3 className="font-bold text-on-panel" style={{ fontSize: `${Math.max(14, Math.round(17 * mobileEquippedLayoutScale * mobileTextScale))}px` }}>
-                            장착 슬롯
-                        </h3>
-                        <div
-                            className="grid"
-                            style={{
-                                gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-                                gap: `${Math.max(2, Math.round(3.5 * mobileEquippedLayoutScale))}px`,
-                            }}
-                        >
-                            {EQUIPMENT_SLOTS.map((slot) => {
-                                const equippedItem = getItemForSlot(slot);
-                                return (
-                                    <div key={slot} style={{ width: '100%', minWidth: 0 }}>
-                                        <EquipmentSlotDisplay
-                                            slot={slot}
-                                            item={equippedItem}
-                                            scaleFactor={Math.max(0.22, Math.min(0.38, mobileEquippedLayoutScale * 0.82))}
-                                            compactIconLayout
-                                            onClick={
-                                                equippedItem
-                                                    ? () => handlers.openViewingItem(equippedItem, true)
-                                                    : undefined
-                                            }
-                                            isSelected={equippedItem ? selectedItemId === equippedItem.id : false}
-                                        />
-                                    </div>
-                                );
-                            })}
+            {useMobileBagItemDetailModal && isMobileEquippedModalOpen && (
+                <div className="absolute inset-0 z-30 flex min-h-0 flex-col bg-black/75 p-2 backdrop-blur-[1px]">
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/15 bg-gray-900 shadow-2xl ring-1 ring-white/10">
+                        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 px-3 py-2.5">
+                            <h3 className="min-w-0 truncate text-sm font-bold text-amber-100">장착 장비</h3>
+                            <button
+                                type="button"
+                                onClick={() => setIsMobileEquippedModalOpen(false)}
+                                className="shrink-0 rounded-lg border border-white/20 bg-zinc-800/90 px-3 py-1.5 text-xs font-semibold text-zinc-100 active:scale-[0.98]"
+                            >
+                                닫기
+                            </button>
+                        </div>
+                        <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pb-2 pt-2">
+                            {renderMobileBagEquippedPanel()}
                         </div>
                     </div>
                 </div>
             )}
 
-            {narrowInventoryLayout && isMobileEquippedModalOpen && !embedded && (
-                <DraggableWindow
-                    title="장착 장비"
-                    onClose={() => setIsMobileEquippedModalOpen(false)}
-                    windowId="inventoryMobileEquipped"
-                    isTopmost={isTopmost && !isMobileItemDetailOpen}
-                    initialWidth={MOBILE_EQUIPPED_MODAL_DESIGN_WIDTH}
-                    initialHeight={600}
-                    variant="store"
-                    mobileViewportFit
-                    mobileViewportMaxHeightVh={92}
-                    bodyPaddingClassName="!px-2 !py-2 sm:!px-2.5 sm:!py-2.5"
-                    viewportPortal={useViewportSizedBagModal}
-                >
-                    <div
-                        className={`flex max-h-[min(82dvh,600px)] min-h-0 flex-col gap-1.5 overflow-y-auto ${BAG_SCROLLBAR_Y_CLASS}`}
-                        style={{ WebkitOverflowScrolling: 'touch' }}
-                    >
-                        <h3
-                            className="font-bold text-on-panel"
-                            style={{
-                                fontSize: `${Math.max(14, Math.round(17 * mobileEquippedLayoutScale * mobileTextScale))}px`,
-                            }}
-                        >
-                            장착 슬롯
-                        </h3>
-                        <div
-                            className="grid"
-                            style={{
-                                gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-                                gap: `${Math.max(2, Math.round(3.5 * mobileEquippedLayoutScale))}px`,
-                            }}
-                        >
-                            {EQUIPMENT_SLOTS.map((slot) => {
-                                const equippedItem = getItemForSlot(slot);
-                                return (
-                                    <div key={slot} style={{ width: '100%', minWidth: 0 }}>
-                                        <EquipmentSlotDisplay
-                                            slot={slot}
-                                            item={equippedItem}
-                                            scaleFactor={Math.max(0.22, Math.min(0.38, mobileEquippedLayoutScale * 0.82))}
-                                            compactIconLayout
-                                            onClick={equippedItem ? () => {
-                                                setSelectedItemId(equippedItem.id);
-                                                setIsMobileItemDetailOpen(true);
-                                            } : undefined}
-                                            isSelected={equippedItem ? selectedItemId === equippedItem.id : false}
-                                        />
-                                    </div>
-                                );
-                            })}
+            {useMobileBagItemDetailModal && isMobileItemDetailOpen && selectedItem && embedded && (
+                <div className="absolute inset-0 z-40 flex min-h-0 flex-col bg-black/75 p-2 backdrop-blur-[1px]">
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/15 bg-gray-900 shadow-2xl ring-1 ring-white/10">
+                        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 px-3 py-2.5">
+                            <h3 className="min-w-0 truncate text-sm font-bold text-amber-100">아이템 정보</h3>
+                            <button
+                                type="button"
+                                onClick={() => setIsMobileItemDetailOpen(false)}
+                                className="shrink-0 rounded-lg border border-white/20 bg-zinc-800/90 px-3 py-1.5 text-xs font-semibold text-zinc-100 active:scale-[0.98]"
+                            >
+                                닫기
+                            </button>
                         </div>
-                        <div className="border-t border-gray-600/60 pt-1.5">
-                            <div className="grid grid-cols-2 gap-x-1.5 gap-y-0.5">
-                                {Object.values(CoreStat).map((stat) => {
-                                    const baseStats = currentUser.baseStats || {};
-                                    const spentStatPoints = currentUser.spentStatPoints || {};
-                                    const baseValue = (baseStats[stat] || 0) + (spentStatPoints[stat] || 0);
-                                    const bonusInfo = coreStatBonuses[stat] || { percent: 0, flat: 0 };
-                                    const flatBonus = Number(bonusInfo.flat) || 0;
-                                    const percentBonus = Number(bonusInfo.percent) || 0;
-                                    const finalValue = computeCoreStatFinalFromBonuses(baseValue, flatBonus, percentBonus);
-                                    const bonus = finalValue - baseValue;
-                                    const eqStatFs = Math.max(14, Math.round(16 * mobileEquippedLayoutScale * mobileTextScale));
-                                    const eqBonusFs = Math.max(12, Math.round(14 * mobileEquippedLayoutScale * mobileTextScale));
-                                    return (
-                                        <div
-                                            key={stat}
-                                            className="flex items-center justify-between rounded-md bg-tertiary/40 px-1.5 py-1"
-                                            style={{ fontSize: `${eqStatFs}px` }}
-                                        >
-                                            <span className="whitespace-nowrap font-semibold text-secondary">{stat}</span>
-                                            <span className="whitespace-nowrap font-mono font-bold" title={`기본: ${baseValue}, 장비: ${bonus}`}>
-                                                {isNaN(finalValue) ? 0 : finalValue}
-                                                {bonus > 0 && (
-                                                    <span className="ml-0.5 text-green-400" style={{ fontSize: `${eqBonusFs}px` }}>
-                                                        (+{bonus})
-                                                    </span>
-                                                )}
-                                            </span>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                            <div className="mt-1.5 flex items-center gap-1">
-                                <select
-                                    value={selectedPreset}
-                                    onChange={(e) => handlePresetChange(Number(e.target.value))}
-                                    className="min-w-0 flex-1 rounded-md border border-color bg-secondary py-1.5 pl-2 pr-1 focus:border-accent focus:ring-accent"
-                                    style={{ fontSize: `${Math.max(14, Math.round(15.5 * mobileEquippedLayoutScale * mobileTextScale))}px` }}
-                                >
-                                    {presets.map((preset, index) => (
-                                        <option key={index} value={index}>
-                                            {preset.name}
-                                        </option>
-                                    ))}
-                                </select>
-                                <Button onClick={handleOpenRenameModal} colorScheme="blue" className={`!shrink-0 !py-1.5 !px-2 ${viewerActionButtonClass.info}`} style={{ fontSize: `${Math.max(13, Math.round(15 * mobileEquippedLayoutScale * mobileTextScale))}px` }}>
-                                    저장
-                                </Button>
-                            </div>
+                        <div className={`flex min-h-0 flex-1 flex-col overflow-hidden ${MOBILE_EQUIPMENT_DETAIL_BODY_PADDING_CLASS}`}>
+                            {renderMobileBagItemDetailPanel()}
                         </div>
                     </div>
-                </DraggableWindow>
+                </div>
             )}
 
-            {narrowInventoryLayout && isMobileItemDetailOpen && selectedItem && !embedded && (
+            {useMobileBagItemDetailModal && isMobileItemDetailOpen && selectedItem && !embedded && (
                 <DraggableWindow
                     title="아이템 정보"
                     onClose={() => setIsMobileItemDetailOpen(false)}
@@ -2446,155 +2608,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                     hideFooter
                     viewportPortal={useViewportSizedBagModal}
                 >
-                    <div className="flex min-h-0 w-full min-w-0 flex-col gap-1.5">
-                        <div className="min-h-0 w-full min-w-0 flex-1 overflow-y-auto overflow-x-hidden [scrollbar-width:thin]">
-                            {selectedItem.type === 'equipment' ||
-                            selectedItem.type === 'consumable' ||
-                            selectedItem.type === 'material' ? (
-                                <EquipmentDetailPanel
-                                    item={selectedItem}
-                                    iconSlotPx={Math.max(
-                                        52,
-                                        Math.round(
-                                            80 *
-                                                Math.max(0.35, scaleFactor * MOBILE_EQUIPMENT_DETAIL_LAYOUT_SCALE * 1.15) *
-                                                0.88
-                                        )
-                                    )}
-                                    comfortableTypography
-                                    optionRowsSingleLine={selectedItem.type === 'equipment'}
-                                    showTradeStatusUnderImage
-                                    optionsScrollable={false}
-                                />
-                            ) : (
-                                <div className="flex min-h-0 flex-col overflow-hidden rounded-lg bg-panel-secondary p-2">
-                                    <LocalItemDetailDisplay
-                                        item={selectedItem}
-                                        title="선택된 아이템 없음"
-                                        comparisonItem={undefined}
-                                        scaleFactor={Math.max(0.35, scaleFactor * MOBILE_EQUIPMENT_DETAIL_LAYOUT_SCALE * 1.15)}
-                                        mobileTextScale={mobileTextScale}
-                                        userLevelSum={currentUser.userLevel}
-                                        detailScaleMultiplier={0.88}
-                                        expandOptionsToFill={false}
-                                    />
-                                </div>
-                            )}
-                        </div>
-                        <div className={`shrink-0 border-t border-slate-700/50 pt-2 ${BAG_INVENTORY_FOOTER_ROW_CLASS}`}>
-                            {selectedItem.type === 'equipment' && (
-                                <>
-                                    {selectedItem.id === correspondingEquippedItem?.id ? (
-                                        <Button bare colorScheme="none" onClick={() => handleEquipToggle(selectedItem.id)} className={BAG_INVENTORY_FOOTER_BTN.danger}>
-                                            해제
-                                        </Button>
-                                    ) : (
-                                        <Button
-                                            bare
-                                            colorScheme="none"
-                                            onClick={() => handleEquipToggle(selectedItem.id)}
-                                            className={BAG_INVENTORY_FOOTER_BTN.success}
-                                            disabled={!canEquip}
-                                        >
-                                            장착
-                                        </Button>
-                                    )}
-                                    {selectedItem.slot && selectedItem.id !== correspondingEquippedItem?.id && (
-                                        <Button type="button" bare colorScheme="none" onClick={() => setIsEquipCompareOpen(true)} className={BAG_INVENTORY_FOOTER_BTN.info}>
-                                            장비 비교
-                                        </Button>
-                                    )}
-                                    <Button bare colorScheme="none" onClick={() => onStartEnhance(selectedItem)} disabled={selectedItem.stars >= 10} className={BAG_INVENTORY_FOOTER_BTN.warning}>
-                                        {selectedItem.stars >= 10 ? '최대 강화' : '강화'}
-                                    </Button>
-                                    <Button bare colorScheme="none" onClick={() => setItemToSell(selectedItem)} className={BAG_INVENTORY_FOOTER_BTN.danger}>
-                                        판매
-                                    </Button>
-                                    {selectedItem.isBound && (
-                                        <Button
-                                            bare
-                                            colorScheme="none"
-                                            onClick={() => handleUnbindEquipment(selectedItem.id)}
-                                            className={BAG_INVENTORY_FOOTER_BTN.info}
-                                        >
-                                            귀속해제
-                                        </Button>
-                                    )}
-                                </>
-                            )}
-                            {selectedItem.type === 'consumable' &&
-                                (() => {
-                                    const consumableItem = findConsumableItem(selectedItem.name);
-                                    const isUsable = consumableItem?.usable !== false;
-                                    const isRefinementTicket = isRefinementTicketMaterial(selectedItem.name);
-                                    const isSellable = isRefinementTicket || consumableItem?.sellable !== false;
-                                    const hideBagUse = isConditionPotionConsumable(selectedItem.name);
-                                    return (
-                                        <>
-                                            {isUsable && !hideBagUse && (
-                                                <>
-                                                    <Button
-                                                        bare
-                                                        colorScheme="none"
-                                                        onClick={() => {
-                                                            void onAction({ type: 'USE_ITEM', payload: { itemId: selectedItem.id, itemName: selectedItem.name } });
-                                                        }}
-                                                        className={BAG_INVENTORY_FOOTER_BTN.info}
-                                                    >
-                                                        사용
-                                                    </Button>
-                                                    {!isRefinementTicket && selectedItem.quantity && selectedItem.quantity > 1 && (
-                                                        <Button
-                                                            bare
-                                                            colorScheme="none"
-                                                            onClick={() => {
-                                                                setItemToUseBulk(selectedItem);
-                                                                setShowUseQuantityModal(true);
-                                                            }}
-                                                            className={BAG_INVENTORY_FOOTER_BTN.accent}
-                                                        >
-                                                            일괄 사용
-                                                        </Button>
-                                                    )}
-                                                </>
-                                            )}
-                                            {isSellable && (
-                                                <>
-                                                    <Button bare colorScheme="none" onClick={() => setItemToSell(selectedItem)} className={BAG_INVENTORY_FOOTER_BTN.danger}>
-                                                        판매
-                                                    </Button>
-                                                    {selectedItem.quantity && selectedItem.quantity > 1 && (
-                                                        <Button bare colorScheme="none" onClick={() => setItemToSellBulk(selectedItem)} className={BAG_INVENTORY_FOOTER_BTN.warning}>
-                                                            일괄 판매
-                                                        </Button>
-                                                    )}
-                                                </>
-                                            )}
-                                        </>
-                                    );
-                                })()}
-                            {selectedItem.type === 'material' && (
-                                <>
-                                    <Button bare colorScheme="none" onClick={() => setItemToSell(selectedItem)} className={BAG_INVENTORY_FOOTER_BTN.danger}>
-                                        판매
-                                    </Button>
-                                    <Button bare colorScheme="none" onClick={() => setItemToSellBulk(selectedItem)} className={BAG_INVENTORY_FOOTER_BTN.warning}>
-                                        일괄 판매
-                                    </Button>
-                                    {!isRefinementTicketMaterial(selectedItem.name) && getEnhancementMaterialUsageLinesForBag(selectedItem.name).length > 0 && (
-                                        <Button bare colorScheme="none" onClick={() => onOpenBlacksmithTab('convert')} className={BAG_INVENTORY_FOOTER_BTN.info}>
-                                            재료변환
-                                        </Button>
-                                    )}
-                                    {isRefinementTicketMaterial(selectedItem.name) && (
-                                        <Button bare colorScheme="none" onClick={() => onOpenBlacksmithTab('refine')} className={BAG_INVENTORY_FOOTER_BTN.info}>
-                                            사용
-                                        </Button>
-                                    )}
-                                </>
-                            )}
-                        </div>
-                    </div>
+                    {renderMobileBagItemDetailPanel()}
                 </DraggableWindow>
             )}
 
@@ -3329,7 +3343,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
 
     if (embedded) {
         return (
-            <div className={PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS}>
+            <div className={`${PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS} relative flex min-h-0 flex-1 flex-col overflow-hidden`}>
                 {inventoryBody}
             </div>
         );

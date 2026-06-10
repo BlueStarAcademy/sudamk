@@ -4,11 +4,16 @@ import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants/gameMode
 import SgfViewer, { parseSgf, buildBoardFromMoves, applySgfMoveToBoard, type SgfMove } from '../SgfViewer.js';
 import GameRecordReplayNav from './GameRecordReplayNav.js';
 import { formatGameRecordResultLabel } from '../../utils/gameRecordResultLabel.js';
+import { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from '../DraggableWindow.js';
 
 export interface GameRecordViewerPanelProps {
     record: GameRecord;
     /** DraggableWindow 전체화면 vs 기보 목록 우측 인라인 */
     variant?: 'modal' | 'inline';
+    /** modal 레이아웃에서 부모 너비에 맞춰 판 크기 조절 (모바일 전체 뷰어) */
+    fitContainer?: boolean;
+    /** fitContainer 모바일 전체 뷰어: 상단 닫기 */
+    onClose?: () => void;
 }
 
 const MODAL_BOARD_PX = 840;
@@ -22,8 +27,32 @@ const modeLabel = (mode: string) => {
 
 const defaultBoardRotatedForRecord = (record: GameRecord): boolean => record.myColor === Player.White;
 
-const GameRecordViewerPanel: React.FC<GameRecordViewerPanelProps> = ({ record, variant = 'modal' }) => {
+type ScoreSideDetails = NonNullable<GameRecord['gameResult']['scoreDetails']>['black'];
+
+function formatScoreDetailsOneLine(record: GameRecord): string {
+    const { blackScore, whiteScore, scoreDetails } = record.gameResult;
+    if (!scoreDetails) {
+        return `흑 ${blackScore}점 · 백 ${whiteScore}점`;
+    }
+    const sideLine = (label: '흑' | '백', total: number, side: ScoreSideDetails) => {
+        const parts = [`${label} ${total}`];
+        if (side.timeBonus > 0) parts.push(`시간+${side.timeBonus}`);
+        if (side.baseStoneBonus > 0) parts.push(`베이스+${side.baseStoneBonus}`);
+        if (side.hiddenStoneBonus > 0) parts.push(`히든+${side.hiddenStoneBonus}`);
+        if (side.itemBonus > 0) parts.push(`아이템+${side.itemBonus}`);
+        return parts.join(' ');
+    };
+    return `${sideLine('흑', blackScore, scoreDetails.black)} · ${sideLine('백', whiteScore, scoreDetails.white)}`;
+}
+
+const GameRecordViewerPanel: React.FC<GameRecordViewerPanelProps> = ({
+    record,
+    variant = 'modal',
+    fitContainer = false,
+    onClose,
+}) => {
     const isInline = variant === 'inline';
+    const useResponsiveBoard = isInline || (variant === 'modal' && fitContainer);
     const boardAreaRef = useRef<HTMLDivElement>(null);
     const [boardPx, setBoardPx] = useState(isInline ? 360 : MODAL_BOARD_PX);
 
@@ -50,18 +79,24 @@ const GameRecordViewerPanel: React.FC<GameRecordViewerPanelProps> = ({ record, v
         setReviewMoves([]);
     }, [currentMoveIndex]);
 
+    const isMobileFullViewer = fitContainer && !isInline && Boolean(onClose);
+
     useEffect(() => {
-        if (!isInline || !boardAreaRef.current) return;
+        if (!useResponsiveBoard || !boardAreaRef.current) return;
         const el = boardAreaRef.current;
         const ro = new ResizeObserver((entries) => {
             const { width, height } = entries[0].contentRect;
-            const byWidth = width - ROTATE_BTN_RESERVE;
-            const side = Math.min(byWidth, height);
-            if (side > 0) setBoardPx(Math.max(200, Math.floor(side)));
+            const rotateReserve = isInline && !isMobileFullViewer ? ROTATE_BTN_RESERVE : 0;
+            const byWidth = width - rotateReserve;
+            const side =
+                fitContainer && !isInline
+                    ? byWidth
+                    : Math.min(byWidth, height > 0 ? height : byWidth);
+            if (side > 0) setBoardPx(Math.max(isInline ? 200 : 160, Math.floor(side)));
         });
         ro.observe(el);
         return () => ro.disconnect();
-    }, [isInline, record.id]);
+    }, [useResponsiveBoard, isInline, fitContainer, isMobileFullViewer, record.id]);
 
     const canGoBack = currentMoveIndex > 0;
     const canGoForward = currentMoveIndex < totalMoves;
@@ -120,60 +155,71 @@ const GameRecordViewerPanel: React.FC<GameRecordViewerPanelProps> = ({ record, v
         </div>
     );
 
-    const boardBlock = (
-        <div className={`flex shrink-0 items-start ${isInline ? 'gap-2' : 'w-full gap-2.5'}`}>
-            <div
-                className={`relative shrink-0 ${isInline ? '' : 'min-w-0 flex-1'}`}
-                style={
-                    isInline
-                        ? { width: boardPx, height: boardPx }
-                        : {
-                              width: MODAL_BOARD_PX,
-                              maxWidth: 'min(840px, calc(100dvh - 220px), calc(100vw - 300px))',
-                              aspectRatio: '1 / 1',
-                          }
-                }
+    const rotateButton = (
+        <button
+            type="button"
+            onClick={() => setIsBoardRotated((prev) => !prev)}
+            className={`flex shrink-0 items-center justify-center rounded-lg border border-amber-400/30 bg-zinc-950/90 text-amber-100 shadow-lg backdrop-blur-sm transition hover:border-amber-300/50 hover:bg-zinc-900/95 ${
+                isInline ? 'h-8 w-8' : 'h-9 w-9'
+            }`}
+            title={isBoardRotated ? '흑의 입장으로 보기' : '백의 입장으로 보기'}
+            aria-label={isBoardRotated ? '흑의 입장으로 보기' : '백의 입장으로 보기'}
+        >
+            <svg
+                className={isInline ? 'h-4 w-4' : 'h-5 w-5'}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                style={{ transform: isBoardRotated ? 'rotate(180deg)' : 'none' }}
+                aria-hidden
             >
-                <SgfViewer
-                    timeElapsed={0}
-                    fileIndex={null}
-                    showLastMoveOnly={false}
-                    sgfContent={record.sgfContent}
-                    isRotated={isBoardRotated}
-                    replayMoveCount={currentMoveIndex}
-                    boardSizePx={isInline ? boardPx : MODAL_BOARD_PX}
-                    showMoveNumbers={showMoveNumbers}
-                    interactive={isReviewMode}
-                    onIntersectionClick={handleIntersectionClick}
-                    onHalfBoardNavBack={handlePrevious}
-                    onHalfBoardNavForward={handleNext}
-                    reviewMoves={reviewMoves}
+                <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                 />
-            </div>
-            <button
-                type="button"
-                onClick={() => setIsBoardRotated((prev) => !prev)}
-                className={`mt-2 flex shrink-0 items-center justify-center rounded-lg border border-amber-400/30 bg-zinc-950/90 text-amber-100 shadow-lg backdrop-blur-sm transition hover:border-amber-300/50 hover:bg-zinc-900/95 ${
-                    isInline ? 'h-8 w-8' : 'h-9 w-9 sm:h-10 sm:w-10'
-                }`}
-                title={isBoardRotated ? '흑의 입장으로 보기' : '백의 입장으로 보기'}
-            >
-                <svg
-                    className={isInline ? 'h-4 w-4' : 'h-5 w-5'}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    style={{ transform: isBoardRotated ? 'rotate(180deg)' : 'none' }}
-                    aria-hidden
-                >
-                    <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                    />
-                </svg>
-            </button>
+            </svg>
+        </button>
+    );
+
+    const boardCanvas = (
+        <div
+            className={`relative shrink-0 ${isInline || fitContainer ? '' : 'min-w-0 flex-1'}`}
+            style={
+                useResponsiveBoard
+                    ? { width: boardPx, height: boardPx }
+                    : {
+                          width: MODAL_BOARD_PX,
+                          maxWidth: 'min(840px, calc(100dvh - 220px), calc(100vw - 300px))',
+                          aspectRatio: '1 / 1',
+                      }
+            }
+        >
+            <SgfViewer
+                timeElapsed={0}
+                fileIndex={null}
+                showLastMoveOnly={false}
+                sgfContent={record.sgfContent}
+                isRotated={isBoardRotated}
+                replayMoveCount={currentMoveIndex}
+                boardSizePx={useResponsiveBoard ? boardPx : MODAL_BOARD_PX}
+                showMoveNumbers={showMoveNumbers}
+                interactive={isReviewMode}
+                onIntersectionClick={handleIntersectionClick}
+                onHalfBoardNavBack={handlePrevious}
+                onHalfBoardNavForward={handleNext}
+                reviewMoves={reviewMoves}
+            />
+        </div>
+    );
+
+    const boardBlock = isMobileFullViewer ? (
+        <div className="flex w-full shrink-0 justify-center">{boardCanvas}</div>
+    ) : (
+        <div className={`flex shrink-0 items-start ${isInline ? 'gap-2' : 'w-full gap-2.5'}`}>
+            {boardCanvas}
+            {rotateButton}
         </div>
     );
 
@@ -354,11 +400,42 @@ const GameRecordViewerPanel: React.FC<GameRecordViewerPanelProps> = ({ record, v
         );
     }
 
+    if (isMobileFullViewer) {
+        const scoreLine = formatScoreDetailsOneLine(record);
+        return (
+            <div className="flex h-full min-h-0 flex-col overflow-hidden">
+                <div className="shrink-0 px-1 pb-1.5 pt-0.5">
+                    <p
+                        className="mb-1.5 overflow-x-auto whitespace-nowrap text-[10px] leading-snug text-slate-300 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                        title={scoreLine}
+                    >
+                        {scoreLine}
+                    </p>
+                    <div className="flex items-center justify-end gap-2">
+                        {rotateButton}
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className={SUDAMR_MODAL_CLOSE_BUTTON_CLASS}
+                            aria-label="닫기"
+                        >
+                            닫기
+                        </button>
+                    </div>
+                </div>
+                <div ref={boardAreaRef} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                    <div className="flex min-h-0 flex-1 items-center justify-center">{boardBlock}</div>
+                    <div className="mt-1 w-full shrink-0 pb-1">{controlsBlock}</div>
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div className="flex h-full min-h-0 flex-col gap-2 lg:flex-row lg:gap-3">
+        <div ref={boardAreaRef} className="flex h-full min-h-0 flex-col gap-2 overflow-y-auto lg:flex-row lg:gap-3">
             <div className="flex min-h-0 min-w-0 flex-1 flex-col items-center">
                 {boardBlock}
-                <div className="mt-2">{controlsBlock}</div>
+                <div className="mt-2 w-full">{controlsBlock}</div>
             </div>
             <aside className="flex w-full shrink-0 flex-col gap-3 overflow-y-auto lg:w-[260px] xl:w-[280px]">{infoAside}</aside>
         </div>

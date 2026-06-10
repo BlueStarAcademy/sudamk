@@ -697,8 +697,14 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
     const { isNativeMobile } = useNativeMobileShell();
     const isCompactViewport = useIsHandheldDevice(1024);
     const isMobile = isNativeMobile || isCompactViewport;
-    /** 부모 모달에 끼워 넣을 때는 PC용 2열 레이아웃을 써서 한 화면에 모드+설정을 둔다 */
-    const layoutMobile = isMobile && !embeddedPanel && !pairRoomEmbeddedRightSlot;
+    /** 페어·전략·놀이 AI 경기장 탭(임베드) — 모바일에서도 단계별(모드 → 설정) 마법사 */
+    const isEmbeddedAiLobbyMobileWizard = Boolean(
+        embeddedPanel && embeddedPanelStackedLayout && !configureOnly && !pairRoomEmbeddedRightSlot,
+    );
+    /** 독립 AI 모달 또는 임베드 AI 로비(모바일). 방 만들기 임베드(`pairRoomEmbeddedRightSlot`)는 별도 2단계 */
+    const layoutMobile = Boolean(
+        isMobile && !pairRoomEmbeddedRightSlot && (!embeddedPanel || isEmbeddedAiLobbyMobileWizard),
+    );
     /**
      * 모바일: `DraggableWindow` + `mobileViewportFit`일 때 실제 폭은 min(initialWidth, 뷰포트 상한).
      * 방 만들기 전면 시트(`w-full` + max vw)와 같이 가로를 최대한 쓰려면 설계 폭을 충분히 크게 두어 상한만 적용되게 한다.
@@ -2236,6 +2242,14 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
         </div>
     );
 
+    const mobileWizardOuterClass = isEmbeddedAiLobbyMobileWizard
+        ? 'relative flex min-h-0 min-w-0 flex-1 flex-col gap-1.5 overflow-hidden p-1.5 sm:gap-2 sm:p-2'
+        : `${standaloneLobbyFrameClass} relative flex min-h-0 max-h-[min(94dvh,880px)] flex-1 flex-col gap-2 overflow-hidden p-2 sm:gap-2.5 sm:p-2.5`;
+
+    const mobileWizardStartButtonLabel = showActionPointCost
+        ? `${submitLabel} (⚡${actionPointCostDisplay})`
+        : submitLabel;
+
     const stackedInlineBody = (
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
             {!hideInlineModePicker ? stackedInlineModePickerStrip : null}
@@ -2251,13 +2265,15 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
     );
 
     const innerBody = layoutMobile ? (
-                <div
-                    className={`${standaloneLobbyFrameClass} relative flex min-h-0 max-h-[min(94dvh,880px)] flex-1 flex-col gap-2 overflow-hidden p-2 sm:gap-2.5 sm:p-2.5`}
-                >
-                    {modalChrome === 'ai_feature' ? (
+                <div className={mobileWizardOuterClass}>
+                    {!isEmbeddedAiLobbyMobileWizard && modalChrome === 'ai_feature' ? (
                         <span className={aiChallengeFeatureTopHairlineClass} aria-hidden />
                     ) : null}
-                    <div className={aiChallengeModalHandheldSummaryOuterClass(modalChrome)}>{selectedModeBriefSummaryPanel}</div>
+                    {mobileStep === 'settings' || !isEmbeddedAiLobbyMobileWizard ? (
+                        <div className={aiChallengeModalHandheldSummaryOuterClass(modalChrome)}>
+                            {selectedModeBriefSummaryPanel}
+                        </div>
+                    ) : null}
 
                     {mobileStep === 'pickMode' ? (
                         <div className={`${aiChallengeModalHandheldModeStepShellClass(modalChrome)} flex min-h-0 flex-1 flex-col overflow-hidden`}>
@@ -2337,25 +2353,42 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                 </div>
                             </div>
                             <div className={handheldAiDetailsFooterClass}>
-                                <Button
-                                    type="button"
-                                    bare
-                                    colorScheme="none"
-                                    onClick={onClose}
-                                    className={`${handheldStackedFooterBtnClass} border border-white/20 bg-zinc-800/60 !font-bold !text-zinc-200`}
-                                >
-                                    취소
-                                </Button>
-                                <Button
-                                    type="button"
-                                    bare
-                                    colorScheme="none"
-                                    onClick={handleChallenge}
-                                    disabled={!selectedGameMode}
-                                    className={`${handheldStackedFooterBtnClass} ${pairHandheldNextChromeClass}`}
-                                >
-                                    {showActionPointCost ? `${submitLabel} (⚡${actionPointCostDisplay})` : submitLabel}
-                                </Button>
+                                {isEmbeddedAiLobbyMobileWizard ? (
+                                    <div className="col-span-2">
+                                        <Button
+                                            type="button"
+                                            bare
+                                            colorScheme="none"
+                                            onClick={handleChallenge}
+                                            disabled={!selectedGameMode || submitDisabled}
+                                            className={`${handheldStackedFooterBtnClass} ${pairHandheldNextChromeClass} w-full !py-2.5 !text-sm`}
+                                        >
+                                            {mobileWizardStartButtonLabel}
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <Button
+                                            type="button"
+                                            bare
+                                            colorScheme="none"
+                                            onClick={onClose}
+                                            className={`${handheldStackedFooterBtnClass} border border-white/20 bg-zinc-800/60 !font-bold !text-zinc-200`}
+                                        >
+                                            취소
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            bare
+                                            colorScheme="none"
+                                            onClick={handleChallenge}
+                                            disabled={!selectedGameMode || submitDisabled}
+                                            className={`${handheldStackedFooterBtnClass} ${pairHandheldNextChromeClass}`}
+                                        >
+                                            {mobileWizardStartButtonLabel}
+                                        </Button>
+                                    </>
+                                )}
                             </div>
                         </div>
                     )}

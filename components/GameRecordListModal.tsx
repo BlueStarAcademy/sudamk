@@ -6,6 +6,7 @@ import { formatGameRecordResultLabel } from '../utils/gameRecordResultLabel.js';
 import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../shared/constants/pcShellLayout.js';
 import GameRecordViewerPanel from './gameRecord/GameRecordViewerPanel.js';
 import GameRecordInfoPanel from './gameRecord/GameRecordInfoPanel.js';
+import GameRecordBoardMinimap from './gameRecord/GameRecordBoardMinimap.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import Button from './Button.js';
@@ -28,7 +29,7 @@ const GameRecordListModal: React.FC<GameRecordListModalProps> = ({
 }) => {
     const { handlers } = useAppContext();
     const { isNativeMobile, isNarrowViewport } = useNativeMobileShell();
-    const useMobileListOnly = !embedded && (isNativeMobile || isNarrowViewport);
+    const useMobileListOnly = isNativeMobile || isNarrowViewport;
 
     const records = currentUser.savedGameRecords || [];
     const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -83,11 +84,12 @@ const GameRecordListModal: React.FC<GameRecordListModalProps> = ({
     const subPanelClass =
         'rounded-xl border border-white/[0.08] bg-gradient-to-b from-slate-900/80 via-slate-950/90 to-black/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-sm';
 
-    const listPanelWidthClass = embedded
-        ? 'w-[18rem] max-w-[42%] shrink-0 sm:w-[22rem]'
-        : useMobileListOnly
-          ? 'w-full min-w-0 flex-1'
-          : 'w-full sm:w-[18rem] sm:max-w-[42%] sm:shrink-0 lg:w-[22rem]';
+    const listPanelWidthClass =
+        embedded && !useMobileListOnly
+            ? 'w-[18rem] max-w-[42%] shrink-0 sm:w-[22rem]'
+            : useMobileListOnly
+              ? 'w-full min-w-0 flex-1'
+              : 'w-full sm:w-[18rem] sm:max-w-[42%] sm:shrink-0 lg:w-[22rem]';
 
     const listScrollClass = 'min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-2 py-2 [-webkit-overflow-scrolling:touch]';
 
@@ -202,7 +204,11 @@ const GameRecordListModal: React.FC<GameRecordListModalProps> = ({
         <div className={shellClass}>
             <div
                 className={`flex min-h-0 flex-1 gap-2 overflow-hidden sm:gap-3 ${
-                    embedded ? 'flex-row' : useMobileListOnly ? 'flex-col' : 'flex-col sm:flex-row'
+                    embedded && !useMobileListOnly
+                        ? 'flex-row'
+                        : useMobileListOnly
+                          ? 'flex-col'
+                          : 'flex-col sm:flex-row'
                 }`}
             >
                 <div className={`flex min-h-0 flex-col gap-2 ${listPanelWidthClass}`}>
@@ -219,7 +225,7 @@ const GameRecordListModal: React.FC<GameRecordListModalProps> = ({
                         {renderListPanel()}
                     </div>
                     <div
-                        className={`${panelShellClass} min-h-0 shrink-0 ${
+                        className={`${panelShellClass} flex min-h-0 shrink-0 flex-col ${
                             useMobileListOnly ? 'max-h-[42%]' : 'max-h-[45%] sm:max-h-[40%]'
                         }`}
                     >
@@ -228,7 +234,14 @@ const GameRecordListModal: React.FC<GameRecordListModalProps> = ({
                                 대국 정보
                             </h3>
                         </div>
-                        <GameRecordInfoPanel record={selectedRecord} myNickname={currentUser.nickname} />
+                        <div className="flex min-h-0 flex-1 gap-2 overflow-hidden">
+                            <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-y-contain">
+                                <GameRecordInfoPanel record={selectedRecord} myNickname={currentUser.nickname} />
+                            </div>
+                            {useMobileListOnly && selectedRecord ? (
+                                <GameRecordBoardMinimap record={selectedRecord} layout="sideRail" />
+                            ) : null}
+                        </div>
                         {useMobileListOnly && selectedRecord ? (
                             <div className="mt-2 shrink-0 border-t border-amber-500/15 pt-2">
                                 <Button
@@ -236,7 +249,7 @@ const GameRecordListModal: React.FC<GameRecordListModalProps> = ({
                                     onClick={() => handlers.openGameRecordViewer(selectedRecord)}
                                     className="w-full rounded-lg border border-amber-400/40 bg-gradient-to-b from-amber-600/90 to-amber-800/90 px-3 py-2 text-sm font-bold text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.15)]"
                                 >
-                                    바둑판 복기
+                                    기보보기
                                 </Button>
                             </div>
                         ) : null}
