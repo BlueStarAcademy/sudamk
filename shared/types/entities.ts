@@ -1370,6 +1370,8 @@ export type LiveGameSession = {
   lastTimeoutPlayerIdClearTime?: number;
   revealAnimationEndTime?: number;
   revealEndTime?: number;
+  /** 일색 바둑: 보드에 표시할 단일 돌 색(실제 흑/백 규칙과 별개) */
+  uniformStoneDisplayColor?: Player;
   disconnectionState?: { disconnectedPlayerId: string; timerStartedAt: number; } | null;
   disconnectionCounts: { [playerId: string]: number; };
   aiHiddenItemUsed?: boolean;

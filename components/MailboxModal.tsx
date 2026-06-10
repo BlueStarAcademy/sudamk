@@ -7,7 +7,7 @@ import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import MailRewardItemTile from './MailRewardItemTile.js';
 import { formatGoldAmountKoG, formatWalletDiamonds } from '../shared/utils/walletAmountDisplay.js';
 import { CASH_SHOP_PACKAGE_KO_LABEL, type CashShopPackageId } from '../shared/constants/cashShopPackages.js';
-import { isMailRewardsClaimExpired } from '../shared/utils/mailRewardsExpiry.js';
+import { isMailRewardsClaimExpired, isMailRewardSettledForDeletion } from '../shared/utils/mailRewardsExpiry.js';
 import { useKeyedAsyncAction } from '../hooks/useAsyncAction.js';
 import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../shared/constants/pcShellLayout.js';
 
@@ -199,7 +199,7 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
     const hasUnclaimedMail = mail.some(
         (m) => m.attachments && !m.attachmentsClaimed && !isMailRewardsClaimExpired(m)
     );
-    const hasClaimedMail = mail.some((m) => m.attachmentsClaimed);
+    const hasClaimedMail = mail.some((m) => isMailRewardSettledForDeletion(m));
 
     const handleClaimAll = () => {
         void mailAction.run('claim-all', async () => {
@@ -208,10 +208,10 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
     };
 
     const handleDeleteAllClaimed = () => {
-        if (window.confirm('수령 완료된 모든 메일을 삭제하시겠습니까?')) {
+        if (window.confirm('수령 완료·만료된 보상 우편을 모두 삭제하시겠습니까?')) {
             void mailAction.run('delete-all', async () => {
                 await onAction({ type: 'DELETE_ALL_CLAIMED_MAIL' });
-                setDetailMail((d) => (d && d.attachmentsClaimed ? null : d));
+                setDetailMail((d) => (d && isMailRewardSettledForDeletion(d) ? null : d));
             });
         }
     };
@@ -327,18 +327,12 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
                                         ) : null}
                                     </div>
                                     <p className="line-clamp-2 text-[15px] font-semibold leading-snug text-zinc-100 sm:text-sm">{m.title}</p>
-                                    {m.attachments && !m.attachmentsClaimed ? (
-                                        <p
-                                            className={`mt-1 text-[11px] font-medium ${
-                                                isMailRewardsClaimExpired(m)
-                                                    ? 'text-amber-500/90'
-                                                    : 'text-emerald-400/90'
-                                            }`}
-                                        >
-                                            {isMailRewardsClaimExpired(m) ? '보상 만료' : '보상 미수령'}
-                                        </p>
+                                    {m.attachments && !isMailRewardSettledForDeletion(m) ? (
+                                        <p className="mt-1 text-[11px] font-medium text-emerald-400/90">보상 미수령</p>
                                     ) : m.attachments ? (
-                                        <p className="mt-1 text-[11px] text-zinc-600">수령 완료</p>
+                                        <p className="mt-1 text-[11px] text-zinc-600">
+                                            {m.attachmentsClaimed ? '수령 완료' : '보상 만료'}
+                                        </p>
                                     ) : null}
                                     <p className="mt-1.5 text-[11px] font-medium text-amber-400/70">상세 보기</p>
                                 </button>

@@ -171,6 +171,7 @@ const KATA_STYLE_AI_GO_MODES = new Set<GameMode>([
     GameMode.Base,
     GameMode.Hidden,
     GameMode.Missile,
+    GameMode.Uniform,
     GameMode.Mix,
 ]);
 

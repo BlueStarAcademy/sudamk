@@ -1413,6 +1413,7 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
                     game.gameStatus === 'nigiri_choosing' ||
                     game.gameStatus === 'nigiri_guessing' ||
                     game.gameStatus === 'nigiri_reveal' ||
+                    game.gameStatus === 'uniform_color_roulette' ||
                     game.gameStatus === 'capture_bidding' ||
                     game.gameStatus === 'capture_reveal' ||
                     game.gameStatus === 'capture_tiebreaker');

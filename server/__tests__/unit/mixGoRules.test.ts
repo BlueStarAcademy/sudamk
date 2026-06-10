@@ -39,6 +39,7 @@ describe('mixGoRules', () => {
 
     it('mixGoIsCombinableSubMode', () => {
         expect(mixGoIsCombinableSubMode(GameMode.Missile)).toBe(true);
+        expect(mixGoIsCombinableSubMode(GameMode.Uniform)).toBe(true);
         expect(mixGoIsCombinableSubMode(GameMode.Dice)).toBe(false);
     });
 

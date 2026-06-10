@@ -63,6 +63,7 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
             'base_placement',
             'base_game_start_confirmation',
             'nigiri_reveal',
+            'uniform_color_roulette',
             'color_start_confirmation',
         ];
         if (preStartStatuses.includes(session.gameStatus)) {

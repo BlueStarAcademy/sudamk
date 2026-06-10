@@ -2136,9 +2136,19 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 };
             }
 
-            // (일반 모드) 이미 활성 전쟁이 있으면 에러
+            // 이미 활성 전쟁이 있으면 입장 가능하도록 반환 (재신청 오류 대신)
             if (existingWar) {
-                return { error: '이미 진행 중인 전쟁이 있습니다.' };
+                const guildsForResponse = await db.getKV<Record<string, Guild>>('guilds') || {};
+                augmentGuildWarOpponentInGuildsMap(existingWar, user.guildId, guildsForResponse as any);
+                return {
+                    clientResponse: {
+                        matched: true,
+                        message: '진행 중인 길드전이 있습니다. 입장 버튼으로 참여하세요.',
+                        activeWar: existingWar,
+                        guilds: guildsForResponse,
+                        isMatching: false,
+                    },
+                };
             }
 
             const memberIds = (guild.members || []).map((m) => m.userId);
@@ -2418,6 +2428,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             const {
                 isGuildWarPrepTimeKst,
                 getNextGuildWarEntryOpenDateKst,
+                isGuildWarScheduledAutoMatchWindowKst,
             } = await import('../../shared/utils/guildWarSchedule.js');
             const now = Date.now();
             const guildWarIsPrepTime = isGuildWarPrepTimeKst(now);
@@ -2440,7 +2451,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 }
             }
 
-            // 진행 중 전쟁이 없는데 큐·플래그만 남은 경우 즉시 봇 매칭으로 복구(입장 가능 상태로)
+            // 진행 중 전쟁이 없으면 스케줄 창(월·목 23시 / 화·수·금·토 캐치업)에 자동 매칭 시도
             if (!warInProgress) {
                 const guildsLive = (await db.getKV<Record<string, Guild>>('guilds')) || {};
                 const gLive = guildsLive[user.guildId];
@@ -2458,7 +2469,17 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     }
                     if (mqChanged) await db.setKV('guildWarMatchingQueue', mq);
                     if (gChanged) await db.setKV('guilds', guildsLive);
-                    if (mq.includes(user.guildId) || (gLive as any).guildWarMatching) {
+
+                    const memberCount = guild.members?.length ?? 0;
+                    const inScheduledWindow = isGuildWarScheduledAutoMatchWindowKst(now);
+                    const shouldRunScheduledMatch =
+                        inScheduledWindow &&
+                        memberCount >= GUILD_WAR_MIN_PARTICIPANTS;
+                    const shouldDrainStaleQueue =
+                        mq.includes(user.guildId) || !!(gLive as any).guildWarMatching;
+
+                    if (shouldRunScheduledMatch || shouldDrainStaleQueue) {
+                        guildWarDataCacheByUser.delete(cacheKey);
                         const { processGuildWarMatching } = await import('../scheduledTasks.js');
                         await processGuildWarMatching(true);
                         activeWars = (await db.getKV<any[]>('activeGuildWars')) || [];
@@ -2486,6 +2507,9 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             const matchingQueue = await db.getKV<string[]>('guildWarMatchingQueue') || [];
             const isInQueue = matchingQueue.includes(user.guildId);
             let isMatching = (guild as any).guildWarMatching || isInQueue;
+            if (warInProgress) {
+                isMatching = false;
+            }
 
             // 예약 매칭 일정 안내는 사용하지 않음(즉시 봇 매칭 정책)
             const nextMatchTime: number | undefined = undefined;

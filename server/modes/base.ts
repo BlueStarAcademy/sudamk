@@ -3,7 +3,7 @@
 import * as types from '../../types/index.js';
 import { getGoLogic } from '../goLogic.js';
 // FIX: Changed import path to avoid circular dependency
-import { transitionToPlaying } from './shared.js';
+import { transitionToPlayingOrUniformRoulette } from './shared.js';
 import { aiUserId } from '../aiPlayer.js';
 import { processMove } from '../goLogic.js';
 import { pickAiKomiValueAvoiding } from '../../shared/utils/singlePlayerAiBaseKomiBid.js';
@@ -843,7 +843,7 @@ export const updateBaseState = (game: types.LiveGameSession, now: number) => {
             const deadlinePassed =
                 !skipBaseStartConfirmationDeadline(game) && !!game.revealEndTime && now > game.revealEndTime;
             if (bothConfirmed || deadlinePassed) {
-                transitionToPlaying(game, now);
+                transitionToPlayingOrUniformRoulette(game, now);
             }
             break;
         }
@@ -1070,7 +1070,7 @@ export const handleBaseAction = (game: types.LiveGameSession, action: types.Serv
                 if (game.isAiGame) {
                     const opponentId = game.player1.id === user.id ? game.player2.id : game.player1.id;
                     game.preGameConfirmations[opponentId] = true;
-                    transitionToPlaying(game, now);
+                    transitionToPlayingOrUniformRoulette(game, now);
                 }
                 return baseHttpGameSnapshot(game);
             }

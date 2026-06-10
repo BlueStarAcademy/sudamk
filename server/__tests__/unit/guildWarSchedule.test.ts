@@ -73,6 +73,16 @@ describe('guildWarSchedule', () => {
         expect(matchAt).toBeLessThan(endTime);
     });
 
+    it('수요일에도 캐치업 창(월 23시 매칭 누락 대비)', () => {
+        const matchAt = kstToUtcMs(2026, 5, 13, 10, 0);
+        expect(isGuildWarCatchUpMatchWindowKst(matchAt)).toBe(true);
+    });
+
+    it('토요일에도 캐치업 창(목 23시 매칭 누락 대비)', () => {
+        const matchAt = kstToUtcMs(2026, 5, 16, 10, 0);
+        expect(isGuildWarCatchUpMatchWindowKst(matchAt)).toBe(true);
+    });
+
     it('월·목 0시~23시59분은 준비 시간(입장 불가)', () => {
         expect(isGuildWarPrepTimeKst(kstToUtcMs(2026, 5, 11, 0, 0))).toBe(true);
         expect(isGuildWarPrepTimeKst(kstToUtcMs(2026, 5, 11, 23, 59))).toBe(true);

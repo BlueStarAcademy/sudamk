@@ -4,8 +4,11 @@
  * 동시에 처리할 수 있는 AI 게임 수를 제한합니다.
  */
 
-import { LiveGameSession, Player } from '../types/index.js';
-import { PLAYFUL_AI_BATCH_STONE_INTERVAL_MS } from '../constants';
+import { LiveGameSession, Player, GameMode } from '../types/index.js';
+import {
+    PLAYFUL_AI_BATCH_STONE_INTERVAL_MS,
+    PLAYFUL_AI_QUEUE_PRE_ACTION_DELAY_MS,
+} from '../constants';
 import { makeAiMove, aiUserId } from './aiPlayer.js';
 import { getCachedGame, updateGameCache } from './gameCache.js';
 import * as db from './db.js';
@@ -214,9 +217,13 @@ class AiProcessingQueue {
                 await new Promise(resolve => setTimeout(resolve, thinkDelayMs));
             }
             if (!isAdventureAiGame && game.currentPlayer === Player.White && !isPlacingStones) {
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                const preActionDelayMs =
+                    game.mode === GameMode.Dice || game.mode === GameMode.Thief
+                        ? PLAYFUL_AI_QUEUE_PRE_ACTION_DELAY_MS
+                        : 1000;
+                await new Promise(resolve => setTimeout(resolve, preActionDelayMs));
             }
-            // 주사위/도둑 착수 시에도 매 돌마다 1초 텀 (첫 돌·두 번째 돌 모두 1초 후에 두기)
+            // 주사위/도둑 착수: 연속 착수 간격 (PLAYFUL_AI_BATCH_STONE_INTERVAL_MS)
             if (isPlacingStones) {
                 await new Promise(resolve => setTimeout(resolve, PLAYFUL_AI_BATCH_STONE_INTERVAL_MS));
             }

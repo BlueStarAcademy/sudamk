@@ -556,6 +556,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                     strategicPetHintOverlay={strategicPetHintDotOverlay}
                     strategicPetHintRewardAnimation={strategicPetHintRewardAnimation}
                     boardRuleFlashMessage={boardRuleFlashMessage}
+                    uniformStoneDisplayColor={session.uniformStoneDisplayColor ?? null}
                 />
                 {mobileStageScrollExpanded && (
                     <div

@@ -26,7 +26,7 @@ import { clampQuestProgressToTarget } from '../../utils/questProgressCap.js';
 import { isAchievementRequirementMet } from '../../shared/utils/achievementProgress.js';
 import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig, type RewardConfig } from '../../shared/constants/rewardConfig.js';
 import { isRewardVipActive } from '../../shared/utils/rewardVip.js';
-import { isMailRewardsClaimExpired } from '../../shared/utils/mailRewardsExpiry.js';
+import { isMailRewardsClaimExpired, isMailRewardSettledForDeletion } from '../../shared/utils/mailRewardsExpiry.js';
 import {
     CASH_SHOP_DIAMOND_PACKAGE_IDS,
     CASH_SHOP_EQUIPMENT_PACKAGE_IDS,
@@ -596,12 +596,9 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 user.mail = [];
             }
             
-            // 수령 완료된 메일만 삭제 (attachments가 있고 attachmentsClaimed가 true인 것)
+            // 수령 완료·수령 기한 만료(수령 불가) 메일 삭제
             const beforeCount = user.mail.length;
-            user.mail = user.mail.filter(m => {
-                // attachments가 없거나 attachmentsClaimed가 false인 것만 남김
-                return !(m && m.attachments && m.attachmentsClaimed);
-            });
+            user.mail = user.mail.filter((m) => !isMailRewardSettledForDeletion(m));
             const deletedCount = beforeCount - user.mail.length;
             
             // 선택적 필드만 반환 (메시지 크기 최적화)

@@ -32,10 +32,19 @@ export function isGuildWarPrimeMatchWindowKst(now: number = Date.now()): boolean
     return (d === 1 || d === 4) && h === 23 && m < 60;
 }
 
-/** 매칭 누락 캐치업: 화·금 종일 KST (월·목 23시 정규 매칭이 누락된 경우 당일 재시도) */
+/**
+ * 매칭 누락 캐치업 (KST 종일)
+ * - 화·수: 월 23시 tue_wed 정규 매칭 누락 보충
+ * - 금·토: 목 23시 fri_sun 정규 매칭 누락 보충
+ */
 export function isGuildWarCatchUpMatchWindowKst(now: number = Date.now()): boolean {
     const d = getKSTDay(now);
-    return d === 2 || d === 5;
+    return d === 2 || d === 3 || d === 5 || d === 6;
+}
+
+/** 정규(월·목 23시) + 캐치업 — 자동 큐 등록·매칭 스케줄 창 */
+export function isGuildWarScheduledAutoMatchWindowKst(now: number = Date.now()): boolean {
+    return isGuildWarPrimeMatchWindowKst(now) || isGuildWarCatchUpMatchWindowKst(now);
 }
 
 /** 화 0:00~수 23:00 KST 진행 중인 tue_wed 라운드 안인지 */
@@ -157,5 +166,8 @@ export function guildWarIsOpenForPlay(w: { startTime?: unknown; endTime?: unknow
             if (Number.isFinite(n) && n > 0) return now < n;
         }
     }
-    return startMs > 0 && now < startMs + GUILD_WAR_TUE_WED_DURATION_MS;
+    const warType = (w as { warType?: GuildWarRoundType } | null | undefined)?.warType;
+    const fallbackDuration =
+        warType === 'fri_sun' ? GUILD_WAR_FRI_SUN_DURATION_MS : GUILD_WAR_TUE_WED_DURATION_MS;
+    return startMs > 0 && now < startMs + fallbackDuration;
 }

@@ -1,6 +1,9 @@
 import { useMemo } from 'react';
 import { useViewportUniformScale } from '../../hooks/useViewportUniformScale.js';
-import { INGAME_RESULT_PANEL_WIDTH_PX } from '../../constants/ingameModalFrame.js';
+import {
+    INGAME_RESULT_PANEL_MIN_HEIGHT_PX,
+    INGAME_RESULT_PANEL_WIDTH_PX,
+} from '../../constants/ingameModalFrame.js';
 import {
     GAME_RESULT_MOBILE_DVH_BOTTOM_GAP_PX,
     GAME_RESULT_MOBILE_VIEWPORT_MAX_HEIGHT_CSS,
@@ -29,25 +32,24 @@ export function useGameResultModalLayout({
     minUniformScale = 0.56,
     desktopSideDock = true,
 }: UseGameResultModalLayoutArgs) {
-    // 결과 모달은 패널/텍스트 밀도가 높아 "딱 맞춤"보다 약간 더 줄여야 스크롤이 사라지고 가독성이 유지된다.
-    const measuredUniformScale = useViewportUniformScale(designWidth * 1.14, designHeight * 1.16, true);
+    const measuredUniformScale = useViewportUniformScale(designWidth * 1.08, designHeight * 1.06, true);
     const uniformScale = useMemo(
         () => Math.max(minUniformScale, Math.min(1, measuredUniformScale)),
         [measuredUniformScale, minUniformScale],
     );
 
     const mobileTextScale = useMemo(() => {
-        if (!isMobile) return Math.max(0.9, uniformScale);
-        return Math.max(0.76, Math.min(0.94, uniformScale * 0.98));
+        if (!isMobile) return Math.max(0.92, uniformScale);
+        return Math.max(0.9, Math.min(1, uniformScale * 1.04));
     }, [isMobile, uniformScale]);
 
     const mobileImageScale = useMemo(() => {
         if (!isMobile) return Math.max(0.9, uniformScale);
-        return Math.max(0.78, Math.min(0.95, uniformScale * 1.02));
+        return Math.max(0.86, Math.min(1, uniformScale * 1.02));
     }, [isMobile, uniformScale]);
 
     const desktopTextScale = useMemo(
-        () => Math.max(0.82, Math.min(0.98, uniformScale * 0.94)),
+        () => Math.max(0.9, Math.min(1, uniformScale * 0.98)),
         [uniformScale],
     );
 
@@ -70,9 +72,13 @@ export function useGameResultModalLayout({
             skipIngameBoardFrameSizeCap: useDesktopSideDock,
             transparentModalBackdrop: useDesktopSideDock,
             modalBackdrop: isMobile,
-            shrinkHeightToContent: useDesktopSideDock,
+            shrinkHeightToContent: false,
             initialWidth: isMobile ? designWidth : useDesktopSideDock ? INGAME_RESULT_PANEL_WIDTH_PX : designWidth,
-            initialHeight: isMobile ? designHeight : undefined,
+            initialHeight: isMobile
+                ? designHeight
+                : useDesktopSideDock
+                  ? INGAME_RESULT_PANEL_MIN_HEIGHT_PX
+                  : designHeight,
         }),
         [isMobile, designWidth, designHeight, useDesktopSideDock],
     );

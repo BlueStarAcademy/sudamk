@@ -18,6 +18,7 @@ import { initializeMissile, updateMissileState, handleMissileAction } from './mi
 import {
     handleSharedAction,
     transitionToPlaying,
+    transitionToPlayingOrUniformRoulette,
     hasTimeControl,
     shouldEnforceTimeControl,
     enforceBaseSeatLockIfDriftedDuringPlay,
@@ -153,6 +154,7 @@ const STRATEGIC_GO_SERVER_AI_MODES: types.GameMode[] = [
     types.GameMode.Base,
     types.GameMode.Hidden,
     types.GameMode.Missile,
+    types.GameMode.Uniform,
     types.GameMode.Mix,
 ];
 const singlePlayerBlackTurnLimitFailTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -469,7 +471,7 @@ const transitionPlayingOrAdventureNigiriReveal = (game: types.LiveGameSession, n
             if (game.player2.id === aiUserId) conf[game.player2.id] = true;
         }
     } else {
-        transitionToPlaying(game, now);
+        transitionToPlayingOrUniformRoulette(game, now);
     }
 };
 
@@ -481,6 +483,7 @@ export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.
     switch (game.mode) {
         case types.GameMode.Standard:
         case types.GameMode.Speed:
+        case types.GameMode.Uniform:
         case types.GameMode.Mix:
             // 믹스룰에 히든/미사일이 포함돼도 이전에는 초기화를 건너뛰어 missiles_p1/p2·스캔이 비어 UI에 아이템이 안 보이는 문제가 있었음
             if (game.mode === types.GameMode.Mix) {
@@ -741,6 +744,10 @@ export const updateStrategicGameState = async (game: types.LiveGameSession, now:
 
     // Delegate to mode-specific update logic
     updateNigiriState(game, now);
+    if (game.gameStatus === 'uniform_color_roulette' && game.revealEndTime && now > game.revealEndTime) {
+        game.revealEndTime = undefined;
+        transitionToPlaying(game, now);
+    }
     updateCaptureState(game, now);
     updateBaseState(game, now);
     /** 본경기 단계로 진입한 베이스 세션은 어떤 업데이트 단계 이후에도 흑/백 좌석이 잠금에서 벗어나선 안 된다. */

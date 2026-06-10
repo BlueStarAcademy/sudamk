@@ -11,6 +11,7 @@ import ThiefRoleConfirmedModal from '../ThiefRoleConfirmedModal.js';
 import ThiefDeathmatchRoleRouletteModal from '../ThiefDeathmatchRoleRouletteModal.js';
 import TurnPreferenceSelection from '../TurnPreferenceSelection.js';
 import TurnPreferenceRouletteModal from '../TurnPreferenceRouletteModal.js';
+import UniformColorRouletteModal from '../UniformColorRouletteModal.js';
 import NoContestModal from '../NoContestModal.js';
 import ThiefRoundSummary from '../ThiefRoundSummary.js';
 import CurlingRoundSummary from '../CurlingRoundSummary.js';
@@ -114,6 +115,7 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
             'color_start_confirmation',
             'turn_preference_selection',
             'turn_preference_roulette',
+            'uniform_color_roulette',
             'thief_deathmatch_role_roulette',
             'dice_turn_rolling',
             
@@ -129,6 +131,7 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
         if (gameStatus === 'dice_start_confirmation') return <DiceGoStartConfirmationModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'color_start_confirmation') return <ColorStartConfirmationModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'turn_preference_roulette') return <TurnPreferenceRouletteModal session={session} />;
+        if (gameStatus === 'uniform_color_roulette') return <UniformColorRouletteModal session={session} />;
         if (gameStatus === 'turn_preference_selection') return <TurnPreferenceSelection session={session} currentUser={currentUser} onAction={onAction} tiebreaker={session.turnSelectionTiebreaker} />;
         if (gameStatus === 'capture_bidding' && !modeIncludesBaseCaptureMix(session.mode, session.settings)) {
             return <CaptureBidModal session={session} currentUser={currentUser} onAction={onAction} />;

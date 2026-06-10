@@ -1,6 +1,6 @@
 import * as types from '../../types/index.js';
 // FIX: Changed import path to avoid circular dependency
-import { transitionToPlaying, shouldEnforceTimeControl } from './shared.js';
+import { transitionToPlayingOrUniformRoulette, shouldEnforceTimeControl } from './shared.js';
 import * as summaryService from '../summaryService.js';
 import { aiUserId } from '../aiPlayer.js';
 import { modeIncludesBaseCaptureMix } from '../../shared/utils/liveSessionArenaKind.js';
@@ -224,7 +224,7 @@ export const updateCaptureState = (game: types.LiveGameSession, now: number) => 
                     return;
                 }
                 
-                transitionToPlaying(game, now);
+                transitionToPlayingOrUniformRoulette(game, now);
                 game.bids = undefined; 
                 game.biddingRound = undefined;
                 game.captureFirstRoundTieBidSnapshot = undefined;

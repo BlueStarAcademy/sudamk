@@ -48,6 +48,7 @@ export const PAIR_GO_GAME_MODES: readonly GameMode[] = [
     GameMode.Base,
     GameMode.Hidden,
     GameMode.Missile,
+    GameMode.Uniform,
     GameMode.Mix,
 ];
 

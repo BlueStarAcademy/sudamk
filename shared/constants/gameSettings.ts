@@ -18,7 +18,7 @@ export const AI_HIDDEN_ITEM_THINKING_DURATION_MS = 3000;
 export const STRATEGIC_CLASSIC_SPEED_BOARD_SIZES = [9, 13, 19] as const;
 export const STRATEGIC_SPECIAL_BOARD_SIZES = [9, 11, 13] as const;
 export const getStrategicBoardSizesByMode = (mode: GameMode): readonly number[] => {
-  if (mode === GameMode.Standard || mode === GameMode.Speed) return STRATEGIC_CLASSIC_SPEED_BOARD_SIZES;
+  if (mode === GameMode.Standard || mode === GameMode.Speed || mode === GameMode.Uniform) return STRATEGIC_CLASSIC_SPEED_BOARD_SIZES;
   if (
     mode === GameMode.Capture ||
     mode === GameMode.Base ||
@@ -213,7 +213,13 @@ export const PLAYFUL_MODE_FOUL_LIMIT = 5;
 export const AI_GAME_FIRST_MOVE_DELAY_MS = 2000;
 
 /** 주사위바둑/도둑과경찰 등: AI가 연속 착수할 때 돌 사이 최소 간격 (메인 루프·AI 큐 공통) */
-export const PLAYFUL_AI_BATCH_STONE_INTERVAL_MS = 900;
+export const PLAYFUL_AI_BATCH_STONE_INTERVAL_MS = 500;
+
+/** 주사위바둑/도둑과경찰 AI 굴림 애니 길이 (유저 굴림 1500ms와 별도) */
+export const PLAYFUL_AI_DICE_ROLL_ANIMATION_MS = 1000;
+
+/** AI 큐: 주사위/도둑 AI 굴림 직전 짧은 대기 */
+export const PLAYFUL_AI_QUEUE_PRE_ACTION_DELAY_MS = 350;
 
 // --- Curling Settings ---
 export const CURLING_STONE_COUNTS = [3, 5, 7];

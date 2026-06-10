@@ -12,6 +12,7 @@ import {
     findLatestMoveIndexAtExcludingRecordedBaseStones,
     type BaseStoneOverlayContext,
 } from '../shared/utils/baseHiddenMoveIndex.js';
+import { mapStoneToUniformDisplay, resolveTerritoryMarkerDisplayPlayer, resolveUniformStoneDisplayColorForBoard, territoryMarkerRgba } from '../shared/utils/uniformGoRules.js';
 
 /** 따내기/보너스 점수 플로트: mid(5~9) 기준 폰트 배율 */
 const CAPTURE_SCORE_FLOAT_BASE_EM = 0.92;
@@ -472,7 +473,8 @@ const RecommendedMoveMarker: React.FC<{
     );
 };
 
-const Stone: React.FC<{ player: Player, cx: number, cy: number, isLastMove?: boolean, isSelectedMissile?: boolean, isHoverSelectableMissile?: boolean, isKnownHidden?: boolean, isNewlyRevealed?: boolean, animationClass?: string, isBaseStone?: boolean, isPatternStone?: boolean, radius: number, isFaint?: boolean, keepUpright?: boolean, isPlacementPreview?: boolean }> = ({ player, cx, cy, isLastMove, isSelectedMissile, isHoverSelectableMissile, isKnownHidden, isNewlyRevealed, animationClass, isBaseStone, isPatternStone, radius, isFaint, keepUpright, isPlacementPreview }) => {
+const Stone: React.FC<{ player: Player, cx: number, cy: number, isLastMove?: boolean, isSelectedMissile?: boolean, isHoverSelectableMissile?: boolean, isKnownHidden?: boolean, isNewlyRevealed?: boolean, animationClass?: string, isBaseStone?: boolean, isPatternStone?: boolean, radius: number, isFaint?: boolean, keepUpright?: boolean, isPlacementPreview?: boolean, uniformDisplayColor?: Player | null }> = ({ player, cx, cy, isLastMove, isSelectedMissile, isHoverSelectableMissile, isKnownHidden, isNewlyRevealed, animationClass, isBaseStone, isPatternStone, radius, isFaint, keepUpright, isPlacementPreview, uniformDisplayColor }) => {
+    const visualPlayer = mapStoneToUniformDisplay(player, uniformDisplayColor);
     const specialImageSize = radius * 2 * 0.7;
     const specialImageOffset = specialImageSize / 2;
 
@@ -494,20 +496,20 @@ const Stone: React.FC<{ player: Player, cx: number, cy: number, isLastMove?: boo
                 cx={cx}
                 cy={cy}
                 r={radius}
-                fill={player === Player.Black ? "#111827" : "#f5f2e8"}
+                fill={visualPlayer === Player.Black ? "#111827" : "#f5f2e8"}
                 stroke={strokeColor}
                 strokeWidth={strokeWidth}
             />
-            {player === Player.White && <circle cx={cx} cy={cy} r={radius} fill="url(#clam_grain)" />}
-            <circle cx={cx} cy={cy} r={radius} fill={player === Player.Black ? 'url(#slate_highlight)' : 'url(#clamshell_highlight)'} />
+            {visualPlayer === Player.White && <circle cx={cx} cy={cy} r={radius} fill="url(#clam_grain)" />}
+            <circle cx={cx} cy={cy} r={radius} fill={visualPlayer === Player.Black ? 'url(#slate_highlight)' : 'url(#clamshell_highlight)'} />
             {isBaseStone && (
-                <image href={player === Player.Black ? BLACK_BASE_STONE_IMG : WHITE_BASE_STONE_IMG} x={cx - specialImageOffset} y={cy - specialImageOffset} width={specialImageSize} height={specialImageSize} />
+                <image href={visualPlayer === Player.Black ? BLACK_BASE_STONE_IMG : WHITE_BASE_STONE_IMG} x={cx - specialImageOffset} y={cy - specialImageOffset} width={specialImageSize} height={specialImageSize} />
             )}
             {isKnownHidden && (
-                <image href={player === Player.Black ? BLACK_HIDDEN_STONE_IMG : WHITE_HIDDEN_STONE_IMG} x={cx - specialImageOffset} y={cy - specialImageOffset} width={specialImageSize} height={specialImageSize} />
+                <image href={visualPlayer === Player.Black ? BLACK_HIDDEN_STONE_IMG : WHITE_HIDDEN_STONE_IMG} x={cx - specialImageOffset} y={cy - specialImageOffset} width={specialImageSize} height={specialImageSize} />
             )}
             {isPatternStone && (
-                <image href={player === Player.Black ? '/images/single/BlackDouble.webp' : '/images/single/WhiteDouble.webp'} x={cx - specialImageOffset} y={cy - specialImageOffset} width={specialImageSize} height={specialImageSize} />
+                <image href={visualPlayer === Player.Black ? '/images/single/BlackDouble.webp' : '/images/single/WhiteDouble.webp'} x={cx - specialImageOffset} y={cy - specialImageOffset} width={specialImageSize} height={specialImageSize} />
             )}
             {isNewlyRevealed && (
                 <circle
@@ -663,6 +665,8 @@ interface GoBoardProps {
   canPlaceMoreBaseStones?: boolean;
   /** 아이템 안내 등 바둑판 중앙 오버레이 문구 */
   boardRuleFlashMessage?: string | null;
+  /** 일색 바둑: 모든 돌을 이 색으로 표시(실제 흑/백 규칙과 별개) */
+  uniformStoneDisplayColor?: Player | null;
   /** @deprecated 낙관적 보드 반영으로 대체됨 — 하위 호환용, 렌더에 사용하지 않음 */
   isMoveSubmitting?: boolean;
 }
@@ -697,6 +701,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         isPairBasePlacementHost = false,
         canPlaceMoreBaseStones,
         boardRuleFlashMessage = null,
+        uniformStoneDisplayColor = null,
     } = props;
     const baseHiddenMoveCtx = useMemo<BaseStoneOverlayContext>(
         () => ({ baseStones, baseStones_p1, baseStones_p2, gameStatus }),
@@ -1190,6 +1195,11 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
     const stone_radius = cell_size * 0.47;
     
     const isScoringOrEnded = gameStatus === 'scoring' || gameStatus === 'ended' || gameStatus === 'no_contest';
+    const activeUniformStoneDisplayColor = resolveUniformStoneDisplayColorForBoard(
+        gameStatus,
+        uniformStoneDisplayColor,
+    );
+    const territoryMarkersUseActualColors = activeUniformStoneDisplayColor == null;
     /** 따내기 직후 `ended`여도 +점수 플로트는 재생되게 함(`index.css` 2.85s 애니). 계가·무승부만 숨김 */
     const hideCaptureScoreFloatOverlay = gameStatus === 'scoring' || gameStatus === 'no_contest';
 
@@ -1600,20 +1610,25 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
             <g style={{ pointerEvents: 'none' }} className="animate-fade-in">
                 {analysisResult.deadStones.map((p, i) => {
                     const { cx, cy } = toSvgCoords(p);
-                    // 사석의 색상: 보드에 돌이 있으면 그 색(잡힌 쪽), 없으면 이미 제거된 돌이므로 잡은 쪽을 반대색으로 추정
                     const deadStonePlayer = displayBoardState[p.y]?.[p.x];
-                    const capturingPlayer = deadStonePlayer === Player.Black ? Player.White : deadStonePlayer === Player.White ? Player.Black : Player.White; // None이면 기본 백(흑 사석)
-                    
-                    // 영토 표시 사각형 (잡은 쪽의 색상)
+                    const capturingPlayer: Player.Black | Player.White =
+                        deadStonePlayer === Player.Black
+                            ? Player.White
+                            : deadStonePlayer === Player.White
+                              ? Player.Black
+                              : Player.White;
+                    const markerDisplayPlayer = resolveTerritoryMarkerDisplayPlayer(
+                        capturingPlayer,
+                        gameStatus,
+                        uniformStoneDisplayColor,
+                    );
+
                     const cellSize = (boardSizePx - padding * 2) / safeBoardSize;
-                    const size = cellSize * 0.38; // 돌 위에 얹는 작은 사각형
+                    const size = cellSize * 0.38;
                     const opacity = 0.85;
-                    const fill = capturingPlayer === Player.Black 
-                        ? `rgba(0, 0, 0, ${opacity})` 
-                        : `rgba(255, 255, 255, ${opacity})`;
-                    const stroke = capturingPlayer === Player.Black 
-                        ? `rgba(0, 0, 0, ${opacity * 0.5})` 
-                        : `rgba(255, 255, 255, ${opacity * 0.5})`;
+                    const { fill, stroke } = territoryMarkerRgba(markerDisplayPlayer, opacity, {
+                        emphasizeActualColors: territoryMarkersUseActualColors,
+                    });
 
                     return (
                         <g key={`ds-${i}`} style={{ zIndex: 10 }}>
@@ -1667,8 +1682,14 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     const rectSize = cellSize * (sizeMin + (sizeMax - sizeMin) * prob);
 
                     const isBlackTerritory = value > 0;
-                    const fill = isBlackTerritory ? `rgba(0, 0, 0, ${opacity})` : `rgba(255, 255, 255, ${opacity})`;
-                    const stroke = isBlackTerritory ? `rgba(0, 0, 0, ${opacity * 0.5})` : `rgba(255, 255, 255, ${opacity * 0.5})`;
+                    const markerDisplayPlayer = resolveTerritoryMarkerDisplayPlayer(
+                        isBlackTerritory ? Player.Black : Player.White,
+                        gameStatus,
+                        uniformStoneDisplayColor,
+                    );
+                    const { fill, stroke } = territoryMarkerRgba(markerDisplayPlayer, opacity, {
+                        emphasizeActualColors: territoryMarkersUseActualColors,
+                    });
 
                     markers.push(
                         <g key={`territory-${y}-${x}`} style={{ zIndex: 10 }}>
@@ -1682,8 +1703,14 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
             const renderTerritoryPoint = (p: Point, isBlack: boolean, key: string) => {
                 if (displayBoardState[p.y]?.[p.x] !== Player.None) return null;
                 const { cx, cy } = toSvgCoords(p);
-                const fill = isBlack ? `rgba(0, 0, 0, ${opacity})` : `rgba(255, 255, 255, ${opacity})`;
-                const stroke = isBlack ? `rgba(0, 0, 0, ${opacity * 0.5})` : `rgba(255, 255, 255, ${opacity * 0.5})`;
+                const markerDisplayPlayer = resolveTerritoryMarkerDisplayPlayer(
+                    isBlack ? Player.Black : Player.White,
+                    gameStatus,
+                    uniformStoneDisplayColor,
+                );
+                const { fill, stroke } = territoryMarkerRgba(markerDisplayPlayer, opacity, {
+                    emphasizeActualColors: territoryMarkersUseActualColors,
+                });
                 return (
                     <g key={key} style={{ zIndex: 10 }}>
                         <rect x={cx - size / 2} y={cy - size / 2} width={size} height={size} fill={fill} stroke={stroke} strokeWidth={size * 0.05} rx={size * 0.15} style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.2))' }} />
@@ -2139,7 +2166,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
 
                     const stonePlayerForRender = actualPlayer;
 
-                    return <Stone key={`${x}-${y}`} player={stonePlayerForRender} cx={cx} cy={cy} isLastMove={isLast} isKnownHidden={isKnownHidden as boolean} isBaseStone={hasBaseStoneHere} isPatternStone={isPatternStone} isNewlyRevealed={isNewlyRevealedForAnim} animationClass={isNewlyRevealedForAnim ? 'sparkle-animation' : ''} isSelectedMissile={isSelectedMissileForRender} isHoverSelectableMissile={isHoverSelectableMissile} radius={stone_radius} isFaint={isFaint} keepUpright={!!isRotated} />;
+                    return <Stone key={`${x}-${y}`} player={stonePlayerForRender} uniformDisplayColor={activeUniformStoneDisplayColor} cx={cx} cy={cy} isLastMove={isLast} isKnownHidden={isKnownHidden as boolean} isBaseStone={hasBaseStoneHere} isPatternStone={isPatternStone} isNewlyRevealed={isNewlyRevealedForAnim} animationClass={isNewlyRevealedForAnim ? 'sparkle-animation' : ''} isSelectedMissile={isSelectedMissileForRender} isHoverSelectableMissile={isHoverSelectableMissile} radius={stone_radius} isFaint={isFaint} keepUpright={!!isRotated} />;
                 }))}
                 {isPairBasePlacementHost ? (
                     <>
@@ -2211,6 +2238,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         <g style={{ pointerEvents: 'none' }}>
                             <Stone
                                 player={pendingMove.player}
+                                uniformDisplayColor={activeUniformStoneDisplayColor}
                                 cx={cx}
                                 cy={cy}
                                 radius={stone_radius}
@@ -2254,6 +2282,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     <g style={{ pointerEvents: 'none' }}>
                         <Stone
                             player={stoneColor}
+                            uniformDisplayColor={activeUniformStoneDisplayColor}
                             cx={toSvgCoords(hoverPos).cx}
                             cy={toSvgCoords(hoverPos).cy}
                             radius={stone_radius}

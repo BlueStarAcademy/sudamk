@@ -8,7 +8,7 @@ import Button from '../Button.js';
 import { GuildCheckInPanel, GuildAnnouncementPanel, GuildChat, getLuxuryButtonClasses } from './GuildHomePanel.js';
 import GuildMembersPanel from './GuildMembersPanel.js';
 import GuildManagementPanel from './GuildManagementPanel.js';
-import { GUILD_XP_PER_LEVEL, GUILD_BOSSES, GUILD_RESEARCH_PROJECTS, AVATAR_POOL, BORDER_POOL, emptySlotImages, slotNames, GUILD_BOSS_MAX_ATTEMPTS, GUILD_INITIAL_MEMBER_LIMIT, GUILD_DONATION_GOLD_LIMIT, GUILD_DONATION_DIAMOND_LIMIT, GUILD_DONATION_GOLD_COST, GUILD_DONATION_DIAMOND_COST, GUILD_CHECK_IN_MILESTONE_REWARDS, GUILD_DONATION_GOLD_REWARDS, GUILD_DONATION_DIAMOND_REWARDS, ADMIN_USER_ID, ADMIN_NICKNAME, GUILD_WAR_BOT_GUILD_ID, GUILD_WAR_PERSONAL_DAILY_ATTEMPTS } from '../../constants/index.js';
+import { GUILD_XP_PER_LEVEL, GUILD_BOSSES, GUILD_RESEARCH_PROJECTS, AVATAR_POOL, BORDER_POOL, emptySlotImages, slotNames, GUILD_BOSS_MAX_ATTEMPTS, GUILD_INITIAL_MEMBER_LIMIT, GUILD_DONATION_GOLD_LIMIT, GUILD_DONATION_DIAMOND_LIMIT, GUILD_DONATION_GOLD_COST, GUILD_DONATION_DIAMOND_COST, GUILD_CHECK_IN_MILESTONE_REWARDS, GUILD_DONATION_GOLD_REWARDS, GUILD_DONATION_DIAMOND_REWARDS, ADMIN_USER_ID, ADMIN_NICKNAME, GUILD_WAR_BOT_GUILD_ID, GUILD_WAR_PERSONAL_DAILY_ATTEMPTS, DEMO_GUILD_WAR } from '../../constants/index.js';
 import DraggableWindow, { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from '../DraggableWindow.js';
 import MobileModalTitleBar from '../mobile/MobileModalTitleBar.js';
 import { useMobileModalChrome } from '../../hooks/useMobileModalChrome.js';
@@ -1471,9 +1471,7 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
     const [matchingModalPresentation, setMatchingModalPresentation] = React.useState<GuildWarMatchPresentationClient | null>(null);
     /** 매칭 완료/대기 시 모달에 표시할 이번 길드전 시작 시각 (화/금 0시) */
     const [matchingModalWarStartTime, setMatchingModalWarStartTime] = React.useState<number | undefined>(undefined);
-    const [warActionCooldown, setWarActionCooldown] = React.useState<number | null>(null);
     const [cancelDeadline, setCancelDeadline] = React.useState<number | null>(null);
-    const [cooldownRemaining, setCooldownRemaining] = React.useState<string>('');
     const [currentWarRemaining, setCurrentWarRemaining] = React.useState<string>('');
     const [currentWarRemainingLabel, setCurrentWarRemainingLabel] = React.useState<string>('남은 시간');
     const [isWarOpenForPlay, setIsWarOpenForPlay] = React.useState(false);
@@ -1483,16 +1481,87 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
     const [isWarPrepTime, setIsWarPrepTime] = React.useState(() => isGuildWarPrepTimeKst());
     const [warNextEntryOpenAt, setWarNextEntryOpenAt] = React.useState<number>(() => getNextGuildWarEntryOpenDateKst());
     
-    // 길드장/부길드장 권한 확인 (관리자는 effectiveUserId로 비교 - 서버와 동일)
     const effectiveUserId = currentUserWithStatus?.isAdmin ? ADMIN_USER_ID : currentUserWithStatus?.id;
-    const myMemberInfo = React.useMemo(() => {
-        if (!effectiveUserId) return undefined;
-        return guild.members?.find(m => m.userId === effectiveUserId);
-    }, [guild.members, effectiveUserId]);
-    
     const myWarParticipationEnabled = (currentUserWithStatus as any)?.guildWarParticipationEnabled !== false;
+    const matchingJustStartedAtRef = React.useRef<number>(0);
+    const lastAppliedAtRef = React.useRef<number>(0);
 
-    // guild.guildWarMatching 변경 시 동기화 (broadcast, GET_GUILD_WAR_DATA 등으로 길드가 갱신된 경우)
+    const syncWarPanelFromPayload = React.useCallback(
+        (p: ReturnType<typeof readGuildWarActionPayload>) => {
+            const war = p.activeWar;
+            const warIsLive = !!war && String((war as { status?: unknown }).status ?? '').toLowerCase() === 'active';
+            const allGuilds = (p.guilds as Record<string, unknown>) || {};
+            const gwFromGuild = (allGuilds[guild.id] as any)?.guildWarMatching;
+            const serverSaysMatching = p.isMatching || gwFromGuild === true;
+            const ts = matchingJustStartedAtRef.current;
+            const justStarted = ts > 0 && Date.now() - ts < 60000;
+            const appDeadline = p.applicationDeadline ?? null;
+            const stillBeforeDeadline =
+                lastAppliedAtRef.current > 0 && appDeadline != null && Date.now() < appDeadline;
+
+            if (warIsLive) {
+                setIsMatching(false);
+                matchingJustStartedAtRef.current = 0;
+                lastAppliedAtRef.current = 0;
+            } else if (war && !serverSaysMatching) {
+                setIsMatching(false);
+                matchingJustStartedAtRef.current = 0;
+                lastAppliedAtRef.current = 0;
+            } else if (justStarted || (stillBeforeDeadline && !serverSaysMatching)) {
+                setIsMatching(true);
+            } else {
+                setIsMatching(serverSaysMatching);
+                if (!serverSaysMatching) lastAppliedAtRef.current = 0;
+            }
+
+            setNextMatchTime(p.nextMatchTime);
+            setCancelDeadline(p.isMatching ? (p.cancelDeadline ?? null) : null);
+            setWarStats(p.warStats ?? null);
+            setMyRecordInCurrentWar(p.myRecordInCurrentWar ?? null);
+            setCanClaimReward(!!p.guildWarRewardClaimable);
+            setIsClaimed(!!p.guildWarLatestCompletedRewardClaimed);
+            setIsWarPrepTime(p.guildWarIsPrepTime ?? isGuildWarPrepTimeKst());
+            setWarNextEntryOpenAt(p.guildWarNextEntryOpenAt ?? getNextGuildWarEntryOpenDateKst());
+
+            if (!war) {
+                setActiveWar(null);
+                setOpponentGuild(null);
+                setMyWarAttempts(0);
+                return;
+            }
+
+            if (String((war as { status?: unknown }).status ?? '').toLowerCase() === 'active') {
+                setActiveWar(war);
+                const myGuildId = guild.id;
+                const opponentGuildId = war.guild1Id === myGuildId ? war.guild2Id : war.guild1Id;
+                const opponentGuildData =
+                    allGuilds[opponentGuildId] ??
+                    ((war as any).isBotGuild || opponentGuildId === GUILD_WAR_BOT_GUILD_ID
+                        ? {
+                              id: opponentGuildId,
+                              name: '[시스템] 길드전 AI',
+                              level: 1,
+                              members: [],
+                              leaderId: opponentGuildId,
+                          }
+                        : undefined);
+                setOpponentGuild(opponentGuildData ?? null);
+                if (effectiveUserId) {
+                    const attempts = currentUserWithStatus?.isAdmin
+                        ? 0
+                        : (Number((war as any).userAttempts?.[effectiveUserId] ?? 0) || 0);
+                    setMyWarAttempts(attempts);
+                } else {
+                    setMyWarAttempts(0);
+                }
+            } else {
+                setActiveWar(null);
+                setOpponentGuild(null);
+                setMyWarAttempts(0);
+            }
+        },
+        [guild.id, effectiveUserId, currentUserWithStatus?.isAdmin],
+    );
     React.useEffect(() => {
         const gw = (guild as any).guildWarMatching;
         if (typeof gw !== 'boolean') return;
@@ -1522,8 +1591,6 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
     const isFetchingRef = React.useRef(false);
     const lastFetchTimeRef = React.useRef(0);
     const intervalRef = React.useRef<NodeJS.Timeout | null>(null);
-    const matchingJustStartedAtRef = React.useRef<number>(0); // 전쟁 참여 직후 isMatching 덮어쓰기 방지
-    const lastAppliedAtRef = React.useRef<number>(0); // 참여 신청한 시각 - 신청 마감 전까지 isMatching 유지
     const FETCH_COOLDOWN = 30000; // 30초 쿨다운 (interval과 동일하게)
     
     React.useEffect(() => {
@@ -1546,81 +1613,7 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                 }
 
                 const p = readGuildWarActionPayload(result);
-                const war = p.activeWar;
-                const warIsLive =
-                    !!war && String((war as { status?: unknown }).status ?? '').toLowerCase() === 'active';
-                // guilds를 의존성에서 제거하고 result에서 받은 데이터만 사용
-                const allGuilds = (p.guilds as Record<string, unknown>) || {};
-                const matching = p.isMatching || false;
-                const nextMatch = p.nextMatchTime;
-                const appDeadline = p.applicationDeadline ?? null;
-                const ts = matchingJustStartedAtRef.current;
-                const justStarted = ts > 0 && (Date.now() - ts) < 60000;
-                const myGuildFromResponse = allGuilds[guild.id];
-                const gwFromGuild = (myGuildFromResponse as any)?.guildWarMatching;
-                const serverSaysMatching = matching || gwFromGuild === true;
-                const stillBeforeDeadline =
-                    lastAppliedAtRef.current > 0 && appDeadline != null && Date.now() < appDeadline;
-                // 진행 중 전쟁이 있으면 KV의 guildWarMatching 지연과 무관하게 매칭 대기 UI 끄기 + 입장 가능
-                if (warIsLive) {
-                    setIsMatching(false);
-                    matchingJustStartedAtRef.current = 0;
-                    lastAppliedAtRef.current = 0;
-                } else if (war && !serverSaysMatching) {
-                    setIsMatching(false);
-                    matchingJustStartedAtRef.current = 0;
-                    lastAppliedAtRef.current = 0;
-                } else if (justStarted || (stillBeforeDeadline && !serverSaysMatching)) {
-                    setIsMatching(true);
-                } else {
-                    setIsMatching(serverSaysMatching);
-                    if (!serverSaysMatching) lastAppliedAtRef.current = 0;
-                }
-                setNextMatchTime(nextMatch);
-                setCancelDeadline(matching ? (p.cancelDeadline ?? null) : null);
-                const wr = p.warStats ?? null;
-                setWarStats(wr);
-                setMyRecordInCurrentWar(p.myRecordInCurrentWar ?? null);
-                setCanClaimReward(!!p.guildWarRewardClaimable);
-                setIsClaimed(!!p.guildWarLatestCompletedRewardClaimed);
-                setIsWarPrepTime(p.guildWarIsPrepTime ?? isGuildWarPrepTimeKst());
-                setWarNextEntryOpenAt(p.guildWarNextEntryOpenAt ?? getNextGuildWarEntryOpenDateKst());
-                
-                if (!war) {
-                    setActiveWar(null);
-                    setOpponentGuild(null);
-                    return;
-                }
-
-                if (String((war as { status?: unknown }).status ?? '').toLowerCase() === 'active') {
-                    setActiveWar(war);
-                    const myGuildId = guild.id;
-                    const opponentGuildId = war.guild1Id === myGuildId ? war.guild2Id : war.guild1Id;
-                    const opponentGuildData =
-                        allGuilds[opponentGuildId] ??
-                        ((war as any).isBotGuild || opponentGuildId === GUILD_WAR_BOT_GUILD_ID
-                            ? {
-                                  id: opponentGuildId,
-                                  name: '[시스템] 길드전 AI',
-                                  level: 1,
-                                  members: [],
-                                  leaderId: opponentGuildId,
-                              }
-                            : undefined);
-                    setOpponentGuild(opponentGuildData ?? null);
-                    if (effectiveUserId) {
-                        const attempts = currentUserWithStatus?.isAdmin
-                            ? 0
-                            : (Number((war as any).userAttempts?.[effectiveUserId] ?? 0) || 0);
-                        setMyWarAttempts(attempts);
-                    } else {
-                        setMyWarAttempts(0);
-                    }
-                } else {
-                    setActiveWar(null);
-                    setOpponentGuild(null);
-                    setMyWarAttempts(0);
-                }
+                syncWarPanelFromPayload(p);
             } catch (error) {
                 console.error('[WarPanel] Failed to fetch war data:', error);
             } finally {
@@ -1670,7 +1663,7 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
             }
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [guild.id]);
+    }, [guild.id, syncWarPanelFromPayload]);
     
     // 남은 시간 계산
     React.useEffect(() => {
@@ -1708,14 +1701,14 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
 
     // 진행 중 길드전 남은 시간 계산
     React.useEffect(() => {
-        const warEndTime = toEpochMs((activeWar as { endTime?: unknown } | null)?.endTime);
-        if (!activeWar || !warEndTime) {
+        if (!activeWar) {
             setCurrentWarRemaining('');
             setCurrentWarRemainingLabel('남은 시간');
             setIsWarOpenForPlay(false);
             return;
         }
 
+        const warEndTime = toEpochMs((activeWar as { endTime?: unknown } | null)?.endTime);
         const warStartTime = toEpochMs((activeWar as { startTime?: unknown } | null)?.startTime);
 
         const updateCurrentWarRemaining = () => {
@@ -1735,6 +1728,11 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                 setCurrentWarRemaining(formatCountdown(warStartTime - now));
                 return;
             }
+            if (warEndTime == null) {
+                setCurrentWarRemainingLabel('상태');
+                setCurrentWarRemaining('');
+                return;
+            }
             const remaining = warEndTime - now;
             if (remaining <= 0) {
                 setCurrentWarRemainingLabel('상태');
@@ -1749,34 +1747,6 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
         const interval = window.setInterval(updateCurrentWarRemaining, 1000);
         return () => window.clearInterval(interval);
     }, [activeWar]);
-    
-    // 쿨타임 타이머 계산
-    React.useEffect(() => {
-        if (!warActionCooldown) {
-            setCooldownRemaining('');
-            return;
-        }
-        
-        const updateCooldown = () => {
-            const now = Date.now();
-            const remaining = warActionCooldown - now;
-            
-            if (remaining <= 0) {
-                setCooldownRemaining('');
-                setWarActionCooldown(null);
-                return;
-            }
-            
-            const minutes = Math.floor(remaining / (1000 * 60));
-            const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
-            
-            setCooldownRemaining(`${minutes}분 ${seconds}초`);
-        };
-        
-        updateCooldown();
-        const interval = setInterval(updateCooldown, 1000);
-        return () => clearInterval(interval);
-    }, [warActionCooldown]);
     
     React.useEffect(() => {
         const tick = () => {
@@ -1811,8 +1781,8 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
         if (!activeWar) {
             alert(
                 isMatching
-                    ? '매칭이 완료되면 입장할 수 있습니다. 잠시 후 다시 확인해 주세요.'
-                    : '진행 중인 길드전이 없습니다.',
+                    ? '자동 매칭 중입니다. 완료되면 입장할 수 있습니다.'
+                    : '진행 중인 길드전이 없습니다. 조건을 충족하는 길드는 길드전 기간에 자동으로 매칭됩니다.',
             );
             return;
         }
@@ -2208,7 +2178,7 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                         ) : null}
                     </div>
 
-                    {/* 입장 버튼 - 하단 고정 */}
+                    {/* 입장 - 하단 고정 */}
                     <div className={`flex-shrink-0 ${isMobile || isCompact ? 'mt-1 pt-1' : 'mt-1.5 pt-1.5'} border-t border-stone-600/40 flex flex-wrap justify-center gap-2`}>
                         <button
                             type="button"

@@ -2,7 +2,7 @@ import { User, GameMode, LiveGameSession, Player, Point, AlkkagiStone, BoardStat
 import { defaultStats, createDefaultInventory, createDefaultQuests, createDefaultBaseStats, createDefaultSpentStatPoints } from './initialData.js';
 import { getOmokLogic } from './omokLogic.js';
 import { getGoLogic, processMove } from './goLogic.js';
-import { AI_GAME_FIRST_MOVE_DELAY_MS, DICE_GO_MAIN_ROLL_TIME, DICE_GO_LAST_CAPTURE_BONUS_BY_TOTAL_ROUNDS, ALKKAGI_PLACEMENT_TIME_LIMIT, ALKKAGI_TURN_TIME_LIMIT, SPECIAL_GAME_MODES, ALKKAGI_SIMULTANEOUS_PLACEMENT_TIME_LIMIT, CURLING_TURN_TIME_LIMIT, BATTLE_PLACEMENT_ZONES } from '../constants';
+import { AI_GAME_FIRST_MOVE_DELAY_MS, DICE_GO_MAIN_ROLL_TIME, DICE_GO_LAST_CAPTURE_BONUS_BY_TOTAL_ROUNDS, ALKKAGI_PLACEMENT_TIME_LIMIT, ALKKAGI_TURN_TIME_LIMIT, SPECIAL_GAME_MODES, ALKKAGI_SIMULTANEOUS_PLACEMENT_TIME_LIMIT, CURLING_TURN_TIME_LIMIT, BATTLE_PLACEMENT_ZONES, PLAYFUL_AI_DICE_ROLL_ANIMATION_MS } from '../constants';
 import { isPlacementValid as isAlkkagiPlacementValid } from './modes/alkkagi.js';
 import { nextAlkkagiStoneId } from '../shared/utils/alkkagiStoneId.js';
 import * as types from '../types/index.js';
@@ -160,7 +160,12 @@ const makeDiceGoAiMove = async (game: types.LiveGameSession) => {
         
         const isOvershot = liberties.length === 0 || dice1 > liberties.length;
         
-        game.animation = { type: 'dice_roll_main', dice: { dice1, dice2: 0, dice3: 0 }, startTime: now, duration: 1500 };
+        game.animation = {
+            type: 'dice_roll_main',
+            dice: { dice1, dice2: 0, dice3: 0 },
+            startTime: now,
+            duration: PLAYFUL_AI_DICE_ROLL_ANIMATION_MS,
+        };
         game.gameStatus = 'dice_rolling_animating';
         game.turnDeadline = undefined;
         game.turnStartTime = undefined;
@@ -178,8 +183,8 @@ const makeDiceGoAiMove = async (game: types.LiveGameSession) => {
         const resolveGameId = game.id;
         const resolveDelay =
             game.animation?.type === 'dice_roll_main'
-                ? Math.max(0, Number(game.animation.duration) || 1500) + 80
-                : 1580;
+                ? Math.max(0, Number(game.animation.duration) || PLAYFUL_AI_DICE_ROLL_ANIMATION_MS) + 80
+                : PLAYFUL_AI_DICE_ROLL_ANIMATION_MS + 80;
         // 큐가 넘겨준 game 객체와 동일 참조를 쓴다. getCachedGame은 DB 스냅샷으로 애니·stonesToPlace(-1)가
         // 빠진 상태를 줄 수 있어 오버샷 후 dice_rolling_animating에서 영구 고착될 수 있음.
         const gameRef = game;
@@ -196,7 +201,9 @@ const makeDiceGoAiMove = async (game: types.LiveGameSession) => {
                         const a = g.animation;
                         if (a?.type === 'dice_roll_main') {
                             const endT =
-                                Number(a.startTime) + Math.max(0, Number(a.duration) || 1500) + 1;
+                                Number(a.startTime) +
+                                Math.max(0, Number(a.duration) || PLAYFUL_AI_DICE_ROLL_ANIMATION_MS) +
+                                1;
                             updateDiceGoState(g, Math.max(t, endT));
                         }
                     }
@@ -593,7 +600,12 @@ const makeThiefAiMove = async (game: types.LiveGameSession) => {
         }
         
         game.stonesToPlace = stonesToPlace;
-        game.animation = { type: 'dice_roll_main', dice: { dice1, dice2, dice3: 0 }, startTime: now, duration: 1500 };
+        game.animation = {
+            type: 'dice_roll_main',
+            dice: { dice1, dice2, dice3: 0 },
+            startTime: now,
+            duration: PLAYFUL_AI_DICE_ROLL_ANIMATION_MS,
+        };
         game.gameStatus = 'thief_rolling_animating';
         game.turnDeadline = undefined;
         game.turnStartTime = undefined;
@@ -1327,6 +1339,7 @@ export const makeAiMove = async (game: LiveGameSession) => {
                 types.GameMode.Base,
                 types.GameMode.Hidden,
                 types.GameMode.Missile,
+                types.GameMode.Uniform,
                 types.GameMode.Mix
             ];
 
@@ -1392,6 +1405,7 @@ export const makeAiMove = async (game: LiveGameSession) => {
                     types.GameMode.Base,
                     types.GameMode.Hidden,
                     types.GameMode.Missile,
+                    types.GameMode.Uniform,
                     types.GameMode.Mix
                 ];
                 if (strategicModes.includes(game.mode)) {

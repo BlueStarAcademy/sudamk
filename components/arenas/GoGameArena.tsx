@@ -370,6 +370,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 strategicPetHintOverlay={strategicPetHintDotOverlay}
                 strategicPetHintRewardAnimation={strategicPetHintRewardAnimation}
                 boardRuleFlashMessage={boardRuleFlashMessage}
+                uniformStoneDisplayColor={session.uniformStoneDisplayColor ?? null}
                 isPairBasePlacementHost={isPairBasePlacementHost}
                 canPlaceMoreBaseStones={canPlaceMoreBaseStones}
                 isMoveSubmitting={isMoveSubmitting}

@@ -930,6 +930,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 GameMode.Base,
                 GameMode.Hidden,
                 GameMode.Missile,
+                GameMode.Uniform,
                 GameMode.Mix,
             ];
             if (!goModesForServerAi.includes(game.mode as GameMode)) {
@@ -1005,6 +1006,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 'color_start_confirmation',
                 'turn_preference_selection',
                 'turn_preference_roulette',
+                'uniform_color_roulette',
             ]);
             const countPvePlayableMoves = (): number =>
                 (game.moveHistory || []).filter(
@@ -1209,6 +1211,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 GameMode.Base,
                 GameMode.Hidden,
                 GameMode.Missile,
+                GameMode.Uniform,
                 GameMode.Mix,
             ];
             const requestSyncPolicy = resolveArenaSessionPolicy(game);
@@ -1736,6 +1739,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     game.mode === GameMode.Base ||
                     game.mode === GameMode.Hidden ||
                     game.mode === GameMode.Missile ||
+                    game.mode === GameMode.Uniform ||
                     game.mode === GameMode.Mix;
                 const { aiUserId, makeAiMove } = await import('./aiPlayer.js');
                 const pidAfterUser = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;

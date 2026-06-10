@@ -6659,7 +6659,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                 </div>
                             )}
                             {isMobile ? mobileChampionshipSkipSlot : desktopSkipSlot}
-                            {!footerButtons && !countdownDisplay ? (isMobile ? mobileChampionshipExitSlot : desktopExitSlot) : null}
+                            {isMobile ? mobileChampionshipExitSlot : desktopExitSlot}
                         </div>
                     </>
                 )}

@@ -531,6 +531,32 @@ export const getOrCreateBotGuildForWar = async (): Promise<string> => {
     }
 };
 
+/** 길드전 FK용 — KV에만 있고 Prisma Guild 행이 없으면 생성 */
+export async function ensureGuildExistsForWar(
+    guildId: string,
+    guild: { name?: string; leaderId?: string },
+): Promise<boolean> {
+    const existing = await prismaClient.guild.findUnique({ where: { id: guildId } });
+    if (existing) return true;
+    try {
+        await prismaClient.guild.create({
+            data: {
+                id: guildId,
+                name: guild.name || guildId,
+                leaderId: guild.leaderId || guildId,
+                gold: 0n,
+                level: 1,
+                experience: 0n,
+            },
+        });
+        console.log(`[GuildWar] Synced guild ${guildId} to Prisma for war FK`);
+        return true;
+    } catch (err: any) {
+        console.error(`[GuildWar] ensureGuildExistsForWar(${guildId}):`, err?.message);
+        return false;
+    }
+}
+
 export const createGuildWar = async (guild1Id: string, guild2Id: string): Promise<GuildWar> => {
     const war = await prismaClient.guildWar.create({
         data: {

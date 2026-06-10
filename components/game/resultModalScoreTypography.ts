@@ -4,7 +4,7 @@
  */
 export const RESULT_MODAL_SCORE_MOBILE_PX = {
     /** 영토/따낸 돌 등 데이터 행 */
-    dataRow: 12,
+    dataRow: 12.5,
     /** 흑·백 열 제목 */
     columnHead: 13,
     /** 총점 행 */
@@ -12,8 +12,39 @@ export const RESULT_MODAL_SCORE_MOBILE_PX = {
     /** 빈 상태·보조 문구 */
     emptyState: 12,
     /** 섹션 소제목(경기 결과 등) */
-    sectionLabel: 12,
+    sectionLabel: 12.5,
 } as const;
+
+/** PC 결과 패널 기준 px — `desktopTextScale`과 곱해 사용 */
+export const RESULT_MODAL_DESKTOP_PX = {
+    body: 12,
+    label: 11,
+    nickname: 12.5,
+    level: 11,
+    badge: 10,
+    scoreData: 11,
+    scoreHead: 12,
+    scoreTotal: 12.5,
+    scoreHero: 19,
+    scoreColon: 15,
+    message: 12.5,
+    captureLabel: 11,
+    winBanner: 13,
+} as const;
+
+/** 경기 결과 모달 본문·프로필·라벨 (mobileTextScale과 곱함) */
+export const RESULT_MODAL_BODY_MOBILE_PX = {
+    sectionTitle: 12.5,
+    body: 12,
+    meta: 11,
+    nickname: 12.5,
+    level: 11,
+    badge: 10.5,
+} as const;
+
+export function resultModalFontPx(base: number, scale: number): string {
+    return `${Math.round(base * scale)}px`;
+}
 
 /** 놀이바둑 모바일: 라운드 표·득점 등 정보 밀도가 높아 한 단계 키운 기준 px */
 export const RESULT_MODAL_PLAYFUL_SCORE_MOBILE_PX = {

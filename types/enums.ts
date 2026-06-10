@@ -12,6 +12,7 @@ export enum GameMode {
   Base = "베이스 바둑",
   Hidden = "히든 바둑",
   Missile = "미사일 바둑",
+  Uniform = "일색 바둑",
   Mix = "믹스룰 바둑",
   Dice = "주사위 바둑",
   Omok = "오목",
@@ -69,6 +70,7 @@ export type GameStatus =
   // Role/Turn Selection
   | 'turn_preference_selection' // Unified state for choosing turn
   | 'turn_preference_roulette' // 선후공 동점 시 룰렛 연출 후 무작위 배정
+  | 'uniform_color_roulette' // 일색 바둑 PVP: 보이는 돌 색상 룰렛
   | 'color_start_confirmation'
   | 'alkkagi_turn_selection'
   | 'curling_turn_selection'

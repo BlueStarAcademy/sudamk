@@ -25,6 +25,12 @@ import {
 } from '../../shared/utils/pairGameTurn.js';
 import { isPairHumanHumanPvpForTeamResign, resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
 import { PRE_GAME_PVP_COUNTDOWN_MS } from '../../shared/constants/preGameCountdown.js';
+import {
+    assignRandomUniformDisplayColor,
+    assignUniformDisplayColorForAiGame,
+    sessionUsesUniformStoneDisplay,
+    UNIFORM_COLOR_ROULETTE_MS,
+} from '../../shared/utils/uniformGoRules.js';
 
 // AI 대국 일시정지/재개 쿨다운 (서버 메모리 기반)
 // - "일시정지" 후 5초가 지나야 "대국 재개" 허용
@@ -228,6 +234,22 @@ export const transitionToPlaying = (game: types.LiveGameSession, now: number) =>
         .catch((e: unknown) =>
             console.warn('[seedStrategicPetHintBonusPresetsForGame]', e instanceof Error ? e.message : e),
         );
+};
+
+/** 흑·백 확정 후 본대국 진입 — 일색 바둑이면 AI는 유저 색, PVP는 돌 색 룰렛 */
+export const transitionToPlayingOrUniformRoulette = (game: types.LiveGameSession, now: number): void => {
+    if (!sessionUsesUniformStoneDisplay(game.mode, game.settings)) {
+        transitionToPlaying(game, now);
+        return;
+    }
+    if (game.isAiGame) {
+        assignUniformDisplayColorForAiGame(game);
+        transitionToPlaying(game, now);
+        return;
+    }
+    assignRandomUniformDisplayColor(game);
+    game.gameStatus = 'uniform_color_roulette';
+    game.revealEndTime = now + UNIFORM_COLOR_ROULETTE_MS;
 };
 
 export const assignRandomColors = (game: types.LiveGameSession) => {
@@ -438,6 +460,14 @@ export const updateSharedGameState = (game: LiveGameSession, now: number): boole
         if (game.revealEndTime && now > game.revealEndTime) {
             game.revealEndTime = undefined;
             finalizePlayfulColorsAfterTurnOrder(game, now);
+            return true;
+        }
+    }
+
+    if (game.gameStatus === 'uniform_color_roulette') {
+        if (game.revealEndTime && now > game.revealEndTime) {
+            game.revealEndTime = undefined;
+            transitionToPlaying(game, now);
             return true;
         }
     }
@@ -719,7 +749,7 @@ export const handleSharedAction = async (volatileState: VolatileState, game: Liv
                 if (game.nigiri) game.nigiri.processed = true;
                 game.preGameConfirmations = {};
                 game.revealEndTime = undefined;
-                transitionToPlaying(game, now);
+                transitionToPlayingOrUniformRoulette(game, now);
             } else if (game.gameStatus === 'color_start_confirmation' && (bothConfirmedNow || deadlinePassed)) {
                 game.preGameConfirmations = {};
                 game.revealEndTime = undefined;

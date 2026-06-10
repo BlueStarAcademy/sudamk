@@ -128,6 +128,8 @@ const getGameStatusText = (session: LiveGameSession): string => {
             return session.gameCategory === 'adventure'
                 ? '흑·백 배정을 확인한 뒤 경기 시작을 눌러 주세요.'
                 : '돌 가리기 진행 중...';
+        case 'uniform_color_roulette':
+            return '일색 바둑 — 돌 색상 룰렛 진행 중...';
         case 'base_placement':
             return `베이스돌 배치 · 각 ${settings.baseStones ?? 4}개`;
         case 'base_stone_color_choice':

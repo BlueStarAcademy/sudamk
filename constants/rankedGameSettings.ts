@@ -62,6 +62,15 @@ export const RANKED_GAME_SETTINGS: Record<GameMode, GameSettings> = {
         missileCount: 3, // 미사일 아이템 3개
         autoScoring: true, // 서로 통과시 계가
     },
+    [GameMode.Uniform]: {
+        boardSize: 19,
+        komi: 6.5,
+        timeLimit: 5,
+        byoyomiTime: 30,
+        byoyomiCount: 3,
+        timeIncrement: 0,
+        autoScoring: false,
+    },
     [GameMode.Mix]: {
         // 믹스룰은 랭킹전 제외
         boardSize: 13,
@@ -160,6 +169,7 @@ export const RANKED_STRATEGIC_MODES: GameMode[] = [
     GameMode.Base,
     GameMode.Hidden,
     GameMode.Missile,
+    GameMode.Uniform,
 ];
 
 /** 랭킹전에서 선택 가능한 모드 — 전략바둑만 (믹스룰 제외) */

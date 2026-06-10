@@ -17,6 +17,10 @@ export const MISSILE_GO_MODE_DESCRIPTION =
 export const MIX_GO_MODE_DESCRIPTION =
     '2가지 이상의 특수 규칙을 조합한 경기입니다.';
 
+/** 로비·모드 선택 등에 쓰는 일색 바둑 한 줄 설명 */
+export const UNIFORM_GO_MODE_DESCRIPTION =
+    '클래식 바둑과 동일한 규칙으로 두되, 모든 돌이 한 가지 색으로 보이는 심리전 바둑입니다.';
+
 export const SPECIAL_GAME_MODES = [
   { mode: GameMode.Standard, name: "클래식 바둑", description: "일반적인 클래식 바둑입니다.", available: true, image: "/images/simbols/simbol1.webp" },
   { mode: GameMode.Capture, name: "따내기 바둑", description: "정해진 개수의 돌을 먼저 따내는 사람이 승리하는 바둑입니다.", available: true, image: "/images/simbols/simbol2.webp" },
@@ -24,6 +28,7 @@ export const SPECIAL_GAME_MODES = [
   { mode: GameMode.Base, name: "베이스 바둑", description: BASE_GO_MODE_DESCRIPTION, available: true, image: "/images/simbols/simbol4.webp" },
   { mode: GameMode.Hidden, name: "히든 바둑", description: HIDDEN_GO_MODE_DESCRIPTION, available: true, image: "/images/simbols/simbol5.webp" },
   { mode: GameMode.Missile, name: "미사일 바둑", description: MISSILE_GO_MODE_DESCRIPTION, available: true, image: "/images/simbols/simbol6.webp" },
+  { mode: GameMode.Uniform, name: "일색 바둑", description: UNIFORM_GO_MODE_DESCRIPTION, available: true, image: "/images/simbols/simbol8.webp" },
   { mode: GameMode.Mix, name: "믹스 바둑", description: MIX_GO_MODE_DESCRIPTION, available: true, image: "/images/simbols/simbol7.webp" }
 ];
 

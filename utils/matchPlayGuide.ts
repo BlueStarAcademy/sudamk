@@ -178,6 +178,20 @@ function hiddenGuide(session: LiveGameSession): MatchPlayGuide {
     return g;
 }
 
+function uniformGuide(session: LiveGameSession): MatchPlayGuide {
+    const g = standardLike(session, '일색 바둑');
+    const colorLabel =
+        session.uniformStoneDisplayColor === Player.White
+            ? '백돌'
+            : session.uniformStoneDisplayColor === Player.Black
+              ? '흑돌'
+              : '한 가지 색';
+    g.sections[0].items.push(`바둑판의 모든 돌은 ${colorLabel}로 보이지만, 집·따내기·턴 규칙은 클래식과 같습니다.`);
+    g.sections[1].items.unshift('돌 색이 같으므로 형세는 수순·마지막 수 표시·기억으로 추적해야 합니다.');
+    g.sections[2].items.push('상대 돌과 내 돌을 혼동하지 않도록, 착수 전에 항상 내 차례(흑/백)를 확인하세요.');
+    return g;
+}
+
 function missileGuide(session: LiveGameSession): MatchPlayGuide {
     const g = standardLike(session, '미사일 바둑');
     const mc = session.settings.missileCount ?? 0;
@@ -199,6 +213,7 @@ function mixGuide(session: LiveGameSession): MatchPlayGuide {
     const hasBase = mixed.includes(GameMode.Base);
     const hasHidden = mixed.includes(GameMode.Hidden);
     const hasMissile = mixed.includes(GameMode.Missile);
+    const hasUniform = mixed.includes(GameMode.Uniform);
 
     const win: string[] = [
         `이번 대국은 믹스룰입니다. 조합: ${names}.`,
@@ -213,6 +228,7 @@ function mixGuide(session: LiveGameSession): MatchPlayGuide {
     if (hasBase) effort.push('베이스가 섞여 있으면 초반 보너스 따내기와 입찰 결과를 놓치지 마세요.');
     if (hasHidden) effort.push('히든이 섞여 있으면 스캔 타이밍과 상대의 심리까지 고려하세요.');
     if (hasMissile) effort.push('미사일이 섞여 있으면 한 수에 판이 뒤집힐 수 있어, 사용 전후의 읽기가 중요합니다.');
+    if (hasUniform) effort.push('일색이 섞여 있으면 돌 색으로 형세를 볼 수 없으니, 수순과 마지막 수를 더 꼼꼼히 추적하세요.');
 
     const caution: string[] = [
         '한 가지 규칙만 보면 다른 규칙에 당하기 쉽습니다. 매 수마다 “따내기·시간·아이템”을 동시에 점검하세요.',
@@ -500,6 +516,9 @@ export function buildMatchPlayGuide(session: LiveGameSession): MatchPlayGuide {
             break;
         case GameMode.Missile:
             guide = missileGuide(session);
+            break;
+        case GameMode.Uniform:
+            guide = uniformGuide(session);
             break;
         case GameMode.Mix:
             guide = mixGuide(session);

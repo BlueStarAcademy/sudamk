@@ -1,7 +1,7 @@
 
 import * as types from '../../types/index.js';
 import { PRE_GAME_PVP_COUNTDOWN_MS } from '../../shared/constants/preGameCountdown.js';
-import { transitionToPlaying } from './shared.js';
+import { transitionToPlaying, transitionToPlayingOrUniformRoulette } from './shared.js';
 
 export const initializeNigiri = (game: types.LiveGameSession, now: number) => {
     const blackPlayer = Math.random() < 0.5 ? game.player1 : game.player2;
@@ -41,7 +41,7 @@ export const updateNigiriState = (game: types.LiveGameSession, now: number) => {
             if (game.nigiri) game.nigiri.processed = true;
             game.preGameConfirmations = {};
             game.revealEndTime = undefined;
-            transitionToPlaying(game, now);
+            transitionToPlayingOrUniformRoulette(game, now);
         }
     }
 };
