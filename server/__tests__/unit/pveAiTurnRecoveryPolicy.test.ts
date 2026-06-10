@@ -47,7 +47,7 @@ describe('pveAiTurnRecoveryPolicy', () => {
                 { gameCategory: 'normal', isAiGame: true } as any,
                 { isPairAiTurn: false },
             ),
-        ).toBe(false);
+        ).toBe(true);
         expect(
             shouldUseServerAiKickForStuckRecovery(
                 {

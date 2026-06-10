@@ -28,6 +28,7 @@ import {
     isPairAiSeat,
     isPairClassicGame,
 } from '../shared/utils/pairGameTurn.js';
+import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
 import { ensureSinglePlayerKataServerLevelOnGame } from './singlePlayerStageConfigService.js';
 
 
@@ -1232,6 +1233,14 @@ const makeCurlingAiMove = async (game: types.LiveGameSession) => {
 };
 
 
+function schedulePveAiRetry(game: LiveGameSession): void {
+    const policy = resolveArenaSessionPolicy(game);
+    if (policy.matchAxis === 'pvp') return;
+    void import('./aiProcessingQueue.js').then(({ aiProcessingQueue }) => {
+        aiProcessingQueue.enqueue(game.id, undefined, { deferIfProcessing: true });
+    });
+}
+
 export const makeAiMove = async (game: LiveGameSession) => {
     const pairClassic = isPairClassicGame(game.settings, game.mode);
     const pairTurnIndexBefore = pairClassic ? getPairTurnIndexForSession(game) : null;
@@ -1260,10 +1269,12 @@ export const makeAiMove = async (game: LiveGameSession) => {
         : null;
 
     if (!shouldProcessAiTurn(game.id, initialMoveCount, pairSchedulingKeyBefore)) {
+        schedulePveAiRetry(game);
         return;
     }
 
     if (!startAiProcessing(game.id)) {
+        schedulePveAiRetry(game);
         return;
     }
 

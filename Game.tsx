@@ -182,6 +182,40 @@ const STRATEGIC_AI_STUCK_RECOVERABLE_STATUSES = new Set<GameStatus>([
     'scanning_animating',
 ]);
 
+/** PVE AI(전략·놀이) 클라이언트 stuck 복구 대상 status */
+const PVE_AI_STUCK_RECOVERABLE_STATUSES = new Set<GameStatus>([
+    ...STRATEGIC_AI_STUCK_RECOVERABLE_STATUSES,
+    'alkkagi_placement',
+    'alkkagi_simultaneous_placement',
+    'thief_rolling',
+    'thief_placing',
+    'alkkagi_playing',
+    'curling_playing',
+    'curling_tiebreaker_playing',
+    'dice_rolling',
+    'dice_placing',
+    'dice_turn_rolling',
+    'dice_turn_choice',
+    'dice_start_confirmation',
+]);
+
+/** 놀이바둑 AI: processGame과 동일하게 playing 외 status에서도 클라 트리거 허용 */
+const PLAYFUL_AI_CLIENT_TRIGGER_STATUSES = new Set<GameStatus>([
+    'playing',
+    'alkkagi_placement',
+    'alkkagi_simultaneous_placement',
+    'thief_rolling',
+    'thief_placing',
+    'alkkagi_playing',
+    'curling_playing',
+    'curling_tiebreaker_playing',
+    'dice_rolling',
+    'dice_placing',
+    'dice_turn_rolling',
+    'dice_turn_choice',
+    'dice_start_confirmation',
+]);
+
 /** 모바일 우측 패널: 100vh 대신 dvh + 노치/홈바로 하단 잘림 방지 */
 const mobileGameSidebarDrawerStyle: React.CSSProperties = {
     paddingTop: 'env(safe-area-inset-top, 0px)',
@@ -4130,9 +4164,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             clearTimeout(aiStuckPostSyncFallbackRef.current);
             aiStuckPostSyncFallbackRef.current = null;
         }
-        const eligibleForStuckRecovery =
-            KATA_STYLE_AI_GO_MODES.has(mode) && isEligibleForPveAiTurnStuckRecovery(session);
-        if (!eligibleForStuckRecovery || !STRATEGIC_AI_STUCK_RECOVERABLE_STATUSES.has(gameStatus)) return;
+        const eligibleForStuckRecovery = isEligibleForPveAiTurnStuckRecovery(session);
+        if (!eligibleForStuckRecovery || !PVE_AI_STUCK_RECOVERABLE_STATUSES.has(gameStatus)) return;
         if (gameStatus === 'hidden_reveal_animating' && shouldDeferStuckRecoveryDuringHiddenReveal(session)) {
             return;
         }
@@ -4292,10 +4325,18 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         const isGuildWarGame = sessionPolicy.kind === 'guildwar';
         const isAdventureGame = sessionPolicy.kind === 'adventure';
         const isPlayfulAiGame = session.isAiGame && PLAYFUL_GAME_MODES.some(m => m.mode === mode);
+        const isPlayfulModeForAiTrigger = PLAYFUL_GAME_MODES.some(m => m.mode === mode);
+        const gameStatusAllowsAiTrigger = isPlayfulModeForAiTrigger
+            ? PLAYFUL_AI_CLIENT_TRIGGER_STATUSES.has(gameStatus)
+            : gameStatus === 'playing';
         // 게임이 종료되었거나 일시정지되었거나 플레이 중이 아니면 AI 수를 보내지 않음
         // 놀이바둑 AI 게임도 클라이언트에서 처리
         // 모험: 서버 큐만 기대하면 AI 턴이 영구 정지할 수 있어 타워·길드전과 같이 REQUEST_SERVER_AI_MOVE 복구 경로에 포함
-        if (!(isSinglePlayer || isTower || isGuildWarGame || isPlayfulAiGame || isAdventureGame) || isPaused || gameStatus !== 'playing') {
+        if (
+            !(isSinglePlayer || isTower || isGuildWarGame || isPlayfulAiGame || isAdventureGame) ||
+            isPaused ||
+            !gameStatusAllowsAiTrigger
+        ) {
             lastAiMoveRef.current = null;
             return;
         }

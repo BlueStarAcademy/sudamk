@@ -43,6 +43,7 @@ export function shouldUseServerAiKickForStuckRecovery(
         policy.kind === 'tower' ||
         policy.kind === 'adventure' ||
         policy.kind === 'guildwar' ||
+        policy.isStrategicAiLike ||
         opts.isPairAiTurn ||
         isPairArenaAiMatchSession(session)
     );

@@ -38,6 +38,7 @@ import {
 } from './utils/speedTimePressureLiveCaptures.js';
 import { modeIncludesCaptureRule, resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
 import { isAiLobbyManualClockPause } from './modes/shared.js';
+import { maybeRecoverStalledPveAiTurn, needsPveAiWatchdogTick } from './utils/pveAiTurnWatchdog.js';
 
 // 정확한 계가 결과는 1회만 표시한다는 전제 하에,
 // KataGo 분석을 `scoring` 브로드캐스트·클라이언트 계가 UI보다 앞서 백그라운드로 시작한다.
@@ -1457,6 +1458,7 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
                         (game.gameStatus === 'thief_rolling_animating' ||
                             (pveDiceThiefIsAiTurn &&
                                 (game.gameStatus === 'thief_rolling' || game.gameStatus === 'thief_placing')))));
+            const needsPveAiWatchdogLoopTick = needsPveAiWatchdogTick(game);
             if (
                 !isPVEGame ||
                 needsRevealTransition ||
@@ -1464,7 +1466,8 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
                 needsPveServerGoAiTick ||
                 needsSinglePlayerBasePrePlayTick ||
                 needsPveSpeedPlayingTick ||
-                needsPveDiceThiefPlayfulTick
+                needsPveDiceThiefPlayfulTick ||
+                needsPveAiWatchdogLoopTick
             ) {
                 multiPlayerGames.push(game);
             }
@@ -1907,6 +1910,7 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
             if (canProcessAiTurn && !didAlkkagiTriggerAiAttack) {
                 // 페어 4인 수순: aiProcessingQueue 단일 경로만 사용 (메인루프와 이중 디스패치 방지)
                 if (pairClassicForAi) {
+                    maybeRecoverStalledPveAiTurn(game, now);
                     return game;
                 }
                 const dispatchingAt = Number((game as any)._aiMoveDispatchingAt ?? 0);
@@ -1961,6 +1965,10 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                                 }
                             } else {
                                 game.aiTurnStartTime = Date.now() + 50;
+                                const pveAiPolicy = resolveArenaSessionPolicy(game);
+                                if (game.isAiGame && pveAiPolicy.matchAxis !== 'pvp') {
+                                    aiProcessingQueue.enqueue(gameId, undefined, { deferIfProcessing: true });
+                                }
                             }
                             try {
                                 const { updateGameCache } = await import('./gameCache.js');
@@ -1992,6 +2000,8 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                     game.aiTurnStartTime = now;
                 }
             }
+
+            maybeRecoverStalledPveAiTurn(game, now);
 
             return game;
         } catch (error) {
