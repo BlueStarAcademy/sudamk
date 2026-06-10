@@ -1105,12 +1105,12 @@ const BossPanel: React.FC<{
                     {isMobile ? (
                         <>
                             <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-stone-600/50 bg-black/20">
-                                <div className="relative flex min-h-0 flex-1 w-full flex-row items-stretch gap-1.5 overflow-hidden bg-gradient-to-br from-stone-700/50 to-stone-800/40 p-1.5">
-                                    <div className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden rounded-lg">
+                                <div className="relative flex min-h-0 flex-1 w-full items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-stone-700/50 to-stone-800/40">
+                                    <div className="relative inline-block max-h-full max-w-full">
                                         <img
                                             src={currentBoss.image}
                                             alt={currentBoss.name}
-                                            className="h-full w-full max-h-full object-contain object-center drop-shadow-lg"
+                                            className="block h-auto w-auto max-h-full max-w-full object-contain object-center drop-shadow-lg"
                                         />
                                         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/45" />
                                         <div className="absolute inset-x-0 top-0 z-10 flex flex-col gap-0.5 bg-gradient-to-b from-black/88 via-black/55 to-transparent px-1 pb-2 pt-1">
@@ -1129,7 +1129,7 @@ const BossPanel: React.FC<{
                                         </div>
                                         {currentBoss.skills && currentBoss.skills.length > 0 ? (
                                             <div
-                                                className="absolute inset-x-0 bottom-1 z-10 flex flex-row flex-nowrap items-center justify-center gap-1 overflow-visible px-1"
+                                                className="absolute bottom-1.5 left-1 z-20 flex flex-row flex-nowrap items-center justify-start gap-1.5 overflow-visible"
                                                 aria-label="보스 스킬"
                                             >
                                                 {currentBoss.skills.slice(0, 3).map((skill) => (
@@ -1138,12 +1138,12 @@ const BossPanel: React.FC<{
                                                             ref={(el) => {
                                                                 skillIconRefs.current[skill.id] = el;
                                                             }}
-                                                            className="relative z-20 flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg border border-stone-500/70 bg-stone-900/90 shadow-md ring-1 ring-white/15 backdrop-blur-[1px] transition-transform active:scale-95"
+                                                            className="relative z-20 flex h-11 w-11 cursor-pointer items-center justify-center rounded-lg border border-stone-500/70 bg-stone-900/90 shadow-md ring-1 ring-white/15 backdrop-blur-[1px] transition-transform active:scale-95"
                                                             onClick={() => {
                                                                 setActiveSkillTooltip((prev) => (prev?.id === skill.id ? null : skill));
                                                             }}
                                                         >
-                                                            <img src={skill.image} alt={skill.name} className="h-8 w-8 object-contain drop-shadow-md" />
+                                                            <img src={skill.image} alt={skill.name} className="h-9 w-9 object-contain drop-shadow-md" />
                                                             {skill.type === 'passive' ? (
                                                                 <div className="absolute -right-0.5 -top-0.5 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-purple-500 ring-1 ring-stone-900/80">
                                                                     <span className="text-[6px] font-bold text-white">P</span>
@@ -1154,58 +1154,58 @@ const BossPanel: React.FC<{
                                                 ))}
                                             </div>
                                         ) : null}
-                                    </div>
-                                    <div className="flex w-[min(40%,9.75rem)] shrink-0 flex-col rounded-lg border border-stone-600/55 bg-black/55 px-2 py-1.5 backdrop-blur-sm">
-                                        <p className="truncate text-center text-[10px] leading-tight text-tertiary" title={timeLeft}>
-                                            {timeLeft}
-                                        </p>
-                                        <div className="my-1.5 border-t border-stone-600/50" aria-hidden />
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowBossParticipantsModal(true)}
-                                            className="inline-flex w-full items-center justify-center gap-1 rounded-md border border-cyan-500/40 bg-cyan-900/20 px-2 py-1 text-[11px] font-semibold text-cyan-200 transition-colors hover:bg-cyan-800/30"
-                                        >
-                                            참여길드원
-                                        </button>
-                                        <div className="mb-1 mt-2 text-[9px] font-semibold text-stone-400">나의 기록</div>
-                                        <div className="flex min-h-0 flex-1 flex-col gap-0.5">
-                                            <div className="flex items-center justify-between gap-1">
-                                                <span className="text-[9px] text-stone-400">랭킹</span>
-                                                <span className="text-[10px] font-bold tabular-nums text-highlight">
-                                                    {myRank !== null ? `${myRank}위` : '-'}
+                                        <div className="absolute bottom-1.5 right-1 z-20 w-max min-w-[12.5rem] max-w-[calc(100%-0.5rem)] rounded-lg border border-stone-500/60 bg-black/78 px-2.5 py-1.5 shadow-[0_4px_24px_rgba(0,0,0,0.55)] backdrop-blur-md">
+                                            <p className="whitespace-nowrap text-center text-[10px] leading-tight text-tertiary">
+                                                {timeLeft}
+                                            </p>
+                                            <div className="my-1 border-t border-stone-600/50" aria-hidden />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowBossParticipantsModal(true)}
+                                                className="inline-flex w-full items-center justify-center gap-1 whitespace-nowrap rounded-md border border-cyan-500/40 bg-cyan-900/30 px-2 py-0.5 text-[10px] font-semibold text-cyan-200 transition-colors hover:bg-cyan-800/40"
+                                            >
+                                                참여길드원
+                                            </button>
+                                            <div className="mb-0.5 mt-1.5 whitespace-nowrap text-[9px] font-semibold text-stone-300">나의 기록</div>
+                                            <div className="flex flex-col gap-0.5">
+                                                <div className="flex items-center justify-between gap-2 whitespace-nowrap">
+                                                    <span className="shrink-0 text-[9px] text-stone-400">랭킹</span>
+                                                    <span className="text-[10px] font-bold tabular-nums text-highlight">
+                                                        {myRank !== null ? `${myRank}위` : '-'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center justify-between gap-2 whitespace-nowrap">
+                                                    <span className="shrink-0 text-[9px] text-stone-400">총 데미지</span>
+                                                    <span className="text-[10px] font-bold tabular-nums text-amber-300">{myDamage.toLocaleString()}</span>
+                                                </div>
+                                                <div className="flex items-center justify-between gap-2 whitespace-nowrap">
+                                                    <span className="shrink-0 text-[9px] text-stone-400">현재순위</span>
+                                                    <span className="text-[10px] font-bold tabular-nums text-cyan-300">
+                                                        {totalParticipants > 0 && myRank !== null ? `${totalParticipants}명 중 ${myRank}위` : '-'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center justify-between gap-2 whitespace-nowrap">
+                                                    <span className="shrink-0 text-[9px] text-stone-400">역대 최고</span>
+                                                    <span className="text-[10px] font-bold tabular-nums text-yellow-300">
+                                                        {(guild.guildBossState?.maxDamageLog?.[effectiveUserId || ''] || 0).toLocaleString()}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    window.location.hash = '#/guildboss';
+                                                }}
+                                                disabled={!canEnter}
+                                                className={`${canEnter ? guildPanelBtn.boss : guildPanelBtn.disabled} mt-1.5 w-full whitespace-nowrap !py-1 !text-[11px]`}
+                                            >
+                                                <img src="/images/guild/ticket.webp" alt="보스전 티켓" className="h-3.5 w-3.5" />
+                                                <span>
+                                                    {myBossTickets}/{GUILD_BOSS_MAX_ATTEMPTS}
                                                 </span>
-                                            </div>
-                                            <div className="flex items-center justify-between gap-1">
-                                                <span className="text-[9px] text-stone-400">총 데미지</span>
-                                                <span className="text-[10px] font-bold tabular-nums text-amber-300">{myDamage.toLocaleString()}</span>
-                                            </div>
-                                            <div className="flex items-center justify-between gap-1">
-                                                <span className="text-[9px] text-stone-400">현재순위</span>
-                                                <span className="max-w-[4.5rem] truncate text-right text-[10px] font-bold tabular-nums text-cyan-300">
-                                                    {totalParticipants > 0 && myRank !== null ? `${totalParticipants}명 중 ${myRank}위` : '-'}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center justify-between gap-1">
-                                                <span className="text-[9px] text-stone-400">역대 최고</span>
-                                                <span className="text-[10px] font-bold tabular-nums text-yellow-300">
-                                                    {(guild.guildBossState?.maxDamageLog?.[effectiveUserId || ''] || 0).toLocaleString()}
-                                                </span>
-                                            </div>
+                                                <span>입장</span>
+                                            </button>
                                         </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                window.location.hash = '#/guildboss';
-                                            }}
-                                            disabled={!canEnter}
-                                            className={`${canEnter ? guildPanelBtn.boss : guildPanelBtn.disabled} mt-2 w-full`}
-                                        >
-                                            <img src="/images/guild/ticket.webp" alt="보스전 티켓" className="h-4 w-4" />
-                                            <span>
-                                                {myBossTickets}/{GUILD_BOSS_MAX_ATTEMPTS}
-                                            </span>
-                                            <span>입장</span>
-                                        </button>
                                     </div>
                                 </div>
                             </div>

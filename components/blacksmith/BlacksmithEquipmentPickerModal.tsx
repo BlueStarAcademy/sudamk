@@ -173,7 +173,7 @@ const BlacksmithEquipmentPickerModal: React.FC<BlacksmithEquipmentPickerModalPro
 
     const pickerBody = (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2.5 pb-2 pt-2">
+            <div className="shrink-0 px-2.5 pb-2 pt-2">
                 <p className={`mb-2 text-center ${mobilePickerTypo.body} text-slate-400`}>{helpText}</p>
 
                 {mode === 'combine' && (
@@ -188,7 +188,7 @@ const BlacksmithEquipmentPickerModal: React.FC<BlacksmithEquipmentPickerModalPro
                     </div>
                 )}
 
-                <div className="mb-2 flex items-center justify-between gap-2">
+                <div className="flex items-center justify-between gap-2">
                     <span className={`min-w-0 shrink ${mobilePickerTypo.heading} text-on-panel`}>장비</span>
                     <div className="flex shrink-0 items-center gap-2">
                         {mode === 'disassemble' && onOpenDisassemblyAutoSelect && (
@@ -212,20 +212,20 @@ const BlacksmithEquipmentPickerModal: React.FC<BlacksmithEquipmentPickerModalPro
                         </select>
                     </div>
                 </div>
+            </div>
 
-                <div className="max-h-[min(52dvh,24rem)] min-h-[12rem] overflow-y-auto overflow-x-hidden pr-1 [scrollbar-gutter:stable]">
-                    <InventoryGrid
-                        inventory={filteredInventory}
-                        inventorySlots={inventorySlots}
-                        onSelectItem={handleGridSelect}
-                        selectedItemId={selectedItemIdForGrid}
-                        disabledItemIds={disabledItemIds}
-                        selectedItemIdsForDisassembly={mode === 'disassemble' ? pickerDisassemble : undefined}
-                        onToggleDisassemblySelection={mode === 'disassemble' ? onToggleDisassembly : undefined}
-                        columnCount={columnCount}
-                        gapPx={gapPx}
-                    />
-                </div>
+            <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2.5 pb-2 pr-1 [scrollbar-gutter:stable]">
+                <InventoryGrid
+                    inventory={filteredInventory}
+                    inventorySlots={inventorySlots}
+                    onSelectItem={handleGridSelect}
+                    selectedItemId={selectedItemIdForGrid}
+                    disabledItemIds={disabledItemIds}
+                    selectedItemIdsForDisassembly={mode === 'disassemble' ? pickerDisassemble : undefined}
+                    onToggleDisassemblySelection={mode === 'disassemble' ? onToggleDisassembly : undefined}
+                    columnCount={columnCount}
+                    gapPx={gapPx}
+                />
             </div>
 
             <div

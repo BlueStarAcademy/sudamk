@@ -39,9 +39,9 @@ import {
 const EMBEDDED_PAIR_SHELL_CLASS =
     'flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden rounded-xl border border-violet-400/40 bg-gradient-to-br from-zinc-900/95 via-zinc-950/98 to-black/92 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-violet-500/15';
 
-/** `PairWaitingLobby` 방 만들기 모달과 동일한 백드롭 — 랭킹전 창 시각 통일 */
+/** 모바일 랭킹전 — 전체 화면 오버레이 */
 const LOBBY_ROOM_CREATE_BACKDROP_HANDHELD_CLASS =
-    'fixed inset-0 z-[84] bg-black/70 backdrop-blur-sm flex flex-col justify-end p-0 sm:p-3 sm:justify-center';
+    'fixed inset-0 z-[84] flex h-dvh max-h-dvh w-full flex-col bg-black/70 p-0 backdrop-blur-sm';
 
 const LOBBY_ROOM_CREATE_BACKDROP_DESKTOP_CLASS =
     'fixed inset-0 z-[84] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3';
@@ -482,17 +482,16 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                         <p className="shrink-0 text-[11px] leading-snug text-zinc-500">
                             종목을 눌러 선택한 뒤 다음에서 랭킹 정보와 규칙을 확인하세요.
                         </p>
-                        <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-x-contain pr-0.5 -mr-0.5 [-webkit-overflow-scrolling:touch]">
-                            <div className={`${LOBBY_HORIZONTAL_MODE_PICKER_ROW_CLASS} min-h-0 pb-1`}>
+                        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain [-webkit-overflow-scrolling:touch]">
+                            <div className="grid grid-cols-3 gap-2 pb-1">
                                 {modes.map((def) => (
-                                    <div key={def.mode} className={LOBBY_HORIZONTAL_MODE_PICKER_ITEM_CLASS}>
+                                    <div key={def.mode} className="min-w-0">
                                         <ModePickCard
                                             def={def}
                                             queueCount={queueCountByMode[def.mode] ?? 0}
                                             isSelected={selected === def.mode}
                                             disabled={isBusy}
                                             compact
-                                            scrollStripItem
                                             onSelect={() => setSelected(def.mode)}
                                         />
                                     </div>
@@ -510,7 +509,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                                 onClick={() => setMobileStep('details')}
                                 className="inline-flex min-h-[2.55rem] max-w-[min(12.25rem,76vw)] shrink-0 items-center justify-center rounded-xl border border-violet-300/45 bg-gradient-to-br from-violet-500/96 via-fuchsia-600/94 to-indigo-800 px-4 text-[12.5px] font-bold tracking-wide text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_3px_0_0_rgba(55,48,163,0.52),0_12px_32px_-12px_rgba(139,92,246,0.42)] ring-1 ring-violet-300/22 transition-all duration-200 hover:brightness-[1.06] active:translate-y-px active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/45 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0812] touch-manipulation disabled:!cursor-not-allowed disabled:!opacity-45 disabled:!hover:brightness-100"
                             >
-                                다음 — 정보·규칙
+                                다음
                             </Button>
                         </div>
                     </div>
@@ -574,7 +573,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
 
     const roomCreateStyleSheetClass = `relative flex w-full min-h-0 min-w-0 flex-col overflow-hidden border border-amber-400/40 bg-gradient-to-b from-zinc-900 to-black shadow-2xl shadow-black/60 ring-1 ring-white/10 ${
         isHandheld
-            ? 'max-h-[min(97dvh,calc(100dvh-env(safe-area-inset-bottom)-10px))] rounded-t-2xl border-b-0 sm:max-h-none sm:rounded-2xl sm:border-b'
+            ? 'h-dvh max-h-dvh min-h-dvh w-full max-w-none flex-1 rounded-none border-0 ring-0'
             : 'max-h-[min(96vh,960px)] max-w-[min(98vw,58rem)] rounded-2xl'
     }`;
 
@@ -604,7 +603,11 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                     닫기
                 </button>
                 <div
-                    className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden ${isHandheld ? 'px-3 pb-2 pt-3' : 'px-4 pb-4 pt-4'}`}
+                    className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden ${
+                        isHandheld
+                            ? 'px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))]'
+                            : 'px-4 pb-4 pt-4'
+                    }`}
                 >
                     <div
                         className={`grid shrink-0 grid-cols-[minmax(2.75rem,auto)_1fr_minmax(2.75rem,auto)] items-center gap-x-1 ${

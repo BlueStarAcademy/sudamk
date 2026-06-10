@@ -33,9 +33,8 @@ import GuildBossBattleResultModal from './GuildBossBattleResultModal.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import { LOBBY_MOBILE_BTN_PRIMARY_CLASS, PRE_GAME_MODAL_PRIMARY_BTN_CLASS } from '../game/PreGameDescriptionLayout.js';
 
-/** 모바일 보스전: 보스·유저(및 하단 로그) 가로 비율 4.5 : 5.5 */
-const GUILD_BOSS_MOBILE_BOSS_COLUMN_CLASS = 'min-w-0 basis-0 flex-[4.5]';
-const GUILD_BOSS_MOBILE_USER_COLUMN_CLASS = 'min-w-0 basis-0 flex-[5.5]';
+/** 모바일 보스전: 보스 이미지 | 우측 누적피해 Top3 + 전투중계 */
+const GUILD_BOSS_MOBILE_RANKING_COLUMN_CLASS = 'flex min-h-0 w-[min(56%,15.5rem)] min-w-[14.5rem] shrink-0 flex-col gap-1 overflow-hidden';
 /** PC 보스전: 좌 보스(이미지 폭) → 우 유저(콘텐츠 폭) → 중 로그(남는 공간 flex-1) */
 const GUILD_BOSS_DESKTOP_LEFT_RAIL_CLASS =
     'flex h-full min-h-0 w-[min(32vw,28rem)] min-w-[16rem] shrink-0 flex-col items-stretch gap-2 overflow-hidden';
@@ -172,6 +171,61 @@ export const EquipmentSlotDisplay: React.FC<{ slot: EquipmentSlot; item?: Invent
     }
 };
 
+const GUILD_BOSS_MOBILE_SIDE_BTN_CLASS =
+    'flex w-full flex-shrink-0 items-center justify-center rounded-lg border px-2 py-2 text-[11px] font-bold shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition-transform active:scale-[0.98]';
+
+const GuildBossResearchSkillsList: React.FC<{ guild: GuildType | null; compact?: boolean }> = ({ guild, compact = false }) => {
+    const allBossResearch = useMemo(() => {
+        if (!guild) return [];
+        return Object.entries(GUILD_RESEARCH_PROJECTS)
+            .filter(([, project]) => project.category === 'boss')
+            .map(([id, project]) => {
+                const currentLevel = guild.research?.[id as GuildResearchId]?.level || 0;
+                return { ...project, id: id as GuildResearchId, currentLevel };
+            });
+    }, [guild]);
+
+    const simpleNameMap: Partial<Record<GuildResearchId, string>> = {
+        boss_hp_increase: 'HP증가',
+        boss_skill_heal_block: '회복불가',
+        boss_skill_regen: '회복',
+        boss_skill_ignite: '점화',
+    };
+
+    return (
+        <div className={`${compact ? 'space-y-1.5 text-xs' : 'space-y-1 text-xs'}`}>
+            {allBossResearch.map((project) => {
+                const currentLevel = guild?.research?.[project.id]?.level || 0;
+                const displayInfo = getResearchSkillDisplay(project.id, currentLevel);
+                const displayName = simpleNameMap[project.id] || project.name;
+
+                return (
+                    <div
+                        key={project.id}
+                        className={`flex items-center rounded-md bg-tertiary/50 ${!displayInfo ? 'opacity-60' : ''} ${compact ? 'gap-1.5 p-1.5' : 'gap-2 p-1'}`}
+                        title={project.description}
+                    >
+                        <div className={`flex shrink-0 items-center ${compact ? 'min-w-0 w-[6.25rem] gap-1.5' : 'w-28 gap-2'}`}>
+                            <img src={project.image} alt={displayName} className={compact ? 'h-10 w-10 shrink-0' : 'h-12 w-12'} />
+                            <span className={`font-semibold leading-tight text-primary ${compact ? 'text-xs' : 'text-sm'}`}>{displayName}</span>
+                        </div>
+                        <div className="min-w-0 flex-1 text-right">
+                            {displayInfo ? (
+                                <p className={`font-mono font-bold leading-snug text-yellow-400 ${compact ? 'text-sm' : 'text-sm sm:text-base'}`}>
+                                    {displayInfo.chance !== undefined ? `[${displayInfo.chance}%] ` : ''}
+                                    {displayInfo.description}
+                                </p>
+                            ) : (
+                                <p className={`text-tertiary ${compact ? 'text-xs' : 'text-[10px]'}`}>비활성</p>
+                            )}
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
+};
+
 interface UserStatsPanelProps {
     user: UserWithStatus;
     guild: GuildType | null;
@@ -181,9 +235,11 @@ interface UserStatsPanelProps {
     isSimulating: boolean;
     /** 네이티브 모바일 보스전 한 화면 레이아웃용 압축 UI */
     compact?: boolean;
+    /** 모바일: 연구소 스킬을 별도 오버레이로 분리 */
+    hideResearchSkills?: boolean;
 }
 
-const UserStatsPanel: React.FC<UserStatsPanelProps> = ({ user, guild, hp, maxHp, damageNumbers, isSimulating, compact = false }) => {
+const UserStatsPanel: React.FC<UserStatsPanelProps> = ({ user, guild, hp, maxHp, damageNumbers, isSimulating, compact = false, hideResearchSkills = false }) => {
     const { handlers } = useAppContext();
     const myGuild = guild;
     const [selectedPreset, setSelectedPreset] = useState(0);
@@ -228,16 +284,6 @@ const UserStatsPanel: React.FC<UserStatsPanelProps> = ({ user, guild, hp, maxHp,
 
     const hpPercent = maxHp > 0 ? (hp / maxHp) * 100 : 0;
     
-    const allBossResearch = useMemo(() => {
-        if (!guild) return [];
-        return Object.entries(GUILD_RESEARCH_PROJECTS)
-            .filter(([, project]) => project.category === 'boss')
-            .map(([id, project]) => {
-                const currentLevel = guild.research?.[id as GuildResearchId]?.level || 0;
-                return { ...project, id: id as GuildResearchId, currentLevel };
-            });
-    }, [guild]);
-
     const presets = useMemo(() => {
         const userPresets = user.equipmentPresets || [];
         return Array(5).fill(null).map((_, i) => 
@@ -313,40 +359,14 @@ const UserStatsPanel: React.FC<UserStatsPanelProps> = ({ user, guild, hp, maxHp,
                 />
             </div>
 
-            <div className={`border-t border-color flex-1 min-h-0 flex flex-col ${compact ? 'mt-1 pt-1' : 'mt-2 pt-2'}`}>
-                <h4 className={`font-semibold text-center text-secondary flex-shrink-0 ${compact ? 'text-xs mb-1' : 'text-sm mb-1'}`}>연구소 스킬 효과</h4>
-                 <div className={`flex-1 min-h-0 overflow-y-auto pr-1 ${compact ? 'space-y-1.5 text-xs' : 'space-y-1 text-xs'}`}>
-                    {allBossResearch.map(project => {
-                        const currentLevel = guild?.research?.[project.id]?.level || 0;
-                        const displayInfo = getResearchSkillDisplay(project.id, currentLevel);
-                        const simpleNameMap: Partial<Record<GuildResearchId, string>> = {
-                            'boss_hp_increase': 'HP증가',
-                            'boss_skill_heal_block': '회복불가',
-                            'boss_skill_regen': '회복',
-                            'boss_skill_ignite': '점화',
-                        };
-                        const displayName = simpleNameMap[project.id] || project.name;
-                        
-                        return (
-                            <div key={project.id} className={`flex items-center bg-tertiary/50 rounded-md ${!displayInfo ? 'opacity-60' : ''} ${compact ? 'gap-1.5 p-1.5' : 'gap-2 p-1'}`} title={project.description}>
-                                <div className={`flex items-center flex-shrink-0 ${compact ? 'gap-1.5 min-w-0 w-[6.25rem]' : 'gap-2 w-28'}`}>
-                                    <img src={project.image} alt={displayName} className={compact ? 'h-10 w-10 shrink-0' : 'w-12 h-12'}/>
-                                    <span className={`font-semibold text-primary leading-tight ${compact ? 'text-xs' : 'text-sm'}`}>{displayName}</span>
-                                </div>
-                                <div className="min-w-0 flex-1 text-right">
-                                    {displayInfo ? (
-                                        <p className={`font-mono font-bold text-yellow-400 leading-snug ${compact ? 'text-sm' : 'text-sm sm:text-base'}`}>
-                                            {displayInfo.chance !== undefined ? `[${displayInfo.chance}%] ` : ''}{displayInfo.description}
-                                        </p>
-                                    ) : (
-                                        <p className={`text-tertiary ${compact ? 'text-xs' : 'text-[10px]'}`}>비활성</p>
-                                    )}
-                                </div>
-                            </div>
-                        )
-                    })}
+            {!hideResearchSkills ? (
+                <div className={`flex min-h-0 flex-1 flex-col border-t border-color ${compact ? 'mt-1 pt-1' : 'mt-2 pt-2'}`}>
+                    <h4 className={`flex-shrink-0 text-center font-semibold text-secondary ${compact ? 'mb-1 text-xs' : 'mb-1 text-sm'}`}>연구소 스킬 효과</h4>
+                    <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+                        <GuildBossResearchSkillsList guild={guild} compact={compact} />
+                    </div>
                 </div>
-            </div>
+            ) : null}
         </div>
     );
 };
@@ -585,8 +605,10 @@ const getDamageRankingGridClass = (compact: boolean) =>
         ? 'grid grid-cols-[1.5rem_minmax(0,1fr)_auto] items-center gap-x-1.5'
         : 'grid grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-x-2';
 
-const DAMAGE_RANKING_NICK_COL_CLASS =
-    'min-w-0 truncate border-r border-color/40 pr-2 text-left font-semibold leading-tight';
+const getDamageRankingNickColClass = (compact: boolean) =>
+    compact
+        ? 'min-w-0 whitespace-nowrap border-r border-color/40 pr-2 text-left font-semibold leading-tight'
+        : 'min-w-0 truncate border-r border-color/40 pr-2 text-left font-semibold leading-tight';
 const DAMAGE_RANKING_DMG_COL_CLASS =
     'shrink-0 pl-1.5 text-right font-mono tabular-nums text-highlight leading-tight';
 const DAMAGE_RANKING_RANK_COL_CLASS = 'flex items-center justify-center';
@@ -609,6 +631,7 @@ const DamageRankingPanel: React.FC<DamageRankingPanelProps> = ({
           ? 'h-[2.4rem] px-1.5 text-[15px] leading-tight'
           : 'p-1.5 text-base';
     const rankingGridClass = getDamageRankingGridClass(compact);
+    const nickColClass = getDamageRankingNickColClass(compact);
 
     return (
         <div
@@ -651,7 +674,7 @@ const DamageRankingPanel: React.FC<DamageRankingPanelProps> = ({
                                         isAdmin: ru?.isAdmin,
                                         staffNicknameDisplayEligibility: ru?.staffNicknameDisplayEligibility,
                                     }}
-                                    className={DAMAGE_RANKING_NICK_COL_CLASS}
+                                    className={nickColClass}
                                 />
                                 <span className={DAMAGE_RANKING_DMG_COL_CLASS}>
                                     {rank.damage.toLocaleString()}
@@ -680,14 +703,14 @@ const DamageRankingPanel: React.FC<DamageRankingPanelProps> = ({
                         >
                             {myRankData.rank}
                         </span>
-                        <span className={`${DAMAGE_RANKING_NICK_COL_CLASS} inline-flex min-w-0 items-center gap-1`}>
+                        <span className={`${nickColClass} inline-flex min-w-0 items-center gap-1`}>
                             <UserNicknameText
                                 user={{
                                     nickname: myRankData.nickname,
                                     isAdmin: myRankUser?.isAdmin,
                                     staffNicknameDisplayEligibility: myRankUser?.staffNicknameDisplayEligibility,
                                 }}
-                                className="min-w-0 truncate"
+                                className={compact ? 'min-w-0 whitespace-nowrap' : 'min-w-0 truncate'}
                             />
                             <span className="shrink-0">(나)</span>
                         </span>
@@ -700,7 +723,7 @@ const DamageRankingPanel: React.FC<DamageRankingPanelProps> = ({
             <div className={`flex-shrink-0 border-t border-color/50 ${compact ? 'mt-1 pt-1' : 'mt-2 pt-2'}`}>
                 <p className={`${rankingGridClass} ${compact ? 'text-xs' : 'text-sm'}`}>
                     <span aria-hidden />
-                    <span className={`${DAMAGE_RANKING_NICK_COL_CLASS} text-secondary`}>
+                    <span className={`${nickColClass} text-secondary`}>
                         {compact ? '이번 전투:' : '이번 전투 피해량:'}
                     </span>
                     <span className={`${DAMAGE_RANKING_DMG_COL_CLASS} font-bold text-yellow-300`}>
@@ -722,6 +745,87 @@ interface GuildBossDesktopLeftRailProps {
     myRankData: DamageRankingPanelProps['myRankData'];
     myCurrentBattleDamage: number;
 }
+
+const GuildBossMobileBattleBroadcastOverlay: React.FC<{
+    bossLogs: BattleLogEntry[];
+    userLogs: BattleLogEntry[];
+    bossLogContainerRef: React.RefObject<HTMLDivElement | null>;
+    userLogContainerRef: React.RefObject<HTMLDivElement | null>;
+    onClose: () => void;
+}> = ({ bossLogs, userLogs, bossLogContainerRef, userLogContainerRef, onClose }) => (
+    <div className="fixed inset-0 z-[10050] flex flex-col bg-black/88 p-2 backdrop-blur-sm pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))]">
+        <div className="mb-2 flex flex-shrink-0 items-center justify-between gap-2">
+            <h2 className="text-base font-bold text-white" style={{ textShadow: '1px 1px 3px black' }}>
+                전투중계
+            </h2>
+            <button
+                type="button"
+                onClick={onClose}
+                className="rounded-lg border border-stone-500/60 bg-stone-800/90 px-3 py-1.5 text-xs font-bold text-stone-100 transition-colors hover:bg-stone-700/90 active:scale-[0.98]"
+            >
+                닫기
+            </button>
+        </div>
+        <div className="flex min-h-0 flex-1 flex-col gap-2">
+            <div className="bg-panel border border-color flex min-h-0 flex-1 flex-col rounded-lg p-2">
+                <h3 className="mb-1 flex-shrink-0 text-center text-sm font-bold text-red-300">보스의 공격</h3>
+                <div
+                    ref={bossLogContainerRef}
+                    className="min-h-0 flex-1 overflow-y-auto rounded-md bg-tertiary/50 p-1.5 text-xs leading-snug space-y-1.5"
+                >
+                    {bossLogs.map((entry, index) => (
+                        <div key={index} className="flex items-start gap-1.5 animate-fade-in">
+                            <span className="font-bold text-yellow-300 flex-shrink-0">[{entry.turn}]</span>
+                            {entry.icon && <img src={entry.icon} alt="" className="h-5 w-5 flex-shrink-0" />}
+                            <span className="min-w-0 break-words">{entry.message}</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+            <div className="bg-panel border border-color flex min-h-0 flex-1 flex-col rounded-lg p-2">
+                <h3 className="mb-1 flex-shrink-0 text-center text-sm font-bold text-blue-300">나의 공격</h3>
+                <div
+                    ref={userLogContainerRef}
+                    className="min-h-0 flex-1 overflow-y-auto rounded-md bg-tertiary/50 p-1.5 text-xs leading-snug space-y-1.5"
+                >
+                    {userLogs.map((entry, index) => (
+                        <div key={index} className="flex items-start gap-1.5 animate-fade-in">
+                            <span className="font-bold text-yellow-300 flex-shrink-0">[{entry.turn}]</span>
+                            {entry.icon && <img src={entry.icon} alt="" className="h-5 w-5 flex-shrink-0" />}
+                            <span className="min-w-0 break-words">{entry.message}</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    </div>
+);
+
+const GuildBossMobileResearchSkillsOverlay: React.FC<{
+    guild: GuildType | null;
+    onClose: () => void;
+}> = ({ guild, onClose }) => (
+    <div className="fixed inset-0 z-[10050] flex flex-col bg-black/88 p-2 backdrop-blur-sm pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))]">
+        <div className="mb-2 flex flex-shrink-0 items-center justify-between gap-2">
+            <h2 className="text-base font-bold text-white" style={{ textShadow: '1px 1px 3px black' }}>
+                연구소 스킬
+            </h2>
+            <button
+                type="button"
+                onClick={onClose}
+                className="rounded-lg border border-stone-500/60 bg-stone-800/90 px-3 py-1.5 text-xs font-bold text-stone-100 transition-colors hover:bg-stone-700/90 active:scale-[0.98]"
+            >
+                닫기
+            </button>
+        </div>
+        <div className="bg-panel border border-color flex min-h-0 flex-1 flex-col rounded-lg p-2">
+            <h3 className="mb-1.5 flex-shrink-0 text-center text-sm font-semibold text-secondary">연구소 스킬 효과</h3>
+            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+                <GuildBossResearchSkillsList guild={guild} compact />
+            </div>
+        </div>
+    </div>
+);
 
 const GuildBossDesktopLeftRail: React.FC<GuildBossDesktopLeftRailProps> = ({
     boss,
@@ -785,8 +889,12 @@ const GuildBoss: React.FC = () => {
     const [currentBattleDamage, setCurrentBattleDamage] = useState(0);
     const [activeDebuffs, setActiveDebuffs] = useState<Record<string, { value: number; turns: number }>>({});
     const [showResultModal, setShowResultModal] = useState(false);
+    const [showBattleBroadcast, setShowBattleBroadcast] = useState(false);
+    const [showResearchSkills, setShowResearchSkills] = useState(false);
     const [battleResult, setBattleResult] = useState<GuildBossBattleResult & { bossName: string; previousRank?: number; currentRank?: number } | null>(null);
     const [previousRank, setPreviousRank] = useState<number | null>(null);
+    /** 전투 재생 중 Top3에 서버 선반영 누적 피해가 보이지 않도록 전투 시작 시점 스냅샷 */
+    const [battleDisplayDamageLog, setBattleDisplayDamageLog] = useState<Record<string, number> | null>(null);
 
     
     const userLogContainerRef = useRef<HTMLDivElement>(null);
@@ -851,17 +959,19 @@ const GuildBoss: React.FC = () => {
         }
     }, [initialMaxUserHp, isSimulating, currentUserWithStatus, myGuild, maxUserHp, userHp]);
 
-    // 데스크톱 스크롤 자동 이동
-    useEffect(() => { 
+    // 공격 로그 스크롤 자동 이동 (데스크톱 인라인 / 모바일 전투중계 오버레이)
+    useEffect(() => {
+        if (isNativeMobile && !showBattleBroadcast) return;
         if (userLogContainerRef.current) {
             userLogContainerRef.current.scrollTop = userLogContainerRef.current.scrollHeight;
         }
-    }, [userLogs]);
-    useEffect(() => { 
+    }, [userLogs, isNativeMobile, showBattleBroadcast]);
+    useEffect(() => {
+        if (isNativeMobile && !showBattleBroadcast) return;
         if (bossLogContainerRef.current) {
             bossLogContainerRef.current.scrollTop = bossLogContainerRef.current.scrollHeight;
         }
-    }, [bossLogs]);
+    }, [bossLogs, isNativeMobile, showBattleBroadcast]);
     
     useEffect(() => { if (!isSimulating) setSimulatedBossHp(currentHp); }, [currentHp, isSimulating]);
 
@@ -916,6 +1026,7 @@ const GuildBoss: React.FC = () => {
         battleSubmitContextRef.current = null;
         battleStartedAtRef.current = null;
         confirmedBattleResultRef.current = null;
+        setBattleDisplayDamageLog(null);
         setIsSimulating(false);
         setSimulationResult(null);
         setActiveDebuffs({});
@@ -958,6 +1069,7 @@ const GuildBoss: React.FC = () => {
         };
 
         const totalDamageLog = myGuild.guildBossState?.totalDamageLog || {};
+        setBattleDisplayDamageLog({ ...totalDamageLog });
         const rankingBefore = Object.entries(totalDamageLog)
             .map(([userId, damage]: [string, any]) => ({ userId, damage: typeof damage === 'number' ? damage : 0 }))
             .sort((a, b) => b.damage - a.damage);
@@ -1019,6 +1131,7 @@ const GuildBoss: React.FC = () => {
             battleSubmitContextRef.current = null;
             battleStartedAtRef.current = null;
             confirmedBattleResultRef.current = null;
+            setBattleDisplayDamageLog(null);
             setIsSimulating(false);
             simulationInFlight.current = false;
         }
@@ -1050,6 +1163,16 @@ const GuildBoss: React.FC = () => {
         setCurrentBattleDamage(pending.currentBattleDamage);
         setSimulatedBossHp(pending.simulatedBossHp);
         setIsSimulating(true);
+
+        const rankUserId = pending.submitContext.rankUserId;
+        const damageDealt =
+            pending.confirmedBattleResult?.damageDealt ?? pending.simulationResult.damageDealt ?? 0;
+        const currentLog = myGuild.guildBossState?.totalDamageLog || {};
+        const frozenLog: Record<string, number> = { ...currentLog };
+        if (rankUserId && damageDealt > 0) {
+            frozenLog[rankUserId] = Math.max(0, (frozenLog[rankUserId] || 0) - damageDealt);
+        }
+        setBattleDisplayDamageLog(frozenLog);
 
         const playbackFinished = pending.logIndex >= pending.simulationResult.battleLog.length;
         if (playbackFinished && pending.confirmedBattleResult) {
@@ -1178,15 +1301,15 @@ const GuildBoss: React.FC = () => {
     }, [isSimulating, simulationResult, logIndex, maxUserHp, persistPendingBattle]);
 
     const { fullDamageRanking, myRankData } = useMemo(() => {
-        if (!myGuild?.guildBossState?.totalDamageLog) {
+        const liveDamageLog = myGuild?.guildBossState?.totalDamageLog;
+        const damageLog =
+            isSimulating && battleDisplayDamageLog
+                ? battleDisplayDamageLog
+                : (liveDamageLog || {});
+
+        if (!myGuild || Object.keys(damageLog).length === 0) {
             return { fullDamageRanking: [], myRankData: null };
         }
-        
-        const damageLog = myGuild.guildBossState.totalDamageLog || {} as Record<string, number>;
-        
-        console.log('GuildBoss: currentUserWithStatus.id', currentUserWithStatus?.id);
-        console.log('GuildBoss: myGuild.members', myGuild.members);
-        console.log('GuildBoss: totalDamageLog', myGuild.guildBossState.totalDamageLog);
 
         const fullRanking = Object.entries(damageLog)
             .map(([userId, damage]: [string, any]) => {
@@ -1203,7 +1326,14 @@ const GuildBoss: React.FC = () => {
         const myData = myRankIndex !== -1 ? { ...fullRanking[myRankIndex], rank: myRankIndex + 1 } : null;
 
         return { fullDamageRanking: fullRanking, myRankData: myData };
-    }, [myGuild?.guildBossState?.totalDamageLog, myGuild?.members, currentUserWithStatus?.id]);
+    }, [
+        myGuild,
+        myGuild?.guildBossState?.totalDamageLog,
+        myGuild?.members,
+        currentUserWithStatus?.id,
+        isSimulating,
+        battleDisplayDamageLog,
+    ]);
     
     if (!currentUserWithStatus || !myGuild) {
         return <div className="p-4">길드 정보를 불러오는 중...</div>;
@@ -1227,22 +1357,22 @@ const GuildBoss: React.FC = () => {
                 <h1 className={`font-bold text-white ${isNativeMobile ? 'text-xl' : 'text-3xl'}`} style={{ textShadow: '2px 2px 5px black' }}>길드 보스전</h1>
             </header>
 
-            {/* 네이티브 모바일: 좌 보스·랭킹 | 우 유저정보 | 하단 공격 로그 + 도전 */}
+            {/* 네이티브 모바일: 상단 보스·랭킹 | 하단 유저정보(전체 가로) | 전투중계 오버레이 */}
             {isNativeMobile ? (
                 <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-1.5">
                     <div className="flex min-h-0 flex-1 flex-row gap-1.5 overflow-hidden">
-                        <div className={`flex min-h-0 ${GUILD_BOSS_MOBILE_BOSS_COLUMN_CLASS} flex-col gap-1.5 overflow-hidden`}>
-                            <div className="min-h-0 flex-[1.55] overflow-hidden">
-                                <BossPanel
-                                    boss={currentBoss}
-                                    hp={simulatedBossHp}
-                                    maxHp={scaledBoss.maxHp}
-                                    difficultyStage={bossDifficultyStage}
-                                    damageNumbers={bossDamageNumbers}
-                                    compact
-                                />
-                            </div>
-                            <div className="min-h-0 max-h-[34%] flex-shrink-0 basis-[28%] overflow-hidden">
+                        <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+                            <BossPanel
+                                boss={currentBoss}
+                                hp={simulatedBossHp}
+                                maxHp={scaledBoss.maxHp}
+                                difficultyStage={bossDifficultyStage}
+                                damageNumbers={bossDamageNumbers}
+                                compact
+                            />
+                        </div>
+                        <div className={GUILD_BOSS_MOBILE_RANKING_COLUMN_CLASS}>
+                            <div className="min-h-0 flex-1 overflow-hidden">
                                 <DamageRankingPanel
                                     fullDamageRanking={fullDamageRanking}
                                     myRankData={myRankData}
@@ -1250,55 +1380,35 @@ const GuildBoss: React.FC = () => {
                                     compact
                                 />
                             </div>
-                        </div>
-                        <div className={`flex min-h-0 ${GUILD_BOSS_MOBILE_USER_COLUMN_CLASS} flex-col overflow-y-auto overflow-x-hidden`}>
-                            <UserStatsPanel
-                                user={currentUserWithStatus}
-                                guild={myGuild}
-                                hp={userHp}
-                                maxHp={maxUserHp}
-                                damageNumbers={damageNumbers}
-                                isSimulating={isSimulating}
-                                compact
-                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowBattleBroadcast(true)}
+                                className={`${GUILD_BOSS_MOBILE_SIDE_BTN_CLASS} border-amber-400/35 bg-gradient-to-br from-stone-800/95 via-stone-900/90 to-stone-800/95 text-amber-200`}
+                            >
+                                전투중계
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setShowResearchSkills(true)}
+                                className={`${GUILD_BOSS_MOBILE_SIDE_BTN_CLASS} border-cyan-400/35 bg-gradient-to-br from-stone-800/95 via-stone-900/90 to-stone-800/95 text-cyan-200`}
+                            >
+                                연구소 스킬
+                            </button>
                         </div>
                     </div>
 
-                    <section
-                        className="flex min-h-0 shrink-0 basis-[min(30vh,200px)] flex-row gap-1.5"
-                        aria-label="공격 정보"
-                    >
-                        <div className={`bg-panel border border-color flex min-h-0 ${GUILD_BOSS_MOBILE_BOSS_COLUMN_CLASS} flex-col rounded-lg p-1.5`}>
-                            <h3 className="mb-0.5 flex-shrink-0 text-center text-[11px] font-bold text-red-300">보스의 공격</h3>
-                            <div
-                                ref={bossLogContainerRef}
-                                className="min-h-0 flex-1 overflow-y-auto rounded-md bg-tertiary/50 p-1 text-[10px] leading-snug space-y-1"
-                            >
-                                {bossLogs.map((entry, index) => (
-                                    <div key={index} className="flex items-start gap-1 animate-fade-in">
-                                        <span className="font-bold text-yellow-300 flex-shrink-0">[{entry.turn}]</span>
-                                        {entry.icon && <img src={entry.icon} alt="" className="h-4 w-4 flex-shrink-0" />}
-                                        <span className="min-w-0 break-words">{entry.message}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                        <div className={`bg-panel border border-color flex min-h-0 ${GUILD_BOSS_MOBILE_USER_COLUMN_CLASS} flex-col rounded-lg p-1.5`}>
-                            <h3 className="mb-0.5 flex-shrink-0 text-center text-[11px] font-bold text-blue-300">나의 공격</h3>
-                            <div
-                                ref={userLogContainerRef}
-                                className="min-h-0 flex-1 overflow-y-auto rounded-md bg-tertiary/50 p-1 text-[10px] leading-snug space-y-1"
-                            >
-                                {userLogs.map((entry, index) => (
-                                    <div key={index} className="flex items-start gap-1 animate-fade-in">
-                                        <span className="font-bold text-yellow-300 flex-shrink-0">[{entry.turn}]</span>
-                                        {entry.icon && <img src={entry.icon} alt="" className="h-4 w-4 flex-shrink-0" />}
-                                        <span className="min-w-0 break-words">{entry.message}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </section>
+                    <div className="flex min-h-0 flex-[1.35] flex-col overflow-y-auto overflow-x-hidden">
+                        <UserStatsPanel
+                            user={currentUserWithStatus}
+                            guild={myGuild}
+                            hp={userHp}
+                            maxHp={maxUserHp}
+                            damageNumbers={damageNumbers}
+                            isSimulating={isSimulating}
+                            compact
+                            hideResearchSkills
+                        />
+                    </div>
 
                     <div className="flex-shrink-0 rounded-lg border border-amber-400/30 bg-gradient-to-t from-[#060508] via-[#0f0d14] to-[#16131f] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)]">
                         <Button
@@ -1312,6 +1422,19 @@ const GuildBoss: React.FC = () => {
                             <span>{isSimulating ? '전투 중...' : `도전하기 (${attemptsLeft}/${GUILD_BOSS_MAX_ATTEMPTS})`}</span>
                         </Button>
                     </div>
+
+                    {showBattleBroadcast ? (
+                        <GuildBossMobileBattleBroadcastOverlay
+                            bossLogs={bossLogs}
+                            userLogs={userLogs}
+                            bossLogContainerRef={bossLogContainerRef}
+                            userLogContainerRef={userLogContainerRef}
+                            onClose={() => setShowBattleBroadcast(false)}
+                        />
+                    ) : null}
+                    {showResearchSkills ? (
+                        <GuildBossMobileResearchSkillsOverlay guild={myGuild} onClose={() => setShowResearchSkills(false)} />
+                    ) : null}
                 </main>
             ) : (
             <main className="flex min-h-0 min-w-0 flex-1 flex-row gap-3">

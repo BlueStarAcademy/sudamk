@@ -61,7 +61,7 @@ export function buildScheduledBroadcastMailSpec(
                 message: '즐거운 주말 보내세요!\n\n1일 이내에 수령해 주세요.',
                 attachments: {
                     actionPoints: 30,
-                    gold: 1000,
+                    gold: 3000,
                     items: [{ itemId: '장비상자4', quantity: 1 }],
                 },
             };
@@ -70,7 +70,8 @@ export function buildScheduledBroadcastMailSpec(
             title: '점심 선물',
             message: '즐거운 점심시간 되세요!\n\n1일 이내에 수령해 주세요.',
             attachments: {
-                actionPoints: 30,
+                actionPoints: 10,
+                gold: 1000,
             },
         };
     }
@@ -80,8 +81,12 @@ export function buildScheduledBroadcastMailSpec(
             title: '주말 저녁 선물',
             message: '주말은 너무 행복해요\n\n1일 이내에 수령해 주세요.',
             attachments: {
-                diamonds: 10,
-                items: [{ itemId: '재료상자4', quantity: 1 }],
+                diamonds: 20,
+                items: [
+                    { itemId: '옵션 종류 변경권', quantity: 1 },
+                    { itemId: '옵션 수치 변경권', quantity: 1 },
+                    { itemId: '재료상자4', quantity: 1 },
+                ],
             },
         };
     }
@@ -90,6 +95,7 @@ export function buildScheduledBroadcastMailSpec(
         title: '저녁 선물',
         message: '오늘도 수고많았어요.\n\n1일 이내에 수령해 주세요.',
         attachments: {
+            gold: 1000,
             items: [{ itemId: '재료상자2', quantity: 1 }],
         },
     };
