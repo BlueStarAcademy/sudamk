@@ -1527,6 +1527,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     chessPieces: chessOpeningSave?.chessPieces ?? session.chessPieces,
                     chessCaptureScore: chessOpeningSave?.chessCaptureScore ?? session.chessCaptureScore,
                     chessPieceMovedThisTurn: chessOpeningSave?.chessPieceMovedThisTurn ?? session.chessPieceMovedThisTurn,
+                    chessGoRemovedPoints: session.chessGoRemovedPoints,
                     blackPatternStones: session.blackPatternStones,
                     whitePatternStones: session.whitePatternStones,
                     consumedPatternIntersections: (session as any).consumedPatternIntersections,
@@ -1701,6 +1702,22 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             chessPieceMovedThisTurn:
                                 parsed.chessPieceMovedThisTurn ?? next.chessPieceMovedThisTurn,
                         };
+                    }
+                    if (next.mode === GameMode.Chess && Array.isArray(parsed.chessGoRemovedPoints)) {
+                        const removedKeys = new Set<string>();
+                        const mergedRemoved: NonNullable<LiveGameSession['chessGoRemovedPoints']> = [];
+                        for (const p of [
+                            ...(next.chessGoRemovedPoints ?? []),
+                            ...parsed.chessGoRemovedPoints,
+                        ]) {
+                            const key = `${p.x},${p.y}`;
+                            if (removedKeys.has(key)) continue;
+                            removedKeys.add(key);
+                            mergedRemoved.push({ x: p.x, y: p.y });
+                        }
+                        if (mergedRemoved.length > 0) {
+                            next = { ...next, chessGoRemovedPoints: mergedRemoved };
+                        }
                     }
                     if (next.mode === GameMode.Chess) {
                         next = normalizeChessGoSession(next);

@@ -356,6 +356,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 highlightedPoints={chessHighlightPoints}
                 highlightStyle="green-dot"
                 chessPieces={displaySession.chessPieces}
+                chessGoRemovedPoints={displaySession.chessGoRemovedPoints}
                 chessPieceMovedThisTurn={displaySession.chessPieceMovedThisTurn}
                 selectedChessPieceId={selectedChessPieceId}
                 chessLastMove={chessLastMoveForDisplay}

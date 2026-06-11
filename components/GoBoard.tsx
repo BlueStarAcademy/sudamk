@@ -685,6 +685,8 @@ interface GoBoardProps {
   castleStonePoints?: Point[];
   confirmedTerritoryOwnerByPoint?: Record<string, Player.Black | Player.White>;
   chessPieces?: ChessPieceState[];
+  /** 체스 바둑: moveHistory 재생 시 제외할 따낸 바둑돌 좌표 — 없으면 normalize가 포획을 되살림 */
+  chessGoRemovedPoints?: Point[];
   chessPieceMovedThisTurn?: boolean;
   selectedChessPieceId?: string | null;
   /** 체스 바둑: 상대 직전 기물 이동(from·to) 표시 */
@@ -767,6 +769,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         stoneColor, winningLine, hiddenMoves, humanHiddenStonePoints, moveHistory, baseStones, baseStones_p1, baseStones_p2,
         castleStonePoints, confirmedTerritoryOwnerByPoint,
         chessPieces: chessPiecesProp = [],
+        chessGoRemovedPoints: chessGoRemovedPointsProp,
         chessPieceMovedThisTurn: chessPieceMovedThisTurnProp,
         selectedChessPieceId = null,
         chessLastMove = null,
@@ -808,10 +811,19 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
             moveHistory: moveHistory ?? [],
             boardState: boardStateProp,
             chessPieces: chessPiecesProp,
+            chessGoRemovedPoints: chessGoRemovedPointsProp,
             chessCaptureScore: undefined,
             chessPieceMovedThisTurn: chessPieceMovedThisTurnProp,
         });
-    }, [mode, boardSizeProp, moveHistory, boardStateProp, chessPiecesProp, chessPieceMovedThisTurnProp]);
+    }, [
+        mode,
+        boardSizeProp,
+        moveHistory,
+        boardStateProp,
+        chessPiecesProp,
+        chessGoRemovedPointsProp,
+        chessPieceMovedThisTurnProp,
+    ]);
 
     const boardState = chessNormalizedSlice?.boardState ?? boardStateProp;
     const chessPieces = chessNormalizedSlice?.chessPieces ?? chessPiecesProp;

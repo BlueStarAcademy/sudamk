@@ -10680,6 +10680,7 @@ export const useApp = () => {
                                             mergedGame = { ...game, boardState: existingGame!.boardState, moveHistory: existingGame?.moveHistory && Array.isArray(existingGame.moveHistory) && existingGame.moveHistory.length > 0 ? existingGame.moveHistory : game.moveHistory };
                                         } else if (
                                             !isDiceOrThiefMode &&
+                                            game.mode !== GameMode.Chess &&
                                             !hasServerBoard &&
                                             moveHistoryToDerive &&
                                             moveHistoryToDerive.length > 0 &&
