@@ -587,25 +587,48 @@ export const verifyUserEmail = async (userId: string): Promise<void> => {
 };
 
 // --- Game Functions ---
+async function repairChessLiveGameIfNeeded(game: LiveGameSession): Promise<void> {
+    if (game.mode !== GameMode.Chess) return;
+    const { normalizeChessGoSession } = await import('../shared/utils/chessGoRules.js');
+    const normalized = normalizeChessGoSession(game);
+    game.chessPieces = normalized.chessPieces;
+    game.boardState = normalized.boardState;
+    game.settings = normalized.settings;
+    game.chessCaptureScore = normalized.chessCaptureScore;
+    game.chessPieceMovedThisTurn = normalized.chessPieceMovedThisTurn;
+}
+
 export const getLiveGame = async (id: string): Promise<LiveGameSession | null> => {
     const { getLiveGame: prismaGetLiveGame } = await import('./prisma/gameService.ts');
-    return prismaGetLiveGame(id);
+    const game = await prismaGetLiveGame(id);
+    if (game) await repairChessLiveGameIfNeeded(game);
+    return game;
 };
 export const getAllActiveGames = async (): Promise<LiveGameSession[]> => {
     const { getAllActiveGames: prismaGetAllActiveGames } = await import('./prisma/gameService.ts');
-    return prismaGetAllActiveGames();
+    const games = await prismaGetAllActiveGames();
+    for (const game of games) {
+        await repairChessLiveGameIfNeeded(game);
+    }
+    return games;
 };
 
 /** MainLoop 전용: 청크 단위 조회로 타임아웃 없이 완료 (Skipping DB 방지) */
 export const getAllActiveGamesChunked = async (): Promise<LiveGameSession[]> => {
     const { getAllActiveGamesChunked: prismaGetAllActiveGamesChunked } = await import('./prisma/gameService.ts');
-    return prismaGetAllActiveGamesChunked();
+    const games = await prismaGetAllActiveGamesChunked();
+    for (const game of games) {
+        await repairChessLiveGameIfNeeded(game);
+    }
+    return games;
 };
 export const getAllEndedGames = async (): Promise<LiveGameSession[]> => {
     const { getAllEndedGames: prismaGetAllEndedGames } = await import('./prisma/gameService.ts');
     return prismaGetAllEndedGames();
 };
 export const saveGame = async (game: LiveGameSession, forceSave: boolean = false): Promise<void> => {
+    await repairChessLiveGameIfNeeded(game);
+
     // PVE 게임 최적화: 메모리에만 저장하고 게임 종료 시에만 DB 저장
     const isPVE = game.isSinglePlayer || game.gameCategory === 'tower';
     const isGameEnded = game.gameStatus === 'ended' || game.gameStatus === 'no_contest';

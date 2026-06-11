@@ -1,6 +1,7 @@
 import * as types from '../../types/index.js';
 import { GameCategory } from '../../types/enums.js';
 import { resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
+import { isRankedFixedTurnScoringSession } from '../../shared/utils/rankedFixedTurnScoring.js';
 import {
     sanitizePvpGameSettings,
     stripHumanPvpTurnLimitFields,
@@ -19,6 +20,7 @@ export function applyHumanPvpStrategicSettingsInvariants(game: types.LiveGameSes
 }
 
 export function humanPvpAllowsMoveCountAutoScoring(game: types.LiveGameSession): boolean {
+    if (isRankedFixedTurnScoringSession(game)) return true;
     return !isHumanOneVsOnePvpStrategic(game);
 }
 

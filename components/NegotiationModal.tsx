@@ -6,8 +6,8 @@ import {
     formatActionPointCostWithPetDiscount,
 } from '../shared/utils/pairPetArenaApDiscount.js';
 import { 
-    BOARD_SIZES, TIME_LIMITS, BYOYOMI_COUNTS, BYOYOMI_TIMES, DEFAULT_KOMI, CAPTURE_TARGETS, SPEED_BOARD_SIZES,
-    SPEED_TIME_LIMITS, applySpeedByoyomiDefaults, BASE_STONE_COUNTS, HIDDEN_STONE_COUNTS, SCAN_COUNTS,
+    BOARD_SIZES, DEFAULT_KOMI, CAPTURE_TARGETS, SPEED_BOARD_SIZES,
+    applyByoyomiTimeControl, BASE_STONE_COUNTS, HIDDEN_STONE_COUNTS, SCAN_COUNTS,
     CAPTURE_BOARD_SIZES, OMOK_BOARD_SIZES, TTAMOK_CAPTURE_TARGETS, ALKKAGI_STONE_COUNTS,
     ALKKAGI_GAUGE_SPEEDS, CURLING_GAUGE_SPEEDS, CURLING_STONE_COUNTS, HIDDEN_BOARD_SIZES, THIEF_BOARD_SIZES,
     MISSILE_BOARD_SIZES, MISSILE_COUNTS, SPECIAL_GAME_MODES, DEFAULT_GAME_SETTINGS, aiUserId, DICE_GO_ITEM_COUNTS, CURLING_ITEM_COUNTS, ALKKAGI_ITEM_COUNTS, ALKKAGI_ROUNDS,
@@ -27,10 +27,17 @@ import {
     PRE_GAME_MODAL_SUCCESS_BTN_CLASS,
 } from './game/PreGameDescriptionLayout.js';
 import { projectActionPointsCurrent } from '../services/effectService.js';
-import { getStrategicBoardSizesByMode } from '../constants/gameSettings.js';
+import { getStrategicBoardSizesByMode, getCastleCountsByBoardSize, clampCastleCount, getDefaultCastleKomiByBoardSize, getDefaultCastleCountByBoardSize, getDefaultChessKomiByBoardSize, getDefaultChessScoringTurnLimit } from '../constants/gameSettings.js';
+import StrategicTimeControlFields from './game/StrategicTimeControlFields.js';
 import { MAX_GAME_INTEGER_INPUT } from '../shared/constants/numericLimits.js';
 import { clampGameInt } from '../shared/utils/gameIntegerField.js';
 import { mixSubRuleDisplayName } from '../shared/utils/mixSubRuleDisplayName.js';
+import {
+    applyMixModeSettingsConstraints,
+    getMixBoardSizeOptions,
+    isMixSubModeCheckboxDisabled,
+    normalizeMixedModesSelection,
+} from '../shared/utils/mixModeSettings.js';
 interface NegotiationModalProps {
   negotiation: Negotiation;
   currentUser: UserWithStatus;
@@ -154,6 +161,11 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
     if (isAiGame && !newSettings.player1Color) {
         newSettings.player1Color = Player.Black;
     }
+    if (negotiation.mode === GameMode.Chess) {
+        newSettings.boardSize = 13 as GameSettings['boardSize'];
+        newSettings.komi = getDefaultChessKomiByBoardSize(13);
+        newSettings.scoringTurnLimit = getDefaultChessScoringTurnLimit();
+    }
 
     const getValidSizes = (mode: GameMode): readonly number[] => {
         switch (mode) {
@@ -163,6 +175,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
             case GameMode.Hidden: return HIDDEN_BOARD_SIZES;
             case GameMode.Thief: return THIEF_BOARD_SIZES;
             case GameMode.Missile: return MISSILE_BOARD_SIZES;
+            case GameMode.Chess: return getStrategicBoardSizesByMode(GameMode.Chess);
             case GameMode.Alkkagi: case GameMode.Curling: case GameMode.Dice: return [19];
             default: return BOARD_SIZES;
         }
@@ -212,18 +225,29 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
   );
 
   const settingsHaveChanged = useMemo(() => JSON.stringify(settings) !== JSON.stringify(negotiation.settings), [settings, negotiation.settings]);
-  const handleSettingChange = useCallback(<K extends keyof GameSettings>(key: K, value: GameSettings[K]) => setSettings(prev => ({ ...prev, [key]: value })), []);
+  const handleSettingChange = useCallback(<K extends keyof GameSettings>(key: K, value: GameSettings[K]) => {
+    setSettings(prev => {
+      const next = { ...prev, [key]: value };
+      if (mode === GameMode.Castle && key === 'boardSize') {
+        const boardSize = Number(value);
+        next.komi = getDefaultCastleKomiByBoardSize(boardSize);
+        next.castleCount = clampCastleCount(next.castleCount ?? getDefaultCastleCountByBoardSize(boardSize), boardSize);
+      }
+      if (mode === GameMode.Chess && key === 'boardSize') {
+        next.komi = 6.5;
+      }
+      return next;
+    });
+  }, [mode]);
   const handleMixedModeChange = (mode: GameMode, checked: boolean) =>
     setSettings((prev) => {
-      const mixedModes = checked
-        ? [...(prev.mixedModes || []), mode]
-        : (prev.mixedModes || []).filter((m) => m !== mode);
-      const next: GameSettings = { ...prev, mixedModes };
+      const mixedModes = normalizeMixedModesSelection(prev.mixedModes, mode, checked);
+      let next: GameSettings = applyMixModeSettingsConstraints({ ...prev, mixedModes });
       if (mode === GameMode.Base && checked) {
         next.komi = 0.5;
       }
       if (mode === GameMode.Speed && checked) {
-        return applySpeedByoyomiDefaults(next);
+        return applyByoyomiTimeControl(next);
       }
       return next;
     });
@@ -375,11 +399,13 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
     // --- Determine which settings to show ---
     const { mode } = negotiation;
     
-    const showBoardSize = ![GameMode.Alkkagi, GameMode.Curling, GameMode.Dice].includes(mode);
+    const showBoardSize = ![GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Chess].includes(mode);
     const showKomi =
-        ![GameMode.Capture, GameMode.Omok, GameMode.Ttamok, GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Thief, GameMode.Base].includes(mode) &&
+        ![GameMode.Capture, GameMode.Omok, GameMode.Ttamok, GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Thief, GameMode.Base, GameMode.Chess].includes(mode) &&
         !(mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Base));
-    const showTimeControls = ![GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Thief].includes(mode);
+    const showTimeControls =
+        !isAiGame &&
+        ![GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Thief].includes(mode);
     
     const showSpeedTimeControls = mode === GameMode.Speed || (mode === GameMode.Mix && !!settings.mixedModes?.includes(GameMode.Speed));
     
@@ -389,6 +415,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
     const showBaseStones = mode === GameMode.Base;
     const showHiddenStones = mode === GameMode.Hidden;
     const showMissileCount = mode === GameMode.Missile;
+    const showCastleCount = mode === GameMode.Castle;
     const showMixModeSelection = mode === GameMode.Mix;
     const showDiceGoSettings = mode === GameMode.Dice;
     const showThiefGoItemSettings = mode === GameMode.Thief;
@@ -449,17 +476,20 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                             <h3 className="mb-1 text-base font-semibold text-gray-300">믹스룰 조합 (2개 이상 선택)</h3>
                             <p className="mb-2 text-sm leading-snug text-gray-500">
                                 함께 적용할 규칙을 고릅니다. (클래식 바둑은 기본으로 포함됩니다.)
+                                따내기와 캐슬은 동시에 선택할 수 없습니다.
                             </p>
                             <div className="grid grid-cols-2 gap-2 text-base">
                                 {SPECIAL_GAME_MODES.filter(m => m.mode !== GameMode.Standard && m.mode !== GameMode.Mix).map(m => {
+                                    const mixDisabled = isMixSubModeCheckboxDisabled(settings.mixedModes, m.mode);
                                     return (
-                                        <label key={m.mode} className={`flex items-center gap-2 p-2 bg-gray-700/50 rounded-md ${isReadOnly ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                                        <label key={m.mode} className={`flex items-center gap-2 p-2 bg-gray-700/50 rounded-md ${isReadOnly || mixDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
                                             <input 
                                                 type="checkbox" 
                                                 checked={settings.mixedModes?.includes(m.mode)} 
                                                 onChange={e => handleMixedModeChange(m.mode, e.target.checked)} 
-                                                disabled={isReadOnly} 
+                                                disabled={isReadOnly || mixDisabled} 
                                                 className="w-4 h-4"
+                                                title={mixDisabled ? '따내기와 캐슬은 동시에 선택할 수 없습니다.' : undefined}
                                             />
                                             <span className="leading-tight">{mixSubRuleDisplayName(m.name)}</span>
                                         </label>
@@ -501,6 +531,13 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                                     </Select>
                                 </SettingRow>
                             )}
+                            {settings.mixedModes?.includes(GameMode.Castle) && (
+                                <SettingRow label="캐슬" className="mt-2">
+                                    <Select value={settings.castleCount ?? getDefaultCastleCountByBoardSize(settings.boardSize ?? 13)} onChange={v => handleSettingChange('castleCount', parseInt(v) as GameSettings['castleCount'])} disabled={isReadOnly}>
+                                        {getCastleCountsByBoardSize(settings.boardSize ?? 13).map(c => <option key={c} value={c}>{c}개</option>)}
+                                    </Select>
+                                </SettingRow>
+                            )}
                         </div>
                 )}
 
@@ -519,7 +556,9 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                                         ? THIEF_BOARD_SIZES
                                         : negotiation.mode === GameMode.Missile
                                           ? MISSILE_BOARD_SIZES
-                                          : getStrategicBoardSizesByMode(negotiation.mode)
+                                          : negotiation.mode === GameMode.Mix
+                                            ? getMixBoardSizeOptions(settings.mixedModes)
+                                            : getStrategicBoardSizesByMode(negotiation.mode)
                             ).map((size) => (
                                 <option key={size} value={size}>
                                     {size}줄
@@ -571,36 +610,13 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                 )}
 
                 {showTimeControls && (
-                    showSpeedTimeControls ? (
-                        <>
-                            <SettingRow label="메인 제한 시간">
-                                <Select value={settings.timeLimit} onChange={v => handleSettingChange('timeLimit', parseInt(v))} disabled={isReadOnly}>
-                                {SPEED_TIME_LIMITS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                                </Select>
-                            </SettingRow>
-                            <SettingRow label="수당 초읽기">
-                                <span className="text-sm text-gray-300">한 수당 10초 · 10초 초과마다 상대 +1점</span>
-                            </SettingRow>
-                        </>
-                    ) : (
-                        <>
-                            <SettingRow label="제한 시간">
-                                <Select value={settings.timeLimit} onChange={v => handleSettingChange('timeLimit', parseInt(v))} disabled={isReadOnly}>
-                                    {TIME_LIMITS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                                </Select>
-                            </SettingRow>
-                            <SettingRow label="초읽기">
-                                <div className="flex gap-2">
-                                <Select value={settings.byoyomiTime} onChange={v => handleSettingChange('byoyomiTime', parseInt(v))} disabled={isReadOnly}>
-                                        {BYOYOMI_TIMES.map(t => <option key={t} value={t}>{t}초</option>)}
-                                    </Select>
-                                    <Select value={settings.byoyomiCount} onChange={v => handleSettingChange('byoyomiCount', parseInt(v))} disabled={isReadOnly}>
-                                        {BYOYOMI_COUNTS.map(c => <option key={c} value={c}>{c}회</option>)}
-                                    </Select>
-                                </div>
-                            </SettingRow>
-                        </>
-                    )
+                    <StrategicTimeControlFields
+                        settings={settings}
+                        onSettingsChange={setSettings}
+                        isSpeed={showSpeedTimeControls}
+                        disabled={isReadOnly}
+                        variant="negotiation"
+                    />
                 )}
                 
                 {showDiceGoSettings && (
@@ -745,6 +761,14 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                     <SettingRow label="미사일 개수">
                         <Select value={settings.missileCount} onChange={v => handleSettingChange('missileCount', parseInt(v))} disabled={isReadOnly}>
                         {MISSILE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
+                        </Select>
+                    </SettingRow>
+                )}
+
+                {showCastleCount && (
+                    <SettingRow label="캐슬">
+                        <Select value={settings.castleCount ?? getDefaultCastleCountByBoardSize(settings.boardSize ?? 13)} onChange={v => handleSettingChange('castleCount', parseInt(v) as GameSettings['castleCount'])} disabled={isReadOnly}>
+                            {getCastleCountsByBoardSize(settings.boardSize ?? 13).map(c => <option key={c} value={c}>{c}개</option>)}
                         </Select>
                     </SettingRow>
                 )}

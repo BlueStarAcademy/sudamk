@@ -87,6 +87,7 @@ export const RANDOM_DESCRIPTIONS: Partial<Record<GameMode, string[]>> = {
   [GameMode.Hidden]: ["보이지 않는 위협, 히든 바둑!", "심리전의 대가를 가려봅시다.", "재미있는 히든 바둑 시간!"],
   [GameMode.Missile]: ["신의 한 수, 미사일 발사!", "예측불허 미사일 바둑!", "판을 뒤흔드는 전략!"],
   [GameMode.Uniform]: ["모든 돌이 한 색!", "보이는 것과 다른 수읽기", "일색 바둑 심리전!"],
+  [GameMode.Castle]: ["캐슬을 활용한 영토전!", "한 돌만 잡아도 승리", "무착수면 영토로 승부"],
   [GameMode.Mix]: ["규칙이 뒤섞인 믹스룰 바둑!", "혼돈 속에서 피어나는 전략", "어떤 조합이 기다릴까요?"],
   [GameMode.Dice]: ["주사위 운에 모든 것을!", "운과 실력의 조화", "과연 주사위의 선택은?"],
   [GameMode.Omok]: ["다섯개의 돌, 승리를 향한 길", "클래식 오목 한 판!", "누가 먼저 오목을 완성할까요?"],

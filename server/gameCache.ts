@@ -1,7 +1,8 @@
-import { LiveGameSession, User } from '../types/index.js';
+import { LiveGameSession, User, GameMode } from '../types/index.js';
 import { volatileState } from './state.js';
 import * as db from './db.js';
 import { isPairClassicGame } from '../shared/utils/pairGameTurn.js';
+import { applyNormalizedChessGoInPlace } from '../shared/utils/chessGoRules.js';
 
 function countPlacedMovesInHistory(h: LiveGameSession['moveHistory'] | undefined): number {
     if (!Array.isArray(h)) return 0;
@@ -129,6 +130,15 @@ export async function getCachedGame(gameId: string): Promise<LiveGameSession | n
     const now = Date.now();
 
     if (cached && (now - cached.lastUpdated) < CACHE_TTL_MS) {
+        if (cached.game.mode === GameMode.Chess) {
+            const { normalizeChessGoSession } = await import('../shared/utils/chessGoRules.js');
+            const normalized = normalizeChessGoSession(cached.game);
+            cached.game.chessPieces = normalized.chessPieces;
+            cached.game.boardState = normalized.boardState;
+            cached.game.settings = normalized.settings;
+            cached.game.chessCaptureScore = normalized.chessCaptureScore;
+            cached.game.chessPieceMovedThisTurn = normalized.chessPieceMovedThisTurn;
+        }
         return cached.game;
     }
 
@@ -205,6 +215,7 @@ export function updateGameCache(game: LiveGameSession): void {
     if (isPve && prev?.game && compareLiveSessionProgressForPveMerge(prev.game, game) > 0) {
         return;
     }
+    applyNormalizedChessGoInPlace(game);
     cache.set(game.id, { game, lastUpdated: Date.now() });
 }
 

@@ -122,11 +122,8 @@ const TowerItemShopModal: React.FC<TowerItemShopModalProps> = ({ currentUser, on
         for (const [itemId, quantity] of itemsToBuy) {
             try {
                 await onBuy(itemId, quantity);
-                // 서버 응답을 기다리기 위해 짧은 지연 추가 (상태 업데이트 대기)
-                await new Promise(resolve => setTimeout(resolve, 200));
             } catch (error) {
                 console.error(`[TowerItemShopModal] Failed to purchase ${itemId}:`, error);
-                // 에러가 발생해도 다음 아이템 구매 계속 진행
             }
         }
         

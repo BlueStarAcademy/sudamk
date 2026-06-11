@@ -1,5 +1,6 @@
 import { GameMode, GameSettings } from '../types/index.js';
 import { AlkkagiLayoutType } from '../types/enums.js';
+import { getAiScoringTurnLimitByBoardSize } from './gameSettings.js';
 
 // 랭킹전 기본 설정
 export const RANKED_GAME_SETTINGS: Record<GameMode, GameSettings> = {
@@ -7,6 +8,7 @@ export const RANKED_GAME_SETTINGS: Record<GameMode, GameSettings> = {
     [GameMode.Standard]: {
         boardSize: 19,
         komi: 6.5,
+        scoringTurnLimit: getAiScoringTurnLimitByBoardSize(19),
         timeLimit: 5, // 5분
         byoyomiTime: 30, // 30초
         byoyomiCount: 3,
@@ -26,46 +28,71 @@ export const RANKED_GAME_SETTINGS: Record<GameMode, GameSettings> = {
     [GameMode.Speed]: {
         boardSize: 13,
         komi: 6.5,
+        scoringTurnLimit: getAiScoringTurnLimitByBoardSize(13),
         timeLimit: 1, // 1분 메인 시계 (시간패)
         byoyomiTime: 10, // 수당 초읽기 10초
         byoyomiCount: 0,
         timeIncrement: 0,
-        autoScoring: true, // 서로 통과시 계가
+        autoScoring: false,
     },
     [GameMode.Base]: {
         boardSize: 13,
         komi: 0, // 베이스바둑은 입찰로 결정
         baseStones: 4,
+        scoringTurnLimit: getAiScoringTurnLimitByBoardSize(13),
         timeLimit: 3, // 3분
         byoyomiTime: 30, // 30초
         byoyomiCount: 3,
         timeIncrement: 0,
-        autoScoring: true, // 서로 통과시 계가
+        autoScoring: false,
     },
     [GameMode.Hidden]: {
         boardSize: 13,
         komi: 6.5,
+        scoringTurnLimit: getAiScoringTurnLimitByBoardSize(13),
         timeLimit: 3, // 3분
         byoyomiTime: 30, // 30초
         byoyomiCount: 3,
         timeIncrement: 0,
         hiddenStoneCount: 1, // 히든 아이템 1개
         scanCount: 2, // 스캔 아이템 2개
-        autoScoring: true, // 서로 통과시 계가
+        autoScoring: false,
     },
     [GameMode.Missile]: {
         boardSize: 13,
         komi: 6.5,
+        scoringTurnLimit: getAiScoringTurnLimitByBoardSize(13),
         timeLimit: 3, // 3분
         byoyomiTime: 30, // 30초
         byoyomiCount: 3,
         timeIncrement: 0,
         missileCount: 3, // 미사일 아이템 3개
-        autoScoring: true, // 서로 통과시 계가
+        autoScoring: false,
     },
     [GameMode.Uniform]: {
-        boardSize: 19,
+        boardSize: 13,
         komi: 6.5,
+        scoringTurnLimit: 80,
+        timeLimit: 5, // 5분
+        byoyomiTime: 30, // 30초
+        byoyomiCount: 3,
+        timeIncrement: 0,
+        autoScoring: false,
+    },
+    [GameMode.Castle]: {
+        boardSize: 13,
+        komi: 6.5,
+        castleCount: 4,
+        timeLimit: 5, // 5분
+        byoyomiTime: 30, // 30초
+        byoyomiCount: 3,
+        timeIncrement: 0,
+        autoScoring: false,
+    },
+    [GameMode.Chess]: {
+        boardSize: 13,
+        komi: 6.5,
+        scoringTurnLimit: 100,
         timeLimit: 5,
         byoyomiTime: 30,
         byoyomiCount: 3,
@@ -171,6 +198,7 @@ export const RANKED_STRATEGIC_MODES: GameMode[] = [
     GameMode.Hidden,
     GameMode.Missile,
     GameMode.Uniform,
+    GameMode.Castle,
 ];
 
 /** 랭킹전에서 선택 가능한 모드 — 전략바둑만 (믹스룰 제외) */

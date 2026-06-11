@@ -361,6 +361,15 @@ export const finalizeAnalysisResult = (baseAnalysis: types.AnalysisResult, sessi
     finalAnalysis.scoreDetails.black.itemBonus = 0;
     finalAnalysis.scoreDetails.white.itemBonus = 0;
 
+    let chessBonusBlack = 0;
+    let chessBonusWhite = 0;
+    if (session.mode === types.GameMode.Chess) {
+        chessBonusBlack = session.chessCaptureScore?.[types.Player.Black] ?? 0;
+        chessBonusWhite = session.chessCaptureScore?.[types.Player.White] ?? 0;
+        (finalAnalysis.scoreDetails.black as { chessCaptureBonus?: number }).chessCaptureBonus = chessBonusBlack;
+        (finalAnalysis.scoreDetails.white as { chessCaptureBonus?: number }).chessCaptureBonus = chessBonusWhite;
+    }
+
     // 모험 지역 이해도 시작 가산점은 `session.captures`에 이미 포함되어 scoreDetails.captures로 들어옴 (이중 가산 방지)
 
     // Recalculate totals: 집(영토) + 따낸 돌(사석) + … (집 칸과 사석 점수를 각각 가산)
@@ -371,7 +380,8 @@ export const finalizeAnalysisResult = (baseAnalysis: types.AnalysisResult, sessi
         finalAnalysis.scoreDetails.black.baseStoneBonus +
         finalAnalysis.scoreDetails.black.hiddenStoneBonus +
         finalAnalysis.scoreDetails.black.timeBonus +
-        finalAnalysis.scoreDetails.black.itemBonus;
+        finalAnalysis.scoreDetails.black.itemBonus +
+        chessBonusBlack;
     const whiteTotal =
         finalAnalysis.scoreDetails.white.territory +
         finalAnalysis.scoreDetails.white.captures +
@@ -380,7 +390,8 @@ export const finalizeAnalysisResult = (baseAnalysis: types.AnalysisResult, sessi
         finalAnalysis.scoreDetails.white.baseStoneBonus +
         finalAnalysis.scoreDetails.white.hiddenStoneBonus +
         finalAnalysis.scoreDetails.white.timeBonus +
-        finalAnalysis.scoreDetails.white.itemBonus;
+        finalAnalysis.scoreDetails.white.itemBonus +
+        chessBonusWhite;
     
     finalAnalysis.scoreDetails.black.total = blackTotal;
     finalAnalysis.scoreDetails.white.total = whiteTotal;
@@ -519,6 +530,23 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
     if (!isGoBased) {
         game.gameStatus = 'ended';
         return game;
+    }
+
+    if (game.mode === types.GameMode.Castle) {
+        if (game.endTime == null) game.endTime = Date.now();
+        game.gameStatus = 'scoring';
+        game.winReason = 'score';
+        game.animation = null;
+        game.isAnalyzing = true;
+        await db.saveGame(game);
+        const { broadcastToGameParticipants } = await import('./socket.js');
+        const gameToBroadcast = { ...game };
+        if (!game.isSinglePlayer) {
+            delete (gameToBroadcast as any).boardState;
+        }
+        broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
+        const { finalizeCastleScoring } = await import('./modes/castle.js');
+        return finalizeCastleScoring(game);
     }
     
     // 계가 시작 전: 아직 공개되지 않은 히든 돌들을 모두 공개
@@ -1213,13 +1241,16 @@ export const initializeGame = async (neg: Negotiation): Promise<LiveGameSession>
     const descriptions = RANDOM_DESCRIPTIONS[mode] || [`${mode} 한 판!`];
     const randomDescription = descriptions[Math.floor(Math.random() * descriptions.length)];
 
+    const initialBoardSize =
+        mode === types.GameMode.Chess ? 13 : (settings.boardSize as number);
+
     const game: LiveGameSession = {
         id: gameId,
         mode, settings, description: randomDescription, player1: challenger, player2: opponent, isAiGame,
         gameCategory: GameCategory.Normal,  // 일반 게임은 normal 카테고리
         // 랭킹전은 휴먼 vs 휴만 적용. AI 대국·길드전 등은 협상에 isRanked가 없거나 false.
         isRankedGame: Boolean(neg.isRanked) && !isAiGame,
-        boardState: Array(settings.boardSize).fill(0).map(() => Array(settings.boardSize).fill(types.Player.None)),
+        boardState: Array(initialBoardSize).fill(0).map(() => Array(initialBoardSize).fill(types.Player.None)),
         moveHistory: [], captures: { [types.Player.None]: 0, [types.Player.Black]: 0, [types.Player.White]: 0 },
         baseStoneCaptures: { [types.Player.None]: 0, [types.Player.Black]: 0, [types.Player.White]: 0 }, 
         hiddenStoneCaptures: { [types.Player.None]: 0, [types.Player.Black]: 0, [types.Player.White]: 0 },

@@ -4462,6 +4462,8 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 }
             }
             // 전체 게임 객체 반환 (boardState, moveHistory 포함 - 클라이언트 복원용)
+            const { applyNormalizedChessGoInPlace } = await import('../shared/utils/chessGoRules.js');
+            applyNormalizedChessGoInPlace(game);
             const sanitized = JSON.parse(JSON.stringify(game)) as types.LiveGameSession;
             return res.status(200).json({ game: sanitized });
         } catch (error: any) {

@@ -187,10 +187,11 @@ describe('shouldOpenResultModalByPolicy', () => {
         ).toBe(false);
     });
 
-    it('defers instantEnd playful result until my summary row exists', () => {
+    it('opens instantEnd playful result immediately on end without waiting for summary', () => {
         const s = session({
             gameStatus: 'ended',
-            mode: GameMode.Dice,
+            mode: GameMode.Thief,
+            winReason: 'total_score',
             isAiGame: true,
             gameCategory: GameCategory.Normal,
         });
@@ -199,13 +200,13 @@ describe('shouldOpenResultModalByPolicy', () => {
                 session: s,
                 showResultModal: false,
                 gameHasJustEnded: true,
-                prevGameStatus: 'playing',
+                prevGameStatus: 'thief_placing',
                 hasAnalysisResult: false,
-                resultModalWaitSummary: true,
+                resultModalWaitSummary: false,
                 hasMyGameSummary: false,
                 gameSummaryJustArrived: false,
             }),
-        ).toBe(false);
+        ).toBe(true);
     });
 
     it('opens instantEnd when summary row just arrived', () => {

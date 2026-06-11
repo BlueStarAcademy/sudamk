@@ -1759,8 +1759,9 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
     }, []);
 
     const myWarTickets = GUILD_WAR_PERSONAL_DAILY_ATTEMPTS - myWarAttempts;
-    const canEnterWar = !isWarPrepTime && isWarOpenForPlay;
-    const warEntryDisabledTitle = isWarPrepTime
+    const prepBlocksWarEntry = isWarPrepTime && !activeWar;
+    const canEnterWar = isWarOpenForPlay && !prepBlocksWarEntry;
+    const warEntryDisabledTitle = prepBlocksWarEntry
         ? `다음 길드전 준비시간입니다. ${formatDateTimeKST(warNextEntryOpenAt)}(KST)부터 입장할 수 있습니다.`
         : activeWar && !isWarOpenForPlay
           ? (() => {
@@ -1774,7 +1775,7 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
             : '길드전 화면으로 이동합니다';
 
     const handleWarEntryClick = () => {
-        if (isWarPrepTime) {
+        if (isWarPrepTime && !activeWar) {
             alert(`다음 길드전 준비시간입니다.\n${formatDateTimeKST(warNextEntryOpenAt)}(KST)부터 입장할 수 있습니다.`);
             return;
         }

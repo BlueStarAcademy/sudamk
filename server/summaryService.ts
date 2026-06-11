@@ -2225,7 +2225,8 @@ const processPlayerSummary = async (
 
     let pairPetStrategicBonusSummary: ReturnType<typeof applyPairPetRewardXp> | undefined;
     if (strategicPetXpBonusEligible) {
-        const petRaw = effectService.applyPairPetSpecialStatEquipmentXpMultiplier(updatedPlayer, Math.round(xpGain * 0.5));
+        const petShare = effectService.pairPetXpShareFromUserStrategyXpGain(xpGain, xpBonusPercent);
+        const petRaw = effectService.applyPairPetSpecialStatEquipmentXpMultiplier(updatedPlayer, petShare);
         if (petRaw > 0) {
             pairPetStrategicBonusSummary = applyPairPetRewardXp(updatedPlayer, petRaw);
         }

@@ -35,6 +35,7 @@ import {
     getSpeedTimePressureUiCountdownSeconds,
 } from '../../shared/utils/speedTimePressureDisplay.js';
 import { applyPveSpeedTimePressureGraceToLiveUsedSec } from '../../shared/utils/speedTimePveGrace.js';
+import { isFischerStyleTimeControl } from '../../shared/utils/gameTimeControl.js';
 const formatTime = (seconds: number) => {
     if (seconds < 0) seconds = 0;
     const total = Math.floor(seconds);
@@ -903,6 +904,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const isCaptureRuleActive =
         mode === GameMode.Capture ||
         (mode === GameMode.Mix && Boolean(session.settings.mixedModes?.includes(GameMode.Capture)));
+    const isCastleMode = mode === GameMode.Castle;
     const basePrePlayFreezeStatuses: GameStatus[] = [
         'base_placement',
         'base_stone_color_choice',
@@ -1093,13 +1095,30 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const leftPlayerMainTime = leftPlayerEnum === Player.Black ? session.blackTimeLeft : (leftPlayerEnum === Player.White ? session.whiteTimeLeft : (settings.timeLimit * 60));
     const rightPlayerMainTime = rightPlayerEnum === Player.Black ? session.blackTimeLeft : (rightPlayerEnum === Player.White ? session.whiteTimeLeft : (settings.timeLimit * 60));
 
-    const leftPlayerByoyomi = leftPlayerEnum === Player.Black ? session.blackByoyomiPeriodsLeft : (leftPlayerEnum === Player.White ? session.whiteByoyomiPeriodsLeft : settings.byoyomiCount);
-    const rightPlayerByoyomi = rightPlayerEnum === Player.Black ? session.blackByoyomiPeriodsLeft : (rightPlayerEnum === Player.White ? session.whiteByoyomiPeriodsLeft : settings.byoyomiCount);
+    const isMainFischer = isFischerStyleTimeControl(session as any);
+    const leftPlayerByoyomi = isMainFischer
+        ? 0
+        : leftPlayerEnum === Player.Black
+          ? session.blackByoyomiPeriodsLeft
+          : leftPlayerEnum === Player.White
+            ? session.whiteByoyomiPeriodsLeft
+            : settings.byoyomiCount;
+    const rightPlayerByoyomi = isMainFischer
+        ? 0
+        : rightPlayerEnum === Player.Black
+          ? session.blackByoyomiPeriodsLeft
+          : rightPlayerEnum === Player.White
+            ? session.whiteByoyomiPeriodsLeft
+            : settings.byoyomiCount;
+    const displayTotalByoyomi = isMainFischer ? 0 : settings.byoyomiCount;
     
     const leftPlayerRole = mode === GameMode.Thief ? (leftPlayerUser.id === session.thiefPlayerId ? '도둑' : '경찰') : undefined;
     const rightPlayerRole = mode === GameMode.Thief ? (rightPlayerUser.id === session.thiefPlayerId ? '도둑' : '경찰') : undefined;
     
     const getCaptureTargetForPlayer = (playerEnum: Player) => {
+        if (isCastleMode) {
+            return 1;
+        }
         if (session.isSinglePlayer || isCaptureRuleActive) {
             const isSurvivalMode = (session.settings as any)?.isSurvivalMode === true;
             // 살리기 바둑 모드: 흑(유저)은 목표점수 없음, 백(봇)만 목표점수 표시
@@ -1115,6 +1134,9 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         }
         return undefined;
     };
+
+    const getCastleStoneCaptureCount = (playerEnum: Player): number =>
+        Math.min(1, Math.max(0, captures[playerEnum] ?? 0));
 
     const isLeftAi = session.isAiGame && leftPlayerUser.id === aiUserId;
     const isRightAi = session.isAiGame && rightPlayerUser.id === aiUserId;
@@ -1186,7 +1208,8 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     /** 제한시간·초읽기가 있는 대국만(스피드/믹스+스피드 시계 UI) */
     const sessionHasStrategicClock =
         (settings.timeLimit ?? 0) > 0 ||
-        ((settings.byoyomiCount ?? 0) > 0 && (settings.byoyomiTime ?? 0) > 0);
+        ((settings.byoyomiCount ?? 0) > 0 && (settings.byoyomiTime ?? 0) > 0) ||
+        ((settings.timeLimit ?? 0) > 0 && (settings.timeIncrement ?? 0) > 0);
     /** 스피드 + 시계: 라이브 사용 시간 보너스 UI(서버가 `captures`에 시간 압박 반영). PVP뿐 아니라 AI 대국도 동일 표시 */
     const isSpeedLiveBonusUi =
         isSpeedLikeMode &&
@@ -1509,16 +1532,18 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         speedCaptureDisplayMaxRef.current.byEnum[playerEnum] = next;
         return next;
     };
-    const leftPanelStoneCaptureDisplayRaw =
-        leftCaptureHeadStartFlatBonus != null
-            ? Math.max(0, (captures[leftPlayerEnum] ?? 0) - leftCaptureHeadStartFlatBonus) +
-                  liveSpeedTimePressureCaptureBonusDelta(leftPlayerEnum)
-            : leftPlayerScore + liveSpeedTimePressureCaptureBonusDelta(leftPlayerEnum);
-    const rightPanelStoneCaptureDisplayRaw =
-        rightCaptureHeadStartFlatBonus != null
-            ? Math.max(0, (captures[rightPlayerEnum] ?? 0) - rightCaptureHeadStartFlatBonus) +
-                  liveSpeedTimePressureCaptureBonusDelta(rightPlayerEnum)
-            : rightPlayerScore + liveSpeedTimePressureCaptureBonusDelta(rightPlayerEnum);
+    const leftPanelStoneCaptureDisplayRaw = isCastleMode
+        ? getCastleStoneCaptureCount(leftPlayerEnum)
+        : leftCaptureHeadStartFlatBonus != null
+          ? Math.max(0, (captures[leftPlayerEnum] ?? 0) - leftCaptureHeadStartFlatBonus) +
+                liveSpeedTimePressureCaptureBonusDelta(leftPlayerEnum)
+          : leftPlayerScore + liveSpeedTimePressureCaptureBonusDelta(leftPlayerEnum);
+    const rightPanelStoneCaptureDisplayRaw = isCastleMode
+        ? getCastleStoneCaptureCount(rightPlayerEnum)
+        : rightCaptureHeadStartFlatBonus != null
+          ? Math.max(0, (captures[rightPlayerEnum] ?? 0) - rightCaptureHeadStartFlatBonus) +
+                liveSpeedTimePressureCaptureBonusDelta(rightPlayerEnum)
+          : rightPlayerScore + liveSpeedTimePressureCaptureBonusDelta(rightPlayerEnum);
     const leftPanelStoneCaptureDisplay = stabilizeSpeedCaptureDisplay(leftPlayerEnum, leftPanelStoneCaptureDisplayRaw);
     const rightPanelStoneCaptureDisplay = stabilizeSpeedCaptureDisplay(rightPlayerEnum, rightPanelStoneCaptureDisplayRaw);
 
@@ -1562,6 +1587,12 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         if (isCaptureRuleActive) {
             return { type: 'moves_only' as const, label: '수순', current };
         }
+        /** 캐슬 바둑: 계가 수 제한 없음 — PASS 제외 실 착수 수만 표시 */
+        if (isCastleMode) {
+            const castleMoves =
+                validMovesOnly > 0 ? validMovesOnly : Math.max(0, session.totalTurns ?? 0);
+            return { type: 'moves_only' as const, label: '수순', current: castleMoves };
+        }
         const limit = settings.scoringTurnLimit;
         if (limit != null && limit > 0) {
             const monKey = `${session.id}|stlim|${limit}`;
@@ -1586,6 +1617,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         mode,
         session.settings,
         isCaptureRuleActive,
+        isCastleMode,
     ]);
     const strategicLobbyTurnInfo = useMemo(() => {
         if (!strategicLobbyTurnInfoRaw) return strategicLobbyTurnInfoRaw;
@@ -1949,7 +1981,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                             totalTime={turnDuration}
                             mainTimeLeft={leftPlayerMainTime}
                             byoyomiPeriodsLeft={leftPlayerByoyomi}
-                            totalByoyomi={settings.byoyomiCount}
+                            totalByoyomi={displayTotalByoyomi}
                             byoyomiTime={settings.byoyomiTime}
                             isLeft={true}
                             session={session}
@@ -1983,7 +2015,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                             totalTime={turnDuration}
                             mainTimeLeft={rightPlayerMainTime}
                             byoyomiPeriodsLeft={rightPlayerByoyomi}
-                            totalByoyomi={settings.byoyomiCount}
+                            totalByoyomi={displayTotalByoyomi}
                             byoyomiTime={settings.byoyomiTime}
                             isLeft={false}
                             session={session}
@@ -2019,7 +2051,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                             totalTime={turnDuration}
                             mainTimeLeft={leftPlayerMainTime}
                             byoyomiPeriodsLeft={leftPlayerByoyomi}
-                            totalByoyomi={settings.byoyomiCount}
+                            totalByoyomi={displayTotalByoyomi}
                             byoyomiTime={settings.byoyomiTime}
                             isLeft={true}
                             session={session}
@@ -2054,7 +2086,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                             totalTime={turnDuration}
                             mainTimeLeft={rightPlayerMainTime}
                             byoyomiPeriodsLeft={rightPlayerByoyomi}
-                            totalByoyomi={settings.byoyomiCount}
+                            totalByoyomi={displayTotalByoyomi}
                             byoyomiTime={settings.byoyomiTime}
                             isLeft={false}
                             session={session}
@@ -2095,7 +2127,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                     totalTime={turnDuration}
                     mainTimeLeft={leftPlayerMainTime}
                     byoyomiPeriodsLeft={leftPlayerByoyomi}
-                    totalByoyomi={settings.byoyomiCount}
+                    totalByoyomi={displayTotalByoyomi}
                     byoyomiTime={settings.byoyomiTime}
                     isLeft={true}
                     session={session}
@@ -2222,7 +2254,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                 totalTime={turnDuration}
                 mainTimeLeft={rightPlayerMainTime}
                 byoyomiPeriodsLeft={rightPlayerByoyomi}
-                totalByoyomi={settings.byoyomiCount}
+                totalByoyomi={displayTotalByoyomi}
                 byoyomiTime={settings.byoyomiTime}
                 isLeft={false}
                 session={session}

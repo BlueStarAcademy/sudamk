@@ -35,6 +35,7 @@ import SinglePlayerGameDescriptionModal from '../SinglePlayerGameDescriptionModa
 import AiGameDescriptionModal from '../AiGameDescriptionModal.js';
 import { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from '../DraggableWindow.js';
 import { resolveLiveSessionSinglePlayerStageRow } from '../../shared/utils/liveSessionSinglePlayerStage.js';
+import { CHESS_GO_BOARD_SIZE } from '../../shared/utils/chessGoRules.js';
 import {
     arenaGameRoomAdminStripClass,
     arenaGameRoomAdminTitleClass,
@@ -130,7 +131,9 @@ export const GameInfoPanel: React.FC<{
             details.push(renderSetting("스테이지", stageDisplay));
         }
         if (![GameMode.Alkkagi, GameMode.Curling, GameMode.Dice].includes(mode)) {
-            details.push(renderSetting("판 크기", `${settings.boardSize}x${settings.boardSize}`));
+            const boardSizeLabel =
+                mode === GameMode.Chess ? CHESS_GO_BOARD_SIZE : settings.boardSize;
+            details.push(renderSetting("판 크기", `${boardSizeLabel}x${boardSizeLabel}`));
         }
         
         if (modesWithKomi.includes(mode) && !settings.mixedModes?.includes(GameMode.Base)) {
@@ -200,6 +203,10 @@ export const GameInfoPanel: React.FC<{
             details.push(renderSetting("목표점수", captureTargetText));
         }
         
+        if (mode === GameMode.Castle) {
+            details.push(renderSetting("캐슬", `${settings.castleCount ?? 1}개`));
+        }
+
         if (mode === GameMode.Base || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Base))) {
              details.push(renderSetting("베이스돌", `${settings.baseStones}개`));
         }
@@ -216,7 +223,7 @@ export const GameInfoPanel: React.FC<{
              details.push(renderSetting("아이템", "대기실 보유 개수 사용"));
         }
 
-        if (!settings.pairGame && SPECIAL_GAME_MODES.some(m => m.mode === mode) && settings.scoringTurnLimit != null && settings.scoringTurnLimit > 0) {
+        if (!settings.pairGame && mode !== GameMode.Castle && SPECIAL_GAME_MODES.some(m => m.mode === mode) && settings.scoringTurnLimit != null && settings.scoringTurnLimit > 0) {
             details.push(renderSetting("계가까지 턴", `${settings.scoringTurnLimit}턴`));
         }
         

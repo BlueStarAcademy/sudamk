@@ -839,6 +839,33 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
         );
     }
 
+    if (session.mode === GameMode.Castle && session.gameStatus === 'playing') {
+        const castleGuidance = '1돌만 잡아도 즉시 승리 · 완성된 영토에는 착수할 수 없습니다.';
+        return wrapContent(
+            `${baseClasses} ${themeClasses} min-w-0 ${isMobile ? 'gap-0.5 px-2 min-h-[2.05rem]' : 'gap-1 px-2.5 min-h-[2.45rem]'}`,
+            <>
+                <div className="flex w-full flex-col items-center justify-center gap-0.5 min-w-0 sm:gap-0.5">
+                    <div
+                        className={`w-full overflow-hidden flex-shrink-0 relative flex items-center justify-center px-0.5 ${isMobile ? 'min-h-[0.95rem]' : 'min-h-[1.15rem]'}`}
+                    >
+                        <p
+                            className={`font-bold ${textClass} text-center leading-snug tracking-wide whitespace-nowrap overflow-hidden text-ellipsis ${
+                                isMobile ? 'text-[clamp(0.54rem,1.5vmin,0.64rem)]' : 'text-[clamp(0.62rem,1.75vmin,0.76rem)]'
+                            }`}
+                            style={{
+                                textShadow: isSinglePlayer
+                                    ? '0 0 8px rgba(251, 191, 36, 0.35)'
+                                    : '0 0 8px rgba(255, 255, 255, 0.35), 0 0 14px rgba(255, 255, 255, 0.15)',
+                            }}
+                        >
+                            {castleGuidance}
+                        </p>
+                    </div>
+                </div>
+            </>
+        );
+    }
+
     if (session.mode === GameMode.Dice && session.gameStatus === 'dice_placing' && session.dice) {
         const diceGuidance = '상대보다 더 많은 돌을 따내기 위해 돌을 놓아보세요.';
         return wrapContent(

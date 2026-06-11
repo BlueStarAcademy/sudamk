@@ -8,23 +8,31 @@ type TimeControlSession = {
     gameCategory?: string;
 };
 
-/** 스피드·믹스(스피드 포함): 수당 10초 초읽기 + 메인 제한시간 이중 시계 */
-export function isSpeedPerMoveTimeControl(session: TimeControlSession): boolean {
+/** 스피드·믹스(스피드 포함) 모드 여부 */
+export function isSpeedMode(session: TimeControlSession): boolean {
     return mixGoOrPureModeIncludes(session.mode, session.settings?.mixedModes, GameMode.Speed);
+}
+
+/**
+ * 스피드 수당 10초·초과 페널티 오버레이 활성 여부.
+ * 메인 시계(Fischer/초읽기)와 공존한다.
+ */
+export function hasSpeedPerMovePressure(session: TimeControlSession): boolean {
+    return isSpeedMode(session);
+}
+
+/** @deprecated {@link hasSpeedPerMovePressure} — 스피드 모드·오버레이 동일 의미 */
+export function isSpeedPerMoveTimeControl(session: TimeControlSession): boolean {
+    return hasSpeedPerMovePressure(session);
 }
 
 export function getSpeedPerMoveSeconds(_session?: TimeControlSession): number {
     return SPEED_PER_MOVE_SECONDS;
 }
 
-/**
- * 길드 전쟁(비스피드) 등 피셔식 증가가 적용되는지.
- * 스피드 바둑은 수당 초읽기 규칙을 쓰므로 Fischer가 아니다.
- */
+/** 메인 시계가 Fischer(수 후 시간 추가)인지. 스피드도 timeIncrement > 0이면 true. */
 export function isFischerStyleTimeControl(session: TimeControlSession): boolean {
-    if (isSpeedPerMoveTimeControl(session)) return false;
-    if (session.gameCategory === 'guildwar' && (session.settings?.timeIncrement ?? 0) > 0) return true;
-    return false;
+    return (session.settings?.timeIncrement ?? 0) > 0;
 }
 
 export function getFischerIncrementSeconds(session: TimeControlSession): number {

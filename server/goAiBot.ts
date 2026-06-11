@@ -24,6 +24,7 @@ import {
     applySpeedNextTurnClockStart,
 } from '../shared/utils/speedTimePressureSessionSync.js';
 import { generateKataServerMoveCandidateDetails, isKataServerAvailable } from './kataServerService.js';
+import { enumerateLegalCastleMoves, processCastleMove } from '../shared/utils/castleGoRules.js';
 import {
     advancePairTurn,
     getCurrentPairTurnSeat,
@@ -1700,6 +1701,15 @@ function isLegalAiMoveOnCurrentBoard(game: types.LiveGameSession, move: Point | 
     if (!move || move.x < 0 || move.y < 0) return false;
     const boardSize = game.settings.boardSize || game.boardState.length;
     if (move.x >= boardSize || move.y >= boardSize) return false;
+    if (game.mode === types.GameMode.Castle) {
+        return processCastleMove(
+            game,
+            game.boardState,
+            { ...move, player },
+            game.koInfo,
+            game.moveHistory.length,
+        ).isValid;
+    }
     return processMove(game.boardState, { ...move, player }, game.koInfo, game.moveHistory.length, { suppressOccupiedLog: true }).isValid;
 }
 
@@ -1720,6 +1730,20 @@ function pickServerScoredLegalMove(
         );
     }
     if (legalMoves.length === 0) return null;
+
+    if (game.mode === types.GameMode.Castle) {
+        const captureMoves = legalMoves.filter((m) => {
+            const result = processCastleMove(
+                game,
+                game.boardState,
+                { ...m, player: aiPlayer },
+                game.koInfo,
+                game.moveHistory.length,
+            );
+            return result.isValid && result.capturedStones.length > 0;
+        });
+        if (captureMoves.length > 0) return captureMoves[0] ?? null;
+    }
 
     const profile = getGoAiBotProfile(profileLevel);
     const scoredMoves =
@@ -2252,7 +2276,8 @@ export async function makeGoAiBotMove(
         game.isSinglePlayer &&
         forcedAiResponsesForStage.length > 0 &&
         (!forceResponsesOnHiddenTurnsOnly || isConfiguredAiHiddenTurn);
-    const useHeuristicInsteadOfKata = shouldApplyForcedResponsesThisTurn;
+    const useHeuristicInsteadOfKata =
+        shouldApplyForcedResponsesThisTurn || game.mode === types.GameMode.Chess;
     if (!useHeuristicInsteadOfKata && !isKataServerAvailable()) {
         console.error(
             `[makeGoAiBotMove] KataServer를 사용할 수 없습니다(KATA_SERVER_URL 미설정). 서버 합법수 폴백으로 진행합니다. game=${game.id}`
@@ -2436,6 +2461,13 @@ export async function makeGoAiBotMove(
     let selectedMove: Point | null = null;
     type PendingPairPetKataGameChat = { text: string; participantId: string; nickname: string };
     let pendingPairPetKataGameChat: PendingPairPetKataGameChat | null = null;
+
+    if (game.mode === types.GameMode.Chess && !game.chessPieceMovedThisTurn) {
+        const { syncChessGoBoardFromPiecesAndMoves, tryAiChessPieceMove } = await import('./modes/chess.js');
+        syncChessGoBoardFromPiecesAndMoves(game);
+        await tryAiChessPieceMove(game, aiPlayerEnum, goAiProfileLevel);
+    }
+
     if (shouldAiResignWhenNoLegalBoardMove(game)) {
         if (!hasAnyValidBoardMove(game, aiPlayerEnum)) {
             console.warn(
@@ -2491,8 +2523,41 @@ export async function makeGoAiBotMove(
         const profile = getGoAiBotProfile(goAiProfileLevel);
         const validMoves = findAllValidMovesFast(game, logic, aiPlayerEnum);
         if (validMoves.length === 0) {
-            await summaryService.endGame(game, opponentPlayerEnum, 'resign');
-            return;
+            if (game.mode === types.GameMode.Chess) {
+                const { CHESS_GO_BOARD_SIZE, syncChessGoBoardFromPiecesAndMoves } = await import(
+                    '../shared/utils/chessGoRules.js'
+                );
+                syncChessGoBoardFromPiecesAndMoves(game);
+                const logicRetry = getGoLogic(game);
+                const retryMoves = findAllValidMovesFast(game, logicRetry, aiPlayerEnum);
+                if (retryMoves.length > 0) {
+                    selectedMove = retryMoves[0]!;
+                } else {
+                    const boardSize = Math.min(CHESS_GO_BOARD_SIZE, game.boardState?.length ?? CHESS_GO_BOARD_SIZE);
+                    outer: for (let y = 0; y < boardSize; y++) {
+                        for (let x = 0; x < boardSize; x++) {
+                            const attempt = processMove(
+                                game.boardState,
+                                { x, y, player: aiPlayerEnum },
+                                game.koInfo,
+                                game.moveHistory.length,
+                                { suppressOccupiedLog: true },
+                            );
+                            if (attempt.isValid) {
+                                selectedMove = { x, y };
+                                break outer;
+                            }
+                        }
+                    }
+                }
+                if (!selectedMove) {
+                    console.warn(`[makeGoAiBotMove] chess: no legal go stone placement after fallback, game=${game.id}`);
+                    return;
+                }
+            } else {
+                await summaryService.endGame(game, opponentPlayerEnum, 'resign');
+                return;
+            }
         }
         const scoredMoves =
             (game.settings as any)?.isSurvivalMode
@@ -2500,7 +2565,7 @@ export async function makeGoAiBotMove(
                 : scoreMovesFast(validMoves, game, profile, logic, aiPlayerEnum, opponentPlayerEnum);
         selectedMove = scoredMoves[0]?.move ?? validMoves[0]!;
         console.log(
-            `[makeGoAiBotMove] forced-response stage uses heuristic move game=${game.id} (${selectedMove.x},${selectedMove.y})`
+            `[makeGoAiBotMove] heuristic go stone game=${game.id} mode=${game.mode} (${selectedMove.x},${selectedMove.y})`
         );
     }
 
@@ -2871,12 +2936,21 @@ export async function makeGoAiBotMove(
     }
 
     // 선택된 수 실행 (실제 보드 상태 사용)
-    let result = processMove(
-        game.boardState, // 실제 보드 상태 사용 (히든 돌 포함)
-        { ...selectedMove, player: aiPlayerEnum },
-        game.koInfo,
-        game.moveHistory.length
-    );
+    const isCastleGame = game.mode === types.GameMode.Castle;
+    let result = isCastleGame
+        ? processCastleMove(
+              game,
+              game.boardState,
+              { ...selectedMove, player: aiPlayerEnum },
+              game.koInfo,
+              game.moveHistory.length,
+          )
+        : processMove(
+              game.boardState, // 실제 보드 상태 사용 (히든 돌 포함)
+              { ...selectedMove, player: aiPlayerEnum },
+              game.koInfo,
+              game.moveHistory.length,
+          );
     if (!result.isValid) {
         if (shouldApplyHiddenOnThisMove) {
             pendingAiHiddenKataMoveByGameId.delete(hiddenKataCacheKey(game.id));
@@ -3014,6 +3088,15 @@ export async function makeGoAiBotMove(
 
     // 5. 최종 수 적용
     game.boardState = result.newBoardState;
+    if (game.mode === types.GameMode.Chess) {
+        game.chessPieceMovedThisTurn = false;
+        const { syncChessGoBoardFromPiecesAndMoves } = await import('../shared/utils/chessGoRules.js');
+        syncChessGoBoardFromPiecesAndMoves(game);
+    }
+    if (isCastleGame) {
+        const { applyCastleTerritoryAfterMove } = await import('./modes/castle.js');
+        applyCastleTerritoryAfterMove(game);
+    }
     game.lastMove = { x: selectedMove.x, y: selectedMove.y };
     game.moveHistory.push({
         player: aiPlayerEnum,
@@ -3094,6 +3177,14 @@ export async function makeGoAiBotMove(
         return; // 애니메이션 종료 후 updateHiddenState에서 처리
     }
 
+    if (isCastleGame) {
+        const { tryEndCastleOnCapture, tryAutoScoreCastleIfNoMoves } = await import('./modes/castle.js');
+        if (await tryEndCastleOnCapture(game, aiPlayerEnum, result.capturedStones.length)) {
+            await db.saveGame(game);
+            return;
+        }
+    }
+
     // 7. 살리기 바둑 모드에서 승리 조건 확인
     const isSurvivalModeCheck = (game.settings as any)?.isSurvivalMode === true;
     if (isSurvivalModeCheck && aiPlayerEnum === Player.White) {
@@ -3138,6 +3229,12 @@ export async function makeGoAiBotMove(
         if (isSpeedPerMoveTimeControl(game)) {
             const { aiUserId: speedAiUserId } = await import('./aiPlayer.js');
             applySpeedMoveClockEnd(game, aiPlayerEnum, now, speedAiUserId);
+            const { getFischerIncrementSeconds } = await import('../shared/utils/gameTimeControl.js');
+            const fischerIncrement = getFischerIncrementSeconds(game as any);
+            if (fischerIncrement > 0) {
+                const aiPlayerTimeKey = aiPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+                game[aiPlayerTimeKey] = Math.max(0, Number(game[aiPlayerTimeKey] ?? 0)) + fischerIncrement;
+            }
         } else {
             const aiPlayerTimeKey = aiPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
             if (game.turnDeadline) {
@@ -3317,6 +3414,14 @@ export async function makeGoAiBotMove(
         } else {
             game.currentPlayer = opponentPlayerEnum;
         }
+
+        if (isCastleGame) {
+            const { tryAutoScoreCastleIfNoMoves } = await import('./modes/castle.js');
+            if (await tryAutoScoreCastleIfNoMoves(game)) {
+                await db.saveGame(game);
+                return;
+            }
+        }
         
         // 살리기 바둑 모드: 백이 수를 둔 후 턴을 넘긴 직후 승리 조건 체크
         const isSurvivalMode = (game.settings as any)?.isSurvivalMode === true;
@@ -3408,6 +3513,9 @@ function findAllValidMoves(
     logic: ReturnType<typeof getGoLogic>,
     aiPlayer: Player
 ): Point[] {
+    if (game.mode === types.GameMode.Castle) {
+        return enumerateLegalCastleMoves(game, aiPlayer);
+    }
     const validMoves: Point[] = [];
     const boardSize = game.settings.boardSize;
 
@@ -3440,6 +3548,9 @@ function findAllValidMovesFast(
     logic: ReturnType<typeof getGoLogic>,
     aiPlayer: Player
 ): Point[] {
+    if (game.mode === types.GameMode.Castle) {
+        return enumerateLegalCastleMoves(game, aiPlayer);
+    }
     const validMoves: Point[] = [];
     const boardSize = game.settings.boardSize;
     const checkedPoints = new Set<string>();

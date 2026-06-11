@@ -1337,7 +1337,16 @@ const ShopModal: React.FC<ShopModalProps> = ({
                             mobile={mobileShop}
                             isClaimPending={shopAction.isAnyPending}
                         />
-                        {equipmentItems.map(item => <ShopItemCard key={item.itemId} item={item} onBuy={handleInitiatePurchase} currentUser={currentUser} mobile={mobileShop} isShopBusy={shopAction.isAnyPending} />)}
+                        {equipmentItems.map(item => (
+                            <ShopItemCard
+                                key={item.itemId}
+                                item={item}
+                                onBuy={handleInitiatePurchase}
+                                currentUser={currentUser}
+                                mobile={mobileShop}
+                                isShopBusy={shopAction.isPending(`purchase-${item.itemId}`)}
+                            />
+                        ))}
                     </div>
                 );
             case 'materials':
@@ -1351,7 +1360,16 @@ const ShopModal: React.FC<ShopModalProps> = ({
                             mobile={mobileShop}
                             isClaimPending={shopAction.isAnyPending}
                         />
-                        {materialItems.map(item => <ShopItemCard key={item.itemId} item={item} onBuy={handleInitiatePurchase} currentUser={currentUser} mobile={mobileShop} isShopBusy={shopAction.isAnyPending} />)}
+                        {materialItems.map(item => (
+                            <ShopItemCard
+                                key={item.itemId}
+                                item={item}
+                                onBuy={handleInitiatePurchase}
+                                currentUser={currentUser}
+                                mobile={mobileShop}
+                                isShopBusy={shopAction.isPending(`purchase-${item.itemId}`)}
+                            />
+                        ))}
                     </div>
                 );
             case 'diamonds':
@@ -1461,7 +1479,14 @@ const ShopModal: React.FC<ShopModalProps> = ({
                             isClaimPending={shopAction.isAnyPending}
                         />
                         {consumableItems.map(item => (
-                            <ShopItemCard key={item.itemId} item={item} onBuy={handleInitiatePurchase} currentUser={currentUser} mobile={mobileShop} isShopBusy={shopAction.isAnyPending} />
+                            <ShopItemCard
+                                key={item.itemId}
+                                item={item}
+                                onBuy={handleInitiatePurchase}
+                                currentUser={currentUser}
+                                mobile={mobileShop}
+                                isShopBusy={shopAction.isPending(`purchase-${item.itemId}`)}
+                            />
                         ))}
                     </div>
                 );

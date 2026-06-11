@@ -443,6 +443,7 @@ export type ServerAction =
     | { type: 'FRIEND_REMOVE', payload: { targetUserId: string } }
     // Game
     | { type: 'PLACE_STONE', payload: { gameId: string; x: number; y: number, isHidden?: boolean, isClientAiMove?: boolean, clientSideAiMove?: boolean } }
+    | { type: 'CHESS_MOVE_PIECE', payload: { gameId: string; pieceId: string; toX: number; toY: number } }
     | { type: 'PASS_TURN', payload: { gameId: string } }
     | { type: 'RESIGN_GAME', payload: { gameId: string, andLeave?: boolean } }
     | { type: 'REQUEST_PAIR_TEAM_RESIGN', payload: { gameId: string } }

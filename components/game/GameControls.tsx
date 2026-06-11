@@ -2486,6 +2486,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                 <>
                     {isStrategic &&
                         !hasCaptureRule &&
+                        session.mode !== GameMode.Castle &&
                         (!isAiLobbyGame || isPairGame) &&
                         !isPairAiAutoScoringMatch &&
                         session.gameCategory !== 'adventure' && (

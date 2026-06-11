@@ -1720,6 +1720,12 @@ export function configurePairClassicGameStart(
     if (hasAiSeat && !captureRuleGame) {
         game.settings.scoringTurnLimit = getAiScoringTurnLimitByBoardSize(game.settings.boardSize || 19);
         delete (game.settings as any).autoScoringTurns;
+    } else if (!captureRuleGame && game.isRankedGame) {
+        const existingLimit = Number(game.settings.scoringTurnLimit ?? 0);
+        if (!Number.isFinite(existingLimit) || existingLimit <= 0) {
+            game.settings.scoringTurnLimit = getAiScoringTurnLimitByBoardSize(game.settings.boardSize || 19);
+        }
+        delete (game.settings as any).autoScoringTurns;
     } else {
         game.settings.scoringTurnLimit = 0;
         delete (game.settings as any).autoScoringTurns;

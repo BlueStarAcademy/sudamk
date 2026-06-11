@@ -1,16 +1,25 @@
 import { GameMode, GameSettings } from '../types/index.js';
 import {
-    applySpeedByoyomiDefaults,
+    normalizeMainTimeControl,
+    normalizeSpeedMainTimeControl,
     BASE_STONE_COUNTS,
     CAPTURE_TARGETS,
+    CASTLE_BOARD_SIZES,
+    CHESS_BOARD_SIZES,
+    clampCastleCount,
+    getDefaultCastleCountByBoardSize,
     DEFAULT_GAME_SETTINGS,
     getAiScoringTurnLimitByBoardSize,
+    getDefaultChessKomiByBoardSize,
+    getDefaultChessScoringTurnLimit,
     getStrategicBoardSizesByMode,
     HIDDEN_STONE_COUNTS,
     MISSILE_COUNTS,
     SCAN_COUNTS,
 } from '../constants/gameSettings.js';
 import { SPECIAL_GAME_MODES } from '../constants/gameModes.js';
+import { getRankedGameSettings } from '../constants/rankedGameSettings.js';
+import { applyMixModeSettingsConstraints, getMixBoardSizeOptions } from './mixModeSettings.js';
 
 export function modeIncludesCaptureRuleForSettings(
     mode: GameMode,
@@ -42,6 +51,7 @@ export function stripHumanPvpTurnLimitFields(settings: GameSettings): GameSettin
 
 export type SanitizePvpGameSettingsOptions = {
     isAiGame?: boolean;
+    isRanked?: boolean;
 };
 
 export function sanitizePvpGameSettings(
@@ -49,10 +59,20 @@ export function sanitizePvpGameSettings(
     settings: GameSettings,
     options: SanitizePvpGameSettingsOptions = {},
 ): GameSettings {
-    const { isAiGame = false } = options;
+    const { isAiGame = false, isRanked = false } = options;
+
+    if (mode === GameMode.Castle && isRanked) {
+        return { ...getRankedGameSettings(GameMode.Castle) };
+    }
+
     let next: GameSettings = { ...DEFAULT_GAME_SETTINGS, ...settings };
 
-    const validSizes = getStrategicBoardSizesByMode(mode);
+    if (mode === GameMode.Mix) {
+        next = applyMixModeSettingsConstraints(next);
+    }
+
+    const validSizes =
+        mode === GameMode.Mix ? getMixBoardSizeOptions(next.mixedModes) : getStrategicBoardSizesByMode(mode);
     if (!validSizes.includes(next.boardSize as number)) {
         next.boardSize = validSizes[0] as GameSettings['boardSize'];
     }
@@ -64,7 +84,11 @@ export function sanitizePvpGameSettings(
     }
 
     if (mode === GameMode.Speed || modeIncludesSpeedRuleForSettings(mode, next)) {
-        next = applySpeedByoyomiDefaults(next);
+        next = normalizeSpeedMainTimeControl(next);
+    } else if ((next.timeIncrement ?? 0) > 0) {
+        next = normalizeMainTimeControl(next);
+    } else if ((next.timeLimit ?? 0) > 0 || ((next.byoyomiCount ?? 0) > 0 && (next.byoyomiTime ?? 0) > 0)) {
+        next = { ...next, timeIncrement: 0 };
     }
 
     if (mode === GameMode.Capture || modeIncludesCaptureRuleForSettings(mode, next)) {
@@ -84,20 +108,71 @@ export function sanitizePvpGameSettings(
         next.missileCount = MISSILE_COUNTS.includes(m) ? m : MISSILE_COUNTS[0];
     }
 
+    if (mode === GameMode.Castle || (mode === GameMode.Mix && next.mixedModes?.includes(GameMode.Castle))) {
+        if (!CASTLE_BOARD_SIZES.includes(next.boardSize as number) && mode === GameMode.Castle) {
+            next.boardSize = CASTLE_BOARD_SIZES[0] as GameSettings['boardSize'];
+        }
+        next.castleCount = clampCastleCount(
+            next.castleCount ?? getDefaultCastleCountByBoardSize(next.boardSize ?? 13),
+            next.boardSize ?? 13,
+        );
+        if (mode === GameMode.Castle) {
+            next = stripHumanPvpTurnLimitFields(next);
+        }
+    }
+
+    if (mode === GameMode.Chess || (mode === GameMode.Mix && next.mixedModes?.includes(GameMode.Chess))) {
+        if (!CHESS_BOARD_SIZES.includes(next.boardSize as number)) {
+            next.boardSize = CHESS_BOARD_SIZES[0] as GameSettings['boardSize'];
+        }
+        next.komi = getDefaultChessKomiByBoardSize(next.boardSize ?? 13);
+        if (mode === GameMode.Chess) {
+            if (isAiGame) {
+                const limit = next.scoringTurnLimit;
+                if (typeof limit !== 'number' || !Number.isFinite(limit) || limit <= 0) {
+                    next.scoringTurnLimit = getDefaultChessScoringTurnLimit();
+                }
+            } else if (!isRanked) {
+                next = stripHumanPvpTurnLimitFields(next);
+            }
+        }
+    }
+
     const captureRule = modeIncludesCaptureRuleForSettings(mode, next);
     if (captureRule) {
         next = stripHumanPvpTurnLimitFields(next);
     }
 
     const isStrategic = SPECIAL_GAME_MODES.some((m) => m.mode === mode);
-    if (isStrategic && !isAiGame) {
-        next = stripHumanPvpTurnLimitFields(next);
-    } else if (isStrategic && isAiGame && !captureRule) {
+    if (isStrategic && !isAiGame && mode !== GameMode.Castle) {
+        const scoringTurnLimit = next.scoringTurnLimit;
+        if (
+            typeof scoringTurnLimit === 'number' &&
+            Number.isFinite(scoringTurnLimit) &&
+            scoringTurnLimit > 0
+        ) {
+            delete (next as { autoScoringTurns?: number }).autoScoringTurns;
+        } else {
+            next = stripHumanPvpTurnLimitFields(next);
+        }
+    } else if (isStrategic && isAiGame && !captureRule && mode !== GameMode.Castle) {
         const scoringTurnLimit = next.scoringTurnLimit;
         if (typeof scoringTurnLimit !== 'number' || !Number.isFinite(scoringTurnLimit) || scoringTurnLimit <= 0) {
             next.scoringTurnLimit = getAiScoringTurnLimitByBoardSize(next.boardSize ?? 19);
         }
         delete (next as { autoScoringTurns?: number }).autoScoringTurns;
+    } else if (mode === GameMode.Castle) {
+        next = stripHumanPvpTurnLimitFields(next);
+    }
+
+    if (isAiGame) {
+        next = {
+            ...next,
+            timeLimit: 0,
+            byoyomiTime: 0,
+            byoyomiCount: 0,
+            timeIncrement: 0,
+        };
     }
 
     return next;

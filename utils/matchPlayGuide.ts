@@ -192,6 +192,26 @@ function uniformGuide(session: LiveGameSession): MatchPlayGuide {
     return g;
 }
 
+function chessGuide(session: LiveGameSession): MatchPlayGuide {
+    const g = standardLike(session, '체스 바둑');
+    g.sections[0].items.push('100수 후 영토 + 기물 포획 점수로 승패가 결정됩니다.');
+    g.sections[0].items.push('기물 포획: 폰 1 / 나이트·비숍 3 / 룩 5 / 퀸 9');
+    g.sections[1].items.unshift('기물 이동(선택) → 바둑 1수 순으로 턴을 진행하세요.');
+    g.sections[1].items.unshift('기물은 체스 규칙으로 움직이지만, 잡기는 바둑 포위(활로 0)로만 가능합니다.');
+    g.sections[2].items.push('기물을 안 움직여도 바둑돌만 두면 턴이 넘어갑니다.');
+    return g;
+}
+
+function castleGuide(session: LiveGameSession): MatchPlayGuide {
+    const g = standardLike(session, '캐슬 바둑');
+    const castles = session.settings.castleCount ?? 1;
+    g.sections[0].items.push(`캐슬 ${castles}개가 무작위로 놓이며, 한 돌만 잡아도 즉시 승리합니다.`);
+    g.sections[0].items.push('잡힌 돌 없이 더 둘 곳이 없으면 영토가 많은 쪽이 승리합니다.');
+    g.sections[1].items.unshift('캐슬 주변을 먼저 둘러싸 영토를 확보하고, 상대 영토 진입을 막으세요.');
+    g.sections[2].items.push('네 변 모두를 이용한 영토는 인정되지 않습니다. 상대 돌이 남은 구역은 영토가 되지 않습니다.');
+    return g;
+}
+
 function missileGuide(session: LiveGameSession): MatchPlayGuide {
     const g = standardLike(session, '미사일 바둑');
     const mc = session.settings.missileCount ?? 0;
@@ -519,6 +539,12 @@ export function buildMatchPlayGuide(session: LiveGameSession): MatchPlayGuide {
             break;
         case GameMode.Uniform:
             guide = uniformGuide(session);
+            break;
+        case GameMode.Castle:
+            guide = castleGuide(session);
+            break;
+        case GameMode.Chess:
+            guide = chessGuide(session);
             break;
         case GameMode.Mix:
             guide = mixGuide(session);

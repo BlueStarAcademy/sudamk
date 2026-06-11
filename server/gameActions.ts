@@ -931,6 +931,8 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 GameMode.Hidden,
                 GameMode.Missile,
                 GameMode.Uniform,
+                GameMode.Castle,
+                GameMode.Chess,
                 GameMode.Mix,
             ];
             if (!goModesForServerAi.includes(game.mode as GameMode)) {
@@ -1740,6 +1742,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     game.mode === GameMode.Hidden ||
                     game.mode === GameMode.Missile ||
                     game.mode === GameMode.Uniform ||
+                    game.mode === GameMode.Chess ||
                     game.mode === GameMode.Mix;
                 const { aiUserId, makeAiMove } = await import('./aiPlayer.js');
                 const pidAfterUser = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
@@ -1815,6 +1818,62 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     } else {
                         await runInlinePveAi();
                     }
+                }
+            }
+
+            // 체스 바둑 AI 로비: 메인 루프만 기대하면 AI 턴이 멈추고 시간패로 이어질 수 있어 인라인 fallback
+            if (
+                !(result as any).error &&
+                game.mode === GameMode.Chess &&
+                game.isAiGame &&
+                arenaPolicy.matchAxis === 'pvp' &&
+                game.gameStatus === 'playing'
+            ) {
+                const { aiUserId, makeAiMove } = await import('./aiPlayer.js');
+                const pidAfterUser =
+                    game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+                const isAiTurnAfterUser =
+                    pidAfterUser === aiUserId ||
+                    (pidAfterUser && String(pidAfterUser).startsWith('dungeon-bot-'));
+                if (game.currentPlayer !== types.Player.None && isAiTurnAfterUser) {
+                    const gameIdChessAi = game.id;
+                    void (async () => {
+                        try {
+                            const { waitUntilAiProcessingReleased } = await import('./aiSessionManager.js');
+                            await waitUntilAiProcessingReleased(gameIdChessAi, 10_000);
+                            const { getCachedGame } = await import('./gameCache.js');
+                            const fresh = await getCachedGame(gameIdChessAi);
+                            if (!fresh) return;
+                            Object.assign(game, fresh);
+                            const pid =
+                                game.currentPlayer === types.Player.Black
+                                    ? game.blackPlayerId
+                                    : game.whitePlayerId;
+                            const stillAi =
+                                game.gameStatus === 'playing' &&
+                                game.currentPlayer !== types.Player.None &&
+                                (pid === aiUserId ||
+                                    (pid && String(pid).startsWith('dungeon-bot-')));
+                            if (!stillAi) return;
+                            const moveBefore = game.moveHistory?.length ?? 0;
+                            await makeAiMove(game);
+                            game.aiTurnStartTime =
+                                (game.moveHistory?.length ?? 0) > moveBefore
+                                    ? undefined
+                                    : Date.now() + 300;
+                            updateGameCache(game);
+                            await db.saveGame(game);
+                            const { broadcastToGameParticipants } = await import('./socket.js');
+                            broadcastToGameParticipants(
+                                gameIdChessAi,
+                                { type: 'GAME_UPDATE', payload: { [gameIdChessAi]: game } },
+                                game,
+                            );
+                        } catch (e: any) {
+                            console.error('[GameActions] Inline chess AI lobby move failed:', e?.message);
+                            game.aiTurnStartTime = Date.now() + 1000;
+                        }
+                    })();
                 }
             }
 

@@ -93,6 +93,8 @@ const aiNicknames: Record<GameMode, string> = {
     [GameMode.Thief]: '도둑과 경찰 봇',
     [GameMode.Alkkagi]: '알까기 봇',
     [GameMode.Curling]: '바둑 컬링 봇',
+    [GameMode.Chess]: '체스 바둑봇',
+    [GameMode.Castle]: '성 바둑봇',
 };
 
 export const getAiUser = (mode: GameMode): User => {
@@ -725,9 +727,13 @@ const makeThiefAiMove = async (game: types.LiveGameSession) => {
                             game.justCaptured.push({ point: stone, player: myRole === 'thief' ? types.Player.White : types.Player.Black, wasHidden: false, capturePoints: 1 });
                         }
                         
-                        if (myRole === 'police') {
-                            if (!game.thiefCapturesThisRound) game.thiefCapturesThisRound = 0;
-                            game.thiefCapturesThisRound += result.capturedStones.length;
+                        if (myRole === 'police' && game.policePlayerId) {
+                            const capturedCount = result.capturedStones.length;
+                            if (capturedCount > 0) {
+                                if (!game.thiefCapturesThisRound) game.thiefCapturesThisRound = 0;
+                                game.thiefCapturesThisRound += capturedCount;
+                                game.scores[game.policePlayerId] = (game.scores[game.policePlayerId] || 0) + capturedCount;
+                            }
                         }
                     }
                     
@@ -765,7 +771,6 @@ const makeThiefAiMove = async (game: types.LiveGameSession) => {
                 const capturesThisRound = game.thiefCapturesThisRound || 0;
                 
                 game.scores[game.thiefPlayerId!] = (game.scores[game.thiefPlayerId!] || 0) + finalThiefStonesLeft;
-                game.scores[game.policePlayerId!] = (game.scores[game.policePlayerId!] || 0) + capturesThisRound;
                 
                 const p1Id = game.player1.id;
                 const p1IsThief = p1Id === game.thiefPlayerId;
@@ -794,7 +799,7 @@ const makeThiefAiMove = async (game: types.LiveGameSession) => {
                     const winnerId = p1Score > p2Score ? p1Id : game.player2.id;
                     const winnerEnum = winnerId === game.blackPlayerId ? types.Player.Black : types.Player.White;
                     const { endGame } = await import('./summaryService.js');
-                    endGame(game, winnerEnum, 'total_score');
+                    await endGame(game, winnerEnum, 'total_score');
                     return;
                 }
                 
@@ -1340,6 +1345,8 @@ export const makeAiMove = async (game: LiveGameSession) => {
                 types.GameMode.Hidden,
                 types.GameMode.Missile,
                 types.GameMode.Uniform,
+                types.GameMode.Castle,
+                types.GameMode.Chess,
                 types.GameMode.Mix
             ];
 
@@ -1406,6 +1413,8 @@ export const makeAiMove = async (game: LiveGameSession) => {
                     types.GameMode.Hidden,
                     types.GameMode.Missile,
                     types.GameMode.Uniform,
+                    types.GameMode.Castle,
+                    types.GameMode.Chess,
                     types.GameMode.Mix
                 ];
                 if (strategicModes.includes(game.mode)) {

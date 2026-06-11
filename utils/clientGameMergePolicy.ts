@@ -1,6 +1,16 @@
 import type { LiveGameSession } from '../types.js';
 import { GameMode } from '../types.js';
 import {
+    boardHasStrayLegacyFlankStones,
+    CHESS_GO_BOARD_SIZE,
+    hasChessPiecesMovedFromStandardOpening,
+    hasLegacyChessFlankPawnLayout,
+    isLegacyChessGoLayout,
+    isStandardChessGoOpeningLayout,
+    normalizeChessGoSession,
+    shouldPreserveChessGoMidgameState,
+} from '../shared/utils/chessGoRules.js';
+import {
     getArenaStateBucket,
     resolveArenaSessionPolicy,
     type ArenaStateBucket,
@@ -211,6 +221,99 @@ function mergeCaptureCountMonotonic(
     return changed ? (patch as LiveGameSession['captures']) : incoming;
 }
 
+/** 캐슬 바둑: 슬림 패킷이 castleStonePoints·확정 영토를 비우면 기존 값을 유지한다. */
+function preserveCastleSessionFieldsOnMerge(
+    incoming: LiveGameSession,
+    existing: LiveGameSession | undefined,
+): LiveGameSession {
+    if (!existing) return incoming;
+    let merged = incoming;
+    if (
+        (!incoming.castleStonePoints || incoming.castleStonePoints.length === 0) &&
+        existing.castleStonePoints &&
+        existing.castleStonePoints.length > 0
+    ) {
+        merged = { ...merged, castleStonePoints: existing.castleStonePoints };
+    }
+    const incomingTerritory = incoming.confirmedTerritoryOwnerByPoint;
+    const existingTerritory = existing.confirmedTerritoryOwnerByPoint;
+    if (!incomingTerritory && existingTerritory) {
+        merged = { ...merged, confirmedTerritoryOwnerByPoint: existingTerritory };
+    } else if (incomingTerritory && existingTerritory) {
+        merged = {
+            ...merged,
+            confirmedTerritoryOwnerByPoint: { ...existingTerritory, ...incomingTerritory },
+        };
+    }
+    return merged;
+}
+
+/** 체스 바둑: 레거시 sessionStorage·슬림 패킷이 측면 폰/잘못된 기물 순서를 남기지 않게 표준 배치로 교정 */
+function mergeChessSessionFieldsOnMerge(
+    incoming: LiveGameSession,
+    existing: LiveGameSession | undefined,
+): LiveGameSession {
+    if (incoming.mode !== GameMode.Chess) return incoming;
+    let merged: LiveGameSession = { ...incoming };
+    if (merged.settings?.boardSize !== CHESS_GO_BOARD_SIZE) {
+        merged = {
+            ...merged,
+            settings: { ...merged.settings, boardSize: CHESS_GO_BOARD_SIZE as LiveGameSession['settings']['boardSize'] },
+        };
+    }
+    if (
+        existing?.boardState?.length &&
+        merged.boardState?.length &&
+        boardHasStrayLegacyFlankStones(merged) &&
+        !boardHasStrayLegacyFlankStones({ ...merged, boardState: existing.boardState })
+    ) {
+        merged = { ...merged, boardState: existing.boardState };
+    }
+    if (
+        (!incoming.chessPieces || incoming.chessPieces.length === 0) &&
+        existing?.chessPieces &&
+        existing.chessPieces.length > 0
+    ) {
+        if (!hasLegacyChessFlankPawnLayout(existing.chessPieces)) {
+            merged = { ...merged, chessPieces: existing.chessPieces };
+        }
+    }
+    if (incoming.chessCaptureScore == null && existing?.chessCaptureScore) {
+        merged = { ...merged, chessCaptureScore: existing.chessCaptureScore };
+    }
+    if (incoming.chessPieceMovedThisTurn == null && existing?.chessPieceMovedThisTurn != null) {
+        merged = { ...merged, chessPieceMovedThisTurn: existing.chessPieceMovedThisTurn };
+    }
+    const existingPiecesMoved = hasChessPiecesMovedFromStandardOpening(existing?.chessPieces);
+    const incomingPiecesMoved = hasChessPiecesMovedFromStandardOpening(merged.chessPieces);
+    const existingPreserveMidgame = existing ? shouldPreserveChessGoMidgameState(existing) : false;
+    if (
+        (existingPiecesMoved || existingPreserveMidgame) &&
+        (!merged.chessPieces?.length || !incomingPiecesMoved)
+    ) {
+        merged = {
+            ...merged,
+            chessPieces: existing!.chessPieces,
+            chessPieceMovedThisTurn: existing!.chessPieceMovedThisTurn ?? merged.chessPieceMovedThisTurn,
+            chessCaptureScore: existing!.chessCaptureScore ?? merged.chessCaptureScore,
+        };
+    }
+    const existingStandard =
+        existing?.chessPieces &&
+        isStandardChessGoOpeningLayout(existing.chessPieces) &&
+        !existingPiecesMoved;
+    const incomingLegacy =
+        merged.chessPieces && isLegacyChessGoLayout(merged.chessPieces);
+    if (existingStandard && incomingLegacy) {
+        merged = {
+            ...merged,
+            chessPieces: existing!.chessPieces,
+            chessCaptureScore: existing!.chessCaptureScore ?? merged.chessCaptureScore,
+        };
+    }
+    return normalizeChessGoSession(merged);
+}
+
 /** rejoin·계가 폴링·INITIAL_STATE 직후: 슬림 서버 스냅샷이 로컬 판·수순·계가를 덮지 않게 병합한다. */
 export function mergeLiveRejoinResponseWithExistingBoard(
     existing: LiveGameSession | undefined,
@@ -235,6 +338,8 @@ export function mergeLiveRejoinResponseWithExistingBoard(
             ) ?? incoming.hiddenStoneCaptures ?? existing.hiddenStoneCaptures,
     };
     merged = preserveTerminalAnalysisResultOnMerge(merged, existing);
+    merged = preserveCastleSessionFieldsOnMerge(merged, existing);
+    merged = mergeChessSessionFieldsOnMerge(merged, existing);
     const incomingSummaryKeys =
         merged.summary && typeof merged.summary === 'object' ? Object.keys(merged.summary as object) : [];
     if (
@@ -292,6 +397,12 @@ export function mergeGameUpdateByArena(
     }
     /** 본경기·시작 확인 단계로 들어온 패킷이 임시 좌석을 들고 오면 잠금값으로 되돌린다(흑/백 영구 스왑 방지). */
     const seatLocked = coerceBaseSessionPlayingSeatLock(merged);
-    return coerceAdventureLiveGameScoringTurnLimit(seatLocked);
+    return mergeChessSessionFieldsOnMerge(
+        preserveCastleSessionFieldsOnMerge(
+            coerceAdventureLiveGameScoringTurnLimit(seatLocked),
+            existing,
+        ),
+        existing,
+    );
 }
 

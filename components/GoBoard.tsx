@@ -13,6 +13,9 @@ import {
     type BaseStoneOverlayContext,
 } from '../shared/utils/baseHiddenMoveIndex.js';
 import { mapStoneToUniformDisplay, resolveTerritoryMarkerDisplayPlayer, resolveUniformStoneDisplayColorForBoard, territoryMarkerRgba } from '../shared/utils/uniformGoRules.js';
+import { detectAndConfirmTerritories } from '../shared/utils/castleGoRules.js';
+import type { ChessPieceState, ChessPieceType } from '../shared/types/entities.js';
+import { CHESS_GO_BOARD_SIZE, normalizeChessGoSession } from '../shared/utils/chessGoRules.js';
 
 /** 따내기/보너스 점수 플로트: mid(5~9) 기준 폰트 배율 */
 const CAPTURE_SCORE_FLOAT_BASE_EM = 0.92;
@@ -77,6 +80,34 @@ function getCaptureScoreFloatVisual(cellSize: number, points: number) {
               : 'capture-points-float-inner capture-points-float-inner--mid';
     return { tier, fontSize, strokeWidth, stroke, fill, innerClassName };
 }
+
+/** 캐슬 바둑 중립 캐슬 마커 — 성(城) 실루엣 */
+const CastleStoneMarker: React.FC<{ cx: number; cy: number; size: number }> = ({ cx, cy, size }) => {
+    const w = size;
+    const h = size * 1.08;
+    const bx = cx - w / 2;
+    const by = cy - h / 2;
+    const stroke = '#44403c';
+    const sw = Math.max(1.2, size * 0.06);
+    const battlement = (leftRatio: number, topRatio: number, key: string) => (
+        <g key={key}>
+            <rect x={bx + w * leftRatio} y={by + h * topRatio} width={w * 0.11} height={h * 0.11} fill="#e7e5e4" stroke={stroke} strokeWidth={sw * 0.85} rx={size * 0.02} />
+            <rect x={bx + w * (leftRatio + 0.13)} y={by + h * topRatio} width={w * 0.11} height={h * 0.11} fill="#e7e5e4" stroke={stroke} strokeWidth={sw * 0.85} rx={size * 0.02} />
+        </g>
+    );
+    return (
+        <g pointerEvents="none">
+            <rect x={bx + w * 0.14} y={by + h * 0.48} width={w * 0.72} height={h * 0.4} fill="#78716c" stroke={stroke} strokeWidth={sw} rx={size * 0.05} />
+            <rect x={bx + w * 0.1} y={by + h * 0.24} width={w * 0.24} height={h * 0.34} fill="#a8a29e" stroke={stroke} strokeWidth={sw * 0.9} rx={size * 0.04} />
+            <rect x={bx + w * 0.66} y={by + h * 0.24} width={w * 0.24} height={h * 0.34} fill="#a8a29e" stroke={stroke} strokeWidth={sw * 0.9} rx={size * 0.04} />
+            <rect x={bx + w * 0.34} y={by + h * 0.14} width={w * 0.32} height={h * 0.52} fill="#d6d3d1" stroke={stroke} strokeWidth={sw} rx={size * 0.05} />
+            {battlement(0.1, 0.08, 'bl')}
+            {battlement(0.34, 0.0, 'bc')}
+            {battlement(0.66, 0.08, 'br')}
+            <rect x={bx + w * 0.43} y={by + h * 0.58} width={w * 0.14} height={h * 0.18} fill="#57534e" stroke={stroke} strokeWidth={sw * 0.7} rx={size * 0.03} />
+        </g>
+    );
+};
 
 const AnimatedBonusText: React.FC<{
     animation: Extract<AnimationData, { type: 'bonus_text' }>;
@@ -473,18 +504,28 @@ const RecommendedMoveMarker: React.FC<{
     );
 };
 
-const Stone: React.FC<{ player: Player, cx: number, cy: number, isLastMove?: boolean, isSelectedMissile?: boolean, isHoverSelectableMissile?: boolean, isKnownHidden?: boolean, isNewlyRevealed?: boolean, animationClass?: string, isBaseStone?: boolean, isPatternStone?: boolean, radius: number, isFaint?: boolean, keepUpright?: boolean, isPlacementPreview?: boolean, uniformDisplayColor?: Player | null }> = ({ player, cx, cy, isLastMove, isSelectedMissile, isHoverSelectableMissile, isKnownHidden, isNewlyRevealed, animationClass, isBaseStone, isPatternStone, radius, isFaint, keepUpright, isPlacementPreview, uniformDisplayColor }) => {
+const CHESS_PIECE_GLYPHS: Record<ChessPieceType, string> = {
+    pawn: '♟',
+    rook: '♜',
+    knight: '♞',
+    bishop: '♝',
+    queen: '♛',
+};
+
+const Stone: React.FC<{ player: Player, cx: number, cy: number, isLastMove?: boolean, isSelectedMissile?: boolean, isHoverSelectableMissile?: boolean, isKnownHidden?: boolean, isNewlyRevealed?: boolean, animationClass?: string, isBaseStone?: boolean, isPatternStone?: boolean, chessPieceType?: ChessPieceType, chessRemainingMoves?: number, chessPieceSelected?: boolean, radius: number, isFaint?: boolean, keepUpright?: boolean, isPlacementPreview?: boolean, uniformDisplayColor?: Player | null }> = ({ player, cx, cy, isLastMove, isSelectedMissile, isHoverSelectableMissile, isKnownHidden, isNewlyRevealed, animationClass, isBaseStone, isPatternStone, chessPieceType, chessRemainingMoves, chessPieceSelected, radius, isFaint, keepUpright, isPlacementPreview, uniformDisplayColor }) => {
     const visualPlayer = mapStoneToUniformDisplay(player, uniformDisplayColor);
     const specialImageSize = radius * 2 * 0.7;
     const specialImageOffset = specialImageSize / 2;
 
     const strokeColor = isSelectedMissile
         ? 'rgb(239, 68, 68)'
+        : chessPieceSelected
+          ? 'rgb(250, 204, 21)'
         : isPlacementPreview
           ? 'rgb(34, 197, 94)'
           : 'none';
     
-    const strokeWidth = isSelectedMissile || isPlacementPreview ? 3.5 : 0;
+    const strokeWidth = isSelectedMissile || isPlacementPreview || chessPieceSelected ? 3.5 : 0;
 
     return (
         <g
@@ -510,6 +551,37 @@ const Stone: React.FC<{ player: Player, cx: number, cy: number, isLastMove?: boo
             )}
             {isPatternStone && (
                 <image href={visualPlayer === Player.Black ? '/images/single/BlackDouble.webp' : '/images/single/WhiteDouble.webp'} x={cx - specialImageOffset} y={cy - specialImageOffset} width={specialImageSize} height={specialImageSize} />
+            )}
+            {chessPieceType && (
+                <>
+                    <text
+                        x={cx}
+                        y={cy}
+                        textAnchor="middle"
+                        dominantBaseline="central"
+                        fontSize={radius * 1.15}
+                        fill={visualPlayer === Player.Black ? '#f8fafc' : '#1e293b'}
+                        style={{ pointerEvents: 'none', userSelect: 'none' }}
+                    >
+                        {CHESS_PIECE_GLYPHS[chessPieceType]}
+                    </text>
+                    {typeof chessRemainingMoves === 'number' && (
+                        <g style={{ pointerEvents: 'none' }}>
+                            <circle cx={cx + radius * 0.55} cy={cy + radius * 0.55} r={radius * 0.32} fill="rgba(15, 23, 42, 0.85)" stroke="rgba(248, 250, 252, 0.9)" strokeWidth={1} />
+                            <text
+                                x={cx + radius * 0.55}
+                                y={cy + radius * 0.55}
+                                textAnchor="middle"
+                                dominantBaseline="central"
+                                fontSize={radius * 0.38}
+                                fill="#f8fafc"
+                                fontWeight="700"
+                            >
+                                {chessRemainingMoves}
+                            </text>
+                        </g>
+                    )}
+                </>
             )}
             {isNewlyRevealed && (
                 <circle
@@ -599,11 +671,15 @@ interface GoBoardProps {
   baseStones?: { x: number, y: number, player: Player }[];
   baseStones_p1?: Point[];
   baseStones_p2?: Point[];
+  castleStonePoints?: Point[];
+  confirmedTerritoryOwnerByPoint?: Record<string, Player.Black | Player.White>;
+  chessPieces?: ChessPieceState[];
+  selectedChessPieceId?: string | null;
   myPlayerEnum: Player;
   gameStatus: GameStatus;
   currentPlayer: Player;
   highlightedPoints?: Point[];
-  highlightStyle?: 'circle' | 'ring';
+  highlightStyle?: 'circle' | 'ring' | 'green-dot';
   myRevealedStones?: Point[];
   /** 내가 스캔으로 몰래 본 히든 수순 인덱스. 있으면 좌표만으로는 판단하지 않아(같은 자리 재착수 시 반투명 버그 방지) */
   myRevealedMoveIndices?: readonly number[];
@@ -673,8 +749,11 @@ interface GoBoardProps {
 
 const GoBoard: React.FC<GoBoardProps> = (props) => {
     const { 
-        boardState, boardSize, onBoardClick, onMissileLaunch, lastMove, lastTurnStones, isBoardDisabled, 
+        boardState: boardStateProp, boardSize: boardSizeProp, onBoardClick, onMissileLaunch, lastMove, lastTurnStones, isBoardDisabled, 
         stoneColor, winningLine, hiddenMoves, humanHiddenStonePoints, moveHistory, baseStones, baseStones_p1, baseStones_p2,
+        castleStonePoints, confirmedTerritoryOwnerByPoint,
+        chessPieces: chessPiecesProp = [],
+        selectedChessPieceId = null,
         baseStonesP1Player = Player.Black,
         baseStonesP2Player = Player.White,
         myPlayerEnum,
@@ -703,6 +782,25 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         boardRuleFlashMessage = null,
         uniformStoneDisplayColor = null,
     } = props;
+
+    /** 체스 바둑: 레거시 측면 폰·y=0/12 배치가 props로 들어와도 렌더 직전 표준 28기물로 교정 */
+    const chessNormalizedSlice = useMemo(() => {
+        if (mode !== GameMode.Chess) return null;
+        return normalizeChessGoSession({
+            mode: GameMode.Chess,
+            settings: { boardSize: boardSizeProp } as LiveGameSession['settings'],
+            moveHistory: moveHistory ?? [],
+            boardState: boardStateProp,
+            chessPieces: chessPiecesProp,
+            chessCaptureScore: undefined,
+            chessPieceMovedThisTurn: undefined,
+        });
+    }, [mode, boardSizeProp, moveHistory, boardStateProp, chessPiecesProp]);
+
+    const boardState = chessNormalizedSlice?.boardState ?? boardStateProp;
+    const chessPieces = chessNormalizedSlice?.chessPieces ?? chessPiecesProp;
+    const boardSize = mode === GameMode.Chess ? CHESS_GO_BOARD_SIZE : boardSizeProp;
+
     const baseHiddenMoveCtx = useMemo<BaseStoneOverlayContext>(
         () => ({ baseStones, baseStones_p1, baseStones_p2, gameStatus }),
         [baseStones, baseStones_p1, baseStones_p2, gameStatus],
@@ -1189,6 +1287,21 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         return result;
     }, [boardState, gameStatus, boardSize, moveHistory, analysisResult, mode]);
 
+    /** 캐슬 바둑: 현재 보드 기준 확정 영토를 즉시 계산해 마커를 바로 표시한다. */
+    const liveCastleConfirmedTerritory = useMemo(() => {
+        if (!castleStonePoints?.length) return confirmedTerritoryOwnerByPoint;
+        if (gameStatus !== 'playing' && gameStatus !== 'ended' && gameStatus !== 'scoring') {
+            return confirmedTerritoryOwnerByPoint;
+        }
+        const slice = {
+            castleStonePoints,
+            confirmedTerritoryOwnerByPoint: confirmedTerritoryOwnerByPoint ?? {},
+            boardState: displayBoardState,
+            settings: { komi: 0 },
+        };
+        return detectAndConfirmTerritories(slice, displayBoardState as BoardState);
+    }, [castleStonePoints, confirmedTerritoryOwnerByPoint, displayBoardState, gameStatus]);
+
     const safeBoardSize = boardSize > 0 ? boardSize : 19;
     const cell_size = boardSizePx / safeBoardSize;
     const padding = cell_size / 2;
@@ -1529,6 +1642,12 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 }
             }
 
+            // 체스 바둑: 자기 기물 선택·이동은 바둑 착수 검사를 건너뛰고 Game.tsx에서 처리
+            if (mode === GameMode.Chess && gameStatus === 'playing' && !isBoardDisabled) {
+                onBoardClick(boardPos.x, boardPos.y);
+                return;
+            }
+
             const stoneAtPos = displayBoardState[boardPos.y]?.[boardPos.x];
             
             if (stoneAtPos === myPlayerEnum) {
@@ -1603,6 +1722,49 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         !isMissileSelectingActive &&
         (displayBoardState[hoverPos.y][hoverPos.x] === Player.None || isOpponentHiddenStoneAtPos(hoverPos));
     
+    const renderCastleConfirmedTerritoryMarkers = () => {
+        if (!liveCastleConfirmedTerritory) return null;
+        const cellSize = (boardSizePx - padding * 2) / safeBoardSize;
+        const size = cellSize * 0.38;
+        const opacity = 0.9;
+        const castleKeys = new Set((castleStonePoints ?? []).map((p) => `${p.x},${p.y}`));
+
+        return (
+            <g style={{ pointerEvents: 'none' }}>
+                {Object.entries(liveCastleConfirmedTerritory).map(([key, owner]) => {
+                    const [tx, ty] = key.split(',').map(Number);
+                    if (!Number.isFinite(tx) || !Number.isFinite(ty)) return null;
+                    const onBoard = displayBoardState[ty]?.[tx];
+                    const isCastleCell = castleKeys.has(key);
+                    if (onBoard !== Player.None && !isCastleCell) return null;
+                    const { cx, cy } = toSvgCoords({ x: tx, y: ty });
+                    const markerDisplayPlayer = resolveTerritoryMarkerDisplayPlayer(
+                        owner,
+                        gameStatus,
+                        uniformStoneDisplayColor,
+                    );
+                    const { fill, stroke } = territoryMarkerRgba(markerDisplayPlayer, opacity, {
+                        emphasizeActualColors: territoryMarkersUseActualColors,
+                    });
+                    return (
+                        <rect
+                            key={`castle-territory-${key}`}
+                            x={cx - size / 2}
+                            y={cy - size / 2}
+                            width={size}
+                            height={size}
+                            fill={fill}
+                            stroke={stroke}
+                            strokeWidth={size * 0.05}
+                            rx={size * 0.15}
+                            style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.2))' }}
+                        />
+                    );
+                })}
+            </g>
+        );
+    };
+
     const renderDeadStoneMarkers = () => {
         if (!showTerritoryOverlay || !analysisResult || !analysisResult.deadStones) return null;
 
@@ -2003,6 +2165,13 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     </g>
                 ))}
                 {starPoints.map((p, i) => <circle key={i} {...toSvgCoords(p)} r={safeBoardSize > 9 ? 6 : 4} fill="#54432a" />)}
+
+                {renderCastleConfirmedTerritoryMarkers()}
+
+                {castleStonePoints?.map((stone, i) => {
+                    const { cx, cy } = toSvgCoords(stone);
+                    return <CastleStoneMarker key={`castle-stone-${i}`} cx={cx} cy={cy} size={stone_radius * 1.85} />;
+                })}
                 
                 {displayBoardState.map((row, y) => row.map((player, x) => {
                     if (player === Player.None) return null;
@@ -2166,7 +2335,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
 
                     const stonePlayerForRender = actualPlayer;
 
-                    return <Stone key={`${x}-${y}`} player={stonePlayerForRender} uniformDisplayColor={activeUniformStoneDisplayColor} cx={cx} cy={cy} isLastMove={isLast} isKnownHidden={isKnownHidden as boolean} isBaseStone={hasBaseStoneHere} isPatternStone={isPatternStone} isNewlyRevealed={isNewlyRevealedForAnim} animationClass={isNewlyRevealedForAnim ? 'sparkle-animation' : ''} isSelectedMissile={isSelectedMissileForRender} isHoverSelectableMissile={isHoverSelectableMissile} radius={stone_radius} isFaint={isFaint} keepUpright={!!isRotated} />;
+                    return <Stone key={`${x}-${y}`} player={stonePlayerForRender} uniformDisplayColor={activeUniformStoneDisplayColor} cx={cx} cy={cy} isLastMove={isLast} isKnownHidden={isKnownHidden as boolean} isBaseStone={hasBaseStoneHere} isPatternStone={isPatternStone} chessPieceType={chessPieces.find((p) => p.x === x && p.y === y)?.type} chessRemainingMoves={chessPieces.find((p) => p.x === x && p.y === y)?.remainingMoves} chessPieceSelected={chessPieces.some((p) => p.id === selectedChessPieceId && p.x === x && p.y === y)} isNewlyRevealed={isNewlyRevealedForAnim} animationClass={isNewlyRevealedForAnim ? 'sparkle-animation' : ''} isSelectedMissile={isSelectedMissileForRender} isHoverSelectableMissile={isHoverSelectableMissile} radius={stone_radius} isFaint={isFaint} keepUpright={!!isRotated} />;
                 }))}
                 {isPairBasePlacementHost ? (
                     <>
@@ -2262,6 +2431,20 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                                 strokeWidth="3"
                                 strokeDasharray="5 3"
                                 className="animate-pulse"
+                                style={{ pointerEvents: 'none' }}
+                            />
+                        );
+                    }
+                    if (highlightStyle === 'green-dot') {
+                        return (
+                            <circle
+                                key={`highlight-green-${i}`}
+                                cx={cx}
+                                cy={cy}
+                                r={stone_radius * 0.24}
+                                fill="rgb(34, 197, 94)"
+                                stroke="rgb(21, 128, 61)"
+                                strokeWidth={Math.max(1, stone_radius * 0.04)}
                                 style={{ pointerEvents: 'none' }}
                             />
                         );

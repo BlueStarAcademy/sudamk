@@ -8,6 +8,7 @@ import { getEffectivePairLobbyOwnerId } from '../../shared/utils/effectivePairLo
 import { canViewerPlaceMoreBaseStones } from '../../shared/utils/basePlacementCanPlaceMore.js';
 import { resolveBasePlacementSeatColors } from '../../shared/utils/basePlacementSeatColors.js';
 import { modeIncludesBaseCaptureMix } from '../../shared/utils/liveSessionArenaKind.js';
+import { CHESS_GO_BOARD_SIZE, normalizeChessGoSession } from '../../shared/utils/chessGoRules.js';
 
 interface GoGameArenaProps extends GameProps {
     isMyTurn: boolean;
@@ -31,6 +32,8 @@ interface GoGameArenaProps extends GameProps {
     /** Game.tsx 계가 5초 연출이 끝나기 전에는 보드에 영토·계가 분석을 표시하지 않음 */
     blockScoringBoardAnalysis?: boolean;
     isMoveSubmitting?: boolean;
+    selectedChessPieceId?: string | null;
+    chessHighlightPoints?: Point[];
 }
 
 function modeIncludesCaptureRule(mode: GameMode, settings: { mixedModes?: GameMode[] }): boolean {
@@ -60,9 +63,20 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
         boardRuleFlashMessage = null,
         blockScoringBoardAnalysis = false,
         isMoveSubmitting = false,
+        selectedChessPieceId = null,
+        chessHighlightPoints = [],
     } = props;
 
     const { blackPlayerId, whitePlayerId, player1, player2, settings, lastMove, gameStatus, mode, moveHistory, hiddenMoves } = session;
+
+    /** 체스 바둑: 렌더 직전 normalize — 레거시 boardState/chessPieces가 화면에 남지 않게 */
+    const chessNormalizedSession = useMemo(
+        () => (mode === GameMode.Chess ? normalizeChessGoSession(session) : session),
+        [session, mode],
+    );
+    const displaySession = mode === GameMode.Chess ? chessNormalizedSession : session;
+
+    const boardSizeForDisplay = mode === GameMode.Chess ? CHESS_GO_BOARD_SIZE : settings.boardSize;
     const strategicPetHintDotOverlay = useMemo(() => {
         if (!strategicPetHintBoardOverlay) return null;
         const { x, y } = strategicPetHintBoardOverlay;
@@ -84,11 +98,11 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
         session.gameCategory === 'adventure' &&
         ['nigiri_reveal', 'color_start_confirmation', 'nigiri_choosing', 'nigiri_guessing'].includes(gameStatus);
     const boardStateForDisplay =
-        adventurePregameHideBoard && settings?.boardSize
-            ? Array.from({ length: settings.boardSize }, () =>
-                  Array.from({ length: settings.boardSize }, () => Player.None)
+        adventurePregameHideBoard && boardSizeForDisplay
+            ? Array.from({ length: boardSizeForDisplay }, () =>
+                  Array.from({ length: boardSizeForDisplay }, () => Player.None)
               )
-            : session.boardState;
+            : displaySession.boardState;
 
     /** 좌표가 같으면 객체 참조를 유지해 GoBoard 따낸 점수 effect 등이 매 렌더 불필요하게 돌지 않게 함 */
     const displayLastMoveKey = useMemo(() => {
@@ -291,7 +305,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 <div className="relative aspect-square h-full max-h-full w-full max-w-full min-h-0 min-w-0 shrink-0 overflow-hidden">
                 <GoBoard
                 boardState={boardStateForDisplay}
-                boardSize={settings.boardSize}
+                boardSize={boardSizeForDisplay}
                 onBoardClick={handleBoardClick}
                 onMissileLaunch={(from: Point, direction: 'up' | 'down' | 'left' | 'right') => {
                     // 클라이언트의 boardState를 서버로 전송하여 정확한 검증 가능하도록 함
@@ -330,7 +344,10 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 myPlayerEnum={myPlayerEnum}
                 gameStatus={gameStatus}
                 currentPlayer={session.currentPlayer}
-                highlightedPoints={[]}
+                highlightedPoints={chessHighlightPoints}
+                highlightStyle="green-dot"
+                chessPieces={displaySession.chessPieces}
+                selectedChessPieceId={selectedChessPieceId}
                 myRevealedStones={myRevealedStones}
                 myRevealedMoveIndices={myRevealedMoves}
                 allRevealedStones={allRevealedStones}
@@ -355,6 +372,8 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 baseStones_p2={showPlacedBaseStoneArrays ? session.baseStones_p2 : undefined}
                 baseStonesP1Player={baseStonesP1Player}
                 baseStonesP2Player={baseStonesP2Player}
+                castleStonePoints={session.castleStonePoints}
+                confirmedTerritoryOwnerByPoint={session.confirmedTerritoryOwnerByPoint}
                 currentUser={props.currentUser}
                 blackPlayerNickname={blackPlayer?.nickname || '흑'}
                 whitePlayerNickname={whitePlayer?.nickname || '백'}

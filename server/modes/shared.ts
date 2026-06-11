@@ -66,8 +66,10 @@ export function isAiLobbyManualClockPause(
 const MIN_BYOYOMI_COUNT = 1;
 
 /** 제한시간이 있거나 초읽기만 설정된 경우(제한시간 없음 + 초읽기) 시간 제어가 활성화됨 */
-export const hasTimeControl = (s: { timeLimit?: number; byoyomiCount?: number; byoyomiTime?: number }) =>
-    (s.timeLimit ?? 0) > 0 || ((s.byoyomiCount ?? 0) > 0 && (s.byoyomiTime ?? 0) > 0);
+export const hasTimeControl = (s: { timeLimit?: number; byoyomiCount?: number; byoyomiTime?: number; timeIncrement?: number }) =>
+    (s.timeLimit ?? 0) > 0 ||
+    ((s.byoyomiCount ?? 0) > 0 && (s.byoyomiTime ?? 0) > 0) ||
+    ((s.timeLimit ?? 0) > 0 && (s.timeIncrement ?? 0) > 0);
 
 /** PVP 실시간 대국에만 시간 제어 적용. 길드 전쟁(AI 대국)은 피셔 제한시간 적용을 위해 예외. 싱글/일반 AI/탑은 false. */
 export const shouldEnforceTimeControl = (game: types.LiveGameSession): boolean => {

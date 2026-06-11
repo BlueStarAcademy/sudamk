@@ -8,6 +8,7 @@ import { WEBSOCKET_ADMIN_FORCE_LOGOUT_CLOSE_CODE } from '../shared/constants/aut
 import { isSyntheticOnlineUserId } from '../shared/utils/syntheticOnlineUserIds.js';
 import { PVP_WS_DISCONNECT_GRACE_MS } from '../shared/utils/pvpDisconnectPolicy.js';
 import { getArenaTurnCount } from './utils/arenaTurnPolicy.js';
+import { applyNormalizedChessGoInPlace } from '../shared/utils/chessGoRules.js';
 
 const pendingPvpDisconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
@@ -635,9 +636,11 @@ export const broadcastToGameParticipants = (gameId: string, message: any, game: 
     if (!wss || !game) return;
     /** 베이스 본경기 좌석 잠금 보호: 어떤 경로로든 흑/백 ID가 잠금에서 벗어나면 송신 직전에 되돌린다. */
     enforceBaseSeatLockBeforeBroadcast(game);
+    applyNormalizedChessGoInPlace(game);
     if (message?.type === 'GAME_UPDATE' && message.payload && typeof message.payload === 'object') {
         for (const g of Object.values(message.payload as Record<string, unknown>)) {
             enforceBaseSeatLockBeforeBroadcast(g);
+            applyNormalizedChessGoInPlace(g as any);
         }
     }
     const participantIds = new Set<string>();

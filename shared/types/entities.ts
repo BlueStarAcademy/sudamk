@@ -1031,6 +1031,10 @@ export type GameSettings = {
   hiddenStoneCount?: number;
   scanCount?: number;
   missileCount?: number;
+  /** 캐슬 바둑: 중립 캐슬(장애물) 개수 1~3 */
+  castleCount?: 1 | 2 | 3 | 4 | 5 | 6;
+  /** 체스 바둑: AI/테스트 기본 100수 자동계가 (13×13) */
+  chessScoringTurnLimit?: number;
   /** 싱글플레이 스테이지별 배치변경 허용 여부 */
   singlePlayerPlacementRefreshAllowed?: boolean;
   /** 싱글/탑 런타임: 살리기 모드 명시(스테이지와 불일치 방지) */
@@ -1307,6 +1311,21 @@ export type GameSummary = {
 };
 
 
+// --- Chess Go ---
+export type ChessPieceType = 'pawn' | 'rook' | 'knight' | 'bishop' | 'queen';
+
+export type ChessPieceState = {
+  id: string;
+  type: ChessPieceType;
+  owner: Player.Black | Player.White;
+  x: number;
+  y: number;
+  /** 게임 시작 시 배치 좌표 — 폰 2칸 초행 판정용 */
+  startX: number;
+  startY: number;
+  remainingMoves: number;
+};
+
 // --- Core Entities ---
 export type LiveGameSession = {
   id: string;
@@ -1401,6 +1420,16 @@ export type LiveGameSession = {
   baseStones?: { x: number; y: number; player: Player; }[];
   baseStones_p1?: Point[];
   baseStones_p2?: Point[];
+  /** 캐슬 바둑: 게임 시작 시 고정된 중립 캐슬 좌표 */
+  castleStonePoints?: Point[];
+  /** 캐슬 바둑: 확정 영토 `"x,y"` → 소유 색 */
+  confirmedTerritoryOwnerByPoint?: Record<string, Player.Black | Player.White>;
+  /** 체스 바둑: 기물 상태 */
+  chessPieces?: ChessPieceState[];
+  /** 체스 바둑: 기물 포획 보너스 점수 */
+  chessCaptureScore?: { [key in Player]: number };
+  /** 체스 바둑: 이번 턴에 기물을 이미 이동했는지 */
+  chessPieceMovedThisTurn?: boolean;
   basePlacementDeadline?: number;
   /** 베이스돌 배치: 각 참가자가 배치 완료 버튼을 눌렀는지 (돌 개수 충족 후) */
   basePlacementReady?: { [userId: string]: boolean };

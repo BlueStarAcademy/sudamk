@@ -163,10 +163,8 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({ o
         if (settings.boardSize) {
             items.push({ label: '판 크기', value: `${settings.boardSize}줄` });
         }
-        if (settings.autoScoring) {
-            // 판 크기 선택에 따라 표시되는 계가 조건이 달라질 수 있어,
-            // 요약 리스트에서도 판 크기 항목 바로 다음으로 배치한다.
-            items.push({ label: '자동 계가', value: '서로 통과시 계가' });
+        if (settings.scoringTurnLimit && settings.scoringTurnLimit > 0) {
+            items.push({ label: '계가까지', value: `${settings.scoringTurnLimit}수` });
         }
         if (settings.timeLimit > 0) {
             items.push({ label: '제한시간', value: `${settings.timeLimit}분` });
@@ -188,6 +186,9 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({ o
         }
         if (settings.missileCount) {
             items.push({ label: '미사일 아이템', value: `${settings.missileCount}개` });
+        }
+        if (settings.castleCount) {
+            items.push({ label: '캐슬', value: `${settings.castleCount}개` });
         }
         if (settings.diceGoRounds) {
             items.push({ label: '라운드', value: `${settings.diceGoRounds}라운드` });

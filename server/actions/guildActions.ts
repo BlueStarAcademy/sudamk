@@ -2431,7 +2431,6 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 isGuildWarScheduledAutoMatchWindowKst,
             } = await import('../../shared/utils/guildWarSchedule.js');
             const now = Date.now();
-            const guildWarIsPrepTime = isGuildWarPrepTimeKst(now);
             const guildWarNextEntryOpenAt = getNextGuildWarEntryOpenDateKst(now);
 
             let activeWars = (await db.getKV<any[]>('activeGuildWars')) || [];
@@ -2502,6 +2501,8 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     }
                 }
             }
+
+            const guildWarIsPrepTime = warInProgress ? false : isGuildWarPrepTimeKst(now);
 
             // 매칭 중 여부 확인 (guildWarMatching 또는 매칭큐에 있으면 true)
             const matchingQueue = await db.getKV<string[]>('guildWarMatchingQueue') || [];
@@ -2941,15 +2942,15 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 const { guildWarIsChronologicallyActive } = await import('../guildWarActiveUtils.js');
                 const { guildWarIsOpenForPlay, guildWarStartMs, isGuildWarPrepTimeKst } = await import('../../shared/utils/guildWarSchedule.js');
                 const nowG = Date.now();
-                if (!user.isAdmin && isGuildWarPrepTimeKst(nowG)) {
-                    return { error: '다음 길드전 준비시간입니다. 월·목 0시~23시59분(KST)에는 입장할 수 없습니다.' };
-                }
                 const activeWars = (await db.getKV<any[]>('activeGuildWars')) || [];
                 activeWar = activeWars.find(
                     (w) =>
                         (w.guild1Id === user.guildId || w.guild2Id === user.guildId) &&
                         guildWarIsChronologicallyActive(w, nowG)
                 );
+                if (!user.isAdmin && isGuildWarPrepTimeKst(nowG) && !activeWar) {
+                    return { error: '다음 길드전 준비시간입니다. 월·목 0시~23시59분(KST)에는 입장할 수 없습니다.' };
+                }
 
                 if (!activeWar) {
                     return { error: '진행 중인 길드 전쟁이 없습니다.' };

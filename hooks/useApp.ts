@@ -138,6 +138,7 @@ import { normalizeInventoryAfterLoad } from '../utils/inventoryUtils.js';
 import { reconcileExchangeListedInventoryFlags } from '../shared/utils/exchangeInventorySync.js';
 import { stripReappearedRemovedInventoryItems } from '../shared/utils/inventoryStaleGuard.js';
 import { mergeAdventureProfileForPersistence } from '../utils/adventureProfileMerge.js';
+import { applyChessMoveToSession, normalizeChessGoSession, validateChessMove } from '../shared/utils/chessGoRules.js';
 import {
     coerceAdventureLiveGameScoringTurnLimit,
     getClientArenaStateBucket,
@@ -3315,7 +3316,23 @@ export const useApp = () => {
     // --- Action Handler ---
     // 액션 디바운싱을 위한 ref
     const actionDebounceRef = useRef<Map<string, number>>(new Map());
-    const ACTION_DEBOUNCE_MS = 300; // 300ms 디바운스
+    const ACTION_DEBOUNCE_MS = 150;
+    
+    const shopPurchaseActionTypes = new Set([
+        'BUY_SHOP_ITEM',
+        'BUY_MATERIAL_BOX',
+        'BUY_CONSUMABLE',
+        'BUY_TOWER_ITEM',
+        'BUY_CASH_PACKAGE',
+        'BUY_VIP_PACKAGE',
+        'CANCEL_VIP_SHOP_AUTO_RENEW',
+        'PURCHASE_ACTION_POINTS',
+        'BUY_CHAMPIONSHIP_SHOP_ITEM',
+        'BUY_GUILD_SHOP_ITEM',
+        'GUILD_BUY_SHOP_ITEM',
+        'CLAIM_SHOP_AD_REWARD',
+        'PURCHASE_EXCHANGE_LISTING',
+    ]);
     
     const handleAction = useCallback(async (action: ServerAction): Promise<{ gameId?: string; claimAllTrainingQuestRewards?: any; clientResponse?: any } | void> => {
         // 성능 최적화: 불필요한 로깅 제거 (프로덕션)
@@ -3342,7 +3359,9 @@ export const useApp = () => {
             action.type !== 'BUY_CONDITION_POTION' &&
             action.type !== 'USE_CONDITION_POTION' &&
             action.type !== 'PAIR_PET_CLAIM_TRAINING' &&
-            action.type !== 'PAIR_PET_START_TRAINING'
+            action.type !== 'PAIR_PET_START_TRAINING' &&
+            action.type !== 'CHESS_MOVE_PIECE' &&
+            !shopPurchaseActionTypes.has(action.type)
         ) {
             const debouncePayload = 'payload' in action ? (action as { payload?: unknown }).payload : undefined;
             const actionKey = `${action.type}_${JSON.stringify(debouncePayload ?? {})}`;
@@ -3365,6 +3384,47 @@ export const useApp = () => {
 
         // 베이스 바둑: base_placement에서 PLACE_BASE_STONE은 즉시 화면에 반영되어야 함.
         // 서버 응답/WS 왕복 전까지는 `baseStones_p1/p2`가 갱신되지 않아서 돌이 늦게 보이던 문제가 있음.
+        if ((action as any).type === 'CHESS_MOVE_PIECE') {
+            const payload = (action as any).payload as {
+                gameId?: string;
+                pieceId?: string;
+                toX?: number;
+                toY?: number;
+            } | undefined;
+            const { gameId, pieceId, toX, toY } = payload || {};
+            const uid = currentUserRef.current?.id;
+            if (
+                gameId &&
+                pieceId &&
+                uid != null &&
+                Number.isFinite(toX) &&
+                Number.isFinite(toY)
+            ) {
+                const chessMoveMutate = (game: LiveGameSession): LiveGameSession | null => {
+                    if (game.mode !== GameMode.Chess || game.gameStatus !== 'playing') return null;
+                    const myPlayer =
+                        uid === game.blackPlayerId
+                            ? Player.Black
+                            : uid === game.whitePlayerId
+                              ? Player.White
+                              : null;
+                    if (myPlayer == null || game.currentPlayer !== myPlayer || game.chessPieceMovedThisTurn) {
+                        return null;
+                    }
+                    const copy: LiveGameSession = {
+                        ...game,
+                        chessPieces: game.chessPieces?.map((p) => ({ ...p })),
+                        boardState: game.boardState?.map((row) => [...row]) as LiveGameSession['boardState'],
+                    };
+                    if (!validateChessMove(copy, pieceId, toX!, toY!, myPlayer).ok) return null;
+                    applyChessMoveToSession(copy, pieceId, toX!, toY!);
+                    copy.chessPieceMovedThisTurn = true;
+                    return normalizeChessGoSession(copy);
+                };
+                setLiveGames((c) => patchLiveGameInMapById(c, gameId, chessMoveMutate));
+            }
+        }
+
         if ((action as any).type === 'PLACE_BASE_STONE') {
             const payload = (action as any).payload as { gameId?: string; x?: number; y?: number } | undefined;
             const { gameId, x, y } = payload || {};
@@ -3968,6 +4028,11 @@ export const useApp = () => {
                     itemUseDeadline: undefined,
                     pausedTurnTimeLeft: undefined,
                 };
+                if (game.mode === GameMode.Chess) {
+                    updatedGame.chessPieceMovedThisTurn = false;
+                    const normalized = normalizeChessGoSession(updatedGame);
+                    return { ...currentGames, [gameId]: normalized };
+                }
                 return { ...currentGames, [gameId]: updatedGame };
             });
             return;
@@ -5420,6 +5485,11 @@ export const useApp = () => {
                         const allThievesCaptured = blackLeftAfter === 0 && isPolice;
                         const resolvedStonesToPlace = allThievesCaptured ? 0 : nextStones;
 
+                        const nextScores = { ...(g.scores ?? {}) };
+                        if (isPolice && pm.capturedStones.length > 0 && g.policePlayerId) {
+                            nextScores[g.policePlayerId] = (nextScores[g.policePlayerId] ?? 0) + pm.capturedStones.length;
+                        }
+
                         const nextThiefSession: LiveGameSession = {
                             ...g,
                             boardState: pm.newBoardState.map((row) => [...row]),
@@ -5428,6 +5498,7 @@ export const useApp = () => {
                             stonesToPlace: resolvedStonesToPlace,
                             stonesPlacedThisTurn: placed,
                             thiefCapturesThisRound: nextThiefCaptures,
+                            scores: nextScores,
                         };
                         return { ...currentGames, [gid]: nextThiefSession };
                     });
@@ -6342,7 +6413,8 @@ export const useApp = () => {
                         // 서버 selective update가 이미 deepClone — 펫 수련은 추가 전체 복제 생략
                         if (
                             action.type !== 'PAIR_PET_CLAIM_TRAINING' &&
-                            action.type !== 'PAIR_PET_START_TRAINING'
+                            action.type !== 'PAIR_PET_START_TRAINING' &&
+                            !shopPurchaseActionTypes.has(action.type)
                         ) {
                             updatedUserFromResponse.inventory = JSON.parse(JSON.stringify(updatedUserFromResponse.inventory));
                         }
@@ -7831,6 +7903,23 @@ export const useApp = () => {
                                                     ...(parsed.captures && typeof parsed.captures === 'object'
                                                         ? { captures: parsed.captures }
                                                         : {}),
+                                                    ...(Array.isArray(parsed.castleStonePoints) &&
+                                                    parsed.castleStonePoints.length > 0 &&
+                                                    (!cur.castleStonePoints || cur.castleStonePoints.length === 0)
+                                                        ? { castleStonePoints: parsed.castleStonePoints }
+                                                        : {}),
+                                                    ...(parsed.confirmedTerritoryOwnerByPoint &&
+                                                    typeof parsed.confirmedTerritoryOwnerByPoint === 'object'
+                                                        ? {
+                                                              confirmedTerritoryOwnerByPoint: {
+                                                                  ...(parsed.confirmedTerritoryOwnerByPoint as Record<
+                                                                      string,
+                                                                      Player.Black | Player.White
+                                                                  >),
+                                                                  ...(cur.confirmedTerritoryOwnerByPoint ?? {}),
+                                                              },
+                                                          }
+                                                        : {}),
                                                     ...((() => {
                                                         const pa = (parsed as any).adventureEncounterDeadlineMs;
                                                         const ca = (cur as any).adventureEncounterDeadlineMs;
@@ -7958,7 +8047,11 @@ export const useApp = () => {
                                 } catch {
                                     /* ignore */
                                 }
-                                next[id] = coerceAdventureLiveGameScoringTurnLimit(mergedLive);
+                                let coerced = coerceAdventureLiveGameScoringTurnLimit(mergedLive);
+                                if (coerced.mode === GameMode.Chess) {
+                                    coerced = normalizeChessGoSession(coerced);
+                                }
+                                next[id] = coerced;
                             }
                         }
                         return next;

@@ -140,6 +140,14 @@ export function enterThiefRoundEndModal(game: types.LiveGameSession, now: number
     }
 }
 
+/** 경찰이 도둑돌(흑)을 따낼 때 라운드·누적 점수판에 즉시 반영 */
+export function recordThiefPoliceCaptures(game: types.LiveGameSession, capturedCount: number) {
+    if (capturedCount <= 0 || !game.policePlayerId) return;
+    if (!game.thiefCapturesThisRound) game.thiefCapturesThisRound = 0;
+    game.thiefCapturesThisRound += capturedCount;
+    game.scores[game.policePlayerId] = (game.scores[game.policePlayerId] || 0) + capturedCount;
+}
+
 function appendThiefRoundHistory(
     game: types.LiveGameSession,
     round: number,
@@ -416,8 +424,7 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
                     if (result.capturedStones.length > 0) {
                         totalCapturesThisTurn += result.capturedStones.length;
                         lastCaptureStones = result.capturedStones;
-                        if (!game.thiefCapturesThisRound) game.thiefCapturesThisRound = 0;
-                        game.thiefCapturesThisRound += result.capturedStones.length;
+                        recordThiefPoliceCaptures(game, result.capturedStones.length);
                     }
                     if (!game.stonesPlacedThisTurn) game.stonesPlacedThisTurn = [];
                     game.stonesPlacedThisTurn.push(move);
@@ -444,7 +451,6 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
                     const finalThiefStonesLeft = game.boardState.flat().filter(s => s === types.Player.Black).length;
                     const capturesThisRound = game.thiefCapturesThisRound || 0;
                     game.scores[game.thiefPlayerId!] = (game.scores[game.thiefPlayerId!] || 0) + finalThiefStonesLeft;
-                    game.scores[game.policePlayerId!] = (game.scores[game.policePlayerId!] || 0) + capturesThisRound;
                     
                     const p1IsThief = game.player1.id === game.thiefPlayerId;
                     game.thiefRoundSummary = {
@@ -470,7 +476,7 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
                     if ((game.round === 2 && p1Score !== p2Score) || game.isDeathmatch) {
                         const winnerId = p1Score > p2Score ? p1Id : game.player2.id;
                         const winnerEnum = winnerId === game.blackPlayerId ? types.Player.Black : types.Player.White;
-                        endGame(game, winnerEnum, 'total_score');
+                        void endGame(game, winnerEnum, 'total_score');
                     } else {
                         enterThiefRoundEndModal(game, now);
                     }
@@ -684,8 +690,7 @@ export const handleThiefAction = async (volatileState: types.VolatileState, game
             game.moveHistory.push({ player: myPlayerEnum, x, y });
         
             if (myRole === 'police' && result.capturedStones.length > 0) {
-                if (!game.thiefCapturesThisRound) game.thiefCapturesThisRound = 0;
-                game.thiefCapturesThisRound += result.capturedStones.length;
+                recordThiefPoliceCaptures(game, result.capturedStones.length);
             }
         
             game.stonesToPlace = (game.stonesToPlace ?? 1) - 1;
@@ -710,7 +715,6 @@ export const handleThiefAction = async (volatileState: types.VolatileState, game
                     const finalThiefStonesLeft = game.boardState.flat().filter(s => s === types.Player.Black).length;
                     const capturesThisRound = game.thiefCapturesThisRound || 0;
                     game.scores[game.thiefPlayerId!] = (game.scores[game.thiefPlayerId!] || 0) + finalThiefStonesLeft;
-                    game.scores[game.policePlayerId!] = (game.scores[game.policePlayerId!] || 0) + capturesThisRound;
                     
                     const p1IsThief = game.player1.id === game.thiefPlayerId;
 
@@ -738,7 +742,7 @@ export const handleThiefAction = async (volatileState: types.VolatileState, game
                     if ((game.round === 2 && p1Score !== p2Score) || game.isDeathmatch) {
                         const winnerId = p1Score > p2Score ? p1Id : game.player2.id;
                         const winnerEnum = winnerId === game.blackPlayerId ? types.Player.Black : types.Player.White;
-                        endGame(game, winnerEnum, 'total_score');
+                        await endGame(game, winnerEnum, 'total_score');
                         return {};
                     }
                     

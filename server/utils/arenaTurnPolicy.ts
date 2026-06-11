@@ -2,6 +2,7 @@ import * as types from '../../types/index.js';
 import { GameCategory } from '../../types/enums.js';
 import { TOWER_STAGES } from '../../constants/towerConstants.js';
 import { resolveArenaSessionPolicy, modeIncludesCaptureRule } from '../../shared/utils/liveSessionArenaKind.js';
+import { isRankedFixedTurnScoringSession } from '../../shared/utils/rankedFixedTurnScoring.js';
 import { resolveSinglePlayerAutoScoringTurnCap } from '../../shared/utils/singlePlayerStrategicRulePreset.js';
 import { getEffectiveSinglePlayerStages } from '../singlePlayerStageConfigService.js';
 
@@ -23,7 +24,7 @@ export function getArenaTurnCount(game: types.LiveGameSession): number {
 export async function resolveArenaFixedScoringTurnLimit(game: types.LiveGameSession): Promise<number | undefined> {
     const policy = resolveArenaSessionPolicy(game as any);
     const scoringTurnLimit = Number((game.settings as any)?.scoringTurnLimit ?? 0);
-    // human 1v1 PVP: 수 제한 자동계가 금지 (상호 패스만 계가)
+    // human 1v1 PVP: 랭킹전만 수순 제한 계가 (상호 패스 계가 없음)
     if (
         policy.matchAxis === 'pvp' &&
         policy.kind === GameCategory.Normal &&
@@ -31,6 +32,9 @@ export async function resolveArenaFixedScoringTurnLimit(game: types.LiveGameSess
         !game.isSinglePlayer &&
         !policy.isPairGame
     ) {
+        if (isRankedFixedTurnScoringSession(game)) {
+            return scoringTurnLimit;
+        }
         return undefined;
     }
     if (policy.isPairGame) {

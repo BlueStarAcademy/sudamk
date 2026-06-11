@@ -26,8 +26,8 @@ describe('async action feedback utilities', () => {
 
     it('applyMinFeedbackDelay waits until minFeedbackMs elapsed', async () => {
         const startedAt = Date.now();
-        const promise = applyMinFeedbackDelay(startedAt, 300);
-        await vi.advanceTimersByTimeAsync(299);
+        const promise = applyMinFeedbackDelay(startedAt, MIN_ACTION_FEEDBACK_MS);
+        await vi.advanceTimersByTimeAsync(MIN_ACTION_FEEDBACK_MS - 1);
         let settled = false;
         promise.then(() => {
             settled = true;
@@ -39,8 +39,8 @@ describe('async action feedback utilities', () => {
         expect(settled).toBe(true);
     });
 
-    it('exports MIN_ACTION_FEEDBACK_MS as 300', () => {
-        expect(MIN_ACTION_FEEDBACK_MS).toBe(300);
+    it('exports MIN_ACTION_FEEDBACK_MS as 120', () => {
+        expect(MIN_ACTION_FEEDBACK_MS).toBe(120);
     });
 
     it('clearAsyncActionDedupeForTests clears dedupe registry', () => {

@@ -266,6 +266,29 @@ export const calculateUserEffects = (user: User | null | undefined, guild?: Guil
     return calculatedEffects;
 };
 
+/** 장비「EXP 추가 획득」(StrategyXpBonus) — 유저 XP에만 적용, 펫 분배 기준에서는 제외 */
+export function userXpGainExcludingStrategyEquipmentBonus(
+    finalUserXpGain: number,
+    strategyXpBonusPercent: number,
+): number {
+    const gain = Math.max(0, Math.floor(finalUserXpGain));
+    if (gain <= 0 || !Number.isFinite(strategyXpBonusPercent) || strategyXpBonusPercent <= 0) {
+        return gain;
+    }
+    return Math.max(0, Math.round(gain / (1 + strategyXpBonusPercent / 100)));
+}
+
+/** 전략 대국 유저 XP → 펫 50% 분배량(PlayfulXpBonus 적용 전) */
+export function pairPetXpShareFromUserStrategyXpGain(
+    finalUserXpGain: number,
+    strategyXpBonusPercent: number,
+): number {
+    return Math.max(
+        0,
+        Math.round(userXpGainExcludingStrategyEquipmentBonus(finalUserXpGain, strategyXpBonusPercent) * 0.5),
+    );
+}
+
 /** 장비 특수「펫 경험치 추가」(enum 키 `PlayfulXpBonus`) — 지급 직전 펫 XP에 퍼센트 가산 */
 export function applyPairPetSpecialStatEquipmentXpMultiplier(
     user: User,

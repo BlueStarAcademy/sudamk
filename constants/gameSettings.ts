@@ -13,8 +13,54 @@ export const THIEF_NIGHTS_PER_SEGMENT = 5;
 export const MISSILE_BOARD_SIZES = [19, 13, 9];
 export const STRATEGIC_CLASSIC_SPEED_BOARD_SIZES = [9, 13, 19] as const;
 export const STRATEGIC_SPECIAL_BOARD_SIZES = [9, 11, 13] as const;
+export const CASTLE_BOARD_SIZES = [9, 13] as const;
+export const CHESS_BOARD_SIZES = [13] as const;
+export type CastleCount = 1 | 2 | 3 | 4 | 5 | 6;
+export const CASTLE_COUNTS_BY_BOARD_SIZE: Record<9 | 13, readonly CastleCount[]> = {
+  9: [1, 2, 3],
+  13: [3, 4, 5, 6],
+};
+/** @deprecated 보드 크기별 {@link getCastleCountsByBoardSize} 사용 */
+export const CASTLE_COUNTS = [1, 2, 3, 4, 5, 6] as const;
+
+export function getCastleCountsByBoardSize(boardSize: number): readonly CastleCount[] {
+  if (boardSize === 9) return CASTLE_COUNTS_BY_BOARD_SIZE[9];
+  if (boardSize === 13) return CASTLE_COUNTS_BY_BOARD_SIZE[13];
+  return CASTLE_COUNTS_BY_BOARD_SIZE[13];
+}
+
+export function getDefaultCastleCountByBoardSize(boardSize: number): CastleCount {
+  return boardSize === 9 ? 1 : 3;
+}
+
+export function getDefaultChessKomiByBoardSize(boardSize: number): number {
+  if (boardSize === 13) return 6.5;
+  return DEFAULT_KOMI;
+}
+
+export function getDefaultChessScoringTurnLimit(): number {
+  return 100;
+}
+
+export function getDefaultCastleKomiByBoardSize(boardSize: number): number {
+  if (boardSize === 9) return 2.5;
+  if (boardSize === 13) return 6.5;
+  return DEFAULT_KOMI;
+}
+
+export function clampCastleCount(value: unknown, boardSize?: number): CastleCount {
+  const options = getCastleCountsByBoardSize(boardSize ?? 13);
+  const n = typeof value === 'number' ? value : parseInt(String(value ?? options[0]), 10);
+  if (!Number.isFinite(n)) return options[0]!;
+  for (let i = options.length - 1; i >= 0; i--) {
+    if (n >= options[i]!) return options[i]!;
+  }
+  return options[0]!;
+}
 
 export const getStrategicBoardSizesByMode = (mode: GameMode): readonly number[] => {
+  if (mode === GameMode.Castle) return CASTLE_BOARD_SIZES;
+  if (mode === GameMode.Chess) return CHESS_BOARD_SIZES;
   if (mode === GameMode.Standard || mode === GameMode.Speed || mode === GameMode.Uniform) return STRATEGIC_CLASSIC_SPEED_BOARD_SIZES;
   if (
     mode === GameMode.Capture ||
@@ -93,6 +139,8 @@ export const BYOYOMI_TIMES = [10, 20, 30, 40, 50, 60]; // in seconds
 export const BASE_STONE_COUNTS = [3, 4, 5, 6, 7, 8, 9, 10];
 export const DEFAULT_KOMI = 6.5;
 export const FISCHER_INCREMENT_SECONDS = 5;
+/** 피셔 방식 메인 제한시간 최소값(분). '없음'(0) 불가 */
+export const FISCHER_MIN_TIME_LIMIT_MINUTES = 1;
 /** 스피드 바둑·믹스(스피드 포함) 피셔 추가초 선택지 */
 export const FISCHER_INCREMENT_SECONDS_OPTIONS = [3, 5, 10, 15, 20, 30] as const;
 
@@ -106,14 +154,81 @@ export function normalizeFischerIncrementSeconds(value: number | undefined): num
   return FISCHER_INCREMENT_SECONDS;
 }
 
-/** 스피드 바둑: 메인 timeLimit 유지, 수당 초읽기 10초, Fischer 증분 없음 */
-export function applySpeedByoyomiDefaults(settings: GameSettings): GameSettings {
+export type MainTimeControlStyle = 'byoyomi' | 'fischer';
+
+export function resolveTimeControlStyle(
+  settings: Pick<GameSettings, 'timeIncrement'>,
+): MainTimeControlStyle {
+  return (settings.timeIncrement ?? 0) > 0 ? 'fischer' : 'byoyomi';
+}
+
+/** 메인 시계: 초읽기 방식 (수당 10초 오버레이와 별개) */
+export function applyByoyomiTimeControl(settings: GameSettings): GameSettings {
   return {
     ...settings,
-    byoyomiCount: 0,
-    byoyomiTime: SPEED_PER_MOVE_SECONDS,
     timeIncrement: 0,
+    byoyomiTime: BYOYOMI_TIMES.includes(settings.byoyomiTime) ? settings.byoyomiTime : 30,
+    byoyomiCount: BYOYOMI_COUNTS.includes(settings.byoyomiCount) ? settings.byoyomiCount : 3,
   };
+}
+
+/** 피셔 방식 제한시간 선택지 ('없음' 제외, 비스피드는 1분 포함) */
+export function getFischerTimeLimitOptions(isSpeed = false): ReadonlyArray<{ value: number; label: string }> {
+  const min = FISCHER_MIN_TIME_LIMIT_MINUTES;
+  if (isSpeed) {
+    return SPEED_TIME_LIMITS.filter((t) => t.value >= min);
+  }
+  const filtered = TIME_LIMITS.filter((t) => t.value >= min);
+  if (filtered.some((t) => t.value === min)) {
+    return filtered;
+  }
+  return [{ value: min, label: `${min}분` }, ...filtered];
+}
+
+export function normalizeFischerTimeLimitMinutes(value: number | undefined, isSpeed = false): number {
+  const options = getFischerTimeLimitOptions(isSpeed);
+  const min = FISCHER_MIN_TIME_LIMIT_MINUTES;
+  const raw = typeof value === 'number' && Number.isFinite(value) ? value : 0;
+  if (raw < min) {
+    return min;
+  }
+  const allowed = options.map((t) => t.value);
+  if (allowed.includes(raw)) {
+    return raw;
+  }
+  return allowed[0] ?? min;
+}
+
+/** 메인 시계: 피셔 방식 */
+export function applyFischerTimeControl(settings: GameSettings, isSpeed = false): GameSettings {
+  return {
+    ...settings,
+    byoyomiTime: 0,
+    byoyomiCount: 0,
+    timeLimit: normalizeFischerTimeLimitMinutes(settings.timeLimit, isSpeed),
+    timeIncrement: normalizeFischerIncrementSeconds(settings.timeIncrement),
+  };
+}
+
+/** 비스피드·스피드 공통: 메인 byoyomi/fischer 상호 배타 정규화 */
+export function normalizeMainTimeControl(settings: GameSettings, isSpeed = false): GameSettings {
+  if (resolveTimeControlStyle(settings) === 'fischer') {
+    return applyFischerTimeControl(settings, isSpeed);
+  }
+  return applyByoyomiTimeControl(settings);
+}
+
+/**
+ * 스피드: 사용자 메인 byoyomi/fischer 유지. 수당 10초는 SPEED_PER_MOVE_SECONDS 상수로 처리.
+ * @deprecated 레거시 호환 — {@link normalizeSpeedMainTimeControl} 사용
+ */
+export function applySpeedByoyomiDefaults(settings: GameSettings): GameSettings {
+  return normalizeSpeedMainTimeControl(settings);
+}
+
+/** 스피드 메인 시계만 정규화 (byoyomiTime을 10으로 덮어쓰지 않음) */
+export function normalizeSpeedMainTimeControl(settings: GameSettings): GameSettings {
+  return normalizeMainTimeControl(settings, true);
 }
 
 /** @deprecated {@link applySpeedByoyomiDefaults} */

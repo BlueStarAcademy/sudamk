@@ -54,6 +54,13 @@ import {
 import { calculateSimpleAiMove } from './client/goAiBotClient.js';
 import { processMoveClient } from './client/goLogicClient.js';
 import { isDiceGoLibertyPlacement, isThiefGoValidPlacement } from './client/logic/goLogic.js';
+import { isPlayableCastleIntersection } from './shared/utils/castleGoRules.js';
+import {
+    enumerateLegalChessMoves,
+    isLegacyChessGoLayout,
+    normalizeChessGoSession,
+    reconcileChessGoClientSession,
+} from './shared/utils/chessGoRules.js';
 import { buildPveItemActionClientSync } from './utils/pveItemClientSync.js';
 import {
     isEligibleForPveAiTurnStuckRecovery,
@@ -172,6 +179,7 @@ const KATA_STYLE_AI_GO_MODES = new Set<GameMode>([
     GameMode.Hidden,
     GameMode.Missile,
     GameMode.Uniform,
+    GameMode.Chess,
     GameMode.Mix,
 ]);
 
@@ -228,6 +236,7 @@ const HIDDEN_PLACEMENT_DELAY_MS = 2000;
 const HIDDEN_PLACEMENT_DELAY_MESSAGE = '화면에 상대에게 안보이는 한 수를 두세요';
 const MISSILE_DIRECTION_DELAY_MESSAGE = '바둑돌을 원하는 방향으로 날려보내세요';
 const SCAN_TARGET_DELAY_MESSAGE = '상대방의 히든 돌이 있을만한 지점을 찍어보세요';
+const CHESS_PIECE_ALREADY_MOVED_MESSAGE = '기물돌은 한 턴에 한 번만 움직일 수 있습니다.';
 
 type PairSeat = NonNullable<NonNullable<LiveGameSession['settings']['pairGame']>['turnOrder']>[number];
 type PairClientTimes = { black: number; white: number };
@@ -729,6 +738,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const [showFinalTerritory, setShowFinalTerritory] = useState(false);
     const [justScanned, setJustScanned] = useState(false);
     const [pendingMove, setPendingMove] = useState<Point | null>(null);
+    const [selectedChessPieceId, setSelectedChessPieceId] = useState<string | null>(null);
     useEffect(() => {
         if (!settings.features.moveConfirmButtonBox) setPendingMove(null);
     }, [settings.features.moveConfirmButtonBox]);
@@ -1136,11 +1146,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const sessionPolicy = useMemo(() => resolveArenaSessionPolicy(session), [session]);
     const isSinglePlayer = sessionPolicy.kind === 'singleplayer';
     const isTower = sessionPolicy.kind === 'tower';
-    /** 참가자: `session.summary`가 WS로 늦게 붙을 수 있어, 내 보상 행이 붙은 뒤에 결과 모달을 연다 */
+    /** 모험·길드전만 summary 행을 기다린다. instantEnd(PVP·놀이바둑)는 종료 직후 모달을 연다. */
     const resultModalWaitSummary =
-        sessionPolicy.resultDisplayModel !== 'waitScoringOverlay' &&
-        !isSinglePlayer &&
-        !isTower &&
+        sessionPolicy.resultDisplayModel === 'waitSummary' &&
         !isSpectator;
     const hasMyGameSummary = Boolean(session.summary?.[currentUser.id]);
     const scoringResultContentReady = isScoringResultContentReady({
@@ -1223,13 +1231,21 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         ((session.settings?.scoringTurnLimit ?? 0) > 0 || ((session.settings as any)?.autoScoringTurns ?? 0) > 0);
     /** 모험 포함: 새로고침 시 sessionStorage와 병합해 남은 턴·경과 시간이 초기화되지 않게 함 */
     const useRefreshSessionStorageMerge =
-        isAdventureGame || isSinglePlayer || isTower || hasStrategicTurnLimit;
+        session.mode !== GameMode.Chess &&
+        (isAdventureGame || isSinglePlayer || isTower || hasStrategicTurnLimit);
 
     // 클라이언트에서 게임 상태 저장/복원 (새로고침 시 바둑판 복원)
     const GAME_STATE_STORAGE_KEY = `gameState_${gameId}`;
     
     // 게임 상태를 sessionStorage에서 복원 (종료 후에도 결과 모달 동안 종료된 화면 유지를 위해 ended/scoring에서도 복원 허용)
     const restoredBoardState = useMemo(() => {
+        // 체스 바둑 수순 0: sessionStorage의 측면 폰 boardState를 쓰지 않고 표준 초기 판만 사용
+        if (session.mode === GameMode.Chess) {
+            const reconciled = normalizeChessGoSession(session);
+            if (reconciled.boardState?.length) {
+                return reconciled.boardState;
+            }
+        }
         // PVE(싱글/탑/모험)는 서버 보드 동기화를 절대 우선한다.
         // sessionStorage 복원 보드를 우선하면 히든/포획/애니메이션 경합에서 돌 소실이 발생할 수 있다.
         if ((isSinglePlayer || isTower || isAdventureGame) && session.boardState && Array.isArray(session.boardState) && session.boardState.length > 0) {
@@ -1360,6 +1376,16 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     ) {
                         return session.boardState;
                     }
+                    // 체스 바둑: sessionStorage의 레거시 측면 폰 판을 절대 쓰지 않음
+                    if (session.mode === GameMode.Chess) {
+                        const reconciled = normalizeChessGoSession(session);
+                        if (reconciled.boardState?.length) {
+                            return reconciled.boardState;
+                        }
+                        if (session.boardState?.length) {
+                            return session.boardState;
+                        }
+                    }
                     // 진행 중이거나 종료/계가 중일 때 모두 sessionStorage 보드 사용 → 결과 모달 시에도 바둑판 유지
                     console.log(`[Game] Restored boardState from sessionStorage for game ${gameId} (gameStatus: ${gameStatus})`);
                     return parsed.boardState;
@@ -1448,6 +1474,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         if (validCount > 0) totalTurnsToSave = validCount;
                     }
                 }
+                const chessOpeningSave =
+                    session.mode === GameMode.Chess ? normalizeChessGoSession(session) : null;
                 const gameStateToSave = {
                     gameId,
                     mode: session.mode,
@@ -1464,7 +1492,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     adventureStageId: (session as any).adventureStageId,
                     round: session.round ?? 1,
                     isBoardRotated,
-                    boardState: restoredBoardState,
+                    boardState: chessOpeningSave?.boardState ?? restoredBoardState,
                     moveHistory: session.moveHistory || [],
                     captures: session.captures || { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 },
                     gameStatus: session.gameStatus,
@@ -1485,6 +1513,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     hiddenStoneCaptures: session.hiddenStoneCaptures,
                     permanentlyRevealedStones: session.permanentlyRevealedStones || [],
                     humanHiddenStonePoints: (session as any).humanHiddenStonePoints || [],
+                    castleStonePoints: session.castleStonePoints,
+                    confirmedTerritoryOwnerByPoint: session.confirmedTerritoryOwnerByPoint,
+                    chessPieces: chessOpeningSave?.chessPieces ?? session.chessPieces,
+                    chessCaptureScore: chessOpeningSave?.chessCaptureScore ?? session.chessCaptureScore,
+                    chessPieceMovedThisTurn: chessOpeningSave?.chessPieceMovedThisTurn ?? session.chessPieceMovedThisTurn,
                     blackPatternStones: session.blackPatternStones,
                     whitePatternStones: session.whitePatternStones,
                     consumedPatternIntersections: (session as any).consumedPatternIntersections,
@@ -1557,7 +1590,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 }
             }
         }
-    }, [restoredBoardState, session.moveHistory, session.captures, session.gameStatus, session.currentPlayer, session.itemUseDeadline, session.pausedTurnTimeLeft, session.turnDeadline, session.turnStartTime, session.revealAnimationEndTime, session.animation, (session as any).aiHiddenItemAnimationEndTime, session.pendingCapture, session.newlyRevealed, session.revealedHiddenMoves, session.baseStoneCaptures, session.hiddenStoneCaptures, session.permanentlyRevealedStones, session.blackPatternStones, session.whitePatternStones, (session as any).consumedPatternIntersections, session.hiddenMoves, (session as any).humanHiddenStonePoints, session.totalTurns, session.round, gameId, gameStatus, isSinglePlayer, session.gameCategory, useRefreshSessionStorageMerge, session.gameStartTime, session.blackTimeLeft, session.whiteTimeLeft, (session as any).adventureEncounterDeadlineMs, (session as any).adventureEncounterFrozenHumanMsRemaining, (session as any).hidden_stones_p1, (session as any).hidden_stones_p2, (session as any).aiInitialHiddenStone, (session as any).aiInitialHiddenStoneIsPrePlaced, (session as any).blackTurnLimitBonus, isBoardRotated, session.isAiGame, session.settings?.pairGame?.roomId, session.settings?.pairGame?.lobbyChannel]);
+    }, [restoredBoardState, session.moveHistory, session.captures, session.gameStatus, session.currentPlayer, session.itemUseDeadline, session.pausedTurnTimeLeft, session.turnDeadline, session.turnStartTime, session.revealAnimationEndTime, session.animation, (session as any).aiHiddenItemAnimationEndTime, session.pendingCapture, session.newlyRevealed, session.revealedHiddenMoves, session.baseStoneCaptures, session.hiddenStoneCaptures, session.permanentlyRevealedStones, session.blackPatternStones, session.whitePatternStones, (session as any).consumedPatternIntersections, session.hiddenMoves, (session as any).humanHiddenStonePoints, session.castleStonePoints, session.confirmedTerritoryOwnerByPoint, session.totalTurns, session.round, gameId, gameStatus, isSinglePlayer, session.gameCategory, useRefreshSessionStorageMerge, session.gameStartTime, session.blackTimeLeft, session.whiteTimeLeft, (session as any).adventureEncounterDeadlineMs, (session as any).adventureEncounterFrozenHumanMsRemaining, (session as any).hidden_stones_p1, (session as any).hidden_stones_p2, (session as any).aiInitialHiddenStone, (session as any).aiInitialHiddenStoneIsPrePlaced, (session as any).blackTurnLimitBonus, isBoardRotated, session.isAiGame, session.settings?.pairGame?.roomId, session.settings?.pairGame?.lobbyChannel]);
     
     // 도전의 탑/싱글/전략바둑 수순 제한: 새로고침 후 서버 페이로드에 문양돌·totalTurns·moveHistory가 없을 수 있으므로 sessionStorage에서 복원해 표시
     const sessionWithRestoredPatternStones = useMemo(() => {
@@ -1629,6 +1662,39 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         Array.isArray(parsed.consumedPatternIntersections)
                     ) {
                         next = { ...next, consumedPatternIntersections: parsed.consumedPatternIntersections } as any;
+                    }
+                    if (
+                        (!next.castleStonePoints || next.castleStonePoints.length === 0) &&
+                        Array.isArray(parsed.castleStonePoints) &&
+                        parsed.castleStonePoints.length > 0
+                    ) {
+                        next = { ...next, castleStonePoints: parsed.castleStonePoints };
+                    }
+                    if (parsed.confirmedTerritoryOwnerByPoint && typeof parsed.confirmedTerritoryOwnerByPoint === 'object') {
+                        next = {
+                            ...next,
+                            confirmedTerritoryOwnerByPoint: {
+                                ...(parsed.confirmedTerritoryOwnerByPoint as Record<string, Player.Black | Player.White>),
+                                ...(next.confirmedTerritoryOwnerByPoint ?? {}),
+                            },
+                        };
+                    }
+                    if (
+                        next.mode === GameMode.Chess &&
+                        Array.isArray(parsed.chessPieces) &&
+                        parsed.chessPieces.length > 0 &&
+                        (!next.chessPieces || next.chessPieces.length === 0)
+                    ) {
+                        next = {
+                            ...next,
+                            chessPieces: parsed.chessPieces,
+                            chessCaptureScore: parsed.chessCaptureScore ?? next.chessCaptureScore,
+                            chessPieceMovedThisTurn:
+                                parsed.chessPieceMovedThisTurn ?? next.chessPieceMovedThisTurn,
+                        };
+                    }
+                    if (next.mode === GameMode.Chess) {
+                        next = normalizeChessGoSession(next);
                     }
                     // 턴 제한 경기: totalTurns가 없거나 0이면 sessionStorage 값으로 복원 (남은 턴이 Max로 초기화되는 현상 방지)
                     const serverTotalTurns = next.totalTurns;
@@ -1758,6 +1824,31 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             return session;
         }
     }, [session, isSinglePlayer, isTower, hasStrategicTurnLimit, isAdventureGame, useRefreshSessionStorageMerge, gameId, (session as any).blackTurnLimitBonus]);
+
+    /** 체스 바둑: 레거시 측면 폰·판 불일치를 교정하고 chessPieces 기준으로 보드를 맞춤 */
+    const chessGoSession = useMemo(() => {
+        if (session.mode !== GameMode.Chess) return sessionWithRestoredPatternStones;
+        return normalizeChessGoSession(sessionWithRestoredPatternStones);
+    }, [session.mode, sessionWithRestoredPatternStones]);
+
+    /** 체스 바둑: 예전 sessionStorage 스냅샷(측면 폰·15×15)이 병합을 막지 않도록 제거 */
+    useEffect(() => {
+        if (session.mode !== GameMode.Chess) return;
+        try {
+            const key = `gameState_${gameId}`;
+            const raw = sessionStorage.getItem(key);
+            if (!raw) return;
+            const parsed = JSON.parse(raw) as { chessPieces?: unknown; settings?: { boardSize?: number } };
+            if (
+                (Array.isArray(parsed.chessPieces) && isLegacyChessGoLayout(parsed.chessPieces as any)) ||
+                parsed.settings?.boardSize === 15
+            ) {
+                sessionStorage.removeItem(key);
+            }
+        } catch {
+            /* ignore */
+        }
+    }, [gameId, session.mode]);
 
     /** 온라인 AI 대국: 전광판은 WS 세션의 턴·연출 필드를 그대로 써야 저장소 복원분과 어긋나지 않음 */
     const turnDisplaySession = useMemo(() => {
@@ -1956,6 +2047,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         if (myPlayerEnum === Player.None) return null;
         return { x: pendingMove.x, y: pendingMove.y, player: myPlayerEnum };
     }, [settings.features.moveConfirmButtonBox, settings.features.mobileConfirm, pendingMove, myPlayerEnum]);
+
+    useEffect(() => {
+        setSelectedChessPieceId(null);
+    }, [currentPlayer, session.chessPieceMovedThisTurn, gameStatus]);
     
     const isMyTurn = useMemo(() => {
         if (isSpectator) return false;
@@ -2006,6 +2101,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             default: return false;
         }
     }, [myPlayerEnum, currentPlayer, gameStatus, isSpectator, session, currentUser.id, player1.id, session.settings, sessionPolicy.matchAxis]);
+
+    const chessHighlightPoints = useMemo(() => {
+        if (mode !== GameMode.Chess || gameStatus !== 'playing' || !isMyTurn) return [];
+        if (!selectedChessPieceId || myPlayerEnum === Player.None) return [];
+        if (chessGoSession.chessPieceMovedThisTurn) return [];
+        const legal = enumerateLegalChessMoves(chessGoSession, myPlayerEnum);
+        return legal.filter((m) => m.pieceId === selectedChessPieceId).map((m) => m.to);
+    }, [mode, gameStatus, isMyTurn, selectedChessPieceId, myPlayerEnum, chessGoSession]);
     
     // --- Sound Effects ---
     const prevIsMyTurn = usePrevious(isMyTurn);
@@ -2861,6 +2964,53 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             console.log('[Game] Move in flight or placement lock, ignoring additional click');
             return;
         }
+
+        if (
+            mode === GameMode.Chess &&
+            gameStatus === 'playing' &&
+            isMyTurn &&
+            !isItemModeActive &&
+            myPlayerEnum !== Player.None
+        ) {
+            const canMoveChessPiece = !chessGoSession.chessPieceMovedThisTurn;
+            const pieceAtClick = chessGoSession.chessPieces?.find((p) => p.x === x && p.y === y);
+            if (canMoveChessPiece && selectedChessPieceId) {
+                const destMove = enumerateLegalChessMoves(chessGoSession, myPlayerEnum).find(
+                    (m) => m.pieceId === selectedChessPieceId && m.to.x === x && m.to.y === y,
+                );
+                if (destMove) {
+                    setIsMoveInFlight(true);
+                    const movedPieceId = selectedChessPieceId;
+                    handlers.handleAction({
+                        type: 'CHESS_MOVE_PIECE',
+                        payload: { gameId, pieceId: movedPieceId, toX: x, toY: y },
+                    } as ServerAction).finally(() => {
+                        setIsMoveInFlight(false);
+                        setSelectedChessPieceId(null);
+                    });
+                    return;
+                }
+            }
+            if (
+                canMoveChessPiece &&
+                pieceAtClick &&
+                pieceAtClick.owner === myPlayerEnum &&
+                pieceAtClick.remainingMoves > 0
+            ) {
+                setSelectedChessPieceId(pieceAtClick.id);
+                return;
+            }
+            if (
+                !canMoveChessPiece &&
+                pieceAtClick &&
+                pieceAtClick.owner === myPlayerEnum
+            ) {
+                flashBoardRuleMessage(CHESS_PIECE_ALREADY_MOVED_MESSAGE);
+                return;
+            }
+            setSelectedChessPieceId(null);
+        }
+
         const petHintBoardLockUntil = strategicPetHintBoardInputLockUntilHistoryLenRef.current;
         if (petHintBoardLockUntil != null && (session.moveHistory?.length ?? 0) < petHintBoardLockUntil) {
             return;
@@ -2893,6 +3043,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             }
             if (mode === GameMode.Thief && gameStatus === 'thief_placing' && (session.stonesToPlace ?? 0) > 0) {
                 if (!isThiefGoValidPlacement(session, x, y, currentUser.id)) return;
+            }
+            if (
+                mode === GameMode.Castle &&
+                gameStatus === 'playing' &&
+                myPlayerEnum !== Player.None &&
+                !isPlayableCastleIntersection(session, x, y, myPlayerEnum)
+            ) {
+                return;
             }
             if (pendingMove && pendingMove.x === x && pendingMove.y === y) return;
             setPendingMove({ x, y });
@@ -3299,6 +3457,15 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             payload.isHidden = isOpponentHiddenRevealOnline || activeHiddenPlacement;
             payload.boardState = boardStateForOnline;
             payload.moveHistory = session.moveHistory || [];
+            if (
+                mode === GameMode.Castle &&
+                gameStatus === 'playing' &&
+                myPlayerEnum !== Player.None &&
+                !payload.isHidden &&
+                !isPlayableCastleIntersection(session, x, y, myPlayerEnum)
+            ) {
+                return;
+            }
             if (payload.isHidden) audioService.stopScanBgm();
         }
 
@@ -3458,6 +3625,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         strategicPetHintBoardOverlay,
         tryClaimPetHintBonusOnStone,
         playUserPlaceStoneSoundAt,
+        selectedChessPieceId,
+        chessGoSession,
     ]);
 
     const handleConfirmMove = useCallback(() => {
@@ -3586,6 +3755,16 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 payload.isHidden = isOpponentHiddenReveal || activeHiddenPlacement;
                 payload.boardState = boardStateToUse;
                 payload.moveHistory = session.moveHistory || [];
+                if (
+                    mode === GameMode.Castle &&
+                    gameStatus === 'playing' &&
+                    myPlayerEnum !== Player.None &&
+                    !payload.isHidden &&
+                    !isPlayableCastleIntersection(session, x, y, myPlayerEnum)
+                ) {
+                    setPendingMove(null);
+                    return;
+                }
             }
         }
 
@@ -4891,17 +5070,19 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     
     // 싱글플레이어/도전의 탑/전략바둑 수순 제한: restoredBoardState + totalTurns/moveHistory 복원을 포함한 표시용 session (PlayerPanel 남은 턴 등에 사용)
     const sessionWithRestoredBoard = useMemo(() => {
-        if (!useRefreshSessionStorageMerge) {
-            return session;
+        const base = chessGoSession;
+        // 체스 바둑: chessGoSession이 chessPieces·boardState를 항상 맞춤 — sessionStorage 판 덮어쓰기 금지
+        if (base.mode === GameMode.Chess) {
+            return base;
         }
-        // totalTurns·moveHistory·문양돌이 복원된 세션을 베이스로 사용 (새로고침 후 남은 턴이 Max로 초기화되는 버그 방지)
-        const base = sessionWithRestoredPatternStones;
-        // restoredBoardState가 있으면 보드만 추가로 반영
+        if (!useRefreshSessionStorageMerge) {
+            return base;
+        }
         if (restoredBoardState && restoredBoardState !== base.boardState) {
             return { ...base, boardState: restoredBoardState };
         }
         return base;
-    }, [useRefreshSessionStorageMerge, sessionWithRestoredPatternStones, restoredBoardState]);
+    }, [useRefreshSessionStorageMerge, chessGoSession, restoredBoardState]);
 
     const isServerAiHiddenPresentationActive = session.animation?.type === 'ai_thinking';
     const isClientAiHiddenPresentationActive =
@@ -5057,6 +5238,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         boardRuleFlashMessage={boardRuleFlashMessage}
                                         blockScoringBoardAnalysis={blockScoringBoardAnalysis}
                                         isMoveSubmitting={isMoveInFlight}
+                                        selectedChessPieceId={selectedChessPieceId}
+                                        chessHighlightPoints={chessHighlightPoints}
                                     />
                                     {boardHydrationOverlayEl}
                                     {showScoringOverlay && <ScoringOverlay />}
@@ -5221,6 +5404,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         boardRuleFlashMessage={boardRuleFlashMessage}
                                         blockScoringBoardAnalysis={blockScoringBoardAnalysis}
                                         isMoveSubmitting={isMoveInFlight}
+                                        selectedChessPieceId={selectedChessPieceId}
+                                        chessHighlightPoints={chessHighlightPoints}
                                     />
                                     {boardHydrationOverlayEl}
                                     {showScoringOverlay && <ScoringOverlay />}
@@ -5490,6 +5675,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                                         boardRuleFlashMessage={boardRuleFlashMessage}
                                                         blockScoringBoardAnalysis={blockScoringBoardAnalysis}
                                         isMoveSubmitting={isMoveInFlight}
+                                                        selectedChessPieceId={selectedChessPieceId}
+                                                        chessHighlightPoints={chessHighlightPoints}
                                                     />
                                                     {boardHydrationOverlayEl}
                                                     {showScoringOverlay && <ScoringOverlay />}
@@ -5516,6 +5703,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                                 boardRuleFlashMessage={boardRuleFlashMessage}
                                                 blockScoringBoardAnalysis={blockScoringBoardAnalysis}
                                         isMoveSubmitting={isMoveInFlight}
+                                                selectedChessPieceId={selectedChessPieceId}
+                                                chessHighlightPoints={chessHighlightPoints}
                                             />
                                         )}
                                         {boardHydrationOverlayEl}

@@ -1,5 +1,5 @@
 /** Minimum visible duration for async action feedback (avoids flicker). */
-export const MIN_ACTION_FEEDBACK_MS = 300;
+export const MIN_ACTION_FEEDBACK_MS = 120;
 
 /** Min height for lazy-loaded modal/panel chunk fallbacks. */
 export const MODAL_CHUNK_FALLBACK_MIN_HEIGHT = '10rem';

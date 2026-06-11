@@ -167,6 +167,13 @@ export async function handleAiAction(
       await seedStrategicPetHintBonusPresetsForGame(postInit as any);
     }
 
+    const { normalizeChessGoSession } = await import('../../shared/utils/chessGoRules.js');
+    const { GameMode } = await import('../../shared/types/enums.js');
+    if (postInit.mode === GameMode.Chess) {
+        const normalized = normalizeChessGoSession(postInit as any);
+        Object.assign(postInit, normalized);
+    }
+
     await db.saveGame(game);
     updateGameCache(game);
 

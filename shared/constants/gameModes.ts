@@ -19,9 +19,17 @@ export const MIX_GO_MODE_DESCRIPTION =
 
 /** 로비·모드 선택 등에 쓰는 일색 바둑 한 줄 설명 */
 export const UNIFORM_GO_MODE_DESCRIPTION =
-    '클래식 바둑과 동일한 규칙으로 두되, 모든 돌이 한 가지 색으로 보이는 심리전 바둑입니다.';
+    '모든 돌이 한 가지 색으로 보이는 기억력을 필요로 하는 바둑입니다.';
 
-/** 아직 출시 전인 모드(캐슬·체스 바둑 등) 로비 설명 */
+/** 로비·모드 선택 등에 쓰는 캐슬 바둑 한 줄 설명 */
+export const CASTLE_GO_MODE_DESCRIPTION =
+    '랜덤 배치된 캐슬을 활용해 영토를 확보하고, 한 돌만 잡아도 승리하는 전략 바둑입니다.';
+
+/** 로비·모드 선택 등에 쓰는 체스 바둑 한 줄 설명 */
+export const CHESS_GO_MODE_DESCRIPTION =
+    '체스 기물과 바둑을 결합한 전략 바둑입니다. 기물 이동(선택) 후 바둑돌을 놓아 턴을 마칩니다.';
+
+/** 아직 출시 전인 모드 로비 설명 */
 export const COMING_SOON_GAME_MODE_DESCRIPTION = '추가 업데이트 준비중';
 
 export type LobbyGameModeDefinition = {
@@ -50,8 +58,8 @@ export const SPECIAL_GAME_MODES: LobbyGameModeDefinition[] = [
   { mode: GameMode.Hidden, name: "히든 바둑", description: HIDDEN_GO_MODE_DESCRIPTION, available: true, image: "/images/simbols/simbol5.webp" },
   { mode: GameMode.Missile, name: "미사일 바둑", description: MISSILE_GO_MODE_DESCRIPTION, available: true, image: "/images/simbols/simbol6.webp" },
   { mode: GameMode.Uniform, name: "일색 바둑", description: UNIFORM_GO_MODE_DESCRIPTION, available: true, image: "/images/simbols/simbol7.webp" },
-  { mode: GameMode.Castle, name: "캐슬 바둑", description: COMING_SOON_GAME_MODE_DESCRIPTION, available: false, image: "/images/simbols/simbol8.webp" },
-  { mode: GameMode.Chess, name: "체스 바둑", description: COMING_SOON_GAME_MODE_DESCRIPTION, available: false, image: "/images/simbols/simbol9.webp" },
+  { mode: GameMode.Castle, name: "캐슬 바둑", description: CASTLE_GO_MODE_DESCRIPTION, available: true, image: "/images/simbols/simbol8.webp" },
+  { mode: GameMode.Chess, name: "체스 바둑", description: CHESS_GO_MODE_DESCRIPTION, available: true, image: "/images/simbols/simbol9.webp" },
   { mode: GameMode.Mix, name: "믹스 바둑", description: MIX_GO_MODE_DESCRIPTION, available: true, image: "/images/simbols/simbol10.webp" }
 ];
 

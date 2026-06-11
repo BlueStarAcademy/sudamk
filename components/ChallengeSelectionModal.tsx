@@ -13,13 +13,21 @@ import {
   ALKKAGI_STONE_COUNTS, ALKKAGI_ROUNDS, ALKKAGI_GAUGE_SPEEDS, ALKKAGI_ITEM_COUNTS,
   CURLING_STONE_COUNTS, CURLING_ROUNDS, CURLING_GAUGE_SPEEDS, CURLING_ITEM_COUNTS,
   OMOK_BOARD_SIZES, HIDDEN_BOARD_SIZES, DICE_GO_ITEM_COUNTS, getStrategicBoardSizesByMode,
-  applySpeedByoyomiDefaults,
+  applyByoyomiTimeControl, getCastleCountsByBoardSize, clampCastleCount, getDefaultCastleKomiByBoardSize, getDefaultCastleCountByBoardSize,
+  getDefaultChessKomiByBoardSize, getDefaultChessScoringTurnLimit,
 } from '../constants/gameSettings';
 import { getRankedGameSettings } from '../constants/rankedGameSettings';
 import { MAX_GAME_INTEGER_INPUT } from '../shared/constants/numericLimits.js';
 import { clampGameInt } from '../shared/utils/gameIntegerField.js';
 import { mixSubRuleDisplayName } from '../shared/utils/mixSubRuleDisplayName.js';
 import { sanitizePvpGameSettings, stripHumanPvpTurnLimitFields } from '../shared/utils/sanitizePvpGameSettings.js';
+import {
+  applyMixModeSettingsConstraints,
+  getMixBoardSizeOptions,
+  isMixSubModeCheckboxDisabled,
+  normalizeMixedModesSelection,
+} from '../shared/utils/mixModeSettings.js';
+import StrategicTimeControlFields from './game/StrategicTimeControlFields.js';
 import { AlkkagiPlacementType, AlkkagiLayoutType } from '../types';
 import Button from './Button';
 import DraggableWindow from './DraggableWindow';
@@ -332,16 +340,46 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
   const mergeModeSettings = useCallback((mode: GameMode, savedSettings?: Partial<GameSettings>): GameSettings => {
     const base = savedSettings
       ? ({ ...DEFAULT_GAME_SETTINGS, ...savedSettings } as GameSettings)
-      : ({ ...DEFAULT_GAME_SETTINGS, ...getRankedGameSettings(mode) } as GameSettings);
+      : mode === GameMode.Castle
+        ? ({
+            ...DEFAULT_GAME_SETTINGS,
+            boardSize: 13,
+            castleCount: getDefaultCastleCountByBoardSize(13),
+            komi: getDefaultCastleKomiByBoardSize(13),
+            timeLimit: 10,
+            byoyomiTime: 30,
+            byoyomiCount: 3,
+          } as GameSettings)
+        : mode === GameMode.Chess
+          ? ({
+              ...DEFAULT_GAME_SETTINGS,
+              boardSize: 13,
+              komi: getDefaultChessKomiByBoardSize(13),
+              scoringTurnLimit: getDefaultChessScoringTurnLimit(),
+              timeLimit: 10,
+              byoyomiTime: 30,
+              byoyomiCount: 3,
+            } as GameSettings)
+        : ({ ...DEFAULT_GAME_SETTINGS, ...getRankedGameSettings(mode) } as GameSettings);
     if (mode === GameMode.Capture) {
       base.scoringTurnLimit = 0;
+      delete (base as { autoScoringTurns?: number }).autoScoringTurns;
+    }
+    if (mode === GameMode.Castle) {
+      base.scoringTurnLimit = 0;
+      delete (base as { autoScoringTurns?: number }).autoScoringTurns;
+    }
+    if (mode === GameMode.Chess) {
+      base.boardSize = 13;
+      base.komi = getDefaultChessKomiByBoardSize(13);
+      base.scoringTurnLimit = getDefaultChessScoringTurnLimit();
       delete (base as { autoScoringTurns?: number }).autoScoringTurns;
     }
     if (
       mode === GameMode.Speed ||
       (mode === GameMode.Mix && base.mixedModes?.includes(GameMode.Speed))
     ) {
-      return applySpeedByoyomiDefaults(base);
+      return applyByoyomiTimeControl(base);
     }
     return base;
   }, []);
@@ -372,19 +410,26 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
   };
 
   const handleSettingChange = <K extends keyof GameSettings>(key: K, value: GameSettings[K]) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
+    setSettings(prev => {
+      const next = { ...prev, [key]: value };
+      if (selectedMode === GameMode.Castle && key === 'boardSize') {
+        const boardSize = Number(value);
+        next.komi = getDefaultCastleKomiByBoardSize(boardSize);
+        next.castleCount = clampCastleCount(next.castleCount ?? getDefaultCastleCountByBoardSize(boardSize), boardSize);
+      }
+      return next;
+    });
   };
 
   const handleMixedModeChange = (mode: GameMode, checked: boolean) => {
     setSettings((prev) => {
-      const cur = prev.mixedModes || [];
-      let mixedModes = checked ? [...cur, mode] : cur.filter((m) => m !== mode);
-      const next: GameSettings = { ...prev, mixedModes };
+      const mixedModes = normalizeMixedModesSelection(prev.mixedModes, mode, checked);
+      let next: GameSettings = applyMixModeSettingsConstraints({ ...prev, mixedModes });
       if (mode === GameMode.Base && checked) {
         next.komi = 0.5;
       }
       if (mode === GameMode.Speed && checked) {
-        return applySpeedByoyomiDefaults(next);
+        return applyByoyomiTimeControl(next);
       }
       return next;
     });
@@ -392,6 +437,25 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
 
   useEffect(() => {
     if (!selectedMode) return;
+    if (selectedMode === GameMode.Chess) {
+      setSettings((prev) => {
+        const next = {
+          ...prev,
+          boardSize: 13 as GameSettings['boardSize'],
+          komi: getDefaultChessKomiByBoardSize(13),
+          scoringTurnLimit: getDefaultChessScoringTurnLimit(),
+        };
+        if (
+          prev.boardSize === next.boardSize &&
+          prev.komi === next.komi &&
+          prev.scoringTurnLimit === next.scoringTurnLimit
+        ) {
+          return prev;
+        }
+        return next;
+      });
+      return;
+    }
     const boardSizeOptions = getStrategicBoardSizesByMode(selectedMode);
     if (!boardSizeOptions.includes(settings.boardSize)) {
       handleSettingChange('boardSize', boardSizeOptions[0] as GameSettings['boardSize']);
@@ -461,11 +525,13 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
     const mix = settings.mixedModes ?? [];
     const isMix = selectedMode === GameMode.Mix;
 
-    const showBoardSize = ![GameMode.Alkkagi, GameMode.Curling, GameMode.Dice].includes(selectedMode);
+    const showBoardSize = ![GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Chess].includes(selectedMode);
     const showKomi =
-      ![GameMode.Capture, GameMode.Omok, GameMode.Ttamok, GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Thief, GameMode.Base].includes(selectedMode) &&
+      ![GameMode.Capture, GameMode.Omok, GameMode.Ttamok, GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Thief, GameMode.Base, GameMode.Chess].includes(selectedMode) &&
       !(isMix && mix.includes(GameMode.Base));
-    const showTimeControls = ![GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Thief].includes(selectedMode);
+    const showCastleCount = selectedMode === GameMode.Castle || (isMix && mix.includes(GameMode.Castle));
+    const showCastleDedicatedTimeControls = selectedMode === GameMode.Castle;
+    const showTimeControls = ![GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Thief].includes(selectedMode) && !showCastleDedicatedTimeControls;
     const showSpeedTimeControls = selectedMode === GameMode.Speed || (isMix && mix.includes(GameMode.Speed));
 
     const showMixModeSelection = isMix;
@@ -504,7 +570,12 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
     const settingsSelectFullClass = `${settingsControlBaseClass} pl-3 pr-9`;
     const settingsNumberInputFullClass = `${settingsControlBaseClass} px-3`;
 
-    const boardSizeOptions = selectedMode != null ? getStrategicBoardSizesByMode(selectedMode) : BOARD_SIZES;
+    const boardSizeOptions =
+      selectedMode === GameMode.Mix
+        ? getMixBoardSizeOptions(mix)
+        : selectedMode != null
+          ? getStrategicBoardSizesByMode(selectedMode)
+          : BOARD_SIZES;
 
     return (
       <div
@@ -517,19 +588,22 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
         {showMixModeSelection && (
             <SettingsSection title="믹스룰 조합 (2개 이상)" scaleFactor={scaleFactor}>
               <p className="mb-2 text-gray-500" style={{ fontSize: `${Math.max(12, Math.round(13 * scaleFactor))}px`, lineHeight: 1.35 }}>
-                클래식 바둑은 기본 포함입니다. 함께 쓸 규칙을 고릅니다.
+                클래식 바둑은 기본 포함입니다. 함께 쓸 규칙을 고릅니다. 따내기와 캐슬은 동시에 선택할 수 없습니다.
               </p>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {SPECIAL_GAME_MODES.filter((m) => m.mode !== GameMode.Standard && m.mode !== GameMode.Mix).map((m) => {
+                  const mixDisabled = isMixSubModeCheckboxDisabled(mix, m.mode);
                   return (
                     <label
                       key={m.mode}
-                      className="flex cursor-pointer items-center gap-2 rounded-md bg-gray-700/50 p-2"
+                      className={`flex items-center gap-2 rounded-md bg-gray-700/50 p-2 ${mixDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
                     >
                       <input
                         type="checkbox"
                         checked={mix.includes(m.mode)}
                         onChange={(e) => handleMixedModeChange(m.mode, e.target.checked)}
+                        disabled={mixDisabled}
+                        title={mixDisabled ? '따내기와 캐슬은 동시에 선택할 수 없습니다.' : undefined}
                         className="h-4 w-4 shrink-0"
                       />
                       <span className="leading-tight text-gray-200" style={{ fontSize: `${Math.max(12, Math.round(14 * scaleFactor))}px` }}>
@@ -633,81 +707,14 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
 
         {showTimeControls && (
           <SettingsSection title={showSpeedTimeControls ? '스피드 시간 규칙' : '제한 시간·초읽기'} scaleFactor={scaleFactor}>
-            {showSpeedTimeControls ? (
-              <>
-                <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-                  <label className={settingsLabelClass} style={labelStyle}>
-                    메인 제한 시간
-                  </label>
-                  <select
-                    value={settings.timeLimit}
-                    onChange={(e) => handleSettingChange('timeLimit', parseInt(e.target.value, 10))}
-                    className={`${settingsSelectFullClass} min-h-[2.75rem]`}
-                    style={selectFontStyle}
-                  >
-                    {SPEED_TIME_LIMITS.map((t) => (
-                      <option key={t.value} value={t.value}>
-                        {t.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <p className="text-sm text-gray-300" style={labelStyle}>
-                  한 수당 10초 초읽기 · 10초 초과마다 상대 +1점 · 메인 시간 소진 시 시간패
-                </p>
-              </>
-            ) : (
-              <>
-                <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-                  <label className={settingsLabelClass} style={labelStyle}>
-                    제한 시간
-                  </label>
-                  <select
-                    value={settings.timeLimit}
-                    onChange={(e) => handleSettingChange('timeLimit', parseInt(e.target.value, 10))}
-                    className={`${settingsSelectFullClass} min-h-[2.75rem]`}
-                    style={selectFontStyle}
-                  >
-                    {TIME_LIMITS.map((t) => (
-                      <option key={t.value} value={t.value}>
-                        {t.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-                  <label className={settingsLabelClass} style={labelStyle}>
-                    초읽기
-                  </label>
-                  <div className="grid min-w-0 w-full grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
-                    <select
-                      value={settings.byoyomiTime}
-                      onChange={(e) => handleSettingChange('byoyomiTime', parseInt(e.target.value, 10))}
-                      className={`${settingsSelectFullClass} min-h-[2.75rem] w-full min-w-0`}
-                      style={selectFontStyle}
-                    >
-                      {BYOYOMI_TIMES.map((t) => (
-                        <option key={t} value={t}>
-                          {t}초
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      value={settings.byoyomiCount}
-                      onChange={(e) => handleSettingChange('byoyomiCount', parseInt(e.target.value, 10))}
-                      className={`${settingsSelectFullClass} min-h-[2.75rem] w-full min-w-0`}
-                      style={selectFontStyle}
-                    >
-                      {BYOYOMI_COUNTS.map((c) => (
-                        <option key={c} value={c}>
-                          {c}회
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </>
-            )}
+            <StrategicTimeControlFields
+              settings={settings}
+              onSettingsChange={setSettings}
+              isSpeed={showSpeedTimeControls}
+              variant="grid"
+              labelClassName={settingsLabelClass}
+              selectClassName={`${settingsSelectFullClass} min-h-[2.75rem]`}
+            />
           </SettingsSection>
         )}
 
@@ -723,6 +730,66 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               >
                 {BASE_STONE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
               </select>
+            </div>
+          </SettingsSection>
+        )}
+
+        {showCastleCount && (
+          <SettingsSection title={selectedMode === GameMode.Castle ? '캐슬 바둑' : '캐슬'} scaleFactor={scaleFactor}>
+            <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
+              <label className={settingsLabelClass} style={labelStyle}>캐슬</label>
+              <select
+                value={settings.castleCount ?? getDefaultCastleCountByBoardSize(settings.boardSize ?? 13)}
+                onChange={e => handleSettingChange('castleCount', parseInt(e.target.value, 10) as GameSettings['castleCount'])}
+                className={`${settingsSelectFullClass} min-h-[2.75rem]`}
+                style={selectFontStyle}
+              >
+                {getCastleCountsByBoardSize(settings.boardSize ?? 13).map(c => <option key={c} value={c}>{c}개</option>)}
+              </select>
+            </div>
+            <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
+              <label className={settingsLabelClass} style={labelStyle}>제한 시간</label>
+              <select
+                value={settings.timeLimit}
+                onChange={(e) => handleSettingChange('timeLimit', parseInt(e.target.value, 10))}
+                className={`${settingsSelectFullClass} min-h-[2.75rem]`}
+                style={selectFontStyle}
+              >
+                {TIME_LIMITS.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
+              <label className={settingsLabelClass} style={labelStyle}>초읽기</label>
+              <div className="grid min-w-0 grid-cols-2 gap-2">
+                <select
+                  value={settings.byoyomiTime}
+                  onChange={(e) => handleSettingChange('byoyomiTime', parseInt(e.target.value, 10))}
+                  className={`${settingsSelectFullClass} min-h-[2.75rem]`}
+                  style={selectFontStyle}
+                >
+                  {BYOYOMI_TIMES.map((t) => (
+                    <option key={t} value={t}>
+                      {t}초
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={settings.byoyomiCount}
+                  onChange={(e) => handleSettingChange('byoyomiCount', parseInt(e.target.value, 10))}
+                  className={`${settingsSelectFullClass} min-h-[2.75rem]`}
+                  style={selectFontStyle}
+                >
+                  {BYOYOMI_COUNTS.map((c) => (
+                    <option key={c} value={c}>
+                      {c}회
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </SettingsSection>
         )}

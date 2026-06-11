@@ -117,17 +117,18 @@ function timeLine(settings: GameSettings, mode: GameMode, mix: GameMode[]): stri
   }
   const byoyomiCount = settings.byoyomiCount ?? 0;
   const byoyomiTime = settings.byoyomiTime ?? 30;
+  const timeIncrement = settings.timeIncrement ?? 0;
   if (!settings.timeLimit || settings.timeLimit <= 0) {
+    if (timeIncrement > 0) {
+      return `피셔 ${timeIncrement}초`;
+    }
     if (byoyomiCount > 0 && byoyomiTime > 0) {
       return `초읽기만 · ${byoyomiTime}초×${byoyomiCount}회`;
     }
     return '시간 제한 없음';
   }
-  if (mode === GameMode.Speed || hasMix(mix, GameMode.Speed)) {
-    if (!settings.timeLimit || settings.timeLimit <= 0) {
-      return `수당 ${SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT}초 초읽기`;
-    }
-    return `메인 ${settings.timeLimit}분 · 수당 ${SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT}초 초읽기`;
+  if (timeIncrement > 0) {
+    return `제한 ${settings.timeLimit}분 · 피셔 ${timeIncrement}초`;
   }
   if (byoyomiCount > 0 && byoyomiTime > 0) {
     return `제한 ${settings.timeLimit}분 · 초읽기 ${byoyomiTime}초×${byoyomiCount}회`;
@@ -626,6 +627,22 @@ export function getPreGameSummaryFour(
       scoreFactors: territoryScoreParts(settings, mode, mix).join(' · '),
       timeRules: timeLine(settings, mode, mix),
       specialHighlights: auto ? [{ img: '/images/simbols/simbol7.webp', text: auto }] : [],
+      items: NONE,
+      itemSlots: [],
+    };
+  }
+
+  if (mode === GameMode.Castle) {
+    const castles = settings.castleCount ?? 1;
+    return {
+      winGoal: '상대 돌 1개 이상 따내면 즉시 승리 · 유효수 없으면 영토 계가',
+      loseGoal: '상대에게 1돌이라도 잡히면 패배 · 계가에서 집이 적으면 패배',
+      scoreFactors: '확정 영토 · 따낸 돌 · 덤(백)',
+      timeRules: timeLine(settings, mode, mix),
+      specialHighlights: [
+        { img: '/images/simbols/simbol4.webp', text: `캐슬 ${castles}개 · 완성 영토 진입 불가` },
+        { img: '/images/simbols/simbol2.webp', text: '1돌 포획 시 즉시 승리' },
+      ],
       items: NONE,
       itemSlots: [],
     };

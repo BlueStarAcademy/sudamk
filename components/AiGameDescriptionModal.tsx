@@ -60,20 +60,15 @@ const getSettingsRows = (session: LiveGameSession): { label: string; value: Reac
   }
   if (!modesWithoutTime.includes(mode)) {
     if (settings.timeLimit && settings.timeLimit > 0) {
+      const timeIncrement = settings.timeIncrement ?? 0;
+      const mainTimeLabel =
+        timeIncrement > 0
+          ? `${settings.timeLimit}분 · 피셔 ${timeIncrement}초`
+          : `${settings.timeLimit}분 · 초읽기 ${settings.byoyomiTime ?? 30}초 × ${settings.byoyomiCount ?? 3}회`;
       rows.push({
         label: '시간',
-        value:
-          mode === GameMode.Speed
-            ? `${settings.timeLimit}분 · ${settings.timeIncrement ?? 0}초 피셔`
-            : `${settings.timeLimit}분 · 초읽기 ${settings.byoyomiTime ?? 30}초 × ${settings.byoyomiCount ?? 3}회`,
+        value: mainTimeLabel,
       });
-      if (mode !== GameMode.Speed && !(mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Speed))) {
-        const byoyomiTime = settings.byoyomiTime ?? 30;
-        const byoyomiCount = settings.byoyomiCount ?? 3;
-        if (byoyomiCount > 0) {
-          rows.push({ label: '초읽기', value: `${byoyomiTime}초 / ${byoyomiCount}회` });
-        }
-      }
     } else {
       rows.push({ label: '시간', value: '없음' });
     }

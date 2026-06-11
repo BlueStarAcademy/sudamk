@@ -3,7 +3,10 @@ import type { LiveGameSession } from '../../../shared/types/index.js';
 import { GameMode, GameCategory, Player } from '../../../shared/types/index.js';
 import { createDefaultUser } from '../../initialData.js';
 import { resolveArenaFixedScoringTurnLimit } from '../../utils/arenaTurnPolicy.js';
-import { isHumanOneVsOnePvpStrategic } from '../../modes/pvpStrategicPipeline.js';
+import {
+    humanPvpAllowsMoveCountAutoScoring,
+    isHumanOneVsOnePvpStrategic,
+} from '../../modes/pvpStrategicPipeline.js';
 
 function makeHumanPvpGame(): LiveGameSession {
     const p1 = createDefaultUser('p1', 'p1', 'P1');
@@ -44,6 +47,15 @@ describe('human PVP auto-scoring guards', () => {
     it('resolveArenaFixedScoringTurnLimit returns undefined for human PVP even with scoringTurnLimit in settings', async () => {
         const limit = await resolveArenaFixedScoringTurnLimit(makeHumanPvpGame());
         expect(limit).toBeUndefined();
+    });
+
+    it('resolveArenaFixedScoringTurnLimit honors ranked scoringTurnLimit for human PVP', async () => {
+        const game = makeHumanPvpGame();
+        game.isRankedGame = true;
+        game.settings = { boardSize: 19, komi: 6.5, scoringTurnLimit: 200, timeLimit: 5 };
+        const limit = await resolveArenaFixedScoringTurnLimit(game);
+        expect(limit).toBe(200);
+        expect(humanPvpAllowsMoveCountAutoScoring(game)).toBe(true);
     });
 
     it('AI game still resolves turn limit', async () => {

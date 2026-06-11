@@ -1882,12 +1882,14 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
         if (isWinner) {
             let title = '승리';
             if (winReason === 'resign') title = '기권승';
+            if (winReason === 'castle_capture') title = '포획승';
             if (winReason === 'capture_limit' && isGuildWarCaptureTurnLimitLoss) title = '턴승';
             if (winReason === 'timeout') title = isGuildWarCaptureTurnLimitLoss ? '턴승' : '시간승';
             return { title, color: 'text-green-400' };
         } else {
             let title = '패배';
             if (winReason === 'resign') title = '기권패';
+            if (winReason === 'castle_capture') title = '포획패';
             if (winReason === 'capture_limit' && isGuildWarCaptureTurnLimitLoss) title = '턴패';
             if (winReason === 'timeout') {
                 title = isGuildWarCaptureTurnLimitLoss ? '턴패' : isAdventureGame ? '패배' : '시간패';
@@ -1973,6 +1975,11 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                 return <p className="text-center text-green-400" style={contentMsgStyle}>상대방의 제한 턴이 모두 소진되어 승리했습니다.</p>;
             }
             return <p className="text-center text-red-400" style={contentMsgStyle}>제한 턴이 다 되어 패배했습니다.</p>;
+        }
+
+        if (winReason === 'castle_capture') {
+            const message = isWinner ? '상대 돌을 따내 즉시 승리했습니다.' : '상대에게 돌을 잡혀 패배했습니다.';
+            return <p className="text-center" style={contentMsgStyle}>{message}</p>;
         }
         
         // 시간 패배/승리 처리

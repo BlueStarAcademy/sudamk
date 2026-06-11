@@ -100,6 +100,8 @@ export function augmentPveFromSessionStorageSnapshot(
     parsed: Record<string, unknown> | null | undefined,
 ): LiveGameSession {
     if (!parsed || (parsed as { gameId?: string }).gameId !== incoming.id) return incoming;
+    // 체스 바둑: sessionStorage의 레거시 측면 폰·totalTurns를 복원하면 normalize가 무효화됨
+    if (incoming.mode === GameMode.Chess) return incoming;
 
     const stMoves = Array.isArray((parsed as { moveHistory?: unknown }).moveHistory)
         ? ((parsed as { moveHistory: unknown[] }).moveHistory?.length ?? 0)

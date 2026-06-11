@@ -5,11 +5,12 @@ import {
     PLAYFUL_GAME_MODES,
     SPECIAL_GAME_MODES,
 } from '../../constants.js';
-import { isFischerStyleTimeControl, isSpeedPerMoveTimeControl } from './gameTimeControl.js';
+import { isFischerStyleTimeControl } from './gameTimeControl.js';
 import { getRankedGameSettings } from '../../constants/rankedGameSettings.js';
-import { getAiScoringTurnLimitByBoardSize } from '../constants/gameSettings.js';
+import { getAiScoringTurnLimitByBoardSize, getDefaultChessKomiByBoardSize, getDefaultChessScoringTurnLimit } from '../constants/gameSettings.js';
 import { formatAlkkagiCurlingGaugeSpeedForLobbyDisplay } from './alkkagiCurlingGaugeLobbyDisplay.js';
 import { mixSubRuleDisplayName } from './mixSubRuleDisplayName.js';
+import { applyMixModeSettingsConstraints } from './mixModeSettings.js';
 
 export type PairLobbyChannel = 'pair' | 'strategic' | 'playful';
 
@@ -145,6 +146,7 @@ export function buildPairRoomLobbyGameSettingRows(
         GameMode.Base,
         GameMode.Hidden,
         GameMode.Missile,
+        GameMode.Castle,
         GameMode.Mix,
     ];
     const modesWithoutTime = [GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Thief];
@@ -219,32 +221,27 @@ export function buildPairRoomLobbyGameSettingRows(
             timeLimit = def.timeLimit;
             byoyomiTime = def.byoyomiTime;
             byoyomiCount = def.byoyomiCount;
-            timeIncrement = def.timeIncrement ?? 0;
+            timeIncrement = 0;
         }
         const clockSettings = { ...g, timeLimit, byoyomiTime, byoyomiCount, timeIncrement };
         const pseudoSession = { mode, settings: clockSettings };
-        const isSpeed = isSpeedPerMoveTimeControl(pseudoSession as Parameters<typeof isSpeedPerMoveTimeControl>[0]);
         const isFischer = isFischerStyleTimeControl(pseudoSession as Parameters<typeof isFischerStyleTimeControl>[0]);
         if (timeLimit > 0) {
             rows.push({ label: '제한시간', value: `${timeLimit}분` });
             rows.push({
-                label: '초읽기',
-                value: isSpeed
-                    ? `수당 ${byoyomiTime || 10}초`
-                    : isFischer
-                      ? `${timeIncrement}초 피셔`
-                      : `${byoyomiTime}초 ${byoyomiCount}회`,
+                label: isFischer ? '피셔' : '초읽기',
+                value: isFischer
+                    ? `${timeIncrement}초`
+                    : `${byoyomiTime}초 ${byoyomiCount}회`,
             });
         } else {
             rows.push({ label: '제한시간', value: '없음' });
-            if (byoyomiTime > 0 && byoyomiCount > 0) {
+            if (isFischer && timeIncrement > 0) {
+                rows.push({ label: '피셔', value: `${timeIncrement}초` });
+            } else if (byoyomiTime > 0 && byoyomiCount > 0) {
                 rows.push({
                     label: '초읽기',
-                    value: isSpeed
-                        ? `수당 ${byoyomiTime || 10}초`
-                        : isFischer
-                          ? `${timeIncrement}초 피셔`
-                          : `${byoyomiTime}초 ${byoyomiCount}회`,
+                    value: `${byoyomiTime}초 ${byoyomiCount}회`,
                 });
             }
         }
@@ -268,6 +265,10 @@ export function buildPairRoomLobbyGameSettingRows(
         if (typeof g.baseStones === 'number') rows.push({ label: '베이스돌', value: `${g.baseStones}개` });
     }
 
+    if (mode === GameMode.Castle) {
+        rows.push({ label: '캐슬', value: `${g.castleCount ?? 1}개` });
+    }
+
     if (mode === GameMode.Hidden || (mode === GameMode.Mix && g.mixedModes?.includes(GameMode.Hidden))) {
         rows.push({ label: '히든돌', value: `${g.hiddenStoneCount ?? 0}개` });
         rows.push({ label: '스캔', value: `${g.scanCount ?? 0}개` });
@@ -288,7 +289,11 @@ export function buildPairRoomLobbyGameSettingRows(
         }
     }
 
-    if ((!pairArenaInterior || ext) && typeof g.autoScoring === 'boolean') {
+    if (
+        (!pairArenaInterior || ext) &&
+        typeof g.autoScoring === 'boolean' &&
+        !(typeof g.scoringTurnLimit === 'number' && g.scoringTurnLimit > 0)
+    ) {
         rows.push({ label: '자동 계가', value: g.autoScoring ? '예' : '아니오' });
     }
 
@@ -464,6 +469,8 @@ export function pairLobbyDraftBoardSizeOptions(
     if (mode === GameMode.Hidden) return [19, 13, 11, 9, 7];
     if (mode === GameMode.Missile) return [19, 13, 9];
     if (mode === GameMode.Speed) return [7, 9, 11, 13, 19];
+    if (mode === GameMode.Castle) return [9, 13];
+    if (mode === GameMode.Chess) return [13];
     if (mode === GameMode.Standard) return [9, 13, 19];
     return [19, 13, 9];
 }
@@ -493,6 +500,14 @@ export function sanitizePairLobbyDraftModeSettings(
         next.boardSize = validBoardSizes[0] as GameSettings['boardSize'];
     } else if (typeof rawBs === 'string') {
         next.boardSize = bsNum as GameSettings['boardSize'];
+    }
+    if (mode === GameMode.Chess) {
+        next.boardSize = 13 as GameSettings['boardSize'];
+        next.komi = getDefaultChessKomiByBoardSize(13);
+        next.scoringTurnLimit = getDefaultChessScoringTurnLimit();
+    }
+    if (mode === GameMode.Mix) {
+        next = applyMixModeSettingsConstraints(next);
     }
     return next;
 }

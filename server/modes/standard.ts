@@ -16,6 +16,17 @@ import { initializeCapture, updateCaptureState, handleCaptureAction } from './ca
 import { initializeHidden, updateHiddenState, handleHiddenAction } from './hidden.js';
 import { initializeMissile, updateMissileState, handleMissileAction } from './missile.js';
 import {
+    applyCastleTerritoryAfterMove,
+    initializeCastleGame,
+    tryAutoScoreCastleIfNoMoves,
+    tryEndCastleOnCapture,
+} from './castle.js';
+import {
+    applyChessCaptureScoreForRemovedStones,
+} from '../../shared/utils/chessGoRules.js';
+import { handleChessMoveAction, initializeChessGame, repairChessGoSessionState } from './chess.js';
+import { processCastleMove } from '../../shared/utils/castleGoRules.js';
+import {
     handleSharedAction,
     transitionToPlaying,
     transitionToPlayingOrUniformRoulette,
@@ -85,6 +96,10 @@ import {
     applyHumanPvpStrategicSettingsInvariants,
 } from './pvpStrategicPipeline.js';
 import {
+    isRankedFixedTurnScoringSession,
+    shouldTriggerRankedFixedTurnScoring,
+} from '../../shared/utils/rankedFixedTurnScoring.js';
+import {
     mixGoClearHiddenItemPhaseTimers,
     mixGoHiddenInventoryKeyForPlayer,
     mixGoHiddenUsedKeyForPlayer,
@@ -99,6 +114,11 @@ function modeIncludesCaptureRule(game: types.LiveGameSession): boolean {
 const accountMainClockAfterMove = (game: types.LiveGameSession, playerWhoMoved: types.Player, now: number): void => {
     if (isSpeedPerMoveTimeControl(game)) {
         applySpeedMoveClockEnd(game, playerWhoMoved, now, aiUserId);
+        const fischerIncrement = getFischerIncrementSeconds(game as any);
+        if (fischerIncrement > 0) {
+            const timeKey = playerWhoMoved === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+            game[timeKey] = Math.max(0, Number(game[timeKey] ?? 0)) + fischerIncrement;
+        }
         return;
     }
     const timeKey = playerWhoMoved === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
@@ -155,6 +175,7 @@ const STRATEGIC_GO_SERVER_AI_MODES: types.GameMode[] = [
     types.GameMode.Hidden,
     types.GameMode.Missile,
     types.GameMode.Uniform,
+    types.GameMode.Chess,
     types.GameMode.Mix,
 ];
 const singlePlayerBlackTurnLimitFailTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -297,7 +318,10 @@ async function finalizePveHiddenPlacementFromAuthoritativeClient(
         : undefined;
     if (autoScoringTurns != null && autoScoringTurns > 0) {
         game.totalTurns = getArenaTurnCount(game);
-        if (game.totalTurns >= autoScoringTurns) {
+        const rankedTrigger = isRankedFixedTurnScoringSession(game) && shouldTriggerRankedFixedTurnScoring(game);
+        const genericTrigger =
+            !isRankedFixedTurnScoringSession(game) && game.totalTurns >= autoScoringTurns;
+        if (rankedTrigger || genericTrigger) {
             game.gameStatus = 'scoring';
             await db.saveGame(game);
             const { broadcastToGameParticipants } = await import('../socket.js');
@@ -588,6 +612,12 @@ export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.
                 initializeNigiri(game, now); // Also uses nigiri
             }
             break;
+        case types.GameMode.Castle:
+            initializeCastleGame(game, neg, now);
+            break;
+        case types.GameMode.Chess:
+            initializeChessGame(game, neg, now);
+            break;
     }
 };
 
@@ -679,9 +709,19 @@ export const updateStrategicGameState = async (game: types.LiveGameSession, now:
     if (game.gameStatus === 'playing' && shouldEnforceTimeControl(game) && isSpeedPerMoveTimeControl(game) && game.turnStartTime) {
         const timedOutPlayer = game.currentPlayer;
         const timeKey = timedOutPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+        const byoyomiKey = timedOutPlayer === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
         const mainLeft = Math.max(0, Number(game[timeKey] ?? 0));
         const elapsed = Math.max(0, (now - game.turnStartTime) / 1000);
         if (mainLeft - elapsed <= 0) {
+            const isFischer = isFischerStyleTimeControl(game as any);
+            if (
+                !isFischer &&
+                game.settings.byoyomiCount > 0 &&
+                (game[byoyomiKey] ?? 0) > 0
+            ) {
+                game[timeKey] = 0;
+                return;
+            }
             const winner = timedOutPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
             game.lastTimeoutPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
             game.lastTimeoutPlayerIdClearTime = now + 5000;
@@ -885,7 +925,7 @@ const handleStandardAction = async (
     user: types.User
 ): Promise<types.HandleActionResult | null> => {
     const actionType = (action as any)?.type as string | undefined;
-    const shouldSerializeTurnAction = actionType === 'PLACE_STONE' || actionType === 'PASS_TURN';
+    const shouldSerializeTurnAction = actionType === 'PLACE_STONE' || actionType === 'PASS_TURN' || actionType === 'CHESS_MOVE_PIECE';
     if (!shouldSerializeTurnAction) {
         return handleStandardActionCore(volatileState, game, action, user);
     }
@@ -939,6 +979,24 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
     }
 
     switch (type) {
+        case 'CHESS_MOVE_PIECE': {
+            if (!isMyTurn || myPlayerEnum === types.Player.None) {
+                return { error: 'Not your turn.' };
+            }
+            if (game.mode !== types.GameMode.Chess || game.gameStatus !== 'playing') {
+                return { error: 'Invalid chess move.' };
+            }
+            const pieceId = String(payload?.pieceId ?? '');
+            const toX = Number(payload?.toX);
+            const toY = Number(payload?.toY);
+            if (!pieceId || !Number.isFinite(toX) || !Number.isFinite(toY)) {
+                return { error: 'Invalid chess move payload.' };
+            }
+            const result = await handleChessMoveAction(game, user, { pieceId, toX, toY });
+            if (result.error) return { error: result.error };
+            repairChessGoSessionState(game);
+            return {};
+        }
         case 'PLACE_STONE': {
             // 계가까지 수순이 고정된 모드에서는 제한 수순이 이미 채워졌다면 추가 착수를 차단한다.
             const { fixedScoringTurnLimit, currentTurnCount } = await resolveFixedScoringTurnState();
@@ -1475,7 +1533,17 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 game[usedKey] = (game[usedKey] || 0) + 1;
             }
 
-            const result = processMove(
+            const isCastleGame = game.mode === types.GameMode.Castle;
+            const isChessGame = game.mode === types.GameMode.Chess;
+            const result = isCastleGame
+                ? processCastleMove(
+                      game,
+                      game.boardState,
+                      move,
+                      game.koInfo,
+                      game.moveHistory.length,
+                  )
+                : processMove(
                 game.boardState, 
                 move, 
                 game.koInfo, 
@@ -1647,6 +1715,9 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
 
 
             game.boardState = result.newBoardState;
+            if (isCastleGame) {
+                applyCastleTerritoryAfterMove(game);
+            }
             // 히든 착수 시 lastMove를 갱신하지 않음 (새로고침 후 마지막 수 표시가 히든 돌 위치로 겹치는 버그 방지)
             if (!effectiveIsHidden) {
                 game.lastMove = { x, y };
@@ -1678,6 +1749,9 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             })();
 
             if (result.capturedStones.length > 0) {
+                if (isChessGame) {
+                    applyChessCaptureScoreForRemovedStones(game, result.capturedStones, myPlayerEnum);
+                }
                 // 길드전 별 판정(한 번에 따낸 최대 개수) 정확도를 위해 실시간 최대값 저장
                 const captureCountThisMove = result.capturedStones.length;
                 const maxSingleCaptureByPlayer = ((game as any).maxSingleCaptureByPlayer ??= {});
@@ -1821,6 +1895,9 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             }
 
             // 따내기 목표 달성 시 턴을 넘기기 전에 종료(상대가 한 수 더 두는 레이스 방지)
+            if (await tryEndCastleOnCapture(game, myPlayerEnum, result.capturedStones.length)) {
+                return petHintBonusResult ?? {};
+            }
             if (await tryEndGameWhenCaptureTargetReached(game, myPlayerEnum)) {
                 return petHintBonusResult ?? {};
             }
@@ -1829,6 +1906,10 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 advancePairTurnAfterAction(game, now);
             } else {
                 game.currentPlayer = opponentPlayerEnum;
+            }
+            if (isChessGame) {
+                game.chessPieceMovedThisTurn = false;
+                repairChessGoSessionState(game);
             }
             game.missileUsedThisTurn = false;
             
@@ -1843,6 +1924,10 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                  game.turnStartTime = undefined;
             }
 
+            if (await tryAutoScoreCastleIfNoMoves(game)) {
+                return petHintBonusResult ?? {};
+            }
+
             // 싱글플레이/도전의 탑/길드전(히든·미사일) 자동 계가: 사용자가 돌을 놓은 후 totalTurns 업데이트 및 계가 트리거
             const autoScoringTurns = humanPvpAllowsMoveCountAutoScoring(game)
                 ? await resolveArenaFixedScoringTurnLimit(game)
@@ -1852,9 +1937,13 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 if (autoScoringTurns !== undefined) {
                     const newTotalTurns = getArenaTurnCount(game);
                     game.totalTurns = newTotalTurns;
-                    
+                    const rankedTrigger =
+                        isRankedFixedTurnScoringSession(game) && shouldTriggerRankedFixedTurnScoring(game);
+                    const genericTrigger =
+                        !isRankedFixedTurnScoringSession(game) && newTotalTurns >= autoScoringTurns;
+
                     // totalTurns가 autoScoringTurns 이상이면 계가 트리거 (사용자가 마지막 수를 둔 경우)
-                    if (newTotalTurns >= autoScoringTurns) {
+                    if (rankedTrigger || genericTrigger) {
                         const gameType = game.gameCategory === GameCategory.Tower
                             ? 'Tower'
                             : (game as any).gameCategory === 'guildwar'
@@ -1991,6 +2080,9 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 if (isAiLobbyGame) {
                     return { error: 'AI 대국에서는 통과할 수 없습니다. 정해진 수순이 끝나면 자동으로 계가됩니다.' };
                 }
+                if (isRankedFixedTurnScoringSession(game)) {
+                    return { error: '랭킹전에서는 통과할 수 없습니다. 정해진 수순이 끝나면 자동으로 계가됩니다.' };
+                }
             }
             // 통과 시 단순 코(ko) 금지 해제 — 이전 턴 koInfo가 남아 상대 다점 따내기 직후 재따내기가 막히는 버그 방지
             game.koInfo = null;
@@ -2007,13 +2099,16 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             const pairAllPassed = pairCurrentSeat ? markPairSeatPassed(game.settings, pairCurrentSeat) : false;
             {
                 // PASS 포함 카운트 모드(scoringTurnLimit)에서는 PASS 직후에도 즉시 수순 종료 계가를 트리거한다.
+                const rankedPassTrigger =
+                    isRankedFixedTurnScoringSession(game) && shouldTriggerRankedFixedTurnScoring(game);
                 const { fixedScoringTurnLimit, countPassAsTurn, currentTurnCount } = await resolveFixedScoringTurnState();
-                if (
+                const genericPassTrigger =
+                    !isRankedFixedTurnScoringSession(game) &&
                     countPassAsTurn &&
                     fixedScoringTurnLimit != null &&
                     fixedScoringTurnLimit > 0 &&
-                    currentTurnCount >= fixedScoringTurnLimit
-                ) {
+                    currentTurnCount >= fixedScoringTurnLimit;
+                if (rankedPassTrigger || genericPassTrigger) {
                     game.totalTurns = currentTurnCount;
                     game.gameStatus = 'scoring';
                     await db.saveGame(game);
@@ -2030,7 +2125,10 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 }
             }
 
-            if (pairAllPassed || (!pairClassicGame && game.passCount >= 2)) {
+            if (
+                !isRankedFixedTurnScoringSession(game) &&
+                (pairAllPassed || (!pairClassicGame && game.passCount >= 2))
+            ) {
                 const isHiddenMode = game.mode === types.GameMode.Hidden || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
 
                 if (isHiddenMode) {

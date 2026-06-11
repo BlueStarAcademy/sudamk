@@ -37,6 +37,8 @@ interface GameArenaProps extends GameProps {
     blockScoringBoardAnalysis?: boolean;
     /** 온라인 PVP 착수 HTTP/WS 대기 중 */
     isMoveSubmitting?: boolean;
+    selectedChessPieceId?: string | null;
+    chessHighlightPoints?: Point[];
 }
 
 const GameArena: React.FC<GameArenaProps> = (props) => {
@@ -117,6 +119,9 @@ const GameArena: React.FC<GameArenaProps> = (props) => {
         case GameMode.Mix:
         case GameMode.Omok:
         case GameMode.Ttamok:
+        case GameMode.Chess:
+        case GameMode.Castle:
+        case GameMode.Uniform:
         default:
             return <GoGameArena {...sharedProps} />;
     }

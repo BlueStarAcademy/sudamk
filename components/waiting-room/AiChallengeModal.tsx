@@ -14,6 +14,8 @@ import {
   ALKKAGI_STONE_COUNTS, ALKKAGI_ROUNDS, ALKKAGI_GAUGE_SPEEDS, ALKKAGI_ITEM_COUNTS,
   CURLING_STONE_COUNTS, CURLING_ROUNDS, CURLING_GAUGE_SPEEDS, CURLING_ITEM_COUNTS,
   HIDDEN_BOARD_SIZES, DICE_GO_ITEM_COUNTS, getScoringTurnLimitOptionsByBoardSize, getAiScoringTurnLimitByBoardSize,
+  getCastleCountsByBoardSize, clampCastleCount, getDefaultCastleKomiByBoardSize, getDefaultCastleCountByBoardSize,
+  getDefaultChessKomiByBoardSize, getDefaultChessScoringTurnLimit,
 } from '../../constants/gameSettings.js';
 import { profileStepFromKataServerLevel } from '../../shared/utils/strategicAiDifficulty.js';
 import { clampGameInt } from '../../shared/utils/gameIntegerField.js';
@@ -41,6 +43,13 @@ import {
     sanitizePairLobbyDraftModeSettings,
 } from '../../shared/utils/pairLobbyGameSettingRows.js';
 import { mixSubRuleDisplayName } from '../../shared/utils/mixSubRuleDisplayName.js';
+import {
+    applyMixModeSettingsConstraints,
+    getMixBoardSizeOptions,
+    isMixSubModeCheckboxDisabled,
+    normalizeMixedModesSelection,
+} from '../../shared/utils/mixModeSettings.js';
+import StrategicTimeControlFields from '../game/StrategicTimeControlFields.js';
 import { stableStringify } from '../../utils/appUtils.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import {
@@ -258,7 +267,15 @@ function modeIncludesCaptureRule(mode: GameMode, settings: Pick<GameSettings, 'm
 
 function normalizeAiScoringTurnLimit(mode: GameMode, settings: GameSettings): GameSettings {
     if (!SPECIAL_GAME_MODES.some(m => m.mode === mode)) return settings;
-    if (modeIncludesCaptureRule(mode, settings)) {
+    if (mode === GameMode.Chess) {
+        return {
+            ...settings,
+            boardSize: 13 as GameSettings['boardSize'],
+            komi: getDefaultChessKomiByBoardSize(13),
+            scoringTurnLimit: getDefaultChessScoringTurnLimit(),
+        };
+    }
+    if (mode === GameMode.Castle || modeIncludesCaptureRule(mode, settings)) {
         const next = { ...settings, scoringTurnLimit: 0 };
         delete (next as any).autoScoringTurns;
         return next;
@@ -891,9 +908,12 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
         if (pairDuoRankedLobbyReadOnly) return;
         if (hideScoringTurnLimit) return;
         if (!selectedGameMode) return;
-        const requiredLimit = modeIncludesCaptureRule(selectedGameMode, settings)
-            ? 0
-            : getAiScoringTurnLimitByBoardSize(settings.boardSize);
+        const requiredLimit =
+            selectedGameMode === GameMode.Chess
+                ? getDefaultChessScoringTurnLimit()
+                : modeIncludesCaptureRule(selectedGameMode, settings)
+                  ? 0
+                  : getAiScoringTurnLimitByBoardSize(settings.boardSize);
         const currentLimit = settings.scoringTurnLimit ?? 0;
         if (currentLimit !== requiredLimit) {
             setSettings((prev) => {
@@ -910,6 +930,17 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
         if (pairDuoRankedLobbyReadOnly) return;
         setSettings(prev => {
             let newSettings = { ...prev, [key]: value };
+            if (selectedGameMode === GameMode.Castle && key === 'boardSize') {
+                const boardSize = Number(value);
+                newSettings.komi = getDefaultCastleKomiByBoardSize(boardSize);
+                newSettings.castleCount = clampCastleCount(
+                    newSettings.castleCount ?? getDefaultCastleCountByBoardSize(boardSize),
+                    boardSize,
+                );
+            }
+            if (selectedGameMode === GameMode.Mix && key === 'mixedModes') {
+                newSettings = applyMixModeSettingsConstraints(newSettings);
+            }
             if (selectedGameMode && (key === 'boardSize' || key === 'mixedModes')) {
                 newSettings = normalizeAiScoringTurnLimit(selectedGameMode, newSettings);
             }
@@ -930,10 +961,10 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
     const handleMixedModeChange = (subMode: GameMode, checked: boolean) => {
         if (pairDuoRankedLobbyReadOnly) return;
         setSettings(prev => {
-            let nextMixed = checked
-                ? [...(prev.mixedModes || []), subMode]
-                : (prev.mixedModes || []).filter(m => m !== subMode);
-            let newSettings = normalizeAiScoringTurnLimit(selectedGameMode ?? GameMode.Mix, { ...prev, mixedModes: nextMixed });
+            const nextMixed = normalizeMixedModesSelection(prev.mixedModes, subMode, checked);
+            let newSettings = applyMixModeSettingsConstraints(
+                normalizeAiScoringTurnLimit(selectedGameMode ?? GameMode.Mix, { ...prev, mixedModes: nextMixed }),
+            );
             if (selectedGameMode) {
                 newSettings = clampAiLobbyStrategicItemCaps(selectedGameMode, newSettings);
                 if (!(embeddedPanel && configureOnly)) {
@@ -1232,15 +1263,18 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                       : `min-w-0 w-full text-left text-sm font-bold leading-tight ${denseLobbyAccentLabelClass}`
               : 'font-semibold text-gray-300 flex-shrink-0 text-sm sm:text-base';
 
-        const showBoardSize = ![GameMode.Alkkagi, GameMode.Curling, GameMode.Dice].includes(selectedGameMode);
-        const showKomi = ![GameMode.Capture, GameMode.Omok, GameMode.Ttamok, GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Thief, GameMode.Base].includes(selectedGameMode);
+        const showBoardSize = ![GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Chess].includes(selectedGameMode);
+        const showKomi = ![GameMode.Capture, GameMode.Omok, GameMode.Ttamok, GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Thief, GameMode.Base, GameMode.Chess].includes(selectedGameMode);
         /** 알까기·컬링·주사위·도둑은 시계 UI 없음. 페어 4인·2인 친선은 사람 대전이므로 시계 표시 */
         const modesWithoutClockUi = [GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Thief];
         const mixModes = settings.mixedModes ?? [];
         const isMixMode = selectedGameMode === GameMode.Mix;
         const showSpeedTimeControls =
             selectedGameMode === GameMode.Speed || (isMixMode && mixModes.includes(GameMode.Speed));
-        const showTimeControls = pairFriendlyHumanClock && !modesWithoutClockUi.includes(selectedGameMode);
+        const showCastleCount = selectedGameMode === GameMode.Castle || (isMixMode && mixModes.includes(GameMode.Castle));
+        const showTimeControls =
+            pairFriendlyHumanClock &&
+            !modesWithoutClockUi.includes(selectedGameMode);
         const showCaptureTarget = selectedGameMode === GameMode.Capture;
         const showTtamokCaptureTarget = selectedGameMode === GameMode.Ttamok;
         const showBaseStones = selectedGameMode === GameMode.Base;
@@ -1258,7 +1292,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
 
         const showGoAiLevel = lobbyType === 'strategic' && !pairRoomHideGoAiLevel;
         const captureRuleSelected = modeIncludesCaptureRule(selectedGameMode, settings);
-        const showScoringTurnLimit = !hideScoringTurnLimit && showGoAiLevel && !captureRuleSelected;
+        const showScoringTurnLimit = !hideScoringTurnLimit && showGoAiLevel && !captureRuleSelected && selectedGameMode !== GameMode.Castle && selectedGameMode !== GameMode.Chess;
 
         const AI_LEVELS = [
             { value: -31, label: '1단계' },
@@ -1274,7 +1308,11 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
         ];
 
         const boardSizeOptions =
-            selectedGameMode != null ? getAiChallengeBoardSizes(selectedGameMode, lobbyType) : BOARD_SIZES;
+            selectedGameMode === GameMode.Mix
+                ? getMixBoardSizeOptions(settings.mixedModes)
+                : selectedGameMode != null
+                  ? getAiChallengeBoardSizes(selectedGameMode, lobbyType)
+                  : BOARD_SIZES;
         const requiredScoringTurnLimit = getAiScoringTurnLimitByBoardSize(settings.boardSize);
         const scoringTurnLimitOptions = getScoringTurnLimitOptionsByBoardSize(settings.boardSize);
         const nonZeroScoringTurnLimitOptions = scoringTurnLimitOptions.includes(requiredScoringTurnLimit)
@@ -1382,15 +1420,16 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                     const mixCheckboxes = SPECIAL_GAME_MODES.filter(
                         (m) => m.mode !== GameMode.Standard && m.mode !== GameMode.Mix && isPlayableLobbyGameMode(m),
                     ).map((m) => {
+                        const mixDisabled = isMixSubModeCheckboxDisabled(settings.mixedModes, m.mode);
                         return (
                             <label
                                 key={m.mode}
                                 className={`flex items-center rounded-md text-gray-200 ${
                                     denseSettings
                                         ? handheldStandaloneAiSettingsGrid
-                                            ? 'min-h-[2rem] w-full flex-wrap gap-1 border border-white/12 bg-gray-800/55 px-1.5 py-1 cursor-pointer'
-                                            : 'h-7 shrink-0 flex-nowrap gap-1.5 whitespace-nowrap py-0.5 pl-1 pr-1.5 sm:gap-2 sm:pl-1.5 sm:pr-2 cursor-pointer bg-gray-700/50'
-                                        : 'gap-2 p-2 cursor-pointer bg-gray-700/50'
+                                            ? `min-h-[2rem] w-full flex-wrap gap-1 border border-white/12 bg-gray-800/55 px-1.5 py-1 ${mixDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`
+                                            : `h-7 shrink-0 flex-nowrap gap-1.5 whitespace-nowrap py-0.5 pl-1 pr-1.5 sm:gap-2 sm:pl-1.5 sm:pr-2 ${mixDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer bg-gray-700/50'}`
+                                        : `gap-2 p-2 ${mixDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer bg-gray-700/50'}`
                                 }`}
                                 style={{
                                     fontSize: denseSettings
@@ -1406,6 +1445,8 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                     type="checkbox"
                                     checked={settings.mixedModes?.includes(m.mode) ?? false}
                                     onChange={(e) => handleMixedModeChange(m.mode, e.target.checked)}
+                                    disabled={mixDisabled || pairRoomLobbyChangePropose}
+                                    title={mixDisabled ? '따내기와 캐슬은 동시에 선택할 수 없습니다.' : undefined}
                                     className={`flex-shrink-0 ${
                                         denseSettings
                                             ? handheldStandaloneAiSettingsGrid
@@ -1507,6 +1548,24 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                     </select>
                                 </div>
                             )}
+                            {settings.mixedModes?.includes(GameMode.Castle) && (
+                                <div className={settingRowClass}>
+                                    <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>캐슬</label>
+                                    <select
+                                        value={settings.castleCount ?? getDefaultCastleCountByBoardSize(settings.boardSize ?? 13)}
+                                        disabled={pairRoomLobbyChangePropose}
+                                        onChange={(e) => handleSettingChange('castleCount', parseInt(e.target.value, 10) as GameSettings['castleCount'])}
+                                        className={gameSettingsSelectClass}
+                                        style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
+                                    >
+                                        {getCastleCountsByBoardSize(settings.boardSize ?? 13).map((c) => (
+                                            <option key={c} value={c}>
+                                                {c}개
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
                         </>
                     );
                     return (
@@ -1580,65 +1639,17 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                 )}
 
                 {showTimeControls && (
-                    showSpeedTimeControls ? (
-                        <>
-                            <div className={settingRowClass}>
-                                <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>메인 제한 시간</label>
-                                <select
-                                    value={settings.timeLimit}
-                                    onChange={e => handleSettingChange('timeLimit', parseInt(e.target.value))}
-                                    className={gameSettingsSelectClass}
-                                    style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
-                                >
-                                    {SPEED_TIME_LIMITS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                                </select>
-                            </div>
-                            <p className="col-span-2 text-xs text-gray-300 sm:text-sm">
-                                한 수당 10초 초읽기 · 10초 초과마다 상대 +1점
-                            </p>
-                        </>
-                    ) : (
-                        <>
-                            <div className={settingRowClass}>
-                                <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>제한 시간</label>
-                                <select 
-                                    value={settings.timeLimit} 
-                                    onChange={e => handleSettingChange('timeLimit', parseInt(e.target.value))}
-                                    className={gameSettingsSelectClass}
-                                    style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
-                                >
-                                    {TIME_LIMITS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                                </select>
-                            </div>
-                            <div className={settingRowClass}>
-                                <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>초읽기</label>
-                                <div
-                                    className={
-                                        denseSettings
-                                            ? 'grid w-full min-w-0 grid-cols-2 gap-x-2 gap-y-0'
-                                            : 'flex w-full min-w-0 gap-2'
-                                    }
-                                >
-                                    <select 
-                                        value={settings.byoyomiTime} 
-                                        onChange={e => handleSettingChange('byoyomiTime', parseInt(e.target.value))}
-                                        className={denseSettings ? gameSettingsSelectClass : gameSettingsSelectFlexClass}
-                                        style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
-                                    >
-                                        {BYOYOMI_TIMES.map(t => <option key={t} value={t}>{t}초</option>)}
-                                    </select>
-                                    <select 
-                                        value={settings.byoyomiCount} 
-                                        onChange={e => handleSettingChange('byoyomiCount', parseInt(e.target.value))}
-                                        className={denseSettings ? gameSettingsSelectClass : gameSettingsSelectFlexClass}
-                                        style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
-                                    >
-                                        {BYOYOMI_COUNTS.map(c => <option key={c} value={c}>{c}회</option>)}
-                                    </select>
-                                </div>
-                            </div>
-                        </>
-                    )
+                    <StrategicTimeControlFields
+                        settings={settings}
+                        onSettingsChange={setSettings}
+                        isSpeed={showSpeedTimeControls}
+                        variant="custom"
+                        rowClassName={settingRowClass}
+                        labelClassName={gameSettingsLabelClass}
+                        selectClassName={gameSettingsSelectClass}
+                        labelStyle={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
+                        selectStyle={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
+                    />
                 )}
 
                 {showCaptureTarget && (
@@ -1853,6 +1864,22 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                             {AI_CHALLENGE_MISSILE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                         </select>
                     </div>
+                )}
+
+                {showCastleCount && (
+                    <>
+                        <div className={settingRowClass}>
+                            <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>캐슬</label>
+                            <select
+                                value={settings.castleCount ?? getDefaultCastleCountByBoardSize(settings.boardSize ?? 13)}
+                                onChange={e => handleSettingChange('castleCount', parseInt(e.target.value, 10) as GameSettings['castleCount'])}
+                                className={gameSettingsSelectClass}
+                                style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
+                            >
+                                {getCastleCountsByBoardSize(settings.boardSize ?? 13).map(c => <option key={c} value={c}>{c}개</option>)}
+                            </select>
+                        </div>
+                    </>
                 )}
 
                 {showDiceGoSettings && (

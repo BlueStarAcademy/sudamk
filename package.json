@@ -7,7 +7,7 @@
   "scripts": {
     "start": "concurrently \"npm:start-client\" \"npm:start-server\"",
     "start-client": "vite --host",
-    "prestart-server": "npm run prisma:generate",
+    "prestart-server": "node scripts/ensurePrismaGenerate.mjs",
     "start-server": "npx tsx --tsconfig server/tsconfig.json server/server.ts",
     "railway:start": "npm run start-server",
     "build": "npm run build:client",
@@ -32,6 +32,7 @@
     "reset-all-guilds": "npx tsx --tsconfig server/tsconfig.json server/scripts/resetAllGuilds.ts",
     "guild-war:match-test": "cross-env GUILD_WAR_MATCH_TEST_MODE=1 npx tsx --tsconfig server/tsconfig.json server/scripts/runGuildWarMatchTest.ts",
     "guild-war:reset-in-progress": "npx tsx --tsconfig server/tsconfig.json server/scripts/resetGuildWarInProgress.ts",
+    "guild-war:open-now": "npx tsx --tsconfig server/tsconfig.json server/scripts/openActiveGuildWarsNow.ts",
     "fix-orphaned-guild-refs": "npx tsx --tsconfig server/tsconfig.json server/scripts/fixOrphanedGuildReferences.ts",
     "reset-championship-data": "npx tsx --tsconfig server/tsconfig.json server/scripts/resetAllChampionshipData.ts",
     "reset-championship-scores": "npx tsx --tsconfig server/tsconfig.json server/scripts/resetAllChampionshipScores.ts",
