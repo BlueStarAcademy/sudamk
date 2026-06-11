@@ -1,10 +1,31 @@
 import { GameMode, Player } from '../types/enums.js';
-import type { BoardState, ChessPieceState, ChessPieceType, LiveGameSession, Point } from '../types/entities.js';
+import type { BoardState, ChessPieceState, ChessPieceType, LiveGameSession, Point, ChessLastMoveMarker } from '../types/entities.js';
 
 export type ChessGoSessionSlice = Pick<
     LiveGameSession,
-    'chessPieces' | 'chessCaptureScore' | 'boardState' | 'settings' | 'captures'
+    'chessPieces' | 'chessCaptureScore' | 'boardState' | 'settings' | 'captures' | 'chessGoRemovedPoints'
 >;
+
+/** 바둑 착수 규칙 검증용 — normalizeChessGoSession에 필요한 필드 */
+export type ChessGoSessionForRules = Pick<
+    LiveGameSession,
+    | 'mode'
+    | 'settings'
+    | 'moveHistory'
+    | 'boardState'
+    | 'chessPieces'
+    | 'chessCaptureScore'
+    | 'chessPieceMovedThisTurn'
+    | 'koInfo'
+>;
+
+export type ChessGoMoveResult = {
+    isValid: boolean;
+    newBoardState: BoardState;
+    capturedStones: Point[];
+    newKoInfo: LiveGameSession['koInfo'];
+    reason?: 'ko' | 'suicide' | 'occupied';
+};
 
 export type ChessMoveCandidate = {
     pieceId: string;
@@ -23,6 +44,44 @@ export function isChessMode(mode: unknown): boolean {
 
 export function pointKey(x: number, y: number): string {
     return `${x},${y}`;
+}
+
+export function recordChessGoRemovedPoints(
+    session: Pick<LiveGameSession, 'chessGoRemovedPoints'>,
+    points: Point[],
+): void {
+    if (!points.length) return;
+    const existing = session.chessGoRemovedPoints ?? [];
+    const keys = new Set(existing.map((p) => pointKey(p.x, p.y)));
+    const next = [...existing];
+    for (const p of points) {
+        const k = pointKey(p.x, p.y);
+        if (!keys.has(k)) {
+            next.push({ x: p.x, y: p.y });
+            keys.add(k);
+        }
+    }
+    session.chessGoRemovedPoints = next;
+}
+
+export function clearChessGoRemovedPointAt(
+    session: Pick<LiveGameSession, 'chessGoRemovedPoints'>,
+    x: number,
+    y: number,
+): void {
+    if (!session.chessGoRemovedPoints?.length) return;
+    session.chessGoRemovedPoints = session.chessGoRemovedPoints.filter((p) => p.x !== x || p.y !== y);
+}
+
+/** 바둑 착수 확정 시: 새 착점 복원 + 따낸 돌 기록 */
+export function commitChessGoPlacementCaptures(
+    session: Pick<LiveGameSession, 'chessGoRemovedPoints'>,
+    x: number,
+    y: number,
+    capturedStones: Point[],
+): void {
+    clearChessGoRemovedPointAt(session, x, y);
+    recordChessGoRemovedPoints(session, capturedStones);
 }
 
 export function getChessPieceCaptureValue(type: ChessPieceType): number {
@@ -262,11 +321,15 @@ export function boardMatchesChessPieces(
 }
 
 function rebuildChessGoBoardFromSession(
-    session: Pick<LiveGameSession, 'moveHistory' | 'chessPieces'>,
+    session: Pick<LiveGameSession, 'moveHistory' | 'chessPieces' | 'chessGoRemovedPoints'>,
 ): BoardState {
     const board = createEmptyBoardState(CHESS_GO_BOARD_SIZE);
+    const removedKeys = new Set(
+        (session.chessGoRemovedPoints ?? []).map((p) => pointKey(p.x, p.y)),
+    );
     for (const move of session.moveHistory ?? []) {
         if (move.x >= 0 && move.y >= 0 && move.x < CHESS_GO_BOARD_SIZE && move.y < CHESS_GO_BOARD_SIZE) {
+            if (removedKeys.has(pointKey(move.x, move.y))) continue;
             board[move.y]![move.x] = move.player;
         }
     }
@@ -609,6 +672,115 @@ function findGroup(
     return { stones, liberties: liberties.size };
 }
 
+export function isPlayableChessGoIntersection(
+    session: ChessGoSessionForRules,
+    x: number,
+    y: number,
+): boolean {
+    const normalized = normalizeChessGoSession(session as LiveGameSession);
+    const board = normalized.boardState;
+    if (!board?.length || y < 0 || x < 0 || y >= board.length || x >= board.length) return false;
+    return board[y]![x] === Player.None;
+}
+
+export function processChessGoMove(
+    session: ChessGoSessionForRules,
+    move: { x: number; y: number; player: Player.Black | Player.White },
+    koInfo: LiveGameSession['koInfo'],
+    moveHistoryLength: number,
+): ChessGoMoveResult {
+    const normalized = normalizeChessGoSession(session as LiveGameSession);
+    const boardState = normalized.boardState;
+    const { x, y, player } = move;
+    const boardSize = boardState.length;
+    const opponent = player === Player.Black ? Player.White : Player.Black;
+
+    if (y < 0 || y >= boardSize || x < 0 || x >= boardSize) {
+        return { isValid: false, reason: 'occupied', newBoardState: boardState, capturedStones: [], newKoInfo: koInfo };
+    }
+
+    if (!isPlayableChessGoIntersection(normalized, x, y)) {
+        return { isValid: false, reason: 'occupied', newBoardState: boardState, capturedStones: [], newKoInfo: koInfo };
+    }
+
+    if (koInfo && koInfo.point.x === x && koInfo.point.y === y && koInfo.turn === moveHistoryLength) {
+        return { isValid: false, reason: 'ko', newBoardState: boardState, capturedStones: [], newKoInfo: koInfo };
+    }
+
+    const tempBoard = boardState.map((row) => [...row]) as BoardState;
+    tempBoard[y]![x] = player;
+
+    let capturedStones: Point[] = [];
+    let singleCapturePoint: Point | null = null;
+    const checkedOpponentNeighbors = new Set<string>();
+
+    for (const n of getNeighbors(x, y, boardSize)) {
+        const key = pointKey(n.x, n.y);
+        if (tempBoard[n.y]![n.x] === opponent && !checkedOpponentNeighbors.has(key)) {
+            const group = findGroup(tempBoard, n.x, n.y, opponent);
+            if (group && group.liberties === 0) {
+                capturedStones.push(...group.stones);
+                if (group.stones.length === 1) {
+                    singleCapturePoint = group.stones[0]!;
+                }
+                group.stones.forEach((s) => checkedOpponentNeighbors.add(pointKey(s.x, s.y)));
+            }
+        }
+    }
+
+    if (capturedStones.length > 0) {
+        for (const stone of capturedStones) {
+            tempBoard[stone.y]![stone.x] = Player.None;
+        }
+    }
+
+    const myGroup = findGroup(tempBoard, x, y, player);
+    if (myGroup && myGroup.liberties === 0) {
+        return { isValid: false, reason: 'suicide', newBoardState: boardState, capturedStones: [], newKoInfo: koInfo };
+    }
+
+    let newKoInfo: LiveGameSession['koInfo'] = null;
+    if (
+        myGroup &&
+        capturedStones.length === 1 &&
+        myGroup.stones.length === 1 &&
+        myGroup.liberties === 1 &&
+        singleCapturePoint != null
+    ) {
+        newKoInfo = { point: singleCapturePoint, turn: moveHistoryLength + 1 };
+    }
+    if (capturedStones.length !== 1) {
+        newKoInfo = null;
+    }
+
+    return { isValid: true, newBoardState: tempBoard, capturedStones, newKoInfo };
+}
+
+export function enumerateLegalChessGoStonePlacements(
+    session: ChessGoSessionForRules,
+    player: Player.Black | Player.White,
+): Point[] {
+    const normalized = normalizeChessGoSession(session as LiveGameSession);
+    const board = normalized.boardState;
+    if (!board?.length) return [];
+    const boardSize = board.length;
+    const koInfo = session.koInfo ?? null;
+    const moveHistoryLength = session.moveHistory?.length ?? 0;
+    const moves: Point[] = [];
+
+    for (let y = 0; y < boardSize; y++) {
+        for (let x = 0; x < boardSize; x++) {
+            if (!isPlayableChessGoIntersection(normalized, x, y)) continue;
+            const result = processChessGoMove(session, { x, y, player }, koInfo, moveHistoryLength);
+            if (result.isValid) {
+                moves.push({ x, y });
+            }
+        }
+    }
+
+    return moves;
+}
+
 function pawnForwardDelta(owner: Player.Black | Player.White): number {
     return owner === Player.Black ? -1 : 1;
 }
@@ -722,13 +894,16 @@ export function enumerateLegalChessMoves(
 }
 
 export function applyChessMoveToSession(
-    session: ChessGoSessionSlice & { chessPieceMovedThisTurn?: boolean },
+    session: ChessGoSessionSlice & { chessPieceMovedThisTurn?: boolean; lastChessMove?: ChessLastMoveMarker | null },
     pieceId: string,
     toX: number,
     toY: number,
+    actingPlayer?: Player.Black | Player.White,
 ): boolean {
     const piece = session.chessPieces?.find((p) => p.id === pieceId);
     if (!piece) return false;
+
+    const from = { x: piece.x, y: piece.y };
 
     const board = session.boardState.map((row) => [...row]) as BoardState;
     board[piece.y]![piece.x] = Player.None;
@@ -738,6 +913,10 @@ export function applyChessMoveToSession(
     piece.x = toX;
     piece.y = toY;
     piece.remainingMoves = Math.max(0, piece.remainingMoves - 1);
+
+    if (actingPlayer != null) {
+        session.lastChessMove = { from, to: { x: toX, y: toY }, player: actingPlayer };
+    }
     return true;
 }
 
@@ -805,6 +984,10 @@ export function resolveChessCapturesByLiberty(
     if (capturedChessPieces.length > 0 && session.chessPieces) {
         const capturedIds = new Set(capturedChessPieces.map((p) => p.id));
         session.chessPieces = session.chessPieces.filter((p) => !capturedIds.has(p.id));
+    }
+
+    if (capturedStones.length > 0) {
+        recordChessGoRemovedPoints(session, capturedStones);
     }
 
     session.boardState = board;

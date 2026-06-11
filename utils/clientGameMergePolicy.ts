@@ -284,6 +284,24 @@ function mergeChessSessionFieldsOnMerge(
     if (incoming.chessPieceMovedThisTurn == null && existing?.chessPieceMovedThisTurn != null) {
         merged = { ...merged, chessPieceMovedThisTurn: existing.chessPieceMovedThisTurn };
     }
+    if (incoming.lastChessMove === undefined && existing?.lastChessMove) {
+        merged = { ...merged, lastChessMove: existing.lastChessMove };
+    }
+    {
+        const removedKeys = new Set<string>();
+        const mergedRemoved: NonNullable<LiveGameSession['chessGoRemovedPoints']> = [];
+        for (const p of [...(existing?.chessGoRemovedPoints ?? []), ...(incoming.chessGoRemovedPoints ?? [])]) {
+            const key = `${p.x},${p.y}`;
+            if (removedKeys.has(key)) continue;
+            removedKeys.add(key);
+            mergedRemoved.push({ x: p.x, y: p.y });
+        }
+        if (mergedRemoved.length > 0) {
+            merged = { ...merged, chessGoRemovedPoints: mergedRemoved };
+        } else if (incoming.chessGoRemovedPoints === undefined && existing?.chessGoRemovedPoints?.length) {
+            merged = { ...merged, chessGoRemovedPoints: existing.chessGoRemovedPoints };
+        }
+    }
     const existingPiecesMoved = hasChessPiecesMovedFromStandardOpening(existing?.chessPieces);
     const incomingPiecesMoved = hasChessPiecesMovedFromStandardOpening(merged.chessPieces);
     const existingPreserveMidgame = existing ? shouldPreserveChessGoMidgameState(existing) : false;

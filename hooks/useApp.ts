@@ -138,7 +138,7 @@ import { normalizeInventoryAfterLoad } from '../utils/inventoryUtils.js';
 import { reconcileExchangeListedInventoryFlags } from '../shared/utils/exchangeInventorySync.js';
 import { stripReappearedRemovedInventoryItems } from '../shared/utils/inventoryStaleGuard.js';
 import { mergeAdventureProfileForPersistence } from '../utils/adventureProfileMerge.js';
-import { applyChessMoveToSession, normalizeChessGoSession, validateChessMove } from '../shared/utils/chessGoRules.js';
+import { applyChessMoveToSession, commitChessGoPlacementCaptures, normalizeChessGoSession, resolveChessCapturesByLiberty, validateChessMove } from '../shared/utils/chessGoRules.js';
 import {
     coerceAdventureLiveGameScoringTurnLimit,
     getClientArenaStateBucket,
@@ -3260,10 +3260,12 @@ export const useApp = () => {
 
     const applyRecoveredPveGameToStore = useCallback((game: LiveGameSession) => {
         const bucket = getArenaStoreBucketForSession(game);
-        const merge = (prev: Record<string, LiveGameSession>) => ({
-            ...prev,
-            [game.id]: mergePveRejoinResponseWithExistingBoard(prev[game.id], game),
-        });
+        const merge = (prev: Record<string, LiveGameSession>) => {
+            const existing = prev[game.id];
+            const merged = mergePveRejoinResponseWithExistingBoard(existing, game);
+            if (existing === merged) return prev;
+            return { ...prev, [game.id]: merged };
+        };
         if (bucket === 'singlePlayerGames') {
             setSinglePlayerGames(merge);
         } else if (bucket === 'towerGames') {
@@ -3417,8 +3419,9 @@ export const useApp = () => {
                         boardState: game.boardState?.map((row) => [...row]) as LiveGameSession['boardState'],
                     };
                     if (!validateChessMove(copy, pieceId, toX!, toY!, myPlayer).ok) return null;
-                    applyChessMoveToSession(copy, pieceId, toX!, toY!);
+                    applyChessMoveToSession(copy, pieceId, toX!, toY!, myPlayer);
                     copy.chessPieceMovedThisTurn = true;
+                    resolveChessCapturesByLiberty(copy, myPlayer);
                     return normalizeChessGoSession(copy);
                 };
                 setLiveGames((c) => patchLiveGameInMapById(c, gameId, chessMoveMutate));
@@ -4005,9 +4008,12 @@ export const useApp = () => {
 
                 if (!game.isAiGame && !isSessionSingleOrTower(game)) {
                     pvpPlaceStoneRevertRef.current[gameId] = JSON.parse(JSON.stringify(game)) as LiveGameSession;
+                } else if (game.mode === GameMode.Chess) {
+                    pvpPlaceStoneRevertRef.current[gameId] = JSON.parse(JSON.stringify(game)) as LiveGameSession;
                 }
 
                 const movePlayer: Player = (payloadMovePlayer ?? game.currentPlayer) as Player;
+                const capturedStones = (payload.capturedStones ?? []) as Array<{ x: number; y: number }>;
                 const weighted = buildWeightedJustCapturedForStones(game, capturedStones || [], movePlayer);
                 const newCaptures = {
                     ...game.captures,
@@ -4030,6 +4036,7 @@ export const useApp = () => {
                 };
                 if (game.mode === GameMode.Chess) {
                     updatedGame.chessPieceMovedThisTurn = false;
+                    commitChessGoPlacementCaptures(updatedGame, x, y, capturedStones);
                     const normalized = normalizeChessGoSession(updatedGame);
                     return { ...currentGames, [gameId]: normalized };
                 }
@@ -5719,6 +5726,16 @@ export const useApp = () => {
                 revertPvpPlaceStoneSnapshot();
                 rollbackTowerAddTurnOptimistic();
                 revertPveResignOptimistic();
+
+                if (action.type === 'PLACE_STONE' && res.status === 400) {
+                    const syncGameId = (action.payload as { gameId?: string })?.gameId;
+                    if (typeof syncGameId === 'string' && syncGameId.length > 0) {
+                        void handleAction({
+                            type: 'REQUEST_GAME_STATE_SYNC',
+                            payload: { gameId: syncGameId },
+                        } as ServerAction);
+                    }
+                }
 
                 const isBenignPostGameLeaveHttp400 =
                     (action.type === 'LEAVE_GAME_ROOM' || action.type === 'LEAVE_AI_GAME') &&
@@ -11545,10 +11562,15 @@ export const useApp = () => {
         const gameId = currentRoute?.view === 'game' ? (currentRoute.params?.id ?? '') : '';
         if (!currentUser?.id || !gameId) return;
         const shell = liveGames[gameId] || singlePlayerGames[gameId] || towerGames[gameId];
+        const chessGoOpeningReady =
+            shell?.mode === GameMode.Chess &&
+            ((shell.chessPieces?.length ?? 0) > 0 || boardGridHasAnyStones(shell.boardState));
         const needsRecovery =
             !shell ||
-            !boardGridHasAnyStones(shell.boardState) ||
-            (shell.gameStatus === 'pending' && (shell.moveHistory?.length ?? 0) === 0);
+            (!boardGridHasAnyStones(shell.boardState) && !chessGoOpeningReady) ||
+            (shell.gameStatus === 'pending' &&
+                (shell.moveHistory?.length ?? 0) === 0 &&
+                shell.mode !== GameMode.Chess);
         if (!needsRecovery) return;
         recoverPveGameFromSessionStorage(gameId);
     }, [

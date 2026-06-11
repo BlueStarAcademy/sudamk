@@ -2092,14 +2092,24 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                     // Re-check if user is still connected, as they might have been removed by a previous iteration
                     if (!volatileState.userConnections[userId]) continue;
 
-                    // 사용자 조회에 타임아웃 추가 (2초)
-                    const userTimeout = new Promise<null>((resolve) => {
-                        setTimeout(() => resolve(null), 2000);
+                    // 사용자 조회에 타임아웃 추가 (2초) — 타임아웃과 실제 미존재를 구분한다
+                    let user: types.User | null = null;
+                    let userLookupTimedOut = false;
+                    const userTimeout = new Promise<void>((resolve) => {
+                        setTimeout(() => {
+                            userLookupTimedOut = true;
+                            resolve();
+                        }, 2000);
                     });
-                    const user = await Promise.race([
-                        db.getUser(userId),
-                        userTimeout
-                    ]) as types.User | null;
+                    await Promise.race([
+                        db.getUser(userId).then((u) => {
+                            user = u;
+                        }),
+                        userTimeout,
+                    ]);
+                    if (userLookupTimedOut && user === null) {
+                        continue;
+                    }
                     if (!user) {
                         const staleStatus = volatileState.userStatuses[userId];
                         const staleGameId = staleStatus?.gameId;
@@ -2138,6 +2148,25 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                     const timeoutDuration = (activeGame || (userStatus?.status === 'in-game' && userStatus?.gameId)) ? GAME_DISCONNECT_TIMEOUT_MS : LOBBY_TIMEOUT_MS;
 
                     if (now - volatileState.userConnections[userId] > timeoutDuration) {
+                        const pveTimeoutGame = activeGames.find(
+                            (g) => (g.player1.id === userId || g.player2.id === userId),
+                        );
+                        if (pveTimeoutGame) {
+                            const { isPveSessionAbandonOnLeave, shouldSkipPveAbandonForActiveBrowserSession } =
+                                await import('./utils/pveAbandonOnDisconnect.js');
+                            if (
+                                isPveSessionAbandonOnLeave(pveTimeoutGame) &&
+                                (await shouldSkipPveAbandonForActiveBrowserSession(
+                                    volatileState,
+                                    userId,
+                                    'connection_timeout',
+                                ))
+                            ) {
+                                volatileState.userConnections[userId] = Date.now();
+                                continue;
+                            }
+                        }
+
                         // User timed out. They are now disconnected. Remove them from active connections.
                         releaseIpBindingForUser(volatileState, userId);
                         delete volatileState.userConnections[userId];

@@ -648,6 +648,23 @@ export function getPreGameSummaryFour(
     };
   }
 
+  if (mode === GameMode.Chess) {
+    return {
+      winGoal: '정해진 수순 후 계가',
+      loseGoal: '계가에서 패배',
+      scoreFactors: '영토 · 따낸 돌 · 사석 · 기물 포획 · 덤(백)',
+      timeRules: timeLine(settings, mode, mix),
+      specialHighlights: [
+        {
+          img: '/images/simbols/simbol9.webp',
+          text: '기물돌을 체스의 움직임으로 매 턴 1회씩 움직일 수 있음(횟수 제한)',
+        },
+      ],
+      items: NONE,
+      itemSlots: [],
+    };
+  }
+
   if (mode === GameMode.Omok) {
     const f33 = settings.has33Forbidden ? '쌍삼 금지' : '쌍삼 허용';
     const fo = settings.hasOverlineForbidden ? '장목 금지' : '장목 허용';

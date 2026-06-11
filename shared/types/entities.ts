@@ -1326,6 +1326,13 @@ export type ChessPieceState = {
   remainingMoves: number;
 };
 
+/** 체스 바둑: 직전 기물 이동(from→to) — 상대방 마지막 수 표시용 */
+export type ChessLastMoveMarker = {
+  from: Point;
+  to: Point;
+  player: Player.Black | Player.White;
+};
+
 // --- Core Entities ---
 export type LiveGameSession = {
   id: string;
@@ -1430,6 +1437,10 @@ export type LiveGameSession = {
   chessCaptureScore?: { [key in Player]: number };
   /** 체스 바둑: 이번 턴에 기물을 이미 이동했는지 */
   chessPieceMovedThisTurn?: boolean;
+  /** 체스 바둑: 직전 기물 이동(from→to). 바둑 착수 후에도 유지되어 상대 마지막 기물 수 표시에 사용 */
+  lastChessMove?: ChessLastMoveMarker | null;
+  /** 체스 바둑: moveHistory에는 남지만 보드에서 제거된 교차점(따내기) */
+  chessGoRemovedPoints?: Point[];
   basePlacementDeadline?: number;
   /** 베이스돌 배치: 각 참가자가 배치 완료 버튼을 눌렀는지 (돌 개수 충족 후) */
   basePlacementReady?: { [userId: string]: boolean };

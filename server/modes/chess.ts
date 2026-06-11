@@ -84,7 +84,7 @@ export function applyChessMoveInternal(
         return { error: 'Invalid chess move.' };
     }
 
-    applyChessMoveToSession(game, payload.pieceId, payload.toX, payload.toY);
+    applyChessMoveToSession(game, payload.pieceId, payload.toX, payload.toY, actingPlayer);
     game.chessPieceMovedThisTurn = true;
     resolveChessCapturesByLiberty(game, actingPlayer);
     repairChessGoSessionState(game);

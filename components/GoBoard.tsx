@@ -14,7 +14,7 @@ import {
 } from '../shared/utils/baseHiddenMoveIndex.js';
 import { mapStoneToUniformDisplay, resolveTerritoryMarkerDisplayPlayer, resolveUniformStoneDisplayColorForBoard, territoryMarkerRgba } from '../shared/utils/uniformGoRules.js';
 import { detectAndConfirmTerritories } from '../shared/utils/castleGoRules.js';
-import type { ChessPieceState, ChessPieceType } from '../shared/types/entities.js';
+import type { ChessPieceState, ChessPieceType, ChessLastMoveMarker } from '../shared/types/entities.js';
 import { CHESS_GO_BOARD_SIZE, normalizeChessGoSession } from '../shared/utils/chessGoRules.js';
 
 /** 따내기/보너스 점수 플로트: mid(5~9) 기준 폰트 배율 */
@@ -512,7 +512,7 @@ const CHESS_PIECE_GLYPHS: Record<ChessPieceType, string> = {
     queen: '♛',
 };
 
-const Stone: React.FC<{ player: Player, cx: number, cy: number, isLastMove?: boolean, isSelectedMissile?: boolean, isHoverSelectableMissile?: boolean, isKnownHidden?: boolean, isNewlyRevealed?: boolean, animationClass?: string, isBaseStone?: boolean, isPatternStone?: boolean, chessPieceType?: ChessPieceType, chessRemainingMoves?: number, chessPieceSelected?: boolean, radius: number, isFaint?: boolean, keepUpright?: boolean, isPlacementPreview?: boolean, uniformDisplayColor?: Player | null }> = ({ player, cx, cy, isLastMove, isSelectedMissile, isHoverSelectableMissile, isKnownHidden, isNewlyRevealed, animationClass, isBaseStone, isPatternStone, chessPieceType, chessRemainingMoves, chessPieceSelected, radius, isFaint, keepUpright, isPlacementPreview, uniformDisplayColor }) => {
+const Stone: React.FC<{ player: Player, cx: number, cy: number, isLastMove?: boolean, isSelectedMissile?: boolean, isHoverSelectableMissile?: boolean, isKnownHidden?: boolean, isNewlyRevealed?: boolean, animationClass?: string, isBaseStone?: boolean, isPatternStone?: boolean, chessPieceType?: ChessPieceType, chessRemainingMoves?: number, chessPieceSelected?: boolean, isChessLastMoveTo?: boolean, radius: number, isFaint?: boolean, keepUpright?: boolean, isPlacementPreview?: boolean, uniformDisplayColor?: Player | null }> = ({ player, cx, cy, isLastMove, isSelectedMissile, isHoverSelectableMissile, isKnownHidden, isNewlyRevealed, animationClass, isBaseStone, isPatternStone, chessPieceType, chessRemainingMoves, chessPieceSelected, isChessLastMoveTo, radius, isFaint, keepUpright, isPlacementPreview, uniformDisplayColor }) => {
     const visualPlayer = mapStoneToUniformDisplay(player, uniformDisplayColor);
     const specialImageSize = radius * 2 * 0.7;
     const specialImageOffset = specialImageSize / 2;
@@ -582,6 +582,17 @@ const Stone: React.FC<{ player: Player, cx: number, cy: number, isLastMove?: boo
                         </g>
                     )}
                 </>
+            )}
+            {isChessLastMoveTo && (
+                <circle
+                    cx={cx}
+                    cy={cy}
+                    r={radius}
+                    fill="none"
+                    stroke="rgb(239, 68, 68)"
+                    strokeWidth={3.5}
+                    style={{ pointerEvents: 'none' }}
+                />
             )}
             {isNewlyRevealed && (
                 <circle
@@ -676,6 +687,8 @@ interface GoBoardProps {
   chessPieces?: ChessPieceState[];
   chessPieceMovedThisTurn?: boolean;
   selectedChessPieceId?: string | null;
+  /** 체스 바둑: 상대 직전 기물 이동(from·to) 표시 */
+  chessLastMove?: ChessLastMoveMarker | null;
   myPlayerEnum: Player;
   gameStatus: GameStatus;
   currentPlayer: Player;
@@ -756,6 +769,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         chessPieces: chessPiecesProp = [],
         chessPieceMovedThisTurn: chessPieceMovedThisTurnProp,
         selectedChessPieceId = null,
+        chessLastMove = null,
         baseStonesP1Player = Player.Black,
         baseStonesP2Player = Player.White,
         myPlayerEnum,
@@ -2336,8 +2350,10 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     }
 
                     const stonePlayerForRender = actualPlayer;
+                    const isChessLastMoveTo =
+                        !!chessLastMove && chessLastMove.to.x === x && chessLastMove.to.y === y;
 
-                    return <Stone key={`${x}-${y}`} player={stonePlayerForRender} uniformDisplayColor={activeUniformStoneDisplayColor} cx={cx} cy={cy} isLastMove={isLast} isKnownHidden={isKnownHidden as boolean} isBaseStone={hasBaseStoneHere} isPatternStone={isPatternStone} chessPieceType={chessPieces.find((p) => p.x === x && p.y === y)?.type} chessRemainingMoves={chessPieces.find((p) => p.x === x && p.y === y)?.remainingMoves} chessPieceSelected={chessPieces.some((p) => p.id === selectedChessPieceId && p.x === x && p.y === y)} isNewlyRevealed={isNewlyRevealedForAnim} animationClass={isNewlyRevealedForAnim ? 'sparkle-animation' : ''} isSelectedMissile={isSelectedMissileForRender} isHoverSelectableMissile={isHoverSelectableMissile} radius={stone_radius} isFaint={isFaint} keepUpright={!!isRotated} />;
+                    return <Stone key={`${x}-${y}`} player={stonePlayerForRender} uniformDisplayColor={activeUniformStoneDisplayColor} cx={cx} cy={cy} isLastMove={isLast} isKnownHidden={isKnownHidden as boolean} isBaseStone={hasBaseStoneHere} isPatternStone={isPatternStone} chessPieceType={chessPieces.find((p) => p.x === x && p.y === y)?.type} chessRemainingMoves={chessPieces.find((p) => p.x === x && p.y === y)?.remainingMoves} chessPieceSelected={chessPieces.some((p) => p.id === selectedChessPieceId && p.x === x && p.y === y)} isChessLastMoveTo={isChessLastMoveTo} isNewlyRevealed={isNewlyRevealedForAnim} animationClass={isNewlyRevealedForAnim ? 'sparkle-animation' : ''} isSelectedMissile={isSelectedMissileForRender} isHoverSelectableMissile={isHoverSelectableMissile} radius={stone_radius} isFaint={isFaint} keepUpright={!!isRotated} />;
                 }))}
                 {isPairBasePlacementHost ? (
                     <>
@@ -2462,6 +2478,8 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         />
                     );
                 })}
+
+                })()}
 
                 {showHoverPreview && hoverPos && (
                     <g style={{ pointerEvents: 'none' }}>

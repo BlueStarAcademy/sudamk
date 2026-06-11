@@ -7,6 +7,7 @@ import {
     boardMatchesChessPieces,
     buildChessGoOpeningBoardState,
     createEmptyBoardState,
+    enumerateLegalChessGoStonePlacements,
     enumerateLegalChessMoves,
     ensureChessGoOpeningLayout,
     generateChessGoInitialPieces,
@@ -14,6 +15,7 @@ import {
     getInitialRemainingMoves,
     hasChessPiecesMovedFromStart,
     hasLegacyChessFlankPawnLayout,
+    isPlayableChessGoIntersection,
     isStandardChessGoOpeningBoard,
     isStandardChessGoOpeningLayout,
     migrateUnmovedLegacyFlankPawns,
@@ -22,12 +24,14 @@ import {
     hasLegacyChessEdgeMajorLayout,
     isLegacyChessGoLayout,
     normalizeChessGoSession,
+    processChessGoMove,
     reconcileChessGoClientSession,
     shouldPreserveChessGoMidgameState,
     repairChessOpeningWhilePreservingGoStones,
     syncChessGoBoardFromPiecesAndMoves,
     stripLegacyChessFlankBoardStones,
     resolveChessCapturesByLiberty,
+    commitChessGoPlacementCaptures,
     validateChessMove,
 } from '../../../shared/utils/chessGoRules.js';
 import { pickAiChessMoveIfAny, shouldAttemptChessMoveThisTurn } from '../../../shared/utils/chessGoAiHeuristic.js';
@@ -277,6 +281,36 @@ describe('chessGoRules', () => {
         expect(session.boardState[queen.y][queen.x]).toBe(Player.None);
     });
 
+    it('normalizeChessGoSession keeps captured go stones removed after chess liberty capture', () => {
+        const session = createChessSession();
+        session.moveHistory = [
+            { x: 6, y: 6, player: Player.White },
+            { x: 6, y: 5, player: Player.Black },
+            { x: 5, y: 6, player: Player.Black },
+            { x: 7, y: 6, player: Player.Black },
+            { x: 6, y: 7, player: Player.Black },
+        ];
+        session.boardState = normalizeChessGoSession(session).boardState;
+        expect(session.boardState[6]![6]).toBe(Player.White);
+
+        resolveChessCapturesByLiberty(session, Player.Black);
+        expect(session.boardState[6]![6]).toBe(Player.None);
+        expect(session.chessGoRemovedPoints?.some((p) => p.x === 6 && p.y === 6)).toBe(true);
+
+        const normalized = normalizeChessGoSession(session);
+        expect(normalized.boardState[6]![6]).toBe(Player.None);
+    });
+
+    it('commitChessGoPlacementCaptures allows re-placing on a previously captured intersection', () => {
+        const session = createChessSession();
+        session.chessGoRemovedPoints = [{ x: 6, y: 6 }];
+        session.moveHistory = [{ x: 6, y: 6, player: Player.White }];
+        commitChessGoPlacementCaptures(session, 6, 6, []);
+        session.moveHistory.push({ x: 6, y: 6, player: Player.Black });
+        const board = normalizeChessGoSession(session).boardState;
+        expect(board[6]![6]).toBe(Player.Black);
+    });
+
     it('rejects move when remainingMoves is 0', () => {
         const session = createChessSession();
         const pawn = session.chessPieces!.find((p) => p.owner === Player.Black && p.type === 'pawn')!;
@@ -383,7 +417,12 @@ describe('chessGoRules', () => {
     it('patchChessStonesOnBoard clears stale stone at old square after piece moved', () => {
         const session = createChessSession();
         const pawn = session.chessPieces!.find((p) => p.owner === Player.Black && p.type === 'pawn' && p.x === 5)!;
-        applyChessMoveToSession(session, pawn.id, 5, 9);
+        applyChessMoveToSession(session, pawn.id, 5, 9, Player.Black);
+        expect(session.lastChessMove).toEqual({
+            from: { x: pawn.startX, y: pawn.startY },
+            to: { x: 5, y: 9 },
+            player: Player.Black,
+        });
         session.boardState[pawn.startY]![pawn.startX] = Player.Black;
         patchChessStonesOnBoard(session);
         expect(session.boardState[pawn.startY]![pawn.startX]).toBe(Player.None);
@@ -505,5 +544,43 @@ describe('chessGoAiHeuristic', () => {
     it('returns null on random skip even with legal moves', () => {
         const session = createChessSession();
         expect(pickAiChessMoveIfAny(session, Player.Black, 5, 0.99)).toBeNull();
+    });
+});
+
+describe('processChessGoMove', () => {
+    it('rejects placement on chess piece intersections', () => {
+        const session = createChessSession();
+        expect(isPlayableChessGoIntersection(session, 5, 10)).toBe(false);
+        const result = processChessGoMove(session, { x: 5, y: 10, player: Player.Black }, null, 0);
+        expect(result.isValid).toBe(false);
+        expect(result.reason).toBe('occupied');
+    });
+
+    it('rejects suicide when surrounded by opponent stones', () => {
+        const session = createChessSession();
+        session.moveHistory = [
+            { x: 5, y: 6, player: Player.White },
+            { x: 4, y: 5, player: Player.White },
+            { x: 6, y: 5, player: Player.White },
+            { x: 5, y: 4, player: Player.White },
+        ];
+        session.boardState = normalizeChessGoSession(session).boardState;
+        const result = processChessGoMove(session, { x: 5, y: 5, player: Player.Black }, null, 4);
+        expect(result.isValid).toBe(false);
+        expect(result.reason).toBe('suicide');
+    });
+
+    it('allows legal placement on empty intersection away from pieces', () => {
+        const session = createChessSession();
+        const result = processChessGoMove(session, { x: 0, y: 0, player: Player.Black }, null, 0);
+        expect(result.isValid).toBe(true);
+        expect(result.newBoardState[0]![0]).toBe(Player.Black);
+    });
+
+    it('enumerateLegalChessGoStonePlacements skips occupied and suicide points', () => {
+        const session = createChessSession();
+        const legal = enumerateLegalChessGoStonePlacements(session, Player.Black);
+        expect(legal.some((p) => p.x === 5 && p.y === 10)).toBe(false);
+        expect(legal.length).toBeGreaterThan(0);
     });
 });

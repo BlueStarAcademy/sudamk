@@ -8,6 +8,7 @@ import {
     applyPveAbandonOnPlayerLeave,
     markPveAbandonForfeit,
     isPveAbandonForfeitGame,
+    shouldSkipPveAbandonForActiveBrowserSession,
 } from '../../utils/pveAbandonOnDisconnect.js';
 import { UserStatus } from '../../../types/index.js';
 
@@ -22,6 +23,7 @@ vi.mock('../../summaryService.js', () => ({
 
 vi.mock('../../socket.js', () => ({
     broadcast: vi.fn(),
+    hasAuthenticatedWebSocket: vi.fn(() => false),
 }));
 
 vi.mock('../../gameCache.js', () => ({
@@ -119,5 +121,62 @@ describe('pveAbandonOnDisconnect', () => {
         );
         expect(handled).toBe(false);
         expect(endGame).not.toHaveBeenCalled();
+    });
+
+    it('shouldSkipPveAbandonForActiveBrowserSession skips disconnect when HTTP session is active', async () => {
+        const volatileState = { userConnections: { 'human-1': Date.now() } } as any;
+        await expect(
+            shouldSkipPveAbandonForActiveBrowserSession(volatileState, 'human-1', 'disconnect'),
+        ).resolves.toBe(true);
+        await expect(
+            shouldSkipPveAbandonForActiveBrowserSession(volatileState, 'human-1', 'session_expired'),
+        ).resolves.toBe(true);
+        await expect(
+            shouldSkipPveAbandonForActiveBrowserSession(volatileState, 'human-1', 'logout'),
+        ).resolves.toBe(false);
+    });
+
+    it('applyPveAbandonOnPlayerLeave skips disconnect while browser session is active', async () => {
+        const { endGame } = await import('../../summaryService.js');
+        const volatileState = {
+            userConnections: { 'human-1': Date.now() },
+            userStatuses: {
+                'human-1': { status: UserStatus.InGame, gameId: 'pve-abandon-test' },
+            },
+        } as any;
+
+        const handled = await applyPveAbandonOnPlayerLeave(
+            volatileState,
+            'human-1',
+            session(),
+            'disconnect',
+        );
+
+        expect(handled).toBe(false);
+        expect(endGame).not.toHaveBeenCalled();
+        expect(volatileState.userStatuses['human-1'].gameId).toBe('pve-abandon-test');
+    });
+
+    it('applyPveAbandonOnPlayerLeave skips connection_timeout when websocket is still connected', async () => {
+        const { endGame } = await import('../../summaryService.js');
+        const { hasAuthenticatedWebSocket } = await import('../../socket.js');
+        vi.mocked(hasAuthenticatedWebSocket).mockReturnValue(true);
+
+        const volatileState = {
+            userStatuses: {
+                'human-1': { status: UserStatus.InGame, gameId: 'pve-abandon-test' },
+            },
+        } as any;
+
+        const handled = await applyPveAbandonOnPlayerLeave(
+            volatileState,
+            'human-1',
+            session(),
+            'connection_timeout',
+        );
+
+        expect(handled).toBe(false);
+        expect(endGame).not.toHaveBeenCalled();
+        expect(volatileState.userConnections['human-1']).toBeTypeOf('number');
     });
 });

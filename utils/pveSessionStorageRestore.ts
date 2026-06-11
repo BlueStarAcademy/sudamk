@@ -313,6 +313,11 @@ export function loadRecoverablePveGameFromSessionStorage(
     const shell = buildShellFromSnapshot(gameId, parsed, userId ?? '', options?.shell);
     const restored = augmentPveFromSessionStorageSnapshot(shell, parsed);
     if (!isSessionPveArena(restored)) return null;
+    // 체스 바둑: sessionStorage 레거시·오프닝 판 복원은 normalize와 충돌 — 실제 바둑 수순이 있을 때만 허용
+    if (restored.mode === GameMode.Chess) {
+        const goPlaced = (restored.moveHistory ?? []).filter((m) => m.x !== -1 && m.y !== -1).length;
+        if (goPlaced === 0) return null;
+    }
     if (!boardGridHasAnyStones(restored.boardState) && !(restored.moveHistory?.length ?? 0)) return null;
     return restored;
 }

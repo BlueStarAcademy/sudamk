@@ -25,6 +25,7 @@ import {
 } from '../shared/utils/speedTimePressureSessionSync.js';
 import { generateKataServerMoveCandidateDetails, isKataServerAvailable } from './kataServerService.js';
 import { enumerateLegalCastleMoves, processCastleMove } from '../shared/utils/castleGoRules.js';
+import { enumerateLegalChessGoStonePlacements, processChessGoMove } from '../shared/utils/chessGoRules.js';
 import {
     advancePairTurn,
     getCurrentPairTurnSeat,
@@ -1710,6 +1711,14 @@ function isLegalAiMoveOnCurrentBoard(game: types.LiveGameSession, move: Point | 
             game.moveHistory.length,
         ).isValid;
     }
+    if (game.mode === types.GameMode.Chess) {
+        return processChessGoMove(
+            game,
+            { ...move, player },
+            game.koInfo,
+            game.moveHistory.length,
+        ).isValid;
+    }
     return processMove(game.boardState, { ...move, player }, game.koInfo, game.moveHistory.length, { suppressOccupiedLog: true }).isValid;
 }
 
@@ -2940,6 +2949,11 @@ export async function makeGoAiBotMove(
 
     // 선택된 수 실행 (실제 보드 상태 사용)
     const isCastleGame = game.mode === types.GameMode.Castle;
+    const isChessGame = game.mode === types.GameMode.Chess;
+    if (isChessGame) {
+        const { repairChessGoSessionState } = await import('./modes/chess.js');
+        repairChessGoSessionState(game);
+    }
     let result = isCastleGame
         ? processCastleMove(
               game,
@@ -2948,7 +2962,14 @@ export async function makeGoAiBotMove(
               game.koInfo,
               game.moveHistory.length,
           )
-        : processMove(
+        : isChessGame
+          ? processChessGoMove(
+                game,
+                { ...selectedMove, player: aiPlayerEnum },
+                game.koInfo,
+                game.moveHistory.length,
+            )
+          : processMove(
               game.boardState, // 실제 보드 상태 사용 (히든 돌 포함)
               { ...selectedMove, player: aiPlayerEnum },
               game.koInfo,
@@ -3091,15 +3112,6 @@ export async function makeGoAiBotMove(
 
     // 5. 최종 수 적용
     game.boardState = result.newBoardState;
-    if (game.mode === types.GameMode.Chess) {
-        game.chessPieceMovedThisTurn = false;
-        const { syncChessGoBoardFromPiecesAndMoves } = await import('../shared/utils/chessGoRules.js');
-        syncChessGoBoardFromPiecesAndMoves(game);
-    }
-    if (isCastleGame) {
-        const { applyCastleTerritoryAfterMove } = await import('./modes/castle.js');
-        applyCastleTerritoryAfterMove(game);
-    }
     game.lastMove = { x: selectedMove.x, y: selectedMove.y };
     game.moveHistory.push({
         player: aiPlayerEnum,
@@ -3107,6 +3119,26 @@ export async function makeGoAiBotMove(
         y: selectedMove.y,
         ...(pairCurrentSeat ? { actorId: pairCurrentSeat.participantId, pairSeatId: pairCurrentSeat.seatId } : {}),
     });
+    if (isChessGame) {
+        game.chessPieceMovedThisTurn = false;
+        const { commitChessGoPlacementCaptures } = await import('../shared/utils/chessGoRules.js');
+        commitChessGoPlacementCaptures(
+            game,
+            selectedMove.x,
+            selectedMove.y,
+            result.capturedStones,
+        );
+        if (result.capturedStones.length > 0) {
+            const { applyChessCaptureScoreForRemovedStones } = await import('../shared/utils/chessGoRules.js');
+            applyChessCaptureScoreForRemovedStones(game, result.capturedStones, aiPlayerEnum);
+        }
+        const { repairChessGoSessionState } = await import('./modes/chess.js');
+        repairChessGoSessionState(game);
+    }
+    if (isCastleGame) {
+        const { applyCastleTerritoryAfterMove } = await import('./modes/castle.js');
+        applyCastleTerritoryAfterMove(game);
+    }
     if (pendingPairPetKataGameChat) {
         appendPairPetGameChat(game, pendingPairPetKataGameChat.text, {
             participantId: pendingPairPetKataGameChat.participantId,
@@ -3489,6 +3521,9 @@ export async function makeGoAiBotMove(
 }
 
 function hasAnyValidBoardMove(game: types.LiveGameSession, aiPlayer: Player): boolean {
+    if (game.mode === types.GameMode.Chess) {
+        return enumerateLegalChessGoStonePlacements(game, aiPlayer).length > 0;
+    }
     const boardSize = game.settings.boardSize;
 
     for (let y = 0; y < boardSize; y++) {
@@ -3518,6 +3553,9 @@ function findAllValidMoves(
 ): Point[] {
     if (game.mode === types.GameMode.Castle) {
         return enumerateLegalCastleMoves(game, aiPlayer);
+    }
+    if (game.mode === types.GameMode.Chess) {
+        return enumerateLegalChessGoStonePlacements(game, aiPlayer);
     }
     const validMoves: Point[] = [];
     const boardSize = game.settings.boardSize;
@@ -3553,6 +3591,9 @@ function findAllValidMovesFast(
 ): Point[] {
     if (game.mode === types.GameMode.Castle) {
         return enumerateLegalCastleMoves(game, aiPlayer);
+    }
+    if (game.mode === types.GameMode.Chess) {
+        return enumerateLegalChessGoStonePlacements(game, aiPlayer);
     }
     const validMoves: Point[] = [];
     const boardSize = game.settings.boardSize;

@@ -3,6 +3,7 @@ import { Player, GameMode } from '../../../types/enums.js';
 import {
     augmentPveFromSessionStorageSnapshot,
     isRecoverablePveSessionStorageSnapshot,
+    loadRecoverablePveGameFromSessionStorage,
 } from '../../../utils/pveSessionStorageRestore.js';
 import type { LiveGameSession } from '../../../types/index.js';
 import { aiUserId } from '../../../shared/constants/auth.js';
@@ -64,5 +65,54 @@ describe('pveSessionStorageRestore', () => {
         expect(isRecoverablePveSessionStorageSnapshot(parsed)).toBe(true);
         const merged = augmentPveFromSessionStorageSnapshot(shell('sp-game-1'), parsed);
         expect(merged.blackPatternStones?.length).toBe(1);
+    });
+
+    it('체스 바둑 오프닝(바둑 수순 0)은 sessionStorage 복구하지 않음', () => {
+        const board = Array.from({ length: 13 }, () => Array(13).fill(Player.None));
+        board[6][6] = Player.Black;
+        const chessShell = {
+            ...shell('ai-chess-1'),
+            mode: GameMode.Chess,
+            isSinglePlayer: false,
+            gameCategory: undefined,
+            boardState: board,
+            chessPieces: [{ id: 'b-king', type: 'king', owner: Player.Black, x: 6, y: 6 }],
+        } as LiveGameSession;
+        const parsed = {
+            gameId: 'ai-chess-1',
+            mode: GameMode.Chess,
+            isAiGame: true,
+            boardState: board,
+            moveHistory: [],
+            totalTurns: 100,
+            gameStatus: 'pending',
+        };
+        expect(isRecoverablePveSessionStorageSnapshot(parsed)).toBe(true);
+        expect(augmentPveFromSessionStorageSnapshot(chessShell, parsed)).toBe(chessShell);
+        const storage = new Map<string, string>();
+        storage.set('gameState_ai-chess-1', JSON.stringify(parsed));
+        const prev = globalThis.sessionStorage;
+        Object.defineProperty(globalThis, 'sessionStorage', {
+            configurable: true,
+            value: {
+                getItem: (key: string) => storage.get(key) ?? null,
+                setItem: (key: string, value: string) => {
+                    storage.set(key, value);
+                },
+                removeItem: (key: string) => {
+                    storage.delete(key);
+                },
+            },
+        });
+        try {
+            expect(
+                loadRecoverablePveGameFromSessionStorage('ai-chess-1', {
+                    shell: chessShell,
+                    userId: 'user-1',
+                }),
+            ).toBeNull();
+        } finally {
+            Object.defineProperty(globalThis, 'sessionStorage', { configurable: true, value: prev });
+        }
     });
 });

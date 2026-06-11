@@ -58,7 +58,9 @@ import { isPlayableCastleIntersection } from './shared/utils/castleGoRules.js';
 import {
     enumerateLegalChessMoves,
     isLegacyChessGoLayout,
+    isPlayableChessGoIntersection,
     normalizeChessGoSession,
+    processChessGoMove,
     reconcileChessGoClientSession,
 } from './shared/utils/chessGoRules.js';
 import { buildPveItemActionClientSync } from './utils/pveItemClientSync.js';
@@ -2044,6 +2046,42 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         session.basePlacementBlackPlayerId,
     ]);
 
+    const rejectInvalidChessGoStonePlacement = useCallback((x: number, y: number): boolean => {
+        if (mode !== GameMode.Chess || gameStatus !== 'playing' || myPlayerEnum === Player.None) {
+            return false;
+        }
+        if (!isPlayableChessGoIntersection(chessGoSession, x, y)) {
+            flashBoardRuleMessage('둘 수 없는 자리입니다.');
+            return true;
+        }
+        try {
+            const moveResult = processMoveClient(
+                chessGoSession.boardState,
+                { x, y, player: myPlayerEnum },
+                session.koInfo,
+                session.moveHistory?.length || 0,
+            );
+            if (!moveResult.isValid) {
+                if (moveResult.reason === 'ko') showKoRuleFlash();
+                else flashBoardRuleMessage('둘 수 없는 자리입니다.');
+                return true;
+            }
+        } catch {
+            flashBoardRuleMessage('둘 수 없는 자리입니다.');
+            return true;
+        }
+        return false;
+    }, [
+        mode,
+        gameStatus,
+        myPlayerEnum,
+        chessGoSession,
+        session.koInfo,
+        session.moveHistory?.length,
+        flashBoardRuleMessage,
+        showKoRuleFlash,
+    ]);
+
     const pendingMoveForBoard = useMemo(() => {
         if (!settings.features.moveConfirmButtonBox || !settings.features.mobileConfirm || !pendingMove) return null;
         if (myPlayerEnum === Player.None) return null;
@@ -2838,12 +2876,20 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         const stoneHere = boardStateToUse[y]?.[x];
         if (stoneHere !== Player.None) return false;
         try {
-            const moveResult = processMoveClient(
-                boardStateToUse,
-                { x, y, player: myPlayerEnum },
-                session.koInfo,
-                session.moveHistory?.length || 0
-            );
+            const moveResult =
+                mode === GameMode.Chess
+                    ? processChessGoMove(
+                          { ...session, boardState: boardStateToUse },
+                          { x, y, player: myPlayerEnum },
+                          session.koInfo,
+                          session.moveHistory?.length || 0,
+                      )
+                    : processMoveClient(
+                          boardStateToUse,
+                          { x, y, player: myPlayerEnum },
+                          session.koInfo,
+                          session.moveHistory?.length || 0,
+                      );
             if (!moveResult.isValid) return false;
             handlers.handleAction({
                 type: 'AI_GAME_CLIENT_MOVE',
@@ -2869,6 +2915,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         myPlayerEnum,
         chessGoSession.boardState,
         restoredBoardState,
+        session,
         session.boardState,
         session.koInfo,
         session.moveHistory?.length,
@@ -3017,6 +3064,16 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             setSelectedChessPieceId(null);
         }
 
+        if (
+            mode === GameMode.Chess &&
+            gameStatus === 'playing' &&
+            isMyTurn &&
+            !isItemModeActive &&
+            rejectInvalidChessGoStonePlacement(x, y)
+        ) {
+            return;
+        }
+
         const petHintBoardLockUntil = strategicPetHintBoardInputLockUntilHistoryLenRef.current;
         if (petHintBoardLockUntil != null && (session.moveHistory?.length ?? 0) < petHintBoardLockUntil) {
             return;
@@ -3055,6 +3112,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 gameStatus === 'playing' &&
                 myPlayerEnum !== Player.None &&
                 !isPlayableCastleIntersection(session, x, y, myPlayerEnum)
+            ) {
+                return;
+            }
+            if (
+                mode === GameMode.Chess &&
+                gameStatus === 'playing' &&
+                myPlayerEnum !== Player.None &&
+                rejectInvalidChessGoStonePlacement(x, y)
             ) {
                 return;
             }
@@ -3472,6 +3537,15 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             ) {
                 return;
             }
+            if (
+                mode === GameMode.Chess &&
+                gameStatus === 'playing' &&
+                myPlayerEnum !== Player.None &&
+                !payload.isHidden &&
+                rejectInvalidChessGoStonePlacement(x, y)
+            ) {
+                return;
+            }
             if (payload.isHidden) audioService.stopScanBgm();
         }
 
@@ -3528,9 +3602,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 y >= 0;
             // 전략/모험/길드전 등 온라인 AI 대국: 빈 교차점일 때만 낙관적 반영(상대 돌 위 클릭·판 불일치 시 processMoveClient PVP 차단 로그 방지)
             const boardForOptimistic =
-                session.boardState && Array.isArray(session.boardState) && session.boardState.length > 0
-                    ? session.boardState
-                    : restoredBoardState || session.boardState;
+                mode === GameMode.Chess && chessGoSession.boardState?.length
+                    ? chessGoSession.boardState
+                    : session.boardState && Array.isArray(session.boardState) && session.boardState.length > 0
+                      ? session.boardState
+                      : restoredBoardState || session.boardState;
             const canOptimisticAiPlace =
                 optimisticAiStonePlace &&
                 boardForOptimistic &&
@@ -3633,6 +3709,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         playUserPlaceStoneSoundAt,
         selectedChessPieceId,
         chessGoSession,
+        rejectInvalidChessGoStonePlacement,
     ]);
 
     const handleConfirmMove = useCallback(() => {
@@ -3771,6 +3848,16 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     setPendingMove(null);
                     return;
                 }
+                if (
+                    mode === GameMode.Chess &&
+                    gameStatus === 'playing' &&
+                    myPlayerEnum !== Player.None &&
+                    !payload.isHidden &&
+                    rejectInvalidChessGoStonePlacement(x, y)
+                ) {
+                    setPendingMove(null);
+                    return;
+                }
             }
         }
 
@@ -3832,9 +3919,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 x >= 0 &&
                 y >= 0;
             const boardForOptimisticConfirm =
-                session.boardState && Array.isArray(session.boardState) && session.boardState.length > 0
-                    ? session.boardState
-                    : restoredBoardState || session.boardState;
+                mode === GameMode.Chess && chessGoSession.boardState?.length
+                    ? chessGoSession.boardState
+                    : session.boardState && Array.isArray(session.boardState) && session.boardState.length > 0
+                      ? session.boardState
+                      : restoredBoardState || session.boardState;
             const canOptimisticAiPlaceConfirm =
                 optimisticAiStonePlaceConfirm &&
                 boardForOptimisticConfirm &&
@@ -3944,6 +4033,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         session.settings,
         strategicPetHintBoardOverlay,
         playUserPlaceStoneSoundAt,
+        rejectInvalidChessGoStonePlacement,
+        chessGoSession,
     ]);
 
     const handleCancelMove = useCallback(() => setPendingMove(null), []);

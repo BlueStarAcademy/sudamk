@@ -1595,11 +1595,17 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         }
         const limit = settings.scoringTurnLimit;
         if (limit != null && limit > 0) {
-            const monKey = `${session.id}|stlim|${limit}`;
+            const progressSource =
+                mode === GameMode.Chess
+                    ? session.gameStatus === 'pending'
+                        ? 0
+                        : Math.max(validMovesOnly, session.totalTurns ?? 0)
+                    : scoringTurnProgress;
+            const monKey = `${session.id}|stlim|${limit}|${mode === GameMode.Chess ? 'chess' : 'std'}`;
             if (strategicScoringProgressMaxRef.current.key !== monKey) {
                 strategicScoringProgressMaxRef.current = { key: monKey, max: 0 };
             }
-            const rawProg = Math.min(limit, scoringTurnProgress);
+            const rawProg = Math.min(limit, progressSource);
             strategicScoringProgressMaxRef.current.max = Math.max(strategicScoringProgressMaxRef.current.max, rawProg);
             const effProg = strategicScoringProgressMaxRef.current.max;
             const remaining = Math.max(0, limit - effProg);
@@ -1618,6 +1624,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         session.settings,
         isCaptureRuleActive,
         isCastleMode,
+        session.gameStatus,
     ]);
     const strategicLobbyTurnInfo = useMemo(() => {
         if (!strategicLobbyTurnInfoRaw) return strategicLobbyTurnInfoRaw;

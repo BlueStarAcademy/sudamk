@@ -42,6 +42,30 @@ function clearInGameUserStatus(volatileState: VolatileState, userId: string): vo
 }
 
 /**
+ * 브라우저에 로그인된 상태(활성 WS 또는 HTTP 세션)면 PVE 자동 기권을 하지 않는다.
+ * - logout / session_expired: 명시적 이탈·만료 → 항상 기권
+ * - disconnect: WS 끊김 유예 중 HTTP 세션 또는 재연결 WS가 있으면 유지
+ * - connection_timeout: HTTP 하트비트만 만료됐어도 WS가 살아 있으면 유지
+ */
+export async function shouldSkipPveAbandonForActiveBrowserSession(
+    volatileState: VolatileState,
+    userId: string,
+    reason: PveAbandonReason,
+): Promise<boolean> {
+    if (reason === 'logout') {
+        return false;
+    }
+    const { hasAuthenticatedWebSocket } = await import('../socket.js');
+    if (hasAuthenticatedWebSocket(userId)) {
+        return true;
+    }
+    if (volatileState.userConnections[userId]) {
+        return true;
+    }
+    return false;
+}
+
+/**
  * PVE 인게임 유저가 로그아웃·세션 만료·마지막 WebSocket 끊김 등으로 이탈할 때:
  * AI 승리(패배) 정산 → LiveGame 삭제 → GAME_DELETED.
  * 행동력은 입장 시 이미 차감된 상태를 유지한다(환불 없음).
@@ -57,6 +81,18 @@ export async function applyPveAbandonOnPlayerLeave(
 
     const isParticipant = game.player1?.id === userId || game.player2?.id === userId;
     if (!isParticipant) return false;
+
+    if (await shouldSkipPveAbandonForActiveBrowserSession(volatileState, userId, reason)) {
+        const { hasAuthenticatedWebSocket } = await import('../socket.js');
+        if (hasAuthenticatedWebSocket(userId)) {
+            volatileState.userConnections ??= {};
+            volatileState.userConnections[userId] = Date.now();
+        }
+        console.log(
+            `[PVE Abandon] skipped (${reason}): user=${userId} game=${game.id} still logged in on browser`,
+        );
+        return false;
+    }
 
     console.log(
         `[PVE Abandon] ${reason}: user=${userId} game=${game.id} category=${game.gameCategory ?? 'unknown'}`,

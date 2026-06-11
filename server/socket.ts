@@ -811,6 +811,11 @@ export const sendToUser = (userId: string, message: any) => {
     }
 };
 
+/** AUTH 완료된 WebSocket이 하나라도 있으면 true (브라우저 탭/기기 접속 중). */
+export function hasAuthenticatedWebSocket(userId: string): boolean {
+    return (userIdToClients.get(userId)?.size ?? 0) > 0;
+}
+
 /** 관리자 강제 로그아웃 등: 해당 유저의 모든 WS를 닫아 클라이언트 루프·재연결 루프를 끊는다. */
 export const closeWebSocketsForUser = (userId: string): void => {
     const clients = userIdToClients.get(userId);

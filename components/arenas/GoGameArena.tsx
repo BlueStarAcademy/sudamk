@@ -76,6 +76,15 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
     );
     const displaySession = mode === GameMode.Chess ? chessNormalizedSession : session;
 
+    /** 상대가 직전에 움직인 기물: 도착 칸 기물 돌에 붉은 테두리 */
+    const chessLastMoveForDisplay = useMemo(() => {
+        if (mode !== GameMode.Chess) return null;
+        const lm = displaySession.lastChessMove;
+        if (!lm) return null;
+        if (myPlayerEnum !== Player.None && lm.player === myPlayerEnum) return null;
+        return lm;
+    }, [mode, displaySession.lastChessMove, myPlayerEnum]);
+
     const boardSizeForDisplay = mode === GameMode.Chess ? CHESS_GO_BOARD_SIZE : settings.boardSize;
     const strategicPetHintDotOverlay = useMemo(() => {
         if (!strategicPetHintBoardOverlay) return null;
@@ -349,6 +358,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 chessPieces={displaySession.chessPieces}
                 chessPieceMovedThisTurn={displaySession.chessPieceMovedThisTurn}
                 selectedChessPieceId={selectedChessPieceId}
+                chessLastMove={chessLastMoveForDisplay}
                 myRevealedStones={myRevealedStones}
                 myRevealedMoveIndices={myRevealedMoves}
                 allRevealedStones={allRevealedStones}

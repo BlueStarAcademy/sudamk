@@ -23,6 +23,9 @@ import {
 } from './castle.js';
 import {
     applyChessCaptureScoreForRemovedStones,
+    CHESS_GO_BOARD_SIZE,
+    commitChessGoPlacementCaptures,
+    processChessGoMove,
 } from '../../shared/utils/chessGoRules.js';
 import { handleChessMoveAction, initializeChessGame, repairChessGoSessionState } from './chess.js';
 import { processCastleMove } from '../../shared/utils/castleGoRules.js';
@@ -1187,9 +1190,16 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 console.error(`[handleStandardAction] CRITICAL BUG PREVENTION: Attempted to place stone at pass position (${x}, ${y}), gameId=${game.id}, isSinglePlayer=${game.isSinglePlayer}, gameCategory=${game.gameCategory}`);
                 return { error: '패 위치에는 돌을 놓을 수 없습니다. 패를 하려면 PASS_TURN 액션을 사용하세요.' };
             }
+
+            if (game.mode === types.GameMode.Chess) {
+                repairChessGoSessionState(game);
+            }
             
             // 치명적 버그 방지: 보드 범위를 벗어나는 위치에 돌을 놓으려는 시도 차단
-            const boardSize = game.settings.boardSize;
+            const boardSize =
+                game.mode === types.GameMode.Chess
+                    ? CHESS_GO_BOARD_SIZE
+                    : game.settings.boardSize;
             if (x < 0 || x >= boardSize || y < 0 || y >= boardSize) {
                 console.error(`[handleStandardAction] CRITICAL BUG PREVENTION: Attempted to place stone out of bounds (${x}, ${y}), boardSize=${boardSize}, gameId=${game.id}, isSinglePlayer=${game.isSinglePlayer}, gameCategory=${game.gameCategory}`);
                 return { error: `보드 범위를 벗어난 위치입니다. (${x}, ${y})는 유효하지 않습니다.` };
@@ -1249,6 +1259,10 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                         gg.scannedAiInitialHiddenByUser = { ...fg.scannedAiInitialHiddenByUser };
                     }
                 }
+            }
+
+            if (game.mode === types.GameMode.Chess) {
+                serverBoardState = game.boardState;
             }
             
             // 범위 체크 후에만 boardState에 접근
@@ -1546,7 +1560,9 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                       game.koInfo,
                       game.moveHistory.length,
                   )
-                : processMove(
+                : isChessGame
+                  ? processChessGoMove(game, move, game.koInfo, game.moveHistory.length)
+                  : processMove(
                 game.boardState, 
                 move, 
                 game.koInfo, 
@@ -1677,6 +1693,9 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 game.lastMove = { x, y };
                 game.lastTurnStones = null;
                 game.moveHistory.push(move);
+                if (isChessGame) {
+                    commitChessGoPlacementCaptures(game, x, y, result.capturedStones);
+                }
                 if (effectiveIsHidden) {
                     if (!game.hiddenMoves) game.hiddenMoves = {};
                     game.hiddenMoves[game.moveHistory.length - 1] = true;
@@ -1727,6 +1746,9 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             }
             game.lastTurnStones = null;
             game.moveHistory.push(move);
+            if (isChessGame) {
+                commitChessGoPlacementCaptures(game, x, y, result.capturedStones);
+            }
             game.koInfo = result.newKoInfo;
             game.passCount = 0;
             if (pairCurrentSeat) resetPairPasses(game.settings);
