@@ -2479,8 +2479,6 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     );
                 })}
 
-                })()}
-
                 {showHoverPreview && hoverPos && (
                     <g style={{ pointerEvents: 'none' }}>
                         <Stone
