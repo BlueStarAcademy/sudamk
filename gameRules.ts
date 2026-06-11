@@ -199,6 +199,24 @@ export const GAME_RULES: Partial<Record<GameMode, GameRule>> = {
             },
         ],
     },
+    [GameMode.Castle]: {
+        title: '캐슬 바둑',
+        sections: [
+            {
+                subtitle: '안내',
+                content: ['추가 업데이트 준비중'],
+            },
+        ],
+    },
+    [GameMode.Chess]: {
+        title: '체스 바둑',
+        sections: [
+            {
+                subtitle: '안내',
+                content: ['추가 업데이트 준비중'],
+            },
+        ],
+    },
     [GameMode.Mix]: {
         title: '믹스룰 바둑',
         sections: [

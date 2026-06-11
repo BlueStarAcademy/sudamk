@@ -21,15 +21,38 @@ export const MIX_GO_MODE_DESCRIPTION =
 export const UNIFORM_GO_MODE_DESCRIPTION =
     '클래식 바둑과 동일한 규칙으로 두되, 모든 돌이 한 가지 색으로 보이는 심리전 바둑입니다.';
 
-export const SPECIAL_GAME_MODES = [
+/** 아직 출시 전인 모드(캐슬·체스 바둑 등) 로비 설명 */
+export const COMING_SOON_GAME_MODE_DESCRIPTION = '추가 업데이트 준비중';
+
+export type LobbyGameModeDefinition = {
+    mode: GameMode;
+    name: string;
+    description: string;
+    available?: boolean;
+    image: string;
+};
+
+export function isPlayableLobbyGameMode(entry: Pick<LobbyGameModeDefinition, 'available'>): boolean {
+    return entry.available !== false;
+}
+
+export function filterPlayableLobbyGameModes<T extends Pick<LobbyGameModeDefinition, 'available'>>(
+    modes: readonly T[],
+): T[] {
+    return modes.filter(isPlayableLobbyGameMode);
+}
+
+export const SPECIAL_GAME_MODES: LobbyGameModeDefinition[] = [
   { mode: GameMode.Standard, name: "클래식 바둑", description: "일반적인 클래식 바둑입니다.", available: true, image: "/images/simbols/simbol1.webp" },
   { mode: GameMode.Capture, name: "따내기 바둑", description: "정해진 개수의 돌을 먼저 따내는 사람이 승리하는 바둑입니다.", available: true, image: "/images/simbols/simbol2.webp" },
   { mode: GameMode.Speed, name: "스피드 바둑", description: SPEED_GO_MODE_DESCRIPTION, available: true, image: "/images/simbols/simbol3.webp" },
   { mode: GameMode.Base, name: "베이스 바둑", description: BASE_GO_MODE_DESCRIPTION, available: true, image: "/images/simbols/simbol4.webp" },
   { mode: GameMode.Hidden, name: "히든 바둑", description: HIDDEN_GO_MODE_DESCRIPTION, available: true, image: "/images/simbols/simbol5.webp" },
   { mode: GameMode.Missile, name: "미사일 바둑", description: MISSILE_GO_MODE_DESCRIPTION, available: true, image: "/images/simbols/simbol6.webp" },
-  { mode: GameMode.Uniform, name: "일색 바둑", description: UNIFORM_GO_MODE_DESCRIPTION, available: true, image: "/images/simbols/simbol8.webp" },
-  { mode: GameMode.Mix, name: "믹스 바둑", description: MIX_GO_MODE_DESCRIPTION, available: true, image: "/images/simbols/simbol7.webp" }
+  { mode: GameMode.Uniform, name: "일색 바둑", description: UNIFORM_GO_MODE_DESCRIPTION, available: true, image: "/images/simbols/simbol7.webp" },
+  { mode: GameMode.Castle, name: "캐슬 바둑", description: COMING_SOON_GAME_MODE_DESCRIPTION, available: false, image: "/images/simbols/simbol8.webp" },
+  { mode: GameMode.Chess, name: "체스 바둑", description: COMING_SOON_GAME_MODE_DESCRIPTION, available: false, image: "/images/simbols/simbol9.webp" },
+  { mode: GameMode.Mix, name: "믹스 바둑", description: MIX_GO_MODE_DESCRIPTION, available: true, image: "/images/simbols/simbol10.webp" }
 ];
 
 export const PLAYFUL_GAME_MODES = [

@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
 import { GameMode, GameSettings, ServerAction, UserWithStatus } from '../../types.js'; // Import UserWithStatus
-import { SPECIAL_GAME_MODES, DEFAULT_GAME_SETTINGS } from '../../constants';
+import { SPECIAL_GAME_MODES, DEFAULT_GAME_SETTINGS, filterPlayableLobbyGameModes, isPlayableLobbyGameMode } from '../../constants';
 import { getRankedGameSettings } from '../../constants/rankedGameSettings.js';
 import Avatar from '../Avatar.js'; // Import Avatar
 import { AVATAR_POOL, BORDER_POOL } from '../../constants'; // Import AVATAR_POOL, BORDER_POOL
@@ -14,7 +14,7 @@ interface ChallengeApplicationModalProps {
 }
 
 const ChallengeApplicationModal: React.FC<ChallengeApplicationModalProps> = ({ opponentUser, onClose, onAction }) => {
-    const [selectedGameMode, setSelectedGameMode] = useState<GameMode>(SPECIAL_GAME_MODES[0].mode);
+    const [selectedGameMode, setSelectedGameMode] = useState<GameMode>(filterPlayableLobbyGameModes(SPECIAL_GAME_MODES)[0].mode);
 
     const selectedGameDefinition = useMemo(() => {
         return SPECIAL_GAME_MODES.find(mode => mode.mode === selectedGameMode);
@@ -67,9 +67,15 @@ const ChallengeApplicationModal: React.FC<ChallengeApplicationModalProps> = ({ o
                         {SPECIAL_GAME_MODES.map(game => (
                             <button
                                 key={game.mode}
-                                onClick={() => setSelectedGameMode(game.mode)}
+                                type="button"
+                                disabled={!isPlayableLobbyGameMode(game)}
+                                onClick={() => {
+                                    if (isPlayableLobbyGameMode(game)) setSelectedGameMode(game.mode);
+                                }}
                                 className={`px-4 py-2 text-sm font-semibold ${
-                                    selectedGameMode === game.mode
+                                    !isPlayableLobbyGameMode(game)
+                                        ? 'cursor-not-allowed text-tertiary/60 opacity-50'
+                                        : selectedGameMode === game.mode
                                         ? 'border-b-2 border-accent text-accent'
                                         : 'text-secondary hover:bg-secondary/20'
                                 }`}

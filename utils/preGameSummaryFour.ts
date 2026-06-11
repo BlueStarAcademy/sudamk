@@ -372,7 +372,7 @@ function mixSpecialHighlights(
   }
   const auto = autoScoringLine(settings, GameMode.Mix, mix);
   if (auto) {
-    h.push({ img: '/images/simbols/simbol7.webp', text: auto });
+    h.push({ img: '/images/simbols/simbol10.webp', text: auto });
   }
   return h;
 }

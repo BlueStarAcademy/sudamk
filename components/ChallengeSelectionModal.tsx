@@ -4,6 +4,7 @@ import {
   SPECIAL_GAME_MODES,
   PLAYFUL_GAME_MODES,
   DEFAULT_GAME_SETTINGS,
+  isPlayableLobbyGameMode,
 } from '../constants';
 import { 
   BOARD_SIZES, TIME_LIMITS, BYOYOMI_COUNTS, BYOYOMI_TIMES, CAPTURE_BOARD_SIZES, 
@@ -63,7 +64,8 @@ const GameCard: React.FC<{
     scaleFactor?: number;
     /** 상대 응답 대기 중에는 카드 변경 불가 */
     interactionLocked?: boolean;
-}> = ({ mode, image, onSelect, isSelected, isRejected, scaleFactor = 1, interactionLocked = false }) => {
+    comingSoon?: boolean;
+}> = ({ mode, image, onSelect, isSelected, isRejected, scaleFactor = 1, interactionLocked = false, comingSoon = false }) => {
     const [imgError, setImgError] = useState(false);
     
     // 스케일에 따른 크기 계산 (더 컴팩트하게)
@@ -72,11 +74,11 @@ const GameCard: React.FC<{
     const fontSize = Math.max(10, Math.round(12 * scaleFactor));
     const titleFontSize = Math.max(11, Math.round(13 * scaleFactor));
 
-    const noClick = isRejected || interactionLocked;
+    const noClick = isRejected || interactionLocked || comingSoon;
     return (
         <div
             className={`bg-panel text-on-panel flex flex-col items-center rounded-lg text-center transition-all transform ${
-                isRejected 
+                isRejected || comingSoon
                     ? 'opacity-50 cursor-not-allowed grayscale pointer-events-none' 
                     : interactionLocked && !isSelected
                     ? 'opacity-55 cursor-default shadow-lg'
@@ -113,6 +115,16 @@ const GameCard: React.FC<{
                                     style={{ fontSize: `${fontSize}px` }}
                                 >
                                     거부중
+                                </span>
+                            </div>
+                        )}
+                        {comingSoon && !isRejected && (
+                            <div className="absolute inset-0 bg-black/60 flex items-center justify-center px-1">
+                                <span
+                                    className="text-white font-bold text-center leading-tight"
+                                    style={{ fontSize: `${Math.max(9, fontSize - 1)}px` }}
+                                >
+                                    준비중
                                 </span>
                             </div>
                         )}
@@ -335,6 +347,8 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
   }, []);
 
   const handleGameSelect = (mode: GameMode) => {
+    const def = availableGames.find((g) => g.mode === mode);
+    if (def && !isPlayableLobbyGameMode(def)) return;
     try {
       if (selectedMode && selectedMode !== mode) {
         localStorage.setItem(`preferredGameSettings_${selectedMode}`, JSON.stringify(settings));
@@ -1214,6 +1228,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
             >
               {availableGames.map((game) => {
                 const isRejected = displayOpponent.rejectedGameModes?.includes(game.mode) || false;
+                const comingSoon = !isPlayableLobbyGameMode(game);
                 return (
                   <GameCard
                     key={game.mode}
@@ -1222,6 +1237,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                     onSelect={handleGameSelect}
                     isSelected={selectedMode === game.mode}
                     isRejected={isRejected}
+                    comingSoon={comingSoon}
                     scaleFactor={scaleFactor}
                     interactionLocked={isWaitingForResponse}
                   />

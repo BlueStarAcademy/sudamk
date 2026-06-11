@@ -6,7 +6,7 @@ import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import { NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH } from '../../constants/ads.js';
 import { GameMode, ServerAction, GameSettings, Player, AlkkagiPlacementType, User } from '../../types.js';
-import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, DEFAULT_GAME_SETTINGS, STRATEGIC_ACTION_POINT_COST } from '../../constants';
+import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, DEFAULT_GAME_SETTINGS, STRATEGIC_ACTION_POINT_COST, filterPlayableLobbyGameModes, isPlayableLobbyGameMode } from '../../constants';
 import { 
   BOARD_SIZES, TIME_LIMITS, BYOYOMI_COUNTS, BYOYOMI_TIMES, CAPTURE_BOARD_SIZES, 
   CAPTURE_TARGETS, TTAMOK_CAPTURE_TARGETS, SPEED_BOARD_SIZES, SPEED_TIME_LIMITS, BASE_STONE_COUNTS,
@@ -193,19 +193,20 @@ function lobbyGameModeBriefDescription(description: string | undefined, fallback
     return `${slice}…`;
 }
 
-type LobbyGameModeDefinition = { mode: GameMode; name: string; image: string; description?: string };
+type LobbyGameModeDefinition = { mode: GameMode; name: string; image: string; description?: string; available?: boolean };
 
-/** UI 표시용: 유효한 선택 모드 → 없으면 목록 첫 모드(기본 선택과 동일) */
+/** UI 표시용: 유효한 선택 모드 → 없으면 플레이 가능 목록 첫 모드(기본 선택과 동일) */
 function resolveLobbySelectedGameModeDefinition(
     availableGameModes: LobbyGameModeDefinition[],
     ...modeCandidates: (GameMode | null | undefined)[]
 ): LobbyGameModeDefinition | undefined {
+    const playable = filterPlayableLobbyGameModes(availableGameModes);
     for (const candidate of modeCandidates) {
         if (candidate == null) continue;
-        const found = availableGameModes.find((m) => m.mode === candidate);
+        const found = playable.find((m) => m.mode === candidate);
         if (found) return found;
     }
-    return availableGameModes[0];
+    return playable[0];
 }
 
 /** 전략바둑 대기실 「AI와 대결하기」: 베이스돌 최대 4개 */
@@ -449,7 +450,8 @@ const GameCard: React.FC<{
     /** 가로 스크롤 피커: 카드 너비를 제목 길이에 맞춤(줄임표 없음) */
     scrollStripItem?: boolean;
     chromeKind: AiChallengeModalChromeKind;
-}> = ({ mode, image, displayName, onSelect, isSelected, compact, scrollStripItem, chromeKind }) => {
+    disabled?: boolean;
+}> = ({ mode, image, displayName, onSelect, isSelected, compact, scrollStripItem, chromeKind, disabled = false }) => {
     const [imgError, setImgError] = useState(false);
     /** `PairPetRankedMatchModeModal`의 `ModePickCard`와 동일 높이·간격(이름 아래 불필요한 flex-grow 공간 제거) */
     const imgH = compact ? 70 : 88;
@@ -458,8 +460,10 @@ const GameCard: React.FC<{
         <div
             className={`${aiChallengeModalGameCardSurfaceClass(chromeKind, isSelected, Boolean(compact))} relative rounded-lg ${
                 scrollStripItem ? 'w-max max-w-none' : ''
-            } ${isSelected ? 'z-[15]' : 'z-0'}`}
-            onClick={() => onSelect(mode)}
+            } ${disabled ? 'cursor-not-allowed opacity-50' : ''} ${isSelected ? 'z-[15]' : 'z-0'}`}
+            onClick={() => {
+                if (!disabled) onSelect(mode);
+            }}
         >
             {isSelected ? (
                 <span
@@ -518,7 +522,7 @@ export const AiChallengeModePickerStrip: React.FC<AiChallengeModePickerStripProp
         [preferredGameSettingsBucket],
     );
     const modeTitleToneClass = aiChallengeModalModeTitleTextClass(modalChrome);
-    const availableGameModes = useMemo(
+    const lobbyGameModes = useMemo(
         () => (lobbyType === 'strategic' ? SPECIAL_GAME_MODES : PLAYFUL_GAME_MODES),
         [lobbyType],
     );
@@ -527,8 +531,8 @@ export const AiChallengeModePickerStrip: React.FC<AiChallengeModePickerStripProp
             ? '판 크기·시간·AI 난이도 등은 아래 대국 설정에서 조정합니다.'
             : '대국 옵션은 아래 설정에서 조정합니다.';
     const selectedModeDefinition = useMemo(
-        () => resolveLobbySelectedGameModeDefinition(availableGameModes, selectedGameMode),
-        [availableGameModes, selectedGameMode],
+        () => resolveLobbySelectedGameModeDefinition(lobbyGameModes, selectedGameMode),
+        [lobbyGameModes, selectedGameMode],
     );
     const displaySelectedGameMode = selectedModeDefinition?.mode ?? null;
     return (
@@ -543,7 +547,7 @@ export const AiChallengeModePickerStrip: React.FC<AiChallengeModePickerStripProp
             <div className="mb-2 flex shrink-0 items-baseline justify-between gap-2">
                 <h3 className={`text-sm font-extrabold tracking-tight ${modeTitleToneClass}`}>게임 모드 선택</h3>
                 <span className="shrink-0 text-[10px] font-semibold text-zinc-500 sm:text-[11px]">
-                    {availableGameModes.length}종
+                    {lobbyGameModes.length}종
                 </span>
             </div>
             <div
@@ -553,7 +557,7 @@ export const AiChallengeModePickerStrip: React.FC<AiChallengeModePickerStripProp
                         : `${LOBBY_HORIZONTAL_MODE_PICKER_ROW_CLASS} md:grid md:min-h-0 md:max-h-none md:grid-cols-2 md:gap-2 md:overflow-x-hidden md:overflow-y-auto lg:grid-cols-2`
                 }
             >
-                {availableGameModes.map((game) => (
+                {lobbyGameModes.map((game) => (
                     <div
                         key={game.mode}
                         className={verticalGrid ? 'min-w-0' : `${LOBBY_HORIZONTAL_MODE_PICKER_ITEM_CLASS} md:w-auto md:shrink`}
@@ -567,6 +571,7 @@ export const AiChallengeModePickerStrip: React.FC<AiChallengeModePickerStripProp
                             compact
                             scrollStripItem={!verticalGrid}
                             chromeKind={modalChrome}
+                            disabled={!isPlayableLobbyGameMode(game)}
                         />
                     </div>
                 ))}
@@ -624,23 +629,27 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
     const denseSettingsHeadingToneClass = aiChallengeModalDenseSettingsHeadingClass(modalChrome);
     const mobileNextCtaChromeClass = aiChallengeModalMobileNextCtaClass(modalChrome);
     const pairHandheldNextChromeClass = aiChallengeModalPairHandheldNextButtonClass(modalChrome);
-    const availableGameModes = useMemo(
+    const lobbyGameModes = useMemo(
         () => (lobbyType === 'strategic' ? SPECIAL_GAME_MODES : PLAYFUL_GAME_MODES),
         [lobbyType],
+    );
+    const playableGameModes = useMemo(
+        () => filterPlayableLobbyGameModes(lobbyGameModes),
+        [lobbyGameModes],
     );
     const isModeControlled =
         controlledSelectedGameMode !== undefined && onControlledSelectedGameModeChange !== undefined;
     const [selectedGameMode, setSelectedGameMode] = useState<GameMode | null>(() => {
         if (
             controlledSelectedGameMode &&
-            availableGameModes.some((m) => m.mode === controlledSelectedGameMode)
+            playableGameModes.some((m) => m.mode === controlledSelectedGameMode)
         ) {
             return controlledSelectedGameMode;
         }
-        if (seedFromSession?.mode && availableGameModes.some(m => m.mode === seedFromSession.mode)) {
+        if (seedFromSession?.mode && playableGameModes.some(m => m.mode === seedFromSession.mode)) {
             return seedFromSession.mode;
         }
-        return availableGameModes[0]?.mode || null;
+        return playableGameModes[0]?.mode || null;
     });
     const effectiveSelectedGameMode = isModeControlled ? controlledSelectedGameMode : selectedGameMode;
 
@@ -720,18 +729,18 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
         (embeddedPanel && embeddedPanelStackedLayout && !configureOnly);
 
     const selectedGameDefinition = useMemo(
-        () => resolveLobbySelectedGameModeDefinition(availableGameModes, effectiveSelectedGameMode, selectedGameMode),
-        [availableGameModes, effectiveSelectedGameMode, selectedGameMode],
+        () => resolveLobbySelectedGameModeDefinition(lobbyGameModes, effectiveSelectedGameMode, selectedGameMode),
+        [lobbyGameModes, effectiveSelectedGameMode, selectedGameMode],
     );
     const displaySelectedGameMode = selectedGameDefinition?.mode ?? null;
 
     /** 목록 첫 모드가 기본 선택 — state가 비어 있거나 무효면 즉시 맞춤 */
     useEffect(() => {
-        const defaultMode = availableGameModes[0]?.mode ?? null;
+        const defaultMode = playableGameModes[0]?.mode ?? null;
         if (!defaultMode) return;
-        if (selectedGameMode != null && availableGameModes.some((m) => m.mode === selectedGameMode)) return;
+        if (selectedGameMode != null && playableGameModes.some((m) => m.mode === selectedGameMode)) return;
         setSelectedGameMode(defaultMode);
-    }, [availableGameModes, selectedGameMode]);
+    }, [playableGameModes, selectedGameMode]);
 
     // 게임 모드 변경 시 설정 초기화 (재대결 시드는 직전 대국 설정을 우선·localStorage에 동기화)
     useEffect(() => {
@@ -811,10 +820,10 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
     useEffect(() => {
         if (!pairDuoRankedLobbyReadOnly || !embeddedSeedLiveRef.current?.mode) return;
         const m = embeddedSeedLiveRef.current.mode;
-        if (availableGameModes.some((a) => a.mode === m) && selectedGameMode !== m) {
+        if (playableGameModes.some((a) => a.mode === m) && selectedGameMode !== m) {
             setSelectedGameMode(m);
         }
-    }, [pairDuoRankedLobbyReadOnly, embeddedParentDraftFingerprint, availableGameModes, selectedGameMode]);
+    }, [pairDuoRankedLobbyReadOnly, embeddedParentDraftFingerprint, playableGameModes, selectedGameMode]);
 
     /** 임베드 방 만들기: 부모 시드의 mode가 바뀐 경우에만 자식 모드 동기화 (클릭마다 되돌리면 설명이 스와핑됨) */
     const lastSyncedEmbeddedParentModeRef = useRef<GameMode | null | undefined>(undefined);
@@ -827,10 +836,10 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
         }
         if (parentMode === lastSyncedEmbeddedParentModeRef.current) return;
         lastSyncedEmbeddedParentModeRef.current = parentMode;
-        if (parentMode && availableGameModes.some((a) => a.mode === parentMode)) {
+        if (parentMode && playableGameModes.some((a) => a.mode === parentMode)) {
             setSelectedGameMode(parentMode);
         }
-    }, [embeddedPanel, configureOnly, pairDuoRankedLobbyReadOnly, embeddedParentDraftFingerprint, availableGameModes]);
+    }, [embeddedPanel, configureOnly, pairDuoRankedLobbyReadOnly, embeddedParentDraftFingerprint, playableGameModes]);
 
     useEffect(() => {
         if (!pairDuoRankedLobbyReadOnly || !selectedGameMode) return;
@@ -998,6 +1007,8 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
     /** 방 만들기 임베드: 모드 전환 직전 부모에 현재 모드 초안을 밀어 넣고, 다음 모드 설정을 같은 틱에 반영해 셀렉트 롤링·한 프레임 어긋남 방지 */
     const selectGameModeForLobby = useCallback(
         (mode: GameMode) => {
+            const picked = lobbyGameModes.find((m) => m.mode === mode);
+            if (picked && !isPlayableLobbyGameMode(picked)) return;
             if (isModeControlled && onControlledSelectedGameModeChange) {
                 onControlledSelectedGameModeChange(mode);
                 if (!(embeddedPanel && configureOnly)) return;
@@ -1042,6 +1053,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
             lobbyType,
             pairFriendlyHumanClock,
             transformSettingsBeforeStart,
+            lobbyGameModes,
         ],
     );
     useEffect(() => {
@@ -1368,7 +1380,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                 {showMixModeSelection && (() => {
                     const mixEmbedCompactHeader = denseSettings && pairRoomEmbeddedRightSlot;
                     const mixCheckboxes = SPECIAL_GAME_MODES.filter(
-                        (m) => m.mode !== GameMode.Standard && m.mode !== GameMode.Mix,
+                        (m) => m.mode !== GameMode.Standard && m.mode !== GameMode.Mix && isPlayableLobbyGameMode(m),
                     ).map((m) => {
                         return (
                             <label
@@ -2140,7 +2152,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                 게임 모드 선택
             </h3>
             <div className="grid min-h-0 flex-1 touch-pan-y grid-cols-2 gap-2 overflow-y-auto overscroll-y-contain pr-2 sm:gap-3 [-webkit-overflow-scrolling:touch]">
-                {availableGameModes.map((game) => (
+                {lobbyGameModes.map((game) => (
                     <GameCard
                         key={game.mode}
                         mode={game.mode}
@@ -2149,6 +2161,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                         onSelect={selectGameModeForLobby}
                         isSelected={displaySelectedGameMode === game.mode}
                         chromeKind={modalChrome}
+                        disabled={!isPlayableLobbyGameMode(game)}
                     />
                 ))}
             </div>
@@ -2206,11 +2219,11 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
             <div className="mb-2 flex items-baseline justify-between gap-2">
                 <h3 className={`text-sm font-extrabold tracking-tight ${modeTitleToneClass}`}>게임 모드 선택</h3>
                 <span className="shrink-0 text-[10px] font-semibold text-zinc-500 sm:text-[11px]">
-                    {availableGameModes.length}종
+                    {lobbyGameModes.length}종
                 </span>
             </div>
             <div className={LOBBY_HORIZONTAL_MODE_PICKER_ROW_CLASS}>
-                {availableGameModes.map((game) => (
+                {lobbyGameModes.map((game) => (
                     <div key={game.mode} className={LOBBY_HORIZONTAL_MODE_PICKER_ITEM_CLASS}>
                         <GameCard
                             mode={game.mode}
@@ -2221,6 +2234,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                             compact
                             scrollStripItem
                             chromeKind={modalChrome}
+                            disabled={!isPlayableLobbyGameMode(game)}
                         />
                     </div>
                 ))}
@@ -2291,7 +2305,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                 </div>
                                 <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-x-contain py-2 [-webkit-overflow-scrolling:touch]">
                                     <div className={`${LOBBY_HORIZONTAL_MODE_PICKER_ROW_CLASS} min-h-0 pb-1`}>
-                                        {availableGameModes.map((game) => (
+                                        {lobbyGameModes.map((game) => (
                                             <div key={game.mode} className={LOBBY_HORIZONTAL_MODE_PICKER_ITEM_CLASS}>
                                                 <GameCard
                                                     mode={game.mode}
@@ -2302,6 +2316,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                                     compact
                                                     scrollStripItem
                                                     chromeKind={modalChrome}
+                                                    disabled={!isPlayableLobbyGameMode(game)}
                                                 />
                                             </div>
                                         ))}
@@ -2540,7 +2555,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                 <h3 className="mb-2 shrink-0 text-sm font-bold tracking-tight text-amber-100/95">게임 모드 선택</h3>
                                 <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-x-contain [-webkit-overflow-scrolling:touch]">
                                     <div className={`${LOBBY_HORIZONTAL_MODE_PICKER_ROW_CLASS} min-h-0 pb-1`}>
-                                        {availableGameModes.map((game) => (
+                                        {lobbyGameModes.map((game) => (
                                             <div key={game.mode} className={LOBBY_HORIZONTAL_MODE_PICKER_ITEM_CLASS}>
                                                 <GameCard
                                                     mode={game.mode}
@@ -2551,6 +2566,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                                     compact
                                                     scrollStripItem
                                                     chromeKind={modalChrome}
+                                                    disabled={!isPlayableLobbyGameMode(game)}
                                                 />
                                             </div>
                                         ))}

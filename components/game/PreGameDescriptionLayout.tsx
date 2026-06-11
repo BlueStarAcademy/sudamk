@@ -605,7 +605,7 @@ export function PreGameFeatureStrip({ session }: { session: LiveGameSession }) {
   if (items.length === 0) {
     const fallback: Partial<Record<GameMode, { src: string; label: string }>> = {
       [GameMode.Standard]: { src: '/images/simbols/simbol1.webp', label: '클래식' },
-      [GameMode.Mix]: { src: '/images/simbols/simbol7.webp', label: '믹스' },
+      [GameMode.Mix]: { src: '/images/simbols/simbol10.webp', label: '믹스' },
     };
     const f = fallback[mode];
     if (f) items.push(f);

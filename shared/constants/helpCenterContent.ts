@@ -28,7 +28,7 @@ const HELP_BUTTON_IMAGE = '/images/button/help.webp';
 const PET_HELP_HERO_IMAGE = '/images/bg/pet.webp';
 const PET_SAMPLE_IMAGE = '/images/pets/pet1.webp';
 const MIX_MODE_IMAGE =
-    SPECIAL_GAME_MODES.find((g) => g.mode === GameMode.Mix)?.image ?? '/images/simbols/simbol7.webp';
+    SPECIAL_GAME_MODES.find((g) => g.mode === GameMode.Mix)?.image ?? '/images/simbols/simbol10.webp';
 
 const pairGoModeGallery: HelpImageRef[] = PAIR_GO_GAME_MODES.map((mode) => {
     const spec = SPECIAL_GAME_MODES.find((g) => g.mode === mode);

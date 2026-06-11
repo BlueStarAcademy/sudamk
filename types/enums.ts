@@ -13,6 +13,8 @@ export enum GameMode {
   Hidden = "히든 바둑",
   Missile = "미사일 바둑",
   Uniform = "일색 바둑",
+  Castle = "캐슬 바둑",
+  Chess = "체스 바둑",
   Mix = "믹스룰 바둑",
   Dice = "주사위 바둑",
   Omok = "오목",
