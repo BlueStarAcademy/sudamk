@@ -2463,9 +2463,12 @@ export async function makeGoAiBotMove(
     let pendingPairPetKataGameChat: PendingPairPetKataGameChat | null = null;
 
     if (game.mode === types.GameMode.Chess && !game.chessPieceMovedThisTurn) {
-        const { syncChessGoBoardFromPiecesAndMoves, tryAiChessPieceMove } = await import('./modes/chess.js');
-        syncChessGoBoardFromPiecesAndMoves(game);
+        const { repairChessGoSessionState, tryAiChessPieceMove } = await import('./modes/chess.js');
+        repairChessGoSessionState(game);
         await tryAiChessPieceMove(game, aiPlayerEnum, goAiProfileLevel);
+        if (game.chessPieceMovedThisTurn) {
+            repairChessGoSessionState(game);
+        }
     }
 
     if (shouldAiResignWhenNoLegalBoardMove(game)) {

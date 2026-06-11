@@ -1448,6 +1448,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         gameStatus,
         session.round,
         session.mode,
+        session.chessPieces,
+        session.chessPieceMovedThisTurn,
         session.stonesPlacedThisTurn?.length,
         session.stonesToPlace,
     ]);
@@ -2825,11 +2827,13 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     }, []);
 
     const applyOptimisticAiUserMove = useCallback((x: number, y: number): boolean => {
-        // sessionStorage 복원판은 수순이 느릴 때 서버보다 뒤처져 빈 칸으로 보이는 경우가 있어, 낙관적 착수는 서버 판 우선
+        // 체스 바둑: 기물 이동 직후 session.boardState가 chessPieces와 어긋나면 착수 후 기물이 되돌아가는 것처럼 보임
         const boardStateToUse =
-            session.boardState && Array.isArray(session.boardState) && session.boardState.length > 0
-                ? session.boardState
-                : restoredBoardState || session.boardState;
+            mode === GameMode.Chess && chessGoSession.boardState?.length
+                ? chessGoSession.boardState
+                : session.boardState && Array.isArray(session.boardState) && session.boardState.length > 0
+                  ? session.boardState
+                  : restoredBoardState || session.boardState;
         if (!boardStateToUse || !Array.isArray(boardStateToUse) || boardStateToUse.length === 0) return false;
         const stoneHere = boardStateToUse[y]?.[x];
         if (stoneHere !== Player.None) return false;
@@ -2861,7 +2865,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     }, [
         gameId,
         handlers,
+        mode,
         myPlayerEnum,
+        chessGoSession.boardState,
         restoredBoardState,
         session.boardState,
         session.koInfo,

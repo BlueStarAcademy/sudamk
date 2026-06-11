@@ -1554,6 +1554,8 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 (pvePlace?.triggerAutoScoring === true || pvePlace?.syncTimeAndStateForScoring === true);
             const shouldHandlePlaceStoneOnServer =
                 type === 'PLACE_STONE' && (isStrategicPVE || towerScoringOrSyncPlaceStone);
+            const shouldHandleChessMoveOnServer =
+                type === 'CHESS_MOVE_PIECE' && game.mode === GameMode.Chess;
             // 싱글·모험·길드전·로비 AI 등 PVP가 아닌 전략 세션은 대부분 클라 착수이나,
             // 베이스 전·중반(배치·덤·확인)은 서버 `handleBaseAction`이 처리해야 함.
             // `kind === singleplayer`만 허용하면 모험/길드전 등에서 액션이 `{}`로 삼켜져 배치 확정 후 단계 전환이 영구 정지한다.
@@ -1592,6 +1594,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 type !== 'REQUEST_STRATEGIC_PET_HINT' &&
                 type !== 'CLAIM_STRATEGIC_PET_HINT_BONUS' &&
                 !shouldHandlePlaceStoneOnServer &&
+                !shouldHandleChessMoveOnServer &&
                 !shouldHandleBaseFlowOnStrategicPve &&
                 !shouldHandlePlayfulOnServer
             ) {
@@ -1826,7 +1829,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 !(result as any).error &&
                 game.mode === GameMode.Chess &&
                 game.isAiGame &&
-                arenaPolicy.matchAxis === 'pvp' &&
+                arenaPolicy.matchAxis === 'pve' &&
                 game.gameStatus === 'playing'
             ) {
                 const { aiUserId, makeAiMove } = await import('./aiPlayer.js');

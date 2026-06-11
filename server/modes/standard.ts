@@ -1535,6 +1535,9 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
 
             const isCastleGame = game.mode === types.GameMode.Castle;
             const isChessGame = game.mode === types.GameMode.Chess;
+            if (isChessGame) {
+                repairChessGoSessionState(game);
+            }
             const result = isCastleGame
                 ? processCastleMove(
                       game,

@@ -6204,7 +6204,7 @@ export const useApp = () => {
                             g.boardState && Array.isArray(g.boardState)
                                 ? (g.boardState as number[][]).map((row) => [...row])
                                 : g.boardState;
-                        const merged = { ...g, boardState: boardClone } as LiveGameSession;
+                        let merged = { ...g, boardState: boardClone } as LiveGameSession;
                         const mh = merged.moveHistory;
                         if (Array.isArray(mh) && mh.length > 0) {
                             for (let i = mh.length - 1; i >= 0; i--) {
@@ -6250,7 +6250,17 @@ export const useApp = () => {
                                 return { ...prev, [gid]: { ...(prevG || ({} as LiveGameSession)), ...next } };
                             });
                         } else {
-                            setLiveGames((prev) => ({ ...prev, [gid]: { ...(prev[gid] || ({} as LiveGameSession)), ...merged } }));
+                            setLiveGames((prev) => {
+                                const prevG = prev[gid];
+                                let liveMerged = mergeGameUpdateByArena(merged, prevG, {
+                                    source: 'http_action',
+                                    actionType: action.type,
+                                });
+                                if (liveMerged.mode === GameMode.Chess) {
+                                    liveMerged = normalizeChessGoSession(liveMerged);
+                                }
+                                return { ...prev, [gid]: { ...(prevG || ({} as LiveGameSession)), ...liveMerged } };
+                            });
                         }
                     }
                 }

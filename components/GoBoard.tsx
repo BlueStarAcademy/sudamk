@@ -674,6 +674,7 @@ interface GoBoardProps {
   castleStonePoints?: Point[];
   confirmedTerritoryOwnerByPoint?: Record<string, Player.Black | Player.White>;
   chessPieces?: ChessPieceState[];
+  chessPieceMovedThisTurn?: boolean;
   selectedChessPieceId?: string | null;
   myPlayerEnum: Player;
   gameStatus: GameStatus;
@@ -753,6 +754,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         stoneColor, winningLine, hiddenMoves, humanHiddenStonePoints, moveHistory, baseStones, baseStones_p1, baseStones_p2,
         castleStonePoints, confirmedTerritoryOwnerByPoint,
         chessPieces: chessPiecesProp = [],
+        chessPieceMovedThisTurn: chessPieceMovedThisTurnProp,
         selectedChessPieceId = null,
         baseStonesP1Player = Player.Black,
         baseStonesP2Player = Player.White,
@@ -793,9 +795,9 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
             boardState: boardStateProp,
             chessPieces: chessPiecesProp,
             chessCaptureScore: undefined,
-            chessPieceMovedThisTurn: undefined,
+            chessPieceMovedThisTurn: chessPieceMovedThisTurnProp,
         });
-    }, [mode, boardSizeProp, moveHistory, boardStateProp, chessPiecesProp]);
+    }, [mode, boardSizeProp, moveHistory, boardStateProp, chessPiecesProp, chessPieceMovedThisTurnProp]);
 
     const boardState = chessNormalizedSlice?.boardState ?? boardStateProp;
     const chessPieces = chessNormalizedSlice?.chessPieces ?? chessPiecesProp;

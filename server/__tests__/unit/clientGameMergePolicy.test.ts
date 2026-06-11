@@ -9,6 +9,10 @@ import {
 import { resolveArenaSessionPolicy } from '../../../shared/utils/liveSessionArenaKind.js';
 import { GameMode, Player } from '../../../shared/types/enums.js';
 import type { LiveGameSession } from '../../../shared/types/index.js';
+import {
+    applyChessMoveToSession,
+    generateChessGoInitialPieces,
+} from '../../../shared/utils/chessGoRules.js';
 
 const minimalSession = (overrides: Partial<LiveGameSession>): LiveGameSession =>
     ({
@@ -122,6 +126,35 @@ describe('mergeGameUpdateByArena', () => {
         } as Partial<LiveGameSession>);
         const merged = mergeGameUpdateByArena(incoming, existing, { source: 'game_update' });
         expect((merged as { hidden_stones_p2?: number }).hidden_stones_p2).toBe(1);
+    });
+
+    it('preserves moved chess pieces when incoming snapshot still has opening layout', () => {
+        const pieces = generateChessGoInitialPieces(13);
+        const existing = minimalSession({
+            mode: GameMode.Chess,
+            isAiGame: true,
+            chessPieces: pieces,
+            chessPieceMovedThisTurn: true,
+            boardState: Array.from({ length: 13 }, () => Array(13).fill(Player.None)),
+        }) as LiveGameSession;
+        const pawn = existing.chessPieces!.find((p) => p.owner === Player.Black && p.type === 'pawn' && p.x === 5)!;
+        applyChessMoveToSession(existing, pawn.id, 5, 9);
+        existing.chessPieceMovedThisTurn = true;
+        existing.moveHistory = [{ player: Player.Black, x: 6, y: 6 }];
+
+        const incoming = minimalSession({
+            mode: GameMode.Chess,
+            isAiGame: true,
+            chessPieces: pieces,
+            chessPieceMovedThisTurn: false,
+            moveHistory: [{ player: Player.Black, x: 6, y: 6 }],
+            currentPlayer: Player.White,
+        }) as LiveGameSession;
+
+        const merged = mergeGameUpdateByArena(incoming, existing, { source: 'game_update' });
+        expect(merged.chessPieces!.find((p) => p.id === pawn.id)!.y).toBe(9);
+        expect(merged.boardState![9]![5]).toBe(Player.Black);
+        expect(merged.boardState![10]![5]).toBe(Player.None);
     });
 
     it('does not clear missile animation when incoming explicitly includes it', () => {

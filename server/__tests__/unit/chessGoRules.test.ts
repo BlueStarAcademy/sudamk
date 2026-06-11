@@ -404,6 +404,20 @@ describe('chessGoRules', () => {
         expect(session.boardState[6]![6]).toBe(Player.Black);
     });
 
+    it('normalizeChessGoSession keeps moved piece after go stone when chessPieceMovedThisTurn resets', () => {
+        const session = createChessSession();
+        const pawn = session.chessPieces!.find((p) => p.owner === Player.Black && p.type === 'pawn' && p.x === 5)!;
+        applyChessMoveToSession(session, pawn.id, 5, 9);
+        session.chessPieceMovedThisTurn = true;
+        session.moveHistory = [{ player: Player.Black, x: 6, y: 6 }];
+        session.chessPieceMovedThisTurn = false;
+        const normalized = normalizeChessGoSession(session);
+        expect(normalized.chessPieces!.find((p) => p.id === pawn.id)!.y).toBe(9);
+        expect(normalized.boardState![9]![5]).toBe(Player.Black);
+        expect(normalized.boardState![10]![5]).toBe(Player.None);
+        expect(normalized.boardState![6]![6]).toBe(Player.Black);
+    });
+
     it('needsChessGoLayoutRepair detects legacy flank board with standard pieces', () => {
         const pieces = generateChessGoInitialPieces(13);
         const session = createChessSession();
