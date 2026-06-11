@@ -50,6 +50,7 @@ COPY types ./types
 COPY utils ./utils
 COPY constants ./constants
 COPY assets.ts ./assets.ts
+COPY types.ts ./types.ts
 COPY profanity.ts ./profanity.ts
 COPY package.json ./package.json
 COPY scripts/ensurePrismaGenerate.mjs ./scripts/ensurePrismaGenerate.mjs
