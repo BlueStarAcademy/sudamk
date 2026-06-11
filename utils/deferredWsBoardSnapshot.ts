@@ -1,4 +1,5 @@
 import type { LiveGameSession } from '../types.js';
+import { Player } from '../types.js';
 
 /** moveHistory 길이로 “한 수 앞선” 지연 표시 스냅샷을 고른다 (PASS 포함 전체 길이). */
 export function wsSessionMoveHistoryLen(session: LiveGameSession | null | undefined): number {
@@ -73,6 +74,57 @@ export function resolvePveScoringBoardAndMoveHistory(
     return { boardState, moveHistory };
 }
 
+type BaseStonePoint = { x: number; y: number; player: number };
+
+/**
+ * 슬림 WS(수순만·boardState 생략)에서 포획 없이라도 착점·베이스돌은 보이게 한다.
+ * 풀 boardState 패킷이 오면 resolveStrategicPvePlayingBoardAndMoveHistory가 교체한다.
+ */
+export function deriveBoardFromMoveHistoryAndBaseStones(
+    session: LiveGameSession,
+    existing?: LiveGameSession,
+): LiveGameSession['boardState'] | undefined {
+    const boardSize = session.settings?.boardSize;
+    const moveHistoryToDerive = session.moveHistory;
+    if (!boardSize || !moveHistoryToDerive?.length) return undefined;
+
+    const derivedBoard: number[][] = Array(boardSize)
+        .fill(null)
+        .map(() => Array(boardSize).fill(Player.None));
+
+    const baseListRaw: BaseStonePoint[] =
+        Array.isArray((session as { baseStones?: BaseStonePoint[] }).baseStones) &&
+        (session as { baseStones?: BaseStonePoint[] }).baseStones!.length > 0
+            ? ((session as { baseStones?: BaseStonePoint[] }).baseStones as BaseStonePoint[])
+            : Array.isArray(existing?.baseStones) && existing!.baseStones!.length > 0
+              ? (existing!.baseStones as BaseStonePoint[])
+              : [];
+
+    for (const bs of baseListRaw) {
+        if (
+            bs &&
+            typeof bs.x === 'number' &&
+            typeof bs.y === 'number' &&
+            typeof bs.player === 'number' &&
+            bs.x >= 0 &&
+            bs.x < boardSize &&
+            bs.y >= 0 &&
+            bs.y < boardSize &&
+            (bs.player === Player.Black || bs.player === Player.White)
+        ) {
+            derivedBoard[bs.y][bs.x] = bs.player;
+        }
+    }
+
+    for (const move of moveHistoryToDerive) {
+        if (move && move.x >= 0 && move.x < boardSize && move.y >= 0 && move.y < boardSize) {
+            derivedBoard[move.y][move.x] = move.player;
+        }
+    }
+
+    return derivedBoard as LiveGameSession['boardState'];
+}
+
 /**
  * 모험·길드전 등 PVE 전략 대국 playing GAME_UPDATE:
  * 슬림 패킷(수순만·턴·시계)과 풀 보드 패킷이 섞일 때 판·수순을 한 쌍으로 맞춘다.
@@ -107,12 +159,17 @@ export function resolveStrategicPvePlayingBoardAndMoveHistory(
         boardState = server.boardState;
     } else if (clientBoardOk && clientMhLen > serverMhLen) {
         boardState = clientSnap.boardState;
+    } else if (serverMhLen > clientMhLen && !serverBoardOk) {
+        // 서버 수순이 앞서는데 boardState가 빠진 슬림 패킷 — 낡은 클라 판을 쓰면 AI 돌이 안 보이다가 한꺼번에 나타남
+        const derived = deriveBoardFromMoveHistoryAndBaseStones(server, clientSnap);
+        boardState = isSubstantiveBoardState(derived) ? derived : clientBoardOk ? clientSnap.boardState : derived;
     } else if (serverBoardOk) {
         boardState = server.boardState;
     } else if (clientBoardOk) {
         boardState = clientSnap.boardState;
     } else {
-        boardState = server.boardState ?? clientSnap.boardState;
+        const derived = deriveBoardFromMoveHistoryAndBaseStones(server, clientSnap);
+        boardState = derived ?? server.boardState ?? clientSnap.boardState;
     }
 
     return { boardState, moveHistory };

@@ -167,6 +167,7 @@ import {
     pickRicherWsBoardSnapshot,
     resolvePveScoringBoardAndMoveHistory,
     resolveStrategicPvePlayingBoardAndMoveHistory,
+    deriveBoardFromMoveHistoryAndBaseStones,
 } from '../utils/deferredWsBoardSnapshot.js';
 import { coerceUserLevelXpFromPayload } from '../shared/utils/userLevelMerge.js';
 import type { LevelUpCelebrationPayload } from '../types/levelUpModal.js';
@@ -912,6 +913,98 @@ function mutateLiveMissilePresentationComplete(game: LiveGameSession): LiveGameS
         whiteTimeLeft: updatedWhiteTime,
         pausedTurnTimeLeft: undefined,
         itemUseDeadline: undefined,
+    };
+}
+
+/** PVE playing: 슬림 WS(수순↑·boardState 생략)에서 판·수순을 한 쌍으로 맞춘다. */
+function applyPvePlayingBoardAndMoveHistoryResolve(
+    merged: LiveGameSession,
+    clientSnapshot: LiveGameSession | undefined,
+): LiveGameSession {
+    if (merged.gameStatus !== 'playing') return merged;
+    if (resolveArenaSessionPolicy(merged as any).matchAxis !== 'pve') return merged;
+    const playingResolved = resolveStrategicPvePlayingBoardAndMoveHistory(
+        merged,
+        clientSnapshot ?? merged,
+    );
+    return {
+        ...merged,
+        boardState: playingResolved.boardState,
+        moveHistory: playingResolved.moveHistory,
+    };
+}
+
+function mergePveGameUpdateFromWs(
+    merged: LiveGameSession,
+    incoming: LiveGameSession,
+    existing: LiveGameSession | undefined,
+    deferredSnap: LiveGameSession | undefined,
+): LiveGameSession {
+    const richerExisting = (pickRicherWsBoardSnapshot(existing, deferredSnap) ?? existing) as
+        | LiveGameSession
+        | undefined;
+    let next = merged;
+    if (next.gameStatus === 'playing') {
+        next = applyPvePlayingBoardAndMoveHistoryResolve(next, richerExisting);
+    }
+    next = mergeGameUpdateByArena(next, richerExisting, { source: 'game_update' });
+    next = preserveLiveStrategicMainClockOnMerge(next, richerExisting, incoming);
+    if (
+        richerExisting &&
+        (next.gameStatus === 'scoring' || next.gameStatus === 'ended' || next.gameStatus === 'no_contest')
+    ) {
+        const scoringResolved = resolvePveScoringBoardAndMoveHistory(next, richerExisting);
+        next = {
+            ...next,
+            boardState: scoringResolved.boardState,
+            moveHistory: scoringResolved.moveHistory,
+        };
+    }
+    return next;
+}
+
+function mergePveHttpActionGameResponse(
+    merged: LiveGameSession,
+    prevG: LiveGameSession | undefined,
+    actionType: string,
+): LiveGameSession {
+    let next = applyPvePlayingBoardAndMoveHistoryResolve(merged, prevG);
+    next = mergeGameUpdateByArena(next, prevG, { source: 'http_action', actionType });
+    next = preserveLiveStrategicMainClockOnMerge(next, prevG, merged);
+    return next;
+}
+
+/** 페어 4인 수순: 낡은 GAME_UPDATE가 currentTurnIndex·currentPlayer를 되돌리면 유저 턴만 반복되는 버그 */
+function preserveLiveStrategicMainClockOnMerge(
+    merged: LiveGameSession,
+    existing: LiveGameSession | undefined,
+    incoming: LiveGameSession,
+): LiveGameSession {
+    if (!existing) return merged;
+    if (resolveArenaSessionPolicy(merged as any).matchAxis !== 'pve') return merged;
+
+    const pickMainTime = (key: 'blackTimeLeft' | 'whiteTimeLeft'): number | undefined => {
+        const inc = incoming[key];
+        const ext = existing[key];
+        if (typeof inc === 'number' && Number.isFinite(inc) && inc > 0) return inc;
+        if (typeof ext === 'number' && Number.isFinite(ext) && ext > 0) return ext;
+        const m = merged[key];
+        return typeof m === 'number' && Number.isFinite(m) ? m : undefined;
+    };
+
+    return {
+        ...merged,
+        mode: incoming.mode ?? existing.mode ?? merged.mode,
+        blackTimeLeft: pickMainTime('blackTimeLeft'),
+        whiteTimeLeft: pickMainTime('whiteTimeLeft'),
+        turnStartTime:
+            typeof incoming.turnStartTime === 'number' && Number.isFinite(incoming.turnStartTime)
+                ? incoming.turnStartTime
+                : merged.turnStartTime,
+        turnDeadline:
+            typeof incoming.turnDeadline === 'number' && Number.isFinite(incoming.turnDeadline)
+                ? incoming.turnDeadline
+                : merged.turnDeadline,
     };
 }
 
@@ -6257,22 +6350,25 @@ export const useApp = () => {
                         if (cat === 'tower') {
                             setTowerGames((prev) => {
                                 const prevG = prev[gid];
-                                const next = ensureAiHttpRevisionAdvances(prevG, merged);
+                                const next = ensureAiHttpRevisionAdvances(
+                                    prevG,
+                                    mergePveHttpActionGameResponse(merged, prevG, action.type),
+                                );
                                 return { ...prev, [gid]: { ...(prevG || ({} as LiveGameSession)), ...next } };
                             });
                         } else if (cat === 'singleplayer' || getSessionArenaKind(g) === 'singleplayer') {
                             setSinglePlayerGames((prev) => {
                                 const prevG = prev[gid];
-                                const next = ensureAiHttpRevisionAdvances(prevG, merged);
+                                const next = ensureAiHttpRevisionAdvances(
+                                    prevG,
+                                    mergePveHttpActionGameResponse(merged, prevG, action.type),
+                                );
                                 return { ...prev, [gid]: { ...(prevG || ({} as LiveGameSession)), ...next } };
                             });
                         } else {
                             setLiveGames((prev) => {
                                 const prevG = prev[gid];
-                                let liveMerged = mergeGameUpdateByArena(merged, prevG, {
-                                    source: 'http_action',
-                                    actionType: action.type,
-                                });
+                                let liveMerged = mergePveHttpActionGameResponse(merged, prevG, action.type);
                                 if (liveMerged.mode === GameMode.Chess) {
                                     liveMerged = normalizeChessGoSession(liveMerged);
                                 }
@@ -9934,6 +10030,12 @@ export const useApp = () => {
                                                 existingGame,
                                                 {}
                                             );
+                                            updatedGames[gameId] = mergePveGameUpdateFromWs(
+                                                updatedGames[gameId],
+                                                game,
+                                                existingGame,
+                                                pendingDeferredAiBoardSnapshotByGameIdRef.current[gameId],
+                                            );
                                             updatedGames[gameId] = coerceClassicPveHumanBlackSeatsIfSwapped(updatedGames[gameId]);
                                         }
                                         const updatedSinglePlayerGame = updatedGames[gameId];
@@ -10316,6 +10418,12 @@ export const useApp = () => {
                                             mergedGame,
                                             towerPreserveExisting ?? existingGame,
                                         );
+                                        mergedGame = mergePveGameUpdateFromWs(
+                                            mergedGame,
+                                            game,
+                                            existingGame,
+                                            towerDeferredSnap,
+                                        );
                                         mergedGame = coerceClassicPveHumanBlackSeatsIfSwapped(mergedGame);
                                         updatedGames[gameId] = mergedGame;
 
@@ -10575,58 +10683,32 @@ export const useApp = () => {
                                             !hasServerBoard &&
                                             moveHistoryToDerive &&
                                             moveHistoryToDerive.length > 0 &&
-                                            game.settings?.boardSize &&
-                                            !(
-                                                existingBoardValid &&
-                                                (getSessionArenaKind(game) === 'adventure' ||
-                                                    getSessionArenaKind(game) === 'guildwar')
-                                            )
+                                            game.settings?.boardSize
                                         ) {
-                                            const boardSize = game.settings.boardSize;
-                                            const derivedBoard: number[][] = Array(boardSize).fill(null).map(() => Array(boardSize).fill(Player.None));
-                                            const baseListRaw =
-                                                Array.isArray((game as any).baseStones) && (game as any).baseStones.length > 0
-                                                    ? ((game as any).baseStones as { x: number; y: number; player: number }[])
-                                                    : Array.isArray(existingGame?.baseStones) && (existingGame!.baseStones as any[]).length > 0
-                                                      ? (existingGame!.baseStones as { x: number; y: number; player: number }[])
-                                                      : [];
-                                            for (const bs of baseListRaw) {
-                                                if (
-                                                    bs &&
-                                                    typeof bs.x === 'number' &&
-                                                    typeof bs.y === 'number' &&
-                                                    typeof bs.player === 'number' &&
-                                                    bs.x >= 0 &&
-                                                    bs.x < boardSize &&
-                                                    bs.y >= 0 &&
-                                                    bs.y < boardSize &&
-                                                    (bs.player === Player.Black || bs.player === Player.White)
-                                                ) {
-                                                    derivedBoard[bs.y][bs.x] = bs.player;
-                                                }
+                                            const derivedBoard = deriveBoardFromMoveHistoryAndBaseStones(
+                                                {
+                                                    ...game,
+                                                    moveHistory:
+                                                        game.moveHistory &&
+                                                        Array.isArray(game.moveHistory) &&
+                                                        game.moveHistory.length > 0
+                                                            ? game.moveHistory
+                                                            : moveHistoryToDerive,
+                                                },
+                                                existingGame,
+                                            );
+                                            if (derivedBoard) {
+                                                mergedGame = {
+                                                    ...game,
+                                                    boardState: derivedBoard,
+                                                    moveHistory:
+                                                        game.moveHistory &&
+                                                        Array.isArray(game.moveHistory) &&
+                                                        game.moveHistory.length > 0
+                                                            ? game.moveHistory
+                                                            : moveHistoryToDerive,
+                                                };
                                             }
-                                            for (const move of moveHistoryToDerive) {
-                                                if (move && move.x >= 0 && move.x < boardSize && move.y >= 0 && move.y < boardSize) {
-                                                    derivedBoard[move.y][move.x] = move.player;
-                                                }
-                                            }
-                                            mergedGame = { ...game, boardState: derivedBoard, moveHistory: game.moveHistory && game.moveHistory.length > 0 ? game.moveHistory : moveHistoryToDerive };
-                                        } else if (
-                                            !isDiceOrThiefMode &&
-                                            !hasServerBoard &&
-                                            existingBoardValid &&
-                                            (getSessionArenaKind(game) === 'adventure' ||
-                                                getSessionArenaKind(game) === 'guildwar') &&
-                                            incomingMoveCount > existingMoveCount
-                                        ) {
-                                            mergedGame = {
-                                                ...game,
-                                                boardState: existingGame!.boardState,
-                                                moveHistory:
-                                                    game.moveHistory && Array.isArray(game.moveHistory) && game.moveHistory.length > 0
-                                                        ? game.moveHistory
-                                                        : existingGame!.moveHistory,
-                                            };
                                         } else if (!isDiceOrThiefMode && incomingMoveCount <= existingMoveCount && existingGame?.boardState && Array.isArray(existingGame.boardState) && existingGame.boardState.length > 0 && !hasServerBoard) {
                                             // 서버가 boardState를 보내지 않았고, 서버 수가 기존보다 많지 않을 때만 기존 보드 유지 (AI 수 업데이트 덮어쓰기 방지)
                                             mergedGame = { ...game, boardState: existingGame.boardState };
@@ -10829,34 +10911,27 @@ export const useApp = () => {
                                             game,
                                             existingGame
                                         );
+                                        if (isScoringTransition && liveGameGnugoDelayTimeoutRef.current[gameId] != null) {
+                                            clearTimeout(liveGameGnugoDelayTimeoutRef.current[gameId]);
+                                            delete liveGameGnugoDelayTimeoutRef.current[gameId];
+                                        }
                                         const liveDeferredSnap = pendingDeferredAiBoardSnapshotByGameIdRef.current[gameId];
                                         const liveRicherExisting =
                                             (pickRicherWsBoardSnapshot(existingGame, liveDeferredSnap) ?? existingGame) as
                                                 | typeof existingGame
                                                 | undefined;
-                                        if (isScoringTransition && liveGameGnugoDelayTimeoutRef.current[gameId] != null) {
-                                            clearTimeout(liveGameGnugoDelayTimeoutRef.current[gameId]);
-                                            delete liveGameGnugoDelayTimeoutRef.current[gameId];
-                                        }
-                                        if (
-                                            liveRicherExisting &&
-                                            (getSessionArenaKind(game) === 'adventure' ||
-                                                getSessionArenaKind(game) === 'guildwar') &&
-                                            mergedGame.gameStatus === 'playing'
-                                        ) {
-                                            const playingResolved = resolveStrategicPvePlayingBoardAndMoveHistory(
-                                                mergedGame,
-                                                liveRicherExisting as LiveGameSession,
-                                            );
-                                            mergedGame = {
-                                                ...mergedGame,
-                                                boardState: playingResolved.boardState,
-                                                moveHistory: playingResolved.moveHistory,
-                                            };
-                                        }
-                                        let liveMerged = mergeGameUpdateByArena(mergedGame, liveRicherExisting, {
-                                            source: 'game_update',
-                                        });
+                                        const livePvePolicy = resolveArenaSessionPolicy(mergedGame as any);
+                                        let liveMerged =
+                                            livePvePolicy.matchAxis === 'pve'
+                                                ? mergePveGameUpdateFromWs(
+                                                      mergedGame,
+                                                      game,
+                                                      existingGame,
+                                                      liveDeferredSnap,
+                                                  )
+                                                : mergeGameUpdateByArena(mergedGame, liveRicherExisting, {
+                                                      source: 'game_update',
+                                                  });
                                         if (
                                             existingGame?.gameStatus === 'missile_animating' &&
                                             liveMerged.gameStatus === 'playing' &&
@@ -10865,22 +10940,6 @@ export const useApp = () => {
                                                 liveMerged.animation.type === 'hidden_missile')
                                         ) {
                                             liveMerged = { ...liveMerged, animation: null };
-                                        }
-                                        if (
-                                            liveRicherExisting &&
-                                            (liveMerged.gameStatus === 'scoring' ||
-                                                liveMerged.gameStatus === 'ended' ||
-                                                liveMerged.gameStatus === 'no_contest')
-                                        ) {
-                                            const scoringResolved = resolvePveScoringBoardAndMoveHistory(
-                                                liveMerged,
-                                                liveRicherExisting as LiveGameSession,
-                                            );
-                                            liveMerged = {
-                                                ...liveMerged,
-                                                boardState: scoringResolved.boardState,
-                                                moveHistory: scoringResolved.moveHistory,
-                                            };
                                         }
                                         liveMerged = preserveTerminalAnalysisResultOnMerge(
                                             liveMerged,

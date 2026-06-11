@@ -92,4 +92,24 @@ describe('resolveStrategicPvePlayingBoardAndMoveHistory', () => {
         expect(resolved.moveHistory).toHaveLength(2);
         expect(resolved.boardState?.[1]?.[1]).toBe(Player.White);
     });
+
+    it('derives board when server moveHistory is ahead and server sent slim packet without board', () => {
+        const server = {
+            moveHistory: [
+                { x: 0, y: 0, player: Player.Black },
+                { x: 1, y: 1, player: Player.White },
+            ],
+            boardState: undefined,
+            settings: { boardSize: 3 },
+        } as LiveGameSession;
+        const client = {
+            moveHistory: [{ x: 0, y: 0, player: Player.Black }],
+            boardState: boardWithoutWhite(),
+            settings: { boardSize: 3 },
+        } as LiveGameSession;
+
+        const resolved = resolveStrategicPvePlayingBoardAndMoveHistory(server, client);
+        expect(resolved.moveHistory).toHaveLength(2);
+        expect(resolved.boardState?.[1]?.[1]).toBe(Player.White);
+    });
 });

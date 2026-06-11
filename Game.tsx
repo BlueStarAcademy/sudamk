@@ -1248,9 +1248,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 return reconciled.boardState;
             }
         }
-        // PVE(싱글/탑/모험)는 서버 보드 동기화를 절대 우선한다.
+        // PVE(싱글/탑/모험/길드전): 서버 보드 동기화를 절대 우선한다.
         // sessionStorage 복원 보드를 우선하면 히든/포획/애니메이션 경합에서 돌 소실이 발생할 수 있다.
-        if ((isSinglePlayer || isTower || isAdventureGame) && session.boardState && Array.isArray(session.boardState) && session.boardState.length > 0) {
+        if (
+            (isSinglePlayer || isTower || isAdventureGame || isGuildWarGame) &&
+            session.boardState &&
+            Array.isArray(session.boardState) &&
+            session.boardState.length > 0
+        ) {
             return session.boardState;
         }
         try {
@@ -1369,7 +1374,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     // 계가/종료 직후에는 sessionStorage를 더 이상 덮어쓰지 않아(아래 useEffect), 저장분이 마지막 playing의 포획 반영 판이고
                     // 서버가 포석+수순만으로 재구성한 보드면 따낸 돌이 다시 보인다(튜토리얼 USER_UPDATE 등 한 번 더 동기화될 때 포함).
                     if (
-                        (isSinglePlayer || isTower || isAdventureGame) &&
+                        (isSinglePlayer || isTower || isAdventureGame || isGuildWarGame) &&
                         serverMoveCount === storedMoveCount &&
                         session.boardState &&
                         Array.isArray(session.boardState) &&

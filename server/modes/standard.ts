@@ -37,7 +37,7 @@ import {
     shouldEnforceTimeControl,
     enforceBaseSeatLockIfDriftedDuringPlay,
 } from './shared.js';
-import { isFischerStyleTimeControl, getFischerIncrementSeconds, isSpeedPerMoveTimeControl } from '../../shared/utils/gameTimeControl.js';
+import { isFischerStyleTimeControl, getFischerIncrementSeconds, isSpeedPerMoveTimeControl, getSpeedPerMoveSeconds } from '../../shared/utils/gameTimeControl.js';
 import {
     applySpeedMoveClockEnd,
     applySpeedNextTurnClockStart,
@@ -624,6 +624,14 @@ export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.
     }
 };
 
+/** 스피드 수당 10초 turnDeadline — 초읽기 시간패 경로와 혼동되면 10초마다 시간패가 난다 */
+function isSpeedPerMoveAllowanceDeadline(game: types.LiveGameSession): boolean {
+    if (typeof game.turnStartTime !== 'number' || typeof game.turnDeadline !== 'number') return false;
+    const perMoveSec = getSpeedPerMoveSeconds(game as any);
+    const windowMs = game.turnDeadline - game.turnStartTime;
+    return windowMs > 0 && windowMs <= perMoveSec * 1000 + 1500;
+}
+
 export const updateStrategicGameState = async (game: types.LiveGameSession, now: number) => {
     // This is the core update logic for all Go-based games.
 
@@ -733,7 +741,14 @@ export const updateStrategicGameState = async (game: types.LiveGameSession, now:
         }
     }
     
-    if (game.gameStatus === 'playing' && shouldEnforceTimeControl(game) && game.turnDeadline && now > game.turnDeadline && !isSpeedPerMoveTimeControl(game)) {
+    if (
+        game.gameStatus === 'playing' &&
+        shouldEnforceTimeControl(game) &&
+        game.turnDeadline &&
+        now > game.turnDeadline &&
+        !isSpeedPerMoveTimeControl(game) &&
+        !isSpeedPerMoveAllowanceDeadline(game)
+    ) {
         const timedOutPlayer = game.currentPlayer;
         const timeKey = timedOutPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
         const byoyomiKey = timedOutPlayer === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
