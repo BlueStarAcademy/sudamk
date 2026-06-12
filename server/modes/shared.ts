@@ -27,7 +27,6 @@ import { isPairHumanHumanPvpForTeamResign, resolveArenaSessionPolicy } from '../
 import { PRE_GAME_PVP_COUNTDOWN_MS } from '../../shared/constants/preGameCountdown.js';
 import {
     assignRandomUniformDisplayColor,
-    assignUniformDisplayColorForAiGame,
     sessionUsesUniformStoneDisplay,
     UNIFORM_COLOR_ROULETTE_MS,
 } from '../../shared/utils/uniformGoRules.js';
@@ -238,14 +237,14 @@ export const transitionToPlaying = (game: types.LiveGameSession, now: number) =>
         );
 };
 
-/** 흑·백 확정 후 본대국 진입 — 일색 바둑이면 AI는 유저 색, PVP는 돌 색 룰렛 */
+/** 흑·백 확정 후 본대국 진입 — 일색 바둑이면 표시 색 50% 랜덤(AI 즉시 시작, PVP는 돌 색 룰렛) */
 export const transitionToPlayingOrUniformRoulette = (game: types.LiveGameSession, now: number): void => {
     if (!sessionUsesUniformStoneDisplay(game.mode, game.settings)) {
         transitionToPlaying(game, now);
         return;
     }
     if (game.isAiGame) {
-        assignUniformDisplayColorForAiGame(game);
+        assignRandomUniformDisplayColor(game);
         transitionToPlaying(game, now);
         return;
     }

@@ -1,6 +1,5 @@
 import { GameMode, Player } from '../types/enums.js';
 import type { LiveGameSession } from '../types/entities.js';
-import { aiUserId } from '../constants/auth.js';
 import { mixGoOrPureModeIncludes } from './mixGoRules.js';
 
 export const UNIFORM_COLOR_ROULETTE_MS = 4200;
@@ -10,20 +9,6 @@ export function sessionUsesUniformStoneDisplay(
     settings: { mixedModes?: readonly GameMode[] | null } | null | undefined,
 ): boolean {
     return mixGoOrPureModeIncludes(mode, settings?.mixedModes, GameMode.Uniform);
-}
-
-export function resolveHumanPlayerEnum(game: Pick<LiveGameSession, 'player1' | 'player2' | 'blackPlayerId' | 'whitePlayerId'>): Player | null {
-    const humanId = game.player1.id === aiUserId ? game.player2.id : game.player1.id;
-    if (game.blackPlayerId === humanId) return Player.Black;
-    if (game.whitePlayerId === humanId) return Player.White;
-    return null;
-}
-
-export function assignUniformDisplayColorForAiGame(game: LiveGameSession): void {
-    const human = resolveHumanPlayerEnum(game);
-    if (human === Player.Black || human === Player.White) {
-        game.uniformStoneDisplayColor = human;
-    }
 }
 
 export function assignRandomUniformDisplayColor(game: LiveGameSession): void {

@@ -24,6 +24,7 @@ import {
     applySpeedNextTurnClockStart,
 } from '../shared/utils/speedTimePressureSessionSync.js';
 import { generateKataServerMoveCandidateDetails, isKataServerAvailable } from './kataServerService.js';
+import { applyCastleTerritoryAfterMove } from './modes/castle.js';
 import { enumerateLegalCastleMoves, processCastleMove } from '../shared/utils/castleGoRules.js';
 import { enumerateLegalChessGoStonePlacements, processChessGoMove } from '../shared/utils/chessGoRules.js';
 import {
@@ -1698,28 +1699,37 @@ function getMaxOpponentWeightedCaptureReply(
     return maxW;
 }
 
-function isLegalAiMoveOnCurrentBoard(game: types.LiveGameSession, move: Point | null | undefined, player: Player): move is Point {
-    if (!move || move.x < 0 || move.y < 0) return false;
-    const boardSize = game.settings.boardSize || game.boardState.length;
-    if (move.x >= boardSize || move.y >= boardSize) return false;
+function evaluateAiGoPlacementMove(
+    game: types.LiveGameSession,
+    move: { x: number; y: number; player: Player },
+    options?: { suppressOccupiedLog?: boolean },
+) {
     if (game.mode === types.GameMode.Castle) {
         return processCastleMove(
             game,
             game.boardState,
-            { ...move, player },
+            move,
             game.koInfo,
             game.moveHistory.length,
-        ).isValid;
+        );
     }
     if (game.mode === types.GameMode.Chess) {
-        return processChessGoMove(
-            game,
-            { ...move, player },
-            game.koInfo,
-            game.moveHistory.length,
-        ).isValid;
+        return processChessGoMove(game, move, game.koInfo, game.moveHistory.length);
     }
-    return processMove(game.boardState, { ...move, player }, game.koInfo, game.moveHistory.length, { suppressOccupiedLog: true }).isValid;
+    return processMove(
+        game.boardState,
+        move,
+        game.koInfo,
+        game.moveHistory.length,
+        options,
+    );
+}
+
+function isLegalAiMoveOnCurrentBoard(game: types.LiveGameSession, move: Point | null | undefined, player: Player): move is Point {
+    if (!move || move.x < 0 || move.y < 0) return false;
+    const boardSize = game.settings.boardSize || game.boardState.length;
+    if (move.x >= boardSize || move.y >= boardSize) return false;
+    return evaluateAiGoPlacementMove(game, { ...move, player }, { suppressOccupiedLog: true }).isValid;
 }
 
 function pickServerScoredLegalMove(
@@ -1949,12 +1959,7 @@ async function pickKataMoveExclusiveWithBoardResync(params: {
 
         for (const cand of kataCandidates) {
             if (cand.x === -1 && cand.y === -1) continue;
-            const trial = processMove(
-                game.boardState,
-                { ...cand, player: aiPlayerEnum },
-                game.koInfo,
-                game.moveHistory.length,
-            );
+            const trial = evaluateAiGoPlacementMove(game, { ...cand, player: aiPlayerEnum });
             if (trial.isValid) {
                 return {
                     picked: cand,
@@ -2047,6 +2052,10 @@ export async function makeGoAiBotMove(
             }
         }
         return;
+    }
+
+    if (game.mode === types.GameMode.Castle && game.gameStatus === 'playing') {
+        applyCastleTerritoryAfterMove(game);
     }
 
     const pairClassicGame = pairClassicGameForGuard;
@@ -2753,7 +2762,7 @@ export async function makeGoAiBotMove(
             !!p && p.x >= 0 && p.y >= 0 && p.x < boardSize && p.y < boardSize;
         const isLegalForcedMove = (p: Point) =>
             isInsideBoard(p) &&
-            processMove(game.boardState, { ...p, player: aiPlayerEnum }, game.koInfo, game.moveHistory.length, { suppressOccupiedLog: true }).isValid;
+            evaluateAiGoPlacementMove(game, { ...p, player: aiPlayerEnum }, { suppressOccupiedLog: true }).isValid;
 
         for (const rule of forcedAiResponses) {
             const cond = rule.whenOpponentStoneAt;
@@ -3016,12 +3025,7 @@ export async function makeGoAiBotMove(
             });
             const ep = emergencyPick.picked;
             if (ep && !(ep.x === -1 && ep.y === -1)) {
-                const retry = processMove(
-                    game.boardState,
-                    { ...ep, player: aiPlayerEnum },
-                    game.koInfo,
-                    game.moveHistory.length,
-                );
+                const retry = evaluateAiGoPlacementMove(game, { ...ep, player: aiPlayerEnum });
                 if (retry.isValid) {
                     console.warn(
                         `[makeGoAiBotMove] processMove invalid on first Kata pick; Kata 재질의 착수 (${ep.x},${ep.y}), game=${game.id}`,
@@ -3039,12 +3043,7 @@ export async function makeGoAiBotMove(
                     goAiProfileLevel,
                 );
                 if (fallbackMove) {
-                    const retry = processMove(
-                        game.boardState,
-                        { ...fallbackMove, player: aiPlayerEnum },
-                        game.koInfo,
-                        game.moveHistory.length,
-                    );
+                    const retry = evaluateAiGoPlacementMove(game, { ...fallbackMove, player: aiPlayerEnum });
                     if (retry.isValid) {
                         console.warn(
                             `[makeGoAiBotMove] Kata-only emergency invalid; using server-scored legal move (${fallbackMove.x},${fallbackMove.y}), game=${game.id}`,
@@ -3075,12 +3074,7 @@ export async function makeGoAiBotMove(
             }
             if (legalEmergency.length > 0) {
                 const fb = legalEmergency[0]!;
-                const retry = processMove(
-                    game.boardState,
-                    { ...fb, player: aiPlayerEnum },
-                    game.koInfo,
-                    game.moveHistory.length,
-                );
+                const retry = evaluateAiGoPlacementMove(game, { ...fb, player: aiPlayerEnum });
                 if (retry.isValid) {
                     console.warn(
                         `[makeGoAiBotMove] invalid coord (${selectedMove.x},${selectedMove.y}); emergency legal (no Kata) (${fb.x},${fb.y}), game=${game.id}`,

@@ -154,6 +154,21 @@ describe('processCastleMove', () => {
         expect(result.isValid).toBe(true);
         expect(result.capturedStones).toHaveLength(1);
     });
+
+    it('blocks placement on confirmed territory even when capture is possible', () => {
+        const board = emptyBoard(5);
+        board[2][2] = Player.White;
+        board[2][1] = Player.Black;
+        board[1][2] = Player.Black;
+        board[3][2] = Player.Black;
+        const session = sessionOf(board, {
+            confirmedTerritoryOwnerByPoint: { [pointKey(2, 3)]: Player.Black },
+        });
+        expect(isPlayableCastleIntersection(session, 2, 3, Player.Black)).toBe(false);
+        const result = processCastleMove(session, board, { x: 2, y: 3, player: Player.Black }, null, 0);
+        expect(result.isValid).toBe(false);
+        expect(result.capturedStones).toHaveLength(0);
+    });
 });
 
 describe('scoreCastleGame', () => {

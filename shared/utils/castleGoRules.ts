@@ -60,6 +60,20 @@ export function isPlayableCastleIntersection(
     return true;
 }
 
+/** 착수 검증용: 현재 보드 기준으로 영토를 재계산한 세션 슬라이스를 반환한다. */
+export function resolveCastlePlacementSession(
+    session: CastleGoSessionSlice,
+    boardState?: BoardState,
+): CastleGoSessionSlice {
+    const board = boardState ?? session.boardState;
+    if (!board?.length) return session;
+    return {
+        ...session,
+        boardState: board,
+        confirmedTerritoryOwnerByPoint: detectAndConfirmTerritories(session, board),
+    };
+}
+
 function getNeighbors(x: number, y: number, boardSize: number): Point[] {
     const neighbors: Point[] = [];
     if (x > 0) neighbors.push({ x: x - 1, y });

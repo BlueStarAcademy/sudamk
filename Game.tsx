@@ -54,7 +54,7 @@ import {
 import { calculateSimpleAiMove } from './client/goAiBotClient.js';
 import { processMoveClient } from './client/goLogicClient.js';
 import { isDiceGoLibertyPlacement, isThiefGoValidPlacement } from './client/logic/goLogic.js';
-import { isPlayableCastleIntersection, processCastleMove } from './shared/utils/castleGoRules.js';
+import { isPlayableCastleIntersection, processCastleMove, resolveCastlePlacementSession } from './shared/utils/castleGoRules.js';
 import {
     enumerateLegalChessMoves,
     isLegacyChessGoLayout,
@@ -1864,6 +1864,33 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         return normalizeChessGoSession(sessionWithRestoredPatternStones);
     }, [session.mode, sessionWithRestoredPatternStones]);
 
+    /** 캐슬 바둑: 보드 표시와 동일하게 현재 보드 기준 확정 영토로 착수 금지를 판정한다. */
+    const castlePlacementSession = useMemo(() => {
+        if (mode !== GameMode.Castle) return null;
+        const base = sessionWithRestoredPatternStones;
+        const board =
+            base.boardState && Array.isArray(base.boardState) && base.boardState.length > 0
+                ? base.boardState
+                : restoredBoardState;
+        if (!board?.length) return base;
+        return resolveCastlePlacementSession(
+            {
+                castleStonePoints: base.castleStonePoints,
+                confirmedTerritoryOwnerByPoint: base.confirmedTerritoryOwnerByPoint,
+                boardState: board,
+                settings: base.settings,
+            },
+            board,
+        );
+    }, [
+        mode,
+        sessionWithRestoredPatternStones,
+        sessionWithRestoredPatternStones.boardState,
+        sessionWithRestoredPatternStones.castleStonePoints,
+        sessionWithRestoredPatternStones.confirmedTerritoryOwnerByPoint,
+        restoredBoardState,
+    ]);
+
     /** 체스 바둑: 예전 sessionStorage 스냅샷(측면 폰·15×15)이 병합을 막지 않도록 제거 */
     useEffect(() => {
         if (session.mode !== GameMode.Chess) return;
@@ -2923,7 +2950,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                       )
                     : mode === GameMode.Castle
                       ? processCastleMove(
-                            session,
+                            castlePlacementSession ?? { ...session, boardState: boardStateToUse },
                             boardStateToUse,
                             { x, y, player: myPlayerEnum },
                             session.koInfo,
@@ -2964,6 +2991,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         session.boardState,
         session.koInfo,
         session.moveHistory?.length,
+        castlePlacementSession,
     ]);
 
     const applyOptimisticPairUserMove = useCallback((x: number, y: number): boolean => {
@@ -2977,7 +3005,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             const moveResult =
                 mode === GameMode.Castle
                     ? processCastleMove(
-                          session,
+                          castlePlacementSession ?? { ...session, boardState: boardStateToUse },
                           boardStateToUse,
                           { x, y, player: myPlayerEnum },
                           session.koInfo,
@@ -3017,6 +3045,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         session.boardState,
         session.koInfo,
         session.moveHistory?.length,
+        castlePlacementSession,
     ]);
 
     useEffect(() => () => {
@@ -3203,7 +3232,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 mode === GameMode.Castle &&
                 gameStatus === 'playing' &&
                 myPlayerEnum !== Player.None &&
-                !isPlayableCastleIntersection(session, x, y, myPlayerEnum)
+                !isPlayableCastleIntersection(castlePlacementSession ?? session, x, y, myPlayerEnum)
             ) {
                 return;
             }
@@ -3625,7 +3654,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 gameStatus === 'playing' &&
                 myPlayerEnum !== Player.None &&
                 !payload.isHidden &&
-                !isPlayableCastleIntersection(session, x, y, myPlayerEnum)
+                !isPlayableCastleIntersection(castlePlacementSession ?? session, x, y, myPlayerEnum)
             ) {
                 return;
             }
@@ -3937,7 +3966,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     gameStatus === 'playing' &&
                     myPlayerEnum !== Player.None &&
                     !payload.isHidden &&
-                    !isPlayableCastleIntersection(session, x, y, myPlayerEnum)
+                    !isPlayableCastleIntersection(castlePlacementSession ?? session, x, y, myPlayerEnum)
                 ) {
                     setPendingMove(null);
                     return;
@@ -4129,6 +4158,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         playUserPlaceStoneSoundAt,
         rejectInvalidChessGoStonePlacement,
         chessGoSession,
+        castlePlacementSession,
     ]);
 
     const handleCancelMove = useCallback(() => setPendingMove(null), []);
