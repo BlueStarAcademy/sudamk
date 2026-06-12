@@ -6,8 +6,8 @@ import type { ArenaEntranceKey } from '../../constants/arenaEntrance.js';
 export const TOWER_ENTRANCE_REQUIRED_STAGE_ID = '입문-10';
 /** 모험 입장: 바둑학원 입문반 20 스테이지 최초 클리어 필요 */
 export const ADVENTURE_ENTRANCE_REQUIRED_STAGE_ID = '입문-20';
-/** PVP 대기실: 유저 레벨 기준 최소값 (구 시스템의 통합 레벨 수치와 동일하게 유지) */
-export const PVP_LOBBIES_MIN_COMBINED_LEVEL = 2;
+/** PVP/AI 경기장: 1레벨부터 이용 가능 */
+export const PVP_LOBBIES_MIN_COMBINED_LEVEL = 1;
 /** 챔피언십: 6개 바둑 능력치 합(장비 반영 `calculateTotalStats` 기준) */
 export const CHAMPIONSHIP_MIN_BADUK_ABILITY_TOTAL = 700;
 /** 퀵 메뉴 퀘스트: 유저 레벨 */
@@ -79,8 +79,8 @@ export function isBlacksmithQuickUnlocked(snap: Pick<BadukAbilitySnapshot, 'badu
 
 export const USER_PROGRESSION_ARENA_BLOCK_MESSAGE: Partial<Record<ArenaEntranceKey, string>> = {
     tower: `도전의 탑은 바둑학원 입문반 10스테이지를 클리어하면 입장할 수 있습니다.`,
-    strategicLobby: `전략 바둑 대기실은 유저 Lv.${PVP_LOBBIES_MIN_COMBINED_LEVEL} 이상에서 입장할 수 있습니다.`,
-    playfulLobby: `놀이 바둑 대기실은 유저 Lv.${PVP_LOBBIES_MIN_COMBINED_LEVEL} 이상에서 입장할 수 있습니다.`,
+    strategicLobby: `전략 바둑 대기실은 유저 Lv.${PVP_LOBBIES_MIN_COMBINED_LEVEL}부터 입장할 수 있습니다.`,
+    playfulLobby: `놀이 바둑 대기실은 유저 Lv.${PVP_LOBBIES_MIN_COMBINED_LEVEL}부터 입장할 수 있습니다.`,
     championship: `챔피언십은 바둑 능력치 합 ${CHAMPIONSHIP_MIN_BADUK_ABILITY_TOTAL} 이상에서 입장할 수 있습니다.`,
     adventure: `모험은 바둑학원 입문반 20스테이지를 클리어하면 입장할 수 있습니다.`,
 };

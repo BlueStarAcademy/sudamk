@@ -199,57 +199,26 @@ function pickRandom<T>(arr: T[]): T | undefined {
     return arr[Math.floor(Math.random() * arr.length)];
 }
 
-/** 예산·슬롯·개수 제한 내 순수 랜덤 draft 생성 */
-export function generateRandomChessSetupDraft(
-    budget: number,
-    boardSize: number,
-    owner: Player.Black | Player.White,
-): ChessSetupDraftPiece[] {
-    const { majorSlots, pawnSlots } = getChessGoPlacementSlots(boardSize, owner);
-    const draft: ChessSetupDraftPiece[] = [];
-    let remainingBudget = budget;
-    const counts = countChessSetupDraftByType(draft);
-    const usedMajor = new Set<string>();
-    const usedPawn = new Set<string>();
-
-    const availableTypes = (): Exclude<ChessPieceType, 'king'>[] =>
-        SETUP_PIECE_TYPES.filter((t) => {
-            if (counts[t] >= CHESS_SETUP_PIECE_LIMITS[t]) return false;
-            return setupPieceCaptureValue(t) <= remainingBudget;
-        });
-
-    let safety = 200;
-    while (safety-- > 0) {
-        const types = availableTypes();
-        if (!types.length) break;
-        const type = pickRandom(types)!;
-        const cost = setupPieceCaptureValue(type);
-        if (cost > remainingBudget) break;
-
-        if (type === 'pawn') {
-            const free = pawnSlots.filter((s) => !usedPawn.has(`${s.x},${s.y}`));
-            const slot = pickRandom(free);
-            if (!slot) break;
-            draft.push({ type, x: slot.x, y: slot.y });
-            usedPawn.add(`${slot.x},${slot.y}`);
-        } else {
-            const free = majorSlots.filter((s) => !usedMajor.has(`${s.x},${s.y}`));
-            const slot = pickRandom(free);
-            if (!slot) break;
-            draft.push({ type, x: slot.x, y: slot.y });
-            usedMajor.add(`${slot.x},${slot.y}`);
-        }
-        counts[type] += 1;
-        remainingBudget -= cost;
-
-        if (Math.random() < 0.35) break;
+function shuffle<T>(arr: T[]): T[] {
+    const copy = [...arr];
+    for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j]!, copy[i]!];
     }
-
-    return draft;
+    return copy;
 }
 
-/** 기존 draft를 유지한 채 남은 예산 범위에서 무작위로 기물을 추가한다. */
-export function generateRandomChessSetupDraftForRemainingBudget(
+type PlacementCandidate = {
+    type: Exclude<ChessPieceType, 'king'>;
+    x: number;
+    y: number;
+    cost: number;
+};
+
+/**
+ * 예산·슬롯·개수 제한 내에서 무작위 순서로 기물을 채우되, 더 이상 놓을 수 없을 때까지 반복해 예산을 최대한 사용한다.
+ */
+function fillChessSetupDraftToMaxBudget(
     existingDraft: ChessSetupDraftPiece[],
     totalBudget: number,
     boardSize: number,
@@ -262,39 +231,69 @@ export function generateRandomChessSetupDraftForRemainingBudget(
     const usedMajor = new Set(draft.filter((p) => p.type !== 'pawn').map((p) => `${p.x},${p.y}`));
     const usedPawn = new Set(draft.filter((p) => p.type === 'pawn').map((p) => `${p.x},${p.y}`));
 
-    const availableTypes = (): Exclude<ChessPieceType, 'king'>[] =>
-        SETUP_PIECE_TYPES.filter((t) => {
-            if (counts[t] >= CHESS_SETUP_PIECE_LIMITS[t]) return false;
-            return setupPieceCaptureValue(t) <= remainingBudget;
-        });
+    const buildCandidates = (): PlacementCandidate[] => {
+        const candidates: PlacementCandidate[] = [];
+        for (const type of shuffle(SETUP_PIECE_TYPES)) {
+            const cost = setupPieceCaptureValue(type);
+            if (counts[type] >= CHESS_SETUP_PIECE_LIMITS[type]) continue;
+            if (cost > remainingBudget) continue;
+            const slots =
+                type === 'pawn'
+                    ? pawnSlots.filter((s) => !usedPawn.has(`${s.x},${s.y}`))
+                    : majorSlots.filter((s) => !usedMajor.has(`${s.x},${s.y}`));
+            for (const slot of shuffle(slots)) {
+                candidates.push({ type, x: slot.x, y: slot.y, cost });
+            }
+        }
+        return shuffle(candidates);
+    };
 
     let safety = 200;
     while (safety-- > 0 && remainingBudget > 0) {
-        const types = availableTypes();
-        if (!types.length) break;
-        const type = pickRandom(types)!;
-        const cost = setupPieceCaptureValue(type);
-        if (cost > remainingBudget) break;
+        const candidates = buildCandidates();
+        if (!candidates.length) break;
 
-        if (type === 'pawn') {
-            const free = pawnSlots.filter((s) => !usedPawn.has(`${s.x},${s.y}`));
-            const slot = pickRandom(free);
-            if (!slot) break;
-            draft.push({ type, x: slot.x, y: slot.y });
-            usedPawn.add(`${slot.x},${slot.y}`);
-        } else {
-            const free = majorSlots.filter((s) => !usedMajor.has(`${s.x},${s.y}`));
-            const slot = pickRandom(free);
-            if (!slot) break;
-            draft.push({ type, x: slot.x, y: slot.y });
-            usedMajor.add(`${slot.x},${slot.y}`);
+        let placed = false;
+        for (const candidate of candidates) {
+            if (candidate.cost > remainingBudget) continue;
+            if (counts[candidate.type] >= CHESS_SETUP_PIECE_LIMITS[candidate.type]) continue;
+            const key = `${candidate.x},${candidate.y}`;
+            if (candidate.type === 'pawn') {
+                if (usedPawn.has(key)) continue;
+                usedPawn.add(key);
+            } else {
+                if (usedMajor.has(key)) continue;
+                usedMajor.add(key);
+            }
+            draft.push({ type: candidate.type, x: candidate.x, y: candidate.y });
+            counts[candidate.type] += 1;
+            remainingBudget -= candidate.cost;
+            placed = true;
+            break;
         }
-        counts[type] += 1;
-        remainingBudget -= cost;
-        if (Math.random() < 0.35) break;
+        if (!placed) break;
     }
 
     return draft;
+}
+
+/** 예산·슬롯·개수 제한 내 순수 랜덤 draft 생성 (예산 최대 사용) */
+export function generateRandomChessSetupDraft(
+    budget: number,
+    boardSize: number,
+    owner: Player.Black | Player.White,
+): ChessSetupDraftPiece[] {
+    return fillChessSetupDraftToMaxBudget([], budget, boardSize, owner);
+}
+
+/** 기존 draft를 유지한 채 남은 예산 범위에서 무작위로 기물을 추가한다. */
+export function generateRandomChessSetupDraftForRemainingBudget(
+    existingDraft: ChessSetupDraftPiece[],
+    totalBudget: number,
+    boardSize: number,
+    owner: Player.Black | Player.White,
+): ChessSetupDraftPiece[] {
+    return fillChessSetupDraftToMaxBudget(existingDraft, totalBudget, boardSize, owner);
 }
 
 export function getChessSetupBudgetFromSettings(

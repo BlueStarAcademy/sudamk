@@ -2303,7 +2303,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
     const dockMoveConfirmFooter = !isGameEnded && showMoveConfirmFooter && !isSpectator && !!onMobileConfirmToggle;
     /** 계가·대기 등에서 슬롯 UI는 숨기되, 진행 중과 동일한 중앙 폭을 유지해 바둑판 가로 배분이 변하지 않게 함 */
     const isPlayfulModeFooter = PLAYFUL_GAME_MODES.some((m) => m.mode === mode);
-    const footerStatusesHideMoveReserve: GameStatus[] = ['ended', 'no_contest', 'rematch_pending', 'disconnected'];
+    const footerStatusesHideMoveReserve: GameStatus[] = ['ended', 'no_contest', 'rematch_pending', 'disconnected', 'chess_piece_placement'];
     const reserveMoveConfirmFooterColumn =
         settings.features.moveConfirmButtonBox &&
         !!onMobileConfirmToggle &&

@@ -133,6 +133,7 @@ describe('mergeGameUpdateByArena', () => {
         const existing = minimalSession({
             mode: GameMode.Chess,
             isAiGame: true,
+            settings: { boardSize: 13, komi: 6.5 },
             chessPieces: pieces,
             chessPieceMovedThisTurn: true,
             boardState: Array.from({ length: 13 }, () => Array(13).fill(Player.None)),
@@ -145,6 +146,7 @@ describe('mergeGameUpdateByArena', () => {
         const incoming = minimalSession({
             mode: GameMode.Chess,
             isAiGame: true,
+            settings: { boardSize: 13, komi: 6.5 },
             chessPieces: pieces,
             chessPieceMovedThisTurn: false,
             moveHistory: [{ player: Player.Black, x: 6, y: 6 }],
@@ -155,6 +157,45 @@ describe('mergeGameUpdateByArena', () => {
         expect(merged.chessPieces!.find((p) => p.id === pawn.id)!.y).toBe(9);
         expect(merged.boardState![9]![5]).toBe(Player.Black);
         expect(merged.boardState![10]![5]).toBe(Player.None);
+    });
+
+    it('preserves client moveHistory when stale incoming has shorter chess go history', () => {
+        const pieces = generateChessGoInitialPieces(13);
+        const existing = minimalSession({
+            mode: GameMode.Chess,
+            isAiGame: true,
+            gameStatus: 'playing',
+            settings: { boardSize: 13, komi: 6.5 },
+            chessPieces: pieces,
+            moveHistory: [
+                { x: 6, y: 6, player: Player.Black },
+                { x: 7, y: 7, player: Player.White },
+                { x: 5, y: 5, player: Player.Black },
+            ],
+            currentPlayer: Player.White,
+        }) as LiveGameSession;
+        existing.boardState = Array.from({ length: 13 }, () => Array(13).fill(Player.None));
+        existing.boardState![6]![6] = Player.Black;
+        existing.boardState![7]![7] = Player.White;
+        existing.boardState![5]![5] = Player.Black;
+
+        const incoming = minimalSession({
+            mode: GameMode.Chess,
+            isAiGame: true,
+            gameStatus: 'playing',
+            settings: { boardSize: 13, komi: 6.5 },
+            chessPieces: pieces,
+            moveHistory: [
+                { x: 6, y: 6, player: Player.Black },
+                { x: 7, y: 7, player: Player.White },
+            ],
+            currentPlayer: Player.Black,
+        }) as LiveGameSession;
+
+        const merged = mergeGameUpdateByArena(incoming, existing, { source: 'game_update' });
+        expect(merged.moveHistory).toHaveLength(3);
+        expect(merged.boardState![5]![5]).toBe(Player.Black);
+        expect(merged.boardState![7]![7]).toBe(Player.White);
     });
 
     it('does not clear missile animation when incoming explicitly includes it', () => {

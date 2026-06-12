@@ -140,7 +140,7 @@ import { normalizeInventoryAfterLoad } from '../utils/inventoryUtils.js';
 import { reconcileExchangeListedInventoryFlags } from '../shared/utils/exchangeInventorySync.js';
 import { stripReappearedRemovedInventoryItems } from '../shared/utils/inventoryStaleGuard.js';
 import { mergeAdventureProfileForPersistence } from '../utils/adventureProfileMerge.js';
-import { applyChessMoveToSession, commitChessGoPlacementCaptures, normalizeChessGoSession, resolveChessCapturesByLiberty, validateChessMove } from '../shared/utils/chessGoRules.js';
+import { applyChessCaptureScoreForRemovedStones, applyChessMoveToSession, commitChessGoPlacementCaptures, normalizeChessGoSession, resolveChessCapturesByLiberty, validateChessMove } from '../shared/utils/chessGoRules.js';
 import { detectAndConfirmTerritories } from '../shared/utils/castleGoRules.js';
 import {
     coerceAdventureLiveGameScoringTurnLimit,
@@ -168,6 +168,7 @@ import { markPveBoardSettledForScoring } from '../shared/utils/pveScoringBoardSe
 const pveAutoScoringScheduledStorageKey = (gameId: string) => `pveAutoScoringScheduled:${gameId}`;
 import {
     pickRicherWsBoardSnapshot,
+    resolveChessPvePlayingSession,
     resolvePveScoringBoardAndMoveHistory,
     resolveStrategicPvePlayingBoardAndMoveHistory,
     deriveBoardFromMoveHistoryAndBaseStones,
@@ -919,6 +920,21 @@ function mutateLiveMissilePresentationComplete(game: LiveGameSession): LiveGameS
     };
 }
 
+function overlayChessPlayingFieldsFromExisting(
+    merged: LiveGameSession,
+    existing: LiveGameSession,
+): LiveGameSession {
+    if (merged.mode !== GameMode.Chess) return merged;
+    return {
+        ...merged,
+        chessPieces: existing.chessPieces,
+        chessGoRemovedPoints: existing.chessGoRemovedPoints,
+        lastChessMove: existing.lastChessMove,
+        chessPieceMovedThisTurn: existing.chessPieceMovedThisTurn,
+        chessCaptureScore: existing.chessCaptureScore,
+    };
+}
+
 /** PVE playing: 슬림 WS(수순↑·boardState 생략)에서 판·수순을 한 쌍으로 맞춘다. */
 function applyPvePlayingBoardAndMoveHistoryResolve(
     merged: LiveGameSession,
@@ -926,6 +942,9 @@ function applyPvePlayingBoardAndMoveHistoryResolve(
 ): LiveGameSession {
     if (merged.gameStatus !== 'playing') return merged;
     if (resolveArenaSessionPolicy(merged as any).matchAxis !== 'pve') return merged;
+    if (merged.mode === GameMode.Chess) {
+        return resolveChessPvePlayingSession(merged, clientSnapshot);
+    }
     const playingResolved = resolveStrategicPvePlayingBoardAndMoveHistory(
         merged,
         clientSnapshot ?? merged,
@@ -4145,6 +4164,19 @@ export const useApp = () => {
                 if (game.mode === GameMode.Chess) {
                     updatedGame.chessPieceMovedThisTurn = false;
                     commitChessGoPlacementCaptures(updatedGame, x, y, capturedStones);
+                    if (capturedStones.length > 0) {
+                        const chessCapture = applyChessCaptureScoreForRemovedStones(
+                            updatedGame,
+                            capturedStones,
+                            movePlayer,
+                        );
+                        if (chessCapture.kingCaptured) {
+                            updatedGame.gameStatus = 'ended';
+                            updatedGame.winner = movePlayer;
+                            updatedGame.winReason = 'chess_checkmate';
+                            updatedGame.currentPlayer = Player.None;
+                        }
+                    }
                     const normalized = normalizeChessGoSession(updatedGame);
                     return { ...currentGames, [gameId]: normalized };
                 }
@@ -7168,6 +7200,11 @@ export const useApp = () => {
                         action.type === 'CONFIRM_BASE_PLACEMENT_COMPLETE' ||
                         action.type === 'CONFIRM_BASE_REVEAL' ||
                         action.type === 'CONFIRM_CAPTURE_REVEAL' ||
+                        action.type === 'PLACE_CHESS_SETUP_PIECE' ||
+                        action.type === 'REMOVE_CHESS_SETUP_PIECE' ||
+                        action.type === 'RESET_CHESS_SETUP_PLACEMENT' ||
+                        action.type === 'FILL_CHESS_SETUP_RANDOMLY' ||
+                        action.type === 'CONFIRM_CHESS_SETUP_PLACEMENT' ||
                         action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' ||
                         action.type === 'SINGLE_PLAYER_SYNC_PENDING_STAGE' ||
                         action.type === 'SINGLE_PLAYER_ADMIN_JUMP_PENDING_STAGE' ||
@@ -7304,7 +7341,10 @@ export const useApp = () => {
                                 if (!mergeId || !game) return currentGames;
                                 const prev = currentGames[mergeId];
                                 // WS가 먼저 슬롯을 채운 경우에도 HTTP 응답으로 병합 (이전: 키 존재 시 무시 → 재대결 등에서 상태 정지)
-                                const mergedForSlot = mergeGameWithMonotonicCounters(prev, game as LiveGameSession, mergeId);
+                                let mergedForSlot = mergeGameWithMonotonicCounters(prev, game as LiveGameSession, mergeId);
+                                if (mergedForSlot.mode === GameMode.Chess) {
+                                    mergedForSlot = normalizeChessGoSession(mergedForSlot);
+                                }
                                 return {
                                     ...currentGames,
                                     [mergeId]: coerceAdventureLiveGameScoringTurnLimit(mergedForSlot),
@@ -10695,14 +10735,17 @@ export const useApp = () => {
                                         ) {
                                             const lastMove = existingGame.moveHistory[existingGame.moveHistory.length - 1];
                                             const nextPlayer = lastMove && (lastMove as any).player === Player.Black ? Player.White : Player.Black;
-                                            mergedGame = {
-                                                ...game,
-                                                boardState: existingGame.boardState,
-                                                moveHistory: existingGame.moveHistory,
-                                                currentPlayer: nextPlayer,
-                                                // 수순을 클라이언트 것으로 맞출 때 hiddenMoves도 함께 맞춰야 스캔 버튼·히든 문양 인덱스가 어긋나지 않음
-                                                hiddenMoves: existingGame.hiddenMoves ?? game.hiddenMoves,
-                                            };
+                                            mergedGame = overlayChessPlayingFieldsFromExisting(
+                                                {
+                                                    ...game,
+                                                    boardState: existingGame.boardState,
+                                                    moveHistory: existingGame.moveHistory,
+                                                    currentPlayer: nextPlayer,
+                                                    // 수순을 클라이언트 것으로 맞출 때 hiddenMoves도 함께 맞춰야 스캔 버튼·히든 문양 인덱스가 어긋나지 않음
+                                                    hiddenMoves: existingGame.hiddenMoves ?? game.hiddenMoves,
+                                                },
+                                                existingGame,
+                                            );
                                             if ((existingGame as any).koInfo !== undefined) mergedGame.koInfo = (existingGame as any).koInfo;
                                             if ((existingGame as any).lastMove !== undefined) mergedGame.lastMove = (existingGame as any).lastMove;
                                         }
@@ -10851,13 +10894,16 @@ export const useApp = () => {
                                             const nextAfterLast = lastExisting && (lastExisting as any).player === Player.Black ? Player.White : Player.Black;
                                             const serverTurnStale = nextAfterLast === aiPlayerEnum && game.currentPlayer !== aiPlayerEnum;
                                             if (sameLastMove && (serverTurnStale || !hasServerBoard)) {
-                                                mergedGame = {
-                                                    ...game,
-                                                    boardState: existingGame.boardState,
-                                                    moveHistory: existingGame.moveHistory,
-                                                    currentPlayer: serverTurnStale ? existingGame.currentPlayer : game.currentPlayer,
-                                                    hiddenMoves: existingGame.hiddenMoves ?? game.hiddenMoves,
-                                                };
+                                                mergedGame = overlayChessPlayingFieldsFromExisting(
+                                                    {
+                                                        ...game,
+                                                        boardState: existingGame.boardState,
+                                                        moveHistory: existingGame.moveHistory,
+                                                        currentPlayer: serverTurnStale ? existingGame.currentPlayer : game.currentPlayer,
+                                                        hiddenMoves: existingGame.hiddenMoves ?? game.hiddenMoves,
+                                                    },
+                                                    existingGame,
+                                                );
                                                 if ((existingGame as any).koInfo !== undefined) mergedGame.koInfo = (existingGame as any).koInfo;
                                                 if ((existingGame as any).lastMove !== undefined) mergedGame.lastMove = (existingGame as any).lastMove;
                                             } else if (serverTurnStale) {

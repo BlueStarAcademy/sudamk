@@ -248,12 +248,55 @@ function preserveCastleSessionFieldsOnMerge(
 }
 
 /** 체스 바둑: 레거시 sessionStorage·슬림 패킷이 측면 폰/잘못된 기물 순서를 남기지 않게 표준 배치로 교정 */
+function preserveChessPlayingStateWhenMoveHistoryRegresses(
+    merged: LiveGameSession,
+    existing: LiveGameSession | undefined,
+): LiveGameSession {
+    if (merged.gameStatus !== 'playing' || existing?.gameStatus !== 'playing') return merged;
+    const exLen = Array.isArray(existing.moveHistory) ? existing.moveHistory.length : 0;
+    const inLen = Array.isArray(merged.moveHistory) ? merged.moveHistory.length : 0;
+    if (exLen === 0) return merged;
+
+    const lastMovesMatch = (): boolean => {
+        if (exLen !== inLen || !existing!.moveHistory || !merged.moveHistory) return true;
+        const lastEx = existing!.moveHistory[exLen - 1];
+        const lastIn = merged.moveHistory[inLen - 1];
+        return !!(
+            lastEx &&
+            lastIn &&
+            lastEx.x === lastIn.x &&
+            lastEx.y === lastIn.y &&
+            lastEx.player === lastIn.player
+        );
+    };
+
+    if (exLen > inLen || (exLen === inLen && !lastMovesMatch())) {
+        return {
+            ...merged,
+            moveHistory: existing!.moveHistory,
+            boardState: existing!.boardState,
+            chessPieces: existing!.chessPieces,
+            chessGoRemovedPoints: existing!.chessGoRemovedPoints,
+            lastChessMove: existing!.lastChessMove,
+            chessPieceMovedThisTurn: existing!.chessPieceMovedThisTurn,
+            chessCaptureScore: existing!.chessCaptureScore,
+            koInfo: existing!.koInfo,
+            lastMove: existing!.lastMove,
+            captures: existing!.captures,
+        };
+    }
+    return merged;
+}
+
 function mergeChessSessionFieldsOnMerge(
     incoming: LiveGameSession,
     existing: LiveGameSession | undefined,
 ): LiveGameSession {
     if (incoming.mode !== GameMode.Chess) return incoming;
-    let merged: LiveGameSession = { ...incoming };
+    let merged: LiveGameSession = preserveChessPlayingStateWhenMoveHistoryRegresses(
+        { ...incoming },
+        existing,
+    );
     if (
         merged.gameStatus === 'playing' &&
         existing?.gameStatus === 'chess_piece_placement'
@@ -264,6 +307,21 @@ function mergeChessSessionFieldsOnMerge(
             chessPiecePlacementReady: undefined,
             chessPiecePlacementDeadline: undefined,
         };
+        if (incoming.chessPieces?.length) {
+            merged = { ...merged, chessPieces: incoming.chessPieces };
+        }
+        if (incoming.boardState?.length) {
+            merged = { ...merged, boardState: incoming.boardState };
+        }
+        if (incoming.settings?.chessPieceTotalScore != null) {
+            merged = {
+                ...merged,
+                settings: {
+                    ...merged.settings,
+                    chessPieceTotalScore: incoming.settings.chessPieceTotalScore,
+                },
+            };
+        }
     }
     if (merged.gameStatus === 'chess_piece_placement') {
         if (existing?.chessPiecePlacementDraft && incoming.chessPiecePlacementDraft) {

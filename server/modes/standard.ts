@@ -1225,7 +1225,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             // 치명적 버그 방지: 보드 범위를 벗어나는 위치에 돌을 놓으려는 시도 차단
             const boardSize =
                 game.mode === types.GameMode.Chess
-                    ? CHESS_GO_BOARD_SIZE
+                    ? (game.settings.boardSize ?? CHESS_GO_BOARD_SIZE)
                     : game.settings.boardSize;
             if (x < 0 || x >= boardSize || y < 0 || y >= boardSize) {
                 console.error(`[handleStandardAction] CRITICAL BUG PREVENTION: Attempted to place stone out of bounds (${x}, ${y}), boardSize=${boardSize}, gameId=${game.id}, isSinglePlayer=${game.isSinglePlayer}, gameCategory=${game.gameCategory}`);

@@ -275,7 +275,10 @@ function normalizeAiScoringTurnLimit(mode: GameMode, settings: GameSettings): Ga
             boardSize: bs,
             komi: getDefaultChessKomiByBoardSize(bs),
             scoringTurnLimit: getDefaultChessScoringTurnLimit(),
-            chessPieceTotalScore: getDefaultChessPieceTotalScore(bs),
+            chessPieceTotalScore: clampChessPieceTotalScore(
+                settings.chessPieceTotalScore ?? getDefaultChessPieceTotalScore(bs),
+                bs,
+            ),
         };
     }
     if (mode === GameMode.Castle || modeIncludesCaptureRule(mode, settings)) {

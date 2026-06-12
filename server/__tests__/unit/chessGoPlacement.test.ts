@@ -45,6 +45,7 @@ describe('chessGoPlacement', () => {
             expect(validation.ok).toBe(true);
             const score = draft.reduce((s, p) => s + getChessPieceCaptureValue(p.type), 0);
             expect(score).toBeLessThanOrEqual(15);
+            expect(score).toBeGreaterThan(0);
             for (const p of draft) {
                 const { majorSlots, pawnSlots } = getChessGoPlacementSlots(13, Player.Black);
                 if (p.type === 'pawn') {
@@ -53,6 +54,17 @@ describe('chessGoPlacement', () => {
                     expect(majorSlots.some((s) => s.x === p.x && s.y === p.y)).toBe(true);
                 }
             }
+        }
+    });
+
+    it('random draft uses budget as fully as limits allow', () => {
+        for (let i = 0; i < 30; i++) {
+            const draft = generateRandomChessSetupDraft(20, 13, Player.White);
+            const validation = validateChessPlacementDraft(draft, Player.White, 13, 20);
+            expect(validation.ok).toBe(true);
+            const score = draft.reduce((s, p) => s + getChessPieceCaptureValue(p.type), 0);
+            expect(score).toBeGreaterThanOrEqual(14);
+            expect(score).toBeLessThanOrEqual(20);
         }
     });
 

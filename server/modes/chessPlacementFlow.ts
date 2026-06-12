@@ -3,7 +3,6 @@ import { Player } from '../../types/enums.js';
 import {
     draftToChessPieceStates,
     finalizeChessPiecesFromDrafts,
-    generateRandomChessSetupDraft,
     generateRandomChessSetupDraftForRemainingBudget,
     getChessSetupBudgetFromSettings,
     validateChessPlacementDraft,
@@ -58,11 +57,17 @@ function ensureAiChessPlacementReady(game: types.LiveGameSession): void {
     const aiColor = getPlayerColor(game, aiId);
     if (aiColor == null) return;
 
-    const aiDraft = game.chessPiecePlacementDraft?.[aiId] ?? [];
+    let aiDraft = game.chessPiecePlacementDraft?.[aiId] ?? [];
     const validation = validateChessPlacementDraft(aiDraft, aiColor, boardSize, budget);
     if (!validation.ok) {
-        game.chessPiecePlacementDraft![aiId] = generateRandomChessSetupDraft(budget, boardSize, aiColor);
+        aiDraft = [];
     }
+    game.chessPiecePlacementDraft![aiId] = generateRandomChessSetupDraftForRemainingBudget(
+        aiDraft,
+        budget,
+        boardSize,
+        aiColor,
+    );
     game.chessPiecePlacementReady![aiId] = true;
 }
 
@@ -178,13 +183,22 @@ export function resolveChessPlacementAndTransition(game: types.LiveGameSession, 
     let blackVal = validateChessPlacementDraft(blackDraft, Player.Black, boardSize, budget);
     let whiteVal = validateChessPlacementDraft(whiteDraft, Player.White, boardSize, budget);
 
+    const aiParticipantId = resolveAiParticipantId(game);
     if (!blackVal.ok) {
-        blackDraft = generateRandomChessSetupDraft(budget, boardSize, Player.Black);
+        blackDraft = generateRandomChessSetupDraftForRemainingBudget([], budget, boardSize, Player.Black);
+        game.chessPiecePlacementDraft![blackId] = blackDraft;
+        blackVal = validateChessPlacementDraft(blackDraft, Player.Black, boardSize, budget);
+    } else if (game.isAiGame && aiParticipantId === blackId) {
+        blackDraft = generateRandomChessSetupDraftForRemainingBudget(blackDraft, budget, boardSize, Player.Black);
         game.chessPiecePlacementDraft![blackId] = blackDraft;
         blackVal = validateChessPlacementDraft(blackDraft, Player.Black, boardSize, budget);
     }
     if (!whiteVal.ok) {
-        whiteDraft = generateRandomChessSetupDraft(budget, boardSize, Player.White);
+        whiteDraft = generateRandomChessSetupDraftForRemainingBudget([], budget, boardSize, Player.White);
+        game.chessPiecePlacementDraft![whiteId] = whiteDraft;
+        whiteVal = validateChessPlacementDraft(whiteDraft, Player.White, boardSize, budget);
+    } else if (game.isAiGame && aiParticipantId === whiteId) {
+        whiteDraft = generateRandomChessSetupDraftForRemainingBudget(whiteDraft, budget, boardSize, Player.White);
         game.chessPiecePlacementDraft![whiteId] = whiteDraft;
         whiteVal = validateChessPlacementDraft(whiteDraft, Player.White, boardSize, budget);
     }

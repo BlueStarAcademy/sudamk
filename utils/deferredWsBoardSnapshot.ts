@@ -1,5 +1,6 @@
 import type { LiveGameSession } from '../types.js';
-import { Player } from '../types.js';
+import { GameMode, Player } from '../types.js';
+import { normalizeChessGoSession } from '../shared/utils/chessGoRules.js';
 
 /** moveHistory 길이로 “한 수 앞선” 지연 표시 스냅샷을 고른다 (PASS 포함 전체 길이). */
 export function wsSessionMoveHistoryLen(session: LiveGameSession | null | undefined): number {
@@ -173,4 +174,55 @@ export function resolveStrategicPvePlayingBoardAndMoveHistory(
     }
 
     return { boardState, moveHistory };
+}
+
+function chessSessionLastMovesMatch(a: LiveGameSession, b: LiveGameSession): boolean {
+    const aLen = wsSessionMoveHistoryLen(a);
+    const bLen = wsSessionMoveHistoryLen(b);
+    if (aLen === 0 || bLen === 0) return aLen === bLen;
+    const lastA = a.moveHistory![aLen - 1];
+    const lastB = b.moveHistory![bLen - 1];
+    return !!(lastA && lastB && lastA.x === lastB.x && lastA.y === lastB.y && lastA.player === lastB.player);
+}
+
+function pickChessPlayingAuthoritativeSnapshot(
+    server: LiveGameSession,
+    client: LiveGameSession,
+): LiveGameSession {
+    const serverMhLen = wsSessionMoveHistoryLen(server);
+    const clientMhLen = wsSessionMoveHistoryLen(client);
+
+    if (serverMhLen > clientMhLen) return server;
+    if (clientMhLen > serverMhLen) return client;
+    if (serverMhLen > 0 && !chessSessionLastMovesMatch(server, client)) return client;
+    return server;
+}
+
+/**
+ * 체스 바둑 PVE playing: 슬림·낡은 WS/HTTP 패킷이 moveHistory·chessPieces를 되돌리면
+ * AI 바둑돌이 사라지거나 다른 교차점에 두는 것처럼 보인다.
+ */
+export function resolveChessPvePlayingSession(
+    server: LiveGameSession,
+    client: LiveGameSession | undefined,
+): LiveGameSession {
+    if (server.mode !== GameMode.Chess) return server;
+    const clientSnap = client ?? server;
+    const authoritative = pickChessPlayingAuthoritativeSnapshot(server, clientSnap);
+
+    const merged: LiveGameSession = {
+        ...clientSnap,
+        ...server,
+        moveHistory: authoritative.moveHistory,
+        chessPieces: authoritative.chessPieces,
+        chessGoRemovedPoints: authoritative.chessGoRemovedPoints,
+        lastChessMove: authoritative.lastChessMove,
+        chessPieceMovedThisTurn: authoritative.chessPieceMovedThisTurn,
+        chessCaptureScore: authoritative.chessCaptureScore,
+        koInfo: authoritative.koInfo,
+        lastMove: authoritative.lastMove,
+        captures: authoritative.captures,
+    };
+
+    return normalizeChessGoSession(merged);
 }

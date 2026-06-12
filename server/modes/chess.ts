@@ -95,8 +95,11 @@ export async function tryEndChessOnKingCapture(
 ): Promise<boolean> {
     if (game.mode !== GameMode.Chess) return false;
     if (game.gameStatus === 'ended' || game.gameStatus === 'no_contest') return false;
-    const hasKing = game.chessPieces?.some((p) => p.type === 'king');
-    if (hasKing) return false;
+    const opponent = capturer === Player.Black ? Player.White : Player.Black;
+    const opponentStillHasKing = game.chessPieces?.some(
+        (p) => p.type === 'king' && p.owner === opponent,
+    );
+    if (opponentStillHasKing) return false;
     await summaryService.endGame(game, capturer, 'chess_checkmate');
     return true;
 }

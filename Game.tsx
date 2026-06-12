@@ -765,6 +765,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const pveLocalStonePlacementLockRef = useRef(false);
     /** 전략·모험·길드전 등 온라인 AI 대국: 낙관적 착수~서버 PLACE_STONE 완료까지 동기적으로 중복 클릭 차단 */
     const strategicAiStoneLockRef = useRef(false);
+    /** 체스 바둑: 기물 이동 HTTP가 끝나기 전 착수하면 서버 수순이 꼬이므로, 착수 전에만 대기한다(보드 클릭은 막지 않음). */
+    const chessMoveFlightRef = useRef<Promise<unknown> | null>(null);
     const [strategicPetHintBoardOverlay, setStrategicPetHintBoardOverlay] = useState<{
         x: number;
         y: number;
@@ -1198,7 +1200,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         hasMyGameSummary &&
         !prevHasMyGameSummary;
     /** 종료·계가·재대결 대기 등에서는 착수 패널이 뷰포트/사이드바를 가리지 않도록 숨김 */
-    const hideMoveConfirmForStatus: GameStatus[] = ['ended', 'no_contest', 'scoring', 'rematch_pending', 'disconnected'];
+    const hideMoveConfirmForStatus: GameStatus[] = ['ended', 'no_contest', 'scoring', 'rematch_pending', 'disconnected', 'chess_piece_placement'];
     const showMoveConfirmPanel =
         !isPlayfulMode && settings.features.moveConfirmButtonBox && !hideMoveConfirmForStatus.includes(gameStatus);
     const aiHiddenTurnsFromSession = (session as any).aiHiddenItemTurns;
@@ -2111,8 +2113,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             return true;
         }
         try {
-            const moveResult = processMoveClient(
-                chessGoSession.boardState,
+            const moveResult = processChessGoMove(
+                chessGoSession,
                 { x, y, player: myPlayerEnum },
                 session.koInfo,
                 session.moveHistory?.length || 0,
@@ -2943,7 +2945,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             const moveResult =
                 mode === GameMode.Chess
                     ? processChessGoMove(
-                          { ...session, boardState: boardStateToUse },
+                          chessGoSession,
                           { x, y, player: myPlayerEnum },
                           session.koInfo,
                           session.moveHistory?.length || 0,
@@ -3153,14 +3155,17 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     (m) => m.pieceId === selectedChessPieceId && m.to.x === x && m.to.y === y,
                 );
                 if (destMove) {
-                    setIsMoveInFlight(true);
                     const movedPieceId = selectedChessPieceId;
-                    handlers.handleAction({
+                    setSelectedChessPieceId(null);
+                    const chessMovePromise = handlers.handleAction({
                         type: 'CHESS_MOVE_PIECE',
                         payload: { gameId, pieceId: movedPieceId, toX: x, toY: y },
-                    } as ServerAction).finally(() => {
-                        setIsMoveInFlight(false);
-                        setSelectedChessPieceId(null);
+                    } as ServerAction);
+                    chessMoveFlightRef.current = Promise.resolve(chessMovePromise);
+                    void chessMoveFlightRef.current.finally(() => {
+                        if (chessMoveFlightRef.current === chessMovePromise) {
+                            chessMoveFlightRef.current = null;
+                        }
                     });
                     return;
                 }
@@ -3749,28 +3754,37 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             } else if (canOptimisticPvpPlace && applyOptimisticAiUserMove(x, y)) {
                 // PVP: 서버 응답 전 보드에 즉시 반영(대기 표시 없이 일반 착수처럼)
             }
-            void Promise.resolve(handlers.handleAction({ type: actionType, payload } as ServerAction))
-                .then((res) => {
-                    handleStrategicPetHintActionResult(res as StrategicPetHintActionResult | undefined);
-                    const hasErr = res && typeof res === 'object' && 'error' in res && (res as { error?: string }).error;
-                    if (hasErr) {
-                        setIsMoveInFlight(false);
-                        if (actionType === 'PLACE_STONE') {
-                            strategicAiStoneLockRef.current = false;
-                            strategicPetHintBoardInputLockUntilHistoryLenRef.current = null;
+            void (async () => {
+                if (
+                    actionType === 'PLACE_STONE' &&
+                    mode === GameMode.Chess &&
+                    chessMoveFlightRef.current
+                ) {
+                    await chessMoveFlightRef.current.catch(() => {});
+                }
+                void Promise.resolve(handlers.handleAction({ type: actionType, payload } as ServerAction))
+                    .then((res) => {
+                        handleStrategicPetHintActionResult(res as StrategicPetHintActionResult | undefined);
+                        const hasErr = res && typeof res === 'object' && 'error' in res && (res as { error?: string }).error;
+                        if (hasErr) {
+                            setIsMoveInFlight(false);
+                            if (actionType === 'PLACE_STONE') {
+                                strategicAiStoneLockRef.current = false;
+                                strategicPetHintBoardInputLockUntilHistoryLenRef.current = null;
+                            }
+                            const err = String((res as { error: string }).error);
+                            if (actionType === 'PLACE_STONE' && (err.includes('패 모양') || err.includes('코 금지') || (err.includes('바로') && err.includes('따낼')))) {
+                                showKoRuleFlash();
+                            }
+                        } else if (actionType === 'DICE_PLACE_STONE' || actionType === 'THIEF_PLACE_STONE') {
+                            // 주사위/도둑: 낙관적 갱신은 moveHistory를 늘리지 않아 moveHistory 기반 잠금 해제가 되지 않음 → 매 수마다 해제
+                            setIsMoveInFlight(false);
                         }
-                        const err = String((res as { error: string }).error);
-                        if (actionType === 'PLACE_STONE' && (err.includes('패 모양') || err.includes('코 금지') || (err.includes('바로') && err.includes('따낼')))) {
-                            showKoRuleFlash();
-                        }
-                    } else if (actionType === 'DICE_PLACE_STONE' || actionType === 'THIEF_PLACE_STONE') {
-                        // 주사위/도둑: 낙관적 갱신은 moveHistory를 늘리지 않아 moveHistory 기반 잠금 해제가 되지 않음 → 매 수마다 해제
-                        setIsMoveInFlight(false);
-                    }
-                })
-                .finally(() => {
-                    // 성공 경로에서는 AI 응답 후 내 턴이 돌아올 때 effect에서 해제한다.
-                });
+                    })
+                    .finally(() => {
+                        // 성공 경로에서는 AI 응답 후 내 턴이 돌아올 때 effect에서 해제한다.
+                    });
+            })();
         } else {
             console.log('[Game] No action type determined', { 
                 isMyTurn, 
@@ -4067,7 +4081,15 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 // PVP: 서버 응답 전 보드에 즉시 반영
             }
             const at = actionType;
-            void Promise.resolve(handlers.handleAction({ type: at, payload } as ServerAction))
+            void (async () => {
+                if (
+                    at === 'PLACE_STONE' &&
+                    mode === GameMode.Chess &&
+                    chessMoveFlightRef.current
+                ) {
+                    await chessMoveFlightRef.current.catch(() => {});
+                }
+                void Promise.resolve(handlers.handleAction({ type: at, payload } as ServerAction))
                 .then(async (res) => {
                     handleStrategicPetHintActionResult(res as StrategicPetHintActionResult | undefined);
                     if (
@@ -4116,6 +4138,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 .finally(() => {
                     // 성공 경로에서는 AI 응답 후 내 턴이 돌아올 때 effect에서 해제한다.
                 });
+            })();
             };
             if (shouldDelayHiddenPlacement) {
                 runHiddenPlacementWithDelay(submitConfirmedMove);
@@ -4402,6 +4425,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         setLastReceivedServerRevision(session.serverRevision ?? 0);
         pveLocalStonePlacementLockRef.current = false;
         strategicAiStoneLockRef.current = false;
+        chessMoveFlightRef.current = null;
         strategicPetHintBonusClaimKeyRef.current = null;
         strategicPetHintBoardInputLockUntilHistoryLenRef.current = null;
         strategicPetHintPendingRewardRef.current = null;

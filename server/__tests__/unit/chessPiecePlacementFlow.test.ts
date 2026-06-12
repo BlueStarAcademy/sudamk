@@ -45,6 +45,36 @@ describe('chessPlacementFlow', () => {
         expect(started).toBe(true);
         expect(game.gameStatus).toBe('playing');
         expect(game.chessPieces?.some((p) => p.type === 'king')).toBe(true);
+        expect(game.chessPieces?.some((p) => p.owner === Player.White && p.type !== 'king')).toBe(true);
+    });
+
+    it('PVE: AI fills setup pieces within budget when draft is empty', () => {
+        const game = makeChessSession({ settings: { boardSize: 13, chessPieceTotalScore: 20, komi: 6.5 } });
+        const now = Date.now();
+        enterChessPiecePlacement(game, now);
+        game.chessPiecePlacementDraft![aiUserId] = [];
+        game.chessPiecePlacementReady!['human-1'] = true;
+
+        const started = resolveChessPlacementAndTransition(game, now);
+        expect(started).toBe(true);
+        const aiPieces = game.chessPieces?.filter((p) => p.owner === Player.White && p.type !== 'king') ?? [];
+        expect(aiPieces.length).toBeGreaterThan(0);
+        const aiScore = aiPieces.reduce((sum, p) => {
+            if (p.type === 'pawn') return sum + 1;
+            if (p.type === 'knight' || p.type === 'bishop') return sum + 3;
+            if (p.type === 'rook') return sum + 5;
+            if (p.type === 'queen') return sum + 9;
+            return sum;
+        }, 0);
+        expect(aiScore).toBeGreaterThanOrEqual(14);
+    });
+
+    it('PVE: AI auto-fills draft on placement entry', () => {
+        const game = makeChessSession({ settings: { boardSize: 13, chessPieceTotalScore: 15, komi: 6.5 } });
+        enterChessPiecePlacement(game, Date.now());
+        const aiDraft = game.chessPiecePlacementDraft?.[aiUserId] ?? [];
+        expect(aiDraft.length).toBeGreaterThan(0);
+        expect(game.chessPieces?.some((p) => p.owner === Player.White && p.type !== 'king')).toBe(true);
     });
 
     it('PVP: both confirm starts before deadline', () => {

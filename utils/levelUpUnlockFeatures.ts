@@ -44,7 +44,7 @@ export function getLevelUpFeatureUnlockLines(
         pushUnique(strategy, line);
     }
 
-    if (crossedLevel(strat.from, strat.to, PVP_LOBBIES_MIN_COMBINED_LEVEL)) {
+    if (PVP_LOBBIES_MIN_COMBINED_LEVEL > 1 && crossedLevel(strat.from, strat.to, PVP_LOBBIES_MIN_COMBINED_LEVEL)) {
         pushUnique(
             combined,
             `PVP 대기실 입장 (유저 Lv.${PVP_LOBBIES_MIN_COMBINED_LEVEL} 이상)`,

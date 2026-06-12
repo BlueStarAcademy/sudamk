@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { Player } from '../../../types/index.js';
 import {
+    resolveChessPvePlayingSession,
     resolvePveScoringBoardAndMoveHistory,
     resolveStrategicPvePlayingBoardAndMoveHistory,
 } from '../../../utils/deferredWsBoardSnapshot.js';
 import type { LiveGameSession } from '../../../types/index.js';
+import { GameMode } from '../../../types/index.js';
+import { generateChessGoInitialPieces } from '../../../shared/utils/chessGoRules.js';
 
 const boardWithWhiteAtCenter = (): number[][] => [
     [Player.None, Player.None, Player.None],
@@ -111,5 +114,86 @@ describe('resolveStrategicPvePlayingBoardAndMoveHistory', () => {
         const resolved = resolveStrategicPvePlayingBoardAndMoveHistory(server, client);
         expect(resolved.moveHistory).toHaveLength(2);
         expect(resolved.boardState?.[1]?.[1]).toBe(Player.White);
+    });
+});
+
+describe('resolveChessPvePlayingSession', () => {
+    const chessPieces = generateChessGoInitialPieces(13);
+
+    it('keeps client moveHistory when client is ahead (user optimistic move after AI)', () => {
+        const server = {
+            mode: GameMode.Chess,
+            gameStatus: 'playing',
+            settings: { boardSize: 13, komi: 6.5 },
+            chessPieces,
+            moveHistory: [
+                { x: 6, y: 6, player: Player.Black },
+                { x: 7, y: 7, player: Player.White },
+            ],
+            currentPlayer: Player.Black,
+        } as LiveGameSession;
+        const client = {
+            ...server,
+            moveHistory: [
+                { x: 6, y: 6, player: Player.Black },
+                { x: 7, y: 7, player: Player.White },
+                { x: 5, y: 5, player: Player.Black },
+            ],
+            currentPlayer: Player.White,
+        } as LiveGameSession;
+
+        const resolved = resolveChessPvePlayingSession(server, client);
+        expect(resolved.moveHistory).toHaveLength(3);
+        expect(resolved.boardState![5]![5]).toBe(Player.Black);
+        expect(resolved.boardState![7]![7]).toBe(Player.White);
+    });
+
+    it('prefers server when server moveHistory is ahead (AI move arrived)', () => {
+        const client = {
+            mode: GameMode.Chess,
+            gameStatus: 'playing',
+            settings: { boardSize: 13, komi: 6.5 },
+            chessPieces,
+            moveHistory: [{ x: 6, y: 6, player: Player.Black }],
+            currentPlayer: Player.White,
+        } as LiveGameSession;
+        const server = {
+            ...client,
+            moveHistory: [
+                { x: 6, y: 6, player: Player.Black },
+                { x: 7, y: 7, player: Player.White },
+            ],
+            currentPlayer: Player.Black,
+        } as LiveGameSession;
+
+        const resolved = resolveChessPvePlayingSession(server, client);
+        expect(resolved.moveHistory).toHaveLength(2);
+        expect(resolved.boardState![7]![7]).toBe(Player.White);
+    });
+
+    it('keeps client when same-length stale server has diverged AI stone position', () => {
+        const client = {
+            mode: GameMode.Chess,
+            gameStatus: 'playing',
+            settings: { boardSize: 13, komi: 6.5 },
+            chessPieces,
+            moveHistory: [
+                { x: 6, y: 6, player: Player.Black },
+                { x: 7, y: 7, player: Player.White },
+            ],
+            currentPlayer: Player.Black,
+        } as LiveGameSession;
+        const server = {
+            ...client,
+            moveHistory: [
+                { x: 6, y: 6, player: Player.Black },
+                { x: 8, y: 8, player: Player.White },
+            ],
+        } as LiveGameSession;
+
+        const resolved = resolveChessPvePlayingSession(server, client);
+        expect(resolved.moveHistory![1]).toEqual({ x: 7, y: 7, player: Player.White });
+        expect(resolved.boardState![7]![7]).toBe(Player.White);
+        expect(resolved.boardState![8]![8]).toBe(Player.None);
     });
 });

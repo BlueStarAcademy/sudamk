@@ -2073,6 +2073,32 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 };
             }
 
+            const chessSetupHttpActions = new Set([
+                'PLACE_CHESS_SETUP_PIECE',
+                'REMOVE_CHESS_SETUP_PIECE',
+                'RESET_CHESS_SETUP_PLACEMENT',
+                'FILL_CHESS_SETUP_RANDOMLY',
+                'CONFIRM_CHESS_SETUP_PLACEMENT',
+            ]);
+            if (!(result as any)?.error && game.mode === GameMode.Chess && chessSetupHttpActions.has(type)) {
+                const { repairChessGoSessionState } = await import('./modes/chess.js');
+                repairChessGoSessionState(game);
+                const baseResult =
+                    result && typeof result === 'object' && !Array.isArray(result) ? (result as Record<string, unknown>) : {};
+                const boardClone =
+                    game.boardState && Array.isArray(game.boardState)
+                        ? game.boardState.map((row: number[]) => [...row])
+                        : game.boardState;
+                return {
+                    ...baseResult,
+                    clientResponse: {
+                        ...(typeof (baseResult as any).clientResponse === 'object' ? (baseResult as any).clientResponse : {}),
+                        gameId: game.id,
+                        game: { ...game, boardState: boardClone },
+                    },
+                };
+            }
+
             return result;
         }
     }
