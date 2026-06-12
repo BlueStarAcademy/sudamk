@@ -6,9 +6,11 @@ import './index.css';
 import { tryReloadOnceForStaleBuild } from './utils/chunkReloadRecovery.js';
 import { startShippedBuildVersionWatcher } from './utils/shippedBuildVersionWatcher.js';
 import { tryRedirectToSystemBrowser } from './utils/inAppBrowserEscape.js';
+import { exposePerfBaselineOnWindow } from './utils/perfBaseline.js';
 
 // 배포 직후 오래된 탭: 서버 build-version 과 불일치 시 전체 새로고침(근본) + 청크 실패 시 1회 복구(보조)
 if (typeof window !== 'undefined') {
+    exposePerfBaselineOnWindow();
     tryRedirectToSystemBrowser();
     startShippedBuildVersionWatcher();
     window.addEventListener(

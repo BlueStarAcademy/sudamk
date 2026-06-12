@@ -35,6 +35,8 @@ export type ArenaSessionPolicy = {
     pairLobbyChannel?: 'pair' | 'strategic' | 'playful';
     pairTeamComposition: PairTeamComposition;
     isStrategicAiLike: boolean;
+    /** Server should be able to compute bot turns with the Kata/Go AI pipeline for this PVE arena. */
+    usesServerKataAi: boolean;
     turnLimitMode: ArenaTurnLimitMode;
     countPassAsTurn: boolean;
     usesAdventureScoringCap: boolean;
@@ -47,6 +49,8 @@ export type ArenaSessionPolicy = {
     usesHiddenRule: boolean;
     masksHumanHiddenFromAi: boolean;
     requiresClientSyncBeforeAction: boolean;
+    /** PVE-like Base rule sessions skip manual base placement and start from randomized setup. */
+    usesAutomaticBaseStonePlacement: boolean;
     itemConsumptionModel: ArenaItemConsumptionModel;
     resultDisplayModel: ArenaResultDisplayModel;
     resultRewardModel: ArenaResultRewardModel;
@@ -203,6 +207,7 @@ export function resolveArenaMatchAxis(session: SessionLike | null | undefined): 
         kind === GameCategory.SinglePlayer ||
         kind === GameCategory.Tower ||
         kind === GameCategory.Adventure ||
+        kind === GameCategory.GuildWar ||
         Boolean(session?.isAiGame)
     ) {
         return 'pve';
@@ -227,6 +232,7 @@ export function resolveArenaSessionPolicy(session: SessionLike | null | undefine
     const pairTeamComposition = resolvePairTeamComposition(settings);
     const matchAxis = resolveArenaMatchAxis(session);
     const captureRule = modeIncludesCaptureRule(session?.mode, settings);
+    const baseRule = modeIncludesBaseRule(session?.mode, settings);
     const hiddenRule = modeIncludesHiddenRule(session?.mode, settings);
 
     const usesAdventureScoringCap = kind === GameCategory.Adventure && !captureRule;
@@ -252,6 +258,13 @@ export function resolveArenaSessionPolicy(session: SessionLike | null | undefine
                 : 'none';
 
     const isStrategicAiLike = Boolean(session?.isAiGame) && kind !== GameCategory.SinglePlayer && kind !== GameCategory.Tower;
+    const usesServerKataAi =
+        matchAxis !== 'pvp' &&
+        (kind === GameCategory.SinglePlayer ||
+            kind === GameCategory.Tower ||
+            kind === GameCategory.Adventure ||
+            kind === GameCategory.GuildWar ||
+            isStrategicAiLike);
 
     const isPveLike = matchAxis === 'pve' || matchAxis === 'mixed_pair';
     const resultDisplayModel: ArenaResultDisplayModel =
@@ -275,11 +288,12 @@ export function resolveArenaSessionPolicy(session: SessionLike | null | undefine
         pairLobbyChannel: settings?.pairGame?.lobbyChannel,
         pairTeamComposition,
         isStrategicAiLike,
+        usesServerKataAi,
         turnLimitMode,
         countPassAsTurn,
         usesAdventureScoringCap,
         isClientAuthoritativeForScoringSnapshot: kind === GameCategory.SinglePlayer || kind === GameCategory.Tower,
-        deferAutoScoringAfterAi: kind === GameCategory.SinglePlayer || kind === GameCategory.Tower || isStrategicAiLike,
+        deferAutoScoringAfterAi: usesServerKataAi,
         clearsItemPhaseAnimationOnPlaying:
             modeIncludesMissileRule(session?.mode, settings) || modeIncludesHiddenRule(session?.mode, settings),
         clearsMissileFlightAnimationOnPlaying:
@@ -287,6 +301,7 @@ export function resolveArenaSessionPolicy(session: SessionLike | null | undefine
         usesHiddenRule: hiddenRule,
         masksHumanHiddenFromAi: hiddenRule && matchAxis === 'pve',
         requiresClientSyncBeforeAction: isPveLike,
+        usesAutomaticBaseStonePlacement: baseRule && matchAxis !== 'pvp',
         itemConsumptionModel: kind === GameCategory.Normal && !isPairGame ? 'inventory' : isPveLike ? 'sessionCounter' : 'inventory',
         resultDisplayModel,
         resultRewardModel,

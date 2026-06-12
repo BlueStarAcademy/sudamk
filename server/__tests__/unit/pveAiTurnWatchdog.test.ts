@@ -56,6 +56,15 @@ describe('pveAiTurnWatchdog', () => {
         ).toBe(true);
         expect(
             needsPveAiWatchdogTick(
+                makeStrategicPveGame({
+                    isAiGame: false,
+                    isSinglePlayer: false,
+                    gameCategory: 'guildwar',
+                }),
+            ),
+        ).toBe(true);
+        expect(
+            needsPveAiWatchdogTick(
                 makeStrategicPveGame({ isAiGame: false, settings: { pairGame: { pairMode: 'pvp' } } }),
             ),
         ).toBe(false);
@@ -67,6 +76,19 @@ describe('pveAiTurnWatchdog', () => {
         expect(maybeRecoverStalledPveAiTurn(game, now)).toBe(false);
         expect((game as any)._pveAiWatchSince).toBe(now);
         expect(enqueueMock).not.toHaveBeenCalled();
+    });
+
+    it('watches guild war AI turns even if isAiGame metadata is missing', () => {
+        const game = makeStrategicPveGame({
+            isAiGame: false,
+            isSinglePlayer: false,
+            gameCategory: 'guildwar',
+        });
+        const now = 12_000;
+
+        expect(isPveAiWatchdogGame(game)).toBe(true);
+        expect(maybeRecoverStalledPveAiTurn(game, now)).toBe(false);
+        expect((game as any)._pveAiWatchSince).toBe(now);
     });
 
     it('recovers stalled AI turn after watchdog threshold', () => {

@@ -12,9 +12,8 @@ export const PVE_AI_TURN_STUCK_SYNC_COOLDOWN_MS = 6_000;
 const KATA_SERVER_AI_ARENA_KINDS = new Set(['singleplayer', 'tower', 'guildwar', 'adventure']);
 
 export function isEligibleForPveAiTurnStuckRecovery(session: LiveGameSession): boolean {
-    if (!session.isAiGame) return false;
     const policy = resolveArenaSessionPolicy(session);
-    return policy.matchAxis !== 'pvp';
+    return policy.matchAxis !== 'pvp' && (policy.usesServerKataAi || isPairArenaAiMatchSession(session));
 }
 
 export function shouldDeferStuckRecoveryDuringHiddenReveal(session: LiveGameSession): boolean {
@@ -23,8 +22,8 @@ export function shouldDeferStuckRecoveryDuringHiddenReveal(session: LiveGameSess
 }
 
 export function isManuallyPausedAiGame(session: LiveGameSession): boolean {
-    if (!session.isAiGame) return false;
     const policy = resolveArenaSessionPolicy(session);
+    if (!policy.usesServerKataAi && !isPairArenaAiMatchSession(session)) return false;
     if (policy.kind === 'singleplayer' || policy.kind === 'tower') return false;
     return (
         session.pausedTurnTimeLeft !== undefined &&
@@ -43,6 +42,7 @@ export function shouldUseServerAiKickForStuckRecovery(
         policy.kind === 'tower' ||
         policy.kind === 'adventure' ||
         policy.kind === 'guildwar' ||
+        policy.usesServerKataAi ||
         policy.isStrategicAiLike ||
         opts.isPairAiTurn ||
         isPairArenaAiMatchSession(session)

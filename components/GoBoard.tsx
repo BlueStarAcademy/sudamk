@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback, memo } from 'react';
 import { BoardState, Point, Player, GameStatus, Move, AnalysisResult, LiveGameSession, User, AnimationData, GameMode, RecommendedMove, ServerAction } from '../types.js';
 import { WHITE_BASE_STONE_IMG, BLACK_BASE_STONE_IMG, WHITE_HIDDEN_STONE_IMG, BLACK_HIDDEN_STONE_IMG } from '../assets.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants';
@@ -16,6 +16,7 @@ import { mapStoneToUniformDisplay, resolveTerritoryMarkerDisplayPlayer, resolveU
 import { detectAndConfirmTerritories } from '../shared/utils/castleGoRules.js';
 import type { ChessPieceState, ChessPieceType, ChessLastMoveMarker } from '../shared/types/entities.js';
 import { CHESS_GO_BOARD_SIZE, normalizeChessGoSession } from '../shared/utils/chessGoRules.js';
+import { buildBoardCellStoneLookup } from '../utils/boardCellLookup.js';
 
 /** 따내기/보너스 점수 플로트: mid(5~9) 기준 폰트 배율 */
 const CAPTURE_SCORE_FLOAT_BASE_EM = 0.92;
@@ -81,30 +82,46 @@ function getCaptureScoreFloatVisual(cellSize: number, points: number) {
     return { tier, fontSize, strokeWidth, stroke, fill, innerClassName };
 }
 
-/** 캐슬 바둑 중립 캐슬 마커 — 성(城) 실루엣 */
-const CastleStoneMarker: React.FC<{ cx: number; cy: number; size: number }> = ({ cx, cy, size }) => {
-    const w = size;
-    const h = size * 1.08;
-    const bx = cx - w / 2;
-    const by = cy - h / 2;
-    const stroke = '#44403c';
-    const sw = Math.max(1.2, size * 0.06);
+/** 캐슬 바둑 중립 캐슬 마커 — 흑백 태극형 바둑돌 토큰 + 성(城) 실루엣 */
+const CastleStoneMarker: React.FC<{ cx: number; cy: number; radius: number }> = ({ cx, cy, radius }) => {
+    const r = radius;
+    const ringStroke = Math.max(1.1, r * 0.055);
+    const icon = r * 0.98;
+    const bx = -icon / 2;
+    const by = -icon * 0.54;
+    const iw = icon;
+    const ih = icon * 1.08;
+    const detailStroke = '#2d2418';
+    const detailSw = Math.max(0.7, icon * 0.04);
     const battlement = (leftRatio: number, topRatio: number, key: string) => (
         <g key={key}>
-            <rect x={bx + w * leftRatio} y={by + h * topRatio} width={w * 0.11} height={h * 0.11} fill="#e7e5e4" stroke={stroke} strokeWidth={sw * 0.85} rx={size * 0.02} />
-            <rect x={bx + w * (leftRatio + 0.13)} y={by + h * topRatio} width={w * 0.11} height={h * 0.11} fill="#e7e5e4" stroke={stroke} strokeWidth={sw * 0.85} rx={size * 0.02} />
+            <rect x={bx + iw * leftRatio} y={by + ih * topRatio} width={iw * 0.1} height={ih * 0.1} fill="url(#castle_tower_light)" stroke={detailStroke} strokeWidth={detailSw * 0.8} rx={icon * 0.015} />
+            <rect x={bx + iw * (leftRatio + 0.12)} y={by + ih * topRatio} width={iw * 0.1} height={ih * 0.1} fill="url(#castle_tower_light)" stroke={detailStroke} strokeWidth={detailSw * 0.8} rx={icon * 0.015} />
         </g>
     );
     return (
-        <g pointerEvents="none">
-            <rect x={bx + w * 0.14} y={by + h * 0.48} width={w * 0.72} height={h * 0.4} fill="#78716c" stroke={stroke} strokeWidth={sw} rx={size * 0.05} />
-            <rect x={bx + w * 0.1} y={by + h * 0.24} width={w * 0.24} height={h * 0.34} fill="#a8a29e" stroke={stroke} strokeWidth={sw * 0.9} rx={size * 0.04} />
-            <rect x={bx + w * 0.66} y={by + h * 0.24} width={w * 0.24} height={h * 0.34} fill="#a8a29e" stroke={stroke} strokeWidth={sw * 0.9} rx={size * 0.04} />
-            <rect x={bx + w * 0.34} y={by + h * 0.14} width={w * 0.32} height={h * 0.52} fill="#d6d3d1" stroke={stroke} strokeWidth={sw} rx={size * 0.05} />
-            {battlement(0.1, 0.08, 'bl')}
-            {battlement(0.34, 0.0, 'bc')}
-            {battlement(0.66, 0.08, 'br')}
-            <rect x={bx + w * 0.43} y={by + h * 0.58} width={w * 0.14} height={h * 0.18} fill="#57534e" stroke={stroke} strokeWidth={sw * 0.7} rx={size * 0.03} />
+        <g pointerEvents="none" transform={`translate(${cx}, ${cy})`} filter="url(#castle_marker_shadow)">
+            <circle cx={0} cy={0} r={r * 1.28} fill="url(#castle_marker_aura)" opacity={0.55} />
+            <circle cx={0} cy={0} r={r * 1.08} fill="none" stroke="#f6d46f" strokeWidth={ringStroke * 0.9} opacity={0.68} />
+            <circle cx={0} cy={0} r={r} fill="url(#castle_white_half)" stroke="#b89245" strokeWidth={ringStroke} />
+            <path
+                d={`M 0 ${-r} A ${r} ${r} 0 0 1 0 ${r} A ${r * 0.5} ${r * 0.5} 0 0 0 0 0 A ${r * 0.5} ${r * 0.5} 0 0 1 0 ${-r} Z`}
+                fill="url(#castle_black_half)"
+            />
+            <circle cx={0} cy={-r * 0.5} r={r * 0.5} fill="url(#castle_white_half)" opacity={0.96} />
+            <circle cx={0} cy={r * 0.5} r={r * 0.5} fill="url(#castle_black_half)" opacity={0.96} />
+            <circle cx={0} cy={0} r={r} fill="url(#castle_stone_highlight)" opacity={0.32} />
+            <circle cx={0} cy={0} r={r * 0.9} fill="none" stroke="#f5cc63" strokeWidth={ringStroke * 0.9} opacity={0.96} />
+            <g transform={`translate(0, ${r * 0.02})`}>
+                <rect x={bx + iw * 0.14} y={by + ih * 0.48} width={iw * 0.72} height={ih * 0.4} fill="url(#castle_wall)" stroke={detailStroke} strokeWidth={detailSw} rx={icon * 0.04} />
+                <rect x={bx + iw * 0.1} y={by + ih * 0.24} width={iw * 0.24} height={ih * 0.34} fill="url(#castle_tower)" stroke={detailStroke} strokeWidth={detailSw * 0.9} rx={icon * 0.035} />
+                <rect x={bx + iw * 0.66} y={by + ih * 0.24} width={iw * 0.24} height={ih * 0.34} fill="url(#castle_tower)" stroke={detailStroke} strokeWidth={detailSw * 0.9} rx={icon * 0.035} />
+                <rect x={bx + iw * 0.34} y={by + ih * 0.14} width={iw * 0.32} height={ih * 0.52} fill="url(#castle_keep)" stroke={detailStroke} strokeWidth={detailSw} rx={icon * 0.04} />
+                {battlement(0.1, 0.08, 'bl')}
+                {battlement(0.34, 0.0, 'bc')}
+                {battlement(0.66, 0.08, 'br')}
+                <rect x={bx + iw * 0.43} y={by + ih * 0.58} width={iw * 0.14} height={ih * 0.18} fill="#4a3f35" stroke={detailStroke} strokeWidth={detailSw * 0.65} rx={icon * 0.025} />
+            </g>
         </g>
     );
 };
@@ -619,6 +636,8 @@ const Stone: React.FC<{ player: Player, cx: number, cy: number, isLastMove?: boo
         </g>
     );
 };
+
+const MemoStone = memo(Stone);
 
 function classifyMissileFromStone(
     from: Point,
@@ -1315,6 +1334,48 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         return result;
     }, [boardState, gameStatus, boardSize, moveHistory, analysisResult, mode]);
 
+    const revealAnimationStonePoints = useMemo(() => {
+        if (animation?.type !== 'hidden_reveal' || !animation.stones?.length) return undefined;
+        return animation.stones.map((s: { point: Point }) => s.point);
+    }, [animation]);
+
+    const boardCellLookup = useMemo(
+        () =>
+            buildBoardCellStoneLookup(displayBoardState, {
+                moveHistory,
+                hiddenMoves,
+                baseHiddenMoveCtx,
+                baseStones,
+                consumedPatternIntersections,
+                humanHiddenStonePoints,
+                aiInitialHiddenStone,
+                permanentlyRevealedStones,
+                myRevealedMoveIndices,
+                myRevealedStones,
+                myPlayerEnum,
+                blackPatternStones,
+                whitePatternStones,
+                revealAnimationStones: revealAnimationStonePoints,
+            }),
+        [
+            displayBoardState,
+            moveHistory,
+            hiddenMoves,
+            baseHiddenMoveCtx,
+            baseStones,
+            consumedPatternIntersections,
+            humanHiddenStonePoints,
+            aiInitialHiddenStone,
+            permanentlyRevealedStones,
+            myRevealedMoveIndices,
+            myRevealedStones,
+            myPlayerEnum,
+            blackPatternStones,
+            whitePatternStones,
+            revealAnimationStonePoints,
+        ],
+    );
+
     /** 캐슬 바둑: 현재 보드 기준 확정 영토를 즉시 계산해 마커를 바로 표시한다. */
     const liveCastleConfirmedTerritory = useMemo(() => {
         if (!castleStonePoints?.length) return confirmedTerritoryOwnerByPoint;
@@ -1668,6 +1729,8 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 if (isPairBasePlacementHost ? atP1 || atP2 : myBaseStonesForPlacement?.some((st) => st.x === boardPos.x && st.y === boardPos.y)) {
                     return;
                 }
+                onBoardClick(boardPos.x, boardPos.y);
+                return;
             }
 
             // 체스 바둑: 자기 기물 선택·이동은 바둑 착수 검사를 건너뛰고 Game.tsx에서 처리
@@ -2092,6 +2155,47 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         <stop offset="0%" stopColor="#fef08a" />
                         <stop offset="100%" stopColor="#f59e0b" />
                     </linearGradient>
+                    <radialGradient id="castle_stone_highlight" cx="32%" cy="30%" r="68%" fx="28%" fy="26%">
+                        <stop offset="0%" stopColor="#fffaf0" stopOpacity="0.95" />
+                        <stop offset="45%" stopColor="#e8dcc8" stopOpacity="0.55" />
+                        <stop offset="100%" stopColor="#b8a88c" stopOpacity="0.15" />
+                    </radialGradient>
+                    <radialGradient id="castle_marker_aura" cx="50%" cy="50%" r="50%">
+                        <stop offset="0%" stopColor="#fde68a" stopOpacity="0.55" />
+                        <stop offset="58%" stopColor="#f59e0b" stopOpacity="0.2" />
+                        <stop offset="100%" stopColor="#92400e" stopOpacity="0" />
+                    </radialGradient>
+                    <filter id="castle_marker_shadow" x="-55%" y="-55%" width="210%" height="210%">
+                        <feDropShadow dx="0" dy="1.4" stdDeviation="1.8" floodColor="#000000" floodOpacity="0.55" />
+                        <feDropShadow dx="0" dy="0" stdDeviation="1.2" floodColor="#facc15" floodOpacity="0.45" />
+                    </filter>
+                    <linearGradient id="castle_black_half" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#36322b" />
+                        <stop offset="55%" stopColor="#111111" />
+                        <stop offset="100%" stopColor="#050505" />
+                    </linearGradient>
+                    <linearGradient id="castle_white_half" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#fff8e8" />
+                        <stop offset="52%" stopColor="#e4dccd" />
+                        <stop offset="100%" stopColor="#b9aa91" />
+                    </linearGradient>
+                    <linearGradient id="castle_keep" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stopColor="#fff2b8" />
+                        <stop offset="55%" stopColor="#d4a84f" />
+                        <stop offset="100%" stopColor="#8f6428" />
+                    </linearGradient>
+                    <linearGradient id="castle_tower" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#f6d982" />
+                        <stop offset="100%" stopColor="#9d7132" />
+                    </linearGradient>
+                    <linearGradient id="castle_tower_light" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stopColor="#fff4c7" />
+                        <stop offset="100%" stopColor="#d7ad5a" />
+                    </linearGradient>
+                    <linearGradient id="castle_wall" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stopColor="#7d6952" />
+                        <stop offset="100%" stopColor="#3f342a" />
+                    </linearGradient>
                     <linearGradient id="capture-score-gradient" x1="18%" y1="0%" x2="82%" y2="100%">
                         <stop offset="0%" stopColor="#ecfdf5" />
                         <stop offset="22%" stopColor="#a7f3d0" />
@@ -2198,7 +2302,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
 
                 {castleStonePoints?.map((stone, i) => {
                     const { cx, cy } = toSvgCoords(stone);
-                    return <CastleStoneMarker key={`castle-stone-${i}`} cx={cx} cy={cy} size={stone_radius * 1.85} />;
+                    return <CastleStoneMarker key={`castle-stone-${i}`} cx={cx} cy={cy} radius={stone_radius * 1.08} />;
                 })}
                 
                 {displayBoardState.map((row, y) => row.map((player, x) => {
@@ -2217,68 +2321,18 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     // 미사일 선택 가능 여부는 최신 boardState를 기준으로 확인 (새로 놓은 돌도 포함)
                     // displayBoardState와 동일 소스만 사용 (서버 boardState 참조가 순간적으로 어긋나면 히든 문양이 잘못 붙는 현상 방지)
                     const actualPlayer = player;
-                    /** 아직 `baseStones`에 남은 좌표는 베이스 링 우선(소비 목록만 남아 링이 꺼지는 버그 방지). */
-                    const atRecordedBaseStone =
-                        (baseStones?.some((bs) => bs.x === x && bs.y === y) ?? false);
-                    /** 문양·베이스·히든 특수돌이 따인 뒤 같은 좌표에 다시 둔 돌은 항상 일반돌로만 표시 */
-                    const isPlainStoneReuseIntersection =
-                        !atRecordedBaseStone &&
-                        (consumedPatternIntersections?.some((p) => p.x === x && p.y === y) ?? false);
+                    const cellFlags = boardCellLookup.get(`${x},${y}`);
+                    const isPlainStoneReuseIntersection = cellFlags?.isPlainStoneReuseIntersection ?? false;
+                    const atAiInitialHiddenStone = cellFlags?.atAiInitialHiddenStone ?? false;
+                    const isHiddenMove = cellFlags?.isHiddenMove ?? false;
+                    const isInRevealAnimation = cellFlags?.isInRevealAnimation ?? false;
+                    const isPermanentlyRevealed = cellFlags?.isPermanentlyRevealed ?? false;
+                    const softScanAtCurrentMove = cellFlags?.softScanAtCurrentMove ?? false;
 
                     const isSingleLastMove = showLastMoveMarker && isLastMoveMarkerEnabled && lastMove && lastMove.x === x && lastMove.y === y;
                     const isMultiLastMove = showLastMoveMarker && isLastMoveMarkerEnabled && lastTurnStones && lastTurnStones.some(p => p.x === x && p.y === y);
                     const isLast = !!(isSingleLastMove || isMultiLastMove);
                     const isMyJustPlacedStone = !!lastMove && lastMove.x === x && lastMove.y === y && actualPlayer === myPlayerEnum;
-                    
-                    const moveIndex = moveHistory
-                        ? findLatestMoveIndexAtExcludingRecordedBaseStones(
-                              moveHistory,
-                              x,
-                              y,
-                              actualPlayer,
-                              baseHiddenMoveCtx,
-                          )
-                        : -1;
-                    const histMove = moveIndex >= 0 && moveHistory ? moveHistory[moveIndex] : undefined;
-                    const hasHumanHiddenPointMarkers = Array.isArray(humanHiddenStonePoints) && humanHiddenStonePoints.length > 0;
-                    const isHumanHiddenPointMarker =
-                        hasHumanHiddenPointMarkers &&
-                        humanHiddenStonePoints!.some((point) =>
-                            point.x === x &&
-                            point.y === y &&
-                            (point.player === undefined || point.player === actualPlayer)
-                        );
-                    const isHiddenMoveByHistory =
-                        !!hiddenMoves && moveIndex !== -1 && !!hiddenMoves[moveIndex];
-                    const isHiddenMove =
-                        !isPlainStoneReuseIntersection &&
-                        !!histMove &&
-                        isHiddenMoveByHistory &&
-                        (
-                            actualPlayer !== myPlayerEnum ||
-                            !hasHumanHiddenPointMarkers ||
-                            !!isHumanHiddenPointMarker
-                        );
-                    const isInRevealAnimation =
-                        isHiddenRevealStatus &&
-                        animation?.type === 'hidden_reveal' &&
-                        animation.stones?.some((s: { point: Point }) => s.point.x === x && s.point.y === y);
-                    const isPermanentlyRevealed = permanentlyRevealedStones?.some(p => p.x === x && p.y === y) || !!isInRevealAnimation;
-                    const atAiInitialHiddenStone =
-                        !isPlainStoneReuseIntersection &&
-                        !!aiInitialHiddenStone &&
-                        aiInitialHiddenStone.x === x &&
-                        aiInitialHiddenStone.y === y &&
-                        !isPermanentlyRevealed;
-                    const softScanAtCurrentMove =
-                        (moveIndex >= 0 &&
-                            myRevealedMoveIndices != null &&
-                            myRevealedMoveIndices.includes(moveIndex)) ||
-                        (myRevealedMoveIndices === undefined &&
-                            (myRevealedStones?.some((p) => p.x === x && p.y === y) ?? false)) ||
-                        (moveIndex === -1 &&
-                            atAiInitialHiddenStone &&
-                            (myRevealedStones?.some((p) => p.x === x && p.y === y) ?? false));
                     // 유저 차례에는 AI 히든 아이템 연출용 오버레이만 남아 내가 둔 돌에 잠시 문양이 붙는 현상 방지
                     const isHiddenMoveForRender =
                         !!isHiddenMove ||
@@ -2339,33 +2393,20 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         (effectiveHiddenMoveForRender && actualPlayer === myPlayerEnum && !isPermanentlyRevealed && !isNewlyRevealedForAnim)
                     );
 
-                    const hasBaseStoneHere =
-                        !isPlainStoneReuseIntersection && (baseStones?.some((bs) => bs.x === x && bs.y === y) ?? false);
-                    // 히든 돌은 공개되어도 히든 문양을 유지. 상대 미공개 히든은 위에서 return null.
-                    // (이전: 마지막 수만 문양 제외 → 본인 히든 착수 직후·스캔 직후에도 문양이 안 보이는 버그)
+                    const hasBaseStoneHere = cellFlags?.hasBaseStoneHere ?? false;
                     const isKnownHidden = !!effectiveHiddenMoveForRender;
                     const isSelectedMissileForRender = selectedMissileStone?.x === x && selectedMissileStone?.y === y;
-                    // 미사일 선택 가능 여부: 최신 boardState를 기준으로 확인 (새로 놓은 돌도 포함)
                     const isHoverSelectableMissile =
                         isMissileSelectingActive && !selectedMissileStone && actualPlayer === myPlayerEnum;
-                    
-                    // 문양 결정: 히든 돌이 아닌 경우에만 패턴 문양 표시
-                    // 히든 돌(공개 여부와 관계없이)은 히든 문양을 우선 표시하므로 패턴 문양을 표시하지 않음
-                    let isPatternStone = false;
-                    if (!effectiveHiddenMoveForRender) {
-                        if (!isPlainStoneReuseIntersection) {
-                            isPatternStone =
-                                ((actualPlayer === Player.Black && blackPatternStones?.some((p) => p.x === x && p.y === y)) ||
-                                    (actualPlayer === Player.White && whitePatternStones?.some((p) => p.x === x && p.y === y))) ??
-                                false;
-                        }
-                    }
+                    const isPatternStone = effectiveHiddenMoveForRender
+                        ? false
+                        : (cellFlags?.isPatternStone ?? false);
 
                     const stonePlayerForRender = actualPlayer;
                     const isChessLastMoveTo =
                         !!chessLastMove && chessLastMove.to.x === x && chessLastMove.to.y === y;
 
-                    return <Stone key={`${x}-${y}`} player={stonePlayerForRender} uniformDisplayColor={activeUniformStoneDisplayColor} cx={cx} cy={cy} isLastMove={isLast} isKnownHidden={isKnownHidden as boolean} isBaseStone={hasBaseStoneHere} isPatternStone={isPatternStone} chessPieceType={chessPieces.find((p) => p.x === x && p.y === y)?.type} chessRemainingMoves={chessPieces.find((p) => p.x === x && p.y === y)?.remainingMoves} chessPieceSelected={chessPieces.some((p) => p.id === selectedChessPieceId && p.x === x && p.y === y)} isChessLastMoveTo={isChessLastMoveTo} isNewlyRevealed={isNewlyRevealedForAnim} animationClass={isNewlyRevealedForAnim ? 'sparkle-animation' : ''} isSelectedMissile={isSelectedMissileForRender} isHoverSelectableMissile={isHoverSelectableMissile} radius={stone_radius} isFaint={isFaint} keepUpright={!!isRotated} />;
+                    return <MemoStone key={`${x}-${y}`} player={stonePlayerForRender} uniformDisplayColor={activeUniformStoneDisplayColor} cx={cx} cy={cy} isLastMove={isLast} isKnownHidden={isKnownHidden as boolean} isBaseStone={hasBaseStoneHere} isPatternStone={isPatternStone} chessPieceType={chessPieces.find((p) => p.x === x && p.y === y)?.type} chessRemainingMoves={chessPieces.find((p) => p.x === x && p.y === y)?.remainingMoves} chessPieceSelected={chessPieces.some((p) => p.id === selectedChessPieceId && p.x === x && p.y === y)} isChessLastMoveTo={isChessLastMoveTo} isNewlyRevealed={isNewlyRevealedForAnim} animationClass={isNewlyRevealedForAnim ? 'sparkle-animation' : ''} isSelectedMissile={isSelectedMissileForRender} isHoverSelectableMissile={isHoverSelectableMissile} radius={stone_radius} isFaint={isFaint} keepUpright={!!isRotated} />;
                 }))}
                 {isPairBasePlacementHost ? (
                     <>
@@ -2728,4 +2769,34 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
     );
 };
 
-export default GoBoard;
+function areGoBoardPropsEqual(prev: GoBoardProps, next: GoBoardProps): boolean {
+    return (
+        prev.boardState === next.boardState &&
+        prev.moveHistory === next.moveHistory &&
+        prev.gameStatus === next.gameStatus &&
+        prev.currentPlayer === next.currentPlayer &&
+        prev.lastMove === next.lastMove &&
+        prev.lastTurnStones === next.lastTurnStones &&
+        prev.animation === next.animation &&
+        prev.pendingMove === next.pendingMove &&
+        prev.selectedChessPieceId === next.selectedChessPieceId &&
+        prev.chessLastMove === next.chessLastMove &&
+        prev.justCaptured === next.justCaptured &&
+        prev.newlyRevealed === next.newlyRevealed &&
+        prev.permanentlyRevealedStones === next.permanentlyRevealedStones &&
+        prev.hiddenMoves === next.hiddenMoves &&
+        prev.baseStones === next.baseStones &&
+        prev.isBoardDisabled === next.isBoardDisabled &&
+        prev.showTerritoryOverlay === next.showTerritoryOverlay &&
+        prev.showHintOverlay === next.showHintOverlay &&
+        prev.strategicPetHintOverlay === next.strategicPetHintOverlay &&
+        prev.strategicPetHintRewardAnimation === next.strategicPetHintRewardAnimation &&
+        prev.boardRuleFlashMessage === next.boardRuleFlashMessage &&
+        prev.uniformStoneDisplayColor === next.uniformStoneDisplayColor
+    );
+}
+
+const MemoGoBoard = memo(GoBoard, areGoBoardPropsEqual);
+MemoGoBoard.displayName = 'GoBoard';
+
+export default MemoGoBoard;

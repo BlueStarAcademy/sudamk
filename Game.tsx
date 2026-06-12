@@ -23,7 +23,7 @@ import { audioService } from './services/audioService.js';
 import { TerritoryAnalysisWindow, HintWindow } from './components/game/AnalysisWindows.js';
 import GameControls from './components/game/GameControls.js';
 import { AVATAR_POOL, BORDER_POOL, PLAYFUL_GAME_MODES, SPECIAL_GAME_MODES, aiUserId } from './constants.js';
-import { useAppContext } from './hooks/useAppContext.js';
+import { useAppGameStoreSlice, useAppRealtimeSlice, useAppRouteSlice, useAppUiSlice, useAppUserSlice } from './hooks/useAppSlices.js';
 import DisconnectionModal from './components/DisconnectionModal.js';
 // FIX: Import TimeoutFoulModal component to resolve 'Cannot find name' error.
 import TimeoutFoulModal from './components/TimeoutFoulModal.js';
@@ -54,7 +54,7 @@ import {
 import { calculateSimpleAiMove } from './client/goAiBotClient.js';
 import { processMoveClient } from './client/goLogicClient.js';
 import { isDiceGoLibertyPlacement, isThiefGoValidPlacement } from './client/logic/goLogic.js';
-import { isPlayableCastleIntersection } from './shared/utils/castleGoRules.js';
+import { isPlayableCastleIntersection, processCastleMove } from './shared/utils/castleGoRules.js';
 import {
     enumerateLegalChessMoves,
     isLegacyChessGoLayout,
@@ -123,6 +123,13 @@ const CAPTURE_WIN_HIDDEN_FLOAT_LAG_MS = 450;
 const CAPTURE_WIN_SCORE_FLOAT_CSS_MS = 2850;
 
 const BOARD_SYNC_OVERLAY_MESSAGE = '바둑판 정보를 불러오는 중입니다. 잠시만 기다려주세요';
+
+const BASE_PRE_PLAY_STATUSES = new Set([
+    'base_placement',
+    'base_stone_color_choice',
+    'base_same_color_points_bid',
+    'base_game_start_confirmation',
+]);
 
 function boardGridStructureHydrated(board: Player[][] | undefined | null): boolean {
     if (!board || !Array.isArray(board) || board.length === 0) return false;
@@ -712,20 +719,11 @@ interface GameComponentProps {
 }
 
 const Game: React.FC<GameComponentProps> = ({ session }) => {
-    const {
-        currentUser,
-        currentUserWithStatus,
-        handlers,
-        onlineUsers,
-        waitingRoomChats,
-        gameChats,
-        negotiations,
-        activeNegotiation,
-        settings,
-        updateFeatureSetting,
-        isNativeMobile,
-        singlePlayerStagesListRevision,
-    } = useAppContext();
+    const { currentUser, currentUserWithStatus, singlePlayerStagesListRevision } = useAppUserSlice();
+    const { handlers } = useAppUiSlice();
+    const { activeNegotiation, negotiations } = useAppGameStoreSlice();
+    const { onlineUsers, waitingRoomChats, gameChats } = useAppRealtimeSlice();
+    const { settings, updateFeatureSetting, isNativeMobile } = useAppRouteSlice();
     const { id: gameId, currentPlayer, gameStatus, player1, player2, mode, blackPlayerId, whitePlayerId } = session;
 
     if (!player1?.id || !player2?.id || !currentUser || !currentUserWithStatus) {
@@ -2906,12 +2904,20 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                           session.koInfo,
                           session.moveHistory?.length || 0,
                       )
-                    : processMoveClient(
-                          boardStateToUse,
-                          { x, y, player: myPlayerEnum },
-                          session.koInfo,
-                          session.moveHistory?.length || 0,
-                      );
+                    : mode === GameMode.Castle
+                      ? processCastleMove(
+                            session,
+                            boardStateToUse,
+                            { x, y, player: myPlayerEnum },
+                            session.koInfo,
+                            session.moveHistory?.length || 0,
+                        )
+                      : processMoveClient(
+                            boardStateToUse,
+                            { x, y, player: myPlayerEnum },
+                            session.koInfo,
+                            session.moveHistory?.length || 0,
+                        );
             if (!moveResult.isValid) return false;
             handlers.handleAction({
                 type: 'AI_GAME_CLIENT_MOVE',
@@ -2951,12 +2957,21 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         if (!boardStateToUse || !Array.isArray(boardStateToUse) || boardStateToUse.length === 0) return false;
         if (boardStateToUse[y]?.[x] !== Player.None) return false;
         try {
-            const moveResult = processMoveClient(
-                boardStateToUse,
-                { x, y, player: myPlayerEnum },
-                session.koInfo,
-                session.moveHistory?.length || 0
-            );
+            const moveResult =
+                mode === GameMode.Castle
+                    ? processCastleMove(
+                          session,
+                          boardStateToUse,
+                          { x, y, player: myPlayerEnum },
+                          session.koInfo,
+                          session.moveHistory?.length || 0,
+                      )
+                    : processMoveClient(
+                          boardStateToUse,
+                          { x, y, player: myPlayerEnum },
+                          session.koInfo,
+                          session.moveHistory?.length || 0,
+                      );
             if (!moveResult.isValid) return false;
             handlers.handleAction({
                 type: 'PAIR_GAME_CLIENT_MOVE',
@@ -2978,8 +2993,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     }, [
         gameId,
         handlers,
+        mode,
         myPlayerEnum,
         restoredBoardState,
+        session,
         session.boardState,
         session.koInfo,
         session.moveHistory?.length,
@@ -3591,7 +3608,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 }
                 playUserPlaceStoneSoundAt(x, y, !!payload.isHidden);
             }
-            setIsMoveInFlight(true);
+            if (actionType !== 'PLACE_BASE_STONE') {
+                setIsMoveInFlight(true);
+            }
             if (isStrategicOnlinePlaceStone) {
                 strategicAiStoneLockRef.current = true;
             }
@@ -5099,6 +5118,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
         if (!isSinglePlayer && !isTower) {
             if (gameStatus === 'pending') return false;
+            if (BASE_PRE_PLAY_STATUSES.has(gameStatus)) return false;
             return !gridOk || (moveCount > 0 && !hasStones);
         }
 

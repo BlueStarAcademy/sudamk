@@ -26,6 +26,7 @@ import {
     TOURNAMENT_LOBBY_IMG,
     SINGLE_PLAYER_LOBBY_IMG,
     TOWER_CHALLENGE_LOBBY_IMG,
+    PAIR_GO_LOBBY_IMG,
 } from '../assets.js';
 import { ItemGrade } from '../types.js';
 
@@ -59,6 +60,22 @@ const uiImages = [
 const dedupePaths = (paths: readonly (string | null | undefined)[]): string[] =>
     Array.from(new Set(paths.filter((p): p is string => typeof p === 'string' && p.startsWith('/'))));
 
+const normalizeAssetPath = (path: string | null | undefined): string | null => {
+    if (typeof path !== 'string' || !path) return null;
+    if (path.startsWith('/')) return path;
+    if (path.startsWith('images/')) return `/${path}`;
+    return null;
+};
+
+const dedupeNormalizedPaths = (paths: readonly (string | null | undefined)[]): string[] =>
+    Array.from(
+        new Set(
+            paths
+                .map((p) => normalizeAssetPath(p))
+                .filter((p): p is string => typeof p === 'string'),
+        ),
+    );
+
 /** 공통 셸: 메인 배경, 상단/퀵 아이콘, 바둑돌 */
 export const ENTRY_BOOT_IMAGE_URLS = dedupePaths([
     getMainBackgroundUrl(),
@@ -75,7 +92,7 @@ const ENTRY_PROFILE_DECORATION_URLS = dedupePaths([
     ...RANKING_TIERS.map((t) => t.icon),
 ]);
 
-const ENTRY_INVENTORY_ITEM_URLS = dedupePaths([
+const ENTRY_INVENTORY_ITEM_URLS = dedupeNormalizedPaths([
     ...Object.values(emptySlotImages),
     ...Object.values(gradeBackgrounds),
     ...starImages,
@@ -196,6 +213,73 @@ export const preloadImages = (urls: string[], options?: PreloadImagesOptions): P
 };
 
 const warmedRouteViews = new Set<string>();
+let activeCriticalImageLoads = 0;
+let secondaryPrefetchDeferTimer: ReturnType<typeof setTimeout> | null = null;
+
+function beginCriticalImageLoad(): void {
+    activeCriticalImageLoads += 1;
+}
+
+function endCriticalImageLoad(): void {
+    activeCriticalImageLoads = Math.max(0, activeCriticalImageLoads - 1);
+}
+
+function isBrowserActivelyLoadingVisibleImages(): boolean {
+    if (typeof document === 'undefined') return false;
+    const images = document.images;
+    for (let i = 0; i < images.length; i++) {
+        const img = images[i];
+        if (!img.complete && img.getAttribute('fetchpriority') === 'high') {
+            return true;
+        }
+    }
+    return activeCriticalImageLoads > 0;
+}
+
+function scheduleSecondaryPrefetch(run: () => void, deferMs = 1200): void {
+    if (secondaryPrefetchDeferTimer != null) {
+        clearTimeout(secondaryPrefetchDeferTimer);
+    }
+    const attempt = () => {
+        secondaryPrefetchDeferTimer = null;
+        if (isBrowserActivelyLoadingVisibleImages()) {
+            secondaryPrefetchDeferTimer = globalThis.setTimeout(attempt, deferMs);
+            return;
+        }
+        run();
+    };
+    secondaryPrefetchDeferTimer = globalThis.setTimeout(attempt, deferMs);
+}
+
+const PROFILE_CRITICAL_URLS = dedupePaths([
+    getMainBackgroundUrl(),
+    ...uiImages,
+    STRATEGIC_GO_LOBBY_IMG,
+    PAIR_GO_LOBBY_IMG,
+    PLAYFUL_GO_LOBBY_IMG,
+    PVP_ARENA_ENTRY_IMG,
+    AI_ARENA_ENTRY_IMG,
+]);
+
+const ARENA_CRITICAL_URLS = dedupePaths([
+    getMainBackgroundUrl(),
+    ...uiImages.slice(0, 4),
+    STRATEGIC_GO_LOBBY_IMG,
+    PLAYFUL_GO_LOBBY_IMG,
+    PVP_ARENA_ENTRY_IMG,
+    AI_ARENA_ENTRY_IMG,
+    TOURNAMENT_LOBBY_IMG,
+    SINGLE_PLAYER_LOBBY_IMG,
+    TOWER_CHALLENGE_LOBBY_IMG,
+]);
+
+const ADVENTURE_CRITICAL_URLS = dedupePaths([
+    getMainBackgroundUrl(),
+    ...uiImages.slice(0, 4),
+    ...ADVENTURE_STAGE_IMAGE_URLS.slice(0, 8),
+]);
+
+const GUILD_CRITICAL_URLS = dedupePaths([...ENTRY_BOOT_IMAGE_URLS, ...ENTRY_GUILD_SURFACE_IMAGE_URLS]);
 
 function isConstrainedMobilePrefetchDevice(): boolean {
     if (typeof window === 'undefined') return false;
@@ -212,12 +296,69 @@ function isConstrainedMobilePrefetchDevice(): boolean {
     return saveData || lowMemory || (hasTouch && (smallViewport || coarsePointer));
 }
 
-function clampMobileRoutePrefetchUrls(view: string, urls: readonly string[]): readonly string[] {
+function clampRoutePrefetchUrls(view: string, urls: readonly string[], constrainedMobile: boolean): readonly string[] {
+    const desktopLimit = (() => {
+        switch (view) {
+            case 'profile':
+                return 48;
+            case 'adventure':
+                return 32;
+            case 'lobby':
+            case 'waiting':
+            case 'pair':
+            case 'pvp':
+            case 'ai':
+            case 'arena':
+            case 'singleplayer':
+            case 'tower':
+            case 'tournament':
+                return 36;
+            case 'guild':
+            case 'guildboss':
+            case 'guildwar':
+                return 24;
+            default:
+                return 20;
+        }
+    })();
+    const limit = constrainedMobile
+        ? (() => {
+              switch (view) {
+                  case 'profile':
+                      return 24;
+                  case 'adventure':
+                      return 16;
+                  case 'lobby':
+                  case 'waiting':
+                  case 'pair':
+                  case 'pvp':
+                  case 'ai':
+                  case 'arena':
+                  case 'singleplayer':
+                  case 'tower':
+                  case 'tournament':
+                      return 20;
+                  case 'guild':
+                  case 'guildboss':
+                  case 'guildwar':
+                      return 14;
+                  default:
+                      return 12;
+              }
+          })()
+        : desktopLimit;
+    return urls.slice(0, limit);
+}
+
+function resolveRoutePrefetchSets(view: string): { critical: readonly string[]; secondary: readonly string[] } {
     switch (view) {
-        case 'profile':
-            return urls.slice(0, 36);
-        case 'adventure':
-            return urls.slice(0, 24);
+        case 'profile': {
+            const criticalSet = new Set(PROFILE_CRITICAL_URLS);
+            return {
+                critical: PROFILE_CRITICAL_URLS,
+                secondary: ENTRY_PROFILE_ROUTE_IMAGE_URLS.filter((url) => !criticalSet.has(url)),
+            };
+        }
         case 'lobby':
         case 'waiting':
         case 'pair':
@@ -226,14 +367,31 @@ function clampMobileRoutePrefetchUrls(view: string, urls: readonly string[]): re
         case 'arena':
         case 'singleplayer':
         case 'tower':
-        case 'tournament':
-            return urls.slice(0, 28);
+        case 'tournament': {
+            const criticalSet = new Set(ARENA_CRITICAL_URLS);
+            return {
+                critical: ARENA_CRITICAL_URLS,
+                secondary: ENTRY_ARENA_FLOW_IMAGE_URLS.filter((url) => !criticalSet.has(url)),
+            };
+        }
+        case 'adventure': {
+            const criticalSet = new Set(ADVENTURE_CRITICAL_URLS);
+            return {
+                critical: ADVENTURE_CRITICAL_URLS,
+                secondary: ENTRY_ADVENTURE_ROUTE_IMAGE_URLS.filter((url) => !criticalSet.has(url)),
+            };
+        }
         case 'guild':
         case 'guildboss':
-        case 'guildwar':
-            return urls.slice(0, 20);
+        case 'guildwar': {
+            const criticalSet = new Set(GUILD_CRITICAL_URLS);
+            return {
+                critical: GUILD_CRITICAL_URLS,
+                secondary: ENTRY_GUILD_ROUTE_IMAGE_URLS.filter((url) => !criticalSet.has(url)),
+            };
+        }
         default:
-            return urls.slice(0, 16);
+            return { critical: ENTRY_BOOT_IMAGE_URLS, secondary: [] };
     }
 }
 
@@ -241,53 +399,63 @@ function clampMobileRoutePrefetchUrls(view: string, urls: readonly string[]): re
  * 라우트 전환 직후 UI를 막지 않고, 브라우저 유휴 시에만 해당 화면 관련 이미지를 워밍한다.
  * (진입 게이트로 `preloadImages`를 await 하면 URL이 많은 화면에서 수십 초~수 분 대기가 될 수 있음)
  */
+/** 첫 화면 LCP 후보 — 라우트 진입 직후 소량 high-priority로 선로드 */
+export function preloadCriticalRouteImages(view: string): void {
+    if (typeof window === 'undefined') return;
+    const { critical } = resolveRoutePrefetchSets(view);
+    if (critical.length === 0) return;
+    beginCriticalImageLoad();
+    void preloadImages([...critical], {
+        priority: 'high',
+        maxConcurrent: 3,
+    })
+        .catch(() => {})
+        .finally(() => {
+            endCriticalImageLoad();
+        });
+}
+
 export function scheduleRouteImagePrefetch(view: string): void {
     if (typeof window === 'undefined') return;
     if (warmedRouteViews.has(view)) return;
 
-    let urls: readonly string[];
-    switch (view) {
-        case 'profile':
-            urls = ENTRY_PROFILE_ROUTE_IMAGE_URLS;
-            break;
-        case 'lobby':
-        case 'waiting':
-        case 'pair':
-        case 'pvp':
-        case 'ai':
-        case 'arena':
-        case 'singleplayer':
-        case 'tower':
-        case 'tournament':
-            urls = ENTRY_ARENA_FLOW_IMAGE_URLS;
-            break;
-        case 'adventure':
-            urls = ENTRY_ADVENTURE_ROUTE_IMAGE_URLS;
-            break;
-        case 'guild':
-        case 'guildboss':
-        case 'guildwar':
-            urls = ENTRY_GUILD_ROUTE_IMAGE_URLS;
-            break;
-        default:
-            urls = ENTRY_BOOT_IMAGE_URLS;
-            break;
-    }
-
     const constrainedMobile = isConstrainedMobilePrefetchDevice();
-    const selectedUrls = constrainedMobile ? clampMobileRoutePrefetchUrls(view, urls) : urls;
+    const { critical, secondary } = resolveRoutePrefetchSets(view);
+    const selectedSecondary = clampRoutePrefetchUrls(view, secondary, constrainedMobile);
 
-    const run = () => {
+    const runCritical = () => {
+        if (critical.length === 0) return;
+        beginCriticalImageLoad();
+        void preloadImages([...critical], {
+            priority: 'high',
+            maxConcurrent: constrainedMobile ? 2 : 3,
+        })
+            .catch(() => {})
+            .finally(() => {
+                endCriticalImageLoad();
+            });
+    };
+
+    const runSecondary = () => {
         warmedRouteViews.add(view);
-        void preloadImages([...selectedUrls], {
+        if (selectedSecondary.length === 0) return;
+        void preloadImages([...selectedSecondary], {
             priority: 'low',
             maxConcurrent: constrainedMobile ? 1 : 2,
         }).catch(() => {});
     };
 
     if (typeof window.requestIdleCallback === 'function') {
-        window.requestIdleCallback(run, { timeout: 8000 });
+        window.requestIdleCallback(runCritical, { timeout: 1500 });
+        scheduleSecondaryPrefetch(() => {
+            if (typeof window.requestIdleCallback === 'function') {
+                window.requestIdleCallback(runSecondary, { timeout: 12000 });
+            } else {
+                runSecondary();
+            }
+        });
     } else {
-        globalThis.setTimeout(run, 50);
+        globalThis.setTimeout(runCritical, 0);
+        scheduleSecondaryPrefetch(runSecondary, 1500);
     }
 }

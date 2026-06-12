@@ -71,9 +71,9 @@ export const hasTimeControl = (s: { timeLimit?: number; byoyomiCount?: number; b
     ((s.byoyomiCount ?? 0) > 0 && (s.byoyomiTime ?? 0) > 0) ||
     ((s.timeLimit ?? 0) > 0 && (s.timeIncrement ?? 0) > 0);
 
-/** PVP 실시간 대국에만 시간 제어 적용. 길드 전쟁(AI 대국)은 피셔 제한시간 적용을 위해 예외. 싱글/일반 AI/탑은 false. */
+/** PVP 실시간 대국에만 시간 제어 적용. 길드 전쟁은 피셔 제한시간 적용을 위해 예외. 싱글/일반 AI/탑은 false. */
 export const shouldEnforceTimeControl = (game: types.LiveGameSession): boolean => {
-    if ((game as any).gameCategory === 'guildwar' && game.isAiGame) return true;
+    if (resolveArenaSessionPolicy(game).kind === 'guildwar') return true;
     return (
         !game.isAiGame &&
         !game.isSinglePlayer &&

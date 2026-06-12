@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { useAppContext } from '../hooks/useAppContext.js';
+import { useAppUserSlice, useAppUiSlice, useAppRealtimeSlice } from '../hooks/useAppSlices.js';
 import { calculateTotalStats } from '../services/statService.js';
 import {
     getBadukAbilitySnapshotFromStats,
@@ -55,12 +55,14 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
 }) => {
     const {
         handlers,
+    } = useAppUiSlice();
+    const {
         hasClaimableQuest,
         hasClaimableExchangeSettlement,
         hasClaimablePairPetTrainingOrHatchery,
-        hasUnreadHomeBoardPosts,
         currentUserWithStatus,
-    } = useAppContext();
+    } = useAppUserSlice();
+    const { hasUnreadHomeBoardPosts } = useAppRealtimeSlice();
 
     const badukSnap = useMemo(() => {
         if (!currentUserWithStatus) return null;

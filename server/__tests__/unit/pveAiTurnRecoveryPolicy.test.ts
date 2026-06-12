@@ -23,6 +23,12 @@ describe('pveAiTurnRecoveryPolicy', () => {
         expect(
             isEligibleForPveAiTurnStuckRecovery({
                 isAiGame: false,
+                gameCategory: 'guildwar',
+            } as any),
+        ).toBe(true);
+        expect(
+            isEligibleForPveAiTurnStuckRecovery({
+                isAiGame: false,
                 gameCategory: 'normal',
             } as any),
         ).toBe(false);
@@ -39,6 +45,12 @@ describe('pveAiTurnRecoveryPolicy', () => {
         expect(
             shouldUseServerAiKickForStuckRecovery(
                 { gameCategory: 'adventure', isAiGame: true } as any,
+                { isPairAiTurn: false },
+            ),
+        ).toBe(true);
+        expect(
+            shouldUseServerAiKickForStuckRecovery(
+                { gameCategory: 'guildwar', isAiGame: false } as any,
                 { isPairAiTurn: false },
             ),
         ).toBe(true);
@@ -69,6 +81,9 @@ describe('pveAiTurnRecoveryPolicy', () => {
     it('defers hidden reveal recovery for kata-server PVE arenas only', () => {
         expect(
             shouldDeferStuckRecoveryDuringHiddenReveal({ gameCategory: 'adventure' } as any),
+        ).toBe(true);
+        expect(
+            shouldDeferStuckRecoveryDuringHiddenReveal({ gameCategory: 'guildwar', isAiGame: false } as any),
         ).toBe(true);
         expect(
             shouldDeferStuckRecoveryDuringHiddenReveal({ gameCategory: 'normal', isAiGame: true } as any),

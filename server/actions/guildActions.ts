@@ -3170,8 +3170,14 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 await broadcast({ type: 'GUILD_WAR_UPDATE', payload: { activeWars } });
             }
             await broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
-            
-            return { clientResponse: { gameId: game.id } };
+
+            let gameCopy: typeof game;
+            try {
+                gameCopy = JSON.parse(JSON.stringify(game));
+            } catch {
+                gameCopy = game;
+            }
+            return { clientResponse: { gameId: game.id, game: gameCopy } };
         }
         
         case 'GET_GUILD_INFO': {

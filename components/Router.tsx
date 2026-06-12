@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useAppContext } from '../hooks/useAppContext.js';
+import { useAppGameStoreSlice, useAppRouteSlice, useAppUiSlice, useAppUserSlice } from '../hooks/useAppSlices.js';
 import { mergeArenaEntranceAvailability } from '../constants/arenaEntrance.js';
 import { isClientAdmin } from '../utils/clientAdmin.js';
 import Login from './Login.js';
@@ -30,14 +30,16 @@ import {
     stashPairArenaRoomRestoreForLobbyNavigation,
 } from '../shared/utils/pairArenaSessionRestore.js';
 import { userMeetsGuildFeatureLevelRequirement } from '../shared/constants/guildConstants.js';
-import { scheduleRouteImagePrefetch } from '../services/assetService.js';
+import { preloadCriticalRouteImages, scheduleRouteImagePrefetch } from '../services/assetService.js';
 import type { ArenaChannel, ArenaLobbyIntent } from '../shared/types/api.js';
 
 const routeShellClass = 'flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden';
 
 // 게임 라우트 로더 컴포넌트 (게임이 로드될 때까지 대기, 새로고침 시 재입장 대기)
 const GameRouteLoader: React.FC<{ gameId: string }> = ({ gameId }) => {
-    const { activeGame, singlePlayerGames, towerGames, liveGames, currentUser, gameRejoinFailure, handlers } = useAppContext();
+    const { activeGame, singlePlayerGames, towerGames, liveGames, gameRejoinFailure } = useAppGameStoreSlice();
+    const { currentUser } = useAppUserSlice();
+    const { handlers } = useAppUiSlice();
     const { recoverPveGameFromSessionStorage } = handlers;
     const [hasTimedOut, setHasTimedOut] = useState(false);
     const currentRejoinFailure = gameRejoinFailure?.gameId === gameId ? gameRejoinFailure : null;
@@ -128,7 +130,9 @@ const GameRouteLoader: React.FC<{ gameId: string }> = ({ gameId }) => {
 };
 
 const Router: React.FC = () => {
-    const { currentRoute, currentUser, activeGame, singlePlayerGames, towerGames, liveGames, arenaEntranceAvailability } = useAppContext();
+    const { currentRoute, arenaEntranceAvailability } = useAppRouteSlice();
+    const { currentUser } = useAppUserSlice();
+    const { activeGame, singlePlayerGames, towerGames, liveGames } = useAppGameStoreSlice();
 
     const mergedArena = useMemo(
         () => mergeArenaEntranceAvailability(arenaEntranceAvailability),
@@ -136,9 +140,10 @@ const Router: React.FC = () => {
     );
     const arenaAdminBypass = isClientAdmin(currentUser);
 
-    /** 화면 전환은 즉시 — 이미지는 유휴 시에만 백그라운드 워밍 (진입 게이트 금지) */
+    /** 화면 전환은 즉시 — visible 이미지 우선, 나머지는 유휴 시 백그라운드 워밍 */
     useEffect(() => {
         if (!currentUser) return;
+        preloadCriticalRouteImages(currentRoute.view);
         scheduleRouteImagePrefetch(currentRoute.view);
     }, [currentUser, currentRoute.view]);
 

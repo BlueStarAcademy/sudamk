@@ -42,6 +42,9 @@ const skipBaseStartConfirmationDeadline = (game: types.LiveGameSession) =>
 const shouldUseBaseSetupCountdown = (game: types.LiveGameSession) =>
     resolveArenaSessionPolicy(game).matchAxis === 'pvp';
 
+const shouldAutoRandomizeBasePlacement = (game: types.LiveGameSession) =>
+    resolveArenaSessionPolicy(game).usesAutomaticBaseStonePlacement;
+
 const isAiLikeParticipantId = (id?: string | null): boolean =>
     !!id && (id === aiUserId || String(id).startsWith('dungeon-bot-'));
 
@@ -151,6 +154,14 @@ export const initializeBase = (game: types.LiveGameSession, now: number) => {
     game.pausedTurnTimeLeft = undefined;
     game.preGameConfirmations = {};
     game.baseKomiBidsSnapshot = undefined;
+
+    if (shouldAutoRandomizeBasePlacement(game)) {
+        placeRemainingStonesRandomly(game, 'baseStones_p1', 'pveAuto');
+        placeRemainingStonesRandomly(game, 'baseStones_p2', 'pveAuto');
+        game.basePlacementReady = { [p1Id]: true, [p2Id]: true };
+        resolveBasePlacementAndTransition(game, now);
+        return;
+    }
 
     // 로비/모험 AI 대국: 봇의 베이스돌은 시작 즉시 랜덤으로 모두 배치해 둔다.
     // 싱글플레이는 유저가 보이지 않는 AI 선점 좌표를 클릭해 400이 나는 것을 막기 위해
@@ -299,12 +310,21 @@ const edgeInset = (x: number, y: number, boardSize: number): number =>
     Math.min(x, y, boardSize - 1 - x, boardSize - 1 - y);
 
 type BaseRandCell = { x: number; y: number; inset: number };
+type BaseRandomPlacementBand = 'standard' | 'pveAuto';
 
 /**
- * 베이스 랜덤 배치: 바둑 3·4선(가장 가까운 변으로부터 격자 3·4번째 줄 → edgeInset 2..3).
+ * 베이스 랜덤 배치: PVP 수동 보조는 3·4선, PVE 자동 배치는 2~5선을 우선 사용한다.
+ * edgeInset 0이 1선이므로 2~5선은 edgeInset 1..4이다.
  * 작은 판은 가능한 범위로 완화.
  */
-const baseStoneRandomInsetBand = (boardSize: number): { minInset: number; maxInset: number } => {
+const baseStoneRandomInsetBand = (
+    boardSize: number,
+    band: BaseRandomPlacementBand = 'standard'
+): { minInset: number; maxInset: number } => {
+    if (band === 'pveAuto') {
+        const maxInset = Math.min(4, Math.floor((boardSize - 1) / 2));
+        return { minInset: boardSize <= 2 ? 0 : 1, maxInset: Math.max(boardSize <= 2 ? 0 : 1, maxInset) };
+    }
     if (boardSize <= 5) return { minInset: 1, maxInset: 2 };
     if (boardSize <= 7) return { minInset: 1, maxInset: 3 };
     return { minInset: 2, maxInset: 3 };
@@ -406,9 +426,10 @@ const pickBaseStoneRandomCellInBandWithSpread = (
     boardSize: number,
     occupied: Set<string>,
     tempBoard: types.BoardState,
-    playerColor: types.Player
+    playerColor: types.Player,
+    band: BaseRandomPlacementBand = 'standard'
 ): { x: number; y: number } | null => {
-    const { minInset: bandMin, maxInset: bandMax } = baseStoneRandomInsetBand(boardSize);
+    const { minInset: bandMin, maxInset: bandMax } = baseStoneRandomInsetBand(boardSize, band);
 
     let bandPool = collectBandPoolForBaseRandom(boardSize, occupied, tempBoard, playerColor, bandMin, bandMax);
     if (bandPool.length === 0) {
@@ -436,7 +457,11 @@ const pickBaseStoneRandomCellInBandWithSpread = (
     return { x: pick.x, y: pick.y };
 };
 
-const placeRemainingStonesRandomly = (game: types.LiveGameSession, playerKey: 'baseStones_p1' | 'baseStones_p2') => {
+const placeRemainingStonesRandomly = (
+    game: types.LiveGameSession,
+    playerKey: 'baseStones_p1' | 'baseStones_p2',
+    band: BaseRandomPlacementBand = 'standard',
+) => {
     const target = game.settings.baseStones ?? 4;
     
     if (!game[playerKey]) {
@@ -462,7 +487,7 @@ const placeRemainingStonesRandomly = (game: types.LiveGameSession, playerKey: 'b
     (game.baseStones_p2 ?? []).forEach(p => tempBoard[p.y][p.x] = getBasePlacementColorForKey(game, 'baseStones_p2'));
 
     for (let i = 0; i < stonesToPlace; i++) {
-        const picked = pickBaseStoneRandomCellInBandWithSpread(boardSize, occupied, tempBoard, playerColor);
+        const picked = pickBaseStoneRandomCellInBandWithSpread(boardSize, occupied, tempBoard, playerColor, band);
         if (!picked) {
             console.warn(`[BaseGo] No empty cells left for base stone placement (playerKey=${playerKey}).`);
             return;
@@ -482,13 +507,14 @@ const runBasePlacementAutoFillAndValidate = (game: types.LiveGameSession) => {
     const target = game.settings.baseStones ?? 4;
     const { boardSize } = game.settings;
     const MAX_AUTOFILL_ATTEMPTS = 4;
+    const band: BaseRandomPlacementBand = shouldAutoRandomizeBasePlacement(game) ? 'pveAuto' : 'standard';
 
     for (let attempt = 0; attempt < MAX_AUTOFILL_ATTEMPTS; attempt++) {
         if ((game.baseStones_p1?.length ?? 0) < target) {
-            placeRemainingStonesRandomly(game, 'baseStones_p1');
+            placeRemainingStonesRandomly(game, 'baseStones_p1', band);
         }
         if ((game.baseStones_p2?.length ?? 0) < target) {
-            placeRemainingStonesRandomly(game, 'baseStones_p2');
+            placeRemainingStonesRandomly(game, 'baseStones_p2', band);
         }
 
         const p1Stones = [...(game.baseStones_p1 || [])];

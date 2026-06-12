@@ -34,6 +34,7 @@ import {
     getGuildWarCaptureTurnLimitByBoardId,
     getGuildWarCaptureBlackTargetByBoardId,
     GUILD_WAR_CAPTURE_AI_TARGET,
+    guildWarBoardHasPreplacedInitialStones,
     type GuildWarBoardRuleMode,
 } from '../../constants/index.js';
 import { getTodayKSTDateString, formatDateTimeKST } from '../../utils/timeUtils.js';
@@ -1197,6 +1198,7 @@ const GuildWar = () => {
                                     </ul>
                                 </div>
 
+                                {guildWarBoardHasPreplacedInitialStones(board.gameMode) && (
                                 <div className="shrink-0 rounded-lg border border-slate-600/35 bg-slate-900/45 px-1.5 py-1 sm:px-2 sm:py-1.5">
                                     <div
                                         className="flex flex-nowrap items-center justify-between gap-1 overflow-x-auto"
@@ -1247,6 +1249,7 @@ const GuildWar = () => {
                                         ))}
                                     </div>
                                 </div>
+                                )}
 
                                 {board.gameMode !== 'capture' && (
                                 <div className="shrink-0 rounded-lg border border-slate-600/35 bg-slate-900/45 px-2 py-1.5 sm:px-2.5 sm:py-2">

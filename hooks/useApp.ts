@@ -16,6 +16,7 @@ import {
     navigateFromGameIfApplicable,
     markSkipGameHashLeaveInterceptOnce,
 } from '../utils/appUtils.js';
+import { computeGameSessionFingerprint } from '../utils/gameSessionFingerprint.js';
 import { getApiUrl, getWebSocketUrlFor } from '../utils/apiConfig.js';
 import { 
     DAILY_MILESTONE_THRESHOLDS,
@@ -139,6 +140,7 @@ import { reconcileExchangeListedInventoryFlags } from '../shared/utils/exchangeI
 import { stripReappearedRemovedInventoryItems } from '../shared/utils/inventoryStaleGuard.js';
 import { mergeAdventureProfileForPersistence } from '../utils/adventureProfileMerge.js';
 import { applyChessMoveToSession, commitChessGoPlacementCaptures, normalizeChessGoSession, resolveChessCapturesByLiberty, validateChessMove } from '../shared/utils/chessGoRules.js';
+import { detectAndConfirmTerritories } from '../shared/utils/castleGoRules.js';
 import {
     coerceAdventureLiveGameScoringTurnLimit,
     getClientArenaStateBucket,
@@ -4133,6 +4135,18 @@ export const useApp = () => {
                     const normalized = normalizeChessGoSession(updatedGame);
                     return { ...currentGames, [gameId]: normalized };
                 }
+                if (game.mode === GameMode.Castle) {
+                    updatedGame.confirmedTerritoryOwnerByPoint = detectAndConfirmTerritories(
+                        updatedGame,
+                        newBoardState,
+                    );
+                    if (capturedStones.length > 0) {
+                        updatedGame.gameStatus = 'ended';
+                        updatedGame.winner = movePlayer;
+                        updatedGame.winReason = 'castle_capture';
+                        updatedGame.currentPlayer = Player.None;
+                    }
+                }
                 return { ...currentGames, [gameId]: updatedGame };
             });
             return;
@@ -4195,6 +4209,18 @@ export const useApp = () => {
                     itemUseDeadline: undefined,
                     pausedTurnTimeLeft: undefined,
                 };
+                if (game.mode === GameMode.Castle) {
+                    updatedGame.confirmedTerritoryOwnerByPoint = detectAndConfirmTerritories(
+                        updatedGame,
+                        newBoardState,
+                    );
+                    if (capturedStones.length > 0) {
+                        updatedGame.gameStatus = 'ended';
+                        updatedGame.winner = movePlayer;
+                        updatedGame.winReason = 'castle_capture';
+                        updatedGame.currentPlayer = Player.None;
+                    }
+                }
                 return { ...currentGames, [gameId]: updatedGame };
             });
             return;
@@ -7118,6 +7144,7 @@ export const useApp = () => {
                     effectiveGameId &&
                     (action.type === 'ACCEPT_NEGOTIATION' ||
                         action.type === 'START_AI_GAME' ||
+                        action.type === 'START_GUILD_WAR_GAME' ||
                         action.type === 'START_ADVENTURE_MONSTER_BATTLE' ||
                         action.type === 'START_SINGLE_PLAYER_GAME' ||
                         action.type === 'START_TOWER_GAME' ||
@@ -9522,18 +9549,16 @@ export const useApp = () => {
                                                 const previousSignature = singlePlayerGameSignaturesRef.current[gameId];
                                                 // 서명이 이미 저장되어 있고, 중요한 필드가 변경되지 않았으면 서명 비교 생략 가능
                                                 // 하지만 안전을 위해 서명 비교 수행 (중요 필드 외의 변경 감지)
-                                                const signature = stableStringify(game);
+                                                const signature = computeGameSessionFingerprint(game);
                                                 if (previousSignature === signature) {
                                                     return currentGames; // 완전히 동일한 상태
                                                 }
                                                 singlePlayerGameSignaturesRef.current[gameId] = signature;
                                             } else {
-                                                // 중요한 필드가 변경되었으므로 서명 업데이트 (한 번만 호출)
-                                                singlePlayerGameSignaturesRef.current[gameId] = stableStringify(game);
+                                                singlePlayerGameSignaturesRef.current[gameId] = computeGameSessionFingerprint(game);
                                             }
                                         } else {
-                                            // 새 게임이므로 서명 저장 (한 번만 호출)
-                                            singlePlayerGameSignaturesRef.current[gameId] = stableStringify(game);
+                                            singlePlayerGameSignaturesRef.current[gameId] = computeGameSessionFingerprint(game);
                                         }
                                         const updatedGames = { ...currentGames };
                                         
@@ -10072,7 +10097,7 @@ export const useApp = () => {
                                                 });
                                                 if (appliedDelayedSnapshot) {
                                                     lastGameUpdateMoveCountRef.current[gameId] = shiftedGameToApply.moveHistory?.length ?? 0;
-                                                    singlePlayerGameSignaturesRef.current[gameId] = stableStringify(shiftedGameToApply);
+                                                    singlePlayerGameSignaturesRef.current[gameId] = computeGameSessionFingerprint(shiftedGameToApply);
                                                 }
                                                 delete singlePlayerKataDelayTimeoutRef.current[gameId];
                                                 delete pendingDeferredAiBoardSnapshotByGameIdRef.current[gameId];
@@ -10278,21 +10303,21 @@ export const useApp = () => {
                                                 const previousSignature = towerGameSignaturesRef.current[gameId];
                                                 if (previousSignature) {
                                                     // 서명 비교는 비용이 큰 작업이므로 필요한 경우에만 수행
-                                                    const signature = stableStringify(game);
+                                                    const signature = computeGameSessionFingerprint(game);
                                                     if (previousSignature === signature) {
                                                         return currentGames; // 완전히 동일한 상태
                                                     }
                                                     towerGameSignaturesRef.current[gameId] = signature;
                                                 } else {
-                                                    towerGameSignaturesRef.current[gameId] = stableStringify(game);
+                                                    towerGameSignaturesRef.current[gameId] = computeGameSessionFingerprint(game);
                                                 }
                                             } else {
                                                 // 중요한 필드가 변경되었으므로 서명 업데이트
-                                                towerGameSignaturesRef.current[gameId] = stableStringify(game);
+                                                towerGameSignaturesRef.current[gameId] = computeGameSessionFingerprint(game);
                                             }
                                         } else {
                                             // 새 게임이므로 서명 저장
-                                            towerGameSignaturesRef.current[gameId] = stableStringify(game);
+                                            towerGameSignaturesRef.current[gameId] = computeGameSessionFingerprint(game);
                                         }
                                         
                                         const updatedGames = { ...currentGames };
@@ -10475,7 +10500,7 @@ export const useApp = () => {
                                                 }
                                                 if (appliedDelayedSnapshot) {
                                                     lastGameUpdateMoveCountRef.current[gameId] = shiftedGameToApply.moveHistory?.length ?? 0;
-                                                    towerGameSignaturesRef.current[gameId] = stableStringify(shiftedGameToApply);
+                                                    towerGameSignaturesRef.current[gameId] = computeGameSessionFingerprint(shiftedGameToApply);
                                                 }
                                                 delete pendingDeferredAiBoardSnapshotByGameIdRef.current[gameId];
                                             }, 1000);
@@ -10552,14 +10577,14 @@ export const useApp = () => {
                                                 existingGame.gameStatus !== game.gameStatus ||
                                                 (game.serverRevision ?? 0) !== (existingGame.serverRevision ?? 0));
                                         if (!hasNewMoves && !isScoringTransition && !playfulTurnOrPhaseChanged) {
-                                            const signature = stableStringify(game);
+                                            const signature = computeGameSessionFingerprint(game);
                                             const previousSignature = liveGameSignaturesRef.current[gameId];
                                             if (previousSignature === signature) {
                                                 return currentGames;
                                             }
                                             liveGameSignaturesRef.current[gameId] = signature;
                                         } else {
-                                            liveGameSignaturesRef.current[gameId] = stableStringify(game);
+                                            liveGameSignaturesRef.current[gameId] = computeGameSessionFingerprint(game);
                                         }
                                         const updatedGames = { ...currentGames };
                                         let mergedGame: typeof game = game;
@@ -11014,7 +11039,7 @@ export const useApp = () => {
                                                 });
                                                 if (appliedDelayedSnapshot) {
                                                     lastGameUpdateMoveCountRef.current[gameId] = shiftedGameToApply.moveHistory?.length ?? 0;
-                                                    liveGameSignaturesRef.current[gameId] = stableStringify(shiftedGameToApply);
+                                                    liveGameSignaturesRef.current[gameId] = computeGameSessionFingerprint(shiftedGameToApply);
                                                 }
                                                 delete liveGameGnugoDelayTimeoutRef.current[gameId];
                                                 delete pendingDeferredAiBoardSnapshotByGameIdRef.current[gameId];
@@ -12324,6 +12349,119 @@ export const useApp = () => {
         return aggregated;
     }, [currentUserWithStatus]);
 
+    const modalsValue = useMemo(
+        () => ({
+            activeQuickUtilityPanel,
+            mobileViewportStack,
+            isSettingsModalOpen,
+            isPetManagementModalOpen,
+            isAdventureMonsterCodexModalOpen,
+            isTrainingQuestModalOpen,
+            detailedStatsType,
+            isInventoryOpen,
+            isMailboxOpen,
+            isQuestsOpen,
+            isShopOpen,
+            isExchangeOpen,
+            shopInitialTab,
+            lastUsedItemResult,
+            pairPetDetailModal,
+            disassemblyResult,
+            craftResult,
+            rewardSummary,
+            viewingUser,
+            isInfoModalOpen,
+            isAnnouncementsModalOpen,
+            isRankingQuickModalOpen,
+            isChatQuickModalOpen,
+            isEncyclopediaOpen,
+            isStatAllocationModalOpen,
+            enhancementAnimationTarget,
+            isGameRecordListOpen,
+            viewingGameRecord,
+            pastRankingsInfo,
+            viewingItem,
+            isProfileEditModalOpen,
+            moderatingUser,
+            isClaimAllSummaryOpen,
+            claimAllSummary,
+            isMbtiInfoModalOpen,
+            mutualDisconnectMessage,
+            showOtherDeviceLoginModal,
+            isEquipmentEffectsModalOpen,
+            isBlacksmithModalOpen,
+            blacksmithSelectedItemForEnhancement,
+            blacksmithActiveTab,
+            combinationResult,
+            isBlacksmithEffectsModalOpen,
+            enhancingItem,
+            isEnhancementResultModalOpen,
+            tournamentScoreChange,
+            refinementResult,
+            isInsufficientActionPointsModalOpen,
+            isOpponentInsufficientActionPointsModalOpen,
+            isActionPointModalOpen,
+            levelUpCelebration,
+            mannerGradeChange,
+            contentUnlockNotice,
+        }),
+        [
+            activeQuickUtilityPanel,
+            mobileViewportStack,
+            isSettingsModalOpen,
+            isPetManagementModalOpen,
+            isAdventureMonsterCodexModalOpen,
+            isTrainingQuestModalOpen,
+            detailedStatsType,
+            isInventoryOpen,
+            isMailboxOpen,
+            isQuestsOpen,
+            isShopOpen,
+            isExchangeOpen,
+            shopInitialTab,
+            lastUsedItemResult,
+            pairPetDetailModal,
+            disassemblyResult,
+            craftResult,
+            rewardSummary,
+            viewingUser,
+            isInfoModalOpen,
+            isAnnouncementsModalOpen,
+            isRankingQuickModalOpen,
+            isChatQuickModalOpen,
+            isEncyclopediaOpen,
+            isStatAllocationModalOpen,
+            enhancementAnimationTarget,
+            isGameRecordListOpen,
+            viewingGameRecord,
+            pastRankingsInfo,
+            viewingItem,
+            isProfileEditModalOpen,
+            moderatingUser,
+            isClaimAllSummaryOpen,
+            claimAllSummary,
+            isMbtiInfoModalOpen,
+            mutualDisconnectMessage,
+            showOtherDeviceLoginModal,
+            isEquipmentEffectsModalOpen,
+            isBlacksmithModalOpen,
+            blacksmithSelectedItemForEnhancement,
+            blacksmithActiveTab,
+            combinationResult,
+            isBlacksmithEffectsModalOpen,
+            enhancingItem,
+            isEnhancementResultModalOpen,
+            tournamentScoreChange,
+            refinementResult,
+            isInsufficientActionPointsModalOpen,
+            isOpponentInsufficientActionPointsModalOpen,
+            isActionPointModalOpen,
+            levelUpCelebration,
+            mannerGradeChange,
+            contentUnlockNotice,
+        ],
+    );
+
     return {
         currentUser,
         presets,
@@ -12393,42 +12531,12 @@ export const useApp = () => {
         combatSubOptionBonuses,
         specialStatBonuses,
         aggregatedMythicStats,
-        modals: {
-            activeQuickUtilityPanel,
-            mobileViewportStack,
-            isSettingsModalOpen, isPetManagementModalOpen, isAdventureMonsterCodexModalOpen, isTrainingQuestModalOpen, detailedStatsType, isInventoryOpen, isMailboxOpen, isQuestsOpen, isShopOpen, isExchangeOpen, shopInitialTab, lastUsedItemResult, pairPetDetailModal,
-            disassemblyResult, craftResult, rewardSummary, viewingUser, isInfoModalOpen, isAnnouncementsModalOpen, isRankingQuickModalOpen, isChatQuickModalOpen, isEncyclopediaOpen, isStatAllocationModalOpen, enhancementAnimationTarget,
-            isGameRecordListOpen, viewingGameRecord,
-            pastRankingsInfo, viewingItem, isProfileEditModalOpen, moderatingUser,
-            isClaimAllSummaryOpen,
-            claimAllSummary,
-            isMbtiInfoModalOpen,
-            mutualDisconnectMessage,
-            showOtherDeviceLoginModal,
-            isEquipmentEffectsModalOpen,
-            isBlacksmithModalOpen,
-            blacksmithSelectedItemForEnhancement,
-            blacksmithActiveTab,
-            combinationResult,
-            isBlacksmithEffectsModalOpen,
-            enhancingItem,
-            isEnhancementResultModalOpen,
-            tournamentScoreChange,
-            refinementResult,
-            isInsufficientActionPointsModalOpen,
-            isOpponentInsufficientActionPointsModalOpen,
-            isActionPointModalOpen,
-            levelUpCelebration,
-            mannerGradeChange,
-            contentUnlockNotice,
-        },
+        modals: modalsValue,
         handlers: {
             handleAction,
             applyDeferredUserUpdate: (updates: Partial<User>, source = 'deferred-user-update') => applyUserUpdate(updates, source),
             showObtainedItemsBulk: (items: InventoryItem[]) => {
-                flushSync(() => {
-                    setLastUsedItemResult(stampObtainedItemsBulk(items));
-                });
+                setLastUsedItemResult(stampObtainedItemsBulk(items));
             },
             handleLogout,
             handleEnterWaitingRoom,

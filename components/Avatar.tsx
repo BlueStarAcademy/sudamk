@@ -61,7 +61,7 @@ const Avatar: React.FC<AvatarProps> = ({
       >
         <div className="relative z-0 flex h-full w-full items-center justify-center">
           <div className="rounded-full overflow-hidden bg-gray-700" style={faceStyle}>
-            <img src={finalAvatarUrl} alt={userName} className="h-full w-full object-cover" loading="lazy" />
+            <img src={finalAvatarUrl} alt={userName} className="h-full w-full object-cover" decoding="async" />
           </div>
         </div>
         <img
@@ -70,7 +70,7 @@ const Avatar: React.FC<AvatarProps> = ({
           className="pointer-events-none absolute left-1/2 top-1/2 z-[1] -translate-x-1/2 -translate-y-1/2 object-contain"
           style={{ width: `${borderRemSize}rem`, height: `${borderRemSize}rem` }}
           aria-hidden="true"
-          loading="lazy"
+          decoding="async"
         />
         {bottomOverlay ? (
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] flex justify-center">
@@ -98,7 +98,7 @@ const Avatar: React.FC<AvatarProps> = ({
           className="flex items-center justify-center rounded-full overflow-hidden bg-gray-700"
           style={{ width: `${innerRemSize}rem`, height: `${innerRemSize}rem` }}
         >
-          <img src={finalAvatarUrl} alt={userName} className="w-full h-full object-cover" loading="lazy" />
+          <img src={finalAvatarUrl} alt={userName} className="w-full h-full object-cover" decoding="async" />
         </div>
         {bottomOverlay ? (
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] flex justify-center">

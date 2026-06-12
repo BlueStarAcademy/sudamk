@@ -52,6 +52,7 @@ describe('arena policy', () => {
         expect(resolveArenaMatchAxis(session({ gameCategory: GameCategory.Adventure, isAiGame: true }))).toBe('pve');
         expect(resolveArenaMatchAxis(session({ gameCategory: GameCategory.SinglePlayer, isSinglePlayer: true }))).toBe('pve');
         expect(resolveArenaMatchAxis(session({ gameCategory: GameCategory.Tower, isAiGame: true }))).toBe('pve');
+        expect(resolveArenaMatchAxis(session({ gameCategory: GameCategory.GuildWar, isAiGame: false }))).toBe('pve');
         expect(resolveArenaMatchAxis(session({ gameCategory: GameCategory.Normal, isAiGame: false }))).toBe('pvp');
         expect(
             resolveArenaMatchAxis(
@@ -157,6 +158,45 @@ describe('arena policy', () => {
         );
         expect(pair.isPairGame).toBe(true);
         expect(pair.resultRewardModel).toBe('pairSummary');
+    });
+
+    it('enables automatic base stone placement only for non-PvP Base-rule sessions', () => {
+        const pveBase = resolveArenaSessionPolicy(session({
+            mode: GameMode.Base,
+            gameCategory: GameCategory.SinglePlayer,
+            isSinglePlayer: true,
+        }));
+        const pveMixBase = resolveArenaSessionPolicy(session({
+            mode: GameMode.Mix,
+            gameCategory: GameCategory.SinglePlayer,
+            isSinglePlayer: true,
+            settings: settings({ mixedModes: [GameMode.Base, GameMode.Hidden] }),
+        }));
+        const pvpBase = resolveArenaSessionPolicy(session({ mode: GameMode.Base }));
+        const guildWarBase = resolveArenaSessionPolicy(session({
+            mode: GameMode.Base,
+            gameCategory: GameCategory.GuildWar,
+            isAiGame: false,
+            settings: settings({ autoScoringTurns: 20, scoringTurnLimit: 20 } as any),
+        }));
+        const pveStandard = resolveArenaSessionPolicy(session({
+            mode: GameMode.Standard,
+            gameCategory: GameCategory.SinglePlayer,
+            isSinglePlayer: true,
+        }));
+
+        expect(pveBase.usesAutomaticBaseStonePlacement).toBe(true);
+        expect(pveMixBase.usesAutomaticBaseStonePlacement).toBe(true);
+        expect(pvpBase.usesAutomaticBaseStonePlacement).toBe(false);
+        expect(guildWarBase.matchAxis).toBe('pve');
+        expect(guildWarBase.requiresClientSyncBeforeAction).toBe(true);
+        expect(guildWarBase.usesServerKataAi).toBe(true);
+        expect(guildWarBase.deferAutoScoringAfterAi).toBe(true);
+        expect(guildWarBase.usesAutomaticBaseStonePlacement).toBe(true);
+        expect(guildWarBase.resultRewardModel).toBe('pveSummary');
+        expect(guildWarBase.turnLimitMode).toBe('autoScoringTurns');
+        expect(guildWarBase.countPassAsTurn).toBe(false);
+        expect(pveStandard.usesAutomaticBaseStonePlacement).toBe(false);
     });
 
     it('keeps pair turnLimitMode none but honors scoringTurnLimit for turn counting and auto scoring', async () => {

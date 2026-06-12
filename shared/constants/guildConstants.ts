@@ -278,6 +278,11 @@ export function buildGuildWarBoardsRecordForNewWar(): Record<string, {
     return boards;
 }
 
+/** 길드전 대기실에 미리 배치되는 초기 돌(일반·문양) 표시가 있는 모드 */
+export function guildWarBoardHasPreplacedInitialStones(mode: GuildWarBoardRuleMode | string | undefined): boolean {
+    return mode === 'capture' || mode === 'hidden' || mode === 'missile';
+}
+
 export function getGuildWarBoardRuleDisplayLabel(mode: GuildWarBoardRuleMode | string | undefined): string {
     switch (mode) {
         case 'capture':

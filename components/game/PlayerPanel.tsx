@@ -1136,7 +1136,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     };
 
     const getCastleStoneCaptureCount = (playerEnum: Player): number =>
-        Math.min(1, Math.max(0, captures[playerEnum] ?? 0));
+        Math.max(0, captures[playerEnum] ?? 0);
 
     const isLeftAi = session.isAiGame && leftPlayerUser.id === aiUserId;
     const isRightAi = session.isAiGame && rightPlayerUser.id === aiUserId;

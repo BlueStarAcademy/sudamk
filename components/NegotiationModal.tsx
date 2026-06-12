@@ -104,6 +104,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
   const isAiGame = opponent.id === aiUserId;
   const isRanked = negotiation.isRanked ?? false;
   const isCasual = !isRanked; // 친선전
+  const mode = negotiation.mode;
 
   const onDecline = useCallback(() => {
     onAction({ type: 'DECLINE_NEGOTIATION', payload: { negotiationId: negotiation.id } });
@@ -175,6 +176,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
             case GameMode.Hidden: return HIDDEN_BOARD_SIZES;
             case GameMode.Thief: return THIEF_BOARD_SIZES;
             case GameMode.Missile: return MISSILE_BOARD_SIZES;
+            case GameMode.Castle: return getStrategicBoardSizesByMode(GameMode.Castle);
             case GameMode.Chess: return getStrategicBoardSizesByMode(GameMode.Chess);
             case GameMode.Alkkagi: case GameMode.Curling: case GameMode.Dice: return [19];
             default: return BOARD_SIZES;
@@ -397,7 +399,6 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
   );
   
     // --- Determine which settings to show ---
-    const { mode } = negotiation;
     
     const showBoardSize = ![GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Chess].includes(mode);
     const showKomi =

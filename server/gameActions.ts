@@ -943,7 +943,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             const isPairServerAiSeat = Boolean(pairSeatForServerAi && isPairAiSeat(pairSeatForServerAi));
             const aiMovePolicy = resolveArenaSessionPolicy(game);
             const pveLikeForServerAiGate = aiMovePolicy.matchAxis !== 'pvp';
-            if (!aiMovePolicy.isStrategicAiLike && !isPairServerAiSeat && !pveLikeForServerAiGate) {
+            if (!aiMovePolicy.usesServerKataAi && !aiMovePolicy.isStrategicAiLike && !isPairServerAiSeat && !pveLikeForServerAiGate) {
                 return { error: 'Not an AI game.' };
             }
             // 도전의 탑·싱글플레이·모험: 클라 판이 서버보다 앞설 수 있음 → Kata 호출 전 클라 스냅샷으로 맞춤
@@ -1217,7 +1217,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 GameMode.Mix,
             ];
             const requestSyncPolicy = resolveArenaSessionPolicy(game);
-            if (!requestSyncPolicy.isStrategicAiLike || !goModes.includes(game.mode)) {
+            if (!requestSyncPolicy.usesServerKataAi || !goModes.includes(game.mode)) {
                 return { error: '이 경기 유형에서는 동기화를 지원하지 않습니다.' };
             }
             if (requestSyncPolicy.kind === 'tower' || requestSyncPolicy.kind === 'singleplayer') {

@@ -1,6 +1,7 @@
 import React, { useContext, ReactNode, Component, ErrorInfo, ReactNode as ReactNodeType } from 'react';
 import { useApp } from '../hooks/useApp.js';
 import { AppContext } from './AppContextInstance.js';
+import { AppSliceProviders } from './slices/AppSliceProviders.js';
 import { clearStaleChunkReloadFlag, tryReloadOnceForStaleBuild } from '../utils/chunkReloadRecovery.js';
 
 // Infer the type of the context from the hook's return value
@@ -87,7 +88,7 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
     
     return (
         <AppContext.Provider value={appData}>
-            {children}
+            <AppSliceProviders value={appData}>{children}</AppSliceProviders>
         </AppContext.Provider>
     );
 };

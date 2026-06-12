@@ -15,7 +15,7 @@ import {
 import { getTodayKSTDateString, getNextKstMidnightUtcMs } from '../utils/timeUtils.js';
 import { ACTION_POINT_REGEN_INTERVAL_MS } from '../constants/rules.js';
 import { isInsideSudamrAdUi } from '../constants/ads.js';
-import { useAppContext } from '../hooks/useAppContext.js';
+import { useAppUserSlice, useAppUiSlice, useAppRouteSlice } from '../hooks/useAppSlices.js';
 import { resourceIcons, ResourceIconKey, specialResourceIcons, SpecialResourceIconKey } from './resourceIcons.js';
 import ChampionshipVersusDuelTicketCountdown from './ChampionshipVersusDuelTicketCountdown.js';
 import LiveCountdownToMs from './LiveCountdownToMs.js';
@@ -109,7 +109,7 @@ const ResourceDisplay = memo<{
             } ${className ?? ''}`}
         >
             <div className={`bg-primary flex flex-shrink-0 items-center justify-center rounded-full ${iconShell}`}>
-                <img src={resourceIcons[icon]} alt={RESOURCE_LABEL[icon]} className={`object-contain ${iconImg}`} loading="lazy" decoding="async" />
+                <img src={resourceIcons[icon]} alt={RESOURCE_LABEL[icon]} className={`object-contain ${iconImg}`} decoding="async" fetchPriority="high" />
             </div>
             <span className={`font-bold text-primary whitespace-nowrap ${valueClass}`}>
                 {formattedValue}
@@ -191,7 +191,7 @@ function useKstMidnightDeadlineMs(): number {
 }
 
 export const ActionPointTimer: React.FC<{ user: UserWithStatus; mobile?: boolean }> = ({ user, mobile = false }) => {
-    const { guilds } = useAppContext();
+    const { guilds } = useAppUserSlice();
     const { actionPoints, lastActionPointUpdate } = user;
     const [timeLeft, setTimeLeft] = useState('');
 
@@ -245,7 +245,9 @@ export const ActionPointTimer: React.FC<{ user: UserWithStatus; mobile?: boolean
 interface HeaderProps { compact?: boolean }
 
 const Header: React.FC<HeaderProps> = ({ compact = false }) => {
-    const { currentUserWithStatus, handlers, unreadMailCount, isNativeMobile } = useAppContext();
+    const { currentUserWithStatus, unreadMailCount } = useAppUserSlice();
+    const { handlers } = useAppUiSlice();
+    const { isNativeMobile } = useAppRouteSlice();
     const isMobile = Boolean(isNativeMobile);
     const dense = isMobile || compact;
     const guildWarTickets = useGuildWarTicketsRemaining(currentUserWithStatus?.guildId, handlers.handleAction);

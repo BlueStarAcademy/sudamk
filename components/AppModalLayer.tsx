@@ -1,6 +1,11 @@
 import React, { useMemo, useState, Suspense, lazy } from 'react';
 import type { PairRoomState } from '../types/api.js';
-import { useAppContext } from '../hooks/useAppContext.js';
+import {
+    useAppGameStoreSlice,
+    useAppRealtimeSlice,
+    useAppUiSlice,
+    useAppUserSlice,
+} from '../hooks/useAppSlices.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH, NATIVE_MOBILE_MODAL_MAX_WIDTH_VW } from '../constants/ads.js';
 import { isMobileViewportEntryTypeActive } from '../shared/utils/mobileViewportStackUtils.js';
@@ -66,24 +71,24 @@ const AppModalLayer: React.FC = () => {
     const isMobileModalChrome = useMobileModalChrome();
     const {
         allUsers,
-        currentUserWithStatus,
-        activeNegotiation,
-        modals,
-        handlers,
-        onlineUsers,
-        enhancementOutcome,
-        mainOptionBonuses,
-        combatSubOptionBonuses,
-        specialStatBonuses,
-        aggregatedMythicStats,
+        waitingRoomChats,
+        pairRooms,
+        pairPartnerInvites,
         announcements,
         globalOverrideAnnouncement,
         homeBoardPosts,
         unreadHomeBoardPostIds,
-        waitingRoomChats,
-        pairRooms,
-        pairPartnerInvites,
-    } = useAppContext();
+        onlineUsers,
+    } = useAppRealtimeSlice();
+    const {
+        currentUserWithStatus,
+        mainOptionBonuses,
+        combatSubOptionBonuses,
+        specialStatBonuses,
+        aggregatedMythicStats,
+    } = useAppUserSlice();
+    const { activeNegotiation } = useAppGameStoreSlice();
+    const { modals, handlers, enhancementOutcome } = useAppUiSlice();
 
     const mergedPublicChatMessages = useMemo(
         () => mergeWaitingRoomPublicChatMessages(waitingRoomChats ?? {}),

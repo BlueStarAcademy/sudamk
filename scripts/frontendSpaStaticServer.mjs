@@ -6,6 +6,7 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
+import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -60,6 +61,18 @@ function safeResolveUnderRoot(root, urlPath) {
  * @param {http.IncomingMessage} req
  * @param {http.ServerResponse} res
  */
+const COMPRESSIBLE_EXTS = new Set(['.html', '.js', '.mjs', '.css', '.json', '.svg', '.txt', '.map', '.webmanifest']);
+
+function acceptsGzip(req) {
+    const ae = req.headers['accept-encoding'] || '';
+    return typeof ae === 'string' && ae.includes('gzip');
+}
+
+function shouldCompress(fileAbs) {
+    const ext = path.extname(fileAbs).toLowerCase();
+    return COMPRESSIBLE_EXTS.has(ext);
+}
+
 function sendFile(fileAbs, pathname, req, res) {
     let st;
     try {
@@ -77,11 +90,32 @@ function sendFile(fileAbs, pathname, req, res) {
         headers['Cache-Control'] = 'public, max-age=31536000, immutable';
     }
 
-    res.writeHead(200, headers);
+    const useGzip = acceptsGzip(req) && shouldCompress(fileAbs) && st.size >= 1024;
+
     if (req.method === 'HEAD') {
+        if (useGzip) headers['Content-Encoding'] = 'gzip';
+        res.writeHead(200, headers);
         res.end();
         return true;
     }
+
+    if (useGzip) {
+        headers['Content-Encoding'] = 'gzip';
+        res.writeHead(200, headers);
+        const gzip = zlib.createGzip({ level: 6 });
+        fs.createReadStream(fileAbs)
+            .on('error', () => {
+                if (!res.headersSent) {
+                    res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
+                }
+                res.end('Error reading file');
+            })
+            .pipe(gzip)
+            .pipe(res);
+        return true;
+    }
+
+    res.writeHead(200, headers);
     fs.createReadStream(fileAbs)
         .on('error', () => {
             if (!res.headersSent) {

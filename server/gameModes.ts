@@ -1428,9 +1428,10 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
                     game.gameStatus === 'scanning' ||
                     // 도전의 탑: 미사일 선택 중에도 updateMissileState(아이템 데드라인 등)가 돌아야 함
                     game.gameStatus === 'missile_selecting');
+            const arenaPolicy = resolveArenaSessionPolicy(game);
             const needsPveServerGoAiTick =
-                game.isAiGame &&
-                (game.gameCategory === 'adventure' || game.gameCategory === 'guildwar') &&
+                arenaPolicy.usesServerKataAi &&
+                (arenaPolicy.kind === 'adventure' || arenaPolicy.kind === 'guildwar') &&
                 (game.gameStatus === 'playing' ||
                     game.gameStatus === 'hidden_placing' ||
                     game.gameStatus === 'scanning' ||
@@ -1998,7 +1999,7 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                             } else {
                                 game.aiTurnStartTime = Date.now() + 50;
                                 const pveAiPolicy = resolveArenaSessionPolicy(game);
-                                if (game.isAiGame && pveAiPolicy.matchAxis !== 'pvp') {
+                                if (pveAiPolicy.usesServerKataAi) {
                                     aiProcessingQueue.enqueue(gameId, undefined, { deferIfProcessing: true });
                                 }
                             }

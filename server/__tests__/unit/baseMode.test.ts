@@ -47,8 +47,20 @@ const finishPlacement = (game: LiveGameSession, now = Date.now()) => {
     updateBaseState(game, now);
 };
 
+const edgeInset = (x: number, y: number, boardSize: number) =>
+    Math.min(x, y, boardSize - 1 - x, boardSize - 1 - y);
+
+const expectAutoBaseStonesInBand = (game: LiveGameSession) => {
+    const boardSize = game.settings.boardSize;
+    for (const stone of [...(game.baseStones_p1 ?? []), ...(game.baseStones_p2 ?? [])]) {
+        const inset = edgeInset(stone.x, stone.y, boardSize);
+        expect(inset).toBeGreaterThanOrEqual(1);
+        expect(inset).toBeLessThanOrEqual(4);
+    }
+};
+
 describe('base mode', () => {
-    it('does not hide-preplace AI base stones in single-player placement', () => {
+    it('auto-randomizes single-player base stones and skips manual placement', () => {
         const human = makeUser('human-1');
         const ai = makeUser(aiUserId);
         const game = {
@@ -66,11 +78,84 @@ describe('base mode', () => {
 
         initializeBase(game, Date.now());
 
+        expect(game.gameStatus).toBe('base_stone_color_choice');
+        expect(game.baseStones_p1).toHaveLength(4);
+        expect(game.baseStones_p2).toHaveLength(4);
+        expectAutoBaseStonesInBand(game);
+        expect(game.basePlacementReady).toBeUndefined();
+        expect(game.basePlacementDeadline).toBeUndefined();
+    });
+
+    it('auto-randomizes PvE Mix games that include Base before setup choices', () => {
+        const game = makeBaseGame({
+            id: 'sp-mix-base-auto-random-test',
+            mode: GameMode.Mix,
+            isSinglePlayer: true,
+            isAiGame: true,
+            gameCategory: GameCategory.SinglePlayer,
+            player2: makeUser(aiUserId),
+            settings: {
+                boardSize: 9,
+                baseStones: 2,
+                komi: 0.5,
+                mixedModes: [GameMode.Base, GameMode.Hidden],
+            } as any,
+        });
+
+        initializeBase(game, Date.now());
+
+        expect(game.gameStatus).toBe('base_stone_color_choice');
+        expect(game.baseStones_p1).toHaveLength(2);
+        expect(game.baseStones_p2).toHaveLength(2);
+        expectAutoBaseStonesInBand(game);
+        expect(game.basePlacementDeadline).toBeUndefined();
+    });
+
+    it('auto-randomizes normal AI base games before setup choices', () => {
+        const game = makeBaseGame({
+            id: 'ai-base-auto-random-test',
+            isAiGame: true,
+            player2: makeUser(aiUserId),
+        });
+
+        initializeBase(game, Date.now());
+
+        expect(game.gameStatus).toBe('base_stone_color_choice');
+        expect(game.baseStones_p1).toHaveLength(2);
+        expect(game.baseStones_p2).toHaveLength(2);
+        expectAutoBaseStonesInBand(game);
+        expect(game.basePlacementDeadline).toBeUndefined();
+    });
+
+    it('auto-randomizes guild war base games even if isAiGame metadata is missing', () => {
+        const game = makeBaseGame({
+            id: 'guild-war-base-auto-random-test',
+            gameCategory: GameCategory.GuildWar,
+            isAiGame: false,
+            guildWarId: 'guild-war-1',
+            guildWarBoardId: 'center',
+            settings: { boardSize: 9, baseStones: 2, komi: 0.5, autoScoringTurns: 20, scoringTurnLimit: 20 } as any,
+        });
+
+        initializeBase(game, Date.now());
+
+        expect(game.gameStatus).toBe('base_stone_color_choice');
+        expect(game.baseStones_p1).toHaveLength(2);
+        expect(game.baseStones_p2).toHaveLength(2);
+        expectAutoBaseStonesInBand(game);
+        expect(game.basePlacementDeadline).toBeUndefined();
+    });
+
+    it('keeps PvP base games in manual placement', () => {
+        const game = makeBaseGame();
+
+        initializeBase(game, Date.now());
+
         expect(game.gameStatus).toBe('base_placement');
         expect(game.baseStones_p1).toEqual([]);
         expect(game.baseStones_p2).toEqual([]);
-        expect(game.basePlacementReady?.[aiUserId]).toBe(true);
-        expect(game.basePlacementDeadline).toBeUndefined();
+        expect(game.basePlacementReady).toEqual({ [game.player1.id]: false, [game.player2.id]: false });
+        expect(game.basePlacementDeadline).toBeTypeOf('number');
     });
 
     it('uses only color choice, same-color komi, and start confirmation for PvP base flow', () => {
@@ -204,10 +289,10 @@ describe('base mode', () => {
             settings: { boardSize: 9, baseStones: 2, komi: 0.5 } as any,
         });
         initializeBase(game, Date.now());
-        game.baseStones_p1 = [{ x: 2, y: 2 }, { x: 2, y: 6 }];
-
-        handleBaseAction(game, { type: 'CONFIRM_BASE_PLACEMENT_COMPLETE', userId: game.player1.id, payload: { gameId: game.id } } as any, game.player1);
         expect(game.gameStatus).toBe('base_stone_color_choice');
+        expect(game.baseStones_p1).toHaveLength(2);
+        expect(game.baseStones_p2).toHaveLength(2);
+        expectAutoBaseStonesInBand(game);
         updateBaseState(game, Date.now());
         expect(game.gameStatus).toBe('base_stone_color_choice');
         expect(game.baseColorChoiceDeadline).toBeUndefined();
@@ -219,7 +304,7 @@ describe('base mode', () => {
         expect(game.gameStatus === 'base_same_color_points_bid' ? game.komiBiddingDeadline : undefined).toBeUndefined();
     });
 
-    it('marks dungeon-bot AI ready in adventure base placement', () => {
+    it('auto-randomizes adventure base stones before color choice', () => {
         const adventureBotId = 'dungeon-bot-adventure-1';
         const game = makeBaseGame({
             id: 'adventure-base-flow-test',
@@ -231,19 +316,12 @@ describe('base mode', () => {
         });
 
         initializeBase(game, Date.now());
-        expect(game.basePlacementReady?.[adventureBotId]).toBe(true);
-
-        game.baseStones_p1 = [{ x: 2, y: 2 }, { x: 2, y: 6 }];
-        handleBaseAction(
-            game,
-            { type: 'CONFIRM_BASE_PLACEMENT_COMPLETE', userId: game.player1.id, payload: { gameId: game.id } } as any,
-            game.player1
-        );
-        updateBaseState(game, Date.now());
 
         expect(game.gameStatus).toBe('base_stone_color_choice');
-        expect(game.baseStones_p1?.length ?? 0).toBe(2);
-        expect(game.baseStones_p2?.length ?? 0).toBe(2);
+        expect(game.baseStones_p1).toHaveLength(2);
+        expect(game.baseStones_p2).toHaveLength(2);
+        expectAutoBaseStonesInBand(game);
+        expect(game.basePlacementReady).toBeUndefined();
     });
 
     it('lets AI prefer the same color as its placed base stones', () => {
@@ -258,13 +336,6 @@ describe('base mode', () => {
         initializeBase(game, Date.now());
         game.basePlacementBlackPlayerId = aiUserId;
         game.basePlacementWhitePlayerId = game.player1.id;
-        game.baseStones_p1 = [{ x: 2, y: 2 }, { x: 2, y: 6 }];
-
-        handleBaseAction(
-            game,
-            { type: 'CONFIRM_BASE_PLACEMENT_COMPLETE', userId: game.player1.id, payload: { gameId: game.id } } as any,
-            game.player1
-        );
         handleBaseAction(
             game,
             { type: 'SUBMIT_BASE_STONE_COLOR_CHOICE', userId: game.player1.id, payload: { gameId: game.id, color: Player.White } } as any,
@@ -290,13 +361,6 @@ describe('base mode', () => {
         initializeBase(game, Date.now());
         game.basePlacementBlackPlayerId = aiUserId;
         game.basePlacementWhitePlayerId = game.player1.id;
-        game.baseStones_p1 = [{ x: 2, y: 2 }, { x: 2, y: 6 }];
-
-        handleBaseAction(
-            game,
-            { type: 'CONFIRM_BASE_PLACEMENT_COMPLETE', userId: game.player1.id, payload: { gameId: game.id } } as any,
-            game.player1
-        );
         handleBaseAction(
             game,
             { type: 'SUBMIT_BASE_STONE_COLOR_CHOICE', userId: game.player1.id, payload: { gameId: game.id, color: Player.Black } } as any,

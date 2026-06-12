@@ -458,6 +458,7 @@ export function pairLobbyDraftBoardSizeOptions(
             GameMode.Base,
             GameMode.Hidden,
             GameMode.Missile,
+            GameMode.Castle,
             GameMode.Mix,
         ];
         if (restrictedStrategicModes.includes(mode)) return [9, 13];

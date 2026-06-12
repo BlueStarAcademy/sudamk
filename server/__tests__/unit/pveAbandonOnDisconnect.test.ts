@@ -59,6 +59,17 @@ describe('pveAbandonOnDisconnect', () => {
         );
         expect(
             isPveSessionAbandonOnLeave(
+                session({
+                    gameCategory: GameCategory.GuildWar,
+                    isSinglePlayer: false,
+                    isAiGame: false,
+                    guildWarId: 'guild-war-1',
+                    guildWarBoardId: 'center',
+                }),
+            ),
+        ).toBe(true);
+        expect(
+            isPveSessionAbandonOnLeave(
                 session({ gameCategory: GameCategory.Normal, isSinglePlayer: false, isAiGame: false }),
             ),
         ).toBe(false);

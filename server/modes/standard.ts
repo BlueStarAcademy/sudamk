@@ -506,6 +506,7 @@ export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.
     applyHumanPvpStrategicSettingsInvariants(game);
     const p1 = game.player1;
     const p2 = game.player2;
+    const usesServerKataAi = resolveArenaSessionPolicy(game).usesServerKataAi;
 
     switch (game.mode) {
         case types.GameMode.Standard:
@@ -521,7 +522,7 @@ export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.
                 initializeBase(game, now);
                 break;
             }
-            if (game.isAiGame) {
+            if (usesServerKataAi) {
                 const humanPlayerColor = resolveStrategicAiHumanColor(game, neg);
                 if (humanPlayerColor === types.Player.Black) {
                     game.blackPlayerId = p1.id;
@@ -536,7 +537,7 @@ export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.
             }
             break;
         case types.GameMode.Capture:
-            if (game.isAiGame) {
+            if (usesServerKataAi) {
                 const humanPlayerColor = resolveStrategicAiHumanColor(game, neg);
                 const p1 = game.player1;
                 const p2 = game.player2;
@@ -585,7 +586,7 @@ export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.
             break;
         case types.GameMode.Hidden:
             initializeHidden(game);
-            if (game.isAiGame) {
+            if (usesServerKataAi) {
                 const humanPlayerColor = resolveStrategicAiHumanColor(game, neg);
                 if (humanPlayerColor === types.Player.Black) {
                     game.blackPlayerId = p1.id;
@@ -601,7 +602,7 @@ export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.
             break;
         case types.GameMode.Missile:
             initializeMissile(game);
-            if (game.isAiGame) {
+            if (usesServerKataAi) {
                 const humanPlayerColor = resolveStrategicAiHumanColor(game, neg);
                 if (humanPlayerColor === types.Player.Black) {
                     game.blackPlayerId = p1.id;

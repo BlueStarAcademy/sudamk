@@ -70,7 +70,8 @@ export async function handleAiAction(
   }
 
   if (!game) return { error: 'Game not found.' };
-  if (!game.isAiGame) return { error: 'Not an AI game.' };
+  const aiStartPolicy = resolveArenaSessionPolicy(game as any);
+  if (!game.isAiGame && !aiStartPolicy.usesServerKataAi) return { error: 'Not an AI game.' };
   if (game.gameStatus !== 'pending') return { error: '게임이 이미 시작되었거나 시작할 수 없는 상태입니다.' };
 
   // 권한 체크: 게임 참가자만 시작 가능 (관전자는 불가)
@@ -133,9 +134,9 @@ export async function handleAiAction(
     }
 
     // 게임 시작 시 첫 턴이 AI인 경우 aiTurnStartTime 설정
-    if (postInit.isAiGame && postInit.currentPlayer !== Player.None) {
+    if (resolveArenaSessionPolicy(postInit).usesServerKataAi && postInit.currentPlayer !== Player.None) {
       const currentPlayerId = postInit.currentPlayer === Player.Black ? postInit.blackPlayerId : postInit.whitePlayerId;
-      if (currentPlayerId === aiUserId) {
+      if (currentPlayerId === aiUserId || (currentPlayerId && String(currentPlayerId).startsWith('dungeon-bot-'))) {
         scheduleAiTurnStartForFreshUi(postInit, now);
         console.log(`[handleAiAction] AI turn at game start, game ${game.id}, deferred aiTurnStartTime by first-move delay`);
       } else {

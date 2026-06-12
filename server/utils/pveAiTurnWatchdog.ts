@@ -85,9 +85,8 @@ function shouldSkipWatchdogForAnimation(game: LiveGameSession): boolean {
 }
 
 export function isPveAiWatchdogGame(game: LiveGameSession): boolean {
-    if (!game.isAiGame) return false;
     const policy = resolveArenaSessionPolicy(game);
-    return policy.matchAxis !== 'pvp';
+    return policy.matchAxis !== 'pvp' && policy.usesServerKataAi;
 }
 
 /** updateGameStates 메인 루프에 PVE AI 게임을 포함할지 */

@@ -100,7 +100,7 @@ const maybeAutoSubmitCaptureBids = (game: types.LiveGameSession) => {
         return;
     }
 
-    if (!game.isAiGame) return;
+    if (!resolveArenaSessionPolicy(game).usesServerKataAi) return;
     for (const player of [game.player1, game.player2]) {
         if (isAiLikeParticipantId(player.id) && game.bids[player.id] == null) {
             game.bids[player.id] = randomCaptureBidForAi(game);
