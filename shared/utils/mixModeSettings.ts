@@ -3,8 +3,10 @@ import {
     CHESS_BOARD_SIZES,
     STRATEGIC_SPECIAL_BOARD_SIZES,
     clampCastleCount,
+    clampChessPieceTotalScore,
     getDefaultCastleCountByBoardSize,
     getDefaultChessKomiByBoardSize,
+    getDefaultChessPieceTotalScore,
 } from '../constants/gameSettings.js';
 
 /** 믹스에서 따내기·캐슬은 동시 선택 불가 */
@@ -60,8 +62,16 @@ export function applyMixModeSettingsConstraints(settings: GameSettings): GameSet
     next.mixedModes = mixed;
 
     if (mixIncludesChess(mixed)) {
-        next.boardSize = 13 as GameSettings['boardSize'];
-        next.komi = getDefaultChessKomiByBoardSize(13);
+        if (!CHESS_BOARD_SIZES.includes(next.boardSize as number)) {
+            next.boardSize = CHESS_BOARD_SIZES[0] as GameSettings['boardSize'];
+        }
+        const chessBoard = next.boardSize ?? 13;
+        next.komi = getDefaultChessKomiByBoardSize(chessBoard);
+        next.chessPieceTotalScore = clampChessPieceTotalScore(
+            next.chessPieceTotalScore ?? getDefaultChessPieceTotalScore(chessBoard, false),
+            chessBoard,
+            false,
+        );
     }
 
     const validSizes = getMixBoardSizeOptions(mixed);

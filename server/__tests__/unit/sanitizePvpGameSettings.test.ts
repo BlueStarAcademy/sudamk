@@ -182,7 +182,45 @@ describe('stripHumanPvpTurnLimitFields', () => {
         expect((out as { autoScoringTurns?: number }).autoScoringTurns).toBeUndefined();
     });
 
-    it('mix: excludes castle+capture together and locks 13 board with chess', () => {
+    it('forces ranked chess preset with 13 board and 15 piece score', () => {
+        const out = sanitizePvpGameSettings(
+            GameMode.Chess,
+            { boardSize: 9, komi: 2.5, chessPieceTotalScore: 9, timeLimit: 10 },
+            { isRanked: true },
+        );
+        expect(out.boardSize).toBe(13);
+        expect(out.chessPieceTotalScore).toBe(15);
+        expect(out.komi).toBe(6.5);
+    });
+
+    it('clamps casual chess 9-line to 9 piece score', () => {
+        const out = sanitizePvpGameSettings(
+            GameMode.Chess,
+            { boardSize: 9, komi: 2.5, chessPieceTotalScore: 15 },
+            { isAiGame: false },
+        );
+        expect(out.boardSize).toBe(9);
+        expect(out.chessPieceTotalScore).toBe(9);
+        expect(out.komi).toBe(2.5);
+    });
+
+    it('clamps casual chess 13-line piece score to 9–23', () => {
+        const low = sanitizePvpGameSettings(
+            GameMode.Chess,
+            { boardSize: 13, komi: 6.5, chessPieceTotalScore: 1 },
+            { isAiGame: false },
+        );
+        expect(low.chessPieceTotalScore).toBe(9);
+
+        const high = sanitizePvpGameSettings(
+            GameMode.Chess,
+            { boardSize: 13, komi: 6.5, chessPieceTotalScore: 30 },
+            { isAiGame: false },
+        );
+        expect(high.chessPieceTotalScore).toBe(23);
+    });
+
+    it('mix: excludes castle+capture together and keeps valid chess board size', () => {
         const out = sanitizePvpGameSettings(
             GameMode.Mix,
             {
@@ -193,7 +231,8 @@ describe('stripHumanPvpTurnLimitFields', () => {
             { isAiGame: false },
         );
         expect(out.mixedModes).toEqual([GameMode.Capture, GameMode.Chess]);
-        expect(out.boardSize).toBe(13);
+        expect(out.boardSize).toBe(9);
+        expect(out.chessPieceTotalScore).toBe(9);
     });
 });
 

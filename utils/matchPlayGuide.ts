@@ -194,8 +194,11 @@ function uniformGuide(session: LiveGameSession): MatchPlayGuide {
 
 function chessGuide(session: LiveGameSession): MatchPlayGuide {
     const g = standardLike(session, '체스 바둑');
+    const budget = session.settings.chessPieceTotalScore ?? 15;
     g.sections[0].items.push('100수 후 영토 + 기물 포획 점수로 승패가 결정됩니다.');
     g.sections[0].items.push('기물 포획: 폰 1 / 나이트·비숍 3 / 룩 5 / 퀸 9');
+    g.sections[0].items.push(`대국 시작 전 기물 총점수 ${budget}점 예산 안에 기물을 직접 배치합니다. 킹은 2번째 줄 중앙에 고정됩니다.`);
+    g.sections[0].items.push('킹이 활로 0으로 잡히면 즉시 체크메이트 패배로 경기가 종료됩니다.');
     g.sections[1].items.unshift('기물 이동(선택) → 바둑 1수 순으로 턴을 진행하세요.');
     g.sections[1].items.unshift('기물은 체스 규칙으로 움직이지만, 잡기는 바둑 포위(활로 0)로만 가능합니다.');
     g.sections[2].items.push('기물을 안 움직여도 바둑돌만 두면 턴이 넘어갑니다.');

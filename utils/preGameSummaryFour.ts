@@ -649,12 +649,17 @@ export function getPreGameSummaryFour(
   }
 
   if (mode === GameMode.Chess) {
+    const budget = settings.chessPieceTotalScore ?? (settings.boardSize === 9 ? 9 : 15);
     return {
       winGoal: '정해진 수순 후 계가',
-      loseGoal: '계가에서 패배',
+      loseGoal: '계가에서 패배 · 킹 포획 시 즉시 패배',
       scoreFactors: '영토 · 따낸 돌 · 사석 · 기물 포획 · 덤(백)',
       timeRules: timeLine(settings, mode, mix),
       specialHighlights: [
+        {
+          img: '/images/simbols/simbol9.webp',
+          text: `기물 총점수 ${budget}점 예산 내 직접 배치(킹 2번째 줄 중앙 고정)`,
+        },
         {
           img: '/images/simbols/simbol9.webp',
           text: '기물돌을 체스의 움직임으로 매 턴 1회씩 움직일 수 있음(횟수 제한)',

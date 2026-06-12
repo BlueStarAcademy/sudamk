@@ -18,7 +18,34 @@ export const AI_HIDDEN_ITEM_THINKING_DURATION_MS = 3000;
 export const STRATEGIC_CLASSIC_SPEED_BOARD_SIZES = [9, 13, 19] as const;
 export const STRATEGIC_SPECIAL_BOARD_SIZES = [9, 11, 13] as const;
 export const CASTLE_BOARD_SIZES = [9, 13] as const;
-export const CHESS_BOARD_SIZES = [13] as const;
+export const CHESS_BOARD_SIZES = [9, 13] as const;
+export const CHESS_PIECE_PLACEMENT_TIME_LIMIT_SEC = 60;
+
+/** 9줄=9점 고정, 13줄=9~23 */
+export function getChessPieceTotalScoreOptions(boardSize: number): readonly number[] {
+  if (boardSize === 9) return [9];
+  if (boardSize === 13) {
+    return Array.from({ length: 15 }, (_, i) => 9 + i);
+  }
+  return [15];
+}
+
+export function clampChessPieceTotalScore(value: unknown, boardSize: number, isRanked = false): number {
+  if (isRanked && boardSize === 13) return 15;
+  const options = getChessPieceTotalScoreOptions(boardSize);
+  const n = typeof value === 'number' ? value : parseInt(String(value ?? options[0]), 10);
+  if (!Number.isFinite(n)) return options[0]!;
+  for (let i = options.length - 1; i >= 0; i--) {
+    if (n >= options[i]!) return options[i]!;
+  }
+  return options[0]!;
+}
+
+export function getDefaultChessPieceTotalScore(boardSize: number, isRanked = false): number {
+  if (isRanked && boardSize === 13) return 15;
+  if (boardSize === 9) return 9;
+  return 15;
+}
 export type CastleCount = 1 | 2 | 3 | 4 | 5 | 6;
 export const CASTLE_COUNTS_BY_BOARD_SIZE: Record<9 | 13, readonly CastleCount[]> = {
   9: [1, 2, 3],
@@ -39,6 +66,7 @@ export function getDefaultCastleCountByBoardSize(boardSize: number): CastleCount
 
 export function getDefaultChessKomiByBoardSize(boardSize: number): number {
   if (boardSize === 13) return 6.5;
+  if (boardSize === 9) return 2.5;
   return DEFAULT_KOMI;
 }
 

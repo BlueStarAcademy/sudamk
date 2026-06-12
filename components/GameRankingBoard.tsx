@@ -14,6 +14,28 @@ const IS_DEV = import.meta.env.DEV;
 /** 모바일·랭킹 모달 다열: 바둑랭킹(splitStack) 행과 동일한 글자·아바타 스케일 */
 const MOBILE_RANK_ROW_CLASS = 'min-h-[3rem]';
 const MOBILE_RANK_TEXT_CLASS = 'text-xs sm:text-sm';
+const MOBILE_RANK_SCORE_CLASS = 'text-sm font-bold tabular-nums sm:text-base';
+const DESKTOP_RANK_SCORE_CLASS = 'text-sm font-semibold tabular-nums sm:text-base';
+const DENSE_RANK_SCORE_CLASS = 'text-[9px] font-semibold tabular-nums';
+
+function resolveRankingRowUserLevel(
+    user: { id: string; userLevel?: number },
+    currentUserId?: string,
+    currentUserLevel?: number,
+): number | null {
+    if (user.userLevel != null && Number.isFinite(Number(user.userLevel))) {
+        return Math.max(1, Math.floor(Number(user.userLevel)));
+    }
+    if (
+        currentUserId &&
+        user.id === currentUserId &&
+        currentUserLevel != null &&
+        Number.isFinite(Number(currentUserLevel))
+    ) {
+        return Math.max(1, Math.floor(Number(currentUserLevel)));
+    }
+    return null;
+}
 
 /** 랭킹 모달용: 1~3위 강조 / 본인 행 강조 */
 function rankRowAccent(rank: number | string, isCurrentUser: boolean, dense: boolean, mobileWide: boolean): string {
@@ -35,8 +57,10 @@ const RankingRow = ({
     onViewUser,
     dense,
     mobileWide,
+    currentUserId,
+    currentUserLevel,
 }: {
-    user: User;
+    user: User & { userLevel?: number };
     rank: number;
     value: number;
     isCurrentUser: boolean;
@@ -44,7 +68,10 @@ const RankingRow = ({
     dense?: boolean;
     /** 모바일 2열 랭킹: 큰 글자·행 높이 */
     mobileWide?: boolean;
+    currentUserId?: string;
+    currentUserLevel?: number;
 }) => {
+    const displayLevel = resolveRankingRowUserLevel(user, currentUserId, currentUserLevel);
     const avatarUrl = useMemo(() => AVATAR_POOL.find(a => a.id === user.avatarId)?.url, [user.avatarId]);
     const borderUrl = useMemo(() => BORDER_POOL.find(b => b.id === user.borderId)?.url, [user.borderId]);
 
@@ -79,15 +106,20 @@ const RankingRow = ({
                     {rank}
                 </span>
                 <Avatar userId={user.id} userName={user.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={avatarSize} fixedFrameSize />
-                <UserNicknameText
-                    user={{
-                        nickname: user.nickname,
-                        isAdmin: user.isAdmin,
-                        staffNicknameDisplayEligibility: user.staffNicknameDisplayEligibility,
-                    }}
-                    className={`min-w-0 flex-1 truncate ${MOBILE_RANK_TEXT_CLASS} font-bold`}
-                />
-                <span className={`w-[4.5rem] shrink-0 text-right font-mono ${MOBILE_RANK_TEXT_CLASS} font-semibold tabular-nums sm:w-20`}>{value.toLocaleString()}</span>
+                <div className={`flex min-w-0 flex-1 flex-col gap-0.5 leading-tight ${MOBILE_RANK_TEXT_CLASS}`}>
+                    <span className="shrink-0 font-extrabold tabular-nums text-amber-200">Lv.{displayLevel ?? '—'}</span>
+                    <UserNicknameText
+                        user={{
+                            nickname: user.nickname,
+                            isAdmin: user.isAdmin,
+                            staffNicknameDisplayEligibility: user.staffNicknameDisplayEligibility,
+                        }}
+                        className="min-w-0 truncate font-bold"
+                    />
+                </div>
+                <span className={`w-[5rem] shrink-0 text-right font-mono sm:w-24 ${MOBILE_RANK_SCORE_CLASS}`}>
+                    {value.toLocaleString()}
+                </span>
             </div>
         );
     }
@@ -112,15 +144,26 @@ const RankingRow = ({
                 {rank}
             </span>
             <Avatar userId={user.id} userName={user.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={dense ? 20 : 28} fixedFrameSize />
-            <UserNicknameText
-                user={{
-                    nickname: user.nickname,
-                    isAdmin: user.isAdmin,
-                    staffNicknameDisplayEligibility: user.staffNicknameDisplayEligibility,
-                }}
-                className={`ml-1 flex-1 truncate font-semibold ${dense ? 'text-[8px]' : 'ml-1.5 text-xs'}`}
-            />
-            <span className={`text-right font-mono ${dense ? 'w-10 text-[7px]' : 'w-16 text-xs'}`}>{value.toLocaleString()}</span>
+            <div
+                className={`ml-1 flex min-w-0 flex-1 flex-col gap-px leading-tight ${dense ? 'text-[8px]' : 'ml-1.5 text-xs'}`}
+            >
+                <span className={`shrink-0 font-extrabold tabular-nums ${dense ? 'text-[7px]' : 'text-[10px]'} text-amber-200`}>
+                    Lv.{displayLevel ?? '—'}
+                </span>
+                <UserNicknameText
+                    user={{
+                        nickname: user.nickname,
+                        isAdmin: user.isAdmin,
+                        staffNicknameDisplayEligibility: user.staffNicknameDisplayEligibility,
+                    }}
+                    className="min-w-0 truncate font-semibold"
+                />
+            </div>
+            <span
+                className={`text-right font-mono ${dense ? `w-11 ${DENSE_RANK_SCORE_CLASS}` : `w-20 ${DESKTOP_RANK_SCORE_CLASS}`}`}
+            >
+                {value.toLocaleString()}
+            </span>
         </div>
     );
 };
@@ -157,18 +200,24 @@ const GameRankingBoard: React.FC<GameRankingBoardProps> = ({
         activeTab === 'combat' ? 'combat' : activeTab === 'adventure' ? 'adventure' : 'manner';
     const { rankings: rankingEntries, loading, error } = useRanking(rankingType);
 
+    const currentUserLevel = currentUserWithStatus?.userLevel;
+    const currentUserId = currentUserWithStatus?.id;
+
     const rankings = useMemo(() => {
-        return rankingEntries.map(entry => ({
+        return rankingEntries.map((entry) => ({
             user: {
                 id: entry.id,
                 nickname: entry.nickname,
                 avatarId: entry.avatarId,
-                borderId: entry.borderId
-            } as any,
+                borderId: entry.borderId,
+                userLevel:
+                    entry.userLevel ??
+                    (entry.id === currentUserId && typeof currentUserLevel === 'number' ? currentUserLevel : undefined),
+            } as User,
             value: entry.score,
-            rank: entry.rank
+            rank: entry.rank,
         }));
-    }, [rankingEntries]);
+    }, [rankingEntries, currentUserId, currentUserLevel]);
 
     // 페이지네이션: 초기 10명, 스크롤 시 10명씩 추가
     const [displayCount, setDisplayCount] = useState(10);
@@ -326,6 +375,8 @@ const GameRankingBoard: React.FC<GameRankingBoardProps> = ({
                                         isCurrentUser={true}
                                         dense={rowDense}
                                         mobileWide={wide}
+                                        currentUserId={currentUserId}
+                                        currentUserLevel={currentUserLevel}
                                     />
                                 </div>
                             )}
@@ -339,10 +390,12 @@ const GameRankingBoard: React.FC<GameRankingBoardProps> = ({
                                             user={r.user}
                                             rank={r.rank}
                                             value={r.value}
-                                            isCurrentUser={false}
+                                            isCurrentUser={r.user.id === currentUserId}
                                             onViewUser={handlers.openViewingUser}
                                             dense={rowDense}
                                             mobileWide={wide}
+                                            currentUserId={currentUserId}
+                                            currentUserLevel={currentUserLevel}
                                         />
                                     ))}
                                     {displayCount < rankings.length && (

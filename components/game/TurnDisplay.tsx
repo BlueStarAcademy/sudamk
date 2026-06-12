@@ -610,16 +610,11 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
             <div
                 className={`w-full overflow-hidden flex-shrink-0 relative flex items-center justify-center ${isMobile ? 'min-h-[1rem]' : 'min-h-[1.25rem]'}`}
             >
-                <div
-                    className={`font-bold tracking-wider text-center px-1 text-amber-100 whitespace-nowrap overflow-hidden text-ellipsis ${
-                        isMobile ? 'text-[clamp(0.62rem,2vmin,0.72rem)] leading-tight' : 'text-[clamp(0.8rem,2.5vmin,1rem)]'
-                    }`}
-                    style={{
-                        textShadow: '0 0 10px rgba(251, 191, 36, 0.55), 0 0 18px rgba(251, 191, 36, 0.3)',
-                    }}
-                >
-                    {boardRuleFlashMessage}
-                </div>
+                <BaseKomiGuideTicker
+                    text={boardRuleFlashMessage}
+                    isMobile={isMobile}
+                    isSinglePlayer={isSinglePlayer}
+                />
             </div>
         );
     }

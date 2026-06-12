@@ -63,6 +63,11 @@ import {
     processChessGoMove,
     reconcileChessGoClientSession,
 } from './shared/utils/chessGoRules.js';
+import {
+    validateChessPlacementDraft,
+    getChessSetupBudgetFromSettings,
+} from './shared/utils/chessGoPlacement.js';
+import type { ChessPieceType } from './types/index.js';
 import { buildPveItemActionClientSync } from './utils/pveItemClientSync.js';
 import {
     isEligibleForPveAiTurnStuckRecovery,
@@ -246,6 +251,9 @@ const HIDDEN_PLACEMENT_DELAY_MESSAGE = '화면에 상대에게 안보이는 한 
 const MISSILE_DIRECTION_DELAY_MESSAGE = '바둑돌을 원하는 방향으로 날려보내세요';
 const SCAN_TARGET_DELAY_MESSAGE = '상대방의 히든 돌이 있을만한 지점을 찍어보세요';
 const CHESS_PIECE_ALREADY_MOVED_MESSAGE = '기물돌은 한 턴에 한 번만 움직일 수 있습니다.';
+const CHESS_GO_START_MESSAGE =
+    '자신의 턴에 체스 기물돌을 1회 이동 가능합니다. 킹 기물을 잡거나 잡히면 경기가 종료됩니다.';
+const CHESS_GO_START_FLASH_MS = 8000;
 
 type PairSeat = NonNullable<NonNullable<LiveGameSession['settings']['pairGame']>['turnOrder']>[number];
 type PairClientTimes = { black: number; white: number };
@@ -739,6 +747,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const [justScanned, setJustScanned] = useState(false);
     const [pendingMove, setPendingMove] = useState<Point | null>(null);
     const [selectedChessPieceId, setSelectedChessPieceId] = useState<string | null>(null);
+    const chessSetupSelectionRef = useRef<Exclude<ChessPieceType, 'king'> | null>(null);
     useEffect(() => {
         if (!settings.features.moveConfirmButtonBox) setPendingMove(null);
     }, [settings.features.moveConfirmButtonBox]);
@@ -2320,8 +2329,16 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }
         if (gameStatus === 'missile_selecting' && prevGameStatus !== 'missile_selecting') {
             flashBoardRuleMessage(MISSILE_DIRECTION_DELAY_MESSAGE, HIDDEN_PLACEMENT_DELAY_MS - 250);
+            return;
         }
-    }, [gameStatus, prevGameStatus, flashBoardRuleMessage]);
+        if (
+            session.mode === GameMode.Chess &&
+            gameStatus === 'playing' &&
+            (prevGameStatus === 'chess_piece_placement' || prevGameStatus === 'uniform_color_roulette')
+        ) {
+            flashBoardRuleMessage(CHESS_GO_START_MESSAGE, CHESS_GO_START_FLASH_MS);
+        }
+    }, [gameStatus, prevGameStatus, flashBoardRuleMessage, session.mode]);
 
     useEffect(() => {
         const anim = session.animation;
@@ -3054,6 +3071,42 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         // 이미 한 수가 처리 중이면 추가 클릭 무시 (온라인: isMoveInFlight / 싱글·타워: 동기 ref / 전략AI: 낙관적 착수 동기 ref)
         if (isMoveInFlight || pveLocalStonePlacementLockRef.current || strategicAiStoneLockRef.current) {
             console.log('[Game] Move in flight or placement lock, ignoring additional click');
+            return;
+        }
+
+        if (
+            mode === GameMode.Chess &&
+            gameStatus === 'chess_piece_placement' &&
+            myPlayerEnum !== Player.None &&
+            !session.chessPiecePlacementReady?.[currentUser.id]
+        ) {
+            const boardSize = session.settings.boardSize ?? 13;
+            const budget = getChessSetupBudgetFromSettings(
+                boardSize,
+                session.settings.chessPieceTotalScore,
+                Boolean((session as { isRanked?: boolean }).isRanked),
+            );
+            const myDraft = session.chessPiecePlacementDraft?.[currentUser.id] ?? [];
+            const existing = myDraft.find((p) => p.x === x && p.y === y);
+            if (existing) {
+                handlers.handleAction({
+                    type: 'REMOVE_CHESS_SETUP_PIECE',
+                    payload: { gameId, x, y },
+                } as ServerAction);
+                return;
+            }
+            if (chessSetupSelectionRef.current) {
+                const nextDraft = [...myDraft, { type: chessSetupSelectionRef.current, x, y }];
+                const validation = validateChessPlacementDraft(nextDraft, myPlayerEnum, boardSize, budget);
+                if (!validation.ok) {
+                    flashBoardRuleMessage('배치할 수 없는 위치입니다.');
+                    return;
+                }
+                handlers.handleAction({
+                    type: 'PLACE_CHESS_SETUP_PIECE',
+                    payload: { gameId, pieceType: chessSetupSelectionRef.current, x, y },
+                } as ServerAction);
+            }
             return;
         }
 
@@ -5379,6 +5432,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         isMoveSubmitting={isMoveInFlight}
                                         selectedChessPieceId={selectedChessPieceId}
                                         chessHighlightPoints={chessHighlightPoints}
+                                        chessSetupSelectionRef={chessSetupSelectionRef}
                                     />
                                     {boardHydrationOverlayEl}
                                     {showScoringOverlay && <ScoringOverlay />}
@@ -5545,6 +5599,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         isMoveSubmitting={isMoveInFlight}
                                         selectedChessPieceId={selectedChessPieceId}
                                         chessHighlightPoints={chessHighlightPoints}
+                                        chessSetupSelectionRef={chessSetupSelectionRef}
                                     />
                                     {boardHydrationOverlayEl}
                                     {showScoringOverlay && <ScoringOverlay />}
@@ -5816,6 +5871,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         isMoveSubmitting={isMoveInFlight}
                                                         selectedChessPieceId={selectedChessPieceId}
                                                         chessHighlightPoints={chessHighlightPoints}
+                                                        chessSetupSelectionRef={chessSetupSelectionRef}
                                                     />
                                                     {boardHydrationOverlayEl}
                                                     {showScoringOverlay && <ScoringOverlay />}
@@ -5844,6 +5900,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         isMoveSubmitting={isMoveInFlight}
                                                 selectedChessPieceId={selectedChessPieceId}
                                                 chessHighlightPoints={chessHighlightPoints}
+                                                chessSetupSelectionRef={chessSetupSelectionRef}
                                             />
                                         )}
                                         {boardHydrationOverlayEl}

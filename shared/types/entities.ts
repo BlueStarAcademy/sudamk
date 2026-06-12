@@ -1035,6 +1035,8 @@ export type GameSettings = {
   castleCount?: 1 | 2 | 3 | 4 | 5 | 6;
   /** 체스 바둑: AI/테스트 기본 100수 자동계가 (13×13) */
   chessScoringTurnLimit?: number;
+  /** 체스 바둑: 기물 배치 총점수 예산 (9줄=9 고정, 13줄=9~23, 랭킹=15) */
+  chessPieceTotalScore?: number;
   /** 싱글플레이 스테이지별 배치변경 허용 여부 */
   singlePlayerPlacementRefreshAllowed?: boolean;
   /** 싱글/탑 런타임: 살리기 모드 명시(스테이지와 불일치 방지) */
@@ -1312,7 +1314,13 @@ export type GameSummary = {
 
 
 // --- Chess Go ---
-export type ChessPieceType = 'pawn' | 'rook' | 'knight' | 'bishop' | 'queen';
+export type ChessPieceType = 'pawn' | 'rook' | 'knight' | 'bishop' | 'queen' | 'king';
+
+export type ChessSetupDraftPiece = {
+  type: ChessPieceType;
+  x: number;
+  y: number;
+};
 
 export type ChessPieceState = {
   id: string;
@@ -1441,6 +1449,12 @@ export type LiveGameSession = {
   lastChessMove?: ChessLastMoveMarker | null;
   /** 체스 바둑: moveHistory에는 남지만 보드에서 제거된 교차점(따내기) */
   chessGoRemovedPoints?: Point[];
+  /** 체스 바둑: 기물 배치 단계 draft (userId → 배치 기물, king 제외) */
+  chessPiecePlacementDraft?: Record<string, ChessSetupDraftPiece[]>;
+  /** 체스 바둑: 기물 배치 완료 여부 */
+  chessPiecePlacementReady?: Record<string, boolean>;
+  /** 체스 바둑: PVP 배치 제한 시간 (PVE는 undefined) */
+  chessPiecePlacementDeadline?: number;
   basePlacementDeadline?: number;
   /** 베이스돌 배치: 각 참가자가 배치 완료 버튼을 눌렀는지 (돌 개수 충족 후) */
   basePlacementReady?: { [userId: string]: boolean };

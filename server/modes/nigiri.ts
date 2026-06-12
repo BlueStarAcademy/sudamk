@@ -1,7 +1,9 @@
 
 import * as types from '../../types/index.js';
 import { PRE_GAME_PVP_COUNTDOWN_MS } from '../../shared/constants/preGameCountdown.js';
+import { GameMode } from '../../types/enums.js';
 import { transitionToPlaying, transitionToPlayingOrUniformRoulette } from './shared.js';
+import { startChessPlacementAfterNigiri } from './chessPlacementFlow.js';
 
 export const initializeNigiri = (game: types.LiveGameSession, now: number) => {
     const blackPlayer = Math.random() < 0.5 ? game.player1 : game.player2;
@@ -41,7 +43,11 @@ export const updateNigiriState = (game: types.LiveGameSession, now: number) => {
             if (game.nigiri) game.nigiri.processed = true;
             game.preGameConfirmations = {};
             game.revealEndTime = undefined;
-            transitionToPlayingOrUniformRoulette(game, now);
+            if (game.mode === GameMode.Chess) {
+                startChessPlacementAfterNigiri(game, now);
+            } else {
+                transitionToPlayingOrUniformRoulette(game, now);
+            }
         }
     }
 };

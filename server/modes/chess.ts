@@ -1,31 +1,33 @@
 import * as types from '../../types/index.js';
 import type { LiveGameSession } from '../../types/index.js';
-import { GameMode } from '../../types/enums.js';
+import { GameMode, Player } from '../../types/enums.js';
 import {
     applyChessMoveToSession,
     createEmptyChessCaptureScore,
     enumerateLegalChessMoves,
-    generateChessGoInitialPieces,
-    isChessMode,
     normalizeChessGoSession,
     resolveChessCapturesByLiberty,
     validateChessMove,
 } from '../../shared/utils/chessGoRules.js';
+import {
+    computeChessSetupDraftScore,
+    generateRandomChessSetupDraft,
+    generateRandomChessSetupDraftForRemainingBudget,
+    validateChessPlacementDraft,
+} from '../../shared/utils/chessGoPlacement.js';
 import { initializeNigiri } from './nigiri.js';
-import { transitionToPlayingOrUniformRoulette } from './shared.js';
+import {
+    enterChessPiecePlacement,
+    ensureChessPlacementState,
+    getChessBudget,
+    getPlayerColor,
+    resolveChessPlacementAndTransition,
+    syncChessPlacementBoard,
+    updateChessPlacementState,
+} from './chessPlacementFlow.js';
+import * as summaryService from '../summaryService.js';
 
-export { isChessMode };
-
-/** 서버 저장·캐시·로드 직전: chessPieces 기준으로 boardState를 맞춘다 */
-export function repairChessGoSessionState(game: types.LiveGameSession): void {
-    if (game.mode !== GameMode.Chess) return;
-    const normalized = normalizeChessGoSession(game);
-    game.chessPieces = normalized.chessPieces;
-    game.boardState = normalized.boardState;
-    game.settings = normalized.settings;
-    game.chessCaptureScore = normalized.chessCaptureScore;
-    game.chessPieceMovedThisTurn = normalized.chessPieceMovedThisTurn;
-}
+export { enterChessPiecePlacement, updateChessPlacementState, startChessPlacementAfterNigiri } from './chessPlacementFlow.js';
 
 function resolveStrategicAiHumanColor(game: types.LiveGameSession, neg: types.Negotiation): types.Player {
     const preferred = neg.challenger?.id === game.player1.id
@@ -36,16 +38,32 @@ function resolveStrategicAiHumanColor(game: types.LiveGameSession, neg: types.Ne
     return preferred === types.Player.White ? types.Player.White : types.Player.Black;
 }
 
+/** 서버 저장·캐시·로드 직전: chessPieces 기준으로 boardState를 맞춘다 */
+export function repairChessGoSessionState(game: types.LiveGameSession): void {
+    if (game.mode !== GameMode.Chess) return;
+    if (game.gameStatus === 'chess_piece_placement') {
+        syncChessPlacementBoard(game);
+        return;
+    }
+    const normalized = normalizeChessGoSession(game);
+    game.chessPieces = normalized.chessPieces;
+    game.boardState = normalized.boardState;
+    game.settings = normalized.settings;
+    game.chessCaptureScore = normalized.chessCaptureScore;
+    game.chessPieceMovedThisTurn = normalized.chessPieceMovedThisTurn;
+}
+
 export function initializeChessGame(game: types.LiveGameSession, neg: types.Negotiation, now: number): void {
-    game.settings = { ...game.settings, boardSize: 13 as LiveGameSession['settings']['boardSize'] };
-    game.chessPieces = generateChessGoInitialPieces(13);
+    const boardSize = game.settings.boardSize ?? 13;
+    if (boardSize !== 9 && boardSize !== 13) {
+        game.settings = { ...game.settings, boardSize: 13 };
+    }
     game.chessCaptureScore = createEmptyChessCaptureScore();
     game.chessPieceMovedThisTurn = false;
-    game.captures = { [types.Player.None]: 0, [types.Player.Black]: 0, [types.Player.White]: 0 };
+    game.captures = { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 };
     game.koInfo = null;
     game.moveHistory = [];
     game.passCount = 0;
-    repairChessGoSessionState(game);
 
     const p1 = game.player1;
     const p2 = game.player2;
@@ -59,7 +77,7 @@ export function initializeChessGame(game: types.LiveGameSession, neg: types.Nego
             game.whitePlayerId = p1.id;
             game.blackPlayerId = p2.id;
         }
-        transitionToPlayingOrUniformRoulette(game, now);
+        enterChessPiecePlacement(game, now);
     } else {
         initializeNigiri(game, now);
     }
@@ -71,11 +89,23 @@ export type ChessMovePayload = {
     toY: number;
 };
 
+export async function tryEndChessOnKingCapture(
+    game: types.LiveGameSession,
+    capturer: types.Player.Black | types.Player.White,
+): Promise<boolean> {
+    if (game.mode !== GameMode.Chess) return false;
+    if (game.gameStatus === 'ended' || game.gameStatus === 'no_contest') return false;
+    const hasKing = game.chessPieces?.some((p) => p.type === 'king');
+    if (hasKing) return false;
+    await summaryService.endGame(game, capturer, 'chess_checkmate');
+    return true;
+}
+
 export function applyChessMoveInternal(
     game: types.LiveGameSession,
     actingPlayer: types.Player.Black | types.Player.White,
     payload: ChessMovePayload,
-): { error?: string } {
+): { error?: string; kingCaptured?: boolean } {
     if (game.mode !== GameMode.Chess) return { error: 'Not a chess go game.' };
     if (game.gameStatus !== 'playing') return { error: 'Game is not in playing state.' };
 
@@ -86,9 +116,9 @@ export function applyChessMoveInternal(
 
     applyChessMoveToSession(game, payload.pieceId, payload.toX, payload.toY, actingPlayer);
     game.chessPieceMovedThisTurn = true;
-    resolveChessCapturesByLiberty(game, actingPlayer);
+    const captureResult = resolveChessCapturesByLiberty(game, actingPlayer);
     repairChessGoSessionState(game);
-    return {};
+    return { kingCaptured: captureResult.kingCaptured };
 }
 
 export async function handleChessMoveAction(
@@ -109,10 +139,111 @@ export async function handleChessMoveAction(
     if (myPlayerEnum == null) return { error: 'Not your game.' };
     if (game.currentPlayer !== myPlayerEnum) return { error: 'Not your turn.' };
 
-    return applyChessMoveInternal(game, myPlayerEnum, payload);
+    const result = applyChessMoveInternal(game, myPlayerEnum, payload);
+    if (result.error) return { error: result.error };
+    if (result.kingCaptured) {
+        await tryEndChessOnKingCapture(game, myPlayerEnum);
+    }
+    return {};
 }
 
-export { enumerateLegalChessMoves };
+export async function handleChessPlacementAction(
+    game: types.LiveGameSession,
+    user: types.User,
+    action: types.ServerAction,
+    now: number,
+): Promise<{ error?: string }> {
+    if (game.mode !== GameMode.Chess || game.gameStatus !== 'chess_piece_placement') {
+        return { error: 'Not in chess piece placement phase.' };
+    }
+    ensureChessPlacementState(game);
+    const userId = user.id;
+    const boardSize = game.settings.boardSize ?? 13;
+    const budget = getChessBudget(game);
+    const playerColor = getPlayerColor(game, userId);
+    if (playerColor == null) return { error: 'Not your game.' };
+
+    const { type } = action as { type: string; payload?: Record<string, unknown> };
+    const payload = (action as { payload?: Record<string, unknown> }).payload ?? {};
+
+    switch (type) {
+        case 'PLACE_CHESS_SETUP_PIECE': {
+            if (game.chessPiecePlacementReady?.[userId]) {
+                return { error: 'Already confirmed placement.' };
+            }
+            const pieceType = String(payload.pieceType ?? '') as types.ChessPieceType;
+            const x = Number(payload.x);
+            const y = Number(payload.y);
+            if (!pieceType || pieceType === 'king' || !Number.isFinite(x) || !Number.isFinite(y)) {
+                return { error: 'Invalid placement.' };
+            }
+            const draft = [...(game.chessPiecePlacementDraft![userId] ?? [])];
+            draft.push({ type: pieceType, x, y });
+            const validation = validateChessPlacementDraft(draft, playerColor, boardSize, budget);
+            if (!validation.ok) {
+                return { error: 'Invalid placement.' };
+            }
+            game.chessPiecePlacementDraft![userId] = draft;
+            syncChessPlacementBoard(game);
+            return {};
+        }
+        case 'REMOVE_CHESS_SETUP_PIECE': {
+            if (game.chessPiecePlacementReady?.[userId]) {
+                return { error: 'Already confirmed placement.' };
+            }
+            const x = Number(payload.x);
+            const y = Number(payload.y);
+            if (!Number.isFinite(x) || !Number.isFinite(y)) {
+                return { error: 'Invalid placement.' };
+            }
+            game.chessPiecePlacementDraft![userId] = (game.chessPiecePlacementDraft![userId] ?? []).filter(
+                (p) => !(p.x === x && p.y === y),
+            );
+            syncChessPlacementBoard(game);
+            return {};
+        }
+        case 'RESET_CHESS_SETUP_PLACEMENT': {
+            if (game.chessPiecePlacementReady?.[userId]) {
+                return { error: 'Already confirmed placement.' };
+            }
+            game.chessPiecePlacementDraft![userId] = [];
+            game.chessPiecePlacementReady![userId] = false;
+            syncChessPlacementBoard(game);
+            return {};
+        }
+        case 'FILL_CHESS_SETUP_RANDOMLY': {
+            if (game.chessPiecePlacementReady?.[userId]) {
+                return { error: 'Already confirmed placement.' };
+            }
+            const existing = game.chessPiecePlacementDraft?.[userId] ?? [];
+            game.chessPiecePlacementDraft![userId] = generateRandomChessSetupDraftForRemainingBudget(
+                existing,
+                budget,
+                boardSize,
+                playerColor,
+            );
+            syncChessPlacementBoard(game);
+            return {};
+        }
+        case 'CONFIRM_CHESS_SETUP_PLACEMENT': {
+            const draft = game.chessPiecePlacementDraft?.[userId] ?? [];
+            const validation = validateChessPlacementDraft(draft, playerColor, boardSize, budget);
+            if (!validation.ok) {
+                return { error: 'Invalid placement.' };
+            }
+            game.chessPiecePlacementReady![userId] = true;
+            const started = resolveChessPlacementAndTransition(game, now);
+            if (game.isAiGame && !started) {
+                return { error: 'Could not start game.' };
+            }
+            return {};
+        }
+        default:
+            return { error: 'Unknown chess placement action.' };
+    }
+}
+
+export { enumerateLegalChessMoves, computeChessSetupDraftScore };
 
 export async function tryAiChessPieceMove(
     game: types.LiveGameSession,
@@ -129,5 +260,8 @@ export async function tryAiChessPieceMove(
         toX: move.to.x,
         toY: move.to.y,
     });
+    if (result.kingCaptured) {
+        await tryEndChessOnKingCapture(game, aiPlayer);
+    }
     return !result.error;
 }

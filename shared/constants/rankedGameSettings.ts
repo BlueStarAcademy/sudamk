@@ -93,6 +93,7 @@ export const RANKED_GAME_SETTINGS: Record<GameMode, GameSettings> = {
         boardSize: 13,
         komi: 6.5,
         scoringTurnLimit: 100,
+        chessPieceTotalScore: 15,
         timeLimit: 5,
         byoyomiTime: 30,
         byoyomiCount: 3,
@@ -199,6 +200,7 @@ export const RANKED_STRATEGIC_MODES: GameMode[] = [
     GameMode.Missile,
     GameMode.Uniform,
     GameMode.Castle,
+    GameMode.Chess,
 ];
 
 /** 랭킹전에서 선택 가능한 모드 — 전략바둑만 (믹스룰 제외) */

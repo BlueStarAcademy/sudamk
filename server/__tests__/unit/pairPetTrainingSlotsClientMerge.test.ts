@@ -48,4 +48,31 @@ describe('mergePairPetTrainingSlotsPreserveRecentRestart', () => {
         const merged = mergePairPetTrainingSlotsPreserveRecentRestart(base, patch, now, 15_000);
         expect(merged[2]).toBeNull();
     });
+
+    it('does not restore claim-ready sessions when base slot was already cleared', () => {
+        const now = 2_000_000;
+        const claimReadySession = { slotIndex: 1, itemId: 'pet-2', startedAt: now - 3_600_000 };
+        const base = [null, null, null, null, null, null];
+        const patch = [null, claimReadySession, null, null, null, null];
+        const merged = mergePairPetTrainingSlotsPreserveRecentRestart(base, patch, now, 15_000);
+        expect(merged[1]).toBeNull();
+    });
+
+    it('still accepts in-progress sessions when base slot is empty', () => {
+        const now = 2_000_000;
+        const inProgressSession = { slotIndex: 0, itemId: 'pet-1', startedAt: now - 60_000 };
+        const base = [null, null, null, null, null, null];
+        const patch = [inProgressSession, null, null, null, null, null];
+        const merged = mergePairPetTrainingSlotsPreserveRecentRestart(base, patch, now, 15_000);
+        expect(merged[0]).toEqual(inProgressSession);
+    });
+
+    it('respects client-claimed slot indices over stale claim-ready sessions', () => {
+        const now = 2_000_000;
+        const claimReadySession = { slotIndex: 0, itemId: 'pet-1', startedAt: now - 3_600_000 };
+        const base = [null, null, null, null, null, null];
+        const patch = [claimReadySession, null, null, null, null, null];
+        const merged = mergePairPetTrainingSlotsPreserveRecentRestart(base, patch, now, 15_000, new Set([0]));
+        expect(merged[0]).toBeNull();
+    });
 });

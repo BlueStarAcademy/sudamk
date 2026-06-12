@@ -3130,7 +3130,11 @@ export async function makeGoAiBotMove(
         );
         if (result.capturedStones.length > 0) {
             const { applyChessCaptureScoreForRemovedStones } = await import('../shared/utils/chessGoRules.js');
-            applyChessCaptureScoreForRemovedStones(game, result.capturedStones, aiPlayerEnum);
+            const chessCapture = applyChessCaptureScoreForRemovedStones(game, result.capturedStones, aiPlayerEnum);
+            if (chessCapture.kingCaptured) {
+                const { tryEndChessOnKingCapture } = await import('./modes/chess.js');
+                await tryEndChessOnKingCapture(game, aiPlayerEnum);
+            }
         }
         const { repairChessGoSessionState } = await import('./modes/chess.js');
         repairChessGoSessionState(game);

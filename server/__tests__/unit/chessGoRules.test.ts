@@ -151,7 +151,7 @@ describe('chessGoRules', () => {
         expect(boardMatchesChessPieces(session.boardState, pieces)).toBe(true);
     });
 
-    it('ensureChessGoOpeningLayout fixes wrong major piece order', () => {
+    it('ensureChessGoOpeningLayout no longer reorders custom legacy major pieces', () => {
         const pieces = generateChessGoInitialPieces(13);
         const wrongOrder = pieces.map((p) => {
             if (p.owner === Player.Black && p.x === 9 && p.y === 11 && p.type === 'rook') {
@@ -165,14 +165,8 @@ describe('chessGoRules', () => {
         const session = createChessSession();
         session.chessPieces = wrongOrder;
         session.boardState = buildChessGoOpeningBoardState(wrongOrder, 13);
-        expect(ensureChessGoOpeningLayout(session)).toBe(true);
+        expect(ensureChessGoOpeningLayout(session)).toBe(false);
         expect(session.chessPieces).toHaveLength(28);
-        const order: ChessPieceType[] = ['rook', 'knight', 'bishop', 'queen', 'bishop', 'knight', 'rook'];
-        for (let i = 0; i < order.length; i++) {
-            const x = 3 + i;
-            const black = session.chessPieces!.find((p) => p.owner === Player.Black && p.x === x && p.y === 11)!;
-            expect(black.type).toBe(order[i]);
-        }
     });
 
     it('detects legacy edge major layout (y=0/12)', () => {
@@ -191,12 +185,12 @@ describe('chessGoRules', () => {
         session.chessPieces = legacy;
         session.boardState = buildChessGoOpeningBoardState(legacy, 13);
         const normalized = normalizeChessGoSession(session);
-        expect(isStandardChessGoOpeningLayout(normalized.chessPieces)).toBe(true);
-        expect(normalized.boardState![2]![5]).toBe(Player.White);
-        expect(normalized.boardState![10]![5]).toBe(Player.Black);
+        expect(isLegacyChessGoLayout(normalized.chessPieces)).toBe(true);
+        expect(normalized.boardState![0]![5]).toBe(Player.White);
+        expect(normalized.boardState![12]![5]).toBe(Player.Black);
     });
 
-    it('normalizeChessGoSession replaces legacy flank pawns with standard layout', () => {
+    it('normalizeChessGoSession preserves legacy flank pawn layout (no auto migration)', () => {
         const legacy = generateChessGoInitialPieces(13).map((p) => {
             if (p.type === 'pawn' && p.owner === Player.White && p.x === 3) {
                 return { ...p, x: 0, y: 4, startX: 0, startY: 4 };
@@ -210,11 +204,10 @@ describe('chessGoRules', () => {
         session.chessPieces = legacy;
         session.boardState = buildChessGoOpeningBoardState(legacy, 13);
         const reconciled = reconcileChessGoClientSession(session);
-        expect(hasLegacyChessFlankPawnLayout(reconciled.chessPieces)).toBe(false);
-        expect(reconciled.chessPieces!.filter((p) => p.type === 'pawn' && p.owner === Player.White).every((p) => p.y === 2)).toBe(true);
+        expect(hasLegacyChessFlankPawnLayout(reconciled.chessPieces)).toBe(true);
     });
 
-    it('ensureChessGoOpeningLayout forces 13x13 when board was 15x15', () => {
+    it('ensureChessGoOpeningLayout clamps invalid board size without auto-generating pieces', () => {
         const session = createChessSession();
         session.settings = { ...session.settings, boardSize: 15 };
         session.boardState = createEmptyBoardState(15);
@@ -222,7 +215,7 @@ describe('chessGoRules', () => {
         expect(ensureChessGoOpeningLayout(session)).toBe(true);
         expect(session.settings.boardSize).toBe(13);
         expect(session.boardState).toHaveLength(13);
-        expect(session.chessPieces).toHaveLength(28);
+        expect(session.chessPieces).toHaveLength(0);
     });
 
     it('reconcileChessGoClientSession aligns opening board to chessPieces', () => {
@@ -373,17 +366,14 @@ describe('chessGoRules', () => {
         session.moveHistory = [{ player: Player.Black, x: 6, y: 6 }];
         session.boardState[6]![6] = Player.Black;
 
-        expect(repairChessOpeningWhilePreservingGoStones(session)).toBe(true);
+        expect(repairChessOpeningWhilePreservingGoStones(session)).toBe(false);
         expect(session.settings.boardSize).toBe(13);
-        expect(isStandardChessGoOpeningLayout(session.chessPieces)).toBe(true);
+        expect(isLegacyChessGoLayout(session.chessPieces)).toBe(true);
         expect(session.boardState).toHaveLength(13);
         expect(session.boardState[6]![6]).toBe(Player.Black);
-        expect(session.boardState[2]![5]).toBe(Player.White);
-        expect(session.boardState[0]![3]).toBe(Player.None);
-        expect(session.boardState[4]![0]).toBe(Player.None);
     });
 
-    it('reconcile fixes legacy flank pawns even after go stone placed', () => {
+    it('reconcile preserves legacy flank pawns after go stone placed', () => {
         const legacy = generateChessGoInitialPieces(13).map((p) =>
             p.type === 'pawn' && p.owner === Player.White && p.x === 3
                 ? { ...p, x: 0, y: 4, startX: 0, startY: 4 }
@@ -395,8 +385,7 @@ describe('chessGoRules', () => {
         session.moveHistory = [{ player: Player.Black, x: 6, y: 6 }];
         session.boardState[6]![6] = Player.Black;
         const reconciled = reconcileChessGoClientSession(session);
-        expect(hasLegacyChessFlankPawnLayout(reconciled.chessPieces)).toBe(false);
-        expect(reconciled.boardState![2]![3]).toBe(Player.White);
+        expect(hasLegacyChessFlankPawnLayout(reconciled.chessPieces)).toBe(true);
         expect(reconciled.boardState![6]![6]).toBe(Player.Black);
     });
 

@@ -12,6 +12,8 @@ import {
     getAiScoringTurnLimitByBoardSize,
     getDefaultChessKomiByBoardSize,
     getDefaultChessScoringTurnLimit,
+    clampChessPieceTotalScore,
+    getDefaultChessPieceTotalScore,
     getStrategicBoardSizesByMode,
     HIDDEN_STONE_COUNTS,
     MISSILE_COUNTS,
@@ -63,6 +65,10 @@ export function sanitizePvpGameSettings(
 
     if (mode === GameMode.Castle && isRanked) {
         return { ...getRankedGameSettings(GameMode.Castle) };
+    }
+
+    if (mode === GameMode.Chess && isRanked) {
+        return { ...getRankedGameSettings(GameMode.Chess) };
     }
 
     let next: GameSettings = { ...DEFAULT_GAME_SETTINGS, ...settings };
@@ -126,6 +132,11 @@ export function sanitizePvpGameSettings(
             next.boardSize = CHESS_BOARD_SIZES[0] as GameSettings['boardSize'];
         }
         next.komi = getDefaultChessKomiByBoardSize(next.boardSize ?? 13);
+        next.chessPieceTotalScore = clampChessPieceTotalScore(
+            next.chessPieceTotalScore,
+            next.boardSize ?? 13,
+            isRanked,
+        );
         if (mode === GameMode.Chess) {
             if (isAiGame) {
                 const limit = next.scoringTurnLimit;

@@ -24,6 +24,32 @@ interface RankingEntry {
     userLevel?: number;
 }
 
+function buildUserLevelMap(users: Array<{ id?: string; userLevel?: number } | null | undefined>): Map<string, number> {
+    const map = new Map<string, number>();
+    for (const user of users) {
+        if (!user?.id) continue;
+        map.set(user.id, Math.max(1, Math.floor(Number(user.userLevel) || 1)));
+    }
+    return map;
+}
+
+function mergeUserLevelsIntoRankings(rankings: RankingEntry[], levelMap: Map<string, number>): RankingEntry[] {
+    return rankings.map((entry) => ({
+        ...entry,
+        userLevel:
+            entry.userLevel != null && Number.isFinite(Number(entry.userLevel))
+                ? Math.max(1, Math.floor(Number(entry.userLevel)))
+                : (levelMap.get(entry.id) ?? 1),
+    }));
+}
+
+function rankingListsMissingUserLevel(cache: RankingCache): boolean {
+    return (
+        cache.combat.some((entry) => entry.userLevel == null) ||
+        cache.manner.some((entry) => entry.userLevel == null)
+    );
+}
+
 interface RankingCache {
     strategic: RankingEntry[];
     pair: RankingEntry[];
@@ -46,9 +72,13 @@ let buildingPromise: Promise<RankingCache> | null = null;
 export async function buildRankingCache(): Promise<RankingCache> {
     const now = Date.now();
     
-    // 캐시가 유효하면 반환
+    // 캐시가 유효하면 반환 (바둑능력·매너에 userLevel이 없는 구버전 캐시는 재빌드)
     if (rankingCache && (now - rankingCache.timestamp) < CACHE_TTL) {
-        return rankingCache;
+        if (!rankingListsMissingUserLevel(rankingCache)) {
+            return rankingCache;
+        }
+        console.log('[RankingCache] Rebuilding cache: combat/manner entries missing userLevel');
+        rankingCache = null;
     }
     
     // 이미 빌드 중이면 기존 Promise를 기다림 (동시 빌드 방지)
@@ -126,15 +156,29 @@ export async function buildRankingCache(): Promise<RankingCache> {
             }
             
             // 바둑능력(combat) 랭킹용: 장비/인벤토리 포함 사용자 1회 조회 (N번 getUser 호출 제거)
-            const combatUsersPromise = db.getAllUsers({ includeEquipment: true, includeInventory: true, skipCache: true })
-                .then((usersWithEquipment) => calculateCombatRankings(usersWithEquipment || []))
+            const combatUsersPromise = db
+                .getAllUsers({ includeEquipment: true, includeInventory: true, skipCache: true })
+                .then(async (usersWithEquipment) => {
+                    const users = usersWithEquipment || [];
+                    const rankings = await calculateCombatRankings(users);
+                    return { rankings, users };
+                })
                 .catch((error) => {
                     console.error('[RankingCache] Error calculating combat rankings:', error);
-                    return [];
+                    return { rankings: [], users: [] };
                 });
             
             // 병렬로 여러 랭킹 계산
-            const [strategicRankings, pairRankings, championshipRankings, mannerRankings, combatRankings, adventureRankings, strategicSeasonRankings, pairSeasonRankings] = await Promise.all([
+            const [
+                strategicRankings,
+                pairRankings,
+                championshipRankings,
+                mannerRankings,
+                combatRankingsResult,
+                adventureRankings,
+                strategicSeasonRankings,
+                pairSeasonRankings,
+            ] = await Promise.all([
                 Promise.resolve(calculateStrategicUnifiedRanking(allUsers)).catch((err) => {
                     console.error('[RankingCache] Error calculating strategic rankings:', err);
                     return [];
@@ -165,17 +209,24 @@ export async function buildRankingCache(): Promise<RankingCache> {
                     return [];
                 })
             ]);
-            
+
+            const combatRankings = combatRankingsResult?.rankings || [];
+            const userLevelMap = buildUserLevelMap(allUsers);
+            for (const user of combatRankingsResult?.users || []) {
+                if (!user?.id) continue;
+                userLevelMap.set(user.id, Math.max(1, Math.floor(Number(user.userLevel) || 1)));
+            }
+
             rankingCache = {
-                strategic: strategicRankings || [],
-                pair: pairRankings || [],
-                championship: championshipRankings || [],
-                combat: combatRankings || [],
-                manner: mannerRankings || [],
-                adventure: adventureRankings || [],
-                strategicSeason: strategicSeasonRankings || [],
-                pairSeason: pairSeasonRankings || [],
-                timestamp: now
+                strategic: mergeUserLevelsIntoRankings(strategicRankings || [], userLevelMap),
+                pair: mergeUserLevelsIntoRankings(pairRankings || [], userLevelMap),
+                championship: mergeUserLevelsIntoRankings(championshipRankings || [], userLevelMap),
+                combat: mergeUserLevelsIntoRankings(combatRankings, userLevelMap),
+                manner: mergeUserLevelsIntoRankings(mannerRankings || [], userLevelMap),
+                adventure: mergeUserLevelsIntoRankings(adventureRankings || [], userLevelMap),
+                strategicSeason: mergeUserLevelsIntoRankings(strategicSeasonRankings || [], userLevelMap),
+                pairSeason: mergeUserLevelsIntoRankings(pairSeasonRankings || [], userLevelMap),
+                timestamp: now,
             };
             
                 const elapsed = Date.now() - startTime;
@@ -339,7 +390,8 @@ function calculateMannerRankings(allUsers: any[]): RankingEntry[] {
             totalGames: calculateTotalGames(user, allGameModes),
             wins: 0,
             losses: 0,
-            league: user.league
+            league: user.league,
+            userLevel: Math.max(1, Math.floor(Number(user.userLevel) || 1)),
         });
     }
     
@@ -377,7 +429,8 @@ async function calculateCombatRankings(usersWithEquipment: any[]): Promise<Ranki
                     totalGames: calculateTotalGames(user, allGameModes),
                     wins: 0,
                     losses: 0,
-                    league: user.league
+                    league: user.league,
+                    userLevel: Math.max(1, Math.floor(Number(user.userLevel) || 1)),
                 });
             } catch (error: any) {
                 console.error(`[RankingCache] Error calculating combat ranking for user ${user.id}:`, error?.message || error);
@@ -425,6 +478,7 @@ function calculateStrategicUnifiedRanking(allUsers: any[]): RankingEntry[] {
             wins: blk.wins,
             losses: blk.losses,
             league: user.league,
+            userLevel: Math.max(1, Math.floor(Number(user.userLevel) || 1)),
         });
     }
 

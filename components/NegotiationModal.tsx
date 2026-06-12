@@ -27,7 +27,7 @@ import {
     PRE_GAME_MODAL_SUCCESS_BTN_CLASS,
 } from './game/PreGameDescriptionLayout.js';
 import { projectActionPointsCurrent } from '../services/effectService.js';
-import { getStrategicBoardSizesByMode, getCastleCountsByBoardSize, clampCastleCount, getDefaultCastleKomiByBoardSize, getDefaultCastleCountByBoardSize, getDefaultChessKomiByBoardSize, getDefaultChessScoringTurnLimit } from '../constants/gameSettings.js';
+import { getStrategicBoardSizesByMode, getCastleCountsByBoardSize, clampCastleCount, getDefaultCastleKomiByBoardSize, getDefaultCastleCountByBoardSize, getDefaultChessKomiByBoardSize, getDefaultChessScoringTurnLimit, getChessPieceTotalScoreOptions, clampChessPieceTotalScore, getDefaultChessPieceTotalScore } from '../constants/gameSettings.js';
 import StrategicTimeControlFields from './game/StrategicTimeControlFields.js';
 import { MAX_GAME_INTEGER_INPUT } from '../shared/constants/numericLimits.js';
 import { clampGameInt } from '../shared/utils/gameIntegerField.js';
@@ -163,9 +163,11 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
         newSettings.player1Color = Player.Black;
     }
     if (negotiation.mode === GameMode.Chess) {
-        newSettings.boardSize = 13 as GameSettings['boardSize'];
-        newSettings.komi = getDefaultChessKomiByBoardSize(13);
+        const bs = (newSettings.boardSize === 9 ? 9 : 13) as GameSettings['boardSize'];
+        newSettings.boardSize = bs;
+        newSettings.komi = getDefaultChessKomiByBoardSize(bs);
         newSettings.scoringTurnLimit = getDefaultChessScoringTurnLimit();
+        newSettings.chessPieceTotalScore = getDefaultChessPieceTotalScore(bs);
     }
 
     const getValidSizes = (mode: GameMode): readonly number[] => {
@@ -236,7 +238,12 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
         next.castleCount = clampCastleCount(next.castleCount ?? getDefaultCastleCountByBoardSize(boardSize), boardSize);
       }
       if (mode === GameMode.Chess && key === 'boardSize') {
-        next.komi = 6.5;
+        const boardSize = Number(value);
+        next.komi = getDefaultChessKomiByBoardSize(boardSize);
+        next.chessPieceTotalScore = getDefaultChessPieceTotalScore(boardSize);
+      }
+      if (mode === GameMode.Chess && key === 'chessPieceTotalScore') {
+        next.chessPieceTotalScore = clampChessPieceTotalScore(value, next.boardSize ?? 13);
       }
       return next;
     });
@@ -400,7 +407,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
   
     // --- Determine which settings to show ---
     
-    const showBoardSize = ![GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Chess].includes(mode);
+    const showBoardSize = ![GameMode.Alkkagi, GameMode.Curling, GameMode.Dice].includes(mode);
     const showKomi =
         ![GameMode.Capture, GameMode.Omok, GameMode.Ttamok, GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Thief, GameMode.Base, GameMode.Chess].includes(mode) &&
         !(mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Base));
@@ -417,6 +424,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
     const showHiddenStones = mode === GameMode.Hidden;
     const showMissileCount = mode === GameMode.Missile;
     const showCastleCount = mode === GameMode.Castle;
+    const showChessPieceTotalScore = mode === GameMode.Chess && settings.boardSize === 13;
     const showMixModeSelection = mode === GameMode.Mix;
     const showDiceGoSettings = mode === GameMode.Dice;
     const showThiefGoItemSettings = mode === GameMode.Thief;
@@ -563,6 +571,28 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                             ).map((size) => (
                                 <option key={size} value={size}>
                                     {size}줄
+                                </option>
+                            ))}
+                        </Select>
+                    </SettingRow>
+                )}
+
+                {mode === GameMode.Chess && settings.boardSize === 9 && (
+                    <SettingRow label="기물 총점수">
+                        <span className="text-base text-gray-200">9점 (고정)</span>
+                    </SettingRow>
+                )}
+
+                {showChessPieceTotalScore && (
+                    <SettingRow label="기물 총점수">
+                        <Select
+                            value={settings.chessPieceTotalScore ?? getDefaultChessPieceTotalScore(13)}
+                            onChange={(v) => handleSettingChange('chessPieceTotalScore', parseInt(v, 10))}
+                            disabled={isReadOnly}
+                        >
+                            {getChessPieceTotalScoreOptions(13).map((score) => (
+                                <option key={score} value={score}>
+                                    {score}점
                                 </option>
                             ))}
                         </Select>

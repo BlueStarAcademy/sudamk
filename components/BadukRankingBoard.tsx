@@ -41,7 +41,7 @@ const RankingRow = ({
     dense,
     mobileWide,
 }: {
-    user: User;
+    user: User & { userLevel?: number };
     rank: number;
     value: number;
     isCurrentUser: boolean;
@@ -49,6 +49,10 @@ const RankingRow = ({
     dense?: boolean;
     mobileWide?: boolean;
 }) => {
+    const displayLevel =
+        user.userLevel != null && Number.isFinite(Number(user.userLevel))
+            ? Math.max(1, Math.floor(Number(user.userLevel)))
+            : null;
     const avatarUrl = useMemo(() => AVATAR_POOL.find(a => a.id === user.avatarId)?.url, [user.avatarId]);
     const borderUrl = useMemo(() => BORDER_POOL.find(b => b.id === user.borderId)?.url, [user.borderId]);
 
@@ -81,7 +85,10 @@ const RankingRow = ({
                     {rank}
                 </span>
                 <Avatar userId={user.id} userName={user.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={34} fixedFrameSize />
-                <span className={`ml-1.5 min-w-0 flex-1 truncate ${MOBILE_RANK_TEXT_CLASS} font-semibold`}>{user.nickname}</span>
+                <div className={`ml-1.5 flex min-w-0 flex-1 flex-col gap-0.5 leading-tight ${MOBILE_RANK_TEXT_CLASS}`}>
+                    <span className="shrink-0 font-extrabold tabular-nums text-amber-200">Lv.{displayLevel ?? '—'}</span>
+                    <span className="min-w-0 truncate font-semibold">{user.nickname}</span>
+                </div>
                 <span className={`w-[4.25rem] shrink-0 text-right font-mono ${MOBILE_RANK_TEXT_CLASS} tabular-nums`}>{value.toLocaleString()}</span>
             </div>
         );
@@ -107,7 +114,14 @@ const RankingRow = ({
                 {rank}
             </span>
             <Avatar userId={user.id} userName={user.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={dense ? 20 : 28} fixedFrameSize />
-            <span className={`ml-1 flex-1 truncate font-semibold ${dense ? 'text-[8px]' : 'ml-1.5 text-xs'}`}>{user.nickname}</span>
+            <div
+                className={`ml-1 flex min-w-0 flex-1 flex-col gap-px leading-tight ${dense ? 'text-[8px]' : 'ml-1.5 text-xs'}`}
+            >
+                <span className={`shrink-0 font-extrabold tabular-nums ${dense ? 'text-[7px]' : 'text-[10px]'} text-amber-200`}>
+                    Lv.{displayLevel ?? '—'}
+                </span>
+                <span className="min-w-0 truncate font-semibold">{user.nickname}</span>
+            </div>
             <span className={`text-right font-mono ${dense ? 'w-10 text-[7px]' : 'w-16 text-xs'}`}>{value.toLocaleString()}</span>
         </div>
     );
@@ -129,8 +143,9 @@ const BadukRankingBoard: React.FC<BadukRankingBoardProps> = ({ isTopmost, dense,
                 id: entry.id,
                 nickname: entry.nickname,
                 avatarId: entry.avatarId,
-                borderId: entry.borderId
-            } as any,
+                borderId: entry.borderId,
+                userLevel: entry.userLevel,
+            } as User,
             value: entry.score,
             rank: entry.rank
         }));

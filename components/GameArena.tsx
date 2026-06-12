@@ -39,6 +39,7 @@ interface GameArenaProps extends GameProps {
     isMoveSubmitting?: boolean;
     selectedChessPieceId?: string | null;
     chessHighlightPoints?: Point[];
+    chessSetupSelectionRef: React.MutableRefObject<Exclude<import('../types.js').ChessPieceType, 'king'> | null>;
 }
 
 const GameArena: React.FC<GameArenaProps> = (props) => {

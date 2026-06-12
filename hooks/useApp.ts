@@ -83,6 +83,7 @@ import {
 import { stampObtainedItemsBulk } from '../shared/utils/obtainedItemsBulk.js';
 import { advancePairTurn, getCurrentPairTurnSeat, isPairAiSeat, isPairClassicGame, normalizePairTurnIndex, resetPairPasses } from '../shared/utils/pairGameTurn.js';
 import { mergePairPetTrainingSlotsPreserveRecentRestart } from '../shared/utils/pairPetTrainingSlotsClientMerge.js';
+import { pairTrainingClaimCompletedBySlotIndex } from '../components/pair/pairTrainingClaimInFlight.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
 import {
     countConditionPotionsInInventory,
@@ -1793,6 +1794,9 @@ export const useApp = () => {
                     ? mergePairPetTrainingSlotsPreserveRecentRestart(
                           base.pairPetTrainingSlots,
                           patch.pairPetTrainingSlots,
+                          Date.now(),
+                          15_000,
+                          pairTrainingClaimCompletedBySlotIndex,
                       )
                     : base.pairPetTrainingSlots,
             // equipment는 객체이므로 완전히 교체 (서버에서 보내는 equipment는 항상 전체 상태)
@@ -3516,8 +3520,17 @@ export const useApp = () => {
                     if (!validateChessMove(copy, pieceId, toX!, toY!, myPlayer).ok) return null;
                     applyChessMoveToSession(copy, pieceId, toX!, toY!, myPlayer);
                     copy.chessPieceMovedThisTurn = true;
-                    resolveChessCapturesByLiberty(copy, myPlayer);
-                    return normalizeChessGoSession(copy);
+                    const captureResult = resolveChessCapturesByLiberty(copy, myPlayer);
+                    const normalized = normalizeChessGoSession(copy);
+                    if (captureResult.kingCaptured) {
+                        return {
+                            ...normalized,
+                            gameStatus: 'ended' as const,
+                            winner: myPlayer,
+                            winReason: 'chess_checkmate' as const,
+                        };
+                    }
+                    return normalized;
                 };
                 setLiveGames((c) => patchLiveGameInMapById(c, gameId, chessMoveMutate));
             }

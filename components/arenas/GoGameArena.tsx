@@ -1,5 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { GameProps, Player, Point, GameStatus, Move, GameMode } from '../../types.js';
+import type { ChessPieceType } from '../../types.js';
 import GoBoard from '../GoBoard.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants/gameModes';
 import { resolveSinglePlayerAutoScoringCapForClientSession } from '../../shared/utils/liveSessionSinglePlayerStage.js';
@@ -9,6 +10,8 @@ import { canViewerPlaceMoreBaseStones } from '../../shared/utils/basePlacementCa
 import { resolveBasePlacementSeatColors } from '../../shared/utils/basePlacementSeatColors.js';
 import { modeIncludesBaseCaptureMix } from '../../shared/utils/liveSessionArenaKind.js';
 import { CHESS_GO_BOARD_SIZE, normalizeChessGoSession } from '../../shared/utils/chessGoRules.js';
+import { getChessGoPlacementSlots } from '../../shared/utils/chessGoPlacement.js';
+import ChessPiecePlacementPanel from '../game/ChessPiecePlacementPanel.js';
 
 interface GoGameArenaProps extends GameProps {
     isMyTurn: boolean;
@@ -34,6 +37,8 @@ interface GoGameArenaProps extends GameProps {
     isMoveSubmitting?: boolean;
     selectedChessPieceId?: string | null;
     chessHighlightPoints?: Point[];
+    /** Game.tsx handleBoardClick이 배치 선택 기물을 읽는 ref (로컬 UI 상태와 동기) */
+    chessSetupSelectionRef: React.MutableRefObject<Exclude<ChessPieceType, 'king'> | null>;
 }
 
 function modeIncludesCaptureRule(mode: GameMode, settings: { mixedModes?: GameMode[] }): boolean {
@@ -65,9 +70,27 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
         isMoveSubmitting = false,
         selectedChessPieceId = null,
         chessHighlightPoints = [],
+        chessSetupSelectionRef,
     } = props;
 
     const { blackPlayerId, whitePlayerId, player1, player2, settings, lastMove, gameStatus, mode, moveHistory, hiddenMoves } = session;
+
+    const [selectedSetupPieceType, setSelectedSetupPieceType] = useState<Exclude<ChessPieceType, 'king'> | null>(null);
+
+    useEffect(() => {
+        if (gameStatus !== 'chess_piece_placement') {
+            setSelectedSetupPieceType(null);
+            chessSetupSelectionRef.current = null;
+        }
+    }, [gameStatus, chessSetupSelectionRef]);
+
+    const handleSelectSetupPieceType = useCallback(
+        (type: Exclude<ChessPieceType, 'king'> | null) => {
+            setSelectedSetupPieceType(type);
+            chessSetupSelectionRef.current = type;
+        },
+        [chessSetupSelectionRef],
+    );
 
     /** 체스 바둑: 렌더 직전 normalize — 레거시 boardState/chessPieces가 화면에 남지 않게 */
     const chessNormalizedSession = useMemo(
@@ -85,7 +108,8 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
         return lm;
     }, [mode, displaySession.lastChessMove, myPlayerEnum]);
 
-    const boardSizeForDisplay = mode === GameMode.Chess ? CHESS_GO_BOARD_SIZE : settings.boardSize;
+    const boardSizeForDisplay =
+        mode === GameMode.Chess ? (settings.boardSize ?? CHESS_GO_BOARD_SIZE) : settings.boardSize;
     const strategicPetHintDotOverlay = useMemo(() => {
         if (!strategicPetHintBoardOverlay) return null;
         const { x, y } = strategicPetHintBoardOverlay;
@@ -112,6 +136,44 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                   Array.from({ length: boardSizeForDisplay }, () => Player.None)
               )
             : displaySession.boardState;
+
+    const isChessPlacementPhase =
+        mode === GameMode.Chess && gameStatus === 'chess_piece_placement' && !props.isSpectator;
+
+    /** 배치 단계: 상대 기물은 보드·기물 목록에서 제외 */
+    const chessPlacementBoardState = useMemo(() => {
+        if (!isChessPlacementPhase || myPlayerEnum === Player.None || !boardStateForDisplay?.length) {
+            return boardStateForDisplay;
+        }
+        return boardStateForDisplay.map((row, y) =>
+            row.map((cell, x) => (cell === myPlayerEnum ? cell : Player.None)),
+        );
+    }, [isChessPlacementPhase, myPlayerEnum, boardStateForDisplay]);
+
+    const chessPlacementPieces = useMemo(() => {
+        if (!isChessPlacementPhase || myPlayerEnum === Player.None) {
+            return displaySession.chessPieces;
+        }
+        return displaySession.chessPieces?.filter((p) => p.owner === myPlayerEnum) ?? [];
+    }, [isChessPlacementPhase, myPlayerEnum, displaySession.chessPieces]);
+
+    const chessSetupHighlightPoints = useMemo(() => {
+        if (!isChessPlacementPhase || !selectedSetupPieceType || myPlayerEnum === Player.None) {
+            return [];
+        }
+        const { majorSlots, pawnSlots } = getChessGoPlacementSlots(boardSizeForDisplay, myPlayerEnum);
+        const slots = selectedSetupPieceType === 'pawn' ? pawnSlots : majorSlots;
+        const myDraft = session.chessPiecePlacementDraft?.[props.currentUser.id] ?? [];
+        const occupied = new Set(myDraft.map((p) => `${p.x},${p.y}`));
+        return slots.filter((s) => !occupied.has(`${s.x},${s.y}`));
+    }, [
+        isChessPlacementPhase,
+        selectedSetupPieceType,
+        myPlayerEnum,
+        boardSizeForDisplay,
+        session.chessPiecePlacementDraft,
+        props.currentUser.id,
+    ]);
 
     /** 좌표가 같으면 객체 참조를 유지해 GoBoard 따낸 점수 effect 등이 매 렌더 불필요하게 돌지 않게 함 */
     const displayLastMoveKey = useMemo(() => {
@@ -312,8 +374,19 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
             {/* 바둑판은 항상 정사각형으로, 주어진 공간 안에 맞춰 축소/확대 */}
             <div className="relative flex h-full max-h-full w-full max-w-full min-h-0 min-w-0 items-center justify-center overflow-hidden">
                 <div className="relative aspect-square h-full max-h-full w-full max-w-full min-h-0 min-w-0 shrink-0 overflow-hidden">
+                {gameStatus === 'chess_piece_placement' && (
+                    <ChessPiecePlacementPanel
+                        session={displaySession}
+                        currentUser={props.currentUser}
+                        myPlayerEnum={myPlayerEnum}
+                        onAction={onAction}
+                        selectedPieceType={selectedSetupPieceType}
+                        onSelectPieceType={handleSelectSetupPieceType}
+                        isMobile={isMobile}
+                    />
+                )}
                 <GoBoard
-                boardState={boardStateForDisplay}
+                boardState={chessPlacementBoardState ?? boardStateForDisplay}
                 boardSize={boardSizeForDisplay}
                 onBoardClick={handleBoardClick}
                 onMissileLaunch={(from: Point, direction: 'up' | 'down' | 'left' | 'right') => {
@@ -335,7 +408,9 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 lastTurnStones={session.lastTurnStones}
                 isBoardDisabled={
                     props.isSpectator ||
-                    (!isMyTurn && gameStatus !== 'base_placement') ||
+                    (!isMyTurn &&
+                        gameStatus !== 'base_placement' &&
+                        gameStatus !== 'chess_piece_placement') ||
                     isBoardDisabledDueToTurnLimit
                 }
                 stoneColor={myPlayerEnum}
@@ -353,9 +428,15 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 myPlayerEnum={myPlayerEnum}
                 gameStatus={gameStatus}
                 currentPlayer={session.currentPlayer}
-                highlightedPoints={chessHighlightPoints}
-                highlightStyle="green-dot"
-                chessPieces={displaySession.chessPieces}
+                highlightedPoints={
+                    isChessPlacementPhase && selectedSetupPieceType
+                        ? chessSetupHighlightPoints
+                        : chessHighlightPoints
+                }
+                highlightStyle={isChessPlacementPhase && selectedSetupPieceType ? 'green-dot' : 'ring'}
+                chessSetupSelectionToken={selectedSetupPieceType ?? ''}
+                chessPlacementMaskOpponentHalf={isChessPlacementPhase && myPlayerEnum !== Player.None}
+                chessPieces={chessPlacementPieces ?? displaySession.chessPieces}
                 chessGoRemovedPoints={displaySession.chessGoRemovedPoints}
                 chessPieceMovedThisTurn={displaySession.chessPieceMovedThisTurn}
                 selectedChessPieceId={selectedChessPieceId}

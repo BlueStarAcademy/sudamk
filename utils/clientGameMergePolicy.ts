@@ -2,7 +2,6 @@ import type { LiveGameSession } from '../types.js';
 import { GameMode } from '../types.js';
 import {
     boardHasStrayLegacyFlankStones,
-    CHESS_GO_BOARD_SIZE,
     hasChessPiecesMovedFromStandardOpening,
     hasLegacyChessFlankPawnLayout,
     isLegacyChessGoLayout,
@@ -255,11 +254,39 @@ function mergeChessSessionFieldsOnMerge(
 ): LiveGameSession {
     if (incoming.mode !== GameMode.Chess) return incoming;
     let merged: LiveGameSession = { ...incoming };
-    if (merged.settings?.boardSize !== CHESS_GO_BOARD_SIZE) {
+    if (
+        merged.gameStatus === 'playing' &&
+        existing?.gameStatus === 'chess_piece_placement'
+    ) {
         merged = {
             ...merged,
-            settings: { ...merged.settings, boardSize: CHESS_GO_BOARD_SIZE as LiveGameSession['settings']['boardSize'] },
+            chessPiecePlacementDraft: undefined,
+            chessPiecePlacementReady: undefined,
+            chessPiecePlacementDeadline: undefined,
         };
+    }
+    if (merged.gameStatus === 'chess_piece_placement') {
+        if (existing?.chessPiecePlacementDraft && incoming.chessPiecePlacementDraft) {
+            merged = {
+                ...merged,
+                chessPiecePlacementDraft: {
+                    ...existing.chessPiecePlacementDraft,
+                    ...incoming.chessPiecePlacementDraft,
+                },
+                chessPiecePlacementReady: {
+                    ...(existing.chessPiecePlacementReady ?? {}),
+                    ...(incoming.chessPiecePlacementReady ?? {}),
+                },
+            };
+        } else if (incoming.chessPiecePlacementDraft === undefined && existing?.chessPiecePlacementDraft) {
+            merged = { ...merged, chessPiecePlacementDraft: existing.chessPiecePlacementDraft };
+        }
+        if (incoming.chessPiecePlacementReady === undefined && existing?.chessPiecePlacementReady) {
+            merged = { ...merged, chessPiecePlacementReady: existing.chessPiecePlacementReady };
+        }
+        if (incoming.chessPiecePlacementDeadline === undefined && existing?.chessPiecePlacementDeadline != null) {
+            merged = { ...merged, chessPiecePlacementDeadline: existing.chessPiecePlacementDeadline };
+        }
     }
     if (
         existing?.boardState?.length &&

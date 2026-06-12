@@ -1883,6 +1883,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
             let title = '승리';
             if (winReason === 'resign') title = '기권승';
             if (winReason === 'castle_capture') title = '포획승';
+            if (winReason === 'chess_checkmate') title = '체크메이트승';
             if (winReason === 'capture_limit' && isGuildWarCaptureTurnLimitLoss) title = '턴승';
             if (winReason === 'timeout') title = isGuildWarCaptureTurnLimitLoss ? '턴승' : '시간승';
             return { title, color: 'text-green-400' };
@@ -1890,6 +1891,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
             let title = '패배';
             if (winReason === 'resign') title = '기권패';
             if (winReason === 'castle_capture') title = '포획패';
+            if (winReason === 'chess_checkmate') title = '체크메이트패';
             if (winReason === 'capture_limit' && isGuildWarCaptureTurnLimitLoss) title = '턴패';
             if (winReason === 'timeout') {
                 title = isGuildWarCaptureTurnLimitLoss ? '턴패' : isAdventureGame ? '패배' : '시간패';
@@ -1979,6 +1981,11 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
 
         if (winReason === 'castle_capture') {
             const message = isWinner ? '상대 돌을 따내 즉시 승리했습니다.' : '상대에게 돌을 잡혀 패배했습니다.';
+            return <p className="text-center" style={contentMsgStyle}>{message}</p>;
+        }
+
+        if (winReason === 'chess_checkmate') {
+            const message = isWinner ? '상대 킹을 따내 체크메이트 승리했습니다.' : '킹이 잡혀 체크메이트 패배했습니다.';
             return <p className="text-center" style={contentMsgStyle}>{message}</p>;
         }
         

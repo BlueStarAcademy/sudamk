@@ -16,6 +16,7 @@ import {
   HIDDEN_BOARD_SIZES, DICE_GO_ITEM_COUNTS, getScoringTurnLimitOptionsByBoardSize, getAiScoringTurnLimitByBoardSize,
   getCastleCountsByBoardSize, clampCastleCount, getDefaultCastleKomiByBoardSize, getDefaultCastleCountByBoardSize,
   getDefaultChessKomiByBoardSize, getDefaultChessScoringTurnLimit,
+  getChessPieceTotalScoreOptions, getDefaultChessPieceTotalScore, clampChessPieceTotalScore,
 } from '../../constants/gameSettings.js';
 import { profileStepFromKataServerLevel } from '../../shared/utils/strategicAiDifficulty.js';
 import { clampGameInt } from '../../shared/utils/gameIntegerField.js';
@@ -268,11 +269,13 @@ function modeIncludesCaptureRule(mode: GameMode, settings: Pick<GameSettings, 'm
 function normalizeAiScoringTurnLimit(mode: GameMode, settings: GameSettings): GameSettings {
     if (!SPECIAL_GAME_MODES.some(m => m.mode === mode)) return settings;
     if (mode === GameMode.Chess) {
+        const bs = (settings.boardSize === 9 ? 9 : 13) as GameSettings['boardSize'];
         return {
             ...settings,
-            boardSize: 13 as GameSettings['boardSize'],
-            komi: getDefaultChessKomiByBoardSize(13),
+            boardSize: bs,
+            komi: getDefaultChessKomiByBoardSize(bs),
             scoringTurnLimit: getDefaultChessScoringTurnLimit(),
+            chessPieceTotalScore: getDefaultChessPieceTotalScore(bs),
         };
     }
     if (mode === GameMode.Castle || modeIncludesCaptureRule(mode, settings)) {
@@ -938,6 +941,14 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                     boardSize,
                 );
             }
+            if (selectedGameMode === GameMode.Chess && key === 'boardSize') {
+                const boardSize = Number(value);
+                newSettings.komi = getDefaultChessKomiByBoardSize(boardSize);
+                newSettings.chessPieceTotalScore = getDefaultChessPieceTotalScore(boardSize);
+            }
+            if (selectedGameMode === GameMode.Chess && key === 'chessPieceTotalScore') {
+                newSettings.chessPieceTotalScore = clampChessPieceTotalScore(value, newSettings.boardSize ?? 13);
+            }
             if (selectedGameMode === GameMode.Mix && key === 'mixedModes') {
                 newSettings = applyMixModeSettingsConstraints(newSettings);
             }
@@ -1263,7 +1274,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                       : `min-w-0 w-full text-left text-sm font-bold leading-tight ${denseLobbyAccentLabelClass}`
               : 'font-semibold text-gray-300 flex-shrink-0 text-sm sm:text-base';
 
-        const showBoardSize = ![GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Chess].includes(selectedGameMode);
+        const showBoardSize = ![GameMode.Alkkagi, GameMode.Curling, GameMode.Dice].includes(selectedGameMode);
         const showKomi = ![GameMode.Capture, GameMode.Omok, GameMode.Ttamok, GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Thief, GameMode.Base, GameMode.Chess].includes(selectedGameMode);
         /** 알까기·컬링·주사위·도둑은 시계 UI 없음. 페어 4인·2인 친선은 사람 대전이므로 시계 표시 */
         const modesWithoutClockUi = [GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Thief];
@@ -1272,6 +1283,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
         const showSpeedTimeControls =
             selectedGameMode === GameMode.Speed || (isMixMode && mixModes.includes(GameMode.Speed));
         const showCastleCount = selectedGameMode === GameMode.Castle || (isMixMode && mixModes.includes(GameMode.Castle));
+        const showChessPieceTotalScore = selectedGameMode === GameMode.Chess && settings.boardSize === 13;
         const showTimeControls =
             pairFriendlyHumanClock &&
             !modesWithoutClockUi.includes(selectedGameMode);
@@ -1862,6 +1874,30 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                             style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                         >
                             {AI_CHALLENGE_MISSILE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
+                        </select>
+                    </div>
+                )}
+
+                {selectedGameMode === GameMode.Chess && settings.boardSize === 9 && (
+                    <div className={settingRowClass}>
+                        <label className={gameSettingsLabelClass}>기물 총점수</label>
+                        <div className={gameSettingsSelectClass}>9점 (고정)</div>
+                    </div>
+                )}
+
+                {showChessPieceTotalScore && (
+                    <div className={settingRowClass}>
+                        <label className={gameSettingsLabelClass}>기물 총점수</label>
+                        <select
+                            value={settings.chessPieceTotalScore ?? getDefaultChessPieceTotalScore(13)}
+                            onChange={(e) => handleSettingChange('chessPieceTotalScore', parseInt(e.target.value, 10))}
+                            className={gameSettingsSelectClass}
+                        >
+                            {getChessPieceTotalScoreOptions(13).map((score) => (
+                                <option key={score} value={score}>
+                                    {score}점
+                                </option>
+                            ))}
                         </select>
                     </div>
                 )}

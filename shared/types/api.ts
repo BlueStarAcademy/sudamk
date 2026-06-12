@@ -471,6 +471,12 @@ export type ServerAction =
     | { type: 'SUBMIT_BASE_STONE_COLOR_CHOICE', payload: { gameId: string; color: Player; choiceForUserId?: string } }
     | { type: 'UPDATE_KOMI_BID', payload: { gameId: string, bid: KomiBid; bidForUserId?: string } }
     | { type: 'CONFIRM_BASE_REVEAL', payload: { gameId: string } }
+    // Chess Go setup
+    | { type: 'PLACE_CHESS_SETUP_PIECE', payload: { gameId: string; pieceType: import('./entities.js').ChessPieceType; x: number; y: number } }
+    | { type: 'REMOVE_CHESS_SETUP_PIECE', payload: { gameId: string; x: number; y: number } }
+    | { type: 'RESET_CHESS_SETUP_PLACEMENT', payload: { gameId: string } }
+    | { type: 'FILL_CHESS_SETUP_RANDOMLY', payload: { gameId: string } }
+    | { type: 'CONFIRM_CHESS_SETUP_PLACEMENT', payload: { gameId: string } }
     // Hidden Go
     | { type: 'START_HIDDEN_PLACEMENT', payload: { gameId: string; clientSync?: PveItemActionClientSync } }
     | { type: 'START_SCANNING', payload: { gameId: string; clientSync?: PveItemActionClientSync } }

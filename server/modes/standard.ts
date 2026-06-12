@@ -27,7 +27,8 @@ import {
     commitChessGoPlacementCaptures,
     processChessGoMove,
 } from '../../shared/utils/chessGoRules.js';
-import { handleChessMoveAction, initializeChessGame, repairChessGoSessionState } from './chess.js';
+import { handleChessMoveAction, handleChessPlacementAction, initializeChessGame, repairChessGoSessionState, tryEndChessOnKingCapture } from './chess.js';
+import { updateChessPlacementState } from './chessPlacementFlow.js';
 import { processCastleMove } from '../../shared/utils/castleGoRules.js';
 import {
     handleSharedAction,
@@ -803,6 +804,7 @@ export const updateStrategicGameState = async (game: types.LiveGameSession, now:
 
     // Delegate to mode-specific update logic
     updateNigiriState(game, now);
+    updateChessPlacementState(game, now);
     if (game.gameStatus === 'uniform_color_roulette' && game.revealEndTime && now > game.revealEndTime) {
         game.revealEndTime = undefined;
         transitionToPlaying(game, now);
@@ -998,6 +1000,15 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
     }
 
     switch (type) {
+        case 'PLACE_CHESS_SETUP_PIECE':
+        case 'REMOVE_CHESS_SETUP_PIECE':
+        case 'RESET_CHESS_SETUP_PLACEMENT':
+        case 'FILL_CHESS_SETUP_RANDOMLY':
+        case 'CONFIRM_CHESS_SETUP_PLACEMENT': {
+            const placementResult = await handleChessPlacementAction(game, user, action, now);
+            if (placementResult.error) return { error: placementResult.error };
+            return {};
+        }
         case 'CHESS_MOVE_PIECE': {
             if (!isMyTurn || myPlayerEnum === types.Player.None) {
                 return { error: 'Not your turn.' };
@@ -1791,7 +1802,12 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
 
             if (result.capturedStones.length > 0) {
                 if (isChessGame) {
-                    applyChessCaptureScoreForRemovedStones(game, result.capturedStones, myPlayerEnum);
+                    const chessCapture = applyChessCaptureScoreForRemovedStones(game, result.capturedStones, myPlayerEnum);
+                    if (chessCapture.kingCaptured) {
+                        if (await tryEndChessOnKingCapture(game, myPlayerEnum)) {
+                            return petHintBonusResult ?? {};
+                        }
+                    }
                 }
                 // 길드전 별 판정(한 번에 따낸 최대 개수) 정확도를 위해 실시간 최대값 저장
                 const captureCountThisMove = result.capturedStones.length;

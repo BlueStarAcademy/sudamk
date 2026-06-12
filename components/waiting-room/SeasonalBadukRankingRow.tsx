@@ -189,12 +189,12 @@ const SeasonalBadukRankingRow: React.FC<SeasonalBadukRankingRowProps> = ({
                 fixedFrameSize
                 className="relative z-10 shrink-0 transition-transform duration-300 group-hover:scale-105"
             />
-            <div className={`relative z-10 flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 gap-y-1 sm:items-center ${lineCls}`}>
+            <div className={`relative z-10 flex min-w-0 flex-1 flex-col gap-0.5 leading-tight ${lineCls}`}>
                 <span className="shrink-0 font-extrabold tabular-nums text-amber-200 drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">
                     Lv.{displayLevel ?? '—'}
                 </span>
                 <span
-                    className={`min-w-0 flex-1 font-bold whitespace-normal break-words drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] ${
+                    className={`min-w-0 truncate font-bold drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] ${
                         isTopThree || isMyRankDisplay ? 'text-white' : 'text-gray-100'
                     }`}
                 >

@@ -527,6 +527,7 @@ const CHESS_PIECE_GLYPHS: Record<ChessPieceType, string> = {
     knight: '♞',
     bishop: '♝',
     queen: '♛',
+    king: '♚',
 };
 
 const Stone: React.FC<{ player: Player, cx: number, cy: number, isLastMove?: boolean, isSelectedMissile?: boolean, isHoverSelectableMissile?: boolean, isKnownHidden?: boolean, isNewlyRevealed?: boolean, animationClass?: string, isBaseStone?: boolean, isPatternStone?: boolean, chessPieceType?: ChessPieceType, chessRemainingMoves?: number, chessPieceSelected?: boolean, isChessLastMoveTo?: boolean, radius: number, isFaint?: boolean, keepUpright?: boolean, isPlacementPreview?: boolean, uniformDisplayColor?: Player | null }> = ({ player, cx, cy, isLastMove, isSelectedMissile, isHoverSelectableMissile, isKnownHidden, isNewlyRevealed, animationClass, isBaseStone, isPatternStone, chessPieceType, chessRemainingMoves, chessPieceSelected, isChessLastMoveTo, radius, isFaint, keepUpright, isPlacementPreview, uniformDisplayColor }) => {
@@ -715,6 +716,10 @@ interface GoBoardProps {
   currentPlayer: Player;
   highlightedPoints?: Point[];
   highlightStyle?: 'circle' | 'ring' | 'green-dot';
+  /** 체스 바둑 배치 단계: 상대 진영 반쪽 가림 */
+  chessPlacementMaskOpponentHalf?: boolean;
+  /** 배치 기물 선택 변경 시 GoBoard memo 갱신용 */
+  chessSetupSelectionToken?: string;
   myRevealedStones?: Point[];
   /** 내가 스캔으로 몰래 본 히든 수순 인덱스. 있으면 좌표만으로는 판단하지 않아(같은 자리 재착수 시 반투명 버그 방지) */
   myRevealedMoveIndices?: readonly number[];
@@ -798,6 +803,8 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         gameStatus,
         highlightedPoints,
         highlightStyle = 'circle',
+        chessPlacementMaskOpponentHalf = false,
+        chessSetupSelectionToken = '',
         myRevealedStones,
         myRevealedMoveIndices,
         allRevealedStones,
@@ -846,7 +853,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
 
     const boardState = chessNormalizedSlice?.boardState ?? boardStateProp;
     const chessPieces = chessNormalizedSlice?.chessPieces ?? chessPiecesProp;
-    const boardSize = mode === GameMode.Chess ? CHESS_GO_BOARD_SIZE : boardSizeProp;
+    const boardSize = mode === GameMode.Chess ? (boardSizeProp ?? CHESS_GO_BOARD_SIZE) : boardSizeProp;
 
     const baseHiddenMoveCtx = useMemo<BaseStoneOverlayContext>(
         () => ({ baseStones, baseStones_p1, baseStones_p2, gameStatus }),
@@ -1733,6 +1740,12 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 return;
             }
 
+            // 체스 바둑 기물 배치
+            if (gameStatus === 'chess_piece_placement') {
+                onBoardClick(boardPos.x, boardPos.y);
+                return;
+            }
+
             // 체스 바둑: 자기 기물 선택·이동은 바둑 착수 검사를 건너뛰고 Game.tsx에서 처리
             if (mode === GameMode.Chess && gameStatus === 'playing' && !isBoardDisabled) {
                 onBoardClick(boardPos.x, boardPos.y);
@@ -2507,17 +2520,33 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         );
                     }
                     if (highlightStyle === 'green-dot') {
+                        const dotR = stone_radius * 0.36;
                         return (
-                            <circle
-                                key={`highlight-green-${i}`}
-                                cx={cx}
-                                cy={cy}
-                                r={stone_radius * 0.24}
-                                fill="rgb(34, 197, 94)"
-                                stroke="rgb(21, 128, 61)"
-                                strokeWidth={Math.max(1, stone_radius * 0.04)}
-                                style={{ pointerEvents: 'none' }}
-                            />
+                            <g key={`highlight-green-${i}`} style={{ pointerEvents: 'none' }}>
+                                <circle
+                                    cx={cx}
+                                    cy={cy}
+                                    r={dotR * 1.7}
+                                    fill="rgb(34, 197, 94)"
+                                    opacity={0.28}
+                                    className="animate-pulse"
+                                />
+                                <circle
+                                    cx={cx}
+                                    cy={cy}
+                                    r={dotR}
+                                    fill="rgb(34, 197, 94)"
+                                    stroke="rgb(21, 128, 61)"
+                                    strokeWidth={Math.max(1.5, stone_radius * 0.07)}
+                                />
+                                <circle
+                                    cx={cx}
+                                    cy={cy}
+                                    r={dotR * 0.32}
+                                    fill="rgb(220, 252, 231)"
+                                    opacity={0.95}
+                                />
+                            </g>
                         );
                     }
                     return (
@@ -2755,6 +2784,42 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                             </g>
                         );
                     })()}
+                {chessPlacementMaskOpponentHalf && myPlayerEnum !== Player.None && (() => {
+                    const maskTop = myPlayerEnum === Player.Black;
+                    const maskY = maskTop ? 0 : boardSizePx / 2;
+                    const maskH = boardSizePx / 2;
+                    const labelY = maskY + maskH / 2;
+                    return (
+                        <g key="chess-placement-opponent-mask" style={{ pointerEvents: 'none' }}>
+                            <rect
+                                x={0}
+                                y={maskY}
+                                width={boardSizePx}
+                                height={maskH}
+                                fill="rgb(15 23 42 / 0.93)"
+                            />
+                            <rect
+                                x={0}
+                                y={maskTop ? maskH - 2 : maskY}
+                                width={boardSizePx}
+                                height={4}
+                                fill="rgb(45 212 191 / 0.35)"
+                            />
+                            <text
+                                x={boardSizePx / 2}
+                                y={labelY}
+                                textAnchor="middle"
+                                dominantBaseline="middle"
+                                fill="rgb(148 163 184 / 0.95)"
+                                fontSize={Math.max(18, cell_size * 0.55)}
+                                fontWeight={700}
+                                transform={isRotated ? `rotate(180 ${boardSizePx / 2} ${labelY})` : undefined}
+                            >
+                                상대 배치 중
+                            </text>
+                        </g>
+                    );
+                })()}
                 </g>
             </svg>
             {boardRuleFlashMessage && (
@@ -2772,6 +2837,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
 function areGoBoardPropsEqual(prev: GoBoardProps, next: GoBoardProps): boolean {
     return (
         prev.boardState === next.boardState &&
+        prev.boardSize === next.boardSize &&
         prev.moveHistory === next.moveHistory &&
         prev.gameStatus === next.gameStatus &&
         prev.currentPlayer === next.currentPlayer &&
@@ -2781,6 +2847,11 @@ function areGoBoardPropsEqual(prev: GoBoardProps, next: GoBoardProps): boolean {
         prev.pendingMove === next.pendingMove &&
         prev.selectedChessPieceId === next.selectedChessPieceId &&
         prev.chessLastMove === next.chessLastMove &&
+        prev.chessPieces === next.chessPieces &&
+        prev.highlightedPoints === next.highlightedPoints &&
+        prev.highlightStyle === next.highlightStyle &&
+        prev.chessPlacementMaskOpponentHalf === next.chessPlacementMaskOpponentHalf &&
+        prev.chessSetupSelectionToken === next.chessSetupSelectionToken &&
         prev.justCaptured === next.justCaptured &&
         prev.newlyRevealed === next.newlyRevealed &&
         prev.permanentlyRevealedStones === next.permanentlyRevealedStones &&

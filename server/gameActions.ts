@@ -1556,6 +1556,15 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 type === 'PLACE_STONE' && (isStrategicPVE || towerScoringOrSyncPlaceStone);
             const shouldHandleChessMoveOnServer =
                 type === 'CHESS_MOVE_PIECE' && game.mode === GameMode.Chess;
+            const chessSetupActionTypes = new Set<string>([
+                'PLACE_CHESS_SETUP_PIECE',
+                'REMOVE_CHESS_SETUP_PIECE',
+                'RESET_CHESS_SETUP_PLACEMENT',
+                'FILL_CHESS_SETUP_RANDOMLY',
+                'CONFIRM_CHESS_SETUP_PLACEMENT',
+            ]);
+            const shouldHandleChessSetupOnServer =
+                game.mode === GameMode.Chess && chessSetupActionTypes.has(type);
             // 싱글·모험·길드전·로비 AI 등 PVP가 아닌 전략 세션은 대부분 클라 착수이나,
             // 베이스 전·중반(배치·덤·확인)은 서버 `handleBaseAction`이 처리해야 함.
             // `kind === singleplayer`만 허용하면 모험/길드전 등에서 액션이 `{}`로 삼켜져 배치 확정 후 단계 전환이 영구 정지한다.
@@ -1595,6 +1604,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 type !== 'CLAIM_STRATEGIC_PET_HINT_BONUS' &&
                 !shouldHandlePlaceStoneOnServer &&
                 !shouldHandleChessMoveOnServer &&
+                !shouldHandleChessSetupOnServer &&
                 !shouldHandleBaseFlowOnStrategicPve &&
                 !shouldHandlePlayfulOnServer
             ) {
@@ -1682,6 +1692,8 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             (arenaPolicy.matchAxis === 'pvp' || arenaPolicy.matchAxis === 'mixed_pair') &&
             isStrategicBaseOrMixWithBase &&
             strategicBasePrePlayStatuses.has(game.gameStatus);
+        const needsChessPlacementTick =
+            game.mode === GameMode.Chess && game.gameStatus === 'chess_piece_placement';
         if (
             result != null &&
             result !== undefined &&
@@ -1690,6 +1702,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             (needsSinglePlayerBaseStrategicTick ||
                 needsPvpHumanBaseStrategicTick ||
                 needsStrategicCapturePrePlayTick ||
+                needsChessPlacementTick ||
                 (arenaPolicy.matchAxis !== 'pvp' &&
                     arenaPolicy.kind !== 'singleplayer' &&
                     (arenaPolicy.kind === 'adventure' || arenaPolicy.kind === 'guildwar')))

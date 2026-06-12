@@ -1,5 +1,22 @@
 import { GameMode, Player } from '../types/enums.js';
 import type { BoardState, ChessPieceState, ChessPieceType, LiveGameSession, Point, ChessLastMoveMarker } from '../types/entities.js';
+import { CHESS_BOARD_SIZES } from '../constants/gameSettings.js';
+
+export {
+    getChessGoLayout,
+    getChessGoPlacementSlots,
+    buildFixedKingPiece,
+    validateChessPlacementDraft,
+    generateRandomChessSetupDraft,
+    finalizeChessPiecesFromDrafts,
+    draftToChessPieceStates,
+    computeChessSetupDraftScore,
+    countChessSetupDraftByType,
+    getChessSetupBudgetFromSettings,
+    CHESS_SETUP_PIECE_LIMITS,
+    CHESS_SETUP_MAJOR_TYPES,
+} from './chessGoPlacement.js';
+export type { ChessGoLayout, ChessPlacementValidation } from './chessGoPlacement.js';
 
 export type ChessGoSessionSlice = Pick<
     LiveGameSession,
@@ -95,6 +112,8 @@ export function getChessPieceCaptureValue(type: ChessPieceType): number {
             return 5;
         case 'queen':
             return 9;
+        case 'king':
+            return 0;
         default:
             return 0;
     }
@@ -106,7 +125,7 @@ export function getInitialRemainingMoves(type: ChessPieceType): number {
 
 export const MAJOR_ROW_TYPES: ChessPieceType[] = ['rook', 'knight', 'bishop', 'queen', 'bishop', 'knight', 'rook'];
 
-/** 체스 바둑은 13×13 전용 */
+/** @deprecated 레거시 28기물 자동 배치 — 신규 대국은 커스텀 배치 사용 */
 export const CHESS_GO_BOARD_SIZE = 13;
 
 /** 13×13 체스 바둑: 주요 기물 줄·폰 줄 (0-indexed) */
@@ -321,14 +340,15 @@ export function boardMatchesChessPieces(
 }
 
 function rebuildChessGoBoardFromSession(
-    session: Pick<LiveGameSession, 'moveHistory' | 'chessPieces' | 'chessGoRemovedPoints'>,
+    session: Pick<LiveGameSession, 'moveHistory' | 'chessPieces' | 'chessGoRemovedPoints' | 'settings'>,
 ): BoardState {
-    const board = createEmptyBoardState(CHESS_GO_BOARD_SIZE);
+    const boardSize = getSessionBoardSize(session);
+    const board = createEmptyBoardState(boardSize);
     const removedKeys = new Set(
         (session.chessGoRemovedPoints ?? []).map((p) => pointKey(p.x, p.y)),
     );
     for (const move of session.moveHistory ?? []) {
-        if (move.x >= 0 && move.y >= 0 && move.x < CHESS_GO_BOARD_SIZE && move.y < CHESS_GO_BOARD_SIZE) {
+        if (move.x >= 0 && move.y >= 0 && move.x < boardSize && move.y < boardSize) {
             if (removedKeys.has(pointKey(move.x, move.y))) continue;
             board[move.y]![move.x] = move.player;
         }
@@ -337,8 +357,8 @@ function rebuildChessGoBoardFromSession(
         if (
             piece.x >= 0 &&
             piece.y >= 0 &&
-            piece.x < CHESS_GO_BOARD_SIZE &&
-            piece.y < CHESS_GO_BOARD_SIZE
+            piece.x < boardSize &&
+            piece.y < boardSize
         ) {
             board[piece.y]![piece.x] = piece.owner;
         }
@@ -346,12 +366,18 @@ function rebuildChessGoBoardFromSession(
     return board;
 }
 
+function getSessionBoardSize(session: Pick<LiveGameSession, 'settings'>): number {
+    const size = session.settings?.boardSize ?? CHESS_GO_BOARD_SIZE;
+    return (CHESS_BOARD_SIZES as readonly number[]).includes(size) ? size : CHESS_GO_BOARD_SIZE;
+}
+
 function applyChessGoBoardSizeSetting(session: Pick<LiveGameSession, 'settings'>): void {
     if (!session.settings) return;
-    if (session.settings.boardSize !== CHESS_GO_BOARD_SIZE) {
+    const size = getSessionBoardSize(session);
+    if (session.settings.boardSize !== size) {
         session.settings = {
             ...session.settings,
-            boardSize: CHESS_GO_BOARD_SIZE as LiveGameSession['settings']['boardSize'],
+            boardSize: size as LiveGameSession['settings']['boardSize'],
         };
     }
 }
@@ -370,6 +396,7 @@ export function normalizeChessGoSession<
         | 'chessPieces'
         | 'chessCaptureScore'
         | 'chessPieceMovedThisTurn'
+        | 'gameStatus'
     >,
 >(session: T): T {
     if (!isChessMode(session.mode)) return session;
@@ -382,24 +409,13 @@ export function normalizeChessGoSession<
     applyChessGoBoardSizeSetting(next);
 
     const goPlaced = countChessGoPlacedMoves(next);
-    const legacyLayout = isLegacyChessGoLayout(next.chessPieces);
+    const inPlacement = next.gameStatus === 'chess_piece_placement';
     const piecesMovedFromStart = hasChessPiecesMovedFromStart(next.chessPieces);
-    const standardMidgame = !legacyLayout && (savedMovedFlag || piecesMovedFromStart);
 
-    if (legacyLayout && !savedMovedFlag && !piecesMovedFromStart) {
-        next.chessPieces = generateChessGoInitialPieces(CHESS_GO_BOARD_SIZE);
+    if (inPlacement) {
         next.chessPieceMovedThisTurn = false;
-    } else if (standardMidgame || savedMovedFlag || piecesMovedFromStart || goPlaced > 0) {
-        if (!next.chessPieces?.length) {
-            next.chessPieces = generateChessGoInitialPieces(CHESS_GO_BOARD_SIZE);
-        }
-        if (legacyLayout) {
-            migrateUnmovedLegacyFlankPawns(next.chessPieces!);
-        }
+    } else if (goPlaced > 0 || savedMovedFlag || piecesMovedFromStart) {
         next.chessPieceMovedThisTurn = savedMovedFlag;
-    } else if (!next.chessPieces?.length) {
-        next.chessPieces = generateChessGoInitialPieces(CHESS_GO_BOARD_SIZE);
-        next.chessPieceMovedThisTurn = false;
     } else {
         next.chessPieceMovedThisTurn = false;
     }
@@ -840,6 +856,8 @@ function isValidChessDestination(
             return isPathClear(board, piece.x, piece.y, toX, toY);
         case 'knight':
             return (adx === 1 && ady === 2) || (adx === 2 && ady === 1);
+        case 'king':
+            return adx <= 1 && ady <= 1 && (adx + ady > 0);
         default:
             return false;
     }
@@ -924,6 +942,8 @@ export type ChessCaptureResult = {
     capturedStones: Point[];
     capturedChessPieces: ChessPieceState[];
     chessPointsAwarded: { capturer: Player.Black | Player.White; points: number }[];
+    kingCaptured: boolean;
+    kingCapturer: Player.Black | Player.White | null;
 };
 
 /** 활로 0인 모든 그룹 제거. chess 기물 포함 시 chessCaptureScore 가산. */
@@ -937,6 +957,7 @@ export function resolveChessCapturesByLiberty(
     const capturedStones: Point[] = [];
     const capturedChessPieces: ChessPieceState[] = [];
     const chessPointsAwarded: { capturer: Player.Black | Player.White; points: number }[] = [];
+    let kingCaptured = false;
 
     if (!session.chessCaptureScore) {
         session.chessCaptureScore = createEmptyChessCaptureScore();
@@ -969,7 +990,11 @@ export function resolveChessCapturesByLiberty(
                 const chessPiece = session.chessPieces?.find((p) => p.x === stone.x && p.y === stone.y);
                 if (chessPiece) {
                     capturedChessPieces.push(chessPiece);
-                    chessPointsThisGroup += getChessPieceCaptureValue(chessPiece.type);
+                    if (chessPiece.type === 'king') {
+                        kingCaptured = true;
+                    } else {
+                        chessPointsThisGroup += getChessPieceCaptureValue(chessPiece.type);
+                    }
                 }
             }
 
@@ -991,27 +1016,43 @@ export function resolveChessCapturesByLiberty(
     }
 
     session.boardState = board;
-    return { capturedStones, capturedChessPieces, chessPointsAwarded };
+    return {
+        capturedStones,
+        capturedChessPieces,
+        chessPointsAwarded,
+        kingCaptured,
+        kingCapturer: kingCaptured ? lastMover : null,
+    };
 }
+
+export type ChessRemovedCaptureResult = {
+    totalPoints: number;
+    kingCaptured: boolean;
+};
 
 /** processMove 후 따낸 돌 중 체스 기물 점수 처리 */
 export function applyChessCaptureScoreForRemovedStones(
     session: ChessGoSessionSlice,
     capturedStones: Point[],
     capturer: Player.Black | Player.White,
-): number {
-    if (!capturedStones.length) return 0;
+): ChessRemovedCaptureResult {
+    if (!capturedStones.length) return { totalPoints: 0, kingCaptured: false };
     if (!session.chessCaptureScore) {
         session.chessCaptureScore = createEmptyChessCaptureScore();
     }
 
     let totalPoints = 0;
+    let kingCaptured = false;
     const removedIds = new Set<string>();
 
     for (const stone of capturedStones) {
         const chessPiece = session.chessPieces?.find((p) => p.x === stone.x && p.y === stone.y);
         if (chessPiece) {
-            totalPoints += getChessPieceCaptureValue(chessPiece.type);
+            if (chessPiece.type === 'king') {
+                kingCaptured = true;
+            } else {
+                totalPoints += getChessPieceCaptureValue(chessPiece.type);
+            }
             removedIds.add(chessPiece.id);
         }
     }
@@ -1022,7 +1063,7 @@ export function applyChessCaptureScoreForRemovedStones(
     if (removedIds.size > 0 && session.chessPieces) {
         session.chessPieces = session.chessPieces.filter((p) => !removedIds.has(p.id));
     }
-    return totalPoints;
+    return { totalPoints, kingCaptured };
 }
 
 export function scoreChessGameTotals(
