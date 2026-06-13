@@ -4,32 +4,32 @@
  */
 export const RESULT_MODAL_SCORE_MOBILE_PX = {
     /** 영토/따낸 돌 등 데이터 행 */
-    dataRow: 12.5,
+    dataRow: 13,
     /** 흑·백 열 제목 */
-    columnHead: 13,
+    columnHead: 13.5,
     /** 총점 행 */
-    totalRow: 13,
+    totalRow: 13.5,
     /** 빈 상태·보조 문구 */
-    emptyState: 12,
+    emptyState: 12.5,
     /** 섹션 소제목(경기 결과 등) */
-    sectionLabel: 12.5,
+    sectionLabel: 13,
 } as const;
 
 /** PC 결과 패널 기준 px — `desktopTextScale`과 곱해 사용 */
 export const RESULT_MODAL_DESKTOP_PX = {
-    body: 12,
-    label: 11,
-    nickname: 12.5,
-    level: 11,
-    badge: 10,
-    scoreData: 11,
-    scoreHead: 12,
-    scoreTotal: 12.5,
-    scoreHero: 19,
-    scoreColon: 15,
-    message: 12.5,
-    captureLabel: 11,
-    winBanner: 13,
+    body: 12.5,
+    label: 11.5,
+    nickname: 13,
+    level: 11.5,
+    badge: 10.5,
+    scoreData: 11.5,
+    scoreHead: 12.5,
+    scoreTotal: 13,
+    scoreHero: 20,
+    scoreColon: 15.5,
+    message: 13,
+    captureLabel: 11.5,
+    winBanner: 13.5,
 } as const;
 
 /** 경기 결과 모달 본문·프로필·라벨 (mobileTextScale과 곱함) */

@@ -45,6 +45,7 @@ import { isRewardVipActive } from '../shared/utils/rewardVip.js';
 import { VIP_PLAY_REWARD_SLOT_PREVIEW_IMAGE } from '../shared/constants/vipPlayReward.js';
 import { useResilientImgSrc } from '../hooks/useResilientImgSrc.js';
 import { useGameResultModalLayout } from './game/useGameResultModalLayout.js';
+import GameResultModalFitContent from './game/GameResultModalFitContent.js';
 import { GoStoneIcon } from './game/arenaRoundEndShared.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
 import { getPairPetDefinition, getPairPetDisplayName } from '../shared/constants/petLobby.js';
@@ -2443,7 +2444,20 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                 </h1>
                 )}
                 {isMobile ? (
-                    <div className="flex min-h-0 flex-1 basis-0 flex-col gap-2.5 overflow-x-hidden overflow-y-auto overscroll-y-contain [scrollbar-gutter:auto] [scrollbar-width:thin]">
+                    <div
+                        className={`mb-1.5 flex-shrink-0 rounded-xl border border-amber-400/40 bg-gradient-to-br from-amber-950/45 via-slate-900/90 to-slate-950/95 px-2 py-1.5 text-center shadow-[0_0_24px_-12px_rgba(251,191,36,0.35)] ring-1 ring-inset ring-amber-500/15 min-[390px]:px-2.5 min-[390px]:py-2`}
+                    >
+                        <h1
+                            className={`font-black tracking-[0.1em] ${color}`}
+                            style={{ fontSize: resultModalFontPx(17, mobileTextScale) }}
+                        >
+                            {title}
+                        </h1>
+                    </div>
+                ) : null}
+                {isMobile ? (
+                    <GameResultModalFitContent className="flex-1 basis-0">
+                    <div className="flex flex-col gap-2 overflow-x-hidden min-[390px]:gap-2.5">
                                     <div className="flex flex-col items-center rounded-xl border border-amber-500/25 bg-gradient-to-b from-slate-900/90 via-[#121318] to-[#0a0a0e] p-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10 min-[390px]:p-2.5">
                                         <h2
                                             className="mb-0 w-full flex-shrink-0 border-b border-amber-500/25 pb-1.5 text-center text-xs font-bold uppercase tracking-[0.12em] text-amber-200/85"
@@ -2767,7 +2781,9 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                     </div>
                         {pvpRewardsSection}
                     </div>
+                    </GameResultModalFitContent>
                 ) : (
+                    <GameResultModalFitContent className="min-h-0 flex-1">
                     <div className="flex min-h-0 flex-col gap-2 overflow-x-hidden sm:gap-2.5">
                         <div className="flex shrink-0 flex-col items-center overflow-visible rounded-xl border border-amber-500/25 bg-gradient-to-b from-slate-900/90 via-[#121318] to-[#0a0a0e] p-2.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10">
                             <h2
@@ -3038,6 +3054,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                         </div>
                         {pvpRewardsSection}
                     </div>
+                    </GameResultModalFitContent>
                 )}
             </div>
             </div>

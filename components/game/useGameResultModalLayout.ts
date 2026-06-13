@@ -29,7 +29,7 @@ export function useGameResultModalLayout({
     isMobile,
     designWidth,
     designHeight,
-    minUniformScale = 0.56,
+    minUniformScale = 0.54,
     desktopSideDock = true,
 }: UseGameResultModalLayoutArgs) {
     const measuredUniformScale = useViewportUniformScale(designWidth * 1.08, designHeight * 1.06, true);
@@ -39,8 +39,8 @@ export function useGameResultModalLayout({
     );
 
     const mobileTextScale = useMemo(() => {
-        if (!isMobile) return Math.max(0.92, uniformScale);
-        return Math.max(0.9, Math.min(1, uniformScale * 1.04));
+        if (!isMobile) return Math.max(0.94, uniformScale);
+        return Math.max(0.92, Math.min(1, uniformScale * 1.05));
     }, [isMobile, uniformScale]);
 
     const mobileImageScale = useMemo(() => {
@@ -49,7 +49,7 @@ export function useGameResultModalLayout({
     }, [isMobile, uniformScale]);
 
     const desktopTextScale = useMemo(
-        () => Math.max(0.9, Math.min(1, uniformScale * 0.98)),
+        () => Math.max(0.92, Math.min(1, uniformScale * 0.99)),
         [uniformScale],
     );
 

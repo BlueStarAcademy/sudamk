@@ -2,8 +2,8 @@
  * 바둑 AI 봇 시스템
  * 싱글플레이, 도전의탑, 전략·모험 AI 대국 등에서 사용하는 1단계~10단계 바둑 AI.
  * 전략 goAi 경로는 KataServer 응답을 우선 사용한다.
- * KataServer가 설정된 경우 AI 착수는 Kata 응답만 사용한다(국면 불일치 시 AI가 보는 판으로 재인코딩·재질의).
- * Kata 미설정 시에만 서버 합법수/종료 폴백으로 AI 턴 정지를 막는다.
+ * KataServer가 설정된 경우 AI 착수는 Kata 응답을 우선 사용한다(국면 불일치 시 AI가 보는 판으로 재인코딩·재질의).
+ * Kata가 유효한 수를 돌려주지 못하면 서버 합법수 폴백으로 AI 턴 정지를 막는다.
  */
 
 import { randomUUID } from 'crypto';
@@ -1846,11 +1846,6 @@ function appendPairPetGameChat(
 /** Kata만 두기: 실제 수순 대신 현재 AI 시야 판 좌표 전체를 합성 수열로 보내 판단한다. */
 const KATA_EXCLUSIVE_MAX_BOARD_RESYNC = 8;
 
-/** KataServer가 켜져 있으면 휴리스틱 합법수 폴백을 쓰지 않는다(싱글·탑·PVE 포함). */
-function shouldAllowHeuristicAiMoveFallback(): boolean {
-    return !isKataServerAvailable();
-}
-
 function buildKataMoveHistoryForExclusivePick(
     game: types.LiveGameSession,
     aiPlayerEnum: types.Player,
@@ -2700,7 +2695,7 @@ export async function makeGoAiBotMove(
                 const { getGameResult } = await import('./gameModes.js');
                 await getGameResult(game);
                 return;
-            } else if (shouldAllowHeuristicAiMoveFallback()) {
+            } else {
                 const fallbackMove = pickServerScoredLegalMove(
                     game,
                     aiPlayerEnum,
@@ -2726,11 +2721,6 @@ export async function makeGoAiBotMove(
                     await summaryService.endGame(game, opponentPlayerEnum, 'resign');
                     return;
                 }
-            } else {
-                console.error(
-                    `[makeGoAiBotMove] Kata configured but no valid move after resync (candidates=${kataCandidates.length}, best=${kataBestMove ? `(${kataBestMove.x},${kataBestMove.y})` : 'none'}); deferring for client retry, game=${game.id}`,
-                );
-                return;
             }
         }
 
@@ -2883,31 +2873,24 @@ export async function makeGoAiBotMove(
     }
 
     if (selectedMove.x === -1 && selectedMove.y === -1 && pairCurrentSeat && arenaPolicy.matchAxis !== 'pvp') {
-        if (shouldAllowHeuristicAiMoveFallback()) {
-            const fallbackMove = pickServerScoredLegalMove(
-                game,
-                aiPlayerEnum,
-                opponentPlayerEnum,
-                goAiProfileLevel,
-            );
-            if (!fallbackMove) {
-                console.warn(
-                    `[makeGoAiBotMove] pair PVE blocked AI PASS but found no legal move; AI resigns, game=${game.id}`,
-                );
-                await summaryService.endGame(game, opponentPlayerEnum, 'resign');
-                return;
-            }
-            selectedMove = { x: fallbackMove.x, y: fallbackMove.y };
-            pendingPairPetKataGameChat = null;
+        const fallbackMove = pickServerScoredLegalMove(
+            game,
+            aiPlayerEnum,
+            opponentPlayerEnum,
+            goAiProfileLevel,
+        );
+        if (!fallbackMove) {
             console.warn(
-                `[makeGoAiBotMove] pair PVE blocked AI PASS → server legal move (${selectedMove.x},${selectedMove.y}), game=${game.id}`,
+                `[makeGoAiBotMove] pair PVE blocked AI PASS but found no legal move; AI resigns, game=${game.id}`,
             );
-        } else {
-            console.error(
-                `[makeGoAiBotMove] pair PVE blocked AI PASS but Kata gave no non-PASS move; deferring for client retry, game=${game.id}`,
-            );
+            await summaryService.endGame(game, opponentPlayerEnum, 'resign');
             return;
         }
+        selectedMove = { x: fallbackMove.x, y: fallbackMove.y };
+        pendingPairPetKataGameChat = null;
+        console.warn(
+            `[makeGoAiBotMove] pair PVE blocked AI PASS → server legal move (${selectedMove.x},${selectedMove.y}), game=${game.id}`,
+        );
     }
 
     if (selectedMove.x === -1 && selectedMove.y === -1 && pairCurrentSeat) {
@@ -2976,30 +2959,23 @@ export async function makeGoAiBotMove(
                 pickedReveal = revealPick.picked;
             }
             if (!pickedReveal) {
-                if (shouldAllowHeuristicAiMoveFallback()) {
-                    const fallbackRevealMove = pickServerScoredLegalMove(
-                        game,
-                        aiPlayerEnum,
-                        opponentPlayerEnum,
-                        goAiProfileLevel,
-                    );
-                    if (!fallbackRevealMove) {
-                        console.error(
-                            `[makeGoAiBotMove] Kata re-query after hidden reveal failed (no Kata move) → resign, game=${game.id}`,
-                        );
-                        await summaryService.endGame(game, opponentPlayerEnum, 'resign');
-                        return;
-                    }
-                    console.warn(
-                        `[makeGoAiBotMove] Kata re-query after hidden reveal failed; using server-scored legal move (${fallbackRevealMove.x},${fallbackRevealMove.y}), game=${game.id}`,
-                    );
-                    pickedReveal = fallbackRevealMove;
-                } else {
+                const fallbackRevealMove = pickServerScoredLegalMove(
+                    game,
+                    aiPlayerEnum,
+                    opponentPlayerEnum,
+                    goAiProfileLevel,
+                );
+                if (!fallbackRevealMove) {
                     console.error(
-                        `[makeGoAiBotMove] Kata re-query after hidden reveal failed; deferring for client retry, game=${game.id}`,
+                        `[makeGoAiBotMove] Kata re-query after hidden reveal failed (no Kata move) → resign, game=${game.id}`,
                     );
+                    await summaryService.endGame(game, opponentPlayerEnum, 'resign');
                     return;
                 }
+                console.warn(
+                    `[makeGoAiBotMove] Kata re-query after hidden reveal failed; using server-scored legal move (${fallbackRevealMove.x},${fallbackRevealMove.y}), game=${game.id}`,
+                );
+                pickedReveal = fallbackRevealMove;
             }
             selectedMove = { x: pickedReveal.x, y: pickedReveal.y };
             pendingPairPetKataGameChat = null;
@@ -3086,36 +3062,28 @@ export async function makeGoAiBotMove(
                 }
             }
             if (!result.isValid) {
-                if (shouldAllowHeuristicAiMoveFallback()) {
-                    const fallbackMove = pickServerScoredLegalMove(
-                        game,
-                        aiPlayerEnum,
-                        opponentPlayerEnum,
-                        goAiProfileLevel,
-                    );
-                    if (fallbackMove) {
-                        const retry = evaluateAiGoPlacementMove(game, { ...fallbackMove, player: aiPlayerEnum });
-                        if (retry.isValid) {
-                            console.warn(
-                                `[makeGoAiBotMove] Kata-only emergency invalid; using server-scored legal move (${fallbackMove.x},${fallbackMove.y}), game=${game.id}`,
-                            );
-                            selectedMove = fallbackMove;
-                            pendingPairPetKataGameChat = null;
-                            result = retry;
-                        }
+                const fallbackMove = pickServerScoredLegalMove(
+                    game,
+                    aiPlayerEnum,
+                    opponentPlayerEnum,
+                    goAiProfileLevel,
+                );
+                if (fallbackMove) {
+                    const retry = evaluateAiGoPlacementMove(game, { ...fallbackMove, player: aiPlayerEnum });
+                    if (retry.isValid) {
+                        console.warn(
+                            `[makeGoAiBotMove] Kata-only emergency invalid; using server-scored legal move (${fallbackMove.x},${fallbackMove.y}), game=${game.id}`,
+                        );
+                        selectedMove = fallbackMove;
+                        pendingPairPetKataGameChat = null;
+                        result = retry;
                     }
                 }
                 if (!result.isValid) {
-                    if (shouldAllowHeuristicAiMoveFallback()) {
-                        console.error(
-                            `[makeGoAiBotMove] Kata-only emergency: still invalid after re-query (${selectedMove.x},${selectedMove.y}) → resign, game=${game.id}`,
-                        );
-                        await summaryService.endGame(game, opponentPlayerEnum, 'resign');
-                        return;
-                    }
                     console.error(
-                        `[makeGoAiBotMove] Kata emergency invalid (${selectedMove.x},${selectedMove.y}); deferring for client retry, game=${game.id}`,
+                        `[makeGoAiBotMove] Kata-only emergency: still invalid after re-query (${selectedMove.x},${selectedMove.y}) → resign, game=${game.id}`,
                     );
+                    await summaryService.endGame(game, opponentPlayerEnum, 'resign');
                     return;
                 }
             }

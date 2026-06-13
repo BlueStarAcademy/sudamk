@@ -35,6 +35,7 @@ import {
     getSpeedTimePressureUiCountdownSeconds,
 } from '../../shared/utils/speedTimePressureDisplay.js';
 import { applyPveSpeedTimePressureGraceToLiveUsedSec } from '../../shared/utils/speedTimePveGrace.js';
+import SpeedTenSecPressureBar from './SpeedTenSecPressureBar.js';
 import { isFischerStyleTimeControl } from '../../shared/utils/gameTimeControl.js';
 const formatTime = (seconds: number) => {
     if (seconds < 0) seconds = 0;
@@ -898,6 +899,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const { player1, player2, blackPlayerId, whitePlayerId, captures, mode, settings, effectiveCaptureTargets, scores, currentPlayer } = session;
 
     const enforceTime = showTimeControl(session);
+    const isStrategicMode = SPECIAL_GAME_MODES.some(m => m.mode === mode);
     const isBaseRules =
         mode === GameMode.Base || (mode === GameMode.Mix && Boolean(session.settings.mixedModes?.includes(GameMode.Base)));
     /** 따내기 단독 또는 믹스에 따내기 포함 — 전략/페어 등에서 목표 점수 UI 동일 적용 */
@@ -1482,6 +1484,35 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         rightSpeedBonusTick.secToNextDrop != null &&
         (isPvpHumanSpeedLiveBonusUi || rightPlayerUser.id === currentUser?.id);
 
+    /** 모바일 전략 PVP 스피드: 수당 10초 막대를 패널이 아닌 전용 행으로 표시 */
+    const useMobileStrategicSpeedTenSecBar =
+        compactPlayerBar &&
+        isPvpHumanSpeedLiveBonusUi &&
+        isStrategicMode &&
+        !isSinglePlayer &&
+        session.gameCategory !== 'tower' &&
+        session.gameCategory !== 'adventure';
+    const myPlayerEnumForSpeedBar =
+        currentUser?.id === leftPlayerUser.id
+            ? leftPlayerEnum
+            : currentUser?.id === rightPlayerUser.id
+              ? rightPlayerEnum
+              : null;
+    const mySpeedBonusTickForBar =
+        myPlayerEnumForSpeedBar === leftPlayerEnum
+            ? leftSpeedBonusTick
+            : myPlayerEnumForSpeedBar === rightPlayerEnum
+              ? rightSpeedBonusTick
+              : { progress: null as number | null, secToNextDrop: null as number | null };
+    const showDedicatedMobileSpeedTenSecBar =
+        useMobileStrategicSpeedTenSecBar &&
+        myPlayerEnumForSpeedBar != null &&
+        session.currentPlayer === myPlayerEnumForSpeedBar &&
+        mySpeedBonusTickForBar.progress != null &&
+        mySpeedBonusTickForBar.secToNextDrop != null;
+    const leftShowSpeedTenSecBarPanel = leftShowSpeedTenSecBar && !useMobileStrategicSpeedTenSecBar;
+    const rightShowSpeedTenSecBarPanel = rightShowSpeedTenSecBar && !useMobileStrategicSpeedTenSecBar;
+
     const buildHumanPenaltyPointsForPlayer = (playerEnum: Player, playerId: string): number | null => {
         if (!isSpeedLiveBonusUi || playerId === aiUserId) return null;
         const penaltyCommitted = ((session.settings as any)?.__speedTurnPenaltyCommitted ?? {}) as {
@@ -1560,7 +1591,6 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const autoScoringProgressMaxRef = useRef<{ key: string; max: number }>({ key: '', max: 0 });
 
     // 전략바둑 로비(대국실) 턴 표시: 제한 없음 → N수, 제한 있음 → N/N에서 0/N으로 줄어드는 계가 카운트다운
-    const isStrategicMode = SPECIAL_GAME_MODES.some(m => m.mode === mode);
     const strategicLobbyTurnInfoRaw = useMemo(() => {
         if (session.settings?.pairGame) return null;
         if (!isStrategicMode || isSinglePlayer || session.gameCategory === 'tower') return null;
@@ -2008,7 +2038,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                             speedBonusScoreLabel={leftSpeedBonusScoreLabel}
                             speedBonusTickProgress={leftSpeedBonusTick.progress}
                             speedBonusSecToNextDrop={leftSpeedBonusTick.secToNextDrop}
-                            showSpeedTenSecBar={leftShowSpeedTenSecBar}
+                            showSpeedTenSecBar={leftShowSpeedTenSecBarPanel}
                             {...leftAdventureCdProps}
                         />
                     </div>
@@ -2042,11 +2072,20 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                             speedBonusScoreLabel={rightSpeedBonusScoreLabel}
                             speedBonusTickProgress={rightSpeedBonusTick.progress}
                             speedBonusSecToNextDrop={rightSpeedBonusTick.secToNextDrop}
-                            showSpeedTenSecBar={rightShowSpeedTenSecBar}
+                            showSpeedTenSecBar={rightShowSpeedTenSecBarPanel}
                             {...rightAdventureCdProps}
                         />
                     </div>
                 </div>
+                {showDedicatedMobileSpeedTenSecBar && (
+                    <div className="flex w-full shrink-0 items-center rounded-lg border border-amber-400/35 bg-gradient-to-r from-gray-900/95 via-gray-900/90 to-gray-900/95 px-2.5 py-1.5 shadow-md ring-1 ring-amber-500/25">
+                        <SpeedTenSecPressureBar
+                            secToNextDrop={mySpeedBonusTickForBar.secToNextDrop!}
+                            tickProgress={mySpeedBonusTickForBar.progress!}
+                            compact
+                        />
+                    </div>
+                )}
                 <div className={`flex w-full min-h-0 flex-shrink-0 items-stretch gap-1.5 overflow-hidden ${compactBarFixedHeightClass}`}>
                     <div className={playerColClass}>
                         <SinglePlayerPanel
@@ -2078,7 +2117,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                             speedBonusScoreLabel={leftSpeedBonusScoreLabel}
                             speedBonusTickProgress={leftSpeedBonusTick.progress}
                             speedBonusSecToNextDrop={leftSpeedBonusTick.secToNextDrop}
-                            showSpeedTenSecBar={leftShowSpeedTenSecBar}
+                            showSpeedTenSecBar={leftShowSpeedTenSecBarPanel}
                             {...leftAdventureCdProps}
                         />
                     </div>
@@ -2113,7 +2152,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                             speedBonusScoreLabel={rightSpeedBonusScoreLabel}
                             speedBonusTickProgress={rightSpeedBonusTick.progress}
                             speedBonusSecToNextDrop={rightSpeedBonusTick.secToNextDrop}
-                            showSpeedTenSecBar={rightShowSpeedTenSecBar}
+                            showSpeedTenSecBar={rightShowSpeedTenSecBarPanel}
                             {...rightAdventureCdProps}
                         />
                     </div>

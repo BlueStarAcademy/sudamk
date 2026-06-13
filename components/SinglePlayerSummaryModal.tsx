@@ -28,6 +28,7 @@ import { effectivePairPetGradeFromRow, pairPetShowsGradeUpgradeNeededInsteadOfXp
 import { RESULT_MODAL_SCORE_MOBILE_PX } from './game/resultModalScoreTypography.js';
 import SpResultRecordSideBySidePanel from './game/SpResultRecordSideBySidePanel.js';
 import { useGameResultModalLayout } from './game/useGameResultModalLayout.js';
+import GameResultModalFitContent from './game/GameResultModalFitContent.js';
 /** 게임 설명 모달과 동일한 패널 박스 */
 const SP_SUMMARY_PANEL_CLASS =
     'relative overflow-hidden rounded-xl border border-amber-500/28 bg-gradient-to-br from-[#252032] via-[#16131f] to-[#0c0a10] shadow-[0_14px_44px_-18px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-inset ring-amber-400/12';
@@ -604,7 +605,8 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                 )}
                 
                 {isMobile ? (
-                    <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overflow-x-hidden overscroll-y-contain [scrollbar-gutter:auto] [scrollbar-width:thin]">
+                    <GameResultModalFitContent className="flex-1 basis-0">
+                    <div className="flex flex-col gap-1.5 overflow-x-hidden">
                         <div
                             className={`flex flex-col ${SP_SUMMARY_PANEL_CLASS} shrink-0 overflow-x-hidden p-1.5 sp-summary-left-panel`}
                         >
@@ -690,8 +692,10 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                         </div>
                         {spRewardsSection}
                     </div>
+                    </GameResultModalFitContent>
                 ) : (
-                    <div className="flex min-h-0 max-h-[min(90dvh,calc(100vh-72px))] flex-col gap-2 overflow-y-auto overflow-x-hidden [scrollbar-width:thin]">
+                    <GameResultModalFitContent className="min-h-0 flex-1">
+                    <div className="flex min-h-0 flex-col gap-2 overflow-x-hidden">
                         <div className={`flex flex-col ${SP_SUMMARY_PANEL_CLASS} shrink-0 overflow-visible p-2 sm:p-2.5 sp-summary-left-panel`}>
                             <h2 className={`${SP_SUMMARY_SECTION_LABEL} mb-2 border-b border-amber-500/25 pb-1.5 text-center`}>
                                 경기 결과
@@ -760,6 +764,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                         </div>
                         {spRewardsSection}
                     </div>
+                    </GameResultModalFitContent>
                 )}
             </div>
 

@@ -38,6 +38,7 @@ import { effectivePairPetGradeFromRow, pairPetShowsGradeUpgradeNeededInsteadOfXp
 import { RESULT_MODAL_SCORE_MOBILE_PX } from './game/resultModalScoreTypography.js';
 import SpResultRecordPetIdentityRow from './game/SpResultRecordPetIdentityRow.js';
 import { useGameResultModalLayout } from './game/useGameResultModalLayout.js';
+import GameResultModalFitContent from './game/GameResultModalFitContent.js';
 
 interface TowerSummaryModalProps {
     session: LiveGameSession;
@@ -592,7 +593,8 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                 )}
                 
                 {isMobile ? (
-                    <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overflow-x-hidden overscroll-y-contain [scrollbar-width:thin]">
+                    <GameResultModalFitContent className="flex-1 basis-0">
+                    <div className="flex flex-col gap-1.5 overflow-x-hidden">
                         <div className={`flex flex-col ${SP_SUMMARY_PANEL_CLASS} shrink-0 p-2 sp-summary-left-panel overflow-x-hidden`}>
                             <h2
                                 className={`${SP_SUMMARY_SECTION_LABEL} mb-1 border-b border-amber-500/25 pb-0.5 text-center sm:mb-2 sm:pb-1`}
@@ -665,8 +667,10 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                         </div>
                         {towerRewardsSection}
                     </div>
+                    </GameResultModalFitContent>
                 ) : (
-                    <div className="flex min-h-0 max-h-[min(90dvh,calc(100vh-72px))] flex-col gap-2 overflow-y-auto overflow-x-hidden [scrollbar-width:thin]">
+                    <GameResultModalFitContent className="min-h-0 flex-1">
+                    <div className="flex min-h-0 flex-col gap-2 overflow-x-hidden">
                         <div className={`flex flex-col ${SP_SUMMARY_PANEL_CLASS} shrink-0 overflow-visible p-2 sp-summary-left-panel`}>
                             <h2
                                 className={`${SP_SUMMARY_SECTION_LABEL} mb-1 border-b border-amber-500/25 pb-0.5 text-center sm:mb-2 sm:pb-1`}
@@ -735,6 +739,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                         </div>
                         {towerRewardsSection}
                     </div>
+                    </GameResultModalFitContent>
                 )}
             </div>
 
