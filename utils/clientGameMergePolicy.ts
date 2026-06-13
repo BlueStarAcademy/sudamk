@@ -202,6 +202,36 @@ export function shouldIgnoreStaleLiveTerminalGameUpdate(
     return false;
 }
 
+/**
+ * ended/no_contest/scoring 등으로 이미 진행된 로컬 상태를 playing/pending 등으로 되돌리지 않는다.
+ * WS GAME_UPDATE뿐 아니라 HTTP·아레나 병합 경로에도 동일한 판단을 적용한다.
+ */
+export function preserveTerminalGameSessionOnMerge(
+    incoming: LiveGameSession,
+    existing: LiveGameSession | undefined,
+): LiveGameSession {
+    if (!existing || !shouldIgnoreStaleLiveTerminalGameUpdate(incoming, existing)) {
+        return incoming;
+    }
+    if (
+        (incoming.gameStatus === 'ended' || incoming.gameStatus === 'no_contest') &&
+        (existing.gameStatus === 'ended' || existing.gameStatus === 'no_contest')
+    ) {
+        const incomingSummaryKeys =
+            incoming.summary && typeof incoming.summary === 'object'
+                ? Object.keys(incoming.summary as object)
+                : [];
+        const existingSummaryKeys =
+            existing.summary && typeof existing.summary === 'object'
+                ? Object.keys(existing.summary as object)
+                : [];
+        if (incomingSummaryKeys.length > existingSummaryKeys.length) {
+            return { ...existing, ...incoming };
+        }
+    }
+    return existing;
+}
+
 function mergeCaptureCountMonotonic(
     existing: LiveGameSession['captures'] | undefined,
     incoming: LiveGameSession['captures'] | undefined,
@@ -500,9 +530,12 @@ export function mergeGameUpdateByArena(
     }
     /** 본경기·시작 확인 단계로 들어온 패킷이 임시 좌석을 들고 오면 잠금값으로 되돌린다(흑/백 영구 스왑 방지). */
     const seatLocked = coerceBaseSessionPlayingSeatLock(merged);
-    return mergeChessSessionFieldsOnMerge(
-        preserveCastleSessionFieldsOnMerge(
-            coerceAdventureLiveGameScoringTurnLimit(seatLocked),
+    return preserveTerminalGameSessionOnMerge(
+        mergeChessSessionFieldsOnMerge(
+            preserveCastleSessionFieldsOnMerge(
+                coerceAdventureLiveGameScoringTurnLimit(seatLocked),
+                existing,
+            ),
             existing,
         ),
         existing,

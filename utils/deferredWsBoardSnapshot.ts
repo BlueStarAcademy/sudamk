@@ -208,6 +208,12 @@ export function resolveChessPvePlayingSession(
 ): LiveGameSession {
     if (server.mode !== GameMode.Chess) return server;
     const clientSnap = client ?? server;
+    if (
+        (clientSnap.gameStatus === 'ended' || clientSnap.gameStatus === 'no_contest') &&
+        server.gameStatus === 'playing'
+    ) {
+        return normalizeChessGoSession(clientSnap);
+    }
     const authoritative = pickChessPlayingAuthoritativeSnapshot(server, clientSnap);
 
     const merged: LiveGameSession = {

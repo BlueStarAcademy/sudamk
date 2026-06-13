@@ -2570,27 +2570,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                 </div>
             )}
 
-            {useMobileBagItemDetailModal && isMobileItemDetailOpen && selectedItem && embedded && (
-                <div className="absolute inset-0 z-40 flex min-h-0 flex-col bg-black/75 p-2 backdrop-blur-[1px]">
-                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/15 bg-gray-900 shadow-2xl ring-1 ring-white/10">
-                        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 px-3 py-2.5">
-                            <h3 className="min-w-0 truncate text-sm font-bold text-amber-100">아이템 정보</h3>
-                            <button
-                                type="button"
-                                onClick={() => setIsMobileItemDetailOpen(false)}
-                                className="shrink-0 rounded-lg border border-white/20 bg-zinc-800/90 px-3 py-1.5 text-xs font-semibold text-zinc-100 active:scale-[0.98]"
-                            >
-                                닫기
-                            </button>
-                        </div>
-                        <div className={`flex min-h-0 flex-1 flex-col overflow-hidden ${MOBILE_EQUIPMENT_DETAIL_BODY_PADDING_CLASS}`}>
-                            {renderMobileBagItemDetailPanel()}
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {useMobileBagItemDetailModal && isMobileItemDetailOpen && selectedItem && !embedded && (
+            {useMobileBagItemDetailModal && isMobileItemDetailOpen && selectedItem && (
                 <DraggableWindow
                     title="아이템 정보"
                     onClose={() => setIsMobileItemDetailOpen(false)}

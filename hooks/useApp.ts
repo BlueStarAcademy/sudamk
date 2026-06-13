@@ -148,6 +148,7 @@ import {
     mergeGameUpdateByArena,
     mergeLiveRejoinResponseWithExistingBoard,
     preserveTerminalAnalysisResultOnMerge,
+    preserveTerminalGameSessionOnMerge,
     shouldClearMissileFlightAnimationOnPlayingMerge,
     shouldIgnoreStaleLiveTerminalGameUpdate,
 } from '../utils/clientGameMergePolicy.js';
@@ -982,7 +983,7 @@ function mergePveGameUpdateFromWs(
             moveHistory: scoringResolved.moveHistory,
         };
     }
-    return next;
+    return preserveTerminalGameSessionOnMerge(next, existing);
 }
 
 function mergePveHttpActionGameResponse(
@@ -990,10 +991,13 @@ function mergePveHttpActionGameResponse(
     prevG: LiveGameSession | undefined,
     actionType: string,
 ): LiveGameSession {
+    if (prevG && shouldIgnoreStaleLiveTerminalGameUpdate(merged, prevG)) {
+        return preserveTerminalGameSessionOnMerge(merged, prevG);
+    }
     let next = applyPvePlayingBoardAndMoveHistoryResolve(merged, prevG);
     next = mergeGameUpdateByArena(next, prevG, { source: 'http_action', actionType });
     next = preserveLiveStrategicMainClockOnMerge(next, prevG, merged);
-    return next;
+    return preserveTerminalGameSessionOnMerge(next, prevG);
 }
 
 /** 페어 4인 수순: 낡은 GAME_UPDATE가 currentTurnIndex·currentPlayer를 되돌리면 유저 턴만 반복되는 버그 */
@@ -2685,6 +2689,20 @@ export const useApp = () => {
             return false;
         },
         [replaceMobileViewport],
+    );
+
+    /** opts.modal이면 DraggableWindow 모달, 모바일 세로 셸 기본은 quickUtility 뷰포트. */
+    const openBlacksmithUi = useCallback(
+        (opts?: { modal?: boolean }) => {
+            if (opts?.modal) {
+                setIsBlacksmithModalOpen(true);
+                return;
+            }
+            if (!openQuickUtilityViewport('blacksmith')) {
+                setActiveQuickUtilityPanel('blacksmith');
+            }
+        },
+        [openQuickUtilityViewport],
     );
 
     const closeQuickUtilityPanel = useCallback(
@@ -6787,7 +6805,9 @@ export const useApp = () => {
                  if (action.type === 'USE_ITEM' && result.clientResponse?.openBlacksmithRefineTab) {
                      setIsInventoryOpen(false);
                      setBlacksmithActiveTab('refine');
-                     setActiveQuickUtilityPanel('blacksmith');
+                     if (!openQuickUtilityViewport('blacksmith')) {
+                         setActiveQuickUtilityPanel('blacksmith');
+                     }
                      // 선택된 아이템이 있으면 해당 아이템 선택
                      if (result.clientResponse?.selectedItemId && currentUser) {
                          const selectedItem = currentUser.inventory.find(i => i.id === result.clientResponse.selectedItemId);
@@ -12164,84 +12184,46 @@ export const useApp = () => {
     const openEnhancingItem = useCallback((item: InventoryItem) => {
         setBlacksmithSelectedItemForEnhancement(item);
         setBlacksmithActiveTab('enhance');
-        openQuickUtilityViewport('blacksmith');
-    }, [openQuickUtilityViewport]);
+        openBlacksmithUi();
+    }, [openBlacksmithUi]);
 
     const openEnhancementFromDetail = useCallback((item: InventoryItem) => {
         setViewingItem(null);
         setBlacksmithSelectedItemForEnhancement(item);
         setBlacksmithActiveTab('enhance');
-        if (usePortraitFirstShell) {
-            setMobileViewportStack((prev) => {
-                const withoutDetail = prev[prev.length - 1]?.type === 'itemDetail' ? prev.slice(0, -1) : prev;
-                const next: MobileViewportEntry[] = withoutDetail.some((entry) => entry.type === 'quickUtility')
-                    ? withoutDetail.map((entry) =>
-                          entry.type === 'quickUtility' ? { type: 'quickUtility', kind: 'blacksmith' as const } : entry,
-                      )
-                    : [{ type: 'quickUtility', kind: 'blacksmith' }];
-                syncActiveQuickUtilityFromStack(next);
-                return next;
-            });
-        } else {
-            setActiveQuickUtilityPanel('blacksmith');
-        }
-    }, [syncActiveQuickUtilityFromStack, usePortraitFirstShell]);
+        openBlacksmithUi();
+    }, [openBlacksmithUi]);
 
     const openRefinementFromDetail = useCallback((item: InventoryItem) => {
         setViewingItem(null);
         setBlacksmithSelectedItemForEnhancement(item);
         setBlacksmithActiveTab('refine');
-        if (usePortraitFirstShell) {
-            setMobileViewportStack((prev) => {
-                const withoutDetail = prev[prev.length - 1]?.type === 'itemDetail' ? prev.slice(0, -1) : prev;
-                const next: MobileViewportEntry[] = withoutDetail.some((entry) => entry.type === 'quickUtility')
-                    ? withoutDetail.map((entry) =>
-                          entry.type === 'quickUtility' ? { type: 'quickUtility', kind: 'blacksmith' as const } : entry,
-                      )
-                    : [{ type: 'quickUtility', kind: 'blacksmith' }];
-                syncActiveQuickUtilityFromStack(next);
-                return next;
-            });
-        } else {
-            setActiveQuickUtilityPanel('blacksmith');
-        }
-    }, [syncActiveQuickUtilityFromStack, usePortraitFirstShell]);
+        openBlacksmithUi();
+    }, [openBlacksmithUi]);
 
     const openBlacksmithTabFromInventory = useCallback(
         (tab: 'convert' | 'refine') => {
             setBlacksmithSelectedItemForEnhancement(null);
             setBlacksmithActiveTab(tab);
-            openQuickUtilityViewport('blacksmith');
+            openBlacksmithUi();
         },
-        [openQuickUtilityViewport],
+        [openBlacksmithUi],
     );
 
     const openViewingItem = useCallback(
         (item: InventoryItem, isOwnedByCurrentUser: boolean, opts?: { hideEnhanceActions?: boolean }) => {
-            const payload = {
+            setViewingItem({
                 item,
                 isOwnedByCurrentUser,
                 ...(opts?.hideEnhanceActions ? { hideEnhanceActions: true as const } : {}),
-            };
-            setViewingItem(payload);
-            if (usePortraitFirstShell) {
-                pushMobileViewport({
-                    type: 'itemDetail',
-                    item,
-                    isOwnedByCurrentUser,
-                    hideEnhanceActions: opts?.hideEnhanceActions,
-                });
-            }
+            });
         },
-        [pushMobileViewport, usePortraitFirstShell],
+        [],
     );
 
     const closeViewingItem = useCallback(() => {
         setViewingItem(null);
-        if (usePortraitFirstShell && mobileViewportStackRef.current[mobileViewportStackRef.current.length - 1]?.type === 'itemDetail') {
-            popMobileViewport();
-        }
-    }, [popMobileViewport, usePortraitFirstShell]);
+    }, []);
 
     const openGameRecordViewer = useCallback(
         (record: GameRecord) => {
@@ -12897,11 +12879,7 @@ export const useApp = () => {
                 }
             },
             openBlacksmithModal: (opts?: { modal?: boolean }) => {
-                if (opts?.modal) {
-                    setIsBlacksmithModalOpen(true);
-                } else if (!openQuickUtilityViewport('blacksmith')) {
-                    setActiveQuickUtilityPanel('blacksmith');
-                }
+                openBlacksmithUi(opts);
             },
             closeBlacksmithModal: () => {
                 setIsBlacksmithModalOpen(false);
@@ -12911,15 +12889,10 @@ export const useApp = () => {
                 setIsBlacksmithEffectsModalOpen(false);
             },
             openBlacksmithEffectsModal: () => {
-                if (!replaceMobileViewport({ type: 'blacksmithEffects' })) {
-                    setIsBlacksmithEffectsModalOpen(true);
-                }
+                setIsBlacksmithEffectsModalOpen(true);
             },
             closeBlacksmithEffectsModal: () => {
                 setIsBlacksmithEffectsModalOpen(false);
-                if (usePortraitFirstShell) {
-                    setMobileViewportStack((prev) => prev.filter((entry) => entry.type !== 'blacksmithEffects'));
-                }
             },
             openGameRecordList: (opts?: { modal?: boolean }) => {
                 if (opts?.modal) {

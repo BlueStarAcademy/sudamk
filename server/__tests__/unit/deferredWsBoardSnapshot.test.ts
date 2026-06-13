@@ -196,4 +196,29 @@ describe('resolveChessPvePlayingSession', () => {
         expect(resolved.boardState![7]![7]).toBe(Player.White);
         expect(resolved.boardState![8]![8]).toBe(Player.None);
     });
+
+    it('does not regress client ended to server playing (checkmate stale sync)', () => {
+        const client = {
+            mode: GameMode.Chess,
+            gameStatus: 'ended',
+            winner: Player.Black,
+            winReason: 'chess_checkmate',
+            settings: { boardSize: 13, komi: 6.5 },
+            chessPieces,
+            moveHistory: [{ x: 6, y: 6, player: Player.Black }],
+            currentPlayer: Player.None,
+        } as LiveGameSession;
+        const server = {
+            ...client,
+            gameStatus: 'playing',
+            winner: undefined,
+            winReason: undefined,
+            currentPlayer: Player.White,
+        } as LiveGameSession;
+
+        const resolved = resolveChessPvePlayingSession(server, client);
+        expect(resolved.gameStatus).toBe('ended');
+        expect(resolved.winner).toBe(Player.Black);
+        expect(resolved.winReason).toBe('chess_checkmate');
+    });
 });

@@ -3,6 +3,7 @@ import {
     mergeGameUpdateByArena,
     mergeLiveRejoinResponseWithExistingBoard,
     preserveTerminalAnalysisResultOnMerge,
+    preserveTerminalGameSessionOnMerge,
     shouldClearMissileFlightAnimationOnPlayingMerge,
     shouldIgnoreStaleLiveTerminalGameUpdate,
 } from '../../../utils/clientGameMergePolicy.js';
@@ -253,6 +254,44 @@ describe('shouldIgnoreStaleLiveTerminalGameUpdate', () => {
         const existing = minimalSession({ isAiGame: false, gameStatus: 'ended' });
         const incoming = minimalSession({ isAiGame: false, gameStatus: 'playing' });
         expect(shouldIgnoreStaleLiveTerminalGameUpdate(incoming, existing)).toBe(true);
+    });
+});
+
+describe('preserveTerminalGameSessionOnMerge', () => {
+    it('keeps local ended when HTTP merge would regress to playing', () => {
+        const existing = minimalSession({
+            isAiGame: true,
+            gameStatus: 'ended',
+            winner: Player.Black,
+            winReason: 'chess_checkmate',
+        });
+        const incoming = minimalSession({
+            isAiGame: true,
+            gameStatus: 'playing',
+            currentPlayer: Player.White,
+        });
+        const merged = preserveTerminalGameSessionOnMerge(incoming, existing);
+        expect(merged.gameStatus).toBe('ended');
+        expect(merged.winner).toBe(Player.Black);
+        expect(merged.winReason).toBe('chess_checkmate');
+    });
+
+    it('accepts ended packet with new summary over local ended without summary', () => {
+        const existing = minimalSession({
+            isAiGame: false,
+            gameStatus: 'ended',
+            winner: Player.Black,
+            winReason: 'castle_capture',
+        });
+        const incoming = minimalSession({
+            isAiGame: false,
+            gameStatus: 'ended',
+            winner: Player.Black,
+            winReason: 'castle_capture',
+            summary: { u1: { gold: 100 } } as any,
+        });
+        const merged = preserveTerminalGameSessionOnMerge(incoming, existing);
+        expect(merged.summary).toEqual({ u1: { gold: 100 } });
     });
 });
 

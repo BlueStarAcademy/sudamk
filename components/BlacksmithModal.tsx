@@ -892,7 +892,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
 
     const equipmentPickerModal = (
         <BlacksmithEquipmentPickerModal
-            embedded={embedded}
+            embedded={embedded && !useStackedBlacksmithLayout}
             mode={activeTab}
             onClose={() => setEquipmentPickerOpen(false)}
             onConfirm={handlePickerConfirm}
@@ -921,34 +921,11 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
         />
     );
 
-    const embeddedWorkPanel =
-        equipmentFeatureModalOpen &&
-        useStackedBlacksmithLayout &&
-        isMobileEquipmentTab &&
-        mobileShowEquipmentWorkPanel ? (
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
-                <button
-                    type="button"
-                    onClick={handleMobileEquipmentBack}
-                    className="shrink-0 self-start rounded-lg border border-slate-600/55 bg-slate-800/70 px-3 py-2 text-[13px] font-bold text-slate-200 shadow-sm transition hover:border-cyan-500/35 hover:bg-slate-700/80 active:scale-[0.99]"
-                >
-                    ← 장비 다시 선택
-                </button>
-                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable]">
-                    <div className={`${BLACKSMITH_MOBILE_WORK_ROOT_CLASS} min-h-[min(68dvh,100%)]`}>
-                        {renderContent({ forceStackedEquipmentViewport: true })}
-                    </div>
-                </div>
-            </div>
-        ) : null;
-
     return (
         <>
             {embedded ? (
                 <div className={`${PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS} flex min-h-0 flex-1 flex-col`}>
-                    {equipmentPickerOpen && useStackedBlacksmithLayout && isMobileEquipmentTab
-                        ? equipmentPickerModal
-                        : embeddedWorkPanel ?? blacksmithMain}
+                    {blacksmithMain}
                 </div>
             ) : (
             <DraggableWindow 
@@ -982,12 +959,11 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
             </DraggableWindow>
             )}
 
-            {(!embedded && equipmentPickerOpen && useStackedBlacksmithLayout && isMobileEquipmentTab) && (
+            {equipmentPickerOpen && useStackedBlacksmithLayout && isMobileEquipmentTab && (
                 equipmentPickerModal
             )}
 
-            {!embedded &&
-                equipmentFeatureModalOpen &&
+            {equipmentFeatureModalOpen &&
                 useStackedBlacksmithLayout &&
                 isMobileEquipmentTab &&
                 mobileShowEquipmentWorkPanel && (

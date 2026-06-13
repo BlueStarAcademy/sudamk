@@ -421,7 +421,7 @@ const AppModalLayer: React.FC = () => {
                     <AdminModerationModal user={modals.moderatingUser} currentUser={currentUserWithStatus} onClose={handlers.closeModerationModal} onAction={handlers.handleAction} isTopmost={topmostModalId === 'moderatingUser'} />
                 </Suspense>
             )}
-            {modals.viewingItem && !mobileViewportActive('itemDetail') && (
+            {modals.viewingItem && (
                 <ItemDetailModal
                     item={modals.viewingItem.item}
                     isOwnedByCurrentUser={modals.viewingItem.isOwnedByCurrentUser}
@@ -532,7 +532,7 @@ const AppModalLayer: React.FC = () => {
                 </Suspense>
             )}
             {modals.combinationResult && <CombinationResultModal result={modals.combinationResult} onClose={handlers.closeCombinationResult} isTopmost={topmostModalId === 'combinationResult'} />}
-            {modals.isBlacksmithEffectsModalOpen && currentUserWithStatus && !mobileViewportActive('blacksmithEffects') && (
+            {modals.isBlacksmithEffectsModalOpen && currentUserWithStatus && (
                 <Suspense fallback={ModalLoadingFallback()}>
                     <BlacksmithEffectsModal
                         onClose={handlers.closeBlacksmithEffectsModal}

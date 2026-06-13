@@ -13,7 +13,6 @@ import {
 } from '../../shared/types/mobileViewportStack.js';
 import ModalChunkFallback from '../ui/ModalChunkFallback.js';
 
-const ItemDetailModal = lazy(() => import('../ItemDetailModal.js'));
 const GameRecordViewerModal = lazy(() => import('../GameRecordViewerModal.js'));
 const SettingsModal = lazy(() => import('../SettingsModal.js'));
 const MailboxModal = lazy(() => import('../MailboxModal.js'));
@@ -22,7 +21,6 @@ const StatAllocationModal = lazy(() => import('../StatAllocationModal.js'));
 const UserProfileModal = lazy(() => import('../UserProfileModal.js'));
 const PastRankingsModal = lazy(() => import('../modals/PastRankingsModal.js'));
 const EquipmentEffectsModal = lazy(() => import('../EquipmentEffectsModal.js'));
-const BlacksmithEffectsModal = lazy(() => import('../blacksmith/BlacksmithEffectsModal.js'));
 const ChatQuickModal = lazy(() => import('../ChatQuickModal.js'));
 const ActionPointModal = lazy(() => import('../ActionPointModal.js'));
 
@@ -94,18 +92,6 @@ const MobileViewportHost: React.FC<MobileViewportHostProps> = ({ stack, onBack }
 
     const renderEntryBody = () => {
         switch (entry.type) {
-            case 'itemDetail':
-                return (
-                    <ItemDetailModal
-                        embedded
-                        item={entry.item}
-                        isOwnedByCurrentUser={entry.isOwnedByCurrentUser}
-                        hideEnhanceActions={entry.hideEnhanceActions}
-                        onClose={onBack}
-                        onStartEnhance={handlers.openEnhancementFromDetail}
-                        onStartRefine={handlers.openRefinementFromDetail}
-                    />
-                );
             case 'settings':
                 return <SettingsModal embedded onClose={onBack} />;
             case 'mailbox':
@@ -155,15 +141,6 @@ const MobileViewportHost: React.FC<MobileViewportHostProps> = ({ stack, onBack }
                         combatSubOptionBonuses={combatSubOptionBonuses}
                         specialStatBonuses={specialStatBonuses}
                         aggregatedMythicStats={aggregatedMythicStats}
-                    />
-                );
-            case 'blacksmithEffects':
-                return (
-                    <BlacksmithEffectsModal
-                        embedded
-                        onClose={onBack}
-                        blacksmithLevel={currentUserWithStatus.blacksmithLevel ?? 1}
-                        currentUser={currentUserWithStatus}
                     />
                 );
             case 'chatQuick':
