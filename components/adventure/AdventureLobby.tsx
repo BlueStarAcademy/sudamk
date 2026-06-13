@@ -140,6 +140,15 @@ const AdventureLobby: React.FC = () => {
                                     mobileScrollableList ? 'flex flex-col' : 'flex flex-1 flex-col'
                                 }`}
                             >
+                                <div
+                                    className={`group flex w-full min-w-0 flex-col overflow-hidden rounded-xl border text-left shadow-[0_18px_44px_-22px_rgba(0,0,0,0.92)] ring-1 transition-[border-color,box-shadow,filter] duration-200 sm:rounded-2xl ${ringClass} ${
+                                        mobileScrollableList ? 'min-h-[8.75rem]' : 'h-full min-h-0'
+                                    } ${
+                                        unlocked
+                                            ? 'border-white/14 hover:border-amber-400/30 hover:shadow-[0_22px_52px_-22px_rgba(251,191,36,0.2)]'
+                                            : 'border-zinc-700/50 opacity-95'
+                                    }`}
+                                >
                                 <button
                                     type="button"
                                     disabled={!unlocked}
@@ -151,12 +160,10 @@ const AdventureLobby: React.FC = () => {
                                     aria-label={
                                         unlocked ? `${stage.title} 맵으로 입장` : `${stage.title} 잠김: ${blockers.join(', ')}`
                                     }
-                                    className={`group flex w-full min-w-0 flex-col overflow-hidden rounded-xl border text-left shadow-[0_18px_44px_-22px_rgba(0,0,0,0.92)] ring-1 transition-[border-color,box-shadow,filter] duration-200 sm:rounded-2xl ${ringClass} ${
-                                        mobileScrollableList ? 'min-h-[8.75rem]' : 'h-full min-h-0'
-                                    } ${
+                                    className={`m-0 flex w-full min-w-0 flex-col overflow-hidden border-0 bg-transparent p-0 text-left transition-[filter] duration-200 ${
                                         unlocked
-                                            ? 'cursor-pointer border-white/14 hover:border-amber-400/30 hover:shadow-[0_22px_52px_-22px_rgba(251,191,36,0.2)]'
-                                            : 'cursor-not-allowed border-zinc-700/50 opacity-95'
+                                            ? 'cursor-pointer group-hover:brightness-[1.02]'
+                                            : 'cursor-not-allowed'
                                     }`}
                                 >
                                     <div
@@ -247,6 +254,7 @@ const AdventureLobby: React.FC = () => {
                                             ) : null}
                                         </div>
                                     </div>
+                                </button>
                                     <div className="flex min-h-0 shrink-0 flex-col bg-gradient-to-br from-zinc-950/98 to-zinc-900/85">
                                         <AdventureChapterRegionalSummary
                                             row={stageUnderstandingRows[i]!}
@@ -254,7 +262,7 @@ const AdventureLobby: React.FC = () => {
                                             onOpenEffectSlots={() => setRegionalBuffStageId(stage.id)}
                                         />
                                     </div>
-                                </button>
+                                </div>
                             </li>
                         );
                     })}

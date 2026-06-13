@@ -35,6 +35,8 @@ import {
     LOBBY_DENSE_SETTINGS_RESPONSIVE_COLS_GRID_CLASS,
     LOBBY_HORIZONTAL_MODE_PICKER_ITEM_CLASS,
     LOBBY_HORIZONTAL_MODE_PICKER_ROW_CLASS,
+    LOBBY_HORIZONTAL_MODE_PICKER_ROW_LAYOUT_CLASS,
+    LOBBY_HORIZONTAL_MODE_PICKER_SCROLL_CLASS,
     PAIR_LOBBY_DENSE_SETTING_VALUE_READONLY_CLASS,
 } from '../../shared/constants/pairLobbyDenseSettingFieldLayout.js';
 import { getRankedGameSettings } from '../../constants/rankedGameSettings.js';
@@ -2369,8 +2371,8 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                         항목을 눌러 선택한 뒤 「다음」에서 대국 설정으로 이동합니다.
                                     </p>
                                 </div>
-                                <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-x-contain py-2 [-webkit-overflow-scrolling:touch]">
-                                    <div className={`${LOBBY_HORIZONTAL_MODE_PICKER_ROW_CLASS} min-h-0 pb-1`}>
+                                <div className={`min-h-0 flex-1 py-2 ${LOBBY_HORIZONTAL_MODE_PICKER_SCROLL_CLASS}`}>
+                                    <div className={`${LOBBY_HORIZONTAL_MODE_PICKER_ROW_LAYOUT_CLASS} min-h-0 pb-1`}>
                                         {lobbyGameModes.map((game) => (
                                             <div key={game.mode} className={LOBBY_HORIZONTAL_MODE_PICKER_ITEM_CLASS}>
                                                 <GameCard
@@ -2619,8 +2621,8 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                 descriptionFallback={modeBriefFallback}
                             >
                                 <h3 className="mb-2 shrink-0 text-sm font-bold tracking-tight text-amber-100/95">게임 모드 선택</h3>
-                                <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-x-contain [-webkit-overflow-scrolling:touch]">
-                                    <div className={`${LOBBY_HORIZONTAL_MODE_PICKER_ROW_CLASS} min-h-0 pb-1`}>
+                                <div className={`min-h-0 flex-1 ${LOBBY_HORIZONTAL_MODE_PICKER_SCROLL_CLASS}`}>
+                                    <div className={`${LOBBY_HORIZONTAL_MODE_PICKER_ROW_LAYOUT_CLASS} min-h-0 pb-1`}>
                                         {lobbyGameModes.map((game) => (
                                             <div key={game.mode} className={LOBBY_HORIZONTAL_MODE_PICKER_ITEM_CLASS}>
                                                 <GameCard

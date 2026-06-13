@@ -3,6 +3,11 @@ import Avatar from '../Avatar.js';
 import { StrategyXpResultBar } from './StrategyXpResultBar.js';
 import PairPetLevelUpCoreDelta from '../pair/PairPetLevelUpCoreDelta.js';
 import { RESULT_MODAL_SCORE_MOBILE_PX } from './resultModalScoreTypography.js';
+import {
+    ResultModalIdentityRow,
+    ResultModalPetPortrait,
+    resolveResultModalPortraitPx,
+} from './ResultModalIdentityRow.js';
 import type { GameSummary } from '../../types.js';
 
 const INSET =
@@ -38,9 +43,6 @@ export type SpResultRecordSideBySidePanelProps = {
     mobileTextScale: number;
 };
 
-const profileColClass = 'flex w-[3.25rem] shrink-0 flex-col items-center gap-0.5 sm:w-14 min-[1024px]:w-[3.75rem]';
-const xpColClass = 'min-w-0 flex-1 space-y-0.5';
-
 const SpResultRecordSideBySidePanel: React.FC<SpResultRecordSideBySidePanelProps> = ({
     currentUser,
     avatarUrl,
@@ -57,80 +59,18 @@ const SpResultRecordSideBySidePanel: React.FC<SpResultRecordSideBySidePanelProps
     isMobile,
     mobileTextScale,
 }) => {
-    const namePx = isMobile ? `${11 * mobileTextScale}px` : '14px';
-    const subPx = isMobile
-        ? `${RESULT_MODAL_SCORE_MOBILE_PX.emptyState * mobileTextScale}px`
-        : '12px';
     const statPx = isMobile
-        ? `${RESULT_MODAL_SCORE_MOBILE_PX.emptyState * mobileTextScale}px`
-        : '12px';
+        ? `${RESULT_MODAL_SCORE_MOBILE_PX.dataRow * mobileTextScale}px`
+        : '13px';
     const barH = isMobile ? 'h-2' : 'h-2.5';
-    const avatarSize = isMobile ? 28 : 34;
-    const petImgClass = isMobile ? 'h-7 w-7' : 'h-9 w-9 min-[1024px]:h-10 min-[1024px]:w-10';
-
-    const renderUserProfile = () => (
-        <div className={profileColClass}>
-            <Avatar
-                userId={currentUser.id}
-                userName={currentUser.nickname}
-                avatarUrl={avatarUrl}
-                borderUrl={borderUrl}
-                size={avatarSize}
-            />
-            <p
-                className="w-full truncate text-center font-bold leading-tight text-zinc-100"
-                style={{ fontSize: namePx }}
-                title={currentUser.nickname}
-            >
-                {currentUser.nickname}
-            </p>
-            <p className="leading-none text-amber-200/60" style={{ fontSize: subPx }}>
-                Lv.{currentUser.userLevel}
-            </p>
-        </div>
-    );
-
-    const renderPetProfile = () => {
-        if (!petRecordRowIdentity) return null;
-        return (
-            <div className={profileColClass}>
-                <div
-                    className={`relative shrink-0 overflow-hidden rounded-lg border border-fuchsia-500/30 bg-black/40 ring-1 ring-inset ring-fuchsia-400/12 ${petImgClass}`}
-                >
-                    {petRecordRowIdentity.imageSrc ? (
-                        <img
-                            src={petRecordRowIdentity.imageSrc}
-                            alt={petRecordRowIdentity.displayName}
-                            className="h-full w-full object-cover"
-                        />
-                    ) : (
-                        <div className="flex h-full w-full items-center justify-center text-[9px] text-fuchsia-200/50">
-                            펫
-                        </div>
-                    )}
-                </div>
-                <p
-                    className="w-full truncate text-center font-bold leading-tight text-fuchsia-100"
-                    style={{ fontSize: namePx }}
-                    title={petRecordRowIdentity.displayName}
-                >
-                    {petRecordRowIdentity.displayName}
-                </p>
-                {displaySummary?.pairPetLevel ? (
-                    <p className="leading-none text-fuchsia-200/70" style={{ fontSize: subPx }}>
-                        Lv.{displaySummary.pairPetLevel.final}
-                    </p>
-                ) : null}
-            </div>
-        );
-    };
+    const portraitPx = resolveResultModalPortraitPx(isMobile, mobileTextScale, isMobile ? 1 : 1);
 
     const renderXpNumbers = (current: number, max: number, gain: number, gainClass: string, suffix: string) => (
         <div
             className="flex min-w-0 flex-nowrap items-center justify-between gap-1"
             style={{ fontSize: statPx }}
         >
-            <span className="min-w-0 shrink truncate font-mono text-zinc-300/95">
+            <span className="min-w-0 shrink truncate font-mono text-zinc-100">
                 {current.toLocaleString()} / {max.toLocaleString()} {suffix}
             </span>
             {gain > 0 ? (
@@ -141,54 +81,113 @@ const SpResultRecordSideBySidePanel: React.FC<SpResultRecordSideBySidePanelProps
         </div>
     );
 
+    const showPetSection =
+        (showPetGradeUpgradeInsteadOfXp && displaySummary?.pairPetLevel && displaySummary?.pairPetXp) ||
+        (petXpBarPercents && displaySummary?.pairPetLevel && petRecordRowIdentity);
+
+    const alignXpColumns = Boolean(showPetSection);
+
     return (
-        <div className="flex flex-col gap-1 sm:gap-1.5">
+        <div className="flex flex-col gap-1.5">
             {displaySummary?.xp ? (
-                <div className={`flex items-center gap-1.5 ${INSET} p-1.5 sm:p-2`}>
-                    {renderUserProfile()}
-                    <div className={xpColClass}>
-                        <StrategyXpResultBar
-                            previousXpPercent={previousXpPercent}
-                            finalXpPercent={xpPercent}
-                            xpGain={xpChange}
-                            className={barH}
-                        />
-                        {renderXpNumbers(clampedXp, xpRequirement, xpChange, 'text-green-400', 'XP')}
-                    </div>
+                <div className={`${INSET} p-1.5 sm:p-2`}>
+                    <ResultModalIdentityRow
+                        variant="flat"
+                        displayName={currentUser.nickname}
+                        level={currentUser.userLevel}
+                        hideLevelLine
+                        portrait={
+                            <Avatar
+                                userId={currentUser.id}
+                                userName={currentUser.nickname}
+                                avatarUrl={avatarUrl}
+                                borderUrl={borderUrl}
+                                size={portraitPx}
+                            />
+                        }
+                        xpAside={
+                            <div className="min-w-0 space-y-0.5">
+                                <StrategyXpResultBar
+                                    previousXpPercent={previousXpPercent}
+                                    finalXpPercent={xpPercent}
+                                    xpGain={xpChange}
+                                    className={barH}
+                                />
+                                {renderXpNumbers(clampedXp, xpRequirement, xpChange, 'text-green-400', 'XP')}
+                            </div>
+                        }
+                        xpColumnReserved={alignXpColumns}
+                        isMobile={isMobile}
+                        mobileTextScale={mobileTextScale}
+                    />
                 </div>
             ) : null}
 
-            {showPetGradeUpgradeInsteadOfXp && displaySummary?.pairPetLevel && displaySummary?.pairPetXp ? (
-                <div className={`flex items-center gap-1.5 ${INSET} p-1.5 sm:p-2`}>
-                    {renderPetProfile()}
-                    <div className={`${xpColClass} flex items-center justify-center py-0.5`}>
-                        <p
-                            className="text-center font-bold uppercase tracking-[0.1em] text-fuchsia-200/90"
-                            style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : '11px' }}
-                        >
-                            펫 등급강화 필요
-                        </p>
-                    </div>
-                </div>
-            ) : petXpBarPercents && displaySummary?.pairPetLevel ? (
-                <>
-                    <div className={`flex items-center gap-1.5 ${INSET} p-1.5 sm:p-2`}>
-                        {renderPetProfile()}
-                        <div className={xpColClass}>
-                            <StrategyXpResultBar
-                                previousXpPercent={petXpBarPercents.previous}
-                                finalXpPercent={petXpBarPercents.final}
-                                xpGain={petXpBarPercents.gain}
-                                className={barH}
+            {showPetGradeUpgradeInsteadOfXp && displaySummary?.pairPetLevel && displaySummary?.pairPetXp && petRecordRowIdentity ? (
+                <div className={`${INSET} p-1.5 sm:p-2`}>
+                    <ResultModalIdentityRow
+                        variant="flat"
+                        tone="pet"
+                        displayName={petRecordRowIdentity.displayName}
+                        level={displaySummary.pairPetLevel.final}
+                        hideLevelLine
+                        portrait={
+                            <ResultModalPetPortrait
+                                imageSrc={petRecordRowIdentity.imageSrc}
+                                sizePx={portraitPx}
+                                alt={petRecordRowIdentity.displayName}
                             />
-                            {renderXpNumbers(
-                                petXpBarPercents.petFinal,
-                                petXpBarPercents.petMax,
-                                petXpBarPercents.gain,
-                                'text-fuchsia-300',
-                                '펫 XP',
-                            )}
-                        </div>
+                        }
+                        xpAside={
+                            <p
+                                className="text-center font-bold uppercase tracking-[0.1em] text-fuchsia-100"
+                                style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : '12px' }}
+                            >
+                                펫 등급강화 필요
+                            </p>
+                        }
+                        xpColumnReserved={alignXpColumns}
+                        isMobile={isMobile}
+                        mobileTextScale={mobileTextScale}
+                    />
+                </div>
+            ) : petXpBarPercents && displaySummary?.pairPetLevel && petRecordRowIdentity ? (
+                <>
+                    <div className={`${INSET} p-1.5 sm:p-2`}>
+                        <ResultModalIdentityRow
+                            variant="flat"
+                            tone="pet"
+                            displayName={petRecordRowIdentity.displayName}
+                            level={displaySummary.pairPetLevel.final}
+                            hideLevelLine
+                            portrait={
+                                <ResultModalPetPortrait
+                                    imageSrc={petRecordRowIdentity.imageSrc}
+                                    sizePx={portraitPx}
+                                    alt={petRecordRowIdentity.displayName}
+                                />
+                            }
+                            xpAside={
+                                <div className="min-w-0 space-y-0.5">
+                                    <StrategyXpResultBar
+                                        previousXpPercent={petXpBarPercents.previous}
+                                        finalXpPercent={petXpBarPercents.final}
+                                        xpGain={petXpBarPercents.gain}
+                                        className={barH}
+                                    />
+                                    {renderXpNumbers(
+                                        petXpBarPercents.petFinal,
+                                        petXpBarPercents.petMax,
+                                        petXpBarPercents.gain,
+                                        'text-fuchsia-300',
+                                        '펫 XP',
+                                    )}
+                                </div>
+                            }
+                            xpColumnReserved={alignXpColumns}
+                            isMobile={isMobile}
+                            mobileTextScale={mobileTextScale}
+                        />
                     </div>
                     {displaySummary.pairPetLevelUpCoreBonuses ? (
                         <PairPetLevelUpCoreDelta

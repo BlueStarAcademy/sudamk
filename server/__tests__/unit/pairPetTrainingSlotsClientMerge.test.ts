@@ -75,4 +75,13 @@ describe('mergePairPetTrainingSlotsPreserveRecentRestart', () => {
         const merged = mergePairPetTrainingSlotsPreserveRecentRestart(base, patch, now, 15_000, new Set([0]));
         expect(merged[0]).toBeNull();
     });
+
+    it('keeps fresh in-progress sessions when client-claimed slot index is still set', () => {
+        const now = 2_000_000;
+        const inProgressSession = { slotIndex: 0, itemId: 'pet-1', startedAt: now - 5_000 };
+        const base = [null, null, null, null, null, null];
+        const patch = [inProgressSession, null, null, null, null, null];
+        const merged = mergePairPetTrainingSlotsPreserveRecentRestart(base, patch, now, 15_000, new Set([0]));
+        expect(merged[0]).toEqual(inProgressSession);
+    });
 });

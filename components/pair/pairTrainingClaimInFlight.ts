@@ -66,24 +66,39 @@ export async function awaitPairTrainingClaimSettled(
 ): Promise<{ error?: string; summary: PairTrainingClaimClientSummary | null }> {
     const { petItemId, commitClaim, getTrainingSlots } = options;
 
+    let inflight = pairTrainingClaimInFlightBySlotIndex.get(slotIndex);
+    if (inflight) {
+        const parsed = parsePairTrainingClaimResponse(await inflight);
+        if (parsed.error) {
+            if (isAlreadyClaimedClaimError(parsed.error)) {
+                markPairTrainingClaimCompleted(slotIndex);
+                return { summary: null };
+            }
+            return parsed;
+        }
+        if (parsed.summary) {
+            markPairTrainingClaimCompleted(slotIndex);
+        }
+        if (pairTrainingClaimCompletedBySlotIndex.has(slotIndex)) {
+            return parsed;
+        }
+    }
+
     if (pairTrainingClaimCompletedBySlotIndex.has(slotIndex)) {
         return { summary: null };
     }
 
-    let inflight = pairTrainingClaimInFlightBySlotIndex.get(slotIndex);
-    if (!inflight) {
-        const slots = normalizePairPetTrainingSlots(getTrainingSlots());
-        const session = slots[slotIndex];
-        if (!session) {
-            markPairTrainingClaimCompleted(slotIndex);
-            return { summary: null };
-        }
-        if (session.itemId !== petItemId) {
-            return { error: '수련 슬롯 상태가 일치하지 않습니다.', summary: null };
-        }
-        inflight = commitClaim();
-        registerPairTrainingClaimInflight(slotIndex, inflight);
+    const slots = normalizePairPetTrainingSlots(getTrainingSlots());
+    const session = slots[slotIndex];
+    if (!session) {
+        return { summary: null };
     }
+    if (session.itemId !== petItemId) {
+        return { error: '수련 슬롯 상태가 일치하지 않습니다.', summary: null };
+    }
+
+    inflight = commitClaim();
+    registerPairTrainingClaimInflight(slotIndex, inflight);
 
     const parsed = parsePairTrainingClaimResponse(await inflight);
     if (parsed.error) {

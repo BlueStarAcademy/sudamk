@@ -1775,13 +1775,19 @@ const processPlayerSummary = async (
     };
     
     // --- Manner Score ---
-    /** 접속 끊김(disconnect)으로 패배한 경우에만 정산 시 매너 -50. 기권·조기 종료(기권 포함)는 매너 차감 없음 */
-    const isDisconnectLoss = winReason === 'disconnect' && !isWinner && !isDraw && !isNoContest;
+    /** 랭킹전(PvP)에서 접속 끊김(disconnect)으로 패배한 경우에만 정산 시 매너 -50. PVE·친선·로비 AI 등은 제외 */
+    const isRankedDisconnectLoss =
+        game.isRankedGame === true &&
+        !isAiGame &&
+        winReason === 'disconnect' &&
+        !isWinner &&
+        !isDraw &&
+        !isNoContest;
     const mannerChangeFromActions = game.mannerScoreChanges?.[player.id] || 0;
     const initialMannerBeforeGame = player.mannerScore - mannerChangeFromActions;
 
     let mannerChangeFromGameEnd = 0;
-    if (isDisconnectLoss) {
+    if (isRankedDisconnectLoss) {
         mannerChangeFromGameEnd = -50;
     }
 
@@ -2492,7 +2498,15 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
                     ? requiredXpForInitialLevel
                     : 1;
         let mannerDisconnectDelta = 0;
-        if (!isNoContest && !isDraw && game.winReason === 'disconnect' && game.badMannerPlayerId === userId) {
+        if (
+            !isNoContest &&
+            !isDraw &&
+            game.isRankedGame &&
+            !game.isAiGame &&
+            !isPairAiGame &&
+            game.winReason === 'disconnect' &&
+            game.badMannerPlayerId === userId
+        ) {
             mannerDisconnectDelta = -50;
             user.mannerScore = Math.max(0, (user.mannerScore ?? 200) + mannerDisconnectDelta);
             await mannerService.applyMannerRankChange(user, initialManner);

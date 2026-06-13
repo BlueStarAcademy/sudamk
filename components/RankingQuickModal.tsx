@@ -15,8 +15,7 @@ import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../shared/constants/pcShel
 import type { MobileRankingGuideVariant } from './MobileRankingGuidePanel.js';
 
 /** 모바일 랭킹 퀵 모달: 탭당 하나의 랭킹 보드 */
-type RankingMobileTab = 'combat' | 'manner' | 'adventure' | 'baduk';
-type BadukMobileSubTab = 'strategic' | 'pair' | 'championship';
+type RankingMobileTab = 'combat' | 'manner' | 'adventure' | 'strategic' | 'pair' | 'championship';
 
 type PcMainTab = 'game' | 'baduk';
 
@@ -31,10 +30,6 @@ const MOBILE_RANKING_TABS: { id: RankingMobileTab; label: string }[] = [
     { id: 'combat', label: '바둑능력' },
     { id: 'manner', label: '매너' },
     { id: 'adventure', label: '모험' },
-    { id: 'baduk', label: '바둑랭킹' },
-];
-
-const BADUK_MOBILE_SUB_TABS: { id: BadukMobileSubTab; label: string }[] = [
     { id: 'strategic', label: '전략바둑' },
     { id: 'pair', label: '페어바둑' },
     { id: 'championship', label: '챔피언십' },
@@ -49,15 +44,13 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
     const { currentUserWithStatus, handlers } = useAppContext();
     const isMobile = !embedded && (isCompactViewport || isNativeMobile);
     const [mobilePanelTab, setMobilePanelTab] = useState<RankingMobileTab>('combat');
-    const [badukMobileSubTab, setBadukMobileSubTab] = useState<BadukMobileSubTab>('strategic');
     const [isTipModalOpen, setIsTipModalOpen] = useState(false);
-    const [guideMainTab, setGuideMainTab] = useState<RankingMobileTab | BadukMobileSubTab>('combat');
+    const [guideMainTab, setGuideMainTab] = useState<RankingMobileTab>('combat');
     const [pcMainTab, setPcMainTab] = useState<PcMainTab>('game');
     const [tierInfoOpen, setTierInfoOpen] = useState(false);
 
     const guideVariant = useMemo((): MobileRankingGuideVariant | null => {
-        const tab = guideMainTab === 'baduk' ? badukMobileSubTab : guideMainTab;
-        switch (tab) {
+        switch (guideMainTab) {
             case 'combat':
                 return 'game-combat';
             case 'manner':
@@ -71,7 +64,7 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
             default:
                 return null;
         }
-    }, [guideMainTab, badukMobileSubTab]);
+    }, [guideMainTab]);
 
     const renderBadukRankingPanel = (lobbyType: 'strategic' | 'pair') =>
         currentUserWithStatus ? (
@@ -103,17 +96,21 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
             </div>
         );
 
-    const renderBadukMobileSubPanel = () => {
-        switch (badukMobileSubTab) {
-            case 'strategic':
-                return renderBadukRankingPanel('strategic');
-            case 'pair':
-                return renderBadukRankingPanel('pair');
-            case 'championship':
-                return renderChampionshipRankingPanel();
-            default:
-                return null;
+    const mobileBadukTabSelectedClass =
+        'border-emerald-300/50 bg-gradient-to-b from-emerald-600/85 via-teal-800/75 to-zinc-950/80 text-emerald-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] ring-1 ring-emerald-300/22';
+    const mobileBadukTabIdleClass =
+        'border-white/10 bg-gradient-to-b from-zinc-800/65 to-zinc-950/70 text-zinc-300 hover:border-emerald-400/30 hover:text-emerald-100';
+    const mobileGameTabSelectedClass =
+        'border-amber-300/55 bg-gradient-to-b from-amber-500/85 via-amber-700/75 to-amber-950/80 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_10px_22px_-12px_rgba(251,191,36,0.55)] ring-1 ring-amber-300/25';
+    const mobileGameTabIdleClass =
+        'border-white/10 bg-gradient-to-b from-zinc-800/65 to-zinc-950/70 text-zinc-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:border-amber-400/30 hover:text-amber-100';
+
+    const mobileTabButtonClass = (id: RankingMobileTab, selected: boolean) => {
+        const isBadukTab = id === 'strategic' || id === 'pair' || id === 'championship';
+        if (selected) {
+            return isBadukTab ? mobileBadukTabSelectedClass : mobileGameTabSelectedClass;
         }
+        return isBadukTab ? mobileBadukTabIdleClass : mobileGameTabIdleClass;
     };
 
     const handleClose = () => {
@@ -169,11 +166,7 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                             role="tab"
                                             aria-selected={selected}
                                             onClick={() => setMobilePanelTab(id)}
-                                            className={`min-h-[31px] shrink-0 rounded-lg border px-2 py-1 text-[11px] font-semibold tracking-tight transition-all duration-200 active:scale-[0.98] ${
-                                                selected
-                                                    ? 'border-amber-300/55 bg-gradient-to-b from-amber-500/85 via-amber-700/75 to-amber-950/80 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_10px_22px_-12px_rgba(251,191,36,0.55)] ring-1 ring-amber-300/25'
-                                                    : 'border-white/10 bg-gradient-to-b from-zinc-800/65 to-zinc-950/70 text-zinc-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:border-amber-400/30 hover:text-amber-100'
-                                            }`}
+                                            className={`min-h-[31px] shrink-0 rounded-lg border px-2 py-1 text-[11px] font-semibold tracking-tight transition-all duration-200 active:scale-[0.98] ${mobileTabButtonClass(id, selected)}`}
                                         >
                                             {label}
                                         </button>
@@ -183,11 +176,7 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                             <button
                                 type="button"
                                 onClick={() => {
-                                    if (mobilePanelTab === 'baduk') {
-                                        setGuideMainTab(badukMobileSubTab);
-                                    } else {
-                                        setGuideMainTab(mobilePanelTab);
-                                    }
+                                    setGuideMainTab(mobilePanelTab);
                                     setIsTipModalOpen(true);
                                 }}
                                 className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-amber-300/40 bg-amber-500/20 text-[13px] shadow-sm shadow-amber-900/40 transition hover:bg-amber-500/30 active:scale-[0.97]"
@@ -198,33 +187,6 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                             </button>
                         </div>
                         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-white/[0.04]">
-                            {mobilePanelTab === 'baduk' && (
-                                <div
-                                    className={`flex shrink-0 gap-1.5 overflow-x-auto border-b border-white/10 px-1 pb-1.5 pt-0.5 [-webkit-overflow-scrolling:touch] ${RANKING_MODAL_SLIM_SCROLL_X}`}
-                                    role="tablist"
-                                    aria-label="바둑 랭킹 종류"
-                                >
-                                    {BADUK_MOBILE_SUB_TABS.map(({ id, label }) => {
-                                        const selected = badukMobileSubTab === id;
-                                        return (
-                                            <button
-                                                key={id}
-                                                type="button"
-                                                role="tab"
-                                                aria-selected={selected}
-                                                onClick={() => setBadukMobileSubTab(id)}
-                                                className={`min-h-[29px] shrink-0 rounded-lg border px-2 py-1 text-[11px] font-semibold tracking-tight transition-all duration-200 active:scale-[0.98] ${
-                                                    selected
-                                                        ? 'border-emerald-300/50 bg-gradient-to-b from-emerald-600/85 via-teal-800/75 to-zinc-950/80 text-emerald-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] ring-1 ring-emerald-300/22'
-                                                        : 'border-white/10 bg-gradient-to-b from-zinc-800/65 to-zinc-950/70 text-zinc-300 hover:border-emerald-400/30 hover:text-emerald-100'
-                                                }`}
-                                            >
-                                                {label}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            )}
                             <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
                                 <MobileEqualHeightTabPanels
                                     activeTabKey={mobilePanelTab}
@@ -271,10 +233,26 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                             ),
                                         },
                                         {
-                                            tabKey: 'baduk',
+                                            tabKey: 'strategic',
                                             panel: (
                                                 <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-lg ring-1 ring-white/[0.06]">
-                                                    {renderBadukMobileSubPanel()}
+                                                    {renderBadukRankingPanel('strategic')}
+                                                </div>
+                                            ),
+                                        },
+                                        {
+                                            tabKey: 'pair',
+                                            panel: (
+                                                <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-lg ring-1 ring-white/[0.06]">
+                                                    {renderBadukRankingPanel('pair')}
+                                                </div>
+                                            ),
+                                        },
+                                        {
+                                            tabKey: 'championship',
+                                            panel: (
+                                                <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-lg ring-1 ring-white/[0.06]">
+                                                    {renderChampionshipRankingPanel()}
                                                 </div>
                                             ),
                                         },
@@ -310,21 +288,9 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                                     onClick={() => setGuideMainTab(id)}
                                                     className={`shrink-0 rounded-lg border px-2 py-1 text-[11px] font-semibold ${
                                                         guideMainTab === id
-                                                            ? 'border-amber-300/50 bg-amber-500/20 text-amber-50'
-                                                            : 'border-white/15 bg-white/5 text-zinc-300'
-                                                    }`}
-                                                >
-                                                    {label}
-                                                </button>
-                                            ))}
-                                            {BADUK_MOBILE_SUB_TABS.map(({ id, label }) => (
-                                                <button
-                                                    key={id}
-                                                    type="button"
-                                                    onClick={() => setGuideMainTab(id)}
-                                                    className={`shrink-0 rounded-lg border px-2 py-1 text-[11px] font-semibold ${
-                                                        guideMainTab === id
-                                                            ? 'border-emerald-300/50 bg-emerald-500/20 text-emerald-50'
+                                                            ? id === 'strategic' || id === 'pair' || id === 'championship'
+                                                                ? 'border-emerald-300/50 bg-emerald-500/20 text-emerald-50'
+                                                                : 'border-amber-300/50 bg-amber-500/20 text-amber-50'
                                                             : 'border-white/15 bg-white/5 text-zinc-300'
                                                     }`}
                                                 >

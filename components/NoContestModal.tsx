@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { LiveGameSession, User, ServerAction } from '../types.js';
 import Button from './Button.js';
-import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
+import DraggableWindow from './DraggableWindow.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { canSaveStrategicPvpGameRecord, GAME_RECORD_SLOT_FULL_MESSAGE } from '../utils/strategicPvpGameRecord.js';
@@ -94,11 +94,6 @@ const NoContestModal: React.FC<NoContestModalProps> = ({ session, currentUser, o
                     </div>
                 )}
             </div>
-                <div className={`${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS} px-1 pt-2`}>
-                    <Button onClick={onConfirm} className="w-full py-3">
-                        확인
-                    </Button>
-                </div>
             </>
         </DraggableWindow>
     );

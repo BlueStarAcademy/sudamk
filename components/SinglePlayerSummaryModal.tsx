@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { LiveGameSession, UserWithStatus, ServerAction, Player, AnalysisResult, GameMode, GameSummary } from '../types.js';
-import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
-import Button from './Button.js';
+import { LiveGameSession, UserWithStatus, ServerAction, Player, AnalysisResult, GameSummary } from '../types.js';
+import DraggableWindow from './DraggableWindow.js';
 import { getSinglePlayerStages, AVATAR_POOL, BORDER_POOL } from '../constants';
 import { getItemTemplateByName } from '../utils/itemTemplateLookup.js';
 import { ItemGrade } from '../types/enums.js';
@@ -12,7 +11,6 @@ import { useAppContext } from '../hooks/useAppContext.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import {
-    PRE_GAME_MODAL_FOOTER_CLASS,
     PRE_GAME_MODAL_LAYER_CLASS,
 } from './game/PreGameDescriptionLayout.js';
 import { ResultModalXpRewardBadge, ResultModalPetGradeUpgradeNeededSlot } from './game/ResultModalXpRewardBadge.js';
@@ -35,7 +33,7 @@ const SP_SUMMARY_PANEL_CLASS =
 const SP_SUMMARY_INSET_CLASS =
     'rounded-lg border border-amber-500/15 bg-black/35 ring-1 ring-inset ring-white/[0.05]';
 const SP_SUMMARY_SECTION_LABEL =
-    'text-[0.72rem] font-bold uppercase tracking-[0.12em] text-amber-200/85 sm:text-xs min-[1024px]:text-sm';
+    'text-[0.75rem] font-bold uppercase tracking-[0.12em] text-amber-100 sm:text-xs min-[1024px]:text-sm';
 
 /** 서버 요약 전 클라이언트 추정 보상(펫 필드는 서버 요약에만 포함) */
 type SinglePlayerFallbackSummary = {
@@ -70,7 +68,7 @@ const RewardItemDisplay: React.FC<{ item: any; isMobile: boolean }> = ({ item, i
             alt={item.name}
             className={`${isMobile ? 'w-10 h-10' : 'w-12 h-12'} object-contain`}
         />
-        <span className="mt-1 truncate w-full text-xs text-zinc-400">
+        <span className="mt-1 truncate w-full text-xs font-medium text-zinc-200">
             {item.name}
             {item.quantity > 1 ? ` x${item.quantity}` : ''}
         </span>
@@ -109,40 +107,29 @@ const getXpRequirementForLevel = (level: number): number => {
 };
 
 // 계가 결과 표시 컴포넌트 (GameSummaryModal에서 가져옴)
-const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveGameSession, isMobile?: boolean, mobileTextScale?: number }> = ({ analysis, session, isMobile = false, mobileTextScale = 1 }) => {
-    const { mode, settings } = session;
+const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveGameSession, isMobile?: boolean, mobileTextScale?: number }> = ({ analysis, isMobile = false, mobileTextScale = 1 }) => {
     const mx = RESULT_MODAL_SCORE_MOBILE_PX;
 
-    if (!hasRenderableScoreDetails(analysis)) return <p className={`text-center text-zinc-500 ${isMobile ? 'text-sm' : ''}`} style={{ fontSize: isMobile ? `${mx.emptyState * mobileTextScale}px` : undefined }}>점수 정보가 없습니다.</p>;
+    if (!hasRenderableScoreDetails(analysis)) return <p className={`text-center text-zinc-300 ${isMobile ? 'text-sm' : ''}`} style={{ fontSize: isMobile ? `${mx.emptyState * mobileTextScale}px` : undefined }}>점수 정보가 없습니다.</p>;
     const scoreDetails = analysis.scoreDetails!;
-    
-    const isSpeedMode = mode === GameMode.Speed || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Speed));
-    const isBaseMode = mode === GameMode.Base || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Base));
-    const isHiddenMode = mode === GameMode.Hidden || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Hidden));
 
     return (
-        <div className={`space-y-1.5 ${isMobile ? 'p-1.5' : 'p-2'} ${SP_SUMMARY_INSET_CLASS} ${!isMobile ? 'text-base min-[1024px]:text-lg' : ''}`}>
+        <div className={`space-y-1.5 ${isMobile ? 'p-1.5' : 'p-2'} ${SP_SUMMARY_INSET_CLASS} ${!isMobile ? 'text-base min-[1024px]:text-lg' : 'text-zinc-100'}`}>
             <div className={`grid gap-1.5 sm:gap-2 ${isMobile ? 'grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'}`}>
                 <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} ${isMobile ? 'p-1' : 'p-1.5'}`}>
-                    <h3 className={`font-bold text-center mb-0.5 ${isMobile ? 'text-sm' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${mx.columnHead * mobileTextScale}px` : undefined }}>흑</h3>
-                    <div className="flex justify-between" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span>영토:</span> <span>{formatScoreDetailNumber(scoreDetails.black.territory, 0)}</span></div>
-                    <div className="flex justify-between" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span>따낸 돌:</span> <span>{scoreDetails.black.liveCaptures ?? 0}</span></div>
-                    <div className="flex justify-between" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span>사석:</span> <span>{scoreDetails.black.deadStones ?? 0}</span></div>
-                    {isBaseMode && <div className="flex justify-between text-blue-300" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span>베이스 보너스:</span> <span>{scoreDetails.black.baseStoneBonus}</span></div>}
-                    {isHiddenMode && <div className="flex justify-between text-purple-300" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span>히든 보너스:</span> <span>{scoreDetails.black.hiddenStoneBonus}</span></div>}
-                    {isSpeedMode && <div className="flex justify-between text-green-300" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span>시간 보너스:</span> <span>{Math.trunc(Number(scoreDetails.black.timeBonus ?? 0))}</span></div>}
-                    <div className={`flex justify-between border-t border-amber-500/20 pt-0.5 mt-0.5 font-bold ${isMobile ? 'text-sm' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${mx.totalRow * mobileTextScale}px` : undefined }}><span>총점:</span> <span className="text-amber-200">{formatScoreDetailNumber(scoreDetails.black.total, 1)}</span></div>
+                    <h3 className={`font-bold text-center mb-0.5 text-zinc-50 ${isMobile ? 'text-sm' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${mx.columnHead * mobileTextScale}px` : undefined }}>흑</h3>
+                    <div className="flex justify-between text-zinc-200" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className="text-zinc-300">영토:</span> <span className="font-medium text-zinc-50">{formatScoreDetailNumber(scoreDetails.black.territory, 0)}</span></div>
+                    <div className="flex justify-between text-zinc-200" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className="text-zinc-300">따낸 돌:</span> <span className="font-medium text-zinc-50">{scoreDetails.black.liveCaptures ?? 0}</span></div>
+                    <div className="flex justify-between text-zinc-200" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className="text-zinc-300">사석:</span> <span className="font-medium text-zinc-50">{scoreDetails.black.deadStones ?? 0}</span></div>
+                    <div className={`flex justify-between border-t border-amber-500/20 pt-0.5 mt-0.5 font-bold text-zinc-50 ${isMobile ? 'text-sm' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${mx.totalRow * mobileTextScale}px` : undefined }}><span>총점:</span> <span className="text-amber-200">{formatScoreDetailNumber(scoreDetails.black.total, 1)}</span></div>
                 </div>
                 <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} ${isMobile ? 'p-1' : 'p-1.5'}`}>
-                    <h3 className={`font-bold text-center mb-0.5 ${isMobile ? 'text-sm' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${mx.columnHead * mobileTextScale}px` : undefined }}>백</h3>
-                    <div className="flex justify-between" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span>영토:</span> <span>{formatScoreDetailNumber(scoreDetails.white.territory, 0)}</span></div>
-                    <div className="flex justify-between" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span>따낸 돌:</span> <span>{scoreDetails.white.liveCaptures ?? 0}</span></div>
-                    <div className="flex justify-between" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span>사석:</span> <span>{scoreDetails.white.deadStones ?? 0}</span></div>
-                    <div className="flex justify-between" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span>덤:</span> <span>{scoreDetails.white.komi}</span></div>
-                    {isBaseMode && <div className="flex justify-between text-blue-300" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span>베이스 보너스:</span> <span>{scoreDetails.white.baseStoneBonus}</span></div>}
-                    {isHiddenMode && <div className="flex justify-between text-purple-300" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span>히든 보너스:</span> <span>{scoreDetails.white.hiddenStoneBonus}</span></div>}
-                    {isSpeedMode && <div className="flex justify-between text-green-300" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span>시간 보너스:</span> <span>{Math.trunc(Number(scoreDetails.white.timeBonus ?? 0))}</span></div>}
-                    <div className={`flex justify-between border-t border-amber-500/20 pt-0.5 mt-0.5 font-bold ${isMobile ? 'text-sm' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${mx.totalRow * mobileTextScale}px` : undefined }}><span>총점:</span> <span className="text-amber-200">{formatScoreDetailNumber(scoreDetails.white.total, 1)}</span></div>
+                    <h3 className={`font-bold text-center mb-0.5 text-zinc-50 ${isMobile ? 'text-sm' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${mx.columnHead * mobileTextScale}px` : undefined }}>백</h3>
+                    <div className="flex justify-between text-zinc-200" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className="text-zinc-300">영토:</span> <span className="font-medium text-zinc-50">{formatScoreDetailNumber(scoreDetails.white.territory, 0)}</span></div>
+                    <div className="flex justify-between text-zinc-200" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className="text-zinc-300">따낸 돌:</span> <span className="font-medium text-zinc-50">{scoreDetails.white.liveCaptures ?? 0}</span></div>
+                    <div className="flex justify-between text-zinc-200" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className="text-zinc-300">사석:</span> <span className="font-medium text-zinc-50">{scoreDetails.white.deadStones ?? 0}</span></div>
+                    <div className="flex justify-between text-zinc-200" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className="text-zinc-300">덤:</span> <span className="font-medium text-zinc-50">{scoreDetails.white.komi}</span></div>
+                    <div className={`flex justify-between border-t border-amber-500/20 pt-0.5 mt-0.5 font-bold text-zinc-50 ${isMobile ? 'text-sm' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${mx.totalRow * mobileTextScale}px` : undefined }}><span>총점:</span> <span className="text-amber-200">{formatScoreDetailNumber(scoreDetails.white.total, 1)}</span></div>
                 </div>
             </div>
         </div>
@@ -468,7 +455,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
         >
             <h2
                 className={`${SP_SUMMARY_SECTION_LABEL} mb-1 border-b border-amber-500/25 pb-1 text-center sm:mb-2 sm:pb-1.5`}
-                style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
+                style={{ fontSize: isMobile ? `${RESULT_MODAL_SCORE_MOBILE_PX.sectionLabel * mobileTextScale}px` : undefined }}
             >
                 획득 보상
             </h2>
@@ -481,15 +468,15 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
             >
                 {!displaySummary ? (
                     <p
-                        className="px-2 text-center text-zinc-500"
-                        style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '14px' }}
+                        className="px-2 text-center font-medium text-zinc-200"
+                        style={{ fontSize: isMobile ? `${RESULT_MODAL_SCORE_MOBILE_PX.emptyState * mobileTextScale}px` : '14px' }}
                     >
                         {isScoring ? '계가 중...' : '보상 정보가 없습니다.'}
                     </p>
                 ) : !hasRewardSlots ? (
                     <p
-                        className="px-2 text-center text-zinc-500"
-                        style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '14px' }}
+                        className="px-2 text-center font-medium text-zinc-200"
+                        style={{ fontSize: isMobile ? `${RESULT_MODAL_SCORE_MOBILE_PX.emptyState * mobileTextScale}px` : '14px' }}
                     >
                         보상이 없습니다.
                     </p>
@@ -575,7 +562,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
             modal={!modalLayerUsesDesignPixels}
             closeOnOutsideClick={!modalLayerUsesDesignPixels}
             containerExtraClassName="sudamr-panel-edge-host !rounded-2xl !shadow-[0_26px_85px_rgba(0,0,0,0.72)] ring-1 ring-amber-400/22"
-            bodyPaddingClassName={isMobile ? 'p-2 pb-0 sm:p-3 sm:pb-0' : 'p-3 sm:p-4'}
+            bodyPaddingClassName={isMobile ? 'p-2 sm:p-3' : 'p-3 sm:p-4'}
         >
             <div
                 className={`text-on-panel ${PRE_GAME_MODAL_LAYER_CLASS} flex w-full min-h-0 flex-col ${
@@ -767,29 +754,6 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                     </GameResultModalFitContent>
                 )}
             </div>
-
-                <div
-                    className={`${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS} ${PRE_GAME_MODAL_FOOTER_CLASS} mt-auto flex-shrink-0 !flex-col rounded-b-2xl ${
-                        isMobile
-                            ? '!gap-1.5 !p-2.5 -mx-2 -mb-2 sm:!gap-2 sm:!p-3 sm:-mx-3 sm:-mb-3'
-                            : '!gap-2 !p-3 sm:!gap-3 sm:!p-3.5'
-                    }`}
-                >
-                    <div className="grid w-full min-w-0 flex-shrink-0 grid-cols-1 gap-2">
-                    <Button
-                        onClick={() => {
-                            if (isScoring) return;
-                            handleClose(session, onClose);
-                        }}
-                        bare
-                        colorScheme="none"
-                        disabled={isScoring}
-                        className={`mx-auto min-w-0 w-full max-w-[220px] justify-center rounded-xl border border-amber-300/35 bg-gradient-to-b from-amber-500/30 via-amber-500/20 to-amber-700/25 px-3 py-2.5 text-sm font-semibold text-amber-50 shadow-[0_8px_20px_-12px_rgba(251,191,36,0.55)] transition-all hover:border-amber-200/55 hover:brightness-110 active:translate-y-px ${isScoring ? '!cursor-not-allowed !opacity-45' : ''}`}
-                    >
-                        확인
-                    </Button>
-                    </div>
-                </div>
         </DraggableWindow>
     );
 };

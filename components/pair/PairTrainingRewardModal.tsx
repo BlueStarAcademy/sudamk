@@ -15,7 +15,6 @@ import { ItemGrade } from '../../types/enums.js';
 import type { InventoryItem, ServerAction } from '../../types.js';
 import type { PairTrainingClaimClientSummary } from '../../shared/types/pairTrainingClaim.js';
 import {
-    awaitPairTrainingClaimSettled,
     clearPairTrainingClaimCompleted,
     markPairTrainingClaimCompleted,
     PAIR_TRAINING_CLAIM_ALREADY_CLAIMED_ERROR,
@@ -311,23 +310,28 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
 
         void (async () => {
             try {
-                const { error: claimErr } = await awaitPairTrainingClaimSettled(slotIndex, {
-                    petItemId: petItem.id,
-                    commitClaim: () =>
-                        commitClaimRef.current({
-                            type: 'PAIR_PET_CLAIM_TRAINING',
-                            payload: { slotIndex },
-                        }),
-                    getTrainingSlots: () => currentUserWithStatus?.pairPetTrainingSlots,
+                const claimRaw = await commitClaimRef.current({
+                    type: 'PAIR_PET_CLAIM_TRAINING',
+                    payload: { slotIndex },
                 });
-                if (claimErr) {
+                const claimParsed = parsePairTrainingClaimResponse(claimRaw);
+                if (
+                    claimParsed.error &&
+                    claimParsed.error !== PAIR_TRAINING_CLAIM_ALREADY_CLAIMED_ERROR
+                ) {
                     handlers.applyDeferredUserUpdate(
                         { pairPetTrainingSlots: prevSlotsSnapshot },
                         'PAIR_PET_START_TRAINING-optimistic-rollback',
                     );
-                    window.alert(claimErr);
+                    window.alert(claimParsed.error);
                     return;
                 }
+                if (claimParsed.summary) {
+                    markPairTrainingClaimCompleted(slotIndex);
+                }
+
+                // START 병합 시 client-claimed 가드가 in-progress 세션을 지우지 않도록 선제 해제
+                clearPairTrainingClaimCompleted(slotIndex);
 
                 const startRaw = await handlers.handleAction({
                     type: 'PAIR_PET_START_TRAINING',
@@ -340,8 +344,6 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
                         'PAIR_PET_START_TRAINING-optimistic-rollback',
                     );
                     window.alert(startErr);
-                } else {
-                    clearPairTrainingClaimCompleted(slotIndex);
                 }
             } finally {
                 trainAgainInFlightRef.current = false;

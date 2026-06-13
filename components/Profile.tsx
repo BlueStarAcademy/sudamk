@@ -2626,6 +2626,18 @@ const Profile: React.FC<ProfileProps> = () => {
                                     >
                                         모험 해금 모달
                                     </Button>
+                                    <Button
+                                        type="button"
+                                        colorScheme="none"
+                                        bare
+                                        onClick={() => {
+                                            handlers.previewAdminGameResultModal();
+                                            setAdminModalPreviewMenuOpen(false);
+                                        }}
+                                        className="!justify-start !rounded-md !border !border-rose-400/45 !bg-rose-950/85 !px-2 !py-1 !text-[11px] !font-bold !text-rose-100"
+                                    >
+                                        경기결과 데모
+                                    </Button>
                                 </div>
                             )}
                         </div>

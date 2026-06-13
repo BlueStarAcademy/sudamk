@@ -26,6 +26,7 @@ const BlacksmithModal = lazy(() => import('./BlacksmithModal.js'));
 const BlacksmithEffectsModal = lazy(() => import('./blacksmith/BlacksmithEffectsModal.js'));
 const GameRecordListModal = lazy(() => import('./GameRecordListModal.js'));
 const GameRecordViewerModal = lazy(() => import('./GameRecordViewerModal.js'));
+const GameSummaryModal = lazy(() => import('./GameSummaryModal.js'));
 import InfoModal from './InfoModal.js';
 import RankingQuickModal from './RankingQuickModal.js';
 import ChatQuickModal from './ChatQuickModal.js';
@@ -170,6 +171,7 @@ const AppModalLayer: React.FC = () => {
         if (modals.contentUnlockNotice) ids.push('contentUnlockNotice');
         if (modals.pairPetDetailModal) ids.push('pairPetDetail');
         if (modals.levelUpCelebration) ids.push('levelUpCelebration');
+        if (modals.adminGameResultDemoSession) ids.push('adminGameResultDemo');
         return ids;
     }, [modals, activeNegotiation, hasItemObtainedResult, hasScoreOnlyItemObtained]);
 
@@ -589,6 +591,17 @@ const AppModalLayer: React.FC = () => {
                     onClose={handlers.closeContentUnlockNotice}
                     isTopmost={topmostModalId === 'contentUnlockNotice'}
                 />
+            )}
+            {modals.adminGameResultDemoSession && (
+                <Suspense fallback={ModalLoadingFallback()}>
+                    <GameSummaryModal
+                        session={modals.adminGameResultDemoSession}
+                        currentUser={currentUserWithStatus}
+                        onConfirm={handlers.closeAdminGameResultDemoModal}
+                        onAction={handlers.handleAction}
+                        onOpenGameRecordList={handlers.openGameRecordList}
+                    />
+                </Suspense>
             )}
         </>
     );

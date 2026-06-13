@@ -183,6 +183,7 @@ import {
     registerChampionshipVersusDeferredLevelUpFlush,
     shouldDeferLevelUpCelebrationForChampionshipVersusKata,
 } from '../utils/championshipVersusLevelUpDeferral.js';
+import { buildAdminGameResultModalDemoSession } from '../utils/adminGameResultModalDemo.js';
 
 type ConnectionStatusKind = 'ok' | 'connecting' | 'reconnecting' | 'degraded' | 'requestFailed';
 type ConnectionStatusSeverity = 'info' | 'success' | 'warning' | 'error';
@@ -3204,6 +3205,19 @@ export const useApp = () => {
         const u = currentUserRef.current;
         if (!u?.isAdmin) return;
         setContentUnlockNoticeQueue([type]);
+    }, []);
+
+    const [adminGameResultDemoSession, setAdminGameResultDemoSession] = useState<LiveGameSession | null>(null);
+
+    /** 관리자 홈: PVP 경기 결과 모달 데모 */
+    const previewAdminGameResultModal = useCallback(() => {
+        const u = currentUserRef.current;
+        if (!u?.isAdmin) return;
+        setAdminGameResultDemoSession(buildAdminGameResultModalDemoSession(u));
+    }, []);
+
+    const closeAdminGameResultDemoModal = useCallback(() => {
+        setAdminGameResultDemoSession(null);
     }, []);
 
     const activeGame = useMemo(() => {
@@ -12445,6 +12459,7 @@ export const useApp = () => {
             levelUpCelebration,
             mannerGradeChange,
             contentUnlockNotice,
+            adminGameResultDemoSession,
         }),
         [
             activeQuickUtilityPanel,
@@ -12500,6 +12515,7 @@ export const useApp = () => {
             levelUpCelebration,
             mannerGradeChange,
             contentUnlockNotice,
+            adminGameResultDemoSession,
         ],
     );
 
@@ -12737,6 +12753,8 @@ export const useApp = () => {
             previewAdminLevelUpCelebrationModal,
             previewAdminMannerGradeUpModal,
             previewAdminContentUnlockNoticeModal,
+            previewAdminGameResultModal,
+            closeAdminGameResultDemoModal,
             closeClaimAllSummary,
             openViewingUser: handleViewUser,
             closeViewingUser: () => {

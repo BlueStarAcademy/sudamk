@@ -41,6 +41,10 @@ export function mergePairPetTrainingSlotsPreserveRecentRestart(
 
         if (baseSession == null && patchSession != null) {
             if (clientClaimedSlotIndices?.has(i)) {
+                // 재수련 START 직후 in-progress 세션은 stale claim-ready 복원만 막고 유지한다.
+                if (!isClaimReadyTrainingSession(patchSession, i, now)) {
+                    continue;
+                }
                 out[i] = null;
                 continue;
             }

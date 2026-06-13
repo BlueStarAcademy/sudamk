@@ -2,7 +2,7 @@ import React, { useMemo, useEffect, useRef, useState } from 'react';
 import { LiveGameSession, User, Player, WinReason, StatChange, AnalysisResult, GameMode, GameSummary, InventoryItem, AvatarInfo, BorderInfo, AlkkagiStone, ServerAction, AlkkagiRoundHistoryEntry } from '../types.js';
 import Avatar from './Avatar.js';
 import { audioService } from '../services/audioService.js';
-import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
+import DraggableWindow from './DraggableWindow.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, AVATAR_POOL, BORDER_POOL, CONSUMABLE_ITEMS, EQUIPMENT_POOL, MATERIAL_ITEMS, aiUserId } from '../constants';
@@ -19,11 +19,6 @@ import {
     getGuildWarStarScoreTier3MinDiff,
 } from '../shared/constants/guildConstants.js';
 import { computeGuildWarAttemptMetrics } from '../shared/utils/guildWarAttemptMetrics.js';
-import {
-    arenaPostGameButtonClass,
-    arenaPostGameSingleConfirmFooterClass,
-    arenaPostGameSingleModalConfirmButtonClass,
-} from './game/arenaPostGameButtonStyles.js';
 import { ResultModalXpRewardBadge, ResultModalPetGradeUpgradeNeededSlot } from './game/ResultModalXpRewardBadge.js';
 import {
     ResultModalGoldCurrencySlot,
@@ -55,6 +50,11 @@ import {
 } from '../shared/utils/strategicAiDifficulty.js';
 import PairPetLevelUpCoreDelta from './pair/PairPetLevelUpCoreDelta.js';
 import { effectivePairPetGradeFromRow, pairPetShowsGradeUpgradeNeededInsteadOfXp } from '../shared/constants/pairPetGrade.js';
+import {
+    ResultModalIdentityRow,
+    ResultModalPetPortrait,
+    resolveResultModalPortraitPx,
+} from './game/ResultModalIdentityRow.js';
 
 interface GameSummaryModalProps {
     session: LiveGameSession;
@@ -372,18 +372,14 @@ const XpBar: React.FC<{
     );
 };
 
-const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveGameSession, isMobile?: boolean, mobileTextScale?: number, desktopTextScale?: number }> = ({ analysis, session, isMobile = false, mobileTextScale = 1, desktopTextScale = 1 }) => {
+const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveGameSession, isMobile?: boolean, mobileTextScale?: number, desktopTextScale?: number }> = ({ analysis, isMobile = false, mobileTextScale = 1, desktopTextScale = 1 }) => {
     const { scoreDetails } = analysis;
-    const { mode, settings } = session;
     const mx = RESULT_MODAL_SCORE_MOBILE_PX;
     const deskPx = (base: number) => resultModalFontPx(base, desktopTextScale);
     const mobPx = (base: number) => resultModalFontPx(base, mobileTextScale);
 
     if (!scoreDetails) return <p className="text-center text-gray-400" style={{ fontSize: isMobile ? mobPx(mx.emptyState) : deskPx(RESULT_MODAL_DESKTOP_PX.body) }}>점수 정보가 없습니다.</p>;
-    
-    const isSpeedMode = mode === GameMode.Speed || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Speed));
-    const isBaseMode = mode === GameMode.Base || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Base));
-    const isHiddenMode = mode === GameMode.Hidden || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Hidden));
+
     /** 모바일: 프로필이 가로(2열)일 때 흑·백 점수 비교도 가로 2열로 맞춤 */
     const scoreGridTwoColsOnMobile = isMobile;
 
@@ -401,9 +397,6 @@ const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveG
                     <div className={rowClass} style={{ fontSize: isMobile ? mobPx(mx.dataRow) : deskPx(RESULT_MODAL_DESKTOP_PX.scoreData) }}><span className={labelClass}>영토</span> <span className={valClass}>{scoreDetails.black.territory.toFixed(0)}</span></div>
                     <div className={rowClass} style={{ fontSize: isMobile ? mobPx(mx.dataRow) : deskPx(RESULT_MODAL_DESKTOP_PX.scoreData) }}><span className={labelClass}>따낸 돌</span> <span className={valClass}>{scoreDetails.black.liveCaptures ?? 0}</span></div>
                     <div className={rowClass} style={{ fontSize: isMobile ? mobPx(mx.dataRow) : deskPx(RESULT_MODAL_DESKTOP_PX.scoreData) }}><span className={labelClass}>사석</span> <span className={valClass}>{Math.round(Number(scoreDetails.black.deadStones ?? 0))}</span></div>
-                    {isBaseMode && <div className={`${rowClass} text-blue-300`} style={{ fontSize: isMobile ? mobPx(mx.dataRow) : deskPx(RESULT_MODAL_DESKTOP_PX.scoreData) }}><span className={`${labelClass} text-blue-300/90`}>베이스</span> <span className="tabular-nums text-right font-medium">{scoreDetails.black.baseStoneBonus}</span></div>}
-                    {isHiddenMode && <div className={`${rowClass} text-purple-300`} style={{ fontSize: isMobile ? mobPx(mx.dataRow) : deskPx(RESULT_MODAL_DESKTOP_PX.scoreData) }}><span className={`${labelClass} text-purple-300/90`}>히든</span> <span className="tabular-nums text-right font-medium">{scoreDetails.black.hiddenStoneBonus}</span></div>}
-                    {isSpeedMode && <div className={`${rowClass} text-green-300`} style={{ fontSize: isMobile ? mobPx(mx.dataRow) : deskPx(RESULT_MODAL_DESKTOP_PX.scoreData) }}><span className={`${labelClass} text-green-300/90`}>시간</span> <span className="tabular-nums text-right font-medium">{Math.trunc(Number(scoreDetails.black.timeBonus ?? 0))}</span></div>}
                     <div className="mt-0.5 flex min-w-0 justify-between gap-1.5 border-t border-gray-600 pt-0.5 font-bold" style={{ fontSize: isMobile ? mobPx(mx.totalRow) : deskPx(RESULT_MODAL_DESKTOP_PX.scoreTotal) }}><span className="shrink-0 whitespace-nowrap">총점</span> <span className="tabular-nums text-yellow-300">{scoreDetails.black.total.toFixed(1)}</span></div>
                 </div>
                 <div className={`space-y-0.5 bg-gray-800/50 ${isMobile ? 'p-1.5' : 'px-1.5 py-1'} rounded-md`}>
@@ -412,9 +405,6 @@ const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveG
                     <div className={rowClass} style={{ fontSize: isMobile ? mobPx(mx.dataRow) : deskPx(RESULT_MODAL_DESKTOP_PX.scoreData) }}><span className={labelClass}>따낸 돌</span> <span className={valClass}>{scoreDetails.white.liveCaptures ?? 0}</span></div>
                     <div className={rowClass} style={{ fontSize: isMobile ? mobPx(mx.dataRow) : deskPx(RESULT_MODAL_DESKTOP_PX.scoreData) }}><span className={labelClass}>사석</span> <span className={valClass}>{Math.round(Number(scoreDetails.white.deadStones ?? 0))}</span></div>
                     <div className={rowClass} style={{ fontSize: isMobile ? mobPx(mx.dataRow) : deskPx(RESULT_MODAL_DESKTOP_PX.scoreData) }}><span className={labelClass}>덤</span> <span className={valClass}>{scoreDetails.white.komi}</span></div>
-                    {isBaseMode && <div className={`${rowClass} text-blue-300`} style={{ fontSize: isMobile ? mobPx(mx.dataRow) : deskPx(RESULT_MODAL_DESKTOP_PX.scoreData) }}><span className={`${labelClass} text-blue-300/90`}>베이스</span> <span className="tabular-nums text-right font-medium">{scoreDetails.white.baseStoneBonus}</span></div>}
-                    {isHiddenMode && <div className={`${rowClass} text-purple-300`} style={{ fontSize: isMobile ? mobPx(mx.dataRow) : deskPx(RESULT_MODAL_DESKTOP_PX.scoreData) }}><span className={`${labelClass} text-purple-300/90`}>히든</span> <span className="tabular-nums text-right font-medium">{scoreDetails.white.hiddenStoneBonus}</span></div>}
-                    {isSpeedMode && <div className={`${rowClass} text-green-300`} style={{ fontSize: isMobile ? mobPx(mx.dataRow) : deskPx(RESULT_MODAL_DESKTOP_PX.scoreData) }}><span className={`${labelClass} text-green-300/90`}>시간</span> <span className="tabular-nums text-right font-medium">{Math.trunc(Number(scoreDetails.white.timeBonus ?? 0))}</span></div>}
                     <div className="mt-0.5 flex min-w-0 justify-between gap-1.5 border-t border-gray-600 pt-0.5 font-bold" style={{ fontSize: isMobile ? mobPx(mx.totalRow) : deskPx(RESULT_MODAL_DESKTOP_PX.scoreTotal) }}><span className="shrink-0 whitespace-nowrap">총점</span> <span className="tabular-nums text-yellow-300">{scoreDetails.white.total.toFixed(1)}</span></div>
                 </div>
             </div>
@@ -1628,8 +1618,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
     session,
     currentUser,
     onConfirm,
-    confirmLabel = '확인',
-    secondaryConfirmAction,
+    secondaryConfirmAction: _secondaryConfirmAction,
     onLeaveToAdventureMap,
     isSpectator = false,
 }) => {
@@ -1795,9 +1784,6 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
     const isGuildWar = isGuildWarLiveSession(session as any);
     const isChampionshipVersusSummary = typeof session.description === 'string' && session.description.startsWith('챔피언십 장내 카타:');
     const showMannerPostGameStats = !isChampionshipVersusSummary;
-    /** 챔피언십 장내: 결과 모달은 확인만 — 나가기·보상 수령은 경기장 푸터/사이드바에서 처리 */
-    const resultModalSecondaryAction = isChampionshipVersusSummary ? undefined : secondaryConfirmAction;
-    const resultModalConfirmLabel = isChampionshipVersusSummary ? '확인' : confirmLabel;
     /** 랭킹·매너 등 실제 정산이 있는 대국에서만 통계 카드 표시 (친선·AI 등에서는 숨김) */
     const showPostGameRatingMannerStats = useMemo(() => {
         if (!mySummary || isSpectator) return false;
@@ -1940,11 +1926,128 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
     const mobileMetaTextStyle: React.CSSProperties = {
         fontSize: resultModalFontPx(RESULT_MODAL_BODY_MOBILE_PX.meta, mobileTextScale),
     };
-    const mobileNicknameTextStyle: React.CSSProperties = {
-        fontSize: resultModalFontPx(RESULT_MODAL_BODY_MOBILE_PX.nickname, mobileTextScale),
+
+    const recordPortraitPx = resolveResultModalPortraitPx(isMobile, mobileImageScale, desktopTextScale);
+
+    const renderUserXpAside = () => {
+        if (showUserXpAside && userLevelXpAside) {
+            return (
+                <XpBar
+                    initial={userLevelXpAside.progress.initial}
+                    final={userLevelXpAside.progress.final}
+                    max={userLevelXpAside.progress.max}
+                    levelUp={userLevelXpAside.initial < userLevelXpAside.final}
+                    xpGain={mySummary?.xp?.change ?? 0}
+                    finalLevel={userLevelXpAside.final}
+                    isMobile={isMobile}
+                    mobileTextScale={mobileTextScale}
+                    compact={!isMobile}
+                />
+            );
+        }
+        if (!showUserXpAside && (!mySummary || !isPlayful)) {
+            return (
+                <div className="flex w-full min-w-0 items-center gap-1.5">
+                    <div className="relative flex h-3.5 w-full min-w-0 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-slate-950/80">
+                        <span className="text-[10px] font-bold text-slate-300" style={mobileMetaTextStyle}>
+                            0 XP
+                        </span>
+                    </div>
+                    <span
+                        className="w-14 shrink-0 whitespace-nowrap text-xs font-bold text-slate-300"
+                        style={mobileBodyTextStyle}
+                    >
+                        +0 XP
+                    </span>
+                </div>
+            );
+        }
+        return undefined;
     };
-    const mobileLevelTextStyle: React.CSSProperties = {
-        fontSize: resultModalFontPx(RESULT_MODAL_BODY_MOBILE_PX.level, mobileTextScale),
+
+    const renderPetXpAside = () => {
+        if (!pairPetXpAside) return undefined;
+        if (showPetGradeUpgradeInsteadOfXp) {
+            return (
+                <div className="flex min-h-[2rem] w-full items-center justify-center rounded-md border border-fuchsia-400/40 bg-fuchsia-950/35 px-1.5 py-1 sm:min-h-[2.25rem]">
+                    <span
+                        className="text-center text-[0.62rem] font-extrabold leading-tight text-fuchsia-100 sm:text-xs"
+                        title="펫 등급강화 필요"
+                    >
+                        펫 등급강화 필요
+                    </span>
+                </div>
+            );
+        }
+        return (
+            <XpBar
+                initial={pairPetXpAside.level.progress.initial}
+                final={pairPetXpAside.level.progress.final}
+                max={Math.max(1, pairPetXpAside.level.progress.max)}
+                levelUp={pairPetXpAside.level.initial < pairPetXpAside.level.final}
+                xpGain={pairPetXpAside.xp.change}
+                finalLevel={pairPetXpAside.level.final}
+                isMobile={isMobile}
+                mobileTextScale={mobileTextScale}
+                compact={!isMobile}
+            />
+        );
+    };
+
+    const renderRecordIdentityPanels = () => {
+        const alignXpColumns = showPairPetProfileAside;
+        return (
+        <div className="flex flex-col gap-1.5">
+            <ResultModalIdentityRow
+                displayName={currentUser.nickname}
+                level={mySummary?.level?.final ?? currentUser.userLevel}
+                hideLevelLine={showUserXpAside}
+                portrait={
+                    <Avatar
+                        userId={currentUser.id}
+                        userName={currentUser.nickname}
+                        size={recordPortraitPx}
+                        avatarUrl={avatarUrl}
+                        borderUrl={borderUrl}
+                    />
+                }
+                xpAside={renderUserXpAside()}
+                xpColumnReserved={alignXpColumns}
+                isMobile={isMobile}
+                mobileTextScale={mobileTextScale}
+                desktopTextScale={desktopTextScale}
+            />
+            {showPairPetProfileAside ? (
+                <ResultModalIdentityRow
+                    tone="pet"
+                    displayName={pairPetDisplayName || '—'}
+                    level={mySummary?.pairPetLevel?.final ?? equippedPairPetRow?.level ?? '—'}
+                    hideLevelLine={showPetXpBarAside}
+                    portrait={
+                        <ResultModalPetPortrait
+                            imageSrc={pairPetPortraitUrl}
+                            sizePx={recordPortraitPx}
+                            alt={pairPetDisplayName || '대표 펫'}
+                        />
+                    }
+                    xpAside={renderPetXpAside()}
+                    xpColumnReserved={alignXpColumns}
+                    footer={
+                        showPetXpBarAside && mySummary ? (
+                            <PairPetLevelUpCoreDelta
+                                delta={mySummary.pairPetLevelUpCoreBonuses}
+                                title="추가된 능력치"
+                                compact
+                            />
+                        ) : undefined
+                    }
+                    isMobile={isMobile}
+                    mobileTextScale={mobileTextScale}
+                    desktopTextScale={desktopTextScale}
+                />
+            ) : null}
+        </div>
+        );
     };
 
     const renderGameContent = () => {
@@ -2215,8 +2318,8 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
         ? 'flex min-h-[3.35rem] flex-col gap-1 rounded-md border border-amber-500/20 bg-gradient-to-br from-slate-900/95 via-[#13141c] to-[#0a0a0f] px-2 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 ring-inset ring-amber-500/10'
         : 'flex min-h-[3.75rem] flex-col gap-1 rounded-md border border-amber-500/20 bg-gradient-to-br from-slate-900/95 via-[#13141c] to-[#0a0a0f] px-2 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 ring-inset ring-amber-500/10 sm:min-h-[4rem]';
     const statLabelClass = isMobile
-        ? 'shrink-0 text-[0.68rem] font-bold uppercase tracking-[0.08em] text-slate-400'
-        : 'shrink-0 text-[0.7rem] font-bold uppercase tracking-[0.1em] text-slate-400';
+        ? 'shrink-0 text-[0.72rem] font-bold uppercase tracking-[0.08em] text-amber-100/90'
+        : 'shrink-0 text-[0.75rem] font-bold uppercase tracking-[0.1em] text-amber-100/90';
     /** 라벨 아래 값 영역 — 네 박스 높이 맞춤 */
     const statCardBodyClass = isMobile
         ? 'flex min-h-[1.55rem] flex-1 flex-wrap content-center items-center justify-center gap-x-1.5 gap-y-0.5'
@@ -2236,7 +2339,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
             className={`relative z-10 flex-shrink-0 space-y-1 rounded-xl border border-amber-500/20 bg-gradient-to-b from-[#1a1510]/95 via-[#12100c] to-[#0a0908] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-inset ring-amber-500/10 sm:p-2.5 ${isMobile ? '!p-2' : ''}`}
         >
             <h2
-                className={`mb-0 border-b border-amber-500/25 pb-1 text-center font-bold uppercase tracking-[0.12em] text-amber-200/85 ${
+                className={`mb-0 border-b border-amber-500/25 pb-1 text-center font-bold uppercase tracking-[0.12em] text-amber-100 ${
                     isMobile ? 'text-xs' : 'text-[0.7rem] sm:text-[0.75rem]'
                 }`}
                 style={
@@ -2258,15 +2361,15 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
             >
                 {!mySummary ? (
                     <p
-                        className="px-2 text-center text-slate-500"
-                        style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
+                        className="px-2 text-center font-medium text-slate-200"
+                        style={{ fontSize: isMobile ? resultModalFontPx(RESULT_MODAL_SCORE_MOBILE_PX.emptyState, mobileTextScale) : undefined }}
                     >
                         보상 정보가 없습니다.
                     </p>
                 ) : !hasPvpRewardSlots ? (
                     <p
-                        className="px-2 text-center text-slate-500"
-                        style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
+                        className="px-2 text-center font-medium text-slate-200"
+                        style={{ fontSize: isMobile ? resultModalFontPx(RESULT_MODAL_SCORE_MOBILE_PX.emptyState, mobileTextScale) : undefined }}
                     >
                         보상이 없습니다.
                     </p>
@@ -2514,184 +2617,12 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                     </div>
                                     <div className="flex min-w-0 flex-col gap-2 rounded-xl border border-amber-500/25 bg-gradient-to-b from-slate-900/92 via-[#121318] to-[#0a0a0e] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10 min-[390px]:p-2.5">
                                         <h2
-                                            className="mb-0 flex-shrink-0 border-b border-violet-500/25 pb-1.5 text-center text-xs font-bold uppercase tracking-[0.12em] text-violet-200/85"
+                                            className="mb-0 flex-shrink-0 border-b border-violet-500/25 pb-1.5 text-center text-xs font-bold uppercase tracking-[0.12em] text-amber-100 sm:text-sm"
                                             style={mobileSectionTitleStyle}
                                         >
                                             {isGuildWar ? '보상·기록' : '대국 결과'}
                                         </h2>
-                                        <div className="flex flex-shrink-0 flex-col gap-2">
-                                            <div className="rounded-lg border border-amber-500/20 bg-gradient-to-r from-slate-950/80 via-[#15151c] to-slate-950/80 p-1.5 ring-1 ring-inset ring-amber-500/10 sm:p-2">
-                                                <div className="flex w-full min-w-0 items-center gap-1.5">
-                                                    <Avatar
-                                                        userId={currentUser.id}
-                                                        userName={currentUser.nickname}
-                                                        size={Math.round(24 * mobileImageScale)}
-                                                        avatarUrl={avatarUrl}
-                                                        borderUrl={borderUrl}
-                                                    />
-                                                    <div className="min-w-0 flex-1 shrink">
-                                                        <div
-                                                            className="max-w-full overflow-x-auto overflow-y-hidden whitespace-nowrap [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]"
-                                                            title={currentUser.nickname}
-                                                        >
-                                                            <p
-                                                                className="inline-block min-w-0 whitespace-nowrap pr-1 font-bold leading-snug text-white"
-                                                                style={mobileNicknameTextStyle}
-                                                            >
-                                                                {currentUser.nickname}
-                                                            </p>
-                                                        </div>
-                                                        {!showUserXpAside ? (
-                                                            <p
-                                                                className="font-medium text-slate-400 text-[0.7rem] sm:text-sm"
-                                                                style={mobileLevelTextStyle}
-                                                            >
-                                                                Lv.
-                                                                {mySummary?.level ? mySummary.level.final : currentUser.userLevel}
-                                                            </p>
-                                                        ) : null}
-                                                    </div>
-                                                    {showUserXpAside && userLevelXpAside ? (
-                                                        <div className="min-w-0 w-[min(52%,11.5rem)] shrink-0">
-                                                            <XpBar
-                                                                initial={userLevelXpAside.progress.initial}
-                                                                final={userLevelXpAside.progress.final}
-                                                                max={userLevelXpAside.progress.max}
-                                                                levelUp={userLevelXpAside.initial < userLevelXpAside.final}
-                                                                xpGain={mySummary?.xp?.change ?? 0}
-                                                                finalLevel={userLevelXpAside.final}
-                                                                isMobile={isMobile}
-                                                                mobileTextScale={mobileTextScale}
-                                                            />
-                                                        </div>
-                                                    ) : null}
-                                                </div>
-                                            </div>
-                                            {showPairPetProfileAside ? (
-                                                <div className="rounded-lg border border-amber-500/20 bg-gradient-to-r from-slate-950/80 via-[#15151c] to-slate-950/80 p-1 ring-1 ring-inset ring-amber-500/10 sm:p-1.5">
-                                                    <div
-                                                        className="flex w-full min-w-0 items-center gap-1.5"
-                                                        aria-label="대표 펫"
-                                                    >
-                                                        <div
-                                                            className="flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-black/40 ring-1 ring-black/40"
-                                                            style={{
-                                                                width: Math.round(24 * mobileImageScale),
-                                                                height: Math.round(24 * mobileImageScale),
-                                                            }}
-                                                        >
-                                                            {pairPetPortraitUrl ? (
-                                                                <img
-                                                                    src={pairPetPortraitUrl}
-                                                                    alt=""
-                                                                    className="h-full w-full object-contain p-0.5"
-                                                                    loading="lazy"
-                                                                />
-                                                            ) : (
-                                                                <span className="text-[0.5rem] font-bold text-slate-500">—</span>
-                                                            )}
-                                                        </div>
-                                                        <div className="min-w-0 flex-1 shrink text-left">
-                                                            {!showPetXpBarAside ? (
-                                                                <>
-                                                                    <p
-                                                                        className="font-bold leading-snug text-white tabular-nums"
-                                                                        style={mobileNicknameTextStyle}
-                                                                    >
-                                                                        Lv.
-                                                                        {mySummary?.pairPetLevel?.final ??
-                                                                            equippedPairPetRow?.level ??
-                                                                            '—'}
-                                                                    </p>
-                                                                    <div
-                                                                        className="max-w-full overflow-x-auto overflow-y-hidden whitespace-nowrap [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]"
-                                                                        title={pairPetDisplayName || undefined}
-                                                                    >
-                                                                        <p
-                                                                            className="inline-block min-w-0 whitespace-nowrap pr-1 font-medium leading-snug text-slate-400"
-                                                                            style={mobileLevelTextStyle}
-                                                                        >
-                                                                            {pairPetDisplayName || '—'}
-                                                                        </p>
-                                                                    </div>
-                                                                </>
-                                                            ) : (
-                                                                <div
-                                                                    className="max-w-full overflow-x-auto overflow-y-hidden whitespace-nowrap [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]"
-                                                                    title={pairPetDisplayName || undefined}
-                                                                >
-                                                                    <p
-                                                                        className="inline-block min-w-0 whitespace-nowrap pr-1 font-bold leading-snug text-white"
-                                                                        style={mobileNicknameTextStyle}
-                                                                    >
-                                                                        {pairPetDisplayName || '—'}
-                                                                    </p>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                        {pairPetXpAside ? (
-                                                            showPetGradeUpgradeInsteadOfXp ? (
-                                                                <div className="flex min-h-[2rem] min-w-0 w-[min(52%,11.5rem)] shrink-0 items-center justify-center rounded-md border border-fuchsia-400/40 bg-fuchsia-950/35 px-1 py-1">
-                                                                    <span
-                                                                        className="text-center text-[8px] font-extrabold leading-tight text-fuchsia-100 sm:text-[9px]"
-                                                                        title="펫 등급강화 필요"
-                                                                    >
-                                                                        펫 등급강화 필요
-                                                                    </span>
-                                                                </div>
-                                                            ) : (
-                                                                <div className="min-w-0 w-[min(52%,11.5rem)] shrink-0">
-                                                                    <XpBar
-                                                                        initial={pairPetXpAside.level.progress.initial}
-                                                                        final={pairPetXpAside.level.progress.final}
-                                                                        max={Math.max(1, pairPetXpAside.level.progress.max)}
-                                                                        levelUp={pairPetXpAside.level.initial < pairPetXpAside.level.final}
-                                                                        xpGain={pairPetXpAside.xp.change}
-                                                                        finalLevel={pairPetXpAside.level.final}
-                                                                        isMobile={isMobile}
-                                                                        mobileTextScale={mobileTextScale}
-                                                                    />
-                                                                </div>
-                                                            )
-                                                        ) : null}
-                                                    </div>
-                                                    {showPetXpBarAside && mySummary ? (
-                                                        <PairPetLevelUpCoreDelta
-                                                            delta={mySummary.pairPetLevelUpCoreBonuses}
-                                                            title="추가된 능력치"
-                                                            compact
-                                                            className="mt-1.5"
-                                                        />
-                                                    ) : null}
-                                                </div>
-                                            ) : null}
-                                        </div>
-                                        {!mySummary || (!showUserXpAside && !showPetXpAside && (!isPlayful || !mySummary)) ? (
-                                            <div className="flex min-h-[2rem] flex-shrink-0 flex-col justify-center">
-                                                <div className="flex items-center gap-1.5">
-                                                    <span
-                                                        className="w-12 text-xs font-bold text-right text-slate-400"
-                                                        style={mobileBodyTextStyle}
-                                                    >
-                                                        경험치
-                                                    </span>
-                                                    <div className="relative flex h-3.5 w-full items-center justify-center overflow-hidden rounded-full border border-white/10 bg-slate-950/80">
-                                                        <span
-                                                            className="text-[9px] font-bold text-slate-500"
-                                                            style={mobileMetaTextStyle}
-                                                        >
-                                                            0 XP
-                                                        </span>
-                                                    </div>
-                                                    <span
-                                                        className="w-14 whitespace-nowrap text-xs font-bold text-slate-500"
-                                                        style={mobileBodyTextStyle}
-                                                    >
-                                                        +0 XP
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        ) : null}
+                                        {renderRecordIdentityPanels()}
                                         {isAdventureGame && mySummary?.adventureCodexDelta ? (
                                             <AdventureResultCodexCard
                                                 codexDelta={mySummary.adventureCodexDelta}
@@ -2754,9 +2685,9 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                                             {postGameStatsSummary.overallRecord != null ? (
                                                                 <span className={statOverallClass}>
                                                                     <span className="text-amber-200">{postGameStatsSummary.overallRecord.wins}</span>
-                                                                    <span className="text-[0.65rem] font-bold text-slate-500">승</span>
-                                                                    <span className="text-slate-200">{postGameStatsSummary.overallRecord.losses}</span>
-                                                                    <span className="text-[0.65rem] font-bold text-slate-500">패</span>
+                                                                    <span className="text-[0.7rem] font-bold text-slate-300">승</span>
+                                                                    <span className="text-slate-100">{postGameStatsSummary.overallRecord.losses}</span>
+                                                                    <span className="text-[0.7rem] font-bold text-slate-300">패</span>
                                                                 </span>
                                                             ) : (
                                                                 <span className="text-sm font-bold text-slate-500">-</span>
@@ -2837,136 +2768,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                 >
                                     {isGuildWar ? '보상·기록' : '대국 결과'}
                                 </h2>
-                                <div className="flex flex-shrink-0 flex-col gap-2">
-                                    <div className="rounded-lg border border-amber-500/20 bg-gradient-to-r from-slate-950/80 via-[#15151c] to-slate-950/80 p-2 ring-1 ring-inset ring-amber-500/10">
-                                        <div className="flex w-full min-w-0 items-center gap-1.5">
-                                            <Avatar
-                                                userId={currentUser.id}
-                                                userName={currentUser.nickname}
-                                                size={Math.round(34 * desktopTextScale)}
-                                                avatarUrl={avatarUrl}
-                                                borderUrl={borderUrl}
-                                            />
-                                            <div className="min-w-0 shrink">
-                                                <p
-                                                    className="min-w-0 break-words text-[0.8125rem] font-bold leading-tight text-white"
-                                                    style={{ wordBreak: 'break-word', fontSize: `${12.5 * desktopTextScale}px` }}
-                                                    title={currentUser.nickname}
-                                                >
-                                                    {currentUser.nickname}
-                                                </p>
-                                                {!showUserXpAside ? (
-                                                    <p className="text-[0.65rem] font-medium leading-none text-slate-400 min-[1024px]:text-xs">
-                                                        Lv.
-                                                        {mySummary?.level ? mySummary.level.final : currentUser.userLevel}
-                                                    </p>
-                                                ) : null}
-                                            </div>
-                                            {showUserXpAside && userLevelXpAside ? (
-                                                <div className="min-w-0 flex-1 self-center">
-                                                    <XpBar
-                                                        initial={userLevelXpAside.progress.initial}
-                                                        final={userLevelXpAside.progress.final}
-                                                        max={userLevelXpAside.progress.max}
-                                                        levelUp={userLevelXpAside.initial < userLevelXpAside.final}
-                                                        xpGain={mySummary?.xp?.change ?? 0}
-                                                        finalLevel={userLevelXpAside.final}
-                                                        isMobile={false}
-                                                        mobileTextScale={mobileTextScale}
-                                                        compact
-                                                    />
-                                                </div>
-                                            ) : !showUserXpAside && (!mySummary || !isPlayful) ? (
-                                                <div className="min-w-0 flex-1 self-center">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="w-14 shrink-0 text-right text-xs font-bold text-slate-400">경험치</span>
-                                                        <div className="relative flex h-3 w-full min-w-0 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-slate-950/80">
-                                                            <span className="text-[10px] font-bold text-slate-500">0 XP</span>
-                                                        </div>
-                                                        <span className="w-14 shrink-0 whitespace-nowrap text-xs font-bold text-slate-500">+0 XP</span>
-                                                    </div>
-                                                </div>
-                                            ) : null}
-                                        </div>
-                                    </div>
-                                    {showPairPetProfileAside ? (
-                                        <div className="rounded-lg border border-amber-500/20 bg-gradient-to-r from-slate-950/80 via-[#15151c] to-slate-950/80 p-1.5 ring-1 ring-inset ring-amber-500/10 sm:p-2">
-                                            <div className="flex w-full min-w-0 items-center gap-2" aria-label="대표 펫">
-                                                <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-black/40 ring-1 ring-black/40">
-                                                    {pairPetPortraitUrl ? (
-                                                        <img
-                                                            src={pairPetPortraitUrl}
-                                                            alt=""
-                                                            className="h-full w-full object-contain p-0.5"
-                                                            loading="lazy"
-                                                        />
-                                                    ) : (
-                                                        <span className="text-xs font-bold text-slate-500">—</span>
-                                                    )}
-                                                </div>
-                                                <div className="min-w-0 shrink">
-                                                    {!showPetXpBarAside ? (
-                                                        <>
-                                                            <p className="min-w-0 text-sm font-bold leading-tight tabular-nums text-white min-[1024px]:text-[0.9rem]">
-                                                                Lv.
-                                                                {mySummary?.pairPetLevel?.final ?? equippedPairPetRow?.level ?? '—'}
-                                                            </p>
-                                                            <p
-                                                                className="min-w-0 break-words text-[0.65rem] font-medium leading-none text-slate-400 min-[1024px]:text-xs"
-                                                                style={{ wordBreak: 'break-word' }}
-                                                                title={pairPetDisplayName || undefined}
-                                                            >
-                                                                {pairPetDisplayName || '—'}
-                                                            </p>
-                                                        </>
-                                                    ) : (
-                                                        <p
-                                                            className="min-w-0 break-words text-sm font-bold leading-tight text-white min-[1024px]:text-[0.9rem]"
-                                                            style={{ wordBreak: 'break-word' }}
-                                                            title={pairPetDisplayName || undefined}
-                                                        >
-                                                            {pairPetDisplayName || '—'}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                                {pairPetXpAside ? (
-                                                    showPetGradeUpgradeInsteadOfXp ? (
-                                                        <div className="flex min-h-[2.25rem] min-w-0 flex-1 items-center justify-center self-center rounded-md border border-fuchsia-400/40 bg-fuchsia-950/35 px-2 py-1.5">
-                                                            <span
-                                                                className="text-center text-[0.65rem] font-extrabold leading-tight text-fuchsia-100 min-[1024px]:text-xs"
-                                                                title="펫 등급강화 필요"
-                                                            >
-                                                                펫 등급강화 필요
-                                                            </span>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="min-w-0 flex-1 self-center">
-                                                            <XpBar
-                                                                initial={pairPetXpAside.level.progress.initial}
-                                                                final={pairPetXpAside.level.progress.final}
-                                                                max={Math.max(1, pairPetXpAside.level.progress.max)}
-                                                                levelUp={pairPetXpAside.level.initial < pairPetXpAside.level.final}
-                                                                xpGain={pairPetXpAside.xp.change}
-                                                                finalLevel={pairPetXpAside.level.final}
-                                                                isMobile={false}
-                                                                mobileTextScale={mobileTextScale}
-                                                                compact
-                                                            />
-                                                        </div>
-                                                    )
-                                                ) : null}
-                                            </div>
-                                            {showPetXpBarAside && mySummary ? (
-                                                <PairPetLevelUpCoreDelta
-                                                    delta={mySummary.pairPetLevelUpCoreBonuses}
-                                                    title="추가된 능력치"
-                                                    compact
-                                                    className="mt-1.5 w-full"
-                                                />
-                                            ) : null}
-                                        </div>
-                                    ) : null}
-                                </div>
+                                {renderRecordIdentityPanels()}
                                 {isAdventureGame && mySummary?.adventureCodexDelta ? (
                                     <AdventureResultCodexCard
                                         codexDelta={mySummary.adventureCodexDelta}
@@ -3058,31 +2860,6 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                 )}
             </div>
             </div>
-                <div
-                    className={`${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS} flex flex-col ${isMobile ? 'mt-1 gap-1 pt-1.5' : 'mt-1.5 gap-1 pt-1.5'} flex-shrink-0 border-t border-amber-500/20 bg-gradient-to-t from-zinc-950/95 via-zinc-900/90 to-transparent px-1 pb-1 sm:px-2 sm:pb-1.5`}
-                >
-                    <div className={`${arenaPostGameSingleConfirmFooterClass} shrink-0`}>
-                        {resultModalSecondaryAction ? (
-                            <button
-                                type="button"
-                                className={`${arenaPostGameButtonClass('danger', isMobile, 'modal')} ${arenaPostGameSingleModalConfirmButtonClass}`}
-                                style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : `${11 * desktopTextScale}px` }}
-                                onClick={resultModalSecondaryAction.onClick}
-                                title={resultModalSecondaryAction.title}
-                            >
-                                {resultModalSecondaryAction.label}
-                            </button>
-                        ) : null}
-                        <button
-                            type="button"
-                            className={`${arenaPostGameButtonClass('neutral', isMobile, 'modal')} ${arenaPostGameSingleModalConfirmButtonClass}`}
-                            style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : `${11 * desktopTextScale}px` }}
-                            onClick={onConfirm}
-                        >
-                            {resultModalConfirmLabel}
-                        </button>
-                    </div>
-                </div>
         </DraggableWindow>
     );
 };
