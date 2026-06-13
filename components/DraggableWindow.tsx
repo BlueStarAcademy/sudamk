@@ -864,7 +864,10 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         bodyScaleToFitNaturalLayout ||
         useReadableSmallPcViewportPortal ||
         (bodyAvoidVerticalStretch && useUniformPcScaleLayout) ||
-        (Boolean(bodyShrinkToContent) && useMobileViewportFitLayout && (!bodyScrollable || bodyNoScroll));
+        (Boolean(bodyShrinkToContent) &&
+            useMobileViewportFitLayout &&
+            (!bodyScrollable || bodyNoScroll) &&
+            !mobileLockViewportHeight);
 
     const compactFitScaleEstimate = useMemo(() => {
         if (!useCompactScaleToFitLayout) return 1;

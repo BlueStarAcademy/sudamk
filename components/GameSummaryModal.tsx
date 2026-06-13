@@ -2508,7 +2508,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
             /** 전역 레벨업·콘텐츠 해금 등(document.body)과 같은 z 스택에서 겹치게 — 스케일 캔버스 내부 modal-root에만 두면 가려질 수 있음 */
             viewportPortal
             {...commonResultWindowProps}
-            bodyShrinkToContent
+            bodyShrinkToContent={!isMobile}
             bodyAvoidVerticalStretch={!isMobile}
             hideFooter={isMobile}
             windowId="game-summary"
@@ -2559,7 +2559,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                     </div>
                 ) : null}
                 {isMobile ? (
-                    <GameResultModalFitContent className="flex-1 basis-0">
+                    <GameResultModalFitContent className="flex-1 basis-0" enabled={false}>
                     <div className="flex flex-col gap-2 overflow-x-hidden min-[390px]:gap-2.5">
                                     <div className="flex flex-col items-center rounded-xl border border-amber-500/25 bg-gradient-to-b from-slate-900/90 via-[#121318] to-[#0a0a0e] p-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10 min-[390px]:p-2.5">
                                         <h2

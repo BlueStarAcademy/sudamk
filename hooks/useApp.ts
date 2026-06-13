@@ -151,6 +151,7 @@ import {
     preserveTerminalGameSessionOnMerge,
     shouldClearMissileFlightAnimationOnPlayingMerge,
     shouldIgnoreStaleLiveTerminalGameUpdate,
+    shouldIgnoreStalePendingPveStartRegression,
 } from '../utils/clientGameMergePolicy.js';
 import {
     augmentPveFromSessionStorageSnapshot,
@@ -992,8 +993,17 @@ function mergePveHttpActionGameResponse(
     prevG: LiveGameSession | undefined,
     actionType: string,
 ): LiveGameSession {
-    if (prevG && shouldIgnoreStaleLiveTerminalGameUpdate(merged, prevG)) {
+    const isPveStartConfirm =
+        actionType === 'CONFIRM_SINGLE_PLAYER_GAME_START' || actionType === 'CONFIRM_TOWER_GAME_START';
+    if (
+        !isPveStartConfirm &&
+        prevG &&
+        shouldIgnoreStaleLiveTerminalGameUpdate(merged, prevG)
+    ) {
         return preserveTerminalGameSessionOnMerge(merged, prevG);
+    }
+    if (prevG && shouldIgnoreStalePendingPveStartRegression(merged, prevG)) {
+        return prevG;
     }
     let next = applyPvePlayingBoardAndMoveHistoryResolve(merged, prevG);
     next = mergeGameUpdateByArena(next, prevG, { source: 'http_action', actionType });
@@ -7293,7 +7303,16 @@ export const useApp = () => {
                                         ? { ...game, boardState: (game.boardState as any[][]).map(row => [...row]), blackPatternStones: Array.isArray(game.blackPatternStones) ? [...game.blackPatternStones] : game.blackPatternStones, whitePatternStones: Array.isArray(game.whitePatternStones) ? [...game.whitePatternStones] : game.whitePatternStones }
                                         : game;
                                     const prevSingle = currentGames[effectiveGameId];
-                                    const nextGame = mergeGameWithMonotonicCounters(prevSingle, rawNextGame as LiveGameSession, effectiveGameId);
+                                    const mergedCounters = mergeGameWithMonotonicCounters(
+                                        prevSingle,
+                                        rawNextGame as LiveGameSession,
+                                        effectiveGameId,
+                                    );
+                                    const nextGame = mergePveHttpActionGameResponse(
+                                        mergedCounters,
+                                        prevSingle,
+                                        action.type,
+                                    );
                                     if (action.type === 'START_SINGLE_PLAYER_GAME') {
                                         for (const id of Object.keys(currentGames)) {
                                             if (id !== effectiveGameId) {
@@ -9555,14 +9574,11 @@ export const useApp = () => {
                                         
                                         // 중요한 필드만 비교하여 빠른 early return (stableStringify 호출 전에)
                                         if (existingGame) {
-                                            const localMidGamePlayingSp =
-                                                existingGame.gameStatus === 'playing' &&
-                                                (existingGame.moveHistory?.length ?? 0) > 0;
-                                            if (localMidGamePlayingSp && game.gameStatus === 'pending') {
+                                            if (shouldIgnoreStalePendingPveStartRegression(game, existingGame)) {
                                                 if (process.env.NODE_ENV === 'development') {
                                                     console.warn(
-                                                        '[WebSocket] SinglePlayer: ignoring stale pending GAME_UPDATE while local is playing with moves',
-                                                        { gameId }
+                                                        '[WebSocket] SinglePlayer: ignoring stale pending GAME_UPDATE after local start confirm',
+                                                        { gameId, local: existingGame.gameStatus },
                                                     );
                                                 }
                                                 return currentGames;
@@ -10270,14 +10286,11 @@ export const useApp = () => {
                                         // 타워 게임은 클라이언트에서만 실행되므로,
                                         // 클라이언트의 로컬 상태가 더 최신이면 서버 상태를 무시
                                         if (existingGame) {
-                                            const localMidGamePlaying =
-                                                existingGame.gameStatus === 'playing' &&
-                                                (existingGame.moveHistory?.length ?? 0) > 0;
-                                            if (localMidGamePlaying && game.gameStatus === 'pending') {
+                                            if (shouldIgnoreStalePendingPveStartRegression(game, existingGame)) {
                                                 if (process.env.NODE_ENV === 'development') {
                                                     console.warn(
-                                                        '[WebSocket] Tower: ignoring stale pending GAME_UPDATE while local is playing with moves',
-                                                        { gameId }
+                                                        '[WebSocket] Tower: ignoring stale pending GAME_UPDATE after local start confirm',
+                                                        { gameId, local: existingGame.gameStatus },
                                                     );
                                                 }
                                                 return currentGames;

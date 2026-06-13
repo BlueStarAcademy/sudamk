@@ -592,7 +592,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                 )}
                 
                 {isMobile ? (
-                    <GameResultModalFitContent className="flex-1 basis-0">
+                    <GameResultModalFitContent className="flex-1 basis-0" enabled={false}>
                     <div className="flex flex-col gap-1.5 overflow-x-hidden">
                         <div
                             className={`flex flex-col ${SP_SUMMARY_PANEL_CLASS} shrink-0 overflow-x-hidden p-1.5 sp-summary-left-panel`}

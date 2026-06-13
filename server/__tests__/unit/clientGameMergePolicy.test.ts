@@ -6,6 +6,7 @@ import {
     preserveTerminalGameSessionOnMerge,
     shouldClearMissileFlightAnimationOnPlayingMerge,
     shouldIgnoreStaleLiveTerminalGameUpdate,
+    shouldIgnoreStalePendingPveStartRegression,
 } from '../../../utils/clientGameMergePolicy.js';
 import { resolveArenaSessionPolicy } from '../../../shared/utils/liveSessionArenaKind.js';
 import { GameMode, Player } from '../../../shared/types/enums.js';
@@ -218,6 +219,54 @@ describe('mergeGameUpdateByArena', () => {
         });
         const merged = mergeGameUpdateByArena(incoming, existing, { source: 'game_update' });
         expect(merged.animation).toEqual(anim);
+    });
+});
+
+describe('shouldIgnoreStalePendingPveStartRegression', () => {
+    it('ignores pending WS while local is playing with zero moves after confirm', () => {
+        const existing = minimalSession({
+            isSinglePlayer: true,
+            gameCategory: 'singleplayer',
+            gameStatus: 'playing',
+            moveHistory: [],
+            startTime: Date.now(),
+        } as Partial<LiveGameSession>);
+        const incoming = minimalSession({
+            isSinglePlayer: true,
+            gameCategory: 'singleplayer',
+            gameStatus: 'pending',
+        } as Partial<LiveGameSession>);
+        expect(shouldIgnoreStalePendingPveStartRegression(incoming, existing)).toBe(true);
+    });
+
+    it('ignores pending WS while local is in base placement after confirm', () => {
+        const existing = minimalSession({
+            isSinglePlayer: true,
+            gameCategory: 'singleplayer',
+            gameStatus: 'base_placement',
+            mode: GameMode.Base,
+        } as Partial<LiveGameSession>);
+        const incoming = minimalSession({
+            isSinglePlayer: true,
+            gameCategory: 'singleplayer',
+            gameStatus: 'pending',
+            mode: GameMode.Base,
+        } as Partial<LiveGameSession>);
+        expect(shouldIgnoreStalePendingPveStartRegression(incoming, existing)).toBe(true);
+    });
+
+    it('accepts pending when local is also pending', () => {
+        const existing = minimalSession({
+            isSinglePlayer: true,
+            gameCategory: 'singleplayer',
+            gameStatus: 'pending',
+        } as Partial<LiveGameSession>);
+        const incoming = minimalSession({
+            isSinglePlayer: true,
+            gameCategory: 'singleplayer',
+            gameStatus: 'pending',
+        } as Partial<LiveGameSession>);
+        expect(shouldIgnoreStalePendingPveStartRegression(incoming, existing)).toBe(false);
     });
 });
 

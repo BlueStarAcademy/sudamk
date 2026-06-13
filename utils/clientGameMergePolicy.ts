@@ -159,6 +159,46 @@ function mergeStrategicItemInventoryMonotonic(
  * human PVP/페어 liveGames: 계가·종료 직후 늦게 도착한 playing/pending 패킷이 로컬 상태를 되돌리면
  * 계가 연출만 끝나고 영토·결과 모달·종료 푸터가 영원히 갱신되지 않는다.
  */
+const PVE_BASE_PRE_PLAY_STATUSES = new Set([
+    'base_placement',
+    'base_stone_color_choice',
+    'base_same_color_points_bid',
+    'base_game_start_confirmation',
+]);
+
+const PVE_CAPTURE_PRE_PLAY_STATUSES = new Set([
+    'capture_bidding',
+    'capture_reveal',
+    'capture_tiebreaker',
+]);
+
+/**
+ * CONFIRM 직후 로컬은 `playing`(0수)·베이스/덤 사전 단계인데 늦게 도착한 `pending` WS/HTTP가
+ * 덮으면 시작 모달이 닫히지 않고「시작하기」가 먹지 않는 것처럼 보인다.
+ */
+export function shouldIgnoreStalePendingPveStartRegression(
+    incoming: LiveGameSession,
+    existing: LiveGameSession | undefined,
+): boolean {
+    if (!existing || incoming.gameStatus !== 'pending') return false;
+    if (existing.gameStatus === 'pending') return false;
+
+    const existingStarted =
+        existing.gameStatus === 'playing' ||
+        PVE_BASE_PRE_PLAY_STATUSES.has(String(existing.gameStatus)) ||
+        PVE_CAPTURE_PRE_PLAY_STATUSES.has(String(existing.gameStatus)) ||
+        (existing as { startTime?: number | null }).startTime != null ||
+        (existing as { gameStartTime?: number | null }).gameStartTime != null;
+
+    if (!existingStarted) return false;
+
+    const ir = incoming.serverRevision ?? 0;
+    const er = existing.serverRevision ?? 0;
+    if (ir > 0 && er > 0 && ir > er) return false;
+
+    return true;
+}
+
 export function shouldIgnoreStaleLiveTerminalGameUpdate(
     incoming: LiveGameSession,
     existing: LiveGameSession | undefined,

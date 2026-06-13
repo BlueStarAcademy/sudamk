@@ -3,13 +3,14 @@ import { useGameResultModalContentFit } from './useGameResultModalContentFit.js'
 
 type GameResultModalFitContentProps = {
     children: React.ReactNode;
+    /** false면 축소 없이 본문 스크롤(모바일 기본) */
     enabled?: boolean;
     className?: string;
     contentClassName?: string;
 };
 
 /**
- * PVE/PVP 경기 결과 모달 본문 래퍼 — 뷰포트 높이에 맞춰 균일 축소해 스크롤 없이 한 화면에 표시.
+ * PVE/PVP 경기 결과 모달 본문 래퍼 — 데스크톱은 뷰포트 높이에 맞춰 균일 축소, 모바일·폴백은 스크롤.
  */
 const GameResultModalFitContent: React.FC<GameResultModalFitContentProps> = ({
     children,
@@ -17,10 +18,18 @@ const GameResultModalFitContent: React.FC<GameResultModalFitContentProps> = ({
     className = '',
     contentClassName = '',
 }) => {
-    const { containerRef, contentRef, scale, isScaled } = useGameResultModalContentFit(enabled);
+    const { containerRef, contentRef, scale, isScaled, useScrollFallback } =
+        useGameResultModalContentFit(enabled);
 
     return (
-        <div ref={containerRef} className={`min-h-0 flex-1 overflow-hidden ${className}`.trim()}>
+        <div
+            ref={containerRef}
+            className={`flex min-h-0 min-w-0 flex-1 flex-col ${
+                useScrollFallback
+                    ? 'overflow-y-auto overflow-x-hidden overscroll-y-contain [scrollbar-gutter:stable]'
+                    : 'overflow-hidden'
+            } ${className}`.trim()}
+        >
             <div
                 ref={contentRef}
                 className={`mx-auto flex w-full max-w-full flex-col origin-top ${contentClassName}`.trim()}
