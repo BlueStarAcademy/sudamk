@@ -492,13 +492,13 @@ function singlePlayerGoalVisuals(
     return {
       win: {
         img: '/images/simbols/simbol1.webp',
-        label: '백 목표 저지',
-        helper: `백이 ${survN}턴 안에 목표 점수를 만들지 못하게 막으세요.`,
+        label: '백 막기',
+        helper: `${survN}턴 동안 백 목표를 막기`,
       },
       lose: {
         img: PATTERN_STONE_HIGHLIGHT_IMG,
-        label: '백 목표 달성',
-        helper: '백이 먼저 목표 점수를 만들면 실패합니다.',
+        label: '백 성공',
+        helper: '백이 목표를 만들면 실패',
       },
     };
   }
@@ -507,15 +507,15 @@ function singlePlayerGoalVisuals(
     return {
       win: {
         img: PATTERN_STONE_HIGHLIGHT_IMG,
-        label: '따내기 목표',
-        helper: '상대 돌을 포위해 따내면 점수를 얻습니다.',
+        label: '따내기',
+        helper: '상대 돌을 둘러싸면 점수',
       },
       lose: {
         img: stage.blackTurnLimit ? '/images/icon/timer.webp' : '/images/simbols/simbol2.webp',
-        label: stage.blackTurnLimit ? '턴 초과 주의' : '상대 선취',
+        label: stage.blackTurnLimit ? '턴 초과' : '상대 선취',
         helper: stage.blackTurnLimit
-          ? `흑 ${stage.blackTurnLimit}턴 안에 목표를 달성해야 합니다.`
-          : '상대가 목표 점수를 먼저 얻으면 실패합니다.',
+          ? `${stage.blackTurnLimit}턴 안에 못 하면 실패`
+          : '상대가 먼저 따내면 실패',
       },
     };
   }
@@ -524,13 +524,13 @@ function singlePlayerGoalVisuals(
     return {
       win: {
         img: '/images/icon/timer.webp',
-        label: '시간 관리',
-        helper: '빠르게 두면서 계가 점수에서 앞서야 합니다.',
+        label: '빠르게',
+        helper: '시간을 지키며 집 만들기',
       },
       lose: {
         img: '/images/simbols/simbol7.webp',
-        label: '계가 열세',
-        helper: '시간 보너스와 집 계산을 합쳐 뒤지면 실패합니다.',
+        label: '점수 열세',
+        helper: '집이 적으면 실패',
       },
     };
   }
@@ -539,13 +539,13 @@ function singlePlayerGoalVisuals(
     return {
       win: {
         img: '/images/simbols/simbol7.webp',
-        label: '자동 계가 승리',
-        helper: `${stage.autoScoringTurns}수 후 집이 더 많도록 판을 운영하세요.`,
+        label: '집 많이',
+        helper: `${stage.autoScoringTurns}수 후 집 계산`,
       },
       lose: {
         img: '/images/icon/timer.webp',
-        label: '계가 시간',
-        helper: `${stage.autoScoringTurns}수 시점에 불리하면 실패합니다.`,
+        label: '집 부족',
+        helper: `${stage.autoScoringTurns}수 때 불리하면 실패`,
       },
     };
   }
@@ -554,12 +554,12 @@ function singlePlayerGoalVisuals(
     win: {
       img: '/images/simbols/simbol1.webp',
       label: '집 만들기',
-      helper: '내 돌로 영역을 둘러 집을 더 많이 만드세요.',
+      helper: '영역을 둘러 집을 만들기',
     },
     lose: {
       img: '/images/simbols/simbol7.webp',
-      label: '계가 열세',
-      helper: '대국 종료 후 집이 적으면 실패합니다.',
+      label: '집 부족',
+      helper: '집이 적으면 실패',
     },
   };
 }
@@ -585,8 +585,8 @@ function singlePlayerRuleGuides(
     add({
       key: 'turn-limit',
       img: '/images/icon/timer.webp',
-      title: '제한 턴',
-      body: `흑 차례 ${stage.blackTurnLimit}번 안에 승리 목표를 달성해야 합니다.`,
+      title: '턴 제한',
+      body: `${stage.blackTurnLimit}턴 안에 끝내기`,
     });
   }
 
@@ -596,8 +596,8 @@ function singlePlayerRuleGuides(
     add({
       key: 'survival',
       img: '/images/simbols/simbol1.webp',
-      title: '살리기 목표',
-      body: `백이 ${survN}턴 안에 목표 점수를 만들지 못하도록 끊고 압박하세요.`,
+      title: '막기',
+      body: `${survN}턴 동안 백 목표 막기`,
     });
   }
 
@@ -610,8 +610,8 @@ function singlePlayerRuleGuides(
     add({
       key: 'auto-scoring',
       img: '/images/simbols/simbol7.webp',
-      title: '자동 계가',
-      body: `${stage.autoScoringTurns}수 후 자동으로 집을 계산합니다. 그 전에 유리한 모양을 만드세요.`,
+      title: '계가',
+      body: `${stage.autoScoringTurns}수 후 집 계산`,
     });
   }
 
@@ -623,7 +623,7 @@ function singlePlayerRuleGuides(
       key: 'pattern-stone',
       img: PATTERN_STONE_HIGHLIGHT_IMG,
       title: '문양돌',
-      body: '문양돌을 따내면 2점입니다. 초반 목표가 될 수 있습니다.',
+      body: '따내면 2점',
     });
   }
 
@@ -632,7 +632,7 @@ function singlePlayerRuleGuides(
       key: 'speed',
       img: '/images/icon/timer.webp',
       title: '스피드',
-      body: SPEED_GO_PVP_SPECIAL_HIGHLIGHT,
+      body: '늦게 두면 상대 +1점',
     });
   }
 
@@ -641,7 +641,7 @@ function singlePlayerRuleGuides(
       key: 'turn-add',
       img: '/images/button/addturn.webp',
       title: '턴 추가',
-      body: '필요할 때 사용해 제한 턴을 늘릴 수 있습니다.',
+      body: '제한 턴 늘리기',
     });
   }
 
@@ -650,7 +650,7 @@ function singlePlayerRuleGuides(
       key: 'missile',
       img: '/images/button/missile.webp',
       title: '미사일',
-      body: '아이템을 선택한 뒤 돌과 방향을 고르면 돌을 직선으로 밀어냅니다.',
+      body: '돌을 골라 직선 밀기',
     });
   }
 
@@ -659,7 +659,7 @@ function singlePlayerRuleGuides(
       key: 'hidden-scan',
       img: '/images/button/hidden.webp',
       title: '히든 · 스캔',
-      body: `히든은 내 착수를 숨기고, 스캔은 숨은 돌 후보를 확인합니다. 이번 스테이지: 히든 ${disp.hidden}개 · 스캔 ${disp.scan}개.`,
+      body: `숨기기 ${disp.hidden} · 찾기 ${disp.scan}`,
     });
   }
 

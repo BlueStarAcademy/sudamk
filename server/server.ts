@@ -71,6 +71,10 @@ import { getGoogleAuthUrl, getGoogleAccessToken, getGoogleUserInfo } from './ser
 import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig } from '../shared/constants/rewardConfig.js';
 import { PVP_DISCONNECT_REJOIN_GRACE_MS } from '../shared/utils/pvpDisconnectPolicy.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
+import {
+    isAiControlledTurnForWatchdog,
+    needsPveAiWatchdogTick,
+} from './utils/pveAiTurnWatchdog.js';
 
 const VERBOSE_ACTION_LOGS = process.env.DEBUG_ACTION_LOGS === '1' || process.env.LOG_ACTIONS === '1';
 
@@ -1775,6 +1779,8 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             // AI 대국도 인간 플레이어가 접속 중일 때만 처리 (고아 AI 대국으로 인한 불필요한 업데이트/타임아웃 방지)
             const gamesWithOnlinePlayers = activeGames.filter((g) => {
                 if (!g?.player1?.id && !g?.player2?.id) return false;
+                const pveServerAiTurnNeedsTick = needsPveAiWatchdogTick(g) && isAiControlledTurnForWatchdog(g);
+                if (pveServerAiTurnNeedsTick) return true;
                 if (g.isAiGame) {
                     const humanId = g.player1?.id === aiPlayer.aiUserId ? g.player2?.id : g.player1?.id;
                     if (humanId && onlineUserIdsSet.has(humanId)) return true;

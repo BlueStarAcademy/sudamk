@@ -254,6 +254,7 @@ export function PreGameSummaryGrid({
 }) {
   const panelShell =
     'group relative min-w-0 overflow-hidden rounded-xl border border-amber-500/28 bg-gradient-to-br from-[#252032] via-[#16131f] to-[#0c0a10] shadow-[0_12px_36px_-16px_rgba(0,0,0,0.88),inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 ring-inset ring-amber-400/12 transition-[box-shadow,ring-color] duration-200 hover:ring-amber-400/20';
+  const casualAcademyLayout = session.isSinglePlayer && session.gameCategory !== 'tower' && !!summary.goalVisuals;
 
   type TopCell =
     | {
@@ -284,21 +285,25 @@ export function PreGameSummaryGrid({
       line: summary.loseGoal,
       visual: summary.goalVisuals?.lose,
     },
-    {
-      key: 'score',
-      title: '점수 요인',
-      kind: 'img',
-      body: summary.scoreFactors,
-      img: preGameScoreBoxImage(session),
-    },
-    {
-      key: 'time',
-      title: '시간 규칙',
-      kind: 'img',
-      body: summary.timeRules,
-      img: '/images/icon/timer.webp',
-    },
   ];
+  if (!casualAcademyLayout) {
+    primaryCells.push(
+      {
+        key: 'score',
+        title: '점수 요인',
+        kind: 'img',
+        body: summary.scoreFactors,
+        img: preGameScoreBoxImage(session),
+      },
+      {
+        key: 'time',
+        title: '시간 규칙',
+        kind: 'img',
+        body: summary.timeRules,
+        img: '/images/icon/timer.webp',
+      },
+    );
+  }
   const itemStripCell: TopCell = {
     key: 'items',
     title: '아이템',
@@ -306,7 +311,7 @@ export function PreGameSummaryGrid({
     span2: true,
   };
 
-  const gridGap = singleColumn ? 'gap-2.5' : 'gap-2 sm:gap-2.5';
+  const gridGap = casualAcademyLayout ? 'gap-2' : singleColumn ? 'gap-2.5' : 'gap-2 sm:gap-2.5';
   /** 좁은 단일열 모드: 기본은 1열→480px 이상 2열. `forceTwoColumnPrimary`면 항상 2열(인게임 시작 모달) */
   const primaryGridClass = singleColumn
     ? forceTwoColumnPrimary
@@ -352,7 +357,9 @@ export function PreGameSummaryGrid({
       return (
         <div
           key={c.key}
-          className={`${panelShell} flex min-h-0 min-w-0 flex-col ${visual ? 'ring-amber-300/18' : ''} ${singleColumn ? 'p-2.5 sm:p-2.5' : 'p-2 sm:p-2.5'}`}
+          className={`${panelShell} flex min-h-0 min-w-0 flex-col ${visual ? 'ring-amber-300/18' : ''} ${
+            casualAcademyLayout ? 'p-2 sm:p-2.5' : singleColumn ? 'p-2.5 sm:p-2.5' : 'p-2 sm:p-2.5'
+          }`}
         >
           <div
             className={`pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full blur-2xl transition-opacity duration-200 group-hover:opacity-90 ${
@@ -383,7 +390,9 @@ export function PreGameSummaryGrid({
               {visual?.helper && (
                 <p
                   className={
-                    briefLayout
+                    casualAcademyLayout
+                      ? 'mt-0.5 text-[0.68rem] font-semibold leading-tight text-amber-100/78 sm:text-[0.74rem]'
+                      : briefLayout
                       ? 'mt-1 line-clamp-2 text-[0.62rem] font-semibold leading-snug text-amber-100/78 sm:text-[0.68rem]'
                       : 'mt-1 text-[0.74rem] font-semibold leading-snug text-amber-100/82 sm:text-xs'
                   }
@@ -485,16 +494,20 @@ export function PreGameSummaryGrid({
         className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-amber-400/[0.06] blur-2xl transition-opacity duration-200 group-hover:opacity-90"
         aria-hidden
       />
-      <div className={guideTitleClass}>이번 스테이지 핵심</div>
-      <div className={`mt-2 grid min-w-0 ${singleColumn ? 'grid-cols-1 gap-2' : 'grid-cols-2 gap-2'}`}>
+      <div className={guideTitleClass}>{casualAcademyLayout ? '하는 법' : '이번 스테이지 핵심'}</div>
+      <div className={`mt-2 grid min-w-0 ${casualAcademyLayout ? 'grid-cols-2 gap-1.5 sm:gap-2' : singleColumn ? 'grid-cols-1 gap-2' : 'grid-cols-2 gap-2'}`}>
         {summary.ruleGuides.map((guide) => (
           <div
             key={guide.key}
-            className="flex min-w-0 items-start gap-2 rounded-lg border border-amber-500/22 bg-black/32 px-2 py-2 ring-1 ring-inset ring-white/[0.04]"
+            className={`flex min-w-0 items-start gap-2 rounded-lg border border-amber-500/22 bg-black/32 ring-1 ring-inset ring-white/[0.04] ${
+              casualAcademyLayout ? 'px-1.5 py-1.5 sm:px-2' : 'px-2 py-2'
+            }`}
           >
             <div
               className={
-                briefLayout
+                casualAcademyLayout
+                  ? 'flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-amber-400/22 bg-gradient-to-br from-zinc-950/90 to-black/80 p-0.5 shadow-inner sm:h-8 sm:w-8'
+                  : briefLayout
                   ? 'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md border border-amber-400/22 bg-gradient-to-br from-zinc-950/90 to-black/80 p-0.5 shadow-inner'
                   : 'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md border border-amber-400/22 bg-gradient-to-br from-zinc-950/90 to-black/80 p-0.5 shadow-inner'
               }
@@ -504,7 +517,9 @@ export function PreGameSummaryGrid({
             <div className="min-w-0 flex-1">
               <p
                 className={
-                  briefLayout
+                  casualAcademyLayout
+                    ? 'text-[0.66rem] font-black leading-tight text-amber-100 sm:text-[0.72rem]'
+                    : briefLayout
                     ? 'text-[0.68rem] font-black leading-tight text-amber-100 sm:text-[0.72rem]'
                     : 'text-xs font-black leading-tight text-amber-100 sm:text-sm'
                 }
@@ -513,7 +528,9 @@ export function PreGameSummaryGrid({
               </p>
               <p
                 className={
-                  briefLayout
+                  casualAcademyLayout
+                    ? 'mt-0.5 text-[0.62rem] font-semibold leading-tight text-white/82 sm:text-[0.68rem]'
+                    : briefLayout
                     ? 'mt-0.5 text-[0.62rem] font-semibold leading-snug text-white/82 sm:text-[0.68rem]'
                     : 'mt-0.5 text-[0.74rem] font-semibold leading-snug text-white/84 sm:text-xs'
                 }
@@ -591,6 +608,113 @@ export function PreGameSummaryGrid({
       )}
     </div>
   );
+
+  if (casualAcademyLayout) {
+    type CasualTile = { key: string; img: string; text: string };
+    const cautionGuideKeys = new Set(['turn-limit', 'auto-scoring', 'speed']);
+    const guides = summary.ruleGuides ?? [];
+    const goalTiles: CasualTile[] = [];
+    const cautionTiles: CasualTile[] = [];
+    const addTile = (list: CasualTile[], tile: CasualTile) => {
+      const text = tile.text.trim();
+      if (!text) return;
+      if (!list.some((row) => row.key === tile.key || row.text === text)) {
+        list.push({ ...tile, text });
+      }
+    };
+    const casualGuideText = (guide: NonNullable<PreGameSummaryFour['ruleGuides']>[number]): string => {
+      switch (guide.key) {
+        case 'pattern-stone':
+          return '문양돌은 2점';
+        case 'turn-limit':
+          return guide.body.replace('끝내기', '목표 달성');
+        case 'auto-scoring':
+          return guide.body;
+        case 'missile':
+          return '미사일로 밀기';
+        case 'hidden-scan':
+          return guide.body;
+        case 'turn-add':
+          return '턴 추가 사용';
+        case 'survival':
+        case 'speed':
+          return guide.body;
+        default:
+          return guide.body || guide.title;
+      }
+    };
+
+    if (summary.goalVisuals?.win) {
+      addTile(goalTiles, {
+        key: 'win',
+        img: summary.goalVisuals.win.img,
+        text: summary.winGoal,
+      });
+    }
+    for (const guide of guides) {
+      const target = cautionGuideKeys.has(guide.key) ? cautionTiles : goalTiles;
+      addTile(target, { key: guide.key, img: guide.img, text: casualGuideText(guide) });
+    }
+    if (summary.goalVisuals?.lose && cautionTiles.length === 0) {
+      addTile(cautionTiles, {
+        key: 'lose',
+        img: summary.goalVisuals.lose.img,
+        text: summary.loseGoal,
+      });
+    }
+    if (cautionTiles.length === 0) {
+      addTile(cautionTiles, {
+        key: 'default-caution',
+        img: '/images/simbols/simbol7.webp',
+        text: '집이 적으면 실패',
+      });
+    }
+
+    const sectionTitleClass = 'text-[0.72rem] font-black uppercase tracking-[0.1em] text-amber-200/90 sm:text-[0.78rem]';
+    const renderTile = (tile: CasualTile, tone: 'goal' | 'caution') => (
+      <div
+        key={tile.key}
+        className={`flex min-w-0 items-center gap-2 rounded-lg border bg-black/32 px-2 py-1.5 ring-1 ring-inset ring-white/[0.04] ${
+          tone === 'goal' ? 'border-amber-500/24' : 'border-rose-400/24'
+        }`}
+      >
+        <div
+          className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md border bg-gradient-to-br from-zinc-950/90 to-black/80 p-0.5 shadow-inner ${
+            tone === 'goal' ? 'border-amber-400/25' : 'border-rose-300/25'
+          }`}
+        >
+          <img src={tile.img} alt="" className="max-h-full max-w-full object-contain drop-shadow-md" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className={`truncate text-[0.78rem] font-black leading-tight sm:text-[0.85rem] ${tone === 'goal' ? 'text-amber-100' : 'text-rose-100'}`}>
+            {tile.text}
+          </p>
+        </div>
+      </div>
+    );
+
+    const renderSection = (title: string, tiles: CasualTile[], tone: 'goal' | 'caution') => (
+      <section className={`${panelShell} p-2.5 sm:p-3`}>
+        <div
+          className={`pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full blur-2xl transition-opacity duration-200 group-hover:opacity-90 ${
+            tone === 'goal' ? 'bg-amber-400/[0.07]' : 'bg-rose-500/[0.06]'
+          }`}
+          aria-hidden
+        />
+        <div className={sectionTitleClass}>{title}</div>
+        <div className="mt-2 grid grid-cols-1 gap-1.5 min-[430px]:grid-cols-2 sm:gap-2">
+          {tiles.map((tile) => renderTile(tile, tone))}
+        </div>
+      </section>
+    );
+
+    return (
+      <div className={outerStackClass}>
+        {renderSection('이번 목표', goalTiles, 'goal')}
+        {renderSection('주의할 점', cautionTiles, 'caution')}
+      </div>
+    );
+  }
 
   return (
     <div className={outerStackClass}>
