@@ -90,14 +90,14 @@ const GameRouteLoader: React.FC<{ gameId: string }> = ({ gameId }) => {
 
     // activeGame이 로드되면 즉시 렌더링 (status 기반 또는 URL 폴백)
     if (activeGame && activeGame.id === gameId) {
-        return <Game session={activeGame} />;
+        return <Game key={gameId} session={activeGame} />;
     }
 
     // 재입장으로 스토어에만 있고 activeGame 폴백 전에 올 수 있는 경우: 스토어에서 직접 세션 사용
     const allGames = { ...(liveGames || {}), ...(singlePlayerGames || {}), ...(towerGames || {}) };
     const currentGame = allGames[gameId];
     if (currentGame && currentUser && (currentGame.player1?.id === currentUser.id || currentGame.player2?.id === currentUser.id)) {
-        return <Game session={currentGame} />;
+        return <Game key={gameId} session={currentGame} />;
     }
 
     if (currentRejoinFailure?.reason === 'network') {
@@ -221,11 +221,11 @@ const Router: React.FC = () => {
             ...(towerGames || {}),
         };
         const currentGame = allGames[gameId];
-        if (currentGame && currentGame.gameStatus === 'scoring') {
+            if (currentGame && currentGame.gameStatus === 'scoring') {
             // scoring 상태이면 게임 화면 유지 (activeGame이 null이어도)
             if (!activeGame || activeGame.id !== gameId) {
                 // activeGame이 없어도 scoring 상태이면 게임 화면 표시
-                return <Game session={currentGame} />;
+                return <Game key={gameId} session={currentGame} />;
             }
         }
     }
@@ -272,7 +272,7 @@ const Router: React.FC = () => {
 
                 // activeGame이 있고 ID가 일치하면 즉시 렌더링
                 if (activeGame && activeGame.id === gameId) {
-                    return <Game session={activeGame} />;
+                    return <Game key={gameId} session={activeGame} />;
                 }
 
                 // activeGame이 없으면 GameRouteLoader에서 대기

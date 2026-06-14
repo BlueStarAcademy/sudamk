@@ -5,7 +5,9 @@
   "type": "module",
   "main": "server/server.ts",
   "scripts": {
-    "start": "concurrently \"npm:start-client\" \"npm:start-server\"",
+    "start": "npm run start:pair:a",
+    "start:pair:a": "concurrently -n client-5173,server-4000 -c cyan,green \"cross-env VITE_API_TARGET=http://localhost:4000 VITE_WS_TARGET=ws://localhost:4000 vite --host --port 5173 --strictPort\" \"cross-env PORT=4000 npm run start-server\"",
+    "start:pair:b": "concurrently -n client-5174,server-4010 -c magenta,yellow \"cross-env VITE_API_TARGET=http://localhost:4010 VITE_WS_TARGET=ws://localhost:4010 vite --host --port 5174 --strictPort\" \"cross-env PORT=4010 DISABLE_HEALTH_COMPAT_PORT=1 npm run start-server\"",
     "start-client": "vite --host",
     "prestart-server": "node scripts/ensurePrismaGenerate.mjs",
     "start-server": "npx tsx --tsconfig server/tsconfig.json server/server.ts",

@@ -338,7 +338,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                 summary={summaryFour}
                 singleColumn={isCompactUi}
                 forceTwoColumnPrimary={isCompactUi}
-                briefLayout
+                briefLayout={isTower}
                 onTowerItemZeroClick={
                     canOpenTowerShop
                         ? (slotKey: string) => {

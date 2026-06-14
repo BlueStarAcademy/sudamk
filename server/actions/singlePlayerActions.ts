@@ -631,6 +631,34 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 return { error: 'Invalid single player game.' };
             }
             if (game.gameStatus !== 'pending') {
+                const moveCount = (game.moveHistory ?? []).filter(
+                    (m) => m.x !== -1 && m.y !== -1,
+                ).length;
+                const postConfirmPrePlay =
+                    moveCount === 0 &&
+                    (game.gameStatus === 'playing' ||
+                        game.gameStatus === 'base_placement' ||
+                        game.gameStatus === 'base_stone_color_choice' ||
+                        game.gameStatus === 'base_same_color_points_bid' ||
+                        game.gameStatus === 'base_game_start_confirmation' ||
+                        game.gameStatus === 'capture_bidding' ||
+                        game.gameStatus === 'capture_reveal' ||
+                        game.gameStatus === 'capture_tiebreaker');
+                if (postConfirmPrePlay) {
+                    console.warn(
+                        `[handleSinglePlayerAction] CONFIRM_SINGLE_PLAYER_GAME_START - Idempotent confirm (client modal resync):`,
+                        { gameId, gameStatus: game.gameStatus },
+                    );
+                    const gameCopy = JSON.parse(JSON.stringify(game));
+                    return {
+                        clientResponse: {
+                            success: true,
+                            gameId: game.id,
+                            game: gameCopy,
+                            alreadyStarted: true,
+                        },
+                    };
+                }
                 console.error(`[handleSinglePlayerAction] CONFIRM_SINGLE_PLAYER_GAME_START - Game not pending:`, { gameId, gameStatus: game.gameStatus });
                 return { error: '게임이 이미 시작되었거나 시작할 수 없는 상태입니다.' };
             }

@@ -256,13 +256,34 @@ export function PreGameSummaryGrid({
     'group relative min-w-0 overflow-hidden rounded-xl border border-amber-500/28 bg-gradient-to-br from-[#252032] via-[#16131f] to-[#0c0a10] shadow-[0_12px_36px_-16px_rgba(0,0,0,0.88),inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 ring-inset ring-amber-400/12 transition-[box-shadow,ring-color] duration-200 hover:ring-amber-400/20';
 
   type TopCell =
-    | { key: string; title: string; kind: 'goal'; goalKind: 'win' | 'lose'; line: string }
+    | {
+        key: string;
+        title: string;
+        kind: 'goal';
+        goalKind: 'win' | 'lose';
+        line: string;
+        visual?: NonNullable<PreGameSummaryFour['goalVisuals']>['win'];
+      }
     | { key: string; title: string; kind: 'img'; body: string; img: string; span2?: boolean }
     | { key: string; title: string; kind: 'itemStrip'; span2?: boolean };
 
   const primaryCells: TopCell[] = [
-    { key: 'win', title: '승리 조건', kind: 'goal', goalKind: 'win', line: summary.winGoal },
-    { key: 'lose', title: '패배 조건', kind: 'goal', goalKind: 'lose', line: summary.loseGoal },
+    {
+      key: 'win',
+      title: summary.goalVisuals?.win ? '이번 목표' : '승리 조건',
+      kind: 'goal',
+      goalKind: 'win',
+      line: summary.winGoal,
+      visual: summary.goalVisuals?.win,
+    },
+    {
+      key: 'lose',
+      title: '주의할 실패 조건',
+      kind: 'goal',
+      goalKind: 'lose',
+      line: summary.loseGoal,
+      visual: summary.goalVisuals?.lose,
+    },
     {
       key: 'score',
       title: '점수 요인',
@@ -316,14 +337,22 @@ export function PreGameSummaryGrid({
       : 'select-none text-center text-[0.65rem] font-black italic leading-none tracking-tight drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)] sm:text-xs';
 
   const outerStackClass = singleColumn ? 'space-y-2.5 sm:space-y-2.5' : 'space-y-2 sm:space-y-2.5';
+  const guideTitleClass = briefLayout
+    ? singleColumn
+      ? 'text-[0.62rem] font-bold uppercase tracking-[0.09em] text-amber-200/85 sm:text-[0.65rem]'
+      : 'text-[0.58rem] font-bold uppercase tracking-[0.09em] text-amber-200/85 sm:text-[0.62rem]'
+    : singleColumn
+      ? 'text-[0.7rem] font-bold uppercase tracking-[0.1em] text-amber-200/85 sm:text-[0.72rem]'
+      : 'text-[0.62rem] font-bold uppercase tracking-[0.1em] text-amber-200/85 sm:text-[0.7rem]';
 
   const renderPrimaryCell = (c: TopCell) => {
     if (c.kind === 'goal') {
       const isWin = c.goalKind === 'win';
+      const visual = c.visual;
       return (
         <div
           key={c.key}
-          className={`${panelShell} flex min-h-0 min-w-0 flex-col ${singleColumn ? 'p-2.5 sm:p-2.5' : 'p-2 sm:p-2.5'}`}
+          className={`${panelShell} flex min-h-0 min-w-0 flex-col ${visual ? 'ring-amber-300/18' : ''} ${singleColumn ? 'p-2.5 sm:p-2.5' : 'p-2 sm:p-2.5'}`}
         >
           <div
             className={`pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full blur-2xl transition-opacity duration-200 group-hover:opacity-90 ${
@@ -332,17 +361,38 @@ export function PreGameSummaryGrid({
             aria-hidden
           />
           <div className="flex min-w-0 w-full items-start gap-2 sm:gap-2.5">
-            <div className={`${imgBoxGoal} ${isWin ? 'border-amber-400/35' : 'border-rose-400/35'}`}>
-              <span
-                className={`${winLoseBadge} ${isWin ? 'text-amber-200' : 'text-rose-200/95'}`}
-                aria-hidden
-              >
-                {isWin ? 'WIN' : 'LOSE'}
-              </span>
+            <div className={`${imgBoxGoal} ${visual ? 'p-0.5' : ''} ${isWin ? 'border-amber-400/35' : 'border-rose-400/35'}`}>
+              {visual ? (
+                <img
+                  src={visual.img}
+                  alt=""
+                  className="max-h-full max-w-full object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.55)]"
+                />
+              ) : (
+                <span
+                  className={`${winLoseBadge} ${isWin ? 'text-amber-200' : 'text-rose-200/95'}`}
+                  aria-hidden
+                >
+                  {isWin ? 'WIN' : 'LOSE'}
+                </span>
+              )}
             </div>
             <div className="relative min-w-0 flex-1 self-stretch">
               <div className={titleRow}>{c.title}</div>
               <PreGameSummaryCellBody text={c.line} density={cellDensity} />
+              {visual?.helper && (
+                <p
+                  className={
+                    briefLayout
+                      ? 'mt-1 line-clamp-2 text-[0.62rem] font-semibold leading-snug text-amber-100/78 sm:text-[0.68rem]'
+                      : 'mt-1 text-[0.74rem] font-semibold leading-snug text-amber-100/82 sm:text-xs'
+                  }
+                >
+                  <span className={isWin ? 'text-amber-200/95' : 'text-rose-200/95'}>{visual.label}</span>
+                  {' · '}
+                  {visual.helper}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -429,6 +479,54 @@ export function PreGameSummaryGrid({
     </div>
   );
 
+  const ruleGuidePanel = summary.ruleGuides && summary.ruleGuides.length > 0 ? (
+    <div className={`${panelShell} ${singleColumn ? 'p-2.5 sm:p-3' : 'p-2.5 sm:p-3'}`}>
+      <div
+        className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-amber-400/[0.06] blur-2xl transition-opacity duration-200 group-hover:opacity-90"
+        aria-hidden
+      />
+      <div className={guideTitleClass}>이번 스테이지 핵심</div>
+      <div className={`mt-2 grid min-w-0 ${singleColumn ? 'grid-cols-1 gap-2' : 'grid-cols-2 gap-2'}`}>
+        {summary.ruleGuides.map((guide) => (
+          <div
+            key={guide.key}
+            className="flex min-w-0 items-start gap-2 rounded-lg border border-amber-500/22 bg-black/32 px-2 py-2 ring-1 ring-inset ring-white/[0.04]"
+          >
+            <div
+              className={
+                briefLayout
+                  ? 'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md border border-amber-400/22 bg-gradient-to-br from-zinc-950/90 to-black/80 p-0.5 shadow-inner'
+                  : 'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md border border-amber-400/22 bg-gradient-to-br from-zinc-950/90 to-black/80 p-0.5 shadow-inner'
+              }
+            >
+              <img src={guide.img} alt="" className="max-h-full max-w-full object-contain drop-shadow-md" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p
+                className={
+                  briefLayout
+                    ? 'text-[0.68rem] font-black leading-tight text-amber-100 sm:text-[0.72rem]'
+                    : 'text-xs font-black leading-tight text-amber-100 sm:text-sm'
+                }
+              >
+                {guide.title}
+              </p>
+              <p
+                className={
+                  briefLayout
+                    ? 'mt-0.5 text-[0.62rem] font-semibold leading-snug text-white/82 sm:text-[0.68rem]'
+                    : 'mt-0.5 text-[0.74rem] font-semibold leading-snug text-white/84 sm:text-xs'
+                }
+              >
+                {guide.body}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  ) : null;
+
   const specialRulesPanel = (
     <div className={`${panelShell} ${singleColumn ? 'p-2.5 sm:p-3' : 'p-2.5 sm:p-3'}`}>
       <div
@@ -497,6 +595,7 @@ export function PreGameSummaryGrid({
   return (
     <div className={outerStackClass}>
       <div className={primaryGridClass}>{primaryCells.map(renderPrimaryCell)}</div>
+      {ruleGuidePanel}
       {itemStripPanel}
       {specialRulesPanel}
     </div>

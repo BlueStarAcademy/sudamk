@@ -172,6 +172,29 @@ const PVE_CAPTURE_PRE_PLAY_STATUSES = new Set([
     'capture_tiebreaker',
 ]);
 
+/** PVE 경기 시작 확인(시작 모달) 직후·0수인 사전 단계 */
+export function isPvePostStartConfirmPrePlayPhase(session: LiveGameSession): boolean {
+    if (resolveArenaSessionPolicy(session as any).matchAxis !== 'pve') return false;
+    const st = String(session.gameStatus || '');
+    const inPhase =
+        st === 'playing' ||
+        PVE_BASE_PRE_PLAY_STATUSES.has(st) ||
+        PVE_CAPTURE_PRE_PLAY_STATUSES.has(st);
+    if (!inPhase) return false;
+    const moves = session.moveHistory?.filter((m) => m.x !== -1 && m.y !== -1).length ?? 0;
+    return moves === 0;
+}
+
+/** 싱글/타워 시작 모달을 띄워야 하는 pending·0수·시작 시각 없음 상태 */
+export function isPveAwaitingStartConfirmModal(session: LiveGameSession): boolean {
+    if (resolveArenaSessionPolicy(session as any).matchAxis !== 'pve') return false;
+    if (session.gameStatus !== 'pending') return false;
+    if ((session as { startTime?: number | null }).startTime != null) return false;
+    if ((session as { gameStartTime?: number | null }).gameStartTime != null) return false;
+    const moves = session.moveHistory?.filter((m) => m.x !== -1 && m.y !== -1).length ?? 0;
+    return moves === 0;
+}
+
 /**
  * CONFIRM 직후 로컬은 `playing`(0수)·베이스/덤 사전 단계인데 늦게 도착한 `pending` WS/HTTP가
  * 덮으면 시작 모달이 닫히지 않고「시작하기」가 먹지 않는 것처럼 보인다.
@@ -204,6 +227,19 @@ export function shouldIgnoreStaleLiveTerminalGameUpdate(
     existing: LiveGameSession | undefined,
 ): boolean {
     if (!existing) return false;
+
+    // PVE pending → playing/베이스·덤 사전 단계: CONFIRM 직후 forward progress는 ended 등 terminal 보존에 막히면 안 된다.
+    if (resolveArenaSessionPolicy(incoming as any).matchAxis === 'pve') {
+        const incSt = String(incoming.gameStatus);
+        const exSt = String(existing.gameStatus || '');
+        const incomingForwardStart =
+            incSt === 'playing' ||
+            PVE_BASE_PRE_PLAY_STATUSES.has(incSt) ||
+            PVE_CAPTURE_PRE_PLAY_STATUSES.has(incSt);
+        if (exSt === 'pending' && incomingForwardStart) {
+            return false;
+        }
+    }
 
     const localAdvanced =
         existing.gameStatus === 'scoring' ||
@@ -570,15 +606,19 @@ export function mergeGameUpdateByArena(
     }
     /** 본경기·시작 확인 단계로 들어온 패킷이 임시 좌석을 들고 오면 잠금값으로 되돌린다(흑/백 영구 스왑 방지). */
     const seatLocked = coerceBaseSessionPlayingSeatLock(merged);
-    return preserveTerminalGameSessionOnMerge(
-        mergeChessSessionFieldsOnMerge(
-            preserveCastleSessionFieldsOnMerge(
-                coerceAdventureLiveGameScoringTurnLimit(seatLocked),
-                existing,
-            ),
+    const arenaMerged = mergeChessSessionFieldsOnMerge(
+        preserveCastleSessionFieldsOnMerge(
+            coerceAdventureLiveGameScoringTurnLimit(seatLocked),
             existing,
         ),
         existing,
     );
+    const isPveStartConfirm =
+        _context.actionType === 'CONFIRM_SINGLE_PLAYER_GAME_START' ||
+        _context.actionType === 'CONFIRM_TOWER_GAME_START';
+    if (isPveStartConfirm) {
+        return arenaMerged;
+    }
+    return preserveTerminalGameSessionOnMerge(arenaMerged, existing);
 }
 

@@ -69,6 +69,7 @@ import {
 } from './shared/utils/chessGoPlacement.js';
 import type { ChessPieceType } from './types/index.js';
 import { buildPveItemActionClientSync } from './utils/pveItemClientSync.js';
+import { isPveAwaitingStartConfirmModal } from './utils/clientGameMergePolicy.js';
 import {
     isEligibleForPveAiTurnStuckRecovery,
     isManuallyPausedAiGame,
@@ -743,6 +744,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     /** ended/no_contest: 결과 모달에서 확인한 뒤에만 하단 재도전·나가기 등 허용 */
     const [postGameSummaryAcknowledged, setPostGameSummaryAcknowledged] = useState(false);
     const delayedResultModalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const startConfirmInFlightRef = useRef(false);
     const [showFinalTerritory, setShowFinalTerritory] = useState(false);
     const [justScanned, setJustScanned] = useState(false);
     const [pendingMove, setPendingMove] = useState<Point | null>(null);
@@ -4460,6 +4462,15 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }
     }, [currentPlayer, prevCurrentPlayer, isSinglePlayer, currentUser.id, blackPlayerId, whitePlayerId]);
 
+    // 싱글 PVE: 클라 수·serverRevision 레이스로 잠금이 남으면 내 턴 복귀 시 해제
+    useEffect(() => {
+        if (!isSinglePlayer || !isBoardLocked) return;
+        const myPl = blackPlayerId === currentUser.id ? Player.Black : whitePlayerId === currentUser.id ? Player.White : Player.None;
+        if (myPl !== Player.None && currentPlayer === myPl && gameStatus === 'playing') {
+            setIsBoardLocked(false);
+        }
+    }, [isSinglePlayer, isBoardLocked, currentPlayer, gameStatus, currentUser.id, blackPlayerId, whitePlayerId]);
+
     // serverRevision 변경 감지: 최신 상태를 받은 경우 보드 잠금 해제
     useEffect(() => {
         if (isSinglePlayer && session.serverRevision !== undefined) {
@@ -5207,11 +5218,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         session.moveHistory?.filter((m: { x: number; y: number }) => m.x !== -1 && m.y !== -1).length ?? 0;
     const showGameDescription =
         isSinglePlayer &&
-        gameStatus === 'pending' &&
-        !showResultModal &&
-        (session as { startTime?: number | null }).startTime == null &&
-        (session as { gameStartTime?: number | null }).gameStartTime == null &&
-        singlePlayerValidMoveCount === 0;
+        isPveAwaitingStartConfirmModal(session) &&
+        !showResultModal;
     // CONFIRM 전에만 시작 설명(대기 pending·실제 시작 시각 없음). 계가/종료 직후 잠깐 pending이 섞이면 시작창이 덮이는 간헐 이슈 방지.
     // 한 판을 두었는데도 pending으로 잠깐 보이는 경우(동기화 레이스)에는 재시작 설명을 띄우지 않는다.
     const towerValidMoveCount = singlePlayerValidMoveCount;
@@ -5302,26 +5310,71 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             console.error('[Game] handleStartGame: gameId is missing', { gameStatus });
             return;
         }
-        if (gameStatus !== 'pending') {
-            console.warn('[Game] handleStartGame: ignored — game is not pending', { gameId: confirmGameId, gameStatus });
+        if (startConfirmInFlightRef.current) {
             return;
         }
 
         if (isSinglePlayer) {
             console.log('[Game] handleStartGame: Sending CONFIRM_SINGLE_PLAYER_GAME_START', { gameId: confirmGameId, gameStatus });
+            startConfirmInFlightRef.current = true;
             try {
                 const result = (await handlers.handleAction({
                     type: 'CONFIRM_SINGLE_PLAYER_GAME_START',
                     payload: { gameId: confirmGameId },
-                } as ServerAction)) as { error?: string } | void;
-                if (result && typeof result === 'object' && 'error' in result && result.error) {
-                    window.alert(result.error);
+                } as ServerAction)) as
+                    | {
+                          error?: string;
+                          staleGame?: boolean;
+                          clientResponse?: {
+                              staleGame?: boolean;
+                              success?: boolean;
+                              error?: string;
+                              game?: LiveGameSession;
+                              alreadyStarted?: boolean;
+                          };
+                          game?: LiveGameSession;
+                      }
+                    | void
+                    | undefined;
+                const err =
+                    (result && typeof result === 'object' && 'error' in result && result.error) ||
+                    result?.clientResponse?.error;
+                const isAlreadyStartedErr =
+                    typeof err === 'string' && err.includes('이미 시작');
+                const stale =
+                    (result && typeof result === 'object' && 'staleGame' in result && result.staleGame) ||
+                    result?.clientResponse?.staleGame;
+                const confirmGame =
+                    result?.clientResponse?.game ?? result?.game;
+                const confirmSucceeded =
+                    !!confirmGame &&
+                    !isPveAwaitingStartConfirmModal(confirmGame) &&
+                    (result?.clientResponse?.success !== false || result?.clientResponse?.alreadyStarted);
+                if (confirmSucceeded) {
+                    return;
+                }
+                if (isAlreadyStartedErr) {
+                    await handlers.handleAction({
+                        type: 'REQUEST_GAME_STATE_SYNC',
+                        payload: { gameId: confirmGameId },
+                    } as ServerAction);
+                    return;
+                }
+                if (err) {
+                    window.alert(String(err));
+                } else if (stale || result?.clientResponse?.success === false) {
+                    window.alert('게임 세션이 만료되었습니다. 대기실에서 스테이지를 다시 선택해 주세요.');
                 }
             } catch (err) {
                 console.error('[Game] handleStartGame: CONFIRM_SINGLE_PLAYER_GAME_START failed', err);
                 window.alert('게임 시작에 실패했습니다. 다시 시도해주세요.');
+            } finally {
+                startConfirmInFlightRef.current = false;
             }
         } else if (isTower) {
+            if (gameStatus !== 'pending') {
+                return;
+            }
             console.log('[Game] handleStartGame: Sending CONFIRM_TOWER_GAME_START', { gameId: confirmGameId, gameStatus, isTower });
             handlers.handleAction({
                 type: 'CONFIRM_TOWER_GAME_START',

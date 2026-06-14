@@ -18,6 +18,19 @@ export type PreGameSpecialHighlight = {
   text: string;
 };
 
+export type PreGameGoalVisual = {
+  img: string;
+  label: string;
+  helper?: string;
+};
+
+export type PreGameRuleGuide = {
+  key: string;
+  img: string;
+  title: string;
+  body: string;
+};
+
 /** 게임 정보 모달: 아이콘 + 우하단 숫자 — `title`은 툴팁·접근성용 */
 export type PreGameItemSlot = {
   key: string;
@@ -39,6 +52,13 @@ export type PreGameSummaryFour = {
   timeRules: string;
   /** 모드별 특수 규칙(이미지+문구). 없으면 빈 배열 → UI에서 '없음' */
   specialHighlights: PreGameSpecialHighlight[];
+  /** 시작 모달 목표 카드: 기존 모드/아이템 이미지를 크게 재사용 */
+  goalVisuals?: {
+    win?: PreGameGoalVisual;
+    lose?: PreGameGoalVisual;
+  };
+  /** 시작 모달 하단의 짧은 사용법 안내 */
+  ruleGuides?: PreGameRuleGuide[];
   /** 레거시·호환용 한 줄 텍스트 */
   items: string;
   itemSlots: PreGameItemSlot[];
@@ -457,6 +477,195 @@ function singlePlayerStageHighlights(
   return h;
 }
 
+function singlePlayerGoalVisuals(
+  session: LiveGameSession,
+  stage: SinglePlayerStageInfo,
+  flags: {
+    isSurvivalRules: boolean;
+    isCaptureMode: boolean;
+    isSpeedMode: boolean;
+  }
+): NonNullable<PreGameSummaryFour['goalVisuals']> {
+  if (flags.isSurvivalRules) {
+    const settingsSurv = Number((session.settings as any)?.survivalTurns ?? 0);
+    const survN = settingsSurv > 0 ? settingsSurv : resolveSinglePlayerSurvivalTurnCount(stage);
+    return {
+      win: {
+        img: '/images/simbols/simbol1.webp',
+        label: '백 목표 저지',
+        helper: `백이 ${survN}턴 안에 목표 점수를 만들지 못하게 막으세요.`,
+      },
+      lose: {
+        img: PATTERN_STONE_HIGHLIGHT_IMG,
+        label: '백 목표 달성',
+        helper: '백이 먼저 목표 점수를 만들면 실패합니다.',
+      },
+    };
+  }
+
+  if (flags.isCaptureMode) {
+    return {
+      win: {
+        img: PATTERN_STONE_HIGHLIGHT_IMG,
+        label: '따내기 목표',
+        helper: '상대 돌을 포위해 따내면 점수를 얻습니다.',
+      },
+      lose: {
+        img: stage.blackTurnLimit ? '/images/icon/timer.webp' : '/images/simbols/simbol2.webp',
+        label: stage.blackTurnLimit ? '턴 초과 주의' : '상대 선취',
+        helper: stage.blackTurnLimit
+          ? `흑 ${stage.blackTurnLimit}턴 안에 목표를 달성해야 합니다.`
+          : '상대가 목표 점수를 먼저 얻으면 실패합니다.',
+      },
+    };
+  }
+
+  if (flags.isSpeedMode) {
+    return {
+      win: {
+        img: '/images/icon/timer.webp',
+        label: '시간 관리',
+        helper: '빠르게 두면서 계가 점수에서 앞서야 합니다.',
+      },
+      lose: {
+        img: '/images/simbols/simbol7.webp',
+        label: '계가 열세',
+        helper: '시간 보너스와 집 계산을 합쳐 뒤지면 실패합니다.',
+      },
+    };
+  }
+
+  if (stage.autoScoringTurns && stage.autoScoringTurns > 0) {
+    return {
+      win: {
+        img: '/images/simbols/simbol7.webp',
+        label: '자동 계가 승리',
+        helper: `${stage.autoScoringTurns}수 후 집이 더 많도록 판을 운영하세요.`,
+      },
+      lose: {
+        img: '/images/icon/timer.webp',
+        label: '계가 시간',
+        helper: `${stage.autoScoringTurns}수 시점에 불리하면 실패합니다.`,
+      },
+    };
+  }
+
+  return {
+    win: {
+      img: '/images/simbols/simbol1.webp',
+      label: '집 만들기',
+      helper: '내 돌로 영역을 둘러 집을 더 많이 만드세요.',
+    },
+    lose: {
+      img: '/images/simbols/simbol7.webp',
+      label: '계가 열세',
+      helper: '대국 종료 후 집이 적으면 실패합니다.',
+    },
+  };
+}
+
+function singlePlayerRuleGuides(
+  session: LiveGameSession,
+  stage: SinglePlayerStageInfo,
+  disp: { missile: number; hidden: number; scan: number; turnAdd?: number },
+  flags: {
+    isSurvivalRules: boolean;
+    isCaptureMode: boolean;
+    isSpeedMode: boolean;
+  }
+): PreGameRuleGuide[] {
+  const guides: PreGameRuleGuide[] = [];
+  const mix = mixedList(session.settings);
+  const em = effectiveModesForRules(session.mode, mix);
+  const add = (guide: PreGameRuleGuide) => {
+    if (!guides.some((row) => row.key === guide.key)) guides.push(guide);
+  };
+
+  if (stage.blackTurnLimit && !flags.isSurvivalRules) {
+    add({
+      key: 'turn-limit',
+      img: '/images/icon/timer.webp',
+      title: '제한 턴',
+      body: `흑 차례 ${stage.blackTurnLimit}번 안에 승리 목표를 달성해야 합니다.`,
+    });
+  }
+
+  if (flags.isSurvivalRules) {
+    const settingsSurv = Number((session.settings as any)?.survivalTurns ?? 0);
+    const survN = settingsSurv > 0 ? settingsSurv : resolveSinglePlayerSurvivalTurnCount(stage);
+    add({
+      key: 'survival',
+      img: '/images/simbols/simbol1.webp',
+      title: '살리기 목표',
+      body: `백이 ${survN}턴 안에 목표 점수를 만들지 못하도록 끊고 압박하세요.`,
+    });
+  }
+
+  if (
+    stage.autoScoringTurns &&
+    stage.autoScoringTurns > 0 &&
+    !flags.isCaptureMode &&
+    usesTerritoryScoring(session.mode, mix)
+  ) {
+    add({
+      key: 'auto-scoring',
+      img: '/images/simbols/simbol7.webp',
+      title: '자동 계가',
+      body: `${stage.autoScoringTurns}수 후 자동으로 집을 계산합니다. 그 전에 유리한 모양을 만드세요.`,
+    });
+  }
+
+  if (
+    (stage.placements.blackPattern > 0 || stage.placements.whitePattern > 0) &&
+    (flags.isCaptureMode || flags.isSurvivalRules)
+  ) {
+    add({
+      key: 'pattern-stone',
+      img: PATTERN_STONE_HIGHLIGHT_IMG,
+      title: '문양돌',
+      body: '문양돌을 따내면 2점입니다. 초반 목표가 될 수 있습니다.',
+    });
+  }
+
+  if (flags.isSpeedMode) {
+    add({
+      key: 'speed',
+      img: '/images/icon/timer.webp',
+      title: '스피드',
+      body: SPEED_GO_PVP_SPECIAL_HIGHLIGHT,
+    });
+  }
+
+  if (typeof disp.turnAdd === 'number' && disp.turnAdd > 0) {
+    add({
+      key: 'turn-add',
+      img: '/images/button/addturn.webp',
+      title: '턴 추가',
+      body: '필요할 때 사용해 제한 턴을 늘릴 수 있습니다.',
+    });
+  }
+
+  if (em.includes(GameMode.Missile) && disp.missile > 0) {
+    add({
+      key: 'missile',
+      img: '/images/button/missile.webp',
+      title: '미사일',
+      body: '아이템을 선택한 뒤 돌과 방향을 고르면 돌을 직선으로 밀어냅니다.',
+    });
+  }
+
+  if (em.includes(GameMode.Hidden) && (disp.hidden > 0 || disp.scan > 0)) {
+    add({
+      key: 'hidden-scan',
+      img: '/images/button/hidden.webp',
+      title: '히든 · 스캔',
+      body: `히든은 내 착수를 숨기고, 스캔은 숨은 돌 후보를 확인합니다. 이번 스테이지: 히든 ${disp.hidden}개 · 스캔 ${disp.scan}개.`,
+    });
+  }
+
+  return guides;
+}
+
 function buildAdventurePreGameSummary(session: LiveGameSession): PreGameSummaryFour {
   const { mode, settings } = session;
   const mix = mixedList(settings);
@@ -872,6 +1081,13 @@ function getSinglePlayerStageSummary(
     scan: sDisp,
     turnAdd: typeof turnAddDisp === 'number' ? turnAddDisp : undefined,
   });
+  const stageRuleDisplay = {
+    missile: mDisp,
+    hidden: hDisp,
+    scan: sDisp,
+    turnAdd: typeof turnAddDisp === 'number' ? turnAddDisp : undefined,
+  };
+  const stageRuleFlags = { isSurvivalRules, isCaptureMode, isSpeedMode };
 
   return {
     winGoal,
@@ -879,6 +1095,8 @@ function getSinglePlayerStageSummary(
     scoreFactors,
     timeRules: singlePlayerStageTimeRules(stage, isSpeedMode, session.settings),
     specialHighlights,
+    goalVisuals: singlePlayerGoalVisuals(session, stage, stageRuleFlags),
+    ruleGuides: singlePlayerRuleGuides(session, stage, stageRuleDisplay, stageRuleFlags),
     items: itemBits.length ? itemBits.join(' · ') : NONE,
     itemSlots: buildSinglePlayerStageItemSlots(stage, {
       session,

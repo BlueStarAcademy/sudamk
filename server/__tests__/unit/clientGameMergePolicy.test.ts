@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+    isPveAwaitingStartConfirmModal,
+    isPvePostStartConfirmPrePlayPhase,
     mergeGameUpdateByArena,
     mergeLiveRejoinResponseWithExistingBoard,
     preserveTerminalAnalysisResultOnMerge,
@@ -304,6 +306,20 @@ describe('shouldIgnoreStaleLiveTerminalGameUpdate', () => {
         const incoming = minimalSession({ isAiGame: false, gameStatus: 'playing' });
         expect(shouldIgnoreStaleLiveTerminalGameUpdate(incoming, existing)).toBe(true);
     });
+
+    it('accepts PVE pending → playing forward progress (next-stage start confirm)', () => {
+        const existing = minimalSession({
+            isSinglePlayer: true,
+            gameCategory: 'singleplayer',
+            gameStatus: 'pending',
+        });
+        const incoming = minimalSession({
+            isSinglePlayer: true,
+            gameCategory: 'singleplayer',
+            gameStatus: 'playing',
+        });
+        expect(shouldIgnoreStaleLiveTerminalGameUpdate(incoming, existing)).toBe(false);
+    });
 });
 
 describe('preserveTerminalGameSessionOnMerge', () => {
@@ -341,6 +357,50 @@ describe('preserveTerminalGameSessionOnMerge', () => {
         });
         const merged = preserveTerminalGameSessionOnMerge(incoming, existing);
         expect(merged.summary).toEqual({ u1: { gold: 100 } });
+    });
+});
+
+describe('isPveAwaitingStartConfirmModal / isPvePostStartConfirmPrePlayPhase', () => {
+    it('awaiting modal only for pending 0-move PVE without start time', () => {
+        const pending = minimalSession({
+            isSinglePlayer: true,
+            gameCategory: 'singleplayer',
+            gameStatus: 'pending',
+        });
+        expect(isPveAwaitingStartConfirmModal(pending)).toBe(true);
+        expect(isPvePostStartConfirmPrePlayPhase(pending)).toBe(false);
+    });
+
+    it('post-confirm pre-play is playing with 0 moves', () => {
+        const playing = minimalSession({
+            isSinglePlayer: true,
+            gameCategory: 'singleplayer',
+            gameStatus: 'playing',
+        });
+        expect(isPveAwaitingStartConfirmModal(playing)).toBe(false);
+        expect(isPvePostStartConfirmPrePlayPhase(playing)).toBe(true);
+    });
+});
+
+describe('mergeGameUpdateByArena PVE start confirm', () => {
+    it('does not preserve terminal ended when CONFIRM advances to playing', () => {
+        const existing = minimalSession({
+            isSinglePlayer: true,
+            gameCategory: 'singleplayer',
+            gameStatus: 'ended',
+            winner: Player.Black,
+        });
+        const incoming = minimalSession({
+            isSinglePlayer: true,
+            gameCategory: 'singleplayer',
+            gameStatus: 'playing',
+            winner: null,
+        });
+        const merged = mergeGameUpdateByArena(incoming, existing, {
+            source: 'http_action',
+            actionType: 'CONFIRM_SINGLE_PLAYER_GAME_START',
+        });
+        expect(merged.gameStatus).toBe('playing');
     });
 });
 

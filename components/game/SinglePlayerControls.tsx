@@ -394,6 +394,11 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
             }
             try {
                 setShowResultModal?.(false);
+                try {
+                    sessionStorage.removeItem(`gameState_${session.id}`);
+                } catch {
+                    /* ignore */
+                }
                 console.log('[SinglePlayerControls] Next stage button clicked, starting game for stage:', nextStage.id);
                 const result = await onAction({ type: 'START_SINGLE_PLAYER_GAME', payload: { stageId: nextStage.id } });
                 const gameId = (result as any)?.gameId;

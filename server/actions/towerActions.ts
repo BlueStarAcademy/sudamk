@@ -367,6 +367,35 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             }
             
             if (game.gameStatus !== 'pending') {
+                const moveCount = (game.moveHistory ?? []).filter(
+                    (m) => m.x !== -1 && m.y !== -1,
+                ).length;
+                const postConfirmPrePlay =
+                    moveCount === 0 &&
+                    (game.gameStatus === 'playing' ||
+                        game.gameStatus === 'base_placement' ||
+                        game.gameStatus === 'base_stone_color_choice' ||
+                        game.gameStatus === 'base_same_color_points_bid' ||
+                        game.gameStatus === 'base_game_start_confirmation' ||
+                        game.gameStatus === 'capture_bidding' ||
+                        game.gameStatus === 'capture_reveal' ||
+                        game.gameStatus === 'capture_tiebreaker');
+                if (postConfirmPrePlay) {
+                    console.warn('[CONFIRM_TOWER_GAME_START] Idempotent confirm (client modal resync):', {
+                        gameId,
+                        gameStatus: game.gameStatus,
+                        userId: user.id,
+                    });
+                    const gameCopy = JSON.parse(JSON.stringify(game));
+                    return {
+                        clientResponse: {
+                            success: true,
+                            gameId: game.id,
+                            game: gameCopy,
+                            alreadyStarted: true,
+                        },
+                    };
+                }
                 console.warn('[CONFIRM_TOWER_GAME_START] Game already started:', { gameId, gameStatus: game.gameStatus, userId: user.id });
                 return { error: `Game already started. Current status: ${game.gameStatus}` };
             }

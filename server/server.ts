@@ -956,7 +956,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
     // Railway/런타임에서 헬스체크 포트를 `EXPOSE`(예: 4000)로 타는 경우가 있어,
     // 서버가 실제로는 다른 PORT(예: 8080)로 리스닝 중이면 헬스체크가 "서비스를 찾지 못함"으로 실패할 수 있습니다.
     // 그래서 PORT와 4000이 다를 때, 4000에서도 /api/health (및 /)만 빠르게 응답하도록 보완합니다.
-    if (listenPort !== 4000) {
+    if (listenPort !== 4000 && process.env.DISABLE_HEALTH_COMPAT_PORT !== '1') {
         const healthCompatPort = 4000;
         const healthCompatServer = http.createServer((req, res) => {
             const url = req.url || '';

@@ -872,12 +872,12 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                             )}
                         </div>
                         <label className="mt-3 block shrink-0 rounded border border-zinc-700/80 bg-zinc-900/35 p-2 text-xs">
-                            스테이지 설명
+                            스테이지 메모
                             <textarea
                                 className="mt-1 h-24 w-full resize-y rounded border border-zinc-700 bg-zinc-900 px-2 py-2 leading-5 sm:h-28"
                                 value={draft.description ?? ''}
                                 maxLength={1200}
-                                placeholder="대국 중 바둑판 왼쪽 두루마리에 표시될 설명을 입력합니다. 모바일에서는 설명 버튼으로 볼 수 있습니다."
+                                placeholder="운영자가 참고할 스테이지 메모입니다. 플레이어 안내는 게임 시작 모달에서 룰과 아이템 정보로 자동 표시됩니다."
                                 onChange={(e) => setDraft((p) => ({ ...p, description: e.target.value }))}
                             />
                             <span className="mt-1 block text-[11px] text-zinc-500">{(draft.description ?? '').length} / 1200</span>

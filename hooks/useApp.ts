@@ -1008,6 +1008,9 @@ function mergePveHttpActionGameResponse(
     let next = applyPvePlayingBoardAndMoveHistoryResolve(merged, prevG);
     next = mergeGameUpdateByArena(next, prevG, { source: 'http_action', actionType });
     next = preserveLiveStrategicMainClockOnMerge(next, prevG, merged);
+    if (isPveStartConfirm) {
+        return next;
+    }
     return preserveTerminalGameSessionOnMerge(next, prevG);
 }
 
@@ -3523,6 +3526,10 @@ export const useApp = () => {
             action.type !== 'PAIR_PET_CLAIM_TRAINING' &&
             action.type !== 'PAIR_PET_START_TRAINING' &&
             action.type !== 'CHESS_MOVE_PIECE' &&
+            action.type !== 'START_SINGLE_PLAYER_GAME' &&
+            action.type !== 'START_TOWER_GAME' &&
+            action.type !== 'CONFIRM_SINGLE_PLAYER_GAME_START' &&
+            action.type !== 'CONFIRM_TOWER_GAME_START' &&
             !shopPurchaseActionTypes.has(action.type)
         ) {
             const debouncePayload = 'payload' in action ? (action as { payload?: unknown }).payload : undefined;
@@ -6044,6 +6051,14 @@ export const useApp = () => {
                     } else if (action.type === 'PAIR_PET_RESYNC_TRAINING_SLOTS') {
                         // 페어 펫 로비 마운트 시 백그라운드 동기화 — 실패해도 전역 오류 모달은 띄우지 않음
                         console.warn('[handleAction] PAIR_PET_RESYNC_TRAINING_SLOTS failed:', errorMessage);
+                    } else if (
+                        (action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' ||
+                            action.type === 'CONFIRM_TOWER_GAME_START') &&
+                        typeof errorMessage === 'string' &&
+                        (errorMessage.includes('이미 시작') || errorMessage.includes('already started'))
+                    ) {
+                        // 서버는 playing·클라만 pending — Game.tsx에서 모달만 닫고 재동기화
+                        console.warn(`[handleAction] ${action.type} - suppressing global error (already started resync):`, errorMessage);
                     } else if (!shouldSuppressModalForKoPlaceStone(action, typeof errorMessage === 'string' ? errorMessage : '')) {
                         showError(errorMessage);
                     }
@@ -7282,7 +7297,7 @@ export const useApp = () => {
                                     sessionStorage.removeItem(`gameState_${effectiveGameId}`);
                                 } catch (_) { /* ignore */ }
                             }
-                            setSinglePlayerGames(currentGames => {
+                            const spStoreUpdater = (currentGames: Record<string, LiveGameSession>) => {
                                 const shouldUpdate =
                                     action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' ||
                                     action.type === 'CONFIRM_BASE_PLACEMENT_COMPLETE' ||
@@ -7328,7 +7343,15 @@ export const useApp = () => {
                                     return { ...currentGames, [effectiveGameId]: nextGame };
                                 }
                                 return currentGames;
-                            });
+                            };
+                            if (
+                                action.type === 'START_SINGLE_PLAYER_GAME' ||
+                                action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START'
+                            ) {
+                                flushSync(() => setSinglePlayerGames(spStoreUpdater));
+                            } else {
+                                setSinglePlayerGames(spStoreUpdater);
+                            }
                         } else if (isTowerGame) {
                             if (action.type === 'TOWER_REFRESH_PLACEMENT') {
                                 try {
@@ -7477,11 +7500,24 @@ export const useApp = () => {
                         console.log('[handleAction] Setting immediate route to new game:', targetHash, 'hasGame:', !!game);
                         // AI 게임: state 반영 전 리다이렉트 방지를 위해 유예 시간 설정
                         // START_AI_GAME(대기실→규칙설명), CONFIRM_AI_GAME_START(경기시작→경기장) 모두 적용
-                        if (action.type === 'START_AI_GAME' || action.type === 'START_ADVENTURE_MONSTER_BATTLE' || action.type === 'CONFIRM_AI_GAME_START') {
+                        if (
+                            action.type === 'START_AI_GAME' ||
+                            action.type === 'START_ADVENTURE_MONSTER_BATTLE' ||
+                            action.type === 'CONFIRM_AI_GAME_START' ||
+                            action.type === 'START_SINGLE_PLAYER_GAME' ||
+                            action.type === 'START_TOWER_GAME' ||
+                            action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' ||
+                            action.type === 'CONFIRM_TOWER_GAME_START'
+                        ) {
                             pendingAiGameEntryRef.current = {
                                 gameId: effectiveGameId,
                                 until: Date.now() + 3000,
-                                ...(action.type === 'CONFIRM_AI_GAME_START' && game ? { game: game as LiveGameSession } : {}),
+                                ...((action.type === 'CONFIRM_AI_GAME_START' ||
+                                    action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' ||
+                                    action.type === 'CONFIRM_TOWER_GAME_START') &&
+                                game
+                                    ? { game: game as LiveGameSession }
+                                    : {}),
                             };
                         }
                         // 즉시 라우팅 (지연 제거)
@@ -7491,6 +7527,15 @@ export const useApp = () => {
                     // 펫 힌트: Game.tsx ingameHandleAction이 strategicPetHint·game을 읽어야 함 (gameId만 반환하면 힌트 UI가 안 뜸)
                     if (action.type === 'REQUEST_STRATEGIC_PET_HINT') {
                         return result;
+                    }
+
+                    if (
+                        action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' ||
+                        action.type === 'CONFIRM_TOWER_GAME_START' ||
+                        action.type === 'START_SINGLE_PLAYER_GAME' ||
+                        action.type === 'START_TOWER_GAME'
+                    ) {
+                        return { ...result, gameId: effectiveGameId };
                     }
 
                     // gameId를 반환하여 컴포넌트에서 사용할 수 있도록 함

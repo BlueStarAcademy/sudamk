@@ -1,10 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { GameProps, GameStatus, Player, Point, Move, SinglePlayerStageInfo } from '../../types.js';
+import React, { useEffect, useMemo, useRef } from 'react';
+import { GameProps, GameStatus, Player, Point, Move } from '../../types.js';
 import GoBoard from '../GoBoard.js';
-import { getSinglePlayerStages } from '../../constants/singlePlayerConstants.js';
 import { resolveSinglePlayerAutoScoringCapForClientSession } from '../../shared/utils/liveSessionSinglePlayerStage.js';
 import { TOWER_STAGES } from '../../constants/towerConstants.js';
-import { resolveSinglePlayerSurvivalMode } from '../../shared/utils/singlePlayerStrategicRulePreset.js';
 import { canViewerPlaceMoreBaseStones } from '../../shared/utils/basePlacementCanPlaceMore.js';
 import { resolveBasePlacementSeatColors } from '../../shared/utils/basePlacementSeatColors.js';
 import { modeIncludesBaseCaptureMix } from '../../shared/utils/liveSessionArenaKind.js';
@@ -32,102 +30,6 @@ interface SinglePlayerArenaProps extends GameProps {
     boardRuleFlashMessage?: string | null;
     blockScoringBoardAnalysis?: boolean;
 }
-
-const getStageModeLabel = (stage: SinglePlayerStageInfo): string => {
-    if (stage.hiddenCount !== undefined) return '히든 바둑';
-    if (stage.missileCount !== undefined) return '미사일 바둑';
-    if (resolveSinglePlayerSurvivalMode(stage)) return '살리기 바둑';
-    if (stage.blackTurnLimit !== undefined) return '따내기 바둑';
-    if (stage.autoScoringTurns !== undefined) return '계가 목표 바둑';
-    if (stage.timeControl?.type === 'fischer') return '스피드 바둑';
-    return '정통 바둑';
-};
-
-const getStageDescriptionText = (stage: SinglePlayerStageInfo): string => {
-    const custom = stage.description?.trim();
-    if (custom) return custom;
-
-    const notes: string[] = [
-        `${getStageModeLabel(stage)} 규칙으로 진행되는 ${stage.id}입니다.`,
-    ];
-    if (stage.blackTurnLimit) notes.push(`흑은 ${stage.blackTurnLimit}턴 안에 목표를 달성해야 합니다.`);
-    if (stage.survivalTurns) notes.push(`상대가 ${stage.survivalTurns}턴 동안 버티지 못하게 압박하세요.`);
-    if (stage.autoScoringTurns) notes.push(`${stage.autoScoringTurns}수 이후 자동 계가가 진행됩니다.`);
-    if (stage.missileCount) notes.push(`미사일 ${stage.missileCount}개를 활용할 수 있습니다.`);
-    if (stage.hiddenCount) notes.push(`히든 ${stage.hiddenCount}개와 스캔 ${stage.scanCount ?? 0}개를 활용할 수 있습니다.`);
-    return notes.join('\n');
-};
-
-const StageDescriptionScroll: React.FC<{
-    stage: SinglePlayerStageInfo;
-    compact?: boolean;
-    collapsed?: boolean;
-    onToggleCollapsed?: () => void;
-    mobileOverlay?: boolean;
-}> = ({ stage, compact = false, collapsed = false, onToggleCollapsed, mobileOverlay = false }) => {
-    const description = getStageDescriptionText(stage);
-    const canCollapse = !compact && !!onToggleCollapsed;
-    return (
-        <section
-            onClick={canCollapse ? onToggleCollapsed : undefined}
-            className={`pointer-events-auto relative overflow-hidden border border-amber-900/35 bg-[#ead8aa] text-amber-950 shadow-[0_12px_34px_rgba(0,0,0,0.35),inset_0_0_38px_rgba(120,53,15,0.14)] transition-[max-height,border-radius,opacity] duration-300 ease-out ${
-                compact
-                    ? 'max-h-[70dvh] w-full rounded-2xl p-4'
-                    : mobileOverlay
-                        ? `w-full ${collapsed ? 'max-h-[38px] cursor-pointer rounded-full px-3 py-1 hover:brightness-105' : 'max-h-[calc(58dvh)] cursor-pointer rounded-2xl p-4'}`
-                        : `w-[230px] shrink-0 xl:w-[260px] ${collapsed ? 'max-h-[58px] cursor-pointer rounded-full px-4 py-2 hover:brightness-105' : 'max-h-[calc(100dvh-8rem)] cursor-pointer rounded-2xl p-4'}`
-            }`}
-            role={canCollapse ? 'button' : undefined}
-            tabIndex={canCollapse ? 0 : undefined}
-            onKeyDown={canCollapse ? (event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    onToggleCollapsed();
-                }
-            } : undefined}
-            aria-expanded={canCollapse ? !collapsed : undefined}
-            title={canCollapse ? (collapsed ? '두루마리 펼치기' : '두루마리 접기') : undefined}
-        >
-            <div className={`pointer-events-none absolute left-0 right-0 top-0 bg-gradient-to-b from-amber-900/30 to-transparent transition-all duration-500 ${collapsed ? 'h-full rounded-full' : 'h-3'}`} />
-            <div className={`pointer-events-none absolute bottom-0 left-0 right-0 bg-gradient-to-t from-amber-900/25 to-transparent transition-all duration-500 ${collapsed ? 'h-full rounded-full' : 'h-3'}`} />
-            {!collapsed && (
-                <div className="pointer-events-none absolute left-3 right-3 top-2 h-2 rounded-full bg-gradient-to-b from-amber-900/30 via-amber-700/20 to-transparent shadow-inner" />
-            )}
-            {mobileOverlay && !collapsed && onToggleCollapsed && (
-                <div className="relative z-[1] mb-2 flex shrink-0 justify-center">
-                    <button
-                        type="button"
-                        className="pointer-events-auto rounded-full border border-amber-900/40 bg-amber-900/15 px-3 py-1 text-xs font-black tracking-wide text-amber-950 shadow-sm hover:bg-amber-900/25 active:scale-[0.98]"
-                        onClick={(event) => {
-                            event.stopPropagation();
-                            onToggleCollapsed();
-                        }}
-                    >
-                        접기
-                    </button>
-                </div>
-            )}
-            <div className={`${collapsed ? 'mb-0 border-transparent pb-0' : 'mb-3 border-amber-900/30 pb-2'} relative border-b transition-all duration-500`}>
-                <div className={`${collapsed ? 'items-center' : 'items-start'} flex justify-between gap-2`}>
-                    <div className="min-w-0">
-                        <p className={`${collapsed ? 'hidden' : 'block'} text-[11px] font-black uppercase tracking-[0.22em] text-amber-900/75`}>Stage Note</p>
-                        <h3 className={`${collapsed ? 'text-sm' : 'mt-1 text-lg'} truncate font-black leading-tight`}>{stage.id}</h3>
-                        <p className={`${collapsed ? 'hidden' : 'block'} truncate text-xs font-bold text-amber-900/70`}>{stage.name} · {getStageModeLabel(stage)}</p>
-                    </div>
-                </div>
-            </div>
-            <div
-                className={`overflow-hidden transition-[max-height,opacity] duration-300 ease-out ${
-                    collapsed ? 'max-h-0 opacity-0' : 'max-h-[56dvh] opacity-100'
-                }`}
-            >
-                <div className="overflow-y-auto whitespace-pre-wrap pr-1 text-sm font-semibold leading-6 text-amber-950/90">
-                    {description}
-                </div>
-            </div>
-        </section>
-    );
-};
 
 const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
     const {
@@ -188,12 +90,8 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
         baseStones_p2,
         mode,
     } = session;
-    const [stageDescriptionCollapsed, setStageDescriptionCollapsed] = useState(false);
-    const arenaFrameRef = useRef<HTMLDivElement | null>(null);
     const missileTimeoutRequestKeyRef = useRef<string | null>(null);
-    const [leftGutterWidth, setLeftGutterWidth] = useState(0);
 
-    /** 모바일에서 스테이지 두루마리를 펼쳐도, 베이스 사전 단계에서는 판에 놓인 베이스돌을 항상 표시해야 함(그렇지 않으면 배치·덤 UI가 깨져 보임). */
     const basePrePlayStatusesForBoard: readonly GameStatus[] = [
         'base_placement',
         'base_stone_color_choice',
@@ -202,8 +100,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
     ];
     const isBaseCaptureMixBidOnBoard = gameStatus === 'capture_bidding' && modeIncludesBaseCaptureMix(mode, settings);
     const isBasePrePlayOnBoard = basePrePlayStatusesForBoard.includes(gameStatus) || isBaseCaptureMixBidOnBoard;
-    const allowBackBoardBaseStonesOnMobile = !isMobile || stageDescriptionCollapsed || isBasePrePlayOnBoard;
-    const showPlacedBaseStoneArrays = allowBackBoardBaseStonesOnMobile && isBasePrePlayOnBoard;
+    const showPlacedBaseStoneArrays = isBasePrePlayOnBoard;
     /**
      * 사전 단계는 임시 좌석을 사용해 베이스돌 색을 결정한다.
      * 본대국 좌석(`session.blackPlayerId`)은 색 확정 전에는 비어 있어야 정상이다.
@@ -339,67 +236,6 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                   ),
               )
             : 0;
-    const singlePlayerStage = useMemo((): SinglePlayerStageInfo | undefined => {
-        if (!session.isSinglePlayer || !session.stageId) return undefined;
-        const snap = session.singlePlayerStageDisplay;
-        if (snap && snap.id === session.stageId) return snap;
-        const fromList = getSinglePlayerStages().find((stage) => stage.id === session.stageId);
-        if (fromList) return fromList;
-        // 관리자 스테이지 순서 재배치 등으로 stageId는 갱신됐는데 스냅샷 id만 남은 경우: 두루마리·규칙 표시용 폴백
-        if (snap && typeof snap.id === 'string') {
-            return { ...snap, id: session.stageId };
-        }
-        return undefined;
-    }, [
-        session.isSinglePlayer,
-        session.stageId,
-        session.singlePlayerStageDisplay,
-        session.gameStatus,
-        singlePlayerStagesListRevision,
-    ]);
-
-    useEffect(() => {
-        if (isMobile || !singlePlayerStage) {
-            setLeftGutterWidth(0);
-            return;
-        }
-        const updateGutter = () => {
-            const frame = arenaFrameRef.current;
-            if (!frame) return;
-            const frameRect = frame.getBoundingClientRect();
-            const centeredBoardSize = Math.min(frameRect.width, frameRect.height);
-            setLeftGutterWidth(Math.max(0, (frameRect.width - centeredBoardSize) / 2));
-        };
-        updateGutter();
-        window.addEventListener('resize', updateGutter);
-        let frameObserver: ResizeObserver | undefined;
-        if (typeof ResizeObserver !== 'undefined') {
-            frameObserver = new ResizeObserver(updateGutter);
-            if (arenaFrameRef.current) frameObserver.observe(arenaFrameRef.current);
-        }
-        return () => {
-            window.removeEventListener('resize', updateGutter);
-            frameObserver?.disconnect();
-        };
-    }, [isMobile, singlePlayerStage]);
-
-    // 모바일: 스테이지 진입 시 두루마리를 펼친 상태로 시작
-    useEffect(() => {
-        if (isMobile && singlePlayerStage) {
-            setStageDescriptionCollapsed(false);
-        }
-    }, [isMobile, singlePlayerStage?.id, session.id]);
-
-    const shouldShowMobileStageDescription =
-        isMobile &&
-        !!singlePlayerStage &&
-        (gameStatus === 'playing' ||
-            gameStatus === 'hidden_placing' ||
-            gameStatus === 'scoring' ||
-            gameStatus === 'ended' ||
-            gameStatus === 'no_contest');
-    const mobileStageScrollExpanded =
-        shouldShowMobileStageDescription && !stageDescriptionCollapsed;
     const isMissileAnimating = gameStatus === 'missile_animating';
 
     return (
@@ -411,42 +247,12 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
             >
                 {/* 바둑판은 항상 정사각형으로, 주어진 공간 안에 맞춰 축소/확대 */}
                 <div
-                    ref={arenaFrameRef}
                     className={`relative w-full min-w-0 overflow-hidden rounded-lg ${
                         isMobile
                             ? 'flex flex-1 min-h-0 flex-col items-stretch'
                             : 'flex h-full items-center justify-center'
                     }`}
                 >
-                {!isMobile && singlePlayerStage && leftGutterWidth > 0 && (
-                    <div
-                        className="pointer-events-none absolute left-0 top-2 z-[12] flex justify-center px-2"
-                        style={{ width: Math.max(180, leftGutterWidth) }}
-                    >
-                        <StageDescriptionScroll
-                            stage={singlePlayerStage}
-                            collapsed={stageDescriptionCollapsed}
-                            onToggleCollapsed={() => setStageDescriptionCollapsed((prev) => !prev)}
-                        />
-                    </div>
-                )}
-                {/* 모바일 상단 슬롯: 높이를 항상 pt-2(8px) + 38px로 고정 → 접힘/펼침 시 바둑판 패널 위치 동일 */}
-                {shouldShowMobileStageDescription && (
-                    <div className="relative z-10 box-border flex h-[46px] w-full shrink-0 flex-col px-2 pt-2">
-                        <div className="flex h-[38px] min-h-0 w-full items-center overflow-hidden">
-                            {stageDescriptionCollapsed ? (
-                                <StageDescriptionScroll
-                                    stage={singlePlayerStage}
-                                    collapsed
-                                    onToggleCollapsed={() => setStageDescriptionCollapsed((prev) => !prev)}
-                                    mobileOverlay
-                                />
-                            ) : (
-                                <div className="h-full w-full shrink-0" aria-hidden />
-                            )}
-                        </div>
-                    </div>
-                )}
                 <div
                     className={
                         isMobile
@@ -454,16 +260,6 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                             : 'relative aspect-square min-h-0 w-full max-h-full max-w-full flex-1'
                     }
                 >
-                {shouldShowMobileStageDescription && !stageDescriptionCollapsed && (
-                    <div className="absolute left-2 right-2 top-2 z-[30]">
-                        <StageDescriptionScroll
-                            stage={singlePlayerStage}
-                            collapsed={stageDescriptionCollapsed}
-                            onToggleCollapsed={() => setStageDescriptionCollapsed(true)}
-                            mobileOverlay
-                        />
-                    </div>
-                )}
                 <div
                     className={
                         isMobile
@@ -498,8 +294,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                         // 미사일 좌표 선택 중에는 응답 대기 등으로 isBoardLocked여도 판 조작이 필요하다.
                         (isBoardLocked && gameStatus !== 'missile_selecting') ||
                         isBoardDisabledDueToTurnLimit ||
-                        isMissileAnimating ||
-                        mobileStageScrollExpanded
+                        isMissileAnimating
                     }
                     stoneColor={myPlayerEnum}
                     winningLine={winningLine}
@@ -558,12 +353,6 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                     boardRuleFlashMessage={boardRuleFlashMessage}
                     uniformStoneDisplayColor={session.uniformStoneDisplayColor ?? null}
                 />
-                {mobileStageScrollExpanded && (
-                    <div
-                        className="absolute inset-0 z-[20] bg-transparent touch-none"
-                        aria-hidden
-                    />
-                )}
                 </div>
                 </div>
                 </div>
