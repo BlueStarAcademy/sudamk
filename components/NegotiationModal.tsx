@@ -27,7 +27,7 @@ import {
     PRE_GAME_MODAL_SUCCESS_BTN_CLASS,
 } from './game/PreGameDescriptionLayout.js';
 import { projectActionPointsCurrent } from '../services/effectService.js';
-import { getStrategicBoardSizesByMode, getCastleCountsByBoardSize, clampCastleCount, getDefaultCastleKomiByBoardSize, getDefaultCastleCountByBoardSize, getDefaultChessKomiByBoardSize, getDefaultChessScoringTurnLimit, getChessPieceTotalScoreOptions, clampChessPieceTotalScore, getDefaultChessPieceTotalScore } from '../constants/gameSettings.js';
+import { getStrategicBoardSizesByMode, getCastleCountsByBoardSize, clampCastleCount, getDefaultCastleKomiByBoardSize, getDefaultCastleCountByBoardSize, getDefaultChessKomiByBoardSize, getDefaultChessScoringTurnLimit, getChessScoringTurnLimitOptions, clampChessScoringTurnLimit, getChessPieceTotalScoreOptions, clampChessPieceTotalScore, getDefaultChessPieceTotalScore } from '../constants/gameSettings.js';
 import StrategicTimeControlFields from './game/StrategicTimeControlFields.js';
 import { MAX_GAME_INTEGER_INPUT } from '../shared/constants/numericLimits.js';
 import { clampGameInt } from '../shared/utils/gameIntegerField.js';
@@ -166,7 +166,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
         const bs = (newSettings.boardSize === 9 ? 9 : 13) as GameSettings['boardSize'];
         newSettings.boardSize = bs;
         newSettings.komi = getDefaultChessKomiByBoardSize(bs);
-        newSettings.scoringTurnLimit = getDefaultChessScoringTurnLimit();
+        newSettings.scoringTurnLimit = clampChessScoringTurnLimit(newSettings.scoringTurnLimit, bs);
         newSettings.chessPieceTotalScore = getDefaultChessPieceTotalScore(bs);
     }
 
@@ -241,9 +241,13 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
         const boardSize = Number(value);
         next.komi = getDefaultChessKomiByBoardSize(boardSize);
         next.chessPieceTotalScore = getDefaultChessPieceTotalScore(boardSize);
+        next.scoringTurnLimit = clampChessScoringTurnLimit(next.scoringTurnLimit, boardSize);
       }
       if (mode === GameMode.Chess && key === 'chessPieceTotalScore') {
         next.chessPieceTotalScore = clampChessPieceTotalScore(value, next.boardSize ?? 13);
+      }
+      if (mode === GameMode.Chess && key === 'scoringTurnLimit') {
+        next.scoringTurnLimit = clampChessScoringTurnLimit(value, next.boardSize ?? 13);
       }
       return next;
     });
@@ -425,6 +429,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
     const showMissileCount = mode === GameMode.Missile;
     const showCastleCount = mode === GameMode.Castle;
     const showChessPieceTotalScore = mode === GameMode.Chess && settings.boardSize === 13;
+    const showChessScoringTurnLimit = mode === GameMode.Chess && isAiGame;
     const showMixModeSelection = mode === GameMode.Mix;
     const showDiceGoSettings = mode === GameMode.Dice;
     const showThiefGoItemSettings = mode === GameMode.Thief;
@@ -593,6 +598,22 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                             {getChessPieceTotalScoreOptions(13).map((score) => (
                                 <option key={score} value={score}>
                                     {score}점
+                                </option>
+                            ))}
+                        </Select>
+                    </SettingRow>
+                )}
+
+                {showChessScoringTurnLimit && (
+                    <SettingRow label="계가까지 턴">
+                        <Select
+                            value={settings.scoringTurnLimit ?? getDefaultChessScoringTurnLimit(settings.boardSize ?? 13)}
+                            onChange={(v) => handleSettingChange('scoringTurnLimit', parseInt(v, 10))}
+                            disabled={isReadOnly}
+                        >
+                            {getChessScoringTurnLimitOptions(settings.boardSize ?? 13).map((limit) => (
+                                <option key={limit} value={limit}>
+                                    {limit}수
                                 </option>
                             ))}
                         </Select>

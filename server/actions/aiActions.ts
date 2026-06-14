@@ -1,7 +1,7 @@
 import type { ServerAction, User, VolatileState } from '../../shared/types/index.js';
 import { Player } from '../../shared/types/enums.js';
 import * as db from '../db.js';
-import { DEFAULT_GAME_SETTINGS, getAiScoringTurnLimitByBoardSize, getDefaultChessScoringTurnLimit, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../shared/constants/index.js';
+import { DEFAULT_GAME_SETTINGS, getAiScoringTurnLimitByBoardSize, getDefaultChessScoringTurnLimit, clampChessScoringTurnLimit, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../shared/constants/index.js';
 import { GameMode } from '../../shared/types/enums.js';
 import { aiUserId, scheduleAiTurnStartForFreshUi } from '../aiPlayer.js';
 import {
@@ -17,10 +17,11 @@ function normalizeStrategicAiScoringSettings(game: any): void {
 
   game.settings = { ...DEFAULT_GAME_SETTINGS, ...(game.settings || {}) };
   if (game.mode === GameMode.Chess) {
-    const limit = (game.settings as { scoringTurnLimit?: number }).scoringTurnLimit;
-    if (typeof limit !== 'number' || !Number.isFinite(limit) || limit <= 0) {
-      (game.settings as { scoringTurnLimit?: number }).scoringTurnLimit = getDefaultChessScoringTurnLimit();
-    }
+    const chessBoard = game.settings.boardSize === 9 ? 9 : 13;
+    (game.settings as { scoringTurnLimit?: number }).scoringTurnLimit = clampChessScoringTurnLimit(
+      (game.settings as { scoringTurnLimit?: number }).scoringTurnLimit,
+      chessBoard,
+    );
     return;
   }
   if (modeIncludesCaptureRule(game.mode, game.settings)) {

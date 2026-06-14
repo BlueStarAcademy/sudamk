@@ -12,6 +12,7 @@ import {
     getAiScoringTurnLimitByBoardSize,
     getDefaultChessKomiByBoardSize,
     getDefaultChessScoringTurnLimit,
+    clampChessScoringTurnLimit,
     clampChessPieceTotalScore,
     getDefaultChessPieceTotalScore,
     getStrategicBoardSizesByMode,
@@ -138,13 +139,13 @@ export function sanitizePvpGameSettings(
             isRanked,
         );
         if (mode === GameMode.Chess) {
+            const chessBoard = next.boardSize === 9 ? 9 : 13;
             if (isAiGame) {
-                const limit = next.scoringTurnLimit;
-                if (typeof limit !== 'number' || !Number.isFinite(limit) || limit <= 0) {
-                    next.scoringTurnLimit = getDefaultChessScoringTurnLimit();
-                }
+                next.scoringTurnLimit = clampChessScoringTurnLimit(next.scoringTurnLimit, chessBoard);
             } else if (!isRanked) {
                 next = stripHumanPvpTurnLimitFields(next);
+            } else {
+                next.scoringTurnLimit = clampChessScoringTurnLimit(next.scoringTurnLimit, chessBoard);
             }
         }
     }

@@ -7,7 +7,7 @@ import {
 } from '../../constants.js';
 import { isFischerStyleTimeControl } from './gameTimeControl.js';
 import { getRankedGameSettings } from '../../constants/rankedGameSettings.js';
-import { getAiScoringTurnLimitByBoardSize, getDefaultChessKomiByBoardSize, getDefaultChessScoringTurnLimit } from '../constants/gameSettings.js';
+import { getAiScoringTurnLimitByBoardSize, getDefaultChessKomiByBoardSize, getDefaultChessScoringTurnLimit, clampChessScoringTurnLimit } from '../constants/gameSettings.js';
 import { formatAlkkagiCurlingGaugeSpeedForLobbyDisplay } from './alkkagiCurlingGaugeLobbyDisplay.js';
 import { mixSubRuleDisplayName } from './mixSubRuleDisplayName.js';
 import { applyMixModeSettingsConstraints } from './mixModeSettings.js';
@@ -503,9 +503,10 @@ export function sanitizePairLobbyDraftModeSettings(
         next.boardSize = bsNum as GameSettings['boardSize'];
     }
     if (mode === GameMode.Chess) {
-        next.boardSize = 13 as GameSettings['boardSize'];
-        next.komi = getDefaultChessKomiByBoardSize(13);
-        next.scoringTurnLimit = getDefaultChessScoringTurnLimit();
+        const chessBoard = next.boardSize === 9 ? 9 : 13;
+        next.boardSize = chessBoard as GameSettings['boardSize'];
+        next.komi = getDefaultChessKomiByBoardSize(chessBoard);
+        next.scoringTurnLimit = clampChessScoringTurnLimit(next.scoringTurnLimit, chessBoard);
     }
     if (mode === GameMode.Mix) {
         next = applyMixModeSettingsConstraints(next);

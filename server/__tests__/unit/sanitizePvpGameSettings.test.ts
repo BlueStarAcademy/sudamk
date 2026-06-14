@@ -220,6 +220,22 @@ describe('stripHumanPvpTurnLimitFields', () => {
         expect(high.chessPieceTotalScore).toBe(23);
     });
 
+    it('clamps chess AI scoring turn limit by board size', () => {
+        const nine = sanitizePvpGameSettings(
+            GameMode.Chess,
+            { boardSize: 9, komi: 2.5, scoringTurnLimit: 85 },
+            { isAiGame: true },
+        );
+        expect(nine.scoringTurnLimit).toBe(80);
+
+        const thirteen = sanitizePvpGameSettings(
+            GameMode.Chess,
+            { boardSize: 13, komi: 6.5, scoringTurnLimit: 130 },
+            { isAiGame: true },
+        );
+        expect(thirteen.scoringTurnLimit).toBe(120);
+    });
+
     it('mix: excludes castle+capture together and keeps valid chess board size', () => {
         const out = sanitizePvpGameSettings(
             GameMode.Mix,

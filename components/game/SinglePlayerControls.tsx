@@ -369,6 +369,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
 
         const handleRetry = async () => {
             try {
+                setShowResultModal?.(false);
                 console.log('[SinglePlayerControls] Retry button clicked, starting game for stage:', session.stageId);
                 const result = await onAction({ type: 'START_SINGLE_PLAYER_GAME', payload: { stageId: session.stageId! } });
                 const gameId = (result as any)?.gameId;
@@ -392,6 +393,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
                 return;
             }
             try {
+                setShowResultModal?.(false);
                 console.log('[SinglePlayerControls] Next stage button clicked, starting game for stage:', nextStage.id);
                 const result = await onAction({ type: 'START_SINGLE_PLAYER_GAME', payload: { stageId: nextStage.id } });
                 const gameId = (result as any)?.gameId;

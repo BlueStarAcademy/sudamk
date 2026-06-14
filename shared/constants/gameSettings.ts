@@ -70,8 +70,29 @@ export function getDefaultChessKomiByBoardSize(boardSize: number): number {
   return DEFAULT_KOMI;
 }
 
-export function getDefaultChessScoringTurnLimit(): number {
-  return 100;
+export const CHESS_SCORING_TURN_LIMIT_OPTIONS_BY_BOARD_SIZE: Record<9 | 13, readonly number[]> = {
+  9: [80, 90, 100, 110, 120],
+  13: [100, 120, 140],
+};
+
+export function getChessScoringTurnLimitOptions(boardSize: number): readonly number[] {
+  if (boardSize === 9) return CHESS_SCORING_TURN_LIMIT_OPTIONS_BY_BOARD_SIZE[9];
+  return CHESS_SCORING_TURN_LIMIT_OPTIONS_BY_BOARD_SIZE[13];
+}
+
+export function getDefaultChessScoringTurnLimit(boardSize?: number): number {
+  const options = getChessScoringTurnLimitOptions(boardSize ?? 13);
+  return options.includes(100) ? 100 : options[0]!;
+}
+
+export function clampChessScoringTurnLimit(value: unknown, boardSize: number): number {
+  const options = getChessScoringTurnLimitOptions(boardSize);
+  const n = typeof value === 'number' ? value : parseInt(String(value ?? options[0]), 10);
+  if (!Number.isFinite(n)) return getDefaultChessScoringTurnLimit(boardSize);
+  for (let i = options.length - 1; i >= 0; i--) {
+    if (n >= options[i]!) return options[i]!;
+  }
+  return options[0]!;
 }
 
 export function getDefaultCastleKomiByBoardSize(boardSize: number): number {

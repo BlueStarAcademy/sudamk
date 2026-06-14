@@ -16,6 +16,7 @@ import {
   HIDDEN_BOARD_SIZES, DICE_GO_ITEM_COUNTS, getScoringTurnLimitOptionsByBoardSize, getAiScoringTurnLimitByBoardSize,
   getCastleCountsByBoardSize, clampCastleCount, getDefaultCastleKomiByBoardSize, getDefaultCastleCountByBoardSize,
   getDefaultChessKomiByBoardSize, getDefaultChessScoringTurnLimit,
+  getChessScoringTurnLimitOptions, clampChessScoringTurnLimit,
   getChessPieceTotalScoreOptions, getDefaultChessPieceTotalScore, clampChessPieceTotalScore,
 } from '../../constants/gameSettings.js';
 import { profileStepFromKataServerLevel } from '../../shared/utils/strategicAiDifficulty.js';
@@ -276,7 +277,7 @@ function normalizeAiScoringTurnLimit(mode: GameMode, settings: GameSettings): Ga
             ...settings,
             boardSize: bs,
             komi: getDefaultChessKomiByBoardSize(bs),
-            scoringTurnLimit: getDefaultChessScoringTurnLimit(),
+            scoringTurnLimit: clampChessScoringTurnLimit(settings.scoringTurnLimit, bs),
             chessPieceTotalScore: clampChessPieceTotalScore(
                 settings.chessPieceTotalScore ?? getDefaultChessPieceTotalScore(bs),
                 bs,
@@ -918,7 +919,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
         if (!selectedGameMode) return;
         const requiredLimit =
             selectedGameMode === GameMode.Chess
-                ? getDefaultChessScoringTurnLimit()
+                ? clampChessScoringTurnLimit(settings.scoringTurnLimit, settings.boardSize ?? 13)
                 : modeIncludesCaptureRule(selectedGameMode, settings)
                   ? 0
                   : getAiScoringTurnLimitByBoardSize(settings.boardSize);
@@ -950,9 +951,13 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                 const boardSize = Number(value);
                 newSettings.komi = getDefaultChessKomiByBoardSize(boardSize);
                 newSettings.chessPieceTotalScore = getDefaultChessPieceTotalScore(boardSize);
+                newSettings.scoringTurnLimit = clampChessScoringTurnLimit(newSettings.scoringTurnLimit, boardSize);
             }
             if (selectedGameMode === GameMode.Chess && key === 'chessPieceTotalScore') {
                 newSettings.chessPieceTotalScore = clampChessPieceTotalScore(value, newSettings.boardSize ?? 13);
+            }
+            if (selectedGameMode === GameMode.Chess && key === 'scoringTurnLimit') {
+                newSettings.scoringTurnLimit = clampChessScoringTurnLimit(value, newSettings.boardSize ?? 13);
             }
             if (selectedGameMode === GameMode.Mix && key === 'mixedModes') {
                 newSettings = applyMixModeSettingsConstraints(newSettings);
@@ -1309,6 +1314,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
 
         const showGoAiLevel = lobbyType === 'strategic' && !pairRoomHideGoAiLevel;
         const captureRuleSelected = modeIncludesCaptureRule(selectedGameMode, settings);
+        const showChessScoringTurnLimit = !hideScoringTurnLimit && showGoAiLevel && selectedGameMode === GameMode.Chess;
         const showScoringTurnLimit = !hideScoringTurnLimit && showGoAiLevel && !captureRuleSelected && selectedGameMode !== GameMode.Castle && selectedGameMode !== GameMode.Chess;
 
         const AI_LEVELS = [
@@ -1424,6 +1430,24 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                             style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                         >
                             {nonZeroScoringTurnLimitOptions.map(limit => (
+                                <option key={limit} value={limit}>
+                                    {`${limit}수`}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                )}
+
+                {showChessScoringTurnLimit && (
+                    <div className={settingRowClass}>
+                        <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>계가까지 턴</label>
+                        <select
+                            value={settings.scoringTurnLimit ?? getDefaultChessScoringTurnLimit(settings.boardSize ?? 13)}
+                            onChange={e => handleSettingChange('scoringTurnLimit', parseInt(e.target.value, 10))}
+                            className={gameSettingsSelectClass}
+                            style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
+                        >
+                            {getChessScoringTurnLimitOptions(settings.boardSize ?? 13).map((limit) => (
                                 <option key={limit} value={limit}>
                                     {`${limit}수`}
                                 </option>

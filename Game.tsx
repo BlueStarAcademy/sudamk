@@ -1117,6 +1117,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     useEffect(() => {
         setPostGameSummaryAcknowledged(false);
+        setShowResultModal(false);
+        setShowFinalTerritory(false);
     }, [session.id]);
 
     useEffect(() => {
@@ -5201,11 +5203,18 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     // 싱글플레이 게임 설명창 표시 여부
     // 결과 모달과 겹치지 않게: 계가/종료 직후 일시적으로 pending이 섞이는 경우에도 설명창이 위를 덮지 않도록 함
-    const showGameDescription = isSinglePlayer && gameStatus === 'pending' && !showResultModal;
+    const singlePlayerValidMoveCount =
+        session.moveHistory?.filter((m: { x: number; y: number }) => m.x !== -1 && m.y !== -1).length ?? 0;
+    const showGameDescription =
+        isSinglePlayer &&
+        gameStatus === 'pending' &&
+        !showResultModal &&
+        (session as { startTime?: number | null }).startTime == null &&
+        (session as { gameStartTime?: number | null }).gameStartTime == null &&
+        singlePlayerValidMoveCount === 0;
     // CONFIRM 전에만 시작 설명(대기 pending·실제 시작 시각 없음). 계가/종료 직후 잠깐 pending이 섞이면 시작창이 덮이는 간헐 이슈 방지.
     // 한 판을 두었는데도 pending으로 잠깐 보이는 경우(동기화 레이스)에는 재시작 설명을 띄우지 않는다.
-    const towerValidMoveCount =
-        session.moveHistory?.filter((m: { x: number; y: number }) => m.x !== -1 && m.y !== -1).length ?? 0;
+    const towerValidMoveCount = singlePlayerValidMoveCount;
     const showTowerGameDescription =
         isTower &&
         gameStatus === 'pending' &&
@@ -5286,31 +5295,40 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }
     }, [isSinglePlayer, isTower, gameStatus, showGameDescription, showTowerGameDescription, session.id, session.stageId, session.towerFloor]);
 
-    const handleStartGame = useCallback(() => {
-        console.log('[Game] handleStartGame called', { gameId, gameStatus, isSinglePlayer, isTower, sessionId: session.id });
-        if (!gameId) {
-            console.error('[Game] handleStartGame: gameId is missing', { sessionId: session.id, gameStatus });
+    const handleStartGame = useCallback(async () => {
+        const confirmGameId = session.id;
+        console.log('[Game] handleStartGame called', { gameId: confirmGameId, gameStatus, isSinglePlayer, isTower });
+        if (!confirmGameId) {
+            console.error('[Game] handleStartGame: gameId is missing', { gameStatus });
             return;
         }
-        
+        if (gameStatus !== 'pending') {
+            console.warn('[Game] handleStartGame: ignored — game is not pending', { gameId: confirmGameId, gameStatus });
+            return;
+        }
+
         if (isSinglePlayer) {
-            console.log('[Game] handleStartGame: Sending CONFIRM_SINGLE_PLAYER_GAME_START', { gameId, gameStatus });
-            handlers.handleAction({ 
-                type: 'CONFIRM_SINGLE_PLAYER_GAME_START', 
-                payload: { gameId } 
-            } as ServerAction).then(result => {
-                console.log('[Game] handleStartGame: CONFIRM_SINGLE_PLAYER_GAME_START completed', result);
-            }).catch(err => {
+            console.log('[Game] handleStartGame: Sending CONFIRM_SINGLE_PLAYER_GAME_START', { gameId: confirmGameId, gameStatus });
+            try {
+                const result = (await handlers.handleAction({
+                    type: 'CONFIRM_SINGLE_PLAYER_GAME_START',
+                    payload: { gameId: confirmGameId },
+                } as ServerAction)) as { error?: string } | void;
+                if (result && typeof result === 'object' && 'error' in result && result.error) {
+                    window.alert(result.error);
+                }
+            } catch (err) {
                 console.error('[Game] handleStartGame: CONFIRM_SINGLE_PLAYER_GAME_START failed', err);
-            });
+                window.alert('게임 시작에 실패했습니다. 다시 시도해주세요.');
+            }
         } else if (isTower) {
-            console.log('[Game] handleStartGame: Sending CONFIRM_TOWER_GAME_START', { gameId, gameStatus, isTower });
-            handlers.handleAction({ 
-                type: 'CONFIRM_TOWER_GAME_START', 
-                payload: { gameId } 
+            console.log('[Game] handleStartGame: Sending CONFIRM_TOWER_GAME_START', { gameId: confirmGameId, gameStatus, isTower });
+            handlers.handleAction({
+                type: 'CONFIRM_TOWER_GAME_START',
+                payload: { gameId: confirmGameId },
             } as ServerAction);
         }
-    }, [handlers.handleAction, gameId, isSinglePlayer, isTower, session.id, gameStatus]);
+    }, [handlers.handleAction, isSinglePlayer, isTower, session.id, gameStatus]);
 
     // 도전의 탑: 싱글플레이와 동일하게 시작 모달에서 시작 버튼을 눌러 확정
     
