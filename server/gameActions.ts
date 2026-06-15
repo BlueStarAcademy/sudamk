@@ -22,6 +22,7 @@ import { handlePlayfulGameAction } from './modes/playful.js';
 import { createDefaultUser, createDefaultQuests } from './initialData.ts';
 import { containsProfanity } from '../profanity.js';
 import * as mannerService from './mannerService.js';
+import { sessionUsesChessGo } from '../shared/utils/chessGoRules.js';
 
 // Import new action handlers
 import { handleAdminAction } from './actions/adminActions.js';
@@ -1555,7 +1556,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             const shouldHandlePlaceStoneOnServer =
                 type === 'PLACE_STONE' && (isStrategicPVE || towerScoringOrSyncPlaceStone);
             const shouldHandleChessMoveOnServer =
-                type === 'CHESS_MOVE_PIECE' && game.mode === GameMode.Chess;
+                type === 'CHESS_MOVE_PIECE' && sessionUsesChessGo(game);
             const chessSetupActionTypes = new Set<string>([
                 'PLACE_CHESS_SETUP_PIECE',
                 'REMOVE_CHESS_SETUP_PIECE',
@@ -1564,7 +1565,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 'CONFIRM_CHESS_SETUP_PLACEMENT',
             ]);
             const shouldHandleChessSetupOnServer =
-                game.mode === GameMode.Chess && chessSetupActionTypes.has(type);
+                sessionUsesChessGo(game) && chessSetupActionTypes.has(type);
             // 싱글·모험·길드전·로비 AI 등 PVP가 아닌 전략 세션은 대부분 클라 착수이나,
             // 베이스 전·중반(배치·덤·확인)은 서버 `handleBaseAction`이 처리해야 함.
             // `kind === singleplayer`만 허용하면 모험/길드전 등에서 액션이 `{}`로 삼켜져 배치 확정 후 단계 전환이 영구 정지한다.
@@ -1693,7 +1694,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             isStrategicBaseOrMixWithBase &&
             strategicBasePrePlayStatuses.has(game.gameStatus);
         const needsChessPlacementTick =
-            game.mode === GameMode.Chess && game.gameStatus === 'chess_piece_placement';
+            sessionUsesChessGo(game) && game.gameStatus === 'chess_piece_placement';
         if (
             result != null &&
             result !== undefined &&
@@ -1840,7 +1841,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             // 체스 바둑 AI 로비: 메인 루프만 기대하면 AI 턴이 멈추고 시간패로 이어질 수 있어 인라인 fallback
             if (
                 !(result as any).error &&
-                game.mode === GameMode.Chess &&
+                sessionUsesChessGo(game) &&
                 game.isAiGame &&
                 arenaPolicy.matchAxis === 'pve' &&
                 game.gameStatus === 'playing'
@@ -2080,7 +2081,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 'FILL_CHESS_SETUP_RANDOMLY',
                 'CONFIRM_CHESS_SETUP_PLACEMENT',
             ]);
-            if (!(result as any)?.error && game.mode === GameMode.Chess && chessSetupHttpActions.has(type)) {
+            if (!(result as any)?.error && sessionUsesChessGo(game) && chessSetupHttpActions.has(type)) {
                 const { repairChessGoSessionState } = await import('./modes/chess.js');
                 repairChessGoSessionState(game);
                 const baseResult =

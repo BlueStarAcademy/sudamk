@@ -7,6 +7,7 @@ import { modeIncludesBaseCaptureMix } from '../../shared/utils/liveSessionArenaK
 import { resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
 import { finalizeBaseCaptureBidResolution, baseHttpGameSnapshot } from './base.js';
 import { PRE_GAME_PVP_COUNTDOWN_MS } from '../../shared/constants/preGameCountdown.js';
+import { shouldTreatTurnDeadlineExpiryAsTimeForfeit } from '../../shared/utils/speedTimePressureSessionSync.js';
 
 const getCaptureBidMax = (game: types.LiveGameSession): number => {
     const baseTarget = Math.max(1, Math.floor(Number(game.settings.captureTarget ?? 20)));
@@ -232,7 +233,12 @@ export const updateCaptureState = (game: types.LiveGameSession, now: number) => 
             break;
         }
         case 'playing': {
-            if (shouldEnforceTimeControl(game) && game.turnDeadline && now > game.turnDeadline) {
+            if (
+                shouldEnforceTimeControl(game) &&
+                game.turnDeadline &&
+                now > game.turnDeadline &&
+                shouldTreatTurnDeadlineExpiryAsTimeForfeit(game)
+            ) {
                 const timedOutPlayer = game.currentPlayer;
                 const timeKey = timedOutPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                 const byoyomiKey = timedOutPlayer === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';

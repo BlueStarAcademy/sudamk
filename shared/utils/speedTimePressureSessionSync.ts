@@ -179,6 +179,28 @@ export function applySpeedNextTurnClockStart(game: LiveGameSession, nowMs: numbe
 }
 
 /**
+ * 스피드 수당 10초 turnDeadline — 초읽기/메인 시간패 경로와 혼동되면 10초마다 시간패가 난다.
+ */
+export function isSpeedPerMoveAllowanceDeadline(session: LiveGameSession): boolean {
+    if (!isSessionSpeedTimePressureMode(session)) return false;
+    if (typeof session.turnStartTime !== 'number' || typeof session.turnDeadline !== 'number') return false;
+    const perMoveSec = getSpeedPerMoveSeconds(session as any);
+    const windowMs = session.turnDeadline - session.turnStartTime;
+    return windowMs > 0 && windowMs <= perMoveSec * 1000 + 1500;
+}
+
+/**
+ * turnDeadline 경과를 시간패로 처리해야 하는지.
+ * 스피드 모드는 메인 시계 소진(`updateStrategicGameState` 별도 경로)만 시간패이며,
+ * 수당 10초 만료는 상대 +1점만 부여한다.
+ */
+export function shouldTreatTurnDeadlineExpiryAsTimeForfeit(session: LiveGameSession): boolean {
+    if (isSessionSpeedTimePressureMode(session)) return false;
+    if (isSpeedPerMoveAllowanceDeadline(session)) return false;
+    return true;
+}
+
+/**
  * 클라이언트 착수 직후: 서버 PLACE_STONE과 동일하게 수 페널티·메인 시계를 반영한다.
  */
 export function applySpeedTimePressureAfterClientMove(

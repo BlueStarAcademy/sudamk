@@ -1,6 +1,7 @@
 import type { LiveGameSession } from '../types.js';
 import { GameMode, Player } from '../types.js';
 import { normalizeChessGoSession } from '../shared/utils/chessGoRules.js';
+import { processMoveClient } from '../client/goLogicClient.js';
 
 /** moveHistory 길이로 “한 수 앞선” 지연 표시 스냅샷을 고른다 (PASS 포함 전체 길이). */
 export function wsSessionMoveHistoryLen(session: LiveGameSession | null | undefined): number {
@@ -127,6 +128,70 @@ export function deriveBoardFromMoveHistoryAndBaseStones(
 }
 
 /**
+ * moveHistory를 processMoveClient로 재생해 포획·코를 반영한 판면을 만든다.
+ * 단순 derive는 따낸 돌이 판에 남는 버그가 있어 슬림 WS 병합에 사용한다.
+ */
+export function replayStrategicBoardFromMoveHistory(
+    session: LiveGameSession,
+    existing?: LiveGameSession,
+): LiveGameSession['boardState'] | undefined {
+    const boardSize = session.settings?.boardSize;
+    const moveHistoryToReplay = session.moveHistory;
+    if (!boardSize || !moveHistoryToReplay?.length) return undefined;
+
+    const derivedBoard: number[][] = Array(boardSize)
+        .fill(null)
+        .map(() => Array(boardSize).fill(Player.None));
+
+    const baseListRaw: BaseStonePoint[] =
+        Array.isArray((session as { baseStones?: BaseStonePoint[] }).baseStones) &&
+        (session as { baseStones?: BaseStonePoint[] }).baseStones!.length > 0
+            ? ((session as { baseStones?: BaseStonePoint[] }).baseStones as BaseStonePoint[])
+            : Array.isArray(existing?.baseStones) && existing!.baseStones!.length > 0
+              ? (existing!.baseStones as BaseStonePoint[])
+              : [];
+
+    for (const bs of baseListRaw) {
+        if (
+            bs &&
+            typeof bs.x === 'number' &&
+            typeof bs.y === 'number' &&
+            typeof bs.player === 'number' &&
+            bs.x >= 0 &&
+            bs.x < boardSize &&
+            bs.y >= 0 &&
+            bs.y < boardSize &&
+            (bs.player === Player.Black || bs.player === Player.White)
+        ) {
+            derivedBoard[bs.y][bs.x] = bs.player;
+        }
+    }
+
+    let boardState = derivedBoard as LiveGameSession['boardState'];
+    let koInfo: { point: { x: number; y: number }; turn: number } | null = null;
+
+    for (let i = 0; i < moveHistoryToReplay.length; i++) {
+        const move = moveHistoryToReplay[i];
+        if (!move || move.x < 0 || move.y < 0 || move.x >= boardSize || move.y >= boardSize) {
+            continue;
+        }
+        const result = processMoveClient(
+            boardState,
+            { x: move.x, y: move.y, player: move.player },
+            koInfo,
+            i,
+        );
+        if (!result.isValid) {
+            return deriveBoardFromMoveHistoryAndBaseStones(session, existing);
+        }
+        boardState = result.newBoardState;
+        koInfo = result.newKoInfo;
+    }
+
+    return boardState;
+}
+
+/**
  * 모험·길드전 등 PVE 전략 대국 playing GAME_UPDATE:
  * 슬림 패킷(수순만·턴·시계)과 풀 보드 패킷이 섞일 때 판·수순을 한 쌍으로 맞춘다.
  * moveHistory만으로 판을 재구성하면 포획이 빠져 돌이 사라지거나 다른 교차점으로 보인다.
@@ -161,20 +226,30 @@ export function resolveStrategicPvePlayingBoardAndMoveHistory(
     } else if (clientBoardOk && clientMhLen > serverMhLen) {
         boardState = clientSnap.boardState;
     } else if (serverMhLen > clientMhLen && !serverBoardOk) {
-        // 서버 수순이 앞서는데 boardState가 빠진 슬림 패킷 — 낡은 클라 판을 쓰면 AI 돌이 안 보이다가 한꺼번에 나타남
-        const derived = deriveBoardFromMoveHistoryAndBaseStones(server, clientSnap);
-        boardState = isSubstantiveBoardState(derived) ? derived : clientBoardOk ? clientSnap.boardState : derived;
+        // 서버 수순이 앞서는데 boardState가 빠진 슬림 패킷 — 포획 반영 리플레이로 판면 복원
+        const replayed = replayStrategicBoardFromMoveHistory(
+            { ...server, moveHistory },
+            clientSnap,
+        );
+        boardState = isSubstantiveBoardState(replayed)
+            ? replayed
+            : clientBoardOk
+              ? clientSnap.boardState
+              : replayed;
     } else if (serverBoardOk) {
         boardState = server.boardState;
     } else if (clientBoardOk) {
         boardState = clientSnap.boardState;
     } else {
-        const derived = deriveBoardFromMoveHistoryAndBaseStones(server, clientSnap);
-        boardState = derived ?? server.boardState ?? clientSnap.boardState;
+        const replayed = replayStrategicBoardFromMoveHistory({ ...server, moveHistory }, clientSnap);
+        boardState = replayed ?? server.boardState ?? clientSnap.boardState;
     }
 
     return { boardState, moveHistory };
 }
+
+/** PVP·PVE 공통 playing 보드·수순 정합 (resolveStrategicPvePlayingBoardAndMoveHistory 별칭) */
+export const resolveStrategicPlayingBoardAndMoveHistory = resolveStrategicPvePlayingBoardAndMoveHistory;
 
 function chessSessionLastMovesMatch(a: LiveGameSession, b: LiveGameSession): boolean {
     const aLen = wsSessionMoveHistoryLen(a);

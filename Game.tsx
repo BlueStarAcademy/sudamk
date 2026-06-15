@@ -62,6 +62,7 @@ import {
     normalizeChessGoSession,
     processChessGoMove,
     reconcileChessGoClientSession,
+    sessionUsesChessGo,
 } from './shared/utils/chessGoRules.js';
 import {
     validateChessPlacementDraft,
@@ -734,6 +735,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const { onlineUsers, waitingRoomChats, gameChats } = useAppRealtimeSlice();
     const { settings, updateFeatureSetting, isNativeMobile } = useAppRouteSlice();
     const { id: gameId, currentPlayer, gameStatus, player1, player2, mode, blackPlayerId, whitePlayerId } = session;
+    const usesChessGo = sessionUsesChessGo(session);
 
     if (!player1?.id || !player2?.id || !currentUser || !currentUserWithStatus) {
         return <div className="flex items-center justify-center min-h-screen">플레이어 정보를 불러오는 중...</div>;
@@ -1246,7 +1248,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         ((session.settings?.scoringTurnLimit ?? 0) > 0 || ((session.settings as any)?.autoScoringTurns ?? 0) > 0);
     /** 모험 포함: 새로고침 시 sessionStorage와 병합해 남은 턴·경과 시간이 초기화되지 않게 함 */
     const useRefreshSessionStorageMerge =
-        session.mode !== GameMode.Chess &&
+        !usesChessGo &&
         (isAdventureGame || isSinglePlayer || isTower || hasStrategicTurnLimit);
 
     // 클라이언트에서 게임 상태 저장/복원 (새로고침 시 바둑판 복원)
@@ -1255,7 +1257,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     // 게임 상태를 sessionStorage에서 복원 (종료 후에도 결과 모달 동안 종료된 화면 유지를 위해 ended/scoring에서도 복원 허용)
     const restoredBoardState = useMemo(() => {
         // 체스 바둑 수순 0: sessionStorage의 측면 폰 boardState를 쓰지 않고 표준 초기 판만 사용
-        if (session.mode === GameMode.Chess) {
+        if (usesChessGo) {
             const reconciled = normalizeChessGoSession(session);
             if (reconciled.boardState?.length) {
                 return reconciled.boardState;
@@ -1397,7 +1399,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         return session.boardState;
                     }
                     // 체스 바둑: sessionStorage의 레거시 측면 폰 판을 절대 쓰지 않음
-                    if (session.mode === GameMode.Chess) {
+                    if (usesChessGo) {
                         const reconciled = normalizeChessGoSession(session);
                         if (reconciled.boardState?.length) {
                             return reconciled.boardState;
@@ -1497,7 +1499,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     }
                 }
                 const chessOpeningSave =
-                    session.mode === GameMode.Chess ? normalizeChessGoSession(session) : null;
+                    usesChessGo ? normalizeChessGoSession(session) : null;
                 const gameStateToSave = {
                     gameId,
                     mode: session.mode,
@@ -1703,7 +1705,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         };
                     }
                     if (
-                        next.mode === GameMode.Chess &&
+                        next.usesChessGo &&
                         Array.isArray(parsed.chessPieces) &&
                         parsed.chessPieces.length > 0 &&
                         (!next.chessPieces || next.chessPieces.length === 0)
@@ -1716,7 +1718,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                 parsed.chessPieceMovedThisTurn ?? next.chessPieceMovedThisTurn,
                         };
                     }
-                    if (next.mode === GameMode.Chess && Array.isArray(parsed.chessGoRemovedPoints)) {
+                    if (next.usesChessGo && Array.isArray(parsed.chessGoRemovedPoints)) {
                         const removedKeys = new Set<string>();
                         const mergedRemoved: NonNullable<LiveGameSession['chessGoRemovedPoints']> = [];
                         for (const p of [
@@ -1732,7 +1734,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             next = { ...next, chessGoRemovedPoints: mergedRemoved };
                         }
                     }
-                    if (next.mode === GameMode.Chess) {
+                    if (next.usesChessGo) {
                         next = normalizeChessGoSession(next);
                     }
                     // 턴 제한 경기: totalTurns가 없거나 0이면 sessionStorage 값으로 복원 (남은 턴이 Max로 초기화되는 현상 방지)
@@ -1866,7 +1868,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     /** 체스 바둑: 레거시 측면 폰·판 불일치를 교정하고 chessPieces 기준으로 보드를 맞춤 */
     const chessGoSession = useMemo(() => {
-        if (session.mode !== GameMode.Chess) return sessionWithRestoredPatternStones;
+        if (!usesChessGo) return sessionWithRestoredPatternStones;
         return normalizeChessGoSession(sessionWithRestoredPatternStones);
     }, [session.mode, sessionWithRestoredPatternStones]);
 
@@ -1899,7 +1901,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     /** 체스 바둑: 예전 sessionStorage 스냅샷(측면 폰·15×15)이 병합을 막지 않도록 제거 */
     useEffect(() => {
-        if (session.mode !== GameMode.Chess) return;
+        if (!usesChessGo) return;
         try {
             const key = `gameState_${gameId}`;
             const raw = sessionStorage.getItem(key);
@@ -2109,7 +2111,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     ]);
 
     const rejectInvalidChessGoStonePlacement = useCallback((x: number, y: number): boolean => {
-        if (mode !== GameMode.Chess || gameStatus !== 'playing' || myPlayerEnum === Player.None) {
+        if (!usesChessGo || gameStatus !== 'playing' || myPlayerEnum === Player.None) {
             return false;
         }
         if (!isPlayableChessGoIntersection(chessGoSession, x, y)) {
@@ -2205,7 +2207,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     }, [myPlayerEnum, currentPlayer, gameStatus, isSpectator, session, currentUser.id, player1.id, session.settings, sessionPolicy.matchAxis]);
 
     const chessHighlightPoints = useMemo(() => {
-        if (mode !== GameMode.Chess || gameStatus !== 'playing' || !isMyTurn) return [];
+        if (!usesChessGo || gameStatus !== 'playing' || !isMyTurn) return [];
         if (!selectedChessPieceId || myPlayerEnum === Player.None) return [];
         if (chessGoSession.chessPieceMovedThisTurn) return [];
         const legal = enumerateLegalChessMoves(chessGoSession, myPlayerEnum);
@@ -2353,6 +2355,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     useEffect(() => {
         if (gameStatus === 'hidden_placing' && prevGameStatus !== 'hidden_placing') {
+            audioService.revealHiddenStone();
             flashBoardRuleMessage(HIDDEN_PLACEMENT_DELAY_MESSAGE, HIDDEN_PLACEMENT_DELAY_MS - 250);
             return;
         }
@@ -2365,7 +2368,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             return;
         }
         if (
-            session.mode === GameMode.Chess &&
+            usesChessGo &&
             gameStatus === 'playing' &&
             (prevGameStatus === 'chess_piece_placement' || prevGameStatus === 'uniform_color_roulette')
         ) {
@@ -2378,6 +2381,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         const skipSound = ['scoring', 'ended', 'no_contest'].includes(session.gameStatus ?? '');
         if (anim && anim.type !== prevAnimationType) { 
             switch(anim.type) {
+                case 'ai_thinking':
+                    if (!skipSound) audioService.revealHiddenStone();
+                    break;
                 case 'missile': case 'hidden_missile': if (!skipSound) audioService.launchMissile(); break;
                 case 'hidden_reveal': {
                     const stonesSig = (anim.stones || [])
@@ -2937,7 +2943,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const applyOptimisticAiUserMove = useCallback((x: number, y: number): boolean => {
         // 체스 바둑: 기물 이동 직후 session.boardState가 chessPieces와 어긋나면 착수 후 기물이 되돌아가는 것처럼 보임
         const boardStateToUse =
-            mode === GameMode.Chess && chessGoSession.boardState?.length
+            usesChessGo && chessGoSession.boardState?.length
                 ? chessGoSession.boardState
                 : session.boardState && Array.isArray(session.boardState) && session.boardState.length > 0
                   ? session.boardState
@@ -2947,7 +2953,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         if (stoneHere !== Player.None) return false;
         try {
             const moveResult =
-                mode === GameMode.Chess
+                usesChessGo
                     ? processChessGoMove(
                           chessGoSession,
                           { x, y, player: myPlayerEnum },
@@ -3110,7 +3116,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }
 
         if (
-            mode === GameMode.Chess &&
+            usesChessGo &&
             gameStatus === 'chess_piece_placement' &&
             myPlayerEnum !== Player.None &&
             !session.chessPiecePlacementReady?.[currentUser.id]
@@ -3146,7 +3152,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }
 
         if (
-            mode === GameMode.Chess &&
+            usesChessGo &&
             gameStatus === 'playing' &&
             isMyTurn &&
             !isItemModeActive &&
@@ -3195,7 +3201,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }
 
         if (
-            mode === GameMode.Chess &&
+            usesChessGo &&
             gameStatus === 'playing' &&
             isMyTurn &&
             !isItemModeActive &&
@@ -3246,7 +3252,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 return;
             }
             if (
-                mode === GameMode.Chess &&
+                usesChessGo &&
                 gameStatus === 'playing' &&
                 myPlayerEnum !== Player.None &&
                 rejectInvalidChessGoStonePlacement(x, y)
@@ -3668,7 +3674,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 return;
             }
             if (
-                mode === GameMode.Chess &&
+                usesChessGo &&
                 gameStatus === 'playing' &&
                 myPlayerEnum !== Player.None &&
                 !payload.isHidden &&
@@ -3734,7 +3740,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 y >= 0;
             // 전략/모험/길드전 등 온라인 AI 대국: 빈 교차점일 때만 낙관적 반영(상대 돌 위 클릭·판 불일치 시 processMoveClient PVP 차단 로그 방지)
             const boardForOptimistic =
-                mode === GameMode.Chess && chessGoSession.boardState?.length
+                usesChessGo && chessGoSession.boardState?.length
                     ? chessGoSession.boardState
                     : session.boardState && Array.isArray(session.boardState) && session.boardState.length > 0
                       ? session.boardState
@@ -3761,7 +3767,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             void (async () => {
                 if (
                     actionType === 'PLACE_STONE' &&
-                    mode === GameMode.Chess &&
+                    usesChessGo &&
                     chessMoveFlightRef.current
                 ) {
                     await chessMoveFlightRef.current.catch(() => {});
@@ -3990,7 +3996,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     return;
                 }
                 if (
-                    mode === GameMode.Chess &&
+                    usesChessGo &&
                     gameStatus === 'playing' &&
                     myPlayerEnum !== Player.None &&
                     !payload.isHidden &&
@@ -4060,7 +4066,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 x >= 0 &&
                 y >= 0;
             const boardForOptimisticConfirm =
-                mode === GameMode.Chess && chessGoSession.boardState?.length
+                usesChessGo && chessGoSession.boardState?.length
                     ? chessGoSession.boardState
                     : session.boardState && Array.isArray(session.boardState) && session.boardState.length > 0
                       ? session.boardState
@@ -4088,7 +4094,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             void (async () => {
                 if (
                     at === 'PLACE_STONE' &&
-                    mode === GameMode.Chess &&
+                    usesChessGo &&
                     chessMoveFlightRef.current
                 ) {
                     await chessMoveFlightRef.current.catch(() => {});
@@ -5389,7 +5395,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const sessionWithRestoredBoard = useMemo(() => {
         const base = chessGoSession;
         // 체스 바둑: chessGoSession이 chessPieces·boardState를 항상 맞춤 — sessionStorage 판 덮어쓰기 금지
-        if (base.mode === GameMode.Chess) {
+        if (base.usesChessGo) {
             return base;
         }
         if (!useRefreshSessionStorageMerge) {
@@ -5527,6 +5533,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         clientTimes={clientTimes.clientTimes}
                                         isSinglePlayer={true}
                                         isMobile={isMobile}
+                                        showWinLossOnPanel={!shouldWaitForScoringOverlay}
                                     />
                                 </div>
                             </div>
@@ -5696,6 +5703,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         clientTimes={clientTimes.clientTimes}
                                         isSinglePlayer={true}
                                         isMobile={isMobile}
+                                        showWinLossOnPanel={!shouldWaitForScoringOverlay}
                                     />
                                 </div>
                             </div>
@@ -5953,6 +5961,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         clientTimes={clientTimes.clientTimes}
                                         isMobile={isMobile}
                                         isSinglePlayer={isSinglePlayer}
+                                        showWinLossOnPanel={!shouldWaitForScoringOverlay}
                                     />
                                 </div>
                             </div>

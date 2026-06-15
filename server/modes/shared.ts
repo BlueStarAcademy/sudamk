@@ -294,7 +294,12 @@ export const startColorConfirmation = (
 export const pauseGameTimer = (game: types.LiveGameSession, now: number, itemUseDurationMs: number = 30000): number => {
     // 현재 턴의 남은 시간 저장
     let pausedTimeLeft = 0;
-    if (game.turnDeadline) {
+    if (isSpeedPerMoveTimeControl(game) && typeof game.turnStartTime === 'number') {
+        const currentPlayerTimeKey =
+            game.currentPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+        const elapsed = Math.max(0, (now - game.turnStartTime) / 1000);
+        pausedTimeLeft = Math.max(0, Number(game[currentPlayerTimeKey] ?? 0) - elapsed);
+    } else if (game.turnDeadline) {
         pausedTimeLeft = Math.max(0, (game.turnDeadline - now) / 1000);
     } else if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
         // turnDeadline이 없으면 현재 플레이어의 남은 시간 사용
@@ -332,25 +337,30 @@ export const resumeGameTimer = (game: types.LiveGameSession, now: number, player
     
     const currentPlayerTimeKey = playerToResume === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
     game[currentPlayerTimeKey] = game.pausedTurnTimeLeft;
-    
+
     // 타이머 재설정
     if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
-        const timeLeft = game[currentPlayerTimeKey] ?? 0;
-        if (timeLeft > 0) {
-            game.turnDeadline = now + timeLeft * 1000;
-            game.turnStartTime = now;
+        if (isSpeedPerMoveTimeControl(game)) {
+            applySpeedNextTurnClockStart(game, now);
         } else {
-            // 시간이 0이면 초읽기 모드 확인
-            const isFischer = isFischerStyleTimeControl(game as any);
-            const byoyomiKey = playerToResume === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
-            const isInByoyomi = game[byoyomiKey] > 0 && game.settings.byoyomiCount > 0 && !isFischer;
-            
-            if (isInByoyomi) {
-                game.turnDeadline = now + game.settings.byoyomiTime * 1000;
+            const timeLeft = game[currentPlayerTimeKey] ?? 0;
+            if (timeLeft > 0) {
+                game.turnDeadline = now + timeLeft * 1000;
+                game.turnStartTime = now;
             } else {
-                game.turnDeadline = undefined;
+                // 시간이 0이면 초읽기 모드 확인
+                const isFischer = isFischerStyleTimeControl(game as any);
+                const byoyomiKey =
+                    playerToResume === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
+                const isInByoyomi = game[byoyomiKey] > 0 && game.settings.byoyomiCount > 0 && !isFischer;
+
+                if (isInByoyomi) {
+                    game.turnDeadline = now + game.settings.byoyomiTime * 1000;
+                } else {
+                    game.turnDeadline = undefined;
+                }
+                game.turnStartTime = now;
             }
-            game.turnStartTime = now;
         }
     } else {
         game.turnDeadline = undefined;
@@ -747,10 +757,8 @@ export const handleSharedAction = async (volatileState: VolatileState, game: Liv
 
             // 메인 루프 tick을 기다리지 않고 즉시 playing 전환 (간헐적 멈춤·모달 잔류 완화)
             if (game.gameStatus === 'nigiri_reveal' && (bothConfirmedNow || deadlinePassed)) {
-                if (game.nigiri) game.nigiri.processed = true;
-                game.preGameConfirmations = {};
-                game.revealEndTime = undefined;
-                transitionToPlayingOrUniformRoulette(game, now);
+                const { completeNigiriRevealTransition } = await import('./nigiri.js');
+                completeNigiriRevealTransition(game, now);
             } else if (game.gameStatus === 'color_start_confirmation' && (bothConfirmedNow || deadlinePassed)) {
                 game.preGameConfirmations = {};
                 game.revealEndTime = undefined;

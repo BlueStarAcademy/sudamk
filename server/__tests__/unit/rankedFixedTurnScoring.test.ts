@@ -5,10 +5,60 @@ import {
     getRankedFixedTurnCount,
     hasPlayerStoneGroupInAtari,
     isRankedFixedTurnScoringSession,
+    pvpHasFixedScoringTurnLimit,
     shouldTriggerRankedFixedTurnScoring,
 } from '../../../shared/utils/rankedFixedTurnScoring.js';
 
 describe('rankedFixedTurnScoring', () => {
+    it('pvpHasFixedScoringTurnLimit mirrors arena pass policy', () => {
+        expect(
+            pvpHasFixedScoringTurnLimit({
+                isRankedGame: true,
+                isAiGame: false,
+                isSinglePlayer: false,
+                mode: GameMode.Standard,
+                settings: { scoringTurnLimit: 80 },
+                gameCategory: 'normal' as any,
+            }),
+        ).toBe(true);
+        expect(
+            pvpHasFixedScoringTurnLimit({
+                isRankedGame: false,
+                isAiGame: false,
+                isSinglePlayer: false,
+                mode: GameMode.Standard,
+                settings: { scoringTurnLimit: 0 },
+                gameCategory: 'normal' as any,
+            }),
+        ).toBe(false);
+        expect(
+            pvpHasFixedScoringTurnLimit({
+                isRankedGame: false,
+                isAiGame: false,
+                isSinglePlayer: false,
+                mode: GameMode.Standard,
+                settings: {
+                    scoringTurnLimit: 120,
+                    pairGame: { pairMode: 'pvp', turnOrder: [] },
+                },
+                gameCategory: 'normal' as any,
+            }),
+        ).toBe(true);
+        expect(
+            pvpHasFixedScoringTurnLimit({
+                isRankedGame: false,
+                isAiGame: false,
+                isSinglePlayer: false,
+                mode: GameMode.Standard,
+                settings: {
+                    scoringTurnLimit: 0,
+                    pairGame: { pairMode: 'pvp', turnOrder: [] },
+                },
+                gameCategory: 'normal' as any,
+            }),
+        ).toBe(false);
+    });
+
     it('detects ranked fixed-turn sessions excluding capture', () => {
         expect(
             isRankedFixedTurnScoringSession({

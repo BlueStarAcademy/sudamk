@@ -530,7 +530,7 @@ const CHESS_PIECE_GLYPHS: Record<ChessPieceType, string> = {
     king: '♚',
 };
 
-const Stone: React.FC<{ player: Player, cx: number, cy: number, isLastMove?: boolean, isSelectedMissile?: boolean, isHoverSelectableMissile?: boolean, isKnownHidden?: boolean, isNewlyRevealed?: boolean, animationClass?: string, isBaseStone?: boolean, isPatternStone?: boolean, chessPieceType?: ChessPieceType, chessRemainingMoves?: number, chessPieceSelected?: boolean, isChessLastMoveTo?: boolean, radius: number, isFaint?: boolean, keepUpright?: boolean, isPlacementPreview?: boolean, uniformDisplayColor?: Player | null }> = ({ player, cx, cy, isLastMove, isSelectedMissile, isHoverSelectableMissile, isKnownHidden, isNewlyRevealed, animationClass, isBaseStone, isPatternStone, chessPieceType, chessRemainingMoves, chessPieceSelected, isChessLastMoveTo, radius, isFaint, keepUpright, isPlacementPreview, uniformDisplayColor }) => {
+const Stone: React.FC<{ player: Player, cx: number, cy: number, isLastMove?: boolean, isSelectedMissile?: boolean, isHoverSelectableMissile?: boolean, isKnownHidden?: boolean, isNewlyRevealed?: boolean, animationClass?: string, animationStyle?: React.CSSProperties, isBaseStone?: boolean, isPatternStone?: boolean, chessPieceType?: ChessPieceType, chessRemainingMoves?: number, chessPieceSelected?: boolean, isChessLastMoveTo?: boolean, radius: number, isFaint?: boolean, keepUpright?: boolean, isPlacementPreview?: boolean, uniformDisplayColor?: Player | null }> = ({ player, cx, cy, isLastMove, isSelectedMissile, isHoverSelectableMissile, isKnownHidden, isNewlyRevealed, animationClass, animationStyle, isBaseStone, isPatternStone, chessPieceType, chessRemainingMoves, chessPieceSelected, isChessLastMoveTo, radius, isFaint, keepUpright, isPlacementPreview, uniformDisplayColor }) => {
     const visualPlayer = mapStoneToUniformDisplay(player, uniformDisplayColor);
     const specialImageSize = radius * 2 * 0.7;
     const specialImageOffset = specialImageSize / 2;
@@ -548,6 +548,7 @@ const Stone: React.FC<{ player: Player, cx: number, cy: number, isLastMove?: boo
     return (
         <g
             className={`${animationClass || ''} ${isHoverSelectableMissile ? 'missile-selectable-stone' : ''}`}
+            style={animationStyle}
             opacity={isFaint ? 0.52 : isPlacementPreview ? 0.5 : 1}
             transform={keepUpright ? `rotate(180 ${cx} ${cy})` : undefined}
         >
@@ -1118,6 +1119,11 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     return;
                 }
                 const slicePts = sliceEntries.length > 0 ? sumCapturePoints(sliceEntries) : 0;
+                // PVP 낙관적 justCaptured=[] 직후 서버 잔류 페이로드로 같은 수순 점수 플로트가 반복되는 것 방지
+                if (sliceEntries.length > 0 && delta <= 0) {
+                    commitMoveFloatState();
+                    return;
+                }
                 /** justCaptured만 보면 히든 5점 등이 누락될 수 있어(낙관적 갱신·슬라이스 동기), captures 증가분과 맞춤 */
                 const floatPts = Math.max(slicePts, delta);
                 const capturerFromSlice =
@@ -1214,7 +1220,6 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
             }
 
             if (list.length === 0) {
-                processedJustCapturedCountRef.current = 0;
                 return;
             }
 
@@ -1223,6 +1228,16 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
             if (newEntries.length === 0) return;
 
             const totalPts = sumCapturePoints(newEntries);
+            if (captures) {
+                const prevSnap = prevCapturesForFloatRef.current;
+                const dBlack =
+                    Number(captures[Player.Black] ?? 0) - (prevSnap ? Number(prevSnap[Player.Black] ?? 0) : 0);
+                const dWhite =
+                    Number(captures[Player.White] ?? 0) - (prevSnap ? Number(prevSnap[Player.White] ?? 0) : 0);
+                if (dBlack <= 0 && dWhite <= 0) {
+                    return;
+                }
+            }
             if (totalPts < minPts) return;
 
             let moveKeyForSlice = '';
@@ -2651,6 +2666,9 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                                         lastMove.y === s.point.y;
                                     const isMyJustPlacedRevealPoint =
                                         isAtLastPlacedPoint && s.player === myPlayerEnum;
+                                    const revealSparkleStyle = {
+                                        animationDuration: `${animation.duration ?? 2000}ms`,
+                                    } as React.CSSProperties;
                                     return (
                                         <Stone
                                             key={`reveal-${s.point.x}-${s.point.y}-${s.player}`}
@@ -2660,6 +2678,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                                             isKnownHidden={!isMyJustPlacedRevealPoint}
                                             isNewlyRevealed
                                             animationClass="sparkle-animation"
+                                            animationStyle={revealSparkleStyle}
                                             radius={stone_radius}
                                             keepUpright={!!isRotated}
                                         />

@@ -24,6 +24,10 @@ export function normalizeMixedModesSelection(
             next = next.filter((m) => m !== GameMode.Castle);
         } else if (toggled === GameMode.Castle) {
             next = next.filter((m) => m !== GameMode.Capture);
+        } else if (toggled === GameMode.Chess) {
+            next = next.filter((m) => m !== GameMode.Base);
+        } else if (toggled === GameMode.Base) {
+            next = next.filter((m) => m !== GameMode.Chess);
         }
     }
 
@@ -47,6 +51,8 @@ export function isMixSubModeCheckboxDisabled(mixedModes: GameMode[] | undefined,
     const mix = mixedModes ?? [];
     if (subMode === GameMode.Capture) return mix.includes(GameMode.Castle);
     if (subMode === GameMode.Castle) return mix.includes(GameMode.Capture);
+    if (subMode === GameMode.Chess) return mix.includes(GameMode.Base);
+    if (subMode === GameMode.Base) return mix.includes(GameMode.Chess);
     return false;
 }
 
@@ -57,6 +63,9 @@ export function applyMixModeSettingsConstraints(settings: GameSettings): GameSet
 
     if (mixed.includes(GameMode.Capture) && mixed.includes(GameMode.Castle)) {
         mixed = mixed.filter((m) => m !== GameMode.Castle);
+    }
+    if (mixed.includes(GameMode.Chess) && mixed.includes(GameMode.Base)) {
+        mixed = mixed.filter((m) => m !== GameMode.Base);
     }
 
     next.mixedModes = mixed;

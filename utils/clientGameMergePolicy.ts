@@ -7,6 +7,7 @@ import {
     isLegacyChessGoLayout,
     isStandardChessGoOpeningLayout,
     normalizeChessGoSession,
+    sessionUsesChessGo,
     shouldPreserveChessGoMidgameState,
 } from '../shared/utils/chessGoRules.js';
 import {
@@ -326,6 +327,22 @@ function mergeCaptureCountMonotonic(
     return changed ? (patch as LiveGameSession['captures']) : incoming;
 }
 
+/** 수순만 진행되고 captures가 그대로면 이전 턴 justCaptured는 재생용 페이로드로 취급하지 않는다. */
+function stripStaleJustCapturedOnMerge(
+    incoming: LiveGameSession,
+    existing: LiveGameSession | undefined,
+): LiveGameSession {
+    if (!existing?.justCaptured?.length || !incoming.justCaptured?.length) return incoming;
+    const incomingMoves = incoming.moveHistory?.length ?? 0;
+    const existingMoves = existing.moveHistory?.length ?? 0;
+    if (incomingMoves <= existingMoves) return incoming;
+    const capturesUnchanged = ([0, 1, 2] as const).every(
+        (p) => (incoming.captures?.[p] ?? 0) === (existing.captures?.[p] ?? 0),
+    );
+    if (!capturesUnchanged) return incoming;
+    return { ...incoming, justCaptured: [] };
+}
+
 /** 캐슬 바둑: 슬림 패킷이 castleStonePoints·확정 영토를 비우면 기존 값을 유지한다. */
 function preserveCastleSessionFieldsOnMerge(
     incoming: LiveGameSession,
@@ -398,7 +415,7 @@ function mergeChessSessionFieldsOnMerge(
     incoming: LiveGameSession,
     existing: LiveGameSession | undefined,
 ): LiveGameSession {
-    if (incoming.mode !== GameMode.Chess) return incoming;
+    if (!sessionUsesChessGo(incoming)) return incoming;
     let merged: LiveGameSession = preserveChessPlayingStateWhenMoveHistoryRegresses(
         { ...incoming },
         existing,
@@ -594,6 +611,7 @@ export function mergeGameUpdateByArena(
     /** 들어온 패킷이 좌석 잠금을 비운 채 오면 기존 잠금을 살려 두어, 좌석 보호 근거를 잃지 않게 한다. */
     const incomingWithLock = preserveExistingBaseSeatLockAgainstSlimDrop(incoming, existing);
     let merged = existing ? ({ ...existing, ...incomingWithLock } as LiveGameSession) : incomingWithLock;
+    merged = stripStaleJustCapturedOnMerge(merged, existing);
     merged = mergeStrategicItemInventoryMonotonic(merged, existing);
     if (shouldClearItemPhaseAnimationOnPlayingMerge(existing, incoming)) {
         merged = { ...merged, animation: null } as LiveGameSession;

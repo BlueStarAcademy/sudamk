@@ -1,5 +1,5 @@
 import type { LiveGameSession, BoardState, Point } from '../types/entities.js';
-import { Player } from '../types/enums.js';
+import { GameCategory, Player } from '../types/enums.js';
 import { modeIncludesCaptureRule, resolveArenaSessionPolicy } from './liveSessionArenaKind.js';
 
 function findGroupLiberties(
@@ -81,6 +81,39 @@ export function isRankedFixedTurnScoringSession(
     if (modeIncludesCaptureRule(session.mode, session.settings)) return false;
     const limit = Number(session.settings?.scoringTurnLimit ?? 0);
     return Number.isFinite(limit) && limit > 0;
+}
+
+/**
+ * PVP 전략 대국에서 계가까지 수순이 고정된 경우 true.
+ * 이 경우 통과 버튼을 숨기고 정해진 수순 종료 후 자동 계가만 허용한다.
+ */
+export function pvpHasFixedScoringTurnLimit(
+    session: Pick<
+        LiveGameSession,
+        'isRankedGame' | 'isAiGame' | 'isSinglePlayer' | 'mode' | 'settings' | 'gameCategory'
+    >,
+): boolean {
+    if (modeIncludesCaptureRule(session.mode, session.settings)) return false;
+
+    const policy = resolveArenaSessionPolicy(session);
+    const scoringTurnLimit = Number(session.settings?.scoringTurnLimit ?? 0);
+    const hasLimit = Number.isFinite(scoringTurnLimit) && scoringTurnLimit > 0;
+
+    if (
+        policy.matchAxis === 'pvp' &&
+        policy.kind === GameCategory.Normal &&
+        !session.isAiGame &&
+        !session.isSinglePlayer &&
+        !policy.isPairGame
+    ) {
+        return isRankedFixedTurnScoringSession(session);
+    }
+
+    if (policy.isPairGame && policy.matchAxis === 'pvp') {
+        return hasLimit;
+    }
+
+    return false;
 }
 
 export function getRankedFixedTurnCount(session: LiveGameSession): number {

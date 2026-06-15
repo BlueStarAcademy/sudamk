@@ -26,9 +26,10 @@ import {
     CHESS_GO_BOARD_SIZE,
     commitChessGoPlacementCaptures,
     processChessGoMove,
+    sessionUsesChessGo,
 } from '../../shared/utils/chessGoRules.js';
 import { handleChessMoveAction, handleChessPlacementAction, initializeChessGame, repairChessGoSessionState, tryEndChessOnKingCapture } from './chess.js';
-import { updateChessPlacementState } from './chessPlacementFlow.js';
+import { enterChessPiecePlacement, updateChessPlacementState } from './chessPlacementFlow.js';
 import { processCastleMove } from '../../shared/utils/castleGoRules.js';
 import {
     handleSharedAction,
@@ -38,10 +39,11 @@ import {
     shouldEnforceTimeControl,
     enforceBaseSeatLockIfDriftedDuringPlay,
 } from './shared.js';
-import { isFischerStyleTimeControl, getFischerIncrementSeconds, isSpeedPerMoveTimeControl, getSpeedPerMoveSeconds } from '../../shared/utils/gameTimeControl.js';
+import { isFischerStyleTimeControl, getFischerIncrementSeconds, isSpeedPerMoveTimeControl } from '../../shared/utils/gameTimeControl.js';
 import {
     applySpeedMoveClockEnd,
     applySpeedNextTurnClockStart,
+    shouldTreatTurnDeadlineExpiryAsTimeForfeit,
 } from '../../shared/utils/speedTimePressureSessionSync.js';
 import {
     advancePairTurn,
@@ -85,7 +87,8 @@ import {
     useAiInitialHiddenSyntheticCaptureHistory,
 } from './hiddenRevealPolicy.js';
 import { isHiddenMoveIndexSoftRevealedByAnyPlayer } from './hiddenScanShared.js';
-import { PVE_STRATEGIC_SERVER_AI_POST_HUMAN_DELAY_MS } from '../constants/pveStrategicAiSchedule.js';
+import { expandToAllUnrevealedHiddenStonesForPlayers } from '../../shared/utils/expandHiddenRevealStones.js';
+import { PVE_AI_HIDDEN_REVEAL_DURATION_MS } from '../../shared/constants/gameSettings.js';
 import {
     arenaUsesClientAuthoritativeScoringSnapshot,
     getArenaTurnCount,
@@ -362,8 +365,11 @@ async function finalizePveHiddenPlacementFromAuthoritativeClient(
 function updatePairOrderRevealState(game: types.LiveGameSession, now: number): void {
     if (game.gameStatus !== 'pair_order_reveal' || !isPairClassicGame(game.settings, game.mode)) return;
     if (pairOrderRevealNeedsConfirmation(game.settings)) return;
+    if (game.mode === types.GameMode.Chess) {
+        enterChessPiecePlacement(game, now);
+        return;
+    }
     // `transitionToPlaying`가 sync 후 `getCurrentPairTurnSeat`로 currentPlayer를 맞춘다.
-    // 여기서 sync 이전 스냅샷의 firstSeat로 덮어쓰면 턴·AI 스케줄이 어긋날 수 있다.
     transitionToPlaying(game, now);
     schedulePairAiTurnIfNeeded(game, now);
 }
@@ -389,58 +395,32 @@ function adventureRevealAllHumanHiddensIfInvolved(
     }
 }
 
-function expandToAllUnrevealedHiddenStonesForPlayers(
+function resolveAiPlayerEnum(game: types.LiveGameSession): types.Player {
+    if (game.blackPlayerId === aiUserId) return types.Player.Black;
+    if (game.whitePlayerId === aiUserId) return types.Player.White;
+    return types.Player.None;
+}
+
+function expandHiddenRevealStonesForGame(
     game: types.LiveGameSession,
     seedStones: { point: types.Point; player: types.Player }[]
 ): { point: types.Point; player: types.Player }[] {
-    if (!seedStones.length) return seedStones;
-    const revealByPoint = new Map<string, { point: types.Point; player: types.Player }>();
-    for (const stone of seedStones) {
-        revealByPoint.set(`${stone.point.x},${stone.point.y}`, stone);
-    }
-    const targetPlayers = new Set<types.Player>(seedStones.map((s) => s.player));
-    const revealedPoints = new Set<string>(
-        (game.permanentlyRevealedStones || []).map((p) => `${p.x},${p.y}`)
-    );
-
-    if (game.hiddenMoves && game.moveHistory) {
-        for (const moveIndexStr of Object.keys(game.hiddenMoves)) {
-            const moveIndex = Number.parseInt(moveIndexStr, 10);
-            if (!game.hiddenMoves[moveIndex]) continue;
-            const move = game.moveHistory[moveIndex];
-            if (!move || move.x < 0 || move.y < 0 || !targetPlayers.has(move.player)) continue;
-            if (game.boardState[move.y]?.[move.x] !== move.player) continue;
-            if (revealedPoints.has(`${move.x},${move.y}`)) continue;
-            if (isHiddenMoveIndexSoftRevealedByAnyPlayer(game, moveIndex)) continue;
-            revealByPoint.set(`${move.x},${move.y}`, { point: { x: move.x, y: move.y }, player: move.player });
-        }
-    }
-
-    const aiHidden = (game as any).aiInitialHiddenStone as { x: number; y: number } | undefined;
-    if (
-        aiHidden &&
-        targetPlayers.size > 0 &&
-        !revealedPoints.has(`${aiHidden.x},${aiHidden.y}`) &&
-        game.boardState[aiHidden.y]?.[aiHidden.x] !== types.Player.None
-    ) {
-        const aiPlayer =
-            game.blackPlayerId === aiUserId
-                ? types.Player.Black
-                : game.whitePlayerId === aiUserId
-                  ? types.Player.White
-                  : types.Player.None;
-        if (aiPlayer !== types.Player.None && targetPlayers.has(aiPlayer)) {
-            revealByPoint.set(`${aiHidden.x},${aiHidden.y}`, {
-                point: { x: aiHidden.x, y: aiHidden.y },
-                player: aiPlayer,
-            });
-        }
-    }
-
-    return Array.from(revealByPoint.values());
+    return expandToAllUnrevealedHiddenStonesForPlayers(game, seedStones, {
+        aiPlayerEnum: resolveAiPlayerEnum(game),
+        isHiddenMoveIndexSoftRevealed: isHiddenMoveIndexSoftRevealedByAnyPlayer,
+    });
 }
 
-/** 모험 맵 AI전: 베이스 제외 랜덤 흑백, 따내기는 도전자(플레이어1) 항상 흑. 그 외는 기존 설정 또는 기본 흑. */
+function resolveHiddenRevealDurationMs(
+    game: types.LiveGameSession,
+    stones: { point: types.Point; player: types.Player }[]
+): number {
+    const aiEnum = resolveAiPlayerEnum(game);
+    if (aiEnum !== types.Player.None && stones.some((s) => s.player === aiEnum)) {
+        return PVE_AI_HIDDEN_REVEAL_DURATION_MS;
+    }
+    return 1500;
+}
 const resolveStrategicAiHumanColor = (game: types.LiveGameSession, neg: types.Negotiation): types.Player => {
     const isAdventure = game.gameCategory === types.GameCategory.Adventure;
     if (isAdventure && game.mode === types.GameMode.Capture) {
@@ -626,14 +606,6 @@ export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.
     }
 };
 
-/** 스피드 수당 10초 turnDeadline — 초읽기 시간패 경로와 혼동되면 10초마다 시간패가 난다 */
-function isSpeedPerMoveAllowanceDeadline(game: types.LiveGameSession): boolean {
-    if (typeof game.turnStartTime !== 'number' || typeof game.turnDeadline !== 'number') return false;
-    const perMoveSec = getSpeedPerMoveSeconds(game as any);
-    const windowMs = game.turnDeadline - game.turnStartTime;
-    return windowMs > 0 && windowMs <= perMoveSec * 1000 + 1500;
-}
-
 export const updateStrategicGameState = async (game: types.LiveGameSession, now: number) => {
     // This is the core update logic for all Go-based games.
 
@@ -748,8 +720,7 @@ export const updateStrategicGameState = async (game: types.LiveGameSession, now:
         shouldEnforceTimeControl(game) &&
         game.turnDeadline &&
         now > game.turnDeadline &&
-        !isSpeedPerMoveTimeControl(game) &&
-        !isSpeedPerMoveAllowanceDeadline(game)
+        shouldTreatTurnDeadlineExpiryAsTimeForfeit(game)
     ) {
         const timedOutPlayer = game.currentPlayer;
         const timeKey = timedOutPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
@@ -1013,7 +984,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             if (!isMyTurn || myPlayerEnum === types.Player.None) {
                 return { error: 'Not your turn.' };
             }
-            if (game.mode !== types.GameMode.Chess || game.gameStatus !== 'playing') {
+            if (!sessionUsesChessGo(game) || game.gameStatus !== 'playing') {
                 return { error: 'Invalid chess move.' };
             }
             const pieceId = String(payload?.pieceId ?? '');
@@ -1218,13 +1189,13 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 return { error: '패 위치에는 돌을 놓을 수 없습니다. 패를 하려면 PASS_TURN 액션을 사용하세요.' };
             }
 
-            if (game.mode === types.GameMode.Chess) {
+            if (sessionUsesChessGo(game)) {
                 repairChessGoSessionState(game);
             }
             
             // 치명적 버그 방지: 보드 범위를 벗어나는 위치에 돌을 놓으려는 시도 차단
             const boardSize =
-                game.mode === types.GameMode.Chess
+                sessionUsesChessGo(game)
                     ? (game.settings.boardSize ?? CHESS_GO_BOARD_SIZE)
                     : game.settings.boardSize;
             if (x < 0 || x >= boardSize || y < 0 || y >= boardSize) {
@@ -1288,7 +1259,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 }
             }
 
-            if (game.mode === types.GameMode.Chess) {
+            if (sessionUsesChessGo(game)) {
                 serverBoardState = game.boardState;
             }
             
@@ -1405,14 +1376,15 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 const pvpRevealOnly = isPvpRevealOnlyOpponentHiddenAttack(game);
 
                 const revealSeed = [{ point: { x, y }, player: opponentPlayerEnum }];
-                const stonesToReveal = expandToAllUnrevealedHiddenStonesForPlayers(game, revealSeed);
+                const stonesToReveal = expandHiddenRevealStonesForGame(game, revealSeed);
+                const opponentRevealDurationMs = resolveHiddenRevealDurationMs(game, stonesToReveal);
                 game.animation = {
                     type: 'hidden_reveal',
                     stones: stonesToReveal,
                     startTime: now,
-                    duration: 1500,
+                    duration: opponentRevealDurationMs,
                 };
-                game.revealAnimationEndTime = now + 1500;
+                game.revealAnimationEndTime = now + opponentRevealDurationMs;
                 game.gameStatus = 'hidden_reveal_animating';
                 game.itemUseDeadline = undefined;
                 if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
@@ -1575,7 +1547,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             }
 
             const isCastleGame = game.mode === types.GameMode.Castle;
-            const isChessGame = game.mode === types.GameMode.Chess;
+            const isChessGame = sessionUsesChessGo(game);
             if (isChessGame) {
                 repairChessGoSessionState(game);
             }
@@ -1700,21 +1672,22 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             }
             
             const allStonesToReveal = [...contributingHiddenStones, ...capturedHiddenStones];
-            const uniqueStonesToReveal = expandToAllUnrevealedHiddenStonesForPlayers(
+            const uniqueStonesToReveal = expandHiddenRevealStonesForGame(
                 game,
                 Array.from(new Map(allStonesToReveal.map(item => [JSON.stringify(item.point), item])).values())
             );
             
             if (uniqueStonesToReveal.length > 0) {
                 adventureRevealAllHumanHiddensIfInvolved(game, uniqueStonesToReveal);
+                const captureRevealDurationMs = resolveHiddenRevealDurationMs(game, uniqueStonesToReveal);
                 game.gameStatus = 'hidden_reveal_animating';
                 game.animation = {
                     type: 'hidden_reveal',
                     stones: uniqueStonesToReveal,
                     startTime: now,
-                    duration: 1500
+                    duration: captureRevealDurationMs,
                 };
-                game.revealAnimationEndTime = now + 1500;
+                game.revealAnimationEndTime = now + captureRevealDurationMs;
                 game.pendingCapture = { stones: result.capturedStones, move, hiddenContributors: contributingHiddenStones.map(c => c.point) };
             
                 game.lastMove = { x, y };
@@ -1780,6 +1753,8 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             game.passCount = 0;
             if (pairCurrentSeat) resetPairPasses(game.settings);
             invalidateScoringPrecompute(game.id);
+            // 이전 턴 justCaptured가 WS에 남으면 클라이언트가 매 수마다 점수 플로트를 재생한다.
+            game.justCaptured = [];
 
             if (effectiveIsHidden) {
                 if (!game.hiddenMoves) game.hiddenMoves = {};
@@ -1816,7 +1791,6 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 if (captureCountThisMove > prevMaxForPlayer) {
                     maxSingleCaptureByPlayer[myPlayerEnum] = captureCountThisMove;
                 }
-                game.justCaptured = [];
                 let guildWarCapturePointsThisMove = 0;
                 for (const stone of result.capturedStones) {
                     const capturedPlayerEnum = opponentPlayerEnum;
@@ -2143,6 +2117,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             }
             // 통과 시 단순 코(ko) 금지 해제 — 이전 턴 koInfo가 남아 상대 다점 따내기 직후 재따내기가 막히는 버그 방지
             game.koInfo = null;
+            game.justCaptured = [];
             game.passCount++;
             maybeStartAnticipatedScoringPrecompute(game);
             game.lastMove = { x: -1, y: -1 };

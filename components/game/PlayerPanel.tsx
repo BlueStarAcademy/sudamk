@@ -274,6 +274,8 @@ interface SinglePlayerPanelProps {
     showSpeedTenSecBar?: boolean;
     /** 싱글/탑 모바일 2행 헤더: `profile` = 가로 프로필만, `stats` = 시간·점수·스피드 진행 막대(수순 박스는 PlayerPanel 중앙) */
     pveMobileLayoutTier?: 'full' | 'profile' | 'stats';
+    /** false면 종료 직후에도 승/패 라벨·승자 닉 색을 숨김(계가 오버레이 완료 후 표시) */
+    showWinLossOnPanel?: boolean;
 }
 
 const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
@@ -309,6 +311,7 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
         speedBonusSecToNextDrop = null,
         showSpeedTenSecBar = false,
         pveMobileLayoutTier = 'full',
+        showWinLossOnPanel = true,
     } = props;
     const { gameStatus, winner, blackPlayerId, whitePlayerId } = session;
 
@@ -358,6 +361,7 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
     const isGameEnded = ['ended', 'no_contest', 'rematch_pending'].includes(gameStatus);
     const isWinner = (winner === Player.Black && blackPlayerId === user.id) || (winner === Player.White && whitePlayerId === user.id);
     const isLoser = (winner === Player.Black || winner === Player.White) && !isWinner;
+    const showWinLossLabel = isGameEnded && showWinLossOnPanel;
     
     const isInByoyomi =
         !isFoulMode &&
@@ -429,7 +433,7 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
     
     const winnerColor = isSinglePlayer ? 'text-amber-300' : (isBlackPanel ? 'text-yellow-300' : 'text-amber-800');
     const loserColor = isSinglePlayer ? 'text-stone-500' : (isWhitePanel ? 'text-slate-600' : 'text-gray-500');
-    const finalNameClass = isWinner ? winnerColor : isLoser ? loserColor : nameTextClasses;
+    const finalNameClass = showWinLossLabel && isWinner ? winnerColor : showWinLossLabel && isLoser ? loserColor : nameTextClasses;
     const showActiveBorderPulse = isActive && !isGameEnded;
     const activeBorderPulseClass = isSinglePlayer
         ? 'border-amber-300/90 shadow-[0_0_0_1px_rgba(252,211,77,0.45),0_0_22px_-6px_rgba(252,211,77,0.85)]'
@@ -462,7 +466,7 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
     const displayWinLoseTextSize =
         fluidTextLayout && isMobile ? 'text-base font-black' : `${winLoseTextSize} font-black`;
     /** 모바일: 이름 옆 승·패가 flex-1 닉네임과 경쟁해 말줄임 발생 → 아바타 위 오버레이만 사용 */
-    const showWinLoseAvatarOverlay = isMobile && isGameEnded && (isWinner || isLoser);
+    const showWinLoseAvatarOverlay = isMobile && showWinLossLabel && (isWinner || isLoser);
     const winLoseAvatarRibbonClass =
         'w-full rounded-b-md py-[2px] text-center text-[10px] font-black leading-none text-white shadow-[0_-1px_6px_rgba(0,0,0,0.45)]';
     const winLoseAvatarRibbonOverlay =
@@ -679,10 +683,10 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                         <div
                             className={`flex w-full min-w-0 ${fluidTextLayout ? `flex-nowrap items-baseline gap-x-1 ${justifyClass}` : `items-baseline ${gap} ${justifyClass}`}`}
                         >
-                            {!isLeft && isGameEnded && isWinner && !showWinLoseAvatarOverlay && (
+                            {!isLeft && showWinLossLabel && isWinner && !showWinLoseAvatarOverlay && (
                                 <span className={`shrink-0 ${displayWinLoseTextSize} text-blue-400`}>승</span>
                             )}
-                            {!isLeft && isGameEnded && isLoser && !showWinLoseAvatarOverlay && (
+                            {!isLeft && showWinLossLabel && isLoser && !showWinLoseAvatarOverlay && (
                                 <span className={`shrink-0 ${displayWinLoseTextSize} text-red-400`}>패</span>
                             )}
                             <h2
@@ -710,10 +714,10 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                                 )}
                                 {role ? ` (${role})` : ''}
                             </h2>
-                            {isLeft && isGameEnded && isWinner && !showWinLoseAvatarOverlay && (
+                            {isLeft && showWinLossLabel && isWinner && !showWinLoseAvatarOverlay && (
                                 <span className={`shrink-0 ${displayWinLoseTextSize} text-blue-400`}>승</span>
                             )}
-                            {isLeft && isGameEnded && isLoser && !showWinLoseAvatarOverlay && (
+                            {isLeft && showWinLossLabel && isLoser && !showWinLoseAvatarOverlay && (
                                 <span className={`shrink-0 ${displayWinLoseTextSize} text-red-400`}>패</span>
                             )}
                         </div>
@@ -788,10 +792,10 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                         <div
                             className={`flex w-full min-w-0 ${fluidTextLayout ? `flex-nowrap items-baseline gap-x-1 ${justifyClass}` : `items-baseline ${gap} ${justifyClass}`}`}
                         >
-                            {!isLeft && isGameEnded && isWinner && !showWinLoseAvatarOverlay && (
+                            {!isLeft && showWinLossLabel && isWinner && !showWinLoseAvatarOverlay && (
                                 <span className={`shrink-0 ${displayWinLoseTextSize} text-blue-400`}>승</span>
                             )}
-                            {!isLeft && isGameEnded && isLoser && !showWinLoseAvatarOverlay && (
+                            {!isLeft && showWinLossLabel && isLoser && !showWinLoseAvatarOverlay && (
                                 <span className={`shrink-0 ${displayWinLoseTextSize} text-red-400`}>패</span>
                             )}
                             <h2
@@ -819,10 +823,10 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                                 )}
                                 {role ? ` (${role})` : ''}
                             </h2>
-                            {isLeft && isGameEnded && isWinner && !showWinLoseAvatarOverlay && (
+                            {isLeft && showWinLossLabel && isWinner && !showWinLoseAvatarOverlay && (
                                 <span className={`shrink-0 ${displayWinLoseTextSize} text-blue-400`}>승</span>
                             )}
-                            {isLeft && isGameEnded && isLoser && !showWinLoseAvatarOverlay && (
+                            {isLeft && showWinLossLabel && isLoser && !showWinLoseAvatarOverlay && (
                                 <span className={`shrink-0 ${displayWinLoseTextSize} text-red-400`}>패</span>
                             )}
                         </div>
@@ -851,6 +855,8 @@ interface PlayerPanelProps extends GameProps {
   isMobile?: boolean;
   /** 싱글 스테이지 목록 리비전(패널 리셋용) */
   singlePlayerStagesListRevision?: number;
+  /** false면 계가 오버레이 완료 전 승/패 라벨을 숨김 */
+  showWinLossOnPanel?: boolean;
 }
 
 const getTurnDuration = (mode: GameMode, gameStatus: GameStatus, settings: GameSettings): number => {
@@ -892,6 +898,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         isMobile = false,
         currentUser,
         singlePlayerStagesListRevision = 0,
+        showWinLossOnPanel = true,
     } = props;
     /** PC 창을 좁혔거나 태블릿 폭: 네이티브 모바일이 아니어도 상단 바가 같은 폭 제약을 받음 */
     const isHandheldViewport = useIsHandheldDevice(1025);
@@ -2039,6 +2046,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                             speedBonusTickProgress={leftSpeedBonusTick.progress}
                             speedBonusSecToNextDrop={leftSpeedBonusTick.secToNextDrop}
                             showSpeedTenSecBar={leftShowSpeedTenSecBarPanel}
+                            showWinLossOnPanel={showWinLossOnPanel}
                             {...leftAdventureCdProps}
                         />
                     </div>
@@ -2073,6 +2081,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                             speedBonusTickProgress={rightSpeedBonusTick.progress}
                             speedBonusSecToNextDrop={rightSpeedBonusTick.secToNextDrop}
                             showSpeedTenSecBar={rightShowSpeedTenSecBarPanel}
+                            showWinLossOnPanel={showWinLossOnPanel}
                             {...rightAdventureCdProps}
                         />
                     </div>
@@ -2118,6 +2127,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                             speedBonusTickProgress={leftSpeedBonusTick.progress}
                             speedBonusSecToNextDrop={leftSpeedBonusTick.secToNextDrop}
                             showSpeedTenSecBar={leftShowSpeedTenSecBarPanel}
+                            showWinLossOnPanel={showWinLossOnPanel}
                             {...leftAdventureCdProps}
                         />
                     </div>
@@ -2153,6 +2163,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                             speedBonusTickProgress={rightSpeedBonusTick.progress}
                             speedBonusSecToNextDrop={rightSpeedBonusTick.secToNextDrop}
                             showSpeedTenSecBar={rightShowSpeedTenSecBarPanel}
+                            showWinLossOnPanel={showWinLossOnPanel}
                             {...rightAdventureCdProps}
                         />
                     </div>
@@ -2193,6 +2204,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                     speedBonusTickProgress={leftSpeedBonusTick.progress}
                     speedBonusSecToNextDrop={leftSpeedBonusTick.secToNextDrop}
                     showSpeedTenSecBar={leftShowSpeedTenSecBar}
+                    showWinLossOnPanel={showWinLossOnPanel}
                     {...leftAdventureCdProps}
                 />
             </div>
@@ -2320,6 +2332,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                 speedBonusTickProgress={rightSpeedBonusTick.progress}
                 speedBonusSecToNextDrop={rightSpeedBonusTick.secToNextDrop}
                 showSpeedTenSecBar={rightShowSpeedTenSecBar}
+                showWinLossOnPanel={showWinLossOnPanel}
                 {...rightAdventureCdProps}
             />
             </div>

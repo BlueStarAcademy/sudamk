@@ -46,7 +46,8 @@ import {
     resolvePairGoPetKataStatsSixForSeat,
 } from '../shared/utils/pairGoKataResolve.js';
 import { SPECIAL_GAME_MODES } from '../constants/index.js';
-import { AI_HIDDEN_ITEM_THINKING_DURATION_MS } from '../shared/constants/gameSettings.js';
+import { AI_HIDDEN_ITEM_THINKING_DURATION_MS, PVE_AI_HIDDEN_REVEAL_DURATION_MS } from '../shared/constants/gameSettings.js';
+import { expandToAllUnrevealedHiddenStonesForPlayers } from '../shared/utils/expandHiddenRevealStones.js';
 import {
     consumeOpponentPatternStoneIfAny,
     isPatternIntersectionPermanentlyConsumed,
@@ -653,32 +654,58 @@ const collectContributingHiddenStones = (
     capturedStones: Point[],
     isCurrentMoveHidden: boolean
 ): { point: Point; player: Player }[] => {
+    if (capturedStones.length === 0) return [];
+
     const contributingHiddenStones: { point: Point; player: Player }[] = [];
     const seen = new Set<string>();
     const logic = getGoLogic({ ...game, boardState: boardAfterMove });
+    const capturingGroupPoints = new Set<string>();
+    const queue: Point[] = [{ x: move.x, y: move.y }];
+    capturingGroupPoints.add(`${move.x},${move.y}`);
 
-    for (const capturedStone of capturedStones) {
-        for (const neighbor of logic.getNeighbors(capturedStone.x, capturedStone.y)) {
-            if (boardAfterMove[neighbor.y][neighbor.x] !== aiPlayerEnum) continue;
-
-            const isCurrentMove = neighbor.x === move.x && neighbor.y === move.y;
-            let isHiddenStone = isCurrentMove ? isCurrentMoveHidden : false;
-            if (!isCurrentMove) {
-                const moveIndex = findLatestMoveIndexAtExcludingRecordedBaseStones(
-                    game.moveHistory,
-                    neighbor.x,
-                    neighbor.y,
-                    aiPlayerEnum,
-                    game,
-                );
-                isHiddenStone = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
-            }
-
+    while (queue.length > 0) {
+        const cur = queue.shift()!;
+        for (const neighbor of logic.getNeighbors(cur.x, cur.y)) {
             const key = `${neighbor.x},${neighbor.y}`;
-            if (isHiddenStone && !seen.has(key) && !game.permanentlyRevealedStones?.some(point => point.x === neighbor.x && point.y === neighbor.y)) {
-                seen.add(key);
-                contributingHiddenStones.push({ point: { x: neighbor.x, y: neighbor.y }, player: aiPlayerEnum });
+            if (capturingGroupPoints.has(key)) continue;
+            if (boardAfterMove[neighbor.y]?.[neighbor.x] !== aiPlayerEnum) continue;
+            capturingGroupPoints.add(key);
+            queue.push(neighbor);
+        }
+    }
+
+    const aiInitialHidden = (game as { aiInitialHiddenStone?: Point }).aiInitialHiddenStone;
+
+    for (const key of capturingGroupPoints) {
+        const [nx, ny] = key.split(',').map(Number);
+        const isCurrentMove = nx === move.x && ny === move.y;
+        let isHiddenStone = isCurrentMove ? isCurrentMoveHidden : false;
+        if (!isCurrentMove) {
+            const moveIndex = findLatestMoveIndexAtExcludingRecordedBaseStones(
+                game.moveHistory,
+                nx,
+                ny,
+                aiPlayerEnum,
+                game,
+            );
+            isHiddenStone = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
+            if (
+                !isHiddenStone &&
+                aiInitialHidden &&
+                nx === aiInitialHidden.x &&
+                ny === aiInitialHidden.y &&
+                !game.permanentlyRevealedStones?.some((p) => p.x === nx && p.y === ny)
+            ) {
+                isHiddenStone = true;
             }
+        }
+        if (
+            isHiddenStone &&
+            !seen.has(key) &&
+            !game.permanentlyRevealedStones?.some((point) => point.x === nx && point.y === ny)
+        ) {
+            seen.add(key);
+            contributingHiddenStones.push({ point: { x: nx, y: ny }, player: aiPlayerEnum });
         }
     }
 
@@ -749,8 +776,10 @@ const applyAiCaptureOutcome = (
         }
 
         const allStonesToReveal = [...contributingHiddenStones, ...capturedHiddenStones];
-        const uniqueStonesToReveal = Array.from(
-            new Map(allStonesToReveal.map(item => [JSON.stringify(item.point), item])).values()
+        const uniqueStonesToReveal = expandToAllUnrevealedHiddenStonesForPlayers(
+            game,
+            Array.from(new Map(allStonesToReveal.map((item) => [JSON.stringify(item.point), item])).values()),
+            { aiPlayerEnum }
         );
 
         if (uniqueStonesToReveal.length > 0) {
@@ -766,9 +795,9 @@ const applyAiCaptureOutcome = (
                 type: 'hidden_reveal',
                 stones: uniqueStonesToReveal,
                 startTime: now,
-                duration: AI_HIDDEN_CAPTURE_REVEAL_MS
+                duration: PVE_AI_HIDDEN_REVEAL_DURATION_MS,
             };
-            game.revealAnimationEndTime = now + AI_HIDDEN_CAPTURE_REVEAL_MS;
+            game.revealAnimationEndTime = now + PVE_AI_HIDDEN_REVEAL_DURATION_MS;
             game.pendingCapture = {
                 stones: result.capturedStones,
                 move: { player: aiPlayerEnum, x: move.x, y: move.y },
@@ -1471,8 +1500,6 @@ function revealAllUnrevealedHiddensForPlayerEnum(game: types.LiveGameSession, pl
 }
 
 const USER_HIDDEN_FULL_REVEAL_MS = 1500;
-/** PVE AI 포획으로 히든 공개 시 클라 `useClientGameState` 스톤리빌(2s)과 동기 */
-const AI_HIDDEN_CAPTURE_REVEAL_MS = 2000;
 
 /**
  * AI가 마스킹된 유저 히든을 찍어 전체 공개가 필요할 때: 영구 공개 + 전체공개 연출 후,

@@ -36,6 +36,7 @@ import {
     applyMixModeSettingsConstraints,
     getMixBoardSizeOptions,
     isMixSubModeCheckboxDisabled,
+    mixIncludesChess,
     normalizeMixedModesSelection,
 } from '../shared/utils/mixModeSettings.js';
 interface NegotiationModalProps {
@@ -428,7 +429,9 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
     const showHiddenStones = mode === GameMode.Hidden;
     const showMissileCount = mode === GameMode.Missile;
     const showCastleCount = mode === GameMode.Castle;
-    const showChessPieceTotalScore = mode === GameMode.Chess && settings.boardSize === 13;
+    const showChessPieceTotalScore =
+        (mode === GameMode.Chess || (mode === GameMode.Mix && mixIncludesChess(settings.mixedModes))) &&
+        settings.boardSize === 13;
     const showChessScoringTurnLimit = mode === GameMode.Chess && isAiGame;
     const showMixModeSelection = mode === GameMode.Mix;
     const showDiceGoSettings = mode === GameMode.Dice;

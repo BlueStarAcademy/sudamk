@@ -173,7 +173,8 @@ import {
     resolveChessPvePlayingSession,
     resolvePveScoringBoardAndMoveHistory,
     resolveStrategicPvePlayingBoardAndMoveHistory,
-    deriveBoardFromMoveHistoryAndBaseStones,
+    resolveStrategicPlayingBoardAndMoveHistory,
+    replayStrategicBoardFromMoveHistory,
 } from '../utils/deferredWsBoardSnapshot.js';
 import { coerceUserLevelXpFromPayload } from '../shared/utils/userLevelMerge.js';
 import type { LevelUpCelebrationPayload } from '../types/levelUpModal.js';
@@ -938,17 +939,23 @@ function overlayChessPlayingFieldsFromExisting(
     };
 }
 
-/** PVE playing: 슬림 WS(수순↑·boardState 생략)에서 판·수순을 한 쌍으로 맞춘다. */
-function applyPvePlayingBoardAndMoveHistoryResolve(
+/** PVE/PVP playing: 슬림 WS(수순↑·boardState 생략)에서 판·수순을 한 쌍으로 맞춘다. */
+function applyStrategicPlayingBoardAndMoveHistoryResolve(
     merged: LiveGameSession,
     clientSnapshot: LiveGameSession | undefined,
 ): LiveGameSession {
     if (merged.gameStatus !== 'playing') return merged;
-    if (resolveArenaSessionPolicy(merged as any).matchAxis !== 'pve') return merged;
     if (merged.mode === GameMode.Chess) {
-        return resolveChessPvePlayingSession(merged, clientSnapshot);
+        const policy = resolveArenaSessionPolicy(merged as any);
+        if (policy.matchAxis === 'pve') {
+            return resolveChessPvePlayingSession(merged, clientSnapshot);
+        }
+        return merged;
     }
-    const playingResolved = resolveStrategicPvePlayingBoardAndMoveHistory(
+    if (merged.mode === GameMode.Dice || merged.mode === GameMode.Thief) return merged;
+    const policy = resolveArenaSessionPolicy(merged as any);
+    if (policy.matchAxis !== 'pve' && policy.matchAxis !== 'pvp') return merged;
+    const playingResolved = resolveStrategicPlayingBoardAndMoveHistory(
         merged,
         clientSnapshot ?? merged,
     );
@@ -957,6 +964,13 @@ function applyPvePlayingBoardAndMoveHistoryResolve(
         boardState: playingResolved.boardState,
         moveHistory: playingResolved.moveHistory,
     };
+}
+
+function applyPvePlayingBoardAndMoveHistoryResolve(
+    merged: LiveGameSession,
+    clientSnapshot: LiveGameSession | undefined,
+): LiveGameSession {
+    return applyStrategicPlayingBoardAndMoveHistoryResolve(merged, clientSnapshot);
 }
 
 function mergePveGameUpdateFromWs(
@@ -10859,7 +10873,7 @@ export const useApp = () => {
                                             moveHistoryToDerive.length > 0 &&
                                             game.settings?.boardSize
                                         ) {
-                                            const derivedBoard = deriveBoardFromMoveHistoryAndBaseStones(
+                                            const derivedBoard = replayStrategicBoardFromMoveHistory(
                                                 {
                                                     ...game,
                                                     moveHistory:
@@ -11106,9 +11120,18 @@ export const useApp = () => {
                                                       existingGame,
                                                       liveDeferredSnap,
                                                   )
-                                                : mergeGameUpdateByArena(mergedGame, liveRicherExisting, {
-                                                      source: 'game_update',
-                                                  });
+                                                : (() => {
+                                                      let merged = mergeGameUpdateByArena(mergedGame, liveRicherExisting, {
+                                                          source: 'game_update',
+                                                      });
+                                                      if (livePvePolicy.matchAxis === 'pvp') {
+                                                          merged = applyStrategicPlayingBoardAndMoveHistoryResolve(
+                                                              merged,
+                                                              liveRicherExisting,
+                                                          );
+                                                      }
+                                                      return merged;
+                                                  })();
                                         if (
                                             existingGame?.gameStatus === 'missile_animating' &&
                                             liveMerged.gameStatus === 'playing' &&

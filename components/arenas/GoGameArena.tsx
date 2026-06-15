@@ -9,7 +9,7 @@ import { getEffectivePairLobbyOwnerId } from '../../shared/utils/effectivePairLo
 import { canViewerPlaceMoreBaseStones } from '../../shared/utils/basePlacementCanPlaceMore.js';
 import { resolveBasePlacementSeatColors } from '../../shared/utils/basePlacementSeatColors.js';
 import { modeIncludesBaseCaptureMix } from '../../shared/utils/liveSessionArenaKind.js';
-import { CHESS_GO_BOARD_SIZE, normalizeChessGoSession } from '../../shared/utils/chessGoRules.js';
+import { CHESS_GO_BOARD_SIZE, normalizeChessGoSession, sessionUsesChessGo } from '../../shared/utils/chessGoRules.js';
 import { getChessGoPlacementSlots } from '../../shared/utils/chessGoPlacement.js';
 import ChessPiecePlacementPanel from '../game/ChessPiecePlacementPanel.js';
 
@@ -92,24 +92,26 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
         [chessSetupSelectionRef],
     );
 
+    const usesChessGo = sessionUsesChessGo(session);
+
     /** 체스 바둑: 렌더 직전 normalize — 레거시 boardState/chessPieces가 화면에 남지 않게 */
     const chessNormalizedSession = useMemo(
-        () => (mode === GameMode.Chess ? normalizeChessGoSession(session) : session),
-        [session, mode],
+        () => (usesChessGo ? normalizeChessGoSession(session) : session),
+        [session, usesChessGo],
     );
-    const displaySession = mode === GameMode.Chess ? chessNormalizedSession : session;
+    const displaySession = usesChessGo ? chessNormalizedSession : session;
 
     /** 상대가 직전에 움직인 기물: 도착 칸 기물 돌에 붉은 테두리 */
     const chessLastMoveForDisplay = useMemo(() => {
-        if (mode !== GameMode.Chess) return null;
+        if (!usesChessGo) return null;
         const lm = displaySession.lastChessMove;
         if (!lm) return null;
         if (myPlayerEnum !== Player.None && lm.player === myPlayerEnum) return null;
         return lm;
-    }, [mode, displaySession.lastChessMove, myPlayerEnum]);
+    }, [usesChessGo, displaySession.lastChessMove, myPlayerEnum]);
 
     const boardSizeForDisplay =
-        mode === GameMode.Chess ? (settings.boardSize ?? CHESS_GO_BOARD_SIZE) : settings.boardSize;
+        usesChessGo ? (settings.boardSize ?? CHESS_GO_BOARD_SIZE) : settings.boardSize;
     const strategicPetHintDotOverlay = useMemo(() => {
         if (!strategicPetHintBoardOverlay) return null;
         const { x, y } = strategicPetHintBoardOverlay;
@@ -138,7 +140,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
             : displaySession.boardState;
 
     const isChessPlacementPhase =
-        mode === GameMode.Chess && gameStatus === 'chess_piece_placement' && !props.isSpectator;
+        usesChessGo && gameStatus === 'chess_piece_placement' && !props.isSpectator;
 
     /** 배치 단계: 상대 기물은 보드·기물 목록에서 제외 */
     const chessPlacementBoardState = useMemo(() => {

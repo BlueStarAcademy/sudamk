@@ -1,6 +1,7 @@
 import { GameMode, Player } from '../types/enums.js';
 import type { BoardState, ChessPieceState, ChessPieceType, LiveGameSession, Point, ChessLastMoveMarker } from '../types/entities.js';
 import { CHESS_BOARD_SIZES } from '../constants/gameSettings.js';
+import { mixIncludesChess } from './mixModeSettings.js';
 
 export {
     getChessGoLayout,
@@ -57,6 +58,16 @@ export type ChessMoveValidation = {
 
 export function isChessMode(mode: unknown): boolean {
     return mode === GameMode.Chess;
+}
+
+/** 순수 체스 바둑 또는 믹스바둑에 체스 규칙이 포함된 세션 */
+export function sessionUsesChessGo(
+    session: Pick<LiveGameSession, 'mode' | 'settings'>,
+): boolean {
+    return (
+        session.mode === GameMode.Chess ||
+        (session.mode === GameMode.Mix && mixIncludesChess(session.settings?.mixedModes))
+    );
 }
 
 export function pointKey(x: number, y: number): string {
@@ -399,7 +410,7 @@ export function normalizeChessGoSession<
         | 'gameStatus'
     >,
 >(session: T): T {
-    if (!isChessMode(session.mode)) return session;
+    if (!sessionUsesChessGo(session)) return session;
 
     const savedMovedFlag = session.chessPieceMovedThisTurn === true;
     const next: T = {

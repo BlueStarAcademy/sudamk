@@ -1,6 +1,7 @@
 import * as types from '../../types/index.js';
 import { pauseGameTimer, resumeGameTimer, shouldEnforceTimeControl } from './shared.js';
-import { isFischerStyleTimeControl } from '../../shared/utils/gameTimeControl.js';
+import { isFischerStyleTimeControl, isSpeedPerMoveTimeControl } from '../../shared/utils/gameTimeControl.js';
+import { applySpeedNextTurnClockStart } from '../../shared/utils/speedTimePressureSessionSync.js';
 import { mixGoClearHiddenItemPhaseTimers } from '../../shared/utils/mixGoRules.js';
 import {
     applyMissileFlightBoardFromAnimation,
@@ -46,14 +47,18 @@ export function resumePlayingTimerAfterItemPhase(
         }
     }
     if (game.settings.timeLimit > 0 && shouldEnforceTimeControl(game)) {
-        const currentPlayerTimeKey = playerWhoMoved === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-        const timeLeft = game[currentPlayerTimeKey] ?? 0;
-        if (timeLeft > 0) {
-            game.turnDeadline = now + timeLeft * 1000;
-            game.turnStartTime = now;
+        if (isSpeedPerMoveTimeControl(game)) {
+            applySpeedNextTurnClockStart(game, now);
         } else {
-            game.turnDeadline = undefined;
-            game.turnStartTime = undefined;
+            const currentPlayerTimeKey = playerWhoMoved === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+            const timeLeft = game[currentPlayerTimeKey] ?? 0;
+            if (timeLeft > 0) {
+                game.turnDeadline = now + timeLeft * 1000;
+                game.turnStartTime = now;
+            } else {
+                game.turnDeadline = undefined;
+                game.turnStartTime = undefined;
+            }
         }
     } else {
         game.turnDeadline = undefined;
@@ -302,16 +307,20 @@ export function finalizeHiddenRevealPresentationCleanup(
         game[timeKey] = game.pausedTurnTimeLeft;
     }
     if (shouldEnforceTimeControl(game) && game.settings?.timeLimit > 0 && game.pausedTurnTimeLeft !== undefined) {
-        const timeKey = playerForTimer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-        const isFischer = isFischerStyleTimeControl(game as any);
-        const byoyomiTime = game.settings.byoyomiTime ?? 0;
-        const isNextInByoyomi = game[timeKey] <= 0 && game.settings.byoyomiCount > 0 && !isFischer;
-        if (isNextInByoyomi && byoyomiTime > 0) {
-            game.turnDeadline = now + byoyomiTime * 1000;
+        if (isSpeedPerMoveTimeControl(game)) {
+            applySpeedNextTurnClockStart(game, now);
         } else {
-            game.turnDeadline = now + (game[timeKey] ?? 0) * 1000;
+            const timeKey = playerForTimer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+            const isFischer = isFischerStyleTimeControl(game as any);
+            const byoyomiTime = game.settings.byoyomiTime ?? 0;
+            const isNextInByoyomi = game[timeKey] <= 0 && game.settings.byoyomiCount > 0 && !isFischer;
+            if (isNextInByoyomi && byoyomiTime > 0) {
+                game.turnDeadline = now + byoyomiTime * 1000;
+            } else {
+                game.turnDeadline = now + (game[timeKey] ?? 0) * 1000;
+            }
+            game.turnStartTime = now;
         }
-        game.turnStartTime = now;
     } else {
         game.turnDeadline = undefined;
         game.turnStartTime = undefined;

@@ -7,10 +7,15 @@ import {
     getChessSetupBudgetFromSettings,
     validateChessPlacementDraft,
 } from '../../shared/utils/chessGoPlacement.js';
-import { createEmptyChessCaptureScore, normalizeChessGoSession } from '../../shared/utils/chessGoRules.js';
+import { createEmptyChessCaptureScore, normalizeChessGoSession, sessionUsesChessGo } from '../../shared/utils/chessGoRules.js';
 import { CHESS_PIECE_PLACEMENT_TIME_LIMIT_SEC } from '../../shared/constants/gameSettings.js';
 import { transitionToPlayingOrUniformRoulette } from './shared.js';
 import { aiUserId } from '../aiPlayer.js';
+import {
+    isPairClassicGame,
+    isPairAiSeat,
+    resolvePairUserPlayerEnum,
+} from '../../shared/utils/pairGameTurn.js';
 
 const CHESS_PLACEMENT_MS = CHESS_PIECE_PLACEMENT_TIME_LIMIT_SEC * 1000;
 
@@ -37,9 +42,50 @@ function getChessBudget(game: types.LiveGameSession): number {
 }
 
 function getPlayerColor(game: types.LiveGameSession, userId: string): Player.Black | Player.White | null {
+    if (isPairClassicGame(game.settings, game.mode)) {
+        const seatColor = resolvePairUserPlayerEnum(game.settings, userId);
+        if (seatColor === Player.Black || seatColor === Player.White) return seatColor;
+        return null;
+    }
     if (userId === game.blackPlayerId) return Player.Black;
     if (userId === game.whitePlayerId) return Player.White;
     return null;
+}
+
+/** 팀/색별 draft·ready 맵 키 (페어: black1/white1 좌석 id, 1v1: 흑/백 유저 id) */
+function getChessDraftKey(game: types.LiveGameSession, userId: string): string | null {
+    const color = getPlayerColor(game, userId);
+    if (color === Player.Black) return game.blackPlayerId ?? null;
+    if (color === Player.White) return game.whitePlayerId ?? null;
+    return null;
+}
+
+function isPairDraftHolderAiOrPet(game: types.LiveGameSession, draftKey: string): boolean {
+    const seat = game.settings?.pairGame?.turnOrder?.find((s) => s.participantId === draftKey);
+    return Boolean(seat && isPairAiSeat(seat));
+}
+
+function ensurePairAiPetChessPlacementReady(game: types.LiveGameSession): void {
+    if (!isPairClassicGame(game.settings, game.mode)) return;
+    ensureChessPlacementState(game);
+    const boardSize = game.settings.boardSize ?? 13;
+    const budget = getChessBudget(game);
+    for (const draftKey of [game.blackPlayerId, game.whitePlayerId]) {
+        if (!draftKey || !isPairDraftHolderAiOrPet(game, draftKey)) continue;
+        const color =
+            draftKey === game.blackPlayerId ? Player.Black : Player.White;
+        let draft = game.chessPiecePlacementDraft?.[draftKey] ?? [];
+        if (!validateChessPlacementDraft(draft, color, boardSize, budget).ok) {
+            draft = [];
+        }
+        game.chessPiecePlacementDraft![draftKey] = generateRandomChessSetupDraftForRemainingBudget(
+            draft,
+            budget,
+            boardSize,
+            color,
+        );
+        game.chessPiecePlacementReady![draftKey] = true;
+    }
 }
 
 function ensureChessPlacementState(game: types.LiveGameSession): void {
@@ -75,12 +121,14 @@ function prepareChessPlacementDrafts(game: types.LiveGameSession, deadlinePassed
     ensureChessPlacementState(game);
     const boardSize = game.settings.boardSize ?? 13;
     const budget = getChessBudget(game);
-    const p1Id = game.player1.id;
-    const p2Id = game.player2.id;
+    const blackId = game.blackPlayerId;
+    const whiteId = game.whitePlayerId;
 
-    for (const participantId of [p1Id, p2Id]) {
-        const color = getPlayerColor(game, participantId);
-        if (color == null) continue;
+    for (const [participantId, color] of [
+        [blackId, Player.Black],
+        [whiteId, Player.White],
+    ] as const) {
+        if (!participantId) continue;
         const isReady = game.chessPiecePlacementReady?.[participantId] ?? false;
         if (deadlinePassed && !isReady) {
             const existing = game.chessPiecePlacementDraft?.[participantId] ?? [];
@@ -95,6 +143,7 @@ function prepareChessPlacementDrafts(game: types.LiveGameSession, deadlinePassed
     }
 
     ensureAiChessPlacementReady(game);
+    ensurePairAiPetChessPlacementReady(game);
 }
 
 function placementPiecesForRender(game: types.LiveGameSession): types.ChessPieceState[] {
@@ -138,10 +187,12 @@ export function enterChessPiecePlacement(game: types.LiveGameSession, now: numbe
     game.moveHistory = [];
     game.passCount = 0;
 
-    const p1Id = game.player1.id;
-    const p2Id = game.player2.id;
-    game.chessPiecePlacementReady = { [p1Id]: false, [p2Id]: false };
-    game.chessPiecePlacementDraft = { [p1Id]: [], [p2Id]: [] };
+    const blackId = game.blackPlayerId;
+    const whiteId = game.whitePlayerId;
+    if (!blackId || !whiteId) return;
+
+    game.chessPiecePlacementReady = { [blackId]: false, [whiteId]: false };
+    game.chessPiecePlacementDraft = { [blackId]: [], [whiteId]: [] };
 
     if (game.isAiGame) {
         game.chessPiecePlacementDeadline = undefined;
@@ -149,6 +200,7 @@ export function enterChessPiecePlacement(game: types.LiveGameSession, now: numbe
     } else {
         game.chessPiecePlacementDeadline = now + CHESS_PLACEMENT_MS;
     }
+    ensurePairAiPetChessPlacementReady(game);
 
     syncChessPlacementBoard(game);
 }
@@ -168,8 +220,8 @@ export function resolveChessPlacementAndTransition(game: types.LiveGameSession, 
         now > game.chessPiecePlacementDeadline;
 
     const pvpBothReady =
-        (game.chessPiecePlacementReady?.[p1Id] ?? false) &&
-        (game.chessPiecePlacementReady?.[p2Id] ?? false);
+        (game.chessPiecePlacementReady?.[blackId] ?? false) &&
+        (game.chessPiecePlacementReady?.[whiteId] ?? false);
     const humanReady = humanId ? (game.chessPiecePlacementReady?.[humanId] ?? false) : false;
     const canTransition = game.isAiGame ? humanReady : deadlinePassed || pvpBothReady;
     if (!canTransition) return false;
@@ -227,4 +279,4 @@ export function startChessPlacementAfterNigiri(game: types.LiveGameSession, now:
     enterChessPiecePlacement(game, now);
 }
 
-export { getChessBudget, getPlayerColor, ensureChessPlacementState };
+export { getChessBudget, getPlayerColor, getChessDraftKey, ensureChessPlacementState };

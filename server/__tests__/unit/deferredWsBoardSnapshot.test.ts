@@ -4,6 +4,8 @@ import {
     resolveChessPvePlayingSession,
     resolvePveScoringBoardAndMoveHistory,
     resolveStrategicPvePlayingBoardAndMoveHistory,
+    replayStrategicBoardFromMoveHistory,
+    deriveBoardFromMoveHistoryAndBaseStones,
 } from '../../../utils/deferredWsBoardSnapshot.js';
 import type { LiveGameSession } from '../../../types/index.js';
 import { GameMode } from '../../../types/index.js';
@@ -114,6 +116,43 @@ describe('resolveStrategicPvePlayingBoardAndMoveHistory', () => {
         const resolved = resolveStrategicPvePlayingBoardAndMoveHistory(server, client);
         expect(resolved.moveHistory).toHaveLength(2);
         expect(resolved.boardState?.[1]?.[1]).toBe(Player.White);
+    });
+
+    it('replay removes captured stones when server sent slim packet after capture', () => {
+        // Black (1,0) — White (0,0) — Black (0,1) captures white
+        const server = {
+            moveHistory: [
+                { x: 1, y: 0, player: Player.Black },
+                { x: 0, y: 0, player: Player.White },
+                { x: 0, y: 1, player: Player.Black },
+            ],
+            boardState: undefined,
+            settings: { boardSize: 3 },
+        } as LiveGameSession;
+        const client = {
+            moveHistory: [
+                { x: 1, y: 0, player: Player.Black },
+                { x: 0, y: 0, player: Player.White },
+            ],
+            boardState: [
+                [Player.White, Player.Black, Player.None],
+                [Player.None, Player.None, Player.None],
+                [Player.None, Player.None, Player.None],
+            ],
+            settings: { boardSize: 3 },
+        } as LiveGameSession;
+
+        const naive = deriveBoardFromMoveHistoryAndBaseStones(server, client);
+        expect(naive?.[0]?.[0]).toBe(Player.White);
+
+        const resolved = resolveStrategicPvePlayingBoardAndMoveHistory(server, client);
+        expect(resolved.moveHistory).toHaveLength(3);
+        expect(resolved.boardState?.[0]?.[0]).toBe(Player.None);
+        expect(resolved.boardState?.[0]?.[1]).toBe(Player.Black);
+        expect(resolved.boardState?.[1]?.[0]).toBe(Player.Black);
+
+        const replayed = replayStrategicBoardFromMoveHistory(server, client);
+        expect(replayed?.[0]?.[0]).toBe(Player.None);
     });
 });
 

@@ -222,6 +222,29 @@ describe('mergeGameUpdateByArena', () => {
         const merged = mergeGameUpdateByArena(incoming, existing, { source: 'game_update' });
         expect(merged.animation).toEqual(anim);
     });
+
+    it('strips stale justCaptured when moveHistory advances without capture score change', () => {
+        const staleCapture = [{ point: { x: 1, y: 1 }, player: Player.White, wasHidden: false }];
+        const existing = minimalSession({
+            isAiGame: false,
+            gameStatus: 'playing',
+            moveHistory: [{ x: 2, y: 2, player: Player.Black }],
+            captures: { [Player.None]: 0, [Player.Black]: 3, [Player.White]: 0 },
+            justCaptured: staleCapture as any,
+        });
+        const incoming = minimalSession({
+            isAiGame: false,
+            gameStatus: 'playing',
+            moveHistory: [
+                { x: 2, y: 2, player: Player.Black },
+                { x: 3, y: 3, player: Player.White },
+            ],
+            captures: { [Player.None]: 0, [Player.Black]: 3, [Player.White]: 0 },
+            justCaptured: staleCapture as any,
+        });
+        const merged = mergeGameUpdateByArena(incoming, existing, { source: 'game_update' });
+        expect(merged.justCaptured).toEqual([]);
+    });
 });
 
 describe('shouldIgnoreStalePendingPveStartRegression', () => {

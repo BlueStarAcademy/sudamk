@@ -1,9 +1,9 @@
 
 import * as types from '../../types/index.js';
 import { PRE_GAME_PVP_COUNTDOWN_MS } from '../../shared/constants/preGameCountdown.js';
-import { GameMode } from '../../types/enums.js';
 import { transitionToPlaying, transitionToPlayingOrUniformRoulette } from './shared.js';
 import { startChessPlacementAfterNigiri } from './chessPlacementFlow.js';
+import { sessionUsesChessGo } from '../../shared/utils/chessGoRules.js';
 
 export const initializeNigiri = (game: types.LiveGameSession, now: number) => {
     const blackPlayer = Math.random() < 0.5 ? game.player1 : game.player2;
@@ -35,19 +35,23 @@ export const enterNigiriRevealWithAssignedColors = (game: types.LiveGameSession,
     game.nigiriStartTime = now;
 };
 
+export function completeNigiriRevealTransition(game: types.LiveGameSession, now: number): void {
+    if (game.nigiri) game.nigiri.processed = true;
+    game.preGameConfirmations = {};
+    game.revealEndTime = undefined;
+    if (sessionUsesChessGo(game)) {
+        startChessPlacementAfterNigiri(game, now);
+    } else {
+        transitionToPlayingOrUniformRoulette(game, now);
+    }
+}
+
 export const updateNigiriState = (game: types.LiveGameSession, now: number) => {
     if (game.gameStatus === 'nigiri_reveal') {
         const bothConfirmed = game.preGameConfirmations?.[game.player1.id] && game.preGameConfirmations?.[game.player2.id];
         const deadlinePassed = !game.isAiGame && !!(game.revealEndTime && now > game.revealEndTime);
         if (bothConfirmed || deadlinePassed) {
-            if (game.nigiri) game.nigiri.processed = true;
-            game.preGameConfirmations = {};
-            game.revealEndTime = undefined;
-            if (game.mode === GameMode.Chess) {
-                startChessPlacementAfterNigiri(game, now);
-            } else {
-                transitionToPlayingOrUniformRoulette(game, now);
-            }
+            completeNigiriRevealTransition(game, now);
         }
     }
 };

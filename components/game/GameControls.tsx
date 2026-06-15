@@ -57,6 +57,7 @@ import {
 import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 import { pairPetKataPhaseFromTotalPly, pairPetKataPliesRemainingInCurrentPhase } from '../../shared/constants/pairArena.js';
 import { isPairHumanHumanPvpForTeamResign, modeIncludesBaseCaptureMix } from '../../shared/utils/liveSessionArenaKind.js';
+import { pvpHasFixedScoringTurnLimit } from '../../shared/utils/rankedFixedTurnScoring.js';
 import { getEquippedPairPetInventoryRow } from '../../shared/utils/pairEquippedPet.js';
 import { getPairPetDefinition } from '../../shared/constants/petLobby.js';
 
@@ -1361,6 +1362,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
     const isPairGame = Boolean(session.settings.pairGame?.turnOrder?.length);
     /** 펫·2인 페어 AI전: `isAiGame`이 false일 수 있어 `pairMode === 'ai'`로 구분 (summaryService와 동일) */
     const isPairAiAutoScoringMatch = Boolean(isPairGame && session.settings?.pairGame?.pairMode === 'ai');
+    const hidePassForFixedScoringTurnLimit = pvpHasFixedScoringTurnLimit(session);
     const isMobilePairGame = Boolean(isMobile && isPairGame);
     const pairCoopTwoHumansVsAi = isPairCooperativeTwoHumansVsAi(session.settings);
     const hideMannerRowForBaseCaptureBid =
@@ -2489,6 +2491,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                         session.mode !== GameMode.Castle &&
                         (!isAiLobbyGame || isPairGame) &&
                         !isPairAiAutoScoringMatch &&
+                        !hidePassForFixedScoringTurnLimit &&
                         session.gameCategory !== 'adventure' && (
                         <LabeledControlButton
                             key="pass"
