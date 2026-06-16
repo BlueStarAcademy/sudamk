@@ -5,6 +5,7 @@ import Router from './components/Router.js';
 import { audioService } from './services/audioService.js';
 import InstallPrompt from './components/InstallPrompt.js';
 import AppModalLayer from './components/AppModalLayer.js';
+import AppFooter from './components/AppFooter.js';
 import { VIEWPORT_HEIGHT_LAYOUT_BREAKPOINT } from './hooks/useIsMobileLayout.js';
 import AdProvider from './components/ads/AdProvider.js';
 import AdBanner from './components/ads/AdBanner.js';
@@ -472,6 +473,7 @@ const AppContent: React.FC = () => {
                                     {!isGameView && !hideAppHeader && (
                                         <>
                                             <NativeMobileDock />
+                                            <AppFooter variant="main" />
                                             <div className="w-full flex-shrink-0 border-t border-color/30 bg-primary/95">
                                                 <AdBanner position="bottom" className="py-1" />
                                             </div>
@@ -530,6 +532,7 @@ const AppContent: React.FC = () => {
                                     <Router />
                                 </main>
                             </div>
+                            <AppFooter variant="auth" />
                         </div>
                     )}
                     <AppModalLayer />
@@ -664,6 +667,9 @@ const AppContent: React.FC = () => {
                                 >
                                     <Router />
                                 </main>
+                                <div className="relative z-[2] mt-auto w-full">
+                                    <AppFooter variant="auth" />
+                                </div>
                             </div>
                         )}
 

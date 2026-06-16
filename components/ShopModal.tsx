@@ -1,5 +1,7 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef, Suspense, lazy } from 'react';
+import type { PurchaseConsentTarget } from './legal/PurchaseConsentModal.js';
+const PurchaseConsentModal = lazy(() => import('./legal/PurchaseConsentModal.js'));
 import { UserWithStatus, ServerAction, InventoryItemType } from '../types.js';
 import { ItemGrade } from '../types/enums.js';
 import { gradeStyles } from '../shared/constants/items.js';
@@ -971,6 +973,26 @@ const DiamondShopCard: React.FC<{
     );
 };
 
+/** 결제 동의 모달용 패키지 라벨 — 정확한 메타데이터 없이 ID 기반으로 사람이 읽을 수 있는 이름 제공. */
+const CASH_PACKAGE_LABELS: Record<string, string> = {
+    diamond_package_1: '다이아 패키지 I',
+    diamond_package_2: '다이아 패키지 II',
+    diamond_package_3: '다이아 패키지 III',
+    equipment_package_1: '장비 패키지 I (에픽 확정)',
+    equipment_package_2: '장비 패키지 II (전설 확정)',
+    equipment_package_3: '장비 패키지 III (신화 확정)',
+    [CASH_SHOP_REMOVE_ADS_PACKAGE_ID]: '광고 제거 패키지',
+};
+const VIP_PACKAGE_LABELS: Record<string, string> = {
+    reward_vip: '보상 VIP (30일)',
+    function_vip: '기능 VIP (30일)',
+    vvip: 'V-VIP (30일)',
+};
+const describeCashPackage = (packageId: string): string =>
+    CASH_PACKAGE_LABELS[packageId] ?? packageId;
+const describeVipPackage = (packageId: string): string =>
+    VIP_PACKAGE_LABELS[packageId] ?? packageId;
+
 const ShopModal: React.FC<ShopModalProps> = ({
     currentUser: propCurrentUser,
     onClose,
@@ -995,7 +1017,31 @@ const ShopModal: React.FC<ShopModalProps> = ({
     const [activeTab, setActiveTab] = useState<ShopTab>(initialTab || 'equipment');
     const [toastMessage, setToastMessage] = useState<string | null>(null);
     const [purchasingItem, setPurchasingItem] = useState<PurchasableItem | null>(null);
+    const [pendingConsent, setPendingConsent] = useState<PurchaseConsentTarget | null>(null);
+    const consentResolverRef = useRef<((accepted: boolean) => void) | null>(null);
     const shopAction = useKeyedAsyncAction();
+
+    /** 결제 직전 약관·환불·정기결제 동의 게이트. true(동의) / false(취소) 반환. */
+    const askPurchaseConsent = useCallback((target: PurchaseConsentTarget): Promise<boolean> => {
+        setPendingConsent(target);
+        return new Promise<boolean>((resolve) => {
+            consentResolverRef.current = resolve;
+        });
+    }, []);
+
+    const handleConsentConfirm = useCallback(() => {
+        const resolver = consentResolverRef.current;
+        consentResolverRef.current = null;
+        setPendingConsent(null);
+        resolver?.(true);
+    }, []);
+
+    const handleConsentCancel = useCallback(() => {
+        const resolver = consentResolverRef.current;
+        consentResolverRef.current = null;
+        setPendingConsent(null);
+        resolver?.(false);
+    }, []);
 
     useEffect(() => {
         if (toastMessage) {
@@ -1272,6 +1318,15 @@ const ShopModal: React.FC<ShopModalProps> = ({
 
     const handleBuyCashPackage = (packageId: string) => {
         void shopAction.run(`cash-package-${packageId}`, async () => {
+            const consented = await askPurchaseConsent({
+                productName: describeCashPackage(packageId),
+                priceLabel: '원화 결제 (페이레터)',
+                summary: '결제 직후 다이아 또는 패키지 보상이 지급됩니다.',
+            });
+            if (!consented) {
+                setToastMessage('결제가 취소되었습니다.');
+                return;
+            }
             if (!currentUser.isAdmin) {
                 setToastMessage(CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE);
                 return;
@@ -1297,6 +1352,16 @@ const ShopModal: React.FC<ShopModalProps> = ({
 
     const handleBuyVipPackage = (packageId: string, billing: 'one_time' | 'subscription' = 'one_time') => {
         void shopAction.run(`vip-package-${packageId}-${billing}`, async () => {
+            const consented = await askPurchaseConsent({
+                productName: describeVipPackage(packageId),
+                priceLabel: billing === 'subscription' ? '정기결제 / 30일 자동 갱신' : '단건 결제 / 30일 적용',
+                isSubscription: billing === 'subscription',
+                summary: 'VIP 멤버십 혜택이 30일간 적용됩니다.',
+            });
+            if (!consented) {
+                setToastMessage('결제가 취소되었습니다.');
+                return;
+            }
             if (!currentUser.isAdmin) {
                 setToastMessage(CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE);
                 return;
@@ -1553,7 +1618,7 @@ const ShopModal: React.FC<ShopModalProps> = ({
                     windowId="shop"
                     initialWidth={900}
                     initialHeight={750}
-                    isTopmost={isTopmost && !purchasingItem}
+                    isTopmost={isTopmost && !purchasingItem && !pendingConsent}
                     bodyScrollable={!mobileShop}
                     mobileViewportFit={mobileShop}
                     mobileViewportMaxHeightVh={90}
@@ -1563,6 +1628,15 @@ const ShopModal: React.FC<ShopModalProps> = ({
                     {shopBody}
                 </DraggableWindow>
             )}
+            {pendingConsent ? (
+                <Suspense fallback={null}>
+                    <PurchaseConsentModal
+                        target={pendingConsent}
+                        onConfirm={handleConsentConfirm}
+                        onCancel={handleConsentCancel}
+                    />
+                </Suspense>
+            ) : null}
         </>
     );
 };
