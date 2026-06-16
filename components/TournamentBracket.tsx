@@ -43,9 +43,11 @@ import {
 } from '../constants';
 import {
     DUNGEON_STAGE_MATERIAL_ROLLS,
+    DUNGEON_STAGE_EQUIPMENT_DROP,
     getDungeonBasicRewardRangeGold,
     getDungeonRankRewardForDisplay,
     getDungeonRankRewardRangeForDisplay,
+    type EquipmentGradeKey,
 } from '../shared/constants/tournaments';
 import Avatar from './Avatar.js';
 import RadarChart from './RadarChart.js';
@@ -3492,6 +3494,9 @@ const FinalRewardPanel: React.FC<{
             : 'inline-flex min-h-[2rem] items-center gap-1.5 rounded-lg border border-white/10 bg-black/35 px-2 py-1 text-[10.5px] font-bold leading-tight text-slate-100 shadow-inner';
         const chipIconClass = isSplit ? 'h-5 w-5 shrink-0 object-contain sm:h-6 sm:w-6' : 'h-4 w-4 object-contain';
         const gradeTextClass: Record<string, string> = {
+            normal: 'text-slate-300',
+            uncommon: 'text-green-300',
+            rare: 'text-blue-300',
             epic: 'text-purple-300',
             legendary: 'text-red-300',
             mythic: 'text-amber-300',
@@ -3602,20 +3607,42 @@ const FinalRewardPanel: React.FC<{
                     ? `랜덤 변경권 · 경기 결과에 따라 지급 · 단계 기준 최대 ${maxChangeTickets}개`
                     : '랜덤 변경권';
 
+            const worldEquipGradeOrder: EquipmentGradeKey[] = [
+                'normal',
+                'uncommon',
+                'rare',
+                'epic',
+                'legendary',
+                'mythic',
+            ];
+            const dropConfig = DUNGEON_STAGE_EQUIPMENT_DROP[stage] ?? DUNGEON_STAGE_EQUIPMENT_DROP[1];
+            const dropGrades = [...dropConfig.win.map((e) => e.grade), ...dropConfig.loss.map((e) => e.grade)];
+            const gradeRank = (g: EquipmentGradeKey) => worldEquipGradeOrder.indexOf(g);
+            let minDropGrade = dropGrades[0] ?? 'epic';
+            let maxDropGrade = dropGrades[0] ?? 'mythic';
+            for (const g of dropGrades) {
+                if (gradeRank(g) < gradeRank(minDropGrade)) minDropGrade = g;
+                if (gradeRank(g) > gradeRank(maxDropGrade)) maxDropGrade = g;
+            }
+
             const gradeRangeInline = (
                 <>
                     <ChampionshipMysteryEquipmentIcon className={isSplit ? 'h-5 w-5 sm:h-6 sm:w-6' : 'h-4 w-4'} />
-                    <span className={`${isSplit ? 'text-[11px] sm:text-xs' : ''} ${gradeTextClass.epic}`}>
-                        {EQUIPMENT_GRADE_LABEL_KO.epic}
+                    <span
+                        className={`${isSplit ? 'text-[11px] sm:text-xs' : ''} ${gradeTextClass[minDropGrade] ?? gradeTextClass.epic}`}
+                    >
+                        {EQUIPMENT_GRADE_LABEL_KO[minDropGrade] ?? minDropGrade}
                     </span>
-                    <span className={`${isSplit ? 'text-[10px] sm:text-[11px]' : ''} text-slate-500`}>~</span>
-                    <span className={`${isSplit ? 'text-[11px] sm:text-xs' : ''} ${gradeTextClass.legendary}`}>
-                        {EQUIPMENT_GRADE_LABEL_KO.legendary}
-                    </span>
-                    <span className={`${isSplit ? 'text-[10px] sm:text-[11px]' : ''} text-slate-500`}>~</span>
-                    <span className={`${isSplit ? 'text-[11px] sm:text-xs' : ''} ${gradeTextClass.mythic}`}>
-                        {EQUIPMENT_GRADE_LABEL_KO.mythic}
-                    </span>
+                    {minDropGrade !== maxDropGrade ? (
+                        <>
+                            <span className={`${isSplit ? 'text-[10px] sm:text-[11px]' : ''} text-slate-500`}>~</span>
+                            <span
+                                className={`${isSplit ? 'text-[11px] sm:text-xs' : ''} ${gradeTextClass[maxDropGrade] ?? gradeTextClass.mythic}`}
+                            >
+                                {EQUIPMENT_GRADE_LABEL_KO[maxDropGrade] ?? maxDropGrade}
+                            </span>
+                        </>
+                    ) : null}
                 </>
             );
 
@@ -5218,7 +5245,6 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     const [showConditionPotionModal, setShowConditionPotionModal] = useState(false);
     /** 던전 챔피언십: 컨디션 낮을 때 경기 시작 전 안내(회복제로 조절 가능) */
     const [showChampionshipLowConditionStartModal, setShowChampionshipLowConditionStartModal] = useState(false);
-    const [showChampionshipExitConfirmModal, setShowChampionshipExitConfirmModal] = useState(false);
     /** 던전 보상 수령 시 인벤토리(가방) 부족 — 서버 오류 문구를 모달로 표시 */
     const [championshipInventoryFullMessage, setChampionshipInventoryFullMessage] = useState<string | null>(null);
     /** 모바일 챔피언십 경기장: 대국자정보 / 실시간중계 / 바둑판 / 대진표 / 보상정보 */
@@ -6263,17 +6289,8 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     const { onClick: handleBackClick } = useButtonClickThrottle(handleBackClickRaw);
     const { onClick: handleForfeitClick } = useButtonClickThrottle(handleForfeitClickRaw);
 
-    const handleChampionshipArenaExitClick = useCallback(() => {
-        if (tournament.status === 'round_in_progress') {
-            setShowChampionshipExitConfirmModal(true);
-            return;
-        }
-        handleBackClickRaw();
-    }, [tournament.status, handleBackClickRaw]);
-
-    const confirmChampionshipArenaExitToLobby = useCallback(async () => {
+    const performChampionshipArenaExitToLobby = useCallback(async () => {
         const t = tournament.type;
-        setShowChampionshipExitConfirmModal(false);
         try {
             await Promise.resolve(
                 onAction({
@@ -6287,6 +6304,19 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         onAction({ type: 'LEAVE_TOURNAMENT_VIEW' });
         replaceAppHash('#/tournament');
     }, [tournament.type, onAction, displayTournament]);
+
+    const handleChampionshipArenaExitClick = useCallback(() => {
+        if (tournament.currentStageAttempt != null || tournament.status === 'round_in_progress') {
+            void performChampionshipArenaExitToLobby();
+            return;
+        }
+        handleBackClickRaw();
+    }, [
+        tournament.currentStageAttempt,
+        tournament.status,
+        performChampionshipArenaExitToLobby,
+        handleBackClickRaw,
+    ]);
 
     // 경기가 진행 중이거나, 경기가 막 끝났지만 아직 서버에서 상태가 업데이트되지 않은 경우
     // currentSimulatingMatch가 있으면 시뮬레이션 중으로 간주 (단, 토너 종료 후에는 stale 참조로 무한 시뮬 방지)
@@ -8428,48 +8458,6 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 };
                 return <DungeonStageSummaryModal {...modalProps} />;
             })()}
-            {showChampionshipExitConfirmModal &&
-                typeof document !== 'undefined' &&
-                createPortal(
-                    <div
-                        className="fixed inset-0 z-[400] flex items-center justify-center bg-black/70 p-4"
-                        role="dialog"
-                        aria-modal="true"
-                        aria-labelledby="championship-exit-confirm-title"
-                        onClick={() => setShowChampionshipExitConfirmModal(false)}
-                    >
-                        <div
-                            className="max-w-md w-full rounded-2xl border border-rose-500/45 bg-gradient-to-b from-slate-900 via-slate-950 to-black p-5 shadow-2xl ring-1 ring-rose-400/15"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <h2 id="championship-exit-confirm-title" className="text-lg font-black text-rose-100">
-                                경기장 나가기
-                            </h2>
-                            <p className="mt-3 text-sm leading-relaxed text-slate-200">
-                                로비로 나가도 진행 중인 경기는 저장됩니다. 오늘 안에 같은 단계에서 이어서 진행할 수 있습니다. (날짜가 바뀌어 입장이 초기화되면 해당 진행은 무효됩니다.)
-                            </p>
-                            <div className="mt-5 flex flex-wrap justify-end gap-2">
-                                <Button
-                                    type="button"
-                                    colorScheme="none"
-                                    className={championshipFooterMutedButton}
-                                    onClick={() => setShowChampionshipExitConfirmModal(false)}
-                                >
-                                    취소
-                                </Button>
-                                <Button
-                                    type="button"
-                                    colorScheme="none"
-                                    className={championshipFooterExitButton}
-                                    onClick={() => void confirmChampionshipArenaExitToLobby()}
-                                >
-                                    로비로 나가기
-                                </Button>
-                            </div>
-                        </div>
-                    </div>,
-                    document.body,
-                )}
         </div>
     );
 };
