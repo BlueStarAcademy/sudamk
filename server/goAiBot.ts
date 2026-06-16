@@ -26,7 +26,7 @@ import {
 import { generateKataServerMoveCandidateDetails, isKataServerAvailable } from './kataServerService.js';
 import { applyCastleTerritoryAfterMove } from './modes/castle.js';
 import { enumerateLegalCastleMoves, processCastleMove } from '../shared/utils/castleGoRules.js';
-import { enumerateLegalChessGoStonePlacements, processChessGoMove } from '../shared/utils/chessGoRules.js';
+import { enumerateLegalChessGoStonePlacements, getChessGoStoneCapturePointValue, processChessGoMove, sessionUsesChessGo, applyChessCaptureScoreForRemovedStones } from '../shared/utils/chessGoRules.js';
 import {
     advancePairTurn,
     getCurrentPairTurnSeat,
@@ -727,6 +727,26 @@ const applyAiCaptureOutcome = (
     }
 
     game.justCaptured = [];
+
+    if (sessionUsesChessGo(game)) {
+        let guildWarCapturePointsThisMove = 0;
+        const opponentPlayerEnumForChess =
+            aiPlayerEnum === Player.Black ? Player.White : Player.Black;
+        for (const stone of result.capturedStones) {
+            const points = getChessGoStoneCapturePointValue(game, stone);
+            game.captures[aiPlayerEnum] += points;
+            guildWarCapturePointsThisMove += points;
+            game.justCaptured.push({
+                point: stone,
+                player: opponentPlayerEnumForChess,
+                wasHidden: false,
+                capturePoints: points,
+            });
+        }
+        applyChessCaptureScoreForRemovedStones(game, result.capturedStones, aiPlayerEnum);
+        bumpGuildWarMaxSingleCapturePointsForPlayer(game as any, aiPlayerEnum, guildWarCapturePointsThisMove);
+        return false;
+    }
 
     if (isHiddenMode) {
         const contributingHiddenStones = collectContributingHiddenStones(
@@ -3175,14 +3195,6 @@ export async function makeGoAiBotMove(
             selectedMove.y,
             result.capturedStones,
         );
-        if (result.capturedStones.length > 0) {
-            const { applyChessCaptureScoreForRemovedStones } = await import('../shared/utils/chessGoRules.js');
-            const chessCapture = applyChessCaptureScoreForRemovedStones(game, result.capturedStones, aiPlayerEnum);
-            if (chessCapture.kingCaptured) {
-                const { tryEndChessOnKingCapture } = await import('./modes/chess.js');
-                await tryEndChessOnKingCapture(game, aiPlayerEnum);
-            }
-        }
         const { repairChessGoSessionState } = await import('./modes/chess.js');
         repairChessGoSessionState(game);
     }
@@ -3261,6 +3273,15 @@ export async function makeGoAiBotMove(
     if (startedRevealAnimation) {
         await db.saveGame(game);
         return; // 애니메이션 종료 후 updateHiddenState에서 처리
+    }
+
+    if (isChessGame) {
+        const { tryEndChessOnKingCapture, repairChessGoSessionState } = await import('./modes/chess.js');
+        repairChessGoSessionState(game);
+        if (await tryEndChessOnKingCapture(game, aiPlayerEnum)) {
+            await db.saveGame(game);
+            return;
+        }
     }
 
     if (isCastleGame) {

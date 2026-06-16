@@ -25,6 +25,7 @@ import {
     applyChessCaptureScoreForRemovedStones,
     CHESS_GO_BOARD_SIZE,
     commitChessGoPlacementCaptures,
+    getChessGoStoneCapturePointValue,
     processChessGoMove,
     sessionUsesChessGo,
 } from '../../shared/utils/chessGoRules.js';
@@ -1776,14 +1777,6 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             })();
 
             if (result.capturedStones.length > 0) {
-                if (isChessGame) {
-                    const chessCapture = applyChessCaptureScoreForRemovedStones(game, result.capturedStones, myPlayerEnum);
-                    if (chessCapture.kingCaptured) {
-                        if (await tryEndChessOnKingCapture(game, myPlayerEnum)) {
-                            return petHintBonusResult ?? {};
-                        }
-                    }
-                }
                 // 길드전 별 판정(한 번에 따낸 최대 개수) 정확도를 위해 실시간 최대값 저장
                 const captureCountThisMove = result.capturedStones.length;
                 const maxSingleCaptureByPlayer = ((game as any).maxSingleCaptureByPlayer ??= {});
@@ -1792,6 +1785,30 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                     maxSingleCaptureByPlayer[myPlayerEnum] = captureCountThisMove;
                 }
                 let guildWarCapturePointsThisMove = 0;
+
+                if (isChessGame) {
+                    for (const stone of result.capturedStones) {
+                        const points = getChessGoStoneCapturePointValue(game, stone);
+                        game.captures[myPlayerEnum] += points;
+                        guildWarCapturePointsThisMove += points;
+                        game.justCaptured.push({
+                            point: stone,
+                            player: opponentPlayerEnum,
+                            wasHidden: false,
+                            capturePoints: points,
+                        });
+                    }
+                    const chessCapture = applyChessCaptureScoreForRemovedStones(
+                        game,
+                        result.capturedStones,
+                        myPlayerEnum,
+                    );
+                    if (chessCapture.kingCaptured) {
+                        if (await tryEndChessOnKingCapture(game, myPlayerEnum)) {
+                            return petHintBonusResult ?? {};
+                        }
+                    }
+                } else {
                 for (const stone of result.capturedStones) {
                     const capturedPlayerEnum = opponentPlayerEnum;
                     
@@ -1904,6 +1921,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                     ) {
                         (game as any).aiInitialHiddenStone = undefined;
                     }
+                }
                 }
                 bumpGuildWarMaxSingleCapturePointsForPlayer(game as any, myPlayerEnum, guildWarCapturePointsThisMove);
                 stripPatternStonesAtConsumedIntersections(game);

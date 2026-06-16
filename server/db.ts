@@ -588,8 +588,8 @@ export const verifyUserEmail = async (userId: string): Promise<void> => {
 
 // --- Game Functions ---
 async function repairChessLiveGameIfNeeded(game: LiveGameSession): Promise<void> {
-    if (game.mode !== GameMode.Chess) return;
-    const { normalizeChessGoSession } = await import('../shared/utils/chessGoRules.js');
+    const { normalizeChessGoSession, sessionUsesChessGo } = await import('../shared/utils/chessGoRules.js');
+    if (!sessionUsesChessGo(game)) return;
     const normalized = normalizeChessGoSession(game);
     game.chessPieces = normalized.chessPieces;
     game.boardState = normalized.boardState;

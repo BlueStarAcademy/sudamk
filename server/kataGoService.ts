@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { LiveGameSession, AnalysisResult, Player, Point, RecommendedMove } from '../types/index.js';
 import { getStoneCapturePointValueForScoring } from '../shared/utils/scoringStonePoints.js';
+import { prepareChessGoSessionForScoring } from '../shared/utils/chessGoRules.js';
 import { getGongbaeEmptyPointKeys } from '../shared/utils/koreanTerritoryFromBoard.js';
 import * as types from '../types/index.js';
 import { fileURLToPath } from 'url';
@@ -119,6 +120,7 @@ const kataGoMoveToPoint = (move: string, boardSize: number): Point => {
 };
 
 const kataGoResponseToAnalysisResult = (session: LiveGameSession, response: any, isWhitesTurn: boolean): AnalysisResult => {
+    prepareChessGoSessionForScoring(session);
     const { boardSize } = session.settings;
     const { rootInfo = {}, moveInfos = [], ownership = null } = response;
 

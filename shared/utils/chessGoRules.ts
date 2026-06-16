@@ -130,6 +130,76 @@ export function getChessPieceCaptureValue(type: ChessPieceType): number {
     }
 }
 
+function findChessPieceAtPoint(
+    chessPieces: ChessPieceState[] | undefined | null,
+    stone: Point,
+    stoneOwner?: Player.Black | Player.White,
+): ChessPieceState | undefined {
+    if (!chessPieces?.length) return undefined;
+    return chessPieces.find(
+        (p) =>
+            p.x === stone.x &&
+            p.y === stone.y &&
+            (stoneOwner == null || p.owner === stoneOwner),
+    );
+}
+
+/** 체스바둑: 교차점 따내기 점수 (체스 기물 돌은 기물별 가치, 일반 바둑돌은 1) */
+export function getChessGoStoneCapturePointValue(
+    session: Pick<ChessGoSessionSlice, 'chessPieces'>,
+    stone: Point,
+    stoneOwner?: Player.Black | Player.White,
+): number {
+    const chessPiece = findChessPieceAtPoint(session.chessPieces, stone, stoneOwner);
+    if (chessPiece) {
+        return getChessPieceCaptureValue(chessPiece.type);
+    }
+    return 1;
+}
+
+export type ChessGoPreservedScoringFields = {
+    chessPieces?: ChessPieceState[] | null;
+    chessGoRemovedPoints?: Point[] | null;
+    chessCaptureScore?: { [key in Player]: number } | null;
+};
+
+/** 계가 직전 preservedGameState에서 체스바둑 필드를 세션에 복원한다. */
+export function applyPreservedChessGoFieldsFromState(
+    session: ChessGoSessionSlice & Pick<LiveGameSession, 'mode' | 'settings'>,
+    preserved?: ChessGoPreservedScoringFields | Record<string, unknown> | null,
+): void {
+    if (!preserved || !sessionUsesChessGo(session)) return;
+    const ps = preserved as ChessGoPreservedScoringFields;
+    if (Array.isArray(ps.chessPieces) && ps.chessPieces.length > 0) {
+        session.chessPieces = ps.chessPieces.map((p) => ({ ...p }));
+    }
+    if (Array.isArray(ps.chessGoRemovedPoints)) {
+        session.chessGoRemovedPoints = ps.chessGoRemovedPoints.map((p) => ({ ...p }));
+    }
+    if (ps.chessCaptureScore && typeof ps.chessCaptureScore === 'object') {
+        session.chessCaptureScore = { ...ps.chessCaptureScore };
+    }
+}
+
+/** 계가·사석 점수 산정 직전: preserved 복원 후 chessPieces 기준으로 boardState를 맞춘다. */
+export function prepareChessGoSessionForScoring<
+    T extends ChessGoSessionSlice &
+        Pick<LiveGameSession, 'mode' | 'settings' | 'moveHistory' | 'boardState' | 'gameStatus' | 'chessPieceMovedThisTurn'>,
+>(session: T): T {
+    if (!sessionUsesChessGo(session)) return session;
+    applyPreservedChessGoFieldsFromState(
+        session,
+        (session as { preservedGameState?: Record<string, unknown> }).preservedGameState,
+    );
+    const normalized = normalizeChessGoSession(session);
+    session.chessPieces = normalized.chessPieces;
+    session.boardState = normalized.boardState;
+    session.settings = normalized.settings;
+    session.chessCaptureScore = normalized.chessCaptureScore;
+    session.chessPieceMovedThisTurn = normalized.chessPieceMovedThisTurn;
+    return session;
+}
+
 export function getInitialRemainingMoves(type: ChessPieceType): number {
     return type === 'pawn' ? 10 : 5;
 }
@@ -993,10 +1063,14 @@ export function resolveChessCapturesByLiberty(
             }
 
             let chessPointsThisGroup = 0;
+            let groupCapturePoints = 0;
             for (const stone of group.stones) {
                 capturedStones.push(stone);
                 board[stone.y]![stone.x] = Player.None;
                 checked.add(pointKey(stone.x, stone.y));
+
+                const stonePoints = getChessGoStoneCapturePointValue(session, stone);
+                groupCapturePoints += stonePoints;
 
                 const chessPiece = session.chessPieces?.find((p) => p.x === stone.x && p.y === stone.y);
                 if (chessPiece) {
@@ -1004,12 +1078,12 @@ export function resolveChessCapturesByLiberty(
                     if (chessPiece.type === 'king') {
                         kingCaptured = true;
                     } else {
-                        chessPointsThisGroup += getChessPieceCaptureValue(chessPiece.type);
+                        chessPointsThisGroup += stonePoints;
                     }
                 }
             }
 
-            session.captures[lastMover] = (session.captures[lastMover] ?? 0) + group.stones.length;
+            session.captures[lastMover] = (session.captures[lastMover] ?? 0) + groupCapturePoints;
             if (chessPointsThisGroup > 0) {
                 session.chessCaptureScore[lastMover] = (session.chessCaptureScore[lastMover] ?? 0) + chessPointsThisGroup;
                 chessPointsAwarded.push({ capturer: lastMover, points: chessPointsThisGroup });
@@ -1041,16 +1115,13 @@ export type ChessRemovedCaptureResult = {
     kingCaptured: boolean;
 };
 
-/** processMove 후 따낸 돌 중 체스 기물 점수 처리 */
+/** processMove 후 따낸 돌 중 체스 기물 돌을 세션에서 제거하고 킹 포획 여부를 반환한다. */
 export function applyChessCaptureScoreForRemovedStones(
     session: ChessGoSessionSlice,
     capturedStones: Point[],
-    capturer: Player.Black | Player.White,
+    _capturer: Player.Black | Player.White,
 ): ChessRemovedCaptureResult {
     if (!capturedStones.length) return { totalPoints: 0, kingCaptured: false };
-    if (!session.chessCaptureScore) {
-        session.chessCaptureScore = createEmptyChessCaptureScore();
-    }
 
     let totalPoints = 0;
     let kingCaptured = false;
@@ -1068,9 +1139,6 @@ export function applyChessCaptureScoreForRemovedStones(
         }
     }
 
-    if (totalPoints > 0) {
-        session.chessCaptureScore[capturer] = (session.chessCaptureScore[capturer] ?? 0) + totalPoints;
-    }
     if (removedIds.size > 0 && session.chessPieces) {
         session.chessPieces = session.chessPieces.filter((p) => !removedIds.has(p.id));
     }

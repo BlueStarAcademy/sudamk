@@ -271,6 +271,7 @@ describe('chessGoRules', () => {
         const result = resolveChessCapturesByLiberty(session, Player.Black);
         expect(result.capturedChessPieces).toHaveLength(1);
         expect(session.chessCaptureScore![Player.Black]).toBe(getChessPieceCaptureValue('queen'));
+        expect(session.captures![Player.Black]).toBe(getChessPieceCaptureValue('queen'));
         expect(session.boardState[queen.y][queen.x]).toBe(Player.None);
     });
 

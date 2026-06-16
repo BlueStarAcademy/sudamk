@@ -1,6 +1,7 @@
 import type { LiveGameSession, Point, BoardState, AnalysisResult } from '../types/index.js';
 import { Player } from '../types/index.js';
 import { getStoneCapturePointValueForScoring } from './scoringStonePoints.js';
+import { prepareChessGoSessionForScoring } from './chessGoRules.js';
 import { classifyKoreanTerritoryFromBoard } from './koreanTerritoryFromBoard.js';
 
 /**
@@ -136,6 +137,8 @@ export function calculateScoreManually(
 ): AnalysisResult {
     const silent = !!options?.silent;
     if (!silent) console.log(`[ScoringService] Starting manual score calculation for game ${session.id}`);
+
+    prepareChessGoSessionForScoring(session);
 
     const { boardState, settings, captures } = session;
     const boardSize = settings.boardSize;

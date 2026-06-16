@@ -17,6 +17,11 @@ import * as db from './db.js';
 import * as effectService from './effectService.js';
 import { endGame } from './summaryService.js';
 import { getStoneCapturePointValueForScoring } from '../shared/utils/scoringStonePoints.js';
+import {
+    applyPreservedChessGoFieldsFromState,
+    prepareChessGoSessionForScoring,
+    sessionUsesChessGo,
+} from '../shared/utils/chessGoRules.js';
 import { TOWER_AI_BOT_DISPLAY_NAME } from '../constants/towerConstants.js';
 import {
     isAiInitialHiddenSoftFoundByAnyPlayer,
@@ -122,7 +127,10 @@ async function broadcastScoringAnalysisWhenReady(
         if (ps.totalTurns !== undefined) {
             freshGame.totalTurns = ps.totalTurns as number;
         }
+        mergePreservedChessGoFieldsIntoSession(freshGame, ps);
     }
+
+    prepareChessGoSessionForScoring(freshGame);
 
     const timeInfoToUse =
         entry?.preservedTimeInfo ||
@@ -190,6 +198,7 @@ function startScoringKataGoPrecomputeCore(
             moveHistory: game.moveHistory,
         }),
     ) as types.LiveGameSession;
+    prepareChessGoSessionForScoring(snapshot);
     finalizeHiddenStonesForScoring(snapshot);
     const scoringLim = getScoringKataGoLimits();
     let entry: ScoringPrecomputeEntry;
@@ -293,8 +302,16 @@ function finalizeHiddenStonesForScoring(game: types.LiveGameSession): void {
     }
 }
 
+function mergePreservedChessGoFieldsIntoSession(
+    session: types.LiveGameSession,
+    preserved?: Record<string, unknown> | null,
+): void {
+    applyPreservedChessGoFieldsFromState(session, preserved);
+}
+
 export const finalizeAnalysisResult = (baseAnalysis: types.AnalysisResult, session: types.LiveGameSession, preservedTimeInfo?: { blackTimeLeft?: number, whiteTimeLeft?: number, blackInitialTimeLeft?: number, whiteInitialTimeLeft?: number }): types.AnalysisResult => {
     const finalAnalysis = JSON.parse(JSON.stringify(baseAnalysis)); // Deep copy
+    prepareChessGoSessionForScoring(session);
 
     // 엔진(Kata/수동)이 넣은 territory는 「빈 교차점」만 센 값.
     // 한국식 집 계가: 상대 사석이 앉은 교차점도 집(영토) 1점으로 세고, 그 돌은 사석(따낸 돌)으로 또 점수에 넣는다
@@ -363,7 +380,8 @@ export const finalizeAnalysisResult = (baseAnalysis: types.AnalysisResult, sessi
 
     let chessBonusBlack = 0;
     let chessBonusWhite = 0;
-    if (session.mode === types.GameMode.Chess) {
+    const chessCaptureAlreadyInCaptures = sessionUsesChessGo(session);
+    if (chessCaptureAlreadyInCaptures) {
         chessBonusBlack = session.chessCaptureScore?.[types.Player.Black] ?? 0;
         chessBonusWhite = session.chessCaptureScore?.[types.Player.White] ?? 0;
         (finalAnalysis.scoreDetails.black as { chessCaptureBonus?: number }).chessCaptureBonus = chessBonusBlack;
@@ -373,6 +391,7 @@ export const finalizeAnalysisResult = (baseAnalysis: types.AnalysisResult, sessi
     // 모험 지역 이해도 시작 가산점은 `session.captures`에 이미 포함되어 scoreDetails.captures로 들어옴 (이중 가산 방지)
 
     // Recalculate totals: 집(영토) + 따낸 돌(사석) + … (집 칸과 사석 점수를 각각 가산)
+    // 체스바둑: captures에 기물별 가중치가 이미 반영되어 chessCaptureBonus는 표시용만 사용
     const blackTotal =
         finalAnalysis.scoreDetails.black.territory +
         finalAnalysis.scoreDetails.black.captures +
@@ -381,7 +400,7 @@ export const finalizeAnalysisResult = (baseAnalysis: types.AnalysisResult, sessi
         finalAnalysis.scoreDetails.black.hiddenStoneBonus +
         finalAnalysis.scoreDetails.black.timeBonus +
         finalAnalysis.scoreDetails.black.itemBonus +
-        chessBonusBlack;
+        (chessCaptureAlreadyInCaptures ? 0 : chessBonusBlack);
     const whiteTotal =
         finalAnalysis.scoreDetails.white.territory +
         finalAnalysis.scoreDetails.white.captures +
@@ -391,7 +410,7 @@ export const finalizeAnalysisResult = (baseAnalysis: types.AnalysisResult, sessi
         finalAnalysis.scoreDetails.white.hiddenStoneBonus +
         finalAnalysis.scoreDetails.white.timeBonus +
         finalAnalysis.scoreDetails.white.itemBonus +
-        chessBonusWhite;
+        (chessCaptureAlreadyInCaptures ? 0 : chessBonusWhite);
     
     finalAnalysis.scoreDetails.black.total = blackTotal;
     finalAnalysis.scoreDetails.white.total = whiteTotal;
@@ -457,7 +476,9 @@ export async function resolveFreshGameForScoringFinalize(
         if (ps.totalTurns !== undefined) {
             fallback.totalTurns = ps.totalTurns as number;
         }
+        mergePreservedChessGoFieldsIntoSession(fallback, ps);
     }
+    prepareChessGoSessionForScoring(fallback);
     fallback.gameStatus = 'scoring';
     (fallback as { isScoringProtected?: boolean }).isScoringProtected = true;
     updateGameCache(fallback);
@@ -703,6 +724,11 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
         baseStoneCaptures: game.baseStoneCaptures ? JSON.parse(JSON.stringify(game.baseStoneCaptures)) : null,
         hiddenStoneCaptures: game.hiddenStoneCaptures ? JSON.parse(JSON.stringify(game.hiddenStoneCaptures)) : null,
         totalTurns: game.totalTurns,
+        chessPieces: game.chessPieces ? JSON.parse(JSON.stringify(game.chessPieces)) : null,
+        chessGoRemovedPoints: game.chessGoRemovedPoints
+            ? JSON.parse(JSON.stringify(game.chessGoRemovedPoints))
+            : null,
+        chessCaptureScore: game.chessCaptureScore ? JSON.parse(JSON.stringify(game.chessCaptureScore)) : null,
     };
     (game as any).preservedGameState = preservedGameState;
     

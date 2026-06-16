@@ -143,7 +143,7 @@ import { normalizeInventoryAfterLoad } from '../utils/inventoryUtils.js';
 import { reconcileExchangeListedInventoryFlags } from '../shared/utils/exchangeInventorySync.js';
 import { stripReappearedRemovedInventoryItems } from '../shared/utils/inventoryStaleGuard.js';
 import { mergeAdventureProfileForPersistence } from '../utils/adventureProfileMerge.js';
-import { applyChessCaptureScoreForRemovedStones, applyChessMoveToSession, commitChessGoPlacementCaptures, normalizeChessGoSession, resolveChessCapturesByLiberty, validateChessMove } from '../shared/utils/chessGoRules.js';
+import { applyChessCaptureScoreForRemovedStones, applyChessMoveToSession, commitChessGoPlacementCaptures, getChessGoStoneCapturePointValue, normalizeChessGoSession, resolveChessCapturesByLiberty, validateChessMove } from '../shared/utils/chessGoRules.js';
 import { detectAndConfirmTerritories } from '../shared/utils/castleGoRules.js';
 import {
     coerceAdventureLiveGameScoringTurnLimit,
@@ -4209,7 +4209,25 @@ export const useApp = () => {
 
                 const movePlayer: Player = (payloadMovePlayer ?? game.currentPlayer) as Player;
                 const capturedStones = (payload.capturedStones ?? []) as Array<{ x: number; y: number }>;
-                const weighted = buildWeightedJustCapturedForStones(game, capturedStones || [], movePlayer);
+                const opponentPlayer =
+                    movePlayer === Player.Black ? Player.White : Player.Black;
+                const weighted =
+                    game.mode === GameMode.Chess && capturedStones.length > 0
+                        ? (() => {
+                              let totalPoints = 0;
+                              const entries = capturedStones.map((stone) => {
+                                  const capturePoints = getChessGoStoneCapturePointValue(game, stone);
+                                  totalPoints += capturePoints;
+                                  return {
+                                      point: stone,
+                                      player: opponentPlayer,
+                                      wasHidden: false,
+                                      capturePoints,
+                                  };
+                              });
+                              return { totalPoints, entries };
+                          })()
+                        : buildWeightedJustCapturedForStones(game, capturedStones || [], movePlayer);
                 const newCaptures = {
                     ...game.captures,
                     [movePlayer]: (game.captures[movePlayer] || 0) + weighted.totalPoints,
