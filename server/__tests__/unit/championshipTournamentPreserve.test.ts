@@ -102,6 +102,51 @@ describe('championshipTournamentPreserve', () => {
         expect((merged[0]!.matches[0]!.championshipRealGame?.moves ?? []).length).toBe(0);
     });
 
+    it('mergeResolvedRoundsPreserveChampionshipPlayback prefers server terminal result when match finished', () => {
+        const moves = [{ x: 3, y: 3, player: Player.Black, actorId: 'a' }];
+        const prevGame = {
+            boardSize: 9 as const,
+            maxPly: 50,
+            blackPlayerId: 'a',
+            whitePlayerId: 'b',
+            boardState: [],
+            moves,
+            lastMove: { x: 3, y: 3 },
+            currentPly: 1,
+            status: 'scoring' as const,
+            finalScore: { black: 10, white: 8, scoreLead: 2 },
+            winnerId: 'a',
+            events: [],
+            phaseStatsByPlayerId: {},
+        };
+        const resolvedGame = {
+            ...prevGame,
+            status: 'finished' as const,
+            winnerId: 'b',
+            finalScore: { black: 8, white: 10, scoreLead: -2 },
+        };
+        const prev = mkState(
+            [{ id: 1, name: '8강', matches: [mkMatch('m1', { championshipRealGame: prevGame as any }), mkMatch('x')] }],
+            { roundIndex: 0, matchIndex: 0 },
+            1,
+        );
+        const resolved = mkState(
+            [
+                {
+                    id: 1,
+                    name: '8강',
+                    matches: [mkMatch('m1', { isFinished: true, championshipRealGame: resolvedGame as any }), mkMatch('x')],
+                },
+            ],
+            { roundIndex: 0, matchIndex: 0 },
+            1,
+        );
+
+        const merged = mergeResolvedRoundsPreserveChampionshipPlayback(prev, resolved);
+        expect(merged[0]!.matches[0]!.championshipRealGame?.winnerId).toBe('b');
+        expect(merged[0]!.matches[0]!.championshipRealGame?.status).toBe('finished');
+    });
+
     it('mergeChampionshipTournamentPreserveLostRealGame does not restore base game onto different match id', () => {
         const baseGame = {
             boardSize: 9 as const,

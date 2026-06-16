@@ -137,7 +137,6 @@ const PrivacyPolicyModal: React.FC<Props> = ({ onClose, isTopmost }) => (
         intro={`${COMPANY_INFO.name}은 「개인정보 보호법」 등 관계 법령에 따라 회원의 개인정보를 보호하고, 이와 관련한 고충을 신속하고 원활하게 처리할 수 있도록 본 방침을 수립·공개합니다.`}
         sections={SECTIONS}
         onClose={onClose}
-        windowId="legal-privacy-policy"
         isTopmost={isTopmost}
     />
 );

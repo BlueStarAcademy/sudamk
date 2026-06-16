@@ -487,7 +487,7 @@ const AppContent: React.FC = () => {
                         <div className="relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-transparent">
                             <MainBackgroundLayer variant="auth" />
                             <div
-                                className={`relative z-10 flex min-h-0 w-full flex-1 flex-col items-center justify-center overflow-hidden px-3 pt-[max(0.75rem,env(safe-area-inset-top,0px))] pb-2 sm:gap-6 sm:px-6 sm:py-6 lg:gap-8 lg:px-10 lg:py-8 ${
+                                className={`relative z-10 flex min-h-0 w-full flex-1 flex-col items-center justify-center overflow-hidden px-3 pt-[max(0.75rem,env(safe-area-inset-top,0px))] pb-[max(6.5rem,calc(env(safe-area-inset-bottom,0px)+5.5rem))] sm:gap-6 sm:px-6 sm:py-6 lg:gap-8 lg:px-10 lg:py-8 ${
                                     isNativeMobile ? 'gap-2 py-3' : 'gap-4 py-4'
                                 }`}
                             >
@@ -638,7 +638,7 @@ const AppContent: React.FC = () => {
                         ) : (
                             <div className="relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-transparent">
                                 <MainBackgroundLayer variant="auth" />
-                                <div className="relative z-[2] flex min-h-0 flex-1 flex-col items-center justify-center gap-3 overflow-hidden px-3 py-4 sm:gap-5 sm:px-6 sm:py-6 lg:gap-6 lg:px-10 lg:py-8">
+                                <div className="relative z-[2] flex min-h-0 flex-1 flex-col items-center justify-center gap-3 overflow-hidden px-3 py-4 pb-[max(6.5rem,calc(env(safe-area-inset-bottom,0px)+5.5rem))] sm:gap-5 sm:px-6 sm:py-6 lg:gap-6 lg:px-10 lg:py-8">
                                 {/* 상단 중앙 브랜드 — 모바일은 컴팩트, PC는 비율만 키움 */}
                                 <header
                                     className="flex w-full max-w-lg shrink-0 flex-col items-center gap-1 px-2 text-center sm:max-w-xl sm:gap-1.5 lg:max-w-3xl lg:gap-2"

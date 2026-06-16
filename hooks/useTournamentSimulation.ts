@@ -641,7 +641,10 @@ export const useTournamentSimulation = (
                     if (!nm) return updated;
                     m.championshipRealGame = {
                         ...rg,
-                        boardState: boardAfterMoves(rg.boardSize, rg.moves, nm),
+                        boardState:
+                            rg.scoringAnalysis && rg.boardState
+                                ? rg.boardState
+                                : boardAfterMoves(rg.boardSize, rg.moves, nm),
                         currentPly: nm,
                         lastMove: lastM ? { x: lastM.x, y: lastM.y } : rg.lastMove,
                         status: 'scoring',

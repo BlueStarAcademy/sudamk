@@ -13,7 +13,7 @@ const MainBackgroundLayer: React.FC<MainBackgroundLayerProps> = ({ variant = 'ap
             ? 'from-black/78 via-black/58 to-black/82'
             : 'from-black/62 via-black/42 to-black/72';
 
-    /** 로그인·회원가입 등: 루트 `.bg-login-background`(loginbg)만 쓰고 mainbg.webp는 겹치지 않음 */
+    /** 로그인·회원가입 등: 루트 `.bg-login-background`(loginpc/loginmb.webp)만 쓰고 mainbg.webp는 겹치지 않음 */
     const showMainBgImage = variant !== 'auth';
 
     return (

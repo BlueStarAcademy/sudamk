@@ -1,4 +1,5 @@
 import React, { Suspense, lazy, useCallback, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { COMPANY_INFO } from './legal/companyInfo.js';
 
 const TermsOfServiceModal = lazy(() => import('./legal/TermsOfServiceModal.js'));
@@ -14,23 +15,30 @@ interface AppFooterProps {
 const FooterLinkButton: React.FC<{
     label: string;
     emphasis?: boolean;
+    auth?: boolean;
     onClick: () => void;
-}> = ({ label, emphasis, onClick }) => (
+}> = ({ label, emphasis, auth, onClick }) => (
     <button
         type="button"
         onClick={onClick}
         className={`whitespace-nowrap text-[11px] sm:text-xs underline-offset-4 transition-colors hover:underline ${
-            emphasis
-                ? 'font-semibold text-amber-200/95 hover:text-amber-100'
-                : 'text-secondary hover:text-on-panel'
+            auth
+                ? emphasis
+                    ? 'font-semibold text-amber-200 hover:text-amber-50'
+                    : 'text-stone-200 hover:text-amber-100'
+                : emphasis
+                  ? 'font-semibold text-amber-200/95 hover:text-amber-100'
+                  : 'text-secondary hover:text-on-panel'
         }`}
     >
         {label}
     </button>
 );
 
-const Divider: React.FC = () => (
-    <span aria-hidden className="hidden text-tertiary/40 sm:inline">·</span>
+const Divider: React.FC<{ auth?: boolean }> = ({ auth }) => (
+    <span aria-hidden className={`hidden sm:inline ${auth ? 'text-stone-500/70' : 'text-tertiary/40'}`}>
+        ·
+    </span>
 );
 
 const AppFooter: React.FC<AppFooterProps> = ({ variant = 'main' }) => {
@@ -39,13 +47,12 @@ const AppFooter: React.FC<AppFooterProps> = ({ variant = 'main' }) => {
 
     const isAuth = variant === 'auth';
 
-    return (
-        <>
+    const footer = (
             <footer
-                className={`box-border w-full max-w-none shrink-0 border-t border-amber-400/15 ${
+                className={`box-border w-full max-w-none shrink-0 border-t ${
                     isAuth
-                        ? 'bg-black/40 px-0 py-1.5 backdrop-blur-sm pb-[max(0.375rem,env(safe-area-inset-bottom,0px))] sm:py-2'
-                        : 'bg-primary/85 px-3 py-2 sm:px-6 sm:py-3'
+                        ? 'fixed bottom-0 left-0 right-0 z-[30] border-amber-400/20 bg-zinc-950/72 px-0 py-1.5 text-stone-200 shadow-[0_-8px_32px_rgba(0,0,0,0.28)] backdrop-blur-sm pb-[max(0.375rem,env(safe-area-inset-bottom,0px))] sm:py-2'
+                        : 'border-amber-400/15 bg-primary/85 px-3 py-2 sm:px-6 sm:py-3'
                 } text-center text-[11px] leading-snug sm:text-xs`}
                 role="contentinfo"
                 aria-label="사이트 정보"
@@ -59,58 +66,96 @@ const AppFooter: React.FC<AppFooterProps> = ({ variant = 'main' }) => {
                     <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 sm:gap-x-4">
                         <FooterLinkButton
                             label="이용약관"
+                            auth={isAuth}
                             onClick={() => setOpenModal('terms')}
                         />
-                        <Divider />
+                        <Divider auth={isAuth} />
                         <FooterLinkButton
                             label="개인정보처리방침"
                             emphasis
+                            auth={isAuth}
                             onClick={() => setOpenModal('privacy')}
                         />
-                        <Divider />
+                        <Divider auth={isAuth} />
                         <FooterLinkButton
                             label="취소·환불 규정"
+                            auth={isAuth}
                             onClick={() => setOpenModal('refund')}
                         />
-                        <Divider />
+                        <Divider auth={isAuth} />
                         <a
                             href={`mailto:${COMPANY_INFO.email}`}
-                            className="whitespace-nowrap text-[11px] text-secondary underline-offset-4 transition-colors hover:text-on-panel hover:underline sm:text-xs"
+                            className={`whitespace-nowrap text-[11px] underline-offset-4 transition-colors hover:underline sm:text-xs ${
+                                isAuth
+                                    ? 'text-stone-200 hover:text-amber-100'
+                                    : 'text-secondary hover:text-on-panel'
+                            }`}
                         >
                             고객센터
                         </a>
                     </div>
 
                     {/* 사업자 정보 행 1 */}
-                    <p className="text-[10px] text-tertiary/95 sm:text-[11px]">
-                        <span className="font-semibold text-on-panel/80">{COMPANY_INFO.name}</span>
-                        <span className="mx-1.5 text-tertiary/40">|</span>
+                    <p
+                        className={
+                            isAuth
+                                ? 'text-[10px] text-stone-300 sm:text-[11px]'
+                                : 'text-[10px] text-tertiary/95 sm:text-[11px]'
+                        }
+                    >
+                        <span
+                            className={
+                                isAuth ? 'font-semibold text-stone-100' : 'font-semibold text-on-panel/80'
+                            }
+                        >
+                            {COMPANY_INFO.name}
+                        </span>
+                        <span className={`mx-1.5 ${isAuth ? 'text-stone-500/70' : 'text-tertiary/40'}`}>|</span>
                         대표 {COMPANY_INFO.representative}
-                        <span className="mx-1.5 text-tertiary/40">|</span>
+                        <span className={`mx-1.5 ${isAuth ? 'text-stone-500/70' : 'text-tertiary/40'}`}>|</span>
                         사업자등록번호 {COMPANY_INFO.businessNumber}
-                        <span className="mx-1.5 text-tertiary/40">|</span>
+                        <span className={`mx-1.5 ${isAuth ? 'text-stone-500/70' : 'text-tertiary/40'}`}>|</span>
                         통신판매업신고 {COMPANY_INFO.mailOrderNumber}
                     </p>
 
                     {/* 사업자 정보 행 2 */}
-                    <p className="text-[10px] text-tertiary/95 sm:text-[11px]">
+                    <p
+                        className={
+                            isAuth
+                                ? 'text-[10px] text-stone-300 sm:text-[11px]'
+                                : 'text-[10px] text-tertiary/95 sm:text-[11px]'
+                        }
+                    >
                         {COMPANY_INFO.address}
-                        <span className="mx-1.5 text-tertiary/40">|</span>
+                        <span className={`mx-1.5 ${isAuth ? 'text-stone-500/70' : 'text-tertiary/40'}`}>|</span>
                         고객센터 {COMPANY_INFO.phone}
-                        <span className="mx-1.5 text-tertiary/40">|</span>
+                        <span className={`mx-1.5 ${isAuth ? 'text-stone-500/70' : 'text-tertiary/40'}`}>|</span>
                         <a
                             href={`mailto:${COMPANY_INFO.email}`}
-                            className="underline-offset-2 transition-colors hover:text-on-panel hover:underline"
+                            className={`underline-offset-2 transition-colors hover:underline ${
+                                isAuth ? 'text-stone-200 hover:text-amber-100' : 'hover:text-on-panel'
+                            }`}
                         >
                             {COMPANY_INFO.email}
                         </a>
                     </p>
 
-                    <p className="text-[10px] text-tertiary/70">
+                    <p
+                        className={
+                            isAuth ? 'text-[10px] text-stone-400' : 'text-[10px] text-tertiary/70'
+                        }
+                    >
                         © {new Date().getFullYear()} {COMPANY_INFO.name}. All rights reserved.
                     </p>
                 </div>
             </footer>
+    );
+
+    return (
+        <>
+            {isAuth && typeof document !== 'undefined'
+                ? createPortal(footer, document.body)
+                : footer}
 
             {openModal !== null ? (
                 <Suspense fallback={null}>

@@ -81,6 +81,10 @@ export function mergeResolvedRoundsPreserveChampionshipPlayback(
     const prevGame = prevMatch?.championshipRealGame;
     const resolvedGame = resolvedMatch?.championshipRealGame;
 
+    if (resolvedMatch?.isFinished && resolvedGame?.winnerId) {
+        return resolved.rounds;
+    }
+
     if (prevGame?.moves?.length && (!resolvedGame?.moves?.length || resolvedGame.moves.length < prevGame.moves.length)) {
         return resolved.rounds.map((round, rIdx) =>
             rIdx !== ri

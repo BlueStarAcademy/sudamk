@@ -2008,7 +2008,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .bg-login-background {
-    background-image: url('/images/bg/loginbg.webp');
+    background-image: url('/images/bg/loginpc.webp');
     /* 화면 가득 채움. 비율 유지(왜곡 없음) — 잘리는 부분은 뷰포트 종횡비에 따라 달라짐 */
     background-size: cover;
     background-position: center;
@@ -2016,9 +2016,9 @@ input[type="range"]::-moz-range-thumb {
     background-color: rgb(var(--bg-tertiary));
 }
 
-/* 모바일도 동일 cover. 예전 168%/132%는 비율이 깨져 세로로 늘어진 느낌을 줬음 */
 @media (max-width: 1024px) {
     .bg-login-background {
+        background-image: url('/images/bg/loginmb.webp');
         background-size: cover;
         background-position: center;
     }

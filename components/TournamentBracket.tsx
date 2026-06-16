@@ -22,6 +22,7 @@ import { useButtonClickThrottle } from '../hooks/useButtonClickThrottle.js';
 import {
     useTournamentSimulation,
     CHAMPIONSHIP_SCORING_VEIL_DURATION_MS,
+    championshipReplayBoardAfterMoves,
     type ChampionshipPlaybackSpeed,
 } from '../hooks/useTournamentSimulation.js';
 import { useChampionshipReplayPlaceStoneSound } from '../hooks/useChampionshipReplayPlaceStoneSound.js';
@@ -79,6 +80,7 @@ import {
     ChampionshipMobileScoringCountdownCell,
 } from './championship/ChampionshipArenaScorePanels.js';
 import { replaceAppHash } from '../utils/appUtils.js';
+import InlineLoadingSpinner from './ui/InlineLoadingSpinner.js';
 
 /** 서버 inferDungeonStageAttempt와 동일 — currentStageAttempt 누락 시에도 보상 버튼·COMPLETE_DUNGEON_STAGE 단계 일치 */
 function resolveDungeonStageAttempt(
@@ -286,14 +288,11 @@ export const ChampionshipRealGoBoard: React.FC<{
     match: Match | null;
     currentUser: UserWithStatus;
     tournamentFinished?: boolean;
-    tournamentForResult?: TournamentState | null;
     /** 던전 경기장: 바둑판 중앙 안내(카타 로딩·경기 전 대기) */
     dungeonBoardCenterMode?: 'deep_breath' | 'players_entering' | null;
     /** `players_entering`일 때 중앙 문구(미지정이면 기본: 선수 입장 안내) */
     dungeonPlayersEnteringHint?: string;
-    /** 모든 경기 종료 후 최종 순위표 */
-    finalStandings?: ChampionshipDungeonStandingRow[] | null;
-    /** true면 경기 종료 후 바둑판 위 FINAL RESULT 카드(오버레이)를 숨긴다 — 장내 PVP 등에서 별도 결과 모달과 함께 사용 */
+    /** @deprecated 오버레이 제거됨 — 장내 PVP 등 호환용 no-op */
     suppressFinishedResultCard?: boolean;
     /** 계가·종료 판면에서 영토/사석 오버레이(서버 `calculateScoreManually` 또는 엔진 분석) */
     territoryAnalysis?: AnalysisResult | null;
@@ -301,10 +300,7 @@ export const ChampionshipRealGoBoard: React.FC<{
     match,
     currentUser,
     tournamentFinished = false,
-    tournamentForResult = null,
     dungeonBoardCenterMode = null,
-    finalStandings = null,
-    suppressFinishedResultCard = false,
     territoryAnalysis = null,
     dungeonPlayersEnteringHint,
 }) => {
@@ -322,8 +318,35 @@ export const ChampionshipRealGoBoard: React.FC<{
                 () => Array.from({ length: realGame.boardSize }, () => Player.None),
             );
         }
+        const moveCount = realGame.moves?.length ?? 0;
+        const ply = realGame.currentPly ?? 0;
+        const atTerminalPly = moveCount > 0 && ply >= moveCount;
+        const terminalForScoring =
+            atTerminalPly && (realGame.status === 'scoring' || realGame.status === 'finished');
+        if (terminalForScoring) {
+            if (realGame.scoringAnalysis && realGame.boardState) {
+                return realGame.boardState;
+            }
+            if (realGame.moves?.length) {
+                return championshipReplayBoardAfterMoves(realGame.boardSize, realGame.moves, moveCount);
+            }
+        }
         return realGame.boardState;
-    }, [realGame?.boardState, realGame?.boardSize, realGame?.currentPly, realGame?.status]);
+    }, [
+        realGame?.boardState,
+        realGame?.boardSize,
+        realGame?.currentPly,
+        realGame?.status,
+        realGame?.moves,
+        realGame?.scoringAnalysis,
+    ]);
+
+    const territoryAnalysisForOverlay = React.useMemo(() => {
+        if (!realGame) return null;
+        if (realGame.scoringAnalysis) return territoryAnalysis;
+        if (realGame.status === 'finished') return territoryAnalysis;
+        return null;
+    }, [realGame?.scoringAnalysis, realGame?.status, territoryAnalysis]);
 
     /** 계가 베일·스캔 연출 — `realGame` 없을 때도 훅 순서를 유지해야 함(조기 return 위에 둔다). */
     const [scoringVeilComplete, setScoringVeilComplete] = React.useState(false);
@@ -354,8 +377,12 @@ export const ChampionshipRealGoBoard: React.FC<{
         }
         if (dungeonBoardCenterMode === 'players_entering') {
             return (
-                <div className="flex h-full w-full items-center justify-center bg-transparent px-4 text-center text-sm text-slate-300/85">
-                    <span>{dungeonPlayersEnteringHint ?? '선수들이 입장하고 있습니다. 잠시만 기다려주세요.'}</span>
+                <div className="flex h-full w-full items-center justify-center bg-transparent px-4">
+                    <InlineLoadingSpinner
+                        size="lg"
+                        label={dungeonPlayersEnteringHint ?? '선수들이 입장하고 있습니다. 잠시만 기다려주세요.'}
+                        labelClassName="max-w-xs text-center text-sm leading-relaxed text-slate-300"
+                    />
                 </div>
             );
         }
@@ -373,68 +400,13 @@ export const ChampionshipRealGoBoard: React.FC<{
         realGame.status === 'scoring' ? 'scoring' : realGame.status === 'finished' ? 'ended' : 'playing';
 
     const showTerritoryOnBoard =
-        !!territoryAnalysis &&
+        !!territoryAnalysisForOverlay &&
         !isFreshBeforePlayback &&
         (realGame.status === 'finished' || (realGame.status === 'scoring' && scoringVeilComplete));
 
-    // 매 경기 종료 후 다음 경기를 누르기 전까지 결과 카드를 바둑판 위에 띄워, 어떤 결과로 끝났는지 한눈에 확인할 수 있게 한다.
-    const showFinishedResult =
-        !suppressFinishedResultCard &&
-        !!realGame.winnerId &&
-        ((realGame.status === 'finished' && !!match?.isFinished) ||
-            (realGame.status === 'scoring' && scoringVeilComplete));
-    const finishedScoreLeadAbs = showFinishedResult
-        ? Math.abs(realGame.finalScore?.scoreLead ?? 0)
-        : 0;
-
-    // 결과 카드에 노출할 부가 정보(회차/라운드, 양 선수 프로필, 누적 승패, 다음 안내) 계산
-    const userWonThisMatch = !!realGame.winnerId && realGame.winnerId === currentUser.id;
-    const userInMatch =
-        match?.players.find(p => p?.id === currentUser.id) ?? null;
-    const opponentInMatch =
-        match?.players.find(p => p && p.id !== currentUser.id) ?? null;
-
-    const userRecord = dungeonUserMatchRecordForPlayer(tournamentForResult, currentUser.id, match);
-    const opponentRecord = opponentInMatch
-        ? dungeonUserMatchRecordForPlayer(tournamentForResult, opponentInMatch.id, match)
-        : { wins: 0, losses: 0 };
-
-    const { avatarUrl: userAvatarUrl, borderUrl: userBorderUrl } = resolveChampionshipPortraitUrls(userInMatch);
-    const { avatarUrl: opponentAvatarUrl, borderUrl: opponentBorderUrl } =
-        resolveChampionshipPortraitUrls(opponentInMatch);
-
-    const roundLabel = (() => {
-        if (!tournamentForResult || !match) return '';
-        for (const r of tournamentForResult.rounds) {
-            if (r.matches.some(m => m.id === match.id)) return r.name ?? '';
-        }
-        return '';
-    })();
-
-    // 마지막 경기가 끝난 다음에는 "다음 경기" 버튼이 없으므로 보상 수령 안내로 바꿔 표시한다.
-    const nextActionMessage = tournamentFinished
-        ? '"보상받기" 버튼을 눌러 보상을 수령하세요.'
-        : '"다음 경기" 버튼을 눌러 진행해 주세요.';
-
-    const finalStandingsCount = finalStandings?.length ?? 0;
-    const finalStandingsListClass =
-        finalStandingsCount > 6
-            ? 'grid grid-cols-2 gap-x-1.5 gap-y-0.5 sm:gap-x-2'
-            : 'flex flex-col gap-0.5';
-    const finalStandingsTextClass = finalStandingsCount > 12 ? 'text-[9px] sm:text-[10px]' : 'text-[10px] sm:text-[11px]';
-
     return (
-        <div
-            className={`championship-real-board relative flex h-full w-full items-center justify-center ${
-                showFinishedResult ? 'overflow-visible' : 'overflow-hidden'
-            }`}
-        >
-            {/* 오버레이를 바둑판 정사각형 영역 안에 두어 계가 연출이 바둑판 위로 정확히 덮이도록 한다. */}
-            <div
-                className={`relative aspect-square h-full max-h-full max-w-full ${
-                    showFinishedResult ? 'overflow-visible' : 'overflow-hidden'
-                }`}
-            >
+        <div className="championship-real-board relative flex h-full w-full items-center justify-center overflow-hidden">
+            <div className="relative aspect-square h-full max-h-full max-w-full overflow-hidden">
                 <GoBoard
                     boardState={displayBoardState ?? realGame.boardState}
                     boardSize={realGame.boardSize}
@@ -454,7 +426,7 @@ export const ChampionshipRealGoBoard: React.FC<{
                     isItemModeActive={false}
                     moveHistory={moveHistoryForDisplay}
                     captures={{ [Player.Black]: 0, [Player.White]: 0 }}
-                    analysisResult={territoryAnalysis ?? undefined}
+                    analysisResult={territoryAnalysisForOverlay ?? undefined}
                     showTerritoryOverlay={showTerritoryOnBoard}
                 />
                 {realGame.status === 'scoring' && !scoringVeilComplete && (
@@ -471,112 +443,181 @@ export const ChampionshipRealGoBoard: React.FC<{
                     </div>
                 )}
             </div>
-            {/* 경기 종료 카드는 바둑판 정사각형 밖(경기장 전체)에 두어 최종 순위가 잘리지 않게 한다. */}
-            {showFinishedResult && (
-                <div className="pointer-events-none absolute inset-0 z-[35] flex items-center justify-center overflow-visible p-1.5 sm:p-2">
-                    <div className="absolute inset-0 bg-slate-950/40" aria-hidden />
-                    <div className="relative z-[1] flex w-full max-w-full items-center justify-center px-1 sm:px-2">
-                        <div className="championship-finished-result-card pointer-events-auto max-w-[min(100%,min(94vw,34rem))] rounded-2xl border-2 border-amber-300/70 bg-gradient-to-b from-slate-900/95 via-slate-950/95 to-black/95 px-4 py-3 text-center shadow-[0_18px_42px_-12px_rgba(0,0,0,0.85)] ring-1 ring-amber-300/15 sm:px-6 sm:py-4">
-                            <div className="flex items-center justify-center gap-2">
-                                {roundLabel && (
-                                    <span className="rounded-full border border-amber-300/65 bg-amber-500/15 px-2 py-0.5 text-[10px] font-black tracking-wider text-amber-100">
-                                        {roundLabel}
-                                    </span>
-                                )}
-                                <span className="text-[11px] font-black tracking-[0.32em] text-amber-200/80 sm:text-xs">FINAL RESULT</span>
-                            </div>
+        </div>
+    );
+};
 
-                            <div className="mt-2 flex items-center justify-center gap-2 sm:mt-2.5 sm:gap-3">
-                                <div className="flex w-[5rem] flex-col items-center sm:w-[5.6rem]">
-                                    <div
-                                        className={`shrink-0 rounded-full ${
-                                            userWonThisMatch
-                                                ? 'ring-2 ring-emerald-400/90 ring-offset-1 ring-offset-slate-950'
-                                                : 'ring-2 ring-rose-400/90 ring-offset-1 ring-offset-slate-950'
-                                        }`}
-                                    >
-                                        <Avatar
-                                            userId={userInMatch?.id ?? currentUser.id}
-                                            userName={userInMatch?.nickname ?? '나'}
-                                            avatarUrl={userAvatarUrl}
-                                            borderUrl={userBorderUrl}
-                                            size={48}
-                                        />
-                                    </div>
-                                    <div className="mt-0.5 max-w-full truncate text-[10px] font-bold text-slate-100 sm:mt-1 sm:text-[11px]">
-                                        {userInMatch?.nickname ?? '나'}
-                                    </div>
-                                    <div className="text-[9px] font-semibold text-emerald-200/85 sm:text-[10px]">
-                                        대회 {userRecord.wins}승 <span className="text-rose-200/85">{userRecord.losses}패</span>
-                                    </div>
-                                </div>
+/** 컨트롤 패널·보상 패널 사이에 표시하는 경기 결과 패널(바둑판 오버레이 대신) */
+export const ChampionshipMatchResultPanel: React.FC<{
+    match: Match | null;
+    currentUser: UserWithStatus;
+    tournamentFinished?: boolean;
+    tournamentForResult?: TournamentState | null;
+    finalStandings?: ChampionshipDungeonStandingRow[] | null;
+    resultActionSlot?: React.ReactNode;
+    compact?: boolean;
+}> = ({
+    match,
+    currentUser,
+    tournamentFinished = false,
+    tournamentForResult = null,
+    finalStandings = null,
+    resultActionSlot = null,
+    compact = false,
+}) => {
+    const realGame = match?.championshipRealGame;
+    if (!realGame?.winnerId || !match) return null;
 
-                                <div className="flex flex-col items-center justify-center">
-                                    <div className={`text-lg font-black leading-tight sm:text-xl ${userWonThisMatch ? 'text-emerald-200' : 'text-rose-200'}`}>
-                                        {userWonThisMatch ? '승리' : '패배'}
-                                    </div>
-                                    <div className="mt-0.5 text-[10px] font-bold text-slate-300 sm:text-xs">
-                                        {finishedScoreLeadAbs > 0 ? `${finishedScoreLeadAbs.toFixed(1)}집 차` : '백병전'}
-                                    </div>
-                                </div>
+    const userWonThisMatch = realGame.winnerId === currentUser.id;
+    const userInMatch = match.players.find((p) => p?.id === currentUser.id) ?? null;
+    const opponentInMatch = match.players.find((p) => p && p.id !== currentUser.id) ?? null;
+    const userRecord = dungeonUserMatchRecordForPlayer(tournamentForResult, currentUser.id, match);
+    const opponentRecord = opponentInMatch
+        ? dungeonUserMatchRecordForPlayer(tournamentForResult, opponentInMatch.id, match)
+        : { wins: 0, losses: 0 };
+    const { avatarUrl: userAvatarUrl, borderUrl: userBorderUrl } = resolveChampionshipPortraitUrls(userInMatch);
+    const { avatarUrl: opponentAvatarUrl, borderUrl: opponentBorderUrl } =
+        resolveChampionshipPortraitUrls(opponentInMatch);
+    const roundLabel = (() => {
+        if (!tournamentForResult) return '';
+        for (const r of tournamentForResult.rounds) {
+            if (r.matches.some((m) => m.id === match.id)) return r.name ?? '';
+        }
+        return '';
+    })();
+    const finishedScoreLeadAbs = Math.abs(realGame.finalScore?.scoreLead ?? 0);
+    const finalStandingsCount = finalStandings?.length ?? 0;
+    const finalStandingsListClass =
+        finalStandingsCount > 6
+            ? 'grid grid-cols-2 gap-x-1.5 gap-y-0.5 sm:gap-x-2'
+            : 'flex flex-col gap-0.5';
+    const finalStandingsTextClass = compact
+        ? finalStandingsCount > 12
+            ? 'text-[9px]'
+            : 'text-[10px]'
+        : finalStandingsCount > 12
+          ? 'text-[9px] sm:text-[10px]'
+          : 'text-[10px] sm:text-[11px]';
 
-                                <div className="flex w-[5rem] flex-col items-center sm:w-[5.6rem]">
-                                    <div
-                                        className={`shrink-0 rounded-full ${
-                                            userWonThisMatch
-                                                ? 'ring-2 ring-rose-400/90 ring-offset-1 ring-offset-slate-950'
-                                                : 'ring-2 ring-emerald-400/90 ring-offset-1 ring-offset-slate-950'
-                                        }`}
-                                    >
-                                        <Avatar
-                                            userId={opponentInMatch?.id ?? 'opponent'}
-                                            userName={opponentInMatch?.nickname ?? '상대'}
-                                            avatarUrl={opponentAvatarUrl}
-                                            borderUrl={opponentBorderUrl}
-                                            size={48}
-                                        />
-                                    </div>
-                                    <div className="mt-0.5 max-w-full truncate text-[10px] font-bold text-slate-100 sm:mt-1 sm:text-[11px]">
-                                        {opponentInMatch?.nickname ?? '상대'}
-                                    </div>
-                                    <div className="text-[9px] font-semibold text-emerald-200/85 sm:text-[10px]">
-                                        대회 {opponentRecord.wins}승 <span className="text-rose-200/85">{opponentRecord.losses}패</span>
-                                    </div>
-                                </div>
-                            </div>
+    return (
+        <section
+            className={`flex min-h-0 flex-col rounded-2xl border border-amber-400/35 bg-gradient-to-b from-[#2a3d56] via-[#141c2b] to-[#070a10] shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_12px_36px_-18px_rgba(0,0,0,0.92)] ring-1 ring-inset ring-amber-300/12 ${
+                compact ? 'p-2' : 'p-2.5'
+            }`}
+        >
+            <div
+                className={`championship-finished-result-card rounded-xl border border-amber-300/55 bg-gradient-to-b from-slate-900/95 via-slate-950/95 to-black/95 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${
+                    compact ? 'px-3 py-2' : 'px-4 py-3 sm:px-5 sm:py-3.5'
+                }`}
+            >
+                {roundLabel ? (
+                    <div className="flex items-center justify-center">
+                        <span
+                            className={`rounded-full border border-amber-300/65 bg-amber-500/15 font-black tracking-wider text-amber-100 ${
+                                compact ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-0.5 text-[10px]'
+                            }`}
+                        >
+                            {roundLabel}
+                        </span>
+                    </div>
+                ) : null}
 
-                            <div className="mt-2 text-[10px] font-semibold text-cyan-200/85 sm:mt-2.5 sm:text-[11px]">{nextActionMessage}</div>
+                <div className={`flex items-center justify-center ${roundLabel ? (compact ? 'mt-1.5 gap-1.5' : 'mt-2 gap-2') : compact ? 'gap-1.5' : 'gap-2 sm:gap-3'}`}>
+                    <div className={`flex flex-col items-center ${compact ? 'w-[4.5rem]' : 'w-[5rem] sm:w-[5.6rem]'}`}>
+                        <div
+                            className={`shrink-0 rounded-full ${
+                                userWonThisMatch
+                                    ? 'ring-2 ring-emerald-400/90 ring-offset-1 ring-offset-slate-950'
+                                    : 'ring-2 ring-rose-400/90 ring-offset-1 ring-offset-slate-950'
+                            }`}
+                        >
+                            <Avatar
+                                userId={userInMatch?.id ?? currentUser.id}
+                                userName={userInMatch?.nickname ?? '나'}
+                                avatarUrl={userAvatarUrl}
+                                borderUrl={userBorderUrl}
+                                size={compact ? 40 : 48}
+                            />
+                        </div>
+                        <div
+                            className={`mt-0.5 max-w-full truncate font-bold text-slate-100 ${compact ? 'text-[10px]' : 'text-[10px] sm:text-[11px]'}`}
+                        >
+                            {userInMatch?.nickname ?? '나'}
+                        </div>
+                        <div className={`font-semibold text-emerald-200/85 ${compact ? 'text-[9px]' : 'text-[9px] sm:text-[10px]'}`}>
+                            대회 {userRecord.wins}승 <span className="text-rose-200/85">{userRecord.losses}패</span>
+                        </div>
+                    </div>
 
-                            {tournamentFinished && finalStandings && finalStandings.length > 0 ? (
-                                <div className="mt-2 w-full max-w-[min(100%,32rem)] border-t border-amber-300/25 pt-2 text-left sm:mt-3 sm:pt-2.5">
-                                    <div className="text-center text-[9px] font-black tracking-[0.22em] text-amber-200/90 sm:text-[10px] sm:tracking-[0.28em]">
-                                        최종 결과 · 순위
-                                    </div>
-                                    <ul className={`mt-1.5 w-full ${finalStandingsListClass} ${finalStandingsTextClass} leading-snug`}>
-                                        {finalStandings.map((row) => (
-                                            <li
-                                                key={row.playerId}
-                                                className={`flex items-center justify-between gap-1 rounded-md border px-1.5 py-0.5 sm:gap-2 sm:px-2 sm:py-1 ${
-                                                    row.playerId === currentUser.id
-                                                        ? 'border-cyan-400/50 bg-cyan-950/40 text-cyan-50'
-                                                        : 'border-slate-600/40 bg-slate-900/50 text-slate-200'
-                                                }`}
-                                            >
-                                                <span className="shrink-0 font-black tabular-nums text-amber-200">{row.rank}위</span>
-                                                <span className="min-w-0 flex-1 truncate font-bold">{row.nickname}</span>
-                                                <span className="shrink-0 tabular-nums text-slate-300">
-                                                    {row.wins}승 {row.losses}패
-                                                </span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            ) : null}
+                    <div className="flex flex-col items-center justify-center">
+                        <div
+                            className={`font-black leading-tight ${compact ? 'text-base' : 'text-lg sm:text-xl'} ${userWonThisMatch ? 'text-emerald-200' : 'text-rose-200'}`}
+                        >
+                            {userWonThisMatch ? '승리' : '패배'}
+                        </div>
+                        <div className={`mt-0.5 font-bold text-slate-300 ${compact ? 'text-[10px]' : 'text-[10px] sm:text-xs'}`}>
+                            {finishedScoreLeadAbs > 0 ? `${finishedScoreLeadAbs.toFixed(1)}집 차` : '백병전'}
+                        </div>
+                    </div>
+
+                    <div className={`flex flex-col items-center ${compact ? 'w-[4.5rem]' : 'w-[5rem] sm:w-[5.6rem]'}`}>
+                        <div
+                            className={`shrink-0 rounded-full ${
+                                userWonThisMatch
+                                    ? 'ring-2 ring-rose-400/90 ring-offset-1 ring-offset-slate-950'
+                                    : 'ring-2 ring-emerald-400/90 ring-offset-1 ring-offset-slate-950'
+                            }`}
+                        >
+                            <Avatar
+                                userId={opponentInMatch?.id ?? 'opponent'}
+                                userName={opponentInMatch?.nickname ?? '상대'}
+                                avatarUrl={opponentAvatarUrl}
+                                borderUrl={opponentBorderUrl}
+                                size={compact ? 40 : 48}
+                            />
+                        </div>
+                        <div
+                            className={`mt-0.5 max-w-full truncate font-bold text-slate-100 ${compact ? 'text-[10px]' : 'text-[10px] sm:text-[11px]'}`}
+                        >
+                            {opponentInMatch?.nickname ?? '상대'}
+                        </div>
+                        <div className={`font-semibold text-emerald-200/85 ${compact ? 'text-[9px]' : 'text-[9px] sm:text-[10px]'}`}>
+                            대회 {opponentRecord.wins}승 <span className="text-rose-200/85">{opponentRecord.losses}패</span>
                         </div>
                     </div>
                 </div>
-            )}
-        </div>
+
+                {tournamentFinished && finalStandings && finalStandings.length > 0 ? (
+                    <div
+                        className={`mt-2 w-full border-t border-amber-300/25 pt-2 text-left ${compact ? '' : 'sm:mt-2.5 sm:pt-2.5'}`}
+                    >
+                        <div
+                            className={`text-center font-black tracking-[0.22em] text-amber-200/90 ${compact ? 'text-[9px]' : 'text-[9px] sm:text-[10px] sm:tracking-[0.28em]'}`}
+                        >
+                            최종 결과 · 순위
+                        </div>
+                        <ul className={`mt-1.5 w-full ${finalStandingsListClass} ${finalStandingsTextClass} leading-snug`}>
+                            {finalStandings.map((row) => (
+                                <li
+                                    key={row.playerId}
+                                    className={`flex items-center justify-between gap-1 rounded-md border px-1.5 py-0.5 sm:gap-2 sm:px-2 sm:py-1 ${
+                                        row.playerId === currentUser.id
+                                            ? 'border-cyan-400/50 bg-cyan-950/40 text-cyan-50'
+                                            : 'border-slate-600/40 bg-slate-900/50 text-slate-200'
+                                    }`}
+                                >
+                                    <span className="shrink-0 font-black tabular-nums text-amber-200">{row.rank}위</span>
+                                    <span className="min-w-0 flex-1 truncate font-bold">{row.nickname}</span>
+                                    <span className="shrink-0 tabular-nums text-slate-300">
+                                        {row.wins}승 {row.losses}패
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                ) : null}
+            </div>
+        </section>
     );
 };
 
@@ -3143,7 +3184,9 @@ const CommentaryPanel: React.FC<{
     compact?: boolean;
     /** 중계가 비어 있을 때(경기 전·로딩 중) 표시할 안내 문구 */
     emptyStateHint?: string | null;
-}> = ({ commentary, isSimulating, footerSlot, compact = false, emptyStateHint = null }) => {
+    /** true면 빈 중계 영역에 로딩 스피너와 안내 문구를 함께 표시 */
+    emptyStateLoading?: boolean;
+}> = ({ commentary, isSimulating, footerSlot, compact = false, emptyStateHint = null, emptyStateLoading = false }) => {
     const commentaryContainerRef = useRef<HTMLDivElement>(null);
     useEffect(() => {
         if (commentaryContainerRef.current) {
@@ -3184,6 +3227,13 @@ const CommentaryPanel: React.FC<{
                                 {parseCommentary(line)}
                             </p>
                         ))
+                    ) : emptyStateLoading ? (
+                        <InlineLoadingSpinner
+                            size={compact ? 'md' : 'lg'}
+                            label={emptyStateHint ?? '경기 시작 대기 중...'}
+                            className="h-full"
+                            labelClassName={`max-w-[14rem] text-center leading-relaxed text-gray-400 ${compact ? 'text-[11px]' : 'text-sm'}`}
+                        />
                     ) : (
                         <p
                             className={`flex h-full items-center justify-center text-center text-gray-500 ${
@@ -3223,6 +3273,12 @@ const FinalRewardPanel: React.FC<{
     layoutVariant?: 'sidebar' | 'mobileTab';
     /** 모바일 경기장: 보상·진행 버튼을 화면 하단 고정 바로만 표시 */
     suppressBottomActions?: boolean;
+    /** true면 보상받기·보상완료 버튼 숨김(경기 결과 패널에서 처리) */
+    suppressClaimActions?: boolean;
+    /** true면 우측/하단 액션 버튼 열 전체 숨김(푸터 버튼 패널에서 처리) */
+    suppressSideActionButtons?: boolean;
+    expectedRewardDetailsOpen?: boolean;
+    onExpectedRewardDetailsOpenChange?: (open: boolean) => void;
 }> = ({
     tournamentState,
     rewardsSourceTournament,
@@ -3235,6 +3291,10 @@ const FinalRewardPanel: React.FC<{
     onExitToLobby,
     layoutVariant = 'sidebar',
     suppressBottomActions = false,
+    suppressClaimActions = false,
+    suppressSideActionButtons = false,
+    expectedRewardDetailsOpen,
+    onExpectedRewardDetailsOpenChange,
 }) => {
     const isMobileTabLayout = layoutVariant === 'mobileTab';
     const { type, rounds } = tournamentState;
@@ -3278,7 +3338,10 @@ const FinalRewardPanel: React.FC<{
     
     // 중복 클릭 방지를 위한 상태
     const [isClaiming, setIsClaiming] = useState(false);
-    const [showExpectedRewardDetails, setShowExpectedRewardDetails] = useState(false);
+    const [internalExpectedRewardOpen, setInternalExpectedRewardOpen] = useState(false);
+    const showExpectedRewardDetails = expectedRewardDetailsOpen ?? internalExpectedRewardOpen;
+    const setShowExpectedRewardDetails = onExpectedRewardDetailsOpenChange ?? setInternalExpectedRewardOpen;
+    const toggleExpectedRewardDetails = () => setShowExpectedRewardDetails(!showExpectedRewardDetails);
 
     const handleClaim = () => {
         // 중복 클릭 방지: 이미 클릭 중이거나 이미 수령했으면 무시
@@ -3341,8 +3404,9 @@ const FinalRewardPanel: React.FC<{
         return { rank: finalUserRank, reward: qr };
     }, [finalUserRank, effectiveStageAttempt, type, claimedRewardSummary]);
 
-    const showSideActionsColumn = !isMobileTabLayout && !suppressBottomActions;
+    const showSideActionsColumn = !isMobileTabLayout && !suppressBottomActions && !suppressSideActionButtons;
     const canShowExpectedRewardPreview = isDungeonMode && !isTournamentFullyComplete && !isUserEliminated;
+    const useSplitRewardLayout = canShowExpectedRewardPreview && suppressSideActionButtons;
     const exitActionButton = onExitToLobby ? (
         <button
             type="button"
@@ -3355,7 +3419,7 @@ const FinalRewardPanel: React.FC<{
     const expectedRewardActionButton = canShowExpectedRewardPreview ? (
         <button
             type="button"
-            onClick={() => setShowExpectedRewardDetails((prev) => !prev)}
+            onClick={toggleExpectedRewardDetails}
             className={`w-full ${championshipFooterSecondaryButton}`}
         >
             예상보상
@@ -3363,53 +3427,130 @@ const FinalRewardPanel: React.FC<{
     ) : null;
     const expectedRewardPreview = canShowExpectedRewardPreview ? (() => {
         const stage = effectiveStageAttempt;
-        const rowClass = 'flex flex-wrap items-center justify-center gap-1.5';
-        const chipClass =
-            'inline-flex min-h-[2rem] items-center gap-1.5 rounded-lg border border-white/10 bg-black/35 px-2 py-1 text-[10.5px] font-bold leading-tight text-slate-100 shadow-inner';
+        const isSplit = useSplitRewardLayout;
+        const rowClass = isSplit
+            ? 'flex w-full flex-col items-stretch justify-center gap-1.5'
+            : 'flex flex-wrap items-center justify-center gap-1.5';
+        const splitLineClass =
+            'flex w-full min-h-[2.1rem] items-center gap-2 rounded-lg border border-violet-400/25 bg-violet-900/20 px-2 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:min-h-[2.25rem]';
+        const splitLabelClass = 'shrink-0 w-[2.35rem] text-center text-[10px] font-black tracking-wide sm:w-[2.5rem] sm:text-[11px]';
+        const splitInlineClass =
+            'inline-flex min-w-0 items-center justify-center gap-1.5 text-[11px] font-bold leading-tight text-violet-50 sm:text-xs';
+        const chipClass = isSplit
+            ? splitLineClass
+            : 'inline-flex min-h-[2rem] items-center gap-1.5 rounded-lg border border-white/10 bg-black/35 px-2 py-1 text-[10.5px] font-bold leading-tight text-slate-100 shadow-inner';
+        const chipIconClass = isSplit ? 'h-5 w-5 shrink-0 object-contain sm:h-6 sm:w-6' : 'h-4 w-4 object-contain';
         const gradeTextClass: Record<string, string> = {
             epic: 'text-purple-300',
             legendary: 'text-red-300',
             mythic: 'text-amber-300',
         };
 
+        const renderSplitOutcomeRow = (label: string, tone: string, content: React.ReactNode) => (
+            <div className={splitLineClass}>
+                <span className={`${splitLabelClass} ${tone}`}>{label}</span>
+                <div className="flex min-w-0 flex-1 flex-wrap items-center justify-center gap-1.5">{content}</div>
+            </div>
+        );
+
+        const renderGoldChip = (label: string, tone: string, min: number, max: number) => {
+            const value = (
+                <>
+                    <img src="/images/icon/Gold.webp" alt="" className={chipIconClass} />
+                    <span className="truncate tabular-nums">
+                        {formatGoldAmountKoG(min)}~{formatGoldAmountKoG(max)}
+                    </span>
+                </>
+            );
+            if (isSplit) {
+                return renderSplitOutcomeRow(label, tone, <span className={splitInlineClass}>{value}</span>);
+            }
+            return (
+                <span className={chipClass}>
+                    <span className={tone}>{label}</span>
+                    {value}
+                </span>
+            );
+        };
+
         if (type === 'neighborhood') {
             const gold = getDungeonBasicRewardRangeGold(stage);
             return (
                 <div className={rowClass}>
-                    <span className={chipClass}>
-                        <span className="text-emerald-200">승</span>
-                        <img src="/images/icon/Gold.webp" alt="" className="h-4 w-4 object-contain" />
-                        {formatGoldAmountKoG(gold.win.min)}~{formatGoldAmountKoG(gold.win.max)}
-                    </span>
-                    <span className={chipClass}>
-                        <span className="text-slate-300">패</span>
-                        <img src="/images/icon/Gold.webp" alt="" className="h-4 w-4 object-contain" />
-                        {formatGoldAmountKoG(gold.loss.min)}~{formatGoldAmountKoG(gold.loss.max)}
-                    </span>
+                    {renderGoldChip('승리', 'text-emerald-300', gold.win.min, gold.win.max)}
+                    {renderGoldChip('패배', 'text-slate-400', gold.loss.min, gold.loss.max)}
                 </div>
             );
         }
 
         if (type === 'national') {
             const rolls = DUNGEON_STAGE_MATERIAL_ROLLS[stage] ?? DUNGEON_STAGE_MATERIAL_ROLLS[1];
+            const renderRollInline = (roll: typeof rolls.win[number]) => {
+                const materialTemplate = MATERIAL_ITEMS[roll.materialName];
+                const qty = roll.min === roll.max ? String(roll.min) : `${roll.min}~${roll.max}`;
+                return (
+                    <span key={`${roll.materialName}-${qty}`} className={splitInlineClass}>
+                        {materialTemplate?.image ? (
+                            <img src={materialTemplate.image} alt="" className={chipIconClass} />
+                        ) : null}
+                        <span className="max-w-[4.25rem] truncate sm:max-w-[4.75rem]">{roll.materialName}</span>
+                        <span className="tabular-nums text-violet-200">×{qty}</span>
+                    </span>
+                );
+            };
             const renderRoll = (label: string, tone: string, roll: typeof rolls.win[number]) => {
                 const materialTemplate = MATERIAL_ITEMS[roll.materialName];
                 const qty = roll.min === roll.max ? String(roll.min) : `${roll.min}~${roll.max}`;
+                if (isSplit) return null;
                 return (
                     <span key={`${label}-${roll.materialName}-${qty}`} className={chipClass}>
                         <span className={tone}>{label}</span>
                         {materialTemplate?.image ? (
-                            <img src={materialTemplate.image} alt="" className="h-4 w-4 object-contain" />
+                            <img src={materialTemplate.image} alt="" className={chipIconClass} />
                         ) : null}
                         <span>{roll.materialName}</span>
                         <span className="tabular-nums">×{qty}</span>
                     </span>
                 );
             };
+            if (isSplit) {
+                return (
+                    <div className={rowClass}>
+                        {renderSplitOutcomeRow(
+                            '승리',
+                            'text-emerald-300',
+                            rolls.win.map((roll) => renderRollInline(roll)),
+                        )}
+                        {renderSplitOutcomeRow(
+                            '패배',
+                            'text-slate-400',
+                            (rolls.loss ?? []).map((roll) => renderRollInline(roll)),
+                        )}
+                    </div>
+                );
+            }
             return (
                 <div className={rowClass}>
                     {rolls.win.map((roll) => renderRoll('승', 'text-emerald-200', roll))}
                     {(rolls.loss ?? []).map((roll) => renderRoll('패', 'text-slate-300', roll))}
+                </div>
+            );
+        }
+
+        if (isSplit) {
+            return (
+                <div className={rowClass}>
+                    {renderSplitOutcomeRow(
+                        '등급',
+                        'text-violet-300',
+                        <span className={`${splitInlineClass} gap-2`}>
+                            <span className={`text-[11px] sm:text-xs ${gradeTextClass.epic}`}>{EQUIPMENT_GRADE_LABEL_KO.epic}</span>
+                            <span className="text-[10px] text-slate-500 sm:text-[11px]">~</span>
+                            <span className={`text-[11px] sm:text-xs ${gradeTextClass.legendary}`}>{EQUIPMENT_GRADE_LABEL_KO.legendary}</span>
+                            <span className="text-[10px] text-slate-500 sm:text-[11px]">~</span>
+                            <span className={`text-[11px] sm:text-xs ${gradeTextClass.mythic}`}>{EQUIPMENT_GRADE_LABEL_KO.mythic}</span>
+                        </span>,
+                    )}
                 </div>
             );
         }
@@ -3431,7 +3572,7 @@ const FinalRewardPanel: React.FC<{
     const sideActionButtons = !suppressBottomActions ? (
         (isTournamentFullyComplete || isUserEliminated) && treatAsClaimed ? (
             <>
-                {isDungeonMode && onCompleteDungeon && !isClaimed ? (
+                {!suppressClaimActions && isDungeonMode && onCompleteDungeon && !isClaimed ? (
                     <button
                         onClick={onCompleteDungeon}
                         disabled={isClaiming}
@@ -3439,17 +3580,17 @@ const FinalRewardPanel: React.FC<{
                     >
                         {isClaiming ? '처리 중...' : '보상 완료'}
                     </button>
-                ) : (
+                ) : !suppressClaimActions ? (
                     <div className={`w-full text-center ${championshipFooterMutedButton}`}>
                         보상완료
                     </div>
-                )}
+                ) : null}
                 {expectedRewardActionButton}
                 {exitActionButton}
             </>
         ) : !treatAsClaimed ? (
             <>
-                {(isTournamentFullyComplete || isUserEliminated) && effectiveStageAttempt ? (
+                {!suppressClaimActions && (isTournamentFullyComplete || isUserEliminated) && effectiveStageAttempt ? (
                     <button
                         onClick={handleClaim}
                         disabled={!canClaimReward || isClaiming}
@@ -3464,78 +3605,25 @@ const FinalRewardPanel: React.FC<{
                 ) : null}
                 {expectedRewardActionButton}
                 {(isTournamentFullyComplete || isUserEliminated) ? exitActionButton : null}
-                {(isInProgress || isRoundComplete) && !((isTournamentFullyComplete || isUserEliminated) && effectiveStageAttempt) && (
+                {!suppressClaimActions &&
+                (isInProgress || isRoundComplete) &&
+                !((isTournamentFullyComplete || isUserEliminated) && effectiveStageAttempt) ? (
                     <div className="w-full rounded-lg border border-sky-500/35 bg-sky-950/55 px-2 py-1.5 text-center text-[10.5px] font-bold leading-tight text-sky-200">
                         모든 경기 완료 후 보상수령
                     </div>
-                )}
+                ) : null}
             </>
         ) : null
     ) : null;
 
-    return (
-        <div
-            className={`flex min-h-0 flex-col ${isMobileTabLayout ? 'h-auto w-full' : 'h-full'}`}
-            style={
-                isMobileTabLayout
-                    ? { display: 'flex', flexDirection: 'column', minHeight: 0 }
-                    : { height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }
-            }
-        >
-            <div className="mb-1.5 flex flex-shrink-0 items-center justify-center gap-2 py-0.5">
-                <h4 className="whitespace-nowrap text-center text-sm font-bold text-gray-300">획득 보상</h4>
-                {isMobileTabLayout && canShowExpectedRewardPreview ? (
-                    <button
-                        type="button"
-                        onClick={() => setShowExpectedRewardDetails((prev) => !prev)}
-                        className="rounded-md border border-violet-300/40 bg-violet-950/55 px-2 py-1 text-[10px] font-black text-violet-100"
-                    >
-                        예상보상
-                    </button>
-                ) : null}
+    const acquiredRewardsClaimMessage =
+        (isTournamentFullyComplete || isUserEliminated) && treatAsClaimed ? (
+            <div className="mb-1 w-full rounded-lg border border-green-700/50 bg-green-900/30 px-1.5 py-1">
+                <p className="text-center text-xs font-semibold text-green-400">✓ 보상을 수령했습니다.</p>
             </div>
-            <div
-                className={
-                    isMobileTabLayout
-                        ? 'flex w-full flex-col gap-1.5'
-                        : 'flex min-h-0 w-full flex-1 flex-row gap-1.5 overflow-hidden'
-                }
-                style={isMobileTabLayout ? undefined : { minHeight: 0 }}
-            >
-            <div
-                className={`flex w-full flex-col items-center gap-1.5 rounded-md border border-gray-700/45 bg-slate-950/88 p-1.5 md:p-2 ${
-                    isMobileTabLayout ? '' : 'min-h-0 flex-1 overflow-y-auto'
-                }`}
-                style={
-                    isMobileTabLayout
-                        ? { WebkitOverflowScrolling: 'touch' as const }
-                        : {
-                              overflowY: 'auto',
-                              WebkitOverflowScrolling: 'touch',
-                              flex: '1 1 0',
-                              minHeight: 0,
-                              maxHeight: '100%',
-                          }
-                }
-            >
-            {/* 수령 완료 메시지 - 경기 종료 후에만 표시 */}
-            {(isTournamentFullyComplete || isUserEliminated) && treatAsClaimed && (
-                <div className="mb-1 w-full px-1.5 py-1 bg-green-900/30 rounded-lg border border-green-700/50">
-                    <p className="text-xs text-green-400 text-center font-semibold">✓ 보상을 수령했습니다.</p>
-                </div>
-            )}
-            {showExpectedRewardDetails && expectedRewardPreview ? (
-                <div className="mb-1 w-full rounded-lg border border-cyan-500/35 bg-cyan-950/30 px-2 py-1.5">
-                    <p className="mb-1 text-center text-[10px] font-black tracking-[0.14em] text-cyan-200/90">
-                        예상 보상
-                    </p>
-                    {expectedRewardPreview}
-                </div>
-            ) : null}
-            
-            {/* 매 경기 누적 보상 + 순위 보상을 가로 한 줄에 함께 표시한다.
-                각 토너먼트 타입의 경기 보상이 채워진 뒤 끝에 순위 보상 아이콘이 이어 붙는다. */}
-            {(() => {
+        ) : null;
+
+    const renderAcquiredRewardsContent = (): React.ReactNode => {
                 const showRankReward = !!(showFinalRankRewards && rankRewardForDisplay);
 
                 // 보상 수령 모달(`DungeonStageSummaryModal`)과 동일: 동네=회차별 골드 전부, 전국=라운드 합산 재료, 월드=획득 장비·드롭 전부 + 변경권
@@ -3605,8 +3693,12 @@ const FinalRewardPanel: React.FC<{
 
                 if (!hasAnyMatchReward && !showRankReward) {
                     return (
-                        <div className={`flex w-full items-center justify-center ${isMobileTabLayout ? 'py-10' : 'h-full'}`}>
-                            <p className="text-xs text-gray-400 text-center">획득한 보상이 없습니다.</p>
+                        <div
+                            className={`flex w-full items-center justify-center ${
+                                useSplitRewardLayout ? 'py-2' : isMobileTabLayout ? 'py-10' : 'h-full'
+                            }`}
+                        >
+                            <p className="text-center text-xs text-gray-400">획득한 보상이 없습니다.</p>
                         </div>
                     );
                 }
@@ -3631,7 +3723,11 @@ const FinalRewardPanel: React.FC<{
                 };
 
                 return (
-                    <div className={`mb-1 flex w-full flex-wrap items-center justify-center gap-1 ${isClaimed ? 'opacity-75' : ''}`}>
+                    <div
+                        className={`flex w-full flex-wrap items-center justify-center gap-1 ${
+                            useSplitRewardLayout ? 'mb-0' : 'mb-1'
+                        } ${isClaimed ? 'opacity-75' : ''}`}
+                    >
                         {/* 1) 동네바둑리그: 회차별 골드(수령 모달과 동일) */}
                         {hasNeighborhoodGold &&
                             neighborhoodGoldDisplay.map((goldAmount: number, idx: number) => (
@@ -3818,17 +3914,97 @@ const FinalRewardPanel: React.FC<{
                         })}
                     </div>
                 );
-            })()}
-            </div>
+    };
 
-            {showSideActionsColumn && sideActionButtons ? (
-                <div className="flex w-[7.2rem] shrink-0 flex-col items-stretch justify-center gap-1.5 self-stretch rounded-md border border-gray-700/45 bg-slate-950/72 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                    {sideActionButtons}
+    return (
+        <div
+            className={`flex min-h-0 flex-col ${isMobileTabLayout ? 'h-auto w-full' : 'h-full'}`}
+            style={
+                isMobileTabLayout
+                    ? { display: 'flex', flexDirection: 'column', minHeight: 0 }
+                    : { height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }
+            }
+        >
+            {useSplitRewardLayout ? (
+                <div className="flex min-h-0 flex-1 flex-row gap-1 overflow-hidden">
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+                        <h4 className="mb-0.5 shrink-0 text-center text-[11px] font-bold text-violet-200 sm:text-xs">
+                            예상 보상
+                        </h4>
+                        <div
+                            className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto rounded-md border border-violet-500/35 bg-gradient-to-b from-violet-950/45 via-violet-950/25 to-slate-950/70 px-2 py-1.5"
+                            style={{ WebkitOverflowScrolling: 'touch' }}
+                        >
+                            {expectedRewardPreview ?? (
+                                <p className="py-1 text-center text-[10px] text-slate-500">—</p>
+                            )}
+                        </div>
+                    </div>
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+                        <h4 className="mb-0.5 shrink-0 text-center text-[10px] font-bold text-gray-300 sm:text-[11px]">
+                            획득 보상
+                        </h4>
+                        <div
+                            className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto rounded-md border border-gray-700/45 bg-slate-950/88 px-1.5 py-1"
+                            style={{ WebkitOverflowScrolling: 'touch' }}
+                        >
+                            <div className="flex w-full flex-col items-center justify-center">
+                                {acquiredRewardsClaimMessage}
+                                {renderAcquiredRewardsContent()}
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            ) : null}
-            </div>
+            ) : (
+                <>
+                    <div className="relative mb-1.5 flex flex-shrink-0 items-center justify-center py-0.5">
+                        <h4 className="whitespace-nowrap text-center text-sm font-bold text-gray-300">획득 보상</h4>
+                    </div>
+                    <div
+                        className={
+                            isMobileTabLayout
+                                ? 'flex w-full flex-col gap-1.5'
+                                : 'flex min-h-0 w-full flex-1 flex-row gap-1.5 overflow-hidden'
+                        }
+                        style={isMobileTabLayout ? undefined : { minHeight: 0 }}
+                    >
+                        <div
+                            className={`flex w-full flex-col items-center gap-1.5 rounded-md border border-gray-700/45 bg-slate-950/88 p-1.5 md:p-2 ${
+                                isMobileTabLayout ? '' : 'min-h-0 flex-1 overflow-y-auto'
+                            }`}
+                            style={
+                                isMobileTabLayout
+                                    ? { WebkitOverflowScrolling: 'touch' as const }
+                                    : {
+                                          overflowY: 'auto',
+                                          WebkitOverflowScrolling: 'touch',
+                                          flex: '1 1 0',
+                                          minHeight: 0,
+                                          maxHeight: '100%',
+                                      }
+                            }
+                        >
+                            {acquiredRewardsClaimMessage}
+                            {showExpectedRewardDetails && expectedRewardPreview ? (
+                                <div className="mb-1 w-full rounded-lg border border-cyan-500/35 bg-cyan-950/30 px-2 py-1.5">
+                                    <p className="mb-1 text-center text-[10px] font-black tracking-[0.14em] text-cyan-200/90">
+                                        예상 보상
+                                    </p>
+                                    {expectedRewardPreview}
+                                </div>
+                            ) : null}
+                            {renderAcquiredRewardsContent()}
+                        </div>
 
-            {/* 모바일 탭 레이아웃에서는 하단에 가로 배치 (모바일 sticky bar가 막혀있을 경우 대비) */}
+                        {showSideActionsColumn && sideActionButtons ? (
+                            <div className="flex w-[7.2rem] shrink-0 flex-col items-stretch justify-center gap-1.5 self-stretch rounded-md border border-gray-700/45 bg-slate-950/72 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                                {sideActionButtons}
+                            </div>
+                        ) : null}
+                    </div>
+                </>
+            )}
+
             {isMobileTabLayout && !suppressBottomActions && sideActionButtons ? (
                 <div className="mt-1.5 flex flex-shrink-0 flex-wrap items-center justify-center gap-1.5 border-t border-gray-700 pt-1.5">
                     {sideActionButtons}
@@ -4950,6 +5126,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     } | null>(null);
     const [dungeonStageRewardRequested, setDungeonStageRewardRequested] = useState(false);
     const [mobileRewardClaimBusy, setMobileRewardClaimBusy] = useState(false);
+    const [showChampionshipExpectedRewardDetails, setShowChampionshipExpectedRewardDetails] = useState(false);
     const prevStatusRef = useRef(tournament?.status || 'bracket_ready');
     /** handlers.handleAction 참조가 바뀔 때마다 ENTER effect cleanup이 돌면 SAVE가 무한 반복된다 → ref로 고정 */
     const onActionRef = useRef(onAction);
@@ -6341,17 +6518,35 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         );
     };
 
+    const isDungeonChampionshipVenue = tournament.currentStageAttempt != null;
+
+    const showChampionshipMatchResultPanel = useMemo(() => {
+        if (!isDungeonChampionshipVenue) return false;
+        const rg = matchForDisplay?.championshipRealGame;
+        if (!matchForDisplay?.isUserMatch || !rg?.winnerId) return false;
+        const moveCount = rg.moves?.length ?? 0;
+        if (moveCount === 0) return false;
+        const ply = rg.currentPly ?? 0;
+        if (ply < moveCount) return false;
+        return rg.status === 'scoring' || (rg.status === 'finished' && !!matchForDisplay.isFinished);
+    }, [
+        isDungeonChampionshipVenue,
+        matchForDisplay?.isUserMatch,
+        matchForDisplay?.isFinished,
+        matchForDisplay?.championshipRealGame?.winnerId,
+        matchForDisplay?.championshipRealGame?.moves,
+        matchForDisplay?.championshipRealGame?.currentPly,
+        matchForDisplay?.championshipRealGame?.status,
+    ]);
+
     const renderFooterButton = () => {
         if (!tournament) return null;
+        if (showChampionshipMatchResultPanel) return null;
 
         const { status } = tournament;
 
         if (status === 'round_in_progress') {
-            return (
-                <Button disabled colorScheme="none" className={championshipFooterMutedButton}>
-                    경기 진행 중...
-                </Button>
-            );
+            return null;
         }
         
         if (status === 'complete') {
@@ -6468,16 +6663,128 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     };
 
     const footerButtons = renderFooterButton();
+
+    const renderChampionshipClaimRewardAction = (fb: string): React.ReactNode => {
+        if (!isDungeonChampionshipVenue) return null;
+
+        const ts = displayTournament;
+        const isUserEliminated = ts.status === 'eliminated';
+        const allMatchesDone = ts.rounds.every((r) => r.matches.every((m) => m.isFinished));
+        const isFullyComplete = ts.status === 'complete' || (allMatchesDone && ts.status !== 'round_in_progress');
+        const stageAttempt = resolveDungeonStageAttempt(ts, currentUser, ts.type);
+        const rewardClaimedKey = `${ts.type}RewardClaimed` as keyof User;
+        const isRewardClaimed = !!currentUser[rewardClaimedKey];
+        const canClaimRewardOnResult =
+            (isFullyComplete || isUserEliminated) &&
+            !isRewardClaimed &&
+            !dungeonStageRewardRequested &&
+            stageAttempt >= 1;
+
+        if (canClaimRewardOnResult) {
+            return (
+                <div className="flex flex-col items-center gap-0.5">
+                    <button
+                        type="button"
+                        onClick={handleCompleteDungeon}
+                        disabled={mobileRewardClaimBusy}
+                        className={`${championshipFooterPrimaryButton} ${fb}`}
+                    >
+                        {mobileRewardClaimBusy ? '수령 중...' : '보상받기'}
+                    </button>
+                </div>
+            );
+        }
+
+        const treatAsClaimedOnResult = isRewardClaimed || dungeonStageRewardRequested;
+        if ((isFullyComplete || isUserEliminated) && treatAsClaimedOnResult && stageAttempt >= 1) {
+            if (!isRewardClaimed) {
+                return (
+                    <div className="flex flex-col items-center gap-0.5">
+                        <button
+                            type="button"
+                            onClick={handleCompleteDungeon}
+                            disabled={mobileRewardClaimBusy}
+                            className={`${championshipFooterPrimaryButton} ${fb}`}
+                        >
+                            {mobileRewardClaimBusy ? '처리 중...' : '보상 완료'}
+                        </button>
+                    </div>
+                );
+            }
+            return (
+                <div className="flex flex-col items-center gap-0.5">
+                    <div className={`flex items-center justify-center ${championshipFooterMutedButton} ${fb}`}>
+                        보상완료
+                    </div>
+                </div>
+            );
+        }
+
+        return null;
+    };
+
+    const renderChampionshipNextMatchAction = (fb: string): React.ReactNode => {
+        if (!isDungeonChampionshipVenue) return null;
+
+        const ts = displayTournament;
+        const isUserEliminated = ts.status === 'eliminated';
+        const allMatchesDone = ts.rounds.every((r) => r.matches.every((m) => m.isFinished));
+        const isFullyComplete = ts.status === 'complete' || (allMatchesDone && ts.status !== 'round_in_progress');
+        if (isFullyComplete || isUserEliminated) return null;
+
+        const { status } = ts;
+        if (status === 'round_in_progress') return null;
+
+        const hasUnfinishedUserMatch = safeRounds.some(
+            (r) => Array.isArray(r?.matches) && r.matches.some((m) => m.isUserMatch && !m.isFinished),
+        );
+        const isAutoStartFlow =
+            ts.nextRoundStartTime != null || autoNextCountdown !== null || pendingRoundSwitchTo != null;
+
+        if (
+            (status === 'round_complete' || status === 'bracket_ready') &&
+            hasUnfinishedUserMatch &&
+            !isAutoStartFlow
+        ) {
+            if (championshipAwaitingKataLoad) {
+                return (
+                    <button type="button" disabled className={`${championshipFooterMutedButton} ${fb}`}>
+                        경기 준비 중..
+                    </button>
+                );
+            }
+
+            return (
+                <button
+                    type="button"
+                    onClick={() => {
+                        setChampionshipSidebarTab('commentary');
+                        if (conditionForPotionModal >= 1 && conditionForPotionModal <= 40) {
+                            setShowChampionshipLowConditionStartModal(true);
+                            return;
+                        }
+                        finalizeChampionshipDungeonMatchStart();
+                    }}
+                    className={`animate-pulse ${championshipFooterPrimaryButton} ${fb}`}
+                >
+                    다음 경기
+                </button>
+            );
+        }
+
+        return null;
+    };
+
+    const renderChampionshipNextMatchFooterSlot = (fb: string) => {
+        const action = renderChampionshipNextMatchAction(fb);
+        if (!action) return null;
+        return <div className="flex flex-col items-center gap-0.5">{action}</div>;
+    };
     
-    // 자동 다음 경기 카운트다운 표시
-    // 경기가 진행 중일 때는 "경기 진행 중..." 표시
-    const countdownDisplay = tournament?.status === 'round_in_progress' ? (
-        <div
-            className={`flex items-center justify-center font-bold text-blue-400 ${isMobile ? 'gap-1 text-center text-xs leading-tight' : 'gap-2 text-lg'}`}
-        >
-            <span>경기 진행 중...</span>
-        </div>
-    ) : championshipAwaitingKataLoad ? (
+    const isChampionshipMatchInProgress = tournament?.status === 'round_in_progress';
+
+    // 자동 다음 경기 카운트다운 표시 (경기 진행 중은 경기 결과 패널에서 표시)
+    const countdownDisplay = championshipAwaitingKataLoad ? (
         <div
             className={`flex items-center justify-center font-bold text-cyan-300 ${isMobile ? 'gap-1 text-center text-xs leading-tight' : 'gap-2 text-lg'}`}
         >
@@ -6493,15 +6800,21 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         </div>
     ) : null;
 
-    const desktopSkipSlot = !isMobile ? renderChampionshipSkipButton('!text-sm !py-2 !px-4') : null;
+    const desktopNextMatchSlot = !isMobile ? renderChampionshipNextMatchFooterSlot('!text-sm !py-2 !px-4') : null;
+
+    const renderChampionshipSkipOrClaimSlot = (fb: string) => {
+        const skipButton = renderChampionshipSkipButton(fb);
+        if (skipButton) return skipButton;
+        return renderChampionshipClaimRewardAction(fb);
+    };
+
+    const desktopSkipSlot = !isMobile ? renderChampionshipSkipOrClaimSlot('!text-sm !py-2 !px-4') : null;
 
     const championshipAllMatchesFinished = displayTournament.rounds.every((r) => r.matches.every((m) => m.isFinished));
     const championshipFinished =
         displayTournament.status === 'complete' ||
         displayTournament.status === 'eliminated' ||
         (championshipAllMatchesFinished && displayTournament.status !== 'round_in_progress');
-
-    const isDungeonChampionshipVenue = tournament.currentStageAttempt != null;
 
     const championshipDungeonBoardCenterMode = useMemo((): 'deep_breath' | 'players_entering' | null => {
         if (!isDungeonChampionshipVenue || championshipFinished) return null;
@@ -6522,6 +6835,41 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         if (!championshipFinished) return null;
         return buildChampionshipDungeonStandings(displayTournament);
     }, [championshipFinished, displayTournament]);
+
+    const championshipMatchResultPanelSection =
+        showChampionshipMatchResultPanel ? (
+            <ChampionshipMatchResultPanel
+                match={matchForDisplay}
+                currentUser={currentUser}
+                tournamentFinished={championshipFinished}
+                tournamentForResult={displayTournament}
+                finalStandings={championshipFinalStandingsRows}
+                compact={isMobile}
+            />
+        ) : (
+            <div
+                className={`flex min-h-[5rem] items-center justify-center rounded-2xl ${
+                    isChampionshipMatchInProgress
+                        ? 'border border-blue-400/35 bg-gradient-to-b from-[#2a3d56] via-[#141c2b] to-[#070a10] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]'
+                        : 'border border-dashed border-slate-600/35 bg-slate-950/50'
+                } ${isMobile ? 'px-2 py-2' : 'px-3 py-3'}`}
+                aria-hidden={showChampionshipMatchResultPanel}
+            >
+                {isChampionshipMatchInProgress ? (
+                    <span
+                        className={`text-center font-bold text-blue-400 ${isMobile ? 'text-xs leading-tight' : 'text-sm sm:text-base'}`}
+                    >
+                        경기 진행 중...
+                    </span>
+                ) : (
+                    <span className={`text-center text-slate-500 ${isMobile ? 'text-[10px]' : 'text-xs'}`}>
+                        경기 종료 후 결과가 표시됩니다
+                    </span>
+                )}
+            </div>
+        );
+
+    const championshipFooterPrimaryActions = showChampionshipMatchResultPanel ? null : footerButtons ?? countdownDisplay;
 
     const championshipCommentaryEmptyHint = useMemo(() => {
         if (!isDungeonChampionshipVenue) return null;
@@ -6562,7 +6910,8 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             </Button>
         ) : null;
 
-    const mobileChampionshipSkipSlot = isMobile ? renderChampionshipSkipButton('!text-xs !py-1.5 !px-3') : null;
+    const mobileChampionshipSkipSlot = isMobile ? renderChampionshipSkipOrClaimSlot('!text-xs !py-1.5 !px-3') : null;
+    const mobileNextMatchSlot = isMobile ? renderChampionshipNextMatchFooterSlot('!text-xs !py-1.5 !px-3') : null;
     const mobileChampionshipExitSlot =
         isMobile && championshipDungeonExitVisible ? (
             <Button
@@ -6582,8 +6931,10 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
     // 배속 조절 — 던전 1~5단계는 x0.5·x1·x2, 6단계 이상·비던전은 x3까지.
     const championshipPlaybackSpeedSelector = (
-        <div className="mb-1.5 flex items-center justify-center gap-1">
-            <span className="text-[10px] font-semibold tracking-wider text-cyan-100">배속</span>
+        <div className="mb-1 flex items-center justify-center gap-1.5">
+            <span className={`font-semibold tracking-wider text-cyan-100 ${isMobile ? 'text-[10px]' : 'text-xs'}`}>
+                배속
+            </span>
             {championshipDungeonPlaybackSpeedChoices.map((speed) => {
                 const isActive = effectiveChampionshipPlaybackSpeed === speed;
                 const titleBySpeed: Record<string, string> = {
@@ -6598,7 +6949,9 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                         type="button"
                         onClick={() => setChampionshipPlaybackSpeed(speed)}
                         title={titleBySpeed[String(speed)]}
-                        className={`min-w-[2.4rem] rounded-md border px-1.5 py-0.5 text-[10px] font-black tracking-wider transition ${
+                        className={`rounded-lg border font-black tracking-wider transition ${
+                            isMobile ? 'min-w-[2.6rem] px-2 py-1 text-[11px]' : 'min-w-[3.25rem] px-3 py-1.5 text-sm'
+                        } ${
                             isActive
                                 ? 'border-cyan-300/80 bg-cyan-500/25 text-cyan-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]'
                                 : 'border-slate-500/40 bg-slate-900/60 text-slate-300 hover:border-cyan-300/55 hover:text-cyan-100'
@@ -6611,7 +6964,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         </div>
     );
 
-    const renderChampionshipMatchControlPanel = () => (
+    const renderChampionshipFooterButtonPanel = () => (
         <section
             className={`flex min-h-0 flex-col justify-center rounded-2xl border border-cyan-400/35 bg-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_16px_36px_-24px_rgba(0,0,0,0.95)] ring-1 ring-inset ring-cyan-400/20 ${
                 isMobile
@@ -6619,31 +6972,38 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     : 'bg-gradient-to-br from-[#2a3d56] via-[#141c2b] to-[#070a10] p-2.5'
             }`}
         >
-            <div className={`text-center font-black tracking-[0.22em] text-cyan-100 ${isMobile ? 'mb-1 text-[9px]' : 'mb-1.5 text-[10px]'}`}>
-                AUTO MATCH CONTROL
-            </div>
             <div
-                className={`flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-600/50 bg-[#0c1018] shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ${
-                    isMobile ? 'min-h-0 px-2 py-2' : 'min-h-[3.7rem] px-2.5 py-2.5'
+                className={`flex min-h-0 flex-1 flex-col justify-center gap-2 rounded-xl border border-slate-600/50 bg-[#0c1018] shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ${
+                    isMobile ? 'px-2 py-2' : 'min-h-[3.7rem] px-2.5 py-2.5'
                 }`}
             >
                 {championshipFinished ? (
                     <>
-                        <div className={`font-bold text-emerald-200 ${isMobile ? 'text-xs' : 'text-sm'}`}>모든 경기가 종료되었습니다.</div>
+                        <div className={`text-center font-bold text-emerald-200 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                            모든 경기가 종료되었습니다.
+                        </div>
+                        <div className="flex w-full flex-wrap items-stretch justify-center gap-2">
+                            {isMobile ? mobileNextMatchSlot : desktopNextMatchSlot}
+                            {isMobile ? mobileChampionshipSkipSlot : desktopSkipSlot}
+                            {isMobile ? mobileChampionshipExitSlot : desktopExitSlot}
+                        </div>
                     </>
                 ) : (
                     <>
                         {championshipPlaybackSpeedSelector}
-                        <div className="flex w-full max-w-full flex-wrap items-center justify-center gap-2">
-                            {footerButtons || countdownDisplay || (
-                                <div
-                                    className={`rounded-xl border border-slate-500/38 bg-gradient-to-b from-slate-800/85 to-slate-950/92 font-bold text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${
-                                        isMobile ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'
-                                    }`}
-                                >
-                                    다음 자동 대국을 준비 중입니다.
-                                </div>
-                            )}
+                        {championshipFooterPrimaryActions ? (
+                            <div className="flex w-full flex-col gap-2">{championshipFooterPrimaryActions}</div>
+                        ) : !showChampionshipMatchResultPanel && !isChampionshipMatchInProgress ? (
+                            <div
+                                className={`rounded-xl border border-slate-500/38 bg-gradient-to-b from-slate-800/85 to-slate-950/92 text-center font-bold text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${
+                                    isMobile ? 'px-2 py-1.5 text-[10px]' : 'px-3 py-2 text-xs'
+                                }`}
+                            >
+                                다음 자동 대국을 준비 중입니다.
+                            </div>
+                        ) : null}
+                        <div className="flex w-full flex-wrap items-stretch justify-center gap-2">
+                            {isMobile ? mobileNextMatchSlot : desktopNextMatchSlot}
                             {isMobile ? mobileChampionshipSkipSlot : desktopSkipSlot}
                             {isMobile ? mobileChampionshipExitSlot : desktopExitSlot}
                         </div>
@@ -6682,10 +7042,10 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
               return (
                   <div className="flex w-full shrink-0 flex-col gap-1.5 border-t border-cyan-500/35 bg-slate-950/92 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]">
-                      {(isTournamentFullyComplete || isUserEliminated) && treatAsClaimed && (
+                      {!isDungeonModeFooter && (isTournamentFullyComplete || isUserEliminated) && treatAsClaimed && (
                           <div className="flex w-full flex-row flex-wrap items-stretch gap-2">
                               <div className="min-w-0 flex-1 basis-[calc(50%-0.25rem)]">
-                                  {isDungeonModeFooter && !isRewardClaimed ? (
+                                  { !isRewardClaimed ? (
                                       <button
                                           type="button"
                                           onClick={() => handleCompleteDungeon()}
@@ -6709,7 +7069,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                               </button>
                           </div>
                       )}
-                      {!treatAsClaimed && (
+                      {!isDungeonModeFooter && !treatAsClaimed && (
                           <div className="flex w-full flex-row flex-wrap items-stretch gap-2">
                               {(isTournamentFullyComplete || isUserEliminated) && effectiveStageAttempt ? (
                                   <button
@@ -6729,15 +7089,6 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                             : '경기 종료 후 수령 가능'}
                                   </button>
                               ) : null}
-                              {!(isTournamentFullyComplete || isUserEliminated) && isDungeonModeFooter ? (
-                                  <button
-                                      type="button"
-                                      onClick={() => setMobileChampionshipTab('rewards')}
-                                      className="min-w-0 flex-1 basis-[calc(50%-0.25rem)] rounded-lg bg-purple-700/70 px-2 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-purple-700"
-                                  >
-                                      예상보상
-                                  </button>
-                              ) : null}
                               {(isTournamentFullyComplete || isUserEliminated) ? (
                                   <button
                                       type="button"
@@ -6755,6 +7106,26 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                               ) : null}
                           </div>
                       )}
+                      {isDungeonModeFooter ? (
+                          <div className="flex w-full flex-row flex-wrap items-stretch gap-2">
+                              {!(isTournamentFullyComplete || isUserEliminated) ? (
+                                  <button
+                                      type="button"
+                                      onClick={() => setMobileChampionshipTab('rewards')}
+                                      className="min-w-0 flex-1 basis-[calc(50%-0.25rem)] rounded-lg bg-purple-700/70 px-2 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-purple-700"
+                                  >
+                                      예상보상
+                                  </button>
+                              ) : null}
+                              <button
+                                  type="button"
+                                  onClick={handleChampionshipArenaExitClick}
+                                  className="min-w-0 flex-1 basis-[calc(50%-0.25rem)] rounded-lg bg-rose-800/85 px-2 py-1.5 text-xs font-semibold text-rose-50 transition-colors hover:bg-rose-700"
+                              >
+                                  나가기
+                              </button>
+                          </div>
+                      ) : null}
                   </div>
               );
           })()
@@ -6796,9 +7167,8 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 className={`shrink-0 rounded-xl border border-amber-400/45 bg-gradient-to-br from-[#3a2810] via-[#1c2330] to-[#07090d] shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_14px_36px_-18px_rgba(0,0,0,0.85)] ring-1 ring-inset ring-amber-300/18 ${compact ? 'p-2' : 'p-3'}`}
             >
                 <div className="text-center">
-                    <div className={`font-bold tracking-[0.24em] text-amber-200/80 ${compact ? 'text-[10px]' : 'text-[11px]'}`}>CHAMPIONSHIP ARENA</div>
                     <div
-                        className={`truncate font-black text-amber-50 drop-shadow-[0_0_14px_rgba(251,191,36,0.22)] ${compact ? 'mt-0.5 text-base leading-tight' : 'mt-1 text-lg'}`}
+                        className={`truncate font-black text-amber-50 drop-shadow-[0_0_14px_rgba(251,191,36,0.22)] ${compact ? 'text-base leading-tight' : 'text-lg'}`}
                     >
                         {TOURNAMENT_DEFINITIONS[tournament.type].name}
                     </div>
@@ -6852,6 +7222,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     isSimulating={displayTournament.status === 'round_in_progress'}
                     compact={compact}
                     emptyStateHint={championshipCommentaryEmptyHint}
+                    emptyStateLoading={championshipAwaitingKataLoad}
                 />
             ) : tournament.type === 'neighborhood' ? (
                 <RoundRobinDisplay
@@ -6936,14 +7307,15 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 isSimulating={displayTournament.status === 'round_in_progress'}
                 compact={isMobile}
                 emptyStateHint={championshipCommentaryEmptyHint}
+                emptyStateLoading={championshipAwaitingKataLoad}
             />
         </div>
     );
 
     const finalRewardSection = (
         <div
-            className={`flex flex-col rounded-lg border border-gray-600/75 bg-slate-950/92 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${
-                !isMobile ? 'min-w-[160px] flex-[1.4] overflow-hidden' : 'w-full min-w-0'
+            className={`flex min-h-0 flex-col rounded-lg border border-gray-600/75 bg-slate-950/92 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${
+                isMobile ? 'w-full min-w-0 overflow-hidden' : 'min-w-0 overflow-hidden'
             }`}
             style={{ display: 'flex', flexDirection: 'column' }}
         >
@@ -6959,6 +7331,10 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 onExitToLobby={handleChampionshipArenaExitClick}
                 layoutVariant={isMobile ? 'mobileTab' : 'sidebar'}
                 suppressBottomActions={isMobile}
+                suppressClaimActions={isDungeonChampionshipVenue}
+                suppressSideActionButtons={isDungeonChampionshipVenue}
+                expectedRewardDetailsOpen={showChampionshipExpectedRewardDetails}
+                onExpectedRewardDetailsOpenChange={setShowChampionshipExpectedRewardDetails}
             />
         </div>
     );
@@ -7120,19 +7496,19 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         </div>
     ) : null;
 
-    /** 실대국 종료 결과 카드(최종 순위)가 바둑판 영역 밖으로 펼쳐질 때 상위 overflow-hidden에 잘리지 않도록 동기화 */
-    const championshipFinishedResultOverlay =
-        !!matchForDisplay?.isFinished &&
-        matchForDisplay?.championshipRealGame?.status === 'finished' &&
-        !!matchForDisplay.championshipRealGame?.winnerId;
-    const championshipBoardHostClipClass = championshipFinishedResultOverlay ? 'overflow-visible' : 'overflow-hidden';
+    const championshipBoardHostClipClass = 'overflow-hidden';
 
     const championshipFooterControls = (
         <div className="flex-shrink-0 w-full flex flex-col gap-1">
             <div className="rounded-2xl border border-amber-400/25 bg-gradient-to-b from-[#2a3d56] via-[#141c2b] to-[#070a10] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_18px_52px_-18px_rgba(0,0,0,0.96)] ring-1 ring-inset ring-amber-300/12">
-                <div className="grid min-h-[168px] grid-cols-[0.7fr_1.3fr] gap-2 overflow-hidden">
-                    {renderChampionshipMatchControlPanel()}
+                <div
+                    className={`grid min-h-[136px] gap-2 overflow-hidden ${
+                        isMobile ? 'grid-cols-[0.95fr_0.85fr_1.2fr]' : 'grid-cols-[1fr_0.9fr_1.25fr]'
+                    }`}
+                >
                     {finalRewardSection}
+                    {championshipMatchResultPanelSection}
+                    {renderChampionshipFooterButtonPanel()}
                 </div>
             </div>
         </div>
@@ -7161,9 +7537,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                             match={matchForDisplay}
                                             currentUser={currentUser}
                                             tournamentFinished={championshipFinished}
-                                            tournamentForResult={displayTournament}
                                             dungeonBoardCenterMode={championshipDungeonBoardCenterMode}
-                                            finalStandings={championshipFinalStandingsRows}
                                             territoryAnalysis={championshipDungeonTerritoryAnalysis}
                                         />
                                     </div>
@@ -7445,9 +7819,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 match={matchForDisplay}
                 currentUser={currentUser}
                 tournamentFinished={championshipFinished}
-                tournamentForResult={displayTournament}
                 dungeonBoardCenterMode={championshipDungeonBoardCenterMode}
-                finalStandings={championshipFinalStandingsRows}
                 territoryAnalysis={championshipDungeonTerritoryAnalysis}
             />
         </div>
@@ -7464,10 +7836,17 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 {mobileChampionshipAbilityRow}
                 {mobileChampionshipScoreCountdownRow}
                 {mobileChampionshipBoardSection}
-                <div className="w-full shrink-0 min-h-0 max-h-[min(30vh,280px)] overflow-y-auto overflow-x-hidden">
-                    {renderChampionshipMatchControlPanel()}
-                </div>
-                {championshipMobileStickyBar}
+                {isDungeonChampionshipVenue ? (
+                    championshipFooterControls
+                ) : (
+                    <>
+                        <div className="w-full shrink-0 min-h-0 max-h-[min(30vh,280px)] overflow-y-auto overflow-x-hidden">
+                            {renderChampionshipFooterButtonPanel()}
+                            {championshipMatchResultPanelSection}
+                        </div>
+                        {championshipMobileStickyBar}
+                    </>
+                )}
             </div>
         </main>
     );
@@ -7607,9 +7986,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                         match={matchForDisplay}
                                         currentUser={currentUser}
                                         tournamentFinished={championshipFinished}
-                                        tournamentForResult={displayTournament}
                                         dungeonBoardCenterMode={championshipDungeonBoardCenterMode}
-                                        finalStandings={championshipFinalStandingsRows}
                                         territoryAnalysis={championshipDungeonTerritoryAnalysis}
                                     />
                                 </div>
@@ -7642,18 +8019,14 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 {isMobile && mobileChampionshipTab === 'board' && (
                     <div className={`flex min-h-0 w-full flex-1 flex-col ${championshipBoardHostClipClass}`}>
                         <div
-                            className={`relative flex min-h-[min(56dvh,520px)] w-full flex-1 flex-col items-center justify-center rounded-lg border border-gray-600/75 bg-slate-950/92 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] md:p-2 ${
-                                championshipFinishedResultOverlay ? 'overflow-visible' : 'overflow-auto'
-                            }`}
+                            className="relative flex min-h-[min(56dvh,520px)] w-full flex-1 flex-col items-center justify-center overflow-auto rounded-lg border border-gray-600/75 bg-slate-950/92 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] md:p-2"
                         >
                             <div className={`relative flex min-h-0 w-full flex-1 items-center justify-center ${championshipBoardHostClipClass}`}>
                                 <ChampionshipRealGoBoard
                                     match={matchForDisplay}
                                     currentUser={currentUser}
                                     tournamentFinished={championshipFinished}
-                                    tournamentForResult={displayTournament}
                                     dungeonBoardCenterMode={championshipDungeonBoardCenterMode}
-                                    finalStandings={championshipFinalStandingsRows}
                                     territoryAnalysis={championshipDungeonTerritoryAnalysis}
                                 />
                             </div>

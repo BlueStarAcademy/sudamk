@@ -115,7 +115,6 @@ const TermsOfServiceModal: React.FC<Props> = ({ onClose, isTopmost }) => (
         intro={`${COMPANY_INFO.serviceName} 서비스를 이용해 주셔서 감사합니다. 본 약관은 회원과 회사 간의 권리·의무 및 책임 사항을 정합니다.`}
         sections={SECTIONS}
         onClose={onClose}
-        windowId="legal-terms-of-service"
         isTopmost={isTopmost}
     />
 );

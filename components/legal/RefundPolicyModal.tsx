@@ -102,7 +102,6 @@ const RefundPolicyModal: React.FC<Props> = ({ onClose, isTopmost }) => (
         intro="유료 콘텐츠의 청약철회 및 환불에 관한 사항을 안내드립니다. 본 규정은 전자상거래법 등 관계 법령에 따라 작성되었습니다."
         sections={SECTIONS}
         onClose={onClose}
-        windowId="legal-refund-policy"
         isTopmost={isTopmost}
     />
 );

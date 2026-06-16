@@ -47,48 +47,6 @@ type HandleActionResult = {
 const ALL_SLOTS: EquipmentSlot[] = ['fan', 'board', 'top', 'bottom', 'bowl', 'stones'];
 const GRADE_ORDER: ItemGrade[] = [ItemGrade.Normal, ItemGrade.Uncommon, ItemGrade.Rare, ItemGrade.Epic, ItemGrade.Legendary, ItemGrade.Mythic];
 
-async function scoreChampionshipRealGameWithKataGo(realGame: types.ChampionshipRealGameState, matchId: string) {
-    try {
-        const { analyzeGame, getScoringKataGoLimits } = await import('../kataGoService.js');
-        const limits = getScoringKataGoLimits();
-        const analysis = await analyzeGame({
-            id: `championship-scoring-${matchId}`,
-            boardState: realGame.boardState,
-            currentPlayer: types.Player.Black,
-            settings: { boardSize: realGame.boardSize, komi: 6.5 },
-            finalKomi: 6.5,
-            captures: {
-                [types.Player.None]: 0,
-                [types.Player.Black]: 0,
-                [types.Player.White]: 0,
-            },
-            moveHistory: realGame.moves,
-            baseStones: [],
-        } as any, {
-            maxVisits: limits.maxVisits,
-            maxTimeSec: limits.maxTimeSec,
-            includePolicy: false,
-            includeOwnership: true,
-        });
-
-        const black = analysis.areaScore?.black;
-        const white = analysis.areaScore?.white;
-        if (typeof black !== 'number' || typeof white !== 'number' || !Number.isFinite(black) || !Number.isFinite(white)) {
-            return null;
-        }
-
-        return {
-            black,
-            white,
-            scoreLead: black - white,
-            winnerId: black > white ? realGame.blackPlayerId : realGame.whitePlayerId,
-        };
-    } catch (error) {
-        console.warn(`[ChampionshipRealGame] KataGo scoring failed for match ${matchId}; using precomputed score.`, error);
-        return null;
-    }
-}
-
 const getRandomInt = (min: number, max: number): number => {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 };
@@ -1403,11 +1361,10 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
 
             const realGame = match.championshipRealGame;
             if (realGame?.winnerId && realGame.finalScore) {
-                const kataScore = await scoreChampionshipRealGameWithKataGo(realGame, match.id);
-                const resolvedFinalScore = kataScore
-                    ? { black: kataScore.black, white: kataScore.white, scoreLead: kataScore.scoreLead }
-                    : realGame.finalScore;
-                const resolvedWinnerId = kataScore?.winnerId ?? realGame.winnerId;
+                // 매치 생성 시 이미 KataGo+캡처 집계로 확정된 결과를 그대로 사용한다.
+                // COMPLETE 시 captures=0으로 KataGo를 다시 돌리면 승패·영토 마커가 뒤집히는 버그가 있었다.
+                const resolvedFinalScore = realGame.finalScore;
+                const resolvedWinnerId = realGame.winnerId;
                 const realWinner = tournamentState.players.find(p => p.id === resolvedWinnerId) || null;
                 if (!realWinner) {
                     return { error: '실제 대국 승자를 찾을 수 없습니다.' };
