@@ -49,6 +49,49 @@ export function markSkipGameHashLeaveInterceptOnce(): void {
     }
 }
 
+const CHAMPIONSHIP_ARENA_EXIT_SUPPRESS_REDIRECT_KEY = 'championshipArenaExitSuppressRedirect';
+
+/** 챔피언십 경기장 나가기 직후 지연된 redirectToTournament가 대기실을 덮어쓰지 않도록 한다. */
+export function markChampionshipArenaExitSuppressRedirect(): void {
+    try {
+        const payload: SkipInterceptPayload = { until: Date.now() + 3000, remaining: 8 };
+        sessionStorage.setItem(CHAMPIONSHIP_ARENA_EXIT_SUPPRESS_REDIRECT_KEY, JSON.stringify(payload));
+    } catch {
+        /* ignore */
+    }
+}
+
+export function shouldSuppressChampionshipArenaRedirect(): boolean {
+    try {
+        const route = parseHash(window.location.hash);
+        if (route.view === 'tournament' && !route.params?.type) {
+            return true;
+        }
+        const raw = sessionStorage.getItem(CHAMPIONSHIP_ARENA_EXIT_SUPPRESS_REDIRECT_KEY);
+        if (!raw) return false;
+        const p = JSON.parse(raw) as SkipInterceptPayload;
+        if (typeof p.until !== 'number' || typeof p.remaining !== 'number') {
+            sessionStorage.removeItem(CHAMPIONSHIP_ARENA_EXIT_SUPPRESS_REDIRECT_KEY);
+            return false;
+        }
+        if (Date.now() > p.until || p.remaining <= 0) {
+            sessionStorage.removeItem(CHAMPIONSHIP_ARENA_EXIT_SUPPRESS_REDIRECT_KEY);
+            return false;
+        }
+        const next: SkipInterceptPayload = { until: p.until, remaining: p.remaining - 1 };
+        if (next.remaining <= 0) sessionStorage.removeItem(CHAMPIONSHIP_ARENA_EXIT_SUPPRESS_REDIRECT_KEY);
+        else sessionStorage.setItem(CHAMPIONSHIP_ARENA_EXIT_SUPPRESS_REDIRECT_KEY, JSON.stringify(next));
+        return true;
+    } catch {
+        try {
+            sessionStorage.removeItem(CHAMPIONSHIP_ARENA_EXIT_SUPPRESS_REDIRECT_KEY);
+        } catch {
+            /* ignore */
+        }
+        return false;
+    }
+}
+
 export function consumeSkipGameHashLeaveInterceptOnce(): boolean {
     try {
         const raw = sessionStorage.getItem(SKIP_GAME_HASH_LEAVE_INTERCEPT_KEY);

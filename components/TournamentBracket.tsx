@@ -81,7 +81,7 @@ import {
     ChampionshipMobileScoreCell,
     ChampionshipMobileScoringCountdownCell,
 } from './championship/ChampionshipArenaScorePanels.js';
-import { replaceAppHash } from '../utils/appUtils.js';
+import { markChampionshipArenaExitSuppressRedirect, replaceAppHash } from '../utils/appUtils.js';
 import InlineLoadingSpinner from './ui/InlineLoadingSpinner.js';
 
 /** 서버 inferDungeonStageAttempt와 동일 — currentStageAttempt 누락 시에도 보상 버튼·COMPLETE_DUNGEON_STAGE 단계 일치 */
@@ -5302,6 +5302,8 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     const [championshipAwaitingKataLoad, setChampionshipAwaitingKataLoad] = useState(false);
     /** 동일 클릭으로 START_TOURNAMENT_MATCH 중복 전송 방지(리렌더 전 연타) */
     const championshipMatchStartLockRef = useRef(false);
+    /** 나가기 버튼으로 의도적 퇴장 시 unmount cleanup·지연 redirect가 재입장시키지 않도록 */
+    const userInitiatedArenaExitRef = useRef(false);
 
     const isChampionshipDungeonVenueForPotion = tournament?.currentStageAttempt != null;
     const canUseConditionPotion = useMemo(
@@ -5649,6 +5651,9 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         }
         onActionRef.current({ type: 'ENTER_TOURNAMENT_VIEW' });
         return () => {
+            if (userInitiatedArenaExitRef.current) {
+                return;
+            }
             const t = displayTournamentRef.current;
             if (t?.status === 'round_in_progress') {
                 void onActionRef.current({
@@ -6290,6 +6295,21 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     const { onClick: handleForfeitClick } = useButtonClickThrottle(handleForfeitClickRaw);
 
     const performChampionshipArenaExitToLobby = useCallback(async () => {
+        userInitiatedArenaExitRef.current = true;
+        markChampionshipArenaExitSuppressRedirect();
+        if (autoNextTimerRef.current) {
+            clearInterval(autoNextTimerRef.current);
+            autoNextTimerRef.current = null;
+        }
+        if (nextRoundStartTimeCheckRef.current) {
+            clearTimeout(nextRoundStartTimeCheckRef.current);
+            nextRoundStartTimeCheckRef.current = null;
+        }
+        pendingMatchStartRef.current = null;
+        championshipMatchStartLockRef.current = false;
+        setAutoNextCountdown(null);
+        setChampionshipAwaitingKataLoad(false);
+
         const t = tournament.type;
         try {
             await Promise.resolve(

@@ -16,6 +16,7 @@ import {
     replaceAppHash,
     navigateFromGameIfApplicable,
     markSkipGameHashLeaveInterceptOnce,
+    shouldSuppressChampionshipArenaRedirect,
 } from '../utils/appUtils.js';
 import { computeGameSessionFingerprint } from '../utils/gameSessionFingerprint.js';
 import { getApiUrl, getWebSocketUrlFor } from '../utils/apiConfig.js';
@@ -7061,7 +7062,15 @@ export const useApp = () => {
                         if (window.location.hash !== targetHash) {
                             console.log(`[handleAction] ${action.type} - Redirecting to tournament:`, redirectToTournament);
                             setTimeout(() => {
-                                navigateFromGameIfApplicable(targetHash);
+                                if (shouldSuppressChampionshipArenaRedirect()) {
+                                    console.log(
+                                        `[handleAction] ${action.type} - Skipping tournament redirect (championship lobby exit)`,
+                                    );
+                                    return;
+                                }
+                                if (window.location.hash !== targetHash) {
+                                    navigateFromGameIfApplicable(targetHash);
+                                }
                             }, 200);
                                 } else {
                             console.log(`[handleAction] ${action.type} - Already at ${targetHash}, skipping redirect`);
