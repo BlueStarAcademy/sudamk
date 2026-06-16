@@ -911,18 +911,9 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             // Save tournament state and user
             try {
                 // 사용자 캐시 업데이트
-                updateUserCache(user);
-                // DB 저장 완료 후 응답: 비동기 저장만 하면 직후 getCachedUser/직렬화 타이밍에 낡은 스냅샷이 섞일 수 있음
-                await db.updateUser(user);
-
-                // 저장 후 캐시에서 읽어 HTTP/WS 응답과 브로드캐스트에 동일 스냅샷 사용
-                const savedUser = await getCachedUser(user.id);
-                if (!savedUser) {
-                    console.error(`[USE_CONDITION_POTION] User not found after save: ${user.id}`);
-                    return { error: '저장 후 사용자를 찾을 수 없습니다.' };
-                }
-                
-                // 저장된 사용자 데이터 사용 (DB에 실제로 저장된 것)
+                // DB 저장 완료 후 응답: 저장 직후 캐시/WS에 DB 확정값을 쓴다(낡은 player.condition 혼입 방지)
+                const savedUser = await db.updateUser(user);
+                updateUserCache(savedUser);
                 user = savedUser;
             } catch (error: any) {
                 console.error(`[USE_CONDITION_POTION] Error updating user ${user.id}:`, error);

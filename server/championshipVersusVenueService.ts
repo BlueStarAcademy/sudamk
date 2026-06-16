@@ -253,12 +253,10 @@ export async function applyChampionshipVersusConditionPotion(
     const todayStart = getStartOfDayKST(now);
     user.championshipVersusConditionSnapshot![venue] = { condition: newCondition, dateStartOfDayKST: todayStart };
 
-    const { getCachedUser, updateUserCache } = await import('./gameCache.js');
-    updateUserCache(user);
+    const { updateUserCache } = await import('./gameCache.js');
     try {
-        await db.updateUser(user);
-        const savedUser = await getCachedUser(user.id);
-        if (!savedUser) return { error: '저장 후 사용자를 찾을 수 없습니다.' };
+        const savedUser = await db.updateUser(user);
+        updateUserCache(savedUser);
         const { broadcastUserUpdate } = await import('./socket.js');
         broadcastUserUpdate(savedUser, ['actionPoints', 'gold', 'inventory', 'championshipVersusConditionSnapshot']);
         return { user: savedUser };

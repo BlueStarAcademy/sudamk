@@ -58,13 +58,12 @@ export function resolveChampionshipDungeonRulesFromStage(stage: number): Champio
 /** 챔피언십 실대국 중계 UI 배속 — 던전 단계별로 허용 버튼만 노출 */
 export type ChampionshipPlaybackSpeedChoice = 0.5 | 1 | 2 | 3;
 
-/** 1~3단계: x0.5·x1만, 4~5단계: x0.5·x1·x2, 6단계 이상·비던전: 전체 */
+/** 1~5단계: x0.5·x1·x2, 6단계 이상·비던전: x3까지 */
 export function resolveChampionshipDungeonPlaybackSpeedChoices(
     stage: number,
 ): readonly ChampionshipPlaybackSpeedChoice[] {
     const s = Math.floor(Number(stage));
     if (!Number.isFinite(s) || s < 1) return [0.5, 1, 2, 3];
-    if (s <= 3) return [0.5, 1];
     if (s <= 5) return [0.5, 1, 2];
     return [0.5, 1, 2, 3];
 }

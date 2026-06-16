@@ -5,6 +5,7 @@ import { User, LiveGameSession, UserWithStatus, ServerAction, GameMode, Negotiat
 import type { KataServerRuntimeSnapshot } from '../shared/types/kataServerRuntime.js';
 import { mergeKataServerRuntimeSnapshot } from '../shared/utils/kataServerRuntimeMerge.js';
 import { mergeChampionshipTournamentPreserveLostRealGame } from '../shared/utils/championshipTournamentPreserve.js';
+import { syncDungeonConditionSnapshotToTournamentPlayers } from '../shared/utils/championshipConditionDisplay.js';
 import { CHAMPIONSHIP_ABILITY_KATA_LADDER, type ChampionshipAbilityKataLadderRow } from '../shared/constants/championshipRealMatch.js';
 import { HandleActionResult, type PairRoomChatLine } from '../types/api.js';
 import { Point } from '../types/enums.js';
@@ -1904,6 +1905,8 @@ export const useApp = () => {
         const coercedLv = coerceUserLevelXpFromPayload(merged as unknown as Record<string, unknown>);
         merged.userLevel = coercedLv.userLevel;
         merged.userXp = coercedLv.userXp;
+
+        syncDungeonConditionSnapshotToTournamentPlayers(merged);
 
         if (merged.exchangeState?.listings != null || patch.exchangeState?.listings != null) {
             return reconcileExchangeListedInventoryFlags(merged);

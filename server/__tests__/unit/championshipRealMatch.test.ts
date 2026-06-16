@@ -155,8 +155,8 @@ describe('championship real match policy', () => {
     });
 
     it('maps dungeon stage to playback speed choices', () => {
-        expect(resolveChampionshipDungeonPlaybackSpeedChoices(1)).toEqual([0.5, 1]);
-        expect(resolveChampionshipDungeonPlaybackSpeedChoices(3)).toEqual([0.5, 1]);
+        expect(resolveChampionshipDungeonPlaybackSpeedChoices(1)).toEqual([0.5, 1, 2]);
+        expect(resolveChampionshipDungeonPlaybackSpeedChoices(3)).toEqual([0.5, 1, 2]);
         expect(resolveChampionshipDungeonPlaybackSpeedChoices(4)).toEqual([0.5, 1, 2]);
         expect(resolveChampionshipDungeonPlaybackSpeedChoices(5)).toEqual([0.5, 1, 2]);
         expect(resolveChampionshipDungeonPlaybackSpeedChoices(6)).toEqual([0.5, 1, 2, 3]);

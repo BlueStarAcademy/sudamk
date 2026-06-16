@@ -26,6 +26,7 @@ import {
 } from '../hooks/useTournamentSimulation.js';
 import { useChampionshipReplayPlaceStoneSound } from '../hooks/useChampionshipReplayPlaceStoneSound.js';
 import { findActiveChampionshipUserMatch } from '../shared/utils/championshipTournamentPreserve.js';
+import { resolveChampionshipDisplayCondition } from '../shared/utils/championshipConditionDisplay.js';
 import {
     TOURNAMENT_DEFINITIONS,
     CONSUMABLE_ITEMS,
@@ -1434,24 +1435,11 @@ const PlayerProfilePanel: React.FC<{
     const playerNickname = player?.nickname;
 
     /** 토너먼트 객체에 컨디션이 아직 안 실렸을 때(1000) 스냅샷·fallback으로 표시·회복제 판정 */
-    const playerCondition = (() => {
-        const c = player.condition;
-        if (c !== undefined && c !== null && c !== 1000) {
-            return c;
-        }
-        if (
-            isCurrentUser &&
-            conditionFallback !== undefined &&
-            conditionFallback !== null &&
-            conditionFallback !== 1000
-        ) {
-            return conditionFallback;
-        }
-        if (c !== undefined && c !== null) {
-            return c;
-        }
-        return 1000;
-    })();
+    const playerCondition = resolveChampionshipDisplayCondition({
+        playerCondition: player.condition,
+        snapshotCondition: conditionFallback,
+        isCurrentUser,
+    });
 
     // 모든 필수 값이 유효한지 확인
     if (!playerId || !playerNickname) {
@@ -2012,15 +2000,12 @@ const MobileChampionshipPlayersCompare: React.FC<{
             tournamentStatus === 'bracket_ready' ||
             tournamentStatus === 'round_complete');
 
-    const resolveCondition = (player: PlayerForTournament | null, isCurrentUser: boolean) => {
-        const c = player?.condition;
-        if (c !== undefined && c !== null && c !== 1000) return c;
-        if (isCurrentUser && conditionFallback !== undefined && conditionFallback !== null && conditionFallback !== 1000) {
-            return conditionFallback;
-        }
-        if (c !== undefined && c !== null) return c;
-        return 1000;
-    };
+    const resolveCondition = (player: PlayerForTournament | null, isCurrentUser: boolean) =>
+        resolveChampionshipDisplayCondition({
+            playerCondition: player?.condition,
+            snapshotCondition: conditionFallback,
+            isCurrentUser,
+        });
 
     /** 컨디션 수치 색상: 50 미만 빨강, 80 이상 초록, 그 사이 주황 계열 */
     const conditionValueClass = (cond: number) => {
@@ -6128,12 +6113,13 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     /** 토너먼트 플레이어 객체에 컨디션이 1000으로만 있을 때 던전 스냅샷으로 모달 표시 */
     const conditionForPotionModal = useMemo(() => {
         if (!userPlayer) return 1000;
-        const tp = userPlayer.condition;
-        if (tp !== undefined && tp !== null && tp !== 1000) return tp;
         const snap =
             tournament?.type && currentUser.dungeonConditionSnapshot?.[tournament.type]?.condition;
-        if (snap !== undefined && snap !== null && snap !== 1000) return snap;
-        return tp !== undefined && tp !== null ? tp : 1000;
+        return resolveChampionshipDisplayCondition({
+            playerCondition: userPlayer.condition,
+            snapshotCondition: snap,
+            isCurrentUser: true,
+        });
     }, [userPlayer, tournament?.type, currentUser.dungeonConditionSnapshot]);
 
     const championshipConditionFallback = useMemo(() => {
@@ -6594,7 +6580,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             </Button>
         ) : null;
 
-    // 배속 조절 — 던전 1~3단계는 x0.5·x1만, 4~5단계는 x0.5·x1·x2, 6단계 이상·비던전은 x3까지.
+    // 배속 조절 — 던전 1~5단계는 x0.5·x1·x2, 6단계 이상·비던전은 x3까지.
     const championshipPlaybackSpeedSelector = (
         <div className="mb-1.5 flex items-center justify-center gap-1">
             <span className="text-[10px] font-semibold tracking-wider text-cyan-100">배속</span>
@@ -7033,16 +7019,12 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         const mutedText = isWhite ? 'text-slate-700' : 'text-slate-300';
         const strongText = isWhite ? 'text-slate-950' : 'text-slate-50';
         const chipClass = isWhite ? 'bg-slate-900/10 text-slate-800' : 'bg-white/10 text-slate-200';
-        const rawCondition = player?.condition;
-        const displayCondition: number | null =
-            rawCondition !== undefined && rawCondition !== null && rawCondition !== 1000
-                ? rawCondition
-                : isCurrentUser &&
-                    championshipConditionFallback !== undefined &&
-                    championshipConditionFallback !== null &&
-                    championshipConditionFallback !== 1000
-                  ? championshipConditionFallback
-                  : null;
+        const resolvedCondition = resolveChampionshipDisplayCondition({
+            playerCondition: player?.condition,
+            snapshotCondition: championshipConditionFallback,
+            isCurrentUser,
+        });
+        const displayCondition: number | null = resolvedCondition === 1000 ? null : resolvedCondition;
         const conditionTone =
             typeof displayCondition === 'number' && displayCondition < 40
                 ? 'text-red-300'
@@ -7217,16 +7199,12 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         const clickable = Boolean(player?.id && !player.id.startsWith('bot-') && !isCurrentUser);
         const avatarUrl = player ? AVATAR_POOL.find((a) => a.id === player.avatarId)?.url : undefined;
         const borderUrl = player ? BORDER_POOL.find((b) => b.id === player.borderId)?.url : undefined;
-        const rawCondition = player?.condition;
-        const effectiveCondition: number | null =
-            rawCondition !== undefined && rawCondition !== null && rawCondition !== 1000
-                ? rawCondition
-                : isCurrentUser &&
-                    championshipConditionFallback !== undefined &&
-                    championshipConditionFallback !== null &&
-                    championshipConditionFallback !== 1000
-                  ? championshipConditionFallback
-                  : null;
+        const resolvedConditionMobile = resolveChampionshipDisplayCondition({
+            playerCondition: player?.condition,
+            snapshotCondition: championshipConditionFallback,
+            isCurrentUser,
+        });
+        const effectiveCondition: number | null = resolvedConditionMobile === 1000 ? null : resolvedConditionMobile;
         const conditionTone =
             typeof effectiveCondition === 'number' && effectiveCondition < 40
                 ? 'text-red-300'
