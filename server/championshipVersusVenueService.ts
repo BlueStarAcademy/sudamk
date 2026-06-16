@@ -255,11 +255,11 @@ export async function applyChampionshipVersusConditionPotion(
 
     const { updateUserCache } = await import('./gameCache.js');
     try {
-        const savedUser = await db.updateUser(user);
-        updateUserCache(savedUser);
+        updateUserCache(user);
+        await db.updateUser(user);
         const { broadcastUserUpdate } = await import('./socket.js');
-        broadcastUserUpdate(savedUser, ['actionPoints', 'gold', 'inventory', 'championshipVersusConditionSnapshot']);
-        return { user: savedUser };
+        broadcastUserUpdate(user, ['actionPoints', 'gold', 'inventory', 'championshipVersusConditionSnapshot']);
+        return { user };
     } catch (e: any) {
         console.error('[applyChampionshipVersusConditionPotion]', e);
         return { error: '데이터 저장 중 오류가 발생했습니다.' };

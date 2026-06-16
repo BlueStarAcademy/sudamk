@@ -90,6 +90,7 @@ import {
     countConditionPotionsInInventory,
     stripInventoryIfFewerConditionPotions,
 } from '../shared/utils/conditionPotionInventory.js';
+import { buildOptimisticUseConditionPotionUserPatch } from '../shared/utils/conditionPotionOptimistic.js';
 
 const HOME_BOARD_READ_STORAGE_PREFIX = 'sudamr-home-board-read-posts';
 
@@ -5780,6 +5781,23 @@ export const useApp = () => {
                     return;
                 }
                 inFlightPlaceStoneActionRef.current.add(placeStoneDedupeKey);
+            }
+
+            if (action.type === 'USE_CONDITION_POTION') {
+                const potionPayload = (action as { payload?: unknown }).payload as
+                    | {
+                          potionType?: string;
+                          tournamentType?: 'neighborhood' | 'national' | 'world';
+                          versusVenue?: 'pvp' | 'pet' | 'petpair';
+                      }
+                    | undefined;
+                const optimisticPatch = buildOptimisticUseConditionPotionUserPatch(
+                    currentUserRef.current,
+                    potionPayload ?? {},
+                );
+                if (optimisticPatch) {
+                    applyUserUpdate(optimisticPatch, 'USE_CONDITION_POTION-optimistic');
+                }
             }
 
             const res = await fetch(getApiUrl('/api/action'), {

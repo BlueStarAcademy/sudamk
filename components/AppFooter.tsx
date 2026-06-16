@@ -42,13 +42,19 @@ const AppFooter: React.FC<AppFooterProps> = ({ variant = 'main' }) => {
     return (
         <>
             <footer
-                className={`w-full shrink-0 border-t border-amber-400/15 ${
-                    isAuth ? 'bg-black/40 backdrop-blur-sm' : 'bg-primary/85'
-                } px-3 py-2 text-center text-[11px] leading-snug sm:px-6 sm:py-3 sm:text-xs`}
+                className={`box-border w-full max-w-none shrink-0 border-t border-amber-400/15 ${
+                    isAuth
+                        ? 'bg-black/40 px-0 py-1.5 backdrop-blur-sm pb-[max(0.375rem,env(safe-area-inset-bottom,0px))] sm:py-2'
+                        : 'bg-primary/85 px-3 py-2 sm:px-6 sm:py-3'
+                } text-center text-[11px] leading-snug sm:text-xs`}
                 role="contentinfo"
                 aria-label="사이트 정보"
             >
-                <div className="mx-auto flex w-full max-w-5xl flex-col items-center gap-1.5 sm:gap-2">
+                <div
+                    className={`mx-auto flex w-full flex-col items-center ${
+                        isAuth ? 'gap-1 px-3 sm:gap-1.5 sm:px-4' : 'max-w-5xl gap-1.5 sm:gap-2'
+                    }`}
+                >
                     {/* 약관 링크 행 */}
                     <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 sm:gap-x-4">
                         <FooterLinkButton

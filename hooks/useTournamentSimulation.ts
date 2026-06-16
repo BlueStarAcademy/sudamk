@@ -7,6 +7,11 @@ import {
     mergeResolvedRoundsPreserveChampionshipPlayback,
     repairTournamentSimulatingPointer,
 } from '../shared/utils/championshipTournamentPreserve.js';
+import {
+    getChampionshipSimulationMatchKey,
+    isChampionshipDungeonPve,
+    isChampionshipRealGameFirstArrival,
+} from '../shared/utils/championshipSimulationMatchKey.js';
 
 const TOTAL_GAME_DURATION = 50;
 // 챔피언십 실대국 중계 배속별 수당 간격(ms).
@@ -80,18 +85,6 @@ const getEffectiveSimulationSeed = (tournament: TournamentState): string => {
     if (!sim) return '';
     const match = tournament.rounds[sim.roundIndex]?.matches[sim.matchIndex];
     return `fallback:${tournament.type}:${sim.roundIndex}:${sim.matchIndex}:${match?.id ?? 'm'}`;
-};
-
-const getMatchKey = (tournament: TournamentState | null | undefined): string | null => {
-    if (!tournament?.currentSimulatingMatch) return null;
-    const sim = tournament.currentSimulatingMatch;
-    const match = tournament.rounds[sim.roundIndex]?.matches[sim.matchIndex];
-    const realGame = match?.championshipRealGame;
-    // 실대국: 시드(simulationSeed) 유무로 키가 바뀌면 매치 리셋·재생 타이머가 끊겨 빈 판에 멈출 수 있음 → 라운드·매치·id만으로 고정
-    if (realGame?.moves?.length) {
-        return `real:${tournament.type}:${sim.roundIndex}:${sim.matchIndex}:${match?.id ?? 'm'}`;
-    }
-    return `${sim.roundIndex}-${sim.matchIndex}-${getEffectiveSimulationSeed(tournament)}`;
 };
 
 /**
@@ -206,7 +199,7 @@ const persistSimulation = (userId: string, tournament: TournamentState, rngState
         const payload: PersistedTournamentSimulation = {
             userId,
             tournament,
-            matchKey: getMatchKey(tournament),
+            matchKey: getChampionshipSimulationMatchKey(tournament),
             rngState,
             savedAt: Date.now(),
         };
@@ -262,7 +255,7 @@ const resolveInitialTournament = (tournament: TournamentState | null, currentUse
     if (!persisted) return repairedIncoming;
 
     const persistedMatchKey = persisted.matchKey;
-    const incomingMatchKey = getMatchKey(repairedIncoming);
+    const incomingMatchKey = getChampionshipSimulationMatchKey(repairedIncoming);
 
     if (repairedIncoming.status !== 'round_in_progress') {
         clearPersistedSimulation(currentUser.id, repairedIncoming.type);
@@ -346,7 +339,7 @@ export const useTournamentSimulation = (
     const realMatchScoringTransitionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Track current match to detect changes
-    const currentMatchKeyRef = useRef<string | null>(getMatchKey(localTournament));
+    const currentMatchKeyRef = useRef<string | null>(getChampionshipSimulationMatchKey(localTournament));
 
     // Update local tournament state when tournament prop changes
     useEffect(() => {
@@ -361,9 +354,9 @@ export const useTournamentSimulation = (
             return;
         }
 
-        const matchKey = getMatchKey(resolvedWithPointer);
+        const matchKey = getChampionshipSimulationMatchKey(resolvedWithPointer);
         const prevStableMatchKey = currentMatchKeyRef.current;
-        // WS/USER_UPDATE가 잠깐 currentSimulatingMatch를 빼면 getMatchKey가 null이 되어
+        // WS/USER_UPDATE가 잠깐 currentSimulatingMatch를 빼면 getChampionshipSimulationMatchKey가 null이 되어
         // 여기서 전부 리셋되면 실대국 중계가 처음부터 무한 반복처럼 보인다.
         // (계가 지연 타이머·COMPLETE 전송도 끊길 수 있음)
         const pendingRealMatchCompletion = realMatchScoringTimeoutRef.current != null;
@@ -397,7 +390,7 @@ export const useTournamentSimulation = (
                 clearTimeout(realMatchScoringTransitionTimeoutRef.current);
                 realMatchScoringTransitionTimeoutRef.current = null;
             }
-            // getMatchKey가 잠깐 null로만 바뀌는 경우(다른 탭·절전·WS 생략) 터미널 락을 지우면
+            // getChampionshipSimulationMatchKey가 잠깐 null로만 바뀌는 경우(다른 탭·절전·WS 생략) 터미널 락을 지우면
             // 같은 실대국 키로 돌아왔을 때 중계가 처음부터 다시 재생될 수 있다.
             // 새 매치 키가 확정됐을 때만 락·시작 멘트 가드를 해제한다.
             if (matchKey != null) {
@@ -421,8 +414,22 @@ export const useTournamentSimulation = (
         setLocalTournament(prev => {
             if (!prev) return resolvedWithPointer;
 
-            const prevK = getMatchKey(prev);
-            const resK = getMatchKey(resolvedWithPointer);
+            if (isChampionshipRealGameFirstArrival(prev, resolvedWithPointer)) {
+                if (simulationIntervalRef.current) {
+                    clearInterval(simulationIntervalRef.current);
+                    simulationIntervalRef.current = null;
+                }
+                isSimulatingRef.current = false;
+                timeElapsedRef.current = 0;
+                player1ScoreRef.current = 0;
+                player2ScoreRef.current = 0;
+                commentaryRef.current = [];
+                announcedStartMatchKeyRef.current = null;
+                return resolvedWithPointer;
+            }
+
+            const prevK = getChampionshipSimulationMatchKey(prev);
+            const resK = getChampionshipSimulationMatchKey(resolvedWithPointer);
             if (
                 resK == null &&
                 typeof prevK === 'string' &&
@@ -461,7 +468,7 @@ export const useTournamentSimulation = (
 
             if (prev.status === 'round_in_progress' &&
                 resolvedWithPointer.status === 'round_in_progress' &&
-                getMatchKey(prev) === getMatchKey(resolvedWithPointer)) {
+                getChampionshipSimulationMatchKey(prev) === getChampionshipSimulationMatchKey(resolvedWithPointer)) {
                 const sim = prev.currentSimulatingMatch;
                 const prevGame =
                     sim &&
@@ -469,6 +476,8 @@ export const useTournamentSimulation = (
                 const resolvedGame =
                     sim &&
                     resolvedWithPointer.rounds[sim.roundIndex]?.matches[sim.matchIndex]?.championshipRealGame;
+                const resolvedHasNewRealGame =
+                    (resolvedGame?.moves?.length ?? 0) > 0 && (prevGame?.moves?.length ?? 0) === 0;
                 const playbackClientAhead =
                     !!prevGame?.moves?.length &&
                     !!resolvedGame?.moves?.length &&
@@ -477,7 +486,8 @@ export const useTournamentSimulation = (
                         ((prev.timeElapsed || 0) > (resolvedWithPointer.timeElapsed || 0) &&
                             (prevGame.currentPly || 0) >= (resolvedGame.currentPly || 0)));
                 const usePrevClientState =
-                    (prev.timeElapsed || 0) > (resolvedWithPointer.timeElapsed || 0) || playbackClientAhead;
+                    !resolvedHasNewRealGame &&
+                    ((prev.timeElapsed || 0) > (resolvedWithPointer.timeElapsed || 0) || playbackClientAhead);
                 if (usePrevClientState) {
                     const rounds = playbackClientAhead
                         ? mergeResolvedRoundsPreserveChampionshipPlayback(prev, resolvedWithPointer)
@@ -507,7 +517,7 @@ export const useTournamentSimulation = (
     useEffect(() => {
         if (!currentUser || !localTournament) return;
 
-        const matchKey = getMatchKey(localTournament);
+        const matchKey = getChampionshipSimulationMatchKey(localTournament);
         const sim = localTournament.currentSimulatingMatch;
         const activeMatch =
             sim != null ? localTournament.rounds[sim.roundIndex]?.matches[sim.matchIndex] : null;
@@ -591,8 +601,13 @@ export const useTournamentSimulation = (
         }
 
         const realGame = match.championshipRealGame;
+        // PVE 던전: 서버 kata 기보가 붙기 전 레거시 RNG 중계를 시작하면 멘트·점수만 먼저 흐른 뒤 실대국 도착 시 중계가 다시 시작된다.
+        if (isChampionshipDungeonPve(localTournament) && !realGame?.moves?.length) {
+            return;
+        }
+
         if (realGame?.moves?.length) {
-            const playbackMatchKey = getMatchKey(localTournament);
+            const playbackMatchKey = getChampionshipSimulationMatchKey(localTournament);
             const fullyPlayedOut =
                 realGame.status === 'finished' ||
                 ((realGame.currentPly || 0) >= realGame.moves.length && realGame.moves.length > 0);
@@ -663,7 +678,7 @@ export const useTournamentSimulation = (
                             return;
                         }
                         const rg2 = m2.championshipRealGame;
-                        if (getMatchKey(lt) !== playbackMatchKey) {
+                        if (getChampionshipSimulationMatchKey(lt) !== playbackMatchKey) {
                             isSimulatingRef.current = false;
                             return;
                         }
@@ -939,6 +954,10 @@ export const useTournamentSimulation = (
             };
         }
 
+        if (isChampionshipDungeonPve(localTournament)) {
+            return;
+        }
+
         const p1 = localTournament.players.find(p => p.id === match.players[0]!.id);
         const p2 = localTournament.players.find(p => p.id === match.players[1]!.id);
 
@@ -957,7 +976,7 @@ export const useTournamentSimulation = (
         const persisted = readPersistedSimulation(currentUser.id, localTournament.type);
         const canResumePersisted =
             !!persisted &&
-            persisted.matchKey === getMatchKey(localTournament) &&
+            persisted.matchKey === getChampionshipSimulationMatchKey(localTournament) &&
             persisted.rngState !== null &&
             (localTournament.timeElapsed || 0) > 0;
 
@@ -1177,7 +1196,7 @@ export const useTournamentSimulation = (
             }
             isSimulatingRef.current = false;
         };
-    }, [getMatchKey(localTournament), localTournament?.status, currentUser?.id]);
+    }, [getChampionshipSimulationMatchKey(localTournament), localTournament?.status, currentUser?.id]);
 
     return localTournament;
 };

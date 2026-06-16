@@ -910,11 +910,8 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
 
             // Save tournament state and user
             try {
-                // 사용자 캐시 업데이트
-                // DB 저장 완료 후 응답: 저장 직후 캐시/WS에 DB 확정값을 쓴다(낡은 player.condition 혼입 방지)
-                const savedUser = await db.updateUser(user);
-                updateUserCache(savedUser);
-                user = savedUser;
+                updateUserCache(user);
+                await db.updateUser(user);
             } catch (error: any) {
                 console.error(`[USE_CONDITION_POTION] Error updating user ${user.id}:`, error);
                 console.error(`[USE_CONDITION_POTION] Error stack:`, error.stack);

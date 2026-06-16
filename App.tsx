@@ -484,11 +484,11 @@ const AppContent: React.FC = () => {
                             </div>
                         </>
                     ) : (
-                        <div className="relative flex flex-1 w-full min-h-0 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain bg-transparent">
+                        <div className="relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-transparent">
                             <MainBackgroundLayer variant="auth" />
                             <div
-                                className={`relative z-10 flex min-h-full w-full flex-1 flex-col items-center justify-center px-3 pt-[max(1.25rem,env(safe-area-inset-top,0px))] pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] sm:gap-6 sm:px-6 sm:py-8 lg:gap-8 lg:px-10 lg:py-12 ${
-                                    isNativeMobile ? 'gap-3 py-4' : 'gap-5 py-6'
+                                className={`relative z-10 flex min-h-0 w-full flex-1 flex-col items-center justify-center overflow-hidden px-3 pt-[max(0.75rem,env(safe-area-inset-top,0px))] pb-2 sm:gap-6 sm:px-6 sm:py-6 lg:gap-8 lg:px-10 lg:py-8 ${
+                                    isNativeMobile ? 'gap-2 py-3' : 'gap-4 py-4'
                                 }`}
                             >
                                 <header
@@ -636,11 +636,12 @@ const AppContent: React.FC = () => {
                                 </div>
                             </main>
                         ) : (
-                            <div className="relative flex flex-1 w-full min-h-0 flex-col items-center justify-center gap-4 overflow-y-auto overflow-x-hidden bg-transparent px-3 py-6 sm:gap-6 sm:px-6 sm:py-8 lg:gap-8 lg:px-10 lg:py-12">
+                            <div className="relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-transparent">
                                 <MainBackgroundLayer variant="auth" />
+                                <div className="relative z-[2] flex min-h-0 flex-1 flex-col items-center justify-center gap-3 overflow-hidden px-3 py-4 sm:gap-5 sm:px-6 sm:py-6 lg:gap-6 lg:px-10 lg:py-8">
                                 {/* 상단 중앙 브랜드 — 모바일은 컴팩트, PC는 비율만 키움 */}
                                 <header
-                                    className="relative z-[2] flex w-full max-w-lg shrink-0 flex-col items-center gap-1 px-2 text-center sm:max-w-xl sm:gap-1.5 lg:max-w-3xl lg:gap-2"
+                                    className="flex w-full max-w-lg shrink-0 flex-col items-center gap-1 px-2 text-center sm:max-w-xl sm:gap-1.5 lg:max-w-3xl lg:gap-2"
                                     style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
                                 >
                                     <h1 className="bg-gradient-to-br from-white via-amber-50 to-amber-600 bg-clip-text text-3xl font-black uppercase tracking-[0.14em] text-transparent drop-shadow-[0_4px_28px_rgba(251,191,36,0.32)] sm:text-4xl sm:tracking-[0.16em] lg:text-6xl lg:tracking-[0.14em] xl:text-7xl">
@@ -662,14 +663,13 @@ const AppContent: React.FC = () => {
                                     </p>
                                 </header>
                                 <main
-                                    className="relative z-[2] flex w-full min-w-0 flex-col items-center justify-center"
+                                    className="relative z-[2] flex w-full min-w-0 shrink-0 flex-col items-center justify-center"
                                     style={{ maxWidth: `min(100%, ${NATIVE_MOBILE_SHELL_MAX_WIDTH}px)` }}
                                 >
                                     <Router />
                                 </main>
-                                <div className="relative z-[2] mt-auto w-full">
-                                    <AppFooter variant="auth" />
                                 </div>
+                                <AppFooter variant="auth" />
                             </div>
                         )}
 

@@ -7,7 +7,7 @@ import { isConditionPotionConsumable } from '../shared/constants/items.js';
 
 /** TournamentBracket 챔피언십 푸터 버튼과 동일 계열 — 모달 전용 */
 const champBtnBase =
-    'rounded-xl border px-4 py-2.5 text-xs font-black tracking-wide shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_28px_-12px_rgba(0,0,0,0.85)] transition-all active:scale-[0.98] disabled:pointer-events-none disabled:opacity-45';
+    'rounded-xl border px-4 py-3 text-base font-bold shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_28px_-12px_rgba(0,0,0,0.85)] transition-colors active:brightness-95 disabled:pointer-events-none disabled:opacity-45';
 const champBtnMuted = `${champBtnBase} border-slate-500/45 bg-gradient-to-b from-slate-600/90 via-slate-800/95 to-slate-950 text-slate-100 hover:brightness-110`;
 const champBtnEmerald = `${champBtnBase} border-emerald-300/50 bg-gradient-to-b from-emerald-400/95 via-emerald-600/92 to-emerald-950 text-slate-950 hover:brightness-110`;
 const champBtnAmber = `${champBtnBase} border-amber-300/55 bg-gradient-to-b from-amber-400/92 via-amber-600/88 to-amber-950 text-amber-50 hover:brightness-110`;
@@ -185,7 +185,10 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
             [selectedPotionType]: (prev[selectedPotionType] ?? 0) - 1,
         }));
         if (currentCondition !== 1000) {
-            setOptimisticConditionAdd((a) => Math.min(100 - currentCondition, a + potion.minRecovery));
+            const previewRecovery = Math.floor((potion.minRecovery + potion.maxRecovery) / 2);
+            setOptimisticConditionAdd((a) =>
+                Math.min(100 - currentCondition, a + previewRecovery),
+            );
         }
 
         try {
@@ -203,7 +206,8 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
                     [selectedPotionType]: (prev[selectedPotionType] ?? 0) + 1,
                 }));
                 if (currentCondition !== 1000) {
-                    setOptimisticConditionAdd((a) => Math.max(0, a - potion.minRecovery));
+                    const previewRecovery = Math.floor((potion.minRecovery + potion.maxRecovery) / 2);
+                    setOptimisticConditionAdd((a) => Math.max(0, a - previewRecovery));
                 }
             }
         } finally {
@@ -218,38 +222,24 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
         return null;
     }
 
-    const titleContent = (
-        <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-400/75">Championship venue</p>
-            <p className="truncate text-base font-black leading-tight text-amber-50 sm:text-lg">컨디션 회복</p>
-        </div>
-    );
-
     return (
         <DraggableWindow
             title="컨디션 회복"
-            titleContent={titleContent}
             headerShowTitle
             initialWidth={isNativeMobile ? 360 : 640}
             initialHeight={isNativeMobile ? 500 : 680}
             onClose={onClose}
             isTopmost={isTopmost}
             windowId="condition-potion-modal"
-            mobileViewportFit={isNativeMobile}
+            mobileViewportFit
             mobileViewportMaxHeightVh={94}
             bodyPaddingClassName="p-0"
+            bodyScrollable={false}
             containerExtraClassName="shadow-[0_28px_100px_-28px_rgba(0,0,0,0.92),0_0_56px_-24px_rgba(251,191,36,0.14)]"
         >
             <div
-                className={`flex min-h-0 flex-1 flex-col bg-gradient-to-b from-[#1a2234] via-[#101520] to-[#06080e] ${isNativeMobile ? 'gap-3' : 'gap-5'}`}
+                className={`flex min-h-0 flex-1 flex-col bg-gradient-to-b from-[#1a2234] via-[#101520] to-[#06080e] ${isNativeMobile ? 'gap-3 pt-3' : 'gap-5 pt-4'}`}
             >
-                <div className={`shrink-0 px-3 pt-3 sm:px-5 sm:pt-4 ${isNativeMobile ? 'pb-1' : 'pb-0'}`}>
-                    <div className="mx-auto h-px w-20 bg-gradient-to-r from-transparent via-amber-400/45 to-transparent" aria-hidden />
-                    <p className="mt-2 text-center text-[11px] font-semibold text-amber-200/80">
-                        경기장 전용 회복 — 사용 시 보유 회복제 1개가 소모됩니다
-                    </p>
-                </div>
-
                 <div
                     className={`flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain ${isNativeMobile ? 'gap-3 px-3 pb-2' : 'gap-4 px-5 pb-3'}`}
                 >
@@ -273,9 +263,9 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
                                     key={type}
                                     title={`${potion.name} · 회복 ${potion.minRecovery}~${potion.maxRecovery} · 보유 ${count}`}
                                     onClick={() => setSelectedPotionType(type)}
-                                    className={`group relative min-w-0 w-full overflow-hidden rounded-2xl border transition-all duration-200 ${
+                                    className={`group relative min-w-0 w-full overflow-hidden rounded-2xl border transition-colors duration-200 ${
                                         isNativeMobile
-                                            ? 'flex flex-col items-center px-1.5 py-2 text-center active:scale-[0.99]'
+                                            ? 'flex flex-col items-center px-2 py-2.5 text-center'
                                             : 'p-4 text-left'
                                     } ${
                                         isSelected
@@ -290,45 +280,46 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
                                     {!isNativeMobile ? (
                                         <div className="flex items-start justify-between gap-2">
                                             <span
-                                                className={`rounded-md border bg-gradient-to-b px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${gradeClass}`}
+                                                className={`rounded-md border bg-gradient-to-b px-2 py-0.5 text-xs font-bold ${gradeClass}`}
                                             >
                                                 {GRADE_LABEL[potion.grade]}
                                             </span>
                                             {isSelected ? (
-                                                <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[9px] font-black text-amber-200">
+                                                <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-xs font-bold text-amber-100">
                                                     선택
                                                 </span>
                                             ) : null}
                                         </div>
                                     ) : (
-                                        <div className="flex w-full items-center justify-center gap-0.5">
+                                        <div className="flex w-full items-center justify-center gap-1">
                                             <span
-                                                className={`rounded border bg-gradient-to-b px-1 py-0.5 text-[8px] font-black leading-none ${gradeClass}`}
+                                                className={`rounded border bg-gradient-to-b px-1.5 py-0.5 text-xs font-bold leading-none ${gradeClass}`}
                                             >
                                                 {GRADE_LABEL[potion.grade]}
                                             </span>
                                             {isSelected ? (
-                                                <span className="rounded bg-amber-400/25 px-1 py-0.5 text-[8px] font-black leading-none text-amber-100">
+                                                <span className="rounded bg-amber-400/25 px-1.5 py-0.5 text-xs font-bold leading-none text-amber-50">
                                                     선택
                                                 </span>
                                             ) : null}
                                         </div>
                                     )}
                                     {isNativeMobile ? (
-                                        <div className="mt-1.5 flex w-full min-w-0 flex-col items-center gap-1">
-                                            <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-amber-500/20 bg-black/35 shadow-inner">
-                                                <img src={potion.image} alt="" className="h-9 w-9 object-contain drop-shadow-md" />
+                                        <div className="mt-2 flex w-full min-w-0 flex-col items-center gap-1.5">
+                                            <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-amber-500/20 bg-black/35 shadow-inner">
+                                                <img src={potion.image} alt="" className="h-10 w-10 object-contain" />
                                             </div>
-                                            <h3 className="w-full truncate px-0.5 text-[10px] font-black leading-tight text-amber-50">
+                                            <h3 className="w-full text-xs font-bold leading-normal text-amber-50">
                                                 {shortPotionLabel}
                                             </h3>
-                                            <p className="text-[9px] leading-none text-slate-400">
-                                                <span className="font-bold text-slate-200">
+                                            <p className="text-xs leading-normal text-slate-200">
+                                                회복{' '}
+                                                <span className="font-bold text-white">
                                                     {potion.minRecovery}~{potion.maxRecovery}
                                                 </span>
                                             </p>
                                             <p
-                                                className={`text-[9px] font-bold leading-none tabular-nums ${count > 0 ? 'text-sky-300' : 'text-rose-300/90'}`}
+                                                className={`text-xs font-bold leading-normal tabular-nums ${count > 0 ? 'text-sky-200' : 'text-rose-300'}`}
                                             >
                                                 보유 {count}
                                             </p>
@@ -339,18 +330,18 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
                                                 <img
                                                     src={potion.image}
                                                     alt={potion.name}
-                                                    className="h-[4.25rem] w-[4.25rem] object-contain drop-shadow-lg"
+                                                    className="h-[4.25rem] w-[4.25rem] object-contain"
                                                 />
                                             </div>
-                                            <h3 className="text-center text-sm font-black text-amber-50">{potion.name}</h3>
-                                            <p className="text-center text-[11px] text-slate-400">
+                                            <h3 className="text-center text-base font-bold text-amber-50">{potion.name}</h3>
+                                            <p className="text-center text-sm text-slate-200">
                                                 회복량{' '}
-                                                <span className="font-bold text-slate-200">
+                                                <span className="font-bold text-white">
                                                     {potion.minRecovery}~{potion.maxRecovery}
                                                 </span>
                                             </p>
                                             <p
-                                                className={`text-xs font-bold tabular-nums ${count > 0 ? 'text-sky-300' : 'text-rose-300/90'}`}
+                                                className={`text-sm font-bold tabular-nums ${count > 0 ? 'text-sky-200' : 'text-rose-300'}`}
                                             >
                                                 보유 {count}개
                                             </p>
@@ -369,22 +360,21 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
                     }`}
                 >
                     <div className={`relative flex items-center justify-between ${isNativeMobile ? 'mb-2' : 'mb-3'}`}>
-                        <span className={`font-bold text-slate-400 ${isNativeMobile ? 'text-xs' : 'text-sm'}`}>현재 컨디션</span>
+                        <span className={`font-bold text-slate-200 ${isNativeMobile ? 'text-sm' : 'text-base'}`}>현재 컨디션</span>
                         <span
-                            className={`relative font-black tabular-nums text-amber-100 transition-all duration-300 ${
-                                isNativeMobile ? 'text-xl' : 'text-2xl'
-                            } ${showConditionIncrease ? 'scale-110 text-emerald-300' : ''} ${isApplyingPotion ? 'animate-pulse text-emerald-200' : ''}`}
+                            className={`relative font-bold tabular-nums text-amber-50 ${
+                                isNativeMobile ? 'text-2xl' : 'text-3xl'
+                            } ${showConditionIncrease ? 'text-emerald-300' : ''} ${isApplyingPotion ? 'text-emerald-200' : ''}`}
                         >
                             {displayCondition === 1000 ? '—' : displayCondition}
                         </span>
                         {showConditionIncrease && conditionIncreaseAmount > 0 && (
                             <span
-                                className={`pointer-events-none absolute font-black text-emerald-300 ${
-                                    isNativeMobile ? 'right-3 top-2 text-sm' : 'right-5 top-3 text-base'
+                                className={`pointer-events-none absolute font-bold text-emerald-300 ${
+                                    isNativeMobile ? 'right-3 top-2 text-base' : 'right-5 top-3 text-lg'
                                 }`}
                                 style={{
                                     animation: 'fadeUp 2s ease-out forwards',
-                                    textShadow: '0 0 12px rgba(52, 211, 153, 0.75)',
                                 }}
                             >
                                 +{conditionIncreaseAmount}
@@ -392,9 +382,9 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
                         )}
                     </div>
                     <div className="h-px w-full bg-gradient-to-r from-transparent via-amber-500/25 to-transparent" aria-hidden />
-                    <div className={`mt-3 flex items-center justify-between gap-2 ${isNativeMobile ? 'text-xs' : 'text-sm'}`}>
-                        <span className="font-semibold text-slate-400">{isNativeMobile ? '회복 후(예상)' : '예상 회복 후 컨디션'}</span>
-                        <span className="text-right font-black tabular-nums text-emerald-200/95 sm:text-lg">
+                    <div className={`mt-3 flex items-center justify-between gap-2 ${isNativeMobile ? 'text-sm' : 'text-base'}`}>
+                        <span className="font-semibold text-slate-200">{isNativeMobile ? '회복 후(예상)' : '예상 회복 후 컨디션'}</span>
+                        <span className="text-right text-lg font-bold tabular-nums text-emerald-200 sm:text-xl">
                             {expectedRecovery ? `${expectedRecovery.min} ~ ${expectedRecovery.max}` : '—'}
                         </span>
                     </div>
@@ -403,7 +393,7 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
                 <div
                     className={`flex w-full shrink-0 border-t border-amber-400/20 bg-gradient-to-t from-black/35 to-transparent ${isNativeMobile ? 'gap-2 px-3 py-3' : 'gap-3 px-5 py-4'}`}
                 >
-                    <button type="button" onClick={onClose} className={`${champBtnMuted} flex-1 min-h-[46px] sm:min-h-[48px]`}>
+                    <button type="button" onClick={onClose} className={`${champBtnMuted} flex-1 min-h-[48px] sm:min-h-[52px]`}>
                         닫기
                     </button>
                     <button
@@ -412,8 +402,8 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
                         disabled={!selectedPotionType || isApplyingPotion}
                         className={
                             selectedPotionType && !hasPotion
-                                ? `${champBtnAmber} flex-1 min-h-[46px] sm:min-h-[48px]`
-                                : `${champBtnEmerald} flex-1 min-h-[46px] sm:min-h-[48px]`
+                                ? `${champBtnAmber} flex-1 min-h-[48px] sm:min-h-[52px]`
+                                : `${champBtnEmerald} flex-1 min-h-[48px] sm:min-h-[52px]`
                         }
                     >
                         {isApplyingPotion ? '회복 적용 중...' : selectedPotionType && !hasPotion ? '상점으로 이동' : '회복제 사용'}
