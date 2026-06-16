@@ -35,11 +35,9 @@ import {
     LOBBY_DENSE_SETTINGS_GRID_CONTAINER_CLASS,
     LOBBY_DENSE_SETTINGS_RESPONSIVE_COLS_GRID_CLASS,
     LOBBY_HORIZONTAL_MODE_PICKER_ITEM_CLASS,
-    LOBBY_HORIZONTAL_MODE_PICKER_ROW_CLASS,
-    LOBBY_HORIZONTAL_MODE_PICKER_ROW_LAYOUT_CLASS,
-    LOBBY_HORIZONTAL_MODE_PICKER_SCROLL_CLASS,
     PAIR_LOBBY_DENSE_SETTING_VALUE_READONLY_CLASS,
 } from '../../shared/constants/pairLobbyDenseSettingFieldLayout.js';
+import { LobbyHorizontalModePickerScroll } from './LobbyHorizontalModePickerScroll.js';
 import { getRankedGameSettings } from '../../constants/rankedGameSettings.js';
 import {
     buildPairArenaDuoRankedLobbySettingRows,
@@ -505,7 +503,8 @@ const GameCard: React.FC<{
                     <img
                         src={image}
                         alt={displayName}
-                        className="h-full w-full object-contain"
+                        draggable={false}
+                        className="pointer-events-none h-full w-full select-none object-contain [-webkit-user-drag:none]"
                         onError={() => setImgError(true)}
                     />
                 ) : (
@@ -576,32 +575,45 @@ export const AiChallengeModePickerStrip: React.FC<AiChallengeModePickerStripProp
                     {lobbyGameModes.length}종
                 </span>
             </div>
-            <div
-                className={
-                    verticalGrid
-                        ? 'grid min-h-0 flex-1 grid-cols-2 gap-2 overflow-y-auto overscroll-contain pr-0.5 [-webkit-overflow-scrolling:touch]'
-                        : `${LOBBY_HORIZONTAL_MODE_PICKER_ROW_CLASS} md:grid md:min-h-0 md:max-h-none md:grid-cols-2 md:gap-2 md:overflow-x-hidden md:overflow-y-auto lg:grid-cols-2`
-                }
-            >
-                {lobbyGameModes.map((game) => (
-                    <div
-                        key={game.mode}
-                        className={verticalGrid ? 'min-w-0' : `${LOBBY_HORIZONTAL_MODE_PICKER_ITEM_CLASS} md:w-auto md:shrink`}
-                    >
-                        <GameCard
-                            mode={game.mode}
-                            image={game.image}
-                            displayName={game.name ?? String(game.mode)}
-                            onSelect={onSelectGameMode}
-                            isSelected={displaySelectedGameMode === game.mode}
-                            compact
-                            scrollStripItem={!verticalGrid}
-                            chromeKind={modalChrome}
-                            disabled={!isPlayableLobbyGameMode(game)}
-                        />
-                    </div>
-                ))}
-            </div>
+            {verticalGrid ? (
+                <div className="grid min-h-0 flex-1 grid-cols-2 gap-2 overflow-y-auto overscroll-contain pr-0.5 [-webkit-overflow-scrolling:touch]">
+                    {lobbyGameModes.map((game) => (
+                        <div key={game.mode} className="min-w-0">
+                            <GameCard
+                                mode={game.mode}
+                                image={game.image}
+                                displayName={game.name ?? String(game.mode)}
+                                onSelect={onSelectGameMode}
+                                isSelected={displaySelectedGameMode === game.mode}
+                                compact
+                                chromeKind={modalChrome}
+                                disabled={!isPlayableLobbyGameMode(game)}
+                            />
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <LobbyHorizontalModePickerScroll
+                    inlineRow
+                    className="md:grid md:min-h-0 md:max-h-none md:grid-cols-2 md:gap-2 md:overflow-x-hidden md:overflow-y-auto md:cursor-default lg:grid-cols-2"
+                >
+                    {lobbyGameModes.map((game) => (
+                        <div key={game.mode} className={`${LOBBY_HORIZONTAL_MODE_PICKER_ITEM_CLASS} md:w-auto md:shrink`}>
+                            <GameCard
+                                mode={game.mode}
+                                image={game.image}
+                                displayName={game.name ?? String(game.mode)}
+                                onSelect={onSelectGameMode}
+                                isSelected={displaySelectedGameMode === game.mode}
+                                compact
+                                scrollStripItem
+                                chromeKind={modalChrome}
+                                disabled={!isPlayableLobbyGameMode(game)}
+                            />
+                        </div>
+                    ))}
+                </LobbyHorizontalModePickerScroll>
+            )}
         </GameModePickerSection>
     );
 };
@@ -2314,7 +2326,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                     {lobbyGameModes.length}종
                 </span>
             </div>
-            <div className={LOBBY_HORIZONTAL_MODE_PICKER_ROW_CLASS}>
+            <LobbyHorizontalModePickerScroll inlineRow>
                 {lobbyGameModes.map((game) => (
                     <div key={game.mode} className={LOBBY_HORIZONTAL_MODE_PICKER_ITEM_CLASS}>
                         <GameCard
@@ -2330,7 +2342,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                         />
                     </div>
                 ))}
-            </div>
+            </LobbyHorizontalModePickerScroll>
         </div>
     );
 
@@ -2395,25 +2407,23 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                         항목을 눌러 선택한 뒤 「다음」에서 대국 설정으로 이동합니다.
                                     </p>
                                 </div>
-                                <div className={`min-h-0 flex-1 py-2 ${LOBBY_HORIZONTAL_MODE_PICKER_SCROLL_CLASS}`}>
-                                    <div className={`${LOBBY_HORIZONTAL_MODE_PICKER_ROW_LAYOUT_CLASS} min-h-0 pb-1`}>
-                                        {lobbyGameModes.map((game) => (
-                                            <div key={game.mode} className={LOBBY_HORIZONTAL_MODE_PICKER_ITEM_CLASS}>
-                                                <GameCard
-                                                    mode={game.mode}
-                                                    image={game.image}
-                                                    displayName={game.name ?? String(game.mode)}
-                                                    onSelect={selectGameModeForLobby}
-                                                    isSelected={displaySelectedGameMode === game.mode}
-                                                    compact
-                                                    scrollStripItem
-                                                    chromeKind={modalChrome}
-                                                    disabled={!isPlayableLobbyGameMode(game)}
-                                                />
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
+                                <LobbyHorizontalModePickerScroll className="min-h-0 flex-1 py-2">
+                                    {lobbyGameModes.map((game) => (
+                                        <div key={game.mode} className={LOBBY_HORIZONTAL_MODE_PICKER_ITEM_CLASS}>
+                                            <GameCard
+                                                mode={game.mode}
+                                                image={game.image}
+                                                displayName={game.name ?? String(game.mode)}
+                                                onSelect={selectGameModeForLobby}
+                                                isSelected={displaySelectedGameMode === game.mode}
+                                                compact
+                                                scrollStripItem
+                                                chromeKind={modalChrome}
+                                                disabled={!isPlayableLobbyGameMode(game)}
+                                            />
+                                        </div>
+                                    ))}
+                                </LobbyHorizontalModePickerScroll>
                             </GameModePickerSection>
                             <div className={`relative z-40 shrink-0 ${handheldAiDetailsFooterClass}`}>
                                 <div className="col-span-2 flex justify-center px-0.5">
@@ -2645,25 +2655,23 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                 descriptionFallback={modeBriefFallback}
                             >
                                 <h3 className="mb-2 shrink-0 text-sm font-bold tracking-tight text-amber-100/95">게임 모드 선택</h3>
-                                <div className={`min-h-0 flex-1 ${LOBBY_HORIZONTAL_MODE_PICKER_SCROLL_CLASS}`}>
-                                    <div className={`${LOBBY_HORIZONTAL_MODE_PICKER_ROW_LAYOUT_CLASS} min-h-0 pb-1`}>
-                                        {lobbyGameModes.map((game) => (
-                                            <div key={game.mode} className={LOBBY_HORIZONTAL_MODE_PICKER_ITEM_CLASS}>
-                                                <GameCard
-                                                    mode={game.mode}
-                                                    image={game.image}
-                                                    displayName={game.name ?? String(game.mode)}
-                                                    onSelect={selectGameModeForLobby}
-                                                    isSelected={displaySelectedGameMode === game.mode}
-                                                    compact
-                                                    scrollStripItem
-                                                    chromeKind={modalChrome}
-                                                    disabled={!isPlayableLobbyGameMode(game)}
-                                                />
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
+                                <LobbyHorizontalModePickerScroll className="min-h-0 flex-1">
+                                    {lobbyGameModes.map((game) => (
+                                        <div key={game.mode} className={LOBBY_HORIZONTAL_MODE_PICKER_ITEM_CLASS}>
+                                            <GameCard
+                                                mode={game.mode}
+                                                image={game.image}
+                                                displayName={game.name ?? String(game.mode)}
+                                                onSelect={selectGameModeForLobby}
+                                                isSelected={displaySelectedGameMode === game.mode}
+                                                compact
+                                                scrollStripItem
+                                                chromeKind={modalChrome}
+                                                disabled={!isPlayableLobbyGameMode(game)}
+                                            />
+                                        </div>
+                                    ))}
+                                </LobbyHorizontalModePickerScroll>
                             </GameModePickerSection>
                             <div className={`relative z-40 shrink-0 ${handheldPairCreateFooterClass}`}>
                                 <Button

@@ -21,10 +21,10 @@ import {
     LOBBY_DENSE_SETTINGS_GRID_CONTAINER_CLASS,
     LOBBY_DENSE_SETTINGS_RESPONSIVE_COLS_GRID_CLASS,
     LOBBY_HORIZONTAL_MODE_PICKER_ITEM_CLASS,
-    LOBBY_HORIZONTAL_MODE_PICKER_ROW_CLASS,
     PAIR_LOBBY_DENSE_SETTING_ROW_CLASS,
     PAIR_LOBBY_DENSE_SETTING_VALUE_READONLY_CLASS,
 } from '../../shared/constants/pairLobbyDenseSettingFieldLayout.js';
+import { LobbyHorizontalModePickerScroll } from '../waiting-room/LobbyHorizontalModePickerScroll.js';
 import { getCurrentSeason } from '../../utils/timeUtils.js';
 import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
@@ -169,7 +169,8 @@ const ModePickCard: React.FC<{
                     <img
                         src={def.image}
                         alt=""
-                        className="h-full w-full object-contain"
+                        draggable={false}
+                        className="pointer-events-none h-full w-full select-none object-contain [-webkit-user-drag:none]"
                         onError={() => setImgError(true)}
                     />
                 ) : (
@@ -391,21 +392,39 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
             }`}
         >
             <h3 className="mb-2 shrink-0 text-sm font-bold tracking-tight text-amber-100/95 sm:mb-3 sm:text-base">게임 모드 선택</h3>
-            <div className={isHandheld ? LOBBY_HORIZONTAL_MODE_PICKER_ROW_CLASS : 'grid grid-cols-2 gap-2 sm:gap-3'}>
-                {modes.map((def) => (
-                    <div key={def.mode} className={isHandheld ? LOBBY_HORIZONTAL_MODE_PICKER_ITEM_CLASS : 'min-w-0'}>
-                        <ModePickCard
-                            def={def}
-                            queueCount={queueCountByMode[def.mode] ?? 0}
-                            isSelected={selected === def.mode}
-                            disabled={isBusy}
-                            compact={isHandheld}
-                            scrollStripItem={isHandheld}
-                            onSelect={() => setSelected(def.mode)}
-                        />
-                    </div>
-                ))}
-            </div>
+            {isHandheld ? (
+                <LobbyHorizontalModePickerScroll inlineRow>
+                    {modes.map((def) => (
+                        <div key={def.mode} className={LOBBY_HORIZONTAL_MODE_PICKER_ITEM_CLASS}>
+                            <ModePickCard
+                                def={def}
+                                queueCount={queueCountByMode[def.mode] ?? 0}
+                                isSelected={selected === def.mode}
+                                disabled={isBusy}
+                                compact={isHandheld}
+                                scrollStripItem={isHandheld}
+                                onSelect={() => setSelected(def.mode)}
+                            />
+                        </div>
+                    ))}
+                </LobbyHorizontalModePickerScroll>
+            ) : (
+                <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                    {modes.map((def) => (
+                        <div key={def.mode} className="min-w-0">
+                            <ModePickCard
+                                def={def}
+                                queueCount={queueCountByMode[def.mode] ?? 0}
+                                isSelected={selected === def.mode}
+                                disabled={isBusy}
+                                compact={isHandheld}
+                                scrollStripItem={isHandheld}
+                                onSelect={() => setSelected(def.mode)}
+                            />
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 
