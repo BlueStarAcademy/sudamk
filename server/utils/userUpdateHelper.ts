@@ -25,10 +25,11 @@ export function getSelectiveUserUpdate(
         'UNMARK_ITEM_EXCHANGE_LISTED': ['inventory', 'exchangeState'],
         'CLAIM_EXCHANGE_SETTLEMENT': ['exchangeState', 'gold', 'diamonds'],
         'SELL_ITEM': ['inventory', 'gold', 'equippedPairPetTemplateId', 'equippedPairPetInventoryItemId'],
-        'COMBINE_ITEMS': ['inventory', 'blacksmithLevel', 'blacksmithXp'],
-        'ENHANCE_ITEM': ['inventory', 'gold', 'diamonds', 'blacksmithLevel', 'blacksmithXp'],
-        'DISASSEMBLE_ITEM': ['inventory', 'blacksmithLevel', 'blacksmithXp'],
-        'CRAFT_MATERIAL': ['inventory'],
+        'COMBINE_ITEMS': ['inventory', 'blacksmithLevel', 'blacksmithXp', 'quests'],
+        'ENHANCE_ITEM': ['inventory', 'gold', 'diamonds', 'blacksmithLevel', 'blacksmithXp', 'quests'],
+        'REFINE_EQUIPMENT': ['inventory', 'gold', 'quests'],
+        'DISASSEMBLE_ITEM': ['inventory', 'blacksmithLevel', 'blacksmithXp', 'quests'],
+        'CRAFT_MATERIAL': ['inventory', 'quests'],
         'EXPAND_INVENTORY': ['inventorySlots', 'diamonds'],
         
         // 상점 관련
@@ -73,7 +74,7 @@ export function getSelectiveUserUpdate(
         'UPDATE_PAIR_PET_LOBBY_INVENTORY_SORT': ['pairPetLobbyInventorySort'],
         'SET_BLOCK_ARENA_PARTNER_INVITES': ['blockArenaPartnerInvites'],
         'DISMISS_SCREEN_GUIDE': ['dismissedScreenGuides'],
-        'MANNER_ACTION': ['mannerScore', 'mannerMasteryApplied', 'actionPoints'],
+        'MANNER_ACTION': ['mannerScore', 'mannerMasteryApplied', 'actionPoints', 'quests'],
         'RESET_STAT_POINTS': ['spentStatPoints', 'gold', 'lastStatResetDate', 'statResetCountToday'],
         'RESET_SINGLE_STAT': ['diamonds', 'stats'],
         'RESET_STATS_CATEGORY': ['diamonds', 'stats', 'dailyRankings', 'cumulativeRankingScore'],
@@ -143,7 +144,7 @@ export function getSelectiveUserUpdate(
         'ADMIN_RESET_CHAMPIONSHIP_ALL': ['dungeonProgress', 'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament', 'lastNeighborhoodPlayedDate', 'lastNationalPlayedDate', 'lastWorldPlayedDate', 'neighborhoodRewardClaimed', 'nationalRewardClaimed', 'worldRewardClaimed'],
         'ADMIN_RESET_ALL_USERS_CHAMPIONSHIP': [],
         'ADMIN_RESET_ALL_USERS_STRATEGIC_RANKING_TO_BASE': [],
-        'CLAIM_TOURNAMENT_REWARD': ['inventory', 'gold', 'diamonds', 'tournamentScore', 'cumulativeTournamentScore', 'neighborhoodRewardClaimed', 'nationalRewardClaimed', 'worldRewardClaimed', 'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament', 'dungeonProgress'],
+        'CLAIM_TOURNAMENT_REWARD': ['inventory', 'gold', 'diamonds', 'tournamentScore', 'cumulativeTournamentScore', 'neighborhoodRewardClaimed', 'nationalRewardClaimed', 'worldRewardClaimed', 'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament', 'dungeonProgress', 'quests'],
         'START_DUNGEON_STAGE': ['dungeonProgress', 'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament'],
         'COMPLETE_DUNGEON_STAGE': ['dungeonProgress', 'inventory', 'gold', 'diamonds', 'champCoins', 'tournamentScore', 'cumulativeTournamentScore', 'dailyDungeonScore', 'quests', 'neighborhoodRewardClaimed', 'nationalRewardClaimed', 'worldRewardClaimed', 'lastNeighborhoodPlayedDate', 'lastNationalPlayedDate', 'lastWorldPlayedDate', 'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament'],
         
@@ -151,8 +152,18 @@ export function getSelectiveUserUpdate(
         'START_SINGLE_PLAYER_GAME': ['actionPoints', 'singlePlayerProgress'],
         
         // 길드 관련
-        'GUILD_DONATE_GOLD': ['gold', 'guildCoins', 'dailyDonations'],
-        'GUILD_DONATE_DIAMOND': ['diamonds', 'guildCoins', 'dailyDonations'],
+        'GUILD_DONATE_GOLD': ['gold', 'guildCoins', 'dailyDonations', 'quests'],
+        'GUILD_DONATE_DIAMOND': ['diamonds', 'guildCoins', 'dailyDonations', 'quests'],
+        
+        // 도전의 탑
+        'CONFIRM_TOWER_GAME_START': ['quests', 'actionPoints'],
+        
+        // 싱글플레이 수련과제
+        'COLLECT_SINGLE_PLAYER_MISSION': ['singlePlayerMissions', 'gold', 'diamonds', 'actionPoints', 'quests'],
+        'CLAIM_ALL_TRAINING_QUEST_REWARDS': ['singlePlayerMissions', 'gold', 'diamonds', 'quests'],
+        
+        // 길드 보스
+        'START_GUILD_BOSS_BATTLE': ['guildCoins', 'guildBossAttempts', 'guildBossLastAttemptDayKST', 'guildBossAttemptsUsedToday', 'gold', 'researchPoints', 'inventory', 'inventorySlots', 'quests'],
         
         // 소셜 관련
         'LOGOUT': [], // 로그아웃은 사용자 데이터 반환 불필요
@@ -182,6 +193,10 @@ export function getSelectiveUserUpdate(
     
     // 추가 필드 포함
     const allFields = [...new Set([...baseFields, ...requiredFields, ...additionalFields])];
+    // 퀘스트 진행은 selective update·WS에서 누락되면 UI가 갱신되지 않으므로 quests가 있으면 항상 포함
+    if (user.quests && !allFields.includes('quests')) {
+        allFields.push('quests');
+    }
     
     // 선택적 User 객체 생성
     const selectiveUser: Partial<User> = {};

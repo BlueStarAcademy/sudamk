@@ -43,6 +43,7 @@
     "script:reset-single-tower": "npx tsx --tsconfig server/tsconfig.json server/scripts/resetSinglePlayerAndTower.ts",
     "script:lock-training-quests": "npx tsx --tsconfig server/tsconfig.json server/scripts/lockTrainingQuests.ts",
     "script:send-baduk-school-reset-mail": "npx tsx --tsconfig server/tsconfig.json server/scripts/sendBadukSchoolResetCompensationMail.ts",
+    "script:ensure-pg-test-account": "npx tsx --tsconfig server/tsconfig.json server/scripts/ensurePgTestAccount.ts",
     "cleanup-orphaned-games": "npx tsx --tsconfig server/tsconfig.json server/scripts/cleanupOrphanedActiveGames.ts",
     "clean-admin-guild": "npx tsx --tsconfig server/tsconfig.json server/scripts/cleanAdminGuild.ts",
     "script:strip-swiss-league-from-guilds-kv": "npx tsx --tsconfig server/tsconfig.json server/scripts/stripSwissLeagueFromGuildsKv.ts",

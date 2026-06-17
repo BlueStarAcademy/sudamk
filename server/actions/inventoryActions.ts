@@ -353,7 +353,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             }
 
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['inventory', 'blacksmithXp', 'blacksmithLevel']);
+            broadcastUserUpdate(user, ['inventory', 'blacksmithXp', 'blacksmithLevel', 'quests']);
 
             // 시스템 메시지 전송 조건 (비동기로 처리하여 응답 지연 최소화):
             // 전설→신화 대성공, 또는 신화→초월 대성공
@@ -1606,7 +1606,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
 
             // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화된 함수 사용)
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['inventory', 'gold', 'diamonds', 'blacksmithXp', 'blacksmithLevel']);
+            broadcastUserUpdate(user, ['inventory', 'gold', 'diamonds', 'blacksmithXp', 'blacksmithLevel', 'quests']);
             
             return { 
                 clientResponse: { 
@@ -1939,7 +1939,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
 
             // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화된 함수 사용)
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['inventory']);
+            broadcastUserUpdate(user, ['inventory', 'gold', 'quests']);
             
             // 저장 후 업데이트된 아이템 찾기
             const updatedItem = user.inventory.find(i => i.id === itemId);
@@ -2057,7 +2057,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
 
             // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화된 함수 사용)
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['inventory', 'blacksmithXp', 'blacksmithLevel']);
+            broadcastUserUpdate(user, ['inventory', 'blacksmithXp', 'blacksmithLevel', 'quests']);
 
             return { 
                 clientResponse: { 
@@ -2151,7 +2151,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
 
             // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화된 함수 사용)
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['inventory']);
+            broadcastUserUpdate(user, ['inventory', 'gold', 'quests']);
         
             return {
                 clientResponse: {

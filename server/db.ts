@@ -1,5 +1,8 @@
 import { User, LiveGameSession, AppState, UserCredentials, AdminLog, Announcement, OverrideAnnouncement, GameMode, HomeBoardPost } from '../types.ts';
 import { ADMIN_LOGIN_USERNAME } from '../shared/constants/auth.js';
+import { PG_TEST_LOGIN_USERNAME, PG_TEST_DEFAULT_PASSWORD } from '../shared/constants/pgTestAccount.js';
+import { applyPgTestUserProfile, createPgTestUser } from './pgTestAccountService.ts';
+import { hashPassword } from './utils/passwordUtils.js';
 import { deepClone } from './utils/cloneHelper.js';
 import { getInitialState } from './initialData.ts';
 import {
@@ -177,6 +180,58 @@ const ensureAdminAccount = async () => {
     }
 };
 
+/** PG사 검수용 테스트 계정이 항상 존재하고 제한 없이 이용 가능하도록 보장 */
+const ensurePgTestAccount = async () => {
+    const existingCreds = await getUserCredentialByUsername(PG_TEST_LOGIN_USERNAME);
+    const passwordHash = await hashPassword(PG_TEST_DEFAULT_PASSWORD);
+
+    if (existingCreds) {
+        let user = await prismaGetUserById(existingCreds.userId);
+        if (!user) {
+            console.error('[DB] PG test credentials exist but user row is missing');
+            return;
+        }
+        if (user.isAdmin) {
+            console.warn('[DB] PG test account has isAdmin=true; forcing isAdmin=false');
+        }
+        user = applyPgTestUserProfile(user);
+        try {
+            await prismaUpdateUser(user);
+            await updateUserCredential(user.id, { passwordHash, emailVerified: true });
+            console.log(`[DB] PG test account refreshed: ${PG_TEST_LOGIN_USERNAME}`);
+        } catch (error: any) {
+            console.error('[DB] Error refreshing PG test account:', error);
+            throw error;
+        }
+        return;
+    }
+
+    const existingByEmail = await prismaGetUserByEmail(PG_TEST_LOGIN_USERNAME);
+    if (existingByEmail) {
+        const credsByUserId = await getUserCredentialByUserId(existingByEmail.id);
+        if (credsByUserId) {
+            console.log(`[DB] PG test email already registered under different username: ${credsByUserId.username}`);
+            return;
+        }
+    }
+
+    console.log(`[DB] Creating PG test account: ${PG_TEST_LOGIN_USERNAME}`);
+    const pgUser = createPgTestUser();
+    try {
+        await prismaCreateUser(pgUser);
+        await createUserCredential(PG_TEST_LOGIN_USERNAME, passwordHash, pgUser.id);
+        await updateUserCredential(pgUser.id, { emailVerified: true });
+        console.log(`[DB] Created PG test account: ${PG_TEST_LOGIN_USERNAME}`);
+    } catch (error: any) {
+        if (error.message?.includes('UNIQUE constraint')) {
+            console.log('[DB] PG test account already exists (detected by constraint)');
+        } else {
+            console.error('[DB] Error creating PG test account:', error);
+            throw error;
+        }
+    }
+};
+
 // 데이터베이스 연결 상태 확인 함수
 // isInitialized가 false여도 실제 연결을 시도하여 확인
 export const isDatabaseConnected = async (): Promise<boolean> => {
@@ -247,9 +302,11 @@ export const initializeDatabase = async () => {
             const existingUsers = await listUsers();
             if (existingUsers.length === 0) {
                 await seedInitialData();
+                await ensurePgTestAccount();
             } else {
-                // 사용자가 있더라도 관리자 계정이 항상 존재하도록 보장
+                // 사용자가 있더라도 관리자·PG 검수 계정이 항상 존재하도록 보장
                 await ensureAdminAccount();
+                await ensurePgTestAccount();
             }
             isInitialized = true;
             console.log('[DB] Database initialized successfully');

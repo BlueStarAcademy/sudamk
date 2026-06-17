@@ -473,6 +473,14 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
 
             updateQuestProgress(user, 'tower_challenge', undefined, 1);
             
+            const { getSelectiveUserUpdate } = await import('../utils/userUpdateHelper.js');
+            const { broadcastUserUpdate } = await import('../socket.js');
+            const updatedUser = getSelectiveUserUpdate(user, 'CONFIRM_TOWER_GAME_START');
+            await db.updateUser(user).catch(err => {
+                console.error(`[CONFIRM_TOWER_GAME_START] Failed to save user ${user.id}:`, err);
+            });
+            broadcastUserUpdate(user, ['quests', 'actionPoints']);
+            
             // 사용자 상태 업데이트
             volatileState.userStatuses[game.player1.id] = { status: UserStatus.InGame, mode: game.mode, gameId: game.id, gameCategory: 'tower' as GameCategory };
             
@@ -486,7 +494,8 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             return {
                 clientResponse: {
                     gameId: game.id,
-                    game: game
+                    game: game,
+                    updatedUser,
                 }
             };
         }

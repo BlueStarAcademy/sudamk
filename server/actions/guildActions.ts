@@ -3888,7 +3888,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
 
             // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화된 필수 사용)
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(freshUser, ['guildCoins', 'guildBossAttempts', 'guildBossLastAttemptDayKST', 'guildBossAttemptsUsedToday', 'gold', 'researchPoints', 'inventory', 'inventorySlots']);
+            broadcastUserUpdate(freshUser, ['guildCoins', 'guildBossAttempts', 'guildBossLastAttemptDayKST', 'guildBossAttemptsUsedToday', 'gold', 'researchPoints', 'inventory', 'inventorySlots', 'quests']);
             
             await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
             

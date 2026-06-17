@@ -186,6 +186,12 @@ export const updateGuildMissionProgress = async (guildId: string, missionType: s
 
     if (missionUpdated || chatWeekTouched) {
         await db.setKV('guilds', guilds);
+        try {
+            const { broadcast } = await import('./socket.js');
+            await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
+        } catch (err) {
+            console.warn('[updateGuildMissionProgress] GUILD_UPDATE broadcast failed:', (err as Error)?.message);
+        }
     }
 };
 

@@ -1039,7 +1039,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
 
             // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화된 함수 사용)
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['singlePlayerMissions']);
+            broadcastUserUpdate(user, ['singlePlayerMissions', 'quests']);
             
             // 깊은 복사로 updatedUser 생성하여 React가 변경을 확실히 감지하도록 함
             const updatedUser = JSON.parse(JSON.stringify(user));
@@ -1224,18 +1224,17 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 }
             }
             
-            // 수령할 보상이 없어도 200 + 빈 보상으로 응답 (클라이언트 오류 방지)
-            const { getSelectiveUserUpdate } = await import('../utils/userUpdateHelper.js');
-            const updatedUser = getSelectiveUserUpdate(user, 'CLAIM_SINGLE_PLAYER_MISSION_REWARD');
-            
             if (rewards.length > 0) {
                 updateQuestProgress(user, 'training_quest_claim', undefined, rewards.length);
                 db.updateUser(user).catch(err => {
                     console.error(`[CLAIM_ALL_TRAINING_QUEST_REWARDS] Failed to save user ${user.id}:`, err);
                 });
                 const { broadcastUserUpdate } = await import('../socket.js');
-                broadcastUserUpdate(user, ['gold', 'diamonds', 'singlePlayerMissions']);
+                broadcastUserUpdate(user, ['gold', 'diamonds', 'singlePlayerMissions', 'quests']);
             }
+            
+            const { getSelectiveUserUpdate } = await import('../utils/userUpdateHelper.js');
+            const updatedUser = getSelectiveUserUpdate(user, 'CLAIM_ALL_TRAINING_QUEST_REWARDS');
             
             return {
                 clientResponse: {

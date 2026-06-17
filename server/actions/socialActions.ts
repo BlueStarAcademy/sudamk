@@ -2555,6 +2555,10 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화된 함수 사용)
                 const { broadcastUserUpdate } = await import('../socket.js');
                 broadcastUserUpdate(user, ['quests']);
+
+                const { getSelectiveUserUpdate } = await import('../utils/userUpdateHelper.js');
+                await broadcastWaitingRoomChatChannel(volatileState, channel);
+                return { clientResponse: { updatedUser: getSelectiveUserUpdate(user, 'SEND_CHAT_MESSAGE') } };
             }
 
             await broadcastWaitingRoomChatChannel(volatileState, channel);
@@ -4029,6 +4033,15 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 });
                 const { broadcastUserUpdate } = await import('../socket.js');
                 broadcastUserUpdate(user, ['quests']);
+                const { getSelectiveUserUpdate } = await import('../utils/userUpdateHelper.js');
+                const recipients = getPairRoomChatRecipients(target, normalizedScope, senderTeam);
+                broadcastToUserIds(recipients, { type: 'PAIR_ROOM_CHAT', payload: { roomId: target.id, message: line } });
+                return {
+                    clientResponse: {
+                        pairRooms: enrichPairRoomsForClientPayload(volatileState.pairRooms),
+                        updatedUser: getSelectiveUserUpdate(user, 'PAIR_SEND_ROOM_CHAT'),
+                    },
+                };
             }
 
             const recipients = getPairRoomChatRecipients(target, normalizedScope, senderTeam);
