@@ -1717,6 +1717,25 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         }
 
         if (result !== null && result !== undefined) {
+            // 놀이바둑 시작 확인: 양쪽 확인 직후 메인 루프 tick 없이 배치/본편으로 전환 (PVP 모달 잔류·경기 미시작 방지)
+            if (
+                !(result as any).error &&
+                (type === 'CONFIRM_ALKKAGI_START' ||
+                    type === 'CONFIRM_CURLING_START' ||
+                    type === 'DICE_CONFIRM_START') &&
+                PLAYFUL_GAME_MODES.some((m) => m.mode === game.mode)
+            ) {
+                const { updatePlayfulGameState } = await import('./modes/playful.js');
+                try {
+                    await updatePlayfulGameState(game, Date.now());
+                } catch (e: any) {
+                    console.warn(
+                        `[handleAction] updatePlayfulGameState (playful start confirm tick) failed game=${game.id}:`,
+                        e?.message,
+                    );
+                }
+            }
+
             // 알까기 배치: 액션 직후 한 틱 — PVP 등에서 메인 루프의 update가 오기 전에 양쪽 배치가 끝나면 alkkagi_playing으로 바로 전환되지 않던 문제 방지
             if (
                 !(result as any).error &&

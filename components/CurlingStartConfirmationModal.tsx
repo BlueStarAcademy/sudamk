@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { LiveGameSession, User, ServerAction } from '../types.js';
 import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
 import PreGameColorRoulette from './PreGameColorRoulette.js';
 import RoundCountdownIndicator from './RoundCountdownIndicator.js';
 import { PRE_GAME_PVP_COUNTDOWN_SECONDS } from '../shared/constants/preGameCountdown.js';
+import { usePreGameDeadlineAutoSubmit } from '../hooks/usePreGameDeadlineAutoSubmit.js';
 
 interface CurlingStartConfirmationModalProps {
     session: LiveGameSession;
@@ -31,6 +32,18 @@ const CurlingStartConfirmationModal: React.FC<CurlingStartConfirmationModalProps
     
     const blackPlayer = player1.id === blackPlayerId ? player1 : player2;
     const whitePlayer = player1.id === whitePlayerId ? player1 : player2;
+
+    const handleConfirm = useCallback(() => {
+        onAction({ type: 'CONFIRM_CURLING_START', payload: { gameId } });
+    }, [onAction, gameId]);
+
+    usePreGameDeadlineAutoSubmit({
+        deadline: revealEndTime,
+        enabled: true,
+        alreadySubmitted: !!hasConfirmed,
+        blocking: !rouletteDone,
+        onSubmit: handleConfirm,
+    });
 
     return (
         <DraggableWindow
@@ -67,7 +80,7 @@ const CurlingStartConfirmationModal: React.FC<CurlingStartConfirmationModalProps
                 />
 
                 <Button
-                    onClick={() => onAction({ type: 'CONFIRM_CURLING_START', payload: { gameId }})} 
+                    onClick={handleConfirm}
                     disabled={!!hasConfirmed || !rouletteDone}
                     className="w-full py-3 mt-6"
                 >
