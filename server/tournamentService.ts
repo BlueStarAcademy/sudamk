@@ -336,7 +336,9 @@ const startNextMatchAutomatically = async (
 
 /** 완료 처리 시 nextRoundStartTime이 남으면 클라이언트가 카운트다운/다음 경기 대기로 멈춘 것처럼 보일 수 있음 */
 export const applyTournamentCompleteStatus = (state: TournamentState) => {
-    state.status = 'complete';
+    if (state.status !== 'eliminated') {
+        state.status = 'complete';
+    }
     state.nextRoundStartTime = null;
 };
 
@@ -421,10 +423,9 @@ export const processMatchCompletion = async (state: TournamentState, user: User,
         }
         
         // 동네바둑리그: 유저가 져도 5회차까지 모두 진행 후 기본보상 5개+순위보상 지급 (조기 종료 안 함)
-        // 전국/월드: 16강·8강 탈락 시 남은 경기 스킵 후 보상. 단, 4강(준결승) 패배 시 3/4위전 진행하므로 스킵하지 않음
-        const isSemifinalLoss = (state.type === 'national' || state.type === 'world') && currentRound.name === '4강';
-        if (isUserEliminated && state.type !== 'neighborhood' && !isSemifinalLoss) {
-            console.log(`[processMatchCompletion] User eliminated in dungeon mode (not semifinal), simulating all remaining matches`);
+        // 전국/월드: 탈락 시(4강 포함) 남은 경기를 자동 시뮬레이션해 결승·3/4위전까지 완료
+        if (isUserEliminated && state.type !== 'neighborhood') {
+            console.log(`[processMatchCompletion] User eliminated in dungeon mode, simulating all remaining matches`);
             state.status = 'eliminated';
             
             // 모든 미완료 경기 시뮬레이션
@@ -454,7 +455,42 @@ export const processMatchCompletion = async (state: TournamentState, user: User,
                         if (!nextRoundExists) {
                             const winners = round.matches.map(m => m.winner).filter(Boolean) as PlayerForTournament[];
                             
-                            if (winners.length > 1 && round.name !== '결승' && round.name !== '3,4위전') {
+                            if (round.name === '4강' && (state.type === 'national' || state.type === 'world')) {
+                                // 4강 완료 시 3/4위전과 결승전 준비 (일반 n강→결승 분기보다 먼저 처리)
+                                const hasThirdPlaceMatch = state.rounds.some(r => r.name === '3,4위전');
+                                if (!hasThirdPlaceMatch) {
+                                    const losers = round.matches.map(m => m.players.find(p => p && p.id !== m.winner?.id)).filter(Boolean) as PlayerForTournament[];
+                                    if (losers.length === 2) {
+                                        const thirdPlaceMatch: Match = {
+                                            id: `m-${state.rounds.length + 1}-3rd`,
+                                            players: [losers[0], losers[1]],
+                                            winner: null,
+                                            isFinished: false,
+                                            commentary: [],
+                                            isUserMatch: false,
+                                            finalScore: null,
+                                            sgfFileIndex: Math.floor(Math.random() * 18) + 1,
+                                        };
+                                        state.rounds.push({ id: state.rounds.length + 1, name: "3,4위전", matches: [thirdPlaceMatch] });
+                                    }
+                                }
+                                const semifinalWinners = round.matches.map(m => m.winner).filter(Boolean) as PlayerForTournament[];
+                                if (semifinalWinners.length === 2) {
+                                    const finalMatch: Match = {
+                                        id: `m-${state.rounds.length + 1}-final`,
+                                        players: [semifinalWinners[0], semifinalWinners[1]],
+                                        winner: null,
+                                        isFinished: false,
+                                        commentary: [],
+                                        isUserMatch: false,
+                                        finalScore: null,
+                                        sgfFileIndex: Math.floor(Math.random() * 18) + 1,
+                                    };
+                                    state.rounds.push({ id: state.rounds.length + 1, name: "결승", matches: [finalMatch] });
+                                    nextRoundPrepared = true;
+                                    break;
+                                }
+                            } else if (winners.length > 1 && round.name !== '결승' && round.name !== '3,4위전') {
                                 const nextRoundMatches: Match[] = [];
                                 for (let j = 0; j < winners.length; j += 2) {
                                     const p1 = winners[j];
@@ -474,59 +510,20 @@ export const processMatchCompletion = async (state: TournamentState, user: User,
                                 state.rounds.push({ id: state.rounds.length + 1, name: roundName, matches: nextRoundMatches });
                                 nextRoundPrepared = true;
                                 break;
-                            } else if (round.name === '4강' && (state.type === 'national' || state.type === 'world')) {
-                                // 4강 완료 시 3/4위전과 결승전 준비
-                                const hasThirdPlaceMatch = state.rounds.some(r => r.name === '3,4위전');
-                                if (!hasThirdPlaceMatch) {
-                                    const losers = round.matches.map(m => m.players.find(p => p && p.id !== m.winner?.id)).filter(Boolean) as PlayerForTournament[];
-                                    if (losers.length === 2) {
-                                        const thirdPlaceMatch: Match = {
-                                            id: `m-${state.rounds.length + 1}-3rd`,
-                                            players: [losers[0], losers[1]],
-                                            winner: null,
-                                            isFinished: false,
-                                            commentary: [],
-                                            isUserMatch: false,
-                                            finalScore: null,
-                                            sgfFileIndex: Math.floor(Math.random() * 18) + 1,
-                                        };
-                                        state.rounds.push({ id: state.rounds.length + 1, name: "3,4위전", matches: [thirdPlaceMatch] });
-                                    }
-                                }
-                                const winners = round.matches.map(m => m.winner).filter(Boolean) as PlayerForTournament[];
-                                if (winners.length === 2) {
-                                    const finalMatch: Match = {
-                                        id: `m-${state.rounds.length + 1}-final`,
-                                        players: [winners[0], winners[1]],
-                                        winner: null,
-                                        isFinished: false,
-                                        commentary: [],
-                                        isUserMatch: false,
-                                        finalScore: null,
-                                        sgfFileIndex: Math.floor(Math.random() * 18) + 1,
-                                    };
-                                    state.rounds.push({ id: state.rounds.length + 1, name: "결승", matches: [finalMatch] });
-                                    nextRoundPrepared = true;
-                                    break;
-                                }
                             }
                         }
                     }
                 }
                 
                 if (nextRoundPrepared) {
-                    const lastRound = state.rounds[state.rounds.length - 1];
-                    lastRound.matches.forEach(match => {
-                        if (!match.isFinished) {
-                            simulateAndFinishMatch(match, state.players, user.id);
-                        }
+                    state.rounds.forEach((preparedRound) => {
+                        preparedRound.matches.forEach((match) => {
+                            if (!match.isFinished) {
+                                simulateAndFinishMatch(match, state.players, user.id);
+                            }
+                        });
                     });
-                } else if (!anyMatchSimulated) {
-                    break;
-                }
-                
-                const allMatchesFinished = state.rounds.every(r => r.matches.every(m => m.isFinished));
-                if (allMatchesFinished) {
+                } else if (!anyMatchSimulated && !nextRoundPrepared) {
                     break;
                 }
             }

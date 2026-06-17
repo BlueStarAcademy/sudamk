@@ -50,6 +50,7 @@ import {
     getDungeonBasicRewardRangeGold,
     getDungeonRankRewardForDisplay,
     getDungeonRankRewardRangeForDisplay,
+    formatDungeonChampCoinRewardPreviewLabel,
     type EquipmentGradeKey,
 } from '../shared/constants/tournaments';
 import Avatar from './Avatar.js';
@@ -290,13 +291,16 @@ function resolveChampionshipPortraitUrls(
 }
 
 /** 바둑판 중앙 안내(심호흡·입장 대기·시상식 등) — 배경 위 가독성용 반투명 패널 */
+const CHAMPIONSHIP_BOARD_CENTER_NOTICE_TEXT =
+    'text-sm font-semibold leading-snug text-slate-50 [text-shadow:0_1px_3px_rgba(0,0,0,0.9)]';
+
 const ChampionshipBoardCenterNotice: React.FC<{ children: React.ReactNode; className?: string }> = ({
     children,
     className = '',
 }) => (
-    <div className="flex h-full w-full items-center justify-center bg-transparent px-3 sm:px-4">
+    <div className="flex h-full w-full items-center justify-center bg-transparent px-2 sm:px-3">
         <div
-            className={`max-w-[min(100%,19rem)] rounded-xl border border-slate-500/40 bg-slate-950/78 px-4 py-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_12px_32px_-12px_rgba(0,0,0,0.72)] backdrop-blur-[2px] ${className}`}
+            className={`w-fit max-w-[calc(100%-0.25rem)] rounded-xl border border-slate-300/45 bg-black/88 px-3 py-2.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_14px_36px_-10px_rgba(0,0,0,0.9)] backdrop-blur-sm sm:px-4 sm:py-3 ${className}`}
         >
             {children}
         </div>
@@ -383,7 +387,7 @@ export const ChampionshipRealGoBoard: React.FC<{
         if (tournamentFinished) {
             return (
                 <ChampionshipBoardCenterNotice>
-                    <span className="text-sm leading-relaxed text-slate-300/90">
+                    <span className={`${CHAMPIONSHIP_BOARD_CENTER_NOTICE_TEXT} text-amber-100`}>
                         경기가 모두 종료되었습니다. 시상식이 치뤄지고 있습니다.
                     </span>
                 </ChampionshipBoardCenterNotice>
@@ -392,7 +396,7 @@ export const ChampionshipRealGoBoard: React.FC<{
         if (dungeonBoardCenterMode === 'deep_breath') {
             return (
                 <ChampionshipBoardCenterNotice>
-                    <span className="text-sm leading-relaxed text-slate-300/90">
+                    <span className={`whitespace-nowrap ${CHAMPIONSHIP_BOARD_CENTER_NOTICE_TEXT} text-cyan-50`}>
                         대회에 참가하기 위해 심호흡을 하고있습니다.
                     </span>
                 </ChampionshipBoardCenterNotice>
@@ -404,7 +408,7 @@ export const ChampionshipRealGoBoard: React.FC<{
                     <InlineLoadingSpinner
                         size="lg"
                         label={dungeonPlayersEnteringHint ?? '선수들이 입장하고 있습니다. 잠시만 기다려주세요.'}
-                        labelClassName="max-w-xs text-center text-sm leading-relaxed text-slate-300/90"
+                        labelClassName={`max-w-none text-center whitespace-nowrap sm:whitespace-normal ${CHAMPIONSHIP_BOARD_CENTER_NOTICE_TEXT} text-sky-100`}
                     />
                 </ChampionshipBoardCenterNotice>
             );
@@ -489,6 +493,15 @@ export const ChampionshipMatchResultPanel: React.FC<{
     compact = false,
 }) => {
     const realGame = match?.championshipRealGame;
+    const canToggleFinalStandings = Boolean(
+        tournamentFinished && finalStandings && finalStandings.length > 0,
+    );
+    const [panelView, setPanelView] = React.useState<'match' | 'standings'>('match');
+
+    React.useEffect(() => {
+        setPanelView('match');
+    }, [match?.id, tournamentFinished]);
+
     if (!realGame?.winnerId || !match) return null;
 
     const userWonThisMatch = realGame.winnerId === currentUser.id;
@@ -522,6 +535,41 @@ export const ChampionshipMatchResultPanel: React.FC<{
           ? 'text-[9px] sm:text-[10px]'
           : 'text-[10px] sm:text-[11px]';
 
+    const finalStandingsList = finalStandings ? (
+        <ul
+            className={`w-full ${finalStandingsListClass} ${finalStandingsTextClass} max-h-[9.5rem] overflow-y-auto leading-snug [scrollbar-color:rgba(148,163,184,0.45)_rgba(15,23,42,0.5)] [scrollbar-width:thin]`}
+        >
+            {finalStandings.map((row) => (
+                <li
+                    key={row.playerId}
+                    className={`flex items-center justify-between gap-1 rounded-md border px-1.5 py-0.5 sm:gap-2 sm:px-2 sm:py-1 ${
+                        row.playerId === currentUser.id
+                            ? 'border-cyan-400/50 bg-cyan-950/40 text-cyan-50'
+                            : 'border-slate-600/40 bg-slate-900/50 text-slate-200'
+                    }`}
+                >
+                    <span className="shrink-0 font-black tabular-nums text-amber-200">{row.rank}위</span>
+                    <span className="min-w-0 flex-1 truncate font-bold">{row.nickname}</span>
+                    <span className="shrink-0 tabular-nums text-slate-300">
+                        {row.wins}승 {row.losses}패
+                    </span>
+                </li>
+            ))}
+        </ul>
+    ) : null;
+
+    const panelToggleButton = canToggleFinalStandings ? (
+        <button
+            type="button"
+            onClick={() => setPanelView((v) => (v === 'match' ? 'standings' : 'match'))}
+            className={`w-full rounded-xl border border-violet-300/40 bg-gradient-to-b from-violet-500/88 via-purple-700/88 to-violet-950/95 font-black tracking-wide text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_24px_-14px_rgba(0,0,0,0.9)] transition active:scale-[0.98] ${
+                compact ? 'px-2 py-1.5 text-[10px]' : 'px-3 py-2 text-xs'
+            }`}
+        >
+            {panelView === 'match' ? '최종 결과' : '경기결과'}
+        </button>
+    ) : null;
+
     return (
         <section
             className={`flex min-h-0 flex-col rounded-2xl border border-amber-400/35 bg-gradient-to-b from-[#2a3d56] via-[#141c2b] to-[#070a10] shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_12px_36px_-18px_rgba(0,0,0,0.92)] ring-1 ring-inset ring-amber-300/12 ${
@@ -533,113 +581,104 @@ export const ChampionshipMatchResultPanel: React.FC<{
                     compact ? 'px-3 py-2' : 'px-4 py-3 sm:px-5 sm:py-3.5'
                 }`}
             >
-                {roundLabel ? (
-                    <div className="flex items-center justify-center">
-                        <span
-                            className={`rounded-full border border-amber-300/65 bg-amber-500/15 font-black tracking-wider text-amber-100 ${
-                                compact ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-0.5 text-[10px]'
-                            }`}
-                        >
-                            {roundLabel}
-                        </span>
-                    </div>
-                ) : null}
-
-                <div className={`flex items-center justify-center ${roundLabel ? (compact ? 'mt-1.5 gap-1.5' : 'mt-2 gap-2') : compact ? 'gap-1.5' : 'gap-2 sm:gap-3'}`}>
-                    <div className={`flex flex-col items-center ${compact ? 'w-[4.5rem]' : 'w-[5rem] sm:w-[5.6rem]'}`}>
-                        <div
-                            className={`shrink-0 rounded-full ${
-                                userWonThisMatch
-                                    ? 'ring-2 ring-emerald-400/90 ring-offset-1 ring-offset-slate-950'
-                                    : 'ring-2 ring-rose-400/90 ring-offset-1 ring-offset-slate-950'
-                            }`}
-                        >
-                            <Avatar
-                                userId={userInMatch?.id ?? currentUser.id}
-                                userName={userInMatch?.nickname ?? '나'}
-                                avatarUrl={userAvatarUrl}
-                                borderUrl={userBorderUrl}
-                                size={compact ? 40 : 48}
-                            />
-                        </div>
-                        <div
-                            className={`mt-0.5 max-w-full truncate font-bold text-slate-100 ${compact ? 'text-[10px]' : 'text-[10px] sm:text-[11px]'}`}
-                        >
-                            {userInMatch?.nickname ?? '나'}
-                        </div>
-                        <div className={`font-semibold text-emerald-200/85 ${compact ? 'text-[9px]' : 'text-[9px] sm:text-[10px]'}`}>
-                            대회 {userRecord.wins}승 <span className="text-rose-200/85">{userRecord.losses}패</span>
-                        </div>
-                    </div>
-
-                    <div className="flex flex-col items-center justify-center">
-                        <div
-                            className={`font-black leading-tight ${compact ? 'text-base' : 'text-lg sm:text-xl'} ${userWonThisMatch ? 'text-emerald-200' : 'text-rose-200'}`}
-                        >
-                            {userWonThisMatch ? '승리' : '패배'}
-                        </div>
-                        <div className={`mt-0.5 font-bold text-slate-300 ${compact ? 'text-[10px]' : 'text-[10px] sm:text-xs'}`}>
-                            {finishedScoreLeadAbs > 0 ? `${finishedScoreLeadAbs.toFixed(1)}집 차` : '백병전'}
-                        </div>
-                    </div>
-
-                    <div className={`flex flex-col items-center ${compact ? 'w-[4.5rem]' : 'w-[5rem] sm:w-[5.6rem]'}`}>
-                        <div
-                            className={`shrink-0 rounded-full ${
-                                userWonThisMatch
-                                    ? 'ring-2 ring-rose-400/90 ring-offset-1 ring-offset-slate-950'
-                                    : 'ring-2 ring-emerald-400/90 ring-offset-1 ring-offset-slate-950'
-                            }`}
-                        >
-                            <Avatar
-                                userId={opponentInMatch?.id ?? 'opponent'}
-                                userName={opponentInMatch?.nickname ?? '상대'}
-                                avatarUrl={opponentAvatarUrl}
-                                borderUrl={opponentBorderUrl}
-                                size={compact ? 40 : 48}
-                            />
-                        </div>
-                        <div
-                            className={`mt-0.5 max-w-full truncate font-bold text-slate-100 ${compact ? 'text-[10px]' : 'text-[10px] sm:text-[11px]'}`}
-                        >
-                            {opponentInMatch?.nickname ?? '상대'}
-                        </div>
-                        <div className={`font-semibold text-emerald-200/85 ${compact ? 'text-[9px]' : 'text-[9px] sm:text-[10px]'}`}>
-                            대회 {opponentRecord.wins}승 <span className="text-rose-200/85">{opponentRecord.losses}패</span>
-                        </div>
-                    </div>
-                </div>
-
-                {tournamentFinished && finalStandings && finalStandings.length > 0 ? (
-                    <div
-                        className={`mt-2 w-full border-t border-amber-300/25 pt-2 text-left ${compact ? '' : 'sm:mt-2.5 sm:pt-2.5'}`}
-                    >
-                        <div
-                            className={`text-center font-black tracking-[0.22em] text-amber-200/90 ${compact ? 'text-[9px]' : 'text-[9px] sm:text-[10px] sm:tracking-[0.28em]'}`}
-                        >
-                            최종 결과 · 순위
-                        </div>
-                        <ul className={`mt-1.5 w-full ${finalStandingsListClass} ${finalStandingsTextClass} leading-snug`}>
-                            {finalStandings.map((row) => (
-                                <li
-                                    key={row.playerId}
-                                    className={`flex items-center justify-between gap-1 rounded-md border px-1.5 py-0.5 sm:gap-2 sm:px-2 sm:py-1 ${
-                                        row.playerId === currentUser.id
-                                            ? 'border-cyan-400/50 bg-cyan-950/40 text-cyan-50'
-                                            : 'border-slate-600/40 bg-slate-900/50 text-slate-200'
+                <div className="grid [&>*]:col-start-1 [&>*]:row-start-1">
+                    <div className={panelView === 'standings' ? 'invisible' : 'visible'}>
+                        {roundLabel ? (
+                            <div className="flex items-center justify-center">
+                                <span
+                                    className={`rounded-full border border-amber-300/65 bg-amber-500/15 font-black tracking-wider text-amber-100 ${
+                                        compact ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-0.5 text-[10px]'
                                     }`}
                                 >
-                                    <span className="shrink-0 font-black tabular-nums text-amber-200">{row.rank}위</span>
-                                    <span className="min-w-0 flex-1 truncate font-bold">{row.nickname}</span>
-                                    <span className="shrink-0 tabular-nums text-slate-300">
-                                        {row.wins}승 {row.losses}패
-                                    </span>
-                                </li>
-                            ))}
-                        </ul>
+                                    {roundLabel}
+                                </span>
+                            </div>
+                        ) : null}
+
+                        <div
+                            className={`flex items-center justify-center ${roundLabel ? (compact ? 'mt-1.5 gap-1.5' : 'mt-2 gap-2') : compact ? 'gap-1.5' : 'gap-2 sm:gap-3'}`}
+                        >
+                            <div className={`flex flex-col items-center ${compact ? 'w-[4.5rem]' : 'w-[5rem] sm:w-[5.6rem]'}`}>
+                                <div
+                                    className={`shrink-0 rounded-full ${
+                                        userWonThisMatch
+                                            ? 'ring-2 ring-emerald-400/90 ring-offset-1 ring-offset-slate-950'
+                                            : 'ring-2 ring-rose-400/90 ring-offset-1 ring-offset-slate-950'
+                                    }`}
+                                >
+                                    <Avatar
+                                        userId={userInMatch?.id ?? currentUser.id}
+                                        userName={userInMatch?.nickname ?? '나'}
+                                        avatarUrl={userAvatarUrl}
+                                        borderUrl={userBorderUrl}
+                                        size={compact ? 40 : 48}
+                                    />
+                                </div>
+                                <div
+                                    className={`mt-0.5 max-w-full truncate font-bold text-slate-100 ${compact ? 'text-[10px]' : 'text-[10px] sm:text-[11px]'}`}
+                                >
+                                    {userInMatch?.nickname ?? '나'}
+                                </div>
+                                <div
+                                    className={`font-semibold text-emerald-200/85 ${compact ? 'text-[9px]' : 'text-[9px] sm:text-[10px]'}`}
+                                >
+                                    대회 {userRecord.wins}승 <span className="text-rose-200/85">{userRecord.losses}패</span>
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col items-center justify-center">
+                                <div
+                                    className={`font-black leading-tight ${compact ? 'text-base' : 'text-lg sm:text-xl'} ${userWonThisMatch ? 'text-emerald-200' : 'text-rose-200'}`}
+                                >
+                                    {userWonThisMatch ? '승리' : '패배'}
+                                </div>
+                                <div
+                                    className={`mt-0.5 font-bold text-slate-300 ${compact ? 'text-[10px]' : 'text-[10px] sm:text-xs'}`}
+                                >
+                                    {finishedScoreLeadAbs > 0 ? `${finishedScoreLeadAbs.toFixed(1)}집 차` : '백병전'}
+                                </div>
+                            </div>
+
+                            <div className={`flex flex-col items-center ${compact ? 'w-[4.5rem]' : 'w-[5rem] sm:w-[5.6rem]'}`}>
+                                <div
+                                    className={`shrink-0 rounded-full ${
+                                        userWonThisMatch
+                                            ? 'ring-2 ring-rose-400/90 ring-offset-1 ring-offset-slate-950'
+                                            : 'ring-2 ring-emerald-400/90 ring-offset-1 ring-offset-slate-950'
+                                    }`}
+                                >
+                                    <Avatar
+                                        userId={opponentInMatch?.id ?? 'opponent'}
+                                        userName={opponentInMatch?.nickname ?? '상대'}
+                                        avatarUrl={opponentAvatarUrl}
+                                        borderUrl={opponentBorderUrl}
+                                        size={compact ? 40 : 48}
+                                    />
+                                </div>
+                                <div
+                                    className={`mt-0.5 max-w-full truncate font-bold text-slate-100 ${compact ? 'text-[10px]' : 'text-[10px] sm:text-[11px]'}`}
+                                >
+                                    {opponentInMatch?.nickname ?? '상대'}
+                                </div>
+                                <div
+                                    className={`font-semibold text-emerald-200/85 ${compact ? 'text-[9px]' : 'text-[9px] sm:text-[10px]'}`}
+                                >
+                                    대회 {opponentRecord.wins}승 <span className="text-rose-200/85">{opponentRecord.losses}패</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                ) : null}
+
+                    {canToggleFinalStandings ? (
+                        <div className={panelView === 'match' ? 'invisible' : 'visible w-full text-left'}>
+                            {finalStandingsList}
+                        </div>
+                    ) : null}
+                </div>
             </div>
+            {panelToggleButton ? (
+                <div className={`w-full shrink-0 ${compact ? 'mt-1.5' : 'mt-2'}`}>{panelToggleButton}</div>
+            ) : null}
             {resultActionSlot ? (
                 <div className={`mt-2 w-full shrink-0 border-t border-amber-300/20 pt-2 ${compact ? '' : 'sm:pt-2.5'}`}>
                     {resultActionSlot}
@@ -3457,6 +3496,19 @@ const FinalRewardPanel: React.FC<{
     // 챔피언십 던전: currentStageAttempt가 JSON/구버전에서 빠져도 제목·dungeonProgress로 단계 복원 (동네/전국에서 보상 버튼 0단계로 숨겨지던 문제 방지)
     const effectiveStageAttempt = resolveDungeonStageAttempt(tournamentState, currentUser, type);
     const isDungeonMode = effectiveStageAttempt >= 1;
+
+    const dungeonUserWinsForChampCoins = useMemo(() => {
+        if (!isDungeonMode) return 0;
+        let wins = 0;
+        for (const round of rounds) {
+            for (const m of round.matches ?? []) {
+                if (!m.isFinished || !m.winner) continue;
+                if (!m.players?.some((p) => p?.id === currentUser.id)) continue;
+                if (m.winner.id === currentUser.id) wins += 1;
+            }
+        }
+        return wins;
+    }, [isDungeonMode, rounds, currentUser.id]);
     
     const rewardClaimedKey = `${type}RewardClaimed` as keyof User;
     const isClaimed = !!currentUser[rewardClaimedKey];
@@ -3904,7 +3956,19 @@ const FinalRewardPanel: React.FC<{
                 const hasWorldChangeTickets = worldChangeTicketChips.length > 0;
 
                 const claimedChampCoins = Math.max(0, Math.floor(Number(claimedRewardSummary?.baseRewards?.champCoins ?? 0)));
-                const showChampCoinChip = claimedChampCoins > 0;
+                const canPreviewChampCoins =
+                    isDungeonMode &&
+                    effectiveStageAttempt >= 1 &&
+                    (isTournamentFullyComplete || isUserEliminated) &&
+                    !treatAsClaimed;
+                const champCoinPreviewLabel = canPreviewChampCoins
+                    ? formatDungeonChampCoinRewardPreviewLabel(effectiveStageAttempt, dungeonUserWinsForChampCoins)
+                    : null;
+                const showChampCoinChip = claimedChampCoins > 0 || !!champCoinPreviewLabel;
+                const champCoinBadgeText =
+                    claimedChampCoins > 0
+                        ? claimedChampCoins.toLocaleString('ko-KR')
+                        : (champCoinPreviewLabel ?? '');
 
                 const hasAnyMatchReward =
                     hasNeighborhoodGold ||
@@ -4076,15 +4140,19 @@ const FinalRewardPanel: React.FC<{
                                 );
                             })}
 
-                        {/* PVE 공통: 챔프 코인 — 수령 전 예상값은 숨기고, 서버 확정 지급량만 표시 */}
+                        {/* PVE 공통: 챔프 코인 — 종료 후 수령 전에는 범위, 수령 후에는 확정 지급량 */}
                         {showChampCoinChip && (
                             <div
                                 className="relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg border-2 border-amber-400/70 bg-amber-950/45"
-                                title={`챔프 코인 ×${claimedChampCoins.toLocaleString('ko-KR')}`}
+                                title={
+                                    claimedChampCoins > 0
+                                        ? `챔프 코인 ×${claimedChampCoins.toLocaleString('ko-KR')}`
+                                        : `챔프 코인 ${champCoinPreviewLabel} (수령 시 확정)`
+                                }
                             >
                                 <img src="/images/icon/champcoin.webp" alt="챔프 코인" className="h-7 w-7 object-contain" loading="lazy" decoding="async" />
-                                <span className="absolute -bottom-0.5 -right-0.5 rounded-tl bg-black/80 px-1 text-[11px] font-bold leading-tight text-amber-100 shadow-sm">
-                                    {claimedChampCoins.toLocaleString('ko-KR')}
+                                <span className="absolute -bottom-0.5 -right-0.5 max-w-[2.75rem] truncate rounded-tl bg-black/80 px-0.5 text-[10px] font-bold leading-tight text-amber-100 shadow-sm">
+                                    {champCoinBadgeText}
                                 </span>
                             </div>
                         )}

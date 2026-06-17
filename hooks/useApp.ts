@@ -538,15 +538,53 @@ function shouldSkipDelayedAiSnapshotApply(
     return false;
 }
 
+/** AI 수 지연(1초) 연출을 건너뛰고 즉시 반영해야 하는 PVE 스냅샷 — 히든 전체공개·계가·종료 등 */
+function shouldApplyPveAiMoveSnapshotImmediately(game: LiveGameSession | undefined): boolean {
+    if (!game) return false;
+    const status = String(game.gameStatus || '');
+    if (
+        status === 'hidden_reveal_animating' ||
+        status === 'hidden_final_reveal' ||
+        status === 'scoring' ||
+        status === 'ended' ||
+        status === 'no_contest'
+    ) {
+        return true;
+    }
+    const animType = (game.animation as { type?: string } | null | undefined)?.type;
+    return animType === 'hidden_reveal';
+}
+
 function shiftDelayedAiSnapshotTurnClock(game: LiveGameSession, delayedByMs: number): LiveGameSession {
     if (!Number.isFinite(delayedByMs) || delayedByMs <= 0) return game;
-    if (!['playing', 'hidden_placing'].includes(String(game.gameStatus))) return game;
+    const status = String(game.gameStatus || '');
+    const anim = game.animation as { type?: string; startTime?: number; duration?: number } | null | undefined;
+    const isHiddenRevealSnapshot =
+        status === 'hidden_reveal_animating' || anim?.type === 'hidden_reveal';
+    if (!['playing', 'hidden_placing'].includes(status) && !isHiddenRevealSnapshot) return game;
     const shifted: LiveGameSession = { ...game };
     if (typeof shifted.turnDeadline === 'number' && Number.isFinite(shifted.turnDeadline)) {
         shifted.turnDeadline += delayedByMs;
     }
     if (typeof shifted.turnStartTime === 'number' && Number.isFinite(shifted.turnStartTime)) {
         shifted.turnStartTime += delayedByMs;
+    }
+    if (isHiddenRevealSnapshot && anim?.type === 'hidden_reveal') {
+        const duration = typeof anim.duration === 'number' ? anim.duration : 0;
+        const shiftedStart =
+            typeof anim.startTime === 'number' && Number.isFinite(anim.startTime)
+                ? anim.startTime + delayedByMs
+                : Date.now();
+        shifted.animation = {
+            ...(anim as object),
+            type: 'hidden_reveal',
+            startTime: shiftedStart,
+            duration,
+        } as LiveGameSession['animation'];
+        shifted.revealAnimationEndTime =
+            typeof shifted.revealAnimationEndTime === 'number' && Number.isFinite(shifted.revealAnimationEndTime)
+                ? shifted.revealAnimationEndTime + delayedByMs
+                : shiftedStart + duration;
     }
     return shifted;
 }
@@ -10318,7 +10356,7 @@ export const useApp = () => {
                                             hasNewMoves &&
                                             game.moveHistory?.length > 0 &&
                                             lastSinglePlayerMove?.player === singleAiPlayerEnum &&
-                                            !['scoring', 'hidden_final_reveal', 'ended', 'no_contest'].includes(String(updatedSinglePlayerGame.gameStatus));
+                                            !shouldApplyPveAiMoveSnapshotImmediately(updatedSinglePlayerGame);
                                         if (isNewSinglePlayerAiMove) {
                                             if (singlePlayerKataDelayTimeoutRef.current[gameId] != null) {
                                                 clearTimeout(singlePlayerKataDelayTimeoutRef.current[gameId]);
@@ -10698,10 +10736,7 @@ export const useApp = () => {
                                             (mergedGame.moveHistory[mergedGame.moveHistory.length - 1] as any)?.player ===
                                                 Player.White;
                                         const mergedAdvancesToTerminal =
-                                            mergedGame.gameStatus === 'scoring' ||
-                                            mergedGame.gameStatus === 'hidden_final_reveal' ||
-                                            mergedGame.gameStatus === 'ended' ||
-                                            mergedGame.gameStatus === 'no_contest';
+                                            shouldApplyPveAiMoveSnapshotImmediately(mergedGame);
                                         // 계가·종료 전환은 지연 없이 즉시 반영해야 함. return currentGames만 하면 mergedGame이 버려져
                                         // 계가 연출 중 gameStatus가 pending으로 되돌아가 경기 시작 모달이 다시 뜨는 버그가 난다.
                                         if (isNewAiMove && !mergedAdvancesToTerminal) {
@@ -11271,7 +11306,7 @@ export const useApp = () => {
                                             (isNewAiMoveLive || isNewPairAiMoveLive) &&
                                             game.gameCategory !== 'adventure' &&
                                             game.gameCategory !== 'guildwar' &&
-                                            game.gameStatus !== 'scoring' &&
+                                            !shouldApplyPveAiMoveSnapshotImmediately(mergedGame) &&
                                             !isScoringTransition;
                                         if (deferStrategicAiMoveForEffect) {
                                             if (liveGameGnugoDelayTimeoutRef.current[gameId] != null) {

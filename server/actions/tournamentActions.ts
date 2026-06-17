@@ -1600,8 +1600,10 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             
             // 동네바둑리그에서 유저의 모든 경기가 완료되었거나, 모든 경기가 완료되었으면 complete 상태로 설정
             if (allUserMatchesFinished || allMatchesFinished) {
-                // 모든 경기가 완료되었으면 complete 상태로 설정
-                tournamentState.status = 'complete';
+                // 탈락 상태는 보존 (보상·순위 UI). 그 외에는 complete로 종료
+                if (tournamentState.status !== 'eliminated') {
+                    tournamentState.status = 'complete';
+                }
                 tournamentState.nextRoundStartTime = null;
                 // 경기 종료 시 모든 플레이어의 컨디션 초기화 (컨디션 회복제 낭비 방지)
                 tournamentState.players.forEach(p => {
@@ -1671,7 +1673,9 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                         r.matches.some(m => m.isUserMatch && !m.isFinished)
                     );
                     if (!hasNextUserMatch) {
-                        tournamentState.status = 'complete';
+                        if (tournamentState.status !== 'eliminated') {
+                            tournamentState.status = 'complete';
+                        }
                         tournamentState.nextRoundStartTime = null;
                     }
                 }
