@@ -7,6 +7,7 @@ import {
     mergeChampionshipTournamentPreserveLostRealGame,
     mergeResolvedRoundsPreserveChampionshipPlayback,
     repairTournamentSimulatingPointer,
+    recoverStuckChampionshipRoundInProgress,
 } from '../../../shared/utils/championshipTournamentPreserve.js';
 
 const mkMatch = (id: string, extra: Partial<Match> = {}): Match => ({
@@ -226,5 +227,36 @@ describe('championshipTournamentPreserve', () => {
         const state = mkState(rounds, null);
         const repaired = repairTournamentSimulatingPointer(state, userId);
         expect(repaired.currentSimulatingMatch).toEqual({ roundIndex: 0, matchIndex: 0 });
+    });
+
+    it('recoverStuckChampionshipRoundInProgress moves to bracket_ready when kata never attached', () => {
+        const state = mkState(
+            [{ id: 1, name: '8강', matches: [mkMatch('m1', { isFinished: false })] }],
+            { roundIndex: 0, matchIndex: 0 },
+        );
+        const { tournament, recovered } = recoverStuckChampionshipRoundInProgress(state, 'u1');
+        expect(recovered).toBe(true);
+        expect(tournament.status).toBe('bracket_ready');
+        expect(tournament.currentSimulatingMatch).toBeNull();
+    });
+
+    it('recoverStuckChampionshipRoundInProgress clears finished sim pointer to bracket_ready', () => {
+        const state = mkState(
+            [
+                {
+                    id: 1,
+                    name: '8강',
+                    matches: [
+                        mkMatch('m1', { isFinished: true, winner: { id: 'u1' } as any }),
+                        mkMatch('m2', { isFinished: false }),
+                    ],
+                },
+            ],
+            { roundIndex: 0, matchIndex: 0 },
+        );
+        const { tournament, recovered } = recoverStuckChampionshipRoundInProgress(state, 'u1');
+        expect(recovered).toBe(true);
+        expect(tournament.status).toBe('bracket_ready');
+        expect(tournament.currentSimulatingMatch).toBeNull();
     });
 });

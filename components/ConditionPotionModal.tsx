@@ -3,7 +3,12 @@ import { User } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
-import { isConditionPotionConsumable } from '../shared/constants/items.js';
+import {
+    CONDITION_POTION_BY_TYPE,
+    CONDITION_POTION_TYPES,
+    type ConditionPotionType,
+} from '../shared/constants/conditionPotion.js';
+import { countConditionPotionsByType } from '../shared/utils/conditionPotionInventory.js';
 
 /** TournamentBracket 챔피언십 푸터 버튼과 동일 계열 — 모달 전용 */
 const champBtnBase =
@@ -12,90 +17,45 @@ const champBtnMuted = `${champBtnBase} border-slate-500/45 bg-gradient-to-b from
 const champBtnEmerald = `${champBtnBase} border-emerald-300/50 bg-gradient-to-b from-emerald-400/95 via-emerald-600/92 to-emerald-950 text-slate-950 hover:brightness-110`;
 const champBtnAmber = `${champBtnBase} border-amber-300/55 bg-gradient-to-b from-amber-400/92 via-amber-600/88 to-amber-950 text-amber-50 hover:brightness-110`;
 
-type PotionType = 'small' | 'medium' | 'large';
-
-interface PotionInfo {
-    name: string;
-    image: string;
-    minRecovery: number;
-    maxRecovery: number;
-    price: number;
-    grade: 'normal' | 'uncommon' | 'rare';
-}
-
-const GRADE_LABEL: Record<PotionInfo['grade'], string> = {
+const GRADE_LABEL = {
     normal: '일반',
     uncommon: '고급',
     rare: '희귀',
-};
-const GRADE_RING: Record<PotionInfo['grade'], string> = {
+} as const;
+
+const GRADE_RING = {
     normal: 'border bg-gradient-to-b border-slate-500/55 from-slate-700/90 to-slate-950 text-slate-100',
     uncommon: 'border bg-gradient-to-b border-emerald-400/45 from-emerald-900/85 to-slate-950 text-emerald-100',
     rare: 'border bg-gradient-to-b border-amber-400/55 from-amber-950/90 to-slate-950 text-amber-100',
-};
-
-/** 서버 tournamentActions USE_CONDITION_POTION과 동일한 수치(표시·낙관적 UI 일치) */
-const POTION_TYPES: Record<PotionType, PotionInfo> = {
-    small: {
-        name: '컨디션회복제(소)',
-        image: '/images/use/con1.webp',
-        minRecovery: 5,
-        maxRecovery: 15,
-        price: 100,
-        grade: 'normal'
-    },
-    medium: {
-        name: '컨디션회복제(중)',
-        image: '/images/use/con2.webp',
-        minRecovery: 15,
-        maxRecovery: 25,
-        price: 150,
-        grade: 'uncommon'
-    },
-    large: {
-        name: '컨디션회복제(대)',
-        image: '/images/use/con3.webp',
-        minRecovery: 25,
-        maxRecovery: 35,
-        price: 200,
-        grade: 'rare'
-    }
-};
+} as const;
 
 interface ConditionPotionModalProps {
-    currentUser?: User; // Optional: useAppContext에서 가져올 수 있도록
+    currentUser?: User;
     currentCondition: number;
     onClose: () => void;
-    onConfirm: (potionType: PotionType) => void | Promise<{ error?: string } | void>;
-    onAction?: (action: any) => void;
+    onConfirm: (potionType: ConditionPotionType) => void | Promise<{ error?: string } | void>;
     isTopmost?: boolean;
 }
 
-const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({ 
-    currentUser: propCurrentUser, 
-    currentCondition, 
-    onClose, 
+const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
+    currentUser: propCurrentUser,
+    currentCondition,
+    onClose,
     onConfirm,
-    isTopmost 
+    isTopmost,
 }) => {
     const { handlers, currentUserWithStatus, updateTrigger, modals } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
-    // prop으로 받은 currentUser가 있으면 사용하고, 없으면 context에서 가져옴
-    const currentUser = currentUserWithStatus || propCurrentUser;
+    const currentUser = currentUserWithStatus ?? propCurrentUser;
     const isShopOpen = Boolean(modals?.isShopOpen);
     const [shopCloseRefreshNonce, setShopCloseRefreshNonce] = useState(0);
     const prevShopOpenRef = useRef(isShopOpen);
-    const [selectedPotionType, setSelectedPotionType] = useState<PotionType | null>(null);
-    const [previousCondition, setPreviousCondition] = useState<number | undefined>(currentCondition);
+    const [selectedPotionType, setSelectedPotionType] = useState<ConditionPotionType | null>(null);
     const [showConditionIncrease, setShowConditionIncrease] = useState(false);
     const [conditionIncreaseAmount, setConditionIncreaseAmount] = useState(0);
     const prevConditionRef = useRef<number>(currentCondition);
-    /** HTTP 응답 전에도 보유 수·컨디션 바가 즉시 반응하도록(서버 확정값은 updateTrigger로 동기화) */
-    const [optimisticPotionDelta, setOptimisticPotionDelta] = useState<Partial<Record<PotionType, number>>>({});
-    const [optimisticConditionAdd, setOptimisticConditionAdd] = useState(0);
     const [isApplyingPotion, setIsApplyingPotion] = useState(false);
 
-    // 상점을 닫고 돌아올 때(구매 직후 포함) 보유 수·골드 UI가 남는 경우 방지
     useEffect(() => {
         if (prevShopOpenRef.current && !isShopOpen) {
             setShopCloseRefreshNonce((n) => n + 1);
@@ -104,117 +64,47 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
     }, [isShopOpen]);
 
     useEffect(() => {
-        setOptimisticPotionDelta({});
-        setOptimisticConditionAdd(0);
-    }, [updateTrigger, currentUser?.id, shopCloseRefreshNonce]);
-
-    // 컨디션 변화 감지 및 애니메이션 트리거
-    useEffect(() => {
         if (prevConditionRef.current !== undefined && currentCondition !== 1000 && prevConditionRef.current !== 1000) {
             const increase = currentCondition - prevConditionRef.current;
             if (increase > 0) {
                 setConditionIncreaseAmount(increase);
                 setShowConditionIncrease(true);
-                setTimeout(() => {
-                    setShowConditionIncrease(false);
-                }, 2000);
+                const timer = setTimeout(() => setShowConditionIncrease(false), 2000);
+                return () => clearTimeout(timer);
             }
         }
         prevConditionRef.current = currentCondition;
-        setPreviousCondition(currentCondition);
     }, [currentCondition]);
 
-    const inventorySnapshot = currentUser?.inventory;
-
-    // 보유 중인 각 컨디션 회복제 개수 (상점 구매 직후 inventory·updateTrigger·상점 닫힘에 반응)
     const potionCounts = useMemo(() => {
-        const counts: Record<PotionType, number> = { small: 0, medium: 0, large: 0 };
-        if (!inventorySnapshot) return counts;
-        inventorySnapshot
-            .filter((item) => item.type === 'consumable' && isConditionPotionConsumable(item.name))
-            .forEach((item) => {
-                const compact = (item.name ?? '').replace(/\s+/g, '');
-                if (compact.includes('(소)')) {
-                    counts.small += item.quantity || 1;
-                } else if (compact.includes('(중)')) {
-                    counts.medium += item.quantity || 1;
-                } else if (compact.includes('(대)')) {
-                    counts.large += item.quantity || 1;
-                }
-            });
-        (['small', 'medium', 'large'] as PotionType[]).forEach((t) => {
-            const d = optimisticPotionDelta[t];
-            if (d) counts[t] = Math.max(0, counts[t] + d);
-        });
-        return counts;
-    }, [inventorySnapshot, updateTrigger, shopCloseRefreshNonce, optimisticPotionDelta]);
+        return countConditionPotionsByType(currentUser?.inventory);
+    }, [currentUser?.inventory, updateTrigger, shopCloseRefreshNonce]);
 
-    const displayCondition =
-        currentCondition === 1000 ? 1000 : Math.min(100, currentCondition + optimisticConditionAdd);
+    const displayCondition = currentCondition === 1000 ? 1000 : currentCondition;
 
-    // 선택한 회복제의 예상 회복량 계산(서버 확정 `currentCondition` 기준 — 낙관적 표시 수치와 1틱 어긋날 수 있음)
     const expectedRecovery = useMemo(() => {
-        if (!selectedPotionType) return null;
-        const potion = POTION_TYPES[selectedPotionType];
-        if (currentCondition === 1000) return null;
+        if (!selectedPotionType || currentCondition === 1000) return null;
+        const potion = CONDITION_POTION_BY_TYPE[selectedPotionType];
         const minAfter = Math.min(100, currentCondition + potion.minRecovery);
         const maxAfter = Math.min(100, currentCondition + potion.maxRecovery);
-        return { min: minAfter, max: maxAfter, avg: Math.floor((minAfter + maxAfter) / 2) };
+        return { min: minAfter, max: maxAfter };
     }, [selectedPotionType, currentCondition]);
 
-    const hasPotion = useMemo(() => {
-        if (!selectedPotionType) return false;
-        return potionCounts[selectedPotionType] > 0;
-    }, [selectedPotionType, potionCounts]);
+    const hasPotion = selectedPotionType ? potionCounts[selectedPotionType] > 0 : false;
 
     const handleConfirm = async () => {
         if (!currentUser || !selectedPotionType || isApplyingPotion) return;
-        
-        // 0개인 아이템을 선택한 경우 상점 열기
+
         if (!hasPotion) {
             handlers.openShop('consumables', { modal: true });
-            // 창을 닫지 않음 (구매 후 돌아올 수 있도록)
             return;
         }
 
-        const startedAt = Date.now();
-        const potion = POTION_TYPES[selectedPotionType];
         setIsApplyingPotion(true);
-        setOptimisticPotionDelta((prev) => ({
-            ...prev,
-            [selectedPotionType]: (prev[selectedPotionType] ?? 0) - 1,
-        }));
-        if (currentCondition !== 1000) {
-            const previewRecovery = Math.floor((potion.minRecovery + potion.maxRecovery) / 2);
-            setOptimisticConditionAdd((a) =>
-                Math.min(100 - currentCondition, a + previewRecovery),
-            );
-        }
-
         try {
-            const result = await Promise.resolve(onConfirm(selectedPotionType));
-            const hasError =
-                Boolean(result) &&
-                typeof result === 'object' &&
-                'error' in result &&
-                typeof (result as { error?: unknown }).error === 'string' &&
-                Boolean((result as { error?: string }).error);
-
-            if (hasError) {
-                setOptimisticPotionDelta((prev) => ({
-                    ...prev,
-                    [selectedPotionType]: (prev[selectedPotionType] ?? 0) + 1,
-                }));
-                if (currentCondition !== 1000) {
-                    const previewRecovery = Math.floor((potion.minRecovery + potion.maxRecovery) / 2);
-                    setOptimisticConditionAdd((a) => Math.max(0, a - previewRecovery));
-                }
-            }
+            await Promise.resolve(onConfirm(selectedPotionType));
         } finally {
-            const elapsed = Date.now() - startedAt;
-            const minFxMs = 450;
-            const remain = Math.max(0, minFxMs - elapsed);
-            setTimeout(() => setIsApplyingPotion(false), remain);
+            setIsApplyingPotion(false);
         }
     };
 
@@ -250,8 +140,8 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
                                 : 'grid grid-cols-3 gap-4'
                         }
                     >
-                        {(Object.keys(POTION_TYPES) as PotionType[]).map((type) => {
-                            const potion = POTION_TYPES[type];
+                        {CONDITION_POTION_TYPES.map((type) => {
+                            const potion = CONDITION_POTION_BY_TYPE[type];
                             const count = potionCounts[type];
                             const isSelected = selectedPotionType === type;
                             const gradeClass = GRADE_RING[potion.grade];
@@ -273,10 +163,6 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
                                             : 'border-slate-600/50 bg-gradient-to-b from-slate-800/75 to-slate-950/95 hover:border-amber-500/40 hover:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.75)]'
                                     }`}
                                 >
-                                    <div
-                                        className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r opacity-90 ${isSelected ? 'from-amber-300/90 via-amber-500/80 to-amber-300/90' : 'from-transparent via-amber-500/25 to-transparent opacity-0 group-hover:opacity-100'}`}
-                                        aria-hidden
-                                    />
                                     {!isNativeMobile ? (
                                         <div className="flex items-start justify-between gap-2">
                                             <span
@@ -351,7 +237,6 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
                             );
                         })}
                     </div>
-
                 </div>
 
                 <div
@@ -373,9 +258,7 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
                                 className={`pointer-events-none absolute font-bold text-emerald-300 ${
                                     isNativeMobile ? 'right-3 top-2 text-base' : 'right-5 top-3 text-lg'
                                 }`}
-                                style={{
-                                    animation: 'fadeUp 2s ease-out forwards',
-                                }}
+                                style={{ animation: 'fadeUp 2s ease-out forwards' }}
                             >
                                 +{conditionIncreaseAmount}
                             </span>
@@ -415,4 +298,3 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
 };
 
 export default ConditionPotionModal;
-

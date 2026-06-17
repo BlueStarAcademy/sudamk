@@ -31,6 +31,8 @@ import { getCachedUser, updateUserCache } from '../gameCache.js';
 import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
 import { isFunctionVipActive } from '../../shared/utils/rewardVip.js';
 import { assignChampionshipCondition, generateChampionshipRealMatch } from '../championshipRealMatchService.js';
+import { recoverStuckChampionshipRoundInProgress } from '../../shared/utils/championshipTournamentPreserve.js';
+import { syncTournamentUserPlayerConditionFromSnapshot } from '../../shared/utils/championshipConditionDisplay.js';
 import {
     DEFAULT_CHAMPIONSHIP_REAL_MATCH_RULES,
     resolveChampionshipDungeonRulesFromStage,
@@ -674,6 +676,7 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                     default: return { error: 'Invalid tournament type.' };
                 }
 
+                syncTournamentUserPlayerConditionFromSnapshot(tournamentState, user, type);
                 (user as any)[stateKey] = tournamentState;
                 updateUserCache(user);
 
@@ -732,27 +735,51 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 versusVenue?: ChampionshipVersusVenueKind;
                 potionType: 'small' | 'medium' | 'large';
             };
-            if (!rawPayload.potionType || !['small', 'medium', 'large'].includes(rawPayload.potionType)) {
+            const {
+                isConditionPotionType,
+                rollConditionPotionRecovery,
+                getConditionPotionDefinition,
+            } = await import('../../shared/constants/conditionPotion.js');
+            const {
+                buildConditionPotionUserPatch,
+                applyConditionPotionPatchInPlace,
+                CONDITION_POTION_USE_BROADCAST_FIELDS,
+                canAffordConditionPotionUse,
+                consumeConditionPotionInventory,
+            } = await import('../../shared/conditionPotion/apply.js');
+
+            if (!isConditionPotionType(rawPayload.potionType)) {
                 return { error: '유효하지 않은 회복제 타입입니다.' };
             }
+            const potionType = rawPayload.potionType;
+
             if (rawPayload.versusVenue === 'pvp' || rawPayload.versusVenue === 'pet' || rawPayload.versusVenue === 'petpair') {
-                const { applyChampionshipVersusConditionPotion } = await import('../championshipVersusVenueService.js');
-                const r = await applyChampionshipVersusConditionPotion(user, rawPayload.versusVenue, rawPayload.potionType, now);
-                if (r.error) return { error: r.error };
-                return { clientResponse: { updatedUser: r.user } };
+                const { resolveChampionshipVersusConditionForDay } = await import('../championshipVersusVenueService.js');
+                resolveChampionshipVersusConditionForDay(user, rawPayload.versusVenue, now);
+                const recovery = rollConditionPotionRecovery(potionType);
+                const result = buildConditionPotionUserPatch(
+                    user,
+                    { kind: 'versus', venue: rawPayload.versusVenue },
+                    potionType,
+                    recovery,
+                );
+                if (!result.ok) return { error: result.error };
+                applyConditionPotionPatchInPlace(user, result.patch);
+                try {
+                    updateUserCache(user);
+                    await db.updateUser(user);
+                } catch (error: any) {
+                    console.error(`[USE_CONDITION_POTION] Error updating user ${user.id}:`, error);
+                    return { error: '데이터 저장 중 오류가 발생했습니다.' };
+                }
+                const { broadcastUserUpdate } = await import('../socket.js');
+                broadcastUserUpdate(user, [...CONDITION_POTION_USE_BROADCAST_FIELDS]);
+                return { clientResponse: { updatedUser: user } };
             }
 
-            const { tournamentType, potionType } = rawPayload as { tournamentType: TournamentType; potionType: 'small' | 'medium' | 'large' };
-            
-            // 회복제 타입별 정보
-            const potionInfo = {
-                small: { name: '컨디션회복제(소)', minRecovery: 5, maxRecovery: 15, price: 100 },
-                medium: { name: '컨디션회복제(중)', minRecovery: 15, maxRecovery: 25, price: 150 },
-                large: { name: '컨디션회복제(대)', minRecovery: 25, maxRecovery: 35, price: 200 }
-            }[potionType];
-
-            if (!potionInfo) {
-                return { error: '유효하지 않은 회복제 타입입니다.' };
+            const { tournamentType } = rawPayload;
+            if (tournamentType !== 'neighborhood' && tournamentType !== 'national' && tournamentType !== 'world') {
+                return { error: 'Invalid tournament type.' };
             }
 
             let stateKey: keyof User;
@@ -760,21 +787,16 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 case 'neighborhood': stateKey = 'lastNeighborhoodTournament'; break;
                 case 'national': stateKey = 'lastNationalTournament'; break;
                 case 'world': stateKey = 'lastWorldTournament'; break;
-                default: return { error: 'Invalid tournament type.' };
             }
 
-            // Check if user has condition potion in inventory
-            const conditionPotion = user.inventory.find(item => item.name === potionInfo.name && item.type === 'consumable');
-            if (!conditionPotion) {
-                return { error: `${potionInfo.name}이(가) 없습니다.` };
+            const def = getConditionPotionDefinition(potionType);
+            if (!consumeConditionPotionInventory(user.inventory ?? [], potionType)) {
+                return { error: `${def.name}이(가) 없습니다.` };
+            }
+            if (!canAffordConditionPotionUse(user, potionType)) {
+                return { error: `골드가 부족합니다. (필요: ${def.shopGold} 골드)` };
             }
 
-            // Check if user has enough gold
-            if (user.gold < potionInfo.price && !user.isAdmin) {
-                return { error: `골드가 부족합니다. (필요: ${potionInfo.price} 골드)` };
-            }
-
-            // Get tournament state
             const tournamentState = (user as any)[stateKey] as TournamentState | null;
             if (!tournamentState) {
                 return { error: '토너먼트 정보를 찾을 수 없습니다.' };
@@ -789,12 +811,10 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
 
             const isChampionshipDungeon = tournamentState.currentStageAttempt != null;
             if (isChampionshipDungeon) {
-                // 던전 인게임: 대기·회차 사이(round_complete / bracket_ready)에도 회복 허용
                 if (tournamentState.status !== 'bracket_ready' && tournamentState.status !== 'round_complete') {
                     return { error: '지금은 컨디션 회복제를 사용할 수 없습니다.' };
                 }
             } else {
-                // 일반 토너먼트: 첫 경기 시작 전(bracket_ready)만
                 const hasAnyFinishedUserMatch = tournamentState.rounds.some((round) =>
                     round.matches.some((match) => match.isUserMatch && match.isFinished),
                 );
@@ -806,13 +826,11 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 }
             }
 
-            // Find user player in tournament
-            const userPlayer = tournamentState.players.find(p => p.id === user.id);
+            const userPlayer = tournamentState.players.find((p) => p.id === user.id);
             if (!userPlayer) {
                 return { error: '선수를 찾을 수 없습니다.' };
             }
 
-            // condition 1000은 "미설정" 플래그 — >= 100 체크에 걸리면 회복제를 쓸 수 없는 버그가 난다.
             let baseCondition = userPlayer.condition;
             const conditionUnset =
                 baseCondition === undefined ||
@@ -834,39 +852,16 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 return { error: '컨디션이 이미 최대입니다.' };
             }
 
-            // Use condition potion - 인벤토리에서 제거
-            // quantity가 1보다 크면 감소, 1이면 배열에서 제거
-            if (conditionPotion.quantity && conditionPotion.quantity > 1) {
-                conditionPotion.quantity--;
-            } else {
-                // quantity가 1이거나 undefined인 경우 배열에서 제거
-                const itemIndex = user.inventory.findIndex(i => i.id === conditionPotion.id);
-                if (itemIndex !== -1) {
-                    user.inventory.splice(itemIndex, 1);
-                }
-            }
-            
-            // 인벤토리 배열의 참조를 변경하여 React가 변경을 감지하도록 함
-            user.inventory = [...user.inventory];
+            const recoveryAmount = rollConditionPotionRecovery(potionType);
+            const result = buildConditionPotionUserPatch(
+                user,
+                { kind: 'dungeon', tournamentType },
+                potionType,
+                recoveryAmount,
+            );
+            if (!result.ok) return { error: result.error };
+            applyConditionPotionPatchInPlace(user, result.patch);
 
-            // Deduct gold
-            if (!user.isAdmin) {
-                user.gold -= potionInfo.price;
-            }
-
-            // Calculate random recovery amount
-            const getRandomInt = (min: number, max: number) => {
-                return Math.floor(Math.random() * (max - min + 1)) + min;
-            };
-            const recoveryAmount = getRandomInt(potionInfo.minRecovery, potionInfo.maxRecovery);
-            const newCondition = Math.min(100, baseCondition + recoveryAmount);
-            userPlayer.condition = newCondition;
-            // 재입장 시에도 회복된 컨디션이 유지되도록 스냅샷 갱신
-            const todayStart = getStartOfDayKST(Date.now());
-            if (!user.dungeonConditionSnapshot) (user as any).dungeonConditionSnapshot = {};
-            (user as any).dungeonConditionSnapshot[tournamentType] = { condition: newCondition, dateStartOfDayKST: todayStart };
-
-            // Save tournament state and user
             try {
                 updateUserCache(user);
                 await db.updateUser(user);
@@ -876,23 +871,14 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 return { error: '데이터 저장 중 오류가 발생했습니다.' };
             }
 
-            // WebSocket으로 사용자 업데이트 브로드캐스트 (컨디션 스냅샷 포함해 재입장 시 유지 반영)
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, [
-                'actionPoints',
-                'gold',
-                'inventory',
-                'dungeonConditionSnapshot',
-                'lastNeighborhoodTournament',
-                'lastNationalTournament',
-                'lastWorldTournament',
-            ]);
+            broadcastUserUpdate(user, [...CONDITION_POTION_USE_BROADCAST_FIELDS]);
 
-            return { 
-                clientResponse: { 
+            return {
+                clientResponse: {
                     updatedUser: user,
-                    redirectToTournament: tournamentType
-                } 
+                    redirectToTournament: tournamentType,
+                },
             };
         }
 
@@ -1028,9 +1014,7 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 }
             }
             
-            // 경기 시작: 상태를 round_in_progress로 변경
-            tournamentState.status = 'round_in_progress';
-            tournamentState.currentSimulatingMatch = { roundIndex, matchIndex };
+            const prevStatus = tournamentState.status;
             // 중계는 매 경기 초기화하지 않고 직전 경기 멘트 위에 이어 붙인다.
             // 경기 시작 멘트는 클라이언트 시뮬레이션이 ply===0에서 [경기 시작] 한 줄만 추가하므로
             // 서버는 별도의 "...줄 챔피언십 실제 대국이 시작되었습니다." 멘트를 더하지 않는다 (중복 방지).
@@ -1045,14 +1029,25 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 dungeonStage != null && dungeonStage >= 1
                     ? resolveChampionshipDungeonRulesFromStage(dungeonStage)
                     : DEFAULT_CHAMPIONSHIP_REAL_MATCH_RULES;
-            const realMatch = await generateChampionshipRealMatch(match, tournamentState.players, freshUser, champRules);
-            match.championshipRealGame = realMatch.game;
-            tournamentState.currentMatchScores = {
-                player1: realMatch.scorePercent.player1,
-                player2: realMatch.scorePercent.player2,
-            };
-            tournamentState.currentMatchCommentary = [...accumulatedCommentary];
-            tournamentState.simulationSeed = undefined;
+            try {
+                const realMatch = await generateChampionshipRealMatch(match, tournamentState.players, freshUser, champRules);
+                match.championshipRealGame = realMatch.game;
+                tournamentState.currentMatchScores = {
+                    player1: realMatch.scorePercent.player1,
+                    player2: realMatch.scorePercent.player2,
+                };
+                tournamentState.currentMatchCommentary = [...accumulatedCommentary];
+                tournamentState.simulationSeed = undefined;
+                tournamentState.status = 'round_in_progress';
+                tournamentState.currentSimulatingMatch = { roundIndex, matchIndex };
+            } catch (err: any) {
+                console.error('[START_TOURNAMENT_MATCH] generateChampionshipRealMatch failed:', err);
+                tournamentState.status = prevStatus;
+                tournamentState.currentSimulatingMatch = null;
+                return {
+                    error: err?.message || '기보를 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+                };
+            }
             
             // 개발 모드에서만 상세 로그 출력
             if (process.env.NODE_ENV === 'development') {
@@ -1344,8 +1339,24 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             // 이미 완료된 경기인 경우에도 결과를 업데이트할 수 있도록 허용
             // (클라이언트와 서버 간 동기화 문제로 인해 중복 요청이 올 수 있음)
             if (match.isFinished && match.winner && match.score) {
-                console.log(`[COMPLETE_TOURNAMENT_SIMULATION] Match already finished, returning early`);
-                // 이미 완료된 경기이고 결과도 있으면 성공 반환 (중복 요청 처리)
+                console.log(`[COMPLETE_TOURNAMENT_SIMULATION] Match already finished, checking stuck status`);
+                const { tournament: recoveredState, recovered } = recoverStuckChampionshipRoundInProgress(
+                    tournamentState,
+                    freshUser.id,
+                );
+                if (recovered) {
+                    (freshUser as any)[stateKey] = recoveredState;
+                    updateUserCache(freshUser);
+                    if (!volatileState.activeTournaments) volatileState.activeTournaments = {};
+                    volatileState.activeTournaments[freshUser.id] = recoveredState;
+                    await db.updateUser(freshUser);
+                    const { broadcastUserUpdate } = await import('../socket.js');
+                    broadcastUserUpdate(freshUser, [
+                        'lastNeighborhoodTournament',
+                        'lastNationalTournament',
+                        'lastWorldTournament',
+                    ]);
+                }
                 return { clientResponse: { updatedUser: freshUser } };
             }
 
@@ -1552,8 +1563,27 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             } catch (error: any) {
                 console.error(`[COMPLETE_TOURNAMENT_SIMULATION] Error in processMatchCompletion for user ${user.id}:`, error);
                 console.error(`[COMPLETE_TOURNAMENT_SIMULATION] Error stack:`, error?.stack);
-                // processMatchCompletion 실패해도 경기 결과는 저장하고 계속 진행
-                // 에러 메시지를 명확하게 전달
+                const { tournament: recoveredState, recovered } = recoverStuckChampionshipRoundInProgress(
+                    tournamentState,
+                    freshUser.id,
+                );
+                if (recovered) {
+                    (freshUser as any)[stateKey] = recoveredState;
+                    updateUserCache(freshUser);
+                    if (!volatileState.activeTournaments) volatileState.activeTournaments = {};
+                    volatileState.activeTournaments[freshUser.id] = recoveredState;
+                    try {
+                        await db.updateUser(freshUser);
+                        const { broadcastUserUpdate } = await import('../socket.js');
+                        broadcastUserUpdate(freshUser, [
+                            'lastNeighborhoodTournament',
+                            'lastNationalTournament',
+                            'lastWorldTournament',
+                        ]);
+                    } catch (persistErr) {
+                        console.error('[COMPLETE_TOURNAMENT_SIMULATION] Failed to persist recovery:', persistErr);
+                    }
+                }
                 const errorMessage = error?.message || error?.toString() || '경기 완료 처리 중 오류가 발생했습니다.';
                 return { error: errorMessage };
             }

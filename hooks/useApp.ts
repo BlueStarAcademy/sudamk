@@ -5,7 +5,11 @@ import { User, LiveGameSession, UserWithStatus, ServerAction, GameMode, Negotiat
 import type { KataServerRuntimeSnapshot } from '../shared/types/kataServerRuntime.js';
 import { mergeKataServerRuntimeSnapshot } from '../shared/utils/kataServerRuntimeMerge.js';
 import { mergeChampionshipTournamentPreserveLostRealGame } from '../shared/utils/championshipTournamentPreserve.js';
-import { syncDungeonConditionSnapshotToTournamentPlayers } from '../shared/utils/championshipConditionDisplay.js';
+import {
+    mergeChampionshipVersusConditionSnapshotRecords,
+    mergeDungeonConditionSnapshotRecords,
+    syncDungeonConditionSnapshotToTournamentPlayers,
+} from '../shared/utils/championshipConditionDisplay.js';
 import { CHAMPIONSHIP_ABILITY_KATA_LADDER, type ChampionshipAbilityKataLadderRow } from '../shared/constants/championshipRealMatch.js';
 import { HandleActionResult, type PairRoomChatLine } from '../types/api.js';
 import { Point } from '../types/enums.js';
@@ -91,7 +95,13 @@ import {
     countConditionPotionsInInventory,
     stripInventoryIfFewerConditionPotions,
 } from '../shared/utils/conditionPotionInventory.js';
-import { buildOptimisticUseConditionPotionUserPatch } from '../shared/utils/conditionPotionOptimistic.js';
+import { executeUseConditionPotionAction } from './useConditionPotionAction.js';
+import {
+    isConditionPotionBuySyncWs,
+    isConditionPotionInventoryIncreaseWs,
+    isConditionPotionUseSyncWs,
+    sanitizeConditionPotionUserUpdatePatch,
+} from '../shared/conditionPotion/wsMergePolicy.js';
 
 const HOME_BOARD_READ_STORAGE_PREFIX = 'sudamr-home-board-read-posts';
 
@@ -1882,6 +1892,17 @@ export const useApp = () => {
                 patch.championshipVersusDuelTicketNextAtByVenue !== undefined
                     ? { ...(base.championshipVersusDuelTicketNextAtByVenue ?? {}), ...patch.championshipVersusDuelTicketNextAtByVenue }
                     : base.championshipVersusDuelTicketNextAtByVenue,
+            dungeonConditionSnapshot:
+                patch.dungeonConditionSnapshot !== undefined
+                    ? mergeDungeonConditionSnapshotRecords(base.dungeonConditionSnapshot, patch.dungeonConditionSnapshot)
+                    : base.dungeonConditionSnapshot,
+            championshipVersusConditionSnapshot:
+                patch.championshipVersusConditionSnapshot !== undefined
+                    ? mergeChampionshipVersusConditionSnapshotRecords(
+                          base.championshipVersusConditionSnapshot,
+                          patch.championshipVersusConditionSnapshot,
+                      )
+                    : base.championshipVersusConditionSnapshot,
             // 챔피언십: WS/HTTP 패치에 기보가 빠지면 클라 실대국이 50초 시뮬로 추락하므로 동일 슬롯에서는 베이스 기보를 보존
             lastNeighborhoodTournament:
                 patch.lastNeighborhoodTournament !== undefined
@@ -1973,6 +1994,9 @@ export const useApp = () => {
                 inventoryChanged ||
                 pairPetTrainingSlotsChanged ||
                 tournamentStateChanged ||
+                JSON.stringify(prevUser.dungeonConditionSnapshot) !== JSON.stringify(mergedUser.dungeonConditionSnapshot) ||
+                JSON.stringify(prevUser.championshipVersusConditionSnapshot) !==
+                    JSON.stringify(mergedUser.championshipVersusConditionSnapshot) ||
                 JSON.stringify(prevUser.dailyShopPurchases) !== JSON.stringify(mergedUser.dailyShopPurchases) ||
                 JSON.stringify(prevUser.equipment) !== JSON.stringify(mergedUser.equipment) ||
                 JSON.stringify(prevUser.singlePlayerMissions) !== JSON.stringify(mergedUser.singlePlayerMissions) ||
@@ -2315,6 +2339,7 @@ export const useApp = () => {
     const inFlightAiSyncActionRef = useRef<Set<string>>(new Set());
     // 배포 환경 고지연에서 동일 착수 요청이 중복 전송되는 경우(더블탭/재전송) 방지
     const inFlightPlaceStoneActionRef = useRef<Set<string>>(new Set());
+    const useConditionPotionInFlightRef = useRef(false);
     /** PVP 주사위 바둑: 연타 시 낙관 착수는 첫 번째 요청만, inFlight는 요청마다 증가 */
     const pvpDicePlaceInFlightRef = useRef<Record<string, number>>({});
     /** 낙관 착수 실패 시 복구용 스냅샷 (해당 gameId당 1개) */
@@ -5810,13 +5835,19 @@ export const useApp = () => {
                           versusVenue?: 'pvp' | 'pet' | 'petpair';
                       }
                     | undefined;
-                const optimisticPatch = buildOptimisticUseConditionPotionUserPatch(
-                    currentUserRef.current,
+                return (await executeUseConditionPotionAction(
+                    {
+                        getCurrentUser: () => currentUserRef.current,
+                        applyUserUpdate,
+                        showError,
+                        markConnectionRestored,
+                        useInFlightRef: useConditionPotionInFlightRef,
+                        lastHttpActionTypeRef: lastHttpActionType,
+                        lastHttpUpdateTimeRef: lastHttpUpdateTime,
+                        lastHttpHadUpdatedUserRef: lastHttpHadUpdatedUser,
+                    },
                     potionPayload ?? {},
-                );
-                if (optimisticPatch) {
-                    applyUserUpdate(optimisticPatch, 'USE_CONDITION_POTION-optimistic');
-                }
+                )) as HandleActionResult;
             }
 
             const res = await fetch(getApiUrl('/api/action'), {
@@ -9079,30 +9110,22 @@ export const useApp = () => {
                                 const isPostTowerGameEndInventoryWs =
                                     lastHttpActionType.current === 'END_TOWER_GAME' &&
                                     Array.isArray(updatedCurrentUser.inventory);
-                                /** 컨디션 회복제 직후 WS(인벤·토너·던전 스냅샷) — HTTP 디바운스로 버리면 경기장 UI가 늦게 갱신됨 */
-                                const isPostUseConditionPotionSyncWs =
-                                    lastHttpActionType.current === 'USE_CONDITION_POTION' &&
-                                    (Array.isArray(updatedCurrentUser.inventory) ||
-                                        updatedCurrentUser.lastNeighborhoodTournament !== undefined ||
-                                        updatedCurrentUser.lastNationalTournament !== undefined ||
-                                        updatedCurrentUser.lastWorldTournament !== undefined ||
-                                        (updatedCurrentUser as { dungeonConditionSnapshot?: unknown }).dungeonConditionSnapshot !==
-                                            undefined ||
-                                        (updatedCurrentUser as { championshipVersusConditionSnapshot?: unknown })
-                                            .championshipVersusConditionSnapshot !== undefined);
-                                /** 상점에서 회복제 구매 직후 WS(인벤·골드·일일구매) — 디바운스에 걸리면 가방에 안 들어온 것처럼 보일 수 있음 */
-                                const isPostBuyConditionPotionSyncWs =
-                                    lastHttpActionType.current === 'BUY_CONDITION_POTION' &&
-                                    (Array.isArray(updatedCurrentUser.inventory) ||
-                                        updatedCurrentUser.gold !== undefined ||
-                                        updatedCurrentUser.dailyShopPurchases !== undefined);
-                                /** HTTP 응답보다 먼저 도착한 구매 반영 WS — 다른 액션 직후 디바운스에 막히면 회복 모달·가방이 0개로 남을 수 있음 */
-                                const refPotionQty = countConditionPotionsInInventory(currentUserRef.current?.inventory);
-                                const incomingPotionQty = countConditionPotionsInInventory(
-                                    updatedCurrentUser.inventory as InventoryItem[] | undefined,
+                                const isPostUseConditionPotionSyncWs = isConditionPotionUseSyncWs(
+                                    lastHttpActionType.current,
+                                    updatedCurrentUser,
                                 );
-                                const isConditionPotionInventoryIncreaseWs =
-                                    Array.isArray(updatedCurrentUser.inventory) && incomingPotionQty > refPotionQty;
+                                const isPostBuyConditionPotionSyncWs = isConditionPotionBuySyncWs(
+                                    lastHttpActionType.current,
+                                    updatedCurrentUser,
+                                );
+                                const isConditionPotionInventoryIncreaseWs = isConditionPotionInventoryIncreaseWs(
+                                    updatedCurrentUser,
+                                    currentUserRef.current?.inventory,
+                                    {
+                                        lastHttpActionType: lastHttpActionType.current,
+                                        useInFlight: useConditionPotionInFlightRef.current,
+                                    },
+                                );
 
                                 const hadHttpUpdate = lastHttpUpdateTime.current > 0;
                                 const httpUpdateHadUser = lastHttpHadUpdatedUser.current;
@@ -9147,12 +9170,19 @@ export const useApp = () => {
                                 }
                                 // 닉네임/모험 도감 프로필 변경은 디바운스 없이 항상 즉시 반영
 
-                                /** 지연 WS·역순 패치가 구매 전 인벤을 실으면 merge가 덮어써 '구매했는데 0개'로 보일 수 있음 */
-                                let userUpdatePatch: Partial<User> = stripInventoryIfFewerConditionPotions(
+                                let userUpdatePatch: Partial<User> = sanitizeConditionPotionUserUpdatePatch(
                                     updatedCurrentUser,
-                                    currentUserRef.current?.inventory,
+                                    {
+                                        lastHttpActionType: lastHttpActionType.current,
+                                        useInFlight: useConditionPotionInFlightRef.current,
+                                        prevInventory: currentUserRef.current?.inventory,
+                                    },
                                 );
                                 if (userUpdatePatch !== updatedCurrentUser) {
+                                    const refPotionQty = countConditionPotionsInInventory(currentUserRef.current?.inventory);
+                                    const incomingPotionQty = countConditionPotionsInInventory(
+                                        updatedCurrentUser.inventory as InventoryItem[] | undefined,
+                                    );
                                     console.log(
                                         '[WebSocket] Dropped stale inventory from USER_UPDATE (fewer condition potions than client)',
                                         { refPotionQty, incomingPotionQty },

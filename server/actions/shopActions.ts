@@ -42,7 +42,6 @@ import { applyVipDurationExtensionToUser } from '../../shared/utils/vipDurationG
 import * as guildService from '../guildService.js';
 import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig } from '../../shared/constants/rewardConfig.js';
 import { ItemGrade } from '../../shared/types/enums.js';
-import { CONDITION_POTION_SHOP_GOLD_BY_TYPE } from '../../shared/constants/conditionPotionShop.js';
 import { getChampionshipShopProductById } from '../../shared/constants/championshipShop.js';
 import { openChampionshipEquipmentBox } from '../shop.js';
 
@@ -541,24 +540,19 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
         }
         case 'BUY_CONDITION_POTION': {
             const { potionType, quantity } = payload as { potionType: 'small' | 'medium' | 'large'; quantity: number };
-            
-            const potionInfo = {
-                small: { name: '컨디션회복제(소)', price: CONDITION_POTION_SHOP_GOLD_BY_TYPE.small },
-                medium: { name: '컨디션회복제(중)', price: CONDITION_POTION_SHOP_GOLD_BY_TYPE.medium },
-                large: { name: '컨디션회복제(대)', price: CONDITION_POTION_SHOP_GOLD_BY_TYPE.large },
-            }[potionType];
-
-            if (!potionInfo) {
+            const { getConditionPotionDefinition, isConditionPotionType } = await import('../../shared/constants/conditionPotion.js');
+            if (!isConditionPotionType(potionType)) {
                 return { error: '유효하지 않은 회복제 타입입니다.' };
             }
+            const potionInfo = getConditionPotionDefinition(potionType);
 
             if (typeof quantity !== 'number' || quantity <= 0) {
                 return { error: '유효하지 않은 수량입니다.' };
             }
 
             const now = Date.now();
-            const itemId = `condition_potion_${potionType}`;
-            const DAILY_LIMIT = 3;
+            const itemId = potionInfo.itemId;
+            const DAILY_LIMIT = potionInfo.dailyShopLimit;
 
             // 일일 구매 제한 체크
             if (!user.dailyShopPurchases) user.dailyShopPurchases = {};
@@ -575,7 +569,7 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
                 }
             }
 
-            const totalCost = potionInfo.price * quantity;
+            const totalCost = potionInfo.shopGold * quantity;
             if (!user.isAdmin) {
                 if (user.gold < totalCost) {
                     return { error: `골드가 부족합니다. (필요: ${totalCost} 골드)` };

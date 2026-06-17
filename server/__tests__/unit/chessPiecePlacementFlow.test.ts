@@ -3,6 +3,7 @@ import { GameMode, Player } from '../../../shared/types/enums.js';
 import type { LiveGameSession } from '../../../shared/types/index.js';
 import {
     enterChessPiecePlacement,
+    getChessDraftKey,
     resolveChessPlacementAndTransition,
 } from '../../../server/modes/chessPlacementFlow.js';
 import { aiUserId } from '../../../server/aiPlayer.js';
@@ -118,5 +119,69 @@ describe('chessPlacementFlow', () => {
         expect(started).toBe(true);
         expect(game.gameStatus).toBe('playing');
         expect(game.chessPieces?.some((p) => p.owner === Player.White && p.type !== 'king')).toBe(true);
+    });
+
+    it('pair PVP: only team owners use black/white draft keys; partners rejected', () => {
+        const ownerA = makeUser('owner-a');
+        const ownerB = makeUser('owner-b');
+        const partnerA = makeUser('partner-a');
+        const game = makeChessSession({
+            isAiGame: false,
+            player1: ownerA,
+            player2: ownerB,
+            blackPlayerId: ownerA.id,
+            whitePlayerId: ownerB.id,
+            settings: {
+                boardSize: 13,
+                chessPieceTotalScore: 15,
+                komi: 6.5,
+                pairGame: {
+                    roomId: 'room',
+                    pairMode: 'pvp',
+                    teamA: {
+                        name: 'A',
+                        members: [
+                            { id: ownerA.id, name: 'A', kind: 'user', slot: 'owner' },
+                            { id: partnerA.id, name: 'A2', kind: 'user', slot: 'partner' },
+                        ],
+                    },
+                    teamB: {
+                        name: 'B',
+                        members: [{ id: ownerB.id, name: 'B', kind: 'user', slot: 'owner' }],
+                    },
+                    turnOrder: [
+                        {
+                            seatId: 'black1',
+                            player: Player.Black,
+                            order: 1,
+                            participantId: ownerA.id,
+                            name: 'A',
+                            kind: 'user',
+                            teamId: 'teamA',
+                            slot: 'owner',
+                        },
+                        {
+                            seatId: 'white1',
+                            player: Player.White,
+                            order: 1,
+                            participantId: ownerB.id,
+                            name: 'B',
+                            kind: 'user',
+                            teamId: 'teamB',
+                            slot: 'owner',
+                        },
+                    ],
+                },
+            },
+        });
+        enterChessPiecePlacement(game, Date.now());
+        expect(getChessDraftKey(game, ownerA.id)).toBe(ownerA.id);
+        expect(getChessDraftKey(game, ownerB.id)).toBe(ownerB.id);
+        expect(getChessDraftKey(game, partnerA.id)).toBeNull();
+
+        game.chessPiecePlacementReady![ownerA.id] = true;
+        game.chessPiecePlacementReady![ownerB.id] = true;
+        expect(resolveChessPlacementAndTransition(game, Date.now())).toBe(true);
+        expect(game.gameStatus).toBe('playing');
     });
 });

@@ -221,44 +221,26 @@ export async function applyChampionshipVersusConditionPotion(
     potionType: 'small' | 'medium' | 'large',
     now: number,
 ): Promise<{ error?: string; user?: User }> {
-    const potionInfo = {
-        small: { name: '컨디션회복제(소)', minRecovery: 5, maxRecovery: 15, price: 100 },
-        medium: { name: '컨디션회복제(중)', minRecovery: 15, maxRecovery: 25, price: 150 },
-        large: { name: '컨디션회복제(대)', minRecovery: 25, maxRecovery: 35, price: 200 },
-    }[potionType];
-    if (!potionInfo) return { error: '유효하지 않은 회복제 타입입니다.' };
-
-    const conditionPotion = user.inventory.find(item => item.name === potionInfo.name && item.type === 'consumable');
-    if (!conditionPotion) return { error: `${potionInfo.name}이(가) 없습니다.` };
-    if (user.gold < potionInfo.price && !user.isAdmin) {
-        return { error: `골드가 부족합니다. (필요: ${potionInfo.price} 골드)` };
-    }
+    const { rollConditionPotionRecovery } = await import('../shared/constants/conditionPotion.js');
+    const {
+        buildConditionPotionUserPatch,
+        applyConditionPotionPatchInPlace,
+        CONDITION_POTION_USE_BROADCAST_FIELDS,
+    } = await import('../shared/conditionPotion/apply.js');
 
     resolveChampionshipVersusConditionForDay(user, venue, now);
-    const baseCondition = user.championshipVersusConditionSnapshot![venue]!.condition;
-    if (baseCondition >= 100) return { error: '컨디션이 이미 최대입니다.' };
+    const recovery = rollConditionPotionRecovery(potionType);
+    const result = buildConditionPotionUserPatch(user, { kind: 'versus', venue }, potionType, recovery);
+    if (!result.ok) return { error: result.error };
 
-    if (conditionPotion.quantity && conditionPotion.quantity > 1) {
-        conditionPotion.quantity--;
-    } else {
-        const itemIndex = user.inventory.findIndex(i => i.id === conditionPotion.id);
-        if (itemIndex !== -1) user.inventory.splice(itemIndex, 1);
-    }
-    user.inventory = [...user.inventory];
-    if (!user.isAdmin) user.gold -= potionInfo.price;
-
-    const recoveryAmount =
-        Math.floor(Math.random() * (potionInfo.maxRecovery - potionInfo.minRecovery + 1)) + potionInfo.minRecovery;
-    const newCondition = Math.min(100, baseCondition + recoveryAmount);
-    const todayStart = getStartOfDayKST(now);
-    user.championshipVersusConditionSnapshot![venue] = { condition: newCondition, dateStartOfDayKST: todayStart };
+    applyConditionPotionPatchInPlace(user, result.patch);
 
     const { updateUserCache } = await import('./gameCache.js');
     try {
         updateUserCache(user);
         await db.updateUser(user);
         const { broadcastUserUpdate } = await import('./socket.js');
-        broadcastUserUpdate(user, ['actionPoints', 'gold', 'inventory', 'championshipVersusConditionSnapshot']);
+        broadcastUserUpdate(user, [...CONDITION_POTION_USE_BROADCAST_FIELDS]);
         return { user };
     } catch (e: any) {
         console.error('[applyChampionshipVersusConditionPotion]', e);

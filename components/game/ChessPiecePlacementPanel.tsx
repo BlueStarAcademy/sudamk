@@ -11,6 +11,11 @@ import ChessSetupPieceStonePreview, {
     getChessPieceCaptureValue,
     getInitialRemainingMoves,
 } from './ChessSetupPieceStonePreview.js';
+import { isPairClassicGame } from '../../shared/utils/pairGameTurn.js';
+import {
+    isPairChessSetupWaitingGuest,
+    resolvePairChessSetupDraftKey,
+} from '../../shared/utils/pairChessSetup.js';
 
 const PIECE_OPTIONS: { type: Exclude<ChessPieceType, 'king'>; label: string }[] = [
     { type: 'pawn', label: '폰' },
@@ -54,19 +59,30 @@ const ChessPiecePlacementPanel: React.FC<ChessPiecePlacementPanelProps> = ({
     onSelectPieceType,
     isMobile = false,
 }) => {
-    const { id: gameId, settings, player1, player2, isAiGame } = session;
+    const { id: gameId, settings, player1, player2, isAiGame, blackPlayerId, whitePlayerId } = session;
     const budget = getChessSetupBudgetFromSettings(
         settings.boardSize ?? 13,
         settings.chessPieceTotalScore,
         Boolean((session as { isRanked?: boolean }).isRanked),
     );
     const userId = currentUser.id;
-    const myDraft = session.chessPiecePlacementDraft?.[userId] ?? [];
+    const isPairChess = isPairClassicGame(settings, session.mode);
+    const pairSetupDraftKey = isPairChess ? resolvePairChessSetupDraftKey(session, userId) : userId;
+    const isWaitingGuest = isPairChess && isPairChessSetupWaitingGuest(session, userId);
+    const myDraft =
+        pairSetupDraftKey != null ? (session.chessPiecePlacementDraft?.[pairSetupDraftKey] ?? []) : [];
     const usedScore = computeChessSetupDraftScore(myDraft);
     const counts = countChessSetupDraftByType(myDraft);
-    const myReady = Boolean(session.chessPiecePlacementReady?.[userId]);
-    const opponentId = userId === player1.id ? player2.id : player1.id;
-    const opponentReady = Boolean(session.chessPiecePlacementReady?.[opponentId]);
+    const myReady = pairSetupDraftKey != null && Boolean(session.chessPiecePlacementReady?.[pairSetupDraftKey]);
+    const opponentDraftKey =
+        pairSetupDraftKey != null && blackPlayerId && whitePlayerId
+            ? pairSetupDraftKey === blackPlayerId
+                ? whitePlayerId
+                : blackPlayerId
+            : userId === player1.id
+              ? player2.id
+              : player1.id;
+    const opponentReady = Boolean(session.chessPiecePlacementReady?.[opponentDraftKey]);
     const scoreRatio = budget > 0 ? Math.min(1, usedScore / budget) : 0;
 
     const [secondsLeft, setSecondsLeft] = useState(0);
@@ -145,6 +161,22 @@ const ChessPiecePlacementPanel: React.FC<ChessPiecePlacementPanelProps> = ({
     );
 
     if (session.mode !== GameMode.Chess || session.gameStatus !== 'chess_piece_placement') {
+        return null;
+    }
+
+    if (isWaitingGuest) {
+        return (
+            <div className={PANEL_SHELL}>
+                <div className={PANEL_GLOW} aria-hidden />
+                <div className="relative px-5 py-4 text-center">
+                    <p className="text-sm font-semibold text-sky-200/95">방장이 기물을 배치합니다</p>
+                    <p className="mt-1.5 text-xs text-stone-400">배치가 끝나면 공격 턴에 참여합니다.</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (pairSetupDraftKey == null) {
         return null;
     }
 

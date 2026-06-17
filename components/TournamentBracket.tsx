@@ -27,7 +27,10 @@ import {
 } from '../hooks/useTournamentSimulation.js';
 import { useChampionshipReplayPlaceStoneSound } from '../hooks/useChampionshipReplayPlaceStoneSound.js';
 import { findActiveChampionshipUserMatch } from '../shared/utils/championshipTournamentPreserve.js';
-import { resolveChampionshipDisplayCondition } from '../shared/utils/championshipConditionDisplay.js';
+import {
+    resolveChampionshipDisplayCondition,
+    shouldShowChampionshipConditionRecoveryButton,
+} from '../shared/utils/championshipConditionDisplay.js';
 import {
     TOURNAMENT_DEFINITIONS,
     CONSUMABLE_ITEMS,
@@ -286,6 +289,20 @@ function resolveChampionshipPortraitUrls(
     return { avatarUrl, borderUrl };
 }
 
+/** 바둑판 중앙 안내(심호흡·입장 대기·시상식 등) — 배경 위 가독성용 반투명 패널 */
+const ChampionshipBoardCenterNotice: React.FC<{ children: React.ReactNode; className?: string }> = ({
+    children,
+    className = '',
+}) => (
+    <div className="flex h-full w-full items-center justify-center bg-transparent px-3 sm:px-4">
+        <div
+            className={`max-w-[min(100%,19rem)] rounded-xl border border-slate-500/40 bg-slate-950/78 px-4 py-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_12px_32px_-12px_rgba(0,0,0,0.72)] backdrop-blur-[2px] ${className}`}
+        >
+            {children}
+        </div>
+    </div>
+);
+
 export const ChampionshipRealGoBoard: React.FC<{
     match: Match | null;
     currentUser: UserWithStatus;
@@ -365,27 +382,31 @@ export const ChampionshipRealGoBoard: React.FC<{
     if (!realGame) {
         if (tournamentFinished) {
             return (
-                <div className="flex h-full w-full items-center justify-center bg-transparent px-4 text-center text-sm text-slate-300/85">
-                    <span>경기가 모두 종료되었습니다. 시상식이 치뤄지고 있습니다.</span>
-                </div>
+                <ChampionshipBoardCenterNotice>
+                    <span className="text-sm leading-relaxed text-slate-300/90">
+                        경기가 모두 종료되었습니다. 시상식이 치뤄지고 있습니다.
+                    </span>
+                </ChampionshipBoardCenterNotice>
             );
         }
         if (dungeonBoardCenterMode === 'deep_breath') {
             return (
-                <div className="flex h-full w-full items-center justify-center bg-transparent px-4 text-center text-sm text-slate-300/85">
-                    <span>대회에 참가하기 위해 심호흡을 하고있습니다.</span>
-                </div>
+                <ChampionshipBoardCenterNotice>
+                    <span className="text-sm leading-relaxed text-slate-300/90">
+                        대회에 참가하기 위해 심호흡을 하고있습니다.
+                    </span>
+                </ChampionshipBoardCenterNotice>
             );
         }
         if (dungeonBoardCenterMode === 'players_entering') {
             return (
-                <div className="flex h-full w-full items-center justify-center bg-transparent px-4">
+                <ChampionshipBoardCenterNotice className="py-4">
                     <InlineLoadingSpinner
                         size="lg"
                         label={dungeonPlayersEnteringHint ?? '선수들이 입장하고 있습니다. 잠시만 기다려주세요.'}
-                        labelClassName="max-w-xs text-center text-sm leading-relaxed text-slate-300"
+                        labelClassName="max-w-xs text-center text-sm leading-relaxed text-slate-300/90"
                     />
-                </div>
+                </ChampionshipBoardCenterNotice>
             );
         }
         /** 경기 시작 전·기보 없음: 입장 안내는 `players_entering`(시작 클릭 후)에만 표시 */
@@ -619,6 +640,11 @@ export const ChampionshipMatchResultPanel: React.FC<{
                     </div>
                 ) : null}
             </div>
+            {resultActionSlot ? (
+                <div className={`mt-2 w-full shrink-0 border-t border-amber-300/20 pt-2 ${compact ? '' : 'sm:pt-2.5'}`}>
+                    {resultActionSlot}
+                </div>
+            ) : null}
         </section>
     );
 };
@@ -1593,29 +1619,37 @@ const PlayerProfilePanel: React.FC<{
                                         +{conditionIncreaseAmount}
                                     </span>
                                 )}
-                                {isCurrentUser && isUserMatch && canUseConditionPotion && onUseConditionPotion && (
+                                {isCurrentUser &&
+                                isUserMatch &&
+                                onUseConditionPotion &&
+                                shouldShowChampionshipConditionRecoveryButton({
+                                    condition: playerCondition,
+                                    tournamentStatus,
+                                }) ? (
                                     <button
                                         type="button"
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            if (playerCondition >= 100) return;
+                                            if (playerCondition >= 100 || !canUseConditionPotion) return;
                                             onUseConditionPotion();
                                         }}
-                                        disabled={playerCondition >= 100}
+                                        disabled={playerCondition >= 100 || !canUseConditionPotion}
                                         className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white transition-colors ${
-                                            playerCondition >= 100
+                                            playerCondition >= 100 || !canUseConditionPotion
                                                 ? 'cursor-not-allowed bg-gray-600 opacity-50'
                                                 : 'bg-green-600 hover:bg-green-700'
                                         }`}
                                         title={
                                             playerCondition >= 100
                                                 ? '컨디션이 이미 최대입니다'
-                                                : '컨디션 회복제 사용 (경기 진행 중에는 불가)'
+                                                : !canUseConditionPotion
+                                                  ? '지금은 컨디션 회복제를 사용할 수 없습니다'
+                                                  : '컨디션 회복제 사용'
                                         }
                                     >
                                         +
                                     </button>
-                                )}
+                                ) : null}
                             </div>
                         </div>
                     ) : null}
@@ -1803,22 +1837,36 @@ const PlayerProfilePanel: React.FC<{
                     </span>
                 )}
                 {/* + 버튼 (현재 유저이고, 경기 전일 때만 표시, 자동 진행 대기 중이거나 경기 시작 후에는 비활성화) */}
-                {isCurrentUser && isUserMatch && canUseConditionPotion && onUseConditionPotion && (
+                {isCurrentUser &&
+                isUserMatch &&
+                onUseConditionPotion &&
+                shouldShowChampionshipConditionRecoveryButton({
+                    condition: playerCondition,
+                    tournamentStatus,
+                }) ? (
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
-                            if (playerCondition >= 100) return;
+                            if (playerCondition >= 100 || !canUseConditionPotion) return;
                             onUseConditionPotion();
                         }}
-                        disabled={playerCondition >= 100}
+                        disabled={playerCondition >= 100 || !canUseConditionPotion}
                         className={`ml-2 ${isMobile ? 'text-sm w-6 h-6' : 'text-base w-6 h-6'} ${
-                            playerCondition >= 100 ? 'bg-gray-600 cursor-not-allowed opacity-50' : 'bg-green-600 hover:bg-green-700'
+                            playerCondition >= 100 || !canUseConditionPotion
+                                ? 'bg-gray-600 cursor-not-allowed opacity-50'
+                                : 'bg-green-600 hover:bg-green-700'
                         } text-white rounded-full transition-colors flex-shrink-0 flex items-center justify-center font-bold`}
-                        title={playerCondition >= 100 ? "컨디션이 이미 최대입니다" : "컨디션 회복제 사용 (경기 진행 중에는 불가)"}
+                        title={
+                            playerCondition >= 100
+                                ? '컨디션이 이미 최대입니다'
+                                : !canUseConditionPotion
+                                  ? '지금은 컨디션 회복제를 사용할 수 없습니다'
+                                  : '컨디션 회복제 사용'
+                        }
                     >
                         +
                     </button>
-                )}
+                ) : null}
             </div>
             <div
                 className={`w-full mt-0 border-t border-gray-600 pt-0.5 flex-shrink-0 overflow-hidden grid grid-cols-4 items-baseline font-mono tabular-nums ${
@@ -2226,25 +2274,38 @@ const MobileChampionshipPlayersCompare: React.FC<{
                                                                 : resolveCondition(p1, p1.id === currentUserId)
                                                             : '—'}
                                                     </span>
-                                                    {canUseConditionPotion && p1?.id === currentUserId && isUserMatchP1 ? (
+                                                    {p1?.id === currentUserId &&
+                                                    isUserMatchP1 &&
+                                                    shouldShowChampionshipConditionRecoveryButton({
+                                                        condition: p1 ? resolveCondition(p1, true) : 1000,
+                                                        tournamentStatus,
+                                                    }) ? (
                                                         <button
                                                             type="button"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 const c = p1 ? resolveCondition(p1, true) : 1000;
-                                                                if (c >= 100) return;
+                                                                if (c >= 100 || !canUseConditionPotion) return;
                                                                 onUseConditionPotion();
                                                             }}
-                                                            disabled={!p1 || resolveCondition(p1, true) >= 100}
+                                                            disabled={
+                                                                !p1 ||
+                                                                resolveCondition(p1, true) >= 100 ||
+                                                                !canUseConditionPotion
+                                                            }
                                                             className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ${
-                                                                !p1 || resolveCondition(p1, true) >= 100
+                                                                !p1 ||
+                                                                resolveCondition(p1, true) >= 100 ||
+                                                                !canUseConditionPotion
                                                                     ? 'cursor-not-allowed bg-gray-600 opacity-50'
                                                                     : 'bg-green-600 hover:bg-green-700'
                                                             }`}
                                                             title={
                                                                 p1 && resolveCondition(p1, true) >= 100
                                                                     ? '컨디션이 이미 최대입니다'
-                                                                    : '컨디션 회복제 사용 (경기 진행 중에는 불가)'
+                                                                    : !canUseConditionPotion
+                                                                      ? '지금은 컨디션 회복제를 사용할 수 없습니다'
+                                                                      : '컨디션 회복제 사용'
                                                             }
                                                         >
                                                             +
@@ -2296,25 +2357,38 @@ const MobileChampionshipPlayersCompare: React.FC<{
                                                                 : resolveCondition(p2, p2.id === currentUserId)
                                                             : '—'}
                                                     </span>
-                                                    {canUseConditionPotion && p2?.id === currentUserId && isUserMatchP2 ? (
+                                                    {p2?.id === currentUserId &&
+                                                    isUserMatchP2 &&
+                                                    shouldShowChampionshipConditionRecoveryButton({
+                                                        condition: p2 ? resolveCondition(p2, true) : 1000,
+                                                        tournamentStatus,
+                                                    }) ? (
                                                         <button
                                                             type="button"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 const c = p2 ? resolveCondition(p2, true) : 1000;
-                                                                if (c >= 100) return;
+                                                                if (c >= 100 || !canUseConditionPotion) return;
                                                                 onUseConditionPotion();
                                                             }}
-                                                            disabled={!p2 || resolveCondition(p2, true) >= 100}
+                                                            disabled={
+                                                                !p2 ||
+                                                                resolveCondition(p2, true) >= 100 ||
+                                                                !canUseConditionPotion
+                                                            }
                                                             className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ${
-                                                                !p2 || resolveCondition(p2, true) >= 100
+                                                                !p2 ||
+                                                                resolveCondition(p2, true) >= 100 ||
+                                                                !canUseConditionPotion
                                                                     ? 'cursor-not-allowed bg-gray-600 opacity-50'
                                                                     : 'bg-green-600 hover:bg-green-700'
                                                             }`}
                                                             title={
                                                                 p2 && resolveCondition(p2, true) >= 100
                                                                     ? '컨디션이 이미 최대입니다'
-                                                                    : '컨디션 회복제 사용 (경기 진행 중에는 불가)'
+                                                                    : !canUseConditionPotion
+                                                                      ? '지금은 컨디션 회복제를 사용할 수 없습니다'
+                                                                      : '컨디션 회복제 사용'
                                                             }
                                                         >
                                                             +
@@ -5277,6 +5351,9 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     const [dungeonStageRewardRequested, setDungeonStageRewardRequested] = useState(false);
     const [mobileRewardClaimBusy, setMobileRewardClaimBusy] = useState(false);
     const [showChampionshipExpectedRewardDetails, setShowChampionshipExpectedRewardDetails] = useState(false);
+    const [showMobileChampionshipResultModal, setShowMobileChampionshipResultModal] = useState(false);
+    const [showMobileChampionshipRewardModal, setShowMobileChampionshipRewardModal] = useState(false);
+    const mobileChampionshipResultDismissedMatchIdRef = useRef<string | null>(null);
     const prevStatusRef = useRef(tournament?.status || 'bracket_ready');
     /** handlers.handleAction 참조가 바뀔 때마다 ENTER effect cleanup이 돌면 SAVE가 무한 반복된다 → ref로 고정 */
     const onActionRef = useRef(onAction);
@@ -5306,32 +5383,47 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     const userInitiatedArenaExitRef = useRef(false);
 
     const isChampionshipDungeonVenueForPotion = tournament?.currentStageAttempt != null;
-    const canUseConditionPotion = useMemo(
-        () =>
-            Boolean(
-                tournament?.rounds &&
-                tournament?.status !== 'round_in_progress' &&
-                tournament?.status !== 'complete' &&
-                tournament?.status !== 'eliminated' &&
-                !(isChampionshipDungeonVenueForPotion && championshipAwaitingKataLoad) &&
-                (isChampionshipDungeonVenueForPotion
-                    ? true
-                    : tournament?.status === 'bracket_ready' &&
-                          !tournament.rounds.some((r: { matches?: Array<{ isUserMatch?: boolean; isFinished?: boolean }> }) =>
-                              r.matches?.some((m: { isUserMatch?: boolean; isFinished?: boolean }) => m.isUserMatch && m.isFinished)
-                          ))
-            ),
-        [tournament?.rounds, tournament?.status, tournament?.currentStageAttempt, championshipAwaitingKataLoad]
-    );
+    const canUseConditionPotion = useMemo(() => {
+        const status = tournament?.status;
+        if (!tournament?.rounds || !status) return false;
+        if (status === 'round_in_progress' || status === 'complete' || status === 'eliminated') {
+            return false;
+        }
+        if (isChampionshipDungeonVenueForPotion) {
+            if (championshipAwaitingKataLoad) return false;
+            return status === 'bracket_ready' || status === 'round_complete';
+        }
+        const hasFinishedUserMatch = tournament.rounds.some((r) =>
+            r.matches?.some((m) => m.isUserMatch && m.isFinished),
+        );
+        return status === 'bracket_ready' && !hasFinishedUserMatch;
+    }, [
+        tournament?.rounds,
+        tournament?.status,
+        tournament?.currentStageAttempt,
+        championshipAwaitingKataLoad,
+        isChampionshipDungeonVenueForPotion,
+    ]);
 
-    const finalizeChampionshipDungeonMatchStart = useCallback(() => {
+    const finalizeChampionshipDungeonMatchStart = useCallback(async () => {
         const type = tournament?.type ?? 'neighborhood';
         if (championshipMatchStartLockRef.current || championshipAwaitingKataLoad) {
             return;
         }
         championshipMatchStartLockRef.current = true;
         setChampionshipAwaitingKataLoad(true);
-        onAction({ type: 'START_TOURNAMENT_MATCH', payload: { type } });
+        try {
+            const res = (await Promise.resolve(
+                onAction({ type: 'START_TOURNAMENT_MATCH', payload: { type } }),
+            )) as { error?: string } | void;
+            if (res?.error) {
+                championshipMatchStartLockRef.current = false;
+                setChampionshipAwaitingKataLoad(false);
+            }
+        } catch {
+            championshipMatchStartLockRef.current = false;
+            setChampionshipAwaitingKataLoad(false);
+        }
     }, [tournament?.type, championshipAwaitingKataLoad, onAction]);
 
     useEffect(() => {
@@ -6441,10 +6533,18 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     useEffect(() => {
         if (!championshipAwaitingKataLoad) return;
         const rg = matchForDisplay?.championshipRealGame;
-        if (rg && tournament?.status === 'round_in_progress') {
+        if (rg?.moves?.length && tournament?.status === 'round_in_progress') {
             championshipMatchStartLockRef.current = false;
             setChampionshipAwaitingKataLoad(false);
+            return;
         }
+
+        const timeoutId = window.setTimeout(() => {
+            championshipMatchStartLockRef.current = false;
+            setChampionshipAwaitingKataLoad(false);
+        }, 45000);
+
+        return () => window.clearTimeout(timeoutId);
     }, [championshipAwaitingKataLoad, matchForDisplay?.championshipRealGame, tournament?.status]);
 
     // 유저의 다음 경기 찾기 (경기 시작 전 상태 확인용)
@@ -6472,6 +6572,15 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             isCurrentUser: true,
         });
     }, [userPlayer, tournament?.type, currentUser.dungeonConditionSnapshot]);
+
+    const showConditionRecoveryButton = useMemo(
+        () =>
+            shouldShowChampionshipConditionRecoveryButton({
+                condition: conditionForPotionModal,
+                tournamentStatus: tournament?.status,
+            }),
+        [conditionForPotionModal, tournament?.status],
+    );
 
     const championshipConditionFallback = useMemo(() => {
         if (!tournament?.type) return undefined;
@@ -6842,7 +6951,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
     const footerButtons = renderFooterButton();
 
-    const renderChampionshipClaimRewardAction = (fb: string): React.ReactNode => {
+    const renderChampionshipClaimRewardAction = (fb: string, onAfterClick?: () => void): React.ReactNode => {
         if (!isDungeonChampionshipVenue) return null;
 
         const ts = displayTournament;
@@ -6863,7 +6972,10 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 <div className="flex flex-col items-center gap-0.5">
                     <button
                         type="button"
-                        onClick={handleCompleteDungeon}
+                        onClick={() => {
+                            handleCompleteDungeon();
+                            onAfterClick?.();
+                        }}
                         disabled={mobileRewardClaimBusy}
                         className={`${championshipFooterPrimaryButton} ${fb}`}
                     >
@@ -6880,7 +6992,10 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     <div className="flex flex-col items-center gap-0.5">
                         <button
                             type="button"
-                            onClick={handleCompleteDungeon}
+                            onClick={() => {
+                                handleCompleteDungeon();
+                                onAfterClick?.();
+                            }}
                             disabled={mobileRewardClaimBusy}
                             className={`${championshipFooterPrimaryButton} ${fb}`}
                         >
@@ -6901,9 +7016,17 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         return null;
     };
 
-    const renderChampionshipStartOrNextMatchAction = (fb: string): React.ReactNode => {
+    const renderChampionshipStartOrNextMatchAction = (
+        fb: string,
+        options?: {
+            intent?: 'start' | 'next' | 'any';
+            allowDuringResultPanel?: boolean;
+            onAfterClick?: () => void;
+        },
+    ): React.ReactNode => {
         if (!isDungeonChampionshipVenue || !tournament) return null;
-        if (showChampionshipMatchResultPanel) return null;
+        const intent = options?.intent ?? 'any';
+        if (!options?.allowDuringResultPanel && showChampionshipMatchResultPanel) return null;
 
         const { status } = tournament;
         if (status === 'round_in_progress' || status === 'complete' || status === 'eliminated') {
@@ -6961,6 +7084,9 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         }
 
         const hasJustFinishedUserMatch = !!lastFinishedUserMatch;
+        if (intent === 'start' && hasJustFinishedUserMatch) return null;
+        if (intent === 'next' && !hasJustFinishedUserMatch) return null;
+
         const buttonLabel = hasJustFinishedUserMatch ? '다음 경기' : '경기 시작';
 
         if (championshipAwaitingKataLoad) {
@@ -6981,6 +7107,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                         return;
                     }
                     finalizeChampionshipDungeonMatchStart();
+                    options?.onAfterClick?.();
                 }}
                 className={`animate-pulse ${championshipFooterPrimaryButton} ${fb}`}
             >
@@ -6990,7 +7117,10 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     };
 
     const renderChampionshipNextMatchFooterSlot = (fb: string) => {
-        const action = renderChampionshipStartOrNextMatchAction(fb);
+        const action = renderChampionshipStartOrNextMatchAction(
+            fb,
+            !isMobile ? { intent: 'start' } : undefined,
+        );
         if (!action) return null;
         return <div className="flex flex-col items-center gap-0.5">{action}</div>;
     };
@@ -7052,6 +7182,95 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         return buildChampionshipDungeonStandings(displayTournament);
     }, [championshipFinished, displayTournament]);
 
+    const championshipResultPanelActionSlot =
+        !isMobile || isDungeonChampionshipVenue
+            ? null
+            : (() => {
+                  const fb = '!text-xs !py-1.5 !px-3 w-full';
+                  const claimAction = renderChampionshipClaimRewardAction(fb);
+                  if (claimAction) return claimAction;
+                  if (showChampionshipMatchResultPanel) {
+                      const nextAction = renderChampionshipStartOrNextMatchAction(fb, {
+                          intent: isMobile ? 'any' : 'next',
+                          allowDuringResultPanel: true,
+                      });
+                      if (nextAction) return nextAction;
+                  } else if (isMobile) {
+                      const startOrNextAction = renderChampionshipStartOrNextMatchAction(fb);
+                      if (startOrNextAction) return startOrNextAction;
+                  }
+                  if (championshipAwaitingKataLoad) {
+                      return (
+                          <div
+                              className={`flex w-full items-center justify-center font-bold text-cyan-300 ${isMobile ? 'text-center text-xs leading-tight' : 'text-sm'}`}
+                          >
+                              경기 준비 중..
+                          </div>
+                      );
+                  }
+                  if (autoNextCountdown !== null) {
+                      return (
+                          <div
+                              className={`flex w-full items-center justify-center font-bold text-yellow-400 ${isMobile ? 'text-center text-xs leading-tight' : 'text-sm'}`}
+                          >
+                              다음 경기 준비중... {autoNextCountdown}
+                          </div>
+                      );
+                  }
+                  return null;
+              })();
+
+    const mobileBoardCenterStartAction =
+        isMobile && isDungeonChampionshipVenue
+            ? renderChampionshipStartOrNextMatchAction(
+                  '!text-sm !py-3 !px-8 min-w-[9.5rem] shadow-lg',
+                  { intent: 'start' },
+              )
+            : null;
+
+    const mobileDungeonFooterStatusMessage = useMemo(() => {
+        if (!isMobile || !isDungeonChampionshipVenue) return null;
+        if (championshipAwaitingKataLoad && !lastFinishedUserMatch) return null;
+        if (championshipAwaitingKataLoad) {
+            return (
+                <p className="mb-1.5 text-center text-[10px] font-bold leading-snug text-cyan-300">경기 준비 중..</p>
+            );
+        }
+        if (autoNextCountdown !== null) {
+            return (
+                <p className="mb-1.5 text-center text-[10px] font-bold leading-snug text-yellow-400">
+                    다음 경기 준비중... {autoNextCountdown}
+                </p>
+            );
+        }
+        return null;
+    }, [
+        isMobile,
+        isDungeonChampionshipVenue,
+        championshipAwaitingKataLoad,
+        autoNextCountdown,
+        lastFinishedUserMatch,
+    ]);
+
+    const dismissMobileChampionshipResultModal = useCallback(() => {
+        if (matchForDisplay?.id) {
+            mobileChampionshipResultDismissedMatchIdRef.current = matchForDisplay.id;
+        }
+        setShowMobileChampionshipResultModal(false);
+    }, [matchForDisplay?.id]);
+
+    useEffect(() => {
+        if (!isMobile || !isDungeonChampionshipVenue) return;
+        if (!showChampionshipMatchResultPanel || !matchForDisplay?.id) {
+            if (!showChampionshipMatchResultPanel) {
+                setShowMobileChampionshipResultModal(false);
+            }
+            return;
+        }
+        if (mobileChampionshipResultDismissedMatchIdRef.current === matchForDisplay.id) return;
+        setShowMobileChampionshipResultModal(true);
+    }, [isMobile, isDungeonChampionshipVenue, showChampionshipMatchResultPanel, matchForDisplay?.id]);
+
     const championshipMatchResultPanelSection =
         showChampionshipMatchResultPanel ? (
             <ChampionshipMatchResultPanel
@@ -7061,27 +7280,35 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 tournamentForResult={displayTournament}
                 finalStandings={championshipFinalStandingsRows}
                 compact={isMobile}
+                resultActionSlot={isMobile && !isDungeonChampionshipVenue ? championshipResultPanelActionSlot : null}
             />
         ) : (
             <div
-                className={`flex min-h-[5rem] items-center justify-center rounded-2xl ${
+                className={`flex min-h-[5rem] flex-col rounded-2xl ${
                     isChampionshipMatchInProgress
                         ? 'border border-blue-400/35 bg-gradient-to-b from-[#2a3d56] via-[#141c2b] to-[#070a10] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]'
                         : 'border border-dashed border-slate-600/35 bg-slate-950/50'
                 } ${isMobile ? 'px-2 py-2' : 'px-3 py-3'}`}
                 aria-hidden={showChampionshipMatchResultPanel}
             >
-                {isChampionshipMatchInProgress ? (
-                    <span
-                        className={`text-center font-bold text-blue-400 ${isMobile ? 'text-xs leading-tight' : 'text-sm sm:text-base'}`}
-                    >
-                        경기 진행 중...
-                    </span>
-                ) : (
-                    <span className={`text-center text-slate-500 ${isMobile ? 'text-[10px]' : 'text-xs'}`}>
-                        경기 종료 후 결과가 표시됩니다
-                    </span>
-                )}
+                <div className="flex min-h-[3.5rem] flex-1 items-center justify-center">
+                    {isChampionshipMatchInProgress ? (
+                        <span
+                            className={`text-center font-bold text-blue-400 ${isMobile ? 'text-xs leading-tight' : 'text-sm sm:text-base'}`}
+                        >
+                            경기 진행 중...
+                        </span>
+                    ) : (
+                        <span className={`text-center text-slate-500 ${isMobile ? 'text-[10px]' : 'text-xs'}`}>
+                            경기 종료 후 결과가 표시됩니다
+                        </span>
+                    )}
+                </div>
+                {isMobile && !isDungeonChampionshipVenue && championshipResultPanelActionSlot ? (
+                    <div className="mt-1.5 w-full shrink-0 border-t border-slate-600/40 pt-1.5">
+                        {championshipResultPanelActionSlot}
+                    </div>
+                ) : null}
             </div>
         );
 
@@ -7126,6 +7353,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         ) : null;
 
     const mobileChampionshipSkipSlot = isMobile ? renderChampionshipSkipOrClaimSlot('!text-xs !py-1.5 !px-3') : null;
+    const mobileChampionshipSkipOnlySlot = isMobile ? renderChampionshipSkipButton('!text-xs !py-1.5 !px-3') : null;
     const mobileChampionshipExitSlot =
         isMobile && championshipDungeonExitVisible ? (
             <Button
@@ -7226,6 +7454,71 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             </div>
         </section>
     );
+
+    /** 모바일 던전: 컴팩트 하단 툴바 (보상·결과는 모달, 경기 시작은 바둑판 중앙) */
+    const renderMobileChampionshipDungeonFooterButtonPanel = () => {
+        const mobileBtn = '!text-[10px] !py-2 !px-1 min-h-[2.25rem] w-full whitespace-nowrap';
+        const skipVisible = Boolean(championshipDungeonSkipUi.visible && tournament);
+        const vipOk = functionVipActive;
+        const skipCanClick = vipOk && championshipDungeonSkipUi.canAttempt;
+
+        return (
+            <section className="w-full shrink-0 rounded-xl border border-cyan-400/30 bg-[#0c1018]/95 px-2 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+                {championshipFinished ? (
+                    <p className="mb-1.5 text-center text-[10px] font-bold leading-snug text-emerald-200">
+                        모든 경기가 종료되었습니다.
+                    </p>
+                ) : null}
+                {mobileDungeonFooterStatusMessage}
+                {championshipPlaybackSpeedSelector}
+                <div className="grid grid-cols-3 gap-1.5">
+                    <button
+                        type="button"
+                        onClick={() => setShowMobileChampionshipRewardModal(true)}
+                        className={`${championshipFooterSecondaryButton} ${mobileBtn}`}
+                    >
+                        보상정보
+                    </button>
+                    <Button
+                        type="button"
+                        bare
+                        onClick={() => {
+                            if (!skipCanClick || !tournament) return;
+                            onAction({ type: 'SKIP_CHAMPIONSHIP_MATCH', payload: { type: tournament.type } });
+                        }}
+                        disabled={!skipVisible || !skipCanClick}
+                        colorScheme="none"
+                        className={`${skipVisible && skipCanClick ? championshipFooterSecondaryButton : championshipFooterMutedButton} ${mobileBtn} ${!vipOk && skipVisible ? 'opacity-80' : ''}`}
+                        title={
+                            !skipVisible
+                                ? undefined
+                                : !vipOk
+                                  ? '기능 VIP 활성화 후 사용할 수 있습니다.'
+                                  : !championshipDungeonSkipUi.canAttempt
+                                    ? '상대 정보를 준비하는 중입니다.'
+                                    : '남은 모든 라운드(유저 경기)를 한 번에 스킵하고 대회를 끝까지 진행합니다.'
+                        }
+                    >
+                        전체스킵
+                    </Button>
+                    <Button
+                        type="button"
+                        bare
+                        onClick={handleChampionshipArenaExitClick}
+                        colorScheme="none"
+                        className={`${championshipFooterExitButton} ${mobileBtn}`}
+                        title={
+                            tournament.status === 'round_in_progress'
+                                ? '로비로 나가도 저장 후 이어서 할 수 있습니다.'
+                                : '경기장을 나갑니다.'
+                        }
+                    >
+                        나가기
+                    </Button>
+                </div>
+            </section>
+        );
+    };
 
     /** 모바일: 모든 탭 공통 하단 — 경기 시작·진행·카운트다운·보상 수령 */
     const championshipMobileStickyBar = isMobile
@@ -7667,12 +7960,28 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                 {displayCondition == null ? '-' : displayCondition}
                             </b>
                         </span>
-                        {isCurrentUser && canUseConditionPotion ? (
+                        {isCurrentUser &&
+                        shouldShowChampionshipConditionRecoveryButton({
+                            condition: resolvedCondition,
+                            tournamentStatus: tournament?.status,
+                        }) ? (
                             <button
                                 type="button"
-                                onClick={() => setShowConditionPotionModal(true)}
-                                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-emerald-300/55 bg-emerald-600/80 text-sm font-black leading-none text-white shadow-md transition-colors hover:bg-emerald-500"
-                                title="컨디션 회복"
+                                onClick={() => {
+                                    if (!canUseConditionPotion) return;
+                                    setShowConditionPotionModal(true);
+                                }}
+                                disabled={!canUseConditionPotion}
+                                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-sm font-black leading-none text-white shadow-md transition-colors ${
+                                    canUseConditionPotion
+                                        ? 'border-emerald-300/55 bg-emerald-600/80 hover:bg-emerald-500'
+                                        : 'cursor-not-allowed border-gray-500/55 bg-gray-600/80 opacity-60'
+                                }`}
+                                title={
+                                    canUseConditionPotion
+                                        ? '컨디션 회복'
+                                        : '지금은 컨디션 회복제를 사용할 수 없습니다'
+                                }
                             >
                                 +
                             </button>
@@ -7715,15 +8024,19 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     const championshipFooterControls = (
         <div className="flex-shrink-0 w-full flex flex-col gap-1">
             <div className="rounded-2xl border border-amber-400/25 bg-gradient-to-b from-[#2a3d56] via-[#141c2b] to-[#070a10] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_18px_52px_-18px_rgba(0,0,0,0.96)] ring-1 ring-inset ring-amber-300/12">
-                <div
-                    className={`grid min-h-[136px] gap-2 overflow-hidden ${
-                        isMobile ? 'grid-cols-[0.95fr_0.85fr_1.2fr]' : 'grid-cols-[1fr_0.9fr_1.25fr]'
-                    }`}
-                >
-                    {finalRewardSection}
-                    {championshipMatchResultPanelSection}
-                    {renderChampionshipFooterButtonPanel()}
-                </div>
+                {isMobile && isDungeonChampionshipVenue ? (
+                    renderMobileChampionshipDungeonFooterButtonPanel()
+                ) : (
+                    <div
+                        className={`grid min-h-[136px] gap-2 overflow-hidden ${
+                            isMobile ? 'grid-cols-[1.15fr_0.85fr]' : 'grid-cols-[1fr_0.9fr_1.25fr]'
+                        }`}
+                    >
+                        {!isMobile && finalRewardSection}
+                        {championshipMatchResultPanelSection}
+                        {renderChampionshipFooterButtonPanel()}
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -7888,12 +8201,28 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                             컨디션{' '}
                             <b className={`text-[12px] tabular-nums ${conditionTone}`}>{condDisplay}</b>
                         </span>
-                        {isCurrentUser && canUseConditionPotion ? (
+                        {isCurrentUser &&
+                        shouldShowChampionshipConditionRecoveryButton({
+                            condition: resolvedConditionMobile,
+                            tournamentStatus: tournament?.status,
+                        }) ? (
                             <button
                                 type="button"
-                                onClick={() => setShowConditionPotionModal(true)}
-                                className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-emerald-300/55 bg-emerald-600/85 text-[10px] font-black leading-none text-white shadow"
-                                title="컨디션 회복"
+                                onClick={() => {
+                                    if (!canUseConditionPotion) return;
+                                    setShowConditionPotionModal(true);
+                                }}
+                                disabled={!canUseConditionPotion}
+                                className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border text-[10px] font-black leading-none text-white shadow ${
+                                    canUseConditionPotion
+                                        ? 'border-emerald-300/55 bg-emerald-600/85'
+                                        : 'cursor-not-allowed border-gray-500/55 bg-gray-600/80 opacity-60'
+                                }`}
+                                title={
+                                    canUseConditionPotion
+                                        ? '컨디션 회복'
+                                        : '지금은 컨디션 회복제를 사용할 수 없습니다'
+                                }
                             >
                                 +
                             </button>
@@ -8036,6 +8365,17 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 dungeonBoardCenterMode={championshipDungeonBoardCenterMode}
                 territoryAnalysis={championshipDungeonTerritoryAnalysis}
             />
+            {mobileBoardCenterStartAction ? (
+                <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+                    <div
+                        className={`pointer-events-auto px-2 ${
+                            championshipDungeonBoardCenterMode === 'deep_breath' ? 'translate-y-10' : ''
+                        }`}
+                    >
+                        {mobileBoardCenterStartAction}
+                    </div>
+                </div>
+            ) : null}
         </div>
     );
 
@@ -8357,14 +8697,13 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     currentCondition={conditionForPotionModal}
                     onClose={() => setShowConditionPotionModal(false)}
                     onConfirm={(potionType) => {
-                        if (tournament?.type) {
-                            const result = onAction({
-                                type: 'USE_CONDITION_POTION',
-                                payload: { tournamentType: tournament.type, potionType },
-                            });
-                            return Promise.resolve(result as { error?: string } | void);
+                        if (!tournament?.type) {
+                            return Promise.resolve({ error: '토너먼트 정보를 찾을 수 없습니다.' });
                         }
-                        return undefined;
+                        return onAction({
+                            type: 'USE_CONDITION_POTION',
+                            payload: { tournamentType: tournament.type, potionType },
+                        }) as Promise<{ error?: string } | void>;
                     }}
                     isTopmost={true}
                 />
@@ -8401,6 +8740,147 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     </div>,
                     document.body
                 )}
+            {showMobileChampionshipRewardModal &&
+                isMobile &&
+                isDungeonChampionshipVenue &&
+                typeof document !== 'undefined' &&
+                createPortal(
+                    <div
+                        className="fixed inset-0 z-[401] flex items-end justify-center bg-black/70 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:items-center sm:p-4"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="championship-mobile-reward-modal-title"
+                        onClick={() => setShowMobileChampionshipRewardModal(false)}
+                    >
+                        <div
+                            className="flex max-h-[min(88dvh,640px)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-violet-400/35 bg-gradient-to-b from-slate-900 via-slate-950 to-black shadow-2xl ring-1 ring-violet-300/15"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex shrink-0 items-center justify-between border-b border-violet-400/25 px-4 py-3">
+                                <h2
+                                    id="championship-mobile-reward-modal-title"
+                                    className="text-base font-black text-violet-100"
+                                >
+                                    보상 정보
+                                </h2>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowMobileChampionshipRewardModal(false)}
+                                    className="rounded-md border border-slate-600 px-2 py-1 text-xs text-slate-200"
+                                >
+                                    닫기
+                                </button>
+                            </div>
+                            <div
+                                className="min-h-0 flex-1 overflow-y-auto p-3"
+                                style={{ WebkitOverflowScrolling: 'touch' }}
+                            >
+                                <FinalRewardPanel
+                                    tournamentState={displayTournament}
+                                    rewardsSourceTournament={tournament ?? null}
+                                    currentUser={currentUser}
+                                    onAction={onAction}
+                                    onCompleteDungeon={handleCompleteDungeon}
+                                    dungeonRewardAlreadyRequested={dungeonStageRewardRequested}
+                                    onDungeonRewardRequested={() => setDungeonStageRewardRequested(true)}
+                                    onOpenRewardHistory={handleOpenRewardHistory}
+                                    layoutVariant="mobileTab"
+                                    suppressBottomActions
+                                    suppressClaimActions
+                                    suppressSideActionButtons
+                                />
+                            </div>
+                        </div>
+                    </div>,
+                    document.body
+                )}
+            {showMobileChampionshipResultModal &&
+                isMobile &&
+                isDungeonChampionshipVenue &&
+                showChampionshipMatchResultPanel &&
+                typeof document !== 'undefined' &&
+                createPortal(
+                    <div
+                        className="fixed inset-0 z-[401] flex items-end justify-center bg-black/70 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:items-center sm:p-4"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="championship-mobile-result-modal-title"
+                        onClick={dismissMobileChampionshipResultModal}
+                    >
+                        <div
+                            className="flex max-h-[min(88dvh,640px)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-amber-400/35 bg-gradient-to-b from-slate-900 via-slate-950 to-black shadow-2xl ring-1 ring-amber-300/15"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex shrink-0 items-center justify-between border-b border-amber-400/25 px-4 py-3">
+                                <h2
+                                    id="championship-mobile-result-modal-title"
+                                    className="text-base font-black text-amber-100"
+                                >
+                                    경기 결과
+                                </h2>
+                                <button
+                                    type="button"
+                                    onClick={dismissMobileChampionshipResultModal}
+                                    className="rounded-md border border-slate-600 px-2 py-1 text-xs text-slate-200"
+                                >
+                                    닫기
+                                </button>
+                            </div>
+                            <div
+                                className="min-h-0 flex-1 overflow-y-auto p-3"
+                                style={{ WebkitOverflowScrolling: 'touch' }}
+                            >
+                                <ChampionshipMatchResultPanel
+                                    match={matchForDisplay}
+                                    currentUser={currentUser}
+                                    tournamentFinished={championshipFinished}
+                                    tournamentForResult={displayTournament}
+                                    finalStandings={championshipFinalStandingsRows}
+                                    compact
+                                />
+                            </div>
+                            <div className="shrink-0 border-t border-amber-400/20 px-3 py-3">
+                                {(() => {
+                                    const modalActionFb = '!text-sm !py-2.5 w-full';
+                                    const modalPrimaryAction =
+                                        renderChampionshipClaimRewardAction(
+                                            modalActionFb,
+                                            dismissMobileChampionshipResultModal,
+                                        ) ??
+                                        renderChampionshipStartOrNextMatchAction(modalActionFb, {
+                                            intent: 'next',
+                                            allowDuringResultPanel: true,
+                                            onAfterClick: dismissMobileChampionshipResultModal,
+                                        });
+                                    if (modalPrimaryAction) {
+                                        return (
+                                            <div className="flex w-full flex-col gap-2">
+                                                {modalPrimaryAction}
+                                                <button
+                                                    type="button"
+                                                    onClick={dismissMobileChampionshipResultModal}
+                                                    className={`w-full ${championshipFooterSecondaryButton} !text-sm !py-2`}
+                                                >
+                                                    닫기
+                                                </button>
+                                            </div>
+                                        );
+                                    }
+                                    return (
+                                        <button
+                                            type="button"
+                                            onClick={dismissMobileChampionshipResultModal}
+                                            className={`w-full ${championshipFooterPrimaryButton} !text-sm !py-2.5`}
+                                        >
+                                            확인
+                                        </button>
+                                    );
+                                })()}
+                            </div>
+                        </div>
+                    </div>,
+                    document.body
+                )}
             {showChampionshipLowConditionStartModal &&
                 typeof document !== 'undefined' &&
                 createPortal(
@@ -8430,12 +8910,16 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                 >
                                     취소
                                 </Button>
-                                {canUseConditionPotion ? (
+                                {showConditionRecoveryButton ? (
                                     <Button
                                         type="button"
                                         colorScheme="none"
-                                        className="border border-emerald-400/50 bg-emerald-800/90 text-emerald-50 hover:brightness-110 !py-2 !px-4"
+                                        className={`border border-emerald-400/50 bg-emerald-800/90 text-emerald-50 hover:brightness-110 !py-2 !px-4 ${
+                                            !canUseConditionPotion ? 'cursor-not-allowed opacity-50' : ''
+                                        }`}
+                                        disabled={!canUseConditionPotion}
                                         onClick={() => {
+                                            if (!canUseConditionPotion) return;
                                             setShowChampionshipLowConditionStartModal(false);
                                             setShowConditionPotionModal(true);
                                         }}

@@ -40,6 +40,66 @@ export function repairTournamentSimulatingPointer(
     return tournament;
 }
 
+/**
+ * `round_in_progress`인데 기보 생성·COMPLETE 처리가 끊긴 스냅샷을 bracket_ready/complete 등으로 복구한다.
+ */
+export function recoverStuckChampionshipRoundInProgress(
+    tournament: TournamentState,
+    userId?: string,
+): { tournament: TournamentState; recovered: boolean } {
+    if (tournament.status !== 'round_in_progress') {
+        return { tournament, recovered: false };
+    }
+
+    const next: TournamentState = { ...tournament };
+    let recovered = false;
+
+    const sim = next.currentSimulatingMatch;
+    if (sim) {
+        const match = next.rounds[sim.roundIndex]?.matches[sim.matchIndex];
+        if (match?.isFinished) {
+            next.currentSimulatingMatch = null;
+            recovered = true;
+        } else if (match && !match.championshipRealGame?.moves?.length) {
+            next.currentSimulatingMatch = null;
+            next.status = 'bracket_ready';
+            next.timeElapsed = 0;
+            next.nextRoundStartTime = null;
+            return { tournament: next, recovered: true };
+        }
+    }
+
+    const userMatches = next.rounds.flatMap((r) => r.matches).filter((m) => m?.isUserMatch);
+    const scopedUserMatches = userId
+        ? userMatches.filter((m) => m.players?.some((p) => p?.id === userId))
+        : userMatches;
+    const matchesForProgress = scopedUserMatches.length > 0 ? scopedUserMatches : userMatches;
+
+    if (matchesForProgress.length > 0 && matchesForProgress.every((m) => m.isFinished)) {
+        next.currentSimulatingMatch = null;
+        next.timeElapsed = 0;
+        next.nextRoundStartTime = null;
+        if (next.status !== 'eliminated') {
+            next.status = 'complete';
+        }
+        return { tournament: next, recovered: true };
+    }
+
+    const hasActiveRealMatch = !!findActiveChampionshipUserMatch(next, userId);
+    if (!hasActiveRealMatch) {
+        const hasUnfinishedUserMatch = matchesForProgress.some((m) => !m.isFinished);
+        if (hasUnfinishedUserMatch) {
+            next.currentSimulatingMatch = null;
+            next.status = 'bracket_ready';
+            next.timeElapsed = 0;
+            next.nextRoundStartTime = null;
+            recovered = true;
+        }
+    }
+
+    return { tournament: next, recovered };
+}
+
 /** 같은 슬롯의 진행 중 매치인지 (실대국 기보 유실 복구 판별용) */
 export function isSameActiveSimulatingMatchSlot(prev: TournamentState, resolved: TournamentState): boolean {
     const a = prev.currentSimulatingMatch;

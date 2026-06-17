@@ -16,6 +16,10 @@ import {
     isPairAiSeat,
     resolvePairUserPlayerEnum,
 } from '../../shared/utils/pairGameTurn.js';
+import {
+    resolvePairChessSetupDraftKey,
+    resolvePairChessSetupPlayerColor,
+} from '../../shared/utils/pairChessSetup.js';
 
 const CHESS_PLACEMENT_MS = CHESS_PIECE_PLACEMENT_TIME_LIMIT_SEC * 1000;
 
@@ -43,6 +47,9 @@ function getChessBudget(game: types.LiveGameSession): number {
 
 function getPlayerColor(game: types.LiveGameSession, userId: string): Player.Black | Player.White | null {
     if (isPairClassicGame(game.settings, game.mode)) {
+        if (game.gameStatus === 'chess_piece_placement') {
+            return resolvePairChessSetupPlayerColor(game, userId);
+        }
         const seatColor = resolvePairUserPlayerEnum(game.settings, userId);
         if (seatColor === Player.Black || seatColor === Player.White) return seatColor;
         return null;
@@ -54,6 +61,9 @@ function getPlayerColor(game: types.LiveGameSession, userId: string): Player.Bla
 
 /** 팀/색별 draft·ready 맵 키 (페어: black1/white1 좌석 id, 1v1: 흑/백 유저 id) */
 function getChessDraftKey(game: types.LiveGameSession, userId: string): string | null {
+    if (isPairClassicGame(game.settings, game.mode)) {
+        return resolvePairChessSetupDraftKey(game, userId);
+    }
     const color = getPlayerColor(game, userId);
     if (color === Player.Black) return game.blackPlayerId ?? null;
     if (color === Player.White) return game.whitePlayerId ?? null;

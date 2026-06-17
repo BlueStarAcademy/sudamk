@@ -461,7 +461,7 @@ const StrategicPairPvpSymbolCard: React.FC<{
                     alt="전략 바둑 대기실"
                     className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-[1.03]"
                     decoding="async"
-                    fetchPriority="high"
+                    fetchpriority="high"
                 />
                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-cyan-950/45 via-black/25 to-transparent" />
                 <span className="pointer-events-none absolute left-2 top-2 rounded-md border border-cyan-300/55 bg-cyan-900/70 px-2 py-0.5 text-xs font-black tracking-wide text-cyan-100">
@@ -488,7 +488,7 @@ const StrategicPairPvpSymbolCard: React.FC<{
                     alt="페어 경기장"
                     className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-[1.03]"
                     decoding="async"
-                    fetchPriority="high"
+                    fetchpriority="high"
                 />
                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-violet-950/45 via-black/25 to-transparent" />
                 <span className="pointer-events-none absolute left-2 top-2 rounded-md border border-violet-300/55 bg-violet-900/70 px-2 py-0.5 text-xs font-black tracking-wide text-violet-100">

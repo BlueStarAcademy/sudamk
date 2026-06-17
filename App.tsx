@@ -270,6 +270,8 @@ const AppContent: React.FC = () => {
 
     const isGameView = currentRoute.view === 'game';
     const hideAppHeader = Boolean(currentUser && currentRoute.view === 'set-nickname');
+    /** 모바일 셸: 로그인 화면에만 약관·사업자 정보 푸터 표시 */
+    const showMobileLoginFooter = !currentUser && currentRoute.view === 'login';
     const showMainBg =
         !currentUser ||
         currentRoute.view === 'profile' ||
@@ -473,7 +475,6 @@ const AppContent: React.FC = () => {
                                     {!isGameView && !hideAppHeader && (
                                         <>
                                             <NativeMobileDock />
-                                            <AppFooter variant="main" />
                                             <div className="w-full flex-shrink-0 border-t border-color/30 bg-primary/95">
                                                 <AdBanner position="bottom" className="py-1" />
                                             </div>
@@ -487,9 +488,11 @@ const AppContent: React.FC = () => {
                         <div className="relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-transparent">
                             <MainBackgroundLayer variant="auth" />
                             <div
-                                className={`relative z-10 flex min-h-0 w-full flex-1 flex-col items-center justify-center overflow-hidden px-3 pt-[max(0.75rem,env(safe-area-inset-top,0px))] pb-[max(6.5rem,calc(env(safe-area-inset-bottom,0px)+5.5rem))] sm:gap-6 sm:px-6 sm:py-6 lg:gap-8 lg:px-10 lg:py-8 ${
-                                    isNativeMobile ? 'gap-2 py-3' : 'gap-4 py-4'
-                                }`}
+                                className={`relative z-10 flex min-h-0 w-full flex-1 flex-col items-center justify-center overflow-hidden px-3 pt-[max(0.75rem,env(safe-area-inset-top,0px))] sm:gap-6 sm:px-6 sm:py-6 lg:gap-8 lg:px-10 lg:py-8 ${
+                                    showMobileLoginFooter
+                                        ? 'pb-[max(6.5rem,calc(env(safe-area-inset-bottom,0px)+5.5rem))]'
+                                        : 'pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]'
+                                } ${isNativeMobile ? 'gap-2 py-3' : 'gap-4 py-4'}`}
                             >
                                 <header
                                     className={`flex w-full shrink-0 flex-col items-center px-2 text-center subpixel-antialiased [text-rendering:optimizeLegibility] sm:max-w-xl sm:gap-1 lg:max-w-3xl lg:gap-2 ${
@@ -532,7 +535,7 @@ const AppContent: React.FC = () => {
                                     <Router />
                                 </main>
                             </div>
-                            <AppFooter variant="auth" />
+                            {showMobileLoginFooter && <AppFooter variant="auth" />}
                         </div>
                     )}
                     <AppModalLayer />

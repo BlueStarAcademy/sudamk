@@ -100,6 +100,10 @@ import {
     pairSeatMatchesViewerUser,
     PAIR_TURN_SEAT_IDS,
 } from './shared/utils/pairGameTurn.js';
+import {
+    resolvePairChessSetupDraftKey,
+    resolvePairChessSetupPlayerColor,
+} from './shared/utils/pairChessSetup.js';
 import { modeIncludesCaptureRule, resolveArenaSessionPolicy } from './shared/utils/liveSessionArenaKind.js';
 import { resolveSinglePlayerAutoScoringCapForClientSession } from './shared/utils/liveSessionSinglePlayerStage.js';
 import { getPairPetDefinition } from './shared/constants/petLobby.js';
@@ -3118,16 +3122,31 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         if (
             usesChessGo &&
             gameStatus === 'chess_piece_placement' &&
-            myPlayerEnum !== Player.None &&
-            !session.chessPiecePlacementReady?.[currentUser.id]
+            myPlayerEnum !== Player.None
         ) {
+            const pairSetupDraftKey = isPairClassicGame(session.settings, mode)
+                ? resolvePairChessSetupDraftKey(session, currentUser.id)
+                : currentUser.id;
+            if (pairSetupDraftKey == null) {
+                return;
+            }
+            if (session.chessPiecePlacementReady?.[pairSetupDraftKey]) {
+                return;
+            }
+            const setupColor =
+                isPairClassicGame(session.settings, mode)
+                    ? resolvePairChessSetupPlayerColor(session, currentUser.id)
+                    : myPlayerEnum;
+            if (setupColor == null || setupColor === Player.None) {
+                return;
+            }
             const boardSize = session.settings.boardSize ?? 13;
             const budget = getChessSetupBudgetFromSettings(
                 boardSize,
                 session.settings.chessPieceTotalScore,
                 Boolean((session as { isRanked?: boolean }).isRanked),
             );
-            const myDraft = session.chessPiecePlacementDraft?.[currentUser.id] ?? [];
+            const myDraft = session.chessPiecePlacementDraft?.[pairSetupDraftKey] ?? [];
             const existing = myDraft.find((p) => p.x === x && p.y === y);
             if (existing) {
                 handlers.handleAction({
@@ -3138,7 +3157,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             }
             if (chessSetupSelectionRef.current) {
                 const nextDraft = [...myDraft, { type: chessSetupSelectionRef.current, x, y }];
-                const validation = validateChessPlacementDraft(nextDraft, myPlayerEnum, boardSize, budget);
+                const validation = validateChessPlacementDraft(nextDraft, setupColor, boardSize, budget);
                 if (!validation.ok) {
                     flashBoardRuleMessage('배치할 수 없는 위치입니다.');
                     return;

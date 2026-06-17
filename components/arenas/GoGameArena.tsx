@@ -12,6 +12,7 @@ import { modeIncludesBaseCaptureMix } from '../../shared/utils/liveSessionArenaK
 import { CHESS_GO_BOARD_SIZE, normalizeChessGoSession, sessionUsesChessGo } from '../../shared/utils/chessGoRules.js';
 import { getChessGoPlacementSlots } from '../../shared/utils/chessGoPlacement.js';
 import ChessPiecePlacementPanel from '../game/ChessPiecePlacementPanel.js';
+import { resolvePairChessSetupDraftKey } from '../../shared/utils/pairChessSetup.js';
 
 interface GoGameArenaProps extends GameProps {
     isMyTurn: boolean;
@@ -139,8 +140,15 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
               )
             : displaySession.boardState;
 
+    const pairChessSetupDraftKey = isPairClassicGame(session.settings, session.mode)
+        ? resolvePairChessSetupDraftKey(session, props.currentUser.id)
+        : props.currentUser.id;
+
     const isChessPlacementPhase =
-        usesChessGo && gameStatus === 'chess_piece_placement' && !props.isSpectator;
+        usesChessGo &&
+        gameStatus === 'chess_piece_placement' &&
+        !props.isSpectator &&
+        pairChessSetupDraftKey != null;
 
     /** 배치 단계: 상대 기물은 보드·기물 목록에서 제외 */
     const chessPlacementBoardState = useMemo(() => {
@@ -165,7 +173,8 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
         }
         const { majorSlots, pawnSlots } = getChessGoPlacementSlots(boardSizeForDisplay, myPlayerEnum);
         const slots = selectedSetupPieceType === 'pawn' ? pawnSlots : majorSlots;
-        const myDraft = session.chessPiecePlacementDraft?.[props.currentUser.id] ?? [];
+        const myDraftKey = pairChessSetupDraftKey ?? props.currentUser.id;
+        const myDraft = session.chessPiecePlacementDraft?.[myDraftKey] ?? [];
         const occupied = new Set(myDraft.map((p) => `${p.x},${p.y}`));
         return slots.filter((s) => !occupied.has(`${s.x},${s.y}`));
     }, [

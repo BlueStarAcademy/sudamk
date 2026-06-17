@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { ItemGrade, type InventoryItem } from '../../../types/index.js';
 import {
     countConditionPotionsInInventory,
+    findConditionPotionInInventory,
     stripInventoryIfFewerConditionPotions,
+    stripInventoryIfMoreConditionPotions,
 } from '../../../shared/utils/conditionPotionInventory.js';
 
 const potion = (name: string, quantity: number): InventoryItem =>
@@ -46,5 +48,21 @@ describe('conditionPotionInventory', () => {
         const kept = stripInventoryIfFewerConditionPotions(patch, prev);
         expect(kept.inventory).toHaveLength(1);
         expect(countConditionPotionsInInventory(kept.inventory)).toBe(3);
+    });
+
+    it('strips inventory when stale patch has more potions than client after use', () => {
+        const prev = [potion('컨디션회복제(소)', 1)];
+        const patch = {
+            inventory: [potion('컨디션회복제(소)', 2)],
+            gold: 900,
+        };
+        const stripped = stripInventoryIfMoreConditionPotions(patch, prev);
+        expect(stripped.inventory).toBeUndefined();
+        expect(stripped.gold).toBeUndefined();
+    });
+
+    it('findConditionPotionInInventory matches names with spaces', () => {
+        const inv = [potion('컨디션 회복제(소)', 1)];
+        expect(findConditionPotionInInventory(inv, 'small')).toBe(0);
     });
 });

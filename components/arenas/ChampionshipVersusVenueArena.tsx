@@ -22,6 +22,7 @@ import {
     CHAMPIONSHIP_VERSUS_OPP_REFRESH_FREE_PER_DAY,
 } from '../../shared/constants/championshipVersusVenue.js';
 import { computeChampionshipVersusDuelTicketStateForVenue } from '../../shared/utils/championshipVersusDuelTickets.js';
+import { shouldShowChampionshipConditionRecoveryButton } from '../../shared/utils/championshipConditionDisplay.js';
 import { resolvePublicUrl } from '../../utils/publicAssetUrl.js';
 import { calculateTotalStats } from '../../services/statService.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
@@ -669,24 +670,35 @@ const VersusRailPlayerCard: React.FC<{
                                 <b className={`text-base tabular-nums ${conditionTone}`}>
                                     {displayCondition == null ? '-' : displayCondition}
                                 </b>
-                                {isCurrentUser && canUseConditionPotion && onOpenConditionPotion ? (
+                                {isCurrentUser &&
+                                onOpenConditionPotion &&
+                                shouldShowChampionshipConditionRecoveryButton({
+                                    condition: rawCondition ?? 1000,
+                                }) ? (
                                     <button
                                         type="button"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             if (typeof displayCondition === 'number' && displayCondition >= 100) return;
+                                            if (!canUseConditionPotion) return;
                                             onOpenConditionPotion();
                                         }}
-                                        disabled={typeof displayCondition === 'number' && displayCondition >= 100}
+                                        disabled={
+                                            (typeof displayCondition === 'number' && displayCondition >= 100) ||
+                                            !canUseConditionPotion
+                                        }
                                         className={`ml-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white transition-colors ${
-                                            typeof displayCondition === 'number' && displayCondition >= 100
+                                            (typeof displayCondition === 'number' && displayCondition >= 100) ||
+                                            !canUseConditionPotion
                                                 ? 'cursor-not-allowed bg-gray-600 opacity-50'
                                                 : 'bg-green-600 hover:bg-green-700'
                                         }`}
                                         title={
                                             typeof displayCondition === 'number' && displayCondition >= 100
                                                 ? '컨디션이 이미 최대입니다'
-                                                : '컨디션 회복제 사용'
+                                                : !canUseConditionPotion
+                                                  ? '지금은 컨디션 회복제를 사용할 수 없습니다'
+                                                  : '컨디션 회복제 사용'
                                         }
                                     >
                                         +
@@ -834,20 +846,35 @@ const VersusMobilePureInfoCard: React.FC<{
                             </span>
                             <span className="inline-flex items-center gap-1 whitespace-nowrap">
                                 컨디션 <b className={`text-[12px] tabular-nums ${conditionTone}`}>{condDisplay}</b>
-                                {isCurrentUser && canUseConditionPotion && onOpenConditionPotion ? (
+                                {isCurrentUser &&
+                                onOpenConditionPotion &&
+                                shouldShowChampionshipConditionRecoveryButton({
+                                    condition: rawCondition ?? 1000,
+                                }) ? (
                                     <button
                                         type="button"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             if (typeof effectiveCondition === 'number' && effectiveCondition >= 100) return;
+                                            if (!canUseConditionPotion) return;
                                             onOpenConditionPotion();
                                         }}
-                                        disabled={typeof effectiveCondition === 'number' && effectiveCondition >= 100}
-                                        className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-emerald-300/55 bg-emerald-600/85 text-[10px] font-black leading-none text-white shadow"
+                                        disabled={
+                                            (typeof effectiveCondition === 'number' && effectiveCondition >= 100) ||
+                                            !canUseConditionPotion
+                                        }
+                                        className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border text-[10px] font-black leading-none text-white shadow ${
+                                            (typeof effectiveCondition === 'number' && effectiveCondition >= 100) ||
+                                            !canUseConditionPotion
+                                                ? 'cursor-not-allowed border-gray-500/55 bg-gray-600/80 opacity-60'
+                                                : 'border-emerald-300/55 bg-emerald-600/85'
+                                        }`}
                                         title={
                                             typeof effectiveCondition === 'number' && effectiveCondition >= 100
                                                 ? '컨디션이 이미 최대입니다'
-                                                : '컨디션 회복'
+                                                : !canUseConditionPotion
+                                                  ? '지금은 컨디션 회복제를 사용할 수 없습니다'
+                                                  : '컨디션 회복'
                                         }
                                     >
                                         +
@@ -2981,13 +3008,12 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                     currentUser={user}
                     currentCondition={myVersusConditionForPotion}
                     onClose={() => setShowConditionPotionModal(false)}
-                    onConfirm={async (potionType) => {
-                        const result = await handlers.handleAction({
+                    onConfirm={(potionType) =>
+                        handlers.handleAction({
                             type: 'USE_CONDITION_POTION',
                             payload: { versusVenue: venue, potionType },
-                        });
-                        return result as { error?: string } | void;
-                    }}
+                        }) as Promise<{ error?: string } | void>
+                    }
                     isTopmost={true}
                 />
             ) : null}
