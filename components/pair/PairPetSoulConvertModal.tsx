@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation, Trans } from 'react-i18next';
 import Button from '../Button.js';
 import DraggableWindow from '../DraggableWindow.js';
 import type { InventoryItem } from '../../types.js';
@@ -35,6 +36,8 @@ const PairPetSoulConvertModal: React.FC<PairPetSoulConvertModalProps> = ({
     onConfirm,
     isTopmost = true,
 }) => {
+    const { t } = useTranslation(['pair', 'common']);
+    const { t: tCommon } = useTranslation('common');
     const displayGrade = effectivePairPetGradeFromRow(item);
     const petMeta = useMemo(() => resolvePairPetMetaFromInventoryRow(item), [item]);
     const preview = useMemo(() => getPairPetSoulConvertPreview(item), [item]);
@@ -56,7 +59,7 @@ const PairPetSoulConvertModal: React.FC<PairPetSoulConvertModalProps> = ({
 
     return (
         <DraggableWindow
-            title="영혼변환"
+            title={t('soulConvert.title')}
             onClose={onClose}
             windowId="pair-pet-soul-convert"
             initialWidth={420}
@@ -75,7 +78,7 @@ const PairPetSoulConvertModal: React.FC<PairPetSoulConvertModalProps> = ({
         >
             <div className="flex flex-col gap-2 px-2.5 pb-2.5 pt-1.5 sm:px-3 sm:pb-3 sm:pt-2">
                 <div className="rounded-md border border-amber-300/40 bg-amber-950/35 px-2.5 py-1.5 text-center text-xs font-bold tracking-tight text-amber-100 sm:rounded-lg sm:px-3 sm:py-2 sm:text-sm">
-                    펫을 떠나 보냅니다
+                    {t('soulConvert.farewell')}
                 </div>
 
                 <div className="rounded-lg border border-amber-300/35 bg-zinc-950/90 px-2.5 py-2 ring-1 ring-white/[0.06] sm:px-3 sm:py-2.5">
@@ -104,17 +107,17 @@ const PairPetSoulConvertModal: React.FC<PairPetSoulConvertModalProps> = ({
 
                 <div className="rounded-lg border border-rose-400/55 bg-gradient-to-br from-rose-950/80 via-red-950/65 to-black/70 px-2.5 py-2 text-[0.65rem] font-medium leading-snug text-rose-50/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:px-3 sm:py-2.5 sm:text-xs sm:leading-relaxed">
                     <p className="text-xs font-bold tracking-tight text-rose-100 sm:text-sm">
-                        주의: 영혼변환은 취소하거나 복구할 수 없습니다.
+                        {t('soulConvert.warningTitle')}
                     </p>
                     <ul className="mt-1.5 list-disc space-y-0.5 pl-3.5 font-semibold text-rose-100/92 sm:mt-2 sm:space-y-1 sm:pl-4">
-                        <li>선택한 펫은 인벤토리에서 영구 삭제됩니다.</li>
-                        <li>레벨, 경험치, 성향, 코어 보너스 정보가 모두 사라집니다.</li>
-                        <li>영혼변환 버튼을 누르면 즉시 변환됩니다.</li>
+<li>{t('soulConvert.warningDelete')}</li>
+                        <li>{t('soulConvert.warningLoseProgress')}</li>
+                        <li>{t('soulConvert.warningImmediate')}</li>
                     </ul>
                 </div>
 
                 <div className="rounded-lg border border-violet-400/25 bg-violet-950/25 px-2.5 py-2 sm:px-3 sm:py-2.5">
-                    <p className="text-center text-xs font-semibold text-violet-200/90 sm:text-sm">변환 시 지급</p>
+                    <p className="text-center text-xs font-semibold text-violet-200/90 sm:text-sm">{t('soulConvert.rewardOnConvert')}</p>
                     <div className="mt-2 flex items-center gap-2.5 sm:gap-3">
                         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-black/40 p-1 ring-1 ring-white/10 sm:h-14 sm:w-14">
                             <img
@@ -128,14 +131,19 @@ const PairPetSoulConvertModal: React.FC<PairPetSoulConvertModalProps> = ({
                             <p className="break-words text-xs font-extrabold text-violet-50 sm:text-sm">{rewardName}</p>
                             {preview.mythicTier ? (
                                 <p className="mt-0.5 text-[0.65rem] leading-snug text-slate-300 sm:text-xs">
-                                    <span className="font-bold text-fuchsia-200">{preview.fixedQty}개</span>를 받습니다. (확정)
+                                    <Trans i18nKey="pair:soulConvert.fixedQty" values={{ qty: preview.fixedQty }} components={{ qty: <span className="font-bold text-fuchsia-200" /> }} />
                                 </p>
                             ) : (
                                 <p className="mt-0.5 text-[0.65rem] leading-snug text-slate-300 sm:text-xs">
-                                    <span className="font-bold text-fuchsia-200">
-                                        {preview.qtyMin}~{preview.qtyMax}개
-                                    </span>
-                                    를 무작위로 받습니다. 실제 개수는 변환 시 정해집니다.
+                                    <Trans
+                                        i18nKey="pair:soulConvert.randomQty"
+                                        values={{ min: preview.qtyMin, max: preview.qtyMax }}
+                                        components={{
+                                            range: (
+                                                <span className="font-bold text-fuchsia-200" />
+                                            ),
+                                        }}
+                                    />
                                 </p>
                             )}
                         </div>
@@ -150,7 +158,7 @@ const PairPetSoulConvertModal: React.FC<PairPetSoulConvertModalProps> = ({
                         disabled={isBusy}
                         onClick={() => void onConfirm()}
                     >
-                        영혼변환
+                        {t('soulConvert.title')}
                     </Button>
                     <Button
                         type="button"
@@ -159,7 +167,7 @@ const PairPetSoulConvertModal: React.FC<PairPetSoulConvertModalProps> = ({
                         disabled={isBusy}
                         onClick={onClose}
                     >
-                        취소
+                        {tCommon('actions.cancel')}
                     </Button>
                 </div>
             </div>

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAppContext } from '../hooks/useAppContext.js';
 import ClassNavigationPanel, { AcademyLobbyHeaderPanel } from './singleplayer/ClassNavigationPanel.js';
@@ -28,17 +29,16 @@ function defaultSinglePlayerLevelFromProgress(progress: number): SinglePlayerLev
     return stages[idx].level;
 }
 
-const SINGLE_PLAYER_LOBBY_TITLE = '바둑학원';
-
 const DesktopSinglePlayerLobbyLayout: React.FC<{
     selectedClass: SinglePlayerLevel;
     onClassSelect: (level: SinglePlayerLevel | null) => void;
     onBackToProfile: () => void;
     currentUserWithStatus: UserWithStatus;
-}> = ({ selectedClass, onClassSelect, onBackToProfile, currentUserWithStatus }) => (
+    lobbyTitle: string;
+}> = ({ selectedClass, onClassSelect, onBackToProfile, currentUserWithStatus, lobbyTitle }) => (
         <div className={`flex min-h-0 flex-1 flex-row overflow-hidden ${PC_LOBBY_THREE_COLUMN_ROW_GAP_CLASS}`}>
             <div className={`flex h-full min-h-0 ${PC_HOME_LEFT_COLUMN_CLASS} flex-col gap-2 overflow-hidden`}>
-                <AcademyLobbyHeaderPanel onBack={onBackToProfile} title={SINGLE_PLAYER_LOBBY_TITLE} />
+                <AcademyLobbyHeaderPanel onBack={onBackToProfile} title={lobbyTitle} />
                 <div className="min-h-0 flex-1 overflow-hidden">
                     <ClassNavigationPanel
                         selectedClass={selectedClass}
@@ -60,6 +60,9 @@ const DesktopSinglePlayerLobbyLayout: React.FC<{
 );
 
 const SinglePlayerLobby: React.FC = () => {
+    const { t } = useTranslation('lobby');
+    const { t: tNav } = useTranslation('nav');
+    const lobbyTitle = tNav('dock.singleplayer');
     const { currentUser, currentUserWithStatus, singlePlayerStagesListRevision } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
     const isHandheldViewport = useIsHandheldDevice(1024);
@@ -78,7 +81,7 @@ const SinglePlayerLobby: React.FC = () => {
 
     const selectedClass = overrideClass ?? defaultClass;
 
-    const onBackToProfile = () => window.location.hash = '#/profile';
+    const onBackToProfile = () => window.location.hash = '#/home';
 
     const [mobileLobbySubTab, setMobileLobbySubTab] = useState<'quests' | 'stages'>('stages');
 
@@ -112,7 +115,7 @@ const SinglePlayerLobby: React.FC = () => {
             )}
             {compactSpLobby ? (
                 <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden px-0.5 pb-0.5">
-                    <AcademyLobbyHeaderPanel onBack={onBackToProfile} title={SINGLE_PLAYER_LOBBY_TITLE} compact />
+                    <AcademyLobbyHeaderPanel onBack={onBackToProfile} title={lobbyTitle} compact />
                     <div className="min-h-0 max-h-[min(30dvh,280px)] shrink-0 overflow-hidden rounded-xl sm:max-h-[min(32dvh,300px)]">
                         <ClassNavigationPanel
                             selectedClass={selectedClass}
@@ -126,17 +129,13 @@ const SinglePlayerLobby: React.FC = () => {
                         <div
                             className="flex shrink-0 gap-0.5 border-b border-white/10 px-1 py-0.5"
                             role="tablist"
-                            aria-label="바둑학원 하단"
+                            aria-label={t('singleplayer.lobbyBottomTabsAria')}
                         >
                             <button
                                 type="button"
                                 role="tab"
                                 aria-selected={mobileLobbySubTab === 'quests'}
-                                aria-label={
-                                    hasTrainingQuestRewardToClaim
-                                        ? '수련과제, 수령 가능한 보상이 있습니다'
-                                        : '수련과제'
-                                }
+                                aria-label={hasTrainingQuestRewardToClaim ? t('singleplayer.trainingQuestRewardAria') : t('singleplayer.trainingQuestTab')}
                                 onClick={() => setMobileLobbySubTab('quests')}
                                 className={`relative min-h-0 min-w-0 flex-1 rounded-md px-1.5 py-1 text-xs font-semibold tracking-tight transition-all sm:rounded-lg sm:px-2 sm:py-1.5 sm:text-[0.8125rem] ${
                                     mobileLobbySubTab === 'quests'
@@ -144,12 +143,12 @@ const SinglePlayerLobby: React.FC = () => {
                                         : 'border border-transparent text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200'
                                 }`}
                             >
-                                수련과제
+                                {t('singleplayer.trainingQuestTab')}
                                 {hasTrainingQuestRewardToClaim && (
                                     <span
                                         className="absolute right-0.5 top-0.5 z-[1] h-1.5 w-1.5 rounded-full border border-slate-950 bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.55)] sm:right-1 sm:top-1 sm:h-2 sm:w-2 sm:border-2"
                                         aria-hidden
-                                        title="수령 가능한 보상"
+                                        title={t('profile.claimableReward')}
                                     />
                                 )}
                             </button>
@@ -164,7 +163,7 @@ const SinglePlayerLobby: React.FC = () => {
                                         : 'border border-transparent text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200'
                                 }`}
                             >
-                                스테이지
+                                {t('singleplayer.stageTab')}
                             </button>
                         </div>
                         <div
@@ -190,6 +189,7 @@ const SinglePlayerLobby: React.FC = () => {
                 onClassSelect={setOverrideClass}
                 onBackToProfile={onBackToProfile}
                 currentUserWithStatus={currentUserWithStatus}
+                lobbyTitle={lobbyTitle}
             />
             )}
         </div>

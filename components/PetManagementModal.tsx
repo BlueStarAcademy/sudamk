@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import DraggableWindow from './DraggableWindow.js';
 import PairPetLobbyPanel from './pair/PairPetLobbyPanel.js';
 import ScreenGuideModal from './ScreenGuideModal.js';
@@ -27,6 +28,7 @@ interface PetManagementModalProps {
 }
 
 const PetManagementModal: React.FC<PetManagementModalProps> = ({ onClose, isTopmost, embedded = false }) => {
+    const { t } = useTranslation('game');
     const { currentUserWithStatus, handlers } = useAppContext();
     const petGuide = useScreenGuide('petManagement');
     const isCompactViewport = useIsHandheldDevice(1024);
@@ -70,7 +72,7 @@ const PetManagementModal: React.FC<PetManagementModalProps> = ({ onClose, isTopm
             <div className={PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS}>{petBody}</div>
         ) : (
         <DraggableWindow
-            title="펫 관리"
+            title={t('petManagement.title')}
             onClose={onClose}
             windowId="pet-management-modal"
             initialWidth={isMobile ? PAIR_PET_MANAGEMENT_MODAL_WIDTH_MOBILE : PAIR_PET_MANAGEMENT_MODAL_WIDTH_DESKTOP}

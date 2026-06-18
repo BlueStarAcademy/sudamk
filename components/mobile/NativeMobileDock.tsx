@@ -1,20 +1,21 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAppContext } from '../../hooks/useAppContext.js';
-import { replaceAppHash } from '../../utils/appUtils.js';
-import { mergeArenaEntranceAvailability, ARENA_ENTRANCE_CLOSED_MESSAGE, type ArenaEntranceKey } from '../../constants/arenaEntrance.js';
-import { USER_PROGRESSION_ARENA_BLOCK_MESSAGE } from '../../shared/utils/contentProgressionGates.js';
+import { replaceAppHash, APP_HOME_HASH, APP_HOME_ARENA_HASH } from '../../utils/appUtils.js';
+import { translateArenaEntranceClosed, translateArenaProgressionBlocked } from '../../shared/i18n/runtimeText.js';
+import { mergeArenaEntranceAvailability, type ArenaEntranceKey } from '../../constants/arenaEntrance.js';
 import { isClientAdmin } from '../../utils/clientAdmin.js';
 type DockTab = 'home' | 'arena' | 'tournament' | 'singleplayer' | 'tower' | 'adventure';
 
-type DockItemDef = { tab: DockTab; label: string; labelLines?: readonly [string, string] };
+type DockItemDef = { tab: DockTab; labelKey: `dock.${DockTab}` };
 
 const DOCK_ITEMS: DockItemDef[] = [
-    { tab: 'home', label: '홈' },
-    { tab: 'singleplayer', label: '바둑학원' },
-    { tab: 'tower', label: '도전의탑' },
-    { tab: 'arena', label: '경기장' },
-    { tab: 'tournament', label: '챔피언십' },
-    { tab: 'adventure', label: '모험' },
+    { tab: 'home', labelKey: 'dock.home' },
+    { tab: 'singleplayer', labelKey: 'dock.singleplayer' },
+    { tab: 'tower', labelKey: 'dock.tower' },
+    { tab: 'arena', labelKey: 'dock.arena' },
+    { tab: 'tournament', labelKey: 'dock.tournament' },
+    { tab: 'adventure', labelKey: 'dock.adventure' },
 ];
 
 /**
@@ -29,6 +30,7 @@ const TAB_ARENA_KEY: Record<Exclude<DockTab, 'home'>, ArenaEntranceKey | null> =
 };
 
 const NativeMobileDock: React.FC = () => {
+    const { t } = useTranslation('nav');
     const { currentRoute, arenaEntranceAvailability, arenaEntranceFromServer, currentUser } = useAppContext();
     const mergedArena = useMemo(
         () => mergeArenaEntranceAvailability(arenaEntranceAvailability),
@@ -51,41 +53,42 @@ const NativeMobileDock: React.FC = () => {
         if (v === 'tower') return 'tower';
         if (v === 'adventure') return 'adventure';
         if (v === 'profile') {
-            const t = currentRoute.params?.tab;
-            if (t === 'arena') return 'arena';
+            const tab = currentRoute.params?.tab;
+            if (tab === 'arena') return 'arena';
             return 'home';
         }
         if (v === 'waiting' || v === 'lobby' || v === 'pvp' || v === 'ai' || v === 'arena') return 'arena';
         return null;
     }, [currentRoute.view, currentRoute.params?.tab]);
 
+    const alertProgressionBlocked = (key: ArenaEntranceKey) => translateArenaProgressionBlocked(key);
+
+    const alertEntranceClosed = (key: ArenaEntranceKey) => translateArenaEntranceClosed(key);
+
     const go = (tab: DockTab) => {
         if (isTabBlocked(tab)) {
             if (tab === 'arena') {
                 if (!serverArena.strategicLobby && !serverArena.playfulLobby) {
-                    window.alert('전략·놀이 경기장 입장이 모두 닫혀 있습니다.');
+                    window.alert(t('alerts.arenaBothClosed'));
                 } else {
-                    window.alert(
-                        USER_PROGRESSION_ARENA_BLOCK_MESSAGE.strategicLobby ??
-                            '통합 레벨 조건을 충족하면 경기장 탭을 이용할 수 있습니다.',
-                    );
+                    window.alert(t('alerts.arenaProgression'));
                 }
                 return;
             }
             if (tab === 'home') return;
             const key = TAB_ARENA_KEY[tab];
             if (key) {
-                if (!serverArena[key]) window.alert(ARENA_ENTRANCE_CLOSED_MESSAGE[key]);
-                else window.alert(USER_PROGRESSION_ARENA_BLOCK_MESSAGE[key] ?? ARENA_ENTRANCE_CLOSED_MESSAGE[key]);
+                if (!serverArena[key]) window.alert(alertEntranceClosed(key));
+                else window.alert(alertProgressionBlocked(key));
             }
             return;
         }
         switch (tab) {
             case 'home':
-                replaceAppHash('#/profile');
+                replaceAppHash(APP_HOME_HASH);
                 break;
             case 'arena':
-                replaceAppHash('#/profile/arena');
+                replaceAppHash(APP_HOME_ARENA_HASH);
                 break;
             case 'tournament':
                 replaceAppHash('#/tournament');
@@ -107,11 +110,12 @@ const NativeMobileDock: React.FC = () => {
     return (
         <nav
             className="relative z-20 flex w-full shrink-0 justify-center border-t border-color/40 bg-primary/98 px-1 py-0 backdrop-blur-sm"
-            aria-label="주요 메뉴"
+            aria-label={t('dock.ariaLabel')}
         >
             <div className="w-full rounded-xl border border-amber-500/25 bg-gradient-to-b from-stone-900/85 via-stone-900/75 to-black/70 px-1 py-0 shadow-[0_-4px_16px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.06)]">
                 <div className="grid w-full grid-cols-6 items-stretch gap-px sm:gap-1">
-                    {DOCK_ITEMS.map(({ tab, label, labelLines }) => {
+                    {DOCK_ITEMS.map(({ tab, labelKey }) => {
+                        const label = t(labelKey);
                         const on = activeTab === tab;
                         const blocked = isTabBlocked(tab);
                         const labelClass =
@@ -121,7 +125,7 @@ const NativeMobileDock: React.FC = () => {
                                 key={tab}
                                 type="button"
                                 onClick={() => go(tab)}
-                                title={blocked ? '입장이 닫혀 있습니다' : label}
+                                title={blocked ? t('dock.entranceClosedTitle') : label}
                                 className={[
                                     'group relative flex h-11 min-h-0 w-full min-w-0 flex-row items-center justify-center overflow-hidden rounded-md border px-px py-0 text-center transition-all duration-200 active:scale-[0.98] sm:h-12 sm:px-0.5',
                                     blocked ? 'opacity-45 cursor-not-allowed' : '',
@@ -131,23 +135,9 @@ const NativeMobileDock: React.FC = () => {
                                 ].join(' ')}
                             >
                                 <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent" />
-                                {labelLines ? (
-                                    <span
-                                        title={label}
-                                        className="relative flex min-w-0 max-w-full flex-col items-center justify-center gap-0 leading-tight"
-                                    >
-                                        <span className={`block max-w-full truncate leading-tight ${labelClass}`}>
-                                            {labelLines[0]}
-                                        </span>
-                                        <span className={`block max-w-full truncate leading-tight ${labelClass}`}>
-                                            {labelLines[1]}
-                                        </span>
-                                    </span>
-                                ) : (
-                                    <span title={label} className={`relative min-w-0 max-w-full truncate leading-none ${labelClass}`}>
-                                        {label}
-                                    </span>
-                                )}
+                                <span title={label} className={`relative min-w-0 max-w-full truncate leading-none ${labelClass}`}>
+                                    {label}
+                                </span>
                             </button>
                         );
                     })}

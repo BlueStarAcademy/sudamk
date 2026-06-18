@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import React, { useState, useEffect } from 'react';
 import { LiveGameSession, User } from '../types.js';
 
@@ -7,6 +8,7 @@ interface DisconnectionModalProps {
 }
 
 const DisconnectionModal: React.FC<DisconnectionModalProps> = ({ session, currentUser }) => {
+    const { t } = useTranslation('game');
     const { disconnectionState, player1, player2, disconnectionCounts, gameStatus } = session;
     const [timeLeft, setTimeLeft] = useState(90);
 
@@ -51,7 +53,7 @@ const DisconnectionModal: React.FC<DisconnectionModalProps> = ({ session, curren
                         id="disconnection-modal-title"
                         className="mb-3 break-words text-lg font-bold leading-tight tracking-tight text-highlight sm:mb-4 sm:text-xl md:text-2xl"
                     >
-                        플레이어 접속 끊김 ({count}/3회)
+                        {t('modals.disconnection.title', { count })}
                     </h2>
                     <div className="my-4 flex items-center justify-center sm:my-6">
                         <div className="relative h-[7.25rem] w-[7.25rem] shrink-0 sm:h-32 sm:w-32">
@@ -84,18 +86,18 @@ const DisconnectionModal: React.FC<DisconnectionModalProps> = ({ session, curren
                             <div className="absolute inset-0 flex items-center justify-center">
                                 <div className="text-center">
                                     <p className="text-2xl font-mono font-bold text-primary sm:text-3xl">{timeLeft}</p>
-                                    <p className="mt-1 text-xs text-tertiary">초</p>
+                                    <p className="mt-1 text-xs text-tertiary">{t('modals.disconnection.seconds')}</p>
                                 </div>
                             </div>
                         </div>
                     </div>
                     <p className="mb-2 break-words text-base text-primary sm:text-lg">
-                        <span className="font-bold">{disconnectedPlayer.nickname}</span> 님의 연결이 끊겼습니다.
+                        {t('modals.disconnection.playerDisconnected', { name: disconnectedPlayer.nickname })}
                     </p>
-                    <p className="text-sm text-secondary sm:text-base">재접속을 기다리는 중입니다...</p>
+                    <p className="text-sm text-secondary sm:text-base">{t('modals.disconnection.waitingReconnect')}</p>
                     {isDisconnectedMe && (
                         <p className="mt-4 break-words rounded-md bg-red-900/50 p-2 text-xs text-red-400 sm:text-sm">
-                            페이지를 새로고침하여 재접속하세요.
+                            {t('modals.disconnection.refreshHint')}
                         </p>
                     )}
                 </div>

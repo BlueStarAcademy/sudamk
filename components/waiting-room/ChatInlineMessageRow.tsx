@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import type { ChatMessage, InventoryItem, UserWithStatus } from '../../types.js';
 
 const ITEM_GRADE_COLOR_MAP: Record<string, string> = {
@@ -29,12 +30,13 @@ function renderMessageText(
     allUsers: UserWithStatus[],
     currentUserId: string | undefined,
     onOpenViewingItem: (item: InventoryItem, isOwn: boolean) => void,
+    t: (key: string, options?: Record<string, unknown>) => string,
 ): React.ReactNode {
     if (msg.actionInfo) {
         return (
             <>
                 <span className="text-yellow-400">{msg.actionInfo.message}</span>
-                <span className="text-gray-400"> (매너 </span>
+                <span className="text-gray-400"> ({t('chatInline.mannerPrefix')}</span>
                 <span className={msg.actionInfo.scoreChange > 0 ? 'text-blue-400 font-bold' : 'text-red-400 font-bold'}>
                     {msg.actionInfo.scoreChange > 0 ? `+${msg.actionInfo.scoreChange}` : msg.actionInfo.scoreChange}
                 </span>
@@ -48,13 +50,14 @@ function renderMessageText(
     const textStr = msg.text;
     const parts: (string | React.ReactElement)[] = [];
     let currentIndex = 0;
+    const honorific = t('chatInline.honorific');
 
-    const userLinkIndex = msg.userLink ? textStr.indexOf(`${msg.userLink.userName}님`) : -1;
+    const userLinkIndex = msg.userLink ? textStr.indexOf(`${msg.userLink.userName}${honorific}`) : -1;
     const itemLinkIndex = msg.itemLink ? textStr.indexOf(msg.itemLink.itemName) : -1;
 
     const linkIndices: Array<{ type: 'user' | 'item'; index: number; length: number }> = [];
     if (userLinkIndex >= 0 && msg.userLink) {
-        linkIndices.push({ type: 'user', index: userLinkIndex, length: `${msg.userLink.userName}님`.length });
+        linkIndices.push({ type: 'user', index: userLinkIndex, length: `${msg.userLink.userName}${honorific}`.length });
     }
     if (itemLinkIndex >= 0 && msg.itemLink) {
         linkIndices.push({ type: 'item', index: itemLinkIndex, length: msg.itemLink.itemName.length });
@@ -87,12 +90,12 @@ function renderMessageText(
                             onUserClick(msg.userLink!.userId);
                         }
                     }}
-                    title={`${msg.userLink.userName} 프로필 보기`}
+                    title={t('chatInline.viewProfile', { name: msg.userLink.userName })}
                 >
                     {msg.userLink.userName}
                 </span>,
             );
-            parts.push('님');
+            parts.push(honorific);
         } else if (link.type === 'item' && msg.itemLink) {
             const itemGrade = msg.itemLink.itemGrade || 'normal';
             const gradeColor = ITEM_GRADE_COLOR_MAP[itemGrade] || 'text-gray-300';
@@ -110,7 +113,7 @@ function renderMessageText(
                             }
                         }
                     }}
-                    title={`${msg.itemLink.itemName} 클릭하여 상세 정보 보기`}
+                    title={t('chatInline.itemDetail', { name: msg.itemLink.itemName })}
                 >
                     {msg.itemLink.itemName}
                 </span>,
@@ -142,7 +145,9 @@ const ChatInlineMessageRow: React.FC<ChatInlineMessageRowProps> = ({
     onOpenViewingItem,
     suffix,
 }) => {
-    const isBotMessage = msg.system && !msg.actionInfo && msg.user.nickname === 'AI 보안관봇';
+    const { t } = useTranslation('lobby');
+    const securityBotName = t('chatInline.securityBot');
+    const isBotMessage = msg.system && !msg.actionInfo && msg.user.id === 'ai-security-guard';
 
     return (
         <div className={`group ${rowClassName}`}>
@@ -150,12 +155,12 @@ const ChatInlineMessageRow: React.FC<ChatInlineMessageRowProps> = ({
             <span
                 className={`pr-2 font-semibold ${msg.system ? 'text-highlight' : 'cursor-pointer text-tertiary hover:underline'}`}
                 onClick={() => !msg.system && onUserClick(msg.user.id)}
-                title={!msg.system ? `${msg.user.nickname} 프로필 보기 / 제재` : ''}
+                title={!msg.system ? t('chatInline.viewProfileSanction', { name: msg.user.nickname }) : ''}
             >
-                {msg.system ? (isBotMessage ? 'AI 보안관봇' : '시스템') : msg.user.nickname}:
+                {msg.system ? (isBotMessage ? securityBotName : t('chatInline.system')) : msg.user.nickname}:
             </span>
             {msg.text &&
-                renderMessageText(msg, isBotMessage, onUserClick, onViewUser, allUsers, currentUserId, onOpenViewingItem)}
+                renderMessageText(msg, isBotMessage, onUserClick, onViewUser, allUsers, currentUserId, onOpenViewingItem, t)}
             {msg.emoji && <span className="text-xl">{msg.emoji}</span>}
             {suffix}
         </div>

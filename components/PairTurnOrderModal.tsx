@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LiveGameSession, ServerAction, User } from '../types.js';
 import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
@@ -49,17 +50,11 @@ interface PairTurnOrderModalProps {
     onAction: (action: ServerAction) => void;
 }
 
-const seatLabel: Record<string, string> = {
-    black1: '흑 1',
-    white1: '백 1',
-    black2: '흑 2',
-    white2: '백 2',
-};
-
 const ROULETTE_DURATION_MS = 2400;
 const ROULETTE_TICK_MS = 90;
 
 const PairTurnOrderModal: React.FC<PairTurnOrderModalProps> = ({ session, currentUser, onAction }) => {
+    const { t } = useTranslation('game');
     const isHandheld = useIsHandheldDevice(1025);
     const pairGame = session.settings.pairGame;
     const seats = pairGame?.turnOrder ?? [];
@@ -94,7 +89,7 @@ const PairTurnOrderModal: React.FC<PairTurnOrderModalProps> = ({ session, curren
 
     return (
         <DraggableWindow
-            title="페어 순서 결정"
+            title={t('pairTurnOrder.title')}
             initialWidth={520}
             shrinkHeightToContent
             windowId="pair-turn-order"
@@ -115,10 +110,10 @@ const PairTurnOrderModal: React.FC<PairTurnOrderModalProps> = ({ session, curren
                         Pair Go
                     </p>
                     <h3 className={`mt-0.5 font-black text-fuchsia-50 ${isHandheld ? 'text-base leading-snug' : 'mt-1 text-xl'}`}>
-                        {rouletteDone ? '착수 순서가 결정되었습니다' : '착수 순서를 결정하는 중입니다'}
+                        {rouletteDone ? t('pairTurnOrder.decidedShort') : t('pairTurnOrder.decidingShort')}
                     </h3>
                     <p className={`leading-relaxed text-slate-300 ${isHandheld ? 'mt-1 text-[11px]' : 'mt-2 text-sm'}`}>
-                        대국은 <span className="font-bold text-amber-200">흑1 → 백1 → 흑2 → 백2</span> 순서로 진행됩니다.
+                        {t('pairTurnOrder.orderHintRich')}
                     </p>
                 </div>
 
@@ -172,7 +167,7 @@ const PairTurnOrderModal: React.FC<PairTurnOrderModalProps> = ({ session, curren
                                         highlighted ? 'text-amber-100/90' : isBlack ? 'text-fuchsia-200/80' : 'text-fuchsia-800/80'
                                     }`}
                                 >
-                                    {seat.kind === 'user' ? '대국자' : seat.kind === 'pet' ? '펫 AI' : 'AI'}
+                                    {seat.kind === 'user' ? t('pairTurnOrder.player') : seat.kind === 'pet' ? t('pairTurnOrder.petAi') : t('pairTurnOrder.ai')}
                                 </div>
                             </div>
                         );
@@ -191,10 +186,10 @@ const PairTurnOrderModal: React.FC<PairTurnOrderModalProps> = ({ session, curren
                             isHandheld ? '!px-6 !py-2 !text-[12px]' : '!px-8 !py-2.5'
                         }`}
                     >
-                        {hasConfirmed ? '확인 완료' : rouletteDone ? '경기 시작 확인' : '순서 결정 중'}
+                        {hasConfirmed ? t('pairTurnOrder.confirmDone') : rouletteDone ? t('pairTurnOrder.confirmStart') : t('pairTurnOrder.confirming')}
                     </Button>
                 ) : (
-                    <p className={`text-slate-400 ${isHandheld ? 'text-[11px]' : 'text-sm'}`}>대국자 확인을 기다리는 중입니다.</p>
+                    <p className={`text-slate-400 ${isHandheld ? 'text-[11px]' : 'text-sm'}`}>{t('pairTurnOrder.waitingPlayers')}</p>
                 )}
                 <p className={`text-slate-500 ${isHandheld ? 'text-[10px]' : 'text-xs'}`}>
                     {Object.values(confirmations).filter(Boolean).length} / {Object.keys(confirmations).length} 확인

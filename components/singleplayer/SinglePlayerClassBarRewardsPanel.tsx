@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { SinglePlayerLevel, UserWithStatus } from '../../types.js';
 import { getSinglePlayerStages, SINGLE_PLAYER_CLASS_BAR_REWARDS } from '../../constants/singlePlayerConstants.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
@@ -31,6 +32,14 @@ export interface SinglePlayerClassBarRewardsPanelProps {
     density: SinglePlayerClassBarRewardsDensity;
 }
 
+const CLASS_STAGE_KEYS: Record<SinglePlayerLevel, 'intro' | 'beginner' | 'intermediate' | 'advanced' | 'master'> = {
+    [SinglePlayerLevel.입문]: 'intro',
+    [SinglePlayerLevel.초급]: 'beginner',
+    [SinglePlayerLevel.중급]: 'intermediate',
+    [SinglePlayerLevel.고급]: 'advanced',
+    [SinglePlayerLevel.유단자]: 'master',
+};
+
 /**
  * 반(단계)별 스테이지 클리어 진행 막대 + 10·20 클리어 보상(수령).
  * `ClassNavigationPanel` 단계 이미지 하단에서 공통 사용.
@@ -40,6 +49,7 @@ const SinglePlayerClassBarRewardsPanel: React.FC<SinglePlayerClassBarRewardsPane
     currentUser,
     density,
 }) => {
+    const { t } = useTranslation(['lobby', 'profile']);
     const { handlers, singlePlayerStagesListRevision } = useAppContext();
     const isCompact = density === 'compact';
 
@@ -97,16 +107,7 @@ const SinglePlayerClassBarRewardsPanel: React.FC<SinglePlayerClassBarRewardsPane
         });
     };
 
-    const classLabel =
-        selectedClass === SinglePlayerLevel.입문
-            ? '입문반'
-            : selectedClass === SinglePlayerLevel.초급
-              ? '초급반'
-              : selectedClass === SinglePlayerLevel.중급
-                ? '중급반'
-                : selectedClass === SinglePlayerLevel.고급
-                  ? '고급반'
-                  : '유단자';
+    const classLabel = t(`profile:stageLabels.${CLASS_STAGE_KEYS[selectedClass]}`);
 
     const shellClass = isCompact
         ? 'flex w-full min-w-0 flex-col gap-0.5 rounded-md border border-emerald-500/30 bg-gradient-to-r from-emerald-950/40 via-zinc-900/50 to-amber-950/30 px-1.5 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:rounded-lg sm:px-2 sm:py-1.5'
@@ -128,7 +129,7 @@ const SinglePlayerClassBarRewardsPanel: React.FC<SinglePlayerClassBarRewardsPane
     return (
         <div className={shellClass}>
             <div className={titleRowClass}>
-                <span className="min-w-0 truncate text-emerald-100/90">{classLabel} 스테이지 클리어</span>
+                <span className="min-w-0 truncate text-emerald-100/90">{t('singleplayer.classStageClear', { classLabel })}</span>
                 <span className="flex-shrink-0 tabular-nums text-amber-100/95">
                     {classStageProgress.cleared} / {classStageProgress.total}
                 </span>
@@ -203,11 +204,17 @@ const SinglePlayerClassBarRewardsPanel: React.FC<SinglePlayerClassBarRewardsPane
                                     className={`${rewardBtnClass} ${
                                         canClaim ? 'ring-1 ring-amber-400/40 shadow-[0_0_16px_-6px_rgba(251,191,36,0.55)]' : ''
                                     }`}
-                                    title={isClaimed ? '수령 완료' : progressMet ? '보상 수령' : `${milestone} 스테이지 클리어 필요`}
+                                    title={
+                                        isClaimed
+                                            ? t('singleplayer.classBarRewardClaimed')
+                                            : progressMet
+                                              ? t('singleplayer.classBarRewardClaim')
+                                              : t('singleplayer.classBarRewardNeedClear', { milestone })
+                                    }
                                 >
                                     <div
                                         className={`relative h-full w-full rounded-sm ${!progressMet && !isClaimed ? 'opacity-45 grayscale' : ''}`}
-                                        aria-label={`${milestone}점 보상`}
+                                        aria-label={t('singleplayer.classBarRewardAria', { milestone })}
                                     >
                                         {apBadge ? (
                                             <span

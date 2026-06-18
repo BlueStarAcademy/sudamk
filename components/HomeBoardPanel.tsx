@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { HomeBoardPost } from '../types/entities.js';
 import DraggableWindow, { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from './DraggableWindow.js';
 import MobileModalTitleBar from './mobile/MobileModalTitleBar.js';
@@ -23,8 +24,8 @@ interface HomeBoardPanelProps {
     onClose?: () => void;
 }
 
-const PATCH_PREFIX = '[패치]';
-const UPDATE_PREFIX = '[업데이트]';
+const PATCH_PREFIX = t('patchPrefix', { ns: 'common' });
+const UPDATE_PREFIX = t('updatePrefix', { ns: 'common' });
 
 const getPostCategory = (post: HomeBoardPost): BoardCategory => {
     const title = (post.title || '').trim();
@@ -78,7 +79,7 @@ const HomeBoardDraftEditor: React.FC<HomeBoardDraftEditorProps> = ({
         <div className={shell}>
             <div className={`mb-2 flex items-center justify-between gap-2 ${inline ? 'flex-wrap' : ''}`}>
                 <h4 className={`font-bold ${inline ? 'text-sm text-amber-100 sm:text-base' : 'text-sm'}`}>
-                    {editingPost ? '게시글 수정' : '새 게시글 작성'}
+                    {editingPost ? t('homeBoard.editPost') : t('homeBoard.newPost')}
                 </h4>
                 <button
                     type="button"
@@ -94,20 +95,20 @@ const HomeBoardDraftEditor: React.FC<HomeBoardDraftEditorProps> = ({
                     onChange={(e) => setDraftCategory(e.target.value as BoardCategory)}
                     className={`rounded border border-slate-600 bg-slate-800 text-slate-100 ${inline ? 'px-2 py-2 text-sm' : 'px-2 py-1 text-xs'}`}
                 >
-                    <option value="notice">공지사항</option>
-                    <option value="patch">패치/업데이트</option>
+                    <option value="notice">{t('notice', { ns: 'common' })}</option>
+                    <option value="patch">{t('patchUpdate', { ns: 'common' })}</option>
                 </select>
                 <input
                     type="text"
                     value={draftTitle}
                     onChange={(e) => setDraftTitle(e.target.value)}
-                    placeholder="제목"
+                    placeholder={t('title', { ns: 'common' })}
                     className={`rounded border border-slate-600 bg-slate-800 text-slate-100 ${inline ? 'px-3 py-2.5 text-base sm:text-sm' : 'px-2 py-1.5 text-sm'}`}
                 />
                 <textarea
                     value={draftContent}
                     onChange={(e) => setDraftContent(e.target.value)}
-                    placeholder="내용"
+                    placeholder={t('content', { ns: 'common' })}
                     className={`resize-y rounded border border-slate-600 bg-slate-800 text-slate-100 ${inline ? 'min-h-[11rem] px-3 py-2.5 text-base leading-relaxed sm:min-h-[9rem] sm:text-sm' : 'h-28 px-2 py-1.5 text-sm'}`}
                 />
                 <label className={`flex items-center gap-2 text-slate-200 ${inline ? 'text-sm' : 'text-xs'}`}>
@@ -137,6 +138,9 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
     embedded = false,
     onClose,
 }) => {
+    const { t } = useTranslation('profile');
+    const { t: tCommon } = useTranslation('common');
+    const { t } = useTranslation('profile');
     const { isNativeMobile, isNarrowViewport } = useNativeMobileShell();
     const isMobileBoard = useMobileModalChrome();
     const useCompactList = fitViewport && !modalMode && !embedded;
@@ -227,7 +231,7 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
         const title = draftTitle.trim();
         const content = draftContent.trim();
         if (!title || !content) {
-            window.alert('제목과 내용을 입력해주세요.');
+            window.alert(t('homeBoard.enterTitleContent'));
             return;
         }
         const storedTitle = toStoredTitle(title, draftCategory);
@@ -256,7 +260,7 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
 
     const handleDelete = (postId: string) => {
         if (!onAction) return;
-        if (!window.confirm('이 게시글을 삭제하시겠습니까?')) return;
+        if (!window.confirm(t('homeBoard.deleteConfirm'))) return;
         void onAction({ type: 'ADMIN_DELETE_HOME_BOARD_POST', payload: { postId } });
         if (selectedPost?.id === postId) setSelectedPost(null);
     };
@@ -317,7 +321,7 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
                                 <span className="min-w-0 flex-1 truncate text-xs font-semibold leading-tight text-primary sm:text-sm">
                                     <span className="inline-flex items-center gap-1">
                                         <span className="truncate">{stripCategoryPrefix(post.title)}</span>
-                                        {unreadSet.has(post.id) ? <span className="h-1.5 w-1.5 rounded-full bg-red-500" aria-label="새 글" /> : null}
+                                        {unreadSet.has(post.id) ? <span className="h-1.5 w-1.5 rounded-full bg-red-500" aria-label={t('homeBoard.newPostBadge')} /> : null}
                                     </span>
                                 </span>
                                 <span className="flex-shrink-0 pl-0.5 text-[11px] tabular-nums leading-none text-tertiary sm:text-xs">
@@ -397,7 +401,7 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
                                 <span className={rowTitleClass}>
                                     <span className="inline-flex items-center gap-1.5">
                                         <span className="truncate">{stripCategoryPrefix(post.title)}</span>
-                                        {unreadSet.has(post.id) ? <span className="h-2 w-2 rounded-full bg-red-500" aria-label="새 글" /> : null}
+                                        {unreadSet.has(post.id) ? <span className="h-2 w-2 rounded-full bg-red-500" aria-label={t('homeBoard.newPostBadge')} /> : null}
                                     </span>
                                 </span>
                                 <span className={rowDateDesktopClass}>
@@ -427,7 +431,7 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
                 {!embedded && (
                 modalMode && isMobileBoard ? (
                     <MobileModalTitleBar
-                        title="공지 게시판"
+                        title={t('homeBoard.noticeBoard')}
                         titleId="announcements-board-shell-title"
                         onClose={onClose}
                         topRoundedClass="rounded-t-xl"
@@ -448,7 +452,7 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
                                   : 'text-base font-bold leading-tight text-primary sm:text-lg'
                         }
                     >
-                        {modalMode ? '공지 게시판' : '홈 게시판'}
+                        {modalMode ? t('homeBoard.noticeBoard') : t('homeBoard.homeBoardTitle')}
                     </h3>
                     <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-1 sm:gap-2">
                         {modalMode && onClose && (
@@ -456,7 +460,7 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
                                 type="button"
                                 className={SUDAMR_MODAL_CLOSE_BUTTON_CLASS}
                                 onClick={onClose}
-                                aria-label="공지 게시판 닫기"
+                                aria-label={t('homeBoard.closeNotice')}
                             >
                                 닫기
                             </button>
@@ -531,7 +535,7 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
                                 )}
                             </div>
                             <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-1 sm:p-1.5">
-                                {renderPostList(noticePosts, '공지사항이 없습니다.')}
+                                {renderPostList(noticePosts, t('homeBoard.noNotices'))}
                             </div>
                         </div>
                         <div
@@ -572,7 +576,7 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
                                 )}
                             </div>
                             <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-1 sm:p-1.5">
-                                {renderPostList(patchPosts, '패치/업데이트 내역이 없습니다.')}
+                                {renderPostList(patchPosts, t('homeBoard.noPatches'))}
                             </div>
                         </div>
                     </div>
@@ -695,7 +699,7 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
                                 <span className="text-xs text-slate-400 sm:text-sm">
                                     {formatDateTime(selectedPost.createdAt)}
                                     {selectedPost.updatedAt !== selectedPost.createdAt && (
-                                        <span className="ml-2">(수정됨: {formatDateTime(selectedPost.updatedAt)})</span>
+                                        <span className="ml-2">{t('homeBoard.editedAt', { date: formatDateTime(selectedPost.updatedAt) })}</span>
                                     )}
                                 </span>
                             </div>
@@ -731,7 +735,7 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
             )}
             {editorOpen && isAdmin && onAction && !modalMode && (
                 <DraggableWindow
-                    title={editingPost ? '게시글 수정' : '새 게시글 작성'}
+                    title={editingPost ? t('homeBoard.editPost') : t('homeBoard.newPost')}
                     onClose={closeEditor}
                     windowId="home-board-editor"
                     initialWidth={560}

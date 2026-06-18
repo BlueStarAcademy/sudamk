@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import DraggableWindow from '../DraggableWindow.js';
 import BlacksmithLevelEffectsSummary from './BlacksmithLevelEffectsSummary.js';
 import { User } from '../../types.js';
@@ -15,6 +16,7 @@ interface BlacksmithEffectsModalProps {
 }
 
 const BlacksmithEffectsModal: React.FC<BlacksmithEffectsModalProps> = ({ onClose, isTopmost, blacksmithLevel, currentUser, embedded = false }) => {
+    const { t } = useTranslation('blacksmith');
     const { isNativeMobile } = useNativeMobileShell();
     const [viewportCompact, setViewportCompact] = useState(
         () => typeof window !== 'undefined' && window.innerWidth < 1025
@@ -54,7 +56,7 @@ const BlacksmithEffectsModal: React.FC<BlacksmithEffectsModalProps> = ({ onClose
 
     return (
         <DraggableWindow
-            title="대장간 효과"
+            title={t('effectsTitle')}
             onClose={onClose}
             windowId="blacksmith-effects"
             initialWidth={compactLayout ? 380 : 420}

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { flushSync } from 'react-dom';
 import DraggableWindow, {
     ITEM_OBTAIN_MODAL_CONFIRM_BUTTON_CLASS,
@@ -31,6 +32,7 @@ export interface PairPetObtainedModalProps {
 }
 
 const PairPetObtainedModal: React.FC<PairPetObtainedModalProps> = ({ currentUser, item, mode, onClose, isTopmost }) => {
+    const { t } = useTranslation('game');
     const { currentUserWithStatus, handlers } = useAppContext();
     const [isBusy, setIsBusy] = useState(false);
     const [soulConvertTarget, setSoulConvertTarget] = useState<InventoryItem | null>(null);
@@ -49,7 +51,7 @@ const PairPetObtainedModal: React.FC<PairPetObtainedModalProps> = ({ currentUser
     const isEquippedRowDetail = equippedRow?.id === item.id;
 
     const title =
-        mode === 'obtain' ? '펫 획득' : isEquippedRowDetail ? '대표 펫 정보' : '펫 상세 정보';
+        mode === 'obtain' ? t('pairPet.obtained') : isEquippedRowDetail ? t('pairPet.equippedDetail') : t('pairPet.detail');
 
     const petInTraining = useMemo(() => {
         const slots = normalizePairPetTrainingSlots(userForView.pairPetTrainingSlots);

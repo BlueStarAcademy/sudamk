@@ -81,6 +81,12 @@ export function parseHash(hash: string): AppRoute {
             return { view: 'register', params: {} };
         case 'set-nickname':
             return { view: 'set-nickname', params: {} };
+        case 'home': {
+            const sub = rest[0];
+            if (sub === 'ranking') return { view: 'profile', params: { tab: 'ranking' as const } };
+            if (sub === 'arena') return { view: 'profile', params: { tab: 'arena' as const } };
+            return { view: 'profile', params: { tab: 'home' as const } };
+        }
         case 'profile': {
             const sub = rest[0];
             if (sub === 'ranking') return { view: 'profile', params: { tab: 'ranking' as const } };

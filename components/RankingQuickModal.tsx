@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import DraggableWindow from './DraggableWindow.js';
 import GameRankingBoard from './GameRankingBoard.js';
 import RankingList from './waiting-room/RankingList.js';
@@ -27,18 +28,19 @@ interface RankingQuickModalProps {
 }
 
 const MOBILE_RANKING_TABS: { id: RankingMobileTab; label: string }[] = [
-    { id: 'combat', label: '바둑능력' },
-    { id: 'manner', label: '매너' },
-    { id: 'adventure', label: '모험' },
-    { id: 'strategic', label: '전략바둑' },
-    { id: 'pair', label: '페어바둑' },
-    { id: 'championship', label: '챔피언십' },
+    { id: 'combat', label: t('rankingQuick.ability') },
+    { id: 'manner', label: t('rankingQuick.manner') },
+    { id: 'adventure', label: t('rankingQuick.adventure') },
+    { id: 'strategic', label: t('rankingQuick.strategic') },
+    { id: 'pair', label: t('rankingQuick.pair') },
+    { id: 'championship', label: t('rankingQuick.championship') },
 ];
 
 const PC_MAIN_TAB_BTN =
     'rounded-xl border px-4 py-2 text-sm font-bold tracking-tight transition-all duration-200 sm:px-5 sm:py-2.5 sm:text-base';
 
 const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmost, embedded = false }) => {
+    const { t } = useTranslation('tournament');
     const isCompactViewport = useIsHandheldDevice(1024);
     const { isNativeMobile } = useNativeMobileShell();
     const { currentUserWithStatus, handlers } = useAppContext();
@@ -79,7 +81,7 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
             />
         ) : (
             <div className="flex h-full items-center justify-center px-4 text-center text-sm text-zinc-400">
-                로그인 후 {lobbyType === 'pair' ? '페어바둑' : '전략바둑'} 랭킹을 확인할 수 있습니다.
+                {t('rankingQuick.loginHint', { lobby: lobbyType === 'pair' ? t('rankingQuick.pairLobby') : t('rankingQuick.strategicLobby') })}
             </div>
         );
 
@@ -155,7 +157,7 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                             <div
                                 className={`flex min-w-0 flex-1 shrink-0 gap-1.5 overflow-x-auto pb-0.5 [-webkit-overflow-scrolling:touch] ${RANKING_MODAL_SLIM_SCROLL_X}`}
                                 role="tablist"
-                                aria-label="랭킹 종류"
+                                aria-label={t('rankingQuick.tabAria')}
                             >
                                 {MOBILE_RANKING_TABS.map(({ id, label }) => {
                                     const selected = mobilePanelTab === id;
@@ -180,8 +182,8 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                     setIsTipModalOpen(true);
                                 }}
                                 className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-amber-300/40 bg-amber-500/20 text-[13px] shadow-sm shadow-amber-900/40 transition hover:bg-amber-500/30 active:scale-[0.97]"
-                                title="스코어 가이드 보기"
-                                aria-label="스코어 가이드 보기"
+                                title={t('rankingQuick.scrollGuide')}
+                                aria-label={t('rankingQuick.scrollGuideAria')}
                             >
                                 💡
                             </button>
@@ -201,7 +203,7 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                                         lockedTab="combat"
                                                         mobileSplitLarge
                                                         hideInlineGuide
-                                                        panelTitle="바둑능력"
+                                                        panelTitle={t('rankingQuick.ability')}
                                                     />
                                                 </div>
                                             ),
@@ -214,7 +216,7 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                                         lockedTab="manner"
                                                         mobileSplitLarge
                                                         hideInlineGuide
-                                                        panelTitle="매너"
+                                                        panelTitle={t('rankingQuick.manner')}
                                                     />
                                                 </div>
                                             ),
@@ -227,7 +229,7 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                                         lockedTab="adventure"
                                                         mobileSplitLarge
                                                         hideInlineGuide
-                                                        panelTitle="모험"
+                                                        panelTitle={t('rankingQuick.adventure')}
                                                     />
                                                 </div>
                                             ),
@@ -270,7 +272,7 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                     onClick={(e) => e.stopPropagation()}
                                 >
                                     <div className="flex items-center justify-between border-b border-white/10 px-3 py-2">
-                                        <h4 className="text-sm font-bold text-amber-100">스코어 가이드</h4>
+                                        <h4 className="text-sm font-bold text-amber-100">{t('rankingQuick.scrollGuideTitle')}</h4>
                                         <button
                                             type="button"
                                             onClick={() => setIsTipModalOpen(false)}
@@ -318,7 +320,7 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                     </div>
                 ) : (
                     <div className="relative z-[1] flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
-                        <div className="flex shrink-0 flex-wrap gap-2" role="tablist" aria-label="랭킹 카테고리">
+                        <div className="flex shrink-0 flex-wrap gap-2" role="tablist" aria-label={t('rankingQuick.categoryAria')}>
                             <button
                                 type="button"
                                 role="tab"
@@ -355,7 +357,7 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                             lockedTab="combat"
                                             mobileSplitLarge
                                             hideInlineGuide
-                                            panelTitle="바둑능력"
+                                            panelTitle={t('rankingQuick.ability')}
                                         />
                                     </div>
                                     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg ring-1 ring-white/[0.06]">
@@ -363,7 +365,7 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                             lockedTab="manner"
                                             mobileSplitLarge
                                             hideInlineGuide
-                                            panelTitle="매너"
+                                            panelTitle={t('rankingQuick.manner')}
                                         />
                                     </div>
                                     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg ring-1 ring-white/[0.06]">
@@ -371,7 +373,7 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                             lockedTab="adventure"
                                             mobileSplitLarge
                                             hideInlineGuide
-                                            panelTitle="모험"
+                                            panelTitle={t('rankingQuick.adventure')}
                                         />
                                     </div>
                                 </div>
@@ -406,7 +408,7 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
 
     return (
         <DraggableWindow
-            title="랭킹"
+            title={t('rankingQuick.title')}
             onClose={handleClose}
             windowId="ranking-quick-modal"
             initialWidth={isMobile ? 720 : 1020}

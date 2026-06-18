@@ -1,4 +1,5 @@
 import React from 'react';
+import { tx } from '../../shared/i18n/runtimeText.js';
 import { Player } from '../../types.js';
 
 export type GoStoneSvgIds = {

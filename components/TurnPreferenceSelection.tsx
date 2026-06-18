@@ -1,4 +1,5 @@
 
+import { useTranslation } from 'react-i18next';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { LiveGameSession, User, ServerAction } from '../types.js';
 import Button from './Button.js';
@@ -15,6 +16,8 @@ interface TurnPreferenceSelectionProps {
 }
 
 const TurnPreferenceSelection: React.FC<TurnPreferenceSelectionProps> = (props) => {
+    const { t } = useTranslation('game');
+    const { t: tCommon } = useTranslation('common');
     const { session, currentUser } = props;
     const { player1, player2, turnChoices, turnChoiceDeadline } = session;
     const isPvpPreGame = resolveArenaSessionPolicy(session).matchAxis === 'pvp';
@@ -57,8 +60,8 @@ const TurnPreferenceSelection: React.FC<TurnPreferenceSelectionProps> = (props) 
         if (myTurnChoice || localChoice) {
             return (
                 <div className="text-center">
-                    <h2 className="text-2xl font-bold mb-4">선택 완료!</h2>
-                    <p className="text-gray-300 mb-6 animate-pulse">{opponent.nickname}님의 선택을 기다리고 있습니다...</p>
+                    <h2 className="text-2xl font-bold mb-4">{t('turnPreference.selectionDone')}</h2>
+                    <p className="text-gray-300 mb-6 animate-pulse">{t('turnPreference.waitingOpponent', { name: opponent.nickname })}</p>
                     <div className="flex justify-center items-center h-20">
                         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-100"></div>
                     </div>
@@ -68,13 +71,13 @@ const TurnPreferenceSelection: React.FC<TurnPreferenceSelectionProps> = (props) 
 
         return (
             <div className="text-center">
-                <p className="text-gray-300 mb-6">원하는 순서를 선택하세요. 순서가 같으면 룰렛으로 무작위 정해집니다.</p>
+                <p className="text-gray-300 mb-6">{t('turnPreference.pickOrderVariant')}</p>
                 {isPvpPreGame ? (
                     <RoundCountdownIndicator
                         deadline={turnChoiceDeadline}
                         durationSeconds={PRE_GAME_PVP_COUNTDOWN_SECONDS}
-                        label="자동 선택까지"
-                        labelShort="자동 선택"
+                        label={t('turnPreference.autoProgress')}
+                        labelShort={t('turnPreference.autoProgressShort')}
                     />
                 ) : null}
                 <div className="flex gap-4 mt-4">
@@ -99,7 +102,7 @@ const TurnPreferenceSelection: React.FC<TurnPreferenceSelectionProps> = (props) 
 
     return (
         <DraggableWindow
-            title="순서 선택"
+            title={t('turnPreference.title')}
             windowId="turn-preference-selection"
             transparentModalBackdrop
             hideFooter

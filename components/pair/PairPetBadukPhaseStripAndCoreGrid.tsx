@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { InventoryItem, User } from '../../types.js';
 import { resolvePairPetMetaFromInventoryRow } from '../../shared/utils/pairPetRoll.js';
 import { effectivePairPetGradeFromRow } from '../../shared/constants/pairPetGrade.js';
@@ -54,6 +55,7 @@ const PairPetBadukPhaseStripAndCoreGrid: React.FC<PairPetBadukPhaseStripAndCoreG
     enlargeHomeRepPhaseStrip = false,
     className = '',
 }) => {
+    const { t } = useTranslation(['pair', 'profile', 'game']);
     const layout: PairPetBadukStripLayout = layoutProp ?? (dense ? 'dense' : 'default');
     const tight = layout !== 'default';
     const homeColumn = layout === 'homeColumn';
@@ -171,10 +173,11 @@ const PairPetBadukPhaseStripAndCoreGrid: React.FC<PairPetBadukPhaseStripAndCoreG
                         : 'default');
 
     const phaseDefs = [
-        { phase: 'opening' as const, label: '초반' },
-        { phase: 'midgame' as const, label: '중반' },
-        { phase: 'endgame' as const, label: '종반' },
+        { phase: 'opening' as const, label: t('game:controls.phaseOpening') },
+        { phase: 'midgame' as const, label: t('game:controls.phaseMidgame') },
+        { phase: 'endgame' as const, label: t('game:controls.phaseEndgame') },
     ] as const;
+    const badukLabel = t('profile:badukAbility');
 
     return (
         <div className={`flex w-full min-w-0 flex-col ${blockGap} ${className}`}>
@@ -188,7 +191,7 @@ const PairPetBadukPhaseStripAndCoreGrid: React.FC<PairPetBadukPhaseStripAndCoreG
                                 roomyPetStrip || !homePackStrip ? stripTextMainModal : 'text-xs font-bold text-amber-100 sm:text-sm'
                             }
                         >
-                            바둑능력
+                            {badukLabel}
                         </span>
                         <span
                             className={`font-mono tabular-nums ${
@@ -248,7 +251,7 @@ const PairPetBadukPhaseStripAndCoreGrid: React.FC<PairPetBadukPhaseStripAndCoreG
             ) : unifiedStrip ? (
                 <div className={PET_PANEL_BADUK_STRIP}>
                     <span className="inline-flex shrink-0 items-baseline gap-0.5">
-                        <span className={PET_PANEL_BADUK_LABEL}>바둑능력</span>
+                        <span className={PET_PANEL_BADUK_LABEL}>{badukLabel}</span>
                         <span className={`font-mono ${PET_PANEL_BADUK_TOTAL}`}>{badukTotalPower}</span>
                     </span>
                     <span className="mx-0.5 h-3 w-px shrink-0 self-center bg-white/15" aria-hidden />
@@ -272,7 +275,7 @@ const PairPetBadukPhaseStripAndCoreGrid: React.FC<PairPetBadukPhaseStripAndCoreG
                         <span
                             className={tight ? (homeColumn ? stripTextMain : `${stripTextMain} font-bold text-amber-100`) : stripTextMain}
                         >
-                            바둑능력
+                            {badukLabel}
                         </span>
                         <span className={`font-mono tabular-nums text-amber-50 ${stripTotalNum}`}>{badukTotalPower}</span>
                     </span>

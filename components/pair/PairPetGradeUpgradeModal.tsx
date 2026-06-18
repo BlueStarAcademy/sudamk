@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useTranslation, Trans } from 'react-i18next';
 import DraggableWindow from '../DraggableWindow.js';
 import type { InventoryItem, User } from '../../types.js';
 import { ItemGrade } from '../../types/enums.js';
@@ -50,6 +51,8 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
     onConfirm,
     isTopmost = true,
 }) => {
+    const { t } = useTranslation(['pair', 'common']);
+    const { t: tCommon } = useTranslation('common');
     const mainGradeStored = mainItem.grade ?? ItemGrade.Normal;
     const nextG = nextPairPetGrade(mainGradeStored);
     const meta = useMemo(() => resolvePairPetMetaFromInventoryRow(mainItem), [mainItem]);
@@ -80,14 +83,14 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
         const bumped = bumpPairPetDispositionPctOnGradeUpgrade(d);
         if (d.kind === 'single') {
             const name = CORE_STATS_DATA[d.stat]?.name ?? String(d.stat);
-            return `${name} +${d.pct}% → ${bumped.pct}%`;
+            return t('pet.dispositionUpgradeSingle', { stat: name, from: d.pct, to: bumped.pct });
         }
         if (d.kind === 'all') {
-            return `모든 능력치 +${d.pct}% → ${bumped.pct}%`;
+            return t('pet.dispositionUpgradeAll', { from: d.pct, to: bumped.pct });
         }
         const fromName = CORE_STATS_DATA[d.fromStat]?.name ?? String(d.fromStat);
         const toName = CORE_STATS_DATA[d.toStat]?.name ?? String(d.toStat);
-        return `${fromName}→${toName} +${d.pct}% → ${bumped.pct}%`;
+        return t('pet.dispositionUpgradeConvert', { from: fromName, to: toName, fromPct: d.pct, toPct: bumped.pct });
     }, [meta.disposition]);
 
     const [gradeBlockHint, setGradeBlockHint] = useState<string | null>(null);
@@ -95,20 +98,20 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
     const tryConfirm = () => {
         if (isBusy) return;
         if (!isPairPetUpgradeableGrade(mainGradeStored) || !nextG) {
-            setGradeBlockHint('더 올릴 수 있는 등급이 없습니다.');
+            setGradeBlockHint(t('gradeUpgrade.noHigherGrade'));
             return;
         }
         if (levelSafe < needLv) {
-            setGradeBlockHint(`펫 레벨이 부족합니다. Lv.${needLv} 필요 (현재 Lv.${levelSafe})`);
+            setGradeBlockHint(t('gradeUpgrade.levelInsufficient', { need: needLv, current: levelSafe }));
             return;
         }
         if (soulNeed == null || soulTid == null) {
-            setGradeBlockHint('등급 강화 조건을 확인할 수 없습니다.');
+            setGradeBlockHint(t('gradeUpgrade.conditionsUnknown'));
             return;
         }
         if (ownedSoul < soulNeed) {
-            const nameKo = soulMat?.name ?? soulMatName ?? '영혼석';
-            setGradeBlockHint(`${nameKo}이 부족합니다. ${soulNeed}개 필요 (보유 ${ownedSoul}개)`);
+            const nameKo = soulMat?.name ?? soulMatName ?? t('gradeUpgrade.soulStoneFallback');
+            setGradeBlockHint(t('gradeUpgrade.soulInsufficient', { name: nameKo, need: soulNeed, owned: ownedSoul }));
             return;
         }
         void onConfirm();
@@ -125,7 +128,7 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
 
     return (
         <DraggableWindow
-            title="펫 등급 강화"
+            title={t('gradeUpgrade.title')}
             onClose={onClose}
             windowId="pair-pet-grade-upgrade"
             initialWidth={PAIR_PET_DETAIL_MODAL_INITIAL_WIDTH}
@@ -170,7 +173,7 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
                                     {getPairPetDisplayName(mainItem)}
                                 </p>
                                 {levelSafe < needLv ? (
-                                    <p className="mt-1 text-xs font-semibold text-amber-300/95 sm:text-sm">등급 강화까지 Lv.{needLv}</p>
+                                    <p className="mt-1 text-xs font-semibold text-amber-300/95 sm:text-sm">{t('gradeUpgrade.untilLevel', { level: needLv })}</p>
                                 ) : null}
                             </div>
                         </div>
@@ -178,7 +181,7 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
                         {nextG && nextSt && nextBg && nextGradeKo ? (
                             <div className="flex flex-row items-center gap-2 sm:gap-3.5">
                                 <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5 rounded-xl border border-white/10 bg-black/45 px-2 py-2.5 shadow-inner sm:gap-2 sm:px-3 sm:py-3.5">
-                                    <span className="text-[0.7rem] font-bold uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.2em]">현재</span>
+                                    <span className="text-[0.7rem] font-bold uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.2em]">{t('gradeUpgrade.current')}</span>
                                     <div
                                         className="relative h-14 w-14 overflow-hidden rounded-lg border border-white/15 sm:h-16 sm:w-16"
                                         aria-hidden
@@ -208,7 +211,7 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
                                 </div>
 
                                 <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5 rounded-xl border border-amber-400/25 bg-gradient-to-b from-amber-950/50 to-black/50 px-2 py-2.5 shadow-[inset_0_1px_0_rgba(251,191,36,0.12)] sm:gap-2 sm:px-3 sm:py-3.5">
-                                    <span className="text-[0.7rem] font-bold uppercase tracking-[0.14em] text-amber-200/70 sm:text-xs sm:tracking-[0.2em]">다음</span>
+                                    <span className="text-[0.7rem] font-bold uppercase tracking-[0.14em] text-amber-200/70 sm:text-xs sm:tracking-[0.2em]">{t('gradeUpgrade.next')}</span>
                                     <div className="relative h-14 w-14 overflow-hidden rounded-lg border border-amber-300/25 sm:h-16 sm:w-16">
                                         <img src={nextBg} alt="" className="absolute inset-0 h-full w-full object-cover opacity-90" />
                                         <img
@@ -222,7 +225,7 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
                             </div>
                         ) : (
                             <p className="rounded-lg border border-white/10 bg-black/40 py-3 text-center text-base text-slate-400">
-                                더 올릴 수 있는 등급이 없습니다.
+                                {t('gradeUpgrade.noHigherGrade')}
                             </p>
                         )}
 
@@ -230,18 +233,18 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
                             <div className="rounded-xl border border-white/[0.08] bg-black/50 p-3 backdrop-blur-sm sm:p-3.5">
                                 <dl className="space-y-3 text-sm sm:text-[0.9375rem]">
                                     <div className="flex flex-col gap-1 border-b border-white/[0.06] pb-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
-                                        <dt className="text-slate-400">기본 능력치 증가</dt>
-                                        <dd className="tabular-nums font-mono font-black text-amber-200 sm:text-right">+10%</dd>
+                                        <dt className="text-slate-400">{t('gradeUpgrade.baseStatIncrease')}</dt>
+                                        <dd className="tabular-nums font-mono font-black text-amber-200 sm:text-right">{t('gradeUpgrade.percentTen')}</dd>
                                     </div>
                                     <div className="flex flex-col gap-1 pt-0.5 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
                                         <dt className="break-words leading-snug text-slate-400">
-                                            다음등급 구간 펫 레벨업 시 자동 분배 능력치
+                                            {t('gradeUpgrade.nextGradeLevelUpBudget')}
                                         </dt>
                                         <dd className="shrink-0 tabular-nums font-mono font-black text-violet-200 sm:text-right">+{budgetNext}</dd>
                                     </div>
                                 </dl>
                                 <div className="mt-2.5 min-w-0 border-t border-white/[0.06] pt-2.5">
-                                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-fuchsia-300/90 sm:text-[0.8125rem]">성향 강화</p>
+                                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-fuchsia-300/90 sm:text-[0.8125rem]">{t('gradeUpgrade.dispositionBoost')}</p>
                                     <p className="mt-1.5 break-words text-left text-sm font-semibold tabular-nums leading-relaxed text-fuchsia-100/95 sm:text-[0.9375rem] sm:leading-snug">
                                         {dispositionUpgradePreview}
                                     </p>
@@ -253,26 +256,32 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
 
                 {nextG ? (
                     <div className="rounded-xl border border-violet-500/20 bg-gradient-to-br from-violet-950/35 to-black/40 p-3.5 shadow-inner ring-1 ring-inset ring-white/[0.04] sm:p-4">
-                        <p className="mb-2.5 text-xs font-bold uppercase tracking-[0.16em] text-violet-300/85 sm:text-[0.8125rem]">필요 재료</p>
+                        <p className="mb-2.5 text-xs font-bold uppercase tracking-[0.16em] text-violet-300/85 sm:text-[0.8125rem]">{t('gradeUpgrade.requiredMaterials')}</p>
                         <div className="flex flex-wrap items-center gap-3.5">
                             <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-white/15 bg-black/50 shadow-md sm:h-[4.5rem] sm:w-[4.5rem]">
                                 {soulMat?.image ? (
                                     <img src={soulMat.image} alt="" className="h-full w-full object-contain p-1" loading="lazy" />
                                 ) : (
-                                    <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">영혼석</div>
+                                    <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">{t('gradeUpgrade.soulStoneFallback')}</div>
                                 )}
                             </div>
                             <div className="min-w-0 flex-1">
-                                <p className="text-base font-extrabold text-violet-50 sm:text-lg">{soulMat?.name ?? soulMatName ?? '영혼석'}</p>
+                                <p className="text-base font-extrabold text-violet-50 sm:text-lg">{soulMat?.name ?? soulMatName ?? t('gradeUpgrade.soulStoneFallback')}</p>
                                 <p className="mt-1 tabular-nums text-sm font-bold text-slate-300">
-                                    보유 <span className="text-fuchsia-200">{ownedSoul}</span>
-                                    <span className="text-slate-500"> / 필요 </span>
-                                    <span className="text-amber-200">{soulNeed ?? '—'}</span>
+                                    <Trans
+                                        i18nKey="pair:gradeUpgrade.ownedCount"
+                                        values={{ owned: ownedSoul, need: soulNeed ?? '—' }}
+                                        components={{
+                                            owned: <span className="text-fuchsia-200" />,
+                                            sep: <span className="text-slate-500" />,
+                                            need: <span className="text-amber-200" />,
+                                        }}
+                                    />
                                 </p>
                             </div>
                         </div>
                         {ownedSoul < (soulNeed ?? 0) ? (
-                            <p className="mt-2 text-sm font-semibold text-rose-300/95">영혼석이 부족합니다.</p>
+                            <p className="mt-2 text-sm font-semibold text-rose-300/95">{t('gradeUpgrade.soulInsufficientInline')}</p>
                         ) : null}
                     </div>
                 ) : null}
@@ -284,14 +293,14 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
                         onClick={() => tryConfirm()}
                         className="min-w-[10rem] rounded-lg border border-amber-400/45 bg-gradient-to-b from-amber-600/95 to-amber-950 px-6 py-2.5 text-base font-extrabold text-amber-50 shadow-[0_0_24px_rgba(245,158,11,0.12)] disabled:cursor-not-allowed disabled:opacity-40 sm:min-w-[11rem] sm:py-3"
                     >
-                        등급 강화
+                        {t('gradeUpgrade.action')}
                     </button>
                 </div>
                 </div>
             </div>
             {gradeBlockHint ? (
                 <DraggableWindow
-                    title="안내"
+                    title={t('lobby.noticeTitle')}
                     onClose={() => setGradeBlockHint(null)}
                     windowId="pair-pet-grade-upgrade-modal-hint"
                     initialWidth={420}

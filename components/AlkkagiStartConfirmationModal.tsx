@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LiveGameSession, User, ServerAction } from '../types.js';
 import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
@@ -14,6 +15,7 @@ interface AlkkagiStartConfirmationModalProps {
 }
 
 const AlkkagiStartConfirmationModal: React.FC<AlkkagiStartConfirmationModalProps> = ({ session, currentUser, onAction }) => {
+    const { t } = useTranslation('game');
     const { id: gameId, player1, player2, blackPlayerId, whitePlayerId, preGameConfirmations, revealEndTime } = session;
     const hasConfirmed = preGameConfirmations?.[currentUser.id];
     const [countdown, setCountdown] = useState(PRE_GAME_PVP_COUNTDOWN_SECONDS);
@@ -48,7 +50,7 @@ const AlkkagiStartConfirmationModal: React.FC<AlkkagiStartConfirmationModalProps
 
     return (
         <DraggableWindow
-            title="대국 시작 확인"
+            title={t('startConfirm.title')}
             initialWidth={460}
             shrinkHeightToContent
             windowId="alkkagi-start-confirm"
@@ -67,8 +69,8 @@ const AlkkagiStartConfirmationModal: React.FC<AlkkagiStartConfirmationModalProps
                     blackPlayer={blackPlayer}
                     whitePlayer={whitePlayer}
                     onComplete={() => setRouletteDone(true)}
-                    title="룰렛으로 선공/후공이 결정되었습니다"
-                    subtitle="가위바위보 대신 자동 룰렛으로 흑과 백이 배정됩니다."
+                    title={t('startConfirm.rouletteDoneShort')}
+                    subtitle={t('startConfirm.autoRouletteShort')}
                 />
                 <p className="mt-5 text-center text-sm leading-relaxed text-stone-400">
                     대국 시작을 누르거나, 30초가 지나면 자동으로 시작됩니다.
@@ -76,8 +78,8 @@ const AlkkagiStartConfirmationModal: React.FC<AlkkagiStartConfirmationModalProps
                 <RoundCountdownIndicator
                     deadline={revealEndTime}
                     durationSeconds={PRE_GAME_PVP_COUNTDOWN_SECONDS}
-                    label="자동 진행까지"
-                    labelShort="자동 진행"
+                    label={t('autoProceed', { ns: 'common' })}
+                    labelShort={t('autoProceedShort', { ns: 'common' })}
                 />
 
                 <Button
@@ -85,7 +87,7 @@ const AlkkagiStartConfirmationModal: React.FC<AlkkagiStartConfirmationModalProps
                     disabled={!!hasConfirmed || !rouletteDone}
                     className="w-full py-3 mt-6"
                 >
-                    {hasConfirmed ? '상대방 확인 대기 중...' : !rouletteDone ? '룰렛 결과 확인 중...' : `대국 시작 (${countdown})`}
+                    {hasConfirmed ? t('startConfirm.waitingConfirm') : !rouletteDone ? t('startConfirm.checkingRoulette') : t('startConfirm.startCountdown', { count: countdown })}
                 </Button>
             </div>
         </DraggableWindow>

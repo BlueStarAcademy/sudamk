@@ -30,6 +30,8 @@ import {
     PC_DESIGN_CANVAS_WIDTH,
 } from './shared/constants/viewportDesign.js';
 import { snapUniformCanvasScale } from './utils/uniformCanvasScale.js';
+import { useTranslation } from 'react-i18next';
+import { resolveConnectionBannerMessage } from './utils/resolveConnectionBannerMessage.js';
 
 function usePrevious<T>(value: T): T | undefined {
     const ref = useRef<T | undefined>(undefined);
@@ -65,7 +67,11 @@ const AppContent: React.FC = () => {
     useEffect(() => staleChunkReloadFlagResetEffect(), []);
     
     const prevHasClaimableQuest = usePrevious(hasClaimableQuest);
-    const connectionBannerMessage = serverReconnectNotice || connectionStatus.message;
+    const { t: tCommon } = useTranslation('common');
+    const connectionBannerMessage = resolveConnectionBannerMessage(
+        serverReconnectNotice || connectionStatus.message,
+        tCommon,
+    );
     const connectionBannerSeverity = serverReconnectNotice ? 'warning' : connectionStatus.severity;
     const connectionBannerClass =
         connectionBannerSeverity === 'success'

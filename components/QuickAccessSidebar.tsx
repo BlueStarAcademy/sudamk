@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAppUserSlice, useAppUiSlice, useAppRealtimeSlice } from '../hooks/useAppSlices.js';
 import { calculateTotalStats } from '../services/statService.js';
 import {
@@ -6,6 +7,8 @@ import {
     isBlacksmithQuickUnlocked,
     isQuestQuickUnlocked,
 } from '../shared/utils/contentProgressionGates.js';
+import { useLocalizedQuickUtilityPanel } from '../shared/i18n/localizedCatalog.js';
+import type { QuickUtilityPanelKind } from '../shared/types/quickUtilityPanel.js';
 import { NEW_FEATURE_BADGE_CLASS } from '../utils/newFeatureBadges.js';
 interface QuickAccessSidebarProps {
     mobile?: boolean;
@@ -30,7 +33,7 @@ export const NATIVE_QUICK_RAIL_WIDTH_CLASS = 'w-[5.5rem] min-w-[5.5rem] max-w-[5
 export { PC_QUICK_RAIL_COLUMN_CLASS } from '../shared/constants/pcShellLayout.js';
 
 type QuickBtn = {
-    label: string;
+    kind: QuickUtilityPanelKind;
     gameplay: boolean;
     iconUrl?: string;
     emoji?: string;
@@ -63,16 +66,18 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
         currentUserWithStatus,
     } = useAppUserSlice();
     const { hasUnreadHomeBoardPosts } = useAppRealtimeSlice();
+    const translateQuickPanel = useLocalizedQuickUtilityPanel();
+    const { t: tNav } = useTranslation('nav');
 
     const badukSnap = useMemo(() => {
         if (!currentUserWithStatus) return null;
         return getBadukAbilitySnapshotFromStats(currentUserWithStatus, calculateTotalStats(currentUserWithStatus));
     }, [currentUserWithStatus]);
-    const progressionQuickDisabled = (label: string) => {
+    const progressionQuickDisabled = (kind: QuickUtilityPanelKind) => {
         if (!currentUserWithStatus || currentUserWithStatus.isAdmin) return false;
         if (!badukSnap) return false;
-        if (label === '퀘스트') return !isQuestQuickUnlocked(badukSnap);
-        if (label === '대장간') return !isBlacksmithQuickUnlocked(badukSnap);
+        if (kind === 'quests') return !isQuestQuickUnlocked(badukSnap);
+        if (kind === 'blacksmith') return !isBlacksmithQuickUnlocked(badukSnap);
         return false;
     };
 
@@ -83,47 +88,47 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
     const buttons: QuickBtn[] = useMemo(
         () => [
             {
-                label: '퀘스트',
+                kind: 'quests',
                 gameplay: true,
                 iconUrl: '/images/quickmenu/quest.webp',
                 handler: handlers.openQuests,
-                disabled: progressionQuickDisabled('퀘스트'),
+                disabled: progressionQuickDisabled('quests'),
                 notification: hasClaimableQuest,
             },
             {
-                label: '거래소',
+                kind: 'exchange',
                 gameplay: true,
                 iconUrl: '/images/quickmenu/trade.webp',
                 handler: handlers.openExchange,
-                disabled: progressionQuickDisabled('거래소'),
+                disabled: progressionQuickDisabled('exchange'),
                 notification: hasClaimableExchangeSettlement,
             },
             {
-                label: '대장간',
+                kind: 'blacksmith',
                 gameplay: true,
                 iconUrl: '/images/quickmenu/enhance.webp',
                 handler: handlers.openBlacksmithModal,
-                disabled: progressionQuickDisabled('대장간'),
+                disabled: progressionQuickDisabled('blacksmith'),
                 notification: false,
             },
             {
-                label: '상점',
+                kind: 'shop',
                 gameplay: true,
                 iconUrl: '/images/quickmenu/store.webp',
                 handler: () => handlers.openShop(),
-                disabled: progressionQuickDisabled('상점'),
+                disabled: progressionQuickDisabled('shop'),
                 notification: false,
             },
             {
-                label: '가방',
+                kind: 'inventory',
                 gameplay: true,
                 iconUrl: '/images/quickmenu/bag.webp',
                 handler: handlers.openInventory,
-                disabled: progressionQuickDisabled('가방'),
+                disabled: progressionQuickDisabled('inventory'),
                 notification: false,
             },
             {
-                label: '펫',
+                kind: 'pet',
                 gameplay: true,
                 emoji: '🐾',
                 handler: handlers.openPetManagementModal,
@@ -131,7 +136,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 notification: hasClaimablePairPetTrainingOrHatchery,
             },
             {
-                label: '랭킹',
+                kind: 'ranking',
                 gameplay: false,
                 emoji: '🏆',
                 handler: handlers.openRankingQuickModal,
@@ -139,7 +144,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 notification: false,
             },
             {
-                label: '기보',
+                kind: 'gameRecords',
                 gameplay: false,
                 iconUrl: '/images/quickmenu/gibo.webp',
                 handler: handlers.openGameRecordList,
@@ -147,7 +152,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 notification: false,
             },
             {
-                label: '도감',
+                kind: 'encyclopedia',
                 gameplay: false,
                 iconUrl: '/images/button/itembook.webp',
                 handler: handlers.openEncyclopedia,
@@ -155,7 +160,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 notification: false,
             },
             {
-                label: '공지',
+                kind: 'announcements',
                 gameplay: false,
                 emoji: '📢',
                 handler: handlers.openAnnouncementsModal,
@@ -163,7 +168,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 notification: hasUnreadHomeBoardPosts,
             },
             {
-                label: '도움말',
+                kind: 'help',
                 gameplay: false,
                 iconUrl: '/images/button/help.webp',
                 handler: handlers.openInfoModal,
@@ -206,14 +211,14 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
     };
 
     const renderMobileMenuToggleButton = ({
-        label,
+        labelKey,
         tone,
         active,
         compact,
         expanded,
         onClick,
     }: {
-        label: '메뉴1' | '메뉴2';
+        labelKey: 'quickMenu.menu1' | 'quickMenu.menu2';
         tone: 'amber' | 'cyan';
         active: boolean;
         compact: boolean;
@@ -245,12 +250,13 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                     <span className={`rounded-full bg-white/90 ${compact ? 'h-px w-2.5' : 'h-[1.5px] w-3'}`} />
                     <span className={`rounded-full bg-white/90 ${compact ? 'h-px w-2.5' : 'h-[1.5px] w-3'}`} />
                 </div>
-                <span className="sr-only">{label}</span>
+                <span className="sr-only">{tNav(labelKey)}</span>
             </button>
         );
     };
 
     const renderStripButton = (btn: QuickBtn, variant: 'wrap' | 'topBar' = 'wrap') => {
+        const label = translateQuickPanel(btn.kind);
         const g = btn.gameplay;
         const shell = g
             ? 'border-amber-500/45 bg-gradient-to-b from-amber-950/55 via-amber-900/25 to-slate-950/90 shadow-[inset_0_1px_0_rgba(251,191,36,0.12)]'
@@ -271,20 +277,20 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
             : 'w-full truncate text-center text-[clamp(6px,2.5vw,9px)] font-semibold leading-none text-gray-100';
         return (
             <button
-                key={btn.label}
+                key={btn.kind}
                 type="button"
                 onClick={(e) => {
                     e.preventDefault();
                     btn.handler();
                 }}
                 disabled={btn.disabled}
-                title={btn.label}
+                title={label}
                 className={`relative flex min-h-0 min-w-0 flex-1 touch-manipulation flex-col items-center justify-center gap-0.5 rounded-md border px-0.5 transition-transform active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-45 ${btn.pulse ? 'animate-pulse ring-2 ring-amber-300/60' : ''} ${topBar ? 'h-full min-h-0 py-1' : 'py-1'} ${shell}`}
             >
                 <div className={iconShell}>
                     {renderIcon(btn, iconInner)}
                 </div>
-                <span className={labelClass}>{btn.label}</span>
+                <span className={labelClass}>{label}</span>
                 {btn.notification &&
                     (btn.count && btn.count > 0 ? (
                         <span className={notificationCountClass}>{btn.count > 9 ? '9+' : btn.count}</span>
@@ -312,7 +318,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
             >
                 <div className="relative flex min-h-14 w-full items-center justify-between">
                     {renderMobileMenuToggleButton({
-                        label: '메뉴1',
+                        labelKey: 'quickMenu.menu1',
                         tone: 'amber',
                         active: mobileHeaderDrawer === 'menu1',
                         compact: false,
@@ -324,7 +330,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                             }),
                     })}
                     {renderMobileMenuToggleButton({
-                        label: '메뉴2',
+                        labelKey: 'quickMenu.menu2',
                         tone: 'cyan',
                         active: mobileHeaderDrawer === 'menu2',
                         compact: false,
@@ -403,19 +409,20 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
     const labelPc = compact ? 'text-[9px] font-semibold text-gray-100' : 'text-[10px] font-semibold text-gray-100 sm:text-[11px]';
 
     const renderVerticalButton = (btn: QuickBtn) => {
+        const label = translateQuickPanel(btn.kind);
         const base = btn.gameplay ? pcBtnGameplay : pcBtnUtility;
         const imgCls = btn.gameplay ? iconPcGameplay : iconPcUtility;
         const emoCls = btn.gameplay ? emojiPcGameplay : emojiPcUtility;
         return (
             <button
-                key={btn.label}
+                key={btn.kind}
                 type="button"
                 onClick={(e) => {
                     e.preventDefault();
                     btn.handler();
                 }}
                 disabled={btn.disabled}
-                title={btn.label}
+                title={label}
                 className={`${base} disabled:cursor-not-allowed disabled:opacity-45 ${btn.pulse ? 'animate-pulse ring-2 ring-amber-300/60' : ''}`}
             >
                 <div className="flex min-h-0 w-full flex-1 items-center justify-center">
@@ -429,7 +436,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                     )}
                     </div>
                 </div>
-                <span className={`${labelPc} w-full truncate text-center leading-tight`}>{btn.label}</span>
+                <span className={`${labelPc} w-full truncate text-center leading-tight`}>{label}</span>
                 {btn.notification &&
                     (btn.count && btn.count > 0 ? (
                         <span className={notificationCountClass}>{btn.count > 9 ? '9+' : btn.count}</span>

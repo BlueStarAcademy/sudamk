@@ -1,4 +1,5 @@
 import React, { useId, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getAdventureCodexCompletionBreakdown } from '../../utils/adventureCodexCompletion.js';
 import type { AdventureProfile } from '../../types/entities.js';
 import { CORE_STATS_DATA } from '../../constants.js';
@@ -13,6 +14,7 @@ import { getTopAdventureCodexMonsterByWins } from '../../utils/adventureTopCodex
 import { useRanking } from '../../hooks/useRanking.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import AdventureTopHuntedMonsterPanel from './AdventureTopHuntedMonsterPanel.js';
+import { getAdventureMonsterModeLabel } from './adventureI18nHelpers.js';
 import {
     formatAdventureModeWinLossRecord,
     getAdventureBattleRecordSummary,
@@ -26,6 +28,7 @@ const AdventureProfilePanel: React.FC<{
     mobileOneScreen?: boolean;
     onOpenMonsterCodex?: () => void;
 }> = ({ profile, compact = false, mobileOneScreen = false, onOpenMonsterCodex }) => {
+    const { t } = useTranslation(['lobby', 'profile']);
     const donutGradId = useId().replace(/:/g, '');
     const { currentUserWithStatus } = useAppContext();
     const userId = currentUserWithStatus?.id;
@@ -86,7 +89,7 @@ const AdventureProfilePanel: React.FC<{
         <div
             className={`w-full min-w-0 rounded-xl border border-cyan-500/30 bg-gradient-to-br from-cyan-950/35 via-zinc-950/80 to-zinc-950/95 ${panelPad}`}
         >
-            <p className={`${labelCls} text-center`}>모험 전적</p>
+            <p className={`${labelCls} text-center`}>{t('adventure.battleRecord')}</p>
             {mobileOneScreen ? (
                 <>
                     <div className="mt-2 grid grid-cols-2 gap-1.5">
@@ -96,7 +99,7 @@ const AdventureProfilePanel: React.FC<{
                                 className={battleRecordRowCls}
                                 title={`${row.label} ${formatAdventureModeWinLossRecord(row.wins, row.losses, row.winRatePercent)}`}
                             >
-                                <span className={`min-w-0 truncate ${modeLabelCls}`}>{row.label}</span>
+                                <span className={`min-w-0 truncate ${modeLabelCls}`}>{getAdventureMonsterModeLabel(t, row.mode)}</span>
                                 <span className={`shrink-0 text-right ${modeValueCls}`}>
                                     {formatAdventureModeWinLossRecord(row.wins, row.losses, row.winRatePercent)}
                                 </span>
@@ -105,11 +108,11 @@ const AdventureProfilePanel: React.FC<{
                     </div>
                     <div className="mt-1.5 grid grid-cols-2 gap-1.5">
                         <div className={`${battleRecordRowCls} border-emerald-500/30 bg-emerald-950/30`}>
-                            <p className={`min-w-0 truncate ${statLabelCls}`}>잡은 몬스터</p>
+                            <p className={`min-w-0 truncate ${statLabelCls}`}>{t('adventure.caughtMonsters')}</p>
                             <p className={`shrink-0 text-emerald-200 ${statValueCls}`}>{battleRecord.caught.toLocaleString()}</p>
                         </div>
                         <div className={`${battleRecordRowCls} border-rose-500/30 bg-rose-950/25`}>
-                            <p className={`min-w-0 truncate ${statLabelCls}`}>놓친 몬스터</p>
+                            <p className={`min-w-0 truncate ${statLabelCls}`}>{t('adventure.missedMonsters')}</p>
                             <p className={`shrink-0 text-rose-200 ${statValueCls}`}>{battleRecord.missed.toLocaleString()}</p>
                         </div>
                     </div>
@@ -123,7 +126,7 @@ const AdventureProfilePanel: React.FC<{
                                 className="flex min-w-0 flex-col items-center justify-center rounded-lg border border-white/10 bg-black/30 px-2 py-2 text-center"
                                 title={`${row.label} ${formatAdventureModeWinLossRecord(row.wins, row.losses, row.winRatePercent)}`}
                             >
-                                <span className={modeLabelCls}>{row.label}</span>
+                                <span className={modeLabelCls}>{getAdventureMonsterModeLabel(t, row.mode)}</span>
                                 <span className={`mt-0.5 ${modeValueCls}`}>
                                     {formatAdventureModeWinLossRecord(row.wins, row.losses, row.winRatePercent)}
                                 </span>
@@ -132,11 +135,11 @@ const AdventureProfilePanel: React.FC<{
                     </div>
                     <div className="mt-2 grid grid-cols-2 gap-2">
                         <div className="flex flex-col items-center justify-center rounded-lg border border-emerald-500/30 bg-emerald-950/30 px-2.5 py-2 text-center">
-                            <p className={statLabelCls}>잡은 몬스터</p>
+                            <p className={statLabelCls}>{t('adventure.caughtMonsters')}</p>
                             <p className={`mt-0.5 text-emerald-200 ${statValueCls}`}>{battleRecord.caught.toLocaleString()}</p>
                         </div>
                         <div className="flex flex-col items-center justify-center rounded-lg border border-rose-500/30 bg-rose-950/25 px-2.5 py-2 text-center">
-                            <p className={statLabelCls}>놓친 몬스터</p>
+                            <p className={statLabelCls}>{t('adventure.missedMonsters')}</p>
                             <p className={`mt-0.5 text-rose-200 ${statValueCls}`}>{battleRecord.missed.toLocaleString()}</p>
                         </div>
                     </div>
@@ -149,18 +152,18 @@ const AdventureProfilePanel: React.FC<{
         <div
             className={`w-full min-w-0 rounded-xl border border-emerald-500/30 bg-gradient-to-br from-emerald-950/35 via-zinc-950/80 to-zinc-950/95 ${panelPad}`}
         >
-            <p className={`${labelCls} text-center`}>모험 랭킹</p>
+            <p className={`${labelCls} text-center`}>{t('adventure.ranking')}</p>
             <div className="mt-2 grid grid-cols-2 gap-2">
                 <div className="flex flex-col items-center justify-center rounded-lg border border-white/10 bg-black/30 px-2.5 py-2 text-center">
-                    <p className={statLabelCls}>모험 점수</p>
+                    <p className={statLabelCls}>{t('adventure.score')}</p>
                     <p className={`mt-0.5 text-emerald-200 ${statValueCls}`}>
                         {huntingScore.toLocaleString()}
                     </p>
                 </div>
                 <div className="flex flex-col items-center justify-center rounded-lg border border-white/10 bg-black/30 px-2.5 py-2 text-center">
-                    <p className={statLabelCls}>내 순위</p>
+                    <p className={statLabelCls}>{t('adventure.myRank')}</p>
                     <p className={`mt-0.5 text-amber-200 ${statValueCls}`}>
-                        {adventureRankLoading ? '…' : adventureRank != null ? `${adventureRank}위` : '-'}
+                        {adventureRankLoading ? '…' : adventureRank != null ? t('profile.rankUnit', { rank: adventureRank }) : '-'}
                     </p>
                 </div>
             </div>
@@ -172,7 +175,7 @@ const AdventureProfilePanel: React.FC<{
             className={`shrink-0 self-center rounded-lg border border-violet-400/30 bg-violet-950/30 p-1.5 ${
                 mobileOneScreen ? 'w-[7rem]' : compact || tightLayout ? 'w-[7.75rem]' : 'w-[9.5rem]'
             }`}
-            title="몬스터 도감 완성도"
+            title={t('adventure.codexCompletionTitle')}
         >
             <div className="relative">
                 <svg
@@ -220,7 +223,7 @@ const AdventureProfilePanel: React.FC<{
                 </div>
             </div>
             <p className={`mt-1 text-center font-semibold text-zinc-400 ${mobileOneScreen || compact ? 'text-[11px]' : 'text-xs'}`}>
-                도감 완성도
+                {t('adventure.codexCompletion')}
             </p>
         </div>
     );
@@ -231,7 +234,7 @@ const AdventureProfilePanel: React.FC<{
 
     const understandingBody = (
         <div className="relative min-w-0">
-            <p className={understandingLabelCls}>몬스터 이해도</p>
+            <p className={understandingLabelCls}>{t('adventure.monsterUnderstanding')}</p>
             <div className={`mt-2 flex items-start ${mobileOneScreen ? 'gap-2' : 'gap-3'}`}>
                 <div className="min-w-0 flex-1">
                     <div
@@ -242,32 +245,32 @@ const AdventureProfilePanel: React.FC<{
                         }`}
                     >
                         <div className={understandingStatRowCls}>
-                            <span className="truncate text-zinc-300">모험 골드</span>
+                            <span className="truncate text-zinc-300">{t('adventure.adventureGold')}</span>
                             <span className="shrink-0 font-semibold tabular-nums text-amber-200/95">
                                 +{formatAdventureUnderstandingBonusPercent(monsterCodexBuff.goldBonusPercent)}%
                             </span>
                         </div>
                         <div className="rounded-md border border-transparent bg-transparent px-2 py-1" aria-hidden />
                         <div className={understandingStatRowCls}>
-                            <span className="truncate text-zinc-300">장비 획득</span>
+                            <span className="truncate text-zinc-300">{t('adventure.equipmentDrop')}</span>
                             <span className="shrink-0 font-semibold tabular-nums text-cyan-200/95">
                                 +{formatAdventureUnderstandingBonusPercent(monsterCodexBuff.equipmentDropPercent)}%
                             </span>
                         </div>
                         <div className={understandingStatRowCls}>
-                            <span className="truncate text-zinc-300">고급 장비</span>
+                            <span className="truncate text-zinc-300">{t('adventure.highGradeEquipment')}</span>
                             <span className="shrink-0 font-semibold tabular-nums text-sky-200/95">
                                 +{formatAdventureUnderstandingBonusPercent(monsterCodexBuff.highGradeEquipmentPercent)}%
                             </span>
                         </div>
                         <div className={understandingStatRowCls}>
-                            <span className="truncate text-zinc-300">재료 획득</span>
+                            <span className="truncate text-zinc-300">{t('adventure.materialDrop')}</span>
                             <span className="shrink-0 font-semibold tabular-nums text-emerald-200/95">
                                 +{formatAdventureUnderstandingBonusPercent(monsterCodexBuff.materialDropPercent)}%
                             </span>
                         </div>
                         <div className={understandingStatRowCls}>
-                            <span className="truncate text-zinc-300">고급 재료</span>
+                            <span className="truncate text-zinc-300">{t('adventure.highGradeMaterial')}</span>
                             <span className="shrink-0 font-semibold tabular-nums text-teal-200/95">
                                 +{formatAdventureUnderstandingBonusPercent(monsterCodexBuff.highGradeMaterialPercent)}%
                             </span>
@@ -293,8 +296,8 @@ const AdventureProfilePanel: React.FC<{
                 </div>
                 <div className={`flex shrink-0 flex-col items-stretch self-center ${mobileOneScreen ? 'gap-1' : 'gap-1.5'}`}>
                     {onOpenMonsterCodex ? (
-                        <button type="button" onClick={onOpenMonsterCodex} className={codexOpenBtnClass} aria-label="몬스터 도감">
-                            몬스터 도감
+                        <button type="button" onClick={onOpenMonsterCodex} className={codexOpenBtnClass} aria-label={t('profile.monsterCodex')}>
+                            {t('profile.monsterCodex')}
                         </button>
                     ) : null}
                     {codexDonutPanel}
@@ -321,10 +324,10 @@ const AdventureProfilePanel: React.FC<{
     return (
         <section
             className={`relative flex h-full w-full min-w-0 flex-col border border-white/10 bg-gradient-to-br from-zinc-900/90 via-violet-950/25 to-zinc-950/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${mobileOneScreen ? 'rounded-xl' : 'rounded-2xl'} ${sectionPad}`}
-            aria-label="모험 일지"
+            aria-label={t('adventure.journalAria')}
         >
             {mobileOneScreen ? (
-                <h2 className="sr-only">모험 일지</h2>
+                <h2 className="sr-only">{t('adventure.journal')}</h2>
             ) : (
                 <div className="flex shrink-0 flex-wrap items-center border-b border-white/10 pb-2 sm:pb-2.5">
                     <h2
@@ -332,7 +335,7 @@ const AdventureProfilePanel: React.FC<{
                             compact || tightLayout ? 'text-base sm:text-lg' : 'text-lg sm:text-xl lg:text-2xl'
                         }`}
                     >
-                        모험 일지
+                        {t('adventure.journal')}
                     </h2>
                 </div>
             )}

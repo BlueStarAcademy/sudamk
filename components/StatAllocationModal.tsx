@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { UserWithStatus, CoreStat, ServerAction } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
@@ -21,6 +22,9 @@ interface StatAllocationModalProps {
 const STAT_ALLOCATION_WINDOW_ID = 'stat-allocation';
 
 const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, onClose, onAction, isTopmost, embedded = false }) => {
+    const { t } = useTranslation('profile');
+    const { t: tCommon } = useTranslation('common');
+    const { t } = useTranslation('profile');
     const { isNativeMobile, isNarrowViewport } = useNativeMobileShell();
     const isMobile = isNativeMobile || isNarrowViewport;
     
@@ -164,10 +168,10 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
 
     const handleReset = () => {
         if (!canReset) {
-            alert("능력치 초기화 조건을 충족하지 못했습니다. 골드가 부족하거나 일일 초기화 횟수를 초과했습니다.");
+            alert(t('statAllocation.resetFailAlert'));
             return;
         }
-        if (window.confirm(`골드 ${resetCost.toLocaleString()}개를 사용하여 모든 보너스 포인트를 초기화하시겠습니까? (오늘 ${remainingResetsToday}회 남음)`)) {
+        if (window.confirm(t('statAllocation.resetConfirm', { cost: resetCost.toLocaleString(), remaining: remainingResetsToday })))) {
             // 서버 액션 실행 (비동기로 처리하되 모달은 유지)
             onAction({ type: 'RESET_STAT_POINTS' });
             // 초기화 후 즉시 편집 모드 활성화 및 tempPoints 초기화
@@ -246,19 +250,19 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
                 <>
                     <div className="flex items-start justify-between gap-2 border-b border-white/10 pb-2">
                         <div className="min-w-0">
-                            <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-amber-200/60">능력치</p>
+                            <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-amber-200/60">{t('statAllocation.statLabel')}</p>
                             <h3 className="truncate text-sm font-bold tracking-tight text-amber-50 sm:text-base">
                                 {CORE_STATS_DATA[selectedStat].name}
                             </h3>
                         </div>
                         <div className="shrink-0 rounded-md border border-emerald-500/25 bg-emerald-950/40 px-2 py-1 text-right">
-                            <p className="text-[9px] font-medium text-emerald-200/80">남은</p>
+                            <p className="text-[9px] font-medium text-emerald-200/80">{t('statAllocation.remainingShort')}</p>
                             <p className="font-mono text-sm font-bold tabular-nums text-emerald-200">{availablePoints}</p>
                         </div>
                     </div>
                     <div className="mt-2.5 space-y-2.5">
                         <div className="flex items-center justify-between rounded-lg border border-white/[0.09] bg-black/30 px-2.5 py-1.5">
-                            <span className="text-[11px] text-zinc-400">이 능력치에 분배</span>
+                            <span className="text-[11px] text-zinc-400">{t('statAllocation.allocateToStat')}</span>
                             <span className="font-mono text-base font-bold tabular-nums text-amber-100 sm:text-lg">{b.current}</span>
                         </div>
                         <div className="touch-manipulation flex items-center gap-2 sm:gap-2.5">
@@ -268,7 +272,7 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
                                 type="button"
                                 onClick={() => handlePointChange(selectedStat, String(nextMinus))}
                                 disabled={b.current <= b.min || !isEditing}
-                                title="1 감소"
+                                title={t('statAllocation.decreaseOne')}
                                 className={`${stepBtn} border-zinc-500/40 bg-gradient-to-b from-zinc-700 to-zinc-900 text-zinc-100 hover:from-zinc-600 hover:to-zinc-800`}
                             >
                                 −
@@ -288,7 +292,7 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
                                 type="button"
                                 onClick={() => handlePointChange(selectedStat, String(nextPlus))}
                                 disabled={b.current >= b.max || !isEditing}
-                                title="1 증가"
+                                title={t('statAllocation.increaseOne')}
                                 className={`${stepBtn} border-cyan-400/45 bg-gradient-to-b from-cyan-600/90 via-sky-600/85 to-indigo-700/90 text-white ring-1 ring-cyan-300/20 hover:brightness-110`}
                             >
                                 +
@@ -336,7 +340,7 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
 
     const bonusPanel = (
         <div className="flex w-[min(5.75rem,28%)] shrink-0 flex-col justify-center rounded-lg border border-white/[0.09] bg-gradient-to-b from-zinc-900/75 to-black/50 px-1.5 py-1.5 text-center shadow-inner sm:px-2 sm:py-2">
-            <p className="text-[9px] font-medium uppercase tracking-wider text-amber-200/75 sm:text-[10px]">보너스</p>
+            <p className="text-[9px] font-medium uppercase tracking-wider text-amber-200/75 sm:text-[10px]">{t('statAllocation.bonus')}</p>
             <p className="mt-0.5 bg-gradient-to-r from-emerald-300 via-cyan-300 to-sky-300 bg-clip-text font-mono text-xl font-bold tabular-nums leading-none text-transparent sm:text-2xl">
                 {availablePoints}
             </p>
@@ -375,7 +379,7 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
                         cooldownMs={0}
                         className="max-w-[min(100%,15rem)] min-h-[34px] !rounded-lg !border !border-rose-400/30 !bg-gradient-to-r !from-rose-700/90 !via-rose-600/90 !to-orange-600/85 !px-3 !py-1.5 !text-[10px] !font-semibold !leading-tight !shadow-md hover:!brightness-105 sm:!min-h-[36px] sm:!text-[11px]"
                     >
-                        초기화 (<img src="/images/icon/Gold.webp" alt="골드" className="inline-block h-3 w-3 align-middle" />
+                        초기화 (<img src="/images/icon/Gold.webp" alt={tCommon('gold')} className="inline-block h-3 w-3 align-middle" />
                         {resetCost.toLocaleString()})
                     </Button>
                     <p className="mt-1 whitespace-nowrap text-center text-[9px] text-slate-500 sm:text-[10px]">
@@ -415,7 +419,7 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
                           className="max-h-[min(88dvh,28rem)] w-full max-w-[min(calc(100vw-1.5rem),20rem)] overflow-y-auto rounded-xl border border-amber-400/35 bg-zinc-950/98 p-3 shadow-[0_20px_50px_-18px_rgba(0,0,0,0.88)] ring-1 ring-white/5 sm:max-w-[22rem] sm:p-3.5"
                           role="dialog"
                           aria-modal="true"
-                          aria-label={`${CORE_STATS_DATA[selectedStat].name} 분배`}
+                          aria-label={t('statAllocation.allocateAria', { stat: CORE_STATS_DATA[selectedStat].name })}
                           onClick={(e) => e.stopPropagation()}
                       >
                           {statEditorInner}
@@ -436,7 +440,7 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
 
     return (
         <DraggableWindow
-            title="능력치 포인트 분배"
+            title={t('statAllocation.allocateTitle')}
             onClose={onClose}
             windowId={STAT_ALLOCATION_WINDOW_ID}
             initialWidth={isMobile ? 360 : 460}

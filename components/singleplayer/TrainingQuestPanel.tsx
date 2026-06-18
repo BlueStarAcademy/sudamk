@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { UserWithStatus } from '../../types.js';
 import { SINGLE_PLAYER_MISSIONS } from '../../constants/singlePlayerConstants.js';
 import Button from '../Button.js';
@@ -32,6 +33,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
     embeddedInTab = false,
     embeddedInModal = false,
 }) => {
+    const { t } = useTranslation(['lobby', 'common']);
     const { handlers } = useAppContext();
     const [selectedMissionForUpgrade, setSelectedMissionForUpgrade] = useState<string | null>(null);
     const [selectedMissionForStart, setSelectedMissionForStart] = useState<string | null>(null);
@@ -220,13 +222,13 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                 payload: { missionId }
             });
             if ((result as any)?.error) {
-                setActionErrorMessage(getActionFailureMessage(result, '수련 과제를 시작하지 못했습니다. 다시 시도해주세요.'));
+                setActionErrorMessage(getActionFailureMessage(result, t('singleplayer.errors.startMissionFailed')));
                 return;
             }
             setSelectedMissionForStart(null);
         } catch (error) {
             console.error('[TrainingQuestPanel] Start mission error:', error);
-            setActionErrorMessage(getActionFailureMessage(error, '수련 과제를 시작하지 못했습니다. 다시 시도해주세요.'));
+            setActionErrorMessage(getActionFailureMessage(error, t('singleplayer.errors.startMissionFailed')));
         }
     };
 
@@ -240,11 +242,11 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                 payload: { missionId }
             });
             if ((result as any)?.error) {
-                setActionErrorMessage(getActionFailureMessage(result, '보상을 수령하지 못했습니다. 다시 시도해주세요.'));
+                setActionErrorMessage(getActionFailureMessage(result, t('singleplayer.errors.claimRewardFailed')));
             }
         } catch (error) {
             console.error('[TrainingQuestPanel] Collect reward error:', error);
-            setActionErrorMessage(getActionFailureMessage(error, '보상을 수령하지 못했습니다. 다시 시도해주세요.'));
+            setActionErrorMessage(getActionFailureMessage(error, t('singleplayer.errors.claimRewardFailed')));
         }
     };
 
@@ -262,7 +264,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                 payload: { missionId }
             });
             if ((result as any)?.error) {
-                setActionErrorMessage(getActionFailureMessage(result, '수련 과제를 강화하지 못했습니다. 다시 시도해주세요.'));
+                setActionErrorMessage(getActionFailureMessage(result, t('singleplayer.errors.enhanceFailed')));
                 return;
             }
 
@@ -272,7 +274,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
             await new Promise(resolve => setTimeout(resolve, 200)); // WebSocket 업데이트 대기
         } catch (error) {
             console.error('[TrainingQuestPanel] Level up error:', error);
-            setActionErrorMessage(getActionFailureMessage(error, '수련 과제를 강화하지 못했습니다. 다시 시도해주세요.'));
+            setActionErrorMessage(getActionFailureMessage(error, t('singleplayer.errors.enhanceFailed')));
         }
     };
 
@@ -309,7 +311,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                 type: 'CLAIM_ALL_TRAINING_QUEST_REWARDS'
             }) as any;
             if (result?.error) {
-                setActionErrorMessage(getActionFailureMessage(result, '보상을 일괄 수령하지 못했습니다. 다시 시도해주세요.'));
+                setActionErrorMessage(getActionFailureMessage(result, t('singleplayer.errors.claimAllFailed')));
                 return;
             }
             
@@ -324,11 +326,11 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                 });
             } else {
                 console.warn('[TrainingQuestPanel] Claim all rewards - No claimAllTrainingQuestRewards in response:', result);
-                setActionErrorMessage('보상 수령 결과를 확인하지 못했습니다. 잠시 후 다시 시도해주세요.');
+                setActionErrorMessage(t('singleplayer.errors.claimAllResultMissing'));
             }
         } catch (error) {
             console.error('[TrainingQuestPanel] Claim all rewards error:', error);
-            setActionErrorMessage(getActionFailureMessage(error, '보상을 일괄 수령하지 못했습니다. 다시 시도해주세요.'));
+            setActionErrorMessage(getActionFailureMessage(error, t('singleplayer.errors.claimAllFailed')));
         } finally {
             setIsClaimingAll(false);
         }
@@ -365,21 +367,21 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                             className={`${PREMIUM_QUEST_BTN.claimAll} !text-sm sm:!text-base`}
                             disabled={isClaimingAll || claimableQuestsCount === 0}
                         >
-                            {isClaimingAll ? '수령 중...' : `일괄 수령 (${claimableQuestsCount})`}
+                            {isClaimingAll ? t('singleplayer.claiming') : t('singleplayer.claimAll', { count: claimableQuestsCount })}
                         </Button>
                     </div>
                 ) : !inModal ? (
                     <div
                         className={`flex flex-shrink-0 items-center justify-between border-b border-color ${effectiveCompactTop ? 'mb-0.5 pb-0.5' : 'mb-1 pb-0.5 sm:mb-1.5 sm:pb-1'}`}
                     >
-                        <h2 className={`font-bold text-on-panel ${effectiveCompactTop ? 'text-sm' : 'text-base sm:text-lg'}`}>수련 과제</h2>
+                        <h2 className={`font-bold text-on-panel ${effectiveCompactTop ? 'text-sm' : 'text-base sm:text-lg'}`}>{t('singleplayer.trainingQuest')}</h2>
                         <Button
                             onClick={handleClaimAllRewards}
                             colorScheme="none"
                             className={PREMIUM_QUEST_BTN.claimAll}
                             disabled={isClaimingAll || claimableQuestsCount === 0}
                         >
-                            {isClaimingAll ? '수령 중...' : `일괄 수령 (${claimableQuestsCount})`}
+                            {isClaimingAll ? t('singleplayer.claiming') : t('singleplayer.claimAll', { count: claimableQuestsCount })}
                         </Button>
                     </div>
                 ) : null}
@@ -467,7 +469,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                                       : 'text-xs sm:text-sm'
                                                             }`}
                                                         >
-                                                            {quest.unlockStageId} 필요
+                                                            {t('singleplayer.unlockRequired', { stageId: quest.unlockStageId })}
                                                         </span>
                                                     </div>
                                                 </div>
@@ -527,10 +529,10 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                                 <div className="flex min-w-0 items-center justify-between gap-2 text-xs font-semibold text-slate-100 sm:text-sm">
                                                                     <span
                                                                         className="flex min-w-0 items-center gap-1 truncate whitespace-nowrap text-sky-200"
-                                                                        title={`생산 ${quest.levelInfo.productionRateMinutes}분 / ${quest.levelInfo.rewardAmount}`}
+                                                                        title={t('singleplayer.productionRateTitle', { minutes: quest.levelInfo.productionRateMinutes, amount: quest.levelInfo.rewardAmount })}
                                                                     >
                                                                         <span className="truncate tabular-nums">
-                                                                            {quest.levelInfo.productionRateMinutes}분 / {quest.levelInfo.rewardAmount}
+                                                                            {t('singleplayer.productionRate', { minutes: quest.levelInfo.productionRateMinutes, amount: quest.levelInfo.rewardAmount })}
                                                                         </span>
                                                                         <img
                                                                             src={quest.rewardType === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
@@ -568,7 +570,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                                     disabled={!canCollect}
                                                                 >
                                                                     <span className="flex flex-col items-center justify-center gap-0.5 whitespace-nowrap leading-tight">
-                                                                        <span>수령</span>
+                                                                        <span>{t('singleplayer.claim')}</span>
                                                                         <span className="flex items-center gap-1 text-xs sm:text-sm">
                                                                             <img
                                                                                 src={quest.rewardType === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
@@ -586,7 +588,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                             <div className="flex min-w-0 flex-1 flex-col justify-center gap-1">
                                                                 {isMaxLevel ? (
                                                                     <p className="whitespace-nowrap text-xs font-semibold text-amber-200/90 sm:text-sm">
-                                                                        최대 레벨에 도달했습니다.
+                                                                        {t('singleplayer.maxLevelReached')}
                                                                     </p>
                                                                 ) : levelUpInfo ? (
                                                                     <TrainingQuestNextLevelEffects
@@ -623,34 +625,34 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                                 </div>
                                                             ) : isMaxLevel ? (
                                                                 <div className="flex w-[7rem] shrink-0 items-center justify-center border-l border-violet-400/20 pl-2 sm:w-[7.75rem] sm:pl-2.5">
-                                                                    <span className="whitespace-nowrap text-xs font-black text-amber-100 sm:text-sm">최대 레벨</span>
+                                                                    <span className="whitespace-nowrap text-xs font-black text-amber-100 sm:text-sm">{t('singleplayer.maxLevel')}</span>
                                                                 </div>
                                                             ) : null}
                                                         </div>
                                                     </>
                                                 ) : !quest.isUnlocked ? (
                                                     <div className="flex flex-row items-center gap-2 rounded-lg border border-zinc-500/30 bg-zinc-950/30 p-2.5 sm:gap-2.5">
-                                                        <p className="min-w-0 flex-1 whitespace-nowrap text-xs text-slate-400 sm:text-sm">해금 후 이용할 수 있습니다.</p>
+                                                        <p className="min-w-0 flex-1 whitespace-nowrap text-xs text-slate-400 sm:text-sm">{t('singleplayer.unlockedAfterClear')}</p>
                                                         <div className="w-[5.5rem] shrink-0 border-l border-zinc-500/25 pl-2 sm:w-[6.25rem] sm:pl-2.5">
                                                             <Button
                                                                 disabled
                                                                 colorScheme="none"
                                                                 className={`${PREMIUM_QUEST_BTN.claim} !w-full !flex-none !opacity-50 !py-2 !text-xs`}
                                                             >
-                                                                수령 0
+                                                                {t('singleplayer.claimZero')}
                                                             </Button>
                                                         </div>
                                                     </div>
                                                 ) : !quest.isStarted ? (
                                                     <div className="flex flex-row items-center gap-2 rounded-lg border border-emerald-400/30 bg-emerald-950/15 p-2.5 sm:gap-2.5">
-                                                        <p className="min-w-0 flex-1 whitespace-nowrap text-xs text-slate-400 sm:text-sm">시작하면 생산 정보가 표시됩니다.</p>
+                                                        <p className="min-w-0 flex-1 whitespace-nowrap text-xs text-slate-400 sm:text-sm">{t('singleplayer.productionInfoAfterStart')}</p>
                                                         <div className="flex w-[7rem] shrink-0 flex-col gap-1 border-l border-emerald-400/20 pl-2 sm:w-[7.75rem] sm:pl-2.5">
                                                             <Button
                                                                 onClick={() => handleOpenStartMissionModal(quest.id)}
                                                                 colorScheme="none"
                                                                 className={`${PREMIUM_QUEST_BTN.start} !w-full !flex-none !py-2.5 !text-sm sm:!text-base`}
                                                             >
-                                                                시작하기
+                                                                {t('singleplayer.start')}
                                                             </Button>
                                                             {isAdminUser && quest.id === 'mission_attendance' && (
                                                                 <Button
@@ -658,13 +660,13 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                                     colorScheme="none"
                                                                     className="!w-full !rounded-lg !border !border-amber-300/50 !bg-gradient-to-b !from-amber-400/90 !via-orange-700 !to-amber-950 !py-1.5 !text-[10px] !font-bold !text-amber-50"
                                                                 >
-                                                                    시작샘플
+                                                                    {t('singleplayer.startSample')}
                                                                 </Button>
                                                             )}
                                                         </div>
                                                     </div>
                                                 ) : (
-                                                    <p className="whitespace-nowrap text-xs text-slate-400 sm:text-sm">시작 후 표시됩니다.</p>
+                                                    <p className="whitespace-nowrap text-xs text-slate-400 sm:text-sm">{t('singleplayer.shownAfterStart')}</p>
                                                 )}
                                             </div>
                                         </div>
@@ -736,8 +738,8 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                                 </p>
                                                                 {!quest.levelInfo && (
                                                                     <div className="text-[11px] font-medium leading-snug text-slate-500">
-                                                                        <div>생산 시작 후 표시</div>
-                                                                        <div>타이머 --:--</div>
+                                                                        <div>{t('singleplayer.productionAfterStart')}</div>
+                                                                        <div>{t('singleplayer.timerPlaceholder')}</div>
                                                                     </div>
                                                                 )}
                                                             </div>
@@ -754,27 +756,27 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                         >
                                                             <span
                                                                 className={`flex min-w-0 items-center gap-0.5 ${embeddedTabNarrow ? 'max-w-[58%]' : 'max-w-[80%]'} ${quest.isUnlocked ? 'text-sky-200' : 'text-gray-500'}`}
-                                                                title={`생산 ${quest.levelInfo.productionRateMinutes}분 / ${quest.levelInfo.rewardAmount}`}
+                                                                title={t('singleplayer.productionRateTitle', { minutes: quest.levelInfo.productionRateMinutes, amount: quest.levelInfo.rewardAmount })}
                                                             >
                                                                 {embeddedTabNarrow ? (
                                                                     <>
                                                                         <span className="min-w-0 truncate tabular-nums whitespace-nowrap">
-                                                                            {quest.levelInfo.productionRateMinutes}분/{quest.levelInfo.rewardAmount}
+                                                                            {t('singleplayer.productionRateCompact', { minutes: quest.levelInfo.productionRateMinutes, amount: quest.levelInfo.rewardAmount })}
                                                                         </span>
                                                                         <img
                                                                             src={quest.rewardType === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
-                                                                            alt={quest.rewardType === 'gold' ? '골드' : '다이아'}
+                                                                            alt={quest.rewardType === 'gold' ? t('common:resources.gold') : t('common:resources.diamonds')}
                                                                             className="h-3 w-3 shrink-0 object-contain opacity-95"
                                                                         />
                                                                     </>
                                                                 ) : (
                                                                     <>
                                                                         <span className="shrink-0 whitespace-nowrap">
-                                                                            생산 {quest.levelInfo.productionRateMinutes}분 / {quest.levelInfo.rewardAmount}
+                                                                            {t('singleplayer.productionRate', { minutes: quest.levelInfo.productionRateMinutes, amount: quest.levelInfo.rewardAmount })}
                                                                         </span>
                                                                         <img
                                                                             src={quest.rewardType === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
-                                                                            alt={quest.rewardType === 'gold' ? '골드' : '다이아'}
+                                                                            alt={quest.rewardType === 'gold' ? t('common:resources.gold') : t('common:resources.diamonds')}
                                                                             className="h-3.5 w-3.5 shrink-0 object-contain opacity-95"
                                                                         />
                                                                     </>
@@ -788,7 +790,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                                 ) : quest.isUnlocked && quest.isStarted ? (
                                                                     <span className="text-slate-400">--:--</span>
                                                                 ) : (
-                                                                    <span className="text-slate-500">{quest.isUnlocked ? '--:--' : '잠김'}</span>
+                                                                    <span className="text-slate-500">{quest.isUnlocked ? '--:--' : t('singleplayer.locked')}</span>
                                                                 )}
                                                             </span>
                                                         </div>
@@ -853,10 +855,10 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                             className={`${PREMIUM_QUEST_BTN.claim} opacity-50${embeddedQuestBtnTight}`}
                                                         >
                                                             <span className={`flex items-center ${embeddedTabNarrow ? 'gap-0.5' : 'gap-1'}`}>
-                                                                <span>수령</span>
+                                                                <span>{t('singleplayer.claim')}</span>
                                                                 <img
                                                                     src={quest.rewardType === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
-                                                                    alt={quest.rewardType === 'gold' ? '골드' : '다이아'}
+                                                                    alt={quest.rewardType === 'gold' ? t('common:resources.gold') : t('common:resources.diamonds')}
                                                                     className={`object-contain ${embeddedTabNarrow ? 'h-2.5 w-2.5' : 'h-3 w-3'}`}
                                                                 />
                                                                 <span>0</span>
@@ -867,7 +869,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                             colorScheme="none"
                                                             className={`${PREMIUM_QUEST_BTN.upgrade} opacity-50${embeddedQuestBtnTight}`}
                                                         >
-                                                            강화
+                                                            {t('singleplayer.enhance')}
                                                         </Button>
                                                     </>
                                                 ) : !quest.isStarted ? (
@@ -877,7 +879,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                             colorScheme="none"
                                                             className={`${PREMIUM_QUEST_BTN.start}${embeddedQuestBtnTight}`}
                                                         >
-                                                            시작하기
+                                                            {t('singleplayer.start')}
                                                         </Button>
                                                         {isAdminUser && quest.id === 'mission_attendance' && (
                                                             <Button
@@ -885,7 +887,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                                 colorScheme="none"
                                                                 className={`!rounded-lg !border !border-amber-300/50 !bg-gradient-to-b !from-amber-400/90 !via-orange-700 !to-amber-950 !text-[11px] !font-bold !text-amber-50 !shadow-[0_2px_12px_rgba(245,158,11,0.35)] hover:!brightness-110 sm:!text-xs${embeddedQuestBtnTight}`}
                                                             >
-                                                                시작샘플
+                                                                {t('singleplayer.startSample')}
                                                             </Button>
                                                         )}
                                                     </>
@@ -898,10 +900,10 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                             disabled={!canCollect}
                                                         >
                                                             <span className={`flex items-center ${embeddedTabNarrow ? 'gap-0.5' : 'gap-1'}`}>
-                                                                <span>수령</span>
+                                                                <span>{t('singleplayer.claim')}</span>
                                                                 <img
                                                                     src={quest.rewardType === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
-                                                                    alt={quest.rewardType === 'gold' ? '골드' : '다이아'}
+                                                                    alt={quest.rewardType === 'gold' ? t('common:resources.gold') : t('common:resources.diamonds')}
                                                                     className={`flex-shrink-0 object-contain ${embeddedTabNarrow ? 'h-2.5 w-2.5' : 'h-3 w-3'}`}
                                                                 />
                                                                 <span>{reward > 0 ? reward.toLocaleString() : 0}</span>
@@ -913,7 +915,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                             className={`${PREMIUM_QUEST_BTN.upgrade}${embeddedQuestBtnTight}`}
                                                             disabled={isMaxLevel}
                                                         >
-                                                            강화
+                                                            {t('singleplayer.enhance')}
                                                         </Button>
                                                     </>
                                                 )}
@@ -968,14 +970,14 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                                 className={`flex min-w-0 max-w-[72%] items-center gap-1 truncate sm:max-w-[78%] ${
                                                                     quest.isUnlocked ? 'text-sky-200' : 'text-gray-500'
                                                                 }`}
-                                                                title={`생산 ${quest.levelInfo.productionRateMinutes}분 / ${quest.levelInfo.rewardAmount}`}
+                                                                title={t('singleplayer.productionRateTitle', { minutes: quest.levelInfo.productionRateMinutes, amount: quest.levelInfo.rewardAmount })}
                                                             >
                                                                 <span className="truncate whitespace-nowrap">
-                                                                    생산 {quest.levelInfo.productionRateMinutes}분 / {quest.levelInfo.rewardAmount}
+                                                                    {t('singleplayer.productionRate', { minutes: quest.levelInfo.productionRateMinutes, amount: quest.levelInfo.rewardAmount })}
                                                                 </span>
                                                                 <img
                                                                     src={quest.rewardType === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
-                                                                    alt={quest.rewardType === 'gold' ? '골드' : '다이아'}
+                                                                    alt={quest.rewardType === 'gold' ? t('common:resources.gold') : t('common:resources.diamonds')}
                                                                     className="h-4 w-4 shrink-0 object-contain opacity-95 sm:h-[18px] sm:w-[18px]"
                                                                 />
                                                             </span>
@@ -989,7 +991,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                                 {quest.isUnlocked && !quest.isStarted && (
                                                                     <span className="text-slate-400">--:--</span>
                                                                 )}
-                                                                {!quest.isUnlocked && <span className="text-slate-500">잠김</span>}
+                                                                {!quest.isUnlocked && <span className="text-slate-500">{t('singleplayer.locked')}</span>}
                                                             </span>
                                                         </div>
                                                         <div className="relative">
@@ -1040,9 +1042,9 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                                     quest.isUnlocked ? 'text-tertiary' : 'text-gray-500'
                                                                 }`}
                                                             >
-                                                                <span>시작 후 표시</span>
+                                                                <span>{t('singleplayer.shownAfterStart')}</span>
                                                             </span>
-                                                            {!quest.isUnlocked && <span className="text-gray-500">잠김</span>}
+                                                            {!quest.isUnlocked && <span className="text-gray-500">{t('singleplayer.locked')}</span>}
                                                         </div>
                                                     </div>
                                                 )}
@@ -1051,7 +1053,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                             {levelUpInfo && !isMaxLevel && quest.isStarted && (
                                                 <div className={`mb-0.5 flex-shrink-0 sm:mb-1 ${!quest.isUnlocked ? 'opacity-50' : ''}`}>
                                                     <div className="mb-0.5 flex items-center justify-between">
-                                                        <span className="text-[8px] text-amber-200/90 sm:text-[9px]">경험치</span>
+                                                        <span className="text-[8px] text-amber-200/90 sm:text-[9px]">{t('singleplayer.experience')}</span>
                                                         <span className="text-[8px] font-bold text-amber-200/90 sm:text-[9px]">
                                                             {Math.floor(levelUpInfo.progress)}%
                                                         </span>
@@ -1070,17 +1072,17 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                     <>
                                                         <Button disabled colorScheme="none" className={`${PREMIUM_QUEST_BTN.claim} opacity-50`}>
                                                             <span className="flex items-center gap-1">
-                                                                <span>수령</span>
+                                                                <span>{t('singleplayer.claim')}</span>
                                                                 <img
                                                                     src={quest.rewardType === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
-                                                                    alt={quest.rewardType === 'gold' ? '골드' : '다이아'}
+                                                                    alt={quest.rewardType === 'gold' ? t('common:resources.gold') : t('common:resources.diamonds')}
                                                                     className="h-3 w-3 object-contain"
                                                                 />
                                                                 <span>0</span>
                                                             </span>
                                                         </Button>
                                                         <Button disabled colorScheme="none" className={`${PREMIUM_QUEST_BTN.upgrade} opacity-50`}>
-                                                            강화
+                                                            {t('singleplayer.enhance')}
                                                         </Button>
                                                     </>
                                                 ) : !quest.isStarted ? (
@@ -1090,7 +1092,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                             colorScheme="none"
                                                             className={PREMIUM_QUEST_BTN.start}
                                                         >
-                                                            시작하기
+                                                            {t('singleplayer.start')}
                                                         </Button>
                                                         {isAdminUser && quest.id === 'mission_attendance' && (
                                                             <Button
@@ -1098,7 +1100,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                                 colorScheme="none"
                                                                 className="!rounded-lg !border !border-amber-300/50 !bg-gradient-to-b !from-amber-400/90 !via-orange-700 !to-amber-950 !px-1.5 !py-1 !text-[11px] !font-bold !text-amber-50 !shadow-[0_2px_12px_rgba(245,158,11,0.35)] hover:!brightness-110 sm:!px-2 sm:!py-1.5 sm:!text-xs"
                                                             >
-                                                                시작샘플
+                                                                {t('singleplayer.startSample')}
                                                             </Button>
                                                         )}
                                                     </>
@@ -1111,10 +1113,10 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                             disabled={!canCollect}
                                                         >
                                                             <span className="flex items-center gap-1">
-                                                                <span>수령</span>
+                                                                <span>{t('singleplayer.claim')}</span>
                                                                 <img
                                                                     src={quest.rewardType === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
-                                                                    alt={quest.rewardType === 'gold' ? '골드' : '다이아'}
+                                                                    alt={quest.rewardType === 'gold' ? t('common:resources.gold') : t('common:resources.diamonds')}
                                                                     className="h-3 w-3 flex-shrink-0 object-contain"
                                                                 />
                                                                 <span>{reward > 0 ? reward.toLocaleString() : 0}</span>
@@ -1126,7 +1128,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                             className={PREMIUM_QUEST_BTN.upgrade}
                                                             disabled={isMaxLevel}
                                                         >
-                                                            강화
+                                                            {t('singleplayer.enhance')}
                                                         </Button>
                                                     </>
                                                 )}
@@ -1147,7 +1149,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                             className={`${PREMIUM_QUEST_BTN.claimAllConfirm} !w-auto !min-w-[9.75rem] !max-w-[11.5rem] !px-5 !text-xs sm:!min-w-[10.75rem] sm:!text-sm`}
                             disabled={isClaimingAll || claimableQuestsCount === 0}
                         >
-                            {isClaimingAll ? '수령 중...' : `일괄 수령 (${claimableQuestsCount})`}
+                            {isClaimingAll ? t('singleplayer.claiming') : t('singleplayer.claimAll', { count: claimableQuestsCount })}
                         </Button>
                     </div>
                 ) : null}

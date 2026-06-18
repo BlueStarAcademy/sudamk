@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import Button from '../Button.js';
 import { GameMode, type User } from '../../types.js';
@@ -143,6 +144,7 @@ const ModePickCard: React.FC<{
     scrollStripItem?: boolean;
     onSelect: () => void;
 }> = ({ def, queueCount, isSelected, disabled, compact, scrollStripItem, onSelect }) => {
+    const { t } = useTranslation('pair');
     const [imgError, setImgError] = useState(false);
     const imgH = compact ? 70 : 88;
 
@@ -184,7 +186,12 @@ const ModePickCard: React.FC<{
             >
                 {def.name}
             </h3>
-            <p className="w-full text-xs font-semibold tabular-nums text-cyan-100 sm:text-sm">대기 {queueCount}팀</p>
+            <p className="w-full text-xs font-semibold tabular-nums text-cyan-100 sm:text-sm">
+                {t('rankedMatch.queueWaiting', {
+                    count: queueCount,
+                    unit: t('rankedMatch.queueUnitTeam'),
+                })}
+            </p>
         </button>
     );
 };
@@ -212,6 +219,8 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
     variant = 'pair_pet',
     hideModePicker = false,
 }) => {
+    const { t } = useTranslation(['pair', 'common', 'game']);
+    const { t: tCommon } = useTranslation('common');
     const { isNativeMobile } = useNativeMobileShell();
     const isCompactViewport = useIsHandheldDevice(1024);
     const isHandheld = isNativeMobile || isCompactViewport;
@@ -254,16 +263,14 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
         return formatActionPointCostWithPetDiscount(base, eff);
     }, [variant, currentUser, selected]);
 
-    /** 1:1 전략 랭킹 큐는 인원, 페어 방 랭킹은 팀 */
-    const queueCountUnitLabel = variant === 'pair_pet' || variant === 'duo_arena' ? '팀' : '명';
+    const queueCountUnitLabel =
+        variant === 'pair_pet' || variant === 'duo_arena' ? t('rankedMatch.queueUnitTeam') : t('rankedMatch.queueUnitPerson');
 
     /** 모바일: 모드 피커와 정보 열을 세로 2단계로 분리(AI 대전 모달과 동일 흐름). 파트너 동의 등 `hideModePicker`일 때는 단일 열 유지 */
     const handheldModePickerStacked = isHandheld && !hideModePicker;
 
     const modeBriefFallback =
-        variant === 'strategic_arena'
-            ? '종목을 고른 뒤 내 랭킹과 매칭 대기 현황, 공식 규칙을 확인하고 매칭 대기를 시작합니다.'
-            : '종목을 고른 뒤 내 랭킹 정보와 공식 규칙을 확인하고 매칭 대기를 시작합니다.';
+        variant === 'strategic_arena' ? t('rankedMatch.briefFallbackStrategic') : t('rankedMatch.briefFallbackDefault');
 
     const selectedModeBriefSummaryPanel = (
         <div className="relative z-[1] shrink-0 rounded-xl border border-white/10 bg-black/25 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
@@ -279,7 +286,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                             </span>
                         </>
                     ) : (
-                        <span className="text-center text-[10px] leading-snug text-zinc-500">모드를 선택하세요</span>
+                        <span className="text-center text-[10px] leading-snug text-zinc-500">{t('rankedMatch.selectMode')}</span>
                     )}
                 </div>
                 <div className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/30 px-2.5 py-2">
@@ -301,7 +308,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                     setMobileStep('pickMode');
                 }}
             >
-                뒤로
+                {tCommon('actions.back')}
             </button>
         ) : undefined;
 
@@ -324,7 +331,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                 </p>
             </div>
             <div className="flex min-w-0 flex-col items-center justify-center gap-0.5 px-1 text-center sm:px-2">
-                <span className="text-[9px] font-semibold tracking-wide text-zinc-500 sm:text-[10px]">랭킹 점수</span>
+                <span className="text-[9px] font-semibold tracking-wide text-zinc-500 sm:text-[10px]">{t('game:summary.rankingScore')}</span>
                 <span
                     className={`font-mono font-extrabold tabular-nums leading-none text-zinc-50 ${
                         isHandheld ? 'text-base' : 'text-lg sm:text-xl'
@@ -334,7 +341,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                 </span>
             </div>
             <div className="flex min-w-0 flex-col items-center justify-center gap-0.5 px-1 text-center sm:px-2">
-                <span className="text-[9px] font-semibold tracking-wide text-cyan-200/80 sm:text-[10px]">매칭 대기</span>
+                <span className="text-[9px] font-semibold tracking-wide text-cyan-200/80 sm:text-[10px]">{t('rankedMatch.matchQueue')}</span>
                 <span className={`font-bold tabular-nums text-cyan-50 ${isHandheld ? 'text-base' : 'text-lg sm:text-xl'}`}>
                     {selectedQueue}
                     {queueCountUnitLabel}
@@ -345,8 +352,8 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
 
     const rankedRulesSection = (
         <div className={isHandheld ? 'mt-3' : 'mt-4'}>
-            <p className="text-xs font-semibold text-zinc-200 sm:text-sm">랭킹전 적용 규칙</p>
-            <h4 className="mb-0 mt-1.5 flex-shrink-0 text-xs font-semibold text-gray-300 sm:mt-2 sm:text-sm">대국 설정</h4>
+            <p className="text-xs font-semibold text-zinc-200 sm:text-sm">{t('rankedMatch.rankedRules')}</p>
+            <h4 className="mb-0 mt-1.5 flex-shrink-0 text-xs font-semibold text-gray-300 sm:mt-2 sm:text-sm">{t('rankedMatch.gameSettings')}</h4>
             {ruleRows.length > 0 ? (
                 <div
                     className={
@@ -376,7 +383,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                     ))}
                 </div>
             ) : (
-                <p className="mt-2 text-sm text-zinc-400">표시할 규칙이 없습니다.</p>
+                <p className="mt-2 text-sm text-zinc-400">{t('rankedMatch.noRules')}</p>
             )}
         </div>
     );
@@ -391,7 +398,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                     : 'lg:w-[min(36%,20rem)] lg:min-w-[15.5rem] lg:max-w-[20rem] lg:border-b-0 lg:border-r'
             }`}
         >
-            <h3 className="mb-2 shrink-0 text-sm font-bold tracking-tight text-amber-100/95 sm:mb-3 sm:text-base">게임 모드 선택</h3>
+            <h3 className="mb-2 shrink-0 text-sm font-bold tracking-tight text-amber-100/95 sm:mb-3 sm:text-base">{t('rankedMatch.selectGameMode')}</h3>
             {isHandheld ? (
                 <LobbyHorizontalModePickerScroll inlineRow>
                     {modes.map((def) => (
@@ -452,7 +459,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                                 </h4>
                             </div>
                         ) : (
-                            <p className={`mb-2 text-xs text-zinc-500 ${isHandheld ? '' : 'sm:text-sm'}`}>모드를 선택하세요.</p>
+                            <p className={`mb-2 text-xs text-zinc-500 ${isHandheld ? '' : 'sm:text-sm'}`}>{t('rankedMatch.selectModePeriod')}</p>
                         )}
                         {tierScoreQueueGrid}
                     </div>
@@ -474,7 +481,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                         isHandheld ? 'py-2.5 text-sm' : 'py-3 text-base'
                     }`}
                 >
-                    취소
+                    {tCommon('actions.cancel')}
                 </Button>
                 <Button
                     type="button"
@@ -485,7 +492,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                         isHandheld ? 'py-2.5 text-sm' : 'py-3 text-base'
                     }`}
                 >
-                    매칭 대기 (⚡{displayedQueueApCost})
+                    {t('rankedMatch.queueWithAp', { cost: displayedQueueApCost })}
                 </Button>
             </div>
         </div>
@@ -497,10 +504,8 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                 {selectedModeBriefSummaryPanel}
                 {mobileStep === 'pickMode' ? (
                     <div className="relative z-[1] flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
-                        <h3 className="shrink-0 text-sm font-bold tracking-tight text-amber-100/95">게임 모드 선택</h3>
-                        <p className="shrink-0 text-[11px] leading-snug text-zinc-500">
-                            종목을 눌러 선택한 뒤 다음에서 랭킹 정보와 규칙을 확인하세요.
-                        </p>
+                        <h3 className="shrink-0 text-sm font-bold tracking-tight text-amber-100/95">{t('rankedMatch.selectGameMode')}</h3>
+                        <p className="shrink-0 text-[11px] leading-snug text-zinc-500">{t('rankedMatch.mobilePickHint')}</p>
                         <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain [-webkit-overflow-scrolling:touch]">
                             <div className="grid grid-cols-3 gap-2 pb-1">
                                 {modes.map((def) => (
@@ -528,7 +533,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                                 onClick={() => setMobileStep('details')}
                                 className="inline-flex min-h-[2.55rem] max-w-[min(12.25rem,76vw)] shrink-0 items-center justify-center rounded-xl border border-violet-300/45 bg-gradient-to-br from-violet-500/96 via-fuchsia-600/94 to-indigo-800 px-4 text-[12.5px] font-bold tracking-wide text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_3px_0_0_rgba(55,48,163,0.52),0_12px_32px_-12px_rgba(139,92,246,0.42)] ring-1 ring-violet-300/22 transition-all duration-200 hover:brightness-[1.06] active:translate-y-px active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/45 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0812] touch-manipulation disabled:!cursor-not-allowed disabled:!opacity-45 disabled:!hover:brightness-100"
                             >
-                                다음
+                                {tCommon('actions.next')}
                             </Button>
                         </div>
                     </div>
@@ -550,7 +555,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                                 onClick={() => onClose()}
                                 className={`${LOBBY_MOBILE_BTN_SECONDARY_CLASS} !min-h-[2.58rem] min-w-0 !w-auto flex-[0.92] !rounded-xl !px-3 !text-[12.5px] !font-bold`}
                             >
-                                취소
+                                {tCommon('actions.cancel')}
                             </Button>
                             <Button
                                 type="button"
@@ -559,7 +564,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                                 onClick={() => void onQueue(selected)}
                                 className="inline-flex !min-h-[2.58rem] min-w-0 !w-auto flex-[1.22] items-center justify-center !rounded-xl border border-amber-400/48 bg-gradient-to-b from-amber-600/88 to-amber-950/95 px-3 text-[12.5px] font-extrabold tracking-wide text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.11)] ring-1 ring-amber-400/18 transition-all hover:brightness-[1.06] active:scale-[0.99] disabled:!cursor-not-allowed disabled:!opacity-45"
                             >
-                                매칭 대기 (⚡{displayedQueueApCost})
+                                {t('rankedMatch.queueWithAp', { cost: displayedQueueApCost })}
                             </Button>
                         </div>
                     </div>
@@ -577,10 +582,10 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
 
     const windowTitle =
         variant === 'strategic_arena'
-            ? '전략바둑 랭킹전 매칭'
+            ? t('rankedMatch.titleStrategic')
             : variant === 'duo_arena'
-              ? '2인 페어 랭킹전 매칭'
-              : '페어 펫 랭킹전 매칭';
+              ? t('rankedMatch.titleDuo')
+              : t('rankedMatch.titlePet');
     const windowId =
         variant === 'strategic_arena'
             ? 'strategic-arena-ranked-match-mode'
@@ -619,7 +624,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                     }}
                     className={LOBBY_ROOM_CREATE_CLOSE_BTN_CLASS}
                 >
-                    닫기
+                    {tCommon('actions.close')}
                 </button>
                 <div
                     className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden ${

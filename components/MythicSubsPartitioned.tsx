@@ -1,9 +1,11 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import type { ItemOption } from '../types.js';
 import { partitionMythicSubsWithIndex } from '../shared/utils/specialOptionGearEffects.js';
 import { EquipmentBagStyleOptionRow } from './equipment/EquipmentBagStyleOptionRow.js';
 
 export const MythicSubsPartitioned: React.FC<{
+    const { t } = useTranslation('game');
     subs: ItemOption[] | undefined | null;
     itemStars?: number;
     mythicTextClass?: string;
@@ -29,7 +31,7 @@ export const MythicSubsPartitioned: React.FC<{
         <div className={`space-y-1.5 ${bodyText}`}>
             {mythicGradeRows.length > 0 ? (
                 <div className="space-y-0.5">
-                    <p className={`${headText} text-rose-200/90`}>신화 스페셜 옵션</p>
+                    <p className={`${headText} text-rose-200/90`}>{t('mythicPartition.mythic')}</p>
                     {mythicGradeRows.map(({ sub, index }) => (
                         <EquipmentBagStyleOptionRow
                             key={`mythic-sp-${index}`}
@@ -43,7 +45,7 @@ export const MythicSubsPartitioned: React.FC<{
             ) : null}
             {transcendentGradeRows.length > 0 ? (
                 <div className="space-y-0.5">
-                    <p className={`${headText} text-cyan-200/90`}>초월 스페셜 옵션</p>
+                    <p className={`${headText} text-cyan-200/90`}>{t('mythicPartition.transcendent')}</p>
                     {transcendentGradeRows.map(({ sub, index }) => (
                         <EquipmentBagStyleOptionRow
                             key={`trans-sp-${index}`}

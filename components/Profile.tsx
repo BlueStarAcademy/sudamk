@@ -80,6 +80,7 @@ import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.
 import { useScreenGuide } from '../hooks/useScreenGuide.js';
 import ScreenGuideModal from './ScreenGuideModal.js';
 import ChatWindow from './waiting-room/ChatWindow.js';
+import { useTranslation } from 'react-i18next';
 
 function isVipExpiresActive(exp?: number): boolean {
     return typeof exp === 'number' && Number.isFinite(exp) && exp > Date.now();
@@ -171,7 +172,7 @@ const EquipmentSlotDisplay: React.FC<{
     
     if (item) {
         const requiredLevel = GRADE_LEVEL_REQUIREMENTS[item.grade];
-        const titleText = `${item.name} (${formatEquipLevelRequirement(requiredLevel)}) - 클릭하여 상세보기`;
+        const titleText = t('equipmentDetailTitle', { name: item.name, level: formatEquipLevelRequirement(requiredLevel) });
         const starInfo = getStarDisplayInfo(item.stars);
         const isTranscendent = item.grade === ItemGrade.Transcendent;
         return (
@@ -245,6 +246,7 @@ const LobbyCard: React.FC<{
     locked?: boolean;
     lockReason?: string;
 }> = ({ type, stats, onEnter, onViewStats, level, title, imageUrl, tier, compact, arenaMobile, hideOverlayText = false, hideOverlayFooter = false, locked = false, lockReason }) => {
+    const { t } = useTranslation('profile');
     const isStrategic = type === 'strategic';
     const shadowColor = isStrategic ? "hover:shadow-blue-500/30" : "hover:shadow-yellow-500/30";
 
@@ -264,7 +266,7 @@ const LobbyCard: React.FC<{
                 type="button"
                 onClick={locked ? undefined : onEnter}
                 disabled={locked}
-                aria-label={`${title} 경기장 입장`}
+                aria-label={t('arenaEnterAria', { title })}
                 className={`group relative flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/12 bg-black/40 text-left shadow-[0_14px_44px_-18px_rgba(0,0,0,0.85)] ring-1 ring-white/8 transition-all will-change-transform ${popEase} ${locked ? 'cursor-not-allowed grayscale-[0.25] opacity-75' : `hover:z-10 hover:-translate-y-2 hover:scale-[1.035] ${hoverLift} active:translate-y-0 active:scale-[1.01]`} ${accentRing} focus:outline-none focus-visible:ring-2`}
             >
                 <img
@@ -277,7 +279,7 @@ const LobbyCard: React.FC<{
                     <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/50 px-2 text-center">
                         <span className="text-[2rem] leading-none drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] sm:text-[2.4rem]">🔒</span>
                         <span className="mt-1 rounded-md border border-rose-300/40 bg-black/55 px-2 py-0.5 text-[10px] font-bold text-rose-100 sm:text-xs">
-                            {lockReason ?? '잠금'}
+                            {lockReason ?? t('lock')}
                         </span>
                     </div>
                 )}
@@ -298,7 +300,7 @@ const LobbyCard: React.FC<{
                             isStrategic ? 'bg-blue-600/88 ring-1 ring-white/15' : 'bg-amber-600/88 ring-1 ring-white/15'
                         }`}
                     >
-                        {locked ? '잠금됨' : '탭하여 입장'}
+                        {locked ? t('locked') : t('tapToEnter')}
                     </span>
                 </div>
             </button>
@@ -317,7 +319,7 @@ const LobbyCard: React.FC<{
                 <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/50 px-2 text-center">
                     <span className="text-[2rem] leading-none drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] sm:text-[2.4rem]">🔒</span>
                     <span className={`mt-1 rounded-md border border-rose-300/40 bg-black/55 px-2 py-0.5 font-bold text-rose-100 ${compactMode ? 'text-[8px]' : 'text-[10px] sm:text-xs'}`}>
-                        {lockReason ?? '잠금'}
+                        {lockReason ?? t('lock')}
                     </span>
                 </div>
             )}
@@ -331,9 +333,9 @@ const LobbyCard: React.FC<{
                 <div
                     onClick={(e) => { e.stopPropagation(); if (!locked) onViewStats(); }}
                     className={`relative z-[1] mt-0.5 flex w-full items-center justify-between rounded-md bg-black/50 text-white backdrop-blur-[1px] ${locked ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-black/65'} ${compactMode ? 'px-0.5 py-px text-[7px]' : 'mt-1 p-0.5 text-[10px] transition-colors lg:mt-2 lg:p-1 lg:text-xs'}`}
-                    title="상세 전적 보기"
+                    title={t('viewStats')}
                 >
-                    <span className="min-w-0 truncate">{compactMode ? `${stats.wins}승${stats.losses}패 ${winRate}%` : `총 전적: ${stats.wins}승 ${stats.losses}패 (${winRate}%)`}</span>
+                    <span className="min-w-0 truncate">{compactMode ? t('totalRecordCompact', { wins: stats.wins, losses: stats.losses, winRate }) : t('totalRecordFull', { wins: stats.wins, losses: stats.losses, winRate })}</span>
                     <span className="flex-shrink-0 text-accent font-semibold">&rarr;</span>
                 </div>
             )}
@@ -342,6 +344,7 @@ const LobbyCard: React.FC<{
 };
 
 const PveCard: React.FC<{ title: string; imageUrl: string; layout: 'grid' | 'tall'; footerContent?: React.ReactNode; onClick?: () => void; isComingSoon?: boolean; compact?: boolean; arenaMobile?: boolean; hideOverlayText?: boolean; locked?: boolean; lockReason?: string; imageScaleClass?: string; newBadge?: boolean }> = ({ title, imageUrl, layout, footerContent, onClick, isComingSoon, compact, arenaMobile, hideOverlayText = false, locked = false, lockReason, imageScaleClass = '', newBadge = false }) => {
+    const { t } = useTranslation('profile');
     const shadowColor = "hover:shadow-purple-500/30";
     const compactMode = Boolean(compact && !arenaMobile);
 
@@ -365,7 +368,7 @@ const PveCard: React.FC<{ title: string; imageUrl: string; layout: 'grid' | 'tal
                     <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/50 px-2 text-center">
                         <span className="text-[2rem] leading-none drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] sm:text-[2.4rem]">🔒</span>
                         <span className="mt-1 rounded-md border border-rose-300/40 bg-black/55 px-2 py-0.5 text-[10px] font-bold text-rose-100 sm:text-xs">
-                            {lockReason ?? '잠금'}
+                            {lockReason ?? t('lock')}
                         </span>
                     </div>
                 )}
@@ -376,7 +379,7 @@ const PveCard: React.FC<{ title: string; imageUrl: string; layout: 'grid' | 'tal
                 </div>
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center bg-gradient-to-t from-black/85 via-black/40 to-transparent pb-2 pt-8">
                     <span className="rounded-full border border-white/15 bg-black/55 px-2.5 py-1 text-[10px] font-semibold text-slate-100 shadow-lg backdrop-blur-sm ring-1 ring-white/10 sm:text-xs">
-                        {isComingSoon ? '오픈 예정' : '탭하여 입장'}
+                        {isComingSoon ? t('comingSoon') : t('tapToEnter')}
                     </span>
                 </div>
             </>
@@ -390,7 +393,7 @@ const PveCard: React.FC<{ title: string; imageUrl: string; layout: 'grid' | 'tal
                 )}
                 {newBadge && <span className={`${NEW_FEATURE_BADGE_CLASS} left-2 top-2 sm:left-3 sm:top-3`}>NEW</span>}
                 {interactive ? (
-                    <button type="button" onClick={onClick} className={`group ${shellClass}`} aria-label={`${title} 입장`}>
+                    <button type="button" onClick={onClick} className={`group ${shellClass}`} aria-label={t('enterAria', { title })}>
                         {inner}
                     </button>
                 ) : (
@@ -423,7 +426,7 @@ const PveCard: React.FC<{ title: string; imageUrl: string; layout: 'grid' | 'tal
                 <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/50 px-2 text-center">
                     <span className="text-[2rem] leading-none drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] sm:text-[2.4rem]">🔒</span>
                     <span className={`mt-1 rounded-md border border-rose-300/40 bg-black/55 px-2 py-0.5 font-bold text-rose-100 ${compactMode ? 'text-[8px]' : 'text-[10px] sm:text-xs'}`}>
-                        {lockReason ?? '잠금'}
+                        {lockReason ?? t('lock')}
                     </span>
                 </div>
             )}
@@ -447,6 +450,7 @@ const StrategicPairPvpSymbolCard: React.FC<{
     pairLocked?: boolean;
     pairLockReason?: string;
 }> = ({ onSelectStrategic, onSelectPair, strategicLocked, strategicLockReason, pairLocked, pairLockReason }) => {
+    const { t } = useTranslation('profile');
     return (
         <div className="group relative flex h-full min-h-0 w-full flex-col overflow-hidden rounded-xl border border-amber-400/35 text-on-panel shadow-[0_14px_34px_-18px_rgba(0,0,0,0.8)]">
             <button
@@ -454,24 +458,24 @@ const StrategicPairPvpSymbolCard: React.FC<{
                 onClick={strategicLocked ? undefined : onSelectStrategic}
                 disabled={strategicLocked}
                 className={`relative h-1/2 w-full overflow-hidden border-b border-amber-300/25 text-left transition-transform duration-200 ${strategicLocked ? 'cursor-not-allowed opacity-80' : 'hover:brightness-110 active:scale-[0.995]'}`}
-                aria-label="전략 바둑 대기실 입장"
+                aria-label={t('strategicLobbyEnter')}
             >
                 <img
                     src={STRATEGIC_GO_LOBBY_IMG}
-                    alt="전략 바둑 대기실"
+                    alt={t('strategicLobbyAlt')}
                     className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-[1.03]"
                     decoding="async"
                     fetchpriority="high"
                 />
                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-cyan-950/45 via-black/25 to-transparent" />
                 <span className="pointer-events-none absolute left-2 top-2 rounded-md border border-cyan-300/55 bg-cyan-900/70 px-2 py-0.5 text-xs font-black tracking-wide text-cyan-100">
-                    전략
+                    {t('strategic')}
                 </span>
                 {strategicLocked && (
                     <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/50 px-2 text-center">
                         <span className="text-[1.35rem] leading-none drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] sm:text-[1.6rem]">🔒</span>
                         <span className="mt-1 rounded-md border border-rose-300/40 bg-black/55 px-2 py-0.5 text-[9px] font-bold text-rose-100 sm:text-[10px]">
-                            {strategicLockReason ?? '입장 불가'}
+                            {strategicLockReason ?? t('entryBlocked')}
                         </span>
                     </div>
                 )}
@@ -481,24 +485,24 @@ const StrategicPairPvpSymbolCard: React.FC<{
                 onClick={pairLocked ? undefined : onSelectPair}
                 disabled={pairLocked}
                 className={`relative h-1/2 w-full overflow-hidden text-left transition-transform duration-200 ${pairLocked ? 'cursor-not-allowed opacity-80' : 'hover:brightness-110 active:scale-[0.995]'}`}
-                aria-label="페어 경기장 입장"
+                aria-label={t('pairArenaEnter')}
             >
                 <img
                     src={PAIR_GO_LOBBY_IMG}
-                    alt="페어 경기장"
+                    alt={t('pairArenaAlt')}
                     className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-[1.03]"
                     decoding="async"
                     fetchpriority="high"
                 />
                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-violet-950/45 via-black/25 to-transparent" />
                 <span className="pointer-events-none absolute left-2 top-2 rounded-md border border-violet-300/55 bg-violet-900/70 px-2 py-0.5 text-xs font-black tracking-wide text-violet-100">
-                    페어
+                    {t('pair')}
                 </span>
                 {pairLocked && (
                     <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/50 px-2 text-center">
                         <span className="text-[1.35rem] leading-none drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] sm:text-[1.6rem]">🔒</span>
                         <span className="mt-1 rounded-md border border-rose-300/40 bg-black/55 px-2 py-0.5 text-[9px] font-bold text-rose-100 sm:text-[10px]">
-                            {pairLockReason ?? '입장 불가'}
+                            {pairLockReason ?? t('entryBlocked')}
                         </span>
                     </div>
                 )}
@@ -509,9 +513,9 @@ const StrategicPairPvpSymbolCard: React.FC<{
     );
 };
 
-const formatMythicStat = (stat: MythicStat, _data: { count: number, totalValue: number }): React.ReactNode => {
+const formatMythicStat = (stat: MythicStat, _data: { count: number, totalValue: number }, t: (key: string) => string): React.ReactNode => {
     const row = MYTHIC_STATS_DATA[stat];
-    if (!row) return <span className="w-full">알 수 없는 스페셜 옵션</span>;
+    if (!row) return <span className="w-full">{t('unknownSpecialStat')}</span>;
     return <span className="w-full">{row.description}</span>;
 };
 
@@ -525,13 +529,13 @@ const getTier = (score: number, rank: number, totalGames: number) => {
     return RANKING_TIERS[RANKING_TIERS.length - 1];
 };
 
-const StatSummaryPanel: React.FC<{ title: string; color: string; children: React.ReactNode }> = ({ title, color, children }) => {
+const StatSummaryPanel: React.FC<{ title: string; color: string; children: React.ReactNode; emptyLabel: string }> = ({ title, color, children, emptyLabel }) => {
     const childrenArray = React.Children.toArray(children).filter(Boolean); // Filter out null/undefined children
     return (
         <div className="flex-1 bg-tertiary/30 p-1.5 rounded-md flex flex-col min-h-0">
             <h4 className={`text-center font-semibold mb-0.5 text-xs flex-shrink-0 ${color}`}>{title}</h4>
             <div className="flex-grow overflow-y-auto pr-1 space-y-0.5 text-xs">
-                {childrenArray.length > 0 ? childrenArray : <p className="text-xs text-tertiary text-center">해당 없음</p>}
+                {childrenArray.length > 0 ? childrenArray : <p className="text-xs text-tertiary text-center">{emptyLabel}</p>}
             </div>
         </div>
     );
@@ -546,6 +550,7 @@ const ArenaMobileStatStrip: React.FC<{
     level: number;
     onOpenModal: () => void;
 }> = ({ variant, agg, integratedScore, tier, level, onOpenModal }) => {
+    const { t } = useTranslation('profile');
     const isStrategic = variant === 'strategic';
     const pct = (w: number, l: number) => {
         const t = w + l;
@@ -594,9 +599,9 @@ const ArenaMobileStatStrip: React.FC<{
                     </div>
                     <span className={divider} aria-hidden />
                     <div className="flex items-baseline gap-1">
-                        <span className="text-sm font-semibold tracking-wide text-slate-300">통합</span>
+                        <span className="text-sm font-semibold tracking-wide text-slate-300">{t('integrated')}</span>
                         <span className={`font-mono text-xl font-extrabold tabular-nums tracking-tight sm:text-2xl ${scoreTone}`}>{integratedScore}</span>
-                        <span className="text-sm font-medium text-slate-300">점</span>
+                        <span className="text-sm font-medium text-slate-300">{t('points')}</span>
                     </div>
                 </div>
 
@@ -604,16 +609,16 @@ const ArenaMobileStatStrip: React.FC<{
 
                 {/* 중앙: 총 전적 */}
                 <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 py-1">
-                    <span className="text-sm font-bold uppercase tracking-[0.2em] text-slate-200 sm:text-base">총 전적</span>
+                    <span className="text-sm font-bold uppercase tracking-[0.2em] text-slate-200 sm:text-base">{t('totalRecord')}</span>
                     <p className="text-center font-mono text-[1.95rem] font-extrabold tabular-nums leading-none tracking-tight text-white drop-shadow-[0_2px_16px_rgba(0,0,0,0.45)] sm:text-[2.15rem]">
                         <span>{agg.wins}</span>
-                        <span className="mx-0.5 align-baseline text-[0.56em] font-bold text-slate-200">승</span>
+                        <span className="mx-0.5 align-baseline text-[0.56em] font-bold text-slate-200">{t('winShort')}</span>
                         <span className="mx-1 text-slate-400">·</span>
                         <span>{agg.losses}</span>
-                        <span className="ml-0.5 align-baseline text-[0.56em] font-bold text-slate-200">패</span>
+                        <span className="ml-0.5 align-baseline text-[0.56em] font-bold text-slate-200">{t('loseShort')}</span>
                     </p>
                     <p className="text-base text-slate-200">
-                        승률{' '}
+                        {t('winRate')}{' '}
                         <span className={`font-mono text-lg font-bold tabular-nums sm:text-xl ${rateTone}`}>{pct(agg.wins, agg.losses)}%</span>
                     </p>
                 </div>
@@ -623,7 +628,7 @@ const ArenaMobileStatStrip: React.FC<{
                     onClick={onOpenModal}
                     className={`mx-auto mt-1 w-fit min-w-[6rem] rounded-lg border px-4 py-2 text-center text-xs font-semibold tracking-wide transition-all sm:min-w-[6.5rem] sm:text-sm ${btn}`}
                 >
-                    전체보기
+                    {t('viewAll')}
                 </button>
             </div>
         </div>
@@ -648,6 +653,7 @@ const PvpArenaHomeInfoMiddle: React.FC<{
     infoLabelClass: string;
     infoValueClass: string;
 }> = ({ tiers, playfulWins, playfulLosses, infoPanelMiddleClass, infoLabelClass, infoValueClass }) => {
+    const { t } = useTranslation('profile');
     const recordInnerRowClass =
         'grid w-full min-w-0 grid-cols-[minmax(4.25rem,auto)_minmax(0,1fr)] items-center gap-x-2 py-0.5 text-[12.5px] leading-snug';
     return (
@@ -662,27 +668,27 @@ const PvpArenaHomeInfoMiddle: React.FC<{
                 <div className="min-w-0 flex-1 text-center">
                     <span className={`${infoLabelClass} block text-[11px]`}>{tiers.bestTier.name}</span>
                     <span className={`${infoValueClass} block font-mono text-base text-fuchsia-100 sm:text-lg`}>
-                        {tiers.bestScore}점
+                        {tiers.bestScore}{t('points')}
                     </span>
                 </div>
             </div>
             <div className="flex w-full flex-col gap-1 rounded-md border border-white/10 bg-white/[0.05] px-2.5 py-1.5">
                 <div className={recordInnerRowClass}>
-                    <span className={infoLabelClass}>전략 전적</span>
+                    <span className={infoLabelClass}>{t('strategicRecord')}</span>
                     <span className={`${infoValueClass} font-mono whitespace-nowrap`}>
-                        {tiers.strategicWins}승{tiers.strategicLosses}패
+                        {tiers.strategicWins}{t('winShort')}{tiers.strategicLosses}{t('loseShort')}
                     </span>
                 </div>
                 <div className={recordInnerRowClass}>
-                    <span className={infoLabelClass}>페어 전적</span>
+                    <span className={infoLabelClass}>{t('pairRecord')}</span>
                     <span className={`${infoValueClass} font-mono whitespace-nowrap`}>
-                        {tiers.pairWins}승{tiers.pairLosses}패
+                        {tiers.pairWins}{t('winShort')}{tiers.pairLosses}{t('loseShort')}
                     </span>
                 </div>
                 <div className={recordInnerRowClass}>
-                    <span className={infoLabelClass}>놀이 전적</span>
+                    <span className={infoLabelClass}>{t('playfulRecord')}</span>
                     <span className={`${infoValueClass} font-mono whitespace-nowrap`}>
-                        {playfulWins}승{playfulLosses}패
+                        {playfulWins}{t('winShort')}{playfulLosses}{t('loseShort')}
                     </span>
                 </div>
             </div>
@@ -691,13 +697,16 @@ const PvpArenaHomeInfoMiddle: React.FC<{
 };
 
 /** 모험 행 — 입장카드 높이에 맞춘 플레이스홀더 */
-const ArenaMobilePvpStatStrip: React.FC = () => (
+const ArenaMobilePvpStatStrip: React.FC = () => {
+    const { t } = useTranslation('profile');
+    return (
     <div className="relative flex h-full min-h-0 w-full flex-col items-center justify-center overflow-hidden rounded-2xl border border-dashed border-purple-500/30 bg-gradient-to-b from-purple-950/40 via-slate-950/90 to-slate-950/98 p-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-white/[0.05]">
         <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-fuchsia-500/25 to-transparent" />
-        <span className="bg-gradient-to-r from-fuchsia-200 via-purple-100 to-violet-200 bg-clip-text text-sm font-bold tracking-wide text-transparent sm:text-base">모험</span>
-        <span className="mt-2 text-xs font-medium text-slate-500 sm:text-sm">오픈 예정</span>
+        <span className="bg-gradient-to-r from-fuchsia-200 via-purple-100 to-violet-200 bg-clip-text text-sm font-bold tracking-wide text-transparent sm:text-base">{t('adventure')}</span>
+        <span className="mt-2 text-xs font-medium text-slate-500 sm:text-sm">{t('comingSoon')}</span>
     </div>
-);
+    );
+};
 
 const Profile: React.FC<ProfileProps> = () => {
     const {
@@ -714,6 +723,7 @@ const Profile: React.FC<ProfileProps> = () => {
         waitingRoomChats,
     } = useAppContext();
     const adventureCodexDonutGradId = useId().replace(/:/g, '');
+    const { t } = useTranslation(['profile', 'lobby', 'nav']);
     const { isNativeMobile } = useNativeMobileShell();
     const profileTab = (currentRoute.params?.tab as 'home' | 'ranking' | 'arena' | undefined) ?? 'home';
     /** 홈 탭: PC와 동일 패널·타이포 */
@@ -757,12 +767,12 @@ const Profile: React.FC<ProfileProps> = () => {
             tier,
             tierName,
             venueSeason: [
-                { label: '유저', ...p },
-                { label: '펫', ...pet },
-                { label: '페어', ...pr },
+                { label: t('chartLegend.user'), ...p },
+                { label: t('chartLegend.pet'), ...pet },
+                { label: t('chartLegend.pair'), ...pr },
             ],
         };
-    }, [currentUserWithStatus]);
+    }, [currentUserWithStatus, t]);
     const [towerTimeLeft, setTowerTimeLeft] = useState('');
     const [selectedPreset, setSelectedPreset] = useState(0);
     const [showMannerRankModal, setShowMannerRankModal] = useState(false);
@@ -847,7 +857,7 @@ const Profile: React.FC<ProfileProps> = () => {
 
             const days = Math.floor(diff / (1000 * 60 * 60 * 24));
             const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            setTowerTimeLeft(`${days}일 ${hours}시간`);
+            setTowerTimeLeft(t('timeDaysHours', { days, hours }));
         };
         calculateTime();
         const interval = setInterval(calculateTime, 60 * 60 * 1000); // Update every hour
@@ -1124,27 +1134,27 @@ const Profile: React.FC<ProfileProps> = () => {
     const getArenaLobbyLockReason = useCallback(
         (key: 'strategicLobby' | 'playfulLobby') => {
             if (arenaAdminBypass || mergedArena[key]) return null;
-            if (!serverArena[key]) return '점검중';
+            if (!serverArena[key]) return t('maintenance');
             const combinedLevel = currentUserWithStatus.userLevel;
-            return `통합 Lv.${combinedLevel}/${PVP_LOBBIES_MIN_COMBINED_LEVEL}`;
+            return t('combinedLevelRequired', { current: combinedLevel, required: PVP_LOBBIES_MIN_COMBINED_LEVEL });
         },
-        [arenaAdminBypass, mergedArena, serverArena, currentUserWithStatus.userLevel],
+        [arenaAdminBypass, mergedArena, serverArena, currentUserWithStatus.userLevel, t],
     );
     const getArenaEntryLockReason = useCallback(
         (key: 'tower' | 'adventure' | 'championship' | 'pairLobby') => {
             if (arenaAdminBypass || mergedArena[key]) return null;
-            if (!serverArena[key]) return '점검중';
-            if (key === 'pairLobby') return '입장 불가';
-            if (key === 'championship') return `능력치 합 ${CHAMPIONSHIP_MIN_BADUK_ABILITY_TOTAL}+`;
+            if (!serverArena[key]) return t('maintenance');
+            if (key === 'pairLobby') return t('entryBlocked');
+            if (key === 'championship') return t('abilityRequired', { total: CHAMPIONSHIP_MIN_BADUK_ABILITY_TOTAL });
             const cleared = Array.isArray(currentUserWithStatus.clearedSinglePlayerStages)
                 ? new Set(currentUserWithStatus.clearedSinglePlayerStages)
                 : new Set<string>();
             if (key === 'tower') {
-                return cleared.has(TOWER_ENTRANCE_REQUIRED_STAGE_ID) ? null : '입문반 10 클리어 필요';
+                return cleared.has(TOWER_ENTRANCE_REQUIRED_STAGE_ID) ? null : t('intro10Required');
             }
-            return cleared.has(ADVENTURE_ENTRANCE_REQUIRED_STAGE_ID) ? null : '입문반 20 클리어 필요';
+            return cleared.has(ADVENTURE_ENTRANCE_REQUIRED_STAGE_ID) ? null : t('intro20Required');
         },
-        [arenaAdminBypass, mergedArena, serverArena, currentUserWithStatus.clearedSinglePlayerStages],
+        [arenaAdminBypass, mergedArena, serverArena, currentUserWithStatus.clearedSinglePlayerStages, t],
     );
 
     const onSelectArenaIntent = (intent: 'pvp' | 'ai') => {
@@ -1185,7 +1195,7 @@ const Profile: React.FC<ProfileProps> = () => {
         setSelectedPreset(presetIndex);
         const selectedPresetData = presets[presetIndex];
         // 프리셋이 있으면 적용하고, 없으면(빈 프리셋) 빈 장비 세트를 적용
-        handlers.applyPreset(selectedPresetData || { name: `프리셋 ${presetIndex + 1}`, equipment: {} });
+        handlers.applyPreset(selectedPresetData || { name: t('presetDefault', { index: presetIndex + 1 }), equipment: {} });
     };
 
     const overallTiers = useMemo(() => {
@@ -1237,22 +1247,22 @@ const Profile: React.FC<ProfileProps> = () => {
         };
     }, [currentUserWithStatus]);
     
-    const coreStatAbbreviations: Record<CoreStat, string> = {
-        [CoreStat.Concentration]: '집중',
-        [CoreStat.ThinkingSpeed]: '사고',
-        [CoreStat.Judgment]: '판단',
-        [CoreStat.Calculation]: '계산',
-        [CoreStat.CombatPower]: '전투',
-        [CoreStat.Stability]: '안정',
-    };
+    const coreStatAbbreviations: Record<CoreStat, string> = useMemo(() => ({
+        [CoreStat.Concentration]: t('coreStats.concentration'),
+        [CoreStat.ThinkingSpeed]: t('coreStats.thinkingSpeed'),
+        [CoreStat.Judgment]: t('coreStats.judgment'),
+        [CoreStat.Calculation]: t('coreStats.calculation'),
+        [CoreStat.CombatPower]: t('coreStats.combatPower'),
+        [CoreStat.Stability]: t('coreStats.stability'),
+    }), [t]);
     
-    const specialStatAbbreviations: Record<SpecialStat, string> = {
-        [SpecialStat.ActionPointMax]: '최대 AP',
-        [SpecialStat.StrategyXpBonus]: '유저 XP',
-        [SpecialStat.PlayfulXpBonus]: '펫 XP',
-        [SpecialStat.ChampionshipVenueAllStats]: '챔피언십',
-        [SpecialStat.GuildBossBattleAllStats]: '길드보스',
-    };
+    const specialStatAbbreviations: Record<SpecialStat, string> = useMemo(() => ({
+        [SpecialStat.ActionPointMax]: t('specialStats.actionPointMax'),
+        [SpecialStat.StrategyXpBonus]: t('specialStats.strategyXpBonus'),
+        [SpecialStat.PlayfulXpBonus]: t('specialStats.playfulXpBonus'),
+        [SpecialStat.ChampionshipVenueAllStats]: t('specialStats.championshipVenueAllStats'),
+        [SpecialStat.GuildBossBattleAllStats]: t('specialStats.guildBossBattleAllStats'),
+    }), [t]);
     
     const bonusNum = (v: unknown): number => {
         const x = Number(v);
@@ -1324,7 +1334,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                 nh ? 'text-[10px]' : ch ? 'text-[10px] sm:text-[11px]' : readableHome ? 'text-xs sm:text-sm' : 'text-[11px] sm:text-xs'
                             }`}
                         >
-                            [길드] 🔒 {MIN_COMBINED_LEVEL_FOR_GUILD_FEATURES}레벨
+                            {t('guildLockedLevel', { level: MIN_COMBINED_LEVEL_FOR_GUILD_FEATURES })}
                         </div>
                     ) : guildInfo ? (
                         <div className={`flex min-w-0 flex-nowrap items-center gap-1.5 px-0.5 py-0.5 ${ch ? 'sm:gap-1.5 sm:px-0.5 sm:py-0.5' : 'sm:gap-2 sm:px-1 sm:py-1'}`}>
@@ -1344,7 +1354,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                         className="h-full w-full object-cover"
                                     />
                                 ) : (
-                                    <img src="/images/button/guild.webp" alt="길드" className={`object-contain ${nh ? 'h-7 w-7' : 'h-7 w-7 sm:h-8 sm:w-8'}`} />
+                                    <img src="/images/button/guild.webp" alt={t('guildLocked')} className={`object-contain ${nh ? 'h-7 w-7' : 'h-7 w-7 sm:h-8 sm:w-8'}`} />
                                 )}
                             </div>
                             <div className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden sm:gap-1.5">
@@ -1386,9 +1396,9 @@ const Profile: React.FC<ProfileProps> = () => {
                                                 ? '!px-2 !py-1 !text-[10px]'
                                                 : '!px-2 !py-1 !text-[10px] sm:!px-2.5 sm:!py-1 sm:!text-[11px]'
                                     }`}
-                                    title="길드 홈 보기"
+                                    title={t('guildHome')}
                                 >
-                                    길드 입장
+                                    {t('guildEnter')}
                                 </Button>
                             ) : (
                                 <div className="flex shrink-0 flex-col items-end gap-1">
@@ -1399,14 +1409,14 @@ const Profile: React.FC<ProfileProps> = () => {
                                         className={`!shrink-0 cursor-not-allowed !whitespace-nowrap rounded-md border border-zinc-600 bg-zinc-800/80 !text-zinc-400 ${
                                             nh ? '!px-2 !py-1 !text-[10px]' : '!px-2.5 !py-1 !text-[11px] sm:!text-xs'
                                         }`}
-                                        title={`레벨 합 ${MIN_COMBINED_LEVEL_FOR_GUILD_FEATURES} 이상에서 길드 홈을 이용할 수 있습니다.`}
+                                        title={t('guildLevelHint', { level: MIN_COMBINED_LEVEL_FOR_GUILD_FEATURES })}
                                     >
-                                        잠금
+                                        {t('lock')}
                                     </Button>
                                     <Button
                                         type="button"
                                         onClick={() => {
-                                            if (!window.confirm('길드를 떠나시겠습니까?')) return;
+                                            if (!window.confirm(t('guildLeaveConfirm'))) return;
                                             void handlers.handleAction({ type: 'LEAVE_GUILD' });
                                         }}
                                         colorScheme="none"
@@ -1414,7 +1424,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                             nh ? '!px-2 !py-0.5 !text-[10px]' : '!px-2 !py-1 !text-[10px] sm:!text-xs'
                                         }`}
                                     >
-                                        길드 탈퇴
+                                        {t('guildLeave')}
                                     </Button>
                                 </div>
                             )}
@@ -1428,14 +1438,14 @@ const Profile: React.FC<ProfileProps> = () => {
                                         colorScheme="none"
                                         className={`min-w-0 flex-1 justify-center whitespace-nowrap !py-0.5 rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400 ${nh ? '!text-[10px]' : ''}`}
                                     >
-                                        길드창설
+                                        {t('guildCreate')}
                                     </Button>
                                     <Button
                                         onClick={() => setIsGuildJoinModalOpen(true)}
                                         colorScheme="none"
                                         className={`min-w-0 flex-1 justify-center whitespace-nowrap !py-0.5 rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400 ${nh ? '!text-[10px]' : ''}`}
                                     >
-                                        길드가입
+                                        {t('guildJoin')}
                                     </Button>
                                 </div>
                             </div>
@@ -1445,8 +1455,10 @@ const Profile: React.FC<ProfileProps> = () => {
                                     nh ? 'text-[10px]' : ch ? 'text-[10px] sm:text-[11px]' : readableHome ? 'text-xs sm:text-sm' : 'text-[11px] sm:text-xs'
                                 }`}
                             >
-                                길드는 유저 레벨 {MIN_COMBINED_LEVEL_FOR_GUILD_FEATURES} 이상에서 이용할 수 있습니다. (현재 Lv.{' '}
-                                {getCombinedStrategyPlayfulLevel(currentUserWithStatus)})
+                                {t('guildLevelNotice', {
+                                    level: MIN_COMBINED_LEVEL_FOR_GUILD_FEATURES,
+                                    current: getCombinedStrategyPlayfulLevel(currentUserWithStatus),
+                                })}
                             </div>
                         )
                     ) : (
@@ -1540,7 +1552,7 @@ const Profile: React.FC<ProfileProps> = () => {
                             colorScheme="none"
                             className={`!shrink-0 !whitespace-nowrap !justify-center rounded-md border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white ${ch ? '!px-1.5 !py-0.5 !text-[10px] sm:!text-[11px]' : '!px-2 !py-0.5 !text-[10px] sm:!text-xs'}`}
                         >
-                            장비 효과
+                            {t('equipmentEffects')}
                         </Button>
                     </div>
                 </div>
@@ -1601,7 +1613,7 @@ const Profile: React.FC<ProfileProps> = () => {
                         readableHome ? (ch ? '!px-2 !py-0.5 !text-[11px]' : '!px-2.5 !py-1 !text-sm') : '!px-2 !py-0.5 !text-[11px] sm:!text-xs'
                     }`}
                 >
-                    장비 효과
+                    {t('equipmentEffects')}
                 </Button>
             </div>
         );
@@ -1645,7 +1657,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                 colorScheme="none"
                                 className="!shrink-0 !whitespace-nowrap !px-2 !py-0.5 !text-[11px] justify-center rounded-md border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white sm:!text-xs"
                             >
-                                효과
+                                {t('effects')}
                             </Button>
                         </div>
                     </div>
@@ -1697,7 +1709,7 @@ const Profile: React.FC<ProfileProps> = () => {
                             <button
                                 onClick={handlers.openProfileEditModal}
                                 className={`absolute bottom-0 right-0 z-10 flex items-center justify-center rounded-full border-2 border-primary bg-secondary transition-transform hover:scale-110 hover:bg-tertiary active:scale-95 ${ch ? 'h-7 w-7 p-0.5' : 'h-8 w-8 p-1'}`}
-                                title="프로필 수정"
+                                title={t('editProfile')}
                             >
                                 <span className={ch ? 'text-xs' : 'text-sm'}>✏️</span>
                                 {!currentUserWithStatus.mbti && (
@@ -1723,13 +1735,13 @@ const Profile: React.FC<ProfileProps> = () => {
                                                   nh ? 'text-[9px] sm:text-[10px]' : 'text-[9px] sm:text-[10px]'
                                               }`
                                     }`}
-                                    title={currentUserWithStatus.mbti ? `MBTI: ${currentUserWithStatus.mbti}` : 'MBTI: 미설정'}
+                                    title={currentUserWithStatus.mbti ? t('mbtiTitle', { value: currentUserWithStatus.mbti }) : t('mbtiUnsetTitle')}
                                 >
                                     <span className="shrink-0 font-semibold uppercase tracking-[0.1em] text-indigo-200/85">MBTI</span>
                                     <span
                                         className={`min-w-0 truncate font-bold tracking-[0.06em] text-indigo-100 ${currentUserWithStatus.mbti ? 'uppercase tabular-nums' : 'font-semibold normal-case text-indigo-300/85'}`}
                                     >
-                                        {currentUserWithStatus.mbti ? currentUserWithStatus.mbti : '미설정'}
+                                        {currentUserWithStatus.mbti ? currentUserWithStatus.mbti : t('mbtiUnset')}
                                     </span>
                                 </span>
                             </div>
@@ -1811,15 +1823,15 @@ const Profile: React.FC<ProfileProps> = () => {
                             className={`shrink-0 bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200/90 bg-clip-text font-bold tracking-tight text-transparent drop-shadow-[0_0_20px_rgba(251,191,36,0.22)] ${
                                 ch ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'
                             }`}
-                            title="6개 핵심 능력치 합계"
+                            title={t('coreStatsTotal')}
                         >
-                            바둑능력
+                            {t('badukAbility')}
                         </span>
                         <span
                             className={`min-w-0 font-mono font-black tabular-nums leading-none text-amber-100 drop-shadow-[0_1px_0_rgba(0,0,0,0.35)] ${
                                 ch ? 'text-lg sm:text-xl' : 'text-2xl sm:text-[1.75rem]'
                             }`}
-                            title="6개 핵심 능력치 합계"
+                            title={t('coreStatsTotal')}
                         >
                             {badukAbilityTotal}
                         </span>
@@ -1827,9 +1839,9 @@ const Profile: React.FC<ProfileProps> = () => {
                     <div className={`flex shrink-0 items-center ${ch ? 'gap-1 sm:gap-1.5' : 'gap-1.5 sm:gap-2'}`}>
                         <span
                             className={`whitespace-nowrap font-medium text-amber-100/90 ${ch ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'}`}
-                            title={`보너스: ${availablePoints}P`}
+                            title={t('bonusPoints', { points: availablePoints })}
                         >
-                            보너스 <span className="font-bold tabular-nums text-emerald-300">{availablePoints}</span>
+                            {t('bonus')} <span className="font-bold tabular-nums text-emerald-300">{availablePoints}</span>
                             <span className="text-amber-100/50">P</span>
                         </span>
                         <Button
@@ -1841,7 +1853,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                     : '!px-3 !py-1.5 !text-xs sm:!px-3.5 sm:!py-1.5 sm:!text-sm'
                             }`}
                         >
-                            분배
+                            {t('allocate')}
                         </Button>
                     </div>
                 </div>
@@ -1856,11 +1868,11 @@ const Profile: React.FC<ProfileProps> = () => {
                         <span
                             className={`shrink-0 bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200/90 bg-clip-text text-left font-bold tracking-tight text-transparent drop-shadow-[0_0_24px_rgba(251,191,36,0.25)] ${nh ? 'text-sm' : 'text-sm sm:text-base md:text-lg'}`}
                         >
-                            바둑능력
+                            {t('badukAbility')}
                         </span>
                         <span
                             className={`min-w-0 bg-gradient-to-br from-yellow-50 via-amber-200 to-amber-700 bg-clip-text text-left font-mono font-black tabular-nums leading-none tracking-tight text-transparent drop-shadow-[0_1px_0_rgba(0,0,0,0.35)] ${nh ? 'text-[1.15rem]' : 'text-[1.2rem] sm:text-xl md:text-2xl'}`}
-                            title="6개 핵심 능력치 합계"
+                            title={t('coreStatsTotal')}
                         >
                             {badukAbilityTotal}
                         </span>
@@ -1868,9 +1880,9 @@ const Profile: React.FC<ProfileProps> = () => {
                     <div className="ml-auto flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-0.5 text-right sm:gap-1 max-[760px]:gap-0.5">
                         <span
                             className={`max-w-[min(9.6rem,58vw)] break-words font-medium text-amber-100/85 sm:max-w-[11rem] md:max-w-none ${nh ? 'text-[11px] sm:text-xs' : 'text-[11px] sm:text-xs md:text-sm'}`}
-                            title={`보너스: ${availablePoints}P`}
+                            title={t('bonusPoints', { points: availablePoints })}
                         >
-                            보너스 <span className="font-bold tabular-nums text-emerald-300">{availablePoints}</span>
+                            {t('bonus')} <span className="font-bold tabular-nums text-emerald-300">{availablePoints}</span>
                             <span className="text-amber-100/55">P</span>
                         </span>
                         <Button
@@ -1878,7 +1890,7 @@ const Profile: React.FC<ProfileProps> = () => {
                             colorScheme="none"
                             className="!shrink-0 !whitespace-nowrap !rounded-lg !border-2 !border-cyan-300/65 !bg-gradient-to-r !from-indigo-500 !via-violet-500 !to-fuchsia-500 !font-bold !text-white !shadow-[0_10px_26px_-10px_rgba(99,102,241,0.75)] hover:!brightness-110 !px-2.5 !py-1 !text-[11px] sm:!px-2.5 sm:!py-1 sm:!text-xs"
                         >
-                            분배
+                            {t('allocate')}
                         </Button>
                     </div>
                 </div>
@@ -1925,9 +1937,9 @@ const Profile: React.FC<ProfileProps> = () => {
                             }
                             title={
                                 hasBonus
-                                    ? `기본 ${baseV} → 표시 ${v} (장비·보너스 +${bonusRounded})`
+                                    ? t('statBaseDisplay', { base: baseV, display: v, bonus: bonusRounded })
                                     : baseV !== v
-                                      ? `기본 ${baseV} · 장비·보너스 반영`
+                                      ? t('statBaseOnly', { base: baseV })
                                       : undefined
                             }
                         >
@@ -1977,7 +1989,7 @@ const Profile: React.FC<ProfileProps> = () => {
                         mode="global"
                         onAction={handlers.handleAction}
                         onViewUser={handlers.openViewingUser}
-                        locationPrefix="[홈]"
+                        locationPrefix={t('lobby:locationPrefix.home')}
                         compactTournamentMobile
                     />
                 </div>
@@ -2054,11 +2066,11 @@ const Profile: React.FC<ProfileProps> = () => {
         () => getSinglePlayerStages().length,
         [singlePlayerStagesListRevision]
     );
-    const singleStageLabel = singleProgress >= 40 ? '유단자'
-        : singleProgress >= 30 ? '고급반'
-        : singleProgress >= 20 ? '중급반'
-        : singleProgress >= 10 ? '초급반'
-        : '입문반';
+    const singleStageLabel = singleProgress >= 40 ? t('stageLabels.master')
+        : singleProgress >= 30 ? t('stageLabels.advanced')
+        : singleProgress >= 20 ? t('stageLabels.intermediate')
+        : singleProgress >= 10 ? t('stageLabels.beginner')
+        : t('stageLabels.intro');
     const towerCurrentFloor = Math.max(1, (currentUserWithStatus as User)?.towerFloor ?? 0);
     const towerCurrentRank = (currentUserWithStatus as any)?.monthlyTowerRank ?? (currentUserWithStatus as any)?.towerRank ?? null;
     const adventureCodexBreakdown = getAdventureCodexCompletionBreakdown(currentUserWithStatus.adventureProfile);
@@ -2099,9 +2111,9 @@ const Profile: React.FC<ProfileProps> = () => {
                         onClick={onSelectSinglePlayerLobby}
                         className="group border border-emerald-400/40 flex h-full min-h-0 w-full flex-col rounded-xl text-center shadow-[0_14px_34px_-18px_rgba(0,0,0,0.8)] ring-1 ring-white/10 transition-all transform hover:-translate-y-1 hover:shadow-green-500/30 cursor-pointer text-on-panel relative overflow-hidden p-1"
                     >
-                        <img src={SINGLE_PLAYER_LOBBY_IMG} alt="바둑학원" className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
+                        <img src={SINGLE_PLAYER_LOBBY_IMG} alt={t('goSchool')} className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
                         <div className="pointer-events-none absolute inset-0 rounded-md bg-gradient-to-b from-black/0 via-black/0 to-black/14" />
-                        <h2 className="relative z-[1] mb-0.5 h-4 text-[10px] font-bold leading-tight text-white">바둑학원</h2>
+                        <h2 className="relative z-[1] mb-0.5 h-4 text-[10px] font-bold leading-tight text-white">{t('goSchool')}</h2>
                         <div className="flex min-h-0 w-full flex-1 rounded-md" />
                     </div>
                 ) : (
@@ -2111,17 +2123,17 @@ const Profile: React.FC<ProfileProps> = () => {
                                 onClick={onSelectSinglePlayerLobby}
                                 className="group flex h-full min-h-0 w-full flex-col rounded-xl text-center transition-all transform hover:-translate-y-1 hover:shadow-green-500/30 cursor-pointer text-on-panel relative overflow-hidden"
                             >
-                                <img src={SINGLE_PLAYER_LOBBY_IMG} alt="바둑학원" className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
+                                <img src={SINGLE_PLAYER_LOBBY_IMG} alt={t('goSchool')} className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
                                 <div className="pointer-events-none absolute inset-0 rounded-md bg-gradient-to-b from-black/0 via-black/0 to-black/14" />
                                 <div className="flex min-h-0 w-full flex-1 rounded-md" />
                             </div>
                         </div>
                         <div className={infoPanelShellClass}>
-                            <div className={infoTitleClass}>바둑학원</div>
+                            <div className={infoTitleClass}>{t('goSchool')}</div>
                             <div className={infoPanelMiddleClass}>
-                                <div className={infoRowClass}><span className={infoLabelClass}>현재 위치</span><span className={infoValueClass}>{singleStageLabel}</span></div>
-                                <div className={infoRowClass}><span className={infoLabelClass}>진행도</span><span className={infoValueClass}>{singleProgress} / {singlePlayerTotalStages}</span></div>
-                                <div className={infoRowClass}><span className={infoLabelClass}>클리어</span><span className={infoValueClass}>{Math.max(0, singleProgress)}</span></div>
+                                <div className={infoRowClass}><span className={infoLabelClass}>{t('currentLocation')}</span><span className={infoValueClass}>{singleStageLabel}</span></div>
+                                <div className={infoRowClass}><span className={infoLabelClass}>{t('progress')}</span><span className={infoValueClass}>{singleProgress} / {singlePlayerTotalStages}</span></div>
+                                <div className={infoRowClass}><span className={infoLabelClass}>{t('cleared')}</span><span className={infoValueClass}>{Math.max(0, singleProgress)}</span></div>
                             </div>
                             {!isNativeMobile && (
                                 <Button
@@ -2130,17 +2142,17 @@ const Profile: React.FC<ProfileProps> = () => {
                                     colorScheme="none"
                                     aria-label={
                                         hasPcHomeTrainingQuestReward
-                                            ? '수련과제, 수령 가능한 보상이 있습니다'
-                                            : '수련과제'
+                                            ? t('trainingQuestRewardHint')
+                                            : t('trainingQuest')
                                     }
                                     className="relative w-full shrink-0 !justify-center rounded-lg border border-emerald-400/45 bg-gradient-to-b from-emerald-900/55 via-zinc-900/80 to-black/90 !px-2 !py-1.5 !text-[12px] !font-bold !text-emerald-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_4px_18px_-10px_rgba(16,185,129,0.45)] hover:border-emerald-300/55 hover:from-emerald-800/65 hover:to-zinc-900"
                                 >
-                                    수련과제
+                                    {t('trainingQuest')}
                                     {hasPcHomeTrainingQuestReward && (
                                         <span
                                             className="absolute right-2 top-1/2 z-[1] h-2 w-2 -translate-y-1/2 rounded-full border-2 border-slate-950 bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.65)]"
                                             aria-hidden
-                                            title="수령 가능한 보상"
+                                            title={t('claimableReward')}
                                         />
                                     )}
                                 </Button>
@@ -2152,18 +2164,18 @@ const Profile: React.FC<ProfileProps> = () => {
 
             <div className="flex h-full min-h-0 min-w-0 flex-col">
                 {isNativeMobile && profileTab !== 'home' ? (
-                    <PveCard title="도전의 탑" imageUrl={TOWER_MOBILE_HERO_WEBP} layout="tall" onClick={() => tryArenaEnter('tower', () => { window.location.hash = '#/tower'; })} compact={true} locked={!!getArenaEntryLockReason('tower')} lockReason={getArenaEntryLockReason('tower') ?? undefined} />
+                    <PveCard title={t('challengeTower')} imageUrl={TOWER_MOBILE_HERO_WEBP} layout="tall" onClick={() => tryArenaEnter('tower', () => { window.location.hash = '#/tower'; })} compact={true} locked={!!getArenaEntryLockReason('tower')} lockReason={getArenaEntryLockReason('tower') ?? undefined} />
                 ) : (
                     <div className={mergedCardClass}>
                         <div className={imagePaneClass}>
-                            <PveCard title="도전의 탑" imageUrl={TOWER_MOBILE_HERO_WEBP} layout="tall" onClick={() => tryArenaEnter('tower', () => { window.location.hash = '#/tower'; })} compact={false} hideOverlayText={true} locked={!!getArenaEntryLockReason('tower')} lockReason={getArenaEntryLockReason('tower') ?? undefined} />
-                        </div>
-                        <div className={infoPanelShellClass}>
-                            <div className={infoTitleClass}>도전의 탑</div>
+                            <PveCard title={t('challengeTower')} imageUrl={TOWER_MOBILE_HERO_WEBP} layout="tall" onClick={() => tryArenaEnter('tower', () => { window.location.hash = '#/tower'; })} compact={false} hideOverlayText={true} locked={!!getArenaEntryLockReason('tower')} lockReason={getArenaEntryLockReason('tower') ?? undefined} />
+                            </div>
+                            <div className={infoPanelShellClass}>
+                            <div className={infoTitleClass}>{t('challengeTower')}</div>
                             <div className={infoPanelMiddleClass}>
-                                <div className={infoRowClass}><span className={infoLabelClass}>현재 층</span><span className={infoValueClass}>{towerCurrentFloor}층</span></div>
-                                <div className={infoRowClass}><span className={infoLabelClass}>남은 시간</span><span className={infoValueClass}>{towerTimeLeft}</span></div>
-                                <div className={infoRowClass}><span className={infoLabelClass}>현재 순위</span><span className={infoValueClass}>{towerCurrentRank ? `${towerCurrentRank}위` : '-'}</span></div>
+                                <div className={infoRowClass}><span className={infoLabelClass}>{t('currentFloor')}</span><span className={infoValueClass}>{t('floorUnit', { floor: towerCurrentFloor })}</span></div>
+                                <div className={infoRowClass}><span className={infoLabelClass}>{t('timeRemaining')}</span><span className={infoValueClass}>{towerTimeLeft}</span></div>
+                                <div className={infoRowClass}><span className={infoLabelClass}>{t('currentRank')}</span><span className={infoValueClass}>{towerCurrentRank ? t('rankUnit', { rank: towerCurrentRank }) : '-'}</span></div>
                             </div>
                         </div>
                     </div>
@@ -2180,7 +2192,7 @@ const Profile: React.FC<ProfileProps> = () => {
                 <div className={mergedCardClass}>
                     <div className={imagePaneClass}>
                         <PveCard
-                            title="PVP 경기장"
+                            title={t('pvpArena')}
                             imageUrl={PVP_ARENA_ENTRY_IMG}
                             layout="tall"
                             onClick={() => onSelectArenaIntent('pvp')}
@@ -2189,7 +2201,7 @@ const Profile: React.FC<ProfileProps> = () => {
                         />
                     </div>
                     <div className={`${infoPanelShellClass} border-fuchsia-300/25`}>
-                        <div className={`${infoTitleClass} text-fuchsia-100`}>PVP 경기장</div>
+                        <div className={`${infoTitleClass} text-fuchsia-100`}>{t('pvpArena')}</div>
                         <PvpArenaHomeInfoMiddle
                             tiers={overallTiers}
                             playfulWins={aggregatedStats.playful.wins}
@@ -2204,14 +2216,14 @@ const Profile: React.FC<ProfileProps> = () => {
                             colorScheme="none"
                             className="w-full shrink-0 !justify-center rounded-lg border border-fuchsia-300/45 bg-gradient-to-r from-cyan-950/50 via-fuchsia-950/40 to-violet-950/45 !px-2 !py-1.5 !text-[12px] !font-bold !text-fuchsia-50 hover:from-cyan-900/55 hover:via-fuchsia-900/45 hover:to-violet-900/50"
                         >
-                            상세전적
+                            {t('detailedStats')}
                         </Button>
                     </div>
                 </div>
                 <div className={mergedCardClass}>
                     <div className={imagePaneClass}>
                         <PveCard
-                            title="AI 대전"
+                            title={t('aiArena')}
                             imageUrl={AI_ARENA_ENTRY_IMG}
                             layout="tall"
                             onClick={() => onSelectArenaIntent('ai')}
@@ -2220,24 +2232,24 @@ const Profile: React.FC<ProfileProps> = () => {
                         />
                     </div>
                     <div className={`${infoPanelShellClass} border-violet-300/25`}>
-                        <div className={`${infoTitleClass} text-violet-100`}>AI 대전</div>
+                        <div className={`${infoTitleClass} text-violet-100`}>{t('aiArena')}</div>
                         <div className={infoPanelMiddleClass}>
                             <div className={infoRowClass}>
-                                <span className={infoLabelClass}>전략AI 전적</span>
+                                <span className={infoLabelClass}>{t('strategicAiRecord')}</span>
                                 <span className={`${infoValueClass} font-mono whitespace-nowrap`}>
-                                    {aiLobbyRecordByKind.strategic.wins}승{aiLobbyRecordByKind.strategic.losses}패
+                                    {aiLobbyRecordByKind.strategic.wins}{t('winShort')}{aiLobbyRecordByKind.strategic.losses}{t('loseShort')}
                                 </span>
                             </div>
                             <div className={infoRowClass}>
-                                <span className={infoLabelClass}>페어AI 전적</span>
+                                <span className={infoLabelClass}>{t('pairAiRecord')}</span>
                                 <span className={`${infoValueClass} font-mono whitespace-nowrap`}>
-                                    {aiLobbyRecordByKind.pair.wins}승{aiLobbyRecordByKind.pair.losses}패
+                                    {aiLobbyRecordByKind.pair.wins}{t('winShort')}{aiLobbyRecordByKind.pair.losses}{t('loseShort')}
                                 </span>
                             </div>
                             <div className={infoRowClass}>
-                                <span className={infoLabelClass}>놀이AI 전적</span>
+                                <span className={infoLabelClass}>{t('playfulAiRecord')}</span>
                                 <span className={`${infoValueClass} font-mono whitespace-nowrap`}>
-                                    {aiLobbyRecordByKind.playful.wins}승{aiLobbyRecordByKind.playful.losses}패
+                                    {aiLobbyRecordByKind.playful.wins}{t('winShort')}{aiLobbyRecordByKind.playful.losses}{t('loseShort')}
                                 </span>
                             </div>
                         </div>
@@ -2248,7 +2260,7 @@ const Profile: React.FC<ProfileProps> = () => {
             <div className="flex h-full min-h-0 min-w-0 flex-col">
                 {isNativeMobile && profileTab !== 'home' ? (
                     <div onClick={getArenaEntryLockReason('championship') ? undefined : onSelectTournamentLobby} className={`group border border-fuchsia-400/40 flex h-full min-h-0 w-full flex-col rounded-xl text-center shadow-[0_14px_34px_-18px_rgba(0,0,0,0.8)] ring-1 ring-white/10 transition-all transform text-on-panel p-1 relative overflow-hidden ${getArenaEntryLockReason('championship') ? 'cursor-not-allowed grayscale-[0.25] opacity-75' : 'cursor-pointer hover:-translate-y-1 hover:shadow-purple-500/30'}`}>
-                        <img src={CHAMPIONSHIP_PVP_VENUE_BG_WEBP} alt="챔피언십" className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
+                        <img src={CHAMPIONSHIP_PVP_VENUE_BG_WEBP} alt={t('championship')} className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
                         <div className="pointer-events-none absolute inset-0 rounded-md bg-gradient-to-b from-black/4 via-black/0 to-black/14" />
                         {getArenaEntryLockReason('championship') && (
                             <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/50 px-2 text-center">
@@ -2258,14 +2270,14 @@ const Profile: React.FC<ProfileProps> = () => {
                                 </span>
                             </div>
                         )}
-                        <h2 className="relative z-[1] mb-0.5 h-4 text-[10px] font-bold leading-tight text-white">챔피언십</h2>
+                        <h2 className="relative z-[1] mb-0.5 h-4 text-[10px] font-bold leading-tight text-white">{t('championship')}</h2>
                         <div className="flex min-h-0 w-full flex-1 rounded-md" />
                     </div>
                 ) : (
                     <div className={mergedCardClass}>
                         <div className={imagePaneClass}>
                             <div onClick={getArenaEntryLockReason('championship') ? undefined : onSelectTournamentLobby} className={`group flex h-full min-h-0 w-full flex-col text-center transition-all transform text-on-panel relative overflow-hidden rounded-xl ${getArenaEntryLockReason('championship') ? 'cursor-not-allowed grayscale-[0.25] opacity-75' : 'cursor-pointer hover:-translate-y-1 hover:shadow-purple-500/30'}`}>
-                                <img src={CHAMPIONSHIP_PVP_VENUE_BG_WEBP} alt="챔피언십" className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
+                                <img src={CHAMPIONSHIP_PVP_VENUE_BG_WEBP} alt={t('championship')} className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
                                 <div className="pointer-events-none absolute inset-0 rounded-md bg-gradient-to-b from-black/4 via-black/0 to-black/14" />
                                 {getArenaEntryLockReason('championship') && (
                                     <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/50 px-2 text-center">
@@ -2279,7 +2291,7 @@ const Profile: React.FC<ProfileProps> = () => {
                             </div>
                         </div>
                         <div className={infoPanelShellClass}>
-                            <div className={infoTitleClass}>챔피언십</div>
+                            <div className={infoTitleClass}>{t('championship')}</div>
                             <div className={infoPanelMiddleClass}>
                                 <div className="flex w-full items-center gap-2 rounded-md border border-white/10 bg-white/[0.05] px-2 py-2">
                                     <img
@@ -2289,20 +2301,20 @@ const Profile: React.FC<ProfileProps> = () => {
                                         className="h-9 w-9 shrink-0 object-contain sm:h-10 sm:w-10"
                                     />
                                     <div className="min-w-0 flex-1 text-center">
-                                        <span className={`${infoLabelClass} block text-[11px]`}>통합 점수</span>
+                                        <span className={`${infoLabelClass} block text-[11px]`}>{t('integratedScore')}</span>
                                         <span className={`${infoValueClass} block font-mono text-base text-amber-100 sm:text-lg`}>
-                                            {championshipVenueStrip.rating}점
+                                            {championshipVenueStrip.rating}{t('points')}
                                         </span>
                                     </div>
                                 </div>
                                 <div className={infoRowClass}>
-                                    <span className={`${infoLabelClass} self-start`}>시즌 전적</span>
+                                    <span className={`${infoLabelClass} self-start`}>{t('seasonRecord')}</span>
                                     <div className={`${infoValueClass} flex flex-col items-end gap-0.5 font-mono text-[11px] leading-tight sm:text-xs`}>
                                         {championshipVenueStrip.venueSeason.map((row) => (
                                             <span key={row.label} className="whitespace-nowrap text-right">
                                                 <span className="text-slate-500">{row.label}</span>{' '}
                                                 <span className="text-primary">
-                                                    {row.wins}승 {row.losses}패
+                                                    {row.wins}{t('winShort')} {row.losses}{t('loseShort')}
                                                 </span>
                                             </span>
                                         ))}
@@ -2317,7 +2329,7 @@ const Profile: React.FC<ProfileProps> = () => {
             <div className="flex h-full min-h-0 min-w-0 flex-col">
                 {isNativeMobile && profileTab !== 'home' ? (
                     <PveCard
-                        title="모험"
+                        title={t('adventure')}
                         imageUrl={ADVENTURE_STAGES[0].mapWebp}
                         layout="tall"
                         onClick={() => tryArenaEnter('adventure', () => { window.location.hash = '#/adventure'; })}
@@ -2329,7 +2341,7 @@ const Profile: React.FC<ProfileProps> = () => {
                     <div className={mergedCardClass}>
                         <div className={imagePaneClass}>
                             <PveCard
-                                title="모험"
+                                title={t('adventure')}
                                 imageUrl={ADVENTURE_STAGES[0].mapWebp}
                                 layout="tall"
                                 onClick={() => tryArenaEnter('adventure', () => { window.location.hash = '#/adventure'; })}
@@ -2340,7 +2352,7 @@ const Profile: React.FC<ProfileProps> = () => {
                             />
                         </div>
                         <div className={infoPanelShellClass}>
-                            <div className={infoTitleClass}>모험</div>
+                            <div className={infoTitleClass}>{t('adventure')}</div>
                             <div className={infoPanelMiddleClass}>
                                 <div className="flex w-full items-center justify-center">
                                     <div className="relative h-[6.5rem] w-[6.5rem] shrink-0">
@@ -2393,7 +2405,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                 onClick={() => handlers.openAdventureMonsterCodexModal()}
                                 className="w-full shrink-0 !justify-center rounded-lg border border-violet-400/45 bg-gradient-to-r from-violet-950/55 via-purple-950/40 to-fuchsia-950/40 !px-2 !py-1.5 !text-[12px] !font-bold !text-violet-50 hover:from-violet-900/55 hover:via-purple-900/45 hover:to-fuchsia-900/45"
                             >
-                                몬스터 도감
+                                {t('monsterCodex')}
                             </Button>
                         </div>
                     </div>
@@ -2412,7 +2424,7 @@ const Profile: React.FC<ProfileProps> = () => {
                         disabled={vipTestBusy}
                         onClick={() => setVipMenuOpen((o) => !o)}
                         className="touch-manipulation !rounded-md !border !border-amber-400/55 !bg-amber-950/95 !px-2 !py-1 !text-[9px] !font-bold uppercase tracking-wide !text-amber-100 shadow-[0_2px_10px_rgba(0,0,0,0.35)] sm:!px-2.5 sm:!py-1.5 sm:!text-[10px]"
-                        title="VIP·다이아 패키지 테스트"
+                        title={t('vipTestTitle')}
                     >
                         VIP
                     </Button>
@@ -2420,18 +2432,18 @@ const Profile: React.FC<ProfileProps> = () => {
                         <div
                             className="absolute left-0 top-[calc(100%+0.35rem)] z-[5] w-[14.25rem] rounded-xl border border-amber-500/45 bg-zinc-950/98 p-2 shadow-2xl ring-1 ring-black/50 backdrop-blur-sm"
                             role="dialog"
-                            aria-label="VIP 및 다이아 패키지 테스트"
+                            aria-label={t('vipTestAria')}
                         >
                             <p className="mb-1.5 text-center text-[9px] font-bold uppercase tracking-[0.14em] text-amber-200/90">
-                                VIP 종류
+                                {t('vipTypes')}
                             </p>
                             <div className="space-y-1.5">
                                 {(
                                     [
-                                        { flag: 'rewardVip' as const, label: '보상 VIP' },
-                                        { flag: 'functionVip' as const, label: '기능 VIP' },
+                                        { flag: 'rewardVip' as const, label: t('rewardVip') },
+                                        { flag: 'functionVip' as const, label: t('functionVip') },
                                         { flag: 'vvip' as const, label: 'VVIP' },
-                                        { flag: 'removeAds' as const, label: '광고 제거' },
+                                        { flag: 'removeAds' as const, label: t('removeAds') },
                                     ] as const
                                 ).map((row) => {
                                     const base = currentUserWithStatus;
@@ -2490,7 +2502,7 @@ const Profile: React.FC<ProfileProps> = () => {
                             </div>
                             <div className="mt-2 border-t border-white/10 pt-2">
                                 <p className="mb-1.5 text-center text-[9px] font-bold uppercase tracking-[0.14em] text-cyan-200/90">
-                                    다이아 패키지
+                                    {t('diamondPackage')}
                                 </p>
                                 <div className="space-y-1.5">
                                     {([1, 2, 3] as const).map((tier) => {
@@ -2506,7 +2518,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                             >
                                                 <span className="flex min-w-0 items-center gap-1 text-[11px] font-semibold text-cyan-50/95">
                                                     <img src="/images/icon/Zem.webp" alt="" className="h-3.5 w-3.5 shrink-0 object-contain" />
-                                                    패키지 {roman}
+                                                    {t('packageRoman', { roman })}
                                                 </span>
                                                 <div className="flex shrink-0 gap-0.5">
                                                     <button
@@ -2572,9 +2584,9 @@ const Profile: React.FC<ProfileProps> = () => {
                                 bare
                                 onClick={() => setAdminModalPreviewMenuOpen((prev) => !prev)}
                                 className="!rounded-md !border !border-sky-400/55 !bg-sky-950/95 !px-2.5 !py-1 !text-[10px] !font-bold uppercase tracking-wide !text-sky-100 shadow-[0_2px_10px_rgba(0,0,0,0.35)] sm:!px-3 sm:!py-1.5 sm:!text-xs"
-                                title="모달 미리보기 목록"
+                                title={t('modalPreviewList')}
                             >
-                                모달확인
+                                {t('modalPreview')}
                             </Button>
                             {adminModalPreviewMenuOpen && (
                                 <div className="absolute right-0 top-[calc(100%+0.35rem)] z-[6] flex min-w-[10rem] flex-col gap-1 rounded-lg border border-white/15 bg-black/90 p-1 shadow-[0_10px_24px_-10px_rgba(0,0,0,0.7)] backdrop-blur-sm">
@@ -2588,7 +2600,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                         }}
                                         className="!justify-start !rounded-md !border !border-emerald-400/45 !bg-emerald-950/85 !px-2 !py-1 !text-[11px] !font-bold !text-emerald-100"
                                     >
-                                        레벨업 모달
+                                        {t('levelUpModal')}
                                     </Button>
                                     <Button
                                         type="button"
@@ -2600,7 +2612,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                         }}
                                         className="!justify-start !rounded-md !border !border-amber-400/45 !bg-amber-950/85 !px-2 !py-1 !text-[11px] !font-bold !text-amber-100"
                                     >
-                                        매너등급 모달
+                                        {t('mannerGradeModal')}
                                     </Button>
                                     <Button
                                         type="button"
@@ -2612,7 +2624,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                         }}
                                         className="!justify-start !rounded-md !border !border-violet-400/45 !bg-violet-950/85 !px-2 !py-1 !text-[11px] !font-bold !text-violet-100"
                                     >
-                                        탑 해금 모달
+                                        {t('towerUnlockModal')}
                                     </Button>
                                     <Button
                                         type="button"
@@ -2624,7 +2636,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                         }}
                                         className="!justify-start !rounded-md !border !border-fuchsia-400/45 !bg-fuchsia-950/85 !px-2 !py-1 !text-[11px] !font-bold !text-fuchsia-100"
                                     >
-                                        모험 해금 모달
+                                        {t('adventureUnlockModal')}
                                     </Button>
                                     <Button
                                         type="button"
@@ -2636,7 +2648,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                         }}
                                         className="!justify-start !rounded-md !border !border-rose-400/45 !bg-rose-950/85 !px-2 !py-1 !text-[11px] !font-bold !text-rose-100"
                                     >
-                                        경기결과 데모
+                                        {t('gameResultDemo')}
                                     </Button>
                                 </div>
                             )}
@@ -2700,7 +2712,7 @@ const Profile: React.FC<ProfileProps> = () => {
             {(isNativeMobile ? profileTab === 'ranking' : false) && (
                 <header className={`flex min-w-0 flex-shrink-0 items-center ${isNativeMobile ? 'mb-0 px-1 py-1.5' : 'mb-1 px-1 lg:mb-2 lg:px-2'}`}>
                     <h1 className={`min-w-0 truncate font-bold text-primary ${isNativeMobile ? 'text-base sm:text-lg' : 'text-base lg:text-2xl'}`}>
-                        {profileTab === 'ranking' ? '랭킹' : '경기장'}
+                        {profileTab === 'ranking' ? t('tabs.ranking') : t('tabs.arena')}
                     </h1>
                 </header>
             )}
@@ -2725,7 +2737,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                     <div className={`${mergedCardClass} min-h-0 flex-1`}>
                                         <div className={imagePaneClass}>
                                             <PveCard
-                                                title="PVP 경기장"
+                                                title={t('pvpArena')}
                                                 imageUrl={PVP_ARENA_ENTRY_IMG}
                                                 layout="tall"
                                                 onClick={() => onSelectArenaIntent('pvp')}
@@ -2734,7 +2746,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                             />
                                         </div>
                                         <div className={`${infoPanelShellClass} border-fuchsia-300/25`}>
-                                            <div className={`${infoTitleClass} text-fuchsia-100`}>PVP 경기장</div>
+                                            <div className={`${infoTitleClass} text-fuchsia-100`}>{t('pvpArena')}</div>
                                             <PvpArenaHomeInfoMiddle
                                                 tiers={overallTiers}
                                                 playfulWins={aggregatedStats.playful.wins}
@@ -2749,14 +2761,14 @@ const Profile: React.FC<ProfileProps> = () => {
                                                 colorScheme="none"
                                                 className="w-full shrink-0 !justify-center rounded-lg border border-fuchsia-300/45 bg-gradient-to-r from-cyan-950/50 via-fuchsia-950/40 to-violet-950/45 !px-2 !py-1.5 !text-[12px] !font-bold !text-fuchsia-50"
                                             >
-                                                상세전적
+                                                {t('detailedStats')}
                                             </Button>
                                         </div>
                                     </div>
                                     <div className={`${mergedCardClass} min-h-0 flex-1`}>
                                         <div className={imagePaneClass}>
                                             <PveCard
-                                                title="AI 대전"
+                                                title={t('aiArena')}
                                                 imageUrl={AI_ARENA_ENTRY_IMG}
                                                 layout="tall"
                                                 onClick={() => onSelectArenaIntent('ai')}
@@ -2765,24 +2777,24 @@ const Profile: React.FC<ProfileProps> = () => {
                                             />
                                         </div>
                                         <div className={`${infoPanelShellClass} border-violet-300/25`}>
-                                            <div className={`${infoTitleClass} text-violet-100`}>AI 대전</div>
+                                            <div className={`${infoTitleClass} text-violet-100`}>{t('aiArena')}</div>
                                             <div className={infoPanelMiddleClass}>
                                                 <div className={infoRowClass}>
-                                                    <span className={infoLabelClass}>전략AI 전적</span>
+                                                    <span className={infoLabelClass}>{t('strategicAiRecord')}</span>
                                                     <span className={`${infoValueClass} font-mono whitespace-nowrap`}>
-                                                        {aiLobbyRecordByKind.strategic.wins}승{aiLobbyRecordByKind.strategic.losses}패
+                                                        {aiLobbyRecordByKind.strategic.wins}{t('winShort')}{aiLobbyRecordByKind.strategic.losses}{t('loseShort')}
                                                     </span>
                                                 </div>
                                                 <div className={infoRowClass}>
-                                                    <span className={infoLabelClass}>페어AI 전적</span>
+                                                    <span className={infoLabelClass}>{t('pairAiRecord')}</span>
                                                     <span className={`${infoValueClass} font-mono whitespace-nowrap`}>
-                                                        {aiLobbyRecordByKind.pair.wins}승{aiLobbyRecordByKind.pair.losses}패
+                                                        {aiLobbyRecordByKind.pair.wins}{t('winShort')}{aiLobbyRecordByKind.pair.losses}{t('loseShort')}
                                                     </span>
                                                 </div>
                                                 <div className={infoRowClass}>
-                                                    <span className={infoLabelClass}>놀이AI 전적</span>
+                                                    <span className={infoLabelClass}>{t('playfulAiRecord')}</span>
                                                     <span className={`${infoValueClass} font-mono whitespace-nowrap`}>
-                                                        {aiLobbyRecordByKind.playful.wins}승{aiLobbyRecordByKind.playful.losses}패
+                                                        {aiLobbyRecordByKind.playful.wins}{t('winShort')}{aiLobbyRecordByKind.playful.losses}{t('loseShort')}
                                                     </span>
                                                 </div>
                                             </div>
@@ -2803,7 +2815,7 @@ const Profile: React.FC<ProfileProps> = () => {
                         <PcLobbyCenterColumn>{LobbyCards}</PcLobbyCenterColumn>
                         <div
                             className={`flex h-full min-h-0 ${PC_QUICK_RAIL_COLUMN_CLASS} flex-col overflow-hidden self-stretch`}
-                            aria-label="퀵 메뉴"
+                            aria-label={t('quickMenuAria')}
                         >
                             <div className={PC_QUICK_RAIL_WRAPPER_CLASS}>
                                 <QuickAccessSidebar fillHeight={true} />

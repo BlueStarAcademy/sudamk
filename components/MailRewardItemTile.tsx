@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { InventoryItem } from '../types.js';
 import { ItemGrade } from '../types/enums.js';
 import { gradeBackgrounds, gradeStyles } from '../constants';
@@ -51,10 +52,11 @@ const MailRewardItemTile: React.FC<{
     variant?: MailRewardItemTileVariant;
     className?: string;
 }> = ({ item, variant = 'md', className = '' }) => {
+    const { t } = useTranslation('mailReward');
     const { box, iconPct, label } = sizeMap[variant];
     const qty = item.quantity ?? 1;
     const stars = getMailEquipmentDisplayStars(item);
-    const displayName = item.name ?? (item as { itemId?: string }).itemId ?? '보상';
+    const displayName = item.name ?? (item as { itemId?: string }).itemId ?? t('defaultName');
     const actionPointBadge = getActionPointBadge(item);
 
     if (isMailAttachmentEquipment(item)) {
@@ -85,7 +87,7 @@ const MailRewardItemTile: React.FC<{
                     ) : null}
                 </div>
                 {stars > 0 ? (
-                    <span className={`text-[10px] font-bold tabular-nums text-amber-300/95`}>+{stars}강화</span>
+                    <span className={`text-[10px] font-bold tabular-nums text-amber-300/95`}>{t('enhancement', { stars })}</span>
                 ) : null}
                 <span className={`max-w-[6.5rem] font-semibold leading-tight line-clamp-2 ${label} ${gs.color}`}>{displayName}</span>
                 {qty > 1 ? <span className="text-[10px] font-medium text-gray-400">×{qty}</span> : null}

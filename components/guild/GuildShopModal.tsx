@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { Guild as GuildType, ServerAction, InventoryItem, ItemGrade } from '../../types/index.js';
 import DraggableWindow from '../DraggableWindow.js';
@@ -10,6 +11,7 @@ import { isDifferentWeekKST, isDifferentMonthKST } from '../../utils/timeUtils.j
 import { addItemsToInventory } from '../../utils/inventoryUtils.js';
 import { CONSUMABLE_ITEMS, MATERIAL_ITEMS } from '../../constants/index.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
+import { useTranslation } from 'react-i18next';
 
 interface GuildShopModalProps {
     onClose: () => void;
@@ -34,6 +36,7 @@ const ShopItemCard: React.FC<{ item: GuildShopItem; isNativeMobile: boolean; onS
     isNativeMobile,
     onShowDetail,
 }) => {
+    const { t } = useTranslation(['guild', 'common']);
     const { handlers, currentUserWithStatus } = useAppContext();
 
     const purchaseRecord = currentUserWithStatus?.dailyShopPurchases?.[item.itemId];
@@ -75,7 +78,7 @@ const ShopItemCard: React.FC<{ item: GuildShopItem; isNativeMobile: boolean; onS
             )}
             <button
                 type="button"
-                title="상세 정보"
+                title={t('shop.detailInfo')}
                 className={`bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent rounded-lg flex items-center justify-center shadow-[0_0_25px_-8px_rgba(129,140,248,0.65)] cursor-pointer active:scale-95 transition-transform ${isNativeMobile ? 'w-[3.75rem] h-[3.75rem] mb-1.5' : 'w-16 h-16 mb-2 hover:scale-105'}`}
                 onClick={() => onShowDetail(item)}
             >
@@ -84,7 +87,7 @@ const ShopItemCard: React.FC<{ item: GuildShopItem; isNativeMobile: boolean; onS
             <button
                 type="button"
                 className={`w-full text-center font-semibold tracking-wide text-white drop-shadow-[0_2px_12px_rgba(99,102,241,0.55)] line-clamp-2 leading-tight hover:text-amber-100/95 ${isNativeMobile ? 'text-[11px] min-h-[2.5rem]' : 'text-sm line-clamp-1'}`}
-                title="상세 정보"
+                title={t('shop.detailInfo')}
                 onClick={() => onShowDetail(item)}
             >
                 {item.name}
@@ -98,13 +101,15 @@ const ShopItemCard: React.FC<{ item: GuildShopItem; isNativeMobile: boolean; onS
                 >
                     <div className="flex flex-col items-center justify-center gap-0.5">
                         <div className={`flex items-center justify-center font-semibold tracking-wide ${isNativeMobile ? 'gap-1 text-[13px]' : 'gap-1.5 text-xs'}`}>
-                            <img src="/images/guild/tokken.webp" alt="길드 코인" className={isNativeMobile ? 'w-4 h-4 drop-shadow-md' : 'w-5 h-5 drop-shadow-md'} />
+                            <img src="/images/guild/tokken.webp" alt={t('common:resources.guildCoins')} className={isNativeMobile ? 'w-4 h-4 drop-shadow-md' : 'w-5 h-5 drop-shadow-md'} />
                             <span>{item.cost.toLocaleString()}</span>
                         </div>
                         <span className={`text-slate-700/90 tracking-wide ${isNativeMobile ? 'text-[10px]' : 'text-[9px]'}`}>
                             {item.limitType === 'account'
-                                ? `계정당 (${purchasesThisPeriod}/${item.limit})`
-                                : `${item.limitType === 'weekly' ? '주간' : '월간'} ${remaining}/${item.limit}`}
+                                ? t('shop.limitAccount', { current: purchasesThisPeriod, limit: item.limit })
+                                : item.limitType === 'weekly'
+                                  ? t('shop.limitWeekly', { remaining, limit: item.limit })
+                                  : t('shop.limitMonthly', { remaining, limit: item.limit })}
                         </span>
                     </div>
                 </Button>
@@ -115,6 +120,7 @@ const ShopItemCard: React.FC<{ item: GuildShopItem; isNativeMobile: boolean; onS
 
 
 const GuildShopModal: React.FC<GuildShopModalProps> = ({ onClose, isTopmost }) => {
+    const { t } = useTranslation(['guild', 'common']);
     const { currentUserWithStatus } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
     const [activeTab, setActiveTab] = useState<ShopTab>('equipment');
@@ -144,7 +150,7 @@ const GuildShopModal: React.FC<GuildShopModalProps> = ({ onClose, isTopmost }) =
     return (
         <>
         <DraggableWindow
-            title="길드 상점"
+            title={t('shop.title')}
             onClose={onClose}
             windowId="guild-shop"
             initialWidth={900}
@@ -158,12 +164,12 @@ const GuildShopModal: React.FC<GuildShopModalProps> = ({ onClose, isTopmost }) =
             <div className={`flex flex-col relative min-h-0 ${isNativeMobile ? 'flex-1 h-full' : 'h-[calc(var(--vh,1vh)*60)]'}`}>
                 <div className={`flex justify-between items-center flex-shrink-0 gap-2 ${isNativeMobile ? 'mb-2' : 'mb-4'}`}>
                     <div className={`flex items-center min-w-0 ${isNativeMobile ? 'gap-2' : 'gap-2.5'}`}>
-                        <h3 className={`font-bold bg-gradient-to-r from-amber-300 to-orange-300 bg-clip-text text-transparent truncate ${isNativeMobile ? 'text-base' : 'text-xl'}`}>길드 상점</h3>
+                        <h3 className={`font-bold bg-gradient-to-r from-amber-300 to-orange-300 bg-clip-text text-transparent truncate ${isNativeMobile ? 'text-base' : 'text-xl'}`}>{t('shop.title')}</h3>
                     </div>
                     <div className={`bg-gradient-to-br from-amber-900/90 via-yellow-800/80 to-amber-900/90 rounded-xl text-center border-2 border-amber-500/60 shadow-2xl backdrop-blur-md relative overflow-hidden flex-shrink-0 ${isNativeMobile ? 'px-2.5 py-1.5' : 'p-3'}`}>
                         <div className="absolute inset-0 bg-gradient-to-br from-amber-500/20 via-yellow-400/10 to-amber-500/15 pointer-events-none"></div>
                         <div className="relative z-10">
-                            <p className={`text-amber-200/80 font-semibold ${isNativeMobile ? 'text-[9px]' : 'text-[10px] mb-0.5'}`}>길드 코인</p>
+                            <p className={`text-amber-200/80 font-semibold ${isNativeMobile ? 'text-[9px]' : 'text-[10px] mb-0.5'}`}>{t('common:resources.guildCoins')}</p>
                             <p className={`font-bold text-yellow-300 drop-shadow-lg flex items-center justify-center gap-1 tabular-nums ${isNativeMobile ? 'text-sm' : 'text-lg'}`}>
                                 <img src="/images/guild/tokken.webp" alt="Guild Coin" className={isNativeMobile ? 'w-4 h-4 drop-shadow-md' : 'w-5 h-5 drop-shadow-md'} />
                                 {(currentUserWithStatus?.guildCoins ?? 0).toLocaleString()}
@@ -173,7 +179,7 @@ const GuildShopModal: React.FC<GuildShopModalProps> = ({ onClose, isTopmost }) =
                 </div>
                 <div className={`flex bg-gray-900/70 p-1 rounded-lg flex-shrink-0 ${isNativeMobile ? 'mb-2' : 'mb-4'}`}>
                     {(['equipment', 'material', 'consumable'] as ShopTab[]).map(tab => {
-                        const labels = { equipment: '장비', material: '재료', consumable: '소모품' };
+                        const labels = { equipment: t('shop.tabEquipment'), material: t('shop.tabMaterial'), consumable: t('shop.tabConsumable') };
                         return (
                             <button
                                 key={tab}
@@ -201,7 +207,7 @@ const GuildShopModal: React.FC<GuildShopModalProps> = ({ onClose, isTopmost }) =
         </DraggableWindow>
         {detailItem && guildDetailPreview ? (
                 <DraggableWindow
-                    title="길드 상점 — 아이템 상세"
+                    title={t('shop.itemDetail')}
                     onClose={() => setDetailItem(null)}
                     windowId="guild-shop-item-detail"
                     initialWidth={480}
@@ -215,7 +221,7 @@ const GuildShopModal: React.FC<GuildShopModalProps> = ({ onClose, isTopmost }) =
                 >
                     <div className={`min-h-0 overflow-x-hidden ${isNativeMobile ? 'p-2' : 'p-2.5'}`}>
                         <p className="mb-1.5 rounded-lg border border-amber-500/25 bg-amber-950/20 px-2 py-1 text-center text-[10px] font-medium leading-snug text-amber-100/90">
-                            이 품목은 길드 상점에서 길드 코인으로만 구매할 수 있습니다. 아이콘·이름을 누르면 언제든 이 창을 다시 열 수 있습니다.
+                            {t('shop.detailHint')}
                         </p>
                         <EquipmentDetailPanel
                             item={guildDetailPreview}

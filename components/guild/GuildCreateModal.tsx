@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { Guild } from '../../types/entities.js';
 import Button from '../Button.js';
@@ -13,6 +14,7 @@ interface GuildCreateModalProps {
 }
 
 const GuildCreateModal: React.FC<GuildCreateModalProps> = ({ onClose, onSuccess }) => {
+    const { t } = useTranslation(['guild', 'common']);
     const { handlers, currentUserWithStatus } = useAppContext();
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
@@ -33,12 +35,12 @@ const GuildCreateModal: React.FC<GuildCreateModalProps> = ({ onClose, onSuccess 
 
     const handleCreate = async () => {
         if (!name.trim()) {
-            setError('길드 이름을 입력해주세요.');
+            setError(t('createModal.errors.nameRequired'));
             return;
         }
 
         if (name.length < 2 || name.length > 6) {
-            setError('길드 이름은 2자 이상 6자 이하여야 합니다.');
+            setError(t('createModal.errors.nameLengthAlt'));
             return;
         }
 
@@ -52,7 +54,10 @@ const GuildCreateModal: React.FC<GuildCreateModalProps> = ({ onClose, onSuccess 
                     : (parseInt(String(diamonds || 0), 10) || 0));
             
             if (numDiamonds < GUILD_CREATION_COST && !currentUserWithStatus?.isAdmin) {
-                setError(`다이아가 부족합니다. (필요: ${GUILD_CREATION_COST.toLocaleString()}개, 보유: ${numDiamonds.toLocaleString()}개)`);
+                setError(t('createModal.errors.insufficientDiamonds', {
+                    required: GUILD_CREATION_COST.toLocaleString(),
+                    owned: numDiamonds.toLocaleString(),
+                }));
                 return;
             }
         }
@@ -113,11 +118,11 @@ const GuildCreateModal: React.FC<GuildCreateModalProps> = ({ onClose, onSuccess 
                     clientResponseKeys: result?.clientResponse ? Object.keys(result.clientResponse) : [],
                     resultKeys: result ? Object.keys(result) : []
                 });
-                setError('길드 생성 응답 형식이 올바르지 않습니다.');
+                setError(t('createModal.errors.invalidResponse'));
             }
         } catch (err: any) {
             console.error('[GuildCreateModal] Exception occurred:', err);
-            setError(err.message || '길드 생성에 실패했습니다.');
+            setError(err.message || t('createModal.errors.createFailed'));
         } finally {
             setLoading(false);
         }
@@ -134,7 +139,7 @@ const GuildCreateModal: React.FC<GuildCreateModalProps> = ({ onClose, onSuccess 
 
     return (
         <DraggableWindow
-            title="길드 창설"
+            title={t('createModal.title')}
             windowId="guild-create"
             onClose={onClose}
             initialWidth={720}
@@ -147,25 +152,25 @@ const GuildCreateModal: React.FC<GuildCreateModalProps> = ({ onClose, onSuccess 
                     <div className="space-y-4">
                         <div>
                             <label className="block text-sm font-semibold text-gray-300 mb-1.5">
-                                길드 이름 <span className="text-gray-500 font-normal">(2~6자)</span>
+                                {t('createModal.nameLabel')} <span className="text-gray-500 font-normal">{t('createModal.nameLengthHint')}</span>
                             </label>
                             <input
                                 type="text"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
-                                placeholder="길드 이름을 입력하세요"
+                                placeholder={t('createModal.namePlaceholderAlt')}
                                 maxLength={6}
                                 className="w-full px-3 py-2.5 bg-gray-800/80 text-white rounded-lg border border-gray-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 focus:outline-none transition-colors"
                             />
                         </div>
                         <div>
                             <label className="block text-sm font-semibold text-gray-300 mb-1.5">
-                                길드 설명 <span className="text-gray-500 font-normal">(선택, 200자)</span>
+                                {t('createModal.descriptionLabel')} <span className="text-gray-500 font-normal">{t('createModal.descriptionOptionalHint')}</span>
                             </label>
                             <textarea
                                 value={description}
                                 onChange={(e) => setDescription(e.target.value)}
-                                placeholder="길드 소개를 입력하세요"
+                                placeholder={t('createModal.descriptionPlaceholderAlt')}
                                 maxLength={200}
                                 rows={4}
                                 className="w-full px-3 py-2.5 bg-gray-800/80 text-white rounded-lg border border-gray-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 focus:outline-none resize-none transition-colors"
@@ -179,7 +184,7 @@ const GuildCreateModal: React.FC<GuildCreateModalProps> = ({ onClose, onSuccess 
                         {/* 가입 방식 */}
                         <div className="p-3.5 bg-gray-800/50 rounded-xl border border-gray-700">
                             <label className="block text-sm font-semibold text-gray-300 mb-2.5">
-                                가입 방식
+                                {t('createModal.joinMethod')}
                             </label>
                             <div className="space-y-1.5">
                                 <label className={`flex items-center gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all ${
@@ -195,7 +200,7 @@ const GuildCreateModal: React.FC<GuildCreateModalProps> = ({ onClose, onSuccess 
                                         onChange={() => setJoinType('free')}
                                         className="w-3.5 h-3.5 text-emerald-500"
                                     />
-                                    <span className="text-sm font-medium text-white">자유가입</span>
+                                    <span className="text-sm font-medium text-white">{t('createModal.freeJoin')}</span>
                                 </label>
                                 <label className={`flex items-center gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all ${
                                     joinType === 'application'
@@ -210,43 +215,43 @@ const GuildCreateModal: React.FC<GuildCreateModalProps> = ({ onClose, onSuccess 
                                         onChange={() => setJoinType('application')}
                                         className="w-3.5 h-3.5 text-amber-500"
                                     />
-                                    <span className="text-sm font-medium text-white">신청가입</span>
+                                    <span className="text-sm font-medium text-white">{t('createModal.applicationJoin')}</span>
                                 </label>
                             </div>
                             <p className="text-xs text-gray-500 mt-1.5">
-                                {joinType === 'free' ? '누구나 즉시 가입' : '길드장 승인 후 가입'}
+                                {joinType === 'free' ? t('createModal.freeJoinHint') : t('createModal.applicationJoinHint')}
                             </p>
                         </div>
 
                         {/* 공개 설정 */}
                         <div className="p-3.5 bg-gray-800/50 rounded-xl border border-gray-700">
                             <div className="flex items-center justify-between">
-                                <span className="text-sm font-semibold text-gray-300">공개 설정</span>
+                                <span className="text-sm font-semibold text-gray-300">{t('createModal.publicSetting')}</span>
                                 <ToggleSwitch checked={isPublic} onChange={setIsPublic} />
                             </div>
                             <p className="text-xs text-gray-500 mt-1">
-                                {isPublic ? '길드 목록에 표시' : '초대로만 가입 가능'}
+                                {isPublic ? t('createModal.publicHint') : t('createModal.privateHint')}
                             </p>
                         </div>
 
                         {/* 비용 */}
                         <div className="p-3.5 rounded-xl border bg-amber-950/30 border-amber-700/40">
                             <div className="flex items-center justify-between gap-2">
-                                <span className="text-sm font-semibold text-amber-200">창설 비용</span>
+                                <span className="text-sm font-semibold text-amber-200">{t('createModal.creationCost')}</span>
                                 <div className="flex items-center gap-1">
                                     <img src={resourceIcons.diamonds} alt="" className="w-4 h-4 object-contain" />
                                     <span className="font-bold text-amber-200">{GUILD_CREATION_COST.toLocaleString()}</span>
                                 </div>
                             </div>
                             <div className="flex items-center justify-between mt-1.5 text-xs text-amber-200/80">
-                                <span>보유</span>
+                                <span>{t('createModal.owned')}</span>
                                 <span className={canAfford ? 'text-emerald-400' : 'text-red-400'}>
                                     {userDiamonds.toLocaleString()}
                                 </span>
                             </div>
                             {!canAfford && (
                                 <p className="text-xs text-red-400 mt-1.5">
-                                    부족: {(GUILD_CREATION_COST - userDiamonds).toLocaleString()}개
+                                    {t('createModal.shortage', { count: (GUILD_CREATION_COST - userDiamonds).toLocaleString() })}
                                 </p>
                             )}
                         </div>
@@ -264,7 +269,7 @@ const GuildCreateModal: React.FC<GuildCreateModalProps> = ({ onClose, onSuccess 
                                 className="flex-1 py-2 text-sm font-medium"
                                 disabled={loading}
                             >
-                                취소
+                                {t('common:actions.cancel')}
                             </Button>
                             <Button
                                 onClick={handleCreate}
@@ -272,7 +277,7 @@ const GuildCreateModal: React.FC<GuildCreateModalProps> = ({ onClose, onSuccess 
                                 className="flex-1 py-2 text-sm font-medium"
                                 disabled={loading || !name.trim() || (!currentUserWithStatus?.isAdmin && !canAfford)}
                             >
-                                {loading ? '생성 중...' : '길드 생성'}
+                                {loading ? t('createModal.creating') : t('createModal.createAction')}
                             </Button>
                         </div>
                     </div>

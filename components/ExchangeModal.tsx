@@ -1,4 +1,14 @@
 import React, { useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { tx } from '../shared/i18n/runtimeText.js';
+
+/** Persisted exchange history markers (Unicode — local/server history matching, not UI copy) */
+const HX_PURCHASE_DONE = '\uAD6C\uB9E4 \uC644\uB8CC';
+const HX_SETTLEMENT_ONE = '\uC815\uC0B0 \uC218\uB9BD';
+const HX_SETTLEMENT_ALL = '\uC815\uC0B0 \uBAA8\uB450 \uC218\uB9BD';
+const HX_GOLD = '\uACE8\uB4DC';
+const HX_DIA = '\uB514\uC774\uC544';
+const HX_FEE = '\uC218\uC218\uB8CC';
 import type { InventoryItem, User, UserWithStatus, ServerAction, EquipmentSlot } from '../types.js';
 import type { HandleActionResult } from '../types/api.js';
 import { ItemGrade } from '../types/enums.js';
@@ -54,7 +64,7 @@ type ExchangeListing = {
     expiresAt: number;
     status: 'listed' | 'sold';
     soldAt?: number;
-    /** 등록 시점 장비 스냅샷(옵션·제련 등). 구매자 상세 표시에 사용 */
+    /** {t('labels.registerSale')} 시점 장비 스냅샷(옵션·제련 등). {t('modals.purchase')}자 상세 표시에 사용 */
     listedEquipment?: InventoryItem;
 };
 
@@ -91,12 +101,12 @@ interface ExchangeModalProps {
     onClose: () => void;
     onAction?: (action: ServerAction) => void | Promise<void | HandleActionResult | { error?: string }>;
     isTopmost?: boolean;
-    /** 판매 등록·구매 미리보기 장비를 ItemDetailModal로 표시 (두 번째 인자: 내 소유 여부) */
+    /** 판매 {t('labels.registerSale')}·{t('modals.purchase')} 미리보기 장비를 ItemDetailModal로 표시 (두 번째 인자: 내 소유 여부) */
     onViewListedEquipment?: (item: InventoryItem, isOwnedByCurrentUser?: boolean) => void;
     embedded?: boolean;
 }
 
-/** 등록 직후 서버에 아직 없는 id는 유지하고, 동일 id는 서버 행으로 덮어씀 */
+/** 등록 직후 서버에 아직 없는 id는 {t('labels.keep', { defaultValue: 'Keep' })}하고, 동일 id는 서버 행으로 덮어씀 */
 const mergeExchangeListingsPreferServer = (local: ExchangeListing[], server: ExchangeListing[]): ExchangeListing[] => {
     const serverIds = new Set(server.filter((l) => l?.id).map((l) => l.id));
     const pendingLocal = local.filter((l) => l?.id && !serverIds.has(l.id));
@@ -141,7 +151,7 @@ function normalizeExchangeAssetPath(raw: string): string {
     return t.startsWith('/') ? t : `/${t}`;
 }
 
-/** 거래 이력: 동일 이름 다건일 때 가격·재화(및 정산 시 판매가=실수령+수수료)으로 등록 건 추정 */
+/** 거래 이력: 동일 이름 다건일 때 가격·재화(및 {t('tabs.settlement')} 시 판매가=실수령+수수료)으로 등록 건 추정 */
 function pickExchangeListingForHistoryLine(
     listings: ExchangeListing[],
     line: string,
@@ -158,12 +168,12 @@ function pickExchangeListingForHistoryLine(
     const pickNewest = (arr: ExchangeListing[]) =>
         [...arr].sort((a, b) => (b.soldAt ?? b.createdAt ?? 0) - (a.soldAt ?? a.createdAt ?? 0))[0] ?? null;
 
-    if (line.includes('구매 완료') && priceCurrency) {
+    if (line.includes(HX_PURCHASE_DONE) && priceCurrency) {
         const priced = byName.filter((l) => l.price === priceAmount && l.currency === priceCurrency);
         if (priced.length > 0) return pickNewest(priced);
     }
     if (
-        line.includes('정산 수령') &&
+        line.includes(HX_SETTLEMENT_ONE) &&
         priceCurrency &&
         feeCurrency === priceCurrency &&
         feeAmount > 0 &&
@@ -186,7 +196,7 @@ function resolveExchangeHistoryRowVisual(
     const genericFallback = '/images/Box/ResourceBox1.webp';
     if (!name) {
         return {
-            itemImage: line.includes('정산') ? '/images/Box/GoldBox3.webp' : genericFallback,
+            itemImage: line.includes('\uC815\uC0B0') ? '/images/Box/GoldBox3.webp' : genericFallback,
             itemGrade: ItemGrade.Normal,
             itemStars: 0,
         };
@@ -240,7 +250,7 @@ function buildBuyPreviewInventoryItem(listing: ExchangeListing): InventoryItem {
         };
     }
     const grade = (listing.itemGrade ?? ItemGrade.Normal) as ItemGrade;
-    const name = listing.itemName?.trim() || '장비';
+    const name = listing.itemName?.trim() || t('fallbackGear');
     const templateMatch =
         EQUIPMENT_POOL.find((p) => p.name === name && p.grade === grade) ?? EQUIPMENT_POOL.find((p) => p.name === name);
     const image = (listing.itemImage && listing.itemImage.trim()) || templateMatch?.image || '';
@@ -265,7 +275,7 @@ function buildBuyPreviewInventoryItem(listing: ExchangeListing): InventoryItem {
 }
 
 const formatCurrency = (value: number, currency: SaleCurrency): string =>
-    `${formatWalletCurrencyAmount(value, currency)}${currency === 'gold' ? '골드' : '다이아'}`;
+    `${formatWalletCurrencyAmount(value, currency)}${currency === 'gold' ? tCommon('resources.gold') : tCommon('resources.diamonds')}`;
 
 /** 거래소 정산 수령 → 공통 아이템 획득 모달(ItemObtainedModal)용 가상 인벤 행 */
 function createExchangeSettlementCurrencyObtainItem(currency: SaleCurrency, quantity: number): InventoryItem {
@@ -273,7 +283,7 @@ function createExchangeSettlementCurrencyObtainItem(currency: SaleCurrency, quan
     const isGold = currency === 'gold';
     return {
         id: `exchange-settlement-reward-${isGold ? 'gold' : 'diamonds'}-${now}-${Math.random().toString(36).slice(2, 9)}`,
-        name: isGold ? '골드' : '다이아몬드',
+        name: isGold ? tCommon('resources.gold') : tCommon('resources.diamonds'),
         description: '',
         type: 'consumable',
         slot: null,
@@ -296,7 +306,7 @@ const BAG_SCROLLBAR_Y_CLASS =
 
 /** 거래 이력 탭에 표시: 구매 완료·정산 수령(판매 대금)만 */
 const isExchangeHistoryLineForDisplay = (line: string): boolean =>
-    line.includes('구매 완료') || line.includes('정산 모두 수령') || line.includes('정산 수령');
+    line.includes(HX_PURCHASE_DONE) || line.includes(HX_SETTLEMENT_ALL) || line.includes(HX_SETTLEMENT_ONE);
 
 const getBuyListingGroupKey = (entry: Pick<ExchangeListing, 'itemName' | 'itemGrade' | 'itemStars' | 'itemSlot' | 'currency'>): string =>
     [entry.itemName, entry.itemGrade ?? ItemGrade.Normal, entry.itemStars ?? 0, entry.itemSlot ?? 'none', entry.currency].join('::');
@@ -309,31 +319,6 @@ const getStarVisual = (stars: number): { image: string; color: string } | null =
     return null;
 };
 
-const BUY_SLOT_FILTER_OPTIONS: Array<{ value: BuySlotFilter; label: string }> = [
-    { value: 'all', label: '종류(전체)' },
-    { value: 'fan', label: '부채' },
-    { value: 'board', label: '바둑판' },
-    { value: 'top', label: '상의' },
-    { value: 'bottom', label: '하의' },
-    { value: 'bowl', label: '바둑통' },
-    { value: 'stones', label: '바둑알' },
-];
-const BUY_CURRENCY_FILTER_OPTIONS: Array<{ value: BuyCurrencyFilter; label: string }> = [
-    { value: 'all', label: '재화(전체)' },
-    { value: 'gold', label: '골드상품' },
-    { value: 'diamonds', label: '다이아상품' },
-];
-const BUY_GRADE_FILTER_OPTIONS: Array<{ value: BuyGradeFilter; label: string }> = [
-    { value: 'all', label: '등급(전체)' },
-    { value: ItemGrade.Normal, label: '일반' },
-    { value: ItemGrade.Uncommon, label: '고급' },
-    { value: ItemGrade.Rare, label: '희귀' },
-    { value: ItemGrade.Epic, label: '에픽' },
-    { value: ItemGrade.Legendary, label: '전설' },
-    { value: ItemGrade.Mythic, label: '신화' },
-    { value: ItemGrade.Transcendent, label: '초월' },
-];
-
 const ExchangeModal: React.FC<ExchangeModalProps> = ({
     currentUser,
     allUsers,
@@ -343,6 +328,41 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
     onViewListedEquipment,
     embedded = false,
 }) => {
+    const { t } = useTranslation('exchange');
+    const { t: tCommon } = useTranslation('common');
+    const BUY_SLOT_FILTER_OPTIONS = useMemo<Array<{ value: BuySlotFilter; label: string }>>(
+        () => [
+            { value: 'all', label: t('filters.typeAll') },
+            { value: 'fan', label: t('filters.slotFan') },
+            { value: 'board', label: t('filters.slotBoard') },
+            { value: 'top', label: t('filters.slotTop') },
+            { value: 'bottom', label: t('filters.slotBottom') },
+            { value: 'bowl', label: t('filters.slotBowl') },
+            { value: 'stones', label: t('filters.slotStones') },
+        ],
+        [t],
+    );
+    const buyCurrencyFilterOptions = useMemo<Array<{ value: BuyCurrencyFilter; label: string }>>(
+        () => [
+            { value: 'all', label: t('filters.currencyAll') },
+            { value: 'gold', label: t('filters.goldProducts') },
+            { value: 'diamonds', label: t('filters.diamondProducts') },
+        ],
+        [t],
+    );
+    const buyGradeFilterOptions = useMemo<Array<{ value: BuyGradeFilter; label: string }>>(
+        () => [
+            { value: 'all', label: t('filters.gradeAll') },
+            { value: ItemGrade.Normal, label: t('filters.gradeNormal') },
+            { value: ItemGrade.Uncommon, label: t('filters.gradeUncommon') },
+            { value: ItemGrade.Rare, label: t('filters.gradeRare') },
+            { value: ItemGrade.Epic, label: t('filters.gradeEpic') },
+            { value: ItemGrade.Legendary, label: t('filters.gradeLegendary') },
+            { value: ItemGrade.Mythic, label: t('filters.gradeMythic') },
+            { value: ItemGrade.Transcendent, label: t('filters.gradeTranscendent') },
+        ],
+        [t],
+    );
     const { isNativeMobile } = useNativeMobileShell();
     const mobileExchange = Boolean(isNativeMobile);
     const [activeTab, setActiveTab] = useState<ExchangeTab>('buy');
@@ -531,7 +551,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                 }
             });
         });
-        // 내 로컬 상태를 우선 반영해 저장 지연/수신 지연 중에도 구매 탭 표시를 유지
+        // 내 로컬 상태를 우선 반영해 저장 지연/수신 지연 중에도 구매 탭 표시를 {t('labels.keep', { defaultValue: 'Keep' })}
         listings.forEach((entry) => {
             if (!entry || !entry.id) return;
             if (marketListingsLoaded && !remoteIds.has(entry.id)) return;
@@ -687,7 +707,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                 (inv) => inv.type === 'material' && inv.name === TRADE_LISTING_TICKET_NAME && (inv.quantity ?? 1) > 0,
             );
             if (!ticketItem) {
-                window.alert('거래 등록권이 부족합니다.');
+                window.alert(tx('exchange:alerts.insufficientTicket'));
                 setPendingRegistration(null);
                 setPendingTicketUsageRegistration(null);
                 setSellComposerOpen(false);
@@ -763,19 +783,19 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
     const handleRegisterSale = () => {
         if (myListedCount >= allowedListingCount) {
             if (functionVipActive && !isAdminUser) {
-                window.alert('기능 VIP는 최대 3개 상품까지만 판매 등록할 수 있습니다.');
+                window.alert(tx('exchange:alerts.vipListingLimit'));
             } else if (!isAdminUser) {
-                window.alert('거래 등록권이 부족합니다. 등록권 1장으로 판매물품 1개를 등록할 수 있습니다.');
+                window.alert(tx('exchange:alerts.ticketHint'));
             }
             return;
         }
         const item = selectedItem;
         if (!item) {
-            window.alert('인벤토리에서 판매할 장비를 선택해주세요.');
+            window.alert(tx('exchange:alerts.selectGearFromInventory'));
             return;
         }
         if (item.isBound) {
-            window.alert('귀속된 장비는 판매할 수 없습니다. 귀속 해제권을 사용해주세요.');
+            window.alert(tx('exchange:alerts.boundGear'));
             return;
         }
         const alreadyListed = listings.some(
@@ -788,15 +808,15 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
         }
         const parsedPrice = clampGameInt(Math.floor(Number(salePrice)), { min: minimumPrice, max: maxSaleListPrice });
         if (!Number.isFinite(parsedPrice) || parsedPrice < minimumPrice) {
-            window.alert(`최소 판매가는 ${formatCurrency(minimumPrice, saleCurrency)}입니다.`);
+            window.alert(tx('exchange:alerts.minimumPrice', { price: formatCurrency(minimumPrice, saleCurrency) }));
             return;
         }
         if (saleCurrency === 'gold' && walletGold < saleFee) {
-            window.alert(`등록 수수료가 부족합니다. 필요: ${formatCurrency(saleFee, saleCurrency)}`);
+            window.alert(tx('exchange:alerts.insufficientFee', { fee: formatCurrency(saleFee, saleCurrency) }));
             return;
         }
         if (saleCurrency === 'diamonds' && walletDiamonds < saleFee) {
-            window.alert(`등록 수수료가 부족합니다. 필요: ${formatCurrency(saleFee, saleCurrency)}`);
+            window.alert(tx('exchange:alerts.insufficientFee', { fee: formatCurrency(saleFee, saleCurrency) }));
             return;
         }
         setSellComposerOpen(false);
@@ -812,7 +832,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
             return;
         }
         if (listing.sellerId === currentUser.id) {
-            window.alert('본인이 등록한 물품은 구매할 수 없습니다.');
+            window.alert(tx('exchange:alerts.cannotBuyOwn'));
             return;
         }
         const isPurchaseAvailable =
@@ -827,11 +847,11 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
         }
 
         if (listing.currency === 'gold' && walletGold < listing.price) {
-            window.alert('골드가 부족합니다.');
+            window.alert(tx('exchange:alerts.insufficientGold'));
             return;
         }
         if (listing.currency === 'diamonds' && walletDiamonds < listing.price) {
-            window.alert('다이아가 부족합니다.');
+            window.alert(tx('exchange:alerts.insufficientDiamonds'));
             return;
         }
 
@@ -857,7 +877,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
         void refreshMarketListings();
         if (selectedBuyListingId === listingId) setSelectedBuyListingId('');
         setPurchaseSuccessData({ listing, inventoryItem: purchasedInventoryItem });
-        appendHistory(`구매 완료: ${listing.itemName} / ${formatCurrency(listing.price, listing.currency)}`);
+        appendHistory(`${HX_PURCHASE_DONE}: ${listing.itemName} / ${formatCurrency(listing.price, listing.currency)}`);
     };
 
     const handleClaimSettlement = async (listingId: string) => {
@@ -892,7 +912,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
         if (d > 0) obtain.push(createExchangeSettlementCurrencyObtainItem('diamonds', d));
         if (obtain.length > 0) setSettlementObtainItems(obtain);
 
-        appendHistory(`정산 수령: ${settlement.itemName} / 실수령 ${formatCurrency(netAmount, settlement.currency)} (판매 수수료 ${formatCurrency(claimFee, settlement.currency)})`);
+        appendHistory(`${HX_SETTLEMENT_ONE}: ${settlement.itemName} / \uC2E4\uC218\uB9BD ${formatCurrency(netAmount, settlement.currency)} (${HX_FEE} ${formatCurrency(claimFee, settlement.currency)})`);
     };
     const handleClaimAllSettlements = async () => {
         if (unclaimedSettlements.length === 0) return;
@@ -922,7 +942,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
         if (totalDiamondsNet > 0) obtain.push(createExchangeSettlementCurrencyObtainItem('diamonds', totalDiamondsNet));
         if (obtain.length > 0) setSettlementObtainItems(obtain);
         appendHistory(
-            `정산 모두 수령: 골드 ${formatGoldAmountKoG(totalGoldNet)} / 다이아 ${formatWalletDiamonds(totalDiamondsNet)}`,
+            `${HX_SETTLEMENT_ALL}: ${tCommon('resources.gold')} ${formatGoldAmountKoG(totalGoldNet)} / ${tCommon('resources.diamonds')} ${formatWalletDiamonds(totalDiamondsNet)}`,
         );
     };
 
@@ -1146,39 +1166,37 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
             const timestampMatch = line.match(/^\[([^\]]+)\]/);
             const timestampText = timestampMatch?.[1] ?? '-';
             const message = line.replace(/^\[[^\]]+\]\s*/, '');
-            const statusText = line.includes('구매 완료')
-                ? '구매 완료'
-                : line.includes('정산 수령') || line.includes('정산 모두 수령')
-                  ? '정산 수령'
+            const statusText = line.includes(HX_PURCHASE_DONE)
+                ? t('labels.purchaseComplete')
+                : line.includes(HX_SETTLEMENT_ONE) || line.includes(HX_SETTLEMENT_ALL)
+                  ? t('labels.settlementReceived')
                   : '-';
             const itemNameMatch = message.match(/^[^:]+:\s*([^/]+?)(?:\s*\/|$)/);
             const itemName = itemNameMatch?.[1]?.trim();
-            const matches = [...line.matchAll(/([0-9,]+)(골드|다이아)/g)];
+            const matches = [...line.matchAll(new RegExp(`([0-9,]+)(${HX_GOLD}|${HX_DIA})`, 'g'))];
             const priceMatch = matches[0];
-            const feeMatch = line.match(/수수료[^0-9]*([0-9,]+)(골드|다이아)/);
+            const feeMatch = line.match(new RegExp(`${HX_FEE}[^0-9]*([0-9,]+)(${HX_GOLD}|${HX_DIA})`));
             const priceAmount = priceMatch ? Number((priceMatch[1] ?? '0').replace(/,/g, '')) || 0 : 0;
-            const priceCurrency = (priceMatch?.[2] === '다이아' ? 'diamonds' : priceMatch ? 'gold' : null) as SaleCurrency | null;
+            const priceCurrency = (priceMatch?.[2] === HX_DIA ? 'diamonds' : priceMatch ? 'gold' : null) as SaleCurrency | null;
             const feeAmount = feeMatch ? Number((feeMatch[1] ?? '0').replace(/,/g, '')) || 0 : 0;
-            const feeCurrency = (feeMatch?.[2] === '다이아' ? 'diamonds' : feeMatch ? 'gold' : null) as SaleCurrency | null;
-            // 총 지출: 구매 완료 결제 금액만
-            if (line.includes('구매 완료') && priceMatch) {
-                if (priceMatch[2] === '골드') totals.outGold += priceAmount;
+            const feeCurrency = (feeMatch?.[2] === HX_DIA ? 'diamonds' : feeMatch ? 'gold' : null) as SaleCurrency | null;
+            if (line.includes(HX_PURCHASE_DONE) && priceMatch) {
+                if (priceMatch[2] === HX_GOLD) totals.outGold += priceAmount;
                 else totals.outDiamonds += priceAmount;
             }
-            // 총 수입: 정산 실수령(모두 수령은 줄에 있는 골드·다이아 각각)
-            if (line.includes('정산 모두 수령')) {
+            if (line.includes(HX_SETTLEMENT_ALL)) {
                 matches.forEach((m) => {
                     const amount = Number((m[1] ?? '0').replace(/,/g, '')) || 0;
-                    if (m[2] === '골드') totals.inGold += amount;
+                    if (m[2] === HX_GOLD) totals.inGold += amount;
                     else totals.inDiamonds += amount;
                 });
-            } else if (line.includes('정산 수령') && priceMatch) {
-                if (priceMatch[2] === '골드') totals.inGold += priceAmount;
+            } else if (line.includes(HX_SETTLEMENT_ONE) && priceMatch) {
+                if (priceMatch[2] === HX_GOLD) totals.inGold += priceAmount;
                 else totals.inDiamonds += priceAmount;
             }
-            if (line.includes('정산 모두 수령')) {
-                const goldBulk = line.match(/골드\s*([0-9,]+)/);
-                const diaBulk = line.match(/다이아\s*([0-9,]+)/);
+            if (line.includes(HX_SETTLEMENT_ALL)) {
+                const goldBulk = line.match(new RegExp(`${HX_GOLD}\\s*([0-9,]+)`));
+                const diaBulk = line.match(new RegExp(`${HX_DIA}\\s*([0-9,]+)`));
                 const gBulk = goldBulk ? Number((goldBulk[1] ?? '0').replace(/,/g, '')) || 0 : 0;
                 const dBulk = diaBulk ? Number((diaBulk[1] ?? '0').replace(/,/g, '')) || 0 : 0;
                 let bulkImage = '/images/Box/GoldBox3.webp';
@@ -1252,7 +1270,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
     const buyListColsDesktop = 'grid-cols-[minmax(0,1fr)_105px_105px] gap-4';
     const buyListCols = mobileExchange ? buyListColsMobile : buyListColsDesktop;
     const buyRowInnerCols = 'grid grid-cols-[56px_minmax(0,1fr)_56px] gap-5';
-    /** 모바일 구매: 좌측 썸네일(+내 등록), 우측 등급·이름만 (PC는 대칭용 빈 칸 유지) */
+    /** 모바일 구매: 좌측 썸네일(+{t('labels.myListingBadge')}), 우측 등급·이름만 (PC는 대칭용 빈 칸 유지) */
     const buyRowInnerColsMobile = 'grid min-w-0 grid-cols-[2.5rem_minmax(0,1fr)] items-center gap-1.5';
     const buyRowInner = mobileExchange ? buyRowInnerColsMobile : buyRowInnerCols;
     const historyGridTemplate = mobileExchange
@@ -1315,18 +1333,18 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
         return (
             <div className={`rounded border border-slate-700/60 bg-slate-950/55 px-2 py-2 text-slate-200 ${cardText}`}>
                 <div className="flex items-center justify-between">
-                    <span>현재가</span>
+                    <span>{t('labels.currentPrice')}</span>
                     <span className="flex items-center gap-1 font-semibold text-amber-200">
                         <span className="tabular-nums">{formatWalletCurrencyAmount(selectedBuyListing.price, selectedBuyListing.currency)}</span>
                         <img
                             src={selectedBuyListing.currency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
-                            alt={selectedBuyListing.currency === 'gold' ? '골드' : '다이아'}
+                            alt={selectedBuyListing.currency === 'gold' ? tCommon('resources.gold') : tCommon('resources.diamonds')}
                             className={statIcon}
                         />
                     </span>
                 </div>
                 <div className="mt-1 flex items-center justify-between">
-                    <span>최저가</span>
+                    <span>{t('labels.lowestPrice')}</span>
                     <span className="flex items-center gap-1 font-semibold text-cyan-200">
                         <span className="tabular-nums">
                             {formatWalletCurrencyAmount(
@@ -1336,13 +1354,13 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                         </span>
                         <img
                             src={selectedBuyListing.currency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
-                            alt={selectedBuyListing.currency === 'gold' ? '골드' : '다이아'}
+                            alt={selectedBuyListing.currency === 'gold' ? tCommon('resources.gold') : tCommon('resources.diamonds')}
                             className={statIcon}
                         />
                     </span>
                 </div>
                 <div className="mt-1 flex items-center justify-between">
-                    <span>최근 거래가</span>
+                    <span>{t('labels.recentPrice')}</span>
                     <span className="flex items-center gap-1 font-semibold">
                         <span className="tabular-nums">
                             {recentSoldForBuySelection
@@ -1352,16 +1370,16 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                         {recentSoldForBuySelection ? (
                             <img
                                 src={recentSoldForBuySelection.currency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
-                                alt={recentSoldForBuySelection.currency === 'gold' ? '골드' : '다이아'}
+                                alt={recentSoldForBuySelection.currency === 'gold' ? tCommon('resources.gold') : tCommon('resources.diamonds')}
                                 className={statIcon}
                             />
                         ) : null}
                     </span>
                 </div>
                 <div className="mt-1 flex items-center justify-between">
-                    <span>남은 시간</span>
+                    <span>{t('labels.timeRemaining')}</span>
                     <span className="tabular-nums font-semibold text-cyan-200">
-                        {buyRemainingDays}일 {buyRemainingHours}시간
+                        {t('labels.timeDaysHours', { days: buyRemainingDays, hours: buyRemainingHours })}
                     </span>
                 </div>
             </div>
@@ -1397,7 +1415,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
     const renderSellRegistrationSidebar = (opts?: { hideSubmitButton?: boolean }) => (
         <div className="flex min-h-0 flex-col">
             <div className="space-y-1.5">
-                <p className={sellFormLabel}>판매 재화 종류</p>
+                <p className={sellFormLabel}>{t('labels.sellCurrency')}</p>
                 <div className="grid grid-cols-2 gap-1.5">
                     <label className={`flex cursor-pointer flex-col items-center justify-center gap-0.5 rounded border px-1 py-1 ${saleCurrency === 'gold' ? 'border-amber-400/70 bg-amber-900/30' : 'border-slate-600 bg-slate-800/70'}`}>
                         <input
@@ -1412,7 +1430,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                             className="sr-only"
                         />
                         <img src="/images/icon/Gold.webp" alt="" className={sellCurrencyRadioIcon} aria-hidden />
-                        <span className={`${sellFormText} font-semibold text-amber-100`}>골드</span>
+                        <span className={`${sellFormText} font-semibold text-amber-100`}>{tCommon('resources.gold')}</span>
                     </label>
                     <label className={`flex cursor-pointer flex-col items-center justify-center gap-0.5 rounded border px-1 py-1 ${saleCurrency === 'diamonds' ? 'border-sky-400/70 bg-sky-900/30' : 'border-slate-600 bg-slate-800/70'}`}>
                         <input
@@ -1427,11 +1445,11 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                             className="sr-only"
                         />
                         <img src="/images/icon/Zem.webp" alt="" className={sellCurrencyRadioIcon} aria-hidden />
-                        <span className={`${sellFormText} font-semibold text-sky-100`}>다이아</span>
+                        <span className={`${sellFormText} font-semibold text-sky-100`}>{tCommon('resources.diamonds')}</span>
                     </label>
                 </div>
                 <label className={`flex flex-col gap-1 ${sellFormText}`}>
-                    <span className={sellFormLabel}>판매 가격 입력</span>
+                    <span className={sellFormLabel}>{t('labels.sellPriceInput')}</span>
                     <div
                         className={`flex items-center gap-1.5 rounded border px-1.5 py-1 ${
                             saleCurrency === 'gold' ? 'border-amber-500/55 bg-amber-950/35' : 'border-sky-500/55 bg-sky-950/30'
@@ -1449,20 +1467,20 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                         />
                         <img
                             src={saleCurrency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
-                            alt={saleCurrency === 'gold' ? '골드' : '다이아'}
+                            alt={saleCurrency === 'gold' ? tCommon('resources.gold') : tCommon('resources.diamonds')}
                             className={`${mobileExchange ? 'h-3.5 w-3.5' : 'h-5 w-5'} shrink-0 object-contain`}
                         />
                     </div>
                 </label>
                 <div className={`rounded border border-slate-700/60 bg-slate-950/55 px-1.5 py-1 ${sellFormText}`}>
                     <div className="flex items-center justify-between gap-1.5">
-                        <span>현재 최저가</span>
+                        <span>{t('labels.currentLowest')}</span>
                         {currentLowestForSelected ? (
                             <span className="flex items-center gap-0.5 font-semibold">
                                 <span className="tabular-nums">{formatWalletCurrencyAmount(currentLowestForSelected.price, saleCurrency)}</span>
                                 <img
                                     src={currentLowestForSelected.currency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
-                                    alt={currentLowestForSelected.currency === 'gold' ? '골드' : '다이아'}
+                                    alt={currentLowestForSelected.currency === 'gold' ? tCommon('resources.gold') : tCommon('resources.diamonds')}
                                     className={`${mobileExchange ? 'h-3.5 w-3.5' : 'h-4 w-4'} object-contain`}
                                 />
                             </span>
@@ -1473,7 +1491,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                 </div>
                 <div className={`rounded border border-slate-700/60 bg-slate-950/55 px-1.5 py-1 ${sellFormText}`}>
                     <div className="flex items-center justify-between gap-1.5">
-                        <span>최근 거래가</span>
+                        <span>{t('labels.recentPrice')}</span>
                         <span className={`max-w-[min(8.5rem,52%)] text-right font-semibold leading-snug ${sellFormInputNums}`}>
                             {lastSoldForSelected ? formatCurrency(lastSoldForSelected.price, lastSoldForSelected.currency) : '-'}
                         </span>
@@ -1481,12 +1499,12 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                 </div>
                 <div className={`rounded border border-cyan-700/50 bg-cyan-950/35 px-1.5 py-1 ${sellFormFeeBox}`}>
                     <div className="flex items-center justify-between gap-1.5">
-                        <span>수수료(10%)</span>
+                        <span>{t('labels.feePercent')}</span>
                         <span className="flex items-center gap-0.5 tabular-nums font-semibold">
                             <span>{formatWalletCurrencyAmount(saleFee, saleCurrency)}</span>
                             <img
                                 src={saleCurrency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
-                                alt={saleCurrency === 'gold' ? '골드' : '다이아'}
+                                alt={saleCurrency === 'gold' ? tCommon('resources.gold') : tCommon('resources.diamonds')}
                                 className={`${mobileExchange ? 'h-3.5 w-3.5' : 'h-4 w-4'} object-contain`}
                             />
                         </span>
@@ -1496,7 +1514,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
             {!opts?.hideSubmitButton ? (
                 <div className="mt-2 shrink-0">
                     <Button onClick={handleRegisterSale} disabled={!selectedItem || selectedItemAlreadyListedByMe} className={sellPrimarySidebarButtonClass}>
-                        판매 등록
+                        {t('labels.registerSale')}
                     </Button>
                 </div>
             ) : null}
@@ -1508,7 +1526,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
 
     const exchangeTitleContent = (
         <span className="flex min-w-0 items-center gap-2 sm:gap-2.5">
-            <span className="truncate">거래소</span>
+            <span className="truncate">{t('title')}</span>
             <ExchangeTradeTicketBadge count={tradeListingTicketCount} compact={mobileExchange} />
         </span>
     );
@@ -1517,17 +1535,17 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
         <>
             {showAlreadySoldModal && (
                 <AlertModal
-                    title="구매 안내"
-                    message="이미 판매된 아이템입니다."
+                    title={t('modals.buyNotice')}
+                    message={t('modals.alreadySold')}
                     onClose={() => setShowAlreadySoldModal(false)}
-                    confirmText="확인"
+                    confirmText={tCommon('actions.confirm')}
                     isTopmost
                     windowId="exchange-already-sold-alert"
                 />
             )}
             {pendingRegistration && (
                 <DraggableWindow
-                    title="판매 등록 확인"
+                    title={t('modals.registerConfirm')}
                     windowId="exchange-register-confirm"
                     onClose={() => setPendingRegistration(null)}
                     initialWidth={390}
@@ -1561,19 +1579,19 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                 </div>
                                 <div className="min-w-0">
                                     <p className="text-sm font-semibold break-words">{item.name}</p>
-                                    <p className={`text-xs font-semibold ${gradeStyle?.color ?? 'text-slate-200'}`}>[{gradeStyle?.name ?? '일반'}]</p>
+                                    <p className={`text-xs font-semibold ${gradeStyle?.color ?? 'text-slate-200'}`}>[{gradeStyle?.name ?? t('filters.gradeNormal')}]</p>
                                 </div>
                             </div>
                             <div className="mt-3 space-y-1 rounded border border-slate-700/60 bg-slate-950/55 p-2 text-xs">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-slate-300">판매 가격</span>
+                                    <span className="text-slate-300">{t('labels.salePrice')}</span>
                                     <span className="flex items-center gap-1 font-semibold">
                                         <span>{formatWalletCurrencyAmount(pendingRegistration.price, pendingRegistration.currency)}</span>
                                         <img src={pendingRegistration.currency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'} alt="" className="h-4 w-4 object-contain" />
                                     </span>
                                 </div>
                                 <div className="flex items-center justify-between">
-                                    <span className="text-slate-300">등록 수수료(10%)</span>
+                                    <span className="text-slate-300">{t('labels.registrationFee')}</span>
                                     <span className="flex items-center gap-1 font-semibold">
                                         <span>{formatWalletCurrencyAmount(pendingRegistration.fee, pendingRegistration.currency)}</span>
                                         <img src={pendingRegistration.currency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'} alt="" className="h-4 w-4 object-contain" />
@@ -1589,7 +1607,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                 className="min-h-[40px] py-2.5 text-sm font-semibold leading-none !border !border-slate-500/50 !bg-gradient-to-b !from-slate-700/90 !to-slate-900/95"
                                 colorScheme="gray"
                             >
-                                취소
+                                {tCommon('actions.cancel')}
                             </Button>
                             <Button
                                 onClick={() => {
@@ -1607,7 +1625,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                 }}
                                 className="min-h-[40px] py-2.5 text-sm font-semibold leading-none !border !border-amber-300/45 !bg-gradient-to-b !from-amber-500/85 !to-orange-600/90"
                             >
-                                등록
+{t('labels.registerSale')}
                             </Button>
                         </div>
                     </div>
@@ -1615,7 +1633,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
             )}
             {pendingTicketUsageRegistration && (
                 <DraggableWindow
-                    title="거래등록권 1장 사용"
+                    title={t('modals.useTicketTitle')}
                     windowId="exchange-ticket-usage-confirm"
                     onClose={() => setPendingTicketUsageRegistration(null)}
                     initialWidth={390}
@@ -1627,9 +1645,9 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                     <div className="relative flex min-h-0 flex-col gap-3 overflow-y-auto rounded-xl border border-amber-500/35 bg-gradient-to-b from-[#161d2e] via-[#0e131f] to-[#070a10] p-3 text-slate-100 shadow-[0_0_0_1px_rgba(251,191,36,0.1),0_24px_48px_-24px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.07)]">
                         <div className="flex flex-col items-center gap-2 text-center">
                             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-lg border border-amber-400/40 bg-amber-900/30">
-                                <img src="/images/use/allowtrade.webp" alt="거래 등록권" className="h-10 w-10 object-contain" />
+                                <img src="/images/use/allowtrade.webp" alt={t('modals.useTicket')} className="h-10 w-10 object-contain" />
                             </div>
-                            <p className="text-sm font-semibold text-amber-100">거래등록권 1장 사용</p>
+                            <p className="text-sm font-semibold text-amber-100">{t('modals.useTicket')}</p>
                         </div>
                         <div className="mt-auto grid shrink-0 grid-cols-2 gap-2 pt-1">
                             <Button
@@ -1637,7 +1655,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                 className="min-h-[40px] py-2.5 text-sm font-semibold leading-none !border !border-slate-500/50 !bg-gradient-to-b !from-slate-700/90 !to-slate-900/95"
                                 colorScheme="gray"
                             >
-                                취소
+                                {tCommon('actions.cancel')}
                             </Button>
                             <Button
                                 onClick={() =>
@@ -1650,7 +1668,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                 }
                                 className="min-h-[40px] py-2.5 text-sm font-semibold leading-none !border !border-amber-300/45 !bg-gradient-to-b !from-amber-500/85 !to-orange-600/90"
                             >
-                                등록
+{t('labels.registerSale')}
                             </Button>
                         </div>
                     </div>
@@ -1658,7 +1676,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
             )}
             {pendingCancelListing && (
                 <DraggableWindow
-                    title="판매 취소 확인"
+                    title={t('modals.cancelSaleConfirm')}
                     windowId="exchange-cancel-confirm"
                     onClose={() => setPendingCancelListing(null)}
                     initialWidth={390}
@@ -1697,7 +1715,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                             </div>
                             <p className="text-sm font-semibold text-amber-100">{pendingCancelListing.itemName}</p>
                             <p className="text-sm leading-relaxed text-slate-200">
-                                등록시 발생한 수수료는 반납되지 않습니다.
+                                {t('alerts.registrationFeeNonRefundable')}
                             </p>
                         </div>
                         <div className="grid grid-cols-2 gap-2 pt-1">
@@ -1708,14 +1726,14 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                 }}
                                 className="min-h-[40px] py-2.5 text-sm font-semibold leading-none !border !border-amber-300/45 !bg-gradient-to-b !from-amber-500/85 !to-orange-600/90"
                             >
-                                등록취소
+                                {tCommon('actions.cancel')}
                             </Button>
                             <Button
                                 onClick={() => setPendingCancelListing(null)}
                                 className="min-h-[40px] py-2.5 text-sm font-semibold leading-none !border !border-slate-500/50 !bg-gradient-to-b !from-slate-700/90 !to-slate-900/95"
                                 colorScheme="gray"
                             >
-                                유지
+{t('labels.keep')}
                             </Button>
                         </div>
                     </div>
@@ -1723,7 +1741,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
             )}
             {purchaseSuccessData && (
                 <DraggableWindow
-                    title="구매 확인"
+                    title={t('modals.purchaseConfirm')}
                     windowId="exchange-purchase-success"
                     onClose={() => setPurchaseSuccessData(null)}
                     initialWidth={390}
@@ -1762,7 +1780,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                             </div>
                             <p className="text-sm font-semibold text-amber-100">{purchaseSuccessData.listing.itemName}</p>
                             <p className="text-sm leading-relaxed text-slate-200">
-                                구매가 완료되었습니다.
+                                {t('labels.purchaseCompleteMessage', { defaultValue: t('labels.purchaseComplete') })}
                             </p>
                         </div>
                         <Button
@@ -1770,7 +1788,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                             onClick={() => setPurchaseSuccessData(null)}
                             className="min-h-[40px] py-2.5 text-sm font-semibold leading-none !border !border-amber-300/45 !bg-gradient-to-b !from-amber-500/85 !to-orange-600/90"
                         >
-                            확인
+{tCommon('actions.confirm')}
                         </Button>
                     </div>
                 </DraggableWindow>
@@ -1787,7 +1805,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
             ) : null}
             {mobileBuyDetailOpen && selectedBuyListing ? (
                 <DraggableWindow
-                    title="구매"
+                    title={t('modals.purchase')}
                     windowId="exchange-buy-item"
                     onClose={() => setSelectedBuyListingId('')}
                     initialWidth={MOBILE_EQUIPMENT_DETAIL_MODAL_WIDTH}
@@ -1810,7 +1828,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                 disabled={selectedBuyListingIsMine}
                                 className={`${exchangePrimaryButtonClass} !text-xs !leading-snug`}
                             >
-                                {selectedBuyListingIsMine ? '내 등록 물품' : '구매'}
+                                {selectedBuyListingIsMine ? t('labels.myListing') : t('modals.purchase')}
                             </Button>
                         </div>
                     </div>
@@ -1818,7 +1836,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
             ) : null}
             {mobileExchange && sellPickerOpen && activeTab === 'sell' && (
                 <DraggableWindow
-                    title="장비 선택"
+                    title={t('modals.selectGear')}
                     windowId="exchange-sell-picker"
                     onClose={() => setSellPickerOpen(false)}
                     initialWidth={520}
@@ -1848,8 +1866,8 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                     </div>
                                 ) : (
                                     <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-0.5 px-2 py-2 text-center">
-                                        <p className="text-[11px] font-semibold leading-snug text-slate-300">장비를 선택하세요</p>
-                                        <p className="text-[11px] font-medium leading-snug text-slate-500">아래 그리드에서 탭한 뒤 오른쪽에서 가격·수수료를 확인하세요.</p>
+                                        <p className="text-[11px] font-semibold leading-snug text-slate-300">{t('labels.selectGearHint')}</p>
+                                        <p className="text-[11px] font-medium leading-snug text-slate-500">{t('labels.selectGearSub')}</p>
                                     </div>
                                 )}
                             </div>
@@ -1865,11 +1883,11 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                     value={inventorySortKey}
                                     onChange={(e) => setInventorySortKey(e.target.value as InventorySortKey)}
                                     className="rounded border border-slate-600 bg-slate-800 px-1.5 py-0.5 text-[11px] font-semibold leading-snug text-slate-200"
-                                    aria-label="인벤토리 정렬"
+                                    aria-label={t('sort.label', { defaultValue: 'Sort' })}
                                 >
-                                    <option value="createdAt">최신순</option>
-                                    <option value="grade">등급순</option>
-                                    <option value="name">이름순</option>
+                                    <option value="createdAt">{t('sort.newest')}</option>
+                                    <option value="grade">{t('sort.grade')}</option>
+                                    <option value="name">{t('sort.name')}</option>
                                 </select>
                             </div>
                             <div className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1 [scrollbar-gutter:stable] ${BAG_SCROLLBAR_Y_CLASS}`}>
@@ -1891,7 +1909,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                 disabled={!selectedItem || selectedItemAlreadyListedByMe}
                                 className={`${exchangePrimaryButtonClass} min-h-[42px] !mx-0 !w-full !py-2 !text-[11px] font-bold leading-snug`}
                             >
-                                판매등록
+                                {t('labels.registerSale')}
                             </Button>
                         </div>
                     </div>
@@ -1905,13 +1923,13 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                             onClick={() => setActiveTab('buy')}
                             className={`${mobileExchange ? exchangeTabButtonMobile : exchangeTabButtonBase} ${activeTab === 'buy' ? 'border-cyan-300/70 bg-gradient-to-b from-cyan-500/70 to-blue-700/80 text-white shadow-[0_10px_20px_-12px_rgba(56,189,248,0.9)]' : 'border-slate-600/70 bg-gradient-to-b from-slate-700/70 to-slate-900/80 text-slate-300 hover:border-slate-400/80 hover:text-slate-100'}`}
                         >
-                            구매
+{t('modals.purchase')}
                         </button>
                         <button
                             onClick={() => setActiveTab('sell')}
                             className={`relative overflow-visible ${mobileExchange ? exchangeTabButtonMobile : exchangeTabButtonBase} ${activeTab === 'sell' ? 'border-cyan-300/70 bg-gradient-to-b from-cyan-500/70 to-blue-700/80 text-white shadow-[0_10px_20px_-12px_rgba(56,189,248,0.9)]' : 'border-slate-600/70 bg-gradient-to-b from-slate-700/70 to-slate-900/80 text-slate-300 hover:border-slate-400/80 hover:text-slate-100'}`}
                         >
-                            판매등록
+                            {t('labels.registerSale')}
                             {myRecoverableListings.length > 0 ? (
                                 <span
                                     className="pointer-events-none absolute right-0.5 top-0.5 h-2 w-2 rounded-full border-2 border-slate-900 bg-red-500 sm:right-1 sm:top-1 sm:h-2.5 sm:w-2.5"
@@ -1924,7 +1942,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                             onClick={() => setActiveTab('settlement')}
                             className={`relative overflow-visible ${mobileExchange ? exchangeTabButtonMobile : exchangeTabButtonBase} ${activeTab === 'settlement' ? 'border-cyan-300/70 bg-gradient-to-b from-cyan-500/70 to-blue-700/80 text-white shadow-[0_10px_20px_-12px_rgba(56,189,248,0.9)]' : 'border-slate-600/70 bg-gradient-to-b from-slate-700/70 to-slate-900/80 text-slate-300 hover:border-slate-400/80 hover:text-slate-100'}`}
                         >
-                            정산
+{t('tabs.settlement')}
                             {unclaimedSettlements.length > 0 ? (
                                 <span
                                     className="pointer-events-none absolute right-0.5 top-0.5 h-2 w-2 rounded-full border-2 border-slate-900 bg-red-500 sm:right-1 sm:top-1 sm:h-2.5 sm:w-2.5"
@@ -1936,7 +1954,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                             onClick={() => setActiveTab('history')}
                             className={`${mobileExchange ? exchangeTabButtonMobile : exchangeTabButtonBase} ${activeTab === 'history' ? 'border-cyan-300/70 bg-gradient-to-b from-cyan-500/70 to-blue-700/80 text-white shadow-[0_10px_20px_-12px_rgba(56,189,248,0.9)]' : 'border-slate-600/70 bg-gradient-to-b from-slate-700/70 to-slate-900/80 text-slate-300 hover:border-slate-400/80 hover:text-slate-100'}`}
                         >
-                            거래이력
+                            {t('tabs.history')}
                         </button>
                     </div>
 
@@ -1964,12 +1982,12 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                             aria-hidden
                                         />
                                         <p className={`font-semibold text-slate-100 ${mobileExchange ? 'text-xs' : 'text-sm'}`}>
-                                            거래 물품 정보를 불러오는 중입니다…
+                                            {t('loading.items', { defaultValue: 'Loading trade items…' })}
                                         </p>
                                         <p
                                             className={`max-w-[18rem] px-2 text-slate-500 ${mobileExchange ? 'text-[11px] leading-snug' : 'text-xs leading-relaxed'}`}
                                         >
-                                            서버에서 최신 목록을 받아오는 동안 잠시만 기다려 주세요.
+                                            {t('loading.wait', { defaultValue: 'Please wait while we fetch the latest list.' })}
                                         </p>
                                     </div>
                                 ) : (
@@ -1993,7 +2011,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                 onChange={(e) => setBuyGradeFilter(e.target.value as BuyGradeFilter)}
                                                 className="min-w-0 rounded border border-slate-600 bg-slate-800 px-1.5 py-1.5 text-[11px] font-semibold leading-snug text-slate-200 sm:px-2 sm:text-xs"
                                             >
-                                                {BUY_GRADE_FILTER_OPTIONS.map((opt) => (
+                                                {buyGradeFilterOptions.map((opt) => (
                                                     <option key={opt.value} value={opt.value}>
                                                         {opt.label}
                                                     </option>
@@ -2004,7 +2022,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                 onChange={(e) => setBuyCurrencyFilter(e.target.value as BuyCurrencyFilter)}
                                                 className="min-w-0 rounded border border-slate-600 bg-slate-800 px-1.5 py-1.5 text-[11px] font-semibold leading-snug text-slate-200 sm:px-2 sm:text-xs"
                                             >
-                                                {BUY_CURRENCY_FILTER_OPTIONS.map((opt) => (
+                                                {buyCurrencyFilterOptions.map((opt) => (
                                                     <option key={opt.value} value={opt.value}>
                                                         {opt.label}
                                                     </option>
@@ -2016,7 +2034,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                 type="text"
                                                 value={buySearchText}
                                                 onChange={(e) => setBuySearchText(e.target.value)}
-                                                placeholder="아이템 검색"
+                                                placeholder={t('labels.searchPlaceholder')}
                                                 className={`min-w-0 w-full rounded border border-slate-600 bg-slate-800 px-2 py-1.5 text-slate-100 outline-none placeholder:text-slate-400 ${mobileExchange ? 'text-[11px] leading-snug' : 'text-xs'}`}
                                             />
                                             <button
@@ -2025,8 +2043,8 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                     setBuyManualRefreshCooldownUntilMs(Date.now() + 5000);
                                                     void refreshMarketListings();
                                                 }}
-                                                aria-label="거래소 목록 새로고침"
-                                                title="새로고침"
+                                                aria-label={t('labels.refresh')}
+                                                title={t('labels.refresh')}
                                                 className={`shrink-0 rounded border border-slate-600 bg-slate-800 text-slate-200 transition hover:border-slate-400 hover:text-white ${mobileExchange ? 'w-8 text-[13px]' : 'w-9 text-sm'} ${buyRefreshButtonDisabled ? 'opacity-70' : ''}`}
                                                 disabled={buyRefreshButtonDisabled}
                                             >
@@ -2039,7 +2057,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                             className={`sticky top-0 z-10 mb-2 grid rounded border border-slate-600/70 bg-slate-900/95 font-semibold text-slate-300 backdrop-blur-sm ${buyListCols} ${mobileExchange ? 'px-1.5 py-1 text-[11px] leading-tight' : 'px-2 py-1.5 text-[11px]'}`}
                                         >
                                             <div className="flex items-center justify-center gap-1">
-                                                <span>이름</span>
+                                                <span>{t('labels.name')}</span>
                                                 <button
                                                     type="button"
                                                     onClick={() => toggleBuySort('name')}
@@ -2049,7 +2067,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                 </button>
                                             </div>
                                             <div className="flex items-center justify-center gap-1">
-                                                <span>현재가</span>
+                                                <span>{t('labels.currentPrice')}</span>
                                                 <button
                                                     type="button"
                                                     onClick={() => toggleBuySort('currentPrice')}
@@ -2059,7 +2077,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                 </button>
                                             </div>
                                             <div className="flex items-center justify-center gap-1">
-                                                <span>최저가</span>
+                                                <span>{t('labels.lowestPrice')}</span>
                                                 <button
                                                     type="button"
                                                     onClick={() => toggleBuySort('lowestPrice')}
@@ -2073,13 +2091,13 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                             <div
                                                 className={`rounded border border-slate-700/60 bg-slate-900/40 px-3 py-8 text-center text-slate-300 ${mobileExchange ? `${exchM}` : 'text-sm'}`}
                                             >
-                                                등록된 판매 물품이 없습니다.
+                                                {t('labels.noListings')}
                                             </div>
                                         )}
                                         <div className={mobileExchange ? 'space-y-1.5' : 'space-y-2'}>
                                         {filteredAndSortedBuyItems.map((listing) => {
                                             const gradeKey = (listing.itemGrade ?? ItemGrade.Normal) as ItemGrade;
-                                            const gradeLabel = gradeStyles[gradeKey]?.name ?? '일반';
+                                            const gradeLabel = gradeStyles[gradeKey]?.name ?? t('filters.gradeNormal');
                                             const gradeColor = gradeStyles[gradeKey]?.color ?? 'text-slate-200';
                                             const starVisual = getStarVisual(listing.itemStars ?? 0);
                                             const isMyListing = listing.sellerId === currentUser.id;
@@ -2099,7 +2117,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                 <div className={`min-w-0 items-center ${buyRowInner}`}>
                                                     <div
                                                         className={`relative shrink-0 ${mobileExchange ? 'h-10 w-10' : 'h-14 w-14'}`}
-                                                        title={isMyListing ? '내가 등록한 판매' : undefined}
+                                                        title={isMyListing ? t('labels.myListing') : undefined}
                                                     >
                                                         <div className="relative h-full w-full overflow-hidden rounded bg-black/25">
                                                             <img
@@ -2123,7 +2141,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                             <span
                                                                 className={`pointer-events-none absolute bottom-0 left-1/2 z-20 max-w-[calc(100%+0.25rem)] -translate-x-1/2 translate-y-1/2 truncate rounded-full border border-violet-400/60 bg-violet-950/95 px-0.5 py-px font-bold leading-none text-violet-100 shadow-md ring-1 ring-black/20 ${mobileExchange ? 'text-[8px]' : 'px-1 text-[10px]'}`}
                                                             >
-                                                                내 등록
+                                                                {t('labels.myListingBadge')}
                                                             </span>
                                                         ) : null}
                                                     </div>
@@ -2154,7 +2172,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                     </span>
                                                     <img
                                                         src={listing.currency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
-                                                        alt={listing.currency === 'gold' ? '골드' : '다이아'}
+                                                        alt={listing.currency === 'gold' ? tCommon('resources.gold') : tCommon('resources.diamonds')}
                                                         className={mobileExchange ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 object-contain'}
                                                     />
                                                 </div>
@@ -2169,7 +2187,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                     </span>
                                                     <img
                                                         src={listing.currency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
-                                                        alt={listing.currency === 'gold' ? '골드' : '다이아'}
+                                                        alt={listing.currency === 'gold' ? tCommon('resources.gold') : tCommon('resources.diamonds')}
                                                         className={mobileExchange ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 object-contain'}
                                                     />
                                                 </div>
@@ -2201,7 +2219,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                 disabled={!selectedBuyListing || selectedBuyListingIsMine}
                                                 className={exchangePrimaryButtonClass}
                                             >
-                                                {selectedBuyListingIsMine ? '내 등록 물품' : '구매'}
+                                                {selectedBuyListingIsMine ? t('labels.myListing') : t('modals.purchase')}
                                             </Button>
                                         </div>
                                     </div>
@@ -2214,7 +2232,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                             (mobileExchange ? (
                                 <div className="flex h-full min-h-0 flex-col gap-2">
                                     <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-amber-500/35 bg-gradient-to-b from-slate-900/95 to-slate-950/98 p-2.5 shadow-[0_8px_24px_-12px_rgba(0,0,0,0.45)]">
-                                        <p className="mb-1.5 shrink-0 text-[11px] font-bold text-amber-200">등록된 아이템</p>
+                                        <p className="mb-1.5 shrink-0 text-[11px] font-bold text-amber-200">{t('labels.registeredItems')}</p>
                                         <div className={`min-h-0 flex-1 overflow-y-auto pr-1 ${BAG_SCROLLBAR_Y_CLASS}`}>
                                             <div className="space-y-2">
                                                 {isAdminUser && sellSlots.length === 0 && (
@@ -2237,7 +2255,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                     const remainingDays = Math.floor(remainingMs / (24 * 60 * 60 * 1000));
                                                     const remainingHours = Math.floor((remainingMs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
                                                     const slotGradeKey = (slot.itemGrade ?? ItemGrade.Normal) as ItemGrade;
-                                                    const slotGradeLabel = gradeStyles[slotGradeKey]?.name ?? '일반';
+                                                    const slotGradeLabel = gradeStyles[slotGradeKey]?.name ?? t('filters.gradeNormal');
                                                     const slotGradeColor = gradeStyles[slotGradeKey]?.color ?? 'text-slate-200';
                                                     return (
                                                         <div
@@ -2301,7 +2319,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                                         </span>
                                                                         <img
                                                                             src={slot.currency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
-                                                                            alt={slot.currency === 'gold' ? '골드' : '다이아'}
+                                                                            alt={slot.currency === 'gold' ? tCommon('resources.gold') : tCommon('resources.diamonds')}
                                                                             className="h-3.5 w-3.5 shrink-0 object-contain"
                                                                         />
                                                                     </div>
@@ -2310,7 +2328,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                                     <span
                                                                         className={`w-full text-center text-[11px] font-semibold leading-tight ${verification === 'verifying' ? 'text-cyan-200' : isExpired ? 'text-rose-300' : 'text-emerald-200'}`}
                                                                     >
-                                                                        {verification === 'verifying' ? '등록중' : isExpired ? '만료됨' : `${remainingDays}일 ${remainingHours}시간`}
+                                                                        {verification === 'verifying' ? t('labels.registering') : isExpired ? t('labels.expired') : t('labels.timeDaysHours', { days: remainingDays, hours: remainingHours })}
                                                                     </span>
                                                                     <div className="flex items-center justify-center gap-1">
                                                                         <Button
@@ -2321,7 +2339,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                                             disabled={isExpired && listingRecoverCooldownSecondsLeft > 0}
                                                                             title={
                                                                                 isExpired && listingRecoverCooldownSecondsLeft > 0
-                                                                                    ? `${listingRecoverCooldownSecondsLeft}초 뒤에 다시 회수할 수 있습니다.`
+                                                                                    ? t('labels.recoverCooldown', { seconds: listingRecoverCooldownSecondsLeft })
                                                                                     : undefined
                                                                             }
                                                                             className={`!flex !min-h-[22px] !w-[4.85rem] !shrink-0 !items-center !justify-center !border !px-1.5 !py-0.5 !text-[11px] !font-semibold !leading-none !tracking-wide rounded-md ${
@@ -2330,7 +2348,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                                                     : '!border-slate-500/50 !bg-gradient-to-b !from-slate-700/90 !to-slate-900/95'
                                                                             }`}
                                                                         >
-                                                                            {isExpired ? '회수' : '판매취소'}
+                                                                            {isExpired ? t('labels.recover') : t('labels.cancelSale')}
                                                                         </Button>
                                                                         {isExpired && listingRecoverCooldownSecondsLeft > 0 ? (
                                                                             <span
@@ -2351,8 +2369,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                     </div>
                                     <div className="shrink-0 rounded-xl border border-amber-500/35 bg-gradient-to-b from-slate-900/95 to-slate-950/98 p-2.5 shadow-[0_-10px_28px_-14px_rgba(0,0,0,0.55)]">
                                         <p className="mb-2.5 text-center text-[11px] font-medium leading-relaxed text-slate-400">
-                                            새로 판매할 장비는 <span className="font-semibold text-amber-200/95">「장비 선택」</span>에서 고릅니다. 위 목록에서 등록된 물품 상태를
-                                            확인하고 취소할 수 있습니다.
+                                            {t('labels.newGearHint')}
                                         </p>
                                         <button
                                             type="button"
@@ -2364,7 +2381,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                             }}
                                             className="w-full rounded-xl border-2 border-amber-400/55 bg-gradient-to-b from-amber-600/55 via-amber-500/35 to-orange-950/50 px-3 py-2.5 text-[11px] font-bold leading-snug text-amber-50 shadow-[0_12px_28px_-14px_rgba(251,191,36,0.55)] transition hover:border-amber-300/80 active:scale-[0.99]"
                                         >
-                                            장비 선택
+                                            {t('modals.selectGear')}
                                         </button>
                                     </div>
                                 </div>
@@ -2372,7 +2389,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                 <div className="flex h-full min-h-0 flex-col gap-3">
                                     <div className="shrink-0 grid min-h-0 grid-cols-1 gap-3 lg:grid-cols-[minmax(320px,400px)_minmax(0,1fr)_minmax(200px,228px)]">
                                         <div className="flex h-[340px] min-h-[340px] max-h-[340px] min-w-0 flex-col rounded-lg border border-slate-700/60 bg-slate-900/45 p-3">
-                                            <p className="text-sm font-semibold text-amber-200">등록된 아이템</p>
+                                            <p className="text-sm font-semibold text-amber-200">{t('labels.registeredItems')}</p>
                                             <div className={`min-h-0 flex-1 overflow-y-auto pr-1 ${BAG_SCROLLBAR_Y_CLASS}`}>
                                                 <div className="space-y-2">
                                                     {isAdminUser && sellSlots.length === 0 && (
@@ -2395,7 +2412,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                         const remainingDays = Math.floor(remainingMs / (24 * 60 * 60 * 1000));
                                                         const remainingHours = Math.floor((remainingMs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
                                                         const slotGradeKey = (slot.itemGrade ?? ItemGrade.Normal) as ItemGrade;
-                                                        const slotGradeLabel = gradeStyles[slotGradeKey]?.name ?? '일반';
+                                                        const slotGradeLabel = gradeStyles[slotGradeKey]?.name ?? t('filters.gradeNormal');
                                                         const slotGradeColor = gradeStyles[slotGradeKey]?.color ?? 'text-slate-200';
                                                         return (
                                                             <div
@@ -2453,7 +2470,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                                             </span>
                                                                             <img
                                                                                 src={slot.currency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
-                                                                                alt={slot.currency === 'gold' ? '골드' : '다이아'}
+                                                                                alt={slot.currency === 'gold' ? tCommon('resources.gold') : tCommon('resources.diamonds')}
                                                                                 className="h-4 w-4 object-contain"
                                                                             />
                                                                         </div>
@@ -2462,7 +2479,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                                         <span
                                                                             className={`w-full text-center text-sm font-semibold leading-tight ${verification === 'verifying' ? 'text-cyan-200' : isExpired ? 'text-rose-300' : 'text-emerald-200'}`}
                                                                         >
-                                                                            {verification === 'verifying' ? '등록중' : isExpired ? '만료됨' : `${remainingDays}일 ${remainingHours}시간`}
+                                                                            {verification === 'verifying' ? t('labels.registering') : isExpired ? t('labels.expired') : t('labels.timeDaysHours', { days: remainingDays, hours: remainingHours })}
                                                                         </span>
                                                                         <div className="flex items-center justify-center gap-1.5">
                                                                             <Button
@@ -2473,7 +2490,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                                                 disabled={isExpired && listingRecoverCooldownSecondsLeft > 0}
                                                                                 title={
                                                                                     isExpired && listingRecoverCooldownSecondsLeft > 0
-                                                                                        ? `${listingRecoverCooldownSecondsLeft}초 뒤에 다시 회수할 수 있습니다.`
+                                                                                        ? t('labels.recoverCooldown', { seconds: listingRecoverCooldownSecondsLeft })
                                                                                         : undefined
                                                                                 }
                                                                                 className={`!flex !w-[4.5rem] !shrink-0 !items-center !justify-center min-h-[26px] rounded-md !border px-1 py-0.5 text-sm leading-none font-semibold tracking-wide ${
@@ -2482,7 +2499,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                                                         : '!border-slate-500/50 !bg-gradient-to-b !from-slate-700/90 !to-slate-900/95'
                                                                                 }`}
                                                                             >
-                                                                                {isExpired ? '회수' : '판매취소'}
+                                                                                {isExpired ? t('labels.recover') : t('labels.cancelSale')}
                                                                             </Button>
                                                                             {isExpired && listingRecoverCooldownSecondsLeft > 0 ? (
                                                                                 <span
@@ -2524,11 +2541,11 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                 value={inventorySortKey}
                                                 onChange={(e) => setInventorySortKey(e.target.value as InventorySortKey)}
                                                 className="rounded border border-slate-600 bg-slate-800 px-2 py-1 text-xs font-semibold leading-snug text-slate-200"
-                                                aria-label="인벤토리 정렬"
+                                                aria-label={t('sort.label', { defaultValue: 'Sort' })}
                                             >
-                                                <option value="createdAt">최신순</option>
-                                                <option value="grade">등급순</option>
-                                                <option value="name">이름순</option>
+                                                <option value="createdAt">{t('sort.newest')}</option>
+                                                <option value="grade">{t('sort.grade')}</option>
+                                                <option value="name">{t('sort.name')}</option>
                                             </select>
                                         </div>
                                         {sellableItems.length === 0 ? (
@@ -2586,25 +2603,25 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                         <div
                                             className={`sticky top-0 z-10 mb-2 grid shrink-0 items-center rounded border border-slate-600/70 bg-slate-900/95 font-semibold text-slate-300 backdrop-blur-sm ${settlementListCols} ${settlementListHeaderText}`}
                                         >
-                                            <span className="text-center">이름</span>
-                                            <span className="text-center">판매가</span>
-                                            <span className="text-center">수수료</span>
-                                            <span className="text-center">수령액</span>
+                                            <span className="text-center">{t('labels.name')}</span>
+                                            <span className="text-center">{t('labels.salePrice')}</span>
+                                            <span className="text-center">{t('labels.fee')}</span>
+                                            <span className="text-center">{t('labels.netAmount')}</span>
                                         </div>
                                         {settlementDisplayItems.length === 0 && (
                                             <div
                                                 className={`flex flex-1 items-center justify-center rounded border border-slate-700/60 bg-slate-900/40 text-center text-slate-300 ${mobileExchange ? `min-h-[8rem] px-2 py-6 ${exchM}` : 'min-h-0 px-3 py-8 text-sm leading-snug'}`}
                                             >
-                                                정산 가능한 판매 내역이 없습니다.
+                                                {t('labels.noSettlement')}
                                             </div>
                                         )}
                                         <div className="space-y-2">
                                             {settlementDisplayItems.map((entry) => {
                                                 const gradeKey = (entry.itemGrade ?? ItemGrade.Normal) as ItemGrade;
-                                                const gradeLabel = gradeStyles[gradeKey]?.name ?? '일반';
+                                                const gradeLabel = gradeStyles[gradeKey]?.name ?? t('filters.gradeNormal');
                                                 const starVisual = getStarVisual(entry.itemStars ?? 0);
                                                 const currencyIcon = entry.currency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp';
-                                                const currencyAlt = entry.currency === 'gold' ? '골드' : '다이아';
+                                                const currencyAlt = entry.currency === 'gold' ? tCommon('resources.gold') : tCommon('resources.diamonds');
                                                 return (
                                                     <button
                                                         key={entry.listingId}
@@ -2684,56 +2701,56 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                     {selectedSettlement ? (
                                         <div className="flex h-full min-h-0 flex-col gap-3">
                                             <div className={`rounded border border-slate-700/60 bg-slate-950/55 px-3 py-2.5 text-slate-100 ${settlementDetailText}`}>
-                                                <p className={`mb-1.5 ${settlementDetailLabel}`}>선택 항목</p>
+                                                <p className={`mb-1.5 ${settlementDetailLabel}`}>{t('labels.selectedItem')}</p>
                                                 <div className="flex items-center justify-between">
-                                                    <span className="text-rose-200">수수료</span>
+                                                    <span className="text-rose-200">{t('labels.fee')}</span>
                                                     <span className="flex items-center gap-1 tabular-nums font-semibold text-rose-200">
                                                         <span>{formatWalletCurrencyAmount(selectedSettlement.fee, selectedSettlement.currency)}</span>
                                                         <img
                                                             src={selectedSettlement.currency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
-                                                            alt={selectedSettlement.currency === 'gold' ? '골드' : '다이아'}
+                                                            alt={selectedSettlement.currency === 'gold' ? tCommon('resources.gold') : tCommon('resources.diamonds')}
                                                             className={settlementCurrencyIcon}
                                                         />
                                                     </span>
                                                 </div>
                                                 <div className="mt-1.5 flex items-center justify-between">
-                                                    <span>수령액</span>
+                                                    <span>{t('labels.netAmount')}</span>
                                                     <span className="flex items-center gap-1 tabular-nums font-bold text-emerald-200">
                                                         <span>{formatWalletCurrencyAmount(selectedSettlement.net, selectedSettlement.currency)}</span>
                                                         <img
                                                             src={selectedSettlement.currency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
-                                                            alt={selectedSettlement.currency === 'gold' ? '골드' : '다이아'}
+                                                            alt={selectedSettlement.currency === 'gold' ? tCommon('resources.gold') : tCommon('resources.diamonds')}
                                                             className={settlementCurrencyIcon}
                                                         />
                                                     </span>
                                                 </div>
                                             </div>
                                             <div className={`rounded border border-slate-700/60 bg-slate-950/55 px-3 py-2.5 text-slate-100 ${settlementDetailText}`}>
-                                                <p className={`mb-1.5 ${settlementDetailLabel}`}>모든 항목</p>
+                                                <p className={`mb-1.5 ${settlementDetailLabel}`}>{t('labels.allItems')}</p>
                                                 <div className="space-y-1.5">
                                                     <div className="flex items-center justify-between gap-2">
-                                                        <span className="shrink-0 text-rose-200">수수료</span>
+                                                        <span className="shrink-0 text-rose-200">{t('labels.fee')}</span>
                                                         <div className="grid min-w-0 grid-cols-2 items-center gap-1.5">
                                                             <span className="flex min-w-[4.5rem] items-center justify-end gap-1 tabular-nums font-semibold text-rose-200">
                                                                 <span>{formatGoldAmountKoG(settlementTotals.selectedFeeGold)}</span>
-                                                                <img src="/images/icon/Gold.webp" alt="골드" className={settlementCurrencyIcon} />
+                                                                <img src="/images/icon/Gold.webp" alt={tCommon('resources.gold')} className={settlementCurrencyIcon} />
                                                             </span>
                                                             <span className="flex min-w-[4.5rem] items-center justify-end gap-1 tabular-nums font-semibold text-rose-200">
                                                                 <span>{formatWalletDiamonds(settlementTotals.selectedFeeDiamonds)}</span>
-                                                                <img src="/images/icon/Zem.webp" alt="다이아" className={settlementCurrencyIcon} />
+                                                                <img src="/images/icon/Zem.webp" alt={tCommon('resources.diamonds')} className={settlementCurrencyIcon} />
                                                             </span>
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center justify-between gap-2">
-                                                        <span className="shrink-0 text-emerald-200">수령액</span>
+                                                        <span className="shrink-0 text-emerald-200">{t('labels.netAmount')}</span>
                                                         <div className="grid min-w-0 grid-cols-2 items-center gap-1.5">
                                                             <span className="flex min-w-[4.5rem] items-center justify-end gap-1 tabular-nums font-bold text-emerald-200">
                                                                 <span>{formatGoldAmountKoG(settlementTotals.selectedNetGold)}</span>
-                                                                <img src="/images/icon/Gold.webp" alt="골드" className={settlementCurrencyIcon} />
+                                                                <img src="/images/icon/Gold.webp" alt={tCommon('resources.gold')} className={settlementCurrencyIcon} />
                                                             </span>
                                                             <span className="flex min-w-[4.5rem] items-center justify-end gap-1 tabular-nums font-bold text-emerald-200">
                                                                 <span>{formatWalletDiamonds(settlementTotals.selectedNetDiamonds)}</span>
-                                                                <img src="/images/icon/Zem.webp" alt="다이아" className={settlementCurrencyIcon} />
+                                                                <img src="/images/icon/Zem.webp" alt={tCommon('resources.diamonds')} className={settlementCurrencyIcon} />
                                                             </span>
                                                         </div>
                                                     </div>
@@ -2741,10 +2758,10 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                             </div>
                                             <div className="mt-auto shrink-0 space-y-2 pt-1">
                                                 <Button onClick={() => handleClaimSettlement(selectedSettlement.listingId)} className={exchangePrimaryButtonClass}>
-                                                    선택 항목 수령
+                                                    {t('labels.claimSelected')}
                                                 </Button>
                                                 <Button onClick={handleClaimAllSettlements} disabled={settlementDisplayItems.length === 0} className={exchangeSecondaryButtonClass}>
-                                                    모두 수령
+                                                    {t('labels.claimAll')}
                                                 </Button>
                                             </div>
                                         </div>
@@ -2752,7 +2769,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                         <div
                                             className={`flex h-full min-h-0 flex-1 items-center justify-center rounded border border-dashed border-slate-700/70 bg-slate-950/40 text-center text-slate-300 ${mobileExchange ? `px-2 py-6 ${exchM}` : 'px-3 py-10 text-sm leading-snug'}`}
                                         >
-                                            정산 대기 항목이 없습니다.
+                                            {t('labels.noSettlementPending')}
                                         </div>
                                     )}
                                 </div>
@@ -2772,7 +2789,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                     : 'min-h-[3.25rem] whitespace-nowrap px-3 py-2.5 text-base sm:w-[260px] sm:text-lg'
                                             }`}
                                         >
-                                            총 거래 이력 {visibleExchangeHistory.length}건
+                                            {t('labels.totalHistoryCount', { count: visibleExchangeHistory.length })}
                                         </div>
                                         <div
                                             className={`flex-1 rounded border border-slate-700/60 bg-slate-900/45 text-slate-200 ${
@@ -2780,36 +2797,36 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                             }`}
                                         >
                                             <div className="flex items-center justify-between gap-1">
-                                                <span className={`font-semibold text-rose-400 ${mobileExchange ? 'text-[11px]' : 'text-base'}`}>총 지출</span>
+                                                <span className={`font-semibold text-rose-400 ${mobileExchange ? 'text-[11px]' : 'text-base'}`}>{t('labels.totalSpent')}</span>
                                                 <div className="grid min-w-0 flex-1 grid-cols-2 items-center gap-1">
                                                     <span
                                                         className={`flex min-w-0 items-center justify-end gap-0.5 tabular-nums font-semibold text-rose-400 ${mobileExchange ? 'text-[11px]' : 'text-base'}`}
                                                     >
                                                         <span className="min-w-0 truncate">{formatGoldAmountKoG(historySummary.totals.outGold)}</span>
-                                                        <img src="/images/icon/Gold.webp" alt="골드" className={mobileExchange ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 object-contain'} />
+                                                        <img src="/images/icon/Gold.webp" alt={tCommon('resources.gold')} className={mobileExchange ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 object-contain'} />
                                                     </span>
                                                     <span
                                                         className={`flex min-w-0 items-center justify-end gap-0.5 tabular-nums font-semibold text-rose-400 ${mobileExchange ? 'text-[11px]' : 'text-base'}`}
                                                     >
                                                         <span className="min-w-0 truncate">{formatWalletDiamonds(historySummary.totals.outDiamonds)}</span>
-                                                        <img src="/images/icon/Zem.webp" alt="다이아" className={mobileExchange ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 object-contain'} />
+                                                        <img src="/images/icon/Zem.webp" alt={tCommon('resources.diamonds')} className={mobileExchange ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 object-contain'} />
                                                     </span>
                                                 </div>
                                             </div>
                                             <div className="flex items-center justify-between gap-1">
-                                                <span className={`font-semibold text-emerald-400 ${mobileExchange ? 'text-[11px]' : 'text-base'}`}>총 수입</span>
+                                                <span className={`font-semibold text-emerald-400 ${mobileExchange ? 'text-[11px]' : 'text-base'}`}>{t('labels.totalIncome')}</span>
                                                 <div className="grid min-w-0 flex-1 grid-cols-2 items-center gap-1">
                                                     <span
                                                         className={`flex min-w-0 items-center justify-end gap-0.5 tabular-nums font-semibold text-emerald-400 ${mobileExchange ? 'text-[11px]' : 'text-base'}`}
                                                     >
                                                         <span className="min-w-0 truncate">{formatGoldAmountKoG(historySummary.totals.inGold)}</span>
-                                                        <img src="/images/icon/Gold.webp" alt="골드" className={mobileExchange ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 object-contain'} />
+                                                        <img src="/images/icon/Gold.webp" alt={tCommon('resources.gold')} className={mobileExchange ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 object-contain'} />
                                                     </span>
                                                     <span
                                                         className={`flex min-w-0 items-center justify-end gap-0.5 tabular-nums font-semibold text-emerald-400 ${mobileExchange ? 'text-[11px]' : 'text-base'}`}
                                                     >
                                                         <span className="min-w-0 truncate">{formatWalletDiamonds(historySummary.totals.inDiamonds)}</span>
-                                                        <img src="/images/icon/Zem.webp" alt="다이아" className={mobileExchange ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 object-contain'} />
+                                                        <img src="/images/icon/Zem.webp" alt={tCommon('resources.diamonds')} className={mobileExchange ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 object-contain'} />
                                                     </span>
                                                 </div>
                                             </div>
@@ -2823,16 +2840,16 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                         } ${historyHeaderText}`}
                                     >
                                         <span />
-                                        <span className="text-center">상태</span>
-                                        <span className="text-center">날짜/시간</span>
-                                        <span className="text-center">가격</span>
-                                        <span className="text-center">수수료</span>
+                                        <span className="text-center">{t('labels.statusLabel')}</span>
+                                        <span className="text-center">{t('labels.dateTime')}</span>
+                                        <span className="text-center">{t('labels.price')}</span>
+                                        <span className="text-center">{t('labels.fee')}</span>
                                     </div>
                                 </div>
                                 <div className={`min-h-0 flex-1 overflow-y-auto pr-1 ${BAG_SCROLLBAR_Y_CLASS}`}>
                                     {visibleExchangeHistory.length === 0 && (
                                         <div className={`rounded border border-slate-700/60 bg-slate-900/40 px-3 py-8 text-center text-slate-300 ${mobileExchange ? exchM : 'text-sm'}`}>
-                                            거래 이력이 없습니다.
+                                            {t('labels.noHistory')}
                                         </div>
                                     )}
                                     <div className={mobileExchange ? 'space-y-1.5' : 'space-y-2'}>
@@ -2867,7 +2884,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                     {row.timestampText}
                                                 </p>
                                                 <div
-                                                    className={`flex items-center justify-center gap-0.5 font-semibold ${row.statusText === '정산 수령' ? 'text-emerald-400' : 'text-slate-100'} ${mobileExchange ? 'text-[11px] leading-tight' : 'text-base'}`}
+                                                    className={`flex items-center justify-center gap-0.5 font-semibold ${row.statusText === t('labels.settlementReceived') ? 'text-emerald-400' : 'text-slate-100'} ${mobileExchange ? 'text-[11px] leading-tight' : 'text-base'}`}
                                                 >
                                                     {row.priceCurrency ? (
                                                         <>
@@ -2876,7 +2893,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                             </span>
                                                             <img
                                                                 src={row.priceCurrency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
-                                                                alt={row.priceCurrency === 'gold' ? '골드' : '다이아'}
+                                                                alt={row.priceCurrency === 'gold' ? tCommon('resources.gold') : tCommon('resources.diamonds')}
                                                                 className={mobileExchange ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 object-contain'}
                                                             />
                                                         </>
@@ -2892,7 +2909,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                             </span>
                                                             <img
                                                                 src={row.feeCurrency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
-                                                                alt={row.feeCurrency === 'gold' ? '골드' : '다이아'}
+                                                                alt={row.feeCurrency === 'gold' ? tCommon('resources.gold') : tCommon('resources.diamonds')}
                                                                 className={mobileExchange ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 object-contain'}
                                                             />
                                                         </>
@@ -2918,7 +2935,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                 }
                 return (
                     <DraggableWindow
-                        title="거래소"
+                        title={t('title')}
                         titleContent={exchangeTitleContent}
                         onClose={onClose}
                         windowId="exchange"

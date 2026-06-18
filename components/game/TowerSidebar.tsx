@@ -1,4 +1,5 @@
 import React from 'react';
+import { tx } from '../../shared/i18n/runtimeText.js';
 import { LiveGameSession, GameProps } from '../../types.js';
 import { GameInfoPanel, ChatPanel } from './Sidebar.js';
 import Button from '../Button.js';
@@ -42,8 +43,8 @@ const TowerSidebar: React.FC<TowerSidebarProps> = ({
                 <GameInfoPanel session={session} currentUser={currentUser} onClose={onClose} onAction={onAction} />
                 <div className="bg-gray-800/80 rounded-xl border border-stone-700 px-3 py-2">
                     <div className="text-center">
-                        <p className="text-sm font-bold text-purple-300">도전의 탑</p>
-                        <p className="text-lg font-black text-yellow-300">{floor}층</p>
+                        <p className="text-sm font-bold text-purple-300">{tx("game:towerSidebar.title")}</p>
+                        <p className="text-lg font-black text-yellow-300">{tx("game:towerSidebar.floor", { floor })}</p>
                     </div>
                 </div>
             </div>
@@ -70,8 +71,8 @@ const TowerSidebar: React.FC<TowerSidebarProps> = ({
                         disabled={(isPaused && resumeCountdown > 0) || (!isPaused && pauseButtonCooldown > 0)}
                     >
                         {isPaused
-                            ? (resumeCountdown > 0 ? `대국 재개 (${resumeCountdown})` : '대국 재개')
-                            : (pauseButtonCooldown > 0 ? `일시 정지 (${pauseButtonCooldown})` : '일시 정지')}
+                            ? (resumeCountdown > 0 ? tx("game:controls.resumeGameCountdown", { count: resumeCountdown }) : tx("game:controls.resumeGame"))
+                            : (pauseButtonCooldown > 0 ? tx("game:controls.pauseGameCountdown", { count: pauseButtonCooldown }) : tx("game:controls.pauseGame"))}
                     </Button>
                 )}
             </div>

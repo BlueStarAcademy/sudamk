@@ -1,4 +1,6 @@
 import React, { useEffect } from 'react';
+import { useLocalizedItemGrade } from '../shared/i18n/localizedCatalog.js';
+import { useTranslation } from 'react-i18next';
 import DraggableWindow, {
     ITEM_OBTAIN_MODAL_CONFIRM_BUTTON_CLASS,
     ITEM_OBTAIN_MODAL_FOOTER_ROW_CLASS,
@@ -20,13 +22,13 @@ interface BulkItemObtainedModalProps {
 }
 
 const gradeStyles: Record<ItemGrade, { bg: string, text: string, shadow: string, name: string, background: string }> = {
-    normal: { bg: 'bg-gray-700', text: 'text-white', shadow: 'shadow-gray-900/50', name: '일반', background: '/images/equipments/normalbgi.webp' },
-    uncommon: { bg: 'bg-green-700', text: 'text-green-200', shadow: 'shadow-green-500/50', name: '고급', background: '/images/equipments/uncommonbgi.webp' },
-    rare: { bg: 'bg-blue-700', text: 'text-blue-200', shadow: 'shadow-blue-500/50', name: '희귀', background: '/images/equipments/rarebgi.webp' },
-    epic: { bg: 'bg-purple-700', text: 'text-purple-200', shadow: 'shadow-purple-500/50', name: '에픽', background: '/images/equipments/epicbgi.webp' },
-    legendary: { bg: 'bg-red-800', text: 'text-red-200', shadow: 'shadow-red-500/50', name: '전설', background: '/images/equipments/legendarybgi.webp' },
-    mythic: { bg: 'bg-orange-700', text: 'text-orange-200', shadow: 'shadow-orange-500/50', name: '신화', background: '/images/equipments/mythicbgi.webp' },
-    transcendent: { bg: 'bg-cyan-900', text: 'text-cyan-200', shadow: 'shadow-cyan-500/50', name: '초월', background: '/images/equipments/transcendentbgi.webp' },
+    normal: { bg: 'bg-gray-700', text: 'text-white', shadow: 'shadow-gray-900/50', background: '/images/equipments/normalbgi.webp' },
+    uncommon: { bg: 'bg-green-700', text: 'text-green-200', shadow: 'shadow-green-500/50', background: '/images/equipments/uncommonbgi.webp' },
+    rare: { bg: 'bg-blue-700', text: 'text-blue-200', shadow: 'shadow-blue-500/50', background: '/images/equipments/rarebgi.webp' },
+    epic: { bg: 'bg-purple-700', text: 'text-purple-200', shadow: 'shadow-purple-500/50', background: '/images/equipments/epicbgi.webp' },
+    legendary: { bg: 'bg-red-800', text: 'text-red-200', shadow: 'shadow-red-500/50', background: '/images/equipments/legendarybgi.webp' },
+    mythic: { bg: 'bg-orange-700', text: 'text-orange-200', shadow: 'shadow-orange-500/50', background: '/images/equipments/mythicbgi.webp' },
+    transcendent: { bg: 'bg-cyan-900', text: 'text-cyan-200', shadow: 'shadow-cyan-500/50', background: '/images/equipments/transcendentbgi.webp' },
 };
 
 /** 일괄 그리드: 펄스·글로우 애니메이션 없이 인접 타일과 겹치지 않도록 고정 테두리만 사용 */
@@ -40,6 +42,8 @@ const BULK_TILE_STATIC_BORDER: Partial<Record<ItemGrade, string>> = {
 };
 
 const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, onClose, isTopmost, tournamentScoreChange }) => {
+    const { t } = useTranslation('inventory');
+    const localizedGrade = useLocalizedItemGrade();
     useEffect(() => {
         if (items && items.length > 0) {
             void audioService.initialize();
@@ -61,7 +65,7 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
 
     return (
         <DraggableWindow
-            title="보상 수령"
+            title={t('bulkObtained.rewardClaim')}
             onClose={onClose}
             windowId={ITEM_OBTAINED_MODAL_WINDOW_ID}
             initialWidth={520}
@@ -79,7 +83,7 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
                     {hasItems && (
                         <div className="rounded-2xl border border-amber-500/40 bg-gradient-to-b from-[#1a2233]/95 via-[#121826] to-[#0a0d14] px-3 py-2.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_12px_40px_-18px_rgba(0,0,0,0.75)] sm:py-3">
                             <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-amber-200/75">Reward</p>
-                            <h2 className="mt-0.5 text-sm font-black tracking-tight text-amber-50 sm:text-base">아이템을 획득했습니다</h2>
+                            <h2 className="mt-0.5 text-sm font-black tracking-tight text-amber-50 sm:text-base">{t('bulkObtained.itemsObtained')}</h2>
                         </div>
                     )}
                     {tournamentScoreChange && (
@@ -87,7 +91,7 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
                             <div className="flex flex-col items-center gap-2">
                                 <div className="flex items-center gap-2">
                                     <span className="text-xl sm:text-2xl">🏆</span>
-                                    <span className="text-sm font-bold text-emerald-200 sm:text-base">랭킹 점수 변화</span>
+                                    <span className="text-sm font-bold text-emerald-200 sm:text-base">{t('bulkObtained.rankScoreDelta')}</span>
                                 </div>
                                 <div className="flex flex-wrap items-center justify-center gap-2 text-sm tabular-nums sm:gap-3 sm:text-base">
                                     <span className="font-mono text-slate-300">{tournamentScoreChange.oldScore.toLocaleString()}</span>
@@ -97,7 +101,7 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
                                 </div>
                                 {tournamentScoreChange.scoreReward > 0 && tournamentScoreChange.oldScore > 0 && (
                                     <div className="text-[11px] text-emerald-400/75">
-                                        {((tournamentScoreChange.scoreReward / tournamentScoreChange.oldScore) * 100).toFixed(1)}% 증가
+                                        {t('bulkObtained.percentIncrease', { percent: ((tournamentScoreChange.scoreReward / tournamentScoreChange.oldScore) * 100).toFixed(1) })}
                                     </div>
                                 )}
                             </div>
@@ -240,7 +244,7 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
                         </div>
                     ) : (
                         <div className="rounded-2xl border border-slate-600/45 bg-slate-900/40 px-4 py-8 text-center">
-                            <p className="text-sm text-slate-400">획득한 아이템이 없습니다.</p>
+                            <p className="text-sm text-slate-400">{t('bulkObtained.noItems')}</p>
                         </div>
                     )}
                 </div>

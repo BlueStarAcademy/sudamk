@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LiveGameSession, ServerAction, UserWithStatus } from '../../types.js';
 import Avatar from '../Avatar.js';
 import { MAX_GAME_INTEGER_INPUT } from '../../shared/constants/numericLimits.js';
@@ -44,6 +45,7 @@ const GameList: React.FC<GameListProps> = ({
     embedInHomeLobbyPanel = false,
     pairAlignedNativeCompact = false,
 }) => {
+    const { t } = useTranslation('lobby');
     const [spectateRoomNumber, setSpectateRoomNumber] = useState('');
     const [adminMenuGameId, setAdminMenuGameId] = useState<string | null>(null);
     const [adminSearchQuery, setAdminSearchQuery] = useState('');
@@ -65,7 +67,7 @@ const GameList: React.FC<GameListProps> = ({
     const handleSpectateByNumber = () => {
         const roomNum = parseInt(spectateRoomNumber, 10);
         if (isNaN(roomNum) || roomNum < 1 || roomNum > games.length) {
-            alert('유효하지 않은 방 번호입니다.');
+            alert(t('gameList.invalidRoomNumber'));
             return;
         }
         const gameToSpectate = games[roomNum - 1];
@@ -80,10 +82,10 @@ const GameList: React.FC<GameListProps> = ({
     };
 
     const handleSetDescription = (game: LiveGameSession) => {
-        const newDescription = prompt("방 내용을 입력하세요 (50자 이내):", game.description || "");
+        const newDescription = prompt(t('gameList.roomDescriptionPrompt'), game.description || "");
         if (newDescription !== null) {
             if (newDescription.length > 50) {
-                alert("방 내용은 50자를 초과할 수 없습니다.");
+                alert(t('gameList.roomDescriptionTooLong'));
                 return;
             }
             onAction({ type: 'ADMIN_SET_GAME_DESCRIPTION', payload: { gameId: game.id, description: newDescription } });
@@ -92,7 +94,7 @@ const GameList: React.FC<GameListProps> = ({
     };
 
     const handleDeleteGame = (game: LiveGameSession) => {
-        if (window.confirm(`[${game.player1.nickname} vs ${game.player2.nickname}] 대국을 강제로 종료하시겠습니까?`)) {
+        if (window.confirm(t('gameList.forceEndConfirm', { player1: game.player1.nickname, player2: game.player2.nickname }))) {
             onAction({ type: 'ADMIN_FORCE_DELETE_GAME', payload: { gameId: game.id } });
             setSelectedGameIds(prev => prev.filter(id => id !== game.id));
         }
@@ -116,10 +118,10 @@ const GameList: React.FC<GameListProps> = ({
 
     const handleBatchDelete = () => {
         if (selectedGameIds.length === 0) {
-            alert('강제 종료할 대국을 선택해주세요.');
+            alert(t('gameList.selectGamesToEnd'));
             return;
         }
-        if (!window.confirm(`선택한 ${selectedGameIds.length}개 대국을 강제로 종료하시겠습니까?`)) return;
+        if (!window.confirm(t('gameList.batchForceEndConfirm', { count: selectedGameIds.length }))) return;
         for (const gameId of selectedGameIds) {
             onAction({ type: 'ADMIN_FORCE_DELETE_GAME', payload: { gameId } });
         }
@@ -159,7 +161,7 @@ const GameList: React.FC<GameListProps> = ({
         <div
             className={`flex flex-shrink-0 items-center justify-between border-b ${headerDivider} ${pairAlignedNativeCompact ? 'mb-2 pb-1.5' : 'mb-3 pb-2'}`}
         >
-            <h2 className={headingTitleClass}>진행중인 대국</h2>
+            <h2 className={headingTitleClass}>{t('gameList.ongoingGames')}</h2>
             <div className="flex items-center gap-1.5 sm:gap-2">
                 {lobbyTone ? (
                     <div className={`${pairLobbyQuickJoinRoomNumberRowClass(lobbyTone)} overflow-hidden`}>
@@ -167,7 +169,7 @@ const GameList: React.FC<GameListProps> = ({
                             type="number"
                             min={1}
                             max={MAX_GAME_INTEGER_INPUT}
-                            placeholder="방 번호"
+                            placeholder={t('gameList.roomNumberPlaceholder')}
                             value={spectateRoomNumber}
                             onChange={(e) => {
                                 const val = e.target.value;
@@ -187,7 +189,7 @@ const GameList: React.FC<GameListProps> = ({
                             onClick={handleSpectateByNumber}
                             className={pairLobbyQuickJoinRoomNumberGoBtnClass(lobbyTone, pairAlignedNativeCompact)}
                         >
-                            입장
+                            {t('gameList.join')}
                         </button>
                     </div>
                 ) : (
@@ -196,7 +198,7 @@ const GameList: React.FC<GameListProps> = ({
                             type="number"
                             min={1}
                             max={MAX_GAME_INTEGER_INPUT}
-                            placeholder="방 번호"
+                            placeholder={t('gameList.roomNumberPlaceholder')}
                             value={spectateRoomNumber}
                             onChange={(e) => {
                                 const val = e.target.value;
@@ -219,7 +221,7 @@ const GameList: React.FC<GameListProps> = ({
                                 pairAlignedNativeCompact ? 'text-[0.65rem] sm:text-xs' : 'text-sm'
                             }`}
                         >
-                            입장
+                            {t('gameList.join')}
                         </button>
                     </>
                 )}
@@ -231,7 +233,7 @@ const GameList: React.FC<GameListProps> = ({
                     type="text"
                     value={adminSearchQuery}
                     onChange={(e) => setAdminSearchQuery(e.target.value)}
-                    placeholder="관리자 검색: 닉네임/모드/게임ID"
+                    placeholder={t('gameList.adminSearchPlaceholder')}
                     className={
                         lobbyTone
                             ? waitingLobbyGameListAdminFieldClass(lobbyTone, pairAlignedNativeCompact)
@@ -246,7 +248,7 @@ const GameList: React.FC<GameListProps> = ({
                         pairAlignedNativeCompact ? 'text-[0.65rem] sm:text-xs' : 'text-xs'
                     }`}
                 >
-                    선택 강제 종료 ({selectedGameIds.length})
+                    {t('gameList.batchForceEndSelected', { count: selectedGameIds.length })}
                 </button>
             </div>
         )}
@@ -265,7 +267,7 @@ const GameList: React.FC<GameListProps> = ({
                             checked={selectedGameIds.includes(game.id)}
                             onChange={() => toggleSelectedGame(game.id)}
                             className="w-4 h-4"
-                            title="배치 강제 종료 선택"
+                            title={t('gameList.batchForceEndTitle')}
                         />
                     )}
                     <div
@@ -277,7 +279,7 @@ const GameList: React.FC<GameListProps> = ({
                                   }`
                         }
                         onClick={currentUser.isAdmin ? () => handleAdminMenu(game.id) : undefined}
-                        title={currentUser.isAdmin ? '관리 메뉴 열기' : `방 번호: ${index + 1}`}
+                        title={currentUser.isAdmin ? t('gameList.adminMenuTitle') : t('gameList.roomNumberTitle', { number: index + 1 })}
                     >
                         {index + 1}
                     </div>
@@ -323,15 +325,15 @@ const GameList: React.FC<GameListProps> = ({
                                   }`
                         }
                     >
-                      관전하기
+                      {t('gameList.spectateAction')}
                     </button>
                     {currentUser.isAdmin && (
                         <>
                             <button onClick={() => handleSetDescription(game)} className="px-3 py-1.5 bg-yellow-700 hover:bg-yellow-600 text-white font-bold rounded-lg text-xs transition-colors shrink-0">
-                                방내용
+                                {t('gameList.roomContent')}
                             </button>
                             <button onClick={() => handleDeleteGame(game)} className="px-3 py-1.5 bg-red-700 hover:bg-red-600 text-white font-bold rounded-lg text-xs transition-colors shrink-0">
-                                강제종료
+                                {t('gameList.forceEnd')}
                             </button>
                         </>
                     )}
@@ -343,10 +345,10 @@ const GameList: React.FC<GameListProps> = ({
                         className={lobbyTone ? waitingLobbyGameListAdminPopoverClass(lobbyTone) : 'absolute top-12 left-2 z-10 bg-secondary rounded-md shadow-lg p-2 space-y-2 w-48 border border-color'}
                     >
                         <button onClick={() => handleSetDescription(game)} className="w-full text-left px-3 py-1.5 text-sm rounded hover:bg-accent transition-colors">
-                            방 내용 작성/수정
+                            {t('gameList.editRoomContent')}
                         </button>
                         <button onClick={() => handleDeleteGame(game)} className="w-full text-left px-3 py-1.5 text-sm rounded hover:bg-danger text-red-300 transition-colors">
-                            방 강제 삭제
+                            {t('gameList.forceDeleteRoom')}
                         </button>
                     </div>
                 )}
@@ -354,7 +356,7 @@ const GameList: React.FC<GameListProps> = ({
             );
           }) : (
             <p className={lobbyTone ? waitingLobbyGameListEmptyHintClass(lobbyTone) : 'text-center text-tertiary pt-8'}>
-                {currentUser.isAdmin && adminSearchQuery.trim() ? '검색된 대국이 없습니다.' : '진행중인 대국이 없습니다.'}
+                {currentUser.isAdmin && adminSearchQuery.trim() ? t('gameList.noSearchResults') : t('gameList.noOngoingGames')}
             </p>
           )}
         </ul>

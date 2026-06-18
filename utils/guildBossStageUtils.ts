@@ -19,12 +19,12 @@ export function clampGuildBossStage(n: number | undefined | null): number {
 }
 
 export function guildBossHpMultiplier(stage: number): number {
-    return Math.pow(1.5, clampGuildBossStage(stage) - 1);
+    return Math.pow(1.4, clampGuildBossStage(stage) - 1);
 }
 
-/** 보스 스킬·대결용 능력 배율 (단계당 1.2배) */
+/** 보스 스킬·대결용 능력 배율 (단계당 1.15배) */
 export function guildBossStatMultiplier(stage: number): number {
-    return Math.pow(1.2, clampGuildBossStage(stage) - 1);
+    return Math.pow(1.15, clampGuildBossStage(stage) - 1);
 }
 
 /** 골드·재화 등 보상 배율 (단계당 1.5배) */

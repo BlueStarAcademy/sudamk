@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { UserWithStatus, GameMode } from '../../types.js';
 import DraggableWindow from '../DraggableWindow.js';
 import { RANKING_TIERS, SPECIAL_GAME_MODES } from '../../constants';
@@ -13,7 +14,7 @@ interface PastRankingsModalProps {
     embedded?: boolean;
 }
 
-const EMPTY_RANKING_LABEL = '시즌 랭킹 정보 없음';
+const EMPTY_RANKING_LABEL = t('pastRankings.empty');
 
 function getBestStrategicLobbyTierName(history: Partial<Record<GameMode, string>> | undefined): string | null {
     if (!history || typeof history !== 'object') return null;
@@ -35,12 +36,13 @@ function getBestStrategicLobbyTierName(history: Partial<Record<GameMode, string>
 }
 
 const PastRankingsModal: React.FC<PastRankingsModalProps> = ({ info, onClose, isTopmost, embedded = false }) => {
+    const { t } = useTranslation('inventory');
     const { user, mode } = info;
     const wrapWindow = (content: React.ReactNode) =>
         embedded ? (
             <div className={PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS}>{content}</div>
         ) : (
-            <DraggableWindow title="지난 시즌 랭킹" onClose={onClose} windowId="past-rankings" initialWidth={450} isTopmost={isTopmost}>
+            <DraggableWindow title={t('pastRankings.title')} onClose={onClose} windowId="past-rankings" initialWidth={450} isTopmost={isTopmost}>
                 {content}
             </DraggableWindow>
         );
@@ -121,7 +123,7 @@ const PastRankingsModal: React.FC<PastRankingsModalProps> = ({ info, onClose, is
     if (mode === 'strategic') {
         return wrapWindow(
             <div className={`max-h-[calc(var(--vh,1vh)*60)] overflow-y-auto pr-2 ${RANKING_MODAL_SLIM_SCROLL_Y}`}>
-                <h3 className="text-lg font-bold text-center mb-4">전략바둑</h3>
+                <h3 className="text-lg font-bold text-center mb-4">{t('pastRankings.strategic')}</h3>
                 {strategicSeasonBody}
             </div>,
         );
@@ -130,7 +132,7 @@ const PastRankingsModal: React.FC<PastRankingsModalProps> = ({ info, onClose, is
     if (mode === 'pair') {
         return wrapWindow(
             <div className={`max-h-[calc(var(--vh,1vh)*60)] overflow-y-auto pr-2 ${RANKING_MODAL_SLIM_SCROLL_Y}`}>
-                <h3 className="mb-4 text-center text-lg font-bold">페어 바둑</h3>
+                <h3 className="mb-4 text-center text-lg font-bold">{t('pastRankings.pair')}</h3>
                 {pairSeasonBody}
             </div>,
         );
@@ -156,14 +158,14 @@ const PastRankingsModal: React.FC<PastRankingsModalProps> = ({ info, onClose, is
                                         <span className={`font-bold ${tierInfo.color}`}>{tier}</span>
                                     </div>
                                 ) : (
-                                    <span className="text-gray-500">티어없음</span>
+                                    <span className="text-gray-500">{t('pastRankings.noTier')}</span>
                                 )}
                             </li>
                         );
                     })}
                 </ul>
             ) : (
-                <p className="text-center text-gray-500">지난 시즌 랭킹 기록이 없습니다.</p>
+                <p className="text-center text-gray-500">{t('pastRankings.noRecords')}</p>
             )}
         </div>,
     );

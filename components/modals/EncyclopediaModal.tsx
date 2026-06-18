@@ -1,4 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useLocalizedItemGrade, useLocalizedEquipmentSlot } from '../../shared/i18n/localizedCatalog.js';
 import { InventoryItem, InventoryItemType, EquipmentSlot, ItemGrade, MythicStat } from '../../types.js';
 import {
     EQUIPMENT_POOL,
@@ -237,6 +239,9 @@ const EncyclopediaIconCell: React.FC<{
 const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmost, embedded = false }) => {
     type MainTab = 'equipment' | 'material' | 'consumable' | 'pet';
 
+    const { t } = useTranslation('inventory');
+    const localizedGrade = useLocalizedItemGrade();
+    const localizedSlot = useLocalizedEquipmentSlot();
     const { isNativeMobile, isNarrowViewport } = useNativeMobileShell();
     /** 모바일: 목록 → 아이템 클릭 시 패널 전체를 상세 화면으로 전환(말풍선 뷰포트 없음) */
     const useMobileItemDetailScreen = isNativeMobile || isNarrowViewport;
@@ -244,15 +249,14 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
     const [mainTab, setMainTab] = useState<MainTab>('equipment');
 
     const equipmentSlots: EquipmentSlot[] = ['fan', 'board', 'top', 'bottom', 'bowl', 'stones'];
-    const slotNames: Record<EquipmentSlot, string> = { fan: '부채', board: '바둑판', top: '상의', bottom: '하의', bowl: '바둑통', stones: '바둑돌' };
-    const gradeStyles: Record<ItemGrade, { name: string; color: string }> = {
-        normal: { name: '일반', color: 'text-slate-300' },
-        uncommon: { name: '고급', color: 'text-emerald-300' },
-        rare: { name: '희귀', color: 'text-sky-300' },
-        epic: { name: '에픽', color: 'text-violet-300' },
-        legendary: { name: '전설', color: 'text-rose-300' },
-        mythic: { name: '신화', color: 'text-amber-200' },
-        transcendent: { name: '초월', color: 'text-cyan-200' },
+    const gradeColorByGrade: Record<ItemGrade, string> = {
+        normal: 'text-slate-300',
+        uncommon: 'text-emerald-300',
+        rare: 'text-sky-300',
+        epic: 'text-violet-300',
+        legendary: 'text-rose-300',
+        mythic: 'text-amber-200',
+        transcendent: 'text-cyan-200',
     };
 
     /** PC·임베드(데스크톱) 뷰어 패널 / 모바일 전체 상세 화면 공통 선택 항목 */
@@ -307,13 +311,13 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
         const towerNames = new Set(['턴 추가', '미사일', '히든', '스캔', '배치변경']);
 
         const sections: { key: string; title: string; items: EncyclopediaItem[] }[] = [
-            { key: 'equipmentBox', title: '장비상자', items: pick((i) => i.name.includes('장비 상자')) },
-            { key: 'resourceBox', title: '재료상자', items: pick((i) => i.name.includes('재료 상자')) },
-            { key: 'goldBundle', title: '골드꾸러미', items: pick((i) => i.name.includes('골드 꾸러미')) },
-            { key: 'diamondBundle', title: '다이아꾸러미', items: pick((i) => i.name.includes('다이아 꾸러미')) },
-            { key: 'condition', title: '컨디션회복제', items: pick((i) => i.name.includes('컨디션')) },
-            { key: 'actionPoint', title: '행동력 회복제', items: pick((i) => i.name.startsWith('행동력 회복제')) },
-            { key: 'tower', title: '도전의 탑', items: pick((i) => towerNames.has(i.name)) },
+            { key: 'equipmentBox', title: t('encyclopedia.equipmentBox'), items: pick((i) => i.name.includes('장비 상자')) },
+            { key: 'resourceBox', title: t('encyclopedia.resourceBox'), items: pick((i) => i.name.includes('재료 상자')) },
+            { key: 'goldBundle', title: t('encyclopedia.goldBundle'), items: pick((i) => i.name.includes('골드 꾸러미')) },
+            { key: 'diamondBundle', title: t('encyclopedia.diamondBundle'), items: pick((i) => i.name.includes('다이아 꾸러미')) },
+            { key: 'condition', title: t('encyclopedia.condition'), items: pick((i) => i.name.includes('컨디션')) },
+            { key: 'actionPoint', title: t('encyclopedia.actionPoint'), items: pick((i) => i.name.startsWith('행동력 회복제')) },
+            { key: 'tower', title: t('encyclopedia.tower'), items: pick((i) => towerNames.has(i.name)) },
         ];
 
         const assigned = new Set<string>();
@@ -326,11 +330,11 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
             .filter((i) => !assigned.has(encyclopediaItemKey(i as EncyclopediaItem)))
             .sort(byName) as EncyclopediaItem[];
         if (other.length > 0) {
-            sections.push({ key: 'other', title: '기타', items: other });
+            sections.push({ key: 'other', title: t('other', { ns: 'common' }), items: other });
         }
 
         return sections;
-    }, []);
+    }, [t]);
 
     /** 도감 펫 탭: 알 → 영혼석 → 페어 펫 종류 */
     const petTabSections = useMemo((): { key: string; title: string; items: EncyclopediaItem[] }[] => {
@@ -388,19 +392,19 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
             grade: p.grade,
         }));
         return [
-            { key: 'egg', title: '알', items: eggItems },
-            { key: 'soul', title: '영혼석', items: soulItems },
-            { key: 'species', title: '페어 펫', items: speciesItems },
+            { key: 'egg', title: t('encyclopedia.eggTab'), items: eggItems },
+            { key: 'soul', title: t('encyclopedia.soulTab'), items: soulItems },
+            { key: 'species', title: t('encyclopedia.speciesTab'), items: speciesItems },
         ];
-    }, []);
+    }, [t]);
 
     const listSections = useMemo((): EncyclopediaListSection[] => {
         if (mainTab === 'equipment') {
             return equipmentSlots
                 .map((slot) => ({
                     key: slot,
-                    title: slotNames[slot],
-                    badge: '부위',
+                    title: localizedSlot(slot),
+                    badge: t('encyclopedia.slotBadge'),
                     items: equipmentItemsBySlot[slot],
                 }))
                 .filter((s) => s.items.length > 0);
@@ -408,23 +412,23 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
         if (mainTab === 'material') {
             const { tickets, stones, other } = materialItemsByGroup;
             const sections: EncyclopediaListSection[] = [
-                { key: 'tickets', title: '변경권', badge: '재료', items: tickets },
-                { key: 'stones', title: '강화석', badge: '재료', items: stones },
+                { key: 'tickets', title: t('encyclopedia.charm'), badge: t('encyclopedia.badgeMaterial'), items: tickets },
+                { key: 'stones', title: t('encyclopedia.stones'), badge: t('encyclopedia.badgeMaterial'), items: stones },
             ];
             if (other.length > 0) {
-                sections.push({ key: 'other', title: '기타', badge: '재료', items: other });
+                sections.push({ key: 'other', title: t('other', { ns: 'common' }), badge: t('encyclopedia.badgeMaterial'), items: other });
             }
             return sections.filter((s) => s.items.length > 0);
         }
         if (mainTab === 'consumable') {
             return consumableItemsByCategory
                 .filter((s) => s.items.length > 0)
-                .map((s) => ({ ...s, badge: '소모품' }));
+                .map((s) => ({ ...s, badge: t('encyclopedia.badgeConsumable') }));
         }
         return petTabSections
             .filter((s) => s.items.length > 0)
-            .map((s) => ({ ...s, badge: '펫' }));
-    }, [mainTab, equipmentItemsBySlot, materialItemsByGroup, consumableItemsByCategory, petTabSections]);
+            .map((s) => ({ ...s, badge: t('encyclopedia.badgeEgg') }));
+    }, [mainTab, equipmentItemsBySlot, materialItemsByGroup, consumableItemsByCategory, petTabSections, t, localizedSlot]);
 
     const selectedItemKey = selectedItem ? encyclopediaItemKey(selectedItem) : null;
 
@@ -543,15 +547,15 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
     );
 
     const PAIR_PET_RPS_LABELS: Record<PairPetRpsAttribute, string> = {
-        1: '가위',
-        2: '바위',
-        3: '보',
+        1: t('rpsScissors', { ns: 'common' }),
+        2: t('rpsRock', { ns: 'common' }),
+        3: t('rpsPaper', { ns: 'common' }),
     };
     const PAIR_PET_RPS_ATTRS: PairPetRpsAttribute[] = [1, 2, 3];
 
     const renderPetHatchRpsSection = () => (
         <div className={viewerPetHatchSectionShellClass}>
-            <h5 className={`${viewerSectionTitleClass} text-sky-200/90`}>부화 시 속성</h5>
+            <h5 className={`${viewerSectionTitleClass} text-sky-200/90`}>{t('encyclopedia.hatchAttribute')}</h5>
             <div className="mt-1.5 flex flex-wrap items-center gap-2 rounded-md border border-sky-500/25 bg-sky-950/20 px-2.5 py-2 sm:gap-3 sm:px-3 sm:py-2.5">
                 <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
                     {PAIR_PET_RPS_ATTRS.map((attr) => (
@@ -565,7 +569,7 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
                         />
                     ))}
                 </div>
-                <span className="text-xs leading-snug text-slate-400 sm:text-sm">(부화시 랜덤부여)</span>
+                <span className="text-xs leading-snug text-slate-400 sm:text-sm">{t('encyclopedia.hatchRandomPartial')}</span>
             </div>
         </div>
     );
@@ -587,7 +591,7 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
         if (listSections.length === 0) {
             return (
                 <div className="flex h-full min-h-[8rem] items-center justify-center px-3 text-center text-sm text-slate-500">
-                    표시할 항목이 없습니다.
+                    {t('encyclopedia.emptyList')}
                 </div>
             );
         }
@@ -633,7 +637,7 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
                     <span className="text-3xl opacity-40" aria-hidden>
                         📖
                     </span>
-                    <p className={viewerBodyClass}>아이콘을 선택하면 상세 정보가 표시됩니다.</p>
+                    <p className={viewerBodyClass}>{t('encyclopedia.selectHint')}</p>
                 </div>
             );
         }
@@ -653,7 +657,7 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
                             : 'min-h-full px-2.5 pb-3 pt-2.5 sm:px-4 sm:pb-4 sm:pt-3'
                     }`}
                     role="region"
-                    aria-label="아이템 상세"
+                    aria-label={t('encyclopedia.detailAria')}
                 >
                     {renderItemDetail(selectedItem)}
                 </div>
@@ -675,7 +679,7 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
         const mainStatGradeDef = mainStatDef.options[item.grade];
         const mainStatValue = mainStatGradeDef.value;
         const mainIsPercentage = mainStatDef.isPercentage;
-        const mainStatNames = mainStatGradeDef.stats.join(' 또는 ');
+        const mainStatNames = mainStatGradeDef.stats.join(t('encyclopedia.orJoin'));
         const starsClamped = Math.max(0, Math.min(10, Math.floor(previewStars)));
         const mainStatAtPreview = computeEnhancedMainValueAtStars(mainStatValue, item.grade, starsClamped);
 
@@ -697,7 +701,7 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
 
         const combatSection = (
             <div className={sectionShellClass}>
-                {sectionTitle(`부옵션 (랜덤 ${formatCount(rules.combatCount)}개)`, 'text-sky-200/95')}
+                {sectionTitle(t('encyclopedia.combatSub', { count: formatCount(rules.combatCount) }), 'text-sky-200/95')}
                 <ul className={optGridClass}>
                     {combatPool.map((opt, index) => (
                         <li key={`${opt.type}-${index}`} className={optItemClass}>
@@ -711,7 +715,7 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
 
         const specialSection = hasSpecialOptions ? (
             <div className={sectionShellClass}>
-                {sectionTitle(`특수 옵션 (랜덤 ${formatCount(rules.specialCount)}개)`, 'text-emerald-200/95')}
+                {sectionTitle(t('encyclopedia.specialSub', { count: formatCount(rules.specialCount) }), 'text-emerald-200/95')}
                 <ul className={optGridClass}>
                     {Object.entries(SPECIAL_STATS_DATA).map(([key, def]) => (
                         <li key={key} className={optItemClass}>
@@ -727,18 +731,18 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
             <div className="min-h-0 space-y-3">
                 <div className={sectionShellClass}>
                     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.06] pb-2">
-                        {sectionTitle('주옵션', 'text-amber-200/95')}
+                        {sectionTitle(t('encyclopedia.mainOptionShort'), 'text-amber-200/95')}
                         <label className="flex shrink-0 items-center gap-1.5">
-                            <span className="sr-only">주옵 강화 단계</span>
+                            <span className="sr-only">{t('encyclopedia.mainEnhanceStepAria')}</span>
                             <select
                                 value={previewStars}
                                 onChange={(e) => setEncyclopediaEquipStars(Number(e.target.value))}
                                 className="cursor-pointer rounded-md border border-amber-500/35 bg-black/50 py-1.5 pl-2.5 pr-8 text-xs font-semibold text-amber-100 shadow-inner sm:text-sm"
                             >
-                                <option value={0}>기본 (+0)</option>
+                                <option value={0}>{t('encyclopedia.base')} (+0)</option>
                                 {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
                                     <option key={n} value={n}>
-                                        +{n}강
+                                        {t('encyclopedia.starsPlus', { stars: n })}
                                     </option>
                                 ))}
                             </select>
@@ -746,14 +750,14 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
                     </div>
                     <p className={`pt-2 ${bodyClass}`}>
                         <strong className="text-amber-100">{mainStatNames}</strong>
-                        <span className="text-slate-400"> · {starsClamped === 0 ? '기본' : `+${starsClamped}강`} </span>
+                        <span className="text-slate-400"> · {starsClamped === 0 ? t('encyclopedia.starsBase') : t('encyclopedia.starsPlus', { stars: starsClamped })} </span>
                         <span className="font-mono text-amber-100/95">
                             +{formatEncyclopediaMainStatNumber(mainStatAtPreview)}
                             {mainIsPercentage ? '%' : ''}
                         </span>
                         {starsClamped > 0 ? (
                             <span className={`mt-1 block ${viewerFootnoteClass}`}>
-                                기본 +{formatEncyclopediaMainStatNumber(mainStatValue)}
+                                {t('encyclopedia.base')} +{formatEncyclopediaMainStatNumber(mainStatValue)}
                                 {mainIsPercentage ? '%' : ''}
                             </span>
                         ) : null}
@@ -764,10 +768,10 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
                 {specialSection}
                 {hasMythic && (
                     <div className={sectionShellClass}>
-                        {sectionTitle(`스페셜 옵션 (랜덤 ${formatCount(rules.mythicCount)}개)`, 'text-rose-200/95')}
+                        {sectionTitle(t('encyclopedia.specialOptionRandom', { count: formatCount(rules.mythicCount) }), 'text-rose-200/95')}
                         {item.grade === ItemGrade.Mythic ? (
                             <div className={`${mythicBoxClass} border-rose-300/30 bg-rose-500/10 text-rose-100/95`}>
-                                <p className={`${mythicBoxLabelClass} text-rose-200/90`}>신화 스페셜 옵션 후보</p>
+                                <p className={`${mythicBoxLabelClass} text-rose-200/90`}>{t('encyclopedia.mythicCandidates')}</p>
                                 <p className="break-words">
                                     {MYTHIC_GRADE_SPECIAL_OPTION_STATS.map((stat, index) => (
                                         <React.Fragment key={stat}>
@@ -781,7 +785,7 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
                             </div>
                         ) : item.grade === ItemGrade.Transcendent ? (
                             <div className={`${mythicBoxClass} border-cyan-400/30 bg-cyan-500/10 text-cyan-50/95`}>
-                                <p className={`${mythicBoxLabelClass} text-cyan-200/90`}>초월 스페셜 옵션 후보</p>
+                                <p className={`${mythicBoxLabelClass} text-cyan-200/90`}>{t('encyclopedia.transcendentCandidates')}</p>
                                 <p className="break-words">
                                     {TRANSCENDENT_GRADE_SPECIAL_OPTION_STATS.map((stat, index) => (
                                         <React.Fragment key={stat}>
@@ -796,7 +800,7 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
                         ) : (
                             <div className="mt-2 space-y-3">
                                 <div>
-                                    <p className={`${mythicBoxLabelClass} text-rose-200/90`}>신화 스페셜 옵션 후보</p>
+                                    <p className={`${mythicBoxLabelClass} text-rose-200/90`}>{t('encyclopedia.mythicCandidates')}</p>
                                     <ul className={optGridClass}>
                                         {MYTHIC_GRADE_SPECIAL_OPTION_STATS.map((stat) => {
                                             const data = MYTHIC_STATS_DATA[stat];
@@ -810,7 +814,7 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
                                     </ul>
                                 </div>
                                 <div>
-                                    <p className={`${mythicBoxLabelClass} text-cyan-200/90`}>초월 스페셜 옵션 후보</p>
+                                    <p className={`${mythicBoxLabelClass} text-cyan-200/90`}>{t('encyclopedia.transcendentCandidates')}</p>
                                     <ul className={optGridClass}>
                                         {TRANSCENDENT_GRADE_SPECIAL_OPTION_STATS.map((stat) => {
                                             const data = MYTHIC_STATS_DATA[stat];
@@ -844,19 +848,19 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
 
         const kindLabel =
             isEquipmentDetail && item.slot
-                ? slotNames[item.slot]
+                ? localizedSlot(item.slot)
                 : item.type === 'equipment'
-                  ? '장비'
+                  ? t('encyclopedia.equipment')
                   : mainTab === 'pet'
                     ? isPairSoulStoneMaterialName(item.name)
-                        ? '영혼석'
+                        ? t('encyclopedia.soulTab')
                         : item.name === PAIR_EGG_MATERIAL_NAME || item.name === PAIR_WELCOME_EGG_MATERIAL_NAME
-                          ? '알'
-                          : '페어 펫'
+                          ? t('encyclopedia.eggTab')
+                          : t('encyclopedia.speciesTab')
                     : mainTab === 'material'
-                      ? '재료'
+                      ? t('encyclopedia.material')
                       : mainTab === 'consumable'
-                        ? '소모품'
+                        ? t('encyclopedia.consumable')
                         : item.type;
 
         const materialUsageLines = mainTab === 'material' ? getMaterialBagUsageLines(item.name) : [];
@@ -866,7 +870,7 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
             mainTab === 'consumable'
                 ? (() => {
                       const hint = getBagConsumableUsageHint(item.name);
-                      return [hint ?? '가방에서 사용할 수 있습니다.'];
+                      return [hint ?? t('encyclopedia.inventoryHint')];
                   })()
                 : [];
         const consumableAcquireLines =
@@ -877,11 +881,11 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
                 <div className={`flex items-start ${isDenseEquipViewer ? 'gap-2.5 sm:gap-3' : 'gap-3 sm:gap-3.5'}`}>
                     <EncyclopediaItemThumb item={item} size="md" />
                     <div className="min-w-0 flex-1">
-                        <h3 className={`${viewerTitleClass} ${gradeStyles[item.grade].color}`}>{item.name}</h3>
+                        <h3 className={`${viewerTitleClass} ${gradeColorByGrade[item.grade]}`}>{item.name}</h3>
                         <div className="mt-1.5 flex flex-wrap items-center gap-1.5 sm:mt-2 sm:gap-2">
                             <span className={`${viewerChipClass} border-white/15 bg-black/35 text-slate-100`}>{kindLabel}</span>
                             <span className={`${viewerChipClass} ${encyclopediaGradeChipClass(item.grade)}`}>
-                                {gradeStyles[item.grade].name}
+                                {localizedGrade(item.grade)}
                             </span>
                             {isEquipmentDetail ? (
                                 <span
@@ -914,17 +918,17 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
             footer = (
                 <div className="space-y-3">
                     {renderViewerSection(
-                        '사용처',
+                        t('encyclopedia.usageLabel'),
                         'text-sky-200/95',
                         renderViewerLineList(petUsageLines, 'border-sky-500/35'),
                     )}
                     {renderViewerSection(
-                        '획득처',
+                        t('encyclopedia.obtainLabel'),
                         'text-amber-200/90',
                         petAcquireLines.length > 0 ? (
                             renderViewerLineList(petAcquireLines, 'border-amber-400/35')
                         ) : (
-                            <p className={`${viewerBodyClass} text-slate-500`}>안내 문구가 없습니다.</p>
+                            <p className={`${viewerBodyClass} text-slate-500`}>{t('encyclopedia.noGuide')}</p>
                         ),
                     )}
                 </div>
@@ -933,13 +937,13 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
             footer = (
                 <div className="space-y-2 sm:space-y-2.5">
                     {renderPetHatchCompactSection(
-                        '부화 시 성향',
+                        t('encyclopedia.hatchDisposition'),
                         'text-fuchsia-200/90',
                         'border-fuchsia-500/25 bg-fuchsia-950/20',
                         PAIR_PET_HATCH_DISPOSITION_ENCYCLOPEDIA_LINES,
                     )}
                     {renderPetHatchCompactSection(
-                        '부화 시 특화',
+                        t('encyclopedia.hatchSpecialization'),
                         'text-amber-200/90',
                         'border-amber-500/25 bg-amber-950/15',
                         PAIR_PET_HATCH_SPECIALIZATION_ENCYCLOPEDIA_LINES,
@@ -951,21 +955,21 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
             const usageLines =
                 materialUsageLines.length > 0
                     ? materialUsageLines
-                    : ['이 재료는 현재 어떤 장비 강화에도 사용되지 않습니다.'];
+                    : [t('encyclopedia.noMaterialUse')];
             footer = (
                 <div className="space-y-3">
                     {renderViewerSection(
-                        '사용처',
+                        t('encyclopedia.usageLabel'),
                         'text-sky-200/95',
                         renderViewerLineList(usageLines, 'border-sky-500/35'),
                     )}
                     {renderViewerSection(
-                        '획득처',
+                        t('encyclopedia.obtainLabel'),
                         'text-amber-200/90',
                         materialAcquireLines.length > 0 ? (
                             renderViewerLineList(materialAcquireLines, 'border-amber-400/35')
                         ) : (
-                            <p className={`${viewerBodyClass} text-slate-500`}>안내 문구가 없습니다.</p>
+                            <p className={`${viewerBodyClass} text-slate-500`}>{t('encyclopedia.noGuide')}</p>
                         ),
                     )}
                 </div>
@@ -974,17 +978,17 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
             footer = (
                 <div className="space-y-3">
                     {renderViewerSection(
-                        '사용처',
+                        t('encyclopedia.usageLabel'),
                         'text-sky-200/95',
                         renderViewerLineList(consumableUsageLines, 'border-sky-500/35'),
                     )}
                     {renderViewerSection(
-                        '획득처',
+                        t('encyclopedia.obtainLabel'),
                         'text-amber-200/90',
                         consumableAcquireLines.length > 0 ? (
                             renderViewerLineList(consumableAcquireLines, 'border-amber-400/35')
                         ) : (
-                            <p className={`${viewerBodyClass} text-slate-500`}>안내 문구가 없습니다.</p>
+                            <p className={`${viewerBodyClass} text-slate-500`}>{t('encyclopedia.noGuide')}</p>
                         ),
                     )}
                 </div>
@@ -1021,7 +1025,7 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
         return (
             <div className={`${shellClass} flex min-h-0 flex-1 flex-col overflow-hidden`}>
                 <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 px-3 py-2.5">
-                    <h3 className="min-w-0 truncate text-sm font-bold text-amber-100">아이템 정보</h3>
+                    <h3 className="min-w-0 truncate text-sm font-bold text-amber-100">{t('encyclopedia.itemInfo')}</h3>
                     <button
                         type="button"
                         onClick={() => setSelectedItem(null)}
@@ -1042,7 +1046,7 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
                                 : 'min-h-full px-2.5 pb-3 pt-2.5 sm:px-4 sm:pb-4 sm:pt-3'
                         }`}
                         role="region"
-                        aria-label="아이템 상세"
+                        aria-label={t('encyclopedia.detailAria')}
                     >
                         {renderItemDetail(selectedItem)}
                     </div>
@@ -1058,12 +1062,12 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
             <div
                 className="mb-3 flex shrink-0 gap-1 rounded-xl border border-white/[0.06] bg-black/40 p-1 shadow-inner backdrop-blur-md sm:mb-4"
                 role="tablist"
-                aria-label="도감 카테고리"
+                aria-label={t('encyclopedia.categoryAria')}
             >
-                {mainTabBtn('equipment', '장비')}
-                {mainTabBtn('material', '재료')}
-                {mainTabBtn('consumable', '소모품')}
-                {mainTabBtn('pet', '펫')}
+                {mainTabBtn('equipment', t('encyclopedia.equipmentTab'))}
+                {mainTabBtn('material', t('encyclopedia.materialTab'))}
+                {mainTabBtn('consumable', t('encyclopedia.consumableTab'))}
+                {mainTabBtn('pet', t('encyclopedia.pet'))}
             </div>
             <div
                 className={`flex min-h-0 flex-1 gap-2 overflow-hidden sm:gap-3 ${
@@ -1092,7 +1096,7 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
 
     return (
         <DraggableWindow
-            title="도감"
+            title={t('encyclopedia.encyclopediaTitle')}
             onClose={onClose}
             windowId="encyclopedia"
             initialWidth={useMobileItemDetailScreen ? 700 : 1040}

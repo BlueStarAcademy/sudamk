@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
 import { HELP_CENTER_CATEGORIES, type HelpCategory } from '../../shared/constants/helpCenterContent.js';
 import { HelpArticlePanel } from './HelpArticleViews.js';
@@ -31,6 +32,7 @@ const GuidePanelLayout: React.FC<GuidePanelLayoutProps> = ({
     onSelectionChange,
     footer,
 }) => {
+    const { t } = useTranslation('common');
     const handheld = useIsHandheldDevice(768);
 
     const visibleCategories = useMemo(() => {
@@ -96,7 +98,7 @@ const GuidePanelLayout: React.FC<GuidePanelLayoutProps> = ({
     );
 
     const renderNav = () => (
-        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain pr-0.5" aria-label="안내 목록">
+        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain pr-0.5" aria-label={t('guidePanel.navAria')}>
             {visibleCategories.map((cat) => (
                 <div key={cat.id} className="mb-3 last:mb-0">
                     <div
@@ -138,7 +140,7 @@ const GuidePanelLayout: React.FC<GuidePanelLayoutProps> = ({
                 <div className="flex min-h-0 flex-1">
                     <aside className="flex min-h-0 w-[min(34%,320px)] max-w-[320px] shrink-0 flex-col overflow-hidden border-r border-white/10 bg-black/25 px-3 py-4 backdrop-blur-sm">
                         <p className="mb-3 shrink-0 px-1 text-[11px] font-semibold uppercase tracking-widest text-slate-500">
-                            목차
+                            {t('guidePanel.toc')}
                         </p>
                         {renderNav()}
                     </aside>
@@ -147,7 +149,7 @@ const GuidePanelLayout: React.FC<GuidePanelLayoutProps> = ({
                             {selectedArticle ? (
                                 <HelpArticlePanel article={selectedArticle} />
                             ) : (
-                                <p className="text-center text-slate-500">항목을 선택해 주세요.</p>
+                                <p className="text-center text-slate-500">{t('guidePanel.selectItem')}</p>
                             )}
                         </div>
                         {footer ? (
@@ -160,7 +162,7 @@ const GuidePanelLayout: React.FC<GuidePanelLayoutProps> = ({
             {handheld && mobilePane === 'list' && (
                 <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-3">
                     <p className="mb-2 shrink-0 px-1 text-center text-xs text-slate-500">
-                        대분류 · 중분류를 눌러 상세 안내를 엽니다.
+                        {t('guidePanel.mobileHint')}
                     </p>
                     <div className="min-h-0 flex-1 overflow-hidden">{renderNav()}</div>
                     {footer ? <div className="mt-2 shrink-0 border-t border-white/10 pt-3">{footer}</div> : null}
@@ -178,10 +180,10 @@ const GuidePanelLayout: React.FC<GuidePanelLayoutProps> = ({
                             <span className="text-lg leading-none" aria-hidden>
                                 ←
                             </span>
-                            목록
+                            {t('guidePanel.list')}
                         </button>
                         <span className="min-w-0 flex-1 truncate text-center text-xs font-medium text-slate-400">
-                            {selectedArticle?.title ?? '안내'}
+                            {selectedArticle?.title ?? t('guidePanel.defaultTitle')}
                         </span>
                         <span className="w-[4.5rem]" aria-hidden />
                     </div>
@@ -189,7 +191,7 @@ const GuidePanelLayout: React.FC<GuidePanelLayoutProps> = ({
                         {selectedArticle ? (
                             <HelpArticlePanel article={selectedArticle} />
                         ) : (
-                            <p className="text-center text-slate-500">항목이 없습니다.</p>
+                            <p className="text-center text-slate-500">{t('guidePanel.noItems')}</p>
                         )}
                     </div>
                     {footer ? (

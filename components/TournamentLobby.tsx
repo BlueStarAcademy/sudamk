@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import { UserWithStatus, TournamentState, TournamentType, User, LeagueTier, InventoryItem, CoreStat, SpecialStat } from '../types.js';
 import {
@@ -86,13 +87,15 @@ const seededRandom = (seed: number): number => {
 
 // WeeklyCompetitorsPanel 제거됨 - 던전 시스템으로 변경
 const DungeonStageSelector: React.FC<{ dungeonType: TournamentType; currentUser: UserWithStatus; onSelectStage: (stage: number) => void }> = ({ dungeonType, currentUser, onSelectStage }) => {
+    const { t } = useTranslation('tournament');
+
     const raw = currentUser?.dungeonProgress?.[dungeonType];
     const dungeonProgress = normalizeDungeonProgress(raw || { currentStage: 0, unlockedStages: [1], stageResults: {}, dailyStageAttempts: {} });
     
     return (
         <div className="bg-gray-800 rounded-lg p-4 flex flex-col shadow-lg h-full min-h-0">
             <h2 className="text-xl font-bold mb-3 border-b border-gray-700 pb-2 flex-shrink-0">
-                {TOURNAMENT_DEFINITIONS[dungeonType].name} 단계 선택
+                {t('lobby.stageSelect', { name: TOURNAMENT_DEFINITIONS[dungeonType].name })}
             </h2>
             <div className="grid grid-cols-5 gap-2 overflow-y-auto flex-grow min-h-0">
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(stage => {
@@ -116,8 +119,8 @@ const DungeonStageSelector: React.FC<{ dungeonType: TournamentType; currentUser:
                                     : 'bg-gray-900/50 cursor-not-allowed opacity-50'
                             }`}
                         >
-                            <div className="font-bold text-lg">{stage}단계</div>
-                            {isCleared && <div className="text-xs text-green-400">✓ 클리어</div>}
+                            <div className="font-bold text-lg">{t('lobby.stageUnit', { stage })}</div>
+                            {isCleared && <div className="text-xs text-green-400">{t('lobby.cleared')}</div>}
                         </button>
                     );
                 })}
@@ -286,7 +289,7 @@ const WeeklyCompetitorsPanel_DEPRECATED: React.FC<{ setHasRankChanged: (changed:
     if (!currentUserWithStatus || !currentUserWithStatus.weeklyCompetitors || currentUserWithStatus.weeklyCompetitors.length === 0) {
         return (
              <div className="bg-gray-800 rounded-lg p-4 flex flex-col shadow-lg h-full min-h-0 items-center justify-center text-gray-500">
-                주간 경쟁 상대 정보를 불러오는 중...
+                {t('lobby.loadingCompetitors')}
             </div>
         );
     }
@@ -294,7 +297,7 @@ const WeeklyCompetitorsPanel_DEPRECATED: React.FC<{ setHasRankChanged: (changed:
     return (
          <div className="bg-gray-800 rounded-lg p-4 flex flex-col shadow-lg h-full min-h-0">
             <div className="flex-shrink-0 text-center mb-3 border-b border-gray-700 pb-2">
-                <h2 className="text-xl font-bold">이번주 경쟁 상대</h2>
+                <h2 className="text-xl font-bold">{t('lobby.weeklyCompetitors')}</h2>
                 <p className="text-sm text-yellow-300 font-mono">{timeLeft}</p>
             </div>
             <ul className="space-y-1.5 overflow-y-auto pr-2 flex-grow min-h-0">
@@ -302,7 +305,7 @@ const WeeklyCompetitorsPanel_DEPRECATED: React.FC<{ setHasRankChanged: (changed:
                     const rank = index + 1;
                     const isCurrentUser = competitor.id === currentUserWithStatus.id;
                     const scoreChangeColor = competitor.scoreChange > 0 ? 'text-green-400' : competitor.scoreChange < 0 ? 'text-red-400' : 'text-gray-400';
-                    const scoreChangeSign = competitor.scoreChange > 0 ? '▲' : competitor.scoreChange < 0 ? '▼' : '변화없음';
+                    const scoreChangeSign = competitor.scoreChange > 0 ? '▲' : competitor.scoreChange < 0 ? '▼' : t('lobby.noChange');
                     
                     const avatarUrl = AVATAR_POOL.find(a => a.id === competitor.avatarId)?.url;
                     const borderUrl = BORDER_POOL.find(b => b.id === competitor.borderId)?.url;
@@ -313,7 +316,7 @@ const WeeklyCompetitorsPanel_DEPRECATED: React.FC<{ setHasRankChanged: (changed:
                             key={competitor.id} 
                             className={`flex items-center gap-3 p-1.5 rounded-md ${isCurrentUser ? 'bg-blue-900/50' : 'bg-gray-900/50'} ${isClickable ? 'transition-colors cursor-pointer hover:bg-gray-700/50' : ''}`}
                             onClick={isClickable ? () => handlers.openViewingUser(competitor.id) : undefined}
-                            title={isClickable ? `${competitor.nickname} 프로필 보기` : ''}
+                            title={isClickable ? t('lobby.viewProfile', { name: competitor.nickname }) : ''}
                         >
                             <span className="font-bold text-lg w-6 text-center flex-shrink-0">{rank}</span>
                              <Avatar userId={competitor.id} userName={competitor.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={28} />
@@ -339,6 +342,7 @@ interface RankItemProps {
 }
 
 const RankItem: React.FC<RankItemProps> = ({ user, rank, isMyRankDisplay }) => {
+    const { t } = useTranslation('tournament');
     const { currentUserWithStatus, handlers } = useAppContext();
     if (!currentUserWithStatus) return null;
 
@@ -366,7 +370,7 @@ const RankItem: React.FC<RankItemProps> = ({ user, rank, isMyRankDisplay }) => {
         <li
             className={finalClass}
             onClick={isClickable ? () => handlers.openViewingUser(user.id) : undefined}
-            title={isClickable ? `${user.nickname} 프로필 보기` : ''}
+            title={isClickable ? t('lobby.viewProfile', { name: user.nickname }) : ''}
         >
             <div className="w-12 text-center flex-shrink-0 flex flex-col items-center justify-center">
                 {rankDisplay}
@@ -374,7 +378,7 @@ const RankItem: React.FC<RankItemProps> = ({ user, rank, isMyRankDisplay }) => {
             <Avatar userId={user.id} userName={user.nickname} size={32} avatarUrl={avatarUrl} borderUrl={borderUrl} />
             <div className="ml-2 lg:ml-3 flex-grow overflow-hidden">
                 <p className="font-semibold text-sm truncate">{user.nickname}</p>
-                <p className="text-xs text-yellow-400 font-mono">{score.toLocaleString()}점</p>
+                <p className="text-xs text-yellow-400 font-mono">{t('lobby.scorePoints', { score: score.toLocaleString() })}</p>
             </div>
         </li>
     );
@@ -464,9 +468,9 @@ function ChampionshipVersusLobbyCardRightStats(props: {
                     </div>
                 </div>
                 <p className="mt-1.5 text-center text-[10px] font-bold leading-snug text-slate-200/95 sm:text-[11px]">
-                    시즌 전적{' '}
+                    {t('lobby.seasonRecord')}{' '}
                     <span className="font-black tabular-nums text-white">
-                        {wins}승 {losses}패
+                        {t('recordWinsLosses', { wins, losses })}
                     </span>
                     <span className="font-black tabular-nums text-amber-200/90"> ({winPct}%)</span>
                 </p>
@@ -510,9 +514,9 @@ function ChampionshipVersusLobbyCardRightStats(props: {
                 </div>
             </div>
             <p className="text-center text-sm font-bold leading-snug text-slate-200">
-                시즌 전적{' '}
+                {t('lobby.seasonRecord')}{' '}
                 <span className="font-black tabular-nums text-white">
-                    {wins}승 {losses}패
+                    {t('recordWinsLosses', { wins, losses })}
                 </span>
                 <span className="font-black tabular-nums text-amber-200/95"> ({winPct}%)</span>
             </p>
@@ -692,6 +696,7 @@ const TournamentCard: React.FC<{
     fillLobbyGridCell = false,
     userDungeonCoreStatAverage,
 }) => {
+    const { t } = useTranslation('tournament');
     const definition = TOURNAMENT_DEFINITIONS[type];
     const lobbyVenueBg = CHAMPIONSHIP_VENUE_LOBBY_BG_IMAGE[type];
     const hasResultToView = inProgress && (inProgress.status === 'complete' || inProgress.status === 'eliminated');
@@ -740,7 +745,7 @@ const TournamentCard: React.FC<{
     /** 모바일 입장 카드: 오늘 아직 참여 전이면 (0/1) — 남은 일일 입장이 있을 때 */
     const hasRemainingDailyEntry =
         !isCompletedToday && !isPausedInProgress && playedCountToday === 0;
-    const participationBadge = hasResultToView ? '결과 보기' : hasUnclaimedReward ? '보상 완료' : '참가 가능';
+    const participationBadge = hasResultToView ? t('lobby.participationViewResult') : hasUnclaimedReward ? t('lobby.participationReward') : t('lobby.participationAvailable');
     const participationBadgeTone = hasResultToView
         ? 'border-amber-300/60 bg-amber-500/90 text-amber-950'
         : hasUnclaimedReward
@@ -806,13 +811,13 @@ const TournamentCard: React.FC<{
                                 type="button"
                                 onClick={() => setEntryModalOpen(true)}
                                 className="group relative min-h-0 min-w-0 flex-[1.58] overflow-hidden rounded-l-2xl text-left focus:outline-none"
-                                aria-label={`${definition.name} 입장 및 보상 안내`}
+                                aria-label={t('lobby.enterAndRewardAria', { name: definition.name })}
                             >
                                 <img src={lobbyVenueBg} alt="" className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
                                 <div className="pointer-events-none absolute inset-0 rounded-l-2xl bg-gradient-to-b from-black/55 via-black/15 to-black/75" />
                                 <div
                                     className={`pointer-events-none absolute right-1.5 top-1.5 z-20 max-w-[calc(100%-0.5rem)] rounded-md border px-1.5 py-0.5 text-[10px] font-extrabold leading-tight tracking-tight shadow-[0_4px_14px_rgba(0,0,0,0.35)] sm:right-2 sm:top-2 sm:px-2 sm:py-1 sm:text-[11px] ${participationBadgeTone}`}
-                                    aria-label={`참가 상태: ${participationBadge}`}
+                                    aria-label={t('lobby.participationStatusAria', { status: participationBadge })}
                                 >
                                     {participationBadge}
                                 </div>
@@ -823,15 +828,15 @@ const TournamentCard: React.FC<{
                                 </div>
                                 <div className="flex min-h-0 flex-1 flex-col justify-center gap-2 py-0.5">
                                     <div className="grid w-full min-w-0 grid-cols-[minmax(3.25rem,auto)_minmax(0,1fr)] items-center gap-x-1 rounded-md border border-white/10 bg-white/[0.05] px-1.5 py-1 text-[11px] leading-snug sm:gap-x-2 sm:px-2 sm:py-1.5 sm:text-xs">
-                                        <span className="min-w-0 text-center font-semibold text-slate-300/95">최고 단계</span>
+                                        <span className="min-w-0 text-center font-semibold text-slate-300/95">{t('lobby.highestStage')}</span>
                                         <span className="min-w-0 w-full text-center font-semibold text-slate-100/95 whitespace-normal break-keep">
-                                            {dungeonProgress.currentStage > 0 ? `${dungeonProgress.currentStage}단계` : '-'}
+                                            {dungeonProgress.currentStage > 0 ? t('lobby.stageUnit', { stage: dungeonProgress.currentStage }) : '-'}
                                         </span>
                                     </div>
                                     <div className="grid w-full min-w-0 grid-cols-[minmax(3.25rem,auto)_minmax(0,1fr)] items-center gap-x-1 rounded-md border border-white/10 bg-white/[0.05] px-1.5 py-1 text-[11px] leading-snug sm:gap-x-2 sm:px-2 sm:py-1.5 sm:text-xs">
-                                        <span className="min-w-0 text-center font-semibold text-slate-300/95">추천 단계</span>
+                                        <span className="min-w-0 text-center font-semibold text-slate-300/95">{t('lobby.recommendedStage')}</span>
                                         <span className="min-w-0 w-full text-center font-semibold text-emerald-200/95 whitespace-normal break-keep">
-                                            {recommendedDungeonStage != null ? `${recommendedDungeonStage}단계` : '-'}
+                                            {recommendedDungeonStage != null ? t('lobby.stageUnit', { stage: recommendedDungeonStage }) : '-'}
                                         </span>
                                     </div>
                                 </div>
@@ -848,13 +853,13 @@ const TournamentCard: React.FC<{
                         type="button"
                         onClick={() => setEntryModalOpen(true)}
                         className="group relative min-h-0 min-w-0 flex-[1.52] overflow-hidden rounded-l-2xl text-left focus:outline-none"
-                        aria-label={`${definition.name} 입장 및 보상 안내`}
+                        aria-label={t('lobby.enterAndRewardAria', { name: definition.name })}
                     >
                         <img src={lobbyVenueBg} alt="" className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
                         <div className="pointer-events-none absolute inset-0 rounded-l-2xl bg-gradient-to-b from-black/55 via-black/15 to-black/75" />
                         <div
                             className={`pointer-events-none absolute right-2 top-2 z-20 rounded-md border px-2 py-1 text-[11px] font-extrabold tracking-tight shadow-[0_4px_14px_rgba(0,0,0,0.35)] ${participationBadgeTone}`}
-                            aria-label={`참가 상태: ${participationBadge}`}
+                            aria-label={t('lobby.participationStatusAria', { status: participationBadge })}
                         >
                             {participationBadge}
                         </div>
@@ -865,15 +870,15 @@ const TournamentCard: React.FC<{
                         </div>
                         <div className="flex min-h-0 flex-1 flex-col justify-center gap-2.5 py-1">
                             <div className="grid w-full min-w-0 grid-cols-[minmax(5.2rem,auto)_minmax(0,1fr)] items-center gap-x-2 rounded-md border border-white/10 bg-white/[0.05] px-2.5 py-2 text-[14px] leading-snug">
-                                <span className="min-w-0 text-center font-semibold text-slate-300/95">최고 단계</span>
+                                <span className="min-w-0 text-center font-semibold text-slate-300/95">{t('lobby.highestStage')}</span>
                                 <span className="min-w-0 w-full text-center font-semibold text-slate-100/95 whitespace-normal break-keep">
-                                    {dungeonProgress.currentStage > 0 ? `${dungeonProgress.currentStage}단계` : '-'}
+                                    {dungeonProgress.currentStage > 0 ? t('lobby.stageUnit', { stage: dungeonProgress.currentStage }) : '-'}
                                 </span>
                             </div>
                             <div className="grid w-full min-w-0 grid-cols-[minmax(5.2rem,auto)_minmax(0,1fr)] items-center gap-x-2 rounded-md border border-white/10 bg-white/[0.05] px-2.5 py-2 text-[14px] leading-snug">
-                                <span className="min-w-0 text-center font-semibold text-slate-300/95">추천 단계</span>
+                                <span className="min-w-0 text-center font-semibold text-slate-300/95">{t('lobby.recommendedStage')}</span>
                                 <span className="min-w-0 w-full text-center font-semibold text-emerald-200/95 whitespace-normal break-keep">
-                                    {recommendedDungeonStage != null ? `${recommendedDungeonStage}단계` : '-'}
+                                    {recommendedDungeonStage != null ? t('lobby.stageUnit', { stage: recommendedDungeonStage }) : '-'}
                                 </span>
                             </div>
                         </div>
@@ -890,7 +895,7 @@ const TournamentCard: React.FC<{
                     <div className={`relative z-[1] h-full min-h-0 ${cardShellClass}`}>
                         <div
                             className={`pointer-events-none absolute right-2 top-2 z-20 rounded-md border px-2 py-1 text-[11px] font-extrabold tracking-tight shadow-[0_4px_14px_rgba(0,0,0,0.35)] ${participationBadgeTone}`}
-                            aria-label={`참가 상태: ${participationBadge}`}
+                            aria-label={t('lobby.participationStatusAria', { status: participationBadge })}
                         >
                             {participationBadge}
                         </div>
@@ -898,7 +903,7 @@ const TournamentCard: React.FC<{
                             type="button"
                             onClick={() => setEntryModalOpen(true)}
                             className={imageButtonClass}
-                            aria-label={`${definition.name} 입장 및 보상 안내`}
+                            aria-label={t('lobby.enterAndRewardAria', { name: definition.name })}
                         >
                             <img src={lobbyVenueBg} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
                             <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/20 to-black/75" aria-hidden />
@@ -907,9 +912,9 @@ const TournamentCard: React.FC<{
                                     <span className={titleText}>{definition.name}</span>
                                     <div className={statusText}>
                                         {isCompletedToday ? (
-                                            <span className="text-green-300">{compact || compactInline ? '✓' : '✓ 완료'}</span>
+                                            <span className="text-green-300">{compact || compactInline ? '✓' : t('lobby.completed')}</span>
                                         ) : isPausedInProgress ? (
-                                            <span className="text-amber-300">{compact || compactInline ? '..' : '진행중'}</span>
+                                            <span className="text-amber-300">{compact || compactInline ? '..' : t('lobby.inProgress')}</span>
                                         ) : (
                                             <span className="text-white/95">({playedCountToday}/1)</span>
                                         )}
@@ -917,7 +922,7 @@ const TournamentCard: React.FC<{
                                 </div>
                             </div>
                             {dungeonProgress.currentStage > 0 && (
-                                <div className={stageFooter}>최고 {dungeonProgress.currentStage}단계</div>
+                                <div className={stageFooter}>{t('lobby.highestStageShort', { stage: dungeonProgress.currentStage })}</div>
                             )}
                         </button>
                     </div>
@@ -926,7 +931,7 @@ const TournamentCard: React.FC<{
             <div className={cardShellClass}>
                 <div
                     className={`pointer-events-none absolute right-2 top-2 z-20 rounded-md border px-2 py-1 text-[11px] font-extrabold tracking-tight shadow-[0_4px_14px_rgba(0,0,0,0.35)] ${participationBadgeTone}`}
-                    aria-label={`참가 상태: ${participationBadge}`}
+                    aria-label={t('lobby.participationStatusAria', { status: participationBadge })}
                 >
                     {participationBadge}
                 </div>
@@ -934,7 +939,7 @@ const TournamentCard: React.FC<{
                     type="button"
                     onClick={() => setEntryModalOpen(true)}
                     className={imageButtonClass}
-                    aria-label={`${definition.name} 입장 및 보상 안내`}
+                    aria-label={t('lobby.enterAndRewardAria', { name: definition.name })}
                 >
                     <img src={lobbyVenueBg} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
                     <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/20 to-black/75" aria-hidden />
@@ -945,9 +950,9 @@ const TournamentCard: React.FC<{
                             </span>
                             <div className={statusText}>
                                 {isCompletedToday ? (
-                                    <span className="text-green-300">{compact || compactInline ? '✓' : '✓ 완료'}</span>
+                                    <span className="text-green-300">{compact || compactInline ? '✓' : t('lobby.completed')}</span>
                                 ) : isPausedInProgress ? (
-                                    <span className="text-amber-300">{compact || compactInline ? '..' : '진행중'}</span>
+                                    <span className="text-amber-300">{compact || compactInline ? '..' : t('lobby.inProgress')}</span>
                                 ) : (
                                     <span className="text-white/95">({playedCountToday}/1)</span>
                                 )}
@@ -956,7 +961,7 @@ const TournamentCard: React.FC<{
                     </div>
                     {dungeonProgress.currentStage > 0 && (
                         <div className={stageFooter}>
-                            최고 {dungeonProgress.currentStage}단계
+                            {t('lobby.highestStageShort', { stage: dungeonProgress.currentStage })}
                         </div>
                     )}
                 </button>
@@ -993,6 +998,8 @@ const filterInProgress = (state: TournamentState | null | undefined): Tournament
 };
 
 const TournamentLobby: React.FC = () => {
+    const { t } = useTranslation('tournament');
+
     const { currentUserWithStatus, handlers, presets } = useAppContext();
     const { isNativeMobile, isNarrowViewport, pcLikeMobileLayout } = useNativeMobileShell();
     /** 네이티브 앱이 아니어도 좁은 화면(모바일 브라우저 등)에서는 단일 열 탭 로비 */
@@ -1033,7 +1040,7 @@ const TournamentLobby: React.FC = () => {
                 className="bg-lobby-shell-championship text-primary relative mx-auto flex h-full min-h-0 max-w-screen-2xl flex-col items-center justify-center p-4 sm:p-6 lg:p-8"
                 style={venueLobbyPanelStyle}
             >
-                <span className="text-secondary">로비 정보를 불러오는 중...</span>
+                <span className="text-secondary">{t('lobby.loadingLobby')}</span>
             </div>
         );
     }
@@ -1105,7 +1112,7 @@ const TournamentLobby: React.FC = () => {
         if (selectedPresetData) {
             handlers.applyPreset(selectedPresetData);
         } else if (presets) {
-            handlers.applyPreset({ name: `프리셋 ${presetIndex + 1}`, equipment: {} });
+            handlers.applyPreset({ name: t('lobby.presetName', { index: presetIndex + 1 }), equipment: {} });
         }
     };
 
@@ -1179,26 +1186,26 @@ const TournamentLobby: React.FC = () => {
                         <div className="relative flex items-center gap-2 p-2 text-on-panel">
                             <button
                                 type="button"
-                                onClick={() => { window.location.hash = '#/profile'; }}
+                                onClick={() => { window.location.hash = '#/home'; }}
                                 className="relative z-[1] shrink-0 transition-transform active:scale-90 filter hover:drop-shadow-lg"
-                                aria-label="프로필로 돌아가기"
+                                aria-label={t('lobby.backToProfileAria')}
                             >
                                 <img src="/images/button/back.webp" alt="" className="h-9 w-9" />
                             </button>
-                            <h1 className="relative z-[1] min-w-0 flex-1 truncate text-left text-lg font-bold text-amber-50">챔피언십</h1>
+                            <h1 className="relative z-[1] min-w-0 flex-1 truncate text-left text-lg font-bold text-amber-50">{t('lobby.title')}</h1>
                             <button
                                 type="button"
                                 onClick={() => setChampionshipDuelHistoryOpen(true)}
                                 className="relative z-[1] shrink-0 rounded-lg border border-amber-400/45 bg-black/35 px-2 py-1 text-[10px] font-black tracking-wide text-amber-100 shadow-inner ring-1 ring-inset ring-amber-300/15 transition hover:border-amber-300/70 hover:bg-amber-950/40 active:scale-[0.98]"
                             >
-                                대전정보
+                                {t('lobby.duelInfo')}
                             </button>
                         </div>
                     </div>
 
                     <div
                         role="tablist"
-                        aria-label="챔피언십 구역"
+                        aria-label={t('lobby.championshipZoneAria')}
                         className="flex w-full shrink-0 gap-0.5 rounded-lg border border-amber-500/40 bg-black/45 p-0.5 shadow-inner"
                     >
                         <button
@@ -1212,7 +1219,7 @@ const TournamentLobby: React.FC = () => {
                                     : 'text-amber-100/80 hover:bg-white/10'
                             }`}
                         >
-                            능력치
+                            {t('lobby.statsTab')}
                         </button>
                         <button
                             type="button"
@@ -1225,7 +1232,7 @@ const TournamentLobby: React.FC = () => {
                                     : 'text-amber-100/80 hover:bg-white/10'
                             }`}
                         >
-                            경기장
+                            {t('lobby.arenaTab')}
                         </button>
                         <button
                             type="button"
@@ -1237,9 +1244,9 @@ const TournamentLobby: React.FC = () => {
                                     ? 'bg-amber-500/90 text-slate-950 shadow'
                                     : 'text-amber-100/80 hover:bg-white/10'
                             }`}
-                            title="챔피언십 상점"
+                            title={t('lobby.shopTab')}
                         >
-                            챔피언십 상점
+                            {t('lobby.shopTab')}
                         </button>
                     </div>
 
@@ -1248,10 +1255,10 @@ const TournamentLobby: React.FC = () => {
                         role="tabpanel"
                         aria-label={
                             nativeChampionshipTab === 'stats'
-                                ? '능력치'
+                                ? t('lobby.statsTab')
                                 : nativeChampionshipTab === 'arena'
-                                  ? '경기장'
-                                  : '챔피언십 상점'
+                                  ? t('lobby.arenaTab')
+                                  : t('lobby.shopTab')
                         }
                     >
                         {nativeChampionshipTab === 'stats' ? (
@@ -1352,22 +1359,22 @@ const TournamentLobby: React.FC = () => {
                         ) : (
                             <section
                                 className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
-                                aria-label="챔피언십 상점"
+                                aria-label={t('lobby.shopAria')}
                             >
                                 <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/30 to-transparent" aria-hidden />
                                 <div className="pointer-events-none absolute inset-0 rounded-lg ring-1 ring-inset ring-white/8" aria-hidden />
                                 <div className="relative flex shrink-0 items-center justify-between gap-2 border-b border-amber-500/25 px-2 py-1.5">
                                     <h2 className="min-w-0 flex-1 bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200/90 bg-clip-text text-sm font-bold tracking-tight text-transparent">
-                                        챔피언십 상점
+                                        {t('lobby.shopTab')}
                                     </h2>
                                     <div
                                         className="flex shrink-0 items-center gap-1 rounded-full border border-amber-400/35 bg-black/35 py-0.5 pl-1 pr-1.5 shadow-inner"
-                                        title="챔프 코인"
+                                        title={t('lobby.champCoin')}
                                     >
                                         <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary/90">
                                             <img
                                                 src={specialResourceIcons.champCoins}
-                                                alt="챔프 코인"
+                                                alt={t('lobby.champCoin')}
                                                 className="h-4 w-4 object-contain"
                                                 loading="lazy"
                                                 decoding="async"
@@ -1397,19 +1404,19 @@ const TournamentLobby: React.FC = () => {
                             <div className="relative flex items-center gap-2 p-2 text-on-panel">
                                 <button
                                     type="button"
-                                    onClick={() => window.location.hash = '#/profile'}
+                                    onClick={() => window.location.hash = '#/home'}
                                     className="relative z-[1] shrink-0 transition-transform active:scale-90 filter hover:drop-shadow-lg"
-                                    aria-label="프로필로 돌아가기"
+                                    aria-label={t('lobby.backToProfileAria')}
                                 >
                                     <img src="/images/button/back.webp" alt="" className="h-10 w-10 sm:h-11 sm:w-11" />
                                 </button>
-                                <h1 className="relative z-[1] min-w-0 flex-1 truncate text-left text-xl font-bold sm:text-2xl lg:text-3xl">챔피언십</h1>
+                                <h1 className="relative z-[1] min-w-0 flex-1 truncate text-left text-xl font-bold sm:text-2xl lg:text-3xl">{t('lobby.title')}</h1>
                                 <button
                                     type="button"
                                     onClick={() => setChampionshipDuelHistoryOpen(true)}
                                     className="relative z-[1] shrink-0 rounded-lg border border-amber-400/45 bg-black/35 px-2.5 py-1.5 text-[11px] font-black tracking-wide text-amber-100 shadow-inner ring-1 ring-inset ring-amber-300/15 transition hover:border-amber-300/70 hover:bg-amber-950/40 active:scale-[0.98] sm:text-xs"
                                 >
-                                    대전정보
+                                    {t('lobby.duelInfo')}
                                 </button>
                             </div>
                         </div>
@@ -1418,7 +1425,7 @@ const TournamentLobby: React.FC = () => {
                             <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden">
                                 <div
                                     role="tablist"
-                                    aria-label="능력치 패널"
+                                    aria-label={t('lobby.statsPanelAria')}
                                     className="flex w-full shrink-0 gap-1 rounded-lg border border-amber-500/40 bg-black/40 p-0.5 shadow-inner"
                                 >
                                     <button
@@ -1432,7 +1439,7 @@ const TournamentLobby: React.FC = () => {
                                                 : 'text-amber-100/85 hover:bg-white/10'
                                         }`}
                                     >
-                                        유저
+                                        {t('lobby.userTab')}
                                     </button>
                                     <button
                                         type="button"
@@ -1445,7 +1452,7 @@ const TournamentLobby: React.FC = () => {
                                                 : 'text-amber-100/85 hover:bg-white/10'
                                         }`}
                                     >
-                                        펫
+                                        {t('lobby.petTab')}
                                     </button>
                                 </div>
                                 <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-b-none bg-black/20 ring-1 ring-inset ring-white/5">
@@ -1508,22 +1515,22 @@ const TournamentLobby: React.FC = () => {
                             </div>
                             <section
                                 className="relative flex w-full min-w-0 shrink-0 flex-col overflow-hidden rounded-b-xl rounded-t-none border-2 border-amber-500/40 bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_14px_40px_-20px_rgba(0,0,0,0.7)] ring-1 ring-amber-100/10"
-                                aria-label="챔피언십 상점"
+                                aria-label={t('lobby.shopAria')}
                             >
                                 <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/30 to-transparent" aria-hidden />
                                 <div className="pointer-events-none absolute inset-0 rounded-b-xl rounded-t-none ring-1 ring-inset ring-white/8" aria-hidden />
                                 <div className="relative flex shrink-0 items-center justify-between gap-2 border-b border-amber-500/25 px-2 py-1.5">
                                     <h2 className="min-w-0 flex-1 bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200/90 bg-clip-text text-base font-bold tracking-tight text-transparent sm:text-lg">
-                                        챔피언십 상점
+                                        {t('lobby.shopTab')}
                                     </h2>
                                     <div
                                         className="flex shrink-0 items-center gap-1.5 rounded-full border border-amber-400/35 bg-black/35 py-1 pl-1.5 pr-2 shadow-inner"
-                                        title="챔프 코인"
+                                        title={t('lobby.champCoin')}
                                     >
                                         <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary/90">
                                             <img
                                                 src={specialResourceIcons.champCoins}
-                                                alt="챔프 코인"
+                                                alt={t('lobby.champCoin')}
                                                 className="h-5 w-5 object-contain"
                                                 loading="lazy"
                                                 decoding="async"
@@ -1601,7 +1608,7 @@ const TournamentLobby: React.FC = () => {
                     </PcLobbyCenterColumn>
                     </div>
                 </div>
-                    <aside className={`flex h-full min-h-0 ${PC_QUICK_RAIL_COLUMN_CLASS} flex-col overflow-hidden self-stretch`} aria-label="퀵 메뉴">
+                    <aside className={`flex h-full min-h-0 ${PC_QUICK_RAIL_COLUMN_CLASS} flex-col overflow-hidden self-stretch`} aria-label={t('lobby.quickMenuAria')}>
                         <div className={PC_QUICK_RAIL_WRAPPER_CLASS}>
                             <QuickAccessSidebar fillHeight={true} compact={false} className={CHAMPIONSHIP_PANEL_GLASS} />
                         </div>

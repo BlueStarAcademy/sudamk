@@ -1,4 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import i18n from '../shared/i18n/config.js';
+const tourT = (key: string, opts?: Record<string, unknown>) => i18n.t(`tournament:championship.venue.${key}`, opts);
+
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
 import { PortalHoverBubble } from './PortalHoverBubble.js';
@@ -77,7 +80,7 @@ const WORLD_EQUIP_GRADE_ORDER: EquipmentGradeKey[] = ['normal', 'uncommon', 'rar
 function formatWorldEquipmentDropCaptionLines(stage: number): string[] {
     const config = DUNGEON_STAGE_EQUIPMENT_DROP[stage] || DUNGEON_STAGE_EQUIPMENT_DROP[1];
     const grades = [...config.win.map(e => e.grade), ...config.loss.map(e => e.grade)];
-    if (grades.length === 0) return ['1개/경기 (랜덤)'];
+    if (grades.length === 0) return [tourT('oneGamePerMatch')];
     let lo = grades[0];
     let hi = grades[0];
     for (const g of grades) {
@@ -86,7 +89,7 @@ function formatWorldEquipmentDropCaptionLines(stage: number): string[] {
     }
     const loL = EQUIPMENT_GRADE_LABEL_KO[lo] ?? lo;
     const hiL = EQUIPMENT_GRADE_LABEL_KO[hi] ?? hi;
-    const rangeLine = lo === hi ? `등급: ${loL}` : `등급 범위: ${loL}~${hiL}`;
+    const rangeLine = lo === hi ? tourT('grade', { grade: loL }) : tourT('gradeRange', { low: loL, high: hiL });
 
     return [rangeLine];
 }
@@ -95,8 +98,8 @@ function formatRankGroupLabel(ranks: number[]): string {
     if (ranks.length === 0) return '';
     const lo = ranks[0];
     const hi = ranks[ranks.length - 1];
-    if (lo === hi) return `${lo}위`;
-    return `${lo}~${hi}위`;
+    if (lo === hi) return tourT('rankPlace', { rank: lo });
+    return tourT('rankRange', { low: lo, high: hi });
 }
 
 function formatRangeQuantity(min: number, max: number): string {
@@ -130,7 +133,7 @@ function parseDungeonRankRangeToPieces(items: DungeonRankRewardRangeItem[]): Rew
         if (it.itemId === '골드') {
             out.push({
                 key: `rank-g-${idx}`,
-                label: '골드',
+                label: tourT('gold'),
                 quantity: qty,
                 imageUrl: '/images/icon/Gold.webp',
                 frame: 'gold',
@@ -139,7 +142,7 @@ function parseDungeonRankRangeToPieces(items: DungeonRankRewardRangeItem[]): Rew
         } else if (it.itemId === '다이아') {
             out.push({
                 key: `rank-d-${idx}`,
-                label: '다이아',
+                label: tourT('diamonds'),
                 quantity: qty,
                 imageUrl: '/images/icon/Zem.webp',
                 frame: 'diamond',
@@ -176,7 +179,7 @@ function buildDungeonRankRewardGroupsForEntryModal(type: TournamentType, stage: 
     for (const rankKey of keys) {
         const r = getDungeonRankRewardRangeForDisplay(type, stage, rankKey);
         const displayLabel =
-            type === 'world' && rankKey === 9 ? '9~16위' : type === 'world' && rankKey === 4 ? '4~8위' : `${rankKey}위`;
+            type === 'world' && rankKey === 9 ? tourT('rankWorld9_16') : type === 'world' && rankKey === 4 ? tourT('rankWorld4_8') : tourT('rankPlace', { rank: rankKey });
 
         if (type === 'world' && rankKey === 9) {
             const pieces = r?.items?.length ? parseDungeonRankRangeToPieces(r.items) : [];
@@ -238,8 +241,8 @@ function getBaseRewardPieces(type: TournamentType, stage: number): RewardPiece[]
                 quantityOnThumbOnly: true,
                 captionTooltipOnly: true,
                 captionBesideThumb: [
-                    `승리 시 ${range.win.min.toLocaleString()}~${range.win.max.toLocaleString()} 골드`,
-                    `패배 시 ${range.loss.min.toLocaleString()}~${range.loss.max.toLocaleString()} 골드`,
+                    tourT('winGold', { min: range.win.min.toLocaleString(), max: range.win.max.toLocaleString() }),
+                    tourT('lossGold', { min: range.loss.min.toLocaleString(), max: range.loss.max.toLocaleString() }),
                 ],
             },
         ];
@@ -286,13 +289,13 @@ function getBaseRewardPieces(type: TournamentType, stage: number): RewardPiece[]
                 quantityOnThumbOnly: true,
                 captionTooltipOnly: true,
                 captionBesideThumb: formatWorldEquipmentDropCaptionLines(stage),
-                captionBelowThumb: '장비',
+                captionBelowThumb: tourT('equipment'),
             },
         ];
         if (e.changeTickets > 0) {
             list.push({
                 key: 'tickets',
-                label: '장비 변경권',
+                label: tourT('changeTicket'),
                 quantity: '',
                 imageUrl: '/images/use/change1.webp',
                 mysteryChangeTicket: true,
@@ -300,10 +303,10 @@ function getBaseRewardPieces(type: TournamentType, stage: number): RewardPiece[]
                 quantityOnThumbOnly: true,
                 captionTooltipOnly: true,
                 captionBesideThumb: [
-                    '경기 결과에 따라 지급 여부·수량이 달라질 수 있습니다 (랜덤).',
-                    `단계 기준 최대 ${e.changeTickets}개 범위`,
+                    tourT('rewardRandom'),
+                    tourT('changeTicketMax', { count: e.changeTickets }),
                 ],
-                captionBelowThumb: '변경권',
+                captionBelowThumb: tourT('changeTicketShort'),
             });
         }
         return list;
@@ -373,7 +376,7 @@ const RewardThumb: React.FC<{ piece: RewardPiece; fluid?: boolean; compact?: boo
         ? tooltipLines.join('\n')
         : piece.captionBesideThumb?.length && !piece.captionTooltipOnly
           ? [piece.label, ...piece.captionBesideThumb].join(' · ')
-          : `${piece.label} ${piece.quantity}`.trim() || '기본 보상';
+          : `${piece.label} ${piece.quantity}`.trim() || tourT('defaultRewardFallback');
     const tipOnly = Boolean(piece.captionTooltipOnly && piece.captionBesideThumb?.length);
 
     return (
@@ -650,6 +653,7 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
     onContinue,
     isTopmost,
 }) => {
+    const { t } = useTranslation('tournament');
     const definition = TOURNAMENT_DEFINITIONS[type];
     const venueLobbyBg = CHAMPIONSHIP_VENUE_LOBBY_BG_IMAGE[type];
     const isHandheld = useIsHandheldDevice(1025);
@@ -710,14 +714,14 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
     );
     const showContinueFlow = isCompletedToday || !!(isDungeonMode && inProgress);
 
-    let continueLabel = '이어서 보기';
+    let continueLabel = t('championship.venue.continueView');
     if (isCompletedToday) {
-        continueLabel = '결과보기';
+        continueLabel = t('championship.venue.viewResult');
     } else if (isDungeonMode && inProgress) {
         if (inProgress.status === 'complete' || inProgress.status === 'eliminated') {
-            continueLabel = '결과보기';
+            continueLabel = t('championship.venue.viewResult');
         } else {
-            continueLabel = '이어서 보기';
+            continueLabel = t('championship.venue.continueViewAlt');
         }
     }
 
@@ -813,7 +817,7 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                         <div className="relative z-[1] flex items-center pr-1.5 sm:pr-3 md:pr-4">
                             <div className="rounded-md bg-black/55 px-1.5 py-0.5 ring-1 ring-amber-400/30 backdrop-blur-sm sm:rounded-lg sm:px-3 sm:py-1.5">
                                 <span className="block text-center text-[8px] font-semibold uppercase tracking-wide text-amber-200/85 sm:text-[10px] md:text-xs">
-                                    단계
+                                    {t('championship.venue.stageLabel')}
                                 </span>
                                 <span className="block text-center text-lg font-black tabular-nums leading-none text-white sm:text-2xl md:text-3xl">
                                     {selectedStage}
@@ -827,8 +831,8 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                             <p className="mb-1.5 text-center text-[11px] leading-snug text-amber-50/90 sm:mb-2 sm:text-sm md:text-base">
                                 {isCompletedToday ||
                                 (isDungeonMode && inProgress && (inProgress.status === 'complete' || inProgress.status === 'eliminated'))
-                                    ? '오늘 진행한 경기가 있습니다. 결과를 확인하세요.'
-                                    : '진행 중인 경기가 있습니다.'}
+                                    ? t('championship.venue.inProgressToday')
+                                    : t('championship.venue.inProgress')}
                             </p>
                             <Button
                                 onClick={() => {
@@ -844,7 +848,7 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                     )}
 
                     <div className="shrink-0">
-                        <SectionTitle accent="cyan">단계 선택</SectionTitle>
+                        <SectionTitle accent="cyan">{t('championship.venue.stageSelect')}</SectionTitle>
                         <div className="grid grid-cols-5 gap-1 sm:gap-1.5 md:gap-2">
                             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(stage => {
                                 const unlocked = dungeonProgress.unlockedStages.includes(stage);
@@ -883,21 +887,21 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                     </div>
 
                     <div className="shrink-0 rounded-lg border border-violet-500/25 bg-black/35 p-1 ring-1 ring-inset ring-violet-500/10 sm:rounded-xl sm:p-1.5 md:p-2">
-                        <SectionTitle accent="cyan">나 vs 상대 (참고)</SectionTitle>
+                        <SectionTitle accent="cyan">{t('championship.venue.vsOpponent')}</SectionTitle>
                         <div className="mt-0.5 overflow-hidden rounded-lg border border-white/[0.06] bg-black/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                             <div className="grid grid-cols-[minmax(3.2rem,1fr)_minmax(0,1fr)_minmax(0,1fr)] items-stretch gap-0 text-center sm:grid-cols-[minmax(4.75rem,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
                                 <div className="flex min-h-[2rem] items-center justify-center border-b border-r border-white/[0.07] bg-black/35 px-0.5 py-1 text-[9px] font-bold tracking-wide text-zinc-400 sm:min-h-[2.5rem] sm:py-1.5 sm:text-xs md:min-h-0 md:py-2 md:text-sm">
-                                    항목
+                                    {t('championship.venue.itemColumn')}
                                 </div>
                                 <div className="flex min-h-[2rem] items-center justify-center border-b border-r border-white/[0.07] bg-black/35 px-0.5 py-1 text-[9px] font-bold tracking-wide text-cyan-200 sm:min-h-[2.5rem] sm:py-1.5 sm:text-xs md:min-h-0 md:py-2 md:text-sm">
-                                    나
+                                    {t('championship.venue.meColumn')}
                                 </div>
                                 <div className="flex min-h-[2rem] items-center justify-center border-b border-white/[0.07] bg-black/35 px-0.5 py-1 text-[9px] font-bold tracking-wide text-violet-200 sm:min-h-[2.5rem] sm:py-1.5 sm:text-xs md:min-h-0 md:py-2 md:text-sm">
-                                    상대
+                                    {t('championship.venue.opponentColumn')}
                                 </div>
 
                                 <div className="flex min-h-[2.25rem] items-center justify-center border-b border-r border-white/[0.07] px-0.5 py-1 text-center text-[9px] font-semibold leading-tight text-zinc-300 sm:min-h-[2.5rem] sm:px-1 sm:py-2 sm:text-xs sm:leading-snug md:min-h-0 md:px-2 md:text-sm">
-                                    평균 능력치
+                                    {t('championship.venue.avgStat')}
                                 </div>
                                 <MyStatCompareCell my={myAvgStat} opponentExpected={botAvgStat} borderBottom />
                                 <div className="flex min-h-[2.25rem] flex-col items-center justify-center border-b border-white/[0.07] px-0.5 py-1 sm:min-h-[2.5rem] sm:px-1 sm:py-1.5 md:min-h-0 md:py-2">
@@ -912,7 +916,7 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                                 </div>
 
                                 <div className="flex min-h-[2.25rem] items-center justify-center border-r border-white/[0.07] px-0.5 py-1 text-center text-[9px] font-semibold leading-tight text-zinc-300 sm:min-h-[2.5rem] sm:px-1 sm:py-2 sm:text-xs sm:leading-snug md:min-h-0 md:px-2 md:text-sm">
-                                    바둑능력
+                                    {t('championship.venue.badukAbility')}
                                 </div>
                                 <MyStatCompareCell my={myBadukAbilityTotal} opponentExpected={botBadukAbilityAvg} borderBottom={false} />
                                 <div className="flex min-h-[2.25rem] flex-col items-center justify-center px-0.5 py-1 sm:min-h-[2.5rem] sm:px-1 sm:py-1.5 md:min-h-0 md:py-2">
@@ -936,7 +940,7 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                                 >
                                     <div className="flex min-h-6 w-full shrink-0 items-center justify-center border-b border-white/[0.07] px-0.5 pb-0.5 text-center sm:min-h-8">
                                         <span className="whitespace-nowrap text-[8px] font-bold leading-none text-emerald-400 sm:text-xs sm:leading-tight md:text-sm">
-                                            기본 보상
+                                            {t('championship.venue.defaultRewardFallback')}
                                         </span>
                                     </div>
                                     <div
@@ -961,7 +965,7 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                                 </div>
                                 {rankRewardGroups.length === 0 ? (
                                     <div className="flex min-w-0 flex-1 basis-0 flex-col items-center justify-center border-l border-white/[0.08] pl-px sm:pl-0.5">
-                                        <span className="text-center text-[9px] leading-tight text-zinc-500 sm:text-xs md:text-sm">없음</span>
+                                        <span className="text-center text-[9px] leading-tight text-zinc-500 sm:text-xs md:text-sm">{t('championship.venue.none')}</span>
                                     </div>
                                 ) : (
                                     rankRewardGroups.map(({ ranks, headRank, rankLabel, pieces }) => {
@@ -994,7 +998,7 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                                                 </div>
                                                 <div className="flex w-full min-w-0 flex-col items-stretch gap-1 pt-1">
                                                     {noReward ? (
-                                                        <span className="text-center text-[9px] leading-tight text-zinc-500 sm:text-xs md:text-sm">없음</span>
+                                                        <span className="text-center text-[9px] leading-tight text-zinc-500 sm:text-xs md:text-sm">{t('championship.venue.none')}</span>
                                                     ) : (
                                                         pieces.map(p => <RewardStripRow key={p.key} piece={p} rankThumbCompact={rankCompact} />)
                                                     )}
@@ -1025,15 +1029,15 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                                     aria-hidden
                                 />
                                 <span className="relative flex items-center justify-center gap-2">
-                                    <span className="tracking-wide">입장하기</span>
+                                    <span className="tracking-wide">{t('championship.venue.enter')}</span>
                                     <span className="rounded-full bg-black/25 px-1.5 py-px text-[10px] font-extrabold tabular-nums text-violet-100 ring-1 ring-white/15 sm:px-2 sm:py-0.5 sm:text-sm md:text-base">
-                                        {selectedStage}단계
+                                        {t('championship.venue.stageUnit', { stage: selectedStage })}
                                     </span>
                                 </span>
                             </button>
                             {!isUnlocked && (
                                 <p className="text-center text-[10px] leading-tight text-red-300/90 sm:text-sm md:text-base">
-                                    선택한 단계는 아직 잠겨 있습니다.
+                                    {t('championship.venue.stageLocked')}
                                 </p>
                             )}
                         </div>

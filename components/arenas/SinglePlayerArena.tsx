@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { GameProps, GameStatus, Player, Point, Move } from '../../types.js';
 import GoBoard from '../GoBoard.js';
 import { resolveSinglePlayerAutoScoringCapForClientSession } from '../../shared/utils/liveSessionSinglePlayerStage.js';
@@ -32,6 +33,7 @@ interface SinglePlayerArenaProps extends GameProps {
 }
 
 const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
+    const { t } = useTranslation('game');
     const {
         session,
         currentUser,
@@ -359,10 +361,10 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
             </div>
             {isPaused && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none text-white drop-shadow-lg">
-                    <h2 className="text-3xl font-bold tracking-wide">일시 정지</h2>
+                    <h2 className="text-3xl font-bold tracking-wide">{t('board.paused')}</h2>
                     {resumeCountdown > 0 && (
                         <p className="text-lg font-semibold text-amber-200">
-                            재개 가능까지 {resumeCountdown}초
+                            {t('board.resumeIn', { seconds: resumeCountdown })}
                         </p>
                     )}
                 </div>

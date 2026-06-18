@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 import Button from './Button.js';
 import { MATERIAL_ITEMS } from '../constants';
@@ -15,11 +16,12 @@ interface DisassemblyResultModalProps {
 }
 
 const DisassemblyResultModal: React.FC<DisassemblyResultModalProps> = ({ onClose, result, isTopmost }) => {
+    const { t } = useTranslation('inventory');
     if (!result) return null;
 
     return (
         <DraggableWindow
-            title="분해 결과"
+            title={t('disassemblyResult.title')}
             onClose={onClose}
             windowId="disassemblyResult"
             isTopmost={isTopmost}
@@ -57,13 +59,13 @@ const DisassemblyResultModal: React.FC<DisassemblyResultModalProps> = ({ onClose
                                 대박!
                             </p>
                             <p className="relative mt-1 text-sm font-semibold leading-snug text-amber-100/90 sm:text-base">
-                                모든 재료 획득량이 <span className="font-bold text-amber-200">2배</span>였습니다
+                                {t('disassemblyResult.jackpotAll')}
                             </p>
                         </div>
                     )}
 
                     <div className="sudamr-modal-inner-well relative mt-4 max-h-[min(50vh,16rem)] overflow-y-auto rounded-xl border border-amber-500/18 p-3 shadow-inner ring-1 ring-inset ring-white/[0.04] sm:max-h-[min(52vh,18rem)] sm:p-3.5">
-                        <p className="mb-2.5 text-[0.68rem] font-bold uppercase tracking-[0.1em] text-amber-200/80">획득 재료</p>
+                        <p className="mb-2.5 text-[0.68rem] font-bold uppercase tracking-[0.1em] text-amber-200/80">{t('disassemblyResult.obtainedMaterials')}</p>
                         {result.gained.length > 0 ? (
                             <ul className="space-y-0">
                                 {result.gained.map((material, index) => {
@@ -95,7 +97,7 @@ const DisassemblyResultModal: React.FC<DisassemblyResultModalProps> = ({ onClose
                                 })}
                             </ul>
                         ) : (
-                            <p className="py-2 text-center text-sm font-medium text-slate-400">획득한 재료가 없습니다</p>
+                            <p className="py-2 text-center text-sm font-medium text-slate-400">{t('disassemblyResult.noMaterials')}</p>
                         )}
                     </div>
 

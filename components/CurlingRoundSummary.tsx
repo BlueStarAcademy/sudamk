@@ -1,4 +1,5 @@
 import React, { useEffect, useId, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LiveGameSession, ServerAction, Player, User } from '../types.js';
 import Avatar from './Avatar.js';
 import Button from './Button.js';
@@ -17,6 +18,8 @@ interface CurlingRoundSummaryProps {
 type MobileRoundTab = 'board' | 'detail';
 
 const CurlingRoundSummary: React.FC<CurlingRoundSummaryProps> = ({ session, currentUser, onAction }) => {
+    const { t } = useTranslation('game');
+    const { t: tCommon } = useTranslation('common');
     const uid = useId().replace(/:/g, '');
     const { id: gameId, curlingRoundSummary, player1, player2, blackPlayerId, whitePlayerId, roundEndConfirmations, isAiGame } = session;
     const hasConfirmed = !!(roundEndConfirmations?.[currentUser.id]);
@@ -174,23 +177,23 @@ const CurlingRoundSummary: React.FC<CurlingRoundSummaryProps> = ({ session, curr
                     <Avatar userId={blackPlayer.id} userName={blackPlayer.nickname} size={40} avatarUrl={blackAvatarUrl} borderUrl={blackBorderUrl} />
                     <div className="min-w-0">
                         <p className="truncate text-sm font-bold text-amber-50/95">{blackPlayer.nickname}</p>
-                        <p className="text-[11px] text-slate-400">흑돌</p>
+                        <p className="text-[11px] text-slate-400">{t('roundSummary.curlingBlack')}</p>
                     </div>
                 </div>
                 <div className="space-y-1.5 text-[12px] text-slate-200/90">
                     <div className="flex justify-between border-b border-white/5 pb-1">
-                        <span className="text-slate-400">하우스</span> <span className="font-semibold tabular-nums">{black.houseScore}점</span>
+                        <span className="text-slate-400">{t('summary.house')}</span> <span className="font-semibold tabular-nums">{black.houseScore}{t('summary.pointsUnit')}</span>
                     </div>
                     <div className="flex justify-between border-b border-white/5 pb-1">
-                        <span className="text-slate-400">넉아웃</span> <span className="font-semibold tabular-nums">{black.knockoutScore}점</span>
+                        <span className="text-slate-400">{t('summary.knockout')}</span> <span className="font-semibold tabular-nums">{black.knockoutScore}{t('summary.pointsUnit')}</span>
                     </div>
                     <div className="flex items-center justify-between pt-0.5">
-                        <strong className="text-slate-300">합계</strong>
-                        <strong className="tabular-nums text-amber-200">{black.total}점</strong>
+                        <strong className="text-slate-300">{t('summary.totalScore')}</strong>
+                        <strong className="tabular-nums text-amber-200">{black.total}{t('summary.pointsUnit')}</strong>
                     </div>
                     {black.previousKnockoutScore !== undefined && black.previousKnockoutScore > 0 && (
                         <div className="flex justify-between text-[11px] text-slate-500">
-                            <span>이전 라운드</span> <span className="tabular-nums">{black.previousKnockoutScore}점</span>
+                            <span>{t('roundSummary.previousRound')}</span> <span className="tabular-nums">{black.previousKnockoutScore}{t('summary.pointsUnit')}</span>
                         </div>
                     )}
                 </div>
@@ -200,23 +203,23 @@ const CurlingRoundSummary: React.FC<CurlingRoundSummaryProps> = ({ session, curr
                     <Avatar userId={whitePlayer.id} userName={whitePlayer.nickname} size={40} avatarUrl={whiteAvatarUrl} borderUrl={whiteBorderUrl} />
                     <div className="min-w-0">
                         <p className="truncate text-sm font-bold text-amber-50/95">{whitePlayer.nickname}</p>
-                        <p className="text-[11px] text-slate-400">백돌</p>
+                        <p className="text-[11px] text-slate-400">{t('roundSummary.curlingWhite')}</p>
                     </div>
                 </div>
                 <div className="space-y-1.5 text-[12px] text-slate-200/90">
                     <div className="flex justify-between border-b border-white/5 pb-1">
-                        <span className="text-slate-400">하우스</span> <span className="font-semibold tabular-nums">{white.houseScore}점</span>
+                        <span className="text-slate-400">{t('summary.house')}</span> <span className="font-semibold tabular-nums">{white.houseScore}{t('summary.pointsUnit')}</span>
                     </div>
                     <div className="flex justify-between border-b border-white/5 pb-1">
-                        <span className="text-slate-400">넉아웃</span> <span className="font-semibold tabular-nums">{white.knockoutScore}점</span>
+                        <span className="text-slate-400">{t('summary.knockout')}</span> <span className="font-semibold tabular-nums">{white.knockoutScore}{t('summary.pointsUnit')}</span>
                     </div>
                     <div className="flex items-center justify-between pt-0.5">
-                        <strong className="text-slate-300">합계</strong>
-                        <strong className="tabular-nums text-amber-200">{white.total}점</strong>
+                        <strong className="text-slate-300">{t('summary.totalScore')}</strong>
+                        <strong className="tabular-nums text-amber-200">{white.total}{t('summary.pointsUnit')}</strong>
                     </div>
                     {white.previousKnockoutScore !== undefined && white.previousKnockoutScore > 0 && (
                         <div className="flex justify-between text-[11px] text-slate-500">
-                            <span>이전 라운드</span> <span className="tabular-nums">{white.previousKnockoutScore}점</span>
+                            <span>{t('roundSummary.previousRound')}</span> <span className="tabular-nums">{white.previousKnockoutScore}{t('summary.pointsUnit')}</span>
                         </div>
                     )}
                 </div>
@@ -232,25 +235,25 @@ const CurlingRoundSummary: React.FC<CurlingRoundSummaryProps> = ({ session, curr
                     <Avatar userId={blackPlayer.id} userName={blackPlayer.nickname} size={36} avatarUrl={blackAvatarUrl} borderUrl={blackBorderUrl} />
                     <div className="w-full min-w-0">
                         <p className="truncate text-[11px] font-bold leading-tight text-amber-50/95">{blackPlayer.nickname}</p>
-                        <p className="text-[9px] font-medium uppercase tracking-wider text-slate-500">흑</p>
+                        <p className="text-[9px] font-medium uppercase tracking-wider text-slate-500">{tCommon('blackShort')}</p>
                     </div>
                 </div>
                 <div className="flex flex-col justify-center gap-1.5 text-[10px] leading-snug text-slate-200/90">
                     <div className="flex items-center justify-between gap-1 border-b border-white/5 pb-1">
-                        <span className="shrink-0 text-slate-500">하우스</span>
+                        <span className="shrink-0 text-slate-500">{t('summary.house')}</span>
                         <span className="font-semibold tabular-nums text-amber-100/90">{black.houseScore}</span>
                     </div>
                     <div className="flex items-center justify-between gap-1 border-b border-white/5 pb-1">
-                        <span className="shrink-0 text-slate-500">넉아웃</span>
+                        <span className="shrink-0 text-slate-500">{t('summary.knockout')}</span>
                         <span className="font-semibold tabular-nums text-amber-100/90">{black.knockoutScore}</span>
                     </div>
                     <div className="rounded-md bg-amber-500/10 px-1.5 py-1 text-center">
-                        <span className="block text-[8px] font-semibold uppercase tracking-wider text-amber-200/70">합계</span>
+                        <span className="block text-[8px] font-semibold uppercase tracking-wider text-amber-200/70">{t('summary.totalScore')}</span>
                         <span className="text-sm font-bold tabular-nums text-amber-200">{black.total}</span>
                     </div>
                     {black.previousKnockoutScore !== undefined && black.previousKnockoutScore > 0 && (
                         <div className="flex justify-between text-[9px] text-slate-500">
-                            <span>이전 넉</span>
+                            <span>{t('roundSummary.previousKnockShort')}</span>
                             <span className="tabular-nums">{black.previousKnockoutScore}</span>
                         </div>
                     )}
@@ -261,25 +264,25 @@ const CurlingRoundSummary: React.FC<CurlingRoundSummaryProps> = ({ session, curr
                     <Avatar userId={whitePlayer.id} userName={whitePlayer.nickname} size={36} avatarUrl={whiteAvatarUrl} borderUrl={whiteBorderUrl} />
                     <div className="w-full min-w-0">
                         <p className="truncate text-[11px] font-bold leading-tight text-amber-50/95">{whitePlayer.nickname}</p>
-                        <p className="text-[9px] font-medium uppercase tracking-wider text-slate-500">백</p>
+                        <p className="text-[9px] font-medium uppercase tracking-wider text-slate-500">{tCommon('whiteShort')}</p>
                     </div>
                 </div>
                 <div className="flex flex-col justify-center gap-1.5 text-[10px] leading-snug text-slate-200/90">
                     <div className="flex items-center justify-between gap-1 border-b border-white/5 pb-1">
-                        <span className="shrink-0 text-slate-500">하우스</span>
+                        <span className="shrink-0 text-slate-500">{t('summary.house')}</span>
                         <span className="font-semibold tabular-nums text-amber-100/90">{white.houseScore}</span>
                     </div>
                     <div className="flex items-center justify-between gap-1 border-b border-white/5 pb-1">
-                        <span className="shrink-0 text-slate-500">넉아웃</span>
+                        <span className="shrink-0 text-slate-500">{t('summary.knockout')}</span>
                         <span className="font-semibold tabular-nums text-amber-100/90">{white.knockoutScore}</span>
                     </div>
                     <div className="rounded-md bg-amber-500/10 px-1.5 py-1 text-center">
-                        <span className="block text-[8px] font-semibold uppercase tracking-wider text-amber-200/70">합계</span>
+                        <span className="block text-[8px] font-semibold uppercase tracking-wider text-amber-200/70">{t('summary.totalScore')}</span>
                         <span className="text-sm font-bold tabular-nums text-amber-200">{white.total}</span>
                     </div>
                     {white.previousKnockoutScore !== undefined && white.previousKnockoutScore > 0 && (
                         <div className="flex justify-between text-[9px] text-slate-500">
-                            <span>이전 넉</span>
+                            <span>{t('roundSummary.previousKnockShort')}</span>
                             <span className="tabular-nums">{white.previousKnockoutScore}</span>
                         </div>
                     )}
@@ -290,13 +293,13 @@ const CurlingRoundSummary: React.FC<CurlingRoundSummaryProps> = ({ session, curr
 
     const confirmLabel = isAiGame
         ? isFinalRound
-            ? '확인'
-            : '다음 라운드 시작'
+            ? tCommon('actions.ok')
+            : tCommon('nextRound')
         : hasConfirmed
-          ? '상대방 확인 대기 중...'
+          ? tCommon('waitingOpponentConfirm')
           : isFinalRound
-            ? '확인'
-            : '다음 라운드 시작';
+            ? tCommon('actions.ok')
+            : tCommon('nextRound');
 
     const cumulativeAndActionsDesktop = (
         <>
@@ -317,7 +320,7 @@ const CurlingRoundSummary: React.FC<CurlingRoundSummaryProps> = ({ session, curr
                 deadline={session.revealEndTime}
                 durationSeconds={10}
                 enabled={!isAiGame}
-                label={isFinalRound ? '최종 결과 자동 표시까지' : '다음 라운드 자동 시작까지'}
+                label={isFinalRound ? tCommon('finalResultAuto') : tCommon('nextRoundAuto')}
             />
         </>
     );
@@ -345,7 +348,7 @@ const CurlingRoundSummary: React.FC<CurlingRoundSummaryProps> = ({ session, curr
                 deadline={session.revealEndTime}
                 durationSeconds={10}
                 enabled={!isAiGame}
-                label={isFinalRound ? '최종 결과 자동 표시까지' : '다음 라운드 자동 시작까지'}
+                label={isFinalRound ? tCommon('finalResultAuto') : tCommon('nextRoundAuto')}
             />
         </>
     );
@@ -359,7 +362,7 @@ const CurlingRoundSummary: React.FC<CurlingRoundSummaryProps> = ({ session, curr
 
     return (
         <DraggableWindow
-            title={finalRoundTie ? `${round} 라운드 결과 · 동점` : `${round} 라운드 결과`}
+            title={finalRoundTie ? t('roundSummary.curlingTieTitle', { round }) : t('roundSummary.curlingTitle', { round })}
             initialWidth={900}
             initialHeight={isMobileLayout ? 636 : undefined}
             windowId="curling-round-summary"
@@ -374,14 +377,14 @@ const CurlingRoundSummary: React.FC<CurlingRoundSummaryProps> = ({ session, curr
                 <>
                     {finalRoundTie && (
                         <div className="shrink-0 border-b border-amber-500/30 bg-amber-950/50 px-3 py-2 text-center text-[11px] font-semibold leading-snug text-amber-100/95">
-                            최종 라운드가 동점입니다. 확인 후 같은 보드에서 한 번씩 돌을 더 쏘는 승부치기가 이어집니다.
+                            {t('roundSummary.finalRoundTieBody')}
                         </div>
                     )}
                     <div className="flex min-h-0 flex-1 flex-col overflow-hidden text-white">
                         <div
                             className="flex shrink-0 gap-1 border-b border-amber-500/20 bg-gradient-to-b from-[#161b26] to-[#0b0e14] px-2 py-2"
                             role="tablist"
-                            aria-label="라운드 결과 보기"
+                            aria-label={tCommon('viewRoundResult')}
                         >
                             <button
                                 type="button"
@@ -428,12 +431,12 @@ const CurlingRoundSummary: React.FC<CurlingRoundSummaryProps> = ({ session, curr
                 <div className="flex flex-col gap-4 text-white">
                     {finalRoundTie && (
                         <div className="w-full rounded-lg border border-amber-500/35 bg-amber-950/45 px-4 py-2.5 text-center text-sm font-semibold leading-snug text-amber-50/95">
-                            최종 라운드가 동점입니다. 확인 후 같은 보드에서 한 번씩 돌을 더 쏘는 승부치기가 이어집니다.
+                            {t('roundSummary.finalRoundTieBody')}
                         </div>
                     )}
                     <div className="flex flex-col gap-4 md:flex-row">
                         <div className="flex w-full flex-shrink-0 flex-col items-center md:w-1/2">
-                            <h3 className="mb-2 text-xl font-bold tracking-tight text-amber-100/90">라운드 결과 보드</h3>
+                            <h3 className="mb-2 text-xl font-bold tracking-tight text-amber-100/90">{tCommon('roundResultBoard')}</h3>
                             {boardSvgDesktop}
                         </div>
 

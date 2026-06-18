@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
 import { audioService } from '../../services/audioService.js';
@@ -47,6 +48,7 @@ const PairPetRankedMatchOfferModal: React.FC<PairPetRankedMatchOfferModalProps> 
     isTopmost = true,
     variant = 'pet',
 }) => {
+    const { t } = useTranslation('pair');
     const deadlineMs = useMemo(() => {
         if (typeof proposal.acceptDeadlineAt === 'number') return proposal.acceptDeadlineAt;
         return Date.now() + 20_000;
@@ -85,7 +87,7 @@ const PairPetRankedMatchOfferModal: React.FC<PairPetRankedMatchOfferModalProps> 
 
     return (
         <DraggableWindow
-            title={duo ? '2인 페어 랭크 매칭' : '페어 펫 랭크 매칭'}
+            title={duo ? t('rankedOffer.titleDuo') : t('rankedOffer.titlePet')}
             onClose={() => {
                 if (!isBusy) void onReject();
             }}
@@ -100,7 +102,7 @@ const PairPetRankedMatchOfferModal: React.FC<PairPetRankedMatchOfferModalProps> 
             mobileViewportMaxHeightCss="min(92dvh, calc(100dvh - 16px))"
         >
             <div className="flex flex-col gap-4 px-1 pb-2 pt-1 sm:px-2">
-                <p className="text-center text-base font-black text-amber-50">매칭이 되었습니다</p>
+                <p className="text-center text-base font-black text-amber-50">{t('rankedOffer.matched')}</p>
                 <div
                     className={`rounded-xl border px-3 py-2 text-center text-sm font-black tabular-nums ${
                         secondsLeft <= 5 && secondsLeft > 0
@@ -110,63 +112,63 @@ const PairPetRankedMatchOfferModal: React.FC<PairPetRankedMatchOfferModalProps> 
                               : 'border-amber-400/40 bg-black/40 text-amber-100'
                     }`}
                 >
-                    {secondsLeft > 0 ? `남은 시간 ${secondsLeft}초` : '수락 시간이 지났습니다'}
+                    {secondsLeft > 0 ? t('rankedOffer.timeRemaining', { seconds: secondsLeft }) : t('rankedOffer.timeExpired')}
                 </div>
                 <div className="rounded-xl border border-yellow-500/40 bg-gradient-to-br from-yellow-950/60 via-amber-950/50 to-yellow-950/60 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
                     <div className="text-center">
-                        <p className="text-xs font-semibold text-yellow-200/80">상대</p>
+                        <p className="text-xs font-semibold text-yellow-200/80">{t('rankedOffer.opponent')}</p>
                         <p className="mt-1 truncate text-lg font-black text-yellow-50">{proposal.opponentNickname}</p>
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-2 text-center text-xs">
                         <div className="rounded-lg border border-white/10 bg-black/35 px-2 py-2">
-                            <p className="font-semibold text-slate-400">내 점수</p>
+                            <p className="font-semibold text-slate-400">{t('rankedOffer.myScore')}</p>
                             <p className="mt-0.5 font-mono text-base font-bold tabular-nums text-cyan-200">{proposal.myRating}</p>
                         </div>
                         <div className="rounded-lg border border-white/10 bg-black/35 px-2 py-2">
-                            <p className="font-semibold text-slate-400">상대 점수</p>
+                            <p className="font-semibold text-slate-400">{t('rankedOffer.opponentScore')}</p>
                             <p className="mt-0.5 font-mono text-base font-bold tabular-nums text-amber-200">{proposal.opponentRating}</p>
                         </div>
                     </div>
                 </div>
                 {duo ? (
                     <div className="space-y-1.5 rounded-lg border border-white/10 bg-black/25 px-3 py-2 text-[0.7rem] font-semibold text-slate-300 sm:text-xs">
-                        <p className="text-center text-slate-400">팀 수락 현황</p>
+                        <p className="text-center text-slate-400">{t('rankedOffer.teamAcceptStatus')}</p>
                         <p>
-                            우리 팀 방장:{' '}
+                            {t('rankedOffer.ourOwner')}:{' '}
                             <span className={proposal.myAccepted ? 'text-emerald-300' : 'text-slate-500'}>
-                                {proposal.myAccepted ? '수락' : '대기'}
+                                {proposal.myAccepted ? t('rankedOffer.accepted') : t('rankedOffer.waiting')}
                             </span>
                             {' · '}
-                            파트너:{' '}
+                            {t('rankedOffer.partner')}:{' '}
                             <span className={proposal.myPartnerAccepted ? 'text-emerald-300' : 'text-slate-500'}>
-                                {proposal.myPartnerAccepted ? '수락' : '대기'}
+                                {proposal.myPartnerAccepted ? t('rankedOffer.accepted') : t('rankedOffer.waiting')}
                             </span>
                         </p>
                         <p>
-                            상대 팀 방장:{' '}
+                            {t('rankedOffer.theirOwner')}:{' '}
                             <span className={proposal.peerAccepted ? 'text-emerald-300' : 'text-slate-500'}>
-                                {proposal.peerAccepted ? '수락' : '대기'}
+                                {proposal.peerAccepted ? t('rankedOffer.accepted') : t('rankedOffer.waiting')}
                             </span>
                             {' · '}
-                            파트너:{' '}
+                            {t('rankedOffer.partner')}:{' '}
                             <span className={proposal.peerPartnerAccepted ? 'text-emerald-300' : 'text-slate-500'}>
-                                {proposal.peerPartnerAccepted ? '수락' : '대기'}
+                                {proposal.peerPartnerAccepted ? t('rankedOffer.accepted') : t('rankedOffer.waiting')}
                             </span>
                         </p>
                     </div>
                 ) : waitingPeer ? (
-                    <p className="text-center text-xs font-semibold text-slate-300">상대의 수락을 기다리는 중…</p>
+                    <p className="text-center text-xs font-semibold text-slate-300">{t('rankedOffer.waitingPeerAccept')}</p>
                 ) : proposal.peerAccepted && !proposal.myAccepted ? (
-                    <p className="text-center text-xs font-semibold text-emerald-200/90">상대가 수락했습니다. 수락해 주세요.</p>
+                    <p className="text-center text-xs font-semibold text-emerald-200/90">{t('rankedOffer.peerAcceptedPrompt')}</p>
                 ) : null}
                 {duo && waitingOwnerAsPartner ? (
-                    <p className="text-center text-xs font-semibold text-slate-300">우리 팀 방장의 수락을 기다리는 중…</p>
+                    <p className="text-center text-xs font-semibold text-slate-300">{t('rankedOffer.waitingOurOwner')}</p>
                 ) : null}
                 {duo && waitingMyPartner ? (
-                    <p className="text-center text-xs font-semibold text-slate-300">우리 팀 파트너의 수락을 기다리는 중…</p>
+                    <p className="text-center text-xs font-semibold text-slate-300">{t('rankedOffer.waitingOurPartner')}</p>
                 ) : null}
                 {duo && waitingPeerPartner ? (
-                    <p className="text-center text-xs font-semibold text-slate-300">상대 팀 파트너의 수락을 기다리는 중…</p>
+                    <p className="text-center text-xs font-semibold text-slate-300">{t('rankedOffer.waitingTheirPartner')}</p>
                 ) : null}
                 <div className="grid grid-cols-2 gap-2">
                     <Button
@@ -176,7 +178,7 @@ const PairPetRankedMatchOfferModal: React.FC<PairPetRankedMatchOfferModalProps> 
                         onClick={() => void onReject()}
                         className="rounded-xl border border-rose-400/45 bg-rose-950/55 py-2.5 text-sm font-extrabold text-rose-50"
                     >
-                        거절
+                        {t('rankedOffer.decline')}
                     </Button>
                     <Button
                         type="button"
@@ -185,7 +187,7 @@ const PairPetRankedMatchOfferModal: React.FC<PairPetRankedMatchOfferModalProps> 
                         onClick={() => void onAccept()}
                         className="rounded-xl border border-emerald-400/50 bg-emerald-900/55 py-2.5 text-sm font-extrabold text-emerald-50 disabled:opacity-45"
                     >
-                        {viewerHasAccepted ? '수락함' : '수락'}
+                        {viewerHasAccepted ? t('rankedOffer.acceptDone') : t('rankedOffer.accept')}
                     </Button>
                 </div>
             </div>

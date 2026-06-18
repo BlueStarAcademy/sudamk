@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { GuildMission } from '../../types/entities.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import Button from '../Button.js';
@@ -10,28 +11,28 @@ interface GuildMissionPanelProps {
 }
 
 const GuildMissionPanel: React.FC<GuildMissionPanelProps> = ({ guildId, missions, onMissionsUpdate }) => {
+    const { t } = useTranslation('guild');
     const { handlers, currentUserWithStatus } = useAppContext();
 
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-white">길드 미션</h2>
+                <h2 className="text-xl font-bold text-white">{t('missionPanelLegacy.title')}</h2>
                 {currentUserWithStatus?.guildId && (
                     <Button
                         onClick={async () => {
-                            // TODO: Implement mission creation UI
-                            alert('미션 생성 기능은 곧 추가될 예정입니다.');
+                            alert(t('missionPanelLegacy.createComingSoon'));
                         }}
                         colorScheme="green"
                         className="!py-2 !px-4"
                     >
-                        미션 생성
+                        {t('missionPanelLegacy.create')}
                     </Button>
                 )}
             </div>
             <div className="space-y-2">
                 {missions.length === 0 ? (
-                    <p className="text-gray-400 text-center py-8">진행 중인 미션이 없습니다.</p>
+                    <p className="text-gray-400 text-center py-8">{t('missionPanelLegacy.empty')}</p>
                 ) : (
                     missions.map((mission) => (
                         <div key={mission.id} className="p-4 bg-gray-800/50 rounded-lg">
@@ -42,19 +43,19 @@ const GuildMissionPanel: React.FC<GuildMissionPanelProps> = ({ guildId, missions
                                     mission.status === 'completed' ? 'bg-blue-600 text-white' :
                                     'bg-gray-600 text-white'
                                 }`}>
-                                    {mission.status === 'active' && '진행중'}
-                                    {mission.status === 'completed' && '완료'}
-                                    {mission.status === 'expired' && '만료'}
+                                    {mission.status === 'active' && t('missionPanelLegacy.statusActive')}
+                                    {mission.status === 'completed' && t('missionPanelLegacy.statusCompleted')}
+                                    {mission.status === 'expired' && t('missionPanelLegacy.statusExpired')}
                                 </span>
                             </div>
                             {mission.target && (
                                 <div className="text-sm text-gray-400">
-                                    목표: {JSON.stringify(mission.target)}
+                                    {t('missionPanelLegacy.target', { target: JSON.stringify(mission.target) })}
                                 </div>
                             )}
                             {mission.progress && (
                                 <div className="text-sm text-gray-300 mt-2">
-                                    진행도: {JSON.stringify(mission.progress)}
+                                    {t('missionPanelLegacy.progress', { progress: JSON.stringify(mission.progress) })}
                                 </div>
                             )}
                         </div>
@@ -66,4 +67,3 @@ const GuildMissionPanel: React.FC<GuildMissionPanelProps> = ({ guildId, missions
 };
 
 export default GuildMissionPanel;
-

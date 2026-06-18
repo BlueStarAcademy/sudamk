@@ -1,14 +1,15 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 type NavKind = 'first' | 'back5' | 'back1' | 'forward1' | 'forward5' | 'last';
 
 const LABELS: Record<NavKind, string> = {
-    first: '처음으로',
-    back5: '5수 뒤로',
-    back1: '한수 뒤로',
-    forward1: '한수 앞으로',
-    forward5: '5수 앞으로',
-    last: '마지막으로',
+    first: t('replayFirst'),
+    back5: t('replayBack5'),
+    back1: t('replayBack1'),
+    forward1: t('replayForward1'),
+    forward5: t('replayForward5'),
+    last: t('replayLast'),
 };
 
 const Icon: React.FC<{ kind: NavKind; className?: string }> = ({ kind, className = 'h-7 w-7' }) => {
@@ -95,6 +96,8 @@ const GameRecordReplayNav: React.FC<GameRecordReplayNavProps> = ({
     canGoForward,
     compact = false,
 }) => {
+    const { t } = useTranslation('common');
+
     const handlers: Record<NavKind, () => void> = {
         first: onFirst,
         back5: onBack5,

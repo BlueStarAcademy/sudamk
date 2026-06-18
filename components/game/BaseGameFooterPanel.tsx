@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { tx } from '../../shared/i18n/runtimeText.js';
 import { GameMode, LiveGameSession, ServerAction, User, GameStatus } from '../../types.js';
 import BaseStoneColorChoicePanel from '../BaseStoneColorChoicePanel.js';
 import BaseSameColorPointsBidPanel from '../BaseSameColorPointsBidPanel.js';
@@ -97,7 +98,7 @@ export const BasePlacementControlStrip: React.FC<{
                 className={`${btnBase} min-w-0 flex-1 basis-[42%] sm:basis-auto sm:min-w-[7rem] ${
                     !canRandomFill ? 'cursor-not-allowed opacity-55' : ''
                 }`}
-                title={canRandomFill ? '남은 돌 무작위 배치' : '남은 베이스돌이 없습니다'}
+                title={canRandomFill ? t('baseFooter.randomPlaceTitle') : t('baseFooter.randomPlaceDisabled')}
             >
                 랜덤 배치
             </button>
@@ -110,7 +111,7 @@ export const BasePlacementControlStrip: React.FC<{
                 className={`${btnBase} min-w-[3.75rem] flex-1 sm:flex-none ${
                     !canResetPlacement ? 'cursor-not-allowed opacity-55' : ''
                 }`}
-                title={canResetPlacement ? '배치한 베이스돌을 모두 치웁니다' : '칠 베이스돌이 없습니다'}
+                title={canResetPlacement ? t('baseFooter.resetTitle') : t('baseFooter.resetDisabled')}
             >
                 재배치
             </button>
@@ -127,13 +128,13 @@ export const BasePlacementControlStrip: React.FC<{
                 } ${stripBasePlacementComplete && !myReady ? (isSinglePlayer ? 'animate-base-complete-border-amber' : 'animate-base-complete-border-cyan') : ''}`}
                 title={
                     myReady
-                        ? '상대의 배치 완료를 기다리는 중입니다.'
+                        ? t('baseFooter.waitingOpponent')
                         : stripBasePlacementComplete
-                          ? '배치를 마쳤다면 눌러 다음 단계로 진행합니다.'
-                          : '베이스돌을 모두 놓은 뒤 눌러 주세요.'
+                          ? t('baseFooter.confirmNextStep')
+                          : t('baseFooter.placeAllFirst')
                 }
             >
-                {myReady ? '확인 완료' : '배치 완료'}
+                {myReady ? t('baseFooter.confirmed') : t('baseFooter.confirmComplete')}
             </button>
         </div>
     );
@@ -262,7 +263,7 @@ const BaseGameFooterPanel: React.FC<BaseGameFooterPanelProps> = ({
     if (pairLobbyOwnerId && !isPairHostPlacement) {
         return (
             <div className={`flex w-full min-w-0 flex-col gap-2 ${isMobile ? 'px-0.5' : 'px-1'}`}>
-                <p className="text-center text-[11px] font-semibold text-sky-200/95 sm:text-xs">방장이 양쪽 베이스돌을 배치합니다.</p>
+                <p className="text-center text-[11px] font-semibold text-sky-200/95 sm:text-xs">{t('baseFooter.hostPlacesBoth')}</p>
                 {barPct !== null && (
                     <div
                         className={`relative w-full flex-shrink-0 overflow-hidden rounded-full border-2 border-white/25 bg-slate-800/80 ${
@@ -290,28 +291,28 @@ const BaseGameFooterPanel: React.FC<BaseGameFooterPanelProps> = ({
 
     let primaryLine: string;
     if (myPlacements === null && !pairLobbyOwnerId) {
-        primaryLine = '베이스돌 배치 단계입니다.';
+        primaryLine = t('baseFooter.basePlacementPhase');
     } else if (pairLobbyOwnerId && isPairHostPlacement && !footerBasePlacementComplete) {
         const side = n1c < baseStoneCount ? player1.nickname : player2.nickname;
         const cur = n1c < baseStoneCount ? n1c : n2c;
         const parts = [
-            `방장 배치: ${side} 측 베이스돌`,
-            `남은 베이스돌 (${Math.max(0, baseStoneCount - cur)}/${baseStoneCount})`,
+            t('baseFooter.hostPlacementSide', { side }),
+            t('turn.baseStonesRemaining', { remaining: Math.max(0, baseStoneCount - cur), total: baseStoneCount }),
         ];
-        if (hasDeadline && secLeft !== null && session.gameCategory !== 'adventure') parts.push(`남은 시간 ${secLeft}초`);
+        if (hasDeadline && secLeft !== null && session.gameCategory !== 'adventure') parts.push(t('baseFooter.timeRemainingSec', { sec: secLeft }));
         primaryLine = parts.join(' · ');
     } else if (footerBasePlacementComplete && !myReady) {
-        primaryLine = `남은 베이스돌 (0/${baseStoneCount}) · 배치 완료를 눌러 주세요`;
+        primaryLine = t('baseFooter.confirmPlacementFull', { total: baseStoneCount });
     } else if (footerBasePlacementComplete && myReady) {
         primaryLine = pairLobbyOwnerId
-            ? `남은 베이스돌 (0/${baseStoneCount}) · 다음 단계로 진행 중…`
-            : `남은 베이스돌 (0/${baseStoneCount}) · 상대 확인 대기 중…`;
+            ? t('baseFooter.proceedingNext', { total: baseStoneCount })
+            : t('baseFooter.waitingOpponentShort', { total: baseStoneCount });
     } else {
-        const hint = isAdventureVsAi ? '베이스돌을 바둑판에 놓으세요' : '상대에게 보이지 않게 베이스돌을 바둑판에 놓으세요';
+        const hint = isAdventureVsAi ? t('baseFooter.placeVisibleAdventure') : t('baseFooter.placeHidden');
         const remain = Math.max(0, baseStoneCount - (myPlacements ?? 0));
-        const parts = [hint, `남은 베이스돌 (${remain}/${baseStoneCount})`];
+        const parts = [hint, t('turn.baseStonesRemaining', { remaining: remain, total: baseStoneCount })];
         if (hasDeadline && secLeft !== null && session.gameCategory !== 'adventure') {
-            parts.push(`남은 시간 ${secLeft}초`);
+            parts.push(t('baseFooter.timeRemainingSec', { sec: secLeft }));
         }
         primaryLine = parts.join(' · ');
     }
@@ -357,7 +358,7 @@ const BaseGameFooterPanel: React.FC<BaseGameFooterPanelProps> = ({
                     className={`${btnBase} min-w-0 flex-1 basis-[44%] sm:min-w-[7.5rem] ${
                         !canRandomFill ? 'cursor-not-allowed opacity-55' : ''
                     }`}
-                    title={canRandomFill ? '남은 돌 무작위 배치' : '남은 베이스돌이 없습니다'}
+                    title={canRandomFill ? t('baseFooter.randomPlaceTitle') : t('baseFooter.randomPlaceDisabled')}
                 >
                     랜덤 배치
                 </button>
@@ -370,7 +371,7 @@ const BaseGameFooterPanel: React.FC<BaseGameFooterPanelProps> = ({
                     className={`${btnBase} min-w-[4rem] flex-1 sm:flex-none ${
                         !canResetPlacement ? 'cursor-not-allowed opacity-55' : ''
                     }`}
-                    title={canResetPlacement ? '배치한 베이스돌을 모두 치웁니다' : '칠 베이스돌이 없습니다'}
+                    title={canResetPlacement ? t('baseFooter.resetTitle') : t('baseFooter.resetDisabled')}
                 >
                     재배치
                 </button>
@@ -387,13 +388,13 @@ const BaseGameFooterPanel: React.FC<BaseGameFooterPanelProps> = ({
                     } ${footerBasePlacementComplete && !myReady ? (isSinglePlayer ? 'animate-base-complete-border-amber' : 'animate-base-complete-border-cyan') : ''}`}
                     title={
                         myReady
-                            ? '상대의 배치 완료를 기다리는 중입니다.'
+                            ? t('baseFooter.waitingOpponent')
                             : footerBasePlacementComplete
-                              ? '배치를 마쳤다면 눌러 다음 단계로 진행합니다.'
-                              : '베이스돌을 모두 놓은 뒤 눌러 주세요.'
+                              ? t('baseFooter.confirmNextStep')
+                              : t('baseFooter.placeAllFirst')
                     }
                 >
-                    {myReady ? '확인 완료' : '배치 완료'}
+                    {myReady ? t('baseFooter.confirmed') : t('baseFooter.confirmComplete')}
                 </button>
             </div>
         </div>

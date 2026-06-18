@@ -1,62 +1,55 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { GameMode } from '../../types.js';
 import Button from '../Button.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants.js';
 import { aiChallengePanelInnerGradientClass } from './waitingLobbyHomePanelStyles.js';
+import { tx } from '../../shared/i18n/runtimeText.js';
 
-/** `title` 등: 모드별 「○○봇」 표기 */
 function resolveAiChallengeLobbyBotName(mode: GameMode | 'strategic' | 'playful'): string {
     if (typeof mode !== 'string') {
         const playfulDef = PLAYFUL_GAME_MODES.find((m) => m.mode === mode);
-        if (playfulDef) return `${playfulDef.name}봇`;
+        if (playfulDef) return tx('lobby:aiChallengeModal.botSuffix', { name: playfulDef.name });
         const strategicDef = SPECIAL_GAME_MODES.find((m) => m.mode === mode);
-        if (strategicDef) return `${strategicDef.name}봇`;
+        if (strategicDef) return tx('lobby:aiChallengeModal.botSuffix', { name: strategicDef.name });
     }
     if (mode === 'playful') {
         const def = PLAYFUL_GAME_MODES[0] ?? SPECIAL_GAME_MODES[0];
-        return `${def.name}봇`;
+        return tx('lobby:aiChallengeModal.botSuffix', { name: def.name });
     }
     const def = SPECIAL_GAME_MODES.find((d) => d.mode === GameMode.Standard) ?? SPECIAL_GAME_MODES[0];
-    return `${def.name}봇`;
+    return tx('lobby:aiChallengeModal.botSuffix', { name: def.name });
 }
 
-function defaultHeadingForMode(mode: GameMode | 'strategic' | 'playful'): string {
-    const isStrategic = mode === 'strategic' || SPECIAL_GAME_MODES.some((m) => m.mode === mode);
-    return isStrategic ? '전략 AI대전' : '놀이 AI대전';
-}
-
-const AI_CHALLENGE_PANEL_BOX_PX = 40;
-const AI_CHALLENGE_PANEL_BOT_IMAGE_SRC = '/images/bot.webp';
-
-/** 집계·페어 AI 패널 공통: `AI 전적 0승 0패 (0%)` */
 export function formatLobbyAiRecordLine(rec: { wins: number; losses: number }): string {
     const w = Math.max(0, Math.floor(Number(rec.wins) || 0));
     const l = Math.max(0, Math.floor(Number(rec.losses) || 0));
     const g = w + l;
     const pct = g > 0 ? Math.round((w / g) * 100) : 0;
-    return `AI 전적 ${w}승 ${l}패 (${pct}%)`;
+    return tx('lobby:aiChallengeModal.aiRecord', { wins: w, losses: l, winRate: pct });
 }
+
+const AI_CHALLENGE_PANEL_BOX_PX = 40;
+const AI_CHALLENGE_PANEL_BOT_IMAGE_SRC = '/images/bot.webp';
 
 const AiChallengePanel: React.FC<{
     mode: GameMode | 'strategic' | 'playful';
     onOpenModal: () => void;
-    /** true면 바깥 `aiChallengeFeatureShellClass` 껍데기만 쓰고 내부는 콘텐츠 행만 렌더 */
     noOuterShell?: boolean;
-    /** 우측 퀵 레일 등 좁은 폭: 세로 스택 */
     railLayout?: boolean;
-    /** 기본: 전략「전략 AI대전」·놀이「놀이 AI대전」 */
     headingTitle?: string;
-    /** 내 AI 대국 누적 전적(모드 합계). 생략 시 0승 0패(0%)로 표시 */
     aiRecord?: { wins: number; losses: number };
 }> = ({ mode, onOpenModal, noOuterShell = false, railLayout = false, headingTitle, aiRecord }) => {
+    const { t } = useTranslation('lobby');
     const isStrategic = mode === 'strategic' || SPECIAL_GAME_MODES.some((m) => m.mode === mode);
     const isPlayful = mode === 'playful' || PLAYFUL_GAME_MODES.some((m) => m.mode === mode);
 
     if (!isStrategic && !isPlayful) return null;
 
     const botName = resolveAiChallengeLobbyBotName(mode);
-    const title = headingTitle ?? defaultHeadingForMode(mode);
+    const title = headingTitle ?? (isStrategic ? t('aiChallenge.strategic') : t('aiChallenge.playful'));
     const aiRecordLineText = formatLobbyAiRecordLine(aiRecord ?? { wins: 0, losses: 0 });
+    const startLabel = t('aiChallenge.configureAndStart');
 
     const inner = railLayout ? (
         <div className="flex min-h-0 flex-col gap-2">
@@ -87,7 +80,7 @@ const AiChallengePanel: React.FC<{
                 colorScheme="purple"
                 className="!w-full !px-2 !py-2 !text-[11px] !font-bold shadow-[0_6px_16px_rgba(139,92,246,0.45)] sm:!text-xs"
             >
-                설정 및 시작
+                {startLabel}
             </Button>
         </div>
     ) : (
@@ -117,7 +110,7 @@ const AiChallengePanel: React.FC<{
                 colorScheme="purple"
                 className="!px-3.5 !py-2 !text-sm !font-bold shadow-[0_6px_16px_rgba(139,92,246,0.45)]"
             >
-                설정 및 시작
+                {startLabel}
             </Button>
         </div>
     );

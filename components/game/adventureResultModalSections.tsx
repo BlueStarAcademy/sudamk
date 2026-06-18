@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { tx } from '../../shared/i18n/runtimeText.js';
 import type { GameSummary } from '../../types.js';
 import { CONSUMABLE_ITEMS, CORE_STATS_DATA, EQUIPMENT_POOL, gradeStyles, MATERIAL_ITEMS } from '../../constants.js';
 import { CoreStat, ItemGrade } from '../../types/enums.js';
@@ -28,9 +29,9 @@ import AdventureKeyFragmentIcon from '../adventure/AdventureKeyFragmentIcon.js';
 import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 
 const ADVENTURE_DEFAULT_EQUIP_BOX_IMG =
-    CONSUMABLE_ITEMS.find((c) => c.name === '장비 상자 I')?.image ?? '/images/Box/EquipmentBox1.webp';
+    CONSUMABLE_ITEMS.find((c) => c.name === tx('game:dungeonSummary.equipmentBox1'))?.image ?? '/images/Box/EquipmentBox1.webp';
 const ADVENTURE_DEFAULT_MAT_BOX_IMG =
-    CONSUMABLE_ITEMS.find((c) => c.name === '재료 상자 I')?.image ?? '/images/Box/ResourceBox1.webp';
+    CONSUMABLE_ITEMS.find((c) => c.name === tx('game:dungeonSummary.materialBox1'))?.image ?? '/images/Box/ResourceBox1.webp';
 
 /** 모험 획득 보상: 한 줄 가로 배치, 넘치면 스크롤(미획득 칸 없음) */
 const ADVENTURE_REWARD_SCROLL_ROW_CLASS =
@@ -110,7 +111,7 @@ function buildAdventureCodexEffectLinesKo(codexId: string, level: number): strin
     const lines: string[] = [];
     if (bossBonus) {
         const pct = Math.min(level, ADVENTURE_CODEX_MAX_LEVEL) * ADVENTURE_CODEX_BOSS_PERCENT_PER_LEVEL;
-        lines.push(`보스: ${adventureCodexPercentBossBonusLabelKo(bossBonus)} +${pct}%`);
+        lines.push(tx("game:adventureResult.bossLine", { label: adventureCodexPercentBossBonusLabelKo(bossBonus), pct }));
         return lines;
     }
     if (design && !design.isBoss) {
@@ -122,7 +123,7 @@ function buildAdventureCodexEffectLinesKo(codexId: string, level: number): strin
             const specPct = design.normalPercentBonus.percentPerLevel * level;
             if (specPct > 0.0005) {
                 lines.push(
-                    `모험: ${adventureCodexNormalPercentLabelKo(design.normalPercentBonus.kind)} +${specPct}%`,
+                    tx("game:adventureResult.adventureLine", { label: adventureCodexNormalPercentLabelKo(design.normalPercentBonus.kind), pct: specPct }),
                 );
             }
         }

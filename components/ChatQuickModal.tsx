@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import DraggableWindow from './DraggableWindow.js';
 import ChatWindow from './waiting-room/ChatWindow.js';
 import type { ChatMessage, ServerAction } from '../types.js';
@@ -24,6 +25,7 @@ const ChatQuickModal: React.FC<ChatQuickModalProps> = ({
     isTopmost,
     embedded = false,
 }) => {
+    const { t } = useTranslation(['nav', 'lobby']);
     const isCompactViewport = useIsHandheldDevice(1024);
     const { isNativeMobile } = useNativeMobileShell();
     const isMobile = isCompactViewport || isNativeMobile;
@@ -58,7 +60,7 @@ const ChatQuickModal: React.FC<ChatQuickModalProps> = ({
                             mode="global"
                             onAction={onAction}
                             onViewUser={onViewUser}
-                            locationPrefix="[홈]"
+                            locationPrefix={t('locationPrefix.home', { ns: 'lobby' })}
                             compactTournamentMobile={isMobile}
                             arenaPremium
                         />
@@ -73,7 +75,7 @@ const ChatQuickModal: React.FC<ChatQuickModalProps> = ({
 
     return (
         <DraggableWindow
-            title="채팅"
+            title={t('chat.title')}
             onClose={onClose}
             windowId="chat-quick-modal"
             initialWidth={isMobile ? 720 : 520}

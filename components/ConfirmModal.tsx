@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
 
@@ -22,18 +23,22 @@ interface ConfirmModalProps {
 }
 
 const ConfirmModal: React.FC<ConfirmModalProps> = ({
-    title = '확인',
+    title,
     message,
     onConfirm,
     onCancel,
-    confirmText = '확인',
-    cancelText = '취소',
+    confirmText,
+    cancelText,
     confirmColorScheme = 'red',
     isTopmost = false,
     windowId,
     variant = 'default',
     ledgerCost,
 }) => {
+    const { t } = useTranslation('common');
+    const resolvedTitle = title ?? t('actions.confirm');
+    const resolvedConfirmText = confirmText ?? t('actions.confirm');
+    const resolvedCancelText = cancelText ?? t('actions.cancel');
     const modalWindowId = useMemo(() => windowId || 'confirm-modal', [windowId]);
     const isPremium = variant === 'premium-danger' || variant === 'premium-ledger';
 
@@ -48,7 +53,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
 
     return (
         <DraggableWindow
-            title={title}
+            title={resolvedTitle}
             windowId={modalWindowId}
             onClose={onCancel}
             initialWidth={initialWidth}
@@ -95,7 +100,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
                             />
                             {typeof ledgerCost === 'number' && (
                                 <div className="relative mb-4 flex flex-col items-center gap-1.5">
-                                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-200/50">소모</span>
+                                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-200/50">{t('modal.consume')}</span>
                                     <div className="flex items-center gap-2 rounded-full border border-amber-400/35 bg-black/50 px-5 py-2 shadow-inner ring-1 ring-amber-500/15">
                                         <img src={DIAMOND_ICON} alt="" className="h-6 w-6 object-contain" aria-hidden />
                                         <span className="text-2xl font-black tabular-nums tracking-tight text-amber-50 drop-shadow-[0_1px_8px_rgba(0,0,0,0.6)]">
@@ -128,7 +133,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
                                 : 'flex-1'
                         }
                     >
-                        {cancelText}
+                        {resolvedCancelText}
                     </Button>
                     <Button
                         onClick={handleConfirm}
@@ -141,7 +146,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
                                   : 'flex-1'
                         }
                     >
-                        {confirmText}
+                        {resolvedConfirmText}
                     </Button>
                 </div>
             </div>

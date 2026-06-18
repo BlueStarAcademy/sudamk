@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
 import { GameMode, GameSettings } from '../../types.js';
@@ -19,6 +20,7 @@ const GameCard: React.FC<{
     onToggle: (mode: GameMode) => void,
     isSelected: boolean,
 }> = ({ mode, image, name, onToggle, isSelected }) => {
+    const { t } = useTranslation('lobby');
     const [imgError, setImgError] = useState(false);
 
     return (
@@ -31,7 +33,6 @@ const GameCard: React.FC<{
             style={{ padding: '8px', gap: '4px' }}
             onClick={() => onToggle(mode)}
         >
-            {/* 체크박스 - 상단 우측에 명확하게 표시 */}
             <div className="absolute top-1 right-1 z-10 bg-green-600 rounded-full p-1 shadow-lg">
                 <input
                     type="checkbox"
@@ -41,10 +42,9 @@ const GameCard: React.FC<{
                     onClick={(e) => e.stopPropagation()}
                 />
             </div>
-            {/* 선택 표시 배지 */}
             {isSelected && (
                 <div className="absolute top-1 left-1 z-10 bg-green-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-lg">
-                    선택됨
+                    {t('ranked.selectedBadge')}
                 </div>
             )}
             <div 
@@ -75,6 +75,9 @@ const GameCard: React.FC<{
 };
 
 const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({ onClose, onStartMatching }) => {
+    const { t } = useTranslation('lobby');
+    const { t: tNeg } = useTranslation('negotiation');
+    const { t: tCommon } = useTranslation('common');
     const { currentUser } = useAppContext();
     const actionPointCost = useMemo(
         () => (currentUser ? effectiveStrategicRankedQueueApCostForUser(currentUser) : STRATEGIC_ACTION_POINT_COST),
@@ -91,7 +94,6 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({ o
     const [windowWidth, setWindowWidth] = useState(window.innerWidth);
     const [windowHeight, setWindowHeight] = useState(window.innerHeight);
 
-    // 우선순위 조정 함수들
     const moveModeUp = (mode: GameMode) => {
         setSelectedModes(prev => {
             const index = prev.indexOf(mode);
@@ -136,11 +138,9 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({ o
                 ? prev.filter(m => m !== mode)
                 : [...prev, mode]
         );
-        // 상세 정보 표시를 위해 선택된 모드 중 하나를 selectedMode로 설정
         if (!selectedModes.includes(mode)) {
             setSelectedMode(mode);
         } else if (selectedMode === mode) {
-            // 선택 해제된 모드가 현재 상세 정보로 표시된 모드면 다른 선택된 모드로 변경
             const remaining = selectedModes.filter(m => m !== mode);
             setSelectedMode(remaining.length > 0 ? remaining[0] : null);
         }
@@ -148,7 +148,7 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({ o
 
     const handleStartMatching = () => {
         if (selectedModes.length === 0) {
-            alert('최소 1개 이상의 게임 모드를 선택해주세요.');
+            alert(t('ranked.selectModesMin'));
             return;
         }
         onStartMatching(selectedModes);
@@ -161,77 +161,76 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({ o
         const items: { label: string; value: string }[] = [];
 
         if (settings.boardSize) {
-            items.push({ label: '판 크기', value: `${settings.boardSize}줄` });
+            items.push({ label: tNeg('settings.boardSize'), value: t('ranked.boardSizeValue', { size: settings.boardSize }) });
         }
         if (settings.scoringTurnLimit && settings.scoringTurnLimit > 0) {
-            items.push({ label: '계가까지', value: `${settings.scoringTurnLimit}수` });
+            items.push({ label: t('ranked.scoringUntil'), value: t('ranked.scoringTurnValue', { count: settings.scoringTurnLimit }) });
         }
         if (settings.timeLimit > 0) {
-            items.push({ label: '제한시간', value: `${settings.timeLimit}분` });
+            items.push({ label: t('ranked.timeLimit'), value: t('ranked.minutesFormat', { minutes: settings.timeLimit }) });
         }
         if (settings.byoyomiTime > 0 && settings.byoyomiCount > 0) {
-            items.push({ label: '초읽기', value: `${settings.byoyomiTime}초 × ${settings.byoyomiCount}회` });
+            items.push({ label: t('ranked.byoyomi'), value: t('ranked.byoyomiFormat', { seconds: settings.byoyomiTime, count: settings.byoyomiCount }) });
         }
         if (settings.timeIncrement && settings.timeIncrement > 0) {
-            items.push({ label: '시간 추가', value: `피셔 방식 ${settings.timeIncrement}초` });
+            items.push({ label: t('ranked.timeIncrement'), value: t('ranked.fischerIncrement', { seconds: settings.timeIncrement }) });
         }
         if (settings.captureTarget) {
-            items.push({ label: '목표점수', value: `${settings.captureTarget}점` });
+            items.push({ label: t('ranked.targetScore'), value: t('ranked.scorePoints', { score: settings.captureTarget }) });
         }
         if (settings.hiddenStoneCount) {
-            items.push({ label: '히든 아이템', value: `${settings.hiddenStoneCount}개` });
+            items.push({ label: t('ranked.hiddenItem'), value: t('ranked.itemCountValue', { count: settings.hiddenStoneCount }) });
         }
         if (settings.scanCount) {
-            items.push({ label: '스캔 아이템', value: `${settings.scanCount}개` });
+            items.push({ label: t('ranked.scanItem'), value: t('ranked.itemCountValue', { count: settings.scanCount }) });
         }
         if (settings.missileCount) {
-            items.push({ label: '미사일 아이템', value: `${settings.missileCount}개` });
+            items.push({ label: t('ranked.missileItem'), value: t('ranked.itemCountValue', { count: settings.missileCount }) });
         }
         if (settings.castleCount) {
-            items.push({ label: '캐슬', value: `${settings.castleCount}개` });
+            items.push({ label: tNeg('settings.castle'), value: t('ranked.itemCountValue', { count: settings.castleCount }) });
         }
         if (settings.diceGoRounds) {
-            items.push({ label: '라운드', value: `${settings.diceGoRounds}라운드` });
+            items.push({ label: tNeg('settings.round'), value: t('ranked.roundUnit', { count: settings.diceGoRounds }) });
         }
         if (settings.has33Forbidden !== undefined) {
-            items.push({ label: '쌍삼 금지', value: settings.has33Forbidden ? '적용' : '미적용' });
+            items.push({ label: t('ranked.forbid33Short'), value: settings.has33Forbidden ? t('ranked.applied') : t('ranked.notApplied') });
         }
         if (settings.hasOverlineForbidden !== undefined) {
-            items.push({ label: '장목 금지', value: settings.hasOverlineForbidden ? '적용' : '미적용' });
+            items.push({ label: t('ranked.forbidOverlineShort'), value: settings.hasOverlineForbidden ? t('ranked.applied') : t('ranked.notApplied') });
         }
         if (settings.alkkagiRounds) {
-            items.push({ label: '라운드', value: `${settings.alkkagiRounds}라운드` });
+            items.push({ label: tNeg('settings.round'), value: t('ranked.roundUnit', { count: settings.alkkagiRounds }) });
         }
         if (settings.alkkagiStoneCount) {
-            items.push({ label: '배치 개수', value: `${settings.alkkagiStoneCount}개` });
+            items.push({ label: t('ranked.stonePlacementCount'), value: t('ranked.itemCountValue', { count: settings.alkkagiStoneCount }) });
         }
         if (settings.alkkagiGaugeSpeed) {
-            items.push({ label: '힘 속도', value: `빠름 ×${settings.alkkagiGaugeSpeed}` });
+            items.push({ label: t('ranked.gaugeSpeed'), value: t('ranked.gaugeFast', { speed: settings.alkkagiGaugeSpeed }) });
         }
         if (settings.alkkagiSlowItemCount) {
-            items.push({ label: '슬로우', value: `${settings.alkkagiSlowItemCount}개` });
+            items.push({ label: t('ranked.slowItem'), value: t('ranked.itemCountValue', { count: settings.alkkagiSlowItemCount }) });
         }
         if (settings.alkkagiAimingLineItemCount) {
-            items.push({ label: '조준선', value: `${settings.alkkagiAimingLineItemCount}개` });
+            items.push({ label: t('ranked.aimingLine'), value: t('ranked.itemCountValue', { count: settings.alkkagiAimingLineItemCount }) });
         }
         if (settings.curlingRounds) {
-            items.push({ label: '라운드', value: `${settings.curlingRounds}라운드` });
+            items.push({ label: tNeg('settings.round'), value: t('ranked.roundUnit', { count: settings.curlingRounds }) });
         }
         if (settings.curlingStoneCount) {
-            items.push({ label: '스톤 개수', value: `${settings.curlingStoneCount}개` });
+            items.push({ label: t('ranked.stoneCount'), value: t('ranked.itemCountValue', { count: settings.curlingStoneCount }) });
         }
         if (settings.curlingGaugeSpeed) {
-            items.push({ label: '힘 속도', value: `빠름 ×${settings.curlingGaugeSpeed}` });
+            items.push({ label: t('ranked.gaugeSpeed'), value: t('ranked.gaugeFast', { speed: settings.curlingGaugeSpeed }) });
         }
         if (settings.curlingSlowItemCount) {
-            items.push({ label: '슬로우', value: `${settings.curlingSlowItemCount}개` });
+            items.push({ label: t('ranked.slowItem'), value: t('ranked.itemCountValue', { count: settings.curlingSlowItemCount }) });
         }
         if (settings.curlingAimingLineItemCount) {
-            items.push({ label: '조준선', value: `${settings.curlingAimingLineItemCount}개` });
+            items.push({ label: t('ranked.aimingLine'), value: t('ranked.itemCountValue', { count: settings.curlingAimingLineItemCount }) });
         }
-        // 클래식바둑 특별 처리
         if (mode === GameMode.Standard) {
-            items.push({ label: '랭킹 점수', value: '승리시 2배, 패배시 절반' });
+            items.push({ label: t('ranked.rankingScore'), value: t('ranked.scoreBonusWin') });
         }
 
         return items;
@@ -239,7 +238,7 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({ o
 
     return (
         <DraggableWindow 
-            title="랭킹전 게임 선택" 
+            title={t('ranked.selectTitle')} 
             onClose={onClose} 
             windowId="ranked-match-selection" 
             initialWidth={calculatedWidth} 
@@ -247,13 +246,11 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({ o
             isTopmost
         >
             <div className="flex h-full">
-                {/* Left Panel: Game Selection */}
                 <div className={`w-1/3 bg-tertiary/30 ${isCompactViewport ? 'p-2' : 'p-4'} flex flex-col text-on-panel rounded-l-lg border-r border-gray-700`}>
                     <h3 className="font-bold text-green-300 mb-3" style={{ fontSize: `${Math.max(12, Math.round(16 * mobileTextScale))}px` }}>
-                        게임 모드 선택 (다중 선택 가능)
+                        {t('ranked.multiSelectTitle')}
                     </h3>
                     
-                    {/* 모든 게임들 표시 (선택 여부와 관계없이) */}
                     <div className="grid flex-1 grid-cols-2 items-start gap-2 overflow-y-auto pr-2">
                         {availableGameDefinitions.map((game) => {
                             const isSelected = selectedModes.includes(game.mode);
@@ -273,18 +270,16 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({ o
 
                     <div className="mt-3 pt-3 border-t border-gray-700">
                         <p className="text-xs text-gray-400">
-                            선택된 게임: {selectedModes.length}개
+                            {t('ranked.selectedCount', { count: selectedModes.length })}
                         </p>
                     </div>
                 </div>
 
-                {/* Right Panel: Priority List, Game Description and Settings */}
                 <div className={`w-2/3 bg-primary ${isCompactViewport ? 'p-2' : 'p-4'} flex flex-col rounded-r-lg overflow-y-auto`}>
-                    {/* 우선순위 목록 - 오른쪽 제일 위에 표시 */}
                     {selectedModes.length > 0 && (
                         <div className="mb-4 flex-1 min-h-0 flex flex-col">
                             <h4 className="font-semibold text-yellow-300 mb-2 flex-shrink-0" style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>
-                                선택된 게임 우선순위 (1순위가 가장 높음)
+                                {t('ranked.priorityTitle')}
                             </h4>
                             <div className="bg-gray-900/50 border border-yellow-700/50 rounded-lg p-3 flex-1 min-h-0 flex flex-col">
                                 <div className="space-y-2 flex-1 overflow-y-auto min-h-0">
@@ -297,26 +292,21 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({ o
                                                 key={mode} 
                                                 className="flex items-center gap-2 bg-gray-800/70 rounded-lg p-2 border border-gray-700 hover:border-green-500 transition-colors"
                                             >
-                                                {/* 우선순위 번호 */}
                                                 <div className="flex-shrink-0 w-7 h-7 bg-green-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
                                                     {index + 1}
                                                 </div>
                                                 
-                                                {/* 게임 이미지 */}
                                                 <img 
                                                     src={gameDef.image} 
                                                     alt={gameDef.name}
                                                     className="w-10 h-10 object-contain flex-shrink-0"
                                                 />
                                                 
-                                                {/* 게임 이름 */}
                                                 <span className="flex-grow text-sm text-white font-medium">
                                                     {gameDef.name}
                                                 </span>
                                                 
-                                                {/* 우선순위 조정 및 취소 버튼 */}
                                                 <div className="flex items-center gap-1 flex-shrink-0">
-                                                    {/* 우선순위 조정 버튼 */}
                                                     <div className="flex flex-col gap-1">
                                                         <button
                                                             onClick={() => moveModeUp(mode)}
@@ -327,7 +317,7 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({ o
                                                                     : 'bg-green-600 hover:bg-green-500 text-white'
                                                             }`}
                                                             style={{ fontSize: '11px' }}
-                                                            title="우선순위 올리기"
+                                                            title={t('ranked.priorityUp')}
                                                         >
                                                             ↑
                                                         </button>
@@ -340,17 +330,16 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({ o
                                                                     : 'bg-green-600 hover:bg-green-500 text-white'
                                                             }`}
                                                             style={{ fontSize: '11px' }}
-                                                            title="우선순위 내리기"
+                                                            title={t('ranked.priorityDown')}
                                                         >
                                                             ↓
                                                         </button>
                                                     </div>
-                                                    {/* 선택 취소 버튼 */}
                                                     <button
                                                         onClick={() => handleModeToggle(mode)}
                                                         className="w-6 h-6 flex items-center justify-center rounded bg-red-600 hover:bg-red-500 text-white"
                                                         style={{ fontSize: '12px' }}
-                                                        title="선택 취소"
+                                                        title={t('ranked.deselect')}
                                                     >
                                                         ×
                                                     </button>
@@ -360,14 +349,13 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({ o
                                     })}
                                 </div>
                                 <p className="text-xs text-yellow-300 mt-2 pt-2 border-t border-gray-700 flex-shrink-0">
-                                    💡 우선순위는 위아래 버튼으로 조정하거나, 선택 취소(×)로 제거할 수 있습니다.
+                                    {t('ranked.priorityAdjustTip')}
                                 </p>
                             </div>
                         </div>
                     )}
                     {selectedGameDefinition ? (
                         <div className={`flex gap-4 ${isCompactViewport ? 'flex-col' : 'flex-row'} flex-shrink-0`} style={{ maxHeight: '40%' }}>
-                            {/* Game Info - 왼쪽 */}
                             <div className={`bg-gray-900/50 rounded-lg border border-gray-700 ${isCompactViewport ? 'p-2' : 'p-3'} ${isCompactViewport ? 'w-full' : 'w-1/2'} flex-shrink-0 flex flex-col`}>
                                 <div className="flex items-center gap-3 mb-3">
                                     <img 
@@ -380,24 +368,23 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({ o
                                             {selectedGameDefinition.name}
                                         </h3>
                                         <p className="text-xs text-gray-400">
-                                            {selectedModes.includes(selectedGameDefinition.mode) ? '✓ 선택됨' : '선택되지 않음'}
+                                            {selectedModes.includes(selectedGameDefinition.mode) ? t('ranked.selected') : t('ranked.notSelected')}
                                         </p>
                                     </div>
                                 </div>
                                 <div className="border-t border-gray-700 pt-3 mt-3 flex-1">
                                     <h4 className="font-semibold text-gray-300 mb-2" style={{ fontSize: `${Math.max(10, Math.round(12 * mobileTextScale))}px` }}>
-                                        게임 설명
+                                        {t('ranked.gameDescription')}
                                     </h4>
                                     <p className="text-tertiary leading-relaxed" style={{ fontSize: `${Math.max(9, Math.round(11 * mobileTextScale))}px` }}>
-                                        {selectedGameDefinition.description || '선택된 게임에 대한 설명이 없습니다.'}
+                                        {selectedGameDefinition.description || t('ranked.noDescription')}
                                     </p>
                                 </div>
                             </div>
 
-                            {/* Ranked Settings - 오른쪽 */}
                             <div className={`bg-yellow-900/20 border border-yellow-700/50 rounded-lg ${isCompactViewport ? 'p-2' : 'p-3'} ${isCompactViewport ? 'w-full' : 'w-1/2'} flex-shrink-0 flex flex-col`}>
                                 <h4 className="font-semibold text-yellow-300 mb-3 flex-shrink-0" style={{ fontSize: `${Math.max(10, Math.round(12 * mobileTextScale))}px` }}>
-                                    게임 설정
+                                    {t('ranked.gameSettingsTitle')}
                                 </h4>
                                 <div className="grid grid-cols-1 gap-2 overflow-y-auto flex-1">
                                     {renderRankedSettings(selectedGameDefinition.mode)?.map((item, idx) => (
@@ -412,19 +399,18 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({ o
                     ) : (
                         <div className="flex-1 flex items-center justify-center">
                             <p className="text-gray-400 text-center">
-                                왼쪽에서 게임 모드를 선택해주세요.
+                                {t('ranked.selectModeLeftPrompt')}
                             </p>
                         </div>
                     )}
 
-                    {/* Bottom Buttons */}
                     <div className="border-t border-gray-700 flex justify-end gap-2 mt-4 pt-4 flex-shrink-0">
                         <Button 
                             onClick={onClose} 
                             colorScheme="gray" 
                             style={{ fontSize: `${Math.max(10, Math.round(12 * mobileTextScale))}px` }}
                         >
-                            취소
+                            {tCommon('actions.cancel')}
                         </Button>
                         <Button 
                             onClick={handleStartMatching} 
@@ -432,7 +418,7 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({ o
                             disabled={selectedModes.length === 0}
                             style={{ fontSize: `${Math.max(10, Math.round(12 * mobileTextScale))}px` }}
                         >
-                            매칭 시작 ({selectedModes.length}개 선택) (⚡{actionPointCost})
+                            {t('ranked.startMatching', { count: selectedModes.length })} (⚡{actionPointCost})
                         </Button>
                     </div>
                 </div>
@@ -442,4 +428,3 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({ o
 };
 
 export default RankedMatchSelectionModal;
-

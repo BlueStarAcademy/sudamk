@@ -1,4 +1,6 @@
 
+import { useLocalizedItemGrade, useLocalizedEquipmentSlot } from '../../shared/i18n/localizedCatalog.js';
+import { useTranslation } from 'react-i18next';
 import React, { useState, useMemo } from 'react';
 import { InventoryItem, ServerAction, ItemGrade, EquipmentSlot, UserWithStatus } from '../../types.js';
 import ResourceActionButton from '../ui/ResourceActionButton.js';
@@ -6,25 +8,18 @@ import { BLACKSMITH_COMBINATION_GREAT_SUCCESS_RATES } from '../../constants/rule
 import { formatBlacksmithPercentInt } from '../../shared/utils/formatBlacksmithPercentInt.js';
 import { getBlacksmithViewerTypography, BLACKSMITH_MOBILE_WORK_ROOT_CLASS } from '../../shared/constants/blacksmithViewerTypography.js';
 
-const gradeStyles: Record<ItemGrade, { name: string; color: string; background: string; }> = {
-    normal: { name: '일반', color: 'text-gray-300', background: '/images/equipments/normalbgi.webp' },
-    uncommon: { name: '고급', color: 'text-green-400', background: '/images/equipments/uncommonbgi.webp' },
-    rare: { name: '희귀', color: 'text-blue-400', background: '/images/equipments/rarebgi.webp' },
-    epic: { name: '에픽', color: 'text-purple-400', background: '/images/equipments/epicbgi.webp' },
-    legendary: { name: '전설', color: 'text-red-500', background: '/images/equipments/legendarybgi.webp' },
-    mythic: { name: '신화', color: 'text-orange-400', background: '/images/equipments/mythicbgi.webp' },
-    transcendent: { name: '초월', color: 'text-cyan-300', background: '/images/equipments/transcendentbgi.webp' },
+const gradeStyles: Record<ItemGrade, { color: string; background: string; }> = {
+    normal: { color: 'text-gray-300', background: '/images/equipments/normalbgi.webp' },
+    uncommon: { color: 'text-green-400', background: '/images/equipments/uncommonbgi.webp' },
+    rare: { color: 'text-blue-400', background: '/images/equipments/rarebgi.webp' },
+    epic: { color: 'text-purple-400', background: '/images/equipments/epicbgi.webp' },
+    legendary: { color: 'text-red-500', background: '/images/equipments/legendarybgi.webp' },
+    mythic: { color: 'text-orange-400', background: '/images/equipments/mythicbgi.webp' },
+    transcendent: { color: 'text-cyan-300', background: '/images/equipments/transcendentbgi.webp' },
 };
 
 const ALL_SLOTS: EquipmentSlot[] = ['fan', 'board', 'top', 'bottom', 'bowl', 'stones'];
-const SLOT_NAMES_KO: Record<EquipmentSlot, string> = {
-    fan: '부채',
-    board: '바둑판',
-    top: '상의',
-    bottom: '하의',
-    bowl: '바둑통',
-    stones: '바둑돌',
-};
+
 
 const getProbabilityPanelTypography = (pcViewer: boolean, mobileWork = false) => {
     const typo = getBlacksmithViewerTypography(pcViewer, { mobileWork });
@@ -69,7 +64,7 @@ const ItemSlot: React.FC<{ item: InventoryItem | null; onRemove: () => void; isC
     if (!item) {
         return (
             <div className={`${getMaterialSlotHeightClass(isCompact)} rounded-lg border-2 border-dashed border-amber-500/30 bg-black/35 ${typo.body} text-amber-100/70 flex items-center justify-center`}>
-                재료
+                {t('combine.emptyMaterial')}
             </div>
         );
     }
@@ -81,8 +76,8 @@ const ItemSlot: React.FC<{ item: InventoryItem | null; onRemove: () => void; isC
         <button
             type="button"
             onClick={onRemove}
-            title="재료 해제"
-            aria-label={`${item.name} 재료 해제`}
+            title={t('combine.removeMaterial')}
+            aria-label={t('combine.removeMaterialAria', { name: item.name })}
             className={`${getMaterialSlotHeightClass(isCompact)} ${isCompact ? 'p-1.5' : 'p-2.5'} relative cursor-pointer rounded-lg border border-amber-400/20 bg-gradient-to-b from-[#191e2b]/80 via-[#121724]/90 to-[#0c1018]/95 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] flex flex-col items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70`}
         >
             <div
@@ -94,7 +89,7 @@ const ItemSlot: React.FC<{ item: InventoryItem | null; onRemove: () => void; isC
                 )}
             </div>
             <p className={`${isCompact ? typo.caption : typo.bodySemi} font-bold ${styles.color} whitespace-nowrap overflow-hidden text-ellipsis w-full`} title={item.name}>{item.name}</p>
-            <p className={`${isCompact ? typo.caption : typo.body} text-slate-400`}>{SLOT_NAMES_KO[item.slot!] || '기타'}</p>
+            <p className={`${isCompact ? typo.caption : typo.body} text-slate-400`}>{item.slot ? localizedSlot(item.slot) : t('combine.slotFallback')}</p>
         </button>
     );
 };
@@ -141,7 +136,7 @@ const OutcomeProbability: React.FC<{
         <div
             className={`w-full rounded-xl border border-amber-400/20 bg-gradient-to-b from-[#171c29]/75 via-black/35 to-black/45 p-2.5 ${className}`.trim()}
         >
-            <h4 className={`text-center text-amber-100 ${probTypo.heading}`}>결과물 종류 확률</h4>
+            <h4 className={`text-center text-amber-100 ${probTypo.heading}`}>{t('combine.resultSlotProb')}</h4>
             <div className={probTypo.list}>
                 {ALL_SLOTS.map((slot) => (
                     <div key={slot} className={probTypo.row}>
@@ -181,14 +176,14 @@ const GradeProbability: React.FC<{
         <div
             className={`w-full rounded-xl border border-amber-400/20 bg-gradient-to-b from-[#171c29]/75 via-black/35 to-black/45 p-2.5 ${className}`.trim()}
         >
-            <h4 className={`text-center text-amber-100 ${probTypo.heading}`}>결과물 등급 확률</h4>
+            <h4 className={`text-center text-amber-100 ${probTypo.heading}`}>{t('combine.resultGradeProb')}</h4>
             <div className={probTypo.list}>
                 <div className={probTypo.row}>
-                    <span className={probTypo.label}>성공:</span>
+                    <span className={probTypo.label}>{t('successLabel', { ns: 'common' })}</span>
                     <span className={`${probTypo.value} text-emerald-200`}>{formatBlacksmithPercentInt(probabilities.successRate)}%</span>
                 </div>
                 <div className={probTypo.row}>
-                    <span className="text-yellow-400">대성공:</span>
+                    <span className="text-yellow-400">{t('combine.greatSuccess')}</span>
                     <span className={`${probTypo.value} text-amber-200`}>{formatBlacksmithPercentInt(probabilities.greatSuccessRate)}%</span>
                 </div>
             </div>
@@ -206,6 +201,9 @@ interface CombinationViewProps {
 }
 
 const CombinationView: React.FC<CombinationViewProps> = ({
+    const { t } = useTranslation('blacksmith');
+    const localizedGrade = useLocalizedItemGrade();
+    const localizedSlot = useLocalizedEquipmentSlot();
     items,
     onRemoveItem,
     onAction,
@@ -255,7 +253,7 @@ const CombinationView: React.FC<CombinationViewProps> = ({
                                 onChange={(e) => setIsRandom(e.target.checked)}
                                 className={`${isMobile ? 'h-4 w-4' : 'h-4 w-4'} rounded text-accent bg-slate-800 border-slate-600 focus:ring-accent`}
                             />
-                            <label htmlFor="random-combine" className={`${typo.body} text-slate-200`}>완전 랜덤 종류로 받기</label>
+                            <label htmlFor="random-combine" className={`${typo.body} text-slate-200`}>{t('combine.randomCombine')}</label>
                         </div>
 
                         <ResourceActionButton
@@ -264,7 +262,7 @@ const CombinationView: React.FC<CombinationViewProps> = ({
                             variant="materials"
                             className={`shrink-0 w-full max-w-xs ${typo.bodySemi} py-2.5 px-6`}
                         >
-                            {isBlacksmithBusy ? '합성 중...' : '합성'}
+                            {isBlacksmithBusy ? t('combine.combining') : t('combine.combineBtn')}
                         </ResourceActionButton>
                     </div>
                 </div>

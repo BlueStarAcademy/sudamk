@@ -1,5 +1,6 @@
 
 import React, { forwardRef, useImperativeHandle, useState, useEffect, useRef, useMemo, ReactNode, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AlkkagiStone, GameStatus, Player, Point, LiveGameSession, UserWithStatus, GameProps } from '../../types.js';
 import CurlingBoard, { CurlingBoardHandle } from '../CurlingBoard.js';
 import { AttackToTurnGauge } from '../AttackToTurnGauge.js';
@@ -24,6 +25,7 @@ function usePrevious<T>(value: T): T | undefined {
 }
 
 const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, ref) => {
+    const { t } = useTranslation('game');
     const { session, onAction, currentUser, isSpectator, isMobile = false } = props;
     const { id: gameId, settings, gameStatus, curlingStones, currentPlayer, activeCurlingItems } = session;
     const isCurlingAimPhase = gameStatus === 'curling_playing' || gameStatus === 'curling_tiebreaker_playing';
@@ -534,7 +536,7 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
                     <AttackToTurnGauge
                         startTime={session.animation!.startTime}
                         durationMs={session.animation!.duration}
-                        label="턴 전환까지"
+                        label={t('board.turnSwitchIn')}
                     />
                 )}
                 {shouldShowPowerGauge && (

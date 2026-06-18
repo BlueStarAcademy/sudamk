@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { User, GameRecord, ServerAction } from '../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants/gameModes.js';
 import DraggableWindow from './DraggableWindow.js';
@@ -21,6 +22,7 @@ interface GameRecordListModalProps {
 }
 
 const GameRecordListModal: React.FC<GameRecordListModalProps> = ({
+    const { t } = useTranslation('profile');
     currentUser,
     onClose,
     onAction,
@@ -69,7 +71,7 @@ const GameRecordListModal: React.FC<GameRecordListModalProps> = ({
     const handleDelete = async (recordId: string, e: React.MouseEvent) => {
         e.stopPropagation();
         if (deletingId) return;
-        if (!confirm('기보를 삭제하시겠습니까?')) return;
+        if (!confirm(t('gameRecords.deleteConfirm'))) return;
 
         setDeletingId(recordId);
         try {
@@ -101,8 +103,8 @@ const GameRecordListModal: React.FC<GameRecordListModalProps> = ({
                         <img src="/images/quickmenu/gibo.webp" alt="" className="h-9 w-9 opacity-50" />
                     </div>
                     <div>
-                        <p className="text-sm font-semibold text-slate-200">저장된 기보가 없습니다</p>
-                        <p className="mt-1 text-xs text-slate-500">게임 종료 후 기보 저장을 누르면 여기에 쌓입니다.</p>
+                        <p className="text-sm font-semibold text-slate-200">{t('gameRecords.noSaved')}</p>
+                        <p className="mt-1 text-xs text-slate-500">{t('gameRecords.saveHint')}</p>
                     </div>
                 </div>
             );
@@ -152,9 +154,7 @@ const GameRecordListModal: React.FC<GameRecordListModalProps> = ({
                                     <span className="shrink-0 tabular-nums">{formatDateShort(record.date)}</span>
                                 </div>
                                 <div className="mt-0.5 text-xs tabular-nums text-slate-400">
-                                    흑 {record.gameResult.blackScore}
-                                    <span className="mx-1 text-slate-600">:</span>
-                                    {record.gameResult.whiteScore} 백
+                                    {t('gameRecords.blackWhiteScore', { black: record.gameResult.blackScore, white: record.gameResult.whiteScore })}
                                 </div>
                                 <button
                                     type="button"
@@ -162,7 +162,7 @@ const GameRecordListModal: React.FC<GameRecordListModalProps> = ({
                                     className={`absolute bottom-1.5 right-1.5 rounded-md p-1 text-rose-300/70 opacity-0 ring-1 ring-transparent transition group-hover:opacity-100 hover:bg-rose-950/50 hover:ring-rose-500/30 ${
                                         deletingId === record.id ? 'pointer-events-none opacity-40' : ''
                                     } ${isSelected ? 'opacity-70' : ''}`}
-                                    title="삭제"
+                                    title={t('gameRecords.deleteTitle')}
                                 >
                                     <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                                         <path
@@ -186,7 +186,7 @@ const GameRecordListModal: React.FC<GameRecordListModalProps> = ({
             return (
                 <div className="flex h-full min-h-[10rem] flex-col items-center justify-center gap-2 px-4 text-center text-slate-500">
                     <img src="/images/quickmenu/gibo.webp" alt="" className="h-10 w-10 opacity-40" />
-                    <p className="text-sm">목록에서 기보를 선택하면 우측에서 바로 복기할 수 있습니다.</p>
+                    <p className="text-sm">{t('gameRecords.selectHint')}</p>
                 </div>
             );
         }
@@ -268,7 +268,7 @@ const GameRecordListModal: React.FC<GameRecordListModalProps> = ({
 
     return (
         <DraggableWindow
-            title="기보"
+            title={t('gameRecords.title')}
             onClose={onClose}
             initialWidth={1280}
             initialHeight={720}

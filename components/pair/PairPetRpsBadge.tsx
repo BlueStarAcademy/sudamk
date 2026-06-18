@@ -6,11 +6,12 @@ import {
     pairPetRpsBadgePxFromAnchor,
 } from '../../shared/utils/pairPetRps.js';
 import type { PairPetRpsAttribute } from '../../types/entities.js';
+import { tx } from '../../shared/i18n/runtimeText.js';
 
 const ATTR_ALT: Record<PairPetRpsAttribute, string> = {
-    1: '가위',
-    2: '바위',
-    3: '보',
+    1: tx('pair:rps.scissors'),
+    2: tx('pair:rps.rock'),
+    3: tx('pair:rps.paper'),
 };
 
 /** 펫 초상 좌측 상단 — 가위·바위·보 */

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { LiveGameSession } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
 import PreGameColorRoulette from './PreGameColorRoulette.js';
@@ -10,6 +11,7 @@ interface ThiefDeathmatchRoleRouletteModalProps {
 
 /** 2라운드 동점 후 데스매치: 서버가 이미 도둑(흑)·경찰(백)을 정한 뒤 룰렛만 보여 주고 곧바로 굴림 단계로 넘어감 */
 const ThiefDeathmatchRoleRouletteModal: React.FC<ThiefDeathmatchRoleRouletteModalProps> = ({ session }) => {
+    const { t } = useTranslation('game');
     const { blackPlayerId, whitePlayerId, player1, player2 } = session;
 
     if (!blackPlayerId || !whitePlayerId) return null;
@@ -23,7 +25,7 @@ const ThiefDeathmatchRoleRouletteModal: React.FC<ThiefDeathmatchRoleRouletteModa
 
     return (
         <DraggableWindow
-            title="데스매치 역할"
+            title={t('deathmatchRoleTitle', { ns: 'common' })}
             windowId="thief-deathmatch-role-roulette"
             initialWidth={400}
             shrinkHeightToContent
@@ -41,12 +43,12 @@ const ThiefDeathmatchRoleRouletteModal: React.FC<ThiefDeathmatchRoleRouletteModa
                     blackPlayer={blackUi}
                     whitePlayer={whiteUi}
                     durationMs={4200}
-                    title="데스매치 역할 룰렛"
-                    subtitle="무작위로 도둑(흑)과 경찰(백)이 배정됩니다. 곧바로 굴림이 시작됩니다."
-                    blackRoleLabel="도둑 · 흑"
-                    whiteRoleLabel="경찰 · 백"
+                    title={t('deathmatchRoleTitle', { ns: 'common' })}
+                    subtitle={t('thiefDeathmatch.subtitleRich')}
+                    blackRoleLabel={t('blackRoleThief', { ns: 'common' })}
+                    whiteRoleLabel={t('whiteRolePolice', { ns: 'common' })}
                 />
-                <p className="mt-3 text-center text-xs leading-relaxed text-stone-300">연출 종료 후 자동으로 진행됩니다.</p>
+                <p className="mt-3 text-center text-xs leading-relaxed text-stone-300">{t('thiefDeathmatch.autoProceed')}</p>
             </div>
         </DraggableWindow>
     );

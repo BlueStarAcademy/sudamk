@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import DraggableWindow from './DraggableWindow.js';
 import { CoreStat, SpecialStat, MythicStat } from '../types.js';
 import { CORE_STATS_DATA, SPECIAL_STATS_DATA, MYTHIC_STATS_DATA } from '../constants';
@@ -22,14 +23,6 @@ interface EquipmentEffectsModalProps {
 
 const TAB_IDS = ['summary', 'main', 'combat', 'special', 'mythic'] as const;
 type TabId = (typeof TAB_IDS)[number];
-
-const TAB_LABEL: Record<TabId, string> = {
-    summary: '한눈에',
-    main: '주옵션',
-    combat: '전투 부옵션',
-    special: '특수',
-    mythic: '스페셜',
-};
 
 function formatFlatPercent(b: { flat: number; percent: number } | undefined): { flatStr: string | null; pctStr: string | null } {
     if (!b) return { flatStr: null, pctStr: null };
@@ -95,7 +88,7 @@ const MeterBar: React.FC<{ ratio: number; variant: 'amber' | 'violet' | 'emerald
 
 const formatMythicStat = (stat: MythicStat, _data: { count: number; totalValue: number }): React.ReactNode => {
     const row = MYTHIC_STATS_DATA[stat];
-    if (!row) return <span className="leading-snug">알 수 없는 스페셜 옵션</span>;
+    if (!row) return <span className="leading-snug">{t('equipmentEffects.unknownMythic')}</span>;
     return <span className="leading-snug">{row.description}</span>;
 };
 
@@ -108,6 +101,14 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
     aggregatedMythicStats,
     embedded = false,
 }) => {
+    const { t } = useTranslation('inventory');
+    const TAB_LABEL: Record<TabId, string> = {
+        summary: t('equipmentEffects.summaryAtGlance'),
+        main: t('equipmentEffects.main'),
+        combat: t('equipmentEffects.combat'),
+        special: t('equipmentEffects.special'),
+        mythic: t('equipmentEffects.mythicTab'),
+    };
     const { isNativeMobile, isNarrowViewport } = useNativeMobileShell();
     const isHandheld = useIsHandheldDevice(1025);
     const compactChrome = isNativeMobile || isNarrowViewport || isHandheld;
@@ -225,18 +226,18 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
                                         >
                                             <div className="mb-1 flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
                                                 <span className="text-[14px] font-bold text-zinc-100 sm:text-base">{meta.name}</span>
-                                                <span className="text-[11px] text-zinc-500 sm:text-xs">장착 합산</span>
+                                                <span className="text-[11px] text-zinc-500 sm:text-xs">{t('equipmentEffects.equippedTotal')}</span>
                                             </div>
                                             <div className="mb-1.5 grid grid-cols-2 gap-2 text-[12px] sm:text-[13px]">
                                                 <div>
-                                                    <div className="mb-0.5 font-semibold uppercase tracking-wide text-amber-200/75">주옵션</div>
+                                                    <div className="mb-0.5 font-semibold uppercase tracking-wide text-amber-200/75">{t('equipmentEffects.mainOptionTitle')}</div>
                                                     <BonusPills {...mainParts} muted={!active} />
                                                     <div className="mt-1">
                                                         <MeterBar ratio={visualWeight(mainB) / mainMaxW} variant="amber" />
                                                     </div>
                                                 </div>
                                                 <div>
-                                                    <div className="mb-0.5 font-semibold uppercase tracking-wide text-violet-200/75">부옵션</div>
+                                                    <div className="mb-0.5 font-semibold uppercase tracking-wide text-violet-200/75">{t('equipmentEffects.subOptionTitle')}</div>
                                                     <BonusPills {...combatParts} muted={!active} />
                                                     <div className="mt-1">
                                                         <MeterBar ratio={visualWeight(combatB) / combatMaxW} variant="violet" />
@@ -333,7 +334,7 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
                                 특수 능력치
                             </h3>
                             {specialActive.length === 0 ? (
-                                <p className="py-6 text-center text-sm text-zinc-500">적용 중인 특수 옵션이 없습니다.</p>
+                                <p className="py-6 text-center text-sm text-zinc-500">{t('equipmentEffects.noSpecialActive')}</p>
                             ) : (
                                 <ul className="space-y-2">
                                     {specialActive.map(([stat, bonus]) => {
@@ -368,12 +369,12 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
                                 스페셜 옵션
                             </h3>
                             {mythicActive.length === 0 ? (
-                                <p className="py-6 text-center text-sm text-zinc-500">적용 중인 스페셜 옵션이 없습니다.</p>
+                                <p className="py-6 text-center text-sm text-zinc-500">{t('equipmentEffects.noMythicActive')}</p>
                             ) : (
                                 <div className="space-y-4">
                                     {mythicGradeSpecialActive.length > 0 ? (
                                         <div>
-                                            <p className="mb-1.5 text-center text-[12px] font-semibold text-rose-200/90">신화 스페셜 옵션</p>
+                                            <p className="mb-1.5 text-center text-[12px] font-semibold text-rose-200/90">{t('equipmentEffects.mythicCandidates')}</p>
                                             <ul className="space-y-2">
                                                 {mythicGradeSpecialActive.map(([stat, data]) => {
                                                     const def = MYTHIC_STATS_DATA[stat];
@@ -398,7 +399,7 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
                                     ) : null}
                                     {transcendentGradeSpecialActive.length > 0 ? (
                                         <div>
-                                            <p className="mb-1.5 text-center text-[12px] font-semibold text-cyan-200/90">초월 스페셜 옵션</p>
+                                            <p className="mb-1.5 text-center text-[12px] font-semibold text-cyan-200/90">{t('equipmentEffects.transcendentCandidates')}</p>
                                             <ul className="space-y-2">
                                                 {transcendentGradeSpecialActive.map(([stat, data]) => {
                                                     const def = MYTHIC_STATS_DATA[stat];
@@ -435,7 +436,7 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
 
     return (
         <DraggableWindow
-            title="장비 장착 효과"
+            title={t('equipmentEffects.equippedTitle')}
             onClose={onClose}
             windowId="equipment-effects"
             initialWidth={compactChrome ? 420 : 720}

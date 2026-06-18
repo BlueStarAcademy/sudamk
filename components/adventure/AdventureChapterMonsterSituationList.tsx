@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     ADVENTURE_MONSTER_MODE_LABELS,
     getAdventureStageById,
@@ -18,18 +19,7 @@ import {
     getAdventureTreasureChestWindowMeta,
 } from '../../shared/utils/adventureMapTreasureSchedule.js';
 import { getAdventureAllowedBattleModes, resolveAdventureBoardSize } from '../../shared/utils/adventureBattleBoard.js';
-
-function formatRemainMs(ms: number): string {
-    if (ms <= 0) return '0초';
-    const sec = Math.ceil(ms / 1000);
-    if (sec < 90) return `${sec}초`;
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    if (m < 60) return `${m}분${s > 0 ? ` ${s}초` : ''}`;
-    const h = Math.floor(m / 60);
-    const mm = m % 60;
-    return `${h}시간 ${mm}분`;
-}
+import { formatAdventureRemainMs, getAdventureMonsterModeLabel } from './adventureI18nHelpers.js';
 
 export type AdventureChapterMonsterSituationListProps = {
     stageId: string;
@@ -61,6 +51,7 @@ const AdventureChapterMonsterSituationList: React.FC<AdventureChapterMonsterSitu
     treasureHandledForCurrentWindow = false,
     treasureHandledKind = null,
 }) => {
+    const { t } = useTranslation('lobby');
     const stage = useMemo(() => getAdventureStageById(stageId), [stageId]);
 
     const rows = useMemo(() => {
@@ -73,8 +64,14 @@ const AdventureChapterMonsterSituationList: React.FC<AdventureChapterMonsterSitu
         });
     }, [stage]);
 
+    const treasureStatusLabel = (active: boolean, handled: boolean, kind: 'dismissed' | 'claimed' | null) => {
+        if (active) return t('adventure.appearing');
+        if (handled) return kind === 'claimed' ? t('adventure.claimed') : t('adventure.skipped');
+        return t('adventure.unknown');
+    };
+
     if (!stage) {
-        return <p className="px-2 text-center text-sm text-zinc-500">스테이지 정보가 없습니다.</p>;
+        return <p className="px-2 text-center text-sm text-zinc-500">{t('adventure.noStageInfo')}</p>;
     }
 
     const { min: chapterLvMin, max: chapterLvMax } = getAdventureStageLevelRange(stage.stageIndex);
@@ -110,7 +107,7 @@ const AdventureChapterMonsterSituationList: React.FC<AdventureChapterMonsterSitu
                                 </span>
                             </span>
                         </span>
-                        <span className="min-w-0 whitespace-nowrap text-[11px] font-bold text-amber-50 sm:text-xs">보물상자</span>
+                        <span className="min-w-0 whitespace-nowrap text-[11px] font-bold text-amber-50 sm:text-xs">{t('adventure.treasureChest')}</span>
                     </span>
                     <span
                         className={[
@@ -118,13 +115,11 @@ const AdventureChapterMonsterSituationList: React.FC<AdventureChapterMonsterSitu
                             treasureListActive ? 'text-emerald-300' : 'text-zinc-400',
                         ].join(' ')}
                     >
-                        {treasureListActive
-                            ? '출현중'
-                            : treasureWindowMeta && treasureHandledForCurrentWindow
-                              ? treasureHandledKind === 'claimed'
-                                  ? '수령완료'
-                                  : '건너뜀'
-                              : '알수없음'}
+                        {treasureStatusLabel(
+                            treasureListActive,
+                            Boolean(treasureWindowMeta && treasureHandledForCurrentWindow),
+                            treasureHandledKind,
+                        )}
                     </span>
                 </button>
             </li>
@@ -141,7 +136,7 @@ const AdventureChapterMonsterSituationList: React.FC<AdventureChapterMonsterSitu
                     mapDwellMultiplier,
                     mapRespawnOffMultiplier,
                 );
-                const rightSlot = mapMonster ? '출현중' : formatRemainMs(untilAppear);
+                const rightSlot = mapMonster ? t('adventure.appearing') : formatAdventureRemainMs(t, untilAppear);
 
                 const boardSize = resolveAdventureBoardSize(stage.id, row.codexId, `chapter-situation-${row.codexId}`, {
                     monsterLevel: chapterMidLevel,
@@ -153,6 +148,7 @@ const AdventureChapterMonsterSituationList: React.FC<AdventureChapterMonsterSitu
                     allowedModes[fnv1a32(`${stage.id}|${row.codexId}|situationBadge`) % Math.max(1, allowedModes.length)] ??
                     'classic';
                 const displayMode: AdventureMonsterBattleMode = mapMonster?.mode ?? fallbackMode;
+                const modeLabel = getAdventureMonsterModeLabel(t, displayMode);
 
                 return (
                     <li key={row.codexId}>
@@ -166,7 +162,7 @@ const AdventureChapterMonsterSituationList: React.FC<AdventureChapterMonsterSitu
                                     {mapMonster ? (
                                         <span
                                             className="shrink-0 font-mono text-[11px] font-black tabular-nums text-emerald-200 sm:text-xs"
-                                            aria-label={`레벨 ${mapMonster.level}`}
+                                            aria-label={t('adventure.levelAria', { level: mapMonster.level })}
                                         >
                                             Lv.{mapMonster.level}
                                         </span>
@@ -174,13 +170,13 @@ const AdventureChapterMonsterSituationList: React.FC<AdventureChapterMonsterSitu
                                     <span className="min-w-0 truncate whitespace-nowrap">{row.name}</span>
                                     <span
                                         className="shrink-0 whitespace-nowrap rounded bg-violet-950/90 px-1 py-px text-[9px] font-bold leading-none text-fuchsia-100 shadow-sm sm:text-[10px]"
-                                        title={ADVENTURE_MONSTER_MODE_LABELS[displayMode]}
+                                        title={modeLabel}
                                     >
-                                        {ADVENTURE_MONSTER_MODE_LABELS[displayMode]}
+                                        {modeLabel}
                                     </span>
                                     {boss ? (
                                         <span className="shrink-0 whitespace-nowrap rounded border border-amber-400/45 bg-amber-500/15 px-1 py-px text-[8px] font-black uppercase tracking-wider text-amber-100 sm:text-[9px]">
-                                            보스
+                                            {t('adventure.boss')}
                                         </span>
                                     ) : null}
                                 </span>

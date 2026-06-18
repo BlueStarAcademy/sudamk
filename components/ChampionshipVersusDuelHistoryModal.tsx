@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import type { ChampionshipVersusDuelWeekLogEntry, ChampionshipVersusVenueKind } from '../shared/types/entities.js';
 import {
@@ -21,8 +22,10 @@ const ChampionshipVersusDuelHistoryModal: React.FC<ChampionshipVersusDuelHistory
     onClose,
     entries,
     filterVenue = null,
-    title = '대전정보',
+    title = t('lobby.duelInfo'),
 }) => {
+    const { t } = useTranslation('tournament');
+
     const rows = React.useMemo(() => {
         const list = Array.isArray(entries) ? [...entries] : [];
         const filtered = filterVenue ? list.filter((e) => e.venue === filterVenue) : list;
@@ -55,20 +58,20 @@ const ChampionshipVersusDuelHistoryModal: React.FC<ChampionshipVersusDuelHistory
                     </Button>
                 </div>
                 <p className="shrink-0 border-b border-white/[0.06] px-4 py-2 text-[11px] font-semibold text-slate-400 sm:px-5">
-                    KST 기준 최근 7일간의 기록입니다. 하루가 지날수록 오래된 기록은 자동으로 사라집니다.
+                    {t('championship.duelHistory.kstHint')}
                 </p>
                 <div className="min-h-0 flex-1 overflow-auto">
                     {rows.length === 0 ? (
-                        <div className="px-4 py-12 text-center text-sm font-semibold text-slate-500 sm:px-5">저장된 대전 기록이 없습니다.</div>
+                        <div className="px-4 py-12 text-center text-sm font-semibold text-slate-500 sm:px-5">{t('championship.duelHistory.empty')}</div>
                     ) : (
                         <table className="w-full min-w-[520px] border-collapse text-left text-[11px] sm:text-xs">
                             <thead className="sticky top-0 z-[1] bg-slate-950">
                                 <tr className="border-b border-amber-500/20 text-[10px] font-black uppercase tracking-wide text-amber-200/90 sm:text-[11px]">
-                                    <th className="whitespace-nowrap px-2 py-2.5 sm:px-3">경기 모드</th>
-                                    <th className="whitespace-nowrap px-2 py-2.5 sm:px-3">상대 닉네임</th>
-                                    <th className="whitespace-nowrap px-2 py-2.5 sm:px-3">경기 결과</th>
-                                    <th className="whitespace-nowrap px-2 py-2.5 sm:px-3">랭킹점수 변화</th>
-                                    <th className="whitespace-nowrap px-2 py-2.5 sm:px-3">기록일</th>
+                                    <th className="whitespace-nowrap px-2 py-2.5 sm:px-3">{t('championship.duelHistory.mode')}</th>
+                                    <th className="whitespace-nowrap px-2 py-2.5 sm:px-3">{t('championship.duelHistory.opponent')}</th>
+                                    <th className="whitespace-nowrap px-2 py-2.5 sm:px-3">{t('championship.duelHistory.result')}</th>
+                                    <th className="whitespace-nowrap px-2 py-2.5 sm:px-3">{t('championship.duelHistory.rankDelta')}</th>
+                                    <th className="whitespace-nowrap px-2 py-2.5 sm:px-3">{t('championship.duelHistory.recordedAt')}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -89,7 +92,7 @@ const ChampionshipVersusDuelHistoryModal: React.FC<ChampionshipVersusDuelHistory
                                                 {r.opponentNickname}
                                             </td>
                                             <td className="whitespace-nowrap px-2 py-2 font-black sm:px-3 sm:py-2.5">
-                                                <span className={r.won ? 'text-emerald-300' : 'text-rose-300'}>{r.won ? '승' : '패'}</span>
+                                                <span className={r.won ? 'text-emerald-300' : 'text-rose-300'}>{r.won ? t('win', { ns: 'common' }) : t('loss', { ns: 'common' })}</span>
                                             </td>
                                             <td className="whitespace-nowrap px-2 py-2 font-mono font-black tabular-nums sm:px-3 sm:py-2.5">
                                                 <span className={deltaClass}>{deltaStr}</span>

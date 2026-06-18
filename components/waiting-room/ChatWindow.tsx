@@ -20,6 +20,7 @@ import {
 } from '../game/arenaGameRoomStyles.js';
 import ChatInlineMessageRow from './ChatInlineMessageRow.js';
 import { guildChatHistoryEntryToChatMessage } from '../../shared/utils/guildChatMessageAdapter.js';
+import { useTranslation } from 'react-i18next';
 
 interface ChatWindowProps {
     messages: ChatMessage[];
@@ -45,6 +46,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     compactTournamentMobile = false,
     arenaPremium = false,
 }) => {
+    const { t } = useTranslation('lobby');
     const chatBodyRef = useRef<HTMLDivElement>(null);
     const quickChatRef = useRef<HTMLDivElement>(null);
     const [chatInput, setChatInput] = useState('');
@@ -97,18 +99,16 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         }
         switch (mode) {
             case 'strategic':
-                return '[전략바둑]';
+                return t('locationPrefix.strategic');
             case 'playful':
-                return '[놀이바둑]';
+                return t('locationPrefix.playful');
             case 'global':
-                return '[홈]';
+                return t('locationPrefix.home');
             default:
-                // 허용된 위치만 반환
-                if (mode === 'singleplayer') return '[싱글플레이]';
-                if (mode === 'tower') return '[도전의탑]';
-                if (mode === 'tournament') return '[챔피언십]';
-                // 알 수 없는 모드는 기본값으로 [홈] 반환
-                return '[홈]';
+                if (mode === 'singleplayer') return t('locationPrefix.singleplayer');
+                if (mode === 'tower') return t('locationPrefix.tower');
+                if (mode === 'tournament') return t('locationPrefix.tournament');
+                return t('locationPrefix.home');
         }
     };
 
@@ -132,7 +132,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         e.preventDefault();
         if (!chatInput.trim()) return;
         if (containsProfanity(chatInput)) {
-            alert("부적절한 단어가 포함되어 있어 메시지를 전송할 수 없습니다.");
+            alert(t('chat.profanityAlert'));
             setChatInput('');
             return;
         }
@@ -156,10 +156,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     const banTimeLeft = isBanned ? Math.ceil((currentUserWithStatus.chatBanUntil! - Date.now()) / 1000 / 60) : 0;
     const isInputDisabled = isBanned || cooldown > 0;
     const placeholderText = isBanned 
-        ? `채팅 금지 중 (${banTimeLeft}분 남음)` 
+        ? t('chat.banPlaceholder', { minutes: banTimeLeft }) 
         : isInputDisabled
-            ? `(${cooldown}초)`
-            : "[메시지 입력]";
+            ? t('chat.cooldownPlaceholder', { seconds: cooldown })
+            : t('chat.placeholder');
 
     const hasGuild = !!currentUserWithStatus?.guildId;
     const guildChatUnlocked = userMeetsGuildFeatureLevelRequirement(currentUserWithStatus);
@@ -211,10 +211,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             {hasGuildChatAccess ? (
                 <div className={tabBarClass}>
                     <button type="button" onClick={() => setActiveTab('global')} className={globalTabClass}>
-                        전체채팅
+                        {t('chat.global')}
                     </button>
                     <button type="button" onClick={() => setActiveTab('guild')} className={guildTabClass}>
-                        길드채팅
+                        {t('chat.guild')}
                     </button>
                 </div>
             ) : (
@@ -225,10 +225,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                             : `flex-shrink-0 border-b border-color font-semibold ${compactUi ? 'pb-0.5 text-base' : 'pb-1 text-xl'}`
                     }
                 >
-                    전체채팅
+                    {t('chat.global')}
                 </h2>
             )}
-            {activeTab === 'global' && <p className={securityBannerClass}>AI 보안관봇이 부적절한 언어 사용을 감지하고 있습니다. 🚓</p>}
+            {activeTab === 'global' && <p className={securityBannerClass}>{t('chat.securityBanner')}</p>}
             <div
                 ref={chatBodyRef}
                 className={chatBodyClass}
@@ -248,7 +248,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     ))
                 ) : (
                     <div className={`flex h-full items-center justify-center ${emptyMuted} ${compactEmpty}`}>
-                        {activeTab === 'guild' ? '길드 채팅 메시지가 없습니다.' : '채팅 메시지가 없습니다.'}
+                        {activeTab === 'guild' ? t('chat.noGuildMessages') : t('chat.noMessages')}
                     </div>
                 )}
             </div>
@@ -304,7 +304,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                                 ? arenaGameRoomChatIconToggleClass
                                 : 'bg-secondary hover:bg-tertiary text-primary font-bold px-2.5 rounded-md transition-colors text-lg flex items-center justify-center'
                         }
-                        title="빠른 채팅"
+                        title={t('chat.quickChatTitle')}
                         disabled={isInputDisabled}
                     >
                         <span>🙂</span>
@@ -332,7 +332,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                                : '!px-2 !py-1'
                        }
                        {...(arenaPremium ? { colorScheme: 'none' as const } : {})}
-                       title="보내기"
+                       title={t('chat.sendTitle')}
                    >
                         💬
                    </Button>

@@ -151,7 +151,7 @@ const Button: React.FC<ButtonProps> = ({
     yellow: 'bg-yellow-500 hover:bg-yellow-400 text-black focus:ring-yellow-300',
     purple: 'bg-purple-600 hover:bg-purple-500 text-white focus:ring-purple-400',
     orange: 'bg-orange-500 hover:bg-orange-400 text-white focus:ring-orange-300',
-    none: '', // 'none'은 className으로 스타일을 직접 지정할 때 사용
+    none: '', // scheme none: use className for custom styles
   };
 
   // 기본 폰트 크기 스타일 (반응형으로 조정, 고급스러운 크기)

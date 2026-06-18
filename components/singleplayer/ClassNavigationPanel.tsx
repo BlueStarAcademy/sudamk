@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { SinglePlayerLevel, UserWithStatus } from '../../types.js';
 import { getSinglePlayerInGameBackgroundUrl } from '../../utils/singlePlayerPreGameDisplay.js';
 import SinglePlayerClassBarRewardsPanel from './SinglePlayerClassBarRewardsPanel.js';
@@ -18,7 +19,9 @@ export const AcademyLobbyHeaderPanel: React.FC<{
     onBack: () => void;
     title: string;
     compact?: boolean;
-}> = ({ onBack, title, compact = false }) => (
+}> = ({ onBack, title, compact = false }) => {
+    const { t } = useTranslation(['lobby', 'common']);
+    return (
     <div
         className={`flex w-full shrink-0 items-center gap-2 sm:gap-2.5 ${academyTitleStripVisual} ${compact ? '!p-1.5' : ''}`}
     >
@@ -26,7 +29,7 @@ export const AcademyLobbyHeaderPanel: React.FC<{
             type="button"
             onClick={onBack}
             className={`relative z-[1] shrink-0 transition-transform active:scale-90 hover:drop-shadow-lg ${compact ? 'h-8 w-8' : 'h-9 w-9 sm:h-10 sm:w-10'}`}
-            aria-label="뒤로가기"
+            aria-label={t('common:actions.back')}
         >
             <img src="/images/button/back.webp" alt="" className="h-full w-full" />
         </button>
@@ -36,7 +39,8 @@ export const AcademyLobbyHeaderPanel: React.FC<{
             {title}
         </h1>
     </div>
-);
+    );
+};
 
 interface ClassNavigationPanelProps {
     selectedClass: SinglePlayerLevel;
@@ -49,11 +53,11 @@ interface ClassNavigationPanelProps {
 }
 
 const CLASS_INFO = [
-    { level: SinglePlayerLevel.입문, name: '입문반' },
-    { level: SinglePlayerLevel.초급, name: '초급반' },
-    { level: SinglePlayerLevel.중급, name: '중급반' },
-    { level: SinglePlayerLevel.고급, name: '고급반' },
-    { level: SinglePlayerLevel.유단자, name: '유단자' },
+    { level: SinglePlayerLevel.입문, stageKey: 'intro' as const },
+    { level: SinglePlayerLevel.초급, stageKey: 'beginner' as const },
+    { level: SinglePlayerLevel.중급, stageKey: 'intermediate' as const },
+    { level: SinglePlayerLevel.고급, stageKey: 'advanced' as const },
+    { level: SinglePlayerLevel.유단자, stageKey: 'master' as const },
 ] as const;
 
 const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({
@@ -63,8 +67,11 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({
     compact = false,
     lobbyMobileTop = false,
 }) => {
+    const { t } = useTranslation(['lobby', 'profile']);
+    const classLabel = (stageKey: (typeof CLASS_INFO)[number]['stageKey']) => t(`profile:stageLabels.${stageKey}`);
     const currentIndex = CLASS_INFO.findIndex(c => c.level === selectedClass);
     const currentClass = CLASS_INFO[currentIndex];
+    const currentClassName = classLabel(currentClass.stageKey);
 
     const handlePrevious = () => {
         if (currentIndex > 0) {
@@ -107,7 +114,7 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({
                           : 'pb-2 text-xl'
                 }`}
             >
-                단계 선택
+                {t('singleplayer.classSelect')}
             </h2>
 
             <div className={`flex shrink-0 flex-col ${topShelf ? 'gap-1' : isMobile ? 'gap-1.5' : 'gap-2'}`}>
@@ -122,7 +129,7 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({
                             shrink-0 ${topShelf ? 'h-7 w-7' : isMobile ? 'h-9 w-9' : 'h-11 w-11'} ${navBtnBase}
                             ${currentIndex === 0 ? navBtnDisabled : navBtnActive}
                         `}
-                        aria-label="이전 단계"
+                        aria-label={t('singleplayer.previousClass')}
                     >
                         <svg
                             className={`${topShelf ? 'h-3.5 w-3.5' : isMobile ? 'h-4 w-4' : 'h-5 w-5'} drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]`}
@@ -138,7 +145,7 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({
                             topShelf ? 'text-sm' : isMobile ? 'text-xl' : 'text-2xl lg:text-3xl'
                         }`}
                     >
-                        {currentClass.name}
+                        {currentClassName}
                     </div>
                     <button
                         onClick={handleNext}
@@ -147,7 +154,7 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({
                             shrink-0 ${topShelf ? 'h-7 w-7' : isMobile ? 'h-9 w-9' : 'h-11 w-11'} ${navBtnBase}
                             ${currentIndex === CLASS_INFO.length - 1 ? navBtnDisabled : navBtnActive}
                         `}
-                        aria-label="다음 단계"
+                        aria-label={t('singleplayer.nextClass')}
                     >
                         <svg
                             className={`${topShelf ? 'h-3.5 w-3.5' : isMobile ? 'h-4 w-4' : 'h-5 w-5'} drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]`}
@@ -172,14 +179,14 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({
                 >
                     <img
                         src={getSinglePlayerInGameBackgroundUrl(currentClass.level)}
-                        alt={currentClass.name}
+                        alt={currentClassName}
                         className="h-full w-full object-cover brightness-[1.02]"
                         onError={(e) => {
                             const target = e.target as HTMLImageElement;
                             target.style.display = 'none';
                             const parent = target.parentElement;
                             if (parent) {
-                                parent.innerHTML = `<div class="w-full h-full flex items-center justify-center bg-zinc-800/90 text-amber-100/90 font-bold ${isMobile ? 'text-lg' : 'text-2xl'}">${currentClass.name}</div>`;
+                                parent.innerHTML = `<div class="w-full h-full flex items-center justify-center bg-zinc-800/90 text-amber-100/90 font-bold ${isMobile ? 'text-lg' : 'text-2xl'}">${currentClassName}</div>`;
                             }
                         }}
                     />
@@ -212,7 +219,7 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({
                                             : `${isMobile ? 'h-1.5 w-1.5' : 'h-2.5 w-2.5'} bg-zinc-600 hover:bg-zinc-500`
                                     }
                                 `}
-                                aria-label={classInfo.name}
+                                aria-label={classLabel(classInfo.stageKey)}
                             />
                         );
                     })}

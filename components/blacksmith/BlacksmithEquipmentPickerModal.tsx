@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import DraggableWindow from '../DraggableWindow.js';
 import InventoryGrid from './InventoryGrid.js';
 import ResourceActionButton from '../ui/ResourceActionButton.js';
@@ -22,23 +23,24 @@ const gradeStyles: Record<ItemGrade, { color: string; background: string }> = {
     transcendent: { color: 'text-cyan-300', background: '/images/equipments/transcendentbgi.webp' },
 };
 
-const SLOT_NAMES_KO: Record<string, string> = {
-    fan: '부채',
-    board: '바둑판',
-    top: '상의',
-    bottom: '하의',
-    bowl: '바둑통',
-    stones: '바둑돌',
+const SLOT_NAME_KEYS: Record<string, string> = {
+    fan: 'picker.slots.fan',
+    board: 'picker.slots.board',
+    top: 'picker.slots.top',
+    bottom: 'picker.slots.bottom',
+    bowl: 'picker.slots.bowl',
+    stones: 'picker.slots.stones',
 };
 
 const CombineSlotPreview: React.FC<{
     item: InventoryItem | null;
     onRemove: () => void;
 }> = ({ item, onRemove }) => {
+    const { t } = useTranslation('blacksmith');
     if (!item) {
         return (
             <div className="flex h-20 min-w-0 flex-1 items-center justify-center rounded-lg border-2 border-dashed border-amber-500/35 bg-black/35 text-sm text-amber-100/70">
-                재료
+                {t('picker.emptyMaterial')}
             </div>
         );
     }
@@ -50,15 +52,15 @@ const CombineSlotPreview: React.FC<{
                 type="button"
                 onClick={onRemove}
                 className="absolute right-0.5 top-0.5 z-10 text-lg leading-none text-red-400 hover:text-red-300"
-                aria-label="슬롯 비우기"
+                aria-label={t('picker.clearSlot')}
             >
                 ×
             </button>
             <button
                 type="button"
                 onClick={onRemove}
-                title="재료 빼기"
-                aria-label={`${item.name} 재료 빼기`}
+                title={t('picker.removeMaterial')}
+                aria-label={t('picker.removeMaterialAria', { name: item.name })}
                 className={`relative h-10 w-10 cursor-pointer overflow-hidden rounded-lg border border-slate-500/50 bg-transparent p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70 ${
                     isTranscendent ? 'transcendent-grade-slot' : ''
                 }`}
@@ -76,7 +78,7 @@ const CombineSlotPreview: React.FC<{
             <p className={`mt-0.5 w-full truncate px-0.5 text-center font-bold ${styles.color} ${mobilePickerTypo.caption}`} title={item.name}>
                 {item.name}
             </p>
-            <p className={`${mobilePickerTypo.caption} text-slate-500`}>{item.slot ? SLOT_NAMES_KO[item.slot] ?? '' : ''}</p>
+            <p className={`${mobilePickerTypo.caption} text-slate-500`}>{item.slot ? t(SLOT_NAME_KEYS[item.slot] ?? '') : ''}</p>
         </div>
     );
 };
@@ -136,6 +138,8 @@ const BlacksmithEquipmentPickerModal: React.FC<BlacksmithEquipmentPickerModalPro
     isTopmost = true,
     embedded = false,
 }) => {
+    const { t } = useTranslation('blacksmith');
+    const { t: tCommon } = useTranslation('common');
     const canCombine =
         pickerCombine.every(i => i !== null) &&
         new Set(pickerCombine.map(i => i!.grade)).size === 1;
@@ -164,12 +168,12 @@ const BlacksmithEquipmentPickerModal: React.FC<BlacksmithEquipmentPickerModalPro
 
     const helpText =
         mode === 'combine'
-            ? '같은 등급 장비 3개를 슬롯에 담은 뒤 선택 완료를 누르세요.'
+            ? t('picker.combineHint')
             : mode === 'disassemble'
-              ? '분해할 장비를 탭하여 선택·해제할 수 있습니다.'
+              ? t('picker.disassembleHint')
               : onPickSingleComplete
-              ? '강화·제련할 장비 하나를 탭하면 작업 화면으로 이동합니다.'
-              : '강화·제련할 장비 하나를 탭한 뒤 선택 완료를 누르세요.';
+              ? t('picker.enhanceTapHint')
+              : t('picker.enhanceConfirmHint');
 
     const pickerBody = (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -189,7 +193,7 @@ const BlacksmithEquipmentPickerModal: React.FC<BlacksmithEquipmentPickerModalPro
                 )}
 
                 <div className="flex items-center justify-between gap-2">
-                    <span className={`min-w-0 shrink ${mobilePickerTypo.heading} text-on-panel`}>장비</span>
+                    <span className={`min-w-0 shrink ${mobilePickerTypo.heading} text-on-panel`}>{t('inventoryType.equipment')}</span>
                     <div className="flex shrink-0 items-center gap-2">
                         {mode === 'disassemble' && onOpenDisassemblyAutoSelect && (
                             <button
@@ -197,7 +201,7 @@ const BlacksmithEquipmentPickerModal: React.FC<BlacksmithEquipmentPickerModalPro
                                 onClick={onOpenDisassemblyAutoSelect}
                                 className={`whitespace-nowrap rounded border border-amber-300/40 bg-gradient-to-r from-amber-600/90 via-amber-500/90 to-orange-500/85 px-2.5 py-1.5 ${mobilePickerTypo.caption} font-bold text-amber-50 shadow-[0_10px_22px_-14px_rgba(251,191,36,0.75)] transition hover:from-amber-500 hover:via-amber-400 hover:to-orange-400`}
                             >
-                                자동 선택
+                                {t('picker.autoSelect')}
                             </button>
                         )}
                         <select
@@ -205,10 +209,10 @@ const BlacksmithEquipmentPickerModal: React.FC<BlacksmithEquipmentPickerModalPro
                             onChange={e => onSortChange(e.target.value as SortOption)}
                             className={`rounded border border-color bg-secondary px-2 py-1.5 ${mobilePickerTypo.caption} text-on-panel`}
                         >
-                            <option value="grade">등급순</option>
-                            <option value="stars">강화순</option>
-                            <option value="name">이름순</option>
-                            <option value="date">최신순</option>
+                            <option value="grade">{t('sort.grade')}</option>
+                            <option value="stars">{t('sort.stars')}</option>
+                            <option value="name">{t('sort.name')}</option>
+                            <option value="date">{t('sort.date')}</option>
                         </select>
                     </div>
                 </div>
@@ -237,7 +241,7 @@ const BlacksmithEquipmentPickerModal: React.FC<BlacksmithEquipmentPickerModalPro
                     variant="neutral"
                     className={`min-h-[44px] !py-2.5 text-sm font-bold ${onPickSingleComplete ? 'w-full' : 'flex-1'}`}
                 >
-                    취소
+                    {tCommon('actions.cancel')}
                 </ResourceActionButton>
                 {!onPickSingleComplete && (
                     <ResourceActionButton
@@ -247,7 +251,7 @@ const BlacksmithEquipmentPickerModal: React.FC<BlacksmithEquipmentPickerModalPro
                         disabled={!canConfirm}
                         className="min-h-[44px] flex-1 !py-2.5 text-sm font-bold"
                     >
-                        선택 완료
+                        {t('picker.selectComplete')}
                     </ResourceActionButton>
                 )}
             </div>
@@ -260,7 +264,7 @@ const BlacksmithEquipmentPickerModal: React.FC<BlacksmithEquipmentPickerModalPro
 
     return (
         <DraggableWindow
-            title="장비 선택"
+            title={t('picker.selectGear')}
             onClose={onClose}
             windowId="blacksmith-equipment-picker"
             isTopmost={Boolean(isTopmost) && !disassemblyAutoSelectOpen}

@@ -1,4 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { tx } from '../shared/i18n/runtimeText.js';
 import { UserWithStatus, InventoryItem, ServerAction, InventoryItemType, ItemGrade, ItemOption, CoreStat, SpecialStat, MythicStat, EquipmentSlot, ItemOptionType } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
@@ -59,14 +61,14 @@ interface InventoryModalProps {
 type Tab = 'all' | 'equipment' | 'consumable' | 'material';
 type SortKey = 'createdAt' | 'type' | 'grade';
 
-const TAB_LABELS: Record<Tab, string> = {
-    all: '전체',
-    equipment: '장비',
-    consumable: '소모품',
-    material: '재료',
+const TAB_LABEL_KEYS: Record<Tab, string> = {
+    all: 'tabs.all',
+    equipment: 'tabs.equipment',
+    consumable: 'tabs.consumable',
+    material: 'tabs.material',
 };
 
-/** 모바일 「장착 장비」 팝업 설계 너비(DraggableWindow initialWidth) — 본문·슬롯 스케일 기준 */
+/** 모바일 「{t('equippedGear')}」 팝업 설계 너비(DraggableWindow initialWidth) — 본문·슬롯 스케일 기준 */
 const MOBILE_EQUIPPED_MODAL_DESIGN_WIDTH = 350;
 /** 모바일 장착 장비 3×3 그리드 최대 너비(슬롯당 ~72px) */
 const MOBILE_EQUIPPED_GRID_MAX_WIDTH_PX = 216;
@@ -91,7 +93,7 @@ const inventoryTypeRank: Record<InventoryItemType, number> = {
     consumable: 1,
     material: 2,
 };
-const EQUIPMENT_UNBIND_TICKET_NAME = '귀속 해제권';
+const EQUIPMENT_UNBIND_TICKET_NAME = '\uADC0\uC18D \uD574\uC81C\uAD8C'; // server item name match
 const EQUIPMENT_UNBIND_TICKET_COST_BY_GRADE: Record<ItemGrade, number> = {
     normal: 1,
     uncommon: 2,
@@ -250,21 +252,20 @@ const EquipmentSlotDisplay: React.FC<{
                         // 다양한 이름 변형으로 시도
                         const nameVariations: string[] = [
                             item.name,
-                            item.name.replace('꾸러미', ' 꾸러미'),
-                            item.name.replace(' 꾸러미', '꾸러미'),
-                            item.name.replace('상자', ' 상자'),
-                            item.name.replace(' 상자', '상자'),
+                            item.name.replace('\uAF43\uB7EC\uBBF8', ' \uAF43\uB7EC\uBBF8'),
+                            item.name.replace(' \uAF43\uB7EC\uBBF8', '\uAF43\uB7EC\uBBF8'),
+                            item.name.replace('\uC0C1\uC790', ' \uC0C1\uC790'),
+                            item.name.replace(' \uC0C1\uC790', '\uC0C1\uC790'),
                         ];
                         
-                        // 숫자를 로마숫자로 변환한 변형들 추가
                         for (const [num, roman] of Object.entries(numToRoman)) {
                             nameVariations.push(
-                                item.name.replace(new RegExp(`장비상자${num}`, 'g'), `장비 상자 ${roman}`),
-                                item.name.replace(new RegExp(`재료상자${num}`, 'g'), `재료 상자 ${roman}`),
-                                item.name.replace(new RegExp(`장비 상자${num}`, 'g'), `장비 상자 ${roman}`),
-                                item.name.replace(new RegExp(`재료 상자${num}`, 'g'), `재료 상자 ${roman}`),
-                                item.name.replace(new RegExp(`장비 상자 ${num}`, 'g'), `장비 상자 ${roman}`),
-                                item.name.replace(new RegExp(`재료 상자 ${num}`, 'g'), `재료 상자 ${roman}`)
+                                item.name.replace(new RegExp(`\uC7A5\uBE44\uC0C1\uC790${num}`, 'g'), `\uC7A5\uBE44 \uC0C1\uC790 ${roman}`),
+                                item.name.replace(new RegExp(`\uC7AC\uB8CC\uC0C1\uC790${num}`, 'g'), `\uC7AC\uB8CC \uC0C1\uC790 ${roman}`),
+                                item.name.replace(new RegExp(`\uC7A5\uBE44 \uC0C1\uC790${num}`, 'g'), `\uC7A5\uBE44 \uC0C1\uC790 ${roman}`),
+                                item.name.replace(new RegExp(`\uC7AC\uB8CC \uC0C1\uC790${num}`, 'g'), `\uC7AC\uB8CC \uC0C1\uC790 ${roman}`),
+                                item.name.replace(new RegExp(`\uC7A5\uBE44 \uC0C1\uC790 ${num}`, 'g'), `\uC7A5\uBE44 \uC0C1\uC790 ${roman}`),
+                                item.name.replace(new RegExp(`\uC7AC\uB8CC \uC0C1\uC790 ${num}`, 'g'), `\uC7AC\uB8CC \uC0C1\uC790 ${roman}`)
                             );
                         }
                         
@@ -410,6 +411,7 @@ const LocalItemDetailDisplay: React.FC<{
     compactCompareLayout = false,
     expandOptionsToFill = false,
 }) => {
+    const { t } = useTranslation('inventory');
     const imgBox = Math.max(52, Math.round(80 * scaleFactor * detailScaleMultiplier));
     const optionsBlockHeightPx = bagPcOptionsBlockHeightPx(scaleFactor);
     const [compactCompareTab, setCompactCompareTab] = useState<'info' | 'mainSub' | 'special' | 'mythic'>('info');
@@ -704,17 +706,17 @@ const LocalItemDetailDisplay: React.FC<{
                             )}
                         </div>
                         <p className={`mt-1 text-xs font-semibold ${item.grade !== 'normal' && (item as any).refinementCount > 0 ? 'text-amber-400' : 'text-red-400'}`} style={{ fontSize: `${Math.max(9, Math.round(10 * scaleFactor * mobileTextScale))}px` }}>
-                            제련 가능: {item.grade !== 'normal' && (item as any).refinementCount > 0 ? `${(item as any).refinementCount}회` : '제련불가'}
+                            {t('refinementAvailable')}: {item.grade !== 'normal' && (item as any).refinementCount > 0 ? t('refinementCount', { count: (item as any).refinementCount }) : t('refinementUnavailable')}
                         </p>
                     </div>
                 </div>
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col rounded-lg bg-gray-900/50 p-1.5" style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>
                     <div className="mb-1 grid grid-cols-2 gap-1">
                         {[
-                            ['info', '장비정보'],
-                            ['mainSub', '주/부옵션'],
-                            ['special', '특수옵션'],
-                            ['mythic', '신화옵션'],
+                            ['info', t('compareTabs.info')],
+                            ['mainSub', t('compareTabs.mainSub')],
+                            ['special', t('compareTabs.special')],
+                            ['mythic', t('compareTabs.mythic')],
                         ].map(([key, label]) => {
                             const active = compactCompareTab === key;
                             return (
@@ -734,21 +736,21 @@ const LocalItemDetailDisplay: React.FC<{
                         })}
                     </div>
                     <div className="mb-1 grid grid-cols-2 gap-1 rounded-md bg-black/20 px-1.5 py-1 text-[10px] font-semibold">
-                        <span className="text-cyan-200">현재 장착</span>
-                        <span className="text-right text-amber-200">선택 장비</span>
+                        <span className="text-cyan-200">{t('currentlyEquipped')}</span>
+                        <span className="text-right text-amber-200">{t('selectedGear')}</span>
                     </div>
                     <div className={`min-h-0 flex-1 overflow-y-auto space-y-1 pr-0.5 ${BAG_SCROLLBAR_Y_CLASS}`}>
                         {compactCompareTab === 'info' && (
                             <>
                                 <div className="rounded-md bg-black/25 px-1.5 py-1 text-[10px]">
-                                    <div className="text-stone-400">등급</div>
+                                    <div className="text-stone-400">{t('grade')}</div>
                                     <div className="mt-0.5 grid grid-cols-2 gap-1">
                                         <span className={`${styles.color}`}>{styles.name}</span>
                                         <span className="text-right text-stone-200">{compareSelected ? gradeStyles[compareSelected.grade].name : '-'}</span>
                                     </div>
                                 </div>
                                 <div className="rounded-md bg-black/25 px-1.5 py-1 text-[10px]">
-                                    <div className="text-stone-400">착용레벨</div>
+                                    <div className="text-stone-400">{t('equipLevel')}</div>
                                     <div className="mt-0.5 grid grid-cols-2 gap-1 tabular-nums">
                                         <span>{formatEquipLevelRequirement(requiredLevel)}</span>
                                         <span className="text-right">
@@ -759,14 +761,14 @@ const LocalItemDetailDisplay: React.FC<{
                                     </div>
                                 </div>
                                 <div className="rounded-md bg-black/25 px-1.5 py-1 text-[10px]">
-                                    <div className="text-stone-400">제련 가능</div>
+                                    <div className="text-stone-400">{t('refinementAvailable')}</div>
                                     <div className="mt-0.5 grid grid-cols-2 gap-1 tabular-nums">
-                                        <span>{compareCurrent && compareCurrent.grade !== 'normal' && ((compareCurrent as any)?.refinementCount ?? 0) > 0 ? `${(compareCurrent as any).refinementCount}회` : '제련불가'}</span>
-                                        <span className="text-right">{compareSelected && compareSelected.grade !== 'normal' && ((compareSelected as any)?.refinementCount ?? 0) > 0 ? `${(compareSelected as any).refinementCount}회` : '제련불가'}</span>
+                                        <span>{compareCurrent && compareCurrent.grade !== 'normal' && ((compareCurrent as any)?.refinementCount ?? 0) > 0 ? t('refinementCount', { count: (compareCurrent as any).refinementCount }) : t('refinementUnavailable')}</span>
+                                        <span className="text-right">{compareSelected && compareSelected.grade !== 'normal' && ((compareSelected as any)?.refinementCount ?? 0) > 0 ? t('refinementCount', { count: (compareSelected as any).refinementCount }) : t('refinementUnavailable')}</span>
                                     </div>
                                 </div>
                                 <div className="rounded-md bg-black/25 px-1.5 py-1 text-[10px]">
-                                    <div className="text-stone-400">강화 수치</div>
+                                    <div className="text-stone-400">{t('enhanceLevel')}</div>
                                     <div className="mt-0.5 grid grid-cols-2 gap-1 tabular-nums">
                                         <span>+{compareCurrent?.stars ?? 0}</span>
                                         <span className="text-right">+{compareSelected?.stars ?? 0}</span>
@@ -774,9 +776,9 @@ const LocalItemDetailDisplay: React.FC<{
                                 </div>
                             </>
                         )}
-                        {compactCompareTab === 'mainSub' && (mainAndCombatTypes.length > 0 ? mainAndCombatTypes.map(renderCompareOptionRow) : <p className="px-1 py-1 text-[10px] text-stone-500">옵션 없음</p>)}
-                        {compactCompareTab === 'special' && (specialTypes.length > 0 ? specialTypes.map(renderCompareOptionRow) : <p className="px-1 py-1 text-[10px] text-stone-500">옵션 없음</p>)}
-                        {compactCompareTab === 'mythic' && (mythicTypes.length > 0 ? mythicTypes.map(renderCompareOptionRow) : <p className="px-1 py-1 text-[10px] text-stone-500">옵션 없음</p>)}
+                        {compactCompareTab === 'mainSub' && (mainAndCombatTypes.length > 0 ? mainAndCombatTypes.map(renderCompareOptionRow) : <p className="px-1 py-1 text-[10px] text-stone-500">{t('noOptions')}</p>)}
+                        {compactCompareTab === 'special' && (specialTypes.length > 0 ? specialTypes.map(renderCompareOptionRow) : <p className="px-1 py-1 text-[10px] text-stone-500">{t('noOptions')}</p>)}
+                        {compactCompareTab === 'mythic' && (mythicTypes.length > 0 ? mythicTypes.map(renderCompareOptionRow) : <p className="px-1 py-1 text-[10px] text-stone-500">{t('noOptions')}</p>)}
                     </div>
                 </div>
             </div>
@@ -878,7 +880,7 @@ const LocalItemDetailDisplay: React.FC<{
                                     : 'border-emerald-500/40 bg-emerald-900/25 text-emerald-200'
                             }`}
                         >
-                            {item.isBound ? '귀속' : '거래가능'}
+                            {item.isBound ? t('bound') : t('tradable')}
                         </div>
                     )}
                 </div>
@@ -898,7 +900,7 @@ const LocalItemDetailDisplay: React.FC<{
                     {/* 제련 가능 횟수 표시 (장비인 경우에만) */}
                     {item.type === 'equipment' && (
                         <p className={`text-xs font-semibold ${item.grade !== 'normal' && (item as any).refinementCount > 0 ? 'text-amber-400' : 'text-red-400'}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
-                            제련 가능: {item.grade !== 'normal' && (item as any).refinementCount > 0 ? `${(item as any).refinementCount}회` : '제련불가'}
+                            {t('refinementAvailable')}: {item.grade !== 'normal' && (item as any).refinementCount > 0 ? t('refinementCount', { count: (item as any).refinementCount }) : t('refinementUnavailable')}
                         </p>
                     )}
                 </div>
@@ -1035,6 +1037,8 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
     isTopmost,
     embedded = false,
 }) => {
+    const { t } = useTranslation('inventory');
+    const { t: tCommon } = useTranslation('common');
     const { presets, handlers, currentUserWithStatus, updateTrigger, modalLayerUsesDesignPixels, usePortraitFirstShell } =
         useAppContext();
     
@@ -1261,7 +1265,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
         setSelectedPreset(presetIndex);
         const preset = presets[presetIndex];
         // 프리셋이 있으면 적용하고, 없으면(빈 프리셋) 빈 장비 세트를 적용
-        handlers.applyPreset(preset || { name: presets[presetIndex]?.name || `프리셋 ${presetIndex + 1}`, equipment: {} });
+        handlers.applyPreset(preset || { name: t('presetDefault', { index: presetIndex + 1 }), equipment: {} });
     };
 
     const itemTemplateByName = useMemo(() => {
@@ -1371,7 +1375,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
     const handleConfirmExpand = async () => {
         if (activeTab === 'all' || !canExpand || expansionCost <= 0) return;
         if (!hasEnoughDiamonds) {
-            alert('다이아가 부족합니다.');
+            alert(tx('inventory:alerts.insufficientDiamonds'));
             return;
         }
         await onAction({ type: 'EXPAND_INVENTORY', payload: { category: activeTab } });
@@ -1403,7 +1407,10 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
             const userLevelSum = currentUser.userLevel;
             if (userLevelSum < requiredLevel) {
                 alert(
-                    `착용레벨이 부족합니다. (필요: ${formatEquipLevelRequirement(requiredLevel)}, 현재: Lv.${userLevelSum})`,
+                    t('alerts.equipLevelInsufficient', {
+                        required: formatEquipLevelRequirement(requiredLevel),
+                        current: userLevelSum,
+                    }),
                 );
                 return;
             }
@@ -1511,7 +1518,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
         return Math.max(0, nextCategorySlots - currentCategorySlots);
     }, [activeTab, nextCategorySlots, currentCategorySlots]);
 
-    const activeTabLabel = useMemo(() => TAB_LABELS[activeTab], [activeTab]);
+    const activeTabLabel = useMemo(() => t(TAB_LABEL_KEYS[activeTab]), [activeTab, t]);
 
     const isItemInAnyPreset = useCallback((itemId: string) => {
         return presets.some(preset => Object.values(preset.equipment).includes(itemId));
@@ -1606,7 +1613,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                         <div className="flex min-h-0 flex-col overflow-hidden rounded-lg bg-panel-secondary p-2">
                             <LocalItemDetailDisplay
                                 item={selectedItem}
-                                title="선택된 아이템 없음"
+                                title={t('noItemSelected')}
                                 comparisonItem={undefined}
                                 scaleFactor={Math.max(0.35, scaleFactor * MOBILE_EQUIPMENT_DETAIL_LAYOUT_SCALE * 1.15)}
                                 mobileTextScale={mobileTextScale}
@@ -1624,7 +1631,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                         <>
                             {selectedItem.id === correspondingEquippedItem?.id ? (
                                 <Button bare colorScheme="none" onClick={() => handleEquipToggle(selectedItem.id)} className={BAG_INVENTORY_FOOTER_BTN.danger}>
-                                    해제
+                                    {t('buttons.unbind')}
                                 </Button>
                             ) : (
                                 <Button
@@ -1634,19 +1641,19 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                     className={BAG_INVENTORY_FOOTER_BTN.success}
                                     disabled={!canEquip}
                                 >
-                                    장착
+                                    {t('buttons.equip')}
                                 </Button>
                             )}
                             {selectedItem.slot && selectedItem.id !== correspondingEquippedItem?.id && (
                                 <Button type="button" bare colorScheme="none" onClick={() => setIsEquipCompareOpen(true)} className={BAG_INVENTORY_FOOTER_BTN.info}>
-                                    장비 비교
+                                    {t('compareGear')}
                                 </Button>
                             )}
                             <Button bare colorScheme="none" onClick={() => onStartEnhance(selectedItem)} disabled={selectedItem.stars >= 10} className={BAG_INVENTORY_FOOTER_BTN.warning}>
-                                {selectedItem.stars >= 10 ? '최대 강화' : '강화'}
+                                {selectedItem.stars >= 10 ? t('maxEnhance') : t('enhance')}
                             </Button>
                             <Button bare colorScheme="none" onClick={() => setItemToSell(selectedItem)} className={BAG_INVENTORY_FOOTER_BTN.danger}>
-                                판매
+                                {t('buttons.sell')}
                             </Button>
                             {selectedItem.isBound && (
                                 <Button
@@ -1655,7 +1662,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                     onClick={() => handleUnbindEquipment(selectedItem.id)}
                                     className={BAG_INVENTORY_FOOTER_BTN.info}
                                 >
-                                    귀속해제
+                                    {t('buttons.unbindBound')}
                                 </Button>
                             )}
                         </>
@@ -1679,7 +1686,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                                 }}
                                                 className={BAG_INVENTORY_FOOTER_BTN.info}
                                             >
-                                                사용
+                                                {t('buttons.use')}
                                             </Button>
                                             {!isRefinementTicket && selectedItem.quantity && selectedItem.quantity > 1 && (
                                                 <Button
@@ -1691,7 +1698,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                                     }}
                                                     className={BAG_INVENTORY_FOOTER_BTN.accent}
                                                 >
-                                                    일괄 사용
+                                                    {t('buttons.bulkUse')}
                                                 </Button>
                                             )}
                                         </>
@@ -1699,11 +1706,11 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                     {isSellable && (
                                         <>
                                             <Button bare colorScheme="none" onClick={() => setItemToSell(selectedItem)} className={BAG_INVENTORY_FOOTER_BTN.danger}>
-                                                판매
+                                                {t('buttons.sell')}
                                             </Button>
                                             {selectedItem.quantity && selectedItem.quantity > 1 && (
                                                 <Button bare colorScheme="none" onClick={() => setItemToSellBulk(selectedItem)} className={BAG_INVENTORY_FOOTER_BTN.warning}>
-                                                    일괄 판매
+                                                    {t('buttons.bulkSell')}
                                                 </Button>
                                             )}
                                         </>
@@ -1714,19 +1721,19 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                     {selectedItem.type === 'material' && (
                         <>
                             <Button bare colorScheme="none" onClick={() => setItemToSell(selectedItem)} className={BAG_INVENTORY_FOOTER_BTN.danger}>
-                                판매
+                                {t('buttons.sell')}
                             </Button>
                             <Button bare colorScheme="none" onClick={() => setItemToSellBulk(selectedItem)} className={BAG_INVENTORY_FOOTER_BTN.warning}>
-                                일괄 판매
+                                {t('buttons.bulkSell')}
                             </Button>
                             {!isRefinementTicketMaterial(selectedItem.name) && getEnhancementMaterialUsageLinesForBag(selectedItem.name).length > 0 && (
                                 <Button bare colorScheme="none" onClick={() => onOpenBlacksmithTab('convert')} className={BAG_INVENTORY_FOOTER_BTN.info}>
-                                    재료변환
+                                    {t('buttons.materialConvert')}
                                 </Button>
                             )}
                             {isRefinementTicketMaterial(selectedItem.name) && (
                                 <Button bare colorScheme="none" onClick={() => onOpenBlacksmithTab('refine')} className={BAG_INVENTORY_FOOTER_BTN.info}>
-                                    사용
+                                    {t('buttons.use')}
                                 </Button>
                             )}
                         </>
@@ -1748,7 +1755,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                 <div className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden ${BAG_SCROLLBAR_Y_CLASS}`}>
                     <h3 className="mb-2 font-bold text-on-panel" style={{ fontSize: `${titleFs}px` }}>
-                        장착 장비
+                        {t('equippedGear')}
                     </h3>
                     <div
                         className="mx-auto grid w-full"
@@ -1799,7 +1806,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                         style={{ fontSize: `${eqStatFs}px` }}
                                     >
                                         <span className="whitespace-nowrap font-semibold text-secondary">{stat}</span>
-                                        <span className="whitespace-nowrap font-mono font-bold" title={`기본: ${baseValue}, 장비: ${bonus}`}>
+                                        <span className="whitespace-nowrap font-mono font-bold" title={t('statTooltip', { base: baseValue, bonus })}>
                                             {isNaN(finalValue) ? 0 : finalValue}
                                             {bonus > 0 && (
                                                 <span className="ml-0.5 text-green-400" style={{ fontSize: `${eqBonusFs}px` }}>
@@ -1832,7 +1839,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                         className={`!shrink-0 !py-1.5 !px-2 ${viewerActionButtonClass.info}`}
                         style={{ fontSize: `${saveFs}px` }}
                     >
-                        저장
+                        {t('presetSave')}
                     </Button>
                 </div>
             </div>
@@ -1854,7 +1861,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                             className={`w-full !py-2 !px-3 ${viewerActionButtonClass.info}`}
                             style={{ fontSize: `${Math.max(12, Math.round(14 * scaleFactor * mobileTextScale))}px` }}
                         >
-                            장착장비
+                            {t('labels.equippedGearCompact')}
                         </Button>
                     </div>
                 ) : (
@@ -1874,7 +1881,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                 style={{ paddingRight: `${Math.max(12, Math.round(16 * scaleFactor))}px` }}
                             >
                                 <div className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden ${BAG_SCROLLBAR_Y_CLASS}`}>
-                                    <h3 className="font-bold text-on-panel" style={{ fontSize: `${Math.max(14, Math.round(18 * scaleFactor * mobileTextScale))}px`, marginBottom: `${Math.max(6, Math.round(8 * scaleFactor))}px` }}>장착 장비</h3>
+                                    <h3 className="font-bold text-on-panel" style={{ fontSize: `${Math.max(14, Math.round(18 * scaleFactor * mobileTextScale))}px`, marginBottom: `${Math.max(6, Math.round(8 * scaleFactor))}px` }}>{t('equippedGear')}</h3>
                                     <div
                                         className="grid"
                                         style={{
@@ -1911,7 +1918,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                                 return (
                                                     <div key={stat} className="flex items-center justify-between rounded-md bg-tertiary/40 p-1" style={{ fontSize: `${Math.max(14, Math.round(15.5 * scaleFactor * mobileTextScale))}px` }}>
                                                         <span className="whitespace-nowrap font-semibold text-secondary">{stat}</span>
-                                                        <span className="whitespace-nowrap font-mono font-bold" title={`기본: ${baseValue}, 장비: ${bonus}`}>
+                                                        <span className="whitespace-nowrap font-mono font-bold" title={t('statTooltip', { base: baseValue, bonus })}>
                                                             {isNaN(finalValue) ? 0 : finalValue}
                                                             {bonus > 0 && <span className="ml-0.5 text-green-400" style={{ fontSize: `${Math.max(12, Math.round(13.5 * scaleFactor * mobileTextScale))}px` }}>(+{bonus})</span>}
                                                         </span>
@@ -1935,12 +1942,12 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                         ))}
                                     </select>
                                     <Button onClick={handleOpenRenameModal} colorScheme="blue" className={`!shrink-0 !py-1 ${viewerActionButtonClass.info}`} style={{ fontSize: `${Math.max(13, Math.round(14 * scaleFactor * mobileTextScale))}px` }}>
-                                        저장
+                                        {t('presetSave')}
                                     </Button>
                                 </div>
                             </div>
 
-                    {/* Conditional middle and right panels (데스크톱) — 장비·소모품·재료: 동일 2열(현재 장착 | 선택) */}
+                    {/* Conditional middle and right panels (데스크톱) — 장비·소모품·재료: 동일 2열({t('currentlyEquipped')} | {t('selectedGear')}) */}
                     {selectedItem &&
                     (selectedItem.type === 'equipment' ||
                         selectedItem.type === 'consumable' ||
@@ -1954,7 +1961,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                                 className="min-w-0 font-bold text-on-panel"
                                                 style={{ fontSize: `${Math.max(9, Math.round(10 * scaleFactor * detailTextScale))}px` }}
                                             >
-                                                현재 장착
+                                                {t('currentlyEquipped')}
                                             </h3>
                                             <div className="shrink-0">
                                                 <Button
@@ -1966,14 +1973,14 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                                     className={`!pointer-events-none !invisible !shrink-0 !py-1 !px-2 ${viewerActionButtonClass.info}`}
                                                     style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}
                                                 >
-                                                    장비 비교
+                                                    {t('compareGear')}
                                                 </Button>
                                             </div>
                                         </div>
                                         <div className="flex min-h-0 flex-1 flex-col overflow-hidden" style={{ WebkitOverflowScrolling: 'touch' }}>
                                             <LocalItemDetailDisplay
                                                 item={correspondingEquippedItem}
-                                                title="장착된 장비 없음"
+                                                title={t('noEquippedGear')}
                                                 comparisonItem={undefined}
                                                 scaleFactor={scaleFactor}
                                                 mobileTextScale={detailTextScale}
@@ -1990,7 +1997,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                                 className="mb-0.5 shrink-0 font-bold text-on-panel"
                                                 style={{ fontSize: `${Math.max(9, Math.round(10 * scaleFactor * detailTextScale))}px` }}
                                             >
-                                                이전 선택
+                                                {t('labels.previousSelection')}
                                             </h3>
                                         )}
                                         <div className="flex min-h-0 flex-1 flex-col overflow-hidden" style={{ WebkitOverflowScrolling: 'touch' }}>
@@ -2044,7 +2051,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                                                                 className={BAG_INVENTORY_FOOTER_BTN.info}
                                                                                 style={{ fontSize: `${fs}px` }}
                                                                             >
-                                                                                사용
+                                                                                {t('buttons.use')}
                                                                             </Button>
                                                                             {!isRefinementTicket &&
                                                                                 bagPcCmLeftPanelItem.quantity &&
@@ -2059,7 +2066,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                                                                         className={BAG_INVENTORY_FOOTER_BTN.accent}
                                                                                         style={{ fontSize: `${fs}px` }}
                                                                                     >
-                                                                                        일괄 사용
+                                                                                        {t('buttons.bulkUse')}
                                                                                     </Button>
                                                                                 )}
                                                                         </>
@@ -2073,7 +2080,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                                                                 className={BAG_INVENTORY_FOOTER_BTN.danger}
                                                                                 style={{ fontSize: `${fs}px` }}
                                                                             >
-                                                                                판매
+                                                                                {t('buttons.sell')}
                                                                             </Button>
                                                                             {bagPcCmLeftPanelItem.quantity && bagPcCmLeftPanelItem.quantity > 1 && (
                                                                                 <Button
@@ -2083,7 +2090,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                                                                     className={BAG_INVENTORY_FOOTER_BTN.warning}
                                                                                     style={{ fontSize: `${fs}px` }}
                                                                                 >
-                                                                                    일괄 판매
+                                                                                    {t('buttons.bulkSell')}
                                                                                 </Button>
                                                                             )}
                                                                         </>
@@ -2107,7 +2114,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                                                         className={BAG_INVENTORY_FOOTER_BTN.danger}
                                                                         style={{ fontSize: `${fs}px` }}
                                                                     >
-                                                                        판매
+                                                                        {t('buttons.sell')}
                                                                     </Button>
                                                                     <Button
                                                                         bare
@@ -2116,7 +2123,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                                                         className={BAG_INVENTORY_FOOTER_BTN.warning}
                                                                         style={{ fontSize: `${fs}px` }}
                                                                     >
-                                                                        일괄 판매
+                                                                        {t('buttons.bulkSell')}
                                                                     </Button>
                                                                     {isEnhancementMaterial && (
                                                                         <Button
@@ -2126,7 +2133,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                                                             className={BAG_INVENTORY_FOOTER_BTN.info}
                                                                             style={{ fontSize: `${fs}px` }}
                                                                         >
-                                                                            재료변환
+                                                                            {t('buttons.materialConvert')}
                                                                         </Button>
                                                                     )}
                                                                     {isRefinementTicket && (
@@ -2137,7 +2144,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                                                             className={BAG_INVENTORY_FOOTER_BTN.info}
                                                                             style={{ fontSize: `${fs}px` }}
                                                                         >
-                                                                            사용
+                                                                            {t('buttons.use')}
                                                                         </Button>
                                                                     )}
                                                                 </>
@@ -2157,10 +2164,10 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                         style={{ fontSize: `${Math.max(9, Math.round(10 * scaleFactor * detailTextScale))}px` }}
                                     >
                                         {selectedItem.type === 'equipment'
-                                            ? '선택 장비'
+                                            ? t('selectedGear')
                                             : selectedItem.type === 'consumable'
-                                              ? '선택 소모품'
-                                              : '선택 재료'}
+                                              ? t('labels.selectedConsumable')
+                                              : t('labels.selectedMaterial')}
                                     </h3>
                                     {selectedItem.type === 'equipment' ? (
                                         <div className="shrink-0">
@@ -2172,7 +2179,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                                     className={`!shrink-0 !py-1 !px-2 ${viewerActionButtonClass.info}`}
                                                     style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}
                                                 >
-                                                    장비 비교
+                                                    {t('compareGear')}
                                                 </Button>
                                             ) : (
                                                 <Button
@@ -2184,7 +2191,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                                     className={`!pointer-events-none !invisible !shrink-0 !py-1 !px-2 ${viewerActionButtonClass.info}`}
                                                     style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}
                                                 >
-                                                    장비 비교
+                                                    {t('compareGear')}
                                                 </Button>
                                             )}
                                         </div>
@@ -2194,7 +2201,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                     {selectedItem.type === 'equipment' ? (
                                         <LocalItemDetailDisplay
                                             item={selectedItem}
-                                            title="선택된 아이템 없음"
+                                            title={t('noItemSelected')}
                                             comparisonItem={undefined}
                                             scaleFactor={scaleFactor}
                                             mobileTextScale={detailTextScale}
@@ -2228,7 +2235,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                                 className={BAG_INVENTORY_FOOTER_BTN.danger}
                                                 style={{ fontSize: `${Math.max(12, Math.round(13 * scaleFactor * mobileTextScale))}px` }}
                                             >
-                                                해제
+                                                {t('buttons.unbind')}
                                             </Button>
                                         ) : (
                                             <Button
@@ -2239,7 +2246,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                                 disabled={!canEquip}
                                                 style={{ fontSize: `${Math.max(12, Math.round(13 * scaleFactor * mobileTextScale))}px` }}
                                             >
-                                                장착
+                                                {t('buttons.equip')}
                                             </Button>
                                         )}
                                         <Button
@@ -2250,7 +2257,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                             className={BAG_INVENTORY_FOOTER_BTN.warning}
                                             style={{ fontSize: `${Math.max(12, Math.round(13 * scaleFactor * mobileTextScale))}px` }}
                                         >
-                                            {selectedItem.stars >= 10 ? '최대' : '강화'}
+                                            {selectedItem.stars >= 10 ? t('maxShort') : t('enhance')}
                                         </Button>
                                         <Button
                                             bare
@@ -2259,7 +2266,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                             className={BAG_INVENTORY_FOOTER_BTN.danger}
                                             style={{ fontSize: `${Math.max(12, Math.round(13 * scaleFactor * mobileTextScale))}px` }}
                                         >
-                                            판매
+                                            {t('buttons.sell')}
                                         </Button>
                                         {selectedItem.isBound && (
                                             <Button
@@ -2269,7 +2276,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                                 className={BAG_INVENTORY_FOOTER_BTN.info}
                                                 style={{ fontSize: `${Math.max(12, Math.round(13 * scaleFactor * mobileTextScale))}px` }}
                                             >
-                                                귀속해제
+                                                {t('buttons.unbindBound')}
                                             </Button>
                                         )}
                                     </div>
@@ -2297,7 +2304,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                                                     className={BAG_INVENTORY_FOOTER_BTN.info}
                                                                     style={{ fontSize: `${fs}px` }}
                                                                 >
-                                                                    사용
+                                                                    {t('buttons.use')}
                                                                 </Button>
                                                                 {!isRefinementTicket && selectedItem.quantity && selectedItem.quantity > 1 && (
                                                                     <Button
@@ -2310,7 +2317,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                                                         className={BAG_INVENTORY_FOOTER_BTN.accent}
                                                                         style={{ fontSize: `${fs}px` }}
                                                                     >
-                                                                        일괄 사용
+                                                                        {t('buttons.bulkUse')}
                                                                     </Button>
                                                                 )}
                                                             </>
@@ -2324,7 +2331,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                                                     className={BAG_INVENTORY_FOOTER_BTN.danger}
                                                                     style={{ fontSize: `${fs}px` }}
                                                                 >
-                                                                    판매
+                                                                    {t('buttons.sell')}
                                                                 </Button>
                                                                 {selectedItem.quantity && selectedItem.quantity > 1 && (
                                                                     <Button
@@ -2334,7 +2341,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                                                         className={BAG_INVENTORY_FOOTER_BTN.warning}
                                                                         style={{ fontSize: `${fs}px` }}
                                                                     >
-                                                                        일괄 판매
+                                                                        {t('buttons.bulkSell')}
                                                                     </Button>
                                                                 )}
                                                             </>
@@ -2357,7 +2364,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                                                 className={BAG_INVENTORY_FOOTER_BTN.danger}
                                                                 style={{ fontSize: `${fs}px` }}
                                                             >
-                                                                판매
+                                                                {t('buttons.sell')}
                                                             </Button>
                                                             <Button
                                                                 bare
@@ -2366,7 +2373,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                                                 className={BAG_INVENTORY_FOOTER_BTN.warning}
                                                                 style={{ fontSize: `${fs}px` }}
                                                             >
-                                                                일괄 판매
+                                                                {t('buttons.bulkSell')}
                                                             </Button>
                                                             {isEnhancementMaterial && (
                                                                 <Button
@@ -2376,7 +2383,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                                                     className={BAG_INVENTORY_FOOTER_BTN.info}
                                                                     style={{ fontSize: `${fs}px` }}
                                                                 >
-                                                                    재료변환
+                                                                    {t('buttons.materialConvert')}
                                                                 </Button>
                                                             )}
                                                             {isRefinementTicket && (
@@ -2387,7 +2394,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                                                     className={BAG_INVENTORY_FOOTER_BTN.info}
                                                                     style={{ fontSize: `${fs}px` }}
                                                                 >
-                                                                    사용
+                                                                    {t('buttons.use')}
                                                                 </Button>
                                                             )}
                                                         </>
@@ -2405,14 +2412,14 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                     className="flex h-full items-center justify-center text-tertiary"
                                     style={{ fontSize: `${Math.max(12, Math.round(14 * scaleFactor * mobileTextScale))}px` }}
                                 >
-                                    선택된 아이템 없음
+                                    {t('noItemSelected')}
                                 </div>
                             ) : (
                                 <div
                                     className="flex h-full items-center justify-center text-tertiary"
                                     style={{ fontSize: `${Math.max(12, Math.round(14 * scaleFactor * mobileTextScale))}px` }}
                                 >
-                                    아이템을 선택해주세요
+                                    {t('labels.selectItemHint')}
                                 </div>
                             )}
                         </div>
@@ -2436,22 +2443,22 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                         {narrowInventoryLayout ? (
                             <div className="flex min-w-0 flex-col gap-2">
                                 <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                                    <Button onClick={() => setActiveTab('all')} colorScheme={activeTab === 'all' ? 'blue' : 'gray'} className={`!py-1 !px-2 ${getLuxuryTabButtonClass(activeTab === 'all')}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>전체</Button>
-                                    <Button onClick={() => setActiveTab('equipment')} colorScheme={activeTab === 'equipment' ? 'blue' : 'gray'} className={`!py-1 !px-2 ${getLuxuryTabButtonClass(activeTab === 'equipment')}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>장비</Button>
-                                    <Button onClick={() => setActiveTab('consumable')} colorScheme={activeTab === 'consumable' ? 'blue' : 'gray'} className={`!py-1 !px-2 ${getLuxuryTabButtonClass(activeTab === 'consumable')}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>소모품</Button>
-                                    <Button onClick={() => setActiveTab('material')} colorScheme={activeTab === 'material' ? 'blue' : 'gray'} className={`!py-1 !px-2 ${getLuxuryTabButtonClass(activeTab === 'material')}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>재료</Button>
+                                    <Button onClick={() => setActiveTab('all')} colorScheme={activeTab === 'all' ? 'blue' : 'gray'} className={`!py-1 !px-2 ${getLuxuryTabButtonClass(activeTab === 'all')}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>{t('tabs.all')}</Button>
+                                    <Button onClick={() => setActiveTab('equipment')} colorScheme={activeTab === 'equipment' ? 'blue' : 'gray'} className={`!py-1 !px-2 ${getLuxuryTabButtonClass(activeTab === 'equipment')}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>{t('tabs.equipment')}</Button>
+                                    <Button onClick={() => setActiveTab('consumable')} colorScheme={activeTab === 'consumable' ? 'blue' : 'gray'} className={`!py-1 !px-2 ${getLuxuryTabButtonClass(activeTab === 'consumable')}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>{t('tabs.consumable')}</Button>
+                                    <Button onClick={() => setActiveTab('material')} colorScheme={activeTab === 'material' ? 'blue' : 'gray'} className={`!py-1 !px-2 ${getLuxuryTabButtonClass(activeTab === 'material')}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>{t('tabs.material')}</Button>
                                 </div>
                                 <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 border-t border-gray-700/50 pt-2">
-                                    <span className="shrink-0" style={{ fontSize: `${Math.max(12, Math.round(14 * scaleFactor * mobileTextScale))}px` }}>정렬:</span>
+                                    <span className="shrink-0" style={{ fontSize: `${Math.max(12, Math.round(14 * scaleFactor * mobileTextScale))}px` }}>{t('sort.label')}</span>
                                     <select
                                         onChange={(e) => setSortKey(e.target.value as SortKey)}
                                         value={sortKey}
                                         className="min-w-0 flex-1 rounded-md bg-gray-700 p-1.5 text-white sm:max-w-[14rem]"
                                         style={{ fontSize: `${Math.max(12, Math.round(14 * scaleFactor * mobileTextScale))}px` }}
                                     >
-                                        <option value="createdAt">최신순</option>
-                                        <option value="grade">등급순</option>
-                                        <option value="type">종류순</option>
+                                        <option value="createdAt">{t('sort.newest')}</option>
+                                        <option value="grade">{t('sort.grade')}</option>
+                                        <option value="type">{t('sort.type')}</option>
                                     </select>
                                     <div className="ml-auto shrink-0 text-gray-400" style={{ fontSize: `${Math.max(12, Math.round(14 * scaleFactor * mobileTextScale))}px` }}>
                                         {`${filteredAndSortedInventory.length} / ${currentSlots}`}
@@ -2461,17 +2468,17 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                         ) : (
                             <div className={`flex items-center justify-between`}>
                                 <div className={`flex items-center space-x-2`}>
-                                    <Button onClick={() => setActiveTab('all')} colorScheme={activeTab === 'all' ? 'blue' : 'gray'} className={`!py-1 !px-2 ${getLuxuryTabButtonClass(activeTab === 'all')}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>전체</Button>
-                                    <Button onClick={() => setActiveTab('equipment')} colorScheme={activeTab === 'equipment' ? 'blue' : 'gray'} className={`!py-1 !px-2 ${getLuxuryTabButtonClass(activeTab === 'equipment')}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>장비</Button>
-                                    <Button onClick={() => setActiveTab('consumable')} colorScheme={activeTab === 'consumable' ? 'blue' : 'gray'} className={`!py-1 !px-2 ${getLuxuryTabButtonClass(activeTab === 'consumable')}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>소모품</Button>
-                                    <Button onClick={() => setActiveTab('material')} colorScheme={activeTab === 'material' ? 'blue' : 'gray'} className={`!py-1 !px-2 ${getLuxuryTabButtonClass(activeTab === 'material')}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>재료</Button>
+                                    <Button onClick={() => setActiveTab('all')} colorScheme={activeTab === 'all' ? 'blue' : 'gray'} className={`!py-1 !px-2 ${getLuxuryTabButtonClass(activeTab === 'all')}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>{t('tabs.all')}</Button>
+                                    <Button onClick={() => setActiveTab('equipment')} colorScheme={activeTab === 'equipment' ? 'blue' : 'gray'} className={`!py-1 !px-2 ${getLuxuryTabButtonClass(activeTab === 'equipment')}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>{t('tabs.equipment')}</Button>
+                                    <Button onClick={() => setActiveTab('consumable')} colorScheme={activeTab === 'consumable' ? 'blue' : 'gray'} className={`!py-1 !px-2 ${getLuxuryTabButtonClass(activeTab === 'consumable')}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>{t('tabs.consumable')}</Button>
+                                    <Button onClick={() => setActiveTab('material')} colorScheme={activeTab === 'material' ? 'blue' : 'gray'} className={`!py-1 !px-2 ${getLuxuryTabButtonClass(activeTab === 'material')}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>{t('tabs.material')}</Button>
                                 </div>
                                 <div className={`flex items-center space-x-2`}>
-                                    <span style={{ fontSize: `${Math.max(12, Math.round(14 * scaleFactor * mobileTextScale))}px` }}>정렬:</span>
+                                    <span style={{ fontSize: `${Math.max(12, Math.round(14 * scaleFactor * mobileTextScale))}px` }}>{t('sort.label')}</span>
                                     <select onChange={(e) => setSortKey(e.target.value as SortKey)} value={sortKey} className={`rounded-md bg-gray-700 p-1.5 text-white`} style={{ fontSize: `${Math.max(12, Math.round(14 * scaleFactor * mobileTextScale))}px` }}>
-                                        <option value="createdAt">최신순</option>
-                                        <option value="grade">등급순</option>
-                                        <option value="type">종류순</option>
+                                        <option value="createdAt">{t('sort.newest')}</option>
+                                        <option value="grade">{t('sort.grade')}</option>
+                                        <option value="type">{t('sort.type')}</option>
                                     </select>
                                     <div className="text-gray-400" style={{ fontSize: `${Math.max(12, Math.round(14 * scaleFactor * mobileTextScale))}px` }}>
                                         {`${filteredAndSortedInventory.length} / ${currentSlots}`}
@@ -2538,7 +2545,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                 key="expand-slot"
                                 onClick={handleExpand}
                                 className={`w-full aspect-square rounded-lg bg-gray-800/50 border-2 border-gray-700/50 flex items-center justify-center text-gray-400 ${narrowInventoryLayout ? 'text-3xl' : 'text-4xl'} hover:bg-gray-700/50 hover:border-accent active:bg-gray-600/50 transition-all duration-200`}
-                                title={`가방 확장 (${expansionCost} 다이아)`}
+                                title={t('expandBagWithCost', { cost: expansionCost })}
                                 style={{ minHeight: narrowInventoryLayout ? '44px' : undefined }}
                             >
                                 +
@@ -2554,13 +2561,13 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                 <div className="absolute inset-0 z-30 flex min-h-0 flex-col bg-black/75 p-2 backdrop-blur-[1px]">
                     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/15 bg-gray-900 shadow-2xl ring-1 ring-white/10">
                         <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 px-3 py-2.5">
-                            <h3 className="min-w-0 truncate text-sm font-bold text-amber-100">장착 장비</h3>
+                            <h3 className="min-w-0 truncate text-sm font-bold text-amber-100">{t('equippedGear')}</h3>
                             <button
                                 type="button"
                                 onClick={() => setIsMobileEquippedModalOpen(false)}
                                 className="shrink-0 rounded-lg border border-white/20 bg-zinc-800/90 px-3 py-1.5 text-xs font-semibold text-zinc-100 active:scale-[0.98]"
                             >
-                                닫기
+                                {tCommon('actions.close')}
                             </button>
                         </div>
                         <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pb-2 pt-2">
@@ -2572,7 +2579,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
 
             {useMobileBagItemDetailModal && isMobileItemDetailOpen && selectedItem && (
                 <DraggableWindow
-                    title="아이템 정보"
+                    title={t('itemInfo')}
                     onClose={() => setIsMobileItemDetailOpen(false)}
                     windowId="inventoryMobileItemDetail"
                     isTopmost={!isEquipCompareOpen}
@@ -2597,7 +2604,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                 selectedItem.slot &&
                 selectedItem.id !== correspondingEquippedItem?.id && (
                     <DraggableWindow
-                        title="장비 비교"
+                        title={t('compareGear')}
                         onClose={() => setIsEquipCompareOpen(false)}
                         windowId="inventoryEquipCompare"
                         isTopmost
@@ -2627,10 +2634,10 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                 <div className="flex min-h-0 flex-[1.15_1_0%] flex-col overflow-hidden rounded-lg border border-cyan-500/35 bg-panel-secondary/90 shadow-inner">
                                     <div className="shrink-0 grid grid-cols-4 gap-0.5 border-b border-cyan-500/20 px-1 py-1.5">
                                         {[
-                                            ['info', '장비정보'],
-                                            ['mainSub', '주/부옵션'],
-                                            ['special', '특수옵션'],
-                                            ['mythic', '신화옵션'],
+                                            ['info', t('compareTabs.info')],
+                                            ['mainSub', t('compareTabs.mainSub')],
+                                            ['special', t('compareTabs.special')],
+                                            ['mythic', t('compareTabs.mythic')],
                                         ].map(([key, label]) => {
                                             const active = equipCompareViewerTab === key;
                                             return (
@@ -2653,7 +2660,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                         <div className="flex min-h-0 flex-1 gap-1.5">
                                             <div className="flex min-h-0 w-[24%] min-w-0 flex-col gap-1">
                                                 <div className="flex min-h-0 flex-1 basis-0 flex-col rounded-md border border-cyan-500/35 bg-black/25 p-0.5">
-                                                    <div className="mb-0.5 text-center text-[11px] font-semibold leading-snug text-cyan-200">현재 장착</div>
+                                                    <div className="mb-0.5 text-center text-[11px] font-semibold leading-snug text-cyan-200">{t('currentlyEquipped')}</div>
                                                     <div className="flex min-h-0 flex-1 flex-col items-center justify-center">
                                                         <div className="mx-auto w-[84%] shrink-0">
                                                             <EquipmentSlotDisplay
@@ -2666,9 +2673,9 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                                         <div className="mt-0.5 text-center leading-tight">
                                                             <div
                                                                 className="whitespace-nowrap text-cyan-200"
-                                                                style={{ fontSize: `${resolveNoWrapTextFontPx(correspondingEquippedItem?.name ?? '장비 없음', 11, 7, 9, 0.5)}px` }}
+                                                                style={{ fontSize: `${resolveNoWrapTextFontPx(correspondingEquippedItem?.name ?? t('noGear'), 11, 7, 9, 0.5)}px` }}
                                                             >
-                                                                {correspondingEquippedItem?.name ?? '장비 없음'}
+                                                                {correspondingEquippedItem?.name ?? t('noGear')}
                                                             </div>
                                                             <div className="text-[11px] leading-snug text-cyan-300/90">
                                                                 [{correspondingEquippedItem ? gradeStyles[correspondingEquippedItem.grade].name : '-'}]
@@ -2677,7 +2684,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                                     </div>
                                                 </div>
                                                 <div className="flex min-h-0 flex-1 basis-0 flex-col rounded-md border border-amber-500/35 bg-black/25 p-0.5">
-                                                    <div className="mb-0.5 text-center text-[11px] font-semibold leading-snug text-amber-200">선택 장비</div>
+                                                    <div className="mb-0.5 text-center text-[11px] font-semibold leading-snug text-amber-200">{t('selectedGear')}</div>
                                                     <div className="flex min-h-0 flex-1 flex-col items-center justify-center">
                                                         <div className="mx-auto w-[84%] shrink-0">
                                                             <EquipmentSlotDisplay
@@ -2772,7 +2779,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                                                     );
                                                                 })
                                                             ) : (
-                                                                <p className="px-1 py-1 text-stone-500">옵션 없음</p>
+                                                                <p className="px-1 py-1 text-stone-500">{t('noOptions')}</p>
                                                             );
                                                         };
 
@@ -2784,7 +2791,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                                             <div className={`flex min-h-0 flex-1 basis-0 flex-col rounded-md border bg-black/20 p-0.5 ${tone === 'cyan' ? 'border-cyan-500/35' : 'border-amber-500/35'}`}>
                                                                 <div className={`min-h-0 flex-1 overflow-y-auto overflow-x-auto pr-0.5 ${BAG_SCROLLBAR_Y_CLASS}`}>
                                                                     {!itemRef ? (
-                                                                        <p className="text-stone-500">장비 없음</p>
+                                                                        <p className="text-stone-500">{t('noGear')}</p>
                                                                     ) : (
                                                                         body
                                                                     )}
@@ -2797,13 +2804,13 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                                             const selectedReq = GRADE_LEVEL_REQUIREMENTS[selectedEquip.grade];
                                                             const currentRefine = currentEquip
                                                                 ? (currentEquip.grade !== 'normal' && ((currentEquip as any).refinementCount ?? 0) > 0
-                                                                    ? `${(currentEquip as any).refinementCount}회`
-                                                                    : '제련불가')
+                                                                    ? t('refinementCount', { count: (currentEquip as any).refinementCount })
+                                                                    : t('refinementUnavailable'))
                                                                 : '-';
                                                             const selectedRefine =
                                                                 selectedEquip.grade !== 'normal' && ((selectedEquip as any).refinementCount ?? 0) > 0
-                                                                    ? `${(selectedEquip as any).refinementCount}회`
-                                                                    : '제련불가';
+                                                                    ? t('refinementCount', { count: (selectedEquip as any).refinementCount })
+                                                                    : t('refinementUnavailable');
                                                             return (
                                                                 <div className="flex h-full min-h-0 flex-col gap-0.5">
                                                                     {renderViewerPane(
@@ -2814,7 +2821,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                                                                 {typeof currentReq === 'number' ? formatEquipLevelRequirement(currentReq) : currentReq}
                                                                             </span>
                                                                             <span className="mt-0.5 block whitespace-nowrap text-cyan-200">
-                                                                                {`제련 가능 : ${currentRefine}`}
+                                                                                {t('labels.refinementAvailableColon', { value: currentRefine })}
                                                                             </span>
                                                                         </div>,
                                                                     )}
@@ -2826,7 +2833,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                                                                 {formatEquipLevelRequirement(selectedReq)}
                                                                             </span>
                                                                             <span className="mt-0.5 block whitespace-nowrap text-amber-200">
-                                                                                {`제련 가능 : ${selectedRefine}`}
+                                                                                {t('labels.refinementAvailableColon', { value: selectedRefine })}
                                                                             </span>
                                                                         </div>,
                                                                     )}
@@ -2866,12 +2873,12 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                             className="shrink-0 border-b border-cyan-500/20 px-2 py-1 font-bold text-cyan-200/95"
                                             style={{ fontSize: `${Math.max(12, Math.round(14 * scaleFactor * compareModalTextScale))}px` }}
                                         >
-                                            현재 장착
+                                            {t('currentlyEquipped')}
                                         </h4>
                                         <div className={`flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden p-1.5 ${BAG_SCROLLBAR_Y_CLASS}`} style={{ WebkitOverflowScrolling: 'touch' }}>
                                             <LocalItemDetailDisplay
                                                 item={correspondingEquippedItem}
-                                                title="장착된 장비 없음"
+                                                title={t('noEquippedGear')}
                                                 comparisonItem={selectedItem}
                                                 scaleFactor={Math.max(0.42, scaleFactor * 0.92)}
                                                 mobileTextScale={compareModalTextScale}
@@ -2887,12 +2894,12 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                             className="shrink-0 border-b border-gray-600/40 px-2 py-1 font-bold text-on-panel"
                                             style={{ fontSize: `${Math.max(12, Math.round(14 * scaleFactor * compareModalTextScale))}px` }}
                                         >
-                                            선택 장비
+                                            {t('selectedGear')}
                                         </h4>
                                         <div className={`flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden p-1.5 ${BAG_SCROLLBAR_Y_CLASS}`} style={{ WebkitOverflowScrolling: 'touch' }}>
                                             <LocalItemDetailDisplay
                                                 item={selectedItem}
-                                                title="선택된 아이템 없음"
+                                                title={t('noItemSelected')}
                                                 comparisonItem={correspondingEquippedItem ?? undefined}
                                                 scaleFactor={Math.max(0.42, scaleFactor * 0.92)}
                                                 mobileTextScale={compareModalTextScale}
@@ -2910,7 +2917,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                         className="mb-0.5 font-bold text-amber-100/95 leading-tight"
                                         style={{ fontSize: `${Math.max(14, Math.round(15 * scaleFactor * compareModalTextScale))}px` }}
                                     >
-                                        교체 시 바둑 능력치 변화
+                                        {t('labels.compareStatChange')}
                                     </h4>
                                     <div className={`grid grid-cols-1 ${narrowInventoryLayout ? 'gap-y-0' : 'gap-y-1'}`}>
                                         {Object.values(CoreStat).map((stat) => {
@@ -2953,7 +2960,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                         className="mt-1 flex items-center justify-center gap-1.5 border-t border-amber-500/20 pt-0.5 font-bold text-stone-100"
                                         style={{ fontSize: `${Math.max(14, Math.round(15 * scaleFactor * compareModalTextScale))}px` }}
                                     >
-                                        <span className={`${narrowInventoryLayout ? 'w-[4.6rem]' : 'w-[6.2rem]'} shrink-0 text-right text-amber-200/90 whitespace-nowrap`}>종합 능력</span>
+                                        <span className={`${narrowInventoryLayout ? 'w-[4.6rem]' : 'w-[6.2rem]'} shrink-0 text-right text-amber-200/90 whitespace-nowrap`}>{t('totalAbility')}</span>
                                         <span className={`${narrowInventoryLayout ? 'w-[5.8rem]' : 'w-[7.6rem]'} shrink-0 text-center font-mono tabular-nums whitespace-nowrap`}>
                                             <span className="text-stone-400">{equipSwapStatPreview.currentSum}</span>
                                             <span className="mx-1 text-stone-600">→</span>
@@ -3084,7 +3091,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
 
             {isExpandModalOpen && activeTab !== 'all' && (
                 <DraggableWindow
-                    title="가방 확장"
+                    title={t('expandBag')}
                     onClose={() => setIsExpandModalOpen(false)}
                     windowId="expandInventory"
                     isTopmost
@@ -3097,10 +3104,10 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                 >
                     <InventorySlotExpandDiamondBody
                         eyebrow="Inventory upgrade"
-                        question={`${activeTabLabel} 가방을 확장하시겠습니까?`}
+                        question={t('labels.expandQuestion', { tab: activeTabLabel })}
                         currentSlots={currentCategorySlots}
                         nextSlots={nextCategorySlots}
-                        slotsHint={slotsIncrease > 0 ? `+${slotsIncrease}칸 추가` : undefined}
+                        slotsHint={slotsIncrease > 0 ? t('slotsAdded', { count: slotsIncrease }) : undefined}
                         diamondCost={expansionCost}
                         hasEnoughDiamonds={hasEnoughDiamonds}
                         onCancel={() => setIsExpandModalOpen(false)}
@@ -3111,7 +3118,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
 
             {isRenameModalOpen && (
                 <DraggableWindow
-                    title="프리셋 이름 변경"
+                    title={t('presetRename')}
                     onClose={() => setIsRenameModalOpen(false)}
                     windowId="renamePreset"
                     isTopmost
@@ -3143,13 +3150,13 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                     id="preset-rename-heading"
                                     className="mb-1 text-center text-sm font-bold tracking-wide text-amber-100/95 sm:text-base"
                                 >
-                                    프리셋 이름
+                                    {t('labels.presetRenameHeading')}
                                 </h2>
                                 <p className="mb-3 text-center text-[11px] leading-relaxed text-slate-400 sm:text-xs">
-                                    저장할 프리셋의 표시 이름을 입력하세요. (최대 20자)
+                                    {t('labels.presetRenameHint')}
                                 </p>
                                 <label htmlFor="preset-rename-input" className="sr-only">
-                                    프리셋 이름
+                                    {t('labels.presetRenameHeading')}
                                 </label>
                                 <input
                                     id="preset-rename-input"
@@ -3159,7 +3166,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                     maxLength={20}
                                     autoFocus
                                     className="mb-1 w-full rounded-xl border border-amber-500/25 bg-black/45 px-3 py-2.5 text-center text-sm font-semibold text-slate-100 shadow-inner outline-none ring-0 transition placeholder:text-slate-500 focus:border-amber-400/55 focus:bg-black/55 focus:shadow-[0_0_0_1px_rgba(251,191,36,0.25),inset_0_1px_0_rgba(255,255,255,0.06)] sm:py-2.5 sm:text-base"
-                                    placeholder="예: 공격 세트"
+                                    placeholder={t('presetPlaceholder')}
                                 />
                                 <p className="mb-3 text-center text-[10px] tabular-nums text-slate-500">
                                     {newPresetName.length} / 20
@@ -3170,14 +3177,14 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                         onClick={handleSavePreset}
                                         className="w-[44%] max-w-[9.5rem] min-w-[7.25rem] rounded-xl border border-amber-300/45 bg-gradient-to-b from-emerald-400 via-emerald-500 to-emerald-700 py-2.5 text-sm font-bold tracking-[0.01em] text-white shadow-[0_12px_28px_-12px_rgba(16,185,129,0.6),inset_0_1px_0_rgba(255,255,255,0.26)] transition hover:-translate-y-[1px] hover:border-amber-200/60 hover:from-emerald-300 hover:via-emerald-500 hover:to-emerald-650 hover:shadow-[0_14px_30px_-12px_rgba(16,185,129,0.7)] active:translate-y-0 active:scale-[0.98] sm:py-2.5"
                                     >
-                                        저장
+                                        {t('presetSave')}
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => setIsRenameModalOpen(false)}
                                         className="w-[44%] max-w-[9.5rem] min-w-[7.25rem] rounded-xl border border-slate-400/55 bg-gradient-to-b from-slate-600/95 via-slate-700/95 to-slate-900/95 py-2.5 text-sm font-bold tracking-[0.01em] text-slate-100 shadow-[0_10px_22px_-12px_rgba(15,23,42,0.85),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-[1px] hover:border-slate-300/70 hover:from-slate-500/95 hover:via-slate-650/95 hover:to-slate-800/95 hover:shadow-[0_12px_26px_-12px_rgba(15,23,42,0.92)] active:translate-y-0 active:scale-[0.98] sm:py-2.5"
                                     >
-                                        취소
+                                        {tCommon('actions.cancel')}
                                     </button>
                                 </div>
                             </div>
@@ -3187,17 +3194,17 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
             )}
             {isPresetSavedModalOpen && (
                 <AlertModal
-                    title="프리셋 저장"
-                    message="프리셋이 저장되었습니다."
+                    title={t('presetSavedTitle')}
+                    message={t('presetSavedMessage')}
                     onClose={() => setIsPresetSavedModalOpen(false)}
-                    confirmText="확인"
+                    confirmText={tCommon('actions.ok')}
                     isTopmost
                     windowId="preset-save-alert"
                 />
             )}
             {pendingBindEquipItemId && (
                 <DraggableWindow
-                    title="장비 귀속 안내"
+                    title={t('boundInfo')}
                     onClose={handleCancelBindEquip}
                     windowId="equipmentBindConfirm"
                     isTopmost
@@ -3209,16 +3216,16 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                 >
                     <div className="flex h-full flex-col justify-between gap-5 p-5">
                         <p className="whitespace-pre-line text-center text-sm leading-relaxed text-slate-100">
-                            장비가 귀속되어 거래소 판매가 불가능해집니다.
+                            {t('bindModal.line1')}
                             {'\n'}
-                            거래소 판매를 위해서는 귀속 해제권을 사용해야합니다.
+                            {t('bindModal.line2')}
                         </p>
                         <div className="flex items-center justify-center gap-3">
                             <Button onClick={handleConfirmBindEquip} colorScheme="blue" className="min-w-[120px]">
-                                장착
+                                {t('buttons.equip')}
                             </Button>
                             <Button onClick={handleCancelBindEquip} colorScheme="gray" className="min-w-[120px]">
-                                취소
+                                {tCommon('actions.cancel')}
                             </Button>
                         </div>
                     </div>
@@ -3226,7 +3233,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
             )}
             {pendingUnbindItem && (
                 <DraggableWindow
-                    title="귀속 해제 확인"
+                    title={t('unbindConfirm')}
                     onClose={handleCancelUnbindEquipment}
                     windowId="equipmentUnbindConfirm"
                     isTopmost
@@ -3238,10 +3245,10 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                 >
                     <div className="flex h-full flex-col gap-3 p-3 text-slate-100">
                         <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-br from-slate-900/95 via-slate-950/90 to-zinc-950/95 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-                            <p className="text-center text-xs font-bold tracking-wide text-amber-200/85">귀속 해제 안내</p>
+                            <p className="text-center text-xs font-bold tracking-wide text-amber-200/85">{t('unbindGuide')}</p>
                             <p className="mt-1 text-center text-base font-bold text-slate-50">{pendingUnbindItem.name}</p>
                             <p className="mt-2 text-center text-xs text-slate-300">
-                                장비 귀속을 해제하면 거래소 판매가 가능해집니다.
+                                {t('bindModal.unbindDesc')}
                             </p>
                             <div className="mt-3 flex items-center justify-center">
                                 <div className="relative h-16 w-16 overflow-hidden rounded-xl ring-1 ring-white/10">
@@ -3259,18 +3266,18 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                             </div>
                             <div className="mt-3 flex items-center justify-center gap-2 text-xs font-semibold">
                                 <span className="rounded-full border border-rose-400/35 bg-rose-950/35 px-2.5 py-1 text-rose-200">
-                                    귀속
+                                    {t('bound')}
                                 </span>
                                 <span className="text-amber-200">→</span>
                                 <span className="rounded-full border border-emerald-400/35 bg-emerald-950/30 px-2.5 py-1 text-emerald-200">
-                                    거래가능
+                                    {t('tradable')}
                                 </span>
                             </div>
                         </div>
                         <div className="rounded-xl border border-amber-500/25 bg-gradient-to-r from-amber-950/45 via-yellow-950/25 to-amber-950/45 p-3">
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="rounded-lg border border-white/10 bg-black/25 p-2">
-                                    <p className="mb-1 text-center text-[11px] font-semibold text-slate-300">보유</p>
+                                    <p className="mb-1 text-center text-[11px] font-semibold text-slate-300">{t('owned')}</p>
                                     <div className="flex items-center justify-center gap-2">
                                         <img
                                             src={unbindTicketTemplate?.image ?? '/images/use/belong.webp'}
@@ -3281,7 +3288,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                     </div>
                                 </div>
                                 <div className="rounded-lg border border-white/10 bg-black/25 p-2">
-                                    <p className="mb-1 text-center text-[11px] font-semibold text-slate-300">필요</p>
+                                    <p className="mb-1 text-center text-[11px] font-semibold text-slate-300">{t('required')}</p>
                                     <div className="flex items-center justify-center gap-2">
                                         <img
                                             src={unbindTicketTemplate?.image ?? '/images/use/belong.webp'}
@@ -3295,7 +3302,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                         </div>
                         {!pendingUnbindHasEnoughTickets && (
                             <p className="rounded-lg border border-rose-400/35 bg-rose-950/35 px-3 py-2 text-center text-sm font-semibold text-rose-300">
-                                귀속 해제권이 부족합니다.
+                                {t('alerts.insufficientUnbindTickets')}
                             </p>
                         )}
                         <div className="mt-auto flex items-center justify-center gap-3">
@@ -3305,14 +3312,14 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                 className="min-w-[120px] rounded-xl border border-emerald-300/45 bg-gradient-to-b from-emerald-400 via-emerald-500 to-emerald-700 px-4 py-2.5 text-sm font-bold tracking-[0.01em] text-white shadow-[0_12px_28px_-12px_rgba(16,185,129,0.6),inset_0_1px_0_rgba(255,255,255,0.26)] transition hover:-translate-y-[1px] hover:border-emerald-200/60 hover:from-emerald-300 hover:via-emerald-500 hover:to-emerald-650 hover:shadow-[0_14px_30px_-12px_rgba(16,185,129,0.7)] active:translate-y-0 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
                                 disabled={!pendingUnbindHasEnoughTickets}
                             >
-                                귀속해제
+                                {t('buttons.unbindBound')}
                             </button>
                             <button
                                 type="button"
                                 onClick={handleCancelUnbindEquipment}
                                 className="min-w-[120px] rounded-xl border border-slate-400/55 bg-gradient-to-b from-slate-600/95 via-slate-700/95 to-slate-900/95 px-4 py-2.5 text-sm font-bold tracking-[0.01em] text-slate-100 shadow-[0_10px_22px_-12px_rgba(15,23,42,0.85),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-[1px] hover:border-slate-300/70 hover:from-slate-500/95 hover:via-slate-650/95 hover:to-slate-800/95 hover:shadow-[0_12px_26px_-12px_rgba(15,23,42,0.92)] active:translate-y-0 active:scale-[0.98]"
                             >
-                                취소
+                                {tCommon('actions.cancel')}
                             </button>
                         </div>
                     </div>
@@ -3331,7 +3338,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
 
     return (
         <DraggableWindow
-            title="가방"
+            title={t('title')}
             onClose={onClose}
             windowId="inventory"
             isTopmost={isTopmost && !hasInventoryChildModal}
@@ -3451,21 +3458,20 @@ const InventoryItemCard: React.FC<{
                     // 다양한 이름 변형으로 시도
                     const nameVariations: string[] = [
                         item.name,
-                        item.name.replace('꾸러미', ' 꾸러미'),
-                        item.name.replace(' 꾸러미', '꾸러미'),
-                        item.name.replace('상자', ' 상자'),
-                        item.name.replace(' 상자', '상자'),
+                        item.name.replace('\uAF43\uB7EC\uBBF8', ' \uAF43\uB7EC\uBBF8'),
+                        item.name.replace(' \uAF43\uB7EC\uBBF8', '\uAF43\uB7EC\uBBF8'),
+                        item.name.replace('\uC0C1\uC790', ' \uC0C1\uC790'),
+                        item.name.replace(' \uC0C1\uC790', '\uC0C1\uC790'),
                     ];
                     
-                    // 숫자를 로마숫자로 변환한 변형들 추가
                     for (const [num, roman] of Object.entries(numToRoman)) {
                         nameVariations.push(
-                            item.name.replace(new RegExp(`장비상자${num}`, 'g'), `장비 상자 ${roman}`),
-                            item.name.replace(new RegExp(`재료상자${num}`, 'g'), `재료 상자 ${roman}`),
-                            item.name.replace(new RegExp(`장비 상자${num}`, 'g'), `장비 상자 ${roman}`),
-                            item.name.replace(new RegExp(`재료 상자${num}`, 'g'), `재료 상자 ${roman}`),
-                            item.name.replace(new RegExp(`장비 상자 ${num}`, 'g'), `장비 상자 ${roman}`),
-                            item.name.replace(new RegExp(`재료 상자 ${num}`, 'g'), `재료 상자 ${roman}`)
+                            item.name.replace(new RegExp(`\uC7A5\uBE44\uC0C1\uC790${num}`, 'g'), `\uC7A5\uBE44 \uC0C1\uC790 ${roman}`),
+                            item.name.replace(new RegExp(`\uC7AC\uB8CC\uC0C1\uC790${num}`, 'g'), `\uC7AC\uB8CC \uC0C1\uC790 ${roman}`),
+                            item.name.replace(new RegExp(`\uC7A5\uBE44 \uC0C1\uC790${num}`, 'g'), `\uC7A5\uBE44 \uC0C1\uC790 ${roman}`),
+                            item.name.replace(new RegExp(`\uC7AC\uB8CC \uC0C1\uC790${num}`, 'g'), `\uC7AC\uB8CC \uC0C1\uC790 ${roman}`),
+                            item.name.replace(new RegExp(`\uC7A5\uBE44 \uC0C1\uC790 ${num}`, 'g'), `\uC7A5\uBE44 \uC0C1\uC790 ${roman}`),
+                            item.name.replace(new RegExp(`\uC7AC\uB8CC \uC0C1\uC790 ${num}`, 'g'), `\uC7AC\uB8CC \uC0C1\uC790 ${roman}`)
                         );
                     }
                     

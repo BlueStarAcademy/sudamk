@@ -6,6 +6,7 @@ import {
     isGuildWarCatchUpMatchWindowKst,
     isGuildWarPrepTimeKst,
     getNextGuildWarEntryOpenDateKst,
+    getGuildWarDisplayCountdownTarget,
     GUILD_WAR_TUE_WED_DURATION_MS,
     GUILD_WAR_FRI_SUN_DURATION_MS,
 } from '../../../shared/utils/guildWarSchedule.js';
@@ -107,5 +108,29 @@ describe('guildWarSchedule', () => {
         expect(getKSTHours(startTime)).toBe(0);
         const remainingOnSat = endTime - matchAt;
         expect(remainingOnSat).toBeGreaterThan(24 * 60 * 60 * 1000);
+    });
+
+    it('목요일 14시: 카운트다운은 금 0시(가장 가까운 개시), activeWar.startTime이 다음 화요일이어도', () => {
+        const thuAfternoon = kstToUtcMs(2026, 6, 18, 14, 0);
+        const friOpen = getStartOfDayKST(kstToUtcMs(2026, 6, 19, 0, 0));
+        const wrongWarStart = getStartOfDayKST(kstToUtcMs(2026, 6, 23, 0, 0));
+        const activeWar = {
+            status: 'active',
+            startTime: wrongWarStart,
+            endTime: wrongWarStart + GUILD_WAR_TUE_WED_DURATION_MS,
+            warType: 'tue_wed' as const,
+        };
+        const target = getGuildWarDisplayCountdownTarget(thuAfternoon, activeWar);
+        expect(target?.kind).toBe('until_open');
+        expect(target?.targetMs).toBe(friOpen);
+        expect(friOpen - thuAfternoon).toBeLessThan(12 * 60 * 60 * 1000);
+        expect(wrongWarStart - thuAfternoon).toBeGreaterThan(100 * 60 * 60 * 1000);
+    });
+
+    it('목요일 14시 전쟁 없음: 카운트다운은 금 0시', () => {
+        const thuAfternoon = kstToUtcMs(2026, 6, 18, 14, 0);
+        const friOpen = getStartOfDayKST(kstToUtcMs(2026, 6, 19, 0, 0));
+        const target = getGuildWarDisplayCountdownTarget(thuAfternoon, null);
+        expect(target).toEqual({ kind: 'until_open', targetMs: friOpen });
     });
 });

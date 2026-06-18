@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import React, { useEffect, useRef } from 'react';
 import { useAdContext } from './AdProvider.js';
 
@@ -6,6 +7,7 @@ import { useAdContext } from './AdProvider.js';
  * AdProvider의 interstitial 상태에 따라 자동 표시/숨김.
  */
 const AdInterstitial: React.FC = () => {
+  const { t } = useTranslation('common');
   const { interstitial, closeInterstitial, isProduction, clientId, isAdReady, isAdFree } = useAdContext();
   const adRef = useRef<HTMLModElement>(null);
   const pushedRef = useRef(false);
@@ -49,7 +51,7 @@ const AdInterstitial: React.FC = () => {
     >
       <div className="relative bg-gray-900 border border-gray-700 rounded-xl shadow-2xl p-4 max-w-[90vw] max-h-[80vh] flex flex-col items-center gap-4">
         {!isShopAdReward && (
-          <div className="text-xs text-gray-500 uppercase tracking-wider">광고</div>
+          <div className="text-xs text-gray-500 uppercase tracking-wider">{t('ads.label')}</div>
         )}
 
         {/* 광고 콘텐츠 영역 — iframe이 영역 밖으로 나와 버튼을 가리지 않도록 잘라냄 */}
@@ -65,7 +67,7 @@ const AdInterstitial: React.FC = () => {
             />
           ) : (
             <div className="bg-gray-800/50 border border-dashed border-gray-600 rounded flex items-center justify-center text-gray-500 text-xs w-full h-full">
-              전면 광고 영역 (336×280)
+              {t('ads.interstitialPlaceholder')}
             </div>
           )}
         </div>
@@ -82,7 +84,7 @@ const AdInterstitial: React.FC = () => {
               }}
               className="order-2 min-h-[44px] flex-1 rounded-lg border border-stone-500/50 bg-stone-800/90 px-4 py-2 text-sm font-semibold text-stone-200 transition-colors hover:border-rose-400/40 hover:bg-stone-700/90 hover:text-white sm:order-1 sm:flex-none sm:min-w-[120px]"
             >
-              취소
+              {t('ads.cancel')}
             </button>
             <button
               type="button"
@@ -99,7 +101,7 @@ const AdInterstitial: React.FC = () => {
                   : 'pointer-events-none cursor-not-allowed bg-gray-800 text-gray-500'
               }`}
             >
-              {interstitial.canSkip ? '보상 받기' : `${interstitial.skipCountdown}초 후 보상 받기`}
+              {interstitial.canSkip ? t('ads.claimReward') : t('ads.claimRewardIn', { seconds: interstitial.skipCountdown })}
             </button>
           </div>
         ) : (
@@ -117,7 +119,7 @@ const AdInterstitial: React.FC = () => {
                 : 'cursor-not-allowed bg-gray-800 text-gray-500'
             }`}
           >
-            {interstitial.canSkip ? '닫기' : `${interstitial.skipCountdown}초 후 스킵 가능`}
+            {interstitial.canSkip ? t('ads.close') : t('ads.skipIn', { seconds: interstitial.skipCountdown })}
           </button>
         )}
       </div>

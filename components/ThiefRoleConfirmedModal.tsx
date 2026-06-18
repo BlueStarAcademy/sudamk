@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LiveGameSession, User, ServerAction } from '../types.js';
 import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
@@ -13,6 +14,9 @@ interface ThiefRoleConfirmedModalProps {
 }
 
 const ThiefRoleConfirmedModal: React.FC<ThiefRoleConfirmedModalProps> = ({ session, currentUser, onAction }) => {
+    const { t } = useTranslation('game');
+    const { t: tCommon } = useTranslation('common');
+    const { t } = useTranslation('game');
     const { id: gameId, player1, player2, thiefPlayerId, policePlayerId, preGameConfirmations, revealEndTime } = session;
     const hasConfirmed = !!(preGameConfirmations?.[currentUser.id]);
     const [countdown, setCountdown] = useState(PRE_GAME_PVP_COUNTDOWN_SECONDS);
@@ -34,15 +38,15 @@ const ThiefRoleConfirmedModal: React.FC<ThiefRoleConfirmedModalProps> = ({ sessi
     const policePlayer = player1.id === policePlayerId ? player1 : player2;
 
     return (
-        <DraggableWindow title="역할 결정 완료" initialWidth={600} windowId="thief-role-confirm" transparentModalBackdrop>
+        <DraggableWindow title={t('thiefRole.title')} initialWidth={600} windowId="thief-role-confirm" transparentModalBackdrop>
             <div className="text-white">
                 <PreGameColorRoulette
                     participantsInDisplayOrder={[player1, player2]}
                     blackPlayer={thiefPlayer}
                     whitePlayer={policePlayer}
                     onComplete={() => setRouletteDone(true)}
-                    title="룰렛으로 역할과 선공/후공이 결정되었습니다"
-                    subtitle="도둑은 흑(선공), 경찰은 백(후공)으로 자동 배정됩니다."
+                    title={t('thiefRole.titleRich')}
+                    subtitle={t('thiefRole.thiefPolice')}
                 />
                 <p className="mt-5 text-center text-sm leading-relaxed text-stone-400">
                     대국 시작을 누르거나, 30초가 지나면 자동으로 시작됩니다.
@@ -50,8 +54,8 @@ const ThiefRoleConfirmedModal: React.FC<ThiefRoleConfirmedModalProps> = ({ sessi
                 <RoundCountdownIndicator
                     deadline={revealEndTime}
                     durationSeconds={PRE_GAME_PVP_COUNTDOWN_SECONDS}
-                    label="자동 진행까지"
-                    labelShort="자동 진행"
+                    label={t('autoProceed', { ns: 'common' })}
+                    labelShort={t('autoProceedShort', { ns: 'common' })}
                 />
 
                 <Button
@@ -59,7 +63,7 @@ const ThiefRoleConfirmedModal: React.FC<ThiefRoleConfirmedModalProps> = ({ sessi
                     disabled={!!hasConfirmed || !rouletteDone}
                     className="w-full py-3 mt-6"
                 >
-                    {hasConfirmed ? '상대방 확인 대기 중...' : !rouletteDone ? '룰렛 결과 확인 중...' : `대국 시작 (${countdown})`}
+                    {hasConfirmed ? t('thiefRole.waitingConfirmEllipsis') : !rouletteDone ? t('thiefRole.checkingRouletteEllipsis') : t('startConfirm.startCountdown', { count: countdown })}
                 </Button>
             </div>
         </DraggableWindow>

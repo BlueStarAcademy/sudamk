@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { useModalStackLayer } from '../hooks/useModalStackLayer.js';
 import { UserWithStatus } from '../types.js';
@@ -53,7 +54,7 @@ const BranchCard: React.FC<{
                 </div>
                 {gain > 1 && (
                     <p className="text-xs font-medium text-white/60">
-                        한 번에 <span className="font-bold text-amber-100/95">{gain}레벨</span> 상승했습니다.
+                        {t('levelUp.gained', { gain })}
                     </p>
                 )}
                 <div>
@@ -76,6 +77,7 @@ const BranchCard: React.FC<{
 };
 
 const LevelUpCelebrationModal: React.FC<LevelUpCelebrationModalProps> = ({ user, payload, onClose }) => {
+    const { t } = useTranslation('profile');
     const avatarUrl = useMemo(() => AVATAR_POOL.find((a) => a.id === user.avatarId)?.url, [user.avatarId]);
     const borderUrl = useMemo(() => BORDER_POOL.find((b) => b.id === user.borderId)?.url, [user.borderId]);
     const displayName = user.nickname || user.username || user.id;
@@ -101,7 +103,7 @@ const LevelUpCelebrationModal: React.FC<LevelUpCelebrationModalProps> = ({ user,
             <button
                 type="button"
                 className="absolute inset-0 bg-[#030508]/88 backdrop-blur-md"
-                aria-label="배경 닫기"
+                aria-label={t('closeBg', { ns: 'common' })}
                 onClick={onClose}
             />
             <div
@@ -166,7 +168,7 @@ const LevelUpCelebrationModal: React.FC<LevelUpCelebrationModalProps> = ({ user,
                         <div className="flex flex-col gap-3">
                             {payload.strategy && (
                                 <BranchCard
-                                    title="유저 레벨"
+                                    title={t('levelUp.title')}
                                     subtitle="Account"
                                     from={payload.strategy.from}
                                     to={payload.strategy.to}
@@ -237,7 +239,7 @@ const LevelUpCelebrationModal: React.FC<LevelUpCelebrationModalProps> = ({ user,
                                     }}
                                     aria-hidden
                                 />
-                                <span className="relative">확인</span>
+                                <span className="relative">{t('actions.ok', { ns: 'common' })}</span>
                             </button>
                         </div>
                     </div>

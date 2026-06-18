@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import Button from '../Button.js';
 import PairPetDetailCardBody from './PairPetDetailCardBody.js';
 import { PET_INFO_VIEWER_SCROLL_PAD, PET_PANEL_ROOT_GAP } from './pairPetDetailPanelUi.js';
@@ -56,6 +57,7 @@ const PairPetDetailEmbedPanel: React.FC<PairPetDetailEmbedPanelProps> = ({
     profileHomeColumn = false,
     parentOuterFitScale = false,
 }) => {
+    const { t } = useTranslation('pair');
     const isModalLayout = detailVariant === 'modal';
     const hug = contentHeight === 'hug';
     const infoViewerPack = Boolean(petManagementModal && !isModalLayout);
@@ -123,7 +125,7 @@ const PairPetDetailEmbedPanel: React.FC<PairPetDetailEmbedPanelProps> = ({
                 onClick={onOpenDetail}
                 className="w-full shrink-0 !justify-center rounded-md border border-cyan-400/40 bg-cyan-950/45 !py-1.5 text-[0.72rem] font-bold text-cyan-50 hover:bg-cyan-900/55 sm:!text-xs"
             >
-                상세보기
+                {t('pet.viewDetail')}
             </Button>
         ) : null}
     </div>

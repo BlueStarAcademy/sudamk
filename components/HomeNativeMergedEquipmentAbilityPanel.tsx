@@ -1,4 +1,5 @@
 import React, { type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { CoreStat, EquipmentSlot, InventoryItem, ItemGrade } from '../types.js';
 import { CORE_STATS_DATA, emptySlotImages, GRADE_LEVEL_REQUIREMENTS, formatEquipLevelRequirement } from '../constants';
 import Button from './Button.js';
@@ -40,12 +41,13 @@ export const HomeEquippedSlotDisplay: React.FC<{
     scaleFactor?: number;
     compact?: boolean;
 }> = ({ slot, item, onClick, compact = false, scaleFactor = 1 }) => {
+    const { t } = useTranslation('profile');
     const clickableClass = item && onClick ? 'cursor-pointer hover:scale-105 transition-transform' : '';
     const itemImgPct = Math.min(96, (compact ? 78 : 86) * scaleFactor);
 
     if (item) {
         const requiredLevel = GRADE_LEVEL_REQUIREMENTS[item.grade];
-        const titleText = `${item.name} (${formatEquipLevelRequirement(requiredLevel)}) - 클릭하여 상세보기`;
+        const titleText = t('coreAbility.detailClick', { name: item.name, level: formatEquipLevelRequirement(requiredLevel) });
         const starInfo = getStarDisplayInfo(item.stars);
         const isTranscendent = item.grade === ItemGrade.Transcendent;
         return (
@@ -291,13 +293,13 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
                 <div className="relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-center">
                     <span
                         className="shrink-0 bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200/90 bg-clip-text text-[10px] font-bold tracking-tight text-transparent drop-shadow-[0_0_20px_rgba(251,191,36,0.22)] sm:text-xs"
-                        title="6개 핵심 능력치 합계"
+                        title={t('coreAbility.coreTotal')}
                     >
                         바둑능력
                     </span>
                     <span
                         className="min-w-0 font-mono text-base font-black tabular-nums leading-none text-amber-100 drop-shadow-[0_1px_0_rgba(0,0,0,0.35)] sm:text-lg"
-                        title="6개 핵심 능력치 합계"
+                        title={t('coreAbility.coreTotal')}
                     >
                         {badukAbilityTotal}
                     </span>
@@ -309,7 +311,7 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
                 <div className="relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-center">
                     <span
                         className="whitespace-nowrap text-[10px] font-medium text-amber-100/90 sm:text-[11px]"
-                        title={`보너스: ${availablePoints}P`}
+                        title={t('coreAbility.bonusPoints', { points: availablePoints })}
                     >
                         보너스 <span className="font-bold tabular-nums text-emerald-300">{availablePoints}</span>
                         <span className="text-amber-100/50">P</span>
@@ -345,7 +347,7 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
                             className={`shrink-0 bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200/90 bg-clip-text font-bold tracking-tight text-transparent drop-shadow-[0_0_20px_rgba(251,191,36,0.22)] ${
                                 gb ? 'text-base sm:text-lg' : lobbyChampionshipUser ? 'text-sm sm:text-base' : ch ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'
                             }`}
-                            title="6개 핵심 능력치 합계"
+                            title={t('coreAbility.coreTotal')}
                         >
                             바둑능력
                         </span>
@@ -353,7 +355,7 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
                             className={`min-w-0 font-mono font-black tabular-nums leading-none text-amber-100 drop-shadow-[0_1px_0_rgba(0,0,0,0.35)] ${
                                 gb ? 'text-2xl sm:text-3xl' : lobbyChampionshipUser ? 'text-xl sm:text-2xl' : ch ? 'text-lg sm:text-xl' : 'text-2xl sm:text-[1.75rem]'
                             }`}
-                            title="6개 핵심 능력치 합계"
+                            title={t('coreAbility.coreTotal')}
                         >
                             {badukAbilityTotal}
                         </span>
@@ -363,7 +365,7 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
                             className={`whitespace-nowrap font-medium text-amber-100/90 ${
                                 gb ? 'text-sm sm:text-base' : lobbyChampionshipUser ? 'text-xs sm:text-sm' : ch ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'
                             }`}
-                            title={`보너스: ${availablePoints}P`}
+                            title={t('coreAbility.bonusPoints', { points: availablePoints })}
                         >
                             보너스 <span className="font-bold tabular-nums text-emerald-300">{availablePoints}</span>
                             <span className="text-amber-100/50">P</span>
@@ -431,9 +433,9 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
                 className={rowShell}
                 title={
                     hasBonus
-                        ? `기본 ${baseV} → 표시 ${v} (장비·보너스 +${bonusRounded})`
+                        ? t('coreAbility.statBreakdown', { base: baseV, shown: v, bonus: bonusRounded })
                         : baseV !== v
-                          ? `기본 ${baseV} · 장비·보너스 반영`
+                          ? t('coreAbility.statBaseOnly', { base: baseV })
                           : undefined
                 }
             >
@@ -463,14 +465,14 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
                         ? 'mt-1.5 px-1.5 py-1.5 sm:px-2 sm:py-2'
                         : 'mt-2 px-2 py-2 sm:px-2.5 sm:py-2.5'
                 }`}
-                aria-label="챔피언십 페이즈별 능력치 점수"
+                aria-label={t('coreAbility.phaseScoreAria')}
             >
                 <div className={`grid w-full grid-cols-3 ${lobbyChampionshipUser ? 'gap-1 sm:gap-1.5' : 'gap-1.5 sm:gap-2'}`}>
                     {(
                         [
-                            { key: 'opening' as const, label: '초반' },
-                            { key: 'midgame' as const, label: '중반' },
-                            { key: 'endgame' as const, label: '종반' },
+                            { key: 'opening' as const, label: t('coreAbility.opening') },
+                            { key: 'midgame' as const, label: t('coreAbility.midgame') },
+                            { key: 'endgame' as const, label: t('coreAbility.endgame') },
                         ] as const
                     ).map(({ key, label }) => (
                         <div

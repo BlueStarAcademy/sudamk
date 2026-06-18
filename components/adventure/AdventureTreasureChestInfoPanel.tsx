@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import type { AdventureTreasureUserRewardSections } from '../../shared/utils/adventureMapTreasureRewards.js';
 import AdventureTreasureChestRewardSections from './AdventureTreasureChestRewardSections.js';
 import Button from '../Button.js';
@@ -32,11 +33,13 @@ const AdventureTreasureChestInfoPanel: React.FC<AdventureTreasureChestInfoPanelP
     onOpen,
     openDisabled,
 }) => {
+    const { t } = useTranslation('lobby');
+
     return (
         <div className="flex min-w-0 flex-col gap-4 sm:gap-5">
             {showInlineTitle ? (
                 <p className="px-1 text-center text-base font-black tracking-tight text-amber-50 drop-shadow-sm sm:text-lg">
-                    보물상자-{stageTitle}
+                    {t('adventure.treasureChestTitle', { title: stageTitle })}
                 </p>
             ) : null}
             <div className="overflow-hidden rounded-2xl border border-amber-500/35 bg-gradient-to-br from-amber-950/45 via-zinc-900/95 to-violet-950/35 p-3 shadow-[0_16px_48px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)] sm:p-4">
@@ -66,7 +69,7 @@ const AdventureTreasureChestInfoPanel: React.FC<AdventureTreasureChestInfoPanelP
             <Button
                 type="button"
                 bare
-                title="열쇠 1개로 보물상자 열기"
+                title={t('adventure.openWithKeyTitle')}
                 onClick={() => void onOpen()}
                 disabled={openDisabled}
                 className={`${openButtonClass} mt-1 sm:mt-1.5`}
@@ -76,7 +79,7 @@ const AdventureTreasureChestInfoPanel: React.FC<AdventureTreasureChestInfoPanelP
                     className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.08] to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"
                 />
                 <span className="relative z-[1] flex items-center justify-center gap-2">
-                    <span className="text-sm font-black tracking-wide text-amber-50 drop-shadow-sm">열기</span>
+                    <span className="text-sm font-black tracking-wide text-amber-50 drop-shadow-sm">{t('adventure.open')}</span>
                     <span className="flex items-center gap-0.5 rounded-md border border-amber-300/45 bg-black/55 px-2 py-0.5 font-mono text-xs font-black tabular-nums text-amber-100 shadow-inner">
                         <span aria-hidden>🔑</span>
                         <span>1</span>

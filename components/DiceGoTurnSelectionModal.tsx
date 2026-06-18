@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LiveGameSession, User, ServerAction } from '../types.js';
 import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
@@ -13,6 +14,8 @@ interface DiceGoTurnSelectionModalProps {
 }
 
 const DiceGoTurnSelectionModal: React.FC<DiceGoTurnSelectionModalProps> = (props) => {
+    const { t } = useTranslation('game');
+    const { t: tCommon } = useTranslation('common');
     const { session, currentUser, onAction } = props;
     const { id: gameId, player1, player2, gameStatus, turnOrderRollReady, animation } = session;
     
@@ -63,13 +66,13 @@ const DiceGoTurnSelectionModal: React.FC<DiceGoTurnSelectionModalProps> = (props
     let resultColor = '';
     if (isResultVisible && myRoll != null && opponentRoll != null) {
         if (myRoll > opponentRoll) {
-            resultMessage = '승리!';
+            resultMessage = t('diceTurn.win');
             resultColor = 'text-green-400';
         } else if (myRoll < opponentRoll) {
-            resultMessage = '패배!';
+            resultMessage = t('diceTurn.lose');
             resultColor = 'text-red-400';
         } else {
-            resultMessage = '동점!';
+            resultMessage = t('diceTurn.tie');
             resultColor = 'text-yellow-400';
         }
     }
@@ -81,7 +84,7 @@ const DiceGoTurnSelectionModal: React.FC<DiceGoTurnSelectionModalProps> = (props
     
     return (
         <DraggableWindow
-            title="선공/후공 결정"
+            title={t('diceTurn.title')}
             windowId="dice-go-turn-selection"
             transparentModalBackdrop
             hideFooter
@@ -89,8 +92,8 @@ const DiceGoTurnSelectionModal: React.FC<DiceGoTurnSelectionModalProps> = (props
             headerShowTitle
         >
             <div className="text-center">
-                <p className="text-gray-300 mb-6">준비 버튼을 눌러 주사위를 굴립니다. 높은 숫자가 나온 사람이 선공/후공을 선택합니다.</p>
-                {session.turnOrderRollResult === 'tie' && <p className="text-yellow-400 font-bold text-lg mb-4 animate-pulse">동점! 잠시 후 다시 굴립니다.</p>}
+                <p className="text-gray-300 mb-6">{t('diceTurn.intro')}</p>
+                {session.turnOrderRollResult === 'tie' && <p className="text-yellow-400 font-bold text-lg mb-4 animate-pulse">{t('diceTurn.tieReroll')}</p>}
                 
                 <div className="flex justify-around w-full items-center my-4">
                     <div className="flex flex-col items-center gap-2 w-24">
@@ -120,24 +123,24 @@ const DiceGoTurnSelectionModal: React.FC<DiceGoTurnSelectionModalProps> = (props
                     {gameStatus === 'dice_turn_choice' ? (
                         session.turnChooserId === currentUser.id ? (
                             <div className="flex flex-col items-center gap-2">
-                                <p className="text-base font-normal text-gray-300 mb-2">선공 또는 후공을 선택하세요. ({countdown})</p>
+                                <p className="text-base font-normal text-gray-300 mb-2">{t('diceTurn.pickTurn', { countdown })}</p>
                                 <div className="flex gap-4">
-                                    <Button onClick={() => onAction({ type: 'DICE_CHOOSE_TURN', payload: { gameId, choice: 'first' } })} colorScheme="blue">선공 (흑)</Button>
-                                    <Button onClick={() => onAction({ type: 'DICE_CHOOSE_TURN', payload: { gameId, choice: 'second' } })} colorScheme="gray">후공 (백)</Button>
+                                    <Button onClick={() => onAction({ type: 'DICE_CHOOSE_TURN', payload: { gameId, choice: 'first' } })} colorScheme="blue">{t('diceTurn.firstBlackBtn')}</Button>
+                                    <Button onClick={() => onAction({ type: 'DICE_CHOOSE_TURN', payload: { gameId, choice: 'second' } })} colorScheme="gray">{t('diceTurn.secondWhiteBtn')}</Button>
                                 </div>
                             </div>
                         ) : (
-                            <p className="text-base text-green-400 animate-pulse">상대방이 선/후공을 선택하고 있습니다...</p>
+                            <p className="text-base text-green-400 animate-pulse">{t('diceTurn.waitingOpponentPick')}</p>
                         )
                     ) : isResultVisible && resultMessage ? (
                         <p className={resultColor}>{resultMessage}</p>
                     ) : (
                         !myReady && !turnRollAnim ? (
-                             <Button onClick={() => onAction({ type: 'DICE_READY_FOR_TURN_ROLL', payload: { gameId } })} colorScheme="blue">준비 ({countdown})</Button>
+                             <Button onClick={() => onAction({ type: 'DICE_READY_FOR_TURN_ROLL', payload: { gameId } })} colorScheme="blue">{t('diceTurn.readyBtn', { countdown })}</Button>
                         ) : myReady && !turnRollAnim ? (
-                             <p className="text-base text-green-400 animate-pulse">상대방 대기 중...</p>
+                             <p className="text-base text-green-400 animate-pulse">{t('diceTurn.waitingOpponent')}</p>
                         ) : isRolling ? (
-                             <p className="text-base text-gray-400 animate-pulse">주사위를 굴립니다...</p>
+                             <p className="text-base text-gray-400 animate-pulse">{t('diceTurn.rolling')}</p>
                         ) : null
                     )}
                 </div>

@@ -1,12 +1,12 @@
 import React, { useLayoutEffect, useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal, flushSync } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import {
     ADVENTURE_CODEX_CHAPTER_UI,
     ADVENTURE_MAP_THEMES,
     ADVENTURE_MONSTER_MODE_BADGE_SHORT,
-    ADVENTURE_MONSTER_MODE_LABELS,
     ADVENTURE_STAGES,
     adventureBattleModeToGameMode,
     getAdventureUnderstandingTierFromXp,
@@ -56,10 +56,15 @@ import {
     getAdventureTreasureUserRewardSections,
     type AdventureTreasureRollResult,
 } from '../../shared/utils/adventureMapTreasureRewards.js';
-import { labelRegionalSpecialtyBuffEntry, migrateRegionalBuffEntry } from '../../utils/adventureRegionalSpecialtyBuff.js';
+import { migrateRegionalBuffEntry } from '../../utils/adventureRegionalSpecialtyBuff.js';
 import type { AdventureRegionalSpecialtyBuffEntry } from '../../types/entities.js';
 import { formatAdventureUnderstandingTierLabel } from '../../utils/adventureUnderstanding.js';
 import { isClientAdmin } from '../../utils/clientAdmin.js';
+import {
+    formatAdventureRemainMs,
+    getAdventureMonsterModeLabel,
+    labelRegionalSpecialtyBuffI18n,
+} from './adventureI18nHelpers.js';
 import {
     getAdventureCodexComprehensionBarProgress,
     getAdventureCodexComprehensionLevel,
@@ -96,18 +101,6 @@ function buildAdventureMapMonsterDetails(stage: AdventureStageDef, m: MapMonster
 }
 
 type MapMonster = AdventureMapMonsterInstance;
-
-function formatRemainMs(ms: number): string {
-    if (ms <= 0) return '0초';
-    const sec = Math.ceil(ms / 1000);
-    if (sec < 90) return `${sec}초`;
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    if (m < 60) return `${m}분${s > 0 ? ` ${s}초` : ''}`;
-    const h = Math.floor(m / 60);
-    const mm = m % 60;
-    return `${h}시간 ${mm}분`;
-}
 
 const BUBBLE_VIEWPORT_PAD_PX = 8;
 const BUBBLE_GAP_FROM_ANCHOR_PX = 10;
@@ -187,14 +180,15 @@ const AdventureMapChapterHopButton: React.FC<{
     chapterUnlockCtx: AdventureChapterUnlockContext;
     variant: 'mobile' | 'desktop';
 }> = ({ target, direction, chapterUnlockCtx, variant }) => {
+    const { t } = useTranslation(['lobby', 'profile', 'common']);
     const sizeClass = chapterHopDiscSize[variant];
     if (!target) {
         return <div className={`shrink-0 ${sizeClass}`} aria-hidden />;
     }
     const unlocked = isAdventureStageUnlocked(target.id, chapterUnlockCtx);
     const blockers = getAdventureChapterUnlockBlockers(target.stageIndex, chapterUnlockCtx);
-    const lockTitle = blockers.length ? blockers.join(' · ') : '잠금';
-    const navLabel = direction === 'prev' ? '이전 챕터' : '다음 챕터';
+    const lockTitle = blockers.length ? blockers.join(' · ') : t('profile.lock');
+    const navLabel = direction === 'prev' ? t('adventure.prevChapter') : t('adventure.nextChapter');
     const chevron = (
         <svg
             className="h-[1.05rem] w-[1.05rem] text-amber-100 drop-shadow-[0_0_6px_rgba(251,191,36,0.35)] sm:h-[1.15rem] sm:w-[1.15rem]"
@@ -218,7 +212,7 @@ const AdventureMapChapterHopButton: React.FC<{
                 type="button"
                 disabled
                 title={lockTitle}
-                aria-label={`${navLabel} 잠금`}
+                aria-label={t('adventure.chapterNavLockedAria', { navLabel })}
                 className={`${discBase} cursor-not-allowed border-zinc-600/50 bg-gradient-to-b from-zinc-800/55 via-zinc-900/85 to-black/90 ring-zinc-500/10 opacity-90`}
             >
                 <ChapterLockGlyph className="h-[0.95rem] w-[0.95rem] text-zinc-400 sm:h-4 sm:w-4" />
@@ -229,7 +223,7 @@ const AdventureMapChapterHopButton: React.FC<{
         <button
             type="button"
             onClick={() => replaceAppHash(`#/adventure/${target.id}`)}
-            title={`「${target.title}」로 이동`}
+            title={t('adventure.goToChapterTitle', { title: target.title })}
             aria-label={`${navLabel}: ${target.title}`}
             className={`${discBase} border-amber-400/35 bg-gradient-to-b from-amber-950/75 via-zinc-900/92 to-zinc-950/95 ring-amber-300/20 hover:border-amber-300/55 hover:from-amber-900/88 hover:via-zinc-800/95 hover:shadow-[0_4px_18px_rgba(251,191,36,0.18),inset_0_1px_0_rgba(255,255,255,0.14)] hover:ring-amber-200/25 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400/50`}
         >
@@ -239,6 +233,7 @@ const AdventureMapChapterHopButton: React.FC<{
 };
 
 const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
+    const { t } = useTranslation(['lobby', 'common', 'profile']);
     const { isNativeMobile } = useNativeMobileShell();
     const { currentUserWithStatus, handlers } = useAppContext();
     const stage = getAdventureStageById(stageId);
@@ -604,10 +599,10 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
         const apCost = getAdventureMonsterAttackActionPointCost(stage.stageIndex, rosterModalRow.codexId);
         const chapterUi = ADVENTURE_CODEX_CHAPTER_UI[stage.id as AdventureStageId];
         const modes = getAdventureAllowedBattleModes(boardSize)
-            .map((mode) => ADVENTURE_MONSTER_MODE_LABELS[mode])
+            .map((mode) => getAdventureMonsterModeLabel(t, mode))
             .join(' · ');
         return { min, max, quickLinesClassic, apCost, chapterUi, isBoss, modes };
-    }, [rosterModalRow, stage, rosterModalInstance]);
+    }, [rosterModalRow, stage, rosterModalInstance, t]);
 
     useEffect(() => {
         if (!rosterModalCodexId) return;
@@ -650,7 +645,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
 
     if (!stage || !theme) {
         return (
-            <div className="flex h-full min-h-0 flex-1 items-center justify-center text-sm text-zinc-500">로비로 이동합니다…</div>
+            <div className="flex h-full min-h-0 flex-1 items-center justify-center text-sm text-zinc-500">{t('adventure.returningToLobby')}</div>
         );
     }
 
@@ -736,18 +731,18 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
     const rosterModalTreasureWindow = rosterModalIsTreasure ? getAdventureTreasureChestWindowMeta(stage.id, now) : null;
 
     /** 모달·목록 공통: 출현 중 / 다음 절대 출현까지 */
-    let rosterModalRightSlot = formatRemainMs(minMsUntilAnyAppearance);
+    let rosterModalRightSlot = formatAdventureRemainMs(t, minMsUntilAnyAppearance);
     let rosterModalRightClass = 'font-mono font-bold tabular-nums text-amber-200';
     if (rosterModalIsTreasure) {
         const wm = getAdventureTreasureChestWindowMeta(stage.id, now);
         if (wm && !treasureHandledForWindow) {
-            rosterModalRightSlot = '출현중';
+            rosterModalRightSlot = t('adventure.appearing');
             rosterModalRightClass = 'font-bold text-emerald-300';
         } else if (wm && treasureHandledForWindow) {
-            rosterModalRightSlot = treasureHandledKind === 'claimed' ? '수령완료' : '건너뜀';
+            rosterModalRightSlot = treasureHandledKind === 'claimed' ? t('adventure.claimed') : t('adventure.skipped');
             rosterModalRightClass = 'font-bold text-zinc-400';
         } else {
-            rosterModalRightSlot = '알수없음';
+            rosterModalRightSlot = t('adventure.unknown');
             rosterModalRightClass = 'font-bold text-zinc-400';
         }
     } else if (rosterModalRow && stage) {
@@ -763,10 +758,10 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
             mapRespawnOffMult,
         );
         if (rosterModalInstance) {
-            rosterModalRightSlot = '출현중';
+            rosterModalRightSlot = t('adventure.appearing');
             rosterModalRightClass = 'font-bold text-emerald-300';
         } else if (until > 0) {
-            rosterModalRightSlot = formatRemainMs(until);
+            rosterModalRightSlot = formatAdventureRemainMs(t,until);
             rosterModalRightClass = 'font-mono font-bold tabular-nums text-amber-200';
         }
     }
@@ -784,7 +779,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                             type="button"
                             onClick={onBack}
                             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg p-0 transition-transform hover:bg-zinc-800 active:scale-90"
-                            aria-label="스테이지 목록으로"
+                            aria-label={t('adventure.backToStageListAria')}
                         >
                             <img src="/images/button/back.webp" alt="" className="h-full w-full" />
                         </button>
@@ -797,7 +792,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                     variant="mobile"
                                 />
                                 <div className="min-w-0 max-w-[10.5rem] px-0.5 text-left sm:max-w-[min(18rem,42vw)] sm:px-1">
-                                    <p className="text-[10px] font-bold uppercase tracking-widest text-amber-400/80">모험 맵</p>
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-amber-400/80">{t('adventure.adventureMap')}</p>
                                     <h1 className="truncate text-sm font-black leading-tight text-white drop-shadow">{stage.title}</h1>
                                 </div>
                                 <AdventureMapChapterHopButton
@@ -812,9 +807,9 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                 type="button"
                                 onClick={() => setRegionalEffectModalOpen(true)}
                                 className="shrink-0 rounded-lg border border-cyan-400/45 bg-cyan-950/70 px-2 py-1.5 text-[10px] font-bold leading-tight text-cyan-100 shadow-sm transition hover:border-amber-400/50 hover:bg-cyan-900/60 active:scale-[0.99]"
-                                aria-label="지역효과 보기"
+                                aria-label={t('adventure.viewRegionalEffectAria')}
                             >
-                                지역효과
+                                {t('adventure.regionalEffectShort')}
                             </button>
                             </div>
                         </div>
@@ -822,13 +817,13 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                     <div className="mx-1 mt-1.5 flex min-h-0 items-stretch gap-1.5">
                         <aside
                             className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border-2 border-amber-400/55 bg-gradient-to-br from-amber-800/92 via-amber-950/94 to-violet-950/92 p-2 shadow-[0_10px_36px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md sm:p-2.5"
-                            aria-label="챕터 보상 안내"
+                            aria-label={t('adventure.chapterRewardAria')}
                         >
                             <AdventureChapterRewardHints stageId={stage.id as AdventureStageId} compact />
                         </aside>
                         <aside
                             className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border-2 border-amber-400/55 bg-gradient-to-br from-amber-800/92 via-amber-950/94 to-violet-950/92 p-2 shadow-[0_10px_36px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md sm:p-2.5"
-                            aria-label="지역 열쇠"
+                            aria-label={t('adventure.regionalKeyAria')}
                         >
                             <div className="flex min-h-0 flex-1 flex-col justify-center overflow-hidden">
                                 <AdventureChapterKeyPanel
@@ -846,7 +841,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                         type="button"
                         onClick={onBack}
                         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg p-0 transition-transform hover:bg-zinc-800 active:scale-90 sm:h-11 sm:w-11"
-                        aria-label="스테이지 목록으로"
+                        aria-label={t('adventure.backToStageListAria')}
                     >
                         <img src="/images/button/back.webp" alt="" className="h-full w-full" />
                     </button>
@@ -859,7 +854,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                 variant="desktop"
                             />
                             <div className="min-w-0 max-w-[11rem] px-1 text-center sm:max-w-[min(22rem,48vw)] sm:px-2">
-                                <p className="text-[10px] font-bold uppercase tracking-widest text-amber-400/80 sm:text-xs">모험 맵</p>
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-amber-400/80 sm:text-xs">{t('adventure.adventureMap')}</p>
                                 <h1 className="truncate text-base font-black text-white drop-shadow sm:text-lg">{stage.title}</h1>
                             </div>
                             <AdventureMapChapterHopButton
@@ -887,7 +882,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                 <button
                                     type="button"
                                     className="absolute inset-0 z-[5] cursor-default bg-transparent"
-                                    aria-label="맵 빈 곳"
+                                    aria-label={t('adventure.mapEmptyAria')}
                                     onClick={() => setSelectedId(null)}
                                 />
                                 <img
@@ -930,7 +925,11 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                 sel ? 'scale-[1.05]' : 'hover:scale-[1.03] active:scale-[0.98]',
                                             ].join(' ')}
                                             style={{ left: `${m.xPct}%`, top: `${m.yPct}%` }}
-                                            aria-label={`${m.speciesName} 레벨 ${m.level} ${ADVENTURE_MONSTER_MODE_LABELS[m.mode]}`}
+                                            aria-label={t('adventure.monsterAria', {
+                                                name: m.speciesName,
+                                                level: m.level,
+                                                mode: getAdventureMonsterModeLabel(t, m.mode),
+                                            })}
                                         >
                                             <div
                                                 className={[
@@ -972,7 +971,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                                 ? 'px-0.5 text-[9px] sm:px-1.5 sm:py-0.5 sm:text-sm'
                                                                 : 'px-1 text-xs sm:px-1.5 sm:py-0.5 sm:text-sm'
                                                         }`}
-                                                        title={ADVENTURE_MONSTER_MODE_LABELS[m.mode]}
+                                                        title={getAdventureMonsterModeLabel(t, m.mode)}
                                                     >
                                                         {ADVENTURE_MONSTER_MODE_BADGE_SHORT[m.mode]}
                                                     </span>
@@ -1005,7 +1004,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                             treasure.id === selectedId ? 'scale-[1.05]' : 'hover:scale-[1.03] active:scale-[0.98]',
                                         ].join(' ')}
                                         style={{ left: `${treasure.xPct}%`, top: `${treasure.yPct}%` }}
-                                        aria-label="보물상자"
+                                        aria-label={t('adventure.treasureChest')}
                                     >
                                         <div
                                             className={[
@@ -1052,7 +1051,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                     isNativeMobile ? 'text-[9px]' : 'text-[11px] sm:text-xs'
                                                 }`}
                                             >
-                                                보물상자
+                                                {t('adventure.treasureChest')}
                                             </p>
                                         </div>
                                     </button>
@@ -1063,7 +1062,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                     <div
                                         ref={monsterBubbleRef}
                                         role="dialog"
-                                        aria-label={selectedTreasure ? '보물상자 정보' : '몬스터 정보'}
+                                        aria-label={selectedTreasure ? t('adventure.treasureChestInfo') : t('adventure.monsterInfo')}
                                         className={`pointer-events-auto absolute z-40 ${
                                             selectedTreasure
                                                 ? 'min-w-[min(100%,20rem)] w-[min(calc(100%-0.75rem),36rem)] max-w-[36rem]'
@@ -1107,7 +1106,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                         </p>
                                                         {selectionDetails.isBoss ? (
                                                             <span className="rounded border border-amber-400/40 bg-black/50 px-1 py-px text-[8px] font-black uppercase tracking-wider text-amber-100">
-                                                                보스
+                                                                {t('adventure.boss')}
                                                             </span>
                                                         ) : null}
                                                     </div>
@@ -1125,35 +1124,35 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                 <div className="flex min-w-0 flex-1 flex-col gap-3">
                                                     <div className="rounded-lg border border-white/10 bg-black/50 px-2.5 py-2 sm:px-3">
                                                         <div className="flex flex-wrap items-center justify-between gap-2">
-                                                            <span className="text-xs font-bold text-zinc-400">대국</span>
+                                                            <span className="text-xs font-bold text-zinc-400">{t('adventure.battle')}</span>
                                                             <div className="flex flex-wrap items-center justify-end gap-2">
                                                                 <span className="rounded-md border border-amber-400/40 bg-amber-500/20 px-2 py-0.5 font-mono text-xs font-black tabular-nums text-amber-50">
                                                                     LV{selectedMonster.level}
                                                                 </span>
                                                                 <span className="text-sm font-bold text-fuchsia-200">
-                                                                    {ADVENTURE_MONSTER_MODE_LABELS[selectedMonster.mode]}
+                                                                    {getAdventureMonsterModeLabel(t, selectedMonster.mode)}
                                                                 </span>
                                                             </div>
                                                         </div>
                                                         <div className="mt-2 flex items-baseline justify-between gap-2 border-t border-white/10 pt-2">
-                                                            <span className="shrink-0 text-xs font-semibold text-zinc-500">남은 시간</span>
+                                                            <span className="shrink-0 text-xs font-semibold text-zinc-500">{t('adventure.remainingTime')}</span>
                                                             <span className="text-right font-mono text-sm font-bold tabular-nums text-amber-200">
-                                                                {formatRemainMs(selectedMonster.expiresAt - now)}
+                                                                {formatAdventureRemainMs(t,selectedMonster.expiresAt - now)}
                                                             </span>
                                                         </div>
                                                         <div className="mt-2 border-t border-white/10 pt-2">
                                                             <div className="flex items-center justify-between gap-2">
-                                                                <span className="shrink-0 text-xs font-semibold text-zinc-500">이해도 레벨</span>
+                                                                <span className="shrink-0 text-xs font-semibold text-zinc-500">{t('adventure.comprehensionLevel')}</span>
                                                                 <span className="font-mono text-sm font-bold tabular-nums text-cyan-200">
                                                                     Lv.{selectedMonsterComprehensionLevel}
                                                                 </span>
                                                             </div>
                                                             <div className="mt-1.5 flex items-center justify-between gap-2">
-                                                                <span className="shrink-0 text-xs font-semibold text-zinc-500">이해도 경험치</span>
+                                                                <span className="shrink-0 text-xs font-semibold text-zinc-500">{t('adventure.comprehensionXpLabel')}</span>
                                                                 <span className="font-mono text-xs font-bold tabular-nums text-zinc-300">
                                                                     {selectedMonsterComprehensionProgress.nextAt != null
                                                                         ? `${selectedMonsterCodexWins}/${selectedMonsterComprehensionProgress.nextAt}`
-                                                                        : `최대 · ${selectedMonsterCodexWins}`}
+                                                                        : t('adventure.comprehensionXpMaxShort', { wins: selectedMonsterCodexWins })}
                                                                 </span>
                                                             </div>
                                                             <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-zinc-800/95 ring-1 ring-inset ring-black/40">
@@ -1177,7 +1176,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                         type="button"
                                                         bare
                                                         onClick={() => void handleStartMonsterBattle()}
-                                                        title={`행동력 ${selectionDetails.apCost}`}
+                                                        title={t('adventure.actionPointsTitle', { cost: selectionDetails.apCost })}
                                                         className="group relative mt-auto w-full overflow-hidden rounded-xl border border-amber-400/55 bg-gradient-to-b from-amber-500/[0.22] via-amber-600/[0.14] to-zinc-900/80 px-3 py-3 shadow-[0_10px_28px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.14)] transition-all duration-200 hover:border-amber-300/70 hover:from-amber-400/[0.28] hover:shadow-[0_14px_36px_rgba(251,191,36,0.14)] active:translate-y-px active:shadow-[0_6px_16px_rgba(0,0,0,0.45)] sm:px-4 sm:py-3.5"
                                                     >
                                                         <span
@@ -1186,7 +1185,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                         />
                                                         <span className="relative z-[1] flex w-full items-center justify-between gap-3">
                                                             <span className="text-left text-sm font-black tracking-wide text-amber-50 drop-shadow-sm sm:text-[0.95rem]">
-                                                                공격하기
+                                                                {t('adventure.attack')}
                                                             </span>
                                                             <span className="flex items-center gap-1 rounded-lg border border-amber-300/25 bg-black/40 px-2.5 py-1 text-base font-black tabular-nums text-amber-100 shadow-inner sm:px-3 sm:text-lg">
                                                                 <span aria-hidden>⚡</span>
@@ -1202,7 +1201,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                         stageTitle={stage.title}
                                                         showInlineTitle
                                                         equipmentBoxImage={selectedTreasure.equipmentBoxImage}
-                                                        remainingLabel={formatRemainMs(Math.max(0, selectedTreasure.windowEndMs - now))}
+                                                        remainingLabel={formatAdventureRemainMs(t,Math.max(0, selectedTreasure.windowEndMs - now))}
                                                         mapKeysHeld={mapKeysHeld}
                                                         sections={treasureRewardSections}
                                                         onOpen={handleOpenTreasureChest}
@@ -1226,13 +1225,13 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                 <aside
                                     ref={desktopRewardBandRef}
                                     className="flex min-h-0 shrink-0 flex-col rounded-xl border-2 border-amber-400/55 bg-gradient-to-br from-amber-800/92 via-amber-950/94 to-violet-950/92 p-3 shadow-[0_10px_36px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md sm:p-3.5"
-                                    aria-label="챕터 보상 안내"
+                                    aria-label={t('adventure.chapterRewardAria')}
                                 >
                                     <AdventureChapterRewardHints stageId={stage.id as AdventureStageId} iconLayout="wrap" />
                                 </aside>
                                 <aside
                                     className="flex min-h-0 w-[12.25rem] shrink-0 flex-col overflow-x-hidden overflow-y-hidden rounded-xl border-2 border-amber-400/55 bg-gradient-to-br from-amber-800/92 via-amber-950/94 to-violet-950/92 p-3 shadow-[0_10px_36px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md sm:w-[13.5rem] sm:p-3.5"
-                                    aria-label="지역 열쇠"
+                                    aria-label={t('adventure.regionalKeyAria')}
                                 >
                                     <div className="flex min-h-0 flex-1 flex-col justify-center overflow-hidden">
                                         <AdventureChapterKeyPanel
@@ -1255,11 +1254,11 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                           }
                                         : undefined
                                 }
-                                aria-label="챕터 몬스터 목록"
+                                aria-label={t('adventure.chapterMonstersAria')}
                             >
                                 <div className="flex shrink-0 items-center justify-center border-b border-white/10 px-2 py-1.5 sm:px-2.5 sm:py-2">
                                     <p className="min-w-0 text-center text-[11px] font-bold uppercase tracking-wide text-emerald-400/90 sm:text-xs">
-                                        챕터 몬스터
+                                        {t('adventure.chapterMonsters')}
                                     </p>
                                 </div>
                                 <div
@@ -1285,11 +1284,11 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                     <div className="pointer-events-none absolute right-1.5 top-1.5 z-30 w-[min(92vw,20rem)] max-w-[20rem] sm:right-2 sm:top-2">
                         <aside
                             className="pointer-events-auto min-w-0 overflow-visible rounded-xl border border-cyan-500/35 bg-zinc-950/92 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_32px_rgba(0,0,0,0.45)] backdrop-blur-sm sm:p-3"
-                            aria-label="지역 탐험도 효과"
+                            aria-label={t('adventure.regionalExplorationEffectAria')}
                         >
                             <div className="flex min-w-0 items-start justify-between gap-2 border-b border-white/10 pb-2">
                                 <p className="min-w-0 flex-1 break-words text-[11px] font-bold uppercase leading-snug tracking-wide text-cyan-300/90 sm:text-xs">
-                                    지역 탐험도
+                                    {t('adventure.regionalExploration')}
                                 </p>
                                 <span className="shrink-0 rounded-md border border-cyan-400/30 bg-cyan-950/40 px-1.5 py-0.5 text-center text-[10px] font-bold leading-tight text-cyan-100 sm:text-xs">
                                     {stageUnderstandingTierLabel}
@@ -1301,7 +1300,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                             <ul className="mt-2 min-w-0 space-y-1.5">
                                 {!stageUnlocked ? (
                                     <li className="rounded-md border border-white/8 bg-black/25 px-2.5 py-1.5 text-left text-[11px] font-semibold leading-relaxed text-zinc-300 break-words sm:px-3 sm:text-xs">
-                                        슬롯 1 잠김 - 지역 오픈
+                                        {t('adventure.slot1LockedRegionOpen')}
                                     </li>
                                 ) : stageRegionalBuffEntries.length > 0 ? (
                                     stageRegionalBuffEntries.map((entry, idx) => (
@@ -1309,12 +1308,12 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                             key={`${entry.kind}-${idx}`}
                                             className="rounded-md border border-white/8 bg-black/25 px-2.5 py-1.5 text-left text-[11px] font-semibold leading-relaxed text-cyan-100/95 break-words [overflow-wrap:anywhere] sm:px-3 sm:text-xs"
                                         >
-                                            {labelRegionalSpecialtyBuffEntry(entry)}
+                                            {labelRegionalSpecialtyBuffI18n(t, entry)}
                                         </li>
                                     ))
                                 ) : (
                                     <li className="rounded-md border border-white/8 bg-black/25 px-2.5 py-1.5 text-left text-[11px] leading-relaxed text-zinc-500 break-words sm:px-3 sm:text-xs">
-                                        적용 중인 지역효과 없음
+                                        {t('adventure.noActiveRegionalEffect')}
                                     </li>
                                 )}
                             </ul>
@@ -1343,14 +1342,14 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                 >
                                     {rosterModalIsTreasure ? (
                                         <span className="min-w-0 flex-1 truncate text-sm font-black tracking-tight text-amber-100 sm:text-base">
-                                            보물상자-{stage.title}
+                                            {t('adventure.treasureChestTitle', { title: stage.title })}
                                         </span>
                                     ) : (
                                         <>
                                             <span className="min-w-0 truncate">{rosterModalRow?.name}</span>
                                             {rosterModalRow && isAdventureChapterBossCodexId(rosterModalRow.codexId) ? (
                                                 <span className="shrink-0 rounded border border-amber-400/45 bg-amber-500/15 px-1.5 py-px text-[9px] font-black uppercase tracking-wider text-amber-100 sm:text-[10px]">
-                                                    보스
+                                                    {t('adventure.boss')}
                                                 </span>
                                             ) : null}
                                         </>
@@ -1362,7 +1361,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                         className="shrink-0 rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs font-bold text-zinc-200 transition hover:bg-white/10 active:scale-[0.98]"
                                         onClick={() => setRosterModalCodexId(null)}
                                     >
-                                        닫기
+                                        {t('common:actions.close')}
                                     </button>
                                 ) : (
                                     <button
@@ -1370,7 +1369,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                         className="shrink-0 rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs font-bold text-zinc-200 transition hover:bg-white/10"
                                         onClick={() => setRosterModalCodexId(null)}
                                     >
-                                        닫기
+                                        {t('common:actions.close')}
                                     </button>
                                 )}
                             </div>
@@ -1387,7 +1386,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                         equipmentBoxImage={adventureTreasureChestEquipmentImageForStageIndex(stage.stageIndex)}
                                         remainingLabel={
                                             rosterModalTreasureWindow && now < rosterModalTreasureWindow.windowEndMs
-                                                ? formatRemainMs(Math.max(0, rosterModalTreasureWindow.windowEndMs - now))
+                                                ? formatAdventureRemainMs(t,Math.max(0, rosterModalTreasureWindow.windowEndMs - now))
                                                 : '—'
                                         }
                                         mapKeysHeld={mapKeysHeld}
@@ -1415,7 +1414,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                 </p>
                                                 {rosterModalInstanceDetails.isBoss ? (
                                                     <span className="rounded border border-amber-400/40 bg-black/50 px-1 py-px text-[7px] font-black uppercase tracking-wider text-amber-100 sm:text-[8px]">
-                                                        보스
+                                                        {t('adventure.boss')}
                                                     </span>
                                                 ) : null}
                                             </div>
@@ -1432,29 +1431,29 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                         </div>
                                         <div className="min-w-0 flex-1 space-y-2">
                                             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2">
-                                                <span className="text-[11px] font-semibold text-zinc-500 sm:text-xs">대국</span>
+                                                <span className="text-[11px] font-semibold text-zinc-500 sm:text-xs">{t('adventure.battle')}</span>
                                                 <div className="flex flex-wrap items-center justify-end gap-2">
                                                     <span className="rounded-md border border-amber-400/35 bg-amber-500/15 px-2 py-0.5 font-mono text-[11px] font-black tabular-nums text-amber-100 sm:text-xs">
                                                         LV{rosterModalInstance.level}
                                                     </span>
                                                     <span className="text-xs font-bold text-fuchsia-100/95 sm:text-sm">
-                                                        {ADVENTURE_MONSTER_MODE_LABELS[rosterModalInstance.mode]}
+                                                        {getAdventureMonsterModeLabel(t, rosterModalInstance.mode)}
                                                     </span>
                                                 </div>
                                             </div>
                                             <div className="rounded-lg border border-white/10 bg-black/35 px-2.5 py-2">
                                                 <div className="flex items-center justify-between gap-2">
-                                                    <span className="text-[11px] font-semibold text-zinc-500 sm:text-xs">이해도 레벨</span>
+                                                    <span className="text-[11px] font-semibold text-zinc-500 sm:text-xs">{t('adventure.comprehensionLevel')}</span>
                                                     <span className="font-mono text-xs font-bold tabular-nums text-cyan-200 sm:text-sm">
                                                         Lv.{rosterModalComprehensionLevel}
                                                     </span>
                                                 </div>
                                                 <div className="mt-1.5 flex items-center justify-between gap-2">
-                                                    <span className="text-[11px] font-semibold text-zinc-500 sm:text-xs">이해도 경험치</span>
+                                                    <span className="text-[11px] font-semibold text-zinc-500 sm:text-xs">{t('adventure.comprehensionXpLabel')}</span>
                                                     <span className="font-mono text-[11px] font-bold tabular-nums text-zinc-300 sm:text-xs">
                                                         {rosterModalComprehensionProgress.nextAt != null
                                                             ? `${rosterModalCodexWins}/${rosterModalComprehensionProgress.nextAt}`
-                                                            : `최대 · ${rosterModalCodexWins}`}
+                                                            : t('adventure.comprehensionXpMaxShort', { wins: rosterModalCodexWins })}
                                                     </span>
                                                 </div>
                                                 <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-zinc-800/95 ring-1 ring-inset ring-black/40">
@@ -1477,7 +1476,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                 type="button"
                                                 bare
                                                 onClick={() => void handleStartMonsterBattle(rosterModalInstance)}
-                                                title={`행동력 ${rosterModalInstanceDetails.apCost}`}
+                                                title={t('adventure.actionPointsTitle', { cost: rosterModalInstanceDetails.apCost })}
                                                 className="group relative mt-1 w-full overflow-hidden rounded-xl border border-amber-400/55 bg-gradient-to-b from-amber-500/[0.22] via-amber-600/[0.14] to-zinc-900/80 px-3 py-3 shadow-[0_10px_28px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.14)] transition-all duration-200 hover:border-amber-300/70 hover:from-amber-400/[0.28] hover:shadow-[0_14px_36px_rgba(251,191,36,0.14)] active:translate-y-px active:shadow-[0_6px_16px_rgba(0,0,0,0.45)] sm:px-4 sm:py-3.5"
                                             >
                                                 <span
@@ -1486,7 +1485,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                 />
                                                 <span className="relative z-[1] flex w-full items-center justify-between gap-3">
                                                     <span className="text-left text-sm font-black tracking-wide text-amber-50 drop-shadow-sm sm:text-[0.95rem]">
-                                                        공격하기
+                                                        {t('adventure.attack')}
                                                     </span>
                                                     <span className="flex items-center gap-1 rounded-lg border border-amber-300/25 bg-black/40 px-2.5 py-1 text-base font-black tabular-nums text-amber-100 shadow-inner sm:px-3 sm:text-lg">
                                                         <span aria-hidden>⚡</span>
@@ -1511,7 +1510,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                 </p>
                                                 {rosterModalStaticPreview.isBoss ? (
                                                     <span className="rounded border border-amber-400/40 bg-black/50 px-1 py-px text-[7px] font-black uppercase tracking-wider text-amber-100 sm:text-[8px]">
-                                                        보스
+                                                        {t('adventure.boss')}
                                                     </span>
                                                 ) : null}
                                             </div>
@@ -1529,21 +1528,19 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                         <div className="min-w-0 flex-1 space-y-2.5">
                                             <p className="text-[13px] leading-relaxed text-zinc-300 sm:text-sm">{rosterModalRow!.codexDescription}</p>
                                             <p className="text-xs text-zinc-500">
-                                                출현 레벨{' '}
-                                                <span className="font-mono font-semibold text-amber-100">
-                                                    Lv.{rosterModalStaticPreview.min}–{rosterModalStaticPreview.max}
-                                                </span>
+                                                {t('adventure.spawnLevelRange', {
+                                                    min: rosterModalStaticPreview.min,
+                                                    max: rosterModalStaticPreview.max,
+                                                })}
                                             </p>
                                             <p className="text-xs text-zinc-500">
-                                                공격 시 소모{' '}
                                                 <span className="font-mono font-bold text-amber-100">
-                                                    <span aria-hidden>⚡</span>
-                                                    {rosterModalStaticPreview.apCost}
+                                                    <span aria-hidden>⚡ </span>
+                                                    {t('adventure.attackApCost', { cost: rosterModalStaticPreview.apCost })}
                                                 </span>
                                             </p>
                                             <p className="text-xs leading-snug text-zinc-500">
-                                                가능한 대국{' '}
-                                                <span className="font-medium text-zinc-200">{rosterModalStaticPreview.modes}</span>
+                                                {t('adventure.availableBattles', { modes: rosterModalStaticPreview.modes })}
                                             </p>
                                             <ul className="space-y-1.5 text-[13px] font-medium leading-snug text-zinc-100 sm:text-sm">
                                                 {rosterModalStaticPreview.quickLinesClassic.map((line, i) => (
@@ -1564,11 +1561,11 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                 {isNativeMobile ? (
                     <aside
                         className="mt-1 flex min-h-0 max-h-[min(32vh,14rem)] min-w-0 shrink-0 flex-col overflow-hidden rounded-lg border border-amber-500/35 bg-zinc-950/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
-                        aria-label="챕터 몬스터 목록"
+                        aria-label={t('adventure.chapterMonstersAria')}
                     >
                         <div className="shrink-0 border-b border-white/10 px-2 py-1.5">
                             <p className="text-center text-[10px] font-bold uppercase tracking-wide text-emerald-400/90">
-                                챕터 몬스터
+                                {t('adventure.chapterMonsters')}
                             </p>
                         </div>
                         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 py-1">
@@ -1601,7 +1598,11 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                           <div
                               role="dialog"
                               aria-modal="true"
-                              aria-label={selectedTreasure ? `보물상자-${stage.title} 정보` : '몬스터 정보'}
+                              aria-label={
+                                  selectedTreasure
+                                      ? t('adventure.treasureChestTitle', { title: stage.title }) + ' ' + t('adventure.treasureChestInfo')
+                                      : t('adventure.monsterInfo')
+                              }
                               className="pointer-events-auto flex max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-0.5rem))] w-full min-h-0 flex-col overflow-hidden rounded-t-[1.35rem] border-x border-t border-amber-400/50 bg-gradient-to-b from-zinc-900 via-zinc-950 to-black shadow-[0_-24px_64px_rgba(0,0,0,0.88),inset_0_1px_0_rgba(255,255,255,0.06)]"
                               onClick={(e) => e.stopPropagation()}
                           >
@@ -1616,7 +1617,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                       <div className="min-w-0 flex-1">
                                           {selectedTreasure ? (
                                               <h2 className="min-w-0 flex-1 truncate text-lg font-black leading-tight tracking-tight text-white">
-                                                  보물상자-{stage.title}
+                                                  {t('adventure.treasureChest')}-{stage.title}
                                               </h2>
                                           ) : (
                                               <p className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
@@ -1634,7 +1635,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                           className="shrink-0 rounded-xl border border-white/12 bg-white/[0.06] px-3 py-2 text-xs font-bold text-zinc-200 transition active:scale-[0.98] active:bg-white/10"
                                           onClick={() => setSelectedId(null)}
                                       >
-                                          닫기
+                                          {t('common:actions.close')}
                                       </button>
                                   </div>
                                   <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 [-webkit-overflow-scrolling:touch] sm:px-6 sm:py-6">
@@ -1653,7 +1654,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                   </p>
                                                   {selectionDetails.isBoss ? (
                                                       <span className="rounded border border-amber-400/40 bg-black/50 px-1 py-px text-[8px] font-black uppercase tracking-wider text-amber-100">
-                                                          보스
+                                                          {t('adventure.boss')}
                                                       </span>
                                                   ) : null}
                                               </div>
@@ -1671,7 +1672,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                           <div className="min-w-0 flex-1 space-y-3">
                                               <div className="rounded-lg border border-white/10 bg-black/45 px-3 py-2.5">
                                                   <div className="space-y-1">
-                                                      <p className="text-xs font-bold text-zinc-500">대국</p>
+                                                      <p className="text-xs font-bold text-zinc-500">{t('adventure.battle')}</p>
                                                       <p className="text-sm font-bold leading-snug text-zinc-100">
                                                           <span className="font-mono tabular-nums text-amber-200">
                                                               LV{selectedMonster.level}
@@ -1680,29 +1681,29 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                               ·
                                                           </span>
                                                           <span className="text-fuchsia-200">
-                                                              {ADVENTURE_MONSTER_MODE_LABELS[selectedMonster.mode]}
+                                                              {getAdventureMonsterModeLabel(t, selectedMonster.mode)}
                                                           </span>
                                                       </p>
                                                   </div>
                                                   <div className="mt-2.5 border-t border-white/10 pt-2.5">
-                                                      <p className="text-xs font-bold text-zinc-500">남은 시간</p>
+                                                      <p className="text-xs font-bold text-zinc-500">{t('adventure.remainingTime')}</p>
                                                       <p className="mt-0.5 font-mono text-sm font-bold tabular-nums text-amber-200">
-                                                          {formatRemainMs(selectedMonster.expiresAt - now)}
+                                                          {formatAdventureRemainMs(t,selectedMonster.expiresAt - now)}
                                                       </p>
                                                   </div>
                                                   <div className="mt-2.5 border-t border-white/10 pt-2.5">
                                                       <div className="flex items-center justify-between gap-2">
-                                                          <p className="text-xs font-bold text-zinc-500">이해도 레벨</p>
+                                                          <p className="text-xs font-bold text-zinc-500">{t('adventure.comprehensionLevel')}</p>
                                                           <p className="font-mono text-sm font-bold tabular-nums text-cyan-200">
                                                               Lv.{selectedMonsterComprehensionLevel}
                                                           </p>
                                                       </div>
                                                       <div className="mt-1.5 flex items-center justify-between gap-2">
-                                                          <p className="text-xs font-bold text-zinc-500">이해도 경험치</p>
+                                                          <p className="text-xs font-bold text-zinc-500">{t('adventure.comprehensionXpLabel')}</p>
                                                           <p className="font-mono text-xs font-bold tabular-nums text-zinc-300">
                                                               {selectedMonsterComprehensionProgress.nextAt != null
                                                                   ? `${selectedMonsterCodexWins}/${selectedMonsterComprehensionProgress.nextAt}`
-                                                                  : `최대 · ${selectedMonsterCodexWins}`}
+                                                                  : t('adventure.comprehensionXpMaxShort', { wins: selectedMonsterCodexWins })}
                                                           </p>
                                                       </div>
                                                       <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-zinc-800/95 ring-1 ring-inset ring-black/40">
@@ -1731,7 +1732,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                           <AdventureTreasureChestInfoPanel
                                               stageTitle={stage.title}
                                               equipmentBoxImage={selectedTreasure.equipmentBoxImage}
-                                              remainingLabel={formatRemainMs(Math.max(0, selectedTreasure.windowEndMs - now))}
+                                              remainingLabel={formatAdventureRemainMs(t,Math.max(0, selectedTreasure.windowEndMs - now))}
                                               mapKeysHeld={mapKeysHeld}
                                               sections={treasureRewardSections}
                                               onOpen={handleOpenTreasureChest}
@@ -1749,7 +1750,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                               type="button"
                                               bare
                                               onClick={() => void handleStartMonsterBattle()}
-                                              title={`행동력 ${selectionDetails.apCost}`}
+                                              title={t('adventure.actionPointsTitle', { cost: selectionDetails.apCost })}
                                               className="group relative w-auto min-w-[10.5rem] max-w-full overflow-hidden rounded-xl border border-amber-400/55 bg-gradient-to-b from-amber-500/[0.22] via-amber-600/[0.14] to-zinc-900/80 px-5 py-2.5 shadow-[0_10px_28px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.14)] transition-all active:translate-y-px active:shadow-[0_6px_16px_rgba(0,0,0,0.45)]"
                                           >
                                               <span
@@ -1757,7 +1758,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                   className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.07] to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"
                                               />
                                               <span className="relative z-[1] flex items-center justify-center gap-2.5">
-                                                  <span className="text-sm font-black tracking-wide text-amber-50">공격하기</span>
+                                                  <span className="text-sm font-black tracking-wide text-amber-50">{t('adventure.attack')}</span>
                                                   <span className="flex items-center gap-1 rounded-lg border border-amber-300/25 bg-black/40 px-2 py-0.5 text-sm font-black tabular-nums text-amber-100 shadow-inner">
                                                       <span aria-hidden>⚡</span>
                                                       <span>{selectionDetails.apCost}</span>
@@ -1782,23 +1783,23 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                     <div
                         role="dialog"
                         aria-modal="true"
-                        aria-label="지역효과"
+                        aria-label={t('adventure.regionalEffectShort')}
                         className="pointer-events-auto w-full rounded-t-2xl border-x border-t border-cyan-400/45 bg-zinc-950 p-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] shadow-[0_-20px_56px_rgba(0,0,0,0.82)]"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-2.5">
-                            <h2 className="text-sm font-black text-cyan-100">지역효과</h2>
+                            <h2 className="text-sm font-black text-cyan-100">{t('adventure.regionalEffectSheetTitle')}</h2>
                             <button
                                 type="button"
                                 onClick={() => setRegionalEffectModalOpen(false)}
                                 className="rounded-lg border border-white/20 bg-white/5 px-3 py-1 text-xs font-bold text-zinc-100"
                             >
-                                닫기
+                                          {t('common:actions.close')}
                             </button>
                         </div>
                         <div className="mt-3 space-y-2">
                             <div className="flex items-center justify-between rounded-lg border border-white/10 bg-black/25 px-2.5 py-2">
-                                <span className="text-xs font-semibold text-zinc-400">탐험도 등급</span>
+                                <span className="text-xs font-semibold text-zinc-400">{t('adventure.explorationTier')}</span>
                                 <span className="rounded-md border border-cyan-400/30 bg-cyan-950/40 px-2 py-0.5 text-xs font-bold text-cyan-100">
                                     {stageUnderstandingTierLabel}
                                 </span>
@@ -1807,7 +1808,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                             <ul className="space-y-1.5">
                                 {!stageUnlocked ? (
                                     <li className="rounded-md border border-white/8 bg-black/25 px-2.5 py-2 text-xs font-semibold text-zinc-300">
-                                        슬롯 1 잠김 - 지역 오픈
+                                        {t('adventure.slot1LockedRegionOpen')}
                                     </li>
                                 ) : stageRegionalBuffEntries.length > 0 ? (
                                     stageRegionalBuffEntries.map((entry, idx) => (
@@ -1815,12 +1816,12 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                             key={`${entry.kind}-${idx}`}
                                             className="rounded-md border border-white/8 bg-black/25 px-2.5 py-2 text-xs font-semibold leading-snug text-cyan-100/95"
                                         >
-                                            {labelRegionalSpecialtyBuffEntry(entry)}
+                                            {labelRegionalSpecialtyBuffI18n(t, entry)}
                                         </li>
                                     ))
                                 ) : (
                                     <li className="rounded-md border border-white/8 bg-black/25 px-2.5 py-2 text-xs text-zinc-500">
-                                        적용 중인 지역효과 없음
+                                        {t('adventure.noActiveRegionalEffect')}
                                     </li>
                                 )}
                             </ul>

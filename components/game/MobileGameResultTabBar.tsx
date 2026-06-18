@@ -1,4 +1,5 @@
 import React, { type ReactNode } from 'react';
+import { tx } from '../../shared/i18n/runtimeText.js';
 
 export type MobileGameResultTab = 'match' | 'record';
 
@@ -84,8 +85,8 @@ type MobileGameResultTabBarProps = {
 export const MobileGameResultTabBar: React.FC<MobileGameResultTabBarProps> = ({
     active,
     onChange,
-    matchLabel = '경기 내용',
-    recordLabel = '대국 결과',
+    matchLabel = tx("game:summary.gameContent"),
+    recordLabel = tx("game:summary.resultSection"),
     className = '',
     comfortable = false,
 }) => {
@@ -97,7 +98,7 @@ export const MobileGameResultTabBar: React.FC<MobileGameResultTabBarProps> = ({
     <div
         className={`flex w-full shrink-0 gap-0.5 rounded-lg border border-amber-500/35 bg-slate-950/80 p-0.5 ring-1 ring-inset ring-amber-500/12 ${className}`}
         role="tablist"
-        aria-label="결과 탭"
+        aria-label={tx("game:mobileResultTab.aria")}
     >
         <button
             type="button"

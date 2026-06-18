@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import i18n from '../shared/i18n/config.js';
+import { useTranslation } from 'react-i18next';
 import { getDungeonStageScore } from '../constants';
 import { TournamentType } from '../types';
 import { useAppContext } from '../hooks/useAppContext.js';
@@ -11,10 +13,10 @@ const emptyDungeonProgress = {
     dailyStageAttempts: {} as Record<number, unknown>,
 };
 
-const TOURNAMENT_ARENA_META: { type: TournamentType; arena: string; title: string; maxRank: number }[] = [
-    { type: 'neighborhood', arena: '동네', title: '동네바둑리그', maxRank: 6 },
-    { type: 'national', arena: '전국', title: '전국바둑대회', maxRank: 8 },
-    { type: 'world', arena: '세계', title: '월드챔피언십', maxRank: 15 },
+const TOURNAMENT_ARENA_META: { type: TournamentType; arenaKey: string; titleKey: string; maxRank: number }[] = [
+    { type: 'neighborhood', arenaKey: 'neighborhood', titleKey: 'neighborhoodTitle', maxRank: 6 },
+    { type: 'national', arenaKey: 'national', titleKey: 'nationalTitle', maxRank: 8 },
+    { type: 'world', arenaKey: 'world', titleKey: 'worldTitle', maxRank: 15 },
 ];
 
 /** 같은 점수인 연속 순위를 묶어서 [{ label: '1위' | '4~7위', points }] 형태로 반환 */
@@ -33,7 +35,7 @@ function groupRanksByScore(type: TournamentType, stage: number, maxRank: number)
             i++;
             endRank = items[i].rank;
         }
-        const label = startRank === endRank ? `${startRank}위` : `${startRank}~${endRank}위`;
+        const label = startRank === endRank ? i18n.t('tournament:championship.points.rankPlace', { start: startRank }) : i18n.t('tournament:championship.points.rankRange', { start: startRank, end: endRank });
         groups.push({ key: `rank-${startRank}-${endRank}`, label, points, rankStart: startRank });
         i++;
     }
@@ -50,6 +52,7 @@ const PointsInfoPanel: React.FC<{
     /** 모달 한 화면 맞춤: 경기장 탭으로 하나만 표시해 세로 스크롤 제거 */
     arenaTabs?: boolean;
 }> = ({ variant = 'default', lobbyGlass = false, hideHeading = false, arenaTabs = false }) => {
+    const { t } = useTranslation('tournament');
     const { currentUserWithStatus } = useAppContext();
     const [selectedStage, setSelectedStage] = useState<number>(1);
     const [arenaTab, setArenaTab] = useState<number>(0);
@@ -101,7 +104,7 @@ const PointsInfoPanel: React.FC<{
             )}
 
             <div className={`flex-shrink-0 ${embedded ? (arenaTabs ? 'mb-1.5' : 'mb-2') : 'mb-3'}`}>
-                <label className={`mb-0.5 block font-medium text-amber-200/85 ${embedded ? (arenaTabs ? 'text-xs' : 'text-[11px]') : 'text-xs text-gray-300'}`}>단계 선택</label>
+                <label className={`mb-0.5 block font-medium text-amber-200/85 ${embedded ? (arenaTabs ? 'text-xs' : 'text-[11px]') : 'text-xs text-gray-300'}`}>{t('championship.points.stageSelectLabel')}</label>
                 <select
                     value={selectedStage}
                     onChange={(e) => setSelectedStage(Number(e.target.value))}
@@ -112,12 +115,12 @@ const PointsInfoPanel: React.FC<{
                                 : 'w-full rounded-lg border border-amber-500/35 bg-zinc-950/80 p-2 text-xs text-zinc-100 focus:border-amber-400 focus:ring-amber-400/30'
                             : 'w-full rounded-md border border-gray-600 bg-gray-700 p-1.5 text-xs text-gray-200 focus:border-purple-500 focus:ring-purple-500'
                     }
-                    aria-label="점수표 단계 선택"
+                    aria-label={t('championship.points.stageSelectAria')}
                 >
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((stage) => (
                         <option key={stage} value={stage}>
-                            {stage}단계
-                            {embedded && arenaTabs && myStageForActiveArena != null && stage === myStageForActiveArena ? ' (내 단계)' : ''}
+                            {t('championship.points.stageUnit', { stage })}
+                            {embedded && arenaTabs && myStageForActiveArena != null && stage === myStageForActiveArena ? t('championship.points.myStage') : ''}
                         </option>
                     ))}
                 </select>
@@ -157,7 +160,7 @@ const PointsInfoPanel: React.FC<{
                             <h4
                                 className={`font-bold ${embedded ? (compact ? 'mb-1.5 border-b border-amber-400/30 pb-1 text-center text-xs font-extrabold tracking-tight text-amber-100 sm:text-sm' : 'mb-2 border-b border-amber-400/30 pb-1.5 text-center text-xs font-extrabold tracking-tight text-amber-100 sm:text-sm') : 'mb-1.5 border-b border-accent/50 pb-0.5 text-sm text-accent'}`}
                             >
-                                {arenaData.title} ({selectedStage}단계)
+                                {t(`championship.points.${arenaData.titleKey}`)} ({t('championship.points.stageUnit', { stage: selectedStage })})
                             </h4>
                             <div
                                 className={`grid grid-cols-[minmax(0,1fr)_auto] ${embedded ? (compact ? 'gap-x-0.5 gap-y-0' : 'gap-x-2 gap-y-0') : 'gap-x-2 gap-y-0.5'} ${compact ? 'mx-auto max-w-[16.5rem]' : ''}`}
@@ -165,8 +168,8 @@ const PointsInfoPanel: React.FC<{
                                 <div
                                     className={`col-span-2 grid grid-cols-[minmax(0,1fr)_auto] border-b border-white/10 pb-1 ${embedded ? (compact ? 'gap-x-0.5' : 'gap-x-2') : 'gap-x-2'} ${embedded ? (compact ? 'text-[10px] font-bold uppercase tracking-wide text-zinc-500 sm:text-[11px]' : 'text-[10px] font-bold uppercase tracking-wide text-zinc-500') : 'text-[10px] font-semibold text-gray-400'}`}
                                 >
-                                    <span className={`pl-0.5 ${compact ? 'text-center' : ''}`}>순위</span>
-                                    <span className={`pr-0.5 tabular-nums ${compact ? 'text-center' : 'text-right'}`}>점수</span>
+                                    <span className={`pl-0.5 ${compact ? 'text-center' : ''}`}>{t('championship.points.rankHeader')}</span>
+                                    <span className={`pr-0.5 tabular-nums ${compact ? 'text-center' : 'text-right'}`}>{t('championship.points.scoreHeader')}</span>
                                 </div>
                                 {displayRanks.map(({ key, label, points, rankStart }) => {
                                     const rankColor = rankStart === 1 ? 'text-yellow-400' : rankStart === 2 ? 'text-slate-300' : rankStart === 3 ? 'text-amber-500' : 'text-zinc-300';
@@ -182,7 +185,7 @@ const PointsInfoPanel: React.FC<{
                                                 className={`py-0.5 pr-0.5 font-mono font-bold tabular-nums leading-snug ${compact ? 'text-center' : 'text-right'} ${rowText}`}
                                             >
                                                 {points.toLocaleString()}
-                                                <span className="ml-0.5 font-sans font-bold">점</span>
+                                                <span className="ml-0.5 font-sans font-bold">{t('championship.points.pointsUnit')}</span>
                                             </span>
                                         </React.Fragment>
                                     );

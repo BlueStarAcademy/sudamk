@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { SinglePlayerMissionInfo } from '../../types.js';
 import Button from '../Button.js';
 import AlertModal from '../AlertModal.js';
@@ -42,6 +43,7 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
     onConfirm,
     onClose,
 }) => {
+    const { t } = useTranslation(['lobby', 'common']);
     const hasEnoughXp =
         hasEnoughXpProp ??
         (currentLevel === 0 || requiredCollection === 0 || accumulatedCollection >= requiredCollection);
@@ -177,15 +179,15 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
         if (isEnhancing) return;
 
         if (!hasEnoughXp) {
-            setAlertMessage('경험치가 부족합니다.');
+            setAlertMessage(t('singleplayer.alerts.insufficientXp'));
             return;
         }
         if (!hasUnlockStage && nextLevelUnlockStage) {
-            setAlertMessage(`${nextLevelUnlockStage} 클리어 후 강화할 수 있습니다.`);
+            setAlertMessage(t('singleplayer.alerts.enhanceAfterClear', { stageId: nextLevelUnlockStage }));
             return;
         }
         if (!hasEnoughGold) {
-            setAlertMessage('골드가 부족합니다.');
+            setAlertMessage(t('singleplayer.alerts.insufficientGold'));
             return;
         }
 
@@ -262,16 +264,16 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
 
     const canStartEnhance = hasEnoughXp && hasUnlockStage && hasEnoughGold;
     const enhanceButtonLabel = isEnhancing ? (
-        '강화 중...'
+        t('singleplayer.enhancing')
     ) : (
         <span className="flex items-center justify-center gap-[clamp(0.25rem,1.5vw,0.5rem)] font-semibold tracking-wide">
             <img
                 src="/images/icon/Gold.webp"
-                alt="골드"
+                alt={t('common:resources.gold')}
                 className={`flex-shrink-0 drop-shadow ${isCompactUi ? 'h-[clamp(1rem,4.2vw,1.25rem)] w-[clamp(1rem,4.2vw,1.25rem)]' : 'h-6 w-6'}`}
             />
             <span>{upgradeCost.toLocaleString()}</span>
-            <span>강화</span>
+            <span>{t('singleplayer.enhance')}</span>
         </span>
     );
 
@@ -317,7 +319,7 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
     return (
         <>
         <DraggableWindow
-            title={isCompactUi ? `${mission.name} · 강화` : `${mission.name} 강화`}
+            title={isCompactUi ? t('singleplayer.enhanceTitle', { missionName: mission.name }) : t('singleplayer.enhanceTitlePc', { missionName: mission.name })}
             onClose={onClose}
             windowId={`training-quest-levelup-${mission.id}`}
             initialWidth={isCompactUi ? 340 : 540}
@@ -394,12 +396,12 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
                                     className="size-[clamp(1.125rem,4.8vw,1.5rem)] shrink-0 opacity-90"
                                 />
                                 <span className="w-10 shrink-0 font-medium text-slate-500 text-[clamp(0.6875rem,3.1vw,0.8125rem)]">
-                                    생산
+                                    {t('singleplayer.production')}
                                 </span>
                                 <div className="min-w-0 flex-1 text-right tabular-nums leading-tight text-[clamp(0.8125rem,3.6vw,0.9375rem)]">
-                                    <span className="text-slate-300">{currentLevelInfo ? `${currentLevelInfo.productionRateMinutes}분` : '—'}</span>
+                                    <span className="text-slate-300">{currentLevelInfo ? t('singleplayer.productionRateMinutes', { minutes: currentLevelInfo.productionRateMinutes }) : '—'}</span>
                                     <span className="mx-0.5 text-slate-600">→</span>
-                                    <span className="font-semibold text-emerald-200/95">{nextLevelInfo.productionRateMinutes}분</span>
+                                    <span className="font-semibold text-emerald-200/95">{t('singleplayer.productionRateMinutes', { minutes: nextLevelInfo.productionRateMinutes })}</span>
                                     {productionRateChange !== 0 && (
                                         <span className="ml-0.5 font-semibold text-lime-400 text-[clamp(0.6875rem,3.2vw,0.8125rem)]">
                                             {productionRateChange > 0
@@ -417,7 +419,7 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
                                     className="size-[clamp(1.125rem,4.8vw,1.5rem)] shrink-0 opacity-95"
                                 />
                                 <span className="w-10 shrink-0 font-medium text-slate-500 text-[clamp(0.6875rem,3.1vw,0.8125rem)]">
-                                    생산량
+                                    {t('singleplayer.productionAmount')}
                                 </span>
                                 <div className="min-w-0 flex-1 text-right tabular-nums leading-tight text-[clamp(0.8125rem,3.6vw,0.9375rem)]">
                                     <span className="text-slate-300">
@@ -438,7 +440,7 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
                                     M
                                 </span>
                                 <span className="w-10 shrink-0 font-medium text-slate-500 text-[clamp(0.6875rem,3.1vw,0.8125rem)]">
-                                    저장
+                                    {t('singleplayer.storage')}
                                 </span>
                                 <div className="min-w-0 flex-1 text-right tabular-nums leading-tight text-[clamp(0.8125rem,3.6vw,0.9375rem)]">
                                     <span className="text-slate-300">
@@ -460,8 +462,7 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
                                         ⚠️
                                     </span>
                                     <p className="min-w-0 truncate">
-                                        <span className="font-semibold text-amber-200">{nextLevelUnlockStage}</span>
-                                        <span className="text-amber-100/75"> 클리어 후 강화</span>
+                                        {t('singleplayer.enhanceAfterClear', { stageId: nextLevelUnlockStage })}
                                     </p>
                                 </div>
                             )}
@@ -522,11 +523,11 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
                         <div className="mx-auto flex w-full max-w-md flex-col gap-1.5">
                             <div className="flex min-h-[2.35rem] items-center gap-2 rounded-lg border border-white/[0.08] bg-slate-900/50 px-3 py-1.5">
                                 <img src="/images/icon/timer.webp" alt="" className="h-7 w-7 shrink-0 opacity-95" />
-                                <span className="w-12 shrink-0 text-sm font-medium text-slate-400">생산</span>
+                                <span className="w-12 shrink-0 text-sm font-medium text-slate-400">{t('singleplayer.production')}</span>
                                 <div className="min-w-0 flex-1 text-right text-lg tabular-nums leading-snug">
-                                    <span className="text-slate-200">{currentLevelInfo ? `${currentLevelInfo.productionRateMinutes}분` : '—'}</span>
+                                    <span className="text-slate-200">{currentLevelInfo ? t('singleplayer.productionRateMinutes', { minutes: currentLevelInfo.productionRateMinutes }) : '—'}</span>
                                     <span className="mx-1 text-slate-500">→</span>
-                                    <span className="font-semibold text-emerald-200">{nextLevelInfo.productionRateMinutes}분</span>
+                                    <span className="font-semibold text-emerald-200">{t('singleplayer.productionRateMinutes', { minutes: nextLevelInfo.productionRateMinutes })}</span>
                                     {productionRateChange !== 0 && (
                                         <span className="ml-1 text-sm font-semibold text-lime-400">
                                             {productionRateChange > 0
@@ -543,7 +544,7 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
                                     alt=""
                                     className="h-7 w-7 shrink-0 opacity-95"
                                 />
-                                <span className="w-12 shrink-0 text-sm font-medium text-slate-400">생산량</span>
+                                <span className="w-12 shrink-0 text-sm font-medium text-slate-400">{t('singleplayer.productionAmount')}</span>
                                 <div className="min-w-0 flex-1 text-right text-lg tabular-nums leading-snug">
                                     <span className="text-slate-200">
                                         {currentLevelInfo ? currentLevelInfo.rewardAmount.toLocaleString() : '—'}
@@ -562,7 +563,7 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
                                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-violet-500/40 text-xs font-bold text-violet-50 ring-1 ring-violet-400/30">
                                     M
                                 </span>
-                                <span className="w-12 shrink-0 text-sm font-medium text-slate-400">저장</span>
+                                <span className="w-12 shrink-0 text-sm font-medium text-slate-400">{t('singleplayer.storage')}</span>
                                 <div className="min-w-0 flex-1 text-right text-lg tabular-nums leading-snug">
                                     <span className="text-slate-200">
                                         {currentLevelInfo ? currentLevelInfo.maxCapacity.toLocaleString() : '—'}
@@ -584,8 +585,7 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
                                     ⚠️
                                 </span>
                                 <p className="min-w-0">
-                                    <span className="font-semibold text-amber-200">{nextLevelUnlockStage}</span>
-                                    <span className="text-amber-100/85"> 스테이지를 클리어해야 합니다.</span>
+                                    {t('singleplayer.enhanceAfterClearFull', { stageId: nextLevelUnlockStage })}
                                 </p>
                             </div>
                         )}
@@ -599,7 +599,7 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
                                 className={`flex-1 rounded-lg border border-slate-500/50 bg-slate-800/80 py-2.5 text-base font-semibold text-slate-100 shadow-sm hover:bg-slate-700/80 ${isEnhancing ? 'cursor-not-allowed opacity-50' : ''}`}
                                 disabled={isEnhancing}
                             >
-                                취소
+                                {t('common:actions.cancel')}
                             </Button>
                             <Button
                                 onClick={handleEnhance}

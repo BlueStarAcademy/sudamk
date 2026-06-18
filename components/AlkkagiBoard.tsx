@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useImperativeHandle, forwardRef, useRef, ReactNode, useMemo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AlkkagiStone, GameSettings, GameStatus, Player, Point, AlkkagiLayoutType, LiveGameSession, UserWithStatus } from '../types.js';
 import { BATTLE_PLACEMENT_ZONES } from '../constants';
 
@@ -29,6 +30,7 @@ interface AlkkagiBoardProps {
 }
 
 const AlkkagiBoard = forwardRef<AlkkagiBoardHandle, AlkkagiBoardProps>((props, ref): ReactNode => {
+    const { t } = useTranslation('common');
     const {
         stones,
         gameStatus,
@@ -341,7 +343,7 @@ const AlkkagiBoard = forwardRef<AlkkagiBoardHandle, AlkkagiBoardProps>((props, r
                         />
                         <g transform={`translate(${selectedStone.x}, ${selectedStone.y - selectedStone.radius - 28})`}>
                             <rect x="-42" y="-12" width="84" height="24" rx="6" fill="rgba(0,0,0,0.88)" stroke="rgba(239, 68, 68, 0.95)" strokeWidth="2.5" />
-                            <text y="4" textAnchor="middle" fill="#fecaca" fontSize="12" fontWeight="bold">발사 취소</text>
+                            <text y="4" textAnchor="middle" fill="#fecaca" fontSize="12" fontWeight="bold">{t('cancelLaunch')}</text>
                         </g>
                     </g>
                 )}

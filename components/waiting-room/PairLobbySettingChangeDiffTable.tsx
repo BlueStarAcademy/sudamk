@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import type { PairLobbySettingChangeDiffRow } from '../../shared/utils/pairLobbyGameSettingRows.js';
 import { truncatePlayfulLobbySettingDisplayValue } from '../../shared/utils/pairLobbyGameSettingRows.js';
 
@@ -18,6 +19,8 @@ const PairLobbySettingChangeDiffTable: React.FC<PairLobbySettingChangeDiffTableP
     compact = false,
     className = '',
 }) => {
+    const { t } = useTranslation('lobby');
+
     if (rows.length === 0) {
         return (
             <p
@@ -25,7 +28,7 @@ const PairLobbySettingChangeDiffTable: React.FC<PairLobbySettingChangeDiffTableP
                     compact ? 'text-[0.68rem]' : 'text-xs sm:text-sm'
                 }`}
             >
-                변경된 대국 설정이 없습니다.
+                {t('pairSettingDiff.noChanges')}
             </p>
         );
     }
@@ -49,9 +52,9 @@ const PairLobbySettingChangeDiffTable: React.FC<PairLobbySettingChangeDiffTableP
                     compact ? 'gap-x-1.5' : 'gap-x-2'
                 }`}
             >
-                <span className={headerClass}>항목</span>
-                <span className={`${headerClass} text-center`}>기존</span>
-                <span className={`${headerClass} text-center text-amber-200/90`}>제안</span>
+                <span className={headerClass}>{t('pairSettingDiff.field')}</span>
+                <span className={`${headerClass} text-center`}>{t('pairSettingDiff.before')}</span>
+                <span className={`${headerClass} text-center text-amber-200/90`}>{t('pairSettingDiff.proposed')}</span>
             </div>
             <dl className={`max-h-[min(42vh,18rem)] overflow-y-auto ${compact ? 'px-2 py-1' : 'px-2.5 py-1.5 sm:px-3'}`}>
                 {rows.map((row) => (

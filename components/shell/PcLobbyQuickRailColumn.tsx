@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import QuickAccessSidebar from '../QuickAccessSidebar.js';
 import {
     PC_QUICK_RAIL_COLUMN_CLASS,
@@ -9,7 +10,8 @@ import {
 const PcLobbyQuickRailColumn: React.FC = () => (
     <aside
         className={`flex h-full min-h-0 ${PC_QUICK_RAIL_COLUMN_CLASS} flex-col overflow-hidden self-stretch`}
-        aria-label="퀵 메뉴"
+    const { t } = useTranslation('common');
+        aria-label={t('quickMenuAria')}
     >
         <div className={PC_QUICK_RAIL_WRAPPER_CLASS}>
             <QuickAccessSidebar fillHeight />

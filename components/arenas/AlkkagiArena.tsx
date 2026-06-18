@@ -1,5 +1,6 @@
 
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AlkkagiStone, GameProps, Player, Point, GameStatus } from '../../types.js';
 import AlkkagiBoard, { AlkkagiBoardHandle } from '../AlkkagiBoard.js';
 import { AttackToTurnGauge } from '../AttackToTurnGauge.js';
@@ -44,6 +45,7 @@ function usePrevious<T>(value: T): T | undefined {
 }
 
 const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
+    const { t } = useTranslation('game');
     const { session, onAction, currentUser, isSpectator, isMobile = false } = props;
     const { id: gameId, settings, gameStatus, alkkagiStones, currentPlayer, player1, alkkagiStones_p1, alkkagiStones_p2, activeAlkkagiItems } = session;
     
@@ -497,7 +499,7 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
                     <AttackToTurnGauge
                         startTime={session.animation!.startTime}
                         durationMs={session.animation!.duration}
-                        label="턴 전환까지"
+                        label={t('board.turnSwitchIn')}
                     />
                 )}
                 {(dragStartPoint || flickPower !== null) && (

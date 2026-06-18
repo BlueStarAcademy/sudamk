@@ -7,7 +7,9 @@ import { useAppContext } from '../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { mergeArenaEntranceAvailability } from '../constants/arenaEntrance.js';
 import { isClientAdmin } from '../utils/clientAdmin.js';
-import { replaceAppHash } from '../utils/appUtils.js';
+import { replaceAppHash, APP_HOME_HASH } from '../utils/appUtils.js';
+import { useTranslation } from 'react-i18next';
+import { useLocalizedGameMode, useLocalizedLobbyGameModes } from '../shared/i18n/localizedCatalog.js';
 
 interface LobbyProps {
   lobbyType: 'strategic' | 'playful';
@@ -15,6 +17,8 @@ interface LobbyProps {
 
 const GameCard: React.FC<{ mode: GameMode, description: string, image: string, available: boolean, onSelect: () => void, hoverColorClass: string }> = ({ mode, description, image, available, onSelect, hoverColorClass }) => {
     const [imgError, setImgError] = useState(false);
+    const localizeMode = useLocalizedGameMode();
+    const modeLabel = localizeMode(mode);
 
     return (
         <div
@@ -25,16 +29,16 @@ const GameCard: React.FC<{ mode: GameMode, description: string, image: string, a
                 {!imgError ? (
                     <img 
                         src={image} 
-                        alt={mode} 
+                        alt={modeLabel} 
                         className="w-full h-full object-cover" 
                         onError={() => setImgError(true)} 
                     />
                 ) : (
-                    <span className="text-xs">{mode}</span>
+                    <span className="text-xs">{modeLabel}</span>
                 )}
             </div>
             <div className="flex-grow flex flex-col">
-                <h3 className="text-xl font-bold text-primary mb-2">{mode}</h3>
+                <h3 className="text-xl font-bold text-primary mb-2">{modeLabel}</h3>
                 <p className="text-tertiary text-sm flex-grow">{description}</p>
             </div>
         </div>
@@ -44,6 +48,7 @@ const GameCard: React.FC<{ mode: GameMode, description: string, image: string, a
 const Lobby: React.FC<LobbyProps> = ({ lobbyType }) => {
   const { gameModeAvailability, handlers, arenaEntranceAvailability, currentUser } = useAppContext();
   const { isNativeMobile } = useNativeMobileShell();
+  const { t } = useTranslation('lobby');
 
   const mergedArena = useMemo(
     () => mergeArenaEntranceAvailability(arenaEntranceAvailability),
@@ -53,18 +58,19 @@ const Lobby: React.FC<LobbyProps> = ({ lobbyType }) => {
   useEffect(() => {
     if (!currentUser || isClientAdmin(currentUser)) return;
     const ok = lobbyType === 'strategic' ? mergedArena.strategicLobby : mergedArena.playfulLobby;
-    if (!ok) replaceAppHash('#/profile');
+    if (!ok) replaceAppHash(APP_HOME_HASH);
   }, [currentUser, lobbyType, mergedArena.strategicLobby, mergedArena.playfulLobby]);
 
   const isStrategic = lobbyType === 'strategic';
-  const title = isStrategic ? '전략 게임' : '놀이 게임';
-  const modes = isStrategic ? SPECIAL_GAME_MODES : PLAYFUL_GAME_MODES;
-  const sectionTitle = isStrategic ? '전략 게임' : '놀이 게임';
+  const title = isStrategic ? t('modePicker.strategicTitle') : t('modePicker.playfulTitle');
+  const rawModes = isStrategic ? SPECIAL_GAME_MODES : PLAYFUL_GAME_MODES;
+  const modes = useLocalizedLobbyGameModes(rawModes);
+  const sectionTitle = title;
   const sectionBorderColor = isStrategic ? 'border-blue-400' : 'border-yellow-400';
   const hoverColorClass = isStrategic ? 'hover:shadow-blue-500/20' : 'hover:shadow-yellow-500/20';
   const lobbyShellClass = isStrategic ? 'bg-lobby-shell-strategic' : 'bg-lobby-shell-playful';
 
-  const onBackToProfile = () => window.location.hash = '#/profile';
+  const onBackToProfile = () => window.location.hash = APP_HOME_HASH;
 
   const lobbyHeader = (
     <header
@@ -77,8 +83,8 @@ const Lobby: React.FC<LobbyProps> = ({ lobbyType }) => {
         <img src="/images/button/back.webp" alt="Back" className={isNativeMobile ? 'h-8 w-8' : 'h-10 w-10 sm:h-12 sm:w-12'} />
       </button>
       <div className="min-w-0 flex-grow text-center">
-        <h1 className={`font-bold ${isNativeMobile ? 'text-base' : 'text-2xl sm:text-4xl'}`}>{title} 로비</h1>
-        <p className={`text-secondary ${isNativeMobile ? 'mt-0.5 text-xs' : 'mt-2 text-sm sm:text-base'}`}>플레이할 게임을 선택하세요.</p>
+        <h1 className={`font-bold ${isNativeMobile ? 'text-base' : 'text-2xl sm:text-4xl'}`}>{title}{t('modePicker.lobbySuffix')}</h1>
+        <p className={`text-secondary ${isNativeMobile ? 'mt-0.5 text-xs' : 'mt-2 text-sm sm:text-base'}`}>{t('modePicker.selectGame')}</p>
       </div>
       <div className={isNativeMobile ? 'w-8 shrink-0' : 'w-10 shrink-0 sm:w-24'} />
     </header>

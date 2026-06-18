@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import DraggableWindow from '../DraggableWindow.js';
 import { UserWithStatus } from '../../types.js';
 import TrainingQuestPanel from './TrainingQuestPanel.js';
@@ -20,6 +21,7 @@ const TrainingQuestModal: React.FC<TrainingQuestModalProps> = ({
     currentUser,
     embedded = false,
 }) => {
+    const { t } = useTranslation('lobby');
     const trainingGuide = useScreenGuide('trainingQuest', { active: embedded || open });
 
     const questBody = (
@@ -27,7 +29,7 @@ const TrainingQuestModal: React.FC<TrainingQuestModalProps> = ({
             <div
                 className="box-border flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden px-1 pb-0.5 pt-0 sm:px-1.5 sm:pb-1 sm:pt-0.5"
                 role="region"
-                aria-label="수련 과제 목록"
+                aria-label={t('singleplayer.trainingQuestListAria')}
             >
                 <div className="flex h-full min-h-0 w-full max-w-full flex-col">
                     <TrainingQuestPanel currentUser={currentUser} embeddedInModal />
@@ -59,7 +61,7 @@ const TrainingQuestModal: React.FC<TrainingQuestModalProps> = ({
     return (
         <>
             <DraggableWindow
-                title="수련과제"
+                title={t('singleplayer.trainingQuestModalTitle')}
                 windowId="training-quest-modal"
                 onClose={onClose}
                 initialWidth={860}

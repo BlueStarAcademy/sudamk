@@ -1,4 +1,5 @@
 import React from 'react';
+import { tx } from '../../shared/i18n/runtimeText.js';
 import type { AiPregameRewardSlot, AiPregameRewardVisual } from '../../utils/estimateAiPregameRewardSummary.js';
 import { ItemGrade } from '../../types/enums.js';
 import { ResultModalXpRewardBadge } from './ResultModalXpRewardBadge.js';
@@ -148,7 +149,7 @@ const VipInlineCompactSlot: React.FC<{ locked: boolean }> = ({ locked }) => {
           </span>
         </div>
       </div>
-      <span className="text-[0.62rem] font-semibold leading-tight text-fuchsia-100/90 sm:text-[0.66rem]">보상 VIP</span>
+      <span className="text-[0.62rem] font-semibold leading-tight text-fuchsia-100/90 sm:text-[0.66rem]">{tx("game:resultModal.rewardVip")}</span>
     </div>
   );
 };
@@ -296,7 +297,7 @@ export const AiPregameRewardVisualStrip: React.FC<{
             key: `xpc-${idx}`,
             image: null as string | null,
             isExp: true,
-            expTopLabel: slot.xpVariant === 'playful' ? '놀이' : undefined,
+            expTopLabel: slot.xpVariant === 'playful' ? tx('game:resultModal.playfulShort') : undefined,
             line: `+${slot.mainXp.toLocaleString()}${slot.bonusXp != null && slot.bonusXp > 0 ? `(+${slot.bonusXp.toLocaleString()})` : ''}`,
           };
         case 'xp_win_loss':
@@ -304,7 +305,7 @@ export const AiPregameRewardVisualStrip: React.FC<{
             key: `xpwl-${idx}`,
             image: null as string | null,
             isExp: true,
-            expTopLabel: slot.xpVariant === 'playful' ? '놀이' : undefined,
+            expTopLabel: slot.xpVariant === 'playful' ? tx('game:resultModal.playfulShort') : undefined,
             line: `+${Math.max(slot.winXp, slot.lossXp).toLocaleString()}`,
           };
         case 'xp_adventure_win':
@@ -355,14 +356,14 @@ export const AiPregameRewardVisualStrip: React.FC<{
             key: `icon-${idx}`,
             image: slot.image,
             isExp: false,
-            line: '보상',
+            line: tx('game:resultModal.rewardLine'),
           };
         case 'vip_play_reward':
           return {
             key: `vip-${idx}`,
             image: null as string | null,
             isExp: false,
-            line: 'VIP 보상',
+            line: tx('game:resultModal.vipRewardLine'),
             isVipText: true,
           };
         default:
@@ -410,7 +411,7 @@ export const AiPregameRewardVisualStrip: React.FC<{
                   ) : slot.isVipText ? (
                     <div className="relative z-[1] flex flex-col items-center leading-none">
                       <span className="text-[0.52rem] font-black tracking-[0.1em] text-fuchsia-100 sm:text-[0.56rem]">VIP</span>
-                      <span className="mt-px text-[0.52rem] font-black tracking-[0.1em] text-fuchsia-50 sm:text-[0.56rem]">보상</span>
+                      <span className="mt-px text-[0.52rem] font-black tracking-[0.1em] text-fuchsia-50 sm:text-[0.56rem]">{tx("game:resultModal.rewardLine")}</span>
                     </div>
                   ) : (
                     <div

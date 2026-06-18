@@ -60,6 +60,9 @@ import { isPairHumanHumanPvpForTeamResign, modeIncludesBaseCaptureMix } from '..
 import { pvpHasFixedScoringTurnLimit } from '../../shared/utils/rankedFixedTurnScoring.js';
 import { getEquippedPairPetInventoryRow } from '../../shared/utils/pairEquippedPet.js';
 import { getPairPetDefinition } from '../../shared/constants/petLobby.js';
+import { useTranslation } from 'react-i18next';
+import i18n from '../../shared/i18n/config.js';
+import { tx } from '../../shared/i18n/runtimeText.js';
 
 interface ImageButtonProps {
     src: string;
@@ -357,7 +360,7 @@ const ActionButtonsPanel: React.FC<ActionButtonsPanelProps> = ({ session, isSpec
             if (err) window.alert(err);
         } catch (error) {
             console.error('[GameControls] USE_ACTION_BUTTON failed:', error);
-            window.alert('매너 액션 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+            window.alert(i18n.t('game:controls.mannerActionError'));
         } finally {
             setActionButtonBusy(false);
         }
@@ -373,7 +376,7 @@ const ActionButtonsPanel: React.FC<ActionButtonsPanelProps> = ({ session, isSpec
                 >
                     {cooldownTime}
                 </span>
-                <span className={`text-slate-500 ${isMobile ? 'text-[8px]' : 'text-[10px] min-[1025px]:text-[9px]'}`}>다음 액션 대기중</span>
+                <span className={`text-slate-500 ${isMobile ? 'text-[8px]' : 'text-[10px] min-[1025px]:text-[9px]'}`}>{i18n.t('game:controls.waitingNextAction')}</span>
             </div>
         );
     }
@@ -427,8 +430,8 @@ const DiceGoLuxuryItemCard: React.FC<{
         switch (kind) {
             case 'odd':
                 return {
-                    ariaLabel: `홀수 주사위 아이템, 남은 개수 ${count}`,
-                    title: `홀수(1·3·5) 주사위 아이템. 남은 개수 ${count}`,
+                    ariaLabel: tx('game:controls.oddDiceAria', { count }),
+                    title: tx('game:controls.oddDiceTitle', { count }),
                     displayText: '1·3·5',
                     diceColor: 'luxuryOdd' as const,
                     outerGrad: 'from-cyan-400/35 via-slate-600/25 to-indigo-500/25',
@@ -441,8 +444,8 @@ const DiceGoLuxuryItemCard: React.FC<{
                 };
             case 'even':
                 return {
-                    ariaLabel: `짝수 주사위 아이템, 남은 개수 ${count}`,
-                    title: `짝수(2·4·6) 주사위 아이템. 남은 개수 ${count}`,
+                    ariaLabel: tx('game:controls.evenDiceAria', { count }),
+                    title: tx('game:controls.evenDiceTitle', { count }),
                     displayText: '2·4·6',
                     diceColor: 'luxuryEven' as const,
                     outerGrad: 'from-amber-400/40 via-amber-900/20 to-orange-950/35',
@@ -455,8 +458,8 @@ const DiceGoLuxuryItemCard: React.FC<{
                 };
             case 'low':
                 return {
-                    ariaLabel: `낮은 수 주사위 아이템, 남은 개수 ${count}`,
-                    title: `낮은 수(1·2·3) 주사위 아이템. 남은 개수 ${count}`,
+                    ariaLabel: tx('game:controls.lowDiceAria', { count }),
+                    title: tx('game:controls.lowDiceTitle', { count }),
                     displayText: '1·2·3',
                     diceColor: 'luxuryLow' as const,
                     outerGrad: 'from-violet-400/40 via-slate-600/25 to-indigo-600/30',
@@ -469,8 +472,8 @@ const DiceGoLuxuryItemCard: React.FC<{
                 };
             case 'high':
                 return {
-                    ariaLabel: `높은 수 주사위 아이템, 남은 개수 ${count}`,
-                    title: `높은 수(4·5·6) 주사위 아이템. 남은 개수 ${count}`,
+                    ariaLabel: tx('game:controls.highDiceAria', { count }),
+                    title: tx('game:controls.highDiceTitle', { count }),
                     displayText: '4·5·6',
                     diceColor: 'luxuryHigh' as const,
                     outerGrad: 'from-rose-400/40 via-red-950/25 to-orange-950/35',
@@ -560,6 +563,7 @@ export const DicePanel: React.FC<{
     /** 주사위바둑 판 옆/하단 큰 패널만 좁은 화면에서 축소 */
     compactMain?: boolean;
 }> = ({ session, isMyTurn, onAction, currentUser, variant = 'all', footerCompact = false, compactMain = false }) => {
+    const { t } = useTranslation(['common', 'game']);
     const { id: gameId, gameStatus } = session;
     const [localRollEndTime, setLocalRollEndTime] = React.useState<number>(0);
     const [itemConfirm, setItemConfirm] = React.useState<DiceGoPanelItemKind | null>(null);
@@ -696,7 +700,7 @@ export const DicePanel: React.FC<{
                     compactMain ? 'gap-1.5 px-3 py-3' : 'gap-2 px-4 py-4'
                 } ${canRoll ? 'dice-panel-turn-glow border-amber-300/70 ring-2 ring-amber-300/25' : 'border-amber-400/35'}`}
             >
-                <span className={`font-bold uppercase tracking-[0.2em] text-amber-200/90 ${compactMain ? 'text-[9px]' : 'text-[10px]'}`}>주사위</span>
+                <span className={`font-bold uppercase tracking-[0.2em] text-amber-200/90 ${compactMain ? 'text-[9px]' : 'text-[10px]'}`}>{t('game:controls.dice')}</span>
                 <Dice
                     value={diceValue ?? null}
                     isRolling={isRolling}
@@ -722,23 +726,23 @@ export const DicePanel: React.FC<{
         switch (k) {
             case 'odd':
                 return {
-                    title: '홀수 주사위 사용',
-                    body: '홀수(1·3·5)만 나오는 주사위 아이템을 1개 사용합니다. 계속하시겠습니까?',
+                    title: t('controls.oddDiceUseTitle'),
+                    body: t('controls.oddDiceUseBody'),
                 };
             case 'even':
                 return {
-                    title: '짝수 주사위 사용',
-                    body: '짝수(2·4·6)만 나오는 주사위 아이템을 1개 사용합니다. 계속하시겠습니까?',
+                    title: t('controls.evenDiceUseTitle'),
+                    body: t('controls.evenDiceUseBody'),
                 };
             case 'low':
                 return {
-                    title: '낮은 수 주사위 사용',
-                    body: '낮은 수(1·2·3)만 나오는 주사위 아이템을 1개 사용합니다. 계속하시겠습니까?',
+                    title: t('controls.lowDiceUseTitle'),
+                    body: t('controls.lowDiceUseBody'),
                 };
             case 'high':
                 return {
-                    title: '높은 수 주사위 사용',
-                    body: '높은 수(4·5·6)만 나오는 주사위 아이템을 1개 사용합니다. 계속하시겠습니까?',
+                    title: t('controls.highDiceUseTitle'),
+                    body: t('controls.highDiceUseBody'),
                 };
         }
     };
@@ -749,16 +753,16 @@ export const DicePanel: React.FC<{
             gapClass={footerCompact ? 'gap-x-0.5 gap-y-1 sm:gap-x-1.5' : 'gap-x-5 gap-y-2.5'}
             className={footerCompact ? 'min-w-0 max-w-full' : ''}
         >
-            <LabeledDiceGoItem label="홀수" disabled={!oddItemUsable} compact={footerCompact}>
+            <LabeledDiceGoItem label={t('game:controls.odd')} disabled={!oddItemUsable} compact={footerCompact}>
                 <DiceGoLuxuryItemCard kind="odd" count={oddCount} usable={oddItemUsable} onUse={() => handleRoll('odd')} compact={footerCompact} />
             </LabeledDiceGoItem>
-            <LabeledDiceGoItem label="짝수" disabled={!evenItemUsable} compact={footerCompact}>
+            <LabeledDiceGoItem label={t('game:controls.even')} disabled={!evenItemUsable} compact={footerCompact}>
                 <DiceGoLuxuryItemCard kind="even" count={evenCount} usable={evenItemUsable} onUse={() => handleRoll('even')} compact={footerCompact} />
             </LabeledDiceGoItem>
-            <LabeledDiceGoItem label="낮은수" disabled={!lowItemUsable} compact={footerCompact}>
+            <LabeledDiceGoItem label={t('game:controls.lowShort')} disabled={!lowItemUsable} compact={footerCompact}>
                 <DiceGoLuxuryItemCard kind="low" count={lowCount} usable={lowItemUsable} onUse={() => handleRoll('low')} compact={footerCompact} />
             </LabeledDiceGoItem>
-            <LabeledDiceGoItem label="높은수" disabled={!highItemUsable} compact={footerCompact}>
+            <LabeledDiceGoItem label={t('game:controls.highShort')} disabled={!highItemUsable} compact={footerCompact}>
                 <DiceGoLuxuryItemCard kind="high" count={highCount} usable={highItemUsable} onUse={() => handleRoll('high')} compact={footerCompact} />
             </LabeledDiceGoItem>
         </ArenaFixedColsGrid>
@@ -784,10 +788,10 @@ export const DicePanel: React.FC<{
                         <p className="text-sm leading-relaxed text-secondary">{diceGoConfirmCopy(itemConfirm).body}</p>
                         <div className="flex gap-2 justify-end">
                             <Button type="button" colorScheme="none" className="!px-4 !py-2 rounded-lg border border-gray-600 text-gray-200" onClick={() => setItemConfirm(null)}>
-                                취소
+                                {t('common:actions.cancel')}
                             </Button>
                             <Button type="button" colorScheme="none" className="!px-4 !py-2 rounded-lg border border-amber-400/60 bg-amber-600/90 text-slate-900 font-semibold" onClick={confirmItemRoll}>
-                                사용
+                                {t('common:actions.use')}
                             </Button>
                         </div>
                     </div>
@@ -849,24 +853,24 @@ const AlkkagiItemPanel: React.FC<{
             <ArenaFixedColsGrid cols={2} gapClass={compact ? 'gap-1.5' : 'gap-5'} className={compact ? 'min-w-0' : ''}>
                 <LabeledControlButton
                     src="/images/button/slow.webp"
-                    alt="슬로우"
-                    label="슬로우"
+                    alt={tx('game:controls.slow')}
+                    label={tx('game:controls.slow')}
                     count={slowCount}
-                    caption={isSlowActive ? '사용중' : undefined}
+                    caption={isSlowActive ? tx('game:controls.inUse') : undefined}
                     onClick={() => useItem('slow')}
                     disabled={!canUse || slowCount <= 0 || isSlowActive}
-                    title={`슬로우 : 힘조절 그래프의 속도를 줄여줍니다. 남은 개수: ${slowCount}`}
+                    title={tx('game:controls.slowTitle', { count: slowCount })}
                     compact={compact}
                 />
                 <LabeledControlButton
                     src="/images/button/target.webp"
-                    alt="조준선"
-                    label="조준선"
+                    alt={tx('game:controls.aimingLine')}
+                    label={tx('game:controls.aimingLine')}
                     count={aimCount}
-                    caption={isAimActive ? '사용중' : undefined}
+                    caption={isAimActive ? tx('game:controls.inUse') : undefined}
                     onClick={() => useItem('aimingLine')}
                     disabled={!canUse || aimCount <= 0 || isAimActive}
-                    title={`조준선 : 조준선의 길이가 길어집니다. 남은 개수: ${aimCount}`}
+                    title={tx('game:controls.aimTitle', { count: aimCount })}
                     compact={compact}
                 />
             </ArenaFixedColsGrid>
@@ -877,24 +881,24 @@ const AlkkagiItemPanel: React.FC<{
         <ArenaFixedColsGrid cols={2} gapClass={compact ? 'gap-1.5' : 'gap-5'} className="min-w-0">
             <LabeledControlButton
                 src="/images/button/slow.webp"
-                alt="슬로우"
-                label="슬로우"
+                alt={tx('game:controls.slow')}
+                label={tx('game:controls.slow')}
                 count={slowCount}
-                caption={isSlowActive ? '사용중' : undefined}
+                caption={isSlowActive ? tx('game:controls.inUse') : undefined}
                 onClick={() => useItem('slow')}
                 disabled={!canUse || slowCount <= 0 || isSlowActive}
-                title={`슬로우 : 힘조절 그래프의 속도를 줄여줍니다. 남은 개수: ${slowCount}`}
+                title={tx('game:controls.slowTitle', { count: slowCount })}
                 compact={compact}
             />
             <LabeledControlButton
                 src="/images/button/target.webp"
-                alt="조준선"
-                label="조준선"
+                alt={tx('game:controls.aimingLine')}
+                label={tx('game:controls.aimingLine')}
                 count={aimCount}
-                caption={isAimActive ? '사용중' : undefined}
+                caption={isAimActive ? tx('game:controls.inUse') : undefined}
                 onClick={() => useItem('aimingLine')}
                 disabled={!canUse || aimCount <= 0 || isAimActive}
-                title={`조준선 : 조준선의 길이가 길어집니다. 남은 개수: ${aimCount}`}
+                title={tx('game:controls.aimTitle', { count: aimCount })}
                 compact={compact}
             />
         </ArenaFixedColsGrid>
@@ -932,8 +936,8 @@ const ThiefGoLuxuryItemCard: React.FC<{
         switch (kind) {
             case 'high36':
                 return {
-                    ariaLabel: `높은 수(3~6) 주사위 아이템, 남은 개수 ${count}`,
-                    title: `높은 수(3·4·5·6)만 나오는 주사위. 남은 개수 ${count}`,
+                    ariaLabel: tx('game:controls.thiefHigh36Aria', { count }),
+                    title: tx('game:controls.thiefHigh36Title', { count }),
                     displayText: '3·4·5·6',
                     diceColor: 'luxuryThiefHigh36' as const,
                     outerGrad: 'from-emerald-400/38 via-teal-900/22 to-green-950/35',
@@ -946,8 +950,8 @@ const ThiefGoLuxuryItemCard: React.FC<{
                 };
             case 'noOne':
                 return {
-                    ariaLabel: `1방지(2~5) 주사위 아이템, 남은 개수 ${count}`,
-                    title: `1이 나오지 않는 주사위(2·3·4·5). 남은 개수 ${count}`,
+                    ariaLabel: tx('game:controls.thiefNoOneAria', { count }),
+                    title: tx('game:controls.thiefNoOneTitle', { count }),
                     displayText: '2·3·4·5',
                     diceColor: 'luxuryThiefNoOne' as const,
                     outerGrad: 'from-sky-400/38 via-slate-700/22 to-blue-950/35',
@@ -1013,6 +1017,7 @@ interface ThiefPanelProps {
 }
 
 export const ThiefPanel: React.FC<ThiefPanelProps> = ({ session, isMyTurn, onAction, currentUser, variant = 'all', footerCompact = false }) => {
+    const { t } = useTranslation(['common', 'game']);
     const { id: gameId, gameStatus, animation, currentPlayer, blackPlayerId, whitePlayerId, thiefPlayerId } = session;
 
     const [localRollEndTime, setLocalRollEndTime] = React.useState<number>(0);
@@ -1152,7 +1157,7 @@ export const ThiefPanel: React.FC<ThiefPanelProps> = ({ session, isMyTurn, onAct
                     canRoll ? 'dice-panel-turn-glow border-amber-300/70 ring-2 ring-amber-300/25' : 'border-amber-400/35'
                 }`}
             >
-                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-200/85">주사위</span>
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-200/85">{tx('game:controls.dice')}</span>
                 <div className="flex items-center justify-center gap-2">
                     <Dice
                         value={diceValue1}
@@ -1180,23 +1185,23 @@ export const ThiefPanel: React.FC<ThiefPanelProps> = ({ session, isMyTurn, onAct
         switch (k) {
             case 'high36':
                 return {
-                    title: '높은 수(3~6) 주사위 사용',
-                    body: '3·4·5·6만 나오는 주사위 아이템을 1개 사용합니다. 경찰 턴이면 두 주사위 모두 이 범위입니다. 계속하시겠습니까?',
+                    title: tx('game:controls.thiefHigh36UseTitle'),
+                    body: tx('game:controls.thiefHigh36UseBody'),
                 };
             case 'noOne':
                 return {
-                    title: '1방지 주사위 사용',
-                    body: '2·3·4·5만 나오는 주사위(1 불가) 아이템을 1개 사용합니다. 경찰 턴이면 두 주사위 모두 이 범위입니다. 계속하시겠습니까?',
+                    title: tx('game:controls.thiefNoOneUseTitle'),
+                    body: tx('game:controls.thiefNoOneUseBody'),
                 };
         }
     };
 
     const thiefItemsRow = showItems ? (
         <ArenaFixedColsGrid cols={2} gapClass={footerCompact ? 'gap-x-0.5 gap-y-1 sm:gap-x-1.5' : 'gap-x-5 gap-y-2.5'} className={footerCompact ? 'min-w-0 max-w-full' : ''}>
-            <LabeledDiceGoItem label="높은수" disabled={!high36Usable} compact={footerCompact}>
+            <LabeledDiceGoItem label={tx('game:controls.highShort')} disabled={!high36Usable} compact={footerCompact}>
                 <ThiefGoLuxuryItemCard kind="high36" count={high36Count} usable={high36Usable} onUse={() => handleRoll('high36')} compact={footerCompact} />
             </LabeledDiceGoItem>
-            <LabeledDiceGoItem label="1방지" disabled={!noOneUsable} compact={footerCompact}>
+            <LabeledDiceGoItem label={tx('game:controls.noOneShort')} disabled={!noOneUsable} compact={footerCompact}>
                 <ThiefGoLuxuryItemCard kind="noOne" count={noOneCount} usable={noOneUsable} onUse={() => handleRoll('noOne')} compact={footerCompact} />
             </LabeledDiceGoItem>
         </ArenaFixedColsGrid>
@@ -1227,7 +1232,7 @@ export const ThiefPanel: React.FC<ThiefPanelProps> = ({ session, isMyTurn, onAct
                                 className="!px-4 !py-2 rounded-lg border border-gray-600 text-gray-200"
                                 onClick={() => setItemConfirm(null)}
                             >
-                                취소
+                                {t('common:actions.cancel')}
                             </Button>
                             <Button
                                 type="button"
@@ -1235,7 +1240,7 @@ export const ThiefPanel: React.FC<ThiefPanelProps> = ({ session, isMyTurn, onAct
                                 className="!px-4 !py-2 rounded-lg border border-amber-400/60 bg-amber-600/90 font-semibold text-slate-900"
                                 onClick={confirmItemRoll}
                             >
-                                사용
+                                {t('common:actions.use')}
                             </Button>
                         </div>
                     </div>
@@ -1292,22 +1297,22 @@ const CurlingItemPanel: React.FC<{
         <ArenaFixedColsGrid cols={2} gapClass={compact ? 'gap-1.5' : 'gap-5'} className={compact ? 'min-w-0' : ''}>
             <LabeledControlButton
                 src="/images/button/slow.webp"
-                alt="슬로우"
-                label="슬로우"
+                alt={tx('game:controls.slow')}
+                label={tx('game:controls.slow')}
                 count={slowCount}
                 onClick={() => useItem('slow')}
                 disabled={!canUse || slowCount <= 0 || isSlowActive}
-                title={`슬로우 : 힘조절 그래프의 속도를 줄여줍니다. 남은 개수: ${slowCount}`}
+                title={tx('game:controls.slowTitle', { count: slowCount })}
                 compact={compact}
             />
             <LabeledControlButton
                 src="/images/button/target.webp"
-                alt="조준선"
-                label="조준선"
+                alt={tx('game:controls.aimingLine')}
+                label={tx('game:controls.aimingLine')}
                 count={aimCount}
                 onClick={() => useItem('aimingLine')}
                 disabled={!canUse || aimCount <= 0 || isAimActive}
-                title={`조준선 : 조준선의 길이가 길어집니다. 남은 개수: ${aimCount}`}
+                title={tx('game:controls.aimTitle', { count: aimCount })}
                 compact={compact}
             />
         </ArenaFixedColsGrid>
@@ -1316,6 +1321,7 @@ const CurlingItemPanel: React.FC<{
 
 
 const GameControls: React.FC<GameControlsProps> = (props) => {
+    const { t } = useTranslation(['common', 'game']);
     const {
         session,
         isMyTurn,
@@ -1570,9 +1576,9 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         const { remaining: phasePlyRemaining } = pairPetKataPliesRemainingInCurrentPhase(bs, totalPly);
         const used = ((session.settings as { strategicPetHintByUserId?: Record<string, Partial<Record<string, boolean>>> })
             .strategicPetHintByUserId?.[currentUser.id] ?? {}) as Record<string, boolean>;
-        const phaseLabel = phase === 'opening' ? '초반' : phase === 'midgame' ? '중반' : '종반';
+        const phaseLabel = phase === 'opening' ? t('controls.phaseOpening') : phase === 'midgame' ? t('controls.phaseMidgame') : t('controls.phaseEndgame');
         const phaseCountdownLabel =
-            phasePlyRemaining == null ? '종반' : `${phaseLabel} ${phasePlyRemaining}수`;
+            phasePlyRemaining == null ? t('controls.phaseEndgame') : t('controls.phaseMovesLeft', { phase: phaseLabel, count: phasePlyRemaining });
 
         const canAttempt =
             effectiveGameStatus === 'playing' &&
@@ -1581,19 +1587,19 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             !!petRow &&
             !used[phase];
 
-        let titleBody = `${phaseLabel}에 한 번 — 대표 펫이 좋은 자리를 표시해 줘요.`;
+        let titleBody = t('controls.petHintPhaseOnce', { phase: phaseLabel });
         if (!petRow) {
-            titleBody = '대표 펫을 장착하면 힌트를 사용할 수 있어요.';
+            titleBody = t('controls.petHintEquipPet');
         } else if (effectiveGameStatus !== 'playing') {
-            titleBody = '대국이 진행 중일 때 사용할 수 있어요.';
+            titleBody = t('controls.petHintDuringGame');
         } else if (!isMyTurn || myPlayerEnum === Player.None) {
-            titleBody = '내 차례에만 사용할 수 있어요.';
+            titleBody = t('controls.petHintMyTurnOnly');
         } else if (used[phase]) {
-            titleBody = `${phaseLabel} 구간에서 이미 힌트를 사용했어요.`;
+            titleBody = t('controls.petHintPhaseUsed', { phase: phaseLabel });
         }
         const title =
             phasePlyRemaining != null
-                ? `${phaseLabel} ${phasePlyRemaining}수 남음 — ${titleBody}`
+                ? t('controls.petHintPhaseRemaining', { phase: phaseLabel, count: phasePlyRemaining, body: titleBody })
                 : `${phaseLabel} — ${titleBody}`;
 
         const img = petRow
@@ -1635,8 +1641,8 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                     <LabeledControlButton
                         key="pet-hint-btn"
                         src={img}
-                        alt={`펫 힌트 ${phaseCountdownLabel}`}
-                        imageBottomOverlay="힌트"
+                        alt={t('controls.hint')}
+                        imageBottomOverlay={t('controls.hint')}
                         label={phaseCountdownLabel}
                         onClick={() => {
                             if (!canAttempt || petHintBusy) return;
@@ -1656,7 +1662,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                             disabled
                             className={`relative flex shrink-0 items-center justify-center border-2 border-dashed border-slate-500/55 bg-slate-950/55 ring-1 ring-inset ring-slate-600/20 ${emptySlotSize}`}
                             title={title}
-                            aria-label={`펫 힌트 ${phaseCountdownLabel} (대표 펫 미장착)`}
+                            aria-label={t('controls.petHintAriaNoPet', { label: phaseCountdownLabel })}
                         />
                         <span
                             className={`text-center font-semibold leading-none tracking-wide text-slate-500 ${
@@ -1802,11 +1808,11 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                 <LabeledControlButton
                     key="hidden"
                     src="/images/button/hidden.webp"
-                    alt="히든"
-                    label="히든"
+                    alt={t('controls.hidden')}
+                    label={t('controls.hidden')}
                     onClick={() => handleUseItem('hidden')}
                     disabled={hiddenDisabled}
-                    title="히든 : 상대에게 보이지 않는 한 수를 둡니다."
+                    title={t('controls.hiddenTitle')}
                     count={hiddenLeft}
                     compact={isMobile}
                 />
@@ -1827,11 +1833,11 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                     <LabeledControlButton
                         key="scan"
                         src="/images/button/scan.webp"
-                        alt="스캔"
-                        label="스캔"
+                        alt={t('controls.scan')}
+                        label={t('controls.scan')}
                         onClick={() => handleUseItem('scan')}
                         disabled={scanDisabled}
-                        title="스캔 : 상대방의 숨어있는 돌을 찾아봅니다."
+                        title={t('controls.scanTitle')}
                         count={scansLeft}
                         compact={isMobile}
                     />
@@ -1846,11 +1852,11 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                 <LabeledControlButton
                     key="missile"
                     src="/images/button/missile.webp"
-                    alt="미사일"
-                    label="미사일"
+                    alt={t('controls.missile')}
+                    label={t('controls.missile')}
                     onClick={() => handleUseItem('missile')}
                     disabled={missileDisabled}
-                    title="미사일 : 현재 놓여진 바둑돌을 한방향으로 날려보냅니다."
+                    title={t('controls.missileTitle')}
                     count={missilesLeft}
                     compact={isMobile}
                 />
@@ -1928,19 +1934,19 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
 
         let refreshHelperMessage = '';
         if (!placementRefreshAllowed) {
-            refreshHelperMessage = '이 스테이지에서는 배치변경을 사용할 수 없습니다.';
+            refreshHelperMessage = t('placementRefresh.notAllowedStage');
         } else if (usedMissileBeforeFirstMove) {
-            refreshHelperMessage = '첫 턴에 미사일을 사용하면 배치변경을 사용할 수 없습니다.';
+            refreshHelperMessage = t('placementRefresh.missileFirstTurn');
         } else if (remainingRefreshes <= 0) {
-            refreshHelperMessage = '재배치 횟수를 모두 사용했습니다.';
+            refreshHelperMessage = t('placementRefresh.noRefreshesLeft');
         } else if (!isPlayingState) {
-            refreshHelperMessage = '게임이 시작되면 재배치할 수 있습니다.';
+            refreshHelperMessage = t('placementRefresh.waitForStart');
         } else if (moveCount > 0) {
-            refreshHelperMessage = '첫 수를 두기 전에만 재배치할 수 있습니다.';
+            refreshHelperMessage = t('placementRefresh.beforeFirstMove');
         } else if (!canAffordRefresh) {
-            refreshHelperMessage = '골드가 부족합니다.';
+            refreshHelperMessage = t('placementRefresh.insufficientGold');
         } else if (isPaused) {
-            refreshHelperMessage = '일시 정지 상태에서는 재배치할 수 없습니다.';
+            refreshHelperMessage = t('placementRefresh.paused');
         }
 
         const handleRefreshClick = () => {
@@ -1949,8 +1955,8 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                 return;
             }
             const confirmationMessage = nextCost > 0
-                ? `${formatGoldAmountKoG(nextCost)} 골드를 사용하여 배치를 다시 섞으시겠습니까? (남은 재배치 ${remainingRefreshes}/5)`
-                : '첫 재배치는 무료입니다. 배치를 다시 섞으시겠습니까?';
+                ? t('placementRefresh.confirmPaid', { gold: formatGoldAmountKoG(nextCost), remaining: remainingRefreshes })
+                : t('placementRefresh.confirmFree');
             if (window.confirm(confirmationMessage)) {
                 onAction({ type: 'SINGLE_PLAYER_REFRESH_PLACEMENT', payload: { gameId } } as ServerAction);
             }
@@ -1959,21 +1965,21 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         const canResign = isGameActive && !isSpectator && !isGameEnded && !isPaused;
         const handleResignClick = () => {
             if (gameStatus === 'scoring') {
-                window.alert('계가 집계 중에는 기권할 수 없습니다.');
+                window.alert(t('controls.cannotResignDuringScoring'));
                 return;
             }
             if (!canResign) {
                 if (isPaused) {
-                    window.alert('일시 정지 상태에서는 기권할 수 없습니다.');
+                    window.alert(t('controls.cannotResignWhilePaused'));
                 } else if (!isGameActive && !isGameEnded) {
-                    window.alert('게임이 시작된 후에만 기권할 수 있습니다.');
+                    window.alert(t('controls.cannotResignBeforeStart'));
                 }
                 return;
             }
             const pairHumanResign = isPairHumanHumanPvpForTeamResign(session);
             const confirmMsg = pairHumanResign
-                ? '팀 동료에게 기권 요청을 보냅니다. 동료가 동의해야 기권패가 됩니다. 이번 턴에는 한 번만 요청할 수 있습니다. 진행하시겠습니까?'
-                : '경기를 포기하시겠습니까?';
+                ? t('controls.confirmPairTeamResign')
+                : t('controls.confirmResign');
             if (window.confirm(confirmMsg)) {
                 onAction(
                     pairHumanResign
@@ -2082,7 +2088,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                 colorScheme="none"
                                 className={endedIngameRowBtn()}
                             >
-                                {rematchRequested ? '신청중' : '재대결'}
+                                {rematchRequested ? t('controls.rematchApplying') : t('controls.rematch')}
                             </Button>
                         )}
                         {showAiLobbyRematchButton && (
@@ -2159,20 +2165,20 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                 <div className={itemColClass}>
                     <ImageButton
                         src="/images/button/giveup.webp"
-                        alt="기권"
-                        title={gameStatus === 'scoring' ? '계가 집계 중에는 기권할 수 없습니다.' : '기권하기'}
+                        alt={t('controls.resignAlt')}
+                        title={gameStatus === 'scoring' ? t('controls.cannotResignDuringScoring') : t('controls.resignTitle')}
                         onClick={handleResignClick}
                         disabled={!canResign || gameStatus === 'scoring'}
                         variant="danger"
                         compact={isMobile}
                     />
-                    <span className={`${isMobile ? 'text-[10px]' : 'text-[11px]'} text-red-300 font-semibold tracking-wide`}>기권</span>
+                    <span className={`${isMobile ? 'text-[10px]' : 'text-[11px]'} text-red-300 font-semibold tracking-wide`}>{t('controls.resign')}</span>
                 </div>
                 <div className={itemColClass}>
                     <ImageButton
                         src="/images/button/reflesh.webp"
-                        alt="돌 재배치"
-                        title={placementRefreshAllowed ? '돌 재배치' : '이 스테이지에서는 배치변경을 사용할 수 없습니다.'}
+                        alt={t('controls.stoneRefreshTitle')}
+                        title={placementRefreshAllowed ? t('controls.stoneRefreshTitle') : t('placementRefresh.notAllowedStage')}
                         onClick={handleRefreshClick}
                         disabled={refreshDisabled}
                         compact={isMobile}
@@ -2182,11 +2188,11 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                         {nextCost > 0 && (
                             <>
                                 <span>·</span>
-                                <img src="/images/icon/Gold.webp" alt="골드" className="w-2.5 h-2.5 sm:w-3 sm:h-3 shrink-0" />
+                                <img src="/images/icon/Gold.webp" alt={t('controls.goldAlt')} className="w-2.5 h-2.5 sm:w-3 sm:h-3 shrink-0" />
                                 <span>{formatGoldAmountKoG(nextCost)}</span>
                             </>
                         )}
-                        {nextCost === 0 && <span>· 무료</span>}
+                        {nextCost === 0 && <span>· {t('common:shop.free')}</span>}
                     </span>
                 </div>
             </>
@@ -2198,42 +2204,42 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                     <div className={itemColClass}>
                         <ImageButton
                             src="/images/button/hidden.webp"
-                            alt="히든"
-                            title="히든 스톤 배치"
+                            alt={t('controls.hidden')}
+                            title={t('controls.hiddenPlaceTitle')}
                             onClick={() => handleUseItem('hidden')}
                             disabled={!isMyTurn || effectiveGameStatus !== 'playing' || hiddenLeft <= 0}
                             count={hiddenLeft > 0 ? hiddenLeft : undefined}
                             compact={isMobile}
                         />
-                        <span className={labelClass}>히든</span>
+                        <span className={labelClass}>{t('controls.hidden')}</span>
                     </div>
                 )}
                 {isHiddenMode && (
                     <div className={itemColClass}>
                         <ImageButton
                             src="/images/button/scan.webp"
-                            alt="스캔"
-                            title="상대 히든 스톤 탐지"
+                            alt={t('controls.scan')}
+                            title={t('controls.scanDetectTitle')}
                             onClick={() => handleUseItem('scan')}
                             disabled={!isMyTurn || effectiveGameStatus !== 'playing' || myScansLeft <= 0 || !canScan}
                             count={myScansLeft > 0 ? myScansLeft : undefined}
                             compact={isMobile}
                         />
-                        <span className={labelClass}>스캔</span>
+                        <span className={labelClass}>{t('controls.scan')}</span>
                     </div>
                 )}
                 {isMissileMode && (
                     <div className={itemColClass}>
                         <ImageButton
                             src="/images/button/missile.webp"
-                            alt="미사일"
-                            title="미사일 발사"
+                            alt={t('controls.missile')}
+                            title={t('controls.missileLaunchTitle')}
                             onClick={() => handleUseItem('missile')}
                             disabled={!isMyTurn || effectiveGameStatus !== 'playing' || myMissilesLeft <= 0}
                             count={myMissilesLeft > 0 ? myMissilesLeft : undefined}
                             compact={isMobile}
                         />
-                        <span className={labelClass}>미사일</span>
+                        <span className={labelClass}>{t('controls.missile')}</span>
                     </div>
                 )}
             </>
@@ -2331,7 +2337,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                             className={endedIngameRowBtn()}
                             disabled={blockPostGameFooter && showResultModal}
                         >
-                            {showResultModal ? '확인' : '결과 보기'}
+                            {showResultModal ? t('common:actions.confirm') : t('controls.viewResult')}
                         </Button>
                         {onLeaveOrResign && (
                             <Button
@@ -2341,7 +2347,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                 className={endedIngameLobbyLeaveRowBtn()}
                                 disabled={blockPostGameFooter}
                             >
-                                맵으로 이동
+                                {t('controls.goToMap')}
                             </Button>
                         )}
                         {showStrategicGameRecordActions && (
@@ -2380,7 +2386,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                         colorScheme="none"
                                         className={`${endedIngameRowBtn()} ${recordAlreadySaved ? 'opacity-50' : ''}`}
                                     >
-                                        {savingGameRecord ? '저장 중...' : recordAlreadySaved ? '이미 저장됨' : '기보 저장'}
+                                        {savingGameRecord ? t('controls.savingRecord') : recordAlreadySaved ? t('controls.recordAlreadySaved') : t('controls.saveRecord')}
                                     </Button>
                                 )}
                                 {onOpenGameRecordList && (
@@ -2391,7 +2397,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                         className={endedIngameRowBtn()}
                                         disabled={blockPostGameFooter}
                                     >
-                                        기보 관리
+                                        {t('controls.manageRecords')}
                                     </Button>
                                 )}
                             </>
@@ -2427,7 +2433,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                             className={endedIngameLobbyLeaveRowBtn()}
                             disabled={blockPostGameFooter}
                         >
-                            {isSpectator ? '관전종료' : '대기실로'}
+                            {isSpectator ? t('controls.endSpectating') : t('controls.returnToLobby')}
                         </Button>
                     )}
                     {showStrategicGameRecordActions && (
@@ -2466,7 +2472,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                     colorScheme="none"
                                     className={`${endedIngameRowBtn()} ${recordAlreadySaved ? 'opacity-50' : ''}`}
                                 >
-                                    {savingGameRecord ? '저장 중...' : recordAlreadySaved ? '이미 저장됨' : '기보 저장'}
+                                    {savingGameRecord ? t('controls.savingRecord') : recordAlreadySaved ? t('controls.recordAlreadySaved') : t('controls.saveRecord')}
                                 </Button>
                             )}
                             {onOpenGameRecordList && (
@@ -2496,11 +2502,11 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                         <LabeledControlButton
                             key="pass"
                             src="/images/button/pass.webp"
-                            alt="통과"
-                            label="통과"
+                            alt={t('controls.passLabel')}
+                            label={t('controls.passLabel')}
                             onClick={handlePass}
                             disabled={!isMyTurn || isSpectator || isPreGame}
-                            title="한 수 쉬기"
+                            title={t('controls.passTitle')}
                             compact={isMobile}
                         />
                     )}
@@ -2508,11 +2514,11 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                     <LabeledControlButton
                         key="resign"
                         src="/images/button/giveup.webp"
-                        alt="기권"
-                        label="기권"
+                        alt={t('resign')}
+                        label={t('resign')}
                         onClick={handleResign}
                         disabled={isSpectator || isGameEnded || gameStatus === 'pending' || gameStatus === 'scoring'}
-                        title={gameStatus === 'scoring' ? '계가 집계 중에는 기권할 수 없습니다.' : '기권하기'}
+                        title={gameStatus === 'scoring' ? t('controls.cannotResignDuringScoring') : t('controls.resignTitle')}
                         variant="danger"
                         compact={isMobile}
                     />
@@ -2551,7 +2557,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                 const itemButtons = renderItemButtons();
                 if (!hasItems) return null;
                 if (itemButtons.length === 0) {
-                    return <span className={`text-slate-500 ${isMobile ? 'text-[9px] shrink-0' : 'text-[10px]'}`}>사용 가능한 기능 없음</span>;
+                    return <span className={`text-slate-500 ${isMobile ? 'text-[9px] shrink-0' : 'text-[10px]'}`}>{t('controls.noFeaturesAvailable')}</span>;
                 }
                 return itemButtons;
             })()
@@ -2583,7 +2589,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                     }`}
                 >
                     <h3 className={`shrink-0 font-bold whitespace-nowrap text-slate-400 ${isMobile ? 'text-[8px]' : 'text-[11px] min-[1025px]:text-[10px]'}`}>
-                        매너 액션 {usesLeftText}
+                        {t('controls.mannerAction')} {usesLeftText}
                     </h3>
                     <div className="min-w-0 flex-1">
                         <ActionButtonsPanel session={session} isSpectator={isSpectator} onAction={onAction} currentUser={currentUser} isMobile={isMobile} />
@@ -2591,7 +2597,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                 </div>
             ) : showMannerAiLobbyHintRow ? (
                 <div className={`${arenaGameRoomControlsInnerPanelClass} flex flex-row items-center justify-center gap-3 w-full min-w-0 min-[1025px]:py-0.5 min-[1025px]:px-1`}>
-                    <p className="text-[11px] min-[1025px]:text-[10px] text-slate-500 italic whitespace-nowrap truncate">매너 액션 버튼은 PVP모드에서만 생성됩니다.</p>
+                    <p className="text-[11px] min-[1025px]:text-[10px] text-slate-500 italic whitespace-nowrap truncate">{t('controls.mannerActionPvpOnly')}</p>
                 </div>
             ) : null}
 
@@ -2666,7 +2672,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             ) : (
                 <div className="flex w-full min-w-0 flex-row gap-1.5 min-[1025px]:gap-1">
                     <div className={`flex min-w-0 flex-1 flex-col gap-0.5 min-[1025px]:gap-0 ${arenaGameRoomControlsInnerPanelClass} min-[1025px]:!p-1`}>
-                        <h3 className={`${arenaGameRoomControlsSectionTitleClass} min-[1025px]:text-[9px] leading-none`}>대국 기능</h3>
+                        <h3 className={`${arenaGameRoomControlsSectionTitleClass} min-[1025px]:text-[9px] leading-none`}>{t('controls.gameFeatures')}</h3>
                         <div className="flex min-h-[2.65rem] w-full min-w-0 flex-1 items-center justify-center min-[1025px]:min-h-[2.1rem]">
                             <ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-4 min-[1025px]:gap-5">
                                 {primaryControlsInner}
@@ -2682,7 +2688,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                         dockMoveConfirmFooter ? '' : 'invisible'
                                     }`}
                                 >
-                                    착수
+                                    {t('confirmMove')}
                                 </h3>
                                 <div className="flex min-h-[2.65rem] flex-1 items-center justify-center min-[1025px]:min-h-[2.1rem]">
                                     {moveConfirmCenterBody}
@@ -2692,7 +2698,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                         </>
                     ) : null}
                     <div className={`flex min-w-0 flex-1 flex-col gap-0.5 min-[1025px]:gap-0 ${arenaGameRoomControlsInnerPanelAccentClass} min-[1025px]:!p-1`}>
-                        <h3 className={`${arenaGameRoomControlsSectionTitleClass} min-[1025px]:text-[9px] leading-none`}>{isStrategic ? '특수 기능' : '놀이 기능'}</h3>
+                        <h3 className={`${arenaGameRoomControlsSectionTitleClass} min-[1025px]:text-[9px] leading-none`}>{isStrategic ? t('controls.specialFeatures') : t('controls.playfulFeatures')}</h3>
                         <div className="flex min-h-[2.65rem] w-full min-w-0 flex-1 items-center justify-center min-[1025px]:min-h-[2.1rem]">
                             <ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-4 min-[1025px]:gap-5">
                                 {specialControlsInner}
@@ -2704,32 +2710,32 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
              {/* Admin Controls */}
             {isSpectator && currentUser.isAdmin && isGameActive && (
                 <div className={arenaGameRoomControlsAdminBarClass}>
-                    <h3 className="shrink-0 whitespace-nowrap text-xs font-bold text-violet-300/95 tracking-wide">관리자 기능</h3>
+                    <h3 className="shrink-0 whitespace-nowrap text-xs font-bold text-violet-300/95 tracking-wide">{t('controls.adminFeatures')}</h3>
                     <div className="flex min-w-0 flex-1 items-center justify-center">
                         <ArenaControlStrip layout="cluster" gapClass={isMobile ? 'gap-2' : 'gap-2.5'}>
                         <Button
                             bare
                             onClick={() => {
-                                if (window.confirm(`${player1.nickname}님을 기권승 처리하시겠습니까?`)) {
+                                if (window.confirm(t('controls.adminForceResignConfirm', { name: player1.nickname }))) {
                                     onAction({ type: 'ADMIN_FORCE_WIN', payload: { gameId, winnerId: player1.id } })
                                 }
                             }}
                             colorScheme="none"
                             className={getLuxuryButtonClasses('primary')}
                         >
-                            {player1.nickname} 기권승
+                            {t('controls.adminForceResign', { name: player1.nickname })}
                         </Button>
                         <Button
                             bare
                             onClick={() => {
-                                 if (window.confirm(`${player2.nickname}님을 기권승 처리하시겠습니까?`)) {
+                                 if (window.confirm(t('controls.adminForceResignConfirm', { name: player2.nickname }))) {
                                     onAction({ type: 'ADMIN_FORCE_WIN', payload: { gameId, winnerId: player2.id } })
                                  }
                             }}
                             colorScheme="none"
                             className={getLuxuryButtonClasses('primary')}
                         >
-                            {player2.nickname} 기권승
+                            {t('controls.adminForceResign', { name: player2.nickname })}
                         </Button>
                         </ArenaControlStrip>
                     </div>

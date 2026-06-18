@@ -1,0 +1,78 @@
+{
+  "common": {
+    "actions": {
+      "ok": "确定",
+      "cancel": "取消",
+      "close": "关闭",
+      "save": "保存",
+      "loading": "加载中…",
+      "confirm": "确认",
+      "back": "返回",
+      "retry": "重试",
+      "refresh": "刷新"
+    },
+    "resources": {
+      "gold": "金币",
+      "diamonds": "钻石",
+      "guildCoins": "公会币",
+      "champCoins": "冠军币"
+    },
+    "languageSelect": {
+      "label": "语言",
+      "placeholder": "选择语言"
+    }
+  },
+  "nav": {
+    "dock": {
+      "home": "首页",
+      "singleplayer": "围棋学院",
+      "tower": "挑战之塔",
+      "arena": "竞技场",
+      "tournament": "锦标赛",
+      "adventure": "冒险"
+    },
+    "header": {
+      "mailbox": "邮箱",
+      "settings": "设置",
+      "logout": "退出登录",
+      "logoutConfirm": "确定要退出登录吗？"
+    },
+    "quickMenu": {
+      "quests": "任务",
+      "exchange": "交易所",
+      "blacksmith": "铁匠铺",
+      "shop": "商店",
+      "inventory": "背包",
+      "pet": "宠物",
+      "ranking": "排行榜",
+      "help": "帮助中心"
+    }
+  },
+  "auth": {
+    "login": "登录",
+    "register": "注册",
+    "email": "邮箱",
+    "password": "密码",
+    "setNickname": "设置昵称",
+    "nickname": "昵称"
+  },
+  "footer": {
+    "terms": "服务条款",
+    "privacy": "隐私政策",
+    "refund": "退款规定",
+    "support": "客服"
+  },
+  "settings": {
+    "title": "设置",
+    "tabs": {
+      "features": "功能",
+      "display": "显示",
+      "sound": "声音",
+      "account": "账户"
+    },
+    "display": {
+      "language": "语言",
+      "panelStyle": "面板样式"
+    }
+  }
+}

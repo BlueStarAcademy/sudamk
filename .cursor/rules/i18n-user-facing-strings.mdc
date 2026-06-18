@@ -1,0 +1,59 @@
+---
+description: All user-facing UI copy must use i18n (react-i18next). Apply when adding or changing visible text in client components.
+globs:
+  - components/**/*.tsx
+  - components/**/*.ts
+  - hooks/**/*.tsx
+  - hooks/**/*.ts
+  - App.tsx
+  - Game.tsx
+  - index.tsx
+alwaysApply: false
+---
+
+# i18n for user-facing strings
+
+Never hardcode user-visible copy in Korean, English, or any language in client UI.
+
+## Required pattern
+
+```tsx
+import { useTranslation } from 'react-i18next';
+// or: import { useAppTranslation } from '../hooks/useAppTranslation.js';
+
+const { t } = useTranslation('nav'); // pick namespace
+return <span>{t('dock.home')}</span>;
+```
+
+## Namespaces (`shared/i18n/loadResources.ts`)
+
+| Namespace | Use for |
+|-----------|---------|
+| `common` | Buttons, errors, resources, connection status |
+| `nav` | Dock, header, quick menu |
+| `auth` | Login, register, nickname |
+| `footer` | Footer, legal links |
+| `gameModes` | Game mode display names |
+| `game` | In-game controls, turn labels |
+| `settings` | Settings modal |
+
+## Adding / updating copy
+
+1. Add keys to **`shared/i18n/catalog/ko.json`** (source) and **`shared/i18n/catalog/en.json`** under the correct namespace.
+2. Run **`npm run i18n:translate`** to auto-translate all languages from Korean (writes `catalog/generated/{locale}.json`).
+3. Run **`npm run i18n:sync`** to copy masters/generated into `shared/i18n/locales/*.json`.
+4. Or one step: **`npm run i18n:build`** (translate + sync).
+5. Register new languages in **`shared/i18n/languages.ts`** and **`scripts/i18n/sync-locales.mjs`**, then run i18n:build.
+
+## Helpers
+
+- `translateGameMode(mode)` / `useLocalizedGameMode()` — game mode labels
+- `translateQuickUtilityPanel(kind)` / `useLocalizedQuickUtilityPanel()` — quick menu titles
+- `components/i18n/LanguageSelect.tsx` — language dropdown in settings
+
+## Exceptions
+
+- Server error messages returned from API (translate on client when displayed, or use error codes)
+- User-generated content (chat, nicknames)
+- Legal document body text (separate legal namespace / CMS later)
+- Developer-only logs

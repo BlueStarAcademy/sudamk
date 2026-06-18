@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { LiveGameSession, User, ServerAction, Player } from '../types.js';
 import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
@@ -74,18 +75,18 @@ export const BaseStartConfirmationContent: React.FC<BaseStartConfirmationModalPr
     return (
         <div className={`${startPanelShell} space-y-4 px-4 py-4 sm:px-5 sm:py-5`}>
             <p className="text-center text-xs font-medium uppercase tracking-[0.18em] text-cyan-300/85">
-                {isBaseCaptureMix ? '베이스 + 따내기 대국 준비' : '베이스 대국 준비'}
+                {isBaseCaptureMix ? t('captureTiebreaker.baseCaptureTitle') : t('captureTiebreaker.basePrepTitle')}
             </p>
             <div className="flex justify-center">{cards}</div>
             <div className="space-y-2 rounded-lg border border-white/10 bg-black/35 px-3 py-3 text-[0.9rem] sm:text-[0.95rem]">
                 <div className="flex items-center justify-between gap-2 border-b border-white/5 pb-2">
-                    <span className="shrink-0 font-semibold text-stone-400">흑돌</span>
+                    <span className="shrink-0 font-semibold text-stone-400">{t('roundSummary.curlingBlack')}</span>
                     <span className="truncate text-right font-bold text-stone-100">
                         {getSessionPlayerDisplayName(session, blackPlayer)}
                     </span>
                 </div>
                 <div className="flex items-center justify-between gap-2 pb-1">
-                    <span className="shrink-0 font-semibold text-stone-400">백돌</span>
+                    <span className="shrink-0 font-semibold text-stone-400">{t('roundSummary.curlingWhite')}</span>
                     <span className="truncate text-right font-bold text-stone-100">
                         {getSessionPlayerDisplayName(session, whitePlayer)}
                     </span>
@@ -98,21 +99,21 @@ export const BaseStartConfirmationContent: React.FC<BaseStartConfirmationModalPr
                             </p>
                             <div className="grid grid-cols-3 gap-2 text-center">
                                 <div className="rounded-lg border border-white/10 bg-white/[0.03] px-2 py-2">
-                                    <p className="text-[10px] font-semibold text-stone-500">기본 목표</p>
-                                    <p className="font-mono text-lg font-black text-stone-100">{baseCaptureTarget}점</p>
+                                    <p className="text-[10px] font-semibold text-stone-500">{t('captureTiebreaker.baseTargetLabel')}</p>
+                                    <p className="font-mono text-lg font-black text-stone-100">{baseCaptureTarget}{t('captureBid.pointsSuffix')}</p>
                                 </div>
                                 <div className="rounded-lg border border-amber-300/20 bg-amber-300/[0.06] px-2 py-2">
-                                    <p className="text-[10px] font-semibold text-stone-500">제시 점수</p>
-                                    <p className="font-mono text-lg font-black text-amber-200">{captureBidPoints}점</p>
+                                    <p className="text-[10px] font-semibold text-stone-500">{t('captureTiebreaker.bidScoreLabel')}</p>
+                                    <p className="font-mono text-lg font-black text-amber-200">{captureBidPoints}{t('captureBid.pointsSuffix')}</p>
                                 </div>
                                 <div className="rounded-lg border border-cyan-300/20 bg-cyan-300/[0.06] px-2 py-2">
-                                    <p className="text-[10px] font-semibold text-stone-500">백 목표</p>
-                                    <p className="font-mono text-lg font-black text-cyan-100">{whiteCaptureTarget}점</p>
+                                    <p className="text-[10px] font-semibold text-stone-500">{t('captureTiebreaker.whiteTargetLabel')}</p>
+                                    <p className="font-mono text-lg font-black text-cyan-100">{whiteCaptureTarget}{t('captureBid.pointsSuffix')}</p>
                                 </div>
                             </div>
                             <div className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-black/25 px-3 py-2 text-sm">
-                                <span className="font-semibold text-stone-400">흑 승리 조건</span>
-                                <span className="font-mono font-bold text-amber-100">{blackCaptureTarget}점 따내기</span>
+                                <span className="font-semibold text-stone-400">{t('captureTiebreaker.blackWinCondition')}</span>
+                                <span className="font-mono font-bold text-amber-100">{blackCaptureTarget}{t('captureTiebreaker.capturePoints')}</span>
                             </div>
                         </div>
                     ) : baseKomiBidsSnapshot?.[player1.id] && baseKomiBidsSnapshot?.[player2.id] ? (
@@ -126,7 +127,7 @@ export const BaseStartConfirmationContent: React.FC<BaseStartConfirmationModalPr
                                     <div key={pl.id} className="flex items-center justify-between gap-2 text-sm">
                                         <span className="truncate text-stone-400">{getSessionPlayerDisplayName(session, pl)}</span>
                                         <span className="shrink-0 font-bold text-amber-100/95">
-                                            {bid.color === Player.Black ? '흑' : '백'}, {bid.komi}집
+                                            {bid.color === Player.Black ? tCommon('blackShort') : tCommon('whiteShort')}, {bid.komi}{t('captureTiebreaker.komiStones')}
                                         </span>
                                     </div>
                                 );
@@ -135,7 +136,7 @@ export const BaseStartConfirmationContent: React.FC<BaseStartConfirmationModalPr
                     ) : null}
                     {!isBaseCaptureMix && (
                         <p className="text-center text-sm text-cyan-100/90">
-                            덤 <span className="font-mono font-bold text-amber-200">{komiLabel}</span>집
+                            {t('captureTiebreaker.komiWhite')} <span className="font-mono font-bold text-amber-200">{komiLabel}</span>{t('captureTiebreaker.komiStones')}
                         </p>
                     )}
                 </div>
@@ -153,7 +154,7 @@ export const BaseStartConfirmationContent: React.FC<BaseStartConfirmationModalPr
                 disabled={!!hasConfirmed}
                 className="w-full !rounded-xl !border !border-cyan-400/30 !bg-gradient-to-r !from-cyan-900/80 !to-slate-800/90 !py-2.5 !text-[0.95rem] !font-bold !text-cyan-50 hover:!from-cyan-800 hover:!to-slate-700 disabled:!opacity-50"
             >
-                {hasConfirmed ? '상대방 확인 대기 중…' : '시작하기'}
+                {hasConfirmed ? tCommon('waitingOpponentConfirmShort') : tCommon('confirmStart')}
             </Button>
         </div>
     );
@@ -161,7 +162,7 @@ export const BaseStartConfirmationContent: React.FC<BaseStartConfirmationModalPr
 
 const BaseStartConfirmationModal: React.FC<BaseStartConfirmationModalProps> = (props) => (
     <DraggableWindow
-        title="베이스 대국 준비"
+        title={t('captureTiebreaker.basePrepTitle')}
         windowId="base-start-confirm"
         initialWidth={420}
         shrinkHeightToContent

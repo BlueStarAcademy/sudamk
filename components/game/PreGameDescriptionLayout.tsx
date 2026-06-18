@@ -1,11 +1,12 @@
 import React, { useLayoutEffect, useRef } from 'react';
+import { tx } from '../../shared/i18n/runtimeText.js';
 import { LiveGameSession, GameMode } from '../../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants.js';
 import { MatchPlayGuideSection } from '../../utils/matchPlayGuide.js';
 import type { PreGameItemSlot, PreGameSummaryFour } from '../../utils/preGameSummaryFour.js';
 import { RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS } from './ResultModalRewardSlot.js';
 
-const SUMMARY_NONE = '없음';
+const summaryNone = () => tx('game:preGame.none');
 
 /** 설정의 패널 엣지(::before 코너) + 금테가 적용되도록 루트에 붙입니다. */
 export const PRE_GAME_MODAL_SHELL_CLASS =
@@ -181,7 +182,7 @@ function PreGameItemSlotIcon({
   onZeroClick?: () => void;
 }) {
   const ring = preGameItemSlotRingClass(slot);
-  const a11y = slot.title ? `${slot.title} ${slot.count}개` : `수량 ${slot.count}`;
+  const a11y = slot.title ? `${slot.title} ${tx('game:aiDescription.countUnit', { count: slot.count })}` : tx('game:preGame.quantity', { count: slot.count });
   const muted = slot.inventoryBadgeMode && slot.count <= 0;
   const badgeClass = muted
     ? 'border-2 border-gray-700 bg-gray-600 text-gray-300'
@@ -217,8 +218,8 @@ function PreGameItemSlotIcon({
       <button
         type="button"
         className={`${outerClass} cursor-pointer rounded-lg border-0 bg-transparent p-0 text-left outline-none ring-amber-400/40 transition hover:brightness-110 focus-visible:ring-2`}
-        title={slot.title ? `${slot.title} 구매` : '아이템 상점'}
-        aria-label={`${a11y}. 탭하여 도전의 탑 아이템 상점 열기`}
+        title={slot.title ? tx('game:preGame.quantityBuy', { title: slot.title }) : tx('game:preGame.itemShop')}
+        aria-label={tx('game:preGame.itemShopAria', { a11y })}
         onClick={onZeroClick}
       >
         {inner}
@@ -271,7 +272,7 @@ export function PreGameSummaryGrid({
   const primaryCells: TopCell[] = [
     {
       key: 'win',
-      title: summary.goalVisuals?.win ? '이번 목표' : '승리 조건',
+      title: summary.goalVisuals?.win ? tx('game:preGame.goalTitle') : tx('game:preGame.winCondition'),
       kind: 'goal',
       goalKind: 'win',
       line: summary.winGoal,
@@ -279,7 +280,7 @@ export function PreGameSummaryGrid({
     },
     {
       key: 'lose',
-      title: '주의할 실패 조건',
+      title: tx('game:preGame.failConditionTitle'),
       kind: 'goal',
       goalKind: 'lose',
       line: summary.loseGoal,
@@ -290,14 +291,14 @@ export function PreGameSummaryGrid({
     primaryCells.push(
       {
         key: 'score',
-        title: '점수 요인',
+        title: tx('game:preGame.scoreFactors'),
         kind: 'img',
         body: summary.scoreFactors,
         img: preGameScoreBoxImage(session),
       },
       {
         key: 'time',
-        title: '시간 규칙',
+        title: tx('game:preGame.timeRules'),
         kind: 'img',
         body: summary.timeRules,
         img: '/images/icon/timer.webp',
@@ -306,7 +307,7 @@ export function PreGameSummaryGrid({
   }
   const itemStripCell: TopCell = {
     key: 'items',
-    title: '아이템',
+    title: tx('game:preGame.items'),
     kind: 'itemStrip',
     span2: true,
   };
@@ -446,7 +447,7 @@ export function PreGameSummaryGrid({
                 ? 'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border border-amber-400/20 bg-black/35 p-1 opacity-45 sm:h-11 sm:w-11'
                 : 'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-amber-400/20 bg-black/35 p-1 opacity-45 sm:h-10 sm:w-10'
           }
-          aria-label="아이템 없음"
+          aria-label={tx('game:preGame.noItems')}
           role="img"
         >
           <img
@@ -494,7 +495,7 @@ export function PreGameSummaryGrid({
         className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-amber-400/[0.06] blur-2xl transition-opacity duration-200 group-hover:opacity-90"
         aria-hidden
       />
-      <div className={guideTitleClass}>{casualAcademyLayout ? '하는 법' : '이번 스테이지 핵심'}</div>
+      <div className={guideTitleClass}>{casualAcademyLayout ? tx('game:preGame.howToPlay') : tx('game:preGame.stageKeyPoints')}</div>
       <div className={`mt-2 grid min-w-0 ${casualAcademyLayout ? 'grid-cols-2 gap-1.5 sm:gap-2' : singleColumn ? 'grid-cols-1 gap-2' : 'grid-cols-2 gap-2'}`}>
         {summary.ruleGuides.map((guide) => (
           <div
@@ -575,7 +576,7 @@ export function PreGameSummaryGrid({
                 : 'mt-1.5 text-xs font-semibold text-slate-400 sm:text-sm'
           }
         >
-          {SUMMARY_NONE}
+          {summaryNone()}
         </p>
       ) : (
         <div className="mt-2 flex flex-wrap gap-2 sm:gap-2">
@@ -625,17 +626,17 @@ export function PreGameSummaryGrid({
     const casualGuideText = (guide: NonNullable<PreGameSummaryFour['ruleGuides']>[number]): string => {
       switch (guide.key) {
         case 'pattern-stone':
-          return '문양돌은 2점';
+          return tx('game:preGame.patternStone2pts');
         case 'turn-limit':
-          return guide.body.replace('끝내기', '목표 달성');
+          return guide.body.replace(tx('game:preGame.finishWord'), tx('game:preGame.goalAchievement'));
         case 'auto-scoring':
           return guide.body;
         case 'missile':
-          return '미사일로 밀기';
+          return tx('game:preGame.missilePush');
         case 'hidden-scan':
           return guide.body;
         case 'turn-add':
-          return '턴 추가 사용';
+          return tx('game:preGame.turnAddUse');
         case 'survival':
         case 'speed':
           return guide.body;
@@ -666,7 +667,7 @@ export function PreGameSummaryGrid({
       addTile(cautionTiles, {
         key: 'default-caution',
         img: '/images/simbols/simbol7.webp',
-        text: '집이 적으면 실패',
+        text: tx('game:preGame.lowTerritoryFail'),
       });
     }
 
@@ -710,8 +711,8 @@ export function PreGameSummaryGrid({
 
     return (
       <div className={outerStackClass}>
-        {renderSection('이번 목표', goalTiles, 'goal')}
-        {renderSection('주의할 점', cautionTiles, 'caution')}
+        {renderSection(tx('game:preGame.goalTitle'), goalTiles, 'goal')}
+        {renderSection(tx('game:preGame.cautionPoints'), cautionTiles, 'caution')}
       </div>
     );
   }
@@ -794,41 +795,41 @@ export function PreGameFeatureStrip({ session }: { session: LiveGameSession }) {
 
   const mode = session.mode;
   if (mode === GameMode.Capture || mixed.includes(GameMode.Capture)) {
-    add('/images/simbols/simbol2.webp', '따내기');
+    add('/images/simbols/simbol2.webp', tx('game:preGame.capture'));
   }
   if (mode === GameMode.Speed || mixed.includes(GameMode.Speed)) {
-    add('/images/icon/timer.webp', '스피드');
+    add('/images/icon/timer.webp', tx('game:preGame.speed'));
   }
   if (mode === GameMode.Base || mixed.includes(GameMode.Base)) {
-    add('/images/simbols/simbol4.webp', '베이스');
+    add('/images/simbols/simbol4.webp', tx('game:preGame.base'));
   }
   if (mode === GameMode.Hidden || mixed.includes(GameMode.Hidden)) {
-    add('/images/button/hidden.webp', '히든');
-    add('/images/button/scan.webp', '스캔');
+    add('/images/button/hidden.webp', tx('game:preGame.hidden'));
+    add('/images/button/scan.webp', tx('game:preGame.scan'));
   }
   if (mode === GameMode.Missile || mixed.includes(GameMode.Missile)) {
-    add('/images/button/missile.webp', '미사일');
+    add('/images/button/missile.webp', tx('game:preGame.missile'));
   }
   if (mode === GameMode.Dice) {
-    add('/images/simbols/simbolp1.webp', '주사위');
+    add('/images/simbols/simbolp1.webp', tx('game:preGame.dice'));
   }
   if (mode === GameMode.Omok || mode === GameMode.Ttamok) {
-    add('/images/simbols/simbolp2.webp', '오목');
+    add('/images/simbols/simbolp2.webp', tx('game:preGame.omok'));
   }
   if (mode === GameMode.Alkkagi) {
-    add('/images/simbols/simbolp5.webp', '알까기');
+    add('/images/simbols/simbolp5.webp', tx('game:preGame.alkkagi'));
   }
   if (mode === GameMode.Curling) {
-    add('/images/simbols/simbolp6.webp', '컬링');
+    add('/images/simbols/simbolp6.webp', tx('game:preGame.curling'));
   }
   if (mode === GameMode.Thief) {
-    add('/images/simbols/simbolp4.webp', '도둑과경찰');
+    add('/images/simbols/simbolp4.webp', tx('game:preGame.thiefPolice'));
   }
 
   if (items.length === 0) {
     const fallback: Partial<Record<GameMode, { src: string; label: string }>> = {
-      [GameMode.Standard]: { src: '/images/simbols/simbol1.webp', label: '클래식' },
-      [GameMode.Mix]: { src: '/images/simbols/simbol10.webp', label: '믹스' },
+      [GameMode.Standard]: { src: '/images/simbols/simbol1.webp', label: tx('game:preGame.classic') },
+      [GameMode.Mix]: { src: '/images/simbols/simbol10.webp', label: tx('game:preGame.mix') },
     };
     const f = fallback[mode];
     if (f) items.push(f);

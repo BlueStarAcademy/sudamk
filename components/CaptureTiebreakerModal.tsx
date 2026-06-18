@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LiveGameSession, Player, ServerAction, User } from '../types.js';
 import Avatar from './Avatar.js';
 import Button from './Button.js';
@@ -17,6 +18,8 @@ interface CaptureTiebreakerModalProps {
 }
 
 const CaptureTiebreakerModal: React.FC<CaptureTiebreakerModalProps> = ({ session, currentUser, onAction }) => {
+    const { t } = useTranslation('game');
+    const { t: tCommon } = useTranslation('common');
     const {
         id: gameId,
         player1,
@@ -103,27 +106,27 @@ const CaptureTiebreakerModal: React.FC<CaptureTiebreakerModalProps> = ({ session
     const getTitleAndDescription = () => {
         if (isTiebreaker) {
             return {
-                title: '흑백 결정 (동점 룰렛)',
-                description: '룰렛으로 흑·백이 정해졌습니다.',
+                title: t('captureTiebreaker.colorRouletteTitle'),
+                description: t('captureTiebreaker.colorRouletteDesc'),
             };
         }
         if (isBaseStartConfirmation) {
             if (baseCaptureStart && captureTargetsReady) {
                 return {
-                    title: '베이스 + 따내기',
-                    description: '아래 카드에서 조건을 확인하세요.',
+                    title: t('captureTiebreaker.baseCaptureTitle'),
+                    description: t('captureTiebreaker.baseCaptureDesc'),
                 };
             }
             return {
-                title: '베이스 대국 준비',
-                description: '아래에서 흑·백·덤을 확인하세요.',
+                title: t('captureTiebreaker.basePrepTitle2'),
+                description: t('captureTiebreaker.basePrepDesc2'),
             };
         }
 
         const winner = blackPlayer;
         return {
-            title: '흑백 결정',
-            description: `${getSessionPlayerDisplayName(session, winner)} · 흑(선) · 제시 ${winnerBid}점`,
+            title: t('captureTiebreaker.colorDecideTitle'),
+            description: t('captureTiebreaker.colorDecideDesc', { name: getSessionPlayerDisplayName(session, winner), bid: winnerBid }),
         };
     };
 
@@ -137,12 +140,12 @@ const CaptureTiebreakerModal: React.FC<CaptureTiebreakerModalProps> = ({ session
         isMe,
     }: {
         user: User;
-        color: '흑' | '백';
+        color: 'black' | 'white';
         footerTitle: string;
         footerMain: React.ReactNode;
         isMe?: boolean;
     }) => {
-        const isBlack = color === '흑';
+        const isBlack = color === 'black';
         const panelSurface = isBlack
             ? 'bg-gradient-to-br from-zinc-950 via-slate-900 to-amber-950/40'
             : 'bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950';
@@ -167,7 +170,7 @@ const CaptureTiebreakerModal: React.FC<CaptureTiebreakerModalProps> = ({ session
                         <span>{getSessionPlayerDisplayName(session, user)}</span>
                         {isMe ? (
                             <span className="rounded-md bg-cyan-400/20 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-cyan-100">
-                                나
+                                {t('captureTiebreaker.meBadge')}
                             </span>
                         ) : null}
                     </p>
@@ -175,7 +178,7 @@ const CaptureTiebreakerModal: React.FC<CaptureTiebreakerModalProps> = ({ session
                         isBlack ? 'bg-amber-300 text-slate-950' : 'bg-slate-100 text-slate-950'
                     }`}>
                         <span className={`h-2 w-2 rounded-full ${isBlack ? 'bg-slate-950' : 'bg-white ring-1 ring-slate-400'}`} />
-                        {color}{isBlack ? ' · 선공' : ' · 후공'}
+                        {isBlack ? tCommon('blackShort') : tCommon('whiteShort')}{isBlack ? t('captureTiebreaker.blackFirstSuffix') : t('captureTiebreaker.whiteSecondSuffix')}
                     </div>
                     <div className="mt-3 rounded-2xl border border-white/10 bg-black/25 px-3 py-2">
                         <div className="text-[11px] font-semibold text-slate-400">{footerTitle}</div>
@@ -190,34 +193,34 @@ const CaptureTiebreakerModal: React.FC<CaptureTiebreakerModalProps> = ({ session
 
     const seatFooterForBlack = showCaptureSummary
         ? {
-              title: currentUser.id === blackPlayerId ? '내 승리 조건' : '흑 승리 조건',
+              title: currentUser.id === blackPlayerId ? t('captureTiebreaker.myWinCondition') : t('captureTiebreaker.blackWinCondition'),
               main: (
                   <>
                       <span className="text-yellow-300">{blackTarget}</span>
-                      <span className="ml-1 text-sm font-bold text-slate-400">점 따내기</span>
+                      <span className="ml-1 text-sm font-bold text-slate-400">{t('captureTiebreaker.capturePoints')}</span>
                   </>
               ),
           }
         : {
-              title: currentUser.id === blackPlayerId ? '내 역할' : '역할',
-              main: <span className="text-amber-200">선공 (흑)</span>,
+              title: currentUser.id === blackPlayerId ? t('captureTiebreaker.myRole') : t('captureTiebreaker.role'),
+              main: <span className="text-amber-200">{t('captureTiebreaker.firstBlackRole')}</span>,
           };
     const seatFooterForWhite = showCaptureSummary
         ? {
-              title: currentUser.id === whitePlayerId ? '내 승리 조건' : '백 승리 조건',
+              title: currentUser.id === whitePlayerId ? t('captureTiebreaker.myWinCondition') : t('captureTiebreaker.whiteWinCondition'),
               main: (
                   <>
                       <span className="text-yellow-300">{whiteTarget}</span>
-                      <span className="ml-1 text-sm font-bold text-slate-400">점 따내기</span>
+                      <span className="ml-1 text-sm font-bold text-slate-400">{t('captureTiebreaker.capturePoints')}</span>
                   </>
               ),
           }
         : {
-              title: currentUser.id === whitePlayerId ? '내 덤 (백)' : '덤 (백)',
+              title: currentUser.id === whitePlayerId ? t('captureTiebreaker.myKomi') : t('captureTiebreaker.komiWhite'),
               main: (
                   <>
                       <span className="text-cyan-200">{komiLabel}</span>
-                      <span className="ml-1 text-sm font-bold text-slate-400">집</span>
+                      <span className="ml-1 text-sm font-bold text-slate-400">{t('captureTiebreaker.komiStones')}</span>
                   </>
               ),
           };
@@ -250,8 +253,8 @@ const CaptureTiebreakerModal: React.FC<CaptureTiebreakerModalProps> = ({ session
                         blackPlayer={blackUi}
                         whitePlayer={whiteUi}
                         durationMs={4200}
-                        title="흑·백 룰렛"
-                        subtitle="동점 2차 입찰"
+                        title={t('captureTiebreaker.blackWhiteRoulette')}
+                        subtitle={t('captureTiebreaker.tieRerollSubtitle')}
                         onComplete={() => setRouletteDone(true)}
                         suppressHeader
                     />
@@ -260,7 +263,7 @@ const CaptureTiebreakerModal: React.FC<CaptureTiebreakerModalProps> = ({ session
                 <div className="text-center">
                     <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/35 bg-amber-300/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-200/95">
                         <span className="h-1.5 w-1.5 rounded-full bg-amber-300" />
-                        {isBaseStartConfirmation ? '시작 전 확인' : '제시 결과'}
+                        {isBaseStartConfirmation ? t('captureTiebreaker.beforeStart') : t('captureTiebreaker.bidResult')}
                     </div>
                     <h2 className="mt-2 text-lg font-black tracking-tight text-white sm:text-xl">{title}</h2>
                     <p className="mt-1.5 text-xs leading-snug text-slate-400 sm:text-[13px]">{description}</p>
@@ -270,14 +273,14 @@ const CaptureTiebreakerModal: React.FC<CaptureTiebreakerModalProps> = ({ session
                     <div className="grid grid-cols-2 gap-2 sm:gap-3">
                         <PlayerDisplay
                             user={blackPlayer}
-                            color="흑"
+                            color="black"
                             footerTitle={seatFooterForBlack.title}
                             footerMain={seatFooterForBlack.main}
                             isMe={currentUser.id === blackPlayerId}
                         />
                         <PlayerDisplay
                             user={whitePlayer}
-                            color="백"
+                            color="white"
                             footerTitle={seatFooterForWhite.title}
                             footerMain={seatFooterForWhite.main}
                             isMe={currentUser.id === whitePlayerId}
@@ -288,11 +291,11 @@ const CaptureTiebreakerModal: React.FC<CaptureTiebreakerModalProps> = ({ session
                 {showAssignmentGrid && showCaptureSummary && (
                     <div className="grid grid-cols-2 gap-2 rounded-xl border border-slate-700/80 bg-slate-950/60 px-2.5 py-1.5 text-center leading-none sm:rounded-2xl sm:px-3 sm:py-2">
                         <div>
-                            <div className="text-[11px] leading-tight text-slate-500">기본 목표</div>
+                            <div className="text-[11px] leading-tight text-slate-500">{t('captureTiebreaker.baseTargetLabel')}</div>
                             <div className="pt-0.5 text-lg font-black leading-none text-slate-100">{settings.captureTarget ?? 20}</div>
                         </div>
                         <div>
-                            <div className="text-[11px] leading-tight text-slate-500">제시 점수</div>
+                            <div className="text-[11px] leading-tight text-slate-500">{t('captureTiebreaker.bidScoreLabel')}</div>
                             <div className="pt-0.5 text-lg font-black leading-none text-amber-300">{winnerBid}</div>
                         </div>
                     </div>
@@ -301,11 +304,11 @@ const CaptureTiebreakerModal: React.FC<CaptureTiebreakerModalProps> = ({ session
                 {showAssignmentGrid && isBaseStartConfirmation && !showCaptureSummary && (
                     <div className="grid grid-cols-2 gap-2 rounded-xl border border-slate-700/80 bg-slate-950/60 px-2.5 py-1.5 text-center leading-none sm:rounded-2xl sm:px-3 sm:py-2">
                         <div>
-                            <div className="text-[11px] leading-tight text-slate-500">규칙</div>
-                            <div className="pt-0.5 text-lg font-black leading-none text-slate-100">베이스</div>
+                            <div className="text-[11px] leading-tight text-slate-500">{t('captureTiebreaker.rulesLabel')}</div>
+                            <div className="pt-0.5 text-lg font-black leading-none text-slate-100">{t('captureTiebreaker.baseRule')}</div>
                         </div>
                         <div>
-                            <div className="text-[11px] leading-tight text-slate-500">덤 (백)</div>
+                            <div className="text-[11px] leading-tight text-slate-500">{t('captureTiebreaker.komiWhite')}</div>
                             <div className="pt-0.5 text-lg font-black leading-none text-amber-300">{komiLabel}</div>
                         </div>
                     </div>
@@ -314,8 +317,8 @@ const CaptureTiebreakerModal: React.FC<CaptureTiebreakerModalProps> = ({ session
                     <RoundCountdownIndicator
                         deadline={revealEndTime}
                         durationSeconds={PRE_GAME_PVP_COUNTDOWN_SECONDS}
-                        label="자동 진행까지"
-                        labelShort="자동 진행"
+                        label={tCommon('autoProceed')}
+                        labelShort={tCommon('autoProceedShort')}
                     />
                 ) : null}
                 </div>
@@ -338,12 +341,12 @@ const CaptureTiebreakerModal: React.FC<CaptureTiebreakerModalProps> = ({ session
                         ].join(' ')}
                     >
                         {hasConfirmed
-                            ? '경기 시작 준비 완료'
+                            ? t('captureTiebreaker.prepComplete')
                             : isTiebreaker && !rouletteDone
-                              ? '룰렛 결과 확인 중...'
+                              ? t('startConfirm.checkingRoulette')
                               : hasRevealCountdown
-                                ? `대국 시작 (${countdown})`
-                                : '대국 시작'}
+                                ? t('startConfirm.startCountdown', { count: countdown })
+                                : tCommon('startGame')}
                     </Button>
                 </div>
             </>

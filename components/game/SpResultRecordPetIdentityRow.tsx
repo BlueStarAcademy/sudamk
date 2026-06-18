@@ -1,4 +1,5 @@
 import React from 'react';
+import { tx } from '../../shared/i18n/runtimeText.js';
 import { RESULT_MODAL_SCORE_MOBILE_PX } from './resultModalScoreTypography.js';
 
 /** PVE 결과 모달 기록 탭: 펫 경험치/등급강화 구간 상단 — 프로필·이름·레벨 */
@@ -18,7 +19,7 @@ const SpResultRecordPetIdentityRow: React.FC<{
             {imageSrc ? (
                 <img src={imageSrc} alt={displayName} className="h-full w-full object-cover" />
             ) : (
-                <div className="flex h-full w-full items-center justify-center text-[10px] text-fuchsia-200/50">펫</div>
+                <div className="flex h-full w-full items-center justify-center text-[10px] text-fuchsia-200/50">{tx("game:resultModal.petShort")}</div>
             )}
         </div>
         <div className="min-w-0 flex-1">

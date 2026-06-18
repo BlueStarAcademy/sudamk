@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useEffect, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { GameMode } from '../../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
@@ -13,6 +14,7 @@ const ANNOUNCEMENT_MARQUEE_SPEED_PX_PER_SEC = 90;
 export type WaitingLobbyAnnouncementBoardMode = GameMode | 'strategic' | 'playful' | 'pair';
 
 const WaitingLobbyAnnouncementBoardInner: React.FC<{ mode: WaitingLobbyAnnouncementBoardMode }> = ({ mode }) => {
+    const { t } = useTranslation('lobby');
     const { announcements, globalOverrideAnnouncement, announcementInterval } = useAppContext();
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isMarqueeRunning, setIsMarqueeRunning] = useState(true);
@@ -138,7 +140,7 @@ const WaitingLobbyAnnouncementBoardInner: React.FC<{ mode: WaitingLobbyAnnouncem
                     boxShadow: '0 12px 30px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.09)',
                 }}
             >
-                <span className="text-center text-[0.65rem] font-bold text-tertiary sm:text-sm">[현재 등록된 공지사항이 없습니다.]</span>
+                <span className="text-center text-[0.65rem] font-bold text-tertiary sm:text-sm">{t('announcement.noneRegistered')}</span>
             </div>
         );
     }
@@ -172,7 +174,7 @@ const WaitingLobbyAnnouncementBoardInner: React.FC<{ mode: WaitingLobbyAnnouncem
                                 } as React.CSSProperties
                             }
                         >
-                            <span className="mr-2 text-red-400">[공지]</span>
+                            <span className="mr-2 text-red-400">{t('announcement.badge')}</span>
                             <span className="bg-gradient-to-r from-cyan-100 via-amber-100 to-cyan-100 bg-clip-text text-transparent">
                                 {currentAnnouncement.message}
                             </span>

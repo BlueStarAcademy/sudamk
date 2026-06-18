@@ -12,6 +12,7 @@ import { isRewardVipActive } from '../../shared/utils/rewardVip.js';
 import type { User } from '../../types/index.js';
 import { ResultModalVipRewardSlot } from '../game/ResultModalVipRewardSlot.js';
 import GuildExpBadge from './GuildExpBadge.js';
+import { useTranslation } from 'react-i18next';
 
 interface GuildBossBattleResultModalProps {
     result: GuildBossBattleResultType & { bossName: string; previousRank?: number; currentRank?: number };
@@ -98,6 +99,7 @@ const RewardCardFrontContent: React.FC<{ card: RewardCard }> = ({ card }) => (
 );
 
 const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({ result, onClose, isTopmost }) => {
+    const { t } = useTranslation(['guild', 'common']);
     const { handlers, currentUserWithStatus } = useAppContext();
     const [cardsFlipped, setCardsFlipped] = useState(false);
     const [flipSettled, setFlipSettled] = useState(false);
@@ -114,20 +116,52 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
             ? { locked: !isRewardVipActive(currentUserWithStatus as User) }
             : { locked: true });
     
+    const MATERIAL_IMAGES: Record<string, string> = {
+        '하급 강화석': '/images/materials/materials1.webp',
+        '중급 강화석': '/images/materials/materials2.webp',
+        '상급 강화석': '/images/materials/materials3.webp',
+        '최상급 강화석': '/images/materials/materials4.webp',
+        '신비의 강화석': '/images/materials/materials5.webp',
+    };
+    const MATERIAL_BOX_IMAGES: Record<string, string> = {
+        '재료 상자 I': '/images/Box/ResourceBox1.webp',
+        '재료 상자 II': '/images/Box/ResourceBox2.webp',
+        '재료 상자 III': '/images/Box/ResourceBox3.webp',
+        '재료 상자 IV': '/images/Box/ResourceBox4.webp',
+    };
+    const TICKET_IMAGES: Record<string, string> = {
+        '옵션 종류 변경권': '/images/use/change1.webp',
+        '옵션 수치 변경권': '/images/use/change2.webp',
+        '스페셜 옵션 변경권': '/images/use/change3.webp',
+        '신화 옵션 변경권': '/images/use/change3.webp',
+    };
+    const resolveRewardDisplayName = (name: string): string => {
+        const keyMap: Record<string, string> = {
+            '하급 강화석': 'rewards.enhancementStoneLow',
+            '중급 강화석': 'rewards.enhancementStoneMid',
+            '상급 강화석': 'rewards.enhancementStoneHigh',
+            '최상급 강화석': 'rewards.enhancementStoneTop',
+            '신비의 강화석': 'rewards.enhancementStoneMystic',
+            '재료 상자 I': 'rewards.materialBox1',
+            '재료 상자 II': 'rewards.materialBox2',
+            '재료 상자 III': 'rewards.materialBox3',
+            '재료 상자 IV': 'rewards.materialBox4',
+        };
+        const key = keyMap[name];
+        return key ? t(key) : name;
+    };
+
     useEffect(() => {
-        // 보상 카드 배열 생성
         const cards: RewardCard[] = [];
-        
-        // 길드 경험치
+
         cards.push({
             type: 'guildXp',
-            name: '길드 경험치',
+            name: t('rewards.guildXp'),
             quantity: rewards.guildXp,
             image: '',
             isSpecial: isTopGrade,
         });
-        
-        // 길드 코인
+
         const isRewardVipUser = !vipSlot.locked;
         const guildCoinQuantity = rewards.guildCoins;
         const guildCoinSplitBase =
@@ -136,7 +170,7 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
                 : null;
         cards.push({
             type: 'guildCoins',
-            name: '길드 코인',
+            name: t('rewards.guildCoins'),
             quantity: guildCoinQuantity,
             quantityText:
                 guildCoinSplitBase != null
@@ -145,57 +179,51 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
             image: '/images/guild/tokken.webp',
             isSpecial: isTopGrade,
         });
-        
-        // 연구소 포인트
+
         cards.push({
             type: 'researchPoints',
-            name: '연구소 포인트',
+            name: t('rewards.researchPoints'),
             quantity: rewards.researchPoints,
             image: '/images/guild/button/guildlab.webp',
             isSpecial: isTopGrade,
         });
-        
-        // 골드
+
         cards.push({
             type: 'gold',
-            name: '골드',
+            name: t('common:resources.gold'),
             quantity: rewards.gold,
             image: '/images/icon/Gold.webp',
             isSpecial: isTopGrade,
         });
-        
-        // 강화재료
+
         cards.push({
             type: 'material',
-            name: rewards.materials.name,
+            name: resolveRewardDisplayName(rewards.materials.name),
             quantity: rewards.materials.quantity > 1 ? rewards.materials.quantity : undefined,
             image: MATERIAL_IMAGES[rewards.materials.name] || '/images/materials/materials1.webp',
             isSpecial: isTopGrade,
         });
-        
-        // 신비의 강화석 등 추가 강화재료 (SSS 등)
+
         if (rewards.materialsBonus && rewards.materialsBonus.quantity > 0) {
             cards.push({
                 type: 'material',
-                name: rewards.materialsBonus.name,
+                name: resolveRewardDisplayName(rewards.materialsBonus.name),
                 quantity: rewards.materialsBonus.quantity > 1 ? rewards.materialsBonus.quantity : undefined,
                 image: MATERIAL_IMAGES[rewards.materialsBonus.name] || '/images/materials/materials5.webp',
                 isSpecial: true,
             });
         }
-        
-        // 재료 상자 (SSS 등)
+
         if (rewards.materialBox && rewards.materialBox.quantity > 0) {
             cards.push({
                 type: 'materialBox',
-                name: rewards.materialBox.name,
+                name: resolveRewardDisplayName(rewards.materialBox.name),
                 quantity: rewards.materialBox.quantity > 1 ? rewards.materialBox.quantity : undefined,
                 image: MATERIAL_BOX_IMAGES[rewards.materialBox.name] || '/images/Box/ResourceBox3.webp',
                 isSpecial: true,
             });
         }
-        
-        // 변경권
+
         rewards.tickets.forEach(ticket => {
             cards.push({
                 type: 'ticket',
@@ -205,8 +233,7 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
                 isSpecial: isTopGrade,
             });
         });
-        
-        // 장비: 서버에서 지급된 실제 장비(item/name/image/slot)를 표시. 없으면 등급에 맞는 표시용 장비 사용
+
         if (rewards.equipment) {
             const equipmentItem = (rewards.equipment as any).item;
             const equipmentGrade = equipmentItem?.grade != null
@@ -230,7 +257,7 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
                 }
             }
 
-            const displayName = equipmentName || `${equipmentGrade} 등급 장비`;
+            const displayName = equipmentName || t('boss.gradeEquipment', { grade: equipmentGrade });
             const gradeKey = equipmentGrade as ItemGrade;
             const imagePath = equipmentImage
                 ? (equipmentImage.startsWith('/') ? equipmentImage : `/${equipmentImage}`)
@@ -267,29 +294,13 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
             window.clearTimeout(flipStart);
             window.clearTimeout(flipDone);
         };
-    }, []);
-    
-    const MATERIAL_IMAGES: Record<string, string> = {
-        '하급 강화석': '/images/materials/materials1.webp',
-        '중급 강화석': '/images/materials/materials2.webp',
-        '상급 강화석': '/images/materials/materials3.webp',
-        '최상급 강화석': '/images/materials/materials4.webp',
-        '신비의 강화석': '/images/materials/materials5.webp',
+    }, [rewards, isTopGrade, vipSlot.locked, t]);
+
+    const getTierName = (tier: number) => {
+        const label = GUILD_BOSS_GRADE_NAMES[tier - 1];
+        return label ? t('boss.gradeSuffix', { label }) : t('boss.gradeE');
     };
-    const MATERIAL_BOX_IMAGES: Record<string, string> = {
-        '재료 상자 I': '/images/Box/ResourceBox1.webp',
-        '재료 상자 II': '/images/Box/ResourceBox2.webp',
-        '재료 상자 III': '/images/Box/ResourceBox3.webp',
-        '재료 상자 IV': '/images/Box/ResourceBox4.webp',
-    };
-    
-    const TICKET_IMAGES: Record<string, string> = {
-        '옵션 종류 변경권': '/images/use/change1.webp',
-        '옵션 수치 변경권': '/images/use/change2.webp',
-        '스페셜 옵션 변경권': '/images/use/change3.webp',
-        '신화 옵션 변경권': '/images/use/change3.webp',
-    };
-    
+
     const getTierColor = (tier: number) => {
         const colors: Record<number, string> = {
             1: 'from-gray-500 to-gray-600',
@@ -307,15 +318,10 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
         };
         return colors[tier] ?? 'from-gray-500 to-gray-600';
     };
-    
-    const getTierName = (tier: number) => {
-        const label = GUILD_BOSS_GRADE_NAMES[tier - 1];
-        return label ? `${label}등급` : 'E등급';
-    };
 
     return (
         <DraggableWindow
-            title="전투 결과"
+            title={t('boss.battleResultTitle')}
             onClose={onClose}
             windowId="guild-boss-battle-result"
             initialWidth={600}
@@ -329,13 +335,13 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
             <div className="flex h-full min-h-0 flex-col bg-gradient-to-b from-stone-950 via-neutral-900 to-stone-950 rounded-b-lg border-t border-amber-500/30">
                 <div className="mb-2 flex-shrink-0 pt-1 text-center sm:mb-4 sm:pt-2">
                     <h2 className="mb-1 break-words px-1 text-lg font-bold bg-gradient-to-r from-amber-200 via-yellow-300 to-amber-200 bg-clip-text text-transparent sm:mb-2 sm:text-2xl" style={{ textShadow: '0 0 20px rgba(251,191,36,0.3)' }}>
-                        {result.bossName} 전투 결과
+                        {t('boss.battleResultHeading', { bossName: result.bossName })}
                     </h2>
                     <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-3">
                         <div className={`rounded-full border border-amber-400/40 bg-gradient-to-r px-2.5 py-0.5 text-xs font-bold text-white shadow-lg sm:px-4 sm:py-1.5 sm:text-lg ${getTierColor(tier)}`}>
                             {getTierName(tier)}
                         </div>
-                        <span className="text-xs text-amber-100/90 sm:text-sm">총 피해량: <span className="font-bold text-amber-300">{result.damageDealt.toLocaleString()}</span></span>
+                        <span className="text-xs text-amber-100/90 sm:text-sm">{t('boss.totalDamageDealt', { damage: result.damageDealt.toLocaleString() })}</span>
                     </div>
                 </div>
                 
@@ -415,11 +421,11 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
                 
                 <div className="flex-shrink-0 space-y-1.5 rounded-lg border border-amber-500/20 bg-black/40 p-2.5 text-[11px] sm:space-y-2 sm:p-4 sm:text-sm">
                     <div className="flex items-center justify-between">
-                        <span className="text-amber-200/80">생존 턴:</span>
-                        <span className="font-bold text-amber-100">{result.turnsSurvived} 턴</span>
+                        <span className="text-amber-200/80">{t('boss.turnsSurvived')}</span>
+                        <span className="font-bold text-amber-100">{t('boss.turnsUnit', { count: result.turnsSurvived })}</span>
                     </div>
                     <div className="border-t border-amber-500/30 pt-1.5 sm:pt-2">
-                        <p className="text-xs text-amber-200/70 mb-1">보스 남은 체력 ({hpPercentAfter.toFixed(1)}%)</p>
+                        <p className="text-xs text-amber-200/70 mb-1">{t('boss.bossHpRemaining', { percent: hpPercentAfter.toFixed(1) })}</p>
                         <div className="relative h-2.5 w-full overflow-hidden rounded-full border border-amber-600/40 bg-stone-900/80 sm:h-3">
                             <div className="bg-gradient-to-r from-red-600 to-red-800 h-full rounded-full shadow-[0_0_8px_rgba(220,38,38,0.5)]" style={{ width: `${hpPercentAfter}%` }}></div>
                             <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white sm:text-xs" style={{textShadow: '1px 1px 2px black'}}>
@@ -429,22 +435,22 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
                     </div>
                     <div className="border-t border-amber-500/30 pt-1.5 sm:pt-2">
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                            <span className="text-amber-200/80">누적 피해 순위</span>
+                            <span className="text-amber-200/80">{t('boss.cumulativeRank')}</span>
                             <div className="flex max-w-full flex-wrap items-center justify-end gap-x-2 gap-y-1 text-xs sm:text-sm">
                                 <span className="text-amber-300/85">
-                                    이전:{' '}
+                                    {t('boss.previousRank')}{' '}
                                     {typeof result.previousRank === 'number' ? (
-                                        <span className="font-semibold text-amber-200">{result.previousRank}위</span>
+                                        <span className="font-semibold text-amber-200">{t('boss.rankPlace', { rank: result.previousRank })}</span>
                                     ) : (
-                                        <span className="text-amber-200/65">기록 없음</span>
+                                        <span className="text-amber-200/65">{t('boss.noPreviousRank')}</span>
                                     )}
                                 </span>
                                 <span className="text-amber-200/45" aria-hidden>
                                     →
                                 </span>
                                 <span className="font-bold text-amber-300">
-                                    현재:{' '}
-                                    {typeof result.currentRank === 'number' ? `${result.currentRank}위` : '—'}
+                                    {t('boss.currentRankLabel')}{' '}
+                                    {typeof result.currentRank === 'number' ? t('boss.rankPlace', { rank: result.currentRank }) : '—'}
                                 </span>
                                 {typeof result.previousRank === 'number' &&
                                     typeof result.currentRank === 'number' &&
@@ -468,7 +474,7 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
                         onClick={onClose}
                         className={`min-w-[8.5rem] px-8 sm:min-w-[10rem] sm:px-10 ${PRE_GAME_MODAL_ACCENT_BTN_CLASS}`}
                     >
-                        확인
+                        {t('common:actions.confirm')}
                     </Button>
                 </div>
             </div>

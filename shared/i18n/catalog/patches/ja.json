@@ -1,0 +1,68 @@
+{
+  "common": {
+    "actions": {
+      "ok": "OK",
+      "cancel": "キャンセル",
+      "close": "閉じる",
+      "save": "保存",
+      "loading": "読み込み中…",
+      "confirm": "確認",
+      "back": "戻る",
+      "retry": "再試行",
+      "refresh": "更新"
+    },
+    "resources": {
+      "gold": "ゴールド",
+      "diamonds": "ダイヤ",
+      "guildCoins": "ギルドコイン",
+      "champCoins": "チャンプコイン"
+    },
+    "languageSelect": {
+      "label": "言語",
+      "placeholder": "言語を選択"
+    }
+  },
+  "nav": {
+    "dock": {
+      "home": "ホーム",
+      "singleplayer": "碁学院",
+      "tower": "挑戦の塔",
+      "arena": "アリーナ",
+      "tournament": "チャンピオンシップ",
+      "adventure": "冒険"
+    },
+    "header": {
+      "mailbox": "メール",
+      "settings": "設定",
+      "logout": "ログアウト",
+      "logoutConfirm": "ログアウトしますか？"
+    }
+  },
+  "auth": {
+    "login": "ログイン",
+    "register": "新規登録",
+    "email": "メール",
+    "password": "パスワード",
+    "setNickname": "ニックネーム設定",
+    "nickname": "ニックネーム"
+  },
+  "footer": {
+    "terms": "利用規約",
+    "privacy": "プライバシーポリシー",
+    "refund": "返金規定",
+    "support": "サポート"
+  },
+  "settings": {
+    "title": "設定",
+    "tabs": {
+      "features": "機能",
+      "display": "画面",
+      "sound": "サウンド",
+      "account": "アカウント"
+    },
+    "display": {
+      "language": "言語",
+      "panelStyle": "パネルスタイル"
+    }
+  }
+}

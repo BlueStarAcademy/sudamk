@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { UserWithStatus, GameMode, ServerAction } from '../types.js';
 import { SPECIAL_GAME_MODES, RANKING_TIERS } from '../constants';
 import DraggableWindow from './DraggableWindow.js';
@@ -51,15 +52,18 @@ const DiamondPrice: React.FC<{ amount: number; className?: string; iconClassName
     amount,
     className = '',
     iconClassName = 'h-[1em] w-[1em] min-w-[1em]',
-}) => (
+}) => {
+    const { t } = useTranslation('profile');
+    return (
     <span
         className={`inline-flex items-center gap-0.5 tabular-nums ${className}`}
-        aria-label={`다이아 ${amount.toLocaleString()}`}
+        aria-label={t('detailedStats.diamondsAria', { amount: amount.toLocaleString() })}
     >
         <img src={DIAMOND_ICON} alt="" className={`object-contain ${iconClassName}`} aria-hidden />
         <span className="font-semibold">{amount.toLocaleString()}</span>
     </span>
-);
+    );
+};
 
 const pairArenaPanelTheme = {
     accent: 'border-violet-500/35',
@@ -84,6 +88,8 @@ export const PairArenaStatsPanel: React.FC<PairArenaStatsPanelProps> = ({
     columnLayout = false,
     scrollModesInPanel = true,
 }) => {
+    const { t } = useTranslation('profile');
+    const { t: tGame } = useTranslation('game');
     const { stats, diamonds, pairArenaStatsByMode } = currentUser;
     const [pairResetConfirm, setPairResetConfirm] = useState<PairArenaResetConfirm | null>(null);
     const [pairResetAlert, setPairResetAlert] = useState<string | null>(null);
@@ -136,24 +142,24 @@ export const PairArenaStatsPanel: React.FC<PairArenaStatsPanelProps> = ({
         if (pairResetConfirm.type === 'single') {
             const row = pairArenaStatsByMode?.[String(pairResetConfirm.mode)];
             return {
-                targetLabel: `「${pairResetConfirm.displayName}」 페어 경기장`,
+                targetLabel: tGame('pairStats.modeTarget', { name: pairResetConfirm.displayName }),
                 pvp: { wins: row?.wins ?? 0, losses: row?.losses ?? 0 },
                 ai: { wins: 0, losses: 0 },
                 ledgerCost: SINGLE_RESET_COST,
-                seasonResetNote: '모드별 페어 전적만 초기화됩니다. 랭킹전·페어 AI 전적은 유지됩니다.',
+                seasonResetNote: tGame('pairStats.modeResetNote'),
             };
         }
         const ranked = readPairRankedMatchRecord(stats as Record<string, { wins?: number; losses?: number }>);
         const pairAi = readPairArenaAiMatchRecord(stats as Record<string, { wins?: number; losses?: number }>);
         return {
-            targetLabel: '페어 바둑 전체',
+            targetLabel: tGame('pairStats.pairAll'),
             pvp: {
                 wins: pairAggregate.wins + ranked.wins,
                 losses: pairAggregate.losses + ranked.losses,
             },
             ai: { wins: pairAi.wins, losses: pairAi.losses },
             ledgerCost: CATEGORY_RESET_COST,
-            seasonResetNote: 'PVP 전적 초기화 시 페어 시즌 랭킹 점수도 함께 초기화됩니다.',
+            seasonResetNote: tGame('pairStats.pairSeasonNote'),
         };
     }, [pairResetConfirm, pairArenaStatsByMode, pairAggregate, stats]);
 
@@ -220,7 +226,7 @@ export const PairArenaStatsPanel: React.FC<PairArenaStatsPanelProps> = ({
                     />
                     <p className={`font-black tabular-nums tracking-tight text-lg sm:text-xl ${theme.unifiedScore}`}>
                         {pairSeasonRank.score.toLocaleString()}
-                        <span className="ml-0.5 text-[0.7em] font-semibold text-secondary/85">점</span>
+                        <span className="ml-0.5 text-[0.7em] font-semibold text-secondary/85">{t('detailedStats.pointsUnit')}</span>
                     </p>
                 </div>
             </div>
@@ -228,11 +234,11 @@ export const PairArenaStatsPanel: React.FC<PairArenaStatsPanelProps> = ({
             <div className={`shrink-0 rounded-xl border px-2.5 py-2 sm:px-3 sm:py-2.5 ${theme.accent} bg-slate-950/45`}>
                 <div className="flex items-center justify-between gap-2 sm:gap-3">
                     <div className={`min-w-0 text-xs tabular-nums sm:text-sm ${theme.winText}`}>
-                        <span className={`mr-1.5 font-semibold ${theme.labelMuted}`}>합계</span>
+                        <span className={`mr-1.5 font-semibold ${theme.labelMuted}`}>{t('detailedStats.totalShort')}</span>
                         <span className="font-bold">{pairAggregate.wins.toLocaleString()}</span>
-                        <span className="text-secondary/75">승 </span>
+                        <span className="text-secondary/75">{t('detailedStats.winSuffix')}</span>
                         <span className="font-bold text-slate-200">{pairAggregate.losses.toLocaleString()}</span>
-                        <span className="text-secondary/75">패</span>
+                        <span className="text-secondary/75">{t('detailedStats.lossSuffix')}</span>
                         <span className="ml-1.5 text-sky-200/95">({pairAggregate.winRate}%)</span>
                     </div>
                     <button
@@ -240,13 +246,13 @@ export const PairArenaStatsPanel: React.FC<PairArenaStatsPanelProps> = ({
                         disabled={!canAffordCategory}
                         title={
                             canAffordCategory
-                                ? `다이아 ${CATEGORY_RESET_COST.toLocaleString()} — 페어 전략 모드 전체`
-                                : `다이아 부족 (필요 ${CATEGORY_RESET_COST.toLocaleString()})`
+                                ? tGame('pairStats.resetPairAll', { cost: CATEGORY_RESET_COST.toLocaleString() })
+                                : t('detailedStats.diamondInsufficient', { cost: CATEGORY_RESET_COST.toLocaleString() })
                         }
                         onClick={handleResetAll}
                         className={`inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-bold sm:px-3 sm:py-2.5 sm:text-sm ${theme.categoryBtn}`}
                     >
-                        <span>전체 초기화</span>
+                        <span>{t('detailedStats.resetAll')}</span>
                         <DiamondPrice
                             amount={CATEGORY_RESET_COST}
                             iconClassName="h-4 w-4 min-w-[1rem] sm:h-5 sm:w-5 sm:min-w-[1.25rem]"
@@ -287,8 +293,8 @@ export const PairArenaStatsPanel: React.FC<PairArenaStatsPanelProps> = ({
                                         <div className="min-w-0 flex-1">
                                             <p className="truncate text-sm font-semibold text-primary sm:text-base">{name}</p>
                                             <p className={`text-xs tabular-nums sm:text-sm ${theme.winText}`}>
-                                                <span className="font-bold">{wins}</span>승{' '}
-                                                <span className="font-bold text-slate-200">{losses}</span>패 ({winRate}%)
+                                                <span className="font-bold">{wins}</span>{t('common:wins')}{' '}
+                                                <span className="font-bold text-slate-200">{losses}</span>{t('common:losses')} ({winRate}%)
                                             </p>
                                         </div>
                                         <button
@@ -296,13 +302,13 @@ export const PairArenaStatsPanel: React.FC<PairArenaStatsPanelProps> = ({
                                             disabled={!canAffordSingle}
                                             title={
                                                 canAffordSingle
-                                                    ? `다이아 ${SINGLE_RESET_COST} — 이 모드만 초기화`
-                                                    : `다이아 부족 (필요 ${SINGLE_RESET_COST})`
+                                                    ? t('detailedStats.resetSingle', { cost: SINGLE_RESET_COST })
+                                                    : t('detailedStats.diamondInsufficient', { cost: SINGLE_RESET_COST })
                                             }
                                             onClick={() => handleResetSingle(mode, name)}
                                             className={`inline-flex min-w-[4.25rem] shrink-0 flex-col items-center justify-center gap-1 rounded-lg px-2.5 py-2 text-xs font-bold sm:min-w-[4.75rem] sm:px-3 sm:py-2.5 sm:text-sm ${theme.singleBtn}`}
                                         >
-                                            <span>초기화</span>
+                                            <span>{t('detailedStats.resetBtn')}</span>
                                             <DiamondPrice
                                                 amount={SINGLE_RESET_COST}
                                                 className="text-violet-100/90"
@@ -334,9 +340,9 @@ export const PairArenaStatsPanel: React.FC<PairArenaStatsPanelProps> = ({
                                     >
                                         <span className="shrink-0 text-center leading-tight">
                                             <span className="font-bold">{wins}</span>
-                                            <span className="text-secondary/75">승 </span>
+                                            <span className="text-secondary/75">{t('detailedStats.winSuffix')}</span>
                                             <span className="font-bold text-slate-200">{losses}</span>
-                                            <span className="text-secondary/75">패</span>
+                                            <span className="text-secondary/75">{t('detailedStats.lossSuffix')}</span>
                                             <span className="ml-1 text-sky-200/95">({winRate}%)</span>
                                         </span>
                                     </div>
@@ -345,13 +351,13 @@ export const PairArenaStatsPanel: React.FC<PairArenaStatsPanelProps> = ({
                                         disabled={!canAffordSingle}
                                         title={
                                             canAffordSingle
-                                                ? `다이아 ${SINGLE_RESET_COST} — 이 모드만 초기화`
-                                                : `다이아 부족 (필요 ${SINGLE_RESET_COST})`
+                                                ? t('detailedStats.resetSingle', { cost: SINGLE_RESET_COST })
+                                                : t('detailedStats.diamondInsufficient', { cost: SINGLE_RESET_COST })
                                         }
                                         onClick={() => handleResetSingle(mode, name)}
                                         className={`mt-auto inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-bold transition-colors sm:h-10 sm:px-3.5 sm:text-base ${theme.singleBtn}`}
                                     >
-                                        <span>초기화</span>
+                                        <span>{t('detailedStats.resetBtn')}</span>
                                         <DiamondPrice
                                             amount={SINGLE_RESET_COST}
                                             className="text-violet-100/90"
@@ -395,7 +401,7 @@ const PairArenaDetailedStatsModal: React.FC<PairArenaDetailedStatsModalProps> = 
 
     return (
         <DraggableWindow
-            title="페어 경기장 상세 전적"
+            title={tGame('pairStats.title')}
             onClose={onClose}
             windowId="pair-arena-detailed-stats"
             initialWidth={isNativeMobile ? 420 : 680}

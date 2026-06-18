@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { tx } from '../../shared/i18n/runtimeText.js';
 import { createPortal } from 'react-dom';
 
 /** 인게임 크롬 전용(모달 z-30보다 아래). 없으면 body 폴백 */
@@ -269,8 +270,8 @@ export const DraggableMoveConfirmPanel: React.FC<{
             <div
                 role="button"
                 tabIndex={0}
-                aria-label="착수 패널 드래그로 위치 조절"
-                title="드래그하여 위치 조절"
+                aria-label={tx("game:moveConfirm.dragAria")}
+                title={tx("game:moveConfirm.dragTitle")}
                 className="flex cursor-grab touch-none select-none items-center justify-center border-b border-gray-700/60 bg-gray-800/95 px-3 py-2 active:cursor-grabbing"
                 style={{ touchAction: 'none' }}
                 onPointerDown={onPointerDownHandle}

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { GuildDonation } from '../../types/entities.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import Button from '../Button.js';
@@ -14,6 +15,7 @@ interface GuildDonationPanelProps {
 }
 
 const GuildDonationPanel: React.FC<GuildDonationPanelProps> = ({ guildId, donations, onDonationsUpdate, onGuildUpdate }) => {
+    const { t } = useTranslation(['guild', 'common']);
     const { handlers, currentUserWithStatus } = useAppContext();
     const [donationAmount, setDonationAmount] = useState('');
     const [loading, setLoading] = useState(false);
@@ -21,12 +23,12 @@ const GuildDonationPanel: React.FC<GuildDonationPanelProps> = ({ guildId, donati
     const handleDonate = async () => {
         const amount = clampGameInt(parseInt(donationAmount, 10) || 0, { min: 1, max: MAX_GAME_INTEGER_INPUT });
         if (!amount || amount <= 0) {
-            alert('기부할 골드를 입력해주세요.');
+            alert(t('donation.enterAmount'));
             return;
         }
 
         if (currentUserWithStatus && currentUserWithStatus.gold < amount) {
-            alert('골드가 부족합니다.');
+            alert(t('donation.insufficientGold'));
             return;
         }
 
@@ -44,7 +46,7 @@ const GuildDonationPanel: React.FC<GuildDonationPanelProps> = ({ guildId, donati
                 alert(result.error);
             }
         } catch (error: any) {
-            alert(error.message || '기부에 실패했습니다.');
+            alert(error.message || t('donation.failed'));
         } finally {
             setLoading(false);
         }
@@ -52,16 +54,16 @@ const GuildDonationPanel: React.FC<GuildDonationPanelProps> = ({ guildId, donati
 
     return (
         <div className="space-y-4">
-            <h2 className="text-xl font-bold text-white">길드 기부</h2>
+            <h2 className="text-xl font-bold text-white">{t('donation.title')}</h2>
             
             <div className="bg-gray-800/50 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-white mb-4">기부하기</h3>
+                <h3 className="text-lg font-semibold text-white mb-4">{t('donation.donateSection')}</h3>
                 <div className="flex gap-2 mb-4">
                     <input
                         type="number"
                         value={donationAmount}
                         onChange={(e) => setDonationAmount(clampDigitsOnlyInputString(e.target.value))}
-                        placeholder="기부할 골드"
+                        placeholder={t('donation.placeholder')}
                         min={1}
                         max={MAX_GAME_INTEGER_INPUT}
                         className="flex-1 px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
@@ -72,26 +74,26 @@ const GuildDonationPanel: React.FC<GuildDonationPanelProps> = ({ guildId, donati
                         disabled={loading || !donationAmount}
                         className="!py-2 !px-4"
                     >
-                        기부
+                        {t('donation.donate')}
                     </Button>
                 </div>
                 <p className="text-sm text-gray-400">
-                    보유 골드: {formatGoldAmountKoG(currentUserWithStatus?.gold ?? 0)}
+                    {t('donation.ownedGold', { amount: formatGoldAmountKoG(currentUserWithStatus?.gold ?? 0) })}
                 </p>
             </div>
 
             <div>
-                <h3 className="text-lg font-semibold text-white mb-4">기부 내역</h3>
+                <h3 className="text-lg font-semibold text-white mb-4">{t('donation.historySection')}</h3>
                 <div className="space-y-2 max-h-96 overflow-y-auto">
                     {donations.length === 0 ? (
-                        <p className="text-gray-400 text-center py-8">기부 내역이 없습니다.</p>
+                        <p className="text-gray-400 text-center py-8">{t('donation.noHistory')}</p>
                     ) : (
                         donations.map((donation) => (
                             <div key={donation.id} className="p-3 bg-gray-800/50 rounded-lg">
                                 <div className="flex items-center justify-between">
                                     <span className="text-white">User {donation.userId}</span>
                                     <span className="text-yellow-400 font-semibold">
-                                        {donation.amount.toLocaleString()} 골드
+                                        {t('donation.goldUnit', { amount: donation.amount.toLocaleString() })}
                                     </span>
                                 </div>
                                 <p className="text-xs text-gray-500 mt-1">
@@ -107,4 +109,3 @@ const GuildDonationPanel: React.FC<GuildDonationPanelProps> = ({ guildId, donati
 };
 
 export default GuildDonationPanel;
-

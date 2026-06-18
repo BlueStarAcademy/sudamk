@@ -1,4 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
+import { useLocalizedItemGrade } from '../shared/i18n/localizedCatalog.js';
+import { useTranslation } from 'react-i18next';
 import { User } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
 import { useAppContext } from '../hooks/useAppContext.js';
@@ -16,12 +18,6 @@ const champBtnBase =
 const champBtnMuted = `${champBtnBase} border-slate-500/45 bg-gradient-to-b from-slate-600/90 via-slate-800/95 to-slate-950 text-slate-100 hover:brightness-110`;
 const champBtnEmerald = `${champBtnBase} border-emerald-300/50 bg-gradient-to-b from-emerald-400/95 via-emerald-600/92 to-emerald-950 text-slate-950 hover:brightness-110`;
 const champBtnAmber = `${champBtnBase} border-amber-300/55 bg-gradient-to-b from-amber-400/92 via-amber-600/88 to-amber-950 text-amber-50 hover:brightness-110`;
-
-const GRADE_LABEL = {
-    normal: '일반',
-    uncommon: '고급',
-    rare: '희귀',
-} as const;
 
 const GRADE_RING = {
     normal: 'border bg-gradient-to-b border-slate-500/55 from-slate-700/90 to-slate-950 text-slate-100',
@@ -44,6 +40,8 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
     onConfirm,
     isTopmost,
 }) => {
+    const { t } = useTranslation('game');
+    const localizedGrade = useLocalizedItemGrade();
     const { handlers, currentUserWithStatus, updateTrigger, modals } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
     const currentUser = currentUserWithStatus ?? propCurrentUser;
@@ -114,7 +112,7 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
 
     return (
         <DraggableWindow
-            title="컨디션 회복"
+            title={t('conditionPotion.recoveryTitle')}
             headerShowTitle
             initialWidth={isNativeMobile ? 360 : 640}
             initialHeight={isNativeMobile ? 500 : 680}
@@ -151,7 +149,7 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
                                 <button
                                     type="button"
                                     key={type}
-                                    title={`${potion.name} · 회복 ${potion.minRecovery}~${potion.maxRecovery} · 보유 ${count}`}
+                                    title={t('conditionPotion.potionTitle', { name: potion.name, min: potion.minRecovery, max: potion.maxRecovery, count })}
                                     onClick={() => setSelectedPotionType(type)}
                                     className={`group relative min-w-0 w-full overflow-hidden rounded-2xl border transition-colors duration-200 ${
                                         isNativeMobile
@@ -245,7 +243,7 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
                     }`}
                 >
                     <div className={`relative flex items-center justify-between ${isNativeMobile ? 'mb-2' : 'mb-3'}`}>
-                        <span className={`font-bold text-slate-200 ${isNativeMobile ? 'text-sm' : 'text-base'}`}>현재 컨디션</span>
+                        <span className={`font-bold text-slate-200 ${isNativeMobile ? 'text-sm' : 'text-base'}`}>{t('conditionPotion.currentLabel')}</span>
                         <span
                             className={`relative font-bold tabular-nums text-amber-50 ${
                                 isNativeMobile ? 'text-2xl' : 'text-3xl'
@@ -266,7 +264,7 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
                     </div>
                     <div className="h-px w-full bg-gradient-to-r from-transparent via-amber-500/25 to-transparent" aria-hidden />
                     <div className={`mt-3 flex items-center justify-between gap-2 ${isNativeMobile ? 'text-sm' : 'text-base'}`}>
-                        <span className="font-semibold text-slate-200">{isNativeMobile ? '회복 후(예상)' : '예상 회복 후 컨디션'}</span>
+                        <span className="font-semibold text-slate-200">{isNativeMobile ? t('conditionPotion.expectedMobile') : t('conditionPotion.expectedDesktop')}</span>
                         <span className="text-right text-lg font-bold tabular-nums text-emerald-200 sm:text-xl">
                             {expectedRecovery ? `${expectedRecovery.min} ~ ${expectedRecovery.max}` : '—'}
                         </span>
@@ -289,7 +287,7 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
                                 : `${champBtnEmerald} flex-1 min-h-[48px] sm:min-h-[52px]`
                         }
                     >
-                        {isApplyingPotion ? '회복 적용 중...' : selectedPotionType && !hasPotion ? '상점으로 이동' : '회복제 사용'}
+                        {isApplyingPotion ? t('conditionPotion.applying') : selectedPotionType && !hasPotion ? t('conditionPotion.goShop') : t('conditionPotion.usePotion')}
                     </button>
                 </div>
             </div>

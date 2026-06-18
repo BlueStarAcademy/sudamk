@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { InventoryItem, ServerAction } from '../../types.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import ResourceActionButton from '../ui/ResourceActionButton.js';
@@ -94,7 +95,7 @@ const ConversionCraftSection: React.FC<{
         >
             <div className="mb-3 shrink-0 text-center">
                 <span className={`block font-bold ${isUpgrade ? 'text-cyan-200' : 'text-slate-100'} ${typo.heading}`}>
-                    {isUpgrade ? '합성' : '분해'}
+                    {isUpgrade ? t('convert.combine') : t('convert.disassemble')}
                 </span>
             </div>
 
@@ -121,8 +122,8 @@ const ConversionCraftSection: React.FC<{
                 <p className={`shrink-0 text-center text-secondary ${typo.body}`}>
                     예상{' '}
                     {yieldMin === yieldMax
-                        ? `${(quantity * yieldMin).toLocaleString()}개`
-                        : `${(quantity * yieldMin).toLocaleString()}~${(quantity * yieldMax).toLocaleString()}개`}
+                        ? t('convert.yieldSingle', { count: (quantity * yieldMin).toLocaleString() })
+                        : t('convert.yieldRange', { min: (quantity * yieldMin).toLocaleString(), max: (quantity * yieldMax).toLocaleString() })}
                 </p>
                 <input
                     id={sliderId}
@@ -133,7 +134,7 @@ const ConversionCraftSection: React.FC<{
                     onChange={handleQuantityChange}
                     disabled={maxQuantity === 0}
                     className="h-2 w-full shrink-0 appearance-none rounded-full bg-slate-800 accent-cyan-300"
-                    aria-label={`${isUpgrade ? '합성' : '분해'} 횟수`}
+                    aria-label={t('convert.quantityAria', { action: isUpgrade ? t('convert.combine') : t('convert.disassemble') })}
                 />
                 <div className={`flex shrink-0 justify-between tabular-nums text-slate-300 ${typo.body}`}>
                     <span>
@@ -147,7 +148,7 @@ const ConversionCraftSection: React.FC<{
                     disabled={quantity === 0 || isBlacksmithBusy}
                     className={`!w-full shrink-0 !py-2.5 ${typo.bodySemi}`}
                 >
-                    {isBlacksmithBusy ? '처리 중...' : `${quantity}회 ${isUpgrade ? '합성' : '분해'}`}
+                    {isBlacksmithBusy ? t('convert.processing') : t('convert.timesSuffix', { count: quantity }) + ' ' + (isUpgrade ? t('convert.combine') : t('convert.disassemble'))}
                 </ResourceActionButton>
             </div>
         </section>
@@ -162,6 +163,7 @@ interface ConversionViewProps {
 }
 
 const ConversionView: React.FC<ConversionViewProps> = ({ onAction, pcViewer = false, stackedViewport = false, isBlacksmithBusy = false }) => {
+    const { t } = useTranslation('blacksmith');
     const { currentUserWithStatus } = useAppContext();
     const [selectedMaterialName, setSelectedMaterialName] = useState<string>(MATERIAL_TIERS[0]);
 
@@ -201,7 +203,7 @@ const ConversionView: React.FC<ConversionViewProps> = ({ onAction, pcViewer = fa
                     className={`flex h-full w-[4.75rem] shrink-0 flex-col justify-between gap-1 overflow-hidden sm:w-[5.5rem] ${
                         stackedViewport ? 'py-0.5' : 'py-1'
                     }`}
-                    aria-label="강화석 선택"
+                    aria-label={t('convert.selectMaterialAria')}
                 >
                     {MATERIAL_TIERS.map((materialName) => {
                         const quantity = getMaterialQuantity(materialName);

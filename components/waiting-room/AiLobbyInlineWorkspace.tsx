@@ -8,6 +8,7 @@ import React, {
     useState,
     type ReactNode,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { ArenaChannel } from '../../shared/types/api.js';
 import type { ServerAction } from '../../types.js';
 import type { GameMode, GameSettings } from '../../types.js';
@@ -89,6 +90,7 @@ export const AiLobbyWorkspaceProvider: React.FC<AiLobbyInlineWorkspaceProps & { 
     onPairMatchModeChange,
     children,
 }) => {
+    const { t } = useTranslation('lobby');
     const [pairMatchMode, setPairMatchMode] = useState<PairAiLobbyMatchMode>('solo');
     const [alertMessage, setAlertMessage] = useState<string | null>(null);
     const pairMatchModeRef = useRef<PairAiLobbyMatchMode>('solo');
@@ -192,7 +194,7 @@ export const AiLobbyWorkspaceProvider: React.FC<AiLobbyInlineWorkspaceProps & { 
     const handlePairStart = useCallback(
         (action: ServerAction) => {
             if (channel === 'pair' && pairMatchMode === 'solo' && !hasEquippedPairPet) {
-                setAlertMessage('페어 AI 대전을 하려면 페어 펫을 장착해야 합니다.');
+                setAlertMessage(t('aiChallengeModal.pairAiPetRequired'));
                 return;
             }
             if (channel === 'pair' && pairMatchMode === 'duo') {
@@ -203,7 +205,7 @@ export const AiLobbyWorkspaceProvider: React.FC<AiLobbyInlineWorkspaceProps & { 
             }
             return (onPairAiAction ?? onAction)(action);
         },
-        [channel, pairMatchMode, hasEquippedPairPet, pairDuoContext, onPairAiAction, onAction],
+        [channel, pairMatchMode, hasEquippedPairPet, pairDuoContext, onPairAiAction, onAction, t],
     );
 
     const pairSubmitDisabled = useMemo(() => {
@@ -215,7 +217,11 @@ export const AiLobbyWorkspaceProvider: React.FC<AiLobbyInlineWorkspaceProps & { 
     const preferredBucket = resolvePreferredBucket(channel);
     const lobbyType = channel === 'playful' ? 'playful' : 'strategic';
     const title =
-        channel === 'playful' ? '놀이 AI대전' : channel === 'pair' ? '페어바둑 AI와 대결하기' : '전략 AI대전';
+        channel === 'playful'
+            ? t('aiChallenge.playful')
+            : channel === 'pair'
+              ? t('aiChallengeModal.pairAiTitle')
+              : t('aiChallenge.strategic');
     const showPairModePicker = channel === 'pair' && Boolean(pairDuoContext);
 
     const value = useMemo(
@@ -242,6 +248,7 @@ export const AiLobbyWorkspaceProvider: React.FC<AiLobbyInlineWorkspaceProps & { 
             preferredBucket,
             lobbyType,
             title,
+            t,
             handlePairStart,
             pairSubmitDisabled,
             onAction,
@@ -266,13 +273,14 @@ export const AiLobbyWorkspaceProvider: React.FC<AiLobbyInlineWorkspaceProps & { 
 };
 
 export const AiLobbyPairMatchModeTabs: React.FC<{ className?: string }> = ({ className }) => {
+    const { t } = useTranslation('lobby');
     const { showPairModePicker, pairMatchMode, trySetPairMatchMode } = useAiLobbyWorkspace();
     if (!showPairModePicker) return null;
     return (
         <div
             className={`grid shrink-0 grid-cols-2 gap-1 rounded-xl border border-fuchsia-500/30 bg-black/30 p-1 ${className ?? ''}`}
             role="tablist"
-            aria-label="페어 AI 대전 형태"
+            aria-label={t('aiChallengeModal.pairAiFormAria')}
         >
             <button
                 type="button"
@@ -284,7 +292,7 @@ export const AiLobbyPairMatchModeTabs: React.FC<{ className?: string }> = ({ cla
                         : 'text-fuchsia-100 hover:bg-fuchsia-950/45'
                 }`}
             >
-                솔로 (펫 페어)
+                {t('aiChallengeModal.soloTab')}
             </button>
             <button
                 type="button"
@@ -296,7 +304,7 @@ export const AiLobbyPairMatchModeTabs: React.FC<{ className?: string }> = ({ cla
                         : 'text-violet-100 hover:bg-violet-950/45'
                 }`}
             >
-                2인 팀
+                {t('aiChallengeModal.duoTab')}
             </button>
         </div>
     );
@@ -327,9 +335,10 @@ export const AiLobbyStandaloneCenterPanel: React.FC<{
     /** PVP↔AI 전환 시 설정·버튼 상태 초기화 */
     remountKey?: string;
 }> = React.memo(({ channel, onAction, className, remountKey = 'pvp' }) => {
+    const { t } = useTranslation('lobby');
     const lobbyType = channel === 'playful' ? 'playful' : 'strategic';
     const preferredBucket = resolvePreferredBucket(channel);
-    const title = channel === 'playful' ? '놀이 AI대전' : '전략 AI대전';
+    const title = channel === 'playful' ? t('aiChallenge.playful') : t('aiChallenge.strategic');
     return (
         <div className={`flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-hidden ${className ?? ''}`}>
             <div className={aiChallengeModalShellClass}>
@@ -343,7 +352,7 @@ export const AiLobbyStandaloneCenterPanel: React.FC<{
                     onAction={onAction}
                     startActionType="START_AI_GAME"
                     title={title}
-                    submitLabel="AI와 대결 시작"
+                    submitLabel={t('aiChallengeModal.startAiDuel')}
                 />
             </div>
         </div>
@@ -352,6 +361,7 @@ export const AiLobbyStandaloneCenterPanel: React.FC<{
 
 /** 페어 AI 중앙: 인라인 게임모드+설정 (+ 2인 팀 슬롯) */
 export const AiLobbyCenterPanel: React.FC<{ className?: string }> = ({ className }) => {
+    const { t } = useTranslation('lobby');
     const {
         channel,
         pairMatchMode,
@@ -384,7 +394,7 @@ export const AiLobbyCenterPanel: React.FC<{ className?: string }> = ({ className
                     onAction={handlePairStart}
                     startActionType="PAIR_START_AI_MATCH"
                     title={title}
-                    submitLabel="AI와 대국 시작"
+                    submitLabel={t('aiChallengeModal.startAiGame')}
                     submitDisabled={pairSubmitDisabled}
                     showActionPointCost
                     transformSettingsBeforeStart={transformPairAiSettings}
@@ -397,6 +407,7 @@ export const AiLobbyCenterPanel: React.FC<{ className?: string }> = ({ className
 
 /** 모바일 페어 AI: 솔로/2인 탭 + 인라인 설정 (+ 2인 팀 슬롯) */
 export const AiLobbyMobileWorkspace: React.FC<{ className?: string }> = ({ className }) => {
+    const { t } = useTranslation('lobby');
     const {
         channel,
         pairMatchMode,
@@ -429,7 +440,7 @@ export const AiLobbyMobileWorkspace: React.FC<{ className?: string }> = ({ class
                     onAction={handlePairStart}
                     startActionType="PAIR_START_AI_MATCH"
                     title={title}
-                    submitLabel="AI와 대국 시작"
+                    submitLabel={t('aiChallengeModal.startAiGame')}
                     submitDisabled={pairSubmitDisabled}
                     showActionPointCost
                     transformSettingsBeforeStart={transformPairAiSettings}

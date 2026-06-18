@@ -1,4 +1,6 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { tx } from '../../shared/i18n/runtimeText.js';
 import type { InventoryItem } from '../../types.js';
 import { ItemGrade } from '../../types/enums.js';
 import { gradeBackgrounds, gradeStyles, EQUIPMENT_GRADE_LABEL_KO } from '../../shared/constants/items.js';
@@ -47,7 +49,7 @@ function soulTrainingRewardUsageDetail(materialName: string): string {
         if (def.soulTable.some((r) => r.materialName === materialName)) slots.push(def.slotIndex + 1);
     }
     if (!slots.length) return '';
-    return `[슬롯 ${slots.join('·')}]`;
+    return tx('pair:soulStone.slotList', { slots: slots.join('·') });
 }
 
 function soulConvertAcquireDetail(materialName: string): string {
@@ -67,10 +69,10 @@ function soulPetShopAcquireDetail(materialName: string): string {
     if (!sku) return '';
     const price =
         sku.diamonds > 0
-            ? `[다이아 ${formatWalletDiamonds(sku.diamonds)}]`
-            : `[골드 ${formatGoldAmountKoG(sku.gold)}]`;
+            ? tx('pair:soulStone.diamondPrice', { price: formatWalletDiamonds(sku.diamonds) })
+            : tx('pair:soulStone.goldPrice', { price: formatGoldAmountKoG(sku.gold) });
     if (isPairPetShopSkuUnlimitedDaily(sku.dailyLimit)) return price;
-    return `${price} [일일 ${sku.dailyLimit}회]`;
+    return tx('pair:soulStone.dailyLimitPrice', { price, limit: sku.dailyLimit });
 }
 
 /** `PET_PANEL_TRAIT_BOX`의 `flex-1 basis-0`는 세로 스택에서 높이 0으로 접힘 — 영혼석 전용 */
@@ -101,6 +103,7 @@ const PairPetLobbySoulStoneViewer: React.FC<PairPetLobbySoulStoneViewerProps> = 
     onSellOne,
     onOpenBulkSell,
 }) => {
+    const { t } = useTranslation('pair');
     const grade = itemGradeSafe(item.grade);
     const gradeStyle = gradeStyles[grade] ?? gradeStyles[ItemGrade.Normal];
     const gradeKo = EQUIPMENT_GRADE_LABEL_KO[grade] ?? grade;
@@ -150,7 +153,7 @@ const PairPetLobbySoulStoneViewer: React.FC<PairPetLobbySoulStoneViewerProps> = 
                         <h3 className={PET_PANEL_NAME}>{item.name}</h3>
                         <div className={`flex min-w-0 justify-end ${PET_PANEL_EXP}`}>
                             <span className="font-mono font-semibold tabular-nums text-amber-200">
-                                보유 ×{qty.toLocaleString()}
+{t('soulStone.ownedQty', { qty: qty.toLocaleString() })}
                             </span>
                         </div>
                         {item.description ? (
@@ -163,11 +166,11 @@ const PairPetLobbySoulStoneViewer: React.FC<PairPetLobbySoulStoneViewerProps> = 
                     className={`relative z-[1] flex min-h-0 min-w-0 flex-col items-stretch bg-zinc-950/92 ${PET_PANEL_ROW_PAD} ${PET_PANEL_TRAIT_GAP}`}
                 >
                     <div className={traitBoxCyan}>
-                        <p className={`${PET_PANEL_TRAIT_TITLE} text-cyan-200/90`}>사용처</p>
+                        <p className={`${PET_PANEL_TRAIT_TITLE} text-cyan-200/90`}>{t('soulStone.usage')}</p>
                         <p className={`${soulTraitBody} text-slate-100/95`}>
-                            <span className="text-violet-300">[펫]</span>
+                            <span className="text-violet-300">{t('soulStone.petTag')}</span>
                             <span className="mx-1 text-slate-500">-</span>
-                            <span className="text-slate-200">[등급 강화]</span>
+                            <span className="text-slate-200">{t('soulStone.gradeUpgradeTag')}</span>
                             {usageUpgrade ? (
                                 <span className="ml-1 inline-flex flex-wrap items-center gap-x-0.5">
                                     <span className={gradeStyles[usageUpgrade.from]?.color ?? 'text-slate-200'}>
@@ -178,38 +181,38 @@ const PairPetLobbySoulStoneViewer: React.FC<PairPetLobbySoulStoneViewerProps> = 
                                         [{gradeStyles[usageUpgrade.to]?.name ?? ''}]
                                     </span>
                                     <span className="text-amber-200/95 tabular-nums">
-                                        · 펫 Lv.{usageUpgrade.minLevel} 이상
+                                        {t('soulStone.petLevelMin', { level: usageUpgrade.minLevel })}
                                     </span>
                                 </span>
                             ) : (
-                                <span className="ml-1 text-slate-400">등급 강화에 사용</span>
+                                <span className="ml-1 text-slate-400">{t('soulStone.usedForGradeUpgrade')}</span>
                             )}
                         </p>
                     </div>
                     <div className={traitBoxAmber}>
-                        <p className={`${PET_PANEL_TRAIT_TITLE} text-amber-200/90`}>획득처</p>
+                        <p className={`${PET_PANEL_TRAIT_TITLE} text-amber-200/90`}>{t('soulStone.acquire')}</p>
                         <div className="flex flex-col gap-1">
                             <p className={`${soulTraitBody} text-slate-100/95`}>
-                                <span className="text-violet-300">[펫]</span>
+                                <span className="text-violet-300">{t('soulStone.petTag')}</span>
                                 <span className="mx-1 text-slate-500">-</span>
-                                <span className="text-slate-200">[수련 보상]</span>
+                                <span className="text-slate-200">{t('soulStone.trainingRewardTag')}</span>
                                 <span className="ml-1 text-cyan-200">
-                                    {acquireTraining || '해당 슬롯 없음'}
+                                    {acquireTraining || t('soulStone.noMatchingSlot')}
                                 </span>
                             </p>
                             <p className={`${soulTraitBody} text-slate-100/95`}>
-                                <span className="text-violet-300">[펫]</span>
+                                <span className="text-violet-300">{t('soulStone.petTag')}</span>
                                 <span className="mx-1 text-slate-500">-</span>
-                                <span className="text-slate-200">[영혼 변환]</span>
+                                <span className="text-slate-200">{t('soulStone.soulConvertTag')}</span>
                                 <span className="ml-1 text-fuchsia-200">
-                                    {acquireConvert || '해당 등급 없음'}
+                                    {acquireConvert || t('soulStone.noMatchingGrade')}
                                 </span>
                             </p>
                             <p className={`${soulTraitBody} text-slate-100/95`}>
-                                <span className="text-violet-300">[펫]</span>
+                                <span className="text-violet-300">{t('soulStone.petTag')}</span>
                                 <span className="mx-1 text-slate-500">-</span>
-                                <span className="text-slate-200">[펫 상점]</span>
-                                <span className="ml-1 text-amber-100">{acquireShop || '판매 없음'}</span>
+                                <span className="text-slate-200">{t('soulStone.petShopTag')}</span>
+                                <span className="ml-1 text-amber-100">{acquireShop || t('soulStone.notSold')}</span>
                             </p>
                             {acquireFallbackLines.length > 0 &&
                             !acquireTraining &&
@@ -233,7 +236,7 @@ const PairPetLobbySoulStoneViewer: React.FC<PairPetLobbySoulStoneViewerProps> = 
                     onClick={onSellOne}
                     className={soulSellBtnClass}
                 >
-                    판매
+                    {t('soulStone.sell')}
                 </button>
                 {totalSoulQuantity > 1 ? (
                     <button
@@ -242,7 +245,7 @@ const PairPetLobbySoulStoneViewer: React.FC<PairPetLobbySoulStoneViewerProps> = 
                         onClick={onOpenBulkSell}
                         className={soulBulkSellBtnClass}
                     >
-                        일괄 판매
+                        {t('soulStone.bulkSell')}
                     </button>
                 ) : null}
             </div>

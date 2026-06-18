@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import DraggableWindow from './DraggableWindow.js';
 import { RANKING_TIERS, SEASONAL_TIER_REWARDS, CONSUMABLE_ITEMS } from '../constants';
 import { QuestReward } from '../types.js';
@@ -9,16 +10,21 @@ interface TierInfoModalProps {
 }
 
 const TierInfoModal: React.FC<TierInfoModalProps> = ({ onClose }) => {
-    const tierRequirements: Record<string, string> = {
-        '챌린저': '최소 점수 3500 이상 & 상위 100명 한정',
-        '마스터': '최소 점수 3000 이상',
-        '다이아': '최소 점수 2400 이상',
-        '플래티넘': '최소 점수 2000 이상',
-        '골드': '최소 점수 1700 이상',
-        '실버': '최소 점수 1500 이상',
-        '브론즈': '최소 점수 1400 이상',
-        '루키': '최소 점수 1300 이상',
-        '새싹': '1300 미만 또는 랭킹 대국 50판 미만',
+    const { t } = useTranslation('inventory');
+    const tierKeyByName: Record<string, string> = {
+        '챌린저': 'champion',
+        '마스터': 'master',
+        '다이아': 'diamond',
+        '플래티넘': 'platinum',
+        '골드': 'gold',
+        '실버': 'silver',
+        '브론즈': 'bronze',
+        '루키': 'iron',
+        '새싹': 'unranked',
+    };
+    const tierRequirement = (name: string) => {
+        const key = tierKeyByName[name];
+        return key ? t(`tierInfo.${key}`) : 'N/A';
     };
 
     const getItemImage = (itemName: string): string | null => {
@@ -29,7 +35,7 @@ const TierInfoModal: React.FC<TierInfoModalProps> = ({ onClose }) => {
 
     const renderReward = (tierName: string) => {
         const reward: QuestReward | undefined = SEASONAL_TIER_REWARDS[tierName];
-        if (!reward) return <span className="text-gray-500">보상 정보 없음</span>;
+        if (!reward) return <span className="text-gray-500">{t('tierInfo.noReward')}</span>;
         
         const rewardsToShow: { name: string, image: string | null }[] = [];
         if (reward.diamonds) {
@@ -58,22 +64,22 @@ const TierInfoModal: React.FC<TierInfoModalProps> = ({ onClose }) => {
     };
 
     return (
-        <DraggableWindow title="시즌 랭킹 티어 안내" onClose={onClose} windowId="ranking-tier-info-modal" initialWidth={600}>
+        <DraggableWindow title={t('tierInfo.title')} onClose={onClose} windowId="ranking-tier-info-modal" initialWidth={600}>
             <div className="space-y-4">
                 <p className="text-sm text-gray-300">
-                    각 게임 모드의 랭킹 점수에 따라 시즌 티어가 결정됩니다. 티어는 시즌 종료 시 랭킹 순위에 따라 확정되며, 보상이 지급됩니다.
+                    {t('tierInfo.intro')}
                 </p>
 
                 <div className="bg-gray-900/50 p-3 rounded-lg">
-                    <h4 className="font-bold text-lg text-yellow-300 mb-2">시즌 일정</h4>
+                    <h4 className="font-bold text-lg text-yellow-300 mb-2">{t('tierInfo.scheduleTitle')}</h4>
                     <ul className="text-sm text-gray-300 space-y-1">
-                        <li><span className="font-semibold">시즌 1:</span> 1월 1일 ~ 3월 31일</li>
-                        <li><span className="font-semibold">시즌 2:</span> 4월 1일 ~ 6월 30일</li>
-                        <li><span className="font-semibold">시즌 3:</span> 7월 1일 ~ 9월 30일</li>
-                        <li><span className="font-semibold">시즌 4:</span> 10월 1일 ~ 12월 31일</li>
+                        <li>{t('tierInfo.season1')}</li>
+                        <li>{t('tierInfo.season2')}</li>
+                        <li>{t('tierInfo.season3')}</li>
+                        <li>{t('tierInfo.season4')}</li>
                     </ul>
                     <p className="text-xs text-gray-400 mt-2">
-                        각 시즌 종료 시 랭킹이 초기화되고 보상이 지급됩니다.
+                        {t('tierInfo.seasonResetDesc')}
                     </p>
                 </div>
 
@@ -84,11 +90,11 @@ const TierInfoModal: React.FC<TierInfoModalProps> = ({ onClose }) => {
                                 <img src={tier.icon} alt={tier.name} className="w-12 h-12 mr-4 flex-shrink-0" />
                                 <div className="flex-grow">
                                     <p className={`font-bold text-lg ${tier.color}`}>{tier.name}</p>
-                                    <p className="text-sm text-gray-400">{tierRequirements[tier.name] || 'N/A'}</p>
+                                    <p className="text-sm text-gray-400">{tierRequirement(tier.name)}</p>
                                 </div>
                             </div>
                             <div className="mt-2 pt-2 border-t border-gray-700/50">
-                                <h5 className="text-xs font-semibold text-gray-400 mb-1.5">시즌 종료 보상</h5>
+                                <h5 className="text-xs font-semibold text-gray-400 mb-1.5">{t('tierInfo.endReward')}</h5>
                                 {renderReward(tier.name)}
                             </div>
                         </li>

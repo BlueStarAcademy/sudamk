@@ -14,6 +14,8 @@ import {
     isChampionshipDungeonPve,
     isChampionshipRealGameFirstArrival,
 } from '../shared/utils/championshipSimulationMatchKey.js';
+import i18n from '../shared/i18n/config.js';
+import { tx } from '../shared/i18n/runtimeText.js';
 
 const TOTAL_GAME_DURATION = 50;
 // 챔피언십 실대국 중계 배속별 수당 간격(ms).
@@ -114,37 +116,15 @@ function mergeResolvedPlayersKeepPrevSimStats(
 
 const getStorageKey = (userId: string, type: TournamentState['type']) => `tournamentSimulation_${userId}_${type}`;
 
-// 좋은 수(bestMove) 이벤트 멘트 풀 — {nickname} 토큰을 선수 이름으로 치환해 사용한다.
-const BEST_MOVE_COMMENTARY_TEMPLATES: readonly string[] = [
-    '{nickname}의 좋은 수가 나왔습니다.',
-    '{nickname}의 신의 한 수가 나왔습니다!',
-    '{nickname}의 멋진 묘수가 빛납니다.',
-    '{nickname}의 날카로운 한 수가 작렬했습니다.',
-    '{nickname}의 노련한 한 수가 돋보입니다.',
-    '{nickname}이(가) 결정적인 호수를 두었습니다.',
-    '{nickname}의 침착한 명수가 형세를 흔듭니다.',
-    '{nickname}이(가) 절묘한 한 수로 응수합니다.',
-    '{nickname}의 통렬한 일격이 들어갔습니다!',
-    '{nickname}의 한 수에 해설진이 감탄합니다.',
-];
+const commentaryTemplates = (key: 'bestMove' | 'mistake'): readonly string[] => {
+    const templates = i18n.t(`tournament:commentary.${key}`, { returnObjects: true });
+    return Array.isArray(templates) ? (templates as string[]) : [];
+};
 
-// 실수(mistake) 이벤트 멘트 풀.
-const MISTAKE_COMMENTARY_TEMPLATES: readonly string[] = [
-    '{nickname}의 실수가 나왔습니다.',
-    '{nickname}의 한 수가 흔들립니다.',
-    '{nickname}이(가) 잠시 균형을 잃었습니다.',
-    '{nickname}의 착점이 다소 어긋났습니다.',
-    '{nickname}의 손길이 평소답지 않게 흔들렸습니다.',
-    '{nickname}의 판단이 살짝 빗나갑니다.',
-    '{nickname}의 수읽기에 빈틈이 보입니다.',
-    '{nickname}의 한 수가 아쉬움을 남깁니다.',
-    '{nickname}이(가) 의외의 악수를 둡니다.',
-    '{nickname}의 집중력이 잠시 흐트러졌습니다.',
-];
-
-const pickFromTemplates = (templates: readonly string[], nickname: string): string => {
-    const template = templates[Math.floor(Math.random() * templates.length)] ?? templates[0]!;
-    return template.replace('{nickname}', nickname);
+const pickFromTemplates = (key: 'bestMove' | 'mistake', nickname: string): string => {
+    const templates = commentaryTemplates(key);
+    const template = templates[Math.floor(Math.random() * templates.length)] ?? templates[0] ?? '';
+    return template.replace(/\{nickname\}/g, nickname);
 };
 
 /** 초·중·종을 각각 maxPly의 1/3 구간으로 나눈다 (예: 180수 → 1~60 / 61~120 / 121~180). */
@@ -155,33 +135,57 @@ const phaseThirdStarts = (maxPly: number): { midStart: number; endStart: number 
 
 const phaseMetaForPly = (ply: number, maxPly: number): { phase: CommentaryPhase; label: string } => {
     const { midStart, endStart } = phaseThirdStarts(maxPly);
-    if (ply >= endStart) return { phase: 'end', label: '종반전' };
-    if (ply >= midStart) return { phase: 'mid', label: '중반전' };
-    return { phase: 'early', label: '초반전' };
+    if (ply >= endStart) return { phase: 'end', label: tx('tournament:commentary.phaseEndLabel') };
+    if (ply >= midStart) return { phase: 'mid', label: tx('tournament:commentary.phaseMidLabel') };
+    return { phase: 'early', label: tx('tournament:commentary.phaseEarlyLabel') };
 };
 
 const phaseStartMessageForPly = (ply: number, maxPly: number): { phase: CommentaryPhase; text: string } | null => {
     const { midStart, endStart } = phaseThirdStarts(maxPly);
     if (ply === 1) {
-        return { phase: 'early', text: '초반전이 시작되었습니다. 포석과 첫 전투 흐름을 살펴봅니다.' };
+        return { phase: 'early', text: tx('tournament:commentary.phaseEarlyStart') };
     }
     if (ply === midStart) {
-        return { phase: 'mid', text: '중반전이 시작되었습니다. 중앙 싸움과 형세 다툼이 거세집니다.' };
+        return { phase: 'mid', text: tx('tournament:commentary.phaseMidStart') };
     }
     if (ply === endStart) {
-        return { phase: 'end', text: '종반전이 시작되었습니다. 집 계산과 세세한 손익이 중요해집니다.' };
+        return { phase: 'end', text: tx('tournament:commentary.phaseEndStart') };
     }
     return null;
 };
 
 const describeCurrentMatch = (tournament: TournamentState, match: NonNullable<TournamentState['rounds'][number]['matches'][number]>) => {
     const roundIndex = tournament.currentSimulatingMatch?.roundIndex ?? -1;
-    const roundName = tournament.rounds[roundIndex]?.name ?? '현재 라운드';
-    const p1Name = match.players[0]?.nickname ?? '선수 1';
-    const p2Name = match.players[1]?.nickname ?? '선수 2';
+    const roundName = tournament.rounds[roundIndex]?.name ?? tx('tournament:commentary.defaultRound');
+    const p1Name = match.players[0]?.nickname ?? tx('tournament:commentary.defaultPlayer1');
+    const p2Name = match.players[1]?.nickname ?? tx('tournament:commentary.defaultPlayer2');
     const finishedUserMatches = tournament.rounds.flatMap(round => round.matches).filter(m => m.isUserMatch && m.isFinished).length;
-    const headline = finishedUserMatches > 0 ? '다음 경기가 시작되었습니다.' : '경기가 시작되었습니다.';
+    const headline = finishedUserMatches > 0
+        ? tx('tournament:commentary.matchStartNext')
+        : tx('tournament:commentary.matchStartFirst');
     return { roundName, p1Name, p2Name, headline };
+};
+
+const formatChampionshipMatchResultLines = (
+    roundName: string,
+    winner: { nickname?: string } | undefined,
+    blackPlayer: { nickname?: string } | undefined,
+    whitePlayer: { nickname?: string } | undefined,
+    finalScore: { scoreLead?: number; black?: number; white?: number } | null | undefined,
+): readonly [string, string] => {
+    const winnerName = winner?.nickname ?? tx('tournament:commentary.defaultWinner');
+    const points = Math.abs(finalScore?.scoreLead ?? 0).toFixed(1);
+    return [
+        tx('tournament:commentary.finalScore', { winner: winnerName, points }),
+        tx('tournament:commentary.matchResult', {
+            roundName,
+            winner: winnerName,
+            blackName: blackPlayer?.nickname ?? tx('tournament:black'),
+            blackScore: finalScore?.black?.toFixed(1) ?? '-',
+            whiteName: whitePlayer?.nickname ?? tx('tournament:white'),
+            whiteScore: finalScore?.white?.toFixed(1) ?? '-',
+        }),
+    ];
 };
 
 const readPersistedSimulation = (userId: string, type: TournamentState['type']): PersistedTournamentSimulation | null => {
@@ -741,13 +745,20 @@ export const useTournamentSimulation = (
                         const winner = lt.players.find(p => p.id === rg2.winnerId);
                         const blackPlayer = lt.players.find(p => p.id === rg2.blackPlayerId);
                         const whitePlayer = lt.players.find(p => p.id === rg2.whitePlayerId);
+                        const [finalScoreLine, matchResultLine] = formatChampionshipMatchResultLines(
+                            md.roundName,
+                            winner,
+                            blackPlayer,
+                            whitePlayer,
+                            rg2.finalScore,
+                        );
                         c.push({
-                            text: `[최종계가] ${winner?.nickname ?? '승자'}, ${Math.abs(rg2.finalScore?.scoreLead ?? 0).toFixed(1)}집 승리`,
+                            text: finalScoreLine,
                             phase: 'end',
                             isRandomEvent: false,
                         });
                         c.push({
-                            text: `[경기 결과] ${md.roundName} 종료 - ${winner?.nickname ?? '승자'} 승리. 흑 ${blackPlayer?.nickname ?? '흑'} ${rg2.finalScore?.black.toFixed(1) ?? '-'}집, 백 ${whitePlayer?.nickname ?? '백'} ${rg2.finalScore?.white.toFixed(1) ?? '-'}집.`,
+                            text: matchResultLine,
                             phase: 'end',
                             isRandomEvent: false,
                         });
@@ -798,7 +809,14 @@ export const useTournamentSimulation = (
                 if (!alreadyAnnounced) {
                     announcedStartMatchKeyRef.current = startMatchKey;
                     commentary.push({
-                        text: `[경기 시작] ${matchDescription.headline} ${matchDescription.roundName} - ${matchDescription.p1Name} vs ${matchDescription.p2Name}, ${realGame.boardSize}줄 ${realGame.maxPly}수 대국입니다.`,
+                        text: tx('tournament:commentary.matchStartBanner', {
+                            headline: matchDescription.headline,
+                            roundName: matchDescription.roundName,
+                            p1: matchDescription.p1Name,
+                            p2: matchDescription.p2Name,
+                            boardSize: realGame.boardSize,
+                            maxPly: realGame.maxPly,
+                        }),
                         phase: 'early',
                         isRandomEvent: false,
                     });
@@ -839,13 +857,13 @@ export const useTournamentSimulation = (
                 if (move) {
                     const actor = localTournament.players.find(p => p.id === move.actorId);
                     if (event) {
-                        const nickname = actor?.nickname ?? '선수';
+                        const nickname = actor?.nickname ?? tx('tournament:defaultPlayer');
                         const eventBody = event.type === 'mistake'
-                            ? pickFromTemplates(MISTAKE_COMMENTARY_TEMPLATES, nickname)
-                            : pickFromTemplates(BEST_MOVE_COMMENTARY_TEMPLATES, nickname);
+                            ? pickFromTemplates('mistake', nickname)
+                            : pickFromTemplates('bestMove', nickname);
                         commentary.push({
                             // 이벤트가 발생한 수 번호를 멘트 앞에 [N수] 형태로 표기한다.
-                            text: `[${cappedPly}수] ${eventBody}`,
+                            text: tx('tournament:commentary.moveEvent', { ply: cappedPly, body: eventBody }),
                             phase: phaseMeta.phase,
                             isRandomEvent: true,
                         });
@@ -889,7 +907,7 @@ export const useTournamentSimulation = (
 
                     const beginScoringPhase = () => {
                         commentary.push({
-                            text: `${realGame.maxPly}수 진행이 완료되어 계가 중입니다...`,
+                            text: tx('tournament:commentary.scoringInProgress', { maxPly: realGame.maxPly }),
                             phase: 'end',
                             isRandomEvent: false,
                         });
@@ -945,13 +963,20 @@ export const useTournamentSimulation = (
                             const winner = localTournament.players.find(p => p.id === realGame.winnerId);
                             const blackPlayer = localTournament.players.find(p => p.id === realGame.blackPlayerId);
                             const whitePlayer = localTournament.players.find(p => p.id === realGame.whitePlayerId);
+                            const [finalScoreLine, matchResultLine] = formatChampionshipMatchResultLines(
+                                matchDescription.roundName,
+                                winner,
+                                blackPlayer,
+                                whitePlayer,
+                                realGame.finalScore,
+                            );
                             commentary.push({
-                                text: `[최종계가] ${winner?.nickname ?? '승자'}, ${Math.abs(realGame.finalScore?.scoreLead ?? 0).toFixed(1)}집 승리`,
+                                text: finalScoreLine,
                                 phase: 'end',
                                 isRandomEvent: false,
                             });
                             commentary.push({
-                                text: `[경기 결과] ${matchDescription.roundName} 종료 - ${winner?.nickname ?? '승자'} 승리. 흑 ${blackPlayer?.nickname ?? '흑'} ${realGame.finalScore?.black.toFixed(1) ?? '-'}집, 백 ${whitePlayer?.nickname ?? '백'} ${realGame.finalScore?.white.toFixed(1) ?? '-'}집.`,
+                                text: matchResultLine,
                                 phase: 'end',
                                 isRandomEvent: false,
                             });
@@ -1158,8 +1183,11 @@ export const useTournamentSimulation = (
                     }
 
                     const finalCommentaryText = scoreDiff < 0.5
-                        ? `[최종결과] ${winnerNickname}, 0.5집 승리!`
-                        : `[최종결과] ${winnerNickname}, ${scoreDiff.toFixed(1)}집 승리!`;
+                        ? tx('tournament:commentary.finalResultHalfPoint', { winner: winnerNickname })
+                        : tx('tournament:commentary.finalResultPoints', {
+                              winner: winnerNickname,
+                              points: scoreDiff.toFixed(1),
+                          });
 
                     commentaryRef.current.push({
                         text: finalCommentaryText,
@@ -1167,7 +1195,7 @@ export const useTournamentSimulation = (
                         isRandomEvent: false
                     });
                     commentaryRef.current.push({
-                        text: `${winnerNickname}님이 승리했습니다!`,
+                        text: tx('tournament:commentary.winnerCelebration', { winner: winnerNickname }),
                         phase: 'end',
                         isRandomEvent: false
                     });

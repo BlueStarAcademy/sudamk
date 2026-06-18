@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import React, { useEffect, useRef, useState } from 'react';
 import { useAdContext } from './AdProvider.js';
 import type { AdBannerPosition, AdBannerSize } from '../../types/ads.js';
@@ -38,6 +39,7 @@ function getSlotId(position: AdBannerPosition): string {
 }
 
 const AdBanner: React.FC<AdBannerProps> = ({ position, className = '' }) => {
+  const { t } = useTranslation('common');
   const { isAdReady, isProduction, clientId, isAdFree } = useAdContext();
   const adRef = useRef<HTMLModElement>(null);
   const pushedRef = useRef(false);
@@ -106,7 +108,7 @@ const AdBanner: React.FC<AdBannerProps> = ({ position, className = '' }) => {
         className="bg-gray-800/50 border border-dashed border-gray-600 rounded flex w-full max-w-full items-center justify-center text-gray-500 text-xs"
         style={{ height: size.height, minHeight: size.height }}
       >
-        광고 영역 ({size.width}×{size.height})
+        {t('ads.bannerPlaceholder', { width: size.width, height: size.height })}
       </div>
     </div>
   );

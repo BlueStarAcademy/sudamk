@@ -1,4 +1,5 @@
 import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { CORE_STATS_DATA } from '../../constants/index.js';
 import type { InventoryItem, PairPetMeta, User } from '../../types.js';
 import { ItemGrade } from '../../types/enums.js';
@@ -14,6 +15,7 @@ import { gradeBackgrounds, gradeStyles, EQUIPMENT_GRADE_LABEL_KO } from '../../s
 import PairPetBadukPhaseStripAndCoreGrid from './PairPetBadukPhaseStripAndCoreGrid.js';
 import PairPetRpsBadge from './PairPetRpsBadge.js';
 import { resolvePairPetRpsAttributeFromMeta } from '../../shared/utils/pairPetRps.js';
+import { tx } from '../../shared/i18n/runtimeText.js';
 import {
     PET_PANEL_BADGE,
     PET_PANEL_BAR,
@@ -39,35 +41,35 @@ import {
 
 function dispositionLabel(meta: PairPetMeta['disposition']): string {
     if (meta.kind === 'all') {
-        return `모든 능력치 +${meta.pct}%`;
+        return tx('pair:pet.dispositionAllStats', { pct: meta.pct });
     }
     if (meta.kind === 'convert') {
         const fromName = CORE_STATS_DATA[meta.fromStat]?.name ?? meta.fromStat;
         const toName = CORE_STATS_DATA[meta.toStat]?.name ?? meta.toStat;
-        return `${fromName} ${meta.pct}% → ${toName} (2배)`;
+        return tx('pair:pet.dispositionConvert', { from: fromName, to: toName, pct: meta.pct });
     }
     const name = CORE_STATS_DATA[meta.stat]?.name ?? meta.stat;
-    return `${name} +${meta.pct}%`;
+    return tx('pair:pet.dispositionSingle', { stat: name, pct: meta.pct });
 }
 
 function specializationLabel(spec: PairPetMeta['specialization']): string {
     switch (spec.kind) {
         case 'trainingXp':
-            return `수련 경험치 +${spec.pct}%`;
+            return tx('pair:pet.specTrainingXp', { pct: spec.pct });
         case 'trainingGold':
-            return `수련 골드 +${spec.pct}%`;
+            return tx('pair:pet.specTrainingGold', { pct: spec.pct });
         case 'trainingTime':
-            return `수련 시간 -${spec.pct}%`;
+            return tx('pair:pet.specTrainingTime', { pct: spec.pct });
         case 'soulDrop':
-            return `수련 영혼석 획득 +${spec.pct}%`;
+            return tx('pair:pet.specSoulDrop', { pct: spec.pct });
         case 'trainingSoulQuantityPlusOne':
-            return '수련 영혼석 획득 수량 +1';
+            return tx('pair:pet.specSoulQtyPlusOne');
         case 'strategicArenaApMinusOne':
-            return '전략 경기장 필요 행동력 -1';
+            return tx('pair:pet.specStrategicAp');
         case 'pairArenaApMinusOne':
-            return '페어 경기장 필요 행동력 -1';
+            return tx('pair:pet.specPairAp');
         case 'playfulArenaApMinusOne':
-            return '놀이 경기장 필요 행동력 -1';
+            return tx('pair:pet.specPlayfulAp');
         default:
             return '';
     }
@@ -193,6 +195,7 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
     petManagementModal = false,
     profileHomeColumn = false,
 }) => {
+    const { t } = useTranslation(['pair', 'game']);
     const meta = useMemo(() => resolvePairPetMetaFromInventoryRow(item), [item]);
     const rpsAttr = useMemo(
         () => resolvePairPetRpsAttributeFromMeta(meta, item.id, item.createdAt ?? Date.now()),
@@ -357,7 +360,7 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
                     <div className={panelCompact ? PET_PANEL_HERO_META_COL : `flex min-w-0 flex-col justify-center text-left gap-1 sm:gap-1.5`}>
                         <div className={`flex items-center ${panelCompact ? 'min-w-0 flex-nowrap gap-0.5' : 'flex-wrap gap-x-1 gap-y-0.5'}`}>
                             <span className={`${badgeClass} ${gradeStyle.color} bg-black/45`}>{gradeKo}</span>
-                            {showRepresentativeBadge ? <span className={repBadgeClass}>대표펫</span> : null}
+                            {showRepresentativeBadge ? <span className={repBadgeClass}>{t('pet.representativePet')}</span> : null}
                         </div>
                         <div className={`flex items-baseline ${panelCompact ? 'min-w-0 flex-nowrap gap-0.5 overflow-hidden' : 'flex-wrap gap-x-1 gap-y-0'}`}>
                             <span className={lvClass}>Lv.{levelSafe}</span>
@@ -375,7 +378,7 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
                                                   : 'text-sm sm:text-[0.95rem]'
                                         }`}
                                     >
-                                        등급 강화 필요
+                                        {t('pet.gradeUpgradeNeeded')}
                                     </span>
                                 </div>
                             ) : (
@@ -411,11 +414,11 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
                     className={`relative z-[1] flex min-h-0 min-w-0 flex-row items-stretch bg-zinc-950/92 ${rowPad} ${traitRowGap}`}
                 >
                     <div className={traitBoxFuchsia}>
-                        <p className={traitTitleFuchsia}>성향</p>
+                        <p className={traitTitleFuchsia}>{t('pet.disposition')}</p>
                         <p className={traitBodyFuchsia}>{dispositionLabel(meta.disposition)}</p>
                     </div>
                     <div className={traitBoxAmber}>
-                        <p className={traitTitleAmber}>특화</p>
+                        <p className={traitTitleAmber}>{t('pet.specialization')}</p>
                         <p className={traitBodyAmber}>{specializationLabel(meta.specialization)}</p>
                     </div>
                 </div>

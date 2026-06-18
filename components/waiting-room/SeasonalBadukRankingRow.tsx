@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AVATAR_POOL, BORDER_POOL } from '../../constants';
 import Avatar from '../Avatar.js';
 
@@ -43,6 +44,7 @@ const SeasonalBadukRankingRow: React.FC<SeasonalBadukRankingRowProps> = ({
     currentUserId,
     currentUserLevel,
 }) => {
+    const { t } = useTranslation('lobby');
     const wins = user.wins || 0;
     const losses = user.losses || 0;
     const winRate = wins + losses > 0 ? Math.round((wins / (wins + losses)) * 100) : 0;
@@ -154,7 +156,7 @@ const SeasonalBadukRankingRow: React.FC<SeasonalBadukRankingRowProps> = ({
             key={user.id}
             className={`flex min-w-0 items-center ${rowPad} rounded-lg transition-all duration-300 ${rankStyle.container} ${isClickable ? 'cursor-pointer hover:scale-[1.01] hover:-translate-y-0.5' : ''}`}
             onClick={isClickable ? () => onViewUser(user.id) : undefined}
-            title={isClickable ? `${user.nickname} 프로필 보기` : ''}
+            title={isClickable ? t('ranked.viewProfile', { name: user.nickname }) : ''}
         >
             <div className={rankStyle.glow} />
             <div className={`relative z-10 flex shrink-0 items-center justify-center ${rankSmall ? 'w-10 sm:w-11' : 'w-12 sm:w-14'}`}>
@@ -207,16 +209,14 @@ const SeasonalBadukRankingRow: React.FC<SeasonalBadukRankingRowProps> = ({
                         isTopThree || isMyRankDisplay ? 'text-yellow-100' : 'text-yellow-300'
                     } ${rankSmall ? 'text-base sm:text-lg' : 'text-lg sm:text-2xl lg:text-3xl'}`}
                 >
-                    {dashPlaceholder ? '—' : `${Math.round(score)}점`}
+                    {dashPlaceholder ? '—' : t('ranked.scorePoints', { score: Math.round(score) })}
                 </span>
                 <div className={`font-semibold tabular-nums text-gray-200 ${rankSmall ? 'text-[9px] sm:text-[11px]' : 'text-xs sm:text-sm'}`}>
                     {dashPlaceholder ? (
                         <span>—</span>
                     ) : (
                         <>
-                            <span>
-                                {wins}승 {losses}패
-                            </span>
+                            <span>{t('ranked.winsLosses', { wins, losses })}</span>
                             <span className={`ml-1.5 font-bold ${winRateClass}`}>{winRate}%</span>
                         </>
                     )}

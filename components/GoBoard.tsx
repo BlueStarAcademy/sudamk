@@ -1770,12 +1770,12 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
             const stoneAtPos = displayBoardState[boardPos.y]?.[boardPos.x];
             
             if (stoneAtPos === myPlayerEnum) {
-                onBoardRuleFlash?.('둘 수 없는 자리입니다.');
+                onBoardRuleFlash?.(tx('game:messages.invalidPlacement'));
                 return;
             }
             
             if (stoneAtPos !== Player.None && !isOpponentHiddenStoneAtPos(boardPos)) {
-                onBoardRuleFlash?.('둘 수 없는 자리입니다.');
+                onBoardRuleFlash?.(tx('game:messages.invalidPlacement'));
                 return;
             }
 
@@ -2834,7 +2834,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                                 fontWeight={700}
                                 transform={isRotated ? `rotate(180 ${boardSizePx / 2} ${labelY})` : undefined}
                             >
-                                상대 배치 중
+                                {tx('game:messages.opponentPlacing')}
                             </text>
                         </g>
                     );

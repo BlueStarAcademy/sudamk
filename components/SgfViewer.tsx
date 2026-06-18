@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Player, Point } from '../types.js';
 import {
     applyMoveToBoard,
@@ -88,6 +89,7 @@ const SgfViewer: React.FC<SgfViewerProps> = ({
     onHalfBoardNavForward,
     reviewMoves = [],
 }) => {
+    const { t } = useTranslation('game');
     const [sgfData, setSgfData] = useState<SgfData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -248,8 +250,8 @@ const SgfViewer: React.FC<SgfViewerProps> = ({
 
     const boardNavEnabled = !!(onHalfBoardNavBack || onHalfBoardNavForward);
 
-    if (loading) return <div className="flex h-full items-center justify-center text-gray-400">기보 로딩 중...</div>;
-    if (error) return <div className="flex h-full items-center justify-center text-red-400">오류: {error}</div>;
+    if (loading) return <div className="flex h-full items-center justify-center text-gray-400">{t('sgfViewer.loading')}</div>;
+    if (error) return <div className="flex h-full items-center justify-center text-red-400">{t('sgfViewer.errorPrefix')} {error}</div>;
     if (!sgfData) return null;
 
     const { boardSize, moves } = sgfData;

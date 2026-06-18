@@ -1,4 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import { tx } from '../../shared/i18n/runtimeText.js';
+import { useLocalizedGameMode } from '../../shared/i18n/localizedCatalog.js';
 import { Player, ChatMessage, GameProps, GameMode, User, UserWithStatus, LiveGameSession, ServerAction } from '../../types.js';
 import {
     GAME_CHAT_EMOJIS,
@@ -83,6 +86,8 @@ export const GameInfoPanel: React.FC<{
     sidebarLayout?: 'desktop' | 'mobileDrawer';
     singlePlayerStagesListRevision?: number;
 }> = ({ session, currentUser, onClose, onAction, sidebarLayout, singlePlayerStagesListRevision = 0 }) => {
+    const { t } = useTranslation('game');
+    const { t: tCommon } = useTranslation('common');
     const drawerUi = sidebarLayout === 'mobileDrawer';
     const [matchGuideOpen, setMatchGuideOpen] = useState(false);
     const { mode, settings, effectiveCaptureTargets } = session;
@@ -114,9 +119,9 @@ export const GameInfoPanel: React.FC<{
         if (session.isSinglePlayer) {
             const isSurvivalMode = (settings as any)?.isSurvivalMode === true;
             if (isSurvivalMode) {
-                gameModeDisplayName = '살리기 바둑';
+                gameModeDisplayName = t('sidebar.settings.survivalGo');
             } else if (mode === GameMode.Capture) {
-                gameModeDisplayName = '따내기 바둑';
+                gameModeDisplayName = t('sidebar.settings.captureGo');
             } else {
                 gameModeDisplayName = mode;
             }
@@ -124,20 +129,20 @@ export const GameInfoPanel: React.FC<{
             gameModeDisplayName = mode;
         }
 
-        details.push(renderSetting("게임 모드", gameModeDisplayName));
+        details.push(renderSetting(t('sidebar.settings.gameMode'), gameModeDisplayName));
         if (session.isSinglePlayer && session.stageId) {
             const stage = resolveLiveSessionSinglePlayerStageRow(session);
             const stageDisplay = stage ? `${stage.level} · ${stage.name}` : session.stageId;
-            details.push(renderSetting("스테이지", stageDisplay));
+            details.push(renderSetting(t('sidebar.settings.stage'), stageDisplay));
         }
         if (![GameMode.Alkkagi, GameMode.Curling, GameMode.Dice].includes(mode)) {
             const boardSizeLabel =
                 mode === GameMode.Chess ? CHESS_GO_BOARD_SIZE : settings.boardSize;
-            details.push(renderSetting("판 크기", `${boardSizeLabel}x${boardSizeLabel}`));
+            details.push(renderSetting(t('sidebar.settings.boardSize'), `${boardSizeLabel}x${boardSizeLabel}`));
         }
         
         if (modesWithKomi.includes(mode) && !settings.mixedModes?.includes(GameMode.Base)) {
-            details.push(renderSetting("덤", `${session.finalKomi ?? session.settings.komi ?? DEFAULT_KOMI}집`));
+            details.push(renderSetting(t('sidebar.settings.komi'), t('sidebar.settings.komiValue', { komi: session.finalKomi ?? session.settings.komi ?? DEFAULT_KOMI })));
         }
        
         // 도전의 탑: 제한시간/초읽기는 무제한이므로 표시하지 않음
@@ -145,12 +150,12 @@ export const GameInfoPanel: React.FC<{
         const isFischer = isFischerStyleTimeControl(session as any);
         if (!isTowerGame && !modesWithoutTime.includes(mode)) {
             if (settings.timeLimit > 0) {
-                details.push(renderSetting("제한시간", `${settings.timeLimit}분`));
-                details.push(renderSetting("초읽기", isFischer ? `${settings.timeIncrement}초 피셔` : `${settings.byoyomiTime}초 ${settings.byoyomiCount}회`));
+                details.push(renderSetting(t('sidebar.settings.timeLimit'), t('sidebar.settings.timeLimitMin', { minutes: settings.timeLimit })));
+                details.push(renderSetting(t('sidebar.settings.byoyomi'), isFischer ? t('sidebar.settings.byoyomiFischer', { seconds: settings.timeIncrement }) : t('sidebar.settings.byoyomiCount', { seconds: settings.byoyomiTime, count: settings.byoyomiCount })));
             } else {
-                details.push(renderSetting("제한시간", "없음"));
+                details.push(renderSetting(t('sidebar.settings.timeLimit'), t('sidebar.settings.none')));
                 if (settings.byoyomiTime > 0 && settings.byoyomiCount > 0) {
-                    details.push(renderSetting("초읽기", isFischer ? `${settings.timeIncrement}초 피셔` : `${settings.byoyomiTime}초 ${settings.byoyomiCount}회`));
+                    details.push(renderSetting(t('sidebar.settings.byoyomi'), isFischer ? t('sidebar.settings.byoyomiFischer', { seconds: settings.timeIncrement }) : t('sidebar.settings.byoyomiCount', { seconds: settings.byoyomiTime, count: settings.byoyomiCount })));
                 }
             }
         }
@@ -159,18 +164,18 @@ export const GameInfoPanel: React.FC<{
 
         if (mode === GameMode.Mix) {
             details.push(renderSetting(
-                "조합 규칙",
+                t('sidebar.settings.mixRules'),
                 settings.mixedModes?.map((m) => mixSubRuleDisplayName(String(m))).join(', '),
             ));
         }
 
         if (mode === GameMode.Omok || mode === GameMode.Ttamok) {
-            details.push(renderSetting("쌍삼 금지", settings.has33Forbidden ? '금지' : '가능'));
-            details.push(renderSetting("장목 금지", settings.hasOverlineForbidden ? '금지' : '가능'));
+            details.push(renderSetting(t('sidebar.settings.forbid33'), settings.has33Forbidden ? t('sidebar.settings.forbidden') : t('sidebar.settings.allowed')));
+            details.push(renderSetting(t('sidebar.settings.forbidOverline'), settings.hasOverlineForbidden ? t('sidebar.settings.forbidden') : t('sidebar.settings.allowed')));
         }
 
         if (mode === GameMode.Ttamok) {
-            details.push(renderSetting("목표점수", `${settings.captureTarget}개`));
+            details.push(renderSetting(t('sidebar.settings.captureTarget'), t('sidebar.settings.captureTargetCount', { count: settings.captureTarget })));
         }
         
         if (mode === GameMode.Capture || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Capture))) {
@@ -184,96 +189,96 @@ export const GameInfoPanel: React.FC<{
                 if (isTower) {
                     const blackTarget = effectiveCaptureTargets[Player.Black];
                     const whiteTarget = effectiveCaptureTargets[Player.White];
-                    captureTargetText = `흑: ${blackTarget} / 백: ${whiteTarget}`;
+                    captureTargetText = t('sidebar.settings.captureTargetBoth', { black: blackTarget, white: whiteTarget });
                 } else if (isSurvivalMode) {
                     const blackTarget = effectiveCaptureTargets[Player.Black] === 999 ? '-' : effectiveCaptureTargets[Player.Black];
                     const whiteTarget = effectiveCaptureTargets[Player.White];
-                    captureTargetText = `흑: ${blackTarget} / 백: ${whiteTarget}`;
+                    captureTargetText = t('sidebar.settings.captureTargetBoth', { black: blackTarget, white: whiteTarget });
                 } else {
-                    captureTargetText = `흑: ${effectiveCaptureTargets[Player.Black]} / 백: ${effectiveCaptureTargets[Player.White]}`;
+                    captureTargetText = t('sidebar.settings.captureTargetBoth', { black: effectiveCaptureTargets[Player.Black], white: effectiveCaptureTargets[Player.White] });
                 }
             } else {
                 if (isTower) {
                     const baseTarget = settings.captureTarget ?? '-';
-                    captureTargetText = `흑: ${baseTarget} / 백: ${baseTarget}`;
+                    captureTargetText = t('sidebar.settings.captureTargetBoth', { black: baseTarget, white: baseTarget });
                 } else {
-                    captureTargetText = `${settings.captureTarget}개 (흑/백 결정 중)`;
+                    captureTargetText = t('sidebar.settings.captureTargetPending', { count: settings.captureTarget });
                 }
             }
-            details.push(renderSetting("목표점수", captureTargetText));
+            details.push(renderSetting(t('sidebar.settings.captureTarget'), captureTargetText));
         }
         
         if (mode === GameMode.Castle) {
-            details.push(renderSetting("캐슬", `${settings.castleCount ?? 1}개`));
+            details.push(renderSetting(t('sidebar.settings.castle'), t('sidebar.settings.castleCount', { count: settings.castleCount ?? 1 })));
         }
 
         if (mode === GameMode.Base || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Base))) {
-             details.push(renderSetting("베이스돌", `${settings.baseStones}개`));
+             details.push(renderSetting(t('sidebar.settings.baseStones'), t('sidebar.settings.captureTargetCount', { count: settings.baseStones })));
         }
         
         // 도전의 탑: 턴 추가/미사일/히든/스캔/배치변경은 대기실(가방) 보유 개수만 사용 → 개수 미표시
         if (!isTowerGame && (mode === GameMode.Hidden || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Hidden)))) {
-             details.push(renderSetting("히든돌", `${settings.hiddenStoneCount ?? 0}개`));
-             details.push(renderSetting("스캔", `${settings.scanCount ?? 0}개`));
+             details.push(renderSetting(t('sidebar.settings.hiddenStones'), t('sidebar.settings.captureTargetCount', { count: settings.hiddenStoneCount ?? 0 })));
+             details.push(renderSetting(t('sidebar.settings.scan'), t('sidebar.settings.captureTargetCount', { count: settings.scanCount ?? 0 })));
         }
         if (!isTowerGame && (mode === GameMode.Missile || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Missile)))) {
-             details.push(renderSetting("미사일", `${settings.missileCount}개`));
+             details.push(renderSetting(t('sidebar.settings.missile'), t('sidebar.settings.captureTargetCount', { count: settings.missileCount })));
         }
         if (isTowerGame && (mode === GameMode.Mix || mode === GameMode.Missile || mode === GameMode.Hidden)) {
-             details.push(renderSetting("아이템", "대기실 보유 개수 사용"));
+             details.push(renderSetting(t('sidebar.settings.itemsFromLobby'), t('sidebar.settings.itemsFromLobbyValue')));
         }
 
         if (!settings.pairGame && mode !== GameMode.Castle && SPECIAL_GAME_MODES.some(m => m.mode === mode) && settings.scoringTurnLimit != null && settings.scoringTurnLimit > 0) {
-            details.push(renderSetting("계가까지 턴", `${settings.scoringTurnLimit}턴`));
+            details.push(renderSetting(t('sidebar.settings.scoringTurnLimit'), t('sidebar.settings.scoringTurnLimitValue', { count: settings.scoringTurnLimit })));
         }
         
         if (mode === GameMode.Dice) {
-            details.push(renderSetting("라운드", `${settings.diceGoRounds}R`));
-            details.push(renderSetting("특수주사위", formatDiceGoSpecialDiceSummary(settings)));
+            details.push(renderSetting(t('sidebar.settings.round'), `${settings.diceGoRounds}R`));
+            details.push(renderSetting(t('sidebar.settings.specialDice'), formatDiceGoSpecialDiceSummary(settings)));
         }
         
         if (mode === GameMode.Alkkagi) {
-            const speedLabel = ALKKAGI_GAUGE_SPEEDS.find(s => s.value === settings.alkkagiGaugeSpeed)?.label || '보통';
-            details.push(renderSetting("라운드", `${settings.alkkagiRounds}R`));
-            details.push(renderSetting("돌 개수", `${settings.alkkagiStoneCount}개`));
-            details.push(renderSetting("배치 방식", settings.alkkagiPlacementType));
-            details.push(renderSetting("배치 전장", settings.alkkagiLayout));
-            details.push(renderSetting("힘 속도", speedLabel));
-            details.push(renderSetting("슬로우", `${settings.alkkagiSlowItemCount}개`));
-            details.push(renderSetting("조준선", `${settings.alkkagiAimingLineItemCount}개`));
+            const speedLabel = ALKKAGI_GAUGE_SPEEDS.find(s => s.value === settings.alkkagiGaugeSpeed)?.label || t('sidebar.settings.speedNormal');
+            details.push(renderSetting(t('sidebar.settings.round'), `${settings.alkkagiRounds}R`));
+            details.push(renderSetting(t('sidebar.settings.stoneCount'), t('sidebar.settings.captureTargetCount', { count: settings.alkkagiStoneCount })));
+            details.push(renderSetting(t('sidebar.settings.placementType'), settings.alkkagiPlacementType));
+            details.push(renderSetting(t('sidebar.settings.placementField'), settings.alkkagiLayout));
+            details.push(renderSetting(t('sidebar.settings.gaugeSpeed'), speedLabel));
+            details.push(renderSetting(t('sidebar.settings.slow'), t('sidebar.settings.captureTargetCount', { count: settings.alkkagiSlowItemCount })));
+            details.push(renderSetting(t('sidebar.settings.aimingLine'), t('sidebar.settings.captureTargetCount', { count: settings.alkkagiAimingLineItemCount })));
         }
         
         if (mode === GameMode.Curling) {
-            const speedLabel = CURLING_GAUGE_SPEEDS.find(s => s.value === settings.curlingGaugeSpeed)?.label || '보통';
-            details.push(renderSetting("스톤 개수", `${settings.curlingStoneCount}개`));
-            details.push(renderSetting("라운드", `${settings.curlingRounds}R`));
-            details.push(renderSetting("힘 속도", speedLabel));
-            details.push(renderSetting("슬로우", `${settings.curlingSlowItemCount}개`));
-            details.push(renderSetting("조준선", `${settings.curlingAimingLineItemCount}개`));
+            const speedLabel = CURLING_GAUGE_SPEEDS.find(s => s.value === settings.curlingGaugeSpeed)?.label || t('sidebar.settings.speedNormal');
+            details.push(renderSetting(t('sidebar.settings.curlingStoneCount'), t('sidebar.settings.captureTargetCount', { count: settings.curlingStoneCount })));
+            details.push(renderSetting(t('sidebar.settings.round'), `${settings.curlingRounds}R`));
+            details.push(renderSetting(t('sidebar.settings.gaugeSpeed'), speedLabel));
+            details.push(renderSetting(t('sidebar.settings.slow'), t('sidebar.settings.captureTargetCount', { count: settings.curlingSlowItemCount })));
+            details.push(renderSetting(t('sidebar.settings.aimingLine'), t('sidebar.settings.captureTargetCount', { count: settings.curlingAimingLineItemCount })));
         }
 
         return details.filter(Boolean);
-    }, [session, singlePlayerStagesListRevision]);
+    }, [session, singlePlayerStagesListRevision, t]);
 
 
     return (
         <>
             <div className={`${arenaGameRoomPanelClass} flex-shrink-0`}>
                 <h3 className={arenaGameRoomPanelTitleClass}>
-                    <span className="min-w-0 shrink">대국 정보</span>
+                    <span className="min-w-0 shrink">{t('sidebar.gameInfo')}</span>
                     <div className="flex items-center gap-1 shrink-0">
                         <button
                             type="button"
                             onClick={() => setMatchGuideOpen(true)}
                             className={`${arenaGameRoomSmallCtaClass}${drawerUi ? ' !text-[13px] sm:!text-[13px] !px-2.5 !py-1.5' : ''}`}
-                            title="시작 전 게임 설명과 동일한 규칙·설정 안내"
-                            aria-label="경기방법 안내 열기"
+                            title={t('sidebar.howToPlayTitle')}
+                            aria-label={t('sidebar.howToPlayAria')}
                         >
-                            경기방법
+                            {t('sidebar.howToPlay')}
                         </button>
                         {onClose && (
-                            <button type="button" onClick={onClose} className={SUDAMR_MODAL_CLOSE_BUTTON_CLASS} aria-label="닫기">
-                                닫기
+                            <button type="button" onClick={onClose} className={SUDAMR_MODAL_CLOSE_BUTTON_CLASS} aria-label={tCommon('actions.close')}>
+                                {tCommon('actions.close')}
                             </button>
                         )}
                     </div>
@@ -329,6 +334,8 @@ const UserListPanel: React.FC<SidebarProps & { onClose?: () => void }> = ({
     onViewUser,
     sidebarLayout,
 }) => {
+    const { t } = useTranslation('game');
+    const { t: tCommon } = useTranslation('common');
     const drawerUi = sidebarLayout === 'mobileDrawer';
     const rowText = drawerUi ? 'text-[13px]' : 'text-sm';
     const roleText = drawerUi ? 'text-[13px]' : 'text-xs';
@@ -362,7 +369,8 @@ const UserListPanel: React.FC<SidebarProps & { onClose?: () => void }> = ({
         onAction({ type: 'REQUEST_REMATCH', payload: { opponentId, originalGameId: session.id } });
     };
 
-    const renderUser = (user: UserWithStatus, role: '흑' | '백' | '관전') => {
+    const renderUser = (user: UserWithStatus, roleKey: 'black' | 'white' | 'spectator') => {
+        const roleLabel = roleKey === 'black' ? t('black') : roleKey === 'white' ? t('white') : t('sidebar.spectator');
         const isMe = user.id === currentUser.id;
         const isOpponent = !isMe && (user.id === player1.id || user.id === player2.id);
 
@@ -375,7 +383,7 @@ const UserListPanel: React.FC<SidebarProps & { onClose?: () => void }> = ({
                 <div 
                     className={`flex items-center gap-2 flex-grow overflow-hidden ${!isMe ? 'cursor-pointer' : ''}`}
                     onClick={() => !isMe && onViewUser(user.id)}
-                    title={!isMe ? `${user.nickname} 프로필 보기` : ''}
+                    title={!isMe ? t('sidebar.viewProfile', { name: user.nickname }) : ''}
                 >
                     <UserNicknameText
                         user={{
@@ -387,7 +395,7 @@ const UserListPanel: React.FC<SidebarProps & { onClose?: () => void }> = ({
                     />
                     {/* 재대결 버튼은 하단 대국 기능 패널로 이동 */}
                 </div>
-                <span className={`ml-auto ${roleText} text-gray-400 flex-shrink-0`}>{role}</span>
+                <span className={`ml-auto ${roleText} text-gray-400 flex-shrink-0`}>{roleLabel}</span>
             </div>
          )
     }
@@ -395,16 +403,16 @@ const UserListPanel: React.FC<SidebarProps & { onClose?: () => void }> = ({
     return (
         <div className={`${arenaGameRoomPanelClass} flex flex-col`}>
             <h3 className={`${arenaGameRoomPanelTitleClass} flex-shrink-0`}>
-                유저 목록
+                {t('sidebar.userList')}
                 {onClose && (
-                    <button type="button" onClick={onClose} className={SUDAMR_MODAL_CLOSE_BUTTON_CLASS} aria-label="닫기">
-                        닫기
+                    <button type="button" onClick={onClose} className={SUDAMR_MODAL_CLOSE_BUTTON_CLASS} aria-label={tCommon('actions.close')}>
+                        {tCommon('actions.close')}
                     </button>
                 )}
             </h3>
             <div className="space-y-0.5 overflow-y-auto pr-1 flex-grow min-h-0" style={{ maxHeight: '7.5rem' }}>
-                {playersInRoom.map(user => renderUser(user, user.id === blackPlayerId ? '흑' : '백'))}
-                {spectators.map(user => renderUser(user, '관전'))}
+                {playersInRoom.map(user => renderUser(user, user.id === blackPlayerId ? 'black' : 'white'))}
+                {spectators.map(user => renderUser(user, 'spectator'))}
             </div>
         </div>
     );
@@ -412,6 +420,8 @@ const UserListPanel: React.FC<SidebarProps & { onClose?: () => void }> = ({
 
 
 export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoContestLeaveAvailable'>> = (props) => {
+    const { t } = useTranslation('game');
+    const localizedGameMode = useLocalizedGameMode();
     const { session, isSpectator, onAction, waitingRoomChat, gameChat, onClose, onViewUser, sidebarLayout } = props;
     const drawerUi = sidebarLayout === 'mobileDrawer';
     const tabActiveClass = drawerUi ? arenaGameRoomChatTabActiveDrawerClass : arenaGameRoomChatTabActiveClass;
@@ -451,14 +461,15 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
     // 싱글플레이, 도전의 탑, 전략/놀이바둑 명확히 구분 (gameCategory·isSinglePlayer 우선)
     let locationPrefix: string;
     if (session.gameCategory === 'tower') {
-        locationPrefix = '[도전의탑]';
+        locationPrefix = t('sidebar.locationTower');
     } else if (session.gameCategory === 'singleplayer' || session.isSinglePlayer) {
-        locationPrefix = '[싱글플레이]';
+        locationPrefix = t('sidebar.locationSingle');
     } else {
-        // 전략바둑/놀이바둑 대기실 게임만 [전략:모드] / [놀이:모드]
         const isStrategic = SPECIAL_GAME_MODES.some(m => m.mode === mode);
-        const lobbyType = isStrategic ? '전략' : '놀이';
-        locationPrefix = `[${lobbyType}:${mode}]`;
+        const lobbyType = isStrategic ? t('sidebar.strategicShort') : t('sidebar.playfulShort');
+        locationPrefix = isStrategic
+            ? t('sidebar.locationStrategic', { mode: localizedGameMode(mode) })
+            : t('sidebar.locationPlayful', { mode: localizedGameMode(mode) });
     }
 
     const handleSend = (message: { text?: string, emoji?: string }) => {
@@ -487,7 +498,7 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
         e.preventDefault();
         if (chatInput.trim()) {
             if (containsProfanity(chatInput)) {
-                alert("부적절한 단어가 포함되어 있어 메시지를 전송할 수 없습니다.");
+                alert(tx('game:sidebar.profanityBlocked'));
                 setChatInput('');
                 return;
             }
@@ -509,25 +520,25 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
     const banTimeLeft = isBanned ? Math.ceil((currentUserWithStatus.chatBanUntil! - Date.now()) / 1000 / 60) : 0;
     const isInputDisabled = isBanned || cooldown > 0;
     const placeholderText = isBanned 
-        ? `채팅 금지 중 (${banTimeLeft}분 남음)` 
+        ? t('sidebar.chatBanned', { minutes: banTimeLeft }) 
         : isInputDisabled
-            ? `(${cooldown}초)`
-            : "[메시지 입력]";
+            ? t('messages.secondsCooldown', { seconds: cooldown })
+            : t('sidebar.chatPlaceholderBracket');
     
     return (
         <div className={arenaGameRoomChatShellClass}>
             <div className={`${arenaGameRoomChatTabBarClass} mb-2`}>
                 <button type="button" onClick={() => setActiveTab('game')} className={activeTab === 'game' ? tabActiveClass : tabInactiveClass}>
-                    대국실
+                    {t('sidebar.gameRoom')}
                 </button>
                 <button type="button" onClick={() => setActiveTab('global')} className={activeTab === 'global' ? tabActiveClass : tabInactiveClass}>
-                    전체채팅
+                    {t('sidebar.globalChat')}
                 </button>
             </div>
             <div ref={chatBodyRef} className={arenaGameRoomChatBodyClass}>
                 <>
                         {activeChatMessages.map(msg => {
-                            const isBotMessage = msg.system && !msg.actionInfo && msg.user.nickname === 'AI 보안관봇';
+                            const isBotMessage = msg.system && !msg.actionInfo && msg.user.nickname === t('sidebar.securityBot');
                             const isPairPetSeatChatSpeaker =
                                 !msg.system &&
                                 (msg.user.id.startsWith('pet-ai-') || msg.user.id === 'pair-opponent-pet');
@@ -537,7 +548,7 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
                                 <>
                                     <span className="font-semibold text-gray-400 pr-2">{msg.user.nickname}:</span>
                                     <span className="text-yellow-400">{msg.actionInfo.message}</span>
-                                    <span className="text-gray-400"> (매너 </span>
+                                    <span className="text-gray-400"> ({t('sidebar.manner')} </span>
                                     <span className={msg.actionInfo.scoreChange > 0 ? 'text-blue-400 font-bold' : 'text-red-400 font-bold'}>
                                         {msg.actionInfo.scoreChange > 0 ? `+${msg.actionInfo.scoreChange}` : msg.actionInfo.scoreChange}
                                     </span>
@@ -559,11 +570,11 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
                                             msg.system
                                                 ? ''
                                                 : isPairPetSeatChatSpeaker
-                                                  ? `${msg.user.nickname} (페어 펫)`
-                                                  : `${msg.user.nickname} 프로필 보기 / 제재`
+                                                  ? `${msg.user.nickname}${t('sidebar.pairPetSuffix')}`
+                                                  : t('sidebar.profileSanction', { name: msg.user.nickname })
                                         }
                                     >
-                                        {msg.system ? (isBotMessage ? 'AI 보안관봇' : '시스템') : msg.user.nickname}:
+                                        {msg.system ? (isBotMessage ? t('sidebar.securityBot') : t('sidebar.system')) : msg.user.nickname}:
                                     </span>
                                     {msg.text && (() => {
                                         const textStr = msg.text;
@@ -571,13 +582,13 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
                                         let currentIndex = 0;
                                         
                                         // 사용자 이름과 장비 이름의 위치 찾기
-                                        const userLinkIndex = msg.userLink ? textStr.indexOf(`${msg.userLink.userName}님`) : -1;
+                                        const userLinkIndex = msg.userLink ? textStr.indexOf(`${msg.userLink.userName}${t('sidebar.honorific')}`) : -1;
                                         const itemLinkIndex = msg.itemLink ? textStr.indexOf(msg.itemLink.itemName) : -1;
                                         
                                         // 정렬된 인덱스 배열 생성
                                         const linkIndices: Array<{ type: 'user' | 'item', index: number, length: number }> = [];
                                         if (userLinkIndex >= 0 && msg.userLink) {
-                                            linkIndices.push({ type: 'user', index: userLinkIndex, length: `${msg.userLink.userName}님`.length });
+                                            linkIndices.push({ type: 'user', index: userLinkIndex, length: `${msg.userLink.userName}${t('sidebar.honorific')}`.length });
                                         }
                                         if (itemLinkIndex >= 0 && msg.itemLink) {
                                             linkIndices.push({ type: 'item', index: itemLinkIndex, length: msg.itemLink.itemName.length });
@@ -603,12 +614,12 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
                                                         key={`user-${idx}`}
                                                         className="text-blue-400 cursor-pointer hover:underline font-semibold"
                                                         onClick={() => handleUserClick(msg.userLink!.userId)}
-                                                        title={`${msg.userLink.userName} 프로필 보기 / 제재`}
+                                                        title={t('sidebar.profileSanction', { name: msg.userLink.userName })}
                                                     >
                                                         {msg.userLink.userName}
                                                     </span>
                                                 );
-                                                parts.push('님');
+                                                parts.push(t('sidebar.honorific'));
                                             } else if (link.type === 'item' && msg.itemLink) {
                                                 // 등급별 색상 매핑
                                                 const gradeColorMap: Record<string, string> = {
@@ -635,7 +646,7 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
                                                                 }
                                                             }
                                                         }}
-                                                        title={`${msg.itemLink.itemName} 클릭하여 상세 정보 보기`}
+                                                        title={t('sidebar.itemDetail', { name: msg.itemLink.itemName })}
                                                     >
                                                         {msg.itemLink.itemName}
                                                     </span>
@@ -659,7 +670,7 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
                         );
                         })}
                         {activeChatMessages.length === 0 && (
-                            <div className={`h-full flex items-center justify-center text-gray-500 ${chatMsgClass}`}>채팅 메시지가 없습니다.</div>
+                            <div className={`h-full flex items-center justify-center text-gray-500 ${chatMsgClass}`}>{t('sidebar.noChatMessages')}</div>
                         )}
                 </>
             </div>
@@ -686,7 +697,7 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
                        </div>
                    )}
                    <form onSubmit={handleSendTextSubmit} className="flex gap-2">
-                        <button type="button" onClick={() => setShowQuickChat(s => !s)} className={arenaGameRoomChatIconToggleClass} title="빠른 채팅" disabled={isInputDisabled}>
+                        <button type="button" onClick={() => setShowQuickChat(s => !s)} className={arenaGameRoomChatIconToggleClass} title={t('sidebar.quickChat')} disabled={isInputDisabled}>
                             <span>🙂</span>
                         </button>
                        <input
@@ -698,7 +709,7 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
                            maxLength={30}
                            disabled={isInputDisabled}
                        />
-                       <Button type="submit" bare disabled={!chatInput.trim() || isInputDisabled} colorScheme="none" title="보내기" className={`!px-3 !py-2 rounded-lg border border-sky-600/40 bg-gradient-to-b from-sky-700/90 to-sky-950 font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] hover:brightness-110 disabled:opacity-40 disabled:grayscale ${drawerUi ? '!text-[13px]' : 'text-sm'}`}>
+                       <Button type="submit" bare disabled={!chatInput.trim() || isInputDisabled} colorScheme="none" title={t('sidebar.send')} className={`!px-3 !py-2 rounded-lg border border-sky-600/40 bg-gradient-to-b from-sky-700/90 to-sky-950 font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] hover:brightness-110 disabled:opacity-40 disabled:grayscale ${drawerUi ? '!text-[13px]' : 'text-sm'}`}>
                             💬
                        </Button>
                    </form>
@@ -713,6 +724,7 @@ const GuildWarStarConditionsPanel: React.FC<{
     currentUser: User;
     sidebarLayout?: 'desktop' | 'mobileDrawer';
 }> = ({ session, currentUser, sidebarLayout }) => {
+    const { t } = useTranslation('game');
     const drawerUi = sidebarLayout === 'mobileDrawer';
     const starBodyClass = drawerUi ? 'text-[13px] leading-snug text-gray-200' : 'text-xs text-gray-200';
     if (session.gameCategory !== 'guildwar') return null;
@@ -730,13 +742,13 @@ const GuildWarStarConditionsPanel: React.FC<{
         const c2 = GUILD_WAR_STAR_CAPTURE_TIER2_MIN;
         const c3 = GUILD_WAR_STAR_CAPTURE_TIER3_MIN;
         const rows = [
-            { label: '승리', ok: humanWon },
-            { label: lines[1] ?? `한 번에 ${c2}점 획득하기`, ok: maxPts >= c2 },
-            { label: lines[2] ?? `한 번에 ${c3}점 획득하기`, ok: maxPts >= c3 },
+            { label: t('win'), ok: humanWon },
+            { label: lines[1] ?? t('summary.captureTier2', { min: c2 }), ok: maxPts >= c2 },
+            { label: lines[2] ?? t('summary.captureTier3', { min: c3 }), ok: maxPts >= c3 },
         ];
         return (
             <div className={arenaGameRoomGuildStarPanelClass}>
-                <h3 className={`${arenaGameRoomPanelTitleClass} border-amber-700/25`}>별 획득 조건</h3>
+                <h3 className={`${arenaGameRoomPanelTitleClass} border-amber-700/25`}>{t('sidebar.starConditions')}</h3>
                 <div className="space-y-1.5">
                     {rows.map((row) => (
                         <div key={row.label} className={`flex items-start justify-between gap-2 ${starBodyClass}`}>
@@ -756,7 +768,7 @@ const GuildWarStarConditionsPanel: React.FC<{
 
     return (
         <div className={arenaGameRoomGuildStarPanelClass}>
-            <h3 className={`${arenaGameRoomPanelTitleClass} border-amber-700/25`}>별 획득 조건</h3>
+            <h3 className={`${arenaGameRoomPanelTitleClass} border-amber-700/25`}>{t('sidebar.starConditions')}</h3>
             <div className="space-y-1">
                 {lines.map((line) => (
                     <div key={line} className={starBodyClass}>
@@ -769,6 +781,7 @@ const GuildWarStarConditionsPanel: React.FC<{
 };
 
 const Sidebar: React.FC<SidebarProps> = (props) => {
+    const { t } = useTranslation('game');
     const {
         session,
         onLeaveOrResign,
@@ -789,14 +802,14 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
     const isPauseButtonDisabled = (isPaused && resumeCountdown > 0) || (!isPaused && pauseButtonCooldown > 0) || pauseDisabledBecauseAiTurn;
 
     const leaveButtonText = isNoContestLeaveAvailable
-        ? '무효처리'
+        ? t('controls.noContestLeave')
         : isGameEnded
           ? isAdventureGame
-              ? '맵으로 이동'
-              : '대기실로'
+              ? t('controls.goToMap')
+              : t('controls.returnToLobby')
           : isSpectator
-            ? '관전종료'
-            : '기권하기';
+            ? t('controls.endSpectating')
+            : t('controls.resignTitle');
 
     return (
         <div className={`${arenaGameRoomSidebarShell} gap-2`}>
@@ -819,31 +832,31 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
             </div>
             {isSpectator && props.currentUser?.isAdmin && !isGameEnded && (
                 <div className={arenaGameRoomAdminStripClass}>
-                    <h3 className={arenaGameRoomAdminTitleClass}>관리자 기능</h3>
+                    <h3 className={arenaGameRoomAdminTitleClass}>{t('controls.adminFeatures')}</h3>
                     <div className="flex flex-wrap gap-2">
                         <Button
                             bare
                             onClick={() => {
-                                if (window.confirm(`${session.player2?.nickname}님 기권승(승자: ${session.player1?.nickname}) 처리하시겠습니까?`)) {
+                                if (window.confirm(t('sidebar.adminResignConfirm', { loser: session.player2?.nickname, winner: session.player1?.nickname }))) {
                                     props.onAction({ type: 'ADMIN_FORCE_WIN', payload: { gameId: session.id, winnerId: session.player1?.id } });
                                 }
                             }}
                             colorScheme="none"
                             className={`${arenaGameRoomSidebarLeaveBtnClass(false)} !py-2 !px-3 !text-xs !min-h-0`}
                         >
-                            {session.player2?.nickname} 기권승
+                            {t('sidebar.adminForceResignWin', { name: session.player2?.nickname })}
                         </Button>
                         <Button
                             bare
                             onClick={() => {
-                                if (window.confirm(`${session.player1?.nickname}님 기권승(승자: ${session.player2?.nickname}) 처리하시겠습니까?`)) {
+                                if (window.confirm(t('sidebar.adminResignConfirm', { loser: session.player1?.nickname, winner: session.player2?.nickname }))) {
                                     props.onAction({ type: 'ADMIN_FORCE_WIN', payload: { gameId: session.id, winnerId: session.player2?.id } });
                                 }
                             }}
                             colorScheme="none"
                             className={`${arenaGameRoomSidebarLeaveBtnClass(false)} !py-2 !px-3 !text-xs !min-h-0`}
                         >
-                            {session.player1?.nickname} 기권승
+                            {t('sidebar.adminForceResignWin', { name: session.player1?.nickname })}
                         </Button>
                     </div>
                 </div>
@@ -859,19 +872,19 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
                             disabled={isPauseButtonDisabled}
                             title={
                                 pauseDisabledBecauseAiTurn
-                                    ? '내 차례에만 일시정지할 수 있습니다'
+                                    ? t('controls.pauseMyTurnOnly')
                                     : undefined
                             }
                         >
                             {isPaused
                                 ? resumeCountdown > 0
-                                    ? `대국 재개 (${resumeCountdown})`
-                                    : '대국 재개'
+                                    ? t('controls.resumeGameCountdown', { count: resumeCountdown })
+                                    : t('controls.resumeGame')
                                 : pauseButtonCooldown > 0
-                                  ? `일시 정지 (${pauseButtonCooldown})`
+                                  ? t('controls.pauseGameCountdown', { count: pauseButtonCooldown })
                                   : pauseDisabledBecauseAiTurn
-                                    ? '일시 정지 (AI 차례)'
-                                    : '일시 정지'}
+                                    ? t('controls.pauseGameAiTurn')
+                                    : t('controls.pauseGame')}
                         </Button>
                     ) : (
                         <Button
@@ -890,7 +903,7 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
                                 !isSpectator &&
                                 !isGameEnded &&
                                 !isNoContestLeaveAvailable
-                                    ? '계가 집계 중에는 기권할 수 없습니다.'
+                                    ? t('controls.cannotResignDuringScoring')
                                     : undefined
                             }
                         >

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { CORE_STATS_DATA } from '../../constants/index.js';
 import { CORE_STAT_RADAR_ORDER } from '../CoreStatsHexagonChart.js';
 import {
@@ -38,6 +39,7 @@ const PairPetHomeEmptyDetailFrame: React.FC<PairPetHomeEmptyDetailFrameProps> = 
     petManagementModal = false,
     onRequestEquip,
 }) => {
+    const { t } = useTranslation(['pair', 'profile', 'game']);
     const isPanelFit = variant === 'panelFit';
     const homePack = Boolean(isPanelFit && (mobileHomeRepPet || petManagementModal));
     const rootGap = homePack ? PET_PANEL_ROOT_GAP : isPanelFit ? 'gap-1' : 'gap-2.5 sm:gap-4';
@@ -122,11 +124,11 @@ const PairPetHomeEmptyDetailFrame: React.FC<PairPetHomeEmptyDetailFrameProps> = 
                 </div>
                 <div className={`relative z-[1] flex min-h-0 min-w-0 flex-row items-stretch bg-zinc-950/92 ${rowPad} ${traitRowGap}`}>
                     <div className={traitBoxFuchsia}>
-                        <p className={traitTitleFuchsia}>성향</p>
+                        <p className={traitTitleFuchsia}>{t('pet.disposition')}</p>
                         <div className={traitBodyMuted} aria-hidden />
                     </div>
                     <div className={traitBoxAmber}>
-                        <p className={traitTitleAmber}>특화</p>
+                        <p className={traitTitleAmber}>{t('pet.specialization')}</p>
                         <div className={traitBodyMuted} aria-hidden />
                     </div>
                 </div>
@@ -134,11 +136,17 @@ const PairPetHomeEmptyDetailFrame: React.FC<PairPetHomeEmptyDetailFrameProps> = 
 
             <div className={homePack ? PET_PANEL_BADUK_STRIP : 'flex min-w-0 flex-nowrap items-center justify-center overflow-x-auto rounded-xl border border-sky-500/30 bg-gradient-to-r from-sky-950/40 to-zinc-950/80 px-1.5 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] [scrollbar-width:thin]'}>
                 <span className="inline-flex shrink-0 items-baseline gap-0.5">
-                    <span className={homePack ? PET_PANEL_BADUK_LABEL : 'text-sm font-bold text-amber-100/50'}>바둑능력</span>
+                    <span className={homePack ? PET_PANEL_BADUK_LABEL : 'text-sm font-bold text-amber-100/50'}>{t('profile:badukAbility')}</span>
                     <span className={`font-mono tabular-nums ${homePack ? `${PET_PANEL_BADUK_TOTAL} text-amber-50/35` : 'text-amber-50/35'}`}>—</span>
                 </span>
                 <span className="mx-0.5 h-3 w-px shrink-0 self-center bg-white/15" aria-hidden />
-                {(['초반', '중반', '종반'] as const).map((label, idx) => (
+                {(
+                    [
+                        t('game:controls.phaseOpening'),
+                        t('game:controls.phaseMidgame'),
+                        t('game:controls.phaseEndgame'),
+                    ] as const
+                ).map((label, idx) => (
                     <React.Fragment key={label}>
                         {idx > 0 ? (
                             <span className="mx-0.5 h-3 w-px shrink-0 self-center bg-white/12" aria-hidden />
@@ -169,7 +177,7 @@ const PairPetHomeEmptyDetailFrame: React.FC<PairPetHomeEmptyDetailFrameProps> = 
             <p
                 className={`text-center font-medium text-slate-500 antialiased ${homePack ? 'text-sm leading-snug' : 'text-[0.65rem] sm:text-xs'}`}
             >
-                대표 펫이 없습니다
+                {t('pet.noRepresentativePet')}
             </p>
         </div>
     );

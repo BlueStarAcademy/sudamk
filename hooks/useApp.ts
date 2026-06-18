@@ -21,6 +21,8 @@ import {
     navigateFromGameIfApplicable,
     markSkipGameHashLeaveInterceptOnce,
     shouldSuppressChampionshipArenaRedirect,
+    APP_HOME_HASH,
+    normalizeLegacyAppHash,
 } from '../utils/appUtils.js';
 import { computeGameSessionFingerprint } from '../utils/gameSessionFingerprint.js';
 import { getApiUrl, getWebSocketUrlFor } from '../utils/apiConfig.js';
@@ -33,6 +35,9 @@ import {
     isOpponentInsufficientActionPointsError,
 } from '../constants.js';
 import { defaultSettings, SETTINGS_STORAGE_KEY } from './useAppSettings.js';
+import i18n, { isAppLocale, detectBrowserLocale, applyDocumentLocale } from '../shared/i18n/config.js';
+import { DEFAULT_LOCALE } from '../shared/i18n/constants.js';
+import type { AppLocale } from '../shared/i18n/languages.js';
 import type { QuickUtilityPanelKind } from '../shared/types/quickUtilityPanel.js';
 import type { MobileViewportEntry } from '../shared/types/mobileViewportStack.js';
 import { getAppRouteNavigationKey } from '../shared/types/navigation.js';
@@ -71,9 +76,10 @@ import {
 } from '../shared/constants/auth.js';
 import {
     mergeArenaEntranceAvailability,
-    ARENA_ENTRANCE_CLOSED_MESSAGE,
     type ArenaEntranceKey,
 } from '../constants/arenaEntrance.js';
+import { translateArenaEntranceClosed, tx } from '../shared/i18n/runtimeText.js';
+import { shouldSuppressKoPlaceStoneClientError, isGameAlreadyStartedError, isBaseStoneColorChoiceBenignError, isInsufficientActionPointsServerError, isGameNotFoundServerError, isInventoryFullServerError } from '../shared/utils/serverErrorMatch.js';
 import { PAIR_HATCHERY_PET_INVENTORY_FULL_MESSAGE } from '../shared/constants/pairHatchery.js';
 import {
     pairArenaLobbyHash,
@@ -129,10 +135,7 @@ function isPairHatcheryPetInventoryFullError(action: ServerAction, errorMessage:
 
 /** 챔피언십 던전 보상 수령: 가방 부족 시 TournamentBracket 전용 모달로만 안내(토스트 중복 방지) */
 function isChampionshipCompleteDungeonInventoryFullError(action: ServerAction, errorMessage: string): boolean {
-    return (
-        action.type === 'COMPLETE_DUNGEON_STAGE' &&
-        /가방|인벤토리|공간/.test(errorMessage)
-    );
+    return action.type === 'COMPLETE_DUNGEON_STAGE' && isInventoryFullServerError(errorMessage);
 }
 import {
     applyUserProgressionArenaLocks,
@@ -1678,12 +1681,7 @@ function augmentPveRejoinWithSessionStorage(merged: LiveGameSession): LiveGameSe
 /** PLACE_STONE 패(코) 불가 — Game 전광판으로 안내하므로 전역 에러 모달은 생략 */
 function shouldSuppressModalForKoPlaceStone(action: ServerAction, errorMessage: string): boolean {
     if (action.type !== 'PLACE_STONE') return false;
-    return (
-        errorMessage.includes('패 모양') ||
-        errorMessage.includes('코 금지') ||
-        (errorMessage.includes('바로') && errorMessage.includes('따낼')) ||
-        (errorMessage.includes('같은 위치') && errorMessage.includes('다시'))
-    );
+    return shouldSuppressKoPlaceStoneClientError(errorMessage);
 }
 
 /**
@@ -2246,6 +2244,9 @@ export const useApp = () => {
                         theme: 'black',
                         panelEdgeStyle:
                             parsed.graphics?.panelEdgeStyle ?? defaultSettings.graphics.panelEdgeStyle,
+                        locale: isAppLocale(parsed.graphics?.locale)
+                            ? parsed.graphics.locale
+                            : defaultSettings.graphics.locale,
                     },
                     sound: {
                         ...defaultSettings.sound,
@@ -2261,7 +2262,13 @@ export const useApp = () => {
                 };
             }
         } catch (error) { console.error('Error reading settings from localStorage', error); }
-        return defaultSettings;
+        return {
+            ...defaultSettings,
+            graphics: {
+                ...defaultSettings.graphics,
+                locale: detectBrowserLocale(),
+            },
+        };
     });
 
     const isNarrowViewport = useIsHandheldDevice(1025);
@@ -2865,7 +2872,7 @@ export const useApp = () => {
     useEffect(() => {
         if (!usePortraitFirstShell || mobileViewportStack.length === 0) return;
 
-        const hash = window.location.hash || '#/profile';
+        const hash = window.location.hash || APP_HOME_HASH;
         window.history.pushState({ sudamrMobileViewport: true }, '', hash);
 
         const onPopState = () => {
@@ -2924,6 +2931,14 @@ export const useApp = () => {
     }, [settings.graphics.theme]);
 
     useEffect(() => {
+        const locale = settings.graphics.locale ?? DEFAULT_LOCALE;
+        if (i18n.language !== locale) {
+            void i18n.changeLanguage(locale);
+        }
+        applyDocumentLocale(locale);
+    }, [settings.graphics.locale]);
+
+    useEffect(() => {
         audioService.updateSettings(settings.sound);
     }, [settings.sound]);
 
@@ -2937,6 +2952,10 @@ export const useApp = () => {
     
     const updatePanelEdgeStyle = useCallback((edgeStyle: PanelEdgeStyle) => {
         setSettings(s => ({ ...s, graphics: { ...s.graphics, panelEdgeStyle: edgeStyle }}));
+    }, []);
+
+    const updateLocale = useCallback((locale: AppLocale) => {
+        setSettings(s => ({ ...s, graphics: { ...s.graphics, locale } }));
     }, []);
 
     const updatePcLikeMobileLayout = useCallback((value: boolean) => {
@@ -3444,9 +3463,9 @@ export const useApp = () => {
     const showError = (message: string) => {
         let displayMessage = message;
         if (message.includes('Invalid move: ko')) {
-            displayMessage = "패 모양(단순 코)입니다. 다른 곳에 착수 후 다시 둘 수 있는 자리입니다.";
+            displayMessage = tx('game:messages.koShapePlacementHint');
         } else if (message.includes('action point')) {
-            displayMessage = "상대방의 행동력이 충분하지 않습니다.";
+            displayMessage = tx('game:messages.opponentInsufficientActionPoints');
         }
         setError(displayMessage);
         setTimeout(() => setError(null), 5000);
@@ -3486,7 +3505,7 @@ export const useApp = () => {
         setConnectionNotice(
             {
                 kind: 'ok',
-                message: '서버 연결이 복구되었습니다.',
+                message: tx('common:connection.restored'),
                 severity: 'success',
             },
             3000,
@@ -3498,7 +3517,7 @@ export const useApp = () => {
         setGameRejoinRetryNonce(n => n + 1);
         setConnectionNotice({
             kind: 'connecting',
-            message: '게임 정보를 다시 동기화하는 중입니다.',
+            message: tx('common:connection.resyncingGame'),
             severity: 'info',
         });
     }, [setConnectionNotice]);
@@ -5470,7 +5489,7 @@ export const useApp = () => {
             // ENTER_TOURNAMENT_VIEW 같은 경우는 사용자가 아직 로드되지 않았을 수 있으므로
             // 에러를 표시하지 않고 조용히 무시
             if (action.type !== 'ENTER_TOURNAMENT_VIEW' && action.type !== 'LEAVE_TOURNAMENT_VIEW') {
-                showError('로그인이 필요합니다.');
+                showError(tx('auth:loginRequired'));
             }
             return;
         }
@@ -5905,12 +5924,11 @@ export const useApp = () => {
                         action.type === 'SUBMIT_BASE_STONE_COLOR_CHOICE' &&
                         res.status === 400 &&
                         typeof errorMessage === 'string' &&
-                        (errorMessage.includes('선호 돌 선택 단계가 아닙니다') ||
-                            errorMessage.includes('이미 선택했습니다'));
+                        isBaseStoneColorChoiceBenignError(errorMessage);
                     if (isTransientServerStatus(res.status)) {
                         setConnectionNotice({
                             kind: 'degraded',
-                            message: '서버 응답이 지연되고 있습니다. 연결이 복구되면 데이터가 자동으로 동기화됩니다.',
+                            message: tx('common:connection.serverDelayed'),
                             severity: 'warning',
                         });
                     }
@@ -5998,7 +6016,7 @@ export const useApp = () => {
                     }
                 } catch (parseError) {
                     console.error(`[handleAction] ${action.type} - Failed to parse error response:`, parseError);
-                    errorMessage = `서버 오류 (${res.status})`;
+                    errorMessage = tx('common:errors.serverErrorWithStatus', { status: res.status });
                 }
                 // 베이스 선호: 직후 틱이 단계를 넘기거나 이중 전송 시 400이 나올 수 있음 — 조용히 동기화만
                 if (baseStoneColorSubmitBenign400) {
@@ -6023,7 +6041,7 @@ export const useApp = () => {
                     // ENTER_TOURNAMENT_VIEW 같은 경우는 사용자가 아직 로드되지 않았을 수 있으므로
                     // 에러를 표시하지 않고 조용히 무시
                     if (action.type !== 'ENTER_TOURNAMENT_VIEW' && action.type !== 'LEAVE_TOURNAMENT_VIEW') {
-                        showError('로그인이 필요합니다.');
+                        showError(tx('auth:loginRequired'));
                     }
                     revertPvpDicePlaceSnapshot();
                     revertPvpPlaceStoneSnapshot();
@@ -6033,7 +6051,7 @@ export const useApp = () => {
                 }
                 if (typeof errorMessage === 'string' && isOpponentInsufficientActionPointsError(errorMessage)) {
                     setIsOpponentInsufficientActionPointsModalOpen(true);
-                } else if (typeof errorMessage === 'string' && (errorMessage.includes('액션 포인트') || errorMessage.includes('행동력'))) {
+                } else if (typeof errorMessage === 'string' && isInsufficientActionPointsServerError(errorMessage)) {
                     setIsInsufficientActionPointsModalOpen(true);
                 } else if (
                     typeof errorMessage === 'string' &&
@@ -6077,9 +6095,7 @@ export const useApp = () => {
                     (action.type === 'LEAVE_GAME_ROOM' || action.type === 'LEAVE_AI_GAME') &&
                     res.status === 400 &&
                     typeof errorMessage === 'string' &&
-                    (/game not found/i.test(errorMessage) ||
-                        /게임을 찾을 수 없습니다/i.test(errorMessage) ||
-                        /게임 정보를 찾을 수 없습니다/i.test(errorMessage));
+                    isGameNotFoundServerError(errorMessage);
 
                 if (isBenignPostGameLeaveHttp400) {
                     if (import.meta.env.DEV) {
@@ -6154,12 +6170,12 @@ export const useApp = () => {
                         result.message.length > 0 &&
                         result.success !== true);
                 if (isHttpBodyError) {
-                    const errorMessage = result.message || result.error || '서버 오류가 발생했습니다.';
+                    const errorMessage = result.message || result.error || tx('common:errors.serverError');
                     console.error(`[handleAction] ${action.type} - Server returned error:`, errorMessage);
                     // 상대 행동력 부족은 본인 충전 모달과 구분
                     if (typeof errorMessage === 'string' && isOpponentInsufficientActionPointsError(errorMessage)) {
                         setIsOpponentInsufficientActionPointsModalOpen(true);
-                    } else if (typeof errorMessage === 'string' && (errorMessage.includes('액션 포인트') || errorMessage.includes('행동력'))) {
+                    } else if (typeof errorMessage === 'string' && isInsufficientActionPointsServerError(errorMessage)) {
                         setIsInsufficientActionPointsModalOpen(true);
                     } else if (
                         typeof errorMessage === 'string' &&
@@ -6178,7 +6194,7 @@ export const useApp = () => {
                         (action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' ||
                             action.type === 'CONFIRM_TOWER_GAME_START') &&
                         typeof errorMessage === 'string' &&
-                        (errorMessage.includes('이미 시작') || errorMessage.includes('already started'))
+                        isGameAlreadyStartedError(errorMessage)
                     ) {
                         // 서버는 playing·클라만 pending — Game.tsx에서 모달만 닫고 재동기화
                         console.warn(`[handleAction] ${action.type} - suppressing global error (already started resync):`, errorMessage);
@@ -7010,9 +7026,7 @@ export const useApp = () => {
                     if (action.type === 'USE_ITEM') {
                         if (result.clientResponse?.boxRewardSentToMail) {
                             try {
-                                window.alert(
-                                    '가방(장비) 칸이 부족해 상자 보상을 우편으로 보냈습니다.\n우편함에서 수령해 주세요.',
-                                );
+                                window.alert(tx('inventory:boxRewardSentToMail'));
                             } catch {
                                 /* ignore */
                             }
@@ -7044,7 +7058,7 @@ export const useApp = () => {
                         setRewardSummary({
                             reward: reward,
                             items: [],
-                            title: '수련과제 보상 수령'
+                            title: tx('quests:trainingMissionRewardTitle')
                         });
                     });
                 }
@@ -7941,10 +7955,10 @@ export const useApp = () => {
             console.error(`[handleAction] Error stack:`, err.stack);
             setConnectionNotice({
                 kind: 'requestFailed',
-                message: '요청을 완료하지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해주세요.',
+                message: tx('common:connection.requestFailed'),
                 severity: 'error',
             });
-            showError(err.message || '요청 처리 중 오류가 발생했습니다.');
+            showError(err.message || tx('common:errors.requestProcessingFailed'));
         } finally {
             const finalActionGameId = ((action as any).payload as { gameId?: string } | undefined)?.gameId;
             const finalIsAiSyncAction =
@@ -8725,7 +8739,7 @@ export const useApp = () => {
             wsReconnectAttemptRef.current = attempt + 1;
             setConnectionNotice({
                 kind: 'reconnecting',
-                message: '서버와 다시 연결하는 중입니다. 잠시만 기다려주세요.',
+                message: tx('common:connection.reconnectingWait'),
                 severity: 'warning',
             });
             if (process.env.NODE_ENV === 'development') {
@@ -8751,7 +8765,7 @@ export const useApp = () => {
             if (wsReconnectAttemptRef.current > 0) {
                 setConnectionNotice({
                     kind: 'connecting',
-                    message: '서버 연결을 다시 확인하는 중입니다.',
+                    message: tx('common:connection.verifyingConnection'),
                     severity: 'info',
                 });
             }
@@ -8877,7 +8891,7 @@ export const useApp = () => {
                             const msg =
                                 typeof message.payload?.message === 'string'
                                     ? message.payload.message
-                                    : '서버가 곧 재시작됩니다.\n잠시 후 자동으로 다시 연결됩니다.';
+                                    : tx('common:connection.serverRestarting');
                             const ms =
                                 typeof message.payload?.noticeMs === 'number' && message.payload.noticeMs > 0
                                     ? message.payload.noticeMs
@@ -9156,7 +9170,7 @@ export const useApp = () => {
                                     lastHttpActionType.current,
                                     updatedCurrentUser,
                                 );
-                                const isConditionPotionInventoryIncreaseWs = isConditionPotionInventoryIncreaseWs(
+                                const isPostConditionPotionInventoryIncreaseWs = isConditionPotionInventoryIncreaseWs(
                                     updatedCurrentUser,
                                     currentUserRef.current?.inventory,
                                     {
@@ -9176,7 +9190,7 @@ export const useApp = () => {
                                         !isPostTowerGameEndInventoryWs &&
                                         !isPostUseConditionPotionSyncWs &&
                                         !isPostBuyConditionPotionSyncWs &&
-                                        !isConditionPotionInventoryIncreaseWs &&
+                                        !isPostConditionPotionInventoryIncreaseWs &&
                                         hadHttpUpdate &&
                                         httpUpdateHadUser &&
                                         timeSinceLastHttpUpdate < HTTP_UPDATE_DEBOUNCE_MS
@@ -9196,7 +9210,7 @@ export const useApp = () => {
                                         !isPostTowerGameEndInventoryWs &&
                                         !isPostUseConditionPotionSyncWs &&
                                         !isPostBuyConditionPotionSyncWs &&
-                                        !isConditionPotionInventoryIncreaseWs &&
+                                        !isPostConditionPotionInventoryIncreaseWs &&
                                         hadHttpUpdate &&
                                         httpUpdateHadUser &&
                                         timeSinceLastHttpUpdate < HTTP_UPDATE_DEBOUNCE_MS * 2 &&
@@ -9469,7 +9483,7 @@ export const useApp = () => {
                                                         const currentGame = liveGames[gameIdFromHash] || singlePlayerGames[gameIdFromHash] || towerGames[gameIdFromHash];
                                                         if (currentGame && getSessionArenaKind(currentGame) !== 'singleplayer' && currentGame.mode) {
                                                             if ((currentGame.settings as { pairGame?: unknown } | undefined)?.pairGame) {
-                                                                console.log('[WebSocket] Pair game session → 페어 경기장');
+                                                                console.log('[WebSocket] Pair game session → pair arena');
                                                                 setTimeout(() => {
                                                                     replaceAppHash(
                                                                         arenaLobbyHashFromSession(currentGame as any),
@@ -9498,7 +9512,7 @@ export const useApp = () => {
                                                     } else if (mode) {
                                                         console.warn('[WebSocket] Individual game mode detected, redirecting to profile:', mode);
                                                         setTimeout(() => {
-                                                            replaceAppHash('#/profile');
+                                                            replaceAppHash(APP_HOME_HASH);
                                                         }, 100);
                                                     }
                                                 }
@@ -11364,7 +11378,7 @@ export const useApp = () => {
                             return;
                         }
                         case 'MUTUAL_DISCONNECT_ENDED': {
-                            const msg = message.payload?.message ?? '양쪽 유저의 접속이 모두 끊어져 대국이 종료되었습니다.';
+                            const msg = message.payload?.message ?? tx('game:messages.mutualDisconnectEnded');
                             setMutualDisconnectMessage(msg);
                             return;
                         }
@@ -11392,7 +11406,7 @@ export const useApp = () => {
                                 const maintenanceMsg =
                                     typeof message.payload?.message === 'string' && message.payload.message.trim()
                                         ? message.payload.message
-                                        : '서버 점검 중입니다. 잠시 후 다시 접속해주세요.';
+                                        : tx('common:connection.maintenanceLogout');
                                 setServerReconnectNotice(maintenanceMsg);
                                 replaceAppHash('#/login');
                                 return;
@@ -11408,7 +11422,7 @@ export const useApp = () => {
                                 const adminMsg =
                                     typeof message.payload?.message === 'string' && message.payload.message.trim()
                                         ? message.payload.message.trim()
-                                        : '관리자에 의해 접속이 종료되었습니다.';
+                                        : tx('common:connection.adminDisconnected');
                                 setServerReconnectNotice(adminMsg);
                                 replaceAppHash('#/login');
                                 return;
@@ -11705,7 +11719,7 @@ export const useApp = () => {
                         if (currentUserRef.current) {
                             setCurrentUser(null);
                             setShowOtherDeviceLoginModal(false);
-                            setServerReconnectNotice('관리자에 의해 접속이 종료되었습니다.');
+                            setServerReconnectNotice(tx('common:connection.adminDisconnected'));
                             replaceAppHash('#/login');
                         }
                         return;
@@ -11771,6 +11785,12 @@ export const useApp = () => {
     
     useEffect(() => {
         const handleHashChange = () => {
+            const rawHash = window.location.hash;
+            const canonicalHash = normalizeLegacyAppHash(rawHash);
+            if (canonicalHash !== rawHash) {
+                replaceAppHash(canonicalHash);
+                return;
+            }
             const prevRoute = currentRouteRef.current;
             const newRoute = parseHash(window.location.hash);
             const isExiting = (prevRoute.view === 'profile' && newRoute.view === 'login' && window.location.hash === '');
@@ -11780,7 +11800,7 @@ export const useApp = () => {
                 else {
                     setShowExitToast(true);
                     exitToastTimer.current = window.setTimeout(() => setShowExitToast(false), 2000);
-                    window.history.pushState(null, '', '#/profile');
+                    window.history.pushState(null, '', APP_HOME_HASH);
                     return;
                 }
             } else {
@@ -11809,7 +11829,12 @@ export const useApp = () => {
                     window.location.hash = `#/game/${activeGame.id}`;
                     return;
                 }
-                window.location.hash = '#/profile';
+                window.location.hash = APP_HOME_HASH;
+                return;
+            }
+            const canonicalInitialHash = normalizeLegacyAppHash(currentHash);
+            if (canonicalInitialHash !== currentHash) {
+                replaceAppHash(canonicalInitialHash);
                 return;
             }
             // 길드 관련 페이지(#/guild, #/guildboss, #/guildwar)에서는 새로고침 시 해당 화면 유지
@@ -11879,7 +11904,7 @@ export const useApp = () => {
                     if (currentHash !== h) replaceAppHash(h);
                     return;
                 }
-                let targetHash = '#/profile';
+                let targetHash = APP_HOME_HASH;
                 if (currentUserWithStatus?.status === 'waiting') {
                     const intent = currentUserWithStatus.lobbyIntent === 'ai' ? 'ai' : 'pvp';
                     if (currentUserWithStatus.arenaChannel === 'pair') {
@@ -12167,13 +12192,13 @@ export const useApp = () => {
                     reason,
                     message:
                         reason === 'network'
-                            ? '게임 정보를 불러오지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해주세요.'
-                            : '게임을 찾을 수 없습니다. 프로필로 이동합니다...',
+                            ? tx('common:connection.gameLoadFailed')
+                            : tx('nav:router.gameNotFoundRedirect'),
                 });
                 if (reason === 'network') {
                     setConnectionNotice({
                         kind: 'requestFailed',
-                        message: '게임 정보를 불러오지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해주세요.',
+                        message: tx('common:connection.gameLoadFailed'),
                         severity: 'error',
                     });
                 }
@@ -12181,11 +12206,11 @@ export const useApp = () => {
                 setGameRejoinFailure({
                     gameId,
                     reason: 'network',
-                    message: '게임 정보를 불러오지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해주세요.',
+                    message: tx('common:connection.gameLoadFailed'),
                 });
                 setConnectionNotice({
                     kind: 'requestFailed',
-                    message: '게임 정보를 불러오지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해주세요.',
+                    message: tx('common:connection.gameLoadFailed'),
                     severity: 'error',
                 });
             } finally {
@@ -12275,12 +12300,12 @@ export const useApp = () => {
                   ? 'playfulLobby'
                   : null;
             if (lobbyKey && !m[lobbyKey]) {
-                window.alert(ARENA_ENTRANCE_CLOSED_MESSAGE[lobbyKey]);
+                window.alert(translateArenaEntranceClosed(lobbyKey));
                 return;
             }
         }
         if (!waitingRoomMode) {
-            window.location.hash = '#/profile';
+            window.location.hash = APP_HOME_HASH;
             return;
         }
         handleAction({ type: 'ENTER_WAITING_ROOM', payload: { mode: waitingRoomMode, lobbyIntent: 'pvp' } });
@@ -12381,7 +12406,7 @@ export const useApp = () => {
                 setCurrentRoute(parseHash(window.location.hash));
             });
         } else {
-            replaceAppHash('#/profile');
+            replaceAppHash(APP_HOME_HASH);
             // hashchange의 setCurrentRoute는 다음 틱에 반영되어, 닉네임 확정 직후에도 잠시 set-nickname 뷰가 남는다
             flushSync(() => {
                 setCurrentRoute(parseHash(window.location.hash));
@@ -12776,6 +12801,7 @@ export const useApp = () => {
         updatePanelColor,
         updateTextColor,
         updatePanelEdgeStyle,
+        updateLocale,
         updatePcLikeMobileLayout,
         resetGraphicsToDefault,
         mainOptionBonuses,

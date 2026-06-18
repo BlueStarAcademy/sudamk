@@ -1,7 +1,8 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAppContext } from '../hooks/useAppContext.js';
-import { replaceAppHash } from '../utils/appUtils.js';
+import { replaceAppHash, APP_HOME_HASH } from '../utils/appUtils.js';
 import { getApiUrl } from '../utils/apiConfig.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 
@@ -64,6 +65,7 @@ const loginRegisterBtnClass =
   'w-full rounded-xl border border-white/18 bg-white/[0.06] py-3.5 text-[16px] font-semibold tracking-wide text-stone-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-amber-400/35 hover:bg-white/[0.1] hover:text-amber-50 active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950';
 
 const Login: React.FC = () => {
+  const { t } = useTranslation('auth');
   const { setCurrentUserAndRoute, handlers } = useAppContext();
   const { isNativeMobile } = useNativeMobileShell();
 
@@ -97,7 +99,7 @@ const Login: React.FC = () => {
       const u = user.trim();
       const p = pass.trim();
       if (!u || !p) {
-        setError('아이디와 비밀번호를 모두 입력해주세요.');
+        setError(t('errors.credentialsRequired'));
         return false;
       }
       setIsLoading(true);
@@ -131,22 +133,20 @@ const Login: React.FC = () => {
           console.error('[Login] Received non-JSON response:', text.substring(0, 200));
 
           if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
-            setError('백엔드 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.');
+            setError(t('errors.backendUnavailable'));
             return false;
           }
 
-          setError(`서버 응답 오류: 예상하지 못한 응답 형식을 받았습니다. (상태: ${response.status})`);
+          setError(t('errors.unexpectedResponse', { status: response.status }));
           return false;
         }
 
         if (!response.ok) {
           if (response.status === 502) {
-            setError(
-              '서버가 일시적으로 응답하지 않습니다 (502). 잠시 후 다시 시도하거나 Railway 대시보드에서 백엔드 로그를 확인해주세요.',
-            );
+            setError(t('errors.server502'));
             return false;
           }
-          let errorMessage = `로그인 실패 (${response.statusText})`;
+          let errorMessage = t('errors.loginFailed', { statusText: response.statusText });
           try {
             const errorData = await response.json();
             if (response.status === 403 && errorData?.banInfo) {
@@ -157,7 +157,7 @@ const Login: React.FC = () => {
             }
           } catch (e) {
             console.error('Login failed with a non-JSON response body.', e);
-            setError(`서버 응답 오류: JSON 파싱 실패 (상태: ${response.status})`);
+            setError(t('errors.jsonParseFailed', { status: response.status }));
             return false;
           }
           throw new Error(errorMessage);
@@ -166,7 +166,7 @@ const Login: React.FC = () => {
         const data = await response.json();
 
         if (!data || !data.user) {
-          setError('서버 응답 오류: 사용자 정보를 받을 수 없습니다.');
+          setError(t('errors.noUserInResponse'));
           return false;
         }
 
@@ -194,33 +194,33 @@ const Login: React.FC = () => {
         } else if (!data.user.nickname || data.user.nickname.startsWith('user_')) {
           replaceAppHash('#/set-nickname');
         } else {
-          replaceAppHash('#/profile');
+          replaceAppHash(APP_HOME_HASH);
         }
         return true;
       } catch (err: any) {
         console.error('[Login] Login error:', err);
 
         if (err?.name === 'AbortError') {
-          setError('서버 응답이 30초 내에 없습니다. 잠시 후 다시 시도해주세요.');
+          setError(t('errors.timeout'));
           return false;
         }
         const msg = err?.message || '';
         const isNetworkError = err?.name === 'TypeError' && (msg.includes('fetch') || msg.includes('Failed to'));
         if (isNetworkError) {
-          setError('서버에 연결할 수 없습니다. 잠시 후 다시 시도하거나 SUDAM-API 서비스 상태를 확인해주세요.');
+          setError(t('errors.networkError'));
           return false;
         }
         if (msg.includes('JSON')) {
-          setError('서버 응답 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+          setError(t('errors.genericResponseError'));
           return false;
         }
-        setError(err?.message || '로그인 중 오류가 발생했습니다.');
+        setError(err?.message || t('errors.loginError'));
         return false;
       } finally {
         setIsLoading(false);
       }
     },
-    [autoLogin, handlers, rememberUsername, setCurrentUserAndRoute],
+    [autoLogin, handlers, rememberUsername, setCurrentUserAndRoute, t],
   );
 
   const loginWithCredentialsRef = useRef(loginWithCredentials);
@@ -284,18 +284,22 @@ const Login: React.FC = () => {
       >
         {banInfo && (
           <div className="mb-4 rounded-lg border border-red-500/40 bg-red-950/35 p-3 text-sm text-red-100">
-            <div className="font-semibold mb-1">접속 금지 상태입니다.</div>
-            <div>사유: {banInfo.reason || '관리자 제재'}</div>
-            {typeof banInfo.remainingMinutes === 'number' && <div>남은 기간: 약 {banInfo.remainingMinutes}분</div>}
-            {banInfo.expiresAt && <div>해제 예정: {new Date(banInfo.expiresAt).toLocaleString()}</div>}
+            <div className="font-semibold mb-1">{t('ban.title')}</div>
+            <div>{t('ban.reason', { reason: banInfo.reason || t('ban.adminDefault') })}</div>
+            {typeof banInfo.remainingMinutes === 'number' && (
+              <div>{t('ban.remainingMinutes', { minutes: banInfo.remainingMinutes })}</div>
+            )}
+            {banInfo.expiresAt && (
+              <div>{t('ban.expiresAt', { date: new Date(banInfo.expiresAt).toLocaleString() })}</div>
+            )}
             {Array.isArray(banInfo.history) && banInfo.history.length > 0 && (
               <div className="mt-2">
-                <div className="text-red-200 mb-1">제재 내역</div>
+                <div className="text-red-200 mb-1">{t('ban.historyTitle')}</div>
                 <div className="max-h-24 overflow-y-auto space-y-1 text-xs">
                   {banInfo.history.map((h, idx) => (
                     <div key={h.id || `${idx}-${h.createdAt || 0}`} className="rounded bg-black/30 px-2 py-1">
-                      {h.reason || '사유 없음'} / {h.createdAt ? new Date(h.createdAt).toLocaleString() : '-'}
-                      {h.releasedAt ? ' / 해제됨' : ''}
+                      {h.reason || t('ban.noReason')} / {h.createdAt ? new Date(h.createdAt).toLocaleString() : '-'}
+                      {h.releasedAt ? ` / ${t('ban.released')}` : ''}
                     </div>
                   ))}
                 </div>
@@ -318,7 +322,7 @@ const Login: React.FC = () => {
                     : 'mb-2 block text-base font-semibold tracking-wide text-stone-200 sm:text-lg'
                 }
               >
-                아이디
+                {t('username')}
               </label>
               <input
                 id="username-login"
@@ -327,7 +331,7 @@ const Login: React.FC = () => {
                 autoComplete="username"
                 required
                 className={inputClass}
-                placeholder="아이디를 입력하세요"
+                placeholder={t('usernamePlaceholder')}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
               />
@@ -341,7 +345,7 @@ const Login: React.FC = () => {
                     : 'mb-2 block text-base font-semibold tracking-wide text-stone-200 sm:text-lg'
                 }
               >
-                비밀번호
+                {t('password')}
               </label>
               <input
                 id="password-login"
@@ -350,7 +354,7 @@ const Login: React.FC = () => {
                 autoComplete="current-password"
                 required
                 className={inputClass}
-                placeholder="비밀번호"
+                placeholder={t('passwordPlaceholder')}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
@@ -375,7 +379,7 @@ const Login: React.FC = () => {
                     if (!v) setAutoLogin(false);
                   }}
                 />
-                <span className="truncate">아이디 저장</span>
+                <span className="truncate">{t('rememberUsername')}</span>
               </label>
               <label
                 className={`flex cursor-pointer select-none items-center justify-center gap-1.5 leading-tight text-stone-300 active:opacity-90 ${
@@ -392,7 +396,7 @@ const Login: React.FC = () => {
                     if (v) setRememberUsername(true);
                   }}
                 />
-                <span>자동 로그인</span>
+                <span>{t('autoLogin')}</span>
               </label>
             </div>
           </div>
@@ -415,7 +419,7 @@ const Login: React.FC = () => {
               disabled={isLoading}
               className={isNativeMobile ? mobilePrimaryBtnClass : loginPrimaryBtnClass}
             >
-              {isLoading ? '로그인 중...' : '로그인'}
+              {isLoading ? t('loggingIn') : t('login')}
             </button>
             <button
               type="button"
@@ -424,7 +428,7 @@ const Login: React.FC = () => {
                 window.location.hash = '#/register';
               }}
             >
-              회원가입
+              {t('register')}
             </button>
           </div>
         </form>
@@ -441,7 +445,7 @@ const Login: React.FC = () => {
                   : 'rounded-full bg-zinc-950/90 px-4 py-0.5 text-zinc-500 ring-1 ring-white/[0.06]'
               }
             >
-              소셜 계정으로 계속하기
+              {t('continueWithSocial')}
             </span>
           </div>
         </div>
@@ -464,9 +468,9 @@ const Login: React.FC = () => {
                   const text = await response.text();
                   console.error('[Login] Kakao URL: Received non-JSON response:', text.substring(0, 200));
                   if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
-                    setError('백엔드 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.');
+                    setError(t('errors.backendUnavailable'));
                   } else {
-                    setError('카카오 로그인 URL을 가져올 수 없습니다.');
+                    setError(t('errors.kakaoUrlFailed'));
                   }
                   return;
                 }
@@ -475,15 +479,15 @@ const Login: React.FC = () => {
                 if (data.url) {
                   window.location.href = data.url;
                 } else {
-                  setError('카카오 로그인 URL을 받을 수 없습니다.');
+                  setError(t('errors.kakaoUrlMissing'));
                 }
               } catch (err: any) {
                 console.error('[Login] Kakao login error:', err);
                 const msg = err?.message || '';
                 if (err?.name === 'TypeError' && (msg.includes('fetch') || msg.includes('Failed to'))) {
-                  setError('서버에 연결할 수 없습니다. SUDAM-API가 실행 중인지 Railway 대시보드에서 확인해주세요.');
+                  setError(t('errors.kakaoNetworkError'));
                 } else {
-                  setError('카카오 로그인에 실패했습니다.');
+                  setError(t('errors.kakaoLoginFailed'));
                 }
               }
             }}
@@ -498,7 +502,7 @@ const Login: React.FC = () => {
             >
               <path fillRule="evenodd" clipRule="evenodd" d="M9 0.6C4.02944 0.6 0 3.71267 0 7.55283C0 9.94002 1.55836 12.0451 3.93132 13.2971L2.93331 16.7981C2.84473 17.1082 3.20572 17.3567 3.47572 17.1705L7.5727 14.3437C8.03958 14.4122 8.51584 14.4486 9 14.4486C13.9706 14.4486 18 11.3889 18 7.55283C18 3.71267 13.9706 0.6 9 0.6Z" fill="black"/>
             </svg>
-            카카오
+            {t('kakao')}
           </button>
           <button
             type="button"
@@ -512,7 +516,7 @@ const Login: React.FC = () => {
                 const isJson = contentType && contentType.includes('application/json');
 
                 if (!isJson) {
-                  setError('구글 로그인 URL을 가져올 수 없습니다.');
+                  setError(t('errors.googleUrlFailed'));
                   return;
                 }
 
@@ -520,11 +524,11 @@ const Login: React.FC = () => {
                 if (data.url) {
                   window.location.href = data.url;
                 } else {
-                  setError('구글 로그인 URL을 받을 수 없습니다.');
+                  setError(t('errors.googleUrlMissing'));
                 }
               } catch (err: any) {
                 console.error('[Login] Google login error:', err);
-                setError('구글 로그인에 실패했습니다.');
+                setError(t('errors.googleLoginFailed'));
               }
             }}
           >
@@ -541,7 +545,7 @@ const Login: React.FC = () => {
               <path d="M4.4045 11.9C4.2045 11.3 4.0909 10.6591 4.0909 10C4.0909 9.3409 4.2045 8.7 4.4045 8.1V5.5091H1.0636C0.3864 6.8591 0 8.3864 0 10C0 11.6136 0.3864 13.1409 1.0636 14.4909L4.4045 11.9Z" fill="#FBBC04"/>
               <path d="M10 3.9773C11.4681 3.9773 12.7863 4.4818 13.8227 5.4727L16.6909 2.6045C14.9591 0.9909 12.6954 0 10 0C6.0909 0 2.7091 2.2409 1.0636 5.5091L4.4045 8.1C5.1909 5.7364 7.3954 3.9773 10 3.9773Z" fill="#E94235"/>
             </svg>
-            구글
+            {t('google')}
           </button>
         </div>
       </div>

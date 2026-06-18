@@ -1,6 +1,6 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import type { ArenaLobbyIntent } from '../../shared/types/api.js';
-import { ARENA_LOBBY_DESTINATION_TITLE } from '../../shared/utils/arenaLobbyDestination.js';
 
 export type ArenaLobbyNavKind = 'pair' | 'strategic' | 'playful';
 
@@ -13,6 +13,11 @@ type TitleBarProps = {
     className?: string;
 };
 
+function destinationTitleKey(kind: ArenaLobbyNavKind, intent: ArenaLobbyIntent): string {
+    const suffix = intent === 'pvp' ? 'Pvp' : 'Ai';
+    return `${kind}${suffix}`;
+}
+
 /** 뒤로가기 + 현재 경기장 제목. 경기장 전환은 `ArenaLobbySwitchGrid`에서 처리한다. */
 export const ArenaLobbyNavTitleBar: React.FC<TitleBarProps> = ({
     kind,
@@ -21,6 +26,7 @@ export const ArenaLobbyNavTitleBar: React.FC<TitleBarProps> = ({
     className,
     titleHeadingClass,
 }) => {
+    const { t } = useTranslation('lobby');
     const titleStripChrome =
         kind === 'playful'
             ? 'border-amber-400/45 bg-black/20'
@@ -28,7 +34,7 @@ export const ArenaLobbyNavTitleBar: React.FC<TitleBarProps> = ({
               ? 'border-violet-400/50 bg-violet-950/20'
               : 'border-cyan-400/45 bg-black/25';
 
-    const displayTitle = ARENA_LOBBY_DESTINATION_TITLE[kind][lobbyIntent];
+    const displayTitle = t(`arenaLobby.destinationTitle.${destinationTitleKey(kind, lobbyIntent)}`);
 
     return (
         <div className={className ?? ''}>
@@ -39,7 +45,7 @@ export const ArenaLobbyNavTitleBar: React.FC<TitleBarProps> = ({
                     type="button"
                     onClick={onBackToProfile}
                     className="relative z-[1] shrink-0 transition-transform active:scale-90 hover:drop-shadow-lg"
-                    aria-label="뒤로가기"
+                    aria-label={t('arenaLobby.back')}
                 >
                     <img src="/images/button/back.webp" alt="" className="h-9 w-9 sm:h-10 sm:w-10" />
                 </button>

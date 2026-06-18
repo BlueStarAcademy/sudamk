@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import type { TFunction } from 'i18next';
 import { Guild, GuildMember, GuildResearchId, GuildResearchCategory } from '../../types/index.js';
 import { GuildMemberRole } from '../../types/enums.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
@@ -7,6 +8,7 @@ import { GUILD_RESEARCH_PROJECTS, ADMIN_USER_ID } from '../../constants/index.js
 import DraggableWindow from '../DraggableWindow.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
+import { useTranslation } from 'react-i18next';
 
 interface GuildResearchPanelProps {
     guild: Guild;
@@ -22,13 +24,13 @@ const getResearchCost = (researchId: GuildResearchId, level: number): number => 
 
 const getResearchTimeMs = (researchId: GuildResearchId, level: number): number => {
     const project = GUILD_RESEARCH_PROJECTS[researchId];
-    if(!project) return 0;
+    if (!project) return 0;
     const hours = project.baseTimeHours + (project.timeIncrementHours * level);
     return hours * 60 * 60 * 1000;
 };
 
-const formatTimeLeft = (ms: number): string => {
-    if (ms <= 0) return "완료";
+const formatTimeLeft = (ms: number, t: TFunction): string => {
+    if (ms <= 0) return t('research.completed');
     const totalSeconds = Math.floor(ms / 1000);
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -36,7 +38,11 @@ const formatTimeLeft = (ms: number): string => {
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 };
 
-const getResearchSkillDisplay = (researchId: GuildResearchId, level: number): { chance?: number; description: string; } | null => {
+const getResearchSkillDisplay = (
+    researchId: GuildResearchId,
+    level: number,
+    t: TFunction,
+): { chance?: number; description: string } | null => {
     if (level === 0) return null;
     const project = GUILD_RESEARCH_PROJECTS[researchId];
     if (!project) return null;
@@ -45,38 +51,38 @@ const getResearchSkillDisplay = (researchId: GuildResearchId, level: number): { 
 
     switch (researchId) {
         case GuildResearchId.boss_hp_increase:
-            return { description: `[${totalEffect}% 증가]` };
+            return { description: t('research.bossHpIncrease', { value: totalEffect }) };
         case GuildResearchId.boss_skill_heal_block: {
             const chance = 10 + (15 * level);
-            const reduction = 10 * level; // baseEffect is 10
-            return { description: `[${chance}%]확률 / 회복량 [-${reduction}%]` };
+            const reduction = 10 * level;
+            return { chance, description: t('research.bossHealBlock', { chance, reduction }) };
         }
-        case GuildResearchId.boss_skill_regen: { // '회복'
+        case GuildResearchId.boss_skill_regen: {
             const chance = 10 + (15 * level);
-            const increase = 10 * level; // baseEffect is 10
-            return { description: `[${chance}%]확률 / 회복량[+${increase}%]` };
+            const increase = 10 * level;
+            return { chance, description: t('research.bossRegen', { chance, increase }) };
         }
         case GuildResearchId.boss_skill_ignite: {
             const chance = 10 + (15 * level);
-            const increasePercent = level * 10; // baseEffect is 10
-            return { description: `[${chance}%]확률 / 피해량[+${increasePercent}%]` };
+            const increasePercent = level * 10;
+            return { chance, description: t('research.bossIgnite', { chance, damage: increasePercent }) };
         }
         case GuildResearchId.ap_regen_boost: {
             const sec = project.baseEffect * level;
-            return { description: `행동력 회복시간 -${sec}초` };
+            return { description: t('research.apRegenEffect', { sec }) };
         }
         case GuildResearchId.stat_concentration:
-            return { description: `집중력 +${totalEffect}%` };
+            return { description: t('research.statConcentration', { value: totalEffect }) };
         case GuildResearchId.stat_thinking_speed:
-            return { description: `사고속도 +${totalEffect}%` };
+            return { description: t('research.statThinkingSpeed', { value: totalEffect }) };
         case GuildResearchId.stat_judgment:
-            return { description: `판단력 +${totalEffect}%` };
+            return { description: t('research.statJudgment', { value: totalEffect }) };
         case GuildResearchId.stat_calculation:
-            return { description: `계산력 +${totalEffect}%` };
+            return { description: t('research.statCalculation', { value: totalEffect }) };
         case GuildResearchId.stat_combat_power:
-            return { description: `전투력 +${totalEffect}%` };
+            return { description: t('research.statCombatPower', { value: totalEffect }) };
         case GuildResearchId.stat_stability:
-            return { description: `안정감 +${totalEffect}%` };
+            return { description: t('research.statStability', { value: totalEffect }) };
         default:
             return null;
     }
@@ -91,12 +97,13 @@ const ResearchItemPanel: React.FC<{
     isAnyResearchActive: boolean;
     isNativeMobile: boolean;
 }> = ({ researchId, project, guild, myMemberInfo, isResearchingThis, isAnyResearchActive, isNativeMobile }) => {
+    const { t } = useTranslation(['guild', 'common']);
     const { handlers, currentUserWithStatus } = useAppContext();
     const [timeLeft, setTimeLeft] = useState(0);
 
     const currentLevel = guild.research?.[researchId]?.level ?? 0;
     const isMaxLevel = currentLevel >= project.maxLevel;
-    
+
     const nextLevel = currentLevel + 1;
     const cost = getResearchCost(researchId, currentLevel);
     const timeMs = getResearchTimeMs(researchId, currentLevel);
@@ -105,7 +112,6 @@ const ResearchItemPanel: React.FC<{
     const cu = currentUserWithStatus;
     const effectiveUserId = cu?.isAdmin ? ADMIN_USER_ID : (cu?.id ?? '');
     const actualUserId = cu?.id ?? '';
-    // 서버 GUILD_START_RESEARCH와 동일: 관리자는 members에 canonical id 또는 실제 id로 들어갈 수 있음
     const memberByEffective = effectiveUserId ? guild.members?.find((m) => m.userId === effectiveUserId) : undefined;
     const memberByActualId =
         cu?.isAdmin && actualUserId ? guild.members?.find((m) => m.userId === actualUserId) : undefined;
@@ -118,7 +124,7 @@ const ResearchItemPanel: React.FC<{
         resolvedMyMember?.role === GuildMemberRole.Master ||
         resolvedMyMember?.role === GuildMemberRole.Vice;
     const meetsGuildLevel = guild.level >= (project.requiredGuildLevel?.[currentLevel] ?? nextLevel);
-    
+
     const canStartResearch = canManage && !isAnyResearchActive && !isMaxLevel && canAfford && meetsGuildLevel;
 
     useEffect(() => {
@@ -138,38 +144,50 @@ const ResearchItemPanel: React.FC<{
 
     const handleStartResearch = () => {
         if (!canStartResearch) return;
-        if (window.confirm(`[${project.name}] ${nextLevel}레벨 연구를 시작하시겠습니까?\n\n필요 포인트: ${cost.toLocaleString()} RP\n예상 시간: ${formatTimeLeft(timeMs)}`)) {
+        if (
+            window.confirm(
+                t('research.startConfirm', {
+                    name: project.name,
+                    level: nextLevel,
+                    cost: cost.toLocaleString(),
+                    time: formatTimeLeft(timeMs, t),
+                }),
+            )
+        ) {
             handlers.handleAction({ type: 'GUILD_START_RESEARCH', payload: { guildId: guild.id, researchId } });
         }
     };
-    
-    const currentEffectDisplay = getResearchSkillDisplay(researchId, currentLevel);
-    const nextEffectDisplay = getResearchSkillDisplay(researchId, nextLevel);
+
+    const currentEffectDisplay = getResearchSkillDisplay(researchId, currentLevel, t);
+    const nextEffectDisplay = getResearchSkillDisplay(researchId, nextLevel, t);
 
     const defaultEffectText = `+${(project.baseEffect * currentLevel).toFixed(project.effectUnit === '%' ? 1 : 0).replace('.0', '')}${project.effectUnit}`;
     const defaultNextEffectText = `+${(project.baseEffect * nextLevel).toFixed(project.effectUnit === '%' ? 1 : 0).replace('.0', '')}${project.effectUnit}`;
-    
-    let currentEffectString = '효과 없음';
+
+    let currentEffectString = t('research.noEffect');
     if (currentLevel > 0) {
-        currentEffectString = currentEffectDisplay ? `${currentEffectDisplay.chance ? `[${currentEffectDisplay.chance}% 확률] ` : ''}${currentEffectDisplay.description}` : defaultEffectText;
+        currentEffectString = currentEffectDisplay
+            ? `${currentEffectDisplay.chance ? t('research.chancePrefix', { chance: currentEffectDisplay.chance }) : ''}${currentEffectDisplay.description}`
+            : defaultEffectText;
     }
 
     let nextEffectString = '';
     if (!isMaxLevel) {
-        nextEffectString = nextEffectDisplay ? `${nextEffectDisplay.chance ? `[${nextEffectDisplay.chance}% 확률] ` : ''}${nextEffectDisplay.description}` : defaultNextEffectText;
+        nextEffectString = nextEffectDisplay
+            ? `${nextEffectDisplay.chance ? t('research.chancePrefix', { chance: nextEffectDisplay.chance }) : ''}${nextEffectDisplay.description}`
+            : defaultNextEffectText;
     }
-
 
     const effectBoxes = (
         <div className="rounded-md border border-stone-700/50 bg-stone-800/40 px-2 py-1 text-xs leading-snug">
             {isMaxLevel ? (
                 <>
-                    <span className="text-stone-400">효과:</span>
+                    <span className="text-stone-400">{t('research.effectLabel')}</span>
                     <span className="ml-1 font-bold text-emerald-400 break-words">{currentEffectString}</span>
                 </>
             ) : (
                 <>
-                    <span className="text-stone-400">효과:</span>
+                    <span className="text-stone-400">{t('research.effectLabel')}</span>
                     <span className="ml-1 font-bold text-emerald-400 break-words">{currentEffectString}</span>
                     <span className="mx-1 text-stone-500">→</span>
                     <span className="font-bold text-cyan-400 break-words">{nextEffectString}</span>
@@ -184,26 +202,26 @@ const ResearchItemPanel: React.FC<{
                 <div className="relative w-full max-w-full overflow-hidden rounded-lg border border-emerald-500/60 bg-gradient-to-br from-emerald-900/90 via-teal-800/80 to-emerald-900/90 p-2 text-center shadow-lg sm:max-w-[8.5rem]">
                     <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-emerald-500/20 via-teal-400/10 to-emerald-500/15" />
                     <div className="relative z-10">
-                        <p className="mb-0.5 text-[10px] font-semibold text-emerald-300">연구 중</p>
-                        <p className="font-mono text-sm font-bold text-emerald-200">{formatTimeLeft(timeLeft)}</p>
+                        <p className="mb-0.5 text-[10px] font-semibold text-emerald-300">{t('research.researching')}</p>
+                        <p className="font-mono text-sm font-bold text-emerald-200">{formatTimeLeft(timeLeft, t)}</p>
                     </div>
                 </div>
             ) : (
                 <div className="w-full max-w-full space-y-1 rounded-lg border border-stone-600/60 bg-gradient-to-br from-stone-800/80 to-stone-900/80 p-2 text-xs shadow-md sm:max-w-[8.5rem]">
                     {isMaxLevel ? (
-                        <p className="py-0.5 text-center text-xs font-bold text-emerald-400">최고 레벨</p>
+                        <p className="py-0.5 text-center text-xs font-bold text-emerald-400">{t('research.maxLevel')}</p>
                     ) : (
                         <>
                             <div className="flex justify-between items-center gap-1">
-                                <span className="text-stone-400">포인트:</span>
+                                <span className="text-stone-400">{t('research.points')}</span>
                                 <span className={`font-bold tabular-nums ${canAfford ? 'text-amber-300' : 'text-red-400'}`}>{cost.toLocaleString()}</span>
                             </div>
                             <div className="flex justify-between items-center gap-1">
-                                <span className="text-stone-400">시간:</span>
-                                <span className="font-semibold text-stone-300">{formatTimeLeft(timeMs)}</span>
+                                <span className="text-stone-400">{t('research.time')}</span>
+                                <span className="font-semibold text-stone-300">{formatTimeLeft(timeMs, t)}</span>
                             </div>
                             <div className="flex justify-between items-center gap-1">
-                                <span className="text-stone-400">길드Lv:</span>
+                                <span className="text-stone-400">{t('research.guildLevel')}</span>
                                 <span className={`font-bold ${meetsGuildLevel ? 'text-stone-300' : 'text-red-400'}`}>{project.requiredGuildLevel?.[currentLevel] ?? nextLevel}</span>
                             </div>
                         </>
@@ -223,7 +241,7 @@ const ResearchItemPanel: React.FC<{
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
                 )}
                 <span className="relative z-10">
-                    {isMaxLevel ? '최고 레벨' : '연구 시작'}
+                    {isMaxLevel ? t('research.maxLevel') : t('research.startResearch')}
                 </span>
             </button>
         </div>
@@ -262,9 +280,9 @@ const ResearchItemPanel: React.FC<{
 };
 
 const GuildResearchPanel: React.FC<GuildResearchPanelProps & { onClose: () => void }> = ({ guild, myMemberInfo, onClose }) => {
+    const { t } = useTranslation(['guild', 'common']);
     const { isNativeMobile } = useNativeMobileShell();
     const isHandheld = useIsHandheldDevice();
-    // FIX: Replaced string literal with GuildResearchCategory enum member for initial state.
     const [activeTab, setActiveTab] = useState<GuildResearchCategory>(GuildResearchCategory.development);
     const researchInProgressId = guild.researchTask?.researchId;
 
@@ -273,18 +291,17 @@ const GuildResearchPanel: React.FC<GuildResearchPanelProps & { onClose: () => vo
             .filter(([, project]) => project.category === activeTab)
             .map(([id, project]) => ({ id, project }));
     }, [activeTab]);
-    
+
     const tabs: { id: GuildResearchCategory; label: string }[] = [
-        // FIX: Replaced string literals with GuildResearchCategory enum members.
-        { id: GuildResearchCategory.development, label: '길드 발전' },
-        { id: GuildResearchCategory.boss, label: '보스전' },
-        { id: GuildResearchCategory.stats, label: '능력치 증가' },
-        { id: GuildResearchCategory.rewards, label: '보상 증가' },
+        { id: GuildResearchCategory.development, label: t('research.categoryDevelopment') },
+        { id: GuildResearchCategory.boss, label: t('research.categoryBoss') },
+        { id: GuildResearchCategory.stats, label: t('research.categoryStats') },
+        { id: GuildResearchCategory.rewards, label: t('research.categoryRewards') },
     ];
 
     return (
         <DraggableWindow
-            title="길드 연구소"
+            title={t('research.title')}
             onClose={onClose}
             windowId="guild-research"
             initialWidth={600}
@@ -322,8 +339,8 @@ const GuildResearchPanel: React.FC<GuildResearchPanelProps & { onClose: () => vo
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
                                 className={`flex-1 rounded-md py-1.5 text-xs font-bold transition-all ${
-                                    activeTab === tab.id 
-                                        ? `bg-gradient-to-r ${colors.active} text-white shadow-lg` 
+                                    activeTab === tab.id
+                                        ? `bg-gradient-to-r ${colors.active} text-white shadow-lg`
                                         : `${colors.inactive} hover:bg-stone-700/50`
                                 }`}
                             >

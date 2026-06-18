@@ -23,7 +23,7 @@ import MatchFoundModal from './MatchFoundModal.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import { mergeArenaEntranceAvailability } from '../../constants/arenaEntrance.js';
 import { isClientAdmin } from '../../utils/clientAdmin.js';
-import { replaceAppHash } from '../../utils/appUtils.js';
+import { replaceAppHash, APP_HOME_HASH } from '../../utils/appUtils.js';
 import {
   aiChallengeFeatureShellClass,
   aiChallengeFeatureTopHairlineClass,
@@ -38,6 +38,8 @@ import { WaitingLobbyAnnouncementBoard, WAITING_LOBBY_PANEL_GLASS } from './Wait
 import { userInUnifiedArenaLobbyUserList } from './aggregateWaitingLobbyUserFilter.js';
 import { sumLobbyAiMatchRecordFromStats } from '../../shared/utils/lobbyAiMatchRecord.js';
 import { mergeWaitingRoomPublicChatMessages } from '../../shared/utils/waitingRoomGlobalChatMerge.js';
+import { useTranslation } from 'react-i18next';
+import { useLocalizedGameMode } from '../../shared/i18n/localizedCatalog.js';
 
 interface WaitingRoomComponentProps {
     mode: GameMode | 'strategic' | 'playful';
@@ -51,6 +53,8 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
     waitingRoomChats, handlers, arenaEntranceAvailability,
     rankedMatchingQueue, rankedMatchProposal, rankedMatchFound,
   } = useAppContext();
+  const { t } = useTranslation('lobby');
+  const localizeMode = useLocalizedGameMode();
   const { isNativeMobile } = useNativeMobileShell();
 
   const [isTierInfoModalOpen, setIsTierInfoModalOpen] = useState(false);
@@ -73,8 +77,8 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
     if (mode !== 'strategic' && mode !== 'playful') return;
     if (isClientAdmin(currentUserWithStatus)) return;
     const m = mergeArenaEntranceAvailability(arenaEntranceAvailability);
-    if (mode === 'strategic' && !m.strategicLobby) replaceAppHash('#/profile');
-    if (mode === 'playful' && !m.playfulLobby) replaceAppHash('#/profile');
+    if (mode === 'strategic' && !m.strategicLobby) replaceAppHash(APP_HOME_HASH);
+    if (mode === 'playful' && !m.playfulLobby) replaceAppHash(APP_HOME_HASH);
   }, [mode, arenaEntranceAvailability, currentUserWithStatus]);
 
   const chatMessages = useMemo(
@@ -186,7 +190,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
 
   const onBackToLobby = () => {
     // 홈 이동은 항상 즉시 수행하고, 대기실 이탈 상태 정리는 비동기로 처리
-    window.location.hash = '#/profile';
+    window.location.hash = APP_HOME_HASH;
     Promise.resolve(handlers.handleAction({ type: 'LEAVE_WAITING_ROOM' })).catch((error) => {
       console.error('[WaitingRoom] LEAVE_WAITING_ROOM failed:', error);
     });
@@ -271,6 +275,31 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
     return usersInThisRoom;
   }, [mode, usersInThisRoom, waitingUserListScope, currentUserWithStatus.id, currentUserWithStatus.guildId, friendIdsSet]);
 
+  const waitingRoomTitle =
+    mode === 'strategic'
+      ? t('waitingRoom.strategic')
+      : mode === 'playful'
+        ? t('waitingRoom.playful')
+        : t('waitingRoom.generic', { mode: localizeMode(mode) });
+
+  const nativeWaitingTabs = useMemo(
+    () =>
+      mode === 'playful'
+        ? [
+              { id: 'users' as const, label: t('tabs.userList') },
+              { id: 'ai' as const, label: t('tabs.aiMatch') },
+              { id: 'games' as const, label: t('tabs.gameRooms') },
+          ]
+        : [
+              { id: 'users' as const, label: t('tabs.userList') },
+              { id: 'ai' as const, label: t('tabs.aiMatch') },
+              { id: 'ranked' as const, label: t('tabs.ranked') },
+              { id: 'games' as const, label: t('tabs.gameRooms') },
+              { id: 'rankingInfo' as const, label: t('tabs.rankingInfo') },
+          ],
+    [mode, t],
+  );
+
   const waitingUserScopeTabs =
     mode === 'strategic' || mode === 'playful' ? (
       <div className="grid shrink-0 grid-cols-3 gap-0.5 border-b border-white/10 bg-black/25 p-0.5 sm:gap-1 sm:p-1">
@@ -287,7 +316,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                 : 'text-amber-100 hover:bg-amber-900/40'
           }`}
         >
-          전체
+          {t('userScope.all')}
         </button>
         <button
           type="button"
@@ -302,7 +331,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                 : 'text-orange-100 hover:bg-orange-950/40'
           }`}
         >
-          친구
+          {t('userScope.friends')}
         </button>
         <button
           type="button"
@@ -317,20 +346,18 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                 : 'text-yellow-100 hover:bg-yellow-950/30'
           }`}
         >
-          길드원
+          {t('userScope.guild')}
         </button>
       </div>
     ) : null;
 
-  // 허용된 위치만 설정
   let locationPrefix: string;
   if (mode === 'strategic') {
-    locationPrefix = '[전략바둑]';
+    locationPrefix = t('locationPrefix.strategic');
   } else if (mode === 'playful') {
-    locationPrefix = '[놀이바둑]';
+    locationPrefix = t('locationPrefix.playful');
   } else {
-    // 알 수 없는 모드는 기본값으로 [홈] 반환
-    locationPrefix = '[홈]';
+    locationPrefix = t('locationPrefix.home');
   }
     
   const isStrategicPlayfulLobby = mode === 'strategic' || mode === 'playful';
@@ -375,8 +402,8 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
           ? 'border-cyan-300/70 bg-cyan-950/35 shadow-[0_0_20px_rgba(34,211,238,0.2)]'
           : 'border-amber-300/70 bg-amber-950/25 shadow-[0_0_20px_rgba(251,191,36,0.2)]'
       } p-1 ${compact ? 'h-8 min-w-[7.4rem]' : 'h-11 min-w-[10.5rem]'}`}
-      title="대기실 전환"
-      aria-label="전략 바둑과 놀이 바둑 대기실 전환"
+      title={t('waitingRoom.switchTitle')}
+      aria-label={t('waitingRoom.switchAria')}
     >
       <button
         type="button"
@@ -390,7 +417,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
             : 'text-cyan-100/95 bg-cyan-900/25 hover:bg-cyan-700/35 hover:text-cyan-50'
         }`}
       >
-        전략
+        {t('waitingRoom.strategicShort')}
       </button>
       <button
         type="button"
@@ -404,7 +431,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
             : 'text-amber-100/95 bg-amber-900/20 hover:bg-amber-700/35 hover:text-amber-50'
         }`}
       >
-        놀이
+        {t('waitingRoom.playfulShort')}
       </button>
     </div>
   );
@@ -441,7 +468,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                       : 'text-amber-50'
                   }`}
                 >
-                  {mode === 'strategic' ? '전략바둑 대기실' : '놀이바둑 대기실'}
+                  {waitingRoomTitle}
                 </h1>
                 {lobbySwitchTabs(true)}
               </div>
@@ -455,7 +482,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                 type="button"
                 onClick={onBackToLobby}
                 className="pointer-events-auto relative z-20 flex h-10 w-10 items-center justify-center rounded-lg p-0 transition-all duration-100 active:translate-y-0.5 active:scale-95 active:shadow-inner sm:h-12 sm:w-12"
-                aria-label="뒤로가기"
+                aria-label={t('waitingRoom.backAria')}
               >
                 <img src="/images/button/back.webp" alt="" className="h-full w-full" />
               </button>
@@ -463,7 +490,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
             <div className="pointer-events-none flex min-w-0 flex-1 justify-center px-2 text-center">
               <div className="flex max-w-md min-w-0 flex-nowrap items-center justify-center gap-2 sm:gap-3">
                 <h1 className="truncate text-base font-bold sm:text-xl lg:text-2xl">
-                  {mode === 'strategic' ? '전략바둑 대기실' : mode === 'playful' ? '놀이바둑 대기실' : `${mode} 대기실`}
+                  {waitingRoomTitle}
                 </h1>
                 {(mode === 'strategic' || mode === 'playful') && lobbySwitchTabs(false)}
               </div>
@@ -484,22 +511,8 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
       >
           {isNativeMobile && isStrategicPlayfulLobby ? (
             <div className="relative flex h-full min-h-0 flex-1 flex-col gap-1.5 overflow-hidden px-0.5 pb-0.5">
-              <div className="mb-0.5 flex shrink-0 gap-0.5" role="tablist" aria-label="대기실 보기">
-                {(
-                  mode === 'playful'
-                    ? [
-                          { id: 'users' as const, label: '유저목록' },
-                          { id: 'ai' as const, label: 'AI대전' },
-                          { id: 'games' as const, label: '대국실목록' },
-                      ]
-                    : [
-                          { id: 'users' as const, label: '유저목록' },
-                          { id: 'ai' as const, label: 'AI대전' },
-                          { id: 'ranked' as const, label: '랭킹전' },
-                          { id: 'games' as const, label: '대국실목록' },
-                          { id: 'rankingInfo' as const, label: '랭킹정보' },
-                      ]
-                ).map(({ id, label }) => (
+              <div className="mb-0.5 flex shrink-0 gap-0.5" role="tablist" aria-label={t('waitingRoom.viewTabsAria')}>
+                {nativeWaitingTabs.map(({ id, label }) => (
                   <button
                     key={id}
                     type="button"
@@ -545,7 +558,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                         <AiChallengePanel
                           mode={mode}
                           noOuterShell
-                          headingTitle={isStrategic ? '전략 AI대전' : '놀이 AI대전'}
+                          headingTitle={isStrategic ? t('aiChallenge.strategic') : t('aiChallenge.playful')}
                           aiRecord={waitingLobbyAiRecord}
                           onOpenModal={() => setIsAiChallengeModalOpen(true)}
                         />
@@ -561,7 +574,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                         <AiChallengePanel
                           mode={mode}
                           noOuterShell
-                          headingTitle="전략 AI대전"
+                          headingTitle={t('aiChallenge.strategic')}
                           aiRecord={waitingLobbyAiRecord}
                           onOpenModal={() => setIsAiChallengeModalOpen(true)}
                         />
@@ -633,12 +646,12 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                     type="button"
                     onClick={onBackToLobby}
                     className="relative z-[1] shrink-0 transition-transform active:scale-90 hover:drop-shadow-lg"
-                    aria-label="뒤로가기"
+                    aria-label={t('waitingRoom.backAria')}
                   >
                     <img src="/images/button/back.webp" alt="" className="h-9 w-9 sm:h-10 sm:w-10" />
                   </button>
                   <h1 className={waitingLobbyTitleH1Class}>
-                    {mode === 'strategic' ? '전략바둑 대기실' : '놀이바둑 대기실'}
+                    {waitingRoomTitle}
                   </h1>
                   {lobbySwitchTabs(true)}
                 </div>
@@ -650,7 +663,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                         <AiChallengePanel
                           mode={mode}
                           noOuterShell
-                          headingTitle="전략 AI대전"
+                          headingTitle={t('aiChallenge.strategic')}
                           aiRecord={waitingLobbyAiRecord}
                           onOpenModal={() => setIsAiChallengeModalOpen(true)}
                         />
@@ -692,7 +705,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                         <AiChallengePanel
                           mode={mode}
                           noOuterShell
-                          headingTitle="놀이 AI대전"
+                          headingTitle={t('aiChallenge.playful')}
                           aiRecord={waitingLobbyAiRecord}
                           onOpenModal={() => setIsAiChallengeModalOpen(true)}
                         />
@@ -701,9 +714,9 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                     <div
                       className={`flex min-h-0 min-w-0 flex-1 flex-col justify-center gap-2 overflow-hidden rounded-lg border border-amber-600/30 bg-black/25 p-4 text-center text-sm text-amber-100/90 ${waitingLobbyPcShellClass}`}
                     >
-                      <p className="font-semibold text-amber-50">놀이바둑 안내</p>
+                      <p className="font-semibold text-amber-50">{t('playfulNotice.title')}</p>
                       <p className="text-xs leading-relaxed text-amber-100/80">
-                        놀이바둑 경기장에서는 랭킹전·시즌 랭킹 점수를 사용하지 않습니다. 전략바둑 대기실에서만 랭킹전을 이용할 수 있습니다.
+                        {t('playfulNotice.body')}
                       </p>
                     </div>
                   </>
@@ -746,7 +759,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                 </div>
                 <div
                   className={`flex h-full min-h-0 ${PC_QUICK_RAIL_COLUMN_CLASS} flex-col overflow-hidden self-stretch`}
-                  aria-label="퀵 메뉴"
+                  aria-label={t('waitingRoom.quickMenuAria')}
                 >
                   <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border-2 border-amber-600/55 bg-gradient-to-br from-zinc-900 via-amber-950 to-zinc-950 p-1 shadow-xl shadow-black/40">
                     <QuickAccessSidebar fillHeight />
@@ -792,7 +805,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                             <AiChallengePanel
                               mode={mode}
                               noOuterShell
-                              headingTitle="전략 AI대전"
+                              headingTitle={t('aiChallenge.strategic')}
                               aiRecord={waitingLobbyAiRecord}
                               onOpenModal={() => setIsAiChallengeModalOpen(true)}
                             />
@@ -823,15 +836,15 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                             <AiChallengePanel
                               mode={mode}
                               noOuterShell
-                              headingTitle="놀이 AI대전"
+                              headingTitle={t('aiChallenge.playful')}
                               aiRecord={waitingLobbyAiRecord}
                               onOpenModal={() => setIsAiChallengeModalOpen(true)}
                             />
                           </div>
                         </div>
                         <div className="flex h-full min-h-[8rem] flex-1 flex-col items-center justify-center gap-2 p-4 text-center text-xs text-secondary">
-                          <p className="font-semibold text-primary">랭킹전 없음</p>
-                          <p className="leading-relaxed">전략바둑 대기실에서만 랭킹전을 이용할 수 있습니다.</p>
+                          <p className="font-semibold text-primary">{t('rankedUnavailable.title')}</p>
+                          <p className="leading-relaxed">{t('rankedUnavailable.body')}</p>
                         </div>
                       </>
                     )}
@@ -876,7 +889,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                     />
                   ) : (
                     <div className="flex h-full min-h-[6rem] flex-col items-center justify-center p-4 text-center text-xs text-secondary">
-                      시즌 랭킹 목록은 전략바둑 대기실에서 확인할 수 있습니다.
+                      {t('rankedUnavailable.seasonRankingHint')}
                     </div>
                   )}
                 </div>
@@ -889,7 +902,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
         <AiChallengeModal 
           lobbyType={isStrategic ? 'strategic' : 'playful'} 
           preferredGameSettingsBucket={mode === 'playful' ? 'playful_ai_challenge' : 'strategic_ai_challenge'}
-          title={isStrategic ? '전략바둑 AI와 대결하기' : '놀이바둑 AI와 대결하기'}
+          title={isStrategic ? t('aiChallenge.strategicModal') : t('aiChallenge.playfulModal')}
           onClose={() => setIsAiChallengeModalOpen(false)} 
           onAction={handlers.handleAction}
         />

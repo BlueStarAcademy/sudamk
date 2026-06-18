@@ -44,12 +44,12 @@ export async function dismissBlockingLiveGameIfNeeded(page: Page): Promise<void>
             }
         }
 
-        await page.goto('/#/profile');
+        await page.goto('/#/home');
         await page.waitForLoadState('domcontentloaded');
         await page.waitForTimeout(600);
     }
 
-    await page.goto('/#/profile');
+    await page.goto('/#/home');
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(800);
 }

@@ -1,4 +1,6 @@
 import React, { useMemo, useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { tx } from '../../shared/i18n/runtimeText.js';
+import { useTranslation } from 'react-i18next';
 // FIX: Import missing types from the centralized types file.
 import {
     Player,
@@ -89,20 +91,21 @@ const CapturedStones: React.FC<{
     inlineHeadStartBonus,
     inlineScoreBonusText,
 }) => {
+    const { t } = useTranslation('game');
     /** 주사위 전용 */
     const displayCount = typeof target === 'number' && target > 0 ? `${count}/${target}` : `${count}`;
     const isDiceGo = mode === GameMode.Dice;
     const isCurling = mode === GameMode.Curling && curlingMeta != null;
 
-    let label = '따낸 돌';
+    let label = t('playerPanel.captures');
     if (isSinglePlayer) {
-        label = '점수';
+        label = t('playerPanel.score');
     } else if (isDiceGo) {
-        label = '포획 점수';
+        label = t('playerPanel.captureScore');
     } else if (mode === GameMode.Alkkagi) {
-        label = '점수';
+        label = t('playerPanel.score');
     } else if ([GameMode.Thief, GameMode.Curling].includes(mode)) {
-        label = '점수';
+        label = t('playerPanel.score');
     }
 
     const widthClass =
@@ -243,7 +246,7 @@ interface SinglePlayerPanelProps {
     user: User; playerEnum: Player; score: number; isActive: boolean;
     timeLeft: number; totalTime: number; mainTimeLeft: number; byoyomiPeriodsLeft: number;
     totalByoyomi: number; byoyomiTime: number; isLeft: boolean; session: GameProps['session'];
-    captureTarget?: number; role?: '도둑' | '경찰';
+    captureTarget?: number; role?: string;
     isAiPlayer?: boolean;
     mode: GameMode;
     // FIX: Add isSinglePlayer prop to handle different UI themes
@@ -472,11 +475,11 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
     const winLoseAvatarRibbonOverlay =
         showWinLoseAvatarOverlay && isWinner ? (
             <span className={`${winLoseAvatarRibbonClass} bg-blue-600/95`} aria-hidden>
-                승
+                                {t('playerPanel.win')}
             </span>
         ) : showWinLoseAvatarOverlay && isLoser ? (
             <span className={`${winLoseAvatarRibbonClass} bg-red-600/95`} aria-hidden>
-                패
+                                {t('playerPanel.lose')}
             </span>
         ) : undefined;
     const winLoseAvatarRibbonSibling =
@@ -589,11 +592,11 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                             {showByoyomiStatus && (
                                 <div
                                     className={`flex shrink-0 items-center gap-1 ${isFoulMode ? 'text-red-300' : 'text-yellow-300'}`}
-                                    title={isFoulMode ? `남은 기회 ${effectiveByoyomiPeriodsLeft}회` : undefined}
+                                    title={isFoulMode ? t('playerPanel.chancesLeftTitle', { count: effectiveByoyomiPeriodsLeft }) : undefined}
                                 >
                                     <img
                                         src="/images/icon/timer.webp"
-                                        alt={isFoulMode ? '남은 기회' : '초읽기'}
+                                        alt={isFoulMode ? t('playerPanel.chancesLeftAlt') : t('playerPanel.byoyomiAlt')}
                                         className={`object-contain ${fluidTextLayout && isMobile ? 'h-4 w-4' : isMobile ? 'h-5 w-5' : 'h-4 w-4'}`}
                                     />
                                     <span
@@ -684,10 +687,10 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                             className={`flex w-full min-w-0 ${fluidTextLayout ? `flex-nowrap items-baseline gap-x-1 ${justifyClass}` : `items-baseline ${gap} ${justifyClass}`}`}
                         >
                             {!isLeft && showWinLossLabel && isWinner && !showWinLoseAvatarOverlay && (
-                                <span className={`shrink-0 ${displayWinLoseTextSize} text-blue-400`}>승</span>
+                                <span className={`shrink-0 ${displayWinLoseTextSize} text-blue-400`}>{t("playerPanel.win")}</span>
                             )}
                             {!isLeft && showWinLossLabel && isLoser && !showWinLoseAvatarOverlay && (
-                                <span className={`shrink-0 ${displayWinLoseTextSize} text-red-400`}>패</span>
+                                <span className={`shrink-0 ${displayWinLoseTextSize} text-red-400`}>{t("playerPanel.lose")}</span>
                             )}
                             <h2
                                 className={`min-w-0 max-w-full flex-1 truncate font-bold leading-snug [writing-mode:horizontal-tb] break-words break-keep ${nameTextSize} ${finalNameClass}`}
@@ -715,10 +718,10 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                                 {role ? ` (${role})` : ''}
                             </h2>
                             {isLeft && showWinLossLabel && isWinner && !showWinLoseAvatarOverlay && (
-                                <span className={`shrink-0 ${displayWinLoseTextSize} text-blue-400`}>승</span>
+                                <span className={`shrink-0 ${displayWinLoseTextSize} text-blue-400`}>{t("playerPanel.win")}</span>
                             )}
                             {isLeft && showWinLossLabel && isLoser && !showWinLoseAvatarOverlay && (
-                                <span className={`shrink-0 ${displayWinLoseTextSize} text-red-400`}>패</span>
+                                <span className={`shrink-0 ${displayWinLoseTextSize} text-red-400`}>{t("playerPanel.lose")}</span>
                             )}
                         </div>
                         <p
@@ -793,10 +796,10 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                             className={`flex w-full min-w-0 ${fluidTextLayout ? `flex-nowrap items-baseline gap-x-1 ${justifyClass}` : `items-baseline ${gap} ${justifyClass}`}`}
                         >
                             {!isLeft && showWinLossLabel && isWinner && !showWinLoseAvatarOverlay && (
-                                <span className={`shrink-0 ${displayWinLoseTextSize} text-blue-400`}>승</span>
+                                <span className={`shrink-0 ${displayWinLoseTextSize} text-blue-400`}>{t("playerPanel.win")}</span>
                             )}
                             {!isLeft && showWinLossLabel && isLoser && !showWinLoseAvatarOverlay && (
-                                <span className={`shrink-0 ${displayWinLoseTextSize} text-red-400`}>패</span>
+                                <span className={`shrink-0 ${displayWinLoseTextSize} text-red-400`}>{t("playerPanel.lose")}</span>
                             )}
                             <h2
                                 className={`min-w-0 max-w-full flex-1 truncate font-bold leading-snug [writing-mode:horizontal-tb] break-words break-keep ${nameTextSize} ${finalNameClass}`}
@@ -824,10 +827,10 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                                 {role ? ` (${role})` : ''}
                             </h2>
                             {isLeft && showWinLossLabel && isWinner && !showWinLoseAvatarOverlay && (
-                                <span className={`shrink-0 ${displayWinLoseTextSize} text-blue-400`}>승</span>
+                                <span className={`shrink-0 ${displayWinLoseTextSize} text-blue-400`}>{t("playerPanel.win")}</span>
                             )}
                             {isLeft && showWinLossLabel && isLoser && !showWinLoseAvatarOverlay && (
-                                <span className={`shrink-0 ${displayWinLoseTextSize} text-red-400`}>패</span>
+                                <span className={`shrink-0 ${displayWinLoseTextSize} text-red-400`}>{t("playerPanel.lose")}</span>
                             )}
                         </div>
                         <p
@@ -891,6 +894,7 @@ const getTurnDuration = (mode: GameMode, gameStatus: GameStatus, settings: GameS
 
 
 const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
+    const { t } = useTranslation('game');
     const {
         session,
         clientTimes,
@@ -1121,8 +1125,8 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             : settings.byoyomiCount;
     const displayTotalByoyomi = isMainFischer ? 0 : settings.byoyomiCount;
     
-    const leftPlayerRole = mode === GameMode.Thief ? (leftPlayerUser.id === session.thiefPlayerId ? '도둑' : '경찰') : undefined;
-    const rightPlayerRole = mode === GameMode.Thief ? (rightPlayerUser.id === session.thiefPlayerId ? '도둑' : '경찰') : undefined;
+    const leftPlayerRole = mode === GameMode.Thief ? (leftPlayerUser.id === session.thiefPlayerId ? t('playerPanel.thief') : t('playerPanel.police')) : undefined;
+    const rightPlayerRole = mode === GameMode.Thief ? (rightPlayerUser.id === session.thiefPlayerId ? t('playerPanel.thief') : t('playerPanel.police')) : undefined;
     
     const getCaptureTargetForPlayer = (playerEnum: Player) => {
         if (isCastleMode) {
@@ -1618,17 +1622,17 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         const blackTurnLimit = (session.settings as any)?.blackTurnLimit as number | undefined;
         if (session.gameCategory === 'guildwar' && isCaptureRuleActive && blackTurnLimit != null && blackTurnLimit > 0) {
             const remaining = Math.max(0, blackTurnLimit - blackMoves);
-            return { type: 'capture_limit' as const, label: '흑 남은 턴', current: remaining, total: blackTurnLimit };
+            return { type: 'capture_limit' as const, label: t('playerPanel.blackTurnsLeft'), current: remaining, total: blackTurnLimit };
         }
         /** 따내기 규칙이 켜진 믹스는 계가 수 제한이 있어도 대국자 패널에는 항상 현재 수순(N수)을 둔다. */
         if (isCaptureRuleActive) {
-            return { type: 'moves_only' as const, label: '수순', current };
+            return { type: 'moves_only' as const, label: t('playerPanel.moves'), current };
         }
         /** 캐슬 바둑: 계가 수 제한 없음 — PASS 제외 실 착수 수만 표시 */
         if (isCastleMode) {
             const castleMoves =
                 validMovesOnly > 0 ? validMovesOnly : Math.max(0, session.totalTurns ?? 0);
-            return { type: 'moves_only' as const, label: '수순', current: castleMoves };
+            return { type: 'moves_only' as const, label: t('playerPanel.moves'), current: castleMoves };
         }
         const limit = settings.scoringTurnLimit;
         if (limit != null && limit > 0) {
@@ -1646,9 +1650,9 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             strategicScoringProgressMaxRef.current.max = Math.max(strategicScoringProgressMaxRef.current.max, rawProg);
             const effProg = strategicScoringProgressMaxRef.current.max;
             const remaining = Math.max(0, limit - effProg);
-            return { type: 'scoring_limit' as const, label: '계가까지', current: remaining, total: limit };
+            return { type: 'scoring_limit' as const, label: t('playerPanel.scoringRemaining'), current: remaining, total: limit };
         }
-        return { type: 'moves_only' as const, label: '수순', current };
+        return { type: 'moves_only' as const, label: t('playerPanel.moves'), current };
     }, [
         isStrategicMode,
         isSinglePlayer,
@@ -1724,7 +1728,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             const remainingTurns = Math.max(0, totalSurvivalTurns - whiteTurnsPlayed);
             return {
                 type: 'survival' as const,
-                label: '백 남은 턴',
+                label: t('playerPanel.whiteTurnsLeft'),
                 remaining: remainingTurns,
                 total: totalSurvivalTurns
             };
@@ -1750,7 +1754,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                     : calculatedRemaining;
             return {
                 type: 'capture' as const,
-                label: '흑 남은 턴',
+                label: t('playerPanel.blackTurnsLeft'),
                 remaining: remainingTurns,
                 total: effectiveBlackTurnLimit
             };
@@ -1773,7 +1777,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             const remainingTurns = Math.max(0, autoScoringCapForUi - progressUsed);
             return {
                 type: 'auto_scoring' as const,
-                label: '계가까지',
+                label: t('playerPanel.scoringRemaining'),
                 remaining: remainingTurns,
                 total: autoScoringCapForUi,
             };
@@ -1782,7 +1786,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         // 기본: 제한·살리기·따내기 턴 한도가 없어도 수순만 표시 (모바일 2행 헤더 중앙 빈칸 방지)
         const turnCountFromHistory = moveHistory.length;
         const currentMoves = turnCountFromHistory > 0 ? turnCountFromHistory : (session.totalTurns ?? 0);
-        return { type: 'pve_moves_only' as const, label: '수순', current: currentMoves };
+        return { type: 'pve_moves_only' as const, label: t('playerPanel.moves'), current: currentMoves };
     }, [
         isSinglePlayer,
         session.stageId,
@@ -1830,7 +1834,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const hidePlayfulStonesCountDuringRollAnim =
         (mode === GameMode.Dice && session.gameStatus === 'dice_rolling_animating') ||
         (mode === GameMode.Thief && session.gameStatus === 'thief_rolling_animating');
-    const playfulRollAnimAriaHint = '주사위 굴림 중. 남은 돌 수는 굴림이 끝난 뒤 표시됩니다.';
+    const playfulRollAnimAriaHint = tx('game:messages.diceRollAriaHint');
     /** 도둑 1턴+경찰 1턴=1라운드. turnInRound는 턴 종료 시마다 +1 */
     const thiefUiRound =
         mode === GameMode.Thief
@@ -1879,11 +1883,11 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                     aria-label={
                         hidePlayfulStonesCountDuringRollAnim
                             ? thiefUiRound != null
-                                ? `라운드 ${thiefUiRound} / ${THIEF_NIGHTS_PER_SEGMENT}. ${playfulRollAnimAriaHint}`
+                                ? t('playerPanel.thiefRoundAria', { round: thiefUiRound, total: THIEF_NIGHTS_PER_SEGMENT, hint: playfulRollAnimAriaHint })
                                 : playfulRollAnimAriaHint
                             : thiefUiRound != null
-                              ? `라운드 ${thiefUiRound} / ${THIEF_NIGHTS_PER_SEGMENT}, 남은 착수 ${playfulStonesCountDisplay}개`
-                              : `남은 착수 ${playfulStonesCountDisplay}개`
+                              ? t('playerPanel.thiefRoundPlacements', { round: thiefUiRound, total: THIEF_NIGHTS_PER_SEGMENT, count: playfulStonesCountDisplay })
+                              : t('playerPanel.remainingPlacementsCount', { count: playfulStonesCountDisplay })
                     }
                 >
                     {thiefUiRound != null && (
@@ -1942,7 +1946,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                             {strategicLobbyTurnInfo.label}
                         </span>
                         {strategicLobbyTurnInfo.type === 'moves_only' ? (
-                            <span className={`${turnInfoValueSize} font-bold text-amber-300`}>{strategicLobbyTurnInfo.current}수</span>
+                            <span className={`${turnInfoValueSize} font-bold text-amber-300`}>{t("messages.movesCount", { count: strategicLobbyTurnInfo.current })}</span>
                         ) : (
                             <div className="flex items-baseline justify-center gap-0.5">
                                 <span className={`${turnInfoValueSize} font-bold text-amber-300`}>{strategicLobbyTurnInfo.current}</span>
@@ -1961,7 +1965,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                             {turnInfo.label}
                         </span>
                         {turnInfo.type === 'pve_moves_only' ? (
-                            <span className={`${turnInfoValueSize} font-bold text-amber-300`}>{turnInfo.current}수</span>
+                            <span className={`${turnInfoValueSize} font-bold text-amber-300`}>{t("messages.movesCount", { count: turnInfo.current })}</span>
                         ) : (
                             <div className="flex items-baseline justify-center gap-0.5">
                                 <span className={`${turnInfoValueSize} font-bold text-amber-300`}>{turnInfo.remaining}</span>
@@ -2217,7 +2221,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                     >
                         <span className={`${turnInfoLabelSize} text-stone-300 ${compactPlayerBar ? 'mb-0.5' : 'mb-1'} leading-tight font-semibold`}>{turnInfo.label}</span>
                         {turnInfo.type === 'pve_moves_only' ? (
-                            <span className={`${turnInfoValueSize} font-bold text-amber-300`}>{turnInfo.current}수</span>
+                            <span className={`${turnInfoValueSize} font-bold text-amber-300`}>{t("messages.movesCount", { count: turnInfo.current })}</span>
                         ) : (
                             <div className="flex items-baseline justify-center gap-0.5">
                                 <span className={`${turnInfoValueSize} font-bold text-amber-300`}>{turnInfo.remaining}</span>
@@ -2236,7 +2240,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                     >
                         <span className={`${turnInfoLabelSize} text-gray-300 ${compactPlayerBar ? 'mb-0.5' : 'mb-1'} leading-tight font-semibold`}>{strategicLobbyTurnInfo.label}</span>
                         {strategicLobbyTurnInfo.type === 'moves_only' ? (
-                            <span className={`${turnInfoValueSize} font-bold text-amber-300`}>{strategicLobbyTurnInfo.current}수</span>
+                            <span className={`${turnInfoValueSize} font-bold text-amber-300`}>{t("messages.movesCount", { count: strategicLobbyTurnInfo.current })}</span>
                         ) : (
                             <div className="flex items-baseline justify-center gap-0.5">
                                 <span className={`${turnInfoValueSize} font-bold text-amber-300`}>{strategicLobbyTurnInfo.current}</span>
@@ -2270,11 +2274,11 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                     aria-label={
                         hidePlayfulStonesCountDuringRollAnim
                             ? thiefUiRound != null
-                                ? `라운드 ${thiefUiRound} / ${THIEF_NIGHTS_PER_SEGMENT}. ${playfulRollAnimAriaHint}`
+                                ? t('playerPanel.thiefRoundAria', { round: thiefUiRound, total: THIEF_NIGHTS_PER_SEGMENT, hint: playfulRollAnimAriaHint })
                                 : playfulRollAnimAriaHint
                             : thiefUiRound != null
-                              ? `라운드 ${thiefUiRound} / ${THIEF_NIGHTS_PER_SEGMENT}, 남은 착수 ${playfulStonesCountDisplay}개`
-                              : `남은 착수 ${playfulStonesCountDisplay}개`
+                              ? t('playerPanel.thiefRoundPlacements', { round: thiefUiRound, total: THIEF_NIGHTS_PER_SEGMENT, count: playfulStonesCountDisplay })
+                              : t('playerPanel.remainingPlacementsCount', { count: playfulStonesCountDisplay })
                     }
                 >
                     {thiefUiRound != null && (

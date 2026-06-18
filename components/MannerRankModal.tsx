@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { User } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
 import { getMannerScore, getMannerRank, getMannerStyle, MANNER_RANKS } from '../services/manner.js';
@@ -12,6 +13,7 @@ interface MannerRankModalProps {
 
 /** 본문은 창( DraggableWindow ) 한 곳만 세로 스크롤 — 내부 max-height 스크롤 금지 */
 const MannerRankModal: React.FC<MannerRankModalProps> = ({ user, onClose, isTopmost }) => {
+    const { t } = useTranslation('profile');
     const { isNativeMobile } = useNativeMobileShell();
     const totalMannerScore = getMannerScore(user);
     const mannerRank = getMannerRank(totalMannerScore);
@@ -26,7 +28,7 @@ const MannerRankModal: React.FC<MannerRankModalProps> = ({ user, onClose, isTopm
     }, [totalMannerScore]);
 
     /** 통일 타이포 — 한 단계 작게 (가독성 유지) */
-    const t = {
+    const typo = {
         sectionTitle: 'text-sm font-bold tracking-tight text-slate-100 sm:text-base',
         body: 'text-xs leading-relaxed text-slate-300 sm:text-sm sm:leading-relaxed',
         bodyMuted: 'text-xs leading-relaxed text-slate-500 sm:text-sm',
@@ -41,7 +43,7 @@ const MannerRankModal: React.FC<MannerRankModalProps> = ({ user, onClose, isTopm
 
     return (
         <DraggableWindow
-            title="매너 등급 정보"
+            title={t('mannerRank.title')}
             onClose={onClose}
             windowId="manner-rank"
             initialWidth={640}
@@ -59,10 +61,10 @@ const MannerRankModal: React.FC<MannerRankModalProps> = ({ user, onClose, isTopm
                         className="w-full min-w-0 overflow-hidden rounded-lg border border-amber-500/35 bg-gradient-to-b from-zinc-800/90 to-zinc-950 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_10px_30px_-18px_rgba(0,0,0,0.65)] sm:p-2.5"
                     >
                         <div className="mb-1.5 flex min-w-0 flex-wrap items-baseline gap-x-1 gap-y-1">
-                            <span className="shrink-0 font-bold text-amber-100/95 text-sm sm:text-base">매너 등급</span>
+                            <span className="shrink-0 font-bold text-amber-100/95 text-sm sm:text-base">{t('mannerRank.grade')}</span>
                             <span
                                 className={`min-w-0 shrink truncate font-bold tabular-nums text-sm sm:text-base ${mannerRank.color}`}
-                                title={`${totalMannerScore}점 (${mannerRank.rank})`}
+                                title={t('mannerRank.mannerPointsTitle', { score: totalMannerScore, rank: mannerRank.rank })}
                             >
                                 {totalMannerScore}점 ({mannerRank.rank})
                             </span>
@@ -77,8 +79,8 @@ const MannerRankModal: React.FC<MannerRankModalProps> = ({ user, onClose, isTopm
                     className={`relative overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-b from-slate-900/92 to-slate-950/98 shadow-[0_12px_40px_-24px_rgba(0,0,0,0.65)] ring-1 ring-inset ring-white/[0.04] ${sectionPad}`}
                 >
                     <div className="mb-3">
-                        <h3 className={t.sectionTitle}>등급별 효과</h3>
-                        <p className={`mt-1 ${t.bodyMuted}`}>점수 구간별로 적용되는 혜택·페널티입니다.</p>
+                        <h3 className={typo.sectionTitle}>{t('mannerRank.effectsByGrade')}</h3>
+                        <p className={`mt-1 ${typo.bodyMuted}`}>{t('mannerRank.rangeHint')}</p>
                     </div>
                     {/* 단일 스크롤: 창 본문만 스크롤 — 여기서는 overflow 제거 */}
                     <div ref={rankListRef} className="flex flex-col gap-2.5 sm:gap-3">
@@ -89,16 +91,16 @@ const MannerRankModal: React.FC<MannerRankModalProps> = ({ user, onClose, isTopm
                                 const rankColor = getMannerRank(rank.min === 0 ? 0 : rank.min).color;
                                 const effects: string[] = [];
 
-                                if (rank.min >= 2000) effects.push('모든 능력치 +10');
-                                if (rank.min >= 1600) effects.push('분해 대박 확률 +20%');
-                                if (rank.min >= 1200) effects.push('승리 아이템 확률 +20%');
-                                if (rank.min >= 800) effects.push('승리 골드 확률 +20%');
-                                if (rank.min >= 400) effects.push('최대 행동력 +10');
-                                if (rank.max <= 0) effects.push('최대 행동력 -20');
-                                if (rank.max <= 49 && rank.max > 0) effects.push('행동력 회복 시간 증가');
-                                if (rank.max <= 99 && rank.max > 0) effects.push('승리 골드 보상 -50%');
-                                if (rank.max <= 199 && rank.max > 0) effects.push('승리 아이템 확률 -50%');
-                                if (rank.min >= 200 && rank.max <= 399) effects.push('기본 효과 (효과 없음)');
+                                if (rank.min >= 2000) effects.push(t('mannerRank.allStatsPlus10'));
+                                if (rank.min >= 1600) effects.push(t('mannerRank.disassembleJackpot'));
+                                if (rank.min >= 1200) effects.push(t('mannerRank.winItemBonus'));
+                                if (rank.min >= 800) effects.push(t('mannerRank.winGoldBonus'));
+                                if (rank.min >= 400) effects.push(t('mannerRank.maxApPlus10'));
+                                if (rank.max <= 0) effects.push(t('mannerRank.maxApMinus20'));
+                                if (rank.max <= 49 && rank.max > 0) effects.push(t('mannerRank.apRegenBoost'));
+                                if (rank.max <= 99 && rank.max > 0) effects.push(t('mannerRank.winGoldPenalty'));
+                                if (rank.max <= 199 && rank.max > 0) effects.push(t('mannerRank.winItemPenalty'));
+                                if (rank.min >= 200 && rank.max <= 399) effects.push(t('mannerRank.noEffect'));
 
                                 return (
                                     <div
@@ -118,17 +120,17 @@ const MannerRankModal: React.FC<MannerRankModalProps> = ({ user, onClose, isTopm
                                         )}
                                         <div className={`flex flex-wrap items-center justify-between gap-2 ${isActive ? 'pl-1 sm:pl-1.5' : ''}`}>
                                             <div className="flex min-w-0 flex-wrap items-center gap-2">
-                                                <span className={`min-w-0 ${t.cardTitle} ${rankColor}`}>{rank.name}</span>
-                                                {isActive ? <span className={t.badge}>현재</span> : null}
+                                                <span className={`min-w-0 ${typo.cardTitle} ${rankColor}`}>{rank.name}</span>
+                                                {isActive ? <span className={typo.badge}>{t('mannerRank.currentBadge')}</span> : null}
                                             </div>
                                             <span
-                                                className={`shrink-0 rounded-lg border border-white/[0.08] bg-black/40 px-2 py-1 font-mono ${t.cardMeta}`}
+                                                className={`shrink-0 rounded-lg border border-white/[0.08] bg-black/40 px-2 py-1 font-mono ${typo.cardMeta}`}
                                             >
                                                 {rank.min === 0 && rank.max === 0
-                                                    ? '0점'
+                                                    ? t('mannerRank.zeroScore')
                                                     : rank.max === Infinity
-                                                      ? `${rank.min}점 이상`
-                                                      : `${rank.min}~${rank.max}점`}
+                                                      ? t('mannerRank.scoreAbove', { min: rank.min })
+                                                      : t('mannerRank.scoreRange', { min: rank.min, max: rank.max })}
                                             </span>
                                         </div>
                                         {effects.length > 0 && (
@@ -136,7 +138,7 @@ const MannerRankModal: React.FC<MannerRankModalProps> = ({ user, onClose, isTopm
                                                 className={`mt-2.5 space-y-1.5 border-t border-white/[0.06] pt-2.5 ${isActive ? 'pl-1 sm:pl-1.5' : ''}`}
                                             >
                                                 {effects.map((effect, i) => (
-                                                    <div key={i} className={`flex gap-2 ${t.cardBody}`}>
+                                                    <div key={i} className={`flex gap-2 ${typo.cardBody}`}>
                                                         <span className="shrink-0 text-slate-600" aria-hidden>
                                                             ·
                                                         </span>

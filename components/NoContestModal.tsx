@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import React, { useState } from 'react';
 import { LiveGameSession, User, ServerAction } from '../types.js';
 import Button from './Button.js';
@@ -18,6 +19,7 @@ interface NoContestModalProps {
 }
 
 const NoContestModal: React.FC<NoContestModalProps> = ({ session, currentUser, onConfirm, onAction, onOpenGameRecordList, isSpectator = false }) => {
+    const { t } = useTranslation('game');
     const [savingRecord, setSavingRecord] = useState(false);
     const isCompactViewport = useIsHandheldDevice(1025);
     const { isNativeMobile } = useNativeMobileShell();
@@ -34,7 +36,7 @@ const NoContestModal: React.FC<NoContestModalProps> = ({ session, currentUser, o
 
     return (
         <DraggableWindow
-            title="무효 대국"
+            title={t('modals.noContest.title')}
             onClose={onConfirm}
             windowId="no-contest"
             viewportPortal
@@ -45,12 +47,11 @@ const NoContestModal: React.FC<NoContestModalProps> = ({ session, currentUser, o
             <div className="text-white">
                 <div className="bg-gray-900/50 p-4 rounded-lg mb-6 text-center">
                     <p className="text-lg">
-                        10수 미만 대국에서 기권 또는 계가 요청이 있어<br/>
-                        해당 대국은 무효 처리되었습니다.
+                        {t('modals.noContest.body')}
                     </p>
                     {isInitiator && (
                         <p className="text-sm text-red-400 mt-3">
-                            경고: 반복적으로 무효 대국을 만들 경우, 페널티가 적용될 수 있습니다.
+                            {t('modals.noContest.warning')}
                         </p>
                     )}
                 </div>

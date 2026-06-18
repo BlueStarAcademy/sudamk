@@ -1,4 +1,5 @@
 import React from 'react';
+import { tx } from '../../shared/i18n/runtimeText.js';
 import { ItemGrade } from '../../types/enums.js';
 import { gradeBackgrounds, gradeStyles } from '../../constants.js';
 import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
@@ -41,7 +42,7 @@ export function equipmentGradeRewardIconShellClassNames(grade: ItemGrade): {
 /** 아이템 표기: 골드꾸러미 → 골드 꾸러미 */
 export function formatRewardItemDisplayName(raw: string): string {
     if (!raw) return raw;
-    return raw.includes('골드꾸러미') ? raw.replace(/골드꾸러미/g, '골드 꾸러미') : raw;
+    return raw.includes(tx('game:summary.goldBundleCompact')) ? raw.replace(new RegExp(tx('game:summary.goldBundleCompact'), 'g'), tx('game:summary.goldBundleSpaced')) : raw;
 }
 
 export const RESULT_MODAL_BOX_GOLD_CLASS =
@@ -91,12 +92,12 @@ export const ResultModalGoldCurrencySlot: React.FC<{
     const bonus = understandingBonus ?? 0;
     const title =
         primaryIsBaseAmount && bonus > 0
-            ? `획득 골드 합계 ${formatGoldAmountKoG(amount + bonus)} (기본 ${formatGoldAmountKoG(amount)}, 특화 +${formatGoldAmountKoG(bonus)})`
+            ? tx("game:resultModalGold.totalTitle", { total: formatGoldAmountKoG(amount + bonus), base: formatGoldAmountKoG(amount), bonus: formatGoldAmountKoG(bonus) })
             : primaryIsBaseAmount
-              ? `획득 골드 ${formatGoldAmountKoG(amount)}`
+              ? tx("game:resultModalGold.earnedTitle", { amount: formatGoldAmountKoG(amount) })
               : bonus > 0
-                ? `골드 ${formatGoldAmountKoG(amount)} (모험 이해도·효과 +${formatGoldAmountKoG(bonus)})`
-                : `골드 ${formatGoldAmountKoG(amount)}`;
+                ? tx("game:resultModalGold.withBonusTitle", { amount: formatGoldAmountKoG(amount), bonus: formatGoldAmountKoG(bonus) })
+                : tx("game:resultModalGold.plainTitle", { amount: formatGoldAmountKoG(amount) });
 
     return (
     <div

@@ -186,7 +186,7 @@ export function buildChampionshipVersusKataSummarySession(params: {
         id: `versus-kata-summary-${match.id}`,
         mode: GameMode.Standard,
         settings,
-        description: `챔피언십 장내 카타:${venue}`,
+        description: `${CHAMPIONSHIP_VERSUS_KATA_SUMMARY_DESCRIPTION_PREFIX}${venue}`,
         player1,
         player2,
         blackPlayerId: rg.blackPlayerId,

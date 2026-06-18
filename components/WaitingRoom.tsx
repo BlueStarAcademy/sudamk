@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useEffect, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { GameMode, ServerAction, Announcement, OverrideAnnouncement, UserWithStatus, LiveGameSession } from './../types.js';
 import HelpModal from './HelpModal.js';
 import { useAppContext } from './../hooks/useAppContext.js';
@@ -40,6 +41,7 @@ function usePrevious<T>(value: T): T | undefined {
 }
 
 const AnnouncementBoard: React.FC<{ mode: GameMode; }> = ({ mode }) => {
+    const { t } = useTranslation('lobby');
     const { announcements, globalOverrideAnnouncement, announcementInterval } = useAppContext();
     const [currentIndex, setCurrentIndex] = useState(0);
     const announcementIds = useMemo(() => announcements.map(a => a.id).join(','), [announcements]);
@@ -69,7 +71,7 @@ const AnnouncementBoard: React.FC<{ mode: GameMode; }> = ({ mode }) => {
     if (!announcements || announcements.length === 0) {
         return (
             <div className={`rounded-xl border p-2 flex items-center justify-center flex-shrink-0 h-10 text-on-panel ${boardClass}`}>
-                <span className="font-bold text-tertiary text-center">[현재 등록된 공지사항이 없습니다.]</span>
+                <span className="font-bold text-tertiary text-center">{t('announcement.noneRegistered')}</span>
             </div>
         );
     }
@@ -83,7 +85,7 @@ const AnnouncementBoard: React.FC<{ mode: GameMode; }> = ({ mode }) => {
                 {announcements.map((announcement) => (
                     <div key={announcement.id} className="w-full h-10 flex items-center justify-center">
                         <span className="font-bold">
-                            <span className="text-red-500 mr-2">[공지]</span>
+                            <span className="text-red-500 mr-2">{t('announcement.badge')}</span>
                             <span className="text-highlight">{announcement.message}</span>
                         </span>
                     </div>
@@ -95,6 +97,8 @@ const AnnouncementBoard: React.FC<{ mode: GameMode; }> = ({ mode }) => {
 
 
 const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
+  const { t } = useTranslation('lobby');
+  const { t: tCommon } = useTranslation('common');
   const {
     currentUserWithStatus, onlineUsers, allUsers, liveGames,
     waitingRoomChats, handlers, modals,
@@ -187,7 +191,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
   const isStrategic = useMemo(() => SPECIAL_GAME_MODES.some(m => m.mode === mode), [mode]);
   const isPlayful = useMemo(() => PLAYFUL_GAME_MODES.some(m => m.mode === mode), [mode]);
   const lobbyType: 'strategic' | 'playful' = isStrategic ? 'strategic' : isPlayful ? 'playful' : 'strategic';
-  const lobbyTypeName = isStrategic ? '전략' : '놀이';
+  const lobbyTypeName = isStrategic ? t('waitingRoom.strategicShort') : t('waitingRoom.playfulShort');
   const locationPrefix = `[${lobbyTypeName}:${mode}]`;
   const theme = {
     shell: 'bg-lobby-shell-playful',
@@ -198,8 +202,8 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
     panelSoft: 'border-amber-500/30 bg-gradient-to-br from-zinc-950/70 via-stone-900/65 to-amber-950/30',
     glow: 'shadow-[0_18px_40px_rgba(217,119,6,0.22)]',
   };
-  const roomTitle = lobbyType === 'strategic' ? '전략 바둑 대기실' : '놀이 바둑 대기실';
-  const roomSubtitle = lobbyType === 'strategic' ? '전술 대국 중심' : '캐주얼 대국 중심';
+  const roomTitle = lobbyType === 'strategic' ? t('legacyRoom.strategicTitle') : t('legacyRoom.playfulTitle');
+  const roomSubtitle = lobbyType === 'strategic' ? t('legacyRoom.strategicSubtitle') : t('legacyRoom.playfulSubtitle');
     
   return (
     <div className={`${theme.shell} text-primary flex flex-col flex-1 p-2 sm:p-4 lg:p-6 max-w-full mx-auto`}>
@@ -219,14 +223,14 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
           <button 
             onClick={() => setIsHelpModalOpen(true)}
             className="ml-3 w-8 h-8 flex items-center justify-center transition-transform hover:scale-110"
-            aria-label="게임 방법 보기"
-            title="게임 방법 보기"
+            aria-label={t('legacyRoom.howToPlay')}
+            title={t('legacyRoom.howToPlay')}
           >
-            <img src="/images/button/help.webp" alt="도움말" className="w-full h-full" />
+            <img src="/images/button/help.webp" alt={t('legacyRoom.helpAlt')} className="w-full h-full" />
           </button>
         </div>
         <div className="flex-1 text-right">
-             <p className={`text-sm font-semibold ${theme.accentSubtext}`}>{usersInThisRoom.length}명 접속 중</p>
+             <p className={`text-sm font-semibold ${theme.accentSubtext}`}>{t('playerList.onlineCount', { count: usersInThisRoom.length })}</p>
         </div>
       </header>
       <div className="flex-1 min-h-0 relative">
@@ -263,7 +267,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                         setHasNewMessage(false);
                     }}
                     className="group relative flex h-[3.25rem] w-[2.875rem] flex-col items-center justify-center gap-1 rounded-l-2xl border border-r-0 border-white/15 bg-gradient-to-br from-indigo-500/25 via-slate-900/88 to-slate-950/95 px-1.5 text-primary shadow-[0_10px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md transition-all duration-300 ease-out hover:scale-[1.03] hover:border-indigo-300/35 hover:from-indigo-400/30 hover:shadow-[0_14px_40px_rgba(0,0,0,0.48)] active:scale-[0.96] motion-reduce:transition-none motion-reduce:hover:scale-100"
-                    aria-label="유저 및 랭킹 목록 열기"
+                    aria-label={t('legacyRoom.openUserRankingList')}
                 >
                     <div
                         className="flex flex-col gap-[4px] rounded-md bg-black/35 px-1.5 py-1 ring-1 ring-inset ring-indigo-400/20 transition-[box-shadow] group-hover:ring-indigo-300/40 group-hover:shadow-[0_0_14px_-3px_rgba(129,140,248,0.45)]"
@@ -274,7 +278,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                         <span className="h-[2px] w-[0.95rem] rounded-full bg-gradient-to-r from-indigo-100 to-indigo-200/70 shadow-sm" />
                     </div>
                     <span className="text-[7px] font-bold uppercase tracking-[0.14em] text-indigo-100/70 transition-colors group-hover:text-indigo-50">
-                        목록
+                        {t('legacyRoom.listLabel')}
                     </span>
                     {hasNewMessage && (
                         <span className="absolute right-1 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white/90 bg-gradient-to-br from-rose-400 to-red-600 shadow-[0_0_8px_rgba(239,68,68,0.8)] ring-2 ring-red-500/35 animate-pulse" />
@@ -286,9 +290,9 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                     type="button"
                     onClick={() => setIsMobileSidebarOpen(false)}
                     className={`self-end ${SUDAMR_MODAL_CLOSE_BUTTON_CLASS}`}
-                    aria-label="닫기"
+                    aria-label={tCommon('actions.close')}
                 >
-                    닫기
+                    {tCommon('actions.close')}
                 </button>
                 <div className="flex-shrink-0 border-b border-color p-2">
                     <div className={`mx-auto flex h-52 flex-col min-h-0 ${PC_QUICK_RAIL_COLUMN_CLASS}`}>
@@ -308,7 +312,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                         />
                     ) : (
                         <div className="flex h-full items-center justify-center p-3 text-center text-xs text-secondary">
-                            놀이 모드 랭킹 목록은 제공하지 않습니다.
+                            {t('legacyRoom.playfulRankingUnavailable')}
                         </div>
                     )}
                 </div>
@@ -384,7 +388,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                     />
                 ) : (
                     <div className="flex h-full min-h-[6rem] items-center justify-center p-3 text-center text-xs text-secondary">
-                        놀이 모드 랭킹 목록은 제공하지 않습니다.
+                        {t('legacyRoom.playfulRankingUnavailable')}
                     </div>
                 )}
               </div>
@@ -397,7 +401,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
         <AiChallengeModal
           lobbyType={lobbyType}
           preferredGameSettingsBucket={lobbyType === 'playful' ? 'playful_ai_challenge' : 'strategic_ai_challenge'}
-          title={lobbyType === 'strategic' ? '전략바둑 AI와 대결하기' : '놀이바둑 AI와 대결하기'}
+          title={lobbyType === 'strategic' ? t('aiChallenge.strategicModal') : t('aiChallenge.playfulModal')}
           onClose={() => setIsAiChallengeModalOpen(false)}
           onAction={handlers.handleAction}
         />

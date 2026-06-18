@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import {
     getAdventureChapterRewardPreview,
@@ -52,6 +53,7 @@ const BUBBLE_MAX_H = 120;
 const BUBBLE_PAD = 8;
 
 const AdventureChapterRewardHints: React.FC<Props> = ({ stageId, compact, className, iconLayout = 'scroll' }) => {
+    const { t } = useTranslation('lobby');
     const p = useMemo(() => getAdventureChapterRewardPreview(stageId), [stageId]);
     const v = useMemo(() => getAdventureChapterRewardVisual(stageId), [stageId]);
     const [bubble, setBubble] = useState<BubbleState | null>(null);
@@ -105,20 +107,29 @@ const AdventureChapterRewardHints: React.FC<Props> = ({ stageId, compact, classN
         [openBubble],
     );
 
-    const goldSlots: { id: string; gradeBg: string; bubbleText: string }[] = [
-        {
-            id: 'gold-normal',
-            gradeBg: gradeBackgrounds[ItemGrade.Legendary],
-            bubbleText: `승리 골드(참고) 약 ${formatGoldAmountKoG(v.goldNormalRange.min)}~${formatGoldAmountKoG(v.goldNormalRange.max)}`,
-        },
-    ];
-    if (v.goldBoss19Range) {
-        goldSlots.push({
-            id: 'gold-boss19',
-            gradeBg: gradeBackgrounds[ItemGrade.Mythic],
-            bubbleText: `19줄 보스 승리 시 골드 약 ${formatGoldAmountKoG(v.goldBoss19Range.min)}~${formatGoldAmountKoG(v.goldBoss19Range.max)}`,
-        });
-    }
+    const goldSlots: { id: string; gradeBg: string; bubbleText: string }[] = useMemo(() => {
+        const slots = [
+            {
+                id: 'gold-normal',
+                gradeBg: gradeBackgrounds[ItemGrade.Legendary],
+                bubbleText: t('adventure.goldWinRange', {
+                    min: formatGoldAmountKoG(v.goldNormalRange.min),
+                    max: formatGoldAmountKoG(v.goldNormalRange.max),
+                }),
+            },
+        ];
+        if (v.goldBoss19Range) {
+            slots.push({
+                id: 'gold-boss19',
+                gradeBg: gradeBackgrounds[ItemGrade.Mythic],
+                bubbleText: t('adventure.goldBoss19Range', {
+                    min: formatGoldAmountKoG(v.goldBoss19Range.min),
+                    max: formatGoldAmountKoG(v.goldBoss19Range.max),
+                }),
+            });
+        }
+        return slots;
+    }, [t, v.goldNormalRange, v.goldBoss19Range]);
 
     const tier = v.equipmentMaxTier;
 
@@ -142,7 +153,7 @@ const AdventureChapterRewardHints: React.FC<Props> = ({ stageId, compact, classN
         );
 
     return (
-        <div className={className} role="region" aria-label="획득 가능 보상">
+        <div className={className} role="region" aria-label={t('adventure.claimableRewardsAria')}>
             <h2
                 className={
                     compact
@@ -150,7 +161,7 @@ const AdventureChapterRewardHints: React.FC<Props> = ({ stageId, compact, classN
                         : 'mb-2 text-center text-[11px] font-bold tracking-wide text-amber-50 sm:text-xs'
                 }
             >
-                획득 가능 보상
+                {t('adventure.claimableRewards')}
             </h2>
             <div
                 className={
@@ -179,7 +190,7 @@ const AdventureChapterRewardHints: React.FC<Props> = ({ stageId, compact, classN
                         key={slot.id}
                         type="button"
                         data-adventure-reward-trigger
-                        aria-label={`골드 보상 범위 보기: ${slot.bubbleText}`}
+                        aria-label={t('adventure.goldRewardViewAria', { range: slot.bubbleText })}
                         aria-expanded={bubble?.id === slot.id}
                         onClick={onTriggerClick(slot.id, slot.bubbleText)}
                         className="shrink-0 cursor-pointer rounded-md border border-transparent p-0 transition hover:border-amber-400/35 hover:brightness-110 active:scale-[0.98]"
@@ -193,9 +204,9 @@ const AdventureChapterRewardHints: React.FC<Props> = ({ stageId, compact, classN
                 <button
                     type="button"
                     data-adventure-reward-trigger
-                    aria-label={`장비 보상 범위 보기: 지급 장비 등급 ${p.equipmentGradeRange}`}
+                    aria-label={t('adventure.equipmentRewardViewAria', { grade: p.equipmentGradeRange })}
                     aria-expanded={bubble?.id === 'equipment'}
-                    onClick={onTriggerClick('equipment', `지급 장비 등급: ${p.equipmentGradeRange}`)}
+                    onClick={onTriggerClick('equipment', t('adventure.equipmentGradeGrant', { grade: p.equipmentGradeRange }))}
                     className="shrink-0 cursor-pointer rounded-md border border-transparent p-0 transition hover:border-amber-400/35 hover:brightness-110 active:scale-[0.98]"
                 >
                     <RewardIconBox gradeBg={tier.gradeBg} compact={compact}>
@@ -223,7 +234,7 @@ const AdventureChapterRewardHints: React.FC<Props> = ({ stageId, compact, classN
                             key={`${mat.image}-${i}`}
                             type="button"
                             data-adventure-reward-trigger
-                            aria-label={`강화석 보상: ${line}`}
+                            aria-label={t('adventure.enhanceStoneRewardAria', { line })}
                             aria-expanded={bubble?.id === id}
                             onClick={onTriggerClick(id, line)}
                             className="shrink-0 cursor-pointer rounded-md border border-transparent p-0 transition hover:border-amber-400/35 hover:brightness-110 active:scale-[0.98]"

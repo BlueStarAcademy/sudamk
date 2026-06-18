@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { useModalStackLayer } from '../hooks/useModalStackLayer.js';
 import { UserWithStatus } from '../types.js';
@@ -16,6 +17,7 @@ type MannerGradeChangeModalProps = {
 };
 
 const MannerGradeChangeModal: React.FC<MannerGradeChangeModalProps> = ({ user, payload, onClose }) => {
+    const { t } = useTranslation('profile');
     const avatarUrl = useMemo(() => AVATAR_POOL.find((a) => a.id === user.avatarId)?.url, [user.avatarId]);
     const borderUrl = useMemo(() => BORDER_POOL.find((b) => b.id === user.borderId)?.url, [user.borderId]);
     const displayName = user.nickname || user.username || user.id;
@@ -34,7 +36,7 @@ const MannerGradeChangeModal: React.FC<MannerGradeChangeModalProps> = ({ user, p
               inner: 'from-[#0c141c] via-[#080f16] to-[#04070a]',
               headline: 'from-teal-100 via-white to-emerald-200',
               badge: 'border-teal-400/40 bg-teal-950/55 text-teal-50 shadow-[0_0_24px_-4px_rgba(45,212,191,0.35)]',
-              caption: '매너 등급이 상승했습니다',
+              caption: t('mannerGradeChange.upCaption'),
               glowA: 'bg-teal-400/22',
               meshGradient:
                   'linear-gradient(165deg, rgba(45,212,191,0.1), transparent 42%, rgba(34,211,238,0.07)), radial-gradient(ellipse 100% 60% at 50% -15%, rgba(45, 212, 191, 0.22), transparent 55%)',
@@ -45,7 +47,7 @@ const MannerGradeChangeModal: React.FC<MannerGradeChangeModalProps> = ({ user, p
               inner: 'from-[#181014] via-[#0e0a0c] to-[#060405]',
               headline: 'from-rose-100 via-amber-50 to-stone-200',
               badge: 'border-rose-400/40 bg-rose-950/50 text-rose-50 shadow-[0_0_24px_-4px_rgba(251,113,133,0.3)]',
-              caption: '매너 등급이 하락했습니다',
+              caption: t('mannerGradeChange.downCaption'),
               glowA: 'bg-rose-500/24',
               meshGradient:
                   'linear-gradient(165deg, rgba(251,113,133,0.1), transparent 42%, rgba(251,191,36,0.06)), radial-gradient(ellipse 100% 60% at 50% -15%, rgba(251, 113, 133, 0.2), transparent 55%)',
@@ -60,7 +62,7 @@ const MannerGradeChangeModal: React.FC<MannerGradeChangeModalProps> = ({ user, p
             aria-modal="true"
             aria-labelledby="manner-grade-change-title"
         >
-            <button type="button" className="absolute inset-0 z-0 bg-[#020408]/90 backdrop-blur-md" aria-label="배경 닫기" onClick={onClose} />
+            <button type="button" className="absolute inset-0 z-0 bg-[#020408]/90 backdrop-blur-md" aria-label={t('closeBg', { ns: 'common' })} onClick={onClose} />
             <div
                 className="relative z-10 w-full max-w-md animate-[mannerGradePop_0.48s_cubic-bezier(0.22,1,0.36,1)_both]"
                 onClick={(e) => e.stopPropagation()}
@@ -105,7 +107,7 @@ const MannerGradeChangeModal: React.FC<MannerGradeChangeModalProps> = ({ user, p
                                 id="manner-grade-change-title"
                                 className={`mt-3 bg-gradient-to-r bg-clip-text text-center text-2xl font-black tracking-tight text-transparent sm:text-[1.75rem] ${chrome.headline}`}
                             >
-                                {isUp ? '매너 등급 상승' : '매너 등급 하락'}
+                                {isUp ? t('mannerGradeChange.upTitle') : t('mannerGradeChange.downTitle')}
                             </h2>
                             <p className="mx-auto mt-2 max-w-[22rem] text-center text-sm leading-relaxed text-slate-400">{chrome.caption}</p>
 
@@ -128,7 +130,7 @@ const MannerGradeChangeModal: React.FC<MannerGradeChangeModalProps> = ({ user, p
 
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-stretch sm:gap-2">
                                 <div className={`rounded-2xl border bg-black/35 p-4 text-center ring-1 ring-inset sm:p-4 ${chrome.scorePanel}`}>
-                                    <p className="text-[0.65rem] font-bold uppercase tracking-[0.2em] text-slate-500">이전</p>
+                                    <p className="text-[0.65rem] font-bold uppercase tracking-[0.2em] text-slate-500">{t('previous', { ns: 'common' })}</p>
                                     <p className={`mt-2 text-lg font-black tracking-tight sm:text-xl ${prevStyle.color}`}>{payload.previousRank}</p>
                                 </div>
 
@@ -138,11 +140,11 @@ const MannerGradeChangeModal: React.FC<MannerGradeChangeModalProps> = ({ user, p
                                     </div>
                                 </div>
                                 <div className="flex justify-center sm:hidden" aria-hidden>
-                                    <div className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-1 text-xs text-white/35">변경</div>
+                                    <div className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-1 text-xs text-white/35">{t('change', { ns: 'common' })}</div>
                                 </div>
 
                                 <div className={`rounded-2xl border bg-black/35 p-4 text-center ring-1 ring-inset sm:p-4 ${chrome.scorePanel}`}>
-                                    <p className="text-[0.65rem] font-bold uppercase tracking-[0.2em] text-slate-500">현재</p>
+                                    <p className="text-[0.65rem] font-bold uppercase tracking-[0.2em] text-slate-500">{t('current', { ns: 'common' })}</p>
                                     <p className={`mt-2 text-lg font-black tracking-tight sm:text-xl ${nextStyle.color}`}>{payload.newRank}</p>
                                 </div>
                             </div>
@@ -150,11 +152,11 @@ const MannerGradeChangeModal: React.FC<MannerGradeChangeModalProps> = ({ user, p
                             <div
                                 className={`mt-3 rounded-2xl border border-white/10 bg-black/40 p-4 ring-1 ring-inset ring-white/[0.06] sm:p-5 ${isUp ? 'shadow-[inset_0_1px_0_rgba(45,212,191,0.08)]' : 'shadow-[inset_0_1px_0_rgba(251,113,133,0.06)]'}`}
                             >
-                                <p className="text-center text-[0.65rem] font-bold uppercase tracking-[0.22em] text-slate-500">매너 점수</p>
+                                <p className="text-center text-[0.65rem] font-bold uppercase tracking-[0.22em] text-slate-500">{t('mannerScore', { ns: 'common' })}</p>
                                 <p className="mt-2 text-center tabular-nums text-base text-slate-200 sm:text-lg">
-                                    <span className="text-slate-500">{payload.previousScore.toLocaleString()}점</span>
+                                    <span className="text-slate-500">{payload.previousScore.toLocaleString()}{t('mannerGradeChange.pointsSuffix')}</span>
                                     <span className="mx-2 text-slate-600">→</span>
-                                    <span className="font-bold text-white">{payload.newScore.toLocaleString()}점</span>
+                                    <span className="font-bold text-white">{payload.newScore.toLocaleString()}{t('mannerGradeChange.pointsSuffix')}</span>
                                     <span className={`ml-2 text-sm font-bold ${delta >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                                         ({delta >= 0 ? '+' : ''}
                                         {delta.toLocaleString()})
@@ -164,8 +166,8 @@ const MannerGradeChangeModal: React.FC<MannerGradeChangeModalProps> = ({ user, p
 
                             <p className="mt-5 text-center text-xs leading-relaxed text-slate-500 sm:text-[0.8125rem]">
                                 {isUp
-                                    ? '바른 매너를 유지하면 혜택이 늘어납니다. 계속 좋은 대국 부탁드립니다.'
-                                    : '매너 점수가 낮아지면 보상·능력치에 불리할 수 있습니다. 건전한 플레이를 권장합니다.'}
+                                    ? t('mannerGradeChange.upHint')
+                                    : t('mannerGradeChange.downHint')}
                             </p>
 
                             <div className="mt-7 flex justify-center">

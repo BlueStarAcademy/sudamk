@@ -1,4 +1,5 @@
 import React from 'react';
+import { tx } from '../../shared/i18n/runtimeText.js';
 import Button from '../Button.js';
 import ToggleSwitch from '../ui/ToggleSwitch.js';
 import type { Point } from '../../types.js';
@@ -112,10 +113,10 @@ export const MoveConfirmFooterSlot: React.FC<MoveConfirmFooterSlotProps> = ({
     const diam = circleDiameterClass(layout, compact);
     const canConfirm = !!pendingMove && mobileConfirm;
     const title = !mobileConfirm
-        ? '착수 버튼 모드가 OFF입니다.'
+        ? tx('game:moveConfirm.modeOff')
         : pendingMove
-          ? '착수 확정'
-          : '바둑판을 클릭해 착점을 선택하세요';
+          ? tx('game:moveConfirm.confirmTitle')
+          : tx('game:moveConfirm.pickPoint');
 
     const inner = (
         <div
@@ -132,9 +133,9 @@ export const MoveConfirmFooterSlot: React.FC<MoveConfirmFooterSlotProps> = ({
                 title={title}
                 className={moveButtonClass(layout, compact, diam, canConfirm)}
             >
-                <span className="relative z-[1] tracking-tight">착수</span>
+                <span className="relative z-[1] tracking-tight">{tx("game:confirmMove")}</span>
             </Button>
-            <div className="flex h-6 shrink-0 items-center justify-center" role="group" aria-label="착수 버튼 모드">
+            <div className="flex h-6 shrink-0 items-center justify-center" role="group" aria-label={tx('game:moveConfirm.modeAria')}>
                 <ToggleSwitch checked={mobileConfirm} onChange={onMobileConfirmToggle} />
             </div>
         </div>

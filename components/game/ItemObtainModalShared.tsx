@@ -1,4 +1,5 @@
 import React from 'react';
+import { tx } from '../../shared/i18n/runtimeText.js';
 
 /** 단일 획득·구매 미리보기 카드(아이템 획득 / 수량 선택 상단 등 공통) */
 export const ITEM_OBTAIN_UNIFIED_CARD_CLASS =
@@ -37,7 +38,7 @@ export const SingleItemObtainCard: React.FC<SingleItemObtainCardProps> = ({
     description = '',
     usageLines = [],
     acquireLines = [],
-    regionAriaLabel = '획득 아이템',
+    regionAriaLabel = tx("game:itemObtain.regionAria"),
     emphasis = false,
 }) => {
     const showFooter = !!description.trim() || usageLines.length > 0 || acquireLines.length > 0;

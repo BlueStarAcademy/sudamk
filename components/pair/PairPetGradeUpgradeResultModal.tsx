@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import DraggableWindow, { ITEM_OBTAIN_MODAL_CONFIRM_BUTTON_CLASS } from '../DraggableWindow.js';
 import Button from '../Button.js';
 import { CORE_STATS_DATA } from '../../constants/index.js';
@@ -21,11 +22,7 @@ import {
 
 const CORE_LIST = Object.values(CoreStat) as CoreStat[];
 
-const PHASE_DEFS: { phase: PairPetKataPhase; label: string }[] = [
-    { phase: 'opening', label: '초반' },
-    { phase: 'midgame', label: '중반' },
-    { phase: 'endgame', label: '종반' },
-];
+
 
 export interface PairPetGradeUpgradeResultModalProps {
     isOpen: boolean;
@@ -46,6 +43,17 @@ const PairPetGradeUpgradeResultModal: React.FC<PairPetGradeUpgradeResultModalPro
     toGrade,
     isTopmost = true,
 }) => {
+    const { t } = useTranslation(['pair', 'common', 'profile', 'game']);
+    const { t: tCommon } = useTranslation('common');
+    const phaseDefs = useMemo(
+        () =>
+            [
+                { phase: 'opening' as const, label: t('game:controls.phaseOpening') },
+                { phase: 'midgame' as const, label: t('game:controls.phaseMidgame') },
+                { phase: 'endgame' as const, label: t('game:controls.phaseEndgame') },
+            ] as const,
+        [t],
+    );
     const meta = useMemo(() => resolvePairPetMetaFromInventoryRow(itemAfter), [itemAfter]);
     const levelSafe = useMemo(
         () => Math.min(PAIR_PET_MAX_LEVEL, Math.max(1, Math.floor(meta.level) || 1)),
@@ -121,7 +129,7 @@ const PairPetGradeUpgradeResultModal: React.FC<PairPetGradeUpgradeResultModalPro
 
     return (
         <DraggableWindow
-            title="등급 강화 완료"
+            title={t('gradeUpgrade.completeTitle')}
             onClose={onClose}
             windowId="pair-pet-grade-upgrade-result"
             initialWidth={580}
@@ -160,7 +168,7 @@ const PairPetGradeUpgradeResultModal: React.FC<PairPetGradeUpgradeResultModalPro
 
                         <div className="flex flex-row items-center gap-1.5 sm:gap-3">
                             <div className="flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl border border-white/10 bg-black/45 px-1.5 py-2 shadow-inner sm:gap-2 sm:px-3 sm:py-3">
-                                <span className="text-[0.6rem] font-bold uppercase tracking-[0.14em] text-slate-500 sm:text-[0.62rem] sm:tracking-[0.18em]">이전</span>
+                                <span className="text-[0.6rem] font-bold uppercase tracking-[0.14em] text-slate-500 sm:text-[0.62rem] sm:tracking-[0.18em]">{t('gradeUpgrade.before')}</span>
                                 <div className="relative h-11 w-11 overflow-hidden rounded-lg border border-white/12 sm:h-14 sm:w-14">
                                     <img src={fromBg} alt="" className="absolute inset-0 h-full w-full object-cover opacity-90" />
                                     {petImg ? (
@@ -190,7 +198,7 @@ const PairPetGradeUpgradeResultModal: React.FC<PairPetGradeUpgradeResultModalPro
                                 </div>
                             </div>
                             <div className="flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl border border-emerald-400/30 bg-gradient-to-b from-emerald-950/40 to-black/50 px-1.5 py-2 shadow-[inset_0_1px_0_rgba(16,185,129,0.1)] sm:gap-2 sm:px-3 sm:py-3">
-                                <span className="text-[0.6rem] font-bold uppercase tracking-[0.14em] text-emerald-200/75 sm:text-[0.62rem] sm:tracking-[0.18em]">이후</span>
+                                <span className="text-[0.6rem] font-bold uppercase tracking-[0.14em] text-emerald-200/75 sm:text-[0.62rem] sm:tracking-[0.18em]">{t('gradeUpgrade.after')}</span>
                                 <div className="relative h-11 w-11 overflow-hidden rounded-lg border border-emerald-300/25 sm:h-14 sm:w-14">
                                     <img src={toBg} alt="" className="absolute inset-0 h-full w-full object-cover opacity-90" />
                                     {petImg ? (
@@ -207,7 +215,7 @@ const PairPetGradeUpgradeResultModal: React.FC<PairPetGradeUpgradeResultModalPro
 
                         <div className="rounded-xl border border-sky-500/25 bg-gradient-to-r from-sky-950/35 to-zinc-950/80 px-2 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:px-2.5 sm:py-2">
                             <div className="flex flex-wrap items-baseline justify-center gap-x-1.5 gap-y-0.5 text-center text-xs sm:text-sm">
-                                <span className="font-semibold text-slate-400">레벨업 추가능력치(랜덤)</span>
+                                <span className="font-semibold text-slate-400">{t('gradeUpgrade.levelUpRandomBudget')}</span>
                                 <span className="font-mono font-bold tabular-nums text-amber-100">{budgetBefore}</span>
                                 <span className="font-bold text-slate-500">→</span>
                                 <span className="font-mono font-bold tabular-nums text-amber-100">{budgetAfter}</span>
@@ -217,7 +225,7 @@ const PairPetGradeUpgradeResultModal: React.FC<PairPetGradeUpgradeResultModalPro
                             </div>
                             <div className="my-1.5 border-t border-white/10" />
                             <div className="flex flex-wrap items-baseline justify-center gap-x-2 gap-y-0.5 text-center">
-                                <span className="text-[0.65rem] font-bold text-amber-100/95 sm:text-xs">바둑능력</span>
+                                <span className="text-[0.65rem] font-bold text-amber-100/95 sm:text-xs">{t('profile:badukAbility')}</span>
                                 <span className="font-mono text-sm font-black tabular-nums text-amber-50 sm:text-base">{powerBefore}</span>
                                 <span className="text-xs font-bold text-slate-500">→</span>
                                 <span className="font-mono text-sm font-black tabular-nums text-amber-50 sm:text-base">{powerAfter}</span>
@@ -231,7 +239,7 @@ const PairPetGradeUpgradeResultModal: React.FC<PairPetGradeUpgradeResultModalPro
                                 </span>
                             </div>
                             <div className="mt-1.5 flex flex-col gap-1 border-t border-white/10 pt-1.5 text-xs sm:flex-row sm:flex-wrap sm:items-center sm:justify-center sm:gap-x-2 sm:gap-y-0.5">
-                                {PHASE_DEFS.map(({ phase, label }) => {
+                                {phaseDefs.map(({ phase, label }) => {
                                     const b = pairPetKataAbilityScore(phase, kataBefore);
                                     const a = pairPetKataAbilityScore(phase, kataAfter);
                                     const d = a - b;
@@ -253,7 +261,7 @@ const PairPetGradeUpgradeResultModal: React.FC<PairPetGradeUpgradeResultModalPro
 
                         <div className="min-w-0">
                             <p className="mb-1.5 text-center text-sm font-medium leading-snug text-slate-300 sm:text-[0.9375rem]">
-                                능력치 변화
+                                {t('gradeUpgrade.statChanges')}
                             </p>
                             <ul className="grid min-w-0 grid-cols-2 gap-1.5 sm:gap-2">
                                 {CORE_LIST.map((stat) => {
@@ -292,7 +300,7 @@ const PairPetGradeUpgradeResultModal: React.FC<PairPetGradeUpgradeResultModalPro
 
                 <div className="flex justify-center px-1 pb-1 sm:px-2">
                     <Button type="button" onClick={onClose} bare colorScheme="none" className={ITEM_OBTAIN_MODAL_CONFIRM_BUTTON_CLASS}>
-                        확인
+                        {tCommon('actions.confirm')}
                     </Button>
                 </div>
             </div>

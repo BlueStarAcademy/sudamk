@@ -10,6 +10,13 @@ import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { resolvePublicUrl } from '../utils/publicAssetUrl.js';
 import { formatGoldAmountKoG } from '../shared/utils/walletAmountDisplay.js';
 import { useGameResultModalLayout } from './game/useGameResultModalLayout.js';
+import { useTranslation } from 'react-i18next';
+import { tx } from '../shared/i18n/runtimeText.js';
+import {
+    DUNGEON_MATERIAL_BOX_SERVER_IDS,
+    DUNGEON_GOLD_REWARD_NAME_MARKER,
+    DUNGEON_DIAMOND_REWARD_NAME_MARKER,
+} from '../shared/constants/dungeonRewardServerIds.js';
 
 export interface DungeonStageSummaryModalProps {
     dungeonType: TournamentType;
@@ -53,6 +60,7 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
     onClose,
     isTopmost
 }) => {
+    const { t } = useTranslation('game');
     const isCompactViewport = useIsHandheldDevice(1025);
     const { isNativeMobile } = useNativeMobileShell();
     const isMobile = isCompactViewport || isNativeMobile;
@@ -76,21 +84,21 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
         if (tournamentState.matchGoldRewards && tournamentState.matchGoldRewards.length > 0) {
             tournamentState.matchGoldRewards.forEach((goldAmount: number, idx: number) => {
                 rewardItemsMap.set(`neighborhood_round_${idx}`, {
-                    name: `골드 ${formatGoldAmountKoG(goldAmount)}`,
+                    name: t('dungeonSummary.goldAmount', { amount: formatGoldAmountKoG(goldAmount) }),
                     image: '/images/icon/Gold.webp',
                     quantity: goldAmount,
                 });
             });
         } else {
             rewardItemsMap.set('gold', {
-                name: '골드',
+                name: tx('common:resources.gold'),
                 image: '/images/icon/Gold.webp',
                 quantity: baseRewards.gold,
             });
         }
     } else if (baseRewards.gold && baseRewards.gold > 0) {
         rewardItemsMap.set('gold', {
-            name: '골드',
+            name: tx('common:resources.gold'),
             image: '/images/icon/Gold.webp',
             quantity: baseRewards.gold,
         });
@@ -169,7 +177,7 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                 const label = EQUIPMENT_GRADE_LABEL_KO[gradeKey] ?? gradeKey;
                 const img = EQUIP_GRADE_IMAGE[gradeKey] || '/images/equipments/normalbgi.webp';
                 rewardItemsMap.set(`world_equip_${idx}_${gradeKey}`, {
-                    name: `${label} 장비`,
+                    name: t('dungeonSummary.equipmentSuffix', { label }),
                     image: img,
                     quantity: 1,
                     grade: gradeKey as ItemGrade,
@@ -210,7 +218,7 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
         }
     } else if (baseRewards.changeTickets && baseRewards.changeTickets > 0) {
         rewardItemsMap.set('changeTickets', {
-            name: `변경권 x${baseRewards.changeTickets}`,
+            name: t('dungeonSummary.changeTickets', { count: baseRewards.changeTickets }),
             image: '/images/use/change2.webp',
             quantity: baseRewards.changeTickets,
             grade: ItemGrade.Normal,
@@ -218,7 +226,7 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
     }
     if (typeof baseRewards.champCoins === 'number' && baseRewards.champCoins > 0) {
         rewardItemsMap.set('champ_coins', {
-            name: '챔프 코인',
+            name: t('dungeonSummary.champCoin'),
             image: '/images/icon/champcoin.webp',
             quantity: baseRewards.champCoins,
             displayAmount: baseRewards.champCoins.toLocaleString('ko-KR'),
@@ -241,13 +249,8 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                 itemTemplate = { name: itemName, image: (MATERIAL_ITEMS as any)[itemName].image } as any;
             }
             if (!itemTemplate) {
-                const nameMappings: Record<string, string> = {
-                    '재료 상자1': '재료 상자 I', '재료 상자2': '재료 상자 II', '재료 상자3': '재료 상자 III',
-                    '재료 상자4': '재료 상자 IV', '재료 상자5': '재료 상자 V', '재료 상자6': '재료 상자 VI',
-                    '재료상자1': '재료 상자 I', '재료상자2': '재료 상자 II', '재료상자3': '재료 상자 III',
-                    '재료상자4': '재료 상자 IV', '재료상자5': '재료 상자 V', '재료상자6': '재료 상자 VI',
-                };
-                const mappedName = nameMappings[itemName];
+                const i18nKey = DUNGEON_MATERIAL_BOX_SERVER_IDS[itemName];
+                const mappedName = i18nKey ? t(`dungeonSummary.${i18nKey}`) : undefined;
                 if (mappedName) {
                     itemTemplate = CONSUMABLE_ITEMS.find(i => i.name === mappedName);
                     if (itemTemplate) itemName = mappedName;
@@ -255,9 +258,9 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
             }
             const image =
                 itemTemplate?.image ||
-                (itemName.includes('골드')
+                (itemName.includes(DUNGEON_GOLD_REWARD_NAME_MARKER)
                     ? '/images/icon/Gold.webp'
-                    : itemName.includes('다이아')
+                    : itemName.includes(DUNGEON_DIAMOND_REWARD_NAME_MARKER)
                       ? '/images/icon/Zem.webp'
                       : (MATERIAL_ITEMS as any)[item.itemId]?.image || '/images/Box/ResourceBox1.webp');
             rewardItemsMap.set(`rank_${rankIdx}_${itemName}`, {
@@ -285,37 +288,37 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
         (isMobile ? 'text-[11px]' : 'text-[10px] sm:text-[11px]');
 
     const nextStageStatusMobile = !nextStageUnlocked
-        ? '3위 이상 시 열림'
+        ? t('dungeonSummary.lockedTop3')
         : nextStageWasAlreadyUnlocked
-          ? '이미 열림'
-          : '해제됨';
+          ? t('dungeonSummary.alreadyOpen')
+          : t('dungeonSummary.unlocked');
     const nextStageStatusDesktop = !nextStageUnlocked
-        ? '잠김 (3위 이상 시 열림)'
+        ? t('dungeonSummary.lockedTop3Full')
         : nextStageWasAlreadyUnlocked
-          ? '다음 단계가 이미 열려있습니다.'
-          : '열림';
+          ? t('dungeonSummary.nextStageAlreadyOpen')
+          : t('dungeonSummary.open');
 
     const thisRunResultCard = (
         <div
             className={`${panelCardClass} flex w-full max-w-[19rem] flex-col items-center gap-2 p-2.5 sm:max-w-none sm:w-full sm:items-stretch sm:p-3 max-sm:mx-auto max-sm:gap-1.5 max-sm:p-2 max-sm:py-2.5`}
         >
-            <h3 className={`${sectionTitleClass} max-sm:hidden text-center`}>이번 대회 결과</h3>
+            <h3 className={`${sectionTitleClass} max-sm:hidden text-center`}>{t("dungeonSummary.resultTitle")}</h3>
             {/* 모바일: 전적·순위·획득 점수·다음 단계를 한 세로 스택으로 가운데 정렬 */}
             <div className="flex flex-col items-center gap-2 sm:hidden">
                 <div className="flex items-center justify-center gap-2.5 rounded-lg bg-black/25 px-3 py-2 ring-1 ring-inset ring-white/[0.06]">
                     <div className="text-center">
-                        <div className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500">전적</div>
+                        <div className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500">{t("dungeonSummary.record")}</div>
                         <div className="mt-1 flex items-baseline justify-center gap-x-0.5 text-sm font-bold tabular-nums leading-none">
                             <span className="text-emerald-300">{wins}</span>
-                            <span className="text-[11px] font-medium text-zinc-500">승</span>
+                            <span className="text-[11px] font-medium text-zinc-500">{tx("game:summary.winShort")}</span>
                             <span className="mx-0.5 text-zinc-600">·</span>
                             <span className="text-rose-300">{losses}</span>
-                            <span className="text-[11px] font-medium text-zinc-500">패</span>
+                            <span className="text-[11px] font-medium text-zinc-500">{tx("game:summary.loseShort")}</span>
                         </div>
                     </div>
                     <div className="h-9 w-px shrink-0 bg-white/12" aria-hidden />
                     <div className="text-center">
-                        <div className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500">순위</div>
+                        <div className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500">{t("dungeonSummary.rank")}</div>
                         <div className="mt-1 flex items-center justify-center gap-0.5">
                             <div
                                 className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${
@@ -330,7 +333,7 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                             >
                                 {userRank}
                             </div>
-                            <span className="text-[11px] font-medium text-zinc-400">위</span>
+                            <span className="text-[11px] font-medium text-zinc-400">{t("dungeonSummary.rankSuffix")}</span>
                         </div>
                     </div>
                 </div>
@@ -343,7 +346,7 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                         }`}
                     >
                         <div className={`font-semibold ${nextStageUnlocked ? 'text-emerald-100' : 'text-zinc-300'}`}>
-                            다음 {nextStage}단계
+                            {t('dungeonSummary.nextStage', { stage: nextStage })}
                         </div>
                         <div className={`mt-0.5 ${nextStageUnlocked ? 'text-emerald-200/90' : 'text-zinc-500'}`}>
                             {nextStageStatusMobile}
@@ -353,15 +356,15 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
             </div>
             <div className="flex max-sm:hidden flex-wrap items-center justify-between gap-2">
                 <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-sm sm:text-base">
-                    <span className="text-zinc-500">전적</span>
+                    <span className="text-zinc-500">{t('dungeonSummary.record')}</span>
                     <span className="font-bold tabular-nums text-emerald-300">{wins}</span>
-                    <span className="text-zinc-500">승</span>
+                    <span className="text-zinc-500">{tx("game:summary.winShort")}</span>
                     <span className="text-zinc-600">-</span>
                     <span className="font-bold tabular-nums text-rose-300">{losses}</span>
-                    <span className="text-zinc-500">패</span>
+                    <span className="text-zinc-500">{tx("game:summary.loseShort")}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className="text-xs text-zinc-500 sm:text-sm">순위</span>
+                    <span className="text-xs text-zinc-500 sm:text-sm">{t('dungeonSummary.rank')}</span>
                     <div
                         className={`inline-flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold sm:h-8 sm:w-8 ${
                             userRank === 1
@@ -375,7 +378,7 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                     >
                         {userRank}
                     </div>
-                    <span className="text-xs text-zinc-400 sm:text-sm">위</span>
+                    <span className="text-xs text-zinc-400 sm:text-sm">{t("dungeonSummary.rankSuffix")}</span>
                 </div>
             </div>
             {nextStage !== null ? (
@@ -384,7 +387,7 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                         nextStageUnlocked ? 'bg-emerald-950/45 text-emerald-200 ring-1 ring-emerald-500/25' : 'bg-black/35 text-zinc-500 ring-1 ring-white/10'
                     }`}
                 >
-                    <span className="font-medium">{nextStage}단계</span>
+                    <span className="font-medium">{t("dungeonSummary.nextStage", { stage: nextStage })}</span>
                     <span>{nextStageStatusDesktop}</span>
                 </div>
             ) : null}
@@ -398,21 +401,21 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
         <div
             className={`${panelCardClass} flex w-full max-w-[19rem] flex-col items-center justify-center p-2.5 text-center sm:max-w-none sm:w-full sm:p-3 max-sm:mx-auto max-sm:min-h-[9.5rem] max-sm:py-5`}
         >
-            <h3 className={`${sectionTitleClass} mb-2 w-full max-sm:hidden text-center`}>현재 단계 누적 전적</h3>
+            <h3 className={`${sectionTitleClass} mb-2 w-full max-sm:hidden text-center`}>{t("dungeonSummary.stageTotalsTitle")}</h3>
             <div className="flex w-full max-w-full items-center justify-center gap-3 py-1 sm:gap-5 md:gap-8">
                 <div className="min-w-0 text-center">
                     <div className="text-3xl font-bold tabular-nums text-emerald-300 sm:text-2xl">{wins}</div>
-                    <div className="text-[11px] text-zinc-500 sm:text-[10px]">승</div>
+                    <div className="text-[11px] text-zinc-500 sm:text-[10px]">{tx('game:summary.winShort')}</div>
                 </div>
                 <div className="h-12 w-px shrink-0 bg-white/15 sm:h-10" />
                 <div className="min-w-0 text-center">
                     <div className="text-3xl font-bold tabular-nums text-rose-300 sm:text-2xl">{losses}</div>
-                    <div className="text-[11px] text-zinc-500 sm:text-[10px]">패</div>
+                    <div className="text-[11px] text-zinc-500 sm:text-[10px]">{tx('game:summary.loseShort')}</div>
                 </div>
                 <div className="h-12 w-px shrink-0 bg-white/15 sm:h-10" />
                 <div className="min-w-0 text-center">
                     <div className="text-3xl font-bold tabular-nums text-amber-200 sm:text-2xl">{stageWinRateText}</div>
-                    <div className="text-[11px] text-zinc-500 sm:text-[10px]">승률</div>
+                    <div className="text-[11px] text-zinc-500 sm:text-[10px]">{t("dungeonSummary.winRate")}</div>
                 </div>
             </div>
         </div>
@@ -426,7 +429,7 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
      */
     const renderRewardStrip = (size: 'compact' | 'large' = 'compact') => {
         if (rewardItems.length === 0) {
-            return <p className={size === 'large' ? 'py-1 text-center text-sm text-zinc-500' : 'py-0.5 text-center text-[10px] text-zinc-500'}>보상 없음</p>;
+            return <p className={size === 'large' ? 'py-1 text-center text-sm text-zinc-500' : 'py-0.5 text-center text-[10px] text-zinc-500'}>{t("dungeonSummary.noRewards")}</p>;
         }
 
         // 월드는 매 경기 장비 + 순위 보상까지 더해 칩이 많아지므로, 큰 사이즈도 한 단계 줄여서 보여준다.
@@ -452,7 +455,7 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
             <div
                 className="w-full min-w-0 overflow-x-auto overflow-y-hidden overscroll-x-contain pb-1 pt-1 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] [scrollbar-color:rgba(251,191,36,0.35)_transparent]"
                 role="region"
-                aria-label="보상 아이콘"
+                aria-label={t("dungeonSummary.rewardsAria")}
             >
                 <div className={`mx-auto flex w-max max-w-none flex-nowrap items-end justify-center ${colGap} px-0.5`} role="list">
                     {rewardItems.map((item, index) => {
@@ -519,7 +522,7 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
 
     return (
         <DraggableWindow
-            title={`${tournamentName} ${stage}단계 결과`}
+            title={t("dungeonSummary.stageResultTitle", { tournament: tournamentName, stage })}
             onClose={onClose}
             windowId="dungeon-stage-summary"
             closeOnOutsideClick={false}
@@ -560,7 +563,7 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                         </div>
                         <div className="relative z-[1] flex items-center pr-3 sm:pr-4">
                             <div className="rounded-lg bg-black/55 px-3 py-1.5 ring-1 ring-amber-400/30 backdrop-blur-sm">
-                                <span className="block text-center text-[10px] font-semibold uppercase tracking-wider text-amber-200/85 sm:text-xs">단계</span>
+                                <span className="block text-center text-[10px] font-semibold uppercase tracking-wider text-amber-200/85 sm:text-xs">{t("dungeonSummary.stageLabel")}</span>
                                 <span className="block text-center text-2xl font-black tabular-nums leading-none text-white sm:text-3xl">{stage}</span>
                             </div>
                         </div>
@@ -571,12 +574,12 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                             <div
                                 className="flex shrink-0 gap-1 border-b border-white/10 bg-black/25 px-2 pt-2"
                                 role="tablist"
-                                aria-label="결과 요약"
+                                aria-label={t("dungeonSummary.resultAria")}
                             >
                                 {(
                                     [
-                                        ['thisRun', '이번 대회 결과'] as const,
-                                        ['stageTotals', '현재 단계 누적 전적'] as const,
+                                        ['thisRun', t('dungeonSummary.resultTitle')] as const,
+                                        ['stageTotals', t('dungeonSummary.stageTotalsTitle')] as const,
                                     ] as const
                                 ).map(([key, label]) => {
                                     const active = mobileSummaryTab === key;
@@ -614,7 +617,7 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                             <div className="relative z-10 flex shrink-0 flex-col items-center gap-1 border-t border-white/10 bg-[#07080c]/95 px-2 py-1 backdrop-blur-[2px] pb-[max(0.35rem,env(safe-area-inset-bottom,0px))]">
                                 <div className="w-full min-w-0 max-w-full">
                                     <h3 className="mb-0.5 border-b border-white/[0.08] pb-0.5 text-center text-[9px] font-bold uppercase tracking-[0.12em] text-amber-200/65">
-                                        보상 내역
+                                        {t("dungeonSummary.rewardsTitle")}
                                     </h3>
                                     {renderRewardStrip('compact')}
                                 </div>
@@ -624,7 +627,7 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                                     colorScheme="none"
                                     className="mx-auto w-full max-w-[8.5rem] rounded-full border border-violet-300/45 bg-gradient-to-b from-violet-500 via-indigo-600 to-violet-950 py-1.5 text-xs font-bold text-white shadow-[0_8px_28px_-10px_rgba(109,40,217,0.55),inset_0_1px_0_rgba(255,255,255,0.2)] transition-all hover:border-violet-200/50 hover:shadow-[0_12px_32px_-8px_rgba(139,92,246,0.45)] active:translate-y-px"
                                 >
-                                    확인
+                                    {t("summary.confirm")}
                                 </Button>
                             </div>
                         </>
@@ -642,11 +645,11 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                                     <div
                                         className={`${panelCardClass} flex w-full max-w-3xl min-h-[152px] flex-col items-center p-3 sm:min-h-[176px] sm:p-3.5`}
                                     >
-                                        <h3 className={`${sectionTitleClass} mb-2 w-full flex-shrink-0 text-center`}>보상 내역</h3>
+                                        <h3 className={`${sectionTitleClass} mb-2 w-full flex-shrink-0 text-center`}>{t("dungeonSummary.rewardsTitle")}</h3>
                                         {rewardItems.length > 0 ? (
                                             <div className="w-full min-w-0 max-w-full px-0.5">{renderRewardStrip('large')}</div>
                                         ) : (
-                                            <p className="py-2 text-center text-sm text-zinc-500">보상 없음</p>
+                                            <p className="py-2 text-center text-sm text-zinc-500">{t("dungeonSummary.noRewards")}</p>
                                         )}
                                     </div>
                                 </div>
@@ -666,8 +669,8 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                         colorScheme="none"
                         className="w-full max-w-md rounded-full border border-violet-300/45 bg-gradient-to-b from-violet-500 via-indigo-600 to-violet-950 py-3 text-base font-bold text-white shadow-[0_10px_36px_-10px_rgba(109,40,217,0.65),inset_0_1px_0_rgba(255,255,255,0.22)] transition-all hover:border-violet-200/50 hover:shadow-[0_14px_40px_-8px_rgba(139,92,246,0.55)] active:translate-y-px sm:py-2.5 sm:text-sm"
                     >
-                        확인
-                    </Button>
+                                    {t("summary.confirm")}
+                                </Button>
                 </div>
             ) : null}
             </>

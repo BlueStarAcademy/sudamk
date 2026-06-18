@@ -1,4 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useLocalizedItemGrade } from '../shared/i18n/localizedCatalog.js';
+import i18n from '../shared/i18n/config.js';
+const invT = (key: string, opts?: Record<string, unknown>) => i18n.t(`inventory:${key}`, opts);
+
+import { useTranslation } from 'react-i18next';
 import DraggableWindow from './DraggableWindow.js';
 import { UserWithStatus, InventoryItemType, InventoryItem, ItemGrade } from '../types.js';
 import { BASE_SLOTS_PER_CATEGORY } from '../constants/items.js';
@@ -48,24 +53,26 @@ interface PurchaseQuantityModalProps {
 }
 
 function typeLabelKo(it: InventoryItem): string {
-    if (it.type === 'equipment') return '장비';
-    if (it.type === 'consumable') return '소모품';
-    return '재료';
+    if (it.type === 'equipment') return invT('purchase.equipment');
+    if (it.type === 'consumable') return invT('purchase.consumable');
+    return invT('purchase.material');
 }
 
 function usageBlocks(it: InventoryItem): string[] {
     if (it.type === 'material') {
         const lines = getMaterialBagUsageLines(it.name);
-        return lines.length > 0 ? lines : ['이 재료는 현재 어떤 장비 강화에도 사용되지 않습니다.'];
+        return lines.length > 0 ? lines : [invT('purchase.noMaterialUse')];
     }
     if (it.type === 'consumable') {
         const hint = getBagConsumableUsageHint(it.name);
-        return [hint ?? '가방에서 사용할 수 있습니다.'];
+        return [hint ?? invT('encyclopedia.inventoryHint')];
     }
-    return ['착용·강화·제련 등 캐릭터 성장에 사용합니다.'];
+    return [invT('purchase.characterGrowth')];
 }
 
 const PurchaseModalItemShowcase: React.FC<{ preview: InventoryItem; shopBadge?: string }> = ({ preview, shopBadge }) => {
+    const { t } = useTranslation('inventory');
+    const localizedGrade = useLocalizedItemGrade();
     const styles = equipmentDetailGradeStyles[preview.grade];
     const isTranscendent = preview.grade === ItemGrade.Transcendent;
     const imagePath = preview.type === 'equipment' ? preview.image : resolveBagItemDetailImagePath(preview);
@@ -154,11 +161,11 @@ const PurchaseModalItemShowcase: React.FC<{ preview: InventoryItem; shopBadge?: 
                                             : 'border-white/10 bg-black/30 text-slate-200 ring-white/[0.06]'
                                     }`}
                                 >
-                                    등급 · <span className={styles.color}>{styles.name}</span>
+                                    {t('purchase.gradeDivider', { grade: localizedGrade(preview.grade) })}
                                 </span>
                             </div>
                             <div className="mt-1.5 rounded-lg border border-white/[0.06] bg-black/30 p-2.5 ring-1 ring-inset ring-white/[0.03]">
-                                <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500 sm:text-[11px]">설명</p>
+                                <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500 sm:text-[11px]">{t('description', { ns: 'common' })}</p>
                                 <p className="mt-1 text-xs leading-snug text-slate-200/95 sm:text-[13px] sm:leading-snug">{desc}</p>
                             </div>
                         </div>
@@ -175,7 +182,7 @@ const PurchaseModalItemShowcase: React.FC<{ preview: InventoryItem; shopBadge?: 
                                 <span className="flex h-6 w-6 items-center justify-center rounded-md bg-sky-500/20 text-[11px] font-black text-sky-200 ring-1 ring-sky-400/25 sm:text-xs">
                                     ◈
                                 </span>
-                                <span className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-sky-200/90 sm:text-xs">사용처</span>
+                                <span className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-sky-200/90 sm:text-xs">{t('usage', { ns: 'common' })}</span>
                             </div>
                             <ul className="relative mt-2 space-y-1.5 pl-0.5">
                                 {usageLines.map((line, i) => (
@@ -198,7 +205,7 @@ const PurchaseModalItemShowcase: React.FC<{ preview: InventoryItem; shopBadge?: 
                                 <span className="flex h-6 w-6 items-center justify-center rounded-md bg-amber-500/20 text-[11px] font-black text-amber-100 ring-1 ring-amber-400/25 sm:text-xs">
                                     ✦
                                 </span>
-                                <span className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-amber-100/90 sm:text-xs">획득처</span>
+                                <span className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-amber-100/90 sm:text-xs">{t('obtain', { ns: 'common' })}</span>
                             </div>
                             <ul className="relative mt-2 space-y-1.5 pl-0.5">
                                 {acquireLines.length > 0 ? (
@@ -211,7 +218,7 @@ const PurchaseModalItemShowcase: React.FC<{ preview: InventoryItem; shopBadge?: 
                                         </li>
                                     ))
                                 ) : (
-                                    <li className="border-l-2 border-amber-400/20 pl-2 text-xs text-slate-500 sm:text-[13px]">안내 문구가 없습니다.</li>
+                                    <li className="border-l-2 border-amber-400/20 pl-2 text-xs text-slate-500 sm:text-[13px]">{t('encyclopedia.noGuide', { ns: 'inventory' })}</li>
                                 )}
                             </ul>
                         </div>
@@ -223,12 +230,15 @@ const PurchaseModalItemShowcase: React.FC<{ preview: InventoryItem; shopBadge?: 
 };
 
 const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({
+    const { t } = useTranslation('inventory');
     item,
     currentUser,
     onClose,
     onConfirm,
     ignoreInventorySlotLimit = false,
 }) => {
+    const { t } = useTranslation('inventory');
+    const { t: tCommon } = useTranslation('common');
     const [quantity, setQuantity] = useState(1);
     const [isConfirming, setIsConfirming] = useState(false);
     const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
@@ -329,9 +339,9 @@ const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({
     const handleConfirm = async () => {
         if (!ignoreInventorySlotLimit && quantity > maxByInventory) {
             if (maxByInventory <= 0) {
-                setNoticeMessage('가방 공간이 부족합니다. 가방을 정리한 뒤 다시 구매해 주세요.');
+                setNoticeMessage(t('purchase.bagFull'));
             } else {
-                setNoticeMessage(`가방 공간이 부족합니다. 현재 ${maxByInventory}개까지만 구매할 수 있습니다.`);
+                setNoticeMessage(t('purchase.bagFullPartial', { max: maxByInventory }));
             }
             return;
         }
@@ -360,7 +370,7 @@ const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({
 
     return (
         <DraggableWindow
-            title="수량 선택"
+            title={t('purchase.selectQuantity')}
             onClose={onClose}
             windowId="purchase-quantity"
             initialWidth={580}
@@ -370,7 +380,7 @@ const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({
         >
             <div className="flex min-h-0 flex-col items-stretch px-1 pb-0.5 pt-0">
                 <div className="mb-2 min-h-0 shrink-0">
-                    <div className="overflow-visible" role="region" aria-label="구매 상품 상세">
+                    <div className="overflow-visible" role="region" aria-label={t('purchase.productDetailAria')}>
                         <PurchaseModalItemShowcase preview={previewItem} shopBadge={item.badge} />
                     </div>
                 </div>
@@ -390,7 +400,7 @@ const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({
                                 type="button"
                                 onClick={() => setQuantity(q => Math.max(1, q - 1))}
                                 disabled={quantity <= 1}
-                                aria-label="한 개 줄이기"
+                                aria-label={t('purchase.decreaseAria')}
                                 className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-slate-500/35 bg-slate-700/80 text-sm font-semibold text-slate-200 shadow-sm transition-colors hover:border-slate-400/45 hover:bg-slate-600/90 disabled:cursor-not-allowed disabled:opacity-35 active:scale-[0.97]"
                             >
                                 −
@@ -409,7 +419,7 @@ const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({
                                 type="button"
                                 onClick={() => setQuantity(q => Math.min(maxQuantity, q + 1))}
                                 disabled={quantity >= maxQuantity}
-                                aria-label="한 개 늘리기"
+                                aria-label={t('purchase.increaseAria')}
                                 className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-slate-500/35 bg-slate-700/80 text-sm font-semibold text-slate-200 shadow-sm transition-colors hover:border-slate-400/45 hover:bg-slate-600/90 disabled:cursor-not-allowed disabled:opacity-35 active:scale-[0.97]"
                             >
                                 +
@@ -454,18 +464,18 @@ const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({
                                         </span>
                                     </p>
                                     {towerRemainingOwned <= 0 ? (
-                                        <p className="leading-snug text-rose-300/95">보유 개수가 최대치여서 구매할 수 없습니다.</p>
+                                        <p className="leading-snug text-rose-300/95">{t('purchase.maxOwnedBuy')}</p>
                                     ) : towerRemainingDaily <= 0 ? (
-                                        <p className="leading-snug text-rose-300/95">오늘 구매 한도에 도달했습니다.</p>
+                                        <p className="leading-snug text-rose-300/95">{t('purchase.dailyLimitReached')}</p>
                                     ) : (
-                                        <p className="leading-snug text-slate-400">최대 구매 가능: {maxQuantity}개</p>
+                                        <p className="leading-snug text-slate-400">{t('purchase.maxPurchase', { count: maxQuantity })}</p>
                                     )}
                                 </>
                             ) : remainingDaily !== Infinity && remainingDaily > 0 ? (
-                                <p className="leading-snug">일일 남은 구매 가능: {remainingDaily}개</p>
+                                <p className="leading-snug">{t('purchase.dailyRemaining', { count: remainingDaily })}</p>
                             ) : (
                                 <span className="invisible select-none leading-snug" aria-hidden>
-                                    일일 남은 구매 가능: 0개
+                                    {t('purchase.dailyRemaining', { count: 0 })}
                                 </span>
                             )}
                         </div>
@@ -474,7 +484,7 @@ const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({
                     <div className="flex min-w-0 w-[11.5rem] shrink-0 flex-col justify-center overflow-hidden rounded-lg border border-amber-500/15 bg-gradient-to-r from-amber-950/25 via-slate-900/80 to-slate-950/90 p-2 ring-1 ring-inset ring-white/[0.04] sm:w-[13rem]">
                         <div className="flex flex-col gap-1.5">
                             <div className="min-w-0">
-                                <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-amber-200/55 sm:text-xs">합계</p>
+                                <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-amber-200/55 sm:text-xs">{t('purchase.totalLabel')}</p>
                                 <p className="mt-0.5 truncate text-xs leading-snug text-slate-500 sm:text-[13px] sm:leading-snug">
                                     결제 예정 금액
                                 </p>
@@ -508,7 +518,7 @@ const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({
                         disabled={quantity === 0 || quantity > maxQuantity || isConfirming}
                         className="flex-1 rounded-md border border-emerald-500/35 bg-gradient-to-b from-emerald-600/85 to-emerald-950/50 py-1.5 text-[11px] font-semibold text-white shadow-sm transition-colors hover:border-emerald-400/45 hover:from-emerald-500/90 disabled:cursor-not-allowed disabled:opacity-45 active:scale-[0.99]"
                     >
-                        {isConfirming ? '구매 중...' : '구매'}
+                        {isConfirming ? t('purchasing', { ns: 'common' }) : t('purchase', { ns: 'common' })}
                     </button>
                 </div>
                 {noticeMessage && (

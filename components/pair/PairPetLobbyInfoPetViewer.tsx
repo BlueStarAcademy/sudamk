@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import Button from '../Button.js';
 import DraggableWindow from '../DraggableWindow.js';
 import PairPetGradeUpgradeModal from './PairPetGradeUpgradeModal.js';
@@ -83,6 +84,8 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
     bodyMaxHeightCss,
     hideActionBar = false,
 }) => {
+    const { t } = useTranslation(['pair', 'common']);
+    const { t: tCommon } = useTranslation('common');
     const tid = item.templateId ?? null;
     const eqRowId = currentUser.equippedPairPetInventoryItemId ?? null;
     const isRepresentative = Boolean(
@@ -116,24 +119,24 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
     const openGradeUpgradeOrHint = () => {
         if (isBusy) return;
         if (petInTraining) {
-            setGradeBlockHint('수련 중인 펫은 등급 강화할 수 없습니다. 수련을 마친 뒤 이용해 주세요.');
+            setGradeBlockHint(t('gradeUpgrade.cannotWhileTraining'));
             return;
         }
         if (!isPairPetUpgradeableGrade(storedPetGrade)) {
-            setGradeBlockHint('더 올릴 수 있는 등급이 없습니다.');
+            setGradeBlockHint(t('gradeUpgrade.noHigherGrade'));
             return;
         }
         if (levelSafe < needLv) {
-            setGradeBlockHint(`펫 레벨이 부족합니다. Lv.${needLv} 필요 (현재 Lv.${levelSafe})`);
+            setGradeBlockHint(t('gradeUpgrade.levelInsufficient', { need: needLv, current: levelSafe }));
             return;
         }
         if (soulNeed == null || soulTid == null) {
-            setGradeBlockHint('등급 강화 조건을 확인할 수 없습니다.');
+            setGradeBlockHint(t('gradeUpgrade.conditionsUnknown'));
             return;
         }
         if (ownedSoul < soulNeed) {
             setGradeBlockHint(
-                `${soulNameKo ?? '영혼석'}이 부족합니다. ${soulNeed}개 필요 (보유 ${ownedSoul}개)`,
+                t('gradeUpgrade.soulInsufficient', { name: soulNameKo ?? t('gradeUpgrade.soulStoneFallback'), need: soulNeed, owned: ownedSoul }),
             );
             return;
         }
@@ -195,7 +198,7 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
                         colorScheme="none"
                         className={`${PET_MGMT_ACTION_BTN_CLASS} !border !border-white/25 !bg-black/45 !text-slate-100`}
                     >
-                        대표펫 해제
+{t('gradeUpgrade.unequipRepFirst')}
                     </Button>
                 ) : (
                     <Button
@@ -203,7 +206,7 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
                         disabled={isBusy || !tid || petInTraining}
                         title={
                             petInTraining
-                                ? '수련 중인 펫은 대표펫으로 지정할 수 없습니다. 수련을 마친 뒤 지정해 주세요.'
+                                ? t('gradeUpgrade.cannotSetRepWhileTraining')
                                 : undefined
                         }
                         onClick={() => {
@@ -212,7 +215,7 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
                         colorScheme="none"
                         className={`${PET_MGMT_ACTION_BTN_CLASS} !border !border-cyan-400/50 !bg-cyan-950/55 !text-cyan-50`}
                     >
-                        대표펫 장착
+{t('gradeUpgrade.equipRep')}
                     </Button>
                 )}
                 <Button
@@ -221,35 +224,35 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
                     onClick={() => void openGradeUpgradeOrHint()}
                     title={
                         canGradeUpgrade
-                            ? `${soulNameKo ?? '영혼석'} ${soulNeed ?? ''}개 소모 · 등급 상승`
+                            ? t('gradeUpgrade.soulCostTitle', { name: soulNameKo ?? t('gradeUpgrade.soulStoneFallback'), count: soulNeed ?? '' })
                             : petInTraining
-                              ? '수련 중인 펫은 등급 강화할 수 없습니다.'
+                              ? t('gradeUpgrade.cannotWhileTrainingShort')
                               : !isPairPetUpgradeableGrade(storedPetGrade)
-                                ? '더 올릴 수 있는 등급이 없습니다.'
+                                ? t('gradeUpgrade.noHigherGrade')
                                 : soulNeed != null && ownedSoul < soulNeed
-                                  ? `${soulNameKo ?? '영혼석'}이 부족합니다. (${soulNeed}개 필요, 보유 ${ownedSoul})`
-                                  : `Lv.${needLv} 이상에서 등급 강화할 수 있습니다.`
+                                  ? t('gradeUpgrade.soulInsufficientShort', { name: soulNameKo ?? t('gradeUpgrade.soulStoneFallback'), need: soulNeed, owned: ownedSoul })
+                                  : t('gradeUpgrade.soulCostTitleMinLevel', { level: needLv })
                     }
                     colorScheme="none"
                     className={`${PET_MGMT_ACTION_BTN_CLASS} !border !border-amber-400/55 !bg-amber-950/45 !text-amber-50 disabled:!opacity-45`}
                 >
-                    등급 강화
+{t('gradeUpgrade.action')}
                 </Button>
                 <Button
                     type="button"
                     disabled={isBusy || isRepresentative || petInTraining}
                     title={
                         petInTraining
-                            ? '수련 중인 펫은 영혼변환할 수 없습니다. 수련을 마친 뒤 이용하세요.'
+                            ? t('gradeUpgrade.cannotSoulConvertTraining')
                             : isRepresentative
-                              ? '대표펫으로 장착 중인 펫은 영혼변환할 수 없습니다. 대표펫 해제 후 이용하세요.'
+                              ? t('gradeUpgrade.cannotSoulConvertRep')
                               : undefined
                     }
                     onClick={() => void onSoulConvert(item)}
                     colorScheme="none"
                     className={`${PET_MGMT_ACTION_BTN_CLASS} !border !border-rose-500/55 !bg-gradient-to-b !from-rose-700/90 !to-rose-950/95 !text-rose-50 !shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_0_12px_rgba(244,63,94,0.2)] hover:!border-rose-400/65 hover:!from-rose-600/95 hover:!to-rose-950 disabled:!opacity-45`}
                 >
-                    영혼변환
+{t('gradeUpgrade.soulConvert')}
                 </Button>
             </div>
             )}
@@ -267,7 +270,7 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
             ) : null}
             {gradeBlockHint ? (
                 <DraggableWindow
-                    title="안내"
+                    title={t('lobby.noticeTitle')}
                     onClose={() => setGradeBlockHint(null)}
                     windowId="pair-pet-grade-block-hint"
                     initialWidth={420}

@@ -1,4 +1,5 @@
 
+import { useTranslation } from 'react-i18next';
 import React, { useMemo, useState } from 'react';
 import { UserWithStatus, GameMode, ServerAction } from '../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, RANKING_TIERS } from '../constants';
@@ -54,15 +55,18 @@ const DiamondPrice: React.FC<{ amount: number; className?: string; iconClassName
     amount,
     className = '',
     iconClassName = 'h-[1em] w-[1em] min-w-[1em]',
-}) => (
-    <span
-        className={`inline-flex items-center gap-0.5 tabular-nums ${className}`}
-        aria-label={`다이아 ${amount.toLocaleString()}`}
-    >
-        <img src={DIAMOND_ICON} alt="" className={`object-contain ${iconClassName}`} aria-hidden />
-        <span className="font-semibold">{amount.toLocaleString()}</span>
-    </span>
-);
+}) => {
+    const { t } = useTranslation('profile');
+    return (
+        <span
+            className={`inline-flex items-center gap-0.5 tabular-nums ${className}`}
+            aria-label={t('detailedStats.diamondsAria', { amount: amount.toLocaleString() })}
+        >
+            <img src={DIAMOND_ICON} alt="" className={`object-contain ${iconClassName}`} aria-hidden />
+            <span className="font-semibold">{amount.toLocaleString()}</span>
+        </span>
+    );
+};
 
 type StatsPanelTheme = {
     accent: string;
@@ -124,6 +128,7 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({
     onAction,
     embedded = false,
 }) => {
+    const { t } = useTranslation('profile');
     const [statsResetConfirm, setStatsResetConfirm] = useState<StatsResetConfirm | null>(null);
     const [statsResetAlert, setStatsResetAlert] = useState<string | null>(null);
     const isPvpCombined = statsType === 'both';
@@ -135,7 +140,7 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({
     const useMobileChrome = useMobileModalChrome();
     const [pvpStatsTab, setPvpStatsTab] = useState<PvpStatsTab>('strategic');
     const title =
-        statsType === 'both' ? 'PVP 경기장 상세 전적' : isStrategic ? '전략 바둑 상세 전적' : '놀이 바둑 상세 전적';
+        statsType === 'both' ? t('detailedStats.pvpTitle') : isStrategic ? t('detailedStats.strategicTitle') : t('detailedStats.playfulTitle');
     const modes = isStrategic ? SPECIAL_GAME_MODES : PLAYFUL_GAME_MODES;
     const { stats, diamonds } = currentUser;
 
@@ -254,15 +259,15 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({
             pvpWins += ranked.wins;
             pvpLosses += ranked.losses;
             return {
-                targetLabel: '전략 바둑 전체',
+                targetLabel: t('detailedStats.strategicAll'),
                 pvp: { wins: pvpWins, losses: pvpLosses },
                 ai: { wins: aiWins, losses: aiLosses },
                 ledgerCost: CATEGORY_RESET_COST,
-                seasonResetNote: 'PVP 전적 초기화 시 시즌 랭킹 점수도 함께 초기화됩니다.',
+                seasonResetNote: t('detailedStats.seasonResetNote'),
             };
         }
         return {
-            targetLabel: '놀이 바둑 전체',
+            targetLabel: t('detailedStats.playfulAll'),
             pvp: { wins: pvpWins, losses: pvpLosses },
             ai: { wins: aiWins, losses: aiLosses },
             ledgerCost: CATEGORY_RESET_COST,
@@ -317,7 +322,7 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({
                 />
                 <p className={`font-black tabular-nums tracking-tight text-lg sm:text-xl ${panelTheme.unifiedScore}`}>
                     {score.toLocaleString()}
-                    <span className="ml-0.5 text-[0.7em] font-semibold text-secondary/85">점</span>
+                    <span className="ml-0.5 text-[0.7em] font-semibold text-secondary/85">{t('detailedStats.pointsUnit')}</span>
                 </p>
             </div>
         </div>
@@ -327,7 +332,7 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({
         <div className={`${SEASON_INFO_BAR_SHELL_CLASS} ${panelTheme.unifiedBg}`}>
             <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent" aria-hidden />
             <div className={SEASON_INFO_BAR_INNER_CLASS}>
-                <p className={`text-center text-xs font-semibold sm:text-sm ${panelTheme.labelMuted}`}>놀이 바둑은 랭킹전이 없습니다</p>
+                <p className={`text-center text-xs font-semibold sm:text-sm ${panelTheme.labelMuted}`}>{t('detailedStats.noPairRanking')}</p>
             </div>
         </div>
     );
@@ -343,21 +348,21 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({
         <div className={`shrink-0 rounded-xl border px-2.5 py-2 sm:px-3 sm:py-2.5 ${panelTheme.accent} bg-slate-950/45`}>
             <div className="flex items-center justify-between gap-2 sm:gap-3">
                 <div className={`min-w-0 text-xs tabular-nums sm:text-sm ${panelTheme.winText}`}>
-                    <span className={`mr-1.5 font-semibold ${panelTheme.labelMuted}`}>합계</span>
+                    <span className={`mr-1.5 font-semibold ${panelTheme.labelMuted}`}>{t('detailedStats.totalShort')}</span>
                     <span className="font-bold">{wins.toLocaleString()}</span>
-                    <span className="text-secondary/75">승 </span>
+                    <span className="text-secondary/75">{t('detailedStats.winSuffix')}</span>
                     <span className="font-bold text-slate-200">{losses.toLocaleString()}</span>
-                    <span className="text-secondary/75">패</span>
+                    <span className="text-secondary/75">{t('detailedStats.lossSuffix')}</span>
                     <span className="ml-1.5 text-sky-200/95">({winRate}%)</span>
                 </div>
                 <button
                     type="button"
                     disabled={!canAffordCategory}
-                    title={canAffordCategory ? resetTitle : `다이아 부족 (필요 ${CATEGORY_RESET_COST.toLocaleString()})`}
+                    title={canAffordCategory ? resetTitle : t('detailedStats.diamondInsufficient', { cost: CATEGORY_RESET_COST.toLocaleString() })}
                     onClick={onResetAll}
                     className={`inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-bold sm:px-3 sm:py-2.5 sm:text-sm ${panelTheme.categoryBtn}`}
                 >
-                    <span>전체 초기화</span>
+                    <span>{t('detailedStats.resetAll')}</span>
                     <DiamondPrice amount={CATEGORY_RESET_COST} iconClassName="h-4 w-4 min-w-[1rem] sm:h-5 sm:w-5 sm:min-w-[1.25rem]" className="text-cyan-100/90" />
                 </button>
             </div>
@@ -399,12 +404,11 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({
                                         <p className="truncate text-sm font-semibold text-primary sm:text-base">{name}</p>
                                         <p className={`text-xs tabular-nums sm:text-sm ${gridTheme.winText}`}>
                                             <span className="text-secondary/80">PVP </span>
-                                            <span className="font-bold">{wins}</span>승{' '}
-                                            <span className="font-bold text-slate-200">{losses}</span>패 ({winRate}%)
+                                            {t('detailedStats.pvpWinLoss', { wins, losses, winRate })}
                                         </p>
                                         {aiTot > 0 ? (
                                             <p className="text-xs tabular-nums text-violet-200/90 sm:text-sm">
-                                                AI {aiW}승 {aiL}패 ({aiWr}%)
+                                                {t('detailedStats.aiWinLoss', { wins: aiW, losses: aiL, winRate: aiWr })}
                                             </p>
                                         ) : null}
                                     </div>
@@ -413,13 +417,13 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({
                                         disabled={!canAffordSingle}
                                         title={
                                             canAffordSingle
-                                                ? `다이아 ${SINGLE_RESET_COST} — 이 모드만 초기화`
-                                                : `다이아 부족 (필요 ${SINGLE_RESET_COST})`
+                                                ? t('detailedStats.resetSingle', { cost: SINGLE_RESET_COST })
+                                                : t('detailedStats.diamondInsufficient', { cost: SINGLE_RESET_COST })
                                         }
                                         onClick={() => handleResetSingle(mode, name)}
                                         className={`inline-flex min-w-[4.25rem] shrink-0 flex-col items-center justify-center gap-1 rounded-lg px-2.5 py-2 text-xs font-bold sm:min-w-[4.75rem] sm:px-3 sm:py-2.5 sm:text-sm ${gridTheme.singleBtn}`}
                                     >
-                                        <span>초기화</span>
+                                        <span>{t('detailedStats.resetBtn')}</span>
                                         <DiamondPrice amount={SINGLE_RESET_COST} iconClassName="h-4 w-4 min-w-[1rem] sm:h-[1.125rem] sm:w-[1.125rem] sm:min-w-[1.125rem]" />
                                     </button>
                                 </div>
@@ -448,16 +452,15 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({
                                     <span className="shrink-0 text-center leading-tight">
                                         <span className="text-secondary/80">PVP </span>
                                         <span className="font-bold">{wins}</span>
-                                        <span className="text-secondary/75">승 </span>
+                                        <span className="text-secondary/75">{t('detailedStats.winSuffix')}</span>
                                         <span className="font-bold text-slate-200">{losses}</span>
-                                        <span className="text-secondary/75">패</span>
+                                        <span className="text-secondary/75">{t('detailedStats.lossSuffix')}</span>
                                         <span className="ml-1 text-sky-200/95">({winRate}%)</span>
                                     </span>
                                     {aiTot > 0 ? (
                                         <span className="shrink-0 text-center leading-tight text-violet-200/90">
                                             <span className="text-violet-300/70">AI </span>
-                                            <span className="font-bold">{aiW}</span>승{' '}
-                                            <span className="font-bold">{aiL}</span>패 ({aiWr}%)
+                                            {t('detailedStats.aiWinLoss', { wins: aiW, losses: aiL, winRate: aiWr })}
                                         </span>
                                     ) : null}
                                 </div>
@@ -466,13 +469,13 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({
                                     disabled={!canAffordSingle}
                                     title={
                                         canAffordSingle
-                                            ? `다이아 ${SINGLE_RESET_COST} — 이 모드만 초기화`
-                                            : `다이아 부족 (필요 ${SINGLE_RESET_COST})`
+                                            ? t('detailedStats.resetSingle', { cost: SINGLE_RESET_COST })
+                                            : t('detailedStats.diamondInsufficient', { cost: SINGLE_RESET_COST })
                                     }
                                     onClick={() => handleResetSingle(mode, name)}
                                     className={`mt-auto inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-bold transition-colors sm:h-10 sm:px-3.5 sm:text-base ${gridTheme.singleBtn}`}
                                 >
-                                    <span>초기화</span>
+                                    <span>{t('detailedStats.resetBtn')}</span>
                                     <DiamondPrice
                                         amount={SINGLE_RESET_COST}
                                         className="text-cyan-100/90"
@@ -513,7 +516,7 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({
                 strategicAggregate.winRate,
                 STRATEGIC_STATS_THEME,
                 () => handleResetCategory('strategic'),
-                `다이아 ${CATEGORY_RESET_COST.toLocaleString()} — 전략 전체`,
+                t('detailedStats.resetCategory', { cost: CATEGORY_RESET_COST.toLocaleString() }),
             )}
             {innerScroll ? (
                 <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain pr-0.5 [-webkit-overflow-scrolling:touch]">
@@ -565,7 +568,7 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({
                 playfulAggregate.winRate,
                 PLAYFUL_STATS_THEME,
                 () => handleResetCategory('playful'),
-                `다이아 ${CATEGORY_RESET_COST.toLocaleString()} — 놀이 전체`,
+                t('detailedStats.resetPlayfulCategory', { cost: CATEGORY_RESET_COST.toLocaleString() }),
             )}
             {innerScroll ? (
                 <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain pr-0.5 [-webkit-overflow-scrolling:touch]">
@@ -580,19 +583,19 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({
     const pvpCombinedMobileTabs: { id: PvpStatsTab; label: string; activeClass: string; idleClass: string }[] = [
         {
             id: 'strategic',
-            label: '전략',
+            label: t('detailedStats.tabStrategic'),
             activeClass: 'border-amber-400/55 bg-gradient-to-b from-amber-900/70 to-amber-950/80 text-amber-50 shadow-inner',
             idleClass: 'border-transparent text-amber-200/55 hover:bg-amber-950/35 hover:text-amber-100/90',
         },
         {
             id: 'pair',
-            label: '페어',
+            label: t('detailedStats.tabPair'),
             activeClass: 'border-violet-400/55 bg-gradient-to-b from-violet-900/70 to-violet-950/80 text-violet-50 shadow-inner',
             idleClass: 'border-transparent text-violet-200/55 hover:bg-violet-950/35 hover:text-violet-100/90',
         },
         {
             id: 'playful',
-            label: '놀이',
+            label: t('detailedStats.tabPlayful'),
             activeClass: 'border-fuchsia-400/55 bg-gradient-to-b from-fuchsia-900/70 to-fuchsia-950/80 text-fuchsia-50 shadow-inner',
             idleClass: 'border-transparent text-fuchsia-200/55 hover:bg-fuchsia-950/35 hover:text-fuchsia-100/90',
         },
@@ -604,7 +607,7 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({
                 <div
                     className="mb-2 flex shrink-0 gap-1 rounded-xl border border-white/10 bg-black/35 p-1"
                     role="tablist"
-                    aria-label="PVP 경기장 상세 전적"
+                    aria-label={t('detailedStats.panelAria')}
                 >
                     {pvpCombinedMobileTabs.map((tab) => (
                         <button
@@ -654,7 +657,7 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({
                     strategicAggregate.winRate,
                     STRATEGIC_STATS_THEME,
                     () => handleResetCategory('strategic'),
-                    `다이아 ${CATEGORY_RESET_COST.toLocaleString()} — 전략 전체`,
+                    t('detailedStats.resetCategory', { cost: CATEGORY_RESET_COST.toLocaleString() }),
                 )}
 
             {!showUnifiedRanking && statsType === 'playful' && renderPlayfulSeasonInfoBar(PLAYFUL_STATS_THEME)}
@@ -667,7 +670,7 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({
                     playfulAggregate.winRate,
                     PLAYFUL_STATS_THEME,
                     handleResetAll,
-                    `다이아 ${CATEGORY_RESET_COST.toLocaleString()} — 놀이 전체`,
+                    t('detailedStats.resetPlayfulCategory', { cost: CATEGORY_RESET_COST.toLocaleString() }),
                 )}
 
             {renderModeStatsGrid(modes, theme, false)}

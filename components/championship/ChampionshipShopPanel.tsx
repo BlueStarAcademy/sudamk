@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { HandleActionResult, ServerAction } from '../../types/api.js';
 import type { UserWithStatus } from '../../types.js';
 import type { ItemGrade } from '../../shared/types/enums.js';
@@ -93,8 +94,8 @@ const ChampionshipSimpleShopCard: React.FC<{
     const weeklyTitle =
         limit > 0
             ? atWeeklyCap
-                ? `주간 남은 구매 0/${limit}회 (이번 주 한도 소진)`
-                : `주간 남은 구매 ${remaining}/${limit}회 (이번 주 ${used}회 구매)`
+                ? t('championship.shop.weeklyLimitUsed', { limit })
+                : t('championship.shop.weeklyLimit', { remaining, limit, used })
             : undefined;
 
     return (
@@ -178,7 +179,7 @@ const ChampionshipSimpleShopCard: React.FC<{
                     </>
                 ) : atWeeklyCap ? (
                     <>
-                        <span className="text-[11px] font-bold">한도</span>
+                        <span className="text-[11px] font-bold">{t('championship.shop.limitLabel')}</span>
                         {weeklyLine}
                     </>
                 ) : (
@@ -245,8 +246,8 @@ const ChampionshipSpecialShopCard: React.FC<{
     const weeklyTitle =
         limit > 0
             ? atWeeklyCap
-                ? `주간 남은 구매 0/${limit}회 (이번 주 한도 소진)`
-                : `주간 남은 구매 ${remaining}/${limit}회 (이번 주 ${used}회 구매)`
+                ? t('championship.shop.weeklyLimitUsed', { limit })
+                : t('championship.shop.weeklyLimit', { remaining, limit, used })
             : undefined;
 
     return (
@@ -312,7 +313,7 @@ const ChampionshipSpecialShopCard: React.FC<{
                     </>
                 ) : atWeeklyCap ? (
                     <>
-                        <span className="text-[11px] font-bold">한도</span>
+                        <span className="text-[11px] font-bold">{t('championship.shop.limitLabel')}</span>
                         {weeklyLine}
                     </>
                 ) : (
@@ -378,6 +379,7 @@ function renderShopCard(
 }
 
 const ChampionshipShopPanel: React.FC<{
+    const { t } = useTranslation('tournament');
     currentUser: UserWithStatus;
     onAction: (action: ServerAction) => void | Promise<unknown>;
     layoutVariant?: ChampionshipShopPanelLayoutVariant;
@@ -400,7 +402,7 @@ const ChampionshipShopPanel: React.FC<{
         async (productId: string, price: number) => {
             if (busyId) return;
             if ((currentUser.champCoins ?? 0) < price) {
-                window.alert('챔프 코인이 부족합니다.');
+                window.alert(t('championship.shop.insufficientCoins'));
                 return;
             }
             setBusyId(productId);
@@ -413,7 +415,7 @@ const ChampionshipShopPanel: React.FC<{
                     window.alert(String(res.error));
                 }
             } catch {
-                window.alert('구매에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+                window.alert(t('championship.shop.purchaseFailed'));
             } finally {
                 setBusyId(null);
             }
@@ -444,14 +446,14 @@ const ChampionshipShopPanel: React.FC<{
         >
             <div
                 role="tablist"
-                aria-label="챔피언십 상점 카테고리"
+                aria-label={t('championship.shop.categoryAria')}
                 className="flex w-full shrink-0 gap-1 rounded-lg border border-amber-500/35 bg-black/40 p-0.5 shadow-inner"
             >
                 {(
                     [
-                        ['equipment', '장비상자'] as const,
-                        ['change', '변경권'] as const,
-                        ['special', '특수'] as const,
+                        ['equipment', t('championship.shop.equipmentBox')] as const,
+                        ['change', t('championship.shop.changeTicket')] as const,
+                        ['special', t('championship.shop.special')] as const,
                     ] as const
                 ).map(([key, label]) => (
                     <button

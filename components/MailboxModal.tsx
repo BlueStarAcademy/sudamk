@@ -10,6 +10,8 @@ import { CASH_SHOP_PACKAGE_KO_LABEL, type CashShopPackageId } from '../shared/co
 import { isMailRewardsClaimExpired, isMailRewardSettledForDeletion } from '../shared/utils/mailRewardsExpiry.js';
 import { useKeyedAsyncAction } from '../hooks/useAsyncAction.js';
 import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../shared/constants/pcShellLayout.js';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 
 interface MailboxModalProps {
     currentUser: UserWithStatus;
@@ -21,26 +23,20 @@ interface MailboxModalProps {
 
 type MailActionPending = 'claim-one' | 'claim-all' | 'delete-one' | 'delete-all' | null;
 
-const formatRemainingTime = (expiresAt: number): string => {
+const formatRemainingTime = (expiresAt: number, t: TFunction<'mail'>): string => {
     const remainingSeconds = Math.max(0, (expiresAt - Date.now()) / 1000);
-    if (remainingSeconds === 0) return '만료됨';
+    if (remainingSeconds === 0) return t('expired');
 
     const days = Math.floor(remainingSeconds / (24 * 3600));
     const hours = Math.floor((remainingSeconds % (24 * 3600)) / 3600);
     const minutes = Math.floor((remainingSeconds % 3600) / 60);
 
-    if (days > 0) return `${days}일 ${hours}시간`;
-    if (hours > 0) return `${hours}시간 ${minutes}분`;
-    return `${minutes}분`;
+    if (days > 0) return t('timeDaysHours', { days, hours });
+    if (hours > 0) return t('timeHoursMinutes', { hours, minutes });
+    return t('timeMinutes', { minutes });
 };
 
-const shell =
-    'rounded-2xl border border-amber-500/20 bg-gradient-to-br from-zinc-950/95 via-zinc-900/90 to-black/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]';
-
-const mailScrollClass =
-    'custom-mail-scroll flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overscroll-y-contain pr-1 [-webkit-overflow-scrolling:touch]';
-
-function renderAttachmentsBlock(m: Mail, compact?: boolean) {
+function renderAttachmentsBlock(m: Mail, t: TFunction<'mail'>, compact?: boolean) {
     if (m.attachments == null) return null;
     const innerScroll =
         compact === true
@@ -52,27 +48,27 @@ function renderAttachmentsBlock(m: Mail, compact?: boolean) {
             <div className="rounded-2xl border border-amber-500/20 bg-gradient-to-b from-zinc-900/90 to-black/80 p-3 shadow-lg sm:p-4">
                 <h4 className="mb-2 flex items-center gap-2 text-sm font-bold tracking-wide text-amber-100/90 sm:mb-3">
                     <span className="h-px w-8 max-w-[2rem] shrink-0 bg-gradient-to-r from-transparent to-amber-500/40" aria-hidden />
-                    첨부 보상
+                    {t('attachments')}
                     <span className="h-px flex-1 bg-gradient-to-l from-transparent to-amber-500/40" aria-hidden />
                 </h4>
                 {m.attachmentsClaimed ? (
-                    <p className="py-5 text-center text-sm text-zinc-500 sm:py-6">수령이 완료되었습니다.</p>
+                    <p className="py-5 text-center text-sm text-zinc-500 sm:py-6">{t('claimComplete')}</p>
                 ) : isMailRewardsClaimExpired(m) ? (
                     <p className="rounded-xl border border-amber-900/40 bg-amber-950/25 px-3 py-4 text-center text-sm leading-relaxed text-amber-200/90 sm:px-4 sm:py-5">
-                        수령 기간이 만료되어 보상을 받을 수 없습니다. 필요하면 이 우편을 삭제할 수 있습니다.
+                        {t('claimExpired')}
                     </p>
                 ) : (
-                    <div className={`custom-mail-scroll overflow-x-hidden pr-1 ${innerScroll}`} role="region" aria-label="첨부 보상 목록">
+                    <div className={`custom-mail-scroll overflow-x-hidden pr-1 ${innerScroll}`} role="region" aria-label={t('attachmentsListAria')}>
                         <div className="mb-3 flex flex-wrap gap-2 text-sm sm:mb-4 sm:gap-3">
                             {(m.attachments.actionPoints ?? 0) > 0 ? (
                                 <span className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-950/30 px-2.5 py-1.5 text-[13px] font-medium text-emerald-200 sm:px-3 sm:py-2 sm:text-sm">
-                                    ⚡ {m.attachments.actionPoints!.toLocaleString()} 행동력
+                                    ⚡ {t('actionPoints', { count: m.attachments.actionPoints!.toLocaleString() })}
                                 </span>
                             ) : null}
                             {(m.attachments.guildCoins ?? 0) > 0 ? (
                                 <span className="inline-flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-950/25 px-2.5 py-1.5 text-[13px] font-medium text-amber-100 sm:px-3 sm:py-2 sm:text-sm">
                                     <img src="/images/guild/tokken.webp" alt="" className="h-5 w-5" />
-                                    {m.attachments.guildCoins!.toLocaleString()} 길드코인
+                                    {t('guildCoins', { count: m.attachments.guildCoins!.toLocaleString() })}
                                 </span>
                             ) : null}
                             {(m.attachments.researchPoints ?? 0) > 0 ? (
@@ -84,13 +80,13 @@ function renderAttachmentsBlock(m: Mail, compact?: boolean) {
                             {(m.attachments.gold ?? 0) > 0 ? (
                                 <span className="inline-flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-950/25 px-2.5 py-1.5 text-[13px] font-medium text-amber-100 sm:px-3 sm:py-2 sm:text-sm">
                                     <img src="/images/icon/Gold.webp" alt="" className="h-5 w-5" />
-                                    {formatGoldAmountKoG(m.attachments.gold!)} 골드
+                                    {t('gold', { amount: formatGoldAmountKoG(m.attachments.gold!) })}
                                 </span>
                             ) : null}
                             {(m.attachments.diamonds ?? 0) > 0 ? (
                                 <span className="inline-flex items-center gap-2 rounded-lg border border-cyan-500/20 bg-cyan-950/25 px-2.5 py-1.5 text-[13px] font-medium text-cyan-100 sm:px-3 sm:py-2 sm:text-sm">
                                     <img src="/images/icon/Zem.webp" alt="" className="h-5 w-5" />
-                                    {formatWalletDiamonds(m.attachments.diamonds!)} 다이아
+                                    {t('diamonds', { amount: formatWalletDiamonds(m.attachments.diamonds!) })}
                                 </span>
                             ) : null}
                         </div>
@@ -104,7 +100,10 @@ function renderAttachmentsBlock(m: Mail, compact?: boolean) {
                                             key={`${p.packageId}-${idx}`}
                                             className="inline-flex items-center gap-2 rounded-lg border border-violet-500/25 bg-violet-950/30 px-2.5 py-1.5 font-medium text-violet-100 sm:px-3 sm:py-2"
                                         >
-                                            패키지 {CASH_SHOP_PACKAGE_KO_LABEL[p.packageId as CashShopPackageId] ?? p.packageId} × {p.quantity}
+                                            {t('packageLine', {
+                                                name: CASH_SHOP_PACKAGE_KO_LABEL[p.packageId as CashShopPackageId] ?? p.packageId,
+                                                quantity: p.quantity,
+                                            })}
                                         </span>
                                     ))}
                                 </div>
@@ -135,7 +134,14 @@ function renderAttachmentsBlock(m: Mail, compact?: boolean) {
     );
 }
 
+const shell =
+    'rounded-2xl border border-amber-500/20 bg-gradient-to-br from-zinc-950/95 via-zinc-900/90 to-black/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]';
+
+const mailScrollClass =
+    'custom-mail-scroll flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overscroll-y-contain pr-1 [-webkit-overflow-scrolling:touch]';
+
 const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUser, onClose, onAction, isTopmost, embedded = false }) => {
+    const { t } = useTranslation('mail');
     const { currentUserWithStatus } = useAppContext();
     const isHandheld = useIsHandheldDevice(1025);
     const mailAction = useKeyedAsyncAction();
@@ -168,7 +174,7 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
 
     useEffect(() => {
         if (detailMail?.expiresAt) {
-            const tick = () => setRemainingTime(formatRemainingTime(detailMail.expiresAt!));
+            const tick = () => setRemainingTime(formatRemainingTime(detailMail.expiresAt!, t));
             tick();
             const interval = setInterval(tick, 60000);
             return () => clearInterval(interval);
@@ -208,7 +214,7 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
     };
 
     const handleDeleteAllClaimed = () => {
-        if (window.confirm('수령 완료·만료된 보상 우편을 모두 삭제하시겠습니까?')) {
+        if (window.confirm(t('confirmDeleteSettled'))) {
             void mailAction.run('delete-all', async () => {
                 await onAction({ type: 'DELETE_ALL_CLAIMED_MAIL' });
                 setDetailMail((d) => (d && isMailRewardSettledForDeletion(d) ? null : d));
@@ -253,7 +259,7 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
                     className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent opacity-60 transition-opacity group-hover:opacity-80"
                     aria-hidden
                 />
-                <span className="relative">{mailActionPending === 'delete-one' ? '삭제 중...' : '삭제'}</span>
+                <span className="relative">{mailActionPending === 'delete-one' ? t('deleting') : t('delete')}</span>
             </button>
             <button type="button" onClick={handleClaim} disabled={claimDisabled} className={premiumClaimClass}>
                 <span
@@ -262,12 +268,12 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
                 />
                 <span className="relative drop-shadow-sm">
                     {mailActionPending === 'claim-one'
-                        ? '수령 중...'
+                        ? t('claiming')
                         : detailMail.attachmentsClaimed
-                          ? '수령 완료'
+                          ? t('claimed')
                           : detailMailRewardExpired
-                            ? '만료됨'
-                            : '보상 받기'}
+                            ? t('expired')
+                            : t('claim')}
                 </span>
             </button>
         </div>
@@ -277,7 +283,7 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
         <div className={`flex min-h-0 flex-1 flex-col ${shell} p-3 sm:p-4`}>
             <div className="mb-3 flex shrink-0 items-center justify-between gap-2 border-b border-amber-500/15 pb-3">
                 <h3 className="bg-gradient-to-r from-amber-100 to-amber-300 bg-clip-text text-lg font-bold tracking-tight text-transparent sm:text-xl">
-                    받은 우편
+                    {t('received')}
                 </h3>
                 <span className="rounded-full border border-amber-500/25 bg-black/40 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-amber-200/90">
                     {mail.length}
@@ -290,7 +296,7 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
                     colorScheme="green"
                     className="!min-h-[42px] min-w-0 flex-1 !rounded-xl !py-2.5 !text-xs font-semibold shadow-lg shadow-emerald-900/20 sm:!text-sm"
                 >
-                    {mailActionPending === 'claim-all' ? '수령 중...' : '일괄 수령'}
+                    {mailActionPending === 'claim-all' ? t('claiming') : t('claimAll')}
                 </Button>
                 <Button
                     onClick={handleDeleteAllClaimed}
@@ -298,12 +304,12 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
                     colorScheme="red"
                     className="!min-h-[42px] min-w-0 flex-1 !rounded-xl !border !border-red-500/30 !bg-red-950/40 !px-2 !py-2 !text-[11px] leading-snug hover:!bg-red-900/50 sm:!px-3 sm:!text-sm"
                 >
-                    {mailActionPending === 'delete-all' ? '삭제 중...' : '수령 완료 메일 삭제'}
+                    {mailActionPending === 'delete-all' ? t('deleting') : t('deleteClaimed')}
                 </Button>
             </div>
             <ul className={mailScrollClass}>
                 {mail.length === 0 ? (
-                    <li className="rounded-xl border border-dashed border-white/10 py-12 text-center text-sm text-zinc-500">우편이 없습니다.</li>
+                    <li className="rounded-xl border border-dashed border-white/10 py-12 text-center text-sm text-zinc-500">{t('noMail')}</li>
                 ) : (
                     mail.map((m) => {
                         const open = detailMail?.id === m.id;
@@ -328,13 +334,13 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
                                     </div>
                                     <p className="line-clamp-2 text-[15px] font-semibold leading-snug text-zinc-100 sm:text-sm">{m.title}</p>
                                     {m.attachments && !isMailRewardSettledForDeletion(m) ? (
-                                        <p className="mt-1 text-[11px] font-medium text-emerald-400/90">보상 미수령</p>
+                                        <p className="mt-1 text-[11px] font-medium text-emerald-400/90">{t('rewardUnclaimed')}</p>
                                     ) : m.attachments ? (
                                         <p className="mt-1 text-[11px] text-zinc-600">
-                                            {m.attachmentsClaimed ? '수령 완료' : '보상 만료'}
+                                            {m.attachmentsClaimed ? t('claimed') : t('rewardExpired')}
                                         </p>
                                     ) : null}
-                                    <p className="mt-1.5 text-[11px] font-medium text-amber-400/70">상세 보기</p>
+                                    <p className="mt-1.5 text-[11px] font-medium text-amber-400/70">{t('viewDetails')}</p>
                                 </button>
                             </li>
                         );
@@ -349,12 +355,12 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
             <div className="shrink-0 border-b border-amber-500/15 bg-gradient-to-r from-black/60 via-zinc-950/80 to-black/60 px-4 py-2.5 sm:px-5 sm:py-3">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-zinc-500 sm:text-xs">
                     <span>
-                        보낸 사람: <span className="font-medium text-amber-200/80">{detailMail.from}</span>
+                        {t('from')} <span className="font-medium text-amber-200/80">{detailMail.from}</span>
                     </span>
                     {remainingTime ? (
                         <span className="flex items-center gap-1.5">
                             <span className="h-1 w-1 rounded-full bg-amber-400/80" aria-hidden />
-                            남은 시간: <span className="font-semibold tabular-nums text-amber-300">{remainingTime}</span>
+                            {t('remainingTime')} <span className="font-semibold tabular-nums text-amber-300">{remainingTime}</span>
                         </span>
                     ) : null}
                 </div>
@@ -364,7 +370,7 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
                     <div className="shrink-0 rounded-xl border border-white/5 bg-black/35 p-3 text-[15px] leading-relaxed text-zinc-300 shadow-inner sm:p-4 sm:text-sm">
                         <div className="whitespace-pre-wrap">{detailMail.message}</div>
                     </div>
-                    {renderAttachmentsBlock(detailMail, isHandheld)}
+                    {renderAttachmentsBlock(detailMail, t, isHandheld)}
                 </div>
                 {!isHandheld ? <div className="mt-3 shrink-0 border-t border-white/5 pt-3">{detailFooter}</div> : null}
             </div>
@@ -381,7 +387,7 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
                             onClick={() => setDetailMail(null)}
                             className="mb-2 shrink-0 self-start rounded-lg border border-white/15 bg-black/35 px-3 py-1.5 text-sm font-semibold text-amber-100"
                         >
-                            목록으로
+                            {t('backToList')}
                         </button>
                         {detailBody}
                         <div className="mt-3 shrink-0 border-t border-white/5 pt-3">{detailFooter}</div>
@@ -396,7 +402,7 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
     return (
         <>
             <DraggableWindow
-                title="우편함"
+                title={t('title')}
                 onClose={onClose}
                 windowId="mailbox"
                 initialWidth={520}
@@ -421,7 +427,7 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
 
             {detailMail ? (
                 <DraggableWindow
-                    title="우편 상세"
+                    title={t('detailTitle')}
                     titleContent={
                         <span className="line-clamp-2 text-left text-base font-bold leading-tight text-amber-50 sm:text-lg">
                             {detailMail.title}

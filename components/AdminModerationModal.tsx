@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-// FIX: Import missing types from the centralized types file.
+import { useTranslation } from 'react-i18next';
 import { UserWithStatus, ServerAction } from '../types/index.js';
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
@@ -15,6 +15,7 @@ interface AdminModerationModalProps {
 }
 
 const AdminModerationModal: React.FC<AdminModerationModalProps> = ({ user, currentUser, onClose, onAction, isTopmost }) => {
+    const { t } = useTranslation('common');
     const now = Date.now();
     const isChatBanned = user.chatBanUntil && user.chatBanUntil > now;
     const isConnectionBanned = user.connectionBanUntil && user.connectionBanUntil > now;
@@ -29,7 +30,7 @@ const AdminModerationModal: React.FC<AdminModerationModalProps> = ({ user, curre
                 targetUserId: user.id,
                 sanctionType,
                 durationMinutes,
-                reason: '관리자 제재',
+                reason: t('adminModeration.sanctionReason'),
             }
         });
     };
@@ -48,24 +49,24 @@ const AdminModerationModal: React.FC<AdminModerationModalProps> = ({ user, curre
     const borderUrl = useMemo(() => BORDER_POOL.find(b => b.id === user.borderId)?.url, [user.borderId]);
 
     const chatBanOptions = [
-        { label: '1분', minutes: 1 },
-        { label: '5분', minutes: 5 },
-        { label: '10분', minutes: 10 },
-        { label: '30분', minutes: 30 },
-        { label: '1시간', minutes: 60 },
+        { label: t('adminModeration.duration1m'), minutes: 1 },
+        { label: t('adminModeration.duration5m'), minutes: 5 },
+        { label: t('adminModeration.duration10m'), minutes: 10 },
+        { label: t('adminModeration.duration30m'), minutes: 30 },
+        { label: t('adminModeration.duration1h'), minutes: 60 },
     ];
 
     const connectionBanOptions = [
-        { label: '10분', minutes: 10 },
-        { label: '1시간', minutes: 60 },
-        { label: '6시간', minutes: 360 },
-        { label: '1일', minutes: 1440 },
-        { label: '3일', minutes: 4320 },
-        { label: '영구', minutes: 999999 },
+        { label: t('adminModeration.duration10m'), minutes: 10 },
+        { label: t('adminModeration.duration1h'), minutes: 60 },
+        { label: t('adminModeration.duration6h'), minutes: 360 },
+        { label: t('adminModeration.duration1d'), minutes: 1440 },
+        { label: t('adminModeration.duration3d'), minutes: 4320 },
+        { label: t('adminModeration.durationPermanent'), minutes: 999999 },
     ];
 
     return (
-        <DraggableWindow title={`사용자 제재: ${user.nickname}`} onClose={onClose} windowId={`admin-mod-${user.id}`} isTopmost={isTopmost}>
+        <DraggableWindow title={t('adminModeration.title', { nickname: user.nickname })} onClose={onClose} windowId={`admin-mod-${user.id}`} isTopmost={isTopmost}>
             <div className="flex flex-col gap-4">
                 <div className="flex items-center gap-4 bg-gray-900/50 p-3 rounded-lg">
                     <Avatar userId={user.id} userName={user.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={64} />
@@ -76,11 +77,11 @@ const AdminModerationModal: React.FC<AdminModerationModalProps> = ({ user, curre
                 </div>
 
                 <div className="bg-gray-800/50 p-4 rounded-lg space-y-3">
-                    <h4 className="font-bold text-lg border-b border-gray-600 pb-2">채팅 제재</h4>
+                    <h4 className="font-bold text-lg border-b border-gray-600 pb-2">{t('adminModeration.chatSanction')}</h4>
                     {isChatBanned ? (
                         <div className="flex justify-between items-center">
-                            <span className="text-red-400">채팅 금지됨 ({chatBanTimeLeft}분 남음)</span>
-                            <Button onClick={() => liftSanction('chat')} colorScheme="yellow" className="!text-xs !py-1">해제</Button>
+                            <span className="text-red-400">{t('adminModeration.chatBanned', { minutes: chatBanTimeLeft })}</span>
+                            <Button onClick={() => liftSanction('chat')} colorScheme="yellow" className="!text-xs !py-1">{t('adminModeration.lift')}</Button>
                         </div>
                     ) : (
                         <div className="grid grid-cols-5 gap-2">
@@ -92,11 +93,11 @@ const AdminModerationModal: React.FC<AdminModerationModalProps> = ({ user, curre
                 </div>
                 
                 <div className="bg-gray-800/50 p-4 rounded-lg space-y-3">
-                    <h4 className="font-bold text-lg border-b border-gray-600 pb-2">연결 제재</h4>
+                    <h4 className="font-bold text-lg border-b border-gray-600 pb-2">{t('adminModeration.connectionSanction')}</h4>
                     {isConnectionBanned ? (
                         <div className="flex justify-between items-center">
-                            <span className="text-red-400">연결 금지됨 ({connectionBanTimeLeft}분 남음)</span>
-                            <Button onClick={() => liftSanction('connection')} colorScheme="yellow" className="!text-xs !py-1">해제</Button>
+                            <span className="text-red-400">{t('adminModeration.connectionBanned', { minutes: connectionBanTimeLeft })}</span>
+                            <Button onClick={() => liftSanction('connection')} colorScheme="yellow" className="!text-xs !py-1">{t('adminModeration.lift')}</Button>
                         </div>
                     ) : (
                         <div className="grid grid-cols-3 gap-2">

@@ -1,4 +1,5 @@
 
+import { useTranslation } from 'react-i18next';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { LiveGameSession, User, ServerAction } from '../types.js';
 import Button from './Button.js';
@@ -33,6 +34,8 @@ const AdjustButton: React.FC<{
 
 
 const CaptureBidModal: React.FC<CaptureBidModalProps> = (props) => {
+    const { t } = useTranslation('game');
+    const { t: tCommon } = useTranslation('common');
     const { session, currentUser, onAction } = props;
     const { id: gameId, player1, player2, bids, biddingRound, captureBidDeadline, settings } = session;
     const [localBid, setLocalBid] = useState<number>(1);
@@ -151,29 +154,29 @@ const CaptureBidModal: React.FC<CaptureBidModalProps> = (props) => {
           }
 
           if (winner && typeof winnerBid === 'number') {
-            winnerText = `${winner.nickname}님이 ${winnerBid}점을 제시하여 흑(선)이 됩니다. 백의 목표는 ${Math.max(1, baseTarget - winnerBid)}점입니다.`;
+            winnerText = t('captureBid.winnerBid', { name: winner.nickname, bid: winnerBid, target: Math.max(1, baseTarget - winnerBid) });
           } else {
-            winnerText = biddingRound === 2 ? '두 번째에도 비겨서, 랜덤으로 결정됩니다.' : '동점이므로, 재설정합니다!';
+            winnerText = biddingRound === 2 ? t('captureBid.tieReroll') : t('captureBid.tieReset');
           }
           
           const pulseText = isTie && biddingRound === 1
-            ? '재설정으로 즉시 전환됩니다...'
-            : '잠시 후 대국이 시작됩니다...';
+            ? t('captureBid.switching')
+            : t('captureBid.startingSoon');
 
           return (
             <div className="space-y-5 text-center">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-amber-300/35 bg-amber-500/10 text-amber-200 text-xs font-semibold">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-300" />
-                흑선 배팅 결과
+                {t('captureBid.bidResultBadge')}
               </div>
               <div className="grid grid-cols-2 gap-3 text-lg">
                   <div className="bg-gradient-to-b from-slate-800 to-slate-900 p-4 rounded-2xl border border-slate-700">
                       <p className="text-slate-300 text-sm mb-1">{player1.nickname}</p>
-                      <p className="text-3xl font-extrabold">{p1Bid}<span className="text-base font-semibold ml-1 text-slate-300">점</span></p>
+                      <p className="text-3xl font-extrabold">{p1Bid}<span className="text-base font-semibold ml-1 text-slate-300">{t('captureBid.pointsSuffix')}</span></p>
                   </div>
                   <div className="bg-gradient-to-b from-slate-800 to-slate-900 p-4 rounded-2xl border border-slate-700">
                       <p className="text-slate-300 text-sm mb-1">{player2.nickname}</p>
-                      <p className="text-3xl font-extrabold">{p2Bid}<span className="text-base font-semibold ml-1 text-slate-300">점</span></p>
+                      <p className="text-3xl font-extrabold">{p2Bid}<span className="text-base font-semibold ml-1 text-slate-300">{t('captureBid.pointsSuffix')}</span></p>
                   </div>
               </div>
               <div className="rounded-2xl border border-slate-700 bg-slate-900/70 px-4 py-3">
@@ -189,9 +192,9 @@ const CaptureBidModal: React.FC<CaptureBidModalProps> = (props) => {
                 <div className="text-center space-y-4">
                     <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-400/35 bg-emerald-500/10 text-emerald-200 text-xs font-semibold">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-300" />
-                        설정 완료
+                        {t('captureBid.setupComplete')}
                     </div>
-                    <p className="text-slate-300 animate-pulse">{opponent.nickname}님의 설정을 기다리고 있습니다...</p>
+                    <p className="text-slate-300 animate-pulse">{t('captureBid.waitingBid', { name: opponent.nickname })}</p>
                     <div className="flex justify-center items-center h-16">
                         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-yellow-300"></div>
                     </div>
@@ -207,19 +210,19 @@ const CaptureBidModal: React.FC<CaptureBidModalProps> = (props) => {
                     <div className="flex-1 relative overflow-hidden rounded-2xl border border-amber-300/30 bg-gradient-to-br from-slate-900 via-slate-850 to-slate-900 p-4">
                         <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-amber-300/10 blur-2xl" />
                         <p className="relative text-sm text-slate-200 leading-relaxed">
-                            기본 목표는 <span className="font-bold text-amber-300">{baseTarget}개</span>.
+                            {t('captureBid.baseTargetIntro', { target: baseTarget })}
                             <br />
-                            흑(선수)을 가져오기 위해 <span className="font-bold text-amber-200">상대에게 줄 점수</span>를 제시하세요.
+                            {t('captureBid.bidInstructionRich2')}
                             <br />
-                            <span className="text-slate-300/90">더 높은 점수를 제시한 플레이어가 흑이 되며, 백의 목표가 그만큼 낮아집니다. 최대 {maxBid}점까지 제시할 수 있습니다.</span>
+                            <span className="text-slate-300/90">{t('captureBid.bidHint', { max: maxBid })}</span>
                         </p>
                     </div>
 
                     {hasBidCountdown ? (
                         <div className="w-full sm:w-[240px] rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
                             <div className="flex items-center justify-between gap-3">
-                                <div className="text-xs font-semibold text-slate-400 whitespace-nowrap">배팅 타이머</div>
-                                <div className="text-xs text-amber-200/90 whitespace-nowrap">라운드 {biddingRound}</div>
+                                <div className="text-xs font-semibold text-slate-400 whitespace-nowrap">{t('captureBid.bidTimer')}</div>
+                                <div className="text-xs text-amber-200/90 whitespace-nowrap">{t('captureBid.bidRound', { round: biddingRound })}</div>
                             </div>
                             <div className="mt-3 bg-slate-800 rounded-full h-2 overflow-hidden border border-slate-600">
                                 <div
@@ -230,16 +233,16 @@ const CaptureBidModal: React.FC<CaptureBidModalProps> = (props) => {
                             <div className="mt-3 flex items-end justify-between">
                                 <div className="flex items-baseline gap-2">
                                     <span className="text-3xl font-mono font-bold text-amber-300 tracking-wider">{countdown}</span>
-                                    <span className="text-xs text-slate-300 pb-1">초</span>
+                                    <span className="text-xs text-slate-300 pb-1">{tCommon('secondsShort')}</span>
                                 </div>
                             </div>
-                            <div className="mt-1 text-[11px] text-slate-400">남은 시간 내 배팅 확정</div>
+                            <div className="mt-1 text-[11px] text-slate-400">{t('captureBid.timeRemainingBidShort')}</div>
                         </div>
                     ) : (
                         <div className="w-full sm:w-[240px] rounded-2xl border border-emerald-400/25 bg-emerald-500/10 p-4">
-                            <div className="text-xs font-semibold text-emerald-200">AI전 무제한 제시</div>
+                            <div className="text-xs font-semibold text-emerald-200">{t('captureBid.aiUnlimitedTitle')}</div>
                             <p className="mt-2 text-[11px] leading-relaxed text-slate-300">
-                                AI는 1~5점 사이에서 자동 제시합니다. 제한시간 없이 점수를 고를 수 있습니다.
+                                {t('captureBid.aiAutoBidHint')}
                             </p>
                         </div>
                     )}
@@ -248,20 +251,20 @@ const CaptureBidModal: React.FC<CaptureBidModalProps> = (props) => {
                 <div>
                     <div className="grid grid-cols-2 gap-3 mb-4">
                         <div className="bg-slate-900/80 border border-slate-700 p-3 rounded-2xl text-center">
-                            <div className="text-xs text-slate-400 mb-1">기본 목표</div>
+                            <div className="text-xs text-slate-400 mb-1">{t('captureBid.baseTargetLabel')}</div>
                             <div className="text-2xl font-extrabold text-slate-100">
                                 {baseTarget}
-                                <span className="text-sm font-semibold ml-1">개</span>
+                                <span className="text-sm font-semibold ml-1">{t('captureBid.piecesSuffix')}</span>
                             </div>
                         </div>
                         <div className="bg-slate-900/80 border border-amber-400/35 p-3 rounded-2xl text-center">
-                            <div className="text-xs text-amber-200/90 mb-1">상대에게 주는 점수</div>
+                            <div className="text-xs text-amber-200/90 mb-1">{t('captureBid.opponentPoints')}</div>
                             <div className="text-2xl font-extrabold text-amber-300">
                                 {effectiveLocalBid}
-                                <span className="text-sm font-semibold ml-1">점</span>
+                                <span className="text-sm font-semibold ml-1">{t('captureBid.pointsSuffix')}</span>
                             </div>
                             <div className="text-[11px] text-slate-300/90 mt-1">
-                                흑 선택 시 백 목표: <span className="text-amber-200 font-semibold">{whiteTargetIfWin}점</span>
+                                {t('captureBid.whiteTargetIfWin', { target: whiteTargetIfWin })}
                             </div>
                         </div>
                     </div>
@@ -280,9 +283,9 @@ const CaptureBidModal: React.FC<CaptureBidModalProps> = (props) => {
                     </div>
                     <div className="mt-3 text-center text-[11px] text-slate-400">
                         {canSubmitPairBid ? (
-                            <>현재 제시: <span className="text-amber-200 font-semibold">{effectiveLocalBid}점</span></>
+                            <>{t('captureBid.currentBid', { score: effectiveLocalBid })}</>
                         ) : (
-                            <>팀 방장의 입찰을 기다리고 있습니다.</>
+                            <>{t('captureBid.waitingCaptain')}</>
                         )}
                     </div>
                 </div>
@@ -293,7 +296,7 @@ const CaptureBidModal: React.FC<CaptureBidModalProps> = (props) => {
                         disabled={isSubmitting || buttonsDisabled}
                         className="!py-2 !px-6 rounded-xl font-extrabold tracking-wide bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-900 hover:brightness-110 max-w-[320px]"
                     >
-                        {isSubmitting ? '설정 중...' : '흑선 점수 제시 확정'}
+                        {isSubmitting ? t('captureBid.setting') : t('captureBid.bidConfirmBtn')}
                     </Button>
                 </div>
             </div>
@@ -301,7 +304,7 @@ const CaptureBidModal: React.FC<CaptureBidModalProps> = (props) => {
     };
 
     return (
-        <DraggableWindow title={`흑선 가져오기 ${biddingRound === 2 ? '· 재배팅 라운드' : ''}`} windowId="capture-bid">
+        <DraggableWindow title={`${t('captureBid.title')}${biddingRound === 2 ? t('captureBid.titleRerollSuffix') : ''}`} windowId="capture-bid">
              {renderContent()}
         </DraggableWindow>
     );

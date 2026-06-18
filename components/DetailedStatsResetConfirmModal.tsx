@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
 import type { DetailedStatRecordSlice, DetailedStatResetScope } from '../shared/types/detailedStatReset.js';
@@ -17,7 +18,7 @@ const DiamondPrice: React.FC<{ amount: number; className?: string; iconClassName
     className = '',
     iconClassName = 'h-[1em] w-[1em] min-w-[1em]',
 }) => (
-    <span className={`inline-flex items-center gap-0.5 tabular-nums ${className}`} aria-label={`다이아 ${amount.toLocaleString()}`}>
+    <span className={`inline-flex items-center gap-0.5 tabular-nums ${className}`} aria-label={tCommon('diamondAria', { amount: amount.toLocaleString() })}>
         <img src={DIAMOND_ICON} alt="" className={`object-contain ${iconClassName}`} aria-hidden />
         <span className="font-semibold">{amount.toLocaleString()}</span>
     </span>
@@ -44,6 +45,8 @@ const DetailedStatsResetConfirmModal: React.FC<DetailedStatsResetConfirmModalPro
     onCancel,
     windowId = 'detailed-stats-reset-confirm',
 }) => {
+    const { t } = useTranslation('profile');
+    const { t: tCommon } = useTranslation('common');
     const availableScopes = useMemo(
         () => getAvailableDetailedStatResetScopes(pvpRecord, aiRecord),
         [pvpRecord, aiRecord],
@@ -71,7 +74,7 @@ const DetailedStatsResetConfirmModal: React.FC<DetailedStatsResetConfirmModalPro
 
     return (
         <DraggableWindow
-            title="전적 초기화"
+            title={t('detailedStatsReset.title')}
             windowId={windowId}
             onClose={onCancel}
             initialWidth={420}
@@ -92,7 +95,7 @@ const DetailedStatsResetConfirmModal: React.FC<DetailedStatsResetConfirmModalPro
                     />
                     <div className="relative min-w-0">
                         <p className="truncate text-sm font-bold text-amber-50">{targetLabel}</p>
-                        <p className="mt-0.5 text-[11px] text-zinc-400">아래 전적을 초기화합니다.</p>
+                        <p className="mt-0.5 text-[11px] text-zinc-400">{t('detailedStatsReset.willReset')}</p>
                     </div>
 
                     <div className="relative mt-2.5 space-y-1 rounded-lg border border-white/10 bg-black/30 px-2.5 py-2">
@@ -102,7 +105,7 @@ const DetailedStatsResetConfirmModal: React.FC<DetailedStatsResetConfirmModalPro
                                 <span className="font-bold tabular-nums text-primary">{formatDetailedStatRecordLine(pvpRecord)}</span>
                             </div>
                         ) : (
-                            <p className="text-center text-[11px] text-zinc-500">기록된 PVP 전적 없음</p>
+                            <p className="text-center text-[11px] text-zinc-500">{t('detailedStatsReset.noPvp')}</p>
                         )}
                         {showAiStats ? (
                             <div className="flex items-center justify-between gap-2 text-xs">
@@ -110,7 +113,7 @@ const DetailedStatsResetConfirmModal: React.FC<DetailedStatsResetConfirmModalPro
                                 <span className="font-bold tabular-nums text-primary">{formatDetailedStatRecordLine(aiRecord)}</span>
                             </div>
                         ) : (
-                            <p className="text-center text-[11px] text-zinc-500">기록된 AI 전적 없음</p>
+                            <p className="text-center text-[11px] text-zinc-500">{t('detailedStatsReset.noAi')}</p>
                         )}
                     </div>
 
@@ -121,7 +124,7 @@ const DetailedStatsResetConfirmModal: React.FC<DetailedStatsResetConfirmModalPro
 
                 {showScopePicker ? (
                     <div className="space-y-1.5">
-                        <p className="text-center text-[11px] font-semibold text-zinc-300">초기화 범위</p>
+                        <p className="text-center text-[11px] font-semibold text-zinc-300">{t('detailedStatsReset.scope')}</p>
                         <div className="grid gap-1.5">
                             {availableScopes.map((option) => {
                                 const selected = scope === option;
@@ -143,7 +146,7 @@ const DetailedStatsResetConfirmModal: React.FC<DetailedStatsResetConfirmModalPro
                         </div>
                     </div>
                 ) : (
-                    <p className="text-center text-[11px] text-zinc-400">{DETAILED_STAT_RESET_SCOPE_LABELS[scope]} 초기화됩니다.</p>
+                    <p className="text-center text-[11px] text-zinc-400">{t('detailedStatsReset.scopeLabel', { scope: DETAILED_STAT_RESET_SCOPE_LABELS[scope] })}</p>
                 )}
 
                 <div className="flex gap-2">
@@ -159,7 +162,7 @@ const DetailedStatsResetConfirmModal: React.FC<DetailedStatsResetConfirmModalPro
                         colorScheme="none"
                         className="flex-1 !inline-flex !flex-col !items-center !justify-center !gap-0.5 !rounded-lg !border !border-amber-400/50 !bg-gradient-to-r !from-amber-900/55 !to-zinc-900/90 !py-2 !text-xs !font-bold !text-amber-50 shadow-[0_8px_20px_-12px_rgba(251,191,36,0.45)] hover:!border-amber-300/65 hover:!from-amber-800/60 hover:!to-zinc-800/90 active:!translate-y-px"
                     >
-                        <span className="text-amber-50">초기화</span>
+                        <span className="text-amber-50">{t('detailedStatsReset.resetBtn')}</span>
                         <DiamondPrice amount={ledgerCost} className="text-cyan-100/95" iconClassName="h-3.5 w-3.5 min-w-[0.875rem]" />
                     </Button>
                 </div>

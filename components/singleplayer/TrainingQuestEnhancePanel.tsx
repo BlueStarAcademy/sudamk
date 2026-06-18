@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { SinglePlayerMissionInfo } from '../../types.js';
 import Button from '../Button.js';
 import AlertModal from '../AlertModal.js';
@@ -112,12 +113,13 @@ const statRow = (
 /** 중간 열: 다음 레벨 효과 미리보기 */
 export const TrainingQuestNextLevelEffects: React.FC<TrainingQuestEnhancePanelProps> = (props) => {
     const { mission, currentLevel, canLevelUp, nextLevelUnlockStage, compact = false, hideHeader = false } = props;
+    const { t } = useTranslation('lobby');
     const model = buildTrainingQuestEnhanceModel(props);
 
     if (model.isMaxLevel) {
         return (
             <p className={`font-semibold text-amber-200/90 ${compact ? 'text-[9px] sm:text-[10px]' : 'text-[10px] sm:text-[11px]'}`}>
-                최대 레벨에 도달했습니다.
+                {t('singleplayer.maxLevelReached')}
             </p>
         );
     }
@@ -134,19 +136,19 @@ export const TrainingQuestNextLevelEffects: React.FC<TrainingQuestEnhancePanelPr
             {!hideHeader &&
                 (!compact ? (
                     <p className="truncate whitespace-nowrap text-xs font-bold text-violet-200/90 sm:text-sm">
-                        다음 레벨 (Lv.{currentLevel + 1}) 효과
+                        {t('singleplayer.nextLevelEffects', { level: currentLevel + 1 })}
                     </p>
                 ) : (
                     <p className="truncate whitespace-nowrap text-[9px] font-bold text-violet-200/90 sm:text-[10px]">
-                        Lv.{currentLevel + 1} 효과
+                        {t('singleplayer.nextLevelEffectsCompact', { level: currentLevel + 1 })}
                     </p>
                 ))}
             <div className={`flex flex-col ${statGap}`}>
                 {statRow(
                     <img src="/images/icon/timer.webp" alt="" className={`${iconSize} shrink-0 opacity-90`} />,
-                    '생산',
-                    currentLevelInfo ? `${currentLevelInfo.productionRateMinutes}분` : '—',
-                    `${nextLevelInfo.productionRateMinutes}분`,
+                    t('singleplayer.production'),
+                    currentLevelInfo ? t('singleplayer.productionRateMinutes', { minutes: currentLevelInfo.productionRateMinutes }) : '—',
+                    t('singleplayer.productionRateMinutes', { minutes: nextLevelInfo.productionRateMinutes }),
                     model.productionRateChange !== 0
                         ? model.productionRateChange > 0
                           ? `(-${model.productionRateChange.toFixed(1)})`
@@ -160,7 +162,7 @@ export const TrainingQuestNextLevelEffects: React.FC<TrainingQuestEnhancePanelPr
                         alt=""
                         className={`${iconSize} shrink-0 opacity-95`}
                     />,
-                    '생산량',
+                    t('singleplayer.productionAmount'),
                     currentLevelInfo ? currentLevelInfo.rewardAmount.toLocaleString() : '—',
                     nextLevelInfo.rewardAmount.toLocaleString(),
                     model.rewardAmountChange !== 0
@@ -172,7 +174,7 @@ export const TrainingQuestNextLevelEffects: React.FC<TrainingQuestEnhancePanelPr
                     <span className={`flex ${iconSize} shrink-0 items-center justify-center rounded bg-violet-500/35 text-[8px] font-bold text-violet-100`}>
                         M
                     </span>,
-                    '저장',
+                    t('singleplayer.storage'),
                     currentLevelInfo ? currentLevelInfo.maxCapacity.toLocaleString() : '—',
                     nextLevelInfo.maxCapacity.toLocaleString(),
                     model.maxCapacityChange !== 0
@@ -203,7 +205,7 @@ export const TrainingQuestNextLevelEffects: React.FC<TrainingQuestEnhancePanelPr
                     className={`truncate whitespace-nowrap leading-tight text-amber-200/90 ${compact ? 'text-[8px] sm:text-[9px]' : 'text-xs sm:text-sm'}`}
                     title={nextLevelUnlockStage}
                 >
-                    <span className="font-semibold">{nextLevelUnlockStage}</span> 클리어 후 강화
+                    {t('singleplayer.enhanceAfterClear', { stageId: nextLevelUnlockStage })}
                 </p>
             ) : null}
         </div>
@@ -224,6 +226,7 @@ export const TrainingQuestEnhanceActions: React.FC<TrainingQuestEnhancePanelProp
         onConfirm,
         compact = false,
     } = props;
+    const { t } = useTranslation(['lobby', 'common']);
     const model = buildTrainingQuestEnhanceModel(props);
     const hasEnoughXp =
         hasEnoughXpProp ??
@@ -253,7 +256,7 @@ export const TrainingQuestEnhanceActions: React.FC<TrainingQuestEnhancePanelProp
             <div
                 className={`flex shrink-0 items-center justify-center rounded-lg border border-amber-400/30 bg-amber-950/20 px-2 text-center ${compact ? 'w-full py-2' : 'w-[5.5rem] py-3 sm:w-[6.25rem]'}`}
             >
-                <span className={`font-black text-amber-100 ${compact ? 'text-[10px]' : 'text-[11px]'}`}>최대 레벨</span>
+                <span className={`font-black text-amber-100 ${compact ? 'text-[10px]' : 'text-[11px]'}`}>{t('singleplayer.maxLevel')}</span>
             </div>
         );
     }
@@ -262,15 +265,15 @@ export const TrainingQuestEnhanceActions: React.FC<TrainingQuestEnhancePanelProp
         if (isEnhancing) return;
 
         if (!hasEnoughXp) {
-            setAlertMessage('경험치가 부족합니다.');
+            setAlertMessage(t('singleplayer.alerts.insufficientXp'));
             return;
         }
         if (!hasUnlockStage && nextLevelUnlockStage) {
-            setAlertMessage(`${nextLevelUnlockStage} 클리어 후 강화할 수 있습니다.`);
+            setAlertMessage(t('singleplayer.alerts.enhanceAfterClear', { stageId: nextLevelUnlockStage }));
             return;
         }
         if (!model.hasEnoughGold) {
-            setAlertMessage('골드가 부족합니다.');
+            setAlertMessage(t('singleplayer.alerts.insufficientGold'));
             return;
         }
 
@@ -316,10 +319,10 @@ export const TrainingQuestEnhanceActions: React.FC<TrainingQuestEnhancePanelProp
                     disabled={isEnhancing}
                 >
                     {isEnhancing ? (
-                        '강화 중...'
+                        t('singleplayer.enhancing')
                     ) : (
                         <span className="flex flex-col items-center justify-center gap-0.5 font-semibold leading-tight">
-                            <span>강화</span>
+                            <span>{t('singleplayer.enhance')}</span>
                             <span className="flex items-center gap-0.5 text-xs sm:text-sm">
                                 <img src="/images/icon/Gold.webp" alt="" className="h-4 w-4 shrink-0" />
                                 <span>{upgradeCost.toLocaleString()}</span>

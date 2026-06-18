@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getSinglePlayerStages, SINGLE_PLAYER_CLASS_BAR_REWARDS } from '../../constants/singlePlayerConstants.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { SinglePlayerLevel } from '../../types.js';
@@ -6,12 +7,12 @@ import type { SinglePlayerStageInfo } from '../../types.js';
 import { getItemTemplateByName } from '../../utils/itemTemplateLookup.js';
 import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 
-const CLASS_TABS: { level: SinglePlayerLevel; label: string }[] = [
-    { level: SinglePlayerLevel.입문, label: '입문반' },
-    { level: SinglePlayerLevel.초급, label: '초급반' },
-    { level: SinglePlayerLevel.중급, label: '중급반' },
-    { level: SinglePlayerLevel.고급, label: '고급반' },
-    { level: SinglePlayerLevel.유단자, label: '유단자' },
+const CLASS_TABS: { level: SinglePlayerLevel; stageKey: 'intro' | 'beginner' | 'intermediate' | 'advanced' | 'master' }[] = [
+    { level: SinglePlayerLevel.입문, stageKey: 'intro' },
+    { level: SinglePlayerLevel.초급, stageKey: 'beginner' },
+    { level: SinglePlayerLevel.중급, stageKey: 'intermediate' },
+    { level: SinglePlayerLevel.고급, stageKey: 'advanced' },
+    { level: SinglePlayerLevel.유단자, stageKey: 'master' },
 ];
 
 type RewardCell = SinglePlayerStageInfo['rewards']['firstClear'];
@@ -58,14 +59,16 @@ const ExpIcon: React.FC = () => (
 
 /** 최초 클리어 `bonus` 필드: `스탯10` / `능력치10` 등 → 표시만 「보너스 능력치 +10」 */
 const formatStatBonusBadge = (
-    bonus: string
+    bonus: string,
+    bonusStatLabel: string,
 ): { label: string; value: string } | null => {
     const m = bonus.match(/^(?:스탯|능력치)\s*(\d+)$/);
     if (!m) return null;
-    return { label: '보너스 능력치', value: `+${m[1]}` };
+    return { label: bonusStatLabel, value: `+${m[1]}` };
 };
 
 const RewardBadges: React.FC<{ reward: RewardCell | undefined }> = ({ reward }) => {
+    const { t } = useTranslation(['lobby', 'common']);
     if (!reward) {
         return <span className="text-sm text-gray-400">—</span>;
     }
@@ -84,7 +87,7 @@ const RewardBadges: React.FC<{ reward: RewardCell | undefined }> = ({ reward }) 
             {hasGold && (
                 <RewardBadge
                     tone="gold"
-                    label="골드"
+                    label={t('common:resources.gold')}
                     value={`+${formatGoldAmountKoG(reward.gold ?? 0)}`}
                     icon={<img src="/images/icon/Gold.webp" alt="" className="h-4 w-4 object-contain" />}
                 />
@@ -119,11 +122,11 @@ const RewardBadges: React.FC<{ reward: RewardCell | undefined }> = ({ reward }) 
                 })}
             {hasBonus &&
                 (() => {
-                    const statFmt = formatStatBonusBadge(String(reward.bonus));
+                    const statFmt = formatStatBonusBadge(String(reward.bonus), t('singleplayer.rewardsTableSection.bonusStat'));
                     if (statFmt) {
                         return <RewardBadge tone="bonus" label={statFmt.label} value={statFmt.value} />;
                     }
-                    return <RewardBadge tone="bonus" label="보너스" value={String(reward.bonus)} />;
+                    return <RewardBadge tone="bonus" label={t('singleplayer.rewardsTableSection.bonus')} value={String(reward.bonus)} />;
                 })()}
         </div>
     );
@@ -141,6 +144,7 @@ export interface SinglePlayerRewardsTableProps {
 const SinglePlayerRewardsTable: React.FC<SinglePlayerRewardsTableProps> = ({
     initialClassWhenModalOpens,
 }) => {
+    const { t } = useTranslation(['lobby', 'profile']);
     const { singlePlayerStagesListRevision } = useAppContext();
     const [activeLevel, setActiveLevel] = useState<SinglePlayerLevel>(
         initialClassWhenModalOpens ?? SinglePlayerLevel.입문
@@ -155,7 +159,7 @@ const SinglePlayerRewardsTable: React.FC<SinglePlayerRewardsTableProps> = ({
     }, [activeLevel, singlePlayerStagesListRevision]);
 
     const classBarDef = SINGLE_PLAYER_CLASS_BAR_REWARDS[activeLevel];
-    const classBarLabel = CLASS_TABS.find((t) => t.level === activeLevel)?.label ?? activeLevel;
+    const classBarLabel = t(`profile:stageLabels.${CLASS_TABS.find((tab) => tab.level === activeLevel)?.stageKey ?? 'intro'}`);
 
     const apBadgeForTable = (itemId: string): string | null => {
         if (itemId.startsWith('행동력 회복제')) {
@@ -170,10 +174,11 @@ const SinglePlayerRewardsTable: React.FC<SinglePlayerRewardsTableProps> = ({
             <div
                 className="flex flex-wrap gap-1 sm:gap-1.5 border-b border-gray-600 pb-2"
                 role="tablist"
-                aria-label="단계별 보상"
+                aria-label={t('singleplayer.rewardsTableAria')}
             >
-                {CLASS_TABS.map(({ level, label }) => {
+                {CLASS_TABS.map(({ level, stageKey }) => {
                     const selected = activeLevel === level;
+                    const label = t(`profile:stageLabels.${stageKey}`);
                     return (
                         <button
                             key={level}
@@ -198,10 +203,10 @@ const SinglePlayerRewardsTable: React.FC<SinglePlayerRewardsTableProps> = ({
             </div>
 
             <div className="mb-2 rounded-md border border-amber-600/35 bg-gradient-to-r from-amber-950/40 via-gray-900/80 to-emerald-950/30 px-3 py-2 text-[12px] sm:text-[13px] leading-snug">
-                <p className="mb-1.5 font-semibold text-amber-100/95">{classBarLabel} · 클리어 수 추가 보상 (대기실 막대에서 수령)</p>
+                <p className="mb-1.5 font-semibold text-amber-100/95">{t('singleplayer.rewardsTableSection.classBarBonus', { classLabel: classBarLabel })}</p>
                 <div className="flex flex-col gap-1.5 text-gray-200 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-1">
                     <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="shrink-0 font-semibold tabular-nums text-slate-300">10개</span>
+                        <span className="shrink-0 font-semibold tabular-nums text-slate-300">{t('singleplayer.rewardsTableSection.milestoneCount', { count: 10 })}</span>
                         {(() => {
                             const { itemId, quantity } = classBarDef.milestone10;
                             const ap = apBadgeForTable(itemId);
@@ -231,7 +236,7 @@ const SinglePlayerRewardsTable: React.FC<SinglePlayerRewardsTableProps> = ({
                         })()}
                     </div>
                     <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="shrink-0 font-semibold tabular-nums text-slate-300">20개</span>
+                        <span className="shrink-0 font-semibold tabular-nums text-slate-300">{t('singleplayer.rewardsTableSection.milestoneCount', { count: 20 })}</span>
                         {(() => {
                             const { itemId, quantity } = classBarDef.milestone20;
                             const ap = apBadgeForTable(itemId);
@@ -269,10 +274,10 @@ const SinglePlayerRewardsTable: React.FC<SinglePlayerRewardsTableProps> = ({
                         <thead className="sticky top-0 z-[1]">
                             <tr className="bg-gray-800 text-amber-200/95 border-b border-gray-600">
                                 <th className="px-3 py-2.5 font-semibold whitespace-nowrap border-r border-gray-600">
-                                    스테이지 ID
+                                    {t('singleplayer.rewardsTableSection.stageIdColumn')}
                                 </th>
                                 <th className="px-3 py-2.5 font-semibold min-w-[220px]">
-                                    최초 클리어 (골드·EXP·장비 등)
+                                    {t('singleplayer.rewardsTableSection.firstClearColumn')}
                                 </th>
                             </tr>
                         </thead>

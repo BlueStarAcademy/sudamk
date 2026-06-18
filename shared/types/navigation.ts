@@ -2,6 +2,43 @@
 import { GameMode } from './enums.js';
 import type { ArenaChannel, ArenaLobbyIntent } from './api.js';
 
+/** 로그인 후 메인 홈 화면 해시 */
+export const APP_HOME_HASH = '#/home';
+export const APP_HOME_ARENA_HASH = '#/home/arena';
+export const APP_HOME_RANKING_HASH = '#/home/ranking';
+
+/** @deprecated 구 URL — parseHash·리다이렉트에서만 호환 */
+export const LEGACY_APP_HOME_HASH = '#/profile';
+export const LEGACY_APP_HOME_ARENA_HASH = '#/profile/arena';
+export const LEGACY_APP_HOME_RANKING_HASH = '#/profile/ranking';
+
+const LEGACY_APP_HASH_MAP: Record<string, string> = {
+    [LEGACY_APP_HOME_HASH]: APP_HOME_HASH,
+    [LEGACY_APP_HOME_ARENA_HASH]: APP_HOME_ARENA_HASH,
+    [LEGACY_APP_HOME_RANKING_HASH]: APP_HOME_RANKING_HASH,
+};
+
+export function isAppHomeHash(hash: string): boolean {
+    const path = hash.split('?')[0];
+    return path === APP_HOME_HASH || path === LEGACY_APP_HOME_HASH;
+}
+
+/** 구 `#/profile` 계열·단독 `#/arena` → `#/home` 계열 정규화 (쿼리 유지) */
+export function normalizeLegacyAppHash(hash: string): string {
+    const qIdx = hash.indexOf('?');
+    const pathOnly = qIdx >= 0 ? hash.slice(0, qIdx) : hash;
+    const query = qIdx >= 0 ? hash.slice(qIdx) : '';
+    const mapped =
+        LEGACY_APP_HASH_MAP[pathOnly] ?? (pathOnly === '#/arena' ? APP_HOME_ARENA_HASH : pathOnly);
+    if (mapped === pathOnly) return hash;
+    return mapped + query;
+}
+
+/** @deprecated `normalizeLegacyAppHash` 사용 */
+export function normalizeLegacyHomeHash(hash: string): string {
+    return normalizeLegacyAppHash(hash);
+}
+
 export type AppRoute = {
     view:
         | 'login'
@@ -81,6 +118,12 @@ export function parseHash(hash: string): AppRoute {
             return { view: 'register', params: {} };
         case 'set-nickname':
             return { view: 'set-nickname', params: {} };
+        case 'home': {
+            const sub = rest[0];
+            if (sub === 'ranking') return { view: 'profile', params: { tab: 'ranking' as const } };
+            if (sub === 'arena') return { view: 'profile', params: { tab: 'arena' as const } };
+            return { view: 'profile', params: { tab: 'home' as const } };
+        }
         case 'profile': {
             const sub = rest[0];
             if (sub === 'ranking') return { view: 'profile', params: { tab: 'ranking' as const } };

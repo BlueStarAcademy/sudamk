@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { PairRoomChatLine } from '../../types/api.js';
 import { type WaitingLobbyPanelTone, pairRoomChatInteriorChrome } from '../waiting-room/waitingLobbyHomePanelStyles.js';
 
@@ -24,9 +25,9 @@ type Props = {
     onSend: (payload: { text: string; scope: PairRoomChatScope }) => void | Promise<void>;
 };
 
-const SCOPE_OPTIONS: { value: PairRoomChatScope; label: string }[] = [
-    { value: 'room', label: '전체' },
-    { value: 'team', label: '팀 채팅' },
+const SCOPE_OPTIONS: { value: PairRoomChatScope; labelKey: 'room.chatTabAll' | 'room.chatTabTeam' }[] = [
+    { value: 'room', labelKey: 'room.chatTabAll' },
+    { value: 'team', labelKey: 'room.chatTabTeam' },
 ];
 
 const PairRoomChatPanel: React.FC<Props> = ({
@@ -41,6 +42,7 @@ const PairRoomChatPanel: React.FC<Props> = ({
     roomOnlyChat = false,
     onSend,
 }) => {
+    const { t } = useTranslation(['pair', 'game']);
     const interior = variant === 'interior';
     const interiorChrome = useMemo(
         () => (interior ? pairRoomChatInteriorChrome(interiorLobbyTone) : null),
@@ -100,7 +102,7 @@ const PairRoomChatPanel: React.FC<Props> = ({
                             : `font-extrabold tracking-wide text-cyan-100/90 ${roomOnlyChat ? '' : 'uppercase'} ${compact ? 'text-[10px]' : 'text-[11px]'}`
                     }
                 >
-                    {roomOnlyChat ? '채팅' : '페어 채팅'}
+                    {roomOnlyChat ? t('room.chatTitle') : t('room.pairChatTitle')}
                 </span>
                 {!roomOnlyChat ? (
                     <div
@@ -110,7 +112,7 @@ const PairRoomChatPanel: React.FC<Props> = ({
                                 : 'grid grid-cols-2 overflow-hidden rounded-lg border border-white/15 bg-black/35 p-0.5'
                         }
                         role="tablist"
-                        aria-label="채팅 탭"
+                        aria-label={t('room.chatTabsAria')}
                     >
                         {SCOPE_OPTIONS.map((o) => {
                             const active = scope === o.value;
@@ -130,7 +132,7 @@ const PairRoomChatPanel: React.FC<Props> = ({
                                             : `rounded-md px-1.5 py-0.5 font-bold text-slate-300 transition hover:bg-white/8 disabled:pointer-events-none disabled:opacity-45 ${compact ? 'text-[10px]' : 'text-[11px]'}`
                                     }
                                 >
-                                    {o.label}
+                                    {t(o.labelKey)}
                                 </button>
                             );
                         })}
@@ -153,7 +155,7 @@ const PairRoomChatPanel: React.FC<Props> = ({
                     <div
                         className={`py-1.5 text-center font-medium ${interior && interiorChrome ? interiorChrome.emptyHint : 'text-slate-500'} ${compact ? 'text-[9px]' : 'text-[10px]'}`}
                     >
-                        {roomOnlyChat ? '대화가 없습니다.' : scope === 'team' ? '팀 채팅이 없습니다.' : '대화가 없습니다.'}
+                        {roomOnlyChat ? t('room.noMessages') : scope === 'team' ? t('room.noTeamMessages') : t('room.noMessages')}
                     </div>
                 ) : (
                     sorted.map((m) => (
@@ -172,7 +174,7 @@ const PairRoomChatPanel: React.FC<Props> = ({
                             </span>
                             {!roomOnlyChat ? (
                                 <span className={interior ? 'text-[9px] font-bold uppercase text-amber-200/75' : 'text-[9px] font-bold uppercase text-amber-200/80'}>
-                                    {m.scope === 'room' ? '[전체]' : '[팀]'}
+                                    {m.scope === 'room' ? t('room.scopeAll') : t('room.scopeTeam')}
                                 </span>
                             ) : null}
                             <span className="ml-1 text-slate-100">{m.text}</span>
@@ -196,7 +198,13 @@ const PairRoomChatPanel: React.FC<Props> = ({
                     onChange={(e) => setDraft(e.target.value)}
                     maxLength={400}
                     disabled={disabled}
-                    placeholder={roomOnlyChat ? '메시지 입력…' : scope === 'team' ? '팀원에게만 보낼 메시지…' : '전체 메시지 입력…'}
+                    placeholder={
+                        roomOnlyChat
+                            ? t('game:chatPlaceholder')
+                            : scope === 'team'
+                              ? t('room.teamMessagePlaceholder')
+                              : t('room.roomMessagePlaceholder')
+                    }
                     className={
                         interior && interiorChrome
                             ? `min-w-0 flex-1 ${interiorChrome.input} ${compact ? 'rounded-md px-1.5 py-1 text-[10px] leading-tight' : 'rounded-lg px-3 py-3 text-sm'}`
@@ -216,7 +224,7 @@ const PairRoomChatPanel: React.FC<Props> = ({
                               : 'shrink-0 rounded-lg border-2 border-cyan-400/60 bg-gradient-to-b from-cyan-700/85 to-cyan-950/95 px-4 py-3 text-sm font-extrabold text-cyan-50 shadow-[0_4px_14px_-4px_rgba(34,211,238,0.35)] transition hover:brightness-110 disabled:pointer-events-none disabled:opacity-40'
                     }
                 >
-                    전송
+                    {t('room.send')}
                 </button>
             </form>
         </div>

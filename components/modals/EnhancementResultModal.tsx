@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from '../DraggableWindow.js';
 import Button from '../Button.js';
 import { InventoryItem, ItemGrade } from '../../types.js';
@@ -76,6 +77,7 @@ const generateRollingValue = (min: number, max: number, isPercentage: boolean): 
 };
 
 const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result, onClose, isTopmost }) => {
+    const { t } = useTranslation('inventory');
     const { success, message, itemBefore, itemAfter, xpGained, isRolling } = result;
     const [rollingValues, setRollingValues] = useState<Record<string, number>>({});
     const isFailure = !success && !isRolling;
@@ -163,7 +165,7 @@ const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result,
     const starInfoBefore = getStarDisplayInfo(itemBefore.stars);
     const starInfoAfter = getStarDisplayInfo(itemAfter.stars);
 
-    const title = isRolling ? '제련 진행 중' : success ? '강화 성공' : '강화 실패';
+    const title = isRolling ? t('enhancementResult.refining') : success ? t('enhancementResult.success') : t('enhancementResult.fail');
 
     const mood = isRolling ? 'rolling' : success ? 'success' : 'fail';
     const backdropClass =
@@ -211,7 +213,7 @@ const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result,
                         {isRolling ? 'Processing' : success ? 'Enhancement' : 'Result'}
                     </p>
                     <h3 className={`${isFailure ? 'text-xl sm:text-[1.65rem]' : 'text-2xl sm:text-3xl'} font-black tracking-tight ${headlineClass}`}>
-                        {isRolling ? '제련 진행 중…' : success ? '강화 성공' : '강화 실패'}
+                        {isRolling ? t('enhancementResult.refining') : success ? t('enhancementResult.success') : t('enhancementResult.fail')}
                     </h3>
                 </div>
 
@@ -221,7 +223,7 @@ const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result,
 
                 <div className={`flex w-full max-w-full shrink-0 flex-row flex-nowrap items-center justify-center gap-1 sm:gap-4 ${isFailure ? 'mt-1 sm:mt-2' : 'mt-1.5 sm:mt-3'}`}>
                     <div className={`rounded-lg border border-stone-600/40 bg-stone-900/50 px-1 py-1 shadow-md backdrop-blur-sm sm:rounded-2xl sm:shadow-[0_16px_40px_-20px_rgba(0,0,0,0.75)] ${isFailure ? 'sm:p-3' : 'sm:p-4'}`}>
-                        <ItemDisplay item={itemBefore} label="이전" dimmed />
+                        <ItemDisplay item={itemBefore} label={t('enhancementResult.before')} dimmed />
                     </div>
                     <div
                         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-sm font-black ${isFailure ? 'sm:h-10 sm:w-10 sm:text-base' : 'sm:h-12 sm:w-12 sm:text-lg'} ${
@@ -234,7 +236,7 @@ const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result,
                         {success ? '→' : '×'}
                     </div>
                     <div className={`rounded-lg border border-stone-600/40 bg-stone-900/50 px-1 py-1 shadow-md backdrop-blur-sm ring-0 ring-inset ring-white/5 sm:rounded-2xl sm:shadow-[0_16px_40px_-20px_rgba(0,0,0,0.75)] sm:ring-1 ${isFailure ? 'sm:p-3' : 'sm:p-4'}`}>
-                        <ItemDisplay item={itemAfter} label="결과" />
+                        <ItemDisplay item={itemAfter} label={t('enhancementResult.after')} />
                     </div>
                 </div>
 
@@ -242,7 +244,7 @@ const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result,
                     <div className="relative mt-1.5 flex shrink-0 flex-col overflow-hidden rounded-xl border border-amber-500/20 bg-gradient-to-br from-stone-900/90 via-stone-950/95 to-black/80 px-2 py-2 shadow-inner backdrop-blur-sm sm:mt-2.5 sm:rounded-2xl sm:px-2.5 sm:py-3">
                         <div className="pointer-events-none absolute left-0 top-0 hidden h-full w-1 bg-gradient-to-b from-amber-400/80 via-amber-500/40 to-amber-600/30 sm:block" aria-hidden />
                         <h4 className="relative z-[1] mb-1.5 border-b border-stone-700/60 pb-1.5 text-center text-sm font-bold tracking-normal text-amber-100 sm:mb-2 sm:pb-2 sm:text-base">
-                            {isRolling ? '제련 진행 중…' : '변경 사항'}
+                            {isRolling ? t('enhancementResult.refining') : t('enhancementResult.changes')}
                         </h4>
                         {/* 모든 행에 동일한 2열 그리드 → 라벨 길이와 무관하게 값 열 정렬 */}
                         <div className="relative z-[1] mx-auto w-full max-w-[min(100%,22rem)] divide-y divide-stone-800/80 text-sm text-stone-200 sm:text-[15px]">
@@ -251,7 +253,7 @@ const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result,
                                     등급
                                 </span>
                                 <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0 text-left font-mono text-xs tabular-nums text-amber-100 sm:text-sm">
-                                    <span className={starInfoBefore.colorClass}>{starInfoBefore.text || '(미강화)'}</span>
+                                    <span className={starInfoBefore.colorClass}>{starInfoBefore.text || t('notEnhanced', { ns: 'common' })}</span>
                                     <span className="shrink-0 text-stone-600">→</span>
                                     <span className={starInfoAfter.colorClass}>{starInfoAfter.text}</span>
                                 </span>

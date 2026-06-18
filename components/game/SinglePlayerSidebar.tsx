@@ -1,4 +1,5 @@
 import React from 'react';
+import { tx } from '../../shared/i18n/runtimeText.js';
 import { LiveGameSession, GameProps } from '../../types.js';
 import ProverbPanel from './SinglePlayerInfoPanel.js';
 import { GameInfoPanel, ChatPanel } from './Sidebar.js';
@@ -65,8 +66,8 @@ const SinglePlayerSidebar: React.FC<SinglePlayerSidebarProps> = ({
                         disabled={(isPaused && resumeCountdown > 0) || (!isPaused && pauseButtonCooldown > 0)}
                     >
                         {isPaused
-                            ? (resumeCountdown > 0 ? `대국 재개 (${resumeCountdown})` : '대국 재개')
-                            : (pauseButtonCooldown > 0 ? `일시 정지 (${pauseButtonCooldown})` : '일시 정지')}
+                            ? (resumeCountdown > 0 ? tx("game:controls.resumeGameCountdown", { count: resumeCountdown }) : tx("game:controls.resumeGame"))
+                            : (pauseButtonCooldown > 0 ? tx("game:controls.pauseGameCountdown", { count: pauseButtonCooldown }) : tx("game:controls.pauseGame"))}
                     </Button>
                 )}
             </div>

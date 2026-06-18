@@ -33,6 +33,7 @@ import {
 import { resolvePcModalPortalPolicy } from '../utils/pcModalPortalPolicy.js';
 import MobileModalTitleBar from './mobile/MobileModalTitleBar.js';
 import { SUDAMR_MODAL_CLOSE_BUTTON_CLASS as MOBILE_MODAL_CLOSE_BUTTON_CLASS } from '../shared/constants/mobileModalChrome.js';
+import { useTranslation } from 'react-i18next';
 
 /** 공지 게시판 모달과 동일한 텍스트 「닫기」 버튼 스타일 (DraggableWindow·커스텀 모달 공통) */
 export const SUDAMR_MODAL_CLOSE_BUTTON_CLASS = MOBILE_MODAL_CLOSE_BUTTON_CLASS;
@@ -492,6 +493,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     skipIngameBoardFrameSizeCap = false,
     ingameResultSideDock = false,
 }) => {
+    const { t } = useTranslation('common');
     const stackEntryId = useId();
     const [effectiveZIndex, setEffectiveZIndex] = useState(10_000);
     const [isStackTop, setIsStackTop] = useState(false);
@@ -1667,9 +1669,9 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                                           }
                                         : {}),
                                 }}
-                                aria-label={`${title} 닫기`}
+                                aria-label={t('modal.closeAria', { title })}
                             >
-                                닫기
+                                {t('actions.close')}
                             </button>
                         )}
                     </div>
@@ -1745,7 +1747,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                                             : undefined
                                     }
                                 />
-                                창 위치 기억하기
+                                {t('modal.rememberPosition')}
                             </label>
                         </div>
                     )}

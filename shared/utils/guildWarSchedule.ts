@@ -151,6 +151,60 @@ export function guildWarStartMs(w: { startTime?: unknown } | null | undefined): 
     return 0;
 }
 
+export function guildWarEndMs(w: { endTime?: unknown; startTime?: unknown; warType?: GuildWarRoundType } | null | undefined): number {
+    const et = w?.endTime;
+    if (et != null && et !== '') {
+        if (typeof et === 'number' && Number.isFinite(et)) return et;
+        if (typeof et === 'string') {
+            const parsed = Date.parse(et);
+            if (Number.isFinite(parsed)) return parsed;
+            const n = Number(et);
+            if (Number.isFinite(n) && n > 0) return n;
+        }
+    }
+    const startMs = guildWarStartMs(w);
+    if (startMs <= 0) return 0;
+    const duration =
+        w?.warType === 'fri_sun' ? GUILD_WAR_FRI_SUN_DURATION_MS : GUILD_WAR_TUE_WED_DURATION_MS;
+    return startMs + duration;
+}
+
+export type GuildWarDisplayCountdownTarget = {
+    kind: 'until_open' | 'until_end';
+    targetMs: number;
+};
+
+/**
+ * UI 카운트다운: 진행 중이면 종료까지, 그 외에는 KST 달력상 가장 가까운 화·금 0시 개시까지.
+ * activeWar.startTime 이 잘못 멀리 잡혀도(예: 목요일인데 다음 화요일) 스케줄상 다음 개시 시각을 우선한다.
+ */
+export function getGuildWarDisplayCountdownTarget(
+    now: number = Date.now(),
+    activeWar?: { startTime?: unknown; endTime?: unknown; status?: string; warType?: GuildWarRoundType } | null,
+): GuildWarDisplayCountdownTarget | null {
+    if (activeWar && guildWarIsOpenForPlay(activeWar, now)) {
+        const endMs = guildWarEndMs(activeWar);
+        if (endMs > now) {
+            return { kind: 'until_end', targetMs: endMs };
+        }
+    }
+
+    const nextOpen = getNextGuildWarEntryOpenDateKst(now);
+
+    if (activeWar?.status === 'active') {
+        const startMs = guildWarStartMs(activeWar);
+        if (startMs > now) {
+            return { kind: 'until_open', targetMs: Math.min(startMs, nextOpen) };
+        }
+    }
+
+    if (isGuildWarPrepTimeKst(now) || !activeWar) {
+        return { kind: 'until_open', targetMs: nextOpen };
+    }
+
+    return { kind: 'until_open', targetMs: nextOpen };
+}
+
 /** 전쟁 개시 시각 이후이고 아직 종료 전인지 (플레이·입장 가능) */
 export function guildWarIsOpenForPlay(w: { startTime?: unknown; endTime?: unknown; status?: string } | null | undefined, now: number): boolean {
     if (w?.status !== 'active') return false;

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Guild as GuildType } from '../../types/index.js';
 import Button from '../Button.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
@@ -20,6 +21,7 @@ const GuildManagementPanel: React.FC<GuildManagementPanelProps> = ({
     hideAnnouncement = false,
     embedded = false,
 }) => {
+    const { t } = useTranslation(['guild', 'common']);
     const dense = compact || embedded;
     const { handlers } = useAppContext();
 
@@ -77,25 +79,25 @@ const GuildManagementPanel: React.FC<GuildManagementPanelProps> = ({
         >
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10" />
             <div className={`relative z-10 flex flex-col ${dense ? 'gap-2' : 'gap-3'}`}>
-                <h3 className={`font-bold text-highlight drop-shadow ${dense ? 'text-sm' : 'text-base'}`}>길드 정보</h3>
+                <h3 className={`font-bold text-highlight drop-shadow ${dense ? 'text-sm' : 'text-base'}`}>{t('management.guildInfo')}</h3>
                 <div>
-                    <label className={`block font-semibold text-highlight ${dense ? 'mb-1 text-xs' : 'mb-1.5 text-sm'}`}>길드 소개</label>
+                    <label className={`block font-semibold text-highlight ${dense ? 'mb-1 text-xs' : 'mb-1.5 text-sm'}`}>{t('management.introLabel')}</label>
                     <textarea
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
                         maxLength={100}
-                        placeholder="길드 소개를 입력하세요"
+                        placeholder={t('management.introPlaceholder')}
                         className={`w-full rounded-lg border-2 border-stone-600/50 bg-gradient-to-br from-stone-800/90 to-neutral-700/90 text-primary transition-all shadow-inner backdrop-blur-sm focus:border-cyan-500/60 focus:outline-none ${
                             dense ? 'h-16 p-2 text-xs leading-snug' : 'h-20 p-2.5 text-sm'
                         }`}
                     />
                 </div>
                 <div className={`flex items-center justify-between rounded-lg border border-stone-600/40 bg-gradient-to-r from-stone-800/60 to-neutral-700/60 ${dense ? 'px-2.5 py-2' : 'p-3'}`}>
-                    <label className={`font-semibold text-highlight ${dense ? 'text-xs' : 'text-sm'}`}>공개 설정</label>
+                    <label className={`font-semibold text-highlight ${dense ? 'text-xs' : 'text-sm'}`}>{t('management.publicSetting')}</label>
                     <ToggleSwitch checked={!!isPublic} onChange={setIsPublic} />
                 </div>
                 <div className={`rounded-lg border border-stone-600/40 bg-gradient-to-r from-stone-800/60 to-neutral-700/60 ${dense ? 'p-2' : 'p-3'}`}>
-                    <label className={`block font-semibold text-highlight ${dense ? 'mb-1 text-xs' : 'mb-1.5 text-sm'}`}>가입 방식</label>
+                    <label className={`block font-semibold text-highlight ${dense ? 'mb-1 text-xs' : 'mb-1.5 text-sm'}`}>{t('management.joinMethod')}</label>
                     <div className={`flex ${dense ? 'gap-1.5' : 'gap-2'}`}>
                         <button
                             type="button"
@@ -106,7 +108,7 @@ const GuildManagementPanel: React.FC<GuildManagementPanelProps> = ({
                                     : 'bg-stone-700/50 text-tertiary hover:bg-stone-700/70'
                             } ${dense ? 'px-2 py-1.5 text-xs' : 'px-3 py-2 text-sm'}`}
                         >
-                            신청가입
+                            {t('management.applicationJoin')}
                         </button>
                         <button
                             type="button"
@@ -117,13 +119,13 @@ const GuildManagementPanel: React.FC<GuildManagementPanelProps> = ({
                                     : 'bg-stone-700/50 text-tertiary hover:bg-stone-700/70'
                             } ${dense ? 'px-2 py-1.5 text-xs' : 'px-3 py-2 text-sm'}`}
                         >
-                            자유가입
+                            {t('management.freeJoin')}
                         </button>
                     </div>
                     <p className={`text-tertiary ${dense ? 'mt-1 text-[10px] leading-tight' : 'mt-1.5 text-xs'}`}>
                         {joinType === 'application'
-                            ? '길드장 또는 부길드장이 승인해야 가입됩니다.'
-                            : '빈자리가 있으면 자동으로 가입됩니다.'}
+                            ? t('management.applicationJoinHint')
+                            : t('management.freeJoinHint')}
                     </p>
                 </div>
                 <div className={`flex justify-end border-t border-stone-600/50 ${dense ? 'pt-2' : 'pt-2.5'}`}>
@@ -133,7 +135,7 @@ const GuildManagementPanel: React.FC<GuildManagementPanelProps> = ({
                             dense ? '!px-4 !py-1.5 !text-xs' : '!px-5 !py-2 !text-sm'
                         }`}
                     >
-                        저장
+                        {t('common:actions.save')}
                     </Button>
                 </div>
             </div>
@@ -157,7 +159,7 @@ const GuildManagementPanel: React.FC<GuildManagementPanelProps> = ({
                         <div className={`flex items-start justify-between gap-2 ${compact ? 'mb-2' : 'mb-5'}`}>
                             <h3 className={`font-bold text-highlight drop-shadow-lg flex items-center gap-1 ${compact ? 'text-sm' : 'gap-2 text-2xl'}`}>
                                 <span className={compact ? 'text-base' : 'text-2xl'}>📢</span>
-                                <span>길드 공지</span>
+                                <span>{t('management.announcement')}</span>
                             </h3>
                             <Button 
                                 onClick={() => setIsEditingAnnouncement(!isEditingAnnouncement)} 
@@ -165,7 +167,7 @@ const GuildManagementPanel: React.FC<GuildManagementPanelProps> = ({
                                     compact ? '!px-2 !py-1 !text-[11px]' : 'hover:scale-105 !px-5 !py-2.5 !text-sm'
                                 }`}
                             >
-                                {isEditingAnnouncement ? '취소' : '편집'}
+                                {isEditingAnnouncement ? t('common:actions.cancel') : t('management.edit')}
                             </Button>
                         </div>
                         {isEditingAnnouncement ? (
@@ -184,7 +186,7 @@ const GuildManagementPanel: React.FC<GuildManagementPanelProps> = ({
                                         compact ? 'py-2 !text-xs' : 'mt-4 py-3 hover:scale-[1.02]'
                                     }`}
                                 >
-                                    저장
+                                    {t('common:actions.save')}
                                 </Button>
                             </div>
                         ) : (
@@ -193,7 +195,7 @@ const GuildManagementPanel: React.FC<GuildManagementPanelProps> = ({
                                     compact ? 'mt-2 min-h-[4.5rem] p-2' : 'mt-5 min-h-[120px] p-5'
                                 }`}
                             >
-                                <p className={`whitespace-pre-wrap text-primary drop-shadow-md ${compact ? 'text-xs leading-snug' : 'text-sm leading-relaxed'}`}>{guild.announcement || <span className="text-tertiary italic">등록된 공지사항이 없습니다.</span>}</p>
+                                <p className={`whitespace-pre-wrap text-primary drop-shadow-md ${compact ? 'text-xs leading-snug' : 'text-sm leading-relaxed'}`}>{guild.announcement || <span className="text-tertiary italic">{t('management.noAnnouncement')}</span>}</p>
                             </div>
                         )}
                     </div>
@@ -212,7 +214,7 @@ const GuildManagementPanel: React.FC<GuildManagementPanelProps> = ({
                         <div className={`flex flex-shrink-0 items-start justify-between gap-2 ${dense ? 'mb-2' : 'mb-5'}`}>
                             <h3 className={`font-bold text-highlight drop-shadow-lg flex items-center gap-1 ${dense ? 'text-sm' : 'gap-2 text-2xl'}`}>
                                 <span className={dense ? 'text-base' : 'text-2xl'}>📝</span>
-                                <span>가입 신청</span>
+                                <span>{t('management.applications')}</span>
                             </h3>
                         </div>
                         <div className={`min-h-0 flex-grow overflow-y-auto ${dense ? 'pr-0.5' : 'pr-3'}`}>
@@ -233,7 +235,7 @@ const GuildManagementPanel: React.FC<GuildManagementPanelProps> = ({
                                                         dense ? '!px-2.5 !py-1 !text-xs' : 'hover:scale-105 !px-5 !py-2.5 !text-xs'
                                                     }`}
                                                 >
-                                                    승인
+                                                    {t('management.approve')}
                                                 </Button>
                                                 <Button 
                                                     onClick={() => handleApplicant(applicant.id, false)} 
@@ -241,7 +243,7 @@ const GuildManagementPanel: React.FC<GuildManagementPanelProps> = ({
                                                         dense ? '!px-2.5 !py-1 !text-xs' : 'hover:scale-105 !px-5 !py-2.5 !text-xs'
                                                     }`}
                                                 >
-                                                    거절
+                                                    {t('management.reject')}
                                                 </Button>
                                             </div>
                                         </li>
@@ -256,7 +258,7 @@ const GuildManagementPanel: React.FC<GuildManagementPanelProps> = ({
                                                 : 'rounded-xl border-2 border-stone-600/40 bg-gradient-to-br from-stone-900/70 to-neutral-800/70 p-8 text-sm backdrop-blur-md shadow-inner'
                                         }`}
                                     >
-                                        가입 신청이 없습니다.
+                                        {t('management.noApplications')}
                                     </p>
                                 </div>
                             )}

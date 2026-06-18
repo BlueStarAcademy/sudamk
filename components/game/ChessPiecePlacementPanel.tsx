@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { tx } from '../../shared/i18n/runtimeText.js';
 import type { ChessPieceType, LiveGameSession, ServerAction, User } from '../../types.js';
 import { GameMode, Player } from '../../types/enums.js';
 import {
@@ -18,11 +19,11 @@ import {
 } from '../../shared/utils/pairChessSetup.js';
 
 const PIECE_OPTIONS: { type: Exclude<ChessPieceType, 'king'>; label: string }[] = [
-    { type: 'pawn', label: '폰' },
-    { type: 'rook', label: '룩' },
-    { type: 'knight', label: '나이트' },
-    { type: 'bishop', label: '비숍' },
-    { type: 'queen', label: '퀸' },
+    { type: 'pawn', label: tx('game:chessPlacement.pawn') },
+    { type: 'rook', label: tx('game:chessPlacement.rook') },
+    { type: 'knight', label: tx('game:chessPlacement.knight') },
+    { type: 'bishop', label: tx('game:chessPlacement.bishop') },
+    { type: 'queen', label: tx('game:chessPlacement.queen') },
 ];
 
 const PANEL_SHELL =
@@ -121,7 +122,7 @@ const ChessPiecePlacementPanel: React.FC<ChessPiecePlacementPanelProps> = ({
                         type="button"
                         disabled={disabled}
                         onClick={() => onSelectPieceType(selected ? null : type)}
-                        title={`${label} · ${moves}회 · ${cost}점`}
+                        title={tx('game:chessPlacement.pieceTitle', { label, moves, cost })}
                         className={[
                             'group relative flex flex-col items-center overflow-hidden rounded-2xl border px-2 py-2 transition-all duration-200 sm:px-2.5 sm:py-2.5',
                             isMobile ? 'min-w-[4.75rem]' : 'min-w-[5.5rem]',
@@ -169,8 +170,8 @@ const ChessPiecePlacementPanel: React.FC<ChessPiecePlacementPanelProps> = ({
             <div className={PANEL_SHELL}>
                 <div className={PANEL_GLOW} aria-hidden />
                 <div className="relative px-5 py-4 text-center">
-                    <p className="text-sm font-semibold text-sky-200/95">방장이 기물을 배치합니다</p>
-                    <p className="mt-1.5 text-xs text-stone-400">배치가 끝나면 공격 턴에 참여합니다.</p>
+                    <p className="text-sm font-semibold text-sky-200/95">{tx("game:chessPlacement.hostPlacing")}</p>
+                    <p className="mt-1.5 text-xs text-stone-400">{tx("game:chessPlacement.hostPlacingHint")}</p>
                 </div>
             </div>
         );
@@ -210,7 +211,7 @@ const ChessPiecePlacementPanel: React.FC<ChessPiecePlacementPanelProps> = ({
                             <p
                                 className={`mt-1.5 max-w-[14rem] font-medium leading-snug text-emerald-200/90 sm:max-w-none ${isMobile ? 'text-[10px]' : 'text-xs'}`}
                             >
-                                {isAiGame ? '배치 완료 · 게임을 시작합니다…' : '배치 완료 · 상대를 기다리는 중…'}
+                                {isAiGame ? tx('game:chessPlacement.completeStarting') : tx('game:chessPlacement.completeWaiting')}
                             </p>
                         )}
                     </div>
@@ -258,7 +259,7 @@ const ChessPiecePlacementPanel: React.FC<ChessPiecePlacementPanelProps> = ({
                                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400/70 opacity-60" />
                                     <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-400" />
                                 </span>
-                                <span className="tabular-nums">{secondsLeft}초</span>
+                                <span className="tabular-nums">{tx("game:chessPlacement.secondsLeft", { sec: secondsLeft })}</span>
                             </span>
                         ) : (
                             <span />
@@ -271,7 +272,7 @@ const ChessPiecePlacementPanel: React.FC<ChessPiecePlacementPanelProps> = ({
                                     : 'border-slate-600/40 bg-slate-900/60 text-slate-400',
                             ].join(' ')}
                         >
-                            {opponentReady ? '● 상대 배치 완료' : '○ 상대 배치 중'}
+                            {opponentReady ? tx('game:chessPlacement.opponentReady') : tx('game:chessPlacement.opponentPlacing')}
                         </span>
                     </div>
                 )}
@@ -289,7 +290,7 @@ const ChessPiecePlacementPanel: React.FC<ChessPiecePlacementPanelProps> = ({
                         className={`${ACTION_BTN_BASE} ${actionBtnSize} border-slate-500/35 bg-[linear-gradient(165deg,#334155_0%,#1e293b_48%,#0f172a_100%)] text-slate-100`}
                         onClick={() => !myReady && onAction({ type: 'FILL_CHESS_SETUP_RANDOMLY', payload: { gameId } })}
                     >
-                        <span className="relative z-[1]">랜덤 배치</span>
+                        <span className="relative z-[1]">{tx("game:chessPlacement.randomPlace")}</span>
                     </button>
                     <button
                         type="button"
@@ -297,7 +298,7 @@ const ChessPiecePlacementPanel: React.FC<ChessPiecePlacementPanelProps> = ({
                         className={`${ACTION_BTN_BASE} ${actionBtnSize} border-rose-500/30 bg-[linear-gradient(165deg,#7f1d1d_0%,#450a0a_52%,#1c0505_100%)] text-rose-50`}
                         onClick={() => !myReady && onAction({ type: 'RESET_CHESS_SETUP_PLACEMENT', payload: { gameId } })}
                     >
-                        <span className="relative z-[1]">재배치</span>
+                        <span className="relative z-[1]">{tx("game:chessPlacement.reset")}</span>
                     </button>
                     <button
                         type="button"

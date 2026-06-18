@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import React, { type ReactNode } from 'react';
 import {
     MOBILE_MODAL_TITLE_BAR_CLASS,
@@ -24,7 +25,9 @@ const MobileModalTitleBar: React.FC<MobileModalTitleBarProps> = ({
     topRoundedClass = 'rounded-t-xl',
     className,
     titleId,
-}) => (
+}) => {
+    const { t } = useTranslation('common');
+    return (
     <div className={`${MOBILE_MODAL_TITLE_BAR_CLASS} ${topRoundedClass}${className ? ` ${className}` : ''}`}>
         <h2 id={titleId} className={MOBILE_MODAL_TITLE_HEADING_CLASS}>
             {titleContent ?? title}
@@ -39,7 +42,7 @@ const MobileModalTitleBar: React.FC<MobileModalTitleBarProps> = ({
                         onClose();
                     }}
                     className={`z-30 shrink-0 ${SUDAMR_MODAL_CLOSE_BUTTON_CLASS}`}
-                    aria-label={`${title} 닫기`}
+                    aria-label={t('modal.closeAria', { title })}
                 >
                     닫기
                 </button>
@@ -47,5 +50,6 @@ const MobileModalTitleBar: React.FC<MobileModalTitleBarProps> = ({
         </div>
     </div>
 );
+};
 
 export default MobileModalTitleBar;

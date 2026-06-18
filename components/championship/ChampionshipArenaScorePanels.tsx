@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { formatChampionshipPanelScoreDisplay, type ChampionshipPanelScoreKind } from '../../utils/championshipLiveScores.js';
 
 /** 챔피언십 인게임 — 흑/백 점수·계가까지 패널 (PVE·PVP 공통, 불투명 배경) */
@@ -33,7 +34,7 @@ export const ChampionshipDesktopScoreBox: React.FC<{
     <div
         className={`flex w-[4.8rem] shrink-0 flex-col items-center justify-center rounded-lg px-2 py-1.5 text-center ${championshipScoreBoxClass(isWhite)}`}
     >
-        <span className={`text-[10px] font-bold leading-none ${championshipScoreBoxLabelClass(isWhite)}`}>점수</span>
+        <span className={`text-[10px] font-bold leading-none ${championshipScoreBoxLabelClass(isWhite)}`}>{t('arena.score')}</span>
         <span className="mt-1 text-xl font-black leading-none tabular-nums">
             {formatChampionshipPanelScoreDisplay(score, scoreKind)}
         </span>
@@ -45,7 +46,7 @@ export const ChampionshipDesktopScoringCountdownBox: React.FC<{
     max: number;
 }> = ({ remaining, max }) => (
     <div className={`w-36 ${championshipScoringCountdownBoxClass}`}>
-        <div className="text-[11px] font-bold tracking-wide text-amber-100">계가까지</div>
+        <div className="text-[11px] font-bold tracking-wide text-amber-100">{t('championship.scoringUntil')}</div>
         <div className="mt-0.5 text-2xl font-black tabular-nums text-white">
             {remaining ?? '-'}/{max}
         </div>
@@ -68,7 +69,7 @@ export const ChampionshipMobileScoreCell: React.FC<{
             }`}
         >
             <span className={`max-w-[4.5rem] text-center text-[8px] font-bold leading-tight tracking-wide ${labelColor}`}>
-                {colorLabel ? `${colorLabel} 점수` : '점수'}
+                {colorLabel ? t('arena.colorScore', { color: colorLabel }) : t('arena.score')}
             </span>
             <span className="text-base font-black leading-none tabular-nums">{scoreText}</span>
         </div>
@@ -80,7 +81,7 @@ export const ChampionshipMobileScoringCountdownCell: React.FC<{
     max: number;
 }> = ({ remaining, max }) => (
     <div className={championshipMobileScoringCountdownBoxClass}>
-        <div className="text-[9px] font-bold tracking-wide text-amber-100">계가까지</div>
+        <div className="text-[9px] font-bold tracking-wide text-amber-100">{t('championship.scoringUntil')}</div>
         <div className="text-base font-black tabular-nums leading-none text-white">
             {remaining}/{max}
         </div>

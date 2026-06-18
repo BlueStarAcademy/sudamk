@@ -1,4 +1,5 @@
 import React from 'react';
+import { tx } from '../../shared/i18n/runtimeText.js';
 import { RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS } from './ResultModalRewardSlot.js';
 
 /** 데스크톱·넓은 화면: 골드·아이템 슬롯과 동일한 아이콘 박스 크기 */
@@ -84,17 +85,17 @@ export const ResultModalXpRewardBadge: React.FC<{
     const showPetZero = variant === 'pet' && allowZeroDisplay && amount <= 0;
     if (amount <= 0 && !showPetZero) return null;
     const v = VARIANT[variant];
-    const modeLabel = variant === 'strategy' ? '' : variant === 'playful' ? '놀이' : '펫';
+    const modeLabel = variant === 'strategy' ? '' : variant === 'playful' ? tx('game:resultModal.playfulShort') : tx('game:resultModal.petShort');
     const defaultTitle =
         showPetZero
-            ? '변동 없음'
+            ? tx('game:resultModal.noChange')
             : variant === 'pet' && petXpSpecSplit && petXpSpecSplit.spec > 0
-              ? `기본 +${petXpSpecSplit.base.toLocaleString()} (특화 +${petXpSpecSplit.spec.toLocaleString()})`
+              ? tx('game:resultModal.petXpSplit', { base: petXpSpecSplit.base.toLocaleString(), spec: petXpSpecSplit.spec.toLocaleString() })
               : variant === 'strategy'
                 ? `EXP +${amount.toLocaleString()}`
                 : variant === 'pet'
                   ? `EXP +${amount.toLocaleString()}`
-                  : `${modeLabel} 경험치 +${amount.toLocaleString()}`;
+                  : tx('game:resultModal.modeXpGain', { mode: modeLabel, amount: amount.toLocaleString() });
 
     const isPreGameInline = density === 'preGameInline';
     const isCompact = density === 'compact' || isPreGameInline;
@@ -133,7 +134,7 @@ export const ResultModalXpRewardBadge: React.FC<{
                     className={`text-center ${isCompact ? `flex max-w-[5.5rem] flex-wrap items-baseline justify-center gap-x-0.5 ${v.amountCompact}` : v.amount}`}
                 >
                     {showPetZero ? (
-                        <span className="whitespace-nowrap text-slate-400">변동 없음</span>
+                        <span className="whitespace-nowrap text-slate-400">{tx("game:resultModal.noChange")}</span>
                     ) : variant === 'pet' && petXpSpecSplit ? (
                         <span className="flex flex-wrap items-baseline justify-center gap-x-0.5 whitespace-nowrap">
                             <span>+{petXpSpecSplit.base.toLocaleString()}</span>
@@ -163,7 +164,7 @@ export const ResultModalPetGradeUpgradeNeededSlot: React.FC<{
     return (
         <div
             className={`flex flex-col items-center gap-0.5 ${isCompact ? 'shrink-0' : ''} ${className}`.trim()}
-            title="펫 등급강화 필요"
+            title={tx('game:resultModal.petGradeUpgradeNeeded')}
         >
             <div
                 className={`flex ${DENSITY_BOX[density]} shrink-0 flex-col items-center justify-center rounded-lg border px-0.5 ring-1 ring-inset ${v.box}`}

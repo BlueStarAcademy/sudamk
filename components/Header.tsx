@@ -1,6 +1,7 @@
 
 import React, { memo, useCallback, useEffect, useLayoutEffect, useMemo, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { UserWithStatus } from '../types.js';
 import type { ServerAction } from '../types/api.js';
 import Button from './Button.js';
@@ -20,16 +21,6 @@ import { resourceIcons, ResourceIconKey, specialResourceIcons, SpecialResourceIc
 import ChampionshipVersusDuelTicketCountdown from './ChampionshipVersusDuelTicketCountdown.js';
 import LiveCountdownToMs from './LiveCountdownToMs.js';
 import { computeChampionshipVersusDuelTicketStateForVenue } from '../shared/utils/championshipVersusDuelTickets.js';
-
-const RESOURCE_LABEL: Record<ResourceIconKey, string> = {
-    gold: '골드',
-    diamonds: '다이아',
-};
-
-const SPECIAL_RESOURCE_LABEL: Record<SpecialResourceIconKey, string> = {
-    guildCoins: '길드 코인',
-    champCoins: '챔프 코인',
-};
 
 /**
  * 헤더 재화 숫자 — 골드·다이아·길드 코인 동일 클래스 (이전 9px 하한·dense 맞춤으로 길드만 작아지던 문제 방지)
@@ -78,6 +69,7 @@ const ResourceDisplay = memo<{
     /** fluid일 때 내용 너비만 쓰고 늘리지 않음 (헤더 우측 정렬 등) */
     fluidShrinkToFit?: boolean;
 }>(({ icon, value, className, dense, fluid, fluidShrinkToFit }) => {
+    const { t } = useTranslation('common');
     const formattedValue = useMemo(() => value.toLocaleString(), [value]);
     const shell =
         fluid && !fluidShrinkToFit
@@ -109,7 +101,7 @@ const ResourceDisplay = memo<{
             } ${className ?? ''}`}
         >
             <div className={`bg-primary flex flex-shrink-0 items-center justify-center rounded-full ${iconShell}`}>
-                <img src={resourceIcons[icon]} alt={RESOURCE_LABEL[icon]} className={`object-contain ${iconImg}`} decoding="async" fetchpriority="high" />
+                <img src={resourceIcons[icon]} alt={t(`resources.${icon}`)} className={`object-contain ${iconImg}`} decoding="async" fetchpriority="high" />
             </div>
             <span className={`font-bold text-primary whitespace-nowrap ${valueClass}`}>
                 {formattedValue}
@@ -245,6 +237,8 @@ export const ActionPointTimer: React.FC<{ user: UserWithStatus; mobile?: boolean
 interface HeaderProps { compact?: boolean }
 
 const Header: React.FC<HeaderProps> = ({ compact = false }) => {
+    const { t: tCommon } = useTranslation('common');
+    const { t: tNav } = useTranslation('nav');
     const { currentUserWithStatus, unreadMailCount } = useAppUserSlice();
     const { handlers } = useAppUiSlice();
     const { isNativeMobile } = useAppRouteSlice();
@@ -367,19 +361,19 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
     const mobileAdditionalResources = useMemo(
         () => [
             {
-                key: 'guildCoins',
+                key: 'guildCoins' as const,
                 icon: specialResourceIcons.guildCoins,
-                label: SPECIAL_RESOURCE_LABEL.guildCoins,
+                label: tCommon('resources.guildCoins'),
                 value: guildCoins ?? 0,
             },
             {
-                key: 'champCoins',
+                key: 'champCoins' as const,
                 icon: specialResourceIcons.champCoins,
-                label: SPECIAL_RESOURCE_LABEL.champCoins,
+                label: tCommon('resources.champCoins'),
                 value: champCoins ?? 0,
             },
         ],
-        [guildCoins, champCoins],
+        [guildCoins, champCoins, tCommon],
     );
 
     const specialResourcesPopoverPanel = (
@@ -388,15 +382,15 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                 ? mobileAdditionalResources
                 : [
                       {
-                          key: 'guildCoins',
+                          key: 'guildCoins' as const,
                           icon: specialResourceIcons.guildCoins,
-                          label: SPECIAL_RESOURCE_LABEL.guildCoins,
+                          label: tCommon('resources.guildCoins'),
                           value: guildCoins ?? 0,
                       },
                       {
-                          key: 'champCoins',
+                          key: 'champCoins' as const,
                           icon: specialResourceIcons.champCoins,
-                          label: SPECIAL_RESOURCE_LABEL.champCoins,
+                          label: tCommon('resources.champCoins'),
                           value: champCoins ?? 0,
                       },
                   ]
@@ -597,11 +591,11 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                                           dense ? 'h-7 w-7' : 'h-7 w-7 sm:h-8 sm:w-8'
                                       }`
                             }`}
-                            title="행동력 충전 (상점)"
+                            title={tNav('header.actionPointRechargeShop')}
                         >
                             <img
                                 src={resourceIcons.actionPlus}
-                                alt="행동력 충전"
+                                alt={tNav('header.actionPointRecharge')}
                                 className={`object-contain ${
                                     isMobile
                                         ? 'h-[clamp(0.75rem,2.6vw,0.95rem)] w-[clamp(0.75rem,2.6vw,0.95rem)]'
@@ -629,7 +623,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                                           dense ? 'h-7 w-7' : 'h-7 w-7 sm:h-8 sm:w-8'
                                       }`
                             } ${isParticipationTicketsOpen ? 'bg-tertiary/80' : ''}`}
-                            title="길드·챔피언십 참여권"
+                            title={tNav('header.participationTickets')}
                         >
                             <span
                                 className={`${
@@ -677,7 +671,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                                     className={`${MOBILE_HEADER_CHEVRON_BTN} ${
                                         isSpecialResourcesOpen ? 'bg-tertiary/80' : ''
                                     }`}
-                                    title="길드 코인·챔프 코인"
+                                    title={tNav('header.guildChampCoins')}
                                 >
                                     <span
                                         className={`${MOBILE_HEADER_CHEVRON_ICON} ${
@@ -703,7 +697,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                                     className={`flex flex-shrink-0 items-center justify-center rounded-full border border-tertiary/40 bg-tertiary/60 shadow-inner transition-all hover:bg-tertiary/80 active:scale-95 ${
                                         dense ? 'h-7 w-7' : 'h-7 w-7 sm:h-8 sm:w-8'
                                     } ${isSpecialResourcesOpen ? 'bg-tertiary/80' : ''}`}
-                                    title="길드 코인·챔프 코인"
+                                    title={tNav('header.guildChampCoins')}
                                 >
                                     <span
                                         className={`text-xs text-primary transition-transform duration-200 sm:text-sm ${
@@ -746,7 +740,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                                 ...(dense && !isMobile ? { fontSize: '10px' } : {}),
                             }}
                         >
-                            관리자
+                            {tNav('header.admin')}
                         </Button>
                     )}
                     <button
@@ -758,11 +752,11 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                                   ? 'relative flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-primary/60 bg-primary/70 transition-colors hover:bg-primary'
                                   : 'relative flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-primary/60 bg-primary/70 transition-colors hover:bg-primary'
                         }
-                        title="우편함"
+                        title={tNav('header.mailbox')}
                     >
                         <img
                             src="/images/icon/mail.webp"
-                            alt="우편함"
+                            alt={tNav('header.mailbox')}
                             className={`object-contain ${
                                 isMobile ? MOBILE_HEADER_MAIL_ICON : dense ? 'h-4 w-4' : 'h-6 w-6'
                             }`}
@@ -792,8 +786,8 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                                   ? 'relative flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-primary/60 bg-primary/70 text-sm transition-colors hover:bg-primary'
                                   : 'relative flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-primary/60 bg-primary/70 text-xl transition-colors hover:bg-primary'
                         }
-                        title="설정"
-                        aria-label="설정 열기"
+                        title={tNav('header.settings')}
+                        aria-label={tNav('header.settingsOpen')}
                     >
                         ⚙️
                     </button>
@@ -803,8 +797,8 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                         className={`flex shrink-0 items-center justify-center rounded-full border-2 border-red-800/85 bg-red-500 text-black shadow-sm transition-colors hover:bg-red-600 ${
                             isMobile ? MOBILE_HEADER_ACTION_BTN : dense ? 'h-9 w-9' : 'h-10 w-10'
                         }`}
-                        title="로그아웃"
-                        aria-label="로그아웃"
+                        title={tNav('header.logout')}
+                        aria-label={tNav('header.logout')}
                     >
                         <svg
                             viewBox="0 0 24 24"
@@ -869,10 +863,10 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
             )}
         {showLogoutConfirm && (
             <ConfirmModal
-                title="로그아웃"
-                message="로그아웃 하시겠습니까?"
-                confirmText="로그아웃"
-                cancelText="취소"
+                title={tNav('header.logout')}
+                message={tNav('header.logoutConfirm')}
+                confirmText={tNav('header.logout')}
+                cancelText={tCommon('actions.cancel')}
                 onConfirm={handleLogout}
                 onCancel={() => setShowLogoutConfirm(false)}
                 isTopmost

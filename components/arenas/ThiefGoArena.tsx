@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { GameProps, Player, Point } from '../../types.js';
 import GoBoard from '../GoBoard.js';
 import { getGoLogic } from '../../client/logic/goLogic.js';
@@ -15,6 +16,7 @@ interface ThiefGoArenaProps extends GameProps {
 }
 
 const ThiefGoArena: React.FC<ThiefGoArenaProps> = (props) => {
+    const { t } = useTranslation('game');
     const {
         session,
         onAction,
@@ -42,7 +44,8 @@ const ThiefGoArena: React.FC<ThiefGoArenaProps> = (props) => {
         if (gameStatus !== 'thief_placing' || !isMyTurn || (session.stonesToPlace ?? 0) <= 0) return [];
 
         const logic = getGoLogic(session);
-        const myRole = currentUser.id === thiefPlayerId ? '도둑' : '경찰';
+        const isThief = currentUser.id === thiefPlayerId;
+        const myRole = isThief ? t('playerPanel.thief') : t('playerPanel.police');
         const allEmptyPoints = () => {
             const points: Point[] = [];
             for (let y = 0; y < settings.boardSize; y++) {
@@ -55,7 +58,7 @@ const ThiefGoArena: React.FC<ThiefGoArenaProps> = (props) => {
             return points;
         };
 
-        if (myRole === '도둑') {
+        if (isThief) {
             const noBlackStonesOnBoard = !boardState.flat().includes(Player.Black);
             const canPlaceFreely =
                 session.turnInRound === 1 || noBlackStonesOnBoard || !!session.thiefFreestyleThiefPlacing;
@@ -107,8 +110,8 @@ const ThiefGoArena: React.FC<ThiefGoArenaProps> = (props) => {
                         highlightStyle="ring"
                         isSpectator={isSpectator}
                         currentUser={currentUser}
-                        blackPlayerNickname={blackPlayer?.nickname || '흑'}
-                        whitePlayerNickname={whitePlayer?.nickname || '백'}
+                        blackPlayerNickname={blackPlayer?.nickname || t('black')}
+                        whitePlayerNickname={whitePlayer?.nickname || t('white')}
                         isItemModeActive={false}
                         animation={animation}
                         isMobile={isMobile}

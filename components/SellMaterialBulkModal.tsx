@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 import { InventoryItem, UserWithStatus } from '../types.js';
 import { ItemGrade } from '../types/enums.js';
@@ -28,6 +29,7 @@ const SellMaterialBulkModal: React.FC<SellMaterialBulkModalProps> = ({
     isTopmost = true,
     viewportPortal = false,
 }) => {
+    const { t } = useTranslation('inventory');
     const isTicket = isRefinementTicketMaterial(item.name);
     const normalizedTicketName = normalizeRefinementTicketInventoryName(item.name);
     const totalQuantity = useMemo(() => {
@@ -73,7 +75,7 @@ const SellMaterialBulkModal: React.FC<SellMaterialBulkModalProps> = ({
 
     const totalPrice = pricePerUnit * quantity;
     const isDeleteOnly = pricePerUnit === 0;
-    const label = item.type === 'consumable' ? '소모품' : '재료';
+    const label = item.type === 'consumable' ? t('purchase.consumable') : t('purchase.material');
     const resolvedGrade = (item.grade ?? ItemGrade.Normal) as ItemGrade;
     const tierBg = gradeBackgrounds[resolvedGrade] ?? gradeBackgrounds[ItemGrade.Normal];
     const tierStyle = gradeStyles[resolvedGrade] ?? gradeStyles[ItemGrade.Normal];
@@ -81,7 +83,7 @@ const SellMaterialBulkModal: React.FC<SellMaterialBulkModalProps> = ({
 
     return (
         <DraggableWindow
-            title={item.type === 'consumable' ? '소모품 일괄 판매' : '재료 일괄 판매'}
+            title={item.type === 'consumable' ? t('sellBulk.consumableBulk') : t('sellBulk.materialBulk')}
             onClose={onClose}
             windowId="sellMaterialBulk"
             isTopmost={isTopmost}
@@ -97,14 +99,13 @@ const SellMaterialBulkModal: React.FC<SellMaterialBulkModalProps> = ({
             <div className="flex min-h-0 flex-1 flex-col gap-2.5 p-3 pb-2 text-slate-100 sm:gap-2.5 sm:p-3 sm:pb-2">
                 <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-br from-slate-900/95 via-slate-950/90 to-zinc-950/95 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:p-4">
                     <p className="text-center text-xs font-bold tracking-wide text-cyan-200/85 sm:text-[11px] sm:font-semibold sm:uppercase sm:tracking-[0.2em] sm:text-cyan-200/60">
-                        일괄 판매
+                        {t('sellBulk.bulkSellTitle')}
                     </p>
                     <h3 className="mt-1 text-center text-xl font-black leading-snug tracking-tight text-slate-50 sm:mt-1 sm:text-lg">
-                        판매할 수량을 정하세요
+                        {t('sellBulk.pickAmount')}
                     </h3>
                     <p className="mt-1 text-center text-sm text-slate-300 sm:mt-1 sm:text-xs sm:text-slate-400">
-                        {label} · 합계{' '}
-                        <span className="font-semibold text-slate-100">{totalQuantity.toLocaleString()}</span>개 보유
+                        {t('sellBulk.ownedTotalLine', { label, count: totalQuantity.toLocaleString() })}
                     </p>
 
                     <div className="mt-2 flex flex-col items-center gap-2 rounded-xl border border-white/[0.06] bg-black/25 p-2.5 sm:flex-row sm:items-center sm:gap-3 sm:p-3">
@@ -134,9 +135,9 @@ const SellMaterialBulkModal: React.FC<SellMaterialBulkModalProps> = ({
 
                     <div className="mt-3 flex flex-wrap justify-center gap-2">
                         {[
-                            { label: '1개', q: 1 },
-                            { label: '절반', q: Math.max(1, Math.floor(totalQuantity / 2)) },
-                            { label: '전부', q: totalQuantity },
+                            { label: t('useQuantity.one'), q: 1 },
+                            { label: t('useQuantity.half'), q: Math.max(1, Math.floor(totalQuantity / 2)) },
+                            { label: t('useQuantity.all'), q: totalQuantity },
                         ].map((p) => (
                             <button
                                 key={p.label}
@@ -153,7 +154,7 @@ const SellMaterialBulkModal: React.FC<SellMaterialBulkModalProps> = ({
 
                 <div className="space-y-2.5 rounded-2xl border border-white/[0.07] bg-slate-950/40 p-3 sm:p-2.5">
                     <div className="flex items-baseline justify-between gap-2">
-                        <span className="text-sm font-bold text-slate-300 sm:text-xs sm:uppercase sm:tracking-wider sm:text-slate-500">판매 수량</span>
+                        <span className="text-sm font-bold text-slate-300 sm:text-xs sm:uppercase sm:tracking-wider sm:text-slate-500">{t('sellBulk.sellAmount')}</span>
                         <span className="font-mono text-base font-black tabular-nums text-cyan-100 sm:text-sm">
                             {quantity.toLocaleString()} <span className="text-slate-500">/</span> {totalQuantity.toLocaleString()}
                         </span>
@@ -191,9 +192,9 @@ const SellMaterialBulkModal: React.FC<SellMaterialBulkModalProps> = ({
 
                 <div className="rounded-2xl border border-amber-500/25 bg-gradient-to-r from-amber-950/50 via-yellow-950/35 to-amber-950/50 p-3 shadow-[0_0_32px_-12px_rgba(245,158,11,0.35)] sm:p-3">
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-                        <span className="text-sm font-semibold text-slate-300 sm:text-slate-400">개당 판매가</span>
+                        <span className="text-sm font-semibold text-slate-300 sm:text-slate-400">{t('sellBulk.unitPriceLabel')}</span>
                         <span className={`text-right text-base font-bold tabular-nums sm:text-sm ${isDeleteOnly ? 'text-slate-500' : 'text-amber-200/90'}`}>
-                            {isDeleteOnly ? '0 (삭제만)' : `${pricePerUnit.toLocaleString()} 골드`}
+                            {isDeleteOnly ? t('sellBulk.deleteOnly') : t('sellBulk.goldUnit', { amount: pricePerUnit.toLocaleString() })}
                         </span>
                     </div>
                     <div className="mt-2 flex flex-col gap-2 border-t border-amber-500/15 pt-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
@@ -202,7 +203,7 @@ const SellMaterialBulkModal: React.FC<SellMaterialBulkModalProps> = ({
                                 <img src="/images/icon/Gold.webp" alt="" className="h-7 w-7 object-contain sm:h-6 sm:w-6" />
                             </div>
                             <span className="text-sm font-bold text-amber-200/85 sm:text-xs sm:uppercase sm:tracking-wider sm:text-amber-200/60">
-                                {isDeleteOnly ? '합계 (삭제)' : '총 받을 골드'}
+                                {isDeleteOnly ? t('sellBulk.deleteCheckout') : t('sellBulk.totalReceive')}
                             </span>
                         </div>
                         <span
@@ -214,7 +215,7 @@ const SellMaterialBulkModal: React.FC<SellMaterialBulkModalProps> = ({
                         </span>
                     </div>
                     {isDeleteOnly && (
-                        <p className="mt-2 text-center text-sm text-slate-400 sm:text-[11px] sm:text-slate-500">골드는 들어오지 않고, 선택한 개수만큼만 사라집니다.</p>
+                        <p className="mt-2 text-center text-sm text-slate-400 sm:text-[11px] sm:text-slate-500">{t('sellBulk.noGoldHint')}</p>
                     )}
                 </div>
             </div>
@@ -232,7 +233,7 @@ const SellMaterialBulkModal: React.FC<SellMaterialBulkModalProps> = ({
                         disabled={quantity === 0 || quantity > totalQuantity || totalQuantity === 0}
                         className="min-h-[42px] flex-1 rounded-xl border border-rose-400/40 bg-gradient-to-b from-rose-500/95 via-rose-600 to-rose-950 px-3 py-2.5 text-sm font-black text-rose-50 shadow-[0_6px_24px_-6px_rgba(244,63,94,0.55),inset_0_1px_0_rgba(255,255,255,0.15)] transition-all hover:border-rose-300/50 hover:from-rose-400 hover:via-rose-500 disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none active:scale-[0.98]"
                     >
-                        {quantity.toLocaleString()}개 판매
+                        {t('sellBulk.sellCount', { count: quantity })}
                     </button>
                 </div>
             </>

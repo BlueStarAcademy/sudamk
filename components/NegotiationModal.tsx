@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Negotiation, UserWithStatus, GameSettings, GameMode, ServerAction, DiceGoVariant, Player, AlkkagiPlacementType, AlkkagiLayoutType, User } from '../types.js';
 import {
     basePvpActionPointCostForMode,
@@ -58,6 +59,7 @@ const SettingRow: React.FC<{ label: string, children: React.ReactNode, className
 
 // A component that handles its own timer to prevent re-rendering the whole modal.
 const CountdownDisplay: React.FC<{ deadline: number }> = ({ deadline }) => {
+    const { t } = useTranslation('negotiation');
     const [countdown, setCountdown] = useState(() => Math.max(0, Math.ceil((deadline - Date.now()) / 1000)));
 
     useEffect(() => {
@@ -72,7 +74,8 @@ const CountdownDisplay: React.FC<{ deadline: number }> = ({ deadline }) => {
         return () => clearInterval(timer);
     }, [deadline]);
 
-    return <span className="text-lg font-bold tabular-nums">({countdown}초)</span>;
+    const { t } = useTranslation('negotiation');
+    return <span className="text-lg font-bold tabular-nums">{t('countdownSec', { count: countdown })}</span>;
 };
 
 
@@ -81,6 +84,8 @@ const CountdownDisplay: React.FC<{ deadline: number }> = ({ deadline }) => {
 
 
 const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
+  const { t } = useTranslation('negotiation');
+  const { t: tCommon } = useTranslation('common');
   const { negotiation, currentUser, onAction, onlineUsers, isTopmost } = props;
   const { handlers } = useAppContext();
   const [settings, setSettings] = useState<GameSettings>(negotiation.settings);
@@ -213,7 +218,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
     const totalGames = wins + losses;
     const winRate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
     
-    return { level, levelLabel: '유저', wins, losses, mannerScore, winRate };
+    return { level, levelLabel: t('userLevel'), wins, losses, mannerScore, winRate };
   }, [opponent, negotiation.mode]);
 
   const opponentAvatarUrl = useMemo(() => AVATAR_POOL.find(a => a.id === opponent.avatarId)?.url, [opponent.avatarId]);
@@ -308,11 +313,11 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
 
   const title = useMemo(() => {
     const modeName = negotiation.mode;
-    const casualPrefix = isCasual ? '[친선전] ' : '';
-    if (isAiGame) return `${casualPrefix}${modeName} AI 대국 설정`;
-    if (negotiation.rematchOfGameId) return `${casualPrefix}재대결 설정 (${modeName})`;
-    return `${casualPrefix}대국 설정 (${modeName})`;
-  }, [negotiation.mode, negotiation.rematchOfGameId, isAiGame, isCasual]);
+    const casualPrefix = isCasual ? `[${t('casualTag')}] ` : '';
+    if (isAiGame) return t('titleAi', { prefix: casualPrefix, mode: modeName });
+    if (negotiation.rematchOfGameId) return t('titleRematch', { prefix: casualPrefix, mode: modeName });
+    return t('titleDefault', { prefix: casualPrefix, mode: modeName });
+  }, [negotiation.mode, negotiation.rematchOfGameId, isAiGame, isCasual, t]);
 
   const showApInfoFooter = isCasual && (isAiGame || isCreatingDraft || isMyTurnToRespond);
 
@@ -325,10 +330,10 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
         return (
              <div className={rowPair}>
                 <Button onClick={onDecline} colorScheme="none" className={`${PRE_GAME_MODAL_SECONDARY_BTN_CLASS} shrink-0 !font-semibold !tracking-wide`}>
-                    취소
+                    {tCommon('actions.cancel')}
                 </Button>
                 <Button onClick={tryStartAiGame} colorScheme="none" className={`${PRE_GAME_MODAL_PRIMARY_BTN_CLASS} shrink-0 !font-semibold !tracking-wide`}>
-                    시작하기 (⚡{actionPointCostDisplay})
+                    {t('start', { cost: actionPointCostDisplay })}
                 </Button>
             </div>
         );
@@ -339,7 +344,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
       return (
         <div className={rowPair}>
           <Button onClick={onDecline} colorScheme="none" className={`${PRE_GAME_MODAL_SECONDARY_BTN_CLASS} shrink-0 !font-semibold !tracking-wide`}>
-            취소
+            {t('cancel')}
           </Button>
           <Button
             onClick={onSendChallenge}
@@ -347,7 +352,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
             colorScheme="none"
             className={`${PRE_GAME_MODAL_PRIMARY_BTN_CLASS} shrink-0 !font-semibold !tracking-wide ${isMixModeInvalid ? '!cursor-not-allowed !opacity-45' : ''}`}
           >
-            대국 신청 (⚡{actionPointCostDisplay})
+            {t('request', { cost: actionPointCostDisplay })}
           </Button>
         </div>
       );
@@ -357,7 +362,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
       return (
         <div className={rowTriple}>
             <Button onClick={onDecline} colorScheme="none" className={`${PRE_GAME_MODAL_DANGER_BTN_CLASS} ${flexThird} !font-semibold !tracking-wide`}>
-                거절
+                {t('reject')}
             </Button>
             <Button
               onClick={onPropose}
@@ -369,7 +374,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                   : `${PRE_GAME_MODAL_ACCENT_BTN_CLASS} ${flexThird} !font-semibold !tracking-wide`
               }
             >
-                수정 제안
+                {t('counter')}
             </Button>
             <Button
               onClick={tryAccept}
@@ -381,7 +386,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                   : `${PRE_GAME_MODAL_SUCCESS_BTN_CLASS} ${flexThird} !font-semibold !tracking-wide`
               }
             >
-                수락 (⚡{actionPointCostDisplay})
+                {t('accept', { cost: actionPointCostDisplay })}
             </Button>
         </div>
       );
@@ -392,11 +397,11 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
   const isReadOnly = isWaitingForOpponent || !iAmProposer;
 
   const getStatusText = () => {
-    if (isAiGame) return `AI 대국 설정을 확인해주세요.`;
-    if (isCreatingDraft) return `대국 설정을 확인하고 [대국 신청] 버튼을 누르세요.`;
-    if (isMyTurnToRespond) return `상대방의 제안을 [수락] 또는 [수정 제안]하세요.`;
-    if (isWaitingForOpponent) return `상대방(${opponent.nickname})의 응답을 기다리는 중...`;
-    return '설정 확인 중...';
+    if (isAiGame) return t('statusAi');
+    if (isCreatingDraft) return t('statusDraft');
+    if (isMyTurnToRespond) return t('statusRespond');
+    if (isWaitingForOpponent) return t('statusWaiting', { name: opponent.nickname });
+    return t('statusChecking');
   };
   
   const Select: React.FC<{ value: any, onChange: (val: any) => void, children: React.ReactNode, disabled?: boolean }> = ({ value, onChange, children, disabled }) => (
@@ -455,8 +460,8 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
       <div onMouseDown={(e) => e.stopPropagation()} className="text-base antialiased">
         {isCasual && (
           <div className="mb-4 p-3 bg-blue-900/30 border border-blue-700/50 rounded-lg">
-            <div className="mb-1 text-base font-semibold text-blue-300">친선전</div>
-            <div className="text-sm leading-snug text-blue-200">이 대국은 친선전입니다. 랭킹 점수 변동이 없습니다.</div>
+            <div className="mb-1 text-base font-semibold text-blue-300">{t('casualTitle')}</div>
+            <div className="text-sm leading-snug text-blue-200">{t('casualDesc')}</div>
           </div>
         )}
         <p className="mb-4 text-center text-lg font-medium text-yellow-300">{getStatusText()} <CountdownDisplay deadline={negotiation.deadline} /></p>
@@ -464,8 +469,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
         {showApInfoFooter && (
           <div className="mb-4 rounded-lg border border-slate-600/50 bg-slate-800/50 p-3 text-center text-base text-slate-200">
             <p>
-              대국 확정 시 양측에서 행동력 <span className="text-amber-300 font-semibold">⚡{actionPointCostDisplay}</span>가 소모됩니다.
-              수락·AI 시작 시 부족하면 행동력 관리 창이 열립니다.
+              {t('actionPointNotice', { cost: actionPointCostDisplay })}
             </p>
           </div>
         )}
@@ -481,8 +485,8 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                         </p>
                     </div>
                     <div className="text-right text-base">
-                        <p className="font-semibold">{opponentStats.wins}승 {opponentStats.losses}패 ({opponentStats.winRate}%)</p>
-                        <p className="text-gray-300">매너: {opponentStats.mannerScore}점</p>
+                        <p className="font-semibold">{t('record', { wins: opponentStats.wins, losses: opponentStats.losses, winRate: opponentStats.winRate })}</p>
+                        <p className="text-gray-300">{t('manner', { score: opponentStats.mannerScore })}</p>
                     </div>
                 </div>
             </div>
@@ -490,10 +494,9 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
             <div className="space-y-3 max-h-[calc(60vh - 12rem)] overflow-y-auto pr-2">
                 {showMixModeSelection && (
                         <div className="col-span-2 pb-2 border-b border-gray-700">
-                            <h3 className="mb-1 text-base font-semibold text-gray-300">믹스룰 조합 (2개 이상 선택)</h3>
+                            <h3 className="mb-1 text-base font-semibold text-gray-300">{t('mixRulesTitle')}</h3>
                             <p className="mb-2 text-sm leading-snug text-gray-500">
-                                함께 적용할 규칙을 고릅니다. (클래식 바둑은 기본으로 포함됩니다.)
-                                따내기와 캐슬은 동시에 선택할 수 없습니다.
+                                {t('mixRulesHint')}
                             </p>
                             <div className="grid grid-cols-2 gap-2 text-base">
                                 {SPECIAL_GAME_MODES.filter(m => m.mode !== GameMode.Standard && m.mode !== GameMode.Mix).map(m => {
@@ -506,7 +509,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                                                 onChange={e => handleMixedModeChange(m.mode, e.target.checked)} 
                                                 disabled={isReadOnly || mixDisabled} 
                                                 className="w-4 h-4"
-                                                title={mixDisabled ? '따내기와 캐슬은 동시에 선택할 수 없습니다.' : undefined}
+                                                title={mixDisabled ? t('mixCaptureCastleConflict') : undefined}
                                             />
                                             <span className="leading-tight">{mixSubRuleDisplayName(m.name)}</span>
                                         </label>
@@ -514,20 +517,20 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                                 })}
                             </div>
                             {settings.mixedModes?.includes(GameMode.Base) && (
-                                <SettingRow label="베이스돌 개수" className="mt-4">
+                                <SettingRow label={t('settings.baseStones')} className="mt-4">
                                     <Select value={settings.baseStones} onChange={v => handleSettingChange('baseStones', parseInt(v))} disabled={isReadOnly}>
-                                        {BASE_STONE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
+                                        {BASE_STONE_COUNTS.map(c => <option key={c} value={c}>{t('countUnit', { count: c })}</option>)}
                                     </Select>
                                 </SettingRow>
                             )}
                             {settings.mixedModes?.includes(GameMode.Hidden) && (
                                 <>
-                                    <SettingRow label="히든돌 개수" className="mt-2">
+                                    <SettingRow label={t('settings.hiddenStones')} className="mt-2">
                                         <Select value={settings.hiddenStoneCount} onChange={v => handleSettingChange('hiddenStoneCount', parseInt(v))} disabled={isReadOnly}>
                                             {HIDDEN_STONE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                                         </Select>
                                     </SettingRow>
-                                    <SettingRow label="스캔 개수" className="mt-2">
+                                    <SettingRow label={t('settings.scanCount')} className="mt-2">
                                         <Select value={settings.scanCount} onChange={v => handleSettingChange('scanCount', parseInt(v))} disabled={isReadOnly}>
                                         {SCAN_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                                         </Select>
@@ -535,21 +538,21 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                                 </>
                             )}
                             {settings.mixedModes?.includes(GameMode.Missile) && (
-                                <SettingRow label="미사일 개수" className="mt-2">
+                                <SettingRow label={t('settings.missileCount')} className="mt-2">
                                     <Select value={settings.missileCount} onChange={v => handleSettingChange('missileCount', parseInt(v))} disabled={isReadOnly}>
                                     {MISSILE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                                     </Select>
                                 </SettingRow>
                             )}
                             {settings.mixedModes?.includes(GameMode.Capture) && (
-                                <SettingRow label="목표점수" className="mt-2">
+                                <SettingRow label={t('settings.captureTarget')} className="mt-2">
                                     <Select value={settings.captureTarget} onChange={v => handleSettingChange('captureTarget', parseInt(v))} disabled={isReadOnly}>
                                         {CAPTURE_TARGETS.map(t => <option key={t} value={t}>{t}개</option>)}
                                     </Select>
                                 </SettingRow>
                             )}
                             {settings.mixedModes?.includes(GameMode.Castle) && (
-                                <SettingRow label="캐슬" className="mt-2">
+                                <SettingRow label={t('settings.castle')} className="mt-2">
                                     <Select value={settings.castleCount ?? getDefaultCastleCountByBoardSize(settings.boardSize ?? 13)} onChange={v => handleSettingChange('castleCount', parseInt(v) as GameSettings['castleCount'])} disabled={isReadOnly}>
                                         {getCastleCountsByBoardSize(settings.boardSize ?? 13).map(c => <option key={c} value={c}>{c}개</option>)}
                                     </Select>
@@ -559,7 +562,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                 )}
 
                 {showBoardSize && (
-                    <SettingRow label="판 크기">
+                    <SettingRow label={t('settings.boardSize')}>
                         <Select value={settings.boardSize} onChange={v => handleSettingChange('boardSize', parseInt(v, 10) as GameSettings['boardSize'])} disabled={isReadOnly}>
                             {(negotiation.mode === GameMode.Omok || negotiation.mode === GameMode.Ttamok
                                 ? OMOK_BOARD_SIZES
@@ -578,7 +581,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                                             : getStrategicBoardSizesByMode(negotiation.mode)
                             ).map((size) => (
                                 <option key={size} value={size}>
-                                    {size}줄
+                                    {t('boardLines', { size })}
                                 </option>
                             ))}
                         </Select>
@@ -586,13 +589,13 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                 )}
 
                 {mode === GameMode.Chess && settings.boardSize === 9 && (
-                    <SettingRow label="기물 총점수">
-                        <span className="text-base text-gray-200">9점 (고정)</span>
+                    <SettingRow label={t('settings.totalScore')}>
+                        <span className="text-base text-gray-200">{t('pointsFixed')}</span>
                     </SettingRow>
                 )}
 
                 {showChessPieceTotalScore && (
-                    <SettingRow label="기물 총점수">
+                    <SettingRow label={t('settings.totalScore')}>
                         <Select
                             value={settings.chessPieceTotalScore ?? getDefaultChessPieceTotalScore(13)}
                             onChange={(v) => handleSettingChange('chessPieceTotalScore', parseInt(v, 10))}
@@ -600,7 +603,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                         >
                             {getChessPieceTotalScoreOptions(13).map((score) => (
                                 <option key={score} value={score}>
-                                    {score}점
+                                    {t('pointsUnit', { score })}
                                 </option>
                             ))}
                         </Select>
@@ -608,7 +611,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                 )}
 
                 {showChessScoringTurnLimit && (
-                    <SettingRow label="계가까지 턴">
+                    <SettingRow label={t('settings.scoringTurns')}>
                         <Select
                             value={settings.scoringTurnLimit ?? getDefaultChessScoringTurnLimit(settings.boardSize ?? 13)}
                             onChange={(v) => handleSettingChange('scoringTurnLimit', parseInt(v, 10))}
@@ -616,7 +619,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                         >
                             {getChessScoringTurnLimitOptions(settings.boardSize ?? 13).map((limit) => (
                                 <option key={limit} value={limit}>
-                                    {limit}수
+                                    {t('turnsUnit', { limit })}
                                 </option>
                             ))}
                         </Select>
@@ -624,7 +627,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                 )}
 
                 {showKomi && (
-                    <SettingRow label="덤 (백)">
+                    <SettingRow label={t('settings.komiWhite')}>
                         <div className="flex items-center gap-2">
                             <input 
                                 type="number" 
@@ -641,21 +644,21 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                                 disabled={isReadOnly} 
                                 className="w-full rounded-lg border border-gray-600 bg-gray-700 py-2.5 pl-2.5 pr-9 text-base text-white focus:border-blue-500 focus:ring-blue-500" 
                             />
-                            <span className="whitespace-nowrap text-xl font-bold text-gray-300">.5 집</span>
+                            <span className="whitespace-nowrap text-xl font-bold text-gray-300">{t('komiHalf')}</span>
                         </div>
                     </SettingRow>
                 )}
 
                 {showAiPlayerColor && (
                     negotiation.mode === GameMode.Thief ? (
-                        <SettingRow label="시작 역할">
+                        <SettingRow label={t('settings.startRole')}>
                             <Select value={settings.player1Color} onChange={v => handleSettingChange('player1Color', parseInt(v, 10))} disabled={isReadOnly}>
-                                <option value={Player.Black}>도둑(흑)</option>
-                                <option value={Player.White}>경찰(백)</option>
+                                <option value={Player.Black}>{t('roles.thiefBlack')}</option>
+                                <option value={Player.White}>{t('roles.policeWhite')}</option>
                             </Select>
                         </SettingRow>
                     ) : (
-                        <SettingRow label="내 돌 색">
+                        <SettingRow label={t('settings.myStoneColor')}>
                             <Select value={settings.player1Color} onChange={v => handleSettingChange('player1Color', parseInt(v, 10))} disabled={isReadOnly}>
                                 <option value={Player.Black}>흑</option>
                                 <option value={Player.White}>백</option>
@@ -676,12 +679,12 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                 
                 {showDiceGoSettings && (
                    <>
-                    <SettingRow label="라운드">
+                    <SettingRow label={t('settings.round')}>
                         <Select value={settings.diceGoRounds ?? 3} onChange={v => handleSettingChange('diceGoRounds', parseInt(v, 10) as 1 | 2 | 3)} disabled={isReadOnly}>
                             {[1, 2, 3].map(r => <option key={r} value={r}>{r}라운드</option>)}
                         </Select>
                     </SettingRow>
-                    <SettingRow label="홀수주사위">
+                    <SettingRow label={t('settings.oddDice')}>
                         <Select
                             value={settings.oddDiceCount ?? 1}
                             onChange={(v) => handleSettingChange('oddDiceCount', parseInt(v, 10))}
@@ -694,7 +697,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                             ))}
                         </Select>
                     </SettingRow>
-                    <SettingRow label="짝수주사위">
+                    <SettingRow label={t('settings.evenDice')}>
                         <Select
                             value={settings.evenDiceCount ?? 1}
                             onChange={(v) => handleSettingChange('evenDiceCount', parseInt(v, 10))}
@@ -707,7 +710,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                             ))}
                         </Select>
                     </SettingRow>
-                    <SettingRow label="(고)주사위">
+                    <SettingRow label={t('settings.highDice')}>
                         <Select
                             value={settings.highDiceCount ?? 1}
                             onChange={(v) => handleSettingChange('highDiceCount', parseInt(v, 10))}
@@ -720,7 +723,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                             ))}
                         </Select>
                     </SettingRow>
-                    <SettingRow label="(저)주사위">
+                    <SettingRow label={t('settings.lowDice')}>
                         <Select
                             value={settings.lowDiceCount ?? 1}
                             onChange={(v) => handleSettingChange('lowDiceCount', parseInt(v, 10))}
@@ -738,7 +741,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
 
                 {showThiefGoItemSettings && (
                     <>
-                        <SettingRow label="(고)주사위">
+                        <SettingRow label={t('settings.highDice')}>
                             <Select
                                 value={settings.thiefHigh36ItemCount ?? 1}
                                 onChange={(v) => handleSettingChange('thiefHigh36ItemCount', parseInt(v, 10))}
@@ -751,7 +754,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                                 ))}
                             </Select>
                         </SettingRow>
-                        <SettingRow label="방지주사위">
+                        <SettingRow label={t('settings.blockDice')}>
                             <Select
                                 value={settings.thiefNoOneItemCount ?? 1}
                                 onChange={(v) => handleSettingChange('thiefNoOneItemCount', parseInt(v, 10))}
@@ -768,14 +771,14 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                 )}
 
                 {showCaptureTarget && (
-                    <SettingRow label="목표점수">
+                    <SettingRow label={t('settings.captureTarget')}>
                         <Select value={settings.captureTarget} onChange={v => handleSettingChange('captureTarget', parseInt(v))} disabled={isReadOnly}>
                             {CAPTURE_TARGETS.map(t => <option key={t} value={t}>{t}개</option>)}
                         </Select>
                     </SettingRow>
                 )}
                 {showTtamokCaptureTarget && (
-                    <SettingRow label="목표점수">
+                    <SettingRow label={t('settings.captureTarget')}>
                         <Select value={settings.captureTarget} onChange={v => handleSettingChange('captureTarget', parseInt(v))} disabled={isReadOnly}>
                             {TTAMOK_CAPTURE_TARGETS.map(t => <option key={t} value={t}>{t}개</option>)}
                         </Select>
@@ -784,13 +787,13 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
 
                 {showOmokRules && (
                     <>
-                        <SettingRow label="쌍삼 금지"><input type="checkbox" checked={settings.has33Forbidden} onChange={e => handleSettingChange('has33Forbidden', e.target.checked)} disabled={isReadOnly} className="w-5 h-5" /></SettingRow>
-                        <SettingRow label="장목 금지"><input type="checkbox" checked={settings.hasOverlineForbidden} onChange={e => handleSettingChange('hasOverlineForbidden', e.target.checked)} disabled={isReadOnly} className="w-5 h-5" /></SettingRow>
+                        <SettingRow label={t('settings.forbid33')}><input type="checkbox" checked={settings.has33Forbidden} onChange={e => handleSettingChange('has33Forbidden', e.target.checked)} disabled={isReadOnly} className="w-5 h-5" /></SettingRow>
+                        <SettingRow label={t('settings.forbidOverline')}><input type="checkbox" checked={settings.hasOverlineForbidden} onChange={e => handleSettingChange('hasOverlineForbidden', e.target.checked)} disabled={isReadOnly} className="w-5 h-5" /></SettingRow>
                     </>
                 )}
 
                 {showBaseStones && (
-                    <SettingRow label="베이스돌 개수">
+                    <SettingRow label={t('settings.baseStones')}>
                         <Select value={settings.baseStones} onChange={v => handleSettingChange('baseStones', parseInt(v))} disabled={isReadOnly}>
                             {BASE_STONE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                         </Select>
@@ -799,12 +802,12 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
 
                 {showHiddenStones && (
                     <>
-                        <SettingRow label="히든돌 개수">
+                        <SettingRow label={t('settings.hiddenStones')}>
                             <Select value={settings.hiddenStoneCount} onChange={v => handleSettingChange('hiddenStoneCount', parseInt(v))} disabled={isReadOnly}>
                                 {HIDDEN_STONE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                             </Select>
                         </SettingRow>
-                        <SettingRow label="스캔 개수">
+                        <SettingRow label={t('settings.scanCount')}>
                             <Select value={settings.scanCount} onChange={v => handleSettingChange('scanCount', parseInt(v))} disabled={isReadOnly}>
                             {SCAN_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                             </Select>
@@ -813,7 +816,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                 )}
                 
                 {showMissileCount && (
-                    <SettingRow label="미사일 개수">
+                    <SettingRow label={t('settings.missileCount')}>
                         <Select value={settings.missileCount} onChange={v => handleSettingChange('missileCount', parseInt(v))} disabled={isReadOnly}>
                         {MISSILE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                         </Select>
@@ -821,7 +824,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                 )}
 
                 {showCastleCount && (
-                    <SettingRow label="캐슬">
+                    <SettingRow label={t('settings.castle')}>
                         <Select value={settings.castleCount ?? getDefaultCastleCountByBoardSize(settings.boardSize ?? 13)} onChange={v => handleSettingChange('castleCount', parseInt(v) as GameSettings['castleCount'])} disabled={isReadOnly}>
                             {getCastleCountsByBoardSize(settings.boardSize ?? 13).map(c => <option key={c} value={c}>{c}개</option>)}
                         </Select>
@@ -830,37 +833,37 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
 
                 {showAlkkagiSettings && (
                     <>
-                        <SettingRow label="라운드">
+                        <SettingRow label={t('settings.round')}>
                             <Select value={settings.alkkagiRounds} onChange={v => handleSettingChange('alkkagiRounds', parseInt(v) as 1 | 2 | 3)} disabled={isReadOnly}>
                                 {ALKKAGI_ROUNDS.map(r => <option key={r} value={r}>{r}라운드</option>)}
                             </Select>
                         </SettingRow>
-                        <SettingRow label="배치 방식">
+                        <SettingRow label={t('settings.placementType')}>
                             <Select value={settings.alkkagiPlacementType} onChange={v => handleSettingChange('alkkagiPlacementType', v as AlkkagiPlacementType)} disabled={isReadOnly}>
                                 {Object.values(AlkkagiPlacementType).map(type => <option key={type} value={type}>{type}</option>)}
                             </Select>
                         </SettingRow>
-                        <SettingRow label="배치 전장">
+                        <SettingRow label={t('settings.placementField')}>
                             <Select value={settings.alkkagiLayout} onChange={v => handleSettingChange('alkkagiLayout', v as AlkkagiLayoutType)} disabled={isReadOnly}>
                                 {Object.values(AlkkagiLayoutType).map(type => <option key={type} value={type}>{type}</option>)}
                             </Select>
                         </SettingRow>
-                        <SettingRow label="바둑돌 개수">
+                        <SettingRow label={t('settings.stoneCount')}>
                             <Select value={settings.alkkagiStoneCount} onChange={v => handleSettingChange('alkkagiStoneCount', parseInt(v))} disabled={isReadOnly}>
                                 {ALKKAGI_STONE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                             </Select>
                         </SettingRow>
-                        <SettingRow label="힘 속도">
+                        <SettingRow label={t('settings.gaugeSpeed')}>
                             <Select value={settings.alkkagiGaugeSpeed} onChange={v => handleSettingChange('alkkagiGaugeSpeed', parseInt(v))} disabled={isReadOnly}>
                                 {ALKKAGI_GAUGE_SPEEDS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                             </Select>
                         </SettingRow>
-                         <SettingRow label="슬로우">
+                         <SettingRow label={t('settings.slow')}>
                             <Select value={settings.alkkagiSlowItemCount} onChange={v => handleSettingChange('alkkagiSlowItemCount', parseInt(v))} disabled={isReadOnly}>
                                 {ALKKAGI_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                             </Select>
                         </SettingRow>
-                         <SettingRow label="조준선">
+                         <SettingRow label={t('settings.aimingLine')}>
                             <Select value={settings.alkkagiAimingLineItemCount} onChange={v => handleSettingChange('alkkagiAimingLineItemCount', parseInt(v))} disabled={isReadOnly}>
                                 {ALKKAGI_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                             </Select>
@@ -870,27 +873,27 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                 
                 {showCurlingSettings && (
                     <>
-                        <SettingRow label="라운드">
+                        <SettingRow label={t('settings.round')}>
                             <Select value={settings.curlingRounds} onChange={v => handleSettingChange('curlingRounds', parseInt(v) as 1 | 2 | 3)} disabled={isReadOnly}>
                                 {CURLING_ROUNDS.map(r => <option key={r} value={r}>{r}라운드</option>)}
                             </Select>
                         </SettingRow>
-                        <SettingRow label="스톤 개수">
+                        <SettingRow label={t('settings.stoneCount')}>
                             <Select value={settings.curlingStoneCount} onChange={v => handleSettingChange('curlingStoneCount', parseInt(v))} disabled={isReadOnly}>
                                 {CURLING_STONE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                             </Select>
                         </SettingRow>
-                        <SettingRow label="힘 속도">
+                        <SettingRow label={t('settings.gaugeSpeed')}>
                             <Select value={settings.curlingGaugeSpeed} onChange={v => handleSettingChange('curlingGaugeSpeed', parseInt(v))} disabled={isReadOnly}>
                                 {CURLING_GAUGE_SPEEDS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                             </Select>
                         </SettingRow>
-                        <SettingRow label="슬로우">
+                        <SettingRow label={t('settings.slow')}>
                             <Select value={settings.curlingSlowItemCount} onChange={v => handleSettingChange('curlingSlowItemCount', parseInt(v))} disabled={isReadOnly}>
                                 {CURLING_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                             </Select>
                         </SettingRow>
-                         <SettingRow label="조준선">
+                         <SettingRow label={t('settings.aimingLine')}>
                             <Select value={settings.curlingAimingLineItemCount} onChange={v => handleSettingChange('curlingAimingLineItemCount', parseInt(v))} disabled={isReadOnly}>
                                 {CURLING_ITEM_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                             </Select>

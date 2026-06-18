@@ -1,4 +1,5 @@
 import React, { type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import QuickAccessSidebar from '../QuickAccessSidebar.js';
 import PcLobbyCenterColumn from './PcLobbyCenterColumn.js';
 import {
@@ -26,6 +27,7 @@ export type PcLobbyThreeColumnShellProps = {
  * 좌측 슬롯은 호출부에서 `PC_HOME_LEFT_COLUMN_CLASS`를 적용한다.
  */
 const PcLobbyThreeColumnShell: React.FC<PcLobbyThreeColumnShellProps> = ({
+    const { t } = useTranslation('common');
     left,
     center,
     showQuickRail = true,
@@ -51,7 +53,7 @@ const PcLobbyThreeColumnShell: React.FC<PcLobbyThreeColumnShellProps> = ({
             {showQuickRail ? (
                 <div
                     className={`flex h-full min-h-0 ${PC_QUICK_RAIL_COLUMN_CLASS} flex-col overflow-hidden self-stretch`}
-                    aria-label="퀵 메뉴"
+                    aria-label={t('quickMenuAria')}
                 >
                     <div className={PC_QUICK_RAIL_WRAPPER_CLASS}>
                         <QuickAccessSidebar fillHeight />

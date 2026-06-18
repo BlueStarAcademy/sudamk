@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { GuildMessage } from '../../types/entities.js';
 import Button from '../Button.js';
@@ -14,6 +15,7 @@ interface GuildChatProps {
 }
 
 const GuildChat: React.FC<GuildChatProps> = ({ guildId, messages, onMessagesUpdate }) => {
+    const { t } = useTranslation(['guild', 'common']);
     const { handlers, allUsers } = useAppContext();
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
@@ -77,7 +79,7 @@ const GuildChat: React.FC<GuildChatProps> = ({ guildId, messages, onMessagesUpda
             }
         } catch (error: any) {
             console.error('Failed to send message:', error);
-            alert(error.message || '메시지 전송에 실패했습니다.');
+            alert(error.message || t('chat.sendFailed'));
         } finally {
             setLoading(false);
         }
@@ -89,7 +91,7 @@ const GuildChat: React.FC<GuildChatProps> = ({ guildId, messages, onMessagesUpda
                 {messages.map((message) => {
                     const author = allUsers?.find(u => u.id === message.authorId);
                     const msgUser = (message as { user?: { id?: string; nickname?: string }; authorId?: string })?.user;
-                    const displayName = message.authorId === 'system' ? '시스템' : (msgUser?.nickname || (message.authorId === ADMIN_USER_ID || author?.isAdmin ? ADMIN_NICKNAME : author?.nickname) || 'Unknown');
+                    const displayName = message.authorId === 'system' ? t('roles.system') : (msgUser?.nickname || (message.authorId === ADMIN_USER_ID || author?.isAdmin ? ADMIN_NICKNAME : author?.nickname) || 'Unknown');
                     const nameClass =
                         message.authorId === 'system'
                             ? 'text-sm font-semibold text-blue-400'
@@ -131,7 +133,7 @@ const GuildChat: React.FC<GuildChatProps> = ({ guildId, messages, onMessagesUpda
                             handleSend();
                         }
                     }}
-                    placeholder="메시지를 입력하세요..."
+                    placeholder={t('chat.placeholder')}
                     className="flex-1 px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-blue-500 focus:outline-none"
                 />
                 <Button
@@ -140,7 +142,7 @@ const GuildChat: React.FC<GuildChatProps> = ({ guildId, messages, onMessagesUpda
                     disabled={loading || !input.trim()}
                     className="!py-2 !px-4"
                 >
-                    전송
+                    {t('chat.send')}
                 </Button>
             </div>
         </div>
@@ -148,4 +150,3 @@ const GuildChat: React.FC<GuildChatProps> = ({ guildId, messages, onMessagesUpda
 };
 
 export default GuildChat;
-

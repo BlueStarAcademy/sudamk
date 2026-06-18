@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { GameMode, ServerAction, UserWithStatus } from '../../types.js';
 import type { RankingEntry } from '../../hooks/useRanking.js';
 import Button from '../Button.js';
@@ -126,6 +127,8 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
     variant = 'default',
     shrinkToContent = false,
 }) => {
+    const { t } = useTranslation('lobby');
+    const { t: tCommon } = useTranslation('common');
     const nativeNarrow = variant === 'nativeNarrow';
     const [elapsedTime, setElapsedTime] = useState(0);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -289,7 +292,7 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                                 nativeNarrow ? 'text-sm leading-tight' : 'whitespace-nowrap text-xl lg:text-2xl'
                             }`}
                         >
-                            랭킹전
+                            {t('ranked.panelTitle')}
                         </h2>
                     </div>
                     {!isMatching ? (
@@ -305,7 +308,7 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                             <span className={`flex items-center justify-center gap-0.5 ${nativeNarrow ? '' : 'gap-1.5'}`}>
                                 <span className={nativeNarrow ? 'text-[0.65rem] sm:text-xs' : ''}>⚔️</span>
                                 <span className={nativeNarrow ? 'text-[0.65rem] sm:text-xs' : ''}>
-                                    {nativeNarrow ? '시작' : '랭킹전 시작'} (⚡{rankedActionPointCost})
+                                    {nativeNarrow ? t('ranked.startShort') : t('ranked.start')} (⚡{rankedActionPointCost})
                                 </span>
                             </span>
                         </Button>
@@ -321,7 +324,7 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                         >
                             <span className="flex items-center justify-center gap-1">
                                 <span>✕</span>
-                                <span>취소</span>
+                                <span>{tCommon('actions.cancel')}</span>
                             </span>
                         </Button>
                     )}
@@ -341,7 +344,7 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                                     <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-transparent to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                                     <div className="relative z-10 flex flex-col gap-1.5">
                                         <div className="flex items-center justify-between pb-1.5 border-b border-blue-400/30 gap-1">
-                                            <p className="text-[11px] sm:text-xs font-bold text-blue-300 uppercase tracking-wide leading-tight">현재 시즌</p>
+                                            <p className="text-[11px] sm:text-xs font-bold text-blue-300 uppercase tracking-wide leading-tight">{t('ranked.currentSeason')}</p>
                                             <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse"></div>
                                         </div>
                                         {currentSeasonTierAndScore ? (
@@ -360,19 +363,19 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                                                             {currentSeasonTierAndScore.tier.name}
                                                         </p>
                                                         <p className="text-[10px] sm:text-xs text-blue-300/90 font-medium leading-snug mt-0.5">
-                                                            {currentSeasonName}{isFirstSeason ? ' (첫 시즌)' : ''}
+                                                            {currentSeasonName}{isFirstSeason ? t('ranked.firstSeason') : ''}
                                                         </p>
                                                     </div>
                                                 </div>
                                                 <div className="bg-gradient-to-r from-blue-900/50 to-indigo-900/50 rounded-md p-2 border border-blue-500/30">
                                                     <div className="flex justify-between items-baseline gap-2">
-                                                        <span className="text-[10px] sm:text-xs text-blue-300/90 font-medium shrink-0">현재 점수</span>
+                                                        <span className="text-[10px] sm:text-xs text-blue-300/90 font-medium shrink-0">{t('ranked.currentScore')}</span>
                                                         <span className="font-mono font-bold text-white text-base sm:text-lg tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] text-right">
                                                             {(currentSeasonTierAndScore.score ?? 0).toLocaleString()}
                                                         </span>
                                                     </div>
                                                     <div className="text-[10px] sm:text-xs text-blue-300/80 pt-1.5 border-t border-blue-400/20 leading-snug">
-                                                        {currentSeasonTierAndScore.wins}승 {currentSeasonTierAndScore.losses}패 · 승률{' '}
+                                                        {t('ranked.winsLossesWinRate', { wins: currentSeasonTierAndScore.wins, losses: currentSeasonTierAndScore.losses })}{' '}
                                                         <span className="font-bold text-blue-200">
                                                             {(() => {
                                                                 const g =
@@ -387,9 +390,9 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                                                     </div>
                                                 </div>
                                                 <div className="flex justify-between items-center gap-2 text-[10px] sm:text-xs pt-0.5">
-                                                    <span className="text-blue-300/80 font-medium shrink-0">시즌 최고</span>
+                                                    <span className="text-blue-300/80 font-medium shrink-0">{t('ranked.seasonBest')}</span>
                                                     <span className="font-mono font-semibold text-blue-200 tabular-nums text-right break-all">
-                                                        {currentSeasonTierAndScore.score.toLocaleString()}점{isFirstSeason ? ' (동일)' : ''}
+                                                        {t('ranked.scorePoints', { score: currentSeasonTierAndScore.score.toLocaleString() })}{isFirstSeason ? t('ranked.sameScore') : ''}
                                                     </span>
                                                 </div>
                                             </>
@@ -401,7 +404,7 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                                                         alt="" 
                                                         className="w-8 h-8 flex-shrink-0 object-contain opacity-50" 
                                                     />
-                                                    <p className="text-sm text-blue-300/80">미집계</p>
+                                                    <p className="text-sm text-blue-300/80">{t('ranked.notAggregated')}</p>
                                                 </div>
                                                 <p className="text-[10px] sm:text-xs text-blue-300/70">{currentSeasonName}</p>
                                             </>
@@ -413,7 +416,7 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                                     <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 via-transparent to-orange-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                                     <div className="relative z-10 flex flex-col gap-1.5">
                                         <div className="flex items-center justify-between pb-1.5 border-b border-amber-400/30 gap-1">
-                                            <p className="text-[11px] sm:text-xs font-bold text-amber-300 uppercase tracking-wide leading-tight">최고 시즌</p>
+                                            <p className="text-[11px] sm:text-xs font-bold text-amber-300 uppercase tracking-wide leading-tight">{t('ranked.bestSeason')}</p>
                                             <span className="text-xs">⭐</span>
                                         </div>
                                         {bestSeasonSameAsCurrent && currentSeasonTierAndScore ? (
@@ -432,16 +435,16 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                                                             {currentSeasonTierAndScore.tier.name}
                                                         </p>
                                                         <p className="text-[10px] sm:text-xs text-amber-300/90 font-medium leading-snug mt-0.5">
-                                                            {currentSeasonName}{isFirstSeason ? ' (첫 시즌)' : ''}
+                                                            {currentSeasonName}{isFirstSeason ? t('ranked.firstSeason') : ''}
                                                         </p>
                                                     </div>
                                                 </div>
                                                 <div className="bg-gradient-to-r from-amber-900/50 to-yellow-900/50 rounded-md p-2 border border-amber-500/30">
                                                     <p className="font-mono font-bold text-white text-base sm:text-lg text-center tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
-                                                        {(currentSeasonTierAndScore.score ?? 0).toLocaleString()}점
+                                                        {t('ranked.scorePoints', { score: (currentSeasonTierAndScore.score ?? 0).toLocaleString() })}
                                                     </p>
                                                     <p className="text-[10px] sm:text-xs text-amber-300/80 pt-1.5 border-t border-amber-400/20 text-center leading-snug">
-                                                        {currentSeasonTierAndScore.wins}승 {currentSeasonTierAndScore.losses}패 · 승률{' '}
+                                                        {t('ranked.winsLossesWinRate', { wins: currentSeasonTierAndScore.wins, losses: currentSeasonTierAndScore.losses })}{' '}
                                                         <span className="font-bold text-amber-200">
                                                             {(() => {
                                                                 const g =
@@ -458,7 +461,7 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                                             </>
                                         ) : bestSeasonSameAsCurrent ? (
                                             <div className="flex-1 flex flex-col justify-center py-2">
-                                                <p className="text-xs text-amber-300/70 text-center">첫 시즌 (없음)</p>
+                                                <p className="text-xs text-amber-300/70 text-center">{t('ranked.firstSeasonNone')}</p>
                                                 <p className="text-[10px] sm:text-xs text-amber-300/70 mt-0.5 text-center">{currentSeasonName}</p>
                                             </div>
                                         ) : allTimeBestSeason ? (
@@ -488,13 +491,13 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                                                     </div>
                                                 </div>
                                                 <p className="border-t border-amber-400/20 pt-1 text-center text-[10px] text-amber-300/80 sm:text-xs">
-                                                    역대 최고 등급
+                                                    {t('ranked.allTimeBestTier')}
                                                 </p>
                                             </>
                                         ) : (
                                             <div className="flex-1 flex flex-col justify-center py-2">
                                                 <p className="text-xs text-amber-300/70 text-center">-</p>
-                                                <p className="text-[10px] sm:text-xs text-amber-300/70 mt-0.5 text-center">역대 최고 등급</p>
+                                                <p className="text-[10px] sm:text-xs text-amber-300/70 mt-0.5 text-center">{t('ranked.allTimeBestTier')}</p>
                                             </div>
                                         )}
                                     </div>
@@ -528,7 +531,7 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                                             nativeNarrow ? 'text-sm whitespace-nowrap' : 'text-xl'
                                         }`}
                                     >
-                                        매칭 중...
+                                        {t('ranked.matching')}
                                     </span>
                                 </div>
                                 <div
@@ -542,7 +545,7 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                                                 nativeNarrow ? 'text-[10px]' : 'text-sm'
                                             }`}
                                         >
-                                            대기 시간
+                                            {t('ranked.waitTime')}
                                         </span>
                                         <span
                                             className={`shrink-0 font-mono font-bold tabular-nums whitespace-nowrap text-yellow-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] ${

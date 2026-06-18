@@ -1,4 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { tx } from '../../shared/i18n/runtimeText.js';
 import Avatar from '../Avatar.js';
 import { GameMode, type GameSettings } from '../../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants.js';
@@ -42,7 +44,7 @@ function HostHomeBadge({ compact }: { compact?: boolean }) {
             className={`pointer-events-none absolute z-[2] flex items-center justify-center rounded-md border border-amber-400/50 bg-amber-950/90 shadow-[0_0_8px_rgba(251,191,36,0.25)] ${
                 compact ? 'right-0.5 top-0.5 h-4 w-4' : 'right-1 top-1 h-5 w-5'
             }`}
-            aria-label="주최"
+            aria-label={tx('pair:room.hostAria')}
         >
             <svg width={compact ? 10 : 12} height={compact ? 10 : 12} viewBox="0 0 24 24" fill="none" className="text-amber-200" aria-hidden>
                 <path
@@ -63,9 +65,9 @@ function ReadyRibbonOnAvatar({ compact }: { compact?: boolean }) {
             className={`pointer-events-none absolute left-1/2 top-0 z-[6] -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full border border-emerald-400/65 bg-emerald-950/95 font-extrabold tracking-wide text-emerald-100 shadow-[0_2px_10px_rgba(0,0,0,0.5),0_0_12px_rgba(16,185,129,0.25)] ${
                 compact ? 'px-1.5 py-0 text-[7px]' : 'px-2 py-0.5 text-[9px]'
             }`}
-            aria-label="준비 완료"
+            aria-label={tx('pair:room.readyAria')}
         >
-            준비완료
+            {tx('pair:room.readyBadge')}
         </span>
     );
 }
@@ -252,7 +254,7 @@ function SeatTile({
                     <span className={`${compact ? 'text-sm' : 'text-base'} opacity-50`} aria-hidden>
                         ◆
                     </span>
-                    <span className={`mt-0.5 font-bold uppercase tracking-[0.2em] text-zinc-600 ${compact ? 'text-[9px]' : 'text-[10px]'}`}>대기</span>
+                    <span className={`mt-0.5 font-bold uppercase tracking-[0.2em] text-zinc-600 ${compact ? 'text-[9px]' : 'text-[10px]'}`}>{tx('pair:room.waiting')}</span>
                 </>
             ) : open ? (
                 <>
@@ -294,8 +296,8 @@ function SeatTile({
                             <button
                                 type="button"
                                 className="absolute inset-0 z-[4] cursor-pointer rounded-full border-0 bg-transparent p-0 outline-none ring-cyan-400/0 transition hover:ring-2 hover:ring-cyan-400/45 focus-visible:ring-2 focus-visible:ring-cyan-400/60"
-                                title="정보 보기"
-                                aria-label="정보 보기"
+                                title={t('room.viewInfo')}
+                                aria-label={t('room.viewInfoAria')}
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     onProfileClick();
@@ -375,8 +377,8 @@ function SeatTile({
                             <button
                                 type="button"
                                 className="absolute inset-0 z-[4] cursor-pointer rounded-full border-0 bg-transparent p-0 outline-none ring-cyan-400/0 transition hover:ring-2 hover:ring-cyan-400/45 focus-visible:ring-2 focus-visible:ring-cyan-400/60"
-                                title="정보 보기"
-                                aria-label="정보 보기"
+                                title={t('room.viewInfo')}
+                                aria-label={t('room.viewInfoAria')}
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     onProfileClick();
@@ -610,9 +612,9 @@ function resolveArenaAiBotSeat(mode: GameMode | undefined): {
         SPECIAL_GAME_MODES.find((d) => d.mode === GameMode.Standard) ||
         SPECIAL_GAME_MODES[0];
     return {
-        displayName: `${def.name}봇`,
+        displayName: `${def.name}${tx('pair:room.botSuffix')}`,
         portraitSrc: def.image,
-        subLabel: '카타 AI',
+        subLabel: tx('pair:room.kataAi'),
     };
 }
 
@@ -636,15 +638,15 @@ function resolveDuoTeamBAiSlotPresentation(
     }
     if (slotIdx === 0) {
         return {
-            displayName: `${levelPrefix}${def.name}봇`,
+            displayName: `${levelPrefix}${def.name}${tx('pair:room.botSuffix')}`,
             portraitSrc: def.image,
-            subLabel: '카타 AI',
+            subLabel: tx('pair:room.kataAi'),
         };
     }
     return {
-        displayName: `${levelPrefix}${def.name} 펫봇`,
+        displayName: `${levelPrefix}${def.name}${tx('pair:room.petBotSuffix')}`,
         portraitSrc: def.image,
-        subLabel: '카타 AI',
+        subLabel: tx('pair:room.kataAi'),
     };
 }
 
@@ -768,6 +770,7 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
     hideDuoAiOpponentColumn = false,
     statusOverlayByUserId,
 }) => {
+    const { t } = useTranslation('pair');
     const viewerPetAiId = `pet-ai-${viewerId}`;
     const isPetPairLobby = roomKind === 'ai_duel';
     const isFriendlyTwoPet = roomKind === 'friendly_2p';
@@ -775,7 +778,7 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
 
     const partnerSlotFilled = Boolean(partnerId && !String(partnerId).startsWith('pet-ai-'));
     const partnerDisplayId = partnerSlotFilled ? partnerId : undefined;
-    const partnerDisplayName = partnerSlotFilled ? partnerName || '파트너' : undefined;
+    const partnerDisplayName = partnerSlotFilled ? partnerName || t('partner') : undefined;
     const isOwnerViewer = viewerId === ownerId;
     const canOfferKick = Boolean(isOwnerViewer && onKickRoomMemberRequest);
     const canClickPartnerSlot = Boolean(isOwnerViewer && onInvitePartnerSlot && !partnerSlotFilled && roomKind === 'duo_match');
@@ -839,14 +842,14 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                         className={`${kickStripBtnClass} pointer-events-none invisible border border-transparent bg-transparent text-transparent`}
                         aria-hidden
                     >
-                        강퇴
+                        {t('room.kick')}
                     </div>
                     {onDelegateRoomOwnershipRequest ? (
                         <div
                             className={`${kickStripBtnClass} pointer-events-none invisible border border-transparent bg-transparent text-transparent`}
                             aria-hidden
                         >
-                            위임
+                            {t('room.delegate')}
                         </div>
                     ) : null}
                 </div>
@@ -861,7 +864,7 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                     label={s.displayName}
                     userId={syntheticUserId}
                     userName={s.displayName}
-                    subLabel={s.subLabel ?? '카타 AI'}
+                    subLabel={s.subLabel ?? t('room.kataAi')}
                     portraitSrc={s.portraitSrc}
                     accent={accent}
                     isRoomHost={false}
@@ -911,14 +914,14 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                                 }}
                                 className={`${kickStripBtnClass} border border-rose-400/55 bg-rose-950/70 text-rose-100 hover:border-rose-300/60 hover:bg-rose-900/55 disabled:pointer-events-none disabled:opacity-45`}
                             >
-                                강퇴
+                                {t('room.kick')}
                             </button>
                         ) : (
                             <div
                                 className={`${kickStripBtnClass} pointer-events-none invisible border border-transparent bg-transparent text-transparent`}
                                 aria-hidden
                             >
-                                강퇴
+                                {t('room.kick')}
                             </div>
                         )}
                         {onDelegateRoomOwnershipRequest ? (
@@ -932,14 +935,14 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                                     }}
                                     className={`${kickStripBtnClass} ${pairAggregateRoomSeatDelegateBtnToneClass(seatChromeTone)} disabled:pointer-events-none disabled:opacity-45`}
                                 >
-                                    위임
+                                    {t('room.delegate')}
                                 </button>
                             ) : (
                                 <div
                                     className={`${kickStripBtnClass} pointer-events-none invisible border border-transparent bg-transparent text-transparent`}
                                     aria-hidden
                                 >
-                                    위임
+                                    {t('room.delegate')}
                                 </div>
                             )
                         ) : null}
@@ -949,7 +952,7 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                 <SeatTile
                     key={`${team}-${slotIdx}-${cell.userId}`}
                     tone="filled"
-                    label={cell.userId === viewerId ? '나' : displayName}
+                    label={cell.userId === viewerId ? t('room.me') : displayName}
                     userId={cell.userId}
                     userName={displayName}
                     subLabel={displaySubLabel}
@@ -1006,15 +1009,15 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                 <div className={compact ? 'flex w-full min-w-0 flex-row gap-2 sm:gap-3' : 'flex w-full min-w-0 flex-row gap-3 sm:gap-4'}>
                     <TeamPanel title="" subtitle="" variant={hostHomeTeam === 'teamA' ? 'ally' : 'enemy'} compact={compact} seatColumns={1}>
                         {renderHumanSlot(gridA[0], 0, 'teamA', accentHuman, {
-                            emptyLabel: '빈 슬롯',
-                            emptySub: inviteOpen('teamA', 0) ? '터치하여 초대' : undefined,
+                            emptyLabel: t('room.emptySlot'),
+                            emptySub: inviteOpen('teamA', 0) ? t('room.tapToInvite') : undefined,
                             onOpen: inviteOpen('teamA', 0),
                         })}
                     </TeamPanel>
                     <TeamPanel title="" subtitle="" variant={hostHomeTeam === 'teamA' ? 'enemy' : 'ally'} compact={compact} seatColumns={1}>
                         {renderHumanSlot(gridA[1], 1, 'teamA', accentAi, {
                             emptyLabel: 'AI',
-                            emptySub: '카타 AI',
+                            emptySub: t('room.kataAi'),
                             onOpen: undefined,
                             syntheticAiDisplay: !gridA[1].userId ? arenaAiBotSeatPresentation : undefined,
                         })}
@@ -1033,25 +1036,25 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                 <div className={compact ? 'flex w-full min-w-0 flex-row gap-2 sm:gap-3' : 'flex w-full min-w-0 flex-row gap-3 sm:gap-4'}>
                     <TeamPanel title="" subtitle="" variant={hostHomeTeam === 'teamA' ? 'ally' : 'enemy'} compact={compact} seatColumns={2}>
                         {renderHumanSlot(gridA[0], 0, 'teamA', accentA, {
-                            emptyLabel: '빈 슬롯',
-                            emptySub: inviteOpen('teamA', 0) ? '터치하여 초대' : undefined,
+                            emptyLabel: t('room.emptySlot'),
+                            emptySub: inviteOpen('teamA', 0) ? t('room.tapToInvite') : undefined,
                             onOpen: inviteOpen('teamA', 0),
                         })}
                         {renderHumanSlot(gridA[1], 1, 'teamA', accentA, {
-                            emptyLabel: '빈 슬롯',
-                            emptySub: inviteOpen('teamA', 1) ? '터치하여 초대' : undefined,
+                            emptyLabel: t('room.emptySlot'),
+                            emptySub: inviteOpen('teamA', 1) ? t('room.tapToInvite') : undefined,
                             onOpen: inviteOpen('teamA', 1),
                         })}
                     </TeamPanel>
                     <TeamPanel title="" subtitle="" variant={hostHomeTeam === 'teamB' ? 'ally' : 'enemy'} compact={compact} seatColumns={2}>
                         {renderHumanSlot(gridB[0], 0, 'teamB', accentB, {
-                            emptyLabel: '빈 슬롯',
-                            emptySub: inviteOpen('teamB', 0) ? '터치하여 초대' : undefined,
+                            emptyLabel: t('room.emptySlot'),
+                            emptySub: inviteOpen('teamB', 0) ? t('room.tapToInvite') : undefined,
                             onOpen: inviteOpen('teamB', 0),
                         })}
                         {renderHumanSlot(gridB[1], 1, 'teamB', accentB, {
-                            emptyLabel: '빈 슬롯',
-                            emptySub: inviteOpen('teamB', 1) ? '터치하여 초대' : undefined,
+                            emptyLabel: t('room.emptySlot'),
+                            emptySub: inviteOpen('teamB', 1) ? t('room.tapToInvite') : undefined,
                             onOpen: inviteOpen('teamB', 1),
                         })}
                     </TeamPanel>
@@ -1102,15 +1105,15 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                 <div className={compact ? 'flex w-full min-w-0 flex-row gap-2 sm:gap-3' : 'flex w-full min-w-0 flex-row gap-3 sm:gap-4'}>
                     <TeamPanel title="" subtitle="" variant={hostHomeTeam === 'teamA' ? 'ally' : 'enemy'} compact={compact} seatColumns={1}>
                         {renderHumanSlot(slotA0, 0, 'teamA', accentA, {
-                            emptyLabel: '빈 슬롯',
-                            emptySub: inviteOpen('teamA', 0) ? '터치하여 초대' : undefined,
+                            emptyLabel: t('room.emptySlot'),
+                            emptySub: inviteOpen('teamA', 0) ? t('room.tapToInvite') : undefined,
                             onOpen: inviteOpen('teamA', 0),
                         })}
                     </TeamPanel>
                     <TeamPanel title="" subtitle="" variant={hostHomeTeam === 'teamB' ? 'ally' : 'enemy'} compact={compact} seatColumns={1}>
                         {renderHumanSlot(slotB0, 0, 'teamB', accentB, {
-                            emptyLabel: '상대',
-                            emptySub: inviteOpen('teamB', 0) ? '터치하여 초대' : '대기 중',
+                            emptyLabel: t('room.opponent'),
+                            emptySub: inviteOpen('teamB', 0) ? t('room.tapToInvite') : t('room.waitingShort'),
                             onOpen: inviteOpen('teamB', 0),
                         })}
                     </TeamPanel>
@@ -1137,18 +1140,18 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                         seatColumns={2}
                     >
                         {renderHumanSlot(gridA[0], 0, 'teamA', accentA, {
-                            emptyLabel: '빈 슬롯',
-                            emptySub: inviteOpen('teamA', 0) ? '터치하여 초대' : undefined,
+                            emptyLabel: t('room.emptySlot'),
+                            emptySub: inviteOpen('teamA', 0) ? t('room.tapToInvite') : undefined,
                             onOpen: inviteOpen('teamA', 0),
                         })}
                         {renderHumanSlot(gridA[1], 1, 'teamA', accentA, {
-                            emptyLabel: '파트너',
+                            emptyLabel: t('partner'),
                             emptySub:
                                 canClickPartnerSlot || inviteOpen('teamA', 1)
-                                    ? '터치하여 초대'
+                                    ? t('room.tapToInvite')
                                     : partnerSlotFilled
                                       ? undefined
-                                      : '대기 중',
+                                      : t('room.waitingShort'),
                             onOpen: canClickPartnerSlot ? onInvitePartnerSlot : inviteOpen('teamA', 1),
                         })}
                     </TeamPanel>
@@ -1170,27 +1173,27 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                 <div className={compact ? 'flex w-full min-w-0 flex-row gap-2 sm:gap-3' : 'flex w-full min-w-0 flex-row gap-3 sm:gap-4'}>
                     <TeamPanel title="" subtitle="" variant={hostHomeTeam === 'teamA' ? 'ally' : 'enemy'} compact={compact} seatColumns={2}>
                         {renderHumanSlot(gridA[0], 0, 'teamA', accentA, {
-                            emptyLabel: '빈 슬롯',
-                            emptySub: inviteOpen('teamA', 0) ? '터치하여 초대' : undefined,
+                            emptyLabel: t('room.emptySlot'),
+                            emptySub: inviteOpen('teamA', 0) ? t('room.tapToInvite') : undefined,
                             onOpen: inviteOpen('teamA', 0),
                         })}
                         {renderHumanSlot(gridA[1], 1, 'teamA', accentA, {
-                            emptyLabel: '파트너',
+                            emptyLabel: t('partner'),
                             emptySub:
-                                canClickPartnerSlot || inviteOpen('teamA', 1) ? '터치하여 초대' : partnerSlotFilled ? undefined : '대기 중',
+                                canClickPartnerSlot || inviteOpen('teamA', 1) ? t('room.tapToInvite') : partnerSlotFilled ? undefined : t('room.waitingShort'),
                             onOpen: canClickPartnerSlot ? onInvitePartnerSlot : inviteOpen('teamA', 1),
                         })}
                     </TeamPanel>
                     <TeamPanel title="" subtitle="" variant={hostHomeTeam === 'teamB' ? 'ally' : 'enemy'} compact={compact} seatColumns={2}>
                         {renderHumanSlot(gridB[0], 0, 'teamB', accentB, {
                             emptyLabel: 'AI',
-                            emptySub: '카타 AI',
+                            emptySub: t('room.kataAi'),
                             onOpen: undefined,
                             syntheticAiDisplay: !gridB[0].userId ? duoTeamBAiPresentations[0] : undefined,
                         })}
                         {renderHumanSlot(gridB[1], 1, 'teamB', accentB, {
                             emptyLabel: 'AI',
-                            emptySub: '카타 AI',
+                            emptySub: t('room.kataAi'),
                             onOpen: undefined,
                             syntheticAiDisplay: !gridB[1].userId ? duoTeamBAiPresentations[1] : undefined,
                         })}
@@ -1207,12 +1210,12 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                 <div className={compact ? 'flex w-full min-w-0 flex-row gap-2 sm:gap-3' : 'flex w-full min-w-0 flex-row gap-3 sm:gap-4'}>
                     <TeamPanel title="" subtitle="" variant="ally" compact={compact} seatColumns={2}>
                         {renderHumanSlot(gridA[0], 0, 'teamA', 'ally', {
-                            emptyLabel: '빈 슬롯',
+                            emptyLabel: t('room.emptySlot'),
                             emptySub: undefined,
                             onOpen: undefined,
                         })}
                         {renderHumanSlot(gridA[1], 1, 'teamA', 'ally', {
-                            emptyLabel: '펫 슬롯',
+                            emptyLabel: t('room.petSlot'),
                             emptySub: undefined,
                             onOpen: undefined,
                         })}
@@ -1220,13 +1223,13 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                     <TeamPanel title="" subtitle="" variant="enemy" compact={compact} seatColumns={2}>
                         {renderHumanSlot(gridB[0], 0, 'teamB', 'enemy', {
                             emptyLabel: 'AI',
-                            emptySub: '카타 AI',
+                            emptySub: t('room.kataAi'),
                             onOpen: undefined,
                             syntheticAiDisplay: !gridB[0].userId ? duoTeamBAiPresentations[0] : undefined,
                         })}
                         {renderHumanSlot(gridB[1], 1, 'teamB', 'enemy', {
                             emptyLabel: 'AI',
-                            emptySub: '카타 AI',
+                            emptySub: t('room.kataAi'),
                             onOpen: undefined,
                             syntheticAiDisplay: !gridB[1].userId ? duoTeamBAiPresentations[1] : undefined,
                         })}
@@ -1242,25 +1245,25 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                 <div className={compact ? 'flex w-full min-w-0 flex-row gap-2 sm:gap-3' : 'flex w-full min-w-0 flex-row gap-3 sm:gap-4'}>
                     <TeamPanel title="" subtitle="" variant="ally" compact={compact} seatColumns={2}>
                         {renderHumanSlot(gridA[0], 0, 'teamA', 'ally', {
-                            emptyLabel: '빈 슬롯',
+                            emptyLabel: t('room.emptySlot'),
                             emptySub: undefined,
                             onOpen: undefined,
                         })}
                         {renderHumanSlot(gridA[1], 1, 'teamA', 'ally', {
-                            emptyLabel: '펫 슬롯',
+                            emptyLabel: t('room.petSlot'),
                             emptySub: undefined,
                             onOpen: undefined,
                         })}
                     </TeamPanel>
                     <TeamPanel title="" subtitle="" variant="enemy" compact={compact} seatColumns={2}>
                         {renderHumanSlot(gridB[0], 0, 'teamB', 'enemy', {
-                            emptyLabel: '상대',
-                            emptySub: inviteOpen('teamB', 0) ? '터치하여 초대' : '대기 중',
+                            emptyLabel: t('room.opponent'),
+                            emptySub: inviteOpen('teamB', 0) ? t('room.tapToInvite') : t('room.waitingShort'),
                             onOpen: inviteOpen('teamB', 0),
                         })}
                         {renderHumanSlot(gridB[1], 1, 'teamB', 'enemy', {
-                            emptyLabel: '상대 펫',
-                            emptySub: '상대 장착 펫',
+                            emptyLabel: t('room.opponentPet'),
+                            emptySub: t('room.opponentEquippedPet'),
                         })}
                     </TeamPanel>
                 </div>
@@ -1276,33 +1279,33 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
             <div className={compact ? 'flex w-full min-w-0 flex-row gap-2 sm:gap-3' : 'flex w-full min-w-0 flex-row gap-3 sm:gap-4'}>
                 <TeamPanel title="" subtitle="" variant={hostHomeTeam === 'teamA' ? 'ally' : 'enemy'} compact={compact} seatColumns={teamSeatCols}>
                     {renderHumanSlot(gridA[0], 0, 'teamA', accentA, {
-                        emptyLabel: '빈 슬롯',
-                        emptySub: inviteOpen('teamA', 0) ? '터치하여 초대' : undefined,
+                        emptyLabel: t('room.emptySlot'),
+                        emptySub: inviteOpen('teamA', 0) ? t('room.tapToInvite') : undefined,
                         onOpen: inviteOpen('teamA', 0),
                     })}
                     {!oneSlotPerTeam
                         ? renderHumanSlot(gridA[1], 1, 'teamA', accentA, {
-                              emptyLabel: roomKind === 'arena_ai' ? 'AI' : '파트너',
+                              emptyLabel: roomKind === 'arena_ai' ? 'AI' : t('partner'),
                               emptySub:
                                   roomKind === 'arena_ai'
-                                      ? '카타 AI'
+                                      ? t('room.kataAi')
                                       : canClickPartnerSlot || inviteOpen('teamA', 1)
-                                        ? '터치하여 초대'
-                                        : '대기 중',
+                                        ? t('room.tapToInvite')
+                                        : t('room.waitingShort'),
                               onOpen: roomKind === 'arena_ai' ? undefined : canClickPartnerSlot ? onInvitePartnerSlot : inviteOpen('teamA', 1),
                           })
                         : null}
                 </TeamPanel>
                 <TeamPanel title="" subtitle="" variant={hostHomeTeam === 'teamB' ? 'ally' : 'enemy'} compact={compact} seatColumns={teamSeatCols}>
                     {renderHumanSlot(gridB[0], 0, 'teamB', accentB, {
-                        emptyLabel: '빈 슬롯',
-                        emptySub: inviteOpen('teamB', 0) ? '터치하여 초대' : undefined,
+                        emptyLabel: t('room.emptySlot'),
+                        emptySub: inviteOpen('teamB', 0) ? t('room.tapToInvite') : undefined,
                         onOpen: inviteOpen('teamB', 0),
                     })}
                     {!oneSlotPerTeam
                         ? renderHumanSlot(gridB[1], 1, 'teamB', accentB, {
-                              emptyLabel: '빈 슬롯',
-                              emptySub: inviteOpen('teamB', 1) ? '터치하여 초대' : undefined,
+                              emptyLabel: t('room.emptySlot'),
+                              emptySub: inviteOpen('teamB', 1) ? t('room.tapToInvite') : undefined,
                               onOpen: inviteOpen('teamB', 1),
                           })
                         : null}

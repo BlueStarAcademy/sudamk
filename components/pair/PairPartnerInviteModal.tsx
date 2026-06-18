@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { UserWithStatus } from '../../types.js';
 import type { ServerAction } from '../../types.js';
 import PlayerList, { type PairInviteListTab } from '../waiting-room/PlayerList.js';
@@ -32,6 +33,8 @@ const PairPartnerInviteModal: React.FC<Props> = ({
     onViewUser,
     inviteTargetSlot,
 }) => {
+    const { t } = useTranslation(['pair', 'common', 'lobby']);
+    const { t: tCommon } = useTranslation('common');
     const [userTab, setUserTab] = useState<PairInviteListTab>('users');
     const [tick, setTick] = useState(0);
 
@@ -65,17 +68,17 @@ const PairPartnerInviteModal: React.FC<Props> = ({
     );
 
     const getInviteDisabledReason = (u: UserWithStatus, tab: PairInviteListTab): string | null => {
-        if (currentUser.status === UserStatus.Resting) return '휴식 중에는 파트너를 초대할 수 없습니다.';
-        if (u.id === currentUserId) return '본인은 초대할 수 없습니다.';
-        if (u.blockArenaPartnerInvites === true) return '상대가 초대를 받지 않도록 설정했습니다.';
-        if (u.status === UserStatus.Resting) return '휴식 중인 유저는 초대할 수 없습니다.';
+        if (currentUser.status === UserStatus.Resting) return t('invite.restingSelf');
+        if (u.id === currentUserId) return t('invite.cannotInviteSelf');
+        if (u.blockArenaPartnerInvites === true) return t('invite.invitesBlocked');
+        if (u.status === UserStatus.Resting) return t('invite.targetResting');
         if (u.status === UserStatus.InGame || u.status === UserStatus.Negotiating) {
-            return '경기 또는 협상 중인 유저는 초대할 수 없습니다.';
+            return t('invite.targetBusy');
         }
         const until = mergedCooldownUntil[u.id] ?? 0;
-        if (Date.now() < until) return '잠시 후 다시 초대할 수 있습니다 (10초)';
+        if (Date.now() < until) return t('invite.cooldown');
         if (tab === 'users' && !userInUnifiedArenaLobbyUserList(u)) {
-            return '전략·놀이·페어 대국실에 머무는 유저만 초대할 수 있습니다.';
+            return t('invite.lobbyOnly');
         }
         return null;
     };
@@ -103,7 +106,7 @@ const PairPartnerInviteModal: React.FC<Props> = ({
             }
             onClose();
         } catch {
-            window.alert('초대 전송에 실패했습니다.');
+            window.alert(t('invite.sendFailed'));
         }
     };
 
@@ -122,14 +125,14 @@ const PairPartnerInviteModal: React.FC<Props> = ({
             >
                 <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-4 py-3">
                     <h2 id="pair-invite-modal-title" className="text-base font-extrabold text-cyan-50">
-                        파트너 초대
+                        {t('invite.partnerInvite')}
                     </h2>
                     <button
                         type="button"
                         onClick={onClose}
                         className="rounded-lg border border-white/15 bg-black/40 px-3 py-1 text-xs font-bold text-slate-200 hover:bg-white/10"
                     >
-                        닫기
+                        {tCommon('actions.close')}
                     </button>
                 </div>
                 <div className="grid shrink-0 grid-cols-3 gap-1 border-b border-white/10 bg-black/25 p-1">
@@ -138,21 +141,21 @@ const PairPartnerInviteModal: React.FC<Props> = ({
                         onClick={() => setUserTab('users')}
                         className={`rounded-lg px-2 py-1.5 text-xs font-bold ${userTab === 'users' ? 'bg-cyan-500 text-cyan-950' : 'text-cyan-100 hover:bg-cyan-950/45'}`}
                     >
-                        전체
+                        {t('lobby:userScope.all')}
                     </button>
                     <button
                         type="button"
                         onClick={() => setUserTab('friends')}
                         className={`rounded-lg px-2 py-1.5 text-xs font-bold ${userTab === 'friends' ? 'bg-violet-500 text-violet-950' : 'text-violet-100 hover:bg-violet-950/45'}`}
                     >
-                        친구
+                        {t('lobby:userScope.friends')}
                     </button>
                     <button
                         type="button"
                         onClick={() => setUserTab('guild')}
                         className={`rounded-lg px-2 py-1.5 text-xs font-bold ${userTab === 'guild' ? 'bg-amber-500 text-amber-950' : 'text-amber-100 hover:bg-amber-950/45'}`}
                     >
-                        길드원
+                        {t('lobby:userScope.guild')}
                     </button>
                 </div>
                 <div className="flex min-h-0 flex-1 flex-col overflow-hidden">

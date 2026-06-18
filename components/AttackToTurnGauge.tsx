@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface AttackToTurnGaugeProps {
     /** 애니메이션 시작 시각 (서버/클라이언트 공통 기준) */
@@ -18,9 +19,11 @@ interface AttackToTurnGaugeProps {
 export const AttackToTurnGauge: React.FC<AttackToTurnGaugeProps> = ({
     startTime,
     durationMs,
-    label = '턴 전환까지',
+    label,
     barClassName = 'bg-gradient-to-r from-cyan-400 to-blue-500',
 }) => {
+    const { t } = useTranslation('game');
+    const displayLabel = label ?? t('attackToTurnGauge.label');
     const [remainingSec, setRemainingSec] = useState(() => {
         const now = Date.now();
         const progress = Math.min(1, (now - startTime) / (durationMs || 1));
@@ -89,9 +92,9 @@ export const AttackToTurnGauge: React.FC<AttackToTurnGaugeProps> = ({
     return (
         <div className="flex flex-col gap-1 w-full min-w-[140px] max-w-[240px]">
             <div className="flex justify-between items-center text-xs text-gray-300">
-                <span>{label}</span>
+                <span>{displayLabel}</span>
                 <span className="tabular-nums font-medium">
-                    {remainingSec <= 0 ? '0.0초' : `${remainingSec.toFixed(1)}초`}
+                    {remainingSec <= 0 ? t('attackToTurnGauge.secondsZero') : t('attackToTurnGauge.seconds', { sec: remainingSec.toFixed(1) })}
                 </span>
             </div>
             <div className="h-2.5 bg-gray-800 rounded-full border border-gray-600 overflow-hidden">

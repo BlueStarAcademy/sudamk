@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { GameMode, SinglePlayerLevel, UserWithStatus } from '../../types.js';
 import { getSinglePlayerStages } from '../../constants/singlePlayerConstants.js';
 import { CONSUMABLE_ITEMS } from '../../constants/index.js';
@@ -14,6 +15,25 @@ import {
     resolveSinglePlayerMixedModes,
 } from '../../shared/utils/singlePlayerStrategicRulePreset.js';
 import SinglePlayerRewardsModal from './SinglePlayerRewardsModal.js';
+import { translateGameMode } from '../../shared/i18n/runtimeText.js';
+
+const CLASS_STAGE_KEYS: Record<SinglePlayerLevel, 'intro' | 'beginner' | 'intermediate' | 'advanced' | 'master'> = {
+    [SinglePlayerLevel.입문]: 'intro',
+    [SinglePlayerLevel.초급]: 'beginner',
+    [SinglePlayerLevel.중급]: 'intermediate',
+    [SinglePlayerLevel.고급]: 'advanced',
+    [SinglePlayerLevel.유단자]: 'master',
+};
+
+const PRESET_TO_GAME_MODE: Partial<Record<string, GameMode>> = {
+    classic: GameMode.Standard,
+    capture: GameMode.Capture,
+    speed: GameMode.Speed,
+    base: GameMode.Base,
+    hidden: GameMode.Hidden,
+    missile: GameMode.Missile,
+    mix: GameMode.Mix,
+};
 
 /** 싱글플레이 스테이지 입장: 앰버 메탈 + 글로우 (PC·모바일 공통) */
 const PREMIUM_STAGE_ENTER_CLASS =
@@ -36,6 +56,7 @@ interface StageGridProps {
 }
 
 const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compact = false, mobileTabShelf = false }) => {
+    const { t } = useTranslation(['lobby', 'common', 'profile']);
     const { handlers, singlePlayerStagesListRevision } = useAppContext();
     const [rewardsModalOpen, setRewardsModalOpen] = useState(false);
 
@@ -91,45 +112,13 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
         return !isSinglePlayerStageUnlocked(getSinglePlayerStages(), progress, stage.id);
     };
 
-    const GAME_MODE_LABELS: Record<GameMode, string> = {
-        [GameMode.Standard]: '클래식',
-        [GameMode.Speed]: '스피드',
-        [GameMode.Capture]: '따내기',
-        [GameMode.Hidden]: '히든',
-        [GameMode.Missile]: '미사일',
-        [GameMode.Base]: '베이스',
-        [GameMode.Mix]: '믹스',
-        [GameMode.Dice]: '주사위',
-        [GameMode.Omok]: '오목',
-        [GameMode.Ttamok]: '따목',
-        [GameMode.Thief]: '도둑·경찰',
-        [GameMode.Alkkagi]: '알까기',
-        [GameMode.Curling]: '컬링',
-    };
-
-    // 스테이지 프리셋(명시/auto 추론) 기준으로 대기실 모드명을 표시
     const getStageGameModeName = (stage: typeof stages[0]): string => {
         const preset = inferSinglePlayerStrategicRulePreset(stage);
-        switch (preset) {
-            case 'classic':
-                return '클래식';
-            case 'capture':
-                return '따내기';
-            case 'survival':
-                return '살리기';
-            case 'speed':
-                return '스피드';
-            case 'base':
-                return '베이스';
-            case 'hidden':
-                return '히든';
-            case 'missile':
-                return '미사일';
-            case 'mix':
-                return '믹스';
-            default:
-                return '클래식';
+        if (preset === 'survival') {
+            return t('singleplayer.rulePresets.survival');
         }
+        const mode = PRESET_TO_GAME_MODE[preset];
+        return mode ? translateGameMode(mode) : translateGameMode(GameMode.Standard);
     };
 
     const isMobile = compact;
@@ -137,17 +126,7 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
     /** PC 바둑학원 대기실: 스테이지 맵을 더 읽기 쉽게 */
     const usePremiumDesktop = !isMobile && !tabShelf;
 
-    
-    const classLabel =
-        selectedClass === SinglePlayerLevel.입문
-            ? '입문반'
-            : selectedClass === SinglePlayerLevel.초급
-              ? '초급반'
-              : selectedClass === SinglePlayerLevel.중급
-                ? '중급반'
-                : selectedClass === SinglePlayerLevel.고급
-                  ? '고급반'
-                  : '유단자';
+    const classLabel = t(`profile:stageLabels.${CLASS_STAGE_KEYS[selectedClass]}`);
 
     return (
         <div
@@ -163,15 +142,15 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                 <h2
                     className={`font-bold text-on-panel min-w-0 flex-1 leading-tight ${tabShelf ? 'text-base' : isMobile ? 'text-lg' : 'text-xl'}`}
                 >
-                    {classLabel} 스테이지
+                    {t('singleplayer.stageListTitle', { classLabel })}
                 </h2>
                 <button
                     type="button"
                     onClick={() => setRewardsModalOpen(true)}
                     className={`flex-shrink-0 rounded-md border border-amber-400/45 bg-gradient-to-b from-amber-500/25 via-amber-900/35 to-amber-950/50 font-bold text-amber-100 shadow-[0_2px_12px_rgba(245,158,11,0.25),inset_0_1px_0_rgba(255,255,255,0.12)] hover:brightness-110 active:scale-[0.98] transition-all sm:rounded-lg ${tabShelf ? 'px-1.5 py-0.5 text-[10px]' : isMobile ? 'px-2 py-1 text-xs' : 'px-2 py-1 text-xs sm:px-2.5 sm:py-1.5 sm:text-sm'}`}
-                    aria-label="스테이지 클리어 보상표 열기"
+                    aria-label={t('singleplayer.openRewardsTableAria')}
                 >
-                    보상표
+                    {t('singleplayer.rewardsTable')}
                 </button>
             </div>
 
@@ -207,7 +186,7 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                         const stagePreset = inferSinglePlayerStrategicRulePreset(stage);
                         const mixedModeLabels =
                             stagePreset === 'mix'
-                                ? resolveSinglePlayerMixedModes(stage).map((mode) => GAME_MODE_LABELS[mode] ?? mode)
+                                ? resolveSinglePlayerMixedModes(stage).map((mode) => translateGameMode(mode))
                                 : [];
                         const effectiveActionPointCost = isCleared ? 0 : stage.actionPointCost;
                         const hasEnoughAP = currentUser.actionPoints.current >= effectiveActionPointCost;
@@ -322,7 +301,7 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                                     <div
                                         className={`mb-0.5 font-semibold text-green-400 ${tabShelf ? 'text-[9px]' : isMobile ? 'text-xs' : 'text-[10px]'}`}
                                     >
-                                        클리어 완료
+                                        {t('singleplayer.cleared')}
                                     </div>
                                 )}
 
@@ -336,7 +315,7 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                                                 <span className="flex min-w-0 items-center gap-0.5">
                                                     <img
                                                         src="/images/icon/Gold.webp"
-                                                        alt="골드"
+                                                        alt={t('common:resources.gold')}
                                                         className={tabShelf ? 'h-3 w-3' : 'h-3.5 w-3.5'}
                                                     />
                                                     <span className="truncate">+{stage.rewards.firstClear.gold}</span>
@@ -375,7 +354,7 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                                         colorScheme="none"
                                         className={premiumStageEnterClass(isMobile)}
                                         disabled={!hasEnoughAP}
-                                        title={`입장 · 행동력 ${effectiveActionPointCost}`}
+                                        title={t('singleplayer.enterStageTitle', { cost: effectiveActionPointCost })}
                                         style={
                                             tabShelf
                                                 ? { fontSize: '10px', fontWeight: 700, letterSpacing: '0.02em' }
@@ -384,7 +363,7 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                                                   : undefined
                                         }
                                     >
-                                        {`입장 ⚡${effectiveActionPointCost}`}
+                                        {t('singleplayer.enterStage', { cost: effectiveActionPointCost })}
                                     </Button>
                                 ) : (
                                     <div className="mt-auto min-h-[1.25rem]" aria-hidden />

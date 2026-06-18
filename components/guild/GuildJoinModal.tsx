@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { Guild } from '../../types/entities.js';
 import Button from '../Button.js';
@@ -12,6 +13,7 @@ interface GuildJoinModalProps {
 type GuildWithMemberCount = Guild & { memberCount: number };
 
 const GuildJoinModal: React.FC<GuildJoinModalProps> = ({ onClose, onSuccess }) => {
+    const { t } = useTranslation(['guild', 'common']);
     const { handlers } = useAppContext();
     const [searchQuery, setSearchQuery] = useState('');
     const [guilds, setGuilds] = useState<GuildWithMemberCount[]>([]);
@@ -79,7 +81,7 @@ const GuildJoinModal: React.FC<GuildJoinModalProps> = ({ onClose, onSuccess }) =
             }
         } catch (err: any) {
             console.error('[GuildJoinModal] Error loading guilds:', err);
-            setError(err.message || '길드 목록을 불러오는데 실패했습니다.');
+            setError(err.message || t('joinModal.loadFailed'));
             setGuilds([]);
         } finally {
             setLoading(false);
@@ -113,7 +115,7 @@ const GuildJoinModal: React.FC<GuildJoinModalProps> = ({ onClose, onSuccess }) =
                 }
             }
         } catch (err: any) {
-            setError(err.message || '길드 가입에 실패했습니다.');
+            setError(err.message || t('joinModal.joinFailed'));
         } finally {
             setJoiningGuildId(null);
         }
@@ -133,7 +135,7 @@ const GuildJoinModal: React.FC<GuildJoinModalProps> = ({ onClose, onSuccess }) =
 
     return (
         <DraggableWindow
-            title="길드 가입"
+            title={t('joinModal.title')}
             windowId="guild-join"
             onClose={onClose}
             initialWidth={700}
@@ -144,7 +146,7 @@ const GuildJoinModal: React.FC<GuildJoinModalProps> = ({ onClose, onSuccess }) =
                 {/* Search Bar */}
                 <div className="mb-4">
                     <label className="block text-sm font-semibold text-gray-300 mb-2">
-                        길드 이름으로 검색
+                        {t('joinModal.searchLabel')}
                     </label>
                     <div className="flex gap-2">
                         <input
@@ -152,7 +154,7 @@ const GuildJoinModal: React.FC<GuildJoinModalProps> = ({ onClose, onSuccess }) =
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                            placeholder="길드 이름을 입력하세요"
+                            placeholder={t('joinModal.searchPlaceholder')}
                             className="flex-1 px-3 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-blue-500 focus:outline-none"
                         />
                         <Button
@@ -161,7 +163,7 @@ const GuildJoinModal: React.FC<GuildJoinModalProps> = ({ onClose, onSuccess }) =
                             className="!py-2 !px-4"
                             disabled={loading}
                         >
-                            검색
+                            {t('joinModal.search')}
                         </Button>
                     </div>
                 </div>
@@ -176,11 +178,11 @@ const GuildJoinModal: React.FC<GuildJoinModalProps> = ({ onClose, onSuccess }) =
                 <div className="flex-1 overflow-y-auto mb-4">
                     {loading && guilds.length === 0 ? (
                         <div className="flex items-center justify-center h-32">
-                            <p className="text-gray-400">길드 목록을 불러오는 중...</p>
+                            <p className="text-gray-400">{t('joinModal.loading')}</p>
                         </div>
                     ) : filteredGuilds.length === 0 ? (
                         <div className="flex items-center justify-center h-32">
-                            <p className="text-gray-400">검색 결과가 없습니다.</p>
+                            <p className="text-gray-400">{t('joinModal.noResults')}</p>
                         </div>
                     ) : (
                         <div className="space-y-2">
@@ -205,8 +207,8 @@ const GuildJoinModal: React.FC<GuildJoinModalProps> = ({ onClose, onSuccess }) =
                                                     )}
                                                 </div>
                                                 <div className="flex items-center gap-4 text-sm text-gray-400 mb-2">
-                                                    <span>인원: {guild.memberCount}/{MAX_GUILD_MEMBERS}</span>
-                                                    <span>레벨: {guild.level}</span>
+                                                    <span>{t('joinModal.members', { current: guild.memberCount, max: MAX_GUILD_MEMBERS })}</span>
+                                                    <span>{t('joinModal.level', { level: guild.level })}</span>
                                                 </div>
                                                 {guild.description && (
                                                     <p className="text-sm text-gray-300 line-clamp-2">
@@ -222,12 +224,12 @@ const GuildJoinModal: React.FC<GuildJoinModalProps> = ({ onClose, onSuccess }) =
                                                     disabled={isFull || isJoining || loading}
                                                 >
                                                     {isJoining 
-                                                        ? '처리 중...' 
+                                                        ? t('joinModal.processing') 
                                                         : isFull
-                                                        ? '인원 가득'
+                                                        ? t('joinModal.full')
                                                         : joinType === 'auto'
-                                                        ? '가입'
-                                                        : '신청'}
+                                                        ? t('joinModal.join')
+                                                        : t('joinModal.apply')}
                                                 </Button>
                                             </div>
                                         </div>
@@ -245,7 +247,7 @@ const GuildJoinModal: React.FC<GuildJoinModalProps> = ({ onClose, onSuccess }) =
                         className="flex-1"
                         disabled={loading || joiningGuildId !== null}
                     >
-                        취소
+                        {t('common:actions.cancel')}
                     </Button>
                 </div>
             </div>

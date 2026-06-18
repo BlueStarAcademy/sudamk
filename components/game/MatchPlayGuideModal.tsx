@@ -1,4 +1,5 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
+import { tx } from '../../shared/i18n/runtimeText.js';
 import { LiveGameSession } from '../../types.js';
 import DraggableWindow from '../DraggableWindow.js';
 import { buildMatchPlayGuide } from '../../utils/matchPlayGuide.js';
@@ -31,7 +32,7 @@ const MatchPlayGuideModal: React.FC<MatchPlayGuideModalProps> = ({ session, onCl
 
     return (
         <DraggableWindow
-            title="경기방법"
+            title={tx("game:sidebar.howToPlay")}
             windowId="match-play-guide"
             onClose={onClose}
             initialWidth={560}

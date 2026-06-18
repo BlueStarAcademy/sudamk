@@ -1,12 +1,14 @@
+import { useTranslation } from 'react-i18next';
 import React, { useEffect, useState } from 'react';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { getApiUrl } from '../utils/apiConfig.js';
-import { replaceAppHash } from '../utils/appUtils.js';
+import { replaceAppHash, APP_HOME_HASH } from '../utils/appUtils.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 
 const KakaoCallback: React.FC = () => {
     const { setCurrentUserAndRoute } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
+    const { t } = useTranslation('auth');
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -20,7 +22,7 @@ const KakaoCallback: React.FC = () => {
                 const code = urlParams.get('code');
 
                 if (!code) {
-                    setError('인증 코드를 받을 수 없습니다.');
+                    setError(t('callback.noAuthCode'));
                     setIsLoading(false);
                     return;
                 }
@@ -34,7 +36,7 @@ const KakaoCallback: React.FC = () => {
 
                 if (!response.ok) {
                     const errorData = await response.json();
-                    throw new Error(errorData.message || '카카오 로그인에 실패했습니다.');
+                    throw new Error(errorData.message || t('errors.kakaoLoginFailed'));
                 }
 
                 const data = await response.json();
@@ -46,11 +48,11 @@ const KakaoCallback: React.FC = () => {
                 if (!data.user.nickname || data.user.nickname.startsWith('user_')) {
                     replaceAppHash('#/set-nickname');
                 } else {
-                    replaceAppHash('#/profile');
+                    replaceAppHash(APP_HOME_HASH);
                 }
             } catch (err: any) {
                 console.error('Kakao callback error:', err);
-                setError(err.message || '카카오 로그인 처리 중 오류가 발생했습니다.');
+                setError(err.message || t('callback.kakaoProcessError'));
                 setIsLoading(false);
             }
         };
@@ -63,7 +65,7 @@ const KakaoCallback: React.FC = () => {
             <div className={`flex w-full min-w-0 min-h-[280px] flex-col items-center justify-center py-8 ${isNativeMobile ? 'px-3 pb-[max(1rem,env(safe-area-inset-bottom,0px))]' : ''}`}>
                 <div className="flex flex-col items-center text-center">
                     <div className="mb-4 h-14 w-14 animate-spin rounded-full border-b-2 border-blue-500" />
-                    <p className="text-lg text-gray-400">카카오 로그인 처리 중...</p>
+                    <p className="text-lg text-gray-400">{t('callback.kakaoProcessing')}</p>
                 </div>
             </div>
         );
@@ -82,7 +84,7 @@ const KakaoCallback: React.FC = () => {
                             window.location.hash = '#/';
                         }}
                     >
-                        로그인 페이지로 돌아가기
+                        {t('callback.backToLogin')}
                     </a>
                 </div>
             </div>

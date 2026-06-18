@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
+import { tx } from '../../shared/i18n/runtimeText.js';
 import { LiveGameSession, Player, GameStatus, GameMode, User, ServerAction, AlkkagiStone } from '../../types.js';
 import {
     PLAYFUL_GAME_MODES,
@@ -15,13 +16,20 @@ import { getCurrentPairTurnSeat } from '../../shared/utils/pairGameTurn.js';
 import { formatPairTurnTickerMessage } from '../../shared/utils/pairTurnTickerDisplay.js';
 import { getEffectivePairLobbyOwnerId } from '../../shared/utils/effectivePairLobbyOwnerId.js';
 import { modeIncludesBaseCaptureMix } from '../../shared/utils/liveSessionArenaKind.js';
+import i18n from '../../shared/i18n/config.js';
+import { useTranslation } from 'react-i18next';
 
-const AI_HIDDEN_ITEM_MESSAGE = 'AI봇이 히든 아이템을 사용했습니다!';
-const MONSTER_HIDDEN_ITEM_MESSAGE = '몬스터가 히든 아이템을 사용했습니다!';
+const AI_HIDDEN_ITEM_MESSAGE_KEY = 'game:turn.aiHiddenItem';
+const MONSTER_HIDDEN_ITEM_MESSAGE_KEY = 'game:turn.monsterHiddenItem';
 
 function isAiOpponentHiddenNoticeMessage(msg: string | undefined): boolean {
     if (!msg) return false;
-    return msg === AI_HIDDEN_ITEM_MESSAGE || msg === MONSTER_HIDDEN_ITEM_MESSAGE;
+    return (
+        msg === i18n.t(AI_HIDDEN_ITEM_MESSAGE_KEY) ||
+        msg === i18n.t(MONSTER_HIDDEN_ITEM_MESSAGE_KEY) ||
+        msg === i18n.t(AI_HIDDEN_ITEM_MESSAGE_KEY) ||
+        msg === i18n.t(MONSTER_HIDDEN_ITEM_MESSAGE_KEY)
+    );
 }
 
 
@@ -47,6 +55,7 @@ function usePrevious<T>(value: T): T | undefined {
 }
 
 const getGameStatusText = (session: LiveGameSession): string => {
+    const t = (key: string, opts?: Record<string, unknown>) => i18n.t(`game:turn.${key}`, opts);
     const { gameStatus, currentPlayer, blackPlayerId, whitePlayerId, player1, player2, mode, settings, passCount, moveHistory, alkkagiRound } = session;
     const pairGame = session.settings.pairGame;
     const pairCurrentSeat = getCurrentPairTurnSeat(session.settings);
@@ -68,21 +77,21 @@ const getGameStatusText = (session: LiveGameSession): string => {
         const totalRounds = settings.diceGoRounds ?? 1;
         let message =
             maxDice > 0
-                ? `오버샷! 주사위가 ${maxDice} 이하여야 마지막 더미를 따낼 수 있습니다.`
-                : `오버샷! 지금은 백의 유효 자리가 없어 마지막 더미를 따낼 수 없습니다. 다음 굴림을 기다려 주세요.`;
+                ? t('diceOvershotWithMax', { maxDice })
+                : t('diceOvershotNoLiberties');
         if (totalRounds > 0 && lastCaptureBonus > 0) {
-            message += ` (마지막 더미 보너스 +${lastCaptureBonus}점)`;
+            message += t('lastCaptureBonus', { bonus: lastCaptureBonus });
         }
         return message;
     }
 
     if (session.mode === GameMode.Dice && session.lastWhiteGroupInfo && session.lastWhiteGroupInfo.liberties <= 6) {
         const totalRounds = session.settings.diceGoRounds ?? 1;
-        let message = `마지막 승부! 유효자리 ${session.lastWhiteGroupInfo.liberties}개`;
+        let message = t('lastShowdown', { count: session.lastWhiteGroupInfo.liberties });
         if (totalRounds > 0) {
             const bonus = DICE_GO_LAST_CAPTURE_BONUS_BY_TOTAL_ROUNDS[Math.max(0, Math.min(totalRounds, DICE_GO_LAST_CAPTURE_BONUS_BY_TOTAL_ROUNDS.length) - 1)];
             if (bonus) {
-                message += ` (마지막 더미 포획 시 +${bonus}점)`;
+                message += t('lastCaptureBonusInline', { bonus });
             }
         }
         return message;
@@ -96,21 +105,21 @@ const getGameStatusText = (session: LiveGameSession): string => {
     if (pairGame) {
         const passCountPair = pairGame.passSeatIds?.length ?? 0;
         if (gameStatus === 'scoring') {
-            return passCountPair >= 4 ? '4명 모두 통과하여 계가를 진행합니다.' : '계가를 진행합니다.';
+            return passCountPair >= 4 ? t('pairScoringAllPassed') : t('scoring');
         }
         if (gameStatus !== 'ended' && passCountPair > 0 && lastMoveInHistory?.x === -1) {
-            return `통과 ${passCountPair}/4`;
+            return t('pairPassCount', { count: passCountPair });
         }
     } else if (!isSinglePlayer) {
         if (passCount >= 2 && lastMoveInHistory?.x === -1) {
-            return "양측 모두 통과하여 계가를 시작합니다.";
+            return t('bothPassedScoring');
         }
 
         if (gameStatus !== 'ended' && passCount === 1 && lastMoveInHistory?.x === -1) {
             const opponentOfCurrent = currentPlayer === Player.Black ? Player.White : Player.Black;
             const passingPlayer = getPlayerByEnum(opponentOfCurrent);
             if (passingPlayer) {
-                return `${getSessionPlayerDisplayName(session, passingPlayer)}님이 통과했습니다.`;
+                return t('playerPassed', { name: getSessionPlayerDisplayName(session, passingPlayer) });
             }
         }
     }
@@ -120,51 +129,51 @@ const getGameStatusText = (session: LiveGameSession): string => {
             if (pairCurrentSeat) {
                 return formatPairTurnTickerMessage(session, pairCurrentSeat);
             }
-            return player ? `${getSessionPlayerDisplayName(session, player)}님의 차례입니다.` : '대국 진행 중';
+            return player ? t('playerTurn', { name: getSessionPlayerDisplayName(session, player) }) : t('gameInProgress');
         case 'nigiri_choosing':
         case 'nigiri_guessing':
-            return '돌 가리기 진행 중...';
+            return t('nigiriInProgress');
         case 'nigiri_reveal':
             return session.gameCategory === 'adventure'
-                ? '흑·백 배정을 확인한 뒤 경기 시작을 눌러 주세요.'
-                : '돌 가리기 진행 중...';
+                ? t('adventureNigiriConfirm')
+                : t('nigiriInProgress');
         case 'uniform_color_roulette':
-            return '일색 바둑 — 돌 색상 룰렛 진행 중...';
+            return t('uniformRoulette');
         case 'base_placement':
-            return `베이스돌 배치 · 각 ${settings.baseStones ?? 4}개`;
+            return t('basePlacement', { count: settings.baseStones ?? 4 });
         case 'base_stone_color_choice':
-            return '선호하는 돌(흑/백)을 선택하세요.';
+            return t('baseStoneColorChoice');
         case 'base_same_color_points_bid':
-            return '같은 돌 선택 — 상대에게 줄 점수를 정하세요.';
+            return t('baseSameColorBid');
         case 'base_game_start_confirmation':
-            return '대국 시작 버튼을 누르면 착수가 시작됩니다.';
+            return t('baseGameStartConfirm');
         case 'capture_bidding':
             if (
                 modeIncludesBaseCaptureMix(mode, settings) &&
                 session.biddingRound === 2 &&
                 session.captureFirstRoundTieBidSnapshot
             ) {
-                return '제시한 동점이 같습니다. 이번에도 같다면 랜덤으로 결정됩니다.';
+                return t('captureBidTie');
             }
             return modeIncludesBaseCaptureMix(mode, settings)
-                ? '공개된 판을 보며 흑(선)을 위한 제시 점수를 하단에서 확정하세요.'
-                : '흑(선) 점수 제시 단계입니다.';
+                ? t('captureBidBase')
+                : t('captureBid');
         case 'ended':
-            return '대국 종료';
+            return t('gameEnded');
         case 'no_contest':
-            return '무효 대국';
+            return t('noContest');
         case 'rematch_pending':
-            return '재대결 대기 중...';
+            return t('rematchPending');
         case 'hidden_placing':
         case 'scanning':
         case 'missile_selecting':
-            return '아이템 사용 중...';
+            return t('itemInUse');
         case 'hidden_final_reveal':
-            return "모든 히든돌을 공개하고 계가를 시작합니다.";
+            return t('hiddenFinalReveal');
         case 'scoring': {
             if (pairGame) {
                 const passCountPair = pairGame.passSeatIds?.length ?? 0;
-                return passCountPair >= 4 ? '4명 모두 통과하여 계가를 진행합니다.' : '계가를 진행합니다.';
+                return passCountPair >= 4 ? t('pairScoringAllPassed') : t('scoring');
             }
             const limit = (settings as any)?.scoringTurnLimit ?? (settings as any)?.autoScoringTurns;
             const isOnlineStrategic =
@@ -175,45 +184,48 @@ const getGameStatusText = (session: LiveGameSession): string => {
                 limit > 0;
             if (isOnlineStrategic) {
                 return session.gameCategory === 'adventure'
-                    ? '자동 계가를 진행합니다.'
-                    : '자동계가 수순에 도달하여 계가를 진행합니다.';
+                    ? t('autoScoringAdventure')
+                    : t('autoScoringReached');
             }
-            return '계가를 진행합니다.';
+            return t('scoring');
         }
         case 'alkkagi_placement': {
             const currentRound = alkkagiRound || 1;
             const totalRounds = settings.alkkagiRounds || 1;
             if (currentRound > 1) {
-                return `돌을 다시 배치하세요. (${currentRound} / ${totalRounds} 라운드)`;
+                return t('alkkagiRePlace', { round: currentRound, total: totalRounds });
             }
-            return `돌을 배치하세요. (${currentRound} / ${totalRounds} 라운드)`;
+            return t('alkkagiPlace', { round: currentRound, total: totalRounds });
         }
         case 'alkkagi_playing': {
             const currentRound = alkkagiRound || 1;
             const totalRounds = settings.alkkagiRounds || 1;
-            return `${getSessionPlayerDisplayName(session, player)}님 차례입니다. (${currentRound} / ${totalRounds} 라운드)`;
+            return t('alkkagiPlayerTurn', {
+                name: getSessionPlayerDisplayName(session, player),
+                round: currentRound,
+                total: totalRounds,
+            });
         }
         case 'alkkagi_round_end':
-            return `라운드 종료 — 아래 전광판에서 확인·진행하세요.`;
+            return t('alkkagiRoundEnd');
         case 'dice_rolling':
-             return player ? `${getSessionPlayerDisplayName(session, player)}님이 주사위를 굴릴 차례입니다.` : '주사위 굴릴 차례';
+             return player ? t('diceRollTurn', { name: getSessionPlayerDisplayName(session, player) }) : t('diceRollTurnGeneric');
         case 'thief_rolling':
-             return player ? `${getSessionPlayerDisplayName(session, player)}님이 주사위를 굴릴 차례입니다.` : '주사위 굴릴 차례';
+             return player ? t('diceRollTurn', { name: getSessionPlayerDisplayName(session, player) }) : t('diceRollTurnGeneric');
         case 'curling_tiebreaker_preference_selection':
         case 'curling_tiebreaker_rps':
         case 'curling_tiebreaker_rps_reveal':
-            return '승부치기 순서 결정 중...';
+            return t('tiebreakerDeciding');
         case 'curling_tiebreaker_playing':
-            return `승부치기 진행 중... (${getSessionPlayerDisplayName(session, player)}님 차례)`;
+            return t('tiebreakerPlaying', { name: getSessionPlayerDisplayName(session, player) });
         default:
-            if (mode === GameMode.Dice) return `주사위 바둑 (${session.round} / ${session.settings.diceGoRounds} 라운드)`;
-            if (mode === GameMode.Thief) return `도둑과 경찰 (${session.round} 라운드)`;
-            return player ? `${getSessionPlayerDisplayName(session, player)}님의 차례입니다.` : '게임 준비 중...';
+            if (mode === GameMode.Dice) return t('diceModeRound', { round: session.round, total: session.settings.diceGoRounds });
+            if (mode === GameMode.Thief) return t('thiefModeRound', { round: session.round });
+            return player ? t('playerTurn', { name: getSessionPlayerDisplayName(session, player) }) : t('preparing');
     }
 };
 
-const BASE_KOMI_SCOREBOARD_GUIDE =
-    '두고싶은 돌과 덤을 정하세요. 같은 돌을 선택한 경우 덤을 많이 주는 쪽이 두고싶은 돌로 둡니다.';
+const BASE_KOMI_SCOREBOARD_GUIDE_KEY = 'game:turn.baseKomiGuide';
 
 function BaseKomiGuideTicker({
     text,
@@ -303,6 +315,7 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
     boardRuleFlashMessage = null,
     viewerUserId,
 }) => {
+    const { t } = useTranslation('game');
     const [timeLeft, setTimeLeft] = useState(30);
     const [alkkagiPlacementSecondsLeft, setAlkkagiPlacementSecondsLeft] = useState(() =>
         session.mode === GameMode.Alkkagi &&
@@ -459,7 +472,7 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
             const isFoulMode = PLAYFUL_GAME_MODES.some(m => m.mode === session.mode);
             if (isFoulMode) {
                  const foulPlayer = session.player1.id === session.lastTimeoutPlayerId ? session.player1 : session.player2;
-                 setFoulMessage(`${getSessionPlayerDisplayName(session, foulPlayer)}님의 타임오버 파울!`);
+                 setFoulMessage(t('turn.timeoutFoul', { name: getSessionPlayerDisplayName(session, foulPlayer) }));
                  const timer = setTimeout(() => setFoulMessage(null), 5000);
                  return () => clearTimeout(timer);
             }
@@ -560,7 +573,7 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
                     ? 'hover:from-amber-400/18 hover:via-stone-900/82 hover:to-stone-950 hover:border-amber-400/35'
                     : 'hover:from-cyan-400/14 hover:via-slate-900/88 hover:to-slate-950 hover:border-cyan-400/32'
             }`}
-            aria-label="메뉴 열기"
+            aria-label={t('controls.openMenu')}
         >
             <div
                 className={`flex flex-col gap-[5px] rounded-lg bg-black/40 px-2 py-1.5 ring-1 ring-inset transition-[box-shadow] duration-300 ${
@@ -579,7 +592,7 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
                     isSinglePlayer ? 'group-hover:text-amber-100/95' : 'group-hover:text-cyan-100/95'
                 }`}
             >
-                메뉴
+                {t('controls.menu')}
             </span>
             {sidebarNotification && (
                 <span className="absolute right-1 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white/90 bg-gradient-to-br from-rose-400 to-red-600 shadow-[0_0_10px_rgba(239,68,68,0.85)] ring-2 ring-red-500/40 animate-pulse" />
@@ -625,8 +638,8 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
             hiddenNoticeFromFoul && session.foulInfo?.message
                 ? session.foulInfo.message
                 : session.gameCategory === 'adventure' || session.adventureMonsterCodexId
-                  ? MONSTER_HIDDEN_ITEM_MESSAGE
-                  : AI_HIDDEN_ITEM_MESSAGE;
+                  ? t('turn.monsterHiddenItem')
+                  : t('turn.aiHiddenItem');
         // AI/몬스터 히든 연출: 전광판에 대형 안내(바둑판 테두리 반짝임과 병행)
         return wrapContent(
             `${baseClasses} ${themeClasses} border-[3px] border-fuchsia-400/75 shadow-[0_0_28px_rgba(217,70,239,0.35)] ${isMobile ? 'gap-0.5 px-2' : 'gap-1 px-3'}`,
@@ -677,11 +690,11 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
         const isSimultaneous = session.gameStatus === 'alkkagi_simultaneous_placement';
         const guidance = isSimultaneous
             ? round > 1
-                ? `부족한 돌을 배치하세요. (${round} / ${totalRounds} 라운드)`
-                : `상대에게 보이지 않게 돌을 배치하세요. (${round} / ${totalRounds} 라운드)`
+                ? t('turn.alkkagiPlaceMissing', { round, total: totalRounds })
+                : t('turn.alkkagiPlaceHidden', { round, total: totalRounds })
             : round > 1
-              ? `돌을 다시 배치하세요. (${round} / ${totalRounds} 라운드)`
-              : `돌을 배치하세요. (${round} / ${totalRounds} 라운드)`;
+              ? t('turn.alkkagiRePlace', { round, total: totalRounds })
+              : t('turn.alkkagiPlace', { round, total: totalRounds });
         const placed =
             viewerUserId && session.alkkagiStonesPlacedThisRound
                 ? session.alkkagiStonesPlacedThisRound[viewerUserId] ?? 0
@@ -693,9 +706,9 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
             hasDeadline && secLeft !== null ? Math.min(100, Math.max(0, (secLeft / limitSec) * 100)) : null;
         const subLine =
             placed !== null
-                ? `배치 ${placed}/${target}${hasDeadline && secLeft !== null ? ` · 남은 시간 ${secLeft}초` : ''}`
+                ? `${t('turn.placementProgress', { placed, target })}${hasDeadline && secLeft !== null ? ` · ${t('turn.timeRemainingSec', { sec: secLeft })}` : ''}`
                 : hasDeadline && secLeft !== null
-                  ? `남은 시간 ${secLeft}초`
+                  ? t('turn.timeRemainingSec', { sec: secLeft })
                   : null;
 
         return wrapContent(
@@ -763,8 +776,8 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
                 : null;
         const autoHint =
             nextRound > totalRounds
-                ? `최종 결과 자동 표시까지 ${alkkagiRoundEndSecLeft}초`
-                : `다음 라운드 자동 시작까지 ${alkkagiRoundEndSecLeft}초`;
+                ? t('turn.autoFinalResultIn', { sec: alkkagiRoundEndSecLeft })
+                : t('turn.autoNextRoundIn', { sec: alkkagiRoundEndSecLeft });
 
         return wrapContent(
             `${baseClasses} ${themeClasses} min-w-0 ${isMobile ? 'gap-1 px-2 py-1' : 'gap-1.5 px-2.5 py-1.5'}`,
@@ -780,15 +793,15 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
                                 : '0 0 8px rgba(255, 255, 255, 0.35), 0 0 14px rgba(255, 255, 255, 0.15)',
                         }}
                     >
-                        {summary.round}라운드 — {getSessionPlayerDisplayName(session, winnerUser)}님 승리
+                        {t('turn.alkkagiRoundWin', { round: summary.round, name: getSessionPlayerDisplayName(session, winnerUser) })}
                     </p>
                     <p
                         className={`w-full text-center font-semibold leading-snug text-amber-200/90 [overflow-wrap:anywhere] ${
                             isMobile ? 'text-[clamp(0.55rem,1.55vmin,0.72rem)]' : 'text-xs min-[1025px]:text-sm'
                         }`}
                     >
-                        {getSessionPlayerDisplayName(session, player1)} 남은 돌 {p1StonesLeft}개 ·{' '}
-                        {getSessionPlayerDisplayName(session, player2)} 남은 돌 {p2StonesLeft}개
+                        {t('turn.stonesRemaining', { name: getSessionPlayerDisplayName(session, player1), count: p1StonesLeft })} ·{' '}
+                        {t('turn.stonesRemaining', { name: getSessionPlayerDisplayName(session, player2), count: p2StonesLeft })}
                     </p>
                     {viewerUserId && onAction && (
                         <button
@@ -802,10 +815,10 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
                             } ${isMobile ? 'text-[11px]' : 'text-sm'}`}
                         >
                             {hasConfirmed
-                                ? '상대방 확인 대기 중…'
+                                ? t('turn.waitingOpponentConfirm')
                                 : nextRound > totalRounds
-                                  ? '최종 결과 확인'
-                                  : '다음 라운드 시작'}
+                                  ? t('turn.confirmFinalResult')
+                                  : t('turn.startNextRound')}
                         </button>
                     )}
                     {session.revealEndTime != null && (
@@ -835,7 +848,7 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
     }
 
     if (session.mode === GameMode.Castle && session.gameStatus === 'playing') {
-        const castleGuidance = '1돌만 잡아도 즉시 승리 · 완성된 영토에는 착수할 수 없습니다.';
+        const castleGuidance = t('turn.castleGuidance');
         return wrapContent(
             `${baseClasses} ${themeClasses} min-w-0 ${isMobile ? 'gap-0.5 px-2 min-h-[2.05rem]' : 'gap-1 px-2.5 min-h-[2.45rem]'}`,
             <>
@@ -862,7 +875,7 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
     }
 
     if (session.mode === GameMode.Dice && session.gameStatus === 'dice_placing' && session.dice) {
-        const diceGuidance = '상대보다 더 많은 돌을 따내기 위해 돌을 놓아보세요.';
+        const diceGuidance = t('turn.dicePlacingGuidance');
         return wrapContent(
             `${baseClasses} ${themeClasses} min-w-0 ${isMobile ? 'gap-0.5 px-2 min-h-[2.05rem]' : 'gap-1 px-2.5 min-h-[2.45rem]'}`,
             <>
@@ -902,28 +915,27 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
             `${baseClasses} ${themeClasses} min-w-0 ${isMobile ? 'gap-0.5 px-2' : 'gap-1 px-3'}`,
             <div className="flex min-w-0 flex-nowrap items-center gap-1 overflow-hidden sm:gap-1.5">
                 <span className={`shrink-0 whitespace-nowrap font-bold text-tertiary ${thiefLabel}`}>
-                    주사위: <span className={`${textClass} ${thiefValue}`}>{diceDisplay}</span>
+                    {t('controls.dice')}: <span className={`${textClass} ${thiefValue}`}>{diceDisplay}</span>
                 </span>
                 <span className={`text-tertiary/70 shrink-0 ${isSinglePlayer ? 'text-stone-500' : ''}`}>·</span>
                 <span className={`shrink-0 whitespace-nowrap font-bold text-tertiary ${thiefLabel}`}>
-                    남은 착수: <span className={`${textClass} ${thiefValue}`}>{Math.max(0, session.stonesToPlace ?? 0)}</span>
+                    {t('controls.remainingPlacements')}: <span className={`${textClass} ${thiefValue}`}>{Math.max(0, session.stonesToPlace ?? 0)}</span>
                 </span>
             </div>
         );
     }
 
     if (isItemMode) {
-        let itemText = "아이템 사용시간";
-        if (session.gameStatus === 'hidden_placing') itemText = "히든 사용시간";
-        if (session.gameStatus === 'scanning') itemText = "스캔 사용시간";
+        let itemText = t('turn.itemUseTime');
+        if (session.gameStatus === 'hidden_placing') itemText = t('turn.hiddenUseTime');
+        if (session.gameStatus === 'scanning') itemText = t('turn.scanUseTime');
         if (session.gameStatus === 'missile_selecting') {
-            itemText = "발사할 바둑돌을 선택하세요. 선택후 방향을 선택하면 날아갑니다.";
+            itemText = t('turn.missileSelectPrompt');
         }
 
         const percentage = Math.max(0, Math.min(100, (timeLeft / 30) * 100));
         
-        // 전광판 스타일로 아이템 사용시간 표시
-        const tickerText = `${itemText} ${timeLeft}초`;
+        const tickerText = t('turn.itemTimeSec', { label: itemText, sec: timeLeft });
 
         return wrapContent(
             `${baseClasses} ${themeClasses} ${isMobile ? 'gap-0.5 px-2 min-h-[2rem]' : 'gap-1 px-3 min-h-[2.45rem]'}`,
@@ -967,7 +979,7 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
         return wrapContent(
             `${baseClasses} ${themeClasses} min-w-0 ${isMobile ? 'gap-0 px-1 min-h-[2.15rem] py-0.5' : 'gap-0 px-2 min-h-[2.55rem] py-1'}`,
             <BaseKomiGuideTicker
-                text={BASE_KOMI_SCOREBOARD_GUIDE}
+                text={i18n.t(BASE_KOMI_SCOREBOARD_GUIDE_KEY)}
                 isMobile={isMobile}
                 isSinglePlayer={Boolean(isSinglePlayer)}
             />
@@ -1007,20 +1019,24 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
 
         let primaryLine: string;
         if (!isParticipant) {
-            primaryLine = `베이스돌 배치 중 · 흑 ${p1Placed}/${baseStoneCount} · 백 ${p2Placed}/${baseStoneCount}`;
+            primaryLine = t('turn.basePlacementSpectator', {
+                black: p1Placed,
+                white: p2Placed,
+                count: baseStoneCount,
+            });
         } else if (myPlacements !== null) {
-            const remainLabel = `남은 베이스돌 (${remainingStones}/${baseStoneCount})`;
+            const remainLabel = t('turn.baseStonesRemaining', { remaining: remainingStones, total: baseStoneCount });
             const timeSeg =
-                hasDeadline && secLeft !== null && session.gameCategory !== 'adventure' ? ` · 남은 ${secLeft}초` : '';
+                hasDeadline && secLeft !== null && session.gameCategory !== 'adventure' ? t('turn.timeRemainingShort', { sec: secLeft }) : '';
             if (!isDonePlacing) {
                 primaryLine = `${remainLabel}${timeSeg}`;
             } else if (!myReady) {
-                primaryLine = `${remainLabel} · 배치 완료를 눌러 주세요${timeSeg}`;
+                primaryLine = `${remainLabel}${t('turn.confirmPlacement')}${timeSeg}`;
             } else {
-                primaryLine = `${remainLabel} · 상대 확인 대기${timeSeg}`;
+                primaryLine = `${remainLabel}${t('turn.waitingOpponent')}${timeSeg}`;
             }
         } else {
-            primaryLine = '양측 베이스돌 배치 중';
+            primaryLine = t('turn.bothBasePlacing');
         }
 
         return wrapContent(

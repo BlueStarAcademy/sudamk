@@ -1,50 +1,29 @@
 import React, { useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AI_ARENA_ENTRY_IMG, PVP_ARENA_ENTRY_IMG, STRATEGIC_GO_LOBBY_IMG, PLAYFUL_GO_LOBBY_IMG, PAIR_GO_LOBBY_IMG } from '../../assets.js';
 import {
     mergeArenaEntranceAvailability,
-    ARENA_ENTRANCE_CLOSED_MESSAGE,
     type ArenaEntranceKey,
 } from '../../constants/arenaEntrance.js';
-import { USER_PROGRESSION_ARENA_BLOCK_MESSAGE } from '../../shared/utils/contentProgressionGates.js';
 import { isClientAdmin } from '../../utils/clientAdmin.js';
 import type { UserWithStatus } from '../../types.js';
 import type { ArenaChannel, ArenaLobbyIntent } from '../../shared/types/api.js';
-import { ARENA_LOBBY_DESTINATION_TITLE } from '../../shared/utils/arenaLobbyDestination.js';
 import type { ArenaLobbyNavKind } from './ArenaLobbyNavTitleBar.js';
+import {
+    translateArenaEntranceClosed,
+    translateArenaProgressionBlocked,
+} from '../../shared/i18n/runtimeText.js';
 
 const CHANNEL_CARDS: {
     channel: ArenaChannel;
     navKind: ArenaLobbyNavKind;
     image: string;
-    short: string;
     entranceKey: ArenaEntranceKey;
 }[] = [
-    { channel: 'strategic', navKind: 'strategic', image: STRATEGIC_GO_LOBBY_IMG, short: '전략', entranceKey: 'strategicLobby' },
-    { channel: 'pair', navKind: 'pair', image: PAIR_GO_LOBBY_IMG, short: '페어', entranceKey: 'pairLobby' },
-    { channel: 'playful', navKind: 'playful', image: PLAYFUL_GO_LOBBY_IMG, short: '놀이', entranceKey: 'playfulLobby' },
+    { channel: 'strategic', navKind: 'strategic', image: STRATEGIC_GO_LOBBY_IMG, entranceKey: 'strategicLobby' },
+    { channel: 'pair', navKind: 'pair', image: PAIR_GO_LOBBY_IMG, entranceKey: 'pairLobby' },
+    { channel: 'playful', navKind: 'playful', image: PLAYFUL_GO_LOBBY_IMG, entranceKey: 'playfulLobby' },
 ];
-
-const INTENT_TOGGLE: Record<
-    ArenaLobbyIntent,
-    { label: string; opposite: ArenaLobbyIntent; image: string; toneBorder: string; toneRing: string; badgeClass: string }
-> = {
-    pvp: {
-        label: 'AI 경기장',
-        opposite: 'ai',
-        image: AI_ARENA_ENTRY_IMG,
-        toneBorder: 'border-violet-400/45',
-        toneRing: 'ring-violet-300/75',
-        badgeClass: 'border-violet-400/55 bg-black text-violet-100',
-    },
-    ai: {
-        label: 'PVP 경기장',
-        opposite: 'pvp',
-        image: PVP_ARENA_ENTRY_IMG,
-        toneBorder: 'border-fuchsia-400/45',
-        toneRing: 'ring-fuchsia-300/75',
-        badgeClass: 'border-fuchsia-400/55 bg-black text-fuchsia-100',
-    },
-};
 
 export type ArenaLobbySwitchGridProps = {
     channel: ArenaChannel;
@@ -54,10 +33,19 @@ export type ArenaLobbySwitchGridProps = {
     currentUser: UserWithStatus | null | undefined;
     arenaEntranceFromServer: Partial<Record<ArenaEntranceKey, boolean>> | undefined;
     arenaEntranceAvailability: Partial<Record<string, boolean>> | null | undefined;
-    /** PC: 2×2 그리드, 모바일: 가로 스크롤 4카드 */
     layout?: 'grid' | 'scroll';
     className?: string;
 };
+
+function destinationTitleKey(target: ArenaChannel, cardIntent: ArenaLobbyIntent): string {
+    const suffix = cardIntent === 'pvp' ? 'Pvp' : 'Ai';
+    return `${target}${suffix}`;
+}
+
+function cardLabelKey(target: ArenaChannel, cardIntent: ArenaLobbyIntent): string {
+    const suffix = cardIntent === 'pvp' ? 'Pvp' : 'Ai';
+    return `${target}${suffix}`;
+}
 
 export const ArenaLobbySwitchGrid: React.FC<ArenaLobbySwitchGridProps> = ({
     channel,
@@ -70,12 +58,35 @@ export const ArenaLobbySwitchGrid: React.FC<ArenaLobbySwitchGridProps> = ({
     layout = 'grid',
     className,
 }) => {
+    const { t } = useTranslation('lobby');
     const merged = useMemo(
         () => mergeArenaEntranceAvailability(arenaEntranceAvailability),
         [arenaEntranceAvailability],
     );
     const admin = isClientAdmin(currentUser ?? null);
     const serverArena = arenaEntranceFromServer ?? {};
+
+    const intentToggleMeta = useMemo(
+        () => ({
+            pvp: {
+                label: t('arenaLobby.intentToggle.aiArena'),
+                opposite: 'ai' as const,
+                image: AI_ARENA_ENTRY_IMG,
+                toneBorder: 'border-violet-400/45',
+                toneRing: 'ring-violet-300/75',
+                badgeClass: 'border-violet-400/55 bg-black text-violet-100',
+            },
+            ai: {
+                label: t('arenaLobby.intentToggle.pvpArena'),
+                opposite: 'pvp' as const,
+                image: PVP_ARENA_ENTRY_IMG,
+                toneBorder: 'border-fuchsia-400/45',
+                toneRing: 'ring-fuchsia-300/75',
+                badgeClass: 'border-fuchsia-400/55 bg-black text-fuchsia-100',
+            },
+        }),
+        [t],
+    );
 
     const tryEnterChannel = useCallback(
         (target: ArenaLobbyNavKind) => {
@@ -87,19 +98,19 @@ export const ArenaLobbySwitchGrid: React.FC<ArenaLobbySwitchGridProps> = ({
                 return;
             }
             if (!serverArena[key]) {
-                window.alert(ARENA_ENTRANCE_CLOSED_MESSAGE[key]);
+                window.alert(translateArenaEntranceClosed(key));
                 return;
             }
-            window.alert(USER_PROGRESSION_ARENA_BLOCK_MESSAGE[key] ?? ARENA_ENTRANCE_CLOSED_MESSAGE[key]);
+            window.alert(translateArenaProgressionBlocked(key) || translateArenaEntranceClosed(key));
         },
         [channel, admin, merged, serverArena, onSelectChannel],
     );
 
     const tryToggleIntent = useCallback(() => {
-        const opposite = INTENT_TOGGLE[intent].opposite;
+        const opposite = intentToggleMeta[intent].opposite;
         if (opposite === intent) return;
         onSelectIntent(opposite);
-    }, [intent, onSelectIntent]);
+    }, [intent, intentToggleMeta, onSelectIntent]);
 
     const channelCardShell = (
         target: ArenaChannel,
@@ -123,7 +134,7 @@ export const ArenaLobbySwitchGrid: React.FC<ArenaLobbySwitchGridProps> = ({
             : isPlayful
               ? 'border-amber-400/55 bg-black text-amber-100'
               : 'border-violet-400/55 bg-black text-violet-100';
-        const title = ARENA_LOBBY_DESTINATION_TITLE[target][cardIntent];
+        const title = t(`arenaLobby.destinationTitle.${destinationTitleKey(target, cardIntent)}`);
         const sizeCls =
             layout === 'scroll'
                 ? 'h-[3.25rem] w-[5.5rem] shrink-0 sm:h-14 sm:w-[6.25rem]'
@@ -135,7 +146,7 @@ export const ArenaLobbySwitchGrid: React.FC<ArenaLobbySwitchGridProps> = ({
                 key={`${target}-${cardIntent}`}
                 onClick={onClick}
                 aria-pressed={active}
-                aria-label={`${title}으로 이동`}
+                aria-label={t('arenaLobby.goToTitle', { title })}
                 title={title}
                 className={`relative min-w-0 overflow-hidden rounded-lg border-2 ${toneBorder} shadow-[0_10px_28px_-14px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.1)] transition duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 ${sizeCls} ${
                     active
@@ -168,12 +179,12 @@ export const ArenaLobbySwitchGrid: React.FC<ArenaLobbySwitchGridProps> = ({
         );
     };
 
-    const intentToggle = INTENT_TOGGLE[intent];
+    const intentToggle = intentToggleMeta[intent];
     const intentCard = (
         <button
             type="button"
             onClick={tryToggleIntent}
-            aria-label={`${intentToggle.label}으로 전환`}
+            aria-label={t('arenaLobby.switchIntent', { label: intentToggle.label })}
             title={intentToggle.label}
             className={`relative min-w-0 overflow-hidden rounded-lg border-2 ${intentToggle.toneBorder} shadow-[0_10px_28px_-14px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.1)] transition duration-200 hover:opacity-100 hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 active:scale-[0.99] ${
                 layout === 'scroll' ? 'h-[3.25rem] w-[5.5rem] shrink-0 sm:h-14 sm:w-[6.25rem]' : 'aspect-[4/3] w-full min-h-0'
@@ -199,7 +210,7 @@ export const ArenaLobbySwitchGrid: React.FC<ArenaLobbySwitchGridProps> = ({
         'strategic',
         'strategic',
         STRATEGIC_GO_LOBBY_IMG,
-        intent === 'pvp' ? '전략 PVP' : '전략 AI',
+        t(`arenaLobby.cardLabel.${cardLabelKey('strategic', intent)}`),
         channel === 'strategic',
         () => tryEnterChannel('strategic'),
         intent,
@@ -208,7 +219,7 @@ export const ArenaLobbySwitchGrid: React.FC<ArenaLobbySwitchGridProps> = ({
         'pair',
         'pair',
         PAIR_GO_LOBBY_IMG,
-        intent === 'pvp' ? '페어 PVP' : '페어 AI',
+        t(`arenaLobby.cardLabel.${cardLabelKey('pair', intent)}`),
         channel === 'pair',
         () => tryEnterChannel('pair'),
         intent,
@@ -217,18 +228,20 @@ export const ArenaLobbySwitchGrid: React.FC<ArenaLobbySwitchGridProps> = ({
         'playful',
         'playful',
         PLAYFUL_GO_LOBBY_IMG,
-        intent === 'pvp' ? '놀이 PVP' : '놀이 AI',
+        t(`arenaLobby.cardLabel.${cardLabelKey('playful', intent)}`),
         channel === 'playful',
         () => tryEnterChannel('playful'),
         intent,
     );
+
+    const switchAria = t('arenaLobby.switchArena');
 
     if (layout === 'scroll') {
         return (
             <div
                 className={`w-full shrink-0 overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] ${className ?? ''}`}
                 role="tablist"
-                aria-label="경기장 전환"
+                aria-label={switchAria}
             >
                 <div className="flex w-max min-w-full gap-1.5 rounded-xl border border-amber-500/40 bg-gradient-to-b from-zinc-900/95 via-zinc-950/95 to-black/90 p-1.5 ring-1 ring-white/10 sm:gap-2 sm:p-2">
                     {strategicCard}
@@ -244,7 +257,7 @@ export const ArenaLobbySwitchGrid: React.FC<ArenaLobbySwitchGridProps> = ({
         <div
             className={`w-full shrink-0 rounded-xl border border-amber-500/40 bg-gradient-to-b from-zinc-900/95 via-zinc-950/95 to-black/90 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_8px_28px_-16px_rgba(0,0,0,0.65)] ring-1 ring-white/10 sm:p-2 ${className ?? ''}`}
             role="tablist"
-            aria-label="경기장 전환"
+            aria-label={switchAria}
         >
             <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
                 {strategicCard}

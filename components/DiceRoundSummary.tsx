@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { LiveGameSession, ServerAction, User } from '../types.js';
 import Avatar from './Avatar.js';
 import Button from './Button.js';
@@ -15,6 +16,8 @@ interface DiceRoundSummaryProps {
 }
 
 const DiceRoundSummary: React.FC<DiceRoundSummaryProps> = ({ session, currentUser, onAction }) => {
+    const { t } = useTranslation('game');
+    const { t: tCommon } = useTranslation('common');
     const { id: gameId, player1, player2, diceRoundSummary, roundEndConfirmations, revealEndTime, isAiGame } = session;
     const hasConfirmed = !!(roundEndConfirmations?.[currentUser.id]);
     const isMobileLayout = useIsHandheldDevice(1024);
@@ -35,7 +38,7 @@ const DiceRoundSummary: React.FC<DiceRoundSummaryProps> = ({ session, currentUse
         if (!diceStats || !diceStats[playerId]) return null;
         const stats = diceStats[playerId];
         if (stats.totalRolls === 0) {
-            return <p className="text-center text-xs leading-tight text-zinc-300 sm:text-sm">굴림 없음</p>;
+            return <p className="text-center text-xs leading-tight text-zinc-300 sm:text-sm">{t('roundSummary.noRolls')}</p>;
         }
         return (
             <div className="flex flex-wrap justify-center gap-x-1.5 gap-y-1 font-mono text-[11px] leading-none text-amber-50 tabular-nums sm:gap-x-2 sm:text-xs">
@@ -56,28 +59,28 @@ const DiceRoundSummary: React.FC<DiceRoundSummaryProps> = ({ session, currentUse
     const isFinalRound = diceRoundSummary.round >= (session.settings.diceGoRounds ?? 3);
     const isTie = p1Score === p2Score;
 
-    let buttonText = '다음 라운드 시작';
+    let buttonText = tCommon('nextRound');
     if (isFinalRound) {
         if (isTie) {
-            buttonText = '데스매치 시작';
+            buttonText = t('roundSummary.deathmatchStart');
         } else {
-            buttonText = '최종 결과 보기';
+            buttonText = t('roundSummary.viewFinal');
         }
     }
     if (hasConfirmed) {
-        buttonText = '상대 확인 대기';
+        buttonText = t('roundSummary.waitingOpponentConfirm');
     }
 
     const countdownLabel = isFinalRound
         ? isTie
-            ? '데스매치 자동 시작까지'
-            : '최종 결과 자동 표시까지'
-        : '다음 라운드 자동 시작까지';
-    const countdownLabelShort = isFinalRound ? (isTie ? '데스매치까지' : '결과까지') : '다음까지';
+            ? tCommon('deathmatchAuto')
+            : tCommon('finalResultAuto')
+        : tCommon('nextRoundAuto');
+    const countdownLabelShort = isFinalRound ? (isTie ? tCommon('deathmatchShort') : tCommon('finalResultShort')) : tCommon('nextRoundShort');
 
     return (
         <DraggableWindow
-            title={`${round}라운드 집계`}
+            title={t('roundSummary.diceTitle', { round })}
             headerShowTitle
             windowId="dice-round-summary"
             initialWidth={640}
@@ -124,7 +127,7 @@ const DiceRoundSummary: React.FC<DiceRoundSummaryProps> = ({ session, currentUse
                     {lastDummyCaptureBonus && lastDummyCaptureBonus.amount > 0 && (
                         <span className="mt-2 block max-w-[min(92vw,22rem)] text-center text-[11px] font-semibold leading-tight text-amber-200 sm:text-xs">
                             마지막 더미 포획 보너스:{' '}
-                            {(lastDummyCaptureBonus.playerId === player1.id ? player1.nickname : player2.nickname) ?? '플레이어'}
+                            {(lastDummyCaptureBonus.playerId === player1.id ? player1.nickname : player2.nickname) ?? t('roundSummary.playerFallback')}
                             <span className="ml-1 font-mono tabular-nums text-amber-200">+{lastDummyCaptureBonus.amount}</span>
                         </span>
                     )}

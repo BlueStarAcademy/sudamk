@@ -1,4 +1,5 @@
 import React from 'react';
+import { tx } from '../../shared/i18n/runtimeText.js';
 
 function flattenChildren(children: React.ReactNode): React.ReactNode[] {
     return React.Children.toArray(children).filter((c) => c != null && typeof c !== 'boolean');

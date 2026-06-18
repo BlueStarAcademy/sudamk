@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { tx } from '../../shared/i18n/runtimeText.js';
 
 const BASE_DURATION_MS = 700;
 const GAIN_DURATION_MS = 600;

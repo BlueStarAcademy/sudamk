@@ -1,6 +1,7 @@
 import React, { Suspense, lazy, useCallback, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { COMPANY_INFO } from './legal/companyInfo.js';
+import { useTranslation } from 'react-i18next';
+import { useLegalCompanyInfo } from './legal/useLegalDocument.js';
 
 const TermsOfServiceModal = lazy(() => import('./legal/TermsOfServiceModal.js'));
 const PrivacyPolicyModal = lazy(() => import('./legal/PrivacyPolicyModal.js'));
@@ -42,6 +43,8 @@ const Divider: React.FC<{ auth?: boolean }> = ({ auth }) => (
 );
 
 const AppFooter: React.FC<AppFooterProps> = ({ variant = 'main' }) => {
+    const { t } = useTranslation('footer');
+    const company = useLegalCompanyInfo();
     const [openModal, setOpenModal] = useState<LegalModalKey>(null);
     const close = useCallback(() => setOpenModal(null), []);
 
@@ -55,47 +58,45 @@ const AppFooter: React.FC<AppFooterProps> = ({ variant = 'main' }) => {
                         : 'border-amber-400/15 bg-primary/85 px-3 py-2 sm:px-6 sm:py-3'
                 } text-center text-[11px] leading-snug sm:text-xs`}
                 role="contentinfo"
-                aria-label="사이트 정보"
+                aria-label={t('siteInfo')}
             >
                 <div
                     className={`mx-auto flex w-full flex-col items-center ${
                         isAuth ? 'gap-1 px-3 sm:gap-1.5 sm:px-4' : 'max-w-5xl gap-1.5 sm:gap-2'
                     }`}
                 >
-                    {/* 약관 링크 행 */}
                     <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 sm:gap-x-4">
                         <FooterLinkButton
-                            label="이용약관"
+                            label={t('terms')}
                             auth={isAuth}
                             onClick={() => setOpenModal('terms')}
                         />
                         <Divider auth={isAuth} />
                         <FooterLinkButton
-                            label="개인정보처리방침"
+                            label={t('privacy')}
                             emphasis
                             auth={isAuth}
                             onClick={() => setOpenModal('privacy')}
                         />
                         <Divider auth={isAuth} />
                         <FooterLinkButton
-                            label="취소·환불 규정"
+                            label={t('refund')}
                             auth={isAuth}
                             onClick={() => setOpenModal('refund')}
                         />
                         <Divider auth={isAuth} />
                         <a
-                            href={`mailto:${COMPANY_INFO.email}`}
+                            href={`mailto:${company.email}`}
                             className={`whitespace-nowrap text-[11px] underline-offset-4 transition-colors hover:underline sm:text-xs ${
                                 isAuth
                                     ? 'text-stone-200 hover:text-amber-100'
                                     : 'text-secondary hover:text-on-panel'
                             }`}
                         >
-                            고객센터
+                            {t('support')}
                         </a>
                     </div>
 
-                    {/* 사업자 정보 행 1 */}
                     <p
                         className={
                             isAuth
@@ -108,17 +109,16 @@ const AppFooter: React.FC<AppFooterProps> = ({ variant = 'main' }) => {
                                 isAuth ? 'font-semibold text-stone-100' : 'font-semibold text-on-panel/80'
                             }
                         >
-                            {COMPANY_INFO.name}
+                            {company.name}
                         </span>
                         <span className={`mx-1.5 ${isAuth ? 'text-stone-500/70' : 'text-tertiary/40'}`}>|</span>
-                        대표 {COMPANY_INFO.representative}
+                        {t('representative')} {company.representative}
                         <span className={`mx-1.5 ${isAuth ? 'text-stone-500/70' : 'text-tertiary/40'}`}>|</span>
-                        사업자등록번호 {COMPANY_INFO.businessNumber}
+                        {t('businessNumber')} {company.businessNumber}
                         <span className={`mx-1.5 ${isAuth ? 'text-stone-500/70' : 'text-tertiary/40'}`}>|</span>
-                        통신판매업신고 {COMPANY_INFO.mailOrderNumber}
+                        {t('mailOrderNumber')} {company.mailOrderNumber}
                     </p>
 
-                    {/* 사업자 정보 행 2 */}
                     <p
                         className={
                             isAuth
@@ -126,17 +126,17 @@ const AppFooter: React.FC<AppFooterProps> = ({ variant = 'main' }) => {
                                 : 'text-[10px] text-tertiary/95 sm:text-[11px]'
                         }
                     >
-                        {COMPANY_INFO.address}
+                        {company.address}
                         <span className={`mx-1.5 ${isAuth ? 'text-stone-500/70' : 'text-tertiary/40'}`}>|</span>
-                        고객센터 {COMPANY_INFO.phone}
+                        {t('supportPhone')} {company.phone}
                         <span className={`mx-1.5 ${isAuth ? 'text-stone-500/70' : 'text-tertiary/40'}`}>|</span>
                         <a
-                            href={`mailto:${COMPANY_INFO.email}`}
+                            href={`mailto:${company.email}`}
                             className={`underline-offset-2 transition-colors hover:underline ${
                                 isAuth ? 'text-stone-200 hover:text-amber-100' : 'hover:text-on-panel'
                             }`}
                         >
-                            {COMPANY_INFO.email}
+                            {company.email}
                         </a>
                     </p>
 
@@ -145,7 +145,7 @@ const AppFooter: React.FC<AppFooterProps> = ({ variant = 'main' }) => {
                             isAuth ? 'text-[10px] text-stone-400' : 'text-[10px] text-tertiary/70'
                         }
                     >
-                        © {new Date().getFullYear()} {COMPANY_INFO.name}. All rights reserved.
+                        © {new Date().getFullYear()} {company.name}. All rights reserved.
                     </p>
                 </div>
             </footer>

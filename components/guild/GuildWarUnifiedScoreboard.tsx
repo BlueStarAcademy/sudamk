@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 const STAR_FILLED = '/images/guild/guildwar/clearstar.webp';
 
@@ -27,6 +28,7 @@ export const GuildWarUnifiedScoreboard: React.FC<GuildWarUnifiedScoreboardProps>
     hideHouseWhenZero,
     variant = 'default',
 }) => {
+    const { t } = useTranslation('guild');
     const totalStars = blueStars + redStars;
     const totalHouse = blueHouse + redHouse;
     const showHouseRow = !(hideHouseWhenZero && totalHouse <= 0);
@@ -73,7 +75,7 @@ export const GuildWarUnifiedScoreboard: React.FC<GuildWarUnifiedScoreboardProps>
                 <div className="flex min-w-0 flex-col items-center gap-0.5 text-sky-100">
                     {starScoreRow(blueStars)}
                     {showHouseRow ? (
-                        <span className={`font-semibold tabular-nums text-cyan-200/90 ${numXs}`}>집 {blueHouse.toLocaleString()}</span>
+                        <span className={`font-semibold tabular-nums text-cyan-200/90 ${numXs}`}>{t('war.houseLabel', { score: blueHouse.toLocaleString() })}</span>
                     ) : null}
                 </div>
 
@@ -105,7 +107,7 @@ export const GuildWarUnifiedScoreboard: React.FC<GuildWarUnifiedScoreboardProps>
                         <div
                             className="pointer-events-none absolute inset-y-0 z-[2] w-0.5 rounded-full bg-amber-100/90 shadow-[0_0_10px_rgba(254,243,199,0.65)]"
                             style={{ left: pct, transform: 'translateX(-50%)' }}
-                            title={`좌측 우세 약 ${(p * 100).toFixed(0)}% (별·집점)`}
+                            title={t('war.dominanceTooltip', { percent: (p * 100).toFixed(0) })}
                             aria-hidden
                         />
                     </div>
@@ -114,7 +116,7 @@ export const GuildWarUnifiedScoreboard: React.FC<GuildWarUnifiedScoreboardProps>
                 <div className="flex min-w-0 flex-col items-center gap-0.5 text-rose-100">
                     {starScoreRow(redStars)}
                     {showHouseRow ? (
-                        <span className={`font-semibold tabular-nums text-rose-200/90 ${numXs}`}>집 {redHouse.toLocaleString()}</span>
+                        <span className={`font-semibold tabular-nums text-rose-200/90 ${numXs}`}>{t('war.houseLabel', { score: redHouse.toLocaleString() })}</span>
                     ) : null}
                 </div>
             </div>

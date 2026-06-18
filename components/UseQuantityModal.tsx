@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 import { InventoryItem, UserWithStatus } from '../types.js';
 import { ItemGrade } from '../types/enums.js';
@@ -29,6 +30,8 @@ const UseQuantityModal: React.FC<UseQuantityModalProps> = ({
     isTopmost,
     viewportPortal,
 }) => {
+    const { t } = useTranslation('inventory');
+
     const bundleKey = useMemo(() => resolveCurrencyBundleConsumableKey(item.name), [item.name]);
 
     const totalQuantity = useMemo(() => {
@@ -104,7 +107,7 @@ const UseQuantityModal: React.FC<UseQuantityModalProps> = ({
 
     return (
         <DraggableWindow
-            title="일괄 사용"
+            title={t('useQuantity.bulkUse')}
             onClose={onClose}
             windowId="useQuantity"
             isTopmost={isTopmost}
@@ -123,9 +126,9 @@ const UseQuantityModal: React.FC<UseQuantityModalProps> = ({
                         <p className="text-center text-xs font-bold tracking-wide text-violet-200/90 sm:text-[11px] sm:font-semibold sm:uppercase sm:tracking-[0.2em] sm:text-violet-200/70">
                             소모품 사용
                         </p>
-                        <h3 className="mt-1 text-center text-xl font-black leading-snug tracking-tight text-slate-50 sm:text-lg">한 번에 사용할 개수를 정하세요</h3>
+                        <h3 className="mt-1 text-center text-xl font-black leading-snug tracking-tight text-slate-50 sm:text-lg">{t('useQuantity.pickCount')}</h3>
                         <p className="mt-1 text-center text-sm leading-relaxed text-slate-300 sm:text-xs sm:text-slate-400">
-                            합계 <span className="font-semibold text-slate-100">{totalQuantity.toLocaleString()}</span>개 보유
+                            {t('useQuantity.ownedTotal', { count: totalQuantity.toLocaleString() })}
                         </p>
 
                         <div className="mt-3 flex flex-col items-center gap-2.5 rounded-xl border border-white/[0.06] bg-black/25 p-2.5 sm:mt-3 sm:flex-row sm:items-center sm:gap-3 sm:p-3">
@@ -166,9 +169,9 @@ const UseQuantityModal: React.FC<UseQuantityModalProps> = ({
 
                         <div className="mt-3 flex flex-wrap justify-center gap-2">
                             {[
-                                { label: '1개', q: 1 },
-                                { label: '절반', q: Math.max(1, Math.floor(totalQuantity / 2)) },
-                                { label: '전부', q: totalQuantity },
+                                { label: t('useQuantity.one'), q: 1 },
+                                { label: t('useQuantity.half'), q: Math.max(1, Math.floor(totalQuantity / 2)) },
+                                { label: t('useQuantity.all'), q: totalQuantity },
                             ].map(p => (
                                 <button
                                     key={p.label}
@@ -190,7 +193,7 @@ const UseQuantityModal: React.FC<UseQuantityModalProps> = ({
                     />
                     <div className="relative space-y-3">
                             <div className="flex items-baseline justify-between gap-2">
-                                <span className="text-sm font-bold uppercase tracking-wider text-violet-200/80 sm:text-xs sm:text-violet-200/65">사용 수량</span>
+                                <span className="text-sm font-bold uppercase tracking-wider text-violet-200/80 sm:text-xs sm:text-violet-200/65">{t('useQuantity.useAmount')}</span>
                                 <span className="font-mono text-base font-black tabular-nums text-violet-100 sm:text-sm">
                                     {quantity.toLocaleString()} <span className="text-slate-500">/</span> {totalQuantity.toLocaleString()}
                                 </span>

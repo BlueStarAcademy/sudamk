@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import React from 'react';
 
 type NavTitleBarProps = {
@@ -28,7 +29,9 @@ export const NavTitleBar: React.FC<NavTitleBarProps> = ({
     iconUrl,
     iconEmoji,
     flush = false,
-}) => (
+}) => {
+    const { t } = useTranslation('common');
+    return (
     <div className={className ?? ''}>
         <div
             className={`flex w-full min-w-0 shrink-0 items-center gap-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] sm:gap-2 ${
@@ -41,7 +44,7 @@ export const NavTitleBar: React.FC<NavTitleBarProps> = ({
                 type="button"
                 onClick={onBack}
                 className="relative z-[1] shrink-0 transition-transform active:scale-90 hover:drop-shadow-lg"
-                aria-label="뒤로가기"
+                aria-label={t('backAria')}
             >
                 <img src="/images/button/back.webp" alt="" className="h-9 w-9 sm:h-10 sm:w-10" />
             </button>
@@ -64,5 +67,6 @@ export const NavTitleBar: React.FC<NavTitleBarProps> = ({
         </div>
     </div>
 );
+};
 
 export default NavTitleBar;

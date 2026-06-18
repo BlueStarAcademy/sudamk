@@ -1,0 +1,335 @@
+﻿--- components/TournamentLobby.tsx (3)
+242: "諛붾몣?щ옉袁?, "臾섏닔?μ씤", "?좎쓽?쒖닔", "?뚭?猷?, "?묐갚?섏땄",
+243: "怨좎닔?щ윭", "珥덉씫湲?, "泥쒖옱湲곗궗", "諛붾몣??, "?됰쭏?섎떖??,
+244: "?뚯쓽?띿궘??, "沅곴레?섏닔", "移⑥갑留?, "?밸쪧100%", "?⑥솗", "湲곗꽦", "議고썕??, "?댁갹??, "?뚰뙆怨?
+--- components/MannerGradeChangeModal.tsx (2)
+157: <span className="text-slate-500">{payload.previousScore.toLocaleString()}??/span>
+159: <span className="font-bold text-white">{payload.newScore.toLocaleString()}??/span>
+--- components/StatAllocationModal.tsx (7)
+172: if (window.confirm(`怨⑤뱶 ${resetCost.toLocaleString()}媛쒕? ?ъ슜?섏뿬 紐⑤뱺 蹂대꼫???ъ씤?몃? 珥덇린?뷀븯?쒓쿋?듬땲源? (?ㅻ뒛 ${remainingResetsToday}???⑥쓬)`)) {
+251: <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-amber-200/60">?λ젰移?/p>
+257: <p className="text-[9px] font-medium text-emerald-200/80">?⑥?</p>
+263: <span className="text-[11px] text-zinc-400">???λ젰移섏뿉 遺꾨같</span>
+380: 珥덇린??(<img src="/images/icon/Gold.webp" alt="怨⑤뱶" className="inline-block h-3 w-3 align-middle" />
+420: aria-label={`${CORE_STATS_DATA[selectedStat].name} 遺꾨같`}
+441: title="?λ젰移??ъ씤??遺꾨같"
+--- components/HomeBoardPanel.tsx (9)
+232: window.alert('?쒕ぉ怨??댁슜???낅젰?댁＜?몄슂.');
+261: if (!window.confirm('??寃뚯떆湲????젣?섏떆寃좎뒿?덇퉴?')) return;
+322: {unreadSet.has(post.id) ? <span className="h-1.5 w-1.5 rounded-full bg-red-500" aria-label="??湲" /> : null}
+402: {unreadSet.has(post.id) ? <span className="h-2 w-2 rounded-full bg-red-500" aria-label="??湲" /> : null}
+453: {modalMode ? '怨듭? 寃뚯떆?? : '??寃뚯떆??}
+461: aria-label="怨듭? 寃뚯떆???リ린"
+536: {renderPostList(noticePosts, '怨듭??ы빆???놁뒿?덈떎.')}
+577: {renderPostList(patchPosts, '?⑥튂/?낅뜲?댄듃 ?댁뿭???놁뒿?덈떎.')}
+700: <span className="ml-2">(?섏젙?? {formatDateTime(selectedPost.updatedAt)})</span>
+--- components/EquipmentEffectsModal.tsx (9)
+28: summary: '?쒕늿??,
+32: mythic: '?ㅽ럹??,
+99: if (!row) return <span className="leading-snug">?????녿뒗 ?ㅽ럹???듭뀡</span>;
+230: <span className="text-[11px] text-zinc-500 sm:text-xs">?μ갑 ?⑹궛</span>
+338: <p className="py-6 text-center text-sm text-zinc-500">?곸슜 以묒씤 ?뱀닔 ?듭뀡???놁뒿?덈떎.</p>
+373: <p className="py-6 text-center text-sm text-zinc-500">?곸슜 以묒씤 ?ㅽ럹???듭뀡???놁뒿?덈떎.</p>
+378: <p className="mb-1.5 text-center text-[12px] font-semibold text-rose-200/90">?좏솕 ?ㅽ럹???듭뀡</p>
+403: <p className="mb-1.5 text-center text-[12px] font-semibold text-cyan-200/90">珥덉썡 ?ㅽ럹???듭뀡</p>
+440: title="?λ퉬 ?μ갑 ?④낵"
+--- components/PurchaseQuantityModal.tsx (2)
+218: <li className="border-l-2 border-amber-400/20 pl-2 text-xs text-slate-500 sm:text-[13px]">?덈궡 臾멸뎄媛 ?놁뒿?덈떎.</li>
+484: <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-amber-200/55 sm:text-xs">?⑷퀎</p>
+--- components/UseQuantityModal.tsx (1)
+130: ?⑷퀎 <span className="font-semibold text-slate-100">{totalQuantity.toLocaleString()}</span>媛?蹂댁쑀
+--- components/SellMaterialBulkModal.tsx (2)
+49: CONSUMABLE_SELL_PRICES[item.name?.replace('怨⑤뱶袁몃윭誘?, '怨⑤뱶 袁몃윭誘?)] ??
+50: CONSUMABLE_SELL_PRICES[item.name?.replace('怨⑤뱶 袁몃윭誘?, '怨⑤뱶袁몃윭誘?)] ??
+--- components/SellItemConfirmModal.tsx (9)
+56: CONSUMABLE_SELL_PRICES[item.name?.replace('怨⑤뱶袁몃윭誘?, '怨⑤뱶 袁몃윭誘?)] ??
+57: CONSUMABLE_SELL_PRICES[item.name?.replace('怨⑤뱶 袁몃윭誘?, '怨⑤뱶袁몃윭誘?)] ??
+74: title="?꾩씠???먮ℓ"
+128: <p className="mt-1 text-sm font-medium text-amber-200/90 sm:mt-0.5 sm:text-xs sm:text-amber-200/80">媛뺥솕 {item.stars}??/p>
+133: <span className="font-semibold text-slate-100">{item.quantity.toLocaleString()}</span>媛?138: <span className="font-semibold text-slate-200">{materialQty.toLocaleString()}</span>媛?141: <span className="mt-0.5 block text-slate-400 sm:mt-0 sm:inline sm:text-slate-500"> 쨌 ?뚮え?덉? ?꾨? ?먮ℓ?⑸땲??/span>
+157: {isDeleteOnly ? '?뺤궛 ?덈궡' : '諛쏆쓣 怨⑤뱶'}
+160: {isDeleteOnly ? '怨⑤뱶 0 ???몃깽?먯꽌留???젣?⑸땲?? : '?먮ℓ ??吏湲?}
+--- components/ItemObtainedModal.tsx (2)
+220: name="怨⑤뱶"
+239: name="?ㅼ씠?꾨が??
+--- components/BulkItemObtainedModal.tsx (1)
+94: <span className="text-sm font-bold text-emerald-200 sm:text-base">??궧 ?먯닔 蹂??/span>
+--- components/DisassemblyResultModal.tsx (1)
+62: 紐⑤뱺 ?щ즺 ?띾뱷?됱씠 <span className="font-bold text-amber-200">2諛?/span>??듬땲??--- components/LevelUpCelebrationModal.tsx (1)
+57: ??踰덉뿉 <span className="font-bold text-amber-100/95">{gain}?덈꺼</span> ?곸듅?덉뒿?덈떎.
+--- components/TierInfoModal.tsx (10)
+15: '梨뚮┛?': 'champion',
+16: '留덉뒪??: 'master',
+17: '?ㅼ씠??: 'diamond',
+18: '?뚮옒?곕꽆': 'platinum',
+19: '怨⑤뱶': 'gold',
+20: '?ㅻ쾭': 'silver',
+21: '釉뚮줎利?: 'bronze',
+22: '猷⑦궎': 'iron',
+23: '?덉떦': 'unranked',
+31: if (itemName.includes('?ㅼ씠??)) return '/images/icon/Zem.webp';
+--- components/LeagueTierInfoModal.tsx (3)
+73: parts.push(`?붾쪟: ${rangeTexts.join(', ')}`);
+77: parts.push(`媛뺣벑: ${demoteTexts.join(', ')}`);
+171: <p className="text-xs text-gray-400">?쒖쐞 寃쎌웳 湲곕컲 ?곗뼱 (?밴툒쨌?붾쪟쨌媛뺣벑 議곌굔? ?꾨옒 蹂댁긽??李멸퀬)</p>
+--- components/ChampionshipVenueEntryModal.tsx (8)
+73: if (name.includes('怨⑤뱶')) return '/images/icon/Gold.webp';
+74: if (name.includes('?ㅼ씠??)) return '/images/icon/Zem.webp';
+133: if (it.itemId === '怨⑤뱶') {
+142: } else if (it.itemId === '?ㅼ씠??) {
+280: const boxImg = getChampionshipRewardItemImageUrl('?λ퉬 ?곸옄 I') || '/images/Box/EquipmentBox1.webp';
+722: continueLabel = '寃곌낵蹂닿린';
+724: continueLabel = '?댁뼱??蹂닿린';
+1001: <span className="text-center text-[9px] leading-tight text-zinc-500 sm:text-xs md:text-sm">?놁쓬</span>
+--- components/RankingQuickModal.tsx (5)
+84: 濡쒓렇????{lobbyType === 'pair' ? '?섏뼱諛붾몣' : '?꾨왂諛붾몣'} ??궧???뺤씤?????덉뒿?덈떎.
+185: title="?ㅼ퐫??媛?대뱶 蹂닿린"
+186: aria-label="?ㅼ퐫??媛?대뱶 蹂닿린"
+275: <h4 className="text-sm font-bold text-amber-100">?ㅼ퐫??媛?대뱶</h4>
+323: <div className="flex shrink-0 flex-wrap gap-2" role="tablist" aria-label="??궧 移댄뀒怨좊━">
+--- components/ChatQuickModal.tsx (1)
+63: locationPrefix="[??"
+--- components/PreGameColorRoulette.tsx (10)
+41: title = '猷곕젢?쇰줈 ??諛깆쓣 寃곗젙?섎뒗 以?..',
+42: subtitle = '?먮룞?쇰줈 ?좉났怨??꾧났??諛곗젙?⑸땲??',
+47: blackRoleLabel = '?좉났 쨌 ??,
+48: whiteRoleLabel = '?꾧났 쨌 諛?,
+239: <span className="text-[0.7rem] font-semibold text-stone-400 sm:text-xs">猷곕젢 醫낅즺</span>
+252: <span className="text-xl font-black text-amber-300 sm:text-2xl">??/span>
+263: {activeColor === Player.Black ? '?? : '諛?}
+273: ? '醫뚯슦 移대뱶??理쒖쥌 ?좉났쨌?꾧났???쒖떆?⑸땲??'
+275: ? '??移몄쓽 ?뫢룸갚 ?쒖떆媛 諛붾뚮떎媛 ?좎떆 ??理쒖쥌 諛곗튂濡?怨좎젙?⑸땲??'
+276: : '?묎낵 諛깆씠 鍮좊Ⅴ寃?諛붾뚮ŉ 臾댁옉?꾨줈 硫덉땅?덈떎.'}
+--- components/CaptureTiebreakerModal.tsx (4)
+143: color: '?? | '諛?;
+148: const isBlack = color === '??;
+276: color="??
+283: color="諛?
+--- components/BaseStoneColorChoicePanel.tsx (7)
+78: <p className="text-center text-[11px] font-semibold text-sky-200/95 sm:text-xs">諛⑹옣???묒そ ?좏샇 ?뚯쓣 ?좏깮?⑸땲??</p>
+79: <p className="text-center text-[10px] text-stone-400 sm:text-[11px]">?좎떆留?湲곕떎??二쇱꽭??</p>
+124: {isPairHostChoice ? '諛⑹옣: ??李멸??먯쓽 ?좏샇 ?뚯쓣 李⑤?濡??좏깮?섏꽭??' : '留덉쓬???쒕뒗 ?뚯쓣 ?좏깮?섏꽭??'}
+139: {renderChoiceRow(`${player1.nickname} (李멸???1)`, player1.id, choiceP1)}
+140: {renderChoiceRow(`${player2.nickname} (李멸???2)`, player2.id, choiceP2)}
+163: <p className="text-center text-[10px] text-emerald-300/95 sm:text-[11px]">?좏깮???꾩넚?덉뒿?덈떎. ?곷? ?좏깮??湲곕떎由쎈땲??</p>
+166: <p className="text-center text-[10px] text-emerald-300/95 sm:text-[11px]">?묒そ ?좏깮???꾩넚?덉뒿?덈떎.</p>
+--- components/UniformColorRouletteModal.tsx (4)
+62: <p className="text-base font-bold tracking-tight text-amber-50/95 sm:text-lg">???됱긽 猷곕젢</p>
+90: ? `?대쾲 寃쎄린 ???됱긽: ${resultLabel}`
+91: : '?묐룎怨?諛깅룎??鍮좊Ⅴ寃?諛붾뚮떎媛 臾댁옉?꾨줈 硫덉땅?덈떎.'}
+95: <p className="mt-3 text-center text-xs leading-relaxed text-stone-300">?곗텧 醫낅즺 ???먮룞?쇰줈 寃쎄린媛 ?쒖옉?⑸땲??</p>
+--- components/ConditionPotionModal.tsx (8)
+21: normal: '?쇰컲',
+22: uncommon: '怨좉툒',
+23: rare: '?ш?',
+117: title="而⑤뵒???뚮났"
+154: title={`${potion.name} 쨌 ?뚮났 ${potion.minRecovery}~${potion.maxRecovery} 쨌 蹂댁쑀 ${count}`}
+248: <span className={`font-bold text-slate-200 ${isNativeMobile ? 'text-sm' : 'text-base'}`}>?꾩옱 而⑤뵒??/span>
+269: <span className="font-semibold text-slate-200">{isNativeMobile ? '?뚮났 ???덉긽)' : '?덉긽 ?뚮났 ??而⑤뵒??}</span>
+292: {isApplyingPotion ? '?뚮났 ?곸슜 以?..' : selectedPotionType && !hasPotion ? '?곸젏?쇰줈 ?대룞' : '?뚮났???ъ슜'}
+--- components/DiceGoStartConfirmationModal.tsx (3)
+66: <p className="text-center text-gray-300 mb-2">二쇱궗??寃곌낵 <span className="font-bold text-yellow-300">{winner.nickname}</span>?섏씠 ?밸━?섏뿬 ???꾧났??寃곗젙?섏뿀?듬땲??</p>
+68: <p className="text-center text-gray-400 mb-4 text-sm">?꾨옒 ?쒖옉 踰꾪듉???꾨Ⅴ嫄곕굹 30珥????援?씠 ?먮룞?쇰줈 ?쒖옉?⑸땲??</p>
+110: {hasConfirmed ? '?곷?諛??뺤씤 ?湲?以?..' : `?援??쒖옉 (${countdown})`}
+--- components/ThiefRoleConfirmedModal.tsx (2)
+46: title="猷곕젢?쇰줈 ??븷怨??좉났/?꾧났??寃곗젙?섏뿀?듬땲??
+64: {hasConfirmed ? '?곷?諛??뺤씤 ?湲?以?..' : !rouletteDone ? '猷곕젢 寃곌낵 ?뺤씤 以?..' : `?援??쒖옉 (${countdown})`}
+--- components/PairArenaDetailedStatsModal.tsx (2)
+296: <span className="font-bold">{wins}</span>??' '}
+297: <span className="font-bold text-slate-200">{losses}</span>??({winRate}%)
+--- components/PairTurnOrderModal.tsx (10)
+53: black1: '??1',
+54: white1: '諛?1',
+55: black2: '??2',
+56: white2: '諛?2',
+97: title="?섏뼱 ?쒖꽌 寃곗젙"
+118: {rouletteDone ? '李⑹닔 ?쒖꽌媛 寃곗젙?섏뿀?듬땲?? : '李⑹닔 ?쒖꽌瑜?寃곗젙?섎뒗 以묒엯?덈떎'}
+121: ?援?? <span className="font-bold text-amber-200">?? ??諛? ???? ??諛?</span> ?쒖꽌濡?吏꾪뻾?⑸땲??
+175: {seat.kind === 'user' ? '?援?옄' : seat.kind === 'pet' ? '??AI' : 'AI'}
+194: {hasConfirmed ? '?뺤씤 ?꾨즺' : rouletteDone ? '寃쎄린 ?쒖옉 ?뺤씤' : '?쒖꽌 寃곗젙 以?}
+197: <p className={`text-slate-400 ${isHandheld ? 'text-[11px]' : 'text-sm'}`}>?援?옄 ?뺤씤??湲곕떎由щ뒗 以묒엯?덈떎.</p>
+--- components/PairPetObtainedModal.tsx (1)
+54: mode === 'obtain' ? '???띾뱷' : isEquippedRowDetail ? '??????뺣낫' : '???곸꽭 ?뺣낫';
+--- components/NigiriModal.tsx (1)
+99: title="?뫢룸갚 ?뺤씤"
+--- components/StageSelectionModal.tsx (1)
+56: 紐⑺몴 ?먯닔: ??stage.targetScore.black > 0 ? stage.targetScore.black : '??}/諛?stage.targetScore.white > 0 ? stage.targetScore.white : '??}吏?--- components/SinglePlayerGameDescriptionModal.tsx (12)
+54: [SinglePlayerLevel.?낅Ц]: '?낅Ц諛?,
+55: [SinglePlayerLevel.珥덇툒]: '珥덇툒諛?,
+56: [SinglePlayerLevel.以묎툒]: '以묎툒諛?,
+57: [SinglePlayerLevel.怨좉툒]: '怨좉툒諛?,
+58: [SinglePlayerLevel.?좊떒??: '?좊떒??,
+71: return { line1: '?꾩쟾????, line2: stage.name };
+73: const label = SINGLE_PLAYER_LEVEL_DISPLAY[stage.level as SinglePlayerLevel] ?? '諛붾몣?숈썝';
+76: return { line1: label, line2: stageNum ? `?ㅽ뀒?댁? ${stageNum}` : stage.name };
+178: ? '?대━湲?諛붾몣'
+242: {isTower ? '?꾩쟾???? : '?깃? ?ㅽ뀒?댁?'}
+549: title={`${stageDisplayName} - 寃뚯엫 ?ㅻ챸`}
+555: <span className="mt-0.5 text-[0.68rem] font-semibold text-amber-100/70">寃뚯엫 ?ㅻ챸</span>
+--- components/TowerItemShopModal.tsx (15)
+172: aria-label="?꾩쟾?????꾩씠??援щℓ ?リ린"
+226: {item.price.gold && <img src="/images/icon/Gold.webp" alt="怨⑤뱶" className="h-3 w-3" />}
+227: {item.price.diamonds && <img src="/images/icon/Zem.webp" alt="?ㅼ씠?? className="h-3 w-3" />}
+245: <label className="text-xs font-semibold text-amber-200">?섎웾 ?좏깮</label>
+273: {atMaxOwned ? '蹂댁쑀 ?쒕룄 ?꾨떖' : '?쇱씪 援щℓ ?쒕룄 ?꾨떖'}
+312: <img src="/images/icon/Gold.webp" alt="怨⑤뱶" className="w-3 h-3" />
+318: <img src="/images/icon/Zem.webp" alt="?ㅼ씠?? className="w-3 h-3" />
+343: <span className="font-semibold">蹂댁쑀 ?쒗븳:</span>
+347: <span className="font-semibold">援щℓ ?쒗븳:</span>
+357: <label className="text-sm text-amber-200 font-semibold">?섎웾 ?좏깮:</label>
+369: {atMaxOwned && <p className="text-xs text-red-400 text-center">蹂댁쑀 媛쒖닔媛 理쒕?移섏뿬??援щℓ?????놁뒿?덈떎.</p>}
+370: {!atMaxOwned && atDailyLimit && <p className="text-xs text-red-400 text-center">?ㅻ뒛 援щℓ ?쒕룄???꾨떖?덉뒿?덈떎.</p>}
+388: <span className={`${isNativeMobile ? 'text-sm' : 'text-xs'} font-bold text-amber-200`}>珥?媛寃?/span>
+392: <img src="/images/icon/Gold.webp" alt="怨⑤뱶" className={`${isNativeMobile ? 'w-4 h-4' : 'w-3.5 h-3.5'}`} />
+399: <img src="/images/icon/Zem.webp" alt="?ㅼ씠?? className={`${isNativeMobile ? 'w-4 h-4' : 'w-3.5 h-3.5'}`} />
+--- components/DiceGoTurnSelectionModal.tsx (13)
+66: resultMessage = '?밸━!';
+69: resultMessage = '?⑤같!';
+72: resultMessage = '?숈젏!';
+84: title="?좉났/?꾧났 寃곗젙"
+92: <p className="text-gray-300 mb-6">以鍮?踰꾪듉???뚮윭 二쇱궗?꾨? 援대┰?덈떎. ?믪? ?レ옄媛 ?섏삩 ?щ엺???좉났/?꾧났???좏깮?⑸땲??</p>
+93: {session.turnOrderRollResult === 'tie' && <p className="text-yellow-400 font-bold text-lg mb-4 animate-pulse">?숈젏! ?좎떆 ???ㅼ떆 援대┰?덈떎.</p>}
+123: <p className="text-base font-normal text-gray-300 mb-2">?좉났 ?먮뒗 ?꾧났???좏깮?섏꽭?? ({countdown})</p>
+125: <Button onClick={() => onAction({ type: 'DICE_CHOOSE_TURN', payload: { gameId, choice: 'first' } })} colorScheme="blue">?좉났 (??</Button>
+126: <Button onClick={() => onAction({ type: 'DICE_CHOOSE_TURN', payload: { gameId, choice: 'second' } })} colorScheme="gray">?꾧났 (諛?</Button>
+130: <p className="text-base text-green-400 animate-pulse">?곷?諛⑹씠 ???꾧났???좏깮?섍퀬 ?덉뒿?덈떎...</p>
+136: <Button onClick={() => onAction({ type: 'DICE_READY_FOR_TURN_ROLL', payload: { gameId } })} colorScheme="blue">以鍮?({countdown})</Button>
+138: <p className="text-base text-green-400 animate-pulse">?곷?諛??湲?以?..</p>
+140: <p className="text-base text-gray-400 animate-pulse">二쇱궗?꾨? 援대┰?덈떎...</p>
+--- components/TurnPreferenceSelection.tsx (6)
+60: <h2 className="text-2xl font-bold mb-4">?좏깮 ?꾨즺!</h2>
+61: <p className="text-gray-300 mb-6 animate-pulse">{opponent.nickname}?섏쓽 ?좏깮??湲곕떎由ш퀬 ?덉뒿?덈떎...</p>
+71: <p className="text-gray-300 mb-6">?먰븯???쒖꽌瑜??좏깮?섏꽭?? ?쒖꽌媛 媛숈쑝硫?猷곕젢?쇰줈 臾댁옉???뺥빐吏묐땲??</p>
+76: label="?먮룞 ?좏깮源뚯?"
+77: labelShort="?먮룞 ?좏깮"
+102: title="?쒖꽌 ?좏깮"
+--- components/TurnPreferenceRouletteModal.tsx (1)
+49: <p className="mt-3 text-center text-xs leading-relaxed text-stone-300">?곗텧 醫낅즺 ???먮룞?쇰줈 吏꾪뻾?⑸땲??</p>
+--- components/ThiefDeathmatchRoleRouletteModal.tsx (2)
+47: subtitle="臾댁옉?꾨줈 ?꾨몣(??怨?寃쎌같(諛???諛곗젙?⑸땲?? 怨㏓컮濡?援대┝???쒖옉?⑸땲??"
+51: <p className="mt-3 text-center text-xs leading-relaxed text-stone-300">?곗텧 醫낅즺 ???먮룞?쇰줈 吏꾪뻾?⑸땲??</p>
+--- components/GameApplicationModal.tsx (1)
+65: <h3 className="mb-4 text-3xl font-bold text-primary">{selectedGameMode.mode} ?좎껌</h3>
+--- components/ColorAssignmentStickyFooter.tsx (3)
+64: const label = hasConfirmed ? '?곷?諛??뺤씤 ?湲?以묅? : '?쒖옉?섍린';
+75: label="?먮룞 吏꾪뻾源뚯?"
+76: labelShort="?먮룞 吏꾪뻾"
+--- components/ColorStartConfirmationModal.tsx (1)
+99: title="?뫢룸갚 ?뺤씤"
+--- components/DetailedStatsResetConfirmModal.tsx (8)
+20: <span className={`inline-flex items-center gap-0.5 tabular-nums ${className}`} aria-label={`?ㅼ씠??${amount.toLocaleString()}`}>
+74: title="?꾩쟻 珥덇린??
+95: <p className="mt-0.5 text-[11px] text-zinc-400">?꾨옒 ?꾩쟻??珥덇린?뷀빀?덈떎.</p>
+105: <p className="text-center text-[11px] text-zinc-500">湲곕줉??PVP ?꾩쟻 ?놁쓬</p>
+113: <p className="text-center text-[11px] text-zinc-500">湲곕줉??AI ?꾩쟻 ?놁쓬</p>
+124: <p className="text-center text-[11px] font-semibold text-zinc-300">珥덇린??踰붿쐞</p>
+146: <p className="text-center text-[11px] text-zinc-400">{DETAILED_STAT_RESET_SCOPE_LABELS[scope]} 珥덇린?붾맗?덈떎.</p>
+162: <span className="text-amber-50">珥덇린??/span>
+--- components/EquipmentDetailPanel.tsx (13)
+21: normal: { name: '?쇰컲', color: 'text-zinc-300', background: '/images/equipments/normalbgi.webp', frame: 'from-zinc-500/15 to-zinc-700/5 ring-zinc-500/25' },
+22: uncommon: { name: '怨좉툒', color: 'text-emerald-400', background: '/images/equipments/uncommonbgi.webp', frame: 'from-emerald-500/20 to-emerald-900/10 ring-emerald-500/30' },
+23: rare: { name: '?ш?', color: 'text-sky-400', background: '/images/equipments/rarebgi.webp', frame: 'from-sky-500/20 to-blue-950/15 ring-sky-500/35' },
+24: epic: { name: '?먰뵿', color: 'text-violet-400', background: '/images/equipments/epicbgi.webp', frame: 'from-violet-500/25 to-purple-950/15 ring-violet-500/40' },
+25: legendary: { name: '?꾩꽕', color: 'text-rose-500', background: '/images/equipments/legendarybgi.webp', frame: 'from-rose-500/25 to-red-950/15 ring-rose-500/40' },
+26: mythic: { name: '?좏솕', color: 'text-amber-400', background: '/images/equipments/mythicbgi.webp', frame: 'from-amber-500/25 to-orange-950/20 ring-amber-400/45' },
+28: name: '珥덉썡',
+194: item.type === 'consumable' ? '媛諛⑹뿉???ъ슜?????덉뒿?덈떎.' : '???щ즺???꾩옱 ?대뼡 ?λ퉬 媛뺥솕?먮룄 ?ъ슜?섏? ?딆뒿?덈떎.';
+195: const typeLabel = item.type === 'consumable' ? '?뚮え?? : '?щ즺';
+291: {materialQuantityCaption === 'obtained' ? '?띾뱷 ?섎웾' : '蹂댁쑀 ?섎웾'}:{' '}
+426: {item.isBound ? '洹?? : '嫄곕옒媛??}
+445: {item.isBound ? '洹?? : '嫄곕옒媛??}
+453: ?쒕젴 媛?? {refinementCount > 0 ? `${refinementCount}?? : '?쒕젴遺덇?'}
+--- components/HomeNativeMergedEquipmentAbilityPanel.tsx (13)
+48: const titleText = `${item.name} (${formatEquipLevelRequirement(requiredLevel)}) - ?대┃?섏뿬 ?곸꽭蹂닿린`;
+294: title="6媛??듭떖 ?λ젰移??⑷퀎"
+300: title="6媛??듭떖 ?λ젰移??⑷퀎"
+312: title={`蹂대꼫?? ${availablePoints}P`}
+348: title="6媛??듭떖 ?λ젰移??⑷퀎"
+356: title="6媛??듭떖 ?λ젰移??⑷퀎"
+366: title={`蹂대꼫?? ${availablePoints}P`}
+434: ? `湲곕낯 ${baseV} ???쒖떆 ${v} (?λ퉬쨌蹂대꼫??+${bonusRounded})`
+436: ? `湲곕낯 ${baseV} 쨌 ?λ퉬쨌蹂대꼫??諛섏쁺`
+466: aria-label="梨뷀뵾?몄떗 ?섏씠利덈퀎 ?λ젰移??먯닔"
+471: { key: 'opening' as const, label: '珥덈컲' },
+472: { key: 'midgame' as const, label: '以묐컲' },
+473: { key: 'endgame' as const, label: '醫낅컲' },
+--- components/CurlingRoundSummary.tsx (3)
+272: <span className="shrink-0 text-slate-500">?섏슦??/span>
+276: <span className="shrink-0 text-slate-500">?됱븘??/span>
+280: <span className="block text-[8px] font-semibold uppercase tracking-wider text-amber-200/70">?⑷퀎</span>
+--- components/DiceRoundSummary.tsx (11)
+38: return <p className="text-center text-xs leading-tight text-zinc-300 sm:text-sm">援대┝ ?놁쓬</p>;
+59: let buttonText = '?ㅼ쓬 ?쇱슫???쒖옉';
+62: buttonText = '?곗뒪留ㅼ튂 ?쒖옉';
+64: buttonText = '理쒖쥌 寃곌낵 蹂닿린';
+68: buttonText = '?곷? ?뺤씤 ?湲?;
+73: ? '?곗뒪留ㅼ튂 ?먮룞 ?쒖옉源뚯?'
+74: : '理쒖쥌 寃곌낵 ?먮룞 ?쒖떆源뚯?'
+75: : '?ㅼ쓬 ?쇱슫???먮룞 ?쒖옉源뚯?';
+76: const countdownLabelShort = isFinalRound ? (isTie ? '?곗뒪留ㅼ튂源뚯?' : '寃곌낵源뚯?') : '?ㅼ쓬源뚯?';
+80: title={`${round}?쇱슫??吏묎퀎`}
+127: {(lastDummyCaptureBonus.playerId === player1.id ? player1.nickname : player2.nickname) ?? '?뚮젅?댁뼱'}
+--- components/ThiefRoundSummary.tsx (10)
+38: {isThief ? '?꾨몣' : '寃쎌같'}
+43: <dt className="shrink-0 text-zinc-300">{isThief ? '?앹〈' : '寃嫄?}</dt>
+46: <span className="ml-0.5 font-sans text-[11px] font-normal text-zinc-300">媛?/span>
+63: const title = isDeathmatch ? `?곗뒪留ㅼ튂 ${round - 2} 醫낅즺` : `${round}?쇱슫??吏묎퀎`;
+67: description = '?숈젏?쇰줈 ?곗뒪留ㅼ튂瑜??댁뼱媛묐땲??';
+69: description = '??븷??諛붽퓭 ?ㅼ쓬 ?쇱슫?쒕? 吏꾪뻾?⑸땲??';
+71: description = '2?쇱슫??醫낅즺. ?숈젏?대㈃ ?곗뒪留ㅼ튂?낅땲??';
+74: const btnLabel = hasConfirmed ? '?곷? ?뺤씤 ?湲? : '?ㅼ쓬 ?쇱슫??;
+75: const countdownLabel = isDeathmatch ? '?ㅼ쓬 ?곗뒪留ㅼ튂 ?먮룞 ?쒖옉源뚯?' : '?ㅼ쓬 ?쇱슫???먮룞 ?쒖옉源뚯?';
+76: const countdownLabelShort = isDeathmatch ? '?곗뒪留ㅼ튂源뚯?' : '?ㅼ쓬源뚯?';
+--- components/PointsInfoPanel.tsx (10)
+15: { type: 'neighborhood', arena: '?숇꽕', title: '?숇꽕諛붾몣由ш렇', maxRank: 6 },
+16: { type: 'national', arena: '?꾧뎅', title: '?꾧뎅諛붾몣???, maxRank: 8 },
+17: { type: 'world', arena: '?멸퀎', title: '?붾뱶梨뷀뵾?몄떗', maxRank: 15 },
+36: const label = startRank === endRank ? `${startRank}?? : `${startRank}~${endRank}??;
+104: <label className={`mb-0.5 block font-medium text-amber-200/85 ${embedded ? (arenaTabs ? 'text-xs' : 'text-[11px]') : 'text-xs text-gray-300'}`}>?④퀎 ?좏깮</label>
+115: aria-label="?먯닔???④퀎 ?좏깮"
+120: {embedded && arenaTabs && myStageForActiveArena != null && stage === myStageForActiveArena ? ' (???④퀎)' : ''}
+168: <span className={`pl-0.5 ${compact ? 'text-center' : ''}`}>?쒖쐞</span>
+169: <span className={`pr-0.5 tabular-nums ${compact ? 'text-center' : 'text-right'}`}>?먯닔</span>
+185: <span className="ml-0.5 font-sans font-bold">??/span>
+--- components/ChampionshipRankingPanel.tsx (9)
+46: title={!isCurrentUser ? `${entry.nickname} ?꾨줈??蹂닿린` : ''}
+94: title={!isCurrentUser ? `${entry.nickname} ?꾨줈??蹂닿린` : ''}
+102: <p className="font-mono text-sm text-yellow-400">{entry.score.toLocaleString()}??/p>
+236: <div className={`flex h-full items-center justify-center text-gray-400 ${lobbyNativeMobile ? 'text-xs sm:text-[13px]' : 'text-xs'}`}>?곗씠??濡쒕뵫 以?..</div>
+238: <div className={`flex h-full items-center justify-center text-red-400 ${lobbyNativeMobile ? 'text-xs sm:text-[13px]' : 'text-xs'}`}>??궧??遺덈윭?ㅻ뒗???ㅽ뙣?덉뒿?덈떎.</div>
+269: <div ref={loadMoreRef as React.RefObject<HTMLDivElement>} className={`py-2 text-center text-gray-400 ${lobbyNativeMobile ? 'text-xs sm:text-[13px]' : 'text-xs'}`}>濡쒕뵫 以?..</div>
+296: <div className="flex-1 flex items-center justify-center text-gray-500">??궧 遺덈윭?ㅻ뒗 以?..</div>
+326: <p className="font-mono text-sm text-yellow-400">{myRankDisplay.score.toLocaleString()}??/p>
+348: <p className="text-center text-gray-500 pt-8">??겕???좎?媛 ?놁뒿?덈떎.</p>
+--- components/ChampionshipVersusDuelHistoryModal.tsx (2)
+26: title = '??꾩젙蹂?,
+72: <th className="whitespace-nowrap px-2 py-2.5 sm:px-3">??궧?먯닔 蹂??/th>
+--- components/Button.tsx (1)
+154: none: '', // 'none'? className?쇰줈 ?ㅽ??쇱쓣 吏곸젒 吏?뺥븷 ???ъ슜
+--- components/AnnouncementsModal.tsx (2)
+26: <DraggableWindow title="怨듭? / ?⑥튂 ?명듃" onClose={onClose} windowId="announcements-modal" initialWidth={720} isTopmost={isTopmost}>
+49: <p className="py-8 text-center text-sm text-tertiary">?깅줉??怨듭?媛 ?놁뒿?덈떎.</p>
+--- components/MbtiInfoModal.tsx (16)
+13: ISTJ: '?꾩떎?? 梨낆엫媛? ?좎쨷??,
+14: ISFJ: '?뚯떊?? ?⑦솕?? ?ъ꽭??,
+15: INFJ: '?듭같?? ?댁긽二쇱쓽, 源딆씠 ?덉쓬',
+16: INTJ: '?꾨왂?? ?낅┰?? ?쇰━??,
+17: ISTP: '?쇰━?? ?ㅼ슜?? 臾몄젣 ?닿껐??,
+18: ISFP: '寃몄넀?? ?덉닠?? ?듯넻??,
+19: INFP: '?댁긽二쇱쓽, 怨듦컧 ?λ젰, 李쎌쓽??,
+20: INTP: '吏???멸린?? 遺꾩꽍?? ?낆갹??,
+21: ESTP: '?쒕룞?? ?꾩떎?? ??댄븿',
+22: ESFP: '?ш탳?? ?숈쿇?? 利됲씎??,
+23: ENFP: '?댁젙?? ?곸긽???띾?, ?ш탳??,
+24: ENTP: '?낆갹?? 諛뺤떇?? ?쇱웳媛',
+25: ESTJ: '泥닿퀎?? ?꾩떎?? 由щ뜑??,
+26: ESFJ: '?ш탳?? ?묒“?? 諛곕젮??,
+27: ENFJ: '移대━?ㅻ쭏, ?곴컧, 由щ뜑??,
+28: ENTJ: '寃곕떒?? 由щ뜑?? ?꾨왂媛',
+--- components/MannerRankModal.tsx (1)
+67: title={`${totalMannerScore}??(${mannerRank.rank})`}
+--- components/GameRecordListModal.tsx (2)
+107: <p className="mt-1 text-xs text-slate-500">寃뚯엫 醫낅즺 ??湲곕낫 ??μ쓣 ?꾨Ⅴ硫??ш린???볦엯?덈떎.</p>
+191: <p className="text-sm">紐⑸줉?먯꽌 湲곕낫瑜??좏깮?섎㈃ ?곗륫?먯꽌 諛붾줈 蹂듦린?????덉뒿?덈떎.</p>
+--- components/GameRecordViewerModal.tsx (1)
+55: title={`湲곕낫 ??${record.opponent.nickname}`}

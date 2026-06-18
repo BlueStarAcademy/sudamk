@@ -4,6 +4,7 @@ import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
+import { useTranslation, Trans } from 'react-i18next';
 import {
     ResultModalGoldCurrencySlot,
     ResultModalItemRewardSlot,
@@ -243,6 +244,8 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
     isBusy,
 }) => {
     const { currentUserWithStatus, handlers } = useAppContext();
+    const { t } = useTranslation(['pair', 'common', 'game']);
+    const { t: tCommon } = useTranslation('common');
     const isMobile = useIsHandheldDevice();
     const [phase, setPhase] = useState<'ready' | 'done'>(claimSummary ? 'done' : 'ready');
     const [summary, setSummary] = useState<PairTrainingClaimClientSummary | null>(claimSummary);
@@ -279,7 +282,7 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
             (res as { data?: { pairTrainingClaimSummary?: PairTrainingClaimClientSummary } })?.data
                 ?.pairTrainingClaimSummary;
         if (!s) {
-            window.alert('보상 정보를 불러오지 못했습니다.');
+            window.alert(t('training.rewardLoadFailed'));
             onClose();
             return;
         }
@@ -380,7 +383,7 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
                         return;
                     }
                     if (!serverSummary) {
-                        window.alert('보상 정보를 불러오지 못했습니다.');
+                        window.alert(t('training.rewardLoadFailed'));
                         onCloseRef.current();
                         return;
                     }
@@ -422,7 +425,7 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
                     return;
                 }
                 if (!s) {
-                    window.alert('보상 정보를 불러오지 못했습니다.');
+                    window.alert(t('training.rewardLoadFailed'));
                     onCloseRef.current();
                     return;
                 }
@@ -480,7 +483,7 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
 
     return (
         <DraggableWindow
-            title={phase === 'ready' ? '수련 보상' : '수련 완료'}
+            title={phase === 'ready' ? t('training.rewardTitle') : t('training.completeTitle')}
             onClose={onClose}
             windowId="pair-training-reward"
             isTopmost
@@ -512,16 +515,16 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
                     {phase === 'ready' && autoClaimOnMount ? (
                         <div className="mx-auto flex min-h-[5.5rem] max-w-sm flex-col items-center justify-center gap-1.5 py-2 sm:min-h-[6.5rem] sm:gap-2">
                             <p className="text-center text-xs font-bold leading-snug text-fuchsia-100/90 sm:text-base sm:leading-snug">
-                                펫이 수련을 완료하고 돌아올 준비를 하고 있습니다.
+                                {t('training.preparingReturn')}
                             </p>
-                            <p className="text-[0.65rem] font-medium text-slate-500 sm:text-xs">잠시만 기다려 주세요.</p>
+                            <p className="text-[0.65rem] font-medium text-slate-500 sm:text-xs">{t('training.pleaseWait')}</p>
                         </div>
                     ) : phase === 'ready' ? (
                         <>
                             <h3 className="text-sm font-bold leading-snug text-fuchsia-50 sm:text-lg sm:font-black">
-                                <span className="text-white/95">{(petItem.name ?? '펫').replace(/\s+/g, ' ')}</span>
+                                <span className="text-white/95">{(petItem.name ?? t('pet.defaultName')).replace(/\s+/g, ' ')}</span>
                                 <br />
-                                <span className="text-fuchsia-200/90 sm:text-fuchsia-200/95">수련 보상을 수령할까요?</span>
+                                <span className="text-fuchsia-200/90 sm:text-fuchsia-200/95">{t('training.claimPrompt')}</span>
                             </h3>
                             <div className="mx-auto mt-4 flex w-full max-w-sm flex-row items-stretch justify-center gap-2 sm:mt-5 sm:gap-3">
                                 <button
@@ -530,7 +533,7 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
                                     disabled={isBusy}
                                     className="min-w-0 flex-1 rounded-full border border-white/15 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-white/25 hover:bg-white/[0.08] disabled:opacity-45 sm:min-w-[8rem] sm:flex-none sm:px-5 sm:py-2.5 sm:text-sm"
                                 >
-                                    닫기
+                                    {tCommon('actions.close')}
                                 </button>
                                 <Button
                                     type="button"
@@ -539,7 +542,7 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
                                     colorScheme="none"
                                     className="min-w-0 flex-1 !rounded-full !border !border-fuchsia-400/50 !bg-gradient-to-r !from-fuchsia-600 !via-fuchsia-500 !to-violet-600 !px-3 !py-2 !text-xs !font-bold !text-white !shadow-[0_6px_20px_rgba(192,38,211,0.35),inset_0_1px_0_rgba(255,255,255,0.16)] hover:!from-fuchsia-500 hover:!via-fuchsia-400 hover:!to-violet-500 disabled:!opacity-40 sm:!min-w-[8rem] sm:!flex-none sm:!px-6 sm:!py-2.5 sm:!text-sm sm:!font-black sm:!shadow-[0_8px_26px_rgba(192,38,211,0.4),inset_0_1px_0_rgba(255,255,255,0.18)]"
                                 >
-                                    보상 수령
+                                    {t('training.claimReward')}
                                 </Button>
                             </div>
                         </>
@@ -550,7 +553,7 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
                                     {summary.petDisplayName ?? petItem.name}
                                 </h3>
                                 <p className="mt-0.5 text-[0.65rem] font-medium tracking-wide text-slate-500 sm:mt-1 sm:text-sm sm:font-semibold sm:text-slate-400">
-                                    수련 보상이 지급되었습니다.
+                                    {t('training.rewardGranted')}
                                 </p>
                             </div>
 
@@ -578,9 +581,14 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
                                                 title={
                                                     summary.pairPetXp.change > 0
                                                         ? petXpSpecSplitForUi && petXpSpecSplitForUi.spec > 0
-                                                            ? `펫 경험치 기본 +${petXpSpecSplitForUi.base.toLocaleString()} (특화 +${petXpSpecSplitForUi.spec.toLocaleString()})`
-                                                            : `펫 경험치 +${summary.pairPetXp.change.toLocaleString()}`
-                                                        : '펫 경험치 변동 없음'
+                                                            ? t('training.petXpBaseSpec', {
+                                                                  base: petXpSpecSplitForUi.base.toLocaleString(),
+                                                                  spec: petXpSpecSplitForUi.spec.toLocaleString(),
+                                                              })
+                                                            : t('training.petXpGain', {
+                                                                  amount: summary.pairPetXp.change.toLocaleString(),
+                                                              })
+                                                        : t('training.petXpNoChange')
                                                 }
                                                 allowZeroDisplay
                                             />
@@ -604,7 +612,7 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
                                     <div className="mx-auto mt-3 w-full max-w-md space-y-2 sm:mt-4">
                                         <div className="rounded-xl border border-fuchsia-400/20 bg-gradient-to-b from-fuchsia-950/40 via-zinc-950/30 to-black/40 px-2.5 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:px-3 sm:py-2.5">
                                             <p className="text-center text-[0.65rem] font-bold uppercase tracking-[0.12em] text-fuchsia-200/90 sm:text-xs">
-                                                펫 등급강화 필요
+                                                {t('game:summary.petGradeUpgradeNeeded')}
                                             </p>
                                         </div>
                                     </div>
@@ -612,7 +620,7 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
                                     <div className="mx-auto mt-3 w-full max-w-md space-y-2 sm:mt-4">
                                         <div className="rounded-xl border border-fuchsia-400/20 bg-gradient-to-b from-fuchsia-950/40 via-zinc-950/30 to-black/40 px-2.5 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:px-3 sm:py-2.5">
                                             <p className="mb-1.5 text-center text-[0.6rem] font-bold uppercase tracking-[0.14em] text-fuchsia-200/90 sm:mb-2 sm:text-xs sm:font-black sm:tracking-tight sm:normal-case">
-                                                펫 성장
+                                                {t('training.petGrowth')}
                                             </p>
                                             <TrainingClaimXpBar
                                                 initial={summary.pairPetLevel.progress.initial}
@@ -626,7 +634,7 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
                                         </div>
                                         <PairPetLevelUpCoreDelta
                                             delta={summary.pairPetLevelUpCoreBonuses}
-                                            title="추가된 능력치"
+                                            title={t('game:summary.addedStats')}
                                             compact={compactRewards}
                                             className="mx-auto w-full max-w-md"
                                         />
@@ -641,7 +649,7 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
                                     onClick={() => void handleTrainAgain()}
                                     className="min-w-0 flex-1 rounded-xl border border-violet-400/45 bg-violet-950/35 px-2 py-2 text-[0.65rem] font-bold leading-snug text-violet-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-violet-300/55 hover:bg-violet-900/40 disabled:cursor-not-allowed disabled:opacity-45 sm:px-3 sm:py-2.5 sm:text-sm sm:font-black"
                                 >
-                                    {trainAgainBusy ? '수련 시작 중…' : '한번 더 수련'}
+                                    {trainAgainBusy ? t('training.trainAgainBusy') : t('training.trainAgain')}
                                 </button>
                                 <Button
                                     type="button"
@@ -650,7 +658,7 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
                                     className="min-w-0 flex-1 !rounded-xl !border !border-fuchsia-400/40 !bg-gradient-to-b !from-fuchsia-600/85 !via-fuchsia-800/50 !to-zinc-950/90 !py-2 !text-xs !font-bold !tracking-wide !text-fuchsia-50/95 !shadow-[0_10px_28px_rgba(0,0,0,0.35)] hover:!from-fuchsia-500 hover:!via-fuchsia-700/45 hover:!to-zinc-950 disabled:!opacity-45 sm:!py-2.5 sm:!text-sm sm:!font-black sm:!tracking-normal"
                                     onClick={onClose}
                                 >
-                                    확인
+                                    {tCommon('actions.confirm')}
                                 </Button>
                             </div>
                         </>

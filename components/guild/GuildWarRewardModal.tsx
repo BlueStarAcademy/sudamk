@@ -5,6 +5,7 @@ import { useMobileModalChrome } from '../../hooks/useMobileModalChrome.js';
 import GuildExpBadge from './GuildExpBadge.js';
 import { formatGoldAmountKoG, formatWalletDiamonds } from '../../shared/utils/walletAmountDisplay.js';
 import { PRE_GAME_MODAL_ACCENT_BTN_CLASS, PRE_GAME_MODAL_SHELL_CLASS } from '../game/PreGameDescriptionLayout.js';
+import { useTranslation } from 'react-i18next';
 
 export interface GuildWarRewardModalWarResult {
     isWinner: boolean;
@@ -69,6 +70,7 @@ const GuildWarRewardCard: React.FC<{
 );
 
 const GuildWarRewardModal: React.FC<GuildWarRewardModalProps> = ({ onClose, warResult, rewards }) => {
+    const { t } = useTranslation(['guild', 'common']);
     const useMobileChrome = useMobileModalChrome();
     const isWinner = warResult.isWinner;
     const [revealed, setRevealed] = useState(false);
@@ -82,7 +84,7 @@ const GuildWarRewardModal: React.FC<GuildWarRewardModalProps> = ({ onClose, warR
         () => [
             {
                 key: 'gold',
-                label: '골드',
+                label: t('common:resources.gold'),
                 amount: `+${formatGoldAmountKoG(rewards.gold)}`,
                 accent: 'text-amber-200',
                 glow: 'from-amber-500/25 via-yellow-600/10 to-transparent',
@@ -91,14 +93,14 @@ const GuildWarRewardModal: React.FC<GuildWarRewardModalProps> = ({ onClose, warR
                 renderIcon: () => (
                     <img
                         src="/images/icon/Gold.webp"
-                        alt="골드"
+                        alt={t('common:resources.gold')}
                         className="h-full w-full object-contain drop-shadow-[0_0_10px_rgba(251,191,36,0.55)]"
                     />
                 ),
             },
             {
                 key: 'diamonds',
-                label: '다이아',
+                label: t('common:resources.diamonds'),
                 amount: `+${formatWalletDiamonds(rewards.diamonds)}`,
                 accent: 'text-cyan-200',
                 glow: 'from-cyan-500/25 via-sky-600/10 to-transparent',
@@ -107,14 +109,14 @@ const GuildWarRewardModal: React.FC<GuildWarRewardModalProps> = ({ onClose, warR
                 renderIcon: () => (
                     <img
                         src="/images/icon/Zem.webp"
-                        alt="다이아"
+                        alt={t('common:resources.diamonds')}
                         className="h-full w-full object-contain drop-shadow-[0_0_10px_rgba(34,211,238,0.55)]"
                     />
                 ),
             },
             {
                 key: 'guildCoins',
-                label: '길드 코인',
+                label: t('rewards.guildCoins'),
                 amount: `+${rewards.guildCoins.toLocaleString()}`,
                 accent: 'text-orange-200',
                 glow: 'from-orange-500/25 via-amber-600/10 to-transparent',
@@ -123,14 +125,14 @@ const GuildWarRewardModal: React.FC<GuildWarRewardModalProps> = ({ onClose, warR
                 renderIcon: () => (
                     <img
                         src="/images/guild/tokken.webp"
-                        alt="길드 코인"
+                        alt={t('rewards.guildCoins')}
                         className="h-full w-full object-contain drop-shadow-[0_0_10px_rgba(251,146,60,0.5)]"
                     />
                 ),
             },
             {
                 key: 'guildXp',
-                label: '길드 경험치',
+                label: t('rewards.guildXp'),
                 amount: `+${rewards.guildXp.toLocaleString()}`,
                 accent: 'text-blue-200',
                 glow: 'from-blue-500/25 via-indigo-600/10 to-transparent',
@@ -142,7 +144,7 @@ const GuildWarRewardModal: React.FC<GuildWarRewardModalProps> = ({ onClose, warR
             },
             {
                 key: 'researchPoints',
-                label: '연구 포인트',
+                label: t('rewards.researchPoints'),
                 amount: `+${rewards.researchPoints.toLocaleString()}`,
                 accent: 'text-violet-200',
                 glow: 'from-violet-500/25 via-purple-600/10 to-transparent',
@@ -151,13 +153,13 @@ const GuildWarRewardModal: React.FC<GuildWarRewardModalProps> = ({ onClose, warR
                 renderIcon: () => (
                     <img
                         src="/images/guild/button/guildlab.webp"
-                        alt="연구 포인트"
+                        alt={t('rewards.researchPoints')}
                         className="h-full w-full object-contain drop-shadow-[0_0_10px_rgba(167,139,250,0.5)]"
                     />
                 ),
             },
         ],
-        [rewards]
+        [rewards, t]
     );
 
     const headerRing = isWinner
@@ -185,15 +187,15 @@ const GuildWarRewardModal: React.FC<GuildWarRewardModalProps> = ({ onClose, warR
                     type="button"
                     onClick={onClose}
                     className={`absolute right-3 top-3 z-20 sm:right-4 sm:top-4 ${SUDAMR_MODAL_CLOSE_BUTTON_CLASS}`}
-                    aria-label="닫기"
+                    aria-label={t('common:actions.close')}
                 >
-                    닫기
+                    {t('common:actions.close')}
                 </button>
                 </>
                 )}
                 {useMobileChrome && (
                     <MobileModalTitleBar
-                        title={isWinner ? '길드 전쟁 승리' : '길드 전쟁 패배'}
+                        title={isWinner ? t('war.victoryShort') : t('war.defeat')}
                         onClose={onClose}
                     />
                 )}
@@ -211,21 +213,21 @@ const GuildWarRewardModal: React.FC<GuildWarRewardModalProps> = ({ onClose, warR
                             {isWinner ? 'VICTORY' : 'DEFEAT'}
                         </div>
                         <h2 className={`text-2xl font-bold sm:text-3xl ${outcomeTitle}`} style={isWinner ? { textShadow: '0 0 24px rgba(251,191,36,0.28)' } : undefined}>
-                            {isWinner ? '길드 전쟁 승리!' : '길드 전쟁 패배'}
+                            {isWinner ? t('war.victory') : t('war.defeat')}
                         </h2>
-                        <p className="mt-1 text-xs text-white/55 sm:text-sm">전쟁 보상이 지급되었습니다</p>
+                        <p className="mt-1 text-xs text-white/55 sm:text-sm">{t('war.rewardPaid')}</p>
                     </div>
 
                     <div className="mb-4 rounded-2xl border border-white/10 bg-gradient-to-b from-stone-900/75 to-stone-950/90 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:mb-5">
                         <div className="mb-3 flex items-center justify-between gap-2">
-                            <h3 className="text-sm font-semibold text-amber-100/90 sm:text-base">전쟁 결과</h3>
+                            <h3 className="text-sm font-semibold text-amber-100/90 sm:text-base">{t('war.warResult')}</h3>
                             <span className="rounded-full border border-white/10 bg-black/25 px-2 py-0.5 text-[10px] font-medium text-white/55">
-                                집계 완료
+                                {t('war.tallyComplete')}
                             </span>
                         </div>
                         <div className="grid grid-cols-2 gap-2 sm:gap-3">
                             <div className="rounded-xl border border-amber-400/20 bg-black/20 px-3 py-2.5 text-center">
-                                <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-amber-200/70 sm:text-[11px]">별 개수</div>
+                                <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-amber-200/70 sm:text-[11px]">{t('war.starCount')}</div>
                                 <div className="text-base font-bold tabular-nums text-amber-100 sm:text-lg">
                                     {warResult.guild1Stars}
                                     <span className="mx-1 text-white/35">:</span>
@@ -233,7 +235,7 @@ const GuildWarRewardModal: React.FC<GuildWarRewardModalProps> = ({ onClose, warR
                                 </div>
                             </div>
                             <div className="rounded-xl border border-violet-400/20 bg-black/20 px-3 py-2.5 text-center">
-                                <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-violet-200/70 sm:text-[11px]">집점수 합산</div>
+                                <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-violet-200/70 sm:text-[11px]">{t('war.houseScoreSum')}</div>
                                 <div className="text-base font-bold tabular-nums text-violet-100 sm:text-lg">
                                     {warResult.guild1Score.toLocaleString()}
                                     <span className="mx-1 text-white/35">:</span>
@@ -245,8 +247,8 @@ const GuildWarRewardModal: React.FC<GuildWarRewardModalProps> = ({ onClose, warR
 
                     <div className="mb-5 sm:mb-6">
                         <div className="mb-3 flex items-end justify-between gap-2">
-                            <h3 className="text-sm font-semibold text-white/90 sm:text-base">획득 보상</h3>
-                            <span className="text-[10px] text-white/45 sm:text-xs">총 5종</span>
+                            <h3 className="text-sm font-semibold text-white/90 sm:text-base">{t('war.rewardsEarned')}</h3>
+                            <span className="text-[10px] text-white/45 sm:text-xs">{t('war.rewardTypes')}</span>
                         </div>
                         <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
                             {rewardCards.map((card, index) => (
@@ -262,7 +264,7 @@ const GuildWarRewardModal: React.FC<GuildWarRewardModalProps> = ({ onClose, warR
                     </div>
 
                     <button type="button" onClick={onClose} className={`w-full touch-manipulation ${PRE_GAME_MODAL_ACCENT_BTN_CLASS}`}>
-                        확인
+                        {t('common:actions.confirm')}
                     </button>
                 </div>
             </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import Avatar from './Avatar.js';
 import { containsProfanity } from '../profanity.js';
 import {
@@ -7,7 +8,7 @@ import {
 } from '../shared/utils/staffNicknameDisplay.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { getApiUrl } from '../utils/apiConfig.js';
-import { replaceAppHash } from '../utils/appUtils.js';
+import { replaceAppHash, APP_HOME_HASH } from '../utils/appUtils.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { AVATAR_POOL } from '../constants';
 import type { AvatarInfo, User, UserWithStatus } from '../types.js';
@@ -46,6 +47,7 @@ function useUnlockedAvatars(user: UserWithStatus | null): AvatarInfo[] {
 }
 
 const SetNickname: React.FC = () => {
+    const { t } = useTranslation('auth');
     const { currentUser, setCurrentUserAndRoute } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
     const unlockedAvatars = useUnlockedAvatars(currentUser as UserWithStatus | null);
@@ -61,7 +63,7 @@ const SetNickname: React.FC = () => {
 
     useEffect(() => {
         if (currentUser && currentUser.nickname && !currentUser.nickname.startsWith('user_')) {
-            replaceAppHash('#/profile');
+            replaceAppHash(APP_HOME_HASH);
         }
     }, [currentUser]);
 
@@ -83,13 +85,13 @@ const SetNickname: React.FC = () => {
         }
 
         if (trimmed.length < NICKNAME_MIN_LENGTH || trimmed.length > NICKNAME_MAX_LENGTH) {
-            setValidationMessage(`닉네임은 ${NICKNAME_MIN_LENGTH}자 이상 ${NICKNAME_MAX_LENGTH}자 이하로 입력해주세요.`);
+            setValidationMessage(t('nicknameValidation.length', { min: NICKNAME_MIN_LENGTH, max: NICKNAME_MAX_LENGTH }));
             setIsNicknameChecking(false);
             return;
         }
 
         if (containsProfanity(trimmed)) {
-            setValidationMessage('닉네임에 부적절한 단어가 포함되어 있습니다.');
+            setValidationMessage(t('nicknameValidation.profanity'));
             setIsNicknameChecking(false);
             return;
         }
@@ -114,13 +116,13 @@ const SetNickname: React.FC = () => {
                 if (cancelled) return;
 
                 if (!response.ok || !data.available) {
-                    setValidationMessage(data.message || '이미 사용 중인 닉네임입니다.');
+                    setValidationMessage(data.message || t('nicknameValidation.taken'));
                     return;
                 }
                 setValidationMessage(null);
             } catch (_e) {
                 if (!cancelled) {
-                    setValidationMessage('닉네임 확인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+                    setValidationMessage(t('nicknameValidation.checkError'));
                 }
             } finally {
                 if (!cancelled) {
@@ -133,7 +135,7 @@ const SetNickname: React.FC = () => {
             cancelled = true;
             clearTimeout(timer);
         };
-    }, [nickname, currentUser?.id]);
+    }, [nickname, currentUser?.id, t]);
 
     useEffect(() => {
         setError(null);
@@ -156,12 +158,12 @@ const SetNickname: React.FC = () => {
     const nicknameStatusLine = useMemo(() => {
         if (error) return { kind: 'error' as const, text: error };
         if (!trimmedNickname.length) {
-            return { kind: 'muted' as const, text: '닉네임을 입력하면 중복·비속어 검사를 진행합니다.' };
+            return { kind: 'muted' as const, text: t('nicknameValidation.hint') };
         }
-        if (isNicknameChecking) return { kind: 'loading' as const, text: '중복 여부를 확인하고 있습니다…' };
+        if (isNicknameChecking) return { kind: 'loading' as const, text: t('nicknameValidation.checking') };
         if (validationMessage) return { kind: 'error' as const, text: validationMessage };
-        return { kind: 'ok' as const, text: '사용할 수 있는 닉네임입니다.' };
-    }, [error, trimmedNickname.length, isNicknameChecking, validationMessage]);
+        return { kind: 'ok' as const, text: t('nicknameValidation.available') };
+    }, [error, trimmedNickname.length, isNicknameChecking, validationMessage, t]);
     const selectedAvatarUrl = useMemo(
         () => unlockedAvatars.find((a) => a.id === selectedAvatarId)?.url ?? AVATAR_POOL[0]?.url,
         [unlockedAvatars, selectedAvatarId],
@@ -169,11 +171,11 @@ const SetNickname: React.FC = () => {
 
     const submitNicknameToServer = useCallback(async () => {
         if (!currentUser) {
-            setError('로그인이 필요합니다.');
+            setError(t('loginRequired'));
             return;
         }
         const snapshotUser = currentUser;
-        const t = nickname.trim();
+        const nicknameValue = nickname.trim();
         setError(null);
         setIsLoading(true);
         try {
@@ -181,7 +183,7 @@ const SetNickname: React.FC = () => {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    nickname: t,
+                    nickname: nicknameValue,
                     userId: snapshotUser.id,
                     avatarId: selectedAvatarId,
                 }),
@@ -189,44 +191,42 @@ const SetNickname: React.FC = () => {
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.message || '닉네임 설정에 실패했습니다.');
+                throw new Error(errorData.message || t('nicknameValidation.setFailed'));
             }
 
             const data = (await response.json()) as { user?: Partial<User> };
             const serverPatch = data.user ?? {};
-            // 서버 응답이 일부 필드만 오거나 직렬화 과정에서 닉네임이 빠지는 경우에도
-            // 라우터 조건(!nickname || user_*)을 확실히 통과하도록 제출값을 병합한다.
             const merged: User = {
                 ...snapshotUser,
                 ...serverPatch,
-                nickname: t,
+                nickname: nicknameValue,
                 avatarId: selectedAvatarId,
             };
             setCurrentUserAndRoute(merged);
         } catch (err: unknown) {
-            const msg = err instanceof Error ? err.message : '닉네임 설정에 실패했습니다.';
+            const msg = err instanceof Error ? err.message : t('nicknameValidation.setFailed');
             setError(msg);
         } finally {
             setIsLoading(false);
         }
-    }, [currentUser, nickname, selectedAvatarId, setCurrentUserAndRoute]);
+    }, [currentUser, nickname, selectedAvatarId, setCurrentUserAndRoute, t]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
 
         if (!nickname.trim()) {
-            setError('닉네임을 입력해주세요.');
+            setError(t('nicknameValidation.required'));
             return;
         }
 
         if (trimmedNickname.length < NICKNAME_MIN_LENGTH || trimmedNickname.length > NICKNAME_MAX_LENGTH) {
-            setError(`닉네임은 ${NICKNAME_MIN_LENGTH}자 이상 ${NICKNAME_MAX_LENGTH}자 이하로 입력해주세요.`);
+            setError(t('nicknameValidation.length', { min: NICKNAME_MIN_LENGTH, max: NICKNAME_MAX_LENGTH }));
             return;
         }
 
         if (containsProfanity(trimmedNickname)) {
-            setError('닉네임에 부적절한 단어가 포함되어 있습니다.');
+            setError(t('nicknameValidation.profanity'));
             return;
         }
 
@@ -241,17 +241,17 @@ const SetNickname: React.FC = () => {
         }
 
         if (!currentUser) {
-            setError('로그인이 필요합니다.');
+            setError(t('loginRequired'));
             return;
         }
 
         if (isNicknameChecking) {
-            setError('닉네임 확인이 끝날 때까지 잠시만 기다려주세요.');
+            setError(t('nicknameValidation.waitCheck'));
             return;
         }
 
         if (!unlockedAvatars.some((a) => a.id === selectedAvatarId)) {
-            setError('선택한 아바타를 사용할 수 없습니다.');
+            setError(t('nicknameValidation.avatarUnavailable'));
             return;
         }
 
@@ -273,7 +273,7 @@ const SetNickname: React.FC = () => {
         return (
             <div className="flex min-h-screen items-center justify-center">
                 <div className="text-center">
-                    <p className="mb-4 text-gray-400">로그인이 필요합니다.</p>
+                    <p className="mb-4 text-gray-400">{t('loginRequired')}</p>
                     <a
                         href="#/"
                         className="text-blue-400 hover:text-blue-300"
@@ -282,7 +282,7 @@ const SetNickname: React.FC = () => {
                             window.location.hash = '#/';
                         }}
                     >
-                        로그인 페이지로 이동
+                        {t('goToLogin')}
                     </a>
                 </div>
             </div>
@@ -313,7 +313,7 @@ const SetNickname: React.FC = () => {
                 >
                     <div className="shrink-0 text-center">
                         <h2 className="bg-gradient-to-br from-amber-50 via-amber-200 to-amber-600 bg-clip-text text-xl font-extrabold tracking-tight text-transparent sm:text-3xl">
-                            닉네임 설정
+                            {t('setNickname')}
                         </h2>
                     </div>
 
@@ -329,7 +329,7 @@ const SetNickname: React.FC = () => {
                                 size={isNativeMobile ? 96 : 104}
                             />
                         </div>
-                        <p className="text-[10px] font-medium text-zinc-500 sm:text-xs">선택 아바타 미리보기</p>
+                        <p className="text-[10px] font-medium text-zinc-500 sm:text-xs">{t('avatarPreview')}</p>
                     </div>
 
                     <div className="mt-1.5 shrink-0 rounded-lg border border-white/10 bg-black/30 px-2.5 py-2 shadow-inner ring-1 ring-white/[0.06] sm:mt-2 sm:rounded-xl sm:px-3.5 sm:py-2.5">
@@ -337,7 +337,7 @@ const SetNickname: React.FC = () => {
                             ref={avatarScrollRef}
                             tabIndex={0}
                             role="listbox"
-                            aria-label="아바타 목록. 마우스 휠로 좌우 스크롤할 수 있습니다."
+                            aria-label={t('avatarListAria')}
                             className="flex min-h-[80px] w-full cursor-default items-center gap-2 overflow-x-auto overflow-y-visible px-3 py-2.5 outline-none [scrollbar-width:thin] scroll-px-3 focus-visible:ring-2 focus-visible:ring-amber-400/40 sm:min-h-[92px] sm:gap-2.5 sm:px-4 sm:py-3 sm:scroll-px-4"
                             onClick={(e) => {
                                 if (e.target === avatarScrollRef.current) {
@@ -374,7 +374,7 @@ const SetNickname: React.FC = () => {
                     <form className="mt-2 flex min-h-0 flex-1 flex-col justify-center gap-2 sm:mt-3 sm:gap-3" onSubmit={handleSubmit}>
                         <div className="shrink-0">
                             <label htmlFor="nickname-set" className="mb-0.5 block text-center text-xs font-semibold text-stone-200 sm:mb-1 sm:text-base">
-                                닉네임
+                                {t('nickname')}
                             </label>
                             <input
                                 id="nickname-set"
@@ -383,7 +383,7 @@ const SetNickname: React.FC = () => {
                                 required
                                 autoFocus
                                 className={isNativeMobile ? inputClass : desktopInputClass}
-                                placeholder="닉네임 (2-6자)"
+                                placeholder={t('nicknameLengthPlaceholder')}
                                 value={nickname}
                                 onChange={(e) => setNickname(e.target.value)}
                                 minLength={NICKNAME_MIN_LENGTH}
@@ -398,7 +398,7 @@ const SetNickname: React.FC = () => {
                                                 : 'font-medium text-red-400/95'
                                         }
                                     >
-                                        {nickname.length} / {NICKNAME_MIN_LENGTH}-{NICKNAME_MAX_LENGTH}자
+                                        {t('charCount', { current: nickname.length, min: NICKNAME_MIN_LENGTH, max: NICKNAME_MAX_LENGTH })}
                                     </span>
                                 ) : (
                                     '\u00a0'
@@ -413,7 +413,7 @@ const SetNickname: React.FC = () => {
                             title={nicknameStatusLine.text}
                         >
                         <div className="flex w-[4.25rem] shrink-0 items-center justify-center border-r border-white/10 bg-white/[0.05] px-1 text-center text-[10px] font-semibold leading-none text-amber-200/85 sm:w-[4.75rem] sm:text-[11px]">
-                            닉네임 확인
+                            {t('nicknameCheck')}
                         </div>
                         <div className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1 sm:px-3">
                             {nicknameStatusLine.kind === 'loading' && (
@@ -458,7 +458,7 @@ const SetNickname: React.FC = () => {
                             }
                             className={primaryBtnClass}
                         >
-                            {isLoading ? '설정 중...' : '닉네임 설정'}
+                            {isLoading ? t('settingNickname') : t('setNickname')}
                         </button>
                     </div>
                 </form>
@@ -478,18 +478,18 @@ const SetNickname: React.FC = () => {
                                 id="nickname-start-confirm-title"
                                 className="text-center text-xl font-bold tracking-tight text-amber-100 drop-shadow-sm"
                             >
-                                시작하기
+                                {t('startGame')}
                             </h3>
-                            <p className="mt-1 text-center text-sm text-amber-200/50">최종 확인</p>
+                            <p className="mt-1 text-center text-sm text-amber-200/50">{t('finalConfirm')}</p>
                         </div>
                         <div className="flex min-h-0 flex-1 flex-col px-7 py-8">
                             <p className="text-center text-[1.35rem] font-medium leading-relaxed text-zinc-100">
-                                SUDAM을 시작합니다.
+                                {t('startSudam')}
                                 <br />
-                                <span className="text-zinc-300">즐거운 시간 보내세요.</span>
+                                <span className="text-zinc-300">{t('enjoyYourTime')}</span>
                             </p>
                             <div className="mt-auto border-t border-white/10 pt-8">
-                                <p className="text-center text-xs font-bold uppercase tracking-[0.25em] text-zinc-500">선택한 프로필</p>
+                                <p className="text-center text-xs font-bold uppercase tracking-[0.25em] text-zinc-500">{t('selectedProfile')}</p>
                                 <div className="mt-4 flex flex-col items-center gap-3">
                                     <div className="rounded-full p-0.5 ring-2 ring-amber-400/40">
                                         <Avatar
@@ -505,10 +505,10 @@ const SetNickname: React.FC = () => {
                         </div>
                         <div className="grid grid-cols-2 gap-3 border-t border-white/10 bg-black/35 px-6 py-5">
                             <button type="button" className={secondaryModalBtn} onClick={() => setShowStartConfirm(false)}>
-                                취소
+                                {t('common:actions.cancel', { defaultValue: 'Cancel' })}
                             </button>
                             <button type="button" disabled={isLoading} className={goldModalBtn} onClick={() => void handleConfirmStart()}>
-                                {isLoading ? '처리 중…' : '생성'}
+                                {isLoading ? t('processing') : t('creating')}
                             </button>
                         </div>
                     </div>

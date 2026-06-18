@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 import Button from './Button.js';
 import { InventoryItem, QuestReward, ItemGrade } from '../types.js';
@@ -18,6 +19,7 @@ interface RewardSummaryModalProps {
 }
 
 const RewardSummaryModal: React.FC<RewardSummaryModalProps> = ({ summary, onClose, isTopmost }) => {
+    const { t } = useTranslation('inventory');
     const { reward, items, title } = summary;
 
     const fallbackRewardItems = useMemo<InventoryItem[]>(() => {
@@ -103,11 +105,11 @@ const RewardSummaryModal: React.FC<RewardSummaryModalProps> = ({ summary, onClos
                     <div className="space-y-4 p-5">
                         {hasAnyCurrencyReward && (
                         <div className="rounded-xl border border-white/5 bg-black/40 p-4 shadow-inner">
-                            <h3 className="mb-3 text-center text-[11px] font-bold uppercase tracking-wider text-zinc-500">획득 재화</h3>
+                            <h3 className="mb-3 text-center text-[11px] font-bold uppercase tracking-wider text-zinc-500">{t('rewardSummary.currencyObtained')}</h3>
                             <div className="flex flex-col items-center gap-2.5 text-sm">
                                 {(reward.gold ?? 0) > 0 && (
                                     <div className="flex w-full max-w-[16rem] items-center justify-center gap-2.5 rounded-xl border border-amber-500/20 bg-amber-950/25 px-4 py-2.5 shadow-inner">
-                                        <img src="/images/icon/Gold.webp" alt="" className="h-6 w-6 shrink-0 object-contain" title="골드" />
+                                        <img src="/images/icon/Gold.webp" alt="" className="h-6 w-6 shrink-0 object-contain" title={t('gold', { ns: 'common' })} />
                                         <span className="text-lg font-bold tabular-nums text-amber-200 sm:text-xl">
                                             +{formatGoldAmountKoG(reward.gold!)}
                                         </span>
@@ -115,7 +117,7 @@ const RewardSummaryModal: React.FC<RewardSummaryModalProps> = ({ summary, onClos
                                 )}
                                 {(reward.diamonds ?? 0) > 0 && (
                                     <div className="flex w-full max-w-[16rem] items-center justify-center gap-2.5 rounded-xl border border-cyan-500/20 bg-cyan-950/25 px-4 py-2.5 shadow-inner">
-                                        <img src="/images/icon/Zem.webp" alt="" className="h-6 w-6 shrink-0 object-contain" title="다이아" />
+                                        <img src="/images/icon/Zem.webp" alt="" className="h-6 w-6 shrink-0 object-contain" title={t('diamonds', { ns: 'common' })} />
                                         <span className="text-lg font-bold tabular-nums text-cyan-200 sm:text-xl">
                                             +{formatWalletDiamonds(reward.diamonds!)}
                                         </span>
@@ -136,7 +138,7 @@ const RewardSummaryModal: React.FC<RewardSummaryModalProps> = ({ summary, onClos
                                 )}
                                 {(reward.guildCoins ?? 0) > 0 && (
                                     <div className="flex w-full max-w-[16rem] items-center justify-center gap-2.5 rounded-xl border border-amber-500/20 bg-amber-950/25 px-4 py-2.5 shadow-inner">
-                                        <img src="/images/guild/tokken.webp" alt="" className="h-6 w-6 shrink-0 object-contain" title="길드 코인" />
+                                        <img src="/images/guild/tokken.webp" alt="" className="h-6 w-6 shrink-0 object-contain" title={t('guildCoin', { ns: 'common' })} />
                                         <span className="text-lg font-bold tabular-nums text-amber-200 sm:text-xl">
                                             +{reward.guildCoins!.toLocaleString()}
                                         </span>
@@ -152,7 +154,7 @@ const RewardSummaryModal: React.FC<RewardSummaryModalProps> = ({ summary, onClos
                                 )}
                                 {reward.xp?.type === 'blacksmith' && (reward.xp?.amount ?? 0) > 0 && (
                                     <div className="flex w-full max-w-[16rem] items-center justify-center gap-2.5 rounded-xl border border-orange-500/20 bg-orange-950/25 px-4 py-2.5 shadow-inner">
-                                        <img src="/images/equipments/moru.webp" alt="" className="h-6 w-6 shrink-0 object-contain" title="대장간 경험치" />
+                                        <img src="/images/equipments/moru.webp" alt="" className="h-6 w-6 shrink-0 object-contain" title={t('blacksmithExp', { ns: 'common' })} />
                                         <span className="text-lg font-bold tabular-nums text-orange-300 sm:text-xl">
                                             +{reward.xp!.amount.toLocaleString()}
                                         </span>

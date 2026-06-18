@@ -1,5 +1,6 @@
 import React from 'react';
-import { replaceAppHash } from '../utils/appUtils.js';
+import { useTranslation } from 'react-i18next';
+import { replaceAppHash, APP_HOME_ARENA_HASH } from '../utils/appUtils.js';
 import { RANKING_MODAL_SLIM_SCROLL_Y } from '../shared/constants/rankingModalScrollbar.js';
 
 export type MobileRankingGuideVariant =
@@ -22,73 +23,9 @@ type TextSection = {
 
 type GuideSections = {
     how: ListSection | TextSection;
-    /** 없으면 두 번째 블록(점수가 오르는 곳) 숨김 */
     where?: ListSection | TextSection | null;
     cta: string;
     hash: string;
-};
-
-const GUIDE: Record<MobileRankingGuideVariant, GuideSections> = {
-    'game-combat': {
-        how: {
-            title: '점수 올리는 방법',
-            ordered: true,
-            items: ['높은 등급의 장비 착용', '장비 강화 및 제련', '레벨업 후 능력치 분배'],
-        },
-        where: null,
-        cta: '경기장으로',
-        hash: '#/profile/arena',
-    },
-    'game-manner': {
-        how: {
-            title: '점수 올리는 방법',
-            ordered: false,
-            items: ['전략바둑, 놀이바둑 PVP 경기장 → 매너 액션 버튼 사용'],
-        },
-        where: {
-            title: '점수가 오르는 곳',
-            ordered: false,
-            items: ['경기장 → 전략바둑 또는 놀이바둑 PVP 경기장'],
-        },
-        cta: '경기장으로',
-        hash: '#/profile/arena',
-    },
-    'game-adventure': {
-        how: {
-            title: '점수 올리는 방법',
-            body: '모험 맵에서 몬스터를 처치할 때마다 해당 몬스터 레벨만큼 사냥 점수가 누적됩니다. 점수가 같으면 먼저 달성한 유저가 상위에 표시됩니다.',
-        },
-        where: {
-            title: '점수가 오르는 곳',
-            body: '모험 → 지역 맵에서 몬스터와 대국해 승리하세요.',
-        },
-        cta: '모험으로',
-        hash: '#/adventure',
-    },
-    'baduk-strategic': {
-        how: {
-            title: '점수 올리는 방법',
-            body: '전략바둑 랭킹전(PVP) 승패로 1200 기준 누적 점수가 변합니다. 같은 모드 10판 이상이면 순위에 반영되며, 강한 상대를 이기면 더 많이 오릅니다.',
-        },
-        where: {
-            title: '점수가 오르는 곳',
-            body: '경기장 → 전략바둑 → 대기실에서 랭킹전 매칭을 이용하세요.',
-        },
-        cta: '전략 대기실',
-        hash: '#/pvp/strategic',
-    },
-    'baduk-pair': {
-        how: {
-            title: '점수 올리는 방법',
-            body: '페어 랭킹전(PVP) 승패로 1200 기준 누적 점수가 변합니다. 최소 대국 수를 채우면 순위에 반영되며, 강한 상대를 이기면 더 많이 오릅니다.',
-        },
-        where: {
-            title: '점수가 오르는 곳',
-            body: '경기장 → 페어바둑에서 랭킹전 매칭을 이용하세요.',
-        },
-        cta: '페어 로비',
-        hash: '#/pvp/pair',
-    },
 };
 
 function isListSection(s: ListSection | TextSection): s is ListSection {
@@ -137,7 +74,72 @@ function renderSection(
 }
 
 const MobileRankingGuidePanel: React.FC<{ variant: MobileRankingGuideVariant }> = ({ variant }) => {
-    const g = GUIDE[variant];
+    const { t } = useTranslation('lobby');
+
+    const guide: Record<MobileRankingGuideVariant, GuideSections> = {
+        'game-combat': {
+            how: {
+                title: t('rankingGuide.howToRaise'),
+                ordered: true,
+                items: t('rankingGuide.gameCombatItems', { returnObjects: true }) as string[],
+            },
+            where: null,
+            cta: t('rankingGuide.goToArena'),
+            hash: APP_HOME_ARENA_HASH,
+        },
+        'game-manner': {
+            how: {
+                title: t('rankingGuide.howToRaise'),
+                ordered: false,
+                items: t('rankingGuide.gameMannerItems', { returnObjects: true }) as string[],
+            },
+            where: {
+                title: t('rankingGuide.whereScoresRise'),
+                ordered: false,
+                items: t('rankingGuide.gameMannerWhereItems', { returnObjects: true }) as string[],
+            },
+            cta: t('rankingGuide.goToArena'),
+            hash: APP_HOME_ARENA_HASH,
+        },
+        'game-adventure': {
+            how: {
+                title: t('rankingGuide.howToRaise'),
+                body: t('rankingGuide.gameAdventureHow'),
+            },
+            where: {
+                title: t('rankingGuide.whereScoresRise'),
+                body: t('rankingGuide.gameAdventureWhere'),
+            },
+            cta: t('rankingGuide.goToAdventure'),
+            hash: '#/adventure',
+        },
+        'baduk-strategic': {
+            how: {
+                title: t('rankingGuide.howToRaise'),
+                body: t('rankingGuide.badukStrategicHow'),
+            },
+            where: {
+                title: t('rankingGuide.whereScoresRise'),
+                body: t('rankingGuide.badukStrategicWhere'),
+            },
+            cta: t('rankingGuide.strategicLobby'),
+            hash: '#/pvp/strategic',
+        },
+        'baduk-pair': {
+            how: {
+                title: t('rankingGuide.howToRaise'),
+                body: t('rankingGuide.badukPairHow'),
+            },
+            where: {
+                title: t('rankingGuide.whereScoresRise'),
+                body: t('rankingGuide.badukPairWhere'),
+            },
+            cta: t('rankingGuide.pairLobby'),
+            hash: '#/pvp/pair',
+        },
+    };
+
+    const g = guide[variant];
 
     return (
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-amber-500/20 bg-gradient-to-br from-zinc-900/95 via-zinc-950/90 to-neutral-950/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
@@ -151,7 +153,7 @@ const MobileRankingGuidePanel: React.FC<{ variant: MobileRankingGuideVariant }> 
             <div className="relative flex min-h-0 flex-1 flex-col gap-2 p-2.5">
                 <div className="flex items-center gap-2">
                     <div className="h-0.5 w-10 shrink-0 rounded-full bg-gradient-to-r from-amber-300 via-amber-500 to-amber-600/80" />
-                    <span className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-200/90">Score guide</span>
+                    <span className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-200/90">{t('rankingGuide.heading')}</span>
                     <div className="h-px min-w-0 flex-1 bg-gradient-to-r from-amber-500/35 to-transparent" />
                 </div>
 

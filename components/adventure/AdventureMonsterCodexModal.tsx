@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import DraggableWindow from '../DraggableWindow.js';
 import {
     ADVENTURE_CODEX_CHAPTER_UI,
@@ -15,8 +16,6 @@ import AdventureChapterMonsterSituationList from './AdventureChapterMonsterSitua
 import {
     ADVENTURE_CODEX_BOSS_PERCENT_PER_LEVEL,
     ADVENTURE_CODEX_MAX_LEVEL,
-    adventureCodexPercentBossBonusLabelKo,
-    adventureCodexNormalPercentLabelKo,
     getAdventureCodexComprehensionLevel,
     getAdventureCodexComprehensionBarProgress,
     getAdventureMonsterComprehensionDesign,
@@ -24,6 +23,10 @@ import {
 } from '../../utils/adventureCodexComprehension.js';
 import { formatAdventureUnderstandingBonusPercent, getMonsterCodexComprehensionBuffTotals } from '../../utils/adventureUnderstanding.js';
 import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../../shared/constants/pcShellLayout.js';
+import {
+    adventureCodexNormalPercentLabel,
+    adventureCodexPercentBossBonusLabel,
+} from './adventureI18nHelpers.js';
 
 type ChapterComprehensionBuffSummary = {
     goldBonusPercent: number;
@@ -149,6 +152,7 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
     initialMainTab,
     defaultCodexStageId,
 }) => {
+    const { t } = useTranslation(['lobby', 'profile']);
     const { isNativeMobile } = useNativeMobileShell();
     const showSituationTab = Boolean(mapSituation);
     const [mainTab, setMainTab] = useState<'situation' | 'codex' | 'comprehension'>(() =>
@@ -198,7 +202,7 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
                 {showSituationTab ? (
                     <div
                         role="tablist"
-                        aria-label="몬스터 창 구분"
+                        aria-label={t('adventure.monsterWindowTabsAria')}
                         className="mb-3 flex shrink-0 gap-1.5 sm:gap-2"
                     >
                         <button
@@ -208,7 +212,7 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
                             onClick={() => setMainTab('situation')}
                             className={`${mainTabBtn} ${mainTab === 'situation' ? mainTabOn : mainTabOff}`}
                         >
-                            몬스터 상황
+                            {t('adventure.monsterSituation')}
                         </button>
                         <button
                             type="button"
@@ -217,7 +221,7 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
                             onClick={() => setMainTab('codex')}
                             className={`${mainTabBtn} ${mainTab === 'codex' ? mainTabOn : mainTabOff}`}
                         >
-                            몬스터 도감
+                            {t('profile.monsterCodex')}
                         </button>
                         {isNativeMobile ? (
                             <button
@@ -227,7 +231,7 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
                                 onClick={() => setMainTab('comprehension')}
                                 className={`${mainTabBtn} ${mainTab === 'comprehension' ? mainTabOn : mainTabOff}`}
                             >
-                                몬스터 이해도
+                                {t('adventure.monsterUnderstanding')}
                             </button>
                         ) : null}
                     </div>
@@ -236,11 +240,11 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
                 {showSituationTab && mainTab === 'situation' && mapSituation ? (
                     <div
                         role="tabpanel"
-                        aria-label="몬스터 상황"
+                        aria-label={t('adventure.monsterSituationAria')}
                         className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1"
                     >
                         <p className="text-center text-[11px] font-bold uppercase tracking-wide text-emerald-400/90 sm:text-xs">
-                            출현 · 대기 시간
+                            {t('adventure.appearWaitTime')}
                         </p>
                         <AdventureChapterMonsterSituationList
                             stageId={mapSituation.stageId}
@@ -258,7 +262,7 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
                     <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
                         <div
                             role="tablist"
-                            aria-label="이해도 챕터"
+                            aria-label={t('adventure.comprehensionChapterTabsAria')}
                             className="mb-3 flex shrink-0 gap-1 overflow-x-auto overscroll-contain border-b border-white/10 pb-1.5"
                         >
                             {ADVENTURE_STAGES.map((s) => {
@@ -287,22 +291,32 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
                             })}
                         </div>
                         <div className="rounded-xl border border-cyan-500/25 bg-cyan-950/15 p-3">
-                            <p className={`font-bold uppercase tracking-wide text-cyan-200/95 ${codexInfoText}`}>몬스터 이해도 효과</p>
+                            <p className={`font-bold uppercase tracking-wide text-cyan-200/95 ${codexInfoText}`}>{t('adventure.comprehensionEffects')}</p>
                             <div className="mt-2 grid grid-cols-1 gap-1.5">
                                 <p className={`rounded-md border border-white/10 bg-black/25 px-2 py-1.5 font-semibold text-zinc-100 ${codexInfoText}`}>
-                                    모험 골드 +{formatAdventureUnderstandingBonusPercent(chapterMonsterComprehensionBuff.goldBonusPercent)}%
+                                    {t('adventure.comprehensionGoldBonus', {
+                                        percent: formatAdventureUnderstandingBonusPercent(chapterMonsterComprehensionBuff.goldBonusPercent),
+                                    })}
                                 </p>
                                 <p className={`rounded-md border border-white/10 bg-black/25 px-2 py-1.5 font-semibold text-zinc-100 ${codexInfoText}`}>
-                                    장비 획득 +{formatAdventureUnderstandingBonusPercent(chapterMonsterComprehensionBuff.equipmentDropPercent)}%
+                                    {t('adventure.comprehensionEquipBonus', {
+                                        percent: formatAdventureUnderstandingBonusPercent(chapterMonsterComprehensionBuff.equipmentDropPercent),
+                                    })}
                                 </p>
                                 <p className={`rounded-md border border-white/10 bg-black/25 px-2 py-1.5 font-semibold text-zinc-100 ${codexInfoText}`}>
-                                    고급 장비 +{formatAdventureUnderstandingBonusPercent(chapterMonsterComprehensionBuff.highGradeEquipmentPercent)}%
+                                    {t('adventure.comprehensionHighEquipBonus', {
+                                        percent: formatAdventureUnderstandingBonusPercent(chapterMonsterComprehensionBuff.highGradeEquipmentPercent),
+                                    })}
                                 </p>
                                 <p className={`rounded-md border border-white/10 bg-black/25 px-2 py-1.5 font-semibold text-zinc-100 ${codexInfoText}`}>
-                                    재료 획득 +{formatAdventureUnderstandingBonusPercent(chapterMonsterComprehensionBuff.materialDropPercent)}%
+                                    {t('adventure.comprehensionMaterialBonus', {
+                                        percent: formatAdventureUnderstandingBonusPercent(chapterMonsterComprehensionBuff.materialDropPercent),
+                                    })}
                                 </p>
                                 <p className={`rounded-md border border-white/10 bg-black/25 px-2 py-1.5 font-semibold text-zinc-100 ${codexInfoText}`}>
-                                    고급 재료 +{formatAdventureUnderstandingBonusPercent(chapterMonsterComprehensionBuff.highGradeMaterialPercent)}%
+                                    {t('adventure.comprehensionHighMaterialBonus', {
+                                        percent: formatAdventureUnderstandingBonusPercent(chapterMonsterComprehensionBuff.highGradeMaterialPercent),
+                                    })}
                                 </p>
                             </div>
                         </div>
@@ -311,7 +325,7 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
                     <>
                 <div
                     role="tablist"
-                    aria-label="도감 챕터"
+                    aria-label={t('adventure.codexChapterTabsAria')}
                     className={`mb-3 flex shrink-0 gap-2 overflow-x-auto overscroll-contain border-b border-white/10 ${
                         isNativeMobile ? 'pb-1.5' : 'pb-2.5'
                     }`}
@@ -368,7 +382,7 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
                                 CHAPTER {String(stage.stageIndex).padStart(2, '0')}
                             </span>
                             <span className={`font-semibold text-zinc-100 ${codexInfoText}`}>{stage.title}</span>
-                            <span className={`text-zinc-400 ${codexInfoText}`}>({stage.monsters.length}종)</span>
+                            <span className={`text-zinc-400 ${codexInfoText}`}>{t('adventure.speciesCount', { count: stage.monsters.length })}</span>
                         </div>
                         <ul className="mt-4 grid grid-cols-1 gap-4 sm:gap-5 lg:grid-cols-2 lg:gap-5">
                             {[...stage.monsters]
@@ -415,9 +429,9 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
                                                     ].join(' ')}
                                                     title={
                                                         atMax
-                                                            ? '이해도 최대'
+                                                            ? t('adventure.comprehensionMax')
                                                             : nextAt != null
-                                                              ? `다음 레벨까지 ${wins}/${nextAt}승`
+                                                              ? t('adventure.nextLevelWins', { wins, nextAt })
                                                               : undefined
                                                     }
                                                 >
@@ -429,7 +443,7 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
                                                         </p>
                                                         {bossBonus ? (
                                                             <span className="rounded border border-amber-400/40 bg-black/50 px-1 py-px text-[7px] font-black uppercase tracking-wider text-amber-100 sm:text-[8px]">
-                                                                보스
+                                                                {t('adventure.boss')}
                                                             </span>
                                                         ) : null}
                                                     </div>
@@ -449,10 +463,10 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
                                             <div className="min-w-0 flex-1">
                                                 <p className={codexDescText}>{m.codexDescription}</p>
                                                 <div className={`mt-2.5 flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-white/8 pb-2.5 sm:gap-x-5 ${codexInfoText}`}>
-                                                    <span className="font-semibold text-zinc-400">이해도</span>
+                                                    <span className="font-semibold text-zinc-400">{t('adventure.comprehension')}</span>
                                                     <span className="tabular-nums text-zinc-200">
                                                         {level <= 0 ? (
-                                                            <span className="font-semibold text-zinc-500">미활성</span>
+                                                            <span className="font-semibold text-zinc-500">{t('adventure.inactive')}</span>
                                                         ) : (
                                                             <>
                                                                 Lv.{showLv}
@@ -464,26 +478,29 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
                                                     </span>
                                                     <span className="text-zinc-500">·</span>
                                                     <span className="tabular-nums text-zinc-300">
-                                                        승리{' '}
-                                                        <span className="font-mono font-bold text-amber-200/95">{wins}</span>회
+                                                        {t('adventure.victoryCount', { wins })}
                                                     </span>
                                                 </div>
                                                 {bossBonus ? (
                                                     <p className={`mt-2 leading-snug text-amber-200/85 ${codexInfoText}`}>
-                                                        챕터 보스: {adventureCodexPercentBossBonusLabelKo(bossBonus)} — 이해도 레벨당 +
-                                                        {ADVENTURE_CODEX_BOSS_PERCENT_PER_LEVEL}% (최대{' '}
-                                                        {ADVENTURE_CODEX_MAX_LEVEL * ADVENTURE_CODEX_BOSS_PERCENT_PER_LEVEL}%)
+                                                        {t('adventure.chapterBossBonus', {
+                                                            label: adventureCodexPercentBossBonusLabel(t, bossBonus),
+                                                            perLevel: ADVENTURE_CODEX_BOSS_PERCENT_PER_LEVEL,
+                                                            max: ADVENTURE_CODEX_MAX_LEVEL * ADVENTURE_CODEX_BOSS_PERCENT_PER_LEVEL,
+                                                        })}
                                                     </p>
                                                 ) : null}
                                                 {bossBonus && level > 0 ? (
                                                     <p className={`mt-1.5 font-semibold text-amber-100/90 ${codexInfoText}`}>
-                                                        현재 보스 보너스 합: +
-                                                        {bossPctActive}% ({adventureCodexPercentBossBonusLabelKo(bossBonus)})
+                                                        {t('adventure.currentBossBonusSum', {
+                                                            percent: bossPctActive,
+                                                            label: adventureCodexPercentBossBonusLabel(t, bossBonus),
+                                                        })}
                                                     </p>
                                                 ) : null}
                                                 {!bossBonus && design && level > 0 && (
                                                     <div className={`mt-3 rounded-lg border border-cyan-500/20 bg-cyan-950/10 px-2.5 py-2 text-zinc-300 sm:px-3 ${codexInfoText}`}>
-                                                        <p className="mb-1 font-semibold text-cyan-100/90">이해도 능력치 (현재 합)</p>
+                                                        <p className="mb-1 font-semibold text-cyan-100/90">{t('adventure.comprehensionStatsCurrent')}</p>
                                                         <ul className="grid grid-cols-2 gap-x-2 gap-y-0.5">
                                                             {Object.values(CoreStat).map((stat) => {
                                                                 const add = (design.coreStatBonusPerLevel[stat] ?? 0) * level;
@@ -499,10 +516,12 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
                                                         </ul>
                                                         {specPct > 0.0005 && design.normalPercentBonus ? (
                                                             <p className="mt-1.5 border-t border-white/5 pt-1.5 text-zinc-400">
-                                                                모험 전용: {adventureCodexNormalPercentLabelKo(design.normalPercentBonus.kind)} +
-                                                                {specPct}%
+                                                                {t('adventure.adventureExclusive', {
+                                                                    label: adventureCodexNormalPercentLabel(t, design.normalPercentBonus.kind),
+                                                                    percent: specPct,
+                                                                })}
                                                                 {design.normalPercentBonus.kind === 'adventureGold'
-                                                                    ? ' (모험 승리 골드만)'
+                                                                    ? t('adventure.adventureGoldOnly')
                                                                     : ''}
                                                             </p>
                                                         ) : null}
@@ -513,17 +532,17 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
 
                                         <div className="w-full border-t border-white/8 pt-2.5">
                                             <div className={`mb-1 flex flex-wrap items-end justify-between gap-1 text-zinc-500 ${codexInfoText}`}>
-                                                <span className="font-semibold text-zinc-400">이해도 경험치</span>
+                                                <span className="font-semibold text-zinc-400">{t('adventure.comprehensionXp')}</span>
                                                 <span className="font-mono tabular-nums text-zinc-400">
                                                     {atMax ? (
-                                                        <span className="text-amber-200/95">최대 · {wins}승</span>
+                                                        <span className="text-amber-200/95">{t('adventure.comprehensionXpMax', { wins })}</span>
                                                     ) : level <= 0 ? (
-                                                        <span>첫 Lv {wins}/1승</span>
+                                                        <span>{t('adventure.firstLevelWins', { wins })}</span>
                                                     ) : nextAt != null ? (
                                                         <span>
-                                                            다음 {wins}/{nextAt}승
+                                                            {t('adventure.nextLevelProgress', { wins, nextAt })}
                                                             {prevThreshold > 0 ? (
-                                                                <span className="text-zinc-600"> ({prevThreshold}~)</span>
+                                                                <span className="text-zinc-600">{t('adventure.thresholdRange', { from: prevThreshold })}</span>
                                                             ) : null}
                                                         </span>
                                                     ) : (
@@ -555,7 +574,7 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
 
     return (
         <DraggableWindow
-            title={showSituationTab ? '모험 몬스터' : '모험 몬스터 도감'}
+            title={showSituationTab ? t('adventure.adventureMonsters') : t('adventure.adventureMonsterCodex')}
             onClose={onClose}
             windowId="adventure-monster-codex"
             initialWidth={1160}

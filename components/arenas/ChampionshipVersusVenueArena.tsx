@@ -1,5 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import type { ChampionshipVersusVenueKind, AnalysisResult } from '../../shared/types/entities.js';
 import type { LiveGameSession, Match, PlayerForTournament, UserWithStatus } from '../../types.js';
 import { CoreStat, LeagueTier, Player } from '../../types/enums.js';
@@ -280,10 +281,14 @@ function tierIconUrlForVersusRow(row: OpponentRow): string {
     return t.icon;
 }
 
-function seasonRecordLabel(wins: number, losses: number): string {
+function formatRecordCompact(
+    wins: number,
+    losses: number,
+    tCv: (key: 'recordCompact', opts: { wins: number; losses: number; winRate: number }) => string,
+): string {
     const g = wins + losses;
-    const pct = g === 0 ? 0 : Math.round((100 * wins) / g);
-    return `${wins}승${losses}패(${pct}%)`;
+    const winRate = g === 0 ? 0 : Math.round((100 * wins) / g);
+    return tCv('recordCompact', { wins, losses, winRate });
 }
 
 const CHAMPIONSHIP_VERSUS_SESSION_CACHE_VER = 'v1';
@@ -523,6 +528,7 @@ const VersusRailPetMini: React.FC<{
     compact?: boolean;
     isTurnToMove?: boolean;
 }> = ({ tone, imageUrl, name, level, compact = false, isTurnToMove = false }) => {
+    const { t: tCv } = useTranslation('championshipVersus');
     const toneBorder = isTurnToMove
         ? 'box-border border-2 border-amber-400/90 shadow-[0_0_18px_-5px_rgba(245,158,11,0.45)] ring-1 ring-inset ring-amber-200/20'
         : tone === 'black'
@@ -534,7 +540,7 @@ const VersusRailPetMini: React.FC<{
         <div
             className={`flex shrink-0 flex-col items-center justify-center rounded-lg border text-center shadow-inner ${toneBorder} ${box}`}
         >
-            <div className={`font-black uppercase tracking-wide text-amber-100/80 ${compact ? 'text-[7px]' : 'text-[9px]'}`}>대표펫</div>
+            <div className={`font-black uppercase tracking-wide text-amber-100/80 ${compact ? 'text-[7px]' : 'text-[9px]'}`}>{tCv('representativePet')}</div>
             <div className={`mt-0.5 shrink-0 overflow-hidden rounded-lg border border-white/15 bg-black/50 ${imgBox}`}>
                 {imageUrl ? (
                     <img src={imageUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
@@ -581,6 +587,7 @@ const VersusRailPlayerCard: React.FC<{
     scoreValue = null,
     scoreKind = null,
 }) => {
+    const { t: tCv } = useTranslation('championshipVersus');
     const avatarUrl = player ? AVATAR_POOL.find((a) => a.id === player.avatarId)?.url : undefined;
     const borderUrl = player ? BORDER_POOL.find((b) => b.id === player.borderId)?.url : undefined;
     const isCurrentUser = player?.id === currentUserId;
@@ -629,8 +636,8 @@ const VersusRailPlayerCard: React.FC<{
                 title={
                     clickable && player
                         ? portraitSrcOverride
-                            ? '유저 프로필 보기'
-                            : `${primaryLineOverride ?? player.nickname} 프로필 보기`
+                            ? tCv('viewUserProfile')
+                            : tCv('viewProfile', { name: primaryLineOverride ?? player.nickname })
                         : undefined
                 }
             >
@@ -662,11 +669,11 @@ const VersusRailPlayerCard: React.FC<{
                                         tone === 'black' ? 'bg-amber-500/25 text-amber-100' : 'bg-amber-400/30 text-amber-50'
                                     }`}
                                 >
-                                    나
+                                    {tCv('me')}
                                 </span>
                             ) : null}
                             <span className={`inline-flex items-center gap-1 whitespace-nowrap text-[12px] font-semibold ${mutedText}`}>
-                                컨디션{' '}
+                                {tCv('condition')}{' '}
                                 <b className={`text-base tabular-nums ${conditionTone}`}>
                                     {displayCondition == null ? '-' : displayCondition}
                                 </b>
@@ -695,10 +702,10 @@ const VersusRailPlayerCard: React.FC<{
                                         }`}
                                         title={
                                             typeof displayCondition === 'number' && displayCondition >= 100
-                                                ? '컨디션이 이미 최대입니다'
+                                                ? tCv('conditionMax')
                                                 : !canUseConditionPotion
-                                                  ? '지금은 컨디션 회복제를 사용할 수 없습니다'
-                                                  : '컨디션 회복제 사용'
+                                                  ? tCv('conditionPotionUnavailable')
+                                                  : tCv('useConditionPotion')
                                         }
                                     >
                                         +
@@ -710,9 +717,9 @@ const VersusRailPlayerCard: React.FC<{
                             className={`mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] ${isRightSide ? 'justify-end' : ''} ${mutedText}`}
                         >
                             <span>
-                                전적{' '}
+                                {tCv('record')}{' '}
                                 <b className={`tabular-nums ${strongText}`}>
-                                    {recordWins}승 {recordLosses}패
+                                    {tCv('recordWinsLosses', { wins: recordWins, losses: recordLosses })}
                                 </b>
                             </span>
                         </div>
@@ -748,6 +755,7 @@ const VersusMobilePureInfoCard: React.FC<{
     primaryLineOverride = null,
     petMini = null,
 }) => {
+    const { t: tCv } = useTranslation('championshipVersus');
     const isCurrentUser = player?.id === currentUserId;
     const demoId = Boolean(player?.id?.startsWith('versus-demo-'));
     const clickable = Boolean(player?.id && !player.id.startsWith('bot-') && !isCurrentUser && !demoId);
@@ -798,8 +806,8 @@ const VersusMobilePureInfoCard: React.FC<{
                 title={
                     clickable && player
                         ? portraitSrcOverride
-                            ? '유저 프로필 보기'
-                            : `${primaryLineOverride ?? player.nickname} 프로필 보기`
+                            ? tCv('viewUserProfile')
+                            : tCv('viewProfile', { name: primaryLineOverride ?? player.nickname })
                         : undefined
                 }
             >
@@ -831,7 +839,7 @@ const VersusMobilePureInfoCard: React.FC<{
                                         side === 'left' ? 'bg-amber-500/25 text-amber-100' : 'bg-amber-400/30 text-amber-50'
                                     }`}
                                 >
-                                    나
+                                    {tCv('me')}
                                 </span>
                             ) : null}
                         </div>
@@ -839,13 +847,12 @@ const VersusMobilePureInfoCard: React.FC<{
                             className={`mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[9px] ${isRightSide ? 'justify-end' : ''} ${mutedText}`}
                         >
                             <span>
-                                전적 <b className={`tabular-nums ${strongText}`}>{recordWins}승</b>{' '}
-                                <b className={`tabular-nums ${side === 'left' ? 'text-orange-200' : 'text-orange-100'}`}>
-                                    {recordLosses}패
-                                </b>
+                                {tCv('record')}{' '}
+                                <b className={`tabular-nums ${strongText}`}>{tCv('recordWinsLosses', { wins: recordWins, losses: recordLosses })}</b>
                             </span>
                             <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                                컨디션 <b className={`text-[12px] tabular-nums ${conditionTone}`}>{condDisplay}</b>
+                                {tCv('condition')}{' '}
+                                <b className={`text-[12px] tabular-nums ${conditionTone}`}>{condDisplay}</b>
                                 {isCurrentUser &&
                                 onOpenConditionPotion &&
                                 shouldShowChampionshipConditionRecoveryButton({
@@ -871,10 +878,10 @@ const VersusMobilePureInfoCard: React.FC<{
                                         }`}
                                         title={
                                             typeof effectiveCondition === 'number' && effectiveCondition >= 100
-                                                ? '컨디션이 이미 최대입니다'
+                                                ? tCv('conditionMax')
                                                 : !canUseConditionPotion
-                                                  ? '지금은 컨디션 회복제를 사용할 수 없습니다'
-                                                  : '컨디션 회복'
+                                                  ? tCv('conditionPotionUnavailable')
+                                                  : tCv('recoverCondition')
                                         }
                                     >
                                         +
@@ -904,12 +911,15 @@ function buildVersusShellMatch(p1: PlayerForTournament, p2: PlayerForTournament 
 }
 
 const MOBILE_PHASE_META = [
-    { key: 'opening' as const, label: '초반', ply19: 1, ply13: 1, ply9: 1 },
-    { key: 'midgame' as const, label: '중반', ply19: 61, ply13: 31, ply9: 15 },
-    { key: 'endgame' as const, label: '종반', ply19: 121, ply13: 61, ply9: 29 },
+    { key: 'opening' as const, ply19: 1, ply13: 1, ply9: 1 },
+    { key: 'midgame' as const, ply19: 61, ply13: 31, ply9: 15 },
+    { key: 'endgame' as const, ply19: 121, ply13: 61, ply9: 29 },
 ];
 
 const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKind }> = ({ venue }) => {
+    const { t: tCv } = useTranslation('championshipVersus');
+    const { t: tGame } = useTranslation('game');
+    const { t: tCommon } = useTranslation('common');
     const { currentUserWithStatus, handlers, championshipAbilityKataLadder, kataServerRuntimeConfig } = useAppContext();
     const versusUserAbilityKataLadder = championshipAbilityKataLadder ?? CHAMPIONSHIP_ABILITY_KATA_LADDER;
     const versusPairPetAbilityKataLadder =
@@ -1360,11 +1370,11 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
             if (typeof sk === 'string') setRatingSeasonKey(sk);
             stableVersusListKeyRef.current = sessionKey;
         } catch (e: any) {
-            setLoadError(e?.message || '불러오기에 실패했습니다.');
+            setLoadError(e?.message || tCv('loadFailed'));
         } finally {
             setLoading(false);
         }
-    }, [venue, currentUserWithStatus?.id]);
+    }, [venue, currentUserWithStatus?.id, tCv]);
 
     React.useEffect(() => {
         void refreshOpponents();
@@ -1432,9 +1442,9 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
     if (!currentUserWithStatus) {
         return (
             <div className="p-4 text-center text-white">
-                <p>사용자 정보를 불러오는 중입니다...</p>
+                <p>{tCv('loadingUser')}</p>
                 <Button onClick={() => replaceAppHash('#/tournament')} className="mt-4">
-                    로비로
+                    {tCv('backToLobby')}
                 </Button>
             </div>
         );
@@ -1610,9 +1620,9 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
 
     const versusPetPlayersEnteringHint =
         venue === 'petpair'
-            ? '선수들이 펫과 함께 입장하고 있습니다. 잠시만 기다려주세요.'
+            ? tCv('waitingPlayersWithPets')
             : venue === 'pet'
-              ? '펫들이 입장하고 있습니다. 잠시만 기다려주세요.'
+              ? tCv('waitingPets')
               : undefined;
 
     /** 서버 `executeChampionshipVersusKataDuel`과 동일: 통합 전략 시즌 티어 → 실대국 판·maxPly */
@@ -1787,7 +1797,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
             setDuelModalOpen(false);
             /** 매칭 5명은 유지; 레이팅·시즌키는 위 `useEffect`가 `updatedUser` 머지로 반영 */
         } catch (err: any) {
-            window.alert(err?.message || '결과 반영에 실패했습니다.');
+            window.alert(err?.message || tCv('applyResultFailed'));
         } finally {
             setDuelSubmitting(false);
         }
@@ -1831,12 +1841,12 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                       versusActorRewards?: VersusKataActorRewardClientPayload;
                   }
                 | undefined;
-            if (!kd?.match || !kd.analysis) throw new Error('응답 형식이 올바르지 않습니다.');
+            if (!kd?.match || !kd.analysis) throw new Error(tCv('invalidResponse'));
             const finalMatch = JSON.parse(JSON.stringify(kd.match)) as Match;
             const finalGame =
                 finalMatch.championshipRealGame ??
                 (kd.championshipRealGame ? (JSON.parse(JSON.stringify(kd.championshipRealGame)) as Match['championshipRealGame']) : null);
-            if (!finalGame) throw new Error('대국 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
+            if (!finalGame) throw new Error(tCv('loadGameFailed'));
             if (!Array.isArray(finalGame.moves)) {
                 finalGame.moves = [];
             }
@@ -1866,7 +1876,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                           vipPlayRewardSlot: { locked: true },
                       }
                     : null);
-            if (!rewardsPayload) throw new Error('응답 형식이 올바르지 않습니다.');
+            if (!rewardsPayload) throw new Error(tCv('invalidResponse'));
             const resultPayload: VersusKataDuelResultPayload = {
                 analysis: kd.analysis,
                 actorVenueRatingBefore: typeof kd.actorVenueRatingBefore === 'number' ? kd.actorVenueRatingBefore : 0,
@@ -1911,7 +1921,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
             }
         } catch (err: unknown) {
             versusKataPendingUserUpdateRef.current = null;
-            const msg = err instanceof Error ? err.message : '경기 시작에 실패했습니다.';
+            const msg = err instanceof Error ? err.message : tCv('startFailed');
             window.alert(msg);
         } finally {
             setKataBusy(false);
@@ -2042,7 +2052,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                 <span className="font-black tracking-wide text-amber-100/95">{seasonName}</span>
                 <span className="mx-1 font-black text-amber-200/55">·</span>
                 <span className="text-slate-200">
-                    시즌 종료 {seasonRemaining.days}일 {seasonRemaining.hours}시간 남음
+                    {tCv('seasonEnd', { days: seasonRemaining.days, hours: seasonRemaining.hours })}
                 </span>
             </span>
             <span className="hidden h-8 w-px shrink-0 self-stretch bg-gradient-to-b from-transparent via-slate-500/60 to-transparent sm:block" aria-hidden />
@@ -2060,15 +2070,15 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
             />
             <span className="shrink-0 text-xl font-black tabular-nums tracking-tight text-white sm:text-2xl">{myRating}</span>
             <span className="shrink-0 rounded-lg border border-cyan-400/35 bg-cyan-950/35 px-2.5 py-1 text-[10px] font-black tracking-wide text-cyan-100 shadow-inner sm:px-3 sm:py-1.5 sm:text-xs">
-                예상 보상
+                {tCv('expectedReward')}
             </span>
             <div className="flex shrink-0 items-center gap-1.5 rounded-lg border border-emerald-400/40 bg-emerald-950/35 px-2.5 py-1 shadow-inner sm:px-3 sm:py-1.5">
-                <span className="text-[10px] font-black tracking-wide text-emerald-200 sm:text-xs">승리시</span>
+                <span className="text-[10px] font-black tracking-wide text-emerald-200 sm:text-xs">{tCv('onWin')}</span>
                 <img src={specialResourceIcons.champCoins} alt="" className="h-5 w-5 object-contain sm:h-6 sm:w-6" />
                 <span className="text-base font-black tabular-nums text-emerald-50 sm:text-lg">{winCoinPreview}</span>
             </div>
             <div className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-500/55 bg-black/40 px-2.5 py-1 shadow-inner sm:px-3 sm:py-1.5">
-                <span className="text-[10px] font-black tracking-wide text-slate-400 sm:text-xs">패배시</span>
+                <span className="text-[10px] font-black tracking-wide text-slate-400 sm:text-xs">{tCv('onLoss')}</span>
                 <img src={specialResourceIcons.champCoins} alt="" className="h-5 w-5 object-contain sm:h-6 sm:w-6" />
                 <span className="text-base font-black tabular-nums text-slate-100 sm:text-lg">{lossCoinPreview}</span>
             </div>
@@ -2085,21 +2095,16 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
 
     const versusChampionshipPlaybackSpeedSelector = (
         <div className="mb-1.5 flex flex-wrap items-center justify-center gap-1.5">
-            <span className="text-[10px] font-semibold tracking-wider text-cyan-100">배속</span>
+            <span className="text-[10px] font-semibold tracking-wider text-cyan-100">{tCv('playbackSpeed')}</span>
             {versusPlaybackSpeedChoices.map((speed) => {
                 const isActive = versusPlaybackSpeed === speed;
-                const titleBySpeed: Record<string, string> = {
-                    '0.5': '3초에 한 수',
-                    '1': '1.5초에 한 수',
-                    '2': '1초에 한 수',
-                    '3': '0.5초에 한 수',
-                };
+                const speedKey = String(speed) as '0.5' | '1' | '2' | '3';
                 return (
                     <button
                         key={speed}
                         type="button"
                         onClick={() => setVersusPlaybackSpeed(speed)}
-                        title={titleBySpeed[String(speed)]}
+                        title={tCv(`speedLabels.${speedKey}`)}
                         className={`min-w-[2.4rem] rounded-md border px-1.5 py-0.5 text-[10px] font-black tracking-wider transition ${
                             isActive
                                 ? 'border-cyan-300/80 bg-cyan-500/25 text-cyan-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]'
@@ -2120,7 +2125,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                     ? 'bg-gradient-to-br from-[#2a3d56] via-[#141c2b] to-[#070a10] p-2'
                     : 'bg-gradient-to-br from-[#2a3d56] via-[#141c2b] to-[#070a10] p-2.5'
             }`}
-            aria-label="경기 제어"
+            aria-label={tCv('matchControlAria')}
         >
             <div
                 className={`text-center font-black tracking-[0.22em] text-cyan-100 ${isMobile ? 'mb-1 text-[9px]' : 'mb-1.5 text-[10px]'}`}
@@ -2147,7 +2152,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                         {kataBusy ? (
                             <span className="inline-flex items-center gap-2">
                                 <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-emerald-950/30 border-t-emerald-950" />
-                                경기 시작
+                                {tCv('startMatch')}
                             </span>
                         ) : (
                             <span className="inline-flex flex-col items-center gap-0.5 sm:flex-row sm:gap-2">
@@ -2167,7 +2172,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                                         className="text-[9px] font-mono font-bold tabular-nums text-emerald-950/80"
                                     />
                                 </span>
-                                <span>경기 시작</span>
+                                <span>{tCv('startMatch')}</span>
                             </span>
                         )}
                     </Button>
@@ -2176,7 +2181,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                         onClick={() => replaceAppHash('#/tournament')}
                         className={championshipVersusExitButtonFooterClass}
                     >
-                        나가기
+                        {tCv('exit')}
                     </button>
                 </div>
             </div>
@@ -2197,12 +2202,12 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
             <div className="relative space-y-2">
                 <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1 text-center">
-                        <p className="text-[10px] font-bold tracking-[0.12em] text-amber-200/90">시즌</p>
+                        <p className="text-[10px] font-bold tracking-[0.12em] text-amber-200/90">{tCv('season')}</p>
                         <p className="mt-0.5 text-[11px] font-bold leading-snug text-slate-50 sm:text-xs">
                             <span className="font-black text-amber-50">{seasonName}</span>
                             <span className="mx-0.5 font-black text-amber-200/60">·</span>
                             <span className="text-slate-200">
-                                종료 {seasonRemaining.days}일 {seasonRemaining.hours}시간
+                                {tCv('seasonEndShort', { days: seasonRemaining.days, hours: seasonRemaining.hours })}
                             </span>
                         </p>
                     </div>
@@ -2211,14 +2216,14 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                         onClick={() => setVersusDuelHistoryOpen(true)}
                         className="shrink-0 rounded-md border border-amber-400/55 bg-black/50 px-2 py-1 text-[10px] font-black tracking-wide text-amber-50 shadow-inner ring-1 ring-inset ring-amber-300/20 transition hover:border-amber-300/80 hover:bg-amber-950/40 active:scale-[0.98] sm:text-[11px]"
                     >
-                        대전정보
+                        {tCv('matchInfo')}
                     </button>
                 </div>
                 <div className="flex items-center gap-2 rounded-md border border-white/10 bg-zinc-900/92 px-2 py-1.5 ring-1 ring-inset ring-white/[0.06]">
                     <div className="flex min-w-[3.15rem] shrink-0 flex-col items-center justify-center rounded-md border border-amber-400/45 bg-amber-950/35 px-1.5 py-1 shadow-inner">
-                        <span className="text-[9px] font-black leading-none tracking-[0.12em] text-amber-200/85">순위</span>
+                        <span className="text-[9px] font-black leading-none tracking-[0.12em] text-amber-200/85">{tCv('rank')}</span>
                         <span className="mt-0.5 text-sm font-black leading-none tabular-nums text-amber-50">
-                            {myGlobalRank ? `${myGlobalRank.toLocaleString('ko-KR')}위` : '-'}
+                            {myGlobalRank ? tCv('rankUnit', { rank: myGlobalRank.toLocaleString('ko-KR') }) : '-'}
                         </span>
                     </div>
                     <Avatar userId={user.id} userName={user.nickname} size={40} avatarUrl={myAvatarUrl} borderUrl={myBorderUrl} />
@@ -2241,14 +2246,14 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                 </div>
                 <div className="grid grid-cols-2 gap-1.5">
                     <div className="flex flex-col gap-0.5 rounded-md border border-emerald-400/45 bg-emerald-950/35 px-2 py-1.5 shadow-inner">
-                        <span className="text-[10px] font-black tracking-wide text-emerald-100">승리 시</span>
+                        <span className="text-[10px] font-black tracking-wide text-emerald-100">{tCv('onWinFull')}</span>
                         <div className="flex items-center gap-1">
                             <img src={specialResourceIcons.champCoins} alt="" className="h-4 w-4 object-contain" />
                             <span className="text-sm font-black tabular-nums text-emerald-50">{winCoinPreview}</span>
                         </div>
                     </div>
                     <div className="flex flex-col gap-0.5 rounded-md border border-slate-500/55 bg-zinc-950/90 px-2 py-1.5 shadow-inner">
-                        <span className="text-[10px] font-black tracking-wide text-slate-300">패배 시</span>
+                        <span className="text-[10px] font-black tracking-wide text-slate-300">{tCv('onLossFull')}</span>
                         <div className="flex items-center gap-1">
                             <img src={specialResourceIcons.champCoins} alt="" className="h-4 w-4 object-contain opacity-90" />
                             <span className="text-sm font-black tabular-nums text-slate-50">{lossCoinPreview}</span>
@@ -2274,16 +2279,16 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                                         match={matchForBoard}
                                         currentPhase={versusChampionshipAbilityPhase}
                                         tone="black"
-                                        sideLabel={venue === 'petpair' ? '페어 능력치' : '챔피언십 능력치'}
+                                        sideLabel={venue === 'petpair' ? tCv('pairStats') : tCv('championshipStats')}
                                         abilityKataLadder={versusUserAbilityKataLadder}
                                         pairPetAbilityKataLadder={versusPairPetAbilityKataLadder}
                                         singleBlockStatKind={venue === 'pet' ? 'pet' : 'user'}
                                         splitPairAbilities={
                                             versusSeatBlack.pairSplit
                                                 ? {
-                                                      userBlockTitle: '유저',
+                                                      userBlockTitle: tCv('user'),
                                                       userStats: versusSeatBlack.pairSplit.userStats,
-                                                      petBlockTitle: '펫 능력치',
+                                                      petBlockTitle: tCv('petStats'),
                                                       petStats: versusSeatBlack.pairSplit.petStats,
                                                   }
                                                 : null
@@ -2319,16 +2324,16 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                                             match={matchForBoard}
                                             currentPhase={versusChampionshipAbilityPhase}
                                             tone="white"
-                                            sideLabel={venue === 'petpair' ? '페어 능력치' : '챔피언십 능력치'}
+                                            sideLabel={venue === 'petpair' ? tCv('pairStats') : tCv('championshipStats')}
                                             abilityKataLadder={versusUserAbilityKataLadder}
                                             pairPetAbilityKataLadder={versusPairPetAbilityKataLadder}
                                             singleBlockStatKind={venue === 'pet' ? 'pet' : 'user'}
                                             splitPairAbilities={
                                                 versusSeatWhite.pairSplit
                                                     ? {
-                                                          userBlockTitle: '유저',
+                                                          userBlockTitle: tCv('user'),
                                                           userStats: versusSeatWhite.pairSplit.userStats,
-                                                          petBlockTitle: '펫 능력치',
+                                                          petBlockTitle: tCv('petStats'),
                                                           petStats: versusSeatWhite.pairSplit.petStats,
                                                       }
                                                     : null
@@ -2345,7 +2350,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                                     ) : (
                                         <aside
                                             className="flex h-fit max-h-full w-[165px] min-w-[165px] max-w-[165px] shrink-0 flex-col self-start rounded-xl border-2 border-slate-500/45 bg-gradient-to-b from-slate-700/35 via-slate-800/30 to-slate-900/35 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] xl:w-[185px] xl:min-w-[185px] xl:max-w-[185px]"
-                                            aria-label="상대 능력치"
+                                            aria-label={tCv('opponentStatsAria')}
                                         />
                                     )}
                                 </div>
@@ -2427,7 +2432,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                                             : 'border border-slate-600/45 bg-black/25 text-slate-300'
                                     }`}
                                 >
-                                    <span className="font-semibold">{phase.label}</span>
+                                    <span className="font-semibold">{tCv(`phases.${phase.key}`)}</span>
                                     <span className={`text-[11px] font-black tabular-nums ${valueColor}`}>{computed.abilityScore}</span>
                                 </div>
                             );
@@ -2439,8 +2444,8 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
             if (split) {
                 return (
                     <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                        {oneBlock(split.userStats, '유저', Boolean(pairSplitTurnHighlight?.user))}
-                        {oneBlock(split.petStats, '펫 능력치', Boolean(pairSplitTurnHighlight?.pet))}
+                        {oneBlock(split.userStats, tCv('user'), Boolean(pairSplitTurnHighlight?.user))}
+                        {oneBlock(split.petStats, tCv('petStats'), Boolean(pairSplitTurnHighlight?.pet))}
                     </div>
                 );
             }
@@ -2454,6 +2459,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
             versusPairPetAbilityKataLadder,
             versusKataRulesPreview,
             venue,
+            tCv,
         ],
     );
 
@@ -2573,7 +2579,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                     isWhite={false}
                     score={blackScore}
                     scoreKind={mobileScoreKind}
-                    colorLabel="흑"
+                    colorLabel={tCv('black')}
                     side="left"
                 />
                 <ChampionshipMobileScoringCountdownCell remaining={remainingPly} max={maxPly} />
@@ -2581,7 +2587,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                     isWhite
                     score={whiteScore}
                     scoreKind={mobileScoreKind}
-                    colorLabel="백"
+                    colorLabel={tCv('white')}
                     side="right"
                 />
             </section>
@@ -2631,7 +2637,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
 
             <div className="shrink-0 border-b border-white/10 px-0.5 pb-1 pt-0">
                 <h3 className="text-center text-sm font-black tracking-wide text-amber-50 drop-shadow-sm sm:text-[15px]">
-                    상대 선수
+                    {tCv('opponents')}
                 </h3>
             </div>
 
@@ -2641,7 +2647,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                         {loading ? (
                             <div className="flex flex-col items-center justify-center gap-2 py-6 text-slate-300">
                                 <div className="h-9 w-9 animate-spin rounded-full border-2 border-amber-400/30 border-t-amber-300" />
-                                <span className="text-sm font-semibold tracking-wide">매칭 목록 불러오는 중</span>
+                                <span className="text-sm font-semibold tracking-wide">{tCv('loadingOpponents')}</span>
                             </div>
                         ) : loadError ? (
                             <div className="rounded-xl border border-rose-500/40 bg-rose-950/40 px-2 py-2 text-center text-xs leading-relaxed text-rose-50 shadow-inner ring-1 ring-rose-400/20">
@@ -2649,7 +2655,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                             </div>
                         ) : opponents.length === 0 ? (
                             <div className="rounded-xl border border-white/12 bg-black/35 px-2 py-5 text-center text-xs text-slate-300 ring-1 ring-inset ring-white/[0.06]">
-                                표시할 상대가 없습니다.
+                                {tCv('noOpponents')}
                             </div>
                         ) : (
                             <ul className="flex list-none flex-col gap-1.5 p-0">
@@ -2685,7 +2691,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                                             >
                                                 {isSessionBeaten ? (
                                                     <div className="pointer-events-none absolute right-2 top-2 z-[3] rounded-md border border-emerald-400/50 bg-emerald-950/90 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-emerald-100 shadow-md ring-1 ring-emerald-400/25 sm:right-2.5 sm:top-2.5 sm:px-2 sm:text-[10px]">
-                                                        승리
+                                                        {tCv('winBadge')}
                                                     </div>
                                                 ) : null}
                                                 <div
@@ -2714,7 +2720,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                                                 >
                                                     <span
                                                         className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-amber-400/35 bg-gradient-to-b from-amber-500/25 via-amber-950/40 to-black text-[9px] font-black tabular-nums leading-none text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] ring-1 ring-black/50 sm:h-7 sm:w-7 sm:text-[10px]"
-                                                        title="전체 유저 기준 순위"
+                                                        title={tCv('globalRankTitle')}
                                                     >
                                                         {opponentGlobalRankByUserId.get(o.userId) ?? '—'}
                                                     </span>
@@ -2722,8 +2728,8 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                                                         type="button"
                                                         disabled={disableOpponentControls}
                                                         className="relative z-[2] flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-md border border-white/15 bg-slate-950 p-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_2px_8px_rgba(0,0,0,0.5)] ring-1 ring-black/50 transition hover:border-amber-400/45 hover:shadow-[0_0_0_1px_rgba(251,191,36,0.25)] active:scale-[0.96] sm:h-9 sm:w-9"
-                                                        title={demoRow ? '프로필' : `${o.nickname} 프로필 보기`}
-                                                        aria-label={demoRow ? '프로필' : `${o.nickname} 프로필 보기`}
+                                                        title={demoRow ? tCv('profile') : tCv('viewProfile', { name: o.nickname })}
+                                                        aria-label={demoRow ? tCv('profile') : tCv('viewProfile', { name: o.nickname })}
                                                         onClick={(e) => {
                                                             if (disableOpponentControls) return;
                                                             e.stopPropagation();
@@ -2753,7 +2759,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                                                             ) : null}
                                                         </div>
                                                         <div className="mt-0.5 text-[10px] font-semibold tabular-nums text-cyan-100 sm:text-[11px]">
-                                                            {seasonRecordLabel(o.wins, o.losses)}
+                                                            {formatRecordCompact(o.wins, o.losses, tCv)}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -2775,7 +2781,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                                 <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border border-amber-300/40 text-[9px] leading-none text-amber-200">
                                     ↻
                                 </span>
-                                <span>새로고침</span>
+                                <span>{tCommon('actions.refresh')}</span>
                                 {!CHAMPIONSHIP_VERSUS_VENUE_USE_LIVE_OPPONENT_LIST ? (
                                     <span className="tabular-nums text-amber-200/80">
                                         ({CHAMPIONSHIP_VERSUS_OPP_REFRESH_FREE_PER_DAY}/{CHAMPIONSHIP_VERSUS_OPP_REFRESH_FREE_PER_DAY})
@@ -2845,13 +2851,13 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                         >
                             <div className="relative z-10 flex h-full min-h-0 flex-1 flex-col overflow-hidden">
                                 <div className="flex shrink-0 items-center justify-end border-b border-slate-600/80 bg-slate-900/95 px-2.5 py-2">
-                                    <span className="sr-only">부가 정보 패널</span>
+                                    <span className="sr-only">{tCv('extraPanelSr')}</span>
                                     <button
                                         type="button"
                                         onClick={() => setIsMobileSidebarOpen(false)}
                                         className="rounded-lg border border-slate-500/70 bg-slate-800/90 px-2.5 py-1.5 text-xs font-bold text-slate-100 shadow-sm transition hover:border-slate-400 hover:bg-slate-700/90 active:scale-[0.98]"
                                     >
-                                        닫기
+                                        {tCommon('actions.close')}
                                     </button>
                                 </div>
                                 {opponentSidebarInner}
@@ -2868,8 +2874,8 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                     onClick={() => setIsMobileSidebarOpen(true)}
                     className="fixed right-0 z-[36] flex h-[6.25rem] w-[2.65rem] flex-col items-center justify-center gap-1 rounded-l-2xl border-2 border-r-0 border-amber-200/75 bg-gradient-to-b from-amber-400/95 via-amber-600/92 to-slate-950 text-white shadow-[0_6px_28px_-4px_rgba(245,158,11,0.55),inset_0_1px_0_rgba(255,255,255,0.35)] ring-2 ring-amber-300/35 active:translate-x-0.5"
                     style={{ bottom: VERSUS_MOBILE_SIDEBAR_OPEN_TAB_BOTTOM }}
-                    aria-label="우측 패널 열기"
-                    title="우측 패널 열기"
+                    aria-label={tCv('openRightPanel')}
+                    title={tCv('openRightPanel')}
                 >
                     <span className="text-2xl font-black leading-none tracking-tight text-white drop-shadow-md">‹</span>
                     <span className="h-8 w-1 rounded-full bg-white/90 shadow-[0_0_8px_rgba(255,255,255,0.55)]" aria-hidden />
@@ -2888,7 +2894,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                             className="max-w-md w-full rounded-2xl border border-amber-400/40 bg-gradient-to-b from-slate-900/95 via-slate-950/95 to-black/96 p-5 shadow-2xl ring-1 ring-amber-300/15"
                             onClick={(e) => e.stopPropagation()}
                         >
-                            <h2 className="text-lg font-black text-amber-100">대국 결과</h2>
+                            <h2 className="text-lg font-black text-amber-100">{tCv('matchResult')}</h2>
                             <p className="mt-3 text-center text-sm font-bold text-white">{selectedRow?.nickname ?? '—'}</p>
                             <div className="mt-5 flex flex-wrap justify-end gap-2">
                                 <Button
@@ -2898,7 +2904,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                                     disabled={duelSubmitting}
                                     onClick={() => setDuelModalOpen(false)}
                                 >
-                                    취소
+                                    {tCommon('actions.cancel')}
                                 </Button>
                                 <Button
                                     type="button"
@@ -2907,7 +2913,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                                     disabled={duelSubmitting}
                                     onClick={() => void submitDuelResult(false)}
                                 >
-                                    패배
+                                    {tGame('lose')}
                                 </Button>
                                 <Button
                                     type="button"
@@ -2916,7 +2922,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                                     disabled={duelSubmitting}
                                     onClick={() => void submitDuelResult(true)}
                                 >
-                                    승리
+                                    {tGame('win')}
                                 </Button>
                             </div>
                         </div>
@@ -2941,19 +2947,20 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                             onClick={(e) => e.stopPropagation()}
                         >
                             <h2 id="versus-low-condition-start-title" className="text-lg font-black text-amber-100">
-                                컨디션 낮음
+                                {tCv('lowConditionTitle')}
                             </h2>
                             <p className="mt-3 text-sm font-semibold leading-relaxed text-slate-200">
-                                현재 컨디션{' '}
+                                {tCv('currentCondition')}{' '}
                                 <span className="font-black tabular-nums text-amber-200">
                                     {myVersusConditionForPotion >= 1 && myVersusConditionForPotion <= 100
                                         ? myVersusConditionForPotion
                                         : '—'}
                                 </span>
-                                입니다. 컨디션이 낮으면{' '}
-                                <span className="font-bold text-rose-200/95">실수</span>가 나올 확률이 높아지고{' '}
-                                <span className="font-bold text-emerald-200/95">신의 한수</span>가 나올 확률은 낮아집니다. 그래도
-                                경기를 시작할까요?
+                                {tCv('lowConditionBody')}{' '}
+                                <span className="font-bold text-rose-200/95">{tCv('mistakeChance')}</span>
+                                {tCv('mistakeChanceSuffix')}{' '}
+                                <span className="font-bold text-emerald-200/95">{tCv('brilliantMove')}</span>
+                                {tCv('brilliantMoveSuffix')}
                             </p>
                             <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
                                 <Button
@@ -2965,7 +2972,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                                         setLowConditionStartPending(null);
                                     }}
                                 >
-                                    취소
+                                    {tCommon('actions.cancel')}
                                 </Button>
                                 {canUseVersusConditionPotion ? (
                                     <Button
@@ -2978,7 +2985,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                                             setShowConditionPotionModal(true);
                                         }}
                                     >
-                                        컨디션 회복제 사용
+                                        {tCv('useConditionPotion')}
                                     </Button>
                                 ) : null}
                                 <Button
@@ -2996,7 +3003,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                                         }
                                     }}
                                 >
-                                    그래도 시작
+                                    {tCv('startAnyway')}
                                 </Button>
                             </div>
                         </div>

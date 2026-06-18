@@ -1,4 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useLocalizedGameMode } from '../shared/i18n/localizedCatalog.js';
+import { useTranslation } from 'react-i18next';
 import { GameMode, User, UserWithStatus, GameSettings, Negotiation } from '../types';
 import {
   SPECIAL_GAME_MODES,
@@ -168,6 +170,8 @@ const SettingsSection: React.FC<{
 );
 
 const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ opponent, onChallenge, onClose, lobbyType, negotiations, currentUser: propCurrentUser }) => {
+  const { t } = useTranslation('game');
+  const localizeMode = useLocalizedGameMode();
   const { currentUserWithStatus: contextCurrentUser, handlers, onlineUsers } = useAppContext();
   const currentUser = propCurrentUser || contextCurrentUser;
 
@@ -471,7 +475,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
     }
 
     if (selectedMode === GameMode.Mix && (!settings.mixedModes || settings.mixedModes.length < 2)) {
-      alert('믹스룰 바둑은 조합 규칙을 2개 이상 선택해야 합니다.');
+      alert(t('challengeModal.mixRulesMinAlert'));
       return;
     }
 
@@ -586,7 +590,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
         }}
       >
         {showMixModeSelection && (
-            <SettingsSection title="믹스룰 조합 (2개 이상)" scaleFactor={scaleFactor}>
+            <SettingsSection title={t('challengeModal.mixRulesTitle')} scaleFactor={scaleFactor}>
               <p className="mb-2 text-gray-500" style={{ fontSize: `${Math.max(12, Math.round(13 * scaleFactor))}px`, lineHeight: 1.35 }}>
                 클래식 바둑은 기본 포함입니다. 함께 쓸 규칙을 고릅니다. 따내기와 캐슬은 동시에 선택할 수 없습니다.
               </p>
@@ -603,7 +607,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                         checked={mix.includes(m.mode)}
                         onChange={(e) => handleMixedModeChange(m.mode, e.target.checked)}
                         disabled={mixDisabled}
-                        title={mixDisabled ? '따내기와 캐슬은 동시에 선택할 수 없습니다.' : undefined}
+                        title={mixDisabled ? t('challengeModal.mixCaptureCastleConflict') : undefined}
                         className="h-4 w-4 shrink-0"
                       />
                       <span className="leading-tight text-gray-200" style={{ fontSize: `${Math.max(12, Math.round(14 * scaleFactor))}px` }}>
@@ -621,7 +625,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
             </SettingsSection>
         )}
 
-        <SettingsSection title="바둑판·계가·덤·따내기" scaleFactor={scaleFactor}>
+        <SettingsSection title={t('challengeModal.boardKomiCapture')} scaleFactor={scaleFactor}>
         {showBoardSize && (
           <div 
             className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3"
@@ -706,7 +710,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
         </SettingsSection>
 
         {showTimeControls && (
-          <SettingsSection title={showSpeedTimeControls ? '스피드 시간 규칙' : '제한 시간·초읽기'} scaleFactor={scaleFactor}>
+          <SettingsSection title={showSpeedTimeControls ? t('challengeModal.speedTimeRules') : t('challengeModal.timeByoyomi')} scaleFactor={scaleFactor}>
             <StrategicTimeControlFields
               settings={settings}
               onSettingsChange={setSettings}
@@ -719,7 +723,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
         )}
 
         {showBaseStones && (
-          <SettingsSection title="베이스 바둑" scaleFactor={scaleFactor}>
+          <SettingsSection title={t('challengeModal.baseGo')} scaleFactor={scaleFactor}>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
               <label className={settingsLabelClass} style={labelStyle}>베이스 돌</label>
               <select 
@@ -735,7 +739,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
         )}
 
         {showCastleCount && (
-          <SettingsSection title={selectedMode === GameMode.Castle ? '캐슬 바둑' : '캐슬'} scaleFactor={scaleFactor}>
+          <SettingsSection title={selectedMode === GameMode.Castle ? t('challengeModal.castleGo') : t('challengeModal.castleShort')} scaleFactor={scaleFactor}>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
               <label className={settingsLabelClass} style={labelStyle}>캐슬</label>
               <select
@@ -795,7 +799,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
         )}
 
         {showHiddenStones && (
-          <SettingsSection title="히든 바둑" scaleFactor={scaleFactor}>
+          <SettingsSection title={t('challengeModal.hiddenGo')} scaleFactor={scaleFactor}>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
               <label className={settingsLabelClass} style={labelStyle}>히든 아이템</label>
               <select 
@@ -811,7 +815,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
         )}
 
         {showHiddenStones && (
-          <SettingsSection title="스캔" scaleFactor={scaleFactor}>
+          <SettingsSection title={t('challengeModal.scan')} scaleFactor={scaleFactor}>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
               <label className={settingsLabelClass} style={labelStyle}>스캔 아이템</label>
               <select 
@@ -827,7 +831,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
         )}
 
         {showMissileCount && (
-          <SettingsSection title="미사일 바둑" scaleFactor={scaleFactor}>
+          <SettingsSection title={t('challengeModal.missileGo')} scaleFactor={scaleFactor}>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
               <label className={settingsLabelClass} style={labelStyle}>미사일 개수</label>
               <select 
@@ -843,7 +847,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
         )}
 
         {showDiceGoSettings && (
-          <SettingsSection title="주사위 바둑" scaleFactor={scaleFactor}>
+          <SettingsSection title={t('challengeModal.diceGo')} scaleFactor={scaleFactor}>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
               <label className={settingsLabelClass} style={labelStyle}>라운드</label>
               <select 
@@ -919,7 +923,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
         )}
 
         {showThiefGoItemSettings && (
-          <SettingsSection title="도둑 바둑" scaleFactor={scaleFactor}>
+          <SettingsSection title={t('challengeModal.thiefGo')} scaleFactor={scaleFactor}>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
               <label className={settingsLabelClass} style={labelStyle}>(고)주사위</label>
               <select
@@ -954,7 +958,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
         )}
 
         {showOmokRules && (
-          <SettingsSection title="오목·따목" scaleFactor={scaleFactor}>
+          <SettingsSection title={t('challengeModal.omokTtamok')} scaleFactor={scaleFactor}>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
               <label className={settingsLabelClass} style={labelStyle}>쌍삼 금지</label>
               <input 
@@ -977,7 +981,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
         )}
 
         {showAlkkagiSettings && (
-          <SettingsSection title="알까기" scaleFactor={scaleFactor}>
+          <SettingsSection title={t('challengeModal.alkkagi')} scaleFactor={scaleFactor}>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
               <label className={settingsLabelClass} style={labelStyle}>돌 개수</label>
               <select 
@@ -1059,7 +1063,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
         )}
 
         {showCurlingSettings && (
-          <SettingsSection title="바둑 컬링" scaleFactor={scaleFactor}>
+          <SettingsSection title={t('challengeModal.curling')} scaleFactor={scaleFactor}>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
               <label className={settingsLabelClass} style={labelStyle}>돌 개수</label>
               <select 
@@ -1123,7 +1127,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
 
   return (
     <DraggableWindow
-      title="대국 신청"
+      title={t('challengeModal.title')}
       windowId="challenge-selection"
       onClose={handleAttemptClose}
       initialWidth={calculatedWidth}
@@ -1168,7 +1172,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                     className="text-gray-400"
                     style={{ fontSize: `${Math.max(13, Math.round(15 * scaleFactor))}px`, lineHeight: 1.35 }}
                   >
-                    {lobbyType === 'strategic' ? '전략' : '놀이'} Lv.{opponentLevel}
+                    {lobbyType === 'strategic' ? t('challengeModal.strategicShort') : t('challengeModal.playfulShort')} Lv.{opponentLevel}
                   </p>
                 </div>
               </div>
@@ -1255,8 +1259,8 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               }}
             >
               {isWaitingForResponse 
-                ? `${displayOpponent.nickname}님의 응답을 기다리는 중...` 
-                : `${displayOpponent.nickname}님에게 대국을 신청합니다.`}
+                ? t('challengeModal.waitingResponse', { name: displayOpponent.nickname }) 
+                : t('challengeModal.applyingTo', { name: displayOpponent.nickname })}
             </p>
             
             {isWaitingForResponse && negotiationDeadline && (

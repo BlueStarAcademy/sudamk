@@ -1,19 +1,24 @@
 import React, { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
-import { GameMode, GameSettings, ServerAction, UserWithStatus } from '../../types.js'; // Import UserWithStatus
+import { GameMode, GameSettings, ServerAction, UserWithStatus } from '../../types.js';
 import { SPECIAL_GAME_MODES, DEFAULT_GAME_SETTINGS, filterPlayableLobbyGameModes, isPlayableLobbyGameMode } from '../../constants';
 import { getRankedGameSettings } from '../../constants/rankedGameSettings.js';
-import Avatar from '../Avatar.js'; // Import Avatar
-import { AVATAR_POOL, BORDER_POOL } from '../../constants'; // Import AVATAR_POOL, BORDER_POOL
+import Avatar from '../Avatar.js';
+import { AVATAR_POOL, BORDER_POOL } from '../../constants';
+import { useLocalizedGameMode } from '../../shared/i18n/localizedCatalog.js';
 
 interface ChallengeApplicationModalProps {
-    opponentUser: UserWithStatus; // Changed from opponentId to opponentUser
+    opponentUser: UserWithStatus;
     onClose: () => void;
     onAction: (action: ServerAction) => void;
 }
 
 const ChallengeApplicationModal: React.FC<ChallengeApplicationModalProps> = ({ opponentUser, onClose, onAction }) => {
+    const { t } = useTranslation('lobby');
+    const { t: tCommon } = useTranslation('common');
+    const localizeMode = useLocalizedGameMode();
     const [selectedGameMode, setSelectedGameMode] = useState<GameMode>(filterPlayableLobbyGameModes(SPECIAL_GAME_MODES)[0].mode);
 
     const selectedGameDefinition = useMemo(() => {
@@ -24,9 +29,11 @@ const ChallengeApplicationModal: React.FC<ChallengeApplicationModalProps> = ({ o
         return opponentUser.rejectedGameModes?.includes(selectedGameMode);
     }, [opponentUser.rejectedGameModes, selectedGameMode]);
 
+    const modeLabel = localizeMode(selectedGameMode);
+
     const handleChallenge = () => {
         if (isGameModeRejected) {
-            alert(`상대방이 ${selectedGameMode}을(를) 거부한 상태입니다.`);
+            alert(t('challenge.modeRejected', { mode: modeLabel }));
             return;
         }
         const ranked = getRankedGameSettings(selectedGameMode);
@@ -42,9 +49,8 @@ const ChallengeApplicationModal: React.FC<ChallengeApplicationModalProps> = ({ o
     const borderUrl = BORDER_POOL.find(b => b.id === opponentUser.borderId)?.url;
 
     return (
-        <DraggableWindow title="대국 신청" onClose={onClose} windowId="challenge-application" initialWidth={600} isTopmost>
+        <DraggableWindow title={t('challenge.title')} onClose={onClose} windowId="challenge-application" initialWidth={600} isTopmost>
             <div className="flex h-[400px]">
-                {/* Left Panel: Opponent Info and Game Description */}
                 <div className="w-1/3 bg-tertiary/30 p-4 flex flex-col text-on-panel rounded-l-lg">
                     <div className="flex items-center gap-2 mb-4">
                         <Avatar userId={opponentUser.id} userName={opponentUser.nickname} size={48} className="border-2 border-color" avatarUrl={avatarUrl} borderUrl={borderUrl} />
@@ -52,16 +58,15 @@ const ChallengeApplicationModal: React.FC<ChallengeApplicationModalProps> = ({ o
                     </div>
                     {isGameModeRejected && (
                         <p className="text-sm text-red-400 mb-2">
-                            상대방이 <span className="font-bold">{selectedGameMode}</span>을(를) 거부한 상태입니다.
+                            {t('challenge.modeRejected', { mode: modeLabel })}
                         </p>
                     )}
                     <h3 className="font-bold text-lg mb-2">{selectedGameDefinition?.name}</h3>
                     <p className="text-sm text-tertiary flex-grow overflow-y-auto">
-                        {selectedGameDefinition?.description || '게임을 선택하여 설명을 확인하세요.'}
+                        {selectedGameDefinition?.description || t('challenge.selectForDescription')}
                     </p>
                 </div>
 
-                {/* Right Panel: Game Selection and Challenge Button */}
                 <div className="w-2/3 bg-primary p-4 flex flex-col rounded-r-lg">
                     <div className="flex border-b border-color mb-4">
                         {SPECIAL_GAME_MODES.map(game => (
@@ -80,16 +85,16 @@ const ChallengeApplicationModal: React.FC<ChallengeApplicationModalProps> = ({ o
                                         : 'text-secondary hover:bg-secondary/20'
                                 }`}
                             >
-                                {game.name}
+                                {localizeMode(game.mode)}
                             </button>
                         ))}
                     </div>
                     <div className="flex-grow flex items-center justify-center text-tertiary">
-                        <p>선택된 게임: <span className="font-bold text-primary">{selectedGameDefinition?.name}</span></p>
+                        <p>{t('challenge.selectedGame', { name: selectedGameDefinition?.name ?? '' })}</p>
                     </div>
                     <div className="mt-4 flex justify-end gap-2">
-                        <Button onClick={onClose} colorScheme="gray">취소</Button>
-                        <Button onClick={handleChallenge} colorScheme="blue" disabled={isGameModeRejected}>신청</Button>
+                        <Button onClick={onClose} colorScheme="gray">{tCommon('actions.cancel')}</Button>
+                        <Button onClick={handleChallenge} colorScheme="blue" disabled={isGameModeRejected}>{t('challenge.apply')}</Button>
                     </div>
                 </div>
             </div>

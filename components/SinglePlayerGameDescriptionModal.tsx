@@ -1,4 +1,5 @@
 import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import i18n from '../shared/i18n/config.js';
 import { createPortal } from 'react-dom';
 import { LiveGameSession, ServerAction, SinglePlayerStageInfo, UserWithStatus } from '../types.js';
 import { getSinglePlayerStages, setSinglePlayerStagesFromServer } from '../constants/singlePlayerConstants.js';
@@ -50,12 +51,12 @@ interface SinglePlayerGameDescriptionModalProps {
     onTowerItemPurchase?: (itemId: string, quantity: number) => Promise<void>;
 }
 
-const SINGLE_PLAYER_LEVEL_DISPLAY: Partial<Record<SinglePlayerLevel, string>> = {
-    [SinglePlayerLevel.입문]: '입문반',
-    [SinglePlayerLevel.초급]: '초급반',
-    [SinglePlayerLevel.중급]: '중급반',
-    [SinglePlayerLevel.고급]: '고급반',
-    [SinglePlayerLevel.유단자]: '유단자',
+const SINGLE_PLAYER_LEVEL_KEY: Partial<Record<SinglePlayerLevel, string>> = {
+    [SinglePlayerLevel.입문]: 'intro',
+    [SinglePlayerLevel.초급]: 'beginner',
+    [SinglePlayerLevel.중급]: 'intermediate',
+    [SinglePlayerLevel.고급]: 'advanced',
+    [SinglePlayerLevel.유단자]: 'masterClass',
 };
 
 /** 싱글: 스테이지명 앞 단계(입문반 등). 탑은 층만 표시 */
@@ -68,12 +69,13 @@ function formatStageDisplayName(stage: SinglePlayerStageInfo, isTower: boolean):
 /** 모바일 헤더·본문: 1행 반 이름, 2행 스테이지 N */
 function getCompactStageTitleLines(stage: SinglePlayerStageInfo, isTower: boolean): { line1: string; line2: string } {
     if (isTower) {
-        return { line1: '도전의 탑', line2: stage.name };
+        return { line1: i18n.t('game:singlePlayerDesc.tower'), line2: stage.name };
     }
-    const label = SINGLE_PLAYER_LEVEL_DISPLAY[stage.level as SinglePlayerLevel] ?? '바둑학원';
+    const levelKey = SINGLE_PLAYER_LEVEL_KEY[stage.level as SinglePlayerLevel];
+    const label = levelKey ? i18n.t(`game:singlePlayerDesc.${levelKey}`) : i18n.t('game:singlePlayerDesc.academy');
     const tail = stage.id.split('-').pop() ?? '';
     const stageNum = /^\d+$/.test(tail) ? tail : null;
-    return { line1: label, line2: stageNum ? `스테이지 ${stageNum}` : stage.name };
+    return { line1: label, line2: stageNum ? i18n.t('game:singlePlayerDesc.stage', { num: stageNum }) : stage.name };
 }
 
 const getGameModeName = (mode: GameMode): string => {
@@ -105,6 +107,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
     onAction,
     onTowerItemPurchase,
 }) => {
+    const { t } = useTranslation('game');
     const { singlePlayerStagesListRevision } = useAppContext();
     const isTower = session.gameCategory === 'tower';
     const stage: SinglePlayerStageInfo | undefined = isTower
@@ -175,7 +178,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
     }
 
     const gameModeName = resolveSinglePlayerSurvivalModeForSession(session, stage)
-        ? '살리기 바둑'
+        ? t('singlePlayerDesc.survivalGo')
         : getGameModeName(session.mode);
     const stageDisplayName = formatStageDisplayName(stage, isTower);
     const compactTitleLines = getCompactStageTitleLines(stage, isTower);
@@ -239,7 +242,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                                     isCompactUi ? 'text-[0.68rem] sm:text-[0.7rem]' : 'text-[0.62rem] sm:text-[0.65rem]'
                                 }`}
                             >
-                                {isTower ? '도전의 탑' : '싱글 스테이지'}
+                                {isTower ? t('singlePlayerDesc.tower') : t('singlePlayerDesc.singleStage')}
                             </p>
                             <h3
                                 className={`mt-0.5 font-black leading-tight tracking-tight text-white drop-shadow-sm ${
@@ -546,13 +549,13 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
 
     return (
         <DraggableWindow
-            title={`${stageDisplayName} - 게임 설명`}
+            title={t('singlePlayerDesc.title', { name: stageDisplayName })}
             titleContent={
                 isCompactUi ? (
                     <span className="flex min-w-0 flex-col items-start gap-0 leading-tight">
                         <span className="text-[0.95rem] font-black tracking-tight text-amber-50 sm:text-base">{compactTitleLines.line1}</span>
                         <span className="text-[0.82rem] font-bold text-amber-200/90 sm:text-[0.88rem]">{compactTitleLines.line2}</span>
-                        <span className="mt-0.5 text-[0.68rem] font-semibold text-amber-100/70">게임 설명</span>
+                        <span className="mt-0.5 text-[0.68rem] font-semibold text-amber-100/70">{t('singlePlayerDesc.gameDesc')}</span>
                     </span>
                 ) : undefined
             }

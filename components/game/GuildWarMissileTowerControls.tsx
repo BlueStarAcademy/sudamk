@@ -1,4 +1,5 @@
 /**
+import { tx } from '../../shared/i18n/runtimeText.js';
  * 길드 전쟁 — 미사일 바둑 전용 하단 컨트롤.
  * 도전의 탑 21층+ 미사일 UI(이미지 버튼·배치)와 동일한 형태이며, 탑 전용 로직·파일과 분리됨.
  */
@@ -187,8 +188,8 @@ const GuildWarMissileTowerControls: React.FC<GuildWarMissileTowerControlsProps> 
                         <div className="flex min-h-0 w-full flex-1 items-center justify-center">
                             <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-3">
                                 <div className={colClass}>
-                                    <ImageButton src="/images/button/giveup.webp" alt="기권" onClick={handleForfeit} disabled={gameStatus === 'scoring'} title={gameStatus === 'scoring' ? '계가 집계 중에는 기권할 수 없습니다.' : '기권하기'} compact={isMobile} />
-                                    <span className={`${lbl} font-semibold whitespace-nowrap text-red-300`}>기권</span>
+                                    <ImageButton src="/images/button/giveup.webp" alt={tx("game:controls.resignAlt")} onClick={handleForfeit} disabled={gameStatus === 'scoring'} title={gameStatus === 'scoring' ? tx('game:controls.cannotResignDuringScoring') : tx('game:controls.resignTitle')} compact={isMobile} />
+                                    <span className={`${lbl} font-semibold whitespace-nowrap text-red-300`}>{tx("game:controls.resign")}</span>
                                 </div>
                             </ArenaControlStrip>
                         </div>
@@ -206,14 +207,14 @@ const GuildWarMissileTowerControls: React.FC<GuildWarMissileTowerControlsProps> 
                                 <div className={colClass}>
                                     <ImageButton
                                         src="/images/button/missile.webp"
-                                        alt="미사일"
+                                        alt={tx("game:controls.missile")}
                                         onClick={handleUseMissile}
                                         disabled={missileDisabled}
-                                        title="미사일 발사"
+                                        title={tx('game:controls.missileLaunchTitle')}
                                         count={missilesLeft}
                                         compact={isMobile}
                                     />
-                                    <span className={`${lbl} font-semibold whitespace-nowrap ${missileDisabled ? 'text-gray-500' : 'text-amber-100'}`}>미사일</span>
+                                    <span className={`${lbl} font-semibold whitespace-nowrap ${missileDisabled ? 'text-gray-500' : 'text-amber-100'}`}>{tx("game:controls.missile")}</span>
                                 </div>
                             </ArenaControlStrip>
                         </div>
@@ -228,8 +229,8 @@ const GuildWarMissileTowerControls: React.FC<GuildWarMissileTowerControlsProps> 
 					>
                         <ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-7 min-[1025px]:gap-8">
                             <div className={colClass}>
-                                <ImageButton src="/images/button/giveup.webp" alt="기권" onClick={handleForfeit} disabled={gameStatus === 'scoring'} title={gameStatus === 'scoring' ? '계가 집계 중에는 기권할 수 없습니다.' : '기권하기'} compact={isMobile} />
-                                <span className={`${lbl} font-semibold whitespace-nowrap text-red-300`}>기권</span>
+                                <ImageButton src="/images/button/giveup.webp" alt={tx("game:controls.resignAlt")} onClick={handleForfeit} disabled={gameStatus === 'scoring'} title={gameStatus === 'scoring' ? tx('game:controls.cannotResignDuringScoring') : tx('game:controls.resignTitle')} compact={isMobile} />
+                                <span className={`${lbl} font-semibold whitespace-nowrap text-red-300`}>{tx("game:controls.resign")}</span>
                             </div>
                         </ArenaControlStrip>
                     </div>
@@ -249,14 +250,14 @@ const GuildWarMissileTowerControls: React.FC<GuildWarMissileTowerControlsProps> 
                             <div className={colClass}>
                                 <ImageButton
                                     src="/images/button/missile.webp"
-                                    alt="미사일"
+                                    alt={tx("game:controls.missile")}
                                     onClick={handleUseMissile}
                                     disabled={missileDisabled}
-                                    title="미사일 발사"
+                                    title={tx('game:controls.missileLaunchTitle')}
                                     count={missilesLeft}
                                     compact={isMobile}
                                 />
-                                <span className={`${lbl} font-semibold whitespace-nowrap ${missileDisabled ? 'text-gray-500' : 'text-amber-100'}`}>미사일</span>
+                                <span className={`${lbl} font-semibold whitespace-nowrap ${missileDisabled ? 'text-gray-500' : 'text-amber-100'}`}>{tx("game:controls.missile")}</span>
                             </div>
                         </ArenaControlStrip>
                     </div>

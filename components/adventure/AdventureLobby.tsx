@@ -1,8 +1,9 @@
 import React, { Fragment, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import { ADVENTURE_STAGES } from '../../constants/adventureConstants.js';
-import { replaceAppHash } from '../../utils/appUtils.js';
+import { replaceAppHash, APP_HOME_HASH } from '../../utils/appUtils.js';
 import AdventureProfilePanel from './AdventureProfilePanel.js';
 import AdventureChapterRegionalSummary from './AdventureChapterRegionalSummary.js';
 import AdventureRegionalBuffModal from './AdventureRegionalBuffModal.js';
@@ -58,6 +59,7 @@ const ChapterLockGlyph: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 const AdventureLobby: React.FC = () => {
+    const { t } = useTranslation('lobby');
     const { currentUserWithStatus, handlers } = useAppContext();
     const { isNativeMobile, isNarrowViewport, pcLikeMobileLayout } = useNativeMobileShell();
 
@@ -67,7 +69,7 @@ const AdventureLobby: React.FC = () => {
     /** 네이티브 모바일: 챕터(기본) · 모험 일지 */
     const [mobileLobbyTab, setMobileLobbyTab] = useState<'chapter' | 'journal'>('chapter');
     const adventureScreenGuide = useScreenGuide('adventure');
-    const onBack = () => replaceAppHash('#/profile');
+    const onBack = () => replaceAppHash(APP_HOME_HASH);
 
     const stageUnderstandingRows = useMemo(
         () => buildAdventureStageUnderstandingRows(currentUserWithStatus?.adventureProfile),
@@ -94,7 +96,7 @@ const AdventureLobby: React.FC = () => {
                     mobileAdventureShell ? 'text-lg' : 'text-xl sm:text-2xl'
                 }`}
             >
-                모험
+                {t('adventure.title')}
             </h1>
         </div>
     );
@@ -108,12 +110,12 @@ const AdventureLobby: React.FC = () => {
                     ? ADVENTURE_CHAPTER_VIEWER_SHELL_CLASS
                     : 'flex min-h-0 min-w-0 flex-1 flex-col lg:h-full lg:min-h-0'
             }
-            aria-label="챕터 입장"
+            aria-label={t('adventure.chapterEnterAria')}
         >
             {showSectionHeading ? (
                 <h2 className="mb-2 flex shrink-0 items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-400/85 sm:text-sm">
                     <span className="h-px max-w-[2rem] flex-1 bg-gradient-to-r from-transparent to-amber-600/35" aria-hidden />
-                    챕터
+                    {t('adventure.chapter')}
                     <span className="h-px flex-1 bg-gradient-to-l from-transparent to-amber-600/35" aria-hidden />
                 </h2>
             ) : null}
@@ -158,7 +160,12 @@ const AdventureLobby: React.FC = () => {
                                         replaceAppHash(`#/adventure/${stage.id}`);
                                     }}
                                     aria-label={
-                                        unlocked ? `${stage.title} 맵으로 입장` : `${stage.title} 잠김: ${blockers.join(', ')}`
+                                        unlocked
+                                            ? t('adventure.chapterMapEnterAria', { title: stage.title })
+                                            : t('adventure.chapterLockedAria', {
+                                                  title: stage.title,
+                                                  blockers: blockers.join(', '),
+                                              })
                                     }
                                     className={`m-0 flex w-full min-w-0 flex-col overflow-hidden border-0 bg-transparent p-0 text-left transition-[filter] duration-200 ${
                                         unlocked
@@ -285,7 +292,7 @@ const AdventureLobby: React.FC = () => {
                     type="button"
                     onClick={onBack}
                     className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg p-0 transition-transform hover:bg-zinc-800 hover:drop-shadow-lg active:scale-90 sm:h-11 sm:w-11"
-                    aria-label="뒤로가기"
+                    aria-label={t('waitingRoom.backAria')}
                 >
                     <img src="/images/button/back.webp" alt="" className="h-full w-full" />
                 </button>
@@ -322,7 +329,7 @@ const AdventureLobby: React.FC = () => {
                         </div>
                     </header>
                     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden overscroll-contain px-0.5 pb-0.5">
-                        <div className="mb-0.5 flex shrink-0 gap-1 px-0.5 sm:gap-1.5" role="tablist" aria-label="모험 로비">
+                        <div className="mb-0.5 flex shrink-0 gap-1 px-0.5 sm:gap-1.5" role="tablist" aria-label={t('adventure.lobbyTabsAria')}>
                             <button
                                 type="button"
                                 role="tab"
@@ -330,7 +337,7 @@ const AdventureLobby: React.FC = () => {
                                 onClick={() => setMobileLobbyTab('chapter')}
                                 className={`${mobileTabBtnBase} ${mobileLobbyTab === 'chapter' ? mobileTabBtnOn : mobileTabBtnOff}`}
                             >
-                                챕터
+                                {t('adventure.chapter')}
                             </button>
                             <button
                                 type="button"
@@ -339,7 +346,7 @@ const AdventureLobby: React.FC = () => {
                                 onClick={() => setMobileLobbyTab('journal')}
                                 className={`${mobileTabBtnBase} ${mobileLobbyTab === 'journal' ? mobileTabBtnOn : mobileTabBtnOff}`}
                             >
-                                모험 일지
+                                {t('adventure.journal')}
                             </button>
                         </div>
                         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden" role="tabpanel">

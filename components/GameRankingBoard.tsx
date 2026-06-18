@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { RANKING_MODAL_SLIM_SCROLL_Y } from '../shared/constants/rankingModalScrollbar.js';
 import { useRanking } from '../hooks/useRanking.js';
@@ -71,6 +72,7 @@ const RankingRow = ({
     currentUserId?: string;
     currentUserLevel?: number;
 }) => {
+    const { t } = useTranslation('game');
     const displayLevel = resolveRankingRowUserLevel(user, currentUserId, currentUserLevel);
     const avatarUrl = useMemo(() => AVATAR_POOL.find(a => a.id === user.avatarId)?.url, [user.avatarId]);
     const borderUrl = useMemo(() => BORDER_POOL.find(b => b.id === user.borderId)?.url, [user.borderId]);
@@ -90,7 +92,7 @@ const RankingRow = ({
             <div
                 className={`flex ${MOBILE_RANK_ROW_CLASS} items-center gap-1.5 rounded-lg p-1.5 transition-colors sm:gap-2 sm:p-2 ${accent} ${!isCurrentUser && onViewUser ? 'cursor-pointer hover:bg-white/[0.04]' : ''}`}
                 onClick={handleClick}
-                title={!isCurrentUser && onViewUser ? `${user.nickname} 프로필 보기` : ''}
+                title={!isCurrentUser && onViewUser ? t('rankingBoard.viewProfile', { name: user.nickname }) : ''}
             >
                 <span
                     className={`w-10 shrink-0 text-center sm:w-11 ${MOBILE_RANK_TEXT_CLASS} font-black tabular-nums ${
@@ -128,7 +130,7 @@ const RankingRow = ({
         <div
             className={`flex items-center rounded-md ${dense ? 'px-0.5 py-0' : 'p-1'} ${accent} ${!isCurrentUser && onViewUser ? 'cursor-pointer hover:bg-white/[0.04]' : ''}`}
             onClick={handleClick}
-            title={!isCurrentUser && onViewUser ? `${user.nickname} 프로필 보기` : ''}
+            title={!isCurrentUser && onViewUser ? t('rankingBoard.viewProfile', { name: user.nickname }) : ''}
         >
             <span
                 className={`text-center font-bold ${dense ? 'w-5 text-[8px]' : 'w-8 text-xs'} ${
@@ -291,7 +293,7 @@ const GameRankingBoard: React.FC<GameRankingBoardProps> = ({
                           : 'bg-gradient-to-r from-amber-100 via-yellow-50 to-amber-200/90 bg-clip-text text-xs text-transparent sm:text-sm'
                 }`}
             >
-                {panelTitle ?? '게임 랭킹'}
+                {panelTitle ?? t('rankingBoard.title')}
             </h3>
             {!lockedTab && (
                 <div
@@ -308,7 +310,7 @@ const GameRankingBoard: React.FC<GameRankingBoardProps> = ({
                                 : 'text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200'
                         }`}
                     >
-                        바둑능력
+                        {t('rankingBoard.tabAbility')}
                     </button>
                     <button
                         type="button"
@@ -321,7 +323,7 @@ const GameRankingBoard: React.FC<GameRankingBoardProps> = ({
                                 : 'text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200'
                         }`}
                     >
-                        모험
+                        {t('rankingBoard.tabAdventure')}
                     </button>
                     <button
                         type="button"
@@ -334,7 +336,7 @@ const GameRankingBoard: React.FC<GameRankingBoardProps> = ({
                                 : 'text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200'
                         }`}
                     >
-                        매너
+                        {t('rankingBoard.tabManner')}
                     </button>
                 </div>
             )}
@@ -354,15 +356,15 @@ const GameRankingBoard: React.FC<GameRankingBoardProps> = ({
                 >
                     {loading ? (
                         <div className={`flex h-full items-center justify-center text-gray-400 ${wide ? 'px-1 text-center text-sm leading-snug sm:text-base' : 'text-xs'}`}>
-                            데이터 로딩 중...
+                            {t('rankingBoard.loading')}
                         </div>
                     ) : error ? (
                         <div className={`flex h-full items-center justify-center text-red-400 ${wide ? 'px-1 text-center text-sm leading-snug sm:text-base' : 'text-xs'}`}>
-                            랭킹을 불러오는데 실패했습니다.
+                            {t('rankingBoard.loadFailed')}
                         </div>
                     ) : rankings.length === 0 ? (
                         <div className={`flex h-full items-center justify-center text-gray-400 ${wide ? 'px-1 text-center text-sm leading-snug sm:text-base' : 'text-xs'}`}>
-                            랭킹 데이터가 없습니다.
+                            {t('rankingBoard.empty')}
                         </div>
                     ) : (
                         <>
@@ -400,7 +402,7 @@ const GameRankingBoard: React.FC<GameRankingBoardProps> = ({
                                     ))}
                                     {displayCount < rankings.length && (
                                         <div ref={loadMoreRef} className={`py-2 text-center text-gray-400 ${wide ? 'text-sm sm:text-base' : 'text-xs'}`}>
-                                            로딩 중...
+                                            {t('rankingBoard.loadingMore')}
                                         </div>
                                     )}
                                 </div>

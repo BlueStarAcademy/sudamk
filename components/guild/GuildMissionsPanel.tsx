@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Guild as GuildType, GuildMember, GuildMission } from '../../types/index.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import DraggableWindow from '../DraggableWindow.js';
@@ -7,6 +8,7 @@ import { isDifferentWeekKST, getTimeUntilNextMondayKST } from '../../utils/timeU
 import { ADMIN_USER_ID } from '../../constants/index.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
+import GuildMissionIcon from './GuildMissionIcon.js';
 
 interface GuildMissionsPanelProps {
     guild: GuildType;
@@ -21,6 +23,7 @@ const MissionItem: React.FC<{
     /** 네이티브 앱·좁은 뷰포트: 한 단 높이 압축 레이아웃 */
     compactLayout: boolean;
 }> = ({ mission, guildLevel, guild, compactLayout }) => {
+    const { t } = useTranslation('guild');
     const { currentUserWithStatus, handlers } = useAppContext();
     const progress = mission.progress ?? 0;
     const target = mission.target ?? 0;
@@ -60,13 +63,7 @@ const MissionItem: React.FC<{
             {compactLayout ? (
                 <div className="relative z-10 flex min-w-0 flex-col gap-1.5">
                     <div className="flex min-w-0 gap-2">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-amber-500/35 bg-gradient-to-b from-amber-950/50 to-stone-950/80 shadow-inner">
-                            <img
-                                src="/images/guild/button/guildmission.webp"
-                                alt=""
-                                className="h-7 w-7 object-contain opacity-95"
-                            />
-                        </div>
+                        <GuildMissionIcon size="md" frame="guild" />
                         <div className="min-w-0 flex-1">
                             <div className="mb-0.5 flex flex-wrap items-start justify-between gap-1">
                                 <h4
@@ -77,7 +74,7 @@ const MissionItem: React.FC<{
                                 </h4>
                                 {isComplete && !isClaimed && !isExpired && (
                                     <span className="shrink-0 rounded-full border border-emerald-400/40 bg-emerald-950/50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-200/95">
-                                        달성
+                                        {t('missions.achieved')}
                                     </span>
                                 )}
                             </div>
@@ -94,7 +91,7 @@ const MissionItem: React.FC<{
                                 <span className="truncate">{mission.personalReward?.guildCoins ?? 0}</span>
                             </span>
                             <span className="inline-flex max-w-full items-center rounded-lg border border-emerald-500/25 bg-black/35 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-300/95">
-                                <span className="truncate">길드 XP +{finalXp.toLocaleString()}</span>
+                                <span className="truncate">{t('missions.guildXp', { amount: finalXp.toLocaleString() })}</span>
                             </span>
                         </div>
                         <button
@@ -113,7 +110,7 @@ const MissionItem: React.FC<{
                                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent -translate-x-full transition-transform duration-700 hover:translate-x-full" />
                             )}
                             <span className="relative z-10 whitespace-nowrap">
-                                {isExpired ? '만료됨' : isClaimed ? '보상 완료' : isComplete ? '보상 받기' : '진행 중'}
+                                {isExpired ? t('missions.expired') : isClaimed ? t('missions.rewardClaimed') : isComplete ? t('missions.claimReward') : t('missions.inProgress')}
                             </span>
                         </button>
                     </div>
@@ -130,13 +127,7 @@ const MissionItem: React.FC<{
                 </div>
             ) : (
                 <div className="relative z-10 flex flex-row items-stretch gap-4">
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-amber-500/35 bg-gradient-to-b from-amber-950/50 to-stone-950/80 shadow-inner sm:h-[3.75rem] sm:w-[3.75rem]">
-                        <img
-                            src="/images/guild/button/guildmission.webp"
-                            alt=""
-                            className="h-10 w-10 object-contain opacity-95 sm:h-11 sm:w-11"
-                        />
-                    </div>
+                    <GuildMissionIcon size="2xl" frame="guild" />
 
                     <div className="min-w-0 flex-1">
                         <div className="mb-1 flex flex-wrap items-start justify-between gap-1.5 sm:mb-1.5 sm:gap-2">
@@ -148,7 +139,7 @@ const MissionItem: React.FC<{
                             </h4>
                             {isComplete && !isClaimed && !isExpired && (
                                 <span className="shrink-0 rounded-full border border-emerald-400/40 bg-emerald-950/50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-200/95">
-                                    달성
+                                    {t('missions.achieved')}
                                 </span>
                             )}
                         </div>
@@ -174,7 +165,7 @@ const MissionItem: React.FC<{
                                 {mission.personalReward?.guildCoins ?? 0}
                             </span>
                             <span className="inline-flex items-center rounded-lg border border-emerald-500/25 bg-black/35 px-2 py-0.5 text-[10px] font-semibold text-emerald-300/95">
-                                길드 XP +{finalXp.toLocaleString()}
+                                {t('missions.guildXp', { amount: finalXp.toLocaleString() })}
                             </span>
                         </div>
                         <button
@@ -193,7 +184,7 @@ const MissionItem: React.FC<{
                                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent -translate-x-full transition-transform duration-700 hover:translate-x-full" />
                             )}
                             <span className="relative z-10">
-                                {isExpired ? '만료됨' : isClaimed ? '보상 완료' : isComplete ? '보상 받기' : '진행 중'}
+                                {isExpired ? t('missions.expired') : isClaimed ? t('missions.rewardClaimed') : isComplete ? t('missions.claimReward') : t('missions.inProgress')}
                             </span>
                         </button>
                     </div>
@@ -204,6 +195,7 @@ const MissionItem: React.FC<{
 };
 
 const GuildMissionsPanel: React.FC<GuildMissionsPanelProps> = ({ guild, onClose }) => {
+    const { t } = useTranslation('guild');
     const { currentUserWithStatus } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
     const isHandheld = useIsHandheldDevice(1025);
@@ -219,7 +211,7 @@ const GuildMissionsPanel: React.FC<GuildMissionsPanelProps> = ({ guild, onClose 
             const days = Math.floor(ms / (1000 * 60 * 60 * 24));
             const hours = Math.floor((ms % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
             const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
-            setResetCountdown(`${days}일 ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} 후 갱신`);
+            setResetCountdown(t('missions.resetCountdown', { days, hours: String(hours).padStart(2, '0'), minutes: String(minutes).padStart(2, '0') }));
         };
         tick();
         const id = window.setInterval(tick, 60_000);
@@ -240,7 +232,7 @@ const GuildMissionsPanel: React.FC<GuildMissionsPanelProps> = ({ guild, onClose 
 
     return (
         <DraggableWindow
-            title="주간 길드 미션"
+            title={t('missions.title')}
             headerShowTitle
             onClose={onClose}
             windowId="guild-missions"
@@ -263,17 +255,7 @@ const GuildMissionsPanel: React.FC<GuildMissionsPanelProps> = ({ guild, onClose 
                         className="flex shrink-0 flex-col gap-1.5 rounded-2xl border border-amber-500/20 bg-gradient-to-r from-stone-900/90 via-stone-900/70 to-violet-950/30 px-2.5 py-2 shadow-inner sm:flex-row sm:items-center sm:justify-between sm:gap-2 sm:px-4 sm:py-3"
                     >
                         <div className="flex min-w-0 flex-1 items-start gap-2 sm:items-center sm:gap-2.5">
-                            <div
-                                className={`flex shrink-0 items-center justify-center rounded-xl border border-amber-400/35 bg-gradient-to-br from-amber-600/30 to-amber-950/40 shadow-md ${
-                                    isNativeMobile ? 'h-8 w-8' : 'h-10 w-10'
-                                }`}
-                            >
-                                <img
-                                    src="/images/guild/button/guildmission.webp"
-                                    alt=""
-                                    className={isNativeMobile ? 'h-6 w-6 object-contain opacity-95' : 'h-8 w-8 object-contain opacity-95'}
-                                />
-                            </div>
+                            <GuildMissionIcon size={isNativeMobile ? 'xs' : 'sm'} frame="guildHeader" />
                             <div className="min-w-0 flex-1">
                                 <p
                                     className={`shrink-0 font-mono tabular-nums text-amber-100/90 ${isNativeMobile ? 'text-[10px]' : 'text-[11px] sm:text-xs'}`}
@@ -294,7 +276,7 @@ const GuildMissionsPanel: React.FC<GuildMissionsPanelProps> = ({ guild, onClose 
                                 }`}
                             />
                             <span className={`font-semibold text-amber-100 ${isNativeMobile ? 'text-[10px] leading-snug' : 'text-xs'}`}>
-                                수령 가능한 보상이 있습니다. 잊지 말고 받아 가세요.
+                                {t('missions.unclaimedHint')}
                             </span>
                         </div>
                     )}
@@ -320,7 +302,7 @@ const GuildMissionsPanel: React.FC<GuildMissionsPanelProps> = ({ guild, onClose 
                                 <span className="text-3xl opacity-40" aria-hidden>
                                     📭
                                 </span>
-                                <p className="text-sm font-medium text-stone-400">표시할 주간 미션이 없습니다.</p>
+                                <p className="text-sm font-medium text-stone-400">{t('missions.empty')}</p>
                             </div>
                         )}
                     </div>

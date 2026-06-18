@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { RANKING_MODAL_SLIM_SCROLL_Y } from '../shared/constants/rankingModalScrollbar.js';
 import { useRanking } from '../hooks/useRanking.js';
@@ -69,7 +70,7 @@ const RankingRow = ({
             <div
                 className={`flex ${MOBILE_RANK_ROW_CLASS} items-center rounded-lg px-1.5 py-0.5 transition-colors ${accent} ${!isCurrentUser && onViewUser ? 'cursor-pointer hover:bg-white/[0.04]' : ''}`}
                 onClick={handleClick}
-                title={!isCurrentUser && onViewUser ? `${user.nickname} 프로필 보기` : ''}
+                title={!isCurrentUser && onViewUser ? t('rankingBoard.viewProfile', { name: user.nickname }) : ''}
             >
                 <span
                     className={`w-8 shrink-0 text-center ${MOBILE_RANK_TEXT_CLASS} font-black tabular-nums ${
@@ -98,7 +99,7 @@ const RankingRow = ({
         <div
             className={`flex items-center rounded-md ${dense ? 'px-0.5 py-0' : 'p-1'} ${accent} ${!isCurrentUser && onViewUser ? 'cursor-pointer hover:bg-white/[0.04]' : ''}`}
             onClick={handleClick}
-            title={!isCurrentUser && onViewUser ? `${user.nickname} 프로필 보기` : ''}
+            title={!isCurrentUser && onViewUser ? t('rankingBoard.viewProfile', { name: user.nickname }) : ''}
         >
             <span
                 className={`text-center font-bold ${dense ? 'w-5 text-[8px]' : 'w-8 text-xs'} ${
@@ -128,6 +129,7 @@ const RankingRow = ({
 };
 
 const BadukRankingBoard: React.FC<BadukRankingBoardProps> = ({ isTopmost, dense, mobileSplitLarge, hideInlineGuide }) => {
+    const { t } = useTranslation('game');
     const rowDense = Boolean(dense && !mobileSplitLarge);
     const wide = Boolean(mobileSplitLarge);
     const { currentUserWithStatus, handlers } = useAppContext();
@@ -249,7 +251,7 @@ const BadukRankingBoard: React.FC<BadukRankingBoardProps> = ({ isTopmost, dense,
                           : 'bg-gradient-to-r from-emerald-100 via-teal-50 to-cyan-200/90 bg-clip-text text-xs text-transparent sm:text-sm'
                 }`}
             >
-                바둑 랭킹
+                {t('rankingBoard.badukTitle')}
             </h3>
             <div className={`relative z-[1] grid flex-shrink-0 grid-cols-2 gap-0.5 rounded-xl border border-white/10 bg-black/45 p-1 shadow-inner ${wide ? '' : rowDense ? 'p-px' : ''}`}>
                 <button
@@ -263,7 +265,7 @@ const BadukRankingBoard: React.FC<BadukRankingBoardProps> = ({ isTopmost, dense,
                             : 'text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200'
                     }`}
                 >
-                    전략바둑
+                    {t('rankingBoard.tabStrategic')}
                 </button>
                 <button
                     type="button"
@@ -276,7 +278,7 @@ const BadukRankingBoard: React.FC<BadukRankingBoardProps> = ({ isTopmost, dense,
                             : 'text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200'
                     }`}
                 >
-                    페어
+                    {t('rankingBoard.tabPair')}
                 </button>
             </div>
             <div
@@ -295,15 +297,15 @@ const BadukRankingBoard: React.FC<BadukRankingBoardProps> = ({ isTopmost, dense,
                 >
                     {loading ? (
                         <div className={`flex h-full items-center justify-center text-gray-400 ${wide ? 'px-1 text-center text-base leading-snug' : 'text-xs'}`}>
-                            데이터 로딩 중...
+                            {t('rankingBoard.loading')}
                         </div>
                     ) : error ? (
                         <div className={`flex h-full items-center justify-center text-red-400 ${wide ? 'px-1 text-center text-base leading-snug' : 'text-xs'}`}>
-                            랭킹을 불러오는데 실패했습니다.
+                            {t('rankingBoard.loadFailed')}
                         </div>
                     ) : rankings.length === 0 ? (
                         <div className={`flex h-full items-center justify-center text-gray-400 ${wide ? 'px-1 text-center text-base leading-snug' : 'text-xs'}`}>
-                            랭킹 데이터가 없습니다.
+                            {t('rankingBoard.empty')}
                         </div>
                     ) : (
                         <>
@@ -337,7 +339,7 @@ const BadukRankingBoard: React.FC<BadukRankingBoardProps> = ({ isTopmost, dense,
                                     ))}
                                     {displayCount < rankings.length && (
                                         <div ref={loadMoreRef} className={`py-2 text-center text-gray-400 ${wide ? 'text-sm' : 'text-xs'}`}>
-                                            로딩 중...
+                                            {t('rankingBoard.loadingMore')}
                                         </div>
                                     )}
                                 </div>

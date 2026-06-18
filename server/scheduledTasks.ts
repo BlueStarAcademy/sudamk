@@ -2511,9 +2511,6 @@ export async function processGuildWarMatching(
     }
 
     let warType: GuildWarRoundType = inferGuildWarRoundTypeFromMatchKst(now);
-    if (bootstrapOnce) {
-        warType = 'tue_wed';
-    }
     if (testBulk && options?.testWarTypeOverride) {
         warType = options.testWarTypeOverride;
     }

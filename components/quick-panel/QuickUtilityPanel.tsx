@@ -1,4 +1,5 @@
 import React, { Suspense, lazy } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import NavTitleBar from '../shell/NavTitleBar.js';
 import {
@@ -39,6 +40,7 @@ type QuickUtilityPanelProps = {
 };
 
 const QuickUtilityPanel: React.FC<QuickUtilityPanelProps> = ({ kind, onBack, shellVariant = 'pc' }) => {
+    const { t } = useTranslation('nav');
     const {
         currentUserWithStatus,
         handlers,
@@ -164,7 +166,7 @@ const QuickUtilityPanel: React.FC<QuickUtilityPanelProps> = ({ kind, onBack, she
                 return (
                     <GuideModal
                         embedded
-                        title="도움말 센터"
+                        title={t('quickPanel.helpCenter')}
                         windowId="info-modal"
                         onClose={onBack}
                     />

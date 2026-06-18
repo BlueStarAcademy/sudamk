@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { UserWithStatus } from '../../types.js';
 import { RANKING_TIERS } from '../../constants';
 import { RANKING_MODAL_SLIM_SCROLL_Y } from '../../shared/constants/rankingModalScrollbar.js';
@@ -33,6 +34,7 @@ const ChampionshipRankingList: React.FC<ChampionshipRankingListProps> = ({
     onViewUser,
     splitStack = false,
 }) => {
+    const { t } = useTranslation('lobby');
     const { rankings, loading, error } = useRanking('championship', CHAMPIONSHIP_TOP, 0);
 
     const allRankedUsers = useMemo(() => {
@@ -220,7 +222,7 @@ const ChampionshipRankingList: React.FC<ChampionshipRankingListProps> = ({
                         <h2
                             className={`bg-gradient-to-r from-white via-yellow-200 to-white bg-clip-text font-bold text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] ${headerTitleClass}`}
                         >
-                            챔피언십 랭킹
+                            {t('championshipRanking.title')}
                         </h2>
                         <p
                             className={`mt-0.5 font-medium text-gray-400 ${
@@ -241,7 +243,7 @@ const ChampionshipRankingList: React.FC<ChampionshipRankingListProps> = ({
                                 panelTight ? 'text-xs sm:text-sm' : 'text-sm'
                             }`}
                         >
-                            내 랭킹
+                            {t('championshipRanking.myRank')}
                         </span>
                     </div>
                     {renderRankItem(
@@ -261,7 +263,7 @@ const ChampionshipRankingList: React.FC<ChampionshipRankingListProps> = ({
                                 panelTight ? 'text-xs sm:text-sm' : 'text-sm'
                             }`}
                         >
-                            전체 랭킹
+                            {t('championshipRanking.allRank')}
                         </span>
                     </div>
                 )}
@@ -272,13 +274,13 @@ const ChampionshipRankingList: React.FC<ChampionshipRankingListProps> = ({
                         <li className="flex items-center justify-center py-12">
                             <div className="text-center">
                                 <div className="mb-2 inline-block h-8 w-8 animate-spin rounded-full border-4 border-indigo-500/30 border-t-indigo-500"></div>
-                                <p className="text-sm text-gray-400">랭킹을 불러오는 중...</p>
+                                <p className="text-sm text-gray-400">{t('championshipRanking.loading')}</p>
                             </div>
                         </li>
                     ) : error ? (
                         <li className="flex items-center justify-center py-12">
                             <p className="rounded-lg border border-red-500/30 bg-red-900/20 px-4 py-2 text-center text-sm font-medium text-red-400">
-                                랭킹을 불러오는데 실패했습니다.
+                                {t('championshipRanking.loadError')}
                             </p>
                         </li>
                     ) : topUsers.length > 0 ? (
@@ -291,7 +293,7 @@ const ChampionshipRankingList: React.FC<ChampionshipRankingListProps> = ({
                                 <li ref={loadMoreRef} className="py-4 text-center text-xs text-gray-500">
                                     <div className="inline-flex items-center gap-2">
                                         <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-500/30 border-t-gray-500"></div>
-                                        <span>더 많은 랭킹 로딩 중...</span>
+                                        <span>{t('championshipRanking.loadMore')}</span>
                                     </div>
                                 </li>
                             )}
@@ -299,7 +301,7 @@ const ChampionshipRankingList: React.FC<ChampionshipRankingListProps> = ({
                     ) : (
                         <li className="flex items-center justify-center py-12">
                             <p className="rounded-lg border border-gray-700/50 bg-gray-800/30 px-4 py-2 text-center text-sm text-gray-400">
-                                랭킹 정보가 없습니다.
+                                {t('championshipRanking.noData')}
                             </p>
                         </li>
                     )}

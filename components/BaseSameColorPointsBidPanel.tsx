@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LiveGameSession, User, Player, ServerAction } from '../types.js';
 import Button from './Button.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
@@ -21,6 +22,7 @@ const BaseSameColorPointsBidPanel: React.FC<Props> = ({
     layout = 'inline',
     isSinglePlayer = false,
 }) => {
+    const { t } = useTranslation('game');
     const gameId = session.id;
     const locked = session.baseSameColorTieColor;
     const showCountdown = resolveArenaSessionPolicy(session).matchAxis === 'pvp';
@@ -44,7 +46,7 @@ const BaseSameColorPointsBidPanel: React.FC<Props> = ({
 
     const myStoredChoice = session.baseStoneColorChoices?.[currentUser.id];
     const stoneLabel =
-        locked === Player.Black ? '검은돌' : locked === Player.White ? '흰돌' : '선택한 돌';
+        locked === Player.Black ? t('baseSameColorPoints.blackStone') : locked === Player.White ? t('baseSameColorPoints.whiteStone') : t('baseSameColorPoints.selectedStone');
 
     const timerPaused = (!isPairHostBid && myBid) || (isPairHostBid && bidP1 && bidP2);
     useEffect(() => {
@@ -123,8 +125,8 @@ const BaseSameColorPointsBidPanel: React.FC<Props> = ({
     if (pairLobbyOwnerId && !isPairHostBid) {
         const waitGuest = (
             <div className={`${komiWindowShell} px-3 py-4 text-center`}>
-                <p className="text-sm font-semibold text-sky-200/95">방장이 점수(덤) 설정을 진행합니다</p>
-                <p className="mt-2 text-xs text-stone-400">잠시만 기다려 주세요.</p>
+                <p className="text-sm font-semibold text-sky-200/95">{t('baseSameColorPoints.hostSetting')}</p>
+                <p className="mt-2 text-xs text-stone-400">{t('baseSameColorPoints.pleaseWait')}</p>
             </div>
         );
         return layout === 'inline' ? <div className="w-full min-w-0">{waitGuest}</div> : waitGuest;
@@ -133,8 +135,8 @@ const BaseSameColorPointsBidPanel: React.FC<Props> = ({
     if (isPairHostBid && bidP1 && bidP2) {
         const waitBoth = (
             <div className={`${komiWindowShell} px-3 py-4 text-center`}>
-                <p className="text-sm font-semibold text-emerald-300/95">양쪽 점수 설정을 전송했습니다</p>
-                <p className="mt-2 text-xs text-stone-400">다음 단계로 진행 중입니다.</p>
+                <p className="text-sm font-semibold text-emerald-300/95">{t('baseSameColorPoints.bothSubmitted')}</p>
+                <p className="mt-2 text-xs text-stone-400">{t('baseSameColorPoints.proceedingNext')}</p>
             </div>
         );
         return layout === 'inline' ? <div className="w-full min-w-0">{waitBoth}</div> : waitBoth;
@@ -143,8 +145,8 @@ const BaseSameColorPointsBidPanel: React.FC<Props> = ({
     if (myBid && !isPairHostBid) {
         const wait = (
             <div className={`${komiWindowShell} px-3 py-4 text-center`}>
-                <p className="text-sm font-semibold text-emerald-300/95">점수 설정을 전송했습니다</p>
-                <p className="mt-2 text-xs text-stone-400">상대 설정을 기다리는 중입니다.</p>
+                <p className="text-sm font-semibold text-emerald-300/95">{t('baseSameColorPoints.submitted')}</p>
+                <p className="mt-2 text-xs text-stone-400">{t('baseSameColorPoints.waitingOpponent')}</p>
             </div>
         );
         return layout === 'inline' ? <div className="w-full min-w-0">{wait}</div> : wait;
@@ -152,16 +154,16 @@ const BaseSameColorPointsBidPanel: React.FC<Props> = ({
 
     const guide =
         myStoredChoice != null
-            ? `서로 같은 돌을 골랐습니다. ${stoneLabel}로 두기 위해 몇 점을 상대방에게 줄까요?`
-            : '상대와 같은 돌을 선택했습니다. 제시할 점수를 정하세요.';
+            ? t('baseSameColorPoints.sameColorGuide', { stone: stoneLabel })
+            : t('baseSameColorPoints.sameColorGuideGeneric');
 
     const body = (
         <div className={`${komiWindowShell} flex w-full min-w-0 flex-col gap-2 px-2 py-2 sm:px-3`}>
             {isPairHostBid && activeBidSubjectEarly && (
                 <p className="text-center text-[10px] font-bold text-amber-200/90 sm:text-[11px]">
                     {activeBidSubjectEarly === player1.id
-                        ? `${player1.nickname} 측 점수 제시`
-                        : `${player2.nickname} 측 점수 제시`}
+                        ? t('baseSameColorPoints.playerBid', { nickname: player1.nickname })
+                        : t('baseSameColorPoints.playerBid', { nickname: player2.nickname })}
                 </p>
             )}
             <p className="text-center text-[10px] font-medium leading-snug text-stone-300 sm:text-[11px]">{guide}</p>
@@ -199,7 +201,7 @@ const BaseSameColorPointsBidPanel: React.FC<Props> = ({
                     }}
                     className="w-16 rounded-lg border border-amber-500/40 bg-black/50 px-2 py-1 text-center font-mono text-sm font-bold text-amber-100 tabular-nums"
                 />
-                <span className="text-[11px] text-stone-400">집</span>
+                <span className="text-[11px] text-stone-400">{t('baseSameColorPoints.pointsUnit')}</span>
             </div>
             <div className="grid grid-cols-3 gap-1 sm:grid-cols-6">
                 <button type="button" className={btnSmall} onClick={() => adjust(-5)}>
@@ -215,14 +217,14 @@ const BaseSameColorPointsBidPanel: React.FC<Props> = ({
                     +5
                 </button>
                 <button type="button" className={btnSmall} onClick={() => setKomiValue(0)}>
-                    초기화
+                    {t('baseSameColorPoints.reset')}
                 </button>
                 <Button
                     onClick={handleSubmit}
                     disabled={submitBusy}
                     className="!min-h-[2rem] !rounded-lg !border !border-amber-400/40 !bg-amber-800/80 !px-2 !py-1 !text-[10px] !font-bold !text-amber-50 sm:!text-xs"
                 >
-                    완료
+                    {t('baseSameColorPoints.complete')}
                 </Button>
             </div>
         </div>

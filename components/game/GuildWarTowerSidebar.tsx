@@ -1,4 +1,5 @@
 /**
+import { tx } from '../../shared/i18n/runtimeText.js';
  * 길드 전쟁 — 미사일/히든 대국용 우측 사이드바.
  * 도전의 탑 사이드바와 동일 구성(정보 패널·채팅·일시정지)이며, 탑 전용 파일과 분리됨.
  */
@@ -43,7 +44,7 @@ const GuildWarTowerSidebar: React.FC<GuildWarTowerSidebarProps> = ({
     );
     if (!currentUser) return null;
     const boardId = (session as any).guildWarBoardId as string | undefined;
-    const boardLabel = boardId ? getGuildWarBoardDisplayName(boardId) : '길드 전쟁';
+    const boardLabel = boardId ? getGuildWarBoardDisplayName(boardId) : tx("game:guildWarSidebar.title");
 
     return (
         <div className="flex min-h-0 flex-1 flex-col h-full gap-1.5 bg-gray-900/80 rounded-lg p-2 border border-color">
@@ -51,7 +52,7 @@ const GuildWarTowerSidebar: React.FC<GuildWarTowerSidebarProps> = ({
                 <GameInfoPanel session={session} currentUser={currentUser} onClose={onClose} onAction={onAction} sidebarLayout={sidebarLayout} />
                 <div className="bg-gray-800/80 rounded-xl border border-stone-700 px-3 py-2">
                     <div className="text-center">
-                        <p className="text-sm font-bold text-purple-300">길드 전쟁</p>
+                        <p className="text-sm font-bold text-purple-300">{tx("game:guildWarSidebar.title")}</p>
                         <p className="text-lg font-black text-yellow-300">{boardLabel}</p>
                     </div>
                 </div>
@@ -81,11 +82,11 @@ const GuildWarTowerSidebar: React.FC<GuildWarTowerSidebarProps> = ({
                     >
                         {isPaused
                             ? resumeCountdown > 0
-                                ? `대국 재개 (${resumeCountdown})`
-                                : '대국 재개'
+                                ? tx("game:controls.resumeGameCountdown", { count: resumeCountdown })
+                                : tx("game:controls.resumeGame")
                             : pauseButtonCooldown > 0
-                              ? `일시 정지 (${pauseButtonCooldown})`
-                              : '일시 정지'}
+                              ? tx("game:controls.pauseGameCountdown", { count: pauseButtonCooldown })
+                              : tx("game:controls.pauseGame")}
                     </Button>
                 )}
             </div>

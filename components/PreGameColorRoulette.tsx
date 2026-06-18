@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import i18n from '../shared/i18n/config.js';
 import { Player, User } from '../types.js';
 import Avatar from './Avatar.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants';
@@ -38,15 +39,16 @@ const PreGameColorRoulette: React.FC<PreGameColorRouletteProps> = ({
     participantsInDisplayOrder,
     avatarUrlOverrides,
     durationMs = 2600,
-    title = '룰렛으로 흑/백을 결정하는 중...',
-    subtitle = '자동으로 선공과 후공이 배정됩니다.',
+    title = i18n.t('game:preGameColor.title'),
+    subtitle = i18n.t('game:preGameColor.subtitle'),
     onComplete,
     suppressHeader = false,
     layout = 'full',
     animate = true,
-    blackRoleLabel = '선공 · 흑',
-    whiteRoleLabel = '후공 · 백',
+    blackRoleLabel = i18n.t('game:preGameColor.blackRole'),
+    whiteRoleLabel = i18n.t('game:preGameColor.whiteRole'),
 }) => {
+    const { t } = useTranslation('game');
     const flipMode = Boolean(participantsInDisplayOrder?.[0] && participantsInDisplayOrder?.[1]);
     const leftSeat = flipMode ? participantsInDisplayOrder![0] : blackPlayer;
     const rightSeat = flipMode ? participantsInDisplayOrder![1] : whitePlayer;
@@ -236,7 +238,7 @@ const PreGameColorRoulette: React.FC<PreGameColorRouletteProps> = ({
                             <span className="rounded border border-emerald-500/35 bg-emerald-950/60 px-2 py-0.5 text-[0.65rem] font-bold tracking-wide text-emerald-200 sm:text-xs">
                                 배정 완료
                             </span>
-                            <span className="text-[0.7rem] font-semibold text-stone-400 sm:text-xs">룰렛 종료</span>
+                            <span className="text-[0.7rem] font-semibold text-stone-400 sm:text-xs">{t('preGameColor.rouletteEnd')}</span>
                         </div>
                     ) : flipMode ? (
                         <div
@@ -249,7 +251,7 @@ const PreGameColorRoulette: React.FC<PreGameColorRouletteProps> = ({
                             <span className="max-w-[95%] truncate text-center text-[0.7rem] font-bold text-white sm:text-xs">
                                 {leftIsBlack ? leftSeat.nickname : rightSeat.nickname}
                             </span>
-                            <span className="text-xl font-black text-amber-300 sm:text-2xl">흑</span>
+                            <span className="text-xl font-black text-amber-300 sm:text-2xl">{t('preGameColor.blackShort')}</span>
                         </div>
                     ) : (
                         <div
@@ -260,7 +262,7 @@ const PreGameColorRoulette: React.FC<PreGameColorRouletteProps> = ({
                                     : 'border border-stone-300 bg-white text-zinc-900'
                             }`}
                         >
-                            {activeColor === Player.Black ? '흑' : '백'}
+                            {activeColor === Player.Black ? t('preGameColor.blackShort') : t('preGameColor.whiteShort')}
                         </div>
                     )}
                 </div>
@@ -270,10 +272,10 @@ const PreGameColorRoulette: React.FC<PreGameColorRouletteProps> = ({
                     }`}
                 >
                     {isFinished
-                        ? '좌우 카드에 최종 선공·후공이 표시됩니다.'
+                        ? t('preGameColor.finalCardAlt')
                         : flipMode
-                          ? '두 칸의 흑·백 표시가 바뀌다가 잠시 뒤 최종 배치로 고정됩니다.'
-                          : '흑과 백이 빠르게 바뀌며 무작위로 멈춥니다.'}
+                          ? t('preGameColor.fastFlashAlt')
+                          : t('preGameColor.smoothEndAlt')}
                 </p>
             </div>
 

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 // FIX: Import types from the new centralized types barrel file
 import {
     Player,
@@ -93,6 +94,7 @@ import { resolveLiveSessionSinglePlayerStageRow } from './shared/utils/liveSessi
 import { getAdventureMapWebpPath } from './constants/adventureConstants.js';
 import { TOWER_STAGES } from './constants/towerConstants.js';
 import { InGameModalLayoutProvider } from './contexts/InGameModalLayoutContext.js';
+import { tx } from './shared/i18n/runtimeText.js';
 import {
     getCurrentPairTurnSeat,
     isPairAiSeat,
@@ -133,7 +135,7 @@ const CAPTURE_WIN_SCORE_DEBOUNCE_MS = 48;
 const CAPTURE_WIN_HIDDEN_FLOAT_LAG_MS = 450;
 const CAPTURE_WIN_SCORE_FLOAT_CSS_MS = 2850;
 
-const BOARD_SYNC_OVERLAY_MESSAGE = '바둑판 정보를 불러오는 중입니다. 잠시만 기다려주세요';
+const boardSyncOverlayMessage = () => tx('game:messages.boardSyncLoading');
 
 const BASE_PRE_PLAY_STATUSES = new Set([
     'base_placement',
@@ -251,14 +253,13 @@ const mobileGameSidebarDrawerStyle: React.CSSProperties = {
     paddingBottom: 'env(safe-area-inset-bottom, 0px)',
 };
 
-const KO_RULE_FLASH_MESSAGE = '패 모양입니다. 바로 다시 따낼 수 없습니다.';
+const koRuleFlashMessage = () => tx('game:messages.koRuleFlash');
 const HIDDEN_PLACEMENT_DELAY_MS = 2000;
-const HIDDEN_PLACEMENT_DELAY_MESSAGE = '화면에 상대에게 안보이는 한 수를 두세요';
-const MISSILE_DIRECTION_DELAY_MESSAGE = '바둑돌을 원하는 방향으로 날려보내세요';
-const SCAN_TARGET_DELAY_MESSAGE = '상대방의 히든 돌이 있을만한 지점을 찍어보세요';
-const CHESS_PIECE_ALREADY_MOVED_MESSAGE = '기물돌은 한 턴에 한 번만 움직일 수 있습니다.';
-const CHESS_GO_START_MESSAGE =
-    '자신의 턴에 체스 기물돌을 1회 이동 가능합니다. 킹 기물을 잡거나 잡히면 경기가 종료됩니다.';
+const hiddenPlacementDelayMessage = () => tx('game:messages.hiddenPlacementDelay');
+const missileDirectionDelayMessage = () => tx('game:messages.missileDirectionDelay');
+const scanTargetDelayMessage = () => tx('game:messages.scanTargetDelay');
+const chessPieceAlreadyMovedMessage = () => tx('game:messages.chessPieceAlreadyMoved');
+const chessGoStartMessage = () => tx('game:messages.chessPieceMoveHint');
 const CHESS_GO_START_FLASH_MS = 8000;
 
 type PairSeat = NonNullable<NonNullable<LiveGameSession['settings']['pairGame']>['turnOrder']>[number];
@@ -269,7 +270,7 @@ function sortPairSeatsBySeatId(seats: PairSeat[]): PairSeat[] {
 }
 
 const pairSeatShortLabel = (seatId: string): string =>
-    seatId === 'black1' ? '흑1' : seatId === 'black2' ? '흑2' : seatId === 'white1' ? '백1' : seatId === 'white2' ? '백2' : seatId;
+    seatId === 'black1' ? tx('game:messages.seatBlack1') : seatId === 'black2' ? tx('game:messages.seatBlack2') : seatId === 'white1' ? tx('game:messages.seatWhite1') : seatId === 'white2' ? tx('game:messages.seatWhite2') : seatId;
 
 function pairSeatOwnerUser(session: LiveGameSession, seat: PairSeat) {
     const directUser = session.player1.id === seat.participantId ? session.player1 : session.player2.id === seat.participantId ? session.player2 : null;
@@ -361,7 +362,7 @@ const PairIngamePlayerCard: React.FC<{ session: LiveGameSession; seat: PairSeat;
                 </span>
             ) : null}
             {passed ? (
-                <span className={`absolute right-2 top-2 z-[1] text-[10px] font-black ${black ? 'text-sky-200' : 'text-sky-700'}`}>통과</span>
+                <span className={`absolute right-2 top-2 z-[1] text-[10px] font-black ${black ? 'text-sky-200' : 'text-sky-700'}`}>{tx('game:controls.passLabel')}</span>
             ) : null}
             <div className="flex h-full min-w-0 items-center justify-center gap-2 text-center">
                 <div className="relative shrink-0">
@@ -380,7 +381,7 @@ const PairIngamePlayerCard: React.FC<{ session: LiveGameSession; seat: PairSeat;
                         </span>
                     ) : null}
                     {(seat.kind === 'pet' || seat.kind === 'ai') && (
-                        <span className="inline-flex shrink-0" title="펫 속성(가위·바위·보)">
+                        <span className="inline-flex shrink-0" title={tx('game:messages.petAttributeAria')}>
                             <PairPetRpsBadge
                                 attribute={session.settings.pairGame?.pairPetRpsAttributeByParticipantId?.[seat.participantId]}
                                 anchorSizePx={compact ? 32 : 36}
@@ -410,7 +411,7 @@ const PairTeamSummaryPanel: React.FC<{ session: LiveGameSession; player: Player.
     const score = session.captures?.[player] ?? 0;
     const scoreBox = (
         <div className={`min-w-[5.25rem] rounded-xl border ${compact ? 'px-4 py-2.5' : 'px-5 py-3'} text-center ${black ? 'border-slate-600 bg-black' : 'border-amber-300 bg-white'}`}>
-            <div className="text-xs font-black opacity-70">점수</div>
+            <div className="text-xs font-black opacity-70">{tx('game:playerPanel.score')}</div>
             <div className={`font-mono ${compact ? 'text-4xl' : 'text-5xl'} font-black leading-none tabular-nums`}>{score}</div>
         </div>
     );
@@ -419,7 +420,7 @@ const PairTeamSummaryPanel: React.FC<{ session: LiveGameSession; player: Player.
             <div className={`flex items-center gap-2 ${mirror ? 'justify-end text-right' : ''}`}>
                 <span className="font-mono text-lg font-black tabular-nums">{formatPairClock(colorTime)}</span>
                 <span className={`flex items-center gap-1 font-mono text-sm font-black tabular-nums ${inByoyomi ? 'text-red-400' : ''}`}>
-                    <img src="/images/timer.webp" alt="초읽기" className="h-5 w-5 object-contain" />
+                    <img src="/images/timer.webp" alt={tx('game:messages.byoyomiAlt')} className="h-5 w-5 object-contain" />
                     {Math.max(0, Number(byoyomiPeriods ?? session.settings.byoyomiCount ?? 0))}
                 </span>
             </div>
@@ -449,15 +450,15 @@ function getPairMoveCountDisplay(session: LiveGameSession): { label: string; pri
         session.mode === GameMode.Capture ||
         (session.mode === GameMode.Mix && Boolean(session.settings?.mixedModes?.includes(GameMode.Capture)));
     if (captureRuleActive) {
-        return { label: '수순', primary: moveCount };
+        return { label: tx('game:playerPanel.moves'), primary: moveCount };
     }
     if (limit != null && limit > 0) {
         // 페어는 서버·클라의 totalTurns가 수순과 잠깐 어긋날 수 있어 moveHistory 길이만 사용(전략 로비와 동일).
         const scoringTurnProgress = session.settings?.pairGame ? moveCount : Math.max(moveCount, session.totalTurns ?? 0);
         const remaining = Math.max(0, limit - scoringTurnProgress);
-        return { label: '계가까지', primary: remaining, secondary: limit };
+        return { label: tx('game:playerPanel.scoringRemaining'), primary: remaining, secondary: limit };
     }
-    return { label: '수순', primary: moveCount };
+    return { label: tx('game:playerPanel.moves'), primary: moveCount };
 }
 
 const PairMoveCountBox: React.FC<{ session: LiveGameSession }> = ({ session }) => {
@@ -530,7 +531,7 @@ const PairMobileTeamProfilePanel: React.FC<{
                     })}
                 </div>
                 {showPairMobileRpsRow ? (
-                    <div className="flex max-w-full justify-center gap-0.5 px-0.5" aria-label="펫 속성">
+                    <div className="flex max-w-full justify-center gap-0.5 px-0.5" aria-label={tx('game:messages.petAttributeLabel')}>
                         {seats.map((seat) => (
                             <span key={`${seat.seatId}-rps`} className="inline-flex shrink-0">
                                 {seat.kind === 'pet' || seat.kind === 'ai' ? (
@@ -578,7 +579,7 @@ const PairMobileTeamTimeScorePanel: React.FC<{
     );
     const scoreEl = (
         <div className={`flex shrink-0 items-baseline gap-0.5 ${black ? 'justify-start' : 'justify-end'}`}>
-            <span className="text-[8px] font-black opacity-70 sm:text-[9px]">점수</span>
+            <span className="text-[8px] font-black opacity-70 sm:text-[9px]">{tx('game:playerPanel.score')}</span>
             <span className="font-mono text-base font-black leading-none tabular-nums sm:text-lg">{score}</span>
         </div>
     );
@@ -742,7 +743,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const usesChessGo = sessionUsesChessGo(session);
 
     if (!player1?.id || !player2?.id || !currentUser || !currentUserWithStatus) {
-        return <div className="flex items-center justify-center min-h-screen">플레이어 정보를 불러오는 중...</div>;
+        return <div className="flex items-center justify-center min-h-screen">{tx('game:messages.loadingPlayers')}</div>;
     }
 
     const [confirmModalType, setConfirmModalType] = useState<'resign' | null>(null);
@@ -1063,7 +1064,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }, durationMs);
     }, []);
     const showKoRuleFlash = useCallback(() => {
-        flashBoardRuleMessage(KO_RULE_FLASH_MESSAGE, 5000);
+        flashBoardRuleMessage(koRuleFlashMessage(), 5000);
     }, [flashBoardRuleMessage]);
     const timerArenaPolicy = resolveArenaSessionPolicy(session);
     const isPausableAiGameForTimer =
@@ -2119,7 +2120,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             return false;
         }
         if (!isPlayableChessGoIntersection(chessGoSession, x, y)) {
-            flashBoardRuleMessage('둘 수 없는 자리입니다.');
+            flashBoardRuleMessage(tx('game:messages.invalidPlacement'));
             return true;
         }
         try {
@@ -2131,11 +2132,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             );
             if (!moveResult.isValid) {
                 if (moveResult.reason === 'ko') showKoRuleFlash();
-                else flashBoardRuleMessage('둘 수 없는 자리입니다.');
+                else flashBoardRuleMessage(tx('game:messages.invalidPlacement'));
                 return true;
             }
         } catch {
-            flashBoardRuleMessage('둘 수 없는 자리입니다.');
+            flashBoardRuleMessage(tx('game:messages.invalidPlacement'));
             return true;
         }
         return false;
@@ -2163,7 +2164,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const isMyTurn = useMemo(() => {
         if (isSpectator) return false;
         const pairCurrentSeat = getCurrentPairTurnSeat(session.settings);
-        if (gameStatus === 'alkkagi_simultaneous_placement' && session.settings.alkkagiPlacementType === '일괄 배치') {
+        if (gameStatus === 'alkkagi_simultaneous_placement' && session.settings.alkkagiPlacementType === AlkkagiPlacementType.Simultaneous) {
             const placedNewThisPhase = session.alkkagiStonesPlacedThisRound?.[currentUser.id] ?? 0;
             return placedNewThisPhase < (session.settings.alkkagiStoneCount || 5);
         }
@@ -2360,15 +2361,15 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     useEffect(() => {
         if (gameStatus === 'hidden_placing' && prevGameStatus !== 'hidden_placing') {
             audioService.revealHiddenStone();
-            flashBoardRuleMessage(HIDDEN_PLACEMENT_DELAY_MESSAGE, HIDDEN_PLACEMENT_DELAY_MS - 250);
+            flashBoardRuleMessage(hiddenPlacementDelayMessage(), HIDDEN_PLACEMENT_DELAY_MS - 250);
             return;
         }
         if (gameStatus === 'scanning' && prevGameStatus !== 'scanning') {
-            flashBoardRuleMessage(SCAN_TARGET_DELAY_MESSAGE, HIDDEN_PLACEMENT_DELAY_MS - 250);
+            flashBoardRuleMessage(scanTargetDelayMessage(), HIDDEN_PLACEMENT_DELAY_MS - 250);
             return;
         }
         if (gameStatus === 'missile_selecting' && prevGameStatus !== 'missile_selecting') {
-            flashBoardRuleMessage(MISSILE_DIRECTION_DELAY_MESSAGE, HIDDEN_PLACEMENT_DELAY_MS - 250);
+            flashBoardRuleMessage(missileDirectionDelayMessage(), HIDDEN_PLACEMENT_DELAY_MS - 250);
             return;
         }
         if (
@@ -2376,7 +2377,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             gameStatus === 'playing' &&
             (prevGameStatus === 'chess_piece_placement' || prevGameStatus === 'uniform_color_roulette')
         ) {
-            flashBoardRuleMessage(CHESS_GO_START_MESSAGE, CHESS_GO_START_FLASH_MS);
+            flashBoardRuleMessage(chessGoStartMessage(), CHESS_GO_START_FLASH_MS);
         }
     }, [gameStatus, prevGameStatus, flashBoardRuleMessage, session.mode]);
 
@@ -3159,7 +3160,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 const nextDraft = [...myDraft, { type: chessSetupSelectionRef.current, x, y }];
                 const validation = validateChessPlacementDraft(nextDraft, setupColor, boardSize, budget);
                 if (!validation.ok) {
-                    flashBoardRuleMessage('배치할 수 없는 위치입니다.');
+                    flashBoardRuleMessage(tx('game:messages.invalidBasePlacement'));
                     return;
                 }
                 handlers.handleAction({
@@ -3213,7 +3214,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 pieceAtClick &&
                 pieceAtClick.owner === myPlayerEnum
             ) {
-                flashBoardRuleMessage(CHESS_PIECE_ALREADY_MOVED_MESSAGE);
+                flashBoardRuleMessage(chessPieceAlreadyMovedMessage());
                 return;
             }
             setSelectedChessPieceId(null);
@@ -3802,7 +3803,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                 strategicPetHintBoardInputLockUntilHistoryLenRef.current = null;
                             }
                             const err = String((res as { error: string }).error);
-                            if (actionType === 'PLACE_STONE' && (err.includes('패 모양') || err.includes('코 금지') || (err.includes('바로') && err.includes('따낼')))) {
+                            if (actionType === 'PLACE_STONE' && (shouldSuppressKoPlaceStoneClientError(err))) {
                                 showKoRuleFlash();
                             }
                         } else if (actionType === 'DICE_PLACE_STONE' || actionType === 'THIEF_PLACE_STONE') {
@@ -4157,7 +4158,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             strategicPetHintBoardInputLockUntilHistoryLenRef.current = null;
                         }
                         const err = String((res as { error: string }).error);
-                        if (at === 'PLACE_STONE' && (err.includes('패 모양') || err.includes('코 금지') || (err.includes('바로') && err.includes('따낼')))) {
+                        if (at === 'PLACE_STONE' && (shouldSuppressKoPlaceStoneClientError(err))) {
                             showKoRuleFlash();
                         }
                     } else if (at === 'DICE_PLACE_STONE' || at === 'THIEF_PLACE_STONE') {
@@ -4376,12 +4377,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             return;
         }
         if (isNoContestLeaveAvailable) {
-            if (window.confirm("상대방의 장고로 인해 페널티 없이 무효 처리하고 나가시겠습니까?")) {
+            if (window.confirm(tx('game:alerts.noContestConfirm'))) {
                 handlers.handleAction({ type: 'REQUEST_NO_CONTEST_LEAVE', payload: { gameId } });
             }
         } else {
             if (gameStatus === 'scoring') {
-                window.alert('계가 집계 중에는 기권할 수 없습니다.');
+                window.alert(tx('game:alerts.cannotResignScoring'));
                 return;
             }
             setConfirmModalType('resign');
@@ -5294,7 +5295,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             aria-live="polite"
         >
             <p className="max-w-sm text-center text-base font-semibold leading-relaxed text-slate-100 drop-shadow-md sm:text-lg">
-                {BOARD_SYNC_OVERLAY_MESSAGE}
+                {boardSyncOverlayMessage()}
             </p>
         </div>
     ) : null;
@@ -5365,7 +5366,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     (result && typeof result === 'object' && 'error' in result && result.error) ||
                     result?.clientResponse?.error;
                 const isAlreadyStartedErr =
-                    typeof err === 'string' && err.includes('이미 시작');
+                    typeof err === 'string' && isGameAlreadyStartedError(err);
                 const stale =
                     (result && typeof result === 'object' && 'staleGame' in result && result.staleGame) ||
                     result?.clientResponse?.staleGame;
@@ -5388,11 +5389,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 if (err) {
                     window.alert(String(err));
                 } else if (stale || result?.clientResponse?.success === false) {
-                    window.alert('게임 세션이 만료되었습니다. 대기실에서 스테이지를 다시 선택해 주세요.');
+                    window.alert(tx('game:alerts.sessionExpired'));
                 }
             } catch (err) {
                 console.error('[Game] handleStartGame: CONFIRM_SINGLE_PLAYER_GAME_START failed', err);
-                window.alert('게임 시작에 실패했습니다. 다시 시도해주세요.');
+                window.alert(tx('game:alerts.startFailed'));
             } finally {
                 startConfirmInFlightRef.current = false;
             }
@@ -5441,8 +5442,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             foulInfo: {
                 message:
                     isAdventureGame || session.adventureMonsterCodexId
-                        ? '몬스터가 히든 아이템을 사용했습니다!'
-                        : 'AI봇이 히든 아이템을 사용했습니다!',
+                        ? tx('game:turn.monsterHiddenItem')
+                        : tx('game:turn.aiHiddenItem'),
                 expiry: aiHiddenItemEffectEndTime,
             },
         };
@@ -5914,8 +5915,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         isPairArenaAiRematch ? transformPairAiRematchSettings : undefined
                     }
                     hideScoringTurnLimit={isPairArenaAiRematch}
-                    title={isPairArenaAiRematch ? '페어바둑 AI와 재대결' : undefined}
-                    submitLabel={isPairArenaAiRematch ? 'AI와 대국 시작' : undefined}
+                    title={isPairArenaAiRematch ? tx('game:pairAiRematch.title') : undefined}
+                    submitLabel={isPairArenaAiRematch ? tx('game:pairAiRematch.start') : undefined}
                     showActionPointCost
                     seedFromSession={{ mode: session.mode, settings: session.settings }}
                     onClose={() => setIsAiRematchModalOpen(false)}
@@ -6061,7 +6062,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                     </div>
                                     {effectivePaused && (
                                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none text-white drop-shadow-lg">
-                                            <h2 className="text-3xl font-bold tracking-wide">일시 정지</h2>
+                                            <h2 className="text-3xl font-bold tracking-wide">{tx('game:board.paused')}</h2>
                                             {resumeCountdown > 0 && (
                                                 <p className="text-lg font-semibold text-amber-200">
                                                     재개 가능까지 {resumeCountdown}초

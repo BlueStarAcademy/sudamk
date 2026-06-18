@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LiveGameSession, User, ServerAction } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
 import PreGameColorRoulette from './PreGameColorRoulette.js';
@@ -18,6 +19,7 @@ interface NigiriModalProps {
 }
 
 const NigiriModal: React.FC<NigiriModalProps> = ({ session, currentUser, onAction }) => {
+    const { t } = useTranslation('game');
     const isHandheld = useIsHandheldDevice(1025);
     const { id: gameId, player1, player2, blackPlayerId, whitePlayerId, preGameConfirmations } = session;
     const hasConfirmed = !!preGameConfirmations?.[currentUser.id];
@@ -94,7 +96,7 @@ const NigiriModal: React.FC<NigiriModalProps> = ({ session, currentUser, onActio
 
     return (
         <DraggableWindow
-            title="흑·백 확인"
+            title={t('nigiri.confirmTitle')}
             initialWidth={340}
             shrinkHeightToContent
             windowId="nigiri"

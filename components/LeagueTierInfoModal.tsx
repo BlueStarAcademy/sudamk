@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import DraggableWindow from './DraggableWindow.js';
 import { LEAGUE_DATA, LEAGUE_WEEKLY_REWARDS } from '../constants';
 import { LeagueRewardTier, LeagueTier } from '../types.js';
@@ -9,21 +10,21 @@ interface LeagueTierInfoModalProps {
 }
 
 const formatRankRange = (start: number, end: number) => {
-    return start === end ? `${start}위` : `${start}-${end}위`;
+    return start === end ? t('leagueTier.rankPlace', { rank: start }) : t('leagueTier.rankRange', { start, end });
 };
 
 const getOutcomeLabel = (tier: LeagueTier, outcome: LeagueRewardTier['outcome']) => {
     // 챌린저 리그는 최상위 티어이므로 promote outcome도 잔류로 표시
     if (outcome === 'promote' && tier === LeagueTier.Challenger) {
-        return '잔류';
+        return t('leagueTier.stay');
     }
     switch (outcome) {
         case 'promote':
-            return '승급';
+            return t('leagueTier.promote');
         case 'maintain':
-            return '잔류';
+            return t('leagueTier.stay');
         case 'demote':
-            return '강등';
+            return t('leagueTier.demote');
         default:
             return '';
     }
@@ -69,11 +70,11 @@ const buildOutcomeSummary = (tier: LeagueTier, rewards: LeagueRewardTier[]) => {
         const parts: string[] = [];
         if (mergedRanges.length > 0) {
             const rangeTexts = mergedRanges.map(r => formatRankRange(r.start, r.end));
-            parts.push(`잔류: ${rangeTexts.join(', ')}`);
+            parts.push(t('leagueTier.stayLine', { ranges: rangeTexts.join(', ') }));
         }
         if (outcomeRanges.demote.length > 0) {
             const demoteTexts = outcomeRanges.demote.map(r => formatRankRange(r.start, r.end));
-            parts.push(`강등: ${demoteTexts.join(', ')}`);
+            parts.push(t('leagueTier.demoteLine', { ranges: demoteTexts.join(', ') }));
         }
         return parts.join(' / ');
     }
@@ -107,30 +108,31 @@ const buildOutcomeSummary = (tier: LeagueTier, rewards: LeagueRewardTier[]) => {
 };
 
 const LeagueTierInfoModal: React.FC<LeagueTierInfoModalProps> = ({ onClose, isTopmost }) => {
+    const { t } = useTranslation('inventory');
 
     const renderReward = (rewardTier: LeagueRewardTier, tier: LeagueTier) => {
         const rankText = rewardTier.rankStart === rewardTier.rankEnd
-            ? `${rewardTier.rankStart}위`
-            : `${rewardTier.rankStart}-${rewardTier.rankEnd}위`;
+            ? t('leagueTier.rankPlace', { rank: rewardTier.rankStart })
+            : t('leagueTier.rankRange', { start: rewardTier.rankStart, end: rewardTier.rankEnd });
 
         let outcomeText = '';
         let outcomeColor = '';
         // 챌린저 리그는 최상위 티어이므로 promote outcome도 잔류로 표시
         if (tier === LeagueTier.Challenger && rewardTier.outcome === 'promote') {
-            outcomeText = '잔류';
+            outcomeText = t('leagueTier.stay');
             outcomeColor = 'text-gray-400';
         } else {
             switch (rewardTier.outcome) {
                 case 'promote':
-                    outcomeText = '승급';
+                    outcomeText = t('leagueTier.promote');
                     outcomeColor = 'text-green-400';
                     break;
                 case 'maintain':
-                    outcomeText = '잔류';
+                    outcomeText = t('leagueTier.stay');
                     outcomeColor = 'text-gray-400';
                     break;
                 case 'demote':
-                    outcomeText = '강등';
+                    outcomeText = t('leagueTier.demote');
                     outcomeColor = 'text-red-400';
                     break;
             }
@@ -141,7 +143,7 @@ const LeagueTierInfoModal: React.FC<LeagueTierInfoModalProps> = ({ onClose, isTo
                 <span className="font-semibold">{rankText}</span>
                 <div className="flex items-center gap-3">
                     <span className="flex items-center gap-1 text-yellow-300">
-                        <img src="/images/icon/Zem.webp" alt="다이아" className="w-4 h-4" />
+                        <img src="/images/icon/Zem.webp" alt={t('leagueTier.diamondsAlt')} className="w-4 h-4" />
                         {rewardTier.diamonds}
                     </span>
                     <span className={`font-bold w-12 text-center ${outcomeColor}`}>{outcomeText}</span>
@@ -151,10 +153,10 @@ const LeagueTierInfoModal: React.FC<LeagueTierInfoModalProps> = ({ onClose, isTo
     };
 
     return (
-        <DraggableWindow title="랭킹전 리그 안내" onClose={onClose} windowId="league-tier-info-modal" initialWidth={550} isTopmost={isTopmost}>
+        <DraggableWindow title={t('leagueTier.titleRanking')} onClose={onClose} windowId="league-tier-info-modal" initialWidth={550} isTopmost={isTopmost}>
             <div className="space-y-4">
                 <p className="text-sm text-gray-300 text-center">
-                    전략바둑 랭킹전 PVP에서 얻는 점수에 따라 티어가 결정됩니다. 주간 종료 시 순위에 따라 승급·잔류·강등이 적용되며, 티어별 보상을 받을 수 있습니다.
+                    {t('leagueTier.intro')}
                 </p>
 
                 <ul className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
@@ -166,14 +168,14 @@ const LeagueTierInfoModal: React.FC<LeagueTierInfoModalProps> = ({ onClose, isTo
                                    <img src={tierData.icon} alt={tierData.name} className="w-12 h-12 flex-shrink-0" />
                                    <div>
                                      <h3 className="text-lg font-bold">{tierData.name}</h3>
-                                     <p className="text-xs text-gray-400">순위 경쟁 기반 티어 (승급·잔류·강등 조건은 아래 보상표 참고)</p>
+                                     <p className="text-xs text-gray-400">{t('leagueTier.rankHintShort')}</p>
                                      <p className="text-[11px] text-gray-500 mt-1">
                                          {buildOutcomeSummary(tierData.tier, rewards)}
                                      </p>
                                    </div>
                                 </div>
                                 <div className="mt-3 pt-3 border-t border-gray-700/50">
-                                   <h4 className="text-sm font-semibold text-gray-400 mb-1.5">주간 보상</h4>
+                                   <h4 className="text-sm font-semibold text-gray-400 mb-1.5">{t('leagueTier.weeklyReward')}</h4>
                                    <ul className="space-y-1 text-xs">
                                        {rewards.map(reward => renderReward(reward, tierData.tier))}
                                    </ul>

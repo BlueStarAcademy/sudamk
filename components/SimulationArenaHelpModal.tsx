@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import DraggableWindow from './DraggableWindow.js';
 
 interface SimulationArenaHelpModalProps {
@@ -7,69 +8,69 @@ interface SimulationArenaHelpModalProps {
 }
 
 const SimulationArenaHelpModal: React.FC<SimulationArenaHelpModalProps> = ({ onClose, isTopmost }) => {
+    const { t } = useTranslation('tournament');
     return (
-        <DraggableWindow title="시뮬레이션 경기장 도움말" onClose={onClose} windowId="simulation-arena-help" initialWidth={700} isTopmost={isTopmost}>
+        <DraggableWindow title={t('championship.simulationHelp.title')} onClose={onClose} windowId="simulation-arena-help" initialWidth={700} isTopmost={isTopmost}>
             <div className="max-h-[70vh] overflow-y-auto pr-2 text-gray-300">
                 <div className="space-y-4">
                     <div className="flex items-start gap-4 bg-gray-900/50 p-4 rounded-lg">
-                        <img src="/images/PlayingArena.webp" alt="시뮬레이션 경기" className="w-32 h-32 object-cover rounded-lg flex-shrink-0" />
+                        <img src="/images/PlayingArena.webp" alt={t('championship.simulationHelp.altSimulation')} className="w-32 h-32 object-cover rounded-lg flex-shrink-0" />
                         <div className="flex-1">
-                            <h3 className="font-bold text-lg text-yellow-300 mb-2">시뮬레이션 경기 개요</h3>
+                            <h3 className="font-bold text-lg text-yellow-300 mb-2">{t('championship.simulationHelp.overview')}</h3>
                             <p className="text-sm mb-2">
-                                플레이어의 능력치와 컨디션을 기반으로 자동 진행되는 경기입니다. 
-                                경기는 50초 동안 진행되며, 초반/중반/종반으로 나뉩니다.
+                                {t('championship.simulationHelp.overviewBody')}
                             </p>
                         </div>
                     </div>
 
                     <div className="flex items-start gap-4 bg-gray-900/50 p-4 rounded-lg">
                         <div className="flex flex-col gap-2 flex-shrink-0">
-                            <img src="/images/icon/Gold.webp" alt="골드" className="w-16 h-16 object-cover rounded-lg" />
-                            <img src="/images/materials/materials1.webp" alt="재료" className="w-16 h-16 object-cover rounded-lg" />
-                            <img src="/images/Box/EquipmentBox1.webp" alt="장비상자" className="w-16 h-16 object-cover rounded-lg" />
+                            <img src="/images/icon/Gold.webp" alt={t('championship.simulationHelp.altGold')} className="w-16 h-16 object-cover rounded-lg" />
+                            <img src="/images/materials/materials1.webp" alt={t('championship.simulationHelp.altMaterial')} className="w-16 h-16 object-cover rounded-lg" />
+                            <img src="/images/Box/EquipmentBox1.webp" alt={t('championship.simulationHelp.altEquipmentBox')} className="w-16 h-16 object-cover rounded-lg" />
                         </div>
                         <div className="flex-1">
-                            <h3 className="font-bold text-lg text-yellow-300 mb-2">보상 안내</h3>
+                            <h3 className="font-bold text-lg text-yellow-300 mb-2">{t('championship.simulationHelp.rewardGuide')}</h3>
                             <ul className="list-disc list-inside space-y-2 text-sm">
-                                <li><strong>동네바둑리그:</strong> 골드 획득</li>
-                                <li><strong>전국바둑대회:</strong> 재료(강화석) 획득</li>
-                                <li><strong>월드챔피언십:</strong> 장비 상자 획득</li>
+                                <li>{t('championship.simulationHelp.rewardNeighborhood')}</li></li>
+                                <li>{t('championship.simulationHelp.rewardNational')}</li>
+                                <li>{t('championship.simulationHelp.rewardWorld')}</li>
                             </ul>
                         </div>
                     </div>
 
                     <div className="flex items-start gap-4 bg-gray-900/50 p-4 rounded-lg">
                         <div className="w-32 h-32 bg-gradient-to-br from-green-500 via-yellow-500 to-red-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <span className="text-2xl font-bold text-white">50초</span>
+                            <span className="text-2xl font-bold text-white">{t('championship.simulationHelp.fiftySeconds')}</span>
                         </div>
                         <div className="flex-1">
-                            <h3 className="font-bold text-lg text-yellow-300 mb-2">경기 진행 방식</h3>
+                            <h3 className="font-bold text-lg text-yellow-300 mb-2">{t('championship.simulationHelp.progress')}</h3>
                             <ul className="list-disc list-inside space-y-2 text-sm">
-                                <li>초반(1-15초): 초반 능력치 중요</li>
-                                <li>중반(16-35초): 중반 능력치 중요</li>
-                                <li>종반(36-50초): 종반 능력치 중요</li>
-                                <li>각 단계마다 해당 능력치에 따라 점수 누적</li>
+                                <li>{t('championship.simulationHelp.progressOpening')}</li>
+                                <li>{t('championship.simulationHelp.progressMidgame')}</li>
+                                <li>{t('championship.simulationHelp.progressEndgame')}</li>
+                                <li>{t('championship.simulationHelp.progressScoring')}</li>
                             </ul>
                         </div>
                     </div>
 
                     <div className="flex items-start gap-4 bg-gray-900/50 p-4 rounded-lg">
                         <div className="flex flex-col gap-1 flex-shrink-0 text-xs text-center">
-                            <div className="bg-green-600/50 p-2 rounded">초반</div>
-                            <div className="bg-yellow-600/50 p-2 rounded">중반</div>
-                            <div className="bg-red-600/50 p-2 rounded">종반</div>
+                            <div className="bg-green-600/50 p-2 rounded">{t('championship.simulationHelp.opening')}</div>
+                            <div className="bg-yellow-600/50 p-2 rounded">{t('championship.simulationHelp.midgame')}</div>
+                            <div className="bg-red-600/50 p-2 rounded">{t('championship.simulationHelp.endgame')}</div>
                         </div>
                         <div className="flex-1">
-                            <h3 className="font-bold text-lg text-yellow-300 mb-2">능력치 계산</h3>
+                            <h3 className="font-bold text-lg text-yellow-300 mb-2">{t('championship.simulationHelp.abilityCalc')}</h3>
                             <ul className="list-disc list-inside space-y-2 text-sm">
                                 <li>
-                                    <strong>초반:</strong> 집중력×0.4 + 사고속도×0.3 + 판단력×0.4 + 계산력×0.3 + 전투력×0.1 + 안정감×0.5
+                                    {t('championship.simulationHelp.openingFormula')}
                                 </li>
                                 <li>
-                                    <strong>중반:</strong> 집중력×0.3 + 사고속도×0.3 + 판단력×0.4 + 계산력×0.1 + 전투력×0.8 + 안정감×0.1
+                                    {t('championship.simulationHelp.midgameFormula')}
                                 </li>
                                 <li>
-                                    <strong>종반:</strong> 집중력×0.3 + 사고속도×0.4 + 판단력×0.1 + 계산력×0.6 + 전투력×0.1 + 안정감×0.5
+                                    {t('championship.simulationHelp.endgameFormula')}
                                 </li>
                             </ul>
                         </div>
@@ -80,12 +81,12 @@ const SimulationArenaHelpModal: React.FC<SimulationArenaHelpModalProps> = ({ onC
                             <span className="text-3xl">🎲</span>
                         </div>
                         <div className="flex-1">
-                            <h3 className="font-bold text-lg text-yellow-300 mb-2">랜덤 이벤트</h3>
+                            <h3 className="font-bold text-lg text-yellow-300 mb-2">{t('championship.simulationHelp.randomEvent')}</h3>
                             <ul className="list-disc list-inside space-y-2 text-sm">
-                                <li>5초마다 30% 확률로 발생</li>
-                                <li>4가지 종류: 집중력 감소(부정), 사고속도 증가(긍정), 전투력 증가(긍정), 안정감 증가(긍정)</li>
-                                <li>능력치가 높을수록 긍정 이벤트 확률 증가</li>
-                                <li>현재 총 점수의 2~10%만큼 점수 변화</li>
+                                <li>{t('championship.simulationHelp.randomEvent1')}</li>
+                                <li>{t('championship.simulationHelp.randomEvent2')}</li>
+                                <li>{t('championship.simulationHelp.randomEvent3')}</li>
+                                <li>{t('championship.simulationHelp.randomEvent4')}</li>
                             </ul>
                         </div>
                     </div>
@@ -95,23 +96,23 @@ const SimulationArenaHelpModal: React.FC<SimulationArenaHelpModalProps> = ({ onC
                             <span className="text-4xl">⚡</span>
                         </div>
                         <div className="flex-1">
-                            <h3 className="font-bold text-lg text-yellow-300 mb-2">치명타</h3>
+                            <h3 className="font-bold text-lg text-yellow-300 mb-2">{t('championship.simulationHelp.critical')}</h3>
                             <ul className="list-disc list-inside space-y-2 text-sm">
-                                <li>판단력이 치명타 발생 확률에 영향</li>
-                                <li>치명타 발생 시 추가 점수 획득</li>
-                                <li>전투력과 계산력이 추가 점수에 영향</li>
+                                <li>{t('championship.simulationHelp.critical1')}</li>
+                                <li>{t('championship.simulationHelp.critical2')}</li>
+                                <li>{t('championship.simulationHelp.critical3')}</li>
                             </ul>
                         </div>
                     </div>
 
                     <div className="flex items-start gap-4 bg-gray-900/50 p-4 rounded-lg">
-                        <img src="/images/use/con1.webp" alt="컨디션" className="w-32 h-32 object-cover rounded-lg flex-shrink-0" />
+                        <img src="/images/use/con1.webp" alt={t('championship.simulationHelp.altCondition')} className="w-32 h-32 object-cover rounded-lg flex-shrink-0" />
                         <div className="flex-1">
-                            <h3 className="font-bold text-lg text-yellow-300 mb-2">컨디션</h3>
+                            <h3 className="font-bold text-lg text-yellow-300 mb-2">{t('championship.simulationHelp.conditionTitle')}</h3>
                             <ul className="list-disc list-inside space-y-2 text-sm">
-                                <li>각 경기 전에 40~100 사이의 랜덤 컨디션 부여</li>
-                                <li>시뮬레이션 진행 중에는 능력치 수치가 바뀌지 않습니다</li>
-                                <li>컨디션 회복제로 회복 가능 (경기 시작 전에만 사용)</li>
+                                <li>{t('championship.simulationHelp.condition1')}</li>
+                                <li>{t('championship.simulationHelp.condition2')}</li>
+                                <li>{t('championship.simulationHelp.condition3')}</li>
                             </ul>
                         </div>
                     </div>

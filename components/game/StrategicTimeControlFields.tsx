@@ -1,4 +1,5 @@
 import React from 'react';
+import { tx } from '../../shared/i18n/runtimeText.js';
 import { GameSettings } from '../../types/index.js';
 import {
     TIME_LIMITS,
@@ -73,7 +74,7 @@ const StrategicTimeControlFields: React.FC<StrategicTimeControlFieldsProps> = ({
 
     return (
         <>
-            <Row label="시간 방식">
+            <Row label={tx("game:strategicTimeControl.timeMode")}>
                 <select
                     value={style}
                     onChange={(e) => handleStyleChange(e.target.value as MainTimeControlStyle)}
@@ -81,11 +82,11 @@ const StrategicTimeControlFields: React.FC<StrategicTimeControlFieldsProps> = ({
                     className={selectClassName}
                     style={selectStyle}
                 >
-                    <option value="byoyomi">제한시간 + 초읽기</option>
-                    <option value="fischer">제한시간 + 피셔</option>
+                    <option value="byoyomi">{tx("game:strategicTimeControl.byoyomiOption")}</option>
+                    <option value="fischer">{tx("game:strategicTimeControl.fischerOption")}</option>
                 </select>
             </Row>
-            <Row label={isSpeed ? '메인 제한 시간' : '제한 시간'}>
+            <Row label={isSpeed ? tx('game:strategicTimeControl.mainTimeLimit') : tx('game:strategicTimeControl.timeLimit')}>
                 <select
                     value={settings.timeLimit}
                     onChange={(e) => patch({ timeLimit: parseInt(e.target.value, 10) })}
@@ -101,7 +102,7 @@ const StrategicTimeControlFields: React.FC<StrategicTimeControlFieldsProps> = ({
                 </select>
             </Row>
             {style === 'byoyomi' ? (
-                <Row label="초읽기">
+                <Row label={tx("game:strategicTimeControl.byoyomi")}>
                     <div className="flex gap-2">
                         <select
                             value={settings.byoyomiTime}
@@ -132,7 +133,7 @@ const StrategicTimeControlFields: React.FC<StrategicTimeControlFieldsProps> = ({
                     </div>
                 </Row>
             ) : (
-                <Row label="피셔 추가">
+                <Row label={tx("game:strategicTimeControl.fischerIncrement")}>
                     <select
                         value={settings.timeIncrement ?? 5}
                         onChange={(e) => patch({ timeIncrement: parseInt(e.target.value, 10) })}

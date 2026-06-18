@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import type { UserWithStatus } from '../types.js';
 import {
     getActiveDiamondPackageRoman,
@@ -12,14 +13,14 @@ type ProfileAvatarStatusMarkersProps = {
     placement?: 'avatar' | 'panelCorner' | 'identityCard';
 };
 
-function getVipHoverTitle(active: boolean, label: VipProfileMarkerLabel | null): string {
-    if (!active) return 'VIP 비활성화';
+function getVipHoverTitle(active: boolean, label: VipProfileMarkerLabel | null, t: (key: string) => string): string {
+    if (!active) return t('avatarStatus.vipInactive');
     return label ?? 'VIP';
 }
 
-function getDiamondHoverTitle(active: boolean, roman: 'I' | 'II' | 'III' | null): string {
-    if (!active) return '다이아 패키지 비활성화';
-    return `다이아 패키지 ${roman ?? ''}`.trim();
+function getDiamondHoverTitle(active: boolean, roman: 'I' | 'II' | 'III' | null, t: (key: string, opts?: Record<string, unknown>) => string): string {
+    if (!active) return t('avatarStatus.diamondPackageInactive');
+    return t('avatarStatus.diamondPackageActive', { roman: roman ?? '' }).trim();
 }
 
 const ProfileAvatarStatusMarkers: React.FC<ProfileAvatarStatusMarkersProps> = ({
@@ -27,6 +28,7 @@ const ProfileAvatarStatusMarkers: React.FC<ProfileAvatarStatusMarkersProps> = ({
     compact = false,
     placement = 'identityCard',
 }) => {
+    const { t } = useTranslation('profile');
     const vipLabel = getVipProfileMarkerLabel(user);
     const diamondPackageRoman = getActiveDiamondPackageRoman(user);
     const vipActive = vipLabel != null;
@@ -48,7 +50,7 @@ const ProfileAvatarStatusMarkers: React.FC<ProfileAvatarStatusMarkersProps> = ({
     return (
         <div className={`absolute z-20 flex items-center gap-1 ${positionClass}`}>
             <span
-                title={getVipHoverTitle(vipActive, vipLabel)}
+                title={getVipHoverTitle(vipActive, vipLabel, t)}
                 className={`shrink-0 cursor-default rounded-full border ${badgePad} font-extrabold tracking-wide ${badgeText} ${
                     vipActive
                         ? 'border-amber-300/50 bg-gradient-to-r from-amber-500/40 to-yellow-300/20 text-amber-100 shadow-[0_8px_20px_-14px_rgba(251,191,36,0.85)]'
@@ -58,7 +60,7 @@ const ProfileAvatarStatusMarkers: React.FC<ProfileAvatarStatusMarkersProps> = ({
                 {vipDisplay}
             </span>
             <span
-                title={getDiamondHoverTitle(diamondActive, diamondPackageRoman)}
+                title={getDiamondHoverTitle(diamondActive, diamondPackageRoman, t)}
                 className={`flex shrink-0 cursor-default items-center gap-0.5 rounded-full border ${badgePad} font-extrabold tabular-nums tracking-wide ${badgeText} ${
                     diamondActive
                         ? 'border-cyan-400/45 bg-gradient-to-r from-cyan-600/40 to-sky-500/25 text-cyan-100 shadow-[0_8px_20px_-14px_rgba(34,211,238,0.55)]'

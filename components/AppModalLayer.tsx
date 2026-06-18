@@ -1,4 +1,5 @@
 import React, { useMemo, useState, Suspense, lazy } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { PairRoomState } from '../types/api.js';
 import {
     useAppGameStoreSlice,
@@ -67,6 +68,7 @@ import ModalChunkFallback from './ui/ModalChunkFallback.js';
 const ModalLoadingFallback = () => <ModalChunkFallback />;
 
 const AppModalLayer: React.FC = () => {
+    const { t } = useTranslation('common');
     const { isNativeMobile } = useNativeMobileShell();
     const isHandheld = useIsHandheldDevice(1024);
     const isMobileModalChrome = useMobileModalChrome();
@@ -461,7 +463,7 @@ const AppModalLayer: React.FC = () => {
                     >
                         {isMobileModalChrome && (
                             <MobileModalTitleBar
-                                title="대국 종료 안내"
+                                title={t('disconnectNotice.title')}
                                 titleId="mutual-disconnect-title"
                                 onClose={handlers.closeMutualDisconnectModal}
                             />
@@ -473,7 +475,7 @@ const AppModalLayer: React.FC = () => {
                                 </h2>
                             )}
                             <p className="mb-6 text-sm leading-relaxed text-secondary">{modals.mutualDisconnectMessage}</p>
-                            <button type="button" onClick={handlers.closeMutualDisconnectModal} className="rounded-xl border border-white/15 bg-gradient-to-b from-secondary/90 to-tertiary px-8 py-2.5 text-sm font-semibold text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] transition hover:brightness-110">확인</button>
+                            <button type="button" onClick={handlers.closeMutualDisconnectModal} className="rounded-xl border border-white/15 bg-gradient-to-b from-secondary/90 to-tertiary px-8 py-2.5 text-sm font-semibold text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] transition hover:brightness-110">{t('actions.ok')}</button>
                         </div>
                     </div>
                 </div>
@@ -495,7 +497,7 @@ const AppModalLayer: React.FC = () => {
                     >
                         {isMobileModalChrome && (
                             <MobileModalTitleBar
-                                title="로그아웃 안내"
+                                title={t('disconnectNotice.logoutTitle')}
                                 titleId="other-device-login-title"
                                 onClose={handlers.confirmOtherDeviceLoginAndLogout}
                             />
@@ -507,8 +509,8 @@ const AppModalLayer: React.FC = () => {
                                 </h2>
                             )}
                             <p className="mb-6 text-sm leading-relaxed text-secondary">
-                                <span className="block">다른 곳에서 로그인 되었습니다.</span>
-                                <span className="block">로그아웃 됩니다.</span>
+                                <span className="block">{t('disconnectNotice.otherLogin')}</span>
+                                <span className="block">{t('disconnectNotice.loggingOut')}</span>
                             </p>
                             <button
                                 type="button"

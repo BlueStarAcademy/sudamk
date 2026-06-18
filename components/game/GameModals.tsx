@@ -1,4 +1,5 @@
 
+import { tx } from '../../shared/i18n/runtimeText.js';
 import React from 'react';
 // FIX: Corrected import path for types. The path was './../types.js' which pointed to 'components/types.js', but the file is in the root directory.
 import { GameProps, GameMode, GameStatus, Negotiation } from '../../types.js';
@@ -230,10 +231,10 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
 
     const confirmModalContent = {
         resign: {
-            title: '기권 확인',
-            lead: '경기를 포기하시겠습니까?',
-            detail: '대국이 즉시 종료되며 기권패로 처리됩니다.',
-            confirmText: '기권',
+            title: tx('game:gameModals.resignConfirmTitle'),
+            lead: tx('game:gameModals.resignConfirmLead'),
+            detail: tx('game:gameModals.resignConfirmDetail'),
+            confirmText: tx('game:gameModals.resignConfirmButton'),
             onConfirm: () => onAction({ type: 'RESIGN_GAME', payload: { gameId } }),
         },
     };

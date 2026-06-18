@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Guild, GuildResearchId, GuildResearchCategory } from '../../types/index.js';
 import DraggableWindow from '../DraggableWindow.js';
 import { GUILD_RESEARCH_PROJECTS } from '../../constants/index.js';
@@ -10,6 +11,7 @@ interface GuildEffectsModalProps {
 }
 
 const GuildEffectsModal: React.FC<GuildEffectsModalProps> = ({ guild, onClose, isTopmost }) => {
+    const { t } = useTranslation('guild');
     const effectsByCategory = useMemo(() => {
         const categories: Record<GuildResearchCategory, { name: string; description: string; value: string }[]> = {
             development: [],
@@ -29,7 +31,7 @@ const GuildEffectsModal: React.FC<GuildEffectsModalProps> = ({ guild, onClose, i
                         if (id === GuildResearchId.ap_regen_boost) {
                             categories[project.category].push({
                                 name: project.name,
-                                description: `자연 회복 시 1AP당 간격이 총 ${totalEffect}초 줄어듭니다.`,
+                                description: t('research.apRegenBoost', { sec: totalEffect }),
                                 value: `−${totalEffect}초`,
                             });
                         } else {
@@ -45,17 +47,17 @@ const GuildEffectsModal: React.FC<GuildEffectsModalProps> = ({ guild, onClose, i
             }
         }
         return categories;
-    }, [guild.research]);
+    }, [guild.research, t]);
 
     const categoryTitles: Record<GuildResearchCategory, { title: string, color: string }> = {
-        development: { title: "길드 발전", color: "text-yellow-300" },
-        boss: { title: "보스전", color: "text-red-400" },
-        stats: { title: "능력치 증가", color: "text-blue-300" },
-        rewards: { title: "보상 증가", color: "text-green-300" },
+        development: { title: t('research.categoryDevelopment'), color: "text-yellow-300" },
+        boss: { title: t('research.categoryBoss'), color: "text-red-400" },
+        stats: { title: t('research.categoryStats'), color: "text-blue-300" },
+        rewards: { title: t('research.categoryRewards'), color: "text-green-300" },
     };
 
     return (
-        <DraggableWindow title="길드 효과 정보" onClose={onClose} windowId={`guild-effects-${guild.id}`} initialWidth={500} isTopmost={isTopmost}>
+        <DraggableWindow title={t('effects.title')} onClose={onClose} windowId={`guild-effects-${guild.id}`} initialWidth={500} isTopmost={isTopmost}>
             <div className="max-h-[60vh] overflow-y-auto pr-2 space-y-4">
                 {(Object.keys(effectsByCategory) as GuildResearchCategory[]).map(category => {
                     const effects = effectsByCategory[category];
@@ -77,7 +79,7 @@ const GuildEffectsModal: React.FC<GuildEffectsModalProps> = ({ guild, onClose, i
                     );
                 })}
                  {Object.values(effectsByCategory).every(arr => arr.length === 0) && (
-                    <p className="text-center text-gray-500 py-8">아직 활성화된 길드 효과가 없습니다.</p>
+                    <p className="text-center text-gray-500 py-8">{t('effects.empty')}</p>
                 )}
             </div>
         </DraggableWindow>

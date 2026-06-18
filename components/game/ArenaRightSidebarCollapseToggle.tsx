@@ -1,4 +1,5 @@
 import React from 'react';
+import { tx } from '../../shared/i18n/runtimeText.js';
 
 export type ArenaRightSidebarCollapseToggleTone = 'standard' | 'championship';
 
@@ -28,8 +29,8 @@ export const ArenaRightSidebarCollapseToggle: React.FC<ArenaRightSidebarCollapse
     onToggle,
     tone = 'standard',
 }) => {
-    const expandLabel = '사이드바 펼치기';
-    const collapseLabel = '사이드바 접기';
+    const expandLabel = tx('game:sidebar.expand');
+    const collapseLabel = tx('game:sidebar.collapse');
     const label = collapsed ? expandLabel : collapseLabel;
 
     const toneRing =

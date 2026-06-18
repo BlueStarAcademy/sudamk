@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { tx } from '../../shared/i18n/runtimeText.js';
 import { CONSUMABLE_ITEMS, MATERIAL_ITEMS, EQUIPMENT_POOL } from '../../constants.js';
 import { VIP_PLAY_REWARD_SLOT_PREVIEW_IMAGE } from '../../shared/constants/vipPlayReward.js';
 import { RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS } from './ResultModalRewardSlot.js';
@@ -79,7 +80,7 @@ export const ResultModalVipRewardSlot: React.FC<{
                     type="button"
                     onClick={onLockedClick}
                     className={`group relative flex flex-col items-stretch overflow-hidden rounded-xl border-2 border-amber-500/50 bg-gradient-to-br from-[#2a1538]/95 via-[#1a0f28]/95 to-[#0c0612]/98 p-0 shadow-[0_0_22px_rgba(251,191,36,0.18),inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-inset ring-amber-300/25 transition hover:border-amber-400/70 hover:shadow-[0_0_28px_rgba(251,191,36,0.28)] ${box} ${onLockedClick ? 'cursor-pointer' : 'cursor-default'}`}
-                    aria-label="VIP 전용 보상 — 상점에서 보상 VIP를 확인하세요"
+                    aria-label={tx("game:resultModal.vipRewardAria")}
                 >
                     <div
                         className="pointer-events-none absolute inset-0 opacity-[0.22]"
@@ -132,10 +133,10 @@ export const ResultModalVipRewardSlot: React.FC<{
             </div>
             {g ? (
                 <span className="max-w-[6rem] text-center text-[0.68rem] font-bold leading-tight text-fuchsia-100/95 sm:max-w-[7rem] sm:text-xs">
-                    {rouletteActive ? '룰렛 보상 선택 중...' : `${g.name}${g.quantity > 1 ? ` ×${g.quantity}` : ''}`}
+                    {rouletteActive ? tx("game:resultModal.rouletteSelecting") : `${g.name}${g.quantity > 1 ? ` ×${g.quantity}` : ''}`}
                 </span>
             ) : (
-                <span className="text-center text-[0.62rem] font-semibold text-fuchsia-200/70 sm:text-xs">보상 VIP</span>
+                <span className="text-center text-[0.62rem] font-semibold text-fuchsia-200/70 sm:text-xs">{tx("game:resultModal.rewardVip")}</span>
             )}
         </div>
     );

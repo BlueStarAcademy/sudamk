@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LiveGameSession, User, Player, ServerAction } from '../types.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
 import { PRE_GAME_PVP_COUNTDOWN_SECONDS } from '../shared/constants/preGameCountdown.js';
@@ -24,6 +25,7 @@ const BaseStoneColorChoicePanel: React.FC<Props> = ({
     layout = 'inline',
     isSinglePlayer = false,
 }) => {
+    const { t } = useTranslation('game');
     const gameId = session.id;
     const showCountdown = resolveArenaSessionPolicy(session).matchAxis === 'pvp';
     const pairLobbyOwnerId = (session.settings as { pairGame?: { pairLobbyOwnerId?: string } } | undefined)?.pairGame
@@ -75,8 +77,8 @@ const BaseStoneColorChoicePanel: React.FC<Props> = ({
     if (pairLobbyOwnerId && !isPairHostChoice) {
         const waitGuest = (
             <div className={`${komiWindowShell} flex w-full min-w-0 flex-col gap-2 px-2 py-3 sm:px-3`}>
-                <p className="text-center text-[11px] font-semibold text-sky-200/95 sm:text-xs">방장이 양쪽 선호 돌을 선택합니다.</p>
-                <p className="text-center text-[10px] text-stone-400 sm:text-[11px]">잠시만 기다려 주세요.</p>
+                <p className="text-center text-[11px] font-semibold text-sky-200/95 sm:text-xs">{t('baseStoneChoice.hostPickBothStones')}</p>
+                <p className="text-center text-[10px] text-stone-400 sm:text-[11px]">{t('baseStoneChoice.wait')}</p>
             </div>
         );
         return layout === 'inline' ? <div className="flex w-full min-w-0 max-w-full flex-col gap-1">{waitGuest}</div> : waitGuest;
@@ -121,7 +123,7 @@ const BaseStoneColorChoicePanel: React.FC<Props> = ({
     const body = (
         <div className={`${komiWindowShell} flex w-full min-w-0 flex-col gap-2 px-2 py-2 sm:px-3`}>
             <p className="text-center text-[11px] font-semibold leading-snug text-stone-200 sm:text-xs">
-                {isPairHostChoice ? '방장: 양 참가자의 선호 돌을 차례로 선택하세요.' : '마음에 드는 돌을 선택하세요.'}
+                {isPairHostChoice ? t('baseStoneChoice.pairHostStones') : t('baseStoneChoice.pickStone')}
             </p>
             {showCountdown && session.baseColorChoiceDeadline != null && (
                 <>
@@ -136,8 +138,8 @@ const BaseStoneColorChoicePanel: React.FC<Props> = ({
             )}
             {isPairHostChoice ? (
                 <div className="flex w-full min-w-0 flex-col gap-3">
-                    {renderChoiceRow(`${player1.nickname} (참가자 1)`, player1.id, choiceP1)}
-                    {renderChoiceRow(`${player2.nickname} (참가자 2)`, player2.id, choiceP2)}
+                    {renderChoiceRow(`${player1.nickname} {t('baseStoneChoice.participant1')}`, player1.id, choiceP1)}
+                    {renderChoiceRow(`${player2.nickname} {t('baseStoneChoice.participant2')}`, player2.id, choiceP2)}
                 </div>
             ) : (
                 <div className="flex w-full min-w-0 justify-center gap-2">
@@ -160,10 +162,10 @@ const BaseStoneColorChoicePanel: React.FC<Props> = ({
                 </div>
             )}
             {!isPairHostChoice && myChoice != null && (
-                <p className="text-center text-[10px] text-emerald-300/95 sm:text-[11px]">선택을 전송했습니다. 상대 선택을 기다립니다.</p>
+                <p className="text-center text-[10px] text-emerald-300/95 sm:text-[11px]">{t('baseStoneChoice.sentWaiting')}</p>
             )}
             {isPairHostChoice && choiceP1 != null && choiceP2 != null && (
-                <p className="text-center text-[10px] text-emerald-300/95 sm:text-[11px]">양쪽 선택을 전송했습니다.</p>
+                <p className="text-center text-[10px] text-emerald-300/95 sm:text-[11px]">{t('baseStoneChoice.sentBoth')}</p>
             )}
         </div>
     );

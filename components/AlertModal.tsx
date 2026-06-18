@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import React, { useMemo } from 'react';
 import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
@@ -11,12 +12,15 @@ interface AlertModalProps {
     windowId?: string;
 }
 
-const AlertModal: React.FC<AlertModalProps> = ({ title = '알림', message, onClose, confirmText = '확인', isTopmost = false, windowId }) => {
+const AlertModal: React.FC<AlertModalProps> = ({ title, message, onClose, confirmText, isTopmost = false, windowId }) => {
+    const { t } = useTranslation('common');
+    const resolvedTitle = title ?? t('alerts.title');
+    const resolvedConfirm = confirmText ?? t('actions.ok');
     const modalWindowId = useMemo(() => windowId || 'alert-modal', [windowId]);
     
     return (
         <DraggableWindow
-            title={title}
+            title={resolvedTitle}
             windowId={modalWindowId}
             onClose={onClose}
             initialWidth={400}
@@ -30,7 +34,7 @@ const AlertModal: React.FC<AlertModalProps> = ({ title = '알림', message, onCl
                 </div>
                 <div className="flex justify-center">
                     <Button onClick={onClose} colorScheme="blue" className="w-full max-w-xs">
-                        {confirmText}
+                        {resolvedConfirm}
                     </Button>
                 </div>
             </div>

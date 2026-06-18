@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { useModalStackLayer } from '../hooks/useModalStackLayer.js';
 import Button from './Button.js';
@@ -12,27 +13,27 @@ type ContentUnlockNoticeModalProps = {
     isTopmost?: boolean;
 };
 
-const CONTENT_META: Record<ContentUnlockType, { title: string; subtitle: string; image: string; routeHint: string }> = {
-    tower: {
-        title: '도전의 탑 오픈',
-        subtitle: '바둑학원 입문반 10 클리어로\n도전의 탑이 해금되었습니다.',
-        image: '/images/tower/towergo.webp',
-        routeHint: '홈 화면에서 도전의 탑으로 바로 입장할 수 있습니다.',
-    },
-    adventure: {
-        title: '모험 오픈',
-        subtitle: '바둑학원 입문반 20 클리어로\n모험 콘텐츠가 해금되었습니다.',
-        image: ADVENTURE_STAGES[0]?.mapWebp ?? '/images/forest.webp',
-        routeHint: '홈 화면에서 모험으로 바로 입장할 수 있습니다.',
-    },
-};
-
 const ContentUnlockNoticeModal: React.FC<ContentUnlockNoticeModalProps> = ({
     unlockType,
     onClose,
     isTopmost = true,
 }) => {
-    const meta = CONTENT_META[unlockType];
+    const { t } = useTranslation('profile');
+    const contentMeta: Record<ContentUnlockType, { title: string; subtitle: string; image: string; routeHint: string }> = {
+        tower: {
+            title: t('contentUnlock.towerTitle'),
+            subtitle: t('contentUnlock.towerSubtitle'),
+            image: '/images/tower/towergo.webp',
+            routeHint: t('contentUnlock.towerHint'),
+        },
+        adventure: {
+            title: t('contentUnlock.adventureTitle'),
+            subtitle: t('contentUnlock.adventureSubtitle'),
+            image: ADVENTURE_STAGES[0]?.mapWebp ?? '/images/forest.webp',
+            routeHint: t('contentUnlock.adventureHint'),
+        },
+    };
+    const meta = contentMeta[unlockType];
     const { zIndex } = useModalStackLayer({ zIndexFloor: 12_048, promoteOnMount: isTopmost });
 
     const node = (
@@ -46,7 +47,7 @@ const ContentUnlockNoticeModal: React.FC<ContentUnlockNoticeModalProps> = ({
             <button
                 type="button"
                 className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-                aria-label="배경 닫기"
+                aria-label={t('closeBg', { ns: 'common' })}
                 onClick={onClose}
             />
             <div
@@ -75,7 +76,7 @@ const ContentUnlockNoticeModal: React.FC<ContentUnlockNoticeModalProps> = ({
 
                     <div className="mt-5 flex justify-center">
                         <Button onClick={onClose} colorScheme="blue" className="min-h-[2.75rem] w-full max-w-xs font-bold">
-                            확인
+                            {t('actions.ok', { ns: 'common' })}
                         </Button>
                     </div>
                 </div>

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import React, { useMemo } from 'react';
 import { GameMode } from '../types.js';
 import { GAME_RULES } from '../gameRules.js';
@@ -5,6 +6,7 @@ import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants';
 import GuideModal from './GuideModal.js';
 import type { GuideSelection } from './guide/GuidePanelLayout.js';
 import type { HelpArticle, HelpBlock, HelpCategory } from '../shared/constants/helpCenterContent.js';
+import type { TFunction } from 'i18next';
 
 interface HelpModalProps {
     mode: GameMode | 'strategic' | 'playful' | 'guild' | 'guildBoss';
@@ -12,7 +14,11 @@ interface HelpModalProps {
     isTopmost?: boolean;
 }
 
-function rulesToArticle(mode: GameMode, rules: { title: string; sections: { subtitle: string; content: string[] }[] }): {
+function rulesToArticle(
+    t: TFunction<'common'>,
+    mode: GameMode,
+    rules: { title: string; sections: { subtitle: string; content: string[] }[] },
+): {
     selection: GuideSelection;
     categoryFilter: string[];
     title: string;
@@ -40,43 +46,48 @@ function rulesToArticle(mode: GameMode, rules: { title: string; sections: { subt
     return {
         selection: { categoryId: `help-mode-${mode}`, subId: `help-mode-${mode}` },
         categoryFilter: [`help-mode-${mode}`],
-        title: `${rules.title} 게임 방법`,
+        title: t('help.modeHowTo', { mode: rules.title }),
         article: {
             id: `help-mode-${mode}`,
             title: rules.title,
-            tagline: '모드별 규칙 요약',
+            tagline: t('help.modeRulesSummary'),
             hero: { src: gameModeImage, alt: rules.title },
             blocks,
         },
     };
 }
 
-const LOBBY_HELP: Record<'strategic' | 'playful' | 'guild' | 'guildBoss', GuideSelection & { categoryFilter: string[]; title: string }> = {
-    strategic: {
-        categoryId: 'lobby',
-        subId: 'lobby-common',
-        categoryFilter: ['lobby', 'modes'],
-        title: '전략바둑 대기실 도움말',
-    },
-    playful: {
-        categoryId: 'lobby',
-        subId: 'lobby-common',
-        categoryFilter: ['lobby', 'modes'],
-        title: '놀이바둑 대기실 도움말',
-    },
-    guild: {
-        categoryId: 'guild',
-        subId: 'guild-overview',
-        categoryFilter: ['guild'],
-        title: '길드 도움말',
-    },
-    guildBoss: {
-        categoryId: 'guild',
-        subId: 'guild-boss',
-        categoryFilter: ['guild'],
-        title: '길드 보스전 도움말',
-    },
-};
+function lobbyHelpConfig(t: TFunction<'common'>): Record<
+    'strategic' | 'playful' | 'guild' | 'guildBoss',
+    GuideSelection & { categoryFilter: string[]; title: string }
+> {
+    return {
+        strategic: {
+            categoryId: 'lobby',
+            subId: 'lobby-common',
+            categoryFilter: ['lobby', 'modes'],
+            title: t('help.strategicLobby'),
+        },
+        playful: {
+            categoryId: 'lobby',
+            subId: 'lobby-common',
+            categoryFilter: ['lobby', 'modes'],
+            title: t('help.playfulLobby'),
+        },
+        guild: {
+            categoryId: 'guild',
+            subId: 'guild-overview',
+            categoryFilter: ['guild'],
+            title: t('help.guild'),
+        },
+        guildBoss: {
+            categoryId: 'guild',
+            subId: 'guild-boss',
+            categoryFilter: ['guild'],
+            title: t('help.guildBoss'),
+        },
+    };
+}
 
 /** 단일 게임 모드 규칙 — 동적 카테고리 1개만 표시 */
 const DynamicModeHelpModal: React.FC<{
@@ -84,13 +95,14 @@ const DynamicModeHelpModal: React.FC<{
     onClose: () => void;
     isTopmost?: boolean;
 }> = ({ mode, onClose, isTopmost }) => {
+    const { t } = useTranslation('common');
     const rules = GAME_RULES[mode];
-    const built = useMemo(() => (rules ? rulesToArticle(mode, rules) : null), [mode, rules]);
+    const built = useMemo(() => (rules ? rulesToArticle(t, mode, rules) : null), [mode, rules, t]);
 
     if (!built) {
         return (
             <GuideModal
-                title="도움말"
+                title={t('help.title')}
                 windowId={`help-${mode}`}
                 onClose={onClose}
                 isTopmost={isTopmost}
@@ -104,7 +116,7 @@ const DynamicModeHelpModal: React.FC<{
             id: built.selection.categoryId,
             label: built.article.title,
             iconSrc: built.article.hero?.src,
-            subcategories: [{ id: built.selection.subId, label: '게임 규칙', article: built.article }],
+            subcategories: [{ id: built.selection.subId, label: t('help.gameRules'), article: built.article }],
         },
     ];
 
@@ -122,8 +134,9 @@ const DynamicModeHelpModal: React.FC<{
 };
 
 const HelpModal: React.FC<HelpModalProps> = ({ mode, onClose, isTopmost }) => {
+    const { t } = useTranslation('common');
     if (mode === 'strategic' || mode === 'playful' || mode === 'guild' || mode === 'guildBoss') {
-        const cfg = LOBBY_HELP[mode];
+        const cfg = lobbyHelpConfig(t)[mode];
         return (
             <GuideModal
                 title={cfg.title}

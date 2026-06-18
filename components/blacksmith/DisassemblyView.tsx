@@ -1,4 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useLocalizedItemGrade, useLocalizedEquipmentSlot } from '../../shared/i18n/localizedCatalog.js';
+import { useTranslation } from 'react-i18next';
 import { InventoryItem, ServerAction, ItemGrade } from '../../types.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
@@ -25,13 +27,13 @@ const gradeStyles: Record<ItemGrade, { color: string; background: string }> = {
 };
 
 const GRADE_NAMES_KO: Record<ItemGrade, string> = {
-    normal: '일반',
-    uncommon: '고급',
-    rare: '희귀',
-    epic: '에픽',
-    legendary: '전설',
-    mythic: '신화',
-    transcendent: '초월',
+    normal: t('levelEffects.normal'),
+    uncommon: t('levelEffects.uncommon'),
+    rare: t('levelEffects.rare'),
+    epic: t('levelEffects.epic'),
+    legendary: t('levelEffects.legendary'),
+    mythic: t('levelEffects.mythic'),
+    transcendent: t('levelEffects.transcendent'),
 };
 
 function formatDisassemblyExpectedYield(min: number, max: number): string {
@@ -94,8 +96,8 @@ const DisassemblySelectedInventoryCell: React.FC<{
         <button
             type="button"
             onClick={() => onToggleDisassemblySelection(item.id)}
-            title="선택 해제"
-            aria-label={`${item.name} 선택 해제`}
+            title={t('disassemble.deselect')}
+            aria-label={t('disassemble.deselectAria', { name: item.name })}
             className="relative mx-auto aspect-square w-full cursor-pointer rounded-md border-2 border-black/20 transition-all duration-200 hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70"
             style={{ maxWidth: cellPx }}
         >
@@ -146,8 +148,8 @@ const SelectedDisassemblyItemsPanel: React.FC<{
     return (
         <div className="flex h-full min-h-0 w-full flex-col rounded-xl border border-amber-400/20 bg-gradient-to-b from-[#171d2b]/85 via-[#101524]/92 to-[#0a0e17]/95 p-2">
             <div className="mb-1.5 flex shrink-0 items-center justify-between gap-2 px-0.5">
-                <p className={`${typo.heading} text-center flex-1 text-cyan-200/90`}>선택된 장비</p>
-                <span className={`${typo.body} shrink-0 text-slate-400`}>{items.length.toLocaleString()}개</span>
+                <p className={`${typo.heading} text-center flex-1 text-cyan-200/90`}>{t('disassemble.selectedGear')}</p>
+                <span className={`${typo.body} shrink-0 text-slate-400`}>{t('disassemble.itemCount', { count: items.length })}</span>
             </div>
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-slate-600/35 bg-tertiary/30 pr-1">
                 {items.length === 0 ? (
@@ -207,7 +209,7 @@ const DisassemblyPreviewPanel: React.FC<{
 }) => {
     const typo = getBlacksmithViewerTypography(pcViewer && !nativeMobile);
     const jackpotRatePct = BLACKSMITH_DISASSEMBLY_JACKPOT_RATES[Math.max(0, blacksmithLevel - 1)];
-    const jackpotHint = `${formatBlacksmithPercentInt(jackpotRatePct)}%확률로 대박 발생(재료2배)`;
+    const jackpotHint = t('disassemble.jackpotHint', { rate: formatBlacksmithPercentInt(jackpotRatePct) });
 
     const { rangeMap, totalMaterials, itemCount } = useMemo(() => {
         const selectedItems = inventory.filter(item => selectedIds.has(item.id));
@@ -260,8 +262,8 @@ const DisassemblyPreviewPanel: React.FC<{
     const mobileEmptyHint =
         itemCount === 0
             ? modalEquipmentSelectionFlow
-                ? '「장비 다시 선택」으로 모달을 열어 분해할 장비를 고르세요.'
-                : '아래 장비 인벤토리에서 분해할 장비를 선택(체크)하세요.'
+                ? t('disassemble.reopenHint')
+                : t('disassemble.pickHint')
             : null;
 
     return (
@@ -338,8 +340,8 @@ const DisassemblyPreviewPanel: React.FC<{
                         }`}
                     >
                         {itemCount === 0
-                            ? '장비를 선택하면 예상 재료가 표시됩니다.'
-                            : '분해 시 획득할 재료가 없습니다.'}
+                            ? t('disassemble.previewHint')
+                            : t('disassemble.noReward')}
                     </div>
                 )}
             </div>
@@ -349,7 +351,7 @@ const DisassemblyPreviewPanel: React.FC<{
                     className={`text-center font-semibold leading-snug text-amber-100/95 ${
                         nativeMobile ? 'rounded-md border border-amber-400/25 bg-[#0f172a]/90 px-2 py-2 text-[11px]' : typo.body
                     }`}
-                    title="분해 대박 시 획득 재료 2배"
+                    title={t('disassemble.jackpotTitle')}
                 >
                     {jackpotHint}
                 </p>
@@ -360,7 +362,7 @@ const DisassemblyPreviewPanel: React.FC<{
                     variant="materials"
                     className={`mx-auto w-auto min-w-[9.5rem] min-h-[44px] !rounded-lg !border !border-rose-300/45 !bg-gradient-to-r !from-rose-600/90 !via-rose-500/90 !to-orange-500/85 !px-3 !py-2.5 !text-sm !font-bold !text-rose-50 !shadow-[0_14px_26px_-18px_rgba(244,63,94,0.85)] hover:!from-rose-500 hover:!via-rose-400 hover:!to-orange-400 disabled:!opacity-50 disabled:!cursor-not-allowed leading-snug`}
                 >
-                    {isBlacksmithBusy ? '분해 중...' : `분해(${selectedCount})`}
+                    {isBlacksmithBusy ? t('disassemble.disassembling') : t('disassemble.disassembleBtn', { count: selectedCount })}
                 </ResourceActionButton>
             </div>
         </div>
@@ -421,7 +423,7 @@ export const DisassemblyAutoSelectModal: React.FC<{
 
     return (
         <DraggableWindow
-            title="분해 자동 선택"
+            title={t('disassemble.autoSelectTitle')}
             onClose={onClose}
             windowId="disassembly-auto-select"
             initialWidth={400}
@@ -430,7 +432,7 @@ export const DisassemblyAutoSelectModal: React.FC<{
             variant="store"
         >
             <div className="text-on-panel">
-                <p className="text-sm text-tertiary mb-4 text-center">분해할 장비 등급을 선택하세요. 신화 등급은 제외됩니다.</p>
+                <p className="text-sm text-tertiary mb-4 text-center">{t('disassemble.gradeSelectHint')}</p>
                 <div className="grid grid-cols-2 gap-3">
                     {GRADES_FOR_SELECTION.map(grade => {
                         return (
@@ -470,6 +472,8 @@ interface DisassemblyViewProps {
 }
 
 const DisassemblyView: React.FC<DisassemblyViewProps> = ({
+    const { t } = useTranslation('blacksmith');
+    const localizedGrade = useLocalizedItemGrade();
     onAction,
     selectedForDisassembly = new Set(),
     onToggleDisassemblySelection,
@@ -516,18 +520,18 @@ const DisassemblyView: React.FC<DisassemblyViewProps> = ({
     
         if (hasHighGrade || hasHighStars) {
             const reasons: string[] = [];
-            if (hasHighGrade) reasons.push('전설 등급 이상의 장비');
-            if (hasHighStars) reasons.push('7강화 이상의 장비');
+            if (hasHighGrade) reasons.push(t('disassemble.legendaryIncluded'));
+            if (hasHighStars) reasons.push(t('disassemble.highStarsIncluded'));
             setConfirmState({
                 step: 'danger',
-                message: `${reasons.join(', ')}가 포함되어 있습니다.\n정말 분해하시겠습니까?`,
+                message: t('disassemble.confirmMixed', { reasons: reasons.join(', ') }),
             });
             return;
         }
 
         setConfirmState({
             step: 'final',
-            message: `${selectedForDisassembly.size}개의 아이템을 분해하시겠습니까?`,
+            message: t('disassemble.confirmCount', { count: selectedForDisassembly.size }),
         });
     };
 
@@ -570,22 +574,22 @@ const DisassemblyView: React.FC<DisassemblyViewProps> = ({
             </div>
             {confirmState && (
                 <ConfirmModal
-                    title="분해 확인"
+                    title={t('disassemble.confirmTitle')}
                     message={confirmState.message}
                     onCancel={() => setConfirmState(null)}
                     onConfirm={() => {
                         if (confirmState.step === 'danger') {
                             setConfirmState({
                                 step: 'final',
-                                message: `${selectedForDisassembly.size}개의 아이템을 분해하시겠습니까?`,
+                                message: t('disassemble.confirmCount', { count: selectedForDisassembly.size }),
                             });
                             return;
                         }
                         setConfirmState(null);
                         executeDisassemble();
                     }}
-                    confirmText="분해"
-                    cancelText="취소"
+                    confirmText={t('disassemble.confirmBtn')}
+                    cancelText={t('actions.cancel', { ns: 'common' })}
                     confirmColorScheme="red"
                     isTopmost
                     windowId="disassembly-confirm-modal"

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 import { InventoryItem } from '../types.js';
 import { ItemGrade } from '../types/enums.js';
@@ -35,6 +36,7 @@ const SellItemConfirmModal: React.FC<SellItemConfirmModalProps> = ({
     windowId = 'sellItemConfirm',
     viewportPortal = false,
 }) => {
+    const { t } = useTranslation(['inventory', 'common']);
     const isRefinementTicket = isRefinementTicketMaterial(item.name);
     /** 제련 변경권은 DB에 consumable로 있어도 단일「판매」는 1개만 (일괄 판매와 동일 UX) */
     const materialQty =
@@ -71,7 +73,7 @@ const SellItemConfirmModal: React.FC<SellItemConfirmModalProps> = ({
 
     return (
         <DraggableWindow
-            title="아이템 판매"
+            title={t('sellConfirm.sellItem')}
             onClose={onClose}
             windowId={windowId}
             isTopmost={isTopmost}
@@ -88,13 +90,13 @@ const SellItemConfirmModal: React.FC<SellItemConfirmModalProps> = ({
             <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto overscroll-contain p-3 pb-2 text-slate-100 sm:gap-2.5 sm:p-3 sm:pb-2">
                 <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-br from-slate-900/95 via-slate-950/90 to-zinc-950/95 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:p-4">
                     <p className="text-center text-xs font-bold tracking-wide text-amber-200/90 sm:text-[11px] sm:font-semibold sm:uppercase sm:tracking-[0.2em] sm:text-amber-200/70">
-                        판매 확인
+                        {t('sellConfirm.heading')}
                     </p>
                     <h3 className="mt-1 text-center text-xl font-black leading-snug tracking-tight text-slate-50 sm:text-lg">
-                        이 아이템을 판매할까요?
+                        {t('sellConfirm.question')}
                     </h3>
                     <p className="mt-1 text-center text-sm text-slate-300 sm:mt-1 sm:text-xs sm:text-slate-400">
-                        확인하면 가방에서 사라지고, 아래 금액만큼 골드를 받습니다.
+                        {t('sellConfirm.body')}
                     </p>
 
                     <div className="mt-2 flex flex-col items-center gap-2 rounded-xl border border-white/[0.06] bg-black/25 p-2.5 sm:mt-3 sm:flex-row sm:items-center sm:gap-3 sm:p-3">
@@ -125,20 +127,20 @@ const SellItemConfirmModal: React.FC<SellItemConfirmModalProps> = ({
                             <p className={`text-sm font-bold sm:text-xs ${tierStyle.color}`}>[{tierStyle.name}]</p>
                             <p className="mt-0.5 line-clamp-2 text-base font-bold leading-snug text-slate-50 sm:truncate sm:text-base">{item.name}</p>
                             {item.type === 'equipment' && item.stars > 0 && (
-                                <p className="mt-1 text-sm font-medium text-amber-200/90 sm:mt-0.5 sm:text-xs sm:text-amber-200/80">강화 {item.stars}성</p>
+                                <p className="mt-1 text-sm font-medium text-amber-200/90 sm:mt-0.5 sm:text-xs sm:text-amber-200/80">{t('sellConfirm.enhanceStars', { stars: item.stars })}</p>
                             )}
                             {(item.type === 'material' || item.type === 'consumable') && item.quantity != null && (
                                 <p className="mt-2 text-sm leading-snug text-slate-300 sm:mt-1 sm:text-xs sm:text-slate-400">
-                                    보유{' '}
-                                    <span className="font-semibold text-slate-100">{item.quantity.toLocaleString()}</span>개
+                                    {t('sellConfirm.ownedLabel')}{' '}
+                                    <span className="font-semibold text-slate-100">{t('sellConfirm.ownedQty', { count: item.quantity.toLocaleString() })}</span>
                                     {item.type === 'material' || isRefinementTicket ? (
                                         <span className="mt-0.5 block text-slate-400 sm:mt-0 sm:inline sm:text-slate-500">
                                             {' '}
-                                            · 이번 판매:{' '}
-                                            <span className="font-semibold text-slate-200">{materialQty.toLocaleString()}</span>개
+                                            · {t('sellConfirm.thisSaleLabel')}{' '}
+                                            <span className="font-semibold text-slate-200">{t('sellConfirm.materialQty', { count: materialQty.toLocaleString() })}</span>
                                         </span>
                                     ) : (
-                                        <span className="mt-0.5 block text-slate-400 sm:mt-0 sm:inline sm:text-slate-500"> · 소모품은 전부 판매됩니다</span>
+                                        <span className="mt-0.5 block text-slate-400 sm:mt-0 sm:inline sm:text-slate-500"> {t('sellConfirm.consumableSellAll')}</span>
                                     )}
                                 </p>
                             )}
@@ -154,10 +156,10 @@ const SellItemConfirmModal: React.FC<SellItemConfirmModalProps> = ({
                             </div>
                             <div className="min-w-0 text-left">
                                 <p className="text-xs font-bold uppercase tracking-wider text-amber-200/85 sm:text-[11px] sm:text-amber-200/65">
-                                    {isDeleteOnly ? '정산 안내' : '받을 골드'}
+                                    {isDeleteOnly ? t('sellConfirm.settlementNotice') : t('sellConfirm.receiveGold')}
                                 </p>
                                 <p className="text-sm text-amber-100/80 sm:text-xs sm:text-amber-100/55">
-                                    {isDeleteOnly ? '골드 0 — 인벤에서만 삭제됩니다' : '판매 후 지급'}
+                                    {isDeleteOnly ? t('sellConfirm.deleteOnlyHint') : t('sellConfirm.afterSell')}
                                 </p>
                             </div>
                         </div>
@@ -171,7 +173,7 @@ const SellItemConfirmModal: React.FC<SellItemConfirmModalProps> = ({
                     </div>
                     {isDeleteOnly && (
                         <p className="mt-2 border-t border-amber-500/15 pt-2 text-center text-sm text-slate-400 sm:text-[11px] sm:text-slate-500">
-                            골드는 오르지 않고, 아이템만 사라집니다.
+                            {t('sellConfirm.deleteOnlyFooter')}
                         </p>
                     )}
                 </div>
@@ -182,14 +184,14 @@ const SellItemConfirmModal: React.FC<SellItemConfirmModalProps> = ({
                         onClick={onClose}
                         className="min-h-[42px] flex-1 rounded-xl border border-white/12 bg-slate-800/70 px-3 py-2.5 text-sm font-bold text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-all hover:border-slate-500/40 hover:bg-slate-700/80 active:scale-[0.98] sm:min-h-0"
                     >
-                        취소
+                        {t('common:actions.cancel')}
                     </button>
                     <button
                         type="button"
                         onClick={onConfirm}
                         className="min-h-[42px] flex-1 rounded-xl border border-rose-400/40 bg-gradient-to-b from-rose-500/95 via-rose-600 to-rose-950 px-3 py-2.5 text-sm font-black text-rose-50 shadow-[0_6px_24px_-6px_rgba(244,63,94,0.55),inset_0_1px_0_rgba(255,255,255,0.15)] transition-all hover:border-rose-300/50 hover:from-rose-400 hover:via-rose-500 active:scale-[0.98] sm:min-h-0"
                     >
-                        판매 확정
+                        {t('sellConfirm.confirmSell')}
                     </button>
                 </div>
             </>

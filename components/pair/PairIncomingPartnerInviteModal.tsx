@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import Button from '../Button.js';
 import type { PairRoomState } from '../../types/api.js';
 import {
@@ -50,10 +51,10 @@ const shellToneClass: Record<'strategic' | 'playful' | 'pair', string> = {
 };
 
 /** `ArenaLobbyNavTitleBar`의 `arenaTitle`과 동일 */
-const inviteModalArenaTitle: Record<'strategic' | 'playful' | 'pair', string> = {
-    strategic: '전략바둑 경기장',
-    playful: '놀이바둑 경기장',
-    pair: '페어 경기장',
+const inviteModalArenaTitleKey: Record<'strategic' | 'playful' | 'pair', 'invite.arenaInviteStrategic' | 'invite.arenaInvitePlayful' | 'invite.arenaInvitePair'> = {
+    strategic: 'invite.arenaInviteStrategic',
+    playful: 'invite.arenaInvitePlayful',
+    pair: 'invite.arenaInvitePair',
 };
 
 const inviteModalTitleHeadingClass: Record<'strategic' | 'playful' | 'pair', string> = {
@@ -63,6 +64,7 @@ const inviteModalTitleHeadingClass: Record<'strategic' | 'playful' | 'pair', str
 };
 
 const PairIncomingPartnerInviteModal: React.FC<Props> = ({ invite, room, isBusy, onAccept, onDecline }) => {
+    const { t } = useTranslation('pair');
     const [now, setNow] = useState(() => Date.now());
 
     useEffect(() => {
@@ -107,13 +109,13 @@ const PairIncomingPartnerInviteModal: React.FC<Props> = ({ invite, room, isBusy,
 
     const visibilityLabel =
         room?.visibility === 'private'
-            ? '비공개'
+            ? t('invite.visibilityPrivate')
             : room?.visibility === 'public'
-              ? '공개'
+              ? t('invite.visibilityPublic')
               : null;
-    const visibilityExtra = room?.passwordProtected ? ' · 암호' : '';
+    const visibilityExtra = room?.passwordProtected ? t('invite.passwordSuffix') : '';
 
-    const modalHeadingText = `${inviteModalArenaTitle[lobbyChannel]} 초대`;
+    const modalHeadingText = `${t(inviteModalArenaTitleKey[lobbyChannel])}${t('invite.arenaInviteSuffix')}`;
 
     return (
         <div
@@ -138,7 +140,7 @@ const PairIncomingPartnerInviteModal: React.FC<Props> = ({ invite, room, isBusy,
                         {modalHeadingText}
                     </h2>
                     <div className="mt-3 rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-left">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">초대한 유저</p>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{t('invite.inviterLabel')}</p>
                         <p className="mt-0.5 truncate text-base font-extrabold text-cyan-100" title={invite.inviterName}>
                             {invite.inviterName}
                         </p>
@@ -158,7 +160,7 @@ const PairIncomingPartnerInviteModal: React.FC<Props> = ({ invite, room, isBusy,
                                 {displayRoom.title}
                             </span>
                             <span className="shrink-0 whitespace-nowrap rounded-md border border-sky-400/45 bg-sky-950/50 px-1.5 py-0.5 text-[10px] font-extrabold text-sky-100">
-                                {kindLabel || '방 종류 확인 중'}
+                                {kindLabel || t('invite.roomKindChecking')}
                             </span>
                             {visibilityLabel ? (
                                 <span
@@ -176,13 +178,13 @@ const PairIncomingPartnerInviteModal: React.FC<Props> = ({ invite, room, isBusy,
                     </div>
 
                     <div className={pairAggregateRoomInteriorGameSettingsOuterClass(lobbyTone, handheld)}>
-                        <div className={pairAggregateRoomInteriorGameSettingsHeadingRowClass(lobbyTone, handheld)}>대국 설정</div>
+                        <div className={pairAggregateRoomInteriorGameSettingsHeadingRowClass(lobbyTone, handheld)}>{t('rankedMatch.gameSettings')}</div>
                         {!room?.selectedGameMode ? (
-                            <p className="mt-2 px-2 text-center text-xs text-slate-400">방 정보를 불러오는 중이거나 동기화되지 않았습니다.</p>
+                            <p className="mt-2 px-2 text-center text-xs text-slate-400">{t('invite.roomLoading')}</p>
                         ) : (
                             <div className="mt-1.5 flex w-full min-w-0 flex-row items-stretch gap-2">
                                 <div className={pairAggregateRoomInteriorGameModeColumnClass(lobbyTone, handheld)}>
-                                    <div className={pairAggregateRoomInteriorGameModeColumnHeaderClass(lobbyTone, handheld)}>게임 모드</div>
+                                    <div className={pairAggregateRoomInteriorGameModeColumnHeaderClass(lobbyTone, handheld)}>{t('invite.gameMode')}</div>
                                     <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-1 py-2">
                                         {modeVisual ? (
                                             <>
@@ -199,7 +201,7 @@ const PairIncomingPartnerInviteModal: React.FC<Props> = ({ invite, room, isBusy,
                                     </div>
                                 </div>
                                 <div className={pairAggregateRoomInteriorDetailColumnOuterClass(lobbyTone)}>
-                                    <div className={pairAggregateRoomInteriorDetailColumnHeaderClass(lobbyTone, handheld)}>세부 조건</div>
+                                    <div className={pairAggregateRoomInteriorDetailColumnHeaderClass(lobbyTone, handheld)}>{t('invite.detailConditions')}</div>
                                     <div className="max-h-[min(11rem,28vh)] min-h-0 flex-1 overflow-y-auto px-1.5 py-1">
                                         {settingRows.length > 0 ? (
                                             <dl className="grid grid-cols-2 gap-1.5">
@@ -211,7 +213,7 @@ const PairIncomingPartnerInviteModal: React.FC<Props> = ({ invite, room, isBusy,
                                                 ))}
                                             </dl>
                                         ) : (
-                                            <p className="text-center text-[10px] text-slate-500">세부 조건 없음</p>
+                                            <p className="text-center text-[10px] text-slate-500">{t('invite.noDetailConditions')}</p>
                                         )}
                                     </div>
                                 </div>
@@ -256,7 +258,7 @@ const PairIncomingPartnerInviteModal: React.FC<Props> = ({ invite, room, isBusy,
                             </div>
                             <div className="min-w-0 flex-1">
                                 <p className={`text-xs font-bold ${expired ? 'text-rose-300' : 'text-slate-300'}`}>
-                                    {expired ? '초대 시간이 만료되었습니다.' : `응답 대기 · ${secLeft}초 후 자동 취소`}
+                                    {expired ? t('invite.inviteExpired') : t('invite.responseWaiting', { seconds: secLeft })}
                                 </p>
                                 <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-zinc-800">
                                     <div
@@ -283,7 +285,7 @@ const PairIncomingPartnerInviteModal: React.FC<Props> = ({ invite, room, isBusy,
                         onClick={() => void onDecline()}
                         className="rounded-xl border border-white/20 bg-zinc-800/70 py-3 text-sm font-bold text-zinc-200"
                     >
-                        거절
+                        {t('rankedOffer.decline')}
                     </Button>
                     <Button
                         type="button"
@@ -292,7 +294,7 @@ const PairIncomingPartnerInviteModal: React.FC<Props> = ({ invite, room, isBusy,
                         onClick={() => void onAccept()}
                         className="rounded-xl border border-emerald-400/50 bg-emerald-900/55 py-3 text-sm font-extrabold text-emerald-50"
                     >
-                        수락
+                        {t('rankedOffer.accept')}
                     </Button>
                 </div>
             </div>

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LiveGameSession, UserWithStatus, ServerAction, Player, AnalysisResult } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
 import Avatar from './Avatar.js';
@@ -111,10 +112,11 @@ const ScoreDetailsComponent: React.FC<{
     /** 모바일에서 흑·백을 가로 2열로(도전의 탑 등) */
     compactSideBySideMobile?: boolean;
 }> = ({ analysis, isMobile = false, mobileTextScale = 1, desktopTextScale = 1, compactSideBySideMobile = false }) => {
+    const { t } = useTranslation('game');
     const mx = RESULT_MODAL_SCORE_MOBILE_PX;
 
     if (!hasRenderableScoreDetails(analysis)) {
-        return <p className={`text-center text-zinc-500 ${isMobile ? 'text-sm' : ''}`} style={{ fontSize: isMobile ? `${mx.emptyState * mobileTextScale}px` : undefined }}>점수 정보가 없습니다.</p>;
+        return <p className={`text-center text-zinc-500 ${isMobile ? 'text-sm' : ''}`} style={{ fontSize: isMobile ? `${mx.emptyState * mobileTextScale}px` : undefined }}>{t('summary.noScoreInfo')}</p>;
     }
     const scoreDetails = analysis.scoreDetails!;
 
@@ -130,19 +132,19 @@ const ScoreDetailsComponent: React.FC<{
         <div className={`${outerPad} ${SP_SUMMARY_INSET_CLASS} ${!isMobile ? 'text-base min-[1024px]:text-lg' : 'text-zinc-100'}`}>
             <div className={`grid ${narrow2col ? 'grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'} ${gridGap}`}>
                 <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} ${innerPad}`}>
-                    <h3 className="mb-0.5 text-center font-bold text-zinc-50" style={{ fontSize: headFs }}>흑</h3>
-                    <div className="flex justify-between gap-0.5 text-zinc-200" style={{ fontSize: rowFs }}><span className="min-w-0 shrink text-zinc-300">영토</span> <span className="tabular-nums font-medium text-zinc-50">{formatScoreDetailNumber(scoreDetails.black.territory, 0)}</span></div>
-                    <div className="flex justify-between gap-0.5 text-zinc-200" style={{ fontSize: rowFs }}><span className="min-w-0 shrink text-zinc-300">따낸</span> <span className="tabular-nums font-medium text-zinc-50">{scoreDetails.black.liveCaptures ?? 0}</span></div>
-                    <div className="flex justify-between gap-0.5 text-zinc-200" style={{ fontSize: rowFs }}><span className="min-w-0 shrink text-zinc-300">사석</span> <span className="tabular-nums font-medium text-zinc-50">{scoreDetails.black.deadStones ?? 0}</span></div>
-                    <div className="mt-0.5 flex justify-between gap-0.5 border-t border-amber-500/20 pt-0.5 font-bold text-zinc-50" style={{ fontSize: totalFs }}><span>총점</span> <span className="text-amber-200 tabular-nums">{formatScoreDetailNumber(scoreDetails.black.total, 1)}</span></div>
+                    <h3 className="mb-0.5 text-center font-bold text-zinc-50" style={{ fontSize: headFs }}>{t('black')}</h3>
+                    <div className="flex justify-between gap-0.5 text-zinc-200" style={{ fontSize: rowFs }}><span className="min-w-0 shrink text-zinc-300">{t('summary.territory')}</span> <span className="tabular-nums font-medium text-zinc-50">{formatScoreDetailNumber(scoreDetails.black.territory, 0)}</span></div>
+                    <div className="flex justify-between gap-0.5 text-zinc-200" style={{ fontSize: rowFs }}><span className="min-w-0 shrink text-zinc-300">{t('summary.captures')}</span> <span className="tabular-nums font-medium text-zinc-50">{scoreDetails.black.liveCaptures ?? 0}</span></div>
+                    <div className="flex justify-between gap-0.5 text-zinc-200" style={{ fontSize: rowFs }}><span className="min-w-0 shrink text-zinc-300">{t('summary.deadStones')}</span> <span className="tabular-nums font-medium text-zinc-50">{scoreDetails.black.deadStones ?? 0}</span></div>
+                    <div className="mt-0.5 flex justify-between gap-0.5 border-t border-amber-500/20 pt-0.5 font-bold text-zinc-50" style={{ fontSize: totalFs }}><span>{t('summary.total')}</span> <span className="text-amber-200 tabular-nums">{formatScoreDetailNumber(scoreDetails.black.total, 1)}</span></div>
                 </div>
                 <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} ${innerPad}`}>
-                    <h3 className="mb-0.5 text-center font-bold text-zinc-50" style={{ fontSize: headFs }}>백</h3>
-                    <div className="flex justify-between gap-0.5 text-zinc-200" style={{ fontSize: rowFs }}><span className="min-w-0 shrink text-zinc-300">영토</span> <span className="tabular-nums font-medium text-zinc-50">{formatScoreDetailNumber(scoreDetails.white.territory, 0)}</span></div>
-                    <div className="flex justify-between gap-0.5 text-zinc-200" style={{ fontSize: rowFs }}><span className="min-w-0 shrink text-zinc-300">따낸</span> <span className="tabular-nums font-medium text-zinc-50">{scoreDetails.white.liveCaptures ?? 0}</span></div>
-                    <div className="flex justify-between gap-0.5 text-zinc-200" style={{ fontSize: rowFs }}><span className="min-w-0 shrink text-zinc-300">사석</span> <span className="tabular-nums font-medium text-zinc-50">{scoreDetails.white.deadStones ?? 0}</span></div>
-                    <div className="flex justify-between gap-0.5 text-zinc-200" style={{ fontSize: rowFs }}><span className="min-w-0 shrink text-zinc-300">덤</span> <span className="tabular-nums font-medium text-zinc-50">{scoreDetails.white.komi}</span></div>
-                    <div className="mt-0.5 flex justify-between gap-0.5 border-t border-amber-500/20 pt-0.5 font-bold text-zinc-50" style={{ fontSize: totalFs }}><span>총점</span> <span className="text-amber-200 tabular-nums">{formatScoreDetailNumber(scoreDetails.white.total, 1)}</span></div>
+                    <h3 className="mb-0.5 text-center font-bold text-zinc-50" style={{ fontSize: headFs }}>{t('white')}</h3>
+                    <div className="flex justify-between gap-0.5 text-zinc-200" style={{ fontSize: rowFs }}><span className="min-w-0 shrink text-zinc-300">{t('summary.territory')}</span> <span className="tabular-nums font-medium text-zinc-50">{formatScoreDetailNumber(scoreDetails.white.territory, 0)}</span></div>
+                    <div className="flex justify-between gap-0.5 text-zinc-200" style={{ fontSize: rowFs }}><span className="min-w-0 shrink text-zinc-300">{t('summary.captures')}</span> <span className="tabular-nums font-medium text-zinc-50">{scoreDetails.white.liveCaptures ?? 0}</span></div>
+                    <div className="flex justify-between gap-0.5 text-zinc-200" style={{ fontSize: rowFs }}><span className="min-w-0 shrink text-zinc-300">{t('summary.deadStones')}</span> <span className="tabular-nums font-medium text-zinc-50">{scoreDetails.white.deadStones ?? 0}</span></div>
+                    <div className="flex justify-between gap-0.5 text-zinc-200" style={{ fontSize: rowFs }}><span className="min-w-0 shrink text-zinc-300">{t('summary.komi')}</span> <span className="tabular-nums font-medium text-zinc-50">{scoreDetails.white.komi}</span></div>
+                    <div className="mt-0.5 flex justify-between gap-0.5 border-t border-amber-500/20 pt-0.5 font-bold text-zinc-50" style={{ fontSize: totalFs }}><span>{t('summary.total')}</span> <span className="text-amber-200 tabular-nums">{formatScoreDetailNumber(scoreDetails.white.total, 1)}</span></div>
                 </div>
             </div>
         </div>
@@ -150,6 +152,7 @@ const ScoreDetailsComponent: React.FC<{
 };
 
 const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentUser, onAction: _onAction, onClose }) => {
+    const { t } = useTranslation('game');
     const { modalLayerUsesDesignPixels } = useAppContext();
     const isCompactViewport = useIsHandheldDevice(900);
     const { isNativeMobile } = useNativeMobileShell();
@@ -182,75 +185,75 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
         switch (session.winReason) {
             case 'timeout':
                 if (currentStage?.blackTurnLimit) {
-                    return '제한 턴이 부족하여 층에 실패했습니다.';
+                    return t('towerSummary.failTurnLimit');
                 }
-                return '제한시간이 초과되어 층에 실패했습니다.';
+                return t('towerSummary.failTimeLimit');
             case 'capture_limit':
                 return currentStage?.survivalTurns
-                    ? '백이 정해진 턴을 모두 버텨 층에 실패했습니다.'
-                    : '상대가 목표 점수를 먼저 달성했습니다.';
+                    ? t('towerSummary.failSurvival')
+                    : t('towerSummary.failCaptureTarget');
             case 'score':
-                return '계가 결과 상대가 더 많은 집을 차지했습니다.';
+                return t('towerSummary.failScoring');
             case 'resign':
-                return '기권하여 층이 종료되었습니다.';
+                return t('towerSummary.failResign');
             case 'disconnect':
-                return '연결이 끊어져 층이 실패 처리되었습니다.';
+                return t('towerSummary.failDisconnect');
             case 'total_score':
-                return '총 점수 합계에서 상대에게 밀렸습니다.';
+                return t('towerSummary.failTotalScore');
             case 'dice_win':
-                return '주사위 점수에서 뒤처졌습니다.';
+                return t('towerSummary.failDice');
             case 'foul_limit':
-                return '반칙 한도를 초과했습니다.';
+                return t('towerSummary.failFoul');
             case 'thief_captured':
-                return '도둑 돌이 모두 잡혔습니다.';
+                return t('towerSummary.failThiefCaught');
             case 'police_win':
-                return '경찰이 더 많은 점수를 획득했습니다.';
+                return t('towerSummary.failPoliceScore');
             case 'omok_win':
-                return '상대가 먼저 다섯 줄을 완성했습니다.';
+                return t('towerSummary.failOmok');
             case 'alkkagi_win':
-                return '알까기 승부에서 뒤졌습니다.';
+                return t('towerSummary.failAlkkagi');
             case 'curling_win':
-                return '컬링 총점에서 상대에게 뒤졌습니다.';
+                return t('towerSummary.failCurling');
             default:
                 return null;
         }
-    }, [isWinner, session.winReason, currentStage]);
+    }, [isWinner, session.winReason, currentStage, t]);
 
     const winReasonText = useMemo(() => {
         if (!isWinner) return null;
         switch (session.winReason) {
             case 'capture_limit':
                 return currentStage?.survivalTurns
-                    ? '백이 정해진 턴을 모두 버텼습니다.'
-                    : '목표 점수를 달성했습니다.';
+                    ? t('towerSummary.winSurvival')
+                    : t('towerSummary.winCaptureTarget');
             case 'score':
-                return '계가 결과 승리했습니다.';
+                return t('towerSummary.winScoring');
             case 'timeout':
-                return '시간초과 시간패입니다.';
+                return t('towerSummary.winTime');
             case 'resign':
-                return '상대방이 기권했습니다.';
+                return t('towerSummary.winResign');
             case 'disconnect':
-                return '상대방의 연결이 끊어졌습니다.';
+                return t('towerSummary.winDisconnect');
             case 'total_score':
-                return '총 점수 합계에서 승리했습니다.';
+                return t('towerSummary.winTotalScore');
             case 'dice_win':
-                return '주사위 점수에서 승리했습니다.';
+                return t('towerSummary.winDice');
             case 'foul_limit':
-                return '상대방이 반칙 한도를 초과했습니다.';
+                return t('towerSummary.winFoul');
             case 'thief_captured':
-                return '도둑 돌을 모두 잡았습니다.';
+                return t('towerSummary.winThiefCaught');
             case 'police_win':
-                return '경찰로서 더 많은 점수를 획득했습니다.';
+                return t('towerSummary.winPoliceScore');
             case 'omok_win':
-                return '먼저 다섯 줄을 완성했습니다.';
+                return t('towerSummary.winOmok');
             case 'alkkagi_win':
-                return '알까기 승부에서 승리했습니다.';
+                return t('towerSummary.winAlkkagi');
             case 'curling_win':
-                return '컬링 총점에서 승리했습니다.';
+                return t('towerSummary.winCurling');
             default:
-                return '승리했습니다.';
+                return t('towerSummary.winGeneric');
         }
-    }, [isWinner, session.winReason, currentStage]);
+    }, [isWinner, session.winReason, currentStage, t]);
 
     // 결과 모달이 열린 뒤에는 경기장 타이머 초기화 등의 영향을 받지 않도록
     // "총 걸린 시간"을 처음 계산된 값으로 고정한다.
@@ -370,11 +373,11 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                             className="text-center font-bold uppercase tracking-[0.12em] text-fuchsia-200/90"
                             style={{ fontSize: `${9 * mobileTextScale}px` }}
                         >
-                            펫 등급강화 필요
+                            {t('summary.petGradeUpgradeNeeded')}
                         </p>
                     ) : (
                         <div className="text-center text-[10px] font-bold uppercase tracking-[0.12em] text-fuchsia-200/90 sm:text-xs">
-                            펫 등급강화 필요
+                            {t('summary.petGradeUpgradeNeeded')}
                         </div>
                     )}
                 </div>
@@ -406,16 +409,16 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                     }}
                 >
                     <span className="min-w-0 shrink truncate font-mono text-zinc-100">
-                        {petXpBarPercents.petFinal.toLocaleString()} / {petXpBarPercents.petMax.toLocaleString()} 펫 XP
+                        {t('towerSummary.petXp', { current: petXpBarPercents.petFinal.toLocaleString(), max: petXpBarPercents.petMax.toLocaleString() })}
                     </span>
                     <span className="shrink-0 whitespace-nowrap font-semibold text-fuchsia-300">
-                        +{petXpBarPercents.gain.toLocaleString()} 펫 XP
+                        +{t('towerSummary.petXpGain', { gain: petXpBarPercents.gain.toLocaleString() })}
                     </span>
                 </div>
                 {displaySummary.pairPetLevelUpCoreBonuses ? (
                     <PairPetLevelUpCoreDelta
                         delta={displaySummary.pairPetLevelUpCoreBonuses}
-                        title="추가된 능력치"
+                        title={t('summary.addedStats')}
                         compact
                         className="mt-1"
                     />
@@ -426,10 +429,10 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
 
     // 계가 결과가 없으면 "계가 중..." 표시, 있으면 승리/실패 판단
     const modalTitle = (!renderableScoreDetails && isScoring)
-        ? "계가 중..." 
-        : renderableScoreDetails 
-            ? (isWinner ? "층 클리어" : "층 실패")
-            : "게임 결과";
+        ? t('towerSummary.scoring')
+        : renderableScoreDetails
+            ? (isWinner ? t('towerSummary.floorClear') : t('towerSummary.floorFail'))
+            : t('towerSummary.gameResult');
 
     const towerRewardsSection = (
         <div className={`flex flex-col ${SP_SUMMARY_PANEL_CLASS} shrink-0 ${isMobile ? 'gap-1 p-1.5' : 'gap-1.5 p-2'}`}>
@@ -437,7 +440,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                 className={`${SP_SUMMARY_SECTION_LABEL} border-b border-amber-500/25 text-center ${isMobile ? 'mb-0.5 pb-0.5' : 'mb-1 pb-0.5 sm:mb-2 sm:pb-1'}`}
                 style={{ fontSize: isMobile ? `${RESULT_MODAL_SCORE_MOBILE_PX.sectionLabel * mobileTextScale}px` : '15px' }}
             >
-                획득 보상
+                {t('towerSummary.rewardsTitle')}
             </h2>
             <div
                 className={
@@ -451,14 +454,14 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                         className="px-2 text-center font-medium text-zinc-200"
                         style={{ fontSize: isMobile ? `${RESULT_MODAL_SCORE_MOBILE_PX.emptyState * mobileTextScale}px` : '14px' }}
                     >
-                        {isScoring ? '계가 중...' : '보상 정보가 없습니다.'}
+                        {isScoring ? t('towerSummary.scoring') : t('towerSummary.noRewardInfo')}
                     </p>
                 ) : !hasRewardSlots ? (
                     <p
                         className="px-2 text-center font-medium text-zinc-200"
                         style={{ fontSize: isMobile ? `${RESULT_MODAL_SCORE_MOBILE_PX.emptyState * mobileTextScale}px` : '14px' }}
                     >
-                        보상이 없습니다.
+                        {t('towerSummary.noRewards')}
                     </p>
                 ) : (
                     <>
@@ -497,11 +500,11 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                             displaySummary.items.map((item, idx) => {
                                 const displayName = item.name ?? ('itemId' in item ? (item as any).itemId : undefined);
                                 if (!displayName) return null;
-                                const nameWithSpace = displayName.includes('골드꾸러미')
-                                    ? displayName.replace('골드꾸러미', '골드 꾸러미')
+                                const nameWithSpace = displayName.includes(t('summary.goldBundleCompact'))
+                                    ? displayName.replace(t('summary.goldBundleCompact'), t('summary.goldBundleSpaced'))
                                     : displayName;
-                                const nameWithoutSpace = displayName.includes('골드 꾸러미')
-                                    ? displayName.replace('골드 꾸러미', '골드꾸러미')
+                                const nameWithoutSpace = displayName.includes(t('summary.goldBundleSpaced'))
+                                    ? displayName.replace(t('summary.goldBundleSpaced'), t('summary.goldBundleCompact'))
                                     : displayName;
                                 const imagePath =
                                     ('image' in item && item.image) ||
@@ -565,12 +568,12 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                 {/* Title */}
                 {(analysisResult || (isEnded && session.winner !== null)) && (
                     <h1 className={`${isMobile ? 'text-base' : 'text-2xl min-[1024px]:text-3xl min-[1280px]:text-4xl'} font-black text-center mb-1 sm:mb-2 tracking-widest flex-shrink-0 ${isWinner ? 'sudamr-stable-gradient-text text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-200 to-amber-300' : 'text-red-400'}`} style={{ fontSize: isMobile ? `${14 * mobileTextScale}px` : undefined }}>
-                        {isWinner ? '도전 성공' : '도전 실패'}
+                        {isWinner ? t('towerSummary.challengeSuccess') : t('towerSummary.challengeFail')}
                     </h1>
                 )}
                 {!isMobile && !isScoring && !isEnded && !analysisResult && session.winner === null && (
                     <h1 className="text-2xl min-[1024px]:text-3xl font-black text-center mb-1 sm:mb-2 tracking-widest flex-shrink-0 text-gray-300">
-                        게임 결과
+                        {t('towerSummary.gameResult')}
                     </h1>
                 )}
                 
@@ -582,13 +585,13 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                 className={`${SP_SUMMARY_SECTION_LABEL} mb-1 border-b border-amber-500/25 pb-0.5 text-center sm:mb-2 sm:pb-1`}
                                 style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.sectionLabel * mobileTextScale}px` }}
                             >
-                                경기 결과
+                                {t('towerSummary.matchResult')}
                             </h2>
                             <div className="flex flex-col gap-1.5 overflow-x-hidden">
                                 {(analysisResult || (isEnded && session.winner !== null)) && (
                                     <div className={`p-1 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 space-y-0.5`}>
                                         <div className="flex items-center justify-between" style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.dataRow * mobileTextScale}px` }}>
-                                            <span className="text-amber-200/65">총 걸린 시간:</span>
+                                            <span className="text-amber-200/65">{t('towerSummary.totalElapsed')}</span>
                                             <span className="font-semibold text-zinc-100">{gameDuration}</span>
                                         </div>
                                         {(winReasonText || failureReason) && (
@@ -616,7 +619,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                         compactSideBySideMobile
                                     />
                                 ) : !isScoring && !isEnded ? (
-                                    <p className="text-center text-gray-400">계가 결과가 없습니다.</p>
+                                    <p className="text-center text-gray-400">{t('towerSummary.noScoringResult')}</p>
                                 ) : null}
                             </div>
                         </div>
@@ -625,7 +628,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                 className={`${SP_SUMMARY_SECTION_LABEL} mb-1 border-b border-amber-500/25 pb-0.5 text-center sm:mb-2 sm:pb-1`}
                                 style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.sectionLabel * mobileTextScale}px` }}
                             >
-                                내 정보
+                                {t('towerSummary.myInfo')}
                             </h2>
                             <div className={`p-1 ${SP_SUMMARY_INSET_CLASS} flex flex-shrink-0 items-center gap-1.5`}>
                                 <Avatar
@@ -658,13 +661,13 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                 className={`${SP_SUMMARY_SECTION_LABEL} mb-1 border-b border-amber-500/25 pb-0.5 text-center sm:mb-2 sm:pb-1`}
                                 style={{ fontSize: '15px' }}
                             >
-                                경기 결과
+                                {t('towerSummary.matchResult')}
                             </h2>
                             <div className="flex flex-col gap-1.5 overflow-visible">
                                 {(analysisResult || (isEnded && session.winner !== null)) && (
                                     <div className={`${SP_SUMMARY_INSET_CLASS} space-y-0.5 p-1.5 flex-shrink-0`}>
                                         <div className="flex items-center justify-between" style={{ fontSize: '15px' }}>
-                                            <span className="text-amber-200/65">총 걸린 시간:</span>
+                                            <span className="text-amber-200/65">{t('towerSummary.totalElapsed')}</span>
                                             <span className="font-semibold text-zinc-100">{gameDuration}</span>
                                         </div>
                                         {(winReasonText || failureReason) && (
@@ -688,7 +691,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                         desktopTextScale={desktopTextScale}
                                     />
                                 ) : !isScoring && !isEnded ? (
-                                    <p className="text-center text-gray-400">계가 결과가 없습니다.</p>
+                                    <p className="text-center text-gray-400">{t('towerSummary.noScoringResult')}</p>
                                 ) : null}
                             </div>
                         </div>
@@ -697,7 +700,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                 className={`${SP_SUMMARY_SECTION_LABEL} mb-1 border-b border-amber-500/25 pb-0.5 text-center sm:mb-2 sm:pb-1`}
                                 style={{ fontSize: '15px' }}
                             >
-                                내 정보
+                                {t('towerSummary.myInfo')}
                             </h2>
                             <div className={`${SP_SUMMARY_INSET_CLASS} flex min-w-0 flex-shrink-0 items-center gap-1.5 p-1.5`}>
                                 <Avatar

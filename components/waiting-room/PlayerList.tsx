@@ -7,6 +7,7 @@ import Button from '../Button.js';
 import { readPairRankedBlock } from '../../shared/utils/unifiedRankedStatsMigration.js';
 import { RANKED_ELO_BASE_SCORE } from '../../shared/constants/rules.js';
 import { userArenaChannelBadge } from '../../shared/utils/unifiedArenaLobbyUserList.js';
+import { useTranslation } from 'react-i18next';
 
 type UserListStats = { wins: number; losses: number; winRate: number; score?: number };
 
@@ -59,14 +60,34 @@ function computeUserListStats(user: UserWithStatus, mode: GameMode | 'strategic'
     return { wins, losses, winRate, score };
 }
 
-const statusDisplay: Record<UserStatus, { text: string; color: string; }> = {
-  'online': { text: '온라인', color: 'text-green-500' },
-  'waiting': { text: '대기 중', color: 'text-green-400' },
-  'resting': { text: '휴식 중', color: 'text-gray-400' },
-  'negotiating': { text: '협상 중', color: 'text-yellow-400' },
-  'in-game': { text: '경기중', color: 'text-red-500 font-semibold' },
-  'spectating': { text: '관전 중', color: 'text-purple-400' },
-  'offline': { text: '오프라인', color: 'text-gray-500' },
+const statusKeys = {
+  online: 'online',
+  waiting: 'waiting',
+  resting: 'resting',
+  negotiating: 'negotiating',
+  inGame: 'inGame',
+  spectating: 'spectating',
+  offline: 'offline',
+} as const;
+
+const statusKeyByUserStatus: Record<UserStatus, keyof typeof statusKeys> = {
+  'online': 'online',
+  'waiting': 'waiting',
+  'resting': 'resting',
+  'negotiating': 'negotiating',
+  'in-game': 'inGame',
+  'spectating': 'spectating',
+  'offline': 'offline',
+};
+
+const statusColor: Record<UserStatus, string> = {
+  'online': 'text-green-500',
+  'waiting': 'text-green-400',
+  'resting': 'text-gray-400',
+  'negotiating': 'text-yellow-400',
+  'in-game': 'text-red-500 font-semibold',
+  'spectating': 'text-purple-400',
+  'offline': 'text-gray-500',
 };
 
 const arenaBadgeClass: Record<string, string> = {
@@ -120,6 +141,7 @@ const PlayerList: React.FC<PlayerListProps> = ({
     listScopeTabs,
     showArenaPartnerInviteBlockToggle = false,
 }) => {
+    const { t } = useTranslation('lobby');
     const me =
         users.find((user) => user.id === currentUser.id) ??
         users.find((user) => String(user?.id) === String(currentUser?.id));
@@ -129,7 +151,9 @@ const PlayerList: React.FC<PlayerListProps> = ({
         .sort((a, b) => a.nickname.localeCompare(b.nickname));
 
     const renderUserItem = (user: UserWithStatus, isCurrentUser: boolean) => {
-        const statusInfo = statusDisplay[user.status] ?? statusDisplay.offline;
+        const statusKey = statusKeyByUserStatus[user.status] ?? statusKeys.offline;
+        const statusText = t(`playerList.status.${statusKey}`);
+        const statusColorClass = statusColor[user.status] ?? statusColor.offline;
         const arenaBadge = userArenaChannelBadge(user);
         const isDiceGo = mode === GameMode.Dice;
 
@@ -143,7 +167,7 @@ const PlayerList: React.FC<PlayerListProps> = ({
                 <div 
                     className={`flex items-center gap-2 lg:gap-3 overflow-hidden ${!isCurrentUser ? 'cursor-pointer' : ''}`}
                     onClick={() => !isCurrentUser && onViewUser(user.id)}
-                    title={!isCurrentUser ? `${user.nickname} 프로필 보기` : ''}
+                    title={!isCurrentUser ? t('playerList.viewProfile', { nickname: user.nickname }) : ''}
                 >
                     <Avatar
                         userId={user.id}
@@ -160,8 +184,8 @@ const PlayerList: React.FC<PlayerListProps> = ({
                             title={
                                 listStats
                                     ? `${user.nickname}${
-                                          listStats.score != null ? ` ${listStats.score.toLocaleString()}점 ·` : ' ·'
-                                      } ${listStats.wins}승${listStats.losses}패(${listStats.winRate}%)`
+                                          listStats.score != null ? ` ${t('playerList.scorePoints', { score: listStats.score.toLocaleString() })} ·` : ' ·'
+                                      } ${t('playerList.recordSummary', { wins: listStats.wins, losses: listStats.losses, winRate: listStats.winRate })}`
                                     : undefined
                             }
                         >
@@ -182,25 +206,25 @@ const PlayerList: React.FC<PlayerListProps> = ({
                                         pairAlignedNativeCompact ? 'text-[0.65rem] sm:text-xs lg:text-sm' : 'text-xs lg:text-sm'
                                     }`}
                                 >
-                                    {listStats.score.toLocaleString()}점
+                                    {t('playerList.scorePoints', { score: listStats.score.toLocaleString() })}
                                 </span>
                             )}
                         </div>
                         <div className="mt-0.5 flex min-w-0 w-full items-center justify-between gap-2">
                             <div className="flex min-w-0 items-center gap-1.5">
                                 <span
-                                    className={`shrink-0 ${statusInfo.color} ${
+                                    className={`shrink-0 ${statusColorClass} ${
                                         pairAlignedNativeCompact ? 'text-[0.65rem] sm:text-xs' : 'text-xs'
                                     }`}
                                 >
-                                    ● {statusInfo.text}
+                                    ● {statusText}
                                 </span>
                                 {arenaBadge && (
                                     <span
                                         className={`shrink-0 rounded-full border px-1.5 py-0.5 font-bold leading-none ${
                                             arenaBadgeClass[arenaBadge.channel] ?? arenaBadgeClass.strategic
                                         } ${pairAlignedNativeCompact ? 'text-[0.58rem] sm:text-[10px]' : 'text-[10px]'}`}
-                                        title={`${arenaBadge.label} 경기장`}
+                                        title={t('playerList.arenaBadge', { label: arenaBadge.label })}
                                     >
                                         {arenaBadge.label}
                                     </span>
@@ -212,7 +236,7 @@ const PlayerList: React.FC<PlayerListProps> = ({
                                         pairAlignedNativeCompact ? 'text-[0.62rem] sm:text-[11px] lg:text-xs' : 'text-[10px] lg:text-[11px]'
                                     }`}
                                 >
-                                    {listStats.wins}승{listStats.losses}패({listStats.winRate}%)
+                                    {t('playerList.recordSummary', { wins: listStats.wins, losses: listStats.losses, winRate: listStats.winRate })}
                                 </span>
                             ) : (
                                 <span
@@ -220,7 +244,7 @@ const PlayerList: React.FC<PlayerListProps> = ({
                                         pairAlignedNativeCompact ? 'text-[0.62rem] sm:text-[11px] lg:text-xs' : 'text-[10px] lg:text-[11px]'
                                     }`}
                                 >
-                                    통계 없음
+                                    {t('playerList.noStats')}
                                 </span>
                             )}
                         </div>
@@ -237,13 +261,13 @@ const PlayerList: React.FC<PlayerListProps> = ({
                                     ? 'w-[4.5rem] px-1 py-0.5 text-[0.65rem] sm:w-20 sm:px-2 sm:py-1 sm:text-xs lg:px-3 lg:py-1.5 lg:text-sm lg:w-24'
                                     : 'w-20 px-2 py-1 text-xs lg:px-3 lg:py-1.5 lg:text-sm lg:w-24'
                             }`}
-                            title={disableStatusSelect ? '페어 방에 있을 때는 상태를 바꿀 수 없습니다.' : undefined}
+                            title={disableStatusSelect ? t('playerList.statusInPairRoom') : undefined}
                         >
-                            <option value="waiting">대기 중</option>
-                            <option value="resting">휴식 중</option>
+                            <option value="waiting">{t('playerList.status.waiting')}</option>
+                            <option value="resting">{t('playerList.status.resting')}</option>
                             {!['waiting', 'resting'].includes(currentUser.status) && (
                                 <option value={currentUser.status} disabled>
-                                    {(statusDisplay[currentUser.status] ?? statusDisplay.offline).text}
+                                    {t(`playerList.status.${statusKeyByUserStatus[currentUser.status] ?? statusKeys.offline}`)}
                                 </option>
                             )}
                         </select>
@@ -253,14 +277,14 @@ const PlayerList: React.FC<PlayerListProps> = ({
                         {currentUser.isAdmin && !user.isAdmin && (
                             <Button
                                 onClick={() => {
-                                    if (window.confirm(`[${user.nickname}]님을 강제로 접속 종료하시겠습니까?`)) {
+                                    if (window.confirm(t('playerList.forceLogoutConfirm', { nickname: user.nickname }))) {
                                         onAction({ type: 'ADMIN_FORCE_LOGOUT', payload: { targetUserId: user.id } });
                                     }
                                 }}
                                 colorScheme="red"
                                 className={`!py-1 !px-2 ${pairAlignedNativeCompact ? '!text-[0.65rem] sm:!text-xs' : '!text-xs'}`}
                             >
-                                강제 퇴장
+                                {t('playerList.forceLogout')}
                             </Button>
                         )}
                         {pairInvite ? (() => {
@@ -275,7 +299,7 @@ const PlayerList: React.FC<PlayerListProps> = ({
                                     colorScheme="none"
                                     className="!text-[11px] !py-1.5 !px-2.5 whitespace-nowrap rounded-md border border-cyan-500/40 bg-cyan-950/50 font-bold text-cyan-100 disabled:cursor-not-allowed disabled:opacity-45 sm:!text-xs sm:!px-3"
                                 >
-                                    초대하기
+                                    {t('playerList.invite')}
                                 </Button>
                             );
                         })() : null}
@@ -293,7 +317,7 @@ const PlayerList: React.FC<PlayerListProps> = ({
                 className={`flex cursor-pointer select-none items-center gap-1 rounded-md border border-cyan-500/35 bg-cyan-950/40 px-1.5 py-0.5 text-cyan-100/95 ${
                     pairAlignedNativeCompact ? 'text-[0.62rem] sm:text-[10px]' : 'text-[10px] sm:text-xs'
                 }`}
-                title="켜면 다른 플레이어가 페어 경기장에서 나를 파트너로 초대할 수 없습니다."
+                title={t('playerList.blockInvitesTitle')}
                 onClick={(e) => e.stopPropagation()}
             >
                 <input
@@ -308,7 +332,7 @@ const PlayerList: React.FC<PlayerListProps> = ({
                         });
                     }}
                 />
-                <span className="whitespace-nowrap font-bold">초대금지</span>
+                <span className="whitespace-nowrap font-bold">{t('playerList.blockInvites')}</span>
             </label>
         ) : null;
 
@@ -325,14 +349,14 @@ const PlayerList: React.FC<PlayerListProps> = ({
                     } ${pairAlignedNativeCompact ? 'text-sm sm:text-base' : 'text-xl'}`}
                 >
                     <span className="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-2">
-                        유저 목록
+                        {t('playerList.title')}
                         {userCount !== undefined && (
                             <span
                                 className={`truncate font-normal text-secondary ${
                                     pairAlignedNativeCompact ? 'text-[0.65rem] sm:text-xs' : 'text-sm'
                                 }`}
                             >
-                                ({userCount}명 접속 중)
+                                {t('playerList.onlineCount', { count: userCount })}
                             </span>
                         )}
                     </span>
@@ -354,7 +378,7 @@ const PlayerList: React.FC<PlayerListProps> = ({
                 }`}
             >
                 {otherUsers.length > 0 ? otherUsers.map(user => renderUserItem(user, false)) : (
-                    <p className="text-center text-tertiary pt-8">다른 플레이어가 없습니다.</p>
+                    <p className="text-center text-tertiary pt-8">{t('playerList.noOtherPlayers')}</p>
                 )}
             </ul>
         </div>

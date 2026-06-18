@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
 import { SINGLE_PLAYER_MISSIONS } from '../../constants/singlePlayerConstants.js';
@@ -32,6 +33,7 @@ function ClaimAllTotalsBox({
     totalDiamonds: number;
     variant: 'compact' | 'comfortable';
 }) {
+    const { t } = useTranslation(['lobby', 'common']);
     if (totalGold <= 0 && totalDiamonds <= 0) return null;
 
     const shell =
@@ -58,12 +60,12 @@ function ClaimAllTotalsBox({
 
     return (
         <div className={shell}>
-            <h3 className={titleClass}>총 합계</h3>
+            <h3 className={titleClass}>{t('singleplayer.totalSum')}</h3>
             <div className="flex flex-col gap-2 sm:gap-2.5">
                 {totalGold > 0 && (
                     <div className={rowGrid}>
                         <div className={iconWrap}>
-                            <img src="/images/icon/Gold.webp" alt="골드" className={`${iconClass} shrink-0 object-contain`} />
+                            <img src="/images/icon/Gold.webp" alt={t('common:resources.gold')} className={`${iconClass} shrink-0 object-contain`} />
                         </div>
                         <span className={numClass}>+{formatGoldAmountKoG(totalGold)}</span>
                     </div>
@@ -71,7 +73,7 @@ function ClaimAllTotalsBox({
                 {totalDiamonds > 0 && (
                     <div className={rowGrid}>
                         <div className={iconWrap}>
-                            <img src="/images/icon/Zem.webp" alt="다이아" className={`${iconClass} shrink-0 object-contain`} />
+                            <img src="/images/icon/Zem.webp" alt={t('common:resources.diamonds')} className={`${iconClass} shrink-0 object-contain`} />
                         </div>
                         <span className={diaClass}>+{formatWalletDiamonds(totalDiamonds)}</span>
                     </div>
@@ -105,10 +107,11 @@ function MobileClaimBody({
     totalDiamonds: number;
     onClose: () => void;
 }) {
+    const { t } = useTranslation(['lobby', 'common']);
     return (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <h2 className="shrink-0 px-0.5 text-center text-xs font-bold leading-snug text-white/95 sm:text-sm">
-                모든 수련 과제 보상을 수령했습니다!
+                {t('singleplayer.claimAllSuccess')}
             </h2>
 
             <div
@@ -149,14 +152,14 @@ function MobileClaimBody({
                                 <div className="flex shrink-0 items-center gap-1 pt-0.5">
                                     {reward.rewardType === 'gold' ? (
                                         <>
-                                            <img src="/images/icon/Gold.webp" alt="골드" className="h-4 w-4" />
+                                            <img src="/images/icon/Gold.webp" alt={t('common:resources.gold')} className="h-4 w-4" />
                                             <span className="text-xs font-bold tabular-nums text-yellow-300 sm:text-[13px]">
                                                 +{formatGoldAmountKoG(reward.rewardAmount)}
                                             </span>
                                         </>
                                     ) : (
                                         <>
-                                            <img src="/images/icon/Zem.webp" alt="다이아" className="h-4 w-4" />
+                                            <img src="/images/icon/Zem.webp" alt={t('common:resources.diamonds')} className="h-4 w-4" />
                                             <span className="text-xs font-bold tabular-nums text-cyan-300 sm:text-[13px]">
                                                 +{formatWalletDiamonds(reward.rewardAmount)}
                                             </span>
@@ -173,7 +176,7 @@ function MobileClaimBody({
                 <ClaimAllTotalsBox totalGold={totalGold} totalDiamonds={totalDiamonds} variant="compact" />
 
                 <Button onClick={onClose} colorScheme="none" bare className={`${PREMIUM_QUEST_BTN.claimAllConfirm} mt-0.5`} cooldownMs={0}>
-                    확인
+                    {t('common:actions.ok')}
                 </Button>
             </div>
         </div>
@@ -187,6 +190,7 @@ const ClaimAllTrainingQuestRewardsModal: React.FC<ClaimAllTrainingQuestRewardsMo
     onClose,
     isTopmost,
 }) => {
+    const { t } = useTranslation(['lobby', 'common']);
     const isHandheld = useIsHandheldDevice(1025);
     const { isNativeMobile } = useNativeMobileShell();
     const isCompactUi = isHandheld || isNativeMobile;
@@ -224,7 +228,7 @@ const ClaimAllTrainingQuestRewardsModal: React.FC<ClaimAllTrainingQuestRewardsMo
 
     return (
         <DraggableWindow
-            title="수련 과제 일괄 수령"
+            title={t('singleplayer.claimAllModalTitle')}
             modal={true}
             closeOnOutsideClick={true}
             onClose={onClose}
@@ -255,7 +259,7 @@ const ClaimAllTrainingQuestRewardsModal: React.FC<ClaimAllTrainingQuestRewardsMo
                 </div>
             ) : (
                 <div className="mx-auto flex w-full max-w-[min(100%,26rem)] min-h-0 flex-col text-center text-on-panel">
-                    <h2 className="mb-3 shrink-0 text-lg font-bold leading-snug sm:text-xl">모든 수련 과제 보상을 수령했습니다!</h2>
+                    <h2 className="mb-3 shrink-0 text-lg font-bold leading-snug sm:text-xl">{t('singleplayer.claimAllSuccess')}</h2>
 
                     <div className="mb-3 min-h-0 space-y-1.5 overflow-x-hidden overflow-y-visible rounded-lg bg-gray-900/50 p-3">
                         {rewards.map((reward) => {
@@ -290,14 +294,14 @@ const ClaimAllTrainingQuestRewardsModal: React.FC<ClaimAllTrainingQuestRewardsMo
                                     <div className="flex shrink-0 items-center gap-1.5">
                                         {reward.rewardType === 'gold' ? (
                                             <>
-                                                <img src="/images/icon/Gold.webp" alt="골드" className="h-4 w-4 sm:h-5 sm:w-5" />
+                                                <img src="/images/icon/Gold.webp" alt={t('common:resources.gold')} className="h-4 w-4 sm:h-5 sm:w-5" />
                                                 <span className="text-xs font-bold tabular-nums text-yellow-300 sm:text-sm">
                                                     +{formatGoldAmountKoG(reward.rewardAmount)}
                                                 </span>
                                             </>
                                         ) : (
                                             <>
-                                                <img src="/images/icon/Zem.webp" alt="다이아" className="h-4 w-4 sm:h-5 sm:w-5" />
+                                                <img src="/images/icon/Zem.webp" alt={t('common:resources.diamonds')} className="h-4 w-4 sm:h-5 sm:w-5" />
                                                 <span className="text-xs font-bold tabular-nums text-cyan-300 sm:text-sm">
                                                     +{formatWalletDiamonds(reward.rewardAmount)}
                                                 </span>
@@ -317,7 +321,7 @@ const ClaimAllTrainingQuestRewardsModal: React.FC<ClaimAllTrainingQuestRewardsMo
 
                     <div className="flex justify-center pt-1">
                         <Button onClick={onClose} colorScheme="none" bare className={PREMIUM_QUEST_BTN.claimAllConfirm} cooldownMs={0}>
-                            확인
+                            {t('common:actions.ok')}
                         </Button>
                     </div>
                 </div>

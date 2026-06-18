@@ -1,122 +1,26 @@
 import React from 'react';
-import LegalDocumentModal, { type LegalSection } from './LegalDocumentModal.js';
-import { COMPANY_INFO } from './companyInfo.js';
-
-const SECTIONS: LegalSection[] = [
-    {
-        title: '목적',
-        paragraphs: [
-            `이 약관은 ${COMPANY_INFO.name}(이하 "회사")이 제공하는 ${COMPANY_INFO.serviceName} 및 관련 제반 서비스(이하 "서비스")의 이용과 관련하여 회사와 회원의 권리, 의무 및 책임사항을 규정함을 목적으로 합니다.`,
-        ],
-    },
-    {
-        title: '용어의 정의',
-        bullets: [
-            '"서비스"란 회사가 제공하는 멀티플레이어 바둑 및 부가 기능 일체를 의미합니다.',
-            '"회원"이란 본 약관에 동의하고 회사와 서비스 이용 계약을 체결한 자를 말합니다.',
-            '"계정"이란 회원 식별과 서비스 이용을 위하여 회원이 등록한 이메일 또는 소셜 로그인 정보를 의미합니다.',
-            '"유료 콘텐츠"란 다이아·골드·VIP 멤버십 등 유상으로 제공되는 모든 디지털 재화·아이템·서비스를 말합니다.',
-        ],
-    },
-    {
-        title: '약관의 게시와 개정',
-        paragraphs: [
-            '회사는 본 약관의 내용을 회원이 쉽게 확인할 수 있도록 서비스 초기 화면 및 푸터 영역에 게시합니다.',
-            '회사는 관련 법령을 위배하지 않는 범위에서 본 약관을 개정할 수 있으며, 개정 시 적용일자 및 사유를 명시하여 적용일 7일 전부터 공지합니다. 다만 회원에게 불리한 개정의 경우에는 30일 이전부터 공지합니다.',
-        ],
-    },
-    {
-        title: '이용계약의 성립',
-        paragraphs: [
-            '이용계약은 회원이 본 약관과 개인정보처리방침에 동의하고 서비스 가입 절차를 완료함으로써 성립합니다.',
-            '만 14세 미만의 아동이 회원 가입을 신청하는 경우 법정대리인의 동의를 받아야 합니다.',
-        ],
-    },
-    {
-        title: '서비스의 제공 및 변경',
-        bullets: [
-            '바둑 대국 및 게임 모드 이용',
-            '캐릭터 성장·장비·인벤토리 등 RPG 기능',
-            '랭킹·토너먼트·길드 등 커뮤니티 기능',
-            '유료 콘텐츠(다이아·VIP 멤버십 등)의 판매',
-            '기타 회사가 추가 개발하거나 제휴를 통해 제공하는 일체의 서비스',
-        ],
-    },
-    {
-        title: '유료 결제 및 환불',
-        paragraphs: [
-            '회원은 회사가 정한 결제 수단을 통해 유료 콘텐츠를 구매할 수 있습니다.',
-            '구매한 유료 콘텐츠의 청약철회·환불은 별도의 "취소·환불 규정"에 따릅니다.',
-        ],
-    },
-    {
-        title: '회원의 의무',
-        bullets: [
-            '본 약관 및 관계 법령, 회사가 공지하는 운영 정책을 준수할 의무',
-            '타인의 명의나 결제정보를 도용하지 않을 의무',
-            '서비스 운영을 방해하거나 비정상적인 방법으로 이용하지 않을 의무',
-            '게임 내 채팅·게시판 등에서 욕설·도배·음란·차별·범죄 행위를 하지 않을 의무',
-            '회사가 제공하는 클라이언트·데이터에 무단으로 접근하거나 이를 역공학·복제·배포하지 않을 의무',
-        ],
-    },
-    {
-        title: '회사의 의무',
-        paragraphs: [
-            '회사는 안정적인 서비스 제공을 위해 합리적 수준의 기술적·관리적 노력을 다합니다.',
-            '회사는 회원의 개인정보를 보호하기 위해 개인정보처리방침에 따라 관리합니다.',
-        ],
-    },
-    {
-        title: '서비스 이용의 제한',
-        paragraphs: [
-            '회사는 회원이 본 약관의 의무를 위반하거나 서비스의 정상적인 운영을 방해한 경우, 경고·이용 제한·계정 영구 정지 등의 조치를 취할 수 있습니다.',
-            '비정상 결제·재화 거래·핵·매크로·계정 도용·실명 도용 등이 확인될 경우 사전 통지 없이 즉시 이용을 제한할 수 있습니다.',
-        ],
-    },
-    {
-        title: '계약 해지 및 탈퇴',
-        paragraphs: [
-            '회원은 언제든지 회사가 제공하는 절차에 따라 회원 탈퇴를 요청할 수 있으며, 회사는 관련 법령이 정하는 바에 따라 즉시 처리합니다.',
-            '탈퇴 시 보유 중인 유·무료 재화·아이템은 모두 소멸되며, 재가입 시에도 복원되지 않습니다.',
-        ],
-    },
-    {
-        title: '면책 조항',
-        bullets: [
-            '천재지변·전쟁·통신장애 등 회사가 통제할 수 없는 사유로 인한 서비스 중단에 대해서는 책임을 지지 않습니다.',
-            '회원의 귀책사유로 인한 서비스 이용의 장애에 대해서는 책임을 지지 않습니다.',
-            '회원 간에 또는 회원과 제3자 간에 서비스를 매개로 발생한 분쟁에 대해서는 회사가 개입할 의무가 없습니다.',
-        ],
-    },
-    {
-        title: '준거법 및 재판관할',
-        paragraphs: [
-            '본 약관에 관한 분쟁은 대한민국 법령을 준거법으로 합니다.',
-            '서비스 이용으로 발생한 분쟁에 관한 소송은 민사소송법에 정한 관할 법원에 제기합니다.',
-        ],
-    },
-    {
-        title: '문의처',
-        paragraphs: [
-            `본 약관과 관련된 문의는 고객센터(${COMPANY_INFO.phone}) 또는 이메일(${COMPANY_INFO.email})로 연락 주시기 바랍니다.`,
-        ],
-    },
-];
+import LegalDocumentModal from './LegalDocumentModal.js';
+import { useLegalDocument } from './useLegalDocument.js';
 
 interface Props {
     onClose: () => void;
     isTopmost?: boolean;
 }
 
-const TermsOfServiceModal: React.FC<Props> = ({ onClose, isTopmost }) => (
-    <LegalDocumentModal
-        title="이용약관"
-        eyebrow="Terms of Service"
-        intro={`${COMPANY_INFO.serviceName} 서비스를 이용해 주셔서 감사합니다. 본 약관은 회원과 회사 간의 권리·의무 및 책임 사항을 정합니다.`}
-        sections={SECTIONS}
-        onClose={onClose}
-        isTopmost={isTopmost}
-    />
-);
+const TermsOfServiceModal: React.FC<Props> = ({ onClose, isTopmost }) => {
+    const doc = useLegalDocument('termsOfService');
+    return (
+        <LegalDocumentModal
+            title={doc.title}
+            eyebrow={doc.eyebrow}
+            intro={doc.intro}
+            sections={doc.sections}
+            effectiveDate={doc.effectiveDate}
+            company={doc.company}
+            onClose={onClose}
+            isTopmost={isTopmost}
+        />
+    );
+};
 
 export default TermsOfServiceModal;

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     ADVENTURE_STAGES,
     ADVENTURE_UNDERSTANDING_TIER_LABELS,
@@ -14,9 +15,7 @@ import {
     getRegionalBuffMaxStacks,
     getRegionalEnhancePointsRemaining,
     isRegionalBuffEnhanceable,
-    labelRegionalSpecialtyBuffEntry,
     migrateRegionalBuffEntry,
-    regionalBuffEnhanceCountSuffix,
     slotCountForUnderstandingTier,
 } from '../../utils/adventureRegionalSpecialtyBuff.js';
 import type { AdventureRegionalSpecialtyBuffEntry, AdventureRegionalSpecialtyBuffKind } from '../../types/entities.js';
@@ -24,6 +23,10 @@ import { normalizeAdventureProfile } from '../../utils/adventureUnderstanding.js
 import { useAppContext } from '../../hooks/useAppContext.js';
 import AdventureRegionalUnderstandingHelpModal from './AdventureRegionalUnderstandingHelpModal.js';
 import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
+import {
+    labelRegionalSpecialtyBuffCompactI18n,
+    labelRegionalSpecialtyBuffI18n,
+} from './adventureI18nHelpers.js';
 
 const REGIONAL_SPECIALTY_SLOT_COUNT = 5 as const;
 
@@ -86,6 +89,7 @@ const AdventureRegionalBuffPanel: React.FC<{
     /** 생략 시 앱 컨텍스트의 유저 레벨·이해도로 지역 잠금을 판별합니다. */
     chapterUnlockCtx?: AdventureChapterUnlockContext;
 }> = ({ profile, stageRows, userGold = 0, compact = false, singleStageId, embeddedInModal = false, chapterUnlockCtx: chapterUnlockCtxProp }) => {
+    const { t } = useTranslation('lobby');
     const { handlers, currentUserWithStatus } = useAppContext();
     const chapterUnlockCtx = useMemo<AdventureChapterUnlockContext>(
         () =>
@@ -144,7 +148,7 @@ const AdventureRegionalBuffPanel: React.FC<{
     const randomRouletteLabel = (): string => {
         const pool = ADVENTURE_REGIONAL_SPECIALTY_KINDS;
         const kind = pool[Math.floor(Math.random() * pool.length)] as AdventureRegionalSpecialtyBuffKind;
-        return labelRegionalSpecialtyBuffEntry({ kind, stacks: 1 } as AdventureRegionalSpecialtyBuffEntry);
+        return labelRegionalSpecialtyBuffCompactI18n(t, { kind, stacks: 1 } as AdventureRegionalSpecialtyBuffEntry);
     };
 
     const startRouletteAnimation = (slotIndex: number, onSpinComplete?: () => void) => {
@@ -201,16 +205,14 @@ const AdventureRegionalBuffPanel: React.FC<{
             const ent = migrateRegionalBuffEntry(rawSlot as any);
             const st = Math.max(1, Math.floor(ent.stacks ?? 1));
             if (st > 1) {
-                const ok = window.confirm(
-                    '강화된 효과를 변경하면 1단계 효과로 돌아가며, 이 효과에 쓰인 강화 포인트를 돌려받습니다. 계속할까요?',
-                );
+                const ok = window.confirm(t('adventure.confirmChangeEnhanced'));
                 if (!ok) return;
             }
         }
 
         regionalRerollLockedRef.current = true;
         setSpinningSlots((prev) => ({ ...prev, [slotIndex]: true }));
-        setRouletteLabelBySlot((prev) => ({ ...prev, [slotIndex]: '적용 중…' }));
+        setRouletteLabelBySlot((prev) => ({ ...prev, [slotIndex]: t('adventure.applying') }));
 
         try {
             const res = await handlers.handleAction({
@@ -264,36 +266,8 @@ const AdventureRegionalBuffPanel: React.FC<{
         } as any);
     };
 
-    const getCompactLabel = (e: AdventureRegionalSpecialtyBuffEntry): string => {
-        const st = Math.max(1, Math.floor(e.stacks ?? 1));
-        const sfx = regionalBuffEnhanceCountSuffix(e.kind, st);
-        switch (e.kind) {
-            case 'regional_win_gold_10pct':
-                return `골드 +${st * 10}%${sfx}`;
-            case 'regional_equip_drop_3pct':
-                return `장비획득 +${st * 3}%${sfx}`;
-            case 'regional_material_drop_5pct':
-                return `재료획득 +${st * 5}%${sfx}`;
-            case 'regional_capture_target_plus1':
-                return `[따내기바둑] 상대목표+${st}${sfx}`;
-            case 'regional_time_limit_plus20pct':
-                return `제한시간 +${st * 20}%${sfx}`;
-            case 'regional_monster_respawn_minus10pct':
-                return `출현대기 -${Math.min(50, st * 10)}%${sfx}`;
-            case 'regional_monster_dwell_plus10pct':
-                return `몬스터체류 +${st * 10}%${sfx}`;
-            case 'regional_hidden_scan_plus1':
-                return `[히든바둑] 스캔+${st}${sfx}`;
-            case 'regional_base_start_score_plus1':
-                return `[베이스바둑] 시작+${st}점${sfx}`;
-            case 'regional_classic_start_score_plus1':
-                return `[클래식바둑] 시작+${st}점${sfx}`;
-            case 'regional_missile_plus1':
-                return `[미사일바둑] 미사일+1`;
-            default:
-                return labelRegionalSpecialtyBuffEntry(e);
-        }
-    };
+    const getCompactLabel = (e: AdventureRegionalSpecialtyBuffEntry): string =>
+        labelRegionalSpecialtyBuffCompactI18n(t, e);
 
     return (
         <>
@@ -307,14 +281,14 @@ const AdventureRegionalBuffPanel: React.FC<{
                 }`}
             >
                 <div className={`flex items-center gap-2 ${embeddedInModal ? 'justify-end' : 'justify-between'}`}>
-                    {!embeddedInModal ? <p className={labelCls}>지역 탐험도</p> : null}
+                    {!embeddedInModal ? <p className={labelCls}>{t('adventure.regionalExploration')}</p> : null}
                     <button
                         type="button"
                         onClick={() => setShowHelpModal(true)}
                         className="inline-flex items-center rounded-md border border-fuchsia-400/45 bg-fuchsia-950/45 px-2 py-1 text-[10px] font-bold text-fuchsia-100 transition-colors hover:border-amber-400/45 hover:text-amber-100 sm:text-[11px]"
-                        aria-label="지역 탐험도 효과 정보 열기"
+                        aria-label={t('adventure.effectInfoOpenAria')}
                     >
-                        효과정보
+                        {t('adventure.effectInfo')}
                     </button>
                 </div>
 
@@ -324,7 +298,7 @@ const AdventureRegionalBuffPanel: React.FC<{
                             compact ? '' : 'sm:gap-1.5'
                         }`}
                         role="tablist"
-                        aria-label="지역 탐험도 탭"
+                        aria-label={t('adventure.regionalExplorationTabsAria')}
                     >
                         {ADVENTURE_STAGES.map((s, i) => {
                             const tabUnlocked = isAdventureStageUnlocked(s.id, chapterUnlockCtx);
@@ -394,14 +368,17 @@ const AdventureRegionalBuffPanel: React.FC<{
                                         panelCompact ? 'text-[10px] sm:text-[11px]' : 'text-[11px] sm:text-xs'
                                     }`}
                                 >
-                                    강화 포인트 {remainingPts.toLocaleString()} / {grantPts.toLocaleString()}
+                                    {t('adventure.enhancePointsCount', {
+                                        remaining: remainingPts.toLocaleString(),
+                                        grant: grantPts.toLocaleString(),
+                                    })}
                                 </p>
                             ) : null}
                         </div>
                         {embeddedInModal ? (
                             <div className="flex min-w-0 flex-col items-center justify-center rounded-lg border border-amber-500/35 bg-gradient-to-br from-amber-950/45 via-amber-950/20 to-zinc-950/85 px-3 py-2.5 text-center">
                                 <p className="text-[10px] font-bold uppercase tracking-wider text-amber-300/85">
-                                    강화 포인트
+                                    {t('adventure.enhancePoints')}
                                 </p>
                                 <p className="mt-1 flex items-baseline justify-center gap-1 tabular-nums">
                                     <span className="text-2xl font-black leading-none text-amber-100">
@@ -429,7 +406,7 @@ const AdventureRegionalBuffPanel: React.FC<{
                             >
                                 <span className="shrink-0 text-base leading-none sm:text-lg" aria-hidden>🔒</span>
                                 <p className="min-w-0 flex-1 font-bold text-zinc-500">
-                                    슬롯 1 잠김 · 챕터{stage.stageIndex} 오픈
+                                    {t('adventure.slot1LockedChapterOpen', { stageIndex: stage.stageIndex })}
                                 </p>
                             </div>
                         ) : null}
@@ -451,7 +428,7 @@ const AdventureRegionalBuffPanel: React.FC<{
                                                 embeddedInModal ? 'whitespace-nowrap' : 'truncate'
                                             }`}
                                         >
-                                            슬롯 {slotIndex + 1} 잠김 · {tierLabel} 이상
+                                            {t('adventure.slotLockedTier', { slot: slotIndex + 1, tier: tierLabel })}
                                         </p>
                                     </div>
                                 );
@@ -466,17 +443,17 @@ const AdventureRegionalBuffPanel: React.FC<{
 
                             const effectLabel = isSpinning ? (
                                 <p className="min-w-0 flex-1 animate-pulse font-semibold leading-snug text-amber-100/95">
-                                    {rouletteLabel ?? '효과 선택 중...'}
+                                    {rouletteLabel ?? t('adventure.effectSelecting')}
                                 </p>
                             ) : isEmptyUnlockedSlot ? (
-                                <p className="min-w-0 flex-1 font-semibold leading-snug text-amber-100/95">🔓 사용 가능</p>
+                                <p className="min-w-0 flex-1 font-semibold leading-snug text-amber-100/95">{t('adventure.slotAvailable')}</p>
                             ) : (
                                 <p
                                     className={`min-w-0 flex-1 font-semibold leading-snug text-cyan-100/95 ${
                                         embeddedInModal ? 'whitespace-nowrap' : ''
                                     }`}
                                 >
-                                    {labelRegionalSpecialtyBuffEntry(e!)}
+                                    {labelRegionalSpecialtyBuffI18n(t, e!)}
                                 </p>
                             );
 
@@ -492,15 +469,15 @@ const AdventureRegionalBuffPanel: React.FC<{
                                     }`}
                                     aria-label={
                                         isEmptyUnlockedSlot
-                                            ? '효과 획득 (무료)'
-                                            : `효과 변경, 비용 ${ADVENTURE_REGIONAL_BUFF_ACTION_GOLD} 골드`
+                                            ? t('adventure.gainEffectFree')
+                                            : t('adventure.changeEffectCost', { gold: ADVENTURE_REGIONAL_BUFF_ACTION_GOLD })
                                     }
                                 >
-                                    <span>{isEmptyUnlockedSlot ? '효과 획득' : '변경'}</span>
+                                    <span>{isEmptyUnlockedSlot ? t('adventure.gainEffect') : t('adventure.changeEffect')}</span>
                                     {!isEmptyUnlockedSlot ? (
                                         <GoldCostInline text={goldCostLabel} />
                                     ) : (
-                                        <span className="tabular-nums text-emerald-200/90">무료</span>
+                                        <span className="tabular-nums text-emerald-200/90">{t('adventure.free')}</span>
                                     )}
                                 </button>
                             );
@@ -518,18 +495,18 @@ const AdventureRegionalBuffPanel: React.FC<{
                                     }
                                     title={
                                         !e
-                                            ? '빈 슬롯은 강화할 수 없습니다'
+                                            ? t('adventure.cannotEnhanceEmpty')
                                             : !isRegionalBuffEnhanceable(e.kind)
-                                              ? '이 효과는 강화할 수 없습니다'
+                                              ? t('adventure.cannotEnhanceEffect')
                                               : remainingPts < 1
-                                                ? '강화 포인트가 부족합니다'
+                                                ? t('adventure.insufficientEnhancePoints')
                                                 : undefined
                                     }
                                     onClick={() => onEnhance(slotIndex)}
                                     className="inline-flex shrink-0 items-center justify-center gap-1 rounded-md border border-fuchsia-500/45 bg-fuchsia-950/35 px-2 py-1.5 text-[11px] font-bold text-fuchsia-100 transition-colors enabled:hover:bg-fuchsia-900/45 disabled:cursor-not-allowed disabled:opacity-40 sm:text-xs"
-                                    aria-label={`강화, 비용 ${ADVENTURE_REGIONAL_BUFF_ACTION_GOLD} 골드 및 포인트 1`}
+                                    aria-label={t('adventure.enhanceCostAria', { gold: ADVENTURE_REGIONAL_BUFF_ACTION_GOLD })}
                                 >
-                                    <span>강화</span>
+                                    <span>{t('adventure.enhance')}</span>
                                     <GoldCostInline text={goldCostLabel} />
                                 </button>
                             );
@@ -537,10 +514,10 @@ const AdventureRegionalBuffPanel: React.FC<{
                             const modalActionButtons = (
                                 <div className="flex shrink-0 flex-row items-center gap-1.5">
                                     <RegionalBuffStackedActionButton
-                                        label={isEmptyUnlockedSlot ? '효과 획득' : '변경'}
+                                        label={isEmptyUnlockedSlot ? t('adventure.gainEffect') : t('adventure.changeEffect')}
                                         cost={
                                             isEmptyUnlockedSlot ? (
-                                                <span className="text-emerald-200/90">무료</span>
+                                                <span className="text-emerald-200/90">{t('adventure.free')}</span>
                                             ) : (
                                                 <GoldCostInline text={goldCostLabel} compact />
                                             )
@@ -552,12 +529,12 @@ const AdventureRegionalBuffPanel: React.FC<{
                                         onClick={() => void onChange(slotIndex)}
                                         aria-label={
                                             isEmptyUnlockedSlot
-                                                ? '효과 획득 (무료)'
-                                                : `효과 변경, 비용 ${ADVENTURE_REGIONAL_BUFF_ACTION_GOLD} 골드`
+                                                ? t('adventure.gainEffectFree')
+                                                : t('adventure.changeEffectCost', { gold: ADVENTURE_REGIONAL_BUFF_ACTION_GOLD })
                                         }
                                     />
                                     <RegionalBuffStackedActionButton
-                                        label="강화"
+                                        label={t('adventure.enhance')}
                                         cost={<GoldCostInline text={goldCostLabel} compact />}
                                         disabled={
                                             !canAfford ||
@@ -570,15 +547,15 @@ const AdventureRegionalBuffPanel: React.FC<{
                                         variant="enhance"
                                         title={
                                             !e
-                                                ? '빈 슬롯은 강화할 수 없습니다'
+                                                ? t('adventure.cannotEnhanceEmpty')
                                                 : !isRegionalBuffEnhanceable(e.kind)
-                                                  ? '이 효과는 강화할 수 없습니다'
+                                                  ? t('adventure.cannotEnhanceEffect')
                                                   : remainingPts < 1
-                                                    ? '강화 포인트가 부족합니다'
+                                                    ? t('adventure.insufficientEnhancePoints')
                                                     : undefined
                                         }
                                         onClick={() => onEnhance(slotIndex)}
-                                        aria-label={`강화, 비용 ${ADVENTURE_REGIONAL_BUFF_ACTION_GOLD} 골드 및 포인트 1`}
+                                        aria-label={t('adventure.enhanceCostAria', { gold: ADVENTURE_REGIONAL_BUFF_ACTION_GOLD })}
                                     />
                                 </div>
                             );

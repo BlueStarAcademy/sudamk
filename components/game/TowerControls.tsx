@@ -1,4 +1,6 @@
 import React, { useState, useMemo } from 'react';
+import { tx } from '../../shared/i18n/runtimeText.js';
+import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { GameProps, Player, Point, AppSettings } from '../../types.js';
 import Button from '../Button.js';
@@ -105,6 +107,7 @@ const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled =
 };
 
 const TowerControls: React.FC<TowerControlsProps> = ({
+    const { t } = useTranslation(['common', 'game']);
     session,
     onAction,
     currentUser,
@@ -260,7 +263,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({
                 }
             } catch (error) {
                 console.error('[TowerControls] Failed to retry floor:', error);
-                window.alert('재도전에 실패했습니다. 다시 시도해주세요.');
+                window.alert(tx('game:pveControls.retryFailed'));
             }
         };
         
@@ -276,7 +279,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({
                 }
             } catch (error) {
                 console.error('[TowerControls] Failed to start next floor:', error);
-                window.alert('다음 층 시작에 실패했습니다. 다시 시도해주세요.');
+                window.alert(tx('game:pveControls.nextStageFailed'));
             }
         };
         
@@ -445,7 +448,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({
     const handleTurnAddClick = () => {
         if (gameStatus !== 'playing') return;
         if (turnAddCount <= 0) {
-            openTowerItemShop('턴 추가');
+            openTowerItemShop(t('placementRefresh.turnAddTitle'));
             return;
         }
         setTurnAddConfirmModal(true);
@@ -473,7 +476,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({
     const handleUseMissile = () => {
         if (gameStatus !== 'playing') return;
         if (missileCount <= 0) {
-            openTowerItemShop('미사일');
+            openTowerItemShop(t('controls.missile'));
             return;
         }
         if (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn) return;
@@ -501,7 +504,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({
     const handleUseHidden = () => {
         if (gameStatus !== 'playing') return;
         if (hiddenCount <= 0) {
-            openTowerItemShop('히든');
+            openTowerItemShop(t('controls.hidden'));
             return;
         }
         if (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn) return;
@@ -524,7 +527,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({
     const handleUseScan = () => {
         if (gameStatus !== 'playing') return;
         if (scanInventoryCount <= 0) {
-            openTowerItemShop('스캔');
+            openTowerItemShop(t('controls.scan'));
             return;
         }
         if (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !canStartScanTurn || !canScan) return;
@@ -543,7 +546,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({
     const handleRefresh = () => {
         if (gameStatus !== 'playing') return;
         if (refreshCount <= 0) {
-            openTowerItemShop('배치변경');
+            openTowerItemShop(t('placementRefresh.title'));
             return;
         }
         if (!canUseRefresh) return;
@@ -559,9 +562,9 @@ const TowerControls: React.FC<TowerControlsProps> = ({
     const { remaining: petHintPhasePlyRemaining } = pairPetKataPliesRemainingInCurrentPhase(petHintBoardSize, petHintTotalPly);
     const petHintUsed = ((session.settings as { strategicPetHintByUserId?: Record<string, Partial<Record<string, boolean>>> })
         .strategicPetHintByUserId?.[currentUser.id] ?? {}) as Record<string, boolean>;
-    const petHintPhaseLabel = petHintPhase === 'opening' ? '초반' : petHintPhase === 'midgame' ? '중반' : '종반';
+    const petHintPhaseLabel = petHintPhase === 'opening' ? tx('game:controls.phaseOpening') : petHintPhase === 'midgame' ? tx('game:controls.phaseMidgame') : tx('game:controls.phaseEndgame');
     const petHintCountdownLabel =
-        petHintPhasePlyRemaining == null ? '종반' : `${petHintPhaseLabel} ${petHintPhasePlyRemaining}수`;
+        petHintPhasePlyRemaining == null ? tx('game:controls.phaseEndgame') : t('controls.phaseMovesLeft', { phase: petHintPhaseLabel, count: petHintPhasePlyRemaining });
     const petHintCanAttempt =
         gameStatus === 'playing' &&
         isMyTurn &&
@@ -570,19 +573,19 @@ const TowerControls: React.FC<TowerControlsProps> = ({
         !isMoveInFlight &&
         !isBoardLocked &&
         !hasPendingRevealResolution;
-    let petHintTitleBody = `${petHintPhaseLabel}에 한 번 — 대표 펫이 좋은 자리를 표시해 줘요.`;
+    let petHintTitleBody = t('controls.petHintPhaseOnce', { phase: petHintPhaseLabel });
     if (!petRow) {
-        petHintTitleBody = '대표 펫을 장착하면 힌트를 사용할 수 있어요.';
+        petHintTitleBody = t('controls.petHintEquipPet');
     } else if (gameStatus !== 'playing') {
-        petHintTitleBody = '대국이 진행 중일 때 사용할 수 있어요.';
+        petHintTitleBody = t('controls.petHintDuringGame');
     } else if (!isMyTurn) {
-        petHintTitleBody = '내 차례에만 사용할 수 있어요.';
+        petHintTitleBody = t('controls.petHintMyTurnOnly');
     } else if (petHintUsed[petHintPhase]) {
-        petHintTitleBody = `${petHintPhaseLabel} 구간에서 이미 힌트를 사용했어요.`;
+        petHintTitleBody = t('controls.petHintPhaseUsed', { phase: petHintPhaseLabel });
     }
     const petHintTitle =
         petHintPhasePlyRemaining != null
-            ? `${petHintPhaseLabel} ${petHintPhasePlyRemaining}수 남음 — ${petHintTitleBody}`
+            ? t('controls.petHintPhaseRemaining', { phase: petHintPhaseLabel, count: petHintPhasePlyRemaining, body: petHintTitleBody })
             : `${petHintPhaseLabel} — ${petHintTitleBody}`;
     const petHintImg = petRow
         ? ((petRow as { image?: string }).image ??
@@ -612,7 +615,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({
             {petRow && petHintImg ? (
                 <ImageButton
                     src={petHintImg}
-                    alt={`펫 힌트 ${petHintCountdownLabel}`}
+                    alt={t("controls.petHintAria", { label: petHintCountdownLabel })}
                     onClick={() => {
                         if (!petHintCanAttempt || petHintBusy) return;
                         setPetHintBusy(true);
@@ -623,7 +626,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({
                     disabled={!petHintCanAttempt || petHintBusy}
                     title={petHintTitle}
                     compact={isMobile}
-                    imageBottomOverlay="힌트"
+                    imageBottomOverlay={t("controls.hint")}
                 />
             ) : (
                 <button
@@ -633,7 +636,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({
                         isMobile ? 'h-12 w-12 shrink-0 rounded-lg' : 'h-[4.25rem] w-[4.25rem] rounded-xl min-[1025px]:h-16 min-[1025px]:w-16'
                     }`}
                     title={petHintTitle}
-                    aria-label={`펫 힌트 ${petHintCountdownLabel} (대표 펫 미장착)`}
+                    aria-label={t("controls.petHintAriaNoPet", { label: petHintCountdownLabel })}
                 />
             )}
             <span className={`${lbl} font-semibold whitespace-nowrap ${petHintCanAttempt ? 'text-sky-100' : 'text-gray-500'}`}>
@@ -662,39 +665,39 @@ const TowerControls: React.FC<TowerControlsProps> = ({
 			<div className={colClass}>
 				<ImageButton
 					src="/images/button/giveup.webp"
-					alt="기권"
+					alt={t("controls.resignAlt")}
 					onClick={handleForfeit}
 					disabled={gameStatus === 'scoring'}
-					title={gameStatus === 'scoring' ? '계가 집계 중에는 기권할 수 없습니다.' : '기권하기'}
+					title={gameStatus === 'scoring' ? t('controls.cannotResignDuringScoring') : t('controls.resignTitle')}
 					compact={isMobile}
 				/>
-				<span className={`${lbl} font-semibold whitespace-nowrap text-red-300`}>기권</span>
+				<span className={`${lbl} font-semibold whitespace-nowrap text-red-300`}>{t("controls.resign")}</span>
 			</div>
 			{passAllowed && (
 				<div className={colClass}>
 					<ImageButton
 						src="/images/button/pass.webp"
-						alt="통과"
+						alt={t("controls.passLabel")}
 						onClick={handlePassClick}
 						disabled={!isMyTurn || gameStatus !== 'playing'}
-						title="한 수 쉬기"
+						title={t('controls.passTitle')}
 						compact={isMobile}
 					/>
-					<span className={`${lbl} font-semibold whitespace-nowrap ${!isMyTurn || gameStatus !== 'playing' ? 'text-gray-500' : 'text-amber-100'}`}>통과</span>
+					<span className={`${lbl} font-semibold whitespace-nowrap ${!isMyTurn || gameStatus !== 'playing' ? 'text-gray-500' : 'text-amber-100'}`}>{t("controls.passLabel")}</span>
 				</div>
 			)}
 			<div className={colClass}>
 				<ImageButton
 					src="/images/button/reflesh.webp"
-					alt="배치변경"
+					alt={t("placementRefresh.title")}
 					onClick={handleRefresh}
 					disabled={refreshButtonDisabled}
-					title={refreshCount > 0 ? '배치 새로고침' : '도전의 탑 아이템 상점에서 구매'}
+					title={refreshCount > 0 ? t('placementRefresh.towerRefreshActive') : t('placementRefresh.towerShopHint')}
 					count={refreshCount}
 					maxCount={refreshMaxCount}
 					compact={isMobile}
 				/>
-				<span className={`${lbl} font-semibold whitespace-nowrap ${refreshButtonDisabled ? 'text-gray-500' : 'text-amber-100'}`}>배치변경</span>
+				<span className={`${lbl} font-semibold whitespace-nowrap ${refreshButtonDisabled ? 'text-gray-500' : 'text-amber-100'}`}>{t("placementRefresh.title")}</span>
 			</div>
 		</>
 	);
@@ -712,10 +715,10 @@ const TowerControls: React.FC<TowerControlsProps> = ({
 				<div className={colClass}>
 					<ImageButton
 						src="/images/button/addturn.webp"
-						alt="턴 추가"
+						alt={t("placementRefresh.turnAddTitle")}
 						onClick={handleTurnAddClick}
 						disabled={turnAddButtonDisabled}
-						title={turnAddCount > 0 ? '남은 턴 3턴 추가' : '도전의 탑 아이템 상점에서 구매'}
+						title={turnAddCount > 0 ? t('placementRefresh.turnAddActive') : t('placementRefresh.towerShopHint')}
 						count={turnAddCount}
 						compact={isMobile}
 					/>
@@ -730,45 +733,45 @@ const TowerControls: React.FC<TowerControlsProps> = ({
 				<div className={colClass}>
 					<ImageButton
 						src="/images/button/missile.webp"
-						alt="미사일"
+						alt={t("controls.missile")}
 						onClick={handleUseMissile}
 						disabled={missileButtonDisabled}
-						title={missileCount > 0 ? '미사일 발사' : '도전의 탑 아이템 상점에서 구매'}
+						title={missileCount > 0 ? t('controls.missileLaunchTitle') : t('placementRefresh.towerShopHint')}
 						count={missileCount}
 						maxCount={missileMaxCount}
 						compact={isMobile}
 					/>
-					<span className={`${lbl} font-semibold whitespace-nowrap ${missileButtonDisabled ? 'text-gray-500' : 'text-amber-100'}`}>미사일</span>
+					<span className={`${lbl} font-semibold whitespace-nowrap ${missileButtonDisabled ? 'text-gray-500' : 'text-amber-100'}`}>{t("controls.missile")}</span>
 				</div>
 			)}
 			{showMissileAndHiddenForHook && (
 				<div className={colClass}>
 					<ImageButton
 						src="/images/button/hidden.webp"
-						alt="히든"
+						alt={t("controls.hidden")}
 						onClick={handleUseHidden}
 						disabled={hiddenButtonDisabled}
-						title={hiddenCount > 0 ? '히든 스톤 배치' : '도전의 탑 아이템 상점에서 구매'}
+						title={hiddenCount > 0 ? t('controls.hiddenPlaceTitle') : t('placementRefresh.towerShopHint')}
 						count={hiddenCount}
 						maxCount={hiddenMaxCount}
 						compact={isMobile}
 					/>
-					<span className={`${lbl} font-semibold whitespace-nowrap ${hiddenButtonDisabled ? 'text-gray-500' : 'text-amber-100'}`}>히든</span>
+					<span className={`${lbl} font-semibold whitespace-nowrap ${hiddenButtonDisabled ? 'text-gray-500' : 'text-amber-100'}`}>{t("controls.hidden")}</span>
 				</div>
 			)}
 			{showMissileAndHiddenForHook && (
 				<div className={colClass}>
 					<ImageButton
 						src="/images/button/scan.webp"
-						alt="스캔"
+						alt={t("controls.scan")}
 						onClick={handleUseScan}
 						disabled={scanButtonDisabled}
-						title={scanInventoryCount > 0 ? '스캔' : '도전의 탑 아이템 상점에서 구매'}
+						title={scanInventoryCount > 0 ? t('controls.scan') : t('placementRefresh.towerShopHint')}
 						count={scanInventoryCount}
 						maxCount={scanCountSettingForHook}
 						compact={isMobile}
 					/>
-					<span className={`${lbl} font-semibold whitespace-nowrap ${scanButtonDisabled ? 'text-gray-500' : 'text-amber-100'}`}>스캔</span>
+					<span className={`${lbl} font-semibold whitespace-nowrap ${scanButtonDisabled ? 'text-gray-500' : 'text-amber-100'}`}>{t("controls.scan")}</span>
 				</div>
 			)}
 		</>
@@ -901,13 +904,13 @@ const TowerControls: React.FC<TowerControlsProps> = ({
         </footer>
             {refreshConfirmModal && (
                 <ConfirmModal
-                    title="배치변경"
-                    message={`이용 가격: 배치 새로고침 1개
+                    title={t('placementRefresh.towerRefreshTitle')}
+                    message={t('placementRefresh.towerRefreshMessage')
 배치 새로고침 아이템 1개를 사용하여 배치를 다시 섞으시겠습니까?`}
                     onConfirm={handleRefreshConfirm}
                     onCancel={() => setRefreshConfirmModal(false)}
-                    confirmText="확인"
-                    cancelText="취소"
+                    confirmText={t("common:actions.confirm")}
+                    cancelText={t("common:actions.cancel")}
                     confirmColorScheme="red"
                     isTopmost={true}
                     windowId="tower-refresh-confirm-modal"
@@ -915,14 +918,14 @@ const TowerControls: React.FC<TowerControlsProps> = ({
             )}
             {passConfirmModal && (
                 <ConfirmModal
-                    title="통과 확인"
+                    title={t('placementRefresh.passConfirmTitle')}
                     message={(session.passCount || 0) >= 1
-                        ? "양측 연속 통과 시 계가로 진행됩니다. 통과하시겠습니까?"
-                        : "한 수 쉬시겠습니까? 통과하면 상대(AI)에게 차례가 넘어갑니다."}
+                        ? t('placementRefresh.passConfirmBoth')
+                        : t('placementRefresh.passConfirmSingle')}
                     onConfirm={handlePassConfirm}
                     onCancel={() => setPassConfirmModal(false)}
-                    confirmText="통과"
-                    cancelText="취소"
+                    confirmText={t("controls.passLabel")}
+                    cancelText={t("common:actions.cancel")}
                     confirmColorScheme="accent"
                     isTopmost={true}
                     windowId="tower-pass-confirm-modal"
@@ -930,12 +933,12 @@ const TowerControls: React.FC<TowerControlsProps> = ({
             )}
             {turnAddConfirmModal && (
                 <ConfirmModal
-                    title="턴 추가"
-                    message="턴 추가 아이템 1개를 사용하여 흑의 제한 턴을 3턴 늘리시겠습니까? 확인 시 바로 적용됩니다."
+                    title={t('placementRefresh.turnAddTitle')}
+                    message={t('placementRefresh.turnAddMessage')}
                     onConfirm={handleTurnAddConfirm}
                     onCancel={() => setTurnAddConfirmModal(false)}
-                    confirmText="사용"
-                    cancelText="취소"
+                    confirmText={t("placementRefresh.useItem")}
+                    cancelText={t("common:actions.cancel")}
                     confirmColorScheme="accent"
                     isTopmost={true}
                     windowId="tower-turn-add-confirm-modal"

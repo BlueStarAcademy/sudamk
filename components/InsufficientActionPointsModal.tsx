@@ -1,8 +1,8 @@
+import { useTranslation } from 'react-i18next';
 import React from 'react';
 import { createPortal } from 'react-dom';
 import DraggableWindow from './DraggableWindow.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
-import { SELF_INSUFFICIENT_AP_HEADING, SELF_INSUFFICIENT_AP_DETAIL } from '../constants.js';
 import {
     NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH,
     NATIVE_MOBILE_MODAL_MAX_WIDTH_VW,
@@ -53,11 +53,15 @@ function ModalChrome({
 }
 
 function SelfModalContent({
+    t,
+    tCommon,
     onClose,
     goShopConsumables,
     goDiamondRecharge,
     embeddedInWindow,
 }: {
+    t: (key: string, opts?: Record<string, unknown>) => string;
+    tCommon: (key: string, opts?: Record<string, unknown>) => string;
     onClose: () => void;
     goShopConsumables: () => void;
     goDiamondRecharge: () => void;
@@ -75,7 +79,7 @@ function SelfModalContent({
                     id="insufficient-ap-modal-title"
                     className="bg-gradient-to-r from-amber-50 via-amber-100 to-amber-200/95 bg-clip-text text-lg font-black leading-tight tracking-tight text-transparent sm:text-xl"
                 >
-                    행동력 부족
+                    {t('modals.insufficientAp.title')}
                 </h2>
                 <p className="mt-1.5 text-[10px] font-bold uppercase tracking-[0.22em] text-amber-400/55 sm:text-[11px]">
                     Insufficient action points
@@ -89,15 +93,15 @@ function SelfModalContent({
             >
                 <div className={`space-y-4 ${panelSurface} p-4`}>
                     <p className="text-left text-[15px] font-bold leading-snug tracking-tight text-zinc-50 sm:text-base">
-                        {SELF_INSUFFICIENT_AP_HEADING}
+                        {t('modals.insufficientAp.selfHeading')}
                     </p>
-                    <p className="text-left text-[14px] leading-[1.65] text-zinc-400 sm:text-[15px]">{SELF_INSUFFICIENT_AP_DETAIL}</p>
+                    <p className="text-left text-[14px] leading-[1.65] text-zinc-400 sm:text-[15px]">{t('modals.insufficientAp.selfDetail')}</p>
                 </div>
 
                 <div className="mt-4">
                     <p className="mb-3 flex items-center gap-2 text-left text-[11px] font-black uppercase tracking-[0.14em] text-amber-200/90">
                         <span className="h-px flex-1 max-w-[2rem] bg-gradient-to-r from-amber-400/50 to-transparent" aria-hidden />
-                        충전 방법
+                        {t('modals.insufficientAp.rechargeMethods')}
                         <span className="h-px flex-1 bg-gradient-to-l from-amber-400/50 to-transparent" aria-hidden />
                     </p>
                     <ul className="space-y-3">
@@ -111,10 +115,10 @@ function SelfModalContent({
                                 1
                             </span>
                             <div className="min-w-0 flex-1 pt-0.5">
-                                <p className="text-[13px] font-bold leading-snug text-zinc-100 sm:text-sm">상점 · 소모품</p>
+                                <p className="text-[13px] font-bold leading-snug text-zinc-100 sm:text-sm">{t('modals.insufficientAp.shopConsumables')}</p>
                                 <p className="mt-1 text-[12px] leading-relaxed text-zinc-500 sm:text-[13px]">
-                                    행동력 회복제 구매
-                                    <span className="text-zinc-600"> · 종류별 하루 1개</span>
+                                    {t('modals.insufficientAp.buyPotion')}
+                                    <span className="text-zinc-600">{t('modals.insufficientAp.buyPotionLimit')}</span>
                                 </p>
                             </div>
                         </li>
@@ -126,9 +130,9 @@ function SelfModalContent({
                                 2
                             </span>
                             <div className="min-w-0 flex-1 pt-0.5">
-                                <p className="text-[13px] font-bold leading-snug text-zinc-100 sm:text-sm">다이아 즉시 충전</p>
+                                <p className="text-[13px] font-bold leading-snug text-zinc-100 sm:text-sm">{t('modals.insufficientAp.diamondInstant')}</p>
                                 <p className="mt-1 text-[12px] leading-relaxed text-zinc-500 sm:text-[13px]">
-                                    원할 때 바로 행동력을 채울 수 있습니다.
+                                    {t('modals.insufficientAp.diamondInstantHint')}
                                 </p>
                             </div>
                         </li>
@@ -137,13 +141,13 @@ function SelfModalContent({
 
                 <div className="mt-6 flex flex-col gap-2.5">
                     <button type="button" className={btnPrimary} onClick={goShopConsumables}>
-                        <span className="max-w-[95%]">상점(소모품)에서 회복제 구매</span>
+                        <span className="max-w-[95%]">{t('modals.insufficientAp.goShopConsumables')}</span>
                     </button>
                     <button type="button" className={btnSecondary} onClick={goDiamondRecharge}>
-                        <span className="max-w-[95%]">다이아로 즉시 충전</span>
+                        <span className="max-w-[95%]">{t('modals.insufficientAp.goDiamondRecharge')}</span>
                     </button>
                     <button type="button" className={btnGhost} onClick={onClose}>
-                        닫기
+                        {tCommon('actions.close')}
                     </button>
                 </div>
             </div>
@@ -157,6 +161,8 @@ const InsufficientActionPointsModal: React.FC<InsufficientActionPointsModalProps
     onOpenDiamondRecharge,
     isTopmost = false,
 }) => {
+    const { t } = useTranslation('game');
+    const { t: tCommon } = useTranslation('common');
     const { isNativeMobile, isNarrowViewport } = useNativeMobileShell();
     const useBodyOverlay = isNativeMobile || isNarrowViewport;
 
@@ -188,12 +194,14 @@ const InsufficientActionPointsModal: React.FC<InsufficientActionPointsModalProps
                 <button
                     type="button"
                     className="absolute inset-0 bg-black/80 backdrop-blur-md"
-                    aria-label="닫기"
+                    aria-label={tCommon('actions.close')}
                     onClick={onClose}
                 />
                 <ModalChrome maxHeightStyle={maxHeightStyle} maxWidthStyle={maxWidthStyle}>
                     <div className="relative flex max-h-[min(88dvh,calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-1.5rem))] w-full flex-col overflow-hidden">
                         <SelfModalContent
+                            t={t}
+                            tCommon={tCommon}
                             onClose={onClose}
                             goShopConsumables={goShopConsumables}
                             goDiamondRecharge={goDiamondRecharge}
@@ -207,7 +215,7 @@ const InsufficientActionPointsModal: React.FC<InsufficientActionPointsModalProps
 
     return (
         <DraggableWindow
-            title="행동력 부족"
+            title={t('modals.insufficientAp.title')}
             windowId="insufficient-action-points-modal"
             onClose={onClose}
             initialWidth={420}
@@ -221,6 +229,8 @@ const InsufficientActionPointsModal: React.FC<InsufficientActionPointsModalProps
             <div className="sudamr-floating-modal-surface overflow-hidden rounded-b-2xl border-0 bg-transparent p-0 ring-0">
                 <SelfModalContent
                     embeddedInWindow
+                    t={t}
+                    tCommon={tCommon}
                     onClose={onClose}
                     goShopConsumables={goShopConsumables}
                     goDiamondRecharge={goDiamondRecharge}

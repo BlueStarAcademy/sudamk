@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { RANKING_MODAL_SLIM_SCROLL_Y } from '../shared/constants/rankingModalScrollbar.js';
 import { useRanking } from '../hooks/useRanking.js';
@@ -42,7 +43,7 @@ const CompactRankRow: React.FC<{
         <div
             className={`flex items-center rounded-md ${dense ? 'px-0.5 py-0' : lobbyNativeMobile ? 'px-1.5 py-0.5' : 'p-1'} ${lobbyNativeMobile ? MOBILE_RANK_ROW_CLASS : ''} ${accent} ${!isCurrentUser && onViewUser ? 'cursor-pointer hover:bg-white/[0.04]' : ''}`}
             onClick={!isCurrentUser && onViewUser ? () => onViewUser(entry.id) : undefined}
-            title={!isCurrentUser ? `${entry.nickname} 프로필 보기` : ''}
+            title={!isCurrentUser ? t('championship.ranking.viewProfile', { name: entry.nickname }) : ''}
         >
             <span
                 className={`text-center font-bold ${dense ? 'w-5 text-[8px]' : lobbyNativeMobile ? `w-9 ${MOBILE_RANK_TEXT_CLASS}` : 'w-8 text-xs'} ${
@@ -90,7 +91,7 @@ const RankRow: React.FC<{
         <li
             className={`flex min-h-[3.5rem] items-center rounded-lg p-2.5 lg:p-3 ${isCurrentUser ? 'bg-blue-900/60 border border-blue-600' : 'bg-gray-900/50'} ${!isCurrentUser ? 'cursor-pointer hover:bg-gray-700/50' : ''}`}
             onClick={!isCurrentUser ? () => onViewUser(entry.id) : undefined}
-            title={!isCurrentUser ? `${entry.nickname} 프로필 보기` : ''}
+            title={!isCurrentUser ? t('championship.ranking.viewProfile', { name: entry.nickname }) : ''}
         >
             <div className="w-14 flex-shrink-0 flex flex-col items-center justify-center text-center">
                 {rankDisplay}
@@ -98,7 +99,7 @@ const RankRow: React.FC<{
             <Avatar userId={entry.id} userName={entry.nickname} size={40} avatarUrl={avatarUrl} borderUrl={borderUrl} />
             <div className="ml-2.5 lg:ml-3 flex-grow overflow-hidden">
                 <p className="truncate font-semibold text-base">{entry.nickname}</p>
-                <p className="font-mono text-sm text-yellow-400">{entry.score.toLocaleString()}점</p>
+                <p className="font-mono text-sm text-yellow-400">{t('lobby.scorePoints', { score: entry.score.toLocaleString() })}</p>
             </div>
         </li>
     );
@@ -116,6 +117,7 @@ interface ChampionshipRankingPanelProps {
 }
 
 const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({
+    const { t } = useTranslation('tournament');
     compact = false,
     dense = false,
     lobbyNativeMobile = false,
@@ -174,7 +176,7 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({
                     `rounded-lg p-4 flex flex-col shadow-lg h-full min-h-0 items-center justify-center text-gray-500 ${lobbyGlass ? 'border border-color/50 bg-gray-900/45 backdrop-blur-xl backdrop-saturate-150' : 'bg-gray-800'}`
                 }
             >
-                로그인 후 챔피언십 랭킹을 확인할 수 있습니다.
+                {t('championship.ranking.loginHint')}
             </div>
         );
     }
@@ -231,9 +233,9 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({
                     className={`flex min-h-0 flex-grow flex-col overflow-y-auto pr-0.5 ${RANKING_MODAL_SLIM_SCROLL_Y} ${dense ? 'gap-0.5 text-[8px]' : 'gap-1 pr-1'}`}
                 >
                     {loading && rankings.length === 0 ? (
-                        <div className={`flex h-full items-center justify-center text-gray-400 ${lobbyNativeMobile ? 'text-xs sm:text-[13px]' : 'text-xs'}`}>데이터 로딩 중...</div>
+                        <div className={`flex h-full items-center justify-center text-gray-400 ${lobbyNativeMobile ? 'text-xs sm:text-[13px]' : 'text-xs'}`}>{t('championship.ranking.loading')}</div>
                     ) : error ? (
-                        <div className={`flex h-full items-center justify-center text-red-400 ${lobbyNativeMobile ? 'text-xs sm:text-[13px]' : 'text-xs'}`}>랭킹을 불러오는데 실패했습니다.</div>
+                        <div className={`flex h-full items-center justify-center text-red-400 ${lobbyNativeMobile ? 'text-xs sm:text-[13px]' : 'text-xs'}`}>{t('championship.ranking.loadFailed')}</div>
                     ) : (
                         <>
                             {currentUserEntry && currentUserWithStatus && (
@@ -264,7 +266,7 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({
                                         />
                                     ))}
                                     {displayCount < visibleRankings.length && (
-                                        <div ref={loadMoreRef as React.RefObject<HTMLDivElement>} className={`py-2 text-center text-gray-400 ${lobbyNativeMobile ? 'text-xs sm:text-[13px]' : 'text-xs'}`}>로딩 중...</div>
+                                        <div ref={loadMoreRef as React.RefObject<HTMLDivElement>} className={`py-2 text-center text-gray-400 ${lobbyNativeMobile ? 'text-xs sm:text-[13px]' : 'text-xs'}`}>{t('championship.ranking.loadingMore')}</div>
                                     )}
                                 </div>
                             )}
@@ -286,12 +288,12 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({
             }`}
         >
             <div className="mb-3 flex-shrink-0 border-b border-gray-700 pb-2">
-                <h2 className="text-xl font-bold">챔피언십 랭킹</h2>
+                <h2 className="text-xl font-bold">{t('championship.ranking.title')}</h2>
                 <p className="mt-0.5 text-sm font-medium text-gray-400">{getCurrentSeason().name}</p>
             </div>
 
             {loading && rankings.length === 0 ? (
-                <div className="flex-1 flex items-center justify-center text-gray-500">랭킹 불러오는 중...</div>
+                <div className="flex-1 flex items-center justify-center text-gray-500">{t('championship.ranking.loadingRank')}</div>
             ) : error ? (
                 <div className="flex-1 flex items-center justify-center text-red-400 text-sm">{error}</div>
             ) : (
@@ -321,7 +323,7 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({
                                 />
                                 <div className="ml-2.5 lg:ml-3 flex-grow overflow-hidden">
                                     <p className="truncate font-semibold text-base">{cu.nickname}</p>
-                                    <p className="font-mono text-sm text-yellow-400">{myRankDisplay.score.toLocaleString()}점</p>
+                                    <p className="font-mono text-sm text-yellow-400">{t('lobby.scorePoints', { score: myRankDisplay.score.toLocaleString() })}</p>
                                 </div>
                             </div>
                         </div>
@@ -339,11 +341,11 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({
                                     />
                                 ))}
                                 {displayCount < visibleRankings.length && (
-                                    <li ref={loadMoreRef as React.RefObject<HTMLLIElement>} className="text-center text-gray-500 py-2 text-xs">스크롤하여 더 보기...</li>
+                                    <li ref={loadMoreRef as React.RefObject<HTMLLIElement>} className="text-center text-gray-500 py-2 text-xs">{t('championship.ranking.scrollMore')}</li>
                                 )}
                             </>
                         ) : (
-                            <p className="text-center text-gray-500 pt-8">랭크된 유저가 없습니다.</p>
+                            <p className="text-center text-gray-500 pt-8">{t('championship.ranking.noRankedUsers')}</p>
                         )}
                     </ul>
                 </>

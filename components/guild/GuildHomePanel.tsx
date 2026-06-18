@@ -12,6 +12,7 @@ import { containsProfanity } from '../../profanity.js';
 import { mergeWaitingRoomPublicChatMessages } from '../../shared/utils/waitingRoomGlobalChatMerge.js';
 import ChatInlineMessageRow from '../waiting-room/ChatInlineMessageRow.js';
 import { guildChatHistoryEntryToChatMessage } from '../../shared/utils/guildChatMessageAdapter.js';
+import { useTranslation } from 'react-i18next';
 
 // 고급 버튼 스타일 함수
 const luxuryButtonBase =
@@ -31,6 +32,7 @@ export const getLuxuryButtonClasses = (variant: 'primary' | 'danger' | 'neutral'
 };
 
 export const GuildCheckInPanel: React.FC<{ guild: GuildType; leftAction?: React.ReactNode }> = ({ guild, leftAction }) => {
+    const { t } = useTranslation(['guild', 'common']);
     const useMobileChrome = useMobileModalChrome();
     const { handlers, currentUserWithStatus } = useAppContext();
     const effectiveUserId = currentUserWithStatus?.isAdmin ? ADMIN_USER_ID : currentUserWithStatus?.id;
@@ -101,7 +103,7 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType; leftAction?: React.
                 <div className="flex justify-between items-center mb-2 flex-shrink-0">
                     <h3 className="font-bold text-sm sm:text-lg text-highlight drop-shadow-lg flex items-center gap-1 sm:gap-2">
                         <span className="text-base sm:text-xl">📅</span>
-                        <span className="whitespace-nowrap">길드 출석부</span>
+                        <span className="whitespace-nowrap">{t('checkIn.title')}</span>
                     </h3>
                     <div className="flex items-center gap-1.5 sm:gap-2">
                         {leftAction}
@@ -111,12 +113,12 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType; leftAction?: React.
                             colorScheme="none"
                             className={`${hasCheckedInToday ? getLuxuryButtonClasses('gray') : getLuxuryButtonClasses('green')} !text-xs sm:!text-sm !py-1 sm:!py-2 !px-2 sm:!px-4`}
                         >
-                            {hasCheckedInToday ? '출석 완료' : '출석하기'}
+                            {hasCheckedInToday ? t('checkIn.checkedIn') : t('checkIn.checkIn')}
                         </Button>
                     </div>
                 </div>
                 <p className="text-xs sm:text-sm text-tertiary mb-2 flex-shrink-0">
-                    오늘 출석: <span className="font-bold text-primary text-sm sm:text-base">{todaysCheckIns} / {totalMembers}</span>명
+                    {t('checkIn.todayCount', { current: todaysCheckIns, total: totalMembers })}
                 </p>
                 <div className="my-2 relative z-10 flex-shrink-0">
                     <div className="relative h-2 w-full rounded-full border-2 border-black/30 bg-tertiary/60 shadow-inner sm:h-3">
@@ -133,10 +135,10 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType; leftAction?: React.
                                     key={`milestone-line-${index}`} 
                                     className="absolute top-0 h-full w-0.5 bg-yellow-400/80 z-10 border-l border-yellow-300 shadow-[0_0_4px_rgba(251,191,36,0.8)]" 
                                     style={{ left: `${milestonePercent}%` }} 
-                                    title={`${milestone.count}명 보상`}
+                                    title={t('checkIn.milestoneReward', { count: milestone.count })}
                                 >
                                     <div className="absolute -top-3 sm:-top-4 left-1/2 -translate-x-1/2 text-[8px] sm:text-[9px] text-yellow-300 font-bold whitespace-nowrap drop-shadow-lg bg-black/40 px-1 rounded">
-                                        {milestone.count}명
+                                        {t('checkIn.milestoneCount', { count: milestone.count })}
                                     </div>
                                 </div>
                             );
@@ -159,9 +161,9 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType; leftAction?: React.
                         return (
                             <div key={index} className={`flex aspect-square min-w-0 flex-col items-center justify-between rounded-xl border-2 bg-gradient-to-br p-1.5 text-center transition-all hover:scale-105 sm:p-3 ${isAchieved ? 'from-yellow-900/40 via-amber-900/30 to-yellow-800/40 border-yellow-500/60 shadow-[0_0_15px_rgba(251,191,36,0.4)]' : 'from-tertiary/60 via-tertiary/50 to-tertiary/40 border-transparent'}`}>
                                 <div className="flex flex-col items-center">
-                                    <img src="/images/guild/tokken.webp" alt="길드 코인" className="w-4 h-4 sm:w-8 sm:h-8 drop-shadow-lg mb-0.5 sm:mb-1"/>
+                                    <img src="/images/guild/tokken.webp" alt={t('rewards.guildCoins')} className="w-4 h-4 sm:w-8 sm:h-8 drop-shadow-lg mb-0.5 sm:mb-1"/>
                                     <span className="text-[10px] sm:text-base font-bold text-primary drop-shadow">+{milestone.reward.guildCoins}</span>
-                                    <p className="text-[8px] sm:text-xs text-tertiary mt-0.5">{milestone.count}명</p>
+                                    <p className="text-[8px] sm:text-xs text-tertiary mt-0.5">{t('checkIn.milestoneCount', { count: milestone.count })}</p>
                                 </div>
                                 <Button 
                                     onClick={() => { if (canClaim) handleClaimMilestone(index); }} 
@@ -169,7 +171,7 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType; leftAction?: React.
                                     colorScheme="none"
                                     className={canClaim ? `${getLuxuryButtonClasses('success')} !text-[8px] sm:!text-xs !py-0.5 sm:!py-1.5 !px-1 sm:!px-2 mt-1 sm:mt-2 w-full` : `${getLuxuryButtonClasses('gray')} !text-[8px] sm:!text-xs !py-0.5 sm:!py-1.5 !px-1 sm:!px-2 mt-1 sm:mt-2 w-full`}
                                 >
-                                    {isClaimed ? '완료' : (isClaiming ? '처리중' : (isAchieved ? '받기' : '미달성'))}
+                                    {isClaimed ? t('checkIn.done') : (isClaiming ? t('checkIn.claiming') : (isAchieved ? t('checkIn.claim') : t('checkIn.notReached')))}
                                 </Button>
                             </div>
                         );
@@ -191,7 +193,7 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType; leftAction?: React.
                 >
                     {useMobileChrome ? (
                         <MobileModalTitleBar
-                            title="길드 코인 획득"
+                            title={t('checkIn.coinEarnedTitle')}
                             titleId="guild-checkin-coin-title"
                             onClose={() => setGuildCoinRewardModal(null)}
                         />
@@ -200,20 +202,22 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType; leftAction?: React.
                         type="button"
                         onClick={() => setGuildCoinRewardModal(null)}
                         className={`absolute right-3 top-3 ${SUDAMR_MODAL_CLOSE_BUTTON_CLASS}`}
-                        aria-label="닫기"
+                        aria-label={t('common:actions.close')}
                     >
-                        닫기
+                        {t('common:actions.close')}
                     </button>
                     )}
                     <div className={useMobileChrome ? 'p-4 sm:p-6' : undefined}>
                     {!useMobileChrome && (
                     <h2 id="guild-checkin-coin-title" className="text-lg sm:text-xl font-bold text-highlight text-center mb-3 pr-6">
-                        길드 코인 획득
+                        {t('checkIn.coinEarnedTitle')}
                     </h2>
                     )}
                     <p className="text-sm text-primary text-center leading-relaxed mb-4">
-                        오늘 출석 인원 <span className="font-bold text-amber-300">{guildCoinRewardModal.attendeeCount}명</span> 달성 보상으로 길드 코인{' '}
-                        <span className="font-bold text-yellow-300">{guildCoinRewardModal.amount.toLocaleString()}개</span>를 받았습니다.
+                        {t('checkIn.coinEarnedBody', {
+                            attendeeCount: guildCoinRewardModal.attendeeCount,
+                            amount: guildCoinRewardModal.amount.toLocaleString(),
+                        })}
                     </p>
                     <div className="flex items-center justify-center gap-2 py-3 mb-4 rounded-lg bg-amber-950/40 border border-amber-600/30">
                         <img src="/images/guild/tokken.webp" alt="" className="w-10 h-10 drop-shadow-md" />
@@ -224,7 +228,7 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType; leftAction?: React.
                         colorScheme="none"
                         className={`${getLuxuryButtonClasses('success')} w-full !py-2 !text-sm`}
                     >
-                        확인
+                        {t('common:actions.confirm')}
                     </Button>
                     </div>
                 </div>
@@ -241,6 +245,7 @@ export const GuildAnnouncementPanel: React.FC<{
     /** 부길드장 이상: 홈 화면에서 공지 직접 편집 */
     canEdit?: boolean;
 }> = ({ guild, compact = false, stretch = false, canEdit = false }) => {
+    const { t } = useTranslation(['guild', 'common']);
     const { handlers } = useAppContext();
     const [announcement, setAnnouncement] = useState(guild.announcement || '');
     const [isEditing, setIsEditing] = useState(false);
@@ -274,7 +279,7 @@ export const GuildAnnouncementPanel: React.FC<{
                     }`}
                 >
                     <span className={compact ? 'text-base' : 'text-xl'}>📢</span>
-                    <span>길드 공지</span>
+                    <span>{t('management.announcement')}</span>
                 </h3>
                 {canEdit && (
                     <Button
@@ -283,7 +288,7 @@ export const GuildAnnouncementPanel: React.FC<{
                         colorScheme="none"
                         className={`${getLuxuryButtonClasses('primary')} ${compact ? '!px-2 !py-1 !text-[10px]' : '!px-3 !py-1.5 !text-xs'}`}
                     >
-                        {isEditing ? '취소' : '편집'}
+                        {isEditing ? t('common:actions.cancel') : t('management.edit')}
                     </Button>
                 )}
             </div>
@@ -308,12 +313,12 @@ export const GuildAnnouncementPanel: React.FC<{
                             colorScheme="none"
                             className={`${getLuxuryButtonClasses('green')} w-full ${compact ? '!py-1.5 !text-xs' : '!py-2 !text-sm'}`}
                         >
-                            저장
+                            {t('common:actions.save')}
                         </Button>
                     </div>
                 ) : (
                     <p className={`whitespace-pre-wrap text-primary leading-relaxed ${compact ? 'text-xs' : 'text-sm'}`}>
-                        {guild.announcement || <span className="text-tertiary italic">등록된 공지사항이 없습니다.</span>}
+                        {guild.announcement || <span className="text-tertiary italic">{t('management.noAnnouncement')}</span>}
                     </p>
                 )}
             </div>
@@ -322,6 +327,7 @@ export const GuildAnnouncementPanel: React.FC<{
 };
 
 export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember | undefined }> = ({ guild, myMemberInfo }) => {
+    const { t } = useTranslation(['guild', 'common']);
     const { handlers, allUsers, currentUserWithStatus, waitingRoomChats, isNativeMobile } = useAppContext();
     const [message, setMessage] = useState('');
     const [activeTab, setActiveTab] = useState<'guild' | 'global'>('global');
@@ -366,12 +372,12 @@ export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember |
             : 0;
     const isInputDisabled = isBanned || cooldown > 0;
     const placeholderText = isBanned
-        ? `채팅 금지 중 (${banTimeLeft}분 남음)`
+        ? t('homeChat.banPlaceholder', { minutes: banTimeLeft })
         : isInputDisabled
-          ? `(${cooldown}초)`
+          ? t('homeChat.cooldownPlaceholder', { seconds: cooldown })
           : isNativeMobile
-            ? '[메시지 입력]'
-            : '메시지를 입력하세요...';
+            ? t('homeChat.inputPlaceholder')
+            : t('homeChat.messagePlaceholder');
 
     const handleSend = (payload: { text?: string; emoji?: string }) => {
         if (cooldown > 0) return;
@@ -381,9 +387,9 @@ export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember |
             }
         } else {
             if (payload.text) {
-                handlers.handleAction({ type: 'SEND_CHAT_MESSAGE', payload: { channel: 'global', text: payload.text, location: '[홈]' } });
+                handlers.handleAction({ type: 'SEND_CHAT_MESSAGE', payload: { channel: 'global', text: payload.text, location: t('homeChat.locationHome') } });
             } else if (payload.emoji) {
-                handlers.handleAction({ type: 'SEND_CHAT_MESSAGE', payload: { channel: 'global', emoji: payload.emoji, location: '[홈]' } });
+                handlers.handleAction({ type: 'SEND_CHAT_MESSAGE', payload: { channel: 'global', emoji: payload.emoji, location: t('homeChat.locationHome') } });
             }
         }
         setShowQuickChat(false);
@@ -395,7 +401,7 @@ export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember |
         e.preventDefault();
         if (!message.trim() || isInputDisabled) return;
         if (containsProfanity(message)) {
-            alert('부적절한 단어가 포함되어 있어 메시지를 전송할 수 없습니다.');
+            alert(t('homeChat.inappropriateWord'));
             setMessage('');
             return;
         }
@@ -403,7 +409,7 @@ export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember |
     };
 
     const handleDelete = (msg: ChatMessage) => {
-        if (window.confirm('메시지를 삭제하시겠습니까?')) {
+        if (window.confirm(t('homeChat.deleteConfirm'))) {
             handlers.handleAction({ 
                 type: 'GUILD_DELETE_CHAT_MESSAGE', 
                 payload: { 
@@ -441,18 +447,18 @@ export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember |
                     onClick={() => setActiveTab('global')}
                     className={`flex-1 rounded-md font-semibold ${isNativeMobile ? 'py-1 text-[12px]' : 'py-1.5 text-sm'} ${activeTab === 'global' ? 'bg-blue-600 text-white' : 'text-gray-400'}`}
                 >
-                    전체채팅
+                    {t('homeChat.globalTab')}
                 </button>
                 <button
                     onClick={() => setActiveTab('guild')}
                     className={`flex-1 rounded-md font-semibold ${isNativeMobile ? 'py-1 text-[12px]' : 'py-1.5 text-sm'} ${activeTab === 'guild' ? 'bg-blue-600 text-white' : 'text-gray-400'}`}
                 >
-                    길드채팅
+                    {t('homeChat.guildTab')}
                 </button>
             </div>
             {isNativeMobile && activeTab === 'global' && (
                 <p className="relative z-10 mb-0.5 rounded-sm bg-tertiary/50 p-0.5 text-center text-[10px] leading-tight text-yellow-400">
-                    AI 보안관봇이 부적절한 언어 사용을 감지하고 있습니다. 🚓
+                    {t('homeChat.securityBanner')}
                 </p>
             )}
             <div
@@ -482,10 +488,10 @@ export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember |
                                             type="button"
                                             onClick={() => handleDelete(msg)}
                                             className="ml-2 align-middle text-xs font-semibold text-red-400 opacity-0 transition-opacity hover:text-red-300 group-hover:opacity-100"
-                                            aria-label="메시지 삭제"
-                                            title="메시지 삭제"
+                                            aria-label={t('homeChat.deleteMessage')}
+                                            title={t('homeChat.deleteMessage')}
                                         >
-                                            삭제
+                                            {t('common:actions.delete')}
                                         </button>
                                     ) : undefined
                                 }
@@ -495,7 +501,7 @@ export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember |
                 ) : (
                     <div className={`flex h-full items-center justify-center text-tertiary ${emptyClass}`}>
                         <p className="italic">
-                            {activeTab === 'guild' ? '길드 채팅 메시지가 없습니다.' : '전체 채팅 메시지가 없습니다.'}
+                            {activeTab === 'guild' ? t('homeChat.noGuildMessages') : t('homeChat.noGlobalMessages')}
                         </p>
                     </div>
                 )}
@@ -528,7 +534,7 @@ export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember |
                                         onClick={() => {
                                             if (isInputDisabled) return;
                                             if (containsProfanity(msg)) {
-                                                alert('부적절한 단어가 포함되어 있어 메시지를 전송할 수 없습니다.');
+                                                alert(t('homeChat.inappropriateWord'));
                                                 return;
                                             }
                                             handleSend({ text: msg });
@@ -549,7 +555,7 @@ export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember |
                             type="button"
                             onClick={() => setShowQuickChat((s) => !s)}
                             className="flex items-center justify-center rounded-md bg-secondary px-2.5 text-lg font-bold text-primary transition-colors hover:bg-tertiary disabled:cursor-not-allowed disabled:opacity-50"
-                            title="빠른 채팅"
+                            title={t('homeChat.quickChat')}
                             disabled={isInputDisabled}
                         >
                             <span>🙂</span>
@@ -563,7 +569,7 @@ export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember |
                             maxLength={30}
                             disabled={isInputDisabled}
                         />
-                        <Button type="submit" disabled={!message.trim() || isInputDisabled} className="!px-2 !py-1" title="보내기">
+                        <Button type="submit" disabled={!message.trim() || isInputDisabled} className="!px-2 !py-1" title={t('homeChat.sendTitle')}>
                             💬
                         </Button>
                     </form>
@@ -573,7 +579,7 @@ export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember |
                             type="button"
                             onClick={() => setShowQuickChat(!showQuickChat)}
                             className="flex items-center justify-center rounded-lg border-2 border-black/30 bg-tertiary/80 px-3 py-2 transition-colors hover:bg-tertiary"
-                            title="빠른 채팅"
+                            title={t('homeChat.quickChat')}
                             disabled={isInputDisabled}
                         >
                             <span className="text-xl">😊</span>
@@ -594,7 +600,7 @@ export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember |
                             }}
                         />
                         <Button type="submit" colorScheme="none" disabled={!message.trim() || isInputDisabled} className={getLuxuryButtonClasses('primary')}>
-                            전송
+                            {t('chat.send')}
                         </Button>
                     </form>
                 )}

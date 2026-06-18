@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { LiveGameSession, ServerAction, User, ThiefRoundSummary as ThiefRoundSummaryType } from '../types.js';
 import Avatar from './Avatar.js';
 import Button from './Button.js';
@@ -35,15 +36,15 @@ const renderPlayerSummary = (summary: ThiefRoundSummaryType['player1'], user: Us
                             : 'bg-sky-600/35 text-sky-100 ring-sky-400/30'
                     }`}
                 >
-                    {isThief ? '도둑' : '경찰'}
+                    {isThief ? t('thiefRound.thief') : t('thiefRound.police')}
                 </span>
             </div>
             <dl className="mt-2 space-y-1.5 border-t border-white/15 pt-2 text-xs leading-tight text-zinc-200 sm:text-sm">
                 <div className="flex items-baseline justify-between gap-1">
-                    <dt className="shrink-0 text-zinc-300">{isThief ? '생존' : '검거'}</dt>
+                    <dt className="shrink-0 text-zinc-300">{isThief ? t('thiefRound.survive') : t('thiefRound.arrest')}</dt>
                     <dd className="min-w-0 text-right font-mono text-[15px] font-bold tabular-nums text-amber-100 sm:text-base">
                         {summary.roundScore}
-                        <span className="ml-0.5 font-sans text-[11px] font-normal text-zinc-300">개</span>
+                        <span className="ml-0.5 font-sans text-[11px] font-normal text-zinc-300">{t('thiefRound.piecesUnit')}</span>
                     </dd>
                 </div>
             </dl>
@@ -52,6 +53,8 @@ const renderPlayerSummary = (summary: ThiefRoundSummaryType['player1'], user: Us
 };
 
 const ThiefRoundSummary: React.FC<ThiefRoundSummaryProps> = ({ session, currentUser, onAction }) => {
+    const { t } = useTranslation('game');
+    const { t: tCommon } = useTranslation('common');
     const { id: gameId, player1, player2, thiefRoundSummary, roundEndConfirmations, revealEndTime } = session;
     const hasConfirmed = !!(roundEndConfirmations?.[currentUser.id]);
     const isMobileLayout = useIsHandheldDevice(1024);
@@ -60,20 +63,20 @@ const ThiefRoundSummary: React.FC<ThiefRoundSummaryProps> = ({ session, currentU
 
     const { round, isDeathmatch, player1: summaryP1, player2: summaryP2 } = thiefRoundSummary;
 
-    const title = isDeathmatch ? `데스매치 ${round - 2} 종료` : `${round}라운드 집계`;
+    const title = isDeathmatch ? t('thiefRound.deathmatchEnd', { round: round - 2 }) : t('thiefRound.roundSummary', { round });
 
     let description = '';
     if (isDeathmatch) {
-        description = '동점으로 데스매치를 이어갑니다.';
+        description = t('thiefRound.tieDeathmatch');
     } else if (round < 2) {
-        description = '역할을 바꿔 다음 라운드를 진행합니다.';
+        description = t('thiefRound.swapRoles');
     } else {
-        description = '2라운드 종료. 동점이면 데스매치입니다.';
+        description = t('thiefRound.round2Tie');
     }
 
-    const btnLabel = hasConfirmed ? '상대 확인 대기' : '다음 라운드';
-    const countdownLabel = isDeathmatch ? '다음 데스매치 자동 시작까지' : '다음 라운드 자동 시작까지';
-    const countdownLabelShort = isDeathmatch ? '데스매치까지' : '다음까지';
+    const btnLabel = hasConfirmed ? t('thiefRound.waitingConfirm') : t('thiefRound.nextRound');
+    const countdownLabel = isDeathmatch ? tCommon('deathmatchAuto') : tCommon('nextRoundAuto');
+    const countdownLabelShort = isDeathmatch ? tCommon('deathmatchShort') : tCommon('nextRoundShort');
 
     return (
         <DraggableWindow

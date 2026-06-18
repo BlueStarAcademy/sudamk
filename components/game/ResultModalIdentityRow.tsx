@@ -1,4 +1,5 @@
 import React from 'react';
+import { tx } from '../../shared/i18n/runtimeText.js';
 import {
     RESULT_MODAL_BODY_MOBILE_PX,
     RESULT_MODAL_DESKTOP_PX,

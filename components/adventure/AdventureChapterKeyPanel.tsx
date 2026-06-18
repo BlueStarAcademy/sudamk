@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getAdventureStageById } from '../../constants/adventureConstants.js';
 import type { AdventureStageId } from '../../constants/adventureConstants.js';
 import { ADVENTURE_MAP_KEY_CHAPTER_CONFIG } from '../../shared/utils/adventureMapTreasureRewards.js';
@@ -13,6 +14,7 @@ type Props = {
 };
 
 const AdventureChapterKeyPanel: React.FC<Props> = ({ stageId, adventureProfile, compact, className }) => {
+    const { t } = useTranslation('lobby');
     const stage = useMemo(() => getAdventureStageById(stageId), [stageId]);
     const chapterIdx = stage?.stageIndex ?? 1;
     const cfg = ADVENTURE_MAP_KEY_CHAPTER_CONFIG[Math.max(1, Math.min(5, Math.floor(chapterIdx)))]!;
@@ -25,7 +27,7 @@ const AdventureChapterKeyPanel: React.FC<Props> = ({ stageId, adventureProfile, 
     const barPct = Math.round(Math.min(1, progClamped / xpCap) * 100);
 
     return (
-        <div className={className} role="region" aria-label="모험 열쇠">
+        <div className={className} role="region" aria-label={t('adventure.adventureKeyAria')}>
             <h2
                 className={
                     compact
@@ -33,14 +35,14 @@ const AdventureChapterKeyPanel: React.FC<Props> = ({ stageId, adventureProfile, 
                         : 'mb-2 px-1 text-center text-sm font-bold tracking-wide text-amber-50 sm:text-base'
                 }
             >
-                지역 열쇠
+                {t('adventure.regionalKey')}
             </h2>
             <div className={compact ? 'space-y-1.5 px-1 sm:space-y-2 sm:px-1.5' : 'space-y-2 px-2 sm:space-y-2.5 sm:px-2.5'}>
                 <div className={`flex w-full min-w-0 items-center justify-between gap-2 ${compact ? 'gap-x-1.5' : 'gap-x-2'}`}>
                     <div
                         className={`flex min-w-0 flex-1 items-center tabular-nums ${compact ? 'gap-1' : 'gap-1.5'}`}
                         role="group"
-                        aria-label={`열쇠 ${held} / ${cfg.maxHeld}개`}
+                        aria-label={t('adventure.keysCountAria', { held, max: cfg.maxHeld })}
                     >
                         <span
                             className={
@@ -49,7 +51,7 @@ const AdventureChapterKeyPanel: React.FC<Props> = ({ stageId, adventureProfile, 
                                     : 'shrink-0 text-xs font-semibold leading-none text-zinc-300 sm:text-sm'
                             }
                         >
-                            열쇠
+                            {t('adventure.key')}
                         </span>
                         <span
                             className={
@@ -62,14 +64,14 @@ const AdventureChapterKeyPanel: React.FC<Props> = ({ stageId, adventureProfile, 
                                 🔑
                             </span>
                             <span className="min-w-0 truncate">
-                                {held}/{cfg.maxHeld}개
+                                {t('adventure.keysCount', { held, max: cfg.maxHeld })}
                             </span>
                         </span>
                     </div>
                     <div
                         className={`flex shrink-0 items-center justify-end tabular-nums ${compact ? 'gap-0.5 sm:gap-1' : 'gap-1 sm:gap-1.5'}`}
                         role="group"
-                        aria-label={`열쇠 조각 진행 ${Math.min(prog, xpCap - 1)} / ${xpCap}`}
+                        aria-label={t('adventure.keyFragmentProgressAria', { prog: Math.min(prog, xpCap - 1), cap: xpCap })}
                     >
                         <span className="inline-flex shrink-0 items-center" aria-hidden>
                             <AdventureKeyFragmentIcon compact={compact} variant="panel" />

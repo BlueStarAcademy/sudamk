@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import React from 'react';
 import Button from '../Button.js';
 
@@ -16,17 +17,18 @@ const ProfileMannerSeal: React.FC<ProfileMannerSealProps> = ({
     compact = false,
     onOpenInfo,
 }) => {
+    const { t } = useTranslation('common');
     return (
         <div
             className={`flex min-w-0 items-center gap-1.5 overflow-hidden rounded-lg border border-amber-500/30 bg-gradient-to-r from-zinc-800/95 via-zinc-900 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${
                 compact ? 'px-2 py-1' : 'px-2.5 py-1.5 sm:px-3'
             }`}
-            title={`${score}점 · ${rank}`}
+            title={t('manner.scoreTitle', { score, rank })}
         >
             <span
                 className={`shrink-0 font-bold text-amber-100/90 ${compact ? 'text-[10px]' : 'text-xs'}`}
             >
-                매너
+                {t('manner.label')}
             </span>
             <span
                 className={`max-w-[40%] shrink-0 truncate rounded border border-amber-400/40 bg-black/35 px-1.5 py-px font-bold leading-none ${rankColorClass} ${
@@ -40,7 +42,7 @@ const ProfileMannerSeal: React.FC<ProfileMannerSealProps> = ({
                     compact ? 'text-[10px]' : 'text-xs sm:text-sm'
                 }`}
             >
-                {score}점
+                {t('pointsSuffix', { count: score })}
             </span>
             <Button
                 type="button"
@@ -49,9 +51,9 @@ const ProfileMannerSeal: React.FC<ProfileMannerSealProps> = ({
                 className={`!shrink-0 !whitespace-nowrap rounded-md border border-amber-500/55 bg-gradient-to-b from-zinc-700 to-zinc-800 !font-semibold !leading-none !text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] hover:border-amber-400/70 ${
                     compact ? '!px-1.5 !py-0.5 !text-[10px]' : '!px-2 !py-0.5 !text-[10px] sm:!text-xs'
                 }`}
-                title="매너 등급 정보"
+                title="{t('manner.label')} 등급 {t('manner.infoButton')}"
             >
-                정보
+                {t('manner.infoButton')}
             </Button>
         </div>
     );

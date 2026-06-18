@@ -1,4 +1,5 @@
 import React, { forwardRef, useImperativeHandle, useState, useEffect, useRef, useMemo, ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AlkkagiStone, GameStatus, Player, Point, LiveGameSession, UserWithStatus } from '../types.js';
 import { PLAYFUL_GAME_MODES } from '../constants/gameModes';
 
@@ -32,6 +33,7 @@ interface CurlingBoardProps {
 
 
 const CurlingBoard = forwardRef<CurlingBoardHandle, CurlingBoardProps>((props, ref) => {
+    const { t } = useTranslation('common');
     const { stones, gameStatus, myPlayer, currentPlayer, onLaunchAreaInteractionStart, isSpectator, dragStartPoint, dragEndPoint, selectedStone, isInCancelZone = false, currentUser, session, isRotated = false, myPlayerEnum } = props;
     const [localStones, setLocalStones] = useState(stones);
     const svgRef = useRef<SVGSVGElement>(null);
@@ -370,7 +372,7 @@ const CurlingBoard = forwardRef<CurlingBoardHandle, CurlingBoardProps>((props, r
                             />
                             <g transform={`translate(${displayX}, ${displayY - selectedStone.radius - 28})`}>
                                 <rect x="-42" y="-12" width="84" height="24" rx="6" fill="rgba(0,0,0,0.88)" stroke="rgba(239, 68, 68, 0.95)" strokeWidth="2.5" />
-                                <text y="4" textAnchor="middle" fill="#fecaca" fontSize="12" fontWeight="bold">발사 취소</text>
+                                <text y="4" textAnchor="middle" fill="#fecaca" fontSize="12" fontWeight="bold">{t('cancelLaunch')}</text>
                             </g>
                         </g>
                     );

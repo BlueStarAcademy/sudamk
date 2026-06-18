@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import DraggableWindow from '../DraggableWindow.js';
 import { SinglePlayerLevel } from '../../types.js';
 import SinglePlayerRewardsTable from './SinglePlayerRewardsTable.js';
@@ -11,11 +12,13 @@ interface SinglePlayerRewardsModalProps {
 }
 
 const SinglePlayerRewardsModal: React.FC<SinglePlayerRewardsModalProps> = ({ open, onClose, initialClass }) => {
+    const { t } = useTranslation('lobby');
+
     if (!open) return null;
 
     return (
         <DraggableWindow
-            title="스테이지 클리어 보상표"
+            title={t('singleplayer.rewardsTableTitle')}
             windowId="single-player-rewards-table"
             onClose={onClose}
             initialWidth={760}

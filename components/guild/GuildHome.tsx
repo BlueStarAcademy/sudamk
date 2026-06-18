@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { Guild as GuildType } from '../../types/index.js';
 import { GuildDashboard } from './GuildDashboard.js';
@@ -11,6 +12,7 @@ interface GuildHomeProps {
 }
 
 const GuildHome: React.FC<GuildHomeProps> = ({ initialGuild }) => {
+    const { t } = useTranslation('guild');
     const { currentUserWithStatus, guilds, handlers } = useAppContext();
     const [guildDonationAnimation, setGuildDonationAnimation] = useState<{ coins: number; research: number; type: 'gold' | 'diamond' } | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -55,7 +57,7 @@ const GuildHome: React.FC<GuildHomeProps> = ({ initialGuild }) => {
                             hasLoadedRef.current = true; // 재시도 방지
                             // 길드가 없으면 프로필로 리다이렉트
                             setTimeout(() => {
-                                window.location.hash = '#/profile';
+                                window.location.hash = '#/home';
                             }, 500);
                         } else {
                             // 다른 오류는 재시도 가능하도록 false로 설정 (하지만 실제로는 true로 유지하여 무한 루프 방지)
@@ -78,7 +80,7 @@ const GuildHome: React.FC<GuildHomeProps> = ({ initialGuild }) => {
                     hasLoadedRef.current = true; // 에러 발생 시에도 재시도 방지
                     // 에러 발생 시 프로필로 리다이렉트
                     setTimeout(() => {
-                        window.location.hash = '#/profile';
+                        window.location.hash = '#/home';
                     }, 500);
                 } finally {
                     setIsLoading(false);
@@ -116,7 +118,7 @@ const GuildHome: React.FC<GuildHomeProps> = ({ initialGuild }) => {
         if (!currentUserWithStatus) return; // 사용자 정보가 아직 로드 중이면 대기
         if (!currentUserWithStatus.guildId) {
             const t = setTimeout(() => {
-                window.location.hash = '#/profile';
+                window.location.hash = '#/home';
             }, 2000);
             return () => clearTimeout(t);
         }
@@ -128,15 +130,15 @@ const GuildHome: React.FC<GuildHomeProps> = ({ initialGuild }) => {
         if (!currentUserWithStatus?.guildId) return;
         if (isLoading) return; // 로딩 중에는 리다이렉트하지 않음
         if (!myGuild && hasLoadedRef.current) {
-            window.location.hash = '#/profile';
+            window.location.hash = '#/home';
         }
     }, [currentUserWithStatus?.guildId, myGuild, isLoading]);
     
     if (!currentUserWithStatus?.guildId) {
         return (
             <div className="bg-lobby-shell-guild flex h-full min-h-0 w-full flex-col items-center justify-center gap-4 text-primary">
-                <BackButton onClick={() => window.location.hash = '#/profile'} />
-                <p className="text-secondary">로그인 정보를 확인하는 중...</p>
+                <BackButton onClick={() => window.location.hash = '#/home'} />
+                <p className="text-secondary">{t('loading.loginCheck')}</p>
             </div>
         );
     }
@@ -145,7 +147,7 @@ const GuildHome: React.FC<GuildHomeProps> = ({ initialGuild }) => {
     if (isLoading && !myGuild) {
         return (
             <div className="bg-lobby-shell-guild flex h-full min-h-0 w-full items-center justify-center text-primary">
-                <p className="text-secondary">길드 정보를 불러오는 중...</p>
+                <p className="text-secondary">{t('loading.guildInfo')}</p>
             </div>
         );
     }
@@ -154,8 +156,8 @@ const GuildHome: React.FC<GuildHomeProps> = ({ initialGuild }) => {
     if (!myGuild) {
         return (
             <div className="bg-lobby-shell-guild flex h-full min-h-0 w-full flex-col items-center justify-center gap-4 text-primary">
-                <BackButton onClick={() => window.location.hash = '#/profile'} />
-                <p className="text-secondary">길드 정보를 불러오는 중...</p>
+                <BackButton onClick={() => window.location.hash = '#/home'} />
+                <p className="text-secondary">{t('loading.guildInfo')}</p>
             </div>
         );
     }

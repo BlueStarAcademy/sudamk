@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     getAdventureTreasureChapterRewardDef,
     getAdventureTreasureRollPreview,
@@ -83,6 +84,7 @@ function easeOutCubic(t: number): number {
 }
 
 function RouletteStripCell({ roll }: { roll: AdventureTreasureRollResult }) {
+    const { t } = useTranslation('lobby');
     const p = getAdventureTreasureRollPreview(roll);
 
     if (roll.category === 'gold') {
@@ -106,14 +108,17 @@ function RouletteStripCell({ roll }: { roll: AdventureTreasureRollResult }) {
                         </span>
                     </div>
                     <span className="pb-1.5 pt-0.5 text-center font-mono text-[10px] font-black tabular-nums text-amber-200/95 sm:text-[11px]">
-                        {p.subLabel}
+                        {t('adventure.recoverPoints', { points: roll.actionPoints })}
                     </span>
                 </div>
             </div>
         );
     }
 
-    const boxTitle = roll.category === 'equipment' ? `장비 상자 ${roll.boxRoman}` : `재료 상자 ${roll.boxRoman}`;
+    const boxTitle =
+        roll.category === 'equipment'
+            ? t('adventure.equipmentBoxRoman', { roman: roll.boxRoman })
+            : t('adventure.materialBoxRoman', { roman: roll.boxRoman });
 
     return (
         <div className="flex h-full flex-col items-center justify-center gap-0.5 px-0.5 py-0.5">
@@ -241,6 +246,7 @@ const AdventureTreasureChestPickModal: React.FC<AdventureTreasureChestPickModalP
     onAbandonPick,
     isNativeMobile,
 }) => {
+    const { t } = useTranslation(['lobby', 'common']);
     const [phase, setPhase] = useState<Phase>('pick');
     const [selected, setSelected] = useState<number[]>([]);
     const [spinTick, setSpinTick] = useState(0);
@@ -321,7 +327,7 @@ const AdventureTreasureChestPickModal: React.FC<AdventureTreasureChestPickModalP
             .then((r) => {
                 if (cancelled) return;
                 if (!r.ok) {
-                    setErrMsg(r.error ?? '보상을 받지 못했습니다.');
+                    setErrMsg(r.error ?? t('adventure.rewardFailed'));
                     return;
                 }
                 setPhase('result');
@@ -340,7 +346,7 @@ const AdventureTreasureChestPickModal: React.FC<AdventureTreasureChestPickModalP
         try {
             const r = await onAbandonPick();
             if (!r.ok) {
-                setGateErr(r.error ?? '처리하지 못했습니다.');
+                setGateErr(r.error ?? t('adventure.processingFailed'));
                 return;
             }
             setCancelGateOpen(false);
@@ -353,9 +359,7 @@ const AdventureTreasureChestPickModal: React.FC<AdventureTreasureChestPickModalP
     if (!open) return null;
 
     const pickHint =
-        pickSlots === 2
-            ? '보상 VIP: 두 칸을 직접 고르거나, 한 칸만 고르면 나머지 한 칸은 무작위로 정해집니다.'
-            : '받을 상자 하나를 고른 뒤 선택 완료를 누르세요.';
+        pickSlots === 2 ? t('adventure.pickHintVip') : t('adventure.pickHintSingle');
 
     return (
         <div
@@ -374,11 +378,11 @@ const AdventureTreasureChestPickModal: React.FC<AdventureTreasureChestPickModalP
                 <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(251,191,36,0.14),transparent_55%)]" />
                 <header className="relative z-[1] shrink-0 border-b border-amber-500/20 px-4 pb-3 pt-4">
                     <h2 id="adv-treasure-modal-title" className="text-lg font-black tracking-tight text-amber-50 drop-shadow-sm sm:text-xl">
-                        보물상자-{stageTitle}
+                        {t('adventure.treasureChestTitle', { title: stageTitle })}
                     </h2>
                     <p className="mt-1.5 text-xs leading-snug text-zinc-400">{pickHint}</p>
                     <p className="mt-1.5 font-mono text-xs font-bold tabular-nums tracking-wide text-amber-200/95">
-                        상자를 선택하세요 ({selected.length}/{pickSlots})
+                        {t('adventure.selectBoxes', { selected: selected.length, pickSlots })}
                     </p>
                 </header>
 
@@ -413,7 +417,7 @@ const AdventureTreasureChestPickModal: React.FC<AdventureTreasureChestPickModalP
                                                     </span>
                                                 ) : null}
                                             </div>
-                                            <span className="w-full text-center text-[11px] font-bold text-amber-100/95">상자 {idx + 1}</span>
+                                            <span className="w-full text-center text-[11px] font-bold text-amber-100/95">{t('adventure.boxNumber', { num: idx + 1 })}</span>
                                         </button>
                                     );
                                 })}
@@ -440,7 +444,7 @@ const AdventureTreasureChestPickModal: React.FC<AdventureTreasureChestPickModalP
                             </div>
                             {phase === 'spin' && (spinDone < 3 || confirmBusy) ? (
                                 <p className="text-center text-[11px] font-semibold text-amber-200/90">
-                                    {spinDone < 3 ? '룰렛 진행 중…' : '보상 반영 중…'}
+                                    {spinDone < 3 ? t('adventure.rouletteInProgress') : t('adventure.rewardApplying')}
                                 </p>
                             ) : null}
                         </div>
@@ -468,7 +472,7 @@ const AdventureTreasureChestPickModal: React.FC<AdventureTreasureChestPickModalP
                                     aria-hidden
                                     className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.06] to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"
                                 />
-                                <span className="relative z-[1]">취소</span>
+                                <span className="relative z-[1]">{t('common:actions.cancel')}</span>
                             </button>
                             <button
                                 type="button"
@@ -480,7 +484,7 @@ const AdventureTreasureChestPickModal: React.FC<AdventureTreasureChestPickModalP
                                     aria-hidden
                                     className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.12] to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"
                                 />
-                                <span className="relative z-[1] drop-shadow-sm">선택 완료</span>
+                                <span className="relative z-[1] drop-shadow-sm">{t('adventure.selectComplete')}</span>
                             </button>
                         </div>
                     ) : phase === 'result' ? (
@@ -493,7 +497,7 @@ const AdventureTreasureChestPickModal: React.FC<AdventureTreasureChestPickModalP
                                 aria-hidden
                                 className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.1] to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"
                             />
-                            <span className="relative z-[1] drop-shadow-sm">보상 받기</span>
+                            <span className="relative z-[1] drop-shadow-sm">{t('adventure.receiveReward')}</span>
                         </button>
                     ) : spinDone >= 3 && errMsg && !confirmBusy ? (
                         <button
@@ -505,11 +509,11 @@ const AdventureTreasureChestPickModal: React.FC<AdventureTreasureChestPickModalP
                                 aria-hidden
                                 className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.06] to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"
                             />
-                            <span className="relative z-[1]">확인</span>
+                            <span className="relative z-[1]">{t('common:actions.confirm')}</span>
                         </button>
                     ) : (
                         <div className="w-full py-1 text-center text-xs text-zinc-500">
-                            {spinDone >= 3 && confirmBusy ? '보상 반영 중…' : '잠시만 기다려 주세요'}
+                            {spinDone >= 3 && confirmBusy ? t('adventure.rewardApplying') : t('adventure.pleaseWait')}
                         </div>
                     )}
                 </footer>
@@ -534,10 +538,10 @@ const AdventureTreasureChestPickModal: React.FC<AdventureTreasureChestPickModalP
                         onClick={(e) => e.stopPropagation()}
                     >
                         <h3 id="adv-treasure-cancel-gate-title" className="text-base font-black tracking-tight text-amber-50 sm:text-lg">
-                            취소하시겠습니까?
+                            {t('adventure.cancelConfirmTitle')}
                         </h3>
                         <p id="adv-treasure-cancel-gate-desc" className="mt-2 text-sm leading-relaxed text-zinc-300">
-                            취소하면 이 보물상자는 이번 출현에서 더 이상 나타나지 않습니다. 열쇠는 그대로 유지됩니다.
+                            {t('adventure.cancelConfirmDesc')}
                         </p>
                         {gateErr ? (
                             <p className="mt-3 rounded-md border border-red-500/40 bg-red-950/50 px-2 py-1.5 text-center text-xs text-red-100">
@@ -556,7 +560,7 @@ const AdventureTreasureChestPickModal: React.FC<AdventureTreasureChestPickModalP
                                     }
                                 }}
                             >
-                                <span className="relative z-[1]">보상수령</span>
+                                <span className="relative z-[1]">{t('adventure.receiveRewardBtn')}</span>
                             </button>
                             <button
                                 type="button"
@@ -564,7 +568,7 @@ const AdventureTreasureChestPickModal: React.FC<AdventureTreasureChestPickModalP
                                 className="group relative inline-flex w-full max-w-[10rem] shrink-0 justify-center overflow-hidden rounded-xl border border-zinc-500/50 bg-gradient-to-b from-zinc-700/60 via-zinc-900/95 to-black px-4 py-2.5 text-sm font-black tracking-wide text-zinc-100 shadow-[0_6px_20px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)] transition-all duration-200 enabled:hover:border-zinc-400/60 enabled:active:translate-y-px disabled:opacity-50 sm:w-auto sm:min-w-[7.75rem] sm:max-w-[9rem] sm:px-4"
                                 onClick={() => void handleAbandonConfirm()}
                             >
-                                <span className="relative z-[1]">{abandonBusy ? '처리 중…' : '수령취소'}</span>
+                                <span className="relative z-[1]">{abandonBusy ? t('adventure.processing') : t('adventure.cancelReceive')}</span>
                             </button>
                         </div>
                     </div>

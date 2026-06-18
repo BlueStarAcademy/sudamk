@@ -1,4 +1,6 @@
 
+import { useLocalizedItemGrade, useLocalizedEquipmentSlot } from '../../shared/i18n/localizedCatalog.js';
+import { useTranslation } from 'react-i18next';
 import React from 'react';
 import { MythicSubsPartitioned } from '../MythicSubsPartitioned.js';
 import { formatSpecialSubLineForPanel } from '../../shared/utils/specialStatMilestones.js';
@@ -7,14 +9,14 @@ import { InventoryItem, ItemGrade } from '../../types';
 import ResourceActionButton from '../ui/ResourceActionButton';
 
 // This is the same detailed item display used in the EnhancementView
-const gradeStyles: Record<ItemGrade, { name: string; color: string; background: string; }> = {
-    normal: { name: '일반', color: 'text-gray-300', background: '/images/equipments/normalbgi.webp' },
-    uncommon: { name: '고급', color: 'text-green-400', background: '/images/equipments/uncommonbgi.webp' },
-    rare: { name: '희귀', color: 'text-blue-400', background: '/images/equipments/rarebgi.webp' },
-    epic: { name: '에픽', color: 'text-purple-400', background: '/images/equipments/epicbgi.webp' },
-    legendary: { name: '전설', color: 'text-red-500', background: '/images/equipments/legendarybgi.webp' },
-    mythic: { name: '신화', color: 'text-orange-400', background: '/images/equipments/mythicbgi.webp' },
-    transcendent: { name: '초월', color: 'text-cyan-300', background: '/images/equipments/transcendentbgi.webp' },
+const gradeStyles: Record<ItemGrade, { color: string; background: string; }> = {
+    normal: { color: 'text-gray-300', background: '/images/equipments/normalbgi.webp' },
+    uncommon: { color: 'text-green-400', background: '/images/equipments/uncommonbgi.webp' },
+    rare: { color: 'text-blue-400', background: '/images/equipments/rarebgi.webp' },
+    epic: { color: 'text-purple-400', background: '/images/equipments/epicbgi.webp' },
+    legendary: { color: 'text-red-500', background: '/images/equipments/legendarybgi.webp' },
+    mythic: { color: 'text-orange-400', background: '/images/equipments/mythicbgi.webp' },
+    transcendent: { color: 'text-cyan-300', background: '/images/equipments/transcendentbgi.webp' },
 };
 
 const renderStarDisplay = (stars: number) => {
@@ -53,7 +55,7 @@ const ItemDisplay: React.FC<{ item: InventoryItem }> = ({ item }) => {
                     )}
                     {/* 제련 가능 횟수 표시 */}
                     <p className={`text-xs font-semibold mt-1 ${(item as any).refinementCount > 0 ? 'text-amber-400' : 'text-red-400'}`}>
-                        제련 가능: {(item as any).refinementCount > 0 ? `${(item as any).refinementCount}회` : '제련불가'}
+                        {t('combinationResult.refinementPrefix')} {(item as any).refinementCount > 0 ? t('combinationResult.refinementCount', { value: t('combinationResult.refinementTimes', { count: (item as any).refinementCount }) }) : t('combinationResult.refinementUnavailable')}
                     </p>
                 </div>
             </div>
@@ -91,11 +93,13 @@ interface CombinationResultModalProps {
 }
 
 const CombinationResultModal: React.FC<CombinationResultModalProps> = ({ result, onClose }) => {
+    const { t } = useTranslation('blacksmith');
+    const localizedGrade = useLocalizedItemGrade();
     const { item, xpGained, isGreatSuccess } = result;
 
     return (
         <DraggableWindow 
-            title={isGreatSuccess ? "합성 대성공!" : "합성 성공"} 
+            title={isGreatSuccess ? t('combinationResult.greatSuccess') : t('combinationResult.success')} 
             onClose={onClose} 
             windowId="combination-result"
             initialWidth={400}
@@ -108,12 +112,12 @@ const CombinationResultModal: React.FC<CombinationResultModalProps> = ({ result,
                 
                 <div className="mt-4 bg-gray-900/50 p-4 rounded-lg text-lg w-full max-w-xs">
                     <div className="flex justify-between items-center">
-                        <span className="flex items-center gap-1"><img src="/images/equipments/moru.webp" alt="대장간 경험치" className="w-5 h-5" /> 대장간 경험치:</span>
+                        <span className="flex items-center gap-1"><img src="/images/equipments/moru.webp" alt={t('combinationResult.expGain')} className="w-5 h-5" /> {t('combinationResult.expGainLabel')}</span>
                         <span className="font-bold text-orange-400">+{xpGained.toLocaleString()}</span>
                     </div>
                 </div>
 
-                <ResourceActionButton onClick={onClose} className="w-full mt-6 py-2.5 max-w-xs" variant="materials">확인</ResourceActionButton>
+                <ResourceActionButton onClick={onClose} className="w-full mt-6 py-2.5 max-w-xs" variant="materials">{t('actions.ok', { ns: 'common' })}</ResourceActionButton>
             </div>
         </DraggableWindow>
     );

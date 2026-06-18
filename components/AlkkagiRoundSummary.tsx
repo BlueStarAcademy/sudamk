@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { LiveGameSession, ServerAction, User, Player, AlkkagiStone } from '../types.js';
 import Avatar from './Avatar.js';
 import Button from './Button.js';
@@ -15,6 +16,8 @@ interface AlkkagiRoundSummaryProps {
 }
 
 const AlkkagiRoundSummary: React.FC<AlkkagiRoundSummaryProps> = ({ session, currentUser, onAction }) => {
+    const { t } = useTranslation('game');
+    const { t: tCommon } = useTranslation('common');
     const { id: gameId, player1, player2, blackPlayerId, whitePlayerId, roundEndConfirmations, revealEndTime, alkkagiRoundSummary, alkkagiStones } = session;
     const hasConfirmed = !!(roundEndConfirmations?.[currentUser.id]);
     const isMobileLayout = useIsHandheldDevice(1024);
@@ -42,7 +45,7 @@ const AlkkagiRoundSummary: React.FC<AlkkagiRoundSummaryProps> = ({ session, curr
 
     return (
         <DraggableWindow
-            title={`${alkkagiRoundSummary.round}라운드 집계`}
+            title={t('roundSummary.alkkagiTitle', { round: alkkagiRoundSummary.round })}
             headerShowTitle
             windowId="alkkagi-round-summary"
             initialWidth={620}
@@ -58,21 +61,21 @@ const AlkkagiRoundSummary: React.FC<AlkkagiRoundSummaryProps> = ({ session, curr
             <div className="relative flex h-full min-h-0 flex-col gap-2 text-amber-50/95 sm:gap-3">
                 <div className="pointer-events-none absolute inset-0 -z-10 rounded-xl bg-[radial-gradient(ellipse_at_30%_0%,rgba(251,191,36,0.12),transparent_50%),radial-gradient(ellipse_at_100%_80%,rgba(56,189,248,0.1),transparent_42%)]" />
                 <p className="text-center text-sm font-medium leading-snug text-zinc-200 sm:text-[15px]">
-                    {winnerUser.nickname}님이 이번 라운드에서 승리했습니다.
+                    {t('summary.playerWins', { name: winnerUser.nickname })}
                 </p>
 
                 <div className="grid min-h-0 shrink grid-cols-2 gap-1.5 sm:gap-2">
                     <div className="flex min-h-0 min-w-0 flex-col items-center rounded-lg border border-white/[0.09] bg-gradient-to-b from-zinc-800/75 to-zinc-950/90 p-2 shadow-inner shadow-black/30 ring-1 ring-inset ring-amber-500/15 sm:p-2.5">
                         <Avatar userId={blackPlayer.id} userName={blackPlayer.nickname} size={52} avatarUrl={blackAvatarUrl} borderUrl={blackBorderUrl} />
                         <p className="mt-1 text-center text-sm font-bold text-amber-50">{blackPlayer.nickname}</p>
-                        <p className="mt-1 text-xs text-zinc-300">남은 돌 {blackStonesLeft}개</p>
-                        <p className="mt-1 text-[11px] text-zinc-200">득점 {blackForTotal} / 실점 {blackAgainstTotal}</p>
+                        <p className="mt-1 text-xs text-zinc-300">{t('roundSummary.stonesLeft')} {blackStonesLeft}</p>
+                        <p className="mt-1 text-[11px] text-zinc-200">{t('roundSummary.scoredFor')} {blackForTotal} / {t('roundSummary.scoredAgainst')} {blackAgainstTotal}</p>
                     </div>
                     <div className="flex min-h-0 min-w-0 flex-col items-center rounded-lg border border-white/[0.09] bg-gradient-to-b from-zinc-800/75 to-zinc-950/90 p-2 shadow-inner shadow-black/30 ring-1 ring-inset ring-amber-500/15 sm:p-2.5">
                         <Avatar userId={whitePlayer.id} userName={whitePlayer.nickname} size={52} avatarUrl={whiteAvatarUrl} borderUrl={whiteBorderUrl} />
                         <p className="mt-1 text-center text-sm font-bold text-amber-50">{whitePlayer.nickname}</p>
-                        <p className="mt-1 text-xs text-zinc-300">남은 돌 {whiteStonesLeft}개</p>
-                        <p className="mt-1 text-[11px] text-zinc-200">득점 {whiteForTotal} / 실점 {whiteAgainstTotal}</p>
+                        <p className="mt-1 text-xs text-zinc-300">{t('roundSummary.stonesLeft')} {whiteStonesLeft}</p>
+                        <p className="mt-1 text-[11px] text-zinc-200">{t('roundSummary.scoredFor')} {whiteForTotal} / {t('roundSummary.scoredAgainst')} {whiteAgainstTotal}</p>
                     </div>
                 </div>
 
@@ -87,14 +90,14 @@ const AlkkagiRoundSummary: React.FC<AlkkagiRoundSummaryProps> = ({ session, curr
                         disabled={hasConfirmed}
                         className={arenaMidRoundPrimaryButtonClassName(isMobileLayout)}
                     >
-                        {hasConfirmed ? '확인 대기 중' : '다음 라운드'}
+                        {hasConfirmed ? tCommon('confirmWaiting') : tCommon('nextRoundConfirm')}
                     </Button>
                     {!session.isAiGame && revealEndTime != null && (
                         <RoundCountdownIndicator
                             deadline={revealEndTime}
                             durationSeconds={30}
-                            label="다음 라운드 자동 시작까지"
-                            labelShort="다음까지"
+                            label={tCommon('nextRoundAuto')}
+                            labelShort={tCommon('nextRoundShort')}
                         />
                     )}
                 </div>

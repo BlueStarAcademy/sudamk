@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { tx } from '../../shared/i18n/runtimeText.js';
+import { useTranslation } from 'react-i18next';
 import { GameProps, Player, GameMode, Point, AppSettings } from '../../types.js';
 import Button from '../Button.js';
 import { getSinglePlayerStages } from '../../constants/singlePlayerConstants.js';
@@ -140,6 +142,7 @@ const ItemImageButton: React.FC<ItemImageButtonProps> = ({ src, alt, onClick, di
 };
 
 const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
+    const { t } = useTranslation(['common', 'game']);
     session,
     onAction,
     currentUser,
@@ -309,16 +312,16 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
     
     const handleRefresh = React.useCallback(() => {
         if (!placementRefreshAllowed) {
-            setAlertModal({ message: '이 스테이지에서는 배치변경을 사용할 수 없습니다.' });
+            setAlertModal({ message: t('placementRefresh.notAllowedStage') });
             return;
         }
         if (!refreshDisabled && canAfford) {
-            const priceLine = nextCost > 0 ? `이용 가격: ${formatGoldAmountKoG(nextCost)} 골드` : '이용 가격: 무료';
+            const priceLine = nextCost > 0 ? t('placementRefresh.priceLine', { price: `${formatGoldAmountKoG(nextCost)} gold` }) : t('placementRefresh.priceFree');
             const confirmationMessage = nextCost > 0
-                ? `${priceLine}\n\n${formatGoldAmountKoG(nextCost)} 골드를 사용하여 배치를 다시 섞으시겠습니까? (남은 재배치 ${remainingRefreshes}/5)`
-                : `${priceLine}\n\n첫 재배치는 무료입니다. 배치를 다시 섞으시겠습니까?`;
+                ? t('placementRefresh.confirmModalMessagePaid', { priceLine, gold: formatGoldAmountKoG(nextCost), remaining: remainingRefreshes })
+                : t('placementRefresh.confirmModalMessageFree', { priceLine });
             setConfirmModal({
-                title: '배치변경',
+                title: t('placementRefresh.confirmModalTitle'),
                 message: confirmationMessage,
                 onConfirm: () => {
                     onAction({ type: 'SINGLE_PLAYER_REFRESH_PLACEMENT', payload: { gameId: session.id } });
@@ -330,8 +333,8 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
     const handleForfeit = React.useCallback(() => {
         if (session.gameStatus === 'scoring') return;
         setConfirmModal({
-            title: '기권 확인',
-            message: '경기를 포기하시겠습니까?',
+            title: t('pveControls.resignConfirmTitle'),
+            message: t('controls.confirmResign'),
             onConfirm: () => {
                 onAction({ type: 'RESIGN_GAME', payload: { gameId: session.id } });
             }
@@ -384,7 +387,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
                 }
             } catch (error) {
                 console.error('[SinglePlayerControls] Failed to retry stage:', error);
-                setAlertModal({ message: '재도전에 실패했습니다. 다시 시도해주세요.' });
+                setAlertModal({ message: tx('game:pveControls.retryFailed') });
             }
         };
         const handleNextStage = async () => {
@@ -413,7 +416,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
                 }
             } catch (error) {
                 console.error('[SinglePlayerControls] Failed to start next stage:', error);
-                setAlertModal({ message: '다음 단계 시작에 실패했습니다. 다시 시도해주세요.' });
+                setAlertModal({ message: tx('game:pveControls.nextStepFailed') });
             }
         };
         const handleExitToLobby = async () => {
@@ -520,9 +523,9 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
     const { remaining: petHintPhasePlyRemaining } = pairPetKataPliesRemainingInCurrentPhase(petHintBoardSize, petHintTotalPly);
     const petHintUsed = ((session.settings as { strategicPetHintByUserId?: Record<string, Partial<Record<string, boolean>>> })
         .strategicPetHintByUserId?.[currentUser.id] ?? {}) as Record<string, boolean>;
-    const petHintPhaseLabel = petHintPhase === 'opening' ? '초반' : petHintPhase === 'midgame' ? '중반' : '종반';
+    const petHintPhaseLabel = petHintPhase === 'opening' ? tx('game:controls.phaseOpening') : petHintPhase === 'midgame' ? tx('game:controls.phaseMidgame') : tx('game:controls.phaseEndgame');
     const petHintCountdownLabel =
-        petHintPhasePlyRemaining == null ? '종반' : `${petHintPhaseLabel} ${petHintPhasePlyRemaining}수`;
+        petHintPhasePlyRemaining == null ? tx('game:controls.phaseEndgame') : t('controls.phaseMovesLeft', { phase: petHintPhaseLabel, count: petHintPhasePlyRemaining });
     const petHintCanAttempt =
         isSinglePlayerArena &&
         !isSpectator &&
@@ -533,19 +536,19 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
         !isMoveInFlight &&
         !isBoardLocked &&
         !hasPendingRevealResolution;
-    let petHintTitleBody = `${petHintPhaseLabel}에 한 번 — 대표 펫이 좋은 자리를 표시해 줘요.`;
+    let petHintTitleBody = t('controls.petHintPhaseOnce', { phase: petHintPhaseLabel });
     if (!petRow) {
-        petHintTitleBody = '대표 펫을 장착하면 힌트를 사용할 수 있어요.';
+        petHintTitleBody = t('controls.petHintEquipPet');
     } else if (gameStatus !== 'playing') {
-        petHintTitleBody = '대국이 진행 중일 때 사용할 수 있어요.';
+        petHintTitleBody = t('controls.petHintDuringGame');
     } else if (!isMyTurn) {
-        petHintTitleBody = '내 차례에만 사용할 수 있어요.';
+        petHintTitleBody = t('controls.petHintMyTurnOnly');
     } else if (petHintUsed[petHintPhase]) {
-        petHintTitleBody = `${petHintPhaseLabel} 구간에서 이미 힌트를 사용했어요.`;
+        petHintTitleBody = t('controls.petHintPhaseUsed', { phase: petHintPhaseLabel });
     }
     const petHintTitle =
         petHintPhasePlyRemaining != null
-            ? `${petHintPhaseLabel} ${petHintPhasePlyRemaining}수 남음 — ${petHintTitleBody}`
+            ? t('controls.petHintPhaseRemaining', { phase: petHintPhaseLabel, count: petHintPhasePlyRemaining, body: petHintTitleBody })
             : `${petHintPhaseLabel} — ${petHintTitleBody}`;
     const petHintImg = petRow
         ? ((petRow as { image?: string }).image ??
@@ -575,7 +578,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
             {petRow && petHintImg ? (
                 <ImageButton
                     src={petHintImg}
-                    alt={`펫 힌트 ${petHintCountdownLabel}`}
+                    alt={t("controls.petHintAria", { label: petHintCountdownLabel })}
                     onClick={() => {
                         if (!petHintCanAttempt || petHintBusy) return;
                         setPetHintBusy(true);
@@ -586,7 +589,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
                     disabled={!petHintCanAttempt || petHintBusy}
                     title={petHintTitle}
                     compact={isMobile}
-                    imageBottomOverlay="힌트"
+                    imageBottomOverlay={t("controls.hint")}
                 />
             ) : (
                 <button
@@ -596,7 +599,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
                         isMobile ? 'h-12 w-12 shrink-0 rounded-lg' : 'h-[4.25rem] w-[4.25rem] rounded-xl min-[1025px]:h-16 min-[1025px]:w-16'
                     }`}
                     title={petHintTitle}
-                    aria-label={`펫 힌트 ${petHintCountdownLabel} (대표 펫 미장착)`}
+                    aria-label={t("controls.petHintAriaNoPet", { label: petHintCountdownLabel })}
                 />
             )}
             <span className={`${lblBase} font-semibold whitespace-nowrap ${petHintCanAttempt ? 'text-sky-100' : 'text-gray-500'}`}>
@@ -623,29 +626,29 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
             <div className={colClass}>
                 <ImageButton
                     src="/images/button/giveup.webp"
-                    alt="기권"
+                    alt={t("controls.resignAlt")}
                     onClick={handleForfeit}
                     disabled={gameStatus === 'scoring'}
-                    title={gameStatus === 'scoring' ? '계가 집계 중에는 기권할 수 없습니다.' : '기권하기'}
+                    title={gameStatus === 'scoring' ? t('controls.cannotResignDuringScoring') : t('controls.resignTitle')}
                     variant="danger"
                     compact={isMobile}
                 />
-                <span className={`${lblBase} font-semibold whitespace-nowrap text-red-300`}>기권</span>
+                <span className={`${lblBase} font-semibold whitespace-nowrap text-red-300`}>{t("controls.resign")}</span>
             </div>
             <div className={colClass}>
                 <ImageButton
                     src="/images/button/reflesh.webp"
-                    alt="배치 새로고침"
+                    alt={t("placementRefresh.refreshTitle")}
                     onClick={handleRefresh}
                     disabled={refreshDisabled}
-                    title={refreshDisabled ? (!placementRefreshAllowed ? '이 스테이지에서는 배치변경을 사용할 수 없습니다.' : usedMissileBeforeFirstMove ? '첫 턴에 미사일을 사용하면 배치변경을 사용할 수 없습니다.' : !canAfford ? '골드가 부족합니다.' : '배치 새로고침 불가') : `배치 새로고침 (비용: ${nextCost}골드, 남은 횟수: ${remainingRefreshes}/5)`}
+                    title={refreshDisabled ? (!placementRefreshAllowed ? t('placementRefresh.notAllowedStage') : usedMissileBeforeFirstMove ? t('placementRefresh.missileFirstTurn') : !canAfford ? t('placementRefresh.insufficientGold') : t('placementRefresh.refreshDisabled')) : t('placementRefresh.refreshTitleWithCost', { cost: nextCost, remaining: remainingRefreshes })}
                     count={remainingRefreshes}
                     compact={isMobile}
                 />
-                <span className={`${lblBase} font-semibold whitespace-nowrap ${refreshDisabled ? 'text-gray-500' : 'text-amber-100'}`}>배치변경</span>
+                <span className={`${lblBase} font-semibold whitespace-nowrap ${refreshDisabled ? 'text-gray-500' : 'text-amber-100'}`}>{t("placementRefresh.title")}</span>
                 {nextCost > 0 && (
                     <span className={`${isMobile ? 'text-[8px]' : 'text-[10px]'} flex items-center gap-0.5 whitespace-nowrap ${refreshDisabled ? 'text-gray-500' : 'text-yellow-300'}`}>
-                        <img src="/images/icon/Gold.webp" alt="골드" className={`${isMobile ? 'w-2.5 h-2.5' : 'w-3 h-3'} shrink-0`} />
+                        <img src="/images/icon/Gold.webp" alt={t("controls.goldAlt")} className={`${isMobile ? 'w-2.5 h-2.5' : 'w-3 h-3'} shrink-0`} />
                         {formatGoldAmountKoG(nextCost)}
                     </span>
                 )}
@@ -666,42 +669,42 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
                 <div className={colClass}>
                     <ItemImageButton
                         src="/images/button/hidden.webp"
-                        alt="히든"
+                        alt={t("controls.hidden")}
                         onClick={handleUseHidden}
                         disabled={hiddenDisabled}
-                        title="히든 스톤 배치"
+                        title={t('controls.hiddenPlaceTitle')}
                         count={hiddenLeft}
                         compact={isMobile}
                     />
-                    <span className={`${lblBase} font-semibold whitespace-nowrap ${hiddenDisabled ? 'text-gray-500' : 'text-amber-100'}`}>히든</span>
+                    <span className={`${lblBase} font-semibold whitespace-nowrap ${hiddenDisabled ? 'text-gray-500' : 'text-amber-100'}`}>{t("controls.hidden")}</span>
                 </div>
             )}
             {isHiddenMode && (
                 <div className={colClass}>
                     <ItemImageButton
                         src="/images/button/scan.webp"
-                        alt="스캔"
+                        alt={t("controls.scan")}
                         onClick={handleUseScan}
                         disabled={scanDisabled}
-                        title="상대 히든 스톤 탐지"
+                        title={t('controls.scanDetectTitle')}
                         count={myScansLeft}
                         compact={isMobile}
                     />
-                    <span className={`${lblBase} font-semibold whitespace-nowrap ${scanDisabled ? 'text-gray-500' : 'text-amber-100'}`}>스캔</span>
+                    <span className={`${lblBase} font-semibold whitespace-nowrap ${scanDisabled ? 'text-gray-500' : 'text-amber-100'}`}>{t("controls.scan")}</span>
                 </div>
             )}
             {isMissileMode && (
                 <div className={colClass}>
                     <ItemImageButton
                         src="/images/button/missile.webp"
-                        alt="미사일"
+                        alt={t("controls.missile")}
                         onClick={handleUseMissile}
                         disabled={missileDisabled}
-                        title="미사일 발사"
+                        title={t('controls.missileLaunchTitle')}
                         count={myMissilesLeft}
                         compact={isMobile}
                     />
-                    <span className={`${lblBase} font-semibold whitespace-nowrap ${missileDisabled ? 'text-gray-500' : 'text-amber-100'}`}>미사일</span>
+                    <span className={`${lblBase} font-semibold whitespace-nowrap ${missileDisabled ? 'text-gray-500' : 'text-amber-100'}`}>{t("controls.missile")}</span>
                 </div>
             )}
         </>
@@ -825,12 +828,12 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
             
             {confirmModal && (
                 <ConfirmModal
-                    title={confirmModal.title || '확인'}
+                    title={confirmModal.title || t('common:actions.confirm')}
                     message={confirmModal.message}
                     onConfirm={confirmModal.onConfirm}
                     onCancel={() => setConfirmModal(null)}
-                    confirmText="확인"
-                    cancelText="취소"
+                    confirmText={t("common:actions.confirm")}
+                    cancelText={t("common:actions.cancel")}
                     confirmColorScheme="red"
                     isTopmost={true}
                     windowId="singleplayer-confirm-modal"

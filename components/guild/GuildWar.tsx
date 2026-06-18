@@ -38,7 +38,7 @@ import {
     type GuildWarBoardRuleMode,
 } from '../../constants/index.js';
 import { getTodayKSTDateString, formatDateTimeKST } from '../../utils/timeUtils.js';
-import { guildWarIsOpenForPlay, guildWarStartMs } from '../../shared/utils/guildWarSchedule.js';
+import { guildWarIsOpenForPlay, guildWarStartMs, getGuildWarDisplayCountdownTarget } from '../../shared/utils/guildWarSchedule.js';
 import {
     getGuildWarBoardOwnerGuildId,
     getGuildWarBoardOwnerGuildIdWithBotAttemptsFallback,
@@ -47,6 +47,7 @@ import {
 import { GUILD_WAR_BOT_GUILD_ID } from '../../shared/constants/auth.js';
 import { SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT } from '../../shared/constants/speedTimePressure.js';
 import { GuildWarUnifiedScoreboard } from './GuildWarUnifiedScoreboard.js';
+import { useTranslation } from 'react-i18next';
 
 const GUILD_WAR_PERSONAL_DAILY_LIMIT = GUILD_WAR_PERSONAL_DAILY_ATTEMPTS;
 
@@ -226,6 +227,7 @@ type MyGuildWarBoardParticipationRow = {
 };
 
 const GuildWar = () => {
+    const { t } = useTranslation(['guild', 'common']);
     const { currentUserWithStatus, currentUser, guilds, handlers, allUsers } = useAppContext();
     /** 세션/WS 타이밍으로 WithStatus에만 늦게 붙는 경우 대비 */
     const effectiveGuildId = currentUserWithStatus?.guildId ?? currentUser?.guildId ?? '';
@@ -331,10 +333,10 @@ const GuildWar = () => {
                     const openMs = guildWarStartMs(war);
                     if (openMs > Date.now()) {
                         alert(
-                            `길드전이 아직 시작되지 않았습니다.\n${formatDateTimeKST(openMs)}(KST)부터 입장할 수 있습니다.`,
+                            t('war.notStartedYet', { date: formatDateTimeKST(openMs) }),
                         );
                     } else {
-                        alert('진행 중인 길드전이 없습니다.');
+                        alert(t('war.noActiveWar'));
                     }
                     replaceAppHash('#/guild');
                     setActiveWar(null);
@@ -355,21 +357,21 @@ const GuildWar = () => {
                 let myGuildData = guildsData[myGuildId] as any;
                 let opponentGuildData = guildsData[opponentGuildId] as any;
                 if (!myGuildData) {
-                    myGuildData = { id: myGuildId, name: '길드', level: 1, members: [], leaderId: myGuildId };
+                    myGuildData = { id: myGuildId, name: t('war.defaultGuildName'), level: 1, members: [], leaderId: myGuildId };
                 }
                 if (!opponentGuildData) {
                     opponentGuildData =
                         isBotWar || opponentGuildId === GUILD_WAR_BOT_GUILD_ID
                             ? {
                                   id: opponentGuildId,
-                                  name: '[시스템] 길드전 AI',
+                                  name: t('war.systemAiGuild'),
                                   level: 1,
                                   members: [],
                                   leaderId: opponentGuildId,
                               }
                             : {
                                   id: opponentGuildId,
-                                  name: '상대 길드',
+                                  name: t('war.opponentGuild'),
                                   level: 1,
                                   members: [],
                                   leaderId: opponentGuildId,
@@ -381,15 +383,15 @@ const GuildWar = () => {
                 
                 // 바둑판 데이터 변환
                 const boardNames: Record<string, string> = {
-                    'top-left': '좌상귀',
-                    'top-mid': '상변',
-                    'top-right': '우상귀',
-                    'mid-left': '좌변',
-                    'center': '중앙',
-                    'mid-right': '우변',
-                    'bottom-left': '좌하귀',
-                    'bottom-mid': '하변',
-                    'bottom-right': '우하귀',
+                    'top-left': t('war.boardTopLeft'),
+                    'top-mid': t('war.boardTopMid'),
+                    'top-right': t('war.boardTopRight'),
+                    'mid-left': t('war.boardMidLeft'),
+                    'center': t('war.boardCenter'),
+                    'mid-right': t('war.boardMidRight'),
+                    'bottom-left': t('war.boardBottomLeft'),
+                    'bottom-mid': t('war.boardBottomMid'),
+                    'bottom-right': t('war.boardBottomRight'),
                 };
                 
                 const convertedBoards: Board[] = GUILD_WAR_BOARD_ORDER
@@ -451,7 +453,7 @@ const GuildWar = () => {
                                 (board as any).occupierLevel = seeded.level;
                                 (board as any).occupierIsAiBot = true;
                             } else {
-                                occupierNickname = serv?.nickname ?? occUser?.nickname ?? '알 수 없음';
+                                occupierNickname = serv?.nickname ?? occUser?.nickname ?? t('war.unknownUser');
                                 const avatarId = serv?.avatarId ?? (occUser as any)?.avatarId;
                                 (board as any).occupierAvatarUrl = resolveHomeStyleAvatarUrl(avatarId);
                                 const bId = serv?.borderId ?? (occUser as any)?.borderId ?? 'default';
@@ -575,34 +577,35 @@ const GuildWar = () => {
                     setOpponentTeamTickets({ used: 0, total: 0, unknown: false });
                 }
                 
-                // 남은 시간 계산 (개시 전·종료 전 구분)
+                // 남은 시간 계산 (개시 전·종료 전 구분 — 스케줄상 가장 가까운 개시 우선)
                 const warEndMs = toEpochMs((war as any).endTime);
-                const warStartMs = toEpochMs((war as any).startTime);
-                if (warEndMs) {
+                if (warEndMs || guildWarStartMs(war) > 0) {
                     if (remainingTimeInterval) {
                         clearInterval(remainingTimeInterval);
                         remainingTimeInterval = null;
                     }
                     const updateRemainingTime = () => {
                         const now = Date.now();
-                        if (warStartMs != null && now < warStartMs) {
-                            const untilOpen = warStartMs - now;
-                            const days = Math.floor(untilOpen / (24 * 60 * 60 * 1000));
-                            const hours = Math.floor((untilOpen % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
-                            setRemainingTime(`개시까지 ${days > 0 ? `${days}일 ` : ''}${hours}시간`);
+                        const target = getGuildWarDisplayCountdownTarget(now, war as any);
+                        if (!target || target.targetMs <= now) {
+                            setRemainingTime(target?.kind === 'until_end' ? t('war.ended') : '');
                             return;
                         }
-                        const remaining = warEndMs - now;
-                        if (remaining <= 0) {
-                            setRemainingTime('종료됨');
-                            return;
+                        const remainingMs = target.targetMs - now;
+                        const days = Math.floor(remainingMs / (24 * 60 * 60 * 1000));
+                        const hours = Math.floor((remainingMs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+                        const minutes = Math.floor((remainingMs % (60 * 60 * 1000)) / (60 * 1000));
+                        const prefix = target.kind === 'until_open' ? t('war.untilOpen') : t('war.untilEnd');
+                        if (days > 0) {
+                            setRemainingTime(t('war.daysHoursRemaining', { prefix, days, hours }));
+                        } else if (hours > 0) {
+                            setRemainingTime(t('war.hoursMinutesRemaining', { prefix, hours, minutes }));
+                        } else {
+                            setRemainingTime(t('war.minutesRemaining', { prefix, minutes }));
                         }
-                        const days = Math.floor(remaining / (24 * 60 * 60 * 1000));
-                        const hours = Math.floor((remaining % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
-                        setRemainingTime(`종료까지 ${days}일 ${hours}시간`);
                     };
                     updateRemainingTime();
-                    remainingTimeInterval = setInterval(updateRemainingTime, 60000); // 1분마다 업데이트
+                    remainingTimeInterval = setInterval(updateRemainingTime, 1000);
                 } else if (remainingTimeInterval) {
                     clearInterval(remainingTimeInterval);
                     remainingTimeInterval = null;
@@ -663,7 +666,7 @@ const GuildWar = () => {
     const handleBoardClick = async (board: Board) => {
         if (!activeWar || !effectiveGuildId) return;
         if ((activeWar as any).status !== 'active') {
-            alert('종료된 길드 전쟁에서는 도전할 수 없습니다.');
+            alert(t('war.endedWarNoChallenge'));
             return;
         }
         
@@ -671,7 +674,7 @@ const GuildWar = () => {
         if (!isDemoMode && !currentUserWithStatus?.isAdmin) {
             // 하루 도전 횟수 확인 (관리자는 테스트용 무제한)
             if (myDailyAttempts >= GUILD_WAR_PERSONAL_DAILY_LIMIT) {
-                alert(`이번 길드전 도전 횟수를 모두 사용했습니다. (총 ${GUILD_WAR_PERSONAL_DAILY_LIMIT}회)`);
+                alert(t('war.dailyLimitReached', { limit: GUILD_WAR_PERSONAL_DAILY_LIMIT }));
                 return;
             }
         }
@@ -696,7 +699,7 @@ const GuildWar = () => {
             }
         } catch (error) {
             console.error('[GuildWar] Failed to start game:', error);
-            alert('게임 시작에 실패했습니다.');
+            alert(t('war.gameStartFailed'));
         }
     };
 
@@ -723,7 +726,7 @@ const GuildWar = () => {
             console.error('[GuildWar] GET_MY_GUILD_WAR_ATTEMPT_LOG', e);
             setMyAttemptLogRows([]);
             setMyBoardParticipation([]);
-            alert('기록을 불러오지 못했습니다.');
+            alert(t('war.loadLogFailed'));
         } finally {
             setMyAttemptLogLoading(false);
         }
@@ -748,7 +751,7 @@ const GuildWar = () => {
             return (
                 <div className={`${warMapBgClass} items-center justify-center gap-3 text-primary`} style={warMapBgStyle}>
                     <div className="h-10 w-10 animate-spin rounded-full border-2 border-amber-400/70 border-t-transparent" aria-hidden />
-                    <p className="text-sm font-semibold text-amber-100/90">길드전 정보를 불러오는 중…</p>
+                    <p className="text-sm font-semibold text-amber-100/90">{t('loading.warInfo')}</p>
                 </div>
             );
         }
@@ -841,7 +844,7 @@ const GuildWar = () => {
                   ? oppOccupationFlagSrc
                   : null;
         const occupierFlagAlt =
-            ownerGuildId === myGuild.id ? '우리 길드 점령' : ownerGuildId === opponentGuild.id ? '상대 길드 점령' : '';
+            ownerGuildId === myGuild.id ? t('war.ourOccupation') : ownerGuildId === opponentGuild.id ? t('war.opponentOccupation') : '';
 
         const boardImg = compact ? 'h-[min(29vw,6rem)] w-[min(29vw,6rem)]' : 'h-28 w-28 sm:h-[7.25rem] sm:w-[7.25rem]';
         const occupierFlagClass = compact
@@ -867,7 +870,7 @@ const GuildWar = () => {
         const boardCenter = (
             <div className="relative flex min-w-0 flex-col items-center justify-center gap-0.5">
                 <div className="relative flex items-center justify-center">
-                    <img src={GUILD_WAR_BOARD_IMG} alt="바둑판" className={`${boardImg} rounded-md shadow-lg`} />
+                    <img src={GUILD_WAR_BOARD_IMG} alt={t('war.boardAlt')} className={`${boardImg} rounded-md shadow-lg`} />
                     {occupierFlagSrc ? (
                         <img src={occupierFlagSrc} alt={occupierFlagAlt} className={occupierFlagClass} />
                     ) : null}
@@ -995,13 +998,13 @@ const GuildWar = () => {
         return (
             <div className={`flex w-full flex-1 flex-col gap-2 min-h-0 ${panelClasses} rounded-lg border-2 p-2 sm:p-2.5`}>
                 <div className="shrink-0">
-                    <h2 className={`mb-1.5 text-center text-lg font-bold sm:text-xl ${textClasses}`}>상황판</h2>
+                    <h2 className={`mb-1.5 text-center text-lg font-bold sm:text-xl ${textClasses}`}>{t('war.situationBoard')}</h2>
                     <div className="space-y-1.5">
                         <div
                             className={`flex flex-col gap-2 rounded-lg border px-2.5 py-2 sm:flex-row sm:items-center sm:justify-between ${isBlue ? 'border-blue-800/70 bg-blue-950/45' : 'border-red-700/80 bg-red-950/50'}`}
                         >
                             <span className={`min-w-0 shrink text-left text-xs font-semibold leading-snug sm:text-sm ${secondaryTextClasses}`}>
-                                길드원 총 도전권
+                                {t('war.memberTotalAttempts')}
                             </span>
                             <div className="flex min-w-0 flex-1 items-center justify-end gap-2 sm:max-w-[65%]">
                                 <div className="flex shrink-0 items-center justify-center gap-2">
@@ -1013,7 +1016,7 @@ const GuildWar = () => {
                                 {onOpenMyAttemptLog ? (
                                     <button
                                         type="button"
-                                        title={myAttemptLogDisabled ? '데모 모드에서는 이용할 수 없습니다.' : '이번 길드전 나의 경기장·성적'}
+                                        title={myAttemptLogDisabled ? t('war.demoAttemptsDisabled') : t('war.myAttemptsTitle')}
                                         disabled={!!myAttemptLogDisabled || !!myAttemptLogBusy}
                                         onClick={() => onOpenMyAttemptLog()}
                                         className={`shrink-0 rounded-md border px-2.5 py-1 text-xs font-bold transition sm:text-sm ${
@@ -1024,13 +1027,13 @@ const GuildWar = () => {
                                                   : 'border-amber-200/35 bg-red-700/40 text-amber-50 hover:bg-red-600/45'
                                         }`}
                                     >
-                                        {myAttemptLogBusy ? '불러오는 중…' : '내 도전'}
+                                        {myAttemptLogBusy ? t('loading.checking') : t('war.myAttempts')}
                                     </button>
                                 ) : null}
                             </div>
                         </div>
                         <div className={`rounded-lg border px-2 py-1.5 sm:px-2.5 sm:py-2 ${occupierPanelClasses}`}>
-                            <p className={`mb-1 text-center text-xs font-semibold leading-none sm:text-sm ${secondaryTextClasses}`}>현재 점령자</p>
+                            <p className={`mb-1 text-center text-xs font-semibold leading-none sm:text-sm ${secondaryTextClasses}`}>{t('war.currentOccupier')}</p>
                             <div className="flex min-h-11 w-full items-center justify-center sm:min-h-12">
                                 {!board ? (
                                     <div className="min-h-11 w-full rounded-md border border-dashed border-white/10 bg-black/20 sm:min-h-12" aria-hidden />
@@ -1066,20 +1069,20 @@ const GuildWar = () => {
                                                 className="max-w-[38%] shrink-0 truncate text-right text-[10px] font-bold leading-tight text-amber-200/95 sm:max-w-[42%] sm:text-xs"
                                                 title={
                                                     board.gameMode === 'capture'
-                                                        ? `따낸돌 ${board.occupierCaptures ?? 0}개`
-                                                        : `집 차이 ${board.occupierScoreDiff ?? 0}집`
+                                                        ? t('war.capturesCount', { count: board.occupierCaptures ?? 0 })
+                                                        : t('war.scoreDiff', { count: board.occupierScoreDiff ?? 0 })
                                                 }
                                             >
                                                 {board.gameMode === 'capture'
-                                                    ? `따낸돌 ${board.occupierCaptures ?? 0}개`
-                                                    : `차이 ${board.occupierScoreDiff ?? 0}집`}
+                                                    ? t('war.capturesCount', { count: board.occupierCaptures ?? 0 })
+                                                    : t('war.scoreDiffShort', { count: board.occupierScoreDiff ?? 0 })}
                                             </span>
                                         ) : (
                                             <span className="shrink-0 text-[10px] font-semibold text-slate-500 sm:text-xs">—</span>
                                         )}
                                     </div>
                                 ) : (
-                                    <span className="block w-full text-center text-xs text-slate-500 sm:text-sm">없음</span>
+                                    <span className="block w-full text-center text-xs text-slate-500 sm:text-sm">{t('war.none')}</span>
                                 )}
                             </div>
                         </div>
@@ -1126,20 +1129,20 @@ const GuildWar = () => {
                                             {board.gameMode === 'capture' && (
                                                 <div className="col-span-2 rounded-lg border border-amber-500/25 bg-slate-900/50 px-2 py-1.5 sm:px-2.5 sm:py-2">
                                                     <p className="mb-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-amber-200/90 sm:text-xs">
-                                                        목표점수
+                                                        {t('war.targetScore')}
                                                     </p>
                                                     <div className="flex flex-wrap items-center justify-center gap-2">
                                                         <div className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-black/35 px-2 py-1.5">
                                                             <PlainBlackStoneIcon className="h-7 w-7 sm:h-8 sm:w-8" />
                                                             <span className="text-base font-black tabular-nums text-amber-50 sm:text-lg">
-                                                                {getGuildWarCaptureBlackTargetByBoardId(board.id)}점
+                                                                {t('war.pointsUnit', { count: getGuildWarCaptureBlackTargetByBoardId(board.id) })}
                                                             </span>
                                                         </div>
                                                         <span className="px-0.5 text-xs font-bold text-slate-500">vs</span>
                                                         <div className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-black/35 px-2 py-1.5">
                                                             <PlainWhiteStoneIcon className="h-7 w-7 sm:h-8 sm:w-8" />
                                                             <span className="text-base font-black tabular-nums text-amber-50 sm:text-lg">
-                                                                {GUILD_WAR_CAPTURE_AI_TARGET}점
+                                                                {t('war.pointsUnit', { count: GUILD_WAR_CAPTURE_AI_TARGET })}
                                                             </span>
                                                         </div>
                                                     </div>
@@ -1148,34 +1151,34 @@ const GuildWar = () => {
                                             <div className="flex items-center gap-2 rounded-lg border border-slate-600/40 bg-slate-900/55 px-2 py-1.5 sm:px-2.5 sm:py-2">
                                                 <img src={modeIcon} alt="" className="h-8 w-8 shrink-0 rounded-md bg-black/20 object-contain p-0.5 sm:h-9 sm:w-9" />
                                                 <div className="min-w-0">
-                                                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 sm:text-xs">모드</p>
+                                                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 sm:text-xs">{t('war.mode')}</p>
                                                     <p className={`text-sm font-bold sm:text-base ${detailAccentText}`}>{modeLabel}</p>
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2 rounded-lg border border-slate-600/40 bg-slate-900/55 px-2 py-1.5 sm:px-2.5 sm:py-2">
                                                 <img src={GUILD_WAR_BOARD_IMG} alt="" className="h-8 w-8 shrink-0 rounded-md bg-black/20 object-contain p-0.5 sm:h-9 sm:w-9" />
                                                 <div className="min-w-0">
-                                                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 sm:text-xs">바둑판</p>
-                                                    <p className={`text-sm font-bold sm:text-base ${detailAccentText}`}>{board.boardSize}줄</p>
+                                                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 sm:text-xs">{t('war.board')}</p>
+                                                    <p className={`text-sm font-bold sm:text-base ${detailAccentText}`}>{t('war.boardLines', { size: board.boardSize })}</p>
                                                 </div>
                                             </div>
                                             <div className="col-span-2 flex items-center gap-2.5 rounded-lg border border-slate-600/40 bg-slate-900/55 px-2 py-1.5 sm:px-2.5 sm:py-2">
                                                 <img src="/images/icon/timer.webp" alt="" className="h-7 w-7 shrink-0 rounded-md bg-black/20 object-contain p-0.5 sm:h-8 sm:w-8" />
                                                 <div className="grid min-w-0 flex-1 grid-cols-2 gap-3">
                                                     <div className="min-w-0">
-                                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 sm:text-xs">턴 제한</p>
+                                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 sm:text-xs">{t('war.turnLimit')}</p>
                                                         <p className={`text-sm font-bold whitespace-nowrap sm:text-base ${detailAccentText}`}>
                                                             {board.gameMode === 'capture'
-                                                                ? `${getGuildWarCaptureTurnLimitByBoardId(board.id)}턴`
-                                                                : `계가까지 ${getGuildWarAutoScoringTurnsByBoardId(board.id)}턴`}
+                                                                ? t('war.turnsUnit', { count: getGuildWarCaptureTurnLimitByBoardId(board.id) })
+                                                                : t('war.scoringTurns', { count: getGuildWarAutoScoringTurnsByBoardId(board.id) })}
                                                         </p>
                                                     </div>
                                                     <div className="min-w-0">
-                                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 sm:text-xs">대국 시계</p>
+                                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 sm:text-xs">{t('war.clock')}</p>
                                                         <p className={`text-sm font-bold whitespace-nowrap sm:text-base ${detailAccentText}`}>
                                                             {board.gameMode === 'speed'
-                                                                ? `${GUILD_WAR_MAIN_TIME_MINUTES}분 · 수당 10초`
-                                                                : `${GUILD_WAR_MAIN_TIME_MINUTES}분(피셔 ${GUILD_WAR_FISCHER_INCREMENT_SECONDS}초)`}
+                                                                ? t('war.mainTimeByoyomi', { minutes: GUILD_WAR_MAIN_TIME_MINUTES })
+                                                                : t('war.clockFischer', { minutes: GUILD_WAR_MAIN_TIME_MINUTES, increment: GUILD_WAR_FISCHER_INCREMENT_SECONDS })}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -1187,7 +1190,7 @@ const GuildWar = () => {
                                 <div className="shrink-0 rounded-lg border border-amber-600/30 bg-amber-950/35 px-2 py-1.5 sm:px-2.5 sm:py-2">
                                     <p className="mb-1 flex shrink-0 items-center justify-center gap-1.5 text-xs font-bold uppercase tracking-wide text-amber-200/95 sm:text-sm">
                                         <img src={GUILD_WAR_STAR_IMG} alt="" className="h-4 w-4 shrink-0 opacity-95 sm:h-4 sm:w-4" />
-                                        별 획득 조건
+                                        {t('war.starConditions')}
                                     </p>
                                     <ul className="space-y-1 text-xs leading-snug text-amber-50/95 sm:text-sm sm:leading-relaxed">
                                         {getGuildWarStarConditionLines(board.gameMode, board.id).map((line, i) => (
@@ -1203,7 +1206,12 @@ const GuildWar = () => {
                                     <div
                                         className="flex flex-nowrap items-center justify-between gap-1 overflow-x-auto"
                                         role="group"
-                                        aria-label={`초기 배치: 흑 ${board.initialStoneCounts.blackPlain}, 백 ${board.initialStoneCounts.whitePlain}, 문양 흑 ${board.initialStoneCounts.blackMarked}, 문양 백 ${board.initialStoneCounts.whiteMarked}`}
+                                        aria-label={t('war.initialStonesAria', {
+                                            blackPlain: board.initialStoneCounts.blackPlain,
+                                            whitePlain: board.initialStoneCounts.whitePlain,
+                                            blackMarked: board.initialStoneCounts.blackMarked,
+                                            whiteMarked: board.initialStoneCounts.whiteMarked,
+                                        })}
                                     >
                                         {[
                                             {
@@ -1254,21 +1262,21 @@ const GuildWar = () => {
                                 {board.gameMode !== 'capture' && (
                                 <div className="shrink-0 rounded-lg border border-slate-600/35 bg-slate-900/45 px-2 py-1.5 sm:px-2.5 sm:py-2">
                                     <p className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-slate-400 sm:text-xs">
-                                        {board.gameMode === 'hidden' || board.gameMode === 'missile' ? '아이템' : '룰'}
+                                        {board.gameMode === 'hidden' || board.gameMode === 'missile' ? t('war.itemsOrRules') : t('war.rules')}
                                     </p>
                                     {board.gameMode === 'hidden' ? (
                                         <div className="grid grid-cols-2 gap-1.5">
                                             <div className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-black/40 px-2 py-1 sm:py-1.5">
                                                 <img src={GUILD_WAR_HIDDEN_ICON} alt="" className="h-7 w-7 shrink-0 object-contain" />
                                                 <div>
-                                                    <p className="text-[10px] text-slate-400 sm:text-xs">히든</p>
+                                                    <p className="text-[10px] text-slate-400 sm:text-xs">{t('war.hidden')}</p>
                                                     <p className="text-sm font-bold tabular-nums text-amber-100 sm:text-base">{getGuildWarHiddenStoneCountByBoardId(board.id)}</p>
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-black/40 px-2 py-1 sm:py-1.5">
                                                 <img src={GUILD_WAR_SCAN_ICON} alt="" className="h-7 w-7 shrink-0 object-contain" />
                                                 <div>
-                                                    <p className="text-[10px] text-slate-400 sm:text-xs">스캔</p>
+                                                    <p className="text-[10px] text-slate-400 sm:text-xs">{t('war.scan')}</p>
                                                     <p className="text-sm font-bold tabular-nums text-amber-100 sm:text-base">{getGuildWarScanCountByBoardId(board.id)}</p>
                                                 </div>
                                             </div>
@@ -1278,18 +1286,18 @@ const GuildWar = () => {
                                             <div className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-black/40 px-2 py-1 sm:py-1.5">
                                                 <img src={GUILD_WAR_MISSILE_ICON} alt="" className="h-7 w-7 shrink-0 object-contain" />
                                                 <div>
-                                                    <p className="text-[10px] text-slate-400 sm:text-xs">미사일</p>
+                                                    <p className="text-[10px] text-slate-400 sm:text-xs">{t('war.missile')}</p>
                                                     <p className="text-sm font-bold tabular-nums text-amber-100 sm:text-base">{getGuildWarMissileCountByBoardId(board.id)}</p>
                                                 </div>
                                             </div>
                                         </div>
                                     ) : board.gameMode === 'speed' ? (
                                         <p className="text-center text-[11px] leading-snug text-amber-50/95 sm:text-xs">
-                                            내 시계가 {SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT}초마다 쌓일 때마다 상대 점수가 1점씩 오릅니다. (PVE 스피드)
+                                            {t('war.speedPressureRule', { seconds: SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT })}
                                         </p>
                                     ) : board.gameMode === 'base' ? (
                                         <p className="text-center text-[11px] leading-snug text-amber-50/95 sm:text-xs">
-                                            베이스 돌 {getGuildWarBaseStoneCountByBoardId(board.id)}개를 비밀 배치한 뒤 덤 입찰로 본대국에 진입합니다.
+                                            {t('war.baseStoneRule', { count: getGuildWarBaseStoneCountByBoardId(board.id) })}
                                         </p>
                                     ) : null}
                                 </div>
@@ -1298,9 +1306,9 @@ const GuildWar = () => {
                                 <div className="flex shrink-0 items-center gap-2 rounded-lg border border-indigo-500/25 bg-indigo-950/40 px-2 py-1.5 sm:px-2.5 sm:py-2">
                                     <img src={GUILD_WAR_TICKET_IMG} alt="" className="h-7 w-7 shrink-0 object-contain drop-shadow sm:h-8 sm:w-8" />
                                     <div className="min-w-0 flex-1 text-right">
-                                        <p className="text-xs font-semibold text-indigo-200/80 sm:text-sm">맵 도전 횟수</p>
+                                        <p className="text-xs font-semibold text-indigo-200/80 sm:text-sm">{t('war.mapAttempts')}</p>
                                         <p className="text-lg font-black tabular-nums text-indigo-100 sm:text-xl">
-                                            {perspectiveAttempts.toLocaleString()}회
+                                            {t('war.attemptsCount', { count: perspectiveAttempts.toLocaleString() })}
                                         </p>
                                     </div>
                                 </div>
@@ -1324,7 +1332,7 @@ const GuildWar = () => {
                                         </span>
                                         <span className="opacity-80 hidden min-[380px]:inline" aria-hidden>·</span>
                                         <span className="leading-tight text-center">
-                                            {(!isDemoMode && myDailyAttempts >= GUILD_WAR_PERSONAL_DAILY_LIMIT) ? '도전 횟수 소진' : '도전하기'}
+                                            {(!isDemoMode && myDailyAttempts >= GUILD_WAR_PERSONAL_DAILY_LIMIT) ? t('war.attemptsExhausted') : t('war.challenge')}
                                         </span>
                                     </button>
                                 )}
@@ -1344,6 +1352,7 @@ const GuildWar = () => {
         unknown: boolean;
         className?: string;
     }> = ({ colorSide, used, total, unknown, className }) => {
+        const { t } = useTranslation(['guild', 'common']);
         const isBlue = colorSide === 'blue';
         const panelClasses = isBlue ? 'bg-blue-900/45 border-blue-700' : 'bg-red-900/45 border-red-700';
         const secondaryTextClasses = isBlue ? 'text-blue-200' : 'text-red-200';
@@ -1353,7 +1362,7 @@ const GuildWar = () => {
                 className={`flex h-40 w-[12rem] min-w-[12rem] flex-none flex-col justify-center gap-1 rounded-lg border-2 px-2.5 py-2 ${panelClasses} shadow-md ${className ?? ''}`}
             >
                 <div className={`flex min-h-0 flex-1 flex-col justify-center rounded-md border px-2 py-1.5 ${innerBox}`}>
-                    <p className={`text-center text-[10px] font-semibold leading-none ${secondaryTextClasses}`}>총 도전권 (사용/전체)</p>
+                    <p className={`text-center text-[10px] font-semibold leading-none ${secondaryTextClasses}`}>{t('war.totalAttemptsUsage')}</p>
                     <div className="mt-1 flex items-center justify-center gap-2">
                         <img src={GUILD_WAR_TICKET_IMG} alt="" className="h-6 w-6 shrink-0 object-contain opacity-95" />
                         <span className="tabular-nums text-xl font-black leading-none text-white sm:text-2xl">
@@ -1387,16 +1396,16 @@ const GuildWar = () => {
                         <h1
                             className={`truncate bg-gradient-to-r from-amber-100 via-white to-amber-100 bg-clip-text font-black tracking-tight text-transparent ${isNativeMobile ? 'text-lg' : 'text-2xl lg:text-3xl'}`}
                         >
-                            길드 전쟁
+                            {t('war.title')}
                         </h1>
                     </div>
                 </div>
                 <div
                     className={`shrink-0 rounded-xl border border-amber-400/30 bg-black/55 px-2.5 py-1.5 text-right shadow-inner ring-1 ring-white/5 backdrop-blur-sm sm:px-3 sm:py-2 ${isNativeMobile ? 'max-w-[40%]' : 'min-w-[9rem]'}`}
                 >
-                    <p className="text-[9px] font-semibold uppercase tracking-wide text-amber-200/75">길드전 일정</p>
+                    <p className="text-[9px] font-semibold uppercase tracking-wide text-amber-200/75">{t('war.schedule')}</p>
                     <p className={`font-bold tabular-nums text-amber-50 ${isNativeMobile ? 'text-[11px] leading-tight' : 'text-sm'}`}>
-                        {isDemoMode ? '데모 모드' : remainingTime || '계산 중...'}
+                        {isDemoMode ? t('war.demoMode') : remainingTime || t('loading.calculating')}
                     </p>
                 </div>
             </header>
@@ -1407,7 +1416,7 @@ const GuildWar = () => {
                             <div className="flex min-w-0 flex-1 flex-col items-center">
                                 {!weAreVisualBlue ? (
                                     <div className="mb-1 flex w-full max-w-[7.25rem] flex-col items-center gap-0.5 rounded-md border border-blue-800/55 bg-blue-950/45 px-1 py-1">
-                                        <span className="text-[9px] font-semibold text-blue-200/90">총 도전권</span>
+                                        <span className="text-[9px] font-semibold text-blue-200/90">{t('war.totalAttempts')}</span>
                                         <div className="flex items-center gap-1">
                                             <img src={GUILD_WAR_TICKET_IMG} alt="" className="h-4 w-4 shrink-0 object-contain opacity-95" />
                                             <span className="text-[11px] font-black tabular-nums text-white">
@@ -1441,7 +1450,7 @@ const GuildWar = () => {
                                 <span className="mt-0.5 max-w-full truncate text-center text-[11px] font-bold">{visualRedGuild.name}</span>
                                 {weAreVisualBlue ? (
                                     <div className="mt-1 flex w-full max-w-[7.25rem] flex-col items-center gap-0.5 rounded-md border border-red-800/55 bg-red-950/45 px-1 py-1">
-                                        <span className="text-[9px] font-semibold text-red-200/90">총 도전권</span>
+                                        <span className="text-[9px] font-semibold text-red-200/90">{t('war.totalAttempts')}</span>
                                         <div className="flex items-center gap-1">
                                             <img src={GUILD_WAR_TICKET_IMG} alt="" className="h-4 w-4 shrink-0 object-contain opacity-95" />
                                             <span className="text-[11px] font-black tabular-nums text-white">
@@ -1500,7 +1509,7 @@ const GuildWar = () => {
                                         />
                                         <img
                                             src={visualBlueGuild.icon || visualBlueGuild.emblem || '/images/guild/profile/icon1.webp'}
-                                            alt="청팀 길드"
+                                            alt={t('war.blueTeamAlt')}
                                             className="absolute left-1/2 top-[42px] h-12 w-12 max-w-[44%] -translate-x-1/2 object-contain drop-shadow-md"
                                         />
                                     </div>
@@ -1529,7 +1538,7 @@ const GuildWar = () => {
                                         />
                                         <img
                                             src={visualRedGuild.icon || visualRedGuild.emblem || '/images/guild/profile/icon1.webp'}
-                                            alt="홍팀 길드"
+                                            alt={t('war.redTeamAlt')}
                                             className="absolute left-1/2 top-[42px] h-12 w-12 max-w-[44%] -translate-x-1/2 object-contain drop-shadow-md"
                                         />
                                     </div>
@@ -1598,14 +1607,14 @@ const GuildWar = () => {
                     >
                         <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 px-3 py-2.5">
                             <h2 id="guild-war-my-situation-title" className="text-base font-bold text-white" style={{ textShadow: '1px 1px 3px black' }}>
-                                우리 길드 상황판
+                                {t('war.ourSituationBoard')}
                             </h2>
                             <button
                                 type="button"
                                 className="rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-white/20"
                                 onClick={() => setMySituationDrawerOpen(false)}
                             >
-                                닫기
+                                {t('common:actions.close')}
                             </button>
                         </div>
                         <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-2 pb-2 pt-1">
@@ -1649,18 +1658,18 @@ const GuildWar = () => {
                         <div className="flex shrink-0 flex-col gap-2 border-b border-white/10 px-4 py-3">
                             <div className="flex items-center justify-between gap-2">
                                 <h2 id="guild-war-my-attempt-log-title" className="min-w-0 text-sm font-bold leading-tight text-amber-50 sm:text-base">
-                                    이번 길드전 · 나의 경기장
+                                    {t('war.myArenaTitle')}
                                 </h2>
                                 <div className="flex shrink-0 items-center gap-2 rounded-lg border border-amber-500/25 bg-black/40 px-2.5 py-1.5">
                                     <img src={GUILD_WAR_TICKET_IMG} alt="" className="h-5 w-5 shrink-0 object-contain opacity-95" />
-                                    <span className="text-xs font-semibold text-slate-400">도전권</span>
+                                    <span className="text-xs font-semibold text-slate-400">{t('war.attemptsLabel')}</span>
                                     <span className="font-black tabular-nums text-amber-100 sm:text-base">
                                         {myAttemptLogUsed}/{myAttemptLogMax}
                                     </span>
                                 </div>
                             </div>
                             <p className="text-[11px] leading-snug text-slate-400 sm:text-xs">
-                                아래는 이번 전쟁에서 칸별로 플레이한 종료 대국 요약입니다. 진행 중인 판은 종료 후 상세 목록에 반영됩니다.
+                                {t('war.myArenaHint')}
                             </p>
                             <button
                                 type="button"
@@ -1668,20 +1677,20 @@ const GuildWar = () => {
                                 className="rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"
                                 onClick={() => setMyAttemptLogOpen(false)}
                             >
-                                닫기
+                                {t('common:actions.close')}
                             </button>
                         </div>
                         <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-3 py-3">
                             {myAttemptLogLoading && myAttemptLogRows.length === 0 && myBoardParticipation.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center gap-3 py-12 text-slate-400">
                                     <div className="h-9 w-9 animate-spin rounded-full border-2 border-amber-400/60 border-t-transparent" aria-hidden />
-                                    <p className="text-sm font-medium">불러오는 중…</p>
+                                    <p className="text-sm font-medium">{t('loading.checking')}</p>
                                 </div>
                             ) : (
                                 <div className="flex flex-col gap-4">
                                     {myBoardParticipation.length > 0 ? (
                                         <div>
-                                            <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">경기장별 성적</h3>
+                                            <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">{t('war.boardPerformance')}</h3>
                                             <ul className="flex flex-col gap-1.5">
                                                 {myBoardParticipation.map((row) => {
                                                     const hasPlay =
@@ -1698,15 +1707,20 @@ const GuildWar = () => {
                                                                 </span>
                                                                 {row.inProgress ? (
                                                                     <span className="shrink-0 rounded border border-amber-400/50 bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-black text-amber-100">
-                                                                        진행 중
+                                                                        {t('war.inProgress')}
                                                                     </span>
                                                                 ) : null}
                                                             </div>
                                                             {hasPlay ? (
                                                                 <>
                                                                     <p className="mt-1 text-[11px] text-slate-300 sm:text-xs">
-                                                                        종료 {row.gamesPlayed}판 · 승 {row.wins} · 무 {row.draws} · 패 {row.losses}
-                                                                        {row.starsEarnedSum > 0 ? ` · 획득 별 합 ${row.starsEarnedSum}` : ''}
+                                                                        {t('war.gameSummary', {
+                                                                            games: row.gamesPlayed,
+                                                                            wins: row.wins,
+                                                                            draws: row.draws,
+                                                                            losses: row.losses,
+                                                                            stars: row.starsEarnedSum > 0 ? t('war.starsEarnedSum', { count: row.starsEarnedSum }) : '',
+                                                                        })}
                                                                     </p>
                                                                     {row.boardRecordLine ? (
                                                                         <p className="mt-0.5 text-[10px] font-semibold text-amber-200/90 sm:text-[11px]">
@@ -1715,7 +1729,7 @@ const GuildWar = () => {
                                                                     ) : null}
                                                                 </>
                                                             ) : (
-                                                                <p className="mt-1 text-[11px] text-slate-500 sm:text-xs">이번 전쟁에서 이 칸 기록 없음</p>
+                                                                <p className="mt-1 text-[11px] text-slate-500 sm:text-xs">{t('war.noBoardRecord')}</p>
                                                             )}
                                                         </li>
                                                     );
@@ -1725,12 +1739,12 @@ const GuildWar = () => {
                                     ) : null}
 
                                     <div>
-                                        <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">종료 대국 상세</h3>
+                                        <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">{t('war.finishedGamesDetail')}</h3>
                                         {myAttemptLogRows.length === 0 ? (
                                             <p className="py-4 text-center text-sm text-slate-400">
-                                                아직 종료된 길드전 대국이 없습니다.
+                                                {t('war.noFinishedGames')}
                                                 <br />
-                                                <span className="text-xs text-slate-500">진행 중인 판은 끝난 뒤 여기에 표시됩니다.</span>
+                                                <span className="text-xs text-slate-500">{t('war.inProgressHint')}</span>
                                             </p>
                                         ) : (
                                 <ul className="flex flex-col gap-2">
@@ -1741,10 +1755,10 @@ const GuildWar = () => {
                                         }).format(new Date(row.endedAtMs));
                                         const oc =
                                             row.outcome === 'win'
-                                                ? { t: '승리', c: 'text-emerald-300' }
+                                                ? { label: t('war.resultWin'), c: 'text-emerald-300' }
                                                 : row.outcome === 'lose'
-                                                  ? { t: '패배', c: 'text-rose-300' }
-                                                  : { t: '무승부', c: 'text-slate-300' };
+                                                  ? { label: t('war.resultLoss'), c: 'text-rose-300' }
+                                                  : { label: t('war.resultDraw'), c: 'text-slate-300' };
                                         return (
                                             <li
                                                 key={row.gameId}
@@ -1759,12 +1773,12 @@ const GuildWar = () => {
                                                         <p className="mt-0.5 text-xs text-slate-400">{when}</p>
                                                     </div>
                                                     <span className={`shrink-0 rounded-md border border-white/10 px-2 py-0.5 text-xs font-black ${oc.c}`}>
-                                                        {oc.t}
+                                                        {oc.label}
                                                     </span>
                                                 </div>
                                                 <div className="mt-2 grid grid-cols-2 gap-2 border-t border-white/[0.06] pt-2">
                                                     <div className="rounded-lg border border-white/10 bg-black/30 px-2 py-1.5">
-                                                        <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-500">기여도</p>
+                                                        <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-500">{t('war.contributionLabel')}</p>
                                                         <div className="mt-0.5 flex items-center gap-1">
                                                             <div className="flex items-center gap-0.5">
                                                                 {[0, 1, 2].map((i) => (
@@ -1780,7 +1794,7 @@ const GuildWar = () => {
                                                         </div>
                                                     </div>
                                                     <div className="rounded-lg border border-white/10 bg-black/30 px-2 py-1.5">
-                                                        <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-500">집점수</p>
+                                                        <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-500">{t('war.houseScoreLabel')}</p>
                                                         <p className="mt-0.5 text-lg font-black tabular-nums leading-none text-cyan-200/95">
                                                             {typeof row.houseScore === 'number' && Number.isFinite(row.houseScore)
                                                                 ? Number.isInteger(row.houseScore)

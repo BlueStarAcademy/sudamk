@@ -1,4 +1,8 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import i18n from '../shared/i18n/config.js';
+
+const towerTx = (key: string, opts?: Record<string, unknown>) => i18n.t(`tower:${key}`, opts);
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useTowerRanking } from '../hooks/useTowerRanking.js';
 import Button from './Button.js';
@@ -45,25 +49,25 @@ const TOWER_MONTHLY_REWARD_TIERS = [
         gold: 50_000,
         diamonds: 150,
         items: [
-            { itemId: '장비상자6', quantity: 1 },
-            { itemId: '장비상자5', quantity: 1 }
+            { itemId: '\uC7A5\uBE44\uC0C1\uC7906', quantity: 1 },
+            { itemId: '\uC7A5\uBE44\uC0C1\uC7905', quantity: 1 }
         ]
     },
-    { floor: 90, gold: 35_000, diamonds: 100, items: [{ itemId: '장비상자5', quantity: 2 }] },
+    { floor: 90, gold: 35_000, diamonds: 100, items: [{ itemId: '\uC7A5\uBE44\uC0C1\uC7905', quantity: 2 }] },
     {
         floor: 80,
         gold: 30_000,
         diamonds: 75,
         items: [
-            { itemId: '장비상자5', quantity: 1 },
-            { itemId: '장비상자4', quantity: 1 }
+            { itemId: '\uC7A5\uBE44\uC0C1\uC7905', quantity: 1 },
+            { itemId: '\uC7A5\uBE44\uC0C1\uC7904', quantity: 1 }
         ]
     },
-    { floor: 65, gold: 20_000, diamonds: 50, items: [{ itemId: '장비상자4', quantity: 2 }] },
-    { floor: 50, gold: 15_000, diamonds: 35, items: [{ itemId: '장비상자4', quantity: 1 }] },
-    { floor: 35, gold: 10_000, diamonds: 25, items: [{ itemId: '장비상자3', quantity: 1 }] },
-    { floor: 20, gold: 5_000, diamonds: 15, items: [{ itemId: '장비상자2', quantity: 1 }] },
-    { floor: 10, gold: 3_000, diamonds: 10, items: [{ itemId: '장비상자1', quantity: 1 }] },
+    { floor: 65, gold: 20_000, diamonds: 50, items: [{ itemId: '\uC7A5\uBE44\uC0C1\uC7904', quantity: 2 }] },
+    { floor: 50, gold: 15_000, diamonds: 35, items: [{ itemId: '\uC7A5\uBE44\uC0C1\uC7904', quantity: 1 }] },
+    { floor: 35, gold: 10_000, diamonds: 25, items: [{ itemId: '\uC7A5\uBE44\uC0C1\uC7903', quantity: 1 }] },
+    { floor: 20, gold: 5_000, diamonds: 15, items: [{ itemId: '\uC7A5\uBE44\uC0C1\uC7902', quantity: 1 }] },
+    { floor: 10, gold: 3_000, diamonds: 10, items: [{ itemId: '\uC7A5\uBE44\uC0C1\uC7901', quantity: 1 }] },
 ] as const;
 
 /** 보상정보 모달 층 라벨 색 (TOWER_MONTHLY_REWARD_TIERS 순서와 동일) */
@@ -92,44 +96,45 @@ const formatTowerRewardItemLabel = (itemId: string): string => {
 const normalizeTowerRewardItemKey = (value: string): string => value.replace(/\s+/g, '');
 
 const TOWER_REWARD_ITEM_NAME_BY_KEY: Record<string, string> = {
-    '장비상자1': '장비 상자 I',
-    '장비상자2': '장비 상자 II',
-    '장비상자3': '장비 상자 III',
-    '장비상자4': '장비 상자 IV',
-    '장비상자5': '장비 상자 V',
-    '장비상자6': '장비 상자 VI',
-    '재료상자1': '재료 상자 I',
-    '재료상자2': '재료 상자 II',
-    '재료상자3': '재료 상자 III',
-    '재료상자4': '재료 상자 IV',
-    '재료상자5': '재료 상자 V',
-    '재료상자6': '재료 상자 VI',
-    '골드꾸러미I': '골드 꾸러미 I',
-    '골드꾸러미II': '골드 꾸러미 II',
-    '골드꾸러미III': '골드 꾸러미 III',
-    '골드꾸러미IV': '골드 꾸러미 IV',
-    '골드꾸러미1': '골드 꾸러미 I',
-    '골드꾸러미2': '골드 꾸러미 II',
-    '골드꾸러미3': '골드 꾸러미 III',
-    '골드꾸러미4': '골드 꾸러미 IV',
-    '다이아꾸러미I': '다이아 꾸러미 I',
-    '다이아꾸러미II': '다이아 꾸러미 II',
-    '다이아꾸러미III': '다이아 꾸러미 III',
-    '다이아꾸러미IV': '다이아 꾸러미 IV',
-    '다이아꾸러미1': '다이아 꾸러미 I',
-    '다이아꾸러미2': '다이아 꾸러미 II',
-    '다이아꾸러미3': '다이아 꾸러미 III',
-    '다이아꾸러미4': '다이아 꾸러미 IV',
+    '\uC7A5\uBE44\uC0C1\uC7901': 'rewardItems.equipmentBox1',
+    '\uC7A5\uBE44\uC0C1\uC7902': 'rewardItems.equipmentBox2',
+    '\uC7A5\uBE44\uC0C1\uC7903': 'rewardItems.equipmentBox3',
+    '\uC7A5\uBE44\uC0C1\uC7904': 'rewardItems.equipmentBox4',
+    '\uC7A5\uBE44\uC0C1\uC7905': 'rewardItems.equipmentBox5',
+    '\uC7A5\uBE44\uC0C1\uC7906': 'rewardItems.equipmentBox6',
+    '\uC7AC\uB8CC\uC0C1\uC7901': 'rewardItems.materialBox1',
+    '\uC7AC\uB8CC\uC0C1\uC7902': 'rewardItems.materialBox2',
+    '\uC7AC\uB8CC\uC0C1\uC7903': 'rewardItems.materialBox3',
+    '\uC7AC\uB8CC\uC0C1\uC7904': 'rewardItems.materialBox4',
+    '\uC7AC\uB8CC\uC0C1\uC7905': 'rewardItems.materialBox5',
+    '\uC7AC\uB8CC\uC0C1\uC7906': 'rewardItems.materialBox6',
+    '\uACE8\uB4DC\uAF43\uB7EC\uBBF8I': 'rewardItems.goldBundle1',
+    '\uACE8\uB4DC\uAF43\uB7EC\uBBF8II': 'rewardItems.goldBundle2',
+    '\uACE8\uB4DC\uAF43\uB7EC\uBBF8III': 'rewardItems.goldBundle3',
+    '\uACE8\uB4DC\uAF43\uB7EC\uBBF8IV': 'rewardItems.goldBundle4',
+    '\uACE8\uB4DC\uAF43\uB7EC\uBBF81': 'rewardItems.goldBundle1',
+    '\uACE8\uB4DC\uAF43\uB7EC\uBBF82': 'rewardItems.goldBundle2',
+    '\uACE8\uB4DC\uAF43\uB7EC\uBBF83': 'rewardItems.goldBundle3',
+    '\uACE8\uB4DC\uAF43\uB7EC\uBBF84': 'rewardItems.goldBundle4',
+    '\uB514\uC774\uC544\uAF43\uB7EC\uBBF8I': 'rewardItems.diamondBundle1',
+    '\uB514\uC774\uC544\uAF43\uB7EC\uBBF8II': 'rewardItems.diamondBundle2',
+    '\uB514\uC774\uC544\uAF43\uB7EC\uBBF8III': 'rewardItems.diamondBundle3',
+    '\uB514\uC774\uC544\uAF43\uB7EC\uBBF8IV': 'rewardItems.diamondBundle4',
+    '\uB514\uC774\uC544\uAF43\uB7EC\uBBF81': 'rewardItems.diamondBundle1',
+    '\uB514\uC774\uC544\uAF43\uB7EC\uBBF82': 'rewardItems.diamondBundle2',
+    '\uB514\uC774\uC544\uAF43\uB7EC\uBBF83': 'rewardItems.diamondBundle3',
+    '\uB514\uC774\uC544\uAF43\uB7EC\uBBF84': 'rewardItems.diamondBundle4',
 };
 
 const resolveTowerRewardDisplayName = (itemId: string): string => {
     const normalized = normalizeTowerRewardItemKey(itemId);
-    return TOWER_REWARD_ITEM_NAME_BY_KEY[normalized] ?? itemId;
+    const key = TOWER_REWARD_ITEM_NAME_BY_KEY[normalized];
+    return key ? towerTx(key) : itemId;
 };
 
 const resolveTowerRewardImage = (itemId: string): string => {
     const normalized = normalizeTowerRewardItemKey(itemId);
-    const equipmentMatch = normalized.match(/^장비상자(\d+)$/);
+    const equipmentMatch = normalized.match(/^\uC7A5\uBE44\uC0C1\uC790(\d+)$/);
     if (equipmentMatch) {
         return `/images/Box/EquipmentBox${equipmentMatch[1]}.webp`;
     }
@@ -141,14 +146,25 @@ const resolveTowerRewardImage = (itemId: string): string => {
 };
 
 const TOWER_LOBBY_INVENTORY_ITEMS = [
-    { itemId: '턴 추가', name: '턴 추가', icon: '/images/button/addturn.webp', namesOrIds: TOWER_ITEM_TURN_ADD_NAMES },
-    { itemId: '미사일', name: '미사일', icon: '/images/button/missile.webp', namesOrIds: TOWER_ITEM_MISSILE_NAMES },
-    { itemId: '히든', name: '히든', icon: '/images/button/hidden.webp', namesOrIds: TOWER_ITEM_HIDDEN_NAMES },
-    { itemId: '스캔', name: '스캔', icon: '/images/button/scan.webp', namesOrIds: TOWER_ITEM_SCAN_NAMES },
-    { itemId: '배치변경', name: '배치변경', icon: '/images/button/reflesh.webp', namesOrIds: TOWER_ITEM_REFRESH_NAMES },
+    { itemKey: 'turnAdd', icon: '/images/button/addturn.webp', namesOrIds: TOWER_ITEM_TURN_ADD_NAMES },
+    { itemKey: 'missile', icon: '/images/button/missile.webp', namesOrIds: TOWER_ITEM_MISSILE_NAMES },
+    { itemKey: 'hidden', icon: '/images/button/hidden.webp', namesOrIds: TOWER_ITEM_HIDDEN_NAMES },
+    { itemKey: 'scan', icon: '/images/button/scan.webp', namesOrIds: TOWER_ITEM_SCAN_NAMES },
+    { itemKey: 'refresh', icon: '/images/button/reflesh.webp', namesOrIds: TOWER_ITEM_REFRESH_NAMES },
 ] as const;
 
+const TOWER_LOBBY_ITEM_SERVER_ID: Record<(typeof TOWER_LOBBY_INVENTORY_ITEMS)[number]['itemKey'], string> = {
+    turnAdd: '\uD134 \uCD94\uAC00',
+    missile: '\uBBF8\uC0AC\uC77C',
+    hidden: '\uD788\uB4E4',
+    scan: '\uC2A4\uCE94',
+    refresh: '\uBC30\uCE58\uBCC0\uACBD',
+};
+
 const TowerLobby: React.FC = () => {
+    const { t } = useTranslation('tower');
+    const { t: tCommon } = useTranslation('common');
+    const { t: tNav } = useTranslation('nav');
         const { currentUser, currentUserWithStatus, handlers, towerRankingsRefetchTrigger } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
     const towerScreenGuide = useScreenGuide('tower');
@@ -181,7 +197,7 @@ const TowerLobby: React.FC = () => {
             const diff = resetDateUTC.getTime() - now;
             
             if (diff <= 0) {
-                setTimeUntilReset('초기화됨');
+                setTimeUntilReset(t('resetDone'));
                 return;
             }
             
@@ -191,11 +207,11 @@ const TowerLobby: React.FC = () => {
             const seconds = Math.floor((diff % (1000 * 60)) / 1000);
             
             if (days > 0) {
-                setTimeUntilReset(`${days}일 ${hours}시간 ${minutes}분`);
+                setTimeUntilReset(t('timeDaysHoursMinutes', { days, hours, minutes }));
             } else if (hours > 0) {
-                setTimeUntilReset(`${hours}시간 ${minutes}분 ${seconds}초`);
+                setTimeUntilReset(t('timeHoursMinutesSeconds', { hours, minutes, seconds }));
             } else {
-                setTimeUntilReset(`${minutes}분 ${seconds}초`);
+                setTimeUntilReset(t('timeMinutesSeconds', { minutes, seconds }));
             }
         };
         
@@ -204,7 +220,7 @@ const TowerLobby: React.FC = () => {
         return () => clearInterval(interval);
     }, []);
 
-    const onBackToProfile = () => window.location.hash = '#/profile';
+    const onBackToProfile = () => window.location.hash = '#/home';
 
     const openTowerItemPurchase = (itemId: string) => {
         setTowerPurchasingItemId(itemId);
@@ -348,16 +364,16 @@ const TowerLobby: React.FC = () => {
                             // 목표 정보 (툴팁·표시용)
                             const getTargetInfo = () => {
                                 if (stage.blackTurnLimit) {
-                                    return `흑 ${towerDisplayBlackTarget}개 따내기 (${stage.blackTurnLimit}턴 제한)`;
+                                    return t('captureGoalTurnLimit', { count: towerDisplayBlackTarget, turns: stage.blackTurnLimit });
                                 }
                                 if (stage.autoScoringTurns != null && stage.autoScoringTurns > 0) {
-                                    return `[${stage.autoScoringTurns}수 계가] 해당 수까지 두면 자동 계가`;
+                                    return t('autoScoringHint', { turns: stage.autoScoringTurns });
                                 }
-                                return '승리';
+                                return t('victory');
                             };
                             const autoScoringLabel =
                                 floor >= 21 && stage.autoScoringTurns != null && stage.autoScoringTurns > 0
-                                    ? `[${stage.autoScoringTurns}수 계가]`
+                                    ? t('autoScoringShort', { turns: stage.autoScoringTurns })
                                     : null;
                             
                             // 보상 정보
@@ -365,14 +381,14 @@ const TowerLobby: React.FC = () => {
                             const hasItemReward = reward.items && reward.items.length > 0;
                             const rewardInfoContent = isCleared ? (
                                 <div className="flex items-center gap-1 flex-shrink-0">
-                                    <span className="text-xs sm:text-sm text-amber-300 font-semibold whitespace-nowrap">보상수령완료</span>
+                                    <span className="text-xs sm:text-sm text-amber-300 font-semibold whitespace-nowrap">{t('rewardClaimed')}</span>
                                 </div>
                             ) : (
                                 <>
                                     {/* 첫 번째 줄: 골드 또는 아이템 */}
                                     {reward.gold > 0 ? (
                                         <div className="flex items-center gap-0.5 flex-shrink-0">
-                                            <img src="/images/icon/Gold.webp" alt="골드" title="골드" className="w-4 h-4 sm:w-5 sm:h-5" />
+                                            <img src="/images/icon/Gold.webp" alt={tCommon('resources.gold')} title={tCommon('resources.gold')} className="w-4 h-4 sm:w-5 sm:h-5" />
                                             <span className="text-xs sm:text-sm text-yellow-300 font-semibold whitespace-nowrap">{reward.gold}</span>
                                         </div>
                                     ) : hasItemReward && reward.items ? (
@@ -414,8 +430,8 @@ const TowerLobby: React.FC = () => {
                                             <div className="flex items-center gap-2 px-2">
                                                 <span className="text-2xl sm:text-3xl">🔒</span>
                                                 <div className="flex flex-col gap-0.5">
-                                                    <span className="text-xs sm:text-sm text-amber-300 font-semibold whitespace-nowrap">잠금</span>
-                                                    <span className="text-[10px] sm:text-xs text-amber-400/80 whitespace-nowrap">아래층을 먼저 클리어하세요</span>
+                                                    <span className="text-xs sm:text-sm text-amber-300 font-semibold whitespace-nowrap">{t('locked')}</span>
+                                                    <span className="text-[10px] sm:text-xs text-amber-400/80 whitespace-nowrap">{t('clearLowerFirst')}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -437,7 +453,7 @@ const TowerLobby: React.FC = () => {
                                             >
                                                 {floor}
                                             </span>
-                                            <span className="text-xs font-semibold text-amber-300 sm:text-sm">층</span>
+                                            <span className="text-xs font-semibold text-amber-300 sm:text-sm">{t('floorUnit')}</span>
                                             {isCleared && (
                                                 <span className="text-sm font-bold text-green-400 sm:text-base">✓</span>
                                             )}
@@ -451,10 +467,10 @@ const TowerLobby: React.FC = () => {
                                                 <>
                                                     <div className="flex flex-wrap items-center gap-x-5 sm:gap-x-6 gap-y-1 min-w-0">
                                                         <div className="flex items-center gap-2 shrink-0">
-                                                            <span className="text-amber-400/90 font-semibold whitespace-nowrap">바둑판</span>
+                                                            <span className="text-amber-400/90 font-semibold whitespace-nowrap">{t('board')}</span>
                                                             <span
                                                                 className="font-bold tabular-nums text-amber-100"
-                                                                title={`바둑판 ${stage.boardSize}×${stage.boardSize}`}
+                                                                title={t('boardSize', { size: stage.boardSize })}
                                                             >
                                                                 {stage.boardSize}×{stage.boardSize}
                                                             </span>
@@ -462,11 +478,11 @@ const TowerLobby: React.FC = () => {
                                                         <div className="flex items-center gap-2 min-w-0">
                                                             <div className="flex items-center gap-3 flex-wrap">
                                                                 <div className="flex items-center gap-1">
-                                                                    <img src="/images/single/Black.webp" alt="흑" className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
+                                                                    <img src="/images/single/Black.webp" alt={t('black')} className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
                                                                     <span className="text-amber-200 font-bold tabular-nums">{towerDisplayBlackPlain}</span>
                                                                 </div>
                                                                 <div className="flex items-center gap-1">
-                                                                    <img src="/images/single/White.webp" alt="백" className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
+                                                                    <img src="/images/single/White.webp" alt={t('white')} className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
                                                                     <span className="text-amber-200 font-bold tabular-nums">{towerDisplayWhitePlain}</span>
                                                                 </div>
                                                             </div>
@@ -474,12 +490,12 @@ const TowerLobby: React.FC = () => {
                                                     </div>
                                                     <div className="flex flex-wrap items-center gap-x-5 sm:gap-x-6 gap-y-1 min-w-0">
                                                         <div className="flex items-center gap-2">
-                                                            <span className="text-amber-400/90 font-semibold whitespace-nowrap">목표</span>
-                                                            <span className="text-yellow-300 font-bold">흑 {towerDisplayBlackTarget}개</span>
+                                                            <span className="text-amber-400/90 font-semibold whitespace-nowrap">{t('goal')}</span>
+                                                            <span className="text-yellow-300 font-bold">{t('blackCaptureGoal', { count: towerDisplayBlackTarget })}</span>
                                                         </div>
                                                         <div className="flex items-center gap-2">
-                                                            <span className="text-amber-400/90 font-semibold whitespace-nowrap">제한</span>
-                                                            <span className="text-amber-200 font-bold tabular-nums">{stage.blackTurnLimit}턴</span>
+                                                            <span className="text-amber-400/90 font-semibold whitespace-nowrap">{t('limit')}</span>
+                                                            <span className="text-amber-200 font-bold tabular-nums">{t('turnUnit', { count: stage.blackTurnLimit })}</span>
                                                         </div>
                                                     </div>
                                                 </>
@@ -489,12 +505,12 @@ const TowerLobby: React.FC = () => {
                                                 <div className="flex flex-col gap-y-1 min-w-0" title={getTargetInfo()}>
                                                     <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 min-w-0 sm:gap-x-4">
                                                         <div className="flex items-center gap-2 shrink-0">
-                                                            <span className="text-amber-400/90 font-semibold whitespace-nowrap">바둑판</span>
+                                                            <span className="text-amber-400/90 font-semibold whitespace-nowrap">{t('board')}</span>
                                                             <span className="font-bold tabular-nums text-amber-100">{stage.boardSize}×{stage.boardSize}</span>
                                                         </div>
                                                         {autoScoringLabel && (
                                                             <div className="flex min-w-0 items-center gap-1.5">
-                                                                <span className="shrink-0 text-amber-400/90 font-semibold whitespace-nowrap">계가</span>
+                                                                <span className="shrink-0 text-amber-400/90 font-semibold whitespace-nowrap">{t('scoring')}</span>
                                                                 <span className="min-w-0 truncate text-sky-300 font-bold tracking-tight">{autoScoringLabel}</span>
                                                             </div>
                                                         )}
@@ -502,25 +518,25 @@ const TowerLobby: React.FC = () => {
                                                     <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5 sm:gap-x-4">
                                                         {hasBaseMode ? (
                                                             <div className="flex items-center gap-1.5">
-                                                                <img src="/images/simbols/simbol4.webp" alt="베이스" className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
-                                                                <span className="text-sky-300 font-bold">베이스{stage.baseStones}</span>
+                                                                <img src="/images/simbols/simbol4.webp" alt={t('baseAlt')} className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
+                                                                <span className="text-sky-300 font-bold">{t('base')}{stage.baseStones}</span>
                                                             </div>
                                                         ) : (
                                                             <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 sm:gap-x-3">
                                                                 <div className="flex items-center gap-1">
-                                                                    <img src="/images/single/Black.webp" alt="흑" className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
+                                                                    <img src="/images/single/Black.webp" alt={t('black')} className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
                                                                     <span className="text-amber-200 font-bold tabular-nums">{towerDisplayBlackPlain}</span>
                                                                 </div>
                                                                 <div className="flex items-center gap-1">
-                                                                    <img src="/images/single/White.webp" alt="백" className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
+                                                                    <img src="/images/single/White.webp" alt={t('white')} className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
                                                                     <span className="text-amber-200 font-bold tabular-nums">{towerDisplayWhitePlain}</span>
                                                                 </div>
                                                                 <div className="flex items-center gap-1">
-                                                                    <img src="/images/single/BlackDouble.webp" alt="흑 문양" className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
+                                                                    <img src="/images/single/BlackDouble.webp" alt={t('blackPatternAlt')} className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
                                                                     <span className="text-amber-200 font-bold tabular-nums">×{stage.placements.blackPattern}</span>
                                                                 </div>
                                                                 <div className="flex items-center gap-1">
-                                                                    <img src="/images/single/WhiteDouble.webp" alt="백 문양" className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
+                                                                    <img src="/images/single/WhiteDouble.webp" alt={t('blackPatternAlt')} className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
                                                                     <span className="text-amber-200 font-bold tabular-nums">×{stage.placements.whitePattern}</span>
                                                                 </div>
                                                             </div>
@@ -569,7 +585,7 @@ const TowerLobby: React.FC = () => {
                                                 }`}
                                             >
                                                 <span className="text-[10px] leading-none">⚡{effectiveActionPointCost}</span>
-                                                <span className="text-[10px] leading-none">도전</span>
+                                                <span className="text-[10px] leading-none">{t('challenge')}</span>
                                             </button>
                                         </div>
                                     ) : (
@@ -606,7 +622,7 @@ const TowerLobby: React.FC = () => {
                                         }`}
                                     >
                                         <span className="text-[10px] leading-none sm:text-xs">⚡{effectiveActionPointCost}</span>
-                                        <span className="text-[10px] leading-none sm:text-xs">도전</span>
+                                        <span className="text-[10px] leading-none sm:text-xs">{t('challenge')}</span>
                                     </button>
                                     )}
                                 </div>
@@ -621,6 +637,8 @@ const TowerLobby: React.FC = () => {
                 countTowerLobbyInventoryQty(inventory, namesOrIds);
             const mobileTowerItems = TOWER_LOBBY_INVENTORY_ITEMS.map((item) => ({
                 ...item,
+                itemId: TOWER_LOBBY_ITEM_SERVER_ID[item.itemKey],
+                name: t(`inventoryItems.${item.itemKey}`),
                 count: getItemCount(item.namesOrIds),
             }));
 
@@ -634,11 +652,11 @@ const TowerLobby: React.FC = () => {
                 <>
                     {!myRankingEntry && effectiveMonthlyFloorForReward < 10 && (
                         <p className="px-0.5 py-2 text-center text-xs text-amber-300/80">
-                            10층 이상 클리어 시 랭킹에 표시됩니다.
+                            {t('rankingHint')}
                         </p>
                     )}
                     {towerRankingsLoading && towerRankings.length === 0 ? (
-                        <p className="py-6 text-center text-sm text-amber-300/60">랭킹 불러오는 중...</p>
+                        <p className="py-6 text-center text-sm text-amber-300/60">{t('rankingLoading')}</p>
                     ) : top100Users.length > 0 ? (
                         top100Users.map((user) => {
                             const avatarUrl = AVATAR_POOL.find((a) => a.id === user.avatarId)?.url;
@@ -683,13 +701,13 @@ const TowerLobby: React.FC = () => {
                                         >
                                             {user.nickname}
                                         </p>
-                                        <p className="text-[10px] text-amber-300/85 sm:text-xs">층: {(user as any).displayFloor ?? 0}</p>
+                                        <p className="text-[10px] text-amber-300/85 sm:text-xs">{t('floorLabel', { floor: (user as any).displayFloor ?? 0 })}</p>
                                     </div>
                                 </div>
                             );
                         })
                     ) : (
-                        <p className="py-6 text-center text-sm text-amber-300/60">랭킹 데이터가 없습니다.</p>
+                        <p className="py-6 text-center text-sm text-amber-300/60">{t('rankingEmpty')}</p>
                     )}
                 </>
             );
@@ -747,7 +765,7 @@ const TowerLobby: React.FC = () => {
                             {mobileHeroDrawerOpen && (
                                 <button
                                     type="button"
-                                    aria-label="패널 닫기"
+                                    aria-label={t('closePanelAria')}
                                     className="absolute inset-0 z-[25] bg-black/50"
                                     onClick={() => {
                                         setMobileRewardTooltipKey(null);
@@ -765,12 +783,12 @@ const TowerLobby: React.FC = () => {
                                     <h3 className="min-w-0 truncate text-sm font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-yellow-200">
                                         {mobileHeroDrawer === 'record' && ''}
                                         {mobileHeroDrawer === 'ranking' && `Top 100 · ${timeUntilReset}`}
-                                        {mobileHeroDrawer === 'inventory' && '보유 아이템'}
+                                        {mobileHeroDrawer === 'inventory' && t('ownedItems')}
                                     </h3>
                                     <div className="flex shrink-0 items-center gap-1.5">
                                         <button
                                             type="button"
-                                            aria-label="닫기"
+                                            aria-label={t('close')}
                                             onClick={() => {
                                                 setMobileRewardTooltipKey(null);
                                                 setMobileHeroDrawer(null);
@@ -787,22 +805,22 @@ const TowerLobby: React.FC = () => {
                                             <div className="grid min-w-0 grid-cols-2 gap-2">
                                                 <div className="min-w-0 rounded-xl border border-amber-500/35 bg-gradient-to-br from-amber-950/45 via-gray-900/85 to-black/70 p-2.5 shadow-[0_10px_24px_rgba(217,119,6,0.2)] ring-1 ring-amber-200/10 backdrop-blur-md">
                                                     <div className="mb-2 flex items-center justify-start">
-                                                        <span className="text-xs font-semibold tracking-wide text-amber-200/90">내 기록</span>
+                                                        <span className="text-xs font-semibold tracking-wide text-amber-200/90">{t('myRecord')}</span>
                                                     </div>
                                                     <div className="space-y-2">
                                                         <div className="rounded-lg border border-amber-500/30 bg-black/35 px-2 py-1.5 text-center">
-                                                            <p className="text-[10px] font-semibold tracking-wide text-amber-200/80">역대 최고 층수</p>
-                                                            <p className="mt-0.5 text-lg font-black tabular-nums text-yellow-100">{bestFloorAllTime}층</p>
+                                                            <p className="text-[10px] font-semibold tracking-wide text-amber-200/80">{t('allTimeBest')}</p>
+                                                            <p className="mt-0.5 text-lg font-black tabular-nums text-yellow-100">{t('floorTier', { floor: bestFloorAllTime })}</p>
                                                         </div>
                                                         <div className="rounded-lg border border-amber-500/30 bg-black/35 px-2 py-1.5 text-center">
-                                                            <p className="text-[10px] font-semibold tracking-wide text-amber-200/80">현재 층수</p>
-                                                            <p className="mt-0.5 text-lg font-black tabular-nums text-amber-50">{effectiveMonthlyFloorForReward}층</p>
+                                                            <p className="text-[10px] font-semibold tracking-wide text-amber-200/80">{t('currentFloorLabel')}</p>
+                                                            <p className="mt-0.5 text-lg font-black tabular-nums text-amber-50">{t('floorTier', { floor: effectiveMonthlyFloorForReward })}</p>
                                                         </div>
                                                     </div>
                                                 </div>
                                                 <div className="min-w-0 rounded-xl border border-emerald-400/35 bg-gradient-to-br from-emerald-950/35 via-gray-900/85 to-amber-950/40 p-2.5 shadow-[0_10px_24px_rgba(16,185,129,0.2)] ring-1 ring-emerald-200/10 backdrop-blur-md">
                                                     <div className="mb-2 flex items-center justify-start gap-1">
-                                                        <span className="text-xs font-semibold tracking-wide text-emerald-200/90">예상 보상</span>
+                                                        <span className="text-xs font-semibold tracking-wide text-emerald-200/90">{t('expectedReward')}</span>
                                                     </div>
                                                     {myRewardTier ? (
                                                         <div className="space-y-2">
@@ -829,7 +847,7 @@ const TowerLobby: React.FC = () => {
                                                                                 setMobileRewardTooltipKey((prev) => (prev === key ? null : key));
                                                                             }}
                                                                             className="relative inline-flex items-center justify-center"
-                                                                            aria-label={`${resolveTowerRewardDisplayName(it.itemId)} 보기`}
+                                                                            aria-label={t('viewRewardItem', { name: resolveTowerRewardDisplayName(it.itemId) })}
                                                                         >
                                                                             <img
                                                                                 src={resolveTowerRewardImage(it.itemId)}
@@ -849,7 +867,7 @@ const TowerLobby: React.FC = () => {
                                                         </div>
                                                     ) : (
                                                         <div className="rounded-lg border border-amber-700/35 bg-black/30 px-2 py-2 text-center text-[11px] text-amber-200/90">
-                                                            현재 층수 10층 이상부터 보상 지급
+                                                            {t('rewardFromFloor10')}
                                                         </div>
                                                     )}
                                                 </div>
@@ -918,11 +936,11 @@ const TowerLobby: React.FC = () => {
                                 type="button"
                                 onClick={onBackToProfile}
                                 className="relative z-[1] shrink-0 transition-transform active:scale-90 hover:drop-shadow-lg"
-                                aria-label="뒤로가기"
+                                aria-label={tCommon('backAria')}
                             >
                                 <img src="/images/button/back.webp" alt="" className="h-9 w-9 sm:h-10 sm:w-10" />
                             </button>
-                            <h1 className={towerTitleH1Class}>도전의 탑</h1>
+                            <h1 className={towerTitleH1Class}>{t('title')}</h1>
                         </div>
                     )}
                     {/* 랭킹 Top 100 (하단 여유 줄여서 보유 아이템 공간 확보) */}
@@ -953,25 +971,25 @@ const TowerLobby: React.FC = () => {
                             <div className="grid grid-cols-1 divide-y divide-amber-700/35 sm:grid-cols-2 sm:divide-x sm:divide-y-0">
                                 <div className="space-y-2.5 p-3 text-sm">
                                     <div className="flex items-center justify-between gap-2">
-                                        <span className="text-amber-300/90">역대 최고 층수</span>
-                                        <span className="font-bold text-yellow-200 tabular-nums">{bestFloorAllTime}층</span>
+                                        <span className="text-amber-300/90">{t('allTimeBest')}</span>
+                                        <span className="font-bold text-yellow-200 tabular-nums">{t('floorTier', { floor: bestFloorAllTime })}</span>
                                     </div>
                                     <div className="flex items-center justify-between gap-2">
-                                        <span className="text-amber-300/90">이번 달 최고 층</span>
-                                        <span className="font-bold text-amber-100 tabular-nums">{effectiveMonthlyFloorForReward}층</span>
+                                        <span className="text-amber-300/90">{t('monthlyBest')}</span>
+                                        <span className="font-bold text-amber-100 tabular-nums">{t('floorTier', { floor: effectiveMonthlyFloorForReward })}</span>
                                     </div>
                                 </div>
                                 <div className="flex flex-col gap-1.5 p-3">
-                                    <p className="text-[11px] font-semibold tracking-wide text-emerald-200/90">예상 보상</p>
+                                    <p className="text-[11px] font-semibold tracking-wide text-emerald-200/90">{t('expectedReward')}</p>
                                     {myRewardTier ? (
                                         <div className="flex flex-col gap-1.5 text-xs">
                                             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                                                 <span className="inline-flex items-center gap-1 text-yellow-200">
-                                                    <img src="/images/icon/Gold.webp" alt="골드" className="h-4 w-4 shrink-0" />
+                                                    <img src="/images/icon/Gold.webp" alt={tCommon('resources.gold')} className="h-4 w-4 shrink-0" />
                                                     {formatGoldAmountKoG(myRewardTier.gold)}
                                                 </span>
                                                 <span className="inline-flex items-center gap-1 text-cyan-200">
-                                                    <img src="/images/icon/Zem.webp" alt="다이아" className="h-4 w-4 shrink-0" />
+                                                    <img src="/images/icon/Zem.webp" alt={tCommon('resources.diamonds')} className="h-4 w-4 shrink-0" />
                                                     {myRewardTier.diamonds}
                                                 </span>
                                             </div>
@@ -988,11 +1006,11 @@ const TowerLobby: React.FC = () => {
                                                 ))}
                                             </div>
                                             <p className="text-[10px] leading-snug text-amber-400/85">
-                                                {myRewardTier.floor}층 구간 보상 · 월말 정산 시 지급
+                                                {t('rewardTierLine', { floor: myRewardTier.floor })}
                                             </p>
                                         </div>
                                     ) : (
-                                        <p className="text-xs text-amber-400/80">10층 이상 클리어 시 월간 보상을 받을 수 있습니다.</p>
+                                        <p className="text-xs text-amber-400/80">{t('rewardFromFloor10Short')}</p>
                                     )}
                                 </div>
                             </div>
@@ -1036,7 +1054,7 @@ const TowerLobby: React.FC = () => {
                                                           : 'text-amber-200/90'
                                             }`}
                                         >
-                                            {pr !== null ? pr : '순위 외'}
+                                            {pr !== null ? pr : t('unranked')}
                                         </span>
                                         <Avatar
                                             userId={pinned.id}
@@ -1047,7 +1065,7 @@ const TowerLobby: React.FC = () => {
                                         />
                                         <div className="min-w-0 flex-1">
                                             <p className="truncate text-xs font-semibold text-yellow-100 sm:text-sm">{pinned.nickname}</p>
-                                            <p className="text-[10px] text-amber-300/80 sm:text-xs">층: {pinned.displayFloor ?? 0}</p>
+                                            <p className="text-[10px] text-amber-300/80 sm:text-xs">{t('floorLabel', { floor: pinned.displayFloor ?? 0 })}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -1055,10 +1073,10 @@ const TowerLobby: React.FC = () => {
                         })()}
                         <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden pr-1">
                             {!myRankingEntry && effectiveMonthlyFloorForReward < 10 && (
-                                <p className="px-1 py-2 text-center text-xs text-amber-300/70">10층 이상 클리어 시 랭킹에 표시됩니다.</p>
+                                <p className="px-1 py-2 text-center text-xs text-amber-300/70">{t('rankingHint')}</p>
                             )}
                             {towerRankingsLoading && towerRankings.length === 0 ? (
-                                <p className="py-8 text-center text-amber-300/60">랭킹 불러오는 중...</p>
+                                <p className="py-8 text-center text-amber-300/60">{t('rankingLoading')}</p>
                             ) : top100Users.length > 0 ? (
                                 <>
                                     {top100ScrollUsers.map((user) => {
@@ -1097,17 +1115,17 @@ const TowerLobby: React.FC = () => {
                                                 />
                                                 <div className="min-w-0 flex-1">
                                                     <p className="truncate text-xs font-semibold text-amber-100 sm:text-sm">{user.nickname}</p>
-                                                    <p className="text-[10px] text-amber-300/80 sm:text-xs">층: {(user as any).displayFloor ?? 0}</p>
+                                                    <p className="text-[10px] text-amber-300/80 sm:text-xs">{t('floorLabel', { floor: (user as any).displayFloor ?? 0 })}</p>
                                                 </div>
                                             </div>
                                         );
                                     })}
                                     {top100ScrollUsers.length === 0 && (
-                                        <p className="py-3 text-center text-[11px] text-amber-400/75">Top 100에 표시된 다른 순위가 없습니다.</p>
+                                        <p className="py-3 text-center text-[11px] text-amber-400/75">{t('noOtherRanked')}</p>
                                     )}
                                 </>
                             ) : (
-                                <p className="py-8 text-center text-amber-300/60">랭킹 데이터가 없습니다.</p>
+                                <p className="py-8 text-center text-amber-300/60">{t('rankingEmpty')}</p>
                             )}
                         </div>
                     </div>
@@ -1127,20 +1145,22 @@ const TowerLobby: React.FC = () => {
                                     countTowerLobbyInventoryQty(inventory, namesOrIds);
                                 return TOWER_LOBBY_INVENTORY_ITEMS.map((item) => {
                                     const count = getItemCount(item.namesOrIds);
+                                    const itemId = TOWER_LOBBY_ITEM_SERVER_ID[item.itemKey];
+                                    const name = t(`inventoryItems.${item.itemKey}`);
                                     return (
                                     <button
-                                        key={item.itemId}
+                                        key={item.itemKey}
                                         type="button"
                                         className="flex flex-col items-center gap-0.5 bg-gray-800/40 border border-amber-700/30 rounded-lg p-2 hover:bg-gray-700/50 hover:border-amber-600/50 transition-colors"
-                                        onClick={() => openTowerItemPurchase(item.itemId)}
+                                        onClick={() => openTowerItemPurchase(itemId)}
                                     >
                                         <div className="relative w-9 h-9 flex-shrink-0">
-                                            <img src={item.icon} alt={item.name} className="w-full h-full object-contain" />
+                                            <img src={item.icon} alt={name} className="w-full h-full object-contain" />
                                             <div className={`absolute -bottom-0.5 -right-0.5 text-[8px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center border border-amber-900 ${count > 0 ? 'bg-yellow-400 text-gray-900' : 'bg-gray-600 text-gray-300'}`}>
                                                 {count}
                                             </div>
                                         </div>
-                                        <p className="text-[10px] font-semibold text-amber-100 text-center leading-tight">{item.name}</p>
+                                        <p className="text-[10px] font-semibold text-amber-100 text-center leading-tight">{name}</p>
                                     </button>
                                     );
                                 });
@@ -1155,7 +1175,7 @@ const TowerLobby: React.FC = () => {
                                 <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-amber-600/10 via-transparent to-yellow-600/10" />
                                 <img
                                     src={TOWER_CHALLENGE_LOBBY_IMG}
-                                    alt="도전의 탑"
+                                    alt={t('towerAlt')}
                                     className="relative z-10 h-full w-full object-cover object-center"
                                 />
                             </div>
@@ -1173,7 +1193,7 @@ const TowerLobby: React.FC = () => {
                         </div>
                     </PcLobbyCenterColumn>
 
-                <div className={quickColClass} aria-label="퀵 메뉴">
+                <div className={quickColClass} aria-label={tNav('quickMenu.quickMenuAria')}>
                     <div className={PC_QUICK_RAIL_WRAPPER_CLASS}>
                         <QuickAccessSidebar fillHeight={true} />
                     </div>
@@ -1195,7 +1215,7 @@ const TowerLobby: React.FC = () => {
                                 type="button"
                                 onClick={onBackToProfile}
                                 className="relative z-[1] flex h-9 w-9 shrink-0 items-center justify-center transition-transform active:scale-90 hover:drop-shadow-lg"
-                                aria-label="뒤로가기"
+                                aria-label={tCommon('backAria')}
                             >
                                 <img src="/images/button/back.webp" alt="" className="h-full w-full" />
                             </button>
@@ -1211,7 +1231,7 @@ const TowerLobby: React.FC = () => {
             {/* 보상정보 모달 */}
             {isRewardModalOpen && (
                 <DraggableWindow
-                    title="도전의 탑 보상정보"
+                    title={t('rewardModalTitle')}
                     onClose={() => setIsRewardModalOpen(false)}
                     windowId="tower-reward-info"
                     initialWidth={isNativeMobile ? 680 : 640}
@@ -1220,7 +1240,7 @@ const TowerLobby: React.FC = () => {
                 >
                     <div className="h-full space-y-3 overflow-y-auto pr-1 text-sm text-amber-100">
                         <div className="rounded-lg border border-amber-700/40 bg-gradient-to-r from-amber-900/25 to-yellow-900/15 px-3 py-2.5 text-center">
-                            <p className="text-xs font-semibold text-amber-200/90 sm:text-sm">보상 정산까지 남은 시간</p>
+                            <p className="text-xs font-semibold text-amber-200/90 sm:text-sm">{t('settlementRemaining')}</p>
                             <p className="mt-0.5 text-sm font-bold text-yellow-300 sm:text-base">{timeUntilReset}</p>
                         </div>
 
@@ -1250,11 +1270,11 @@ const TowerLobby: React.FC = () => {
                                             className={`flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[11px] sm:gap-3 sm:text-base ${isMyCurrentTier ? 'pt-2 sm:pt-2.5' : ''}`}
                                         >
                                             <span className="inline-flex items-center gap-1">
-                                                <img src="/images/icon/Gold.webp" alt="골드" className="h-4 w-4 sm:h-6 sm:w-6" />
+                                                <img src="/images/icon/Gold.webp" alt={tCommon('resources.gold')} className="h-4 w-4 sm:h-6 sm:w-6" />
                                                 {formatGoldAmountKoG(tier.gold)}
                                             </span>
                                             <span className="inline-flex items-center gap-1">
-                                                <img src="/images/icon/Zem.webp" alt="다이아몬드" className="h-4 w-4 sm:h-6 sm:w-6" />
+                                                <img src="/images/icon/Zem.webp" alt={t('diamondFullAlt')} className="h-4 w-4 sm:h-6 sm:w-6" />
                                                 {tier.diamonds.toLocaleString()}
                                             </span>
                                             {tier.items.map((it) => (

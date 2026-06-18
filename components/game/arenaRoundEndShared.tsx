@@ -1,4 +1,5 @@
 import React from 'react';
+import { tx } from '../../shared/i18n/runtimeText.js';
 import { arenaPostGameButtonClass } from './arenaPostGameButtonStyles.js';
 
 /** 결과 모달(`GameSummaryModal`)과 동일한 바둑돌 SVG — 라운드 집계 모달에서 재사용 */
@@ -6,7 +7,7 @@ export const GoStoneIcon: React.FC<{ color: 'black' | 'white'; className?: strin
     const uid = React.useId().replace(/:/g, '');
     const gradId = `gstone-${color}-${uid}`;
     return (
-        <span className={`inline-flex shrink-0 ${className}`} aria-hidden title={color === 'black' ? '흑' : '백'}>
+        <span className={`inline-flex shrink-0 ${className}`} aria-hidden title={color === 'black' ? tx('game:black') : tx('game:white')}>
             <svg viewBox="0 0 36 36" className="h-full w-full drop-shadow-[0_2px_8px_rgba(0,0,0,0.55)]">
                 <defs>
                     <radialGradient id={gradId} cx="32%" cy="28%" r="72%">
@@ -70,7 +71,7 @@ export const ArenaBlackWhiteCumulativeStrip: React.FC<{
                     </div>
                 </div>
             </div>
-            <p className="relative mt-2 text-center text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-200/40">누적 점수</p>
+            <p className="relative mt-2 text-center text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-200/40">{tx("game:summary.cumulativeScore")}</p>
         </div>
     );
 };
@@ -138,7 +139,7 @@ export const ArenaDuoNumericCumulativeStrip: React.FC<{
                     </div>
                 )}
             </div>
-            <p className="relative mt-2 text-center text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-200/40">누적 점수</p>
+            <p className="relative mt-2 text-center text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-200/40">{tx("game:summary.cumulativeScore")}</p>
         </div>
     );
 };

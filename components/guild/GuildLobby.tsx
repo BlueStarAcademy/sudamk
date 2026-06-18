@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { Guild as GuildType, ServerAction } from '../../types/index.js';
 import BackButton from '../BackButton.js';
@@ -9,6 +10,7 @@ import { GUILD_INITIAL_MEMBER_LIMIT } from '../../constants/index.js';
 interface GuildLobbyProps {}
 
 const GuildLobby: React.FC<GuildLobbyProps> = () => {
+    const { t } = useTranslation(['guild', 'common']);
     const { guilds, handlers, currentUserWithStatus } = useAppContext();
     const [searchTerm, setSearchTerm] = useState('');
     const [creatingGuild, setCreatingGuild] = useState(false);
@@ -33,14 +35,14 @@ const GuildLobby: React.FC<GuildLobbyProps> = () => {
         <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto">
             {creatingGuild && <CreateGuildModal onClose={() => setCreatingGuild(false)} />}
             <header className="flex justify-between items-center mb-6">
-                <BackButton onClick={() => window.location.hash = '#/profile'} />
-                <h1 className="text-3xl font-bold">길드 찾기</h1>
-                <Button onClick={() => setCreatingGuild(true)} colorScheme="green">길드 창설</Button>
+                <BackButton onClick={() => window.location.hash = '#/home'} />
+                <h1 className="text-3xl font-bold">{t('lobby.title')}</h1>
+                <Button onClick={() => setCreatingGuild(true)} colorScheme="green">{t('lobby.createGuild')}</Button>
             </header>
             <div className="mb-4">
                 <input 
                     type="text" 
-                    placeholder="길드 이름 검색..."
+                    placeholder={t('lobby.searchPlaceholder')}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full bg-secondary p-3 rounded-lg border border-color"
@@ -66,12 +68,12 @@ const GuildLobby: React.FC<GuildLobbyProps> = () => {
                                 <span className="text-sm">{memberCount} / {memberLimit}</span>
                                 {isApplicationPending ? (
                                     <div className="flex items-center gap-2">
-                                        <Button disabled={true} colorScheme="gray">신청중</Button>
-                                        <Button onClick={() => handleCancelApplication(guild.id)} colorScheme="red" className="!text-xs !py-1">취소</Button>
+                                        <Button disabled={true} colorScheme="gray">{t('lobby.pending')}</Button>
+                                        <Button onClick={() => handleCancelApplication(guild.id)} colorScheme="red" className="!text-xs !py-1">{t('common:actions.cancel')}</Button>
                                     </div>
                                 ) : (
                                     <Button onClick={() => handleJoinOrApply(guild)} disabled={memberCount >= memberLimit}>
-                                        {guild.isPublic ? '바로 가입' : '가입 신청'}
+                                        {guild.isPublic ? t('lobby.joinInstant') : t('lobby.applyJoin')}
                                     </Button>
                                 )}
                             </div>

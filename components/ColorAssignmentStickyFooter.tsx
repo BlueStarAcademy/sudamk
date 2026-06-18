@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 import RoundCountdownIndicator from './RoundCountdownIndicator.js';
 
@@ -29,6 +30,7 @@ export const ColorAssignmentStickyFooter: React.FC<Props> = ({
     countdownSeconds = 30,
     showCountdown = false,
 }) => {
+    const { t } = useTranslation('game');
     const autoConfirmSentRef = useRef(false);
     const onConfirmRef = useRef(onConfirm);
 
@@ -61,7 +63,7 @@ export const ColorAssignmentStickyFooter: React.FC<Props> = ({
         return () => window.clearInterval(timerId);
     }, [showCountdown, effectiveDeadline, hasConfirmed, rouletteBlockingStart]);
 
-    const label = hasConfirmed ? '상대방 확인 대기 중…' : '시작하기';
+    const label = hasConfirmed ? t('colorSticky.waiting') : t('colorSticky.start');
 
     return (
         <div
@@ -72,8 +74,8 @@ export const ColorAssignmentStickyFooter: React.FC<Props> = ({
                     <RoundCountdownIndicator
                         deadline={effectiveDeadline}
                         durationSeconds={countdownSeconds}
-                        label="자동 진행까지"
-                        labelShort="자동 진행"
+                        label={t('colorSticky.autoProgress')}
+                        labelShort={t('colorSticky.autoProgressShort')}
                     />
                 ) : null}
                 <button

@@ -1,6 +1,7 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import './shared/i18n/config.js';
 import App from './App.js';
 import './index.css';
 import { tryReloadOnceForStaleBuild } from './utils/chunkReloadRecovery.js';

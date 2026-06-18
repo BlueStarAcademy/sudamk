@@ -2512,8 +2512,9 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 isMatching = false;
             }
 
-            // 예약 매칭 일정 안내는 사용하지 않음(즉시 봇 매칭 정책)
-            const nextMatchTime: number | undefined = undefined;
+            const { getNextGuildWarStartDate } = await import('../../shared/utils/timeUtils.js');
+            const nextMatchTime: number | undefined =
+                isMatching || guildWarIsPrepTime ? getNextGuildWarStartDate(now) : undefined;
             const cancelDeadline: number | null = null;
             const applicationDeadline: number | null = null;
             

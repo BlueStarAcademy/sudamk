@@ -1,4 +1,5 @@
 import React, { useLayoutEffect, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import Avatar from '../Avatar.js';
 import type { User } from '../../types.js';
 import { ItemGrade } from '../../types/enums.js';
@@ -63,6 +64,7 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
     profileHomeFooter = false,
     profileHomeBannerAside = false,
 }) => {
+    const { t } = useTranslation(['pair', 'profile']);
     const lineFontMax =
         profileHomeBannerAside
             ? 11.5
@@ -118,7 +120,7 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
     }, [currentUser, petMeta, petGrade, equippedItem]);
 
     const petAvatarUrl = equippedDef?.image ?? null;
-    const emptyTitle = '장착된 펫 없음';
+    const emptyTitle = t('pet.noEquippedPet');
     const displayName = equippedItem ? getPairPetDisplayName(equippedItem) : (equippedDef?.displayName ?? emptyTitle);
     const levelSafe =
         petMeta != null ? Math.min(PAIR_PET_MAX_LEVEL, Math.max(1, Math.floor(petMeta.level) || 1)) : null;
@@ -188,7 +190,7 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
                   : compact
                     ? 32
                     : 40;
-    const detailBtnText = detailButtonLabel ?? (homeColumn && compact ? '상세' : '상세정보');
+    const detailBtnText = detailButtonLabel ?? (homeColumn && compact ? t('pet.detailShort') : t('pet.detailInfo'));
 
     const identityLineClass =
         'inline-flex max-w-none flex-nowrap items-center gap-x-[0.35em] gap-y-0 whitespace-nowrap leading-none';
@@ -215,11 +217,11 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
                         : badukChipClass
                 }
                 style={{ fontSize: `${homeFooter ? profileHomeBadukFontPx : fontSizePx}px` }}
-                title="6코어 표시값과 성향 보너스 합계"
+                title={t('pet.badukTotalTitle')}
             >
                 <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/35 to-transparent" aria-hidden />
-                <span className={badukLabelClass}>바둑능력</span>
-                <span className={badukValueClass} title="6개 핵심 능력치 합계">
+                <span className={badukLabelClass}>{t('profile:badukAbility')}</span>
+                <span className={badukValueClass} title={t('pet.coreStatsSumTitle')}>
                     {badukTotal}
                 </span>
             </span>
@@ -230,7 +232,7 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
             <div className="flex flex-wrap items-center gap-x-[0.35em] leading-none">
                 <span className={`${identityChipClass} ${gradeStyle.color}`}>{gradeKo}</span>
                 {showRepresentativeBadge ? (
-                    <span className={`${identityChipClass} border-cyan-400/55 bg-cyan-950/65 text-cyan-50`}>대표펫</span>
+                    <span className={`${identityChipClass} border-cyan-400/55 bg-cyan-950/65 text-cyan-50`}>{t('pet.representativePet')}</span>
                 ) : null}
             </div>
             <div className="flex min-w-0 items-center gap-x-[0.35em] leading-none">
@@ -246,7 +248,7 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
         <div ref={lineInnerRef} className="flex min-w-0 max-w-full items-center gap-x-[0.35em] whitespace-nowrap leading-none" style={{ fontSize: `${fontSizePx}px` }}>
             <span className={`${identityChipClass} ${gradeStyle.color}`}>{gradeKo}</span>
             {showRepresentativeBadge ? (
-                <span className={`${identityChipClass} border-cyan-400/55 bg-cyan-950/65 text-cyan-50`}>대표펫</span>
+                <span className={`${identityChipClass} border-cyan-400/55 bg-cyan-950/65 text-cyan-50`}>{t('pet.representativePet')}</span>
             ) : null}
             {levelSafe != null ? <span className={identityLevelClass}>Lv.{levelSafe}</span> : null}
             <span className={`min-w-0 truncate ${identityTextClass}`} title={displayName}>
@@ -280,7 +282,7 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
                 </div>
             ) : (
                 <p className="w-full text-center text-[10px] font-semibold leading-snug text-violet-200/95 sm:text-[11px]">
-                    대표펫을 지정해 주세요.
+                    {t('pet.setRepresentativePrompt')}
                 </p>
             )}
         </div>
@@ -312,7 +314,7 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
                 </>
             ) : (
                 <p className="min-w-0 flex-1 text-left text-sm font-semibold leading-snug text-violet-200/95 sm:text-base">
-                    대표펫을 지정해 주세요.
+                    {t('pet.setRepresentativePrompt')}
                 </p>
             )}
         </div>
@@ -371,7 +373,7 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
                                               : 'px-[0.45em] py-px text-[0.82em]'
                                     }`}
                                 >
-                                    대표펫
+                                    {t('pet.representativePet')}
                                 </span>
                             ) : null}
                             {levelSafe != null ? (
@@ -382,19 +384,19 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
                         {!hideInlineBadukChip && badukTotal != null ? (
                             <span
                                 className="relative inline-flex shrink-0 items-baseline gap-x-[0.25em] rounded-md border border-amber-600/45 bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950 px-[0.45em] py-[0.2em] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
-                                title="6코어 표시값과 성향 보너스 합계"
+                                title={t('pet.badukTotalTitle')}
                             >
                                 <span
                                     className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/35 to-transparent"
                                     aria-hidden
                                 />
                                 <span className="relative shrink-0 bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200/90 bg-clip-text font-bold tracking-tight text-transparent opacity-95">
-                                    바둑능력
+                                    {t('profile:badukAbility')}
                                 </span>
                                 <span
                                     className="relative bg-gradient-to-br from-yellow-50 via-amber-200 to-amber-700 bg-clip-text font-mono font-black tabular-nums leading-none tracking-tight text-transparent drop-shadow-[0_1px_0_rgba(0,0,0,0.35)]"
                                     style={{ fontSize: '1.08em' }}
-                                    title="6개 핵심 능력치 합계"
+                                    title={t('pet.coreStatsSumTitle')}
                                 >
                                     {badukTotal}
                                 </span>
@@ -411,7 +413,7 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
                                       : 'text-[0.7rem] sm:text-sm'
                             }`}
                         >
-                            대표펫을 지정해 주세요.
+                            {t('pet.setRepresentativePrompt')}
                         </p>
                     )}
                 </div>
@@ -446,7 +448,7 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
                 type="button"
                 disabled={isBusy}
                 onClick={() => onFocusPetInventory()}
-                aria-label="정보 탭 펫 인벤토리로 이동"
+                aria-label={t('pet.goToPetInventoryAria')}
                 className={`${panelClassName} w-full text-left transition hover:border-violet-300/45 hover:bg-violet-950/25 disabled:cursor-not-allowed disabled:opacity-50`}
             >
                 {body}
@@ -460,7 +462,7 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
                 type="button"
                 disabled={isBusy}
                 onClick={() => onOpenEquippedPetDetail()}
-                aria-label="펫 상세 보기"
+                aria-label={t('pet.viewDetailAria')}
                 className={`${panelClassName} w-full cursor-pointer text-left outline-none transition hover:bg-white/[0.04] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:ring-1 focus-visible:ring-cyan-400/40`}
             >
                 {body}

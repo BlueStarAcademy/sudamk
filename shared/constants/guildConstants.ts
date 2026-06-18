@@ -577,7 +577,7 @@ export const GUILD_BOSSES: GuildBossInfo[] = [
         strategyGuide: '집중력과 안정감 위주로 세팅하고, 회복 불가/억제 연구를 통해 보스의 회복을 막는 것이 핵심입니다.',
         skills: [
             { id: '청해_물결의압박', name: '물결의 압박', description: '매 턴 집중력 대결을 통해 피해를 입힙니다.', type: 'active', image: BOSS_SKILL_ICON_MAP['청해_물결의압박'], checkStat: CoreStat.Concentration, onSuccess: [{ type: 'damage', value: [5000, 8000] }], onFailure: [{ type: 'damage', value: [8000, 12000] }] },
-            { id: '청해_심해의고요', name: '심해의 고요', description: '안정감 대결을 통해 현재 체력에 비례한 큰 피해를 입힙니다.', type: 'active', image: BOSS_SKILL_ICON_MAP['청해_심해의고요'], checkStat: CoreStat.Stability, onSuccess: [{ type: 'hp_percent', value: [10, 20] }], onFailure: [{ type: 'hp_percent', value: [25, 40] }] },
+            { id: '청해_심해의고요', name: '심해의 고요', description: '안정감 대결을 통해 현재 체력에 비례한 큰 피해를 입힙니다.', type: 'active', image: BOSS_SKILL_ICON_MAP['청해_심해의고요'], checkStat: CoreStat.Stability, onSuccess: [{ type: 'hp_percent', value: [10, 18] }], onFailure: [{ type: 'hp_percent', value: [15, 28] }] },
             { id: '청해_회복억제', name: '회복 억제[패시브]', description: '유저가 회복을 시도하면 일정 확률로 회복 효과를 감소시킵니다.', type: 'passive', image: BOSS_SKILL_ICON_MAP['청해_회복억제'], passiveTrigger: 'on_user_heal', passiveChance: 0.40, passiveEffect: [{ type: 'debuff', debuffType: 'user_heal_reduction_percent', debuffValue: [50, 50], debuffDuration: 1 }] },
         ],
         recommendedStats: [CoreStat.Concentration, CoreStat.Stability],
@@ -589,7 +589,7 @@ export const GUILD_BOSSES: GuildBossInfo[] = [
         strategyGuide: '전투력과 사고속도를 높여 폭발적인 피해를 막고, 점화 연구로 지속 피해를 누적시키는 것이 좋습니다.',
         skills: [
             { id: '홍염_불꽃돌파', name: '불꽃 돌파', description: '전투력 대결을 통해 강력한 단일 피해를 입힙니다.', type: 'active', image: BOSS_SKILL_ICON_MAP['홍염_불꽃돌파'], checkStat: CoreStat.CombatPower, onSuccess: [{ type: 'damage', value: [8000, 10000] }], onFailure: [{ type: 'damage', value: [12000, 18000] }] },
-            { id: '홍염_광열의폭발', name: '광열의 폭발', description: '사고속도 대결을 통해 현재 체력에 비례한 폭발적인 피해를 줍니다.', type: 'active', image: BOSS_SKILL_ICON_MAP['홍염_광열의폭발'], checkStat: CoreStat.ThinkingSpeed, onSuccess: [{ type: 'hp_percent', value: [5, 10] }], onFailure: [{ type: 'hp_percent', value: [25, 40] }] },
+            { id: '홍염_광열의폭발', name: '광열의 폭발', description: '사고속도 대결을 통해 현재 체력에 비례한 폭발적인 피해를 줍니다.', type: 'active', image: BOSS_SKILL_ICON_MAP['홍염_광열의폭발'], checkStat: CoreStat.ThinkingSpeed, onSuccess: [{ type: 'hp_percent', value: [5, 10] }], onFailure: [{ type: 'hp_percent', value: [15, 28] }] },
             { id: '홍염_화상', name: '화상[패시브]', description: '매 턴 안정감 대결에 실패하면 화상 피해를 입습니다.', type: 'passive', image: BOSS_SKILL_ICON_MAP['홍염_화상'], passiveTrigger: 'every_turn', checkStat: CoreStat.Stability, passiveEffect: [{ type: 'hp_percent', value: [10, 20] }] }
         ],
         recommendedStats: [CoreStat.CombatPower, CoreStat.ThinkingSpeed],
@@ -626,7 +626,7 @@ export const GUILD_BOSSES: GuildBossInfo[] = [
         skills: [
             { id: '백광_천벌의일격', name: '천벌의 일격', description: '전투력과 사고속도를 동시에 시험하여, 성공 횟수에 따라 피해량이 결정됩니다.', type: 'active', image: BOSS_SKILL_ICON_MAP['백광_천벌의일격'], checkStat: [CoreStat.CombatPower, CoreStat.ThinkingSpeed], onSuccess: [], onFailure: [] },
             { id: '백광_광휘의결계', name: '광휘의 결계', description: '집중력 대결에 실패하면 큰 피해와 함께 전투력 감소 디버프에 걸립니다.', type: 'active', image: BOSS_SKILL_ICON_MAP['백광_광휘의결계'], checkStat: CoreStat.Concentration, onSuccess: [{ type: 'damage', value: [5000, 6000] }], onFailure: [{ type: 'damage', value: [8000, 10000] }, { type: 'debuff', debuffType: 'user_combat_power_reduction_percent', debuffValue: [50, 50], debuffDuration: 3 }] },
-            { id: '백광_심판의빛', name: '심판의 빛', description: '안정감 대결 결과에 따라 체력 비례 고정 피해를 입힙니다.', type: 'active', image: BOSS_SKILL_ICON_MAP['백광_심판의빛'], checkStat: CoreStat.Stability, onSuccess: [{ type: 'hp_percent', value: [5, 12] }], onFailure: [{ type: 'hp_percent', value: [20, 40] }] }
+            { id: '백광_심판의빛', name: '심판의 빛', description: '안정감 대결 결과에 따라 체력 비례 고정 피해를 입힙니다.', type: 'active', image: BOSS_SKILL_ICON_MAP['백광_심판의빛'], checkStat: CoreStat.Stability, onSuccess: [{ type: 'hp_percent', value: [5, 12] }], onFailure: [{ type: 'hp_percent', value: [15, 28] }] }
         ],
         recommendedStats: Object.values(CoreStat),
         recommendedResearch: []
@@ -639,9 +639,9 @@ export const GUILD_BOSS_MAX_ATTEMPTS = 2;
 export const GUILD_BOSS_GRADE_NAMES = ['E', 'D-', 'D', 'C-', 'C', 'B-', 'B', 'A-', 'A', 'S', 'SS', 'SSS'] as const;
 export type GuildBossGradeLabel = (typeof GUILD_BOSS_GRADE_NAMES)[number];
 
-// 12등급 절대 데미지 경계 (2만 단위 균등 + SSS 25만 이상, 보기 좋은 정수)
-// E < 2만, D- < 4만, D < 6만, C- < 8만, C < 10만, B- < 12만, B < 14만, A- < 16만, A < 18만, S < 20만, SS < 25만, SSS >= 25만
-export const GUILD_BOSS_DAMAGE_ABSOLUTE_BOUNDS = [20000, 40000, 60000, 80000, 100000, 120000, 140000, 160000, 180000, 200000, 250000] as const;
+// 12등급 절대 데미지 경계 (밸런스 v2: 기존 대비 ×1.4)
+// E < 2.8만 … SS < 28만, SSS >= 35만
+export const GUILD_BOSS_DAMAGE_ABSOLUTE_BOUNDS = [28000, 56000, 84000, 112000, 140000, 168000, 196000, 224000, 252000, 280000, 350000] as const;
 
 // 등급별 기여도 (1~12등급)
 export const GUILD_BOSS_CONTRIBUTION_BY_GRADE: Record<number, number> = {

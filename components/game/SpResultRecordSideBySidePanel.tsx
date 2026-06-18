@@ -1,4 +1,5 @@
 import React from 'react';
+import { tx } from '../../shared/i18n/runtimeText.js';
 import Avatar from '../Avatar.js';
 import { StrategyXpResultBar } from './StrategyXpResultBar.js';
 import PairPetLevelUpCoreDelta from '../pair/PairPetLevelUpCoreDelta.js';
@@ -143,7 +144,7 @@ const SpResultRecordSideBySidePanel: React.FC<SpResultRecordSideBySidePanelProps
                                 className="text-center font-bold uppercase tracking-[0.1em] text-fuchsia-100"
                                 style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : '12px' }}
                             >
-                                펫 등급강화 필요
+                                {tx("game:resultModal.petGradeUpgradeNeeded")}
                             </p>
                         }
                         xpColumnReserved={alignXpColumns}
@@ -180,7 +181,7 @@ const SpResultRecordSideBySidePanel: React.FC<SpResultRecordSideBySidePanelProps
                                         petXpBarPercents.petMax,
                                         petXpBarPercents.gain,
                                         'text-fuchsia-300',
-                                        '펫 XP',
+                                        tx('game:resultModal.petXpLabel'),' XP').replace(/\d+/g,'').trim() || tx('game:resultModal.petShort') + ' XP',
                                     )}
                                 </div>
                             }
@@ -192,7 +193,7 @@ const SpResultRecordSideBySidePanel: React.FC<SpResultRecordSideBySidePanelProps
                     {displaySummary.pairPetLevelUpCoreBonuses ? (
                         <PairPetLevelUpCoreDelta
                             delta={displaySummary.pairPetLevelUpCoreBonuses}
-                            title="추가된 능력치"
+                            title={tx("game:summary.addedStats")}
                             compact
                         />
                     ) : null}

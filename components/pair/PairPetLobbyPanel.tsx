@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation, Trans } from 'react-i18next';
+import { tx } from '../../shared/i18n/runtimeText.js';
 import { flushSync } from 'react-dom';
 import Button from '../Button.js';
 import DraggableWindow from '../DraggableWindow.js';
@@ -237,20 +239,20 @@ function formatPairHatcheryRemainHMS(ms: number): string {
 function hatcheryLevelOutcomeFromRule(rule: PairHatcheryLevelRule): React.ReactNode {
     const cls = `${PET_MGMT_SEMI} tabular-nums text-amber-100`;
     if (rule.kind === 'default') {
-        return <span className={cls}>펫 Lv.1</span>;
+        return <span className={cls}>{tx('pair:pet.levelFormat', { level: 1 })}</span>;
     }
     if (rule.kind === 'fixed') {
         const n = Math.min(PAIR_PET_MAX_LEVEL, Math.max(1, Math.floor(rule.level)));
-        return <span className={cls}>펫 Lv.{n}</span>;
+        return <span className={cls}>{tx('pair:pet.levelFormat', { level: n })}</span>;
     }
     const lo = Math.min(PAIR_PET_MAX_LEVEL, Math.max(1, Math.min(rule.min, rule.max)));
     const hi = Math.min(PAIR_PET_MAX_LEVEL, Math.max(1, Math.max(rule.min, rule.max)));
     if (lo === hi) {
-        return <span className={cls}>펫 Lv.{lo}</span>;
+        return <span className={cls}>{tx('pair:pet.levelFormat', { level: lo })}</span>;
     }
     return (
         <span className={cls}>
-            펫 Lv.{lo}~{hi}
+            {tx('pair:pet.levelRangeFormat', { lo, hi })}
         </span>
     );
 }
@@ -289,7 +291,7 @@ function HatcheryOwnedEggThumb({
             />
             {showSpecialBadge ? (
                 <span className="absolute right-0 top-0 z-[2] min-w-[1.1rem] rounded-bl bg-fuchsia-600/90 px-1 py-0.5 text-[0.7rem] font-black leading-none text-white ring-1 ring-black/45">
-                    특
+{tx('pair:lobby.specBadge')}
                 </span>
             ) : null}
             <span className="absolute -bottom-0.5 -right-0.5 z-[2] rounded bg-black/75 px-1 py-px text-[0.65rem] font-black tabular-nums text-amber-200 ring-1 ring-black/50">
@@ -338,6 +340,7 @@ function InvThumb({
     trainingBadgeVariant?: 'in_progress' | 'claim_ready';
     title?: string;
 }) {
+    const { t } = useTranslation('pair');
     const qty = item.quantity ?? 1;
     const showStackBadge = !isPairPetMaterial(item) && qty > 1;
     const petThumb = isPairPetMaterial(item) && !isPairEggItem(item);
@@ -367,8 +370,8 @@ function InvThumb({
             {petThumb && (showRepresentativeBadge || showTrainingBadge) ? (
                 <span className="pointer-events-none absolute right-0 top-0 z-20 flex max-w-[52%] flex-col items-end gap-0.5 px-0.5 pt-0.5">
                     {showRepresentativeBadge ? (
-                        <span className={`${statusBadgeChip} bg-cyan-600`} title="대표 펫">
-                            대표펫
+                        <span className={`${statusBadgeChip} bg-cyan-600`} title={t('pet.representativePetBadge')}>
+                            {t('pet.representativePet')}
                         </span>
                     ) : null}
                     {showTrainingBadge ? (
@@ -376,9 +379,9 @@ function InvThumb({
                             className={`${statusBadgeChip} ${
                                 trainingBadgeVariant === 'claim_ready' ? 'bg-lime-600' : 'bg-violet-600'
                             }`}
-                            title={trainingBadgeVariant === 'claim_ready' ? '수련 완료 — 슬롯에서 보상 수령' : '수련 중'}
+                            title={trainingBadgeVariant === 'claim_ready' ? t('training.claimReadyBadge') : t('training.inProgress')}
                         >
-                            {trainingBadgeVariant === 'claim_ready' ? '수련완료' : '수련중'}
+                            {trainingBadgeVariant === 'claim_ready' ? t('training.claimReady') : t('training.inProgress')}
                         </span>
                     ) : null}
                 </span>
@@ -386,7 +389,7 @@ function InvThumb({
             {petThumb && petLevel != null ? (
                 <span
                     className={`${levelBadgeChip} pointer-events-none absolute bottom-1.5 left-1/2 z-20 min-w-[1.85rem] -translate-x-1/2 bg-slate-950/95 text-center sm:bottom-2 sm:min-w-[2.1rem]`}
-                    title={`레벨 ${petLevel}`}
+                    title={t('pet.levelTitle', { level: petLevel })}
                 >
                     Lv.{petLevel}
                 </span>
@@ -636,7 +639,7 @@ function PairPetShopSkuCard({
                         <span
                             className={`max-w-full px-0 text-center text-[9px] leading-tight tracking-tight ${isGold ? 'text-slate-800/95' : 'text-white/85'}`}
                         >
-                            일일 한도 {remaining}/{sku.dailyLimit}
+                            {t('lobby.dailyLimit', { remaining, limit: sku.dailyLimit })}
                         </span>
                     ) : null}
                 </Button>
@@ -653,6 +656,8 @@ export interface PairPetLobbyPanelProps {
 }
 
 const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, currentUserId, isBusy, applyPetAction }) => {
+    const { t } = useTranslation(['pair', 'common']);
+    const { t: tCommon } = useTranslation('common');
     const { handlers } = useAppContext();
     const { isNativeMobile, isNarrowViewport, pcLikeMobileLayout } = useNativeMobileShell();
     /** 터치·좁은 화면: 드롭 대신 슬롯 탭 → 펫 탭 */
@@ -1193,7 +1198,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                     (!session && firstHatchEgg && isPairWelcomeEggItem(firstHatchEgg)),
             );
             const levelOutcome = hatchUsesWelcomeEgg ? (
-                <span className={`${PET_MGMT_SEMI} tabular-nums text-amber-100`}>펫 Lv.5</span>
+                <span className={`${PET_MGMT_SEMI} tabular-nums text-amber-100`}>{t('pet.levelFormat', { level: 5 })}</span>
             ) : (
                 hatcheryLevelOutcomeLine(def)
             );
@@ -1250,7 +1255,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                             colorScheme="none"
                             className={hatchBtnStart}
                         >
-                            부화 시작
+                            {t('hatchery.start')}
                         </Button>
                     ) : null}
                     {usable && session && !canClaim ? (
@@ -1263,14 +1268,14 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                     pairLobbyPetInvFull
                                         ? PAIR_HATCHERY_PET_INVENTORY_FULL_MESSAGE
                                         : !hasEnoughInstantDiamonds
-                                          ? '다이아가 부족합니다.'
+                                          ? t('hatchery.insufficientDiamonds')
                                           : undefined
                                 }
                                 onClick={() => setHatcheryInstantConfirmSlotIndex(slotIndex)}
                                 colorScheme="none"
                                 className={hatchBtnInstant}
                             >
-                                <span>즉시완료</span>
+                                <span>{t('hatchery.instantComplete')}</span>
                                 <span className="inline-flex items-center gap-0.5 tabular-nums">
                                     <img src="/images/icon/Zem.webp" alt="" className="h-2.5 w-2.5 shrink-0" />
                                     <span>{instantDiamondCost}</span>
@@ -1284,7 +1289,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                 colorScheme="none"
                                 className={hatchBtnCancel}
                             >
-                                취소
+                                {tCommon('actions.cancel')}
                             </Button>
                         </div>
                     ) : null}
@@ -1295,14 +1300,14 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                             disabled={isBusy}
                             title={
                                 pairLobbyPetInvFull
-                                    ? '펫 인벤토리가 가득 찼습니다. 눌러 안내를 확인하세요.'
+                                    ? t('hatchery.invFullHint')
                                     : undefined
                             }
                             onClick={() => void handleHatcheryClaim(slotIndex)}
                             colorScheme="none"
                             className={hatchBtnClaim}
                         >
-                            펫 받기
+                            {t('hatchery.claimPet')}
                         </Button>
                     ) : null}
                     {isVip && !vipActive ? (
@@ -1374,7 +1379,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                         </span>
                                         {isVip ? (
                                             <p className={`max-w-full px-0.5 text-center ${PET_MGMT_XBOLD} text-amber-200/95`}>
-                                                기능VIP활성화
+                                                {t('training.functionVipActive')}
                                             </p>
                                         ) : null}
                                     </div>
@@ -1426,7 +1431,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                           : 'text-fuchsia-200/88'
                                                 }`}
                                             >
-                                                {session ? (canClaim ? '부화 완료' : '부화 중') : '부화 가능'}
+                                                {session ? (canClaim ? t('hatchery.complete') : t('hatchery.inProgress')) : t('hatchery.available')}
                                             </span>
                                         </div>
                                         <div
@@ -1483,10 +1488,10 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                     isActive ? 'bg-fuchsia-500/25 text-fuchsia-100' : 'bg-white/10 text-slate-400'
                                 }`}
                             >
-                                {isActive ? '적용 중' : '해금됨'}
+                                {isActive ? t('lobby.tierActive') : t('lobby.tierUnlocked')}
                             </span>
                         ) : (
-                            <span className={`${PET_MGMT_CAPTION} tabular-nums text-amber-200/85`}>페어 {tierDef.unlockWinsRequired}승</span>
+                            <span className={`${PET_MGMT_CAPTION} tabular-nums text-amber-200/85`}>{t('training.winsRequired', { count: tierDef.unlockWinsRequired })}</span>
                         )}
                     </div>
                     <div className={`min-h-0 flex-1 ${PET_MGMT_SEMI} leading-snug text-amber-100/90`}>
@@ -1505,13 +1510,13 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                 colorScheme="none"
                                 className={hatchBtnUnlock}
                             >
-                                강화 ({tierDef.unlockGold.toLocaleString()} G)
+                                {t('lobby.tierUpgrade', { gold: tierDef.unlockGold.toLocaleString() })}
                             </Button>
                         ) : (
                             <div
                                 className={`flex h-[1.85rem] items-center justify-center rounded border border-white/10 bg-black/30 ${PET_MGMT_CAPTION} text-slate-500`}
                             >
-                                페어 {tierDef.unlockWinsRequired}승 필요
+                                {t('training.winsRequiredShort', { count: tierDef.unlockWinsRequired })}
                             </div>
                         )
                     ) : null}
@@ -1528,8 +1533,8 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
             petMgmtMobileShell ? (
                 <div key="hatch-egg-inventory" className={PET_MGMT_HATCHERY_EGG_INVENTORY_MOBILE_CLASS}>
                     <div className="flex min-w-0 shrink-0 flex-col leading-none">
-                        <span className={`${PET_MGMT_XBOLD} text-[11px] text-slate-300`}>보유 알</span>
-                        <span className={`${PET_MGMT_CAPTION} text-slate-500`}>부화 시 1개</span>
+                        <span className={`${PET_MGMT_XBOLD} text-[11px] text-slate-300`}>{t('hatchery.ownedEggs')}</span>
+                        <span className={`${PET_MGMT_CAPTION} text-slate-500`}>{t('hatchery.onePerHatch')}</span>
                     </div>
                     <span className={`${PET_MGMT_BOLD} shrink-0 tabular-nums text-xs text-amber-100`}>{eggCount}</span>
                     <div className="ml-auto flex min-w-0 items-center justify-end gap-1.5">
@@ -1554,8 +1559,8 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                 className={`relative ${PET_MGMT_HATCHERY_SLOT_OUTER_CLASS} gap-0.5 rounded-lg border border-white/[0.09] bg-gradient-to-br from-zinc-900/70 via-black/70 to-zinc-950/90 p-1 shadow-md ${PET_MGMT_BASE} ring-1 ring-black/50`}
             >
                 <div className={`relative z-10 ${PET_MGMT_HATCHERY_SLOT_HEADER_CLASS}`}>
-                    <span className={`${PET_MGMT_XBOLD} text-slate-300`}>보유 알</span>
-                    <span className={`${PET_MGMT_BOLD} tabular-nums text-amber-100`}>합계 {eggCount}</span>
+                    <span className={`${PET_MGMT_XBOLD} text-slate-300`}>{t('hatchery.ownedEggs')}</span>
+                    <span className={`${PET_MGMT_BOLD} tabular-nums text-amber-100`}>{t('hatchery.totalEggs', { count: eggCount })}</span>
                 </div>
                 <div className="relative z-10 flex min-h-0 flex-1 flex-row items-center justify-center gap-3 overflow-hidden px-1 py-1 sm:gap-4">
                     <HatcheryOwnedEggThumb
@@ -1570,7 +1575,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                         title={PAIR_EGG_MATERIAL_NAME}
                     />
                 </div>
-                <p className={`relative z-10 shrink-0 text-center ${PET_MGMT_CAPTION} leading-none text-slate-500`}>부화 시 1개 소모</p>
+                <p className={`relative z-10 shrink-0 text-center ${PET_MGMT_CAPTION} leading-none text-slate-500`}>{t('hatchery.consumeOnePerHatch')}</p>
             </div>
             );
 
@@ -1630,8 +1635,8 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
         const trainingBadgeVariant = inTraining ? pairTrainingBadgeVariantForItem(currentUser, it.id) : undefined;
         const petViewerTitle = inTraining
             ? trainingBadgeVariant === 'claim_ready'
-                ? '수련 완료 — 좌측 뷰어에 상세 정보'
-                : '수련 중 — 좌측 뷰어에 상세 정보'
+                ? t('training.completeViewerHint')
+                : t('training.inProgressViewerHint')
             : undefined;
 
         if (aiTab === 'info' || aiTab === 'training' || aiTab === 'shop') {
@@ -1660,16 +1665,16 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
             const trainInvTitle =
                 aiTab === 'training' && useTapTrainingFlow
                     ? trainingMobilePickSlotIndex == null
-                        ? '빈 수련 슬롯을 먼저 터치한 뒤 펫을 선택하세요.'
+                        ? t('training.tapEmptySlotFirst')
                         : isRepPet
-                          ? '대표 펫은 수련에 보낼 수 없습니다.'
+                          ? t('training.repPetCannotTrain')
                           : undefined
                     : aiTab === 'training' && isRepPet
-                      ? '대표 펫은 수련에 보낼 수 없습니다.'
+                      ? t('training.repPetCannotTrain')
                       : undefined;
             const thumbTitle =
                 petViewerTitle ??
-                (aiTab === 'training' && isRepPet ? '대표 펫 — 좌측 뷰어에 상세 정보' : trainInvTitle);
+                (aiTab === 'training' && isRepPet ? t('training.repPetViewerHint') : trainInvTitle);
 
             return (
                 <div
@@ -1739,7 +1744,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
         setTrainingCancelConfirmSlotIndex(null);
     };
 
-    const expandLabel = expandTarget === 'pet' ? '펫' : '';
+    const expandLabel = expandTarget === 'pet' ? t('lobby.petTab') : '';
 
     const trainingTabContent = (() => {
         void trainingTick;
@@ -1801,11 +1806,11 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
             <div className="flex h-full min-h-0 w-full flex-1 flex-col gap-2 pb-1">
                 {useTapTrainingFlow ? (
                     <p className={`rounded border border-violet-500/25 bg-violet-950/30 px-1.5 py-1 text-center ${PET_MGMT_TR_HINT_TEXT} text-violet-100/95`}>
-                        빈 슬롯 터치 후 펫 선택
+                        {t('training.tapSlotThenPick')}
                     </p>
                 ) : (
                     <p className={`rounded border border-white/10 bg-black/25 px-1.5 py-1 text-center ${PET_MGMT_TR_HINT_TEXT} text-slate-400`}>
-                        펫을 슬롯에 놓으면 수련 시작
+                        {t('training.dropToStart')}
                     </p>
                 )}
                 <div className={petMgmtMobileShell ? PET_MGMT_TR_SLOTS_GRID_CLASS : PET_MGMT_TR_SLOTS_DESKTOP_CLASS}>
@@ -1859,9 +1864,9 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                     <div className="flex shrink-0 flex-col items-center justify-center gap-0.5">
                                         <div
                                             className={`flex flex-col items-center justify-center rounded-md border border-violet-400/45 bg-violet-950/60 px-0.5 ${trIconBox}`}
-                                            title="펫 경험치"
+                                            title={t('training.petXpTitle')}
                                         >
-                                            <span className={`${PET_MGMT_TR_EXP_LABEL} text-violet-100`}>펫</span>
+                                            <span className={`${PET_MGMT_TR_EXP_LABEL} text-violet-100`}>{t('training.petXpLabel')}</span>
                                             <span className={`${PET_MGMT_TR_EXP_LABEL} text-violet-100`}>EXP</span>
                                         </div>
                                         <span className={`${trAmt} text-violet-100`}>
@@ -1917,14 +1922,14 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                         ) : null;
                         const fixedRewardBlock = (
                             <div className={PET_MGMT_TR_REWARD_BLOCK_CLASS}>
-                                <span className={`${trLbl} whitespace-nowrap text-amber-100/95`}>확정보상</span>
+                                <span className={`${trLbl} whitespace-nowrap text-amber-100/95`}>{t('training.fixedReward')}</span>
                                 {fixedRewardBox}
                             </div>
                         );
                         const soulRewardBlock = showSoulCandidates ? (
                             <div className={PET_MGMT_TR_REWARD_BLOCK_CLASS}>
                                 <span className={`${trLbl} whitespace-nowrap text-center leading-tight text-cyan-100/95`}>
-                                    {def.soulTable.length > 1 ? '확률(1종)' : '확률보상'}
+                                    {def.soulTable.length > 1 ? t('training.probOneKind') : t('training.probReward')}
                                 </span>
                                 {soulRewardBox}
                             </div>
@@ -2022,24 +2027,24 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                 </span>
                                                 {isVipTrainingSlot ? (
                                                     <p className={`text-center font-extrabold leading-tight text-amber-200/95 ${PET_MGMT_BOLD}`}>
-                                                        기능VIP{' '}
+                                                        {t('training.functionVip')}{' '}
                                                         <span className="tabular-nums">
                                                             ({unlockProgress.current}/{unlockProgress.required})
                                                         </span>
                                                     </p>
                                                 ) : (
                                                     <p className={`text-center font-semibold leading-tight text-amber-200/95 ${PET_MGMT_SEMI}`}>
-                                                        페어{' '}
+                                                        {t('arenaBadges.pair')}{' '}
                                                         <span className="tabular-nums">
                                                             ({unlockProgress.current}/{unlockProgress.required})
                                                         </span>
-                                                        승
+                                                        {t('training.winsUnit')}
                                                     </p>
                                                 )}
                                                 {minLv > 1 ? (
-                                                    <p className={`text-center leading-tight text-slate-500 ${PET_MGMT_CAPTION}`}>펫 Lv.{minLv}+</p>
+                                                    <p className={`text-center leading-tight text-slate-500 ${PET_MGMT_CAPTION}`}>{t('training.petLevelMin', { level: minLv })}</p>
                                                 ) : (
-                                                    <p className={`text-center leading-tight text-slate-500 ${PET_MGMT_CAPTION}`}>조건 없음</p>
+                                                    <p className={`text-center leading-tight text-slate-500 ${PET_MGMT_CAPTION}`}>{t('training.noConditions')}</p>
                                                 )}
                                             </div>
                                         ) : session && petRow ? (
@@ -2065,10 +2070,10 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                                 if (!isBusy) void openPairTrainingClaimResultModal(i, petRow);
                                                             }}
                                                             className="absolute inset-0 flex items-center justify-center rounded-md bg-gradient-to-b from-lime-600/88 via-emerald-800/82 to-zinc-950/90 px-0.5 outline-none shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] transition hover:from-lime-500/90 hover:via-emerald-700/85 focus-visible:ring-2 focus-visible:ring-lime-200/90 disabled:opacity-45"
-                                                            aria-label="수련 보상 수령"
+                                                            aria-label={t('training.claimRewardAria')}
                                                         >
                                                             <span className={`text-center font-black leading-tight tracking-tight text-lime-50 [text-shadow:0_1px_2px_rgba(0,0,0,0.85),0_0_12px_rgba(190,242,100,0.55)] ${PET_MGMT_BOLD}`}>
-                                                                수련완료
+                                                                {t('training.claimReady')}
                                                             </span>
                                                         </button>
                                                     </>
@@ -2083,7 +2088,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                                 if (!isBusy) handlers.openPairPetDetailModal(petRow, 'view');
                                                             }}
                                                             className="relative z-[1] flex min-h-0 flex-1 w-full items-center justify-center rounded outline-none transition hover:bg-white/[0.04] focus-visible:ring-2 focus-visible:ring-violet-400/70 disabled:opacity-45"
-                                                            aria-label="펫 상세 정보"
+                                                            aria-label={t('training.petDetailAria')}
                                                         >
                                                             <img
                                                                 src={petRow.image}
@@ -2094,7 +2099,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                         </button>
                                                         <div
                                                             className="pointer-events-none absolute bottom-[-6px] left-1/2 z-[4] flex max-w-[calc(100%-4px)] -translate-x-1/2 justify-center sm:bottom-[-7px]"
-                                                            aria-label={`남은 시간 ${formatRemainHMS(remainMs)}`}
+                                                            aria-label={t('training.remainingTimeAria', { time: formatRemainHMS(remainMs) })}
                                                         >
                                                             <div
                                                                 className={`w-max rounded-md border border-white/18 px-1.5 py-px text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_2px_10px_rgba(0,0,0,0.5)] backdrop-blur-[4px] ${
@@ -2121,9 +2126,9 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                             >
                                                 {useTapTrainingFlow
                                                     ? trainingMobilePickSlotIndex === i
-                                                        ? '펫 선택'
-                                                        : '터치'
-                                                    : '펫 끌어넣기'}
+                                                        ? t('training.pickPet')
+                                                        : t('training.tap')
+                                                    : t('training.dragPet')}
                                             </span>
                                         ) : null}
                                     </div>
@@ -2141,14 +2146,14 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                     : 'border-rose-500/40 bg-rose-950/25 text-rose-200/95 hover:border-rose-400/55'
                                             } disabled:opacity-45`}
                                         >
-                                            수련 취소
+                                            {t('training.cancelTraining')}
                                         </button>
                                     ) : unlocked && session && petRow && canClaim ? null : (
                                         <span
                                             className={`${trMono} text-center tracking-tight ${
                                                 isVipTrainingSlot ? 'text-amber-200/90' : 'text-violet-200/90'
                                             }`}
-                                            aria-label={`수련 소요 ${durationHhMmSs}`}
+                                            aria-label={t('training.durationAria', { duration: durationHhMmSs })}
                                         >
                                             {durationHhMmSs}
                                         </span>
@@ -2173,7 +2178,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
         <div
             className={`flex h-full min-h-0 flex-1 flex-col items-center justify-center overflow-hidden px-2 py-3 ${PET_MGMT_SEMI} text-slate-400`}
         >
-            아래 인벤에서 펫 또는 영혼석을 선택하세요
+            {t('training.pickFromInvBelow')}
         </div>
     ) : isPairPetMaterial(selectedItem) && selectedItem.templateId ? (
         <PairPetLobbyInfoPetViewer
@@ -2213,7 +2218,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
         <div
             className={`min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-1.5 sm:p-2 ${PET_LOBBY_BAG_SCROLLBAR_Y_CLASS}`}
         >
-            <p className="text-xs text-slate-400 sm:text-sm">이 카테고리에서 지원하지 않는 아이템입니다.</p>
+            <p className="text-xs text-slate-400 sm:text-sm">{t('lobby.unsupportedCategory')}</p>
         </div>
     );
 
@@ -2242,8 +2247,8 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
 
     const shopTabContent = (
         <>
-            {renderShopSkuSection('알', shopEggSkus)}
-            {renderShopSkuSection('영혼석', shopSoulSkus)}
+            {renderShopSkuSection(t('lobby.eggTab'), shopEggSkus)}
+            {renderShopSkuSection(t('lobby.soulTab'), shopSoulSkus)}
         </>
     );
 
@@ -2259,8 +2264,8 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                 <div className="grid shrink-0 grid-cols-2 gap-0.5 rounded border border-white/10 bg-black/40 p-0.5">
                     {(
                         [
-                            { id: 'pet' as const, label: '펫' },
-                            { id: 'soul' as const, label: '영혼석' },
+                            { id: 'pet' as const, label: t('lobby.petTab') },
+                            { id: 'soul' as const, label: t('lobby.soulTab') },
                         ] as const
                     ).map(({ id, label }) => (
                             <button
@@ -2282,7 +2287,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                         ))}
                 </div>
                 <label className={`flex shrink-0 items-center gap-0.5 ${PET_MGMT_SEMI} text-slate-400`}>
-                    <span className="sr-only">정렬</span>
+                    <span className="sr-only">{t('lobby.sortLabel')}</span>
                     <select
                         value={invSort}
                         onChange={(e) => {
@@ -2299,19 +2304,19 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                             effectiveInvFilter === 'pet' ? 'cursor-pointer' : ''
                         }`}
                     >
-                        <option value="recent">최근 획득순</option>
-                        <option value="oldest">오래된순</option>
-                        <option value="name">이름순</option>
-                        <option value="petLevel">펫 레벨순</option>
-                        <option value="gradeHigh">높은 등급순</option>
-                        <option value="petNumber">종류순</option>
+                        <option value="recent">{t('lobby.sortRecent')}</option>
+                        <option value="oldest">{t('lobby.sortOldest')}</option>
+                        <option value="name">{t('lobby.sortName')}</option>
+                        <option value="petLevel">{t('lobby.sortPetLevel')}</option>
+                        <option value="gradeHigh">{t('lobby.sortGradeHigh')}</option>
+                        <option value="petNumber">{t('lobby.sortPetNumber')}</option>
                     </select>
                 </label>
                 <div
                     className="ml-auto min-w-[6ch] shrink-0 tabular-nums text-right"
                     title={
                         effectiveInvFilter === 'pet' && hiddenInvCount > 0
-                            ? `슬롯 밖 ${hiddenInvCount}개`
+                            ? t('lobby.hiddenInvCount', { count: hiddenInvCount })
                             : undefined
                     }
                 >
@@ -2369,7 +2374,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                 onClick={() => {
                                     if (effectiveInvFilter === 'pet') setExpandTarget('pet');
                                 }}
-                                title="슬롯 확장"
+                                title={t('lobby.expandSlots')}
                                 className="flex aspect-square w-full min-w-0 items-center justify-center rounded-lg border-2 border-gray-700/50 bg-gray-800/50 text-4xl font-light leading-none text-gray-400 transition hover:border-accent hover:bg-gray-700/50 hover:text-gray-200 active:bg-gray-600/50 disabled:opacity-40"
                             >
                                 +
@@ -2388,8 +2393,8 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                     <div className="grid shrink-0 grid-cols-2 gap-1 rounded-lg border border-white/10 bg-black/40 p-1">
                         {(
                             [
-                                { id: 'egg' as const, label: '알' },
-                                { id: 'soul' as const, label: '영혼석' },
+                                { id: 'egg' as const, label: t('lobby.eggTab') },
+                                { id: 'soul' as const, label: t('lobby.soulTab') },
                             ] as const
                         ).map(({ id, label }) => (
                             <button
@@ -2442,7 +2447,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                             isBusy={isBusy}
                             compact
                             petManagementModal
-                            detailButtonLabel="상세보기"
+                            detailButtonLabel={t('pet.viewDetail')}
                             hideInlineBadukChip
                             showRepresentativeBadge={Boolean(equippedPetRow)}
                             onOpenEquippedPetDetail={openEquippedPetDetail}
@@ -2456,15 +2461,15 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                             onClick={() => setAiTab('info')}
                             className={`${PET_MGMT_TAB_BTN_BASE} ${aiTab === 'info' ? 'bg-sky-500 text-sky-950' : 'text-sky-100 hover:bg-sky-950/45'}`}
                         >
-                            정보
+                            {t('lobby.infoTab')}
                         </button>
                         <button
                             type="button"
                             onClick={() => setAiTab('training')}
-                            title={pairTrainingHasClaimReady ? '수련 보상을 수령할 수 있습니다' : undefined}
+                            title={pairTrainingHasClaimReady ? t('training.tabTitleClaimReady') : undefined}
                             className={`relative ${PET_MGMT_TAB_BTN_BASE} ${aiTab === 'training' ? 'bg-violet-500 text-violet-950' : 'text-violet-100 hover:bg-violet-950/45'}`}
                         >
-                            수련
+                            {t('lobby.trainingTab')}
                             {pairTrainingHasClaimReady ? (
                                 <span
                                     className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-red-500 ring-1 ring-zinc-900/90"
@@ -2475,10 +2480,10 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                         <button
                             type="button"
                             onClick={() => setAiTab('hatchery')}
-                            title={pairHatcheryHasClaimReady ? '부화가 완료된 슬롯이 있습니다' : undefined}
+                            title={pairHatcheryHasClaimReady ? t('hatchery.tabTitleClaimReady') : undefined}
                             className={`relative ${PET_MGMT_TAB_BTN_BASE} ${aiTab === 'hatchery' ? 'bg-fuchsia-600 text-fuchsia-50' : 'text-fuchsia-100 hover:bg-fuchsia-950/45'}`}
                         >
-                            부화장
+                            {t('lobby.hatcheryTab')}
                             {pairHatcheryHasClaimReady ? (
                                 <span
                                     className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-red-500 ring-1 ring-zinc-900/90"
@@ -2491,7 +2496,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                             onClick={() => setAiTab('shop')}
                             className={`${PET_MGMT_TAB_BTN_BASE} ${aiTab === 'shop' ? 'bg-amber-500 text-amber-950' : 'text-amber-100 hover:bg-amber-950/45'}`}
                         >
-                            펫 상점
+                            {t('lobby.petShopTab')}
                         </button>
                     </div>
 
@@ -2562,7 +2567,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                         compact
                                         embed
                                         petManagementModal
-                                        detailButtonLabel="상세보기"
+                                        detailButtonLabel={t('pet.viewDetail')}
                                         hideInlineBadukChip
                                         showRepresentativeBadge={Boolean(equippedPetRow)}
                                         onOpenEquippedPetDetail={openEquippedPetDetail}
@@ -2582,10 +2587,10 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                 <button
                                     type="button"
                                     onClick={() => setAiTab('training')}
-                                    title={pairTrainingHasClaimReady ? '수련 보상을 수령할 수 있습니다' : undefined}
+                                    title={pairTrainingHasClaimReady ? t('training.tabTitleClaimReady') : undefined}
                                     className={`relative ${petMgmtMainTabClass(aiTab === 'training', 'training')}`}
                                 >
-                                    수련
+                                    {t('lobby.trainingTab')}
                                     {pairTrainingHasClaimReady ? (
                                         <span
                                             className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500 ring-2 ring-zinc-900/90"
@@ -2596,10 +2601,10 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                 <button
                                     type="button"
                                     onClick={() => setAiTab('hatchery')}
-                                    title={pairHatcheryHasClaimReady ? '부화가 완료된 슬롯이 있습니다' : undefined}
+                                    title={pairHatcheryHasClaimReady ? t('hatchery.tabTitleClaimReady') : undefined}
                                     className={`relative ${petMgmtMainTabClass(aiTab === 'hatchery', 'hatchery')}`}
                                 >
-                                    부화장
+                                    {t('lobby.hatcheryTab')}
                                     {pairHatcheryHasClaimReady ? (
                                         <span
                                             className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500 ring-2 ring-zinc-900/90"
@@ -2612,7 +2617,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                     onClick={() => setAiTab('shop')}
                                     className={petMgmtMainTabClass(aiTab === 'shop', 'shop')}
                                 >
-                                    펫 상점
+                                    {t('lobby.petShopTab')}
                                 </button>
                             </div>
 
@@ -2652,7 +2657,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
 
             {expandTarget ? (
                 <DraggableWindow
-                    title={`${expandLabel} 인벤 확장`}
+                    title={t('lobby.expandInvTitle', { category: expandLabel })}
                     onClose={() => setExpandTarget(null)}
                     windowId="pairPetLobbyExpandSlots"
                     isTopmost
@@ -2664,10 +2669,10 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                 >
                     <InventorySlotExpandDiamondBody
                         eyebrow="Pair lobby"
-                        question={`${expandLabel} 인벤을 확장하시겠습니까?`}
+                        question={t('lobby.expandInvQuestion', { category: expandLabel })}
                         currentSlots={modalSlotCount}
                         nextSlots={nextSlotCountAfterExpand}
-                        slotsHint={`+${PAIR_PET_LOBBY_INV_EXPAND_STEP}칸 추가 (최대 ${PAIR_PET_LOBBY_INV_MAX_SLOTS}칸)`}
+                        slotsHint={t('lobby.expandSlotsHint', { step: PAIR_PET_LOBBY_INV_EXPAND_STEP, max: PAIR_PET_LOBBY_INV_MAX_SLOTS })}
                         diamondCost={expansionDiamondCost}
                         hasEnoughDiamonds={hasEnoughDiamondsExpand}
                         onCancel={() => setExpandTarget(null)}
@@ -2729,7 +2734,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
 
             {trainingStartConfirm ? (
                 <DraggableWindow
-                    title="펫 수련 확인"
+                    title={t('training.confirmTitle')}
                     onClose={() => {
                         if (!isBusy) setTrainingStartConfirm(null);
                     }}
@@ -2753,7 +2758,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                         const slotLabel = getPairTrainingSlotDisplayName(slotIndex);
                         const petName = petRow
                             ? getPairPetDefinition(petRow.templateId!)?.displayName ?? petRow.name
-                            : '펫';
+                            : t('pet.defaultName');
                         const repPet = getEquippedPairPetInventoryRow(currentUser);
                         return (
                             <div className="relative flex h-full min-h-0 flex-col overflow-hidden">
@@ -2764,9 +2769,14 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                 <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden">
                                     <div className="shrink-0 px-3 pt-4 text-center sm:px-5 sm:pt-6">
                                         <h3 className="text-sm font-bold leading-snug text-violet-50 sm:text-lg sm:font-black">
-                                            <span className="text-white">{petName}</span> 펫을
-                                            <br />
-                                            <span className="text-violet-200">{slotLabel}</span>에 보낼까요?
+                                            <Trans
+                                                i18nKey="pair:training.sendToSlot"
+                                                values={{ petName, slotLabel }}
+                                                components={{
+                                                    pet: <span className="text-white" />,
+                                                    slot: <span className="text-violet-200" />,
+                                                }}
+                                            />
                                         </h3>
                                     </div>
                                     <div
@@ -2785,8 +2795,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                             </div>
                                         ) : null}
                                         <p className="mx-auto mt-3 max-w-sm text-left text-[0.65rem] font-medium leading-relaxed text-slate-400 sm:mt-4 sm:text-xs sm:font-semibold sm:text-slate-300">
-                                            수련이 진행되는 동안 이 펫은 페어바둑에 출전할 수 없습니다. 대표 펫으로 지정된 펫은 수련에 보낼 수 없으며, 수련 중에는
-                                            대표 펫으로 바꿀 수 없습니다.
+                                            {t('training.sendNotice')}
                                         </p>
                                     </div>
                                     <div className="relative shrink-0 border-t border-white/10 bg-zinc-950/95 px-3 py-3 sm:px-5 sm:py-4">
@@ -2797,7 +2806,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                 disabled={isBusy}
                                                 className="min-w-0 flex-1 rounded-full border border-white/15 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-white/25 hover:bg-white/[0.08] disabled:opacity-45 sm:min-w-[8rem] sm:flex-none sm:px-5 sm:py-2.5 sm:text-sm"
                                             >
-                                                취소
+                                                {tCommon('actions.cancel')}
                                             </button>
                                             <Button
                                                 type="button"
@@ -2814,7 +2823,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                 colorScheme="none"
                                                 className="min-w-0 flex-1 !rounded-full !border !border-violet-400/50 !bg-gradient-to-r !from-violet-600 !via-violet-500 !to-fuchsia-600 !px-3 !py-2 !text-xs !font-bold !text-white !shadow-[0_6px_20px_rgba(124,58,237,0.35),inset_0_1px_0_rgba(255,255,255,0.16)] hover:!from-violet-500 hover:!via-violet-400 hover:!to-fuchsia-500 disabled:!opacity-40 sm:!min-w-[8rem] sm:!flex-none sm:!px-6 sm:!py-2.5 sm:!text-sm sm:!font-black sm:!shadow-[0_8px_26px_rgba(124,58,237,0.4),inset_0_1px_0_rgba(255,255,255,0.18)]"
                                             >
-                                                수련 보내기
+                                                {t('training.sendTraining')}
                                             </Button>
                                         </div>
                                     </div>
@@ -2827,7 +2836,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
 
             {soulStoneViewModalItem ? (
                 <DraggableWindow
-                    title="영혼석 정보"
+                    title={t('lobby.soulInfoTitle')}
                     onClose={() => setSoulStoneViewModalItem(null)}
                     windowId="pair-pet-soul-stone-view-modal"
                     isTopmost
@@ -2869,7 +2878,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
 
             {trainingCancelConfirmSlotIndex !== null ? (
                 <DraggableWindow
-                    title="수련 취소"
+                    title={t('training.cancelTitle')}
                     onClose={() => {
                         if (!isBusy) setTrainingCancelConfirmSlotIndex(null);
                     }}
@@ -2888,12 +2897,13 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                         />
                         <div className="relative px-3 pb-4 pt-5 text-center sm:px-6 sm:pb-6 sm:pt-7">
                             <p className="mx-auto max-w-sm text-[0.7rem] font-medium leading-relaxed text-slate-300 sm:text-sm sm:font-semibold sm:text-slate-200">
-                                수련을 취소하면{' '}
-                                <span className="font-bold text-rose-200 sm:font-black">진행 중인 시간이 초기화</span>되고 슬롯이 비워집니다.
-                                펫은 가방에 그대로 남습니다.
+                                <Trans
+                                    i18nKey="pair:training.cancelWarning"
+                                    components={{ reset: <span className="font-bold text-rose-200 sm:font-black" /> }}
+                                />
                             </p>
                             <p className="mx-auto mt-1.5 max-w-sm text-[0.6rem] leading-relaxed text-slate-500 sm:mt-2 sm:text-xs">
-                                슬롯:{' '}
+                                {t('training.slotLabel')}:{' '}
                                 <span className="font-bold text-violet-200/95">
                                     {getPairTrainingSlotDisplayName(trainingCancelConfirmSlotIndex)}
                                 </span>
@@ -2905,7 +2915,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                     disabled={isBusy}
                                     className="min-w-0 flex-1 rounded-full border border-white/15 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-white/25 hover:bg-white/[0.08] disabled:opacity-45 sm:min-w-[8rem] sm:flex-none sm:px-5 sm:py-2.5 sm:text-sm"
                                 >
-                                    유지
+                                    {t('training.keep')}
                                 </button>
                                 <Button
                                     type="button"
@@ -2914,7 +2924,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                     colorScheme="none"
                                     className="min-w-0 flex-1 !rounded-full !border !border-rose-400/50 !bg-gradient-to-r !from-rose-600 !via-rose-500 !to-orange-600 !px-3 !py-2 !text-xs !font-bold !text-white !shadow-[0_6px_20px_rgba(225,29,72,0.3),inset_0_1px_0_rgba(255,255,255,0.16)] hover:!from-rose-500 hover:!via-rose-400 hover:!to-orange-500 disabled:!opacity-40 sm:!min-w-[8rem] sm:!flex-none sm:!px-6 sm:!py-2.5 sm:!text-sm sm:!font-black sm:!shadow-[0_8px_26px_rgba(225,29,72,0.35),inset_0_1px_0_rgba(255,255,255,0.18)]"
                                 >
-                                    취소
+                                    {tCommon('actions.cancel')}
                                 </Button>
                             </div>
                         </div>
@@ -2940,7 +2950,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
 
             {hatcheryPetInvFullModalOpen ? (
                 <DraggableWindow
-                    title="경고"
+                    title={t('lobby.warningTitle')}
                     onClose={() => setHatcheryPetInvFullModalOpen(false)}
                     windowId="pairPetHatcheryPetInvFull"
                     isTopmost
@@ -2960,7 +2970,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                 {PAIR_HATCHERY_PET_INVENTORY_FULL_MESSAGE}
                             </p>
                             <p className="mt-3 text-sm font-medium leading-relaxed text-rose-200/85 sm:text-base">
-                                인벤토리에 빈 칸을 확보하세요
+                                {t('lobby.makeInvSpace')}
                             </p>
                             <Button
                                 type="button"
@@ -2968,7 +2978,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                 className="mt-6 !w-full !rounded-xl !border !border-rose-400/45 !bg-gradient-to-b !from-rose-600/90 !to-rose-950/95 !py-2.5 !text-sm !font-black !text-rose-50 hover:!from-rose-500 hover:!to-rose-900"
                                 onClick={() => setHatcheryPetInvFullModalOpen(false)}
                             >
-                                확인
+                                {tCommon('actions.confirm')}
                             </Button>
                         </div>
                     </div>
@@ -2977,7 +2987,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
 
             {hatcheryConfirmSlotIndex !== null ? (
                 <DraggableWindow
-                    title="부화 시작"
+                    title={t('hatchery.start')}
                     onClose={() => {
                         if (!isBusy) setHatcheryConfirmSlotIndex(null);
                     }}
@@ -2997,7 +3007,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                         const outcome =
                             startWelcome ? (
                                 <div className="mt-3 rounded-lg border border-amber-500/20 bg-amber-950/25 px-3 py-2 text-xs font-semibold text-amber-100/95">
-                                    <span className="tabular-nums">부화 펫 레벨 : 5</span>
+                                    <span className="tabular-nums">{t('hatchery.petLevelOnHatch')}</span>
                                 </div>
                             ) : d ? (
                                 <div className="mt-3 rounded-lg border border-amber-500/20 bg-amber-950/25 px-3 py-2 text-xs font-semibold text-amber-100/95">
@@ -3008,7 +3018,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                             MATERIAL_ITEMS[PAIR_EGG_MATERIAL_NAME as keyof typeof MATERIAL_ITEMS]?.image ?? PAIR_EGG_DISPLAY_IMAGE;
                         const confirmDurMs =
                             startWelcome && d ? 60_000 : d ? d.durationMs : 0;
-                        const eggTitle = startWelcome ? `${PAIR_WELCOME_EGG_MATERIAL_NAME} ×1` : '신비로운알 ×1';
+                        const eggTitle = startWelcome ? `${PAIR_WELCOME_EGG_MATERIAL_NAME} ×1` : t('hatchery.mysteriousEgg');
                         return (
                             <div className="relative overflow-hidden">
                                 <div
@@ -3039,7 +3049,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                         </h3>
                                         {confirmDurMs > 0 ? (
                                             <p className="mt-3 font-mono text-sm font-semibold tabular-nums tracking-tight text-fuchsia-200/95">
-                                                부화 시간 : {formatHatcheryDurationHMS(confirmDurMs)}
+                                                {t('hatchery.hatchDuration', { duration: formatHatcheryDurationHMS(confirmDurMs) })}
                                             </p>
                                         ) : null}
                                         {outcome}
@@ -3051,7 +3061,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                             disabled={isBusy}
                                             className="order-2 w-full min-w-[8.5rem] rounded-full border border-white/15 bg-white/[0.04] px-6 py-2.5 text-sm font-semibold text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-sm transition hover:border-white/25 hover:bg-white/[0.08] disabled:opacity-45 sm:order-1 sm:w-auto"
                                         >
-                                            취소
+                                            {tCommon('actions.cancel')}
                                         </button>
                                         <Button
                                             type="button"
@@ -3071,7 +3081,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                             colorScheme="none"
                                             className="order-1 w-full min-w-[8.5rem] !rounded-full !border !border-fuchsia-300/50 !bg-gradient-to-r !from-fuchsia-600 !via-fuchsia-500 !to-violet-600 !px-8 !py-2.5 !text-sm !font-black !tracking-wide !text-white !shadow-[0_8px_28px_rgba(147,51,234,0.45),inset_0_1px_0_rgba(255,255,255,0.2)] hover:!from-fuchsia-500 hover:!via-fuchsia-400 hover:!to-violet-500 disabled:!opacity-40 sm:order-2 sm:w-auto"
                                         >
-                                            시작
+                                            {t('hatchery.startAction')}
                                         </Button>
                                     </div>
                                 </div>
@@ -3083,7 +3093,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
 
             {hatcheryInstantConfirmSlotIndex !== null ? (
                 <DraggableWindow
-                    title="다이아 사용 확인"
+                    title={t('hatchery.diamondConfirmTitle')}
                     onClose={() => {
                         if (!isBusy) setHatcheryInstantConfirmSlotIndex(null);
                     }}
@@ -3123,10 +3133,13 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                 <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-cyan-400/45 to-transparent" aria-hidden />
                                 <div className="relative px-6 pb-6 pt-7 text-center">
                                     {!sessionM ? (
-                                        <p className="mt-4 text-sm text-amber-200/90">부화 중인 알이 없습니다. 창을 닫아 주세요.</p>
+                                        <p className="mt-4 text-sm text-amber-200/90">{t('hatchery.noEggInProgress')}</p>
                                     ) : canClaimM ? (
                                         <p className="mt-4 text-sm text-amber-200/90">
-                                            이미 부화가 끝났습니다. 창을 닫고 <span className="font-bold">펫 받기</span>를 눌러 주세요.
+                                            <Trans
+                                                i18nKey="pair:hatchery.alreadyCompleteClaim"
+                                                components={{ claim: <span className="font-bold" /> }}
+                                            />
                                         </p>
                                     ) : (
                                         <>
@@ -3144,14 +3157,14 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                     />
                                                 </div>
                                                 <div className="min-w-0 flex-1 text-left">
-                                                    <p className="text-[0.65rem] font-bold uppercase tracking-widest text-slate-400">남은 시간</p>
+                                                    <p className="text-[0.65rem] font-bold uppercase tracking-widest text-slate-400">{t('hatchery.remainingTime')}</p>
                                                     <p className="mt-0.5 font-mono text-[clamp(1.35rem,4.5vmin,1.85rem)] font-black tabular-nums leading-none tracking-tight text-cyan-200 drop-shadow-[0_0_12px_rgba(34,211,238,0.35)]">
                                                         {formatPairHatcheryRemainHMS(remainMsM)}
                                                     </p>
                                                 </div>
                                             </div>
                                             <div className="mx-auto mt-4 flex max-w-[16rem] items-center justify-center gap-2 rounded-xl border border-cyan-400/35 bg-cyan-950/25 px-4 py-2.5">
-                                                <span className="text-xs font-semibold text-cyan-100/90">사용 다이아</span>
+                                                <span className="text-xs font-semibold text-cyan-100/90">{t('hatchery.diamondsUsed')}</span>
                                                 <span className="inline-flex items-center gap-1 rounded-lg border border-cyan-300/30 bg-black/30 px-2.5 py-1 tabular-nums">
                                                     <img src="/images/icon/Zem.webp" alt="" className="h-5 w-5 shrink-0" />
                                                     <span className="text-lg font-black text-cyan-50">{costM}</span>
@@ -3159,14 +3172,14 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                             </div>
                                             {!currentUser.isAdmin ? (
                                                 <p className="mt-2 text-[0.7rem] text-slate-400">
-                                                    보유{' '}
+                                                    {t('hatchery.ownedLabel')}{' '}
                                                     <span className="font-bold tabular-nums text-slate-200">
                                                         {formatWalletDiamonds(currentUser.diamonds ?? 0)}
                                                     </span>
                                                 </p>
                                             ) : null}
                                             {!hasEnoughM && !currentUser.isAdmin ? (
-                                                <p className="mt-2 text-xs font-semibold text-rose-300">다이아가 부족합니다.</p>
+                                                <p className="mt-2 text-xs font-semibold text-rose-300">{t('hatchery.insufficientDiamonds')}</p>
                                             ) : null}
                                             {petInvFullModal ? (
                                                 <p className="mt-2 text-xs font-semibold text-amber-200/95">{PAIR_HATCHERY_PET_INVENTORY_FULL_MESSAGE}</p>
@@ -3182,7 +3195,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                             disabled={isBusy}
                                             className="order-2 w-full min-w-[8.5rem] rounded-full border border-white/15 bg-white/[0.04] px-6 py-2.5 text-sm font-semibold text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-sm transition hover:border-white/25 hover:bg-white/[0.08] disabled:opacity-45 sm:order-1 sm:w-auto"
                                         >
-                                            취소
+                                            {tCommon('actions.cancel')}
                                         </button>
                                         <Button
                                             type="button"
@@ -3212,7 +3225,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                             colorScheme="none"
                                             className="order-1 flex w-full min-w-[8.5rem] !flex-row !items-center !justify-center !gap-2 !rounded-full !border !border-cyan-400/55 !bg-gradient-to-r !from-cyan-600 !via-cyan-500 !to-teal-600 !px-7 !py-2.5 !text-sm !font-black !tracking-wide !text-white !shadow-[0_8px_28px_rgba(6,182,212,0.35),inset_0_1px_0_rgba(255,255,255,0.2)] hover:!from-cyan-500 hover:!via-cyan-400 hover:!to-teal-500 disabled:!opacity-40 sm:order-2 sm:w-auto"
                                         >
-                                            <span>즉시 완료</span>
+                                            <span>{t('hatchery.instantCompleteAlt')}</span>
                                             {sessionM && !canClaimM && costM > 0 ? (
                                                 <span className="inline-flex items-center gap-0.5 rounded-md border border-white/25 bg-black/25 px-1.5 py-0.5 text-xs tabular-nums">
                                                     <img src="/images/icon/Zem.webp" alt="" className="h-3.5 w-3.5" />

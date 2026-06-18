@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { InventoryItem, ItemGrade } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
@@ -26,6 +27,7 @@ interface ItemDetailModalProps {
 }
 
 const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
+    const { t } = useTranslation('inventory');
     item,
     isOwnedByCurrentUser,
     hideEnhanceActions = false,
@@ -43,12 +45,12 @@ const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
     const mobileDetailChrome = Boolean(handheld && isEquipmentLikeDetail);
     const detailTitle =
         item.type === 'equipment'
-            ? '장비 상세 정보'
+            ? t('itemDetail.equipmentDetail')
             : item.type === 'consumable'
-              ? '소모품 상세'
+              ? t('itemDetail.consumableDetail')
               : item.type === 'material'
-                ? '재료 상세'
-                : '아이템 상세';
+                ? t('itemDetail.materialDetail')
+                : t('itemDetail.itemDetail');
 
     const body = (
         <div className={mobileDetailChrome || embedded ? 'flex min-h-0 w-full min-w-0 flex-col gap-1.5' : 'flex h-full flex-col'}>
@@ -105,7 +107,7 @@ const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
                                 colorScheme="yellow"
                                 className={`min-w-0 flex-1 font-semibold shadow-md shadow-amber-950/25 ${mobileDetailChrome ? '!py-2 !text-xs !leading-snug' : ''}`}
                             >
-                                {item.stars >= 10 ? '최대 강화' : '강화하기'}
+                                {item.stars >= 10 ? t('maxEnhance') : t('enhance')}
                             </Button>
                             <Button
                                 type="button"
@@ -113,7 +115,7 @@ const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
                                 disabled={!canRefine}
                                 colorScheme="blue"
                                 className={`min-w-0 flex-1 font-semibold shadow-md shadow-slate-900/30 ${mobileDetailChrome ? '!py-2 !text-xs !leading-snug' : ''}`}
-                                title={!canRefine ? '제련할 수 없습니다' : '대장간 제련 탭으로 이동'}
+                                title={!canRefine ? t('itemDetail.cannotRefine') : t('itemDetail.goRefine')}
                             >
                                 제련
                             </Button>

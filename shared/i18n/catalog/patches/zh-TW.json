@@ -1,0 +1,54 @@
+{
+  "common": {
+    "actions": {
+      "ok": "確定",
+      "cancel": "取消",
+      "close": "關閉",
+      "save": "儲存",
+      "loading": "載入中…",
+      "confirm": "確認",
+      "back": "返回",
+      "retry": "重試",
+      "refresh": "重新整理"
+    },
+    "resources": {
+      "gold": "金幣",
+      "diamonds": "鑽石",
+      "guildCoins": "公會幣",
+      "champCoins": "冠軍幣"
+    },
+    "languageSelect": {
+      "label": "語言",
+      "placeholder": "選擇語言"
+    }
+  },
+  "nav": {
+    "dock": {
+      "home": "首頁",
+      "singleplayer": "圍棋學院",
+      "tower": "挑戰之塔",
+      "arena": "競技場",
+      "tournament": "錦標賽",
+      "adventure": "冒險"
+    },
+    "header": {
+      "mailbox": "信箱",
+      "settings": "設定",
+      "logout": "登出",
+      "logoutConfirm": "確定要登出嗎？"
+    }
+  },
+  "settings": {
+    "title": "設定",
+    "tabs": {
+      "features": "功能",
+      "display": "畫面",
+      "sound": "音效",
+      "account": "帳戶"
+    },
+    "display": {
+      "language": "語言",
+      "panelStyle": "面板樣式"
+    }
+  }
+}

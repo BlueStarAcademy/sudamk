@@ -1,4 +1,6 @@
 import React from 'react';
+import { useLocalizedItemGrade } from '../shared/i18n/localizedCatalog.js';
+import { useTranslation } from 'react-i18next';
 import { InventoryItem, ItemGrade } from '../types.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { GRADE_LEVEL_REQUIREMENTS, formatEquipLevelRequirement } from '../constants';
@@ -17,15 +19,14 @@ import {
 import { resolveBagItemAcquireLines } from '../shared/utils/itemAcquireSourceLines.js';
 
 /** ItemDetailModal과 동일 — 등급별 프레임·배경 (구매 모달 등에서 재사용 가능) */
-export const equipmentDetailGradeStyles: Record<ItemGrade, { name: string; color: string; background: string; frame: string }> = {
-    normal: { name: '일반', color: 'text-zinc-300', background: '/images/equipments/normalbgi.webp', frame: 'from-zinc-500/15 to-zinc-700/5 ring-zinc-500/25' },
-    uncommon: { name: '고급', color: 'text-emerald-400', background: '/images/equipments/uncommonbgi.webp', frame: 'from-emerald-500/20 to-emerald-900/10 ring-emerald-500/30' },
-    rare: { name: '희귀', color: 'text-sky-400', background: '/images/equipments/rarebgi.webp', frame: 'from-sky-500/20 to-blue-950/15 ring-sky-500/35' },
-    epic: { name: '에픽', color: 'text-violet-400', background: '/images/equipments/epicbgi.webp', frame: 'from-violet-500/25 to-purple-950/15 ring-violet-500/40' },
-    legendary: { name: '전설', color: 'text-rose-500', background: '/images/equipments/legendarybgi.webp', frame: 'from-rose-500/25 to-red-950/15 ring-rose-500/40' },
-    mythic: { name: '신화', color: 'text-amber-400', background: '/images/equipments/mythicbgi.webp', frame: 'from-amber-500/25 to-orange-950/20 ring-amber-400/45' },
+export const equipmentDetailGradeStyles: Record<ItemGrade, { color: string; background: string; frame: string }> = {
+    normal: { color: 'text-zinc-300', background: '/images/equipments/normalbgi.webp', frame: 'from-zinc-500/15 to-zinc-700/5 ring-zinc-500/25' },
+    uncommon: { color: 'text-emerald-400', background: '/images/equipments/uncommonbgi.webp', frame: 'from-emerald-500/20 to-emerald-900/10 ring-emerald-500/30' },
+    rare: { color: 'text-sky-400', background: '/images/equipments/rarebgi.webp', frame: 'from-sky-500/20 to-blue-950/15 ring-sky-500/35' },
+    epic: { color: 'text-violet-400', background: '/images/equipments/epicbgi.webp', frame: 'from-violet-500/25 to-purple-950/15 ring-violet-500/40' },
+    legendary: { color: 'text-rose-500', background: '/images/equipments/legendarybgi.webp', frame: 'from-rose-500/25 to-red-950/15 ring-rose-500/40' },
+    mythic: { color: 'text-amber-400', background: '/images/equipments/mythicbgi.webp', frame: 'from-amber-500/25 to-orange-950/20 ring-amber-400/45' },
     transcendent: {
-        name: '초월',
         color: 'text-cyan-300',
         background: '/images/equipments/transcendentbgi.webp',
         frame: 'from-cyan-500/30 via-teal-600/20 to-cyan-950/25 ring-cyan-400/50',
@@ -173,6 +174,8 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
     materialQuantityCaption = 'owned',
     descriptionSlot,
 }) => {
+    const { t } = useTranslation('profile');
+    const localizedGrade = useLocalizedItemGrade();
     const { currentUserWithStatus } = useAppContext();
     const styles = equipmentDetailGradeStyles[item.grade];
     const typo = getDetailTypography(comfortableTypography, enlargedTypography);
@@ -191,8 +194,8 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
         const usageLines = item.type === 'material' ? getMaterialBagUsageLines(item.name) : [];
         const usageHint = item.type === 'consumable' ? getBagConsumableUsageHint(item.name) : null;
         const usageFallback =
-            item.type === 'consumable' ? '가방에서 사용할 수 있습니다.' : '이 재료는 현재 어떤 장비 강화에도 사용되지 않습니다.';
-        const typeLabel = item.type === 'consumable' ? '소모품' : '재료';
+            item.type === 'consumable' ? t('equipmentDetail.inventoryUse') : t('equipmentDetail.noMaterialUse');
+        const typeLabel = item.type === 'consumable' ? t('equipmentDetail.typeConsumable') : t('equipmentDetail.typeMaterial');
         const acquireLines = showAcquireSources ? resolveBagItemAcquireLines(item) : [];
 
         const mainBodyPx = typo.mainBodyPx;
@@ -285,10 +288,10 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
                                 </h3>
                             </div>
                             <p className={`${metaText} text-slate-400`}>{typeLabel}</p>
-                            <p className={`${metaText} ${styles.color}`}>[{styles.name}]</p>
+                            <p className={`${metaText} ${styles.color}`}>[{localizedGrade(item.grade)}]</p>
                             {!hideOwnedQuantity ? (
                                 <p className={`${metaSemi} text-slate-300`}>
-                                    {materialQuantityCaption === 'obtained' ? '획득 수량' : '보유 수량'}:{' '}
+                                    {materialQuantityCaption === 'obtained' ? t('equipmentDetail.obtainedQty') : t('equipmentDetail.ownedQty')}:{' '}
                                     {typeof item.quantity === 'number' && Number.isFinite(item.quantity)
                                         ? Math.max(0, Math.floor(item.quantity))
                                         : materialQuantityCaption === 'obtained'
@@ -423,7 +426,7 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
                                         : 'border-emerald-500/40 bg-emerald-900/25 text-emerald-200'
                                 }`}
                             >
-                                {item.isBound ? '귀속' : '거래가능'}
+                                {item.isBound ? t('equipmentDetail.bound') : t('equipmentDetail.tradable')}
                             </div>
                         )}
                     </div>
@@ -439,10 +442,10 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
                                 {item.name}
                             </h3>
                         </div>
-                        <p className={`${metaText} ${styles.color}`}>[{styles.name}]</p>
+                        <p className={`${metaText} ${styles.color}`}>[{localizedGrade(item.grade)}]</p>
                         {!showTradeStatusUnderImage && (
                             <p className={`${tradeStatusLineClass} ${item.isBound ? 'text-rose-300' : 'text-emerald-300'}`}>
-                                {item.isBound ? '귀속' : '거래가능'}
+                                {item.isBound ? t('equipmentDetail.bound') : t('equipmentDetail.tradable')}
                             </p>
                         )}
                         <p className={`${typo.bodyLeading} ${canEquip ? 'text-gray-500' : 'text-red-500'}`}>
@@ -450,7 +453,7 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
                         </p>
                         {item.type === 'equipment' && item.grade !== 'normal' && (
                             <p className={`${metaSemi} ${refinementCount > 0 ? 'text-amber-400' : 'text-red-400'}`}>
-                                제련 가능: {refinementCount > 0 ? `${refinementCount}회` : '제련불가'}
+                                {t('equipmentDetail.refinementCount', { value: refinementCount > 0 ? `${refinementCount}` : t('equipmentDetail.refinementUnavailable') })}
                             </p>
                         )}
                     </div>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import type { AdventureStageUnderstandingRow } from '../../utils/adventureStageUnderstandingRows.js';
 
 const AdventureChapterRegionalSummary: React.FC<{
@@ -6,6 +7,7 @@ const AdventureChapterRegionalSummary: React.FC<{
     compact?: boolean;
     onOpenEffectSlots: () => void;
 }> = ({ row, compact = false, onOpenEffectSlots }) => {
+    const { t } = useTranslation('lobby');
     const xpCurrent = row.xpInTier ?? row.xp;
     const xpGoal = row.xpNeedInTier ?? row.xpGoal;
 
@@ -53,9 +55,9 @@ const AdventureChapterRegionalSummary: React.FC<{
                 className={`shrink-0 whitespace-nowrap rounded-lg border border-fuchsia-400/50 bg-gradient-to-b from-fuchsia-600/35 to-fuchsia-950/80 font-bold text-fuchsia-50 shadow-[0_4px_14px_-6px_rgba(192,132,252,0.55)] transition-all hover:border-amber-300/50 hover:from-fuchsia-500/45 hover:to-fuchsia-900/80 active:scale-[0.98] ${
                     compact ? 'px-2 py-1 text-[9px]' : 'px-3 py-1.5 text-[10px] sm:text-xs'
                 }`}
-                aria-label={`${row.title} 지역 효과`}
+                aria-label={t('adventure.regionalEffectAria', { title: row.title })}
             >
-                지역 효과
+                {t('adventure.regionalEffect')}
             </button>
         </div>
     );

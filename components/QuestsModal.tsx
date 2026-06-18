@@ -11,6 +11,42 @@ import { formatGoldAmountKoG } from '../shared/utils/walletAmountDisplay.js';
 import type { User } from '../types.js';
 import { getAchievementProgressDisplay, isAchievementRequirementMet } from '../shared/utils/achievementProgress.js';
 import { useKeyedAsyncAction } from '../hooks/useAsyncAction.js';
+import { useTranslation } from 'react-i18next';
+import i18n from '../shared/i18n/config.js';
+
+const qs = (key: string, opts?: Record<string, unknown>) => i18n.t(`quests:${key}`, opts);
+
+const ACTION_POINT_RECOVERY_KO = /행동력\s*회복제\s*\(\+(\d+)\)/;
+const ACTION_POINT_ITEM_IDS: Record<string, string> = {
+    action_point_10: '10',
+    action_point_20: '20',
+    action_point_30: '30',
+};
+
+const resolveActionPointRecoveryDisplayName = (amount: string): string =>
+    qs('actionPointRecovery', { amount });
+
+const resolveConsumableDisplayName = (ref: NonNullable<QuestReward['items']>[0]): string => {
+    const raw = 'itemId' in ref ? ref.itemId : (ref as { name?: string }).name;
+    const id = typeof raw === 'string' ? raw.trim() : '';
+    if (!id) return '';
+    const apAmount = ACTION_POINT_ITEM_IDS[id] ?? id.match(/^action_point_(\d+)$/i)?.[1] ?? ACTION_POINT_RECOVERY_KO.exec(id)?.[1];
+    if (apAmount) return resolveActionPointRecoveryDisplayName(apAmount);
+    return id;
+};
+
+const getQuestDisplayTitle = (title: string): string => {
+    if (title === '자동대국 토너먼트 참여하기' || title === '챔피언십 경기 진행하기' || title === '챔피언십 경기 완료하기') {
+        return qs('titleAliases.championshipComplete');
+    }
+    if (title === '일일퀘스트 활약도100보상 받기(3/3)' || title === '일일퀘스트 활약도100보상 받기 3회') {
+        return qs('titleAliases.dailyActivity100x3');
+    }
+    if (title === '주간퀘스트 활약도100보상 받기(2/2)') {
+        return qs('titleAliases.weeklyActivity100x2');
+    }
+    return title;
+};
 
 interface QuestsModalProps {
     currentUser: UserWithStatus;
@@ -70,36 +106,11 @@ const getShopActionPointBadgeFromReward = (reward: QuestReward): string | null =
     if (id === 'action_point_10' || id === '행동력 회복제(+10)') return '+10';
     if (id === 'action_point_20' || id === '행동력 회복제(+20)') return '+20';
     if (id === 'action_point_30' || id === '행동력 회복제(+30)') return '+30';
-    const ko = id.match(/행동력\s*회복제\s*\(\+(\d+)\)/);
-    if (ko) return `+${ko[1]}`;
+    const apKo = ACTION_POINT_RECOVERY_KO.exec(id);
+    if (apKo) return `+${apKo[1]}`;
     const apId = id.match(/^action_point_(\d+)$/i);
     if (apId) return `+${apId[1]}`;
     return null;
-};
-
-const resolveConsumableDisplayName = (ref: NonNullable<QuestReward['items']>[0]): string => {
-    const raw = 'itemId' in ref ? ref.itemId : (ref as { name?: string }).name;
-    const id = typeof raw === 'string' ? raw.trim() : '';
-    if (!id) return '';
-    if (id === 'action_point_10') return '행동력 회복제(+10)';
-    if (id === 'action_point_20') return '행동력 회복제(+20)';
-    if (id === 'action_point_30') return '행동력 회복제(+30)';
-    const apId = id.match(/^action_point_(\d+)$/i);
-    if (apId) return `행동력 회복제(+${apId[1]})`;
-    return id;
-};
-
-const getQuestDisplayTitle = (title: string): string => {
-    if (title === '자동대국 토너먼트 참여하기' || title === '챔피언십 경기 진행하기' || title === '챔피언십 경기 완료하기') {
-        return '챔피언십 경기 완료';
-    }
-    if (title === '일일퀘스트 활약도100보상 받기(3/3)' || title === '일일퀘스트 활약도100보상 받기 3회') {
-        return '일일 퀘스트 활약도 100보상 받기 (3회)';
-    }
-    if (title === '주간퀘스트 활약도100보상 받기(2/2)') {
-        return '주간 퀘스트 활약도 100보상 받기 (2회)';
-    }
-    return title;
 };
 
 const AchievementTrackPanel: React.FC<{
@@ -111,6 +122,7 @@ const AchievementTrackPanel: React.FC<{
     claimPendingKey?: string | null;
     onClaimAchievement: (trackId: string, stageIndex: number) => void;
 }> = ({ currentUser, onAction, isMobile, compact = false, claimPendingKey = null, onClaimAchievement }) => {
+    const { t } = useTranslation('quests');
     const [viewIndices, setViewIndices] = useState<Record<string, number>>({});
 
     const isRequirementMet = (stage: (typeof ACHIEVEMENT_TRACKS)[number]['stages'][number]) =>
@@ -133,7 +145,7 @@ const AchievementTrackPanel: React.FC<{
                 <h3
                     className={`font-bold tracking-tight text-white ${compact ? 'text-base' : isMobile ? 'text-base' : 'text-lg'}`}
                 >
-                    {compact ? '업적' : '전체 업적'}
+                    {compact ? t('achievements.compact') : t('achievements.all')}
                 </h3>
                 <span
                     className={`rounded-full border border-amber-400/30 bg-gradient-to-b from-amber-950/90 via-slate-950/95 to-slate-950 font-bold tabular-nums text-amber-50 ${
@@ -169,7 +181,7 @@ const AchievementTrackPanel: React.FC<{
                         compact ? 'text-xl leading-none' : isMobile ? 'text-lg leading-none' : 'text-2xl leading-none';
                     const navLabelClass =
                         compact ? 'text-[11px] leading-tight' : isMobile ? 'text-[10px] leading-tight' : 'text-xs leading-tight';
-                    const claimLabel = isClaimed ? '완료' : canClaim ? '받기' : isCurrentStage ? '진행' : '기록';
+                    const claimLabel = isClaimed ? t('claim.complete') : canClaim ? t('claim.claim') : isCurrentStage ? t('claim.inProgress') : t('claim.record');
                     const mobileAchievementLayout = isMobile && !compact;
 
                     return (
@@ -185,12 +197,12 @@ const AchievementTrackPanel: React.FC<{
                                     onClick={() => setViewIndices((prev) => ({ ...prev, [track.id]: Math.max(0, viewIndex - 1) }))}
                                     disabled={viewIndex <= 0}
                                     className={navBtnClass}
-                                    aria-label="이전 단계"
+                                    aria-label={t('achievements.prevAria')}
                                 >
                                     <span className={navArrowClass} aria-hidden>
                                         ‹
                                     </span>
-                                    <span className={navLabelClass}>이전</span>
+                                    <span className={navLabelClass}>{t('achievements.prev')}</span>
                                 </button>
                                 <div
                                     className={`flex min-w-0 flex-1 items-center justify-center rounded-lg border border-amber-500/35 bg-gradient-to-b from-slate-900/92 to-black/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-400/10 ${
@@ -234,12 +246,12 @@ const AchievementTrackPanel: React.FC<{
                                     }
                                     disabled={viewIndex >= track.stages.length - 1}
                                     className={navBtnClass}
-                                    aria-label="다음 단계"
+                                    aria-label={t('achievements.nextAria')}
                                 >
                                     <span className={navArrowClass} aria-hidden>
                                         ›
                                     </span>
-                                    <span className={navLabelClass}>다음</span>
+                                    <span className={navLabelClass}>{t('achievements.next')}</span>
                                 </button>
                             </div>
 
@@ -255,7 +267,7 @@ const AchievementTrackPanel: React.FC<{
                                                     isCleared ? 'text-emerald-300' : 'text-slate-400'
                                                 }`}
                                             >
-                                                달성 {achProgress.current}/{achProgress.target}
+                                                {t('achievements.progress', { current: achProgress.current, target: achProgress.target })}
                                             </span>
                                         ) : (
                                             <span
@@ -263,7 +275,7 @@ const AchievementTrackPanel: React.FC<{
                                                     isCleared ? 'text-emerald-300' : 'text-slate-400'
                                                 }`}
                                             >
-                                                {isCleared ? '달성' : '미달성'}
+                                                {isCleared ? t('achievements.cleared') : t('achievements.notCleared')}
                                             </span>
                                         )}
                                     </div>
@@ -282,7 +294,7 @@ const AchievementTrackPanel: React.FC<{
                                                     : 'border-slate-600/40 bg-slate-800/60 text-slate-300'
                                             }`}
                                         >
-                                            {claimPendingKey === `achievement-${track.id}-${viewIndex}` ? '수령 중...' : claimLabel}
+                                            {claimPendingKey === `achievement-${track.id}-${viewIndex}` ? t('claim.claiming') : claimLabel}
                                         </button>
                                     </div>
                                 </div>
@@ -302,7 +314,7 @@ const AchievementTrackPanel: React.FC<{
                                                 isCleared ? 'text-emerald-300' : 'text-slate-400'
                                             } ${compact ? 'text-xs' : 'text-sm'}`}
                                         >
-                                            달성 {achProgress.current}/{achProgress.target}
+                                            {t('achievements.progress', { current: achProgress.current, target: achProgress.target })}
                                         </span>
                                     ) : (
                                         <span
@@ -310,7 +322,7 @@ const AchievementTrackPanel: React.FC<{
                                                 isCleared ? 'text-emerald-300' : 'text-slate-400'
                                             } ${compact ? 'text-xs' : 'text-sm'}`}
                                         >
-                                            {isCleared ? '달성' : '미달성'}
+                                            {isCleared ? t('achievements.cleared') : t('achievements.notCleared')}
                                         </span>
                                     )}
                                 </div>
@@ -343,7 +355,7 @@ const AchievementTrackPanel: React.FC<{
                                                 : 'border-slate-600/40 bg-slate-800/60 text-slate-300'
                                         }`}
                                     >
-                                        {claimPendingKey === `achievement-${track.id}-${viewIndex}` ? '수령 중...' : claimLabel}
+                                        {claimPendingKey === `achievement-${track.id}-${viewIndex}` ? t('claim.claiming') : claimLabel}
                                     </button>
                                 </div>
                             </div>
@@ -364,6 +376,7 @@ const QuestClaimStripButton: React.FC<{
     isMobile: boolean;
     isPending?: boolean;
 }> = ({ isClaimed, isComplete, onClaim, isMobile, isPending = false }) => {
+    const { t } = useTranslation('quests');
     const size = isMobile ? 'px-2.5 py-2 text-xs' : 'px-3 py-2.5 text-sm';
     const base =
         `w-full rounded-lg border text-center font-semibold leading-tight transition-[transform,box-shadow,border-color,background-color] duration-200 ` +
@@ -371,14 +384,14 @@ const QuestClaimStripButton: React.FC<{
     if (isClaimed) {
         return (
             <button type="button" disabled className={`${base} cursor-default border-slate-500/35 bg-slate-800/90 text-slate-500`}>
-                완료
+                {t('claim.complete')}
             </button>
         );
     }
     if (!isComplete) {
         return (
             <button type="button" disabled className={`${base} cursor-default border-slate-600/30 bg-slate-900/85 text-slate-500`}>
-                진행 중
+                {t('claim.inProgressLabel')}
             </button>
         );
     }
@@ -389,7 +402,7 @@ const QuestClaimStripButton: React.FC<{
             disabled={isPending}
             className={`${base} border-amber-400/30 bg-gradient-to-b from-amber-500/25 via-amber-900/40 to-amber-950/85 text-amber-50 hover:border-amber-300/45 hover:from-amber-400/30 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60`}
         >
-            {isPending ? '수령 중...' : '보상 받기'}
+            {isPending ? t('claim.claiming') : t('claim.claimReward')}
         </button>
     );
 };
@@ -418,7 +431,7 @@ const QuestRewardPill: React.FC<{ quest: Quest; isMobile: boolean; inline?: bool
             className={`flex min-w-0 items-center gap-x-2 gap-y-0.5 rounded-md border border-amber-500/20 bg-black/30 px-2 py-1.5 ${
                 inline ? 'shrink-0 flex-nowrap whitespace-nowrap' : 'w-full flex-wrap justify-center text-center'
             } ${isMobile ? 'text-[11px]' : 'text-xs'}`}
-            title="퀘스트 보상"
+            title={t('rewardTitle')}
         >
             {hasGold || hasActivity ? (
                 <span className="inline-flex min-w-0 flex-nowrap items-center justify-center gap-x-2 font-semibold">
@@ -462,13 +475,15 @@ const QuestDetailBubble: React.FC<{
     gold?: number;
     isMobile: boolean;
     onClose: () => void;
-}> = ({ description, activityPoints, gold, isMobile, onClose }) => (
+}> = ({ description, activityPoints, gold, isMobile, onClose }) => {
+    const { t } = useTranslation('quests');
+    return (
     <div
         className={`pointer-events-auto absolute z-50 mt-2 animate-fade-in ${
             isMobile ? 'left-0 right-0 mx-auto w-[min(100%,20rem)]' : 'left-0 w-[min(100%,19rem)]'
         }`}
         role="dialog"
-        aria-label="퀘스트 상세"
+        aria-label={t('detailAria')}
     >
         <div className="relative rounded-xl border border-amber-500/25 bg-gradient-to-b from-[#1a1d28]/98 via-[#12151c]/98 to-[#0a0c10]/98 p-3 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.75),inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-400/10 backdrop-blur-md">
             <div
@@ -479,12 +494,12 @@ const QuestDetailBubble: React.FC<{
             <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-amber-500/15 pt-2 text-[11px] text-amber-100/90 sm:text-xs">
                 <span className="inline-flex items-center gap-1 font-medium tracking-tight">
                     <ActivityVitalityIcon size={isMobile ? 12 : 13} />
-                    활약도 +{activityPoints}
+                    {t('activity.points', { points: activityPoints })}
                 </span>
                 {gold != null && gold > 0 ? (
                     <span className="font-medium tracking-tight">
                         <img src="/images/icon/Gold.webp" alt="" className="mb-px mr-0.5 inline h-3 w-3 align-middle opacity-95" />
-                        골드 +{formatGoldAmountKoG(gold)}
+                        {t('rewards.gold', { amount: formatGoldAmountKoG(gold) })}
                     </span>
                 ) : null}
             </div>
@@ -493,11 +508,12 @@ const QuestDetailBubble: React.FC<{
                 onClick={onClose}
                 className="mt-2 w-full rounded-md border border-slate-600/40 bg-slate-800/60 py-1 text-[10px] font-medium text-slate-400 transition-colors hover:border-slate-500/50 hover:bg-slate-700/50 hover:text-slate-300 sm:text-xs"
             >
-                닫기
+                {t('close')}
             </button>
         </div>
     </div>
-);
+    );
+};
 
 const QuestItem: React.FC<{ quest: Quest; onClaim: (id: string) => void; isMobile: boolean; isClaimPending?: boolean }> = ({ quest, onClaim, isMobile, isClaimPending = false }) => {
     const [bubbleOpen, setBubbleOpen] = useState(false);
@@ -667,6 +683,7 @@ const ActivityPanel: React.FC<{
     isMobile: boolean;
     claimPendingKey?: string | null;
 }> = ({ title, questData, thresholds, rewards, questType, onClaim, isMobile, claimPendingKey = null }) => {
+    const { t } = useTranslation('quests');
     if (!questData) return null;
 
     const { activityProgress, claimedMilestones } = questData;
@@ -683,11 +700,11 @@ const ActivityPanel: React.FC<{
         const raw = 'itemId' in firstItem ? firstItem.itemId : firstItem.name;
         const fromShopId =
             raw === 'action_point_10'
-                ? '행동력 회복제(+10)'
+                ? resolveActionPointRecoveryDisplayName('10')
                 : raw === 'action_point_20'
-                  ? '행동력 회복제(+20)'
+                  ? resolveActionPointRecoveryDisplayName('20')
                   : raw === 'action_point_30'
-                    ? '행동력 회복제(+30)'
+                    ? resolveActionPointRecoveryDisplayName('30')
                     : raw;
         const itemTemplate = CONSUMABLE_ITEMS.find((item) => item.name === fromShopId);
         return itemTemplate?.image ?? '/images/Box/box.webp';
@@ -755,12 +772,20 @@ const ActivityPanel: React.FC<{
                                     }}
                                     disabled={!canClaim || claimPendingKey === `milestone-${questType}-${index}`}
                                     className={`relative ${milestoneIcon} rounded-lg border border-slate-500/35 bg-gradient-to-b from-slate-800/90 to-slate-950/90 p-0.5 shadow-md transition-transform hover:scale-105 disabled:cursor-not-allowed ${canClaim ? 'ring-1 ring-amber-400/40 shadow-[0_0_16px_-6px_rgba(251,191,36,0.55)]' : ''}`}
-                                    title={isClaimed ? '수령 완료' : progressMet ? '보상 수령' : `${milestone} 활약도 필요`}
+                                    title={
+                                        isClaimed
+                                            ? t('claim.claimedTitle')
+                                            : progressMet
+                                              ? t('claim.claimRewardTitle')
+                                              : t('claim.activityRequired', { milestone })
+                                    }
                                 >
                                     <div
                                         className={`relative h-full w-full rounded-md ${!progressMet && !isClaimed ? 'opacity-45 grayscale' : ''}`}
                                         aria-label={
-                                            apBadge ? `${milestone} 활약도 보상 행동력 회복제` : `${milestone} 활약도 보상`
+                                            apBadge
+                                                ? t('claim.activityRewardAp', { milestone })
+                                                : t('claim.activityReward', { milestone })
                                         }
                                     >
                                         {apBadge ? (
@@ -841,6 +866,7 @@ const QuestsModal: React.FC<QuestsModalProps> = ({
     isTopmost,
     embedded = false,
 }) => {
+    const { t } = useTranslation('quests');
     const isCompactViewport = useIsHandheldDevice(1024);
     const { isNativeMobile } = useNativeMobileShell();
     const isMobile = isCompactViewport || isNativeMobile;
@@ -937,7 +963,7 @@ const QuestsModal: React.FC<QuestsModalProps> = ({
         if (activeTab === 'daily') {
             return (
                 <ActivityPanel
-                    title="오늘의 활약도"
+                    title={t('activity.daily')}
                     questData={quests.daily}
                     thresholds={DAILY_MILESTONE_THRESHOLDS}
                     rewards={DAILY_MILESTONE_REWARDS}
@@ -951,7 +977,7 @@ const QuestsModal: React.FC<QuestsModalProps> = ({
         if (activeTab === 'weekly') {
             return (
                 <ActivityPanel
-                    title="주간 활약도"
+                    title={t('activity.weekly')}
                     questData={quests.weekly}
                     thresholds={WEEKLY_MILESTONE_THRESHOLDS}
                     rewards={WEEKLY_MILESTONE_REWARDS}
@@ -965,7 +991,7 @@ const QuestsModal: React.FC<QuestsModalProps> = ({
         if (activeTab === 'monthly') {
             return (
                 <ActivityPanel
-                    title="월간 활약도"
+                    title={t('activity.monthly')}
                     questData={quests.monthly}
                     thresholds={MONTHLY_MILESTONE_THRESHOLDS}
                     rewards={MONTHLY_MILESTONE_REWARDS}
@@ -997,7 +1023,7 @@ const QuestsModal: React.FC<QuestsModalProps> = ({
                         : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
                 }`}
             >
-                일일
+                {t('tabs.daily')}
             </button>
             <button
                 type="button"
@@ -1008,7 +1034,7 @@ const QuestsModal: React.FC<QuestsModalProps> = ({
                         : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
                 }`}
             >
-                주간
+                {t('tabs.weekly')}
                 {hasClaimableWeekly && (
                     <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-red-500 sm:right-1.5 sm:top-1.5 sm:h-2 sm:w-2" aria-hidden />
                 )}
@@ -1022,7 +1048,7 @@ const QuestsModal: React.FC<QuestsModalProps> = ({
                         : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
                 }`}
             >
-                월간
+                {t('tabs.monthly')}
                 {hasClaimableMonthly && (
                     <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-red-500 sm:right-1.5 sm:top-1.5 sm:h-2 sm:w-2" aria-hidden />
                 )}
@@ -1037,7 +1063,7 @@ const QuestsModal: React.FC<QuestsModalProps> = ({
                             : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
                     }`}
                 >
-                    업적
+                    {t('tabs.achievements')}
                     {hasClaimableAchievements && (
                         <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-red-500 sm:right-1.5 sm:top-1.5 sm:h-2 sm:w-2" aria-hidden />
                     )}
@@ -1060,7 +1086,7 @@ const QuestsModal: React.FC<QuestsModalProps> = ({
                     </ul>
                 ) : (
                     <div className="flex h-full min-h-[8rem] items-center justify-center text-slate-500">
-                        <p className="text-sm">진행 가능한 퀘스트가 없습니다.</p>
+                        <p className="text-sm">{t('empty')}</p>
                     </div>
                 )}
             </div>
@@ -1087,7 +1113,7 @@ const QuestsModal: React.FC<QuestsModalProps> = ({
                             {hasClaimableAchievements ? (
                                 <span
                                     className="absolute right-0 top-0 z-[1] h-2 w-2 rounded-full bg-red-500 ring-2 ring-red-500/30"
-                                    aria-label="수령 가능한 업적 있음"
+                                    aria-label={t('achievements.claimableAria')}
                                 />
                             ) : null}
                             <AchievementTrackPanel
@@ -1111,7 +1137,7 @@ const QuestsModal: React.FC<QuestsModalProps> = ({
 
     return (
         <DraggableWindow
-            title="퀘스트"
+            title={t('title')}
             onClose={onClose}
             windowId="quests"
             initialWidth={modalInitialWidth}

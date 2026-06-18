@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Theme, SoundSettings, FeatureSettings, AppSettings, SoundCategory } from '../types.js';
+import { DEFAULT_LOCALE, SETTINGS_STORAGE_KEY } from '../shared/i18n/constants.js';
+
+export { SETTINGS_STORAGE_KEY };
 
 export const defaultSettings: AppSettings = {
     graphics: {
@@ -7,6 +10,7 @@ export const defaultSettings: AppSettings = {
         panelColor: undefined,
         textColor: undefined,
         panelEdgeStyle: 'default',
+        locale: DEFAULT_LOCALE,
         /** false: 휴대기기에서 모바일 전용 UI(기본). true: 옵션으로 PC(16:9) 화면 보기 */
         pcLikeMobileLayout: false,
     },
@@ -32,5 +36,3 @@ export const defaultSettings: AppSettings = {
         screenGuideModals: true,
     },
 };
-
-export const SETTINGS_STORAGE_KEY = 'appSettings_v2';

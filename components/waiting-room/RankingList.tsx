@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { User, UserWithStatus, GameMode } from '../../types.js';
 import Avatar from '../Avatar.js';
 import { RANKING_TIERS, AVATAR_POOL, BORDER_POOL } from '../../constants';
@@ -34,16 +35,16 @@ const getTier = (score: number, rank: number, totalGames: number) => {
     return RANKING_TIERS[RANKING_TIERS.length - 1];
 };
 
-const getCurrentSeasonName = () => {
+const getCurrentSeasonName = (t: (key: string, opts?: Record<string, unknown>) => string) => {
     const now = new Date();
     const year = now.getFullYear().toString().slice(-2);
-    const month = now.getMonth(); // 0-11
+    const month = now.getMonth();
     let season;
-    if (month < 3) season = 1;      // Jan, Feb, Mar
-    else if (month < 6) season = 2; // Apr, May, Jun
-    else if (month < 9) season = 3; // Jul, Aug, Sep
-    else season = 4;                // Oct, Nov, Dec
-    return `${year}-${season}시즌`;
+    if (month < 3) season = 1;
+    else if (month < 6) season = 2;
+    else if (month < 9) season = 3;
+    else season = 4;
+    return t('ranked.seasonSuffix', { year, season });
 };
 
 
@@ -58,6 +59,7 @@ const RankingList: React.FC<RankingListProps> = ({
     splitStack = false,
     hideHeaderActions = false,
 }) => {
+    const { t } = useTranslation('lobby');
     const rankingType = lobbyType === 'pair' ? 'pair' : 'strategic';
     /** 페어 시즌 랭킹은 최소 대국 수 기준이 전략과 다를 수 있음 */
     const minGamesForTierList = lobbyType === 'pair' ? 5 : 10;
@@ -380,7 +382,7 @@ const RankingList: React.FC<RankingListProps> = ({
                 key={user.id} 
                 className={`flex items-center gap-2 rounded-lg p-1.5 lg:p-2 transition-all duration-300 ${rankStyle.container} ${isClickable ? 'cursor-pointer hover:scale-[1.02] hover:-translate-y-0.5' : ''}`}
                 onClick={isClickable ? () => onViewUser(user.id) : undefined}
-                title={isClickable ? `${user.nickname} 프로필 보기` : ''}
+                title={isClickable ? t('ranked.viewProfile', { name: user.nickname }) : ''}
             >
                 <div className={rankStyle.glow}></div>
                 <div
@@ -428,7 +430,7 @@ const RankingList: React.FC<RankingListProps> = ({
                                 pairAlignedNativeCompact ? 'text-[0.65rem] sm:text-xs lg:text-sm' : 'text-xs lg:text-sm'
                             }`}
                         >
-                            {dashPlaceholder ? '—' : `${Math.round(score)}점`}
+                            {dashPlaceholder ? '—' : t('ranked.scorePoints', { score: Math.round(score) })}
                         </p>
                         {(isTopThree || isMyRankDisplay) && (
                             <span className="text-[9px] px-1 py-0.5 bg-gradient-to-r from-yellow-500/30 to-amber-500/30 border border-yellow-400/50 rounded-full text-yellow-200 font-semibold">
@@ -447,7 +449,7 @@ const RankingList: React.FC<RankingListProps> = ({
                     ) : (
                         <>
                             <p className="font-medium">
-                                {wins}승 {losses}패
+                                {t('ranked.winsLosses', { wins, losses })}
                             </p>
                             <p className={`font-bold ${winRateClass}`}>{winRate}%</p>
                         </>
@@ -465,10 +467,15 @@ const RankingList: React.FC<RankingListProps> = ({
         onViewUser,
         pairAlignedNativeCompact,
         splitStack,
+        t,
     ]);
 
     const rankingTitle =
-        lobbyType === 'strategic' ? '전략바둑 랭킹' : lobbyType === 'pair' ? '페어 바둑 랭킹' : `${mode} 랭킹`;
+        lobbyType === 'strategic'
+            ? t('ranked.rankingTitle.strategic')
+            : lobbyType === 'pair'
+              ? t('ranked.rankingTitle.pair')
+              : t('ranked.rankingTitle.mode', { mode: String(mode) });
 
     const panelTight = pairAlignedNativeCompact || splitStack;
     const headerTitleClass = splitStack
@@ -508,7 +515,7 @@ const RankingList: React.FC<RankingListProps> = ({
                                 panelTight ? 'text-xs sm:text-sm' : 'text-sm lg:text-base'
                             }`}
                         >
-                            {getCurrentSeasonName()}
+                            {getCurrentSeasonName(t)}
                         </p>
                     </div>
                 </div>
@@ -528,7 +535,7 @@ const RankingList: React.FC<RankingListProps> = ({
                                     : '!px-3 !py-1.5 !text-sm'
                             }`}
                         >
-                            지난 랭킹
+                            {t('ranked.pastRankings')}
                         </Button>
                         <Button
                             onClick={onShowTierInfo}
@@ -539,7 +546,7 @@ const RankingList: React.FC<RankingListProps> = ({
                                     : '!px-3 !py-1.5 !text-sm'
                             }`}
                         >
-                            티어 안내
+                            {t('ranked.tierInfo')}
                         </Button>
                     </div>
                 )}
@@ -553,7 +560,7 @@ const RankingList: React.FC<RankingListProps> = ({
                                 panelTight ? 'text-xs sm:text-sm' : 'text-sm'
                             }`}
                         >
-                            내 랭킹
+                            {t('ranked.myRanking')}
                         </span>
                     </div>
                     {renderRankItem(
@@ -573,7 +580,7 @@ const RankingList: React.FC<RankingListProps> = ({
                                 panelTight ? 'text-xs sm:text-sm' : 'text-sm'
                             }`}
                         >
-                            전체 랭킹
+                            {t('ranked.allRanking')}
                         </span>
                     </div>
                 )}
@@ -584,13 +591,13 @@ const RankingList: React.FC<RankingListProps> = ({
                          <li className="flex items-center justify-center py-12">
                              <div className="text-center">
                                  <div className="inline-block w-8 h-8 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mb-2"></div>
-                                 <p className="text-gray-400 text-sm">랭킹을 불러오는 중...</p>
+                                 <p className="text-gray-400 text-sm">{t('ranked.loadingRankings')}</p>
                              </div>
                          </li>
                      ) : error ? (
                          <li className="flex items-center justify-center py-12">
                              <p className="text-center text-red-400 text-sm font-medium bg-red-900/20 border border-red-500/30 rounded-lg px-4 py-2">
-                                 랭킹을 불러오는데 실패했습니다.
+                                 {t('ranked.loadRankingsFailed')}
                              </p>
                          </li>
                      ) : topUsers.length > 0 ? (
@@ -603,7 +610,7 @@ const RankingList: React.FC<RankingListProps> = ({
                                  <li ref={loadMoreRef} className="text-center text-gray-500 py-4 text-xs">
                                      <div className="inline-flex items-center gap-2">
                                          <div className="w-4 h-4 border-2 border-gray-500/30 border-t-gray-500 rounded-full animate-spin"></div>
-                                         <span>더 많은 랭킹 로딩 중...</span>
+                                         <span>{t('ranked.loadingMoreRankings')}</span>
                                      </div>
                                  </li>
                              )}
@@ -611,7 +618,7 @@ const RankingList: React.FC<RankingListProps> = ({
                      ) : (
                          <li className="flex items-center justify-center py-12">
                              <p className="text-center text-gray-400 text-sm bg-gray-800/30 border border-gray-700/50 rounded-lg px-4 py-2">
-                                 랭킹 정보가 없습니다.
+                                 {t('ranked.noRankingInfo')}
                              </p>
                          </li>
                      )}

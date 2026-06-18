@@ -1,4 +1,6 @@
 
+import { useLocalizedItemGrade } from '../shared/i18n/localizedCatalog.js';
+import { useTranslation } from 'react-i18next';
 import React, { useEffect } from 'react';
 import DraggableWindow, {
     ITEM_OBTAIN_MODAL_CONFIRM_BUTTON_CLASS,
@@ -28,13 +30,13 @@ interface ItemObtainedModalProps {
 }
 
 const gradeStyles: Record<ItemGrade, { bg: string, text: string, shadow: string, name: string, background: string }> = {
-    normal: { bg: 'bg-gray-700', text: 'text-white', shadow: 'shadow-gray-900/50', name: '일반', background: '/images/equipments/normalbgi.webp' },
-    uncommon: { bg: 'bg-green-700', text: 'text-green-200', shadow: 'shadow-green-500/50', name: '고급', background: '/images/equipments/uncommonbgi.webp' },
-    rare: { bg: 'bg-blue-700', text: 'text-blue-200', shadow: 'shadow-blue-500/50', name: '희귀', background: '/images/equipments/rarebgi.webp' },
-    epic: { bg: 'bg-purple-700', text: 'text-purple-200', shadow: 'shadow-purple-500/50', name: '에픽', background: '/images/equipments/epicbgi.webp' },
-    legendary: { bg: 'bg-red-800', text: 'text-red-200', shadow: 'shadow-red-500/50', name: '전설', background: '/images/equipments/legendarybgi.webp' },
-    mythic: { bg: 'bg-orange-700', text: 'text-orange-200', shadow: 'shadow-orange-500/50', name: '신화', background: '/images/equipments/mythicbgi.webp' },
-    transcendent: { bg: 'bg-cyan-900', text: 'text-cyan-200', shadow: 'shadow-cyan-500/50', name: '초월', background: '/images/equipments/transcendentbgi.webp' },
+    normal: { bg: 'bg-gray-700', text: 'text-white', shadow: 'shadow-gray-900/50', background: '/images/equipments/normalbgi.webp' },
+    uncommon: { bg: 'bg-green-700', text: 'text-green-200', shadow: 'shadow-green-500/50', background: '/images/equipments/uncommonbgi.webp' },
+    rare: { bg: 'bg-blue-700', text: 'text-blue-200', shadow: 'shadow-blue-500/50', background: '/images/equipments/rarebgi.webp' },
+    epic: { bg: 'bg-purple-700', text: 'text-purple-200', shadow: 'shadow-purple-500/50', background: '/images/equipments/epicbgi.webp' },
+    legendary: { bg: 'bg-red-800', text: 'text-red-200', shadow: 'shadow-red-500/50', background: '/images/equipments/legendarybgi.webp' },
+    mythic: { bg: 'bg-orange-700', text: 'text-orange-200', shadow: 'shadow-orange-500/50', background: '/images/equipments/mythicbgi.webp' },
+    transcendent: { bg: 'bg-cyan-900', text: 'text-cyan-200', shadow: 'shadow-cyan-500/50', background: '/images/equipments/transcendentbgi.webp' },
 };
 
 const gradeBorderStyles: Partial<Record<ItemGrade, string>> = {
@@ -58,6 +60,8 @@ const getStarDisplayInfo = (stars: number) => {
 };
 
 const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, isTopmost }) => {
+    const { t } = useTranslation('inventory');
+    const localizedGrade = useLocalizedItemGrade();
     const styles = gradeStyles[item.grade];
     const starInfo = getStarDisplayInfo(item.stars);
     const borderClass = item.grade === ItemGrade.Transcendent ? undefined : gradeBorderStyles[item.grade];
@@ -101,7 +105,7 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
     if (item.type === 'equipment') {
         return (
             <DraggableWindow
-                title="장비 상세 정보"
+                title={t('obtained.equipmentDetail')}
                 onClose={onClose}
                 windowId={ITEM_OBTAINED_MODAL_WINDOW_ID}
                 initialWidth={MOBILE_EQUIPMENT_DETAIL_MODAL_WIDTH}
@@ -152,7 +156,7 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
     if (useBagDetailPanel) {
         return (
             <DraggableWindow
-                title="아이템 획득"
+                title={t('obtained.itemObtained')}
                 onClose={onClose}
                 windowId={ITEM_OBTAINED_MODAL_WINDOW_ID}
                 initialWidth={MOBILE_EQUIPMENT_DETAIL_MODAL_WIDTH}
@@ -213,7 +217,7 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
                         <span className={ITEM_OBTAIN_COUNT_BADGE_CLASS}>+{formatGoldAmountKoG(currencyAmount)}</span>
                     </div>
                 }
-                name="골드"
+                name={t('obtained.goldName')}
                 description={obtainDescription}
                 usageLines={obtainUsageLines}
                 acquireLines={obtainAcquireLines}
@@ -232,14 +236,14 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
                         <span className={ITEM_OBTAIN_COUNT_BADGE_CLASS}>+{formatWalletDiamonds(currencyAmount)}</span>
                     </div>
                 }
-                name="다이아몬드"
+                name={t('obtained.diamondsName')}
                 description={obtainDescription}
                 usageLines={obtainUsageLines}
                 acquireLines={obtainAcquireLines}
             />
         );
     } else {
-        const gradePrefix = item.grade && item.grade !== ItemGrade.Normal ? `[${styles.name}] ` : '';
+        const gradePrefix = item.grade && item.grade !== ItemGrade.Normal ? `[${localizedGrade(item.grade)}] ` : '';
         const combinedDesc = `${gradePrefix}${obtainDescription}`.trim();
         singleCard = (
             <SingleItemObtainCard
@@ -301,7 +305,7 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
 
     return (
         <DraggableWindow
-            title="아이템 획득"
+            title={t('obtained.itemObtained')}
             onClose={onClose}
             windowId={ITEM_OBTAINED_MODAL_WINDOW_ID}
             initialWidth={440}

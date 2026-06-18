@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import React, { useState, useEffect } from 'react';
 import { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from './DraggableWindow.js';
 
@@ -7,6 +8,7 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 const InstallPrompt: React.FC = () => {
+  const { t } = useTranslation('common');
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
@@ -93,22 +95,22 @@ const InstallPrompt: React.FC = () => {
             <img src="/images/Icon.webp" alt="SUDAM" className="w-12 h-12 rounded-lg" />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-white font-bold text-sm mb-1">앱 설치하기</h3>
+            <h3 className="text-white font-bold text-sm mb-1">{t('installPrompt.title')}</h3>
             <p className="text-gray-300 text-xs mb-3">
-              SUDAM을 설치하여 더 빠르고 편리하게 이용하세요. 바탕화면에 바로가기를 추가할 수 있습니다.
+              {t('installPrompt.body')}
             </p>
             <div className="flex gap-2">
               <button
                 onClick={handleInstallClick}
                 className="flex-1 bg-accent hover:bg-accent-dark text-white font-semibold py-2 px-4 rounded transition-colors text-sm"
               >
-                설치하기
+                {t('installPrompt.install')}
               </button>
               <button
                 onClick={handleDismiss}
                 className="px-4 py-2 text-gray-400 hover:text-gray-300 transition-colors text-sm"
               >
-                나중에
+                {t('installPrompt.later')}
               </button>
             </div>
           </div>
@@ -116,7 +118,7 @@ const InstallPrompt: React.FC = () => {
             type="button"
             onClick={handleDismiss}
             className={`flex-shrink-0 ${SUDAMR_MODAL_CLOSE_BUTTON_CLASS}`}
-            aria-label="닫기"
+            aria-label={t('actions.close')}
           >
             닫기
           </button>

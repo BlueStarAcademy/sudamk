@@ -38,6 +38,7 @@ export type AppRouteSlice = Pick<
     | 'updatePanelColor'
     | 'updateTextColor'
     | 'updatePanelEdgeStyle'
+    | 'updateLocale'
     | 'updatePcLikeMobileLayout'
     | 'resetGraphicsToDefault'
     | 'arenaEntranceAvailability'

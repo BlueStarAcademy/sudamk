@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { UserWithStatus, EquipmentSlot, InventoryItem, ItemGrade, GameMode, CoreStat } from '../types.js';
 import Avatar from './Avatar.js';
 import DraggableWindow from './DraggableWindow.js';
@@ -102,7 +103,7 @@ const gradeBackgrounds: Record<ItemGrade, string> = {
     transcendent: '/images/equipments/transcendentbgi.webp',
 };
 
-const getStarDisplay = (stars: number) => {
+const getStarDisplay = (stars: number, notEnhancedTitle: string) => {
     let starImage = '';
     let numberColor = '';
 
@@ -119,7 +120,7 @@ const getStarDisplay = (stars: number) => {
         starImage = '/images/equipments/Star1.webp';
         numberColor = "text-white";
     } else {
-        return <img src="/images/equipments/Star1.webp" alt="star" className="w-4 h-4 inline-block opacity-30" title="미강화" />;
+        return <img src="/images/equipments/Star1.webp" alt="star" className="w-4 h-4 inline-block opacity-30" title={notEnhancedTitle} />;
     }
 
     // Add text shadow here for consistency across all usages
@@ -140,6 +141,7 @@ const EquipmentSlotDisplay: React.FC<{
     /** 타인 프로필: compact 슬롯 안에서 장비 아이콘만 살짝 확대 */
     largerCompactIcon?: boolean;
 }> = ({ slot, item, onClick, compact, largerCompactIcon }) => {
+    const { t } = useTranslation('profile');
     const clickableClass = item && onClick ? 'cursor-pointer hover:scale-105 transition-transform' : '';
     const round = compact ? 'rounded-lg' : 'rounded-xl';
 
@@ -158,7 +160,7 @@ const EquipmentSlotDisplay: React.FC<{
                 <div
                     className={`absolute z-10 font-bold ${compact ? 'right-1 top-0.5 origin-top-right scale-[0.82]' : 'right-2.5 top-1 text-sm'}`}
                 >
-                    {getStarDisplay(item.stars)}
+                    {getStarDisplay(item.stars, t('notEnhanced'))}
                 </div>
                 {item.image && (
                     <img
@@ -190,6 +192,7 @@ interface UserProfileModalProps {
 
 /** 페어: 랭킹전 전적(`pairRankedMatchRecord`) + 경기장 전략 모드별(`pairArenaStatsByMode`) */
 const PairStatsTab: React.FC<{ user: UserWithStatus; dense?: boolean }> = ({ user, dense }) => {
+    const { t } = useTranslation('profile');
     const pairRanked = readPairRankedBlock(user.stats as Record<string, { wins?: number; losses?: number; rankingScore?: number }>);
     const totalWins = pairRanked.wins;
     const totalLosses = pairRanked.losses;
@@ -211,14 +214,14 @@ const PairStatsTab: React.FC<{ user: UserWithStatus; dense?: boolean }> = ({ use
                 className={`rounded-lg border border-violet-400/20 bg-gradient-to-r from-violet-950/50 via-black/35 to-fuchsia-950/35 text-center shadow-inner ring-1 ring-inset ring-white/[0.04] ${sumPad}`}
             >
                 <span className="font-bold tracking-tight text-violet-100/95">
-                    랭킹전 통합: {totalWins}승 {totalLosses}패 ({winRate}%)
+                    {t('userModal.rankedIntegrated', { wins: totalWins, losses: totalLosses, winRate })}
                 </span>
             </div>
             <div
                 className={`rounded-lg border border-fuchsia-500/25 bg-gradient-to-r from-fuchsia-950/40 via-black/35 to-violet-950/30 text-center shadow-inner ring-1 ring-inset ring-white/[0.04] ${sumPad}`}
             >
                 <span className="font-bold tracking-tight text-fuchsia-100/95">
-                    페어 AI 대전: {pairAi.wins}승 {pairAi.losses}패 ({pairAiWinRate}%)
+                    {t('userModal.pairAiRecord', { wins: pairAi.wins, losses: pairAi.losses, winRate: pairAiWinRate })}
                 </span>
             </div>
             <div className={dense ? 'space-y-0.5' : 'space-y-1'}>
@@ -235,7 +238,7 @@ const PairStatsTab: React.FC<{ user: UserWithStatus; dense?: boolean }> = ({ use
                         >
                             <span className="truncate font-semibold text-slate-200/95">{name}</span>
                             <span className={`whitespace-nowrap text-right font-mono tabular-nums text-slate-300/90 ${rowMono}`}>
-                                {wins}승 {losses}패 ({wr}%)
+                                {t('userModal.modeRecord', { wins, losses, winRate: wr })}
                             </span>
                         </div>
                     );
@@ -246,6 +249,7 @@ const PairStatsTab: React.FC<{ user: UserWithStatus; dense?: boolean }> = ({ use
 };
 
 const StatsTab: React.FC<{ user: UserWithStatus; type: 'strategic' | 'playful'; dense?: boolean }> = ({ user, type, dense }) => {
+    const { t } = useTranslation('profile');
     const modes = type === 'strategic' ? SPECIAL_GAME_MODES : PLAYFUL_GAME_MODES;
     const stats = user.stats || {};
     
@@ -287,10 +291,10 @@ const StatsTab: React.FC<{ user: UserWithStatus; type: 'strategic' | 'playful'; 
                 className={`rounded-lg border bg-gradient-to-r text-center shadow-inner ring-1 ring-inset ring-white/[0.04] ${summaryTint} ${sumPad}`}
             >
                 <span className="font-bold tracking-tight">
-                    PVP 전적: {totalWins}승 {totalLosses}패 ({winRate}%)
+                    {t('userModal.pvpRecord', { wins: totalWins, losses: totalLosses, winRate })}
                     {aiGames > 0 ? (
                         <span className="ml-2 font-semibold text-violet-200/90">
-                            · AI {totalAiWins}승 {totalAiLosses}패 ({aiWinRate}%)
+                            {t('userModal.aiRecordSuffix', { wins: totalAiWins, losses: totalAiLosses, winRate: aiWinRate })}
                         </span>
                     ) : null}
                 </span>
@@ -311,11 +315,11 @@ const StatsTab: React.FC<{ user: UserWithStatus; type: 'strategic' | 'playful'; 
                             <span className="truncate font-semibold text-slate-200/95">{stat.mode}</span>
                             <span className={`min-w-0 flex-1 text-right font-mono tabular-nums text-slate-300/90 ${rowMono}`}>
                                 <span className="block">
-                                    PVP {stat.wins ?? 0}승 {stat.losses ?? 0}패 ({gameWinRate}%)
+                                    {t('userModal.pvpModeRecord', { wins: stat.wins ?? 0, losses: stat.losses ?? 0, winRate: gameWinRate })}
                                 </span>
                                 {aiTot > 0 ? (
                                     <span className="mt-0.5 block text-violet-200/85">
-                                        AI {aw}승 {al}패 ({aiWr}%)
+                                        {t('userModal.aiModeRecord', { wins: aw, losses: al, winRate: aiWr })}
                                     </span>
                                 ) : null}
                             </span>
@@ -339,6 +343,7 @@ const getTier = (score: number, rank: number, totalGames: number) => {
 };
 
 const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onViewItem, isTopmost, embedded = false }) => {
+    const { t } = useTranslation('profile');
     const { inventory, stats, nickname, avatarId, borderId, equipment } = user;
     const [showMbtiComparison, setShowMbtiComparison] = useState(false);
     const [adminToolsOpen, setAdminToolsOpen] = useState(false);
@@ -346,9 +351,9 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
     const isAdminViewingOtherUser = !!currentUserWithStatus?.isAdmin && currentUserWithStatus.id !== user.id;
     const [chatDurationMinutes, setChatDurationMinutes] = useState(10);
     const [connectionDurationMinutes, setConnectionDurationMinutes] = useState(60);
-    const [sanctionReason, setSanctionReason] = useState('욕설/비방');
+    const [sanctionReason, setSanctionReason] = useState('profanity');
     const [sanctionReasonEtc, setSanctionReasonEtc] = useState('');
-    const effectiveReason = sanctionReason === '기타' ? sanctionReasonEtc.trim() : sanctionReason;
+    const effectiveReason = sanctionReason === 'other' ? sanctionReasonEtc.trim() : t(`userModal.sanctionReasons.${sanctionReason}`);
     const now = Date.now();
     const isChatBanned = !!user.chatBanUntil && user.chatBanUntil > now;
     const isConnectionBanned = !!user.connectionBanUntil && user.connectionBanUntil > now;
@@ -368,7 +373,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
 
     const applySanction = async (sanctionType: 'chat' | 'connection', durationMinutes: number) => {
         if (!effectiveReason) {
-            alert('제재 사유를 입력해주세요.');
+            alert(t('userModal.sanctionReasonRequired'));
             return;
         }
         await runAdminAction({
@@ -378,7 +383,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                 sanctionType,
                 durationMinutes,
                 reason: effectiveReason,
-                reasonDetail: sanctionReason === '기타' ? sanctionReasonEtc.trim() : undefined,
+                reasonDetail: sanctionReason === 'other' ? sanctionReasonEtc.trim() : undefined,
             },
         });
     };
@@ -391,7 +396,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
     };
 
     const forceLogout = async () => {
-        if (!window.confirm(`[${user.nickname}] 님을 즉시 로그아웃 처리할까요?`)) return;
+        if (!window.confirm(t('userModal.forceLogoutConfirm', { name: user.nickname }))) return;
         await runAdminAction({
             type: 'ADMIN_FORCE_LOGOUT',
             payload: { targetUserId: user.id },
@@ -484,9 +489,9 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
             tierIcon: tier.icon,
             tierColor: tier.color,
             venueSeason: [
-                withWinRate('유저', p.wins, p.losses),
-                withWinRate('펫', pet.wins, pet.losses),
-                withWinRate('페어', pr.wins, pr.losses),
+                withWinRate(t('chartLegend.user'), p.wins, p.losses),
+                withWinRate(t('chartLegend.pet'), pet.wins, pet.losses),
+                withWinRate(t('chartLegend.pair'), pr.wins, pr.losses),
             ],
         };
     }, [user]);
@@ -566,14 +571,14 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                                                     onClick={() => setShowMbtiComparison(true)}
                                                     className="shrink-0 px-3 py-1.5 text-xs font-bold rounded-md border border-cyan-300/55 bg-gradient-to-br from-cyan-500/80 via-sky-500/72 to-indigo-600/82 text-white shadow-[0_12px_22px_-14px_rgba(56,189,248,0.85)] transition-all duration-200 hover:-translate-y-0.5 hover:border-cyan-200/80 hover:from-cyan-400/85 hover:via-sky-500/78 hover:to-indigo-500/85"
                                                 >
-                                                    분석하기
+                                                    {t('userModal.analyze')}
                                                 </button>
                                             </>
                                         ) : mbtiHiddenByPrivacy ? (
-                                            <span className="font-semibold text-base text-slate-400">비공개</span>
+                                            <span className="font-semibold text-base text-slate-400">{t('userModal.private')}</span>
                                         ) : (
                                             <span className="font-semibold text-base text-gray-200 inline-flex items-center gap-1">
-                                                미설정
+                                                {t('mbtiUnset')}
                                                 <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
                                             </span>
                                         )}
@@ -587,7 +592,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                                                 onClick={removeFriend}
                                                 className="min-w-[6.5rem] rounded-xl border border-rose-400/40 bg-gradient-to-br from-rose-950/80 to-zinc-950/90 px-4 py-2 text-sm font-bold text-rose-50 shadow-md shadow-black/40 ring-1 ring-inset ring-white/[0.06] transition hover:border-rose-300/50 hover:from-rose-900/85"
                                             >
-                                                친구 삭제
+                                                {t('userModal.removeFriend')}
                                             </button>
                                         ) : (
                                             <button
@@ -595,7 +600,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                                                 onClick={addFriend}
                                                 className="min-w-[6.5rem] rounded-xl border border-cyan-400/40 bg-gradient-to-br from-cyan-950/75 via-slate-950/90 to-indigo-950/80 px-4 py-2 text-sm font-bold text-cyan-50 shadow-md shadow-black/40 ring-1 ring-inset ring-white/[0.06] transition hover:border-cyan-300/55 hover:from-cyan-900/80"
                                             >
-                                                친구 추가
+                                                {t('userModal.addFriend')}
                                             </button>
                                         )}
                                     </div>
@@ -611,22 +616,22 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                                                 const icon = guildInfo?.icon ?? (user as any).guildIcon;
                                                 return icon?.startsWith('/images/guild/icon') ? icon.replace('/images/guild/icon', '/images/guild/profile/icon') : icon;
                                             })()}
-                                            alt={guildInfo?.name ?? (user as any).guildName ?? '길드'}
+                                            alt={guildInfo?.name ?? (user as any).guildName ?? t('userModal.guild')}
                                             className="w-full h-full object-cover"
                                         />
                                     ) : (
-                                        <img src="/images/button/guild.webp" alt="길드" className="w-4 h-4 object-contain" />
+                                        <img src="/images/button/guild.webp" alt={t('userModal.guild')} className="w-4 h-4 object-contain" />
                                     )}
                                 </div>
-                                <span className="text-[0.65rem] font-bold uppercase tracking-wider text-indigo-300/80">길드</span>
-                                <span className="truncate text-sm font-semibold text-slate-100">{guildInfo?.name ?? (user as any).guildName ?? '길드 소속'}</span>
+                                <span className="text-[0.65rem] font-bold uppercase tracking-wider text-indigo-300/80">{t('userModal.guild')}</span>
+                                <span className="truncate text-sm font-semibold text-slate-100">{guildInfo?.name ?? (user as any).guildName ?? t('userModal.guildMember')}</span>
                                 <span className="ml-auto font-mono text-xs tabular-nums text-indigo-200/85">
                                     Lv.{guildInfo ? guildInfo.level || 1 : (user as any).guildLevel ?? 1}
                                 </span>
                             </div>
                         ) : (
                             <div className="mt-0.5 rounded-xl border border-white/[0.07] bg-black/30 px-2.5 py-1.5 text-xs text-slate-500 ring-1 ring-inset ring-white/[0.03]">
-                                길드 없음
+                                {t('userModal.noGuild')}
                             </div>
                         )}
                         <div className="mt-0.5 flex w-full flex-col gap-2 rounded-xl border border-white/[0.08] bg-gradient-to-br from-black/55 via-slate-950/80 to-black/50 p-2.5 shadow-inner ring-1 ring-inset ring-white/[0.04]">
@@ -655,9 +660,9 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                             </div>
                             <div className="border-t border-white/[0.06] pt-1.5">
                                 <div className="mb-0.5 flex items-center justify-between text-[0.7rem] text-slate-400">
-                                    <span className="font-semibold tracking-tight text-slate-300">매너 등급</span>
+                                    <span className="font-semibold tracking-tight text-slate-300">{t('userModal.mannerGrade')}</span>
                                     <span className={`font-semibold tabular-nums ${mannerRank.color}`}>
-                                        {totalMannerScore}점 ({mannerRank.rank})
+                                        {t('userModal.mannerPoints', { score: totalMannerScore, rank: mannerRank.rank })}
                                     </span>
                                 </div>
                                 <div className="relative h-1.5 w-full overflow-hidden rounded-full border border-black/50 bg-black/45 shadow-inner ring-1 ring-inset ring-white/[0.04]">
@@ -673,7 +678,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                     {/* 우상단: 장비 + 능력치 + 챔피언십 요약 */}
                     <div className="relative flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-br from-zinc-900/95 via-zinc-950 to-slate-950 p-3 shadow-[0_24px_48px_-24px_rgba(0,0,0,0.75)] ring-1 ring-inset ring-amber-500/[0.07]">
                         <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/20 to-transparent" aria-hidden />
-                        <p className="mb-1.5 text-center text-[0.6rem] font-bold uppercase tracking-[0.18em] text-amber-200/70">장비</p>
+                        <p className="mb-1.5 text-center text-[0.6rem] font-bold uppercase tracking-[0.18em] text-amber-200/70">{t('userModal.equipment')}</p>
                         <div className="flex shrink-0 gap-2 sm:gap-2.5">
                             <div
                                 className={`mx-auto grid shrink-0 grid-cols-3 gap-1.5 ${isSelfProfile ? 'max-w-[11.5rem] sm:max-w-[12rem]' : 'max-w-[12.25rem] sm:max-w-[12.75rem]'}`}
@@ -686,7 +691,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                                 <EquipmentSlotDisplay slot="stones" item={getItemForSlot('stones')} compact largerCompactIcon={!isSelfProfile} onClick={() => getItemForSlot('stones') && onViewItem(getItemForSlot('stones')!, false)} />
                             </div>
                             <div className="min-h-0 min-w-0 flex-1 rounded-lg border border-white/[0.06] bg-black/35 p-2 shadow-inner ring-1 ring-inset ring-white/[0.03]">
-                                <p className="mb-1 text-[0.58rem] font-bold uppercase tracking-[0.12em] text-slate-400/90">능력치</p>
+                                <p className="mb-1 text-[0.58rem] font-bold uppercase tracking-[0.12em] text-slate-400/90">{t('userModal.stats')}</p>
                                 <div className="flex flex-col gap-0.5">
                                     {Object.values(CoreStat).map((stat) => (
                                         <div key={stat} className="flex min-w-0 items-center gap-1 text-[0.65rem] leading-tight sm:text-[0.68rem]">
@@ -700,7 +705,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                         <div className="mt-2 border-t border-white/[0.07] pt-2">
                             <div className="flex min-h-0 min-w-0 flex-col rounded-lg border border-fuchsia-400/22 bg-gradient-to-b from-fuchsia-950/22 via-black/40 to-black/55 p-2.5 shadow-inner ring-1 ring-inset ring-white/[0.03]">
                                 <p className="mb-2 text-center text-xs font-black uppercase tracking-wide text-fuchsia-200/90 sm:text-sm">
-                                    챔피언십 경기장
+                                    {t('userModal.championshipVenue')}
                                 </p>
                                 <div className="flex items-start gap-2 rounded-md border border-white/[0.06] bg-black/35 px-2 py-2 ring-1 ring-inset ring-white/[0.02] sm:gap-2.5 sm:px-2.5">
                                     <img
@@ -713,7 +718,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                                         <p className="text-[11px] font-semibold tracking-tight text-slate-100 sm:text-xs">
                                             <span className={`font-bold ${championshipVenueStrip.tierColor}`}>{championshipVenueStrip.tierName}</span>
                                             <span className="mx-1 text-slate-500">·</span>
-                                            <span className="font-mono tabular-nums text-fuchsia-100">{championshipVenueStrip.rating}점</span>
+                                            <span className="font-mono tabular-nums text-fuchsia-100">{championshipVenueStrip.rating}{t('points')}</span>
                                         </p>
                                         <div className="mt-1 flex flex-col gap-0.5">
                                             {championshipVenueStrip.venueSeason.map((row) => (
@@ -723,7 +728,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                                                 >
                                                     <span className="font-semibold text-slate-300/95">{row.label}</span>
                                                     <span className="ml-1.5">
-                                                        {row.wins}승 {row.losses}패 ({row.winRate}%)
+                                                        {t('userModal.modeRecord', { wins: row.wins, losses: row.losses, winRate: row.winRate })}
                                                     </span>
                                                 </p>
                                             ))}
@@ -740,10 +745,10 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                             <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-sky-400/30 to-transparent" aria-hidden />
                             <div className="mb-1.5 flex items-center gap-1.5 rounded-lg border border-sky-400/25 bg-gradient-to-r from-sky-950/50 to-indigo-950/40 py-1.5 pl-1.5 pr-2 shadow-inner">
                                 <img src={strategicTierInfo.tier.icon} alt={strategicTierInfo.tier.name} className="h-7 w-7 shrink-0 drop-shadow-md" />
-                                <span className="text-[0.62rem] font-bold uppercase tracking-wide text-sky-200/90">전략</span>
+                                <span className="text-[0.62rem] font-bold uppercase tracking-wide text-sky-200/90">{t('userModal.strategicGo')}</span>
                                 <span className={`ml-auto text-right text-xs font-bold leading-tight ${strategicTierInfo.tier.color}`}>
                                     {strategicTierInfo.tier.name}
-                                    <span className="mt-0.5 block font-mono text-[0.62rem] tabular-nums text-sky-100/80">{strategicTierInfo.score}점</span>
+                                    <span className="mt-0.5 block font-mono text-[0.62rem] tabular-nums text-sky-100/80">{strategicTierInfo.score}{t('points')}</span>
                                 </span>
                             </div>
                             <div className="min-h-0 flex-1 overflow-visible pr-0.5">
@@ -755,10 +760,10 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                             <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-400/28 to-transparent" aria-hidden />
                             <div className="mb-1.5 flex items-center gap-1.5 rounded-lg border border-violet-400/28 bg-gradient-to-r from-violet-950/55 to-fuchsia-950/35 py-1.5 pl-1.5 pr-2 shadow-inner">
                                 <img src={pairTierInfo.tier.icon} alt={pairTierInfo.tier.name} className="h-7 w-7 shrink-0 drop-shadow-md" />
-                                <span className="text-[0.62rem] font-bold uppercase tracking-wide text-violet-200/90">페어</span>
+                                <span className="text-[0.62rem] font-bold uppercase tracking-wide text-violet-200/90">{t('userModal.pairGo')}</span>
                                 <span className={`ml-auto text-right text-xs font-bold leading-tight ${pairTierInfo.tier.color}`}>
                                     {pairTierInfo.tier.name}
-                                    <span className="mt-0.5 block font-mono text-[0.62rem] tabular-nums text-violet-100/85">{pairTierInfo.score}점</span>
+                                    <span className="mt-0.5 block font-mono text-[0.62rem] tabular-nums text-violet-100/85">{pairTierInfo.score}{t('points')}</span>
                                 </span>
                             </div>
                             <div className="min-h-0 flex-1 overflow-visible pr-0.5">
@@ -769,7 +774,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                         <div className="relative flex min-h-0 flex-col overflow-hidden rounded-2xl border border-amber-500/22 bg-gradient-to-b from-amber-950/28 via-zinc-950/90 to-black/60 p-2.5 shadow-lg shadow-black/40 ring-1 ring-inset ring-white/[0.04]">
                             <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/28 to-transparent" aria-hidden />
                             <div className="mb-1.5 flex items-center rounded-lg border border-amber-400/28 bg-gradient-to-r from-amber-950/45 to-orange-950/35 py-1.5 px-2 shadow-inner">
-                                <span className="text-[0.62rem] font-bold uppercase tracking-[0.12em] text-amber-200/95">놀이 바둑</span>
+                                <span className="text-[0.62rem] font-bold uppercase tracking-[0.12em] text-amber-200/95">{t('userModal.playfulGo')}</span>
                             </div>
                             <div className="min-h-0 flex-1 overflow-visible pr-0.5">
                                 <StatsTab user={user} type="playful" dense />
@@ -791,7 +796,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
             }}
             className="z-30 mb-2 shrink-0 self-start rounded-lg border border-rose-400/45 bg-gradient-to-br from-rose-950/90 to-red-950/80 px-2.5 py-1.5 text-xs font-bold text-rose-50 shadow-[0_8px_24px_-8px_rgba(244,63,94,0.45)] ring-1 ring-inset ring-white/10 transition hover:border-rose-300/55 hover:from-rose-900/90 sm:px-3 sm:py-2 sm:text-sm"
         >
-            관리자 기능
+            {t('userModal.adminPanel')}
         </button>
     ) : null;
 
@@ -804,7 +809,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
             </div>
         ) : (
         <DraggableWindow
-            title={`${user.nickname}님의 프로필`}
+            title={t('userModal.title', { name: user.nickname })}
             onClose={() => {
                 setAdminToolsOpen(false);
                 onClose();
@@ -822,7 +827,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
 
         {adminToolsOpen && isAdminViewingOtherUser && (
             <DraggableWindow
-                title={`${user.nickname} — 관리자 기능`}
+                title={t('userModal.adminTitle', { name: user.nickname })}
                 onClose={() => setAdminToolsOpen(false)}
                 windowId={`view-user-admin-${user.id}`}
                 initialWidth={480}
@@ -833,39 +838,39 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
             >
                 <div className="space-y-2.5 rounded-xl border border-rose-500/35 bg-gradient-to-b from-rose-950/40 via-zinc-950/90 to-black/55 p-4 text-xs shadow-inner ring-1 ring-inset ring-white/[0.05]">
                     <div className="text-gray-300">
-                        접속 상태:{' '}
+                        {t('userModal.connectionStatus')}{' '}
                         <span className={isConnected ? 'font-semibold text-emerald-400' : 'text-gray-400'}>
-                            {isConnected ? '접속중' : onlineStatus || '오프라인'}
+                            {isConnected ? t('userModal.connected') : onlineStatus || t('userModal.offline')}
                         </span>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                         <button type="button" onClick={forceLogout} className="rounded bg-red-700 px-2 py-1 hover:bg-red-600">
-                            로그아웃 처리
+                            {t('userModal.forceLogout')}
                         </button>
                         <button
                             type="button"
                             onClick={() => applySanction('connection', connectionDurationMinutes)}
                             className="rounded bg-orange-700 px-2 py-1 hover:bg-orange-600"
                         >
-                            접속금지 적용
+                            {t('userModal.applyConnectionBan')}
                         </button>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                         <button type="button" onClick={() => applySanction('chat', chatDurationMinutes)} className="rounded bg-yellow-700 px-2 py-1 hover:bg-yellow-600">
-                            채팅금지 적용
+                            {t('userModal.applyChatBan')}
                         </button>
                         <button type="button" onClick={() => liftSanction('chat')} className="rounded bg-zinc-700 px-2 py-1 hover:bg-zinc-600">
-                            채팅금지 해제
+                            {t('userModal.releaseChatBan')}
                         </button>
                     </div>
                     <div>
                         <button type="button" onClick={() => liftSanction('connection')} className="w-full rounded bg-zinc-700 px-2 py-1 hover:bg-zinc-600">
-                            접속금지 해제
+                            {t('userModal.releaseConnectionBan')}
                         </button>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                         <label className="text-gray-400">
-                            채팅금지(분)
+                            {t('userModal.chatBanMinutes')}
                             <input
                                 type="number"
                                 min={1}
@@ -876,7 +881,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                             />
                         </label>
                         <label className="text-gray-400">
-                            접속금지(분)
+                            {t('userModal.connectionBanMinutes')}
                             <input
                                 type="number"
                                 min={1}
@@ -888,37 +893,40 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                         </label>
                     </div>
                     <div>
-                        <label className="text-gray-400">제재 사유</label>
+                        <label className="text-gray-400">{t('userModal.sanctionReason')}</label>
                         <select value={sanctionReason} onChange={(e) => setSanctionReason(e.target.value)} className="mt-1 w-full rounded bg-black/40 px-2 py-1">
-                            <option>욕설/비방</option>
-                            <option>도배/스팸</option>
-                            <option>불법 프로그램 의심</option>
-                            <option>부적절한 닉네임/프로필</option>
-                            <option>기타</option>
+                            <option value="profanity">{t('userModal.sanctionReasons.profanity')}</option>
+                            <option value="spam">{t('userModal.sanctionReasons.spam')}</option>
+                            <option value="cheat">{t('userModal.sanctionReasons.cheat')}</option>
+                            <option value="profile">{t('userModal.sanctionReasons.profile')}</option>
+                            <option value="other">{t('userModal.sanctionReasons.other')}</option>
                         </select>
-                        {sanctionReason === '기타' && (
+                        {sanctionReason === 'other' && (
                             <textarea
                                 className="mt-2 min-h-[54px] w-full rounded bg-black/40 px-2 py-1"
-                                placeholder="사유를 직접 입력하세요"
+                                placeholder={t('userModal.sanctionReasonPlaceholder')}
                                 value={sanctionReasonEtc}
                                 onChange={(e) => setSanctionReasonEtc(e.target.value)}
                             />
                         )}
                     </div>
                     <div className="text-gray-300">
-                        제재내역:
+                        {t('userModal.sanctionHistory')}
                         <div className="mt-1 max-h-24 space-y-1 overflow-y-auto pr-1">
                             {(user.sanctionHistory || []).slice(0, 8).map((h) => (
                                 <div key={h.id} className="rounded bg-black/35 px-2 py-1">
-                                    [{h.sanctionType === 'chat' ? '채팅금지' : '접속금지'}] {h.reason}
+                                    [{h.sanctionType === 'chat' ? t('userModal.chatBanType') : t('userModal.connectionBanType')}] {h.reason}
                                     {h.details ? ` (${h.details})` : ''} / {new Date(h.createdAt).toLocaleString()}
-                                    {h.releasedAt ? ' / 해제됨' : ''}
+                                    {h.releasedAt ? t('userModal.sanctionReleased') : ''}
                                 </div>
                             ))}
-                            {(user.sanctionHistory || []).length === 0 && <div className="text-gray-500">기록 없음</div>}
+                            {(user.sanctionHistory || []).length === 0 && <div className="text-gray-500">{t('userModal.noSanctionHistory')}</div>}
                         </div>
                         <div className="mt-1 text-[11px] text-gray-400">
-                            현재: 채팅 {isChatBanned ? '금지중' : '정상'} / 접속 {isConnectionBanned ? '금지중' : '정상'}
+                            {t('userModal.currentStatus', {
+                                chat: isChatBanned ? t('userModal.statusBanned') : t('userModal.statusNormal'),
+                                connection: isConnectionBanned ? t('userModal.statusBanned') : t('userModal.statusNormal'),
+                            })}
                         </div>
                     </div>
                 </div>

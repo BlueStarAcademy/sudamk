@@ -1,4 +1,5 @@
 import React, { useId, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { CoreStat } from '../types.js';
 
 /** 레이더 꼭짓점 순서 (시계 방향, 위부터) — 우측 목록과 동일 순서 */
@@ -32,12 +33,12 @@ export interface CoreStatsHexagonChartProps {
 
 /** 꼭짓점 라벨 (2글자) — 그래프 색인 */
 const SHORT_LABELS: Record<CoreStat, string> = {
-    [CoreStat.Concentration]: '집중',
-    [CoreStat.ThinkingSpeed]: '사고',
-    [CoreStat.Judgment]: '판단',
-    [CoreStat.Calculation]: '계산',
-    [CoreStat.CombatPower]: '전투',
-    [CoreStat.Stability]: '안정',
+    [CoreStat.Concentration]: t('concentration'),
+    [CoreStat.ThinkingSpeed]: t('thinkingSpeed'),
+    [CoreStat.Judgment]: t('judgment'),
+    [CoreStat.Calculation]: t('calculation'),
+    [CoreStat.CombatPower]: t('combatPower'),
+    [CoreStat.Stability]: t('stability'),
 };
 
 const VB = 100;
@@ -83,6 +84,7 @@ function hexPolygonPoints(r: number): string {
  * 좌측: 육각 레이더 + 꼭짓점 색인 라벨 / 우측: 6개 능력치 상세 목록
  */
 const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({
+    const { t } = useTranslation('common');
     values,
     baseByStat,
     className = '',
@@ -183,7 +185,7 @@ const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({
                     viewBox={`0 0 ${VB} ${VB}`}
                     className={`relative z-[1] w-full overflow-visible ${svgSizeClass}`}
                     role="img"
-                    aria-label="육각형 능력치 그래프"
+                    aria-label={t('coreStatsHexAria')}
                 >
                     <defs>
                         <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">

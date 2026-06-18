@@ -34,7 +34,7 @@ const Admin: React.FC = () => {
 
     const handleBack = () => {
         if (adminView === 'dashboard') {
-            window.location.hash = '#/profile';
+            window.location.hash = '#/home';
         } else {
             setAdminView('dashboard');
         }

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LiveGameSession, Player } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
 import { UNIFORM_COLOR_ROULETTE_MS } from '../shared/utils/uniformGoRules.js';
@@ -11,6 +12,7 @@ const ROULETTE_TICK_MS = 110;
 
 /** PVP 일색 바둑: 흑·백 확정 후 보드에 표시할 단일 돌 색 룰렛 */
 const UniformColorRouletteModal: React.FC<UniformColorRouletteModalProps> = ({ session }) => {
+    const { t } = useTranslation('game');
     const target = session.uniformStoneDisplayColor ?? Player.Black;
     const [activeColor, setActiveColor] = useState<Player>(Player.Black);
     const [isFinished, setIsFinished] = useState(false);
@@ -38,11 +40,11 @@ const UniformColorRouletteModal: React.FC<UniformColorRouletteModalProps> = ({ s
     }, [target, session.id]);
 
     const resultColor = isFinished ? target : activeColor;
-    const resultLabel = resultColor === Player.Black ? '흑돌' : '백돌';
+    const resultLabel = resultColor === Player.Black ? t('uniformColor.blackStone') : t('uniformColor.whiteStone');
 
     return (
         <DraggableWindow
-            title="일색 바둑"
+            title={t('uniformColor.title')}
             windowId="uniform-color-roulette"
             initialWidth={400}
             shrinkHeightToContent
@@ -57,7 +59,7 @@ const UniformColorRouletteModal: React.FC<UniformColorRouletteModalProps> = ({ s
             <div className="text-white">
                 <div className="rounded-2xl border border-amber-400/25 bg-gradient-to-b from-zinc-900/[0.97] via-zinc-950/[0.99] to-black/[0.92] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_16px_48px_-20px_rgba(0,0,0,0.75)] sm:p-5">
                     <div className="mb-4 border-b border-amber-500/10 pb-4 text-center sm:mb-5 sm:pb-5">
-                        <p className="text-base font-bold tracking-tight text-amber-50/95 sm:text-lg">돌 색상 룰렛</p>
+                        <p className="text-base font-bold tracking-tight text-amber-50/95 sm:text-lg">{t('uniformColor.stoneColorRoulette')}</p>
                         <p className="mt-2 text-xs leading-relaxed text-stone-400 sm:text-sm">
                             이번 대국에서는 모든 돌이 아래 색으로 보입니다. (실제 흑·백 규칙은 그대로 적용됩니다)
                         </p>
@@ -85,12 +87,12 @@ const UniformColorRouletteModal: React.FC<UniformColorRouletteModalProps> = ({ s
                             }`}
                         >
                             {isFinished
-                                ? `이번 경기 돌 색상: ${resultLabel}`
-                                : '흑돌과 백돌이 빠르게 바뀌다가 무작위로 멈춥니다.'}
+                                ? t('uniformColor.thisColor', { color: resultLabel })
+                                : t('uniformColor.flashHintAlt')}
                         </p>
                     </div>
                 </div>
-                <p className="mt-3 text-center text-xs leading-relaxed text-stone-300">연출 종료 후 자동으로 경기가 시작됩니다.</p>
+                <p className="mt-3 text-center text-xs leading-relaxed text-stone-300">{t('uniformColor.autoStartAfterEffect')}</p>
             </div>
         </DraggableWindow>
     );

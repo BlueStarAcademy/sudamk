@@ -1,4 +1,5 @@
 import React, { useContext, ReactNode, Component, ErrorInfo, ReactNode as ReactNodeType } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useApp } from '../hooks/useApp.js';
 import { AppContext } from './AppContextInstance.js';
 import { AppSliceProviders } from './slices/AppSliceProviders.js';
@@ -23,6 +24,24 @@ export const useAppContext = (): AppContextType => {
 };
 
 // Error Boundary Component
+const AppErrorFallback: React.FC<{ error: Error | null; onReload: () => void }> = ({ error, onReload }) => {
+    const { t } = useTranslation('common');
+    return (
+        <div className="flex items-center justify-center h-screen bg-tertiary text-primary">
+            <div className="text-center p-8">
+                <h1 className="text-2xl font-bold mb-4">{t('errors.initFailed')}</h1>
+                <p className="text-red-400 mb-4">{error?.message || t('errors.unknown')}</p>
+                <button
+                    onClick={onReload}
+                    className="px-4 py-2 bg-primary text-tertiary rounded-lg hover:bg-opacity-80"
+                >
+                    {t('errors.reloadPage')}
+                </button>
+            </div>
+        </div>
+    );
+};
+
 class AppErrorBoundary extends Component<{ children: ReactNodeType }, { hasError: boolean; error: Error | null }> {
     constructor(props: { children: ReactNodeType }) {
         super(props);
@@ -51,21 +70,13 @@ class AppErrorBoundary extends Component<{ children: ReactNodeType }, { hasError
     render() {
         if (this.state.hasError) {
             return (
-                <div className="flex items-center justify-center h-screen bg-tertiary text-primary">
-                    <div className="text-center p-8">
-                        <h1 className="text-2xl font-bold mb-4">초기화 오류</h1>
-                        <p className="text-red-400 mb-4">{this.state.error?.message || '알 수 없는 오류가 발생했습니다.'}</p>
-                        <button
-                            onClick={() => {
-                                clearStaleChunkReloadFlag();
-                                window.location.reload();
-                            }}
-                            className="px-4 py-2 bg-primary text-tertiary rounded-lg hover:bg-opacity-80"
-                        >
-                            페이지 새로고침
-                        </button>
-                    </div>
-                </div>
+                <AppErrorFallback
+                    error={this.state.error}
+                    onReload={() => {
+                        clearStaleChunkReloadFlag();
+                        window.location.reload();
+                    }}
+                />
             );
         }
 

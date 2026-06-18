@@ -569,7 +569,7 @@ export function updateGameStateAfterMove(
             (game.effectiveCaptureTargets[Player.Black] !== undefined && game.effectiveCaptureTargets[Player.Black] !== 999) ||
             (game.effectiveCaptureTargets[Player.White] !== undefined && game.effectiveCaptureTargets[Player.White] !== 999)
         );
-        const isCaptureMode = game.mode === '따내기 바둑' || (game.mode as any) === 'capture';
+        const isCaptureMode = game.mode === GameMode.Capture || (game.mode as any) === 'capture';
         if (hasTargetScore || isCaptureMode) {
             checkInfo = {
                 stageId: game.stageId,

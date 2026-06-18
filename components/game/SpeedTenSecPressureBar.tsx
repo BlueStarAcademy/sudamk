@@ -1,4 +1,5 @@
 import React from 'react';
+import { tx } from '../../shared/i18n/runtimeText.js';
 
 export type SpeedTenSecPressureBarProps = {
     secToNextDrop: number;
@@ -22,7 +23,7 @@ const SpeedTenSecPressureBar: React.FC<SpeedTenSecPressureBarProps> = ({
             className={`flex w-full min-w-0 items-center gap-2 ${className}`}
             role="timer"
             aria-live="polite"
-            aria-label={`수당 시간 ${secToNextDrop}초`}
+            aria-label={tx("game:speedPressure.aria", { sec: secToNextDrop })}
         >
             <span
                 className={`shrink-0 font-semibold tabular-nums text-amber-200 ${

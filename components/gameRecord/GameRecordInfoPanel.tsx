@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { GameRecord, Player } from '../../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants/gameModes.js';
 import {
@@ -32,6 +33,7 @@ const playerStoneColor = (color: Player | undefined): 'black' | 'white' | null =
 };
 
 const GameRecordInfoPanel: React.FC<GameRecordInfoPanelProps> = ({ record, myNickname }) => {
+    const { t } = useTranslation('game');
     if (!record) {
         return (
             <div className="flex h-full min-h-[5rem] flex-col items-center justify-center px-3 text-center text-sm text-slate-400">
@@ -59,13 +61,13 @@ const GameRecordInfoPanel: React.FC<GameRecordInfoPanelProps> = ({ record, myNic
                 </div>
 
                 <dl className={INFO_GRID}>
-                    <dt className="text-right text-slate-400">모드</dt>
+                    <dt className="text-right text-slate-400">{t('gameRecord.mode')}</dt>
                     <span className="text-slate-600" aria-hidden>
                         :
                     </span>
                     <dd className="whitespace-nowrap font-semibold text-amber-50">{modeLabel(record.mode)}</dd>
 
-                    <dt className="text-right text-slate-400">일시</dt>
+                    <dt className="text-right text-slate-400">{t('gameRecord.date')}</dt>
                     <span className="text-slate-600" aria-hidden>
                         :
                     </span>
@@ -73,7 +75,7 @@ const GameRecordInfoPanel: React.FC<GameRecordInfoPanelProps> = ({ record, myNic
                         {formatGameRecordInfoDate(record.date)}
                     </dd>
 
-                    <dt className="text-right text-slate-400">점수</dt>
+                    <dt className="text-right text-slate-400">{t('gameRecord.score')}</dt>
                     <span className="text-slate-600" aria-hidden>
                         :
                     </span>
@@ -87,7 +89,7 @@ const GameRecordInfoPanel: React.FC<GameRecordInfoPanelProps> = ({ record, myNic
                         </span>
                     </dd>
 
-                    <dt className="text-right text-slate-400">결과</dt>
+                    <dt className="text-right text-slate-400">{t('gameRecord.result')}</dt>
                     <span className="text-slate-600" aria-hidden>
                         :
                     </span>

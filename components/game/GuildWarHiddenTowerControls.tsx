@@ -1,4 +1,5 @@
 /**
+import { tx } from '../../shared/i18n/runtimeText.js';
  * 길드 전쟁 — 히든 바둑 전용 하단 컨트롤.
  * 도전의 탑 21층+ 히든·스캔 UI와 동일한 형태이며, 탑 전용 파일과 분리됨.
  */
@@ -261,8 +262,8 @@ const GuildWarHiddenTowerControls: React.FC<GuildWarHiddenTowerControlsProps> = 
                         <div className="flex min-h-0 w-full flex-1 items-center justify-center">
                             <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-3">
                                 <div className={colClass}>
-                                    <ImageButton src="/images/button/giveup.webp" alt="기권" onClick={handleForfeit} disabled={gameStatus === 'scoring'} title={gameStatus === 'scoring' ? '계가 집계 중에는 기권할 수 없습니다.' : '기권하기'} compact={isMobile} />
-                                    <span className={`${lbl} font-semibold whitespace-nowrap text-red-300`}>기권</span>
+                                    <ImageButton src="/images/button/giveup.webp" alt={tx("game:controls.resignAlt")} onClick={handleForfeit} disabled={gameStatus === 'scoring'} title={gameStatus === 'scoring' ? tx('game:controls.cannotResignDuringScoring') : tx('game:controls.resignTitle')} compact={isMobile} />
+                                    <span className={`${lbl} font-semibold whitespace-nowrap text-red-300`}>{tx("game:controls.resign")}</span>
                                 </div>
                             </ArenaControlStrip>
                         </div>
@@ -280,26 +281,26 @@ const GuildWarHiddenTowerControls: React.FC<GuildWarHiddenTowerControlsProps> = 
                                 <div className={colClass}>
                                     <ImageButton
                                         src="/images/button/hidden.webp"
-                                        alt="히든"
+                                        alt={tx("game:controls.hidden")}
                                         onClick={handleUseHidden}
                                         disabled={hiddenDisabled}
-                                        title="히든 스톤 배치"
+                                        title={tx('game:controls.hiddenPlaceTitle')}
                                         count={hiddenLeft}
                                         compact={isMobile}
                                     />
-                                    <span className={`${lbl} font-semibold whitespace-nowrap ${hiddenDisabled ? 'text-gray-500' : 'text-amber-100'}`}>히든</span>
+                                    <span className={`${lbl} font-semibold whitespace-nowrap ${hiddenDisabled ? 'text-gray-500' : 'text-amber-100'}`}>{tx("game:controls.hidden")}</span>
                                 </div>
                                 <div className={colClass}>
                                     <ImageButton
                                         src="/images/button/scan.webp"
-                                        alt="스캔"
+                                        alt={tx("game:controls.scan")}
                                         onClick={handleUseScan}
                                         disabled={scanDisabled}
-                                        title="스캔"
+                                        title={tx('game:controls.scan')}
                                         count={scansLeft}
                                         compact={isMobile}
                                     />
-                                    <span className={`${lbl} font-semibold whitespace-nowrap ${scanDisabled ? 'text-gray-500' : 'text-amber-100'}`}>스캔</span>
+                                    <span className={`${lbl} font-semibold whitespace-nowrap ${scanDisabled ? 'text-gray-500' : 'text-amber-100'}`}>{tx("game:controls.scan")}</span>
                                 </div>
                             </ArenaControlStrip>
                         </div>
@@ -314,8 +315,8 @@ const GuildWarHiddenTowerControls: React.FC<GuildWarHiddenTowerControlsProps> = 
 					>
                         <ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-7 min-[1025px]:gap-8">
                             <div className={colClass}>
-                                <ImageButton src="/images/button/giveup.webp" alt="기권" onClick={handleForfeit} disabled={gameStatus === 'scoring'} title={gameStatus === 'scoring' ? '계가 집계 중에는 기권할 수 없습니다.' : '기권하기'} compact={isMobile} />
-                                <span className={`${lbl} font-semibold whitespace-nowrap text-red-300`}>기권</span>
+                                <ImageButton src="/images/button/giveup.webp" alt={tx("game:controls.resignAlt")} onClick={handleForfeit} disabled={gameStatus === 'scoring'} title={gameStatus === 'scoring' ? tx('game:controls.cannotResignDuringScoring') : tx('game:controls.resignTitle')} compact={isMobile} />
+                                <span className={`${lbl} font-semibold whitespace-nowrap text-red-300`}>{tx("game:controls.resign")}</span>
                             </div>
                         </ArenaControlStrip>
                     </div>
@@ -335,26 +336,26 @@ const GuildWarHiddenTowerControls: React.FC<GuildWarHiddenTowerControlsProps> = 
                             <div className={colClass}>
                                 <ImageButton
                                     src="/images/button/hidden.webp"
-                                    alt="히든"
+                                    alt={tx("game:controls.hidden")}
                                     onClick={handleUseHidden}
                                     disabled={hiddenDisabled}
-                                    title="히든 스톤 배치"
+                                    title={tx('game:controls.hiddenPlaceTitle')}
                                     count={hiddenLeft}
                                     compact={isMobile}
                                 />
-                                <span className={`${lbl} font-semibold whitespace-nowrap ${hiddenDisabled ? 'text-gray-500' : 'text-amber-100'}`}>히든</span>
+                                <span className={`${lbl} font-semibold whitespace-nowrap ${hiddenDisabled ? 'text-gray-500' : 'text-amber-100'}`}>{tx("game:controls.hidden")}</span>
                             </div>
                             <div className={colClass}>
                                 <ImageButton
                                     src="/images/button/scan.webp"
-                                    alt="스캔"
+                                    alt={tx("game:controls.scan")}
                                     onClick={handleUseScan}
                                     disabled={scanDisabled}
-                                    title="스캔"
+                                    title={tx('game:controls.scan')}
                                     count={scansLeft}
                                     compact={isMobile}
                                 />
-                                <span className={`${lbl} font-semibold whitespace-nowrap ${scanDisabled ? 'text-gray-500' : 'text-amber-100'}`}>스캔</span>
+                                <span className={`${lbl} font-semibold whitespace-nowrap ${scanDisabled ? 'text-gray-500' : 'text-amber-100'}`}>{tx("game:controls.scan")}</span>
                             </div>
                         </ArenaControlStrip>
                     </div>

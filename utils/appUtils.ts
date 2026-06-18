@@ -1,6 +1,15 @@
 
 import { GameMode } from "../types/index.js";
 import type { ArenaChannel, ArenaLobbyIntent } from "../shared/types/api.js";
+export {
+    APP_HOME_HASH,
+    APP_HOME_ARENA_HASH,
+    APP_HOME_RANKING_HASH,
+    LEGACY_APP_HOME_HASH,
+    isAppHomeHash,
+    normalizeLegacyAppHash,
+    normalizeLegacyHomeHash,
+} from '../shared/types/navigation.js';
 
 export type AppRoute = {
     view: 'login' | 'register' | 'kakao-callback' | 'google-callback' | 'set-nickname' | 'profile' | 'arena' | 'pvp' | 'ai' | 'game' | 'admin' | 'tournament' | 'singleplayer' | 'guild' | 'guildboss' | 'guildwar' | 'tower' | 'adventure';
@@ -168,6 +177,12 @@ export function parseHash(hash: string): AppRoute {
         case 'admin': return { view: 'admin', params: {} };
         case 'register': return { view: 'register', params: {} };
         case 'set-nickname': return { view: 'set-nickname', params: {} };
+        case 'home': {
+            const sub = rest[0];
+            if (sub === 'ranking') return { view: 'profile', params: { tab: 'ranking' as const } };
+            if (sub === 'arena') return { view: 'profile', params: { tab: 'arena' as const } };
+            return { view: 'profile', params: { tab: 'home' as const } };
+        }
         case 'profile': {
             const sub = rest[0];
             if (sub === 'ranking') return { view: 'profile', params: { tab: 'ranking' as const } };

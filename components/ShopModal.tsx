@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback, useRef, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo, Suspense, lazy } from 'react';
 import type { PurchaseConsentTarget } from './legal/PurchaseConsentModal.js';
 const PurchaseConsentModal = lazy(() => import('./legal/PurchaseConsentModal.js'));
 import { UserWithStatus, ServerAction, InventoryItemType } from '../types.js';
@@ -32,6 +32,10 @@ import {
     formatShopItemDescription as formatDescription,
     StandardEquipmentBoxShopDescription,
 } from './shopImageDescriptionPopover.js';
+import { useTranslation } from 'react-i18next';
+import i18n from '../shared/i18n/config.js';
+
+const shopT = (key: string, opts?: Record<string, unknown>) => i18n.t(`shop:${key}`, opts);
 
 interface ShopModalProps {
     currentUser?: UserWithStatus; // Optional: useAppContext에서 가져올 수 있도록
@@ -70,7 +74,7 @@ type MiscPackageVisual =
           boxes: { imageSrc: string; quantity: number; alt: string; displayName: string }[];
           bonusLine?: string;
           /** `+ "[등급] 장비"` + 줄바꿈 + `확정지급` (장비상자 패키지) */
-          equipmentBonusGradeWord?: '에픽' | '전설' | '신화';
+          equipmentBonusGradeWord?: 'epic' | 'legendary' | 'mythic';
       }
     | { type: 'remove_ads_image'; imageSrc: string };
 
@@ -98,14 +102,14 @@ function getCashDiamondShopSegments(total: number): readonly [number, number] | 
 }
 
 /** 장비상자 패키지 보너스 등급 단어 → `gradeStyles`용 enum (실제 장비 등급 색상과 동일) */
-const SHOP_EQUIPMENT_PACKAGE_BONUS_GRADE: Record<'에픽' | '전설' | '신화', ItemGrade> = {
-    에픽: ItemGrade.Epic,
-    전설: ItemGrade.Legendary,
-    신화: ItemGrade.Mythic,
+const SHOP_EQUIPMENT_PACKAGE_BONUS_GRADE: Record<'epic' | 'legendary' | 'mythic', ItemGrade> = {
+    epic: ItemGrade.Epic,
+    legendary: ItemGrade.Legendary,
+    mythic: ItemGrade.Mythic,
 };
 
 /** 원화(현금) 결제 미연동 — 일반 유저 차단, 관리자만 `BUY_CASH_PACKAGE`·`BUY_VIP_PACKAGE`·`CANCEL_VIP_SHOP_AUTO_RENEW` 허용 */
-const CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE = '아직 구현되지 않았습니다.';
+
 
 type ShopAdRewardTab = 'equipment' | 'materials' | 'consumables' | 'diamonds';
 
@@ -126,6 +130,7 @@ function getShopAdRemainingForTab(user: UserWithStatus, tab: ShopAdRewardTab, no
 }
 
 const ActionPointCard: React.FC<{ currentUser: UserWithStatus, onBuy: () => void; isPurchasePending?: boolean }> = ({ currentUser, onBuy, isPurchasePending = false }) => {
+    const { t } = useTranslation(['shop', 'common']);
     const now = Date.now();
     const apPurchaseMs = shopPurchaseRecordDateMs(currentUser.lastActionPointPurchaseDate);
     const purchasesToday =
@@ -139,7 +144,7 @@ const ActionPointCard: React.FC<{ currentUser: UserWithStatus, onBuy: () => void
         if (!canPurchase) return;
         const canAfford = currentUser.diamonds >= cost;
         if (!canAfford) {
-            alert('다이아가 부족합니다.');
+            alert(t('shop:actionPoint.insufficientDiamonds'));
             return;
         }
         onBuy();
@@ -153,9 +158,9 @@ const ActionPointCard: React.FC<{ currentUser: UserWithStatus, onBuy: () => void
                 <span className="text-5xl text-cyan-300 drop-shadow-[0_0_18px_rgba(14,165,233,0.35)]">⚡</span>
                 <span className="absolute bottom-2 right-2 text-2xl font-bold text-cyan-200 drop-shadow-[0_0_8px_rgba(14,165,233,0.5)]">{ACTION_POINT_PURCHASE_REFILL_AMOUNT}</span>
             </div>
-            <h3 className="text-xl font-bold tracking-wide text-white drop-shadow-lg">행동력 충전</h3>
+            <h3 className="text-xl font-bold tracking-wide text-white drop-shadow-lg">{t('shop:actionPoint.title')}</h3>
             <p className="text-sm text-slate-200/85 mt-2 leading-relaxed flex-grow">
-                최대치 초과가능. 바로 지급
+                {t('shop:actionPoint.subtitle')}
             </p>
             <div className="mt-4 flex flex-col items-center justify-center gap-2 w-full">
                 <Button
@@ -167,22 +172,22 @@ const ActionPointCard: React.FC<{ currentUser: UserWithStatus, onBuy: () => void
                 >
                     <div className="flex w-full min-w-0 flex-col items-center justify-center gap-0.5">
                         {isPurchasePending ? (
-                            <span className="text-sm font-semibold">구매 중...</span>
+                            <span className="text-sm font-semibold">{t('shop:actionPoint.purchasing')}</span>
                         ) : (
                             <>
                         <div className="flex items-center justify-center gap-2 text-sm sm:text-base">
-                            <img src="/images/icon/Zem.webp" alt="다이아" className="h-5 w-5 shrink-0 drop-shadow-md" />
+                            <img src="/images/icon/Zem.webp" alt={t('common:resources.diamonds')} className="h-5 w-5 shrink-0 drop-shadow-md" />
                             <span className="tabular-nums">{cost.toLocaleString()}</span>
                         </div>
                         <span className="px-1 text-center text-[10px] leading-tight text-slate-800/95 tracking-wide">
-                            오늘 구매 {purchasesToday}/{MAX_ACTION_POINT_PURCHASES_PER_DAY}
+                            {t('shop:actionPoint.todayPurchases', { current: purchasesToday, max: MAX_ACTION_POINT_PURCHASES_PER_DAY })}
                         </span>
                             </>
                         )}
                     </div>
                 </Button>
                 {!canPurchase && (
-                    <span className="text-xs text-cyan-100/80 italic mt-1">오늘 구매 한도에 도달했습니다.</span>
+                    <span className="text-xs text-cyan-100/80 italic mt-1">{t('shop:actionPoint.dailyLimitReached')}</span>
                 )}
             </div>
         </div>
@@ -198,6 +203,7 @@ const ShopAdRewardCard: React.FC<{
     mobile?: boolean;
     isClaimPending?: boolean;
 }> = ({ tab, rewardDescription, claimableRemaining, onClaim, mobile = false, isClaimPending = false }) => {
+    const { t } = useTranslation('shop');
     const { isAdFree } = useAdContext();
     const exhausted = claimableRemaining <= 0;
     const refinedDescription = formatDescription(rewardDescription);
@@ -218,7 +224,7 @@ const ShopAdRewardCard: React.FC<{
                         className="h-14 w-14 object-contain drop-shadow-[0_6px_12px_rgba(220,38,38,0.35)]"
                     />
                 ) : (
-                    <span className="text-3xl drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)]" role="img" aria-label="광고 보상">
+                    <span className="text-3xl drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)]" role="img" aria-label={t('adReward.aria')}>
                         🎬
                     </span>
                 )}
@@ -229,9 +235,9 @@ const ShopAdRewardCard: React.FC<{
                         ? 'h-[1.1rem] whitespace-nowrap text-[10px] leading-[1.1rem]'
                         : 'min-h-[2.5rem] break-keep text-[11px] leading-snug sm:min-h-0 sm:text-sm'
                 }`}
-                title="광고 보상"
+                title={t('adReward.title')}
             >
-                광고 보상
+                {t('adReward.title')}
             </h3>
             <div
                 className={`mt-1 flex w-full flex-1 items-start justify-center px-0.5 ${mobile ? 'min-h-[2rem]' : 'min-h-[2.5rem]'}`}
@@ -252,7 +258,7 @@ const ShopAdRewardCard: React.FC<{
                 >
                     <span className="flex flex-wrap items-center justify-center gap-x-1">
                         <span className="font-bold">
-                            {isClaimPending ? '수령 중...' : exhausted ? '오늘 수령 완료' : isAdFree ? '무료 보상' : '광고 보기'}
+                            {isClaimPending ? t('adReward.claiming') : exhausted ? t('adReward.exhausted') : isAdFree ? t('adReward.freeReward') : t('adReward.watchAd')}
                         </span>
                         <span className="tabular-nums font-extrabold opacity-90">
                             ({claimableRemaining}/{SHOP_AD_TAB_DAILY_LIMIT})
@@ -271,13 +277,14 @@ const ShopItemCard: React.FC<{
     mobile?: boolean;
     isShopBusy?: boolean;
 }> = ({ item, onBuy, currentUser, mobile = false, isShopBusy = false }) => {
+    const { t } = useTranslation(['shop', 'common']);
     const { name, description, price, image, dailyLimit, weeklyLimit, badge } = item;
     const isGold = !!price.gold;
     const priceAmount = price.gold || price.diamonds || 0;
     const PriceIcon = isGold ? (
-        <img src="/images/icon/Gold.webp" alt="골드" className="h-5 w-5 shrink-0 drop-shadow-md sm:h-6 sm:w-6" />
+        <img src="/images/icon/Gold.webp" alt={t('common:resources.gold')} className="h-5 w-5 shrink-0 drop-shadow-md sm:h-6 sm:w-6" />
     ) : (
-        <img src="/images/icon/Zem.webp" alt="다이아" className="h-5 w-5 shrink-0 drop-shadow-md sm:h-6 sm:w-6" />
+        <img src="/images/icon/Zem.webp" alt={t('common:resources.diamonds')} className="h-5 w-5 shrink-0 drop-shadow-md sm:h-6 sm:w-6" />
     );
     const refinedDescription = formatDescription(description);
     const subtitleTextClass = mobile ? 'text-[10px] leading-snug' : 'text-xs sm:text-sm leading-snug';
@@ -287,16 +294,16 @@ const ShopItemCard: React.FC<{
     
     let purchasesThisPeriod = 0;
     let limit = 0;
-    let limitText = '';
+    let limitPeriodKey: 'weekly' | 'daily' | null = null;
 
     if (weeklyLimit) {
         purchasesThisPeriod = (purchaseRecord && !isDifferentWeekKST(purchaseRecord.date, now)) ? purchaseRecord.quantity : 0;
         limit = weeklyLimit;
-        limitText = '주간';
+        limitPeriodKey = 'weekly';
     } else if (dailyLimit) {
         purchasesThisPeriod = (purchaseRecord && isSameDayKST(purchaseRecord.date, now)) ? purchaseRecord.quantity : 0;
         limit = dailyLimit;
-        limitText = '일일';
+        limitPeriodKey = 'daily';
     }
     
     const remaining = limit > 0 ? limit - purchasesThisPeriod : (item.type === 'equipment' ? 100 : undefined);
@@ -367,7 +374,13 @@ const ShopItemCard: React.FC<{
                             <span
                                 className={`max-w-full px-0 text-center leading-tight ${mobile ? 'text-[10px]' : 'text-[10px] sm:text-xs'} ${isGold ? 'text-slate-800/95' : 'text-white/85'} tracking-tight`}
                             >
-                                {limitText} 한도 {remaining}/{limit}
+                                {limitPeriodKey
+                                    ? t('limit.limitLine', {
+                                          period: t(`limit.${limitPeriodKey}`),
+                                          remaining,
+                                          limit,
+                                      })
+                                    : null}
                             </span>
                         )}
                     </div>
@@ -429,7 +442,7 @@ const PackageDiamondVisual: React.FC<{
             }`}
         >
             <div className={dailyGroupBoxClass}>
-                <p className={groupTitleClass}>매일 우편</p>
+                <p className={groupTitleClass}>{t('dailyMail')}</p>
                 <div
                     className={`flex min-h-0 min-w-0 flex-1 flex-row items-center justify-center ${
                         dn ? 'gap-0' : compact ? 'gap-0.5 sm:gap-1' : 'gap-1'
@@ -439,12 +452,12 @@ const PackageDiamondVisual: React.FC<{
                         <img src={SHOP_DIAMOND_ICON} alt="" className={`${gemClass} shrink-0 object-contain drop-shadow-[0_0_12px_rgba(34,211,238,0.45)]`} />
                         <span className={`tabular-nums text-cyan-200 ${underClass}`}>{dailyPerMail}</span>
                     </div>
-                    <span className={`shrink-0 text-violet-100 drop-shadow-md ${daysClass}`}>× {durationDays}일</span>
+                    <span className={`shrink-0 text-violet-100 drop-shadow-md ${daysClass}`}>{t('daysMultiplier', { days: durationDays })}</span>
                 </div>
             </div>
             <span className={`flex shrink-0 items-center self-center ${plusClass}`}>+</span>
             <div className={instantGroupBoxClass}>
-                <p className={groupTitleClass}>즉시지급</p>
+                <p className={groupTitleClass}>{t('instantGrant')}</p>
                 <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0">
                     <img src={SHOP_DIAMOND_ICON} alt="" className={`${gemClass} shrink-0 object-contain drop-shadow-[0_0_12px_rgba(34,211,238,0.45)]`} />
                     <span className={`min-w-0 truncate text-center tabular-nums text-cyan-200 ${underClass}`}>{instantDiamonds}</span>
@@ -457,7 +470,7 @@ const PackageDiamondVisual: React.FC<{
 const PackageBoxRowVisual: React.FC<{
     boxes: { imageSrc: string; quantity: number; alt: string; displayName: string }[];
     bonusLine?: string;
-    equipmentBonusGradeWord?: '에픽' | '전설' | '신화';
+    equipmentBonusGradeWord?: 'epic' | 'legendary' | 'mythic';
     compact?: boolean;
     denseNested?: boolean;
 }> = ({ boxes, bonusLine, equipmentBonusGradeWord, compact = false, denseNested = false }) => {
@@ -509,7 +522,7 @@ const PackageBoxRowVisual: React.FC<{
                     <div className={`relative rounded-md bg-gradient-to-br from-indigo-500/20 to-slate-900/60 shadow-[0_0_20px_-6px_rgba(129,140,248,0.5)] ring-1 ring-indigo-400/25 ${padClass}`}>
                         <span
                             className={`pointer-events-none absolute right-0 top-0 z-10 -translate-y-px translate-x-px ${qtyBadgeClass}`}
-                            aria-label={`수량 ${b.quantity}`}
+                            aria-label={t('quantityAria', { count: b.quantity })}
                         >
                             ×{b.quantity}
                         </span>
@@ -535,9 +548,9 @@ const PackageBoxRowVisual: React.FC<{
                 <div className={boxGroupClass}>{boxesGrid}</div>
                 <span className={`flex shrink-0 items-center self-center ${plusClass}`}>+</span>
                 <div className={bonusGroupClass}>
-                    <div className="flex flex-col items-center justify-center gap-0" role="text" aria-label={`${equipmentBonusGradeWord} 장비`}>
+                    <div className="flex flex-col items-center justify-center gap-0" role="text" aria-label={`${equipmentBonusGradeWord} ${t('equipmentWord')}`}>
                         <span className={`${bonusEquipmentLineBaseClass} ${gradeColorClass}`}>{equipmentBonusGradeWord}</span>
-                        <span className={`${bonusEquipmentLineBaseClass} text-emerald-100`}>장비</span>
+                        <span className={`${bonusEquipmentLineBaseClass} text-emerald-100`}>{t('equipmentWord')}</span>
                     </div>
                 </div>
             </div>
@@ -597,19 +610,19 @@ const MiscShopCard: React.FC<{
     const purchaseDisabled = diamondBlocked || equipBlocked || removeAdsBlocked;
     const handleMiscCashBuy = () => {
         if (!currentUser.isAdmin) {
-            setToastMessage(CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE);
+            setToastMessage(t('notImplemented'));
             return;
         }
         if (removeAdsBlocked) {
-            setToastMessage('이미 광고 제거 상품을 보유 중입니다.');
+            setToastMessage(t('ownedRemoveAds'));
             return;
         }
         if (diamondBlocked) {
-            setToastMessage('진행 중인 다이아 패키지가 있을 때는 추가 구매할 수 없습니다.');
+            setToastMessage(t('diamondPackageBlocked'));
             return;
         }
         if (equipBlocked) {
-            setToastMessage('이번 달 구매 한도에 도달했습니다.');
+            setToastMessage(t('monthlyLimitReached'));
             return;
         }
         onBuyCashPackage(product.id);
@@ -663,7 +676,7 @@ const MiscShopCard: React.FC<{
                             denseNested={denseNested}
                         />
                     </div>
-                    <p className={`${visualBoxFooterClass} text-cyan-100/80`}>다이아 패키지 I,II,III 중복구매 불가</p>
+                    <p className={`${visualBoxFooterClass} text-cyan-100/80`}>{t('diamondPackageNoDup')}</p>
                 </div>
             )}
             {visual?.type === 'box_row' && (
@@ -683,7 +696,7 @@ const MiscShopCard: React.FC<{
                     </div>
                     {isEquipmentPkg && equipLimit > 0 ? (
                         <p className={`${visualBoxFooterClass} font-medium tabular-nums text-violet-200/90`}>
-                            구매제한 월({equipRemaining}/{equipLimit}회)
+                            {t('monthlyPurchaseLimit', { remaining: equipRemaining, limit: equipLimit })}
                         </p>
                     ) : null}
                 </div>
@@ -707,7 +720,7 @@ const MiscShopCard: React.FC<{
                             }
                         />
                     </div>
-                    <p className={`${visualBoxFooterClass} text-rose-100/85`}>계정당 1회 · 영구 적용</p>
+                    <p className={`${visualBoxFooterClass} text-rose-100/85`}>{t('accountOncePermanent')}</p>
                 </div>
             )}
             {!visual && (
@@ -718,7 +731,7 @@ const MiscShopCard: React.FC<{
                 </ul>
             )}
             {visual && (
-                <ul className="sr-only" aria-label="포함 혜택">
+                <ul className="sr-only" aria-label={t('includedBenefitsAria')}>
                     {product.benefits.map((benefit, index) => (
                         <li key={`${product.id}-benefit-${index}`}>{benefit}</li>
                     ))}
@@ -740,7 +753,7 @@ const MiscShopCard: React.FC<{
                             : 'min-h-[2.65rem] px-2 py-2 text-sm sm:min-h-[2.75rem] sm:text-base'
                     }`}
                 >
-                    {removeAdsBlocked ? '보유 중' : isPurchasePending ? '구매 중...' : `${product.priceKRW.toLocaleString()}원`}
+                    {removeAdsBlocked ? t('owned') : isPurchasePending ? t('purchasing') : t('priceKrw', { price: product.priceKRW.toLocaleString() })}
                 </Button>
             </div>
         </div>
@@ -798,9 +811,9 @@ const VipShopCard: React.FC<{
                 className={`mt-1.5 shrink-0 rounded border border-amber-200/30 bg-black/25 px-1 py-1 text-center font-medium leading-none tracking-tight text-amber-100/90 ${
                     mobile ? 'text-[8px] whitespace-nowrap overflow-hidden text-ellipsis' : 'text-xs sm:text-sm py-1.5 px-2'
                 }`}
-                title="중복 구매 시 기간 연장"
+                title={t('duplicateExtends')}
             >
-                중복 구매 시 기간 연장
+                {t('duplicateExtends')}
             </div>
             {isSubscribed ? (
                 <p
@@ -808,7 +821,7 @@ const VipShopCard: React.FC<{
                         mobile ? 'text-[9px]' : 'text-[10px] sm:text-xs'
                     }`}
                 >
-                    자동갱신 구독 중 · 만료 시 동일 요금으로 30일 연장
+                    {t('autoRenewActive')}
                 </p>
             ) : null}
             <div className={`mt-auto flex shrink-0 flex-col ${mobile ? 'gap-1 pt-1.5' : 'gap-1.5 pt-2'}`}>
@@ -818,7 +831,7 @@ const VipShopCard: React.FC<{
                     bare
                     onClick={() => {
                         if (!currentUser.isAdmin) {
-                            setToastMessage(CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE);
+                            setToastMessage(t('notImplemented'));
                             return;
                         }
                         onBuyVip(product.id, 'one_time');
@@ -827,9 +840,9 @@ const VipShopCard: React.FC<{
                         mobile ? 'min-h-[2.35rem] py-1.5 text-[10px] leading-tight sm:text-xs' : 'min-h-[2.65rem] py-2 text-xs sm:min-h-[2.75rem] sm:text-sm'
                     }`}
                 >
-                    <span className="min-w-0 text-center leading-tight">일회성 결제</span>
+                    <span className="min-w-0 text-center leading-tight">{t('oneTimePayment')}</span>
                     <span className="min-w-0 text-center text-[10px] font-bold tabular-nums opacity-95 sm:text-xs">
-                        {product.priceKRW.toLocaleString()}원 · {durationDays}일
+                        {t('oneTimePriceDays', { price: product.priceKRW.toLocaleString(), days: durationDays })}
                     </span>
                 </Button>
                 <Button
@@ -838,7 +851,7 @@ const VipShopCard: React.FC<{
                     bare
                     onClick={() => {
                         if (!currentUser.isAdmin) {
-                            setToastMessage(CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE);
+                            setToastMessage(t('notImplemented'));
                             return;
                         }
                         onBuyVip(product.id, 'subscription');
@@ -847,9 +860,9 @@ const VipShopCard: React.FC<{
                         mobile ? 'min-h-[2.35rem] py-1.5 text-[9px] leading-tight sm:text-[10px]' : 'min-h-[2.65rem] py-2 text-[10px] sm:min-h-[2.75rem] sm:text-xs'
                     }`}
                 >
-                    <span className="text-center font-bold leading-tight">구독 (30일마다 자동결제)</span>
+                    <span className="text-center font-bold leading-tight">{t('subscription')}</span>
                     <span className="text-center text-[9px] font-medium leading-tight text-violet-100/90 sm:text-[10px]">
-                        만료 시점에 등록 결제로 {product.priceKRW.toLocaleString()}원 청구 후 연장
+                        {t('subscriptionCharge', { price: product.priceKRW.toLocaleString() })}
                     </span>
                 </Button>
                 {isSubscribed ? (
@@ -857,17 +870,17 @@ const VipShopCard: React.FC<{
                         type="button"
                         onClick={() => {
                             if (!currentUser.isAdmin) {
-                                setToastMessage(CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE);
+                                setToastMessage(t('notImplemented'));
                                 return;
                             }
                             onCancelVipSubscription(product.id);
-                            setToastMessage('VIP 자동갱신 구독을 해지했습니다.');
+                            setToastMessage(t('cancelSubscriptionToast'));
                         }}
                         className={`w-full rounded-md border border-amber-200/25 bg-black/20 py-1 text-center font-medium text-amber-200/90 underline-offset-2 hover:bg-black/35 hover:underline ${
                             mobile ? 'text-[9px]' : 'text-[10px] sm:text-xs'
                         }`}
                     >
-                        구독 해지
+                        {t('cancelSubscription')}
                     </button>
                 ) : null}
             </div>
@@ -950,9 +963,9 @@ const DiamondShopCard: React.FC<{
                             ? 'h-[1.1rem] whitespace-nowrap text-[10px] leading-[1.1rem]'
                             : 'min-h-[2.5rem] break-keep text-[11px] leading-snug sm:min-h-0 sm:text-sm'
                     }`}
-                    title={`${countLabel}개`}
+                    title={t('countUnit', { count: countLabel })}
                 >
-                    {countLabel}개
+                    {t('countUnit', { count: countLabel })}
                 </h3>
             </div>
             <div className="mt-1.5 flex w-full flex-shrink-0 flex-col items-stretch justify-center gap-1">
@@ -960,13 +973,13 @@ const DiamondShopCard: React.FC<{
                     type="button"
                     colorScheme="none"
                     bare
-                    title={CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE}
+                    title={t('notImplemented')}
                     onClick={onCashPriceClick}
                     className={`flex w-full flex-col items-center justify-center gap-0.5 rounded-lg border border-amber-400/55 bg-gradient-to-r from-amber-400/90 via-amber-300/90 to-amber-500/90 px-2 py-1.5 text-center font-bold tabular-nums text-slate-900 shadow-[0_10px_28px_-14px_rgba(251,191,36,0.85)] transition-all duration-150 hover:from-amber-300 hover:to-amber-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 ${
                         mobile ? 'h-[2.95rem] min-h-[2.95rem] max-h-[2.95rem] text-sm' : 'min-h-[3.5rem] py-2 text-sm sm:text-base'
                     }`}
                 >
-                    {product.priceKRW.toLocaleString()}원
+                    {t('priceKrw', { price: product.priceKRW.toLocaleString() })}
                 </Button>
             </div>
         </div>
@@ -974,24 +987,15 @@ const DiamondShopCard: React.FC<{
 };
 
 /** 결제 동의 모달용 패키지 라벨 — 정확한 메타데이터 없이 ID 기반으로 사람이 읽을 수 있는 이름 제공. */
-const CASH_PACKAGE_LABELS: Record<string, string> = {
-    diamond_package_1: '다이아 패키지 I',
-    diamond_package_2: '다이아 패키지 II',
-    diamond_package_3: '다이아 패키지 III',
-    equipment_package_1: '장비 패키지 I (에픽 확정)',
-    equipment_package_2: '장비 패키지 II (전설 확정)',
-    equipment_package_3: '장비 패키지 III (신화 확정)',
-    [CASH_SHOP_REMOVE_ADS_PACKAGE_ID]: '광고 제거 패키지',
-};
-const VIP_PACKAGE_LABELS: Record<string, string> = {
-    reward_vip: '보상 VIP (30일)',
-    function_vip: '기능 VIP (30일)',
-    vvip: 'V-VIP (30일)',
-};
-const describeCashPackage = (packageId: string): string =>
-    CASH_PACKAGE_LABELS[packageId] ?? packageId;
-const describeVipPackage = (packageId: string): string =>
-    VIP_PACKAGE_LABELS[packageId] ?? packageId;
+const describeCashPackage = (packageId: string): string => shopT(`packages.${packageId}`, { defaultValue: packageId });
+const describeVipPackage = (packageId: string): string => shopT(`vipPackages.${packageId}`, { defaultValue: packageId });
+
+const localizeShopItem = (t: (key: string) => string, itemId: string, rest: Record<string, unknown>) => ({
+    itemId,
+    name: t(`items.${itemId}.name`),
+    description: t(`items.${itemId}.description`),
+    ...rest,
+});
 
 const ShopModal: React.FC<ShopModalProps> = ({
     currentUser: propCurrentUser,
@@ -1002,6 +1006,7 @@ const ShopModal: React.FC<ShopModalProps> = ({
     embedded = false,
 }) => {
     const { currentUserWithStatus } = useAppContext();
+    const { t } = useTranslation('shop');
     const { showShopAdRewardInterstitial } = useAdContext();
     const { isNativeMobile } = useNativeMobileShell();
     const mobileShop = Boolean(isNativeMobile);
@@ -1058,16 +1063,16 @@ const ShopModal: React.FC<ShopModalProps> = ({
         ? 'grid grid-cols-2 gap-1.5 min-[390px]:grid-cols-3 min-[390px]:gap-2 items-stretch [&>*]:min-h-0'
         : 'grid grid-cols-4 gap-3 items-stretch [&>*]:min-h-0';
     const materialItems = [
-        { itemId: "material_box_1", name: "재료 상자 I", description: "하급~상급강화석 5개", price: { gold: 500 }, image: "/images/Box/ResourceBox1.webp", type: 'material' as const },
-        { itemId: "material_box_2", name: "재료 상자 II", description: "하급~상급강화석 5개", price: { gold: 1000 }, image: "/images/Box/ResourceBox2.webp", type: 'material' as const },
-        { itemId: "material_box_3", name: "재료 상자 III", description: "하급~상급강화석 5개", price: { gold: 3000 }, image: "/images/Box/ResourceBox3.webp", type: 'material' as const },
-        { itemId: "material_box_4", name: "재료 상자 IV", description: "중급~최상급강화석 5개", price: { gold: 5000 }, image: "/images/Box/ResourceBox4.webp", type: 'material' as const },
-        { itemId: "material_box_5", name: "재료 상자 V", description: "상급~신비의강화석 5개", price: { gold: 10000 }, image: "/images/Box/ResourceBox5.webp", type: 'material' as const },
-        { itemId: "material_box_6", name: "재료 상자 VI", description: "상급~신비의강화석 5개", price: { diamonds: 100 }, image: "/images/Box/ResourceBox6.webp", type: 'material' as const },
+        { itemId: "material_box_1", name: t('items.material_box_1.name'), description: t('items.material_box_1.description'), price: { gold: 500 }, image: "/images/Box/ResourceBox1.webp", type: 'material' as const },
+        { itemId: "material_box_2", name: t('items.material_box_2.name'), description: t('items.material_box_2.description'), price: { gold: 1000 }, image: "/images/Box/ResourceBox2.webp", type: 'material' as const },
+        { itemId: "material_box_3", name: t('items.material_box_3.name'), description: t('items.material_box_3.description'), price: { gold: 3000 }, image: "/images/Box/ResourceBox3.webp", type: 'material' as const },
+        { itemId: "material_box_4", name: t('items.material_box_4.name'), description: t('items.material_box_4.description'), price: { gold: 5000 }, image: "/images/Box/ResourceBox4.webp", type: 'material' as const },
+        { itemId: "material_box_5", name: t('items.material_box_5.name'), description: t('items.material_box_5.description'), price: { gold: 10000 }, image: "/images/Box/ResourceBox5.webp", type: 'material' as const },
+        { itemId: "material_box_6", name: t('items.material_box_6.name'), description: t('items.material_box_6.description'), price: { diamonds: 100 }, image: "/images/Box/ResourceBox6.webp", type: 'material' as const },
         {
             itemId: 'equipment_unbind_ticket',
-            name: '귀속 해제권',
-            description: '귀속 장비 거래가능 상태로 변경',
+            name: shopT('items.equipment_unbind_ticket.name'),
+            description: shopT('items.equipment_unbind_ticket.description'),
             price: { diamonds: 50 },
             image: '/images/use/belong.webp',
             dailyLimit: 10,
@@ -1075,167 +1080,145 @@ const ShopModal: React.FC<ShopModalProps> = ({
         },
         {
             itemId: 'refinement_charm',
-            name: '제련의 부적',
-            description: '제련불가 장비 제련 횟수 1회 추가',
+            name: shopT('items.refinement_charm.name'),
+            description: shopT('items.refinement_charm.description'),
             price: { diamonds: 100 },
             image: '/images/use/refine.webp',
             dailyLimit: 1,
             type: 'material' as const,
         },
-        { itemId: 'option_type_change_ticket', name: "옵션 종류 변경권", description: "주·부·특수 옵션 종류 변경", price: { gold: 2000 }, image: "/images/use/change1.webp", dailyLimit: 3, type: 'material' as const },
-        { itemId: 'option_value_change_ticket', name: "옵션 수치 변경권", description: "부·특수 옵션 수치 변경", price: { gold: 500 }, image: "/images/use/change2.webp", dailyLimit: 10, type: 'material' as const },
-        { itemId: 'mythic_option_change_ticket', name: "스페셜 옵션 변경권", description: "신화·초월 스페셜 옵션 변경", price: { gold: 500 }, image: "/images/use/change3.webp", dailyLimit: 10, type: 'material' as const },
+        { itemId: 'option_type_change_ticket', name: t('items.option_type_change_ticket.name'), description: t('items.option_type_change_ticket.description'), price: { gold: 2000 }, image: "/images/use/change1.webp", dailyLimit: 3, type: 'material' as const },
+        { itemId: 'option_value_change_ticket', name: t('items.option_value_change_ticket.name'), description: t('items.option_value_change_ticket.description'), price: { gold: 500 }, image: "/images/use/change2.webp", dailyLimit: 10, type: 'material' as const },
+        { itemId: 'mythic_option_change_ticket', name: t('items.mythic_option_change_ticket.name'), description: t('items.mythic_option_change_ticket.description'), price: { gold: 500 }, image: "/images/use/change3.webp", dailyLimit: 10, type: 'material' as const },
     ];
-    const vipProducts: MiscShopProduct[] = [
+    const vipProducts: MiscShopProduct[] = useMemo(() => [
         {
             id: 'reward_vip',
-            name: '보상 VIP',
-            duration: '30일 적용',
+            name: t('vipProducts.reward_vip.name'),
+            duration: t('duration30Days'),
             priceKRW: 9900,
-            benefits: [
-                'VIP 보상슬롯 활성화',
-                '전략바둑 승리 보상 2배',
-                '페어바둑 승리 보상 2배',
-                '놀이바둑 승리 보상 2배',
-                '길드 코인 보상 2배',
-                '일일/주간/월간 퀘스트 보상2배',
-                '퀘스트 활약도 보상2배',
-                '모험 보물상자 2개오픈',
-            ],
-            benefitFooter: 'VIP보상슬롯 : 골드/장비상자/재료상자/전설장비 중 1개 획득',
+            benefits: ['0', '1', '2', '3', '4', '5', '6', '7'].map((k) => t(`vipProducts.reward_vip.benefits.${k}`)),
+            benefitFooter: t('vipProducts.reward_vip.benefitFooter'),
         },
         {
             id: 'function_vip',
-            name: '기능 VIP',
-            duration: '30일 적용',
+            name: t('vipProducts.function_vip.name'),
+            duration: t('duration30Days'),
             priceKRW: 9900,
-            benefits: [
-                '행동력 최대치 +20',
-                '행동력 회복 속도 50% 증가',
-                '행동력 회복제 III 매일 지급',
-                '대장간 경험치 획득 +50%',
-                '장비 강화 성공확률 +10%',
-                '장비 합성 대성공 확률 +10%',
-                '장비 분해 대박 확률 +10%',
-                '재료 분해/합성 대박 확률 +10%',
-                '거래소 물품등록 가능(3개)',
-                '펫 VIP수련슬롯 개방',
-                '펫 VIP부화슬롯 개방',
-                '챔피언십 경기 SKIP 기능',
-            ],
+            benefits: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'].map((k) => t(`vipProducts.function_vip.benefits.${k}`)),
         },
         {
             id: 'vvip',
-            name: 'VVIP',
-            duration: '30일 적용',
+            name: t('vipProducts.vvip.name'),
+            duration: t('duration30Days'),
             priceKRW: 15900,
-            benefits: ['보상 VIP + 기능 VIP 통합 혜택'],
+            benefits: [t('vipProducts.vvip.benefits.0')],
         },
-    ];
+    ], [t]);
     const miscProducts: MiscShopProduct[] = [
         {
             id: 'diamond_package_1',
-            name: '다이아 패키지 I',
-            duration: '7일 적용',
+            name: t('packages.diamond_package_1'),
+            duration: t('duration7Days'),
             priceKRW: 4900,
-            benefits: ['매일 우편으로 50다이아 지급 (총 350다이아)', '즉시 100다이아 지급'],
+            benefits: [t('packageBenefits.diamond_daily_50_350'), t('packageBenefits.diamond_instant_100')],
             packageVisual: { type: 'diamond_combo', dailyPerMail: 50, durationDays: 7, instantDiamonds: 100 },
         },
         {
             id: 'diamond_package_2',
-            name: '다이아 패키지 II',
-            duration: '15일 적용',
+            name: t('packages.diamond_package_2'),
+            duration: t('duration15Days'),
             priceKRW: 7900,
-            benefits: ['매일 우편으로 50다이아 지급 (총 750다이아)', '즉시 250다이아 지급'],
+            benefits: [t('packageBenefits.diamond_daily_50_750'), t('packageBenefits.diamond_instant_250')],
             packageVisual: { type: 'diamond_combo', dailyPerMail: 50, durationDays: 15, instantDiamonds: 250 },
         },
         {
             id: 'diamond_package_3',
-            name: '다이아 패키지 III',
-            duration: '30일 적용',
+            name: t('packages.diamond_package_3'),
+            duration: t('duration30Days'),
             priceKRW: 12900,
-            benefits: ['매일 우편으로 50다이아 지급 (총 1500다이아)', '즉시 750다이아 지급'],
+            benefits: [t('packageBenefits.diamond_daily_50_1500'), t('packageBenefits.diamond_instant_750')],
             packageVisual: { type: 'diamond_combo', dailyPerMail: 50, durationDays: 30, instantDiamonds: 750 },
         },
         {
             id: 'equipment_package_1',
-            name: '장비상자 패키지 I',
+            name: t('packages.equipment_package_1'),
             priceKRW: 2900,
-            benefits: ['장비상자 V 1개', '재료상자 VI 1개', '+ "에픽 장비" 확정지급'],
+            benefits: [t('packageBenefits.equip_pkg1_boxes'), t('packageBenefits.equip_pkg1_mat'), t('packageBenefits.equip_pkg1_bonus')],
             packageVisual: {
                 type: 'box_row',
-                equipmentBonusGradeWord: '에픽',
+                equipmentBonusGradeWord: 'epic',
                 boxes: [
                     {
                         imageSrc: '/images/Box/EquipmentBox5.webp',
                         quantity: 1,
-                        alt: '장비 상자 V',
-                        displayName: '장비 상자 V',
+                        alt: t('boxNames.equipmentBox5'),
+                        displayName: t('boxNames.equipmentBox5'),
                     },
                     {
                         imageSrc: '/images/Box/ResourceBox6.webp',
                         quantity: 1,
-                        alt: '재료 상자 VI',
-                        displayName: '재료 상자 VI',
+                        alt: t('boxNames.materialBox6'),
+                        displayName: t('boxNames.materialBox6'),
                     },
                 ],
             },
         },
         {
             id: 'equipment_package_2',
-            name: '장비상자 패키지 II',
+            name: t('packages.equipment_package_2'),
             priceKRW: 4900,
-            benefits: ['장비상자 V 2개', '재료상자 VI 2개', '+ "전설 장비" 확정지급'],
+            benefits: [t('packageBenefits.equip_pkg2_boxes'), t('packageBenefits.equip_pkg2_mat'), t('packageBenefits.equip_pkg2_bonus')],
             packageVisual: {
                 type: 'box_row',
-                equipmentBonusGradeWord: '전설',
+                equipmentBonusGradeWord: 'legendary',
                 boxes: [
                     {
                         imageSrc: '/images/Box/EquipmentBox5.webp',
                         quantity: 2,
-                        alt: '장비 상자 V',
-                        displayName: '장비 상자 V',
+                        alt: t('boxNames.equipmentBox5'),
+                        displayName: t('boxNames.equipmentBox5'),
                     },
                     {
                         imageSrc: '/images/Box/ResourceBox6.webp',
                         quantity: 2,
-                        alt: '재료 상자 VI',
-                        displayName: '재료 상자 VI',
+                        alt: t('boxNames.materialBox6'),
+                        displayName: t('boxNames.materialBox6'),
                     },
                 ],
             },
         },
         {
             id: 'equipment_package_3',
-            name: '장비상자 패키지 III',
+            name: t('packages.equipment_package_3'),
             priceKRW: 7900,
-            benefits: ['장비상자 VI 2개', '재료상자 VI 5개', '+ "신화 장비" 확정지급'],
+            benefits: [t('packageBenefits.equip_pkg3_boxes'), t('packageBenefits.equip_pkg3_mat'), t('packageBenefits.equip_pkg3_bonus')],
             packageVisual: {
                 type: 'box_row',
-                equipmentBonusGradeWord: '신화',
+                equipmentBonusGradeWord: 'mythic',
                 boxes: [
                     {
                         imageSrc: '/images/Box/EquipmentBox6.webp',
                         quantity: 2,
-                        alt: '장비 상자 VI',
-                        displayName: '장비 상자 VI',
+                        alt: t('boxNames.equipmentBox6'),
+                        displayName: t('boxNames.equipmentBox6'),
                     },
                     {
                         imageSrc: '/images/Box/ResourceBox6.webp',
                         quantity: 5,
-                        alt: '재료 상자 VI',
-                        displayName: '재료 상자 VI',
+                        alt: t('boxNames.materialBox6'),
+                        displayName: t('boxNames.materialBox6'),
                     },
                 ],
             },
         },
         {
             id: CASH_SHOP_REMOVE_ADS_PACKAGE_ID,
-            name: '광고 제거',
+            name: t('packages.remove_ads'),
             priceKRW: 9900,
             benefits: [
-                '로비·대국 등 게임 내 배너·전면 광고 비표시',
-                '상점 보상형 광고 없이 동일 보상 수령(일일 한도 유지)',
+                t('packageBenefits.remove_ads_1'),
+                t('packageBenefits.remove_ads_2'),
             ],
             packageVisual: { type: 'remove_ads_image', imageSrc: '/images/shop/remove_ads_package.svg' },
         },
@@ -1251,7 +1234,7 @@ const ShopModal: React.FC<ShopModalProps> = ({
     const handleClaimShopAdReward = (tab: ShopAdRewardTab) => {
         const remaining = getShopAdRemainingForTab(currentUser, tab, Date.now());
         if (remaining <= 0) {
-            setToastMessage('오늘 이 탭 광고 보상 수령이 모두 완료되었습니다.');
+            setToastMessage(t('adReward.tabExhausted'));
             return;
         }
         showShopAdRewardInterstitial(() => {
@@ -1283,9 +1266,9 @@ const ShopModal: React.FC<ShopModalProps> = ({
                 if (err) {
                     setToastMessage(err);
                 } else if (!result) {
-                    setToastMessage('구매 요청이 처리되지 않았습니다. 잠시 후 다시 시도해 주세요.');
+                    setToastMessage(t('toast.purchaseFailed'));
                 } else {
-                    setToastMessage('컨디션 회복제 구매 완료! 회복 모달에서 사용할 수 있습니다.');
+                    setToastMessage(t('toast.conditionPotionPurchased'));
                 }
             } else if (
                 itemId === 'option_type_change_ticket' ||
@@ -1303,7 +1286,7 @@ const ShopModal: React.FC<ShopModalProps> = ({
                 await onAction({ type: actionType, payload: { itemId, quantity } });
             }
             if (!itemId.startsWith('condition_potion_')) {
-                setToastMessage('구매 완료! 가방을 확인하세요.');
+                setToastMessage(t('toast.purchaseComplete'));
             }
             setPurchasingItem(null);
         });
@@ -1312,7 +1295,7 @@ const ShopModal: React.FC<ShopModalProps> = ({
     const handleBuyActionPoints = () => {
         void shopAction.run('purchase-action-points', async () => {
             await onAction({ type: 'PURCHASE_ACTION_POINTS' });
-            setToastMessage('행동력 구매 완료!');
+            setToastMessage(t('toast.actionPointPurchased'));
         });
     };
 
@@ -1320,21 +1303,21 @@ const ShopModal: React.FC<ShopModalProps> = ({
         void shopAction.run(`cash-package-${packageId}`, async () => {
             const consented = await askPurchaseConsent({
                 productName: describeCashPackage(packageId),
-                priceLabel: '원화 결제 (페이레터)',
-                summary: '결제 직후 다이아 또는 패키지 보상이 지급됩니다.',
+                priceLabel: t('consent.cashPriceLabel'),
+                summary: t('consent.cashSummary'),
             });
             if (!consented) {
-                setToastMessage('결제가 취소되었습니다.');
+                setToastMessage(t('toast.paymentCancelled'));
                 return;
             }
             if (!currentUser.isAdmin) {
-                setToastMessage(CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE);
+                setToastMessage(t('notImplemented'));
                 return;
             }
             const now = Date.now();
             if ((CASH_SHOP_DIAMOND_PACKAGE_IDS as readonly string[]).includes(packageId)) {
                 if (!currentUser.isAdmin && (currentUser.diamondPackageExpiresAt ?? 0) > now) {
-                    setToastMessage('진행 중인 다이아 패키지가 있을 때는 추가 구매할 수 없습니다.');
+                    setToastMessage(t('diamondPackageBlocked'));
                     return;
                 }
             } else if ((CASH_SHOP_EQUIPMENT_PACKAGE_IDS as readonly string[]).includes(packageId)) {
@@ -1342,7 +1325,7 @@ const ShopModal: React.FC<ShopModalProps> = ({
                 const rec = currentUser.dailyShopPurchases?.[packageId];
                 const qty = rec && !isDifferentMonthKST(rec.date, now) ? rec.quantity : 0;
                 if (!currentUser.isAdmin && qty >= limit) {
-                    setToastMessage('이번 달 구매 한도에 도달했습니다.');
+                    setToastMessage(t('monthlyLimitReached'));
                     return;
                 }
             }
@@ -1354,16 +1337,16 @@ const ShopModal: React.FC<ShopModalProps> = ({
         void shopAction.run(`vip-package-${packageId}-${billing}`, async () => {
             const consented = await askPurchaseConsent({
                 productName: describeVipPackage(packageId),
-                priceLabel: billing === 'subscription' ? '정기결제 / 30일 자동 갱신' : '단건 결제 / 30일 적용',
+                priceLabel: billing === 'subscription' ? t('consent.subscriptionPriceLabel') : t('consent.oneTimePriceLabel'),
                 isSubscription: billing === 'subscription',
-                summary: 'VIP 멤버십 혜택이 30일간 적용됩니다.',
+                summary: t('consent.vipSummary'),
             });
             if (!consented) {
-                setToastMessage('결제가 취소되었습니다.');
+                setToastMessage(t('toast.paymentCancelled'));
                 return;
             }
             if (!currentUser.isAdmin) {
-                setToastMessage(CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE);
+                setToastMessage(t('notImplemented'));
                 return;
             }
             await onAction({ type: 'BUY_VIP_PACKAGE', payload: { packageId, billing } });
@@ -1373,7 +1356,7 @@ const ShopModal: React.FC<ShopModalProps> = ({
     const handleCancelVipSubscription = (packageId: string) => {
         void shopAction.run(`vip-cancel-${packageId}`, async () => {
             if (!currentUser.isAdmin) {
-                setToastMessage(CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE);
+                setToastMessage(t('notImplemented'));
                 return;
             }
             await onAction({ type: 'CANCEL_VIP_SHOP_AUTO_RENEW', payload: { packageId } });
@@ -1382,12 +1365,12 @@ const ShopModal: React.FC<ShopModalProps> = ({
 
     const renderContent = () => {
         const equipmentItems = [
-            { itemId: 'equipment_box_1', name: "장비 상자 I", description: "일반~희귀 등급 장비", price: { gold: 500 }, image: "/images/Box/EquipmentBox1.webp", type: 'equipment' as const },
-            { itemId: 'equipment_box_2', name: "장비 상자 II", description: "일반~에픽 등급 장비", price: { gold: 1500 }, image: "/images/Box/EquipmentBox2.webp", type: 'equipment' as const },
-            { itemId: 'equipment_box_3', name: "장비 상자 III", description: "고급~전설 등급 장비", price: { gold: 5000 }, image: "/images/Box/EquipmentBox3.webp", type: 'equipment' as const },
-            { itemId: 'equipment_box_4', name: "장비 상자 IV", description: "희귀~신화 등급 장비", price: { gold: 10000 }, image: "/images/Box/EquipmentBox4.webp", type: 'equipment' as const },
-            { itemId: 'equipment_box_5', name: "장비 상자 V", description: "에픽~신화 등급 장비", price: { diamonds: 100 }, image: "/images/Box/EquipmentBox5.webp", type: 'equipment' as const },
-            { itemId: 'equipment_box_6', name: "장비 상자 VI", description: "전설~신화 등급 장비", price: { diamonds: 500 }, image: "/images/Box/EquipmentBox6.webp", type: 'equipment' as const },
+            { itemId: 'equipment_box_1', name: t('items.equipment_box_1.name'), description: t('items.equipment_box_1.description'), price: { gold: 500 }, image: "/images/Box/EquipmentBox1.webp", type: 'equipment' as const },
+            { itemId: 'equipment_box_2', name: t('items.equipment_box_2.name'), description: t('items.equipment_box_2.description'), price: { gold: 1500 }, image: "/images/Box/EquipmentBox2.webp", type: 'equipment' as const },
+            { itemId: 'equipment_box_3', name: t('items.equipment_box_3.name'), description: t('items.equipment_box_3.description'), price: { gold: 5000 }, image: "/images/Box/EquipmentBox3.webp", type: 'equipment' as const },
+            { itemId: 'equipment_box_4', name: t('items.equipment_box_4.name'), description: t('items.equipment_box_4.description'), price: { gold: 10000 }, image: "/images/Box/EquipmentBox4.webp", type: 'equipment' as const },
+            { itemId: 'equipment_box_5', name: t('items.equipment_box_5.name'), description: t('items.equipment_box_5.description'), price: { diamonds: 100 }, image: "/images/Box/EquipmentBox5.webp", type: 'equipment' as const },
+            { itemId: 'equipment_box_6', name: t('items.equipment_box_6.name'), description: t('items.equipment_box_6.description'), price: { diamonds: 500 }, image: "/images/Box/EquipmentBox6.webp", type: 'equipment' as const },
         ];
 
         switch (activeTab) {
@@ -1396,7 +1379,7 @@ const ShopModal: React.FC<ShopModalProps> = ({
                     <div className={gridClassName}>
                         <ShopAdRewardCard
                             tab="equipment"
-                            rewardDescription="일반 ~ 에픽 등급 장비 1개"
+                            rewardDescription={t('adRewardDescriptions.equipment')}
                             claimableRemaining={getShopAdRemainingForTab(currentUser, 'equipment', Date.now())}
                             onClaim={handleClaimShopAdReward}
                             mobile={mobileShop}
@@ -1419,7 +1402,7 @@ const ShopModal: React.FC<ShopModalProps> = ({
                     <div className={gridClassName}>
                         <ShopAdRewardCard
                             tab="materials"
-                            rewardDescription="하급 ~ 상급 강화석 5개"
+                            rewardDescription={t('adRewardDescriptions.materials')}
                             claimableRemaining={getShopAdRemainingForTab(currentUser, 'materials', Date.now())}
                             onClaim={handleClaimShopAdReward}
                             mobile={mobileShop}
@@ -1442,7 +1425,7 @@ const ShopModal: React.FC<ShopModalProps> = ({
                     <div className={gridClassName}>
                         <ShopAdRewardCard
                             tab="diamonds"
-                            rewardDescription="다이아몬드 10개"
+                            rewardDescription={t('adRewardDescriptions.diamonds')}
                             claimableRemaining={getShopAdRemainingForTab(currentUser, 'diamonds', Date.now())}
                             onClaim={handleClaimShopAdReward}
                             mobile={mobileShop}
@@ -1453,7 +1436,7 @@ const ShopModal: React.FC<ShopModalProps> = ({
                                 key={product.id}
                                 product={product}
                                 mobile={mobileShop}
-                                onCashPriceClick={() => setToastMessage(CASH_PURCHASE_NOT_IMPLEMENTED_MESSAGE)}
+                                onCashPriceClick={() => setToastMessage(t('notImplemented'))}
                             />
                         ))}
                     </div>
@@ -1502,15 +1485,15 @@ const ShopModal: React.FC<ShopModalProps> = ({
             case 'consumables':
             default: {
                 const baseConsumableItems = [
-                    { itemId: 'condition_potion_small', name: "컨디션회복제(소)", description: "긴장감을 완화시켜주는 컨디션 회복제", price: { gold: 100 }, image: "/images/use/con1.webp", dailyLimit: 3, type: 'consumable' as const },
-                    { itemId: 'condition_potion_medium', name: "컨디션회복제(중)", description: "머리가 맑아지는 느낌의 컨디션 회복제", price: { gold: 150 }, image: "/images/use/con2.webp", dailyLimit: 3, type: 'consumable' as const },
-                    { itemId: 'condition_potion_large', name: "컨디션회복제(대)", description: "오늘의 대회를 성공적으로 치를 것 같은 컨디션 회복제", price: { gold: 200 }, image: "/images/use/con3.webp", dailyLimit: 3, type: 'consumable' as const },
+                    { itemId: 'condition_potion_small', name: t('items.condition_potion_small.name'), description: t('items.condition_potion_small.description'), price: { gold: 100 }, image: "/images/use/con1.webp", dailyLimit: 3, type: 'consumable' as const },
+                    { itemId: 'condition_potion_medium', name: t('items.condition_potion_medium.name'), description: t('items.condition_potion_medium.description'), price: { gold: 150 }, image: "/images/use/con2.webp", dailyLimit: 3, type: 'consumable' as const },
+                    { itemId: 'condition_potion_large', name: t('items.condition_potion_large.name'), description: t('items.condition_potion_large.description'), price: { gold: 200 }, image: "/images/use/con3.webp", dailyLimit: 3, type: 'consumable' as const },
                 ];
                 // 행동력 회복제: 품목별 일일 1개, 고정 골드가 (ShopItemCard)
                 const ACTION_POINT_ITEMS = [
-                    { itemId: 'action_point_10' as const, name: '행동력 회복제(+10)', description: '뭔가 하고싶은 의욕이 생긴다.', dailyLimit: 1, prices: [1000], badge: '+10' },
-                    { itemId: 'action_point_20' as const, name: '행동력 회복제(+20)', description: '뭔가 해야 할 것 같다.', dailyLimit: 1, prices: [1500], badge: '+20' },
-                    { itemId: 'action_point_30' as const, name: '행동력 회복제(+30)', description: '바로 경기를 하러 가자.', dailyLimit: 1, prices: [2000], badge: '+30' },
+                    { itemId: 'action_point_10' as const, name: t('items.action_point_10.name'), description: t('items.action_point_10.description'), dailyLimit: 1, prices: [1000], badge: '+10' },
+                    { itemId: 'action_point_20' as const, name: t('items.action_point_20.name'), description: t('items.action_point_20.description'), dailyLimit: 1, prices: [1500], badge: '+20' },
+                    { itemId: 'action_point_30' as const, name: t('items.action_point_30.name'), description: t('items.action_point_30.description'), dailyLimit: 1, prices: [2000], badge: '+30' },
                 ];
                 const actionPointShopItems = ACTION_POINT_ITEMS.map(({ itemId, name, description, dailyLimit, prices, badge }) => {
                     const purchaseRecord = currentUser.dailyShopPurchases?.[itemId];
@@ -1537,7 +1520,7 @@ const ShopModal: React.FC<ShopModalProps> = ({
                     <div className={gridClassName}>
                         <ShopAdRewardCard
                             tab="consumables"
-                            rewardDescription="행동력 회복제(+10) 1개"
+                            rewardDescription={t('adRewardDescriptions.actionPoint')}
                             claimableRemaining={getShopAdRemainingForTab(currentUser, 'consumables', Date.now())}
                             onClaim={handleClaimShopAdReward}
                             mobile={mobileShop}
@@ -1573,12 +1556,12 @@ const ShopModal: React.FC<ShopModalProps> = ({
                     <div
                         className={`mb-3 flex shrink-0 rounded-lg bg-gray-900/70 p-1 ${mobileShop ? 'sticky top-0 z-20 gap-1 backdrop-blur-sm' : ''}`}
                     >
-                        <button onClick={() => setActiveTab('equipment')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'equipment' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>장비</button>
-                        <button onClick={() => setActiveTab('materials')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'materials' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>재료</button>
-                        <button onClick={() => setActiveTab('consumables')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'consumables' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>소모품</button>
-                        <button onClick={() => setActiveTab('diamonds')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'diamonds' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>다이아</button>
-                        <button onClick={() => setActiveTab('misc')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'misc' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>패키지</button>
-                        <button onClick={() => setActiveTab('vip')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'vip' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>VIP</button>
+                        <button onClick={() => setActiveTab('equipment')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'equipment' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>{t('tabs.equipment')}</button>
+                        <button onClick={() => setActiveTab('materials')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'materials' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>{t('tabs.materials')}</button>
+                        <button onClick={() => setActiveTab('consumables')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'consumables' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>{t('tabs.consumables')}</button>
+                        <button onClick={() => setActiveTab('diamonds')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'diamonds' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>{t('tabs.diamonds')}</button>
+                        <button onClick={() => setActiveTab('misc')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'misc' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>{t('tabs.package')}</button>
+                        <button onClick={() => setActiveTab('vip')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'vip' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>{t('tabs.vip')}</button>
                     </div>
 
                     <div
@@ -1613,7 +1596,7 @@ const ShopModal: React.FC<ShopModalProps> = ({
                 <div className={PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS}>{shopBody}</div>
             ) : (
                 <DraggableWindow
-                    title="상점"
+                    title={t('title')}
                     onClose={onClose}
                     windowId="shop"
                     initialWidth={900}

@@ -1,8 +1,8 @@
+import { useTranslation } from 'react-i18next';
 import React from 'react';
 import { createPortal } from 'react-dom';
 import DraggableWindow from './DraggableWindow.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
-import { OPPONENT_INSUFFICIENT_ACTION_POINTS_MESSAGE, OPPONENT_INSUFFICIENT_AP_DETAIL } from '../constants.js';
 import {
     NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH,
     NATIVE_MOBILE_MODAL_MAX_WIDTH_VW,
@@ -44,7 +44,17 @@ function ModalChrome({
     );
 }
 
-function OpponentModalContent({ onClose, embeddedInWindow }: { onClose: () => void; embeddedInWindow?: boolean }) {
+function OpponentModalContent({
+    t,
+    tCommon,
+    onClose,
+    embeddedInWindow,
+}: {
+    t: (key: string) => string;
+    tCommon: (key: string) => string;
+    onClose: () => void;
+    embeddedInWindow?: boolean;
+}) {
     return (
         <>
             <header className={`relative shrink-0 px-5 ${embeddedInWindow ? 'pt-4 pb-3' : 'pt-5 pb-4'} text-center`}>
@@ -57,7 +67,7 @@ function OpponentModalContent({ onClose, embeddedInWindow }: { onClose: () => vo
                     id="opponent-insufficient-ap-title"
                     className="bg-gradient-to-r from-fuchsia-100 via-violet-100 to-cyan-100/90 bg-clip-text text-lg font-black leading-tight tracking-tight text-transparent sm:text-xl"
                 >
-                    대국 신청
+                    {t('modals.insufficientAp.opponentTitle')}
                 </h2>
                 <p className="mt-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-fuchsia-400/50 sm:text-[11px]">
                     Match request
@@ -69,14 +79,16 @@ function OpponentModalContent({ onClose, embeddedInWindow }: { onClose: () => vo
             <div className={`space-y-4 px-5 ${embeddedInWindow ? 'py-4' : 'py-5'}`}>
                 <div className={`${panelSurface} p-4`}>
                     <p className="text-left text-[15px] font-bold leading-snug text-zinc-50 sm:text-base whitespace-pre-line">
-                        {OPPONENT_INSUFFICIENT_ACTION_POINTS_MESSAGE}
+                        {t('modals.insufficientAp.opponentMessage')}
                     </p>
                     <div className="my-3 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-                    <p className="text-left text-[14px] leading-[1.65] text-zinc-400 sm:text-[15px]">{OPPONENT_INSUFFICIENT_AP_DETAIL}</p>
+                    <p className="text-left text-[14px] leading-[1.65] text-zinc-400 sm:text-[15px]">
+                        {t('modals.insufficientAp.opponentDetail')}
+                    </p>
                 </div>
 
                 <button type="button" className={btnConfirm} onClick={onClose}>
-                    확인
+                    {tCommon('actions.ok')}
                 </button>
             </div>
         </>
@@ -87,6 +99,8 @@ const OpponentInsufficientActionPointsModal: React.FC<OpponentInsufficientAction
     onClose,
     isTopmost = false,
 }) => {
+    const { t } = useTranslation('game');
+    const { t: tCommon } = useTranslation('common');
     const { isNativeMobile, isNarrowViewport } = useNativeMobileShell();
     const useBodyOverlay = isNativeMobile || isNarrowViewport;
 
@@ -108,11 +122,11 @@ const OpponentInsufficientActionPointsModal: React.FC<OpponentInsufficientAction
                 <button
                     type="button"
                     className="absolute inset-0 bg-black/80 backdrop-blur-md"
-                    aria-label="닫기"
+                    aria-label={tCommon('actions.close')}
                     onClick={onClose}
                 />
                 <ModalChrome maxHeightStyle={maxHeightStyle} maxWidthStyle={maxWidthStyle}>
-                    <OpponentModalContent onClose={onClose} />
+                    <OpponentModalContent t={t} tCommon={tCommon} onClose={onClose} />
                 </ModalChrome>
             </div>,
             document.body,
@@ -121,7 +135,7 @@ const OpponentInsufficientActionPointsModal: React.FC<OpponentInsufficientAction
 
     return (
         <DraggableWindow
-            title="대국 신청"
+            title={t('modals.insufficientAp.opponentTitle')}
             windowId="opponent-insufficient-action-points-modal"
             onClose={onClose}
             initialWidth={420}
@@ -133,7 +147,7 @@ const OpponentInsufficientActionPointsModal: React.FC<OpponentInsufficientAction
             containerExtraClassName="rounded-2xl"
         >
             <div className="sudamr-floating-modal-surface overflow-hidden rounded-b-2xl border-0 bg-transparent p-0 ring-0">
-                <OpponentModalContent onClose={onClose} embeddedInWindow />
+                <OpponentModalContent t={t} tCommon={tCommon} onClose={onClose} embeddedInWindow />
             </div>
         </DraggableWindow>
     );

@@ -1,16 +1,19 @@
 import React, { useMemo } from 'react';
+import { useLocalizedItemGrade, useLocalizedEquipmentSlot } from '../../shared/i18n/localizedCatalog.js';
+import type { TFunction } from 'i18next';
+import { useTranslation } from 'react-i18next';
 import { MythicOptionAbbrev } from '../MythicStatAbbrev.js';
 import DraggableWindow from '../DraggableWindow.js';
 import { InventoryItem, ItemGrade, ItemOption } from '../../types.js';
 
-const gradeStyles: Record<ItemGrade, { name: string; color: string; background: string }> = {
-    normal: { name: '일반', color: 'text-gray-300', background: '/images/equipments/normalbgi.webp' },
-    uncommon: { name: '고급', color: 'text-green-400', background: '/images/equipments/uncommonbgi.webp' },
-    rare: { name: '희귀', color: 'text-blue-400', background: '/images/equipments/rarebgi.webp' },
-    epic: { name: '에픽', color: 'text-purple-400', background: '/images/equipments/epicbgi.webp' },
-    legendary: { name: '전설', color: 'text-red-500', background: '/images/equipments/legendarybgi.webp' },
-    mythic: { name: '신화', color: 'text-orange-400', background: '/images/equipments/mythicbgi.webp' },
-    transcendent: { name: '초월', color: 'text-cyan-300', background: '/images/equipments/transcendentbgi.webp' },
+const gradeStyles: Record<ItemGrade, { color: string; background: string }> = {
+    normal: { color: 'text-gray-300', background: '/images/equipments/normalbgi.webp' },
+    uncommon: { color: 'text-green-400', background: '/images/equipments/uncommonbgi.webp' },
+    rare: { color: 'text-blue-400', background: '/images/equipments/rarebgi.webp' },
+    epic: { color: 'text-purple-400', background: '/images/equipments/epicbgi.webp' },
+    legendary: { color: 'text-red-500', background: '/images/equipments/legendarybgi.webp' },
+    mythic: { color: 'text-orange-400', background: '/images/equipments/mythicbgi.webp' },
+    transcendent: { color: 'text-cyan-300', background: '/images/equipments/transcendentbgi.webp' },
 };
 
 type RefinementDiff = {
@@ -40,7 +43,7 @@ function optionsEqualEnough(a: ItemOption | undefined, b: ItemOption | undefined
     return true;
 }
 
-function collectRefinementDiffs(beforeItem: InventoryItem, afterItem: InventoryItem): RefinementDiff[] {
+function collectRefinementDiffs(beforeItem: InventoryItem, afterItem: InventoryItem, t: TFunction<'blacksmith'>): RefinementDiff[] {
     const out: RefinementDiff[] = [];
     const b = beforeItem.options;
     const a = afterItem.options;
@@ -49,13 +52,13 @@ function collectRefinementDiffs(beforeItem: InventoryItem, afterItem: InventoryI
     if (!optionsEqualEnough(b.main, a.main)) {
         const typeChanged = b.main.type !== a.main.type;
         const valueChanged = Number(b.main.value) !== Number(a.main.value);
-        let hint = '옵션 변경';
-        if (typeChanged && valueChanged) hint = '종류 · 수치 변경';
-        else if (typeChanged) hint = '종류 변경';
-        else if (valueChanged) hint = '수치 변경';
+        let hint = t('refine.optionChange');
+        if (typeChanged && valueChanged) hint = t('refine.typeValueChange');
+        else if (typeChanged) hint = t('refine.typeChange');
+        else if (valueChanged) hint = t('refine.valueChange');
         out.push({
             id: 'main',
-            slotLabel: '주옵션',
+            slotLabel: t('refine.mainOptionSlot'),
             changeHint: hint,
             beforeText: b.main.display,
             afterText: a.main.display,
@@ -74,13 +77,13 @@ function collectRefinementDiffs(beforeItem: InventoryItem, afterItem: InventoryI
         if (optionsEqualEnough(bs, as)) continue;
         const typeChanged = bs.type !== as.type;
         const valueChanged = Number(bs.value) !== Number(as.value);
-        let hint = '옵션 변경';
-        if (typeChanged && valueChanged) hint = '종류 · 수치 변경';
-        else if (typeChanged) hint = '종류 변경';
-        else if (valueChanged) hint = '수치 변경';
+        let hint = t('refine.optionChange');
+        if (typeChanged && valueChanged) hint = t('refine.typeValueChange');
+        else if (typeChanged) hint = t('refine.typeChange');
+        else if (valueChanged) hint = t('refine.valueChange');
         out.push({
             id: `combat-${i}`,
-            slotLabel: `부옵션 ${i + 1}`,
+            slotLabel: t('refine.subOptionSlot', { index: i + 1 }),
             changeHint: hint,
             beforeText: bs.display,
             afterText: as.display,
@@ -99,13 +102,13 @@ function collectRefinementDiffs(beforeItem: InventoryItem, afterItem: InventoryI
         if (optionsEqualEnough(bs, as)) continue;
         const typeChanged = bs.type !== as.type;
         const valueChanged = Number(bs.value) !== Number(as.value);
-        let hint = '옵션 변경';
-        if (typeChanged && valueChanged) hint = '종류 · 수치 변경';
-        else if (typeChanged) hint = '종류 변경';
-        else if (valueChanged) hint = '수치 변경';
+        let hint = t('refine.optionChange');
+        if (typeChanged && valueChanged) hint = t('refine.typeValueChange');
+        else if (typeChanged) hint = t('refine.typeChange');
+        else if (valueChanged) hint = t('refine.valueChange');
         out.push({
             id: `special-${i}`,
-            slotLabel: `특수옵션 ${i + 1}`,
+            slotLabel: t('refine.specialOptionSlot', { index: i + 1 }),
             changeHint: hint,
             beforeText: bs.display,
             afterText: as.display,
@@ -124,13 +127,13 @@ function collectRefinementDiffs(beforeItem: InventoryItem, afterItem: InventoryI
         if (bs.type === as.type && Number(bs.value) === Number(as.value) && (bs.display || '') === (as.display || '')) continue;
         const typeChanged = bs.type !== as.type;
         const valueChanged = Number(bs.value) !== Number(as.value);
-        let hint = '스페셜 옵션 변경';
-        if (typeChanged && valueChanged) hint = '스페셜 · 종류·수치 변경';
-        else if (typeChanged) hint = '스페셜 · 종류 변경';
-        else if (valueChanged) hint = '스페셜 · 수치 변경';
+        let hint = t('refine.specialOptionChange');
+        if (typeChanged && valueChanged) hint = t('refine.specialTypeValue');
+        else if (typeChanged) hint = t('refine.specialType');
+        else if (valueChanged) hint = t('refine.specialValue');
         out.push({
             id: `mythic-${i}`,
-            slotLabel: `스페셜 옵션 ${i + 1}`,
+            slotLabel: t('refine.specialOptionSlot', { index: i + 1 }),
             changeHint: hint,
             beforeText: bs.display,
             afterText: as.display,
@@ -148,10 +151,10 @@ function collectRefinementDiffs(beforeItem: InventoryItem, afterItem: InventoryI
     if (rcBefore !== undefined && rcAfter !== undefined && rcBefore !== rcAfter) {
         out.push({
             id: 'refinement-count',
-            slotLabel: '제련 가능 횟수',
-            changeHint: '1회 소모',
-            beforeText: `${rcBefore}회`,
-            afterText: `${rcAfter}회`,
+            slotLabel: t('refine.refinementCountSlot'),
+            changeHint: t('refine.oneDecrease'),
+            beforeText: t('refine.countTimes', { count: rcBefore }),
+            afterText: t('refine.countTimes', { count: rcAfter }),
             beforeValue: rcBefore,
             afterValue: rcAfter,
             isPercentage: false,
@@ -210,10 +213,12 @@ interface RefinementResultModalProps {
 }
 
 const RefinementResultModal: React.FC<RefinementResultModalProps> = ({ result, onClose, isTopmost }) => {
+    const { t } = useTranslation('blacksmith');
+    const localizedGrade = useLocalizedItemGrade();
     const diffs = useMemo(() => {
         if (!result?.success || !result.itemBefore || !result.itemAfter) return [];
-        return collectRefinementDiffs(result.itemBefore, result.itemAfter);
-    }, [result]);
+        return collectRefinementDiffs(result.itemBefore, result.itemAfter, t);
+    }, [result, t]);
 
     if (!result) return null;
 
@@ -222,7 +227,7 @@ const RefinementResultModal: React.FC<RefinementResultModalProps> = ({ result, o
 
     return (
         <DraggableWindow
-            title="제련 결과"
+            title={t('refine.resultTitle')}
             onClose={onClose}
             windowId="refinement-result"
             isTopmost={isTopmost !== false}
@@ -268,7 +273,7 @@ const RefinementResultModal: React.FC<RefinementResultModalProps> = ({ result, o
                                 <div className="absolute right-1 top-1">{renderStarBadge(after.stars || 0)}</div>
                             </div>
                             <div className="min-w-0 flex-1 pt-0.5">
-                                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-500/80">완료</p>
+                                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-500/80">{t('refine.done')}</p>
                                 <h2 className={`truncate text-base font-bold leading-tight ${styles.color}`} title={after.name}>
                                     {after.name}
                                 </h2>
@@ -289,7 +294,7 @@ const RefinementResultModal: React.FC<RefinementResultModalProps> = ({ result, o
                     <div className="space-y-2">
                         <div className="flex items-center gap-2 px-0.5">
                             <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-600/50 to-transparent" />
-                            <span className="shrink-0 text-[11px] font-bold tracking-wide text-amber-200/90">능력치 변화</span>
+                            <span className="shrink-0 text-[11px] font-bold tracking-wide text-amber-200/90">{t('refine.abilityChange')}</span>
                             <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-600/50 to-transparent" />
                         </div>
 
@@ -358,7 +363,7 @@ const RefinementResultModal: React.FC<RefinementResultModalProps> = ({ result, o
                     >
                         <span className="absolute inset-0 bg-gradient-to-r from-amber-600 via-yellow-500 to-amber-500 transition-opacity group-hover:opacity-95" />
                         <span className="absolute inset-0 bg-gradient-to-t from-black/10 to-white/20 opacity-0 transition-opacity group-hover:opacity-100" />
-                        <span className="relative">확인</span>
+                        <span className="relative">{t('actions.ok', { ns: 'common' })}</span>
                     </button>
                 </div>
             </div>

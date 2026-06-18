@@ -1,41 +1,35 @@
 import React, { useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { STRATEGIC_GO_LOBBY_IMG, PLAYFUL_GO_LOBBY_IMG, PAIR_GO_LOBBY_IMG } from '../../assets.js';
 import {
     mergeArenaEntranceAvailability,
-    ARENA_ENTRANCE_CLOSED_MESSAGE,
     type ArenaEntranceKey,
 } from '../../constants/arenaEntrance.js';
-import {
-    USER_PROGRESSION_ARENA_BLOCK_MESSAGE,
-    PVP_LOBBIES_MIN_COMBINED_LEVEL,
-} from '../../shared/utils/contentProgressionGates.js';
+import { PVP_LOBBIES_MIN_COMBINED_LEVEL } from '../../shared/utils/contentProgressionGates.js';
 import { isClientAdmin } from '../../utils/clientAdmin.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import type { ArenaChannel, ArenaLobbyIntent } from '../../shared/types/api.js';
 import { arenaLobbyHash } from '../../shared/utils/arenaLobbyDestination.js';
-import { replaceAppHash } from '../../utils/appUtils.js';
+import { replaceAppHash, APP_HOME_ARENA_HASH } from '../../utils/appUtils.js';
+import {
+    translateArenaEntranceClosed,
+    translateArenaEntranceLabel,
+    translateArenaProgressionBlocked,
+} from '../../shared/i18n/runtimeText.js';
 
-const TYPE_CARDS: { channel: ArenaChannel; image: string; label: string; entranceKey: ArenaEntranceKey }[] = [
-    { channel: 'strategic', image: STRATEGIC_GO_LOBBY_IMG, label: '전략바둑', entranceKey: 'strategicLobby' },
-    { channel: 'pair', image: PAIR_GO_LOBBY_IMG, label: '페어바둑', entranceKey: 'pairLobby' },
-    { channel: 'playful', image: PLAYFUL_GO_LOBBY_IMG, label: '놀이바둑', entranceKey: 'playfulLobby' },
+const TYPE_CARDS: { channel: ArenaChannel; image: string; entranceKey: ArenaEntranceKey }[] = [
+    { channel: 'strategic', image: STRATEGIC_GO_LOBBY_IMG, entranceKey: 'strategicLobby' },
+    { channel: 'pair', image: PAIR_GO_LOBBY_IMG, entranceKey: 'pairLobby' },
+    { channel: 'playful', image: PLAYFUL_GO_LOBBY_IMG, entranceKey: 'playfulLobby' },
 ];
-
-const INTENT_HEADING: Record<ArenaLobbyIntent, string> = {
-    pvp: 'PVP 경기장',
-    ai: 'AI 대전',
-};
-
-const INTENT_SUBTITLE: Record<ArenaLobbyIntent, string> = {
-    pvp: '전략 · 페어 · 놀이 중 대전할 종류를 선택하세요',
-    ai: '전략 · 페어 · 놀이 중 AI와 대전할 종류를 선택하세요',
-};
 
 export type ArenaTypePickerProps = {
     intent: ArenaLobbyIntent;
 };
 
 const ArenaTypePicker: React.FC<ArenaTypePickerProps> = ({ intent }) => {
+    const { t } = useTranslation('nav');
+    const { t: tProfile } = useTranslation('profile');
     const { currentUserWithStatus, arenaEntranceAvailability } = useAppContext();
     const merged = useMemo(
         () => mergeArenaEntranceAvailability(arenaEntranceAvailability),
@@ -44,33 +38,38 @@ const ArenaTypePicker: React.FC<ArenaTypePickerProps> = ({ intent }) => {
     const admin = isClientAdmin(currentUserWithStatus ?? null);
     const serverArena = arenaEntranceAvailability ?? {};
 
+    const intentHeading = intent === 'pvp' ? t('arenaTypePicker.pvpHeading') : t('arenaTypePicker.aiHeading');
+    const intentSubtitle = intent === 'pvp' ? t('arenaTypePicker.pvpSubtitle') : t('arenaTypePicker.aiSubtitle');
+
     const getLockReason = useCallback(
         (key: ArenaEntranceKey): string | null => {
             if (admin || merged[key]) return null;
-            if (!serverArena[key]) return '점검중';
-            if (key === 'pairLobby') return '입장 불가';
+            if (!serverArena[key]) return tProfile('maintenance');
+            if (key === 'pairLobby') return tProfile('entryBlocked');
             if (key === 'strategicLobby' || key === 'playfulLobby') {
                 const lv = currentUserWithStatus?.userLevel ?? 1;
-                return `통합 Lv.${lv}/${PVP_LOBBIES_MIN_COMBINED_LEVEL}`;
+                return tProfile('combinedLevelRequired', { current: lv, required: PVP_LOBBIES_MIN_COMBINED_LEVEL });
             }
-            return USER_PROGRESSION_ARENA_BLOCK_MESSAGE[key] ?? '입장 불가';
+            return translateArenaProgressionBlocked(key) || tProfile('entryBlocked');
         },
-        [admin, merged, serverArena, currentUserWithStatus?.userLevel],
+        [admin, merged, serverArena, currentUserWithStatus?.userLevel, tProfile],
     );
 
     const tryEnter = useCallback(
         (channel: ArenaChannel, entranceKey: ArenaEntranceKey) => {
             const lock = getLockReason(entranceKey);
             if (lock) {
-                window.alert(`${TYPE_CARDS.find((c) => c.channel === channel)?.label ?? channel} 입장 불가: ${lock}`);
+                const card = TYPE_CARDS.find((c) => c.channel === channel);
+                const label = card ? translateArenaEntranceLabel(card.entranceKey) : channel;
+                window.alert(t('arenaTypePicker.entryBlockedAlert', { label, reason: lock }));
                 return;
             }
             replaceAppHash(arenaLobbyHash({ intent, channel }));
         },
-        [getLockReason, intent],
+        [getLockReason, intent, t],
     );
 
-    const backToArena = () => replaceAppHash('#/profile/arena');
+    const backToArena = () => replaceAppHash(APP_HOME_ARENA_HASH);
 
     return (
         <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-gradient-to-b from-zinc-950 via-slate-950 to-black">
@@ -79,19 +78,20 @@ const ArenaTypePicker: React.FC<ArenaTypePickerProps> = ({ intent }) => {
                     type="button"
                     onClick={backToArena}
                     className="shrink-0 transition-transform active:scale-90"
-                    aria-label="경기장으로 돌아가기"
+                    aria-label={t('arenaTypePicker.backToArena')}
                 >
                     <img src="/images/button/back.webp" alt="" className="h-9 w-9 sm:h-10 sm:w-10" />
                 </button>
                 <div className="min-w-0 flex-1">
-                    <h1 className="truncate text-base font-bold text-white sm:text-lg">{INTENT_HEADING[intent]}</h1>
-                    <p className="truncate text-[11px] text-slate-400 sm:text-xs">{INTENT_SUBTITLE[intent]}</p>
+                    <h1 className="truncate text-base font-bold text-white sm:text-lg">{intentHeading}</h1>
+                    <p className="truncate text-[11px] text-slate-400 sm:text-xs">{intentSubtitle}</p>
                 </div>
             </div>
             <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 overflow-y-auto p-3 sm:gap-4 sm:p-6">
                 <div className="grid w-full max-w-3xl grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
-                    {TYPE_CARDS.map(({ channel, image, label, entranceKey }) => {
+                    {TYPE_CARDS.map(({ channel, image, entranceKey }) => {
                         const locked = !!getLockReason(entranceKey);
+                        const label = translateArenaEntranceLabel(entranceKey);
                         return (
                             <button
                                 key={channel}
@@ -103,7 +103,7 @@ const ArenaTypePicker: React.FC<ArenaTypePickerProps> = ({ intent }) => {
                                         ? 'cursor-not-allowed border-white/10 opacity-75 grayscale-[0.2]'
                                         : 'border-amber-400/35 hover:-translate-y-0.5 hover:brightness-110 active:scale-[0.995]'
                                 }`}
-                                aria-label={`${label} ${INTENT_HEADING[intent]} 입장`}
+                                aria-label={t('arenaTypePicker.enterAria', { label, intent: intentHeading })}
                             >
                                 <img
                                     src={image}
@@ -129,7 +129,7 @@ const ArenaTypePicker: React.FC<ArenaTypePickerProps> = ({ intent }) => {
                 </div>
                 {!admin && !merged.strategicLobby && !merged.playfulLobby && !merged.pairLobby && (
                     <p className="text-center text-xs text-rose-200/90">
-                        {ARENA_ENTRANCE_CLOSED_MESSAGE.strategicLobby}
+                        {translateArenaEntranceClosed('strategicLobby')}
                     </p>
                 )}
             </div>

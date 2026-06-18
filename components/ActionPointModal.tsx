@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import React, { useMemo, useState } from 'react';
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
@@ -16,6 +17,8 @@ interface ActionPointModalProps {
 }
 
 const ActionPointModal: React.FC<ActionPointModalProps> = ({ currentUser, onClose, onAction, isTopmost, embedded = false }) => {
+    const { t } = useTranslation('shop');
+    const { t: tCommon } = useTranslation('common');
     const [itemToUse, setItemToUse] = useState<InventoryItem | null>(null);
     const [showUseQuantityModal, setShowUseQuantityModal] = useState(false);
 
@@ -75,23 +78,23 @@ const ActionPointModal: React.FC<ActionPointModalProps> = ({ currentUser, onClos
                             <div className="flex min-w-0 items-center gap-2">
                                 <span className="shrink-0 text-2xl">⚡</span>
                                 <div className="min-w-0 flex flex-col">
-                                    <span className="text-xs text-slate-400 sm:text-sm sm:text-slate-300">현재 행동력</span>
+                                    <span className="text-xs text-slate-400 sm:text-sm sm:text-slate-300">{t('actionPoint.currentAp')}</span>
                                     <span className="text-base font-bold text-cyan-300 sm:text-lg">
-                                        {currentUser.actionPoints ? `${currentUser.actionPoints.current}/${currentUser.actionPoints.max}` : '정보 없음'}
+                                        {currentUser.actionPoints ? `${currentUser.actionPoints.current}/${currentUser.actionPoints.max}` : t('actionPoint.noInfo')}
                                     </span>
                                 </div>
                             </div>
                             <p className="max-w-[min(100%,20rem)] shrink-0 text-right text-[11px] leading-snug text-slate-400 sm:text-xs">
-                                회복제 사용 또는 다이아로 즉시 충전할 수 있습니다.
+                                {t('actionPoint.hint')}
                             </p>
                         </div>
                     </div>
 
                     <div className="flex min-h-0 flex-1 flex-col divide-y divide-slate-800/80 overflow-hidden md:flex-row md:divide-x md:divide-y-0">
                         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-3 sm:p-4 md:w-1/2">
-                            <h3 className="mb-2 shrink-0 text-sm font-semibold text-slate-200">보유 행동력 회복제</h3>
+                            <h3 className="mb-2 shrink-0 text-sm font-semibold text-slate-200">{t('actionPoint.ownedPotions')}</h3>
                             {actionPointGroups.length === 0 ? (
-                                <p className="text-xs text-slate-400">가방에 행동력 회복제가 없습니다.</p>
+                                <p className="text-xs text-slate-400">{t('actionPoint.noPotions')}</p>
                             ) : (
                                 <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-0.5 [-ms-overflow-style:none] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-600/80">
                                     {actionPointGroups.map(group => (
@@ -108,7 +111,7 @@ const ActionPointModal: React.FC<ActionPointModalProps> = ({ currentUser, onClos
                                                 </div>
                                                 <div className="min-w-0 flex flex-col">
                                                     <span className="truncate text-[11px] font-semibold text-slate-100 sm:text-xs">{group.name}</span>
-                                                    <span className="text-[10px] text-slate-400 sm:text-[11px]">보유: {group.total.toLocaleString()}개</span>
+                                                    <span className="text-[10px] text-slate-400 sm:text-[11px]">{t('actionPoint.ownedCount', { count: group.total.toLocaleString() })}</span>
                                                 </div>
                                             </div>
                                             <button
@@ -116,7 +119,7 @@ const ActionPointModal: React.FC<ActionPointModalProps> = ({ currentUser, onClos
                                                 onClick={() => handleOpenUseQuantity(group.sampleItem)}
                                                 className="group relative shrink-0 overflow-hidden rounded-lg border border-cyan-400/40 bg-gradient-to-b from-cyan-500/30 via-cyan-600/12 to-slate-950/90 px-2.5 py-1.5 text-[10px] font-semibold tracking-wide text-cyan-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_6px_18px_-8px_rgba(34,211,238,0.5)] transition-[transform,box-shadow,border-color] hover:border-cyan-300/55 hover:from-cyan-400/40 hover:shadow-[0_10px_26px_-10px_rgba(34,211,238,0.55)] active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/45 sm:px-3 sm:text-[11px]"
                                             >
-                                                <span className="relative z-10">사용하기</span>
+                                                <span className="relative z-10">{t('actionPoint.useButton')}</span>
                                                 <span
                                                     className="pointer-events-none absolute inset-0 translate-x-[-100%] bg-gradient-to-r from-transparent via-white/18 to-transparent opacity-0 transition-[transform,opacity] duration-500 group-hover:translate-x-[100%] group-hover:opacity-100"
                                                     aria-hidden
@@ -129,7 +132,7 @@ const ActionPointModal: React.FC<ActionPointModalProps> = ({ currentUser, onClos
                         </div>
 
                         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-3 sm:p-4 md:w-1/2">
-                            <h3 className="mb-2 shrink-0 text-sm font-semibold text-slate-200">다이아로 행동력 충전</h3>
+                            <h3 className="mb-2 shrink-0 text-sm font-semibold text-slate-200">{t('actionPoint.diamondRecharge')}</h3>
                             <div className="flex min-h-0 flex-1 items-center justify-center py-1">
                                 <div className="group relative flex w-full max-w-xs flex-col items-center overflow-hidden rounded-2xl border border-cyan-400/30 bg-gradient-to-br from-[#1c1f3e]/95 via-[#0f172a]/95 to-[#060b15]/95 p-4 text-center shadow-[0_25px_60px_-25px_rgba(34,211,238,0.55)] sm:p-5">
                                     <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-400/70 to-transparent" />
@@ -140,9 +143,9 @@ const ActionPointModal: React.FC<ActionPointModalProps> = ({ currentUser, onClos
                                             {ACTION_POINT_PURCHASE_REFILL_AMOUNT}
                                         </span>
                                     </div>
-                                    <h4 className="text-sm font-bold tracking-wide text-white drop-shadow-lg sm:text-base">행동력 충전</h4>
+                                    <h4 className="text-sm font-bold tracking-wide text-white drop-shadow-lg sm:text-base">{t('actionPoint.title')}</h4>
                                     <p className="mt-1 shrink-0 text-[11px] leading-relaxed text-slate-200/85 sm:text-xs">
-                                        최대치를 초과해서도 바로 충전됩니다.
+                                        {t('actionPoint.exceedMaxHint')}
                                     </p>
                                     <div className="mt-3 flex flex-col items-center justify-center gap-1 w-full">
                                         <Button
@@ -153,19 +156,19 @@ const ActionPointModal: React.FC<ActionPointModalProps> = ({ currentUser, onClos
                                         >
                                             <div className="flex flex-col items-center justify-center gap-0.5">
                                                 <div className="flex items-center justify-center gap-2 text-sm">
-                                                    <img src="/images/icon/Zem.webp" alt="다이아" className="w-5 h-5 drop-shadow-md" />
+                                                    <img src="/images/icon/Zem.webp" alt={t('actionPoint.diamondAlt')} className="w-5 h-5 drop-shadow-md" />
                                                     <span>{currentCost.toLocaleString()}</span>
                                                 </div>
                                                 <span className="text-[10px] text-slate-700/90 tracking-wide">
-                                                    오늘 구매 {purchasesToday}/{MAX_ACTION_POINT_PURCHASES_PER_DAY}
+                                                    {t('actionPoint.todayPurchases', { current: purchasesToday, max: MAX_ACTION_POINT_PURCHASES_PER_DAY })}
                                                 </span>
                                             </div>
                                         </Button>
                                         {!canPurchaseByLimit && (
-                                            <span className="text-[11px] text-cyan-100/80 italic mt-1">오늘 구매 한도에 도달했습니다.</span>
+                                            <span className="text-[11px] text-cyan-100/80 italic mt-1">{t('actionPoint.dailyLimitReached')}</span>
                                         )}
                                         {canPurchaseByLimit && !canAfford && (
-                                            <span className="text-[11px] text-rose-200/90 mt-1">다이아가 부족합니다.</span>
+                                            <span className="text-[11px] text-rose-200/90 mt-1">{t('actionPoint.insufficientDiamonds')}</span>
                                         )}
                                     </div>
                                 </div>
@@ -210,7 +213,7 @@ const ActionPointModal: React.FC<ActionPointModalProps> = ({ currentUser, onClos
     return (
         <>
             <DraggableWindow
-                title="행동력 관리"
+                title={t('actionPoint.manageTitle')}
                 windowId="action-point-modal"
                 onClose={onClose}
                 initialWidth={700}

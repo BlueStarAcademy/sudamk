@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
 import Avatar from '../Avatar.js';
@@ -39,6 +40,8 @@ const MatchFoundModal: React.FC<MatchFoundModalProps> = ({
     onReject,
     onDeadlineElapsed,
 }) => {
+    const { t } = useTranslation('lobby');
+    const { t: tCommon } = useTranslation('common');
     const isPlayer1 = currentUserId === proposal.player1.id;
     const myInfo = isPlayer1 ? proposal.player1 : proposal.player2;
     const opponentInfo = isPlayer1 ? proposal.player2 : proposal.player1;
@@ -80,7 +83,7 @@ const MatchFoundModal: React.FC<MatchFoundModalProps> = ({
 
     return (
         <DraggableWindow
-            title="랭킹전 매칭"
+            title={t('ranked.matchTitle')}
             windowId="match-found"
             onClose={() => {
                 if (!isBusy) void onReject();
@@ -95,8 +98,8 @@ const MatchFoundModal: React.FC<MatchFoundModalProps> = ({
         >
             <div className="flex flex-col gap-5 p-4 sm:p-6">
                 <div className="text-center">
-                    <p className="text-lg font-black text-amber-50 sm:text-xl">매칭이 되었습니다</p>
-                    <p className="mt-1 text-sm font-semibold text-amber-100/85">시간 내로 매칭을 수락하세요.</p>
+                    <p className="text-lg font-black text-amber-50 sm:text-xl">{t('ranked.matched')}</p>
+                    <p className="mt-1 text-sm font-semibold text-amber-100/85">{t('ranked.acceptPrompt')}</p>
                 </div>
 
                 <div
@@ -108,7 +111,7 @@ const MatchFoundModal: React.FC<MatchFoundModalProps> = ({
                               : 'border-amber-400/40 bg-black/40 text-amber-100'
                     }`}
                 >
-                    {secondsLeft > 0 ? `남은 시간 ${secondsLeft}초` : '수락 시간이 지났습니다'}
+                    {secondsLeft > 0 ? t('ranked.timeLeft', { seconds: secondsLeft }) : t('ranked.acceptExpired')}
                 </div>
 
                 <div className="w-full overflow-hidden rounded-full border border-amber-500/35 bg-amber-950/40">
@@ -125,15 +128,15 @@ const MatchFoundModal: React.FC<MatchFoundModalProps> = ({
                         <Avatar userId={myInfo.id} userName={myInfo.nickname} size={72} />
                         <div className="text-center">
                             <p className="text-base font-bold text-white">{myInfo.nickname}</p>
-                            <p className="text-sm text-gray-300">랭킹: {myInfo.rating}점</p>
+                            <p className="text-sm text-gray-300">{t('ranked.matchFound.rankingLabel', { rating: myInfo.rating })}</p>
                         </div>
                         <div className="w-full rounded-lg border border-blue-700/50 bg-blue-900/30 p-3">
-                            <p className="mb-1 text-xs text-blue-300">예상 점수 변동</p>
-                            <p className="text-sm font-semibold text-green-400">승리: +{myInfo.winChange}점</p>
-                            <p className="text-sm font-semibold text-red-400">패배: {myInfo.lossChange}점</p>
+                            <p className="mb-1 text-xs text-blue-300">{t('ranked.matchFound.expectedDelta')}</p>
+                            <p className="text-sm font-semibold text-green-400">{t('ranked.matchFound.winDelta', { points: myInfo.winChange })}</p>
+                            <p className="text-sm font-semibold text-red-400">{t('ranked.matchFound.lossDelta', { points: myInfo.lossChange })}</p>
                         </div>
                         <p className={`text-xs font-bold ${myAccepted ? 'text-emerald-300' : 'text-slate-400'}`}>
-                            {myAccepted ? '수락함' : '수락 대기'}
+                            {myAccepted ? t('ranked.accepted') : t('ranked.waitingAccept')}
                         </p>
                     </div>
 
@@ -143,22 +146,22 @@ const MatchFoundModal: React.FC<MatchFoundModalProps> = ({
                         <Avatar userId={opponentInfo.id} userName={opponentInfo.nickname} size={72} />
                         <div className="text-center">
                             <p className="text-base font-bold text-white">{opponentInfo.nickname}</p>
-                            <p className="text-sm text-gray-300">랭킹: {opponentInfo.rating}점</p>
+                            <p className="text-sm text-gray-300">{t('ranked.matchFound.rankingLabel', { rating: opponentInfo.rating })}</p>
                         </div>
                         <div className="w-full rounded-lg border border-gray-700/50 bg-gray-800/50 p-3">
-                            <p className="mb-1 text-xs text-gray-400">상대방 랭킹</p>
-                            <p className="text-sm text-gray-300">{opponentInfo.rating}점</p>
+                            <p className="mb-1 text-xs text-gray-400">{t('ranked.matchFound.opponentRanking')}</p>
+                            <p className="text-sm text-gray-300">{t('ranked.matchFound.opponentRating', { rating: opponentInfo.rating })}</p>
                         </div>
                         <p className={`text-xs font-bold ${peerAccepted ? 'text-emerald-300' : 'text-slate-400'}`}>
-                            {peerAccepted ? '수락함' : '수락 대기'}
+                            {peerAccepted ? t('ranked.accepted') : t('ranked.waitingAccept')}
                         </p>
                     </div>
                 </div>
 
                 {myAccepted && !peerAccepted ? (
-                    <p className="text-center text-xs font-semibold text-slate-300">상대의 수락을 기다리는 중…</p>
+                    <p className="text-center text-xs font-semibold text-slate-300">{t('ranked.matchFound.waitingPeer')}</p>
                 ) : peerAccepted && !myAccepted ? (
-                    <p className="text-center text-xs font-semibold text-emerald-200/90">상대가 수락했습니다. 수락해 주세요.</p>
+                    <p className="text-center text-xs font-semibold text-emerald-200/90">{t('ranked.matchFound.peerAcceptedPleaseAccept')}</p>
                 ) : null}
 
                 <div className="grid grid-cols-2 gap-2">
@@ -169,7 +172,7 @@ const MatchFoundModal: React.FC<MatchFoundModalProps> = ({
                         onClick={() => void onReject()}
                         className="rounded-xl border border-rose-400/45 bg-rose-950/55 py-2.5 text-sm font-extrabold text-rose-50"
                     >
-                        거절
+                        {t('ranked.matchFound.reject')}
                     </Button>
                     <Button
                         type="button"
@@ -178,13 +181,13 @@ const MatchFoundModal: React.FC<MatchFoundModalProps> = ({
                         onClick={() => void onAccept()}
                         className="rounded-xl border border-emerald-400/50 bg-emerald-900/55 py-2.5 text-sm font-extrabold text-emerald-50 disabled:opacity-45"
                     >
-                        {myAccepted ? '수락함' : '수락'}
+                        {myAccepted ? t('ranked.accepted') : t('ranked.accept')}
                     </Button>
                 </div>
 
                 <div className="text-center text-xs text-gray-400">
-                    <p>거절하거나 시간 내 수락하지 않으면 매칭이 취소됩니다.</p>
-                    <p>이미 수락한 경우, 상대가 거절·시간 초과 시 매칭 대기 상태와 우선순위가 유지됩니다.</p>
+                    <p>{t('ranked.matchFound.cancelHint')}</p>
+                    <p>{t('ranked.matchFound.priorityHint')}</p>
                 </div>
             </div>
         </DraggableWindow>

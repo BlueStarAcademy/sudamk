@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LiveGameSession, UserWithStatus, ServerAction, Player, AnalysisResult, GameSummary } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
 import { getSinglePlayerStages, AVATAR_POOL, BORDER_POOL } from '../constants';
@@ -110,26 +111,26 @@ const getXpRequirementForLevel = (level: number): number => {
 const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveGameSession, isMobile?: boolean, mobileTextScale?: number }> = ({ analysis, isMobile = false, mobileTextScale = 1 }) => {
     const mx = RESULT_MODAL_SCORE_MOBILE_PX;
 
-    if (!hasRenderableScoreDetails(analysis)) return <p className={`text-center text-zinc-300 ${isMobile ? 'text-sm' : ''}`} style={{ fontSize: isMobile ? `${mx.emptyState * mobileTextScale}px` : undefined }}>점수 정보가 없습니다.</p>;
+    if (!hasRenderableScoreDetails(analysis)) return <p className={`text-center text-zinc-300 ${isMobile ? 'text-sm' : ''}`} style={{ fontSize: isMobile ? `${mx.emptyState * mobileTextScale}px` : undefined }}>{t('summary.noScoreInfo')}</p>;
     const scoreDetails = analysis.scoreDetails!;
 
     return (
         <div className={`space-y-1.5 ${isMobile ? 'p-1.5' : 'p-2'} ${SP_SUMMARY_INSET_CLASS} ${!isMobile ? 'text-base min-[1024px]:text-lg' : 'text-zinc-100'}`}>
             <div className={`grid gap-1.5 sm:gap-2 ${isMobile ? 'grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'}`}>
                 <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} ${isMobile ? 'p-1' : 'p-1.5'}`}>
-                    <h3 className={`font-bold text-center mb-0.5 text-zinc-50 ${isMobile ? 'text-sm' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${mx.columnHead * mobileTextScale}px` : undefined }}>흑</h3>
-                    <div className="flex justify-between text-zinc-200" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className="text-zinc-300">영토:</span> <span className="font-medium text-zinc-50">{formatScoreDetailNumber(scoreDetails.black.territory, 0)}</span></div>
-                    <div className="flex justify-between text-zinc-200" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className="text-zinc-300">따낸 돌:</span> <span className="font-medium text-zinc-50">{scoreDetails.black.liveCaptures ?? 0}</span></div>
-                    <div className="flex justify-between text-zinc-200" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className="text-zinc-300">사석:</span> <span className="font-medium text-zinc-50">{scoreDetails.black.deadStones ?? 0}</span></div>
-                    <div className={`flex justify-between border-t border-amber-500/20 pt-0.5 mt-0.5 font-bold text-zinc-50 ${isMobile ? 'text-sm' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${mx.totalRow * mobileTextScale}px` : undefined }}><span>총점:</span> <span className="text-amber-200">{formatScoreDetailNumber(scoreDetails.black.total, 1)}</span></div>
+                    <h3 className={`font-bold text-center mb-0.5 text-zinc-50 ${isMobile ? 'text-sm' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${mx.columnHead * mobileTextScale}px` : undefined }}>{t('black')}</h3>
+                    <div className="flex justify-between text-zinc-200" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className="text-zinc-300">{t('summary.territory')}:</span> <span className="font-medium text-zinc-50">{formatScoreDetailNumber(scoreDetails.black.territory, 0)}</span></div>
+                    <div className="flex justify-between text-zinc-200" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className="text-zinc-300">{t('summary.captures')}:</span> <span className="font-medium text-zinc-50">{scoreDetails.black.liveCaptures ?? 0}</span></div>
+                    <div className="flex justify-between text-zinc-200" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className="text-zinc-300">{t('summary.deadStones')}:</span> <span className="font-medium text-zinc-50">{scoreDetails.black.deadStones ?? 0}</span></div>
+                    <div className={`flex justify-between border-t border-amber-500/20 pt-0.5 mt-0.5 font-bold text-zinc-50 ${isMobile ? 'text-sm' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${mx.totalRow * mobileTextScale}px` : undefined }}><span>{t('summary.total')}:</span> <span className="text-amber-200">{formatScoreDetailNumber(scoreDetails.black.total, 1)}</span></div>
                 </div>
                 <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} ${isMobile ? 'p-1' : 'p-1.5'}`}>
-                    <h3 className={`font-bold text-center mb-0.5 text-zinc-50 ${isMobile ? 'text-sm' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${mx.columnHead * mobileTextScale}px` : undefined }}>백</h3>
-                    <div className="flex justify-between text-zinc-200" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className="text-zinc-300">영토:</span> <span className="font-medium text-zinc-50">{formatScoreDetailNumber(scoreDetails.white.territory, 0)}</span></div>
-                    <div className="flex justify-between text-zinc-200" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className="text-zinc-300">따낸 돌:</span> <span className="font-medium text-zinc-50">{scoreDetails.white.liveCaptures ?? 0}</span></div>
-                    <div className="flex justify-between text-zinc-200" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className="text-zinc-300">사석:</span> <span className="font-medium text-zinc-50">{scoreDetails.white.deadStones ?? 0}</span></div>
-                    <div className="flex justify-between text-zinc-200" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className="text-zinc-300">덤:</span> <span className="font-medium text-zinc-50">{scoreDetails.white.komi}</span></div>
-                    <div className={`flex justify-between border-t border-amber-500/20 pt-0.5 mt-0.5 font-bold text-zinc-50 ${isMobile ? 'text-sm' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${mx.totalRow * mobileTextScale}px` : undefined }}><span>총점:</span> <span className="text-amber-200">{formatScoreDetailNumber(scoreDetails.white.total, 1)}</span></div>
+                    <h3 className={`font-bold text-center mb-0.5 text-zinc-50 ${isMobile ? 'text-sm' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${mx.columnHead * mobileTextScale}px` : undefined }}>{t('white')}</h3>
+                    <div className="flex justify-between text-zinc-200" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className="text-zinc-300">{t('summary.territory')}:</span> <span className="font-medium text-zinc-50">{formatScoreDetailNumber(scoreDetails.white.territory, 0)}</span></div>
+                    <div className="flex justify-between text-zinc-200" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className="text-zinc-300">{t('summary.captures')}:</span> <span className="font-medium text-zinc-50">{scoreDetails.white.liveCaptures ?? 0}</span></div>
+                    <div className="flex justify-between text-zinc-200" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className="text-zinc-300">{t('summary.deadStones')}:</span> <span className="font-medium text-zinc-50">{scoreDetails.white.deadStones ?? 0}</span></div>
+                    <div className="flex justify-between text-zinc-200" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className="text-zinc-300">{t('summary.komi')}:</span> <span className="font-medium text-zinc-50">{scoreDetails.white.komi}</span></div>
+                    <div className={`flex justify-between border-t border-amber-500/20 pt-0.5 mt-0.5 font-bold text-zinc-50 ${isMobile ? 'text-sm' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${mx.totalRow * mobileTextScale}px` : undefined }}><span>{t('summary.total')}:</span> <span className="text-amber-200">{formatScoreDetailNumber(scoreDetails.white.total, 1)}</span></div>
                 </div>
             </div>
         </div>
@@ -137,6 +138,7 @@ const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveG
 };
 
 const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ session, currentUser, onAction: _onAction, onClose }) => {
+    const { t } = useTranslation('game');
     const { modalLayerUsesDesignPixels, singlePlayerStagesListRevision } = useAppContext();
     const isScoring = session.gameStatus === 'scoring';
     const isEnded = session.gameStatus === 'ended';
@@ -253,35 +255,35 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
         switch (session.winReason) {
             case 'timeout':
                 if (currentStage?.blackTurnLimit) {
-                    return '제한 턴이 부족하여 미션에 실패했습니다.';
+                    return t('singlePlayerSummary.failTurnLimit');
                 }
-                return '제한시간이 초과되어 미션에 실패했습니다.';
+                return t('singlePlayerSummary.failTimeLimit');
             case 'capture_limit':
                 return currentStage?.survivalTurns
-                    ? '백이 정해진 턴을 모두 버텨 미션에 실패했습니다.'
-                    : '상대가 목표 점수를 먼저 달성했습니다.';
+                    ? t('singlePlayerSummary.failSurvival')
+                    : t('singlePlayerSummary.failCaptureTarget');
             case 'score':
-                return '계가 결과 상대가 더 많은 집을 차지했습니다.';
+                return t('singlePlayerSummary.failScoring');
             case 'resign':
-                return '기권하셨습니다.';
+                return t('singlePlayerSummary.failResign');
             case 'disconnect':
-                return '연결이 끊어져 미션이 실패 처리되었습니다.';
+                return t('singlePlayerSummary.failDisconnect');
             case 'total_score':
-                return '총 점수 합계에서 상대에게 밀렸습니다.';
+                return t('singlePlayerSummary.failTotalScore');
             case 'dice_win':
-                return '주사위 점수에서 뒤처졌습니다.';
+                return t('singlePlayerSummary.failDice');
             case 'foul_limit':
-                return '반칙 한도를 초과했습니다.';
+                return t('singlePlayerSummary.failFoul');
             case 'thief_captured':
-                return '도둑 돌이 모두 잡혔습니다.';
+                return t('singlePlayerSummary.failThiefCaught');
             case 'police_win':
-                return '경찰이 더 많은 점수를 획득했습니다.';
+                return t('singlePlayerSummary.failPoliceScore');
             case 'omok_win':
-                return '상대가 먼저 다섯 줄을 완성했습니다.';
+                return t('singlePlayerSummary.failOmok');
             case 'alkkagi_win':
-                return '알까기 승부에서 뒤졌습니다.';
+                return t('singlePlayerSummary.failAlkkagi');
             case 'curling_win':
-                return '컬링 총점에서 상대에게 뒤졌습니다.';
+                return t('singlePlayerSummary.failCurling');
             default:
                 return null;
         }
@@ -292,34 +294,34 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
         switch (session.winReason) {
             case 'capture_limit':
                 return currentStage?.survivalTurns
-                    ? '제한 턴만큼 점수를 잘 지켜냈습니다.'
-                    : '목표 점수를 달성했습니다.';
+                    ? t('singlePlayerSummary.winSurvival')
+                    : t('singlePlayerSummary.winCaptureTarget');
             case 'score':
-                return '계가 결과 승리했습니다.';
+                return t('singlePlayerSummary.winScoring');
             case 'timeout':
-                return '시간초과 시간패입니다.';
+                return t('singlePlayerSummary.winTime');
             case 'resign':
-                return '상대방이 기권했습니다.';
+                return t('singlePlayerSummary.winResign');
             case 'disconnect':
-                return '상대방의 연결이 끊어졌습니다.';
+                return t('singlePlayerSummary.winDisconnect');
             case 'total_score':
-                return '총 점수 합계에서 승리했습니다.';
+                return t('singlePlayerSummary.winTotalScore');
             case 'dice_win':
-                return '주사위 점수에서 승리했습니다.';
+                return t('singlePlayerSummary.winDice');
             case 'foul_limit':
-                return '상대방이 반칙 한도를 초과했습니다.';
+                return t('singlePlayerSummary.winFoul');
             case 'thief_captured':
-                return '도둑 돌을 모두 잡았습니다.';
+                return t('singlePlayerSummary.winThiefCaught');
             case 'police_win':
-                return '경찰로서 더 많은 점수를 획득했습니다.';
+                return t('singlePlayerSummary.winPoliceScore');
             case 'omok_win':
-                return '먼저 다섯 줄을 완성했습니다.';
+                return t('singlePlayerSummary.winOmok');
             case 'alkkagi_win':
-                return '알까기 승부에서 승리했습니다.';
+                return t('singlePlayerSummary.winAlkkagi');
             case 'curling_win':
-                return '컬링 총점에서 승리했습니다.';
+                return t('singlePlayerSummary.winCurling');
             default:
-                return '승리했습니다.';
+                return t('singlePlayerSummary.winGeneric');
         }
     }, [isWinner, session.winReason, currentStage, singlePlayerStagesListRevision]);
     
@@ -432,10 +434,10 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
 
     // 계가 결과가 없으면 "계가 중..." 표시, 있으면 승리/실패 판단
     const modalTitle = (!renderableScoreDetails && isScoring)
-        ? "계가 중..." 
+        ? t("towerSummary.scoring") 
         : renderableScoreDetails 
-            ? (isWinner ? "미션 클리어" : "미션 실패")
-            : "게임 결과";
+            ? (isWinner ? t("singlePlayerSummary.missionClear") : t("singlePlayerSummary.missionFail"))
+            : t("towerSummary.gameResult");
 
     const isCompactViewport = useIsHandheldDevice(900);
     const { isNativeMobile } = useNativeMobileShell();
@@ -471,7 +473,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                         className="px-2 text-center font-medium text-zinc-200"
                         style={{ fontSize: isMobile ? `${RESULT_MODAL_SCORE_MOBILE_PX.emptyState * mobileTextScale}px` : '14px' }}
                     >
-                        {isScoring ? '계가 중...' : '보상 정보가 없습니다.'}
+                        {isScoring ? t('towerSummary.scoring') : t('towerSummary.noRewardInfo')}
                     </p>
                 ) : !hasRewardSlots ? (
                     <p
@@ -576,12 +578,12 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                 {/* Title */}
                 {(analysisResult || (isEnded && session.winner !== null)) && (
                     <div className={`${isMobile ? 'mb-1.5 p-2' : 'mb-2 p-3 sm:p-3.5'} flex-shrink-0 rounded-xl border-2 border-amber-400/45 bg-gradient-to-br from-amber-950/50 via-slate-900/90 to-slate-950/95 shadow-[0_0_32px_-12px_rgba(251,191,36,0.28)]`}>
-                        <div className={`${SP_SUMMARY_SECTION_LABEL} text-center`}>결과</div>
+                        <div className={`${SP_SUMMARY_SECTION_LABEL} text-center`}>{t("singlePlayerSummary.result")}</div>
                         <h1
                             className={`mt-1 text-center font-black tracking-widest ${isMobile ? 'text-lg' : 'text-2xl min-[1024px]:text-3xl min-[1280px]:text-4xl'} ${isWinner ? 'sudamr-stable-gradient-text text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-200 to-amber-300' : 'text-red-400'}`}
                             style={{ fontSize: isMobile ? `${15 * mobileTextScale}px` : undefined }}
                         >
-                            {isWinner ? '미션 성공' : '미션 실패'}
+                            {isWinner ? t('singlePlayerSummary.missionSuccess') : t('singlePlayerSummary.missionFail')}
                         </h1>
                     </div>
                 )}
@@ -610,7 +612,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                             className="flex flex-col items-center gap-0.5"
                                             style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.dataRow * mobileTextScale}px` }}
                                         >
-                                            <span className="text-amber-200/65">총 걸린 시간</span>
+                                            <span className="text-amber-200/65">{t("towerSummary.totalElapsed").replace(":", "")}</span>
                                             <span className="font-semibold tabular-nums text-zinc-100">{gameDuration}</span>
                                         </div>
                                         {(winReasonText || failureReason) && (
@@ -626,7 +628,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                                 className="mt-0.5 flex items-center justify-between border-t border-amber-500/15 pt-0.5"
                                                 style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.dataRow * mobileTextScale}px` }}
                                             >
-                                                <span className="text-amber-200/65">백 목표/획득 점수:</span>
+                                                <span className="text-amber-200/65">{t("singlePlayerSummary.whiteTargetScore")}</span>
                                                 <span
                                                     className={`font-semibold ${survivalModeInfo.captured < survivalModeInfo.target ? 'text-green-400' : 'text-red-400'}`}
                                                 >
@@ -649,7 +651,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                         mobileTextScale={mobileTextScale}
                                     />
                                 ) : !isScoring && !isEnded ? (
-                                    <p className="text-center text-zinc-500">계가 결과가 없습니다.</p>
+                                    <p className="text-center text-zinc-500">{t("towerSummary.noScoringResult")}</p>
                                 ) : null}
                             </div>
                         </div>
@@ -691,7 +693,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                 {(analysisResult || (isEnded && session.winner !== null)) && (
                                     <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 p-2`}>
                                         <div className="flex items-center justify-between" style={{ fontSize: '15px' }}>
-                                            <span className="text-amber-200/65">총 걸린 시간:</span>
+                                            <span className="text-amber-200/65">{t("towerSummary.totalElapsed")}</span>
                                             <span className="font-semibold text-zinc-100">{gameDuration}</span>
                                         </div>
                                         {(winReasonText || failureReason) && (
@@ -701,7 +703,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                         )}
                                         {survivalModeInfo && (
                                             <div className="mt-0.5 flex items-center justify-between border-t border-amber-500/15 pt-0.5" style={{ fontSize: '15px' }}>
-                                                <span className="text-amber-200/65">백 목표/획득 점수:</span>
+                                                <span className="text-amber-200/65">{t("singlePlayerSummary.whiteTargetScore")}</span>
                                                 <span
                                                     className={`font-semibold ${survivalModeInfo.captured < survivalModeInfo.target ? 'text-green-400' : 'text-red-400'}`}
                                                 >
@@ -724,7 +726,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                         mobileTextScale={mobileTextScale}
                                     />
                                 ) : !isScoring && !isEnded ? (
-                                    <p className="text-center text-zinc-500">계가 결과가 없습니다.</p>
+                                    <p className="text-center text-zinc-500">{t("towerSummary.noScoringResult")}</p>
                                 ) : null}
                             </div>
                         </div>

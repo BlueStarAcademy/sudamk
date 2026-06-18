@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAppGameStoreSlice, useAppRouteSlice, useAppUiSlice, useAppUserSlice } from '../hooks/useAppSlices.js';
 import { mergeArenaEntranceAvailability } from '../constants/arenaEntrance.js';
 import { isClientAdmin } from '../utils/clientAdmin.js';
@@ -23,6 +24,7 @@ import GuildWar from './guild/GuildWar.js';
 import AdventureLobby from './adventure/AdventureLobby.js';
 import AdventureStageMap from './adventure/AdventureStageMap.js';
 import { replaceAppHash } from '../utils/appUtils.js';
+import { APP_HOME_HASH, APP_HOME_ARENA_HASH, isAppHomeHash } from '../shared/types/navigation.js';
 import InlineLoadingSpinner from './ui/InlineLoadingSpinner.js';
 import {
     pairArenaLobbyHash,
@@ -37,6 +39,7 @@ const routeShellClass = 'flex h-full min-h-0 w-full min-w-0 flex-1 flex-col over
 
 // 게임 라우트 로더 컴포넌트 (게임이 로드될 때까지 대기, 새로고침 시 재입장 대기)
 const GameRouteLoader: React.FC<{ gameId: string }> = ({ gameId }) => {
+    const { t } = useTranslation(['nav', 'common']);
     const { activeGame, singlePlayerGames, towerGames, liveGames, gameRejoinFailure } = useAppGameStoreSlice();
     const { currentUser } = useAppUserSlice();
     const { handlers } = useAppUiSlice();
@@ -78,8 +81,8 @@ const GameRouteLoader: React.FC<{ gameId: string }> = ({ gameId }) => {
                     return;
                 }
                 setTimeout(() => {
-                    if (window.location.hash !== '#/profile') {
-                        replaceAppHash('#/profile');
+                    if (!isAppHomeHash(window.location.hash)) {
+                        replaceAppHash(APP_HOME_HASH);
                     }
                 }, 100);
             }
@@ -112,24 +115,25 @@ const GameRouteLoader: React.FC<{ gameId: string }> = ({ gameId }) => {
                         handlers.requestGameRejoinRetry(gameId);
                     }}
                 >
-                    다시 시도
+                    {t('common:actions.retry')}
                 </button>
             </div>
         );
     }
 
     if (hasTimedOut || currentRejoinFailure?.reason === 'notFound') {
-        return <div className="flex items-center justify-center h-full">게임을 찾을 수 없습니다. 프로필로 이동합니다...</div>;
+        return <div className="flex items-center justify-center h-full">{t('nav:router.gameNotFoundRedirect')}</div>;
     }
 
     return (
         <div className="flex h-full flex-col items-center justify-center gap-3">
-            <InlineLoadingSpinner label="게임 정보 동기화 중..." />
+            <InlineLoadingSpinner label={t('nav:router.syncingGame')} />
         </div>
     );
 };
 
 const Router: React.FC = () => {
+    const { t } = useTranslation('nav');
     const { currentRoute, arenaEntranceAvailability } = useAppRouteSlice();
     const { currentUser } = useAppUserSlice();
     const { activeGame, singlePlayerGames, towerGames, liveGames } = useAppGameStoreSlice();
@@ -152,17 +156,17 @@ const Router: React.FC = () => {
         const v = currentRoute.view;
         const channel = currentRoute.params?.channel as ArenaChannel | undefined;
         if (v === 'pvp' || v === 'ai') {
-            if (channel === 'strategic' && !mergedArena.strategicLobby) replaceAppHash('#/profile/arena');
-            if (channel === 'playful' && !mergedArena.playfulLobby) replaceAppHash('#/profile/arena');
-            if (channel === 'pair' && !mergedArena.pairLobby) replaceAppHash('#/profile/arena');
+            if (channel === 'strategic' && !mergedArena.strategicLobby) replaceAppHash(APP_HOME_ARENA_HASH);
+            if (channel === 'playful' && !mergedArena.playfulLobby) replaceAppHash(APP_HOME_ARENA_HASH);
+            if (channel === 'pair' && !mergedArena.pairLobby) replaceAppHash(APP_HOME_ARENA_HASH);
             return;
         }
-        if (v === 'singleplayer' && !mergedArena.singleplayer) replaceAppHash('#/profile');
-        if (v === 'tower' && !mergedArena.tower) replaceAppHash('#/profile');
-        if (v === 'tournament' && !mergedArena.championship) replaceAppHash('#/profile');
-        if (v === 'adventure' && !mergedArena.adventure) replaceAppHash('#/profile');
+        if (v === 'singleplayer' && !mergedArena.singleplayer) replaceAppHash(APP_HOME_HASH);
+        if (v === 'tower' && !mergedArena.tower) replaceAppHash(APP_HOME_HASH);
+        if (v === 'tournament' && !mergedArena.championship) replaceAppHash(APP_HOME_HASH);
+        if (v === 'adventure' && !mergedArena.adventure) replaceAppHash(APP_HOME_HASH);
         const guildOk = userMeetsGuildFeatureLevelRequirement(currentUser);
-        if (!guildOk && (v === 'guild' || v === 'guildboss' || v === 'guildwar')) replaceAppHash('#/profile');
+        if (!guildOk && (v === 'guild' || v === 'guildboss' || v === 'guildwar')) replaceAppHash(APP_HOME_HASH);
     }, [currentUser, arenaAdminBypass, currentRoute.view, currentRoute.params?.channel, mergedArena]);
 
     if (!currentUser) {
@@ -209,7 +213,7 @@ const Router: React.FC = () => {
         !isGuildShellView
     ) {
         // The logic in useApp hook will handle the redirect, we can show a loading state here
-        return <div className="flex items-center justify-center h-full">재접속 중...</div>;
+        return <div className="flex items-center justify-center h-full">{t('router.reconnecting')}</div>;
     }
 
     // scoring 상태의 게임이 있으면 게임 페이지로 유지 (activeGame이 null이어도)
@@ -249,7 +253,7 @@ const Router: React.FC = () => {
                 replaceAppHash(arenaLobbyHash({ intent, channel: 'strategic' }));
                 return null;
             }
-            replaceAppHash('#/profile/arena');
+            replaceAppHash(APP_HOME_ARENA_HASH);
             return null;
         }
         case 'pvp':
@@ -263,7 +267,7 @@ const Router: React.FC = () => {
                     </div>
                 );
             }
-            replaceAppHash('#/profile/arena');
+            replaceAppHash(APP_HOME_ARENA_HASH);
             return null;
         }
         case 'game':
@@ -281,11 +285,11 @@ const Router: React.FC = () => {
             }
             console.warn('Router: No game ID in route. Redirecting to profile.');
             setTimeout(() => {
-                if (window.location.hash !== '#/profile') {
-                    window.location.hash = '#/profile';
+                if (!isAppHomeHash(window.location.hash)) {
+                    window.location.hash = APP_HOME_HASH;
                 }
             }, 100);
-            return <div className="flex items-center justify-center h-full">게임 정보 동기화 중...</div>;
+            return <div className="flex items-center justify-center h-full">{t('router.syncingGame')}</div>;
         case 'admin':
             return <Admin />;
         case 'tournament':
@@ -311,7 +315,7 @@ const Router: React.FC = () => {
         case 'guildwar':
             return <GuildWar />;
         default:
-            window.location.hash = '#/profile';
+            window.location.hash = APP_HOME_HASH;
             return null;
     }
 };

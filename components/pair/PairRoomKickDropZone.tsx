@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 type Props = {
     /** 방장에게만 표시 */
@@ -31,12 +32,13 @@ const PairRoomKickDropZone: React.FC<Props> = ({ visible, disabled, compact = fa
                 if (id) onUserDropped(id);
             }}
         >
-            <span className={`font-extrabold uppercase tracking-wide text-rose-200/90 ${compact ? 'text-[9px]' : 'text-[10px]'}`}>강퇴</span>
-            <span className={`mt-1 font-semibold leading-tight text-rose-100/75 ${compact ? 'text-[8px]' : 'text-[9px]'}`}>
-                유저를 여기로
-                <br />
-                드래그
+            <span className={`font-extrabold uppercase tracking-wide text-rose-200/90 ${compact ? 'text-[9px]' : 'text-[10px]'}`}>
+                {t('room.kickTitle')}
             </span>
+            <span
+                className={`mt-1 font-semibold leading-tight text-rose-100/75 ${compact ? 'text-[8px]' : 'text-[9px]'}`}
+                dangerouslySetInnerHTML={{ __html: t('room.kickDragHint') }}
+            />
         </div>
     );
 };

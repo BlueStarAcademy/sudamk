@@ -7,17 +7,18 @@ import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import Avatar from '../Avatar.js';
 import { AVATAR_POOL, BORDER_POOL, GUILD_INITIAL_MEMBER_LIMIT, ADMIN_USER_ID, ADMIN_NICKNAME } from '../../constants/index.js';
 import { formatLastSeenGuild } from '../../utils/timeUtils.js';
+import { useTranslation } from 'react-i18next';
+
+const memberSortLabelKey: Record<GuildMemberSortMode, string> = {
+    role: 'members.sortRole',
+    joinDate: 'members.sortJoinDate',
+    contributionTotal: 'members.sortTotalContribution',
+    weeklyContribution: 'members.sortWeeklyContribution',
+    lastLogin: 'members.sortLastLogin',
+    nickname: 'members.sortNickname',
+};
 
 type GuildMemberSortMode = 'role' | 'joinDate' | 'contributionTotal' | 'weeklyContribution' | 'lastLogin' | 'nickname';
-
-const MEMBER_SORT_OPTIONS: { value: GuildMemberSortMode; label: string }[] = [
-    { value: 'role', label: '직책순' },
-    { value: 'joinDate', label: '가입일순' },
-    { value: 'contributionTotal', label: '누적기여도순' },
-    { value: 'weeklyContribution', label: '주간기여도순' },
-    { value: 'lastLogin', label: '최근접속순' },
-    { value: 'nickname', label: '닉네임순' },
-];
 
 interface GuildMembersPanelProps {
     guild: GuildType;
@@ -40,6 +41,7 @@ const MemberManagementModal: React.FC<{
     onTransfer: () => void;
     onClose: () => void;
 }> = ({ member, memberDisplayName, roleLabel, isMaster, isVice, onPromote, onDemote, onKick, onTransfer, onClose }) => {
+    const { t } = useTranslation(['guild', 'common']);
     const isMobileShell = useNativeMobileShell();
     const canPromoteToVice = isMaster && member.role === GuildMemberRole.Member;
     const canDemote = isMaster && member.role === GuildMemberRole.Vice;
@@ -55,7 +57,7 @@ const MemberManagementModal: React.FC<{
 
     return (
         <DraggableWindow
-            title="길드원 관리"
+            title={t('members.manageTitle')}
             windowId="guild-member-management-modal"
             onClose={onClose}
             initialWidth={isMobileShell ? 400 : 460}
@@ -82,15 +84,15 @@ const MemberManagementModal: React.FC<{
                 {/* 선택 길드원 요약 정보 */}
                 <div className="mb-3 grid shrink-0 grid-cols-3 gap-1.5 rounded-xl border border-white/10 bg-black/25 p-1.5">
                     <div className="rounded-lg border border-amber-300/20 bg-amber-500/10 px-1.5 py-1 text-center">
-                        <p className="text-[10px] text-amber-200/85">누적 기여도</p>
+                        <p className="text-[10px] text-amber-200/85">{t('members.totalContribution')}</p>
                         <p className="mt-0.5 text-sm font-semibold tabular-nums text-amber-100">{member.contributionTotal || 0}</p>
                     </div>
                     <div className="rounded-lg border border-cyan-300/20 bg-cyan-500/10 px-1.5 py-1 text-center">
-                        <p className="text-[10px] text-cyan-200/85">주간 기여도</p>
+                        <p className="text-[10px] text-cyan-200/85">{t('members.weeklyContribution')}</p>
                         <p className="mt-0.5 text-sm font-semibold tabular-nums text-cyan-100">{member.weeklyContribution || 0}</p>
                     </div>
                     <div className="rounded-lg border border-emerald-300/20 bg-emerald-500/10 px-1.5 py-1 text-center">
-                        <p className="text-[10px] text-emerald-200/85">최근 접속</p>
+                        <p className="text-[10px] text-emerald-200/85">{t('members.lastSeen')}</p>
                         <p className="mt-0.5 text-[11px] font-semibold text-emerald-100">{formatLastSeenGuild(member.lastLoginAt)}</p>
                     </div>
                 </div>
@@ -102,7 +104,7 @@ const MemberManagementModal: React.FC<{
                             onClick={onPromote}
                             className={`${actionButtonClass} !border !border-sky-400/55 !bg-gradient-to-r !from-sky-500/92 !via-blue-600/92 !to-indigo-700/92 shadow-[0_16px_36px_-20px_rgba(56,189,248,0.75)] hover:shadow-[0_20px_42px_-18px_rgba(96,165,250,0.82)]`}
                         >
-                            부길드장 임명
+                            {t('members.promoteVice')}
                         </Button>
                     )}
                     {canDemote && (
@@ -110,7 +112,7 @@ const MemberManagementModal: React.FC<{
                             onClick={onDemote}
                             className={`${actionButtonClass} !border !border-amber-400/60 !bg-gradient-to-r !from-amber-500/92 !via-yellow-600/92 !to-orange-600/92 shadow-[0_16px_36px_-20px_rgba(251,191,36,0.75)] hover:shadow-[0_20px_42px_-18px_rgba(251,191,36,0.82)]`}
                         >
-                            부길드장 해임
+                            {t('members.demoteVice')}
                         </Button>
                     )}
                     {canTransfer && (
@@ -118,7 +120,7 @@ const MemberManagementModal: React.FC<{
                             onClick={onTransfer}
                             className={`${actionButtonClass} !border !border-orange-400/60 !bg-gradient-to-r !from-orange-500/92 !via-orange-600/92 !to-rose-700/92 shadow-[0_16px_36px_-20px_rgba(251,146,60,0.75)] hover:shadow-[0_20px_42px_-18px_rgba(251,146,60,0.82)]`}
                         >
-                            길드장 위임
+                            {t('members.transferLeadership')}
                         </Button>
                     )}
                     {canKick && (
@@ -126,7 +128,7 @@ const MemberManagementModal: React.FC<{
                             onClick={onKick}
                             className={`${actionButtonClass} !border !border-red-400/60 !bg-gradient-to-r !from-red-500/92 !via-red-600/92 !to-rose-700/92 shadow-[0_16px_36px_-20px_rgba(248,113,113,0.75)] hover:shadow-[0_20px_42px_-18px_rgba(248,113,113,0.82)]`}
                         >
-                            추방
+                            {t('members.kick')}
                         </Button>
                     )}
                 </div>
@@ -136,6 +138,7 @@ const MemberManagementModal: React.FC<{
 };
 
 const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberInfo, compact = false, embedded = false }) => {
+    const { t } = useTranslation(['guild', 'common']);
     const dense = compact || embedded;
     const { handlers, allUsers, onlineUsers, currentUserWithStatus } = useAppContext();
     const effectiveUserId = currentUserWithStatus?.isAdmin ? ADMIN_USER_ID : currentUserWithStatus?.id;
@@ -254,19 +257,19 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
         switch (type) {
             case 'PROMOTE':
                 actionType = 'GUILD_PROMOTE_MEMBER';
-                confirmMessage = `${memberName}님을 부길드장으로 임명하시겠습니까?`;
+                confirmMessage = t('members.promoteConfirm', { name: memberName });
                 break;
             case 'DEMOTE':
                 actionType = 'GUILD_DEMOTE_MEMBER';
-                confirmMessage = `${memberName}님을 부길드장에서 해임하시겠습니까?`;
+                confirmMessage = t('members.demoteConfirm', { name: memberName });
                 break;
             case 'KICK':
                 actionType = 'GUILD_KICK_MEMBER';
-                confirmMessage = `${memberName}님을 길드에서 추방하시겠습니까?`;
+                confirmMessage = t('members.kickConfirm', { name: memberName });
                 break;
             case 'TRANSFER':
                 actionType = 'GUILD_TRANSFER_MASTERSHIP';
-                confirmMessage = `정말로 길드장 권한을 ${memberName}님에게 위임하시겠습니까? 이 작업은 되돌릴 수 없습니다.`;
+                confirmMessage = t('members.transferConfirm', { name: memberName });
                 break;
         }
 
@@ -282,10 +285,10 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
 
     const getRoleName = (role: string) => {
         switch (role) {
-            case 'leader': return '길드장';
-            case 'officer': return '부길드장';
-            case 'member': return '길드원';
-            default: return '길드원';
+            case 'leader': return t('roles.leader');
+            case 'officer': return t('roles.officer');
+            case 'member': return t('roles.member');
+            default: return t('roles.member');
         }
     };
     
@@ -300,12 +303,12 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
     
     const handleLeaveGuild = async () => {
         if (myMemberInfo?.role === 'leader' && (guild.members?.length || 0) > 1) {
-            alert('길드장이 길드를 떠나려면 먼저 다른 길드원에게 길드장을 위임해야 합니다.');
+            alert(t('members.leaderMustTransfer'));
             return;
         }
         const confirmMessage = myMemberInfo?.role === 'leader' && (guild.members?.length || 0) === 1
-            ? '길드의 마지막 멤버입니다. 길드를 떠나면 길드가 해체됩니다. 정말로 떠나시겠습니까?'
-            : '정말로 길드를 떠나시겠습니까?';
+            ? t('members.lastMemberLeave')
+            : t('members.leaveConfirm');
 
         if (window.confirm(confirmMessage)) {
             try {
@@ -319,11 +322,11 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
                     alert(result.error);
                 } else {
                     // 성공 시 프로필로 리다이렉트 (useApp에서 길드 정보가 자동으로 제거됨)
-                    window.location.hash = '#/profile';
+                    window.location.hash = '#/home';
                 }
             } catch (error: any) {
                 console.error('[GuildMembersPanel] Leave guild error:', error);
-                alert('길드 탈퇴 중 오류가 발생했습니다.');
+                alert(t('members.leaveError'));
             }
         }
     };
@@ -349,25 +352,25 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
                         >
                             <span className={dense ? 'text-lg' : 'text-2xl'}>👥</span>
                             <span className="whitespace-nowrap">
-                                길드원{' '}
+                                {t('members.title')}{' '}
                                 <span className={`text-primary ${dense ? 'text-sm' : 'text-lg'}`}>
                                     ({displayMembers.length}/{memberLimit})
                                 </span>
                             </span>
                         </h3>
                         <div className="flex min-w-0 items-center gap-1.5">
-                            <span className={`shrink-0 text-stone-400 ${dense ? 'text-xs' : 'text-sm'}`}>정렬</span>
+                            <span className={`shrink-0 text-stone-400 ${dense ? 'text-xs' : 'text-sm'}`}>{t('members.sortLabel')}</span>
                             <select
                                 value={sortMode}
                                 onChange={(e) => setSortMode(e.target.value as GuildMemberSortMode)}
-                                aria-label="길드원 목록 정렬"
+                                aria-label={t('members.sortAria')}
                                 className={`min-w-[6.5rem] max-w-[9.5rem] shrink-0 rounded-lg border border-stone-500/50 bg-stone-800/90 text-stone-100 shadow-inner outline-none focus:border-cyan-500/60 ${
                                     dense ? 'py-1.5 pl-2 pr-7 text-xs' : 'py-1.5 pl-2.5 pr-8 text-sm'
                                 }`}
                             >
-                                {MEMBER_SORT_OPTIONS.map((o) => (
-                                    <option key={o.value} value={o.value}>
-                                        {o.label}
+                                {(Object.keys(memberSortLabelKey) as GuildMemberSortMode[]).map((value) => (
+                                    <option key={value} value={value}>
+                                        {t(memberSortLabelKey[value])}
                                     </option>
                                 ))}
                             </select>
@@ -381,7 +384,7 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
                                 dense ? '!px-3 !py-1.5 !text-xs' : '!px-4 !py-2 !text-xs'
                             }`}
                         >
-                            탈퇴
+                            {t('members.leave')}
                         </Button>
                     )}
                     {myMemberInfo && myMemberInfo.role === 'leader' && displayMembers.length === 1 && (
@@ -392,7 +395,7 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
                                 dense ? '!px-3 !py-1.5 !text-xs' : '!px-4 !py-2 !text-xs'
                             }`}
                         >
-                            해체
+                            {t('members.disband')}
                         </Button>
                     )}
                 </div>
@@ -401,8 +404,8 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
                     {displayMembers.length === 0 ? (
                         <div className={`flex h-full items-center justify-center ${dense ? 'py-4' : 'py-12'}`}>
                             <div className="text-center">
-                                <p className={`text-tertiary font-semibold ${dense ? 'mb-1 text-sm' : 'mb-2 text-xl'}`}>길드원이 없습니다</p>
-                                <p className="text-sm text-gray-500">아직 가입한 길드원이 없습니다.</p>
+                                <p className={`text-tertiary font-semibold ${dense ? 'mb-1 text-sm' : 'mb-2 text-xl'}`}>{t('members.noMembers')}</p>
+                                <p className="text-sm text-gray-500">{t('members.noMembersHint')}</p>
                             </div>
                         </div>
                     ) : (
@@ -413,11 +416,11 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
                                     dense ? 'text-xs' : 'text-sm'
                                 }`}
                             >
-                                <th className={`text-left ${dense ? 'px-2 py-2' : 'px-5 py-4 text-base'}`}>길드원</th>
-                                <th className={`text-center ${dense ? 'px-2 py-2' : 'w-24 py-4'}`}>주간</th>
-                                <th className={`text-center ${dense ? 'px-2 py-2' : 'w-24 py-4'}`}>누적</th>
-                                <th className={`text-center ${dense ? 'px-2 py-2' : 'w-28 py-4'}`}>접속</th>
-                                {canManage && <th className={`text-center ${dense ? 'px-2 py-2' : 'w-20 py-4'}`}>관리</th>}
+                                <th className={`text-left ${dense ? 'px-2 py-2' : 'px-5 py-4 text-base'}`}>{t('members.columnMember')}</th>
+                                <th className={`text-center ${dense ? 'px-2 py-2' : 'w-24 py-4'}`}>{t('members.columnWeekly')}</th>
+                                <th className={`text-center ${dense ? 'px-2 py-2' : 'w-24 py-4'}`}>{t('members.columnTotal')}</th>
+                                <th className={`text-center ${dense ? 'px-2 py-2' : 'w-28 py-4'}`}>{t('members.columnLastLogin')}</th>
+                                {canManage && <th className={`text-center ${dense ? 'px-2 py-2' : 'w-20 py-4'}`}>{t('members.columnManage')}</th>}
                             </tr>
                         </thead>
                         <tbody>
@@ -436,7 +439,7 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
                                 <tr
                                     key={member.userId}
                                     onClick={isClickable ? (e) => { e?.stopPropagation(); handlers.openViewingUser(member.userId); } : undefined}
-                                    title={isClickable ? `${memberDisplayName} 프로필 보기` : ''}
+                                    title={isClickable ? t('members.viewProfile', { name: memberDisplayName }) : ''}
                                     className={`transition-all duration-200 ${
                                         dense ? 'border-b border-stone-600/40' : 'border-b-2 border-stone-600/50'
                                     } ${
@@ -462,7 +465,7 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
                                                         dense ? 'text-xs leading-snug' : 'mb-1 gap-2 text-lg'
                                                     }`}
                                                 >
-                                                    <span className={`flex-shrink-0 rounded-full ${dense ? 'h-2 w-2' : 'h-2.5 w-2.5'} ${isOnline ? 'bg-green-500' : 'bg-red-500'}`} title={isOnline ? '온라인' : '오프라인'} />
+                                                    <span className={`flex-shrink-0 rounded-full ${dense ? 'h-2 w-2' : 'h-2.5 w-2.5'} ${isOnline ? 'bg-green-500' : 'bg-red-500'}`} title={isOnline ? t('members.online') : t('members.offline')} />
                                                     <span className="whitespace-normal break-words">{memberDisplayName}</span>
                                                 </p>
                                                 <p className={`font-bold ${getRoleColor(member.role)} drop-shadow-md ${dense ? 'text-[11px] leading-snug' : 'text-sm'}`}>{getRoleName(member.role)}</p>
@@ -477,7 +480,7 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
                                     </td>
                                     <td className={`min-w-0 text-center align-middle ${dense ? 'px-2 py-2' : 'w-28'}`}>
                                         <p className={`font-semibold ${dense ? 'text-[11px] leading-snug' : 'text-sm'}`}>
-                                            {isOnline ? <span className="text-green-400 drop-shadow-lg">온라인</span> : <span className="text-tertiary">{formatLastSeenGuild(member.lastLoginAt ?? user?.lastLoginAt)}</span>}
+                                            {isOnline ? <span className="text-green-400 drop-shadow-lg">{t('members.online')}</span> : <span className="text-tertiary">{formatLastSeenGuild(member.lastLoginAt ?? user?.lastLoginAt)}</span>}
                                         </p>
                                     </td>
                                     {canManage && (
@@ -491,7 +494,7 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
                                                             : '!px-4 !py-2.5 !text-xs border-2 border-cyan-500/60 bg-gradient-to-r from-cyan-600/95 via-blue-600/95 to-indigo-600/95 font-semibold text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200'
                                                     }
                                                 >
-                                                    관리
+                                                    {t('members.manage')}
                                                 </Button>
                                             )}
                                         </td>

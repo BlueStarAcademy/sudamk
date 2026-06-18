@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     BLACKSMITH_MAX_LEVEL,
     BLACKSMITH_COMBINABLE_GRADES_BY_LEVEL,
@@ -7,6 +8,7 @@ import {
 } from '../../constants/rules.js';
 import { ItemGrade } from '../../types/enums.js';
 import { formatBlacksmithPercentInt } from '../../shared/utils/formatBlacksmithPercentInt.js';
+import { useLocalizedItemGrade } from '../../shared/i18n/localizedCatalog.js';
 
 const GRADE_ORDER: ItemGrade[] = [
     ItemGrade.Normal,
@@ -17,16 +19,6 @@ const GRADE_ORDER: ItemGrade[] = [
     ItemGrade.Mythic,
     ItemGrade.Transcendent,
 ];
-
-const GRADE_NAMES_KO: Record<ItemGrade, string> = {
-    normal: '일반',
-    uncommon: '고급',
-    rare: '희귀',
-    epic: '에픽',
-    legendary: '전설',
-    mythic: '신화',
-    transcendent: '초월',
-};
 
 export interface BlacksmithLevelEffectsSummaryProps {
     blacksmithLevel: number;
@@ -45,6 +37,8 @@ const BlacksmithLevelEffectsSummary: React.FC<BlacksmithLevelEffectsSummaryProps
     className = '',
     compact = false,
 }) => {
+    const { t } = useTranslation('blacksmith');
+    const localizedGrade = useLocalizedItemGrade();
     const currentLevel = blacksmithLevel ?? 1;
     const isMaxLevel = currentLevel >= BLACKSMITH_MAX_LEVEL;
     const currentLevelIndex = currentLevel - 1;
@@ -60,7 +54,7 @@ const BlacksmithLevelEffectsSummary: React.FC<BlacksmithLevelEffectsSummaryProps
     return (
         <div className={`text-left ${className}`}>
             <div className={headerRowClass}>
-                <span>효과</span>
+                <span>{t('levelEffects.effects')}</span>
                 <span>
                     Lv.{currentLevel}
                     {!isMaxLevel && <span className="text-yellow-400"> → Lv.{currentLevel + 1}</span>}
@@ -69,13 +63,13 @@ const BlacksmithLevelEffectsSummary: React.FC<BlacksmithLevelEffectsSummaryProps
             <div className={bodyClass}>
                 <div className={cardClass}>
                     <div className="flex justify-between gap-2">
-                        <span>합성 가능 최대등급</span>
+                        <span>{t('levelEffects.maxCombineGrade')}</span>
                         <span>
-                            {GRADE_NAMES_KO[BLACKSMITH_COMBINABLE_GRADES_BY_LEVEL[currentLevelIndex]]}
+                            {localizedGrade(BLACKSMITH_COMBINABLE_GRADES_BY_LEVEL[currentLevelIndex])}
                             {!isMaxLevel && (
                                 <span className="text-yellow-400">
                                     {' '}
-                                    → {GRADE_NAMES_KO[BLACKSMITH_COMBINABLE_GRADES_BY_LEVEL[nextLevelIndex]]}
+                                    → {localizedGrade(BLACKSMITH_COMBINABLE_GRADES_BY_LEVEL[nextLevelIndex])}
                                 </span>
                             )}
                         </span>
@@ -83,7 +77,7 @@ const BlacksmithLevelEffectsSummary: React.FC<BlacksmithLevelEffectsSummaryProps
                 </div>
                 <div className={cardClass}>
                     <div className="flex justify-between gap-2">
-                        <span>장비 분해 대박 확률</span>
+                        <span>{t('levelEffects.disassembleJackpot')}</span>
                         <span>
                             {formatBlacksmithPercentInt(BLACKSMITH_DISASSEMBLY_JACKPOT_RATES[currentLevelIndex])}%
                             {disassemblyJackpotBonusPercent > 0 && (
@@ -97,7 +91,7 @@ const BlacksmithLevelEffectsSummary: React.FC<BlacksmithLevelEffectsSummaryProps
                 </div>
                 <div className={cardClass}>
                     <div className="flex justify-between gap-2">
-                        <span>재료 분해/합성 대박 확률</span>
+                        <span>{t('levelEffects.materialJackpot')}</span>
                         <span>
                             {formatBlacksmithPercentInt(BLACKSMITH_DISASSEMBLY_JACKPOT_RATES[currentLevelIndex])}%
                             {disassemblyJackpotBonusPercent > 0 && (
@@ -110,14 +104,14 @@ const BlacksmithLevelEffectsSummary: React.FC<BlacksmithLevelEffectsSummaryProps
                     </div>
                 </div>
                 <div className={cardClass}>
-                    <p className={comboTitleClass}>장비합성 대성공 확률:</p>
+                    <p className={comboTitleClass}>{t('levelEffects.combineGreatSuccess')}</p>
                     {GRADE_ORDER.slice(0, -1).map((grade, index) => {
                         const rateKey = grade as Exclude<ItemGrade, ItemGrade.Transcendent>;
                         const rate = BLACKSMITH_COMBINATION_GREAT_SUCCESS_RATES[currentLevelIndex]?.[rateKey] ?? 0;
                         const nextRate = BLACKSMITH_COMBINATION_GREAT_SUCCESS_RATES[nextLevelIndex]?.[rateKey];
                         const nextGrade = GRADE_ORDER[index + 1];
-                        const currentGradeName = GRADE_NAMES_KO[grade];
-                        const nextGradeName = GRADE_NAMES_KO[nextGrade];
+                        const currentGradeName = localizedGrade(grade);
+                        const nextGradeName = localizedGrade(nextGrade);
 
                         return (
                             <div key={grade} className={`flex justify-between gap-2 ${compact ? 'pl-1' : 'pl-2'}`}>

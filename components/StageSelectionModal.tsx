@@ -1,4 +1,5 @@
 
+import { useTranslation } from 'react-i18next';
 import React, { useMemo } from 'react';
 import { UserWithStatus, ServerAction, SinglePlayerLevel } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
@@ -17,6 +18,7 @@ interface StageSelectionModalProps {
 }
 
 const StageSelectionModal: React.FC<StageSelectionModalProps> = ({ currentUser, onClose, onAction, levelName, levelIdPrefix }) => {
+    const { t } = useTranslation('game');
     const { singlePlayerStagesListRevision } = useAppContext();
     const userProgress = currentUser.singlePlayerProgress ?? 0;
 
@@ -29,7 +31,7 @@ const StageSelectionModal: React.FC<StageSelectionModalProps> = ({ currentUser, 
     };
 
     return (
-        <DraggableWindow title={`${levelName} 스테이지 선택`} onClose={onClose} windowId={`stage-selection-${levelIdPrefix}`} initialWidth={800}>
+        <DraggableWindow title={t('stageSelection.title', { name: levelName })} onClose={onClose} windowId={`stage-selection-${levelIdPrefix}`} initialWidth={800}>
             <div className="h-[60vh] flex flex-col">
                 <div className="grid grid-cols-5 gap-4 overflow-y-auto pr-2 flex-grow">
                     {stagesForLevel.map(stage => {
@@ -51,7 +53,7 @@ const StageSelectionModal: React.FC<StageSelectionModalProps> = ({ currentUser, 
                                 <div className="flex-grow flex flex-col items-center justify-center space-y-2">
                                     <h3 className="font-bold text-lg">{stage.name}</h3>
                                     <p className="text-xs text-gray-400">
-                                        목표 점수: 흑{stage.targetScore.black > 0 ? stage.targetScore.black : '—'}/백{stage.targetScore.white > 0 ? stage.targetScore.white : '—'}집
+                                        {t('stageSelection.targetScore', { black: stage.targetScore.black > 0 ? stage.targetScore.black : '—', white: stage.targetScore.white > 0 ? stage.targetScore.white : '—' })}
                                     </p>
                                     {stage.timeControl?.type === 'fischer' && (
                                         <div className="px-2 py-0.5 rounded-full bg-blue-500/15 border border-blue-400 text-[10px] text-blue-200">
@@ -60,11 +62,11 @@ const StageSelectionModal: React.FC<StageSelectionModalProps> = ({ currentUser, 
                                     )}
                                 </div>
                                 <div className="mt-4 pt-2 border-t border-gray-600 w-full flex-shrink-0">
-                                    <p className="text-xs font-semibold text-yellow-300">최초 보상</p>
+                                    <p className="text-xs font-semibold text-yellow-300">{t('stageSelection.firstClear')}</p>
                                     <div className="flex items-center justify-center gap-2 mt-1 text-xs">
                                         {stage.rewards.firstClear.gold > 0 && (
                                             <span className="flex items-center gap-1">
-                                                <img src="/images/icon/Gold.webp" alt="골드" className="w-4 h-4" />
+                                                <img src="/images/icon/Gold.webp" alt={t('gold', { ns: 'common' })} className="w-4 h-4" />
                                                 {stage.rewards.firstClear.gold}
                                             </span>
                                         )}

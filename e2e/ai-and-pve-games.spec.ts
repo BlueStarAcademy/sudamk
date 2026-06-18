@@ -12,7 +12,7 @@ import { test, expect } from './auth.fixture.js';
 /** 전체 `goto(#/…)` 재로드는 WS·INITIAL_STATE 레이스로 로비 헤더를 놓치기 쉬움 → 프로필에서 hash만 변경 */
 async function goToAppHashFromStableProfile(page: Page, hash: string): Promise<void> {
     const normalized = hash.startsWith('#') ? hash : `#${hash}`;
-    await page.goto('/#/profile', { waitUntil: 'domcontentloaded' });
+    await page.goto('/#/home', { waitUntil: 'domcontentloaded' });
     const loginForm = page.locator('#username-login').first();
     if (await loginForm.isVisible().catch(() => false)) {
         throw new Error('E2E: 세션이 없어 로그인 폼이 보입니다. authenticatedPage / 서버·계정을 확인하세요.');

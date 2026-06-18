@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { GameRecord } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
 import GameRecordViewerPanel from './gameRecord/GameRecordViewerPanel.js';
@@ -24,6 +25,8 @@ const GameRecordViewerModal: React.FC<GameRecordViewerModalProps> = ({
     embedded = false,
     mobileFullScreen = false,
 }) => {
+    const { t } = useTranslation('profile');
+
     const modalWidth = MODAL_BOARD_PX + SIDEBAR_WIDTH_PX + MODAL_PADDING_PX;
     const modalHeight = MODAL_BOARD_PX + 160 + MODAL_PADDING_PX;
 
@@ -50,7 +53,7 @@ const GameRecordViewerModal: React.FC<GameRecordViewerModalProps> = ({
 
     return (
         <DraggableWindow
-            title={`기보 — ${record.opponent.nickname}`}
+            title={t('gameRecords.viewerTitleDash', { name: record.opponent.nickname })}
             onClose={onClose}
             initialWidth={modalWidth}
             initialHeight={modalHeight}

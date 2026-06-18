@@ -1,7 +1,8 @@
 import React, { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from '../../shared/constants/mobileModalChrome.js';
-import { COMPANY_INFO, LEGAL_EFFECTIVE_DATE } from './companyInfo.js';
+import type { CompanyInfoDisplay } from './companyInfo.js';
 
 export interface LegalSection {
     title: string;
@@ -14,6 +15,8 @@ interface LegalDocumentModalProps {
     eyebrow: string;
     intro?: string;
     sections: LegalSection[];
+    effectiveDate: string;
+    company: CompanyInfoDisplay;
     onClose: () => void;
     isTopmost?: boolean;
 }
@@ -23,9 +26,13 @@ const LegalDocumentModal: React.FC<LegalDocumentModalProps> = ({
     eyebrow,
     intro,
     sections,
+    effectiveDate,
+    company,
     onClose,
     isTopmost = true,
 }) => {
+    const { t } = useTranslation('legal');
+
     useEffect(() => {
         const previousOverflow = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
@@ -59,7 +66,7 @@ const LegalDocumentModal: React.FC<LegalDocumentModalProps> = ({
             <button
                 type="button"
                 className="absolute inset-0 bg-black/65 backdrop-blur-sm"
-                aria-label={`${title} 닫기`}
+                aria-label={t('common.closeAria', { title })}
                 onClick={onClose}
             />
 
@@ -80,9 +87,9 @@ const LegalDocumentModal: React.FC<LegalDocumentModalProps> = ({
                         type="button"
                         onClick={onClose}
                         className={SUDAMR_MODAL_CLOSE_BUTTON_CLASS}
-                        aria-label={`${title} 닫기`}
+                        aria-label={t('common.closeAria', { title })}
                     >
-                        닫기
+                        {t('common.close')}
                     </button>
                 </div>
 
@@ -95,7 +102,7 @@ const LegalDocumentModal: React.FC<LegalDocumentModalProps> = ({
                         {intro ? (
                             <p className="mt-2 text-xs leading-relaxed text-on-panel/75">{intro}</p>
                         ) : null}
-                        <p className="mt-2 text-[11px] text-tertiary">시행일: {LEGAL_EFFECTIVE_DATE}</p>
+                        <p className="mt-2 text-[11px] text-tertiary">{t('common.effectiveDate', { date: effectiveDate })}</p>
                     </div>
 
                     <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain pr-1 [scrollbar-gutter:stable]">
@@ -106,7 +113,7 @@ const LegalDocumentModal: React.FC<LegalDocumentModalProps> = ({
                                     className="rounded-xl border border-color/45 bg-secondary p-4 shadow-[0_8px_24px_rgba(0,0,0,0.28)]"
                                 >
                                     <h3 className="text-sm font-bold tracking-[0.04em] text-amber-100">
-                                        {`제 ${idx + 1} 조  ${section.title}`}
+                                        {t('common.articleHeading', { num: idx + 1, title: section.title })}
                                     </h3>
                                     {section.paragraphs?.map((p, pi) => (
                                         <p
@@ -131,13 +138,20 @@ const LegalDocumentModal: React.FC<LegalDocumentModalProps> = ({
                     </div>
 
                     <div className="mt-3 shrink-0 rounded-lg border border-color/30 bg-secondary px-4 py-2 text-[11px] leading-relaxed text-tertiary">
-                        <p className="font-semibold text-on-panel/80">{COMPANY_INFO.name}</p>
+                        <p className="font-semibold text-on-panel/80">{company.name}</p>
                         <p className="mt-0.5 break-words">
-                            대표 {COMPANY_INFO.representative} · 사업자등록번호 {COMPANY_INFO.businessNumber} ·
-                            통신판매업신고 {COMPANY_INFO.mailOrderNumber}
+                            {t('common.footerRepresentative', {
+                                representative: company.representative,
+                                businessNumber: company.businessNumber,
+                                mailOrderNumber: company.mailOrderNumber,
+                            })}
                         </p>
                         <p className="mt-0.5 break-words">
-                            {COMPANY_INFO.address} · 고객센터 {COMPANY_INFO.phone} · {COMPANY_INFO.email}
+                            {t('common.footerContact', {
+                                address: company.address,
+                                phone: company.phone,
+                                email: company.email,
+                            })}
                         </p>
                     </div>
                 </div>

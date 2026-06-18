@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import DraggableWindow from '../DraggableWindow.js';
 import { ADVENTURE_STAGES } from '../../constants/adventureConstants.js';
 import type { AdventureProfile } from '../../types/entities.js';
@@ -12,6 +13,7 @@ const AdventureRegionalBuffModal: React.FC<{
     onClose: () => void;
     isTopmost?: boolean;
 }> = ({ stageId, profile, userGold = 0, onClose, isTopmost }) => {
+    const { t } = useTranslation('lobby');
     const stage = ADVENTURE_STAGES.find((s) => s.id === stageId);
     const stageRows = useMemo(() => buildAdventureStageUnderstandingRows(profile), [profile]);
 
@@ -19,7 +21,10 @@ const AdventureRegionalBuffModal: React.FC<{
 
     return (
         <DraggableWindow
-            title={`CH.${String(stage.stageIndex).padStart(2, '0')} ${stage.title} · 지역 효과`}
+            title={t('adventure.regionalEffectModalTitle', {
+                chapter: String(stage.stageIndex).padStart(2, '0'),
+                title: stage.title,
+            })}
             onClose={onClose}
             windowId={`adventure-regional-buff-${stageId}`}
             initialWidth={600}

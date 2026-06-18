@@ -1,4 +1,6 @@
 import React, { useState, useMemo } from 'react';
+import { useLocalizedGameMode } from '../shared/i18n/localizedCatalog.js';
+import { useTranslation } from 'react-i18next';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants';
 import Button from './Button.js';
 import { useAppContext } from '../hooks/useAppContext.js';
@@ -12,6 +14,8 @@ const PANEL_W = 896;
 const PANEL_H = 740;
 
 const GameApplicationModal: React.FC<GameApplicationModalProps> = ({ onClose }) => {
+    const { t } = useTranslation('game');
+    const localizedGameMode = useLocalizedGameMode();
   const { handlers } = useAppContext();
 
   const allGameModes = useMemo(() => {
@@ -29,7 +33,7 @@ const GameApplicationModal: React.FC<GameApplicationModalProps> = ({ onClose }) 
 
   return (
     <DraggableWindow
-      title="게임 신청"
+      title={t('gameApplication.title')}
       windowId="game-application"
       onClose={onClose}
       initialWidth={PANEL_W}
@@ -40,7 +44,7 @@ const GameApplicationModal: React.FC<GameApplicationModalProps> = ({ onClose }) 
       <div className="flex min-h-0 flex-1 flex-col gap-0">
         <div className="flex min-h-0 flex-1 gap-6">
           <div className="w-1/3 min-w-0 flex flex-col rounded-lg bg-gray-800 p-4 shadow-inner">
-            <h3 className="mb-4 border-b border-gray-600 pb-3 text-2xl font-semibold">게임 모드</h3>
+            <h3 className="mb-4 border-b border-gray-600 pb-3 text-2xl font-semibold">{t('gameApplication.modeHeading')}</h3>
             <div className="flex min-h-0 flex-1 flex-col space-y-2 overflow-y-auto">
               {allGameModes.map((game) => (
                 <button
@@ -58,7 +62,7 @@ const GameApplicationModal: React.FC<GameApplicationModalProps> = ({ onClose }) 
           <div className="flex w-2/3 min-w-0 flex-col justify-between rounded-lg bg-gray-800 p-6 shadow-inner">
             {selectedGameMode ? (
               <div className="flex min-h-0 flex-1 flex-col">
-                <h3 className="mb-4 text-3xl font-bold text-primary">{selectedGameMode.mode} 신청</h3>
+                <h3 className="mb-4 text-3xl font-bold text-primary">{t('gameApplication.applyTitle', { mode: selectedGameMode.mode })}</h3>
                 <div className="mb-4 flex items-center">
                   <img src={selectedGameMode.image} alt={selectedGameMode.mode} className="mr-4 h-24 w-24 rounded-md object-cover" />
                   <p className="text-xl leading-snug text-gray-300">{selectedGameMode.description}</p>
@@ -68,7 +72,7 @@ const GameApplicationModal: React.FC<GameApplicationModalProps> = ({ onClose }) 
                 </div>
               </div>
             ) : (
-              <p className="mt-20 text-center text-2xl text-gray-400">게임을 선택해주세요.</p>
+              <p className="mt-20 text-center text-2xl text-gray-400">{t('gameApplication.selectMode')}</p>
             )}
             <div className="mt-6 flex-shrink-0">
               <Button onClick={handleApplyForGame} className="w-full py-3.5 text-xl font-semibold" disabled={!selectedGameMode}>

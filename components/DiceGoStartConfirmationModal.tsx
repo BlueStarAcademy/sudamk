@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LiveGameSession, User, ServerAction, Player } from '../types.js';
 import Avatar from './Avatar.js';
 import Button from './Button.js';
@@ -15,6 +16,9 @@ interface DiceGoStartConfirmationModalProps {
 }
 
 const DiceGoStartConfirmationModal: React.FC<DiceGoStartConfirmationModalProps> = ({ session, currentUser, onAction }) => {
+    const { t } = useTranslation('game');
+    const { t: tCommon } = useTranslation('common');
+    const { t } = useTranslation('game');
     const { id: gameId, player1, player2, blackPlayerId, whitePlayerId, preGameConfirmations, revealEndTime, turnOrderRolls } = session;
     const hasConfirmed = preGameConfirmations?.[currentUser.id];
     const [countdown, setCountdown] = useState(PRE_GAME_PVP_COUNTDOWN_SECONDS);
@@ -46,7 +50,7 @@ const DiceGoStartConfirmationModal: React.FC<DiceGoStartConfirmationModalProps> 
 
     return (
         <DraggableWindow
-            title="대국 시작 확인"
+            title={t('startConfirm.title')}
             initialWidth={460}
             shrinkHeightToContent
             windowId="dice-go-start-confirm"
@@ -61,14 +65,14 @@ const DiceGoStartConfirmationModal: React.FC<DiceGoStartConfirmationModalProps> 
         >
             <div className="text-white">
                 {p1Roll !== null && p2Roll !== null && (
-                    <p className="text-center text-gray-300 mb-2">주사위 결과 <span className="font-bold text-yellow-300">{winner.nickname}</span>님이 승리하여 선/후공이 결정되었습니다.</p>
+                    <p className="text-center text-gray-300 mb-2" dangerouslySetInnerHTML={{ __html: t('diceGo.winner', { name: winner.nickname }) }} />
                 )}
-                <p className="text-center text-gray-400 mb-4 text-sm">아래 시작 버튼을 누르거나 30초 후 대국이 자동으로 시작됩니다.</p>
+                <p className="text-center text-gray-400 mb-4 text-sm">{t('diceGo.autoStart')}</p>
                 <RoundCountdownIndicator
                     deadline={revealEndTime}
                     durationSeconds={PRE_GAME_PVP_COUNTDOWN_SECONDS}
-                    label="자동 진행까지"
-                    labelShort="자동 진행"
+                    label={t('autoProceed', { ns: 'common' })}
+                    labelShort={t('autoProceedShort', { ns: 'common' })}
                 />
 
                 {p1Roll !== null && p2Roll !== null && (
@@ -91,12 +95,12 @@ const DiceGoStartConfirmationModal: React.FC<DiceGoStartConfirmationModalProps> 
                     <div className="w-1/2 flex flex-col items-center p-4 bg-gray-900/50 rounded-lg border border-gray-700">
                         <Avatar userId={blackPlayer.id} userName={blackPlayer.nickname} size={64} avatarUrl={blackAvatarUrl} borderUrl={blackBorderUrl} />
                         <p className="mt-2 font-bold">{blackPlayer.nickname}</p>
-                        <p className="font-semibold">선공 (흑)</p>
+                        <p className="font-semibold">{t('diceGo.firstBlack')}</p>
                     </div>
                     <div className="w-1/2 flex flex-col items-center p-4 bg-gray-900/50 rounded-lg border border-gray-700">
                         <Avatar userId={whitePlayer.id} userName={whitePlayer.nickname} size={64} avatarUrl={whiteAvatarUrl} borderUrl={whiteBorderUrl} />
                         <p className="mt-2 font-bold">{whitePlayer.nickname}</p>
-                        <p className="font-semibold">후공 (백)</p>
+                        <p className="font-semibold">{t('diceGo.secondWhite')}</p>
                     </div>
                 </div>
 
@@ -105,7 +109,7 @@ const DiceGoStartConfirmationModal: React.FC<DiceGoStartConfirmationModalProps> 
                     disabled={!!hasConfirmed}
                     className="w-full py-3 mt-6"
                 >
-                    {hasConfirmed ? '상대방 확인 대기 중...' : `대국 시작 (${countdown})`}
+                    {hasConfirmed ? t('startConfirm.waitingConfirm') : t('startConfirm.startCountdown', { count: countdown })}
                 </Button>
             </div>
         </DraggableWindow>

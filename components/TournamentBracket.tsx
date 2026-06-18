@@ -1,4 +1,28 @@
 import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, Component, ErrorInfo, ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
+import i18n from '../shared/i18n/config.js';
+
+const tt = (key: string, opts?: Record<string, unknown>) => i18n.t(`tournament:${key}`, opts);
+
+const TB_RND_16 = '16\uAC15';
+const TB_RND_QF = '8\uAC15';
+const TB_RND_SF = '4\uAC15';
+const TB_RND_FINAL = '\uACB0\uC2B9';
+const TB_RND_THIRD = '3,4\uC704\uC804';
+const TB_TAB_SF = '4\uAC15\uC804';
+const TB_TAB_FINAL_THIRD = '\uACB0\uC2B9&3/4\uC704\uC804';
+const TB_TAB_FINAL_THIRD_ALT = '\uACB0\uC2B9 \uBC0F 3/4\uC704\uC804';
+const TB_ROUND_SUFFIX = '\uD68C\uCC28';
+const TB_ITEM_GOLD = '\uACE8\uB4DC';
+
+const displayBracketTabName = (name: string): string => {
+    if (name === TB_RND_16) return tt('round16');
+    if (name === TB_RND_QF) return tt('roundQuarter');
+    if (name === TB_TAB_SF) return tt('tabSemifinal');
+    if (name === TB_TAB_FINAL_THIRD || name === TB_TAB_FINAL_THIRD_ALT) return tt('tabFinalThird');
+    return name;
+};
+import { tx } from '../shared/i18n/runtimeText.js';
 import { createPortal } from 'react-dom';
 import {
     UserWithStatus,
@@ -188,7 +212,7 @@ function buildChampionshipDungeonStandings(tournamentState: TournamentState): Ch
     return rankedPlayers.map((p, i) => ({
         rank: i + 1,
         playerId: p.id,
-        nickname: p.nickname ?? '선수',
+        nickname: p.nickname ?? tt('defaultPlayer'),
         wins: playerWins[p.id] ?? 0,
         losses: playerLosses[p.id] ?? 0,
     }));
@@ -265,7 +289,7 @@ class PlayerProfilePanelErrorBoundary extends Component<
         if (this.state.hasError) {
             return this.props.fallback || (
                 <div className="flex h-full items-center justify-center rounded-lg border border-gray-600/50 bg-slate-950/90 p-2 text-center text-gray-500">
-                    선수 정보를 불러오는 중 오류가 발생했습니다.
+                    {tx('tournament:playerLoadError')}
                 </div>
             );
         }
@@ -327,6 +351,7 @@ export const ChampionshipRealGoBoard: React.FC<{
     territoryAnalysis = null,
     dungeonPlayersEnteringHint,
 }) => {
+    const { t } = useTranslation('tournament');
     const realGame = match?.championshipRealGame;
 
     // 서버는 START_TOURNAMENT_MATCH 시점에 이미 둔 결과(최종 보드)와 함께 currentPly=0으로 내려준다.
@@ -388,7 +413,7 @@ export const ChampionshipRealGoBoard: React.FC<{
             return (
                 <ChampionshipBoardCenterNotice>
                     <span className={`${CHAMPIONSHIP_BOARD_CENTER_NOTICE_TEXT} text-amber-100`}>
-                        경기가 모두 종료되었습니다. 시상식이 치뤄지고 있습니다.
+                        {t('allMatchesEnded')}
                     </span>
                 </ChampionshipBoardCenterNotice>
             );
@@ -397,7 +422,7 @@ export const ChampionshipRealGoBoard: React.FC<{
             return (
                 <ChampionshipBoardCenterNotice>
                     <span className={`whitespace-nowrap ${CHAMPIONSHIP_BOARD_CENTER_NOTICE_TEXT} text-cyan-50`}>
-                        대회에 참가하기 위해 심호흡을 하고있습니다.
+                        {t('breathing')}
                     </span>
                 </ChampionshipBoardCenterNotice>
             );
@@ -407,7 +432,7 @@ export const ChampionshipRealGoBoard: React.FC<{
                 <ChampionshipBoardCenterNotice className="py-4">
                     <InlineLoadingSpinner
                         size="lg"
-                        label={dungeonPlayersEnteringHint ?? '선수들이 입장하고 있습니다. 잠시만 기다려주세요.'}
+                        label={dungeonPlayersEnteringHint ?? t('playersEntering')}
                         labelClassName={`max-w-none text-center whitespace-nowrap sm:whitespace-normal ${CHAMPIONSHIP_BOARD_CENTER_NOTICE_TEXT} text-sky-100`}
                     />
                 </ChampionshipBoardCenterNotice>
@@ -417,8 +442,8 @@ export const ChampionshipRealGoBoard: React.FC<{
         return <div className="h-full w-full bg-transparent" aria-hidden />;
     }
 
-    const blackName = match?.players.find(p => p?.id === realGame.blackPlayerId)?.nickname ?? '흑';
-    const whiteName = match?.players.find(p => p?.id === realGame.whitePlayerId)?.nickname ?? '백';
+    const blackName = match?.players.find(p => p?.id === realGame.blackPlayerId)?.nickname ?? t('black');
+    const whiteName = match?.players.find(p => p?.id === realGame.whitePlayerId)?.nickname ?? t('white');
     const isFreshBeforePlayback = (realGame.currentPly ?? 0) === 0 && realGame.status !== 'finished';
     const lastMoveForDisplay = isFreshBeforePlayback ? null : realGame.lastMove;
     const moveHistoryForDisplay = isFreshBeforePlayback ? [] : realGame.moves;
@@ -464,7 +489,7 @@ export const ChampionshipRealGoBoard: React.FC<{
                         <div className="championship-scoring-beam absolute inset-y-0" aria-hidden />
                         <div className="absolute inset-0 flex items-center justify-center">
                             <div className="rounded-2xl border border-cyan-300/60 bg-slate-950/90 px-5 py-2.5 text-center shadow-2xl">
-                                <div className="text-base font-bold tracking-wide text-cyan-200">계가 중...</div>
+                                <div className="text-base font-bold tracking-wide text-cyan-200">{t('scoring')}</div>
                             </div>
                         </div>
                     </div>
@@ -548,10 +573,10 @@ export const ChampionshipMatchResultPanel: React.FC<{
                             : 'border-slate-600/40 bg-slate-900/50 text-slate-200'
                     }`}
                 >
-                    <span className="shrink-0 font-black tabular-nums text-amber-200">{row.rank}위</span>
+                    <span className="shrink-0 font-black tabular-nums text-amber-200">{tt('rankSuffix', { rank: row.rank })}</span>
                     <span className="min-w-0 flex-1 truncate font-bold">{row.nickname}</span>
                     <span className="shrink-0 tabular-nums text-slate-300">
-                        {row.wins}승 {row.losses}패
+                        {tt('recordWinsLosses', { wins: row.wins, losses: row.losses })}
                     </span>
                 </li>
             ))}
@@ -566,7 +591,7 @@ export const ChampionshipMatchResultPanel: React.FC<{
                 compact ? 'px-2 py-1.5 text-[10px]' : 'px-3 py-2 text-xs'
             }`}
         >
-            {panelView === 'match' ? '최종 결과' : '경기결과'}
+            {panelView === 'match' ? tt('finalResult') : tt('matchResult')}
         </button>
     ) : null;
 
@@ -608,7 +633,7 @@ export const ChampionshipMatchResultPanel: React.FC<{
                                 >
                                     <Avatar
                                         userId={userInMatch?.id ?? currentUser.id}
-                                        userName={userInMatch?.nickname ?? '나'}
+                                        userName={userInMatch?.nickname ?? tt('me')}
                                         avatarUrl={userAvatarUrl}
                                         borderUrl={userBorderUrl}
                                         size={compact ? 40 : 48}
@@ -617,12 +642,12 @@ export const ChampionshipMatchResultPanel: React.FC<{
                                 <div
                                     className={`mt-0.5 max-w-full truncate font-bold text-slate-100 ${compact ? 'text-[10px]' : 'text-[10px] sm:text-[11px]'}`}
                                 >
-                                    {userInMatch?.nickname ?? '나'}
+                                    {userInMatch?.nickname ?? tt('me')}
                                 </div>
                                 <div
                                     className={`font-semibold text-emerald-200/85 ${compact ? 'text-[9px]' : 'text-[9px] sm:text-[10px]'}`}
                                 >
-                                    대회 {userRecord.wins}승 <span className="text-rose-200/85">{userRecord.losses}패</span>
+                                    {tt('tournamentRecord', { wins: userRecord.wins, losses: userRecord.losses })}
                                 </div>
                             </div>
 
@@ -630,12 +655,12 @@ export const ChampionshipMatchResultPanel: React.FC<{
                                 <div
                                     className={`font-black leading-tight ${compact ? 'text-base' : 'text-lg sm:text-xl'} ${userWonThisMatch ? 'text-emerald-200' : 'text-rose-200'}`}
                                 >
-                                    {userWonThisMatch ? '승리' : '패배'}
+                                    {userWonThisMatch ? tt('victory') : tt('defeat')}
                                 </div>
                                 <div
                                     className={`mt-0.5 font-bold text-slate-300 ${compact ? 'text-[10px]' : 'text-[10px] sm:text-xs'}`}
                                 >
-                                    {finishedScoreLeadAbs > 0 ? `${finishedScoreLeadAbs.toFixed(1)}집 차` : '백병전'}
+                                    {finishedScoreLeadAbs > 0 ? tt('scoreLead', { points: finishedScoreLeadAbs.toFixed(1) }) : tt('jigo')}
                                 </div>
                             </div>
 
@@ -649,7 +674,7 @@ export const ChampionshipMatchResultPanel: React.FC<{
                                 >
                                     <Avatar
                                         userId={opponentInMatch?.id ?? 'opponent'}
-                                        userName={opponentInMatch?.nickname ?? '상대'}
+                                        userName={opponentInMatch?.nickname ?? tt('opponent')}
                                         avatarUrl={opponentAvatarUrl}
                                         borderUrl={opponentBorderUrl}
                                         size={compact ? 40 : 48}
@@ -658,12 +683,12 @@ export const ChampionshipMatchResultPanel: React.FC<{
                                 <div
                                     className={`mt-0.5 max-w-full truncate font-bold text-slate-100 ${compact ? 'text-[10px]' : 'text-[10px] sm:text-[11px]'}`}
                                 >
-                                    {opponentInMatch?.nickname ?? '상대'}
+                                    {opponentInMatch?.nickname ?? tt('opponent')}
                                 </div>
                                 <div
                                     className={`font-semibold text-emerald-200/85 ${compact ? 'text-[9px]' : 'text-[9px] sm:text-[10px]'}`}
                                 >
-                                    대회 {opponentRecord.wins}승 <span className="text-rose-200/85">{opponentRecord.losses}패</span>
+                                    {tt('tournamentRecord', { wins: opponentRecord.wins, losses: opponentRecord.losses })}
                                 </div>
                             </div>
                         </div>
@@ -695,9 +720,9 @@ const CHAMPIONSHIP_MOBILE_OVERLAY_DRAWER_BOTTOM = 'calc(env(safe-area-inset-bott
 const CHAMPIONSHIP_MOBILE_SIDEBAR_OPEN_TAB_BOTTOM = 'calc(env(safe-area-inset-bottom, 0px) + 7.5rem + 0.25rem)';
 
 const CHAMPIONSHIP_PHASE_META = [
-    { key: 'opening' as const, label: '초반', ply19: 1, ply13: 1, ply9: 1 },
-    { key: 'midgame' as const, label: '중반', ply19: 61, ply13: 31, ply9: 15 },
-    { key: 'endgame' as const, label: '종반', ply19: 121, ply13: 61, ply9: 29 },
+    { key: 'opening' as const, label: tt('phases.opening'), ply19: 1, ply13: 1, ply9: 1 },
+    { key: 'midgame' as const, label: tt('phases.midgame'), ply19: 61, ply13: 31, ply9: 15 },
+    { key: 'endgame' as const, label: tt('phases.endgame'), ply19: 121, ply13: 61, ply9: 29 },
 ];
 
 function championshipPhaseMetaPly(boardSize: number, phase: (typeof CHAMPIONSHIP_PHASE_META)[number]): number {
@@ -913,11 +938,11 @@ export const ChampionshipAbilityPlayerPanel: React.FC<{
                 <div>
                     <div className="text-[13px] font-black tracking-wide text-amber-100">{sideLabel}</div>
                     <div className="mt-0.5 max-w-[7rem] truncate text-[11px] font-semibold text-slate-300">
-                        {splitPairAbilities ? '유저 · 펫 능력치' : `${player?.nickname ?? '선수'} 능력치`}
+                        {splitPairAbilities ? tt('userPetAbility') : tt('playerAbility', { name: player?.nickname ?? tt('defaultPlayer') })}
                     </div>
                 </div>
                 <div className={`rounded-lg border px-2 py-1 text-[12px] font-black shadow-inner ${phaseBadgeClass}`}>
-                    {currentPhase === 'early' ? '초반' : currentPhase === 'mid' ? '중반' : currentPhase === 'end' ? '종반' : '대기'}
+                    {currentPhase === 'early' ? tt('phases.opening') : currentPhase === 'mid' ? tt('phases.midgame') : currentPhase === 'end' ? tt('phases.endgame') : tt('phases.waiting')}
                 </div>
             </div>
 
@@ -961,7 +986,7 @@ const ChampionshipAbilitySidePanel: React.FC<{
             match={match}
             currentPhase={currentPhase}
             tone="black"
-            sideLabel="챔피언십 능력치"
+            sideLabel={tt('championshipAbility')}
             abilityKataLadder={abilityKataLadder}
         />
         <ChampionshipAbilityPlayerPanel
@@ -970,7 +995,7 @@ const ChampionshipAbilitySidePanel: React.FC<{
             match={match}
             currentPhase={currentPhase}
             tone="white"
-            sideLabel="챔피언십 능력치"
+            sideLabel={tt('championshipAbility')}
             abilityKataLadder={abilityKataLadder}
         />
     </div>
@@ -1332,13 +1357,13 @@ const PlayerProfilePanel: React.FC<{
         const counts: Record<string, number> = { small: 0, medium: 0, large: 0 };
         if (fullUserData?.inventory) {
             fullUserData.inventory
-                .filter(item => item.type === 'consumable' && item.name.startsWith('컨디션회복제'))
+                .filter(item => item.type === 'consumable' && item.name.startsWith('\uCEE4\uB514\uC158\uD68C\uBCF5\uC81C'))
                 .forEach(item => {
-                    if (item.name === '컨디션회복제(소)') {
+                    if (item.name === '\uCEE4\uB514\uC158\uD68C\uBCF5\uC81C(\uC18C)') {
                         counts.small += item.quantity || 1;
-                    } else if (item.name === '컨디션회복제(중)') {
+                    } else if (item.name === '\uCEE4\uB514\uC158\uD68C\uBCF5\uC81C(\uC911)') {
                         counts.medium += item.quantity || 1;
-                    } else if (item.name === '컨디션회복제(대)') {
+                    } else if (item.name === '\uCEE4\uB514\uC158\uD68C\uBCF5\uC81C(\uB300)') {
                         counts.large += item.quantity || 1;
                     }
                 });
@@ -1533,7 +1558,7 @@ const PlayerProfilePanel: React.FC<{
     // player가 null이면 early return (이미 위에서 처리했지만 안전성을 위해 다시 확인)
     // 이 시점에서 player가 null이면 모든 hooks가 실행되었지만 안전하게 처리되었으므로 안전함
     if (!player) {
-        return <div className="flex h-full items-center justify-center rounded-lg border border-gray-600/50 bg-slate-950/90 p-2 text-center text-gray-500">선수 대기 중...</div>;
+        return <div className="flex h-full items-center justify-center rounded-lg border border-gray-600/50 bg-slate-950/90 p-2 text-center text-gray-500">{tt('playerWaiting')}</div>;
     }
     
     // player가 확실히 존재하므로 안전하게 접근 가능
@@ -1551,7 +1576,7 @@ const PlayerProfilePanel: React.FC<{
 
     // 모든 필수 값이 유효한지 확인
     if (!playerId || !playerNickname) {
-        return <div className="flex h-full items-center justify-center rounded-lg border border-gray-600/50 bg-slate-950/90 p-2 text-center text-gray-500">선수 정보를 불러올 수 없습니다.</div>;
+        return <div className="flex h-full items-center justify-center rounded-lg border border-gray-600/50 bg-slate-950/90 p-2 text-center text-gray-500">{tt('playerLoadFailed')}</div>;
     }
 
     /** Avatar.tsx 이미지 테두리 최대 배율(링 1.5)과 동일 — 슬롯을 맞춰 양쪽 패널 능력치 행이 수평으로 정렬되게 함 */
@@ -1560,8 +1585,8 @@ const PlayerProfilePanel: React.FC<{
     const totalGames = cumulativeStats.wins + cumulativeStats.losses;
     const winRateLine =
         totalGames === 0
-            ? '전적 없음'
-            : `${((100 * cumulativeStats.wins) / totalGames).toFixed(1)}% (${cumulativeStats.wins}승 ${cumulativeStats.losses}패)`;
+            ? tt('noRecord')
+            : tt('winRateWithRecord', { rate: ((100 * cumulativeStats.wins) / totalGames).toFixed(1), wins: cumulativeStats.wins, losses: cumulativeStats.losses });
     const showConditionInStatus =
         tournamentStatus !== 'complete' &&
         tournamentStatus !== 'eliminated' &&
@@ -1582,7 +1607,7 @@ const PlayerProfilePanel: React.FC<{
                 <div
                     className={`flex w-full shrink-0 items-center gap-2 ${isClickable ? 'cursor-pointer hover:bg-slate-800/80' : ''}`}
                     onClick={isClickable ? () => onViewUser(playerId) : undefined}
-                    title={isClickable ? `${playerNickname} 프로필 보기` : ''}
+                    title={isClickable ? tt('viewProfile', { name: playerNickname }) : ''}
                 >
                     {showLeague && leagueInfo && (
                         <img
@@ -1614,8 +1639,8 @@ const PlayerProfilePanel: React.FC<{
                     <div className="grid shrink-0 grid-cols-2 gap-0.5 border-b border-amber-500/25 px-0.5 pb-1 pt-0.5">
                         {(
                             [
-                                ['status', '상태정보'],
-                                ['abilities', '능력수치'],
+                                ['status', tt('statusInfo')],
+                                ['abilities', tt('abilityStats')],
                             ] as const
                         ).map(([key, label]) => {
                             const active = championshipMobileInfoTab === key;
@@ -1638,7 +1663,7 @@ const PlayerProfilePanel: React.FC<{
 
                     {showConditionInStatus ? (
                         <div className="flex shrink-0 items-center justify-between gap-2 border-b border-gray-600/50 px-1 py-1">
-                            <span className="shrink-0 text-[10px] font-semibold text-gray-400">컨디션</span>
+                            <span className="shrink-0 text-[10px] font-semibold text-gray-400">{tt('condition')}</span>
                             <div className="relative flex min-w-0 flex-1 items-center justify-end gap-1.5">
                                 <span
                                     className={`font-mono text-sm font-bold text-yellow-300 transition-all duration-300 ${
@@ -1680,10 +1705,10 @@ const PlayerProfilePanel: React.FC<{
                                         }`}
                                         title={
                                             playerCondition >= 100
-                                                ? '컨디션이 이미 최대입니다'
+                                                ? tt('conditionMax')
                                                 : !canUseConditionPotion
-                                                  ? '지금은 컨디션 회복제를 사용할 수 없습니다'
-                                                  : '컨디션 회복제 사용'
+                                                  ? tt('conditionPotionUnavailable')
+                                                  : tt('useConditionPotion')
                                         }
                                     >
                                         +
@@ -1700,11 +1725,11 @@ const PlayerProfilePanel: React.FC<{
                         {championshipMobileInfoTab === 'status' ? (
                             <div className="flex flex-col gap-1">
                                 <div className={rowClass}>
-                                    <span className="shrink-0 font-semibold text-gray-300">바둑능력</span>
+                                    <span className="shrink-0 font-semibold text-gray-300">{tt('badukAbility')}</span>
                                     <span className="truncate text-right font-mono font-bold text-blue-300 tabular-nums">{totalAbilityScore}</span>
                                 </div>
                                 <div className={rowClass}>
-                                    <span className="shrink-0 font-semibold text-gray-300">승률</span>
+                                    <span className="shrink-0 font-semibold text-gray-300">{tt('winRate')}</span>
                                     <span className="min-w-0 truncate text-right text-gray-100">{winRateLine}</span>
                                 </div>
                             </div>
@@ -1790,7 +1815,7 @@ const PlayerProfilePanel: React.FC<{
                                 })}
                                 {(['early', 'mid', 'end'] as const).map((pk) => {
                                     const agg = championshipPhaseAggregateCellClass(pk, highlightPhase, true, 'inlineRow');
-                                    const label = pk === 'early' ? '초반능력' : pk === 'mid' ? '중반능력' : '종반능력';
+                                    const label = pk === 'early' ? tt('earlyAbility') : pk === 'mid' ? tt('midAbility') : tt('endAbility');
                                     const val = pk === 'early' ? phaseStats?.early : pk === 'mid' ? phaseStats?.mid : phaseStats?.end;
                                     return (
                                         <div key={pk} className={`text-[10px] ${agg.wrap}`}>
@@ -1823,7 +1848,7 @@ const PlayerProfilePanel: React.FC<{
     }
 
     return (
-        <div className={`flex h-full min-h-0 flex-col gap-1 rounded-lg border border-gray-600/55 bg-slate-950/90 p-2 ${isClickable ? 'cursor-pointer hover:bg-slate-800/95' : ''}`} onClick={isClickable ? () => onViewUser(playerId) : undefined} title={isClickable ? `${playerNickname} 프로필 보기` : ''} style={{ maxHeight: '100%', overflowY: 'auto', overflowX: 'hidden' }}>
+        <div className={`flex h-full min-h-0 flex-col gap-1 rounded-lg border border-gray-600/55 bg-slate-950/90 p-2 ${isClickable ? 'cursor-pointer hover:bg-slate-800/95' : ''}`} onClick={isClickable ? () => onViewUser(playerId) : undefined} title={isClickable ? tt('viewProfile', { name: playerNickname }) : ''} style={{ maxHeight: '100%', overflowY: 'auto', overflowX: 'hidden' }}>
             <div className="flex items-center gap-2 w-full flex-shrink-0">
                 {showLeague && leagueInfo && (
                     <img
@@ -1848,9 +1873,9 @@ const PlayerProfilePanel: React.FC<{
                  <div className="min-w-0 flex-1">
                     <div className={`flex flex-row items-center ${isMobile ? 'gap-1 flex-wrap' : 'gap-1.5'}`}>
                         <h4 className={`font-bold ${isMobile ? 'text-sm' : 'text-base'} truncate`}>{playerNickname}</h4>
-                        <span className={`${isMobile ? 'text-xs' : 'text-xs'} text-blue-300 font-semibold whitespace-nowrap`}>바둑능력: {totalAbilityScore}</span>
+                        <span className={`${isMobile ? 'text-xs' : 'text-xs'} text-blue-300 font-semibold whitespace-nowrap`}>{tt('badukAbility')}: {totalAbilityScore}</span>
                     </div>
-                    <p className={`${isMobile ? 'text-xs' : 'text-xs'} text-gray-400 truncate`}>({cumulativeStats.wins}승 {cumulativeStats.losses}패)</p>
+                    <p className={`${isMobile ? 'text-xs' : 'text-xs'} text-gray-400 truncate`}>({tt('recordWinsLosses', { wins: cumulativeStats.wins, losses: cumulativeStats.losses })})</p>
                  </div>
             </div>
             {/* 컨디션 표시 영역 - 항상 동일한 공간 유지 (대회 종료·탈락 후에는 숨김) */}
@@ -1859,7 +1884,7 @@ const PlayerProfilePanel: React.FC<{
                 height: showConditionInStatus ? 'auto' : '1.25rem',
                 minHeight: '1.25rem'
             }}>
-                <span className={isMobile ? 'text-xs' : 'text-sm'}>컨디션:</span> 
+                <span className={isMobile ? 'text-xs' : 'text-sm'}>{tt('condition')}:</span> 
                 <span className={`text-yellow-300 ${isMobile ? 'text-xs' : 'text-sm'} relative transition-all duration-300 ${
                     showConditionIncrease ? 'scale-125 text-green-300' : ''
                 }`}>
@@ -1897,10 +1922,10 @@ const PlayerProfilePanel: React.FC<{
                         } text-white rounded-full transition-colors flex-shrink-0 flex items-center justify-center font-bold`}
                         title={
                             playerCondition >= 100
-                                ? '컨디션이 이미 최대입니다'
+                                ? tt('conditionMax')
                                 : !canUseConditionPotion
-                                  ? '지금은 컨디션 회복제를 사용할 수 없습니다'
-                                  : '컨디션 회복제 사용'
+                                  ? tt('conditionPotionUnavailable')
+                                  : tt('useConditionPotion')
                         }
                     >
                         +
@@ -2035,7 +2060,7 @@ const PlayerProfilePanel: React.FC<{
                     <div className={`grid grid-cols-3 gap-1 ${isMobile ? 'text-[10px]' : 'text-xs'}`}>
                         {(['early', 'mid', 'end'] as const).map((pk) => {
                             const agg = championshipPhaseAggregateCellClass(pk, highlightPhase, isMobile);
-                            const label = pk === 'early' ? '초반능력' : pk === 'mid' ? '중반능력' : '종반능력';
+                            const label = pk === 'early' ? tt('earlyAbility') : pk === 'mid' ? tt('midAbility') : tt('endAbility');
                             const val = pk === 'early' ? phaseStats?.early : pk === 'mid' ? phaseStats?.mid : phaseStats?.end;
                             return (
                                 <div key={pk} className={agg.wrap}>
@@ -2102,8 +2127,8 @@ const MobileChampionshipPlayersCompare: React.FC<{
             });
         }
         const total = wins + losses;
-        if (total === 0) return '전적 없음';
-        return `${((100 * wins) / total).toFixed(1)}% (${wins}승 ${losses}패)`;
+        if (total === 0) return tt('noRecord');
+        return tt('winRateWithRecord', { rate: ((100 * wins) / total).toFixed(1), wins, losses });
     };
 
     const totalAbility = (stats: Record<string, number>) =>
@@ -2188,7 +2213,7 @@ const MobileChampionshipPlayersCompare: React.FC<{
                         <div className={`mb-0.5 text-center text-[10px] font-semibold ${titleCls}`}>{title}</div>
                     ) : null}
                     <div className="flex min-h-[4.5rem] flex-1 items-center justify-center px-0.5 text-center text-[10px] text-stone-500">
-                        선수 대기 중
+                        {tt('playerWaitingShort')}
                     </div>
                 </div>
             );
@@ -2204,7 +2229,7 @@ const MobileChampionshipPlayersCompare: React.FC<{
                     <div
                         className={`mx-auto w-[88%] shrink-0 ${clickable ? 'cursor-pointer' : ''}`}
                         onClick={clickable ? () => onViewUser(player.id) : undefined}
-                        title={clickable ? `${player.nickname} 프로필 보기` : ''}
+                        title={clickable ? tt('viewProfile', { name: player.nickname }) : ''}
                     >
                         <div className="flex justify-center">
                             <Avatar userId={player.id} userName={player.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={avatarPx} />
@@ -2214,7 +2239,7 @@ const MobileChampionshipPlayersCompare: React.FC<{
                         <div className={`text-[11px] font-semibold whitespace-normal break-words sm:text-xs ${titleCls}`}>
                             {player.nickname}
                         </div>
-                        {isCurrent ? <div className="text-[10px] font-semibold text-amber-300/90">나</div> : null}
+                        {isCurrent ? <div className="text-[10px] font-semibold text-amber-300/90">{tt('me')}</div> : null}
                     </div>
                 </div>
             </div>
@@ -2240,7 +2265,7 @@ const MobileChampionshipPlayersCompare: React.FC<{
                 <div
                     className={clickable ? 'cursor-pointer' : ''}
                     onClick={clickable ? () => onViewUser(player.id) : undefined}
-                    title={clickable ? `${player.nickname} 프로필 보기` : ''}
+                    title={clickable ? tt('viewProfile', { name: player.nickname }) : ''}
                 >
                     <Avatar
                         userId={player.id}
@@ -2253,7 +2278,7 @@ const MobileChampionshipPlayersCompare: React.FC<{
                 <div className={`w-full px-0.5 text-center text-[0.95em] font-semibold leading-tight ${titleCls}`}>
                     <span className="line-clamp-2 break-words">{player.nickname}</span>
                 </div>
-                {isCurrent ? <span className="text-[0.82em] font-semibold text-amber-300/90">나</span> : null}
+                {isCurrent ? <span className="text-[0.82em] font-semibold text-amber-300/90">{tt('me')}</span> : null}
             </div>
         );
     };
@@ -2264,8 +2289,8 @@ const MobileChampionshipPlayersCompare: React.FC<{
                 <div className="grid shrink-0 grid-cols-2 gap-0.5 border-b border-cyan-500/20 px-1 py-1.5">
                     {(
                         [
-                            ['status', '상태정보'],
-                            ['abilities', '능력수치'],
+                            ['status', tt('statusInfo')],
+                            ['abilities', tt('abilityStats')],
                         ] as const
                     ).map(([key, label]) => {
                         const active = infoTab === key;
@@ -2300,7 +2325,7 @@ const MobileChampionshipPlayersCompare: React.FC<{
                                     >
                                         {showCondition ? (
                                             <div className="rounded-md bg-black/25 px-2 py-2">
-                                                <div className="text-xs font-semibold text-stone-400">컨디션</div>
+                                                <div className="text-xs font-semibold text-stone-400">{tt('condition')}</div>
                                                 <div className="mt-1 flex flex-wrap items-center justify-center gap-1.5">
                                                     <span
                                                         className={`font-mono text-lg font-bold tabular-nums ${conditionValueClass(
@@ -2341,10 +2366,10 @@ const MobileChampionshipPlayersCompare: React.FC<{
                                                             }`}
                                                             title={
                                                                 p1 && resolveCondition(p1, true) >= 100
-                                                                    ? '컨디션이 이미 최대입니다'
+                                                                    ? tt('conditionMax')
                                                                     : !canUseConditionPotion
-                                                                      ? '지금은 컨디션 회복제를 사용할 수 없습니다'
-                                                                      : '컨디션 회복제 사용'
+                                                                      ? tt('conditionPotionUnavailable')
+                                                                      : tt('useConditionPotion')
                                                             }
                                                         >
                                                             +
@@ -2354,7 +2379,7 @@ const MobileChampionshipPlayersCompare: React.FC<{
                                             </div>
                                         ) : null}
                                         <div className="rounded-md bg-black/25 px-2 py-2">
-                                            <div className="text-xs font-semibold text-stone-400">바둑능력</div>
+                                            <div className="text-xs font-semibold text-stone-400">{tt('badukAbility')}</div>
                                             <div className="mt-1 flex flex-wrap items-center justify-center gap-x-1 font-mono text-base font-bold tabular-nums text-cyan-200 sm:text-lg">
                                                 <span>{sum1}</span>
                                                 {sumCh1 !== 0 ? (
@@ -2366,7 +2391,7 @@ const MobileChampionshipPlayersCompare: React.FC<{
                                             </div>
                                         </div>
                                         <div className="rounded-md bg-black/25 px-2 py-2">
-                                            <div className="text-xs font-semibold text-stone-400">승률 · 전적</div>
+                                            <div className="text-xs font-semibold text-stone-400">{tt('winRateRecord')}</div>
                                             <div className="mt-1 text-sm font-medium leading-snug text-cyan-100/95">
                                                 {winLine(fullU1)}
                                             </div>
@@ -2383,7 +2408,7 @@ const MobileChampionshipPlayersCompare: React.FC<{
                                     >
                                         {showCondition ? (
                                             <div className="rounded-md bg-black/25 px-2 py-2">
-                                                <div className="text-xs font-semibold text-stone-400">컨디션</div>
+                                                <div className="text-xs font-semibold text-stone-400">{tt('condition')}</div>
                                                 <div className="mt-1 flex flex-wrap items-center justify-center gap-1.5">
                                                     <span
                                                         className={`font-mono text-lg font-bold tabular-nums ${conditionValueClass(
@@ -2424,10 +2449,10 @@ const MobileChampionshipPlayersCompare: React.FC<{
                                                             }`}
                                                             title={
                                                                 p2 && resolveCondition(p2, true) >= 100
-                                                                    ? '컨디션이 이미 최대입니다'
+                                                                    ? tt('conditionMax')
                                                                     : !canUseConditionPotion
-                                                                      ? '지금은 컨디션 회복제를 사용할 수 없습니다'
-                                                                      : '컨디션 회복제 사용'
+                                                                      ? tt('conditionPotionUnavailable')
+                                                                      : tt('useConditionPotion')
                                                             }
                                                         >
                                                             +
@@ -2437,7 +2462,7 @@ const MobileChampionshipPlayersCompare: React.FC<{
                                             </div>
                                         ) : null}
                                         <div className="rounded-md bg-black/25 px-2 py-2">
-                                            <div className="text-xs font-semibold text-stone-400">바둑능력</div>
+                                            <div className="text-xs font-semibold text-stone-400">{tt('badukAbility')}</div>
                                             <div className="mt-1 flex flex-wrap items-center justify-center gap-x-1 font-mono text-base font-bold tabular-nums text-amber-200 sm:text-lg">
                                                 <span>{sum2}</span>
                                                 {sumCh2 !== 0 ? (
@@ -2449,7 +2474,7 @@ const MobileChampionshipPlayersCompare: React.FC<{
                                             </div>
                                         </div>
                                         <div className="rounded-md bg-black/25 px-2 py-2">
-                                            <div className="text-xs font-semibold text-stone-400">승률 · 전적</div>
+                                            <div className="text-xs font-semibold text-stone-400">{tt('winRateRecord')}</div>
                                             <div className="mt-1 text-sm font-medium leading-snug text-amber-100/95">
                                                 {winLine(fullU2)}
                                             </div>
@@ -2539,7 +2564,7 @@ const MobileChampionshipPlayersCompare: React.FC<{
                                         })}
 
                                         {(['early', 'mid', 'end'] as const).map((phase) => {
-                                            const label = phase === 'early' ? '초반능력' : phase === 'mid' ? '중반능력' : '종반능력';
+                                            const label = phase === 'early' ? tt('earlyAbility') : phase === 'mid' ? tt('midAbility') : tt('endAbility');
                                             const v1 = ph1[phase];
                                             const v2 = ph2[phase];
                                             const isRowActive = highlightPhase === phase;
@@ -2617,7 +2642,7 @@ const MobileChampionshipPlayersCompare: React.FC<{
                                         className="shrink-0 rounded-md bg-black/30 px-1 py-0.5 text-center font-bold"
                                         style={{ fontSize: 'clamp(9px, min(2.6vw, 3vmin), 11px)' }}
                                     >
-                                        <span className="text-stone-500">차이 </span>
+                                        <span className="text-stone-500">{tt('difference')} </span>
                                         <span className={sumDeltaCls}>
                                             {sumDelta > 0 ? '+' : ''}
                                             {sumDelta}
@@ -2662,21 +2687,21 @@ const SimulationProgressBar: React.FC<{ timeElapsed: number; totalDuration: numb
                 <div
                     className="h-full rounded-l-full bg-green-500 transition-all duration-1000 ease-linear"
                     style={{ width: `${earlyStage}%` }}
-                    title="초반전"
+                    title={tt('openingMatch')}
                 />
                 <div
                     className="h-full bg-yellow-500 transition-all duration-1000 ease-linear"
                     style={{ width: `${midStage}%` }}
-                    title="중반전"
+                    title={tt('midgameMatch')}
                 />
                 <div
                     className="h-full rounded-r-full bg-red-500 transition-all duration-1000 ease-linear"
                     style={{ width: `${endStage}%` }}
-                    title="끝내기"
+                    title={tt('endgameMatch')}
                 />
             </div>
             <div className={`flex text-gray-400 ${compact ? 'mt-0.5 text-[9px] leading-tight' : 'mt-1 text-xs'}`}>
-                <div style={{ width: `${(earlyDuration / totalDuration) * 100}%` }}>초반</div>
+                <div style={{ width: `${(earlyDuration / totalDuration) * 100}%` }}>{tt('phases.opening')}</div>
                 <div style={{ width: `${(midDuration / totalDuration) * 100}%` }} className="text-center">
                     중반
                 </div>
@@ -3005,7 +3030,7 @@ const ScoreGraph: React.FC<{
                                         size={28}
                                     />
                                     <div className="min-w-0 flex-1">
-                                        <div className="text-[9px] text-gray-500">흑</div>
+                                        <div className="text-[9px] text-gray-500">{tt('black')}</div>
                                         <div
                                             className="break-words text-[10px] font-bold leading-snug text-gray-200 [overflow-wrap:anywhere]"
                                             title={p1Nickname}
@@ -3027,7 +3052,7 @@ const ScoreGraph: React.FC<{
                                         size={28}
                                     />
                                     <div className="min-w-0 flex-1 text-right">
-                                        <div className="text-[9px] text-gray-500">백</div>
+                                        <div className="text-[9px] text-gray-500">{tt('white')}</div>
                                         <div
                                             className="break-words text-right text-[10px] font-bold leading-snug text-gray-200 [overflow-wrap:anywhere]"
                                             title={p2Nickname}
@@ -3051,7 +3076,7 @@ const ScoreGraph: React.FC<{
                                     data-player="p1"
                                 >
                                     <div className="shrink-0 text-center">
-                                        <div className="text-[9px] text-gray-400">흑</div>
+                                        <div className="text-[9px] text-gray-400">{tt('black')}</div>
                                         <div className="text-sm font-bold leading-tight text-white">
                                             <span className="tabular-nums">{Math.round(p1DisplayScore)}</span>
                                         </div>
@@ -3079,7 +3104,7 @@ const ScoreGraph: React.FC<{
                                     data-player="p2"
                                 >
                                     <div className="shrink-0 text-center">
-                                        <div className="text-[9px] text-gray-400">백</div>
+                                        <div className="text-[9px] text-gray-400">{tt('white')}</div>
                                         <div className="text-sm font-bold leading-tight text-white">
                                             <span className="tabular-nums">{Math.round(p2DisplayScore)}</span>
                                         </div>
@@ -3110,7 +3135,7 @@ const ScoreGraph: React.FC<{
                         <div className="bg-white transition-all duration-500 ease-in-out" style={{ width: `${p2Percent}%` }} />
                         <div
                             className="absolute bottom-0 left-1/2 top-0 w-0.5 -translate-x-1/2 bg-gray-400/50"
-                            title="중앙"
+                            title={tt('center')}
                         />
                     </div>
                 </>
@@ -3128,7 +3153,7 @@ const ScoreGraph: React.FC<{
                                         size={40}
                                     />
                                     <div className="min-w-0">
-                                        <div className="truncate text-xs font-bold text-gray-200">흑: {p1Nickname}</div>
+                                        <div className="truncate text-xs font-bold text-gray-200">{tt('blackColon')} {p1Nickname}</div>
                                     </div>
                                 </>
                             )}
@@ -3142,7 +3167,7 @@ const ScoreGraph: React.FC<{
                             >
                                 <div className="flex items-center gap-4">
                                     <div className="min-w-[70px] text-center" data-player="p1">
-                                        <div className="mb-0.5 text-xs text-gray-400">흑</div>
+                                        <div className="mb-0.5 text-xs text-gray-400">{tt('black')}</div>
                                         <div className="text-lg font-bold text-white">
                                             <span className="tabular-nums">{Math.round(p1DisplayScore)}</span>
                                             <span className="ml-1 text-xs text-gray-400">({p1Percent.toFixed(1)}%)</span>
@@ -3152,7 +3177,7 @@ const ScoreGraph: React.FC<{
                                     <div className="h-8 w-px bg-gray-600" />
 
                                     <div className="min-w-[70px] text-center" data-player="p2">
-                                        <div className="mb-0.5 text-xs text-gray-400">백</div>
+                                        <div className="mb-0.5 text-xs text-gray-400">{tt('white')}</div>
                                         <div className="text-lg font-bold text-white">
                                             <span className="tabular-nums">{Math.round(p2DisplayScore)}</span>
                                             <span className="ml-1 text-xs text-gray-400">({p2Percent.toFixed(1)}%)</span>
@@ -3226,7 +3251,7 @@ const ScoreGraph: React.FC<{
                             {p2Player && (
                                 <>
                                     <div className="min-w-0 text-right">
-                                        <div className="truncate text-xs font-bold text-gray-200">백: {p2Nickname}</div>
+                                        <div className="truncate text-xs font-bold text-gray-200">{tt('whiteColon')} {p2Nickname}</div>
                                     </div>
                                     <Avatar
                                         userId={p2Player.id}
@@ -3245,7 +3270,7 @@ const ScoreGraph: React.FC<{
                         <div className="bg-white transition-all duration-500 ease-in-out" style={{ width: `${p2Percent}%` }} />
                         <div
                             className="absolute bottom-0 left-1/2 top-0 w-0.5 -translate-x-1/2 bg-gray-400/50"
-                            title="중앙"
+                            title={tt('center')}
                         />
                     </div>
                 </div>
@@ -3259,17 +3284,17 @@ const parseCommentary = (commentaryLine: CommentaryLine) => {
     
     // 초반전/중반전/종반전 시작 메시지에만 색상 적용 (정확한 텍스트 매칭)
     let phaseColorClass = '';
-    if (text.startsWith('[경기 시작]')) {
+    if (text.startsWith('[\uACBD\uAE30 \uC2DC\uC791]')) {
         phaseColorClass = 'text-cyan-300';
-    } else if (text.startsWith('초반전이 시작되었습니다')) {
-        phaseColorClass = 'text-green-400'; // 초록색
-    } else if (text.startsWith('중반전이 시작되었습니다')) {
-        phaseColorClass = 'text-yellow-400'; // 노란색
-    } else if (text.startsWith('종반전이 시작되었습니다')) {
-        phaseColorClass = 'text-red-400'; // 빨간색
+    } else if (text.startsWith('\uCD08\uBC18\uC804\uC774 \uC2DC\uC791\uB418\uC5C8\uC2B5\uB2C8\uB2E4')) {
+        phaseColorClass = 'text-green-400';
+    } else if (text.startsWith('\uC911\uBC18\uC804\uC774 \uC2DC\uC791\uB418\uC5C8\uC2B5\uB2C8\uB2E4')) {
+        phaseColorClass = 'text-yellow-400';
+    } else if (text.startsWith('\uC885\uBC18\uC804\uC774 \uC2DC\uC791\uB418\uC5C8\uC2B5\uB2C8\uB2E4')) {
+        phaseColorClass = 'text-red-400';
     }
     
-    if (text.startsWith('최종 결과 발표!') || text.startsWith('[최종결과]') || text.startsWith('[최종계가]') || text.startsWith('[경기 결과]')) {
+    if (text.startsWith('\uCD5C\uC885 \uACB0\uACFC \uBC1C\uD45C!') || text.startsWith('[\uCD5C\uC885\uACB0\uACFC]') || text.startsWith('[\uCD5C\uC885\uACC4\uAC00]') || text.startsWith('[\uACBD\uAE30 \uACB0\uACFC]')) {
         return <strong className="text-yellow-400">{text}</strong>;
     }
     
@@ -3319,7 +3344,7 @@ const CommentaryPanel: React.FC<{
                 실시간 중계
                 {isSimulating && (
                     <span className={`animate-pulse text-yellow-400 ${compact ? 'ml-1 text-[10px]' : 'ml-2'}`}>
-                        경기 진행 중...
+                        {tt('matchInProgress')}
                     </span>
                 )}
             </h4>
@@ -3345,7 +3370,7 @@ const CommentaryPanel: React.FC<{
                     ) : emptyStateLoading ? (
                         <InlineLoadingSpinner
                             size={compact ? 'md' : 'lg'}
-                            label={emptyStateHint ?? '경기 시작 대기 중...'}
+                            label={emptyStateHint ?? tt('waitingForMatchStart')}
                             className="h-full"
                             labelClassName={`max-w-[14rem] text-center leading-relaxed text-gray-400 ${compact ? 'text-[11px]' : 'text-sm'}`}
                         />
@@ -3355,7 +3380,7 @@ const CommentaryPanel: React.FC<{
                                 compact ? 'text-[11px]' : ''
                             }`}
                         >
-                            {emptyStateHint ?? '경기 시작 대기 중...'}
+                            {emptyStateHint ?? tt('waitingForMatchStart')}
                         </p>
                     )}
                 </div>
@@ -3379,7 +3404,7 @@ const ChampionshipMysteryEquipmentIcon: React.FC<{ className?: string }> = ({
 }) => (
     <span
         className={`relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-md ${className}`}
-        title="랜덤 장비"
+        title={tt('randomEquipment')}
     >
         <img
             src="/images/Box/EquipmentBox1.webp"
@@ -3401,7 +3426,7 @@ const ChampionshipMysteryEquipmentIcon: React.FC<{ className?: string }> = ({
 /** 월드 챔피언십 예상 보상: 변경권 이미지 + 검은 오버레이 + 물음표 */
 const ChampionshipMysteryChangeTicketIcon: React.FC<{ className?: string; title?: string }> = ({
     className = 'h-5 w-5 sm:h-6 sm:w-6',
-    title = '랜덤 변경권',
+    title = tt('randomChangeTicket'),
 }) => (
     <span
         className={`relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-md ${className}`}
@@ -3592,7 +3617,7 @@ const FinalRewardPanel: React.FC<{
             onClick={onExitToLobby}
             className={`w-full ${championshipFooterExitButton}`}
         >
-            나가기
+            {tt('exit')}
         </button>
     ) : null;
     const expectedRewardActionButton = canShowExpectedRewardPreview ? (
@@ -3659,8 +3684,8 @@ const FinalRewardPanel: React.FC<{
             const gold = getDungeonBasicRewardRangeGold(stage);
             return (
                 <div className={rowClass}>
-                    {renderGoldChip('승리', 'text-emerald-300', gold.win.min, gold.win.max)}
-                    {renderGoldChip('패배', 'text-slate-400', gold.loss.min, gold.loss.max)}
+                    {renderGoldChip(tt('victory'), 'text-emerald-300', gold.win.min, gold.win.max)}
+                    {renderGoldChip(tt('defeat'), 'text-slate-400', gold.loss.min, gold.loss.max)}
                 </div>
             );
         }
@@ -3705,12 +3730,12 @@ const FinalRewardPanel: React.FC<{
                 return (
                     <div className={rowClass}>
                         {renderSplitOutcomeRow(
-                            '승리',
+                            tt('victory'),
                             'text-emerald-300',
                             rolls.win.map((roll) => renderRollInline(roll)),
                         )}
                         {renderSplitOutcomeRow(
-                            '패배',
+                            tt('defeat'),
                             'text-slate-400',
                             (rolls.loss ?? []).map((roll) => renderRollInline(roll)),
                         )}
@@ -3719,8 +3744,8 @@ const FinalRewardPanel: React.FC<{
             }
             return (
                 <div className={rowClass}>
-                    {rolls.win.map((roll) => renderRoll('승', 'text-emerald-200', roll))}
-                    {(rolls.loss ?? []).map((roll) => renderRoll('패', 'text-slate-300', roll))}
+                    {rolls.win.map((roll) => renderRoll(tt('winShort'), 'text-emerald-200', roll))}
+                    {(rolls.loss ?? []).map((roll) => renderRoll(tt('lossShort'), 'text-slate-300', roll))}
                 </div>
             );
         }
@@ -3730,8 +3755,8 @@ const FinalRewardPanel: React.FC<{
             const maxChangeTickets = worldBaseRewards?.changeTickets ?? 0;
             const changeTicketTitle =
                 maxChangeTickets > 0
-                    ? `랜덤 변경권 · 경기 결과에 따라 지급 · 단계 기준 최대 ${maxChangeTickets}개`
-                    : '랜덤 변경권';
+                    ? tt('randomChangeTicketHint', { count: maxChangeTickets })
+                    : tt('randomChangeTicket');
 
             const worldEquipGradeOrder: EquipmentGradeKey[] = [
                 'normal',
@@ -3783,13 +3808,13 @@ const FinalRewardPanel: React.FC<{
                 return (
                     <div className={rowClass}>
                         {renderSplitOutcomeRow(
-                            '장비',
+                            tt('equipment'),
                             'text-violet-300',
                             <span className={`${splitInlineClass} gap-2`}>{gradeRangeInline}</span>,
                         )}
                         {maxChangeTickets > 0
                             ? renderSplitOutcomeRow(
-                                  '변경권',
+                                  tt('changeTicket'),
                                   'text-cyan-300',
                                   <span className={splitInlineClass}>{changeTicketInline}</span>,
                               )
@@ -3801,12 +3826,12 @@ const FinalRewardPanel: React.FC<{
             return (
                 <div className={rowClass}>
                     <span className={`${chipClass} gap-2`}>
-                        <span>장비</span>
+                        <span>{tt('equipment')}</span>
                         {gradeRangeInline}
                     </span>
                     {maxChangeTickets > 0 ? (
                         <span className={`${chipClass} gap-2`}>
-                            <span className="text-cyan-300">변경권</span>
+                            <span className="text-cyan-300">{tt('changeTicket')}</span>
                             {changeTicketInline}
                         </span>
                     ) : null}
@@ -3818,7 +3843,7 @@ const FinalRewardPanel: React.FC<{
             return (
                 <div className={rowClass}>
                     {renderSplitOutcomeRow(
-                        '등급',
+                        tt('grade'),
                         'text-violet-300',
                         <span className={`${splitInlineClass} gap-2`}>
                             <span className={`text-[11px] sm:text-xs ${gradeTextClass.epic}`}>{EQUIPMENT_GRADE_LABEL_KO.epic}</span>
@@ -3855,7 +3880,7 @@ const FinalRewardPanel: React.FC<{
                         disabled={isClaiming}
                         className={`w-full ${championshipFooterPrimaryButton}`}
                     >
-                        {isClaiming ? '처리 중...' : '보상 완료'}
+                        {isClaiming ? tt('processing') : tt('rewardComplete')}
                     </button>
                 ) : !suppressClaimActions ? (
                     <div className={`w-full text-center ${championshipFooterMutedButton}`}>
@@ -3877,7 +3902,7 @@ const FinalRewardPanel: React.FC<{
                                 : championshipFooterMutedButton
                         }`}
                     >
-                        {isClaiming ? '수령 중...' : (canClaimReward ? '보상받기' : '경기 종료 후 수령 가능')}
+                        {isClaiming ? tt('claiming') : (canClaimReward ? tt('claimReward') : tt('claimAfterMatchEnd'))}
                     </button>
                 ) : null}
                 {expectedRewardActionButton}
@@ -3896,7 +3921,7 @@ const FinalRewardPanel: React.FC<{
     const acquiredRewardsClaimMessage =
         (isTournamentFullyComplete || isUserEliminated) && treatAsClaimed ? (
             <div className="mb-1 w-full rounded-lg border border-green-700/50 bg-green-900/30 px-1.5 py-1">
-                <p className="text-center text-xs font-semibold text-green-400">✓ 보상을 수령했습니다.</p>
+                <p className="text-center text-xs font-semibold text-green-400">{tt('rewardClaimed')}</p>
             </div>
         ) : null;
 
@@ -3949,7 +3974,7 @@ const FinalRewardPanel: React.FC<{
                     const n =
                         br?.changeTickets ?? DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT[effectiveStageAttempt]?.changeTickets ?? 0;
                     if (n > 0 && hasAnyFinishedMatch) {
-                        return [{ name: '변경권', quantity: n, image: '/images/use/change2.webp' }];
+                        return [{ name: tt('changeTicket'), quantity: n, image: '/images/use/change2.webp' }];
                     }
                     return [];
                 })();
@@ -3987,7 +4012,7 @@ const FinalRewardPanel: React.FC<{
                                 useSplitRewardLayout ? 'py-2' : isMobileTabLayout ? 'py-10' : 'h-full'
                             }`}
                         >
-                            <p className="text-center text-xs text-gray-400">획득한 보상이 없습니다.</p>
+                            <p className="text-center text-xs text-gray-400">{tt('noRewards')}</p>
                         </div>
                     );
                 }
@@ -4025,11 +4050,11 @@ const FinalRewardPanel: React.FC<{
                                     className="relative w-11 h-11 rounded-lg border-2 border-yellow-600/70 bg-yellow-900/40 flex items-center justify-center overflow-hidden"
                                     title={
                                         matchGoldRewards && matchGoldRewards.length > 0
-                                            ? `경기 ${idx + 1} 보상`
-                                            : '획득 골드'
+                                            ? tt('matchRewardIndex', { index: idx + 1 })
+                                            : tt('earnedGold')
                                     }
                                 >
-                                    <img src="/images/icon/Gold.webp" alt="골드" className="w-7 h-7 object-contain" loading="lazy" decoding="async" />
+                                    <img src="/images/icon/Gold.webp" alt={tt('goldAlt')} className="w-7 h-7 object-contain" loading="lazy" decoding="async" />
                                     <span className="absolute -bottom-0.5 -right-0.5 text-[11px] font-bold text-yellow-100 bg-black/80 px-1 rounded-tl leading-tight shadow-sm">
                                         {formatGoldAmountKoG(goldAmount)}
                                     </span>
@@ -4045,7 +4070,7 @@ const FinalRewardPanel: React.FC<{
                                     <div
                                         key={`mat-merged-${materialName}`}
                                         className="relative w-11 h-11 rounded-lg border-2 border-blue-600/70 bg-blue-900/40 flex items-center justify-center overflow-hidden"
-                                        title="라운드 합산 재료"
+                                        title={tt('roundMaterialsSum')}
                                     >
                                         <img src={imageUrl} alt={materialName} className="w-7 h-7 object-contain" loading="lazy" decoding="async" />
                                         <span className="absolute -bottom-0.5 -right-0.5 text-[11px] font-bold text-blue-100 bg-black/80 px-1 rounded-tl leading-tight shadow-sm">
@@ -4115,7 +4140,7 @@ const FinalRewardPanel: React.FC<{
                                     <div
                                         key={`drop-${gradeKey}-${di}`}
                                         className={`w-11 h-11 rounded-lg overflow-hidden flex items-center justify-center ${borderClass}`}
-                                        title={`${label} 장비`}
+                                        title={`tt('labelEquipment', { label })`}
                                     >
                                         <img src={img} alt="" className="w-[70%] h-[70%] object-contain pointer-events-none" loading="lazy" decoding="async" />
                                     </div>
@@ -4146,11 +4171,11 @@ const FinalRewardPanel: React.FC<{
                                 className="relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg border-2 border-amber-400/70 bg-amber-950/45"
                                 title={
                                     claimedChampCoins > 0
-                                        ? `챔프 코인 ×${claimedChampCoins.toLocaleString('ko-KR')}`
-                                        : `챔프 코인 ${champCoinPreviewLabel} (수령 시 확정)`
+                                        ? tt('champCoinTimes', { amount: claimedChampCoins.toLocaleString('ko-KR') })
+                                        : tt('champCoinPending', { label: champCoinPreviewLabel })
                                 }
                             >
-                                <img src="/images/icon/champcoin.webp" alt="챔프 코인" className="h-7 w-7 object-contain" loading="lazy" decoding="async" />
+                                <img src="/images/icon/champcoin.webp" alt={tt('champCoinAlt')} className="h-7 w-7 object-contain" loading="lazy" decoding="async" />
                                 <span className="absolute -bottom-0.5 -right-0.5 max-w-[2.75rem] truncate rounded-tl bg-black/80 px-0.5 text-[10px] font-bold leading-tight text-amber-100 shadow-sm">
                                     {champCoinBadgeText}
                                 </span>
@@ -4162,8 +4187,8 @@ const FinalRewardPanel: React.FC<{
                             const row = it as { itemId: string; quantity?: number; min?: number; max?: number };
                             const itemName = row.itemId;
                             let src = '';
-                            if (itemName.includes('골드')) src = '/images/icon/Gold.webp';
-                            else if (itemName.includes('다이아')) src = '/images/icon/Zem.webp';
+                            if (itemName.includes('\uACE8\uB4DC')) src = '/images/icon/Gold.webp';
+                            else if (itemName.includes('\uB514\uC774\uC544')) src = '/images/icon/Zem.webp';
                             else {
                                 const mat = MATERIAL_ITEMS[itemName];
                                 if (mat?.image) src = mat.image;
@@ -4175,12 +4200,12 @@ const FinalRewardPanel: React.FC<{
                             const hasRange = row.min != null && row.max != null;
                             const qtyLabel = hasRange
                                 ? row.min === row.max
-                                    ? itemName.includes('골드')
+                                    ? itemName.includes(TB_ITEM_GOLD)
                                         ? formatGoldAmountKoG(row.min!)
                                         : row.min!.toLocaleString('ko-KR')
                                     : `${row.min}~${row.max}`
                                 : row.quantity != null
-                                  ? itemName.includes('골드')
+                                  ? itemName.includes(TB_ITEM_GOLD)
                                       ? formatGoldAmountKoG(row.quantity)
                                       : row.quantity.toLocaleString('ko-KR')
                                   : '1';
@@ -4194,7 +4219,7 @@ const FinalRewardPanel: React.FC<{
                                 <div
                                     key={`rank-reward-${idx}-${itemName}`}
                                     className="relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg border-2 border-amber-500/65 bg-amber-950/40"
-                                    title={`${rankRewardForDisplay!.rank}위 순위 보상 · ${itemName} ×${qtyForTitle}`}
+                                    title={tt('rankRewardTitle', { rank: rankRewardForDisplay!.rank, item: itemName, qty: qtyForTitle })}
                                 >
                                     {resolvedSrc ? (
                                         <img src={resolvedSrc} alt="" className="h-7 w-7 object-contain" loading="lazy" decoding="async" />
@@ -4251,7 +4276,7 @@ const FinalRewardPanel: React.FC<{
             ) : (
                 <>
                     <div className="relative mb-1.5 flex flex-shrink-0 items-center justify-center py-0.5">
-                        <h4 className="whitespace-nowrap text-center text-sm font-bold text-gray-300">획득 보상</h4>
+                        <h4 className="whitespace-nowrap text-center text-sm font-bold text-gray-300">{tt('earnedRewards')}</h4>
                     </div>
                     <div
                         className={
@@ -4333,16 +4358,16 @@ const MatchBox: React.FC<{ match: Match; currentUser: UserWithStatus; tournament
             if (!isWinner) return null; // 패자는 표시하지 않음
             
             const roundName = currentRound.name;
-            if (roundName === '16강') {
-                return '8강 진출';
-            } else if (roundName === '8강') {
-                return '4강 진출';
-            } else if (roundName === '4강') {
-                return '결승 진출';
-            } else if (roundName === '결승') {
-                return '우승';
-            } else if (roundName === '3,4위전') {
-                return '3/4위전 진출';
+            if (roundName === '16\uAC15') {
+                return tt('roundAdvance.quarter');
+            } else if (roundName === '8\uAC15') {
+                return tt('roundAdvance.semi');
+            } else if (roundName === '4\uAC15') {
+                return tt('roundAdvance.final');
+            } else if (roundName === '\uACB0\uC2B9') {
+                return tt('roundAdvance.champion');
+            } else if (roundName === '3,4\uC704\uC804') {
+                return tt('roundAdvance.thirdPlace');
             }
             return null;
         } else {
@@ -4360,14 +4385,14 @@ const MatchBox: React.FC<{ match: Match; currentUser: UserWithStatus; tournament
             const lastMatchWon = lastMatch.winner?.id === playerId;
             const matchNumber = finishedMatches.length;
             
-            return `${matchNumber}차전 ${lastMatchWon ? '승리' : '패배'}! (${wins}승 ${losses}패)`;
+            return tt('matchRoundResult', { round: matchNumber, outcome: lastMatchWon ? tt('victory') : tt('defeat'), wins, losses });
         }
     };
 
     // 결승전 우승자 확인
     const isFinalMatch = useMemo(() => {
         if (!tournamentState) return false;
-        const finalRound = tournamentState.rounds.find(r => r.name === '결승');
+        const finalRound = tournamentState.rounds.find(r => r.name === TB_RND_FINAL);
         return finalRound?.matches.some(m => m.id === match.id) || false;
     }, [tournamentState, match.id]);
     
@@ -4401,14 +4426,14 @@ const MatchBox: React.FC<{ match: Match; currentUser: UserWithStatus; tournament
         if (isTournamentFormat) {
             // 전국바둑대회/월드챔피언십: 가로 배치용 컴팩트 레이아웃
             const winMarginText = isWinner && match.isFinished ? (() => {
-                if (!match.finalScore) return '승';
+                if (!match.finalScore) return tt('winShort');
                 const p1Percent = match.finalScore.player1;
                 const diffPercent = Math.abs(p1Percent - 50) * 2;
                 const scoreDiff = diffPercent / 2;
                 const roundedDiff = Math.round(scoreDiff);
                 const finalDiff = roundedDiff + 0.5;
                 const winMargin = finalDiff < 0.5 ? '0.5' : finalDiff.toFixed(1);
-                return `${winMargin}집 승`;
+                return tt('winMargin', { margin: winMargin });
             })() : null;
             
             return (
@@ -4639,7 +4664,7 @@ const RoundColumn: React.FC<{
     tournamentState?: TournamentState;
     compact?: boolean;
 }> = ({ name, matches, currentUser, tournamentState, compact = false }) => {
-    const isFinalRound = name.includes('결승') || name.includes('3,4위전');
+    const isFinalRound = name.includes(TB_RND_FINAL) || name.includes(TB_RND_THIRD);
     const isNationalTournament = tournamentState?.type === 'national';
     const isWorldTournament = tournamentState?.type === 'world';
     const isTournamentFormat = isNationalTournament || isWorldTournament;
@@ -4731,7 +4756,7 @@ const RoundRobinDisplay: React.FC<{
     
     // rounds 배열에서 선택된 회차의 라운드 찾기 (name이 "1회차", "2회차" 등인 라운드)
     const currentRoundObj = useMemo(() => {
-        return rounds.find(round => round.name === `${selectedRound}회차`);
+        return rounds.find(round => round.name === `${selectedRound}${TB_ROUND_SUFFIX}`);
     }, [rounds, selectedRound]);
     
     const currentRoundMatches = currentRoundObj?.matches || [];
@@ -4771,7 +4796,7 @@ const RoundRobinDisplay: React.FC<{
 
     return (
         <div className="flex h-full min-h-0 flex-col">
-            <h4 className={`flex-shrink-0 text-center font-bold text-gray-300 ${compact ? 'mb-1 text-xs' : 'mb-2'}`}>풀리그 대진표</h4>
+            <h4 className={`flex-shrink-0 text-center font-bold text-gray-300 ${compact ? 'mb-1 text-xs' : 'mb-2'}`}>{tt('roundRobin')}</h4>
             <div
                 className={`mb-2 flex flex-shrink-0 rounded-lg border border-gray-600/55 bg-slate-950/90 ${compact ? 'p-0.5' : 'p-1'}`}
             >
@@ -4785,7 +4810,7 @@ const RoundRobinDisplay: React.FC<{
                     onClick={() => setActiveTab('ranking')}
                     className={`flex-1 rounded-md font-semibold transition-all ${compact ? 'py-0.5 text-[10px]' : 'py-1 text-xs'} ${activeTab === 'ranking' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}
                 >
-                    {status === 'complete' ? '최종 순위' : '현재 순위'}
+                    {status === 'complete' ? tt('finalRank') : tt('currentRank')}
                 </button>
             </div>
             <div className={`min-h-0 flex-grow overflow-y-auto ${compact ? 'pr-1' : 'pr-2'}`}>
@@ -4821,7 +4846,7 @@ const RoundRobinDisplay: React.FC<{
                                     </div>
                                 ))
                             ) : (
-                                <div className={`italic text-gray-400 ${compact ? 'text-xs' : 'text-sm'}`}>경기가 없습니다.</div>
+                                <div className={`italic text-gray-400 ${compact ? 'text-xs' : 'text-sm'}`}>{tt('noMatches')}</div>
                             )}
                         </div>
                     </div>
@@ -4887,9 +4912,9 @@ const RoundRobinDisplay: React.FC<{
                                          />
                                      )}
                                      <div className={`flex items-baseline font-semibold ${compact ? 'gap-1 text-[10px]' : 'gap-2 text-xs'}`}>
-                                         <span className="text-green-400">{stats.wins}승</span>
+                                         <span className="text-green-400">{tt('recordWinsLosses', { wins: stats.wins, losses: stats.losses }).split(' ')[0]}</span>
                                          <span className="text-gray-400">/</span>
-                                         <span className="text-red-400">{stats.losses}패</span>
+                                         <span className="text-red-400">{stats.losses}{tt('lossShortLabel')}</span>
                                      </div>
                                  </li>
                              );
@@ -4921,9 +4946,9 @@ const TournamentRoundViewer: React.FC<{
         
         let availableTabs: string[] = [];
         if (tournamentType === 'world') {
-            availableTabs = ["16강", "8강", "4강전", "결승&3/4위전"];
+            availableTabs = [TB_RND_16, TB_RND_QF, TB_TAB_SF, TB_TAB_FINAL_THIRD];
         } else if (tournamentType === 'national') {
-            availableTabs = ["8강", "4강전", "결승&3/4위전"];
+            availableTabs = [TB_RND_QF, TB_TAB_SF, TB_TAB_FINAL_THIRD];
         } else {
             return null;
         }
@@ -4931,12 +4956,12 @@ const TournamentRoundViewer: React.FC<{
         const tabData = availableTabs.map((tabName): TabData => {
             let roundMatches: Match[] = [];
             let roundNames: string[] = [];
-            if (tabName === "결승 및 3/4위전" || tabName === "결승&3/4위전") {
-                roundNames = ["결승", "3,4위전"];
-                roundMatches = (roundMap.get("결승") || []).concat(roundMap.get("3,4위전") || []);
-            } else if (tabName === "4강전") {
-                roundNames = ["4강"];
-                roundMatches = roundMap.get("4강") || [];
+            if (tabName === TB_TAB_FINAL_THIRD_ALT || tabName === TB_TAB_FINAL_THIRD) {
+                roundNames = [TB_RND_FINAL, TB_RND_THIRD];
+                roundMatches = (roundMap.get(TB_RND_FINAL) || []).concat(roundMap.get(TB_RND_THIRD) || []);
+            } else if (tabName === TB_TAB_SF) {
+                roundNames = [TB_RND_SF];
+                roundMatches = roundMap.get(TB_RND_SF) || [];
             } else {
                 roundNames = [tabName];
                 roundMatches = roundMap.get(tabName) || [];
@@ -4982,15 +5007,15 @@ const TournamentRoundViewer: React.FC<{
             
             // 전국바둑대회
             if (tournamentType === 'national') {
-                if (currentTabName === "8강") {
+                if (currentTabName === TB_RND_QF) {
                     // 8강 탭에서 다음경기 버튼을 누르면 4강전 탭으로 이동
-                    const nextTabIndex = getRoundsForTabs.findIndex(tab => tab.name === "4강전");
+                    const nextTabIndex = getRoundsForTabs.findIndex(tab => tab.name === TB_TAB_SF);
                     if (nextTabIndex !== -1) {
                         setActiveTab(nextTabIndex);
                     }
-                } else if (currentTabName === "4강전") {
+                } else if (currentTabName === TB_TAB_SF) {
                     // 4강전 탭에서 다음경기 버튼을 누르면 결승&3/4위전 탭으로 이동
-                    const nextTabIndex = getRoundsForTabs.findIndex(tab => tab.name === "결승&3/4위전");
+                    const nextTabIndex = getRoundsForTabs.findIndex(tab => tab.name === TB_TAB_FINAL_THIRD);
                     if (nextTabIndex !== -1) {
                         setActiveTab(nextTabIndex);
                     }
@@ -4998,21 +5023,21 @@ const TournamentRoundViewer: React.FC<{
             }
             // 월드챔피언십
             else if (tournamentType === 'world') {
-                if (currentTabName === "16강") {
+                if (currentTabName === TB_RND_16) {
                     // 16강 탭에서 다음경기 버튼을 누르면 8강 탭으로 이동
-                    const nextTabIndex = getRoundsForTabs.findIndex(tab => tab.name === "8강");
+                    const nextTabIndex = getRoundsForTabs.findIndex(tab => tab.name === TB_RND_QF);
                     if (nextTabIndex !== -1) {
                         setActiveTab(nextTabIndex);
                     }
-                } else if (currentTabName === "8강") {
+                } else if (currentTabName === TB_RND_QF) {
                     // 8강 탭에서 다음경기 버튼을 누르면 4강전 탭으로 이동
-                    const nextTabIndex = getRoundsForTabs.findIndex(tab => tab.name === "4강전");
+                    const nextTabIndex = getRoundsForTabs.findIndex(tab => tab.name === TB_TAB_SF);
                     if (nextTabIndex !== -1) {
                         setActiveTab(nextTabIndex);
                     }
-                } else if (currentTabName === "4강전") {
+                } else if (currentTabName === TB_TAB_SF) {
                     // 4강전 탭에서 다음경기 버튼을 누르면 결승&3/4위전 탭으로 이동
-                    const nextTabIndex = getRoundsForTabs.findIndex(tab => tab.name === "결승&3/4위전");
+                    const nextTabIndex = getRoundsForTabs.findIndex(tab => tab.name === TB_TAB_FINAL_THIRD);
                     if (nextTabIndex !== -1) {
                         setActiveTab(nextTabIndex);
                     }
@@ -5054,10 +5079,10 @@ const TournamentRoundViewer: React.FC<{
                 if (nextRound) {
                     // 해당 라운드가 포함된 탭 찾기
                     const targetTabIndex = getRoundsForTabs.findIndex(tab => {
-                        if (tab.name === "결승&3/4위전") {
-                            return nextRound.name === "결승" || nextRound.name === "3,4위전";
-                        } else if (tab.name === "4강전") {
-                            return nextRound.name === "4강";
+                        if (tab.name === TB_TAB_FINAL_THIRD) {
+                            return nextRound.name === TB_RND_FINAL || nextRound.name === TB_RND_THIRD;
+                        } else if (tab.name === TB_TAB_SF) {
+                            return nextRound.name === TB_RND_SF;
                         } else {
                             return tab.name === nextRound.name;
                         }
@@ -5065,7 +5090,7 @@ const TournamentRoundViewer: React.FC<{
                     
                     if (targetTabIndex !== -1 && targetTabIndex !== activeTab) {
                         // 경기 종료 시점 또는 카운트다운 시작 시 즉시 탭 변경하여 대진표 업데이트
-                        console.log(`[TournamentRoundViewer] 경기 종료/카운트다운 시작, 탭 변경: ${activeTab} -> ${targetTabIndex}, status: ${prevStatus.current} -> ${currentStatus}`);
+                        console.log(`[TournamentRoundViewer] match end/countdown tab switch: ${activeTab} -> ${targetTabIndex}, status: ${prevStatus.current} -> ${currentStatus}`);
                         setActiveTab(targetTabIndex);
                     }
                 }
@@ -5077,11 +5102,11 @@ const TournamentRoundViewer: React.FC<{
     }, [tournamentState?.status, nextRoundStartTime, getRoundsForTabs, tournamentState, rounds, activeTab]);
 
     if (!getRoundsForTabs) {
-        const desiredOrder = ["16강", "8강", "4강", "3,4위전", "결승"];
+        const desiredOrder = [TB_RND_16, TB_RND_QF, TB_RND_SF, TB_RND_THIRD, TB_RND_FINAL];
         const sortedRounds = [...rounds].sort((a, b) => desiredOrder.indexOf(a.name) - desiredOrder.indexOf(b.name));
         return (
             <div className="flex h-full min-h-0 flex-col">
-                <h4 className={`flex-shrink-0 text-center font-bold text-gray-300 ${compact ? 'mb-1 text-xs' : 'mb-2'}`}>대진표</h4>
+                <h4 className={`flex-shrink-0 text-center font-bold text-gray-300 ${compact ? 'mb-1 text-xs' : 'mb-2'}`}>{tt('bracketTitle')}</h4>
                 <div className={`flex flex-grow items-center justify-center overflow-auto ${compact ? 'space-x-2 p-1' : 'space-x-4 p-2'}`}>
                     {sortedRounds.map((round) => (
                         <RoundColumn
@@ -5105,10 +5130,10 @@ const TournamentRoundViewer: React.FC<{
         const roundMap = new Map<string, Match[]>();
         rounds.forEach(r => roundMap.set(r.name, r.matches));
         
-        const quarterFinals = roundMap.get("8강") || [];
-        const semiFinals = roundMap.get("4강") || [];
-        const final = roundMap.get("결승") || [];
-        const thirdPlace = roundMap.get("3,4위전") || [];
+        const quarterFinals = roundMap.get(TB_RND_QF) || [];
+        const semiFinals = roundMap.get(TB_RND_SF) || [];
+        const final = roundMap.get(TB_RND_FINAL) || [];
+        const thirdPlace = roundMap.get(TB_RND_THIRD) || [];
         
         const containerRef = useRef<HTMLDivElement>(null);
         const [lines, setLines] = useState<React.ReactNode[]>([]);
@@ -5234,9 +5259,9 @@ const TournamentRoundViewer: React.FC<{
             : 'flex h-full flex-col items-center justify-start gap-4 overflow-x-visible overflow-y-auto p-4';
         // 전국바둑대회/월드챔피언십: 탭별로 세로 배치
         if (tournamentType === 'national' || tournamentType === 'world') {
-            if (tab.name === "결승&3/4위전") {
-                const finalMatch = tab.matches.filter(m => rounds.find(r => r.matches.includes(m))?.name === '결승');
-                const thirdPlaceMatch = tab.matches.filter(m => rounds.find(r => r.matches.includes(m))?.name === '3,4위전');
+            if (tab.name === TB_TAB_FINAL_THIRD) {
+                const finalMatch = tab.matches.filter(m => rounds.find(r => r.matches.includes(m))?.name === TB_RND_FINAL);
+                const thirdPlaceMatch = tab.matches.filter(m => rounds.find(r => r.matches.includes(m))?.name === TB_RND_THIRD);
                 // 부모 컨테이너의 높이가 자동으로 조정되므로 h-full 사용
                 return (
                     <div className={tabStackClass}>
@@ -5280,9 +5305,9 @@ const TournamentRoundViewer: React.FC<{
         }
 
         // 동네바둑리그: 기존 방식 유지
-        if (tab.name === "결승 및 3/4위전") {
-             const finalMatch = tab.matches.filter(m => rounds.find(r => r.matches.includes(m))?.name === '결승');
-             const thirdPlaceMatch = tab.matches.filter(m => rounds.find(r => r.matches.includes(m))?.name === '3,4위전');
+        if (tab.name === TB_TAB_FINAL_THIRD_ALT) {
+             const finalMatch = tab.matches.filter(m => rounds.find(r => r.matches.includes(m))?.name === TB_RND_FINAL);
+             const thirdPlaceMatch = tab.matches.filter(m => rounds.find(r => r.matches.includes(m))?.name === TB_RND_THIRD);
              return (
                 <div
                     className={`flex h-full flex-col items-center justify-center ${compact ? 'gap-4 p-2' : 'gap-8 p-4'}`}
@@ -5314,7 +5339,7 @@ const TournamentRoundViewer: React.FC<{
         return (
              <div className={`flex h-full items-center justify-center ${compact ? 'gap-2 p-2' : 'gap-4 p-4'}`}>
                 <RoundColumn
-                    name={tab.name}
+                    name={displayBracketTabName(tab.name)}
                     matches={tab.matches}
                     currentUser={currentUser}
                     tournamentState={tournamentState}
@@ -5328,18 +5353,18 @@ const TournamentRoundViewer: React.FC<{
     // 사이드바의 flex 레이아웃이 자동으로 높이를 조정하므로, 내부에서 추가로 높이 제한하지 않음
     return (
         <div className="flex h-full min-h-0 flex-col">
-            <h4 className={`flex-shrink-0 text-center font-bold text-gray-200 ${compact ? 'mb-1.5 text-sm' : 'mb-3 text-lg'}`}>대진표</h4>
+            <h4 className={`flex-shrink-0 text-center font-bold text-gray-200 ${compact ? 'mb-1.5 text-sm' : 'mb-3 text-lg'}`}>{tt('bracketTitle')}</h4>
             <div
                 className={`flex flex-shrink-0 rounded-xl border border-gray-600/70 bg-gradient-to-r from-slate-950/95 to-slate-900/92 shadow-lg ${compact ? 'mb-2 p-0.5' : 'mb-3 p-1'}`}
             >
                 {getRoundsForTabs.map((tab, index) => (
                     <button
-                        key={tab.name}
+                        key={displayBracketTabName(tab.name)}
                         onClick={() => setActiveTab(index)}
                         className={`flex-1 rounded-lg font-semibold whitespace-nowrap transition-all duration-200 ${
                             compact ? 'py-1' : 'py-2'
                         } ${
-                            tab.name === "결승&3/4위전"
+                            tab.name === TB_TAB_FINAL_THIRD
                                 ? compact
                                     ? 'text-[8px]'
                                     : 'text-[10px]'
@@ -5352,7 +5377,7 @@ const TournamentRoundViewer: React.FC<{
                                 : 'text-gray-400 hover:bg-gray-700/50 hover:text-gray-200'
                         }`}
                     >
-                        {tab.name}
+                        {displayBracketTabName(tab.name)}
                     </button>
                 ))}
             </div>
@@ -5771,7 +5796,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         let nextMatch: Match | undefined;
         if (t.type === 'neighborhood') {
             const currentRound = t.currentRoundRobinRound || 1;
-            const currentRoundObj = safeRounds.find((r) => r.name === `${currentRound}회차`);
+            const currentRoundObj = safeRounds.find((r) => r.name === `${currentRound}${TB_ROUND_SUFFIX}`);
             if (currentRoundObj) {
                 nextMatch = currentRoundObj.matches.find((m) => m.isUserMatch && !m.isFinished);
             }
@@ -5800,14 +5825,14 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     // 토너먼트 상태 로깅 (개발 시에만)
     useEffect(() => {
         if (import.meta.env.DEV && tournament) {
-            console.log('[TournamentBracket] 토너먼트 상태:', tournament.status, '타입:', tournament.type, '현재 회차:', tournament.currentRoundRobinRound);
+            console.log('[TournamentBracket] tournament status:', tournament.status, 'type:', tournament.type, 'round:', tournament.currentRoundRobinRound);
         }
     }, [tournament?.status, tournament?.type, tournament?.currentRoundRobinRound]);
 
     useEffect(() => {
         if (!currentUser?.id) return;
         if (import.meta.env.DEV) {
-            console.log('[TournamentBracket] ENTER_TOURNAMENT_VIEW 호출');
+            console.log('[TournamentBracket] ENTER_TOURNAMENT_VIEW');
         }
         onActionRef.current({ type: 'ENTER_TOURNAMENT_VIEW' });
         return () => {
@@ -5822,7 +5847,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 });
             }
             if (import.meta.env.DEV) {
-                console.log('[TournamentBracket] LEAVE_TOURNAMENT_VIEW 호출');
+                console.log('[TournamentBracket] LEAVE_TOURNAMENT_VIEW');
             }
             onActionRef.current({ type: 'LEAVE_TOURNAMENT_VIEW' });
         };
@@ -5833,7 +5858,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         // 안전성 검사: 필수 props와 데이터 확인
         if (!tournament || !onAction || !onStartNextRound || !Array.isArray(safeRounds)) {
             if (import.meta.env.DEV) {
-                console.log('[TournamentBracket] useEffect 스킵 - 필수 데이터 없음:', {
+                console.log('[TournamentBracket] useEffect skip - missing data:', {
                     tournament: !!tournament,
                     onAction: !!onAction,
                     onStartNextRound: !!onStartNextRound,
@@ -5847,7 +5872,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         const prevStatus = prevStatusRef.current;
         
         if (import.meta.env.DEV && status !== prevStatus) {
-            console.log('[TournamentBracket] 상태 변경:', prevStatus, '->', status, 'tournament.type:', tournament.type);
+            console.log('[TournamentBracket] status change:', prevStatus, '->', status, 'tournament.type:', tournament.type);
         }
         
         // 서버에서 자동으로 다음 경기를 시작하므로 클라이언트는 단순히 상태 변경을 감지
@@ -5950,7 +5975,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             if (countdownRef.current !== secondsLeft) {
                 countdownRef.current = secondsLeft;
                 if (secondsLeft > 0) {
-                    console.log(`[TournamentBracket] Countdown: ${secondsLeft}초 남음 (startTime: ${startTime}, now: ${now}, diff: ${timeUntilStart}ms)`);
+                    console.log(`[TournamentBracket] Countdown: ${secondsLeft}s left (startTime: ${startTime}, now: ${now}, diff: ${timeUntilStart}ms)`);
                 } else {
                     console.log(`[TournamentBracket] Countdown reached 0, starting match...`);
                 }
@@ -5979,7 +6004,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 if (tournamentType === 'neighborhood') {
                     // currentRoundRobinRound가 있으면 사용
                     if (currentRound) {
-                        const currentRoundObj = rounds.find(r => r.name === `${currentRound}회차`);
+                        const currentRoundObj = rounds.find(r => r.name === `${currentRound}${TB_ROUND_SUFFIX}`);
                         if (currentRoundObj) {
                             nextMatch = currentRoundObj.matches.find(m => m.isUserMatch && !m.isFinished);
                         }
@@ -5990,7 +6015,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                             const match = round.matches.find(m => m.isUserMatch && !m.isFinished);
                             if (match) {
                                 nextMatch = match;
-                                const parsed = parseInt(round.name.replace('회차', ''), 10);
+                                const parsed = parseInt(round.name.replace(TB_ROUND_SUFFIX, ''), 10);
                                 roundNumForTab = Number.isNaN(parsed) ? null : parsed;
                                 break;
                             }
@@ -6133,7 +6158,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     let nextMatch: Match | undefined = undefined;
                     if (tournament.type === 'neighborhood') {
                         const currentRound = tournament.currentRoundRobinRound || 1;
-                        const currentRoundObj = safeRounds.find(r => r.name === `${currentRound}회차`);
+                        const currentRoundObj = safeRounds.find(r => r.name === `${currentRound}${TB_ROUND_SUFFIX}`);
                         if (currentRoundObj) {
                             nextMatch = currentRoundObj.matches.find(m => m.isUserMatch && !m.isFinished);
                         }
@@ -6199,7 +6224,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                             };
                         };
                         
-                        console.log('[TournamentBracket] 선수 정보 업데이트:', { 
+                        console.log('[TournamentBracket] player update:', { 
                             p1Id: p1?.id, 
                             p2Id: p2?.id, 
                             isNewMatch, 
@@ -6300,7 +6325,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 } else if (!countdownInProgress) {
                     if (tournament.type === 'neighborhood') {
                         const currentRound = tournament.currentRoundRobinRound || 1;
-                        const currentRoundObj = safeRounds.find(r => r.name === `${currentRound}회차`);
+                        const currentRoundObj = safeRounds.find(r => r.name === `${currentRound}${TB_ROUND_SUFFIX}`);
                         if (currentRoundObj) {
                             nextMatch = currentRoundObj.matches.find(m => m.isUserMatch && !m.isFinished);
                         }
@@ -6393,7 +6418,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             let nextMatch: Match | undefined = undefined;
             if (tournament.type === 'neighborhood') {
                 const currentRound = tournament.currentRoundRobinRound || 1;
-                const currentRoundObj = safeRounds.find(r => r.name === `${currentRound}회차`);
+                const currentRoundObj = safeRounds.find(r => r.name === `${currentRound}${TB_ROUND_SUFFIX}`);
                 if (currentRoundObj) {
                     nextMatch = currentRoundObj.matches.find(m => m.isUserMatch && !m.isFinished);
                 }
@@ -6445,7 +6470,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     }, [onBack, onAction, tournament.status, tournament.type, displayTournament]);
 
     const handleForfeitClickRaw = useCallback(() => {
-        if (window.confirm('토너먼트를 포기하고 나가시겠습니까? 오늘의 참가 기회는 사라집니다.')) {
+        if (window.confirm(tt('forfeitConfirm'))) {
             onAction({ type: 'FORFEIT_TOURNAMENT', payload: { type: tournament.type } });
         }
     }, [onAction, tournament.type]);
@@ -6545,7 +6570,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         if (tournament.status === 'bracket_ready') {
             // 카운트다운 0 직후: 다음 회차 탭으로 전환된 상태 → 다음 회차 대국자 정보 + 빈 바둑판
             if (pendingRoundSwitchTo != null) {
-                const nextRoundObj = safeRounds.find(r => r.name === `${pendingRoundSwitchTo}회차`);
+                const nextRoundObj = safeRounds.find(r => r.name === `${pendingRoundSwitchTo}${TB_ROUND_SUFFIX}`);
                 const nextMatch = nextRoundObj?.matches.find(m => m.isUserMatch && !m.isFinished);
                 if (nextMatch) return nextMatch;
             }
@@ -6558,7 +6583,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             if (!countdownInProgress) {
                 if (tournament.type === 'neighborhood') {
                     const currentRound = tournament.currentRoundRobinRound || 1;
-                    const currentRoundObj = safeRounds.find(r => r.name === `${currentRound}회차`);
+                    const currentRoundObj = safeRounds.find(r => r.name === `${currentRound}${TB_ROUND_SUFFIX}`);
                     if (currentRoundObj) {
                         const nextMatch = currentRoundObj.matches.find(m => m.isUserMatch && !m.isFinished);
                         if (nextMatch) return nextMatch;
@@ -6667,7 +6692,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             }
             return [...tournament.players].sort((a,b) => wins[b.id] - wins[a.id])[0];
         } else {
-            const finalMatch = safeRounds.find(r => r.name === '결승');
+            const finalMatch = safeRounds.find(r => r.name === TB_RND_FINAL);
             return finalMatch?.matches[0]?.winner;
         }
     }, [tournament?.status, tournament?.type, tournament?.players, safeRounds]);
@@ -6695,29 +6720,29 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     if (i > 0 && playerWins[sortedPlayers[i].id] < playerWins[sortedPlayers[i-1].id]) currentRankValue = i + 1;
                     if (sortedPlayers[i].id === currentUser.id) { myRank = currentRankValue; break; }
                 }
-                return `${winsCount}승 ${lossesCount}패! ${myRank}위`;
+                return tt('statusRecordRank', { wins: winsCount, losses: lossesCount, rank: myRank });
             }
 
-            if (winner?.id === currentUser.id) return "🏆 우승!";
+            if (winner?.id === currentUser.id) return tt('championTitle');
 
             const lastUserMatch = [...safeRounds].reverse().flatMap(r => r.matches).find(m => m.isUserMatch && m.isFinished);
             if (lastUserMatch) {
                 const roundOfLastMatch = safeRounds.find(r => r.matches.some(m => m.id === lastUserMatch.id));
-                if (roundOfLastMatch?.name === '결승') return "준우승!";
+                if (roundOfLastMatch?.name === TB_RND_FINAL) return tt('runnerUp');
 
-                if (roundOfLastMatch?.name === '4강') {
+                if (roundOfLastMatch?.name === TB_RND_SF) {
                     const thirdPlaceMatch = safeRounds.flatMap(r => r.matches).find(m => {
                         const round = safeRounds.find(r => r.matches.some(match => match.id === m.id));
-                        return m.isUserMatch && round?.name === '3,4위전';
+                        return m.isUserMatch && round?.name === TB_RND_THIRD;
                     });
                     if (thirdPlaceMatch) {
                         const won3rdPlace = thirdPlaceMatch.winner?.id === currentUser.id;
-                        return won3rdPlace ? "3위" : "4위";
+                        return won3rdPlace ? tt('thirdPlace') : tt('fourthPlace');
                     }
                 }
-                return `${roundOfLastMatch?.name || ''}에서 탈락`;
+                return tt('eliminatedInRound', { round: roundOfLastMatch?.name || '' });
             }
-            return "토너먼트 탈락";
+            return tt('tournamentEliminated');
         }
 
         if (tournament.status === 'round_complete' || tournament.status === 'bracket_ready') {
@@ -6728,16 +6753,16 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     const allMyMatches = safeRounds.flatMap(r => r.matches).filter(m => m.isUserMatch && m.isFinished);
                     const wins = allMyMatches.filter(m => m.winner?.id === currentUser.id).length;
                     const losses = allMyMatches.length - wins;
-                    return `${allMyMatches.length}차전 ${userWonLastMatch ? '승리' : '패배'}! (${wins}승 ${losses}패)`;
+                    return tt('matchRoundResult', { round: allMyMatches.length, outcome: userWonLastMatch ? tt('victory') : tt('defeat'), wins, losses });
                 } else if (userWonLastMatch) {
                     const nextUnplayedRound = safeRounds.find(r => r.matches.some(m => !m.isFinished && m.players.some(p => p?.id === currentUser.id)));
-                    if (nextUnplayedRound) return `${nextUnplayedRound.name} 진출!`;
+                    if (nextUnplayedRound) return tt('roundAdvanceExclaim', { round: nextUnplayedRound.name });
                 }
             }
         }
         
         const currentRound = safeRounds.find(r => r.matches.some(m => m.isUserMatch && !m.isFinished));
-        return currentRound ? `${currentRound.name} 진행 중` : "대회 준비 중";
+        return currentRound ? tt('roundInProgress', { round: currentRound.name }) : tt('tournamentPreparing');
     }, [currentUser.id, tournament, winner, safeRounds]);
     
     const p1_from_match = matchForDisplay?.players?.[0] || null;
@@ -6848,10 +6873,10 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     className={`${vipOk && canClick ? championshipFooterSecondaryButton : championshipFooterMutedButton} ${fb} ${!vipOk ? 'opacity-80' : ''}`}
                     title={
                         !vipOk
-                            ? '기능 VIP 활성화 후 사용할 수 있습니다.'
+                            ? tt('vipSkipRequiresFunctionVip')
                             : !championshipDungeonSkipUi.canAttempt
-                              ? '상대 정보를 준비하는 중입니다.'
-                              : '남은 모든 라운드(유저 경기)를 한 번에 스킵하고 대회를 끝까지 진행합니다.'
+                              ? tt('preparingOpponentInfo')
+                              : tt('skipAllRoundsHint')
                     }
                 >
                     전체 스킵
@@ -6944,7 +6969,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             let nextMatch: Match | undefined = undefined;
             if (tournament.type === 'neighborhood') {
                 const currentRound = tournament.currentRoundRobinRound || 1;
-                const currentRoundObj = safeRounds.find(r => r.name === `${currentRound}회차`);
+                const currentRoundObj = safeRounds.find(r => r.name === `${currentRound}${TB_ROUND_SUFFIX}`);
                 if (currentRoundObj) {
                     nextMatch = currentRoundObj.matches.find(m => m.isUserMatch && !m.isFinished);
                 }
@@ -6972,7 +6997,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 );
             }
 
-            const buttonLabel = hasJustFinishedUserMatch ? '다음 경기' : '경기 시작';
+            const buttonLabel = hasJustFinishedUserMatch ? tt('nextMatch') : tt('startMatch');
             const isMatchStartBusy = isDungeonChampionship && championshipAwaitingKataLoad;
 
             if (isMatchStartBusy) {
@@ -7047,7 +7072,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                         disabled={mobileRewardClaimBusy}
                         className={`${championshipFooterPrimaryButton} ${fb}`}
                     >
-                        {mobileRewardClaimBusy ? '수령 중...' : '보상받기'}
+                        {mobileRewardClaimBusy ? tt('claiming') : tt('claimReward')}
                     </button>
                 </div>
             );
@@ -7067,7 +7092,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                             disabled={mobileRewardClaimBusy}
                             className={`${championshipFooterPrimaryButton} ${fb}`}
                         >
-                            {mobileRewardClaimBusy ? '처리 중...' : '보상 완료'}
+                            {mobileRewardClaimBusy ? tt('processing') : tt('rewardComplete')}
                         </button>
                     </div>
                 );
@@ -7118,7 +7143,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         let nextMatch: Match | undefined;
         if (tournament.type === 'neighborhood') {
             const currentRound = tournament.currentRoundRobinRound || 1;
-            const currentRoundObj = safeRounds.find((r) => r.name === `${currentRound}회차`);
+            const currentRoundObj = safeRounds.find((r) => r.name === `${currentRound}${TB_ROUND_SUFFIX}`);
             if (currentRoundObj) {
                 nextMatch = currentRoundObj.matches.find((m) => m.isUserMatch && !m.isFinished);
             }
@@ -7155,7 +7180,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         if (intent === 'start' && hasJustFinishedUserMatch) return null;
         if (intent === 'next' && !hasJustFinishedUserMatch) return null;
 
-        const buttonLabel = hasJustFinishedUserMatch ? '다음 경기' : '경기 시작';
+        const buttonLabel = hasJustFinishedUserMatch ? tt('nextMatch') : tt('startMatch');
 
         if (championshipAwaitingKataLoad) {
             return (
@@ -7301,7 +7326,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         if (championshipAwaitingKataLoad && !lastFinishedUserMatch) return null;
         if (championshipAwaitingKataLoad) {
             return (
-                <p className="mb-1.5 text-center text-[10px] font-bold leading-snug text-cyan-300">경기 준비 중..</p>
+                <p className="mb-1.5 text-center text-[10px] font-bold leading-snug text-cyan-300">{tt('matchPreparing')}</p>
             );
         }
         if (autoNextCountdown !== null) {
@@ -7364,7 +7389,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                         <span
                             className={`text-center font-bold text-blue-400 ${isMobile ? 'text-xs leading-tight' : 'text-sm sm:text-base'}`}
                         >
-                            경기 진행 중...
+                            {tt('matchInProgress')}
                         </span>
                     ) : (
                         <span className={`text-center text-slate-500 ${isMobile ? 'text-[10px]' : 'text-xs'}`}>
@@ -7385,13 +7410,13 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     const championshipCommentaryEmptyHint = useMemo(() => {
         if (!isDungeonChampionshipVenue) return null;
         if (championshipAwaitingKataLoad) {
-            return '선수들이 입장하고 있습니다. 잠시만 기다려주세요.';
+            return tt('playersEntering');
         }
         if (
             (tournament.status === 'bracket_ready' || tournament.status === 'round_complete') &&
             !matchForDisplay?.championshipRealGame
         ) {
-            return '대회에 참가하기 위해 심호흡을 하고있습니다.';
+            return tt('breathing');
         }
         return null;
     }, [
@@ -7412,11 +7437,11 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 className={`${championshipFooterExitButton} !text-sm !py-2 !px-4`}
                                 title={
                     tournament.status === 'round_in_progress'
-                        ? '로비로 나가도 저장 후 이어서 할 수 있습니다.'
-                        : '경기장을 나갑니다.'
+                        ? tt('canResumeFromLobby')
+                        : tt('leaveArena')
                 }
             >
-                나가기
+                {tt('exit')}
             </Button>
         ) : null;
 
@@ -7431,11 +7456,11 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 className={`${championshipFooterExitButton} !text-xs !py-1.5 !px-3`}
                                 title={
                     tournament.status === 'round_in_progress'
-                        ? '로비로 나가도 저장 후 이어서 할 수 있습니다.'
-                        : '경기장을 나갑니다.'
+                        ? tt('canResumeFromLobby')
+                        : tt('leaveArena')
                 }
             >
-                나가기
+                {tt('exit')}
             </Button>
         ) : null;
 
@@ -7448,10 +7473,10 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             {championshipDungeonPlaybackSpeedChoices.map((speed) => {
                 const isActive = effectiveChampionshipPlaybackSpeed === speed;
                 const titleBySpeed: Record<string, string> = {
-                    '0.5': '3초에 한 수',
-                    '1': '1.5초에 한 수',
-                    '2': '1초에 한 수',
-                    '3': '0.5초에 한 수',
+                    '0.5': tt('playbackSpeed.0.5'),
+                    '1': tt('playbackSpeed.1'),
+                    '2': tt('playbackSpeed.2'),
+                    '3': tt('playbackSpeed.3'),
                 };
                 return (
                     <button
@@ -7561,13 +7586,13 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                             !skipVisible
                                 ? undefined
                                 : !vipOk
-                                  ? '기능 VIP 활성화 후 사용할 수 있습니다.'
+                                  ? tt('vipSkipRequiresFunctionVip')
                                   : !championshipDungeonSkipUi.canAttempt
-                                    ? '상대 정보를 준비하는 중입니다.'
-                                    : '남은 모든 라운드(유저 경기)를 한 번에 스킵하고 대회를 끝까지 진행합니다.'
+                                    ? tt('preparingOpponentInfo')
+                                    : tt('skipAllRoundsHint')
                         }
                     >
-                        전체스킵
+                        {tt('skipAll')}
                     </Button>
                     <Button
                         type="button"
@@ -7577,11 +7602,11 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                         className={`${championshipFooterExitButton} ${mobileBtn}`}
                         title={
                             tournament.status === 'round_in_progress'
-                                ? '로비로 나가도 저장 후 이어서 할 수 있습니다.'
-                                : '경기장을 나갑니다.'
+                                ? tt('canResumeFromLobby')
+                                : tt('leaveArena')
                         }
                     >
-                        나가기
+                        {tt('exit')}
                     </Button>
                 </div>
             </section>
@@ -7627,7 +7652,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                           disabled={mobileRewardClaimBusy}
                                           className="w-full rounded-lg bg-green-600 px-2 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
                                       >
-                                          {mobileRewardClaimBusy ? '처리 중...' : '보상 완료'}
+                                          {mobileRewardClaimBusy ? tt('processing') : tt('rewardComplete')}
                                       </button>
                                   ) : (
                                       <div className="flex w-full min-h-[2.25rem] items-center justify-center rounded-lg border border-gray-600 bg-gray-700/50 px-2 py-1.5 text-center text-xs font-semibold text-gray-400">
@@ -7640,7 +7665,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                   onClick={handleChampionshipArenaExitClick}
                                   className="min-w-0 flex-1 basis-[calc(50%-0.25rem)] rounded-lg bg-rose-800/85 px-2 py-1.5 text-xs font-semibold text-rose-50 transition-colors hover:bg-rose-700"
                               >
-                                  나가기
+                                  {tt('exit')}
                               </button>
                           </div>
                       )}
@@ -7658,10 +7683,10 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                       }`}
                                   >
                                       {mobileRewardClaimBusy
-                                          ? '수령 중...'
+                                          ? tt('claiming')
                                           : canClaimReward
-                                            ? '보상받기'
-                                            : '경기 종료 후 수령 가능'}
+                                            ? tt('claimReward')
+                                            : tt('claimAfterMatchEnd')}
                                   </button>
                               ) : null}
                               {(isTournamentFullyComplete || isUserEliminated) ? (
@@ -7670,7 +7695,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                       onClick={handleChampionshipArenaExitClick}
                                       className="min-w-0 flex-1 basis-[calc(50%-0.25rem)] rounded-lg bg-rose-800/85 px-2 py-1.5 text-xs font-semibold text-rose-50 transition-colors hover:bg-rose-700"
                                   >
-                                      나가기
+                                      {tt('exit')}
                                   </button>
                               ) : null}
                               {(isInProgress || isRoundComplete) &&
@@ -7697,7 +7722,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                   onClick={handleChampionshipArenaExitClick}
                                   className="min-w-0 flex-1 basis-[calc(50%-0.25rem)] rounded-lg bg-rose-800/85 px-2 py-1.5 text-xs font-semibold text-rose-50 transition-colors hover:bg-rose-700"
                               >
-                                  나가기
+                                  {tt('exit')}
                               </button>
                           </div>
                       ) : null}
@@ -7760,8 +7785,8 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 className={`grid shrink-0 grid-cols-2 rounded-xl border border-slate-600/65 bg-slate-950/88 shadow-inner ${compact ? 'gap-0.5 p-0.5' : 'gap-1 p-1'}`}
             >
                 {([
-                    { key: 'commentary' as const, label: '경기 요약' },
-                    { key: 'bracket' as const, label: '라운드' },
+                    { key: 'commentary' as const, label: tt('matchSummary') },
+                    { key: 'bracket' as const, label: tt('roundTab') },
                 ]).map(tab => (
                     <button
                         key={tab.key}
@@ -7826,11 +7851,11 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         <div className="mt-1 flex flex-wrap justify-center gap-2 px-1 text-xs">
             <span className="flex items-center gap-0.5">
                 <div className="h-3 w-3 shrink-0 rounded-sm" style={{ backgroundColor: 'rgba(59, 130, 246, 0.6)' }} />
-                <span className="max-w-none truncate">{p1?.nickname || '선수 1'}</span>
+                <span className="max-w-none truncate">{p1?.nickname || tt('playerOne')}</span>
             </span>
             <span className="flex items-center gap-0.5">
                 <div className="h-3 w-3 shrink-0 rounded-sm" style={{ backgroundColor: 'rgba(239, 68, 68, 0.6)' }} />
-                <span className="max-w-none truncate">{p2?.nickname || '선수 2'}</span>
+                <span className="max-w-none truncate">{p2?.nickname || tt('playerTwo')}</span>
             </span>
         </div>
     );
@@ -7947,9 +7972,9 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         const clickable = Boolean(player?.id && !player.id.startsWith('bot-') && !isCurrentUser);
         const realGame = matchForDisplay?.championshipRealGame;
         const isBlackPlayer = player?.id && realGame?.blackPlayerId === player.id;
-        const colorLabel = isBlackPlayer ? '흑' : player?.id && realGame?.whitePlayerId === player.id ? '백' : '';
-        const isWhite = colorLabel === '백';
-        const isBlackStone = colorLabel === '흑';
+        const colorLabel = isBlackPlayer ? tt('black') : player?.id && realGame?.whitePlayerId === player.id ? tt('white') : '';
+        const isWhite = colorLabel === tt('white');
+        const isBlackStone = colorLabel === tt('black');
         const isRightSide = tone === 'white';
         const toneSurface = isWhite
             ? 'bg-gradient-to-br from-slate-100 to-slate-300/95 text-slate-950 shadow-sm'
@@ -8009,7 +8034,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     type="button"
                     className={`shrink-0 ${clickable ? 'cursor-pointer' : 'cursor-default'}`}
                     onClick={clickable && player ? () => onViewUser(player.id) : undefined}
-                    title={clickable && player ? `${player.nickname} 프로필 보기` : undefined}
+                    title={clickable && player ? tt('viewProfile', { name: player.nickname }) : undefined}
                 >
                     {player ? (
                         <Avatar userId={player.id} userName={player.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={64} />
@@ -8020,8 +8045,8 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 <div className="min-w-0 flex-1">
                     <div className={`flex items-center gap-2 ${isRightSide ? 'justify-end' : ''}`}>
                         {colorLabel ? <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-bold ${chipClass}`}>{colorLabel}</span> : null}
-                        <span className={`truncate text-sm font-bold ${strongText}`}>{player?.nickname ?? '선수 대기'}</span>
-                        {isCurrentUser ? <span className="rounded-md bg-amber-400/20 px-1.5 py-0.5 text-[10px] font-bold text-amber-100">나</span> : null}
+                        <span className={`truncate text-sm font-bold ${strongText}`}>{player?.nickname ?? tt('playerWaitingShort')}</span>
+                        {isCurrentUser ? <span className="rounded-md bg-amber-400/20 px-1.5 py-0.5 text-[10px] font-bold text-amber-100">{tt('me')}</span> : null}
                         <span className={`whitespace-nowrap text-[12px] font-semibold ${mutedText}`}>
                             컨디션{' '}
                             <b className={`text-base tabular-nums ${conditionTone}`}>
@@ -8047,8 +8072,8 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                 }`}
                                 title={
                                     canUseConditionPotion
-                                        ? '컨디션 회복'
-                                        : '지금은 컨디션 회복제를 사용할 수 없습니다'
+                                        ? tt('conditionRecover')
+                                        : tt('conditionPotionUnavailable')
                                 }
                             >
                                 +
@@ -8056,8 +8081,8 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                         ) : null}
                     </div>
                     <div className={`mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] ${isRightSide ? 'justify-end' : ''} ${mutedText}`}>
-                        <span title={dungeonRunRecord ? '이번 챔피언십 단계에서의 전적' : undefined}>
-                            전적 <b className={`tabular-nums ${strongText}`}>{recordWins}승 {recordLosses}패</b>
+                        <span title={dungeonRunRecord ? tt('dungeonRunRecordTitle') : undefined}>
+                            {tt('record')} <b className={`tabular-nums ${strongText}`}>{tt('recordWinsLosses', { wins: recordWins, losses: recordLosses })}</b>
                         </span>
                     </div>
                 </div>
@@ -8124,7 +8149,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                         match={matchForDisplay}
                                         currentPhase={currentPhase}
                                         tone="black"
-                                        sideLabel="챔피언십 능력치"
+                                        sideLabel={tt('championshipAbility')}
                                         abilityKataLadder={abilityKataLadder}
                                     />
                                     <div className={`relative flex h-full min-h-0 min-w-0 flex-1 items-center justify-center bg-transparent p-0 ${championshipBoardHostClipClass}`}>
@@ -8142,7 +8167,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                         match={matchForDisplay}
                                         currentPhase={currentPhase}
                                         tone="white"
-                                        sideLabel="챔피언십 능력치"
+                                        sideLabel={tt('championshipAbility')}
                                         abilityKataLadder={abilityKataLadder}
                                     />
                                 </div>
@@ -8163,7 +8188,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         const realGame = matchForDisplay?.championshipRealGame;
         const isBlackPlayer = !!(player?.id && realGame?.blackPlayerId === player.id);
         const isWhitePlayer = !!(player?.id && realGame?.whitePlayerId === player.id);
-        const colorLabel = isBlackPlayer ? '흑' : isWhitePlayer ? '백' : '';
+        const colorLabel = isBlackPlayer ? tt('black') : isWhitePlayer ? tt('white') : '';
         const isCurrentUser = player?.id === currentUser.id;
         const clickable = Boolean(player?.id && !player.id.startsWith('bot-') && !isCurrentUser);
         const avatarUrl = player ? AVATAR_POOL.find((a) => a.id === player.avatarId)?.url : undefined;
@@ -8218,7 +8243,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     type="button"
                     className={`shrink-0 ${clickable ? 'cursor-pointer' : 'cursor-default'}`}
                     onClick={clickable && player ? () => onViewUser(player.id) : undefined}
-                    title={clickable && player ? `${player.nickname} 프로필 보기` : undefined}
+                    title={clickable && player ? tt('viewProfile', { name: player.nickname }) : undefined}
                 >
                     {player ? (
                         <Avatar
@@ -8240,7 +8265,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                             </span>
                         ) : null}
                         <span className={`truncate text-[12px] font-bold ${strongText}`}>
-                            {player?.nickname ?? '선수 대기'}
+                            {player?.nickname ?? tt('playerWaitingShort')}
                         </span>
                         {isCurrentUser ? (
                             <span className="rounded bg-amber-400/30 px-1 py-0 text-[9px] font-bold text-amber-100">
@@ -8253,7 +8278,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                             isRightSide ? 'text-right' : ''
                         } ${mutedText}`}
                     >
-                        <span title={dungeonRunRecordMobile ? '이번 챔피언십 단계에서의 전적' : undefined}>
+                        <span title={dungeonRunRecordMobile ? tt('dungeonRunRecordTitle') : undefined}>
                             전적{' '}
                             <b className={`tabular-nums ${strongText}`}>
                                 {recordWinsMobile}승 {recordLossesMobile}패
@@ -8288,8 +8313,8 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                 }`}
                                 title={
                                     canUseConditionPotion
-                                        ? '컨디션 회복'
-                                        : '지금은 컨디션 회복제를 사용할 수 없습니다'
+                                        ? tt('conditionRecover')
+                                        : tt('conditionPotionUnavailable')
                                 }
                             >
                                 +
@@ -8406,7 +8431,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     isWhite={p1IsWhite}
                     score={p1Score}
                     scoreKind={mobileScoreKind}
-                    colorLabel={p1IsBlack ? '흑' : p1IsWhite ? '백' : ''}
+                    colorLabel={p1IsBlack ? tt('black') : p1IsWhite ? tt('white') : ''}
                     side="left"
                 />
                 <ChampionshipMobileScoringCountdownCell remaining={remainingPly} max={maxPly} />
@@ -8414,7 +8439,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     isWhite={p2IsWhite}
                     score={p2Score}
                     scoreKind={mobileScoreKind}
-                    colorLabel={p2IsBlack ? '흑' : p2IsWhite ? '백' : ''}
+                    colorLabel={p2IsBlack ? tt('black') : p2IsWhite ? tt('white') : ''}
                     side="right"
                 />
             </section>
@@ -8594,7 +8619,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                             }`}
                             style={isMobile ? {} : { minHeight: '300px', maxHeight: '300px' }}
                         >
-                            <div className="flex flex-1 items-center justify-center text-gray-400">경기 정보를 불러오는 중...</div>
+                            <div className="flex flex-1 items-center justify-center text-gray-400">{tt('loadingMatchInfo')}</div>
                         </section>
                     ))}
                 
@@ -8728,7 +8753,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                         >
                             <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
                                 <div className="flex shrink-0 items-center justify-end border-b border-slate-700 bg-slate-950 px-3 py-2">
-                                    <span className="sr-only">부가 정보 패널</span>
+                                    <span className="sr-only">{tt('sidebarExtraPanel')}</span>
                                     <button
                                         type="button"
                                         onClick={() => setIsMobileSidebarOpen(false)}
@@ -8751,8 +8776,8 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     onClick={() => setIsMobileSidebarOpen(true)}
                     className="fixed right-0 z-30 flex h-[6.25rem] w-[2.65rem] flex-col items-center justify-center gap-1 rounded-l-2xl border-2 border-r-0 border-amber-200/75 bg-gradient-to-b from-amber-400/95 via-amber-600/92 to-slate-950 text-white shadow-[0_6px_28px_-4px_rgba(245,158,11,0.55),inset_0_1px_0_rgba(255,255,255,0.35)] ring-2 ring-amber-300/35 active:translate-x-0.5"
                     style={{ bottom: CHAMPIONSHIP_MOBILE_SIDEBAR_OPEN_TAB_BOTTOM }}
-                    aria-label="우측 패널 열기"
-                    title="우측 패널 열기"
+                    aria-label={tt('openRightPanel')}
+                    title={tt('openRightPanel')}
                 >
                     <span className="text-2xl font-black leading-none tracking-tight text-white drop-shadow-md">‹</span>
                     <span className="h-8 w-1 rounded-full bg-white/90 shadow-[0_0_8px_rgba(255,255,255,0.55)]" aria-hidden />
@@ -8766,7 +8791,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     onClose={() => setShowConditionPotionModal(false)}
                     onConfirm={(potionType) => {
                         if (!tournament?.type) {
-                            return Promise.resolve({ error: '토너먼트 정보를 찾을 수 없습니다.' });
+                            return Promise.resolve({ error: tt('tournamentNotFound') });
                         }
                         return onAction({
                             type: 'USE_CONDITION_POTION',

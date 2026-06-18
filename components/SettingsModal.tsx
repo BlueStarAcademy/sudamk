@@ -2,15 +2,17 @@
 
 
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import DraggableWindow from './DraggableWindow.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { SoundCategory, PanelEdgeStyle } from '../types.js';
 import ToggleSwitch from './ui/ToggleSwitch.js';
 import Slider from './ui/Slider.js';
-import ColorSwatch from './ui/ColorSwatch.js';
 import { getPanelEdgeImages } from '../constants/panelEdges.js';
 import { markSkipGameHashLeaveInterceptOnce, navigateFromGameIfApplicable } from '../utils/appUtils.js';
 import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../shared/constants/pcShellLayout.js';
+import { DEFAULT_LOCALE } from '../shared/i18n/constants.js';
+import LanguageSelect from './i18n/LanguageSelect.js';
 
 interface SettingsModalProps {
     onClose: () => void;
@@ -63,18 +65,16 @@ const dangerOutlineBtnClass = (active: boolean) =>
     }`;
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost, embedded = false }) => {
+    const { t } = useTranslation('settings');
     const {
         settings,
         updateSoundSetting,
         updateFeatureSetting,
-        updatePanelColor,
-        updateTextColor,
         updatePanelEdgeStyle,
-        resetGraphicsToDefault,
+        updateLocale,
         handlers,
-        currentUserWithStatus,
     } = useAppContext();
-    const [activeTab, setActiveTab] = useState<SettingsTab>('graphics');
+    const [activeTab, setActiveTab] = useState<SettingsTab>('features');
     const [showChangeUsername, setShowChangeUsername] = useState(false);
     const [showChangePassword, setShowChangePassword] = useState(false);
     const [showWithdraw, setShowWithdraw] = useState(false);
@@ -102,7 +102,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost, embed
 
     const handleChangeUsername = async () => {
         if (!newUsername || !currentPassword) {
-            setError('새 아이디와 현재 비밀번호를 입력해주세요.');
+            setError(t('account.errors.usernameRequired'));
             return;
         }
         
@@ -118,13 +118,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost, embed
             if (result?.error) {
                 setError(result.error);
             } else {
-                alert('아이디가 변경되었습니다.');
+                alert(t('account.alerts.usernameChanged'));
                 setShowChangeUsername(false);
                 setNewUsername('');
                 setCurrentPassword('');
             }
         } catch (err: any) {
-            setError(err.message || '아이디 변경 중 오류가 발생했습니다.');
+            setError(err.message || t('account.errors.usernameChangeFailed'));
         } finally {
             setIsLoading(false);
         }
@@ -132,12 +132,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost, embed
 
     const handleChangePassword = async () => {
         if (!currentPassword || !newPassword) {
-            setError('현재 비밀번호와 새 비밀번호를 입력해주세요.');
+            setError(t('account.errors.passwordRequired'));
             return;
         }
         
         if (newPassword.length < 6) {
-            setError('새 비밀번호는 최소 6자 이상이어야 합니다.');
+            setError(t('account.errors.passwordTooShort'));
             return;
         }
         
@@ -153,13 +153,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost, embed
             if (result?.error) {
                 setError(result.error);
             } else {
-                alert('비밀번호가 변경되었습니다.');
+                alert(t('account.alerts.passwordChanged'));
                 setShowChangePassword(false);
                 setCurrentPassword('');
                 setNewPassword('');
             }
         } catch (err: any) {
-            setError(err.message || '비밀번호 변경 중 오류가 발생했습니다.');
+            setError(err.message || t('account.errors.passwordChangeFailed'));
         } finally {
             setIsLoading(false);
         }
@@ -167,16 +167,16 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost, embed
 
     const handleWithdraw = async () => {
         if (!withdrawPassword || !withdrawConfirm) {
-            setError('비밀번호와 확인 문구를 입력해주세요.');
+            setError(t('account.errors.withdrawRequired'));
             return;
         }
         
         if (withdrawConfirm !== '회원탈퇴') {
-            setError('확인 문구가 올바르지 않습니다. "회원탈퇴"를 정확히 입력해주세요.');
+            setError(t('account.errors.withdrawConfirmMismatch'));
             return;
         }
         
-        if (!window.confirm('정말 회원탈퇴를 하시겠습니까?\n\n회원탈퇴 시 모든 데이터가 삭제되며, 동일한 이메일로는 1주일간 재가입이 불가능합니다.')) {
+        if (!window.confirm(t('account.alerts.withdrawConfirm'))) {
             return;
         }
         
@@ -192,41 +192,35 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost, embed
             if (result?.error) {
                 setError(result.error);
             } else {
-                alert('회원탈퇴가 완료되었습니다.\n동일한 이메일로는 1주일간 재가입이 불가능합니다.');
+                alert(t('account.alerts.withdrawComplete'));
                 const redirectTo = result?.clientResponse?.redirectTo || '#/login';
                 window.location.hash = redirectTo;
             }
         } catch (err: any) {
-            setError(err.message || '회원탈퇴 중 오류가 발생했습니다.');
+            setError(err.message || t('account.errors.withdrawFailed'));
         } finally {
             setIsLoading(false);
         }
     };
     
-    const tabs: { id: SettingsTab; label: string }[] = [
-        { id: 'graphics', label: '그래픽' },
-        { id: 'sound', label: '사운드' },
-        { id: 'features', label: '기능' },
-        { id: 'account', label: '계정' },
+    const tabs: { id: SettingsTab; labelKey: string }[] = [
+        { id: 'features', labelKey: 'tabs.features' },
+        { id: 'graphics', labelKey: 'tabs.display' },
+        { id: 'sound', labelKey: 'tabs.sound' },
+        { id: 'account', labelKey: 'tabs.account' },
     ];
 
-    const soundCategories: { key: SoundCategory, label: string }[] = [
-        { key: 'stone', label: '착수/충돌/낙하 소리' },
-        { key: 'notification', label: '획득/레벨업 알림' },
-        { key: 'item', label: '아이템 사용 소리' },
-        { key: 'countdown', label: '초읽기/카운트다운 소리' },
-        { key: 'turn', label: '내 턴 알림 소리' },
+    const soundCategories: { key: SoundCategory; labelKey: string }[] = [
+        { key: 'stone', labelKey: 'sound.categoriesList.stone' },
+        { key: 'notification', labelKey: 'sound.categoriesList.notification' },
+        { key: 'item', labelKey: 'sound.categoriesList.item' },
+        { key: 'countdown', labelKey: 'sound.categoriesList.countdown' },
+        { key: 'turn', labelKey: 'sound.categoriesList.turn' },
     ];
 
-    const PANEL_EDGE_OPTIONS: { id: PanelEdgeStyle; label: string; description?: string }[] = [
-        { id: 'none', label: '없음' },
-        { id: 'default', label: '클래식' },
-        { id: 'style1', label: '에메랄드' },
-        { id: 'style2', label: '코발트' },
-        { id: 'style3', label: '크림슨' },
-        { id: 'style4', label: '자수정' },
-        { id: 'style5', label: '황금' },
-    ];
+    const PANEL_EDGE_OPTIONS: PanelEdgeStyle[] = ['none', 'default', 'style1', 'style2', 'style3', 'style4', 'style5'];
+
+    const activeLocale = settings.graphics.locale ?? DEFAULT_LOCALE;
 
     const renderEdgePreview = (style: PanelEdgeStyle) => {
         const edges = getPanelEdgeImages(style);
@@ -251,27 +245,30 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost, embed
             case 'graphics':
                 return (
                     <div className="flex flex-col gap-2.5 sm:gap-3">
-                        <SettingsSection title="패널 스타일">
+                        <SettingsSection title={t('display.language')}>
+                            <LanguageSelect value={activeLocale} onChange={(locale) => updateLocale(locale)} />
+                        </SettingsSection>
+                        <SettingsSection title={t('display.panelStyle')}>
                             <div className="space-y-2 sm:space-y-2.5">
                                 <div className="flex items-center justify-center rounded-xl border border-amber-500/15 bg-black/35 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-white/[0.04] sm:p-5">
                                     {renderEdgePreview(settings.graphics.panelEdgeStyle ?? 'default')}
                                 </div>
                                 <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 sm:gap-2">
-                                    {PANEL_EDGE_OPTIONS.map(option => (
+                                    {PANEL_EDGE_OPTIONS.map(optionId => (
                                         <label
-                                            key={option.id}
+                                            key={optionId}
                                             className="flex min-w-0 cursor-pointer items-center gap-1.5 rounded-lg border border-white/[0.08] bg-black/25 px-2 py-1.5 transition-all duration-150 has-[:checked]:border-amber-400/55 has-[:checked]:bg-amber-950/40 has-[:checked]:shadow-[0_0_20px_-8px_rgba(251,191,36,0.35)] has-[:checked]:ring-1 has-[:checked]:ring-amber-400/20 sm:px-2.5 sm:py-2"
                                         >
                                             <input
                                                 type="radio"
                                                 name="panelEdgeStyle"
-                                                value={option.id}
-                                                checked={(settings.graphics.panelEdgeStyle ?? 'default') === option.id}
-                                                onChange={() => updatePanelEdgeStyle(option.id)}
+                                                value={optionId}
+                                                checked={(settings.graphics.panelEdgeStyle ?? 'default') === optionId}
+                                                onChange={() => updatePanelEdgeStyle(optionId)}
                                                 className="h-4 w-4 shrink-0 border-color bg-secondary text-accent focus:ring-accent"
                                             />
                                             <span className="min-w-0 flex-1 break-words text-[11px] leading-tight font-medium text-amber-50/95 sm:text-sm">
-                                                {option.label}
+                                                {t(`display.panelEdge.${optionId}`)}
                                             </span>
                                         </label>
                                     ))}
@@ -283,11 +280,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost, embed
             case 'sound':
                 return (
                     <div className="flex flex-col gap-2.5 sm:gap-3">
-                        <SettingsSection title="출력">
+                        <SettingsSection title={t('sound.output')}>
                             <div className="space-y-3 sm:space-y-3.5">
                                 <div>
                                     <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-amber-200/80 sm:mb-1.5 sm:text-[11px]">
-                                        마스터 볼륨
+                                        {t('sound.masterVolume')}
                                     </p>
                                     <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/30 px-2.5 py-2 shadow-inner ring-1 ring-white/[0.04] sm:gap-4 sm:px-3 sm:py-2.5">
                                         <span className="w-10 text-center font-mono text-base tabular-nums text-amber-100 sm:w-11 sm:text-lg">
@@ -304,7 +301,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost, embed
                                     </div>
                                 </div>
                                 <div className="flex items-center justify-between gap-2 rounded-xl border border-color/40 bg-secondary/20 px-3 py-2 sm:gap-3 sm:px-3.5 sm:py-2.5">
-                                    <span className="text-[11px] font-medium text-text-primary sm:text-sm">효과음 전체</span>
+                                    <span className="text-[11px] font-medium text-text-primary sm:text-sm">{t('sound.masterEffects')}</span>
                                     <ToggleSwitch
                                         checked={!settings.sound.masterMuted}
                                         onChange={(checked) => updateSoundSetting('masterMuted', !checked)}
@@ -312,14 +309,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost, embed
                                 </div>
                             </div>
                         </SettingsSection>
-                        <SettingsSection title="효과음 세부 조절">
+                        <SettingsSection title={t('sound.categories')}>
                             <div className="flex flex-col gap-0">
-                                {soundCategories.map(({ key, label }) => (
+                                {soundCategories.map(({ key, labelKey }) => (
                                     <div
                                         key={key}
                                         className="flex items-center justify-between gap-2 rounded-lg border border-transparent px-1.5 py-1.5 transition-colors hover:border-amber-500/15 hover:bg-white/[0.04] sm:px-2 sm:py-2"
                                     >
-                                        <span className="text-[11px] text-slate-300 sm:text-sm">{label}</span>
+                                        <span className="text-[11px] text-slate-300 sm:text-sm">{t(labelKey)}</span>
                                         <ToggleSwitch
                                             checked={!settings.sound.categoryMuted[key]}
                                             onChange={(checked) =>
@@ -339,31 +336,31 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost, embed
             case 'features':
                 return (
                     <div className="flex flex-col gap-2.5 sm:gap-3">
-                        <SettingsSection title="게임 플레이">
+                        <SettingsSection title={t('features.gameplay')}>
                             <div className="flex flex-col gap-0">
                                 <div className="flex items-center justify-between gap-2 rounded-lg border border-transparent px-1.5 py-1.5 hover:border-amber-500/15 hover:bg-white/[0.04] sm:px-2 sm:py-2">
-                                    <span className="text-[11px] text-slate-300 sm:text-sm">착수 버튼 사용</span>
+                                    <span className="text-[11px] text-slate-300 sm:text-sm">{t('features.moveConfirmButton')}</span>
                                     <ToggleSwitch
                                         checked={settings.features.moveConfirmButtonBox}
                                         onChange={(checked) => updateFeatureSetting('moveConfirmButtonBox', checked)}
                                     />
                                 </div>
                                 <div className="flex items-center justify-between gap-2 rounded-lg border border-transparent px-1.5 py-1.5 hover:border-amber-500/15 hover:bg-white/[0.04] sm:px-2 sm:py-2">
-                                    <span className="text-[11px] text-slate-300 sm:text-sm">돌 미리보기 (마우스 호버)</span>
+                                    <span className="text-[11px] text-slate-300 sm:text-sm">{t('features.stonePreview')}</span>
                                     <ToggleSwitch
                                         checked={settings.features.stonePreview}
                                         onChange={(checked) => updateFeatureSetting('stonePreview', checked)}
                                     />
                                 </div>
                                 <div className="flex items-center justify-between gap-2 rounded-lg border border-transparent px-1.5 py-1.5 hover:border-amber-500/15 hover:bg-white/[0.04] sm:px-2 sm:py-2">
-                                    <span className="text-[11px] text-slate-300 sm:text-sm">마지막 놓은 자리 표시</span>
+                                    <span className="text-[11px] text-slate-300 sm:text-sm">{t('features.lastMoveMarker')}</span>
                                     <ToggleSwitch
                                         checked={settings.features.lastMoveMarker}
                                         onChange={(checked) => updateFeatureSetting('lastMoveMarker', checked)}
                                     />
                                 </div>
                                 <div className="flex items-center justify-between gap-2 rounded-lg border border-transparent px-1.5 py-1.5 hover:border-amber-500/15 hover:bg-white/[0.04] sm:px-2 sm:py-2">
-                                    <span className="text-[11px] text-slate-300 sm:text-sm">따낸점수 애니메이션</span>
+                                    <span className="text-[11px] text-slate-300 sm:text-sm">{t('features.captureScoreAnimation')}</span>
                                     <ToggleSwitch
                                         checked={settings.features.captureScoreAnimation}
                                         onChange={(checked) => updateFeatureSetting('captureScoreAnimation', checked)}
@@ -371,9 +368,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost, embed
                                 </div>
                                 <div className="flex items-center justify-between gap-2 rounded-lg border border-transparent px-1.5 py-1.5 hover:border-amber-500/15 hover:bg-white/[0.04] sm:px-2 sm:py-2">
                                     <div className="min-w-0 flex-1">
-                                        <span className="block text-[11px] text-slate-300 sm:text-sm">도움말 모달</span>
+                                        <span className="block text-[11px] text-slate-300 sm:text-sm">{t('features.screenGuideModals')}</span>
                                         <span className="mt-0.5 block text-[10px] leading-snug text-slate-500">
-                                            화면 첫 진입 시 안내. 끄면 퀵 메뉴 「도움말」에서만 열립니다.
+                                            {t('features.screenGuideModalsHint')}
                                         </span>
                                     </div>
                                     <ToggleSwitch
@@ -383,17 +380,17 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost, embed
                                 </div>
                             </div>
                         </SettingsSection>
-                        <SettingsSection title="알림">
+                        <SettingsSection title={t('features.notifications')}>
                             <div className="flex flex-col gap-0">
                                 <div className="flex items-center justify-between gap-2 rounded-lg border border-transparent px-1.5 py-1.5 hover:border-amber-500/15 hover:bg-white/[0.04] sm:px-2 sm:py-2">
-                                    <span className="text-[11px] text-slate-300 sm:text-sm">퀘스트 완료 알림</span>
+                                    <span className="text-[11px] text-slate-300 sm:text-sm">{t('features.questNotifications')}</span>
                                     <ToggleSwitch
                                         checked={settings.features.questNotifications}
                                         onChange={(checked) => updateFeatureSetting('questNotifications', checked)}
                                     />
                                 </div>
                                 <div className="flex items-center justify-between gap-2 rounded-lg border border-transparent px-1.5 py-1.5 hover:border-amber-500/15 hover:bg-white/[0.04] sm:px-2 sm:py-2">
-                                    <span className="text-[11px] text-slate-300 sm:text-sm">채팅 내용 알림 (빨간 점)</span>
+                                    <span className="text-[11px] text-slate-300 sm:text-sm">{t('features.chatNotifications')}</span>
                                     <ToggleSwitch
                                         checked={settings.features.chatNotifications}
                                         onChange={(checked) => updateFeatureSetting('chatNotifications', checked)}
@@ -401,7 +398,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost, embed
                                 </div>
                             </div>
                         </SettingsSection>
-                        <SettingsSection title="비상 기능">
+                        <SettingsSection title={t('features.emergency')}>
                             <div className="relative overflow-hidden rounded-2xl border border-red-500/30 bg-gradient-to-br from-[#1c080c] via-[#12060a] to-[#0a0406] p-[1px] shadow-[0_0_52px_-18px_rgba(220,38,38,0.45)]">
                                 <div
                                     className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-red-400/50 to-transparent"
@@ -409,8 +406,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost, embed
                                 />
                                 <div className="relative rounded-[0.95rem] bg-gradient-to-b from-red-950/35 via-black/40 to-black/55 p-3 ring-1 ring-inset ring-red-500/15 sm:p-3.5">
                                     <div className="mb-2 space-y-0.5 text-[10px] leading-snug text-red-100/88 sm:mb-2.5 sm:text-xs">
-                                        <p className="whitespace-nowrap">모든 플레이중인 게임 종료</p>
-                                        <p className="whitespace-nowrap">PVP 경기장 기권패 처리</p>
+                                        <p className="whitespace-nowrap">{t('features.emergencyLine1')}</p>
+                                        <p className="whitespace-nowrap">{t('features.emergencyLine2')}</p>
                                     </div>
                                     <button type="button" onClick={handleEmergencyExit} className={dangerCtaBtnClass}>
                                         <span
@@ -422,7 +419,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost, embed
                                                 className="inline-block h-2 w-2 shrink-0 rounded-full bg-red-100 shadow-[0_0_14px_rgba(254,202,202,0.95)]"
                                                 aria-hidden
                                             />
-                                            비상탈출
+                                            {t('features.emergencyExit')}
                                         </span>
                                     </button>
                                 </div>
@@ -433,7 +430,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost, embed
             case 'account':
                 return (
                     <div className="flex flex-col gap-2.5 sm:gap-3">
-                        <SettingsSection title="계정 관리">
+                        <SettingsSection title={t('account.management')}>
                             <div className="mb-2 flex flex-col gap-2 sm:mb-3 sm:flex-row sm:gap-2">
                                 <button
                                     type="button"
@@ -449,7 +446,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost, embed
                                         className={`h-1.5 w-1.5 shrink-0 rounded-full ${showChangeUsername ? 'bg-amber-300 shadow-[0_0_10px_rgba(251,191,36,0.8)]' : 'bg-slate-600'}`}
                                         aria-hidden
                                     />
-                                    {showChangeUsername ? '아이디 변경 취소' : '아이디 변경'}
+                                    {showChangeUsername ? t('account.cancelChangeUsername') : t('account.changeUsername')}
                                 </button>
                                 <button
                                     type="button"
@@ -465,25 +462,25 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost, embed
                                         className={`h-1.5 w-1.5 shrink-0 rounded-full ${showChangePassword ? 'bg-amber-300 shadow-[0_0_10px_rgba(251,191,36,0.8)]' : 'bg-slate-600'}`}
                                         aria-hidden
                                     />
-                                    {showChangePassword ? '비밀번호 변경 취소' : '비밀번호 변경'}
+                                    {showChangePassword ? t('account.cancelChangePassword') : t('account.changePassword')}
                                 </button>
                             </div>
                             {showChangeUsername && (
                                 <div className="mb-2 rounded-xl border border-amber-500/20 bg-black/35 p-3 ring-1 ring-inset ring-white/[0.05] sm:mb-3 sm:p-3.5">
                                     <div className="space-y-2 sm:space-y-2.5">
                                         <div>
-                                            <label className="mb-1 block text-[11px] text-slate-400 sm:text-sm">새 아이디</label>
+                                            <label className="mb-1 block text-[11px] text-slate-400 sm:text-sm">{t('account.newUsername')}</label>
                                             <input
                                                 type="text"
                                                 value={newUsername}
                                                 onChange={(e) => setNewUsername(e.target.value)}
                                                 className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2.5 text-amber-50 outline-none focus:ring-2 focus:ring-amber-400/35"
-                                                placeholder="3-20자"
+                                                placeholder={t('account.usernamePlaceholder')}
                                                 disabled={isLoading}
                                             />
                                         </div>
                                         <div>
-                                            <label className="mb-1 block text-[11px] text-slate-400 sm:text-sm">현재 비밀번호</label>
+                                            <label className="mb-1 block text-[11px] text-slate-400 sm:text-sm">{t('account.currentPassword')}</label>
                                             <input
                                                 type="password"
                                                 value={currentPassword}
@@ -499,7 +496,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost, embed
                                             onClick={handleChangeUsername}
                                             disabled={isLoading}
                                         >
-                                            {isLoading ? '처리 중...' : '변경하기'}
+                                            {isLoading ? t('account.processing') : t('account.submitChange')}
                                         </button>
                                     </div>
                                 </div>
@@ -508,7 +505,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost, embed
                                 <div className="mb-2 rounded-xl border border-amber-500/20 bg-black/35 p-3 ring-1 ring-inset ring-white/[0.05] sm:mb-3 sm:p-3.5">
                                     <div className="space-y-2 sm:space-y-2.5">
                                         <div>
-                                            <label className="mb-1 block text-[11px] text-slate-400 sm:text-sm">현재 비밀번호</label>
+                                            <label className="mb-1 block text-[11px] text-slate-400 sm:text-sm">{t('account.currentPassword')}</label>
                                             <input
                                                 type="password"
                                                 value={currentPassword}
@@ -518,13 +515,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost, embed
                                             />
                                         </div>
                                         <div>
-                                            <label className="mb-1 block text-[11px] text-slate-400 sm:text-sm">새 비밀번호</label>
+                                            <label className="mb-1 block text-[11px] text-slate-400 sm:text-sm">{t('account.newPassword')}</label>
                                             <input
                                                 type="password"
                                                 value={newPassword}
                                                 onChange={(e) => setNewPassword(e.target.value)}
                                                 className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2.5 text-amber-50 outline-none focus:ring-2 focus:ring-amber-400/35"
-                                                placeholder="최소 6자"
+                                                placeholder={t('account.passwordMinPlaceholder')}
                                                 disabled={isLoading}
                                             />
                                         </div>
@@ -535,13 +532,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost, embed
                                             onClick={handleChangePassword}
                                             disabled={isLoading}
                                         >
-                                            {isLoading ? '처리 중...' : '변경하기'}
+                                            {isLoading ? t('account.processing') : t('account.submitChange')}
                                         </button>
                                     </div>
                                 </div>
                             )}
                         </SettingsSection>
-                        <SettingsSection title="회원탈퇴">
+                        <SettingsSection title={t('account.withdrawTitle')}>
                             <div className="relative overflow-hidden rounded-2xl border border-red-500/28 bg-gradient-to-br from-[#1a0608] via-[#100407] to-[#0a0305] p-[1px] shadow-[0_0_48px_-20px_rgba(185,28,28,0.4)]">
                                 <div
                                     className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-red-400/40 to-transparent"
@@ -549,8 +546,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost, embed
                                 />
                                 <div className="relative rounded-[0.95rem] bg-gradient-to-b from-red-950/40 via-black/45 to-black/60 p-3 ring-1 ring-inset ring-red-500/12 sm:p-3.5">
                                     <div className="mb-2 space-y-0.5 text-[10px] leading-snug text-red-100/88 sm:mb-2.5 sm:text-xs">
-                                        <p className="whitespace-nowrap">탈퇴시 데이터 삭제로 복구불가</p>
-                                        <p className="whitespace-nowrap">동일한 이메일 1주일 재가입 불가</p>
+                                        <p className="whitespace-nowrap">{t('account.withdrawLine1')}</p>
+                                        <p className="whitespace-nowrap">{t('account.withdrawLine2')}</p>
                                     </div>
                                     <button
                                         type="button"
@@ -562,12 +559,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost, embed
                                             setError(null);
                                         }}
                                     >
-                                        {showWithdraw ? '취소' : '회원탈퇴'}
+                                        {showWithdraw ? t('account.cancel') : t('account.withdraw')}
                                     </button>
                                     {showWithdraw && (
                                         <div className="mt-3 space-y-2 border-t border-red-500/20 pt-3 sm:mt-3.5 sm:space-y-2.5 sm:pt-3.5">
                                             <div>
-                                                <label className="mb-1 block text-[11px] font-medium text-red-100/85 sm:text-sm">비밀번호 확인</label>
+                                                <label className="mb-1 block text-[11px] font-medium text-red-100/85 sm:text-sm">{t('account.withdrawPasswordConfirm')}</label>
                                                 <input
                                                     type="password"
                                                     value={withdrawPassword}
@@ -578,14 +575,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost, embed
                                             </div>
                                             <div>
                                                 <label className="mb-1 block text-[11px] font-medium text-red-100/85 sm:text-sm">
-                                                    확인 문구 입력: &quot;회원탈퇴&quot;
+                                                    {t('account.withdrawTextConfirm')}
                                                 </label>
                                                 <input
                                                     type="text"
                                                     value={withdrawConfirm}
                                                     onChange={(e) => setWithdrawConfirm(e.target.value)}
                                                     className="w-full rounded-xl border border-red-500/35 bg-black/45 px-3 py-2.5 text-red-50/95 outline-none ring-1 ring-inset ring-white/[0.04] placeholder:text-red-200/35 focus:border-red-400/50 focus:ring-2 focus:ring-red-500/30"
-                                                    placeholder="회원탈퇴"
+                                                    placeholder={t('account.withdrawPlaceholder')}
                                                     disabled={isLoading}
                                                 />
                                             </div>
@@ -600,7 +597,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost, embed
                                                     className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent opacity-80"
                                                     aria-hidden
                                                 />
-                                                <span className="relative">{isLoading ? '처리 중...' : '탈퇴하기'}</span>
+                                                <span className="relative">{isLoading ? t('account.processing') : t('account.withdrawSubmit')}</span>
                                             </button>
                                         </div>
                                     )}
@@ -632,7 +629,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost, embed
                                 aria-hidden
                             />
                         )}
-                        <span className="relative z-[1]">{tab.label}</span>
+                        <span className="relative z-[1]">{t(tab.labelKey)}</span>
                     </button>
                 ))}
             </div>
@@ -647,7 +644,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost, embed
     }
 
     return (
-        <DraggableWindow title="설정" onClose={onClose} windowId="settings" initialWidth={600} initialHeight={720} isTopmost={isTopmost}>
+        <DraggableWindow title={t('title')} onClose={onClose} windowId="settings" initialWidth={600} initialHeight={860} isTopmost={isTopmost}>
             {settingsBody}
         </DraggableWindow>
     );

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
 import { formatDateTimeKST, getGuildWarTypeFromMatchTime } from '../../utils/timeUtils.js';
@@ -45,12 +46,13 @@ const GuildWarMatchingModal: React.FC<GuildWarMatchingModalProps> = ({
     matchPresentation,
     isTopmost,
 }) => {
+    const { t } = useTranslation(['guild', 'common']);
     const warInfo =
         warStartTime != null
             ? (() => {
                   const type = getGuildWarTypeFromMatchTime(warStartTime);
                   const warEndTime = warStartTime + GUILD_WAR_DURATION_MS_BY_TYPE[type];
-                  const periodLabel = type === 'tue_wed' ? '화 0시 ~ 수 23시' : '금 0시 ~ 일 23시';
+                  const periodLabel = type === 'tue_wed' ? t('war.periodTueWed') : t('war.periodFriSun');
                   return { start: warStartTime, end: warEndTime, periodLabel };
               })()
             : null;
@@ -60,7 +62,7 @@ const GuildWarMatchingModal: React.FC<GuildWarMatchingModalProps> = ({
 
     return (
         <DraggableWindow
-            title="길드 전쟁"
+            title={t('war.title')}
             onClose={onClose}
             windowId="guild-war-matching-modal"
             initialWidth={560}
@@ -71,7 +73,7 @@ const GuildWarMatchingModal: React.FC<GuildWarMatchingModalProps> = ({
                 <div className={`absolute inset-0 bg-gradient-to-br ${tStyle.ring} pointer-events-none rounded-b-xl`} />
                 <div className="relative z-10 flex flex-col items-center flex-1 min-h-0 p-6">
                     <div className="flex-shrink-0 w-20 h-20 rounded-xl bg-gradient-to-br from-stone-800/90 to-stone-900/90 border-2 border-stone-500/40 flex items-center justify-center mb-3 shadow-lg">
-                        <img src="/images/guild/button/guildwar.webp" alt="길드 전쟁" className="w-14 h-14 object-contain drop-shadow-xl" />
+                        <img src="/images/guild/button/guildwar.webp" alt={t('war.title')} className="w-14 h-14 object-contain drop-shadow-xl" />
                     </div>
                     {matchPresentation?.badge && (
                         <div
@@ -80,7 +82,7 @@ const GuildWarMatchingModal: React.FC<GuildWarMatchingModalProps> = ({
                             {matchPresentation.badge}
                         </div>
                     )}
-                    <h2 className="flex-shrink-0 text-xl font-bold text-stone-100 drop-shadow mb-2 text-center">길드 전쟁</h2>
+                    <h2 className="flex-shrink-0 text-xl font-bold text-stone-100 drop-shadow mb-2 text-center">{t('war.title')}</h2>
                     <div className="flex-1 min-h-0 w-full overflow-y-auto flex flex-col items-stretch justify-center gap-3">
                         <p className="text-stone-100 text-base leading-relaxed px-1 text-center font-semibold">{message}</p>
                         {matchPresentation && matchPresentation.lines.length > 0 && (
@@ -94,7 +96,7 @@ const GuildWarMatchingModal: React.FC<GuildWarMatchingModalProps> = ({
                         )}
                         {warInfo && (
                             <div className="w-full rounded-lg bg-stone-800/80 border border-stone-600/40 px-4 py-3 text-center">
-                                <div className="text-amber-200/90 text-sm font-medium mb-1">이번 길드전 진행 기간</div>
+                                <div className="text-amber-200/90 text-sm font-medium mb-1">{t('war.periodLabel')}</div>
                                 <div className="text-stone-300 text-xs leading-relaxed">
                                     {formatDateTimeKST(warInfo.start)} ~ {formatDateTimeKST(warInfo.end)}
                                 </div>
@@ -107,7 +109,7 @@ const GuildWarMatchingModal: React.FC<GuildWarMatchingModalProps> = ({
                             onClick={onClose}
                             className="w-full py-3.5 font-bold border-2 border-amber-500/60 bg-gradient-to-r from-amber-600/95 via-orange-600/95 to-amber-600/95 text-white shadow-lg hover:shadow-xl hover:from-amber-500 hover:via-orange-500 hover:to-amber-500 transition-all"
                         >
-                            확인
+                            {t('common:actions.confirm')}
                         </Button>
                     </div>
                 </div>

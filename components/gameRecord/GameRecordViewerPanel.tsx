@@ -1,4 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import i18n from '../shared/i18n/config.js';
+import { useLocalizedGameMode } from '../shared/i18n/localizedCatalog.js';
+import { useTranslation } from 'react-i18next';
 import { GameRecord, Player, Point } from '../../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants/gameModes.js';
 import SgfViewer, { parseSgf, buildBoardFromMoves, applySgfMoveToBoard, type SgfMove } from '../SgfViewer.js';
@@ -32,17 +35,17 @@ type ScoreSideDetails = NonNullable<GameRecord['gameResult']['scoreDetails']>['b
 function formatScoreDetailsOneLine(record: GameRecord): string {
     const { blackScore, whiteScore, scoreDetails } = record.gameResult;
     if (!scoreDetails) {
-        return `흑 ${blackScore}점 · 백 ${whiteScore}점`;
+        return i18n.t('common:scoreDetailsLine', { blackLine: i18n.t('common:scoreLine', { label: i18n.t('common:black'), score: blackScore }), whiteLine: i18n.t('common:scoreLine', { label: i18n.t('common:white'), score: whiteScore }) });
     }
-    const sideLine = (label: '흑' | '백', total: number, side: ScoreSideDetails) => {
+    const sideLine = (label: string, total: number, side: ScoreSideDetails) => {
         const parts = [`${label} ${total}`];
-        if (side.timeBonus > 0) parts.push(`시간+${side.timeBonus}`);
-        if (side.baseStoneBonus > 0) parts.push(`베이스+${side.baseStoneBonus}`);
-        if (side.hiddenStoneBonus > 0) parts.push(`히든+${side.hiddenStoneBonus}`);
-        if (side.itemBonus > 0) parts.push(`아이템+${side.itemBonus}`);
+        if (side.timeBonus > 0) parts.push(i18n.t('common:timeBonus', { bonus: side.timeBonus }));
+        if (side.baseStoneBonus > 0) parts.push(i18n.t('common:baseBonus', { bonus: side.baseStoneBonus }));
+        if (side.hiddenStoneBonus > 0) parts.push(i18n.t('common:hiddenBonus', { bonus: side.hiddenStoneBonus }));
+        if (side.itemBonus > 0) parts.push(i18n.t('common:itemBonus', { bonus: side.itemBonus }));
         return parts.join(' ');
     };
-    return `${sideLine('흑', blackScore, scoreDetails.black)} · ${sideLine('백', whiteScore, scoreDetails.white)}`;
+    return i18n.t('common:scoreDetailsLine', { blackLine: sideLine(i18n.t('common:black'), blackScore, scoreDetails.black), whiteLine: sideLine(i18n.t('common:white'), whiteScore, scoreDetails.white) });
 }
 
 const GameRecordViewerPanel: React.FC<GameRecordViewerPanelProps> = ({
@@ -51,6 +54,8 @@ const GameRecordViewerPanel: React.FC<GameRecordViewerPanelProps> = ({
     fitContainer = false,
     onClose,
 }) => {
+    const { t } = useTranslation(['profile', 'common']);
+    const localizedGameMode = useLocalizedGameMode();
     const isInline = variant === 'inline';
     const useResponsiveBoard = isInline || (variant === 'modal' && fitContainer);
     const boardAreaRef = useRef<HTMLDivElement>(null);
@@ -144,7 +149,7 @@ const GameRecordViewerPanel: React.FC<GameRecordViewerPanelProps> = ({
 
     const scoreDetails = record.gameResult.scoreDetails;
     const resultLabel = formatGameRecordResultLabel(record).text;
-    const myColorLabel = record.myColor === Player.Black ? '흑' : record.myColor === Player.White ? '백' : null;
+    const myColorLabel = record.myColor === Player.Black ? t('common:black') : record.myColor === Player.White ? t('common:white') : null;
 
     const infoRow = (label: string, value: React.ReactNode) => (
         <div className="border-b border-dashed border-white/[0.06] pb-2 last:border-0 last:pb-0">
@@ -162,8 +167,8 @@ const GameRecordViewerPanel: React.FC<GameRecordViewerPanelProps> = ({
             className={`flex shrink-0 items-center justify-center rounded-lg border border-amber-400/30 bg-zinc-950/90 text-amber-100 shadow-lg backdrop-blur-sm transition hover:border-amber-300/50 hover:bg-zinc-900/95 ${
                 isInline ? 'h-8 w-8' : 'h-9 w-9'
             }`}
-            title={isBoardRotated ? '흑의 입장으로 보기' : '백의 입장으로 보기'}
-            aria-label={isBoardRotated ? '흑의 입장으로 보기' : '백의 입장으로 보기'}
+            title={isBoardRotated ? t('common:rotateToBlack') : t('common:rotateToWhite')}
+            aria-label={isBoardRotated ? t('common:rotateToBlack') : t('common:rotateToWhite')}
         >
             <svg
                 className={isInline ? 'h-4 w-4' : 'h-5 w-5'}
@@ -248,7 +253,7 @@ const GameRecordViewerPanel: React.FC<GameRecordViewerPanelProps> = ({
                         : 'border-amber-400/35 bg-zinc-900/80 text-amber-100/95 hover:border-amber-400/55 hover:bg-zinc-800/90'
                 }`}
             >
-                {isReviewMode ? '원래기보' : '놓아보기'}
+                {isReviewMode ? t('common:originalGame') : t('gameRecords.tryPlacement')}
             </button>
             {reviewMoves.length > 0 && (
                 <button
@@ -264,7 +269,7 @@ const GameRecordViewerPanel: React.FC<GameRecordViewerPanelProps> = ({
 
     const moveCountLabel = (
         <p className={`shrink-0 whitespace-nowrap font-semibold tabular-nums text-slate-400 ${isInline ? 'text-sm sm:text-base' : 'text-base'}`}>
-            수순 <span className="text-amber-200">{currentMoveIndex}</span>
+            {t('gameRecords.movesLabel')} <span className="text-amber-200">{currentMoveIndex}</span>
             <span className="text-slate-600"> / </span>
             {totalMoves}
         </p>
@@ -324,11 +329,11 @@ const GameRecordViewerPanel: React.FC<GameRecordViewerPanelProps> = ({
                     대국 정보
                 </h3>
                 <dl className="space-y-2">
-                    {infoRow('상대', record.opponent.nickname)}
-                    {myColorLabel && infoRow('내 색', myColorLabel)}
-                    {infoRow('모드', modeLabel(record.mode))}
-                    {infoRow('일시', new Date(record.date).toLocaleString('ko-KR'))}
-                    {infoRow('결과', <span className="text-amber-200">{resultLabel}</span>)}
+                    {infoRow(t('common:opponent'), record.opponent.nickname)}
+                    {myColorLabel && infoRow(t('common:myColor'), myColorLabel)}
+                    {infoRow(t('game:gameRecord.mode'), localizedGameMode(record.mode as any) || record.mode)}
+                    {infoRow(t('game:gameRecord.date'), new Date(record.date).toLocaleString('ko-KR'))}
+                    {infoRow(t('game:gameRecord.result'), <span className="text-amber-200">{resultLabel}</span>)}
                 </dl>
             </div>
 
@@ -347,33 +352,33 @@ const GameRecordViewerPanel: React.FC<GameRecordViewerPanelProps> = ({
                     </h3>
                     <div className="space-y-2 text-[11px] text-slate-400">
                         <div>
-                            <div className="mb-0.5 font-semibold text-sky-200/90">흑 {record.gameResult.blackScore}점</div>
+                            <div className="mb-0.5 font-semibold text-sky-200/90">{t('gameRecords.blackScoreLine', { score: record.gameResult.blackScore })}</div>
                             {scoreDetails.black.timeBonus > 0 && (
-                                <div className="text-amber-200/90">시간 보너스 +{scoreDetails.black.timeBonus}</div>
+                                <div className="text-amber-200/90">{t('gameRecords.timeBonusLong', { bonus: scoreDetails.black.timeBonus })}</div>
                             )}
                             {scoreDetails.black.baseStoneBonus > 0 && (
-                                <div className="text-sky-300/90">베이스 보너스 +{scoreDetails.black.baseStoneBonus}</div>
+                                <div className="text-sky-300/90">{t('gameRecords.baseBonusLong', { bonus: scoreDetails.black.baseStoneBonus })}</div>
                             )}
                             {scoreDetails.black.hiddenStoneBonus > 0 && (
-                                <div className="text-violet-300/90">히든 보너스 +{scoreDetails.black.hiddenStoneBonus}</div>
+                                <div className="text-violet-300/90">{t('gameRecords.hiddenBonusLong', { bonus: scoreDetails.black.hiddenStoneBonus })}</div>
                             )}
                             {scoreDetails.black.itemBonus > 0 && (
-                                <div className="text-emerald-300/90">아이템 보너스 +{scoreDetails.black.itemBonus}</div>
+                                <div className="text-emerald-300/90">{t('gameRecords.itemBonusLong', { bonus: scoreDetails.black.itemBonus })}</div>
                             )}
                         </div>
                         <div className="border-t border-white/10 pt-1.5">
-                            <div className="mb-0.5 font-semibold text-amber-200/90">백 {record.gameResult.whiteScore}점</div>
+                            <div className="mb-0.5 font-semibold text-amber-200/90">{t('gameRecords.whiteScoreLine', { score: record.gameResult.whiteScore })}</div>
                             {scoreDetails.white.timeBonus > 0 && (
-                                <div className="text-amber-200/90">시간 보너스 +{scoreDetails.white.timeBonus}</div>
+                                <div className="text-amber-200/90">{t('gameRecords.timeBonusLong', { bonus: scoreDetails.white.timeBonus })}</div>
                             )}
                             {scoreDetails.white.baseStoneBonus > 0 && (
-                                <div className="text-sky-300/90">베이스 보너스 +{scoreDetails.white.baseStoneBonus}</div>
+                                <div className="text-sky-300/90">{t('gameRecords.baseBonusLong', { bonus: scoreDetails.white.baseStoneBonus })}</div>
                             )}
                             {scoreDetails.white.hiddenStoneBonus > 0 && (
-                                <div className="text-violet-300/90">히든 보너스 +{scoreDetails.white.hiddenStoneBonus}</div>
+                                <div className="text-violet-300/90">{t('gameRecords.hiddenBonusLong', { bonus: scoreDetails.white.hiddenStoneBonus })}</div>
                             )}
                             {scoreDetails.white.itemBonus > 0 && (
-                                <div className="text-emerald-300/90">아이템 보너스 +{scoreDetails.white.itemBonus}</div>
+                                <div className="text-emerald-300/90">{t('gameRecords.itemBonusLong', { bonus: scoreDetails.white.itemBonus })}</div>
                             )}
                         </div>
                     </div>
@@ -417,7 +422,7 @@ const GameRecordViewerPanel: React.FC<GameRecordViewerPanelProps> = ({
                             type="button"
                             onClick={onClose}
                             className={SUDAMR_MODAL_CLOSE_BUTTON_CLASS}
-                            aria-label="닫기"
+                            aria-label={t('actions.close', { ns: 'common' })}
                         >
                             닫기
                         </button>

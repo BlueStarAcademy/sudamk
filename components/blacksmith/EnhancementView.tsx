@@ -1,4 +1,6 @@
 
+import { useLocalizedItemGrade, useLocalizedEquipmentSlot } from '../../shared/i18n/localizedCatalog.js';
+import { useTranslation } from 'react-i18next';
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { UserWithStatus, InventoryItem, ServerAction, ItemGrade, ItemOption } from '../../types.js';
 import Button from '../Button.js';
@@ -12,14 +14,14 @@ import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 import { formatBlacksmithPercentInt } from '../../shared/utils/formatBlacksmithPercentInt.js';
 import { getBlacksmithViewerTypography, BLACKSMITH_MOBILE_WORK_ROOT_CLASS } from '../../shared/constants/blacksmithViewerTypography.js';
 
-const gradeStyles: Record<ItemGrade, { name: string; color: string; background: string; }> = {
-    normal: { name: '일반', color: 'text-gray-300', background: '/images/equipments/normalbgi.webp' },
-    uncommon: { name: '고급', color: 'text-green-400', background: '/images/equipments/uncommonbgi.webp' },
-    rare: { name: '희귀', color: 'text-blue-400', background: '/images/equipments/rarebgi.webp' },
-    epic: { name: '에픽', color: 'text-purple-400', background: '/images/equipments/epicbgi.webp' },
-    legendary: { name: '전설', color: 'text-red-500', background: '/images/equipments/legendarybgi.webp' },
-    mythic: { name: '신화', color: 'text-orange-400', background: '/images/equipments/mythicbgi.webp' },
-    transcendent: { name: '초월', color: 'text-cyan-300', background: '/images/equipments/transcendentbgi.webp' },
+const gradeStyles: Record<ItemGrade, { color: string; background: string; }> = {
+    normal: { color: 'text-gray-300', background: '/images/equipments/normalbgi.webp' },
+    uncommon: { color: 'text-green-400', background: '/images/equipments/uncommonbgi.webp' },
+    rare: { color: 'text-blue-400', background: '/images/equipments/rarebgi.webp' },
+    epic: { color: 'text-purple-400', background: '/images/equipments/epicbgi.webp' },
+    legendary: { color: 'text-red-500', background: '/images/equipments/legendarybgi.webp' },
+    mythic: { color: 'text-orange-400', background: '/images/equipments/mythicbgi.webp' },
+    transcendent: { color: 'text-cyan-300', background: '/images/equipments/transcendentbgi.webp' },
 };
 
 const renderStarDisplay = (stars: number, previousStars?: number, isAnimating?: boolean) => {
@@ -202,26 +204,26 @@ const EnhancementResultDisplay: React.FC<{ outcome: { message: string; success: 
         <div className="absolute inset-0 bg-gray-900/80 rounded-lg flex flex-col items-center justify-center z-20 animate-fade-in p-4">
             <div className={`text-6xl mb-4 ${success ? 'animate-bounce' : ''}`}>{success ? '🎉' : '💥'}</div>
             <h2 className={`text-3xl font-bold ${success ? 'text-green-400' : 'text-red-400'}`}>
-                {success ? '강화 성공!' : '강화 실패...'}
+                {success ? t('enhance.success') : t('enhance.fail')}
             </h2>
             <p className="text-gray-300 mt-2 text-center">{message}</p>
             {success && (
                 <div className="bg-gray-800/50 p-3 rounded-lg mt-4 w-full max-w-sm text-xs space-y-1">
-                    <h4 className="font-bold text-center text-yellow-300 mb-2">변경 사항</h4>
+                    <h4 className="font-bold text-center text-yellow-300 mb-2">{t('enhance.changes')}</h4>
                     <div className="flex justify-between">
                         <span>등급:</span> 
                         <span className="flex items-center gap-2">
-                            <span className={starInfoBefore.colorClass}>{starInfoBefore.text || '(미강화)'}</span>
+                            <span className={starInfoBefore.colorClass}>{starInfoBefore.text || t('notEnhanced', { ns: 'common' })}</span>
                              → 
                             <span className={starInfoAfter.colorClass}>{starInfoAfter.text}</span>
                         </span>
                     </div>
-                    {itemBefore.options && itemAfter.options && <div className="flex justify-between"><span>주옵션:</span> <span className="truncate">{itemBefore.options.main.display} → {itemAfter.options.main.display}</span></div>}
-                    {changedSubOption?.type === 'new' && changedSubOption.option && <div className="flex justify-between text-green-300"><span>부옵션 추가:</span> <span className="truncate">{changedSubOption.option.display}</span></div>}
-                    {changedSubOption?.type === 'upgraded' && changedSubOption.before && <div className="flex justify-between text-green-300"><span>부옵션 강화:</span> <span className="truncate">{changedSubOption.before.display} → {changedSubOption.after.display}</span></div>}
+                    {itemBefore.options && itemAfter.options && <div className="flex justify-between"><span>{t('enhance.mainOption')}</span> <span className="truncate">{itemBefore.options.main.display} → {itemAfter.options.main.display}</span></div>}
+                    {changedSubOption?.type === 'new' && changedSubOption.option && <div className="flex justify-between text-green-300"><span>{t('enhance.subOptionAdd')}</span> <span className="truncate">{changedSubOption.option.display}</span></div>}
+                    {changedSubOption?.type === 'upgraded' && changedSubOption.before && <div className="flex justify-between text-green-300"><span>{t('enhance.subOptionUpgrade')}</span> <span className="truncate">{changedSubOption.before.display} → {changedSubOption.after.display}</span></div>}
                 </div>
             )}
-            <Button onClick={onConfirm} colorScheme="green" className="mt-6 w-full max-w-sm">확인</Button>
+            <Button onClick={onConfirm} colorScheme="green" className="mt-6 w-full max-w-sm">{t('actions.ok', { ns: 'common' })}</Button>
         </div>
     );
 };
@@ -238,6 +240,8 @@ interface EnhancementViewProps {
 }
 
 const EnhancementView: React.FC<EnhancementViewProps> = ({
+    const { t } = useTranslation('blacksmith');
+    const localizedGrade = useLocalizedItemGrade();
     selectedItem,
     currentUser,
     onAction,
@@ -317,7 +321,7 @@ const EnhancementView: React.FC<EnhancementViewProps> = ({
         if (!selectedItem) {
             return { mainOptionPreview: '', subOptionPreview: '' };
         }
-        if (!selectedItem.options || selectedItem.stars >= 10) return { mainOptionPreview: '최대 강화', subOptionPreview: '' };
+        if (!selectedItem.options || selectedItem.stars >= 10) return { mainOptionPreview: t('enhance.maxPreview'), subOptionPreview: '' };
 
         const { main, combatSubs } = selectedItem.options;
         const mainBaseValue = main.baseValue;
@@ -340,11 +344,11 @@ const EnhancementView: React.FC<EnhancementViewProps> = ({
         // 부옵션 간단한 표현
         let subOptionPreview = '';
         if (combatSubs.length === 0) {
-            subOptionPreview = '부옵션 없음';
+            subOptionPreview = t('enhance.noSubOption');
         } else if (combatSubs.length < 4) {
-            subOptionPreview = '신규 부옵션 생성';
+            subOptionPreview = t('enhance.newSubOption');
         } else {
-            subOptionPreview = '부옵션 강화';
+            subOptionPreview = t('enhance.subOptionUpgradeShort');
         }
         
         return { mainOptionPreview, subOptionPreview };
@@ -361,16 +365,16 @@ const EnhancementView: React.FC<EnhancementViewProps> = ({
     }, [selectedItem]);
 
     const buttonText = useMemo(() => {
-        if (!selectedItem) return '강화할 장비를 선택해주세요.';
-        if (isEnhancing) return '강화 중...';
-        if (selectedItem.stars >= 10) return '최대 강화';
+        if (!selectedItem) return t('enhance.pickGear');
+        if (isEnhancing) return t('enhance.enhancing');
+        if (selectedItem.stars >= 10) return t('enhance.maxPreview');
         if (levelRequirement > 0 && !meetsLevelRequirement) {
-            return `레벨 부족 (${formatEquipLevelRequirement(levelRequirement)} 필요)`;
+            return t('enhance.levelInsufficient', { required: formatEquipLevelRequirement(levelRequirement) });
         }
-        if (!costs) return '강화 정보 없음';
-        if (!hasEnoughGold) return `골드 부족 (필요: ${formatGoldAmountKoG(goldCost)})`;
-        if (!canEnhance) return '재료 부족';
-        return `강화하기 (+${selectedItem.stars + 1})`;
+        if (!costs) return t('enhance.noInfo');
+        if (!hasEnoughGold) return t('enhance.goldInsufficient', { cost: formatGoldAmountKoG(goldCost) });
+        if (!canEnhance) return t('enhance.materialInsufficient');
+        return t('enhance.enhanceBtn', { stars: selectedItem.stars + 1 });
     }, [isEnhancing, selectedItem, levelRequirement, meetsLevelRequirement, costs, canEnhance, hasEnoughGold, goldCost]);
 
     useEffect(() => {
@@ -415,7 +419,7 @@ useEffect(() => {
     if (!selectedItem) {
         return (
             <div className={`flex items-center justify-center h-full text-gray-500 ${typo.empty}`}>
-                <p>강화할 장비를 선택해주세요.</p>
+                <p>{t('enhance.pickGear')}</p>
             </div>
         );
     }
@@ -429,9 +433,9 @@ useEffect(() => {
         selectedItem.stars >= 10 ? 0 : Math.min(100, baseSuccessRate + failBonus + vipEnhanceBonus);
     const successRateBreakdownParts: string[] = [];
     if (selectedItem.stars < 10) {
-        successRateBreakdownParts.push(`기본 ${formatBlacksmithPercentInt(baseSuccessRate)}%`);
-        if (failBonus > 0) successRateBreakdownParts.push(`실패 보너스 +${formatBlacksmithPercentInt(failBonus)}%`);
-        if (vipEnhanceBonus > 0) successRateBreakdownParts.push(`기능 VIP +${formatBlacksmithPercentInt(vipEnhanceBonus)}%`);
+        successRateBreakdownParts.push(t('enhance.baseRate', { rate: formatBlacksmithPercentInt(baseSuccessRate) }));
+        if (failBonus > 0) successRateBreakdownParts.push(t('enhance.failBonus', { rate: formatBlacksmithPercentInt(failBonus) }));
+        if (vipEnhanceBonus > 0) successRateBreakdownParts.push(t('enhance.vipBonus', { rate: formatBlacksmithPercentInt(vipEnhanceBonus) }));
     }
     const successRateDisplay = selectedItem.stars >= 10 ? '—' : `${formatBlacksmithPercentInt(totalSuccessRate)}%`;
 
@@ -508,10 +512,10 @@ useEffect(() => {
                 >
                     {/* 강화 성공 시 정보 */}
                     <div className="flex-shrink-0 rounded-xl border border-emerald-400/25 bg-gradient-to-b from-emerald-950/25 via-black/40 to-black/30 p-2.5">
-                        <h4 className={`mb-1.5 text-center ${typo.heading} text-emerald-200`}>강화 성공 시</h4>
+                        <h4 className={`mb-1.5 text-center ${typo.heading} text-emerald-200`}>{t('enhance.successRateTitle')}</h4>
                         <div className={`mx-auto w-full max-w-sm space-y-1.5 text-left ${typo.body}`}>
                             <div className="flex justify-between items-center gap-2 min-w-0">
-                                <span className="flex-shrink-0 whitespace-nowrap text-gray-400">등급:</span>
+                                <span className="flex-shrink-0 whitespace-nowrap text-gray-400">{t('enhance.gradeLabel')}</span>
                                 <div className={`flex min-w-0 items-center gap-1 whitespace-nowrap text-white ${detailValueClass}`}>
                                     <span className={starInfoCurrent.colorClass}>{starInfoCurrent.text || '(★0)'}</span>
                                     <span>→</span>
@@ -519,11 +523,11 @@ useEffect(() => {
                                 </div> 
                             </div>
                             <div className="flex justify-between items-center gap-2 min-w-0">
-                                <span className="flex-shrink-0 whitespace-nowrap text-gray-400">주옵션:</span>
+                                <span className="flex-shrink-0 whitespace-nowrap text-gray-400">{t('enhance.mainOptionLabel')}</span>
                                 <span className={`min-w-0 truncate text-right text-yellow-300 ${detailValueClass}`} title={mainOptionPreview}>{mainOptionPreview}</span> 
                             </div>
                             <div className="flex justify-between items-center gap-2 min-w-0">
-                                <span className="flex-shrink-0 whitespace-nowrap text-gray-400">부옵션:</span>
+                                <span className="flex-shrink-0 whitespace-nowrap text-gray-400">{t('enhance.subOptionLabel')}</span>
                                 <span className={`min-w-0 truncate text-right ${detailValueClass} ${selectedItem && selectedItem.options && selectedItem.options.combatSubs.length > 0 ? 'text-blue-300' : 'text-gray-400'}`} title={selectedItem.stars < 10 ? subOptionPreview : ''}>{selectedItem.stars < 10 ? subOptionPreview : ''}</span>
                             </div>
                         </div>
@@ -532,20 +536,20 @@ useEffect(() => {
                     {/* 필요 재료 | 성공확률 */}
                     <div className="flex min-w-0 flex-shrink-0 flex-col items-stretch gap-2">
                         <div className="min-w-0 w-full rounded-xl border border-white/10 bg-gradient-to-b from-slate-900/75 via-black/35 to-black/45 p-2">
-                            <h4 className={`mb-2 text-center ${typo.heading} text-amber-100`}>필요 재료</h4>
+                            <h4 className={`mb-2 text-center ${typo.heading} text-amber-100`}>{t('enhance.requiredMaterials')}</h4>
                             <div className="flex flex-wrap items-end justify-center gap-x-3 gap-y-2">
                                 <div
                                     className="relative flex min-w-[3.25rem] flex-col items-center px-0.5"
-                                    title={`골드: ${formatGoldAmountKoG(currentUser?.gold || 0)} / ${formatGoldAmountKoG(goldCost)}`}
+                                    title={t('enhance.goldTitle', { current: formatGoldAmountKoG(currentUser?.gold || 0), cost: formatGoldAmountKoG(goldCost) })}
                                 >
                                     <div className="relative h-8 w-8" style={{ background: 'transparent', borderRadius: 0, overflow: 'hidden' }}>
-                                        <img src="/images/icon/Gold.webp" alt="골드" className="h-full w-full" style={{ background: 'transparent', borderRadius: 0, padding: 0, margin: 0, objectFit: 'contain', display: 'block', border: 'none', boxShadow: 'none' }} />
+                                        <img src="/images/icon/Gold.webp" alt={t('gold', { ns: 'common' })} className="h-full w-full" style={{ background: 'transparent', borderRadius: 0, padding: 0, margin: 0, objectFit: 'contain', display: 'block', border: 'none', boxShadow: 'none' }} />
                                         {!hasEnoughGold && <div className="absolute inset-0 rounded-full bg-red-500/30" />}
                                     </div>
                                     <span className={`mt-0.5 w-full text-center ${typo.mono} leading-tight ${hasEnoughGold ? 'text-green-400' : 'text-red-400'}`}>
                                         {stackedViewport ? (
                                             <>
-                                                <span className={`block ${typo.caption} font-medium text-slate-400`}>보유 / 필요</span>
+                                                <span className={`block ${typo.caption} font-medium text-slate-400`}>{t('ownedSlashRequired', { ns: 'common' })}</span>
                                                 <span className="whitespace-nowrap">
                                                     {formatGoldAmountKoG(currentUser?.gold ?? 0)} / {formatGoldAmountKoG(goldCost)}
                                                 </span>
@@ -570,7 +574,7 @@ useEffect(() => {
                                                         <span className={`block truncate ${typo.caption} font-semibold text-slate-300`} title={cost.name}>
                                                             {cost.name}
                                                         </span>
-                                                        <span className={`block ${typo.caption} font-medium text-slate-400`}>보유 / 필요</span>
+                                                        <span className={`block ${typo.caption} font-medium text-slate-400`}>{t('ownedSlashRequired', { ns: 'common' })}</span>
                                                         <span className="whitespace-nowrap">
                                                             {userHas.toLocaleString()} / {cost.amount.toLocaleString()}
                                                         </span>
@@ -585,7 +589,7 @@ useEffect(() => {
                             </div>
                         </div>
                         <div className="flex min-w-0 w-full shrink-0 flex-col justify-center rounded-xl border border-amber-300/20 bg-gradient-to-b from-amber-950/25 via-black/45 to-black/30 p-2 text-center">
-                            <h4 className={`mb-1 ${typo.heading} leading-tight text-amber-100`}>성공확률</h4>
+                            <h4 className={`mb-1 ${typo.heading} leading-tight text-amber-100`}>{t('enhance.successRate')}</h4>
                             <p className={rateMainClass}>{successRateDisplay}</p>
                             {selectedItem.stars < 10 && successRateBreakdownParts.length > 0 ? (
                                 <p className={`mt-1 ${typo.caption} text-slate-400`}>{successRateBreakdownParts.join(' · ')}</p>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import DraggableWindow, { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from './DraggableWindow.js';
 import GuidePanelLayout, { type GuideSelection } from './guide/GuidePanelLayout.js';
 import type { HelpCategory } from '../shared/constants/helpCenterContent.js';
@@ -20,6 +21,7 @@ export type GuideModalProps = {
 };
 
 const GuideModal: React.FC<GuideModalProps> = ({
+    const { t } = useTranslation('common');
     title,
     windowId,
     onClose,
@@ -36,7 +38,7 @@ const GuideModal: React.FC<GuideModalProps> = ({
             <div className="flex w-full flex-col gap-2.5">
                 <p className="text-center text-[11px] leading-relaxed text-slate-400 sm:text-xs">
                     「다시 보지 않기」로 닫은 안내는 우측 퀵 메뉴의{' '}
-                    <span className="font-semibold text-amber-200/90">도움말</span>에서 언제든 다시 볼 수 있습니다.
+                    {t('helpCenterHint')}
                 </p>
                 <div className="flex flex-wrap items-center justify-end gap-2">
                 <button

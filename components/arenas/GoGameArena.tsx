@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { GameProps, Player, Point, GameStatus, Move, GameMode } from '../../types.js';
 import type { ChessPieceType } from '../../types.js';
 import GoBoard from '../GoBoard.js';
@@ -13,6 +14,7 @@ import { CHESS_GO_BOARD_SIZE, normalizeChessGoSession, sessionUsesChessGo } from
 import { getChessGoPlacementSlots } from '../../shared/utils/chessGoPlacement.js';
 import ChessPiecePlacementPanel from '../game/ChessPiecePlacementPanel.js';
 import { resolvePairChessSetupDraftKey } from '../../shared/utils/pairChessSetup.js';
+import { isPairClassicGame } from '../../shared/utils/pairGameTurn.js';
 
 interface GoGameArenaProps extends GameProps {
     isMyTurn: boolean;
@@ -47,6 +49,7 @@ function modeIncludesCaptureRule(mode: GameMode, settings: { mixedModes?: GameMo
 }
 
 const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
+    const { t } = useTranslation('game');
     const {
         session,
         onAction,
@@ -371,8 +374,8 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                         isMobile ? 'rounded-md p-1.5' : 'rounded-lg p-2'
                     }`}
                     title={props.isSpectator
-                        ? (isBoardRotated ? '흑의 입장으로 보기' : '백의 입장으로 보기')
-                        : '바둑판 180도 회전'}
+                        ? (isBoardRotated ? t('board.rotateSpectatorBlack') : t('board.rotateSpectatorWhite'))
+                        : t('board.rotate180')}
                 >
                     <span
                         className={`${isMobile ? 'text-base' : 'text-xl'} leading-none`}
@@ -479,8 +482,8 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 castleStonePoints={session.castleStonePoints}
                 confirmedTerritoryOwnerByPoint={session.confirmedTerritoryOwnerByPoint}
                 currentUser={props.currentUser}
-                blackPlayerNickname={blackPlayer?.nickname || '흑'}
-                whitePlayerNickname={whitePlayer?.nickname || '백'}
+                blackPlayerNickname={blackPlayer?.nickname || t('black')}
+                whitePlayerNickname={whitePlayer?.nickname || t('white')}
                     isItemModeActive={isItemModeActive}
                     showBoardGlow={showBoardGlow}
                 animation={session.animation}

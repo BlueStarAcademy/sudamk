@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import DraggableWindow from './DraggableWindow.js';
 import EnhancementView from './blacksmith/EnhancementView.js';
 import CombinationView from './blacksmith/CombinationView.js';
@@ -100,6 +101,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
     enhancementOutcome,
     embedded = false,
 }) => {
+    const { t } = useTranslation('blacksmith');
     const { currentUserWithStatus, handlers, modals } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
     const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(selectedItemForEnhancement);
@@ -411,11 +413,11 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
     }, [useStackedBlacksmithLayout, isMobileEquipmentTab, mobileShowEquipmentWorkPanel]);
 
     const tabs = [
-        { id: 'enhance', label: '장비 강화' },
-        { id: 'combine', label: '장비 합성' },
-        { id: 'disassemble', label: '장비 분해' },
-        { id: 'refine', label: '장비 제련' },
-        { id: 'convert', label: '재료 변환' },
+        { id: 'enhance', label: t('tabs.enhance') },
+        { id: 'combine', label: t('tabs.combine') },
+        { id: 'disassemble', label: t('tabs.disassemble') },
+        { id: 'refine', label: t('tabs.refine') },
+        { id: 'convert', label: t('tabs.convert') },
     ];
 
     const handleActionWrapper = useCallback(async (action: ServerAction): Promise<void> => {
@@ -540,12 +542,12 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
 
     const bagHeaderText = useMemo(() => {
         if (activeTab === 'enhance' || activeTab === 'combine' || activeTab === 'disassemble' || activeTab === 'refine') {
-            return '장비';
+            return t('inventoryType.equipment');
         } else if (activeTab === 'convert') {
-            return '재료';
+            return t('inventoryType.material');
         }
-        return '가방'; // Default or fallback
-    }, [activeTab]);
+        return t('inventoryType.bag');
+    }, [activeTab, t]);
     /** 재료 변환만 그리드·스크롤용 최소 높이; 장비 탭(선택/작업 안내)은 콘텐츠 높이로 두어 하단 여백 제거 */
     const mobileViewerMinH =
         activeTab === 'convert' ? 'clamp(9.5rem, 28dvh, 17rem)' : undefined;
@@ -584,47 +586,47 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
     const mobilePickHint = useMemo(() => {
         switch (activeTab) {
             case 'enhance':
-                return '강화할 장비를 모달에서 고른 뒤 선택 완료를 누르면 강화 화면으로 이동합니다.';
+                return t('pickHints.enhance');
             case 'combine':
-                return '같은 등급 장비 3개를 모달에서 담은 뒤 선택 완료를 누르면 합성 화면으로 이동합니다.';
+                return t('pickHints.combine');
             case 'disassemble':
-                return '분해할 장비를 모달에서 고른 뒤 선택 완료를 누르면 분해 화면으로 이동합니다.';
+                return t('pickHints.disassemble');
             case 'refine':
-                return '제련할 장비를 모달에서 고른 뒤 선택 완료를 누르면 제련 화면으로 이동합니다.';
+                return t('pickHints.refine');
             default:
                 return '';
         }
-    }, [activeTab]);
+    }, [activeTab, t]);
 
     const mobileFeatureModalTitle = useMemo(() => {
         switch (activeTab) {
             case 'enhance':
-                return '장비 강화';
+                return t('tabs.enhance');
             case 'combine':
-                return '장비 합성';
+                return t('tabs.combine');
             case 'disassemble':
-                return '장비 분해';
+                return t('tabs.disassemble');
             case 'refine':
-                return '장비 제련';
+                return t('tabs.refine');
             default:
-                return '대장간';
+                return t('title');
         }
-    }, [activeTab]);
+    }, [activeTab, t]);
 
     const mobileFeatureOpenButtonLabel = useMemo(() => {
         switch (activeTab) {
             case 'enhance':
-                return '강화 화면 열기';
+                return t('openScreen.enhance');
             case 'combine':
-                return '합성 화면 열기';
+                return t('openScreen.combine');
             case 'disassemble':
-                return '분해 화면 열기';
+                return t('openScreen.disassemble');
             case 'refine':
-                return '제련 화면 열기';
+                return t('openScreen.refine');
             default:
-                return '작업 화면 열기';
+                return t('openScreen.default');
         }
-    }, [activeTab]);
+    }, [activeTab, t]);
 
     const blacksmithMain = (
                 <div
@@ -652,17 +654,17 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
                                                 <button
                                                     type="button"
                                                     onClick={() => handlers.openBlacksmithEffectsModal()}
-                                                    title="대장간 효과"
-                                                    aria-label="대장간 효과 보기"
+                                                    title={t('effects')}
+                                                    aria-label={t('effectsAria')}
                                                     className="absolute left-1.5 top-1.5 z-[2] max-w-[calc(100%-1rem)] rounded-md border border-amber-500/45 bg-black/55 px-2 py-1 text-left shadow-md backdrop-blur-sm transition hover:border-amber-400/70 hover:bg-black/70 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 sm:left-2 sm:top-2 sm:px-2.5 sm:py-1"
                                                 >
                                                     <span className="block text-[13px] font-bold leading-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] sm:text-sm">
-                                                        대장간 <span className="text-amber-300">Lv.{blacksmithLevel ?? 1}</span>
+                                                        {t('level', { level: blacksmithLevel ?? 1 })}
                                                     </span>
                                                 </button>
                                                 <div className="absolute inset-x-0 bottom-0 z-[2] px-2 pb-2 pt-6 sm:px-3 sm:pb-2.5">
                                                     <div className="mb-0.5 flex items-center justify-between gap-1 text-[12px] font-semibold tabular-nums text-stone-200 sm:text-[13px]">
-                                                        <span className="shrink-0 text-stone-300/90">경험치</span>
+                                                        <span className="shrink-0 text-stone-300/90">{t('exp')}</span>
                                                         {isMaxLevel ? (
                                                             <span className="min-w-0 truncate text-right text-amber-200/95">
                                                                 {(blacksmithXp ?? 0).toLocaleString()} (Max)
@@ -690,7 +692,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
                                     </div>
                                     <nav
                                         className="flex w-[5.15rem] shrink-0 flex-col justify-center gap-1 sm:w-[5.75rem]"
-                                        aria-label="대장간 기능"
+                                        aria-label={t('functionsAria')}
                                     >
                                         {tabs.map(tab => (
                                             <button
@@ -729,7 +731,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
                                             onClick={openEquipmentPicker}
                                             className="w-full max-w-xs rounded-xl border-2 border-amber-400/55 bg-gradient-to-b from-amber-600/55 via-amber-500/35 to-orange-950/50 px-4 py-3.5 text-[13px] font-bold text-amber-50 shadow-[0_12px_28px_-14px_rgba(251,191,36,0.65)] transition hover:border-amber-300/80 active:scale-[0.99]"
                                         >
-                                            장비 선택
+                                            {t('selectGear')}
                                         </button>
                                     </div>
                                 )}
@@ -737,8 +739,8 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
                                     <div className="flex flex-col items-center justify-center gap-3 px-2 py-4">
                                         <p className="max-w-sm text-center text-[13px] leading-relaxed text-slate-400">
                                             {equipmentFeatureModalOpen
-                                                ? '작업 창에서 진행 중입니다. 창을 닫은 경우 아래 버튼으로 다시 열 수 있습니다.'
-                                                : '아래 버튼을 눌러 작업 화면을 여세요.'}
+                                                ? t('inProgressHint')
+                                                : t('openWorkHint')}
                                         </p>
                                         <button
                                             type="button"
@@ -752,7 +754,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
                                             onClick={handleMobileEquipmentBack}
                                             className="rounded-lg border border-slate-600/55 bg-slate-800/70 px-3 py-2 text-[13px] font-bold text-slate-200 shadow-sm transition hover:border-cyan-500/35 hover:bg-slate-700/80 active:scale-[0.99]"
                                         >
-                                            ← 장비 다시 선택
+                                            {t('reselectGear')}
                                         </button>
                                     </div>
                                 )}
@@ -775,17 +777,17 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
                             <button
                                 type="button"
                                 onClick={() => handlers.openBlacksmithEffectsModal()}
-                                title="대장간 효과"
-                                aria-label="대장간 효과 보기"
+                                title={t('effects')}
+                                aria-label={t('effectsAria')}
                                 className="absolute left-0 top-0 z-[2] max-w-[calc(100%-0.5rem)] p-3 text-left transition hover:brightness-110 active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
                             >
                                 <h2 className="text-2xl font-black tracking-tight text-amber-50 drop-shadow-[0_2px_12px_rgba(0,0,0,0.85)]">
-                                    대장간 <span className="text-yellow-300">Lv.{blacksmithLevel ?? 1}</span>
+                                    {t('level', { level: blacksmithLevel ?? 1 })}
                                 </h2>
                             </button>
                             <div className="absolute inset-x-0 bottom-0 z-[2] px-3 pb-3 pt-8">
                                 <div className="mb-1 flex justify-between gap-2 text-xs text-slate-200">
-                                    <span className="shrink-0 font-semibold tracking-wide text-amber-200/90">경험치</span>
+                                    <span className="shrink-0 font-semibold tracking-wide text-amber-200/90">{t('exp')}</span>
                                     {isMaxLevel ? (
                                         <span className="min-w-0 truncate text-right text-amber-200">
                                             {(blacksmithXp ?? 0).toLocaleString()} (Max)
@@ -861,10 +863,10 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
                                         onChange={(e) => setSortOption(e.target.value as SortOption)}
                                         className="rounded-md border border-amber-400/30 bg-slate-900/85 px-2.5 py-1.5 text-xs font-semibold text-amber-100 outline-none transition focus:border-amber-300/60"
                                     >
-                                        <option value="grade">등급순</option>
-                                        <option value="stars">강화순</option>
-                                        <option value="name">이름순</option>
-                                        <option value="date">최신순</option>
+                                        <option value="grade">{t('sort.grade')}</option>
+                                        <option value="stars">{t('sort.stars')}</option>
+                                        <option value="name">{t('sort.name')}</option>
+                                        <option value="date">{t('sort.date')}</option>
                                     </select>
                                 </div>
                             </div>
@@ -929,7 +931,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
                 </div>
             ) : (
             <DraggableWindow 
-                title="대장간" 
+                title={t('title')} 
                 onClose={onClose} 
                 bodyScrollable
                 bodyNoScroll={false}
@@ -995,7 +997,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
                                 onClick={handleMobileEquipmentBack}
                                 className="shrink-0 self-start rounded-lg border border-slate-600/55 bg-slate-800/70 px-3 py-2 text-[13px] font-bold text-slate-200 shadow-sm transition hover:border-cyan-500/35 hover:bg-slate-700/80 active:scale-[0.99]"
                             >
-                                ← 장비 다시 선택
+                                {t('reselectGear')}
                             </button>
                             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable]">
                                 <div className={`${BLACKSMITH_MOBILE_WORK_ROOT_CLASS} min-h-[min(68dvh,100%)]`}>

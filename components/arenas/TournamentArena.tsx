@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { TournamentType, UserWithStatus, PlayerForTournament } from '../../types';
 import type { ChampionshipVersusVenueKind } from '../../shared/types/entities.js';
 import ChampionshipVersusVenueArena from './ChampionshipVersusVenueArena.js';
@@ -18,6 +19,7 @@ interface TournamentArenaProps {
 const isVersusVenue = (t: string): t is ChampionshipVersusVenueKind => t === 'pvp' || t === 'pet' || t === 'petpair';
 
 const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
+    const { t } = useTranslation('championshipVersus');
     if (isVersusVenue(type)) {
         return <ChampionshipVersusVenueArena venue={type} />;
     }
@@ -122,8 +124,8 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
     if (!currentUserWithStatus) {
         return (
             <div className="p-4 text-center">
-                <p>사용자 정보를 불러오는 중입니다...</p>
-                <Button onClick={() => { replaceAppHash('#/tournament'); }} className="mt-4">로비로 돌아가기</Button>
+                <p>{t('loadingUser')}</p>
+                <Button onClick={() => { replaceAppHash('#/tournament'); }} className="mt-4">{t('backToLobbyFull')}</Button>
             </div>
         );
     }
@@ -134,7 +136,7 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
         return (
             <div className="p-8 w-full flex flex-col h-full items-center justify-center gap-4">
                 <Button onClick={() => { replaceAppHash('#/tournament'); }} className="!py-2 !px-4">
-                    로비로 돌아가기
+                    {t('backToLobbyFull')}
                 </Button>
             </div>
         );
@@ -144,7 +146,7 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
     if (isChampionshipDungeon && !tournamentState && waitingForState) {
         return (
             <div className="p-8 w-full flex flex-col h-full items-center justify-center gap-4 text-center">
-                <p className="text-gray-400">경기 정보를 불러오는 중...</p>
+                <p className="text-gray-400">{t('loadingMatch')}</p>
                 <div className="w-10 h-10 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
             </div>
         );

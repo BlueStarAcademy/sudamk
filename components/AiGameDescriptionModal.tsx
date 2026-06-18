@@ -1,4 +1,6 @@
 import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { tx } from '../shared/i18n/runtimeText.js';
+import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import Button from './Button.js';
 import { useViewportUniformScale } from '../hooks/useViewportUniformScale.js';
@@ -34,9 +36,9 @@ const getModeMeta = (mode: GameMode) =>
   SPECIAL_GAME_MODES.find((m) => m.mode === mode) ?? PLAYFUL_GAME_MODES.find((m) => m.mode === mode);
 
 const formatColor = (color?: Player.Black | Player.White) => {
-  if (color === Player.Black) return '흑(선공)';
-  if (color === Player.White) return '백(후공)';
-  return '랜덤';
+  if (color === Player.Black) return tx('game:aiDescription.blackFirst');
+  if (color === Player.White) return tx('game:aiDescription.whiteSecond');
+  return tx('game:aiDescription.random');
 };
 
 /** 인게임 AI 대국 시작 모달: 요약·보상 블록 기준 설계 너비(PC에서 균일 scale의 기준) */
@@ -45,7 +47,7 @@ const AI_GAME_DESC_DESIGN_H_FALLBACK = 820;
 const AI_GAME_DESC_DESIGN_H_MIN = 520;
 const AI_GAME_DESC_DESIGN_H_MAX = 1200;
 
-const getSettingsRows = (session: LiveGameSession): { label: string; value: React.ReactNode }[] => {
+const getSettingsRows = (session: LiveGameSession, t: (k: string, o?: Record<string, unknown>) => string): { label: string; value: React.ReactNode }[] => {
   const { mode, settings } = session;
   const modesWithKomi = [GameMode.Standard, GameMode.Speed, GameMode.Base, GameMode.Hidden, GameMode.Missile, GameMode.Mix];
   const modesWithoutBoardSize = [GameMode.Alkkagi, GameMode.Curling, GameMode.Dice];
@@ -53,84 +55,85 @@ const getSettingsRows = (session: LiveGameSession): { label: string; value: Reac
   const rows: { label: string; value: React.ReactNode }[] = [];
 
   if (!modesWithoutBoardSize.includes(mode)) {
-    rows.push({ label: '판 크기', value: `${settings.boardSize}x${settings.boardSize}` });
+    rows.push({ label: t('sidebar.settings.boardSize'), value: t('aiDescription.boardSizeValue', { size: settings.boardSize }) });
   }
   if (modesWithKomi.includes(mode) && !settings.mixedModes?.includes(GameMode.Base)) {
-    rows.push({ label: '덤', value: `${session.finalKomi ?? settings.komi ?? DEFAULT_KOMI}집` });
+    rows.push({ label: t('sidebar.settings.komi'), value: t('aiDescription.komiValue', { komi: session.finalKomi ?? settings.komi ?? DEFAULT_KOMI }) });
   }
   if (!modesWithoutTime.includes(mode)) {
     if (settings.timeLimit && settings.timeLimit > 0) {
       const timeIncrement = settings.timeIncrement ?? 0;
       const mainTimeLabel =
         timeIncrement > 0
-          ? `${settings.timeLimit}분 · 피셔 ${timeIncrement}초`
-          : `${settings.timeLimit}분 · 초읽기 ${settings.byoyomiTime ?? 30}초 × ${settings.byoyomiCount ?? 3}회`;
+          ? t('aiDescription.timeFischer', { minutes: settings.timeLimit, increment: timeIncrement })
+          : t('aiDescription.timeByoyomi', { minutes: settings.timeLimit, byoyomi: settings.byoyomiTime ?? 30, count: settings.byoyomiCount ?? 3 });
       rows.push({
-        label: '시간',
+        label: t('aiDescription.time'),
         value: mainTimeLabel,
       });
     } else {
-      rows.push({ label: '시간', value: '없음' });
+      rows.push({ label: t('aiDescription.time'), value: t('aiDescription.timeNone') });
     }
   }
   const strategicModesWithScoringTurn = [GameMode.Standard, GameMode.Speed, GameMode.Base, GameMode.Hidden, GameMode.Missile, GameMode.Mix];
   if (strategicModesWithScoringTurn.includes(mode) && settings.scoringTurnLimit != null && settings.scoringTurnLimit > 0) {
-    rows.push({ label: '계가까지 턴', value: `${settings.scoringTurnLimit}턴` });
+    rows.push({ label: t('sidebar.settings.scoringTurnLimit'), value: t('aiDescription.scoringTurnValue', { turns: settings.scoringTurnLimit }) });
   }
   if ([GameMode.Dice, GameMode.Alkkagi, GameMode.Curling].includes(mode)) {
-    rows.push({ label: '내 색', value: formatColor(settings.player1Color) });
+    rows.push({ label: t('aiDescription.myColor'), value: formatColor(settings.player1Color) });
   }
 
   if (mode === GameMode.Omok || mode === GameMode.Ttamok) {
-    rows.push({ label: '쌍삼 금지', value: settings.has33Forbidden ? '금지' : '가능' });
-    rows.push({ label: '장목 금지', value: settings.hasOverlineForbidden ? '금지' : '가능' });
+    rows.push({ label: t('sidebar.settings.forbid33'), value: settings.has33Forbidden ? t('aiDescription.forbidden') : t('aiDescription.allowed') });
+    rows.push({ label: t('sidebar.settings.forbidOverline'), value: settings.hasOverlineForbidden ? t('aiDescription.forbidden') : t('aiDescription.allowed') });
   }
   if (mode === GameMode.Ttamok) {
-    rows.push({ label: '목표점수', value: `${settings.captureTarget}개` });
+    rows.push({ label: t('sidebar.settings.captureTarget'), value: t('aiDescription.countUnit', { count: settings.captureTarget }) });
   }
   if (mode === GameMode.Capture || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Capture))) {
-    rows.push({ label: '목표점수', value: `${settings.captureTarget}개` });
+    rows.push({ label: t('sidebar.settings.captureTarget'), value: t('aiDescription.countUnit', { count: settings.captureTarget }) });
   }
   if (mode === GameMode.Base || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Base))) {
-    rows.push({ label: '베이스돌', value: `${settings.baseStones}개` });
+    rows.push({ label: t('sidebar.settings.baseStones'), value: t('aiDescription.countUnit', { count: settings.baseStones }) });
   }
   if (mode === GameMode.Hidden || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Hidden))) {
-    rows.push({ label: '히든돌', value: `${settings.hiddenStoneCount}개` });
-    rows.push({ label: '스캔', value: `${settings.scanCount}개` });
+    rows.push({ label: t('sidebar.settings.hiddenStones'), value: t('aiDescription.countUnit', { count: settings.hiddenStoneCount }) });
+    rows.push({ label: t('sidebar.settings.scan'), value: t('aiDescription.countUnit', { count: settings.scanCount }) });
   }
   if (mode === GameMode.Missile || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Missile))) {
-    rows.push({ label: '미사일', value: `${settings.missileCount}개` });
+    rows.push({ label: t('sidebar.settings.missile'), value: t('aiDescription.countUnit', { count: settings.missileCount }) });
   }
   if (mode === GameMode.Mix) {
-    rows.push({ label: '조합 규칙', value: settings.mixedModes?.join(', ') ?? '-' });
+    rows.push({ label: t('sidebar.settings.mixRules'), value: settings.mixedModes?.join(', ') ?? '-' });
   }
   if (mode === GameMode.Dice) {
-    rows.push({ label: '라운드', value: `${settings.diceGoRounds}R` });
-    rows.push({ label: '특수주사위', value: formatDiceGoSpecialDiceSummary(settings) });
+    rows.push({ label: t('sidebar.settings.round'), value: t('aiDescription.roundValue', { round: settings.diceGoRounds }) });
+    rows.push({ label: t('sidebar.settings.specialDice'), value: formatDiceGoSpecialDiceSummary(settings) });
   }
   if (mode === GameMode.Alkkagi) {
-    const speedLabel = ALKKAGI_GAUGE_SPEEDS.find((x) => x.value === settings.alkkagiGaugeSpeed)?.label || '보통';
-    rows.push({ label: '라운드', value: `${settings.alkkagiRounds}R` });
-    rows.push({ label: '돌 개수', value: `${settings.alkkagiStoneCount}개` });
-    rows.push({ label: '배치 방식', value: String(settings.alkkagiPlacementType ?? '-') });
-    rows.push({ label: '배치 전장', value: String(settings.alkkagiLayout ?? '-') });
-    rows.push({ label: '힘 속도', value: speedLabel });
-    rows.push({ label: '슬로우', value: `${settings.alkkagiSlowItemCount}개` });
-    rows.push({ label: '조준선', value: `${settings.alkkagiAimingLineItemCount}개` });
+    const speedLabel = ALKKAGI_GAUGE_SPEEDS.find((x) => x.value === settings.alkkagiGaugeSpeed)?.label || t('sidebar.settings.speedNormal');
+    rows.push({ label: t('sidebar.settings.round'), value: t('aiDescription.roundValue', { round: settings.alkkagiRounds }) });
+    rows.push({ label: t('sidebar.settings.stoneCount'), value: t('aiDescription.countUnit', { count: settings.alkkagiStoneCount }) });
+    rows.push({ label: t('sidebar.settings.placementType'), value: String(settings.alkkagiPlacementType ?? '-') });
+    rows.push({ label: t('sidebar.settings.placementField'), value: String(settings.alkkagiLayout ?? '-') });
+    rows.push({ label: t('sidebar.settings.gaugeSpeed'), value: speedLabel });
+    rows.push({ label: t('sidebar.settings.slow'), value: t('aiDescription.countUnit', { count: settings.alkkagiSlowItemCount }) });
+    rows.push({ label: t('sidebar.settings.aimingLine'), value: t('aiDescription.countUnit', { count: settings.alkkagiAimingLineItemCount }) });
   }
   if (mode === GameMode.Curling) {
-    const speedLabel = CURLING_GAUGE_SPEEDS.find((x) => x.value === settings.curlingGaugeSpeed)?.label || '보통';
-    rows.push({ label: '스톤 개수', value: `${settings.curlingStoneCount}개` });
-    rows.push({ label: '라운드', value: `${settings.curlingRounds}R` });
-    rows.push({ label: '힘 속도', value: speedLabel });
-    rows.push({ label: '슬로우', value: `${settings.curlingSlowItemCount}개` });
-    rows.push({ label: '조준선', value: `${settings.curlingAimingLineItemCount}개` });
+    const speedLabel = CURLING_GAUGE_SPEEDS.find((x) => x.value === settings.curlingGaugeSpeed)?.label || t('sidebar.settings.speedNormal');
+    rows.push({ label: t('sidebar.settings.curlingStoneCount'), value: t('aiDescription.countUnit', { count: settings.curlingStoneCount }) });
+    rows.push({ label: t('sidebar.settings.round'), value: t('aiDescription.roundValue', { round: settings.curlingRounds }) });
+    rows.push({ label: t('sidebar.settings.gaugeSpeed'), value: speedLabel });
+    rows.push({ label: t('sidebar.settings.slow'), value: t('aiDescription.countUnit', { count: settings.curlingSlowItemCount }) });
+    rows.push({ label: t('sidebar.settings.aimingLine'), value: t('aiDescription.countUnit', { count: settings.curlingAimingLineItemCount }) });
   }
 
   return rows;
 };
 
 const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction, readOnly = false, onClose, currentUser }) => {
+  const { t } = useTranslation('game');
   const { modalLayerUsesDesignPixels, handlers } = useAppContext();
   const isHandheld = useIsHandheldDevice(1025);
   const { isNativeMobile } = useNativeMobileShell();
@@ -143,17 +146,17 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction, readOnly =
   /** AI 대기실 입장 모달·인게임 경기방법: 설정 표는 생략(요약 그리드만) */
   const showMatchSettingsTable = !session.isAiGame;
   const settingsRows = useMemo(
-    () => (showMatchSettingsTable ? getSettingsRows(session) : []),
+    () => (showMatchSettingsTable ? getSettingsRows(session, t) : []),
     [session, showMatchSettingsTable],
   );
   const isGuildWarAi = String(session.gameCategory ?? '') === 'guildwar';
   const sessionBadgeLabel = isGuildWarAi
-    ? '길드 전쟁'
+    ? t('aiDescription.guildWar')
     : isAdventure
-      ? '모험'
+      ? t('aiDescription.adventure')
       : session.isAiGame
-        ? 'AI 대전'
-        : '온라인 대국';
+        ? t('aiDescription.aiMatch')
+        : t('aiDescription.onlineMatch');
   const shellRef = useRef<HTMLDivElement>(null);
   const [designH, setDesignH] = useState(AI_GAME_DESC_DESIGN_H_FALLBACK);
   const [boardCenterOffset, setBoardCenterOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });

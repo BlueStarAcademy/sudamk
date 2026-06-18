@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { tx } from '../../shared/i18n/runtimeText.js';
 import { SCORING_PROGRESS_DURATION_MS } from '../../shared/constants/scoringOverlayTiming.js';
 
 const SCAN_CYCLE_MS = SCORING_PROGRESS_DURATION_MS;
@@ -26,10 +27,10 @@ export function ScoringOverlay({ variant = 'fullscreen' }: { variant?: 'fullscre
   const content = (
     <>
       <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-gray-100 mb-4" />
-      <p className="text-xl font-bold text-white animate-pulse">계가 중...</p>
-      <p className="text-sm text-gray-300 mt-1">AI가 바둑판을 분석하고 있어요</p>
+      <p className="text-xl font-bold text-white animate-pulse">{tx("game:towerSummary.scoring")}</p>
+      <p className="text-sm text-gray-300 mt-1">{tx("game:scoringOverlay.analyzing")}</p>
       <p className="text-sm text-amber-200/90 mt-3 font-medium tabular-nums">
-        {remainingSec > 0 ? `약 ${remainingSec}초 남음` : '곧 완료...'}
+        {remainingSec > 0 ? tx('game:scoringOverlay.secondsLeft', { sec: remainingSec }) : tx('game:scoringOverlay.completingSoon')}
       </p>
       <div className="w-full max-w-md mt-3 px-6">
         <div className="h-2.5 bg-gray-700 rounded-full overflow-hidden">

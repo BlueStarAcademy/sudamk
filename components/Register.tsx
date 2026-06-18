@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { containsProfanity } from '../profanity.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { replaceAppHash } from '../utils/appUtils.js';
@@ -16,6 +17,7 @@ const USERNAME_MAX_LENGTH = 20;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const Register: React.FC = () => {
+    const { t } = useTranslation('auth');
     const { setCurrentUserAndRoute } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
     const [username, setUsername] = useState('');
@@ -34,27 +36,27 @@ const Register: React.FC = () => {
 
         const trimmedEmail = email.trim();
         if (!trimmedUsername || !trimmedPassword || !trimmedEmail) {
-            setError("아이디, 이메일, 비밀번호를 입력해주세요.");
+            setError(t('registerErrors.fieldsRequired'));
             return;
         }
         if (!EMAIL_REGEX.test(trimmedEmail)) {
-            setError("올바른 이메일 주소를 입력해주세요.");
+            setError(t('registerErrors.invalidEmail'));
             return;
         }
         if (trimmedUsername.length < USERNAME_MIN_LENGTH || trimmedUsername.length > USERNAME_MAX_LENGTH) {
-            setError(`아이디는 ${USERNAME_MIN_LENGTH}자 이상 ${USERNAME_MAX_LENGTH}자 이하로 입력해주세요.`);
+            setError(t('registerErrors.usernameLength', { min: USERNAME_MIN_LENGTH, max: USERNAME_MAX_LENGTH }));
             return;
         }
         if (trimmedPassword.length < 4) {
-            setError("비밀번호는 4자 이상이어야 합니다.");
+            setError(t('registerErrors.passwordMin'));
             return;
         }
         if (trimmedPassword !== passwordConfirm.trim()) {
-            setError("비밀번호가 일치하지 않습니다.");
+            setError(t('registerErrors.passwordMismatch'));
             return;
         }
         if (containsProfanity(trimmedUsername)) {
-            setError("아이디에 부적절한 단어가 포함되어 있습니다.");
+            setError(t('registerErrors.usernameProfanity'));
             return;
         }
 
@@ -72,7 +74,7 @@ const Register: React.FC = () => {
             });
 
             if (!response.ok) {
-                let errorText = `회원가입 실패 (${response.statusText})`;
+                let errorText = t('registerErrors.failed', { statusText: response.statusText });
                 try {
                     const errorData = await response.json();
                     errorText = errorData.message || errorText;
@@ -85,7 +87,6 @@ const Register: React.FC = () => {
 
             const data = await response.json();
             setCurrentUserAndRoute(data.user);
-            // 가입 후 최초 로그인 시 닉네임 설정 화면으로 이동 (임시 닉네임 user_xxx 사용)
             replaceAppHash('#/set-nickname');
         } catch (err: any) {
             setError(err.message);
@@ -131,14 +132,14 @@ const Register: React.FC = () => {
                                 : 'text-lg font-semibold tracking-tight text-stone-100 sm:text-xl'
                         }
                     >
-                        회원가입
+                        {t('register')}
                     </h2>
                 </div>
                 <form className={isNativeMobile ? 'space-y-3' : 'space-y-4'} onSubmit={handleSubmit}>
                     <div className={isNativeMobile ? 'space-y-2.5' : 'space-y-3.5'}>
                         <div>
                             <label htmlFor="username-register" className={labelClass}>
-                                아이디
+                                {t('username')}
                             </label>
                             <input
                                 id="username-register"
@@ -147,7 +148,7 @@ const Register: React.FC = () => {
                                 required
                                 autoComplete="username"
                                 className={inputClass}
-                                placeholder="2~20자"
+                                placeholder={t('usernameLengthPlaceholder')}
                                 value={username}
                                 onChange={e => setUsername(e.target.value)}
                                 minLength={USERNAME_MIN_LENGTH}
@@ -156,7 +157,7 @@ const Register: React.FC = () => {
                         </div>
                         <div>
                             <label htmlFor="email-register" className={labelClass}>
-                                이메일
+                                {t('email')}
                             </label>
                             <input
                                 id="email-register"
@@ -172,7 +173,7 @@ const Register: React.FC = () => {
                         </div>
                         <div>
                             <label htmlFor="password-register" className={labelClass}>
-                                비밀번호
+                                {t('password')}
                             </label>
                             <input
                                 id="password-register"
@@ -181,14 +182,14 @@ const Register: React.FC = () => {
                                 required
                                 autoComplete="new-password"
                                 className={inputClass}
-                                placeholder="4자 이상"
+                                placeholder={t('passwordMinPlaceholder')}
                                 value={password}
                                 onChange={e => setPassword(e.target.value)}
                             />
                         </div>
                         <div>
                             <label htmlFor="password-confirm" className={labelClass}>
-                                비밀번호 확인
+                                {t('passwordConfirm')}
                             </label>
                             <input
                                 id="password-confirm"
@@ -197,7 +198,7 @@ const Register: React.FC = () => {
                                 required
                                 autoComplete="new-password"
                                 className={inputClass}
-                                placeholder="다시 입력"
+                                placeholder={t('passwordConfirmPlaceholder')}
                                 value={passwordConfirm}
                                 onChange={e => setPasswordConfirm(e.target.value)}
                             />
@@ -222,7 +223,7 @@ const Register: React.FC = () => {
                             disabled={isLoading}
                             className={isNativeMobile ? registerPrimaryBtnMobileClass : registerPrimaryBtnClass}
                         >
-                            {isLoading ? '가입하는 중...' : '가입하기'}
+                            {isLoading ? t('signingUp') : t('signUp')}
                         </button>
                     </div>
                 </form>
@@ -235,7 +236,7 @@ const Register: React.FC = () => {
                         }}
                         className="font-medium text-amber-200/85 transition hover:text-amber-100"
                     >
-                        이미 계정이 있으신가요? <span className="text-amber-400/90">로그인</span>
+                        {t('alreadyHaveAccount')} <span className="text-amber-400/90">{t('login')}</span>
                     </a>
                 </div>
             </div>
