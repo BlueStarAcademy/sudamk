@@ -211,7 +211,7 @@ const EnhancementResultDisplay: React.FC<{ outcome: { message: string; success: 
                 <div className="bg-gray-800/50 p-3 rounded-lg mt-4 w-full max-w-sm text-xs space-y-1">
                     <h4 className="font-bold text-center text-yellow-300 mb-2">{t('enhance.changes')}</h4>
                     <div className="flex justify-between">
-                        <span>등급:</span> 
+                        <span>{t('enhance.gradeLabel')}</span>
                         <span className="flex items-center gap-2">
                             <span className={starInfoBefore.colorClass}>{starInfoBefore.text || t('notEnhanced', { ns: 'common' })}</span>
                              → 

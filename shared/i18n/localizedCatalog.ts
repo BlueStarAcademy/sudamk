@@ -12,9 +12,20 @@ import {
     translateGameModeDescription,
     translateQuickUtilityPanel,
     tx,
+    translateItemGrade,
 } from './runtimeText.js';
+import { translateShopItem, useLocalizedShopItem } from './shopItemText.js';
 
-export { GAME_MODE_SLUG, translateGameMode, translateGameModeDescription, translateQuickUtilityPanel, tx };
+export {
+    GAME_MODE_SLUG,
+    translateGameMode,
+    translateGameModeDescription,
+    translateQuickUtilityPanel,
+    translateItemGrade,
+    translateShopItem,
+    useLocalizedShopItem,
+    tx,
+};
 
 export function useLocalizedGameMode() {
     const { t } = useTranslation('gameModes');

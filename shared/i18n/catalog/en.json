@@ -3641,6 +3641,18 @@
       "remove_ads_2": "Same shop ad rewards without watching ads (daily limit applies)"
     },
     "items": {
+      "equipment_box_1": { "name": "Equipment Box I", "description": "Random gear: Normal–Rare" },
+      "equipment_box_2": { "name": "Equipment Box II", "description": "Random gear: Normal–Epic" },
+      "equipment_box_3": { "name": "Equipment Box III", "description": "Random gear: Advanced–Legendary" },
+      "equipment_box_4": { "name": "Equipment Box IV", "description": "Random gear: Rare–Mythic" },
+      "equipment_box_5": { "name": "Equipment Box V", "description": "Random gear: Epic–Mythic" },
+      "equipment_box_6": { "name": "Equipment Box VI", "description": "Random gear: Legendary–Mythic" },
+      "material_box_1": { "name": "Material Box I", "description": "5 stones: Low–High grade" },
+      "material_box_2": { "name": "Material Box II", "description": "5 stones: Low–High grade" },
+      "material_box_3": { "name": "Material Box III", "description": "5 stones: Low–High grade" },
+      "material_box_4": { "name": "Material Box IV", "description": "5 stones: Mid–Top grade" },
+      "material_box_5": { "name": "Material Box V", "description": "5 stones: High–Mystic grade" },
+      "material_box_6": { "name": "Material Box VI", "description": "5 stones: High–Mystic grade" },
       "equipment_unbind_ticket": {
         "name": "Unbind ticket",
         "description": "Makes bound equipment tradable."
@@ -3648,6 +3660,30 @@
       "refinement_charm": {
         "name": "Refinement charm",
         "description": "Adds one refinement attempt to non-refinable gear."
+      },
+      "option_type_change_ticket": {
+        "name": "Option type change ticket",
+        "description": "Changes one main, sub, or special option to a different option type."
+      },
+      "option_value_change_ticket": {
+        "name": "Option value change ticket",
+        "description": "Rerolls the value of one sub or special option."
+      },
+      "mythic_option_change_ticket": {
+        "name": "Special option change ticket",
+        "description": "Changes a mythic or transcendent special option to another special option."
+      },
+      "condition_potion_small": {
+        "name": "Condition potion (S)",
+        "description": "Eases tension and restores condition."
+      },
+      "condition_potion_medium": {
+        "name": "Condition potion (M)",
+        "description": "Clears your head and restores condition."
+      },
+      "condition_potion_large": {
+        "name": "Condition potion (L)",
+        "description": "Restores condition for a big match today."
       },
       "action_point_10": {
         "name": "AP recovery (+10)",
@@ -4236,6 +4272,9 @@
     "playerLoadError": "Error loading player info.",
     "playerWaiting": "Waiting for players…",
     "playerLoadFailed": "Could not load player info.",
+    "loadingTournament": "Loading tournament info…",
+    "loadingUserInfo": "Loading user info…",
+    "nextMatchPreparing": "Preparing next match… {{countdown}}",
     "defaultPlayer": "Player",
     "me": "Me",
     "opponent": "Opponent",
@@ -4423,7 +4462,9 @@
         "equipmentBox": "Equipment box",
         "changeTicket": "Change ticket",
         "special": "Special",
-        "limitLabel": "Limit"
+        "limitLabel": "Limit",
+        "weeklyCountShort": "(Weekly {{remaining}}/{{limit}})",
+        "equipmentBoxInfoSuffix": " gear drop. Always includes a championship stat-boost special option."
       },
       "ranking": {
         "viewProfile": "View {{name}}'s profile",

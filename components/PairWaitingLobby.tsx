@@ -470,15 +470,6 @@ function enrichPairSeatMembersWithLobbyAvatars(
 }
 
 /** 페어 경기장 방 만들기: 4인·2인 친선만 (펫 페어 랭킹·AI는 유저 목록 상단 패널) */
-const ROOM_KIND_OPTIONS: { value: RoomKind; label: string }[] = [
-    { value: 'friendly_4p', label: pt('roomKinds.friendly4p') },
-    { value: 'friendly_2p', label: pt('roomKinds.friendly2p') },
-    { value: 'duo_match', label: pt('roomKinds.duoAi') },
-];
-
-/** 전략·놀이 방 만들기: 친선전만 — 선택 UI는 옵션이 2개 이상일 때만 표시 */
-const STRATEGIC_PLAYFUL_CREATE_ROOM_KIND_OPTIONS: { value: RoomKind; label: string }[] = [{ value: 'duo_match', label: pt('roomKinds.friendly') }];
-
 function resolveCreateModalRoomKind(
     lobbyChannel: PairWaitingLobbyChannel,
     lobbyIntent: ArenaLobbyIntent,
@@ -533,8 +524,10 @@ function roomKindLabel(kind: RoomKind | undefined, lobbyChannel: PairWaitingLobb
         if (kind === 'friendly_4p') return pt('roomKinds.friendly4p');
         if (kind === 'friendly_2p') return pt('roomKinds.friendly2p');
     }
-    const o = ROOM_KIND_OPTIONS.find((x) => x.value === kind);
-    return o?.label ?? String(kind);
+    if (kind === 'friendly_4p') return pt('roomKinds.friendly4p');
+    if (kind === 'friendly_2p') return pt('roomKinds.friendly2p');
+    if (kind === 'duo_match') return pt('roomKinds.duoAi');
+    return String(kind);
 }
 
 function pairAiLobbyActionPointCostLabel(

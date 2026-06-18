@@ -1,4 +1,6 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
+import { useI18nLanguage } from '../../shared/i18n/useI18nLanguage.js';
 import { tx } from '../../shared/i18n/runtimeText.js';
 import { RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS } from './ResultModalRewardSlot.js';
 
@@ -82,6 +84,7 @@ export const ResultModalXpRewardBadge: React.FC<{
     allowZeroDisplay = false,
     petXpSpecSplit,
 }) => {
+    useI18nLanguage('game');
     const showPetZero = variant === 'pet' && allowZeroDisplay && amount <= 0;
     if (amount <= 0 && !showPetZero) return null;
     const v = VARIANT[variant];
@@ -156,6 +159,7 @@ export const ResultModalPetGradeUpgradeNeededSlot: React.FC<{
     density?: keyof typeof DENSITY_BOX;
     className?: string;
 }> = ({ density = 'compact', className = '' }) => {
+    const { t } = useTranslation('game');
     const v = VARIANT.pet;
     const isCompact = density === 'compact' || density === 'preGameInline';
     const lineClass = isCompact
@@ -164,13 +168,13 @@ export const ResultModalPetGradeUpgradeNeededSlot: React.FC<{
     return (
         <div
             className={`flex flex-col items-center gap-0.5 ${isCompact ? 'shrink-0' : ''} ${className}`.trim()}
-            title={tx('game:resultModal.petGradeUpgradeNeeded')}
+            title={t('resultModal.petGradeUpgradeNeeded')}
         >
             <div
                 className={`flex ${DENSITY_BOX[density]} shrink-0 flex-col items-center justify-center rounded-lg border px-0.5 ring-1 ring-inset ${v.box}`}
                 role="status"
             >
-                <span className={lineClass}>펫 등급강화 필요</span>
+                <span className={lineClass}>{t('resultModal.petGradeUpgradeNeeded')}</span>
             </div>
         </div>
     );

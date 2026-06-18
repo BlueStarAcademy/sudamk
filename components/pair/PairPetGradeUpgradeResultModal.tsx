@@ -8,8 +8,8 @@ import { CoreStat, ItemGrade } from '../../types/enums.js';
 import {
     gradeBackgrounds,
     gradeStyles,
-    EQUIPMENT_GRADE_LABEL_KO,
 } from '../../shared/constants/items.js';
+import { useLocalizedItemGrade } from '../../shared/i18n/localizedCatalog.js';
 import { pairPetKataAbilityScore, type PairPetKataPhase } from '../../shared/constants/pairArena.js';
 import { PAIR_PET_MAX_LEVEL, pairPetLevelUpStatBudget } from '../../shared/constants/pairPetGrade.js';
 import { getPairPetDisplayName, getPairPetDefinition } from '../../shared/constants/petLobby.js';
@@ -45,6 +45,7 @@ const PairPetGradeUpgradeResultModal: React.FC<PairPetGradeUpgradeResultModalPro
 }) => {
     const { t } = useTranslation(['pair', 'common', 'profile', 'game']);
     const { t: tCommon } = useTranslation('common');
+    const localizedGrade = useLocalizedItemGrade();
     const phaseDefs = useMemo(
         () =>
             [
@@ -69,8 +70,8 @@ const PairPetGradeUpgradeResultModal: React.FC<PairPetGradeUpgradeResultModalPro
     const toBg = gradeBackgrounds[toGrade] ?? gradeBackgrounds[ItemGrade.Normal];
     const fromSt = gradeStyles[fromGrade];
     const toSt = gradeStyles[toGrade];
-    const fromKo = EQUIPMENT_GRADE_LABEL_KO[fromGrade] ?? fromGrade;
-    const toKo = EQUIPMENT_GRADE_LABEL_KO[toGrade] ?? toGrade;
+    const fromKo = localizedGrade(fromGrade);
+    const toKo = localizedGrade(toGrade);
 
     const beforeCells = useMemo(
         () =>

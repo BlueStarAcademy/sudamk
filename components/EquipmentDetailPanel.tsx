@@ -175,6 +175,7 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
     descriptionSlot,
 }) => {
     const { t } = useTranslation('profile');
+    const { t: tCommon } = useTranslation('common');
     const localizedGrade = useLocalizedItemGrade();
     const { currentUserWithStatus } = useAppContext();
     const styles = equipmentDetailGradeStyles[item.grade];
@@ -306,7 +307,7 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
                 <div className={optionsSectionClass}>
                     <div className={`${optsBlock} ${optionRowsSingleLine ? 'min-w-0 overflow-x-auto' : ''}`}>
                         <div>
-                            <p className={sectionLabelClass}>설명</p>
+                            <p className={sectionLabelClass}>{tCommon('description')}</p>
                             {descriptionSlot != null ? (
                                 <div className={`mt-1 ${metaText} text-slate-200/95`}>{descriptionSlot}</div>
                             ) : (
@@ -315,7 +316,7 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
                         </div>
                         <div className="my-2 h-px w-full shrink-0 bg-gradient-to-r from-transparent via-white/12 to-transparent" aria-hidden />
                         <div>
-                            <p className={sectionLabelClass}>사용처</p>
+                            <p className={sectionLabelClass}>{tCommon('usage')}</p>
                             <div className="mt-1 space-y-1.5 text-slate-200/95">
                                 {item.type === 'material' ? (
                                     usageLines.length > 0 ? (
@@ -336,7 +337,7 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
                             <>
                                 <div className="my-2 h-px w-full shrink-0 bg-gradient-to-r from-transparent via-white/12 to-transparent" aria-hidden />
                                 <div>
-                                    <p className={sectionLabelClass}>획득처</p>
+                                    <p className={sectionLabelClass}>{tCommon('obtain')}</p>
                                     <div className="mt-1 space-y-1.5 text-slate-200/95">
                                         {acquireLines.map((line, i) => (
                                             <p key={`acq-${i}`} className="leading-relaxed">
@@ -494,7 +495,7 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
                     ) : null}
                     {showAcquireSources && item.description?.trim() ? (
                         <div className="mt-2 border-t border-white/10 pt-2">
-                            <p className={equipSectionLabelClass}>설명</p>
+                            <p className={equipSectionLabelClass}>{tCommon('description')}</p>
                             <p className={`mt-1 text-slate-200/95 ${typo.bodyLeading}`}>
                                 {item.description.trim()}
                             </p>
@@ -502,7 +503,7 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
                     ) : null}
                     {acquireEquipLines.length > 0 ? (
                         <div className="mt-2 border-t border-white/10 pt-2">
-                            <p className={equipSectionLabelClass}>획득처</p>
+                            <p className={equipSectionLabelClass}>{tCommon('obtain')}</p>
                             <div className="mt-1 space-y-1.5 text-slate-200/95">
                                 {acquireEquipLines.map((line, i) => (
                                     <p key={`eq-acq-${i}`} className="leading-relaxed">

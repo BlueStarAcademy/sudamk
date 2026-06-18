@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { tx } from '../../shared/i18n/runtimeText.js';
 import type { InventoryItem } from '../../types.js';
 import { ItemGrade } from '../../types/enums.js';
-import { gradeBackgrounds, gradeStyles, EQUIPMENT_GRADE_LABEL_KO } from '../../shared/constants/items.js';
+import { useLocalizedItemGrade } from '../../shared/i18n/localizedCatalog.js';
+import { gradeBackgrounds, gradeStyles } from '../../shared/constants/items.js';
 import { PAIR_PET_GRADE_ORDER, pairPetSoulStoneTierGradeUpgradeUsage } from '../../shared/constants/pairPetGrade.js';
 import { PAIR_PET_SHOP_SKUS, isPairPetShopSkuUnlimitedDaily } from '../../shared/constants/petLobby.js';
 import { PAIR_TRAINING_SLOT_DEFS } from '../../shared/constants/pairTraining.js';
@@ -104,9 +105,10 @@ const PairPetLobbySoulStoneViewer: React.FC<PairPetLobbySoulStoneViewerProps> = 
     onOpenBulkSell,
 }) => {
     const { t } = useTranslation('pair');
+    const localizedGrade = useLocalizedItemGrade();
     const grade = itemGradeSafe(item.grade);
     const gradeStyle = gradeStyles[grade] ?? gradeStyles[ItemGrade.Normal];
-    const gradeKo = EQUIPMENT_GRADE_LABEL_KO[grade] ?? grade;
+    const gradeLabel = localizedGrade(grade);
     const bgSrc = gradeBackgrounds[grade] ?? gradeBackgrounds[ItemGrade.Normal];
     const isTranscendent = grade === ItemGrade.Transcendent;
     const qty = item.quantity ?? 0;
@@ -148,7 +150,7 @@ const PairPetLobbySoulStoneViewer: React.FC<PairPetLobbySoulStoneViewerProps> = 
                     </div>
                     <div className={PET_PANEL_HERO_META_COL}>
                         <div className="flex min-w-0 flex-nowrap items-center gap-0.5">
-                            <span className={`${PET_PANEL_BADGE} ${gradeStyle.color} bg-black/45`}>{gradeKo}</span>
+                            <span className={`${PET_PANEL_BADGE} ${gradeStyle.color} bg-black/45`}>{gradeLabel}</span>
                         </div>
                         <h3 className={PET_PANEL_NAME}>{item.name}</h3>
                         <div className={`flex min-w-0 justify-end ${PET_PANEL_EXP}`}>

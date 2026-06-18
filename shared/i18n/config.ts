@@ -39,6 +39,11 @@ export function applyDocumentLocale(locale: string) {
 void i18n.use(initReactI18next).init({
     resources: buildI18nResources(),
     lng: resolveInitialLocale(),
+    react: {
+        useSuspense: false,
+        bindI18n: 'languageChanged',
+        bindI18nStore: 'added removed',
+    },
     fallbackLng: {
         default: [DEFAULT_LOCALE, FALLBACK_LOCALE],
         en: [FALLBACK_LOCALE, DEFAULT_LOCALE],

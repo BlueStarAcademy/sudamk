@@ -101,6 +101,8 @@ const OutcomeProbability: React.FC<{
     pcViewer?: boolean;
     mobileWork?: boolean;
 }> = ({ items, isRandom, className = '', pcViewer = false, mobileWork = false }) => {
+    const { t } = useTranslation('blacksmith');
+    const localizedSlot = useLocalizedEquipmentSlot();
     const probTypo = getProbabilityPanelTypography(pcViewer, mobileWork);
     const probabilities = useMemo(() => {
         const probs = new Map<EquipmentSlot, number>();
@@ -140,7 +142,7 @@ const OutcomeProbability: React.FC<{
             <div className={probTypo.list}>
                 {ALL_SLOTS.map((slot) => (
                     <div key={slot} className={probTypo.row}>
-                        <span className={probTypo.label}>{SLOT_NAMES_KO[slot]}:</span>
+                        <span className={probTypo.label}>{localizedSlot(slot)}:</span>
                         <span className={`${probTypo.value} text-emerald-200`}>{formatBlacksmithPercentInt((probabilities.get(slot) ?? 0) * 100)}%</span>
                     </div>
                 ))}

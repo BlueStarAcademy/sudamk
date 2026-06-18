@@ -1,8 +1,5 @@
-
-import i18n from '../shared/i18n/config.js';
-const gameT = (key: string, opts?: Record<string, unknown>) => i18n.t(`game:${key}`, opts);
-
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LiveGameSession, User, Player, RPSChoice, GameMode, GameStatus, ServerAction } from '../types.js';
 import { DICE_GO_MAIN_ROLL_TIME } from '../constants';
 import Button from './Button.js';
@@ -15,11 +12,6 @@ interface RPSMinigameProps {
 }
 
 const choices: RPSChoice[] = ['rock', 'paper', 'scissors'];
-const choiceDisplay = {
-    rock: { emoji: '✊', name: gameT('rps.rock') },
-    paper: { emoji: '🖐️', name: gameT('rps.paper') },
-    scissors: { emoji: '✌️', name: gameT('rps.scissors') },
-};
 
 const getResult = (p1Choice: RPSChoice, p2Choice: RPSChoice): 'p1' | 'p2' | 'draw' => {
     if (p1Choice === p2Choice) return 'draw';
@@ -35,6 +27,14 @@ const getResult = (p1Choice: RPSChoice, p2Choice: RPSChoice): 'p1' | 'p2' | 'dra
 
 const RPSMinigame: React.FC<RPSMinigameProps> = (props) => {
     const { t } = useTranslation('game');
+    const choiceDisplay = useMemo(
+        () => ({
+            rock: { emoji: '✊', name: t('rps.rock') },
+            paper: { emoji: '🖐️', name: t('rps.paper') },
+            scissors: { emoji: '✌️', name: t('rps.scissors') },
+        }),
+        [t],
+    );
     const { session, currentUser, onAction } = props;
     const { id: gameId, player1, player2, rpsState, gameStatus, mode, rpsRound } = session;
     const [localChoice, setLocalChoice] = useState<RPSChoice | null>(null);

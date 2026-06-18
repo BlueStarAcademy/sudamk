@@ -11,7 +11,8 @@ import {
     PAIR_PET_MAX_LEVEL,
     pairPetXpGainBlockedByGrade,
 } from '../../shared/constants/pairPetGrade.js';
-import { gradeBackgrounds, gradeStyles, EQUIPMENT_GRADE_LABEL_KO } from '../../shared/constants/items.js';
+import { useLocalizedItemGrade } from '../../shared/i18n/localizedCatalog.js';
+import { gradeBackgrounds, gradeStyles } from '../../shared/constants/items.js';
 import PairPetBadukPhaseStripAndCoreGrid from './PairPetBadukPhaseStripAndCoreGrid.js';
 import PairPetRpsBadge from './PairPetRpsBadge.js';
 import { resolvePairPetRpsAttributeFromMeta } from '../../shared/utils/pairPetRps.js';
@@ -196,6 +197,7 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
     profileHomeColumn = false,
 }) => {
     const { t } = useTranslation(['pair', 'game']);
+    const localizedGrade = useLocalizedItemGrade();
     const meta = useMemo(() => resolvePairPetMetaFromInventoryRow(item), [item]);
     const rpsAttr = useMemo(
         () => resolvePairPetRpsAttributeFromMeta(meta, item.id, item.createdAt ?? Date.now()),
@@ -205,7 +207,7 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
     const petGrade = effectivePairPetGradeFromRow(item);
     const petGradeBgSrc = gradeBackgrounds[petGrade] ?? gradeBackgrounds[ItemGrade.Normal];
     const gradeStyle = gradeStyles[petGrade];
-    const gradeKo = EQUIPMENT_GRADE_LABEL_KO[petGrade] ?? petGrade;
+    const gradeLabel = localizedGrade(petGrade);
 
     const displayName = useMemo(() => getPairPetDisplayName(item), [item]);
     const levelSafe = Math.min(PAIR_PET_MAX_LEVEL, Math.max(1, Math.floor(meta.level) || 1));
@@ -359,7 +361,7 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
                     </div>
                     <div className={panelCompact ? PET_PANEL_HERO_META_COL : `flex min-w-0 flex-col justify-center text-left gap-1 sm:gap-1.5`}>
                         <div className={`flex items-center ${panelCompact ? 'min-w-0 flex-nowrap gap-0.5' : 'flex-wrap gap-x-1 gap-y-0.5'}`}>
-                            <span className={`${badgeClass} ${gradeStyle.color} bg-black/45`}>{gradeKo}</span>
+                            <span className={`${badgeClass} ${gradeStyle.color} bg-black/45`}>{gradeLabel}</span>
                             {showRepresentativeBadge ? <span className={repBadgeClass}>{t('pet.representativePet')}</span> : null}
                         </div>
                         <div className={`flex items-baseline ${panelCompact ? 'min-w-0 flex-nowrap gap-0.5 overflow-hidden' : 'flex-wrap gap-x-1 gap-y-0'}`}>

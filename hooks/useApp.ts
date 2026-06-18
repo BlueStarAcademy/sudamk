@@ -2955,6 +2955,8 @@ export const useApp = () => {
     }, []);
 
     const updateLocale = useCallback((locale: AppLocale) => {
+        applyDocumentLocale(locale);
+        void i18n.changeLanguage(locale);
         setSettings(s => ({ ...s, graphics: { ...s.graphics, locale } }));
     }, []);
 

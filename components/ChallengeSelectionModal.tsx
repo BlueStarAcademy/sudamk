@@ -76,6 +76,7 @@ const GameCard: React.FC<{
     interactionLocked?: boolean;
     comingSoon?: boolean;
 }> = ({ mode, image, onSelect, isSelected, isRejected, scaleFactor = 1, interactionLocked = false, comingSoon = false }) => {
+    const { t } = useTranslation('game');
     const [imgError, setImgError] = useState(false);
     
     // 스케일에 따른 크기 계산 (더 컴팩트하게)
@@ -124,7 +125,7 @@ const GameCard: React.FC<{
                                     className="text-white font-bold text-center"
                                     style={{ fontSize: `${fontSize}px` }}
                                 >
-                                    거부중
+                                    {t('challengeModal.rejected')}
                                 </span>
                             </div>
                         )}
@@ -134,7 +135,7 @@ const GameCard: React.FC<{
                                     className="text-white font-bold text-center leading-tight"
                                     style={{ fontSize: `${Math.max(9, fontSize - 1)}px` }}
                                 >
-                                    준비중
+                                    {t('challengeModal.preparing')}
                                 </span>
                             </div>
                         )}
@@ -521,7 +522,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
             lineHeight: 1.45,
           }}
         >
-          좌측에서 게임 모드를 선택하세요
+          {t('challengeModal.selectModePrompt')}
         </div>
       );
     }
@@ -674,7 +675,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                 style={inputStyle}
               />
               <span className="font-bold text-gray-200 whitespace-nowrap antialiased subpixel-antialiased" style={labelStyle}>
-                .5 집
+                {t('challengeModal.komiHalf')}
               </span>
             </div>
           </div>
@@ -682,28 +683,28 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
 
         {showCaptureTarget && (
           <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-            <label className={settingsLabelClass} style={labelStyle}>목표점수</label>
+            <label className={settingsLabelClass} style={labelStyle}>{t('challengeModal.captureTarget')}</label>
             <select 
               value={settings.captureTarget} 
               onChange={e => handleSettingChange('captureTarget', parseInt(e.target.value))}
               className={`${settingsSelectFullClass} min-h-[2.75rem]`}
                 style={selectFontStyle}
             >
-              {CAPTURE_TARGETS.map(t => <option key={t} value={t}>{t}점</option>)}
+              {CAPTURE_TARGETS.map((target) => <option key={target} value={target}>{t('challengeModal.capturePoints', { count: target })}</option>)}
             </select>
           </div>
         )}
 
         {showTtamokCaptureTarget && (
           <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-            <label className={settingsLabelClass} style={labelStyle}>목표점수</label>
+            <label className={settingsLabelClass} style={labelStyle}>{t('challengeModal.captureTarget')}</label>
             <select 
               value={settings.captureTarget ?? 20} 
               onChange={e => handleSettingChange('captureTarget', parseInt(e.target.value))}
               className={`${settingsSelectFullClass} min-h-[2.75rem]`}
                 style={selectFontStyle}
             >
-              {TTAMOK_CAPTURE_TARGETS.map(t => <option key={t} value={t}>{t}개</option>)}
+              {TTAMOK_CAPTURE_TARGETS.map((target) => <option key={target} value={target}>{t('challengeModal.captureCount', { count: target })}</option>)}
             </select>
           </div>
         )}
@@ -725,7 +726,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
         {showBaseStones && (
           <SettingsSection title={t('challengeModal.baseGo')} scaleFactor={scaleFactor}>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>베이스 돌</label>
+              <label className={settingsLabelClass} style={labelStyle}>{t('challengeModal.baseStones')}</label>
               <select 
                 value={settings.baseStones} 
                 onChange={e => handleSettingChange('baseStones', parseInt(e.target.value))}
@@ -741,7 +742,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
         {showCastleCount && (
           <SettingsSection title={selectedMode === GameMode.Castle ? t('challengeModal.castleGo') : t('challengeModal.castleShort')} scaleFactor={scaleFactor}>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>캐슬</label>
+              <label className={settingsLabelClass} style={labelStyle}>{t('challengeModal.castleShort')}</label>
               <select
                 value={settings.castleCount ?? getDefaultCastleCountByBoardSize(settings.boardSize ?? 13)}
                 onChange={e => handleSettingChange('castleCount', parseInt(e.target.value, 10) as GameSettings['castleCount'])}
@@ -752,7 +753,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               </select>
             </div>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>제한 시간</label>
+              <label className={settingsLabelClass} style={labelStyle}>{t('challengeModal.timeLimit')}</label>
               <select
                 value={settings.timeLimit}
                 onChange={(e) => handleSettingChange('timeLimit', parseInt(e.target.value, 10))}
@@ -767,7 +768,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               </select>
             </div>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>초읽기</label>
+              <label className={settingsLabelClass} style={labelStyle}>{t('challengeModal.byoyomi')}</label>
               <div className="grid min-w-0 grid-cols-2 gap-2">
                 <select
                   value={settings.byoyomiTime}
@@ -801,7 +802,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
         {showHiddenStones && (
           <SettingsSection title={t('challengeModal.hiddenGo')} scaleFactor={scaleFactor}>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>히든 아이템</label>
+              <label className={settingsLabelClass} style={labelStyle}>{t('challengeModal.hiddenItems')}</label>
               <select 
                 value={settings.hiddenStoneCount} 
                 onChange={e => handleSettingChange('hiddenStoneCount', parseInt(e.target.value))}
@@ -817,7 +818,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
         {showHiddenStones && (
           <SettingsSection title={t('challengeModal.scan')} scaleFactor={scaleFactor}>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>스캔 아이템</label>
+              <label className={settingsLabelClass} style={labelStyle}>{t('challengeModal.scanItems')}</label>
               <select 
                 value={settings.scanCount || 5} 
                 onChange={e => handleSettingChange('scanCount', parseInt(e.target.value))}
@@ -833,7 +834,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
         {showMissileCount && (
           <SettingsSection title={t('challengeModal.missileGo')} scaleFactor={scaleFactor}>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>미사일 개수</label>
+              <label className={settingsLabelClass} style={labelStyle}>{t('challengeModal.missileCount')}</label>
               <select 
                 value={settings.missileCount} 
                 onChange={e => handleSettingChange('missileCount', parseInt(e.target.value))}
@@ -849,18 +850,18 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
         {showDiceGoSettings && (
           <SettingsSection title={t('challengeModal.diceGo')} scaleFactor={scaleFactor}>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>라운드</label>
+              <label className={settingsLabelClass} style={labelStyle}>{t('challengeModal.round')}</label>
               <select 
                 value={settings.diceGoRounds ?? 3} 
                 onChange={e => handleSettingChange('diceGoRounds', parseInt(e.target.value, 10) as 1 | 2 | 3)}
                 className={`${settingsSelectFullClass} min-h-[2.75rem]`}
                 style={selectFontStyle}
               >
-                {[1, 2, 3].map(r => <option key={r} value={r}>{r}라운드</option>)}
+                {[1, 2, 3].map((r) => <option key={r} value={r}>{t('challengeModal.roundCount', { count: r })}</option>)}
               </select>
             </div>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>홀수주사위</label>
+              <label className={settingsLabelClass} style={labelStyle}>{t('challengeModal.oddDice')}</label>
               <select
                 value={settings.oddDiceCount ?? 1}
                 onChange={(e) => handleSettingChange('oddDiceCount', parseInt(e.target.value, 10))}
@@ -875,7 +876,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               </select>
             </div>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>짝수주사위</label>
+              <label className={settingsLabelClass} style={labelStyle}>{t('challengeModal.evenDice')}</label>
               <select
                 value={settings.evenDiceCount ?? 1}
                 onChange={(e) => handleSettingChange('evenDiceCount', parseInt(e.target.value, 10))}
@@ -890,7 +891,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               </select>
             </div>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>(고)주사위</label>
+              <label className={settingsLabelClass} style={labelStyle}>{t('challengeModal.highDice')}</label>
               <select
                 value={settings.highDiceCount ?? 1}
                 onChange={(e) => handleSettingChange('highDiceCount', parseInt(e.target.value, 10))}
@@ -905,7 +906,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               </select>
             </div>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>(저)주사위</label>
+              <label className={settingsLabelClass} style={labelStyle}>{t('challengeModal.lowDice')}</label>
               <select
                 value={settings.lowDiceCount ?? 1}
                 onChange={(e) => handleSettingChange('lowDiceCount', parseInt(e.target.value, 10))}
@@ -925,7 +926,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
         {showThiefGoItemSettings && (
           <SettingsSection title={t('challengeModal.thiefGo')} scaleFactor={scaleFactor}>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>(고)주사위</label>
+              <label className={settingsLabelClass} style={labelStyle}>{t('challengeModal.highDice')}</label>
               <select
                 value={settings.thiefHigh36ItemCount ?? 1}
                 onChange={(e) => handleSettingChange('thiefHigh36ItemCount', parseInt(e.target.value, 10))}
@@ -940,7 +941,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               </select>
             </div>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>방지주사위</label>
+              <label className={settingsLabelClass} style={labelStyle}>{t('challengeModal.blockDice')}</label>
               <select
                 value={settings.thiefNoOneItemCount ?? 1}
                 onChange={(e) => handleSettingChange('thiefNoOneItemCount', parseInt(e.target.value, 10))}
@@ -960,7 +961,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
         {showOmokRules && (
           <SettingsSection title={t('challengeModal.omokTtamok')} scaleFactor={scaleFactor}>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>쌍삼 금지</label>
+              <label className={settingsLabelClass} style={labelStyle}>{t('challengeModal.forbid33')}</label>
               <input 
                 type="checkbox" 
                 checked={settings.has33Forbidden ?? true} 
@@ -969,7 +970,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               />
             </div>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>장목 금지</label>
+              <label className={settingsLabelClass} style={labelStyle}>{t('challengeModal.forbidOverline')}</label>
               <input 
                 type="checkbox" 
                 checked={settings.hasOverlineForbidden ?? true} 
@@ -983,7 +984,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
         {showAlkkagiSettings && (
           <SettingsSection title={t('challengeModal.alkkagi')} scaleFactor={scaleFactor}>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>돌 개수</label>
+              <label className={settingsLabelClass} style={labelStyle}>{t('challengeModal.stoneCount')}</label>
               <select 
                 value={settings.alkkagiStoneCount ?? 5} 
                 onChange={e => handleSettingChange('alkkagiStoneCount', parseInt(e.target.value))}
@@ -994,18 +995,18 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               </select>
             </div>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>라운드</label>
+              <label className={settingsLabelClass} style={labelStyle}>{t('challengeModal.round')}</label>
               <select 
                 value={settings.alkkagiRounds ?? 1} 
                 onChange={e => handleSettingChange('alkkagiRounds', parseInt(e.target.value) as 1 | 2 | 3)}
                 className={`${settingsSelectFullClass} min-h-[2.75rem]`}
                 style={selectFontStyle}
               >
-                {ALKKAGI_ROUNDS.map(r => <option key={r} value={r}>{r}라운드</option>)}
+                {ALKKAGI_ROUNDS.map((r) => <option key={r} value={r}>{t('challengeModal.roundCount', { count: r })}</option>)}
               </select>
             </div>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>배치 방식</label>
+              <label className={settingsLabelClass} style={labelStyle}>{t('challengeModal.placementType')}</label>
               <select 
                 value={settings.alkkagiPlacementType ?? AlkkagiPlacementType.TurnByTurn} 
                 onChange={e => handleSettingChange('alkkagiPlacementType', e.target.value as AlkkagiPlacementType)}
@@ -1016,7 +1017,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               </select>
             </div>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>배치 전장</label>
+              <label className={settingsLabelClass} style={labelStyle}>{t('challengeModal.placementField')}</label>
               <select 
                 value={settings.alkkagiLayout ?? AlkkagiLayoutType.Normal} 
                 onChange={e => handleSettingChange('alkkagiLayout', e.target.value as AlkkagiLayoutType)}
@@ -1027,7 +1028,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               </select>
             </div>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>힘 속도</label>
+              <label className={settingsLabelClass} style={labelStyle}>{t('challengeModal.gaugeSpeed')}</label>
               <select 
                 value={settings.alkkagiGaugeSpeed ?? 700} 
                 onChange={e => handleSettingChange('alkkagiGaugeSpeed', parseInt(e.target.value))}
@@ -1038,7 +1039,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               </select>
             </div>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>슬로우</label>
+              <label className={settingsLabelClass} style={labelStyle}>{t('challengeModal.slow')}</label>
               <select 
                 value={settings.alkkagiSlowItemCount ?? 2} 
                 onChange={e => handleSettingChange('alkkagiSlowItemCount', parseInt(e.target.value))}
@@ -1049,7 +1050,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               </select>
             </div>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>조준선</label>
+              <label className={settingsLabelClass} style={labelStyle}>{t('challengeModal.aimingLine')}</label>
               <select 
                 value={settings.alkkagiAimingLineItemCount ?? 2} 
                 onChange={e => handleSettingChange('alkkagiAimingLineItemCount', parseInt(e.target.value))}
@@ -1065,7 +1066,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
         {showCurlingSettings && (
           <SettingsSection title={t('challengeModal.curling')} scaleFactor={scaleFactor}>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>돌 개수</label>
+              <label className={settingsLabelClass} style={labelStyle}>{t('challengeModal.stoneCount')}</label>
               <select 
                 value={settings.curlingStoneCount ?? 5} 
                 onChange={e => handleSettingChange('curlingStoneCount', parseInt(e.target.value))}
@@ -1076,18 +1077,18 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               </select>
             </div>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>라운드</label>
+              <label className={settingsLabelClass} style={labelStyle}>{t('challengeModal.round')}</label>
               <select 
                 value={settings.curlingRounds ?? 3} 
                 onChange={e => handleSettingChange('curlingRounds', parseInt(e.target.value) as 1 | 2 | 3)}
                 className={`${settingsSelectFullClass} min-h-[2.75rem]`}
                 style={selectFontStyle}
               >
-                {CURLING_ROUNDS.map(r => <option key={r} value={r}>{r}라운드</option>)}
+                {CURLING_ROUNDS.map((r) => <option key={r} value={r}>{t('challengeModal.roundCount', { count: r })}</option>)}
               </select>
             </div>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>힘 속도</label>
+              <label className={settingsLabelClass} style={labelStyle}>{t('challengeModal.gaugeSpeed')}</label>
               <select 
                 value={settings.curlingGaugeSpeed ?? 700} 
                 onChange={e => handleSettingChange('curlingGaugeSpeed', parseInt(e.target.value))}
@@ -1098,7 +1099,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               </select>
             </div>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>슬로우</label>
+              <label className={settingsLabelClass} style={labelStyle}>{t('challengeModal.slow')}</label>
               <select 
                 value={settings.curlingSlowItemCount ?? 2} 
                 onChange={e => handleSettingChange('curlingSlowItemCount', parseInt(e.target.value))}
@@ -1109,7 +1110,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
               </select>
             </div>
             <div className="grid min-w-0 grid-cols-[minmax(7.25rem,max-content)_minmax(0,1fr)] items-center gap-x-2 sm:gap-x-3" style={settingRowStyle}>
-              <label className={settingsLabelClass} style={labelStyle}>조준선</label>
+              <label className={settingsLabelClass} style={labelStyle}>{t('challengeModal.aimingLine')}</label>
               <select 
                 value={settings.curlingAimingLineItemCount ?? 2} 
                 onChange={e => handleSettingChange('curlingAimingLineItemCount', parseInt(e.target.value))}

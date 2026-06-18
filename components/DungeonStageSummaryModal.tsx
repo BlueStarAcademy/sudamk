@@ -4,7 +4,8 @@ import Button from './Button.js';
 import { TournamentType, TournamentState } from '../types.js';
 import { ItemGrade } from '../types/enums.js';
 import { TOURNAMENT_DEFINITIONS } from '../constants/tournaments.js';
-import { CONSUMABLE_ITEMS, MATERIAL_ITEMS, gradeBackgrounds, EQUIPMENT_POOL, EQUIPMENT_GRADE_LABEL_KO } from '../constants/items.js';
+import { CONSUMABLE_ITEMS, MATERIAL_ITEMS, gradeBackgrounds, EQUIPMENT_POOL } from '../constants/items.js';
+import { useLocalizedItemGrade } from '../shared/i18n/localizedCatalog.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { resolvePublicUrl } from '../utils/publicAssetUrl.js';
@@ -61,6 +62,7 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
     isTopmost
 }) => {
     const { t } = useTranslation('game');
+    const localizedGrade = useLocalizedItemGrade();
     const isCompactViewport = useIsHandheldDevice(1025);
     const { isNativeMobile } = useNativeMobileShell();
     const isMobile = isCompactViewport || isNativeMobile;
@@ -174,7 +176,7 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                 transcendent: '/images/equipments/transcendentbgi.webp',
             };
             (tournamentState.accumulatedEquipmentDrops as string[]).forEach((gradeKey: string, idx: number) => {
-                const label = EQUIPMENT_GRADE_LABEL_KO[gradeKey] ?? gradeKey;
+                const label = localizedGrade(gradeKey as ItemGrade);
                 const img = EQUIP_GRADE_IMAGE[gradeKey] || '/images/equipments/normalbgi.webp';
                 rewardItemsMap.set(`world_equip_${idx}_${gradeKey}`, {
                     name: t('dungeonSummary.equipmentSuffix', { label }),

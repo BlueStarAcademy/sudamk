@@ -659,8 +659,8 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                     ) : (
                         <SettingRow label={t('settings.myStoneColor')}>
                             <Select value={settings.player1Color} onChange={v => handleSettingChange('player1Color', parseInt(v, 10))} disabled={isReadOnly}>
-                                <option value={Player.Black}>흑</option>
-                                <option value={Player.White}>백</option>
+                                <option value={Player.Black}>{t('common:black')}</option>
+                                <option value={Player.White}>{t('common:white')}</option>
                             </Select>
                         </SettingRow>
                     )

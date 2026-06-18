@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { tx } from '../../shared/i18n/runtimeText.js';
+import { useI18nLanguage } from '../../shared/i18n/useI18nLanguage.js';
 import type { ChessPieceType, LiveGameSession, ServerAction, User } from '../../types.js';
 import { GameMode, Player } from '../../types/enums.js';
 import {
@@ -17,14 +18,6 @@ import {
     isPairChessSetupWaitingGuest,
     resolvePairChessSetupDraftKey,
 } from '../../shared/utils/pairChessSetup.js';
-
-const PIECE_OPTIONS: { type: Exclude<ChessPieceType, 'king'>; label: string }[] = [
-    { type: 'pawn', label: tx('game:chessPlacement.pawn') },
-    { type: 'rook', label: tx('game:chessPlacement.rook') },
-    { type: 'knight', label: tx('game:chessPlacement.knight') },
-    { type: 'bishop', label: tx('game:chessPlacement.bishop') },
-    { type: 'queen', label: tx('game:chessPlacement.queen') },
-];
 
 const PANEL_SHELL =
     'pointer-events-auto absolute left-1/2 top-1.5 z-40 w-[min(99%,46rem)] -translate-x-1/2 overflow-hidden rounded-[1.35rem] ' +
@@ -60,6 +53,17 @@ const ChessPiecePlacementPanel: React.FC<ChessPiecePlacementPanelProps> = ({
     onSelectPieceType,
     isMobile = false,
 }) => {
+    const { i18n } = useI18nLanguage('game');
+    const pieceOptions = useMemo(
+        (): { type: Exclude<ChessPieceType, 'king'>; label: string }[] => [
+            { type: 'pawn', label: tx('game:chessPlacement.pawn') },
+            { type: 'rook', label: tx('game:chessPlacement.rook') },
+            { type: 'knight', label: tx('game:chessPlacement.knight') },
+            { type: 'bishop', label: tx('game:chessPlacement.bishop') },
+            { type: 'queen', label: tx('game:chessPlacement.queen') },
+        ],
+        [i18n.language],
+    );
     const { id: gameId, settings, player1, player2, isAiGame, blackPlayerId, whitePlayerId } = session;
     const budget = getChessSetupBudgetFromSettings(
         settings.boardSize ?? 13,
@@ -107,7 +111,7 @@ const ChessPiecePlacementPanel: React.FC<ChessPiecePlacementPanelProps> = ({
 
     const pieceButtons = useMemo(
         () =>
-            PIECE_OPTIONS.map(({ type, label }) => {
+            pieceOptions.map(({ type, label }) => {
                 const used = counts[type] ?? 0;
                 const limit = CHESS_SETUP_PIECE_LIMITS[type];
                 const cost = getChessPieceCaptureValue(type);

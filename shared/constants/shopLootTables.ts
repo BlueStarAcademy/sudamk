@@ -1,5 +1,5 @@
 import { ItemGrade } from '../types/enums.js';
-import { EQUIPMENT_GRADE_LABEL_KO } from './items.js';
+import { translateItemGrade, tx } from '../i18n/runtimeText.js';
 
 export type GradeWeight = { grade: ItemGrade; weight: number };
 
@@ -94,18 +94,24 @@ export function getStandardEquipmentBoxDisplayGrades(boxLevel: 1 | 2 | 3 | 4 | 5
     return LOOT_GRADE_DISPLAY_ORDER.filter((g) => present.has(g));
 }
 
-const CHAMPIONSHIP_EQUIP_BOX_INFO_SUFFIX = ' 장비 획득. 챔피언십 능력치 상승 특수옵션 반드시 포함';
+const CHAMPIONSHIP_EQUIP_BOX_INFO_SUFFIX_KEY = 'tournament:championship.shop.equipmentBoxInfoSuffix';
 
-/** 챔피언십 상점 장비 상자 설명 한 줄(등급 범위 + 고정 문구). 상점 상수·툴팁 `title` 등과 동기화 */
+/** @deprecated Use getChampionshipEquipmentBoxShopInfoLine — Korean-only snapshot for static catalog seeding. */
 export function getChampionshipEquipmentBoxShopInfoLineKo(boxLevel: 1 | 2 | 3 | 4 | 5 | 6): string {
+    return getChampionshipEquipmentBoxShopInfoLine(boxLevel);
+}
+
+/** 챔피언십 상점 장비 상자 설명 한 줄(등급 범위 + i18n 문구). */
+export function getChampionshipEquipmentBoxShopInfoLine(boxLevel: 1 | 2 | 3 | 4 | 5 | 6): string {
+    const suffix = tx(CHAMPIONSHIP_EQUIP_BOX_INFO_SUFFIX_KEY);
     const grades = getChampionshipEquipmentBoxDisplayGrades(boxLevel);
-    if (grades.length === 0) return CHAMPIONSHIP_EQUIP_BOX_INFO_SUFFIX.trimStart();
+    if (grades.length === 0) return suffix.trimStart();
     const loKey = grades[0]!;
     const hiKey = grades[grades.length - 1]!;
-    const lo = EQUIPMENT_GRADE_LABEL_KO[loKey] ?? loKey;
-    const hi = EQUIPMENT_GRADE_LABEL_KO[hiKey] ?? hiKey;
-    if (lo === hi) return `${lo}${CHAMPIONSHIP_EQUIP_BOX_INFO_SUFFIX}`;
-    return `${lo}~${hi}${CHAMPIONSHIP_EQUIP_BOX_INFO_SUFFIX}`;
+    const lo = translateItemGrade(loKey, loKey);
+    const hi = translateItemGrade(hiKey, hiKey);
+    if (lo === hi) return `${lo}${suffix}`;
+    return `${lo}~${hi}${suffix}`;
 }
 
 export const MATERIAL_BOX_PROBABILITIES: Record<

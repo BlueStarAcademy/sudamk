@@ -1,5 +1,5 @@
 import React from 'react';
-import { tx } from '../../shared/i18n/runtimeText.js';
+import { useTranslation } from 'react-i18next';
 
 /** 단일 획득·구매 미리보기 카드(아이템 획득 / 수량 선택 상단 등 공통) */
 export const ITEM_OBTAIN_UNIFIED_CARD_CLASS =
@@ -38,9 +38,12 @@ export const SingleItemObtainCard: React.FC<SingleItemObtainCardProps> = ({
     description = '',
     usageLines = [],
     acquireLines = [],
-    regionAriaLabel = tx("game:itemObtain.regionAria"),
+    regionAriaLabel,
     emphasis = false,
 }) => {
+    const { t: tCommon } = useTranslation('common');
+    const { t: tGame } = useTranslation('game');
+    const resolvedRegionAriaLabel = regionAriaLabel ?? tGame('itemObtain.regionAria');
     const showFooter = !!description.trim() || usageLines.length > 0 || acquireLines.length > 0;
     const rowPad = emphasis ? 'gap-4 px-5 py-5 sm:gap-5 sm:px-6 sm:py-6' : 'gap-3 px-4 py-4 sm:gap-4 sm:px-5 sm:py-5';
     const titleClass = emphasis
@@ -61,7 +64,7 @@ export const SingleItemObtainCard: React.FC<SingleItemObtainCardProps> = ({
         : 'text-[10px] font-bold uppercase tracking-[0.14em] text-sky-200/75 sm:text-[11px]';
 
     return (
-        <div className={ITEM_OBTAIN_UNIFIED_CARD_CLASS} role="region" aria-label={regionAriaLabel}>
+        <div className={ITEM_OBTAIN_UNIFIED_CARD_CLASS} role="region" aria-label={resolvedRegionAriaLabel}>
             <div className="pointer-events-none absolute inset-0" style={ITEM_OBTAIN_CARD_RADIAL_STYLE} aria-hidden />
             <div className={`relative flex flex-row items-center ${rowPad}`}>
                 {leftVisual}
@@ -74,7 +77,7 @@ export const SingleItemObtainCard: React.FC<SingleItemObtainCardProps> = ({
                     {description.trim() ? <p className={descClass}>{description.trim()}</p> : null}
                     {usageLines.length > 0 ? (
                         <div className="space-y-1.5">
-                            <p className={usageHeadClass}>사용처</p>
+                            <p className={usageHeadClass}>{tCommon('usage')}</p>
                             <ul className={usageListClass}>
                                 {usageLines.map((line, i) => (
                                     <li key={i}>{line}</li>
@@ -84,7 +87,7 @@ export const SingleItemObtainCard: React.FC<SingleItemObtainCardProps> = ({
                     ) : null}
                     {acquireLines.length > 0 ? (
                         <div className="space-y-1.5 pt-1">
-                            <p className={acquireHeadClass}>획득처</p>
+                            <p className={acquireHeadClass}>{tCommon('obtain')}</p>
                             <ul className={usageListClass}>
                                 {acquireLines.map((line, i) => (
                                     <li key={`acq-${i}`}>{line}</li>

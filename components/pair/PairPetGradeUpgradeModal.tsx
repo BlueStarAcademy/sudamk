@@ -7,9 +7,9 @@ import {
     CORE_STATS_DATA,
     gradeBackgrounds,
     gradeStyles,
-    EQUIPMENT_GRADE_LABEL_KO,
     MATERIAL_ITEMS,
 } from '../../shared/constants/items.js';
+import { useLocalizedItemGrade } from '../../shared/i18n/localizedCatalog.js';
 import {
     isPairPetUpgradeableGrade,
     nextPairPetGrade,
@@ -53,6 +53,7 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
 }) => {
     const { t } = useTranslation(['pair', 'common']);
     const { t: tCommon } = useTranslation('common');
+    const localizedGrade = useLocalizedItemGrade();
     const mainGradeStored = mainItem.grade ?? ItemGrade.Normal;
     const nextG = nextPairPetGrade(mainGradeStored);
     const meta = useMemo(() => resolvePairPetMetaFromInventoryRow(mainItem), [mainItem]);
@@ -121,8 +122,8 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
     const mainBg = gradeBackgrounds[mainGradeStored] ?? gradeBackgrounds[ItemGrade.Normal];
     const nextSt = nextG ? gradeStyles[nextG] : null;
     const nextBg = nextG ? gradeBackgrounds[nextG] ?? gradeBackgrounds[ItemGrade.Normal] : null;
-    const gradeKo = EQUIPMENT_GRADE_LABEL_KO[mainGradeStored] ?? mainGradeStored;
-    const nextGradeKo = nextG ? EQUIPMENT_GRADE_LABEL_KO[nextG] ?? nextG : null;
+    const gradeKo = localizedGrade(mainGradeStored);
+    const nextGradeKo = nextG ? localizedGrade(nextG) : null;
 
     if (!isOpen) return null;
 

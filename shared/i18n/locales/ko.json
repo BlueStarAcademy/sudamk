@@ -3719,6 +3719,54 @@
       "remove_ads_2": "상점 보상형 광고 없이 동일 보상 수령(일일 한도 유지)"
     },
     "items": {
+      "equipment_box_1": {
+        "name": "장비 상자 I",
+        "description": "일반~희귀 등급 장비 획득"
+      },
+      "equipment_box_2": {
+        "name": "장비 상자 II",
+        "description": "일반~에픽 등급 장비 획득"
+      },
+      "equipment_box_3": {
+        "name": "장비 상자 III",
+        "description": "고급~전설 등급 장비 획득"
+      },
+      "equipment_box_4": {
+        "name": "장비 상자 IV",
+        "description": "희귀~신화 등급 장비 획득"
+      },
+      "equipment_box_5": {
+        "name": "장비 상자 V",
+        "description": "에픽~신화 등급 장비 획득"
+      },
+      "equipment_box_6": {
+        "name": "장비 상자 VI",
+        "description": "전설~신화 등급 장비 획득"
+      },
+      "material_box_1": {
+        "name": "재료 상자 I",
+        "description": "하급 ~ 상급 강화석 5개 획득"
+      },
+      "material_box_2": {
+        "name": "재료 상자 II",
+        "description": "하급 ~ 상급 강화석 5개 획득"
+      },
+      "material_box_3": {
+        "name": "재료 상자 III",
+        "description": "하급 ~ 상급 강화석 5개 획득"
+      },
+      "material_box_4": {
+        "name": "재료 상자 IV",
+        "description": "중급 ~ 최상급 강화석 5개 획득"
+      },
+      "material_box_5": {
+        "name": "재료 상자 V",
+        "description": "상급 ~ 신비의 강화석 5개 획득"
+      },
+      "material_box_6": {
+        "name": "재료 상자 VI",
+        "description": "상급 ~ 신비의 강화석 5개 획득"
+      },
       "equipment_unbind_ticket": {
         "name": "귀속 해제권",
         "description": "귀속 장비 거래가능 상태로 변경"
@@ -3726,6 +3774,30 @@
       "refinement_charm": {
         "name": "제련의 부적",
         "description": "제련불가 장비 제련 횟수 1회 추가"
+      },
+      "option_type_change_ticket": {
+        "name": "옵션 종류 변경권",
+        "description": "장비의 주옵션, 부옵션, 특수옵션 중 하나를 다른 종류의 옵션으로 변경할 수 있는 아이템입니다."
+      },
+      "option_value_change_ticket": {
+        "name": "옵션 수치 변경권",
+        "description": "장비의 부옵션 또는 특수옵션 중 하나의 수치를 변경할 수 있는 아이템입니다."
+      },
+      "mythic_option_change_ticket": {
+        "name": "스페셜 옵션 변경권",
+        "description": "신화 또는 초월 장비의 스페셜 옵션을 다른 스페셜 옵션으로 변경할 수 있는 아이템입니다."
+      },
+      "condition_potion_small": {
+        "name": "컨디션회복제(소)",
+        "description": "긴장감을 완화시켜주는 컨디션 회복제"
+      },
+      "condition_potion_medium": {
+        "name": "컨디션회복제(중)",
+        "description": "머리가 맑아지는 느낌의 컨디션 회복제"
+      },
+      "condition_potion_large": {
+        "name": "컨디션회복제(대)",
+        "description": "오늘의 대회를 성공적으로 치를 것 같은 컨디션 회복제"
       },
       "action_point_10": {
         "name": "행동력 회복제(+10)",
@@ -4314,6 +4386,9 @@
     "playerLoadError": "선수 정보를 불러오는 중 오류가 발생했습니다.",
     "playerWaiting": "선수 대기 중...",
     "playerLoadFailed": "선수 정보를 불러올 수 없습니다.",
+    "loadingTournament": "토너먼트 정보를 불러오는 중입니다...",
+    "loadingUserInfo": "사용자 정보를 불러오는 중입니다...",
+    "nextMatchPreparing": "다음 경기 준비중... {{countdown}}",
     "defaultPlayer": "선수",
     "me": "나",
     "opponent": "상대",
@@ -4501,7 +4576,9 @@
         "equipmentBox": "장비상자",
         "changeTicket": "변경권",
         "special": "특수",
-        "limitLabel": "한도"
+        "limitLabel": "한도",
+        "weeklyCountShort": "(주간 {{remaining}}/{{limit}})",
+        "equipmentBoxInfoSuffix": " 장비 획득. 챔피언십 능력치 상승 특수옵션 반드시 포함"
       },
       "ranking": {
         "viewProfile": "{{name}} 프로필 보기",

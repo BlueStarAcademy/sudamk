@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLocalizedItemGrade } from '../shared/i18n/localizedCatalog.js';
 import { tx } from '../shared/i18n/runtimeText.js';
 import { UserWithStatus, InventoryItem, ServerAction, InventoryItemType, ItemGrade, ItemOption, CoreStat, SpecialStat, MythicStat, EquipmentSlot, ItemOptionType } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
@@ -412,6 +413,7 @@ const LocalItemDetailDisplay: React.FC<{
     expandOptionsToFill = false,
 }) => {
     const { t } = useTranslation('inventory');
+    const localizedGrade = useLocalizedItemGrade();
     const imgBox = Math.max(52, Math.round(80 * scaleFactor * detailScaleMultiplier));
     const optionsBlockHeightPx = bagPcOptionsBlockHeightPx(scaleFactor);
     const [compactCompareTab, setCompactCompareTab] = useState<'info' | 'mainSub' | 'special' | 'mythic'>('info');
@@ -746,7 +748,7 @@ const LocalItemDetailDisplay: React.FC<{
                                     <div className="text-stone-400">{t('grade')}</div>
                                     <div className="mt-0.5 grid grid-cols-2 gap-1">
                                         <span className={`${styles.color}`}>{styles.name}</span>
-                                        <span className="text-right text-stone-200">{compareSelected ? gradeStyles[compareSelected.grade].name : '-'}</span>
+                                        <span className="text-right text-stone-200">{compareSelected ? localizedGrade(compareSelected.grade) : '-'}</span>
                                     </div>
                                 </div>
                                 <div className="rounded-md bg-black/25 px-1.5 py-1 text-[10px]">
@@ -1038,6 +1040,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
     embedded = false,
 }) => {
     const { t } = useTranslation('inventory');
+    const localizedGrade = useLocalizedItemGrade();
     const { t: tCommon } = useTranslation('common');
     const { presets, handlers, currentUserWithStatus, updateTrigger, modalLayerUsesDesignPixels, usePortraitFirstShell } =
         useAppContext();
@@ -2678,7 +2681,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                                                 {correspondingEquippedItem?.name ?? t('noGear')}
                                                             </div>
                                                             <div className="text-[11px] leading-snug text-cyan-300/90">
-                                                                [{correspondingEquippedItem ? gradeStyles[correspondingEquippedItem.grade].name : '-'}]
+                                                                [{correspondingEquippedItem ? localizedGrade(correspondingEquippedItem.grade) : '-'}]
                                                             </div>
                                                         </div>
                                                     </div>
@@ -2702,7 +2705,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                                                 {selectedItem.name}
                                                             </div>
                                                             <div className="text-[11px] leading-snug text-amber-300/90">
-                                                                [{gradeStyles[selectedItem.grade].name}]
+                                                                [{localizedGrade(selectedItem.grade)}]
                                                             </div>
                                                         </div>
                                                     </div>

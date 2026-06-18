@@ -34,6 +34,7 @@ import {
 } from './shopImageDescriptionPopover.js';
 import { useTranslation } from 'react-i18next';
 import i18n from '../shared/i18n/config.js';
+import { useLocalizedShopItem } from '../shared/i18n/shopItemText.js';
 
 const shopT = (key: string, opts?: Record<string, unknown>) => i18n.t(`shop:${key}`, opts);
 
@@ -399,6 +400,7 @@ const PackageDiamondVisual: React.FC<{
     /** 모바일 2열 패키지 등 초좁은 폭 */
     denseNested?: boolean;
 }> = ({ dailyPerMail, durationDays, instantDiamonds, compact = false, denseNested = false }) => {
+    const { t } = useTranslation('shop');
     const dn = Boolean(compact && denseNested);
     const gemClass = compact
         ? dn
@@ -474,6 +476,7 @@ const PackageBoxRowVisual: React.FC<{
     compact?: boolean;
     denseNested?: boolean;
 }> = ({ boxes, bonusLine, equipmentBonusGradeWord, compact = false, denseNested = false }) => {
+    const { t } = useTranslation('shop');
     const dn = Boolean(compact && denseNested);
     const imgClass = compact
         ? dn
@@ -586,6 +589,7 @@ const MiscShopCard: React.FC<{
     setToastMessage: (msg: string | null) => void;
     isPurchasePending?: boolean;
 }> = ({ product, mobile = false, threeColumn = false, currentUser, onBuyCashPackage, setToastMessage, isPurchasePending = false }) => {
+    const { t } = useTranslation('shop');
     const visual = product.packageVisual;
     const compact = threeColumn;
     const denseNested = Boolean(compact && mobile);
@@ -768,6 +772,7 @@ const VipShopCard: React.FC<{
     onCancelVipSubscription: (packageId: string) => void;
     setToastMessage: (msg: string | null) => void;
 }> = ({ product, mobile = false, currentUser, onBuyVip, onCancelVipSubscription, setToastMessage }) => {
+    const { t } = useTranslation('shop');
     const durationDays =
         product.id in VIP_SHOP_DURATION_DAYS
             ? VIP_SHOP_DURATION_DAYS[product.id as keyof typeof VIP_SHOP_DURATION_DAYS]
@@ -893,6 +898,7 @@ const DiamondShopCard: React.FC<{
     mobile?: boolean;
     onCashPriceClick: () => void;
 }> = ({ product, mobile = false, onCashPriceClick }) => {
+    const { t } = useTranslation('shop');
     const countLabel = product.diamonds.toLocaleString();
     const segments = getCashDiamondShopSegments(product.diamonds);
     const segmentGemClass = mobile ? 'h-7 w-7 shrink-0' : 'h-9 w-9 shrink-0 sm:h-10 sm:w-10';
@@ -990,13 +996,6 @@ const DiamondShopCard: React.FC<{
 const describeCashPackage = (packageId: string): string => shopT(`packages.${packageId}`, { defaultValue: packageId });
 const describeVipPackage = (packageId: string): string => shopT(`vipPackages.${packageId}`, { defaultValue: packageId });
 
-const localizeShopItem = (t: (key: string) => string, itemId: string, rest: Record<string, unknown>) => ({
-    itemId,
-    name: t(`items.${itemId}.name`),
-    description: t(`items.${itemId}.description`),
-    ...rest,
-});
-
 const ShopModal: React.FC<ShopModalProps> = ({
     currentUser: propCurrentUser,
     onClose,
@@ -1007,6 +1006,13 @@ const ShopModal: React.FC<ShopModalProps> = ({
 }) => {
     const { currentUserWithStatus } = useAppContext();
     const { t } = useTranslation('shop');
+    const localizedShopItem = useLocalizedShopItem();
+    const withShopItemText = <T extends Record<string, unknown>>(itemId: string, rest: T) => ({
+        itemId,
+        name: localizedShopItem(itemId, 'name'),
+        description: localizedShopItem(itemId, 'description'),
+        ...rest,
+    });
     const { showShopAdRewardInterstitial } = useAdContext();
     const { isNativeMobile } = useNativeMobileShell();
     const mobileShop = Boolean(isNativeMobile);
@@ -1063,33 +1069,27 @@ const ShopModal: React.FC<ShopModalProps> = ({
         ? 'grid grid-cols-2 gap-1.5 min-[390px]:grid-cols-3 min-[390px]:gap-2 items-stretch [&>*]:min-h-0'
         : 'grid grid-cols-4 gap-3 items-stretch [&>*]:min-h-0';
     const materialItems = [
-        { itemId: "material_box_1", name: t('items.material_box_1.name'), description: t('items.material_box_1.description'), price: { gold: 500 }, image: "/images/Box/ResourceBox1.webp", type: 'material' as const },
-        { itemId: "material_box_2", name: t('items.material_box_2.name'), description: t('items.material_box_2.description'), price: { gold: 1000 }, image: "/images/Box/ResourceBox2.webp", type: 'material' as const },
-        { itemId: "material_box_3", name: t('items.material_box_3.name'), description: t('items.material_box_3.description'), price: { gold: 3000 }, image: "/images/Box/ResourceBox3.webp", type: 'material' as const },
-        { itemId: "material_box_4", name: t('items.material_box_4.name'), description: t('items.material_box_4.description'), price: { gold: 5000 }, image: "/images/Box/ResourceBox4.webp", type: 'material' as const },
-        { itemId: "material_box_5", name: t('items.material_box_5.name'), description: t('items.material_box_5.description'), price: { gold: 10000 }, image: "/images/Box/ResourceBox5.webp", type: 'material' as const },
-        { itemId: "material_box_6", name: t('items.material_box_6.name'), description: t('items.material_box_6.description'), price: { diamonds: 100 }, image: "/images/Box/ResourceBox6.webp", type: 'material' as const },
-        {
-            itemId: 'equipment_unbind_ticket',
-            name: shopT('items.equipment_unbind_ticket.name'),
-            description: shopT('items.equipment_unbind_ticket.description'),
+        withShopItemText('material_box_1', { price: { gold: 500 }, image: "/images/Box/ResourceBox1.webp", type: 'material' as const }),
+        withShopItemText('material_box_2', { price: { gold: 1000 }, image: "/images/Box/ResourceBox2.webp", type: 'material' as const }),
+        withShopItemText('material_box_3', { price: { gold: 3000 }, image: "/images/Box/ResourceBox3.webp", type: 'material' as const }),
+        withShopItemText('material_box_4', { price: { gold: 5000 }, image: "/images/Box/ResourceBox4.webp", type: 'material' as const }),
+        withShopItemText('material_box_5', { price: { gold: 10000 }, image: "/images/Box/ResourceBox5.webp", type: 'material' as const }),
+        withShopItemText('material_box_6', { price: { diamonds: 100 }, image: "/images/Box/ResourceBox6.webp", type: 'material' as const }),
+        withShopItemText('equipment_unbind_ticket', {
             price: { diamonds: 50 },
             image: '/images/use/belong.webp',
             dailyLimit: 10,
             type: 'material' as const,
-        },
-        {
-            itemId: 'refinement_charm',
-            name: shopT('items.refinement_charm.name'),
-            description: shopT('items.refinement_charm.description'),
+        }),
+        withShopItemText('refinement_charm', {
             price: { diamonds: 100 },
             image: '/images/use/refine.webp',
             dailyLimit: 1,
             type: 'material' as const,
-        },
-        { itemId: 'option_type_change_ticket', name: t('items.option_type_change_ticket.name'), description: t('items.option_type_change_ticket.description'), price: { gold: 2000 }, image: "/images/use/change1.webp", dailyLimit: 3, type: 'material' as const },
-        { itemId: 'option_value_change_ticket', name: t('items.option_value_change_ticket.name'), description: t('items.option_value_change_ticket.description'), price: { gold: 500 }, image: "/images/use/change2.webp", dailyLimit: 10, type: 'material' as const },
-        { itemId: 'mythic_option_change_ticket', name: t('items.mythic_option_change_ticket.name'), description: t('items.mythic_option_change_ticket.description'), price: { gold: 500 }, image: "/images/use/change3.webp", dailyLimit: 10, type: 'material' as const },
+        }),
+        withShopItemText('option_type_change_ticket', { price: { gold: 2000 }, image: "/images/use/change1.webp", dailyLimit: 3, type: 'material' as const }),
+        withShopItemText('option_value_change_ticket', { price: { gold: 500 }, image: "/images/use/change2.webp", dailyLimit: 10, type: 'material' as const }),
+        withShopItemText('mythic_option_change_ticket', { price: { gold: 500 }, image: "/images/use/change3.webp", dailyLimit: 10, type: 'material' as const }),
     ];
     const vipProducts: MiscShopProduct[] = useMemo(() => [
         {
@@ -1365,12 +1365,12 @@ const ShopModal: React.FC<ShopModalProps> = ({
 
     const renderContent = () => {
         const equipmentItems = [
-            { itemId: 'equipment_box_1', name: t('items.equipment_box_1.name'), description: t('items.equipment_box_1.description'), price: { gold: 500 }, image: "/images/Box/EquipmentBox1.webp", type: 'equipment' as const },
-            { itemId: 'equipment_box_2', name: t('items.equipment_box_2.name'), description: t('items.equipment_box_2.description'), price: { gold: 1500 }, image: "/images/Box/EquipmentBox2.webp", type: 'equipment' as const },
-            { itemId: 'equipment_box_3', name: t('items.equipment_box_3.name'), description: t('items.equipment_box_3.description'), price: { gold: 5000 }, image: "/images/Box/EquipmentBox3.webp", type: 'equipment' as const },
-            { itemId: 'equipment_box_4', name: t('items.equipment_box_4.name'), description: t('items.equipment_box_4.description'), price: { gold: 10000 }, image: "/images/Box/EquipmentBox4.webp", type: 'equipment' as const },
-            { itemId: 'equipment_box_5', name: t('items.equipment_box_5.name'), description: t('items.equipment_box_5.description'), price: { diamonds: 100 }, image: "/images/Box/EquipmentBox5.webp", type: 'equipment' as const },
-            { itemId: 'equipment_box_6', name: t('items.equipment_box_6.name'), description: t('items.equipment_box_6.description'), price: { diamonds: 500 }, image: "/images/Box/EquipmentBox6.webp", type: 'equipment' as const },
+            withShopItemText('equipment_box_1', { price: { gold: 500 }, image: "/images/Box/EquipmentBox1.webp", type: 'equipment' as const }),
+            withShopItemText('equipment_box_2', { price: { gold: 1500 }, image: "/images/Box/EquipmentBox2.webp", type: 'equipment' as const }),
+            withShopItemText('equipment_box_3', { price: { gold: 5000 }, image: "/images/Box/EquipmentBox3.webp", type: 'equipment' as const }),
+            withShopItemText('equipment_box_4', { price: { gold: 10000 }, image: "/images/Box/EquipmentBox4.webp", type: 'equipment' as const }),
+            withShopItemText('equipment_box_5', { price: { diamonds: 100 }, image: "/images/Box/EquipmentBox5.webp", type: 'equipment' as const }),
+            withShopItemText('equipment_box_6', { price: { diamonds: 500 }, image: "/images/Box/EquipmentBox6.webp", type: 'equipment' as const }),
         ];
 
         switch (activeTab) {
@@ -1485,16 +1485,16 @@ const ShopModal: React.FC<ShopModalProps> = ({
             case 'consumables':
             default: {
                 const baseConsumableItems = [
-                    { itemId: 'condition_potion_small', name: t('items.condition_potion_small.name'), description: t('items.condition_potion_small.description'), price: { gold: 100 }, image: "/images/use/con1.webp", dailyLimit: 3, type: 'consumable' as const },
-                    { itemId: 'condition_potion_medium', name: t('items.condition_potion_medium.name'), description: t('items.condition_potion_medium.description'), price: { gold: 150 }, image: "/images/use/con2.webp", dailyLimit: 3, type: 'consumable' as const },
-                    { itemId: 'condition_potion_large', name: t('items.condition_potion_large.name'), description: t('items.condition_potion_large.description'), price: { gold: 200 }, image: "/images/use/con3.webp", dailyLimit: 3, type: 'consumable' as const },
+                    withShopItemText('condition_potion_small', { price: { gold: 100 }, image: "/images/use/con1.webp", dailyLimit: 3, type: 'consumable' as const }),
+                    withShopItemText('condition_potion_medium', { price: { gold: 150 }, image: "/images/use/con2.webp", dailyLimit: 3, type: 'consumable' as const }),
+                    withShopItemText('condition_potion_large', { price: { gold: 200 }, image: "/images/use/con3.webp", dailyLimit: 3, type: 'consumable' as const }),
                 ];
                 // 행동력 회복제: 품목별 일일 1개, 고정 골드가 (ShopItemCard)
                 const ACTION_POINT_ITEMS = [
-                    { itemId: 'action_point_10' as const, name: t('items.action_point_10.name'), description: t('items.action_point_10.description'), dailyLimit: 1, prices: [1000], badge: '+10' },
-                    { itemId: 'action_point_20' as const, name: t('items.action_point_20.name'), description: t('items.action_point_20.description'), dailyLimit: 1, prices: [1500], badge: '+20' },
-                    { itemId: 'action_point_30' as const, name: t('items.action_point_30.name'), description: t('items.action_point_30.description'), dailyLimit: 1, prices: [2000], badge: '+30' },
-                ];
+                    withShopItemText('action_point_10', { dailyLimit: 1, prices: [1000], badge: '+10' }),
+                    withShopItemText('action_point_20', { dailyLimit: 1, prices: [1500], badge: '+20' }),
+                    withShopItemText('action_point_30', { dailyLimit: 1, prices: [2000], badge: '+30' }),
+                ] as const;
                 const actionPointShopItems = ACTION_POINT_ITEMS.map(({ itemId, name, description, dailyLimit, prices, badge }) => {
                     const purchaseRecord = currentUser.dailyShopPurchases?.[itemId];
                     const prDate = shopPurchaseRecordDateMs(purchaseRecord?.date);

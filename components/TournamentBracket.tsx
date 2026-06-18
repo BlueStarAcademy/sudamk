@@ -23,6 +23,7 @@ const displayBracketTabName = (name: string): string => {
     return name;
 };
 import { tx } from '../shared/i18n/runtimeText.js';
+import { useLocalizedItemGrade } from '../shared/i18n/localizedCatalog.js';
 import { createPortal } from 'react-dom';
 import {
     UserWithStatus,
@@ -40,6 +41,7 @@ import {
     Player,
     type AnalysisResult,
 } from '../types.js';
+import { ItemGrade } from '../types/enums.js';
 import Button from './Button.js';
 import { ArenaRightSidebarCollapseToggle } from './game/ArenaRightSidebarCollapseToggle.js';
 import { useButtonClickThrottle } from '../hooks/useButtonClickThrottle.js';
@@ -65,7 +67,6 @@ import {
     LEAGUE_DATA,
     DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT,
     gradeBackgrounds,
-    EQUIPMENT_GRADE_LABEL_KO,
     getChampionshipArenaBackgroundUrl,
 } from '../constants';
 import {
@@ -720,9 +721,9 @@ const CHAMPIONSHIP_MOBILE_OVERLAY_DRAWER_BOTTOM = 'calc(env(safe-area-inset-bott
 const CHAMPIONSHIP_MOBILE_SIDEBAR_OPEN_TAB_BOTTOM = 'calc(env(safe-area-inset-bottom, 0px) + 7.5rem + 0.25rem)';
 
 const CHAMPIONSHIP_PHASE_META = [
-    { key: 'opening' as const, label: tt('phases.opening'), ply19: 1, ply13: 1, ply9: 1 },
-    { key: 'midgame' as const, label: tt('phases.midgame'), ply19: 61, ply13: 31, ply9: 15 },
-    { key: 'endgame' as const, label: tt('phases.endgame'), ply19: 121, ply13: 61, ply9: 29 },
+    { key: 'opening' as const, labelKey: 'phases.opening', ply19: 1, ply13: 1, ply9: 1 },
+    { key: 'midgame' as const, labelKey: 'phases.midgame', ply19: 61, ply13: 31, ply9: 15 },
+    { key: 'endgame' as const, labelKey: 'phases.endgame', ply19: 121, ply13: 61, ply9: 29 },
 ];
 
 function championshipPhaseMetaPly(boardSize: number, phase: (typeof CHAMPIONSHIP_PHASE_META)[number]): number {
@@ -776,6 +777,7 @@ export const ChampionshipAbilityPlayerPanel: React.FC<{
     splitPairAbilities,
     pairSplitTurnHighlight = null,
 }) => {
+    useTranslation('tournament');
     const realGame = match?.championshipRealGame;
     const boardSize = realGame?.boardSize ?? 19;
     const activePhaseKey =
@@ -902,7 +904,7 @@ export const ChampionshipAbilityPlayerPanel: React.FC<{
                                     className={`rounded-lg border ${phasePad} shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${phaseRowActiveClass(phase.key)}`}
                                 >
                                     <div className={`flex items-center justify-between gap-1.5 ${phaseLabel}`}>
-                                        <span className={phaseRowLabelClass(phase.key, density)}>{phase.label}</span>
+                                        <span className={phaseRowLabelClass(phase.key, density)}>{tt(phase.labelKey)}</span>
                                         <span className={phaseRowValueClass(phase.key, density)}>{computed.abilityScore}</span>
                                     </div>
                                 </div>
@@ -3488,6 +3490,8 @@ const FinalRewardPanel: React.FC<{
     onExpectedRewardDetailsOpenChange,
 }) => {
     const isMobileTabLayout = layoutVariant === 'mobileTab';
+    useTranslation('tournament');
+    const localizedGrade = useLocalizedItemGrade();
     const { type, rounds } = tournamentState;
     /** 획득 보상 타일만 서버 기준으로 고정 (시뮬레이션 로컬 상태와 분리) */
     const rs = rewardsSourceTournament ?? tournamentState;
@@ -3626,7 +3630,7 @@ const FinalRewardPanel: React.FC<{
             onClick={toggleExpectedRewardDetails}
             className={`w-full ${championshipFooterSecondaryButton}`}
         >
-            예상보상
+            {tt('expectedReward')}
         </button>
     ) : null;
     const expectedRewardPreview = canShowExpectedRewardPreview ? (() => {
@@ -3782,7 +3786,7 @@ const FinalRewardPanel: React.FC<{
                     <span
                         className={`${isSplit ? 'text-[11px] sm:text-xs' : ''} ${gradeTextClass[minDropGrade] ?? gradeTextClass.epic}`}
                     >
-                        {EQUIPMENT_GRADE_LABEL_KO[minDropGrade] ?? minDropGrade}
+                        {localizedGrade(minDropGrade)}
                     </span>
                     {minDropGrade !== maxDropGrade ? (
                         <>
@@ -3790,7 +3794,7 @@ const FinalRewardPanel: React.FC<{
                             <span
                                 className={`${isSplit ? 'text-[11px] sm:text-xs' : ''} ${gradeTextClass[maxDropGrade] ?? gradeTextClass.mythic}`}
                             >
-                                {EQUIPMENT_GRADE_LABEL_KO[maxDropGrade] ?? maxDropGrade}
+                                {localizedGrade(maxDropGrade)}
                             </span>
                         </>
                     ) : null}
@@ -3846,11 +3850,11 @@ const FinalRewardPanel: React.FC<{
                         tt('grade'),
                         'text-violet-300',
                         <span className={`${splitInlineClass} gap-2`}>
-                            <span className={`text-[11px] sm:text-xs ${gradeTextClass.epic}`}>{EQUIPMENT_GRADE_LABEL_KO.epic}</span>
+                            <span className={`text-[11px] sm:text-xs ${gradeTextClass.epic}`}>{localizedGrade('epic')}</span>
                             <span className="text-[10px] text-slate-500 sm:text-[11px]">~</span>
-                            <span className={`text-[11px] sm:text-xs ${gradeTextClass.legendary}`}>{EQUIPMENT_GRADE_LABEL_KO.legendary}</span>
+                            <span className={`text-[11px] sm:text-xs ${gradeTextClass.legendary}`}>{localizedGrade('legendary')}</span>
                             <span className="text-[10px] text-slate-500 sm:text-[11px]">~</span>
-                            <span className={`text-[11px] sm:text-xs ${gradeTextClass.mythic}`}>{EQUIPMENT_GRADE_LABEL_KO.mythic}</span>
+                            <span className={`text-[11px] sm:text-xs ${gradeTextClass.mythic}`}>{localizedGrade('mythic')}</span>
                         </span>,
                     )}
                 </div>
@@ -3861,11 +3865,11 @@ const FinalRewardPanel: React.FC<{
             <div className={rowClass}>
                 <span className={chipClass}>
                     장비 등급
-                    <span className={gradeTextClass.epic}>{EQUIPMENT_GRADE_LABEL_KO.epic}</span>
+                    <span className={gradeTextClass.epic}>{localizedGrade('epic')}</span>
                     <span className="text-slate-500">~</span>
-                    <span className={gradeTextClass.legendary}>{EQUIPMENT_GRADE_LABEL_KO.legendary}</span>
+                    <span className={gradeTextClass.legendary}>{localizedGrade('legendary')}</span>
                     <span className="text-slate-500">~</span>
-                    <span className={gradeTextClass.mythic}>{EQUIPMENT_GRADE_LABEL_KO.mythic}</span>
+                    <span className={gradeTextClass.mythic}>{localizedGrade('mythic')}</span>
                 </span>
             </div>
         );
@@ -4134,13 +4138,13 @@ const FinalRewardPanel: React.FC<{
                         {hasWorldEquipDropsList &&
                             accumulatedEquipmentDropsList.map((gradeKey: string, di: number) => {
                                 const img = EQUIP_GRADE_IMAGE[gradeKey] || '/images/equipments/normalbgi.webp';
-                                const label = EQUIPMENT_GRADE_LABEL_KO[gradeKey] ?? gradeKey;
+                                const label = localizedGrade(gradeKey as ItemGrade);
                                 const borderClass = EQUIP_GRADE_BORDER[gradeKey] || EQUIP_GRADE_BORDER.normal;
                                 return (
                                     <div
                                         key={`drop-${gradeKey}-${di}`}
                                         className={`w-11 h-11 rounded-lg overflow-hidden flex items-center justify-center ${borderClass}`}
-                                        title={`tt('labelEquipment', { label })`}
+                                        title={tt('labelEquipment', { label })}
                                     >
                                         <img src={img} alt="" className="w-[70%] h-[70%] object-contain pointer-events-none" loading="lazy" decoding="async" />
                                     </div>
@@ -5405,6 +5409,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         championshipAbilityKataLadder: championshipAbilityKataLadderProp,
     } = props;
     const abilityKataLadder = championshipAbilityKataLadderProp ?? CHAMPIONSHIP_ABILITY_KATA_LADDER;
+    useTranslation('tournament');
     
     // React 훅 규칙: 모든 훅은 조건문 밖에서 호출되어야 함
     const [lastUserMatchSgfIndex, setLastUserMatchSgfIndex] = useState<number | null>(null);
@@ -5542,7 +5547,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     if (!tournament) {
         return (
             <div className="p-4 text-center">
-                <p>토너먼트 정보를 불러오는 중입니다...</p>
+                <p>{tt('loadingTournament')}</p>
             </div>
         );
     }
@@ -5551,7 +5556,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     if (!currentUser || !currentUser.id) {
         return (
             <div className="p-4 text-center">
-                <p>사용자 정보를 불러오는 중입니다...</p>
+                <p>{tt('loadingUserInfo')}</p>
             </div>
         );
     }
@@ -7003,7 +7008,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             if (isMatchStartBusy) {
                 return (
                     <Button disabled colorScheme="none" className={championshipFooterMutedButton}>
-                        경기 준비 중..
+                        {tt('matchPreparing')}
                     </Button>
                 );
             }
@@ -7185,7 +7190,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         if (championshipAwaitingKataLoad) {
             return (
                 <button type="button" disabled className={`${championshipFooterMutedButton} ${fb}`}>
-                    경기 준비 중..
+                    {tt('matchPreparing')}
                 </button>
             );
         }
@@ -7225,14 +7230,14 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         <div
             className={`flex items-center justify-center font-bold text-cyan-300 ${isMobile ? 'gap-1 text-center text-xs leading-tight' : 'gap-2 text-lg'}`}
         >
-            <span>경기 준비 중..</span>
+            <span>{tt('matchPreparing')}</span>
         </div>
     ) : autoNextCountdown !== null ? (
         <div
             className={`flex items-center justify-center font-bold text-yellow-400 ${isMobile ? 'gap-1 text-center text-xs leading-tight' : 'gap-2 text-lg'}`}
         >
             <span>
-                다음 경기 준비중... {autoNextCountdown}
+                {tt('nextMatchPreparing', { countdown: autoNextCountdown })}
             </span>
         </div>
     ) : null;
@@ -7297,7 +7302,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                           <div
                               className={`flex w-full items-center justify-center font-bold text-cyan-300 ${isMobile ? 'text-center text-xs leading-tight' : 'text-sm'}`}
                           >
-                              경기 준비 중..
+                              {tt('matchPreparing')}
                           </div>
                       );
                   }
@@ -7306,7 +7311,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                           <div
                               className={`flex w-full items-center justify-center font-bold text-yellow-400 ${isMobile ? 'text-center text-xs leading-tight' : 'text-sm'}`}
                           >
-                              다음 경기 준비중... {autoNextCountdown}
+                              {tt('nextMatchPreparing', { countdown: autoNextCountdown })}
                           </div>
                       );
                   }
@@ -7332,7 +7337,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         if (autoNextCountdown !== null) {
             return (
                 <p className="mb-1.5 text-center text-[10px] font-bold leading-snug text-yellow-400">
-                    다음 경기 준비중... {autoNextCountdown}
+                    {tt('nextMatchPreparing', { countdown: autoNextCountdown })}
                 </p>
             );
         }
@@ -7714,7 +7719,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                       onClick={() => setMobileChampionshipTab('rewards')}
                                       className="min-w-0 flex-1 basis-[calc(50%-0.25rem)] rounded-lg bg-purple-700/70 px-2 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-purple-700"
                                   >
-                                      예상보상
+                                      {tt('expectedReward')}
                                   </button>
                               ) : null}
                               <button
@@ -8376,7 +8381,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                         : 'border border-slate-600/45 bg-black/25 text-slate-300'
                                 }`}
                             >
-                                <span className="font-semibold">{phase.label}</span>
+                                <span className="font-semibold">{tt(phase.labelKey)}</span>
                                 <span className={`text-[11px] font-black tabular-nums ${valueColor}`}>
                                     {computed.abilityScore}
                                 </span>

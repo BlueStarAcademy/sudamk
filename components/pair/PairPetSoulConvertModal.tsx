@@ -3,12 +3,8 @@ import { useTranslation, Trans } from 'react-i18next';
 import Button from '../Button.js';
 import DraggableWindow from '../DraggableWindow.js';
 import type { InventoryItem } from '../../types.js';
-import {
-    EQUIPMENT_GRADE_LABEL_KO,
-    MATERIAL_ITEMS,
-    gradeBackgrounds,
-    gradeStyles,
-} from '../../shared/constants/items.js';
+import { MATERIAL_ITEMS, gradeBackgrounds, gradeStyles } from '../../shared/constants/items.js';
+import { useLocalizedItemGrade } from '../../shared/i18n/localizedCatalog.js';
 import { getPairPetDisplayName } from '../../shared/constants/petLobby.js';
 import { ItemGrade } from '../../types/enums.js';
 import { effectivePairPetGradeFromRow, PAIR_PET_MAX_LEVEL } from '../../shared/constants/pairPetGrade.js';
@@ -38,6 +34,7 @@ const PairPetSoulConvertModal: React.FC<PairPetSoulConvertModalProps> = ({
 }) => {
     const { t } = useTranslation(['pair', 'common']);
     const { t: tCommon } = useTranslation('common');
+    const localizedGrade = useLocalizedItemGrade();
     const displayGrade = effectivePairPetGradeFromRow(item);
     const petMeta = useMemo(() => resolvePairPetMetaFromInventoryRow(item), [item]);
     const preview = useMemo(() => getPairPetSoulConvertPreview(item), [item]);
@@ -46,7 +43,7 @@ const PairPetSoulConvertModal: React.FC<PairPetSoulConvertModalProps> = ({
             ? MATERIAL_ITEMS[preview.materialName as keyof typeof MATERIAL_ITEMS]
             : null;
     const petLabel = getPairPetDisplayName(item);
-    const gradeKo = EQUIPMENT_GRADE_LABEL_KO[displayGrade] ?? displayGrade;
+    const gradeKo = localizedGrade(displayGrade);
     const petLevel = Math.min(PAIR_PET_MAX_LEVEL, Math.max(1, Math.floor(petMeta.level) || 1));
     const petSt = gradeStyles[displayGrade] ?? gradeStyles[ItemGrade.Normal];
     const petBgUrl = gradeBackgrounds[displayGrade] ?? gradeBackgrounds[ItemGrade.Normal];

@@ -34,7 +34,8 @@ import {
     getChampionshipRewardItemGrade,
     getChampionshipRewardItemImageUrl,
 } from '../utils/championshipRewardDisplay.js';
-import { EQUIPMENT_GRADE_LABEL_KO } from '../constants.js';
+import { translateItemGrade } from '../shared/i18n/localizedCatalog.js';
+import { useTranslation } from 'react-i18next';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 
 type RewardPiece = {
@@ -87,8 +88,8 @@ function formatWorldEquipmentDropCaptionLines(stage: number): string[] {
         if (WORLD_EQUIP_GRADE_ORDER.indexOf(g) < WORLD_EQUIP_GRADE_ORDER.indexOf(lo)) lo = g;
         if (WORLD_EQUIP_GRADE_ORDER.indexOf(g) > WORLD_EQUIP_GRADE_ORDER.indexOf(hi)) hi = g;
     }
-    const loL = EQUIPMENT_GRADE_LABEL_KO[lo] ?? lo;
-    const hiL = EQUIPMENT_GRADE_LABEL_KO[hi] ?? hi;
+    const loL = translateItemGrade(lo);
+    const hiL = translateItemGrade(hi);
     const rangeLine = lo === hi ? tourT('grade', { grade: loL }) : tourT('gradeRange', { low: loL, high: hiL });
 
     return [rangeLine];
@@ -725,11 +726,11 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
         }
     }
 
-    const basePieces = useMemo(() => getBaseRewardPieces(type, selectedStage), [type, selectedStage]);
+    const basePieces = useMemo(() => getBaseRewardPieces(type, selectedStage), [type, selectedStage, t]);
 
     const rankRewardGroups = useMemo(
         () => buildDungeonRankRewardGroupsForEntryModal(type, selectedStage),
-        [type, selectedStage]
+        [type, selectedStage, t],
     );
 
     const botStatRange = useMemo(() => getDungeonBotStatRangeForStage(selectedStage), [selectedStage]);

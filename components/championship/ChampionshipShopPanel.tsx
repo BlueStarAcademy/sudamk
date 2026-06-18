@@ -14,7 +14,8 @@ import {
 } from '../../shared/constants/championshipShop.js';
 import { isDifferentWeekKST } from '../../shared/utils/timeUtils.js';
 import { gradeStyles } from '../../shared/constants/items.js';
-import { getChampionshipEquipmentBoxDisplayGrades, getChampionshipEquipmentBoxShopInfoLineKo } from '../../shared/constants/shopLootTables.js';
+import { getChampionshipEquipmentBoxDisplayGrades, getChampionshipEquipmentBoxShopInfoLine } from '../../shared/constants/shopLootTables.js';
+import { useLocalizedItemGrade } from '../../shared/i18n/localizedCatalog.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import { specialResourceIcons } from '../resourceIcons.js';
 import { formatShopItemDescription, ShopMobileImageDescriptionPortal } from '../shopImageDescriptionPopover.js';
@@ -55,6 +56,8 @@ const ChampionshipSimpleShopCard: React.FC<{
     onBuy: (productId: string, price: number) => void;
     compact: boolean;
 }> = ({ p, mobile, champ, purchases, now, busyId, onBuy, compact }) => {
+    const { t } = useTranslation('tournament');
+    const localizedGrade = useLocalizedItemGrade();
     const price = p.champCoins;
     const limit = 'weeklyLimit' in p ? (p.weeklyLimit ?? 0) : 0;
     const used = limit > 0 ? weeklyUsedThisWeek(purchases, p.id, now) : 0;
@@ -75,8 +78,12 @@ const ChampionshipSimpleShopCard: React.FC<{
         return { low, high };
     }, [p.tab, p.tab === 'equipment' ? p.boxLevel : null]);
     const cardH = compact ? CARD_H_COMPACT : CARD_H_DEFAULT;
+    const equipmentBoxInfoLine = useMemo(() => {
+        if (p.tab !== 'equipment') return null;
+        return getChampionshipEquipmentBoxShopInfoLine(p.boxLevel);
+    }, [p.tab, p.tab === 'equipment' ? p.boxLevel : null, t]);
     const imageTitle =
-        p.tab === 'equipment' ? getChampionshipEquipmentBoxShopInfoLineKo(p.boxLevel) : refinedDescription || p.label;
+        p.tab === 'equipment' ? equipmentBoxInfoLine ?? p.label : refinedDescription || p.label;
     const weeklyMuted = disabled || busyHere;
     const weeklyLine =
         limit > 0 ? (
@@ -87,7 +94,7 @@ const ChampionshipSimpleShopCard: React.FC<{
                         : 'border-violet-950/25 text-violet-950 drop-shadow-[0_0.5px_0_rgba(255,255,255,0.35)]'
                 }`}
             >
-                (주간 {remaining}/{limit})
+                {t('championship.shop.weeklyCountShort', { remaining, limit })}
             </span>
         ) : null;
 
@@ -143,17 +150,17 @@ const ChampionshipSimpleShopCard: React.FC<{
                         {championshipEquipGradeRange ? (
                             <p>
                                 <span className={`font-bold ${gradeStyles[championshipEquipGradeRange.low].color}`}>
-                                    {gradeStyles[championshipEquipGradeRange.low].name}
+                                    {localizedGrade(championshipEquipGradeRange.low)}
                                 </span>
                                 {championshipEquipGradeRange.low !== championshipEquipGradeRange.high ? (
                                     <>
                                         <span className="text-slate-400">~</span>
                                         <span className={`font-bold ${gradeStyles[championshipEquipGradeRange.high].color}`}>
-                                            {gradeStyles[championshipEquipGradeRange.high].name}
+                                            {localizedGrade(championshipEquipGradeRange.high)}
                                         </span>
                                     </>
                                 ) : null}
-                                <span> 장비 획득. 챔피언십 능력치 상승 특수옵션 반드시 포함</span>
+                                <span>{t('championship.shop.equipmentBoxInfoSuffix')}</span>
                             </p>
                         ) : (
                             <p>{refinedDescription}</p>
@@ -215,6 +222,7 @@ const ChampionshipSpecialShopCard: React.FC<{
     onBuy: (productId: string, price: number) => void;
     compact: boolean;
 }> = ({ p, mobile, champ, purchases, now, busyId, onBuy, compact }) => {
+    const { t } = useTranslation('tournament');
     const price = p.champCoins;
     const limit = p.weeklyLimit ?? 0;
     const used = limit > 0 ? weeklyUsedThisWeek(purchases, p.id, now) : 0;
@@ -239,7 +247,7 @@ const ChampionshipSpecialShopCard: React.FC<{
                         : 'border-violet-950/25 text-violet-950 drop-shadow-[0_0.5px_0_rgba(255,255,255,0.35)]'
                 }`}
             >
-                (주간 {remaining}/{limit})
+                {t('championship.shop.weeklyCountShort', { remaining, limit })}
             </span>
         ) : null;
 

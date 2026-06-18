@@ -28,6 +28,23 @@ export function tx(key: string, options?: Record<string, unknown>): string {
     return i18n.t(key, options ?? {});
 }
 
+const ITEM_GRADE_I18N_KEYS: Record<string, string> = {
+    normal: 'exchange:filters.gradeNormal',
+    uncommon: 'exchange:filters.gradeUncommon',
+    rare: 'exchange:filters.gradeRare',
+    epic: 'exchange:filters.gradeEpic',
+    legendary: 'exchange:filters.gradeLegendary',
+    mythic: 'exchange:filters.gradeMythic',
+    transcendent: 'exchange:filters.gradeTranscendent',
+};
+
+/** Localized equipment/pet grade label (replaces EQUIPMENT_GRADE_LABEL_KO in UI). */
+export function translateItemGrade(grade: string, fallback?: string): string {
+    const key = ITEM_GRADE_I18N_KEYS[grade];
+    if (!key) return fallback ?? grade;
+    return tx(key, { defaultValue: fallback ?? grade });
+}
+
 export function translateGameMode(mode: GameMode): string {
     const slug = GAME_MODE_SLUG[mode];
     return tx(`gameModes:${slug}`, { defaultValue: mode });

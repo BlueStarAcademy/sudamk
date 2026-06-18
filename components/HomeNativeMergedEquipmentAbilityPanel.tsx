@@ -279,7 +279,7 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
                         gb ? '!px-2 !py-1 !text-xs sm:!text-sm' : ch ? '!px-1.5 !py-0.5 !text-[10px] sm:!text-[11px]' : '!px-2 !py-0.5 !text-[10px] sm:!text-xs'
                     }`}
                 >
-                    장비 효과
+                    {t('coreAbility.equipmentEffects')}
                 </Button>
             </div>
         </div>
@@ -296,7 +296,7 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
                         className="shrink-0 bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200/90 bg-clip-text text-[10px] font-bold tracking-tight text-transparent drop-shadow-[0_0_20px_rgba(251,191,36,0.22)] sm:text-xs"
                         title={t('coreAbility.coreTotal')}
                     >
-                        바둑능력
+                        {t('coreAbility.goAbility')}
                     </span>
                     <span
                         className="min-w-0 font-mono text-base font-black tabular-nums leading-none text-amber-100 drop-shadow-[0_1px_0_rgba(0,0,0,0.35)] sm:text-lg"
@@ -314,7 +314,8 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
                         className="whitespace-nowrap text-[10px] font-medium text-amber-100/90 sm:text-[11px]"
                         title={t('coreAbility.bonusPoints', { points: availablePoints })}
                     >
-                        보너스 <span className="font-bold tabular-nums text-emerald-300">{availablePoints}</span>
+                        {t('coreAbility.bonusLabel')}{' '}
+                        <span className="font-bold tabular-nums text-emerald-300">{availablePoints}</span>
                         <span className="text-amber-100/50">P</span>
                     </span>
                     <Button
@@ -322,7 +323,7 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
                         colorScheme="none"
                         className="!shrink-0 !whitespace-nowrap !rounded-lg !border-2 !border-cyan-300/65 !bg-gradient-to-r !from-indigo-500 !via-violet-500 !to-fuchsia-500 !px-2 !py-0.5 !text-[10px] !font-bold !text-white !shadow-[0_10px_26px_-10px_rgba(99,102,241,0.75)] hover:!brightness-110 sm:!px-2.5 sm:!py-1 sm:!text-[11px]"
                     >
-                        분배
+                        {t('coreAbility.allocate')}
                     </Button>
                 </div>
             </div>
@@ -350,7 +351,7 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
                             }`}
                             title={t('coreAbility.coreTotal')}
                         >
-                            바둑능력
+                            {t('coreAbility.goAbility')}
                         </span>
                         <span
                             className={`min-w-0 font-mono font-black tabular-nums leading-none text-amber-100 drop-shadow-[0_1px_0_rgba(0,0,0,0.35)] ${
@@ -368,7 +369,8 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
                             }`}
                             title={t('coreAbility.bonusPoints', { points: availablePoints })}
                         >
-                            보너스 <span className="font-bold tabular-nums text-emerald-300">{availablePoints}</span>
+                            {t('coreAbility.bonusLabel')}{' '}
+                            <span className="font-bold tabular-nums text-emerald-300">{availablePoints}</span>
                             <span className="text-amber-100/50">P</span>
                         </span>
                         <Button
@@ -382,7 +384,7 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
                                       : '!px-3 !py-1.5 !text-xs sm:!px-3.5 sm:!py-1.5 sm:!text-sm'
                             }`}
                         >
-                            분배
+                            {t('coreAbility.allocate')}
                         </Button>
                     </div>
                 </div>

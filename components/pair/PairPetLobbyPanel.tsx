@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 import { tx } from '../../shared/i18n/runtimeText.js';
+import { useLocalizedItemGrade } from '../../shared/i18n/localizedCatalog.js';
 import { flushSync } from 'react-dom';
 import Button from '../Button.js';
 import DraggableWindow from '../DraggableWindow.js';
@@ -99,7 +100,7 @@ import { ShopMobileImageDescriptionPortal } from '../shopImageDescriptionPopover
 import SellItemConfirmModal from '../SellItemConfirmModal.js';
 import SellMaterialBulkModal from '../SellMaterialBulkModal.js';
 import type { User, UserWithStatus, InventoryItem, ServerAction, PairPetLobbyInventorySortMode } from '../../types.js';
-import { MATERIAL_ITEMS, gradeBackgrounds, gradeStyles, EQUIPMENT_GRADE_LABEL_KO } from '../../shared/constants/items.js';
+import { MATERIAL_ITEMS, gradeBackgrounds, gradeStyles } from '../../shared/constants/items.js';
 import { ItemGrade } from '../../types/enums.js';
 import { isSameDayKST } from '../../utils/timeUtils.js';
 import { effectivePairPetGradeFromRow, PAIR_PET_MAX_LEVEL, pairPetGradeIndex } from '../../shared/constants/pairPetGrade.js';
@@ -479,36 +480,41 @@ function formatPairShopDescription(desc: string): string {
 
 const PAIR_PET_SHOP_GRADE_ARROW = '➝';
 
-const PAIR_PET_SHOP_GRADE_NAME_COLOR: Record<string, string> = Object.fromEntries(
-    Object.entries(EQUIPMENT_GRADE_LABEL_KO).map(([gradeKey, gradeName]) => [
-        gradeName,
-        gradeStyles[gradeKey as ItemGrade]?.color ?? 'text-slate-200',
-    ]),
-);
-
-function renderPairPetShopBracketGrades(segment: string, segmentKey: string) {
-    const parts = segment.split(/(\[[^\]]+\])/g).filter((part) => part.length > 0);
-    return parts.map((part, partIndex) => {
-        const bracketMatch = part.match(/^\[([^\]]+)\]$/);
-        if (!bracketMatch) {
-            return <React.Fragment key={`${segmentKey}-plain-${partIndex}`}>{part}</React.Fragment>;
-        }
-        const gradeName = bracketMatch[1];
-        const gradeColor = PAIR_PET_SHOP_GRADE_NAME_COLOR[gradeName] ?? 'text-slate-200';
-        return (
-            <span key={`${segmentKey}-grade-${partIndex}`} className={`font-semibold ${gradeColor}`}>
-                [{gradeName}]
-            </span>
-        );
-    });
-}
-
 function PairPetShopShortDescription({ text }: { text: string }) {
+    const localizedGrade = useLocalizedItemGrade();
+    const gradeNameColor = useMemo(
+        () =>
+            Object.fromEntries(
+                (Object.keys(gradeStyles) as ItemGrade[]).map((gradeKey) => [
+                    localizedGrade(gradeKey),
+                    gradeStyles[gradeKey]?.color ?? 'text-slate-200',
+                ]),
+            ),
+        [localizedGrade],
+    );
+
+    const renderBracketGrades = (segment: string, segmentKey: string) => {
+        const parts = segment.split(/(\[[^\]]+\])/g).filter((part) => part.length > 0);
+        return parts.map((part, partIndex) => {
+            const bracketMatch = part.match(/^\[([^\]]+)\]$/);
+            if (!bracketMatch) {
+                return <React.Fragment key={`${segmentKey}-plain-${partIndex}`}>{part}</React.Fragment>;
+            }
+            const gradeName = bracketMatch[1];
+            const gradeColor = gradeNameColor[gradeName] ?? 'text-slate-200';
+            return (
+                <span key={`${segmentKey}-grade-${partIndex}`} className={`font-semibold ${gradeColor}`}>
+                    [{gradeName}]
+                </span>
+            );
+        });
+    };
+
     const segments = text.split(PAIR_PET_SHOP_GRADE_ARROW);
     if (segments.length < 2) {
         return (
             <p className={PET_MGMT_SHOP_SHORT_TEXT} title={text}>
-                {renderPairPetShopBracketGrades(text, 'single')}
+                {renderBracketGrades(text, 'single')}
             </p>
         );
     }
@@ -521,7 +527,7 @@ function PairPetShopShortDescription({ text }: { text: string }) {
                             {PAIR_PET_SHOP_GRADE_ARROW}
                         </span>
                     ) : null}
-                    {renderPairPetShopBracketGrades(segment, `seg-${index}`)}
+                    {renderBracketGrades(segment, `seg-${index}`)}
                 </React.Fragment>
             ))}
         </p>

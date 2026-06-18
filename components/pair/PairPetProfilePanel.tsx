@@ -8,7 +8,8 @@ import { effectivePairPetGradeFromRow, PAIR_PET_MAX_LEVEL } from '../../shared/c
 import { getEquippedPairPetInventoryRow } from '../../shared/utils/pairEquippedPet.js';
 import { resolvePairPetMetaFromInventoryRow } from '../../shared/utils/pairPetRoll.js';
 import { computePairPetBadukTotalPower } from './PairPetCoreStatsGrid.js';
-import { gradeStyles, EQUIPMENT_GRADE_LABEL_KO } from '../../shared/constants/items.js';
+import { useLocalizedItemGrade } from '../../shared/i18n/localizedCatalog.js';
+import { gradeStyles } from '../../shared/constants/items.js';
 
 /** 한 줄 안에 들어가도록 줄이는 최소·최대 글자 크기(px) */
 const PET_PROFILE_LINE_FONT_MIN = 6.5;
@@ -65,6 +66,7 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
     profileHomeBannerAside = false,
 }) => {
     const { t } = useTranslation(['pair', 'profile']);
+    const localizedGrade = useLocalizedItemGrade();
     const lineFontMax =
         profileHomeBannerAside
             ? 11.5
@@ -106,7 +108,7 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
     }, [equippedItem]);
 
     const petGrade = equippedItem ? effectivePairPetGradeFromRow(equippedItem) : ItemGrade.Normal;
-    const gradeKo = EQUIPMENT_GRADE_LABEL_KO[petGrade] ?? petGrade;
+    const gradeLabel = localizedGrade(petGrade);
     const gradeStyle = gradeStyles[petGrade] ?? gradeStyles[ItemGrade.Normal];
     const badukTotal = useMemo(() => {
         if (!petMeta || !equippedItem) return null;
@@ -154,7 +156,7 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
         levelSafe,
         badukTotal,
         equippedItem,
-        gradeKo,
+        gradeLabel,
         lineFontMax,
         lineFontMin,
         hideInlineBadukChip,
@@ -230,7 +232,7 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
     const renderProfileHomeIdentity = (fontSizePx: number) => (
         <div ref={lineInnerRef} className="flex min-w-0 flex-col gap-y-1" style={{ fontSize: `${fontSizePx}px` }}>
             <div className="flex flex-wrap items-center gap-x-[0.35em] leading-none">
-                <span className={`${identityChipClass} ${gradeStyle.color}`}>{gradeKo}</span>
+                <span className={`${identityChipClass} ${gradeStyle.color}`}>{gradeLabel}</span>
                 {showRepresentativeBadge ? (
                     <span className={`${identityChipClass} border-cyan-400/55 bg-cyan-950/65 text-cyan-50`}>{t('pet.representativePet')}</span>
                 ) : null}
@@ -246,7 +248,7 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
 
     const renderIdentityLine = (fontSizePx: number) => (
         <div ref={lineInnerRef} className="flex min-w-0 max-w-full items-center gap-x-[0.35em] whitespace-nowrap leading-none" style={{ fontSize: `${fontSizePx}px` }}>
-            <span className={`${identityChipClass} ${gradeStyle.color}`}>{gradeKo}</span>
+            <span className={`${identityChipClass} ${gradeStyle.color}`}>{gradeLabel}</span>
             {showRepresentativeBadge ? (
                 <span className={`${identityChipClass} border-cyan-400/55 bg-cyan-950/65 text-cyan-50`}>{t('pet.representativePet')}</span>
             ) : null}
@@ -361,7 +363,7 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
                             <span
                                 className={`inline-flex shrink-0 rounded-md border border-white/18 px-[0.35em] py-px text-[0.82em] font-extrabold leading-none ${gradeStyle.color} bg-black/50`}
                             >
-                                {gradeKo}
+                                {gradeLabel}
                             </span>
                             {showRepresentativeBadge ? (
                                 <span

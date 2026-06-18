@@ -13,8 +13,8 @@ export function getLocalizedTournamentDefinition(t: TFunction<'tournament'>, typ
     const def = TOURNAMENT_DEFINITIONS[type];
     return {
         ...def,
-        name: t(`definitions.${type}.name`),
-        description: t(`definitions.${type}.description`),
+        name: t(`definitions.${type}.name`, { defaultValue: def.name }),
+        description: t(`definitions.${type}.description`, { defaultValue: def.description }),
     };
 }
 
