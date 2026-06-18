@@ -11,7 +11,6 @@ import { isDifferentWeekKST, isDifferentMonthKST } from '../../utils/timeUtils.j
 import { addItemsToInventory } from '../../utils/inventoryUtils.js';
 import { CONSUMABLE_ITEMS, MATERIAL_ITEMS } from '../../constants/index.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
-import { useTranslation } from 'react-i18next';
 
 interface GuildShopModalProps {
     onClose: () => void;
