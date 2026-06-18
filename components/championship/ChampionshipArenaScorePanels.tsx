@@ -30,28 +30,34 @@ export const ChampionshipDesktopScoreBox: React.FC<{
     isWhite: boolean;
     score: number | null;
     scoreKind?: ChampionshipPanelScoreKind | null;
-}> = ({ isWhite, score, scoreKind = null }) => (
-    <div
-        className={`flex w-[4.8rem] shrink-0 flex-col items-center justify-center rounded-lg px-2 py-1.5 text-center ${championshipScoreBoxClass(isWhite)}`}
-    >
-        <span className={`text-[10px] font-bold leading-none ${championshipScoreBoxLabelClass(isWhite)}`}>{t('arena.score')}</span>
-        <span className="mt-1 text-xl font-black leading-none tabular-nums">
-            {formatChampionshipPanelScoreDisplay(score, scoreKind)}
-        </span>
-    </div>
-);
+}> = ({ isWhite, score, scoreKind = null }) => {
+    const { t } = useTranslation(['tournament', 'championshipVersus']);
+    return (
+        <div
+            className={`flex w-[4.8rem] shrink-0 flex-col items-center justify-center rounded-lg px-2 py-1.5 text-center ${championshipScoreBoxClass(isWhite)}`}
+        >
+            <span className={`text-[10px] font-bold leading-none ${championshipScoreBoxLabelClass(isWhite)}`}>{t('arena.score')}</span>
+            <span className="mt-1 text-xl font-black leading-none tabular-nums">
+                {formatChampionshipPanelScoreDisplay(score, scoreKind)}
+            </span>
+        </div>
+    );
+};
 
 export const ChampionshipDesktopScoringCountdownBox: React.FC<{
     remaining: number | null;
     max: number;
-}> = ({ remaining, max }) => (
-    <div className={`w-36 ${championshipScoringCountdownBoxClass}`}>
-        <div className="text-[11px] font-bold tracking-wide text-amber-100">{t('championship.scoringUntil')}</div>
-        <div className="mt-0.5 text-2xl font-black tabular-nums text-white">
-            {remaining ?? '-'}/{max}
+}> = ({ remaining, max }) => {
+    const { t } = useTranslation(['tournament', 'championshipVersus']);
+    return (
+        <div className={`w-36 ${championshipScoringCountdownBoxClass}`}>
+            <div className="text-[11px] font-bold tracking-wide text-amber-100">{t('championship.scoringUntil')}</div>
+            <div className="mt-0.5 text-2xl font-black tabular-nums text-white">
+                {remaining ?? '-'}/{max}
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
 export const ChampionshipMobileScoreCell: React.FC<{
     isWhite: boolean;
@@ -60,6 +66,7 @@ export const ChampionshipMobileScoreCell: React.FC<{
     colorLabel: string;
     side: 'left' | 'right';
 }> = ({ isWhite, score, scoreKind = null, colorLabel, side }) => {
+    const { t } = useTranslation(['tournament', 'championshipVersus']);
     const labelColor = championshipScoreBoxLabelClass(isWhite);
     const scoreText = formatChampionshipPanelScoreDisplay(score, scoreKind);
     return (
@@ -79,11 +86,14 @@ export const ChampionshipMobileScoreCell: React.FC<{
 export const ChampionshipMobileScoringCountdownCell: React.FC<{
     remaining: number;
     max: number;
-}> = ({ remaining, max }) => (
-    <div className={championshipMobileScoringCountdownBoxClass}>
-        <div className="text-[9px] font-bold tracking-wide text-amber-100">{t('championship.scoringUntil')}</div>
-        <div className="text-base font-black tabular-nums leading-none text-white">
-            {remaining}/{max}
+}> = ({ remaining, max }) => {
+    const { t } = useTranslation(['tournament', 'championshipVersus']);
+    return (
+        <div className={championshipMobileScoringCountdownBoxClass}>
+            <div className="text-[9px] font-bold tracking-wide text-amber-100">{t('championship.scoringUntil')}</div>
+            <div className="text-base font-black tabular-nums leading-none text-white">
+                {remaining}/{max}
+            </div>
         </div>
-    </div>
-);
+    );
+};

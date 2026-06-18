@@ -221,7 +221,7 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
                             onClick={() => setMainTab('codex')}
                             className={`${mainTabBtn} ${mainTab === 'codex' ? mainTabOn : mainTabOff}`}
                         >
-                            {t('profile.monsterCodex')}
+                            {t('profile:monsterCodex')}
                         </button>
                         {isNativeMobile ? (
                             <button

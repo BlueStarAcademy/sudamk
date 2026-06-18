@@ -163,7 +163,7 @@ const AdventureProfilePanel: React.FC<{
                 <div className="flex flex-col items-center justify-center rounded-lg border border-white/10 bg-black/30 px-2.5 py-2 text-center">
                     <p className={statLabelCls}>{t('adventure.myRank')}</p>
                     <p className={`mt-0.5 text-amber-200 ${statValueCls}`}>
-                        {adventureRankLoading ? '…' : adventureRank != null ? t('profile.rankUnit', { rank: adventureRank }) : '-'}
+                        {adventureRankLoading ? '…' : adventureRank != null ? t('profile:rankUnit', { rank: adventureRank }) : '-'}
                     </p>
                 </div>
             </div>
@@ -296,8 +296,8 @@ const AdventureProfilePanel: React.FC<{
                 </div>
                 <div className={`flex shrink-0 flex-col items-stretch self-center ${mobileOneScreen ? 'gap-1' : 'gap-1.5'}`}>
                     {onOpenMonsterCodex ? (
-                        <button type="button" onClick={onOpenMonsterCodex} className={codexOpenBtnClass} aria-label={t('profile.monsterCodex')}>
-                            {t('profile.monsterCodex')}
+                        <button type="button" onClick={onOpenMonsterCodex} className={codexOpenBtnClass} aria-label={t('profile:monsterCodex')}>
+                            {t('profile:monsterCodex')}
                         </button>
                     ) : null}
                     {codexDonutPanel}

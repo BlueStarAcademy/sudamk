@@ -445,6 +445,7 @@ function ChampionshipVersusLobbyCardRightStats(props: {
     duelTickets: number;
     duelTicketNextAt?: number;
 }) {
+    const { t } = useTranslation('tournament');
     const { compact, meta, versusRating, tierName, tierIconUrl, wins, losses, duelTickets, duelTicketNextAt } = props;
     const seasonGames = wins + losses;
     const winPct = seasonGames > 0 ? Math.round((100 * wins) / seasonGames) : 0;

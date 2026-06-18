@@ -2216,7 +2216,7 @@ const Profile: React.FC<ProfileProps> = () => {
                             colorScheme="none"
                             className="w-full shrink-0 !justify-center rounded-lg border border-fuchsia-300/45 bg-gradient-to-r from-cyan-950/50 via-fuchsia-950/40 to-violet-950/45 !px-2 !py-1.5 !text-[12px] !font-bold !text-fuchsia-50 hover:from-cyan-900/55 hover:via-fuchsia-900/45 hover:to-violet-900/50"
                         >
-                            {t('detailedStats')}
+                            {t('nav:quickMenu.detailedStats')}
                         </Button>
                     </div>
                 </div>
@@ -2761,7 +2761,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                                 colorScheme="none"
                                                 className="w-full shrink-0 !justify-center rounded-lg border border-fuchsia-300/45 bg-gradient-to-r from-cyan-950/50 via-fuchsia-950/40 to-violet-950/45 !px-2 !py-1.5 !text-[12px] !font-bold !text-fuchsia-50"
                                             >
-                                                {t('detailedStats')}
+                                                {t('nav:quickMenu.detailedStats')}
                                             </Button>
                                         </div>
                                     </div>
