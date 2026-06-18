@@ -32,14 +32,16 @@ export interface CoreStatsHexagonChartProps {
 }
 
 /** 꼭짓점 라벨 (2글자) — 그래프 색인 */
-const SHORT_LABELS: Record<CoreStat, string> = {
-    [CoreStat.Concentration]: t('concentration'),
-    [CoreStat.ThinkingSpeed]: t('thinkingSpeed'),
-    [CoreStat.Judgment]: t('judgment'),
-    [CoreStat.Calculation]: t('calculation'),
-    [CoreStat.CombatPower]: t('combatPower'),
-    [CoreStat.Stability]: t('stability'),
-};
+function buildShortLabels(t: (key: string) => string): Record<CoreStat, string> {
+    return {
+        [CoreStat.Concentration]: t('concentration'),
+        [CoreStat.ThinkingSpeed]: t('thinkingSpeed'),
+        [CoreStat.Judgment]: t('judgment'),
+        [CoreStat.Calculation]: t('calculation'),
+        [CoreStat.CombatPower]: t('combatPower'),
+        [CoreStat.Stability]: t('stability'),
+    };
+}
 
 const VB = 100;
 const CX = 50;
@@ -95,6 +97,7 @@ const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({
     championshipPresetFit = false,
 }) => {
     const { t } = useTranslation('common');
+    const shortLabels = useMemo(() => buildShortLabels(t), [t]);
     const uid = useId().replace(/:/g, '');
     const gradId = `coreStatRadarFill-${uid}`;
     const rowLayout = desktopLike;
@@ -263,7 +266,7 @@ const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({
                             style={{ letterSpacing: '-0.02em' }}
                             className="select-none"
                         >
-                            {SHORT_LABELS[stat]}
+                            {shortLabels[stat]}
                         </text>
                     ))}
                 </svg>

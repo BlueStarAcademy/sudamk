@@ -27,13 +27,13 @@ interface RankingQuickModalProps {
     embedded?: boolean;
 }
 
-const MOBILE_RANKING_TABS: { id: RankingMobileTab; label: string }[] = [
-    { id: 'combat', label: t('rankingQuick.ability') },
-    { id: 'manner', label: t('rankingQuick.manner') },
-    { id: 'adventure', label: t('rankingQuick.adventure') },
-    { id: 'strategic', label: t('rankingQuick.strategic') },
-    { id: 'pair', label: t('rankingQuick.pair') },
-    { id: 'championship', label: t('rankingQuick.championship') },
+const MOBILE_RANKING_TAB_CONFIG: { id: RankingMobileTab; labelKey: string }[] = [
+    { id: 'combat', labelKey: 'rankingQuick.ability' },
+    { id: 'manner', labelKey: 'rankingQuick.manner' },
+    { id: 'adventure', labelKey: 'rankingQuick.adventure' },
+    { id: 'strategic', labelKey: 'rankingQuick.strategic' },
+    { id: 'pair', labelKey: 'rankingQuick.pair' },
+    { id: 'championship', labelKey: 'rankingQuick.championship' },
 ];
 
 const PC_MAIN_TAB_BTN =
@@ -41,6 +41,10 @@ const PC_MAIN_TAB_BTN =
 
 const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmost, embedded = false }) => {
     const { t } = useTranslation('tournament');
+    const mobileRankingTabs = useMemo(
+        () => MOBILE_RANKING_TAB_CONFIG.map(({ id, labelKey }) => ({ id, label: t(labelKey) })),
+        [t],
+    );
     const isCompactViewport = useIsHandheldDevice(1024);
     const { isNativeMobile } = useNativeMobileShell();
     const { currentUserWithStatus, handlers } = useAppContext();
@@ -159,7 +163,7 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                 role="tablist"
                                 aria-label={t('rankingQuick.tabAria')}
                             >
-                                {MOBILE_RANKING_TABS.map(({ id, label }) => {
+                                {mobileRankingTabs.map(({ id, label }) => {
                                     const selected = mobilePanelTab === id;
                                     return (
                                         <button
@@ -283,7 +287,7 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                     </div>
                                     <div className="flex flex-col gap-2 border-b border-white/10 px-3 py-2">
                                         <div className={`flex items-center gap-1.5 overflow-x-auto ${RANKING_MODAL_SLIM_SCROLL_X}`}>
-                                            {MOBILE_RANKING_TABS.map(({ id, label }) => (
+                                            {mobileRankingTabs.map(({ id, label }) => (
                                                 <button
                                                     key={id}
                                                     type="button"

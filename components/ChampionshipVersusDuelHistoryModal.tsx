@@ -22,9 +22,10 @@ const ChampionshipVersusDuelHistoryModal: React.FC<ChampionshipVersusDuelHistory
     onClose,
     entries,
     filterVenue = null,
-    title = t('lobby.duelInfo'),
+    title,
 }) => {
     const { t } = useTranslation('tournament');
+    const modalTitle = title ?? t('lobby.duelInfo');
 
     const rows = React.useMemo(() => {
         const list = Array.isArray(entries) ? [...entries] : [];
@@ -51,7 +52,7 @@ const ChampionshipVersusDuelHistoryModal: React.FC<ChampionshipVersusDuelHistory
             >
                 <div className="flex shrink-0 items-center justify-between gap-3 border-b border-amber-500/25 px-4 py-3 sm:px-5">
                     <h2 id="championship-duel-history-title" className="text-base font-black text-amber-100 sm:text-lg">
-                        {title}
+                        {modalTitle}
                     </h2>
                     <Button type="button" colorScheme="none" className="!px-3 !py-1.5 !text-xs" onClick={onClose}>
                         닫기

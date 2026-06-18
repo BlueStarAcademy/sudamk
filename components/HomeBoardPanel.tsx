@@ -8,6 +8,29 @@ import { useMobileModalChrome } from '../hooks/useMobileModalChrome.js';
 
 type BoardCategory = 'notice' | 'patch';
 
+/** Stored title prefixes (Korean canonical + English) for category detection. */
+const PATCH_TITLE_PREFIXES = ['[패치]', '[Patch]'] as const;
+const UPDATE_TITLE_PREFIXES = ['[업데이트]', '[Update]'] as const;
+
+const getPostCategory = (post: HomeBoardPost): BoardCategory => {
+    const title = (post.title || '').trim();
+    if (
+        PATCH_TITLE_PREFIXES.some((p) => title.startsWith(p)) ||
+        UPDATE_TITLE_PREFIXES.some((p) => title.startsWith(p))
+    ) {
+        return 'patch';
+    }
+    return 'notice';
+};
+
+const stripCategoryPrefix = (title: string): string =>
+    title.replace(/^\[(패치|업데이트|Patch|Update)\]\s*/iu, '').trim();
+
+const toStoredTitle = (rawTitle: string, category: BoardCategory, patchPrefix: string): string => {
+    const clean = stripCategoryPrefix(rawTitle);
+    return category === 'patch' ? `${patchPrefix} ${clean}` : clean;
+};
+
 interface HomeBoardPanelProps {
     posts: HomeBoardPost[];
     unreadPostIds?: string[];
@@ -23,23 +46,6 @@ interface HomeBoardPanelProps {
     /** modalMode일 때 상단 닫기 */
     onClose?: () => void;
 }
-
-const PATCH_PREFIX = t('patchPrefix', { ns: 'common' });
-const UPDATE_PREFIX = t('updatePrefix', { ns: 'common' });
-
-const getPostCategory = (post: HomeBoardPost): BoardCategory => {
-    const title = (post.title || '').trim();
-    if (title.startsWith(PATCH_PREFIX) || title.startsWith(UPDATE_PREFIX)) return 'patch';
-    return 'notice';
-};
-
-const stripCategoryPrefix = (title: string): string =>
-    title.replace(/^\[(패치|업데이트)\]\s*/u, '').trim();
-
-const toStoredTitle = (rawTitle: string, category: BoardCategory): string => {
-    const clean = stripCategoryPrefix(rawTitle);
-    return category === 'patch' ? `${PATCH_PREFIX} ${clean}` : clean;
-};
 
 type HomeBoardDraftEditorProps = {
     editingPost: HomeBoardPost | null;
@@ -71,6 +77,8 @@ const HomeBoardDraftEditor: React.FC<HomeBoardDraftEditorProps> = ({
     onCancel,
     layout,
 }) => {
+    const { t } = useTranslation('profile');
+    const { t: tCommon } = useTranslation('common');
     const inline = layout === 'modalInline';
     const shell = inline
         ? 'rounded-lg border border-amber-400/35 bg-black/50 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:p-3'
@@ -95,20 +103,20 @@ const HomeBoardDraftEditor: React.FC<HomeBoardDraftEditorProps> = ({
                     onChange={(e) => setDraftCategory(e.target.value as BoardCategory)}
                     className={`rounded border border-slate-600 bg-slate-800 text-slate-100 ${inline ? 'px-2 py-2 text-sm' : 'px-2 py-1 text-xs'}`}
                 >
-                    <option value="notice">{t('notice', { ns: 'common' })}</option>
-                    <option value="patch">{t('patchUpdate', { ns: 'common' })}</option>
+                    <option value="notice">{tCommon('notice')}</option>
+                    <option value="patch">{tCommon('patchUpdate')}</option>
                 </select>
                 <input
                     type="text"
                     value={draftTitle}
                     onChange={(e) => setDraftTitle(e.target.value)}
-                    placeholder={t('title', { ns: 'common' })}
+                    placeholder={tCommon('title')}
                     className={`rounded border border-slate-600 bg-slate-800 text-slate-100 ${inline ? 'px-3 py-2.5 text-base sm:text-sm' : 'px-2 py-1.5 text-sm'}`}
                 />
                 <textarea
                     value={draftContent}
                     onChange={(e) => setDraftContent(e.target.value)}
-                    placeholder={t('content', { ns: 'common' })}
+                    placeholder={tCommon('content')}
                     className={`resize-y rounded border border-slate-600 bg-slate-800 text-slate-100 ${inline ? 'min-h-[11rem] px-3 py-2.5 text-base leading-relaxed sm:min-h-[9rem] sm:text-sm' : 'h-28 px-2 py-1.5 text-sm'}`}
                 />
                 <label className={`flex items-center gap-2 text-slate-200 ${inline ? 'text-sm' : 'text-xs'}`}>
@@ -233,7 +241,7 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
             window.alert(t('homeBoard.enterTitleContent'));
             return;
         }
-        const storedTitle = toStoredTitle(title, draftCategory);
+        const storedTitle = toStoredTitle(title, draftCategory, tCommon('patchPrefix'));
         if (editingPost) {
             void onAction({
                 type: 'ADMIN_UPDATE_HOME_BOARD_POST',

@@ -26,16 +26,6 @@ const gradeStyles: Record<ItemGrade, { color: string; background: string }> = {
     transcendent: { color: 'text-cyan-300', background: '/images/equipments/transcendentbgi.webp' },
 };
 
-const GRADE_NAMES_KO: Record<ItemGrade, string> = {
-    normal: t('levelEffects.normal'),
-    uncommon: t('levelEffects.uncommon'),
-    rare: t('levelEffects.rare'),
-    epic: t('levelEffects.epic'),
-    legendary: t('levelEffects.legendary'),
-    mythic: t('levelEffects.mythic'),
-    transcendent: t('levelEffects.transcendent'),
-};
-
 function formatDisassemblyExpectedYield(min: number, max: number): string {
     const lo = Math.trunc(min);
     const hi = Math.trunc(max);
@@ -408,6 +398,8 @@ export const DisassemblyAutoSelectModal: React.FC<{
     isTopmost?: boolean;
     zIndex?: number;
 }> = ({ onClose, onConfirm, isTopmost = true, zIndex = 70 }) => {
+    const { t } = useTranslation('blacksmith');
+    const localizedGrade = useLocalizedItemGrade();
     const [selectedGrades, setSelectedGrades] = useState<ItemGrade[]>([]);
 
     const handleToggleGrade = (grade: ItemGrade) => {
@@ -443,7 +435,7 @@ export const DisassemblyAutoSelectModal: React.FC<{
                                     onChange={() => handleToggleGrade(grade)}
                                     className="w-5 h-5 text-accent bg-secondary border-color rounded focus:ring-accent"
                                 />
-                                <span className={`font-semibold`}>{GRADE_NAMES_KO[grade]}</span>
+                                <span className={`font-semibold`}>{localizedGrade(grade)}</span>
                             </label>
                         );
                     })}

@@ -14,8 +14,6 @@ interface PastRankingsModalProps {
     embedded?: boolean;
 }
 
-const EMPTY_RANKING_LABEL = t('pastRankings.empty');
-
 function getBestStrategicLobbyTierName(history: Partial<Record<GameMode, string>> | undefined): string | null {
     if (!history || typeof history !== 'object') return null;
     const modes = SPECIAL_GAME_MODES.map((m) => m.mode);
@@ -57,7 +55,7 @@ const PastRankingsModal: React.FC<PastRankingsModalProps> = ({ info, onClose, is
     const pairSeasonBody = useMemo(() => {
         if (mode !== 'pair') return null;
         if (trackedPastSeasons.length === 0) {
-            return <p className="text-center text-gray-500 py-6">{EMPTY_RANKING_LABEL}</p>;
+            return <p className="text-center text-gray-500 py-6">{t('pastRankings.empty')}</p>;
         }
         return (
             <ul className="space-y-2">
@@ -77,7 +75,7 @@ const PastRankingsModal: React.FC<PastRankingsModalProps> = ({ info, onClose, is
                                     <span className={`truncate font-bold ${tierInfo.color}`}>{tierName}</span>
                                 </div>
                             ) : (
-                                <span className="text-right text-sm text-gray-500">{EMPTY_RANKING_LABEL}</span>
+                                <span className="text-right text-sm text-gray-500">{t('pastRankings.empty')}</span>
                             )}
                         </li>
                     );
@@ -90,7 +88,7 @@ const PastRankingsModal: React.FC<PastRankingsModalProps> = ({ info, onClose, is
         if (mode !== 'strategic') return null;
         if (trackedPastSeasons.length === 0) {
             return (
-                <p className="text-center text-gray-500 py-6">{EMPTY_RANKING_LABEL}</p>
+                <p className="text-center text-gray-500 py-6">{t('pastRankings.empty')}</p>
             );
         }
         return (
@@ -110,7 +108,7 @@ const PastRankingsModal: React.FC<PastRankingsModalProps> = ({ info, onClose, is
                                     <span className={`font-bold truncate ${tierInfo.color}`}>{tierName}</span>
                                 </div>
                             ) : (
-                                <span className="text-gray-500 text-sm text-right">{EMPTY_RANKING_LABEL}</span>
+                                <span className="text-gray-500 text-sm text-right">{t('pastRankings.empty')}</span>
                             )}
                         </li>
                     );

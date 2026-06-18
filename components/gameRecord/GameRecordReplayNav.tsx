@@ -3,13 +3,13 @@ import { useTranslation } from 'react-i18next';
 
 type NavKind = 'first' | 'back5' | 'back1' | 'forward1' | 'forward5' | 'last';
 
-const LABELS: Record<NavKind, string> = {
-    first: t('replayFirst'),
-    back5: t('replayBack5'),
-    back1: t('replayBack1'),
-    forward1: t('replayForward1'),
-    forward5: t('replayForward5'),
-    last: t('replayLast'),
+const LABEL_KEYS: Record<NavKind, string> = {
+    first: 'replayFirst',
+    back5: 'replayBack5',
+    back1: 'replayBack1',
+    forward1: 'replayForward1',
+    forward5: 'replayForward5',
+    last: 'replayLast',
 };
 
 const Icon: React.FC<{ kind: NavKind; className?: string }> = ({ kind, className = 'h-7 w-7' }) => {
@@ -126,8 +126,8 @@ const GameRecordReplayNav: React.FC<GameRecordReplayNavProps> = ({
                     <button
                         key={kind}
                         type="button"
-                        title={LABELS[kind]}
-                        aria-label={LABELS[kind]}
+                        title={t(LABEL_KEYS[kind])}
+                        aria-label={t(LABEL_KEYS[kind])}
                         disabled={disabled}
                         onClick={handlers[kind]}
                         className={btnClass}

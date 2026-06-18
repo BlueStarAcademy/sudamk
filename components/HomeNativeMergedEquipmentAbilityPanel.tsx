@@ -207,6 +207,7 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
     guildBossPanel = false,
     bannerAside,
 }) => {
+    const { t } = useTranslation('profile');
     const ch = compactLayout;
     const gb = guildBossPanel;
     const bannerSplit = Boolean(bannerAside);
