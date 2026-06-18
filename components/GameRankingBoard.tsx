@@ -192,6 +192,7 @@ const GameRankingBoard: React.FC<GameRankingBoardProps> = ({
     lockedTab,
     panelTitle,
 }) => {
+    const { t } = useTranslation('game');
     const rowDense = Boolean(dense && !mobileSplitLarge);
     const wide = Boolean(mobileSplitLarge);
     const { currentUserWithStatus, handlers } = useAppContext();

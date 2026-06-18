@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { tx } from '../shared/i18n/runtimeText.js';
+import { useLocalizedItemGrade } from '../shared/i18n/localizedCatalog.js';
 
 /** Persisted exchange history markers (Unicode — local/server history matching, not UI copy) */
 const HX_PURCHASE_DONE = '\uAD6C\uB9E4 \uC644\uB8CC';
@@ -9,6 +10,10 @@ const HX_SETTLEMENT_ALL = '\uC815\uC0B0 \uBAA8\uB450 \uC218\uB9BD';
 const HX_GOLD = '\uACE8\uB4DC';
 const HX_DIA = '\uB514\uC774\uC544';
 const HX_FEE = '\uC218\uC218\uB8CC';
+/** 이력 파싱용 — 저장 문자열은 locale과 무관하게 고정 */
+const HX_CURRENCY_SUFFIX_PATTERN = `${HX_GOLD}|${HX_DIA}|Gold|Diamonds`;
+
+const isHistoryGoldSuffix = (suffix: string | undefined): boolean => suffix === HX_GOLD || suffix === 'Gold';
 import type { InventoryItem, User, UserWithStatus, ServerAction, EquipmentSlot } from '../types.js';
 import type { HandleActionResult } from '../types/api.js';
 import { ItemGrade } from '../types/enums.js';
@@ -250,7 +255,7 @@ function buildBuyPreviewInventoryItem(listing: ExchangeListing): InventoryItem {
         };
     }
     const grade = (listing.itemGrade ?? ItemGrade.Normal) as ItemGrade;
-    const name = listing.itemName?.trim() || t('fallbackGear');
+    const name = listing.itemName?.trim() || tx('exchange:fallbackGear');
     const templateMatch =
         EQUIPMENT_POOL.find((p) => p.name === name && p.grade === grade) ?? EQUIPMENT_POOL.find((p) => p.name === name);
     const image = (listing.itemImage && listing.itemImage.trim()) || templateMatch?.image || '';
@@ -275,7 +280,19 @@ function buildBuyPreviewInventoryItem(listing: ExchangeListing): InventoryItem {
 }
 
 const formatCurrency = (value: number, currency: SaleCurrency): string =>
-    `${formatWalletCurrencyAmount(value, currency)}${currency === 'gold' ? tCommon('resources.gold') : tCommon('resources.diamonds')}`;
+    `${formatWalletCurrencyAmount(value, currency)}${currency === 'gold' ? tx('common:resources.gold') : tx('common:resources.diamonds')}`;
+
+/** 거래 이력 저장·파싱용 (재화 접미사 고정 — UI 언어와 무관) */
+const formatHistoryCurrencyAmount = (value: number, currency: SaleCurrency): string =>
+    `${formatWalletCurrencyAmount(value, currency)}${currency === 'gold' ? HX_GOLD : HX_DIA}`;
+
+function formatExchangeHistoryTimestamp(raw: string, locale: string): string {
+    const trimmed = raw.trim();
+    if (!trimmed || trimmed === '-') return trimmed || '-';
+    const ms = Date.parse(trimmed);
+    if (Number.isNaN(ms)) return trimmed;
+    return new Date(ms).toLocaleString(locale);
+}
 
 /** 거래소 정산 수령 → 공통 아이템 획득 모달(ItemObtainedModal)용 가상 인벤 행 */
 function createExchangeSettlementCurrencyObtainItem(currency: SaleCurrency, quantity: number): InventoryItem {
@@ -283,7 +300,7 @@ function createExchangeSettlementCurrencyObtainItem(currency: SaleCurrency, quan
     const isGold = currency === 'gold';
     return {
         id: `exchange-settlement-reward-${isGold ? 'gold' : 'diamonds'}-${now}-${Math.random().toString(36).slice(2, 9)}`,
-        name: isGold ? tCommon('resources.gold') : tCommon('resources.diamonds'),
+        name: isGold ? tx('common:resources.gold') : tx('common:resources.diamonds'),
         description: '',
         type: 'consumable',
         slot: null,
@@ -328,8 +345,9 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
     onViewListedEquipment,
     embedded = false,
 }) => {
-    const { t } = useTranslation('exchange');
+    const { t, i18n: i18nInst } = useTranslation('exchange');
     const { t: tCommon } = useTranslation('common');
+    const localizedGrade = useLocalizedItemGrade();
     const BUY_SLOT_FILTER_OPTIONS = useMemo<Array<{ value: BuySlotFilter; label: string }>>(
         () => [
             { value: 'all', label: t('filters.typeAll') },
@@ -682,7 +700,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
     }, [activeTab]);
 
     const appendHistory = (message: string) => {
-        const timestamp = new Date().toLocaleString();
+        const timestamp = new Date().toLocaleString(i18nInst.language);
         setHistory((prev) => [`[${timestamp}] ${message}`, ...prev].slice(0, 200));
     };
 
@@ -877,7 +895,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
         void refreshMarketListings();
         if (selectedBuyListingId === listingId) setSelectedBuyListingId('');
         setPurchaseSuccessData({ listing, inventoryItem: purchasedInventoryItem });
-        appendHistory(`${HX_PURCHASE_DONE}: ${listing.itemName} / ${formatCurrency(listing.price, listing.currency)}`);
+        appendHistory(`${HX_PURCHASE_DONE}: ${listing.itemName} / ${formatHistoryCurrencyAmount(listing.price, listing.currency)}`);
     };
 
     const handleClaimSettlement = async (listingId: string) => {
@@ -912,7 +930,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
         if (d > 0) obtain.push(createExchangeSettlementCurrencyObtainItem('diamonds', d));
         if (obtain.length > 0) setSettlementObtainItems(obtain);
 
-        appendHistory(`${HX_SETTLEMENT_ONE}: ${settlement.itemName} / \uC2E4\uC218\uB9BD ${formatCurrency(netAmount, settlement.currency)} (${HX_FEE} ${formatCurrency(claimFee, settlement.currency)})`);
+        appendHistory(`${HX_SETTLEMENT_ONE}: ${settlement.itemName} / \uC2E4\uC218\uB9BD ${formatHistoryCurrencyAmount(netAmount, settlement.currency)} (${HX_FEE} ${formatHistoryCurrencyAmount(claimFee, settlement.currency)})`);
     };
     const handleClaimAllSettlements = async () => {
         if (unclaimedSettlements.length === 0) return;
@@ -942,7 +960,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
         if (totalDiamondsNet > 0) obtain.push(createExchangeSettlementCurrencyObtainItem('diamonds', totalDiamondsNet));
         if (obtain.length > 0) setSettlementObtainItems(obtain);
         appendHistory(
-            `${HX_SETTLEMENT_ALL}: ${tCommon('resources.gold')} ${formatGoldAmountKoG(totalGoldNet)} / ${tCommon('resources.diamonds')} ${formatWalletDiamonds(totalDiamondsNet)}`,
+            `${HX_SETTLEMENT_ALL}: ${HX_GOLD} ${formatGoldAmountKoG(totalGoldNet)} / ${HX_DIA} ${formatWalletDiamonds(totalDiamondsNet)}`,
         );
     };
 
@@ -1164,7 +1182,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
         };
         const rows = visibleExchangeHistory.map((line) => {
             const timestampMatch = line.match(/^\[([^\]]+)\]/);
-            const timestampText = timestampMatch?.[1] ?? '-';
+            const timestampText = formatExchangeHistoryTimestamp(timestampMatch?.[1] ?? '-', i18nInst.language);
             const message = line.replace(/^\[[^\]]+\]\s*/, '');
             const statusText = line.includes(HX_PURCHASE_DONE)
                 ? t('labels.purchaseComplete')
@@ -1173,30 +1191,30 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                   : '-';
             const itemNameMatch = message.match(/^[^:]+:\s*([^/]+?)(?:\s*\/|$)/);
             const itemName = itemNameMatch?.[1]?.trim();
-            const matches = [...line.matchAll(new RegExp(`([0-9,]+)(${HX_GOLD}|${HX_DIA})`, 'g'))];
+            const matches = [...line.matchAll(new RegExp(`([0-9,]+)(${HX_CURRENCY_SUFFIX_PATTERN})`, 'g'))];
             const priceMatch = matches[0];
-            const feeMatch = line.match(new RegExp(`${HX_FEE}[^0-9]*([0-9,]+)(${HX_GOLD}|${HX_DIA})`));
+            const feeMatch = line.match(new RegExp(`${HX_FEE}[^0-9]*([0-9,]+)(${HX_CURRENCY_SUFFIX_PATTERN})`));
             const priceAmount = priceMatch ? Number((priceMatch[1] ?? '0').replace(/,/g, '')) || 0 : 0;
-            const priceCurrency = (priceMatch?.[2] === HX_DIA ? 'diamonds' : priceMatch ? 'gold' : null) as SaleCurrency | null;
+            const priceCurrency = (isHistoryGoldSuffix(priceMatch?.[2]) ? 'gold' : priceMatch ? 'diamonds' : null) as SaleCurrency | null;
             const feeAmount = feeMatch ? Number((feeMatch[1] ?? '0').replace(/,/g, '')) || 0 : 0;
-            const feeCurrency = (feeMatch?.[2] === HX_DIA ? 'diamonds' : feeMatch ? 'gold' : null) as SaleCurrency | null;
+            const feeCurrency = (isHistoryGoldSuffix(feeMatch?.[2]) ? 'gold' : feeMatch ? 'diamonds' : null) as SaleCurrency | null;
             if (line.includes(HX_PURCHASE_DONE) && priceMatch) {
-                if (priceMatch[2] === HX_GOLD) totals.outGold += priceAmount;
+                if (isHistoryGoldSuffix(priceMatch[2])) totals.outGold += priceAmount;
                 else totals.outDiamonds += priceAmount;
             }
             if (line.includes(HX_SETTLEMENT_ALL)) {
                 matches.forEach((m) => {
                     const amount = Number((m[1] ?? '0').replace(/,/g, '')) || 0;
-                    if (m[2] === HX_GOLD) totals.inGold += amount;
+                    if (isHistoryGoldSuffix(m[2])) totals.inGold += amount;
                     else totals.inDiamonds += amount;
                 });
             } else if (line.includes(HX_SETTLEMENT_ONE) && priceMatch) {
-                if (priceMatch[2] === HX_GOLD) totals.inGold += priceAmount;
+                if (isHistoryGoldSuffix(priceMatch[2])) totals.inGold += priceAmount;
                 else totals.inDiamonds += priceAmount;
             }
             if (line.includes(HX_SETTLEMENT_ALL)) {
-                const goldBulk = line.match(new RegExp(`${HX_GOLD}\\s*([0-9,]+)`));
-                const diaBulk = line.match(new RegExp(`${HX_DIA}\\s*([0-9,]+)`));
+                const goldBulk = line.match(new RegExp(`(?:${HX_GOLD}|Gold)\\s*([0-9,]+)`));
+                const diaBulk = line.match(new RegExp(`(?:${HX_DIA}|Diamonds)\\s*([0-9,]+)`));
                 const gBulk = goldBulk ? Number((goldBulk[1] ?? '0').replace(/,/g, '')) || 0 : 0;
                 const dBulk = diaBulk ? Number((diaBulk[1] ?? '0').replace(/,/g, '')) || 0 : 0;
                 let bulkImage = '/images/Box/GoldBox3.webp';
@@ -1258,7 +1276,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
             };
         });
         return { totals, rows };
-    }, [visibleExchangeHistory, listings, allEquipmentItems]);
+    }, [visibleExchangeHistory, listings, allEquipmentItems, t, i18nInst.language]);
     const exchangeTabButtonBase =
         'rounded-md border px-2 py-2 text-sm font-semibold tracking-wide transition-all duration-150';
     /** 네이티브 모바일 거래소: 탭·본문·표 공통 11px 전후 */
@@ -2097,7 +2115,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                         <div className={mobileExchange ? 'space-y-1.5' : 'space-y-2'}>
                                         {filteredAndSortedBuyItems.map((listing) => {
                                             const gradeKey = (listing.itemGrade ?? ItemGrade.Normal) as ItemGrade;
-                                            const gradeLabel = gradeStyles[gradeKey]?.name ?? t('filters.gradeNormal');
+                                            const gradeLabel = localizedGrade(gradeKey);
                                             const gradeColor = gradeStyles[gradeKey]?.color ?? 'text-slate-200';
                                             const starVisual = getStarVisual(listing.itemStars ?? 0);
                                             const isMyListing = listing.sellerId === currentUser.id;
@@ -2255,7 +2273,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                     const remainingDays = Math.floor(remainingMs / (24 * 60 * 60 * 1000));
                                                     const remainingHours = Math.floor((remainingMs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
                                                     const slotGradeKey = (slot.itemGrade ?? ItemGrade.Normal) as ItemGrade;
-                                                    const slotGradeLabel = gradeStyles[slotGradeKey]?.name ?? t('filters.gradeNormal');
+                                                    const slotGradeLabel = localizedGrade(slotGradeKey);
                                                     const slotGradeColor = gradeStyles[slotGradeKey]?.color ?? 'text-slate-200';
                                                     return (
                                                         <div
@@ -2412,7 +2430,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                         const remainingDays = Math.floor(remainingMs / (24 * 60 * 60 * 1000));
                                                         const remainingHours = Math.floor((remainingMs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
                                                         const slotGradeKey = (slot.itemGrade ?? ItemGrade.Normal) as ItemGrade;
-                                                        const slotGradeLabel = gradeStyles[slotGradeKey]?.name ?? t('filters.gradeNormal');
+                                                        const slotGradeLabel = localizedGrade(slotGradeKey);
                                                         const slotGradeColor = gradeStyles[slotGradeKey]?.color ?? 'text-slate-200';
                                                         return (
                                                             <div
@@ -2618,7 +2636,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                         <div className="space-y-2">
                                             {settlementDisplayItems.map((entry) => {
                                                 const gradeKey = (entry.itemGrade ?? ItemGrade.Normal) as ItemGrade;
-                                                const gradeLabel = gradeStyles[gradeKey]?.name ?? t('filters.gradeNormal');
+                                                const gradeLabel = localizedGrade(gradeKey);
                                                 const starVisual = getStarVisual(entry.itemStars ?? 0);
                                                 const currencyIcon = entry.currency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp';
                                                 const currencyAlt = entry.currency === 'gold' ? tCommon('resources.gold') : tCommon('resources.diamonds');

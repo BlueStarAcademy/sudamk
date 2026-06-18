@@ -17,6 +17,7 @@ import { detectAndConfirmTerritories } from '../shared/utils/castleGoRules.js';
 import type { ChessPieceState, ChessPieceType, ChessLastMoveMarker } from '../shared/types/entities.js';
 import { CHESS_GO_BOARD_SIZE, normalizeChessGoSession } from '../shared/utils/chessGoRules.js';
 import { buildBoardCellStoneLookup } from '../utils/boardCellLookup.js';
+import { tx } from '../shared/i18n/runtimeText.js';
 
 /** 따내기/보너스 점수 플로트: mid(5~9) 기준 폰트 배율 */
 const CAPTURE_SCORE_FLOAT_BASE_EM = 0.92;

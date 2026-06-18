@@ -58,6 +58,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import i18n from '../shared/i18n/config.js';
 import { translateGameMode } from '../shared/i18n/localizedCatalog.js';
+import { isChampionshipVersusKataSummaryDescription } from '../shared/constants/championshipVersusSummary.js';
 
 const gs = (key: string, opts?: Record<string, unknown>) => i18n.t(`game:summary.${key}`, opts);
 

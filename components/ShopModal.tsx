@@ -33,6 +33,7 @@ import {
     StandardEquipmentBoxShopDescription,
 } from './shopImageDescriptionPopover.js';
 import { useTranslation } from 'react-i18next';
+import { useLocalizedItemGrade } from '../shared/i18n/localizedCatalog.js';
 import i18n from '../shared/i18n/config.js';
 import { useLocalizedShopItem } from '../shared/i18n/shopItemText.js';
 
@@ -477,6 +478,7 @@ const PackageBoxRowVisual: React.FC<{
     denseNested?: boolean;
 }> = ({ boxes, bonusLine, equipmentBonusGradeWord, compact = false, denseNested = false }) => {
     const { t } = useTranslation('shop');
+    const localizedGrade = useLocalizedItemGrade();
     const dn = Boolean(compact && denseNested);
     const imgClass = compact
         ? dn
@@ -542,6 +544,7 @@ const PackageBoxRowVisual: React.FC<{
     if (equipmentBonusGradeWord) {
         const gradeForStyle = SHOP_EQUIPMENT_PACKAGE_BONUS_GRADE[equipmentBonusGradeWord];
         const gradeColorClass = gradeStyles[gradeForStyle].color;
+        const gradeLabel = localizedGrade(gradeForStyle);
         return (
             <div
                 className={`flex w-full min-w-0 items-stretch justify-center ${
@@ -551,8 +554,8 @@ const PackageBoxRowVisual: React.FC<{
                 <div className={boxGroupClass}>{boxesGrid}</div>
                 <span className={`flex shrink-0 items-center self-center ${plusClass}`}>+</span>
                 <div className={bonusGroupClass}>
-                    <div className="flex flex-col items-center justify-center gap-0" role="text" aria-label={`${equipmentBonusGradeWord} ${t('equipmentWord')}`}>
-                        <span className={`${bonusEquipmentLineBaseClass} ${gradeColorClass}`}>{equipmentBonusGradeWord}</span>
+                    <div className="flex flex-col items-center justify-center gap-0" role="text" aria-label={`${gradeLabel} ${t('equipmentWord')}`}>
+                        <span className={`${bonusEquipmentLineBaseClass} ${gradeColorClass}`}>{gradeLabel}</span>
                         <span className={`${bonusEquipmentLineBaseClass} text-emerald-100`}>{t('equipmentWord')}</span>
                     </div>
                 </div>

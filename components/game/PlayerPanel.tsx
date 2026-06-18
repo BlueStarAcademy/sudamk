@@ -316,6 +316,7 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
         pveMobileLayoutTier = 'full',
         showWinLossOnPanel = true,
     } = props;
+    const { t } = useTranslation('game');
     const { gameStatus, winner, blackPlayerId, whitePlayerId } = session;
 
     /** 싱글플레이 AI 봇 좌석은 전용 봇 프로필 이미지(/images/bot.webp)를 사용 */

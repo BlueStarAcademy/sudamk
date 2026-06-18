@@ -412,6 +412,7 @@ const QuestRewardPill: React.FC<{ quest: Quest; isMobile: boolean; inline?: bool
     isMobile,
     inline = false,
 }) => {
+    const { t } = useTranslation('quests');
     const hasGold = Boolean(quest.reward?.gold && quest.reward.gold > 0);
     const firstItem = quest.reward?.items?.[0];
     const resolvedItemName = firstItem ? resolveConsumableDisplayName(firstItem) : '';

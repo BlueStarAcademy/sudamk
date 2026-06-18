@@ -1258,13 +1258,13 @@ const TowerLobby: React.FC = () => {
                                     >
                                         {isMyCurrentTier && (
                                             <div className="absolute -top-2 left-1/2 z-[1] -translate-x-1/2 whitespace-nowrap rounded-md border-2 border-amber-300/80 bg-gradient-to-b from-amber-600 to-amber-800 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-amber-50 shadow-md sm:text-[11px]">
-                                                내 현재 보상
+                                                {t('myCurrentReward')}
                                             </div>
                                         )}
                                         <span
                                             className={`${TOWER_MONTHLY_MODAL_TIER_LABEL_CLASS[idx] ?? 'text-amber-300'} font-bold text-sm sm:text-lg ${isMyCurrentTier ? 'pt-2 sm:pt-2.5' : ''}`}
                                         >
-                                            {tier.floor}층
+                                            {t('floorTier', { floor: tier.floor })}
                                         </span>
                                         <div
                                             className={`flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[11px] sm:gap-3 sm:text-base ${isMyCurrentTier ? 'pt-2 sm:pt-2.5' : ''}`}

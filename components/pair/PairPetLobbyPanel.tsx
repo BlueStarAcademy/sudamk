@@ -554,6 +554,7 @@ function PairPetShopSkuCard({
     onOpenDesc: () => void;
     onCloseDesc: () => void;
 }) {
+    const { t } = useTranslation('pair');
     const imageAnchorRef = useRef<HTMLDivElement>(null);
     const now = Date.now();
     const rec = currentUser.dailyShopPurchases?.[sku.id];

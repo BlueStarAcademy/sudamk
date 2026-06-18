@@ -181,6 +181,7 @@ const ChampionshipRankingList: React.FC<ChampionshipRankingListProps> = ({
             const rankSmall = splitStack;
             return (
                 <SeasonalBadukRankingRow
+                    key={user.id}
                     user={user}
                     rank={rank}
                     isMyRankDisplay={isMyRankDisplay}

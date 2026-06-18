@@ -1,4 +1,5 @@
 import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from '../hooks/useAppTranslation.js';
 import i18n from '../shared/i18n/config.js';
 import { createPortal } from 'react-dom';
 import { LiveGameSession, ServerAction, SinglePlayerStageInfo, UserWithStatus } from '../types.js';
@@ -62,7 +63,8 @@ const SINGLE_PLAYER_LEVEL_KEY: Partial<Record<SinglePlayerLevel, string>> = {
 /** 싱글: 스테이지명 앞 단계(입문반 등). 탑은 층만 표시 */
 function formatStageDisplayName(stage: SinglePlayerStageInfo, isTower: boolean): string {
     if (isTower) return stage.name;
-    const label = SINGLE_PLAYER_LEVEL_DISPLAY[stage.level as SinglePlayerLevel];
+    const levelKey = SINGLE_PLAYER_LEVEL_KEY[stage.level as SinglePlayerLevel];
+    const label = levelKey ? i18n.t(`game:singlePlayerDesc.${levelKey}`) : i18n.t('game:singlePlayerDesc.academy');
     return label ? `${label} · ${stage.name}` : stage.name;
 }
 
