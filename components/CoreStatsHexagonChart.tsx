@@ -84,7 +84,6 @@ function hexPolygonPoints(r: number): string {
  * 좌측: 육각 레이더 + 꼭짓점 색인 라벨 / 우측: 6개 능력치 상세 목록
  */
 const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({
-    const { t } = useTranslation('common');
     values,
     baseByStat,
     className = '',
@@ -95,6 +94,7 @@ const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({
     halfPanelExpanded = false,
     championshipPresetFit = false,
 }) => {
+    const { t } = useTranslation('common');
     const uid = useId().replace(/:/g, '');
     const gradId = `coreStatRadarFill-${uid}`;
     const rowLayout = desktopLike;

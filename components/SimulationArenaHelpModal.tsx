@@ -32,7 +32,7 @@ const SimulationArenaHelpModal: React.FC<SimulationArenaHelpModalProps> = ({ onC
                         <div className="flex-1">
                             <h3 className="font-bold text-lg text-yellow-300 mb-2">{t('championship.simulationHelp.rewardGuide')}</h3>
                             <ul className="list-disc list-inside space-y-2 text-sm">
-                                <li>{t('championship.simulationHelp.rewardNeighborhood')}</li></li>
+                                <li>{t('championship.simulationHelp.rewardNeighborhood')}</li>
                                 <li>{t('championship.simulationHelp.rewardNational')}</li>
                                 <li>{t('championship.simulationHelp.rewardWorld')}</li>
                             </ul>

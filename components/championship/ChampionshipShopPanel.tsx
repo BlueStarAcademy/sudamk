@@ -379,11 +379,11 @@ function renderShopCard(
 }
 
 const ChampionshipShopPanel: React.FC<{
-    const { t } = useTranslation('tournament');
     currentUser: UserWithStatus;
     onAction: (action: ServerAction) => void | Promise<unknown>;
     layoutVariant?: ChampionshipShopPanelLayoutVariant;
 }> = ({ currentUser, onAction, layoutVariant = 'default' }) => {
+    const { t } = useTranslation('tournament');
     const { isNativeMobile } = useNativeMobileShell();
     const isAsideIntrinsic = layoutVariant === 'asideIntrinsic';
     const [tab, setTab] = useState<ChampionshipShopTab>('equipment');

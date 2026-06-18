@@ -27,7 +27,6 @@ export type PcLobbyThreeColumnShellProps = {
  * 좌측 슬롯은 호출부에서 `PC_HOME_LEFT_COLUMN_CLASS`를 적용한다.
  */
 const PcLobbyThreeColumnShell: React.FC<PcLobbyThreeColumnShellProps> = ({
-    const { t } = useTranslation('common');
     left,
     center,
     showQuickRail = true,
@@ -36,6 +35,7 @@ const PcLobbyThreeColumnShell: React.FC<PcLobbyThreeColumnShellProps> = ({
     centerFullWidth = false,
     className = '',
 }) => {
+    const { t } = useTranslation('common');
     const centerNode = wrapCenter ? (
         <PcLobbyCenterColumn transparentShell={centerTransparentShell} fullWidth={centerFullWidth}>
             {center}

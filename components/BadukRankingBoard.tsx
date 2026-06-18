@@ -50,6 +50,7 @@ const RankingRow = ({
     dense?: boolean;
     mobileWide?: boolean;
 }) => {
+    const { t } = useTranslation('game');
     const displayLevel =
         user.userLevel != null && Number.isFinite(Number(user.userLevel))
             ? Math.max(1, Math.floor(Number(user.userLevel)))

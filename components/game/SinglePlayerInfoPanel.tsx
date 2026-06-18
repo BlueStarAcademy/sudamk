@@ -8,8 +8,6 @@ import { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from '../DraggableWindow.js';
 const ProverbPanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     const { t } = useTranslation('game');
     const goProverbs = (t('singlePlayerInfo.quotes', { returnObjects: true }) as { term: string; meaning: string }[]) ?? [];
-    const { t } = useTranslation('game');
-    const goProverbs = (t('singlePlayerInfo.quotes', { returnObjects: true }) as { term: string; meaning: string }[]) ?? [];
     const [proverbIndex] = useState(() => Math.floor(Math.random() * goProverbs.length));
     const currentProverb = goProverbs[proverbIndex];
 

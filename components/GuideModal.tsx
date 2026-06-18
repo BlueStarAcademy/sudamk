@@ -21,7 +21,6 @@ export type GuideModalProps = {
 };
 
 const GuideModal: React.FC<GuideModalProps> = ({
-    const { t } = useTranslation('common');
     title,
     windowId,
     onClose,
@@ -33,6 +32,7 @@ const GuideModal: React.FC<GuideModalProps> = ({
     onDismissForever,
     embedded = false,
 }) => {
+    const { t } = useTranslation('common');
     const footer =
         showDismissForever && onDismissForever ? (
             <div className="flex w-full flex-col gap-2.5">

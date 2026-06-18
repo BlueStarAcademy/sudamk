@@ -27,7 +27,6 @@ interface ItemDetailModalProps {
 }
 
 const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
-    const { t } = useTranslation('inventory');
     item,
     isOwnedByCurrentUser,
     hideEnhanceActions = false,
@@ -37,6 +36,7 @@ const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
     isTopmost,
     embedded = false,
 }) => {
+    const { t } = useTranslation('inventory');
     const refinementCount = (item as { refinementCount?: number }).refinementCount ?? 0;
     const canRefine = item.type === 'equipment' && item.grade !== ItemGrade.Normal && refinementCount > 0;
     const handheld = useIsHandheldDevice(768);

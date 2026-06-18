@@ -181,7 +181,7 @@ const SpResultRecordSideBySidePanel: React.FC<SpResultRecordSideBySidePanelProps
                                         petXpBarPercents.petMax,
                                         petXpBarPercents.gain,
                                         'text-fuchsia-300',
-                                        tx('game:resultModal.petXpLabel'),' XP').replace(/\d+/g,'').trim() || tx('game:resultModal.petShort') + ' XP',
+                                        tx('game:resultModal.petXpLabel'),
                                     )}
                                 </div>
                             }

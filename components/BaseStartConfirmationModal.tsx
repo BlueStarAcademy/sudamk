@@ -20,6 +20,7 @@ const startPanelShell =
 
 /** 베이스: 흑·백·덤 확정 + 양측 프로필 — 푸터에는 두지 않고 모달 전용 */
 export const BaseStartConfirmationContent: React.FC<BaseStartConfirmationModalProps> = ({ session, currentUser, onAction }) => {
+    const { t } = useTranslation('game');
     const {
         id: gameId,
         player1,

@@ -24,7 +24,6 @@ const STAT_ALLOCATION_WINDOW_ID = 'stat-allocation';
 const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, onClose, onAction, isTopmost, embedded = false }) => {
     const { t } = useTranslation('profile');
     const { t: tCommon } = useTranslation('common');
-    const { t } = useTranslation('profile');
     const { isNativeMobile, isNarrowViewport } = useNativeMobileShell();
     const isMobile = isNativeMobile || isNarrowViewport;
     
@@ -171,7 +170,7 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
             alert(t('statAllocation.resetFailAlert'));
             return;
         }
-        if (window.confirm(t('statAllocation.resetConfirm', { cost: resetCost.toLocaleString(), remaining: remainingResetsToday })))) {
+        if (window.confirm(t('statAllocation.resetConfirm', { cost: resetCost.toLocaleString(), remaining: remainingResetsToday }))) {
             // 서버 액션 실행 (비동기로 처리하되 모달은 유지)
             onAction({ type: 'RESET_STAT_POINTS' });
             // 초기화 후 즉시 편집 모드 활성화 및 tempPoints 초기화

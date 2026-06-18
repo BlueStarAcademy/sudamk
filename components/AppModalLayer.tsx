@@ -18,6 +18,7 @@ const MailboxModal = lazy(() => import('./MailboxModal.js'));
 const QuestsModal = lazy(() => import('./QuestsModal.js'));
 const ShopModal = lazy(() => import('./ShopModal.js'));
 const ExchangeModal = lazy(() => import('./ExchangeModal.js'));
+const NegotiationModal = lazy(() => import('./NegotiationModal.js'));
 const ActionPointModal = lazy(() => import('./ActionPointModal.js'));
 const UserProfileModal = lazy(() => import('./UserProfileModal.js'));
 const EncyclopediaModal = lazy(() => import('./modals/EncyclopediaModal.js'));

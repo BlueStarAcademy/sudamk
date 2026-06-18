@@ -5,7 +5,6 @@ import { partitionMythicSubsWithIndex } from '../shared/utils/specialOptionGearE
 import { EquipmentBagStyleOptionRow } from './equipment/EquipmentBagStyleOptionRow.js';
 
 export const MythicSubsPartitioned: React.FC<{
-    const { t } = useTranslation('game');
     subs: ItemOption[] | undefined | null;
     itemStars?: number;
     mythicTextClass?: string;
@@ -22,6 +21,7 @@ export const MythicSubsPartitioned: React.FC<{
     enlargeBody = false,
     rowsNoWrap = false,
 }) => {
+    const { t } = useTranslation('game');
     const { mythicGradeRows, transcendentGradeRows } = partitionMythicSubsWithIndex(subs);
     if (mythicGradeRows.length === 0 && transcendentGradeRows.length === 0) return null;
     const bodyText = enlargeBody ? 'text-[13px] leading-snug' : 'text-[12px] leading-snug';

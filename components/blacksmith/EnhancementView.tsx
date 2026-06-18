@@ -240,8 +240,6 @@ interface EnhancementViewProps {
 }
 
 const EnhancementView: React.FC<EnhancementViewProps> = ({
-    const { t } = useTranslation('blacksmith');
-    const localizedGrade = useLocalizedItemGrade();
     selectedItem,
     currentUser,
     onAction,
@@ -250,6 +248,8 @@ const EnhancementView: React.FC<EnhancementViewProps> = ({
     onStartEnhancement,
     stackedViewport = false,
 }) => {
+    const { t } = useTranslation('blacksmith');
+    const localizedGrade = useLocalizedItemGrade();
     const pcViewer = !stackedViewport;
     const typo = getBlacksmithViewerTypography(pcViewer, { mobileWork: stackedViewport });
     const [isEnhancing, setIsEnhancing] = useState(false);

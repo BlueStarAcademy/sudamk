@@ -282,8 +282,6 @@ interface RefinementViewProps {
 type RefinementType = 'type' | 'value' | 'mythic';
 
 const RefinementView: React.FC<RefinementViewProps> = ({
-    const { t } = useTranslation('blacksmith');
-    const localizedGrade = useLocalizedItemGrade();
     selectedItem,
     currentUser,
     onAction,
@@ -291,6 +289,8 @@ const RefinementView: React.FC<RefinementViewProps> = ({
     onResultConfirm,
     stackedViewport = false,
 }) => {
+    const { t } = useTranslation('blacksmith');
+    const localizedGrade = useLocalizedItemGrade();
     const pcViewer = !stackedViewport;
     const typo = getBlacksmithViewerTypography(pcViewer, { mobileWork: stackedViewport });
     const [selectedOption, setSelectedOption] = useState<{ type: 'main' | 'combatSub' | 'specialSub' | 'mythicSub'; index: number } | null>(null);

@@ -22,13 +22,13 @@ interface GameRecordListModalProps {
 }
 
 const GameRecordListModal: React.FC<GameRecordListModalProps> = ({
-    const { t } = useTranslation('profile');
     currentUser,
     onClose,
     onAction,
     isTopmost,
     embedded = false,
 }) => {
+    const { t } = useTranslation('profile');
     const { handlers } = useAppContext();
     const { isNativeMobile, isNarrowViewport } = useNativeMobileShell();
     const useMobileListOnly = isNativeMobile || isNarrowViewport;

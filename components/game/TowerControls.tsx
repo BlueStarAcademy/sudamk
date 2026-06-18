@@ -107,7 +107,6 @@ const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled =
 };
 
 const TowerControls: React.FC<TowerControlsProps> = ({
-    const { t } = useTranslation(['common', 'game']);
     session,
     onAction,
     currentUser,
@@ -125,6 +124,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({
     onMobileConfirmToggle,
     settings: settingsProp,
 }) => {
+    const { t } = useTranslation(['common', 'game']);
     const [refreshConfirmModal, setRefreshConfirmModal] = useState(false);
     const [passConfirmModal, setPassConfirmModal] = useState(false);
     const [turnAddConfirmModal, setTurnAddConfirmModal] = useState(false);
@@ -905,8 +905,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({
             {refreshConfirmModal && (
                 <ConfirmModal
                     title={t('placementRefresh.towerRefreshTitle')}
-                    message={t('placementRefresh.towerRefreshMessage')
-배치 새로고침 아이템 1개를 사용하여 배치를 다시 섞으시겠습니까?`}
+                    message={t('placementRefresh.towerRefreshMessage')}
                     onConfirm={handleRefreshConfirm}
                     onCancel={() => setRefreshConfirmModal(false)}
                     confirmText={t("common:actions.confirm")}

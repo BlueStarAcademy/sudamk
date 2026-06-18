@@ -11,7 +11,6 @@ interface AnnouncementsModalProps {
 }
 
 const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
-    const { t } = useTranslation('common');
     announcements,
     globalOverrideAnnouncement,
     onClose,

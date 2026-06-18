@@ -230,7 +230,6 @@ const PurchaseModalItemShowcase: React.FC<{ preview: InventoryItem; shopBadge?: 
 };
 
 const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({
-    const { t } = useTranslation('inventory');
     item,
     currentUser,
     onClose,

@@ -16,7 +16,6 @@ interface ThiefRoleConfirmedModalProps {
 const ThiefRoleConfirmedModal: React.FC<ThiefRoleConfirmedModalProps> = ({ session, currentUser, onAction }) => {
     const { t } = useTranslation('game');
     const { t: tCommon } = useTranslation('common');
-    const { t } = useTranslation('game');
     const { id: gameId, player1, player2, thiefPlayerId, policePlayerId, preGameConfirmations, revealEndTime } = session;
     const hasConfirmed = !!(preGameConfirmations?.[currentUser.id]);
     const [countdown, setCountdown] = useState(PRE_GAME_PVP_COUNTDOWN_SECONDS);

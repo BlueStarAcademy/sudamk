@@ -632,7 +632,6 @@ const GuildHomeTitlePanel: React.FC<{
     canManage: boolean;
     onIconSelect: () => void;
 }> = ({
-    const { t } = useTranslation(['guild', 'common']);
     guildIcon,
     guildDisplayName,
     isLoading,
@@ -642,7 +641,9 @@ const GuildHomeTitlePanel: React.FC<{
     xpProgress,
     canManage,
     onIconSelect,
-}) => (
+}) => {
+    const { t } = useTranslation(['guild', 'common']);
+    return (
     <div className="relative flex flex-shrink-0 items-center gap-2 overflow-hidden rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/85 via-neutral-800/80 to-stone-900/85 p-3 shadow-lg">
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10" aria-hidden />
         <div className="relative z-10 flex w-full min-w-0 items-center gap-2">
@@ -691,7 +692,8 @@ const GuildHomeTitlePanel: React.FC<{
             </div>
         </div>
     </div>
-);
+    );
+};
 
 const ActivityPanel: React.FC<{ onOpenMissions: () => void; onOpenResearch: () => void; onOpenShop: () => void; missionNotification: boolean; onOpenGuildAdmin: () => void; }> = ({ onOpenMissions, onOpenResearch, onOpenShop, missionNotification, onOpenGuildAdmin }) => {
     const { t } = useTranslation(['guild', 'common']);

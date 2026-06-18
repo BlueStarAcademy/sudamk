@@ -117,12 +117,12 @@ interface ChampionshipRankingPanelProps {
 }
 
 const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({
-    const { t } = useTranslation('tournament');
     compact = false,
     dense = false,
     lobbyNativeMobile = false,
     lobbyGlass = false,
 }) => {
+    const { t } = useTranslation('tournament');
     const { currentUserWithStatus, handlers } = useAppContext();
     const { rankings, loading, error } = useRanking('championship', CHAMPIONSHIP_TOP, 0);
 

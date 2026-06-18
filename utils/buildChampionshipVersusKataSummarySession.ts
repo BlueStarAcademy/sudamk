@@ -13,6 +13,7 @@ import { DEFAULT_GAME_SETTINGS } from '../constants/gameSettings.js';
 import { GameCategory, GameMode, ItemGrade, Player } from '../types/enums.js';
 import { getXpRequirementForLevel } from '../shared/utils/strategyLevelXp.js';
 import { levelAndBarFromTotalAccumulatedXp, totalAccumulatedXpFromLevelAndBar } from '../shared/utils/userLevelMerge.js';
+import { CHAMPIONSHIP_VERSUS_KATA_SUMMARY_DESCRIPTION_PREFIX } from '../shared/constants/championshipVersusSummary.js';
 
 export type VersusKataActorRewardClientPayload = {
     goldDelta: number;

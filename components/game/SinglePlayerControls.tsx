@@ -142,7 +142,6 @@ const ItemImageButton: React.FC<ItemImageButtonProps> = ({ src, alt, onClick, di
 };
 
 const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
-    const { t } = useTranslation(['common', 'game']);
     session,
     onAction,
     currentUser,
@@ -160,6 +159,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
     onMobileConfirmToggle,
     settings: settingsProp,
 }) => {
+    const { t } = useTranslation(['common', 'game']);
     const myUserId = currentUser?.id;
     const [alertModal, setAlertModal] = useState<{ title?: string; message: string } | null>(null);
     const [confirmModal, setConfirmModal] = useState<{ title?: string; message: string; onConfirm: () => void } | null>(null);

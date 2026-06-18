@@ -16,12 +16,12 @@ type BaseCaptureMixBidFooterStripProps = {
 const stepButtons = [10, 5, 3, 1] as const;
 
 const BaseCaptureMixBidFooterStrip: React.FC<BaseCaptureMixBidFooterStripProps> = ({
-    const { t } = useTranslation('game');
     session,
     currentUser,
     onAction,
     isMobile,
 }) => {
+    const { t } = useTranslation('game');
     const { player1, player2, bids, biddingRound, captureBidDeadline, settings, captureFirstRoundTieBidSnapshot } = session;
     const [localBid, setLocalBid] = useState(1);
     const [countdown, setCountdown] = useState(PRE_GAME_PVP_COUNTDOWN_SECONDS);

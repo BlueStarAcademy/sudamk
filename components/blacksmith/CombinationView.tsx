@@ -201,9 +201,6 @@ interface CombinationViewProps {
 }
 
 const CombinationView: React.FC<CombinationViewProps> = ({
-    const { t } = useTranslation('blacksmith');
-    const localizedGrade = useLocalizedItemGrade();
-    const localizedSlot = useLocalizedEquipmentSlot();
     items,
     onRemoveItem,
     onAction,
@@ -211,6 +208,9 @@ const CombinationView: React.FC<CombinationViewProps> = ({
     stackedViewport = false,
     isBlacksmithBusy = false,
 }) => {
+    const { t } = useTranslation('blacksmith');
+    const localizedGrade = useLocalizedItemGrade();
+    const localizedSlot = useLocalizedEquipmentSlot();
     const isMobile = stackedViewport;
     const pcViewer = !isMobile;
     const typo = getBlacksmithViewerTypography(pcViewer, { mobileWork: isMobile });

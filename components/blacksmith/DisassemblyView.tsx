@@ -472,8 +472,6 @@ interface DisassemblyViewProps {
 }
 
 const DisassemblyView: React.FC<DisassemblyViewProps> = ({
-    const { t } = useTranslation('blacksmith');
-    const localizedGrade = useLocalizedItemGrade();
     onAction,
     selectedForDisassembly = new Set(),
     onToggleDisassemblySelection,
@@ -482,6 +480,8 @@ const DisassemblyView: React.FC<DisassemblyViewProps> = ({
     pcViewer = false,
     isBlacksmithBusy = false,
 }) => {
+    const { t } = useTranslation('blacksmith');
+    const localizedGrade = useLocalizedItemGrade();
     const { isNativeMobile } = useNativeMobileShell();
     const { currentUserWithStatus } = useAppContext();
     const [viewportNarrow, setViewportNarrow] = useState(

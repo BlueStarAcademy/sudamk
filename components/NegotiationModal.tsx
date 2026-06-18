@@ -74,7 +74,6 @@ const CountdownDisplay: React.FC<{ deadline: number }> = ({ deadline }) => {
         return () => clearInterval(timer);
     }, [deadline]);
 
-    const { t } = useTranslation('negotiation');
     return <span className="text-lg font-bold tabular-nums">{t('countdownSec', { count: countdown })}</span>;
 };
 

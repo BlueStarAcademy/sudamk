@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import i18n from '../shared/i18n/config.js';
-import { useLocalizedGameMode } from '../shared/i18n/localizedCatalog.js';
+import i18n from '../../shared/i18n/config.js';
+import { useLocalizedGameMode } from '../../shared/i18n/localizedCatalog.js';
 import { useTranslation } from 'react-i18next';
 import { GameRecord, Player, Point } from '../../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants/gameModes.js';

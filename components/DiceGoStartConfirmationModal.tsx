@@ -18,7 +18,6 @@ interface DiceGoStartConfirmationModalProps {
 const DiceGoStartConfirmationModal: React.FC<DiceGoStartConfirmationModalProps> = ({ session, currentUser, onAction }) => {
     const { t } = useTranslation('game');
     const { t: tCommon } = useTranslation('common');
-    const { t } = useTranslation('game');
     const { id: gameId, player1, player2, blackPlayerId, whitePlayerId, preGameConfirmations, revealEndTime, turnOrderRolls } = session;
     const hasConfirmed = preGameConfirmations?.[currentUser.id];
     const [countdown, setCountdown] = useState(PRE_GAME_PVP_COUNTDOWN_SECONDS);

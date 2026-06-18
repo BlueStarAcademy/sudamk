@@ -140,7 +140,6 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
 }) => {
     const { t } = useTranslation('profile');
     const { t: tCommon } = useTranslation('common');
-    const { t } = useTranslation('profile');
     const { isNativeMobile, isNarrowViewport } = useNativeMobileShell();
     const isMobileBoard = useMobileModalChrome();
     const useCompactList = fitViewport && !modalMode && !embedded;
