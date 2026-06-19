@@ -72,6 +72,7 @@ import {
 import { bumpGuildWarMaxSingleCapturePointsForPlayer } from '../../shared/utils/guildWarMaxSingleCapturePoints.js';
 import { tryEndGameWhenCaptureTargetReached } from '../utils/captureTargets.js';
 import { deferGetGameResultForScoringOverlay } from '../utils/deferGetGameResultForScoringOverlay.js';
+import { PVE_STRATEGIC_SERVER_AI_POST_HUMAN_DELAY_MS } from '../constants/pveStrategicAiSchedule.js';
 import {
     syncSpeedTimePressureCaptures,
     shouldRunGoClockAccountingForSession,

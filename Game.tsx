@@ -42,6 +42,7 @@ import { MATERIAL_ITEMS } from './constants/items.js';
 import { getEffectivePairLobbyOwnerId } from './shared/utils/effectivePairLobbyOwnerId.js';
 import { resolveBasePlacementSeatColors } from './shared/utils/basePlacementSeatColors.js';
 import { findLatestMoveIndexAtExcludingRecordedBaseStones } from './shared/utils/baseHiddenMoveIndex.js';
+import { shouldSuppressKoPlaceStoneClientError, isGameAlreadyStartedError } from './shared/utils/serverErrorMatch.js';
 import GuildWarHiddenTowerControls from './components/game/GuildWarHiddenTowerControls.js';
 import GuildWarTowerSidebar from './components/game/GuildWarTowerSidebar.js';
 import PairPetRpsBadge from './components/pair/PairPetRpsBadge.js';

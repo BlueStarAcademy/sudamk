@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import i18n from '../shared/i18n/config.js';
 import { Player, User } from '../types.js';
 import Avatar from './Avatar.js';
