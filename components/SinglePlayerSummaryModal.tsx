@@ -109,6 +109,7 @@ const getXpRequirementForLevel = (level: number): number => {
 
 // 계가 결과 표시 컴포넌트 (GameSummaryModal에서 가져옴)
 const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveGameSession, isMobile?: boolean, mobileTextScale?: number }> = ({ analysis, isMobile = false, mobileTextScale = 1 }) => {
+    const { t } = useTranslation('game');
     const mx = RESULT_MODAL_SCORE_MOBILE_PX;
 
     if (!hasRenderableScoreDetails(analysis)) return <p className={`text-center text-zinc-300 ${isMobile ? 'text-sm' : ''}`} style={{ fontSize: isMobile ? `${mx.emptyState * mobileTextScale}px` : undefined }}>{t('summary.noScoreInfo')}</p>;

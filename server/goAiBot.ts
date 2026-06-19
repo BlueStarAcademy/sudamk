@@ -23,7 +23,7 @@ import {
     applySpeedMoveClockEnd,
     applySpeedNextTurnClockStart,
 } from '../shared/utils/speedTimePressureSessionSync.js';
-import { generateKataServerMoveCandidateDetails, isKataServerAvailable } from './kataServerService.js';
+import { generateKataServerMoveCandidateDetails, isKataServerAvailable, PVE_KATA_PREFER_BEST_MOVE_WINRATE_THRESHOLD } from './kataServerService.js';
 import { applyCastleTerritoryAfterMove } from './modes/castle.js';
 import { enumerateLegalCastleMoves, processCastleMove } from '../shared/utils/castleGoRules.js';
 import { enumerateLegalChessGoStonePlacements, getChessGoStoneCapturePointValue, processChessGoMove, sessionUsesChessGo, applyChessCaptureScoreForRemovedStones } from '../shared/utils/chessGoRules.js';
@@ -1969,6 +1969,10 @@ async function pickKataMoveExclusiveWithBoardResync(params: {
     let lastCandidates: Point[] = [];
     let lastBest: Point | null = null;
     let preferHistoryEncoding = false;
+    const preferBestMoveWhenWinrateBelow =
+        resolveArenaSessionPolicy(game as any).matchAxis !== 'pvp'
+            ? PVE_KATA_PREFER_BEST_MOVE_WINRATE_THRESHOLD
+            : undefined;
 
     for (let resync = 0; resync < KATA_EXCLUSIVE_MAX_BOARD_RESYNC; resync++) {
         const moveHistory = buildKataMoveHistoryForExclusivePick(
@@ -1992,6 +1996,7 @@ async function pickKataMoveExclusiveWithBoardResync(params: {
             // Kata `/move`는 항상 착점만 사용 — PASS·기권은 서버에서 처리하지 않는다.
             allowPass: false,
             moveApiRetries: guildWarKataRetries,
+            preferBestMoveWhenWinrateBelow,
         };
 
         let kataDetails: Awaited<ReturnType<typeof generateKataServerMoveCandidateDetails>>;

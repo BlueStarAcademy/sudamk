@@ -6,7 +6,34 @@
  */
 
 import { Point } from '../types/index.js';
-import { selectKataMoveWithoutPass, type KataAnalysisMoveInfo } from './kataMoveSelection.js';
+import { isPassLikeGtpMove, selectKataMoveWithoutPass, type KataAnalysisMoveInfo } from './kataMoveSelection.js';
+
+/** PVE: Kata `move` 승률이 이 값(0~1) 미만이면 `bestMove`를 먼저 시도한다. */
+export const PVE_KATA_PREFER_BEST_MOVE_WINRATE_THRESHOLD = 0.05;
+
+export function normalizeKataWinrateToFraction(winrate: number | undefined): number | undefined {
+    if (winrate == null || !Number.isFinite(winrate)) return undefined;
+    const v = Number(winrate);
+    if (v < 0) return undefined;
+    return v > 1 ? v / 100 : v;
+}
+
+export function shouldPreferKataBestMoveOverReported(
+    winrate: number | undefined,
+    threshold: number,
+    best?: string,
+    reported?: string,
+): boolean {
+    if (!Number.isFinite(threshold) || threshold <= 0) return false;
+    const bestTrim = best?.trim();
+    const reportedTrim = reported?.trim();
+    if (!bestTrim || !reportedTrim) return false;
+    if (bestTrim.toUpperCase() === reportedTrim.toUpperCase()) return false;
+    if (isPassLikeGtpMove(bestTrim) || isPassLikeGtpMove(reportedTrim)) return false;
+    const wr = normalizeKataWinrateToFraction(winrate);
+    if (wr == null) return false;
+    return wr < threshold;
+}
 
 // 환경변수
 const KATA_SERVER_URL = process.env.KATA_SERVER_URL?.trim();
@@ -124,10 +151,24 @@ function dedupePointsFirstWins(points: Point[]): Point[] {
     return out;
 }
 
-/** KataServer가 레벨에 맞게 고른 `move` 우선, 그다음 참고용 `bestMove`. GTP 문자열 단계에서 중복 제거. */
-function buildGtpCandidatesFromKataResponse(data: KataMoveApiData, allowPass: boolean, boardSize: number): string[] {
+/**
+ * KataServer가 레벨에 맞게 고른 `move` 우선, 그다음 참고용 `bestMove`.
+ * PVE 등에서 `preferBestMoveWhenWinrateBelow`가 설정되고 승률이 임계값 미만이면 `bestMove`를 먼저 둔다.
+ */
+function buildGtpCandidatesFromKataResponse(
+    data: KataMoveApiData,
+    allowPass: boolean,
+    boardSize: number,
+    preferBestMoveWhenWinrateBelow?: number,
+): string[] {
     const best = data.bestMove?.trim();
     const reported = data.move?.trim();
+    const preferBestFirst = shouldPreferKataBestMoveOverReported(
+        data.winrate,
+        preferBestMoveWhenWinrateBelow ?? NaN,
+        best,
+        reported,
+    );
     const out: string[] = [];
     const pushUnique = (s?: string) => {
         if (!s) return;
@@ -136,8 +177,13 @@ function buildGtpCandidatesFromKataResponse(data: KataMoveApiData, allowPass: bo
         if (u === 'PASS' && !allowPass) return;
         if (!out.some((g) => g.toUpperCase() === u)) out.push(s);
     };
-    pushUnique(reported);
-    pushUnique(best);
+    if (preferBestFirst) {
+        pushUnique(best);
+        pushUnique(reported);
+    } else {
+        pushUnique(reported);
+        pushUnique(best);
+    }
     if (!allowPass && out.length === 0) {
         const forced = selectKataMoveWithoutPass(data.moveInfos, boardSize, false);
         if (forced?.move) pushUnique(forced.move);
@@ -167,6 +213,11 @@ export interface GenerateKataServerMoveParams {
     moveApiRetries?: number;
     /** 대량 사전 생성용: 응답 후 체감 지연 없이 즉시 후보를 반환한다. */
     skipApplyDelay?: boolean;
+    /**
+     * PVE: Kata `move`의 winrate(0~1)가 이 값 미만이면 `bestMove`를 후보 목록 맨 앞에 둔다.
+     * 미설정(PVP 등)이면 레벨 `move` 우선(기존 동작).
+     */
+    preferBestMoveWhenWinrateBelow?: number;
 }
 
 const inFlightKataServerMoveRequests = new Map<string, Promise<KataServerMoveCandidateDetails>>();
@@ -271,13 +322,26 @@ async function generateKataServerMoveCandidatesUncached(params: GenerateKataServ
 
             console.log(`[KataServer] Move response: move=${data.move} strategy=${data.strategy} winrate=${data.winrate} bestMove=${data.bestMove}`);
 
-            const gtps = buildGtpCandidatesFromKataResponse(data, allowPass, boardSize);
+            const preferBestThreshold = params.preferBestMoveWhenWinrateBelow;
+            const gtps = buildGtpCandidatesFromKataResponse(data, allowPass, boardSize, preferBestThreshold);
             const best = data.bestMove?.trim();
             const reported = data.move?.trim();
+            const preferBestFirst = shouldPreferKataBestMoveOverReported(
+                data.winrate,
+                preferBestThreshold ?? NaN,
+                best,
+                reported,
+            );
             if (best && reported && best.toUpperCase() !== 'PASS' && reported.toUpperCase() !== 'PASS' && best.toUpperCase() !== reported.toUpperCase()) {
-                console.log(
-                    `[KataServer] candidate order: move=${reported} then bestMove=${best} (strategy=${data.strategy ?? 'n/a'})`,
-                );
+                if (preferBestFirst) {
+                    console.log(
+                        `[KataServer] low winrate (${data.winrate ?? 'n/a'}) → bestMove=${best} before move=${reported} (strategy=${data.strategy ?? 'n/a'})`,
+                    );
+                } else {
+                    console.log(
+                        `[KataServer] candidate order: move=${reported} then bestMove=${best} (strategy=${data.strategy ?? 'n/a'})`,
+                    );
+                }
             }
 
             if (gtps.length === 0) {
