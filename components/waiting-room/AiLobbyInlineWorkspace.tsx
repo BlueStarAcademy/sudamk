@@ -359,7 +359,7 @@ export const AiLobbyStandaloneCenterPanel: React.FC<{
     );
 });
 
-/** 페어 AI 중앙: 인라인 게임모드+설정 (+ 2인 팀 슬롯) */
+/** 페어 AI 중앙: 인라인 게임모드+설정 (+ 2인 팀 방 내부) */
 export const AiLobbyCenterPanel: React.FC<{ className?: string }> = ({ className }) => {
     const { t } = useTranslation('lobby');
     const {
@@ -374,38 +374,41 @@ export const AiLobbyCenterPanel: React.FC<{ className?: string }> = ({ className
         duoRoomInteriorSlot,
     } = useAiLobbyWorkspace();
 
+    const showDuoRoomInterior = pairMatchMode === 'duo' && Boolean(duoRoomInteriorSlot);
+
     return (
         <div className={`flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-hidden ${className ?? ''}`}>
             <AiLobbyPairMatchModeTabs />
-            {pairMatchMode === 'duo' && duoRoomInteriorSlot ? (
-                <div className="flex min-h-0 max-h-[min(42%,22rem)] shrink-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-black/25 p-2 shadow-inner ring-1 ring-white/[0.06] sm:max-h-[min(38%,24rem)] sm:p-2.5">
+            {showDuoRoomInterior ? (
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-black/25 shadow-inner ring-1 ring-white/[0.06]">
                     {duoRoomInteriorSlot}
                 </div>
-            ) : null}
-            <div className={`${aiChallengeModalShellClass} min-h-0 flex-1`}>
-                <AiChallengeModal
-                    key={`ai-inline-center-${channel}-${pairMatchMode}`}
-                    embeddedPanel
-                    embeddedPanelStackedLayout
-                    pairRoomDenseSettingsGrid
-                    lobbyType={lobbyType}
-                    preferredGameSettingsBucket={preferredBucket}
-                    onClose={() => {}}
-                    onAction={handlePairStart}
-                    startActionType="PAIR_START_AI_MATCH"
-                    title={title}
-                    submitLabel={t('aiChallengeModal.startAiGame')}
-                    submitDisabled={pairSubmitDisabled}
-                    showActionPointCost
-                    transformSettingsBeforeStart={transformPairAiSettings}
-                    hideScoringTurnLimit
-                />
-            </div>
+            ) : (
+                <div className={`${aiChallengeModalShellClass} min-h-0 flex-1`}>
+                    <AiChallengeModal
+                        key={`ai-inline-center-${channel}-${pairMatchMode}`}
+                        embeddedPanel
+                        embeddedPanelStackedLayout
+                        pairRoomDenseSettingsGrid
+                        lobbyType={lobbyType}
+                        preferredGameSettingsBucket={preferredBucket}
+                        onClose={() => {}}
+                        onAction={handlePairStart}
+                        startActionType="PAIR_START_AI_MATCH"
+                        title={title}
+                        submitLabel={t('aiChallengeModal.startAiGame')}
+                        submitDisabled={pairSubmitDisabled}
+                        showActionPointCost
+                        transformSettingsBeforeStart={transformPairAiSettings}
+                        hideScoringTurnLimit
+                    />
+                </div>
+            )}
         </div>
     );
 };
 
-/** 모바일 페어 AI: 솔로/2인 탭 + 인라인 설정 (+ 2인 팀 슬롯) */
+/** 모바일 페어 AI: 솔로/2인 탭 + 인라인 설정 (+ 2인 팀 방 내부) */
 export const AiLobbyMobileWorkspace: React.FC<{ className?: string }> = ({ className }) => {
     const { t } = useTranslation('lobby');
     const {
@@ -420,33 +423,36 @@ export const AiLobbyMobileWorkspace: React.FC<{ className?: string }> = ({ class
         duoRoomInteriorSlot,
     } = useAiLobbyWorkspace();
 
+    const showDuoRoomInterior = pairMatchMode === 'duo' && Boolean(duoRoomInteriorSlot);
+
     return (
         <div className={`flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-hidden ${className ?? ''}`}>
             <AiLobbyPairMatchModeTabs />
-            {pairMatchMode === 'duo' && duoRoomInteriorSlot ? (
-                <div className="flex min-h-0 max-h-[min(46%,20rem)] shrink-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-black/25 p-1.5 shadow-inner ring-1 ring-white/[0.06]">
+            {showDuoRoomInterior ? (
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-black/25 shadow-inner ring-1 ring-white/[0.06]">
                     {duoRoomInteriorSlot}
                 </div>
-            ) : null}
-            <div className={`${aiChallengeModalShellClass} min-h-0 flex-1`}>
-                <AiChallengeModal
-                    key={`ai-inline-mobile-${channel}-${pairMatchMode}`}
-                    embeddedPanel
-                    embeddedPanelStackedLayout
-                    pairRoomDenseSettingsGrid
-                    lobbyType={lobbyType}
-                    preferredGameSettingsBucket={preferredBucket}
-                    onClose={() => {}}
-                    onAction={handlePairStart}
-                    startActionType="PAIR_START_AI_MATCH"
-                    title={title}
-                    submitLabel={t('aiChallengeModal.startAiGame')}
-                    submitDisabled={pairSubmitDisabled}
-                    showActionPointCost
-                    transformSettingsBeforeStart={transformPairAiSettings}
-                    hideScoringTurnLimit
-                />
-            </div>
+            ) : (
+                <div className={`${aiChallengeModalShellClass} min-h-0 flex-1`}>
+                    <AiChallengeModal
+                        key={`ai-inline-mobile-${channel}-${pairMatchMode}`}
+                        embeddedPanel
+                        embeddedPanelStackedLayout
+                        pairRoomDenseSettingsGrid
+                        lobbyType={lobbyType}
+                        preferredGameSettingsBucket={preferredBucket}
+                        onClose={() => {}}
+                        onAction={handlePairStart}
+                        startActionType="PAIR_START_AI_MATCH"
+                        title={title}
+                        submitLabel={t('aiChallengeModal.startAiGame')}
+                        submitDisabled={pairSubmitDisabled}
+                        showActionPointCost
+                        transformSettingsBeforeStart={transformPairAiSettings}
+                        hideScoringTurnLimit
+                    />
+                </div>
+            )}
         </div>
     );
 };

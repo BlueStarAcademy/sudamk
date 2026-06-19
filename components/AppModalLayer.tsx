@@ -61,7 +61,6 @@ import MobileModalTitleBar from './mobile/MobileModalTitleBar.js';
 import PairIncomingPartnerInviteModal from './pair/PairIncomingPartnerInviteModal.js';
 import { arenaLobbyHash, arenaLobbyIntentFromPairRoom } from '../shared/utils/arenaLobbyDestination.js';
 import { replaceAppHash } from '../utils/appUtils.js';
-import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { PAIR_LOBBY_FOCUS_ROOM_TAB_SESSION_KEY } from '../shared/constants/pairArena.js';
 import { mergeWaitingRoomPublicChatMessages } from '../shared/utils/waitingRoomGlobalChatMerge.js';
 import ModalChunkFallback from './ui/ModalChunkFallback.js';
@@ -71,7 +70,6 @@ const ModalLoadingFallback = () => <ModalChunkFallback />;
 const AppModalLayer: React.FC = () => {
     const { t } = useTranslation('common');
     const { isNativeMobile } = useNativeMobileShell();
-    const isHandheld = useIsHandheldDevice(1024);
     const isMobileModalChrome = useMobileModalChrome();
     const {
         allUsers,
@@ -213,12 +211,10 @@ const AppModalLayer: React.FC = () => {
             const norm = (h: string) => h.replace(/^#\/?/, '').split('?')[0];
             const needNav = norm(window.location.hash) !== norm(targetHash);
 
-            if (isHandheld) {
-                try {
-                    sessionStorage.setItem(PAIR_LOBBY_FOCUS_ROOM_TAB_SESSION_KEY, '1');
-                } catch {
-                    // ignore
-                }
+            try {
+                sessionStorage.setItem(PAIR_LOBBY_FOCUS_ROOM_TAB_SESSION_KEY, '1');
+            } catch {
+                // ignore
             }
 
             if (needNav) {

@@ -143,6 +143,7 @@ function SeatTile({
     statusOverlayLabel?: string;
     lobbyChromeTone?: WaitingLobbyPanelTone;
 }) {
+    const { t } = useTranslation('pair');
     const locked = tone === 'locked';
     const open = tone === 'open';
     const ally = accent === 'ally';
@@ -734,6 +735,8 @@ export interface PairRoomSeatGridProps {
     pairAiLobbySettings?: GameSettings;
     /** 페어 경기장 `duo_match`(2인 AI대전): 우측 합성 AI 열 없이 방장·파트너 2슬롯만 표시 */
     hideDuoAiOpponentColumn?: boolean;
+    /** 페어 PVP 방 내부: 팀 패널을 가로 나란히가 아닌 세로로 배치 */
+    stackTeamsVertically?: boolean;
     /** 특정 유저 좌석에 덧씌울 상태 배지(예: 참여중) */
     statusOverlayByUserId?: Record<string, string>;
 }
@@ -768,9 +771,17 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
     pairAiLobbyRoomId,
     pairAiLobbySettings,
     hideDuoAiOpponentColumn = false,
+    stackTeamsVertically = false,
     statusOverlayByUserId,
 }) => {
     const { t } = useTranslation('pair');
+    const teamsContainerClass = stackTeamsVertically
+        ? compact
+            ? 'flex w-full min-w-0 flex-col gap-2'
+            : 'flex w-full min-w-0 flex-col gap-3 sm:gap-4'
+        : compact
+          ? 'flex w-full min-w-0 flex-row gap-2 sm:gap-3'
+          : 'flex w-full min-w-0 flex-row gap-3 sm:gap-4';
     const viewerPetAiId = `pet-ai-${viewerId}`;
     const isPetPairLobby = roomKind === 'ai_duel';
     const isFriendlyTwoPet = roomKind === 'friendly_2p';
@@ -1006,7 +1017,7 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
         const accentAi = hostHomeTeam === 'teamA' ? 'enemy' : 'ally';
         return (
             <div className={compact ? 'flex flex-col gap-2' : 'flex flex-col gap-3'}>
-                <div className={compact ? 'flex w-full min-w-0 flex-row gap-2 sm:gap-3' : 'flex w-full min-w-0 flex-row gap-3 sm:gap-4'}>
+                <div className={teamsContainerClass}>
                     <TeamPanel title="" subtitle="" variant={hostHomeTeam === 'teamA' ? 'ally' : 'enemy'} compact={compact} seatColumns={1}>
                         {renderHumanSlot(gridA[0], 0, 'teamA', accentHuman, {
                             emptyLabel: t('room.emptySlot'),
@@ -1033,7 +1044,7 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
         const accentB = hostHomeTeam === 'teamB' ? 'ally' : 'enemy';
         return (
             <div className={compact ? 'flex flex-col gap-2' : 'flex flex-col gap-3'}>
-                <div className={compact ? 'flex w-full min-w-0 flex-row gap-2 sm:gap-3' : 'flex w-full min-w-0 flex-row gap-3 sm:gap-4'}>
+                <div className={teamsContainerClass}>
                     <TeamPanel title="" subtitle="" variant={hostHomeTeam === 'teamA' ? 'ally' : 'enemy'} compact={compact} seatColumns={2}>
                         {renderHumanSlot(gridA[0], 0, 'teamA', accentA, {
                             emptyLabel: t('room.emptySlot'),
@@ -1102,7 +1113,7 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
         const slotB0 = hostHomeTeam === 'teamA' ? slotOther : slotHostSide;
         return (
             <div className={compact ? 'flex flex-col gap-2' : 'flex flex-col gap-3'}>
-                <div className={compact ? 'flex w-full min-w-0 flex-row gap-2 sm:gap-3' : 'flex w-full min-w-0 flex-row gap-3 sm:gap-4'}>
+                <div className={teamsContainerClass}>
                     <TeamPanel title="" subtitle="" variant={hostHomeTeam === 'teamA' ? 'ally' : 'enemy'} compact={compact} seatColumns={1}>
                         {renderHumanSlot(slotA0, 0, 'teamA', accentA, {
                             emptyLabel: t('room.emptySlot'),
@@ -1131,7 +1142,7 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
         const accentA = hostHomeTeam === 'teamA' ? 'ally' : 'enemy';
         return (
             <div className={compact ? 'flex flex-col gap-2' : 'flex flex-col gap-3'}>
-                <div className={compact ? 'flex w-full min-w-0 flex-row gap-2 sm:gap-3' : 'flex w-full min-w-0 flex-row gap-3 sm:gap-4'}>
+                <div className={teamsContainerClass}>
                     <TeamPanel
                         title=""
                         subtitle=""
@@ -1170,7 +1181,7 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
         const accentB = hostHomeTeam === 'teamB' ? 'ally' : 'enemy';
         return (
             <div className={compact ? 'flex flex-col gap-2' : 'flex flex-col gap-3'}>
-                <div className={compact ? 'flex w-full min-w-0 flex-row gap-2 sm:gap-3' : 'flex w-full min-w-0 flex-row gap-3 sm:gap-4'}>
+                <div className={teamsContainerClass}>
                     <TeamPanel title="" subtitle="" variant={hostHomeTeam === 'teamA' ? 'ally' : 'enemy'} compact={compact} seatColumns={2}>
                         {renderHumanSlot(gridA[0], 0, 'teamA', accentA, {
                             emptyLabel: t('room.emptySlot'),
@@ -1207,7 +1218,7 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
     if (isPetPairLobby) {
         return (
             <div className={compact ? 'flex flex-col gap-2' : 'flex flex-col gap-3'}>
-                <div className={compact ? 'flex w-full min-w-0 flex-row gap-2 sm:gap-3' : 'flex w-full min-w-0 flex-row gap-3 sm:gap-4'}>
+                <div className={teamsContainerClass}>
                     <TeamPanel title="" subtitle="" variant="ally" compact={compact} seatColumns={2}>
                         {renderHumanSlot(gridA[0], 0, 'teamA', 'ally', {
                             emptyLabel: t('room.emptySlot'),
@@ -1242,7 +1253,7 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
     if (isFriendlyTwoPet && gridB.every((cell) => !cell.userId)) {
         return (
             <div className={compact ? 'flex flex-col gap-2' : 'flex flex-col gap-3'}>
-                <div className={compact ? 'flex w-full min-w-0 flex-row gap-2 sm:gap-3' : 'flex w-full min-w-0 flex-row gap-3 sm:gap-4'}>
+                <div className={teamsContainerClass}>
                     <TeamPanel title="" subtitle="" variant="ally" compact={compact} seatColumns={2}>
                         {renderHumanSlot(gridA[0], 0, 'teamA', 'ally', {
                             emptyLabel: t('room.emptySlot'),
@@ -1276,7 +1287,7 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
     const accentB = hostHomeTeam === 'teamB' ? 'ally' : 'enemy';
     return (
         <div className={compact ? 'flex flex-col gap-2' : 'flex flex-col gap-3'}>
-            <div className={compact ? 'flex w-full min-w-0 flex-row gap-2 sm:gap-3' : 'flex w-full min-w-0 flex-row gap-3 sm:gap-4'}>
+            <div className={teamsContainerClass}>
                 <TeamPanel title="" subtitle="" variant={hostHomeTeam === 'teamA' ? 'ally' : 'enemy'} compact={compact} seatColumns={teamSeatCols}>
                     {renderHumanSlot(gridA[0], 0, 'teamA', accentA, {
                         emptyLabel: t('room.emptySlot'),
