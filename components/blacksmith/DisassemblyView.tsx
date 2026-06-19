@@ -78,6 +78,7 @@ const DisassemblySelectedInventoryCell: React.FC<{
     onToggleDisassemblySelection: (itemId: string) => void;
     pcViewer?: boolean;
 }> = ({ item, onToggleDisassemblySelection, pcViewer = false }) => {
+    const { t } = useTranslation('blacksmith');
     const styles = gradeStyles[item.grade];
     const iconBoxPct = '88%';
     const cellPx = getSelectedDisassemblyCellPx(pcViewer);
@@ -129,6 +130,7 @@ const SelectedDisassemblyItemsPanel: React.FC<{
     pcViewer?: boolean;
     mobileWork?: boolean;
 }> = ({ selectedIds, inventory, onToggleDisassemblySelection, onOpenAutoSelect, pcViewer = false, mobileWork = false }) => {
+    const { t } = useTranslation('blacksmith');
     const typo = getBlacksmithViewerTypography(pcViewer, { mobileWork });
     const items = useMemo(
         () => inventory.filter(item => selectedIds.has(item.id)),
@@ -197,6 +199,7 @@ const DisassemblyPreviewPanel: React.FC<{
     pcViewer = false,
     isBlacksmithBusy = false,
 }) => {
+    const { t } = useTranslation('blacksmith');
     const typo = getBlacksmithViewerTypography(pcViewer && !nativeMobile);
     const jackpotRatePct = BLACKSMITH_DISASSEMBLY_JACKPOT_RATES[Math.max(0, blacksmithLevel - 1)];
     const jackpotHint = t('disassemble.jackpotHint', { rate: formatBlacksmithPercentInt(jackpotRatePct) });

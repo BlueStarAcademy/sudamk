@@ -8,6 +8,7 @@
       "loading": "読み込み中...",
       "confirm": "確認",
       "back": "戻る",
+      "next": "Next",
       "retry": "再試行",
       "refresh": "リフレッシュ",
       "submit": "提出",
@@ -137,8 +138,8 @@
     "disconnectNotice": {
       "title": "対局終了案内",
       "logoutTitle": "ログアウトガイド",
-      "otherLogin": "別の場所にログインしています。",
-      "loggingOut": "ログアウトされます。"
+      "otherLogin": "他の場所からログインしました。",
+      "loggingOut": "ログアウトします。"
     },
     "autoProceed": "自動進行まで",
     "autoProceedShort": "自動進行",
@@ -147,7 +148,7 @@
     "nextRoundAuto": "次のラウンド自動開始まで",
     "nextRoundShort": "次まで",
     "finalResultAuto": "最終結果自動表示まで",
-    "finalResultShort": "結果に",
+    "finalResultShort": "結果まで",
     "deathmatchAuto": "次のデスマッチ自動開始まで",
     "deathmatchShort": "デスマッチまで",
     "waitingOpponentConfirm": "相手の確認を待っています...",
@@ -369,14 +370,14 @@
       "singleplayer": "シングルプレイ",
       "tower": "挑戦の塔",
       "strategicLobby": "戦略囲碁",
-      "playfulLobby": "棋譜をプレイする",
+      "playfulLobby": "遊び囲碁",
       "pairLobby": "フェア囲碁",
       "championship": "チャンピオンシップ",
       "adventure": "冒険"
     },
     "arenaTypePicker": {
       "pvpHeading": "PVPスタジアム",
-      "aiHeading": "AI対戦",
+      "aiHeading": "AI大戦",
       "pvpSubtitle": "戦略・ペア・プレイ中に対戦する種類を選択してください",
       "aiSubtitle": "戦略・ペア・遊びの中でAIと対戦する種類を選択してください",
       "backToArena": "スタジアムに戻る",
@@ -651,10 +652,10 @@
       "lowDiceTitle": "低数（1・2・3）サイコロアイテム。 残りの数{{count}}",
       "highDiceAria": "高い数サイコロアイテム、残りの数{{count}}",
       "highDiceTitle": "高い数（4・5・6）サイコロアイテム。 残りの数{{count}}",
-      "oddDiceUse": "奇数ダイスを使う",
+      "oddDiceUse": "奇数サイコロを使う",
       "evenDiceUse": "偶数サイコロを使う",
       "lowDiceUse": "低い数のサイコロを使う",
-      "highDiceUse": "大きな数字のサイコロを使用する",
+      "highDiceUse": "高水サイコロを使う",
       "specialFeatures": "特殊機能",
       "resign": "棄権",
       "resignAlt": "棄権",
@@ -917,7 +918,7 @@
         "stage": "ステージ",
         "boardSize": "プレートサイズ",
         "komi": "おまけ",
-        "komiValue": "{{komi}}ハウス",
+        "komiValue": "{{komi}}ホーム",
         "timeLimit": "制限時間",
         "timeLimitMin": "{{minutes}}分",
         "none": "なし",
@@ -1169,7 +1170,7 @@
       "timeFischer": "{{minutes}}分・フィッシャー{{increment}}秒",
       "timeByoyomi": "{{minutes}}分・秒読み{{byoyomi}}秒×{{count}}回",
       "boardSizeValue": "{{size}}x{{size}}",
-      "komiValue": "{{komi}}ハウス",
+      "komiValue": "{{komi}}ホーム",
       "countUnit": "{{count}}個",
       "roundValue": "{{round}}R",
       "scoringTurnValue": "{{turns}}ターン",
@@ -1512,7 +1513,7 @@
       "plainTitle": "ゴールド{{amount}}"
     },
     "pairAiRematch": {
-      "title": "ペア・バドゥクAIとの再戦",
+      "title": "フェア囲碁AIと再対決",
       "start": "AIと対局開始"
     },
     "gameRecord": {
@@ -1668,7 +1669,7 @@
       "currentLabel": "現在の状態",
       "expectedLabel": "予想回復後",
       "expectedMobile": "回復後（予想）",
-      "expectedDesktop": "予想される回復後の状態"
+      "expectedDesktop": "予想回復後の体調"
     },
     "startConfirm": {
       "title": "対局開始確認",
@@ -1677,7 +1678,7 @@
       "autoRoulette": "はさみロックよりも速い自動ルーレットで黒と白が割り当てられます。",
       "autoRouletteShort": "はさみロックの代わりに自動ルーレットで黒と白が割り当てられます。",
       "checkingRoulette": "ルーレットの結果を確認しています...",
-      "waitingConfirm": "相手からの確認を待っています...",
+      "waitingConfirm": "相手の確認を待っています...",
       "startCountdown": "対局開始（{{count}}）"
     },
     "diceGo": {
@@ -2710,6 +2711,7 @@
     "comingSoon": "オープン予定",
     "entryBlocked": "入場不可",
     "viewStats": "詳細な全ビュー",
+    "detailedStatsBtn": "詳細",
     "viewAll": "全て見る",
     "totalRecord": "総戦績",
     "totalRecordCompact": "{{wins}}勝{{losses}}敗{{winRate}}％",
@@ -2741,7 +2743,7 @@
     "goSchool": "囲碁学園",
     "challengeTower": "挑戦の塔",
     "pvpArena": "PVPスタジアム",
-    "aiArena": "AI対戦",
+    "aiArena": "AI大戦",
     "detailedStats": {
       "diamondsAria": "ダイヤ{{amount}}",
       "pvpTitle": "PVPスタジアム詳細戦績",
@@ -2980,7 +2982,7 @@
       "myMbti": "私のMBTI",
       "resetMbti": "リセットする",
       "insufficientDiamonds": "ダイア部族",
-      "next": "次",
+      "next": "Next",
       "complete": "完了",
       "save": "保存",
       "expired": "期限切れ",
@@ -3094,7 +3096,7 @@
       "title": "MBTI傾向ガイド",
       "whatIsMbti": "MBTIとは何ですか？",
       "completeReward": "完了時に100ダイヤモンドを差し上げます！",
-      "next": "次",
+      "next": "Next",
       "complete": "完了",
       "yourMbti": "あなたのMBTIは{{mbti}}です。",
       "rewardObtained": "100ダイヤモンド獲得！",
@@ -3498,6 +3500,54 @@
       "remove_ads_2": "店舗報酬型広告なしで同じ報酬を受け取る（毎日の制限を維持）"
     },
     "items": {
+      "equipment_box_1": {
+        "name": "機器ボックスI",
+        "description": "一般～希少グレード装備獲得"
+      },
+      "equipment_box_2": {
+        "name": "機器ボックスII",
+        "description": "一般～エピック等級装備獲得"
+      },
+      "equipment_box_3": {
+        "name": "機器ボックスIII",
+        "description": "高度～伝説等級装備獲得"
+      },
+      "equipment_box_4": {
+        "name": "機器ボックスIV",
+        "description": "希少～神話等級装備獲得"
+      },
+      "equipment_box_5": {
+        "name": "機器ボックスV",
+        "description": "エピック～神話等級装備獲得"
+      },
+      "equipment_box_6": {
+        "name": "機器ボックスVI",
+        "description": "伝説～神話等級装備獲得"
+      },
+      "material_box_1": {
+        "name": "材料ボックスI",
+        "description": "下級～上級強化石5個獲得"
+      },
+      "material_box_2": {
+        "name": "材料ボックスII",
+        "description": "下級～上級強化石5個獲得"
+      },
+      "material_box_3": {
+        "name": "材料ボックスIII",
+        "description": "下級～上級強化石5個獲得"
+      },
+      "material_box_4": {
+        "name": "材料ボックスIV",
+        "description": "中級～最上級強化石5個獲得"
+      },
+      "material_box_5": {
+        "name": "マテリアルボックスV",
+        "description": "上級～謎の強化石5個獲得"
+      },
+      "material_box_6": {
+        "name": "材料ボックスVI",
+        "description": "上級～謎の強化石5個獲得"
+      },
       "equipment_unbind_ticket": {
         "name": "帰属解除権",
         "description": "帰属機器取引可能状態に変更"
@@ -3505,6 +3555,30 @@
       "refinement_charm": {
         "name": "製錬のお守り",
         "description": "製錬不可装備製錬回数1回追加"
+      },
+      "option_type_change_ticket": {
+        "name": "オプションタイプ変更権",
+        "description": "装備の主オプション、ブオプション、特殊オプションのいずれかを他の種類のオプションに変更できるアイテムです。"
+      },
+      "option_value_change_ticket": {
+        "name": "オプション数値変更権",
+        "description": "装備の副オプションまたは特殊オプションのいずれかの数値を変更できるアイテムです。"
+      },
+      "mythic_option_change_ticket": {
+        "name": "特別オプションの変更",
+        "description": "神話または超越装備のスペシャルオプションを他のスペシャルオプションに変更できるアイテムです。"
+      },
+      "condition_potion_small": {
+        "name": "体調回復剤（小）",
+        "description": "緊張感を和らげる体調回復剤"
+      },
+      "condition_potion_medium": {
+        "name": "体調回復剤（中）",
+        "description": "髪が澄んだ感じの体調回復剤"
+      },
+      "condition_potion_large": {
+        "name": "体調回復剤（大）",
+        "description": "今日の大会をうまく打つような体調回復剤"
       },
       "action_point_10": {
         "name": "行動力回復剤（+10）",
@@ -3580,7 +3654,7 @@
       "prevAria": "前のステップ",
       "prev": "以前",
       "nextAria": "次のステップ",
-      "next": "次",
+      "next": "Next",
       "progress": "達成{{current}}/{{target}}",
       "cleared": "達成",
       "notCleared": "未達性",
@@ -3637,7 +3711,7 @@
     "expandBagWithCost": "バッグ拡張({{cost}}ダイヤ)",
     "itemInfo": "アイテム情報",
     "compareGear": "機器比較",
-    "currentlyEquipped": "現在の取り付け",
+    "currentlyEquipped": "現在のマウント",
     "selectedGear": "選択機器",
     "grade": "評価",
     "equipLevel": "着用レベル",
@@ -3718,11 +3792,11 @@
       "equipment": "装備",
       "consumable": "消耗品",
       "material": "材料",
-      "noMaterialUse": "この材料は現在、どの機器の強化にも使用されていません。",
+      "noMaterialUse": "この材料は現在どの機器の強化にも使用されていません。",
       "inventoryUse": "バッグで使えます。",
       "characterGrowth": "キャラクター・強化・製錬などの成長に使われます。",
       "selectQuantity": "数量の選択",
-      "productDetailAria": "購入商品の詳細",
+      "productDetailAria": "購入商品詳細",
       "decreaseAria": "1つの値を減らす",
       "increaseAria": "1つの値を増やす",
       "maxOwned": "保有数が最大なので購入できません。",
@@ -4021,7 +4095,7 @@
       "salePrice": "販売価格",
       "fee": "手数料",
       "netAmount": "受取額",
-      "status": "status",
+      "status": "状態",
       "dateTime": "日付/時刻",
       "price": "価格",
       "selectedItem": "選択項目",
@@ -4041,7 +4115,21 @@
       "settlementReceived": "精算受領",
       "tradeTicket": "取引登録",
       "keep": "維持",
-      "purchaseCompleteMessage": "購入が完了しました。"
+      "purchaseCompleteMessage": "購入が完了しました。",
+      "noListings": "登録された販売品はありません。",
+      "myListingBadge": "私の登録",
+      "registering": "登録中",
+      "expired": "期限切れ",
+      "recoverCooldown": "{{seconds}}秒後に再度回収できます。",
+      "recover": "回収",
+      "cancelSale": "販売キャンセル",
+      "noSettlement": "決済可能な販売履歴はありません。",
+      "claimSelected": "選択項目を受け取る",
+      "claimAll": "すべて受け取る",
+      "noSettlementPending": "決済待機項目はありません。",
+      "totalHistoryCount": "総取引履歴{{count}}件",
+      "statusLabel": "状態",
+      "noHistory": "取引履歴はありません。"
     },
     "sort": {
       "label": "ソート",
@@ -4084,7 +4172,7 @@
       "opening": "序盤",
       "midgame": "中盤",
       "endgame": "終盤",
-      "waiting": "大気"
+      "waiting": "待機"
     },
     "scoring": "計価中...",
     "allMatchesEnded": "試合はすべて終了しました。 授賞式が行われています。",
@@ -4093,6 +4181,9 @@
     "playerLoadError": "プレーヤー情報の読み込み中にエラーが発生しました。",
     "playerWaiting": "選手を待っています...",
     "playerLoadFailed": "選手情報を呼び出せません。",
+    "loadingTournament": "トーナメント情報を読み込んでいます...",
+    "loadingUserInfo": "ユーザー情報を読み込んでいます...",
+    "nextMatchPreparing": "次の試合の準備中... {{countdown}}",
     "defaultPlayer": "選手",
     "me": "私",
     "opponent": "相手",
@@ -4256,7 +4347,9 @@
         "equipmentBox": "機器ボックス",
         "changeTicket": "変更権",
         "special": "特別",
-        "limitLabel": "制限"
+        "limitLabel": "制限",
+        "weeklyCountShort": "（毎週{{remaining}} / {{limit}}）",
+        "equipmentBoxInfoSuffix": "装備獲得。 チャンピオンシップ能力値上昇特殊オプション必須"
       },
       "ranking": {
         "viewProfile": "{{name}}プロフィールを見る",
@@ -4561,6 +4654,36 @@
     "myRecord": "私の記録",
     "rankingInfo": "ランキング情報",
     "ownedItems": "保有アイテム",
+    "inventoryItems": {
+      "turnAdd": "ターンを追加",
+      "missile": "ミサイル",
+      "hidden": "ヒドゥン",
+      "scan": "スキャン",
+      "refresh": "配置変更"
+    },
+    "rewardItems": {
+      "equipmentBox1": "機器ボックスI",
+      "equipmentBox2": "機器ボックスII",
+      "equipmentBox3": "機器ボックスIII",
+      "equipmentBox4": "機器ボックスIV",
+      "equipmentBox5": "機器ボックスV",
+      "equipmentBox6": "機器ボックスVI",
+      "materialBox1": "材料ボックスI",
+      "materialBox2": "材料ボックスII",
+      "materialBox3": "材料ボックスIII",
+      "materialBox4": "材料ボックスIV",
+      "materialBox5": "マテリアルボックスV",
+      "materialBox6": "材料ボックスVI",
+      "goldBundle1": "ゴールドパッケージI",
+      "goldBundle2": "ゴールドパッケージII",
+      "goldBundle3": "ゴールドパッケージIII",
+      "goldBundle4": "ゴールドパッケージIV",
+      "diamondBundle1": "ダイヤパッケージI",
+      "diamondBundle2": "ダイヤパッケージII",
+      "diamondBundle3": "ダイヤパッケージIII",
+      "diamondBundle4": "ダイヤパッケージIV"
+    },
+    "viewRewardItem": "報酬アイテム：{{name}}",
     "rewardInfoTitle": "報酬情報",
     "closePanelAria": "パネルを閉じる",
     "close": "閉じる",
@@ -4645,7 +4768,7 @@
       "partner": "パートナー",
       "theirOwner": "相手チームの防衛",
       "accepted": "受け入れる",
-      "waiting": "大気",
+      "waiting": "待機",
       "waitingPeerAccept": "相手の受け入れを待っている…",
       "peerAcceptedPrompt": "相手が受け入れました。 受け入れてください。",
       "waitingOurOwner": "私たちのチームの方長の受け入れを待っています…",
@@ -4866,7 +4989,7 @@
       "hostAria": "主催",
       "readyAria": "準備完了",
       "readyBadge": "準備完了",
-      "waiting": "大気",
+      "waiting": "待機",
       "viewInfo": "情報を見る",
       "viewInfoAria": "情報を見る",
       "kick": "撤退",
@@ -5010,6 +5133,7 @@
       "roomKind": "部屋の種類",
       "changeRoom": "部屋の変更",
       "proposeChange": "変更提案",
+      "leaveRoom": "部屋を出る",
       "matchingShort": "マッチング中",
       "unready": "準備解除",
       "ready": "準備",
@@ -5545,7 +5669,7 @@
       "manage": "管理",
       "viewProfile": "{{name}}プロフィールを見る",
       "totalContribution": "累積貢献",
-      "weeklyContribution": "毎週の貢献",
+      "weeklyContribution": "週間貢献",
       "lastSeen": "最近アクセス",
       "promoteVice": "ブギルド長任命",
       "demoteVice": "ブギルド長解任",

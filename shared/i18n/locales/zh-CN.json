@@ -8,6 +8,7 @@
       "loading": "加载中...",
       "confirm": "查看",
       "back": "后退",
+      "next": "下一个",
       "retry": "再试一次",
       "refresh": "刷新",
       "submit": "提交",
@@ -35,11 +36,11 @@
       "offline": "您已离线。",
       "restored": "服务器连接已恢复。",
       "resyncingGame": "您的游戏信息正在重新同步。",
-      "serverDelayed": "服务器响应延迟。 连接恢复后，您的数据将自动同步。",
-      "requestFailed": "您的请求无法完成。 请检查连接状态并重试。",
-      "reconnectingWait": "正在与服务器重新连接。 请稍等。",
+      "serverDelayed": "服务器响应延迟。连接恢复后，您的数据将自动同步。",
+      "requestFailed": "您的请求无法完成。请检查连接状态并重试。",
+      "reconnectingWait": "正在与服务器重新连接。请稍等。",
       "verifyingConnection": "重新检查服务器连接。",
-      "gameLoadFailed": "无法加载游戏信息。 请检查连接状态并重试。",
+      "gameLoadFailed": "Game information could not be loaded.请检查连接状态并重试。",
       "adminDisconnected": "您的连接已被管理员终止。"
     },
     "errors": {
@@ -56,16 +57,16 @@
       "title": "警报"
     },
     "backAria": "回去",
-    "pointsSuffix": "{{count}}点",
+    "pointsSuffix": "{{count}} 分",
     "installPrompt": {
       "title": "安装应用程序",
-      "body": "安装SUDAM，使用起来更快、更方便。 您可以将快捷方式添加到桌面。",
+      "body": "安装SUDAM，使用起来更快、更方便。您可以将快捷方式添加到桌面。",
       "install": "安装",
       "later": "之后"
     },
     "inAppBrowser": {
       "title": "在浏览器中打开",
-      "body": "KakaoTalk 或 Messenger 中可能会出现屏幕旋转或顶部被切断的问题。 请使用您的默认浏览器（例如 Chrome 或 Safari）进行游戏。",
+      "body": "KakaoTalk 或 Messenger 中可能会出现屏幕旋转或顶部被切断的问题。请使用您的默认浏览器（例如 Chrome 或 Safari）进行游戏。",
       "bodyStrong": "默认浏览器",
       "openExternal": "在外部浏览器中打开",
       "menuHint": "如果该按钮不起作用，请从…菜单中选择“在 Safari/Chrome 中打开”。"
@@ -76,21 +77,21 @@
       "infoButton": "信息",
       "scoreTitle": "{{score}} 分 · {{rank}}"
     },
-    "diamondAria": "钻石{{数量}}",
+    "diamondAria": "直径 {{amount}}",
     "ads": {
       "label": "广告",
-      "bannerPlaceholder": "广告区域（{{宽度}}×{{高度}}）",
+      "bannerPlaceholder": "广告区（{{width}}×{{height}}）",
       "interstitialPlaceholder": "全版广告区（336×280）",
       "cancel": "消除",
       "claimReward": "获得奖励",
-      "claimRewardIn": "{{seconds}}秒后收到奖励",
+      "claimRewardIn": "{{seconds}} 秒后收到奖励",
       "close": "关闭",
-      "skipIn": "{{seconds}} 秒后可以跳过"
+      "skipIn": "可以在 {{seconds}} 秒后跳过"
     },
     "help": {
       "title": "帮助",
       "gameRules": "游戏规则",
-      "modeHowTo": "{{mode}} 玩法",
+      "modeHowTo": "{{mode}} 게임 방법",
       "modeRulesSummary": "按模式划分的规则摘要",
       "strategicLobby": "策略围棋等候室帮助",
       "playfulLobby": "围棋 等候室帮助",
@@ -128,8 +129,8 @@
     "obtain": "哪里可以得到它",
     "noGuide": "没有说明。",
     "countUnit": "{{数数}}",
-    "piecesUnit": "{{数数}}",
-    "pointsUnit": "{{count}}点",
+    "piecesUnit": "{{count}}",
+    "pointsUnit": "{{count}} 分",
     "timesUnit": "{{count}} 次",
     "quickMenuAria": "快捷菜单",
     "helpCenter": "帮助中心",
@@ -153,7 +154,7 @@
     "waitingOpponentConfirm": "等待对方确认...",
     "waitingOpponentConfirmShort": "等待对方确认……",
     "startGame": "比赛开始",
-    "startGameCountdown": "开始比赛 ({{count}})",
+    "startGameCountdown": "游戏开始 ({{count}})",
     "confirmStart": "入门",
     "black": "黑色的",
     "white": "百",
@@ -249,7 +250,7 @@
     "rpsLose": "击败！",
     "rpsTie": "画！",
     "rpsTieRetry": "画！ 又来了！",
-    "rpsTieRandom": "画！ 这是随机决定的。",
+    "rpsTieRandom": "画！ 是随机决定的...",
     "rpsChoiceDone": "选型完成！",
     "rpsWaitingOpponent": "等待{{name}}的选择...",
     "rpsTieWarning": "如果这次出现平局，则随机决定。",
@@ -269,7 +270,7 @@
     "diceAutoStart": "点击下面的开始按钮，否则比赛将在30秒后自动开始。",
     "colorRouletteTitle": "色围棋",
     "uniformColorRoulette": "统一颜色轮盘",
-    "thisGameColor": "本游戏的石头颜色：{{color}}",
+    "thisGameColor": "本场比赛的石头颜色：{{color}}",
     "colorRouletteHint": "黑色和白色的石头快速交替闪烁，然后随机停止。",
     "colorRouletteEnd": "抽签结束后，比赛将自动开始。",
     "colorRouletteProceed": "抽奖结束后将自动保留。",
@@ -441,7 +442,7 @@
       "loginFailed": "登录失败 ({{statusText}})",
       "jsonParseFailed": "服务器响应错误：JSON 解析失败（状态：{{status}}）",
       "noUserInResponse": "服务器响应错误：无法接收用户信息。",
-      "timeout": "No response from the server within 30 seconds.请稍后重试。",
+      "timeout": "服务器在 30 秒内没有响应。 请稍后重试。",
       "networkError": "无法连接到服务器。 请稍后重试或检查SUDAM-API服务状态。",
       "genericResponseError": "服务器响应发生错误。 请稍后重试。",
       "loginError": "登录时发生错误。",
@@ -670,7 +671,7 @@
       "thiefNoOneAria": "阻止 1 (2~5) 个骰子项目，剩余数量 {{count}}",
       "thiefNoOneTitle": "没有出现 1 的骰子（2、3、4、5）。 剩余数量 {{count}}",
       "thiefHigh36UseTitle": "使用高数字（3-6）骰子",
-      "thiefHigh36UseBody": "使用一个仅显示 3、4、5 和 6 的骰子项目。 如果轮到警察，则两个骰子都在此范围内。 您想继续吗？",
+      "thiefHigh36UseBody": "使用一个只能出现 3、4、5 和 6 的骰子项目。 如果轮到警察，则两个骰子都在此范围内。 您想继续吗？",
       "thiefNoOneUseTitle": "使用 1 个预防骰子",
       "thiefNoOneUseBody": "使用一个骰子只能得到 2、3、4 或 5（不可能是 1）。 如果轮到警察，两个骰子都在这个范围内。 您想继续吗？"
     },
@@ -679,28 +680,28 @@
       "rotateSpectatorWhite": "从白方的角度来看",
       "rotate180": "棋盘旋转180度",
       "paused": "打断",
-      "resumeIn": "{{seconds}} 秒后才能恢复",
+      "resumeIn": "距离可以恢复还有 {{seconds}} 秒",
       "turnSwitchIn": "直到回合"
     },
     "turn": {
       "aiHiddenItem": "AI机器人使用了隐藏物品！",
       "monsterHiddenItem": "怪物使用了隐藏物品！",
-      "diceOvershotWithMax": "过头了！ 仅当您的骰子为 {{maxDice}} 或更少时，您才能赢得最后一堆。",
+      "diceOvershotWithMax": "过头了！ 您必须拥有 {{maxDice}} 或更少的骰子才能赢得最后一堆。",
       "diceOvershotNoLiberties": "过头了！ 目前该袋子没有有效位置，因此您无法赢得最后一堆。 请等待下一卷。",
       "lastCaptureBonus": "（最后的虚拟奖励 +{{bonus}} 点）",
-      "lastShowdown": "最后一场比赛！ {{count}} 有效数字",
-      "lastCaptureBonusInline": "（捕获最后一个假人时+{{bonus}} 分）",
+      "lastShowdown": "最后一场比赛！ {{count}} 个有效数字",
+      "lastCaptureBonusInline": "（捕获最后一个假人时+{{bonus}}分）",
       "pairScoringAllPassed": "4 人全部通过，我们继续计数。",
       "scoring": "我们继续计算。",
       "pairPassCount": "通过 {{count}}/4",
       "bothPassedScoring": "双方都通过，开始计票。",
-      "playerPassed": "{{name}} 通过。",
-      "playerTurn": "轮到 {{name}} 了。",
+      "playerPassed": "{{name}} 通过了。",
+      "playerTurn": "轮到{{name}}了。",
       "gameInProgress": "比赛进行中",
       "nigiriInProgress": "石材覆盖正在进行中...",
       "adventureNigiriConfirm": "确认黑白分配后，点击开始游戏。",
       "uniformRoulette": "Ilsaek Baduk — 石材色轮盘赌正在进行中......",
-      "basePlacement": "基石放置 · 每个 {{count}}",
+      "basePlacement": "放置基石·每个 {{count}} 个",
       "baseStoneColorChoice": "选择您喜欢的宝石（黑色/白色）。",
       "baseSameColorBid": "选择相同的棋子——决定你会给对手多少分。",
       "baseGameStartConfirm": "当你按下开始按钮时，比赛就开始了。",
@@ -845,7 +846,7 @@
       "turnLimitLossMsg": "我输了，因为我的回合限制已过。",
       "castleWinMsg": "我拿下了对方的棋子，立刻就赢了。",
       "castleLossMsg": "我输了，因为我的对手抓住了石头。",
-      "checkmateWinMsg": "我通过赢得对手的王来赢得将死。",
+      "checkmateWinMsg": "我通过赢得对手的王而赢得了将死。",
       "checkmateLossMsg": "国王被俘，将死者失利。",
       "timeLossMsg": "时间到了，你就输了。",
       "timeWinMsg": "你的对手的时间耗尽了，你赢了。",
@@ -864,7 +865,7 @@
       "mannerRank": "礼仪课",
       "starsEarned": "赢得星星",
       "starsEarnedAria": "赢得了 {{count}} 颗星星",
-      "petGradeUpgradeNeeded": "宠物类需要加强",
+      "petGradeUpgradeNeeded": "宠物等级需要加强",
       "representativePet": "代表宠物",
       "addedStats": "新增能力",
       "vipSlotReward": "VIP老虎机奖励",
@@ -926,7 +927,7 @@
         "byoyomiCount": "{{count}} 次 {{seconds}} 秒",
         "mixRules": "组合规则",
         "forbid33": "没有双胞胎",
-        "forbidOverline": "不允许记录",
+        "forbidOverline": "没有原木",
         "forbidden": "禁止",
         "allowed": "可能的",
         "captureTarget": "目标分数",
@@ -989,7 +990,7 @@
     },
     "messages": {
       "boardSyncLoading": "加载棋盘信息。 请稍等",
-      "koRuleFlash": "它的形状像一块牌匾。 바로 다시 따낼 수 없습니다。",
+      "koRuleFlash": "它的形状像一块牌匾。 你不可能马上再次获胜。",
       "hiddenPlacementDelay": "在屏幕上做出对手看不到的动作。",
       "missileDirectionDelay": "将围棋石发送到所需的方向",
       "scanTargetDelay": "拍摄对手可能藏有石头的位置的照片。",
@@ -1336,7 +1337,7 @@
       "useItem": "使用"
     },
     "pveControls": {
-      "retryFailed": "我再试一次失败了。 请再试一次。",
+      "retryFailed": "重试失败。 请再试一次。",
       "nextStageFailed": "无法启动下一层。 请再试一次。",
       "nextStepFailed": "无法开始下一步。 请再试一次。",
       "resignConfirmTitle": "弃权确认"
@@ -1882,7 +1883,7 @@
       "lastDummyBonus": "最后一堆+{{奖金}}",
       "alkkagiKnockout": "昏死",
       "playerFallback": "玩家",
-      "waitingOpponentConfirm": "等待合作伙伴确认",
+      "waitingOpponentConfirm": "等待对手确认",
       "house": "房子",
       "knockout": "昏死",
       "roundResultBoard": "回合结果板"
@@ -2244,7 +2245,7 @@
         "peerAcceptedPleaseAccept": "对方接受了。 请接受。",
         "reject": "拒绝",
         "cancelHint": "如果您拒绝或未及时接受，您的比赛将被取消。",
-        "priorityHint": "如果您已经接受，如果对方拒绝或超时，则匹配的等待状态和优先级将保持。"
+        "priorityHint": "如果您已经接受，如果对方拒绝或超时，匹配的等待状态和优先级将保持。"
       },
       "panelTitle": "排名赛",
       "matching": "匹配...",
@@ -2710,6 +2711,7 @@
     "comingSoon": "预定开放",
     "entryBlocked": "禁止驶入",
     "viewStats": "查看详细记录",
+    "detailedStatsBtn": "详细记录",
     "viewAll": "查看全部",
     "totalRecord": "总记录",
     "totalRecordCompact": "{{wins}}获胜{{losses}}损失{{winRate}}%",
@@ -2726,7 +2728,7 @@
     "pair": "一对",
     "adventure": "冒险",
     "arenaEnterAria": "{{title}} 体育场入口",
-    "enterAria": "{{title}}入口",
+    "enterAria": "{{title}}条目",
     "strategicLobbyEnter": "进入战略性的 Go 等候室",
     "strategicLobbyAlt": "策略 去等候室",
     "pairArenaEnter": "公平体育场入场",
@@ -2747,7 +2749,7 @@
       "pvpTitle": "PVP赛场详细记录",
       "strategicTitle": "策略围棋详细记录",
       "playfulTitle": "围棋详细记录",
-      "strategicAll": "策略 全力以赴",
+      "strategicAll": "策略围棋全部",
       "playfulAll": "围棋完整",
       "seasonResetNote": "当重置你的PVP记录时，你的赛季排名分数也会被重置。",
       "noPairRanking": "围棋没有排名系统。",
@@ -2902,7 +2904,7 @@
       "applyChatBan": "已应用聊天禁令",
       "releaseChatBan": "解除聊天禁令",
       "applyConnectionBan": "申请访问禁令",
-      "releaseConnectionBan": "解除连接禁止",
+      "releaseConnectionBan": "解除访问禁令",
       "chatBanMinutes": "禁止聊天（分钟）",
       "connectionBanMinutes": "禁止访问（分钟）",
       "sanctionReason": "制裁原因",
@@ -2986,7 +2988,7 @@
       "expired": "已到期",
       "remaining": "剩余 {{duration}}",
       "durationDays": "{{天}}天",
-      "durationHours": "{{hours}} 小时",
+      "durationHours": "{{小时}}小时",
       "durationMinutes": "{{分钟}} 分钟",
       "borderCategories": {
         "basic": "基本的",
@@ -3129,7 +3131,7 @@
       "opponentGoStyle": "对手的围棋倾向",
       "strengths": "力量",
       "weaknesses": "弱点",
-      "setMbtiHint": "如果您设置了MBTI，您可以看到与您的合作伙伴的兼容性分析。",
+      "setMbtiHint": "通过设置你的MBTI，你可以看到与你的伴侣的兼容性分析。",
       "title": "MBTI比较",
       "notSetBoth": "双方都没有设置 MBTI。",
       "opponentNotSet": "对方的MBTI尚未设置。",
@@ -3498,6 +3500,54 @@
       "remove_ads_2": "无需商店奖励广告即可获得相同的奖励（维持每日限额）"
     },
     "items": {
+      "equipment_box_1": {
+        "name": "装备箱一",
+        "description": "获得普通到稀有等级的装备"
+      },
+      "equipment_box_2": {
+        "name": "装备箱二",
+        "description": "获得普通到史诗级装备"
+      },
+      "equipment_box_3": {
+        "name": "装备箱III",
+        "description": "获得进阶至传奇级装备"
+      },
+      "equipment_box_4": {
+        "name": "装备箱IV",
+        "description": "获得稀有到神话级的装备"
+      },
+      "equipment_box_5": {
+        "name": "装备箱V",
+        "description": "获得史诗级至神话级装备"
+      },
+      "equipment_box_6": {
+        "name": "装备箱六",
+        "description": "获得传奇级至神话级装备"
+      },
+      "material_box_1": {
+        "name": "材料盒一",
+        "description": "获得 5 个从低到高的强化石"
+      },
+      "material_box_2": {
+        "name": "材料盒二",
+        "description": "获得 5 个从低到高的强化石"
+      },
+      "material_box_3": {
+        "name": "材料盒三",
+        "description": "获得 5 个从低到高的强化石"
+      },
+      "material_box_4": {
+        "name": "材料盒四",
+        "description": "获得5个中级至高级强化石"
+      },
+      "material_box_5": {
+        "name": "材料盒五",
+        "description": "进阶～获得 5 颗神秘强化石"
+      },
+      "material_box_6": {
+        "name": "材料盒六",
+        "description": "进阶～获得 5 颗神秘强化石"
+      },
       "equipment_unbind_ticket": {
         "name": "取消归属权",
         "description": "将绑定装备状态改为可交易。"
@@ -3505,6 +3555,30 @@
       "refinement_charm": {
         "name": "熔炼护身符",
         "description": "无法熔炼的装备额外增加1个精炼次数"
+      },
+      "option_type_change_ticket": {
+        "name": "更改选项类型的权利",
+        "description": "这是一个可以将装备的主选项、子选项或特殊选项之一更改为不同类型选项的项目。"
+      },
+      "option_value_change_ticket": {
+        "name": "期权价值变更票",
+        "description": "这是一个可以改变设备的子选项或特殊选项之一的值的项目。"
+      },
+      "mythic_option_change_ticket": {
+        "name": "特别选项变更票",
+        "description": "该项目允许您将神话或超凡装备的特殊选项更改为其他特殊选项。"
+      },
+      "condition_potion_small": {
+        "name": "状态恢复剂（小）",
+        "description": "缓解紧张的状态恢复剂"
+      },
+      "condition_potion_medium": {
+        "name": "状态恢复剂（中）",
+        "description": "一种让您的头脑感觉更清醒的状态恢复剂。"
+      },
+      "condition_potion_large": {
+        "name": "状态恢复剂（大）",
+        "description": "一种状态恢复剂，将帮助您今天成功参加比赛。"
       },
       "action_point_10": {
         "name": "行动恢复药水（+10）",
@@ -3530,7 +3604,7 @@
     "claimExpired": "赎回期限已过，您无法获得补偿。 如有必要，您可以删除此邮件。",
     "actionPoints": "{{count}} 行动力",
     "guildCoins": "{{count}} 公会币",
-    "gold": "{{金额}}金币",
+    "gold": "{{金额}} 金币",
     "diamonds": "{{数量}}钻石",
     "packageLine": "包裹{{名称}} × {{数量}}",
     "delete": "删除",
@@ -3725,7 +3799,7 @@
       "productDetailAria": "购买产品详情",
       "decreaseAria": "减少一个值",
       "increaseAria": "增加一个值",
-      "maxOwned": "您无法购买，因为库存商品数量已达到上限。",
+      "maxOwned": "您无法购买，因为您的库存商品数量已达到上限。",
       "dailyLimit": "您今天已达到购买限额。",
       "maxPurchase": "最大购买量：{{count}}",
       "dailyRemaining": "每日剩余可购买数量：{{count}}",
@@ -4021,7 +4095,7 @@
       "salePrice": "销售价格",
       "fee": "收费",
       "netAmount": "收到金额",
-      "status": "地位",
+      "status": "情况",
       "dateTime": "日期/时间",
       "price": "价格",
       "selectedItem": "选修的",
@@ -4041,7 +4115,21 @@
       "settlementReceived": "结算收据",
       "tradeTicket": "交易登记权",
       "keep": "维持",
-      "purchaseCompleteMessage": "您的购买已完成。"
+      "purchaseCompleteMessage": "您的购买已完成。",
+      "noListings": "没有已注册的待售商品。",
+      "myListingBadge": "我的注册",
+      "registering": "注册",
+      "expired": "已到期",
+      "recoverCooldown": "您可以在 {{seconds}} 秒后再次检索它。",
+      "recover": "收集",
+      "cancelSale": "取消销售",
+      "noSettlement": "没有可供结算的销售记录。",
+      "claimSelected": "选择您的选择",
+      "claimAll": "全部接收",
+      "noSettlementPending": "没有等待结算的项目。",
+      "totalHistoryCount": "总交易历史记录 {{count}}",
+      "statusLabel": "情况",
+      "noHistory": "没有交易历史。"
     },
     "sort": {
       "label": "大批",
@@ -4093,6 +4181,9 @@
     "playerLoadError": "加载玩家信息时发生错误。",
     "playerWaiting": "玩家等待...",
     "playerLoadFailed": "无法加载玩家信息。",
+    "loadingTournament": "正在加载比赛信息...",
+    "loadingUserInfo": "正在加载用户信息...",
+    "nextMatchPreparing": "准备下一场比赛... {{倒计时}}",
     "defaultPlayer": "玩家",
     "me": "我",
     "opponent": "对手",
@@ -4256,7 +4347,9 @@
         "equipmentBox": "设备箱",
         "changeTicket": "变更权",
         "special": "特别的",
-        "limitLabel": "限制"
+        "limitLabel": "限制",
+        "weeklyCountShort": "（每周{{剩余}}/{{限制}}）",
+        "equipmentBoxInfoSuffix": "获取设备。 必须包括特殊选项以提高冠军能力"
       },
       "ranking": {
         "viewProfile": "查看{{name}}个人资料",
@@ -4561,6 +4654,36 @@
     "myRecord": "我的记录",
     "rankingInfo": "排名信息",
     "ownedItems": "拥有的物品",
+    "inventoryItems": {
+      "turnAdd": "添加转弯",
+      "missile": "导弹",
+      "hidden": "隐",
+      "scan": "扫描",
+      "refresh": "布局变更"
+    },
+    "rewardItems": {
+      "equipmentBox1": "装备箱一",
+      "equipmentBox2": "装备箱二",
+      "equipmentBox3": "装备箱III",
+      "equipmentBox4": "装备箱IV",
+      "equipmentBox5": "装备箱V",
+      "equipmentBox6": "装备箱六",
+      "materialBox1": "材料盒一",
+      "materialBox2": "材料盒二",
+      "materialBox3": "材料盒三",
+      "materialBox4": "材料盒四",
+      "materialBox5": "材料盒五",
+      "materialBox6": "材料盒六",
+      "goldBundle1": "黄金捆绑包一",
+      "goldBundle2": "黄金礼包 II",
+      "goldBundle3": "黄金捆绑包 III",
+      "goldBundle4": "黄金礼包 IV",
+      "diamondBundle1": "钻石套餐一",
+      "diamondBundle2": "钻石捆绑包 II",
+      "diamondBundle3": "钻石捆绑包 III",
+      "diamondBundle4": "钻石套装 IV"
+    },
+    "viewRewardItem": "奖励物品：{{name}}",
     "rewardInfoTitle": "补偿信息",
     "closePanelAria": "关闭面板",
     "close": "关闭",
@@ -4572,7 +4695,7 @@
     "rewardFromFloor10Short": "当您清除 10 层或更多楼层时，您可以获得每月奖励。",
     "stages": "阶段",
     "rankingTop100": "排名前100名",
-    "rewardTierLine": "{{floor}}楼段补偿款 · 月底结算时支付",
+    "rewardTierLine": "{{floor}}楼段补偿费 · 月底结算时支付",
     "unranked": "除了排名之外",
     "noOtherRanked": "前100名中没有列出其他排名。",
     "rewardModalTitle": "挑战之塔奖励信息",
@@ -4797,7 +4920,7 @@
       "baseStatIncrease": "基础能力增加",
       "percentTen": "+10%",
       "nextGradeLevelUpBudget": "在下一个年级部分升级宠物时自动分配能力",
-      "dispositionBoost": "强化趋势",
+      "dispositionBoost": "强化倾向",
       "requiredMaterials": "所需材料",
       "ownedCount": "拥有 <owned>{{owned}}</owned><sep> / 需要 </sep><need>{{need}}</need>",
       "soulInsufficientInline": "我的灵魂石快用完了。",
@@ -4826,14 +4949,14 @@
       "petShopTag": "[宠物店]",
       "noMatchingSlot": "没有这个插槽",
       "usedForGradeUpgrade": "用于提升等级",
-      "petLevelMin": "· 宠物 Lv.{{level}} 或更高",
+      "petLevelMin": "· 宠物Lv.{{level}}以上",
       "noMatchingGrade": "无可用评级",
       "notSold": "没有销售",
       "sell": "销售",
       "bulkSell": "批量销售",
-      "slotList": "[插槽 {{slots}}]",
-      "diamondPrice": "[直径 {{price}}]",
-      "goldPrice": "[金 {{price}}]",
+      "slotList": "[插槽{{插槽}}]",
+      "diamondPrice": "[钻石{{价格}}]",
+      "goldPrice": "[黄金{{价格}}]",
       "dailyLimitPrice": "{{price}} [每天{{limit}} 次]"
     },
     "invite": {
@@ -4860,7 +4983,7 @@
       "detailConditions": "详细条件",
       "noDetailConditions": "无详细条件",
       "inviteExpired": "邀请时间已过。",
-      "responseWaiting": "等待响应 {{seconds}} 秒后自动取消"
+      "responseWaiting": "等待响应 · {{seconds}} 秒后自动取消"
     },
     "room": {
       "hostAria": "主办者",
@@ -5010,6 +5133,7 @@
       "roomKind": "房型",
       "changeRoom": "更衣室",
       "proposeChange": "改变建议",
+      "leaveRoom": "离开房间",
       "matchingShort": "匹配",
       "unready": "未准备好",
       "ready": "准备",
@@ -5302,7 +5426,7 @@
     "casualTag": "友谊赛",
     "casualTitle": "友谊赛",
     "casualDesc": "本场比赛是一场友谊赛。 排名分数没有变化。",
-    "actionPointNotice": "当确认比赛时，双方都会消耗行动力⚡{{cost}}。 如果接受/AI启动时不够，则会打开行为电源管理窗口。",
+    "actionPointNotice": "当确认比赛时，双方都会消耗行动力⚡{{cost}}。 如果启动时接受度/AI 不足，则会打开行为电源管理窗口。",
     "titleAi": "{{prefix}}{{mode}} AI 匹配设置",
     "titleRematch": "{{prefix}}重赛设置（{{mode}}）",
     "titleDefault": "{{prefix}}匹配设置（{{mode}}）",
@@ -5495,7 +5619,7 @@
       "failed": "捐赠失败。",
       "ownedGold": "持有黄金：{{amount}}",
       "noHistory": "没有捐赠历史。",
-      "goldUnit": "{{金额}}金币",
+      "goldUnit": "{{金额}} 金币",
       "error": "捐赠时发生错误。",
       "goldDonation": "黄金捐赠",
       "diamondDonation": "钻石捐赠",
@@ -5509,7 +5633,7 @@
       "maxInput": "输入最大值（Max）",
       "donationTitle": "{{type}}捐赠",
       "coinAlt": "硬币",
-      "logTooltip": "{{昵称}} · 黄金 {{goldCount}} 次 · 钻石 {{diamondCount}} 次 · 公会金币 {{coins}} · RP {{研究}}"
+      "logTooltip": "{{昵称}} · 金币 {{goldCount}} 次 · 钻石 {{diamondCount}} 次 · 公会金币 {{coins}} · RP {{研究}}"
     },
     "info": {
       "title": "公会信息",
@@ -5609,7 +5733,7 @@
       "startConfirm": "您想开始研究级别 [{{name}}] {{level}} 吗？ \n\n所需积分：{{cost}} RP\n预计时间：{{time}}",
       "chancePrefix": "[{{机会}}% 概率]",
       "categoryDevelopment": "公会进步",
-      "categoryBoss": "老板打架",
+      "categoryBoss": "老板之战",
       "categoryStats": "能力增强",
       "categoryRewards": "增加奖励",
       "apRegenEffect": "动作恢复时间 -{{sec}} 秒",
@@ -5824,30 +5948,30 @@
       "demoAttemptsDisabled": "在演示模式下不可用。",
       "defaultGuildName": "公会",
       "daysHoursRemaining": "{{prefix}} {{days}} 天 {{hours}} 小时",
-      "hoursMinutesRemaining": "{{prefix}} {{hours}} 小时 {{minutes}} 分钟",
-      "minutesRemaining": "{{prefix}} {{minutes}} 分钟",
-      "mainTimeByoyomi": "{{minutes}}min · 允许 10 秒",
+      "hoursMinutesRemaining": "{{前缀}} {{小时}} 小时 {{分钟}} 分钟",
+      "minutesRemaining": "{{prefix}} {{分钟}} 分钟",
+      "mainTimeByoyomi": "{{分钟}} 分钟 · 允许 10 秒",
       "attemptsCount": "{{count}} 次"
     },
     "boss": {
       "title": "公会Boss战",
       "guide": "老板百科",
       "guideTitle": "公会老大百科",
-      "stage": "{{stage}}步骤",
+      "stage": "{{阶段}}阶段",
       "bossSkillsAria": "首领技能",
       "participants": "参加公会成员",
       "myRecord": "我的记录",
       "ranking": "排行",
-      "rankPlace": "以上 {{rank}}",
+      "rankPlace": "{{秩}}",
       "totalDamage": "总伤害",
       "currentRank": "目前排名",
-      "rankAmong": "在 {{total}} 人中排名 {{rank}}",
+      "rankAmong": "{{rank}}（共 {{total}} 人）",
       "allTimeBest": "有史以来最好的",
       "allTimeBestRecord": "历史记录",
       "ticketAlt": "Boss 战门票",
       "enter": "位置",
       "participantRecords": "参与公会成员记录",
-      "rankNickname": "{{rank}}向上 · {{nickname}}",
+      "rankNickname": "{{排名}} · {{昵称}}",
       "noParticipantRecords": "还没有参与记录。",
       "strategyGuide": "策略指南",
       "mainSkills": "主要技能",
@@ -5998,7 +6122,7 @@
     },
     "shopLegacy": {
       "empty": "没有出售物品。",
-      "goldPrice": "{{价格}}黄金",
+      "goldPrice": "{{价格}} 黄金",
       "stock": "库存：{{剩余}}/{{总计}}",
       "purchase": "购买",
       "purchaseFailed": "您购买失败。"

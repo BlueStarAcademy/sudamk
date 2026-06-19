@@ -8,6 +8,7 @@
       "loading": "Yükleniyor...",
       "confirm": "kontrol etmek",
       "back": "geri",
+      "next": "Sonraki",
       "retry": "tekrar deneyin",
       "refresh": "yenileme",
       "submit": "göndermek",
@@ -2710,6 +2711,7 @@
     "comingSoon": "Açılması planlanıyor",
     "entryBlocked": "Girilmez",
     "viewStats": "Ayrıntılı kayıtları görüntüle",
+    "detailedStatsBtn": "Ayrıntılı kayıt",
     "viewAll": "Tümünü gör",
     "totalRecord": "toplam kayıt",
     "totalRecordCompact": "{{wins}}Kazanç{{loses}}Zarar %{{winRate}}",
@@ -3498,6 +3500,54 @@
       "remove_ads_2": "Mağaza ödüllü reklamlar olmadan aynı ödülleri alın (günlük limit korunarak)"
     },
     "items": {
+      "equipment_box_1": {
+        "name": "Ekipman Kutusu I",
+        "description": "Nadir dereceli ekipmanlar için ortak edinin"
+      },
+      "equipment_box_2": {
+        "name": "Ekipman Kutusu II",
+        "description": "Normal ila epik dereceli ekipmanlar edinin"
+      },
+      "equipment_box_3": {
+        "name": "Ekipman Kutusu III",
+        "description": "Gelişmiş ve efsanevi sınıf ekipmanlara sahip olun"
+      },
+      "equipment_box_4": {
+        "name": "Ekipman Kutusu IV",
+        "description": "Nadirden efsanevi seviyeye kadar ekipmanlar edinin"
+      },
+      "equipment_box_5": {
+        "name": "Ekipman Kutusu V",
+        "description": "Efsanevi seviyeden destansı ekipmanlara sahip olun"
+      },
+      "equipment_box_6": {
+        "name": "Ekipman Kutusu VI",
+        "description": "Efsanevi seviyeden efsanevi seviyeye kadar ekipmanlar edinin"
+      },
+      "material_box_1": {
+        "name": "Malzeme Kutusu I",
+        "description": "5 düşükten yükseğe yükseltme taşı edinin"
+      },
+      "material_box_2": {
+        "name": "Malzeme Kutusu II",
+        "description": "5 düşükten yükseğe yükseltme taşı edinin"
+      },
+      "material_box_3": {
+        "name": "Malzeme Kutusu III",
+        "description": "5 düşükten yükseğe yükseltme taşı edinin"
+      },
+      "material_box_4": {
+        "name": "Malzeme Kutusu IV",
+        "description": "5 orta ila en yüksek seviye takviye taşı elde edin"
+      },
+      "material_box_5": {
+        "name": "Malzeme Kutusu V",
+        "description": "Gelişmiş ~ 5 Gizemli Yükseltme Taşı edinin"
+      },
+      "material_box_6": {
+        "name": "Malzeme Kutusu VI",
+        "description": "Gelişmiş ~ 5 Gizemli Yükseltme Taşı edinin"
+      },
       "equipment_unbind_ticket": {
         "name": "Atıfın iptal edilmesi hakkı",
         "description": "Bağlı ekipmanın durumunu takas edilebilir olarak değiştirin."
@@ -3505,6 +3555,30 @@
       "refinement_charm": {
         "name": "Eritme Muskası",
         "description": "Eritilemeyen ekipman için 1 ilave arıtma sayımı ekleyin"
+      },
+      "option_type_change_ticket": {
+        "name": "Seçenek türünü değiştirme hakkı",
+        "description": "Bu, ekipmanın ana seçeneklerinden, alt seçeneklerinden veya özel seçeneklerinden birini farklı türde bir seçeneğe dönüştürebilen bir öğedir."
+      },
+      "option_value_change_ticket": {
+        "name": "Seçenek değeri değişikliği bileti",
+        "description": "Bu, ekipmanın alt seçeneklerinden veya özel seçeneklerden birinin değerini değiştirebilen bir öğedir."
+      },
+      "mythic_option_change_ticket": {
+        "name": "Özel seçenek değişiklik bileti",
+        "description": "Bu öğe, efsanevi veya aşkın ekipmanın özel seçeneklerini diğer özel seçeneklerle değiştirmenize olanak sağlar."
+      },
+      "condition_potion_small": {
+        "name": "Durum iyileştirme maddesi (küçük)",
+        "description": "Gerginliği azaltan durum iyileştirme maddesi"
+      },
+      "condition_potion_medium": {
+        "name": "Durum iyileştirme maddesi (orta)",
+        "description": "Kafanızı daha net hissettiren bir durum iyileştirme maddesi."
+      },
+      "condition_potion_large": {
+        "name": "Durum kurtarma maddesi (büyük)",
+        "description": "Bugün başarılı bir şekilde rekabet etmenize yardımcı olacak bir durum iyileştirme aracısı."
       },
       "action_point_10": {
         "name": "Aksiyon kurtarma iksiri (+10)",
@@ -3630,7 +3704,7 @@
     "equippedGear": "montaj ekipmanı",
     "noItemSelected": "Hiçbir öğe seçilmedi",
     "noEquippedGear": "Hiçbir ekipman takılmadı",
-    "enhance": "zorlamak",
+    "enhance": "uygulamak",
     "maxEnhance": "maksimum takviye",
     "maxShort": "maksimum",
     "expandBag": "çanta genişletme",
@@ -3675,7 +3749,7 @@
     },
     "bindModal": {
       "line1": "Ekipman bağlıdır ve borsada satılamaz.",
-      "line2": "Borsada satış yapabilmek için atıftan vazgeçme hakkını kullanmanız gerekmektedir.",
+      "line2": "Borsada satış yapabilmek için borç kapatma hakkını kullanmanız gerekmektedir.",
       "unbindDesc": "Ekipmanın kilidini açarsanız, onu borsada satmak mümkün hale gelir."
     },
     "presetSavedTitle": "Ön ayarı kaydet",
@@ -4041,7 +4115,21 @@
       "settlementReceived": "Ödeme makbuzu",
       "tradeTicket": "ticari kayıt hakları",
       "keep": "sürdürmek",
-      "purchaseCompleteMessage": "Satın alma işleminiz tamamlandı."
+      "purchaseCompleteMessage": "Satın alma işleminiz tamamlandı.",
+      "noListings": "Satılık kayıtlı ürün bulunmamaktadır.",
+      "myListingBadge": "kaydım",
+      "registering": "Kaydediliyor",
+      "expired": "günü geçmiş",
+      "recoverCooldown": "{{seconds}} saniye içinde tekrar alabilirsiniz.",
+      "recover": "TOPLAMAK",
+      "cancelSale": "Satışı iptal et",
+      "noSettlement": "Takas edilebilecek satış kaydı bulunmamaktadır.",
+      "claimSelected": "Seçiminizi alın",
+      "claimAll": "Hepsini al",
+      "noSettlementPending": "Ödemeyi bekleyen herhangi bir öğe bulunmamaktadır.",
+      "totalHistoryCount": "Toplam işlem geçmişi: {{count}}",
+      "statusLabel": "durum",
+      "noHistory": "İşlem geçmişi yok."
     },
     "sort": {
       "label": "sıralamak",
@@ -4093,6 +4181,9 @@
     "playerLoadError": "Oyuncu bilgileri yüklenirken bir hata oluştu.",
     "playerWaiting": "Oyuncu bekleniyor...",
     "playerLoadFailed": "Oyuncu bilgileri yüklenemedi.",
+    "loadingTournament": "Turnuva bilgileri yükleniyor...",
+    "loadingUserInfo": "Kullanıcı bilgileri yükleniyor...",
+    "nextMatchPreparing": "Bir sonraki maça hazırlanıyoruz... {{geri sayım}}",
     "defaultPlayer": "oyuncu",
     "me": "Ben",
     "opponent": "rakip",
@@ -4145,7 +4236,7 @@
       "phaseMidLabel": "oyun ortası",
       "phaseEndLabel": "oyun sonu",
       "phaseEarlyStart": "Mücadelenin ilk yarısı başladı. İlk savaşın taş döşemelerine ve akışına bir göz atalım.",
-      "phaseMidStart": "Oyun ortası maçı başladı. Merkezde mücadele ve mevki mücadelesi daha da kızışıyor.",
+      "phaseMidStart": "Oyunun ortası başladı. Merkezde mücadele ve mevki mücadelesi daha da kızışıyor.",
       "phaseEndStart": "Oyunun sonu başladı. Ev hesaplamaları ve detaylı kar ve zarar önem kazanıyor.",
       "defaultRound": "mevcut tur",
       "defaultPlayer1": "oyuncu 1",
@@ -4256,7 +4347,9 @@
         "equipmentBox": "ekipman kutusu",
         "changeTicket": "değişiklik hakkı",
         "special": "özel",
-        "limitLabel": "sınır"
+        "limitLabel": "sınır",
+        "weeklyCountShort": "(Haftalık {{kalan}}/{{limit}})",
+        "equipmentBoxInfoSuffix": "Ekipman edinin. Şampiyonluk yeteneğini artırmak için özel seçenek içermelidir"
       },
       "ranking": {
         "viewProfile": "{{name}} profilini görüntüle",
@@ -4561,6 +4654,36 @@
     "myRecord": "kayıtlarım",
     "rankingInfo": "Sıralama bilgileri",
     "ownedItems": "Sahip olunan öğeler",
+    "inventoryItems": {
+      "turnAdd": "Sıra Ekle",
+      "missile": "füze",
+      "hidden": "Gizlenmiş",
+      "scan": "tarama",
+      "refresh": "Düzen değişikliği"
+    },
+    "rewardItems": {
+      "equipmentBox1": "Ekipman Kutusu I",
+      "equipmentBox2": "Ekipman Kutusu II",
+      "equipmentBox3": "Ekipman Kutusu III",
+      "equipmentBox4": "Ekipman Kutusu IV",
+      "equipmentBox5": "Ekipman Kutusu V",
+      "equipmentBox6": "Ekipman Kutusu VI",
+      "materialBox1": "Malzeme Kutusu I",
+      "materialBox2": "Malzeme Kutusu II",
+      "materialBox3": "Malzeme Kutusu III",
+      "materialBox4": "Malzeme Kutusu IV",
+      "materialBox5": "Malzeme Kutusu V",
+      "materialBox6": "Malzeme Kutusu VI",
+      "goldBundle1": "Altın Paket I",
+      "goldBundle2": "Altın Paketi II",
+      "goldBundle3": "Altın Paketi III",
+      "goldBundle4": "Altın Paketi IV",
+      "diamondBundle1": "Elmas Paket I",
+      "diamondBundle2": "Elmas Paketi II",
+      "diamondBundle3": "Elmas Paketi III",
+      "diamondBundle4": "Elmas Paketi IV"
+    },
+    "viewRewardItem": "Ödül Öğesi: {{name}}",
     "rewardInfoTitle": "Tazminat bilgisi",
     "closePanelAria": "Paneli kapat",
     "close": "kapalı",
@@ -4724,7 +4847,7 @@
       "ownedEggs": "yumurta tutmak",
       "onePerHatch": "1 yumurtadan çıktıktan sonra",
       "totalEggs": "Toplam {{count}}",
-      "consumeOnePerHatch": "Yumurtadan çıktıktan sonra 1 tüketir",
+      "consumeOnePerHatch": "Kuluçkadan çıktıktan sonra 1 tüketir",
       "petLevelOnHatch": "Kuluçkadan çıkan evcil hayvan seviyesi: 5",
       "hatchDuration": "Kuluçka Süresi: {{duration}}",
       "startAction": "başlangıç",
@@ -4779,7 +4902,7 @@
       "soulInsufficient": "Yetersiz {{name}}. {{need}} gerekiyor ({{owner}}'ya sahip)",
       "soulInsufficientShort": "Yetersiz {{name}}. ({{need}} gerekiyor, {{owner}} sahibi olun)",
       "soulStoneFallback": "ruh taşı",
-      "soulCostTitle": "{{name}} {{count}} tüketin ve seviyeyi artırın",
+      "soulCostTitle": "{{name}} {{count}} birim tüket · Seviye artışı",
       "soulCostTitleMinLevel": "Seviyenizi Lv.{{level}} veya daha yüksek seviyede güçlendirebilirsiniz.",
       "cannotWhileTraining": "Eğitimdeki evcil hayvanlar yükseltilemez. Lütfen eğitiminizi tamamladıktan sonra kullanın.",
       "cannotWhileTrainingShort": "Eğitimdeki evcil hayvanlar yükseltilemez.",
@@ -5010,6 +5133,7 @@
       "roomKind": "oda tipi",
       "changeRoom": "odayı değiştir",
       "proposeChange": "öneriyi değiştir",
+      "leaveRoom": "odayı terk et",
       "matchingShort": "Eşleştirme",
       "unready": "hazırlıksız",
       "ready": "hazırlık",
@@ -5114,7 +5238,7 @@
     },
     "pickHints": {
       "enhance": "Modda güçlendirilecek ekipmanı seçin ve ardından güçlendirme ekranına geçmek için Seçim Tamamlandı'ya basın.",
-      "combine": "Modal içerisine aynı derecedeki 3 adet ekipmanı yerleştirip ardından Seçim Tamamlandı tuşuna bastığınızda sentez ekranına yönlendirileceksiniz.",
+      "combine": "Modal içerisine aynı derecedeki 3 adet ekipmanı yerleştirip ardından Seçim Tamamlandı tuşuna basarsanız sentez ekranına yönlendirileceksiniz.",
       "disassemble": "Modelde sökülecek ekipmanı seçin ve ardından sökme ekranına geçmek için Seçim Tamamlandı tuşuna basın.",
       "refine": "Modalda ergitilecek ekipmanı seçip Seçimi Tamamla seçeneğine tıkladıktan sonra ergitme ekranına yönlendirileceksiniz."
     },
@@ -5798,7 +5922,7 @@
       "myArenaHint": "Aşağıda uzayın bu savaşta oynadığı son maçların bir özeti bulunmaktadır. Devam eden basımlar sona erdikten sonra ayrıntılı listeye yansıtılacaktır.",
       "boardPerformance": "Stadyuma göre performans",
       "inProgress": "Devam etmekte",
-      "gameSummary": "{{games}} biter · Galibiyetler {{galibiyetler}} · Beraberlik {{berabereler}} · Mağlubiyetler {{mağlubiyetler}}{{stars}}",
+      "gameSummary": "{{games}} turu bitirin · Galibiyetler {{galibiyetler}} · Beraberlik {{berabereler}} · Mağlubiyetler {{mağlubiyetler}}{{stars}}",
       "starsEarnedSum": "· Edinime göre toplam {{count}}",
       "noBoardRecord": "Bu savaşta bu kompartımanın hiçbir kaydı yok.",
       "finishedGamesDetail": "Maç sonu ayrıntıları",

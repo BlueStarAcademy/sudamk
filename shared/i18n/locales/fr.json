@@ -8,6 +8,7 @@
       "loading": "Chargement...",
       "confirm": "vérifier",
       "back": "dos",
+      "next": "suivant",
       "retry": "essayer à nouveau",
       "refresh": "rafraîchir",
       "submit": "soumettre",
@@ -202,7 +203,7 @@
     "coreStatsTotal": "Total de 6 capacités de base",
     "coreStatsHexAria": "Graphique de capacité hexagonale",
     "mannerScore": "manière de marquer",
-    "rankScore": "score de classement",
+    "rankScore": "note de classement",
     "rankScoreChange": "Modifications du score de classement",
     "noData": "aucune donnée",
     "loading": "Chargement...",
@@ -249,7 +250,7 @@
     "rpsLose": "défaite!",
     "rpsTie": "dessiner!",
     "rpsTieRetry": "dessiner! encore une fois !",
-    "rpsTieRandom": "dessiner! Cela se décide au hasard.",
+    "rpsTieRandom": "dessiner! Cela se décide au hasard...",
     "rpsChoiceDone": "Sélection terminée !",
     "rpsWaitingOpponent": "En attente du choix de {{name}}...",
     "rpsTieWarning": "En cas d’égalité cette fois-ci, le départ sera fait au hasard.",
@@ -519,7 +520,7 @@
   },
   "gameModes": {
     "standard": "badouk classique",
-    "capture": "Baduk gagnant",
+    "capture": "baduk gagnant",
     "speed": "vitesse baduk",
     "base": "base badouk",
     "hidden": "Baduk caché",
@@ -665,7 +666,7 @@
       "stoneRefreshTitle": "déplacement de pierre",
       "rematch": "revanche",
       "rematchApplying": "Candidature",
-      "thiefHigh36Aria": "Nombre élevé d'éléments de dés (3-6), nombre restant {{count}}",
+      "thiefHigh36Aria": "Nombre élevé (3-6) d'éléments de dés, nombre restant {{count}}",
       "thiefHigh36Title": "Un dé qui n'affiche que des nombres élevés (3, 4, 5, 6). Nombre restant {{count}}",
       "thiefNoOneAria": "Empêchez 1 (2 ~ 5) objets de dés, nombre restant {{count}}",
       "thiefNoOneTitle": "Dés qui ne donnent pas de 1 (2, 3, 4, 5). Nombre restant {{count}}",
@@ -845,7 +846,7 @@
       "turnLimitLossMsg": "J'ai perdu parce que ma limite de tours était dépassée.",
       "castleWinMsg": "J'ai gagné la pierre de l'adversaire et j'ai gagné immédiatement.",
       "castleLossMsg": "J'ai perdu parce que mon adversaire a attrapé la pierre.",
-      "checkmateWinMsg": "J'ai gagné l'échec et mat en gagnant le roi de l'adversaire.",
+      "checkmateWinMsg": "J'ai gagné échec et mat en gagnant le roi de l'adversaire.",
       "checkmateLossMsg": "Le roi fut capturé et l'échec et mat fut perdu.",
       "timeLossMsg": "Le temps s'est écoulé et vous avez perdu.",
       "timeWinMsg": "Le temps de votre adversaire est écoulé et vous avez gagné.",
@@ -953,7 +954,7 @@
         "aimingLine": "ligne de mire",
         "curlingStoneCount": "nombre de pierres",
         "survivalGo": "Enregistrer Baduk",
-        "captureGo": "Baduk gagnant",
+        "captureGo": "baduk gagnant",
         "speedNormal": "communément"
       },
       "mannerPrefix": "mœurs",
@@ -1221,7 +1222,7 @@
       "blockDice": "anti-dés",
       "omokTtamok": "col concave et double",
       "forbid33": "Pas de jumeaux",
-      "forbidOverline": "aucun journal autorisé",
+      "forbidOverline": "pas de bûches de bois",
       "alkkagi": "Alkagi",
       "stoneCount": "nombre de pierres",
       "placementType": "Méthode de placement",
@@ -1462,7 +1463,7 @@
       "noChange": "aucun changement",
       "petXpSplit": "Basique +{{base}} (Spécialisé +{{spec}})",
       "modeXpGain": "{{mode}} expérience +{{montant}}",
-      "petGradeUpgradeNeeded": "La classe des animaux de compagnie doit être renforcée",
+      "petGradeUpgradeNeeded": "Le niveau des animaux de compagnie doit être renforcé",
       "rewardVip": "Récompense VIP",
       "rewardLine": "compensation",
       "vipRewardLine": "Récompenses VIP",
@@ -1522,7 +1523,7 @@
       "result": "résultat"
     },
     "gameApplication": {
-      "title": "Application de jeu",
+      "title": "Postuler pour le jeu",
       "modeHeading": "mode de jeu",
       "applyTitle": "application {{mode}}",
       "selectMode": "Veuillez sélectionner un jeu."
@@ -1828,7 +1829,7 @@
       "totalPrice": "prix total"
     },
     "rps": {
-      "thiefRole": "Attribuez des rôles à la pierre, au papier et aux ciseaux. Il s'agit d'une personne qui s'en occupe.",
+      "thiefRole": "Attribuez des rôles à la pierre, au papier et aux ciseaux. Le gagnant obtient le rôle souhaité.",
       "turnOrder": "L'ordre est déterminé par pierre, papier, ciseaux. Celui qui gagne obtient la commande qu’il souhaite.",
       "diceDefault": "Tout d’abord, décidez quel joueur lancera les dés.",
       "vsAi": "Pierre, papier, ciseaux {{rond}}",
@@ -1866,7 +1867,7 @@
       "diceTitle": "{{round}}Décompte des tours",
       "deathmatchStart": "Le match à mort commence",
       "viewFinal": "Voir le résultat final",
-      "waitingConfirm": "En attente de confirmation du partenaire",
+      "waitingConfirm": "En attente de la confirmation de l'adversaire",
       "dummyCapture": "{{nom}}",
       "previousRound": "tour précédent",
       "previousKnockShort": "coup précédent",
@@ -1882,7 +1883,7 @@
       "lastDummyBonus": "Dernière pile +{{bonus}}",
       "alkkagiKnockout": "Assommer",
       "playerFallback": "joueur",
-      "waitingOpponentConfirm": "En attente de confirmation du partenaire",
+      "waitingOpponentConfirm": "En attente de la confirmation de l'adversaire",
       "house": "maison",
       "knockout": "Assommer",
       "roundResultBoard": "tableau des résultats du tour"
@@ -1966,14 +1967,14 @@
       "newUsername": "nouvel identifiant",
       "currentPassword": "mot de passe actuel",
       "newPassword": "nouveau mot de passe",
-      "usernamePlaceholder": "3-20 caractères",
+      "usernamePlaceholder": "3 à 20 caractères",
       "passwordMinPlaceholder": "Minimum 6 caractères",
       "submitChange": "changement",
       "processing": "Traitement...",
       "withdraw": "Retrait de l'adhésion",
       "cancel": "annulation",
       "withdrawTitle": "Retrait de l'adhésion",
-      "withdrawLine1": "Les données sont supprimées lors du retrait et ne peuvent pas être récupérées.",
+      "withdrawLine1": "Lors du retrait, les données sont supprimées et ne peuvent pas être récupérées.",
       "withdrawLine2": "Vous ne pouvez pas vous réinscrire avec la même adresse email pendant 1 semaine.",
       "withdrawPasswordConfirm": "vérifier le mot de passe",
       "withdrawTextConfirm": "Saisissez le texte de confirmation : « Retirer l'adhésion »",
@@ -2710,6 +2711,7 @@
     "comingSoon": "Ouverture prévue",
     "entryBlocked": "Entrée interdite",
     "viewStats": "Afficher les enregistrements détaillés",
+    "detailedStatsBtn": "Dossier détaillé",
     "viewAll": "Voir tout",
     "totalRecord": "record total",
     "totalRecordCompact": "{{wins}}Gagnements{{losses}}Pertes {{winRate}} %",
@@ -2902,7 +2904,7 @@
       "applyChatBan": "Interdiction de chat appliquée",
       "releaseChatBan": "Supprimer l'interdiction de chat",
       "applyConnectionBan": "Appliquer l'interdiction d'accès",
-      "releaseConnectionBan": "Supprimer l'interdiction de connexion",
+      "releaseConnectionBan": "Supprimer l'interdiction d'accès",
       "chatBanMinutes": "Pas de conversation (minutes)",
       "connectionBanMinutes": "Accès interdit (minutes)",
       "sanctionReason": "Raisons des sanctions",
@@ -3071,7 +3073,7 @@
       "combatPower": "puissance de combat",
       "remaining": "restes",
       "allocateHint": "Distribuer aux capacités restantes",
-      "decreaseOne": "1 diminution",
+      "decreaseOne": "diminuer de 1",
       "increaseOne": "augmenter de 1",
       "bonus": "prime",
       "resetBtn": "réinitialiser",
@@ -3498,6 +3500,54 @@
       "remove_ads_2": "Recevez les mêmes récompenses sans publicités avec récompense en magasin (en maintenant la limite quotidienne)"
     },
     "items": {
+      "equipment_box_1": {
+        "name": "Boîte d'équipement I",
+        "description": "Obtenir de l'équipement de qualité commune à rare"
+      },
+      "equipment_box_2": {
+        "name": "Boîte d'équipement II",
+        "description": "Obtenez un équipement de qualité normale à épique"
+      },
+      "equipment_box_3": {
+        "name": "Boîte d'équipement III",
+        "description": "Obtenez un équipement de niveau avancé à légendaire"
+      },
+      "equipment_box_4": {
+        "name": "Boîte d'équipement IV",
+        "description": "Acquérir un équipement de qualité rare à mythique"
+      },
+      "equipment_box_5": {
+        "name": "Coffret d'équipement V",
+        "description": "Acquérir de l'équipement de qualité épique à mythique"
+      },
+      "equipment_box_6": {
+        "name": "Boîte d'équipement VI",
+        "description": "Acquérir un équipement de qualité légendaire à mythique"
+      },
+      "material_box_1": {
+        "name": "Boîte de matériel I",
+        "description": "Acquérir 5 pierres de faible à haute amélioration"
+      },
+      "material_box_2": {
+        "name": "Boîte de matériel II",
+        "description": "Acquérir 5 pierres de faible à haute amélioration"
+      },
+      "material_box_3": {
+        "name": "Boîte de matériel III",
+        "description": "Acquérir 5 pierres de faible à haute amélioration"
+      },
+      "material_box_4": {
+        "name": "Boîte de matériel IV",
+        "description": "Obtenez 5 pierres de renfort de niveau intermédiaire à plus élevé"
+      },
+      "material_box_5": {
+        "name": "Boîte de matériel V",
+        "description": "Avancé ~ Acquérir 5 pierres d'amélioration mystérieuses"
+      },
+      "material_box_6": {
+        "name": "Boîte de matériel VI",
+        "description": "Avancé ~ Acquérir 5 pierres d'amélioration mystérieuses"
+      },
       "equipment_unbind_ticket": {
         "name": "Droit d'annuler l'attribution",
         "description": "Changez le statut de l'équipement lié en échangeable."
@@ -3505,6 +3555,30 @@
       "refinement_charm": {
         "name": "Amulette de fusion",
         "description": "Ajoutez 1 compte de raffinage supplémentaire pour l'équipement qui ne peut pas être fondu."
+      },
+      "option_type_change_ticket": {
+        "name": "Droit de changer de type d’option",
+        "description": "Il s'agit d'un élément qui peut transformer l'une des options principales, sous-options ou options spéciales de l'équipement en un type d'option différent."
+      },
+      "option_value_change_ticket": {
+        "name": "Ticket de changement de valeur d’option",
+        "description": "Il s'agit d'un élément qui peut modifier la valeur d'une des sous-options ou options spéciales de l'équipement."
+      },
+      "mythic_option_change_ticket": {
+        "name": "Billet de changement d'option spéciale",
+        "description": "Cet objet vous permet de remplacer les options spéciales d'un équipement mythique ou transcendantal par d'autres options spéciales."
+      },
+      "condition_potion_small": {
+        "name": "Agent de rétablissement de l'état (petit)",
+        "description": "Agent de récupération de condition qui soulage les tensions"
+      },
+      "condition_potion_medium": {
+        "name": "Agent de récupération d'état (moyen)",
+        "description": "Un agent de récupération de condition qui vous rend la tête plus claire."
+      },
+      "condition_potion_large": {
+        "name": "Agent de rétablissement de condition (grand)",
+        "description": "Un agent de rétablissement de condition qui vous aidera à concourir avec succès aujourd'hui."
       },
       "action_point_10": {
         "name": "Potion de récupération d'action (+10)",
@@ -3569,7 +3643,7 @@
       "achievements": "réalisations"
     },
     "activity": {
-      "daily": "La performance d'aujourd'hui",
+      "daily": "La prestation du jour",
       "weekly": "Activité hebdomadaire",
       "monthly": "Activité mensuelle",
       "points": "Activité +{{points}}"
@@ -3760,7 +3834,7 @@
       "sellAmount": "Quantité de ventes",
       "unitPrice": "Prix ​​de vente par invité",
       "deleteOnly": "0 (suppression uniquement)",
-      "goldUnit": "{{montant}} or",
+      "goldUnit": "{{montant}} Or",
       "totalReceive": "total d'or à recevoir",
       "deleteCheckout": "Paiement (Supprimer)",
       "noGoldHint": "L'or n'entre pas et seul le montant sélectionné disparaît.",
@@ -3800,7 +3874,7 @@
       "itemsObtained": "Objet acquis",
       "rankScoreDelta": "Changement de score de classement",
       "noItems": "Aucun objet n'a été acquis.",
-      "percentIncrease": "Augmentation de {{percent}} %",
+      "percentIncrease": "{{percent}} % d'augmentation",
       "confirm": "vérifier"
     },
     "claimAll": {
@@ -3823,7 +3897,7 @@
     "craftingResult": {
       "upgradeJackpotTitle": "La synthèse est géniale !",
       "downgradeJackpotTitle": "Le démontage est génial !",
-      "upgradeTitle": "résultats de synthèse",
+      "upgradeTitle": "résultats synthétiques",
       "downgradeTitle": "Résultats de la décomposition",
       "jackpotHeading": "🎉 Génial ! 🎉",
       "jackpotBody": "Obtenu le double des matériaux !",
@@ -4021,7 +4095,7 @@
       "salePrice": "prix de vente",
       "fee": "charge",
       "netAmount": "Montant reçu",
-      "status": "statut",
+      "status": "situation",
       "dateTime": "Date/Heure",
       "price": "prix",
       "selectedItem": "facultatif",
@@ -4041,7 +4115,21 @@
       "settlementReceived": "Réception du règlement",
       "tradeTicket": "droits d'enregistrement commercial",
       "keep": "maintenir",
-      "purchaseCompleteMessage": "Votre achat a été finalisé."
+      "purchaseCompleteMessage": "Votre achat a été finalisé.",
+      "noListings": "Il n'y a aucun objet enregistré à vendre.",
+      "myListingBadge": "mon inscription",
+      "registering": "Enregistrement",
+      "expired": "expiré",
+      "recoverCooldown": "Vous pouvez le récupérer à nouveau dans {{seconds}} secondes.",
+      "recover": "collecter",
+      "cancelSale": "Annuler la vente",
+      "noSettlement": "Aucun enregistrement de ventes n'est disponible pour le règlement.",
+      "claimSelected": "Récupérez votre sélection",
+      "claimAll": "Recevez tout",
+      "noSettlementPending": "Il n’y a aucun élément en attente de règlement.",
+      "totalHistoryCount": "Historique total des transactions : {{count}}",
+      "statusLabel": "situation",
+      "noHistory": "Il n'y a pas d'historique des transactions."
     },
     "sort": {
       "label": "tableau",
@@ -4063,7 +4151,7 @@
     "alerts": {
       "insufficientTicket": "Droits d’enregistrement des transactions insuffisants.",
       "vipListingLimit": "Les VIP vedettes ne peuvent s'inscrire à la vente que pour un maximum de 3 produits.",
-      "ticketHint": "Droits d’enregistrement des transactions insuffisants. Vous pouvez enregistrer un article en vente avec un seul ticket d’enregistrement.",
+      "ticketHint": "Droits d’enregistrement des transactions insuffisants. Vous pouvez enregistrer un article en vente avec un seul ticket d'enregistrement.",
       "selectGearFromInventory": "Veuillez sélectionner l'équipement que vous souhaitez vendre dans votre inventaire.",
       "boundGear": "L’équipement lié ne peut pas être vendu. Veuillez utiliser le droit d'annuler l'attribution.",
       "minimumPrice": "Le prix de vente minimum est de {{price}}.",
@@ -4093,6 +4181,9 @@
     "playerLoadError": "Une erreur s'est produite lors du chargement des informations sur le joueur.",
     "playerWaiting": "Joueur en attente...",
     "playerLoadFailed": "Les informations sur le joueur n'ont pas pu être chargées.",
+    "loadingTournament": "Chargement des informations sur le tournoi...",
+    "loadingUserInfo": "Chargement des informations utilisateur...",
+    "nextMatchPreparing": "Préparation du prochain match... {{countdown}}",
     "defaultPlayer": "joueur",
     "me": "moi",
     "opponent": "adversaire",
@@ -4256,7 +4347,9 @@
         "equipmentBox": "boîte d'équipement",
         "changeTicket": "droit de changement",
         "special": "spécial",
-        "limitLabel": "limite"
+        "limitLabel": "limite",
+        "weeklyCountShort": "(Hebdomadaire {{restant}}/{{limite}})",
+        "equipmentBoxInfoSuffix": "Acquérir du matériel. Doit inclure une option spéciale pour augmenter la capacité de championnat"
       },
       "ranking": {
         "viewProfile": "Afficher le profil de {{name}}",
@@ -4350,7 +4443,7 @@
         "dailyScoreDesc": "Gagnez des points de championnat en additionnant les points de base et les bonus de classement pour chaque étape."
       },
       "simulationHelp": {
-        "title": "Aide au stade de simulation",
+        "title": "Aide du stade de simulation",
         "overview": "Présentation du stade de simulation",
         "rewardGuide": "Informations sur la rémunération",
         "fiftyTurns": "50 tours",
@@ -4561,6 +4654,36 @@
     "myRecord": "mes dossiers",
     "rankingInfo": "Informations sur le classement",
     "ownedItems": "Objets possédés",
+    "inventoryItems": {
+      "turnAdd": "Ajouter un tour",
+      "missile": "missile",
+      "hidden": "Caché",
+      "scan": "balayage",
+      "refresh": "Changement de mise en page"
+    },
+    "rewardItems": {
+      "equipmentBox1": "Boîte d'équipement I",
+      "equipmentBox2": "Boîte d'équipement II",
+      "equipmentBox3": "Boîte d'équipement III",
+      "equipmentBox4": "Boîte d'équipement IV",
+      "equipmentBox5": "Coffret d'équipement V",
+      "equipmentBox6": "Boîte d'équipement VI",
+      "materialBox1": "Boîte de matériel I",
+      "materialBox2": "Boîte de matériel II",
+      "materialBox3": "Boîte de matériel III",
+      "materialBox4": "Boîte de matériel IV",
+      "materialBox5": "Boîte de matériel V",
+      "materialBox6": "Boîte de matériel VI",
+      "goldBundle1": "Pack d'or I",
+      "goldBundle2": "Lot d'or II",
+      "goldBundle3": "Lot d'or III",
+      "goldBundle4": "Lot d'or IV",
+      "diamondBundle1": "Forfait Diamant I",
+      "diamondBundle2": "Lot de diamants II",
+      "diamondBundle3": "Lot de diamants III",
+      "diamondBundle4": "Lot de diamants IV"
+    },
+    "viewRewardItem": "Objet de récompense : {{name}}",
     "rewardInfoTitle": "Informations sur la rémunération",
     "closePanelAria": "Fermer le panneau",
     "close": "fermer",
@@ -4689,14 +4812,14 @@
       "tapSlotThenPick": "Touchez un emplacement vide et sélectionnez un animal de compagnie",
       "dropToStart": "L'entraînement commence lorsque vous placez l'animal dans l'emplacement.",
       "petXpLabel": "animal de compagnie",
-      "petXpTitle": "expérience avec les animaux de compagnie",
+      "petXpTitle": "expérience avec un animal de compagnie",
       "fixedReward": "Rémunération définie",
       "probOneKind": "Probabilité (1 type)",
       "probReward": "Compensation de probabilité",
       "claimRewardAria": "Recevez des récompenses de formation",
       "petDetailAria": "Détails de l'animal",
       "remainingTimeAria": "Temps restant {{time}}",
-      "pickPet": "Sélectionnez un animal de compagnie",
+      "pickPet": "Sélectionner un animal",
       "tap": "touche",
       "dragPet": "traîner un animal de compagnie",
       "cancelTraining": "annulation de formation",
@@ -4779,7 +4902,7 @@
       "soulInsufficient": "{{name}} insuffisant. {{need}} nécessaire (posséder {{owned}})",
       "soulInsufficientShort": "{{name}} insuffisant. (besoin de {{need}}, propriétaire de {{owned}})",
       "soulStoneFallback": "pierre d'âme",
-      "soulCostTitle": "Consommez {{name}} {{count}} et augmentez votre classement",
+      "soulCostTitle": "Consommer {{name}} {{count}} unités · Augmentation de niveau",
       "soulCostTitleMinLevel": "Vous pouvez renforcer votre niveau au niveau {{level}} ou supérieur.",
       "cannotWhileTraining": "Les animaux en formation ne peuvent pas être améliorés. Veuillez l'utiliser après avoir terminé votre formation.",
       "cannotWhileTrainingShort": "Les animaux en formation ne peuvent pas être améliorés.",
@@ -4993,7 +5116,7 @@
       "strategicArena": "Stade stratégique de Baduk",
       "playfulArena": "Jouer au stade Baduk",
       "pairArena": "stade de foire",
-      "host": "responsable de salle",
+      "host": "gestionnaire de salle",
       "matchInProgress": "Match en cours",
       "inMatch": "Pendant le jeu",
       "enter": "position",
@@ -5010,6 +5133,7 @@
       "roomKind": "type de chambre",
       "changeRoom": "vestiaire",
       "proposeChange": "suggestion de changement",
+      "leaveRoom": "quitter la pièce",
       "matchingShort": "Correspondance",
       "unready": "pas prêt",
       "ready": "préparation",
@@ -5240,7 +5364,7 @@
       "transcendentSpecial": "Option spéciale transcendante",
       "refinementCountLabel": "Affinable : {{value}}",
       "requiredMaterials": "Matériel nécessaire",
-      "selectMethodHint": "Lorsque vous sélectionnez une méthode de fusion, les ingrédients seront affichés.",
+      "selectMethodHint": "Lorsque vous sélectionnez une méthode de fusion, les matériaux seront affichés.",
       "inProgress": "Fusion en cours",
       "countDepleted": "Tous les raffinements possibles ont été épuisés.",
       "ownedCharms": "Maintenir : {{count}}",
@@ -5325,7 +5449,7 @@
     "mixRulesMinAlert": "Les règles de mixage nécessitent la sélection de deux règles ou plus.",
     "mixCaptureCastleConflict": "Gagner et Château ne peuvent pas être sélectionnés en même temps.",
     "countUnit": "{{compter}}",
-    "boardLines": "Ligne {{taille}}",
+    "boardLines": "{{taille}}ligne",
     "pointsFixed": "9 points (fixe)",
     "pointsUnit": "{{score}} points",
     "turnsUnit": "{{limite}}nombre",
@@ -5463,7 +5587,7 @@
     },
     "lobby": {
       "title": "Trouver une guilde",
-      "createGuild": "Création de guilde",
+      "createGuild": "création de guilde",
       "searchPlaceholder": "Recherche de nom de guilde...",
       "pending": "Candidature",
       "joinInstant": "Inscrivez-vous maintenant",
@@ -5495,7 +5619,7 @@
       "failed": "Le don a échoué.",
       "ownedGold": "Or détenu : {{montant}}",
       "noHistory": "Il n’y a pas d’historique de dons.",
-      "goldUnit": "{{montant}} or",
+      "goldUnit": "{{montant}} Or",
       "error": "Une erreur s'est produite lors du don.",
       "goldDonation": "don d'or",
       "diamondDonation": "don de diamant",
@@ -5728,7 +5852,7 @@
       "contribution": "Contribution {{étoiles}}",
       "matchingInProgress": "Correspondance en cours",
       "warPrep": "Se préparer à la guerre des guildes",
-      "startsIn": "{{time}} début",
+      "startsIn": "Commencez {{time}}",
       "findingOpponent": "Je recherche un adversaire pour cette bataille de guilde.",
       "entryFrom": "Vous pouvez participer à partir du {{date}}(KST).",
       "scheduledAt": "Heure prévue : {{date}}",
@@ -5765,7 +5889,7 @@
       "pointsUnit": "{{count}}points",
       "mode": "mode",
       "board": "damier",
-      "boardLines": "Ligne {{taille}}",
+      "boardLines": "{{taille}}ligne",
       "turnLimit": "limite de virage",
       "turnsUnit": "{{count}}tours",
       "scoringTurns": "{{count}} commence à compter le prix",
@@ -5933,7 +6057,7 @@
       "materialBox4": "Boîte de matériel IV"
     },
     "createModal": {
-      "title": "Création de guilde",
+      "title": "création de guilde",
       "nameLabel": "nom de guilde",
       "nameLengthHint": "(2 à 6 caractères)",
       "namePlaceholder": "Exemple : Guilde Myeongwol",

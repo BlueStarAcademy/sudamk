@@ -8,6 +8,7 @@
       "loading": "Carregando...",
       "confirm": "verificar",
       "back": "voltar",
+      "next": "próximo",
       "retry": "tente novamente",
       "refresh": "atualizar",
       "submit": "enviar",
@@ -249,7 +250,7 @@
     "rpsLose": "derrota!",
     "rpsTie": "empate!",
     "rpsTieRetry": "empate! mais uma vez!",
-    "rpsTieRandom": "empate! É decidido aleatoriamente.",
+    "rpsTieRandom": "empate! É decidido aleatoriamente...",
     "rpsChoiceDone": "Seleção concluída!",
     "rpsWaitingOpponent": "Aguardando a escolha de {{name}}...",
     "rpsTieWarning": "Se houver empate desta vez, será decidido aleatoriamente.",
@@ -269,7 +270,7 @@
     "diceAutoStart": "Clique no botão Iniciar abaixo ou a partida começará automaticamente após 30 segundos.",
     "colorRouletteTitle": "cor baduk",
     "uniformColorRoulette": "roleta de cores uniformes",
-    "thisGameColor": "Cor da pedra para este jogo: {{color}}",
+    "thisGameColor": "Cor da pedra para esta partida: {{color}}",
     "colorRouletteHint": "As pedras pretas e brancas piscam rapidamente alternadamente e param aleatoriamente.",
     "colorRouletteEnd": "A partida começará automaticamente após o término do sorteio.",
     "colorRouletteProceed": "Será realizado automaticamente após o término do sorteio.",
@@ -645,7 +646,7 @@
       "highDiceUseBody": "Use um item de dado que só apresente números altos (4, 5, 6). Você quer continuar?",
       "oddDiceAria": "Itens de dados ímpares, número restante {{count}}",
       "oddDiceTitle": "Itens de dados ímpares (1, 3, 5). Contagem restante {{count}}",
-      "evenDiceAria": "Itens pares de dados, número restante {{count}}",
+      "evenDiceAria": "Itens de dados pares, número restante {{count}}",
       "evenDiceTitle": "Itens de dados pares (2, 4, 6). Contagem restante {{count}}",
       "lowDiceAria": "Itens de dados com baixo número, número restante {{count}}",
       "lowDiceTitle": "Itens de dados com baixo número (1·2·3). Contagem restante {{count}}",
@@ -670,7 +671,7 @@
       "thiefNoOneAria": "Evite 1 (2~5) itens de dados, número restante {{count}}",
       "thiefNoOneTitle": "Dados que não resultam em 1 (2, 3, 4, 5). Contagem restante {{count}}",
       "thiefHigh36UseTitle": "Use dados de números altos (3-6)",
-      "thiefHigh36UseBody": "Use um item de dado que mostre apenas 3, 4, 5 e 6. Se for o turno da polícia, ambos os dados estarão nesta faixa. Você quer continuar?",
+      "thiefHigh36UseBody": "Use um item de dado que resulte apenas em 3, 4, 5 e 6. Se for um turno da polícia, ambos os dados estarão nesta faixa. Você quer continuar?",
       "thiefNoOneUseTitle": "Use 1 dado de prevenção",
       "thiefNoOneUseBody": "Use um item de dado que só dê 2, 3, 4 ou 5 (1 não é possível). Se for a vez da polícia, ambos os dados estão nesta faixa. Você quer continuar?"
     },
@@ -1088,7 +1089,7 @@
       "failTurnLimit": "A missão falhou devido a curvas insuficientes.",
       "failTimeLimit": "A missão falhou porque o limite de tempo foi excedido.",
       "failSurvival": "As brancas falharam na missão porque duraram todos os turnos designados.",
-      "failCaptureTarget": "O adversário atingiu a pontuação alvo primeiro.",
+      "failCaptureTarget": "O adversário atingiu a meta de pontuação primeiro.",
       "failScoring": "Como resultado do cálculo, o adversário ficou com mais casas.",
       "failResign": "Você se absteve.",
       "failDisconnect": "A missão falhou devido a uma conexão perdida.",
@@ -1138,7 +1139,7 @@
       "lockedTop3Full": "Bloqueado (abre quando classificado em 3º ou superior)",
       "nextStageAlreadyOpen": "A próxima etapa já está aberta.",
       "open": "abrir",
-      "resultAria": "Resumo dos resultados",
+      "resultAria": "Resumo dos Resultados",
       "rewardsAria": "ícone de recompensa",
       "stageResultTitle": "{{tournament}} {{stage}} resultados da etapa",
       "equipmentSuffix": "{{label}} Equipamento",
@@ -1197,7 +1198,7 @@
       "speedTimeRules": "regras de tempo de velocidade",
       "timeByoyomi": "Limite de tempo/contagem regressiva",
       "baseGo": "base baduk",
-      "baseStones": "pedra básica",
+      "baseStones": "pedra base",
       "castleGo": "Castelo Baduk",
       "castleShort": "Castelo",
       "timeLimit": "limite de tempo",
@@ -1267,7 +1268,7 @@
         "shopConsumables": "Loja · Consumíveis",
         "buyPotion": "Compre poção de recuperação de ação",
         "buyPotionLimit": "· 1 por dia por tipo",
-        "diamondInstant": "Recarga instantânea de diamante",
+        "diamondInstant": "Diamante recarrega instantaneamente",
         "diamondInstantHint": "Você pode preencher seu poder de ação quando quiser.",
         "goShopConsumables": "Compre poções de cura na loja (consumíveis)",
         "goDiamondRecharge": "Recarregue instantaneamente com diamantes",
@@ -1336,7 +1337,7 @@
       "useItem": "usar"
     },
     "pveControls": {
-      "retryFailed": "Não consegui tentar novamente. Por favor, tente novamente.",
+      "retryFailed": "Falha na tentativa de nova tentativa. Por favor, tente novamente.",
       "nextStageFailed": "Falha ao iniciar a próxima camada. Por favor, tente novamente.",
       "nextStepFailed": "Falha ao iniciar a próxima etapa. Por favor, tente novamente.",
       "resignConfirmTitle": "Confirmação de abstenção"
@@ -1462,7 +1463,7 @@
       "noChange": "nenhuma mudança",
       "petXpSplit": "Básico +{{base}} (Especializado +{{especificação}})",
       "modeXpGain": "{{modo}} experiência +{{quantidade}}",
-      "petGradeUpgradeNeeded": "A classe pet precisa ser fortalecida",
+      "petGradeUpgradeNeeded": "O nível do animal de estimação precisa ser fortalecido",
       "rewardVip": "Recompensa VIP",
       "rewardLine": "compensação",
       "vipRewardLine": "Recompensas VIP",
@@ -1649,7 +1650,7 @@
       "whiteStone": "pedra branca",
       "title": "Ilsaek Baduk",
       "uniformRoulette": "roleta de cores uniformes",
-      "thisColor": "Cor da pedra para este jogo: {{color}}",
+      "thisColor": "Cor da pedra para esta partida: {{color}}",
       "flashHint": "As pedras pretas e brancas piscam rapidamente alternadamente e param aleatoriamente.",
       "autoStart": "A partida começará automaticamente após o término do sorteio.",
       "stoneColorRoulette": "roleta de cor de pedra",
@@ -2157,7 +2158,7 @@
       },
       "destinationTitle": {
         "strategicPvp": "Estádio Estratégico Baduk PVP",
-        "strategicAi": "Batalha Estratégica de IA de Baduk",
+        "strategicAi": "Batalha estratégica de IA de Baduk",
         "pairPvp": "Arena PVP justa",
         "pairAi": "Par de correspondência de IA",
         "playfulPvp": "Jogar Baduk PVP Stadium",
@@ -2274,7 +2275,7 @@
       "priorityAdjustTip": "💡 A prioridade pode ser ajustada usando os botões para cima e para baixo ou removida desmarcando (×).",
       "gameDescription": "Descrição do jogo",
       "selectModeLeftPrompt": "Selecione um modo de jogo à esquerda.",
-      "startMatching": "Comece a correspondência (selecione {{count}})",
+      "startMatching": "Iniciar correspondência (selecione {{count}})",
       "selectedBadge": "selecionado",
       "roundUnit": "{{count}}rodadas",
       "boardSizeValue": "{{tamanho}}linha",
@@ -2284,7 +2285,7 @@
       "aimingLine": "linha de visão",
       "stoneCount": "número de pedras",
       "forbid33Short": "Sem gêmeos",
-      "forbidOverlineShort": "nenhum registro permitido",
+      "forbidOverlineShort": "sem madeira",
       "targetScore": "pontuação alvo",
       "timeLimit": "limite de tempo",
       "byoyomi": "contagem regressiva",
@@ -2318,7 +2319,7 @@
       "baseStone": "pedra base",
       "captureGoal": "capturar alvo",
       "turnsUnit": "{{count}}contagem",
-      "linesUnit": "{{tamanho}} linha",
+      "linesUnit": "{{tamanho}}linha",
       "pointsUnit": "{{pontuação}} pontos",
       "countUnit": "{{contar}}",
       "halfPoint": "0,5 casa",
@@ -2364,7 +2365,7 @@
       "pairLobby": "lobby justo",
       "gameAdventureHow": "Cada vez que você mata um monstro no mapa de aventura, pontos de caça são acumulados iguais ao nível do monstro. Se as pontuações forem iguais, o usuário que alcançou primeiro será exibido no topo.",
       "gameAdventureWhere": "Aventura → Ganhe contra monstros no mapa local.",
-      "badukStrategicHow": "A pontuação cumulativa baseada em 1200 muda dependendo se você ganha ou perde em uma partida estratégica de classificação baduk (PVP). Se você jogar o mesmo modo mais de 10 vezes, isso se refletirá na sua classificação e, se vencer um adversário forte, aumentará ainda mais.",
+      "badukStrategicHow": "A pontuação cumulativa baseada em 1200 muda dependendo se você ganha ou perde em uma partida estratégica de classificação baduk (PVP). Se você jogar o mesmo modo mais de 10 vezes, isso se refletirá na sua classificação e, se vencer um oponente forte, aumentará ainda mais.",
       "badukStrategicWhere": "Use a partida de classificação em Estádio → Baduk estratégico → Sala de espera.",
       "badukPairHow": "A pontuação cumulativa baseada em 1200 alterações depende da vitória ou derrota da partida de classificação PVP (PVP). Se você atingir o número mínimo de partidas, sua classificação será refletida e, se vencer um adversário forte, sua classificação aumentará ainda mais.",
       "badukPairWhere": "Estádio → Use a partida de classificação em Pair Baduk."
@@ -2710,6 +2711,7 @@
     "comingSoon": "Programado para abrir",
     "entryBlocked": "Entrada proibida",
     "viewStats": "Ver registros detalhados",
+    "detailedStatsBtn": "Registro detalhado",
     "viewAll": "Ver tudo",
     "totalRecord": "recorde total",
     "totalRecordCompact": "{{wins}}Vitórias{{derrotas}}Perdas {{winRate}}%",
@@ -2747,7 +2749,7 @@
       "pvpTitle": "Registros detalhados do estádio PVP",
       "strategicTitle": "Estratégia Go Registros Detalhados",
       "playfulTitle": "Reproduzir registros detalhados do Baduk",
-      "strategicAll": "Estratégia Vá com tudo",
+      "strategicAll": "Estratégia Baduk Tudo",
       "playfulAll": "jogar baduk completo",
       "seasonResetNote": "Ao redefinir seus registros de PVP, sua pontuação no ranking da temporada também será zerada.",
       "noPairRanking": "Não existe um sistema de classificação para jogar Baduk.",
@@ -3018,7 +3020,7 @@
         "T": {
           "name": "Acidente (T)",
           "general": "Tome decisões de forma lógica, analítica e com base em fatos objetivos. Valorizamos a justiça e os princípios.",
-          "goStyle": "É um ethos racional de encontrar a melhor jogada com base na leitura fria. Não se deixe influenciar pelas emoções e baseie seu julgamento na situação."
+          "goStyle": "É um ethos racional de encontrar a melhor jogada com base em uma leitura fria. Não se deixe influenciar pelas emoções e baseie seu julgamento na situação."
         },
         "F": {
           "name": "Emoção (F)",
@@ -3071,7 +3073,7 @@
       "combatPower": "poder de combate",
       "remaining": "sobras",
       "allocateHint": "Distribuir para habilidades restantes",
-      "decreaseOne": "1 diminuição",
+      "decreaseOne": "diminuir em 1",
       "increaseOne": "aumentar em 1",
       "bonus": "bônus",
       "resetBtn": "reiniciar",
@@ -3486,7 +3488,7 @@
       "diamond_instant_250": "Pagamento imediato de 250 diamantes",
       "diamond_instant_750": "Pagamento imediato de 750 diamantes",
       "equip_pkg1_boxes": "1 caixa de equipamento V",
-      "equip_pkg1_mat": "1 caixa de material VI",
+      "equip_pkg1_mat": "1 caixa de materiais VI",
       "equip_pkg1_bonus": "+ Pagamento confirmado de “Epic Equipment”",
       "equip_pkg2_boxes": "2 caixas de equipamentos V",
       "equip_pkg2_mat": "2 VIs de caixa de material",
@@ -3498,6 +3500,54 @@
       "remove_ads_2": "Receba as mesmas recompensas sem anúncios premiados na loja (mantendo o limite diário)"
     },
     "items": {
+      "equipment_box_1": {
+        "name": "Caixa de Equipamento I",
+        "description": "Obtenha equipamentos de grau comum a raro"
+      },
+      "equipment_box_2": {
+        "name": "Caixa de Equipamento II",
+        "description": "Obtenha equipamentos de nível normal a épico"
+      },
+      "equipment_box_3": {
+        "name": "Caixa de Equipamento III",
+        "description": "Obtenha equipamentos de nível avançado a lendário"
+      },
+      "equipment_box_4": {
+        "name": "Caixa de Equipamento IV",
+        "description": "Adquira equipamentos de nível raro a mítico"
+      },
+      "equipment_box_5": {
+        "name": "Caixa de Equipamento V",
+        "description": "Adquira equipamentos de nível épico a mítico"
+      },
+      "equipment_box_6": {
+        "name": "Caixa de Equipamento VI",
+        "description": "Adquira equipamentos de nível lendário a mítico"
+      },
+      "material_box_1": {
+        "name": "Caixa de Materiais I",
+        "description": "Adquira 5 pedras de aprimoramento baixo a alto"
+      },
+      "material_box_2": {
+        "name": "Caixa de Materiais II",
+        "description": "Adquira 5 pedras de aprimoramento baixo a alto"
+      },
+      "material_box_3": {
+        "name": "Caixa de Materiais III",
+        "description": "Adquira 5 pedras de aprimoramento baixo a alto"
+      },
+      "material_box_4": {
+        "name": "Caixa de Materiais IV",
+        "description": "Obtenha 5 pedras de reforço de nível intermediário ao mais alto"
+      },
+      "material_box_5": {
+        "name": "Caixa de Materiais V",
+        "description": "Avançado ~ Adquira 5 Pedras de Aprimoramento Misteriosas"
+      },
+      "material_box_6": {
+        "name": "Caixa de Materiais VI",
+        "description": "Avançado ~ Adquira 5 Pedras de Aprimoramento Misteriosas"
+      },
       "equipment_unbind_ticket": {
         "name": "Direito de cancelar a atribuição",
         "description": "Altere o status do equipamento vinculado para negociável."
@@ -3505,6 +3555,30 @@
       "refinement_charm": {
         "name": "Amuleto de Fundição",
         "description": "Adicione 1 contagem de refino adicional para equipamentos que não podem ser fundidos"
+      },
+      "option_type_change_ticket": {
+        "name": "Direito de alterar o tipo de opção",
+        "description": "Este é um item que pode alterar uma das opções principais, subopções ou opções especiais do equipamento para um tipo diferente de opção."
+      },
+      "option_value_change_ticket": {
+        "name": "Ticket de alteração de valor da opção",
+        "description": "Este é um item que pode alterar o valor de uma das subopções ou opções especiais do equipamento."
+      },
+      "mythic_option_change_ticket": {
+        "name": "Opção especial de alteração de ticket",
+        "description": "Este item permite alterar as opções especiais de equipamentos míticos ou transcendentais para outras opções especiais."
+      },
+      "condition_potion_small": {
+        "name": "Agente de recuperação de condição (pequeno)",
+        "description": "Agente de recuperação de condição que alivia a tensão"
+      },
+      "condition_potion_medium": {
+        "name": "Agente de recuperação de condição (médio)",
+        "description": "Um agente de recuperação de condição que deixa sua cabeça mais clara."
+      },
+      "condition_potion_large": {
+        "name": "Agente de recuperação de condição (grande)",
+        "description": "Um agente de recuperação de condição que o ajudará a competir com sucesso hoje."
       },
       "action_point_10": {
         "name": "Poção de recuperação de ação (+10)",
@@ -3530,7 +3604,7 @@
     "claimExpired": "O período de resgate expirou e você não pode receber compensação. Você pode excluir este e-mail, se necessário.",
     "actionPoints": "{{count}} Poder de Ação",
     "guildCoins": "{{count}} Moeda da Guilda",
-    "gold": "{{quantidade}} ouro",
+    "gold": "{{quantidade}} Ouro",
     "diamonds": "{{quantidade}} diamante",
     "packageLine": "Pacote {{nome}} × {{quantidade}}",
     "delete": "excluir",
@@ -4021,7 +4095,7 @@
       "salePrice": "preço de venda",
       "fee": "cobrar",
       "netAmount": "Valor recebido",
-      "status": "status",
+      "status": "situação",
       "dateTime": "Data/Hora",
       "price": "preço",
       "selectedItem": "opcional",
@@ -4041,7 +4115,21 @@
       "settlementReceived": "Recebimento de liquidação",
       "tradeTicket": "direitos de registro comercial",
       "keep": "manter",
-      "purchaseCompleteMessage": "Sua compra foi concluída."
+      "purchaseCompleteMessage": "Sua compra foi concluída.",
+      "noListings": "Não há itens cadastrados para venda.",
+      "myListingBadge": "meu cadastro",
+      "registering": "Registrando",
+      "expired": "expirado",
+      "recoverCooldown": "Você pode recuperá-lo novamente em {{seconds}} segundos.",
+      "recover": "coletar",
+      "cancelSale": "Cancelar venda",
+      "noSettlement": "Não há registros de vendas disponíveis para liquidação.",
+      "claimSelected": "Escolha sua seleção",
+      "claimAll": "Receba tudo",
+      "noSettlementPending": "Não há itens aguardando liquidação.",
+      "totalHistoryCount": "Histórico total de transações: {{count}}",
+      "statusLabel": "situação",
+      "noHistory": "Não há histórico de transações."
     },
     "sort": {
       "label": "variedade",
@@ -4093,6 +4181,9 @@
     "playerLoadError": "Ocorreu um erro ao carregar as informações do jogador.",
     "playerWaiting": "Jogador esperando...",
     "playerLoadFailed": "Não foi possível carregar as informações do jogador.",
+    "loadingTournament": "Carregando informações do torneio...",
+    "loadingUserInfo": "Carregando informações do usuário...",
+    "nextMatchPreparing": "Preparando-se para a próxima partida... {{countdown}}",
     "defaultPlayer": "jogador",
     "me": "meu",
     "opponent": "adversário",
@@ -4145,7 +4236,7 @@
       "phaseMidLabel": "meio do jogo",
       "phaseEndLabel": "fim do jogo",
       "phaseEarlyStart": "A primeira metade da batalha já começou. Vamos dar uma olhada no assentamento das pedras e no andamento da primeira batalha.",
-      "phaseMidStart": "O meio do jogo começou. A luta no centro e a batalha pela posição tornam-se mais intensas.",
+      "phaseMidStart": "A partida do meio do jogo começou. A luta no centro e a batalha pela posição tornam-se mais intensas.",
       "phaseEndStart": "O fim do jogo começou. Cálculos domésticos e lucros e perdas detalhados tornam-se importantes.",
       "defaultRound": "rodada atual",
       "defaultPlayer1": "jogador 1",
@@ -4256,7 +4347,9 @@
         "equipmentBox": "caixa de equipamento",
         "changeTicket": "direito de mudança",
         "special": "especial",
-        "limitLabel": "limite"
+        "limitLabel": "limite",
+        "weeklyCountShort": "(Semanalmente {{restante}}/{{limite}})",
+        "equipmentBoxInfoSuffix": "Adquirir equipamentos. Deve incluir opção especial para aumentar a capacidade do campeonato"
       },
       "ranking": {
         "viewProfile": "Ver perfil de {{nome}}",
@@ -4291,7 +4384,7 @@
         "inProgressToday": "Há um jogo disputado hoje. Confira os resultados.",
         "inProgress": "Há uma partida em andamento.",
         "stageSelect": "Seleção de etapas",
-        "vsOpponent": "Eu vs oponente (referência)",
+        "vsOpponent": "Eu vs adversário (referência)",
         "none": "não existe",
         "enter": "Digitar",
         "oneGamePerMatch": "1/jogo (aleatório)",
@@ -4561,6 +4654,36 @@
     "myRecord": "meus registros",
     "rankingInfo": "Informações de classificação",
     "ownedItems": "Itens de propriedade",
+    "inventoryItems": {
+      "turnAdd": "Adicionar turno",
+      "missile": "míssil",
+      "hidden": "Escondido",
+      "scan": "digitalizar",
+      "refresh": "Mudança de layout"
+    },
+    "rewardItems": {
+      "equipmentBox1": "Caixa de Equipamento I",
+      "equipmentBox2": "Caixa de Equipamento II",
+      "equipmentBox3": "Caixa de Equipamento III",
+      "equipmentBox4": "Caixa de Equipamento IV",
+      "equipmentBox5": "Caixa de Equipamento V",
+      "equipmentBox6": "Caixa de Equipamento VI",
+      "materialBox1": "Caixa de Materiais I",
+      "materialBox2": "Caixa de Materiais II",
+      "materialBox3": "Caixa de Materiais III",
+      "materialBox4": "Caixa de Materiais IV",
+      "materialBox5": "Caixa de Materiais V",
+      "materialBox6": "Caixa de Materiais VI",
+      "goldBundle1": "Pacote Ouro I",
+      "goldBundle2": "Pacote Ouro II",
+      "goldBundle3": "Pacote Ouro III",
+      "goldBundle4": "Pacote Ouro IV",
+      "diamondBundle1": "Pacote Diamante I",
+      "diamondBundle2": "Pacote Diamante II",
+      "diamondBundle3": "Pacote Diamante III",
+      "diamondBundle4": "Pacote Diamante IV"
+    },
+    "viewRewardItem": "Item de recompensa: {{name}}",
     "rewardInfoTitle": "Informações sobre remuneração",
     "closePanelAria": "Fechar painel",
     "close": "fechar",
@@ -4616,7 +4739,7 @@
       "queueWaiting": "Espera {{count}}{{unit}}",
       "queueUnitTeam": "equipe",
       "queueUnitPerson": "número de pessoas",
-      "briefFallbackStrategic": "Após escolher um item, verifique sua classificação, status de espera para correspondência e regras oficiais e comece a aguardar a correspondência.",
+      "briefFallbackStrategic": "Depois de escolher um item, verifique sua classificação, status de espera para correspondência e regras oficiais e comece a esperar pela correspondência.",
       "briefFallbackDefault": "Após escolher um item, verifique suas informações de classificação e regras oficiais e comece a aguardar a correspondência.",
       "selectMode": "Escolha um modo",
       "selectModePeriod": "Selecione um modo.",
@@ -4779,7 +4902,7 @@
       "soulInsufficient": "{{nome}} insuficiente. {{precisa}} necessário (possuir {{propriedade}})",
       "soulInsufficientShort": "{{nome}} insuficiente. (precisa {{precisa}}, possui {{propriedade}})",
       "soulStoneFallback": "pedra da alma",
-      "soulCostTitle": "Consumir {{name}} {{count}} e aumentar o nível",
+      "soulCostTitle": "Consumir {{name}} {{count}} unidades · Aumento de nível",
       "soulCostTitleMinLevel": "Você pode fortalecer seu nível no Nv.{{level}} ou superior.",
       "cannotWhileTraining": "Animais de estimação em treinamento não podem ser atualizados. Por favor, use-o após concluir seu treinamento.",
       "cannotWhileTrainingShort": "Animais de estimação em treinamento não podem ser atualizados.",
@@ -4794,7 +4917,7 @@
       "next": "próximo",
       "before": "antes",
       "after": "desde",
-      "baseStatIncrease": "Habilidade base aumentada",
+      "baseStatIncrease": "Habilidade básica aumentada",
       "percentTen": "+10%",
       "nextGradeLevelUpBudget": "Habilidades distribuídas automaticamente ao aumentar o nível do animal de estimação na próxima seção de classificação",
       "dispositionBoost": "fortalecendo tendências",
@@ -4880,7 +5003,7 @@
       "opponent": "adversário",
       "waitingShort": "esperando",
       "petSlot": "slot para animais de estimação",
-      "opponentPet": "animal de estimação adversário",
+      "opponentPet": "animal de estimação oponente",
       "opponentEquippedPet": "Animal de estimação equipado pelo oponente",
       "kickTitle": "renunciar",
       "kickDragHint": "Arraste o usuário aqui<br/>",
@@ -5010,6 +5133,7 @@
       "roomKind": "tipo de quarto",
       "changeRoom": "vestiário",
       "proposeChange": "sugestão de mudança",
+      "leaveRoom": "sair do quarto",
       "matchingShort": "Correspondência",
       "unready": "despreparado",
       "ready": "preparação",
@@ -5302,7 +5426,7 @@
     "casualTag": "amistoso",
     "casualTitle": "amistoso",
     "casualDesc": "Este jogo é um amistoso. Não há alteração na pontuação da classificação.",
-    "actionPointNotice": "Quando uma partida é confirmada, o poder de ação ⚡{{cost}} é consumido em ambos os lados. Se for insuficiente ao aceitar/iniciar a IA, uma janela de gerenciamento comportamental de energia será aberta.",
+    "actionPointNotice": "Quando uma partida é confirmada, o poder de ação ⚡{{cost}} é consumido em ambos os lados. Se a aceitação/IA for insuficiente ao iniciar, uma janela de gerenciamento comportamental de energia será aberta.",
     "titleAi": "{{prefix}}{{mode}} Configurações de correspondência de IA",
     "titleRematch": "{{prefix}}Configurações de revanche ({{mode}})",
     "titleDefault": "{{prefix}}configurações de correspondência ({{mode}})",
@@ -5463,7 +5587,7 @@
     },
     "lobby": {
       "title": "Encontre uma guilda",
-      "createGuild": "Criação de Guilda",
+      "createGuild": "criação de guilda",
       "searchPlaceholder": "Pesquisa de nome de guilda...",
       "pending": "Candidatura",
       "joinInstant": "Inscreva-se agora",
@@ -5562,7 +5686,7 @@
       "transferConfirm": "Você realmente deseja delegar autoridade de líder de guilda a {{name}}? Esta ação é irreversível.",
       "leaderMustTransfer": "Se um líder de guilda quiser deixar a guilda, ele deve primeiro delegar a função de líder da guilda a outro membro da guilda.",
       "lastMemberLeave": "Eu sou o último membro da guilda. Se você sair da guilda, a guilda será dissolvida. Tem certeza de que deseja sair?",
-      "leaveConfirm": "Tem certeza que deseja sair da guilda?",
+      "leaveConfirm": "Tem certeza de que deseja sair da guilda?",
       "leaveError": "Ocorreu um erro ao sair da guilda."
     },
     "management": {
@@ -5574,7 +5698,7 @@
       "applicationJoin": "Aplicar Inscrever-se",
       "freeJoin": "Inscreva-se gratuitamente",
       "applicationJoinHint": "Você deve ser aprovado pelo líder ou vice-líder da guilda para ingressar.",
-      "freeJoinHint": "Havendo vaga, você estará automaticamente inscrito.",
+      "freeJoinHint": "Caso haja vaga, você estará automaticamente inscrito.",
       "announcement": "Aviso da Guilda",
       "edit": "editar",
       "noAnnouncement": "Não há anúncios cadastrados.",
@@ -5933,7 +6057,7 @@
       "materialBox4": "Caixa de Materiais IV"
     },
     "createModal": {
-      "title": "Criação de Guilda",
+      "title": "criação de guilda",
       "nameLabel": "nome da guilda",
       "nameLengthHint": "(2~6 caracteres)",
       "namePlaceholder": "Exemplo: Guilda Myeongwol",

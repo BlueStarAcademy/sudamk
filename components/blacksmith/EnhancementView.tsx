@@ -174,6 +174,7 @@ const getStarDisplayInfo = (stars: number) => {
 };
 
 const EnhancementResultDisplay: React.FC<{ outcome: { message: string; success: boolean; itemBefore: InventoryItem; itemAfter: InventoryItem; } | null, onConfirm: () => void }> = ({ outcome, onConfirm }) => {
+    const { t } = useTranslation('blacksmith');
     if (!outcome) return null;
 
     const { success, message, itemBefore, itemAfter } = outcome;

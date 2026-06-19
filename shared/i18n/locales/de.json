@@ -8,6 +8,7 @@
       "loading": "Laden...",
       "confirm": "überprüfen",
       "back": "zurück",
+      "next": "nächste",
       "retry": "versuchen Sie es erneut",
       "refresh": "auffrischen",
       "submit": "einreichen",
@@ -603,7 +604,7 @@
       "highShort": "hohe Zahl",
       "noOneShort": "1 Prävention",
       "waitingNextAction": "Warten auf die nächste Aktion",
-      "adminForceResign": "{{name}} gewinnt durch Auszahlung",
+      "adminForceResign": "{{name}} hat durch Auszahlung gewonnen",
       "adminForceResignConfirm": "Möchten Sie {{name}} verlieren?",
       "openMenu": "Menü öffnen",
       "menu": "Speisekarte",
@@ -649,7 +650,7 @@
       "evenDiceTitle": "Gerade (2, 4, 6) Würfelgegenstände. Verbleibende Anzahl {{count}}",
       "lowDiceAria": "Geringe Anzahl an Würfelgegenständen, verbleibende Anzahl: {{count}}",
       "lowDiceTitle": "Würfelgegenstände mit geringer Anzahl (1·2·3). Verbleibende Anzahl {{count}}",
-      "highDiceAria": "Würfelgegenstände mit hoher Anzahl, verbleibende Anzahl {{count}}",
+      "highDiceAria": "Würfelgegenstände mit hoher Anzahl, verbleibende Anzahl: {{count}}",
       "highDiceTitle": "Würfelgegenstände mit hoher Anzahl (4, 5, 6). Verbleibende Anzahl {{count}}",
       "oddDiceUse": "Verwenden Sie ungerade Würfel",
       "evenDiceUse": "Verwenden Sie gleichmäßige Würfel",
@@ -665,7 +666,7 @@
       "stoneRefreshTitle": "Steinverlegung",
       "rematch": "Rückkampf",
       "rematchApplying": "Bewerben",
-      "thiefHigh36Aria": "Würfelgegenstände mit hoher Anzahl (3-6), verbleibende Anzahl {{count}}",
+      "thiefHigh36Aria": "Hohe Anzahl (3-6) Würfelgegenstände, verbleibende Anzahl {{count}}",
       "thiefHigh36Title": "Ein Würfel, der nur hohe Zahlen anzeigt (3, 4, 5, 6). Verbleibende Anzahl {{count}}",
       "thiefNoOneAria": "Verhindere 1 (2~5) Würfelgegenstände, verbleibende Anzahl {{count}}",
       "thiefNoOneTitle": "Würfel, die keine 1 ergeben (2, 3, 4, 5). Verbleibende Anzahl {{count}}",
@@ -713,7 +714,7 @@
       "itemInUse": "Artikel wird verwendet...",
       "hiddenFinalReveal": "Wir decken alle versteckten Steine ​​auf und beginnen zu zählen.",
       "autoScoringAdventure": "Es erfolgt eine automatische Abrechnung.",
-      "autoScoringReached": "Das automatische System erreicht den Vorgang und beginnt mit dem Zählen.",
+      "autoScoringReached": "Das automatische System erreicht den Vorgang und beginnt mit der Zählung.",
       "alkkagiRePlace": "Platzieren Sie die Steine ​​erneut. ({{round}} / {{total}} Runde)",
       "alkkagiPlace": "Platziere die Steine. ({{round}} / {{total}} Runde)",
       "alkkagiPlayerTurn": "Es ist {{name}} an der Reihe. ({{round}} / {{total}} Runde)",
@@ -926,7 +927,7 @@
         "byoyomiCount": "{{count}} mal {{seconds}} Sekunden",
         "mixRules": "Kombinationsregeln",
         "forbid33": "Keine Zwillinge",
-        "forbidOverline": "keine Protokolle erlaubt",
+        "forbidOverline": "kein Scheitholz",
         "forbidden": "Verbot",
         "allowed": "möglich",
         "captureTarget": "Zielpunktzahl",
@@ -1006,7 +1007,7 @@
       "seatBlack2": "Schwarz 2",
       "seatWhite1": "hundert 1",
       "seatWhite2": "Hundert 2",
-      "movesCount": "{{count}}Anzahl",
+      "movesCount": "{{count}}count",
       "roundLabel": "runden",
       "roundOf": "Runde {{current}}/{{total}}",
       "roundOfSegment": "Runde {{current}} / {{total}}",
@@ -1221,7 +1222,7 @@
       "blockDice": "Anti-Würfel",
       "omokTtamok": "konkav und doppelter Hals",
       "forbid33": "Keine Zwillinge",
-      "forbidOverline": "keine Protokolle erlaubt",
+      "forbidOverline": "kein Scheitholz",
       "alkkagi": "Alkagi",
       "stoneCount": "Anzahl der Steine",
       "placementType": "Platzierungsmethode",
@@ -1267,7 +1268,7 @@
         "shopConsumables": "Lager · Verbrauchsmaterialien",
         "buyPotion": "Aktions-Wiederherstellungstrank kaufen",
         "buyPotionLimit": "· 1 pro Tag und Typ",
-        "diamondInstant": "Diamant-Sofortaufladung",
+        "diamondInstant": "Diamond lädt sich sofort wieder auf",
         "diamondInstantHint": "Sie können Ihre Aktionskraft genau dann nutzen, wenn Sie möchten.",
         "goShopConsumables": "Kaufen Sie Heiltränke im Laden (Verbrauchsmaterialien)",
         "goDiamondRecharge": "Sofort mit Diamanten aufladen",
@@ -1284,7 +1285,7 @@
       "randomPlaceDisabled": "Es sind keine Basispuppen mehr vorhanden",
       "reset": "Verlegung",
       "resetTitle": "Entfernen Sie alle gelegten Grundsteine.",
-      "resetDisabled": "Es gibt keinen Grundstein, den man treffen kann",
+      "resetDisabled": "Es gibt keinen Basisstein, den man treffen kann",
       "confirmComplete": "Bereitstellung abgeschlossen",
       "confirmed": "Bestätigt",
       "waitingOpponent": "Warten darauf, dass der Gegner seinen Einsatz abschließt.",
@@ -1336,14 +1337,14 @@
       "useItem": "verwenden"
     },
     "pveControls": {
-      "retryFailed": "Ich habe es nicht erneut versucht. Bitte versuchen Sie es erneut.",
+      "retryFailed": "Der Wiederholungsversuch ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
       "nextStageFailed": "Der nächste Layer konnte nicht gestartet werden. Bitte versuchen Sie es erneut.",
       "nextStepFailed": "Der nächste Schritt konnte nicht gestartet werden. Bitte versuchen Sie es erneut.",
       "resignConfirmTitle": "Enthaltungsbestätigung"
     },
     "alerts": {
       "noContestConfirm": "Möchten Sie den Django des Gegners ohne Strafe ungültig machen und gehen?",
-      "cannotResignScoring": "Bei der Auszählung ist Stimmenthaltung nicht gestattet.",
+      "cannotResignScoring": "Bei der Auszählung ist Stimmenthaltung nicht zulässig.",
       "sessionExpired": "Ihre Spielsitzung ist abgelaufen. Bitte wählen Sie die Bühne im Wartezimmer erneut aus.",
       "startFailed": "Das Spiel konnte nicht gestartet werden. Bitte versuchen Sie es erneut."
     },
@@ -1417,7 +1418,7 @@
       "round1": "1. Präsentation",
       "round2Suffix": "· 2",
       "waitingBothBids": "Wir warten darauf, dass beide Seiten schwarze (gute) Ergebnisse vorlegen.",
-      "winnerLine": "{{name}}s {{bid}}-Punkt → schwarzer (Linie), weißer Ziel-{{target}}-Punkt",
+      "winnerLine": "{{name}}s {{bid}}-Punkt → Schwarzer (Linie), weißer Ziel-{{target}}-Punkt",
       "tieRandomBoth": "Das vorgeschlagene Unentschieden ist dasselbe. Schwarz und Weiß werden zufällig ausgewählt.",
       "tieRandom": "Krawatte – Schwarz und Weiß werden zufällig ausgewählt.",
       "tieRebid": "Unentschieden – Zur Wiederholung bewegen.",
@@ -1602,7 +1603,7 @@
       "capturePoints": "Wähle die Punkte aus",
       "komiStones": "Haus",
       "blackWhiteRoulette": "Schwarz-Weiß-Roulette",
-      "tieRerollSubtitle": "Gleichstand mit dem 2. Gebot",
+      "tieRerollSubtitle": "Gleichbleibendes 2. Gebot",
       "beforeStart": "Überprüfen Sie dies, bevor Sie beginnen",
       "bidResult": "Präsentierte Ergebnisse",
       "baseTargetLabel": "primäres Ziel",
@@ -1739,7 +1740,7 @@
       "tieDeathmatch": "Das Deathmatch geht mit einem Unentschieden weiter.",
       "swapRoles": "Wechseln Sie die Rollen und fahren Sie mit der nächsten Runde fort.",
       "round2Tie": "Runde 2 endet. Bei Gleichstand handelt es sich um ein Deathmatch.",
-      "waitingConfirm": "Warten auf Bestätigung vom Partner",
+      "waitingConfirm": "Warten auf die Bestätigung des Gegners",
       "nextRound": "nächste Runde",
       "piecesUnit": "Hund"
     },
@@ -1938,7 +1939,7 @@
         "notification": "Benachrichtigung über Erwerb/Levelaufstieg",
         "item": "Geräusche bei der Verwendung von Gegenständen",
         "countdown": "Countdown/Countdown-Sound",
-        "turn": "Mein Abbiege-Benachrichtigungston"
+        "turn": "Benachrichtigungston, wenn ich an der Reihe bin"
       }
     },
     "features": {
@@ -2225,7 +2226,7 @@
       "rulesTitle": "Anwendungsregeln für Ranking-Matches",
       "gameSettingsTitle": "Match-Einstellungen",
       "noRulesToShow": "Es sind keine Regeln zum Anzeigen vorhanden.",
-      "pairRankedIntro": "In einem Ranglistenspiel mit zwei Spielern bilden <bold>2 Benutzer</bold> pro Team ein Team und werden mit einem anderen Team (2 Benutzer) verglichen. Die folgenden Regeln entsprechen den <bold>offiziellen Ranking-Match-Einstellungen</bold> für das ausgewählte Event und können nicht geändert werden.",
+      "pairRankedIntro": "In einem Ranglistenspiel mit zwei Spielern bilden <bold>2 Benutzer</bold> pro Team ein Team und werden mit einem anderen Team (2 Benutzern) verglichen. Die folgenden Regeln entsprechen den <bold>offiziellen Ranking-Match-Einstellungen</bold> für das ausgewählte Event und können nicht geändert werden.",
       "scoringUntil": "Bis zum aktuellen Preis",
       "timeIncrement": "Zeit hinzufügen",
       "hiddenItem": "Versteckter Gegenstand",
@@ -2317,7 +2318,7 @@
       "scanItem": "Artikel scannen",
       "baseStone": "Grundstein",
       "captureGoal": "Ziel erfassen",
-      "turnsUnit": "{{count}}Anzahl",
+      "turnsUnit": "{{count}}count",
       "linesUnit": "{{size}}Linie",
       "pointsUnit": "{{score}} Punkte",
       "countUnit": "{{zählen}}",
@@ -2391,7 +2392,7 @@
       "title": "Abenteuer",
       "chapter": "Kapitel",
       "chapterEnterAria": "Kapiteleintrag",
-      "chapterMapEnterAria": "Geben Sie die Karte {{title}} ein",
+      "chapterMapEnterAria": "{{title}} Betreten Sie die Karte",
       "chapterLockedAria": "{{title}} Gesperrt: {{blockers}}",
       "lobbyTabsAria": "Abenteuer-Lobby",
       "journal": "Abenteuertagebuch",
@@ -2412,7 +2413,7 @@
       "highGradeMaterial": "fortschrittliche Materialien",
       "topHuntedMonster": "Die meisten gejagten Monster",
       "noHuntRecord": "Es liegen noch keine Jagdaufzeichnungen vor",
-      "winsCount": "{{wins}} gewinnt",
+      "winsCount": "{{wins}} Mal gewonnen",
       "codexLevel": "Enzyklopädie Lv.{{level}}",
       "monsterWindowTabsAria": "Monster-Fensterklassifizierung",
       "monsterSituation": "Monstersituation",
@@ -2420,8 +2421,8 @@
       "appearWaitTime": "Erscheinen/Wartezeit",
       "comprehensionChapterTabsAria": "Kapitel Verständnis",
       "comprehensionEffects": "Monster-Verständniseffekt",
-      "comprehensionGoldBonus": "Abenteuergold +{{percent}} %",
-      "comprehensionEquipBonus": "Ausrüstungsbeschaffung +{{percent}} %",
+      "comprehensionGoldBonus": "Abenteuergold +{{percent}}%",
+      "comprehensionEquipBonus": "Gerätebeschaffung +{{percent}}%",
       "comprehensionHighEquipBonus": "Erweiterte Ausrüstung +{{percent}} %",
       "comprehensionMaterialBonus": "Materialbeschaffung +{{percent}} %",
       "comprehensionHighMaterialBonus": "Fortschrittliche Materialien +{{percent}} %",
@@ -2657,7 +2658,7 @@
       "nextLevelEffects": "Effekt der nächsten Stufe (Lv.{{level}}).",
       "nextLevelEffectsCompact": "Lv.{{level}}-Effekt",
       "enhanceAfterClear": "Nach dem Löschen von {{stageId}} verstärken",
-      "enhanceAfterClearFull": "Sie müssen die Stufe {{stageId}} abschließen.",
+      "enhanceAfterClearFull": "Sie müssen die Stufe {{stageId}} löschen.",
       "enhanceTitle": "{{missionName}} · Verbesserung",
       "enhanceTitlePc": "Verbessere {{missionName}}",
       "startMissionTitle": "Starten Sie {{missionName}}",
@@ -2710,6 +2711,7 @@
     "comingSoon": "Geplante Eröffnung",
     "entryBlocked": "Kein Einlass",
     "viewStats": "Detaillierte Aufzeichnungen anzeigen",
+    "detailedStatsBtn": "Detaillierte Aufzeichnung",
     "viewAll": "Alle anzeigen",
     "totalRecord": "Gesamtrekord",
     "totalRecordCompact": "{{wins}}Siege{{losses}}Verluste {{winRate}} %",
@@ -2732,7 +2734,7 @@
     "pairArenaEnter": "Eintritt zum Messestadion",
     "pairArenaAlt": "Messestadion",
     "unknownSpecialStat": "Unbekannte Sonderoption",
-    "none": "Nicht zutreffend",
+    "none": "Nicht anwendbar",
     "maintenance": "Unter Wartung",
     "combinedLevelRequired": "Integriertes Lv.{{current}}/{{required}}",
     "abilityRequired": "Summe der Fähigkeiten {{total}}+",
@@ -2886,19 +2888,19 @@
       "strategicGo": "Strategie",
       "pairGo": "Paar",
       "playfulGo": "spiele Baduk",
-      "rankedIntegrated": "Gesamtzahl der Ranglistenspiele: {{wins}} gewinnt {{losses}} Niederlagen ({{winRate}}%)",
-      "pairAiRecord": "Paar-KI-Match: {{wins}} gewinnt {{losses}} Verluste ({{winRate}}%)",
-      "modeRecord": "{{wins}} gewinnt {{losses}} Verluste ({{winRate}}%)",
-      "pvpRecord": "PVP-Rekord: {{wins}} gewinnt {{losses}} Verluste ({{winRate}}%)",
-      "aiRecordSuffix": "· KI {{wins}} gewinnt {{losses}} Verluste ({{winRate}}%)",
-      "pvpModeRecord": "PVP {{wins}} gewinnt {{losses}} Verluste ({{winRate}}%)",
-      "aiModeRecord": "KI {{wins}} gewinnt {{losses}} Verluste ({{winRate}}%)",
+      "rankedIntegrated": "Gesamtwertung der Spiele: {{wins}} Siege {{losses}} Niederlagen ({{winRate}} %)",
+      "pairAiRecord": "Paar-KI-Match: {{wins}} gewinnt {{losses}} Niederlagen ({{winRate}}%)",
+      "modeRecord": "{{wins}}Sieg {{losses}}Niederlagen ({{winRate}}%)",
+      "pvpRecord": "PVP-Rekord: {{wins}} Siege {{losses}} Niederlagen ({{winRate}}%)",
+      "aiRecordSuffix": "· KI {{wins}} gewinnt {{losses}} Niederlagen ({{winRate}}%)",
+      "pvpModeRecord": "PVP {{wins}}Sieg {{losses}}Verlust ({{winRate}}%)",
+      "aiModeRecord": "KI {{wins}} gewinnt {{losses}} Niederlagen ({{winRate}}%)",
       "adminPanel": "Administratorfunktion",
       "connectionStatus": "Verbindungsstatus:",
       "connected": "Verbinden",
       "offline": "offline",
       "forceLogout": "Abmeldeverarbeitung",
-      "forceLogoutConfirm": "Soll ich [{{name}}] sofort abmelden?",
+      "forceLogoutConfirm": "Sollen wir [{{name}}] sofort abmelden?",
       "applyChatBan": "Chat-Verbot angewendet",
       "releaseChatBan": "Chat-Verbot entfernen",
       "applyConnectionBan": "Zutrittsverbot anwenden",
@@ -2912,7 +2914,7 @@
       "sanctionReleased": "/ gelöscht",
       "chatBanType": "Kein Chatten",
       "connectionBanType": "Zutritt verboten",
-      "currentStatus": "Derzeit: Chat {{chat}} / Verbindung {{connection}}",
+      "currentStatus": "Derzeit: Chat {{chat}} / Zugriff {{connection}}",
       "statusBanned": "Verboten",
       "statusNormal": "Normal",
       "sanctionReasons": {
@@ -3129,7 +3131,7 @@
       "opponentGoStyle": "Baduk-Tendenz des Gegners",
       "strengths": "Stärke",
       "weaknesses": "Schwäche",
-      "setMbtiHint": "Wenn Sie MBTI einrichten, können Sie die Kompatibilitätsanalyse mit Ihrem Partner einsehen.",
+      "setMbtiHint": "Durch die Einrichtung Ihres MBTI können Sie die Kompatibilitätsanalyse mit Ihrem Partner einsehen.",
       "title": "MBTI-Vergleich",
       "notSetBoth": "Keine der Parteien verfügt über ein MBTI-Set.",
       "opponentNotSet": "Der MBTI der anderen Partei wurde nicht festgelegt.",
@@ -3150,7 +3152,7 @@
       "types": {
         "ISTJ": {
           "style": "festes Silif",
-          "playStyle": "Wir bleiben den Prinzipien und Grundlagen treu und streben nach klaren praktischen Vorteilen. Zeigt eine starke Seite im Abschluss."
+          "playStyle": "Wir bleiben den Prinzipien und Grundlagen treu und verfolgen klare praktische Vorteile. Zeigt eine starke Seite im Abschluss."
         },
         "ISFJ": {
           "style": "Defensive Silifa",
@@ -3498,6 +3500,54 @@
       "remove_ads_2": "Erhalten Sie die gleichen Prämien ohne Store-Anzeigen mit Prämie (unter Beibehaltung des Tageslimits)"
     },
     "items": {
+      "equipment_box_1": {
+        "name": "Ausrüstungskiste I",
+        "description": "Erhalten Sie Ausrüstung von gewöhnlicher bis seltener Qualität"
+      },
+      "equipment_box_2": {
+        "name": "Ausrüstungskiste II",
+        "description": "Erhalte Ausrüstung von normaler bis epischer Qualität"
+      },
+      "equipment_box_3": {
+        "name": "Ausrüstungskiste III",
+        "description": "Erhalten Sie fortgeschrittene bis legendäre Ausrüstung"
+      },
+      "equipment_box_4": {
+        "name": "Ausrüstungskiste IV",
+        "description": "Erwerben Sie seltene bis mythische Ausrüstung"
+      },
+      "equipment_box_5": {
+        "name": "Ausrüstungskiste V",
+        "description": "Erwerben Sie epische bis mythische Ausrüstung"
+      },
+      "equipment_box_6": {
+        "name": "Ausrüstungskiste VI",
+        "description": "Erwerben Sie legendäre bis mythische Ausrüstung"
+      },
+      "material_box_1": {
+        "name": "Materialbox I",
+        "description": "Erwerben Sie 5 niedrige bis hohe Verstärkungssteine"
+      },
+      "material_box_2": {
+        "name": "Materialbox II",
+        "description": "Erwerben Sie 5 niedrige bis hohe Verstärkungssteine"
+      },
+      "material_box_3": {
+        "name": "Materialbox III",
+        "description": "Erwerben Sie 5 niedrige bis hohe Verstärkungssteine"
+      },
+      "material_box_4": {
+        "name": "Materialbox IV",
+        "description": "Besorgen Sie sich 5 Verstärkungssteine ​​mittlerer bis höchster Stufe"
+      },
+      "material_box_5": {
+        "name": "Materialbox V",
+        "description": "Fortgeschritten ~ Erwerben Sie 5 mysteriöse Verbesserungssteine"
+      },
+      "material_box_6": {
+        "name": "Materialbox VI",
+        "description": "Fortgeschritten ~ Erwerben Sie 5 mysteriöse Verbesserungssteine"
+      },
       "equipment_unbind_ticket": {
         "name": "Recht auf Widerruf der Namensnennung",
         "description": "Ändern Sie den Status gebundener Ausrüstung in handelbar."
@@ -3505,6 +3555,30 @@
       "refinement_charm": {
         "name": "Amulett des Schmelzens",
         "description": "Füge 1 zusätzlichen Veredelungszähler für Ausrüstung hinzu, die nicht geschmolzen werden kann"
+      },
+      "option_type_change_ticket": {
+        "name": "Recht, den Optionstyp zu ändern",
+        "description": "Hierbei handelt es sich um einen Gegenstand, der eine der Hauptoptionen, Unteroptionen oder Sonderoptionen des Geräts in eine andere Art von Option ändern kann."
+      },
+      "option_value_change_ticket": {
+        "name": "Ticket zur Änderung des Optionswerts",
+        "description": "Hierbei handelt es sich um einen Gegenstand, der den Wert einer der Unteroptionen oder Sonderoptionen der Ausrüstung ändern kann."
+      },
+      "mythic_option_change_ticket": {
+        "name": "Sonderoption zum Wechseln des Tickets",
+        "description": "Mit diesem Gegenstand können Sie die Sonderoptionen mythischer oder transzendentaler Ausrüstung in andere Sonderoptionen ändern."
+      },
+      "condition_potion_small": {
+        "name": "Zustandswiederherstellungsmittel (klein)",
+        "description": "Mittel zur Zustandswiederherstellung, das Verspannungen lindert"
+      },
+      "condition_potion_medium": {
+        "name": "Zustandswiederherstellungsmittel (mittel)",
+        "description": "Ein Mittel zur Wiederherstellung des Zustands, das Ihren Kopf klarer macht."
+      },
+      "condition_potion_large": {
+        "name": "Zustandswiederherstellungsmittel (groß)",
+        "description": "Ein Wirkstoff zur Konditionswiederherstellung, der Ihnen dabei hilft, heute erfolgreich im Wettbewerb zu bestehen."
       },
       "action_point_10": {
         "name": "Aktionswiederherstellungstrank (+10)",
@@ -3547,7 +3621,7 @@
     "viewDetails": "Details anzeigen",
     "from": "Aus:",
     "remainingTime": "Verbleibende Zeit:",
-    "backToList": "auflisten",
+    "backToList": "aufzulisten",
     "confirmDeleteSettled": "Möchten Sie alle erhaltenen und abgelaufenen Prämienmails löschen?",
     "timeDaysHours": "{{days}} Tage {{hours}} Stunden",
     "timeHoursMinutes": "{{Stunden}}Stunden {{Minuten}} Minuten",
@@ -3584,7 +3658,7 @@
       "progress": "Erreiche {{current}}/{{target}}",
       "cleared": "Erreichung",
       "notCleared": "nicht erreicht",
-      "claimableAria": "Es stehen Erfolge zur Verfügung"
+      "claimableAria": "Es stehen Errungenschaften zur Verfügung"
     },
     "claim": {
       "complete": "vollständig",
@@ -3671,7 +3745,7 @@
     "alerts": {
       "insufficientDiamonds": "Es gibt nicht genug Diamanten.",
       "equipLevelInsufficient": "Der Verschleißgrad ist unzureichend. (Erforderlich: {{required}}, Aktuell: Lv.{{current}})",
-      "insufficientUnbindTickets": "Es besteht kein Recht, die Namensnennung zu widerrufen."
+      "insufficientUnbindTickets": "Es besteht kein Anspruch auf Widerruf der Namensnennung."
     },
     "bindModal": {
       "line1": "Die Ausrüstung ist gebunden und kann nicht an der Börse verkauft werden.",
@@ -3874,7 +3948,7 @@
       "resourceBox": "Materialbox",
       "goldBundle": "Goldpaket",
       "diamondBundle": "Diamantpaket",
-      "condition": "Zustandswiederherstellungsmittel",
+      "condition": "Agent zur Zustandswiederherstellung",
       "actionPoint": "Aktionskraft Zahlungsrecht",
       "tower": "Turm der Herausforderung",
       "egg": "Ei",
@@ -3912,7 +3986,7 @@
       "starsBase": "Basic",
       "starsPlus": "+{{stars}}Fluss",
       "specialOptionRandom": "Sonderoptionen (zufällige {{count}} Stücke)",
-      "capturePoints": "Wählen Sie die Punkte aus",
+      "capturePoints": "Wähle die Punkte aus",
       "orJoin": "oder",
       "hatchDisposition": "Tendenz beim Schlüpfen",
       "hatchSpecialization": "Spezialisierung auf Schlüpfen",
@@ -3939,7 +4013,7 @@
     },
     "tierInfo": {
       "champion": "Mindestpunktzahl 3500 oder höher und auf die besten 100 Personen beschränkt",
-      "master": "Mindestpunktzahl von 3000 oder höher",
+      "master": "Mindestpunktzahl 3000 oder höher",
       "diamond": "Mindestpunktzahl 2400 oder höher",
       "platinum": "Mindestpunktzahl 2000 oder höher",
       "gold": "Mindestpunktzahl 1700 oder höher",
@@ -4021,7 +4095,7 @@
       "salePrice": "Verkaufspreis",
       "fee": "Aufladung",
       "netAmount": "Erhaltener Betrag",
-      "status": "Status",
+      "status": "Situation",
       "dateTime": "Datum/Uhrzeit",
       "price": "Preis",
       "selectedItem": "optional",
@@ -4041,7 +4115,21 @@
       "settlementReceived": "Erhalt der Abrechnung",
       "tradeTicket": "Handelsregistrierungsrechte",
       "keep": "pflegen",
-      "purchaseCompleteMessage": "Ihr Kauf wurde abgeschlossen."
+      "purchaseCompleteMessage": "Ihr Kauf wurde abgeschlossen.",
+      "noListings": "Es stehen keine registrierten Artikel zum Verkauf.",
+      "myListingBadge": "meine Anmeldung",
+      "registering": "Registrieren",
+      "expired": "Abgelaufen",
+      "recoverCooldown": "Sie können es in {{seconds}} Sekunden erneut abrufen.",
+      "recover": "sammeln",
+      "cancelSale": "Verkauf abbrechen",
+      "noSettlement": "Es sind keine Verkaufsunterlagen zur Abrechnung verfügbar.",
+      "claimSelected": "Holen Sie Ihre Auswahl ab",
+      "claimAll": "Erhalten Sie alle",
+      "noSettlementPending": "Es sind keine Posten vorhanden, die auf die Abrechnung warten.",
+      "totalHistoryCount": "Gesamter Transaktionsverlauf: {{count}}",
+      "statusLabel": "Situation",
+      "noHistory": "Es gibt keine Transaktionshistorie."
     },
     "sort": {
       "label": "Array",
@@ -4093,6 +4181,9 @@
     "playerLoadError": "Beim Laden der Spielerinformationen ist ein Fehler aufgetreten.",
     "playerWaiting": "Spieler wartet...",
     "playerLoadFailed": "Spielerinformationen konnten nicht geladen werden.",
+    "loadingTournament": "Turnierinformationen werden geladen...",
+    "loadingUserInfo": "Benutzerinformationen werden geladen...",
+    "nextMatchPreparing": "Ich bereite mich auf das nächste Spiel vor... {{countdown}}",
     "defaultPlayer": "Spieler",
     "me": "Mich",
     "opponent": "Gegner",
@@ -4256,7 +4347,9 @@
         "equipmentBox": "Gerätekasten",
         "changeTicket": "Recht auf Änderung",
         "special": "besonders",
-        "limitLabel": "Limit"
+        "limitLabel": "Limit",
+        "weeklyCountShort": "(Wöchentlich {{remaining}}/{{limit}})",
+        "equipmentBoxInfoSuffix": "Ausrüstung besorgen. Muss eine spezielle Option zur Steigerung der Meisterschaftsfähigkeit enthalten"
       },
       "ranking": {
         "viewProfile": "Profil von {{name}} ansehen",
@@ -4322,7 +4415,7 @@
         "condition": "Zustand",
         "rewards": "Entschädigung",
         "basicReward": "Grundbelohnung: Abhängig von Ihrem Rang werden in jedem Spiel automatisch Gold, Verstärkungssteine ​​und Ausrüstungskisten vergeben.",
-        "rankReward": "Ranglistenbelohnung: Nach Ende des Turniers werden zusätzliche Belohnungen basierend auf der endgültigen Rangliste ausgezahlt.",
+        "rankReward": "Ranglistenbelohnung: Nach Ende des Turniers werden basierend auf der endgültigen Rangliste zusätzliche Belohnungen ausgezahlt.",
         "neighborhoodReward": "Nachbarschafts-Baduk-Liga: Goldpaket (je höher der Rang, desto mehr Gold)",
         "nationalReward": "Nationales Baduk-Turnier: Materialkiste (je höher der Rang, desto höher die Qualität der Materialkiste)",
         "worldReward": "Weltmeisterschaft: Diamant-Paket (je höher der Rang, desto mehr Diamant-Pakete)",
@@ -4557,10 +4650,40 @@
     "rankingHint": "Wenn Sie 10 oder mehr Stockwerke räumen, wird dies in der Rangliste angezeigt.",
     "rankingLoading": "Rankings werden geladen...",
     "rankingEmpty": "Es liegen keine Ranking-Daten vor.",
-    "floorLabel": "Ebene: {{floor}}",
+    "floorLabel": "Etage: {{floor}}",
     "myRecord": "meine Aufzeichnungen",
     "rankingInfo": "Ranking-Informationen",
     "ownedItems": "Eigene Gegenstände",
+    "inventoryItems": {
+      "turnAdd": "Runde hinzufügen",
+      "missile": "Rakete",
+      "hidden": "Versteckt",
+      "scan": "Scan",
+      "refresh": "Layoutänderung"
+    },
+    "rewardItems": {
+      "equipmentBox1": "Ausrüstungskiste I",
+      "equipmentBox2": "Ausrüstungskiste II",
+      "equipmentBox3": "Ausrüstungskiste III",
+      "equipmentBox4": "Ausrüstungskiste IV",
+      "equipmentBox5": "Ausrüstungskiste V",
+      "equipmentBox6": "Ausrüstungskiste VI",
+      "materialBox1": "Materialbox I",
+      "materialBox2": "Materialbox II",
+      "materialBox3": "Materialbox III",
+      "materialBox4": "Materialbox IV",
+      "materialBox5": "Materialbox V",
+      "materialBox6": "Materialbox VI",
+      "goldBundle1": "Goldpaket I",
+      "goldBundle2": "Goldpaket II",
+      "goldBundle3": "Goldpaket III",
+      "goldBundle4": "Goldpaket IV",
+      "diamondBundle1": "Diamantpaket I",
+      "diamondBundle2": "Diamantpaket II",
+      "diamondBundle3": "Diamantpaket III",
+      "diamondBundle4": "Diamantpaket IV"
+    },
+    "viewRewardItem": "Belohnungsgegenstand: {{name}}",
     "rewardInfoTitle": "Informationen zur Vergütung",
     "closePanelAria": "Panel schließen",
     "close": "schließen",
@@ -4572,13 +4695,13 @@
     "rewardFromFloor10Short": "Sie können eine monatliche Belohnung erhalten, wenn Sie 10 oder mehr Stockwerke räumen.",
     "stages": "Bühne",
     "rankingTop100": "Rangliste Top 100",
-    "rewardTierLine": "{{floor}}Floor-Abschnittsvergütung · Wird am Monatsende ausgezahlt",
+    "rewardTierLine": "Vergütung für {{floor}} Etagenabschnitte · Wird bei Abrechnung am Monatsende ausgezahlt",
     "unranked": "außer Ranking",
     "noOtherRanked": "Es sind keine weiteren Platzierungen in den Top 100 aufgeführt.",
     "rewardModalTitle": "Informationen zur Turm-der-Herausforderung-Belohnung",
     "settlementRemaining": "Verbleibende Zeit bis zur Entschädigungsabrechnung",
     "myCurrentReward": "meine aktuelle Belohnung",
-    "floorTier": "{{floor}}Etage",
+    "floorTier": "{{floor}} Etage",
     "blackPatternAlt": "schwarzes Muster",
     "goldAlt": "Gold",
     "diamondAlt": "Diamant",
@@ -4673,7 +4796,7 @@
       "confirmTitle": "Überprüfen Sie die Haustiererziehung",
       "sendToSlot": "<pet>{{petName}}</pet> Soll ich mein Haustier zu <slot>{{slotLabel}}</slot> schicken?",
       "sendNotice": "Während das Training läuft, kann dieses Haustier nicht am Pair Baduk teilnehmen. Ein als repräsentatives Haustier ausgewiesenes Haustier kann nicht zum Training geschickt und während des Trainings nicht in ein repräsentatives Haustier umgewandelt werden.",
-      "sendTraining": "Schulung schicken",
+      "sendTraining": "Schulung senden",
       "cancelTitle": "Trainingsabsage",
       "cancelWarning": "Wenn Sie das Training abbrechen, wird <reset>die laufende Zeit zurückgesetzt</reset> und der Slot ist leer. Das Haustier bleibt im Beutel.",
       "slotLabel": "Slot",
@@ -4759,7 +4882,7 @@
       "expandInvQuestion": "Möchten Sie Ihr {{category}}-Inventar erweitern?",
       "expandSlotsHint": "+{{step}} Leerzeichen hinzugefügt (maximal {{max}} Leerzeichen)",
       "dailyLimit": "Tageslimit {{remaining}}/{{limit}}",
-      "specBadge": "besonders",
+      "specBadge": "Besonders",
       "tierActive": "Bewerben",
       "tierUnlocked": "Entsperrt",
       "tierUpgrade": "Verbessern ({{gold}} G)",
@@ -4779,7 +4902,7 @@
       "soulInsufficient": "Nicht genügend {{name}}. {{need}} benötigt (besitzen {{owned}})",
       "soulInsufficientShort": "Nicht genügend {{name}}. (brauchen {{need}}, besitzen {{owned}})",
       "soulStoneFallback": "Seelenstein",
-      "soulCostTitle": "Verbrauchen Sie {{name}} {{count}} und erhöhen Sie das Level",
+      "soulCostTitle": "Verbrauchen Sie {{name}} {{count}} Einheiten · Levelerhöhung",
       "soulCostTitleMinLevel": "Sie können Ihr Level auf Lv. {{level}} oder höher verbessern.",
       "cannotWhileTraining": "Haustiere im Training können nicht aufgewertet werden. Bitte verwenden Sie es nach Abschluss Ihrer Ausbildung.",
       "cannotWhileTrainingShort": "Haustiere im Training können nicht aufgewertet werden.",
@@ -4797,7 +4920,7 @@
       "baseStatIncrease": "Basisfähigkeit erhöht",
       "percentTen": "+10 %",
       "nextGradeLevelUpBudget": "Fähigkeiten werden automatisch verteilt, wenn das Haustier im nächsten Stufenabschnitt aufsteigt",
-      "dispositionBoost": "verstärkende Tendenz",
+      "dispositionBoost": "verstärkende Tendenzen",
       "requiredMaterials": "Benötigte Materialien",
       "ownedCount": "Im Besitz <owned>{{owned}}</owned><sep> / Benötigt </sep><need>{{need}}</need>",
       "soulInsufficientInline": "Mir gehen die Seelensteine ​​aus.",
@@ -4910,7 +5033,7 @@
       "noEquippedPet": "Keine Haustiere vorhanden",
       "setRepresentativePrompt": "Bitte geben Sie ein repräsentatives Haustier an.",
       "detailShort": "besondere",
-      "detailInfo": "Details",
+      "detailInfo": "Einzelheiten",
       "viewDetail": "Details anzeigen",
       "viewDetailAria": "Haustierdetails anzeigen",
       "goToPetInventoryAria": "Gehen Sie zur Registerkarte „Info“ „Haustierinventar“.",
@@ -5010,6 +5133,7 @@
       "roomKind": "Zimmertyp",
       "changeRoom": "Umkleideraum",
       "proposeChange": "Änderungsvorschlag",
+      "leaveRoom": "Verlasse den Raum",
       "matchingShort": "Passend",
       "unready": "unfertig",
       "ready": "Vorbereitung",
@@ -5113,7 +5237,7 @@
       "default": "Öffnen Sie den Aufgabenbildschirm"
     },
     "pickHints": {
-      "enhance": "Wählen Sie im Modal die zu verstärkende Ausrüstung aus und klicken Sie auf „Auswahl abschließen“, um zum Verstärkungsbildschirm zu gelangen.",
+      "enhance": "Wählen Sie im Modal die zu verstärkende Ausrüstung aus und drücken Sie dann auf „Auswahl abgeschlossen“, um zum Verstärkungsbildschirm zu gelangen.",
       "combine": "Wenn Sie 3 Ausrüstungsgegenstände desselben Grades im Modal platzieren und dann auf „Auswahl abgeschlossen“ klicken, gelangen Sie zum Synthesebildschirm.",
       "disassemble": "Wählen Sie im Modal die zu zerlegende Ausrüstung aus und drücken Sie dann auf „Auswahl abgeschlossen“, um zum Demontagebildschirm zu gelangen.",
       "refine": "Nachdem Sie im Modal die zu schmelzende Ausrüstung ausgewählt und auf „Auswahl abschließen“ geklickt haben, gelangen Sie zum Schmelzbildschirm."
@@ -5325,7 +5449,7 @@
     "mixRulesMinAlert": "Für Mischregeln müssen zwei oder mehr Regeln ausgewählt werden.",
     "mixCaptureCastleConflict": "Winning und Castle können nicht gleichzeitig ausgewählt werden.",
     "countUnit": "{{zählen}}",
-    "boardLines": "{{size}} Zeile",
+    "boardLines": "{{size}}Linie",
     "pointsFixed": "9 Punkte (fix)",
     "pointsUnit": "{{score}} Punkte",
     "turnsUnit": "{{limit}}Anzahl",
@@ -5615,7 +5739,7 @@
       "apRegenEffect": "Aktionswiederherstellungszeit – {{sec}} Sekunden",
       "apRegenBoost": "Während der natürlichen Erholung wird das Intervall um insgesamt {{sec}} Sekunden pro AP verkürzt.",
       "statConcentration": "Konzentration +{{value}}%",
-      "statThinkingSpeed": "Denkgeschwindigkeit +{{value}} %",
+      "statThinkingSpeed": "Denkgeschwindigkeit +{{value}}%",
       "statJudgment": "Urteil +{{value}}%",
       "statCalculation": "Rechenleistung +{{value}}%",
       "statCombatPower": "Kampfkraft +{{value}} %",
@@ -5728,7 +5852,7 @@
       "contribution": "Beitrag {{stars}}",
       "matchingInProgress": "Matching läuft",
       "warPrep": "Vorbereitung auf den Gildenkrieg",
-      "startsIn": "{{time}} Start",
+      "startsIn": "Beginnen Sie {{time}}",
       "findingOpponent": "Ich suche einen Gegner für diesen Gildenkampf.",
       "entryFrom": "Sie können ab dem {{date}}(KST) teilnehmen.",
       "scheduledAt": "Geplante Zeit: {{date}}",
@@ -5922,7 +6046,7 @@
       "guildCoins": "Zunftmünze",
       "guildXp": "Gildenerfahrung",
       "researchPoints": "Laborpunkte",
-      "enhancementStoneLow": "Kleiner Verzauberungsstein",
+      "enhancementStoneLow": "Geringer Verzauberungsstein",
       "enhancementStoneMid": "Mittlerer Verbesserungsstein",
       "enhancementStoneHigh": "Fortschrittlicher Verzauberungsstein",
       "enhancementStoneTop": "Erstklassiger Verstärkungsstein",

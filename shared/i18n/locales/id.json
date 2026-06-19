@@ -8,6 +8,7 @@
       "loading": "Memuat...",
       "confirm": "memeriksa",
       "back": "kembali",
+      "next": "Berikutnya",
       "retry": "coba lagi",
       "refresh": "menyegarkan",
       "submit": "kirim",
@@ -2710,6 +2711,7 @@
     "comingSoon": "Dijadwalkan untuk dibuka",
     "entryBlocked": "Dilarang masuk",
     "viewStats": "Lihat catatan rinci",
+    "detailedStatsBtn": "Catatan terperinci",
     "viewAll": "Lihat semuanya",
     "totalRecord": "rekor keseluruhan",
     "totalRecordCompact": "{{menang}}Menang{{kalah}}Kekalahan {{winRate}}%",
@@ -3498,6 +3500,54 @@
       "remove_ads_2": "Terima reward yang sama tanpa menyimpan iklan reward (mempertahankan batas harian)"
     },
     "items": {
+      "equipment_box_1": {
+        "name": "Kotak Peralatan I",
+        "description": "Dapatkan peralatan kelas umum hingga langka"
+      },
+      "equipment_box_2": {
+        "name": "Kotak Peralatan II",
+        "description": "Dapatkan perlengkapan kelas normal hingga epik"
+      },
+      "equipment_box_3": {
+        "name": "Kotak Perlengkapan III",
+        "description": "Dapatkan peralatan tingkat lanjut hingga legendaris"
+      },
+      "equipment_box_4": {
+        "name": "Kotak Peralatan IV",
+        "description": "Dapatkan peralatan kelas langka hingga mitis"
+      },
+      "equipment_box_5": {
+        "name": "Kotak Peralatan V",
+        "description": "Dapatkan peralatan tingkat epik hingga mitis"
+      },
+      "equipment_box_6": {
+        "name": "Kotak Peralatan VI",
+        "description": "Dapatkan peralatan kelas legendaris hingga mitis"
+      },
+      "material_box_1": {
+        "name": "Kotak Bahan I",
+        "description": "Dapatkan 5 batu dengan peningkatan rendah hingga tinggi"
+      },
+      "material_box_2": {
+        "name": "Kotak Bahan II",
+        "description": "Dapatkan 5 batu dengan peningkatan rendah hingga tinggi"
+      },
+      "material_box_3": {
+        "name": "Kotak Bahan III",
+        "description": "Dapatkan 5 batu dengan peningkatan rendah hingga tinggi"
+      },
+      "material_box_4": {
+        "name": "Kotak Bahan IV",
+        "description": "Dapatkan 5 batu penguat tingkat menengah hingga tertinggi"
+      },
+      "material_box_5": {
+        "name": "Kotak Bahan V",
+        "description": "Tingkat Lanjut ~ Dapatkan 5 Batu Peningkat Misterius"
+      },
+      "material_box_6": {
+        "name": "Kotak Bahan VI",
+        "description": "Tingkat Lanjut ~ Dapatkan 5 Batu Peningkat Misterius"
+      },
       "equipment_unbind_ticket": {
         "name": "Hak untuk membatalkan atribusi",
         "description": "Ubah status peralatan terikat menjadi dapat diperdagangkan."
@@ -3505,6 +3555,30 @@
       "refinement_charm": {
         "name": "Jimat Peleburan",
         "description": "Tambahkan 1 hitungan pemurnian tambahan untuk peralatan yang tidak dapat dilebur"
+      },
+      "option_type_change_ticket": {
+        "name": "Hak untuk mengubah jenis opsi",
+        "description": "Ini adalah item yang dapat mengubah salah satu opsi utama, sub-opsi, atau opsi khusus peralatan menjadi jenis opsi lain."
+      },
+      "option_value_change_ticket": {
+        "name": "Tiket perubahan nilai opsi",
+        "description": "Ini adalah item yang dapat mengubah nilai salah satu sub-opsi atau opsi khusus peralatan."
+      },
+      "mythic_option_change_ticket": {
+        "name": "Tiket ganti opsi khusus",
+        "description": "Item ini memungkinkan Anda untuk mengubah opsi khusus perlengkapan mitis atau transendental ke opsi khusus lainnya."
+      },
+      "condition_potion_small": {
+        "name": "Agen pemulihan kondisi (kecil)",
+        "description": "Agen pemulihan kondisi yang meredakan ketegangan"
+      },
+      "condition_potion_medium": {
+        "name": "Agen pemulihan kondisi (sedang)",
+        "description": "Agen pemulihan kondisi yang membuat kepala Anda terasa lebih jernih."
+      },
+      "condition_potion_large": {
+        "name": "Agen pemulihan kondisi (besar)",
+        "description": "Agen pemulihan kondisi yang akan membantu Anda sukses bersaing hari ini."
       },
       "action_point_10": {
         "name": "Ramuan pemulihan aksi (+10)",
@@ -4021,7 +4095,7 @@
       "salePrice": "harga penjualan",
       "fee": "mengenakan biaya",
       "netAmount": "Jumlah yang diterima",
-      "status": "status",
+      "status": "situasi",
       "dateTime": "Tanggal/Waktu",
       "price": "harga",
       "selectedItem": "opsional",
@@ -4041,7 +4115,21 @@
       "settlementReceived": "Tanda terima penyelesaian",
       "tradeTicket": "hak pendaftaran perdagangan",
       "keep": "menjaga",
-      "purchaseCompleteMessage": "Pembelian Anda telah selesai."
+      "purchaseCompleteMessage": "Pembelian Anda telah selesai.",
+      "noListings": "Tidak ada barang terdaftar untuk dijual.",
+      "myListingBadge": "pendaftaran saya",
+      "registering": "Mendaftar",
+      "expired": "kedaluwarsa",
+      "recoverCooldown": "Anda dapat mengambilnya kembali dalam {{detik}} detik.",
+      "recover": "mengumpulkan",
+      "cancelSale": "Batalkan penjualan",
+      "noSettlement": "Tidak ada catatan penjualan yang tersedia untuk penyelesaian.",
+      "claimSelected": "Ambil pilihan Anda",
+      "claimAll": "Terima semuanya",
+      "noSettlementPending": "Tidak ada item yang menunggu penyelesaian.",
+      "totalHistoryCount": "Total riwayat transaksi: {{count}}",
+      "statusLabel": "situasi",
+      "noHistory": "Tidak ada riwayat transaksi."
     },
     "sort": {
       "label": "susunan",
@@ -4093,6 +4181,9 @@
     "playerLoadError": "Terjadi kesalahan saat memuat informasi pemain.",
     "playerWaiting": "Pemain menunggu...",
     "playerLoadFailed": "Informasi pemain tidak dapat dimuat.",
+    "loadingTournament": "Memuat informasi turnamen...",
+    "loadingUserInfo": "Memuat informasi pengguna...",
+    "nextMatchPreparing": "Mempersiapkan pertandingan berikutnya... {{countdown}}",
     "defaultPlayer": "pemain",
     "me": "Saya",
     "opponent": "lawan",
@@ -4256,7 +4347,9 @@
         "equipmentBox": "kotak peralatan",
         "changeTicket": "hak perubahan",
         "special": "spesial",
-        "limitLabel": "membatasi"
+        "limitLabel": "membatasi",
+        "weeklyCountShort": "(Mingguan {{sisa}}/{{batas}})",
+        "equipmentBoxInfoSuffix": "Dapatkan peralatan. Harus menyertakan opsi khusus untuk meningkatkan kemampuan kejuaraan"
       },
       "ranking": {
         "viewProfile": "Lihat profil {{name}}",
@@ -4561,6 +4654,36 @@
     "myRecord": "catatan saya",
     "rankingInfo": "Informasi peringkat",
     "ownedItems": "Barang milik",
+    "inventoryItems": {
+      "turnAdd": "Tambahkan Putaran",
+      "missile": "misil",
+      "hidden": "Tersembunyi",
+      "scan": "memindai",
+      "refresh": "Perubahan tata letak"
+    },
+    "rewardItems": {
+      "equipmentBox1": "Kotak Peralatan I",
+      "equipmentBox2": "Kotak Peralatan II",
+      "equipmentBox3": "Kotak Perlengkapan III",
+      "equipmentBox4": "Kotak Peralatan IV",
+      "equipmentBox5": "Kotak Peralatan V",
+      "equipmentBox6": "Kotak Peralatan VI",
+      "materialBox1": "Kotak Bahan I",
+      "materialBox2": "Kotak Bahan II",
+      "materialBox3": "Kotak Bahan III",
+      "materialBox4": "Kotak Bahan IV",
+      "materialBox5": "Kotak Bahan V",
+      "materialBox6": "Kotak Bahan VI",
+      "goldBundle1": "Paket Emas I",
+      "goldBundle2": "Paket Emas II",
+      "goldBundle3": "Paket Emas III",
+      "goldBundle4": "Bundel Emas IV",
+      "diamondBundle1": "Paket Berlian I",
+      "diamondBundle2": "Paket Berlian II",
+      "diamondBundle3": "Paket Berlian III",
+      "diamondBundle4": "Paket Berlian IV"
+    },
+    "viewRewardItem": "Barang Hadiah: {{nama}}",
     "rewardInfoTitle": "Informasi kompensasi",
     "closePanelAria": "Tutup panel",
     "close": "menutup",
@@ -4779,7 +4902,7 @@
       "soulInsufficient": "{{nama}} tidak mencukupi. {{need}} dibutuhkan (memiliki {{dimiliki}})",
       "soulInsufficientShort": "{{nama}} tidak mencukupi. (membutuhkan {{kebutuhan}}, memiliki {{dimiliki}})",
       "soulStoneFallback": "batu jiwa",
-      "soulCostTitle": "Konsumsi {{name}} {{count}} dan tingkatkan level",
+      "soulCostTitle": "Konsumsi {{name}} {{count}} unit · Peningkatan level",
       "soulCostTitleMinLevel": "Anda dapat memperkuat level Anda di Lv.{{level}} atau lebih tinggi.",
       "cannotWhileTraining": "Hewan peliharaan dalam pelatihan tidak dapat ditingkatkan. Silakan gunakan setelah menyelesaikan pelatihan Anda.",
       "cannotWhileTrainingShort": "Hewan peliharaan dalam pelatihan tidak dapat ditingkatkan.",
@@ -5010,6 +5133,7 @@
       "roomKind": "tipe kamar",
       "changeRoom": "ruang ganti",
       "proposeChange": "mengubah saran",
+      "leaveRoom": "meninggalkan ruangan",
       "matchingShort": "Cocok",
       "unready": "belum siap",
       "ready": "persiapan",
@@ -5798,7 +5922,7 @@
       "myArenaHint": "Di bawah ini adalah ringkasan pertandingan akhir yang dimainkan luar angkasa dalam perang ini. Edisi yang sedang berjalan akan tercermin dalam daftar rinci setelah berakhir.",
       "boardPerformance": "Pertunjukan berdasarkan stadion",
       "inProgress": "Sedang berlangsung",
-      "gameSummary": "Berakhir {{games}} · Menang {{menang}} · Seri {{draws}} · Kalah {{kalah}}{{bintang}}",
+      "gameSummary": "Akhiri babak {{games}} · Menang {{menang}} · Seri {{draws}} · Kalah {{kalah}}{{bintang}}",
       "starsEarnedSum": "· Total berdasarkan akuisisi {{count}}",
       "noBoardRecord": "Tidak ada catatan tentang kompartemen ini dalam perang ini.",
       "finishedGamesDetail": "Detail pertandingan akhir",

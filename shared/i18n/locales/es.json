@@ -8,6 +8,7 @@
       "loading": "Cargando...",
       "confirm": "controlar",
       "back": "atrás",
+      "next": "próximo",
       "retry": "intentar otra vez",
       "refresh": "refrescar",
       "submit": "entregar",
@@ -249,7 +250,7 @@
     "rpsLose": "¡fracaso!",
     "rpsTie": "¡dibujar!",
     "rpsTieRetry": "¡dibujar! ¡una vez más!",
-    "rpsTieRandom": "¡dibujar! Se decide al azar.",
+    "rpsTieRandom": "¡dibujar! Se decide al azar...",
     "rpsChoiceDone": "¡Selección completa!",
     "rpsWaitingOpponent": "Esperando la elección de {{name}}...",
     "rpsTieWarning": "Si esta vez hubiera empate, se decidirá al azar.",
@@ -538,7 +539,7 @@
     "descriptions": {
       "standard": "Este es el típico baduk clásico.",
       "capture": "El juego de Baduk lo gana la primera persona que consiga un número determinado de piedras.",
-      "speed": "Si lo colocas dentro de {{segundos}} segundos, regenerarás {{segundos}} segundos. Por cada {{segundos}} segundos, se agrega 1 punto a tu oponente.",
+      "speed": "Si lo colocas dentro de {{segundos}} segundos por turno, recuperarás {{segundos}} segundos. Por cada {{segundos}} segundos, se agrega 1 punto a tu oponente.",
       "base": "Es un juego de baduk en el que observas la disposición de las piedras base, estableces una bonificación para tu oponente, usas las piedras que elijas y compites según tu capacidad para analizar la situación.",
       "hidden": "¡Una remontada con un movimiento invisible para el oponente! Se requieren habilidades de guerra psicológica y lectura a través de elementos ocultos y escaneados.",
       "missile": "Crea una variable moviendo la piedra colocada como elemento de misil.",
@@ -603,7 +604,7 @@
       "highShort": "numero alto",
       "noOneShort": "1 Prevención",
       "waitingNextAction": "Esperando la próxima acción",
-      "adminForceResign": "{{name}} gana por retiro",
+      "adminForceResign": "{{name}} ganó por retiro",
       "adminForceResignConfirm": "¿Quieres perder {{name}}?",
       "openMenu": "abrir menú",
       "menu": "menú",
@@ -1221,7 +1222,7 @@
       "blockDice": "anti-dados",
       "omokTtamok": "cóncavo y doble cuello",
       "forbid33": "sin gemelos",
-      "forbidOverline": "no se permiten registros",
+      "forbidOverline": "sin leña",
       "alkkagi": "Alkagi",
       "stoneCount": "numero de piedras",
       "placementType": "Método de colocación",
@@ -1336,7 +1337,7 @@
       "useItem": "usar"
     },
     "pveControls": {
-      "retryFailed": "No pude intentarlo de nuevo. Por favor inténtalo de nuevo.",
+      "retryFailed": "El reintento falló. Por favor inténtalo de nuevo.",
       "nextStageFailed": "No se pudo iniciar la siguiente capa. Por favor inténtalo de nuevo.",
       "nextStepFailed": "No se pudo iniciar el siguiente paso. Por favor inténtalo de nuevo.",
       "resignConfirmTitle": "Confirmación de abstención"
@@ -1417,7 +1418,7 @@
       "round1": "1ra presentación",
       "round2Suffix": "· 2do",
       "waitingBothBids": "Estamos esperando que ambos lados presenten puntajes negros (buenos).",
-      "winnerLine": "Punto {{bid}} de {{name}} → negro (línea), objetivo blanco {{target}} punto",
+      "winnerLine": "Punto {{bid}} de {{name}} → Negro (línea), objetivo blanco {{target}} punto",
       "tieRandomBoth": "El empate propuesto es el mismo. El blanco y el negro se seleccionan al azar.",
       "tieRandom": "Empate: Blanco y negro se seleccionan al azar.",
       "tieRebid": "Empate: mover para volver a ejecutar.",
@@ -1649,7 +1650,7 @@
       "whiteStone": "piedra blanca",
       "title": "Ilsaek Baduk",
       "uniformRoulette": "ruleta de color uniforme",
-      "thisColor": "Color de piedra para este juego: {{color}}",
+      "thisColor": "Color de piedra para este partido: {{color}}",
       "flashHint": "Las piedras blancas y negras parpadean rápidamente alternativamente y se detienen aleatoriamente.",
       "autoStart": "El partido comenzará automáticamente una vez finalizado el sorteo.",
       "stoneColorRoulette": "ruleta color piedra",
@@ -1973,7 +1974,7 @@
       "withdraw": "Retiro de membresía",
       "cancel": "cancelación",
       "withdrawTitle": "Retiro de membresía",
-      "withdrawLine1": "Los datos se eliminan al realizar el retiro y no se pueden recuperar.",
+      "withdrawLine1": "Tras el retiro, los datos se eliminan y no se pueden recuperar.",
       "withdrawLine2": "No puede volver a registrarse con la misma dirección de correo electrónico durante 1 semana.",
       "withdrawPasswordConfirm": "verificar contraseña",
       "withdrawTextConfirm": "Ingrese el texto de confirmación: \"Retirar membresía\"",
@@ -2677,7 +2678,7 @@
       },
       "alerts": {
         "insufficientXp": "No tengo suficiente experiencia.",
-        "insufficientGold": "Me he quedado sin oro.",
+        "insufficientGold": "Se me acabó el oro.",
         "enhanceAfterClear": "Puedes fortalecerlo después de borrar {{stageId}}."
       },
       "startMessages": {
@@ -2710,6 +2711,7 @@
     "comingSoon": "Programado para abrir",
     "entryBlocked": "No hay entrada",
     "viewStats": "Ver registros detallados",
+    "detailedStatsBtn": "Registro detallado",
     "viewAll": "Ver todo",
     "totalRecord": "registro total",
     "totalRecordCompact": "{{wins}}Ganancias{{losses}}Pérdidas {{winRate}}%",
@@ -2747,7 +2749,7 @@
       "pvpTitle": "Registros detallados del estadio PVP",
       "strategicTitle": "Estrategia Ir a registros detallados",
       "playfulTitle": "Reproducir registros detallados de Baduk",
-      "strategicAll": "Estrategia ir todo",
+      "strategicAll": "Estrategia Baduk Todo",
       "playfulAll": "jugar baduk completo",
       "seasonResetNote": "Al restablecer tus registros de PvP, también se restablecerá tu puntuación de clasificación de temporada.",
       "noPairRanking": "No existe un sistema de clasificación para jugar a Baduk.",
@@ -2902,7 +2904,7 @@
       "applyChatBan": "Se aplicó la prohibición de chat",
       "releaseChatBan": "Eliminar la prohibición de chat",
       "applyConnectionBan": "Aplicar prohibición de acceso",
-      "releaseConnectionBan": "Eliminar la prohibición de conexión",
+      "releaseConnectionBan": "Eliminar la prohibición de acceso",
       "chatBanMinutes": "Sin chat (minutos)",
       "connectionBanMinutes": "Acceso prohibido (minutos)",
       "sanctionReason": "Razones de la sanción",
@@ -2949,7 +2951,7 @@
       "avatarSelect": "Elige tu avatar",
       "tierRequired": "Se requiere el nivel {{tier}} de la temporada anterior",
       "levelSumRequired": "Requiere suma de nivel {{level}}",
-      "goldPrice": "{{cantidad}} oro",
+      "goldPrice": "{{cantidad}} Oro",
       "diamondPrice": "{{cantidad}} diamante",
       "borderPurchaseConfirm": "¿Le gustaría comprar el borde '{{name}}' por {{price}}?",
       "borderPurchaseHint": "Haga clic para comprar: {{descripción}}",
@@ -2986,7 +2988,7 @@
       "expired": "venció",
       "remaining": "{{duración}} restante",
       "durationDays": "{{días}}días",
-      "durationHours": "{{horas}} horas",
+      "durationHours": "{{horas}}horas",
       "durationMinutes": "{{minutos}} minutos",
       "borderCategories": {
         "basic": "básico",
@@ -3076,7 +3078,7 @@
       "bonus": "prima",
       "resetBtn": "reiniciar",
       "allocateTitle": "Distribución de puntos de habilidad",
-      "allocateAria": "{{stat}} Distribución",
+      "allocateAria": "{{stat}} distribución",
       "statLabel": "capacidad",
       "remainingShort": "resto",
       "allocateToStat": "Distribución a esta habilidad."
@@ -3498,6 +3500,54 @@
       "remove_ads_2": "Reciba las mismas recompensas sin anuncios recompensados ​​por la tienda (manteniendo el límite diario)"
     },
     "items": {
+      "equipment_box_1": {
+        "name": "Caja de equipamiento I",
+        "description": "Obtenga equipos de grado común a raro."
+      },
+      "equipment_box_2": {
+        "name": "Caja de equipamiento II",
+        "description": "Obtén equipo de grado normal a épico."
+      },
+      "equipment_box_3": {
+        "name": "Caja de equipo III",
+        "description": "Obtenga equipos de grado avanzado a legendario"
+      },
+      "equipment_box_4": {
+        "name": "Caja de equipo IV",
+        "description": "Adquirir equipos de grado raro a mítico."
+      },
+      "equipment_box_5": {
+        "name": "Caja de equipo V",
+        "description": "Adquiere equipos de grado épico a mítico."
+      },
+      "equipment_box_6": {
+        "name": "Caja de equipamiento VI",
+        "description": "Adquiere equipos de nivel legendario a mítico."
+      },
+      "material_box_1": {
+        "name": "Caja de materiales I",
+        "description": "Adquiere 5 piedras de mejora de baja a alta"
+      },
+      "material_box_2": {
+        "name": "Caja de materiales II",
+        "description": "Adquiere 5 piedras de mejora de baja a alta"
+      },
+      "material_box_3": {
+        "name": "Caja de materiales III",
+        "description": "Adquiere 5 piedras de mejora de baja a alta"
+      },
+      "material_box_4": {
+        "name": "Caja de materiales IV",
+        "description": "Obtén 5 piedras de refuerzo de nivel intermedio a superior."
+      },
+      "material_box_5": {
+        "name": "Caja de materiales V",
+        "description": "Avanzado ~ Adquiere 5 piedras de mejora misteriosas"
+      },
+      "material_box_6": {
+        "name": "Caja de materiales VI",
+        "description": "Avanzado ~ Adquiere 5 piedras de mejora misteriosas"
+      },
       "equipment_unbind_ticket": {
         "name": "Derecho a cancelar la atribución",
         "description": "Cambie el estado del equipo vinculado a comercializable."
@@ -3505,6 +3555,30 @@
       "refinement_charm": {
         "name": "Amuleto de fundición",
         "description": "Agregue 1 recuento de refinación adicional para equipos que no se pueden fundir."
+      },
+      "option_type_change_ticket": {
+        "name": "Derecho a cambiar el tipo de opción",
+        "description": "Este es un elemento que puede cambiar una de las opciones principales, subopciones u opciones especiales del equipo a un tipo diferente de opción."
+      },
+      "option_value_change_ticket": {
+        "name": "Boleto de cambio de valor de opción",
+        "description": "Este es un elemento que puede cambiar el valor de una de las subopciones u opciones especiales del equipo."
+      },
+      "mythic_option_change_ticket": {
+        "name": "Boleto de cambio de opción especial",
+        "description": "Este objeto te permite cambiar las opciones especiales de equipo mítico o trascendental por otras opciones especiales."
+      },
+      "condition_potion_small": {
+        "name": "Agente de recuperación de condición (pequeño)",
+        "description": "Agente de recuperación de condición que alivia la tensión."
+      },
+      "condition_potion_medium": {
+        "name": "Agente de recuperación de condición (medio)",
+        "description": "Un agente de recuperación de condiciones que hace que tu mente se sienta más clara."
+      },
+      "condition_potion_large": {
+        "name": "Agente de recuperación de condición (grande)",
+        "description": "Un agente de recuperación de condiciones que le ayudará a competir con éxito hoy."
       },
       "action_point_10": {
         "name": "Poción de recuperación de acción (+10)",
@@ -3570,7 +3644,7 @@
     },
     "activity": {
       "daily": "El desempeño de hoy",
-      "weekly": "actividad semanal",
+      "weekly": "Actividad semanal",
       "monthly": "Actividad Mensual",
       "points": "Actividad +{{puntos}}"
     },
@@ -3760,7 +3834,7 @@
       "sellAmount": "Cantidad de ventas",
       "unitPrice": "Precio de venta por huésped",
       "deleteOnly": "0 (solo eliminar)",
-      "goldUnit": "{{cantidad}} oro",
+      "goldUnit": "{{cantidad}} Oro",
       "totalReceive": "oro total a recibir",
       "deleteCheckout": "Pago (Eliminar)",
       "noGoldHint": "El oro no entra y solo desaparece la cantidad seleccionada.",
@@ -4021,7 +4095,7 @@
       "salePrice": "precio de venta",
       "fee": "cargar",
       "netAmount": "Cantidad recibida",
-      "status": "estado",
+      "status": "situación",
       "dateTime": "Fecha/Hora",
       "price": "precio",
       "selectedItem": "opcional",
@@ -4041,7 +4115,21 @@
       "settlementReceived": "Recibo de liquidación",
       "tradeTicket": "derechos de registro comercial",
       "keep": "mantener",
-      "purchaseCompleteMessage": "Tu compra ha sido completada."
+      "purchaseCompleteMessage": "Tu compra ha sido completada.",
+      "noListings": "No hay artículos registrados a la venta.",
+      "myListingBadge": "mi registro",
+      "registering": "Registrarse",
+      "expired": "venció",
+      "recoverCooldown": "Puedes recuperarlo nuevamente en {{segundos}} segundos.",
+      "recover": "recolectar",
+      "cancelSale": "Cancelar venta",
+      "noSettlement": "No existen registros de ventas disponibles para liquidación.",
+      "claimSelected": "Recoge tu selección",
+      "claimAll": "Recibe todo",
+      "noSettlementPending": "No hay partidas pendientes de liquidación.",
+      "totalHistoryCount": "Historial total de transacciones: {{count}}",
+      "statusLabel": "situación",
+      "noHistory": "No hay historial de transacciones."
     },
     "sort": {
       "label": "formación",
@@ -4093,6 +4181,9 @@
     "playerLoadError": "Se produjo un error al cargar la información del jugador.",
     "playerWaiting": "Jugador esperando...",
     "playerLoadFailed": "No se pudo cargar la información del jugador.",
+    "loadingTournament": "Cargando información del torneo...",
+    "loadingUserInfo": "Cargando información de usuario...",
+    "nextMatchPreparing": "Preparándonos para el próximo partido... {{countdown}}",
     "defaultPlayer": "jugador",
     "me": "a mí",
     "opponent": "adversario",
@@ -4145,7 +4236,7 @@
       "phaseMidLabel": "mitad del juego",
       "phaseEndLabel": "final del juego",
       "phaseEarlyStart": "La primera mitad de la batalla ha comenzado. Echemos un vistazo a la colocación de piedras y el desarrollo de la primera batalla.",
-      "phaseMidStart": "La mitad del juego ha comenzado. La lucha en el centro y la batalla por la posición se vuelven más intensas.",
+      "phaseMidStart": "El partido de mitad de juego ha comenzado. La lucha en el centro y la batalla por la posición se vuelven más intensas.",
       "phaseEndStart": "El final ha comenzado. Los cálculos caseros y las pérdidas y ganancias detalladas se vuelven importantes.",
       "defaultRound": "ronda actual",
       "defaultPlayer1": "jugador 1",
@@ -4256,7 +4347,9 @@
         "equipmentBox": "caja de equipo",
         "changeTicket": "derecho de cambio",
         "special": "especial",
-        "limitLabel": "límite"
+        "limitLabel": "límite",
+        "weeklyCountShort": "({{restante}}/{{limit}} semanal)",
+        "equipmentBoxInfoSuffix": "Adquirir equipo. Debe incluir una opción especial para aumentar la capacidad de campeonato."
       },
       "ranking": {
         "viewProfile": "Ver perfil de {{nombre}}",
@@ -4561,6 +4654,36 @@
     "myRecord": "mis registros",
     "rankingInfo": "Información de clasificación",
     "ownedItems": "Artículos propios",
+    "inventoryItems": {
+      "turnAdd": "Agregar turno",
+      "missile": "misil",
+      "hidden": "Oculto",
+      "scan": "escanear",
+      "refresh": "cambio de diseño"
+    },
+    "rewardItems": {
+      "equipmentBox1": "Caja de equipamiento I",
+      "equipmentBox2": "Caja de equipamiento II",
+      "equipmentBox3": "Caja de equipo III",
+      "equipmentBox4": "Caja de equipo IV",
+      "equipmentBox5": "Caja de equipo V",
+      "equipmentBox6": "Caja de equipamiento VI",
+      "materialBox1": "Caja de materiales I",
+      "materialBox2": "Caja de materiales II",
+      "materialBox3": "Caja de materiales III",
+      "materialBox4": "Caja de materiales IV",
+      "materialBox5": "Caja de materiales V",
+      "materialBox6": "Caja de materiales VI",
+      "goldBundle1": "Paquete de oro I",
+      "goldBundle2": "Paquete de oro II",
+      "goldBundle3": "Paquete de oro III",
+      "goldBundle4": "Paquete de oro IV",
+      "diamondBundle1": "Paquete Diamante I",
+      "diamondBundle2": "Paquete de diamantes II",
+      "diamondBundle3": "Paquete de diamantes III",
+      "diamondBundle4": "Paquete de diamantes IV"
+    },
+    "viewRewardItem": "Artículo de recompensa: {{name}}",
     "rewardInfoTitle": "Información de compensación",
     "closePanelAria": "Cerrar panel",
     "close": "cerca",
@@ -4766,7 +4889,7 @@
       "unsupportedCategory": "Este artículo no es compatible con esta categoría.",
       "warningTitle": "advertencia",
       "makeInvSpace": "Libera espacio en tu inventario",
-      "soulInfoTitle": "Información de la piedra del alma",
+      "soulInfoTitle": "Información sobre la piedra del alma",
       "noticeTitle": "guía"
     },
     "gradeUpgrade": {
@@ -4779,7 +4902,7 @@
       "soulInsufficient": "{{nombre}} insuficiente. {{need}} necesario (poseer {{owned}})",
       "soulInsufficientShort": "{{nombre}} insuficiente. (necesita {{necesita}}, posee {{propiedad}})",
       "soulStoneFallback": "piedra del alma",
-      "soulCostTitle": "Consume {{name}} {{count}} y aumenta el nivel.",
+      "soulCostTitle": "Consumir {{name}} {{count}} unidades · Aumento de nivel",
       "soulCostTitleMinLevel": "Puedes fortalecer tu nivel en Lv.{{level}} o superior.",
       "cannotWhileTraining": "Las mascotas en entrenamiento no se pueden mejorar. Úselo después de completar su capacitación.",
       "cannotWhileTrainingShort": "Las mascotas en entrenamiento no se pueden mejorar.",
@@ -5007,9 +5130,10 @@
       "detailConditions": "Condiciones detalladas",
       "noDetailSettings": "No hay configuraciones detalladas para mostrar.",
       "aiTabHint": "La configuración y el inicio del juego se realizan en la pestaña AI.",
-      "roomKind": "방 종류",
+      "roomKind": "tipo de habitación",
       "changeRoom": "cambiar de habitación",
       "proposeChange": "sugerencia de cambio",
+      "leaveRoom": "salir de la habitación",
       "matchingShort": "Pareo",
       "unready": "no preparado",
       "ready": "preparación",
@@ -5024,7 +5148,7 @@
       "waitPartnerReady": "Espere a que su pareja esté lista.",
       "startShort": "comenzar",
       "rankedStart": "Comienza el partido de clasificación",
-      "slotEmptyAria": "Espacio {{slot}}, no hay espacio",
+      "slotEmptyAria": "Ranura {{ranura}}, no hay espacio",
       "roomInMatchAria": "Durante un juego en la sala {{slot}}",
       "roomEnterAria": "Ingrese a la habitación {{slot}}",
       "roomInMatchTitle": "{{title}} — Partido en curso",
@@ -5113,7 +5237,7 @@
       "default": "Abrir la pantalla de tareas"
     },
     "pickHints": {
-      "enhance": "Seleccione el equipo a reforzar en el modal y haga clic en Completar selección para pasar a la pantalla de refuerzo.",
+      "enhance": "Seleccione el equipo a reforzar en el modal y luego presione Selección completa para pasar a la pantalla de refuerzo.",
       "combine": "Si colocas 3 equipos del mismo grado en el modal y luego presionas Selección completa, accederás a la pantalla de síntesis.",
       "disassemble": "Seleccione el equipo a desmontar en el modal y luego presione Selección completa para pasar a la pantalla de desmontaje.",
       "refine": "Después de seleccionar el equipo a fundir en el modal y hacer clic en Completar selección, accederá a la pantalla de fundición."
@@ -5325,7 +5449,7 @@
     "mixRulesMinAlert": "Las reglas de mezcla requieren que se seleccionen dos o más reglas.",
     "mixCaptureCastleConflict": "Ganar y Castillo no se pueden seleccionar al mismo tiempo.",
     "countUnit": "{{contar}}",
-    "boardLines": "{{tamaño}} línea",
+    "boardLines": "{{tamaño}}línea",
     "pointsFixed": "9 puntos (fijos)",
     "pointsUnit": "{{puntuación}} puntos",
     "turnsUnit": "{{límite}}número",
@@ -5491,7 +5615,7 @@
       "placeholder": "oro para donar",
       "donate": "donación",
       "enterAmount": "Por favor ingresa el oro que deseas donar.",
-      "insufficientGold": "Me he quedado sin oro.",
+      "insufficientGold": "Se me acabó el oro.",
       "failed": "La donación falló.",
       "ownedGold": "Oro retenido: {{cantidad}}",
       "noHistory": "No hay historial de donaciones.",

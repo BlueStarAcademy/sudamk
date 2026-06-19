@@ -8,6 +8,7 @@
       "loading": "Đang tải...",
       "confirm": "kiểm tra",
       "back": "mặt sau",
+      "next": "Kế tiếp",
       "retry": "thử lại",
       "refresh": "làm cho khỏe lại",
       "submit": "nộp",
@@ -269,7 +270,7 @@
     "diceAutoStart": "Hãy nhấp vào nút bắt đầu bên dưới nếu không trận đấu sẽ tự động bắt đầu sau 30 giây.",
     "colorRouletteTitle": "cờ màu",
     "uniformColorRoulette": "roulette màu đồng nhất",
-    "thisGameColor": "Màu đá cho trò chơi này: {{color}}",
+    "thisGameColor": "Màu đá cho trận đấu này: {{color}}",
     "colorRouletteHint": "Những viên đá đen trắng luân phiên nhấp nháy nhanh chóng và dừng lại ngẫu nhiên.",
     "colorRouletteEnd": "Trận đấu sẽ tự động bắt đầu sau khi kết thúc bốc thăm.",
     "colorRouletteProceed": "Nó sẽ được giữ tự động sau khi xổ số kết thúc.",
@@ -536,7 +537,7 @@
     "curling": "quăn",
     "comingSoon": "Đang chuẩn bị cập nhật thêm",
     "descriptions": {
-      "standard": "Đó là trò chơi cờ vây cổ điển điển hình.",
+      "standard": "Đây là trò chơi baduk cổ điển điển hình.",
       "capture": "Trò chơi Baduk dành cho người đầu tiên có được một số quân cờ nhất định.",
       "speed": "Nếu bạn đặt nó trong vòng {{seconds}} giây mỗi lượt, bạn sẽ lấy lại được {{seconds}} giây. Cứ sau {{seconds}} giây, đối thủ của bạn sẽ được cộng 1 điểm.",
       "base": "Đây là một trò chơi cờ vây trong đó bạn xem xét cách sắp xếp các viên đá cơ bản, đặt điểm thưởng cho đối thủ và sử dụng những viên đá bạn chọn cũng như thi đấu dựa trên khả năng phân tích tình huống của bạn.",
@@ -573,7 +574,7 @@
       "passTitle": "nghỉ ngơi",
       "resignTitle": "kiêng",
       "cannotResignDuringScoring": "Không được phép bỏ phiếu trắng trong quá trình kiểm phiếu.",
-      "gameFeatures": "chức năng khớp",
+      "gameFeatures": "Chức năng khớp",
       "playfulFeatures": "chức năng chơi",
       "mannerAction": "hành động cách cư xử",
       "mannerActionPvpOnly": "Nút hành động theo cách chỉ được tạo ở chế độ PVP.",
@@ -1129,7 +1130,7 @@
       "record": "ghi",
       "rank": "xếp hạng",
       "rankSuffix": "cái bụng",
-      "nextStage": "{{stage}}bước tiếp theo",
+      "nextStage": "Bước {{giai đoạn}} tiếp theo",
       "stageLabel": "bước chân",
       "winRate": "tỷ lệ thắng",
       "lockedTop3": "Mở cho vị trí thứ 3 trở lên",
@@ -1140,9 +1141,9 @@
       "open": "mở",
       "resultAria": "Tóm tắt kết quả",
       "rewardsAria": "biểu tượng phần thưởng",
-      "stageResultTitle": "{{tournament}} {{stage}} kết quả bước",
-      "equipmentSuffix": "{{label}} Thiết bị",
-      "changeTickets": "Quyền thay đổi x{{count}}",
+      "stageResultTitle": "Kết quả chặng {{tournament}} {{stage}}",
+      "equipmentSuffix": "{{nhãn}} Thiết bị",
+      "changeTickets": "Đổi vé x{{count}}",
       "champCoin": "Đồng xu vô địch",
       "materialBox1": "Hộp vật liệu I",
       "materialBox2": "Hộp vật liệu II",
@@ -1188,7 +1189,7 @@
       "mixRulesMinHint": "Vui lòng chọn ít nhất hai quy tắc.",
       "boardKomiCapture": "Cờ vây, tính toán, thưởng, thắng",
       "boardSize": "bàn cờ",
-      "boardLines": "dòng {{size}}",
+      "boardLines": "{{size}}dòng",
       "komiWhite": "Tiền thưởng (túi)",
       "komiHalf": "nhà .5",
       "captureTarget": "điểm mục tiêu",
@@ -1221,7 +1222,7 @@
       "blockDice": "chống xúc xắc",
       "omokTtamok": "cổ lõm và đôi",
       "forbid33": "Không có anh em sinh đôi",
-      "forbidOverline": "không cho phép nhật ký",
+      "forbidOverline": "không có gỗ tròn",
       "alkkagi": "chất kiềm",
       "stoneCount": "số lượng đá",
       "placementType": "Phương pháp bố trí",
@@ -1267,7 +1268,7 @@
         "shopConsumables": "Cửa hàng · Vật tư tiêu hao",
         "buyPotion": "Mua thuốc phục hồi hành động",
         "buyPotionLimit": "· 1 mỗi ngày cho mỗi loại",
-        "diamondInstant": "Nạp kim cương ngay lập tức",
+        "diamondInstant": "Kim cương nạp lại ngay lập tức",
         "diamondInstantHint": "Bạn có thể lấp đầy sức mạnh hành động của mình ngay khi bạn muốn.",
         "goShopConsumables": "Mua thuốc chữa bệnh từ cửa hàng (vật tư tiêu hao)",
         "goDiamondRecharge": "Nạp tiền ngay lập tức bằng kim cương",
@@ -1462,7 +1463,7 @@
       "noChange": "không thay đổi",
       "petXpSplit": "+{{base}} cơ bản (Chuyên +{{spec}})",
       "modeXpGain": "{{mode}} kinh nghiệm +{{amount}}",
-      "petGradeUpgradeNeeded": "Lớp thú cưng cần được tăng cường",
+      "petGradeUpgradeNeeded": "Cấp độ thú cưng cần được tăng cường",
       "rewardVip": "Thưởng VIP",
       "rewardLine": "đền bù",
       "vipRewardLine": "Phần thưởng VIP",
@@ -2277,7 +2278,7 @@
       "startMatching": "Bắt đầu khớp (chọn {{count}})",
       "selectedBadge": "đã chọn",
       "roundUnit": "{{count}}vòng",
-      "boardSizeValue": "dòng {{size}}",
+      "boardSizeValue": "{{size}}dòng",
       "scoringTurnValue": "{{đếm}}đếm",
       "itemCountValue": "{{đếm}}",
       "slowItem": "chậm",
@@ -2710,6 +2711,7 @@
     "comingSoon": "Dự kiến ​​khai trương",
     "entryBlocked": "Không có mục nhập",
     "viewStats": "Xem hồ sơ chi tiết",
+    "detailedStatsBtn": "Hồ sơ chi tiết",
     "viewAll": "Xem tất cả",
     "totalRecord": "tổng số kỷ lục",
     "totalRecordCompact": "{{wins}}Thắng{{thua}}Thua {{winRate}}%",
@@ -3498,6 +3500,54 @@
       "remove_ads_2": "Nhận phần thưởng tương tự mà không cần quảng cáo có tặng thưởng của cửa hàng (duy trì giới hạn hàng ngày)"
     },
     "items": {
+      "equipment_box_1": {
+        "name": "Hộp thiết bị I",
+        "description": "Nhận trang bị từ phổ thông đến hiếm"
+      },
+      "equipment_box_2": {
+        "name": "Hộp thiết bị II",
+        "description": "Nhận trang bị cấp bình thường đến cấp sử thi"
+      },
+      "equipment_box_3": {
+        "name": "Hộp trang bị III",
+        "description": "Nhận thiết bị cấp cao cấp đến huyền thoại"
+      },
+      "equipment_box_4": {
+        "name": "Hộp trang bị IV",
+        "description": "Sở hữu trang bị cấp độ hiếm đến thần thoại"
+      },
+      "equipment_box_5": {
+        "name": "Hộp thiết bị V",
+        "description": "Có được trang bị cấp sử thi đến thần thoại"
+      },
+      "equipment_box_6": {
+        "name": "Hộp thiết bị VI",
+        "description": "Có được trang bị cấp huyền thoại đến huyền thoại"
+      },
+      "material_box_1": {
+        "name": "Hộp vật liệu I",
+        "description": "Nhận được 5 viên đá cường hóa từ thấp đến cao"
+      },
+      "material_box_2": {
+        "name": "Hộp vật liệu II",
+        "description": "Nhận được 5 viên đá cường hóa từ thấp đến cao"
+      },
+      "material_box_3": {
+        "name": "Hộp vật liệu III",
+        "description": "Nhận được 5 viên đá cường hóa từ thấp đến cao"
+      },
+      "material_box_4": {
+        "name": "Hộp vật liệu IV",
+        "description": "Nhận 5 viên đá cường hóa cấp trung cấp đến cao nhất"
+      },
+      "material_box_5": {
+        "name": "Hộp vật liệu V",
+        "description": "Nâng cao ~ Nhận được 5 viên đá cường hóa bí ẩn"
+      },
+      "material_box_6": {
+        "name": "Hộp tài liệu VI",
+        "description": "Nâng cao ~ Nhận được 5 viên đá cường hóa bí ẩn"
+      },
       "equipment_unbind_ticket": {
         "name": "Quyền hủy bỏ ghi công",
         "description": "Thay đổi trạng thái của trang bị ràng buộc thành có thể giao dịch."
@@ -3505,6 +3555,30 @@
       "refinement_charm": {
         "name": "Bùa luyện kim",
         "description": "Thêm 1 lần tinh chế bổ sung cho thiết bị không thể nấu chảy"
+      },
+      "option_type_change_ticket": {
+        "name": "Quyền thay đổi loại tùy chọn",
+        "description": "Đây là vật phẩm có thể thay đổi một trong các tùy chọn chính, tùy chọn phụ hoặc tùy chọn đặc biệt của trang bị thành một loại tùy chọn khác."
+      },
+      "option_value_change_ticket": {
+        "name": "Vé thay đổi giá trị tùy chọn",
+        "description": "Đây là vật phẩm có thể thay đổi giá trị của một trong các tùy chọn phụ hoặc tùy chọn đặc biệt của trang bị."
+      },
+      "mythic_option_change_ticket": {
+        "name": "Vé thay đổi tùy chọn đặc biệt",
+        "description": "Vật phẩm này cho phép bạn thay đổi các tùy chọn đặc biệt của trang bị thần thoại hoặc siêu việt sang các tùy chọn đặc biệt khác."
+      },
+      "condition_potion_small": {
+        "name": "Chất phục hồi tình trạng (nhỏ)",
+        "description": "Chất phục hồi tình trạng làm giảm căng thẳng"
+      },
+      "condition_potion_medium": {
+        "name": "Chất phục hồi tình trạng (trung bình)",
+        "description": "Một tác nhân phục hồi tình trạng giúp đầu bạn cảm thấy tỉnh táo hơn."
+      },
+      "condition_potion_large": {
+        "name": "Chất phục hồi tình trạng (lớn)",
+        "description": "Một tác nhân phục hồi tình trạng sẽ giúp bạn cạnh tranh thành công ngay hôm nay."
       },
       "action_point_10": {
         "name": "Thuốc phục hồi hành động (+10)",
@@ -3570,7 +3644,7 @@
     },
     "activity": {
       "daily": "Buổi biểu diễn hôm nay",
-      "weekly": "hoạt động hàng tuần",
+      "weekly": "Hoạt động hàng tuần",
       "monthly": "Hoạt động hàng tháng",
       "points": "Hoạt động +{{điểm}}"
     },
@@ -3926,7 +4000,7 @@
       "tier1": "cái túi",
       "tier2": "đá",
       "tier3": "buổi tiệc",
-      "index": "chỉ mục"
+      "index": "chỉ số"
     },
     "pastRankings": {
       "empty": "Không có thông tin xếp hạng mùa giải",
@@ -4021,7 +4095,7 @@
       "salePrice": "giá bán",
       "fee": "thù lao",
       "netAmount": "Số tiền nhận được",
-      "status": "trạng thái",
+      "status": "tình huống",
       "dateTime": "Ngày/Giờ",
       "price": "giá",
       "selectedItem": "không bắt buộc",
@@ -4041,7 +4115,21 @@
       "settlementReceived": "Biên nhận quyết toán",
       "tradeTicket": "quyền đăng ký giao dịch",
       "keep": "duy trì",
-      "purchaseCompleteMessage": "Việc mua hàng của bạn đã hoàn tất."
+      "purchaseCompleteMessage": "Việc mua hàng của bạn đã hoàn tất.",
+      "noListings": "Không có mặt hàng đăng ký để bán.",
+      "myListingBadge": "đăng ký của tôi",
+      "registering": "Đăng ký",
+      "expired": "hết hạn",
+      "recoverCooldown": "Bạn có thể truy xuất lại sau {{seconds}} giây.",
+      "recover": "sưu tầm",
+      "cancelSale": "Hủy bán",
+      "noSettlement": "Không có hồ sơ bán hàng có sẵn để giải quyết.",
+      "claimSelected": "Chọn lựa chọn của bạn",
+      "claimAll": "Nhận tất cả",
+      "noSettlementPending": "Không có hạng mục nào đang chờ giải quyết.",
+      "totalHistoryCount": "Tổng lịch sử giao dịch: {{count}}",
+      "statusLabel": "tình huống",
+      "noHistory": "Không có lịch sử giao dịch."
     },
     "sort": {
       "label": "mảng",
@@ -4093,6 +4181,9 @@
     "playerLoadError": "Đã xảy ra lỗi khi tải thông tin người chơi.",
     "playerWaiting": "Người chơi đang chờ...",
     "playerLoadFailed": "Không thể tải thông tin người chơi.",
+    "loadingTournament": "Đang tải thông tin giải đấu...",
+    "loadingUserInfo": "Đang tải thông tin người dùng...",
+    "nextMatchPreparing": "Đang chuẩn bị cho trận đấu tiếp theo... {{countdown}}",
     "defaultPlayer": "người chơi",
     "me": "Tôi",
     "opponent": "đối thủ",
@@ -4256,7 +4347,9 @@
         "equipmentBox": "hộp thiết bị",
         "changeTicket": "quyền thay đổi",
         "special": "đặc biệt",
-        "limitLabel": "giới hạn"
+        "limitLabel": "giới hạn",
+        "weeklyCountShort": "(Hàng tuần {{remaining}}/{{limit}})",
+        "equipmentBoxInfoSuffix": "Mua thiết bị. Phải bao gồm tùy chọn đặc biệt để tăng khả năng vô địch"
       },
       "ranking": {
         "viewProfile": "Xem hồ sơ của {{name}}",
@@ -4561,6 +4654,36 @@
     "myRecord": "hồ sơ của tôi",
     "rankingInfo": "Thông tin xếp hạng",
     "ownedItems": "Các mục sở hữu",
+    "inventoryItems": {
+      "turnAdd": "Thêm lượt",
+      "missile": "tên lửa",
+      "hidden": "Ẩn giấu",
+      "scan": "quét",
+      "refresh": "Thay đổi bố cục"
+    },
+    "rewardItems": {
+      "equipmentBox1": "Hộp thiết bị I",
+      "equipmentBox2": "Hộp thiết bị II",
+      "equipmentBox3": "Hộp trang bị III",
+      "equipmentBox4": "Hộp trang bị IV",
+      "equipmentBox5": "Hộp thiết bị V",
+      "equipmentBox6": "Hộp thiết bị VI",
+      "materialBox1": "Hộp vật liệu I",
+      "materialBox2": "Hộp vật liệu II",
+      "materialBox3": "Hộp vật liệu III",
+      "materialBox4": "Hộp vật liệu IV",
+      "materialBox5": "Hộp vật liệu V",
+      "materialBox6": "Hộp tài liệu VI",
+      "goldBundle1": "Gói vàng I",
+      "goldBundle2": "Gói vàng II",
+      "goldBundle3": "Gói vàng III",
+      "goldBundle4": "Gói vàng IV",
+      "diamondBundle1": "Gói Kim Cương I",
+      "diamondBundle2": "Gói kim cương II",
+      "diamondBundle3": "Gói kim cương III",
+      "diamondBundle4": "Gói kim cương IV"
+    },
+    "viewRewardItem": "Vật phẩm phần thưởng: {{name}}",
     "rewardInfoTitle": "Thông tin đền bù",
     "closePanelAria": "Đóng bảng điều khiển",
     "close": "đóng",
@@ -4779,7 +4902,7 @@
       "soulInsufficient": "Không đủ {{name}}. cần có {{need}} (sở hữu {{sở hữu}})",
       "soulInsufficientShort": "Không đủ {{name}}. (cần {{need}}, sở hữu {{sở hữu}})",
       "soulStoneFallback": "đá linh hồn",
-      "soulCostTitle": "Tiêu thụ {{name}} {{count}} và tăng thứ hạng",
+      "soulCostTitle": "Tiêu thụ {{name}} {{count}} đơn vị · Tăng cấp",
       "soulCostTitleMinLevel": "Bạn có thể tăng cường cấp độ của mình ở Lv.{{level}} hoặc cao hơn.",
       "cannotWhileTraining": "Thú cưng đang huấn luyện không thể được nâng cấp. Vui lòng sử dụng nó sau khi hoàn thành khóa đào tạo của bạn.",
       "cannotWhileTrainingShort": "Thú cưng đang huấn luyện không thể được nâng cấp.",
@@ -4860,7 +4983,7 @@
       "detailConditions": "Điều kiện chi tiết",
       "noDetailConditions": "Không có điều kiện chi tiết",
       "inviteExpired": "Thời gian mời đã hết.",
-      "responseWaiting": "Chờ phản hồi · Tự động hủy sau {{seconds}} giây"
+      "responseWaiting": "Đợi phản hồi Tự động hủy sau {{seconds}} giây"
     },
     "room": {
       "hostAria": "được tổ chức bởi",
@@ -5010,6 +5133,7 @@
       "roomKind": "loại phòng",
       "changeRoom": "phòng thay đồ",
       "proposeChange": "thay đổi đề xuất",
+      "leaveRoom": "rời khỏi phòng",
       "matchingShort": "Kết hợp",
       "unready": "chưa sẵn sàng",
       "ready": "sự chuẩn bị",
@@ -5108,7 +5232,7 @@
     "openScreen": {
       "enhance": "Mở màn hình gia cố",
       "combine": "Mở màn hình tổng hợp",
-      "disassemble": "Mở màn hình phát nổ",
+      "disassemble": "Mở màn hình tháo lắp",
       "refine": "Mở màn hình luyện kim",
       "default": "Mở màn hình tác vụ"
     },

@@ -8,6 +8,7 @@
       "loading": "تحميل...",
       "confirm": "يفحص",
       "back": "خلف",
+      "next": "التالي",
       "retry": "حاول ثانية",
       "refresh": "ينعش",
       "submit": "يُقدِّم",
@@ -2710,6 +2711,7 @@
     "comingSoon": "من المقرر افتتاحه",
     "entryBlocked": "ممنوع الدخول",
     "viewStats": "عرض السجلات التفصيلية",
+    "detailedStatsBtn": "سجل مفصل",
     "viewAll": "شاهد الكل",
     "totalRecord": "سجل إجمالي",
     "totalRecordCompact": "{{فوز}}فوز{{خسائر}}خسائر {{winRate}}%",
@@ -3498,6 +3500,54 @@
       "remove_ads_2": "احصل على نفس المكافآت بدون إعلانات المتجر بمكافأة (مع الحفاظ على الحد اليومي)"
     },
     "items": {
+      "equipment_box_1": {
+        "name": "صندوق المعدات I",
+        "description": "احصل على معدات من الدرجة النادرة"
+      },
+      "equipment_box_2": {
+        "name": "صندوق المعدات II",
+        "description": "احصل على معدات عادية إلى ملحمية"
+      },
+      "equipment_box_3": {
+        "name": "صندوق المعدات III",
+        "description": "احصل على معدات متقدمة إلى الدرجة الأسطورية"
+      },
+      "equipment_box_4": {
+        "name": "صندوق المعدات الرابع",
+        "description": "احصل على معدات نادرة إلى أسطورية"
+      },
+      "equipment_box_5": {
+        "name": "صندوق المعدات V",
+        "description": "احصل على معدات ملحمية إلى درجة أسطورية"
+      },
+      "equipment_box_6": {
+        "name": "صندوق المعدات السادس",
+        "description": "احصل على معدات أسطورية إلى أسطورية"
+      },
+      "material_box_1": {
+        "name": "صندوق المواد I",
+        "description": "احصل على 5 أحجار تعزيز منخفضة إلى عالية"
+      },
+      "material_box_2": {
+        "name": "صندوق المواد II",
+        "description": "احصل على 5 أحجار تعزيز منخفضة إلى عالية"
+      },
+      "material_box_3": {
+        "name": "صندوق المواد III",
+        "description": "احصل على 5 أحجار تعزيز منخفضة إلى عالية"
+      },
+      "material_box_4": {
+        "name": "صندوق المواد الرابع",
+        "description": "احصل على 5 أحجار تقوية من المستوى المتوسط ​​إلى الأعلى"
+      },
+      "material_box_5": {
+        "name": "صندوق المواد V",
+        "description": "متقدم ~ احصل على 5 أحجار تعزيز غامضة"
+      },
+      "material_box_6": {
+        "name": "صندوق المواد السادس",
+        "description": "متقدم ~ احصل على 5 أحجار تعزيز غامضة"
+      },
       "equipment_unbind_ticket": {
         "name": "الحق في إلغاء الإسناد",
         "description": "تغيير حالة المعدات المقيدة إلى قابلة للتداول."
@@ -3505,6 +3555,30 @@
       "refinement_charm": {
         "name": "تميمة الصهر",
         "description": "أضف عدد تكرير إضافي واحد للمعدات التي لا يمكن صهرها"
+      },
+      "option_type_change_ticket": {
+        "name": "الحق في تغيير نوع الخيار",
+        "description": "هذا عنصر يمكنه تغيير أحد الخيارات الرئيسية أو الخيارات الفرعية أو الخيارات الخاصة للمعدات إلى نوع مختلف من الخيارات."
+      },
+      "option_value_change_ticket": {
+        "name": "تذكرة تغيير قيمة الخيار",
+        "description": "هذا هو العنصر الذي يمكنه تغيير قيمة أحد الخيارات الفرعية أو الخيارات الخاصة للمعدات."
+      },
+      "mythic_option_change_ticket": {
+        "name": "تذكرة تغيير الخيار الخاص",
+        "description": "يتيح لك هذا العنصر تغيير الخيارات الخاصة للمعدات الأسطورية أو المتعالية إلى خيارات خاصة أخرى."
+      },
+      "condition_potion_small": {
+        "name": "عامل استعادة الحالة (صغير)",
+        "description": "عامل استعادة الحالة الذي يخفف التوتر"
+      },
+      "condition_potion_medium": {
+        "name": "عامل استعادة الحالة (متوسط)",
+        "description": "عامل استعادة الحالة الذي يجعل رأسك يشعر بالوضوح."
+      },
+      "condition_potion_large": {
+        "name": "عامل استعادة الحالة (كبير)",
+        "description": "عامل استعادة الحالة الذي سيساعدك على المنافسة بنجاح اليوم."
       },
       "action_point_10": {
         "name": "جرعة استعادة العمل (+10)",
@@ -3727,21 +3801,21 @@
       "increaseAria": "زيادة قيمة واحدة",
       "maxOwned": "لا يمكنك شرائه لأن لديك الحد الأقصى لعدد العناصر الموجودة في المخزون.",
       "dailyLimit": "لقد وصلت إلى حد الشراء الخاص بك اليوم.",
-      "maxPurchase": "الحد الأقصى للشراء الممكن: {{count}}",
-      "dailyRemaining": "الشراء المتبقي متاح يوميًا: {{count}}",
+      "maxPurchase": "الحد الأقصى للشراء: {{count}}",
+      "dailyRemaining": "عمليات الشراء اليومية المتبقية المتاحة: {{count}}",
       "checkout": "قسط",
       "bagFull": "لا توجد مساحة كافية في الحقيبة. يرجى تنظيف حقيبتك والشراء مرة أخرى.",
-      "bagFullPartial": "لا توجد مساحة كافية في الحقيبة. حاليًا، يمكن شراء {{max}} وحدة فقط.",
-      "typeDivider": "الفئة · {{type}}",
-      "gradeDivider": "الدرجة · {{grade}}",
+      "bagFullPartial": "لا توجد مساحة كافية في الحقيبة. حاليًا، يمكنك شراء ما يصل إلى {{max}} وحدة فقط.",
+      "typeDivider": "التصنيف · {{نوع}}",
+      "gradeDivider": "الدرجة · {{الدرجة}}",
       "purchaseQty": "كمية الشراء",
       "ownedTotalLine": "{{label}} · يحمل إجمالي {{count}}",
       "unitPriceLabel": "سعر البيع للوحدة",
       "checkoutAmount": "مبلغ الدفع المتوقع",
-      "ownedCapLine": "حد الاستبقاء: الحد الأقصى المسموح به هو {{max}} وحدة.",
-      "ownedCapCurrent": "(حاليًا {{current}}/{{max}})",
-      "dailyCapLine": "حد الشراء: الحد الأقصى للشراء هو {{max}} يوميًا.",
-      "dailyCapToday": "(اليوم {{today}}/{{max}})",
+      "ownedCapLine": "حد الاحتفاظ: يمكنه استيعاب ما يصل إلى {{max}}",
+      "ownedCapCurrent": "(الحالي {{الحالي}}/{{الحد الأقصى}})",
+      "dailyCapLine": "حد الشراء: ما يصل إلى {{max}} عملية شراء يوميًا",
+      "dailyCapToday": "(اليوم {{اليوم}}/{{كحد أقصى}})",
       "totalLabel": "المجموع"
     },
     "useQuantity": {
@@ -3756,17 +3830,17 @@
     "sellBulk": {
       "consumableBulk": "المواد الاستهلاكية تباع بكميات كبيرة",
       "materialBulk": "بيع المواد بكميات كبيرة",
-      "ownedTotal": "يملك {{count}}",
+      "ownedTotal": "لديك {{عدد}}",
       "sellAmount": "كمية المبيعات",
       "unitPrice": "سعر البيع لكل ضيف",
       "deleteOnly": "0 (حذف فقط)",
-      "goldUnit": "{{amount}} ذهبي",
+      "goldUnit": "{{المبلغ}} ذهب",
       "totalReceive": "إجمالي الذهب الذي سيتم استلامه",
       "deleteCheckout": "الدفع (حذف)",
       "noGoldHint": "لا يأتي الذهب، ويختفي المبلغ المحدد فقط.",
       "bulkSellTitle": "بيع بكميات كبيرة",
       "pickAmount": "قرر المبلغ الذي تريد بيعه",
-      "sellCount": "{{count}} تم البيع",
+      "sellCount": "تم بيع {{count}} وحدة",
       "ownedTotalLine": "{{label}} · يحمل إجمالي {{count}}",
       "unitPriceLabel": "سعر البيع للوحدة"
     },
@@ -3778,9 +3852,9 @@
       "ownedLabel": "تملُّك",
       "deleteOnlyFooter": "الذهب لا يزيد، العناصر فقط تختفي.",
       "confirmSell": "تم تأكيد البيع",
-      "enhanceStars": "تعزيز {{stars}}",
-      "ownedQty": "{{count}}",
-      "materialQty": "{{count}}",
+      "enhanceStars": "قلعة كانغهوا {{نجوم}}",
+      "ownedQty": "{{عدد}}",
+      "materialQty": "{{عدد}}",
       "consumablePartial": "· بيع بعض المواد الاستهلاكية.",
       "settlementNotice": "معلومات التسوية",
       "receiveGold": "الذهب لتلقي",
@@ -4021,7 +4095,7 @@
       "salePrice": "سعر البيع",
       "fee": "تكلفة",
       "netAmount": "المبلغ المستلم",
-      "status": "حالة",
+      "status": "الموقف",
       "dateTime": "التاريخ/الوقت",
       "price": "سعر",
       "selectedItem": "خياري",
@@ -4041,7 +4115,21 @@
       "settlementReceived": "استلام التسوية",
       "tradeTicket": "حقوق تسجيل التداول",
       "keep": "يحافظ على",
-      "purchaseCompleteMessage": "لقد اكتملت عملية الشراء."
+      "purchaseCompleteMessage": "لقد اكتملت عملية الشراء.",
+      "noListings": "لا توجد سلع مسجلة للبيع.",
+      "myListingBadge": "تسجيلي",
+      "registering": "التسجيل",
+      "expired": "منتهي الصلاحية",
+      "recoverCooldown": "يمكنك استعادتها مرة أخرى خلال {{ثانية}} ثانية.",
+      "recover": "يجمع",
+      "cancelSale": "إلغاء البيع",
+      "noSettlement": "لا توجد سجلات مبيعات متاحة للتسوية.",
+      "claimSelected": "اختر اختيارك",
+      "claimAll": "استقبل الكل",
+      "noSettlementPending": "لا توجد عناصر في انتظار التسوية.",
+      "totalHistoryCount": "إجمالي سجل المعاملات: {{count}}",
+      "statusLabel": "الموقف",
+      "noHistory": "لا يوجد سجل المعاملات."
     },
     "sort": {
       "label": "صفيف",
@@ -4093,6 +4181,9 @@
     "playerLoadError": "حدث خطأ أثناء تحميل معلومات اللاعب.",
     "playerWaiting": "لاعب ينتظر...",
     "playerLoadFailed": "لا يمكن تحميل معلومات اللاعب.",
+    "loadingTournament": "جارٍ تحميل معلومات البطولة...",
+    "loadingUserInfo": "جارٍ تحميل معلومات المستخدم...",
+    "nextMatchPreparing": "التحضير للمباراة القادمة... {{countdown}}",
     "defaultPlayer": "لاعب",
     "me": "أنا",
     "opponent": "الخصم",
@@ -4256,7 +4347,9 @@
         "equipmentBox": "صندوق المعدات",
         "changeTicket": "حق التغيير",
         "special": "خاص",
-        "limitLabel": "حد"
+        "limitLabel": "حد",
+        "weeklyCountShort": "(أسبوعي {{المتبقي}}/{{الحد}})",
+        "equipmentBoxInfoSuffix": "الحصول على المعدات. يجب أن يتضمن خيارًا خاصًا لزيادة القدرة على البطولة"
       },
       "ranking": {
         "viewProfile": "عرض الملف الشخصي لـ {{name}}.",
@@ -4561,6 +4654,36 @@
     "myRecord": "سجلاتي",
     "rankingInfo": "معلومات الترتيب",
     "ownedItems": "العناصر المملوكة",
+    "inventoryItems": {
+      "turnAdd": "أضف بدوره",
+      "missile": "صاروخ",
+      "hidden": "مختفي",
+      "scan": "مسح",
+      "refresh": "تغيير التخطيط"
+    },
+    "rewardItems": {
+      "equipmentBox1": "صندوق المعدات I",
+      "equipmentBox2": "صندوق المعدات II",
+      "equipmentBox3": "صندوق المعدات III",
+      "equipmentBox4": "صندوق المعدات الرابع",
+      "equipmentBox5": "صندوق المعدات V",
+      "equipmentBox6": "صندوق المعدات السادس",
+      "materialBox1": "صندوق المواد I",
+      "materialBox2": "صندوق المواد II",
+      "materialBox3": "صندوق المواد III",
+      "materialBox4": "صندوق المواد الرابع",
+      "materialBox5": "صندوق المواد V",
+      "materialBox6": "صندوق المواد السادس",
+      "goldBundle1": "الحزمة الذهبية I",
+      "goldBundle2": "الحزمة الذهبية الثانية",
+      "goldBundle3": "الحزمة الذهبية III",
+      "goldBundle4": "الحزمة الذهبية IV",
+      "diamondBundle1": "الحزمة الماسية I",
+      "diamondBundle2": "الحزمة الماسية الثانية",
+      "diamondBundle3": "الحزمة الماسية III",
+      "diamondBundle4": "الحزمة الماسية IV"
+    },
+    "viewRewardItem": "عنصر المكافأة: {{name}}",
     "rewardInfoTitle": "معلومات التعويض",
     "closePanelAria": "إغلاق اللوحة",
     "close": "يغلق",
@@ -4779,7 +4902,7 @@
       "soulInsufficient": "عدم كفاية {{الاسم}}. {{حاجة}} مطلوبة (تملك {{مملوكة}})",
       "soulInsufficientShort": "عدم كفاية {{الاسم}}. (تحتاج {{تحتاج}}، تملك {{مملوكة}})",
       "soulStoneFallback": "حجر الروح",
-      "soulCostTitle": "استهلك {{name}} {{count}} وقم بزيادة المستوى",
+      "soulCostTitle": "تستهلك {{name}} {{count}} وحدة · زيادة المستوى",
       "soulCostTitleMinLevel": "يمكنك تقوية مستواك عند المستوى {{level}} أو أعلى.",
       "cannotWhileTraining": "لا يمكن ترقية الحيوانات الأليفة في التدريب. الرجاء استخدامه بعد الانتهاء من التدريب الخاص بك.",
       "cannotWhileTrainingShort": "لا يمكن ترقية الحيوانات الأليفة في التدريب.",
@@ -5010,6 +5133,7 @@
       "roomKind": "نوع الغرفة",
       "changeRoom": "غرفة التغيير",
       "proposeChange": "اقتراح التغيير",
+      "leaveRoom": "مغادرة الغرفة",
       "matchingShort": "مطابقة",
       "unready": "غير جاهز",
       "ready": "تحضير",
@@ -5798,7 +5922,7 @@
       "myArenaHint": "وفيما يلي ملخص للمباريات النهائية التي لعبها الفضاء في هذه الحرب. ستظهر الإصدارات الجارية في القائمة التفصيلية بعد انتهائها.",
       "boardPerformance": "الأداء حسب الملعب",
       "inProgress": "في تَقَدم",
-      "gameSummary": "تنتهي {{المباريات}} · الانتصارات {{انتصارات}} · التعادل {{تعادلات}} · الخسائر {{الخسائر}}{{النجوم}}",
+      "gameSummary": "نهاية {{المباريات}} الجولات · الانتصارات {{انتصارات}} · التعادل {{تعادلات}} · الخسائر {{الخسائر}}{{النجوم}}",
       "starsEarnedSum": "· الإجمالي حسب الاستحواذ {{count}}",
       "noBoardRecord": "لا يوجد سجل لهذه المقصورة في هذه الحرب.",
       "finishedGamesDetail": "تفاصيل المباراة النهائية",

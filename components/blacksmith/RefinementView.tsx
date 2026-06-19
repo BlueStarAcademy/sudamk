@@ -151,6 +151,7 @@ const ItemDisplay: React.FC<{
     pcViewer?: boolean;
     mobileWork?: boolean;
 }> = ({ item, selectedOption, onOptionClick, pcViewer = false, mobileWork = false }) => {
+    const { t } = useTranslation('blacksmith');
     const { currentUserWithStatus } = useAppContext();
     const styles = gradeStyles[item.grade];
     const typo = getBlacksmithViewerTypography(pcViewer, { mobileWork });

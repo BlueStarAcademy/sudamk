@@ -60,6 +60,8 @@ const ItemSlot: React.FC<{ item: InventoryItem | null; onRemove: () => void; isC
     pcViewer = false,
     mobileWork = false,
 }) => {
+    const { t } = useTranslation('blacksmith');
+    const localizedSlot = useLocalizedEquipmentSlot();
     const typo = getBlacksmithViewerTypography(pcViewer, { mobileWork });
     if (!item) {
         return (
@@ -158,6 +160,7 @@ const GradeProbability: React.FC<{
     pcViewer?: boolean;
     mobileWork?: boolean;
 }> = ({ items, currentUser, className = '', pcViewer = false, mobileWork = false }) => {
+    const { t } = useTranslation('blacksmith');
     const probTypo = getProbabilityPanelTypography(pcViewer, mobileWork);
     const { blacksmithLevel } = currentUser;
     const probabilities = useMemo(() => {

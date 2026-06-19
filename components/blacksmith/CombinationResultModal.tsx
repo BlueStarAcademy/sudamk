@@ -39,6 +39,7 @@ const renderStarDisplay = (stars: number) => {
 };
 
 const ItemDisplay: React.FC<{ item: InventoryItem }> = ({ item }) => {
+    const { t } = useTranslation('blacksmith');
     const styles = gradeStyles[item.grade];
     return (
         <div className="flex flex-col w-full h-full p-1 bg-black/20 rounded-lg">

@@ -40,6 +40,7 @@ const ConversionCraftSection: React.FC<{
     sliderId: string;
     isBlacksmithBusy?: boolean;
 }> = ({ materialName, craftType, inventory, onAction, pcViewer, mobileWork = false, sliderId, isBlacksmithBusy = false }) => {
+    const { t } = useTranslation('blacksmith');
     const isUpgrade = craftType === 'upgrade';
     const typo = getBlacksmithViewerTypography(pcViewer, { mobileWork });
     const tierIndex = MATERIAL_TIERS.indexOf(materialName as (typeof MATERIAL_TIERS)[number]);
