@@ -5,4 +5,4 @@
 export const PVE_STRATEGIC_SERVER_AI_POST_HUMAN_DELAY_MS = 1200;
 
 /** PVE AI 턴이 이 시간 이상 진행 없으면 서버 워치독이 복구(잠금 해제 + queue 재등록)를 시도한다. */
-export const PVE_AI_SERVER_WATCHDOG_MS = 4_000;
+export const PVE_AI_SERVER_WATCHDOG_MS = 9_000;

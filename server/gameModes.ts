@@ -1728,6 +1728,27 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
             game = cached;
         }
 
+        // AI 디스패치 중에도 아이템 데드라인/애니 종료는 반드시 진행 (히든·스캔·미사일 타임아웃 고착 방지)
+        try {
+            const { tickStrategicItemPhaseIfNeeded } = await import('./utils/strategicItemPhaseTick.js');
+            const itemTickChanged = await tickStrategicItemPhaseIfNeeded(game, now);
+            if (itemTickChanged) {
+                const { updateGameCache } = await import('./gameCache.js');
+                updateGameCache(game);
+                db.saveGame(game).catch((err: unknown) =>
+                    console.error(
+                        `[processGame] Item phase tick save failed ${game.id}:`,
+                        (err as Error)?.message ?? err,
+                    ),
+                );
+            }
+        } catch (itemTickErr: unknown) {
+            console.error(
+                `[processGame] Item phase tick failed ${game.id}:`,
+                (itemTickErr as Error)?.message ?? itemTickErr,
+            );
+        }
+
         // AI 큐가 Kata/goAiBot 동기 연산 중이면 메인 루프 틱을 즉시 반환 (22~24s 타임아웃 연쇄 방지)
         if (
             aiProcessingQueue.isProcessingGame(game.id) ||
@@ -1967,8 +1988,14 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                 (game.gameStatus === 'playing' || playfulPlacementStatuses.includes(game.gameStatus) || playfulPlayingStatuses.includes(game.gameStatus));
 
             if (canProcessAiTurn && !didAlkkagiTriggerAiAttack) {
-                // 페어 4인 수순: aiProcessingQueue 단일 경로만 사용 (메인루프와 이중 디스패치 방지)
-                if (pairClassicForAi) {
+                const pveAiPolicyForDispatch = resolveArenaSessionPolicy(game);
+                const pveStrategicQueueOnly =
+                    pairClassicForAi ||
+                    (pveAiPolicyForDispatch.usesServerKataAi &&
+                        (pveAiPolicyForDispatch.kind === 'adventure' ||
+                            pveAiPolicyForDispatch.kind === 'guildwar'));
+                // 페어 4인 수순·모험·길드전: aiProcessingQueue 단일 경로만 사용 (메인루프와 이중 디스패치 방지)
+                if (pveStrategicQueueOnly) {
                     maybeRecoverStalledPveAiTurn(game, now);
                     return game;
                 }

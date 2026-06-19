@@ -31,7 +31,6 @@ interface QueueStats {
 
 const AI_GO_STALL_RETRY_STATUSES = new Set([
     'playing',
-    'hidden_placing',
     'hidden_reveal_animating',
 ]);
 

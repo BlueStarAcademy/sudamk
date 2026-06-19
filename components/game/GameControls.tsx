@@ -1518,20 +1518,9 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         console.log('[GameControls] handleResign: Opening confirm modal');
         setConfirmModalType('resign'); 
     };
-    const staleHiddenPlacing =
-        gameStatus === 'hidden_placing' &&
-        !(typeof session.itemUseDeadline === 'number' && session.itemUseDeadline > Date.now());
-    const staleMissileSelecting =
-        gameStatus === 'missile_selecting' &&
-        !(typeof session.itemUseDeadline === 'number' && session.itemUseDeadline > Date.now());
-    const staleScanning =
-        gameStatus === 'scanning' &&
-        !(typeof session.itemUseDeadline === 'number' && session.itemUseDeadline > Date.now());
-    const effectiveGameStatus =
-        staleHiddenPlacing || staleMissileSelecting || staleScanning ? 'playing' : gameStatus;
     const handleUseItem = (item: 'hidden' | 'scan' | 'missile') => { 
         console.log('[GameControls] handleUseItem called', { item, gameStatus, gameId });
-        if (effectiveGameStatus !== 'playing') {
+        if (gameStatus !== 'playing') {
             console.log('[GameControls] handleUseItem: Game status is not playing', gameStatus);
             return;
         }
@@ -1581,7 +1570,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             phasePlyRemaining == null ? t('controls.phaseEndgame') : t('controls.phaseMovesLeft', { phase: phaseLabel, count: phasePlyRemaining });
 
         const canAttempt =
-            effectiveGameStatus === 'playing' &&
+            gameStatus === 'playing' &&
             isMyTurn &&
             myPlayerEnum !== Player.None &&
             !!petRow &&
@@ -1590,7 +1579,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         let titleBody = t('controls.petHintPhaseOnce', { phase: phaseLabel });
         if (!petRow) {
             titleBody = t('controls.petHintEquipPet');
-        } else if (effectiveGameStatus !== 'playing') {
+        } else if (gameStatus !== 'playing') {
             titleBody = t('controls.petHintDuringGame');
         } else if (!isMyTurn || myPlayerEnum === Player.None) {
             titleBody = t('controls.petHintMyTurnOnly');
@@ -1803,7 +1792,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         const buttons: React.ReactNode[] = [];
 
         if (isHiddenMode) {
-            const hiddenDisabled = !isMyTurn || isSpectator || effectiveGameStatus !== 'playing' || hiddenLeft <= 0;
+            const hiddenDisabled = !isMyTurn || isSpectator || gameStatus !== 'playing' || hiddenLeft <= 0;
             buttons.push(
                 <LabeledControlButton
                     key="hidden"
@@ -1819,7 +1808,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             );
 
             const scansLeft = myScansLeft ?? 0;
-            const scanDisabled = !isMyTurn || isSpectator || effectiveGameStatus !== 'playing' || scansLeft <= 0 || !canScan;
+            const scanDisabled = !isMyTurn || isSpectator || gameStatus !== 'playing' || scansLeft <= 0 || !canScan;
             const scanHighlightAdventure = session.gameCategory === 'adventure' && !scanDisabled;
             buttons.push(
                 <div
@@ -1847,7 +1836,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
 
         if (isMissileMode) {
             const missilesLeft = myMissilesLeft ?? 0;
-            const missileDisabled = !isMyTurn || isSpectator || effectiveGameStatus !== 'playing' || missilesLeft <= 0;
+            const missileDisabled = !isMyTurn || isSpectator || gameStatus !== 'playing' || missilesLeft <= 0;
             buttons.push(
                 <LabeledControlButton
                     key="missile"
@@ -2207,7 +2196,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                             alt={t('controls.hidden')}
                             title={t('controls.hiddenPlaceTitle')}
                             onClick={() => handleUseItem('hidden')}
-                            disabled={!isMyTurn || effectiveGameStatus !== 'playing' || hiddenLeft <= 0}
+                            disabled={!isMyTurn || gameStatus !== 'playing' || hiddenLeft <= 0}
                             count={hiddenLeft > 0 ? hiddenLeft : undefined}
                             compact={isMobile}
                         />
@@ -2221,7 +2210,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                             alt={t('controls.scan')}
                             title={t('controls.scanDetectTitle')}
                             onClick={() => handleUseItem('scan')}
-                            disabled={!isMyTurn || effectiveGameStatus !== 'playing' || myScansLeft <= 0 || !canScan}
+                            disabled={!isMyTurn || gameStatus !== 'playing' || myScansLeft <= 0 || !canScan}
                             count={myScansLeft > 0 ? myScansLeft : undefined}
                             compact={isMobile}
                         />
@@ -2235,7 +2224,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                             alt={t('controls.missile')}
                             title={t('controls.missileLaunchTitle')}
                             onClick={() => handleUseItem('missile')}
-                            disabled={!isMyTurn || effectiveGameStatus !== 'playing' || myMissilesLeft <= 0}
+                            disabled={!isMyTurn || gameStatus !== 'playing' || myMissilesLeft <= 0}
                             count={myMissilesLeft > 0 ? myMissilesLeft : undefined}
                             compact={isMobile}
                         />

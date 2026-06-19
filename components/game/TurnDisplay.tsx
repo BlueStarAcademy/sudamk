@@ -516,11 +516,13 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
     const isItemMode = ['hidden_placing', 'scanning', 'missile_selecting'].includes(session.gameStatus);
 
     const prevTimeLeft = useRef<number>(30);
+    const itemDeadlineNudgeSentRef = useRef(false);
     
     useEffect(() => {
         if (!isItemMode || !session.itemUseDeadline || isPaused) {
             setTimeLeft(30); // Reset to default when not in item mode
             prevTimeLeft.current = 30;
+            itemDeadlineNudgeSentRef.current = false;
             return;
         }
 
@@ -537,17 +539,24 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
             
             // 상태 업데이트 (항상 업데이트하여 막대그래프가 작동하도록)
             setTimeLeft(clampedRemaining);
-            
-            // 아이템 시간이 초과되었는데 게임 상태가 여전히 아이템 모드인 경우
-            // 서버의 게임 루프가 자동으로 처리하므로 클라이언트에서 추가 통신 불필요
-            // WebSocket으로 상태 업데이트가 자동으로 전파됨
+
+            // AI 대국: 서버 루프가 AI 처리 중이면 아이템 데드라인 틱이 지연될 수 있음 → 1회 동기화 요청
+            if (
+                clampedRemaining === 0 &&
+                session.isAiGame &&
+                onAction &&
+                !itemDeadlineNudgeSentRef.current
+            ) {
+                itemDeadlineNudgeSentRef.current = true;
+                onAction({ type: 'REQUEST_GAME_STATE_SYNC', payload: { gameId: session.id } });
+            }
         };
 
         updateTimer();
         const timerId = setInterval(updateTimer, 500);
 
         return () => clearInterval(timerId);
-    }, [isItemMode, session.itemUseDeadline, isPaused, session.gameStatus, onAction, session.id]);
+    }, [isItemMode, session.itemUseDeadline, isPaused, session.gameStatus, onAction, session.id, session.isAiGame, session.isSinglePlayer]);
 
     const isSinglePlayer = session.isSinglePlayer;
     /** 아이템·히든·계가 안내 등 상태 전환 시 높이가 변하면 flex-1 바둑판 영역이 흔들린다 — 최대 변형 높이로 고정 */

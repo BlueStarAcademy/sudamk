@@ -686,6 +686,22 @@ export const getAllEndedGames = async (): Promise<LiveGameSession[]> => {
 export const saveGame = async (game: LiveGameSession, forceSave: boolean = false): Promise<void> => {
     await repairChessLiveGameIfNeeded(game);
 
+    const isAdventureLike =
+        game.gameCategory === 'adventure' || game.gameCategory === 'guildwar';
+    if (isAdventureLike && !forceSave) {
+        try {
+            const { getStaleCachedGame, compareLiveSessionProgressForPveMerge } = await import(
+                './gameCache.js'
+            );
+            const cached = getStaleCachedGame(game.id);
+            if (cached && compareLiveSessionProgressForPveMerge(cached, game) > 0) {
+                return;
+            }
+        } catch {
+            // stale guard 실패 시 저장은 계속 진행
+        }
+    }
+
     // PVE 게임 최적화: 메모리에만 저장하고 게임 종료 시에만 DB 저장
     const isPVE = game.isSinglePlayer || game.gameCategory === 'tower';
     const isGameEnded = game.gameStatus === 'ended' || game.gameStatus === 'no_contest';

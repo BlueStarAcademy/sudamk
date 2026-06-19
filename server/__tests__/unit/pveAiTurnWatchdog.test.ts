@@ -91,7 +91,7 @@ describe('pveAiTurnWatchdog', () => {
         expect((game as any)._pveAiWatchSince).toBe(now);
     });
 
-    it('recovers stalled AI turn after watchdog threshold', () => {
+    it('does not recover when AI is actively processing (startAiProcessing)', () => {
         const game = makeStrategicPveGame();
         const stalledSince = 1_000;
         const now = stalledSince + PVE_AI_SERVER_WATCHDOG_MS + 100;
@@ -100,6 +100,21 @@ describe('pveAiTurnWatchdog', () => {
         (game as any)._pveAiWatchSince = stalledSince;
         finishAiProcessing(game.id, game.moveHistory?.length ?? 0);
         startAiProcessing(game.id);
+        (game as any)._aiMoveDispatching = true;
+
+        expect(maybeRecoverStalledPveAiTurn(game, now)).toBe(false);
+        expect(enqueueMock).not.toHaveBeenCalled();
+        finishAiProcessing(game.id, game.moveHistory?.length ?? 0);
+    });
+
+    it('recovers stalled AI turn after watchdog threshold when not processing', () => {
+        const game = makeStrategicPveGame();
+        const stalledSince = 1_000;
+        const now = stalledSince + PVE_AI_SERVER_WATCHDOG_MS + 100;
+        (game as any)._pveAiWatchMoveCount = game.moveHistory?.length ?? 0;
+        (game as any)._pveAiWatchPairKey = null;
+        (game as any)._pveAiWatchSince = stalledSince;
+        finishAiProcessing(game.id, game.moveHistory?.length ?? 0);
         (game as any)._aiMoveDispatching = true;
 
         expect(maybeRecoverStalledPveAiTurn(game, now)).toBe(true);

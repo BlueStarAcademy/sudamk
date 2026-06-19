@@ -211,7 +211,8 @@ export function updateGameCache(game: LiveGameSession): void {
         game.isSinglePlayer === true ||
         game.gameCategory === 'tower' ||
         game.gameCategory === 'singleplayer' ||
-        game.gameCategory === 'adventure';
+        game.gameCategory === 'adventure' ||
+        game.gameCategory === 'guildwar';
     if (isPve && prev?.game && compareLiveSessionProgressForPveMerge(prev.game, game) > 0) {
         return;
     }

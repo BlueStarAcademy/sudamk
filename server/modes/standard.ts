@@ -100,6 +100,7 @@ import {
 import { modeIncludesBaseRule } from '../../shared/utils/liveSessionArenaKind.js';
 import { findLatestMoveIndexAtExcludingRecordedBaseStones } from '../../shared/utils/baseHiddenMoveIndex.js';
 import { schedulePairAiTurnIfNeeded as enqueuePairAiTurnIfNeeded } from '../utils/pairAiTurnSchedule.js';
+import { schedulePveStrategicAiTurnIfNeeded } from '../utils/pveStrategicAiTurnSchedule.js';
 import {
     humanPvpAllowsMoveCountAutoScoring,
     applyHumanPvpStrategicSettingsInvariants,
@@ -253,6 +254,33 @@ function schedulePairAiTurnIfNeeded(game: types.LiveGameSession, now: number): v
     enqueuePairAiTurnIfNeeded(game, now);
 }
 
+/** 유저 수·패스 직후 AI 턴 스케줄 — 모험/길드전은 큐 단일 경로, 그 외 AI 대국은 aiTurnStartTime만 설정 */
+function scheduleAiTurnAfterHumanMove(game: types.LiveGameSession, now: number): void {
+    const pairCurrentSeat = getCurrentPairTurnSeat(game.settings);
+    if (pairCurrentSeat) {
+        schedulePairAiTurnIfNeeded(game, now);
+        return;
+    }
+    if (!game.isAiGame || (game.currentPlayer !== types.Player.Black && game.currentPlayer !== types.Player.White)) {
+        return;
+    }
+    const currentPlayerId =
+        game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+    const policy = resolveArenaSessionPolicy(game);
+    if (
+        policy.usesServerKataAi &&
+        (policy.kind === GameCategory.Adventure || policy.kind === GameCategory.GuildWar)
+    ) {
+        schedulePveStrategicAiTurnIfNeeded(game, now);
+        return;
+    }
+    if (currentPlayerId === aiUserId) {
+        game.aiTurnStartTime = nextAiTurnStartTimeAfterHumanStrategicMove(game, now);
+    } else {
+        game.aiTurnStartTime = undefined;
+    }
+}
+
 function advancePairTurnAfterAction(game: types.LiveGameSession, now: number): void {
     if (!isPairClassicGame(game.settings, game.mode)) return;
     if (game.pairTeamResignRequest) delete game.pairTeamResignRequest;
@@ -349,17 +377,7 @@ async function finalizePveHiddenPlacementFromAuthoritativeClient(
         await db.saveGame(game);
     }
 
-    if (pairCurrentSeat) {
-        schedulePairAiTurnIfNeeded(game, now);
-    } else if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
-        const currentPlayerId =
-            game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
-        if (currentPlayerId === aiUserId) {
-            game.aiTurnStartTime = nextAiTurnStartTimeAfterHumanStrategicMove(game, now);
-        } else {
-            game.aiTurnStartTime = undefined;
-        }
-    }
+    scheduleAiTurnAfterHumanMove(game, now);
 
     return petHintBonusResult ?? {};
 }
@@ -2064,24 +2082,8 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 }
             }
             
-            // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime 설정 (모험/길드전은 메인루프·인라인 경쟁 완화를 위해 지연)
-            if (pairCurrentSeat) {
-                schedulePairAiTurnIfNeeded(game, now);
-            } else if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
-                const { aiUserId } = await import('../aiPlayer.js');
-                const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
-                if (currentPlayerId === aiUserId) {
-                    const startAt = nextAiTurnStartTimeAfterHumanStrategicMove(game, now);
-                    game.aiTurnStartTime = startAt;
-                    console.log(
-                        `[handleStandardAction] AI turn after PLACE_STONE, game ${game.id}, setting aiTurnStartTime to ${startAt} (now=${now})`,
-                    );
-                } else {
-                    // 사용자 턴으로 넘어갔으므로 aiTurnStartTime을 undefined로 설정
-                    game.aiTurnStartTime = undefined;
-                    console.log(`[handleStandardAction] User turn after PLACE_STONE, game ${game.id}, clearing aiTurnStartTime`);
-                }
-            }
+            // AI 턴 스케줄 (모험/길드전은 큐 단일 경로)
+            scheduleAiTurnAfterHumanMove(game, now);
             
             return petHintBonusResult ?? {};
         }
@@ -2248,24 +2250,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                     game.turnDeadline = undefined;
                     game.turnStartTime = undefined;
                 }
-                // AI 턴인 경우 aiTurnStartTime 설정 (모험/길드전은 메인루프·인라인 경쟁 완화를 위해 지연)
-                if (pairCurrentSeat) {
-                    schedulePairAiTurnIfNeeded(game, now);
-                } else if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
-                    const { aiUserId } = await import('../aiPlayer.js');
-                    const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
-                    if (currentPlayerId === aiUserId) {
-                        const startAt = nextAiTurnStartTimeAfterHumanStrategicMove(game, now);
-                        game.aiTurnStartTime = startAt;
-                        console.log(
-                            `[handleStandardAction] AI turn after PASS_TURN, game ${game.id}, setting aiTurnStartTime to ${startAt} (now=${now})`,
-                        );
-                    } else {
-                        // 사용자 턴으로 넘어갔으므로 aiTurnStartTime을 undefined로 설정
-                        game.aiTurnStartTime = undefined;
-                        console.log(`[handleStandardAction] User turn after PASS_TURN, game ${game.id}, clearing aiTurnStartTime`);
-                    }
-                }
+                scheduleAiTurnAfterHumanMove(game, now);
             }
             return {};
         }

@@ -1,5 +1,5 @@
 import { Player, type LiveGameSession } from '../../types/index.js';
-import { cancelAiProcessing, syncAiSession } from '../aiSessionManager.js';
+import { cancelAiProcessing, syncAiSession, isAiProcessing } from '../aiSessionManager.js';
 
 const AI_USER_ID = 'ai-player-01';
 import { aiProcessingQueue } from '../aiProcessingQueue.js';
@@ -141,6 +141,10 @@ export function maybeRecoverStalledPveAiTurn(game: LiveGameSession, now: number)
     }
 
     if (now - watchSince < PVE_AI_SERVER_WATCHDOG_MS) {
+        return false;
+    }
+
+    if (isAiProcessing(game.id)) {
         return false;
     }
 

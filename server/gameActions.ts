@@ -728,6 +728,11 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 } else if (preItemPolicy.kind === 'singleplayer') {
                     const { updateSinglePlayerHiddenState } = await import('./modes/singlePlayerHidden.js');
                     await updateSinglePlayerHiddenState(game, nowSync);
+                } else if (preItemPolicy.kind === 'adventure' || preItemPolicy.kind === 'guildwar') {
+                    const { updateHiddenState } = await import('./modes/hidden.js');
+                    const { updateMissileState } = await import('./modes/missile.js');
+                    await updateHiddenState(game, nowSync);
+                    updateMissileState(game, nowSync);
                 }
                 applyPveItemActionClientSync(game, payload, { preserveServerHiddenPlacementMeta: true });
                 if (preItemPolicy.kind === 'tower' && actionTypeStr === 'SCAN_BOARD' && game.gameStatus === 'scanning') {
@@ -1117,7 +1122,6 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             // AI 차례에서는 allowAdvanceOnAiTurn을 쓰면 lastProcessedMoveCount가 현재 수순으로 고정되어
             // shouldProcessAiTurn이 false가 될 수 있다. 기본 동기화로 "한 수 전" 복구를 허용한다.
             syncAiSession(game, aiUserId);
-            cancelAiProcessing(game.id);
             try {
                 await makeAiMove(game);
             } catch (e: any) {
@@ -1140,35 +1144,9 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             const aiStillToMove =
                 game.currentPlayer === beforePlayer && currentSeatNeedsServerAi();
             if (afterMoveLen <= beforeMoveLen && aiStillToMove) {
-                // 1회 더 강제 복구 시도 (락 유실/세션 꼬임 잔존 케이스)
-                if (isAiProcessing(game.id)) {
-                    return {
-                        clientResponse: {
-                            serverAiMoveDone: false,
-                            skippedReason: 'AI_MOVE_ALREADY_PROCESSING',
-                            game,
-                        },
-                    };
-                }
-                cancelAiProcessing(game.id);
-                syncAiSession(game, aiUserId);
-                try {
-                    await makeAiMove(game);
-                } catch (e: any) {
-                    console.error(`[REQUEST_SERVER_AI_MOVE] second makeAiMove failed for ${game.id}:`, e?.message ?? e);
-                    const { aiProcessingQueue } = await import('./aiProcessingQueue.js');
-                    aiProcessingQueue.enqueue(game.id);
-                    if (isPveLikeAiGame) {
-                        return {
-                            clientResponse: {
-                                serverAiMoveDone: false,
-                                skippedReason: 'AI_MOVE_FAILED_RETRYING',
-                                game,
-                            },
-                        };
-                    }
-                    return { error: `AI_MOVE_FAILED_RETRYING: ${e?.message ?? 'unknown_error'}` };
-                }
+                // 무진행 시 큐 재시도 (동일 요청 내 2차 makeAiMove는 중복 Kata 위험)
+                const { aiProcessingQueue } = await import('./aiProcessingQueue.js');
+                aiProcessingQueue.enqueue(game.id, undefined, { deferIfProcessing: true });
             }
             const finalMoveLen = game.moveHistory?.length ?? 0;
             const stillAiTurnAfterRetries =
@@ -1243,11 +1221,12 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 game.gameStatus = 'playing';
             }
             syncAiSession(game, aiUserId);
+            const nowSync = Date.now();
             try {
-                const { updateHiddenState } = await import('./modes/hidden.js');
-                await updateHiddenState(game, Date.now());
+                const { tickStrategicItemPhaseIfNeeded } = await import('./utils/strategicItemPhaseTick.js');
+                await tickStrategicItemPhaseIfNeeded(game, nowSync);
             } catch (e: any) {
-                console.error('[GameActions] REQUEST_GAME_STATE_SYNC updateHiddenState failed:', e?.message);
+                console.error('[GameActions] REQUEST_GAME_STATE_SYNC item phase tick failed:', e?.message);
             }
             const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
             /** 클라이언트 AI(WASM)만 쓰는 판도 동기화 직후 막히면 서버 makeAiMove로 복구 — 히든 초기 배치 단계 포함 */
@@ -1263,10 +1242,18 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     (currentPlayerId && String(currentPlayerId).startsWith('dungeon-bot-')));
             if (isAiTurnNow) {
                 await waitUntilAiProcessingReleased(game.id, 3000);
-                try {
-                    await makeAiMove(game);
-                } catch (e: any) {
-                    console.error('[GameActions] REQUEST_GAME_STATE_SYNC makeAiMove failed:', e?.message);
+                const useQueueOnly =
+                    requestSyncPolicy.usesServerKataAi &&
+                    (requestSyncPolicy.kind === 'adventure' || requestSyncPolicy.kind === 'guildwar');
+                if (useQueueOnly) {
+                    const { aiProcessingQueue } = await import('./aiProcessingQueue.js');
+                    aiProcessingQueue.enqueue(game.id, undefined, { deferIfProcessing: true });
+                } else {
+                    try {
+                        await makeAiMove(game);
+                    } catch (e: any) {
+                        console.error('[GameActions] REQUEST_GAME_STATE_SYNC makeAiMove failed:', e?.message);
+                    }
                 }
             }
             updateGameCache(game);
@@ -1339,12 +1326,29 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             }
         }
 
-        // HTTP 액션은 타이머 루프 없이 들어올 수 있어 missile_animating에 남으면 playing이 아니라 400이 난다.
-        if (game.gameStatus === 'missile_animating' || game.gameStatus === 'missile_selecting') {
-            const { updateMissileState } = await import('./modes/missile.js');
-            if (updateMissileState(game, Date.now())) {
-                updateGameCache(game);
+        // HTTP 액션은 타이머 루프 없이 들어올 수 있어 아이템·애니 상태가 남으면 400이 난다.
+        if (
+            game.gameStatus === 'missile_animating' ||
+            game.gameStatus === 'missile_selecting' ||
+            game.gameStatus === 'hidden_placing' ||
+            game.gameStatus === 'scanning' ||
+            game.gameStatus === 'scanning_animating'
+        ) {
+            const nowItem = Date.now();
+            const itemPolicy = resolveArenaSessionPolicy(game);
+            if (itemPolicy.kind === 'tower') {
+                const { updateTowerPlayerHiddenState } = await import('./modes/towerPlayerHidden.js');
+                await updateTowerPlayerHiddenState(game, nowItem);
+            } else if (itemPolicy.kind === 'singleplayer') {
+                const { updateSinglePlayerHiddenState } = await import('./modes/singlePlayerHidden.js');
+                await updateSinglePlayerHiddenState(game, nowItem);
+            } else {
+                const { updateHiddenState } = await import('./modes/hidden.js');
+                const { updateMissileState } = await import('./modes/missile.js');
+                await updateHiddenState(game, nowItem);
+                updateMissileState(game, nowItem);
             }
+            updateGameCache(game);
         }
         
         // AI 게임은 서버에서 진행/검증/AI 수 처리까지 담당해야 하므로 PVE로 분류하지 않음
@@ -1766,10 +1770,12 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
             }
 
-            // PVE 전략국 서버 AI: 메인 루프의 setImmediate(makeAiMove)가 startAiProcessing 잠금과 겹치면 봇이 스킵되는 간헐 이슈 방지
-            // (모험·길드전 + 싱글/도전의 탑 공통 인라인 fallback)
+            // PVE 전략국 서버 AI: 싱글/탑은 인라인 fallback 유지. 모험·길드전은 큐 단일 경로(schedulePveStrategicAiTurnIfNeeded).
             const pveServerGoAiCategory = arenaPolicy.matchAxis !== 'pvp';
-            if (pveServerGoAiCategory) {
+            const pveStrategicQueueOnly =
+                arenaPolicy.usesServerKataAi &&
+                (arenaPolicy.kind === 'adventure' || arenaPolicy.kind === 'guildwar');
+            if (pveServerGoAiCategory && !pveStrategicQueueOnly) {
                 const isGoMode =
                     game.mode === GameMode.Standard ||
                     game.mode === GameMode.Capture ||
@@ -1826,21 +1832,21 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                                 if (aiAdvanced) {
                                     game.aiTurnStartTime = undefined;
                                     if (!game.turnStartTime) game.turnStartTime = Date.now();
+                                    updateGameCache(game);
+                                    await db.saveGame(game);
+                                    const payloadAfterAi =
+                                        game.boardState && Array.isArray(game.boardState) && game.boardState.length > 0
+                                            ? { ...game, boardState: game.boardState.map((row: number[]) => [...row]) }
+                                            : game;
+                                    const { broadcastToGameParticipants } = await import('./socket.js');
+                                    broadcastToGameParticipants(
+                                        gameIdInlineAi,
+                                        { type: 'GAME_UPDATE', payload: { [gameIdInlineAi]: payloadAfterAi } },
+                                        game
+                                    );
                                 } else {
                                     game.aiTurnStartTime = Date.now() + 50;
                                 }
-                                updateGameCache(game);
-                                await db.saveGame(game);
-                                const payloadAfterAi =
-                                    game.boardState && Array.isArray(game.boardState) && game.boardState.length > 0
-                                        ? { ...game, boardState: game.boardState.map((row: number[]) => [...row]) }
-                                        : game;
-                                const { broadcastToGameParticipants } = await import('./socket.js');
-                                broadcastToGameParticipants(
-                                    gameIdInlineAi,
-                                    { type: 'GAME_UPDATE', payload: { [gameIdInlineAi]: payloadAfterAi } },
-                                    game
-                                );
                             } else {
                                 game.aiTurnStartTime = undefined;
                             }
