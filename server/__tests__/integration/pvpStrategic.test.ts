@@ -338,8 +338,8 @@ describe('PVP Strategic mode', () => {
         });
     });
 
-    describe('hidden stone PVP attack', () => {
-        it('attacking a hidden stone reveals only — no capture, no own stone, turn preserved', async () => {
+    describe('hidden stone occupancy', () => {
+        it('rejects placing on opponent hidden stone during playing', async () => {
             const game = makePvpStrategicGame();
             const x = 4;
             const y = 4;
@@ -358,21 +358,13 @@ describe('PVP Strategic mode', () => {
                 { type: 'PLACE_STONE', payload: { x, y, isHidden: false }, userId: p1.id } as any,
                 p1
             );
-            expect(res?.error).toBeUndefined();
-            expect(game.gameStatus).toBe('hidden_reveal_animating');
-            expect((game.pendingCapture as any)?.revealOnlyOpponentHidden).toBe(true);
-
-            const { updateHiddenState } = await import('../../modes/hidden.js');
-            await updateHiddenState(game, (game.revealAnimationEndTime ?? Date.now()) + 10);
-
-            expect(game.captures[Player.Black]).toBe(0);
-            expect(game.hiddenStoneCaptures[Player.Black]).toBe(0);
-            expect(game.boardState[y][x]).toBe(opponent);
-            expect(game.currentPlayer).toBe(Player.Black);
+            expect(res?.error).toBe('상대방이 둔 자리에는 돌을 놓을 수 없습니다.');
+            expect(game.gameStatus).toBe('playing');
             expect(game.moveHistory.length).toBe(1);
+            expect(game.boardState[y][x]).toBe(opponent);
         });
 
-        it('during hidden_placing, clicking opponent hidden reveals and returns to hidden_placing with turn kept', async () => {
+        it('rejects hidden_placing on opponent hidden stone without consuming hidden item', async () => {
             const game = makePvpStrategicGame({
                 currentPlayer: Player.Black,
                 gameStatus: 'hidden_placing',
@@ -396,20 +388,13 @@ describe('PVP Strategic mode', () => {
                 { type: 'PLACE_STONE', payload: { x, y, isHidden: true }, userId: p1.id } as any,
                 p1
             );
-            expect(res?.error).toBeUndefined();
+            expect(res?.error).toBe('상대방이 둔 자리에는 돌을 놓을 수 없습니다.');
             expect(game.hidden_stones_p1).toBe(2);
-
-            const { updateHiddenState } = await import('../../modes/hidden.js');
-            await updateHiddenState(game, (game.revealAnimationEndTime ?? Date.now()) + 10);
-
             expect(game.gameStatus).toBe('hidden_placing');
-            expect(game.currentPlayer).toBe(Player.Black);
             expect(game.boardState[y][x]).toBe(opponent);
-            expect(game.hidden_stones_p1).toBe(2);
-            expect(game.itemUseDeadline).toBeDefined();
         });
 
-        it('attacking a surrounded hidden stone still reveals only without capture', async () => {
+        it('rejects placing on surrounded opponent hidden stone', async () => {
             const game = makePvpStrategicGame();
             const x = 4;
             const y = 4;
@@ -432,17 +417,9 @@ describe('PVP Strategic mode', () => {
                 { type: 'PLACE_STONE', payload: { x, y, isHidden: false }, userId: p1.id } as any,
                 p1
             );
-            expect(res?.error).toBeUndefined();
-            expect(game.gameStatus).toBe('hidden_reveal_animating');
-            expect((game.pendingCapture as any)?.revealOnlyOpponentHidden).toBe(true);
-
-            const { updateHiddenState } = await import('../../modes/hidden.js');
-            await updateHiddenState(game, (game.revealAnimationEndTime ?? Date.now()) + 10);
-
+            expect(res?.error).toBe('상대방이 둔 자리에는 돌을 놓을 수 없습니다.');
             expect(game.captures[Player.Black]).toBe(0);
-            expect(game.hiddenStoneCaptures[Player.Black]).toBe(0);
             expect(game.boardState[y][x]).toBe(opponent);
-            expect(game.currentPlayer).toBe(Player.Black);
         });
 
     });

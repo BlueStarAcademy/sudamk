@@ -161,7 +161,9 @@ export const BaseStartConfirmationContent: React.FC<BaseStartConfirmationModalPr
     );
 };
 
-const BaseStartConfirmationModal: React.FC<BaseStartConfirmationModalProps> = (props) => (
+const BaseStartConfirmationModal: React.FC<BaseStartConfirmationModalProps> = (props) => {
+    const { t } = useTranslation('game');
+    return (
     <DraggableWindow
         title={t('captureTiebreaker.basePrepTitle')}
         windowId="base-start-confirm"
@@ -179,6 +181,7 @@ const BaseStartConfirmationModal: React.FC<BaseStartConfirmationModalProps> = (p
     >
         <BaseStartConfirmationContent {...props} />
     </DraggableWindow>
-);
+    );
+};
 
 export default BaseStartConfirmationModal;

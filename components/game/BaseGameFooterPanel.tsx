@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { tx } from '../../shared/i18n/runtimeText.js';
+import { useTranslation } from 'react-i18next';
 import { GameMode, LiveGameSession, ServerAction, User, GameStatus } from '../../types.js';
 import BaseStoneColorChoicePanel from '../BaseStoneColorChoicePanel.js';
 import BaseSameColorPointsBidPanel from '../BaseSameColorPointsBidPanel.js';
@@ -148,6 +148,7 @@ const BaseGameFooterPanel: React.FC<BaseGameFooterPanelProps> = ({
     isSinglePlayer = false,
     hideBasePlacementActions = false,
 }) => {
+    const { t } = useTranslation('game');
     const { gameStatus, id: gameId } = session;
     /** 싱글·PVP 인간 대국은 동일한 베이스 전 플로우 UI(앰버 톤); 로비 AI전만 기존 시안 톤 유지 */
     const unifiedBasePrePlayChrome = isSinglePlayer || !session.isAiGame;

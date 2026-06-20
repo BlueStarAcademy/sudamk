@@ -148,7 +148,7 @@ const SinglePlayerLobby: React.FC = () => {
                                     <span
                                         className="absolute right-0.5 top-0.5 z-[1] h-1.5 w-1.5 rounded-full border border-slate-950 bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.55)] sm:right-1 sm:top-1 sm:h-2 sm:w-2 sm:border-2"
                                         aria-hidden
-                                        title={t('profile.claimableReward')}
+                                        title={t('profile:claimableReward')}
                                     />
                                 )}
                             </button>

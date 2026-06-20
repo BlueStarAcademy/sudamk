@@ -187,7 +187,7 @@ const AdventureMapChapterHopButton: React.FC<{
     }
     const unlocked = isAdventureStageUnlocked(target.id, chapterUnlockCtx);
     const blockers = getAdventureChapterUnlockBlockers(target.stageIndex, chapterUnlockCtx);
-    const lockTitle = blockers.length ? blockers.join(' · ') : t('profile.lock');
+    const lockTitle = blockers.length ? blockers.join(' · ') : t('profile:lock');
     const navLabel = direction === 'prev' ? t('adventure.prevChapter') : t('adventure.nextChapter');
     const chevron = (
         <svg

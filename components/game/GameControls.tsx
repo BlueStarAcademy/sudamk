@@ -2181,7 +2181,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                 <span>{formatGoldAmountKoG(nextCost)}</span>
                             </>
                         )}
-                        {nextCost === 0 && <span>· {t('common:shop.free')}</span>}
+                        {nextCost === 0 && <span>· {t('lobby:adventure.free')}</span>}
                     </span>
                 </div>
             </>

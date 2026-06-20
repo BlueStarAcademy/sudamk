@@ -17,12 +17,15 @@ const DiamondPrice: React.FC<{ amount: number; className?: string; iconClassName
     amount,
     className = '',
     iconClassName = 'h-[1em] w-[1em] min-w-[1em]',
-}) => (
+}) => {
+    const { t: tCommon } = useTranslation('common');
+    return (
     <span className={`inline-flex items-center gap-0.5 tabular-nums ${className}`} aria-label={tCommon('diamondAria', { amount: amount.toLocaleString() })}>
         <img src={DIAMOND_ICON} alt="" className={`object-contain ${iconClassName}`} aria-hidden />
         <span className="font-semibold">{amount.toLocaleString()}</span>
     </span>
-);
+    );
+};
 
 export interface DetailedStatsResetConfirmModalProps {
     targetLabel: string;

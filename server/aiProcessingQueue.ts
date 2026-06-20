@@ -6,6 +6,8 @@
 
 import { LiveGameSession, Player, GameMode } from '../types/index.js';
 import {
+    CHESS_GO_PIECE_TO_STONE_DELAY_MS,
+    PAIR_AI_MOVE_REVEAL_DELAY_MS,
     PLAYFUL_AI_BATCH_STONE_INTERVAL_MS,
     PLAYFUL_AI_QUEUE_PRE_ACTION_DELAY_MS,
 } from '../constants';
@@ -211,11 +213,14 @@ class AiProcessingQueue {
             // 백(AI) 차례일 때 1초 생각하는 연출
             const isPlacingStones = game.gameStatus === 'dice_placing' || game.gameStatus === 'thief_placing';
             const isAdventureAiGame = game.isAiGame && (game as any).gameCategory === 'adventure';
+            const pairClassicAiTurn =
+                isPairClassicGame(game.settings, game.mode) &&
+                isPairAiSeat(getCurrentPairTurnSeat(game.settings));
             if (isAdventureAiGame && !isPlacingStones) {
                 const thinkDelayMs = 1000 + Math.floor(Math.random() * 1000);
                 await new Promise(resolve => setTimeout(resolve, thinkDelayMs));
             }
-            if (!isAdventureAiGame && game.currentPlayer === Player.White && !isPlacingStones) {
+            if (!isAdventureAiGame && !pairClassicAiTurn && game.currentPlayer === Player.White && !isPlacingStones) {
                 const preActionDelayMs =
                     game.mode === GameMode.Dice || game.mode === GameMode.Thief
                         ? PLAYFUL_AI_QUEUE_PRE_ACTION_DELAY_MS
@@ -297,7 +302,15 @@ class AiProcessingQueue {
                 afterMoveCount > beforeMoveCount &&
                 isAiControlledTurn(game) &&
                 AI_GO_STALL_RETRY_STATUSES.has(String(game.gameStatus));
-            if (stalledOnAiTurn) {
+            const chessGoAwaitingStoneAfterPieceMove =
+                game.mode === GameMode.Chess &&
+                game.chessPieceMovedThisTurn === true &&
+                afterMoveCount <= beforeMoveCount &&
+                isAiControlledTurn(game) &&
+                AI_GO_STALL_RETRY_STATUSES.has(String(game.gameStatus));
+            if (chessGoAwaitingStoneAfterPieceMove) {
+                setTimeout(() => this.enqueue(gameId), CHESS_GO_PIECE_TO_STONE_DELAY_MS);
+            } else if (stalledOnAiTurn) {
                 const retryCount = (this.retryCounts.get(gameId) ?? 0) + 1;
                 this.retryCounts.set(gameId, retryCount);
                 const animationDelay = getAnimationRetryDelayMs(game);
@@ -312,7 +325,7 @@ class AiProcessingQueue {
                 const retryDelayMs = getAnimationRetryDelayMs(game) ?? 500;
                 setTimeout(() => this.enqueue(gameId), retryDelayMs);
             } else if (consecutivePairAiSeat) {
-                setTimeout(() => this.enqueue(gameId), 50);
+                setTimeout(() => this.enqueue(gameId), PAIR_AI_MOVE_REVEAL_DELAY_MS);
             } else {
                 this.retryCounts.delete(gameId);
             }

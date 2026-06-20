@@ -825,10 +825,6 @@ const applyAiCaptureOutcome = (
                 capturedHiddenStones: capturedHiddenStones.map(item => item.point)
             };
 
-            for (const stone of result.capturedStones) {
-                game.boardState[stone.y][stone.x] = opponentPlayerEnum;
-            }
-
             if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
             uniqueStonesToReveal.forEach(stone => {
                 if (!game.permanentlyRevealedStones!.some(point => point.x === stone.point.x && point.y === stone.point.y)) {
@@ -2562,8 +2558,12 @@ export async function makeGoAiBotMove(
         const { repairChessGoSessionState, tryAiChessPieceMove } = await import('./modes/chess.js');
         repairChessGoSessionState(game);
         await tryAiChessPieceMove(game, aiPlayerEnum, goAiProfileLevel);
+        if (game.gameStatus === 'ended' || game.gameStatus === 'no_contest') {
+            return;
+        }
         if (game.chessPieceMovedThisTurn) {
             repairChessGoSessionState(game);
+            return;
         }
     }
 

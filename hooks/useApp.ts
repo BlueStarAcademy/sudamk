@@ -32,6 +32,7 @@ import {
     MONTHLY_MILESTONE_THRESHOLDS,
     SPECIAL_GAME_MODES,
     PLAYFUL_GAME_MODES,
+    PAIR_AI_MOVE_REVEAL_DELAY_MS,
     isOpponentInsufficientActionPointsError,
 } from '../constants.js';
 import { defaultSettings, SETTINGS_STORAGE_KEY } from './useAppSettings.js';
@@ -151,6 +152,7 @@ import { shouldIgnoreStaleServerHiddenPlacingAfterClientCommit } from '../shared
 import { isIntersectionRecordedAsBaseStone } from '../shared/utils/removeCapturedBaseStoneMarkers.js';
 import { findLatestMoveIndexAtExcludingRecordedBaseStones } from '../shared/utils/baseHiddenMoveIndex.js';
 import { buildWeightedJustCapturedForStones } from '../shared/utils/sumWeightedCapturePointsForCapturedStones.js';
+import { tryBuildHiddenCaptureRevealState } from './useClientGameState.js';
 import { isDiceGoLibertyPlacement, isThiefGoValidPlacement } from '../client/logic/goLogic.js';
 import { normalizeInventoryAfterLoad } from '../utils/inventoryUtils.js';
 import { reconcileExchangeListedInventoryFlags } from '../shared/utils/exchangeInventorySync.js';
@@ -590,6 +592,68 @@ function shiftDelayedAiSnapshotTurnClock(game: LiveGameSession, delayedByMs: num
                 : shiftedStart + duration;
     }
     return shifted;
+}
+
+type PairAiMoveRevealQueue = {
+    snapshots: LiveGameSession[];
+    drainTimerId: ReturnType<typeof setTimeout> | null;
+};
+
+function clearPairAiMoveRevealQueue(
+    gameId: string,
+    queuesRef: React.MutableRefObject<Record<string, PairAiMoveRevealQueue>>,
+): void {
+    const q = queuesRef.current[gameId];
+    if (!q) return;
+    if (q.drainTimerId != null) clearTimeout(q.drainTimerId);
+    delete queuesRef.current[gameId];
+}
+
+function drainNextPairAiMoveReveal(
+    gameId: string,
+    delayMs: number,
+    queuesRef: React.MutableRefObject<Record<string, PairAiMoveRevealQueue>>,
+    applySnapshot: (gameId: string, snapshot: LiveGameSession) => void,
+): void {
+    const q = queuesRef.current[gameId];
+    if (!q || q.snapshots.length === 0) {
+        if (q) q.drainTimerId = null;
+        return;
+    }
+    const snapshot = q.snapshots.shift()!;
+    q.drainTimerId = setTimeout(() => {
+        applySnapshot(gameId, snapshot);
+        drainNextPairAiMoveReveal(gameId, delayMs, queuesRef, applySnapshot);
+    }, delayMs);
+}
+
+function enqueuePairAiMoveReveal(
+    gameId: string,
+    snapshot: LiveGameSession,
+    delayMs: number,
+    baselineMoveCount: number,
+    queuesRef: React.MutableRefObject<Record<string, PairAiMoveRevealQueue>>,
+    applySnapshot: (gameId: string, snapshot: LiveGameSession) => void,
+): void {
+    const incomingMoves = snapshot.moveHistory?.length ?? 0;
+    if (incomingMoves <= baselineMoveCount) return;
+
+    let q = queuesRef.current[gameId];
+    if (!q) {
+        q = { snapshots: [], drainTimerId: null };
+        queuesRef.current[gameId] = q;
+    }
+
+    const lastQueuedMoves =
+        q.snapshots.length > 0
+            ? (q.snapshots[q.snapshots.length - 1]!.moveHistory?.length ?? 0)
+            : baselineMoveCount;
+    if (incomingMoves <= lastQueuedMoves) return;
+
+    q.snapshots.push(snapshot);
+    if (q.drainTimerId == null) {
+        drainNextPairAiMoveReveal(gameId, delayMs, queuesRef, applySnapshot);
+    }
 }
 
 function getLastPlacedPointForStaleCheck(g: LiveGameSession | undefined): { x: number; y: number } | null {
@@ -2376,6 +2440,7 @@ export const useApp = () => {
     const towerGnugoDelayTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
     const towerScoringDelayTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({}); // AI 수 표시 후 계가 전환용
     const liveGameGnugoDelayTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+    const pairAiMoveRevealQueueRef = useRef<Record<string, PairAiMoveRevealQueue>>({});
     const singlePlayerKataDelayTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
     const singlePlayerScoringDelayTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({}); // AI 수 표시 후 계가 전환용
     /** AI 수 1초 지연 표시 중 WS가 먼저 계가만 오면 state보다 긴 수순·판면을 보존한다 */
@@ -4293,8 +4358,39 @@ export const useApp = () => {
 
                 const movePlayer: Player = (payloadMovePlayer ?? game.currentPlayer) as Player;
                 const capturedStones = (payload.capturedStones ?? []) as Array<{ x: number; y: number }>;
+                const moveHistory = [...(game.moveHistory || []), { x, y, player: movePlayer }];
                 const opponentPlayer =
                     movePlayer === Player.Black ? Player.White : Player.Black;
+
+                if (
+                    game.mode !== GameMode.Chess &&
+                    game.mode !== GameMode.Castle &&
+                    capturedStones.length > 0
+                ) {
+                    const revealPatch = tryBuildHiddenCaptureRevealState(game, {
+                        x,
+                        y,
+                        movePlayer,
+                        newBoardState,
+                        capturedStones,
+                        moveHistory,
+                        hiddenMoves: game.hiddenMoves,
+                    });
+                    if (revealPatch) {
+                        return {
+                            ...currentGames,
+                            [gameId]: {
+                                ...game,
+                                ...revealPatch,
+                                koInfo: newKoInfo ?? game.koInfo,
+                                lastMove: { x, y },
+                                moveHistory,
+                                hiddenMoves: game.hiddenMoves,
+                            },
+                        };
+                    }
+                }
+
                 const weighted =
                     game.mode === GameMode.Chess && capturedStones.length > 0
                         ? (() => {
@@ -4322,7 +4418,7 @@ export const useApp = () => {
                     boardState: newBoardState,
                     koInfo: newKoInfo ?? game.koInfo,
                     lastMove: { x, y },
-                    moveHistory: [...(game.moveHistory || []), { x, y, player: movePlayer }],
+                    moveHistory,
                     captures: newCaptures,
                     justCaptured: weighted.entries,
                     currentPlayer: movePlayer === Player.Black ? Player.White : Player.Black,
@@ -4386,6 +4482,32 @@ export const useApp = () => {
                     player: movePlayer,
                     ...(pairSeat ? { actorId: pairSeat.participantId, pairSeatId: pairSeat.seatId } : {}),
                 };
+                const moveHistory = [...(game.moveHistory || []), moveEntry];
+
+                if (capturedStones.length > 0) {
+                    const revealPatch = tryBuildHiddenCaptureRevealState(game, {
+                        x,
+                        y,
+                        movePlayer,
+                        newBoardState,
+                        capturedStones,
+                        moveHistory,
+                        hiddenMoves: game.hiddenMoves,
+                    });
+                    if (revealPatch) {
+                        return {
+                            ...currentGames,
+                            [gameId]: {
+                                ...game,
+                                ...revealPatch,
+                                koInfo: newKoInfo ?? game.koInfo,
+                                lastMove: { x, y },
+                                moveHistory,
+                                hiddenMoves: game.hiddenMoves,
+                            },
+                        };
+                    }
+                }
 
                 const weighted = buildWeightedJustCapturedForStones(game, capturedStones || [], movePlayer);
                 const newCaptures = {
@@ -4415,7 +4537,7 @@ export const useApp = () => {
                     boardState: newBoardState,
                     koInfo: newKoInfo ?? game.koInfo,
                     lastMove: { x, y },
-                    moveHistory: [...(game.moveHistory || []), moveEntry],
+                    moveHistory,
                     captures: newCaptures,
                     justCaptured: weighted.entries,
                     currentPlayer: nextCurrentPlayer,
@@ -11235,6 +11357,9 @@ export const useApp = () => {
                                             clearTimeout(liveGameGnugoDelayTimeoutRef.current[gameId]);
                                             delete liveGameGnugoDelayTimeoutRef.current[gameId];
                                         }
+                                        if (isScoringTransition) {
+                                            clearPairAiMoveRevealQueue(gameId, pairAiMoveRevealQueueRef);
+                                        }
                                         const liveDeferredSnap = pendingDeferredAiBoardSnapshotByGameIdRef.current[gameId];
                                         const liveRicherExisting =
                                             (pickRicherWsBoardSnapshot(existingGame, liveDeferredSnap) ?? existingGame) as
@@ -11291,6 +11416,7 @@ export const useApp = () => {
                                             game.gameStatus === 'no_contest'
                                         ) {
                                             delete pendingDeferredAiBoardSnapshotByGameIdRef.current[gameId];
+                                            clearPairAiMoveRevealQueue(gameId, pairAiMoveRevealQueueRef);
                                         }
 
                                         // 전략바둑 AI(KATA 등) 수: 짧은 지연 후 표시 (바로 두면 연출·턴 표시가 어색함)
@@ -11317,18 +11443,65 @@ export const useApp = () => {
                                             hasNewMoves &&
                                             pairTurnOrder.length > 0 &&
                                             isPairAiSeat(lastPairSeat as any);
+                                        // 체스 바둑: 서버가 기물 이동 후 2초 뒤 돌을 반영하므로 클라에서 또 미루면 간격이 2배가 된다.
+                                        const isChessGoStoneAfterPieceMove =
+                                            game.mode === GameMode.Chess &&
+                                            hasNewMoves &&
+                                            existingGame?.chessPieceMovedThisTurn === true &&
+                                            mergedGame.chessPieceMovedThisTurn === false;
                                         // 모험/길드전: 서버가 유저 착수 후 1초 뒤 AI를 반영하므로 클라에서 또 1초 미루면 체감이 2초가 된다.
                                         const deferStrategicAiMoveForEffect =
                                             (isNewAiMoveLive || isNewPairAiMoveLive) &&
+                                            !isChessGoStoneAfterPieceMove &&
                                             game.gameCategory !== 'adventure' &&
                                             game.gameCategory !== 'guildwar' &&
                                             !shouldApplyPveAiMoveSnapshotImmediately(mergedGame) &&
                                             !isScoringTransition;
                                         if (deferStrategicAiMoveForEffect) {
+                                            // 보드·수순 정합(applyStrategicPlayingBoardAndMoveHistoryResolve) 후 스냅샷을 써야
+                                            // 지연 적용·pendingDeferred 병합 시 돌이 사라지거나 AI 착점이 다른 좌표로 보이지 않는다.
+                                            const gameToApply = JSON.parse(JSON.stringify(liveMerged)) as LiveGameSession;
+                                            if (isNewPairAiMoveLive) {
+                                                if (liveGameGnugoDelayTimeoutRef.current[gameId] != null) {
+                                                    clearTimeout(liveGameGnugoDelayTimeoutRef.current[gameId]);
+                                                    delete liveGameGnugoDelayTimeoutRef.current[gameId];
+                                                }
+                                                pendingDeferredAiBoardSnapshotByGameIdRef.current[gameId] = gameToApply;
+                                                const displayedMoves = existingGame?.moveHistory?.length ?? 0;
+                                                enqueuePairAiMoveReveal(
+                                                    gameId,
+                                                    gameToApply,
+                                                    PAIR_AI_MOVE_REVEAL_DELAY_MS,
+                                                    displayedMoves,
+                                                    pairAiMoveRevealQueueRef,
+                                                    (gId, snapshot) => {
+                                                        const shiftedGameToApply = shiftDelayedAiSnapshotTurnClock(
+                                                            snapshot,
+                                                            PAIR_AI_MOVE_REVEAL_DELAY_MS,
+                                                        );
+                                                        let appliedDelayedSnapshot = false;
+                                                        setLiveGames(prev => {
+                                                            if (shouldSkipDelayedAiSnapshotApply(prev[gId], shiftedGameToApply)) {
+                                                                return prev;
+                                                            }
+                                                            appliedDelayedSnapshot = true;
+                                                            return { ...prev, [gId]: shiftedGameToApply };
+                                                        });
+                                                        if (appliedDelayedSnapshot) {
+                                                            lastGameUpdateMoveCountRef.current[gId] =
+                                                                shiftedGameToApply.moveHistory?.length ?? 0;
+                                                            liveGameSignaturesRef.current[gId] =
+                                                                computeGameSessionFingerprint(shiftedGameToApply);
+                                                            pendingDeferredAiBoardSnapshotByGameIdRef.current[gId] =
+                                                                shiftedGameToApply;
+                                                        }
+                                                    },
+                                                );
+                                                return currentGames;
+                                            }
                                             if (liveGameGnugoDelayTimeoutRef.current[gameId] != null) {
                                                 clearTimeout(liveGameGnugoDelayTimeoutRef.current[gameId]);
                                             }
-                                            const gameToApply = JSON.parse(JSON.stringify(mergedGame)) as LiveGameSession;
                                             pendingDeferredAiBoardSnapshotByGameIdRef.current[gameId] = gameToApply;
                                             const scheduledAt = Date.now();
                                             liveGameGnugoDelayTimeoutRef.current[gameId] = setTimeout(() => {
@@ -11461,6 +11634,7 @@ export const useApp = () => {
                                 delete singlePlayerKataDelayTimeoutRef.current[deletedGameId];
                             }
                             delete pendingDeferredAiBoardSnapshotByGameIdRef.current[deletedGameId];
+                            clearPairAiMoveRevealQueue(deletedGameId, pairAiMoveRevealQueueRef);
 
                             const removeFromGames = (setter: any, signaturesRef: Record<string, string>) => {
                                 setter((currentGames: Record<string, any>) => {

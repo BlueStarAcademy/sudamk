@@ -4,6 +4,7 @@ import { WHITE_BASE_STONE_IMG, BLACK_BASE_STONE_IMG, WHITE_HIDDEN_STONE_IMG, BLA
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants';
 import { modeIncludesBaseCaptureMix, modeIncludesMissileRule } from '../shared/utils/liveSessionArenaKind.js';
 import {
+    BOARD_CAPTURE_FLOAT_AFTER_STONES_MS,
     BOARD_CAPTURE_FLOAT_DEBOUNCE_MS,
     BOARD_CAPTURE_FLOAT_HIDDEN_EXTRA_LAG_MS,
     BOARD_CAPTURE_SCORE_FLOAT_MS,
@@ -38,6 +39,27 @@ function parseBonusTextPoints(text: string): number | null {
 }
 
 /** 도둑/주사위: 라운드·역할 전환 직후 서버가 보내는 의도적 빈 판(전부 빈칸). 이 경우 보존 ref의 전판을 쓰면 안 됨 */
+/** justCaptured가 먼저 오고 boardState가 슬림 WS로 한 박자 늦을 때 따낸 돌을 즉시 숨긴다 */
+function maskJustCapturedStonesOnBoard(
+    board: BoardState,
+    captured: Array<{ point: Point; player: Player }> | undefined,
+): BoardState {
+    if (!captured?.length || !board?.length) return board;
+    let changed = false;
+    const next = board.map((row) => (Array.isArray(row) ? [...row] : row));
+    for (const entry of captured) {
+        const p = entry.point;
+        if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) continue;
+        const row = next[p.y];
+        if (!row || !Array.isArray(row)) continue;
+        if (row[p.x] === entry.player) {
+            row[p.x] = Player.None;
+            changed = true;
+        }
+    }
+    return changed ? (next as BoardState) : board;
+}
+
 function isPlayfulEmptyBoardSnapshot(boardState: BoardState | undefined, boardSize: number): boolean {
     if (!boardState || !Array.isArray(boardState) || boardState.length !== boardSize) return false;
     for (let y = 0; y < boardSize; y++) {
@@ -1010,7 +1032,10 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
 
             const pushFloat = (totalPts: number, anchor: Point, extraDelayMs = 0) => {
                 if (totalPts < minPts) return;
-                const lag = extraDelayMs + hiddenRevealScoreFloatLagMs;
+                const lag =
+                    extraDelayMs +
+                    hiddenRevealScoreFloatLagMs +
+                    BOARD_CAPTURE_FLOAT_AFTER_STONES_MS;
                 const tailMove = moveHistory?.length ? moveHistory[moveHistory.length - 1] : null;
                 const movePart = tailMove
                     ? `${moveHistory!.length}-${tailMove.player}-${tailMove.x}-${tailMove.y}`
@@ -1354,8 +1379,11 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         if (!result || !Array.isArray(result) || result.length === 0) {
             return Array(safeSize).fill(null).map(() => Array(safeSize).fill(Player.None));
         }
-        return result;
-    }, [boardState, gameStatus, boardSize, moveHistory, analysisResult, mode]);
+        if (gameStatus === 'hidden_reveal_animating' || gameStatus === 'hidden_final_reveal') {
+            return result as BoardState;
+        }
+        return maskJustCapturedStonesOnBoard(result as BoardState, justCaptured);
+    }, [boardState, gameStatus, boardSize, moveHistory, analysisResult, mode, justCaptured]);
 
     const revealAnimationStonePoints = useMemo(() => {
         if (animation?.type !== 'hidden_reveal' || !animation.stones?.length) return undefined;

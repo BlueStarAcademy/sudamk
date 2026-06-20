@@ -209,6 +209,19 @@ export function resolveStrategicPvePlayingBoardAndMoveHistory(
     const serverBoardOk = isSubstantiveBoardState(server.boardState);
     const clientBoardOk = isSubstantiveBoardState(clientSnap.boardState);
 
+    // 수순 길이는 같지만 마지막 착점이 다른 낡은/분기 패킷 — 체스 PVE와 같이 클라 보드를 우선한다.
+    if (
+        serverMhLen === clientMhLen &&
+        serverMhLen > 0 &&
+        !sessionLastPlacedMovesMatch(server, clientSnap) &&
+        clientBoardOk
+    ) {
+        return {
+            boardState: clientSnap.boardState,
+            moveHistory: clientSnap.moveHistory,
+        };
+    }
+
     let moveHistory: LiveGameSession['moveHistory'];
     if (serverMhLen > clientMhLen) {
         moveHistory = server.moveHistory;
@@ -250,6 +263,35 @@ export function resolveStrategicPvePlayingBoardAndMoveHistory(
 
 /** PVP·PVE 공통 playing 보드·수순 정합 (resolveStrategicPvePlayingBoardAndMoveHistory 별칭) */
 export const resolveStrategicPlayingBoardAndMoveHistory = resolveStrategicPvePlayingBoardAndMoveHistory;
+
+function lastPlacedMoveFromSession(
+    session: LiveGameSession,
+): { x: number; y: number; player: number } | null {
+    const hist = session.moveHistory;
+    if (!Array.isArray(hist) || hist.length === 0) return null;
+    for (let i = hist.length - 1; i >= 0; i--) {
+        const m = hist[i];
+        if (
+            m &&
+            typeof m.x === 'number' &&
+            typeof m.y === 'number' &&
+            Number.isFinite(m.x) &&
+            Number.isFinite(m.y) &&
+            m.x >= 0 &&
+            m.y >= 0
+        ) {
+            return m as { x: number; y: number; player: number };
+        }
+    }
+    return null;
+}
+
+function sessionLastPlacedMovesMatch(a: LiveGameSession, b: LiveGameSession): boolean {
+    const lastA = lastPlacedMoveFromSession(a);
+    const lastB = lastPlacedMoveFromSession(b);
+    if (!lastA || !lastB) return lastA === lastB;
+    return lastA.x === lastB.x && lastA.y === lastB.y && lastA.player === lastB.player;
+}
 
 function chessSessionLastMovesMatch(a: LiveGameSession, b: LiveGameSession): boolean {
     const aLen = wsSessionMoveHistoryLen(a);

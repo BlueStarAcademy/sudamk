@@ -2467,6 +2467,7 @@ const GuildAdminModal: React.FC<{
 };
 
 const GuildIconSelectModal: React.FC<{ guild: GuildType; onClose: () => void; onSelect: (icon: string) => void }> = ({ guild, onClose, onSelect }) => {
+    const { t } = useTranslation(['guild', 'common']);
     const guildIcons = Array.from({ length: 11 }, (_, i) => `/images/guild/profile/icon${i + 1}.webp`);
     const [selectedIcon, setSelectedIcon] = useState<string>(getGuildIconPath(guild.icon));
 

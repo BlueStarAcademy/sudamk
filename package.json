@@ -70,7 +70,8 @@
     "test:ci": "npm run typecheck && npm run test:unit && npm run test:integration && npm run test:e2e",
     "i18n:sync": "node scripts/i18n/sync-locales.mjs",
     "i18n:translate": "node scripts/i18n/auto-translate-locales.mjs",
-    "i18n:build": "node scripts/i18n/auto-translate-locales.mjs && node scripts/i18n/sync-locales.mjs"
+    "i18n:build": "node scripts/i18n/auto-translate-locales.mjs && node scripts/i18n/sync-locales.mjs",
+    "i18n:validate": "node scripts/i18n/validate-key-refs.mjs && node scripts/i18n/validate-colon-keys.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-ses": "^3.936.0",

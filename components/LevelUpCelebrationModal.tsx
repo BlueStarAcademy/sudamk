@@ -26,6 +26,7 @@ const BranchCard: React.FC<{
     panelClass: string;
     barFillClass: string;
 }> = ({ title, subtitle, from, to, currentXp, glowClass, levelToClass, panelClass, barFillClass }) => {
+    const { t } = useTranslation('profile');
     const cap = getXpRequiredForCurrentLevel(to);
     const pct = cap > 0 && Number.isFinite(cap) ? Math.min(100, Math.round((currentXp / cap) * 1000) / 10) : 0;
     const gain = to - from;

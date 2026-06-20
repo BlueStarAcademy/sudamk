@@ -12,6 +12,7 @@ type Props = {
 const PAIR_USER_DRAG_MIME = 'text/pair-user-id';
 
 const PairRoomKickDropZone: React.FC<Props> = ({ visible, disabled, compact = false, onUserDropped }) => {
+    const { t } = useTranslation('pair');
     if (!visible) return null;
 
     /** 페어 채팅 패널과 동일한 최소 높이에 맞춘 정사각형 */

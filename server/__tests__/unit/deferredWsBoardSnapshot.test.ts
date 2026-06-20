@@ -118,6 +118,35 @@ describe('resolveStrategicPvePlayingBoardAndMoveHistory', () => {
         expect(resolved.boardState?.[1]?.[1]).toBe(Player.White);
     });
 
+    it('keeps client when same-length stale server has diverged AI stone position', () => {
+        const client = {
+            moveHistory: [
+                { x: 0, y: 0, player: Player.Black },
+                { x: 1, y: 1, player: Player.White },
+            ],
+            boardState: boardWithWhiteAtCenter(),
+            settings: { boardSize: 3 },
+        } as LiveGameSession;
+        const server = {
+            moveHistory: [
+                { x: 0, y: 0, player: Player.Black },
+                { x: 2, y: 2, player: Player.White },
+            ],
+            boardState: [
+                [Player.None, Player.None, Player.None],
+                [Player.None, Player.None, Player.None],
+                [Player.None, Player.None, Player.White],
+            ],
+            settings: { boardSize: 3 },
+        } as LiveGameSession;
+
+        const resolved = resolveStrategicPvePlayingBoardAndMoveHistory(server, client);
+        expect(resolved.moveHistory).toHaveLength(2);
+        expect(resolved.moveHistory?.[1]).toEqual({ x: 1, y: 1, player: Player.White });
+        expect(resolved.boardState?.[1]?.[1]).toBe(Player.White);
+        expect(resolved.boardState?.[2]?.[2]).toBe(Player.None);
+    });
+
     it('replay removes captured stones when server sent slim packet after capture', () => {
         // Black (1,0) — White (0,0) — Black (0,1) captures white
         const server = {

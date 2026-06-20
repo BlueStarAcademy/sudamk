@@ -157,7 +157,7 @@ const PairTurnOrderModal: React.FC<PairTurnOrderModalProps> = ({ session, curren
                                         highlighted ? 'text-amber-100' : isBlack ? 'text-slate-300' : 'text-slate-600'
                                     }`}
                                 >
-                                    {seatLabel[slotSeat.seatId] ?? slotSeat.seatId}
+                                    {t(`pairTurnOrder.${slotSeat.seatId}`, { defaultValue: slotSeat.seatId })}
                                 </div>
                                 <div className={`truncate font-black ${isHandheld ? 'mt-1 text-[11px]' : 'mt-2 text-sm'}`} title={seatDisplayName}>
                                     {seatDisplayName}

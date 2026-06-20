@@ -45,7 +45,23 @@ return <span>{t('dock.home')}</span>;
 4. Or one step: **`npm run i18n:build`** (translate + sync).
 5. Register new languages in **`shared/i18n/languages.ts`** and **`scripts/i18n/sync-locales.mjs`**, then run i18n:build.
 
-## Helpers
+## Cross-namespace keys (critical)
+
+`useTranslation('lobby')` + `t('profile.monsterCodex')` resolves to **`lobby.profile.monsterCodex`** (missing) — not `profile.monsterCodex`.
+
+| Intent | Correct |
+|--------|---------|
+| Key in another namespace | `t('profile:monsterCodex')` |
+| Nested under current ns | `t('adventure.journal')` when `lobby.adventure.journal` exists |
+| Nested lobby under guild/pair/tournament | `t('lobby.title')` with `useTranslation('guild')` etc. |
+| Object parent key (button label) | Never `t('detailedStats')` — use `t('profile:detailedStats.pvpTitle')` or `t('nav:quickMenu.detailedStats')` |
+
+Every subcomponent that calls `t()` / `tCommon()` must call `useTranslation()` in **that** component (not rely on a parent alias).
+
+## Validation
+
+Before shipping i18n changes, run **`npm run i18n:validate`** (checks dot/colon refs against `catalog/ko.json`).
+
 
 - `translateGameMode(mode)` / `useLocalizedGameMode()` — game mode labels
 - `translateQuickUtilityPanel(kind)` / `useLocalizedQuickUtilityPanel()` — quick menu titles

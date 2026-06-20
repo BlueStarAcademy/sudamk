@@ -229,6 +229,141 @@ function sanitizeHumanHiddenMoveIndexes(
     return next;
 }
 
+export interface HiddenCaptureRevealMoveInput {
+    x: number;
+    y: number;
+    movePlayer: Player;
+    newBoardState: Player[][];
+    capturedStones: Point[];
+    moveHistory: NonNullable<LiveGameSession['moveHistory']>;
+    hiddenMoves?: LiveGameSession['hiddenMoves'];
+    isCurrentMoveHidden?: boolean;
+}
+
+/**
+ * 히든 돌이 포획에 기여한 경우 공개 연출(hidden_reveal_animating) 상태를 구성한다.
+ * 공개 연출 시작과 함께 따낸 돌은 보드에서 제거하고, 점수는 연출 종료 후 pendingCapture로 정산한다.
+ */
+export function tryBuildHiddenCaptureRevealState(
+    game: LiveGameSession,
+    input: HiddenCaptureRevealMoveInput,
+): Partial<LiveGameSession> | null {
+    const {
+        x,
+        y,
+        movePlayer,
+        newBoardState,
+        capturedStones,
+        moveHistory,
+        hiddenMoves,
+        isCurrentMoveHidden = false,
+    } = input;
+    if (!capturedStones.length) return null;
+
+    const opponentPlayer = movePlayer === Player.Black ? Player.White : Player.Black;
+    const updatedHiddenMoves = { ...(hiddenMoves || {}) };
+    const revealModeActive = isHiddenModeActive(game, updatedHiddenMoves);
+    if (!revealModeActive) return null;
+
+    const aiInitialHiddenStone = (game as { aiInitialHiddenStone?: Point | null }).aiInitialHiddenStone;
+    const contributingHiddenStones = collectCapturingGroupHiddenStones(
+        newBoardState,
+        x,
+        y,
+        movePlayer,
+        moveHistory,
+        updatedHiddenMoves,
+        game.permanentlyRevealedStones,
+        game,
+        aiInitialHiddenStone,
+        isCurrentMoveHidden,
+    );
+
+    const capturedHiddenStones: { point: Point; player: Player }[] = [];
+    for (const stone of capturedStones) {
+        const moveIndex = findMoveIndexAt(moveHistory, stone.x, stone.y, opponentPlayer, game);
+        const wasHiddenMove = moveIndex !== -1 && !!hiddenMoves?.[moveIndex];
+        const wasAiInitialHidden = !!(aiInitialHiddenStone && isSamePoint(aiInitialHiddenStone, stone));
+        if ((wasHiddenMove || wasAiInitialHidden) && !hasPoint(game.permanentlyRevealedStones, stone)) {
+            capturedHiddenStones.push({ point: stone, player: opponentPlayer });
+        }
+    }
+
+    const resolveAiPlayerEnum = (): Player => {
+        if (isAiControlledPlayerId(game.blackPlayerId)) return Player.Black;
+        if (isAiControlledPlayerId(game.whitePlayerId)) return Player.White;
+        return Player.None;
+    };
+    const aiPlayerEnum = resolveAiPlayerEnum();
+    const revealSeed = Array.from(
+        new Map(
+            [...contributingHiddenStones, ...capturedHiddenStones].map((item) => [
+                `${item.point.x},${item.point.y}`,
+                item,
+            ]),
+        ).values(),
+    );
+    const stonesToReveal = expandToAllUnrevealedHiddenStonesForPlayers(
+        {
+            ...game,
+            boardState: newBoardState,
+            moveHistory,
+            hiddenMoves: updatedHiddenMoves,
+        } as LiveGameSession,
+        revealSeed,
+        { aiPlayerEnum },
+    );
+    if (stonesToReveal.length === 0) return null;
+
+    const now = Date.now();
+    const involvesAiHidden = stonesToReveal.some((stone) => stone.player === aiPlayerEnum);
+    const revealDuration = involvesAiHidden ? PVE_AI_HIDDEN_REVEAL_DURATION_MS : 2000;
+
+    const boardDuringReveal = (newBoardState || []).map((row) => [...row]);
+    for (const stone of capturedStones) {
+        if (boardDuringReveal[stone.y]) {
+            boardDuringReveal[stone.y][stone.x] = Player.None;
+        }
+    }
+
+    let updatedPermanentlyRevealedStones = [...(game.permanentlyRevealedStones || [])];
+    for (const stone of stonesToReveal) {
+        updatedPermanentlyRevealedStones = upsertPoint(updatedPermanentlyRevealedStones, stone.point);
+    }
+
+    return {
+        boardState: boardDuringReveal,
+        currentPlayer: movePlayer,
+        gameStatus: 'hidden_reveal_animating',
+        animation: {
+            type: 'hidden_reveal',
+            stones: stonesToReveal,
+            startTime: now,
+            duration: revealDuration,
+        } as LiveGameSession['animation'],
+        revealAnimationEndTime: now + revealDuration,
+        pendingCapture: {
+            stones: capturedStones,
+            move: { x, y, player: movePlayer },
+            hiddenContributors: contributingHiddenStones.map((item) => item.point),
+            capturedHiddenStones: capturedHiddenStones.map((item) => item.point),
+        },
+        captures: { ...(game.captures || {}) },
+        hiddenStoneCaptures: { ...(game.hiddenStoneCaptures || {}) },
+        blackPatternStones: game.blackPatternStones ? [...game.blackPatternStones] : game.blackPatternStones,
+        whitePatternStones: game.whitePatternStones ? [...game.whitePatternStones] : game.whitePatternStones,
+        permanentlyRevealedStones: updatedPermanentlyRevealedStones,
+        justCaptured: [],
+        newlyRevealed: [],
+        turnDeadline: undefined,
+        turnStartTime: undefined,
+        pausedTurnTimeLeft: game.turnDeadline
+            ? Math.max(0, (game.turnDeadline - now) / 1000)
+            : game.pausedTurnTimeLeft,
+        itemUseDeadline: undefined,
+    };
+}
+
 /**
  * 클라이언트 이동 처리 후 게임 상태 업데이트
  */
@@ -460,8 +595,6 @@ export function updateGameStateAfterMove(
         revealSeed,
         { aiPlayerEnum },
     );
-    const involvesAiHidden = stonesToReveal.some((stone) => stone.player === aiPlayerEnum);
-    const revealDuration = involvesAiHidden ? PVE_AI_HIDDEN_REVEAL_DURATION_MS : 2000;
 
     let updatedBlackPatternStones = game.blackPatternStones ? [...game.blackPatternStones] : undefined;
     let updatedWhitePatternStones = game.whitePatternStones ? [...game.whitePatternStones] : undefined;
@@ -668,42 +801,19 @@ export function updateGameStateAfterMove(
     }
 
     if (stonesToReveal.length > 0) {
-        const boardDuringReveal = (newBoardState || []).map(row => [...row]);
-        // 따낸 돌은 보드에서 제거(빈 칸). opponentPlayer로 덮어쓰면 따낸 돌이 다시 남는 버그 발생
-        for (const stone of capturedStones) {
-            if (boardDuringReveal[stone.y]) {
-                boardDuringReveal[stone.y][stone.x] = Player.None;
-            }
+        const revealPatch = tryBuildHiddenCaptureRevealState(game, {
+            x,
+            y,
+            movePlayer,
+            newBoardState: newBoardState as Player[][],
+            capturedStones,
+            moveHistory: newMoveHistory,
+            hiddenMoves: updatedHiddenMoves,
+            isCurrentMoveHidden: !!isHidden,
+        });
+        if (revealPatch) {
+            Object.assign(updatedGame, revealPatch);
         }
-
-        updatedGame.boardState = boardDuringReveal;
-        updatedGame.currentPlayer = movePlayer;
-        updatedGame.gameStatus = 'hidden_reveal_animating';
-        updatedGame.animation = {
-            type: 'hidden_reveal',
-            stones: stonesToReveal,
-            startTime: now,
-            duration: revealDuration,
-        } as any;
-        updatedGame.revealAnimationEndTime = now + revealDuration;
-        updatedGame.pendingCapture = {
-            stones: capturedStones,
-            move: { x, y, player: movePlayer },
-            hiddenContributors: contributingHiddenStones.map(item => item.point),
-            capturedHiddenStones: capturedHiddenStones.map(item => item.point)
-        };
-        updatedGame.captures = { ...(game.captures || {}) };
-        updatedGame.hiddenStoneCaptures = { ...(game.hiddenStoneCaptures || {}) } as typeof game.hiddenStoneCaptures;
-        updatedGame.blackPatternStones = game.blackPatternStones ? [...game.blackPatternStones] : game.blackPatternStones;
-        updatedGame.whitePatternStones = game.whitePatternStones ? [...game.whitePatternStones] : game.whitePatternStones;
-        updatedGame.justCaptured = [];
-        updatedGame.newlyRevealed = [];
-        updatedGame.turnDeadline = undefined;
-        updatedGame.turnStartTime = undefined;
-        updatedGame.pausedTurnTimeLeft = game.turnDeadline
-            ? Math.max(0, (game.turnDeadline - now) / 1000)
-            : game.pausedTurnTimeLeft;
-        updatedGame.itemUseDeadline = undefined;
     }
 
     return {

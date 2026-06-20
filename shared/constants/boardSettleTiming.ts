@@ -6,6 +6,8 @@
 export const BOARD_CAPTURE_SCORE_FLOAT_MS = 2850;
 export const BOARD_CAPTURE_FLOAT_HIDDEN_EXTRA_LAG_MS = 450;
 export const BOARD_CAPTURE_FLOAT_DEBOUNCE_MS = 48;
+/** 따낸 돌을 보드에서 먼저 지운 뒤 +N 플로트를 재생하기 위한 짧은 간격 */
+export const BOARD_CAPTURE_FLOAT_AFTER_STONES_MS = 120;
 /** 플로트 제거 타이머·렌더 1프레임 여유 */
 export const BOARD_SETTLE_AFTER_FLOAT_BUFFER_MS = 250;
 

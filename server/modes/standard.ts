@@ -80,14 +80,9 @@ import {
 import { getRegionalCaptureOpponentTargetBonus } from '../../utils/adventureRegionalSpecialtyBuff.js';
 import { adventureEncounterCountdownUiActive } from '../../shared/utils/adventureEncounterUi.js';
 import {
-    skipPendingCaptureForAdventureHiddenReveal,
-    isPvpRevealOnlyOpponentHiddenAttack,
-    shouldPreserveDiscovererTurnAfterOpponentHiddenReveal,
-    shouldPreserveDiscovererTurnWhenAiRevealsUserHiddenStone,
-    treatAsPveLikeForHiddenOpponentReveal,
-    useAiInitialHiddenCellTracking,
     useAiInitialHiddenSyntheticCaptureHistory,
 } from './hiddenRevealPolicy.js';
+import { getPlacementOccupancyBlockReason } from '../../shared/utils/hiddenStonePlacementOccupancy.js';
 import { isHiddenMoveIndexSoftRevealedByAnyPlayer } from './hiddenScanShared.js';
 import { expandToAllUnrevealedHiddenStonesForPlayers } from '../../shared/utils/expandHiddenRevealStones.js';
 import { PVE_AI_HIDDEN_REVEAL_DURATION_MS } from '../../shared/constants/gameSettings.js';
@@ -1322,206 +1317,30 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             // PVP: 클라이언트 boardState를 덮어쓰지 않으므로 game.boardState는 캐시(서버) 상태 유지.
             // 낙관적 업데이트로 이미 둔 수를 보내면 finalStoneCheck에서 거절되어 턴이 안 넘어가는 버그 방지.
 
-            // 전략 AI 대기실 히든: goAiBot이 aiInitialHiddenStone을 두지만, 예전에는 여기서 추적 제외 →
-            // 유저가 그 칸을 찍어도 히든 공개 분기로 안 들어가거나 aiInitialHiddenStone이 안 지워져 턴/AI가 꼬일 수 있음.
-            const aiInitialHiddenCellTracking = useAiInitialHiddenCellTracking(game);
-            const isAiInitialHiddenStone =
-                aiInitialHiddenCellTracking &&
-                (game as any).aiInitialHiddenStone &&
-                (game as any).aiInitialHiddenStone.x === x &&
-                (game as any).aiInitialHiddenStone.y === y &&
-                !game.permanentlyRevealedStones?.some(p => p.x === x && p.y === y);
-
-            // 클라 Game.tsx findLatestMoveIndexAt와 동일: 같은 좌표 재착수 시 상대의 최근 수만 히든 판별에 사용
-            const moveIndexAtTarget = findLatestMoveIndexAt(game, x, y, opponentPlayerEnum);
-            const isTargetHiddenOpponentStone =
-                (stoneAtTarget === opponentPlayerEnum &&
-                    moveIndexAtTarget !== -1 &&
-                    game.hiddenMoves?.[moveIndexAtTarget] &&
-                    !game.permanentlyRevealedStones?.some(p => p.x === x && p.y === y)) ||
-                isAiInitialHiddenStone;
-
-            if (stoneAtTarget !== types.Player.None && !isTargetHiddenOpponentStone) {
-                if (stoneAtTarget === opponentPlayerEnum) {
-                    console.error(`[handleStandardAction] CRITICAL BUG PREVENTION: Attempted to place stone on opponent stone at (${x}, ${y}), gameId=${game.id}, stoneAtTarget=${stoneAtTarget}, opponentPlayerEnum=${opponentPlayerEnum}, isSinglePlayer=${game.isSinglePlayer}, gameCategory=${game.gameCategory}`);
-                    return { error: '상대방이 둔 자리에는 돌을 놓을 수 없습니다.' };
-                }
-                if (stoneAtTarget === myPlayerEnum) {
-                    console.error(`[handleStandardAction] CRITICAL BUG PREVENTION: Attempted to place stone on own stone at (${x}, ${y}), gameId=${game.id}, stoneAtTarget=${stoneAtTarget}, myPlayerEnum=${myPlayerEnum}`);
-                    return { error: '이미 돌이 놓인 자리입니다.' };
-                }
-                console.error(`[handleStandardAction] CRITICAL BUG PREVENTION: Attempted to place stone on occupied position at (${x}, ${y}), gameId=${game.id}, stoneAtTarget=${stoneAtTarget}`);
+            const placementBlockReason = getPlacementOccupancyBlockReason(
+                game.boardState,
+                game,
+                x,
+                y,
+                myPlayerEnum,
+            );
+            if (placementBlockReason === 'opponent') {
+                console.error(
+                    `[handleStandardAction] CRITICAL BUG PREVENTION: Attempted to place stone on opponent stone at (${x}, ${y}), gameId=${game.id}, stoneAtTarget=${stoneAtTarget}, opponentPlayerEnum=${opponentPlayerEnum}, isSinglePlayer=${game.isSinglePlayer}, gameCategory=${game.gameCategory}`,
+                );
+                return { error: '상대방이 둔 자리에는 돌을 놓을 수 없습니다.' };
+            }
+            if (placementBlockReason === 'own' || stoneAtTarget === myPlayerEnum) {
+                console.error(
+                    `[handleStandardAction] CRITICAL BUG PREVENTION: Attempted to place stone on own stone at (${x}, ${y}), gameId=${game.id}, stoneAtTarget=${stoneAtTarget}, myPlayerEnum=${myPlayerEnum}`,
+                );
                 return { error: '이미 돌이 놓인 자리입니다.' };
             }
-
-            if (isTargetHiddenOpponentStone) {
-                if (isAiInitialHiddenStone) {
-                    if (!game.hiddenMoves) game.hiddenMoves = {};
-                    if (moveIndexAtTarget === -1) {
-                        const hiddenMoveIndex = game.moveHistory.length;
-                        game.moveHistory.push({
-                            player: opponentPlayerEnum,
-                            x: x,
-                            y: y,
-                        });
-                        game.hiddenMoves[hiddenMoveIndex] = true;
-                    } else if (!game.hiddenMoves[moveIndexAtTarget]) {
-                        game.hiddenMoves[moveIndexAtTarget] = true;
-                    }
-                }
-
-                if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
-                if (!game.permanentlyRevealedStones.some(p => p.x === x && p.y === y)) {
-                    game.permanentlyRevealedStones.push({ x, y });
-                }
-                // AI 초기 히든 표시 좌표가 공개되었으면 즉시 추적 상태를 정리한다.
-                // (클라에서 잠깐 내 돌에 히든 문양이 붙는 현상 방지)
-                if (isAiInitialHiddenStone) {
-                    (game as any).aiInitialHiddenStone = undefined;
-                    (game as any).aiInitialHiddenStoneIsPrePlaced = false;
-                }
-
-                const tempBoardState = (game.boardState || []).map((row: types.Player[]) => [...row]);
-                if (tempBoardState[y] && tempBoardState[y][x] !== undefined) {
-                    tempBoardState[y][x] = types.Player.None;
-                }
-
-                const moveAttempt = {
-                    x,
-                    y,
-                    player: myPlayerEnum,
-                    ...(pairCurrentSeat ? { actorId: pairCurrentSeat.participantId, pairSeatId: pairCurrentSeat.seatId } : {}),
-                };
-                const resumeHiddenItemPlacing = game.gameStatus === 'hidden_placing';
-                const pvpRevealOnly = isPvpRevealOnlyOpponentHiddenAttack(game);
-
-                const revealSeed = [{ point: { x, y }, player: opponentPlayerEnum }];
-                const stonesToReveal = expandHiddenRevealStonesForGame(game, revealSeed);
-                const opponentRevealDurationMs = resolveHiddenRevealDurationMs(game, stonesToReveal);
-                game.animation = {
-                    type: 'hidden_reveal',
-                    stones: stonesToReveal,
-                    startTime: now,
-                    duration: opponentRevealDurationMs,
-                };
-                game.revealAnimationEndTime = now + opponentRevealDurationMs;
-                game.gameStatus = 'hidden_reveal_animating';
-                game.itemUseDeadline = undefined;
-                if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
-                for (const stone of stonesToReveal) {
-                    if (!game.permanentlyRevealedStones.some((p) => p.x === stone.point.x && p.y === stone.point.y)) {
-                        game.permanentlyRevealedStones.push({ x: stone.point.x, y: stone.point.y });
-                    }
-                }
-
-                if (pvpRevealOnly) {
-                    game.pendingCapture = {
-                        stones: [{ x, y }],
-                        move: moveAttempt,
-                        hiddenContributors: [{ x, y }],
-                        preserveDiscovererTurn: true,
-                        revealOnlyOpponentHidden: true,
-                        resumeHiddenItemPlacing,
-                        boardStateBeforeReveal: (game.boardState || []).map((row: types.Player[]) => [...row]),
-                        koInfoBeforeReveal: JSON.parse(JSON.stringify(game.koInfo ?? null)),
-                        passCountBeforeReveal: game.passCount ?? 0,
-                        pausedTurnTimeLeftBeforeReveal: game.pausedTurnTimeLeft,
-                        itemPhaseActingPlayer: game.itemPhaseActingPlayer ?? myPlayerEnum,
-                    } as any;
-                    game.justCaptured = [];
-                    if (game.turnDeadline) {
-                        game.pausedTurnTimeLeft = (game.turnDeadline - now) / 1000;
-                        game.turnDeadline = undefined;
-                        game.turnStartTime = undefined;
-                    }
-                    return {};
-                }
-
-                const treatAsPveLike = treatAsPveLikeForHiddenOpponentReveal(game);
-                const simResult = processMove(
-                    tempBoardState,
-                    moveAttempt,
-                    game.koInfo,
-                    game.moveHistory.length,
-                    {
-                        ignoreSuicide: false,
-                        isSinglePlayer: treatAsPveLike,
-                        opponentPlayer: treatAsPveLike ? opponentPlayerEnum : undefined,
-                    }
+            if (stoneAtTarget !== types.Player.None) {
+                console.error(
+                    `[handleStandardAction] CRITICAL BUG PREVENTION: Attempted to place stone on occupied position at (${x}, ${y}), gameId=${game.id}, stoneAtTarget=${stoneAtTarget}`,
                 );
-
-                // 모든 히든 모드: 상대 히든 위 착수 시도는 전체 공개·문양 유지만 하고 수·턴은 바꾸지 않음.
-                const adventureHiddenRevealOnly = skipPendingCaptureForAdventureHiddenReveal(game);
-
-                // 유효한 포획(히든 1점만 따낸 경우 포함): tempBoard에서 히든 칸을 비운 뒤 processMove라
-                // capturedStones가 비어 있어도 착수·보드 반영은 반드시 pendingCapture로 이어져야 한다.
-                if (simResult?.isValid && !adventureHiddenRevealOnly) {
-                    const extraCaptures = simResult.capturedStones || [];
-                    const preserveDiscovererTurnPve =
-                        shouldPreserveDiscovererTurnAfterOpponentHiddenReveal(game) ||
-                        shouldPreserveDiscovererTurnWhenAiRevealsUserHiddenStone(
-                            game,
-                            myPlayerEnum,
-                            !!isAiInitialHiddenStone
-                        );
-                    // PVP/전략 대국에서는 캡처 처리(pendingCapture)는 유지하되, 턴만 발견자(myPlayerEnum)로 되돌려 UX를 고정한다.
-                    // (PVE류에서는 preserveDiscovererTurn로 보드/상태 스냅샷을 되돌리는 기존 로직을 그대로 사용)
-                    const preserveTurnAfterOpponentHiddenReveal = !preserveDiscovererTurnPve;
-                    const boardStateBeforeReveal = preserveDiscovererTurnPve
-                        ? (game.boardState || []).map((row: types.Player[]) => [...row])
-                        : undefined;
-                    const koInfoBeforeReveal = preserveDiscovererTurnPve
-                        ? JSON.parse(JSON.stringify(game.koInfo ?? null))
-                        : undefined;
-                    const passCountBeforeReveal = preserveDiscovererTurnPve ? (game.passCount ?? 0) : undefined;
-
-                    game.pendingCapture = {
-                        stones: [{ x, y }, ...extraCaptures],
-                        move: moveAttempt,
-                        hiddenContributors: [{ x, y }],
-                        ...(preserveDiscovererTurnPve
-                            ? {
-                                  preserveDiscovererTurn: true,
-                                  boardStateBeforeReveal,
-                                  koInfoBeforeReveal,
-                                  passCountBeforeReveal,
-                              }
-                            : {}),
-                        ...(preserveTurnAfterOpponentHiddenReveal
-                            ? { preserveTurnAfterOpponentHiddenReveal: true }
-                            : {}),
-                    } as any;
-
-                    game.boardState = simResult.newBoardState;
-                    game.boardState[y][x] = opponentPlayerEnum;
-                    for (const s of extraCaptures) {
-                        game.boardState[s.y][s.x] = opponentPlayerEnum;
-                    }
-
-                    game.lastMove = { x, y };
-                    game.lastTurnStones = null;
-                    game.moveHistory.push(moveAttempt);
-
-                    game.koInfo = simResult.newKoInfo;
-                    game.passCount = 0;
-                    game.justCaptured = [];
-                } else {
-                    game.pendingCapture = null;
-                    game.justCaptured = [];
-                }
-
-                if (adventureHiddenRevealOnly && isAiInitialHiddenStone) {
-                    (game as any).aiInitialHiddenStone = undefined;
-                    (game as any).aiInitialHiddenStoneIsPrePlaced = false;
-                }
-
-                if (game.turnDeadline) {
-                    game.pausedTurnTimeLeft = (game.turnDeadline - now) / 1000;
-                    game.turnDeadline = undefined;
-                    game.turnStartTime = undefined;
-                }
-
-                return {};
+                return { error: '이미 돌이 놓인 자리입니다.' };
             }
 
             const move = {
@@ -1735,9 +1554,6 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 })();
             
                 game.boardState = result.newBoardState;
-                for (const stone of result.capturedStones) {
-                    game.boardState[stone.y][stone.x] = opponentPlayerEnum;
-                }
             
                 if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
                 uniqueStonesToReveal.forEach(s => {

@@ -388,6 +388,12 @@ export const PLAYFUL_AI_DICE_ROLL_ANIMATION_MS = 1000;
 /** AI 큐: 주사위/도둑 AI 굴림 직전 짧은 대기 */
 export const PLAYFUL_AI_QUEUE_PRE_ACTION_DELAY_MS = 350;
 
+/** 페어 바둑 AI/펫 연속 착수: 한 수씩 보이도록 서버·클라이언트 공통 간격 (ms) */
+export const PAIR_AI_MOVE_REVEAL_DELAY_MS = 2000;
+
+/** 체스 바둑: 기물 이동 후 바둑돌 착수까지 연출 간격 (ms) */
+export const CHESS_GO_PIECE_TO_STONE_DELAY_MS = 2000;
+
 // --- Curling Settings ---
 export const CURLING_STONE_COUNTS = [3, 5, 7];
 export const CURLING_TURN_TIME_LIMIT = 30;

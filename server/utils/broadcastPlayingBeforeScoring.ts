@@ -1,12 +1,15 @@
 import type { LiveGameSession } from '../../types/index.js';
+import { PAIR_AI_MOVE_REVEAL_DELAY_MS } from '../../constants/gameSettings.js';
 import * as db from '../db.js';
 import { broadcastToGameParticipants } from '../socket.js';
 import { resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
 
 /** 클라이언트가 마지막 착수(특히 AI/몬스터 수)를 한 프레임 그린 뒤 계가 오버레이로 넘어가도록 */
 const DEFAULT_PLAYING_STATE_FLUSH_MS = 140;
-/** 페어·전략 AI: 클라 `STRATEGIC_AI_MOVE_DELAY_MS`(1000) 연출과 맞춤 */
+/** 전략 AI: 클라 `STRATEGIC_AI_MOVE_DELAY_MS`(1000) 연출과 맞춤 */
 const STRATEGIC_AI_SCORING_FLUSH_MS = 1100;
+/** 페어 AI/펫: 클라 `PAIR_AI_MOVE_REVEAL_DELAY_MS` 연출과 맞춤 */
+const PAIR_AI_SCORING_FLUSH_MS = PAIR_AI_MOVE_REVEAL_DELAY_MS + 100;
 
 /**
  * `gameStatus`가 아직 `playing`/`hidden_placing`일 때만 호출.
@@ -21,9 +24,10 @@ export async function broadcastPlayingSnapshotBeforeScoring(game: LiveGameSessio
     const gameToBroadcast = { ...game };
     broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
     const policy = resolveArenaSessionPolicy(game);
-    const flushMs =
-        policy.isPairGame || policy.isStrategicAiLike
-            ? STRATEGIC_AI_SCORING_FLUSH_MS
-            : DEFAULT_PLAYING_STATE_FLUSH_MS;
+    const flushMs = policy.isPairGame
+        ? PAIR_AI_SCORING_FLUSH_MS
+        : policy.isStrategicAiLike
+          ? STRATEGIC_AI_SCORING_FLUSH_MS
+          : DEFAULT_PLAYING_STATE_FLUSH_MS;
     await new Promise((r) => setTimeout(r, flushMs));
 }

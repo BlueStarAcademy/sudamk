@@ -42,6 +42,7 @@ import { MATERIAL_ITEMS } from './constants/items.js';
 import { getEffectivePairLobbyOwnerId } from './shared/utils/effectivePairLobbyOwnerId.js';
 import { resolveBasePlacementSeatColors } from './shared/utils/basePlacementSeatColors.js';
 import { findLatestMoveIndexAtExcludingRecordedBaseStones } from './shared/utils/baseHiddenMoveIndex.js';
+import { getPlacementOccupancyBlockReason } from './shared/utils/hiddenStonePlacementOccupancy.js';
 import { shouldSuppressKoPlaceStoneClientError, isGameAlreadyStartedError } from './shared/utils/serverErrorMatch.js';
 import GuildWarHiddenTowerControls from './components/game/GuildWarHiddenTowerControls.js';
 import GuildWarTowerSidebar from './components/game/GuildWarTowerSidebar.js';
@@ -2457,8 +2458,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         isSinglePlayer || isTower || isGuildWarHiddenClientEffects;
     const needsServerHiddenRevealNudge =
         isOnlineHiddenStrategic &&
-        !!session.isAiGame &&
-        !isPairClassicGame(session.settings, mode);
+        !needsLocalHiddenRevealFinalize &&
+        (!session.isAiGame || !isPairClassicGame(session.settings, mode));
 
     useEffect(() => {
         if (!needsLocalHiddenRevealFinalize && !needsServerHiddenRevealNudge) return;
@@ -3326,35 +3327,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 const boardSize = session.settings.boardSize;
                 if (x < 0 || x >= boardSize || y < 0 || y >= boardSize) return;
                 const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
-                const stoneAtTarget = boardStateToUse[y][x];
-                const moveIndexAtTarget = findLatestMoveIndexAt(session, x, y, opponentPlayerEnum);
-                const isHiddenTarget = stoneAtTarget === opponentPlayerEnum &&
-                    moveIndexAtTarget !== -1 &&
-                    !!session.hiddenMoves?.[moveIndexAtTarget] &&
-                    !(session.permanentlyRevealedStones || []).some(point => point.x === x && point.y === y);
-                if (stoneAtTarget === opponentPlayerEnum && !isHiddenTarget) return;
-                if (stoneAtTarget === opponentPlayerEnum && isHiddenTarget) {
-                    const submitHiddenRevealMove = () => {
-                        void Promise.resolve(handlers.handleAction({
-                            type: 'PLACE_STONE',
-                            payload: {
-                                gameId,
-                                x,
-                                y,
-                                isHidden: true,
-                                boardState: boardStateToUse,
-                                moveHistory: session.moveHistory || [],
-                            }
-                        } as ServerAction)).then((res) => handleStrategicPetHintActionResult(res as StrategicPetHintActionResult | undefined));
-                        if (gameStatus === 'hidden_placing') audioService.stopScanBgm();
-                    };
-                    if (gameStatus === 'hidden_placing') {
-                        runHiddenPlacementWithDelay(submitHiddenRevealMove);
-                    } else {
-                        submitHiddenRevealMove();
-                    }
-                    return;
-                }
+                if (getPlacementOccupancyBlockReason(boardStateToUse, session, x, y, myPlayerEnum)) return;
                 let moveResult;
                 try {
                     moveResult = processMoveClient(
@@ -3419,44 +3392,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 }
                 return;
             }
-            // 온라인 전략바둑(대기실·PVP·AI 로비): 상대 히든 칸은 탑과 같이 PLACE_STONE(isHidden)로 공개 요청 (itemUseDeadline만으로 isHidden을 켜면 공개 클릭이 일반 착수로 감)
+            // 온라인 전략바둑 히든 아이템: 상대(히든 포함) 돌이 있는 칸에는 착수 불가
             if (isOnlineHiddenStrategic && gameStatus === 'hidden_placing') {
                 const boardStateToUse = restoredBoardState || session.boardState;
                 if (!boardStateToUse || !Array.isArray(boardStateToUse) || boardStateToUse.length === 0) return;
                 if (x === -1 || y === -1) return;
                 const boardSize = session.settings.boardSize;
                 if (x < 0 || x >= boardSize || y < 0 || y >= boardSize) return;
-                const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
-                const stoneAtTarget = boardStateToUse[y][x];
-                const moveIndexAtTarget = findLatestMoveIndexAt(session, x, y, opponentPlayerEnum);
-                const isHiddenTarget =
-                    stoneAtTarget === opponentPlayerEnum &&
-                    moveIndexAtTarget !== -1 &&
-                    !!session.hiddenMoves?.[moveIndexAtTarget] &&
-                    !(session.permanentlyRevealedStones || []).some(point => point.x === x && point.y === y);
-                if (stoneAtTarget === opponentPlayerEnum && !isHiddenTarget) return;
-                if (stoneAtTarget === opponentPlayerEnum && isHiddenTarget) {
-                    const submitOnlineHiddenRevealMove = () => {
-                        void Promise.resolve(handlers.handleAction({
-                            type: 'PLACE_STONE',
-                            payload: {
-                                gameId,
-                                x,
-                                y,
-                                isHidden: true,
-                                boardState: boardStateToUse,
-                                moveHistory: session.moveHistory || [],
-                            },
-                        } as ServerAction)).then((res) => handleStrategicPetHintActionResult(res as StrategicPetHintActionResult | undefined));
-                        if (gameStatus === 'hidden_placing') audioService.stopScanBgm();
-                    };
-                    if (gameStatus === 'hidden_placing') {
-                        runHiddenPlacementWithDelay(submitOnlineHiddenRevealMove);
-                    } else {
-                        submitOnlineHiddenRevealMove();
-                    }
-                    return;
-                }
+                if (getPlacementOccupancyBlockReason(boardStateToUse, session, x, y, myPlayerEnum)) return;
             }
             // 싱글플레이 히든 아이템 착수: 클라이언트에 히든 반영 후 서버로 PLACE_STONE(isHidden) 전송
             if (isSinglePlayer && gameStatus === 'hidden_placing') {
@@ -3466,35 +3409,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 const boardSize = session.settings.boardSize;
                 if (x < 0 || x >= boardSize || y < 0 || y >= boardSize) return;
                 const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
-                const stoneAtTarget = boardStateToUse[y][x];
-                const moveIndexAtTarget = findLatestMoveIndexAt(session, x, y, opponentPlayerEnum);
-                const isHiddenTarget = stoneAtTarget === opponentPlayerEnum &&
-                    moveIndexAtTarget !== -1 &&
-                    !!session.hiddenMoves?.[moveIndexAtTarget] &&
-                    !(session.permanentlyRevealedStones || []).some(point => point.x === x && point.y === y);
-                if (stoneAtTarget === opponentPlayerEnum && !isHiddenTarget) return;
-                if (stoneAtTarget === opponentPlayerEnum && isHiddenTarget) {
-                    const submitSingleHiddenRevealMove = () => {
-                        void Promise.resolve(handlers.handleAction({
-                            type: 'PLACE_STONE',
-                            payload: {
-                                gameId,
-                                x,
-                                y,
-                                isHidden: true,
-                                boardState: boardStateToUse,
-                                moveHistory: session.moveHistory || [],
-                            }
-                        } as ServerAction)).then((res) => handleStrategicPetHintActionResult(res as StrategicPetHintActionResult | undefined));
-                        if (gameStatus === 'hidden_placing') audioService.stopScanBgm();
-                    };
-                    if (gameStatus === 'hidden_placing') {
-                        runHiddenPlacementWithDelay(submitSingleHiddenRevealMove);
-                    } else {
-                        submitSingleHiddenRevealMove();
-                    }
-                    return;
-                }
+                if (getPlacementOccupancyBlockReason(boardStateToUse, session, x, y, myPlayerEnum)) return;
                 let moveResult;
                 try {
                     moveResult = processMoveClient(
@@ -3586,31 +3501,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     return;
                 }
 
-                // 싱글플레이/도전의 탑에서 AI 돌 위에 착점하는 것 차단
+                // 히든 포함: 상대 돌이 있는 칸에는 착수 불가 (클래식 바둑과 동일)
                 const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
-                const stoneAtTarget = boardStateToUse[y][x];
-                const moveIndexAtTarget = findLatestMoveIndexAt(session, x, y, opponentPlayerEnum);
-                const isHiddenTarget = stoneAtTarget === opponentPlayerEnum &&
-                    moveIndexAtTarget !== -1 &&
-                    !!session.hiddenMoves?.[moveIndexAtTarget] &&
-                    !(session.permanentlyRevealedStones || []).some(point => point.x === x && point.y === y);
-                if ((isSinglePlayer || isTower) && stoneAtTarget === opponentPlayerEnum && isHiddenTarget) {
-                    handlers.handleAction({
-                        type: 'LOCAL_HIDDEN_REVEAL_TRIGGER',
-                        payload: {
-                            gameId,
-                            gameType: isTower ? 'tower' : 'singleplayer',
-                            point: { x, y },
-                            player: opponentPlayerEnum,
-                            keepTurn: true
-                        }
-                    } as any);
-                    pveLocalStonePlacementLockRef.current = false;
-                    return;
-                }
-                if ((isSinglePlayer || isTower) && stoneAtTarget === opponentPlayerEnum) {
-                    console.error(`[Game] ${isTower ? 'Tower' : 'Single player'} game - CRITICAL BUG PREVENTION: Attempted to place stone on AI stone at (${x}, ${y})`);
-                    // TODO: 에러 메시지를 사용자에게 표시
+                if (getPlacementOccupancyBlockReason(boardStateToUse, session, x, y, myPlayerEnum)) {
                     pveLocalStonePlacementLockRef.current = false;
                     return;
                 }
@@ -3667,22 +3560,18 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             // 전략바둑 AI 대국 포함: 모든 온라인 게임은 서버에서만 검증/반영
             actionType = 'PLACE_STONE';
             const boardStateForOnline = restoredBoardState || session.boardState;
-            const opponentEnumOnline = myPlayerEnum === Player.Black ? Player.White : Player.Black;
-            let isOpponentHiddenRevealOnline = false;
-            if ((gameStatus === 'playing' || gameStatus === 'hidden_placing') && boardStateForOnline && session.moveHistory) {
-                const st = boardStateForOnline[y][x];
-                const mi = findLatestMoveIndexAt(session, x, y, opponentEnumOnline);
-                isOpponentHiddenRevealOnline =
-                    st === opponentEnumOnline &&
-                    mi !== -1 &&
-                    !!session.hiddenMoves?.[mi] &&
-                    !(session.permanentlyRevealedStones || []).some(point => point.x === x && point.y === y);
+            if (
+                boardStateForOnline &&
+                (gameStatus === 'playing' || gameStatus === 'hidden_placing') &&
+                getPlacementOccupancyBlockReason(boardStateForOnline, session, x, y, myPlayerEnum)
+            ) {
+                return;
             }
             const activeHiddenPlacement =
                 gameStatus === 'hidden_placing' &&
                 typeof session.itemUseDeadline === 'number' &&
                 session.itemUseDeadline > Date.now();
-            payload.isHidden = isOpponentHiddenRevealOnline || activeHiddenPlacement;
+            payload.isHidden = activeHiddenPlacement;
             payload.boardState = boardStateForOnline;
             payload.moveHistory = session.moveHistory || [];
             if (

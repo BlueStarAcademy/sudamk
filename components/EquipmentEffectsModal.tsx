@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { tx } from '../shared/i18n/runtimeText.js';
 import DraggableWindow from './DraggableWindow.js';
 import { CoreStat, SpecialStat, MythicStat } from '../types.js';
 import { CORE_STATS_DATA, SPECIAL_STATS_DATA, MYTHIC_STATS_DATA } from '../constants';
@@ -88,7 +89,7 @@ const MeterBar: React.FC<{ ratio: number; variant: 'amber' | 'violet' | 'emerald
 
 const formatMythicStat = (stat: MythicStat, _data: { count: number; totalValue: number }): React.ReactNode => {
     const row = MYTHIC_STATS_DATA[stat];
-    if (!row) return <span className="leading-snug">{t('equipmentEffects.unknownMythic')}</span>;
+    if (!row) return <span className="leading-snug">{tx('inventory:equipmentEffects.unknownMythic')}</span>;
     return <span className="leading-snug">{row.description}</span>;
 };
 

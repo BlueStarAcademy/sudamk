@@ -167,6 +167,7 @@ const EquipmentSlotDisplay: React.FC<{
     /** 특정 레이아웃에서만 슬롯·아이콘 축소 */
     compact?: boolean;
 }> = ({ slot, item, onClick, compact = false, scaleFactor = 1 }) => {
+    const { t } = useTranslation('profile');
     const clickableClass = item && onClick ? 'cursor-pointer hover:scale-105 transition-transform' : '';
     const itemImgPct = Math.min(96, (compact ? 78 : 86) * scaleFactor);
     
@@ -2140,6 +2141,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                     type="button"
                                     onClick={() => handlers.openTrainingQuest()}
                                     colorScheme="none"
+                                    bare
                                     aria-label={
                                         hasPcHomeTrainingQuestReward
                                             ? t('trainingQuestRewardHint')
@@ -2214,6 +2216,7 @@ const Profile: React.FC<ProfileProps> = () => {
                             type="button"
                             onClick={() => handlers.openDetailedStats('both')}
                             colorScheme="none"
+                            bare
                             className="w-full shrink-0 !justify-center rounded-lg border border-fuchsia-300/45 bg-gradient-to-r from-cyan-950/50 via-fuchsia-950/40 to-violet-950/45 !px-2 !py-1.5 !text-[12px] !font-bold !text-fuchsia-50 hover:from-cyan-900/55 hover:via-fuchsia-900/45 hover:to-violet-900/50"
                         >
                             {t('detailedStatsBtn')}
@@ -2402,6 +2405,7 @@ const Profile: React.FC<ProfileProps> = () => {
                             <Button
                                 type="button"
                                 colorScheme="none"
+                                bare
                                 onClick={() => handlers.openAdventureMonsterCodexModal()}
                                 className="w-full shrink-0 !justify-center rounded-lg border border-violet-400/45 bg-gradient-to-r from-violet-950/55 via-purple-950/40 to-fuchsia-950/40 !px-2 !py-1.5 !text-[12px] !font-bold !text-violet-50 hover:from-violet-900/55 hover:via-purple-900/45 hover:to-fuchsia-900/45"
                             >
@@ -2759,6 +2763,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                                 type="button"
                                                 onClick={() => handlers.openDetailedStats('both')}
                                                 colorScheme="none"
+                                                bare
                                                 className="w-full shrink-0 !justify-center rounded-lg border border-fuchsia-300/45 bg-gradient-to-r from-cyan-950/50 via-fuchsia-950/40 to-violet-950/45 !px-2 !py-1.5 !text-[12px] !font-bold !text-fuchsia-50"
                                             >
                                                 {t('detailedStatsBtn')}

@@ -105,6 +105,7 @@ export const TerritoryAnalysisWindow: React.FC<WindowProps> = ({ session, result
 };
 
 export const HintWindow: React.FC<WindowProps> = ({ session, result, onClose }) => {
+    const { t } = useTranslation('game');
     if (!result || !result.recommendedMoves) {
         return (
             <DraggableWindow title={t('analysis.aiHintTitle')} onClose={onClose} initialWidth={300} windowId="analysis-hint" modal={false}>
