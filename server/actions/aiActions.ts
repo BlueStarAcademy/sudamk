@@ -174,7 +174,9 @@ export async function handleAiAction(
 
     const { seedStrategicPetHintBonusPresetsForGame } = await import('../strategicPetHintAction.js');
     if (postInit.gameStatus === 'playing') {
-      await seedStrategicPetHintBonusPresetsForGame(postInit as any);
+      void seedStrategicPetHintBonusPresetsForGame(postInit as any).catch((e: unknown) =>
+        console.warn('[seedStrategicPetHintBonusPresetsForGame]', e instanceof Error ? e.message : e),
+      );
     }
 
     const { normalizeChessGoSession } = await import('../../shared/utils/chessGoRules.js');

@@ -80,6 +80,7 @@ import {
 import { getRegionalCaptureOpponentTargetBonus } from '../../utils/adventureRegionalSpecialtyBuff.js';
 import { adventureEncounterCountdownUiActive } from '../../shared/utils/adventureEncounterUi.js';
 import {
+    useAiInitialHiddenCellTracking,
     useAiInitialHiddenSyntheticCaptureHistory,
 } from './hiddenRevealPolicy.js';
 import { getPlacementOccupancyBlockReason } from '../../shared/utils/hiddenStonePlacementOccupancy.js';
@@ -1440,6 +1441,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             
             // 따낸 돌에 기여한 "우리 돌 전체 연결 그룹"에서 히든 돌 수집 (인접한 돌만이 아니라 연결된 모든 돌 포함)
             const contributingHiddenStones: { point: types.Point, player: types.Player }[] = [];
+            const aiInitialHiddenCellTracking = useAiInitialHiddenCellTracking(game);
             if (result.capturedStones.length > 0) {
                 const logic = getGoLogic({ ...game, boardState: result.newBoardState });
                 const capturingGroupPoints = new Set<string>();

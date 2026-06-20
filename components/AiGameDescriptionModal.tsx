@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useLayoutEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { tx } from '../shared/i18n/runtimeText.js';
 import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
@@ -24,7 +24,7 @@ import { NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH, NATIVE_MOBILE_MODAL_MAX_WIDTH_VW } f
 
 interface Props {
   session: LiveGameSession;
-  onAction: (action: ServerAction) => void;
+  onAction: (action: ServerAction) => void | Promise<void | { gameId?: string; clientResponse?: unknown }>;
   /** 인게임 「경기방법」: 확인만 표시 */
   readOnly?: boolean;
   onClose?: () => void;
@@ -133,6 +133,8 @@ const getSettingsRows = (session: LiveGameSession, t: (k: string, o?: Record<str
 };
 
 const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction, readOnly = false, onClose, currentUser }) => {
+  const [isStarting, setIsStarting] = useState(false);
+  const startInFlightRef = useRef(false);
   const { t } = useTranslation('game');
   const { modalLayerUsesDesignPixels, handlers } = useAppContext();
   const isHandheld = useIsHandheldDevice(1025);
@@ -219,9 +221,17 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction, readOnly =
     };
   }, [isMobileSheet, modalLayerUsesDesignPixels]);
 
-  const handleStart = () => {
-    onAction({ type: 'CONFIRM_AI_GAME_START', payload: { gameId: session.id } });
-  };
+  const handleStart = useCallback(async () => {
+    if (readOnly || startInFlightRef.current) return;
+    startInFlightRef.current = true;
+    setIsStarting(true);
+    try {
+      await onAction({ type: 'CONFIRM_AI_GAME_START', payload: { gameId: session.id } });
+    } finally {
+      startInFlightRef.current = false;
+      setIsStarting(false);
+    }
+  }, [onAction, readOnly, session.id]);
 
   const portalTarget =
     typeof document !== 'undefined'
@@ -361,11 +371,14 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction, readOnly =
       className={`${PRE_GAME_MODAL_FOOTER_CLASS} !flex-nowrap justify-center gap-3 px-4 py-4 sm:gap-4`}
     >
       <Button
-        onClick={handleStart}
+        onClick={() => {
+          void handleStart();
+        }}
         colorScheme="purple"
+        disabled={isStarting}
         className={`min-w-0 px-6 py-3 text-base sm:px-8 ${PRE_GAME_MODAL_PRIMARY_BTN_CLASS} !w-auto shrink-0 !min-w-[11rem] sm:!min-w-[12rem]`}
       >
-        경기 시작
+        {isStarting ? tx('game:startingSoon') : tx('game:aiDescription.startMatch')}
       </Button>
     </div>
   );

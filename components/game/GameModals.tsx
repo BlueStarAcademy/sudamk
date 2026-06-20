@@ -1,6 +1,9 @@
 
 import { tx } from '../../shared/i18n/runtimeText.js';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
+import { useAppContext } from '../../hooks/useAppContext.js';
+import InlineLoadingSpinner from '../ui/InlineLoadingSpinner.js';
 // FIX: Corrected import path for types. The path was './../types.js' which pointed to 'components/types.js', but the file is in the root directory.
 import { GameProps, GameMode, GameStatus, Negotiation } from '../../types.js';
 import GameSummaryModal from '../GameSummaryModal.js';
@@ -59,7 +62,14 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
         onAdventureLeaveToMap,
     } = props;
     const { gameStatus, mode, id: gameId } = session;
+    const { aiLobbyStartConfirmGameId } = useAppContext();
+    const { t } = useTranslation('game');
     const arenaPolicy = resolveArenaSessionPolicy(session);
+    const isAiLobbyStartConfirmInFlight =
+        aiLobbyStartConfirmGameId === gameId &&
+        session.isAiGame &&
+        !session.isSinglePlayer &&
+        session.gameCategory !== 'tower';
 
     const baseUsesBottomStrip =
         mode === GameMode.Base || (mode === GameMode.Mix && Boolean(session.settings.mixedModes?.includes(GameMode.Base)));
@@ -73,6 +83,17 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
         // (협상(draft) 상태가 남아 activeNegotiation이 잡히더라도, 게임 화면에서는 AI 시작 모달이 우선)
         if (session.isAiGame && gameStatus === 'pending' && !session.isSinglePlayer && session.gameCategory !== 'tower') {
             if (isSpectator) return null;
+            if (isAiLobbyStartConfirmInFlight) {
+                return (
+                    <div
+                        className="pointer-events-none fixed inset-0 z-[60000] flex items-center justify-center bg-black/45 px-4 backdrop-blur-[2px]"
+                        role="status"
+                        aria-live="polite"
+                    >
+                        <InlineLoadingSpinner label={t('startingSoon')} />
+                    </div>
+                );
+            }
             return <AiGameDescriptionModal session={session} currentUser={currentUser} onAction={onAction} />;
         }
 

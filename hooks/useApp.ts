@@ -170,6 +170,8 @@ import {
     shouldClearMissileFlightAnimationOnPlayingMerge,
     shouldIgnoreStaleLiveTerminalGameUpdate,
     shouldIgnoreStalePendingPveStartRegression,
+    shouldIgnoreStalePendingAiLobbyStartRegression,
+    buildOptimisticAiLobbyStartSession,
 } from '../utils/clientGameMergePolicy.js';
 import {
     augmentPveFromSessionStorageSnapshot,
@@ -193,6 +195,7 @@ import {
     resolveStrategicPvePlayingBoardAndMoveHistory,
     resolveStrategicPlayingBoardAndMoveHistory,
     replayStrategicBoardFromMoveHistory,
+    shouldResolveStrategicPlayingBoardForMatchAxis,
 } from '../utils/deferredWsBoardSnapshot.js';
 import { coerceUserLevelXpFromPayload } from '../shared/utils/userLevelMerge.js';
 import type { LevelUpCelebrationPayload } from '../types/levelUpModal.js';
@@ -1072,7 +1075,7 @@ function applyStrategicPlayingBoardAndMoveHistoryResolve(
     }
     if (merged.mode === GameMode.Dice || merged.mode === GameMode.Thief) return merged;
     const policy = resolveArenaSessionPolicy(merged as any);
-    if (policy.matchAxis !== 'pve' && policy.matchAxis !== 'pvp') return merged;
+    if (!shouldResolveStrategicPlayingBoardForMatchAxis(policy.matchAxis)) return merged;
     const playingResolved = resolveStrategicPlayingBoardAndMoveHistory(
         merged,
         clientSnapshot ?? merged,
@@ -1902,6 +1905,10 @@ export const useApp = () => {
     const pendingAiGameEntryRef = useRef<{ gameId: string; until: number; game?: LiveGameSession } | null>(null);
     // 새로고침(F5) 후 재입장: 재입장 API 실패 시에만 게임 페이지에서 나가기
     const [gameRejoinFailure, setGameRejoinFailure] = useState<GameRejoinFailure | null>(null);
+    /** 로비 AI 「경기 시작」 확인 HTTP 왕복 중 규칙 모달 대신 인게임 전환 오버레이 */
+    const [aiLobbyStartConfirmGameId, setAiLobbyStartConfirmGameId] = useState<string | null>(null);
+    /** 로비 AI CONFIRM 실패 시 pending 복원 */
+    const aiLobbyStartRevertRef = useRef<{ gameId: string; snapshot: LiveGameSession } | null>(null);
     const [gameRejoinRetryNonce, setGameRejoinRetryNonce] = useState(0);
     const rejoinRequestedRef = useRef<Set<string>>(new Set());
     /** 합성 등으로 제거된 id — 낡은 WS가 재료/장비를 가방에 되살리는 것 방지 */
@@ -3698,6 +3705,7 @@ export const useApp = () => {
             action.type !== 'START_TOWER_GAME' &&
             action.type !== 'CONFIRM_SINGLE_PLAYER_GAME_START' &&
             action.type !== 'CONFIRM_TOWER_GAME_START' &&
+            action.type !== 'CONFIRM_AI_GAME_START' &&
             !shopPurchaseActionTypes.has(action.type)
         ) {
             const debouncePayload = 'payload' in action ? (action as { payload?: unknown }).payload : undefined;
@@ -5779,6 +5787,13 @@ export const useApp = () => {
                 }
             };
 
+            const revertAiLobbyStartOptimistic = () => {
+                const entry = aiLobbyStartRevertRef.current;
+                if (!entry) return;
+                aiLobbyStartRevertRef.current = null;
+                setLiveGames((c) => (c[entry.gameId] ? { ...c, [entry.gameId]: entry.snapshot } : c));
+            };
+
             if (dicePlaceGameId && action.type === 'DICE_PLACE_STONE') {
                 const gid = dicePlaceGameId;
                 const beforePlaceGame = liveGamesRef.current[gid];
@@ -6008,6 +6023,34 @@ export const useApp = () => {
                 inFlightPlaceStoneActionRef.current.add(placeStoneDedupeKey);
             }
 
+            const confirmAiLobbyGameId =
+                action.type === 'CONFIRM_AI_GAME_START'
+                    ? ((action.payload as { gameId?: string } | undefined)?.gameId ?? null)
+                    : null;
+            if (confirmAiLobbyGameId) {
+                if (aiLobbyStartConfirmGameId === confirmAiLobbyGameId) {
+                    return;
+                }
+                const existingLobbyGame = liveGamesRef.current[confirmAiLobbyGameId];
+                const optimisticLobbyGame =
+                    existingLobbyGame && buildOptimisticAiLobbyStartSession(existingLobbyGame);
+                if (existingLobbyGame) {
+                    aiLobbyStartRevertRef.current = {
+                        gameId: confirmAiLobbyGameId,
+                        snapshot: JSON.parse(JSON.stringify(existingLobbyGame)) as LiveGameSession,
+                    };
+                }
+                flushSync(() => {
+                    setAiLobbyStartConfirmGameId(confirmAiLobbyGameId);
+                    if (optimisticLobbyGame) {
+                        setLiveGames((current) => ({
+                            ...current,
+                            [confirmAiLobbyGameId]: optimisticLobbyGame,
+                        }));
+                    }
+                });
+            }
+
             if (action.type === 'USE_CONDITION_POTION') {
                 const potionPayload = (action as { payload?: unknown }).payload as
                     | {
@@ -6155,6 +6198,7 @@ export const useApp = () => {
                     revertPvpPlaceStoneSnapshot();
                     rollbackTowerAddTurnOptimistic();
                     revertPveResignOptimistic();
+                    revertAiLobbyStartOptimistic();
                     return {} as HandleActionResult;
                 }
                 // 401 에러는 특별 처리 (인증 문제)
@@ -6171,6 +6215,7 @@ export const useApp = () => {
                     revertPvpPlaceStoneSnapshot();
                     rollbackTowerAddTurnOptimistic();
                     revertPveResignOptimistic();
+                    revertAiLobbyStartOptimistic();
                     return;
                 }
                 if (typeof errorMessage === 'string' && isOpponentInsufficientActionPointsError(errorMessage)) {
@@ -6204,6 +6249,7 @@ export const useApp = () => {
                 revertPvpPlaceStoneSnapshot();
                 rollbackTowerAddTurnOptimistic();
                 revertPveResignOptimistic();
+                revertAiLobbyStartOptimistic();
 
                 if (action.type === 'PLACE_STONE' && res.status === 400) {
                     const syncGameId = (action.payload as { gameId?: string })?.gameId;
@@ -6329,6 +6375,7 @@ export const useApp = () => {
                     revertPvpPlaceStoneSnapshot();
                     rollbackTowerAddTurnOptimistic();
                     revertPveResignOptimistic();
+                    revertAiLobbyStartOptimistic();
                     return { error: errorMessage } as HandleActionResult;
                 }
                 if (action.type === 'EMERGENCY_EXIT') {
@@ -6337,6 +6384,9 @@ export const useApp = () => {
                 }
                 if (action.type === 'RESIGN_GAME') {
                     pveResignOptimisticRevertRef.current = null;
+                }
+                if (action.type === 'CONFIRM_AI_GAME_START') {
+                    aiLobbyStartRevertRef.current = null;
                 }
                 if (action.type === 'PLACE_STONE') {
                     const gid = (action.payload as { gameId?: string })?.gameId;
@@ -7678,7 +7728,7 @@ export const useApp = () => {
                                 return currentGames;
                             });
                         } else {
-                            setLiveGames(currentGames => {
+                            const applyLiveGameHttpMerge = (currentGames: Record<string, LiveGameSession>) => {
                                 const mergeId =
                                     (typeof (game as any)?.id === 'string' && (game as any).id) ||
                                     effectiveGameId ||
@@ -7687,6 +7737,13 @@ export const useApp = () => {
                                 const prev = currentGames[mergeId];
                                 // WS가 먼저 슬롯을 채운 경우에도 HTTP 응답으로 병합 (이전: 키 존재 시 무시 → 재대결 등에서 상태 정지)
                                 let mergedForSlot = mergeGameWithMonotonicCounters(prev, game as LiveGameSession, mergeId);
+                                if (resolveArenaSessionPolicy(mergedForSlot as any).requiresClientSyncBeforeAction) {
+                                    mergedForSlot = mergePveHttpActionGameResponse(
+                                        mergedForSlot,
+                                        prev,
+                                        action.type,
+                                    );
+                                }
                                 if (mergedForSlot.mode === GameMode.Chess) {
                                     mergedForSlot = normalizeChessGoSession(mergedForSlot);
                                 }
@@ -7694,7 +7751,12 @@ export const useApp = () => {
                                     ...currentGames,
                                     [mergeId]: coerceAdventureLiveGameScoringTurnLimit(mergedForSlot),
                                 };
-                            });
+                            };
+                            if (action.type === 'CONFIRM_AI_GAME_START') {
+                                flushSync(() => setLiveGames(applyLiveGameHttpMerge));
+                            } else {
+                                setLiveGames(applyLiveGameHttpMerge);
+                            }
                         }
                         
                         // 사용자 상태도 즉시 업데이트 (gameId와 status를 'in-game'으로 설정)
@@ -8075,6 +8137,7 @@ export const useApp = () => {
                 }
             }
             rollbackTowerAddTurnOptimistic();
+            revertAiLobbyStartOptimistic();
             console.error(`[handleAction] ${action.type} - Exception:`, err);
             console.error(`[handleAction] Error stack:`, err.stack);
             setConnectionNotice({
@@ -8108,8 +8171,11 @@ export const useApp = () => {
                 if (n <= 0) delete pvpDicePlaceInFlightRef.current[gid];
                 else pvpDicePlaceInFlightRef.current[gid] = n;
             }
+            if (action.type === 'CONFIRM_AI_GAME_START') {
+                setAiLobbyStartConfirmGameId(null);
+            }
         }
-    }, [currentUser?.id, applyOptimisticTowerClearOnBlackWin, guilds, markConnectionRestored, setConnectionNotice]);
+    }, [currentUser?.id, aiLobbyStartConfirmGameId, applyOptimisticTowerClearOnBlackWin, guilds, markConnectionRestored, setConnectionNotice]);
 
     const handleActionRef = useRef(handleAction);
     handleActionRef.current = handleAction;
@@ -10501,6 +10567,13 @@ export const useApp = () => {
                                             }
                                             const scheduledAt = Date.now();
                                             const gameToApply = JSON.parse(JSON.stringify(updatedSinglePlayerGame)) as LiveGameSession;
+                                            const spDeferredSnap = pendingDeferredAiBoardSnapshotByGameIdRef.current[gameId];
+                                            updatedGames[gameId] = applyStrategicPlayingBoardAndMoveHistoryResolve(
+                                                (pickRicherWsBoardSnapshot(existingGame, spDeferredSnap) ??
+                                                    existingGame ??
+                                                    updatedSinglePlayerGame) as LiveGameSession,
+                                                existingGame,
+                                            );
                                             pendingDeferredAiBoardSnapshotByGameIdRef.current[gameId] = gameToApply;
                                             singlePlayerKataDelayTimeoutRef.current[gameId] = setTimeout(() => {
                                                 let appliedDelayedSnapshot = false;
@@ -10518,9 +10591,9 @@ export const useApp = () => {
                                                 delete singlePlayerKataDelayTimeoutRef.current[gameId];
                                                 delete pendingDeferredAiBoardSnapshotByGameIdRef.current[gameId];
                                             }, 1000);
-                                            return currentGames;
+                                            return updatedGames;
                                         }
-                                const lastMoves = Array.isArray(game.moveHistory)
+                                        const lastMoves = Array.isArray(game.moveHistory)
                                     ? game.moveHistory.slice(Math.max(0, game.moveHistory.length - 4)).map((m: any) => ({
                                         x: m?.x,
                                         y: m?.y,
@@ -10882,6 +10955,13 @@ export const useApp = () => {
                                                 clearTimeout(towerGnugoDelayTimeoutRef.current[gameId]);
                                             }
                                             const gameToApply = JSON.parse(JSON.stringify(mergedGame)) as LiveGameSession;
+                                            const towerDeferredSnap = pendingDeferredAiBoardSnapshotByGameIdRef.current[gameId];
+                                            updatedGames[gameId] = applyStrategicPlayingBoardAndMoveHistoryResolve(
+                                                (pickRicherWsBoardSnapshot(existingGame, towerDeferredSnap) ??
+                                                    existingGame ??
+                                                    mergedGame) as LiveGameSession,
+                                                existingGame,
+                                            );
                                             pendingDeferredAiBoardSnapshotByGameIdRef.current[gameId] = gameToApply;
                                             const isScoringInUpdate = gameToApply.gameStatus === 'scoring';
                                             const scheduledAt = Date.now();
@@ -10914,7 +10994,7 @@ export const useApp = () => {
                                                 }
                                                 delete pendingDeferredAiBoardSnapshotByGameIdRef.current[gameId];
                                             }, 1000);
-                                            return currentGames;
+                                            return updatedGames;
                                         }
 
                                         if (currentUser && mergedGame.player1 && mergedGame.player2) {
@@ -10953,6 +11033,15 @@ export const useApp = () => {
                                                 console.warn(
                                                     '[WebSocket] Live: ignoring stale base pre-play GAME_UPDATE while local already past base flow',
                                                     { gameId, incoming: game.gameStatus, local: existingGame?.gameStatus },
+                                                );
+                                            }
+                                            return currentGames;
+                                        }
+                                        if (shouldIgnoreStalePendingAiLobbyStartRegression(game, existingGame)) {
+                                            if (process.env.NODE_ENV === 'development') {
+                                                console.warn(
+                                                    '[WebSocket] Live: ignoring stale pending GAME_UPDATE after AI lobby start confirm',
+                                                    { gameId, local: existingGame?.gameStatus },
                                                 );
                                             }
                                             return currentGames;
@@ -11378,7 +11467,7 @@ export const useApp = () => {
                                                       let merged = mergeGameUpdateByArena(mergedGame, liveRicherExisting, {
                                                           source: 'game_update',
                                                       });
-                                                      if (livePvePolicy.matchAxis === 'pvp') {
+                                                      if (shouldResolveStrategicPlayingBoardForMatchAxis(livePvePolicy.matchAxis)) {
                                                           merged = applyStrategicPlayingBoardAndMoveHistoryResolve(
                                                               merged,
                                                               liveRicherExisting,
@@ -11466,6 +11555,15 @@ export const useApp = () => {
                                                     clearTimeout(liveGameGnugoDelayTimeoutRef.current[gameId]);
                                                     delete liveGameGnugoDelayTimeoutRef.current[gameId];
                                                 }
+                                                const pairRevealBaseline =
+                                                    (pickRicherWsBoardSnapshot(existingGame, liveDeferredSnap) ??
+                                                        existingGame ??
+                                                        liveMerged) as LiveGameSession;
+                                                updatedGames[gameId] =
+                                                    applyStrategicPlayingBoardAndMoveHistoryResolve(
+                                                        pairRevealBaseline,
+                                                        liveRicherExisting,
+                                                    );
                                                 pendingDeferredAiBoardSnapshotByGameIdRef.current[gameId] = gameToApply;
                                                 const displayedMoves = existingGame?.moveHistory?.length ?? 0;
                                                 enqueuePairAiMoveReveal(
@@ -11497,11 +11595,18 @@ export const useApp = () => {
                                                         }
                                                     },
                                                 );
-                                                return currentGames;
+                                                return updatedGames;
                                             }
                                             if (liveGameGnugoDelayTimeoutRef.current[gameId] != null) {
                                                 clearTimeout(liveGameGnugoDelayTimeoutRef.current[gameId]);
                                             }
+                                            const aiRevealBaseline = applyStrategicPlayingBoardAndMoveHistoryResolve(
+                                                (pickRicherWsBoardSnapshot(existingGame, liveDeferredSnap) ??
+                                                    existingGame ??
+                                                    liveMerged) as LiveGameSession,
+                                                liveRicherExisting,
+                                            );
+                                            updatedGames[gameId] = aiRevealBaseline;
                                             pendingDeferredAiBoardSnapshotByGameIdRef.current[gameId] = gameToApply;
                                             const scheduledAt = Date.now();
                                             liveGameGnugoDelayTimeoutRef.current[gameId] = setTimeout(() => {
@@ -11520,7 +11625,7 @@ export const useApp = () => {
                                                 delete liveGameGnugoDelayTimeoutRef.current[gameId];
                                                 delete pendingDeferredAiBoardSnapshotByGameIdRef.current[gameId];
                                             }, STRATEGIC_AI_MOVE_DELAY_MS);
-                                            return currentGames;
+                                            return updatedGames;
                                         }
 
                                         if (currentUser && game.player1 && game.player2) {
@@ -12957,6 +13062,7 @@ export const useApp = () => {
         serverReconnectNotice,
         connectionStatus,
         gameRejoinFailure,
+        aiLobbyStartConfirmGameId,
         enhancementResult,
         enhancementOutcome,
         unreadMailCount,

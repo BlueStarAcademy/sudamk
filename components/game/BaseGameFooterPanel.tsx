@@ -47,6 +47,7 @@ export const BasePlacementControlStrip: React.FC<{
     isMobile: boolean;
     isSinglePlayer?: boolean;
 }> = ({ session, currentUser, onAction, isMobile, isSinglePlayer = false }) => {
+    const { t } = useTranslation('game');
     const { id: gameId } = session;
     const baseStoneCount = session.settings.baseStones ?? 4;
     const { player1, player2 } = session;

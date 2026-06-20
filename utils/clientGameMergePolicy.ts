@@ -1,5 +1,6 @@
 import type { LiveGameSession } from '../types.js';
-import { GameMode } from '../types.js';
+import { GameMode, Player } from '../types.js';
+import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants.js';
 import {
     boardHasStrayLegacyFlankStones,
     hasChessPiecesMovedFromStandardOpening,
@@ -7,15 +8,20 @@ import {
     isLegacyChessGoLayout,
     isStandardChessGoOpeningLayout,
     normalizeChessGoSession,
-    sessionUsesChessGo,
     shouldPreserveChessGoMidgameState,
 } from '../shared/utils/chessGoRules.js';
 import {
     getArenaStateBucket,
+    modeIncludesBaseRule,
     resolveArenaSessionPolicy,
     type ArenaStateBucket,
 } from '../shared/utils/liveSessionArenaKind.js';
 import { getAdventureDesignScoringTurnLimit } from '../shared/utils/adventureBattleBoard.js';
+import {
+    isItemPhaseTransientAnimationType,
+    wasItemPhaseAnimatingStatus,
+} from '../shared/utils/itemPhaseAnimationTypes.js';
+import { resolvePveScoringBoardAndMoveHistory, resolveStrategicPlayingBoardAndMoveHistory } from './deferredWsBoardSnapshot.js';
 
 /**
  * 베이스 세션 본경기 단계의 좌석 잠금 보호:
@@ -101,12 +107,6 @@ export function coerceAdventureLiveGameScoringTurnLimit(session: LiveGameSession
     };
 }
 
-import {
-    isItemPhaseTransientAnimationType,
-    wasItemPhaseAnimatingStatus,
-} from '../shared/utils/itemPhaseAnimationTypes.js';
-import { resolvePveScoringBoardAndMoveHistory } from './deferredWsBoardSnapshot.js';
-
 /** 정책 기반: 아이템 페이즈 연출 종료 후 playing 패킷에서 animation 잔존 방지 */
 export function shouldClearItemPhaseAnimationOnPlayingMerge(
     existing: LiveGameSession | undefined,
@@ -184,6 +184,166 @@ export function isPvePostStartConfirmPrePlayPhase(session: LiveGameSession): boo
     if (!inPhase) return false;
     const moves = session.moveHistory?.filter((m) => m.x !== -1 && m.y !== -1).length ?? 0;
     return moves === 0;
+}
+
+const AI_LOBBY_POST_START_CONFIRM_STATUSES = new Set([
+    'playing',
+    ...PVE_BASE_PRE_PLAY_STATUSES,
+    ...PVE_CAPTURE_PRE_PLAY_STATUSES,
+    'dice_rolling',
+    'dice_start_confirmation',
+    'curling_start_confirmation',
+    'alkkagi_start_confirmation',
+    'alkkagi_simultaneous_placement',
+    'thief_rps',
+    'thief_rolling',
+    'chess_setup_placement',
+    'uniform_color_roulette',
+    'nigiri_reveal',
+]);
+
+/** 로비 AI 대국: CONFIRM 직전 pending에서 human 색 (서버 resolveStrategicAiHumanColor와 동일) */
+export function resolveAiLobbyHumanPlayerColor(session: LiveGameSession): Player.Black | Player.White {
+    const settings = session.settings;
+    if (session.gameCategory === 'adventure') {
+        if (session.mode === GameMode.Capture) return Player.Black;
+        if (session.mode !== GameMode.Base) {
+            return settings?.player1Color ?? Player.Black;
+        }
+    }
+    return settings?.player1Color ?? Player.Black;
+}
+
+function assignAiLobbySeatColors(session: LiveGameSession, humanColor: Player.Black | Player.White) {
+    const humanId = session.player1?.id;
+    const botId = session.player2?.id;
+    if (!humanId || !botId) return session;
+    const blackPlayerId = humanColor === Player.Black ? humanId : botId;
+    const whitePlayerId = humanColor === Player.White ? humanId : botId;
+    return { ...session, blackPlayerId, whitePlayerId };
+}
+
+/**
+ * CONFIRM_AI_GAME_START HTTP 왕복 전 클라이언트가 규칙 모달을 즉시 내리고 인게임 UI를 보여주기 위한 낙관 상태.
+ * 서버와 어긋날 수 있는 랜덤 요소(베이스 AI 돌 좌표 등)는 HTTP/WS 병합으로 덮어쓴다.
+ */
+export function buildOptimisticAiLobbyStartSession(
+    session: LiveGameSession,
+    now: number = Date.now(),
+): LiveGameSession | null {
+    if (!session.isAiGame || session.isSinglePlayer || session.gameCategory === 'tower' || session.gameCategory === 'singleplayer') {
+        return null;
+    }
+    if (session.gameStatus !== 'pending') return null;
+    if (!session.player1?.id || !session.player2?.id) return null;
+    if (session.gameCategory === 'adventure') return null;
+
+    const humanColor = resolveAiLobbyHumanPlayerColor(session);
+    let next = assignAiLobbySeatColors(session, humanColor);
+    const p1Id = session.player1.id;
+    const p2Id = session.player2.id;
+
+    const isStrategic = SPECIAL_GAME_MODES.some((m) => m.mode === session.mode);
+    if (isStrategic) {
+        if (session.mode === GameMode.Chess) return null;
+        if (session.mode === GameMode.Base || modeIncludesBaseRule(session.mode, session.settings)) {
+            return {
+                ...next,
+                gameStatus: 'base_placement',
+                baseStones_p1: [],
+                baseStones_p2: [],
+                basePlacementReady: { [p1Id]: false, [p2Id]: false },
+                settings: { ...next.settings, komi: 0.5 },
+            };
+        }
+        if (session.mode === GameMode.Capture && session.gameCategory !== 'adventure') {
+            const st = session.settings as {
+                captureTarget?: number;
+                captureTargetBlack?: number;
+                captureTargetWhite?: number;
+            };
+            const blackTarget = typeof st.captureTargetBlack === 'number' ? st.captureTargetBlack : (st.captureTarget ?? 20);
+            const whiteTarget = typeof st.captureTargetWhite === 'number' ? st.captureTargetWhite : (st.captureTarget ?? 20);
+            return {
+                ...next,
+                gameStatus: 'playing',
+                currentPlayer: Player.Black,
+                gameStartTime: now,
+                startTime: now,
+                turnStartTime: now,
+                effectiveCaptureTargets: {
+                    [Player.None]: 0,
+                    [Player.Black]: blackTarget,
+                    [Player.White]: whiteTarget,
+                },
+            };
+        }
+        return {
+            ...next,
+            gameStatus: 'playing',
+            currentPlayer: Player.Black,
+            gameStartTime: now,
+            startTime: now,
+            turnStartTime: now,
+        };
+    }
+
+    const isPlayful = PLAYFUL_GAME_MODES.some((m) => m.mode === session.mode);
+    if (isPlayful) {
+        if (session.mode === GameMode.Dice) {
+            return {
+                ...next,
+                gameStatus: 'dice_rolling',
+                currentPlayer: Player.Black,
+                turnStartTime: now,
+            };
+        }
+        if (session.mode === GameMode.Thief) {
+            return {
+                ...next,
+                gameStatus: 'thief_rolling',
+                currentPlayer: Player.Black,
+                turnStartTime: now,
+            };
+        }
+        if (session.mode === GameMode.Omok || session.mode === GameMode.Ttamok) {
+            return {
+                ...next,
+                gameStatus: 'playing',
+                currentPlayer: Player.Black,
+                gameStartTime: now,
+                startTime: now,
+                turnStartTime: now,
+            };
+        }
+    }
+
+    return null;
+}
+
+/** CONFIRM 직후 낙관 playing/사전단계인데 늦은 pending WS/HTTP가 덮는 것 방지 (로비 AI) */
+export function shouldIgnoreStalePendingAiLobbyStartRegression(
+    incoming: LiveGameSession,
+    existing: LiveGameSession | undefined,
+): boolean {
+    if (!existing || incoming.gameStatus !== 'pending') return false;
+    if (existing.gameStatus === 'pending') return false;
+    if (!existing.isAiGame || existing.isSinglePlayer || existing.gameCategory === 'tower' || existing.gameCategory === 'singleplayer') {
+        return false;
+    }
+
+    const existingStarted =
+        AI_LOBBY_POST_START_CONFIRM_STATUSES.has(String(existing.gameStatus)) ||
+        (existing as { startTime?: number | null }).startTime != null ||
+        (existing as { gameStartTime?: number | null }).gameStartTime != null;
+
+    if (!existingStarted) return false;
+
+    const ir = incoming.serverRevision ?? 0;
+    const er = existing.serverRevision ?? 0;
+    if (ir > 0 && er > 0 && ir > er) return false;
+
+    return true;
 }
 
 /** 싱글/타워 시작 모달을 띄워야 하는 pending·0수·시작 시각 없음 상태 */
@@ -411,11 +571,18 @@ function preserveChessPlayingStateWhenMoveHistoryRegresses(
     return merged;
 }
 
+function incomingUsesChessGo(session: LiveGameSession): boolean {
+    return (
+        session.mode === GameMode.Chess ||
+        (session.mode === GameMode.Mix && Boolean(session.settings?.mixedModes?.includes(GameMode.Chess)))
+    );
+}
+
 function mergeChessSessionFieldsOnMerge(
     incoming: LiveGameSession,
     existing: LiveGameSession | undefined,
 ): LiveGameSession {
-    if (!sessionUsesChessGo(incoming)) return incoming;
+    if (!incomingUsesChessGo(incoming)) return incoming;
     let merged: LiveGameSession = preserveChessPlayingStateWhenMoveHistoryRegresses(
         { ...incoming },
         existing,
@@ -545,8 +712,18 @@ export function mergeLiveRejoinResponseWithExistingBoard(
     existing: LiveGameSession | undefined,
     incoming: LiveGameSession,
 ): LiveGameSession {
-    if (!existing) return incoming;
-    const { boardState, moveHistory } = resolvePveScoringBoardAndMoveHistory(incoming, existing);
+    if (!existing) {
+        if (incoming.gameStatus === 'playing' && (incoming.moveHistory?.length ?? 0) > 0) {
+            const resolved = resolveStrategicPlayingBoardAndMoveHistory(incoming, incoming);
+            return { ...incoming, boardState: resolved.boardState, moveHistory: resolved.moveHistory };
+        }
+        return incoming;
+    }
+    const boardAndHistory =
+        incoming.gameStatus === 'playing'
+            ? resolveStrategicPlayingBoardAndMoveHistory(incoming, existing)
+            : resolvePveScoringBoardAndMoveHistory(incoming, existing);
+    const { boardState, moveHistory } = boardAndHistory;
     let merged: LiveGameSession = {
         ...incoming,
         boardState,

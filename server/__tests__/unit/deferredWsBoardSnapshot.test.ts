@@ -6,6 +6,7 @@ import {
     resolveStrategicPvePlayingBoardAndMoveHistory,
     replayStrategicBoardFromMoveHistory,
     deriveBoardFromMoveHistoryAndBaseStones,
+    shouldResolveStrategicPlayingBoardForMatchAxis,
 } from '../../../utils/deferredWsBoardSnapshot.js';
 import type { LiveGameSession } from '../../../types/index.js';
 import { GameMode } from '../../../types/index.js';
@@ -288,5 +289,35 @@ describe('resolveChessPvePlayingSession', () => {
         expect(resolved.gameStatus).toBe('ended');
         expect(resolved.winner).toBe(Player.Black);
         expect(resolved.winReason).toBe('chess_checkmate');
+    });
+});
+
+describe('shouldResolveStrategicPlayingBoardForMatchAxis', () => {
+    it('includes mixed_pair for slim WS board replay', () => {
+        expect(shouldResolveStrategicPlayingBoardForMatchAxis('mixed_pair')).toBe(true);
+        expect(shouldResolveStrategicPlayingBoardForMatchAxis('pvp')).toBe(true);
+        expect(shouldResolveStrategicPlayingBoardForMatchAxis('pve')).toBe(true);
+    });
+});
+
+describe('resolveStrategicPlayingBoardAndMoveHistory for mixed_pair slim server', () => {
+    it('derives board when server moveHistory is ahead without boardState', () => {
+        const server = {
+            moveHistory: [
+                { x: 0, y: 0, player: Player.Black },
+                { x: 1, y: 1, player: Player.White },
+            ],
+            boardState: undefined,
+            settings: { boardSize: 3 },
+        } as LiveGameSession;
+        const client = {
+            moveHistory: [{ x: 0, y: 0, player: Player.Black }],
+            boardState: boardWithoutWhite(),
+            settings: { boardSize: 3 },
+        } as LiveGameSession;
+
+        const resolved = resolveStrategicPvePlayingBoardAndMoveHistory(server, client);
+        expect(resolved.moveHistory).toHaveLength(2);
+        expect(resolved.boardState?.[1]?.[1]).toBe(Player.White);
     });
 });

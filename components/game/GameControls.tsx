@@ -48,6 +48,8 @@ import {
     isPairCooperativeTwoHumansVsAi,
     pairSeatMatchesViewerUser,
 } from '../../shared/utils/pairGameTurn.js';
+import { resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
+import { buildPveItemActionClientSync } from '../../utils/pveItemClientSync.js';
 import {
     baseAiLobbyActionPointCostForModeAndSettings,
     effectiveAiLobbyApCostForUser,
@@ -1526,7 +1528,14 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         }
         const actionType = item === 'hidden' ? 'START_HIDDEN_PLACEMENT' : (item === 'scan' ? 'START_SCANNING' : 'START_MISSILE_SELECTION');
         console.log('[GameControls] handleUseItem: Sending action', actionType);
-        onAction({ type: actionType, payload: { gameId } }); 
+        const policy = resolveArenaSessionPolicy(session as LiveGameSession);
+        const clientSync = policy.requiresClientSyncBeforeAction
+            ? buildPveItemActionClientSync(session)
+            : undefined;
+        onAction({
+            type: actionType,
+            payload: { gameId, ...(clientSync ? { clientSync } : {}) },
+        });
     };
 
     const pairTurnOrder = session.settings.pairGame?.turnOrder;

@@ -756,6 +756,48 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     };
                 }
             }
+            // 모험·길드전: 클라 sync 후 전략 핸들러로 즉시 처리 (타워와 동일 — PVE 게이트 이중 경로·빈 응답 방지)
+            if (
+                (preItemPolicy.kind === 'adventure' || preItemPolicy.kind === 'guildwar') &&
+                SPECIAL_GAME_MODES.some((m) => m.mode === game.mode)
+            ) {
+                const { handleStrategicGameAction } = await import('./modes/standard.js');
+                const result = await handleStrategicGameAction(volatileState, game, action, userData);
+                if (result && (result as any).error && process.env.NODE_ENV === 'development') {
+                    console.log(`[handleAction] Adventure/guildwar item action ${type} failed:`, {
+                        gameId,
+                        gameStatus: game.gameStatus,
+                        error: (result as any).error,
+                    });
+                }
+                if (result && !(result as any).error) {
+                    updateGameCache(game);
+                    await db.saveGame(game);
+                    const { broadcastToGameParticipants } = await import('./socket.js');
+                    broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+                    const boardClone =
+                        game.boardState && Array.isArray(game.boardState)
+                            ? game.boardState.map((row: number[]) => [...row])
+                            : game.boardState;
+                    const { broadcastItemPhaseSnapshot } = await import('./utils/broadcastItemPhaseSnapshot.js');
+                    await broadcastItemPhaseSnapshot(game);
+                    const baseResult =
+                        result && typeof result === 'object' && !Array.isArray(result)
+                            ? (result as Record<string, unknown>)
+                            : {};
+                    return {
+                        ...baseResult,
+                        clientResponse: {
+                            ...(typeof (baseResult as any).clientResponse === 'object'
+                                ? (baseResult as any).clientResponse
+                                : {}),
+                            gameId: game.id,
+                            game: { ...game, boardState: boardClone, animation: game.animation ?? null },
+                        },
+                    };
+                }
+                return result || {};
+            }
             // 도전의 탑: PVE 히든/스캔은 towerPlayerHidden으로 처리 (싱글플레이와 동일 규칙)
             if (preItemPolicy.kind === 'tower' && SPECIAL_GAME_MODES.some(m => m.mode === game.mode)) {
                 const isTowerHiddenAction = actionTypeStr === 'START_HIDDEN_PLACEMENT' || actionTypeStr === 'START_SCANNING' || actionTypeStr === 'SCAN_BOARD';
@@ -1597,6 +1639,12 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             const isPlayfulMode = PLAYFUL_GAME_MODES.some((m) => m.mode === game.mode);
             const shouldHandlePlayfulOnServer =
                 isPlayfulMode && PLAYFUL_SERVER_ACTION_TYPES.has(type);
+            const strategicItemPhaseActionTypes = new Set<string>([
+                'START_HIDDEN_PLACEMENT',
+                'START_SCANNING',
+                'SCAN_BOARD',
+            ]);
+            const shouldHandleStrategicItemPhaseOnServer = strategicItemPhaseActionTypes.has(type);
             // 펫 힌트/힌트 보너스는 아래 `handleStrategicGameAction`으로 넘긴다.
             // 페어 AI전·기타 `matchAxis !== 'pvp'`(mixed_pair 등)도 이 블록에 들어오는데,
             // `CONFIRM_COLOR_START`를 여기서 삼키면 페어 순서 확인(pair_order_reveal)·니기리 확인 등이 서버에 영원히 안 붙는다.
@@ -1611,7 +1659,8 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 !shouldHandleChessMoveOnServer &&
                 !shouldHandleChessSetupOnServer &&
                 !shouldHandleBaseFlowOnStrategicPve &&
-                !shouldHandlePlayfulOnServer
+                !shouldHandlePlayfulOnServer &&
+                !shouldHandleStrategicItemPhaseOnServer
             ) {
                 return {};
             }

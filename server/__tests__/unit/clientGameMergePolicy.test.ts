@@ -9,6 +9,9 @@ import {
     shouldClearMissileFlightAnimationOnPlayingMerge,
     shouldIgnoreStaleLiveTerminalGameUpdate,
     shouldIgnoreStalePendingPveStartRegression,
+    buildOptimisticAiLobbyStartSession,
+    resolveAiLobbyHumanPlayerColor,
+    shouldIgnoreStalePendingAiLobbyStartRegression,
 } from '../../../utils/clientGameMergePolicy.js';
 import { resolveArenaSessionPolicy } from '../../../shared/utils/liveSessionArenaKind.js';
 import { GameMode, Player } from '../../../shared/types/enums.js';
@@ -464,5 +467,59 @@ describe('preserveTerminalAnalysisResultOnMerge', () => {
         });
         const merged = preserveTerminalAnalysisResultOnMerge(incoming, existing);
         expect((merged.analysisResult as any)?.system).toEqual(analysis);
+    });
+});
+
+describe('buildOptimisticAiLobbyStartSession', () => {
+    it('transitions standard AI lobby pending to playing with configured human color', () => {
+        const pending = minimalSession({
+            isAiGame: true,
+            gameCategory: 'normal',
+            gameStatus: 'pending',
+            mode: GameMode.Standard,
+            player1: { id: 'human-1', username: 'h', nickname: 'h' } as any,
+            player2: { id: 'ai-player-01', username: 'ai', nickname: 'ai' } as any,
+            blackPlayerId: null as any,
+            whitePlayerId: null as any,
+            settings: { boardSize: 19, komi: 6.5, player1Color: Player.White },
+        });
+        expect(resolveAiLobbyHumanPlayerColor(pending)).toBe(Player.White);
+        const optimistic = buildOptimisticAiLobbyStartSession(pending, 1_000);
+        expect(optimistic?.gameStatus).toBe('playing');
+        expect(optimistic?.blackPlayerId).toBe('ai-player-01');
+        expect(optimistic?.whitePlayerId).toBe('human-1');
+        expect(optimistic?.gameStartTime).toBe(1_000);
+    });
+
+    it('uses base_placement for base AI lobby', () => {
+        const pending = minimalSession({
+            isAiGame: true,
+            gameCategory: 'normal',
+            gameStatus: 'pending',
+            mode: GameMode.Base,
+            player1: { id: 'human-1', username: 'h', nickname: 'h' } as any,
+            player2: { id: 'ai-player-01', username: 'ai', nickname: 'ai' } as any,
+            blackPlayerId: null as any,
+            whitePlayerId: null as any,
+        });
+        const optimistic = buildOptimisticAiLobbyStartSession(pending);
+        expect(optimistic?.gameStatus).toBe('base_placement');
+    });
+});
+
+describe('shouldIgnoreStalePendingAiLobbyStartRegression', () => {
+    it('ignores stale pending while local already started', () => {
+        const existing = minimalSession({
+            isAiGame: true,
+            gameCategory: 'normal',
+            gameStatus: 'playing',
+            gameStartTime: 100,
+        });
+        const incoming = minimalSession({
+            isAiGame: true,
+            gameCategory: 'normal',
+            gameStatus: 'pending',
+        });
+        expect(shouldIgnoreStalePendingAiLobbyStartRegression(incoming, existing)).toBe(true);
     });
 });

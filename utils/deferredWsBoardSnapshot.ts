@@ -1,7 +1,13 @@
 import type { LiveGameSession } from '../types.js';
 import { GameMode, Player } from '../types.js';
+import type { ArenaMatchAxis } from '../shared/utils/liveSessionArenaKind.js';
 import { normalizeChessGoSession } from '../shared/utils/chessGoRules.js';
 import { processMoveClient } from '../client/goLogicClient.js';
+
+/** playing 중 슬림 WS(moveHistory만·boardState 생략)에서 판·수순을 맞출 대상 */
+export function shouldResolveStrategicPlayingBoardForMatchAxis(matchAxis: ArenaMatchAxis): boolean {
+    return matchAxis === 'pve' || matchAxis === 'pvp' || matchAxis === 'mixed_pair';
+}
 
 /** moveHistory 길이로 “한 수 앞선” 지연 표시 스냅샷을 고른다 (PASS 포함 전체 길이). */
 export function wsSessionMoveHistoryLen(session: LiveGameSession | null | undefined): number {
