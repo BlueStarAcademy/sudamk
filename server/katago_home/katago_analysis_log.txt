@@ -13150,3 +13150,42 @@ numSearchThreads = 8
 2025-11-24 11:28:45+0900: Loaded model C:\project\SUDAMR\katago\kata1-b28c512nbt-s9853922560-d5031756885.bin.gz
 2025-11-24 11:28:45+0900: Analyzing up to 4 positions at a time in parallel
 2025-11-24 11:28:45+0900: Started, ready to begin handling requests
+2026-06-20 11:51:10+0900: Running with following config:
+analysisPVLen = 10
+homeDataDir = C:/project/SUDAMR/server/katago_home
+logFile = ./katago_analysis_log.txt
+maxVisits = 1000
+nnMaxBatchSize = 16
+numAnalysisThreads = 4
+numSearchThreads = 8
+reportAnalysisWinratesAs = BLACK
+
+2026-06-20 11:51:10+0900: Analysis Engine starting...
+2026-06-20 11:51:10+0900: KataGo v1.16.3
+2026-06-20 13:03:49+0900: Running with following config:
+analysisPVLen = 10
+homeDataDir = C:/project/SUDAMR/server/katago_home
+logFile = ./katago_analysis_log.txt
+maxVisits = 1000
+nnMaxBatchSize = 16
+numAnalysisThreads = 4
+numSearchThreads = 8
+reportAnalysisWinratesAs = BLACK
+
+2026-06-20 13:03:49+0900: Analysis Engine starting...
+2026-06-20 13:03:49+0900: KataGo v1.16.3
+2026-06-20 13:03:49+0900: nnRandSeed0 = 15091780074610480514
+2026-06-20 13:03:49+0900: After dedups: nnModelFile0 = C:\project\SUDAMR\katago\kata1-b28c512nbt-s9853922560-d5031756885.bin.gz useFP16 auto useNHWC auto
+2026-06-20 13:03:49+0900: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
+2026-06-20 13:04:14+0900: Running with following config:
+analysisPVLen = 10
+homeDataDir = C:/project/SUDAMR/server/katago_home
+logFile = ./katago_analysis_log.txt
+maxVisits = 1000
+nnMaxBatchSize = 16
+numAnalysisThreads = 4
+numSearchThreads = 8
+reportAnalysisWinratesAs = BLACK
+
+2026-06-20 13:04:14+0900: Analysis Engine starting...
+2026-06-20 13:04:14+0900: KataGo v1.16.3

@@ -8428,6 +8428,7 @@ export const useApp = () => {
         }
 
         let ws: WebSocket | null = null;
+        let wsPingInterval: NodeJS.Timeout | null = null;
         let reconnectTimeout: NodeJS.Timeout | null = null;
         let isIntentionalClose = false;
         let shouldReconnect = true;
