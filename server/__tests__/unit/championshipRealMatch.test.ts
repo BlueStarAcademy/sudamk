@@ -6,6 +6,7 @@ import {
     CHAMPIONSHIP_REAL_MATCH_RULES_9,
     resolveChampionshipDungeonPlaybackSpeedChoices,
     resolveChampionshipDungeonRulesFromStage,
+    resolveChampionshipVersusPlaybackSpeedChoices,
     championshipBestMoveChancePercent,
     championshipEventBranchBestMovePercent,
     championshipKataAbilityScore,
@@ -161,6 +162,12 @@ describe('championship real match policy', () => {
         expect(resolveChampionshipDungeonPlaybackSpeedChoices(5)).toEqual([0.5, 1, 2]);
         expect(resolveChampionshipDungeonPlaybackSpeedChoices(6)).toEqual([0.5, 1, 2, 3]);
         expect(resolveChampionshipDungeonPlaybackSpeedChoices(0)).toEqual([0.5, 1, 2, 3]);
+    });
+
+    it('maps versus board size to playback speed choices', () => {
+        expect(resolveChampionshipVersusPlaybackSpeedChoices(9)).toEqual([0.5, 1, 2]);
+        expect(resolveChampionshipVersusPlaybackSpeedChoices(13)).toEqual([0.5, 1, 2]);
+        expect(resolveChampionshipVersusPlaybackSpeedChoices(19)).toEqual([0.5, 1, 2, 3]);
     });
 
     it('applies condition to mistake and best move chances', () => {

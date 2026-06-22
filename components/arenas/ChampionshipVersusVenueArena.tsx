@@ -2,7 +2,7 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type { ChampionshipVersusVenueKind, AnalysisResult } from '../../shared/types/entities.js';
-import type { LiveGameSession, Match, PlayerForTournament, UserWithStatus } from '../../types.js';
+import type { LiveGameSession, Match, PlayerForTournament, User, UserWithStatus } from '../../types.js';
 import { CoreStat, LeagueTier, Player } from '../../types/enums.js';
 import { AVATAR_POOL, BORDER_POOL } from '../../constants';
 import { getChampionshipArenaBackgroundUrl } from '../../shared/constants/tournaments.js';
@@ -65,6 +65,7 @@ import {
     champCoinsForVersusWin,
 } from '../../shared/utils/championshipVersusElo.js';
 import { flushChampionshipVersusDeferredLevelUp } from '../../utils/championshipVersusLevelUpDeferral.js';
+import { isFunctionVipActive } from '../../shared/utils/rewardVip.js';
 import { resolveChampionshipPanelScores } from '../../utils/championshipLiveScores.js';
 import {
     ChampionshipDesktopScoreBox,
@@ -122,6 +123,8 @@ type OpponentRow = {
 const championshipFooterButtonBase =
     'rounded-xl border px-4 py-2 text-xs font-black tracking-wide shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_24px_-14px_rgba(0,0,0,0.9)] transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950';
 const championshipFooterPrimaryButton = `${championshipFooterButtonBase} border-emerald-300/45 bg-gradient-to-b from-emerald-400/95 via-emerald-600/90 to-emerald-950/95 text-slate-950 hover:brightness-110 focus-visible:ring-emerald-400/55`;
+const championshipFooterSecondaryButton = `${championshipFooterButtonBase} border-violet-300/40 bg-gradient-to-b from-violet-500/88 via-purple-700/88 to-violet-950/95 text-white hover:brightness-110 focus-visible:ring-violet-400/55`;
+const championshipFooterMutedButton = `${championshipFooterButtonBase} border-slate-500/40 bg-gradient-to-b from-slate-700/88 via-slate-800/92 to-slate-950 text-slate-300`;
 const championshipVersusStartMatchButtonFooterClass = `${championshipFooterPrimaryButton} !flex min-h-[42px] w-[10.5rem] shrink-0 items-center justify-center !px-3 !py-2.5 sm:min-h-[44px] sm:w-[11.5rem]`;
 const championshipVersusExitButtonFooterClass = `${championshipFooterButtonBase} !flex min-h-[42px] w-[6.5rem] shrink-0 items-center justify-center border-rose-400/45 bg-gradient-to-b from-rose-600/88 via-rose-800/90 to-rose-950/95 !px-3 !py-2.5 text-rose-50 hover:brightness-110 focus-visible:ring-rose-400/55 sm:min-h-[44px] sm:w-[7rem]`;
 
@@ -918,6 +921,7 @@ const MOBILE_PHASE_META = [
 
 const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKind }> = ({ venue }) => {
     const { t: tCv } = useTranslation('championshipVersus');
+    const { t: tTournament } = useTranslation('tournament');
     const { t: tGame } = useTranslation('game');
     const { t: tCommon } = useTranslation('common');
     const { currentUserWithStatus, handlers, championshipAbilityKataLadder, kataServerRuntimeConfig } = useAppContext();
@@ -962,6 +966,11 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
 
     const versusPlaybackSpeedRef = React.useRef<ChampionshipPlaybackSpeed>(versusPlaybackSpeed);
     versusPlaybackSpeedRef.current = versusPlaybackSpeed;
+
+    const functionVipActive = React.useMemo(
+        () => isFunctionVipActive((currentUserWithStatus ?? {}) as User),
+        [currentUserWithStatus],
+    );
 
     const versusKataPlaybackTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
     const versusKataPlyRef = React.useRef(0);
@@ -1209,6 +1218,12 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
         },
         [clearVersusKataPlaybackTimers, finalizeVersusKataReplay, persistVersusActiveDuel],
     );
+
+    const skipVersusKataReplay = React.useCallback(() => {
+        if (!functionVipActive || !versusReplayActive) return;
+        clearVersusKataPlaybackTimers();
+        finalizeVersusKataReplay(versusKataFinalMatchRef.current ?? versusPlaybackMatch ?? undefined);
+    }, [clearVersusKataPlaybackTimers, finalizeVersusKataReplay, functionVipActive, versusPlaybackMatch, versusReplayActive]);
 
     /** 새로고침·다른 화면 복귀 시 진행 중 장내 카타 대국 재생 복구 */
     React.useEffect(() => {
@@ -2139,6 +2154,28 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
             >
                 {versusChampionshipPlaybackSpeedSelector}
                 <div className="flex flex-wrap items-center justify-center gap-2">
+                    {versusReplayActive ? (
+                        <div className="flex flex-col items-center gap-0.5">
+                            <Button
+                                type="button"
+                                bare
+                                onClick={skipVersusKataReplay}
+                                disabled={!functionVipActive}
+                                colorScheme="none"
+                                className={`${functionVipActive ? championshipFooterSecondaryButton : championshipFooterMutedButton} !flex min-h-[42px] w-[6.5rem] shrink-0 items-center justify-center !px-3 !py-2.5 sm:min-h-[44px] sm:w-[7rem] ${!functionVipActive ? 'opacity-80' : ''}`}
+                                title={
+                                    functionVipActive ? tCv('skipReplayHint') : tTournament('vipSkipRequiresFunctionVip')
+                                }
+                            >
+                                {tCv('skipReplay')}
+                            </Button>
+                            {!functionVipActive ? (
+                                <span className="max-w-[10rem] text-center text-[10px] font-semibold leading-tight text-amber-400">
+                                    {tTournament('vipSkipRequiresFunctionVip')}
+                                </span>
+                            ) : null}
+                        </div>
+                    ) : null}
                     <Button
                         type="button"
                         bare

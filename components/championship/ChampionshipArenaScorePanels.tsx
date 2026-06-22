@@ -36,7 +36,7 @@ export const ChampionshipDesktopScoreBox: React.FC<{
         <div
             className={`flex w-[4.8rem] shrink-0 flex-col items-center justify-center rounded-lg px-2 py-1.5 text-center ${championshipScoreBoxClass(isWhite)}`}
         >
-            <span className={`text-[10px] font-bold leading-none ${championshipScoreBoxLabelClass(isWhite)}`}>{t('arena.score')}</span>
+            <span className={`text-[10px] font-bold leading-none ${championshipScoreBoxLabelClass(isWhite)}`}>{t('championship.score')}</span>
             <span className="mt-1 text-xl font-black leading-none tabular-nums">
                 {formatChampionshipPanelScoreDisplay(score, scoreKind)}
             </span>
@@ -76,7 +76,7 @@ export const ChampionshipMobileScoreCell: React.FC<{
             }`}
         >
             <span className={`max-w-[4.5rem] text-center text-[8px] font-bold leading-tight tracking-wide ${labelColor}`}>
-                {colorLabel ? t('arena.colorScore', { color: colorLabel }) : t('arena.score')}
+                {colorLabel ? t('championshipVersus:arena.colorScore', { color: colorLabel }) : t('championship.score')}
             </span>
             <span className="text-base font-black leading-none tabular-nums">{scoreText}</span>
         </div>

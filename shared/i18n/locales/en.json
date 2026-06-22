@@ -5792,6 +5792,8 @@
       "0.5": "1 move / 3s"
     },
     "matchControlAria": "Match controls",
+    "skipReplay": "SKIP",
+    "skipReplayHint": "Skip the replay and view the result only.",
     "startMatch": "Start match",
     "exit": "Exit",
     "season": "Season",
