@@ -34,6 +34,34 @@ export function wasItemPhaseAnimatingStatus(status: string | undefined): boolean
     );
 }
 
+/** 슬림 `playing` 패킷 병합 시 아직 재생 중인 AI 히든·히든 공개 연출을 지우지 않게 한다 */
+export function isItemPhasePresentationStillActive(
+    game: Pick<LiveGameSession, 'animation' | 'revealAnimationEndTime'> & {
+        aiHiddenItemAnimationEndTime?: number;
+    },
+    nowMs: number = Date.now(),
+): boolean {
+    const anim = game.animation as { type?: string; startTime?: number; duration?: number } | null | undefined;
+    if (!anim?.type) return false;
+    if (anim.type === 'ai_thinking') {
+        const end = game.aiHiddenItemAnimationEndTime;
+        if (typeof end === 'number' && Number.isFinite(end) && end > nowMs) return true;
+        if (typeof anim.startTime === 'number' && typeof anim.duration === 'number') {
+            return anim.startTime + anim.duration > nowMs;
+        }
+        return false;
+    }
+    if (anim.type === 'hidden_reveal') {
+        const end = game.revealAnimationEndTime;
+        if (typeof end === 'number' && Number.isFinite(end) && end > nowMs) return true;
+        if (typeof anim.startTime === 'number' && typeof anim.duration === 'number') {
+            return anim.startTime + anim.duration > nowMs;
+        }
+        return false;
+    }
+    return false;
+}
+
 export function snapshotScanAnimation(game: LiveGameSession): {
     type: 'scan';
     playerId: string;

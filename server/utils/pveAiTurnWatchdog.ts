@@ -93,6 +93,13 @@ export function isPveAiWatchdogGame(game: LiveGameSession): boolean {
 export function needsPveAiWatchdogTick(game: LiveGameSession): boolean {
     if (!isPveAiWatchdogGame(game)) return false;
     if (TERMINAL_STATUSES.has(String(game.gameStatus ?? ''))) return false;
+    const policy = resolveArenaSessionPolicy(game);
+    // 싱글/탑: 클라이언트 REQUEST_SERVER_AI_MOVE가 1차 경로. 메인 루프는 AI 정지 워치독만(유저 턴·연출 중 제외).
+    if (policy.kind === 'singleplayer' || policy.kind === 'tower') {
+        if (shouldSkipWatchdogForAnimation(game)) return false;
+        if (!PVE_AI_WATCHDOG_ELIGIBLE_STATUSES.has(String(game.gameStatus ?? ''))) return false;
+        return isAiControlledTurnForWatchdog(game);
+    }
     return true;
 }
 

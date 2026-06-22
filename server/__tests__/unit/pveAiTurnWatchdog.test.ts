@@ -46,6 +46,15 @@ describe('pveAiTurnWatchdog', () => {
         expect(
             needsPveAiWatchdogTick(
                 makeStrategicPveGame({
+                    currentPlayer: Player.Black,
+                    blackPlayerId: 'user-1',
+                    whitePlayerId: 'ai-player-01',
+                }),
+            ),
+        ).toBe(false);
+        expect(
+            needsPveAiWatchdogTick(
+                makeStrategicPveGame({
                     isSinglePlayer: false,
                     gameCategory: 'normal',
                     isAiGame: true,

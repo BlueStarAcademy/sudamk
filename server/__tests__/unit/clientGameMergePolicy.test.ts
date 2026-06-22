@@ -122,6 +122,60 @@ describe('mergeGameUpdateByArena', () => {
         expect(merged.animation).toBeNull();
     });
 
+    it('keeps active ai_thinking presentation when slim playing packet omits animation', () => {
+        const endTime = Date.now() + 5000;
+        const existing = minimalSession({
+            mode: GameMode.Hidden,
+            isSinglePlayer: true,
+            gameCategory: 'singleplayer',
+            gameStatus: 'playing',
+            animation: {
+                type: 'ai_thinking',
+                startTime: Date.now(),
+                duration: 5000,
+                playerId: 'ai-user',
+            } as any,
+            aiHiddenItemAnimationEndTime: endTime,
+        } as Partial<LiveGameSession>);
+        const incoming = minimalSession({
+            mode: GameMode.Hidden,
+            isSinglePlayer: true,
+            gameCategory: 'singleplayer',
+            gameStatus: 'playing',
+        });
+        delete (incoming as any).animation;
+        const merged = mergeGameUpdateByArena(incoming, existing, { source: 'game_update' });
+        expect(merged.animation).toEqual(existing.animation);
+        expect((merged as { aiHiddenItemAnimationEndTime?: number }).aiHiddenItemAnimationEndTime).toBe(endTime);
+    });
+
+    it('keeps active hidden_reveal presentation when slim playing packet omits animation', () => {
+        const endTime = Date.now() + 3000;
+        const existing = minimalSession({
+            mode: GameMode.Hidden,
+            isSinglePlayer: true,
+            gameCategory: 'singleplayer',
+            gameStatus: 'hidden_reveal_animating',
+            revealAnimationEndTime: endTime,
+            animation: {
+                type: 'hidden_reveal',
+                stones: [{ point: { x: 1, y: 1 }, player: Player.Black }],
+                startTime: Date.now(),
+                duration: 3000,
+            } as any,
+        });
+        const incoming = minimalSession({
+            mode: GameMode.Hidden,
+            isSinglePlayer: true,
+            gameCategory: 'singleplayer',
+            gameStatus: 'playing',
+        });
+        delete (incoming as any).animation;
+        const merged = mergeGameUpdateByArena(incoming, existing, { source: 'game_update' });
+        expect(merged.animation).toEqual(existing.animation);
+        expect(merged.revealAnimationEndTime).toBe(endTime);
+    });
+
     it('keeps lower strategic item inventory counts when stale GAME_UPDATE has full settings', () => {
         const existing = minimalSession({
             mode: GameMode.Hidden,

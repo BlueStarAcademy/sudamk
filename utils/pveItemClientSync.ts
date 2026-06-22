@@ -73,6 +73,8 @@ export function buildPveItemActionClientSync(session: LiveGameSession): PveItemA
         hiddenMoves: sanitizeHiddenMovesWithHumanMarkers(session, session.hiddenMoves),
         humanHiddenStonePoints: (session as { humanHiddenStonePoints?: Array<{ x: number; y: number; player?: Player }> })
             .humanHiddenStonePoints?.map((point) => ({ ...point })),
+        aiHiddenStonePoints: (session as { aiHiddenStonePoints?: Array<{ x: number; y: number; player?: Player }> })
+            .aiHiddenStonePoints?.map((point) => ({ ...point })),
         permanentlyRevealedStones: session.permanentlyRevealedStones?.map((p) => ({ ...p })),
         baseStones: session.baseStones?.map((p) => ({ ...p })),
         blackPatternStones: session.blackPatternStones?.map((p) => ({ ...p })),

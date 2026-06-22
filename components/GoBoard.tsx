@@ -801,7 +801,7 @@ interface GoBoardProps {
   isPairBasePlacementHost?: boolean;
   baseStonesP1Player?: Player;
   baseStonesP2Player?: Player;
-  /** `base_placement`에서 아직 놓을 베이스돌이 있을 때만 교차점 호버 미리보기. 미전달이면 기존과 동일 */
+  /** @deprecated 베이스 배치 단계에서는 호버 미리보기를 사용하지 않음 — 하위 호환용 */
   canPlaceMoreBaseStones?: boolean;
   /** 아이템 안내 등 바둑판 중앙 오버레이 문구 */
   boardRuleFlashMessage?: string | null;
@@ -1857,10 +1857,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
     
     const isGameFinished = gameStatus === 'ended' || gameStatus === 'no_contest';
 
-    const basePlacementHoverAllowed =
-        gameStatus !== 'base_placement' ||
-        canPlaceMoreBaseStones === undefined ||
-        canPlaceMoreBaseStones === true;
+    const basePlacementHoverAllowed = gameStatus !== 'base_placement';
 
     const showHoverPreview =
         basePlacementHoverAllowed &&

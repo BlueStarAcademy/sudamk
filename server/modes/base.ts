@@ -718,10 +718,9 @@ const resolveBaseStoneColorChoicePhase = (game: types.LiveGameSession, now: numb
     if (game.isAiGame && aiId) {
         const humanChoice = game.baseStoneColorChoices[humanId];
         if (humanChoice != null && game.baseStoneColorChoices[aiId] == null) {
-            const aiPlacedStoneColor = getBasePlacementColorForUserId(game, aiId);
+            // 배치 단계 임시 색과 무관하게 흑/백을 무작위로 고른다 — 호버·판면으로 AI 선호를 유추하지 못하게 함
             game.baseStoneColorChoices[aiId] =
-                aiPlacedStoneColor ??
-                pickBlackOrWhiteFromDeterministicSeed(`${game.id}:baseAiStonePref:${humanId}:${humanChoice}`);
+                Math.random() < 0.5 ? types.Player.Black : types.Player.White;
         }
     }
 

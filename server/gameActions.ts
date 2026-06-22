@@ -1096,6 +1096,16 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 'pending',
                 ...pveStrategicPrePlayStatuses,
             ]);
+            // 히든 전체공개 연출이 끝났는데 메인 루프/큐 틱이 밀리면 클라 복구 요청에서 정산·AI 재개를 진행한다.
+            if (isPveLikeAiGame && String(game.gameStatus) === 'hidden_reveal_animating') {
+                const revealEnd = game.revealAnimationEndTime ?? 0;
+                if (revealEnd > 0 && Date.now() >= revealEnd) {
+                    const { tickStrategicItemPhaseIfNeeded } = await import('./utils/strategicItemPhaseTick.js');
+                    await tickStrategicItemPhaseIfNeeded(game, Date.now());
+                    updateGameCache(game);
+                    await db.saveGame(game);
+                }
+            }
             const pveNonErrorNoop = (): { clientResponse: { serverAiMoveDone: boolean; skippedReason: string; game: types.LiveGameSession } } => ({
                 clientResponse: {
                     serverAiMoveDone: false,

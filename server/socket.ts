@@ -86,6 +86,9 @@ const enforceBaseSeatLockBeforeBroadcast = (game: unknown): void => {
 };
 
 let wss: WebSocketServer;
+let wsHeartbeatInterval: ReturnType<typeof setInterval> | null = null;
+const wsAliveMap = new WeakMap<WebSocket, boolean>();
+const WS_PROTOCOL_HEARTBEAT_MS = 30_000;
 // WebSocket 연결과 userId 매핑 (대역폭 최적화를 위해 게임 참가자에게만 전송)
 const wsUserIdMap = new Map<WebSocket, string>();
 // userId → 해당 유저의 WebSocket 연결들 (한 유저 다중 탭/기기 지원). 1000명 규모에서 broadcastToGameParticipants O(참가자수)로 최적화
@@ -97,6 +100,42 @@ const userIdToClients = new Map<string, Set<WebSocket>>();
  */
 const PAIR_WAITING_ROOM_LEAVE_GRACE_MS = 12_000;
 const pendingPairWaitingRoomLeaveTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+/** 인증된 WebSocket 활동 시 HTTP 세션 타임아웃 오탐 방지 */
+function touchUserConnectionFromWebSocket(userId: string): void {
+    volatileState.userConnections[userId] = Date.now();
+}
+
+function stopWebSocketHeartbeat(): void {
+    if (wsHeartbeatInterval) {
+        clearInterval(wsHeartbeatInterval);
+        wsHeartbeatInterval = null;
+    }
+}
+
+function startWebSocketHeartbeat(): void {
+    stopWebSocketHeartbeat();
+    wsHeartbeatInterval = setInterval(() => {
+        if (!wss) return;
+        for (const client of wss.clients) {
+            if (client.readyState !== WebSocket.OPEN) continue;
+            if (wsAliveMap.get(client) === false) {
+                try {
+                    client.terminate();
+                } catch {
+                    // ignore
+                }
+                continue;
+            }
+            wsAliveMap.set(client, false);
+            try {
+                client.ping();
+            } catch {
+                // ignore
+            }
+        }
+    }, WS_PROTOCOL_HEARTBEAT_MS);
+}
 
 function clearPendingPairWaitingRoomLeave(userId: string): void {
     const timer = pendingPairWaitingRoomLeaveTimers.get(userId);
@@ -153,6 +192,7 @@ export const getWebSocketServer = (): WebSocketServer | undefined => {
 
 export const createWebSocketServer = (server: Server) => {
     // 기존 WebSocketServer가 있으면 먼저 닫기
+    stopWebSocketHeartbeat();
     if (wss) {
         console.log('[WebSocket] Closing existing WebSocketServer...');
         try {
@@ -200,6 +240,12 @@ export const createWebSocketServer = (server: Server) => {
         // 연결 처리 중 에러가 발생해도 서버가 크래시하지 않도록 보장
         try {
             let isClosed = false;
+            wsAliveMap.set(ws, true);
+            ws.on('pong', () => {
+                wsAliveMap.set(ws, true);
+                const uid = wsUserIdMap.get(ws);
+                if (uid) touchUserConnectionFromWebSocket(uid);
+            });
             
             ws.on('error', (error: Error) => {
                 // ECONNABORTED는 일반적으로 클라이언트가 연결을 끊을 때 발생하는 정상적인 에러
@@ -235,8 +281,17 @@ export const createWebSocketServer = (server: Server) => {
         ws.on('message', (data: Buffer) => {
             try {
                 const message = JSON.parse(data.toString());
+                if (message.type === 'PING') {
+                    const uid = wsUserIdMap.get(ws);
+                    if (uid) touchUserConnectionFromWebSocket(uid);
+                    if (ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({ type: 'PONG', payload: { t: Date.now() } }));
+                    }
+                    return;
+                }
                 if (message.type === 'AUTH' && message.userId) {
                     const uid = message.userId as string;
+                    touchUserConnectionFromWebSocket(uid);
                     cancelPendingPvpDisconnect(uid);
                     clearPendingPairWaitingRoomLeave(uid);
                     wsUserIdMap.set(ws, uid);
@@ -627,6 +682,7 @@ export const createWebSocketServer = (server: Server) => {
         console.error('[WebSocket] Server error:', error);
     });
 
+    startWebSocketHeartbeat();
     console.log('[WebSocket] Server created');
 };
 

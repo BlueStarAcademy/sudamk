@@ -48,6 +48,7 @@ import {
 import { SPECIAL_GAME_MODES } from '../constants/index.js';
 import { AI_HIDDEN_ITEM_THINKING_DURATION_MS, PVE_AI_HIDDEN_REVEAL_DURATION_MS } from '../shared/constants/gameSettings.js';
 import { expandToAllUnrevealedHiddenStonesForPlayers } from '../shared/utils/expandHiddenRevealStones.js';
+import { upsertHiddenStonePoint } from '../shared/utils/hiddenStonePointMarkers.js';
 import {
     consumeOpponentPatternStoneIfAny,
     isPatternIntersectionPermanentlyConsumed,
@@ -691,6 +692,17 @@ const collectContributingHiddenStones = (
             isHiddenStone = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
             if (
                 !isHiddenStone &&
+                (game as { aiHiddenStonePoints?: Array<{ x: number; y: number; player?: Player }> }).aiHiddenStonePoints?.some(
+                    (point) =>
+                        point.x === nx &&
+                        point.y === ny &&
+                        (point.player === undefined || point.player === aiPlayerEnum),
+                )
+            ) {
+                isHiddenStone = true;
+            }
+            if (
+                !isHiddenStone &&
                 aiInitialHidden &&
                 nx === aiInitialHidden.x &&
                 ny === aiInitialHidden.y &&
@@ -774,6 +786,18 @@ const applyAiCaptureOutcome = (
                 if (!isPermanentlyRevealed) {
                     capturedHiddenStones.push({ point: capturedStone, player: opponentPlayerEnum });
                 }
+            } else if (
+                (game as { aiHiddenStonePoints?: Array<{ x: number; y: number; player?: Player }> }).aiHiddenStonePoints?.some(
+                    (point) =>
+                        point.x === capturedStone.x &&
+                        point.y === capturedStone.y &&
+                        (point.player === undefined || point.player === opponentPlayerEnum),
+                ) &&
+                !game.permanentlyRevealedStones?.some(
+                    (point) => point.x === capturedStone.x && point.y === capturedStone.y,
+                )
+            ) {
+                capturedHiddenStones.push({ point: capturedStone, player: opponentPlayerEnum });
             }
         }
 
@@ -3242,6 +3266,11 @@ export async function makeGoAiBotMove(
     if (treatAsAiHiddenStone) {
         if (!game.hiddenMoves) game.hiddenMoves = {};
         game.hiddenMoves[game.moveHistory.length - 1] = true;
+        (game as any).aiHiddenStonePoints = upsertHiddenStonePoint(
+            (game as any).aiHiddenStonePoints,
+            { x: selectedMove.x, y: selectedMove.y },
+            aiPlayerEnum,
+        );
         if (aiHiddenLeft > 0) {
             (game as any)[aiHiddenKey] = aiHiddenLeft - 1;
             aiHiddenLeft -= 1;

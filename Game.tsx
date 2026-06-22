@@ -2484,7 +2484,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     useEffect(() => {
         if (!needsLocalHiddenRevealFinalize && !needsServerHiddenRevealNudge) return;
-        if ((session as any).pendingAiMoveAfterUserHiddenFullReveal) return;
         const anim = session.animation as { type?: string; startTime?: number; duration?: number } | null | undefined;
         const revealEndFromAnim =
             anim?.type === 'hidden_reveal' && typeof anim.startTime === 'number'
@@ -2528,7 +2527,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         session.isAiGame,
         session.settings,
         mode,
-        (session as any).pendingAiMoveAfterUserHiddenFullReveal,
         needsLocalHiddenRevealFinalize,
         needsServerHiddenRevealNudge,
         isTower,
@@ -5065,6 +5063,20 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                 responseGame.currentPlayer === currentPlayerAtCalculation
                             ) {
                                 if (isServerWaitingState) {
+                                    if (responseStatus === 'hidden_reveal_animating') {
+                                        const responseRevealEnd = Number((responseGame as any)?.revealAnimationEndTime ?? 0);
+                                        if (responseRevealEnd > 0 && Date.now() < responseRevealEnd + 80) {
+                                            if (process.env.NODE_ENV === 'development') {
+                                                console.log('[Game] PVE hidden reveal still animating, keeping lock:', {
+                                                    gameId: currentGameId,
+                                                    responseRevealEnd,
+                                                });
+                                            }
+                                            return;
+                                        }
+                                        lastAiMoveRef.current = null;
+                                        return;
+                                    }
                                     // 미사일/히든 연출 중 no-progress는 정상 대기 상태다.
                                     // 잠금을 즉시 풀면 REQUEST_SERVER_AI_MOVE가 루프를 돌며 애니/사운드가 무한 재생된다.
                                     if (process.env.NODE_ENV === 'development') {

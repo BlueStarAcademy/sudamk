@@ -1471,6 +1471,8 @@ export type LiveGameSession = {
   hiddenMoves?: { [moveIndex: number]: boolean };
   /** PVE 클라 전용 진행에서 hiddenMoves 인덱스가 밀려도 유저 히든 좌표를 안정적으로 보존 */
   humanHiddenStonePoints?: Array<Point & { player?: Player }>;
+  /** PVE: AI 히든 착수 좌표(서버 AI 수·hiddenMoves 슬림 패킷 누락 시 포획 공개 연출 복구) */
+  aiHiddenStonePoints?: Array<Point & { player?: Player }>;
   scans_p1?: number;
   scans_p2?: number;
   hidden_stones_p1?: number;

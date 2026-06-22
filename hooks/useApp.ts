@@ -149,10 +149,12 @@ import { isClientAdmin } from '../utils/clientAdmin.js';
 import { processMoveClient } from '../client/goLogicClient.js';
 import { applyMissileCaptureProcessResult } from '../shared/utils/missileLandingCapture.js';
 import { shouldIgnoreStaleServerHiddenPlacingAfterClientCommit } from '../shared/utils/mixGoRules.js';
+import { isItemPhasePresentationStillActive } from '../shared/utils/itemPhaseAnimationTypes.js';
 import { isIntersectionRecordedAsBaseStone } from '../shared/utils/removeCapturedBaseStoneMarkers.js';
 import { findLatestMoveIndexAtExcludingRecordedBaseStones } from '../shared/utils/baseHiddenMoveIndex.js';
 import { buildWeightedJustCapturedForStones } from '../shared/utils/sumWeightedCapturePointsForCapturedStones.js';
 import { tryBuildHiddenCaptureRevealState } from './useClientGameState.js';
+import { upsertHiddenStonePoint } from '../shared/utils/hiddenStonePointMarkers.js';
 import { isDiceGoLibertyPlacement, isThiefGoValidPlacement } from '../client/logic/goLogic.js';
 import { applyOptimisticAlkkagiPlaceStone, alkkagiPlacedCountForUser } from '../shared/utils/alkkagiPlacement.js';
 import { normalizeInventoryAfterLoad } from '../utils/inventoryUtils.js';
@@ -473,6 +475,7 @@ function shouldSkipDelayedAiSnapshotApply(
     delayedSnapshot: LiveGameSession
 ): boolean {
     if (!latestGame) return false;
+    if (isItemPhasePresentationStillActive(latestGame)) return true;
     const latestStatus = String(latestGame.gameStatus || '');
     const delayedStatus = String(delayedSnapshot.gameStatus || '');
     const terminalOrRevealStatuses = new Set([
@@ -1489,6 +1492,63 @@ function mergeHumanHiddenStonePointsForSession(
     return sanitized.length > 0 ? sanitized : undefined;
 }
 
+function syncAiHiddenStonePointsFromSession(
+    game: LiveGameSession,
+    existing?: LiveGameSession,
+): Array<Point & { player?: Player }> | undefined {
+    const resolveAiPlayer = (): Player | null => {
+        if (game.blackPlayerId === aiUserId || String(game.blackPlayerId || '').startsWith('dungeon-bot-')) {
+            return Player.Black;
+        }
+        if (game.whitePlayerId === aiUserId || String(game.whitePlayerId || '').startsWith('dungeon-bot-')) {
+            return Player.White;
+        }
+        return null;
+    };
+    const aiPlayer = resolveAiPlayer();
+    if (aiPlayer == null) {
+        const merged = [
+            ...(((existing as any)?.aiHiddenStonePoints as Array<Point & { player?: Player }>) || []),
+            ...(((game as any).aiHiddenStonePoints as Array<Point & { player?: Player }>) || []),
+        ];
+        return merged.length > 0 ? merged : undefined;
+    }
+
+    let points: Array<Point & { player?: Player }> = [];
+    for (const source of [
+        (existing as any)?.aiHiddenStonePoints as Array<Point & { player?: Player }> | undefined,
+        (game as any).aiHiddenStonePoints as Array<Point & { player?: Player }> | undefined,
+    ]) {
+        if (!Array.isArray(source)) continue;
+        for (const point of source) {
+            if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) continue;
+            points = upsertHiddenStonePoint(points, point, point.player ?? aiPlayer);
+        }
+    }
+
+    const hist = game.moveHistory ?? existing?.moveHistory;
+    const hm = game.hiddenMoves ?? existing?.hiddenMoves;
+    if (hist && hm) {
+        for (const [key, value] of Object.entries(hm)) {
+            if (!value) continue;
+            const idx = Number(key);
+            const move = hist[idx];
+            if (move && move.player === aiPlayer && move.x >= 0 && move.y >= 0) {
+                points = upsertHiddenStonePoint(points, { x: move.x, y: move.y }, aiPlayer);
+            }
+        }
+    }
+
+    const aiH = ((game as any).aiInitialHiddenStone ?? (existing as any)?.aiInitialHiddenStone) as
+        | Point
+        | undefined;
+    if (aiH && typeof aiH.x === 'number' && typeof aiH.y === 'number') {
+        points = upsertHiddenStonePoint(points, aiH, aiPlayer);
+    }
+
+    return points.length > 0 ? points : undefined;
+}
+
 const OVERLAY_PRESERVE_GAME_STATUSES = new Set([
     'playing',
     'scoring',
@@ -1626,6 +1686,16 @@ function preserveStrategicSessionOverlaysIfIncomingOmitted(
             const hp = mergeHumanHiddenStonePointsForSession(next, existing, next.moveHistory, next.hiddenMoves);
             if (Array.isArray(hp) && hp.length > 0) {
                 (next as any).humanHiddenStonePoints = hp;
+            }
+        }
+        if (
+            !Object.prototype.hasOwnProperty.call(incoming, 'aiHiddenStonePoints') ||
+            !Array.isArray((incoming as any).aiHiddenStonePoints) ||
+            (incoming as any).aiHiddenStonePoints.length === 0
+        ) {
+            const ap = syncAiHiddenStonePointsFromSession(next, existing);
+            if (Array.isArray(ap) && ap.length > 0) {
+                (next as any).aiHiddenStonePoints = ap;
             }
         }
         if (!Object.prototype.hasOwnProperty.call(incoming, 'permanentlyRevealedStones')) {
@@ -4833,6 +4903,9 @@ export const useApp = () => {
                         ...deadline,
                         ...(game as any).isAiTurnCancelledAfterReveal !== undefined
                             ? ({ isAiTurnCancelledAfterReveal: undefined } as any)
+                            : {},
+                        ...(game as any).pendingAiMoveAfterUserHiddenFullReveal !== undefined
+                            ? ({ pendingAiMoveAfterUserHiddenFullReveal: undefined } as any)
                             : {}
                     } as LiveGameSession;
                     queueAutoScoringAfterReveal(nextGame);
@@ -9029,6 +9102,26 @@ export const useApp = () => {
             }
         };
 
+        const clearWsPingInterval = () => {
+            if (wsPingInterval) {
+                clearInterval(wsPingInterval);
+                wsPingInterval = null;
+            }
+        };
+
+        const startWsPingInterval = () => {
+            clearWsPingInterval();
+            wsPingInterval = setInterval(() => {
+                if (ws?.readyState === WebSocket.OPEN) {
+                    try {
+                        ws.send(JSON.stringify({ type: 'PING' }));
+                    } catch {
+                        // ignore
+                    }
+                }
+            }, 25_000);
+        };
+
         function scheduleReconnect(reason: string) {
             if (reconnectTimeout) {
                 clearTimeout(reconnectTimeout);
@@ -9132,6 +9225,7 @@ export const useApp = () => {
                     isIntentionalClose = false;
                     isConnecting = false; // 연결 완료
                     markConnectionRestored();
+                    startWsPingInterval();
                     if (connectionTimeout) {
                         clearTimeout(connectionTimeout);
                         connectionTimeout = null;
@@ -10342,6 +10436,14 @@ export const useApp = () => {
                                                     finalMoveHistory,
                                                     mergedHiddenMoves,
                                                 );
+                                                const mergedAiHiddenStonePoints = syncAiHiddenStonePointsFromSession(
+                                                    {
+                                                        ...game,
+                                                        moveHistory: finalMoveHistory,
+                                                        hiddenMoves: mergedHiddenMoves,
+                                                    } as LiveGameSession,
+                                                    existingGame,
+                                                );
                                                 const mergedAiInitialHiddenStone =
                                                     (game as any).aiInitialHiddenStone ?? (existingGame as any)?.aiInitialHiddenStone;
                                                 const mergedAiInitialHiddenStoneIsPrePlaced =
@@ -10363,6 +10465,7 @@ export const useApp = () => {
                                                     moveHistory: finalMoveHistory,
                                                     hiddenMoves: mergedHiddenMoves,
                                                     humanHiddenStonePoints: mergedHumanHiddenStonePoints,
+                                                    aiHiddenStonePoints: mergedAiHiddenStonePoints,
                                                     aiInitialHiddenStone: mergedAiInitialHiddenStone,
                                                     aiInitialHiddenStoneIsPrePlaced: mergedAiInitialHiddenStoneIsPrePlaced,
                                                     permanentlyRevealedStones: mergedRevealed,
@@ -10620,6 +10723,14 @@ export const useApp = () => {
                                                     finalMoveHistory,
                                                     mergedHiddenMovesGeneral,
                                                 );
+                                                const mergedAiHiddenStonePointsGeneral = syncAiHiddenStonePointsFromSession(
+                                                    {
+                                                        ...mergedGameForSp,
+                                                        moveHistory: finalMoveHistory,
+                                                        hiddenMoves: mergedHiddenMovesGeneral,
+                                                    } as LiveGameSession,
+                                                    existingGame,
+                                                );
                                                 const mergedAiInitialHiddenStoneGeneral =
                                                     (mergedGameForSp as any).aiInitialHiddenStone ?? (existingGame as any)?.aiInitialHiddenStone;
                                                 const mergedAiInitialHiddenStoneIsPrePlacedGeneral =
@@ -10633,6 +10744,7 @@ export const useApp = () => {
                                                         moveHistory: finalMoveHistory,
                                                         hiddenMoves: mergedHiddenMovesGeneral,
                                                         humanHiddenStonePoints: mergedHumanHiddenStonePointsGeneral,
+                                                        aiHiddenStonePoints: mergedAiHiddenStonePointsGeneral,
                                                         aiInitialHiddenStone: mergedAiInitialHiddenStoneGeneral,
                                                         aiInitialHiddenStoneIsPrePlaced: mergedAiInitialHiddenStoneIsPrePlacedGeneral,
                                                         permanentlyRevealedStones: mergedRevealed,
@@ -10646,6 +10758,7 @@ export const useApp = () => {
                                                         ...mergedGameForSp,
                                                         hiddenMoves: mergedHiddenMovesGeneral,
                                                         humanHiddenStonePoints: mergedHumanHiddenStonePointsGeneral,
+                                                        aiHiddenStonePoints: mergedAiHiddenStonePointsGeneral,
                                                         aiInitialHiddenStone: mergedAiInitialHiddenStoneGeneral,
                                                         aiInitialHiddenStoneIsPrePlaced: mergedAiInitialHiddenStoneIsPrePlacedGeneral,
                                                         permanentlyRevealedStones: mergedRevealed,
@@ -12103,6 +12216,7 @@ export const useApp = () => {
 
                 ws.onclose = (event) => {
                     isConnecting = false; // 연결 종료됨
+                    clearWsPingInterval();
                     if (connectionTimeout) {
                         clearTimeout(connectionTimeout);
                         connectionTimeout = null;
@@ -12169,6 +12283,7 @@ export const useApp = () => {
         return () => {
             shouldReconnect = false;
             isIntentionalClose = true;
+            clearWsPingInterval();
             if (reconnectTimeout) {
                 clearTimeout(reconnectTimeout);
                 reconnectTimeout = null;

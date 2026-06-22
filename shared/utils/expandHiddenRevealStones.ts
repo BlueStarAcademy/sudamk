@@ -51,6 +51,26 @@ export function expandToAllUnrevealedHiddenStonesForPlayers(
         }
     }
 
+    const mergeStonePointsIntoReveal = (
+        points: Array<Point & { player?: Player }> | undefined,
+    ) => {
+        if (!Array.isArray(points) || points.length === 0) return;
+        for (const point of points) {
+            const player = point.player ?? Player.None;
+            if (player === Player.None || !targetPlayers.has(player)) continue;
+            if (game.boardState[point.y]?.[point.x] !== player) continue;
+            if (revealedPoints.has(`${point.x},${point.y}`)) continue;
+            revealByPoint.set(`${point.x},${point.y}`, { point: { x: point.x, y: point.y }, player });
+        }
+    };
+
+    mergeStonePointsIntoReveal(
+        (game as { humanHiddenStonePoints?: Array<Point & { player?: Player }> }).humanHiddenStonePoints,
+    );
+    mergeStonePointsIntoReveal(
+        (game as { aiHiddenStonePoints?: Array<Point & { player?: Player }> }).aiHiddenStonePoints,
+    );
+
     const aiHidden = (game as { aiInitialHiddenStone?: Point }).aiInitialHiddenStone;
     const aiPlayer = options?.aiPlayerEnum ?? Player.None;
     if (

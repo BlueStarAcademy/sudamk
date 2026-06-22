@@ -1716,10 +1716,16 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
             return game;
         }
 
+        const arenaPolicyEarly = resolveArenaSessionPolicy(game);
+        const isClientKickPlaying =
+            arenaPolicyEarly.usesServerKataAi &&
+            (arenaPolicyEarly.kind === 'singleplayer' || arenaPolicyEarly.kind === 'tower') &&
+            (game.gameStatus === 'playing' || game.gameStatus === 'hidden_placing');
+
         // PLACE_STONE 직후 같은 메인루프 사이클에서 스냅샷(이전 상태)으로 처리되면
         // currentPlayer가 아직 human이라 시간패가 잘못 적용되는 버그 방지: 캐시에서 최신 게임 사용
         const { getCachedGame } = await import('./gameCache.js');
-        const GET_CACHED_GAME_DEADLINE_MS = 2500;
+        const GET_CACHED_GAME_DEADLINE_MS = isClientKickPlaying ? 400 : 2500;
         const cached = await Promise.race([
             getCachedGame(game.id),
             new Promise<null>((resolve) => setTimeout(() => resolve(null), GET_CACHED_GAME_DEADLINE_MS)),
@@ -1754,6 +1760,12 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
             aiProcessingQueue.isProcessingGame(game.id) ||
             (game as any)._getGameResultInFlight
         ) {
+            return game;
+        }
+
+        // 싱글/탑 본대국: 클라이언트 REQUEST_SERVER_AI_MOVE + 큐 워치독만 (전략 상태머신·인라인 AI 스킵)
+        if (isClientKickPlaying) {
+            maybeRecoverStalledPveAiTurn(game, now);
             return game;
         }
 
@@ -1993,7 +2005,9 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                     pairClassicForAi ||
                     (pveAiPolicyForDispatch.usesServerKataAi &&
                         (pveAiPolicyForDispatch.kind === 'adventure' ||
-                            pveAiPolicyForDispatch.kind === 'guildwar'));
+                            pveAiPolicyForDispatch.kind === 'guildwar' ||
+                            pveAiPolicyForDispatch.kind === 'singleplayer' ||
+                            pveAiPolicyForDispatch.kind === 'tower'));
                 // 페어 4인 수순·모험·길드전: aiProcessingQueue 단일 경로만 사용 (메인루프와 이중 디스패치 방지)
                 if (pveStrategicQueueOnly) {
                     maybeRecoverStalledPveAiTurn(game, now);

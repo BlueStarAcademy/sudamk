@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { handleBaseAction, initializeBase, updateBaseState } from '../../modes/base.js';
 import { updateCaptureState } from '../../modes/capture.js';
 import { aiUserId } from '../../aiPlayer.js';
@@ -324,9 +324,9 @@ describe('base mode', () => {
         expect(game.basePlacementReady).toBeUndefined();
     });
 
-    it('lets AI prefer the same color as its placed base stones', () => {
+    it('lets AI choose black or white randomly instead of matching placed stone color', () => {
         const game = makeBaseGame({
-            id: 'sp-base-ai-color-from-placement',
+            id: 'sp-base-ai-color-random',
             isSinglePlayer: true,
             isAiGame: true,
             gameCategory: GameCategory.SinglePlayer,
@@ -336,17 +336,19 @@ describe('base mode', () => {
         initializeBase(game, Date.now());
         game.basePlacementBlackPlayerId = aiUserId;
         game.basePlacementWhitePlayerId = game.player1.id;
+
+        const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.9);
         handleBaseAction(
             game,
             { type: 'SUBMIT_BASE_STONE_COLOR_CHOICE', userId: game.player1.id, payload: { gameId: game.id, color: Player.White } } as any,
             game.player1
         );
         updateBaseState(game, Date.now());
+        randomSpy.mockRestore();
 
-        expect(game.gameStatus).toBe('base_game_start_confirmation');
-        expect(game.blackPlayerId).toBe(aiUserId);
-        expect(game.whitePlayerId).toBe(game.player1.id);
-        expect(game.baseKomiBidsSnapshot?.[aiUserId]?.color).toBe(Player.Black);
+        expect(game.baseStoneColorChoices?.[aiUserId]).toBe(Player.White);
+        expect(game.gameStatus).toBe('base_same_color_points_bid');
+        expect(game.baseKomiBidsSnapshot).toBeUndefined();
     });
 
     it('uses 5~20 default AI komi bids in same-color base bidding', () => {

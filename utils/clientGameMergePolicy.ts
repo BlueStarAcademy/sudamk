@@ -18,6 +18,7 @@ import {
 } from '../shared/utils/liveSessionArenaKind.js';
 import { getAdventureDesignScoringTurnLimit } from '../shared/utils/adventureBattleBoard.js';
 import {
+    isItemPhasePresentationStillActive,
     isItemPhaseTransientAnimationType,
     wasItemPhaseAnimatingStatus,
 } from '../shared/utils/itemPhaseAnimationTypes.js';
@@ -119,6 +120,7 @@ export function shouldClearItemPhaseAnimationOnPlayingMerge(
         wasItemPhaseAnimatingStatus(existing.gameStatus) ||
         isItemPhaseTransientAnimationType(existing.animation as any);
     if (!prevWasItemPhaseAnimating) return false;
+    if (isItemPhasePresentationStillActive(existing as LiveGameSession)) return false;
     const incomingAnim = (incoming as { animation?: LiveGameSession['animation'] }).animation;
     return incomingAnim === undefined || incomingAnim === null;
 }
