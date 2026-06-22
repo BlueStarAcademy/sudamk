@@ -96,7 +96,7 @@ import {
 import { stampObtainedItemsBulk } from '../shared/utils/obtainedItemsBulk.js';
 import { advancePairTurn, getCurrentPairTurnSeat, isPairAiSeat, isPairClassicGame, normalizePairTurnIndex, resetPairPasses } from '../shared/utils/pairGameTurn.js';
 import { mergePairPetTrainingSlotsPreserveRecentRestart } from '../shared/utils/pairPetTrainingSlotsClientMerge.js';
-import { pairTrainingClaimCompletedBySlotIndex } from '../components/pair/pairTrainingClaimInFlight.js';
+import { pairTrainingClaimCompletedBySlotIndex, PAIR_TRAINING_CLAIM_ALREADY_CLAIMED_ERROR } from '../components/pair/pairTrainingClaimInFlight.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
 import {
     countConditionPotionsInInventory,
@@ -154,6 +154,7 @@ import { findLatestMoveIndexAtExcludingRecordedBaseStones } from '../shared/util
 import { buildWeightedJustCapturedForStones } from '../shared/utils/sumWeightedCapturePointsForCapturedStones.js';
 import { tryBuildHiddenCaptureRevealState } from './useClientGameState.js';
 import { isDiceGoLibertyPlacement, isThiefGoValidPlacement } from '../client/logic/goLogic.js';
+import { applyOptimisticAlkkagiPlaceStone, alkkagiPlacedCountForUser } from '../shared/utils/alkkagiPlacement.js';
 import { normalizeInventoryAfterLoad } from '../utils/inventoryUtils.js';
 import { reconcileExchangeListedInventoryFlags } from '../shared/utils/exchangeInventorySync.js';
 import { stripReappearedRemovedInventoryItems } from '../shared/utils/inventoryStaleGuard.js';
@@ -5743,7 +5744,7 @@ export const useApp = () => {
             void audioService.initialize();
 
             dicePlaceGameId =
-                action.type === 'DICE_PLACE_STONE' || action.type === 'THIEF_PLACE_STONE'
+                action.type === 'DICE_PLACE_STONE' || action.type === 'THIEF_PLACE_STONE' || action.type === 'ALKKAGI_PLACE_STONE'
                     ? (action.payload as { gameId?: string })?.gameId
                     : undefined;
             if (action.type === 'DICE_ROLL') {
@@ -5981,6 +5982,23 @@ export const useApp = () => {
                         return { ...currentGames, [gid]: nextThiefSession };
                     });
                 });
+            } else if (action.type === 'ALKKAGI_PLACE_STONE') {
+                const gid = (action.payload as { gameId?: string; point?: Point })?.gameId;
+                const point = (action.payload as { point?: Point })?.point;
+                if (gid && point) {
+                    flushSync(() => {
+                        setLiveGames((currentGames) => {
+                            const g = currentGames[gid];
+                            if (!g || isSessionSingleOrTower(g) || g.mode !== GameMode.Alkkagi) return currentGames;
+                            const uid = currentUserRef.current?.id;
+                            if (!uid) return currentGames;
+                            const next = applyOptimisticAlkkagiPlaceStone(g, uid, point);
+                            if (!next) return currentGames;
+                            pvpDicePlaceRevertRef.current[gid] = JSON.parse(JSON.stringify(g)) as LiveGameSession;
+                            return { ...currentGames, [gid]: next };
+                        });
+                    });
+                }
             }
 
             if (dicePlaceGameId) {
@@ -6084,6 +6102,7 @@ export const useApp = () => {
             if (!res.ok) {
                 let errorMessage = 'An unknown error occurred.';
                 let baseStoneColorSubmitBenign400 = false;
+                let pairTrainingClaimAlreadyClaimedBenign400 = false;
                 try {
                     const errorData = await res.json();
                     errorMessage = errorData.message || errorData.error || errorMessage;
@@ -6092,6 +6111,11 @@ export const useApp = () => {
                         res.status === 400 &&
                         typeof errorMessage === 'string' &&
                         isBaseStoneColorChoiceBenignError(errorMessage);
+                    pairTrainingClaimAlreadyClaimedBenign400 =
+                        action.type === 'PAIR_PET_CLAIM_TRAINING' &&
+                        res.status === 400 &&
+                        typeof errorMessage === 'string' &&
+                        errorMessage === PAIR_TRAINING_CLAIM_ALREADY_CLAIMED_ERROR;
                     if (isTransientServerStatus(res.status)) {
                         setConnectionNotice({
                             kind: 'degraded',
@@ -6178,7 +6202,7 @@ export const useApp = () => {
                             }
                         }
                     }
-                    if (!baseStoneColorSubmitBenign400) {
+                    if (!baseStoneColorSubmitBenign400 && !pairTrainingClaimAlreadyClaimedBenign400) {
                         console.error(`[handleAction] ${action.type} - HTTP ${res.status} error:`, errorData);
                     }
                 } catch (parseError) {
@@ -6234,6 +6258,10 @@ export const useApp = () => {
                     // TournamentBracket 전용 모달로만 안내
                 } else if (action.type === 'PAIR_PET_RESYNC_TRAINING_SLOTS') {
                     console.warn(`[handleAction] PAIR_PET_RESYNC_TRAINING_SLOTS HTTP ${res.status}:`, errorMessage);
+                } else if (pairTrainingClaimAlreadyClaimedBenign400) {
+                    if (import.meta.env.DEV) {
+                        console.debug(`[handleAction] PAIR_PET_CLAIM_TRAINING benign HTTP 400 (already claimed):`, errorMessage);
+                    }
                 } else if (!shouldSuppressModalForKoPlaceStone(action, typeof errorMessage === 'string' ? errorMessage : '')) {
                     // 길드 정보는 백그라운드 동기화 성격이 강하고, 게이트웨이/DB 지연 시 502·504가 잦음 — 상단 연결 안내만으로 충분
                     const suppressGuildInfoModal =
@@ -7484,7 +7512,7 @@ export const useApp = () => {
                 }
                 
                 // 주사위/도둑 착수: 한 개 놓을 때마다 화면에 바로 반영 (HTTP 응답 game으로 liveGames 갱신)
-                const placementGameId = (action.type === 'DICE_PLACE_STONE' || action.type === 'THIEF_PLACE_STONE') ? ((action.payload as any)?.gameId || game?.id) : null;
+                const placementGameId = (action.type === 'DICE_PLACE_STONE' || action.type === 'THIEF_PLACE_STONE' || action.type === 'ALKKAGI_PLACE_STONE') ? ((action.payload as any)?.gameId || game?.id) : null;
                 if (game && placementGameId && (action.type === 'DICE_PLACE_STONE' || action.type === 'THIEF_PLACE_STONE') && !isSessionSingleOrTower(game)) {
                     const cloneBoard = (g: typeof game) =>
                         g.boardState && Array.isArray(g.boardState) ? g.boardState.map((row: number[]) => [...row]) : g.boardState;
@@ -7539,6 +7567,32 @@ export const useApp = () => {
                         if (appliedThiefPlaceMerge) {
                             delete pvpDicePlaceRevertRef.current[placementGameId];
                         }
+                    }
+                }
+                if (game && placementGameId && action.type === 'ALKKAGI_PLACE_STONE' && !isSessionSingleOrTower(game)) {
+                    let appliedAlkkagiPlaceMerge = false;
+                    const uid = currentUserRef.current?.id;
+                    setLiveGames((currentGames) => {
+                        const existing = currentGames[placementGameId];
+                        if (!game) return currentGames;
+                        if (!existing) {
+                            appliedAlkkagiPlaceMerge = true;
+                            return { ...currentGames, [placementGameId]: game };
+                        }
+                        if (uid && alkkagiPlacedCountForUser(game, uid) < alkkagiPlacedCountForUser(existing, uid)) {
+                            return currentGames;
+                        }
+                        appliedAlkkagiPlaceMerge = true;
+                        return {
+                            ...currentGames,
+                            [placementGameId]: {
+                                ...existing,
+                                ...game,
+                            },
+                        };
+                    });
+                    if (appliedAlkkagiPlaceMerge) {
+                        delete pvpDicePlaceRevertRef.current[placementGameId];
                     }
                 }
                 // 주사위/도둑 굴리기: HTTP 응답에 game 있으면 즉시 반영 (두 번째 턴부터 굴리기 애니가 안 나오는 버그 방지)
@@ -8104,7 +8158,7 @@ export const useApp = () => {
                 }
             }
         } catch (err: any) {
-            if (action.type === 'DICE_PLACE_STONE' || action.type === 'THIEF_PLACE_STONE') {
+            if (action.type === 'DICE_PLACE_STONE' || action.type === 'THIEF_PLACE_STONE' || action.type === 'ALKKAGI_PLACE_STONE') {
                 const gid = (action.payload as { gameId?: string })?.gameId;
                 if (gid) {
                     const snap = pvpDicePlaceRevertRef.current[gid];

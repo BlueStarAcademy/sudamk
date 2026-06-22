@@ -712,7 +712,7 @@ const ActivityPanel: React.FC<{ onOpenMissions: () => void; onOpenResearch: () =
             <div className="flex justify-around items-center gap-2">
                 {activities.map(act => (
                     <button 
-                        key={act.name} 
+                        key={act.id} 
                         onClick={act.action}
                         className={`flex flex-col items-center gap-2 p-3 rounded-xl bg-gradient-to-br from-stone-800/50 to-stone-700/30 border border-stone-600/40 transition-all hover:brightness-110 hover:shadow-lg relative group flex-1 min-w-0`}
                     >
@@ -755,7 +755,7 @@ const GuildActivityRailStrip: React.FC<{
         <div className="flex w-full shrink-0 flex-col gap-1.5">
             {activities.map((act) => (
                 <button
-                    key={act.name}
+                    key={act.id}
                     type="button"
                     onClick={act.action}
                     title={act.name}
@@ -2862,16 +2862,16 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
             <div className="mb-2 grid shrink-0 grid-cols-3 gap-0.5 rounded-xl border border-stone-600/35 bg-stone-950/70 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ring-1 ring-inset ring-amber-500/[0.08] backdrop-blur-sm">
                 {GUILD_MOBILE_MAIN_TAB_IDS.map((tab) => (
                     <button
-                        key={tab.id}
+                        key={tab}
                         type="button"
-                        onClick={() => setGuildMobileMainTab(tab.id)}
+                        onClick={() => setGuildMobileMainTab(tab)}
                         className={`rounded-lg px-1 py-1.5 text-[11px] font-semibold leading-tight transition-all ${
-                            guildMobileMainTab === tab.id
+                            guildMobileMainTab === tab
                                 ? 'bg-gradient-to-b from-amber-500/90 to-amber-700/95 text-amber-950 shadow-md ring-1 ring-amber-300/40'
                                 : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
                         }`}
                     >
-                        {t(guildMobileTabLabelKey[tab.id])}
+                        {t(guildMobileTabLabelKey[tab])}
                     </button>
                 ))}
             </div>

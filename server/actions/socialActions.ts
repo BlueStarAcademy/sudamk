@@ -28,7 +28,7 @@ import {
     STRATEGIC_ACTION_POINT_COST,
     PLAYFUL_ACTION_POINT_COST,
 } from '../../constants/index.js';
-import { applyPassiveActionPointRegenToUser, recordActionPointSpend } from '../effectService.js';
+import { applyPassiveActionPointRegenToUser } from '../effectService.js';
 import { getRankedGameSettings } from '../../constants/rankedGameSettings.js';
 import { sanitizePvpGameSettings } from '../../shared/utils/sanitizePvpGameSettings.js';
 import { clearAiSession } from '../aiSessionManager.js';
@@ -1980,16 +1980,6 @@ async function assertAndConsumePairLobbyMatchActionPoints(
         if (u.actionPoints.current < cost && !u.isAdmin) {
             return { ok: false, error: `행동력이 부족합니다. (인당 최대 ⚡${baseCost} — 대표 펫 특화로 감소 가능)` };
         }
-    }
-    for (const u of participants) {
-        const cost = effectivePairRankedApCostForUser(u, baseCost, pricingRoom);
-        if (!u.isAdmin && cost > 0) {
-            recordActionPointSpend(u, cost, nowMs);
-        }
-        const cached = volatileState.userCache?.get(u.id);
-        if (cached) cached.user = u;
-        await db.updateUser(u);
-        broadcastUserUpdate(u, ['actionPoints', 'lastActionPointUpdate']);
     }
     return { ok: true };
 }
@@ -5876,16 +5866,6 @@ async function finalizeRankedStrategicMatchGame(
     if ((!player1.isAdmin && player1.actionPoints.current < rankedAp1) || (!player2.isAdmin && player2.actionPoints.current < rankedAp2)) {
         return { ok: false, error: '행동력이 부족해 매칭을 진행할 수 없습니다.' };
     }
-    if (!player1.isAdmin && rankedAp1 > 0) {
-        recordActionPointSpend(player1, rankedAp1, matchNowMs);
-    }
-    if (!player2.isAdmin && rankedAp2 > 0) {
-        recordActionPointSpend(player2, rankedAp2, matchNowMs);
-    }
-    await db.updateUser(player1);
-    await db.updateUser(player2);
-    broadcastUserUpdate(player1, ['actionPoints', 'lastActionPointUpdate']);
-    broadcastUserUpdate(player2, ['actionPoints', 'lastActionPointUpdate']);
 
     const { getRankedGameSettings } = await import('../../constants/rankedGameSettings.js');
     const settings = sanitizePvpGameSettings(selectedMode, getRankedGameSettings(selectedMode), { isAiGame: false });

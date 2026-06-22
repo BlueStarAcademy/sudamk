@@ -8,7 +8,7 @@ type DragState = {
     pointerId: number;
 };
 
-const INTERACTIVE_SELECTOR = 'a, input, select, textarea';
+const INTERACTIVE_SELECTOR = 'button, a, input, select, textarea, [role="button"], [data-lobby-mode-card]';
 
 /** 가로 드래그 스크롤 영역 — 이미지 고스트 드래그·텍스트 선택 방지 */
 export const LOBBY_HORIZONTAL_MODE_PICKER_DRAG_GUARD_CLASS =
@@ -44,7 +44,7 @@ export function useHorizontalDragScroll(dragThreshold = 4) {
                 scrollLeft: el.scrollLeft,
                 pointerId: event.pointerId,
             };
-            event.preventDefault();
+            // pointerdown에서 preventDefault 하면 모바일 WebView에서 자식 카드 click이 누락됨 — 드래그 시작 시에만 막는다.
         },
         [canScrollHorizontally],
     );

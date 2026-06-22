@@ -20,7 +20,7 @@ import {
 import { isTowerLobbyInventorySource } from '../modes/towerPlayerHidden.js';
 import { aggregateSpecialOptionGearFromUser, towerApDiscountForFloor } from '../../shared/utils/specialOptionGearEffects.js';
 import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
-import { applyPassiveActionPointRegenToUser, recordActionPointSpend } from '../effectService.js';
+import { applyPassiveActionPointRegenToUser } from '../effectService.js';
 import { updateQuestProgress } from '../questService.js';
 import { reconcileStrategicAiBoardSizeWithGroundTruth } from '../utils/effectiveBoardSize.js';
 import { resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
@@ -162,11 +162,7 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 return { error: `액션 포인트가 부족합니다. (필요: ${effectiveActionPointCost})` };
             }
 
-            // 행동력 소모 (클리어한 층은 0)
-            if (effectiveActionPointCost > 0) {
-                recordActionPointSpend(user, effectiveActionPointCost, now);
-            }
-            
+            // 행동력은 승리 정산 시 차감 (실패·이탈 시 미차감)
             // 게임 모드 결정
             let gameMode: GameMode;
             const isSpeedMode = stage.timeControl.type === 'fischer';

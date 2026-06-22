@@ -268,7 +268,7 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
 
 
     const handleStoneInteractionStart = useCallback((stone: AlkkagiStone, e: React.MouseEvent<SVGGElement> | React.TouchEvent<SVGGElement>) => {
-        e.preventDefault();
+        if (!('touches' in e)) e.preventDefault();
         const { session: currentSession, currentUser: user } = latestProps.current;
         const myPlayer = currentSession.blackPlayerId === user.id ? Player.Black : (currentSession.whitePlayerId === user.id ? Player.White : Player.None);
         const currentIsMyTurn = currentSession.currentPlayer === myPlayer;

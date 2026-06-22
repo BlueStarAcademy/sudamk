@@ -19,6 +19,7 @@ import {
     clearPairTrainingClaimCompleted,
     markPairTrainingClaimCompleted,
     PAIR_TRAINING_CLAIM_ALREADY_CLAIMED_ERROR,
+    awaitPairTrainingClaimSettled,
     pairTrainingClaimInFlightBySlotIndex,
     parsePairTrainingClaimResponse,
     registerPairTrainingClaimInflight,
@@ -291,7 +292,7 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
         markPairTrainingClaimCompleted(slotIndex);
     };
 
-    /** 수령 완료 후 재수련 — UI는 즉시 반영, CLAIM·START는 백그라운드(순서 보장) */
+    /** 수령 완료 후 재수련 — 선행 수령 확정 후 UI 즉시 반영, START만 백그라운드 */
     const handleTrainAgain = () => {
         if (trainAgainInFlightRef.current) return;
         const user = currentUserWithStatus;
@@ -300,38 +301,32 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
         trainAgainInFlightRef.current = true;
         setTrainAgainBusy(true);
 
-        const { nextSlots, prevSlotsSnapshot } = buildOptimisticPairPetTrainingStartUpdate(
-            user.pairPetTrainingSlots,
-            slotIndex,
-            petItem.id,
-        );
-        flushSync(() => onCloseRef.current());
-        handlers.applyDeferredUserUpdate(
-            { pairPetTrainingSlots: nextSlots },
-            'PAIR_PET_START_TRAINING-optimistic-post-claim',
-        );
-
         void (async () => {
             try {
-                const claimRaw = await commitClaimRef.current({
-                    type: 'PAIR_PET_CLAIM_TRAINING',
-                    payload: { slotIndex },
+                const claimParsed = await awaitPairTrainingClaimSettled(slotIndex, {
+                    petItemId: petItem.id,
+                    commitClaim: () =>
+                        commitClaimRef.current({
+                            type: 'PAIR_PET_CLAIM_TRAINING',
+                            payload: { slotIndex },
+                        }),
+                    getTrainingSlots: () => currentUserWithStatus?.pairPetTrainingSlots ?? user.pairPetTrainingSlots,
                 });
-                const claimParsed = parsePairTrainingClaimResponse(claimRaw);
-                if (
-                    claimParsed.error &&
-                    claimParsed.error !== PAIR_TRAINING_CLAIM_ALREADY_CLAIMED_ERROR
-                ) {
-                    handlers.applyDeferredUserUpdate(
-                        { pairPetTrainingSlots: prevSlotsSnapshot },
-                        'PAIR_PET_START_TRAINING-optimistic-rollback',
-                    );
+                if (claimParsed.error) {
                     window.alert(claimParsed.error);
                     return;
                 }
-                if (claimParsed.summary) {
-                    markPairTrainingClaimCompleted(slotIndex);
-                }
+
+                const { nextSlots, prevSlotsSnapshot } = buildOptimisticPairPetTrainingStartUpdate(
+                    currentUserWithStatus?.pairPetTrainingSlots ?? user.pairPetTrainingSlots,
+                    slotIndex,
+                    petItem.id,
+                );
+                flushSync(() => onCloseRef.current());
+                handlers.applyDeferredUserUpdate(
+                    { pairPetTrainingSlots: nextSlots },
+                    'PAIR_PET_START_TRAINING-optimistic-post-claim',
+                );
 
                 // START 병합 시 client-claimed 가드가 in-progress 세션을 지우지 않도록 선제 해제
                 clearPairTrainingClaimCompleted(slotIndex);
@@ -420,8 +415,10 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
                 if (cancelled) return;
                 const { error, summary: s } = parsePairTrainingClaimResponse(raw);
                 if (error) {
-                    window.alert(error);
-                    onCloseRef.current();
+                    if (error !== PAIR_TRAINING_CLAIM_ALREADY_CLAIMED_ERROR) {
+                        window.alert(error);
+                        onCloseRef.current();
+                    }
                     return;
                 }
                 if (!s) {

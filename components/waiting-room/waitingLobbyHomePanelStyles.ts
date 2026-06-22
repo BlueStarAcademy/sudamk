@@ -862,7 +862,7 @@ export function aiChallengeModalGameCardSurfaceClass(
     compact: boolean,
 ): string {
     const base =
-        'box-border bg-panel text-on-panel flex w-full touch-manipulation flex-col items-center gap-1 rounded-lg p-2 text-center text-sm transition-[box-shadow,background-color]';
+        'box-border appearance-none border-0 bg-panel text-on-panel flex w-full touch-manipulation flex-col items-center gap-1 rounded-lg p-2 text-center text-sm transition-[box-shadow,background-color] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950';
     if (isSelected) {
         const selectedGlow =
             kind === 'ai_feature'

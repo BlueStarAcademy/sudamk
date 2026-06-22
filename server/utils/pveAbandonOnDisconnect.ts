@@ -68,7 +68,7 @@ export async function shouldSkipPveAbandonForActiveBrowserSession(
 /**
  * PVE 인게임 유저가 로그아웃·세션 만료·마지막 WebSocket 끊김 등으로 이탈할 때:
  * AI 승리(패배) 정산 → LiveGame 삭제 → GAME_DELETED.
- * 행동력은 입장 시 이미 차감된 상태를 유지한다(환불 없음).
+ * 학원·도전의탑은 승리 전 행동력 미차감(실패·이탈 시 AP 유지). 모험·AI 등은 인게임 진입 시 이미 차감됨.
  */
 export async function applyPveAbandonOnPlayerLeave(
     volatileState: VolatileState,

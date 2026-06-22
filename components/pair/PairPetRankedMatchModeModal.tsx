@@ -152,6 +152,7 @@ const ModePickCard: React.FC<{
         <button
             type="button"
             disabled={disabled}
+            data-lobby-mode-card
             onClick={onSelect}
             className={`bg-panel text-on-panel flex touch-manipulation flex-col items-center gap-1 rounded-lg p-2 text-center text-sm transition-all active:scale-[0.98] disabled:pointer-events-none disabled:opacity-45 ${
                 scrollStripItem ? 'w-max max-w-none' : 'w-full'

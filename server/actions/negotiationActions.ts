@@ -7,7 +7,7 @@ import { initializeGame } from '../gameModes.js';
 import { aiUserId, getAiUser } from '../aiPlayer.js';
 import { broadcast } from '../socket.js';
 import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
-import { applyPassiveActionPointRegenToUser, recordActionPointSpend, recordActionPointRestore } from '../effectService.js';
+import { applyPassiveActionPointRegenToUser } from '../effectService.js';
 import { maybeDeleteDetachedEndedPvpGame } from '../maybeDeleteDetachedEndedPvpGame.js';
 import { clampAiLobbyStrategicItemCaps } from '../../shared/utils/strategicAiLobbyItemCaps.js';
 import { isPairClassicGame } from '../../shared/utils/pairGameTurn.js';
@@ -366,26 +366,6 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                 return { error: 'One of the players does not have enough action points.' };
             }
 
-            if (!challenger.isAdmin) {
-                recordActionPointSpend(challenger, costChallenger, now);
-            }
-            if (!opponent.isAdmin) {
-                recordActionPointSpend(opponent, costOpponent, now);
-            }
-
-            // DB 업데이트를 비동기로 처리 (응답 지연 최소화)
-            db.updateUser(challenger).catch(err => {
-                console.error(`[ACCEPT_NEGOTIATION] Failed to save challenger ${challenger.id}:`, err);
-            });
-            db.updateUser(opponent).catch(err => {
-                console.error(`[ACCEPT_NEGOTIATION] Failed to save opponent ${opponent.id}:`, err);
-            });
-
-            // Broadcast updated action points immediately so clients reflect the deduction
-            const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(challenger, ['actionPoints']);
-            broadcastUserUpdate(opponent, ['actionPoints']);
-
             // 수락 시에는 원래 negotiation.settings를 사용 (발신자가 보낸 설정)
             // settings 파라미터는 UPDATE_NEGOTIATION에서만 사용
             let negForInit: Negotiation = negotiation;
@@ -525,9 +505,6 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                 if (user.actionPoints.current < cost && !user.isAdmin) {
                     return { error: `액션 포인트가 부족합니다. (필요: ${cost})` };
                 }
-                if (!user.isAdmin) {
-                    recordActionPointSpend(user, cost, now);
-                }
 
                 const aiLobbyKey = SPECIAL_GAME_MODES.some((m) => m.mode === mode)
                     ? 'strategicLobby'
@@ -537,9 +514,6 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                 if (aiLobbyKey) {
                     const aiGate = await requireArenaEntranceOpen(user.isAdmin, aiLobbyKey, user);
                     if (!aiGate.ok) {
-                        if (!user.isAdmin) {
-                            recordActionPointRestore(user, cost);
-                        }
                         return { error: aiGate.error };
                     }
                 }
@@ -566,16 +540,8 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                 });
                 if (draftNegId) delete volatileState.negotiations[draftNegId];
                 
-                // DB 업데이트를 비동기로 처리 (응답 지연 최소화)
-                db.updateUser(user).catch(err => {
-                    console.error(`[ACCEPT_NEGOTIATION] Failed to save user ${user.id}:`, err);
-                });
-                
-                // 게임 생성 후 게임 정보를 먼저 브로드캐스트 (게임 참가자에게만 전송)
-                const { broadcastToGameParticipants, broadcastUserUpdate } = await import('../socket.js');
+                const { broadcastToGameParticipants } = await import('../socket.js');
                 broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
-                // 그 다음 사용자 업데이트 브로드캐스트 (actionPoints 변경 반영)
-                broadcastUserUpdate(user, ['actionPoints']);
                 // 사용자 상태 브로드캐스트
                 broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
                 broadcast({ type: 'NEGOTIATION_UPDATE', payload: { negotiations: volatileState.negotiations, userStatuses: volatileState.userStatuses } });
@@ -589,19 +555,6 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                     }
                 };
             } catch (err: any) {
-                // 실패 시 액션 포인트 복구
-                if (!user.isAdmin && payload?.mode) {
-                    const refundSettings = {
-                        ...DEFAULT_GAME_SETTINGS,
-                        ...(payload?.settings && typeof payload.settings === 'object' ? payload.settings : {}),
-                    };
-                    const refundAp = effectiveAiLobbyApCostForUser(
-                        user,
-                        payload.mode as GameMode,
-                        refundSettings,
-                    );
-                    recordActionPointRestore(user, refundAp);
-                }
                 console.error('[START_AI_GAME] Error:', err?.message || err, err?.stack);
                 return { error: err?.message || 'AI 게임 생성 중 오류가 발생했습니다.' };
             }

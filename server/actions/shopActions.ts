@@ -68,17 +68,17 @@ export function collectEquipmentCashPackageLoot(packageId: CashShopEquipmentPack
     const sealedDefs: { itemId: string; quantity: number }[] =
         packageId === 'equipment_package_1'
             ? [
-                  { itemId: '장비 상자 V', quantity: 1 },
-                  { itemId: '재료 상자 VI', quantity: 1 },
+                  { itemId: '장비 상자 V', quantity: 3 },
+                  { itemId: '재료 상자 VI', quantity: 3 },
               ]
             : packageId === 'equipment_package_2'
               ? [
-                    { itemId: '장비 상자 V', quantity: 2 },
-                    { itemId: '재료 상자 VI', quantity: 2 },
+                    { itemId: '장비 상자 V', quantity: 5 },
+                    { itemId: '재료 상자 VI', quantity: 5 },
                 ]
               : [
                     { itemId: '장비 상자 VI', quantity: 2 },
-                    { itemId: '재료 상자 VI', quantity: 5 },
+                    { itemId: '재료 상자 VI', quantity: 10 },
                 ];
     const sealed = createItemInstancesFromReward(sealedDefs);
     const bonusGrade = EQUIPMENT_PACKAGE_BONUS_GRADE[packageId];

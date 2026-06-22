@@ -21,8 +21,11 @@ const GameCard: React.FC<{ mode: GameMode, description: string, image: string, a
     const modeLabel = localizeMode(mode);
 
     return (
-        <div
-            className={`bg-panel text-on-panel rounded-lg p-5 flex flex-col text-center transition-all transform hover:-translate-y-1 shadow-lg ${hoverColorClass} ${!available ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+        <button
+            type="button"
+            data-lobby-mode-card
+            disabled={!available}
+            className={`bg-panel text-on-panel touch-manipulation flex w-full flex-col rounded-lg p-5 text-center transition-all transform appearance-none border-0 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 shadow-lg active:scale-[0.98] ${hoverColorClass} ${!available ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
             onClick={available ? onSelect : undefined}
         >
             <div className="w-[200px] h-[150px] mx-auto bg-tertiary rounded-md mb-4 flex items-center justify-center text-tertiary overflow-hidden shadow-inner">
@@ -41,7 +44,7 @@ const GameCard: React.FC<{ mode: GameMode, description: string, image: string, a
                 <h3 className="text-xl font-bold text-primary mb-2">{modeLabel}</h3>
                 <p className="text-tertiary text-sm flex-grow">{description}</p>
             </div>
-        </div>
+        </button>
     );
 };
 

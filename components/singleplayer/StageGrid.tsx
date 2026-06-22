@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { GameMode, SinglePlayerLevel, UserWithStatus } from '../../types.js';
+import { SinglePlayerLevel, UserWithStatus } from '../../types.js';
 import { getSinglePlayerStages } from '../../constants/singlePlayerConstants.js';
 import { CONSUMABLE_ITEMS } from '../../constants/index.js';
 import Button from '../Button.js';
@@ -10,12 +10,7 @@ import {
     isSinglePlayerStageUnlocked,
     reconcileSinglePlayerProgress,
 } from '../../shared/utils/singlePlayerProgress.js';
-import {
-    inferSinglePlayerStrategicRulePreset,
-    resolveSinglePlayerMixedModes,
-} from '../../shared/utils/singlePlayerStrategicRulePreset.js';
-import SinglePlayerRewardsModal from './SinglePlayerRewardsModal.js';
-import { translateGameMode } from '../../shared/i18n/runtimeText.js';
+import type { SinglePlayerStageInfo } from '../../shared/types/entities.js';
 
 const CLASS_STAGE_KEYS: Record<SinglePlayerLevel, 'intro' | 'beginner' | 'intermediate' | 'advanced' | 'master'> = {
     [SinglePlayerLevel.입문]: 'intro',
@@ -25,14 +20,76 @@ const CLASS_STAGE_KEYS: Record<SinglePlayerLevel, 'intro' | 'beginner' | 'interm
     [SinglePlayerLevel.유단자]: 'master',
 };
 
-const PRESET_TO_GAME_MODE: Partial<Record<string, GameMode>> = {
-    classic: GameMode.Standard,
-    capture: GameMode.Capture,
-    speed: GameMode.Speed,
-    base: GameMode.Base,
-    hidden: GameMode.Hidden,
-    missile: GameMode.Missile,
-    mix: GameMode.Mix,
+type StageClearReward = SinglePlayerStageInfo['rewards']['firstClear'];
+
+const StageClearRewardPreview: React.FC<{
+    reward: StageClearReward;
+    claimed: boolean;
+    tabShelf: boolean;
+    isMobile: boolean;
+    usePremiumDesktop: boolean;
+}> = ({ reward, claimed, tabShelf, isMobile, usePremiumDesktop }) => {
+    const { t } = useTranslation(['lobby', 'common']);
+    const textClass = claimed
+        ? 'text-stone-400/90'
+        : 'text-amber-200/95';
+    const iconClass = claimed ? 'opacity-55 grayscale' : '';
+    const textSize = tabShelf
+        ? 'text-[9px]'
+        : isMobile
+          ? 'text-[10px]'
+          : usePremiumDesktop
+            ? 'text-[10px]'
+            : 'text-[11px]';
+    const iconSize = tabShelf ? 'h-3 w-3' : 'h-3.5 w-3.5';
+
+    const hasGold = reward.gold > 0;
+    const hasExp = reward.exp > 0;
+    const hasItems = Array.isArray(reward.items) && reward.items.length > 0;
+    const hasBonus = typeof reward.bonus === 'string' && reward.bonus.length > 0;
+
+    if (!hasGold && !hasExp && !hasItems && !hasBonus) {
+        return (
+            <div className={`truncate text-center font-semibold ${textClass} ${textSize}`}>
+                —
+            </div>
+        );
+    }
+
+    return (
+        <div
+            className={`flex w-full flex-wrap items-center justify-center gap-1 overflow-hidden font-semibold ${textClass} ${textSize}`}
+        >
+            {hasGold && (
+                <span className="inline-flex min-w-0 items-center gap-0.5">
+                    <img
+                        src="/images/icon/Gold.webp"
+                        alt={t('common:resources.gold')}
+                        className={`${iconSize} ${iconClass}`}
+                    />
+                    <span className="truncate">+{reward.gold}</span>
+                </span>
+            )}
+            {hasExp && <span className="truncate">+{reward.exp} XP</span>}
+            {hasItems &&
+                reward.items!.slice(0, 3).map((item, idx) => {
+                    const itemTemplate = CONSUMABLE_ITEMS.find((i) => i.name === item.itemId);
+                    return itemTemplate ? (
+                        <span key={`${item.itemId}-${idx}`} className="inline-flex min-w-0 items-center gap-0.5">
+                            <img
+                                src={itemTemplate.image}
+                                alt={item.itemId}
+                                className={`${iconSize} ${iconClass}`}
+                                title={item.itemId}
+                            />
+                            <span className="truncate">x{item.quantity}</span>
+                        </span>
+                    ) : null;
+                })}
+            {hasItems && reward.items!.length > 3 && <span>…</span>}
+            {hasBonus && <span className="truncate">{reward.bonus}</span>}
+        </div>
+    );
 };
 
 /** 싱글플레이 스테이지 입장: 앰버 메탈 + 글로우 (PC·모바일 공통) */
@@ -55,10 +112,14 @@ interface StageGridProps {
     mobileTabShelf?: boolean;
 }
 
-const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compact = false, mobileTabShelf = false }) => {
+const StageGrid: React.FC<StageGridProps> = ({
+    selectedClass,
+    currentUser,
+    compact = false,
+    mobileTabShelf = false,
+}) => {
     const { t } = useTranslation(['lobby', 'common', 'profile']);
     const { handlers, singlePlayerStagesListRevision } = useAppContext();
-    const [rewardsModalOpen, setRewardsModalOpen] = useState(false);
 
     // 선택된 단계의 스테이지들 필터링
     const stages = useMemo(() => {
@@ -112,15 +173,6 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
         return !isSinglePlayerStageUnlocked(getSinglePlayerStages(), progress, stage.id);
     };
 
-    const getStageGameModeName = (stage: typeof stages[0]): string => {
-        const preset = inferSinglePlayerStrategicRulePreset(stage);
-        if (preset === 'survival') {
-            return t('singleplayer.rulePresets.survival');
-        }
-        const mode = PRESET_TO_GAME_MODE[preset];
-        return mode ? translateGameMode(mode) : translateGameMode(GameMode.Standard);
-    };
-
     const isMobile = compact;
     const tabShelf = isMobile && mobileTabShelf;
     /** PC 바둑학원 대기실: 스테이지 맵을 더 읽기 쉽게 */
@@ -137,29 +189,15 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
             } ${tabShelf ? 'p-1.5' : isMobile ? 'p-2.5' : usePremiumDesktop ? 'p-4 sm:p-5' : 'p-4'}`}
         >
             <div
-                className={`flex flex-shrink-0 items-start justify-between gap-1.5 border-b border-color ${tabShelf ? 'mb-1 pb-0.5' : isMobile ? 'mb-2 pb-1' : 'mb-4 pb-2'}`}
+                className={`flex flex-shrink-0 border-b border-color ${tabShelf ? 'mb-1 pb-0.5' : isMobile ? 'mb-2 pb-1' : 'mb-4 pb-2'}`}
             >
                 <h2
                     className={`font-bold text-on-panel min-w-0 flex-1 leading-tight ${tabShelf ? 'text-base' : isMobile ? 'text-lg' : 'text-xl'}`}
                 >
                     {t('singleplayer.stageListTitle', { classLabel })}
                 </h2>
-                <button
-                    type="button"
-                    onClick={() => setRewardsModalOpen(true)}
-                    className={`flex-shrink-0 rounded-md border border-amber-400/45 bg-gradient-to-b from-amber-500/25 via-amber-900/35 to-amber-950/50 font-bold text-amber-100 shadow-[0_2px_12px_rgba(245,158,11,0.25),inset_0_1px_0_rgba(255,255,255,0.12)] hover:brightness-110 active:scale-[0.98] transition-all sm:rounded-lg ${tabShelf ? 'px-1.5 py-0.5 text-[10px]' : isMobile ? 'px-2 py-1 text-xs' : 'px-2 py-1 text-xs sm:px-2.5 sm:py-1.5 sm:text-sm'}`}
-                    aria-label={t('singleplayer.openRewardsTableAria')}
-                >
-                    {t('singleplayer.rewardsTable')}
-                </button>
             </div>
 
-            <SinglePlayerRewardsModal
-                open={rewardsModalOpen}
-                onClose={() => setRewardsModalOpen(false)}
-                initialClass={selectedClass}
-            />
-            
             <div
                 className={`min-h-0 flex-1 overflow-y-auto overscroll-contain pb-1.5 pr-0.5 pt-1.5 pl-1.5 -mr-0.5 ${tabShelf ? '' : isMobile ? 'sm:pt-2 sm:pl-2' : 'sm:pt-2.5 sm:pl-2.5'}`}
             >
@@ -182,12 +220,6 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                         const isCleared = isStageCleared(stage.id);
                         const isLocked = isStageLocked(index);
                         const stageNumber = parseInt(stage.id.split('-')[1]);
-                        const gameModeName = getStageGameModeName(stage);
-                        const stagePreset = inferSinglePlayerStrategicRulePreset(stage);
-                        const mixedModeLabels =
-                            stagePreset === 'mix'
-                                ? resolveSinglePlayerMixedModes(stage).map((mode) => translateGameMode(mode))
-                                : [];
                         const effectiveActionPointCost = isCleared ? 0 : stage.actionPointCost;
                         const hasEnoughAP = currentUser.actionPoints.current >= effectiveActionPointCost;
 
@@ -263,37 +295,22 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                                 <div className="mb-1.5 w-full">
                                     <div
                                         className={`shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${
-                                            usePremiumDesktop
-                                                ? 'rounded-full border border-amber-400/40 bg-black/35 px-2.5 py-1'
-                                                : 'rounded-md border border-amber-500/35 bg-gradient-to-b from-gray-700/85 to-gray-800/90 px-2 py-1'
+                                            isCleared
+                                                ? usePremiumDesktop
+                                                    ? 'rounded-full border border-stone-600/45 bg-black/30 px-2.5 py-1'
+                                                    : 'rounded-md border border-stone-600/40 bg-gradient-to-b from-stone-800/70 to-stone-900/80 px-2 py-1'
+                                                : usePremiumDesktop
+                                                  ? 'rounded-full border border-amber-400/40 bg-black/35 px-2.5 py-1'
+                                                  : 'rounded-md border border-amber-500/35 bg-gradient-to-b from-gray-700/85 to-gray-800/90 px-2 py-1'
                                         }`}
                                     >
-                                        {stagePreset === 'mix' ? (
-                                            <div className="flex flex-wrap items-center justify-center gap-1">
-                                                {mixedModeLabels.map((label, i) => (
-                                                    <span
-                                                        key={`${stage.id}-mix-mode-${i}-${label}`}
-                                                        className={`inline-flex items-center justify-center rounded-sm border border-amber-300/45 bg-black/35 px-1 py-0.5 font-semibold text-amber-100/95 ${
-                                                            tabShelf
-                                                                ? 'text-[9px]'
-                                                                : isMobile
-                                                                  ? 'text-[10px]'
-                                                                  : usePremiumDesktop
-                                                                    ? 'text-[10px]'
-                                                                    : 'text-[11px]'
-                                                        }`}
-                                                    >
-                                                        {label}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <div
-                                                className={`truncate text-center font-semibold tracking-tight text-amber-100/95 ${tabShelf ? 'text-[11px]' : isMobile ? 'text-xs' : usePremiumDesktop ? 'text-[11px]' : 'text-xs sm:text-sm'}`}
-                                            >
-                                                {gameModeName}
-                                            </div>
-                                        )}
+                                        <StageClearRewardPreview
+                                            reward={stage.rewards.firstClear}
+                                            claimed={isCleared}
+                                            tabShelf={tabShelf}
+                                            isMobile={isMobile}
+                                            usePremiumDesktop={usePremiumDesktop}
+                                        />
                                     </div>
                                 </div>
 
@@ -302,46 +319,6 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                                         className={`mb-0.5 font-semibold text-green-400 ${tabShelf ? 'text-[9px]' : isMobile ? 'text-xs' : 'text-[10px]'}`}
                                     >
                                         {t('singleplayer.cleared')}
-                                    </div>
-                                )}
-
-                                {/* 최초 클리어 보상만 표시(이미 클리어한 스테이지는 재클리어 보상 없음) */}
-                                {!isCleared && (
-                                    <div className={`mb-1 w-full min-w-0 ${tabShelf ? 'mb-0.5' : ''}`}>
-                                        <div
-                                            className={`flex w-full items-center justify-center gap-1 overflow-hidden whitespace-nowrap font-semibold text-amber-200/95 ${tabShelf ? 'text-[9px]' : 'text-[clamp(8px,0.65vw,13px)]'}`}
-                                        >
-                                            {stage.rewards.firstClear.gold > 0 && (
-                                                <span className="flex min-w-0 items-center gap-0.5">
-                                                    <img
-                                                        src="/images/icon/Gold.webp"
-                                                        alt={t('common:resources.gold')}
-                                                        className={tabShelf ? 'h-3 w-3' : 'h-3.5 w-3.5'}
-                                                    />
-                                                    <span className="truncate">+{stage.rewards.firstClear.gold}</span>
-                                                </span>
-                                            )}
-                                            {stage.rewards.firstClear.exp > 0 && (
-                                                <span className="truncate">+{stage.rewards.firstClear.exp} XP</span>
-                                            )}
-                                            {stage.rewards.firstClear.items && stage.rewards.firstClear.items.length > 0 && (
-                                                <span className="flex min-w-0 items-center gap-0.5">
-                                                    {stage.rewards.firstClear.items.slice(0, 3).map((item, idx) => {
-                                                        const itemTemplate = CONSUMABLE_ITEMS.find((i) => i.name === item.itemId);
-                                                        return itemTemplate ? (
-                                                            <img
-                                                                key={idx}
-                                                                src={itemTemplate.image}
-                                                                alt={item.itemId}
-                                                                className={tabShelf ? 'h-3 w-3' : 'h-3.5 w-3.5'}
-                                                                title={item.itemId}
-                                                            />
-                                                        ) : null;
-                                                    })}
-                                                    {stage.rewards.firstClear.items.length > 3 && <span>…</span>}
-                                                </span>
-                                            )}
-                                        </div>
                                     </div>
                                 )}
 

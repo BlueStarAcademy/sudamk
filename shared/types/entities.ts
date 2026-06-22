@@ -1621,6 +1621,10 @@ export type LiveGameSession = {
   singlePlayerPlacementRefreshesUsed?: number;
   /** 이번 대국 입장 시 차감된 행동력(재도전 라벨·클라 stale 보정용). 0이면 재도전도 무료로 표시 */
   singlePlayerStartActionPointCost?: number;
+  /** 인게임(`playing`) 진입 시 행동력 차감 완료 여부 */
+  actionPointsChargedAtStart?: boolean;
+  /** PVE 승리 정산 시 행동력 차감 완료 여부 (학원·탑) */
+  actionPointsChargedOnVictory?: boolean;
   totalTurns?: number; // 총 턴 수 (유저 + AI 합산), 자동 계가 트리거용
   /** 페어 휴먼 PVP: 팀원 기권 동의 대기(요청자·응답자·턴 키) */
   pairTeamResignRequest?: {

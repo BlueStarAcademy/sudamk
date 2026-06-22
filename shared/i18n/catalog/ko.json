@@ -1863,9 +1863,78 @@
       "editStage": "스테이지 편집",
       "editOrder": "순서 편집",
       "cancel": "취소",
+      "exit": "나가기",
       "start": "시작하기",
       "singleStage": "싱글 스테이지",
-      "masterClass": "유단자"
+      "masterClass": "유단자",
+      "goalSection": "목표",
+      "goalTurnCaption": "제한턴",
+      "goalTurnUnit": "턴",
+      "goalMySide": "나",
+      "goalOpponentSide": "상대",
+      "goalCaptureUnit": "따내기",
+      "goalSurvivalTurnCaption": "기간",
+      "goalSurvivalBlockCaption": "백 막기",
+      "goalSurvivalPointUnit": "점",
+      "turnLimit": "제한턴 : {{count}}턴",
+      "autoScoringGoal": "{{count}}턴 후 자동 계가",
+      "myCaptureGoal": "나 {{count}}개 따내기",
+      "opponentCaptureGoal": "상대 {{count}}개 따내기",
+      "vs": "vs",
+      "survivalGoal": "{{turns}}턴 내 백 {{target}}점 막기",
+      "territoryGoal": "계가 승리",
+      "modeTypeTabs": "바둑 종류",
+      "modeGuideTitle": "게임 방법",
+      "modeGuide": {
+        "missile": {
+          "step1Title": "미사일 아이템",
+          "step1Body": "내 차례에 미사일 아이템 버튼을 누릅니다.",
+          "step1BodyItem": "이번 경기에 미사일 {{count}}개를 사용할 수 있습니다. 내 차례에 미사일 버튼을 누르세요.",
+          "step2Title": "돌 선택",
+          "step2Body": "이동할 내 돌을 선택합니다.",
+          "step3Title": "직선 이동",
+          "step3Body": "빈 칸 방향으로 돌을 밀어 형세를 바꿉니다."
+        },
+        "hidden": {
+          "step1Title": "히든 아이템",
+          "step1Body": "히든 버튼으로 상대에게 보이지 않는 수를 둡니다.",
+          "step1BodyItem": "히든 {{count}}개로 상대에게 보이지 않는 수를 둘 수 있습니다.",
+          "step2Title": "스캔 아이템",
+          "step2Body": "스캔 버튼으로 의심 구역의 히든을 찾습니다.",
+          "step2BodyItem": "스캔 {{count}}개로 의심 구역의 히든을 찾을 수 있습니다.",
+          "step3Title": "아이템 활용",
+          "step3Body": "히든·스캔은 한정 개수이므로 타이밍을 잘 골라 사용하세요."
+        },
+        "capture": {
+          "step1Title": "따내기 승리",
+          "step1Body": "목표 점수만큼 상대 돌을 먼저 따내면 승리합니다.",
+          "step2Title": "문양돌",
+          "step2Body": "문양돌을 따내면 2점으로 계산됩니다."
+        },
+        "speed": {
+          "step1Title": "시간 규칙",
+          "step1Body": "정해진 시간 안에 두지 않으면 상대에게 점수가 더해집니다.",
+          "step2Title": "계가",
+          "step2Body": "최종적으로 집과 시간 보너스를 합산해 승패가 결정됩니다."
+        },
+        "base": {
+          "step1Title": "베이스돌",
+          "step1Body": "베이스돌 배치를 보고 판세를 읽습니다.",
+          "step2Title": "덤 입찰",
+          "step2Body": "상대에게 줄 덤을 정하고 원하는 색·돌로 대국을 시작합니다."
+        },
+        "classic": {
+          "step1Title": "집 만들기",
+          "step1Body": "영역을 둘러 집을 만들고 상대보다 많은 집을 확보합니다.",
+          "step2Title": "계가",
+          "step2Body": "양쪽이 패스하면 계가로 승패가 결정됩니다."
+        },
+        "survival": {
+          "tab": "살리기 바둑",
+          "step1Title": "백 막기",
+          "step1Body": "정해진 턴 동안 백(상대)이 목표 점수를 달성하지 못하게 막습니다."
+        }
+      }
     },
     "towerShop": {
       "closeAria": "탑전용 아이템 구매 닫기",
@@ -2660,8 +2729,8 @@
       "classBarRewardNeedClear": "{{milestone}} 스테이지 클리어 필요",
       "classBarRewardAria": "{{milestone}}점 보상",
       "cleared": "클리어 완료",
-      "enterStage": "입장 ⚡{{cost}}",
-      "enterStageTitle": "입장 · 행동력 {{cost}}",
+      "enterStage": "승리 시 ⚡{{cost}}",
+      "enterStageTitle": "승리 시 행동력 {{cost}}",
       "locked": "잠김",
       "unlockRequired": "{{stageId}} 필요",
       "claimAll": "일괄 수령 ({{count}})",
@@ -3674,20 +3743,20 @@
       "remove_ads": "광고 제거"
     },
     "packageBenefits": {
-      "diamond_daily_50_350": "매일 우편으로 50다이아 지급 (총 350다이아)",
-      "diamond_daily_50_750": "매일 우편으로 50다이아 지급 (총 750다이아)",
-      "diamond_daily_50_1500": "매일 우편으로 50다이아 지급 (총 1500다이아)",
-      "diamond_instant_100": "즉시 100다이아 지급",
-      "diamond_instant_250": "즉시 250다이아 지급",
-      "diamond_instant_750": "즉시 750다이아 지급",
-      "equip_pkg1_boxes": "장비상자 V 1개",
-      "equip_pkg1_mat": "재료상자 VI 1개",
+      "diamond_daily_50_350": "매일 우편으로 100다이아 지급 (총 700다이아)",
+      "diamond_daily_50_750": "매일 우편으로 100다이아 지급 (총 1500다이아)",
+      "diamond_daily_50_1500": "매일 우편으로 100다이아 지급 (총 3000다이아)",
+      "diamond_instant_100": "즉시 200다이아 지급",
+      "diamond_instant_250": "즉시 500다이아 지급",
+      "diamond_instant_750": "즉시 1000다이아 지급",
+      "equip_pkg1_boxes": "장비상자 V 3개",
+      "equip_pkg1_mat": "재료상자 VI 3개",
       "equip_pkg1_bonus": "+ \"에픽 장비\" 확정지급",
-      "equip_pkg2_boxes": "장비상자 V 2개",
-      "equip_pkg2_mat": "재료상자 VI 2개",
+      "equip_pkg2_boxes": "장비상자 V 5개",
+      "equip_pkg2_mat": "재료상자 VI 5개",
       "equip_pkg2_bonus": "+ \"전설 장비\" 확정지급",
       "equip_pkg3_boxes": "장비상자 VI 2개",
-      "equip_pkg3_mat": "재료상자 VI 5개",
+      "equip_pkg3_mat": "재료상자 VI 10개",
       "equip_pkg3_bonus": "+ \"신화 장비\" 확정지급",
       "remove_ads_1": "로비·대국 등 게임 내 배너·전면 광고 비표시",
       "remove_ads_2": "상점 보상형 광고 없이 동일 보상 수령(일일 한도 유지)"

@@ -232,7 +232,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({
         const baseRetryApCost = stage?.actionPointCost ?? 0;
         const baseNextFloorApCost = nextStageForEnded?.actionPointCost ?? 0;
         const inferredRetryApCost = isFloorCleared || isWinner ? 0 : baseRetryApCost;
-        // 이미 클리어한 층은 재도전 무료(⚡0). 입장 차감값은 미클리어일 때만 표시(할인·stale 보정).
+        // 이미 클리어한 층은 재도전 무료(⚡0). 미클리어 층은 승리 시에만 행동력 차감.
         const effectiveRetryApCost =
             inferredRetryApCost === 0
                 ? 0

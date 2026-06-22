@@ -1,6 +1,6 @@
 import { ItemGrade } from '../types/enums.js';
 
-/** 유료 패키지(상점 패키지 탭) — 서버·클라이언트 공통 */
+/** 유료 패키지(상점) — 서버·클라이언트 공통 */
 export const CASH_SHOP_DIAMOND_PACKAGE_IDS = ['diamond_package_1', 'diamond_package_2', 'diamond_package_3'] as const;
 export type CashShopDiamondPackageId = (typeof CASH_SHOP_DIAMOND_PACKAGE_IDS)[number];
 
@@ -35,12 +35,12 @@ export const DIAMOND_PACKAGE_DURATION_DAYS: Record<CashShopDiamondPackageId, num
 };
 
 export const DIAMOND_PACKAGE_INSTANT_DIAMONDS: Record<CashShopDiamondPackageId, number> = {
-    diamond_package_1: 100,
-    diamond_package_2: 250,
-    diamond_package_3: 750,
+    diamond_package_1: 200,
+    diamond_package_2: 500,
+    diamond_package_3: 1000,
 };
 
-export const DIAMOND_PACKAGE_DAILY_MAIL_DIAMONDS = 50;
+export const DIAMOND_PACKAGE_DAILY_MAIL_DIAMONDS = 100;
 
 export const DIAMOND_PACKAGE_TIER_ROMAN: Record<CashShopDiamondPackageId, 'I' | 'II' | 'III'> = {
     diamond_package_1: 'I',

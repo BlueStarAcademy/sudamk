@@ -44,11 +44,11 @@ interface ShopModalProps {
     onClose: () => void;
     onAction: (action: ServerAction) => Promise<unknown> | unknown;
     isTopmost?: boolean;
-    initialTab?: ShopTab;
+    initialTab?: ShopTab | 'misc';
     embedded?: boolean;
 }
 
-type ShopTab = 'equipment' | 'materials' | 'consumables' | 'diamonds' | 'misc' | 'vip';
+type ShopTab = 'equipment' | 'materials' | 'consumables' | 'diamonds' | 'vip';
 
 interface PurchasableItem {
     itemId: string;
@@ -96,10 +96,8 @@ const SHOP_DIAMOND_ICON = '/images/icon/Zem.webp';
 
 /** 현금 다이아 탭 — 합계는 그대로, “더 주는” 느낌으로 구간만 시각 분할 */
 function getCashDiamondShopSegments(total: number): readonly [number, number] | null {
-    if (total === 200) return [150, 50] as const;
-    if (total === 500) return [350, 150] as const;
-    if (total === 1000) return [500, 500] as const;
-    if (total === 2000) return [750, 1250] as const;
+    if (total === 1250) return [1000, 250] as const;
+    if (total === 3000) return [2000, 1000] as const;
     return null;
 }
 
@@ -117,6 +115,25 @@ type ShopAdRewardTab = 'equipment' | 'materials' | 'consumables' | 'diamonds';
 
 /** 서버 `CLAIM_SHOP_AD_REWARD`와 동일 — 탭별 일 3회 */
 const SHOP_AD_TAB_DAILY_LIMIT = 3;
+
+/** 장비·다이아 탭 — 일반 상품과 패키지 상품 구분 */
+const ShopPackageSectionDivider: React.FC<{ label: string; mobile?: boolean }> = ({ label, mobile = false }) => (
+    <div
+        role="separator"
+        aria-label={label}
+        className={`flex w-full min-w-0 items-center gap-2 ${mobile ? 'my-2' : 'my-3'}`}
+    >
+        <div className="h-px min-w-0 flex-1 bg-gradient-to-r from-transparent via-violet-400/35 to-violet-400/10" />
+        <span
+            className={`shrink-0 rounded-full border border-violet-400/30 bg-violet-950/45 px-2 py-0.5 font-semibold text-violet-100/90 ${
+                mobile ? 'text-[10px]' : 'text-xs'
+            }`}
+        >
+            {label}
+        </span>
+        <div className="h-px min-w-0 flex-1 bg-gradient-to-l from-transparent via-violet-400/35 to-violet-400/10" />
+    </div>
+);
 
 function getShopAdTabClaimsToday(user: UserWithStatus, tab: ShopAdRewardTab, nowMs: number): number {
     const rec = user.dailyShopPurchases?.[`ad_reward_${tab}`];
@@ -485,28 +502,48 @@ const PackageBoxRowVisual: React.FC<{
             ? 'h-6 w-6 shrink-0'
             : 'h-8 w-8 min-[380px]:h-9 min-[380px]:w-9 sm:h-10 sm:w-10'
         : 'h-12 w-12 sm:h-14 sm:w-14';
+    /** 장비상자 패키지: 좁은 카드에서 두 상자+보너스 등급 박스가 한 줄에 들어가도록 축소 */
+    const equipmentPkgImgClass = compact
+        ? dn
+            ? 'h-5 w-5 shrink-0'
+            : 'h-7 w-7 min-[380px]:h-8 min-[380px]:w-8 sm:h-9 sm:w-9'
+        : 'h-9 w-9 sm:h-10 sm:w-10';
+    const resolvedImgClass = equipmentBonusGradeWord ? equipmentPkgImgClass : imgClass;
     const boxDisplayNameClass = compact
         ? dn
             ? 'text-[7px] leading-none tracking-tight'
             : 'text-[9px] leading-none tracking-tight min-[380px]:text-[10px] sm:text-[11px]'
         : 'text-[10px] leading-none sm:text-xs';
+    const equipmentPkgBoxDisplayNameClass = compact
+        ? dn
+            ? 'whitespace-nowrap text-[7px] leading-none tracking-tight'
+            : 'whitespace-nowrap text-[9px] leading-none tracking-tight min-[380px]:text-[10px] sm:text-[11px]'
+        : 'whitespace-nowrap text-[10px] leading-none sm:text-xs';
+    const resolvedBoxDisplayNameClass = equipmentBonusGradeWord ? equipmentPkgBoxDisplayNameClass : boxDisplayNameClass;
     const gapClass = compact ? (dn ? 'gap-x-0.5 gap-y-0.5 py-0.5' : 'gap-x-1 gap-y-1 py-1 sm:gap-x-2') : 'gap-x-3 gap-y-1.5 py-1.5 sm:gap-x-5 sm:py-2';
+    const equipmentPkgGapClass = compact
+        ? dn
+            ? 'gap-x-0 gap-y-0.5 py-0.5'
+            : 'gap-x-0.5 gap-y-0.5 py-0.5 sm:gap-x-1'
+        : 'gap-x-1 gap-y-1 py-1 sm:gap-x-1.5 sm:py-1';
+    const resolvedGapClass = equipmentBonusGradeWord ? equipmentPkgGapClass : gapClass;
     const padClass = compact ? (dn ? 'p-0' : 'p-0.5') : 'p-1';
     const plusClass = compact
         ? dn
             ? 'text-xs font-semibold text-slate-400/85'
             : 'text-base font-bold text-slate-400 min-[380px]:text-lg'
         : 'text-lg font-semibold text-slate-400/90 sm:text-xl';
-    const boxGroupClass = compact
+    const equipmentPkgBoxGroupClass = compact
         ? dn
-            ? 'flex min-h-0 min-w-0 max-w-[56%] flex-1 flex-col justify-center rounded border border-indigo-500/20 bg-indigo-950/15 px-0 py-0.5'
-            : 'flex min-h-0 min-w-0 max-w-[54%] flex-1 flex-col justify-center rounded-md border border-indigo-500/25 bg-indigo-950/20 px-0.5 py-1 min-[380px]:max-w-[52%]'
-        : 'flex min-h-0 min-w-0 max-w-[48%] flex-1 flex-col justify-center rounded-lg border border-indigo-500/30 bg-indigo-950/25 px-1.5 py-1.5 sm:max-w-[46%] sm:px-2 sm:py-2';
-    const bonusGroupClass = compact
+            ? 'flex min-h-0 min-w-0 flex-[1.7] flex-col justify-center rounded border border-indigo-500/20 bg-indigo-950/15 px-0.5 py-0.5'
+            : 'flex min-h-0 min-w-0 flex-[1.7] flex-col justify-center rounded-md border border-indigo-500/25 bg-indigo-950/20 px-1 py-0.5 sm:px-1.5 sm:py-1'
+        : 'flex min-h-0 min-w-0 flex-[1.7] flex-col justify-center rounded-lg border border-indigo-500/30 bg-indigo-950/25 px-1.5 py-1 sm:px-2 sm:py-1.5';
+    /** 에픽/전설/신화 확정 지급 박스 — 가로폭 축소(상자명 공간 확보) */
+    const equipmentPkgBonusGroupClass = compact
         ? dn
-            ? 'flex min-w-0 max-w-[48%] shrink-0 flex-col items-center justify-center gap-0 rounded border border-emerald-500/25 bg-emerald-950/20 px-0.5 py-0.5'
-            : 'flex min-w-0 max-w-[52%] shrink-0 flex-col items-center justify-center gap-0.5 rounded-md border border-emerald-500/30 bg-emerald-950/25 px-1 py-1 min-[380px]:max-w-[50%]'
-        : 'flex min-w-[6rem] max-w-[46%] shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-emerald-500/30 bg-emerald-950/25 px-2 py-1.5 sm:min-w-[6.75rem] sm:max-w-[44%] sm:px-2.5 sm:py-2';
+            ? 'flex w-[3.35rem] shrink-0 flex-col items-center justify-center gap-0 rounded border border-emerald-500/25 bg-emerald-950/20 px-0.5 py-0.5'
+            : 'flex w-[3.5rem] shrink-0 flex-col items-center justify-center gap-0 rounded-md border border-emerald-500/30 bg-emerald-950/25 px-0.5 py-0.5 sm:w-[3.65rem] sm:px-1 sm:py-1'
+        : 'flex w-[3.65rem] shrink-0 flex-col items-center justify-center gap-0 rounded-lg border border-emerald-500/30 bg-emerald-950/25 px-1 py-1 sm:w-[3.85rem] sm:px-1.5 sm:py-1.5';
     const bonusEquipmentLineBaseClass = compact
         ? dn
             ? 'block text-center text-[8px] font-extrabold leading-[1.05] tracking-tight'
@@ -520,20 +557,32 @@ const PackageBoxRowVisual: React.FC<{
 
     /** 장비 확정 지급 레이아웃은 좁은 카드에서도 두 상자가 세로로 줄바꿈되지 않도록 한 줄 유지 */
     const boxesFlexRowClass = equipmentBonusGradeWord ? 'flex-nowrap' : 'flex-wrap';
+    const equipmentPkgBoxItemClass = compact
+        ? dn
+            ? 'flex min-w-[3.35rem] shrink-0 flex-col items-center gap-0'
+            : 'flex min-w-[3.65rem] shrink-0 flex-col items-center gap-0 sm:min-w-[3.85rem]'
+        : 'flex min-w-[4.25rem] shrink-0 flex-col items-center gap-0.5 sm:min-w-[4.5rem]';
     const boxesGrid = (
-        <div className={`flex ${boxesFlexRowClass} items-end justify-center ${gapClass}`}>
+        <div className={`flex ${boxesFlexRowClass} items-end justify-center ${resolvedGapClass}`}>
             {boxes.map((b, i) => (
-                <div key={`${b.imageSrc}-${i}`} className={`flex shrink-0 flex-col items-center ${compact ? 'gap-0' : 'gap-0.5'}`}>
-                    <div className={`relative rounded-md bg-gradient-to-br from-indigo-500/20 to-slate-900/60 shadow-[0_0_20px_-6px_rgba(129,140,248,0.5)] ring-1 ring-indigo-400/25 ${padClass}`}>
+                <div
+                    key={`${b.imageSrc}-${i}`}
+                    className={
+                        equipmentBonusGradeWord
+                            ? equipmentPkgBoxItemClass
+                            : `flex shrink-0 flex-col items-center ${compact ? 'gap-0' : 'gap-0.5'}`
+                    }
+                >
+                    <div className={`relative overflow-hidden rounded-md bg-gradient-to-br from-indigo-500/20 to-slate-900/60 shadow-[0_0_20px_-6px_rgba(129,140,248,0.5)] ring-1 ring-indigo-400/25 ${padClass}`}>
                         <span
-                            className={`pointer-events-none absolute right-0 top-0 z-10 -translate-y-px translate-x-px ${qtyBadgeClass}`}
+                            className={`pointer-events-none absolute right-0 top-0 z-10 ${qtyBadgeClass}`}
                             aria-label={t('quantityAria', { count: b.quantity })}
                         >
                             ×{b.quantity}
                         </span>
-                        <img src={b.imageSrc} alt={b.alt} className={`${imgClass} object-contain`} />
+                        <img src={b.imageSrc} alt={b.alt} className={`${resolvedImgClass} object-contain`} />
                     </div>
-                    <span className={`whitespace-nowrap text-center font-semibold text-violet-100/90 ${boxDisplayNameClass}`} title={b.displayName}>
+                    <span className={`text-center font-semibold text-violet-100/90 ${resolvedBoxDisplayNameClass}`} title={b.displayName}>
                         {b.displayName}
                     </span>
                 </div>
@@ -548,13 +597,13 @@ const PackageBoxRowVisual: React.FC<{
         return (
             <div
                 className={`flex w-full min-w-0 items-stretch justify-center ${
-                    !compact ? 'gap-1.5 py-1 sm:gap-2' : dn ? 'gap-0 py-0' : 'gap-0.5 py-0.5 sm:gap-1'
+                    !compact ? 'gap-1 py-1 sm:gap-1.5' : dn ? 'gap-0 py-0' : 'gap-0.5 py-0.5 sm:gap-1'
                 }`}
             >
-                <div className={boxGroupClass}>{boxesGrid}</div>
+                <div className={equipmentPkgBoxGroupClass}>{boxesGrid}</div>
                 <span className={`flex shrink-0 items-center self-center ${plusClass}`}>+</span>
-                <div className={bonusGroupClass}>
-                    <div className="flex flex-col items-center justify-center gap-0" role="text" aria-label={`${gradeLabel} ${t('equipmentWord')}`}>
+                <div className={equipmentPkgBonusGroupClass}>
+                    <div className="flex w-full min-w-0 flex-col items-center justify-center gap-0 px-0.5" role="text" aria-label={`${gradeLabel} ${t('equipmentWord')}`}>
                         <span className={`${bonusEquipmentLineBaseClass} ${gradeColorClass}`}>{gradeLabel}</span>
                         <span className={`${bonusEquipmentLineBaseClass} text-emerald-100`}>{t('equipmentWord')}</span>
                     </div>
@@ -595,7 +644,8 @@ const MiscShopCard: React.FC<{
     const { t } = useTranslation('shop');
     const visual = product.packageVisual;
     const compact = threeColumn;
-    const denseNested = Boolean(compact && mobile);
+    /** 모바일 패키지는 2열 그리드 — 3열용 초소형(denseNested) 레이아웃 미사용 */
+    const denseNested = Boolean(compact && mobile && !threeColumn);
     const now = Date.now();
     const isDiamondPkg = (CASH_SHOP_DIAMOND_PACKAGE_IDS as readonly string[]).includes(product.id);
     const isEquipmentPkg = (CASH_SHOP_EQUIPMENT_PACKAGE_IDS as readonly string[]).includes(product.id);
@@ -692,7 +742,11 @@ const MiscShopCard: React.FC<{
                         denseNested ? 'rounded border-indigo-400/15 px-0 py-0.5' : compact ? 'rounded-md px-0.5 py-0.5' : 'rounded-lg px-2 py-1.5'
                     }`}
                 >
-                    <div className="flex min-h-0 flex-1 items-center justify-center">
+                    <div
+                        className={`flex min-h-0 flex-1 items-center justify-center px-0.5 ${
+                            isEquipmentPkg ? 'overflow-visible' : 'overflow-hidden'
+                        }`}
+                    >
                         <PackageBoxRowVisual
                             boxes={visual.boxes}
                             bonusLine={visual.bonusLine}
@@ -1028,7 +1082,9 @@ const ShopModal: React.FC<ShopModalProps> = ({
         return null;
     }
     
-    const [activeTab, setActiveTab] = useState<ShopTab>(initialTab || 'equipment');
+    const [activeTab, setActiveTab] = useState<ShopTab>(
+        initialTab === 'misc' ? 'diamonds' : (initialTab || 'equipment'),
+    );
     const [toastMessage, setToastMessage] = useState<string | null>(null);
     const [purchasingItem, setPurchasingItem] = useState<PurchasableItem | null>(null);
     const [pendingConsent, setPendingConsent] = useState<PurchaseConsentTarget | null>(null);
@@ -1065,12 +1121,16 @@ const ShopModal: React.FC<ShopModalProps> = ({
     }, [toastMessage]);
 
     useEffect(() => {
-        if (initialTab) setActiveTab(initialTab);
+        if (initialTab) setActiveTab(initialTab === 'misc' ? 'diamonds' : initialTab);
     }, [initialTab]);
 
     const gridClassName = mobileShop
         ? 'grid grid-cols-2 gap-1.5 min-[390px]:grid-cols-3 min-[390px]:gap-2 items-stretch [&>*]:min-h-0'
         : 'grid grid-cols-4 gap-3 items-stretch [&>*]:min-h-0';
+    /** 장비·다이아 패키지 — PC 3열, 모바일 2열 */
+    const packageProductsGridClassName = mobileShop
+        ? 'grid grid-cols-2 gap-1.5 min-[390px]:gap-2 items-stretch [&>*]:min-h-0 [&>*]:min-w-0'
+        : 'grid grid-cols-3 gap-2 sm:gap-3 items-stretch [&>*]:min-h-0 [&>*]:min-w-0';
     const materialItems = [
         withShopItemText('material_box_1', { price: { gold: 500 }, image: "/images/Box/ResourceBox1.webp", type: 'material' as const }),
         withShopItemText('material_box_2', { price: { gold: 1000 }, image: "/images/Box/ResourceBox2.webp", type: 'material' as const }),
@@ -1118,35 +1178,37 @@ const ShopModal: React.FC<ShopModalProps> = ({
             benefits: [t('vipProducts.vvip.benefits.0')],
         },
     ], [t]);
-    const miscProducts: MiscShopProduct[] = [
+    const diamondPackageProducts: MiscShopProduct[] = useMemo(() => [
         {
             id: 'diamond_package_1',
             name: t('packages.diamond_package_1'),
             duration: t('duration7Days'),
-            priceKRW: 4900,
+            priceKRW: 10900,
             benefits: [t('packageBenefits.diamond_daily_50_350'), t('packageBenefits.diamond_instant_100')],
-            packageVisual: { type: 'diamond_combo', dailyPerMail: 50, durationDays: 7, instantDiamonds: 100 },
+            packageVisual: { type: 'diamond_combo', dailyPerMail: 100, durationDays: 7, instantDiamonds: 200 },
         },
         {
             id: 'diamond_package_2',
             name: t('packages.diamond_package_2'),
             duration: t('duration15Days'),
-            priceKRW: 7900,
+            priceKRW: 19900,
             benefits: [t('packageBenefits.diamond_daily_50_750'), t('packageBenefits.diamond_instant_250')],
-            packageVisual: { type: 'diamond_combo', dailyPerMail: 50, durationDays: 15, instantDiamonds: 250 },
+            packageVisual: { type: 'diamond_combo', dailyPerMail: 100, durationDays: 15, instantDiamonds: 500 },
         },
         {
             id: 'diamond_package_3',
             name: t('packages.diamond_package_3'),
             duration: t('duration30Days'),
-            priceKRW: 12900,
+            priceKRW: 29900,
             benefits: [t('packageBenefits.diamond_daily_50_1500'), t('packageBenefits.diamond_instant_750')],
-            packageVisual: { type: 'diamond_combo', dailyPerMail: 50, durationDays: 30, instantDiamonds: 750 },
+            packageVisual: { type: 'diamond_combo', dailyPerMail: 100, durationDays: 30, instantDiamonds: 1000 },
         },
+    ], [t]);
+    const equipmentPackageProducts: MiscShopProduct[] = useMemo(() => [
         {
             id: 'equipment_package_1',
             name: t('packages.equipment_package_1'),
-            priceKRW: 2900,
+            priceKRW: 10900,
             benefits: [t('packageBenefits.equip_pkg1_boxes'), t('packageBenefits.equip_pkg1_mat'), t('packageBenefits.equip_pkg1_bonus')],
             packageVisual: {
                 type: 'box_row',
@@ -1154,13 +1216,13 @@ const ShopModal: React.FC<ShopModalProps> = ({
                 boxes: [
                     {
                         imageSrc: '/images/Box/EquipmentBox5.webp',
-                        quantity: 1,
+                        quantity: 3,
                         alt: t('boxNames.equipmentBox5'),
                         displayName: t('boxNames.equipmentBox5'),
                     },
                     {
                         imageSrc: '/images/Box/ResourceBox6.webp',
-                        quantity: 1,
+                        quantity: 3,
                         alt: t('boxNames.materialBox6'),
                         displayName: t('boxNames.materialBox6'),
                     },
@@ -1170,7 +1232,7 @@ const ShopModal: React.FC<ShopModalProps> = ({
         {
             id: 'equipment_package_2',
             name: t('packages.equipment_package_2'),
-            priceKRW: 4900,
+            priceKRW: 15900,
             benefits: [t('packageBenefits.equip_pkg2_boxes'), t('packageBenefits.equip_pkg2_mat'), t('packageBenefits.equip_pkg2_bonus')],
             packageVisual: {
                 type: 'box_row',
@@ -1178,13 +1240,13 @@ const ShopModal: React.FC<ShopModalProps> = ({
                 boxes: [
                     {
                         imageSrc: '/images/Box/EquipmentBox5.webp',
-                        quantity: 2,
+                        quantity: 5,
                         alt: t('boxNames.equipmentBox5'),
                         displayName: t('boxNames.equipmentBox5'),
                     },
                     {
                         imageSrc: '/images/Box/ResourceBox6.webp',
-                        quantity: 2,
+                        quantity: 5,
                         alt: t('boxNames.materialBox6'),
                         displayName: t('boxNames.materialBox6'),
                     },
@@ -1194,7 +1256,7 @@ const ShopModal: React.FC<ShopModalProps> = ({
         {
             id: 'equipment_package_3',
             name: t('packages.equipment_package_3'),
-            priceKRW: 7900,
+            priceKRW: 20900,
             benefits: [t('packageBenefits.equip_pkg3_boxes'), t('packageBenefits.equip_pkg3_mat'), t('packageBenefits.equip_pkg3_bonus')],
             packageVisual: {
                 type: 'box_row',
@@ -1208,30 +1270,28 @@ const ShopModal: React.FC<ShopModalProps> = ({
                     },
                     {
                         imageSrc: '/images/Box/ResourceBox6.webp',
-                        quantity: 5,
+                        quantity: 10,
                         alt: t('boxNames.materialBox6'),
                         displayName: t('boxNames.materialBox6'),
                     },
                 ],
             },
         },
-        {
+    ], [t]);
+    const removeAdsProduct: MiscShopProduct = useMemo(
+        () => ({
             id: CASH_SHOP_REMOVE_ADS_PACKAGE_ID,
             name: t('packages.remove_ads'),
-            priceKRW: 9900,
-            benefits: [
-                t('packageBenefits.remove_ads_1'),
-                t('packageBenefits.remove_ads_2'),
-            ],
+            priceKRW: 10900,
+            benefits: [t('packageBenefits.remove_ads_1'), t('packageBenefits.remove_ads_2')],
             packageVisual: { type: 'remove_ads_image', imageSrc: '/images/shop/remove_ads_package.svg' },
-        },
-    ];
+        }),
+        [t],
+    );
     const diamondProducts = [
-        { id: 'diamond_50', diamonds: 50, priceKRW: 1900 },
-        { id: 'diamond_200', diamonds: 200, priceKRW: 5900 },
-        { id: 'diamond_500', diamonds: 500, priceKRW: 12900 },
-        { id: 'diamond_1000', diamonds: 1000, priceKRW: 19900 },
-        { id: 'diamond_2000', diamonds: 2000, priceKRW: 29900 },
+        { id: 'diamond_500', diamonds: 500, priceKRW: 10900 },
+        { id: 'diamond_1250', diamonds: 1250, priceKRW: 21900 },
+        { id: 'diamond_3000', diamonds: 3000, priceKRW: 45900 },
     ] as const;
 
     const handleClaimShopAdReward = (tab: ShopAdRewardTab) => {
@@ -1379,26 +1439,43 @@ const ShopModal: React.FC<ShopModalProps> = ({
         switch (activeTab) {
             case 'equipment':
                 return (
-                    <div className={gridClassName}>
-                        <ShopAdRewardCard
-                            tab="equipment"
-                            rewardDescription={t('adRewardDescriptions.equipment')}
-                            claimableRemaining={getShopAdRemainingForTab(currentUser, 'equipment', Date.now())}
-                            onClaim={handleClaimShopAdReward}
-                            mobile={mobileShop}
-                            isClaimPending={shopAction.isAnyPending}
-                        />
-                        {equipmentItems.map(item => (
-                            <ShopItemCard
-                                key={item.itemId}
-                                item={item}
-                                onBuy={handleInitiatePurchase}
-                                currentUser={currentUser}
+                    <>
+                        <div className={gridClassName}>
+                            <ShopAdRewardCard
+                                tab="equipment"
+                                rewardDescription={t('adRewardDescriptions.equipment')}
+                                claimableRemaining={getShopAdRemainingForTab(currentUser, 'equipment', Date.now())}
+                                onClaim={handleClaimShopAdReward}
                                 mobile={mobileShop}
-                                isShopBusy={shopAction.isPending(`purchase-${item.itemId}`)}
+                                isClaimPending={shopAction.isAnyPending}
                             />
-                        ))}
-                    </div>
+                            {equipmentItems.map(item => (
+                                <ShopItemCard
+                                    key={item.itemId}
+                                    item={item}
+                                    onBuy={handleInitiatePurchase}
+                                    currentUser={currentUser}
+                                    mobile={mobileShop}
+                                    isShopBusy={shopAction.isPending(`purchase-${item.itemId}`)}
+                                />
+                            ))}
+                        </div>
+                        <ShopPackageSectionDivider label={t('tabs.package')} mobile={mobileShop} />
+                        <div className={packageProductsGridClassName}>
+                            {equipmentPackageProducts.map(product => (
+                                <MiscShopCard
+                                    key={product.id}
+                                    product={product}
+                                    mobile={mobileShop}
+                                    threeColumn
+                                    currentUser={currentUser}
+                                    onBuyCashPackage={handleBuyCashPackage}
+                                    setToastMessage={setToastMessage}
+                                    isPurchasePending={shopAction.isPending(`cash-package-${product.id}`)}
+                                />
+                            ))}
+                        </div>
+                    </>
                 );
             case 'materials':
                  return (
@@ -1425,45 +1502,41 @@ const ShopModal: React.FC<ShopModalProps> = ({
                 );
             case 'diamonds':
                 return (
-                    <div className={gridClassName}>
-                        <ShopAdRewardCard
-                            tab="diamonds"
-                            rewardDescription={t('adRewardDescriptions.diamonds')}
-                            claimableRemaining={getShopAdRemainingForTab(currentUser, 'diamonds', Date.now())}
-                            onClaim={handleClaimShopAdReward}
-                            mobile={mobileShop}
-                            isClaimPending={shopAction.isAnyPending}
-                        />
-                        {diamondProducts.map(product => (
-                            <DiamondShopCard
-                                key={product.id}
-                                product={product}
+                    <>
+                        <div className={gridClassName}>
+                            <ShopAdRewardCard
+                                tab="diamonds"
+                                rewardDescription={t('adRewardDescriptions.diamonds')}
+                                claimableRemaining={getShopAdRemainingForTab(currentUser, 'diamonds', Date.now())}
+                                onClaim={handleClaimShopAdReward}
                                 mobile={mobileShop}
-                                onCashPriceClick={() => setToastMessage(t('notImplemented'))}
+                                isClaimPending={shopAction.isAnyPending}
                             />
-                        ))}
-                    </div>
-                );
-            case 'misc':
-                return (
-                    <div
-                        className={`grid min-w-0 items-stretch [&>*]:min-h-0 [&>*]:min-w-0 ${
-                            mobileShop ? 'grid-cols-2 gap-1.5' : 'grid-cols-3 gap-1.5 min-[380px]:gap-2 sm:gap-2.5'
-                        }`}
-                    >
-                        {miscProducts.map(product => (
-                            <MiscShopCard
-                                key={product.id}
-                                product={product}
-                                mobile={mobileShop}
-                                threeColumn
-                                currentUser={currentUser}
-                                onBuyCashPackage={handleBuyCashPackage}
-                                setToastMessage={setToastMessage}
-                                isPurchasePending={shopAction.isPending(`cash-package-${product.id}`)}
-                            />
-                        ))}
-                    </div>
+                            {diamondProducts.map(product => (
+                                <DiamondShopCard
+                                    key={product.id}
+                                    product={product}
+                                    mobile={mobileShop}
+                                    onCashPriceClick={() => setToastMessage(t('notImplemented'))}
+                                />
+                            ))}
+                        </div>
+                        <ShopPackageSectionDivider label={t('tabs.package')} mobile={mobileShop} />
+                        <div className={packageProductsGridClassName}>
+                            {diamondPackageProducts.map(product => (
+                                <MiscShopCard
+                                    key={product.id}
+                                    product={product}
+                                    mobile={mobileShop}
+                                    threeColumn
+                                    currentUser={currentUser}
+                                    onBuyCashPackage={handleBuyCashPackage}
+                                    setToastMessage={setToastMessage}
+                                    isPurchasePending={shopAction.isPending(`cash-package-${product.id}`)}
+                                />
+                            ))}
+                        </div>
+                    </>
                 );
             case 'vip':
                 return (
@@ -1483,6 +1556,15 @@ const ShopModal: React.FC<ShopModalProps> = ({
                                 setToastMessage={setToastMessage}
                             />
                         ))}
+                        <MiscShopCard
+                            key={removeAdsProduct.id}
+                            product={removeAdsProduct}
+                            mobile={mobileShop}
+                            currentUser={currentUser}
+                            onBuyCashPackage={handleBuyCashPackage}
+                            setToastMessage={setToastMessage}
+                            isPurchasePending={shopAction.isPending(`cash-package-${removeAdsProduct.id}`)}
+                        />
                     </div>
                 );
             case 'consumables':
@@ -1563,7 +1645,6 @@ const ShopModal: React.FC<ShopModalProps> = ({
                         <button onClick={() => setActiveTab('materials')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'materials' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>{t('tabs.materials')}</button>
                         <button onClick={() => setActiveTab('consumables')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'consumables' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>{t('tabs.consumables')}</button>
                         <button onClick={() => setActiveTab('diamonds')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'diamonds' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>{t('tabs.diamonds')}</button>
-                        <button onClick={() => setActiveTab('misc')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'misc' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>{t('tabs.package')}</button>
                         <button onClick={() => setActiveTab('vip')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'vip' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>{t('tabs.vip')}</button>
                     </div>
 

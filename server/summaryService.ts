@@ -27,6 +27,7 @@ import * as mannerService from './mannerService.js';
 import { openEquipmentBox1, openGuildGradeBox, rollRandomEquipmentFromGradeWeights } from './shop.js';
 import * as effectService from './effectService.js';
 import { isPveAbandonForfeitGame } from './utils/pveAbandonOnDisconnect.js';
+import { chargeActionPointsOnPveVictory } from './utils/actionPointSpendTiming.js';
 import { randomUUID } from 'crypto';
 // FIX: Correctly import aiUser and getAiUser.
 import { aiUserId, getAiUser } from './aiPlayer.js';
@@ -273,6 +274,12 @@ const processSinglePlayerGameSummary = async (game: LiveGameSession) => {
     console.log(`[SP Summary] Stage ${stage.id} - isFirstClear: ${isFirstClear}, clearedStages: ${JSON.stringify(user.clearedSinglePlayerStages)}`);
 
     if (isWinner) {
+        const plannedApCost = Number((game as any).singlePlayerStartActionPointCost ?? 0);
+        const apChargedOnWin = await chargeActionPointsOnPveVictory(user, game, plannedApCost);
+        if (apChargedOnWin > 0) {
+            console.log(`[SP Summary] Charged ${apChargedOnWin} AP on victory for stage ${stage.id}`);
+        }
+
         // singlePlayerProgress는 순차 진행 여부를 추적 (다음 스테이지 언락용)
         const nextProgress = stageIndex + 1;
         if (currentProgress <= stageIndex) {
@@ -374,6 +381,9 @@ const processSinglePlayerGameSummary = async (game: LiveGameSession) => {
     // inventory는 크기가 클 수 있으므로 필요한 경우에만 포함
     const { broadcastUserUpdate } = await import('./socket.js');
     const fieldsToUpdate = ['clearedSinglePlayerStages', 'singlePlayerProgress', 'gold', 'userXp', 'userLevel'];
+    if (game.actionPointsChargedOnVictory) {
+        fieldsToUpdate.push('actionPoints', 'lastActionPointUpdate');
+    }
     if (grantedBonusStatPoints) {
         fieldsToUpdate.push('bonusStatPoints');
     }
@@ -429,6 +439,10 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
     };
     
     if (isWinner) {
+        const plannedTowerApCost = Number((game as any).towerStartActionPointCost ?? 0);
+        const towerApChargedOnWin = await chargeActionPointsOnPveVictory(user, game, plannedTowerApCost);
+        const paidTowerAttempt = towerApChargedOnWin > 0;
+
         // 클리어한 층 재도전 여부 확인
         const isCleared = floor <= userTowerFloor;
         const userMonthlyTowerFloor = (user as any).monthlyTowerFloor ?? 0;
@@ -499,8 +513,7 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
                 summary.items = [...(summary.items ?? []), ...grantedStageItems];
             }
 
-            // 도전의 탑 전용 아이템 랜덤 드랍: 최초 클리어이면서 이번 입장에 행동력이 실제 소모된 경기에서만(재도전 ⚡0 등 제외)
-            const paidTowerAttempt = Number((game as any).towerStartActionPointCost ?? 0) > 0;
+            // 도전의 탑 전용 아이템 랜덤 드랍: 승리 시 행동력이 실제 차감된 경기에서만(재도전 ⚡0 등 제외)
             if (!paidTowerAttempt) {
                 console.log(`[Tower Summary] Floor ${floor} - Skipping consumable item roll (no action point cost on this run)`);
             }
@@ -620,18 +633,23 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
         broadcastUserUpdate(user, ['towerFloor', 'monthlyTowerFloor']);
     }
     
-    // 보상이 있으면 즉시 저장하고 브로드캐스트 (지연 방지)
-    if (hasRewards) {
+    // 보상·AP 차감이 있으면 즉시 저장하고 브로드캐스트 (지연 방지)
+    if (hasRewards || game.actionPointsChargedOnVictory) {
         if (!towerFloorUpdated) {
             await db.updateUser(user);
         }
-        console.log(`[Tower Summary] User ${user.nickname} rewards saved immediately: gold=${user.gold}, xp=${user.userXp}, level=${user.userLevel}`);
+        if (hasRewards) {
+            console.log(`[Tower Summary] User ${user.nickname} rewards saved immediately: gold=${user.gold}, xp=${user.userXp}, level=${user.userLevel}`);
+        }
         
         // 사용자 업데이트를 즉시 브로드캐스트 (보상 지급 확인)
         const { broadcastUserUpdate } = await import('./socket.js');
         const fieldsToUpdate = ['gold', 'diamonds', 'userXp', 'userLevel', 'inventory'];
         if (!towerFloorUpdated) {
             fieldsToUpdate.push('towerFloor', 'monthlyTowerFloor');
+        }
+        if (game.actionPointsChargedOnVictory) {
+            fieldsToUpdate.push('actionPoints', 'lastActionPointUpdate');
         }
         broadcastUserUpdate(user, fieldsToUpdate);
     }
@@ -645,7 +663,7 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
         broadcastUserUpdate(user, ['userLevel', 'userXp']);
     }
     
-    if (!towerFloorUpdated && !hasRewards && !levelUpOccurred) {
+    if (!towerFloorUpdated && !hasRewards && !levelUpOccurred && !game.actionPointsChargedOnVictory) {
         console.log(`[Tower Summary] No changes to save for user ${user.nickname} (floor ${floor}, already cleared: ${floor <= userTowerFloor})`);
     }
 

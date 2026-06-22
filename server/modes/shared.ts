@@ -235,6 +235,19 @@ export const transitionToPlaying = (game: types.LiveGameSession, now: number) =>
         .catch((e: unknown) =>
             console.warn('[seedStrategicPetHintBonusPresetsForGame]', e instanceof Error ? e.message : e),
         );
+
+    void import('../utils/actionPointSpendTiming.js')
+        .then(async ({ chargeActionPointsOnInGameStart }) => {
+            const result = await chargeActionPointsOnInGameStart(game, now);
+            if (!result.charged) return;
+            const { broadcastUserUpdate } = await import('../socket.js');
+            for (const u of result.updatedUsers) {
+                broadcastUserUpdate(u, ['actionPoints', 'lastActionPointUpdate']);
+            }
+        })
+        .catch((e: unknown) =>
+            console.error('[transitionToPlaying] AP charge failed:', e instanceof Error ? e.message : e),
+        );
 };
 
 /** 흑·백 확정 후 본대국 진입 — 일색 바둑이면 표시 색 50% 랜덤(AI 즉시 시작, PVP는 돌 색 룰렛) */

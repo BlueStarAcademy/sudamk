@@ -14,7 +14,7 @@ import {
     isInvalidStrategicInitialStonePlacement,
 } from '../strategicInitialBoard.js';
 import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
-import { applyPassiveActionPointRegenToUser, recordActionPointSpend } from '../effectService.js';
+import { applyPassiveActionPointRegenToUser } from '../effectService.js';
 import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig } from '../../shared/constants/rewardConfig.js';
 import { updateQuestProgress } from '../questService.js';
 import {
@@ -402,10 +402,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 return { error: `액션 포인트가 부족합니다. (필요: ${effectiveActionPointCost})` };
             }
 
-            if (effectiveActionPointCost > 0) {
-                recordActionPointSpend(user, effectiveActionPointCost, now);
-            }
-            
+            // 행동력은 승리 정산 시 차감 (실패·이탈 시 미차감)
             // 게임 모드: strategicRulePreset이 있으면 우선, 없으면 기존 필드 조합 추론
             const gameMode: GameMode = resolveSinglePlayerStrategicGameMode(stage);
             const mixModes = gameMode === GameMode.Mix ? resolveSinglePlayerMixedModes(stage) : [];

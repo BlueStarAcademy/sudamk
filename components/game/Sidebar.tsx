@@ -38,6 +38,7 @@ import SinglePlayerGameDescriptionModal from '../SinglePlayerGameDescriptionModa
 import AiGameDescriptionModal from '../AiGameDescriptionModal.js';
 import { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from '../DraggableWindow.js';
 import { resolveLiveSessionSinglePlayerStageRow } from '../../shared/utils/liveSessionSinglePlayerStage.js';
+import { resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
 import { CHESS_GO_BOARD_SIZE } from '../../shared/utils/chessGoRules.js';
 import {
     arenaGameRoomAdminStripClass,
@@ -429,15 +430,25 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
     const chatMsgClass = drawerUi ? 'text-sm leading-snug' : 'text-base leading-snug';
     const { mode } = session;
     const { currentUserWithStatus, handlers, allUsers } = useAppContext();
+    const globalChatOnly = useMemo(
+        () => resolveArenaSessionPolicy(session).matchAxis === 'pve',
+        [session],
+    );
 
-    const [activeTab, setActiveTab] = useState<'game' | 'global'>('game');
+    const [activeTab, setActiveTab] = useState<'game' | 'global'>(() => (globalChatOnly ? 'global' : 'game'));
     const [chatInput, setChatInput] = useState('');
     const [showQuickChat, setShowQuickChat] = useState(false);
     const [cooldown, setCooldown] = useState(0);
     const quickChatRef = useRef<HTMLDivElement>(null);
     const chatBodyRef = useRef<HTMLDivElement>(null);
 
-    const activeChatMessages = activeTab === 'game' ? gameChat : waitingRoomChat;
+    useEffect(() => {
+        if (globalChatOnly && activeTab === 'game') {
+            setActiveTab('global');
+        }
+    }, [globalChatOnly, activeTab]);
+
+    const activeChatMessages = !globalChatOnly && activeTab === 'game' ? gameChat : waitingRoomChat;
     
     useEffect(() => { if (chatBodyRef.current) chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight; }, [activeChatMessages]);
 
@@ -475,7 +486,7 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
     const handleSend = (message: { text?: string, emoji?: string }) => {
         if(isSpectator || cooldown > 0) return;
         
-        const channel = activeTab === 'game' ? session.id : 'global';
+        const channel = !globalChatOnly && activeTab === 'game' ? session.id : 'global';
         const payload: any = { channel, ...message };
 
         if (channel === 'global') {
@@ -527,14 +538,18 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
     
     return (
         <div className={arenaGameRoomChatShellClass}>
-            <div className={`${arenaGameRoomChatTabBarClass} mb-2`}>
-                <button type="button" onClick={() => setActiveTab('game')} className={activeTab === 'game' ? tabActiveClass : tabInactiveClass}>
-                    {t('sidebar.gameRoom')}
-                </button>
-                <button type="button" onClick={() => setActiveTab('global')} className={activeTab === 'global' ? tabActiveClass : tabInactiveClass}>
-                    {t('sidebar.globalChat')}
-                </button>
-            </div>
+            {globalChatOnly ? (
+                <h3 className={`${arenaGameRoomPanelTitleClass} mb-2 flex-shrink-0`}>{t('sidebar.globalChat')}</h3>
+            ) : (
+                <div className={`${arenaGameRoomChatTabBarClass} mb-2`}>
+                    <button type="button" onClick={() => setActiveTab('game')} className={activeTab === 'game' ? tabActiveClass : tabInactiveClass}>
+                        {t('sidebar.gameRoom')}
+                    </button>
+                    <button type="button" onClick={() => setActiveTab('global')} className={activeTab === 'global' ? tabActiveClass : tabInactiveClass}>
+                        {t('sidebar.globalChat')}
+                    </button>
+                </div>
+            )}
             <div ref={chatBodyRef} className={arenaGameRoomChatBodyClass}>
                 <>
                         {activeChatMessages.map(msg => {

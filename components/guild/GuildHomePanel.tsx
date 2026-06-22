@@ -54,14 +54,29 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType; leftAction?: React.
     // 막대그래프는 출석 인원수 기준으로 채워지되, 최대 maxProgress까지만 표시
     const progressPercent = totalMembers > 0 ? Math.min((todaysCheckIns / totalMembers) * 100, 100) : 0;
 
+    const [checkInBusy, setCheckInBusy] = useState(false);
+
     const handleCheckIn = async () => {
-        const result = await handlers.handleAction({ type: 'GUILD_CHECK_IN' }) as any;
-        if (result?.error) {
-            console.error('[GuildCheckInPanel] Check-in failed:', result.error);
-            alert(result.error);
-        } else {
-            // 성공 시 길드 정보를 다시 가져옴
-            await handlers.handleAction({ type: 'GET_GUILD_INFO' });
+        if (hasCheckedInToday || checkInBusy) return;
+        setCheckInBusy(true);
+        try {
+            const result = (await handlers.handleAction({ type: 'GUILD_CHECK_IN' })) as {
+                error?: string;
+                alreadyCheckedIn?: boolean;
+                clientResponse?: { alreadyCheckedIn?: boolean; guilds?: Record<string, GuildType> };
+            } | null;
+            if (result?.error) {
+                console.warn('[GuildCheckInPanel] Check-in failed:', result.error);
+                await handlers.handleAction({ type: 'GET_GUILD_INFO' });
+                return;
+            }
+            const alreadyCheckedIn =
+                result?.alreadyCheckedIn === true || result?.clientResponse?.alreadyCheckedIn === true;
+            if (alreadyCheckedIn || !result?.clientResponse?.guilds) {
+                await handlers.handleAction({ type: 'GET_GUILD_INFO' });
+            }
+        } finally {
+            setCheckInBusy(false);
         }
     };
     
@@ -109,11 +124,11 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType; leftAction?: React.
                         {leftAction}
                         <Button 
                             onClick={handleCheckIn} 
-                            disabled={hasCheckedInToday} 
+                            disabled={hasCheckedInToday || checkInBusy} 
                             colorScheme="none"
                             className={`${hasCheckedInToday ? getLuxuryButtonClasses('gray') : getLuxuryButtonClasses('green')} !text-xs sm:!text-sm !py-1 sm:!py-2 !px-2 sm:!px-4`}
                         >
-                            {hasCheckedInToday ? t('checkIn.checkedIn') : t('checkIn.checkIn')}
+                            {checkInBusy ? t('checkIn.claiming') : hasCheckedInToday ? t('checkIn.checkedIn') : t('checkIn.checkIn')}
                         </Button>
                     </div>
                 </div>

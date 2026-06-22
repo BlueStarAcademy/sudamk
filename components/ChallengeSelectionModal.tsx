@@ -87,8 +87,11 @@ const GameCard: React.FC<{
 
     const noClick = isRejected || interactionLocked || comingSoon;
     return (
-        <div
-            className={`bg-panel text-on-panel flex flex-col items-center rounded-lg text-center transition-all transform ${
+        <button
+            type="button"
+            data-lobby-mode-card
+            disabled={noClick}
+            className={`bg-panel text-on-panel touch-manipulation flex w-full flex-col items-center rounded-lg text-center appearance-none border-0 outline-none transition-all transform active:scale-[0.98] ${
                 isRejected || comingSoon
                     ? 'opacity-50 cursor-not-allowed grayscale pointer-events-none' 
                     : interactionLocked && !isSelected
@@ -150,7 +153,7 @@ const GameCard: React.FC<{
             >
                 {mode}
             </h3>
-        </div>
+        </button>
     );
 };
 

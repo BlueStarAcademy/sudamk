@@ -5,6 +5,9 @@ import { aiUserId, scheduleAiTurnStartForFreshUi } from '../aiPlayer.js';
 import { ALKKAGI_PLACEMENT_TIME_LIMIT, ALKKAGI_SIMULTANEOUS_PLACEMENT_TIME_LIMIT, ALKKAGI_TURN_TIME_LIMIT, BATTLE_PLACEMENT_ZONES, PLAYFUL_MODE_FOUL_LIMIT } from '../../constants';
 import { endGame } from '../summaryService.js';
 import { findAlkkagiStoneById, nextAlkkagiStoneId } from '../../shared/utils/alkkagiStoneId.js';
+import { isAlkkagiPlacementValid } from '../../shared/utils/alkkagiPlacement.js';
+
+export { isAlkkagiPlacementValid as isPlacementValid };
 
 const ALKKAGI_AI_PLACEMENT_DELAY_MS = 1000;
 const ALKKAGI_AI_FIRST_ATTACK_DELAY_MS = 2000;
@@ -616,53 +619,6 @@ export const updateAlkkagiState = (game: types.LiveGameSession, now: number) => 
     }
 };
 
-export const isPlacementValid = (game: types.LiveGameSession, point: types.Point, player: types.Player): boolean => {
-    if (player === types.Player.None) return false;
-
-    const { settings } = game;
-    const boardSizePx = 840;
-    const stoneRadius = (840 / 19) * 0.47;
-    const { x: svgX, y: svgY } = point;
-
-    if (svgX < stoneRadius || svgX > boardSizePx - stoneRadius || svgY < stoneRadius || svgY > boardSizePx - stoneRadius) {
-        return false;
-    }
-
-    let inZone = false;
-    if (settings.alkkagiLayout === types.AlkkagiLayoutType.Battle) {
-        const zones = BATTLE_PLACEMENT_ZONES[player as keyof typeof BATTLE_PLACEMENT_ZONES];
-        inZone = zones.some(zone => {
-            const cellSize = boardSizePx / 19;
-            const padding = cellSize / 2;
-            const zoneXStart = padding + (zone.x - 0.5) * cellSize;
-            const zoneYStart = padding + (zone.y - 0.5) * cellSize;
-            const zoneXEnd = zoneXStart + zone.width * cellSize;
-            const zoneYEnd = zoneYStart + zone.height * cellSize;
-            return svgX >= zoneXStart && svgX <= zoneXEnd && svgY >= zoneYStart && svgY <= zoneYEnd;
-        });
-    } else {
-        const whiteZoneMinY = boardSizePx * 0.15;
-        const whiteZoneMaxY = boardSizePx * 0.35;
-        const blackZoneMinY = boardSizePx * 0.65;
-        const blackZoneMaxY = boardSizePx * 0.85;
-
-        if (player === types.Player.White) {
-            if (svgY >= whiteZoneMinY && svgY <= whiteZoneMaxY) inZone = true;
-        } else {
-            if (svgY >= blackZoneMinY && svgY <= blackZoneMaxY) inZone = true;
-        }
-    }
-    if (!inZone) return false;
-    
-    const allStones = [...(game.alkkagiStones || []), ...(game.alkkagiStones_p1 || []), ...(game.alkkagiStones_p2 || [])];
-    for (const stone of allStones) {
-        if (Math.hypot(svgX - stone.x, svgY - stone.y) < stoneRadius * 2) {
-            return false;
-        }
-    }
-    return true;
-};
-
 export const handleAlkkagiAction = async (volatileState: types.VolatileState, game: types.LiveGameSession, action: types.ServerAction & { userId: string }, user: types.User): Promise<types.HandleActionResult | undefined> => {
     const { type, payload } = action as any;
     const now = Date.now();
@@ -694,7 +650,7 @@ export const handleAlkkagiAction = async (volatileState: types.VolatileState, ga
                 return { error: '모든 돌을 배치했습니다.' };
             }
             
-            if (isPlacementValid(game, payload.point, myPlayerEnum)) {
+            if (isAlkkagiPlacementValid(game, payload.point, myPlayerEnum)) {
                 const newStone: types.AlkkagiStone = {
                     id: nextAlkkagiStoneId(game),
                     player: myPlayerEnum,

@@ -24,8 +24,10 @@ const GameCard: React.FC<{
     const [imgError, setImgError] = useState(false);
 
     return (
-        <div
-            className={`bg-panel text-on-panel rounded-lg flex flex-col items-center text-center transition-all transform cursor-pointer relative ${
+        <button
+            type="button"
+            data-lobby-mode-card
+            className={`bg-panel text-on-panel touch-manipulation flex w-full flex-col items-center rounded-lg text-center appearance-none border-0 outline-none transition-all transform cursor-pointer relative active:scale-[0.98] ${
                 isSelected
                     ? 'ring-2 ring-green-500 hover:-translate-y-1 shadow-lg bg-green-900/20'
                     : 'hover:-translate-y-1 shadow-lg'
@@ -70,7 +72,7 @@ const GameCard: React.FC<{
             >
                 {name}
             </h3>
-        </div>
+        </button>
     );
 };
 

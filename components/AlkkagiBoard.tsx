@@ -2,6 +2,7 @@ import React, { useState, useEffect, useImperativeHandle, forwardRef, useRef, Re
 import { useTranslation } from 'react-i18next';
 import { AlkkagiStone, GameSettings, GameStatus, Player, Point, AlkkagiLayoutType, LiveGameSession, UserWithStatus } from '../types.js';
 import { BATTLE_PLACEMENT_ZONES } from '../constants';
+import { isAlkkagiPlacementValid, ALKKAGI_STONE_RADIUS } from '../shared/utils/alkkagiPlacement.js';
 
 export interface AlkkagiBoardHandle {
     updateLocalStones: (newStones: AlkkagiStone[]) => void;
@@ -102,51 +103,15 @@ const AlkkagiBoard = forwardRef<AlkkagiBoardHandle, AlkkagiBoardProps>((props, r
     const getSvgCoordinates = (e: React.MouseEvent<SVGSVGElement>): Point | null =>
         getSvgCoordinatesFromClient(e.clientX, e.clientY);
     
-    const isPlacementValid = useCallback((point: Point | null): boolean => {
-        if (!point || (gameStatus !== 'alkkagi_placement' && gameStatus !== 'alkkagi_simultaneous_placement') || myPlayer === Player.None) return false;
-
-        const stoneRadius = (localStones && localStones.length > 0 && localStones[0].radius) ? localStones[0].radius : (840 / 19) * 0.47;
-        // 배치 영역을 서버 좌표로 그리므로 클릭 좌표(SVG=서버) 그대로 사용
-        const { x: svgX, y: svgY } = point;
-
-        if (svgX < stoneRadius || svgX > boardSizePx - stoneRadius || svgY < stoneRadius || svgY > boardSizePx - stoneRadius) {
-            return false;
-        }
-        
-        let inZone = false;
-        if (settings.alkkagiLayout === AlkkagiLayoutType.Battle) {
-            const zones = BATTLE_PLACEMENT_ZONES[myPlayer];
-            inZone = zones.some(zone => {
-                 const zoneXStart = padding + (zone.x - 0.5) * cellSize;
-                 const zoneYStart = padding + (zone.y - 0.5) * cellSize;
-                 const zoneXEnd = zoneXStart + zone.width * cellSize;
-                 const zoneYEnd = zoneYStart + zone.height * cellSize;
-                 return svgX >= zoneXStart && svgX <= zoneXEnd && svgY >= zoneYStart && svgY <= zoneYEnd;
-            });
-        } else { // Normal layout
-            const whiteZoneMinY = boardSizePx * 0.15;
-            const whiteZoneMaxY = boardSizePx * 0.35;
-            const blackZoneMinY = boardSizePx * 0.65;
-            const blackZoneMaxY = boardSizePx * 0.85;
-
-            if (myPlayer === Player.White) {
-                if (svgY >= whiteZoneMinY && svgY <= whiteZoneMaxY) inZone = true;
-            } else {
-                if (svgY >= blackZoneMinY && svgY <= blackZoneMaxY) inZone = true;
-            }
-        }
-        if (!inZone) return false;
-
-        for (const stone of localStones) {
-            if (stone.player === myPlayer) {
-                const distance = Math.hypot(svgX - stone.x, svgY - stone.y);
-                if (distance < stone.radius * 2) {
-                    return false; // Overlapping
-                }
-            }
-        }
-        return true;
-    }, [gameStatus, myPlayer, localStones, settings.alkkagiLayout, cellSize, padding, isRotated, boardSizePx]);
+    const isPlacementValid = useCallback(
+        (point: Point | null): boolean => {
+            if (!point) return false;
+            if (gameStatus !== 'alkkagi_placement' && gameStatus !== 'alkkagi_simultaneous_placement') return false;
+            if (myPlayer === Player.None) return false;
+            return isAlkkagiPlacementValid(session, point, myPlayer);
+        },
+        [gameStatus, myPlayer, session],
+    );
     
     const isHoverValid = useMemo(() => isPlacementValid(hoverPos), [hoverPos, isPlacementValid]);
 
@@ -305,7 +270,7 @@ const AlkkagiBoard = forwardRef<AlkkagiBoardHandle, AlkkagiBoardProps>((props, r
                     const cursorClass = canInteract && isMyStone ? 'cursor-pointer' : '';
 
                     return (
-                        <g key={stone.id} className={cursorClass} onMouseDown={canInteract && isMyStone ? (e) => onStoneInteractionStart(stone, e) : undefined} onTouchStart={canInteract && isMyStone ? (e) => { e.preventDefault(); onStoneInteractionStart(stone, e); } : undefined}>
+                        <g key={stone.id} className={cursorClass} onMouseDown={canInteract && isMyStone ? (e) => onStoneInteractionStart(stone, e) : undefined} onTouchStart={canInteract && isMyStone ? (e) => onStoneInteractionStart(stone, e) : undefined}>
                             <circle cx={stone.x} cy={stone.y} r={stone.radius} fill={stone.player === Player.Black ? "#111827" : "#f9fafb"} />
                             <circle cx={stone.x} cy={stone.y} r={stone.radius} fill={`url(#gloss-alkkagi-${stone.player})`} />
                         </g>
@@ -317,7 +282,7 @@ const AlkkagiBoard = forwardRef<AlkkagiBoardHandle, AlkkagiBoardProps>((props, r
                         <circle
                             cx={hoverPos.x}
                             cy={hoverPos.y}
-                            r={(localStones && localStones[0] ? localStones[0].radius : (840 / 19) * 0.47)}
+                            r={(localStones && localStones[0] ? localStones[0].radius : ALKKAGI_STONE_RADIUS)}
                             fill={myPlayer === Player.Black ? '#111827' : '#f9fafb'}
                         />
                     </g>

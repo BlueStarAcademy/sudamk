@@ -483,7 +483,10 @@ const GameCard: React.FC<{
     const imgH = compact ? 70 : 88;
 
     return (
-        <div
+        <button
+            type="button"
+            disabled={disabled}
+            data-lobby-mode-card
             className={`${aiChallengeModalGameCardSurfaceClass(chromeKind, isSelected, Boolean(compact))} relative rounded-lg ${
                 scrollStripItem ? 'w-max max-w-none' : ''
             } ${disabled ? 'cursor-not-allowed opacity-50' : ''} ${isSelected ? 'z-[15]' : 'z-0'}`}
@@ -522,7 +525,7 @@ const GameCard: React.FC<{
             >
                 {displayName}
             </h3>
-        </div>
+        </button>
     );
 };
 

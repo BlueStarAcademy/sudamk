@@ -205,7 +205,7 @@ const CurlingBoard = forwardRef<CurlingBoardHandle, CurlingBoardProps>((props, r
             <svg
                 ref={svgRef}
                 viewBox={`0 0 ${boardSizePx} ${boardSizePx}`}
-                className="w-full h-full"
+                className="w-full h-full touch-none"
             >
                 <defs>
                     <radialGradient id={`gloss-curling-1`}><stop offset="10%" stopColor="#333"/><stop offset="95%" stopColor="#000"/></radialGradient>
@@ -251,14 +251,7 @@ const CurlingBoard = forwardRef<CurlingBoardHandle, CurlingBoardProps>((props, r
                             rx="5"
                             className={classNames}
                             onMouseDown={isMyArea ? (e) => handleLaunchPointerDown(e, area) : undefined}
-                            onTouchStart={
-                                isMyArea
-                                    ? (e) => {
-                                          e.preventDefault();
-                                          handleLaunchPointerDown(e, area);
-                                      }
-                                    : undefined
-                            }
+                            onTouchStart={isMyArea ? (e) => handleLaunchPointerDown(e, area) : undefined}
                         />
                     );
                 })}

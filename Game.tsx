@@ -9,6 +9,7 @@ import {
     GameProps,
     LiveGameSession,
     ServerAction,
+    AlkkagiPlacementType,
 } from './types/index.js';
 import type { ChatMessage } from './types/api.js';
 import { mergeWaitingRoomPublicChatMessages } from './shared/utils/waitingRoomGlobalChatMerge.js';
@@ -5299,6 +5300,22 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }
     }, [handlers.handleAction, isSinglePlayer, isTower, session.id, gameStatus]);
 
+    const handleExitPreGameModal = useCallback(async () => {
+        const leaveGameId = session.id;
+        if (!leaveGameId) return;
+        const lobbyHash = isTower ? '#/tower' : '#/singleplayer';
+        sessionStorage.setItem('postGameRedirect', lobbyHash);
+        try {
+            await handlers.handleAction({ type: 'LEAVE_AI_GAME', payload: { gameId: leaveGameId } });
+        } catch (error) {
+            console.error('[Game] handleExitPreGameModal: LEAVE_AI_GAME failed', error);
+        } finally {
+            setTimeout(() => {
+                replaceAppHash(lobbyHash);
+            }, 100);
+        }
+    }, [handlers.handleAction, isTower, session.id]);
+
     // 도전의 탑: 싱글플레이와 동일하게 시작 모달에서 시작 버튼을 눌러 확정
     
     // 싱글플레이어/도전의 탑/전략바둑 수순 제한: restoredBoardState + totalTurns/moveHistory 복원을 포함한 표시용 session (PlayerPanel 남은 턴 등에 사용)
@@ -5428,6 +5445,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     <SinglePlayerGameDescriptionModal 
                         session={sessionWithRestoredPatternStones}
                         onStart={handleStartGame}
+                        onExit={handleExitPreGameModal}
                         currentUser={currentUserWithStatus}
                         onAction={handlers.handleAction}
                     />
@@ -5587,6 +5605,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     <SinglePlayerGameDescriptionModal 
                         session={sessionWithRestoredPatternStones}
                         onStart={handleStartGame}
+                        onExit={handleExitPreGameModal}
                         currentUser={currentUserWithStatus}
                         onAction={handlers.handleAction}
                         onTowerItemPurchase={async (itemId, quantity) => {

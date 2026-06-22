@@ -1430,12 +1430,14 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 console.log(`[handleGuildAction] Processing GUILD_CHECK_IN for user ${user.id}, guildId: ${user.guildId}`);
             }
             const now = Date.now();
-            if (!user.guildId) return { error: '길드??가?�되???��? ?�습?�다.' };
+            if (!user.guildId) return { error: '길드에 가입되어 있지 않습니다.' };
             const guild = guilds[user.guildId];
-            if (!guild) return { error: '길드�?찾을 ???�습?�다.' };
+            if (!guild) return { error: '길드를 찾을 수 없습니다.' };
 
             if (!guild.checkIns) guild.checkIns = {};
-            if (isSameDayKST(guild.checkIns[effectiveUserId], now)) return { error: '?�늘 ?��? 출석?�습?�다.' };
+            if (isSameDayKST(guild.checkIns[effectiveUserId], now)) {
+                return { clientResponse: { guilds, alreadyCheckedIn: true } };
+            }
 
             guild.checkIns[effectiveUserId] = now;
             

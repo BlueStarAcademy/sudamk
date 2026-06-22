@@ -90,6 +90,9 @@ describe('negotiation flow', () => {
         expect(volatileState.negotiations[negId]).toBeUndefined();
         expect(volatileState.userStatuses['challenger']?.status).toBe(UserStatus.InGame);
         expect(volatileState.userStatuses['opponent']?.status).toBe(UserStatus.InGame);
+        // 행동력은 인게임 진입 시 차감 — 수락 직후에는 변하지 않음
+        expect(challenger.actionPoints.current).toBe(10);
+        expect(opponent.actionPoints.current).toBe(10);
     });
 
     it('second CHALLENGE_USER same pair returns superseded when challenger already has draft', async () => {

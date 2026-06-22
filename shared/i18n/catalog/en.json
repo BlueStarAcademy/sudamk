@@ -1812,9 +1812,78 @@
       "editStage": "Edit stages",
       "editOrder": "Edit order",
       "cancel": "Cancel",
+      "exit": "Leave",
       "start": "Start",
       "singleStage": "Single-player stage",
-      "masterClass": "Master class"
+      "masterClass": "Master class",
+      "goalSection": "Goal",
+      "goalTurnCaption": "Turn limit",
+      "goalTurnUnit": "turns",
+      "goalMySide": "You",
+      "goalOpponentSide": "Foe",
+      "goalCaptureUnit": "captures",
+      "goalSurvivalTurnCaption": "Within",
+      "goalSurvivalBlockCaption": "Block White",
+      "goalSurvivalPointUnit": "pts",
+      "turnLimit": "Turn limit: {{count}}",
+      "autoScoringGoal": "Auto scoring after {{count}} turns",
+      "myCaptureGoal": "You: {{count}} captures",
+      "opponentCaptureGoal": "Opponent: {{count}} captures",
+      "vs": "vs",
+      "survivalGoal": "Block White from {{target}} pts within {{turns}} turns",
+      "territoryGoal": "Win by scoring",
+      "modeTypeTabs": "Game type",
+      "modeGuideTitle": "How to play",
+      "modeGuide": {
+        "missile": {
+          "step1Title": "Missile item",
+          "step1Body": "On your turn, tap the missile item button.",
+          "step1BodyItem": "You have {{count}} missile(s) this match. Tap the missile button on your turn.",
+          "step2Title": "Select a stone",
+          "step2Body": "Choose one of your stones to move.",
+          "step3Title": "Push in a line",
+          "step3Body": "Slide the stone along empty points to change the position."
+        },
+        "hidden": {
+          "step1Title": "Hidden item",
+          "step1Body": "Use the hidden button to play a move your opponent cannot see.",
+          "step1BodyItem": "You have {{count}} hidden move(s). Play moves your opponent cannot see.",
+          "step2Title": "Scan item",
+          "step2Body": "Use scan on suspicious areas to reveal hidden stones.",
+          "step2BodyItem": "You have {{count}} scan(s) to reveal hidden stones in suspicious areas.",
+          "step3Title": "Use items wisely",
+          "step3Body": "Hidden and scan are limited—pick the right moment to use them."
+        },
+        "capture": {
+          "step1Title": "Capture win",
+          "step1Body": "Capture enough opponent stones first to reach the target score.",
+          "step2Title": "Pattern stones",
+          "step2Body": "Capturing a pattern stone counts as 2 points."
+        },
+        "speed": {
+          "step1Title": "Time rule",
+          "step1Body": "If you exceed the time per move, your opponent gains points.",
+          "step2Title": "Scoring",
+          "step2Body": "Territory plus time bonus decides the winner."
+        },
+        "base": {
+          "step1Title": "Base stones",
+          "step1Body": "Read the board from the revealed base stone layout.",
+          "step2Title": "Komi bid",
+          "step2Body": "Set komi for your opponent and start with your chosen color."
+        },
+        "classic": {
+          "step1Title": "Build territory",
+          "step1Body": "Secure more territory than your opponent.",
+          "step2Title": "Scoring",
+          "step2Body": "When both pass, scoring decides the result."
+        },
+        "survival": {
+          "tab": "Survival Go",
+          "step1Title": "Block White",
+          "step1Body": "Prevent White from reaching the target score within the turn limit."
+        }
+      }
     },
     "towerShop": {
       "closeAria": "Close tower item shop",
@@ -2389,8 +2458,8 @@
       "classBarRewardNeedClear": "Clear {{milestone}} stages",
       "classBarRewardAria": "{{milestone}}-point reward",
       "cleared": "Cleared",
-      "enterStage": "Enter ⚡{{cost}}",
-      "enterStageTitle": "Enter · {{cost}} AP",
+      "enterStage": "Win ⚡{{cost}}",
+      "enterStageTitle": "On win · {{cost}} AP",
       "locked": "Locked",
       "unlockRequired": "Requires {{stageId}}",
       "claimAll": "Claim all ({{count}})",

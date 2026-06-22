@@ -326,8 +326,6 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             if (!advEntrance.ok) {
                 return { error: advEntrance.error };
             }
-            let adventureApDeducted = false;
-            let adventureApCostPaid = 0;
             try {
                 const { codexId, stageId, battleMode, monsterLevel: rawLevel, mapMonsterId: rawMapId } = payload as {
                     codexId?: string;
@@ -368,11 +366,6 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                 await effectService.applyPassiveActionPointRegenToUser(user);
                 if (user.actionPoints.current < cost && !user.isAdmin) {
                     return { error: `액션 포인트가 부족합니다. (필요: ${cost})` };
-                }
-                if (!user.isAdmin) {
-                    effectService.recordActionPointSpend(user, cost);
-                    adventureApDeducted = true;
-                    adventureApCostPaid = cost;
                 }
 
                 const settings = { ...DEFAULT_GAME_SETTINGS };
@@ -435,9 +428,8 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                     console.error(`[UserAction] Failed to save user ${user.id} after START_ADVENTURE_MONSTER_BATTLE:`, err);
                 });
 
-                const { broadcastToGameParticipants, broadcastUserUpdate } = await import('../socket.js');
+                const { broadcastToGameParticipants } = await import('../socket.js');
                 broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
-                broadcastUserUpdate(user, ['actionPoints']);
                 broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
                 broadcast({
                     type: 'NEGOTIATION_UPDATE',
@@ -458,9 +450,6 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                     monsterLevel?: number;
                     mapMonsterId?: string;
                 };
-                if (adventureApDeducted && !user.isAdmin && adventureApCostPaid > 0) {
-                    effectService.recordActionPointRestore(user, adventureApCostPaid);
-                }
                 console.error('[START_ADVENTURE_MONSTER_BATTLE] Error:', err?.message || err, err?.stack, {
                     codexId,
                     stageId,
