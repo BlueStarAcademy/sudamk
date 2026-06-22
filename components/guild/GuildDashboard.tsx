@@ -379,6 +379,8 @@ const GuildDonationPanelPhone: React.FC<{ guild?: GuildType | null; guildDonatio
 
     const canDonateGold = goldMaxCount > 0;
     const canDonateDiamond = diamondMaxCount > 0;
+    const donationTypeName = (type: 'gold' | 'diamond') =>
+        type === 'gold' ? t('common:resources.gold') : t('common:resources.diamonds');
 
     const handleDonate = async (type: 'GUILD_DONATE_GOLD' | 'GUILD_DONATE_DIAMOND', count: number) => {
         if (donationInFlight.current || count < 1) return;
@@ -826,6 +828,7 @@ const BossSkillTooltipPortal: React.FC<{
     fullscreenBackdrop?: boolean;
     preferHorizontal?: 'auto' | 'left';
 }> = ({ open, anchorEl, skill, onRequestClose, fullscreenBackdrop = false, preferHorizontal = 'auto' }) => {
+    const { t } = useTranslation(['guild', 'common']);
     const [box, setBox] = useState<BossSkillTooltipBox | null>(null);
 
     const recompute = useCallback(() => {
