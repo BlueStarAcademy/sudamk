@@ -2443,6 +2443,31 @@ export async function makeGoAiBotMove(
     // 공유 상수 길이의 연출만 시작하고 Kata는 호출하지 않는다. 만료 후 다음 makeGoAiBotMove 틱에서 Kata로 수를 정해 히든으로 둔다.
     if (
         isHiddenMode &&
+        (game.isSinglePlayer || String((game as any).gameCategory ?? '') === 'tower') &&
+        shouldApplyHiddenOnThisMove &&
+        !disableAiHiddenItemsByStageSetting
+    ) {
+        const animStillRunning =
+            game.aiHiddenItemAnimationEndTime != null && now < game.aiHiddenItemAnimationEndTime;
+        const thinkingAnimActive =
+            (game.animation as { type?: string } | null | undefined)?.type === 'ai_thinking';
+        const animationExpiredReady =
+            game.aiHiddenItemAnimationEndTime != null && now >= game.aiHiddenItemAnimationEndTime;
+        if (!animStillRunning && !thinkingAnimActive && !animationExpiredReady) {
+            shouldApplyHiddenOnThisMove = false;
+            (game as any).pendingAiHiddenPlacement = false;
+            (game as any).aiHiddenPlacementArmed = false;
+            (game as any).aiHiddenItemThinkPlacementDue = false;
+            (game as any).aiHiddenItemThinkDueMoveCount = undefined;
+            const recordedHidden = countRecordedAiHiddenMoves(game, aiPlayerEnum);
+            const usedHidden = Math.max(0, Number((game as any).aiHiddenItemsUsedCount ?? 0));
+            if (usedHidden > recordedHidden) {
+                (game as any).aiHiddenItemsUsedCount = recordedHidden;
+            }
+        }
+    }
+    if (
+        isHiddenMode &&
         !pairAiSeatBlocksAiHiddenItem &&
         !disableAiHiddenItemsByStageSetting &&
         !shouldApplyHiddenOnThisMove &&

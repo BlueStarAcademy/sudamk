@@ -3,7 +3,6 @@ import { tx } from '../../shared/i18n/runtimeText.js';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppContext } from '../../hooks/useAppContext.js';
-import InlineLoadingSpinner from '../ui/InlineLoadingSpinner.js';
 // FIX: Corrected import path for types. The path was './../types.js' which pointed to 'components/types.js', but the file is in the root directory.
 import { GameProps, GameMode, GameStatus, Negotiation } from '../../types.js';
 import GameSummaryModal from '../GameSummaryModal.js';
@@ -84,15 +83,7 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
         if (session.isAiGame && gameStatus === 'pending' && !session.isSinglePlayer && session.gameCategory !== 'tower') {
             if (isSpectator) return null;
             if (isAiLobbyStartConfirmInFlight) {
-                return (
-                    <div
-                        className="pointer-events-none fixed inset-0 z-[60000] flex items-center justify-center bg-black/45 px-4 backdrop-blur-[2px]"
-                        role="status"
-                        aria-live="polite"
-                    >
-                        <InlineLoadingSpinner label={t('startingSoon')} />
-                    </div>
-                );
+                return null;
             }
             return <AiGameDescriptionModal session={session} currentUser={currentUser} onAction={onAction} />;
         }

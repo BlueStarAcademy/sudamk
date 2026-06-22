@@ -45,6 +45,7 @@ import { rollPairPetTrainingRewards } from '../utils/pairPetTrainingRewardRoll.j
 import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
 import { releaseIpBindingForUser } from '../ipLoginPolicy.js';
 import { initializeGame } from '../gameModes.js';
+import { ensureCastleStonePointsForSession } from '../modes/castle.js';
 import { MATERIAL_ITEMS } from '../../shared/constants/items.js';
 import { clampAiLobbyStrategicItemCaps } from '../../shared/utils/strategicAiLobbyItemCaps.js';
 import { isSyntheticOnlineUserId } from '../../shared/utils/syntheticOnlineUserIds.js';
@@ -1766,6 +1767,9 @@ export function configurePairClassicGameStart(
         game.gameStatus = 'pair_order_reveal';
         game.preGameConfirmations = { ...(pairGame.orderRevealConfirmed ?? {}) };
         game.revealEndTime = undefined;
+    }
+    if (game.mode === GameMode.Castle) {
+        ensureCastleStonePointsForSession(game);
     }
 }
 

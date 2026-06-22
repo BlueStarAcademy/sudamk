@@ -17,6 +17,7 @@ import { initializeHidden, updateHiddenState, handleHiddenAction } from './hidde
 import { initializeMissile, updateMissileState, handleMissileAction } from './missile.js';
 import {
     applyCastleTerritoryAfterMove,
+    ensureCastleStonePointsForSession,
     initializeCastleGame,
     tryAutoScoreCastleIfNoMoves,
     tryEndCastleOnCapture,
@@ -26,6 +27,7 @@ import {
     CHESS_GO_BOARD_SIZE,
     commitChessGoPlacementCaptures,
     getChessGoStoneCapturePointValue,
+    isPlayableChessGoIntersection,
     processChessGoMove,
     sessionUsesChessGo,
 } from '../../shared/utils/chessGoRules.js';
@@ -384,6 +386,9 @@ function updatePairOrderRevealState(game: types.LiveGameSession, now: number): v
     if (game.mode === types.GameMode.Chess) {
         enterChessPiecePlacement(game, now);
         return;
+    }
+    if (game.mode === types.GameMode.Castle) {
+        ensureCastleStonePointsForSession(game);
     }
     // `transitionToPlaying`가 sync 후 `getCurrentPairTurnSeat`로 currentPlayer를 맞춘다.
     transitionToPlaying(game, now);
@@ -1318,30 +1323,42 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             // PVP: 클라이언트 boardState를 덮어쓰지 않으므로 game.boardState는 캐시(서버) 상태 유지.
             // 낙관적 업데이트로 이미 둔 수를 보내면 finalStoneCheck에서 거절되어 턴이 안 넘어가는 버그 방지.
 
-            const placementBlockReason = getPlacementOccupancyBlockReason(
-                game.boardState,
-                game,
-                x,
-                y,
-                myPlayerEnum,
-            );
-            if (placementBlockReason === 'opponent') {
-                console.error(
-                    `[handleStandardAction] CRITICAL BUG PREVENTION: Attempted to place stone on opponent stone at (${x}, ${y}), gameId=${game.id}, stoneAtTarget=${stoneAtTarget}, opponentPlayerEnum=${opponentPlayerEnum}, isSinglePlayer=${game.isSinglePlayer}, gameCategory=${game.gameCategory}`,
+            const isChessGoPlacement = sessionUsesChessGo(game);
+            if (isChessGoPlacement) {
+                if (!isPlayableChessGoIntersection(game, x, y)) {
+                    if (process.env.NODE_ENV === 'development') {
+                        console.warn(
+                            `[handleStandardAction] Chess go: unplayable intersection at (${x}, ${y}), gameId=${game.id}`,
+                        );
+                    }
+                    return { error: '이미 돌이 놓인 자리입니다.' };
+                }
+            } else {
+                const placementBlockReason = getPlacementOccupancyBlockReason(
+                    game.boardState,
+                    game,
+                    x,
+                    y,
+                    myPlayerEnum,
                 );
-                return { error: '상대방이 둔 자리에는 돌을 놓을 수 없습니다.' };
-            }
-            if (placementBlockReason === 'own' || stoneAtTarget === myPlayerEnum) {
-                console.error(
-                    `[handleStandardAction] CRITICAL BUG PREVENTION: Attempted to place stone on own stone at (${x}, ${y}), gameId=${game.id}, stoneAtTarget=${stoneAtTarget}, myPlayerEnum=${myPlayerEnum}`,
-                );
-                return { error: '이미 돌이 놓인 자리입니다.' };
-            }
-            if (stoneAtTarget !== types.Player.None) {
-                console.error(
-                    `[handleStandardAction] CRITICAL BUG PREVENTION: Attempted to place stone on occupied position at (${x}, ${y}), gameId=${game.id}, stoneAtTarget=${stoneAtTarget}`,
-                );
-                return { error: '이미 돌이 놓인 자리입니다.' };
+                if (placementBlockReason === 'opponent') {
+                    console.error(
+                        `[handleStandardAction] CRITICAL BUG PREVENTION: Attempted to place stone on opponent stone at (${x}, ${y}), gameId=${game.id}, stoneAtTarget=${stoneAtTarget}, opponentPlayerEnum=${opponentPlayerEnum}, isSinglePlayer=${game.isSinglePlayer}, gameCategory=${game.gameCategory}`,
+                    );
+                    return { error: '상대방이 둔 자리에는 돌을 놓을 수 없습니다.' };
+                }
+                if (placementBlockReason === 'own' || stoneAtTarget === myPlayerEnum) {
+                    console.error(
+                        `[handleStandardAction] CRITICAL BUG PREVENTION: Attempted to place stone on own stone at (${x}, ${y}), gameId=${game.id}, stoneAtTarget=${stoneAtTarget}, myPlayerEnum=${myPlayerEnum}`,
+                    );
+                    return { error: '이미 돌이 놓인 자리입니다.' };
+                }
+                if (stoneAtTarget !== types.Player.None) {
+                    console.error(
+                        `[handleStandardAction] CRITICAL BUG PREVENTION: Attempted to place stone on occupied position at (${x}, ${y}), gameId=${game.id}, stoneAtTarget=${stoneAtTarget}`,
+                    );
+                    return { error: '이미 돌이 놓인 자리입니다.' };
+                }
             }
 
             const move = {

@@ -1148,7 +1148,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
         lastSyncedEmbeddedParentModeRef.current = built.mode;
     }, [embeddedPanel, configureOnly, onConfigureApply, buildFinalSettingsForApply, embeddedParentDraftFingerprint]);
 
-    const handleChallenge = async () => {
+    const handleChallenge = () => {
         if (!selectedGameMode) return;
         if (selectedGameMode === GameMode.Mix && (!settings.mixedModes || settings.mixedModes.length < 2)) {
             window.alert(tNeg('mixRulesMinAlert'));
@@ -1164,14 +1164,18 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
             return;
         }
         if (!onAction) return;
-        await onAction({
-            type: startActionType,
-            payload: {
-                mode,
-                settings: finalSettings,
-            },
-        } as ServerAction);
-        onClose();
+        void Promise.resolve(
+            onAction({
+                type: startActionType,
+                payload: {
+                    mode,
+                    settings: finalSettings,
+                },
+            } as ServerAction),
+        ).catch((err) => {
+            console.warn('[AiChallengeModal] start action failed:', err);
+        });
+        if (!embeddedPanel) onClose();
     };
 
     /** 방 만들기 임베드(핸드헬드)·「방 정보·대국 설정」단계에서만 그리드·타이포 추가 축소 */

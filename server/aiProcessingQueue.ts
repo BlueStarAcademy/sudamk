@@ -7,7 +7,6 @@
 import { LiveGameSession, Player, GameMode } from '../types/index.js';
 import {
     CHESS_GO_PIECE_TO_STONE_DELAY_MS,
-    PAIR_AI_MOVE_REVEAL_DELAY_MS,
     PLAYFUL_AI_BATCH_STONE_INTERVAL_MS,
     PLAYFUL_AI_QUEUE_PRE_ACTION_DELAY_MS,
 } from '../constants';
@@ -325,7 +324,8 @@ class AiProcessingQueue {
                 const retryDelayMs = getAnimationRetryDelayMs(game) ?? 500;
                 setTimeout(() => this.enqueue(gameId), retryDelayMs);
             } else if (consecutivePairAiSeat) {
-                setTimeout(() => this.enqueue(gameId), PAIR_AI_MOVE_REVEAL_DELAY_MS);
+                // schedulePairAiTurnIfNeeded가 PAIR_AI_MOVE_REVEAL_DELAY_MS 후 enqueue — 이중 딜레이 방지
+                setTimeout(() => this.enqueue(gameId, undefined, { deferIfProcessing: true }), 0);
             } else {
                 this.retryCounts.delete(gameId);
             }

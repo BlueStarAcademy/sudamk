@@ -43,7 +43,7 @@ import { MATERIAL_ITEMS } from './constants/items.js';
 import { getEffectivePairLobbyOwnerId } from './shared/utils/effectivePairLobbyOwnerId.js';
 import { resolveBasePlacementSeatColors } from './shared/utils/basePlacementSeatColors.js';
 import { findLatestMoveIndexAtExcludingRecordedBaseStones } from './shared/utils/baseHiddenMoveIndex.js';
-import { getPlacementOccupancyBlockReason } from './shared/utils/hiddenStonePlacementOccupancy.js';
+import { getPlacementOccupancyBlockReason, isUnrevealedOpponentHiddenStoneAt } from './shared/utils/hiddenStonePlacementOccupancy.js';
 import { shouldSuppressKoPlaceStoneClientError, isGameAlreadyStartedError } from './shared/utils/serverErrorMatch.js';
 import GuildWarHiddenTowerControls from './components/game/GuildWarHiddenTowerControls.js';
 import GuildWarTowerSidebar from './components/game/GuildWarTowerSidebar.js';
@@ -2214,6 +2214,26 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }
     }, [myPlayerEnum, currentPlayer, gameStatus, isSpectator, session, currentUser.id, player1.id, session.settings, sessionPolicy.matchAxis]);
 
+    const tryPveOpponentHiddenRevealOnClick = useCallback(
+        (boardStateToUse: Player[][], x: number, y: number): boolean => {
+            if (!(isSinglePlayer || isTower) || !isMyTurn || myPlayerEnum === Player.None) return false;
+            if (!isUnrevealedOpponentHiddenStoneAt(boardStateToUse, session, x, y, myPlayerEnum)) return false;
+            const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
+            handlers.handleAction({
+                type: 'LOCAL_HIDDEN_REVEAL_TRIGGER',
+                payload: {
+                    gameId: session.id,
+                    gameType: isTower ? 'tower' : 'singleplayer',
+                    point: { x, y },
+                    player: opponentPlayerEnum,
+                    keepTurn: true,
+                },
+            } as ServerAction);
+            return true;
+        },
+        [handlers.handleAction, isMyTurn, isSinglePlayer, isTower, myPlayerEnum, session],
+    );
+
     const chessHighlightPoints = useMemo(() => {
         if (!usesChessGo || gameStatus !== 'playing' || !isMyTurn) return [];
         if (!selectedChessPieceId || myPlayerEnum === Player.None) return [];
@@ -3016,27 +3036,36 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     const applyOptimisticPairUserMove = useCallback((x: number, y: number): boolean => {
         const boardStateToUse =
-            session.boardState && Array.isArray(session.boardState) && session.boardState.length > 0
-                ? session.boardState
-                : restoredBoardState || session.boardState;
+            usesChessGo && chessGoSession.boardState?.length
+                ? chessGoSession.boardState
+                : session.boardState && Array.isArray(session.boardState) && session.boardState.length > 0
+                  ? session.boardState
+                  : restoredBoardState || session.boardState;
         if (!boardStateToUse || !Array.isArray(boardStateToUse) || boardStateToUse.length === 0) return false;
         if (boardStateToUse[y]?.[x] !== Player.None) return false;
         try {
             const moveResult =
-                mode === GameMode.Castle
-                    ? processCastleMove(
-                          castlePlacementSession ?? { ...session, boardState: boardStateToUse },
-                          boardStateToUse,
+                usesChessGo
+                    ? processChessGoMove(
+                          chessGoSession,
                           { x, y, player: myPlayerEnum },
                           session.koInfo,
                           session.moveHistory?.length || 0,
                       )
-                    : processMoveClient(
-                          boardStateToUse,
-                          { x, y, player: myPlayerEnum },
-                          session.koInfo,
-                          session.moveHistory?.length || 0,
-                      );
+                    : mode === GameMode.Castle
+                      ? processCastleMove(
+                            castlePlacementSession ?? { ...session, boardState: boardStateToUse },
+                            boardStateToUse,
+                            { x, y, player: myPlayerEnum },
+                            session.koInfo,
+                            session.moveHistory?.length || 0,
+                        )
+                      : processMoveClient(
+                            boardStateToUse,
+                            { x, y, player: myPlayerEnum },
+                            session.koInfo,
+                            session.moveHistory?.length || 0,
+                        );
             if (!moveResult.isValid) return false;
             handlers.handleAction({
                 type: 'PAIR_GAME_CLIENT_MOVE',
@@ -3060,6 +3089,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         handlers,
         mode,
         myPlayerEnum,
+        usesChessGo,
+        chessGoSession,
         restoredBoardState,
         session,
         session.boardState,
@@ -3504,6 +3535,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
                 // 히든 포함: 상대 돌이 있는 칸에는 착수 불가 (클래식 바둑과 동일)
                 const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
+                if (tryPveOpponentHiddenRevealOnClick(boardStateToUse, x, y)) {
+                    pveLocalStonePlacementLockRef.current = false;
+                    return;
+                }
                 if (getPlacementOccupancyBlockReason(boardStateToUse, session, x, y, myPlayerEnum)) {
                     pveLocalStonePlacementLockRef.current = false;
                     return;
@@ -3560,10 +3595,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             }
             // 전략바둑 AI 대국 포함: 모든 온라인 게임은 서버에서만 검증/반영
             actionType = 'PLACE_STONE';
-            const boardStateForOnline = restoredBoardState || session.boardState;
+            const boardStateForOnline =
+                usesChessGo && chessGoSession.boardState?.length
+                    ? chessGoSession.boardState
+                    : restoredBoardState || session.boardState;
             if (
                 boardStateForOnline &&
                 (gameStatus === 'playing' || gameStatus === 'hidden_placing') &&
+                !usesChessGo &&
                 getPlacementOccupancyBlockReason(boardStateForOnline, session, x, y, myPlayerEnum)
             ) {
                 return;
@@ -3837,6 +3876,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 }
 
                 const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
+
+                if (tryPveOpponentHiddenRevealOnClick(boardStateToUse, x, y)) {
+                    pveLocalStonePlacementLockRef.current = false;
+                    setPendingMove(null);
+                    return;
+                }
 
                 let moveResult;
                 try {

@@ -3,6 +3,7 @@ import { Player } from '../../../types/index.js';
 import {
     getPlacementOccupancyBlockReason,
     getPlacementOccupant,
+    isUnrevealedOpponentHiddenStoneAt,
 } from '../../../shared/utils/hiddenStonePlacementOccupancy.js';
 
 describe('hiddenStonePlacementOccupancy', () => {
@@ -32,5 +33,35 @@ describe('hiddenStonePlacementOccupancy', () => {
     it('allows placement on empty intersection', () => {
         const reason = getPlacementOccupancyBlockReason(emptyBoard, {}, 4, 4, Player.Black);
         expect(reason).toBeNull();
+    });
+
+    it('detects unrevealed opponent hidden via aiInitialHiddenStone', () => {
+        const board = emptyBoard.map((row) => [...row]);
+        expect(
+            isUnrevealedOpponentHiddenStoneAt(
+                board,
+                { aiInitialHiddenStone: { x: 1, y: 1 } },
+                1,
+                1,
+                Player.Black,
+            ),
+        ).toBe(true);
+    });
+
+    it('detects unrevealed opponent hidden via hiddenMoves', () => {
+        const board = emptyBoard.map((row) => [...row]);
+        board[4][4] = Player.White;
+        expect(
+            isUnrevealedOpponentHiddenStoneAt(
+                board,
+                {
+                    moveHistory: [{ x: 4, y: 4, player: Player.White }],
+                    hiddenMoves: { 0: true },
+                },
+                4,
+                4,
+                Player.Black,
+            ),
+        ).toBe(true);
     });
 });

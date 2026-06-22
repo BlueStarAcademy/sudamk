@@ -9,11 +9,28 @@ import {
     scoreCastleGame,
 } from '../../shared/utils/castleGoRules.js';
 import { clampCastleCount, getDefaultCastleCountByBoardSize } from '../../shared/constants/gameSettings.js';
+import { isPairClassicGame } from '../../shared/utils/pairGameTurn.js';
 import { initializeNigiri } from './nigiri.js';
 import { transitionToPlayingOrUniformRoulette } from './shared.js';
 import * as summaryService from '../summaryService.js';
 
 export { isCastleMode };
+
+/** 페어·AI 등 `initializeCastleGame`을 거치지 않은 세션에서도 캐슬 돌 좌표를 보장한다. */
+export function ensureCastleStonePointsForSession(game: types.LiveGameSession): void {
+    if (game.mode !== GameMode.Castle) return;
+    if (game.castleStonePoints && game.castleStonePoints.length > 0) return;
+
+    const boardSize = game.settings.boardSize ?? 13;
+    const castleCount = clampCastleCount(
+        game.settings.castleCount ?? getDefaultCastleCountByBoardSize(boardSize),
+        boardSize,
+    );
+    game.castleStonePoints = generateCastleStonePoints(boardSize, castleCount, game.id);
+    if (!game.confirmedTerritoryOwnerByPoint) {
+        game.confirmedTerritoryOwnerByPoint = {};
+    }
+}
 
 function resolveStrategicAiHumanColor(game: types.LiveGameSession, neg: types.Negotiation): types.Player {
     const preferred = neg.challenger?.id === game.player1.id
@@ -26,17 +43,13 @@ function resolveStrategicAiHumanColor(game: types.LiveGameSession, neg: types.Ne
 
 export function initializeCastleGame(game: types.LiveGameSession, neg: types.Negotiation, now: number): void {
     const boardSize = game.settings.boardSize ?? 13;
-    const castleCount = clampCastleCount(
-        game.settings.castleCount ?? getDefaultCastleCountByBoardSize(boardSize),
-        boardSize,
-    );
 
     game.boardState = Array.from({ length: boardSize }, () =>
         Array(boardSize).fill(types.Player.None),
     ) as types.LiveGameSession['boardState'];
     game.captures = { [types.Player.None]: 0, [types.Player.Black]: 0, [types.Player.White]: 0 };
     game.confirmedTerritoryOwnerByPoint = {};
-    game.castleStonePoints = generateCastleStonePoints(boardSize, castleCount, game.id);
+    ensureCastleStonePointsForSession(game);
 
     const p1 = game.player1;
     const p2 = game.player2;
@@ -51,6 +64,8 @@ export function initializeCastleGame(game: types.LiveGameSession, neg: types.Neg
             game.blackPlayerId = p2.id;
         }
         transitionToPlayingOrUniformRoulette(game, now);
+    } else if (isPairClassicGame(game.settings, game.mode)) {
+        // configurePairClassicGameStart → pair_order_reveal → playing
     } else {
         initializeNigiri(game, now);
     }

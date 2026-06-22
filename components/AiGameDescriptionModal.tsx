@@ -221,16 +221,14 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction, readOnly =
     };
   }, [isMobileSheet, modalLayerUsesDesignPixels]);
 
-  const handleStart = useCallback(async () => {
+  const handleStart = useCallback(() => {
     if (readOnly || startInFlightRef.current) return;
     startInFlightRef.current = true;
     setIsStarting(true);
-    try {
-      await onAction({ type: 'CONFIRM_AI_GAME_START', payload: { gameId: session.id } });
-    } finally {
+    void Promise.resolve(onAction({ type: 'CONFIRM_AI_GAME_START', payload: { gameId: session.id } })).finally(() => {
       startInFlightRef.current = false;
       setIsStarting(false);
-    }
+    });
   }, [onAction, readOnly, session.id]);
 
   const portalTarget =

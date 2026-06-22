@@ -505,6 +505,23 @@ describe('buildOptimisticAiLobbyStartSession', () => {
         const optimistic = buildOptimisticAiLobbyStartSession(pending);
         expect(optimistic?.gameStatus).toBe('base_placement');
     });
+
+    it('uses chess_piece_placement for chess AI lobby', () => {
+        const pending = minimalSession({
+            isAiGame: true,
+            gameCategory: 'normal',
+            gameStatus: 'pending',
+            mode: GameMode.Chess,
+            player1: { id: 'human-1', username: 'h', nickname: 'h' } as any,
+            player2: { id: 'ai-player-01', username: 'ai', nickname: 'ai' } as any,
+            blackPlayerId: null as any,
+            whitePlayerId: null as any,
+            settings: { boardSize: 13, player1Color: Player.Black },
+        });
+        const optimistic = buildOptimisticAiLobbyStartSession(pending);
+        expect(optimistic?.gameStatus).toBe('chess_piece_placement');
+        expect(optimistic?.boardState?.length).toBe(13);
+    });
 });
 
 describe('shouldIgnoreStalePendingAiLobbyStartRegression', () => {

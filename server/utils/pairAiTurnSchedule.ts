@@ -1,17 +1,23 @@
 import type { LiveGameSession } from '../../types/index.js';
+import { PAIR_AI_MOVE_REVEAL_DELAY_MS } from '../../constants/gameSettings.js';
 import { getCurrentPairTurnSeat, isPairAiSeat, isPairClassicGame } from '../../shared/utils/pairGameTurn.js';
 
 /**
  * 페어 4인 수순(흑1→백1→흑2→백2): AI/펫 좌석만 aiProcessingQueue로 스케줄한다.
  * processGame 메인루프 setImmediate와 이중 디스패치하면 백1 스킵·흑 연속 착수가 난다.
  */
-export function schedulePairAiTurnIfNeeded(game: LiveGameSession, now: number): void {
+export function schedulePairAiTurnIfNeeded(
+    game: LiveGameSession,
+    now: number,
+    delayMs: number = PAIR_AI_MOVE_REVEAL_DELAY_MS,
+): void {
     if (!isPairClassicGame(game.settings, game.mode)) return;
     const seat = getCurrentPairTurnSeat(game.settings);
     if (isPairAiSeat(seat)) {
-        game.aiTurnStartTime = now;
+        game.aiTurnStartTime = now + Math.max(0, delayMs);
         const gameId = game.id;
-        // makeGoAiBotMove/PLACE_STONE 처리 중에는 큐가 inFlight라 즉시 enqueue가 무시될 수 있음 → 다음 틱에 재등록
+        const waitMs = Math.max(0, delayMs);
+        // makeGoAiBotMove/PLACE_STONE 처리 중에는 큐가 inFlight라 즉시 enqueue가 무시될 수 있음 → deferIfProcessing
         setTimeout(() => {
             void import('../aiProcessingQueue.js')
                 .then(({ aiProcessingQueue }) =>
@@ -23,7 +29,7 @@ export function schedulePairAiTurnIfNeeded(game: LiveGameSession, now: number): 
                         (err as Error)?.message ?? err,
                     ),
                 );
-        }, 0);
+        }, waitMs);
     } else {
         game.aiTurnStartTime = undefined;
     }

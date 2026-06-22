@@ -4493,7 +4493,11 @@ export const useApp = () => {
                 };
                 const moveHistory = [...(game.moveHistory || []), moveEntry];
 
-                if (capturedStones.length > 0) {
+                if (
+                    game.mode !== GameMode.Chess &&
+                    game.mode !== GameMode.Castle &&
+                    capturedStones.length > 0
+                ) {
                     const revealPatch = tryBuildHiddenCaptureRevealState(game, {
                         x,
                         y,
@@ -4518,7 +4522,25 @@ export const useApp = () => {
                     }
                 }
 
-                const weighted = buildWeightedJustCapturedForStones(game, capturedStones || [], movePlayer);
+                const opponentPlayer =
+                    movePlayer === Player.Black ? Player.White : Player.Black;
+                const weighted =
+                    game.mode === GameMode.Chess && capturedStones.length > 0
+                        ? (() => {
+                              let totalPoints = 0;
+                              const entries = capturedStones.map((stone: { x: number; y: number }) => {
+                                  const capturePoints = getChessGoStoneCapturePointValue(game, stone);
+                                  totalPoints += capturePoints;
+                                  return {
+                                      point: stone,
+                                      player: opponentPlayer,
+                                      wasHidden: false,
+                                      capturePoints,
+                                  };
+                              });
+                              return { totalPoints, entries };
+                          })()
+                        : buildWeightedJustCapturedForStones(game, capturedStones || [], movePlayer);
                 const newCaptures = {
                     ...game.captures,
                     [movePlayer]: (game.captures[movePlayer] || 0) + weighted.totalPoints,
@@ -4555,6 +4577,25 @@ export const useApp = () => {
                     itemUseDeadline: undefined,
                     pausedTurnTimeLeft: undefined,
                 };
+                if (game.mode === GameMode.Chess) {
+                    updatedGame.chessPieceMovedThisTurn = false;
+                    commitChessGoPlacementCaptures(updatedGame, x, y, capturedStones);
+                    if (capturedStones.length > 0) {
+                        const chessCapture = applyChessCaptureScoreForRemovedStones(
+                            updatedGame,
+                            capturedStones,
+                            movePlayer,
+                        );
+                        if (chessCapture.kingCaptured) {
+                            updatedGame.gameStatus = 'ended';
+                            updatedGame.winner = movePlayer;
+                            updatedGame.winReason = 'chess_checkmate';
+                            updatedGame.currentPlayer = Player.None;
+                        }
+                    }
+                    const normalized = normalizeChessGoSession(updatedGame);
+                    return { ...currentGames, [gameId]: normalized };
+                }
                 if (game.mode === GameMode.Castle) {
                     updatedGame.confirmedTerritoryOwnerByPoint = detectAndConfirmTerritories(
                         updatedGame,
@@ -6784,6 +6825,22 @@ export const useApp = () => {
                                 ? (g.boardState as number[][]).map((row) => [...row])
                                 : g.boardState;
                         let merged = { ...g, boardState: boardClone } as LiveGameSession;
+                        if (
+                            (merged.animation as { type?: string } | undefined)?.type === 'ai_thinking' &&
+                            prevG &&
+                            (!merged.boardState ||
+                                !Array.isArray(merged.boardState) ||
+                                merged.boardState.length === 0)
+                        ) {
+                            merged = {
+                                ...merged,
+                                boardState: prevG.boardState,
+                                moveHistory:
+                                    Array.isArray(prevG.moveHistory) && prevG.moveHistory.length > 0
+                                        ? prevG.moveHistory
+                                        : merged.moveHistory,
+                            };
+                        }
                         const mh = merged.moveHistory;
                         if (Array.isArray(mh) && mh.length > 0) {
                             for (let i = mh.length - 1; i >= 0; i--) {
@@ -7806,7 +7863,7 @@ export const useApp = () => {
                                     [mergeId]: coerceAdventureLiveGameScoringTurnLimit(mergedForSlot),
                                 };
                             };
-                            if (action.type === 'CONFIRM_AI_GAME_START') {
+                            if (action.type === 'CONFIRM_AI_GAME_START' || action.type === 'START_AI_GAME') {
                                 flushSync(() => setLiveGames(applyLiveGameHttpMerge));
                             } else {
                                 setLiveGames(applyLiveGameHttpMerge);
@@ -10496,21 +10553,42 @@ export const useApp = () => {
                                                 }
                                             } else {
                                                 // 일반 상태에서는 서버에서 온 게임 상태 사용
+                                                let mergedGameForSp: LiveGameSession = game;
+                                                const isSinglePlayerAiHiddenPresentation =
+                                                    game.animation?.type === 'ai_thinking' ||
+                                                    (game as any).aiHiddenItemAnimationEndTime != null;
+                                                if (
+                                                    isSinglePlayerAiHiddenPresentation &&
+                                                    existingGame &&
+                                                    (!game.boardState ||
+                                                        !Array.isArray(game.boardState) ||
+                                                        game.boardState.length === 0)
+                                                ) {
+                                                    mergedGameForSp = {
+                                                        ...mergedGameForSp,
+                                                        boardState: existingGame.boardState,
+                                                        moveHistory:
+                                                            Array.isArray(existingGame.moveHistory) &&
+                                                            existingGame.moveHistory.length > 0
+                                                                ? existingGame.moveHistory
+                                                                : mergedGameForSp.moveHistory,
+                                                    };
+                                                }
                                                 // 스캔 애니메이션 종료(scanning_animating → playing) 시 보드/수순 반드시 보존
                                                 const wasScanningAnimating = existingGame?.gameStatus === 'scanning_animating';
                                                 const wasMissileAnimatingToPlaying =
                                                     existingGame?.gameStatus === 'missile_animating' && game.gameStatus === 'playing';
                                                 const serverBoardStructural =
                                                     !!(
-                                                        game.boardState &&
-                                                        Array.isArray(game.boardState) &&
-                                                        game.boardState.length > 0 &&
-                                                        game.boardState[0] &&
-                                                        Array.isArray(game.boardState[0])
+                                                        mergedGameForSp.boardState &&
+                                                        Array.isArray(mergedGameForSp.boardState) &&
+                                                        mergedGameForSp.boardState.length > 0 &&
+                                                        mergedGameForSp.boardState[0] &&
+                                                        Array.isArray(mergedGameForSp.boardState[0])
                                                     );
                                                 const serverBoardSubstantive =
-                                                    serverBoardStructural && boardGridHasAnyStones(game.boardState);
-                                                const serverMoveHistoryValid = game.moveHistory && Array.isArray(game.moveHistory) && game.moveHistory.length > 0;
+                                                    serverBoardStructural && boardGridHasAnyStones(mergedGameForSp.boardState);
+                                                const serverMoveHistoryValid = mergedGameForSp.moveHistory && Array.isArray(mergedGameForSp.moveHistory) && mergedGameForSp.moveHistory.length > 0;
                                                 const existingBoardValid = existingGame?.boardState && Array.isArray(existingGame.boardState) && existingGame.boardState.length > 0;
                                                 const existingBoardSubstantive =
                                                     !!existingBoardValid && boardGridHasAnyStones(existingGame?.boardState);
@@ -10523,11 +10601,11 @@ export const useApp = () => {
                                                 const finalBoardState = preserveBoardFromExisting
                                                     ? existingGame!.boardState
                                                     : serverBoardSubstantive
-                                                      ? game.boardState
+                                                      ? mergedGameForSp.boardState
                                                       : existingBoardSubstantive
                                                         ? existingGame!.boardState
-                                                        : (existingGame?.boardState ?? game.boardState);
-                                                const finalMoveHistory = preserveMoveHistoryFromExisting ? existingGame.moveHistory : (serverMoveHistoryValid ? game.moveHistory : (existingGame?.moveHistory ?? game.moveHistory));
+                                                        : (existingGame?.boardState ?? mergedGameForSp.boardState);
+                                                const finalMoveHistory = preserveMoveHistoryFromExisting ? existingGame.moveHistory : (serverMoveHistoryValid ? mergedGameForSp.moveHistory : (existingGame?.moveHistory ?? mergedGameForSp.moveHistory));
                                                 const existingRevealedGen = existingGame?.permanentlyRevealedStones ?? [];
                                                 const serverRevealedGen = game.permanentlyRevealedStones ?? [];
                                                 const mergedRevealed = [...existingRevealedGen];
@@ -10535,22 +10613,22 @@ export const useApp = () => {
                                                     if (!mergedRevealed.some((r: Point) => r.x === p.x && r.y === p.y))
                                                         mergedRevealed.push(p);
                                                 }
-                                                const mergedHiddenMovesGeneral = mergeHiddenMovesByStableHistory(game, existingGame);
+                                                const mergedHiddenMovesGeneral = mergeHiddenMovesByStableHistory(mergedGameForSp, existingGame);
                                                 const mergedHumanHiddenStonePointsGeneral = mergeHumanHiddenStonePointsForSession(
-                                                    game,
+                                                    mergedGameForSp,
                                                     existingGame,
                                                     finalMoveHistory,
                                                     mergedHiddenMovesGeneral,
                                                 );
                                                 const mergedAiInitialHiddenStoneGeneral =
-                                                    (game as any).aiInitialHiddenStone ?? (existingGame as any)?.aiInitialHiddenStone;
+                                                    (mergedGameForSp as any).aiInitialHiddenStone ?? (existingGame as any)?.aiInitialHiddenStone;
                                                 const mergedAiInitialHiddenStoneIsPrePlacedGeneral =
-                                                    (game as any).aiInitialHiddenStoneIsPrePlaced ?? (existingGame as any)?.aiInitialHiddenStoneIsPrePlaced;
+                                                    (mergedGameForSp as any).aiInitialHiddenStoneIsPrePlaced ?? (existingGame as any)?.aiInitialHiddenStoneIsPrePlaced;
                                                 if (isAnimating || existingGame) {
                                                     // 서버가 슬림 페이로드(boardState 생략)를내도 final*가 기존 판을 유지하므로 항상 반영한다.
                                                     // 그렇지 않으면 클라 board가 비고 buildPveItemActionClientSync → REQUEST_SERVER_AI_MOVE가 영구 스킵된다.
                                                     updatedGames[gameId] = {
-                                                        ...game,
+                                                        ...mergedGameForSp,
                                                         boardState: finalBoardState,
                                                         moveHistory: finalMoveHistory,
                                                         hiddenMoves: mergedHiddenMovesGeneral,
@@ -10565,7 +10643,7 @@ export const useApp = () => {
                                                     };
                                                 } else {
                                                     updatedGames[gameId] = {
-                                                        ...game,
+                                                        ...mergedGameForSp,
                                                         hiddenMoves: mergedHiddenMovesGeneral,
                                                         humanHiddenStonePoints: mergedHumanHiddenStonePointsGeneral,
                                                         aiInitialHiddenStone: mergedAiInitialHiddenStoneGeneral,

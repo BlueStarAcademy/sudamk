@@ -1,4 +1,5 @@
 import { Player, type BoardState, type LiveGameSession, type Point } from '../../types/index.js';
+import { findLatestMoveIndexAtExcludingRecordedBaseStones } from './baseHiddenMoveIndex.js';
 
 export type PlacementOccupancySession = Pick<
     LiveGameSession,
@@ -51,4 +52,30 @@ export function getPlacementOccupancyBlockReason(
     if (occupant === myPlayer) return 'own';
     if (occupant === opponent) return 'opponent';
     return null;
+}
+
+/** PVE·온라인 공통: 상대 히든 돌(미공개) 교차점을 유저가 착수하려 할 때 공개 연출을 트리거해야 하는지 */
+export function isUnrevealedOpponentHiddenStoneAt(
+    boardState: BoardState,
+    session: PlacementOccupancySession,
+    x: number,
+    y: number,
+    myPlayer: Player,
+): boolean {
+    if (myPlayer !== Player.Black && myPlayer !== Player.White) return false;
+    if (isPermanentlyRevealedAt(session.permanentlyRevealedStones, x, y)) return false;
+
+    const opponent = myPlayer === Player.Black ? Player.White : Player.Black;
+    if (isUnrevealedAiInitialHiddenAt(session, x, y)) return true;
+
+    if (!session.moveHistory?.length || !session.hiddenMoves) return false;
+    const moveIndex = findLatestMoveIndexAtExcludingRecordedBaseStones(
+        session.moveHistory,
+        x,
+        y,
+        opponent,
+        session,
+    );
+    if (moveIndex === -1 || !session.hiddenMoves[moveIndex]) return false;
+    return boardState[y]?.[x] === opponent;
 }

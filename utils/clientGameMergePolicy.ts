@@ -1,5 +1,5 @@
 import type { LiveGameSession } from '../types.js';
-import { GameMode, Player } from '../types.js';
+import { AlkkagiPlacementType, GameMode, Player } from '../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants.js';
 import {
     boardHasStrayLegacyFlankStones,
@@ -197,7 +197,10 @@ const AI_LOBBY_POST_START_CONFIRM_STATUSES = new Set([
     'alkkagi_simultaneous_placement',
     'thief_rps',
     'thief_rolling',
-    'chess_setup_placement',
+    'chess_piece_placement',
+    'alkkagi_placement',
+    'alkkagi_playing',
+    'curling_playing',
     'uniform_color_roulette',
     'nigiri_reveal',
 ]);
@@ -245,7 +248,19 @@ export function buildOptimisticAiLobbyStartSession(
 
     const isStrategic = SPECIAL_GAME_MODES.some((m) => m.mode === session.mode);
     if (isStrategic) {
-        if (session.mode === GameMode.Chess) return null;
+        if (session.mode === GameMode.Chess) {
+            const boardSize = session.settings.boardSize === 9 ? 9 : 13;
+            const emptyBoard = Array.from({ length: boardSize }, () =>
+                Array.from({ length: boardSize }, () => Player.None),
+            );
+            return {
+                ...next,
+                gameStatus: 'chess_piece_placement',
+                chessPieceMovedThisTurn: false,
+                chessCaptureScore: { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 },
+                boardState: emptyBoard,
+            };
+        }
         if (session.mode === GameMode.Base || modeIncludesBaseRule(session.mode, session.settings)) {
             return {
                 ...next,
@@ -316,9 +331,35 @@ export function buildOptimisticAiLobbyStartSession(
                 turnStartTime: now,
             };
         }
+        if (session.mode === GameMode.Alkkagi) {
+            const placementType = session.settings.alkkagiPlacementType;
+            const turnByTurn = placementType === AlkkagiPlacementType.TurnByTurn;
+            return {
+                ...next,
+                gameStatus: turnByTurn ? 'alkkagi_placement' : 'alkkagi_simultaneous_placement',
+                currentPlayer: turnByTurn ? Player.Black : Player.None,
+                turnStartTime: now,
+            };
+        }
+        if (session.mode === GameMode.Curling) {
+            return {
+                ...next,
+                gameStatus: 'curling_playing',
+                currentPlayer: Player.Black,
+                turnStartTime: now,
+                curlingRound: 1,
+            };
+        }
     }
 
-    return null;
+    return {
+        ...next,
+        gameStatus: 'playing',
+        currentPlayer: Player.Black,
+        gameStartTime: now,
+        startTime: now,
+        turnStartTime: now,
+    };
 }
 
 /** CONFIRM 직후 낙관 playing/사전단계인데 늦은 pending WS/HTTP가 덮는 것 방지 (로비 AI) */
