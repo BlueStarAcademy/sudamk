@@ -9,6 +9,7 @@ import * as effectService from './effectService.js';
 import { regenerateActionPoints } from './effectService.js';
 import { updateGameStates } from './gameModes.js';
 import { DAILY_QUESTS, WEEKLY_QUESTS, MONTHLY_QUESTS, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, ACTION_POINT_REGEN_INTERVAL_MS, ITEM_SELL_PRICES, MATERIAL_SELL_PRICES, ACHIEVEMENT_TRACKS } from '../shared/constants';
+import { normalizeQuestLogMetadata } from '../utils/questProgressCap.js';
 import { initializeGame } from './gameModes.js';
 import { handleStrategicGameAction } from './modes/standard.js';
 import {
@@ -303,6 +304,7 @@ export const resetAndGenerateQuests = async (user: User): Promise<User> => {
     if (normalizeQuestRewards(updatedUser.quests.daily?.quests, 100)) modified = true;
     if (normalizeQuestRewards(updatedUser.quests.weekly?.quests, 500)) modified = true;
     if (normalizeQuestRewards(updatedUser.quests.monthly?.quests, 1500)) modified = true;
+    if (normalizeQuestLogMetadata(updatedUser.quests, now)) modified = true;
 
     // Daily Quests
     if (isDifferentDayKST(updatedUser.quests.daily?.lastReset, now)) {

@@ -24,7 +24,7 @@ import {
     APP_HOME_HASH,
     normalizeLegacyAppHash,
 } from '../utils/appUtils.js';
-import { computeGameSessionFingerprint } from '../utils/gameSessionFingerprint.js';
+import { DEFAULT_CLAIMED_MILESTONES } from '../utils/questProgressCap.js';
 import { getApiUrl, getWebSocketUrlFor } from '../utils/apiConfig.js';
 import { 
     DAILY_MILESTONE_THRESHOLDS,
@@ -3640,7 +3640,11 @@ export const useApp = () => {
     
         const checkMilestones = (questData?: DailyQuestData | WeeklyQuestData | MonthlyQuestData, thresholds?: number[]) => {
             if (!questData || !thresholds) return false;
-            return questData.claimedMilestones.some((claimed, index) => {
+            const claimedMilestones =
+                Array.isArray(questData.claimedMilestones) && questData.claimedMilestones.length > 0
+                    ? questData.claimedMilestones
+                    : DEFAULT_CLAIMED_MILESTONES;
+            return claimedMilestones.some((claimed, index) => {
                 return !claimed && questData.activityProgress >= thresholds[index];
             });
         };

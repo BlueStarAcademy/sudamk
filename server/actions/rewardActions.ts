@@ -22,7 +22,7 @@ import { calculateRanks } from '../tournamentService.js';
 import { addItemsToInventory, createItemInstancesFromReward } from '../../utils/inventoryUtils.js';
 import { createItemInstancesFromMailAttachments } from '../mailClaimEquipment.js';
 import { getSelectiveUserUpdate } from '../utils/userUpdateHelper.js';
-import { clampQuestProgressToTarget } from '../../utils/questProgressCap.js';
+import { clampQuestProgressToTarget, normalizeQuestPeriodMetadata } from '../../utils/questProgressCap.js';
 import { isAchievementRequirementMet } from '../../shared/utils/achievementProgress.js';
 import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig, type RewardConfig } from '../../shared/constants/rewardConfig.js';
 import { isRewardVipActive } from '../../shared/utils/rewardVip.js';
@@ -483,7 +483,9 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             const selectedQuest = questDataMap[questType];
             if (!selectedQuest || !selectedQuest.data) return { error: "유효하지 않은 퀘스트 타입입니다." };
 
-            const { data, thresholds, rewards } = selectedQuest;
+            const { thresholds, rewards } = selectedQuest;
+            const normalizedPeriod = normalizeQuestPeriodMetadata(selectedQuest.data, Date.now());
+            const data = normalizedPeriod.data!;
             
             if (milestoneIndex < 0 || milestoneIndex >= rewards.length) return { error: "유효하지 않은 마일스톤입니다." };
             if (data.claimedMilestones[milestoneIndex]) return { error: "이미 수령한 보상입니다." };
@@ -537,11 +539,14 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             }
 
             // 선택적 필드만 반환 (메시지 크기 최적화)
-            const updatedUser = getSelectiveUserUpdate(user, 'CLAIM_QUEST_REWARD');
+            const updatedUser = getSelectiveUserUpdate(user, 'CLAIM_ACTIVITY_MILESTONE');
             
+            const { updateUserCache } = await import('../gameCache.js');
+            updateUserCache(user);
+
             // DB 업데이트를 비동기로 처리 (응답 지연 최소화)
             db.updateUser(user).catch(err => {
-                console.error(`[CLAIM_QUEST_REWARD] Failed to save user ${user.id}:`, err);
+                console.error(`[CLAIM_ACTIVITY_MILESTONE] Failed to save user ${user.id}:`, err);
             });
 
             // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화: 변경된 필드만 전송)

@@ -7214,6 +7214,25 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         );
     };
 
+    const renderChampionshipIntermediateResultFooterActions = (
+        fb: string,
+        options?: { onAfterClick?: () => void },
+    ): React.ReactNode => {
+        const claimAction = renderChampionshipClaimRewardAction(fb, options?.onAfterClick);
+        const nextAction = renderChampionshipStartOrNextMatchAction(fb, {
+            intent: 'any',
+            allowDuringResultPanel: true,
+            onAfterClick: options?.onAfterClick,
+        });
+        if (!claimAction && !nextAction) return null;
+        return (
+            <div className="flex w-full flex-col gap-2">
+                {claimAction}
+                {nextAction}
+            </div>
+        );
+    };
+
     const renderChampionshipNextMatchFooterSlot = (fb: string) => {
         const action = renderChampionshipStartOrNextMatchAction(
             fb,
@@ -7319,12 +7338,18 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
               })();
 
     const mobileBoardCenterMatchAction =
-        isMobile && isDungeonChampionshipVenue
+        isMobile && isDungeonChampionshipVenue && !showChampionshipMatchResultPanel
             ? renderChampionshipStartOrNextMatchAction(
                   '!text-sm !py-3 !px-8 min-w-[9.5rem] shadow-lg',
                   { intent: 'any', allowDuringResultPanel: true },
               )
             : null;
+
+    const canReopenMobileChampionshipResultModal =
+        isMobile &&
+        isDungeonChampionshipVenue &&
+        showChampionshipMatchResultPanel &&
+        !showMobileChampionshipResultModal;
 
     const mobileDungeonFooterStatusMessage = useMemo(() => {
         if (!isMobile || !isDungeonChampionshipVenue) return null;
@@ -7378,7 +7403,15 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 tournamentForResult={displayTournament}
                 finalStandings={championshipFinalStandingsRows}
                 compact={isMobile}
-                resultActionSlot={isMobile && !isDungeonChampionshipVenue ? championshipResultPanelActionSlot : null}
+                resultActionSlot={
+                    isDungeonChampionshipVenue
+                        ? renderChampionshipIntermediateResultFooterActions(
+                              isMobile ? '!text-xs !py-1.5 !px-3 w-full' : '!text-sm !py-2 w-full',
+                          )
+                        : isMobile
+                          ? championshipResultPanelActionSlot
+                          : null
+                }
             />
         ) : (
             <div
@@ -7568,6 +7601,15 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     </p>
                 ) : null}
                 {mobileDungeonFooterStatusMessage}
+                {canReopenMobileChampionshipResultModal ? (
+                    <button
+                        type="button"
+                        onClick={() => setShowMobileChampionshipResultModal(true)}
+                        className={`mb-1.5 w-full ${championshipFooterPrimaryButton} !text-[11px] !py-2 !px-2 animate-pulse`}
+                    >
+                        {tt('matchResult')}
+                    </button>
+                ) : null}
                 {championshipPlaybackSpeedSelector}
                 <div className="grid grid-cols-3 gap-1.5">
                     <button
@@ -8940,7 +8982,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                             <div className="shrink-0 border-t border-amber-400/20 px-3 py-3">
                                 {(() => {
                                     const modalActionFb = '!text-sm !py-2.5 w-full';
-                                    const modalPrimaryAction = renderChampionshipClaimRewardAction(
+                                    const modalPrimaryAction = renderChampionshipIntermediateResultFooterActions(
                                         modalActionFb,
                                         dismissMobileChampionshipResultModal,
                                     );

@@ -3,7 +3,7 @@ import { UserWithStatus, Quest, ServerAction, QuestLog, QuestReward } from '../t
 import DraggableWindow from './DraggableWindow.js';
 import { DAILY_MILESTONE_THRESHOLDS, WEEKLY_MILESTONE_THRESHOLDS, MONTHLY_MILESTONE_THRESHOLDS, DAILY_MILESTONE_REWARDS, WEEKLY_MILESTONE_REWARDS, MONTHLY_MILESTONE_REWARDS, CONSUMABLE_ITEMS, ACHIEVEMENT_TRACKS } from '../constants';
 import { NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH, isInsideSudamrAdUi } from '../constants/ads.js';
-import { clampQuestProgressToTarget } from '../utils/questProgressCap.js';
+import { clampQuestProgressToTarget, DEFAULT_CLAIMED_MILESTONES } from '../utils/questProgressCap.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../shared/constants/pcShellLayout.js';
@@ -687,7 +687,11 @@ const ActivityPanel: React.FC<{
     const { t } = useTranslation('quests');
     if (!questData) return null;
 
-    const { activityProgress, claimedMilestones } = questData;
+    const { activityProgress, claimedMilestones: rawClaimedMilestones } = questData;
+    const claimedMilestones =
+        Array.isArray(rawClaimedMilestones) && rawClaimedMilestones.length > 0
+            ? rawClaimedMilestones
+            : DEFAULT_CLAIMED_MILESTONES;
     const maxProgress = thresholds[thresholds.length - 1];
     const displayActivity = clampQuestProgressToTarget(activityProgress, maxProgress);
 
