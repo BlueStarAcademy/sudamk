@@ -610,7 +610,27 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                         const { broadcastToGameParticipants } = await import('./socket.js');
                         broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
                     }
-                    return result || {};
+                    if (result && (result as any).error) {
+                        return result;
+                    }
+                    const boardClone =
+                        game.boardState && Array.isArray(game.boardState)
+                            ? (game.boardState as number[][]).map((row) => [...row])
+                            : game.boardState;
+                    const baseResult =
+                        result && typeof result === 'object' && !Array.isArray(result)
+                            ? (result as Record<string, unknown>)
+                            : {};
+                    return {
+                        ...baseResult,
+                        clientResponse: {
+                            ...(typeof (baseResult as any).clientResponse === 'object'
+                                ? (baseResult as any).clientResponse
+                                : {}),
+                            gameId: game.id,
+                            game: { ...game, boardState: boardClone },
+                        },
+                    };
                 }
             }
         }
@@ -1098,13 +1118,10 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             ]);
             // 히든 전체공개 연출이 끝났는데 메인 루프/큐 틱이 밀리면 클라 복구 요청에서 정산·AI 재개를 진행한다.
             if (isPveLikeAiGame && String(game.gameStatus) === 'hidden_reveal_animating') {
-                const revealEnd = game.revealAnimationEndTime ?? 0;
-                if (revealEnd > 0 && Date.now() >= revealEnd) {
-                    const { tickStrategicItemPhaseIfNeeded } = await import('./utils/strategicItemPhaseTick.js');
-                    await tickStrategicItemPhaseIfNeeded(game, Date.now());
-                    updateGameCache(game);
-                    await db.saveGame(game);
-                }
+                const { finalizePveHiddenRevealIfExpired } = await import('./utils/pveHiddenRevealTick.js');
+                await finalizePveHiddenRevealIfExpired(game, Date.now());
+                updateGameCache(game);
+                await db.saveGame(game);
             }
             const pveNonErrorNoop = (): { clientResponse: { serverAiMoveDone: boolean; skippedReason: string; game: types.LiveGameSession } } => ({
                 clientResponse: {

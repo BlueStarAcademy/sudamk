@@ -128,6 +128,73 @@ export function shouldClearItemPhaseAnimationOnPlayingMerge(
 /** @deprecated use shouldClearItemPhaseAnimationOnPlayingMerge */
 export const shouldClearMissileFlightAnimationOnPlayingMerge = shouldClearItemPhaseAnimationOnPlayingMerge;
 
+function boardGridHasStones(boardState: unknown): boolean {
+    if (!boardState || !Array.isArray(boardState) || boardState.length === 0) return false;
+    return boardState.some(
+        (row: unknown) =>
+            Array.isArray(row) && row.some((cell: unknown) => cell !== Player.None && cell != null),
+    );
+}
+
+function isPveAiHiddenPresentationSession(
+    session: Pick<LiveGameSession, 'animation'> & { aiHiddenItemAnimationEndTime?: number },
+): boolean {
+    const anim = session.animation as { type?: string } | null | undefined;
+    return anim?.type === 'ai_thinking' || session.aiHiddenItemAnimationEndTime != null;
+}
+
+/**
+ * 모험·길드전 등 liveGames: goAiBot AI 히든 연출 패킷이 boardState를 생략할 때
+ * 기존 판·수순·연출 종료 시각을 유지한다.
+ */
+export function preservePveAiHiddenPresentationOnMerge(
+    incoming: LiveGameSession,
+    existing: LiveGameSession | undefined,
+): LiveGameSession {
+    if (!existing) return incoming;
+
+    const presentationActive =
+        isPveAiHiddenPresentationSession(incoming as LiveGameSession) ||
+        isPveAiHiddenPresentationSession(existing as LiveGameSession) ||
+        isItemPhasePresentationStillActive(existing as LiveGameSession);
+
+    if (!presentationActive) return incoming;
+
+    let merged = incoming;
+    const incomingHasBoard = boardGridHasStones(incoming.boardState);
+    const existingHasBoard = boardGridHasStones(existing.boardState);
+    if (!incomingHasBoard && existingHasBoard) {
+        merged = {
+            ...merged,
+            boardState: existing.boardState,
+            moveHistory:
+                Array.isArray(existing.moveHistory) && existing.moveHistory.length > 0
+                    ? existing.moveHistory
+                    : merged.moveHistory,
+        };
+    }
+
+    const existingEnd = (existing as { aiHiddenItemAnimationEndTime?: number }).aiHiddenItemAnimationEndTime;
+    const incomingEnd = (incoming as { aiHiddenItemAnimationEndTime?: number }).aiHiddenItemAnimationEndTime;
+    const preservedEnd =
+        typeof existingEnd === 'number' && typeof incomingEnd === 'number'
+            ? Math.max(existingEnd, incomingEnd)
+            : existingEnd ?? incomingEnd;
+    if (typeof preservedEnd === 'number' && preservedEnd !== incomingEnd) {
+        merged = { ...merged, aiHiddenItemAnimationEndTime: preservedEnd } as LiveGameSession;
+    }
+
+    if (
+        isItemPhasePresentationStillActive(existing as LiveGameSession) &&
+        (incoming.animation === undefined || incoming.animation === null) &&
+        existing.animation
+    ) {
+        merged = { ...merged, animation: existing.animation };
+    }
+
+    return merged;
+}
+
 const STRATEGIC_ITEM_INVENTORY_KEYS = [
     'hidden_stones_p1',
     'hidden_stones_p2',
@@ -831,6 +898,7 @@ export function mergeGameUpdateByArena(
     /** 들어온 패킷이 좌석 잠금을 비운 채 오면 기존 잠금을 살려 두어, 좌석 보호 근거를 잃지 않게 한다. */
     const incomingWithLock = preserveExistingBaseSeatLockAgainstSlimDrop(incoming, existing);
     let merged = existing ? ({ ...existing, ...incomingWithLock } as LiveGameSession) : incomingWithLock;
+    merged = preservePveAiHiddenPresentationOnMerge(merged, existing);
     merged = stripStaleJustCapturedOnMerge(merged, existing);
     merged = mergeStrategicItemInventoryMonotonic(merged, existing);
     if (shouldClearItemPhaseAnimationOnPlayingMerge(existing, incoming)) {

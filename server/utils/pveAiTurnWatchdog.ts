@@ -74,11 +74,15 @@ function clearPveAiWatchSnapshot(game: LiveGameSession): void {
     delete (game as any)._pveAiWatchSince;
 }
 
-function shouldSkipWatchdogForAnimation(game: LiveGameSession): boolean {
+function shouldSkipWatchdogForAnimation(game: LiveGameSession, now: number = Date.now()): boolean {
     const status = String(game.gameStatus ?? '');
     if (!PVE_AI_WATCHDOG_ANIMATING_STATUSES.has(status)) return false;
     const policy = resolveArenaSessionPolicy(game);
     if (status === 'hidden_reveal_animating' && KATA_SERVER_AI_ARENA_KINDS.has(policy.kind)) {
+        const revealEnd = game.revealAnimationEndTime ?? 0;
+        if (revealEnd > 0 && now >= revealEnd) {
+            return false;
+        }
         return true;
     }
     return true;
@@ -96,7 +100,7 @@ export function needsPveAiWatchdogTick(game: LiveGameSession): boolean {
     const policy = resolveArenaSessionPolicy(game);
     // 싱글/탑: 클라이언트 REQUEST_SERVER_AI_MOVE가 1차 경로. 메인 루프는 AI 정지 워치독만(유저 턴·연출 중 제외).
     if (policy.kind === 'singleplayer' || policy.kind === 'tower') {
-        if (shouldSkipWatchdogForAnimation(game)) return false;
+        if (shouldSkipWatchdogForAnimation(game, Date.now())) return false;
         if (!PVE_AI_WATCHDOG_ELIGIBLE_STATUSES.has(String(game.gameStatus ?? ''))) return false;
         return isAiControlledTurnForWatchdog(game);
     }
@@ -118,7 +122,7 @@ export function maybeRecoverStalledPveAiTurn(game: LiveGameSession, now: number)
     if (isManuallyPausedAiGame(game)) {
         return false;
     }
-    if (shouldSkipWatchdogForAnimation(game)) {
+    if (shouldSkipWatchdogForAnimation(game, now)) {
         return false;
     }
     if (game.currentPlayer === Player.None || !isAiControlledTurnForWatchdog(game)) {

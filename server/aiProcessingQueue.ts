@@ -244,8 +244,8 @@ class AiProcessingQueue {
             if (game.gameStatus === 'hidden_reveal_animating') {
                 const beforeStatus = game.gameStatus;
                 const beforeRevealEnd = game.revealAnimationEndTime;
-                const { tickStrategicItemPhaseIfNeeded } = await import('./utils/strategicItemPhaseTick.js');
-                await tickStrategicItemPhaseIfNeeded(game, Date.now());
+                const { finalizePveHiddenRevealIfExpired } = await import('./utils/pveHiddenRevealTick.js');
+                await finalizePveHiddenRevealIfExpired(game, Date.now());
                 const revealResolved =
                     game.gameStatus !== beforeStatus ||
                     beforeRevealEnd !== game.revealAnimationEndTime ||

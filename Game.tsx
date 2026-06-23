@@ -2509,6 +2509,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         gameType: isTower ? 'tower' : isGuildWarHiddenClientEffects ? 'guildwar' : 'singleplayer',
                     },
                 } as any);
+            } else if (isAdventureGame && session.isAiGame) {
+                const clientSync = buildPveItemActionClientSync(session);
+                void handlers.handleAction({
+                    type: 'REQUEST_SERVER_AI_MOVE',
+                    payload: clientSync
+                        ? { gameId: session.id, clientSync }
+                        : { gameId: session.id },
+                } as ServerAction);
             } else {
                 void handlers.handleAction({
                     type: 'REQUEST_GAME_STATE_SYNC',
@@ -2531,7 +2539,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         needsServerHiddenRevealNudge,
         isTower,
         isGuildWarHiddenClientEffects,
+        isAdventureGame,
         handlers.handleAction,
+        session,
     ]);
 
     // 스캔 결과 애니메이션 종료 시 본경기(playing) 복귀 — 서버 updateGameStates/WS가 늦어도 착수 가능 (PVE + 온라인 히든)
@@ -2827,9 +2837,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         session.gameCategory,
     ]);
 
-    // 도전의 탑·싱글: 서버 생각 연출 종료 직후 Kata 착수를 위해 REQUEST_SERVER_AI_MOVE 1회
+    // 도전의 탑·싱글·모험: 서버 생각 연출 종료 직후 Kata 착수를 위해 REQUEST_SERVER_AI_MOVE 1회
     useEffect(() => {
-        if (!isTower && !isSinglePlayer) return;
+        if (!isTower && !isSinglePlayer && !isAdventureGame) return;
         if (session.gameStatus !== 'playing') return;
         const anim = session.animation as { type?: string; startTime?: number } | undefined;
         if (anim?.type !== 'ai_thinking') return;
@@ -2859,15 +2869,16 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             if (!isAiTurnNow) return;
 
             pveAiHiddenPostAnimRequestDoneRef.current = followKey;
+            lastAiMoveRef.current = null;
             const clientSync = buildPveItemActionClientSync(s);
-            if (!clientSync) {
+            if (!clientSync && !isAdventureGame) {
                 pveAiHiddenPostAnimRequestDoneRef.current = null;
                 return;
             }
             void handlers
                 .handleAction({
                     type: 'REQUEST_SERVER_AI_MOVE',
-                    payload: { gameId: sid, clientSync },
+                    payload: clientSync ? { gameId: sid, clientSync } : { gameId: sid },
                 } as ServerAction)
                 .catch((err) => {
                     console.error('[Game] PVE post ai_thinking REQUEST_SERVER_AI_MOVE failed:', err);
@@ -2878,6 +2889,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     }, [
         isTower,
         isSinglePlayer,
+        isAdventureGame,
         session.id,
         session.gameStatus,
         session.animation?.type,

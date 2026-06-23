@@ -290,7 +290,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                     lastTurnStones={lastTurnStones}
                     isBoardDisabled={
                         // 베이스 배치: 양쪽(유저·AI) 동시 배치 단계 — 턴 표시와 무관하게 유저가 찍어야 함 (GoGameArena와 동일)
-                        (!isMyTurn && gameStatus !== 'base_placement') ||
+                        (!isMyTurn && gameStatus !== 'base_placement' && gameStatus !== 'missile_selecting') ||
                         isSpectator ||
                         isPaused ||
                         // 미사일 좌표 선택 중에는 응답 대기 등으로 isBoardLocked여도 판 조작이 필요하다.

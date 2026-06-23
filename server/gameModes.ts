@@ -1765,6 +1765,10 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
 
         // 싱글/탑 본대국: 클라이언트 REQUEST_SERVER_AI_MOVE + 큐 워치독만 (전략 상태머신·인라인 AI 스킵)
         if (isClientKickPlaying) {
+            if (String(game.gameStatus) === 'hidden_reveal_animating') {
+                const { finalizePveHiddenRevealIfExpired } = await import('./utils/pveHiddenRevealTick.js');
+                await finalizePveHiddenRevealIfExpired(game, now);
+            }
             maybeRecoverStalledPveAiTurn(game, now);
             return game;
         }
@@ -2010,6 +2014,10 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                             pveAiPolicyForDispatch.kind === 'tower'));
                 // 페어 4인 수순·모험·길드전: aiProcessingQueue 단일 경로만 사용 (메인루프와 이중 디스패치 방지)
                 if (pveStrategicQueueOnly) {
+                    if (String(game.gameStatus) === 'hidden_reveal_animating') {
+                        const { finalizePveHiddenRevealIfExpired } = await import('./utils/pveHiddenRevealTick.js');
+                        await finalizePveHiddenRevealIfExpired(game, now);
+                    }
                     maybeRecoverStalledPveAiTurn(game, now);
                     return game;
                 }

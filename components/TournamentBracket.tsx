@@ -7318,11 +7318,11 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                   return null;
               })();
 
-    const mobileBoardCenterStartAction =
+    const mobileBoardCenterMatchAction =
         isMobile && isDungeonChampionshipVenue
             ? renderChampionshipStartOrNextMatchAction(
                   '!text-sm !py-3 !px-8 min-w-[9.5rem] shadow-lg',
-                  { intent: 'start' },
+                  { intent: 'any', allowDuringResultPanel: true },
               )
             : null;
 
@@ -8463,14 +8463,14 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 dungeonBoardCenterMode={championshipDungeonBoardCenterMode}
                 territoryAnalysis={championshipDungeonTerritoryAnalysis}
             />
-            {mobileBoardCenterStartAction ? (
+            {mobileBoardCenterMatchAction ? (
                 <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
                     <div
                         className={`pointer-events-auto px-2 ${
                             championshipDungeonBoardCenterMode === 'deep_breath' ? 'translate-y-10' : ''
                         }`}
                     >
-                        {mobileBoardCenterStartAction}
+                        {mobileBoardCenterMatchAction}
                     </div>
                 </div>
             ) : null}
@@ -8940,16 +8940,10 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                             <div className="shrink-0 border-t border-amber-400/20 px-3 py-3">
                                 {(() => {
                                     const modalActionFb = '!text-sm !py-2.5 w-full';
-                                    const modalPrimaryAction =
-                                        renderChampionshipClaimRewardAction(
-                                            modalActionFb,
-                                            dismissMobileChampionshipResultModal,
-                                        ) ??
-                                        renderChampionshipStartOrNextMatchAction(modalActionFb, {
-                                            intent: 'next',
-                                            allowDuringResultPanel: true,
-                                            onAfterClick: dismissMobileChampionshipResultModal,
-                                        });
+                                    const modalPrimaryAction = renderChampionshipClaimRewardAction(
+                                        modalActionFb,
+                                        dismissMobileChampionshipResultModal,
+                                    );
                                     if (modalPrimaryAction) {
                                         return (
                                             <div className="flex w-full flex-col gap-2">

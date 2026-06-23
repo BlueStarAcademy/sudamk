@@ -170,6 +170,7 @@ import {
     mergeLiveRejoinResponseWithExistingBoard,
     preserveTerminalAnalysisResultOnMerge,
     preserveTerminalGameSessionOnMerge,
+    preservePveAiHiddenPresentationOnMerge,
     shouldClearMissileFlightAnimationOnPlayingMerge,
     shouldIgnoreStaleLiveTerminalGameUpdate,
     shouldIgnoreStalePendingPveStartRegression,
@@ -183,6 +184,7 @@ import {
     isSessionPveArena,
     loadRecoverablePveGameFromSessionStorage,
 } from '../utils/pveSessionStorageRestore.js';
+import { buildPveItemActionClientSync } from '../utils/pveItemClientSync.js';
 import {
     loadEndedPvpGameFromSessionStorage,
     persistEndedPvpGameToSessionStorage,
@@ -4811,11 +4813,33 @@ export const useApp = () => {
                         ...currentGames,
                         [gameId]: {
                             ...game,
+                            gameStatus: 'playing' as const,
                             animation: null,
                             revealAnimationEndTime: undefined,
                         } as any,
                     };
                 });
+                window.setTimeout(() => {
+                    void (async () => {
+                        const games = liveGamesRef.current ?? {};
+                        const g = games[gameId];
+                        if (!g) return;
+                        const aiSeatId =
+                            g.currentPlayer === Player.Black ? g.blackPlayerId : g.whitePlayerId;
+                        const isAiTurn =
+                            aiSeatId === aiUserId ||
+                            (g.isAiGame && aiSeatId === 'ai-player-01') ||
+                            (!!aiSeatId && String(aiSeatId).startsWith('dungeon-bot-'));
+                        if (!isAiTurn) return;
+                        const clientSync = buildPveItemActionClientSync(g);
+                        await handleAction({
+                            type: 'REQUEST_SERVER_AI_MOVE',
+                            payload: clientSync
+                                ? { gameId, clientSync }
+                                : { gameId },
+                        } as ServerAction);
+                    })();
+                }, 120);
                 return;
             }
             const updateGameState =
@@ -7566,7 +7590,18 @@ export const useApp = () => {
                         ('payload' in action ? (action as { payload?: { gameId?: string } }).payload?.gameId : undefined) ||
                         (game as any)?.id;
                 }
-                if (!effectiveGameId && (action.type === 'START_SCANNING' || action.type === 'START_HIDDEN_PLACEMENT' || action.type === 'SCAN_BOARD')) {
+                if (
+                    !effectiveGameId &&
+                    (action.type === 'START_SCANNING' ||
+                        action.type === 'START_HIDDEN_PLACEMENT' ||
+                        action.type === 'SCAN_BOARD' ||
+                        action.type === 'START_MISSILE_SELECTION' ||
+                        action.type === 'LAUNCH_MISSILE' ||
+                        action.type === 'CANCEL_MISSILE_SELECTION' ||
+                        action.type === 'MISSILE_INVALID_SELECTION' ||
+                        action.type === 'MISSILE_ANIMATION_COMPLETE' ||
+                        action.type === 'MISSILE_ITEM_TIMEOUT')
+                ) {
                     effectiveGameId =
                         ('payload' in action ? (action as { payload?: { gameId?: string } }).payload?.gameId : undefined) ||
                         (game as any)?.id;
@@ -7812,6 +7847,11 @@ export const useApp = () => {
                                     action.type === 'START_SCANNING' ||
                                     action.type === 'START_HIDDEN_PLACEMENT' ||
                                     action.type === 'SCAN_BOARD' ||
+                                    action.type === 'START_MISSILE_SELECTION' ||
+                                    action.type === 'LAUNCH_MISSILE' ||
+                                    action.type === 'CANCEL_MISSILE_SELECTION' ||
+                                    action.type === 'MISSILE_INVALID_SELECTION' ||
+                                    action.type === 'MISSILE_ANIMATION_COMPLETE' ||
                                     action.type === 'START_SINGLE_PLAYER_GAME' ||
                                     action.type === 'REQUEST_STRATEGIC_PET_HINT' ||
                                     !currentGames[effectiveGameId];
@@ -7873,6 +7913,11 @@ export const useApp = () => {
                                     action.type === 'START_SCANNING' ||
                                     action.type === 'START_HIDDEN_PLACEMENT' ||
                                     action.type === 'SCAN_BOARD' ||
+                                    action.type === 'START_MISSILE_SELECTION' ||
+                                    action.type === 'LAUNCH_MISSILE' ||
+                                    action.type === 'CANCEL_MISSILE_SELECTION' ||
+                                    action.type === 'MISSILE_INVALID_SELECTION' ||
+                                    action.type === 'MISSILE_ANIMATION_COMPLETE' ||
                                     action.type === 'START_TOWER_GAME' ||
                                     action.type === 'BUY_TOWER_ITEM' ||
                                     action.type === 'REQUEST_STRATEGIC_PET_HINT' ||
@@ -7883,13 +7928,16 @@ export const useApp = () => {
                                     const rawNextGame = isRefresh && game.boardState
                                         ? { ...game, boardState: (game.boardState as any[][]).map(row => [...row]), blackPatternStones: Array.isArray(game.blackPatternStones) ? [...game.blackPatternStones] : game.blackPatternStones, whitePatternStones: Array.isArray(game.whitePatternStones) ? [...game.whitePatternStones] : game.whitePatternStones }
                                         : game;
-                                    let nextGame = mergeGameWithMonotonicCounters(currentGames[effectiveGameId], rawNextGame as LiveGameSession, effectiveGameId);
                                     const existingTower = currentGames[effectiveGameId];
+                                    let nextGame = mergeGameWithMonotonicCounters(existingTower, rawNextGame as LiveGameSession, effectiveGameId);
+                                    nextGame = mergePveHttpActionGameResponse(nextGame, existingTower, action.type);
                                     if (
                                         existingTower &&
                                         (action.type === 'START_HIDDEN_PLACEMENT' ||
                                             action.type === 'START_SCANNING' ||
                                             action.type === 'SCAN_BOARD' ||
+                                            action.type === 'START_MISSILE_SELECTION' ||
+                                            action.type === 'LAUNCH_MISSILE' ||
                                             action.type === 'TOWER_ADD_TURNS' ||
                                             action.type === 'BUY_TOWER_ITEM')
                                     ) {
@@ -11332,7 +11380,7 @@ export const useApp = () => {
                                             liveGameSignaturesRef.current[gameId] = computeGameSessionFingerprint(game);
                                         }
                                         const updatedGames = { ...currentGames };
-                                        let mergedGame: typeof game = game;
+                                        let mergedGame: typeof game = preservePveAiHiddenPresentationOnMerge(game, existingGame);
                                         const incomingRound = game.round ?? 1;
                                         const existingRound = existingGame?.round ?? 1;
                                         const boardSize = game.settings?.boardSize;
