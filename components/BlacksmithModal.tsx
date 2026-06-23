@@ -53,10 +53,11 @@ function getCombineDisabledItemIds(
     combinationItems: (InventoryItem | null)[],
     maxCombinableGradeIndex: number
 ): string[] {
-    const firstItemGrade = combinationItems[0]?.grade;
+    const firstItemGrade = combinationItems.find(item => item !== null)?.grade;
     const combinationItemIds = combinationItems.map(i => i?.id).filter(Boolean) as string[];
     return inventory
         .filter(item => {
+            if (item.type !== 'equipment' || item.isExchangeListed) return false;
             if (combinationItemIds.includes(item.id)) return true;
             if (item.isEquipped) return true;
             if (GRADE_ORDER.indexOf(item.grade) > maxCombinableGradeIndex) return true;
@@ -530,6 +531,13 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
         return sorted;
     }, [inventory, activeTab, sortOption]);
 
+    /** 합성 피커: 선택 불가(장착·등급·대장간 레벨) 장비는 목록에서 제외해 모바일에서 회색만 가득한 것처럼 보이지 않게 함 */
+    const pickerFilteredInventory = useMemo(() => {
+        if (!equipmentPickerOpen || activeTab !== 'combine') return filteredInventory;
+        const disabledSet = new Set(pickerDisabledItemIds);
+        return filteredInventory.filter(item => !disabledSet.has(item.id));
+    }, [equipmentPickerOpen, activeTab, filteredInventory, pickerDisabledItemIds]);
+
     const inventorySlotsToDisplay = (() => {
         const slots = inventorySlots || {};
         if (activeTab === 'enhance' || activeTab === 'combine' || activeTab === 'disassemble' || activeTab === 'refine') {
@@ -901,8 +909,8 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
             onPickSingleComplete={
                 activeTab === 'enhance' || activeTab === 'refine' ? handlePickSingleCompleteMobile : undefined
             }
-            filteredInventory={filteredInventory}
-            inventorySlots={inventorySlotsToDisplay}
+            filteredInventory={pickerFilteredInventory}
+            inventorySlots={Math.max(inventorySlotsToDisplay, pickerFilteredInventory.length)}
             sortOption={sortOption}
             onSortChange={setSortOption}
             columnCount={windowWidth < 380 ? 5 : windowWidth < 480 ? 6 : 8}

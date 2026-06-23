@@ -218,18 +218,26 @@ const BlacksmithEquipmentPickerModal: React.FC<BlacksmithEquipmentPickerModalPro
                 </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2.5 pb-2 pr-1 [scrollbar-gutter:stable]">
-                <InventoryGrid
-                    inventory={filteredInventory}
-                    inventorySlots={inventorySlots}
-                    onSelectItem={handleGridSelect}
-                    selectedItemId={selectedItemIdForGrid}
-                    disabledItemIds={disabledItemIds}
-                    selectedItemIdsForDisassembly={mode === 'disassemble' ? pickerDisassemble : undefined}
-                    onToggleDisassemblySelection={mode === 'disassemble' ? onToggleDisassembly : undefined}
-                    columnCount={columnCount}
-                    gapPx={gapPx}
-                />
+            <div className="min-h-[12rem] flex-1 overflow-y-auto overflow-x-hidden px-2.5 pb-2 pr-1 [scrollbar-gutter:stable]">
+                {mode === 'combine' && filteredInventory.length === 0 ? (
+                    <p className={`px-1 py-6 text-center ${mobilePickerTypo.body} leading-relaxed text-slate-400`}>
+                        합성 가능한 장비가 없습니다.
+                        <br />
+                        장착 해제·거래 등록 여부·대장간 레벨을 확인해 주세요.
+                    </p>
+                ) : (
+                    <InventoryGrid
+                        inventory={filteredInventory}
+                        inventorySlots={Math.max(inventorySlots, filteredInventory.length)}
+                        onSelectItem={handleGridSelect}
+                        selectedItemId={selectedItemIdForGrid}
+                        disabledItemIds={disabledItemIds}
+                        selectedItemIdsForDisassembly={mode === 'disassemble' ? pickerDisassemble : undefined}
+                        onToggleDisassemblySelection={mode === 'disassemble' ? onToggleDisassembly : undefined}
+                        columnCount={columnCount}
+                        gapPx={gapPx}
+                    />
+                )}
             </div>
 
             <div

@@ -96,6 +96,7 @@ import {
 import { stampObtainedItemsBulk } from '../shared/utils/obtainedItemsBulk.js';
 import { advancePairTurn, getCurrentPairTurnSeat, isPairAiSeat, isPairClassicGame, normalizePairTurnIndex, resetPairPasses } from '../shared/utils/pairGameTurn.js';
 import { buildBoardFromMoves } from '../utils/sgfBoardLogic.js';
+import { computeGameSessionFingerprint } from '../utils/gameSessionFingerprint.js';
 import { mergePairPetTrainingSlotsPreserveRecentRestart } from '../shared/utils/pairPetTrainingSlotsClientMerge.js';
 import { pairTrainingClaimCompletedBySlotIndex, PAIR_TRAINING_CLAIM_ALREADY_CLAIMED_ERROR } from '../components/pair/pairTrainingClaimInFlight.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';

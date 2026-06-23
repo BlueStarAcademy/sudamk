@@ -68,7 +68,8 @@ const InventoryGrid: React.FC<InventoryGridProps> = ({
     columnCount = 10,
     gapPx = 4,
 }) => {
-    const inventoryDisplaySlots = Array.from({ length: inventorySlots }, (_, index) => inventory[index] || null);
+    const slotCount = Math.max(inventorySlots, inventory.length);
+    const inventoryDisplaySlots = Array.from({ length: slotCount }, (_, index) => inventory[index] || null);
     const cols = Math.max(4, Math.min(12, columnCount));
     const iconBoxPct = cols <= 8 ? '88%' : '80%';
 
