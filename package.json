@@ -71,6 +71,7 @@
     "i18n:sync": "node scripts/i18n/sync-locales.mjs",
     "i18n:translate": "node scripts/i18n/auto-translate-locales.mjs",
     "i18n:build": "node scripts/i18n/auto-translate-locales.mjs && node scripts/i18n/sync-locales.mjs",
+    "i18n:build-pregame-summary": "npx tsx scripts/i18n/build-pregame-summary-catalog.ts",
     "i18n:validate": "node scripts/i18n/validate-key-refs.mjs && node scripts/i18n/validate-colon-keys.mjs"
   },
   "dependencies": {

@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import React from 'react';
 import Button from '../Button.js';
+import { translateMannerRankLabel } from '../../shared/utils/translateMannerRankLabel.js';
 
 type ProfileMannerSealProps = {
     score: number;
@@ -17,13 +18,14 @@ const ProfileMannerSeal: React.FC<ProfileMannerSealProps> = ({
     compact = false,
     onOpenInfo,
 }) => {
-    const { t } = useTranslation('common');
+    const { t } = useTranslation(['common', 'profile']);
+    const translatedRank = translateMannerRankLabel(t, rank);
     return (
         <div
             className={`flex min-w-0 items-center gap-1.5 overflow-hidden rounded-lg border border-amber-500/30 bg-gradient-to-r from-zinc-800/95 via-zinc-900 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${
                 compact ? 'px-2 py-1' : 'px-2.5 py-1.5 sm:px-3'
             }`}
-            title={t('manner.scoreTitle', { score, rank })}
+            title={t('manner.scoreTitle', { score, rank: translatedRank })}
         >
             <span
                 className={`shrink-0 font-bold text-amber-100/90 ${compact ? 'text-[10px]' : 'text-xs'}`}
@@ -35,7 +37,7 @@ const ProfileMannerSeal: React.FC<ProfileMannerSealProps> = ({
                     compact ? 'text-[10px]' : 'text-xs'
                 }`}
             >
-                {rank}
+                {translatedRank}
             </span>
             <span
                 className={`min-w-0 flex-1 truncate text-right font-bold tabular-nums text-amber-50 ${

@@ -19,6 +19,7 @@ import MatchFoundModal from './waiting-room/MatchFoundModal.js';
 import {
     userInUnifiedArenaLobbyUserList,
     userMatchesAggregateWaitingLobby,
+    normalizeStaleArenaLobbyUserStatus,
 } from './waiting-room/aggregateWaitingLobbyUserFilter.js';
 import { ArenaLobbyNavTitleBar, type ArenaLobbyNavKind } from './waiting-room/ArenaLobbyNavTitleBar.js';
 import { ArenaLobbySwitchGrid } from './waiting-room/ArenaLobbySwitchGrid.js';
@@ -1308,6 +1309,10 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
 
     useEffect(() => {
         if (!aggregateLobbyMode || !currentUserWithStatus || hasEnteredAggregateLobby.current) return;
+        if (currentUserWithStatus.status === UserStatus.InGame && currentUserWithStatus.gameId) {
+            hasEnteredAggregateLobby.current = true;
+            return;
+        }
         const isAlready =
             currentUserWithStatus.status === UserStatus.Waiting || currentUserWithStatus.status === UserStatus.Resting;
         const modeMatches =
@@ -1617,20 +1622,22 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         const isStrategicLobby = aggregateLobbyMode === 'strategic';
         const matchesIntent = (u: { lobbyIntent?: ArenaLobbyIntent }) =>
             !u.lobbyIntent || u.lobbyIntent === lobbyIntent;
-        const all = onlineUsers.filter((u) => u && userInUnifiedArenaLobbyUserList(u) && matchesIntent(u));
+        const all = onlineUsers
+            .filter((u) => u && userInUnifiedArenaLobbyUserList(u) && matchesIntent(u))
+            .map(normalizeStaleArenaLobbyUserStatus);
         const me = all.find((u) => u.id === currentUserWithStatus.id);
         if (!me) {
             const { waitingLobby: _w, mode: _m, ...userBase } = currentUserWithStatus;
-            const currentUserInRoom: UserWithStatus = {
+            const currentUserInRoom: UserWithStatus = normalizeStaleArenaLobbyUserStatus({
                 ...userBase,
                 status: UserStatus.Waiting,
                 waitingLobby: isStrategicLobby ? 'strategic' : 'playful',
                 arenaChannel: isStrategicLobby ? 'strategic' : 'playful',
                 lobbyIntent,
-            };
+            });
             return [currentUserInRoom, ...all];
         }
-        return [me, ...all.filter((u) => u.id !== currentUserWithStatus.id)];
+        return [normalizeStaleArenaLobbyUserStatus(me), ...all.filter((u) => u.id !== currentUserWithStatus.id)];
     }, [aggregateLobbyMode, onlineUsers, currentUserWithStatus, lobbyIntent]);
 
     const leaveAiShellRoomSilently = useCallback(() => {
@@ -2275,13 +2282,15 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
 
     const pairUsers = useMemo(
         () =>
-            onlineUsers.filter(
-                (u) =>
-                    userInUnifiedArenaLobbyUserList(u) &&
-                    (!u.lobbyIntent || u.lobbyIntent === lobbyIntent) &&
-                    ((u.inPairLobby && (u.arenaChannel ?? 'pair') === lobbyChannel) ||
-                        (!u.inPairLobby && aggregateLobbyMode != null)),
-            ),
+            onlineUsers
+                .filter(
+                    (u) =>
+                        userInUnifiedArenaLobbyUserList(u) &&
+                        (!u.lobbyIntent || u.lobbyIntent === lobbyIntent) &&
+                        ((u.inPairLobby && (u.arenaChannel ?? 'pair') === lobbyChannel) ||
+                            (!u.inPairLobby && aggregateLobbyMode != null)),
+                )
+                .map(normalizeStaleArenaLobbyUserStatus),
         [onlineUsers, lobbyIntent, lobbyChannel, aggregateLobbyMode],
     );
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { useTranslation } from 'react-i18next';
+import { useLocalizedInventoryItemName } from '../shared/i18n/localizedCatalog.js';
 import { InventoryItem } from '../types.js';
 import { ItemGrade } from '../types/enums.js';
 import { gradeBackgrounds, gradeStyles } from '../constants';
@@ -53,10 +53,11 @@ const MailRewardItemTile: React.FC<{
     className?: string;
 }> = ({ item, variant = 'md', className = '' }) => {
     const { t } = useTranslation('mailReward');
+    const localizedItemName = useLocalizedInventoryItemName();
     const { box, iconPct, label } = sizeMap[variant];
     const qty = item.quantity ?? 1;
     const stars = getMailEquipmentDisplayStars(item);
-    const displayName = item.name ?? (item as { itemId?: string }).itemId ?? t('defaultName');
+    const displayName = localizedItemName(item.name ?? (item as { itemId?: string }).itemId ?? t('defaultName'));
     const actionPointBadge = getActionPointBadge(item);
 
     if (isMailAttachmentEquipment(item)) {

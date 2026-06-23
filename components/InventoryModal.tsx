@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLocalizedItemGrade } from '../shared/i18n/localizedCatalog.js';
+import { useLocalizedItemGrade, useLocalizedInventoryItemName } from '../shared/i18n/localizedCatalog.js';
 import { tx } from '../shared/i18n/runtimeText.js';
 import { UserWithStatus, InventoryItem, ServerAction, InventoryItemType, ItemGrade, ItemOption, CoreStat, SpecialStat, MythicStat, EquipmentSlot, ItemOptionType } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
@@ -152,6 +152,7 @@ const EquipmentSlotDisplay: React.FC<{
     /** 모바일 장착 장비 모달 등: 아이콘 비율 축소 */
     compactIconLayout?: boolean;
 }> = ({ slot, item, scaleFactor = 1, onClick, isSelected = false, compactIconLayout = false }) => {
+    const localizedItemName = useLocalizedInventoryItemName();
     const renderStarDisplay = (stars: number) => {
         if (stars === 0) return null;
 
@@ -208,7 +209,7 @@ const EquipmentSlotDisplay: React.FC<{
         return (
             <div
                 className={`relative aspect-square rounded-lg bg-tertiary/50 ${onClick ? 'cursor-pointer hover:ring-2 hover:ring-accent/70' : ''} ${isSelected ? 'ring-2 ring-accent' : 'ring-1 ring-transparent'} ${isTranscendent ? 'transcendent-grade-slot' : ''}`}
-                title={item.name}
+                title={localizedItemName(item.name)}
                 onClick={onClick}
                 style={{ 
                     width: '100%', 
@@ -414,6 +415,8 @@ const LocalItemDetailDisplay: React.FC<{
 }) => {
     const { t } = useTranslation('inventory');
     const localizedGrade = useLocalizedItemGrade();
+    const localizedItemName = useLocalizedInventoryItemName();
+    const displayItemName = item ? localizedItemName(item.name) : title;
     const imgBox = Math.max(52, Math.round(80 * scaleFactor * detailScaleMultiplier));
     const optionsBlockHeightPx = bagPcOptionsBlockHeightPx(scaleFactor);
     const [compactCompareTab, setCompactCompareTab] = useState<'info' | 'mainSub' | 'special' | 'mythic'>('info');
@@ -696,8 +699,8 @@ const LocalItemDetailDisplay: React.FC<{
                         {renderStarDisplay(item.stars)}
                     </div>
                     <div className={`mt-1.5 min-h-0 flex-1 overflow-y-auto rounded-lg bg-gray-900/50 p-2 ${BAG_SCROLLBAR_Y_CLASS}`}>
-                        <h3 className={`max-w-full whitespace-nowrap font-bold ${styles.color}`} title={item.name} style={{ fontSize: `${resolveNoWrapTextFontPx(item.name, Math.max(12, Math.round(14 * scaleFactor * mobileTextScale)), 8, 9, 0.62)}px` }}>
-                            {item.name}
+                        <h3 className={`max-w-full whitespace-nowrap font-bold ${styles.color}`} title={displayItemName} style={{ fontSize: `${resolveNoWrapTextFontPx(displayItemName, Math.max(12, Math.round(14 * scaleFactor * mobileTextScale)), 8, 9, 0.62)}px` }}>
+                            {displayItemName}
                         </h3>
                         <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5" style={{ fontSize: `${Math.max(9, Math.round(10 * scaleFactor * mobileTextScale))}px` }}>
                             <span className={styles.color}>[{styles.name}]</span>
@@ -889,7 +892,7 @@ const LocalItemDetailDisplay: React.FC<{
                 {/* Right: Name & Main Option */}
                 <div className="min-w-0 flex-grow text-right ml-2">
                     <div className="flex items-baseline justify-end gap-0.5">
-                        <h3 className={`max-w-full whitespace-nowrap font-bold ${styles.color}`} title={item.name} style={{ fontSize: `${resolveNoWrapTextFontPx(item.name, Math.max(14, Math.round(15 * scaleFactor * mobileTextScale)), 8, 9, 0.62)}px` }}>{item.name}</h3>
+                        <h3 className={`max-w-full whitespace-nowrap font-bold ${styles.color}`} title={displayItemName} style={{ fontSize: `${resolveNoWrapTextFontPx(displayItemName, Math.max(14, Math.round(15 * scaleFactor * mobileTextScale)), 8, 9, 0.62)}px` }}>{displayItemName}</h3>
                     </div>
                     <div className="flex items-center justify-end gap-2 mt-0.5" style={{ fontSize: `${Math.max(12, Math.round(13 * scaleFactor * mobileTextScale))}px` }}>
                         <span className={styles.color}>[{styles.name}]</span>

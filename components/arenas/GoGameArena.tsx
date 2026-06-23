@@ -499,6 +499,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 uniformStoneDisplayColor={session.uniformStoneDisplayColor ?? null}
                 isPairBasePlacementHost={isPairBasePlacementHost}
                 canPlaceMoreBaseStones={canPlaceMoreBaseStones}
+                basePlacementTargetCount={settings.baseStones ?? 4}
                 isMoveSubmitting={isMoveSubmitting}
                 />
                 </div>

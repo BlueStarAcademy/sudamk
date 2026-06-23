@@ -171,7 +171,7 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({
                 <div
                     className={`relative w-full min-w-0 overflow-hidden rounded-xl border-2 border-emerald-500/35 shadow-[0_0_24px_rgba(16,185,129,0.18),0_6px_20px_rgba(0,0,0,0.45)] ring-1 ring-emerald-400/15 ${
                         topShelf
-                            ? 'aspect-[16/9] max-h-[min(14dvh,120px)] sm:max-h-[min(16dvh,136px)]'
+                            ? 'aspect-[16/9] max-h-[min(11dvh,96px)] sm:max-h-[min(12dvh,108px)]'
                             : isMobile
                               ? 'aspect-[16/10] max-h-[min(52dvh,380px)] min-h-[min(28dvh,200px)]'
                               : 'aspect-[16/10] min-h-[140px] max-h-[min(42dvh,320px)] lg:max-h-[360px]'

@@ -5,6 +5,12 @@ import DraggableWindow from './DraggableWindow.js';
 import { CoreStat, SpecialStat, MythicStat } from '../types.js';
 import { CORE_STATS_DATA, SPECIAL_STATS_DATA, MYTHIC_STATS_DATA } from '../constants';
 import {
+    translateCoreStatName,
+    translateMythicStatDescription,
+    translateMythicStatName,
+    translateSpecialStatName,
+} from '../shared/i18n/inventoryItemText.js';
+import {
     isMythicGradeSpecialOptionType,
     isTranscendentGradeSpecialOptionType,
 } from '../shared/utils/specialOptionGearEffects.js';
@@ -87,10 +93,10 @@ const MeterBar: React.FC<{ ratio: number; variant: 'amber' | 'violet' | 'emerald
     );
 };
 
-const formatMythicStat = (stat: MythicStat, _data: { count: number; totalValue: number }): React.ReactNode => {
+const formatMythicStat = (stat: MythicStat, _data: { count: number; totalValue: number }, t: (key: string, opts?: Record<string, unknown>) => string): React.ReactNode => {
     const row = MYTHIC_STATS_DATA[stat];
     if (!row) return <span className="leading-snug">{tx('inventory:equipmentEffects.unknownMythic')}</span>;
-    return <span className="leading-snug">{row.description}</span>;
+    return <span className="leading-snug">{translateMythicStatDescription(stat, t)}</span>;
 };
 
 const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
@@ -102,7 +108,7 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
     aggregatedMythicStats,
     embedded = false,
 }) => {
-    const { t } = useTranslation('inventory');
+    const { t } = useTranslation(['inventory', 'profile']);
     const TAB_LABEL: Record<TabId, string> = {
         summary: t('equipmentEffects.summaryAtGlance'),
         main: t('equipmentEffects.main'),
@@ -226,7 +232,7 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
                                             }`}
                                         >
                                             <div className="mb-1 flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
-                                                <span className="text-[14px] font-bold text-zinc-100 sm:text-base">{meta.name}</span>
+                                                <span className="text-[14px] font-bold text-zinc-100 sm:text-base">{translateCoreStatName(stat, t)}</span>
                                                 <span className="text-[11px] text-zinc-500 sm:text-xs">{t('equipmentEffects.equippedTotal')}</span>
                                             </div>
                                             <div className="mb-1.5 grid grid-cols-2 gap-2 text-[12px] sm:text-[13px]">
@@ -281,7 +287,7 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
                                             className="group rounded-xl border border-amber-500/18 bg-gradient-to-r from-amber-950/20 to-transparent open:border-amber-400/35 open:bg-amber-950/25"
                                         >
                                             <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-2 py-2 marker:content-none sm:px-2.5 [&::-webkit-details-marker]:hidden">
-                                                <span className="min-w-0 text-left text-[14px] font-bold text-zinc-100 sm:text-base">{meta.name}</span>
+                                                <span className="min-w-0 text-left text-[14px] font-bold text-zinc-100 sm:text-base">{translateCoreStatName(stat, t)}</span>
                                                 <div className="flex shrink-0 items-center gap-2">
                                                     <BonusPills {...parts} />
                                                     <span className="text-zinc-500 transition group-open:rotate-90">›</span>
@@ -313,7 +319,7 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
                                             className="group rounded-xl border border-violet-500/18 bg-gradient-to-r from-violet-950/20 to-transparent open:border-violet-400/35 open:bg-violet-950/25"
                                         >
                                             <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-2 py-2 marker:content-none sm:px-2.5 [&::-webkit-details-marker]:hidden">
-                                                <span className="min-w-0 text-left text-[14px] font-bold text-zinc-100 sm:text-base">{meta.name}</span>
+                                                <span className="min-w-0 text-left text-[14px] font-bold text-zinc-100 sm:text-base">{translateCoreStatName(stat, t)}</span>
                                                 <div className="flex shrink-0 items-center gap-2">
                                                     <BonusPills {...parts} />
                                                     <span className="text-zinc-500 transition group-open:rotate-90">›</span>
@@ -350,7 +356,7 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
                                             >
                                                 <div className="mb-1 flex flex-wrap items-start justify-between gap-2">
                                                     <div className="min-w-0 flex-1">
-                                                        <p className="text-[14px] font-bold text-emerald-100 sm:text-base">{statData.name}</p>
+                                                        <p className="text-[14px] font-bold text-emerald-100 sm:text-base">{translateSpecialStatName(stat, t)}</p>
                                                         <p className="mt-0.5 text-[13px] leading-snug text-zinc-400 sm:text-sm">{statData.description}</p>
                                                     </div>
                                                     <BonusPills {...parts} />
@@ -385,13 +391,13 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
                                                             className="rounded-xl border border-rose-500/28 bg-gradient-to-br from-rose-950/30 via-zinc-950/50 to-zinc-950/90 p-2.5 ring-1 ring-inset ring-rose-400/10 sm:p-3"
                                                         >
                                                             <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-                                                                <p className="text-[14px] font-bold text-rose-100 sm:text-base">{def.name}</p>
+                                                                <p className="text-[14px] font-bold text-rose-100 sm:text-base">{translateMythicStatName(stat, t)}</p>
                                                                 <span className="rounded-md border border-rose-400/35 bg-black/40 px-2 py-0.5 font-mono text-[12px] font-bold text-rose-200/95">
                                                                     중첩 ×{data.count}
                                                                 </span>
                                                             </div>
                                                             <p className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-rose-200/60">{def.abbrevLabel}</p>
-                                                            <div className="text-[13px] leading-snug text-zinc-200/95 sm:text-sm">{formatMythicStat(stat, data)}</div>
+                                                            <div className="text-[13px] leading-snug text-zinc-200/95 sm:text-sm">{formatMythicStat(stat, data, t)}</div>
                                                         </li>
                                                     );
                                                 })}
@@ -410,13 +416,13 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
                                                             className="rounded-xl border border-cyan-500/28 bg-gradient-to-br from-cyan-950/25 via-zinc-950/50 to-zinc-950/90 p-2.5 ring-1 ring-inset ring-cyan-400/10 sm:p-3"
                                                         >
                                                             <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-                                                                <p className="text-[14px] font-bold text-cyan-100 sm:text-base">{def.name}</p>
+                                                                <p className="text-[14px] font-bold text-cyan-100 sm:text-base">{translateMythicStatName(stat, t)}</p>
                                                                 <span className="rounded-md border border-cyan-400/35 bg-black/40 px-2 py-0.5 font-mono text-[12px] font-bold text-cyan-200/95">
                                                                     중첩 ×{data.count}
                                                                 </span>
                                                             </div>
                                                             <p className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-cyan-200/60">{def.abbrevLabel}</p>
-                                                            <div className="text-[13px] leading-snug text-zinc-200/95 sm:text-sm">{formatMythicStat(stat, data)}</div>
+                                                            <div className="text-[13px] leading-snug text-zinc-200/95 sm:text-sm">{formatMythicStat(stat, data, t)}</div>
                                                         </li>
                                                     );
                                                 })}

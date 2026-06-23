@@ -98,7 +98,7 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
             />
         ) : (
             <div className="flex h-full items-center justify-center px-4 text-center text-sm text-zinc-400">
-                로그인 후 챔피언십 랭킹을 확인할 수 있습니다.
+                {t('rankingQuick.championshipLoginHint')}
             </div>
         );
 
@@ -282,7 +282,7 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                             onClick={() => setIsTipModalOpen(false)}
                                             className="rounded-md border border-amber-300/40 bg-amber-500/20 px-2.5 py-1 text-xs font-semibold text-amber-50"
                                         >
-                                            가이드 닫기
+                                            {t('rankingQuick.guideClose')}
                                         </button>
                                     </div>
                                     <div className="flex flex-col gap-2 border-b border-white/10 px-3 py-2">
@@ -310,7 +310,7 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                             <MobileRankingGuidePanel variant={guideVariant} />
                                         ) : (
                                             <div className="flex h-full items-center justify-center px-4 text-center text-sm text-zinc-300">
-                                                챔피언십 랭킹은 별도 스코어 가이드가 준비되어 있지 않습니다.
+                                                {t('rankingQuick.championshipNoGuide')}
                                             </div>
                                         )}
                                     </div>
@@ -320,7 +320,7 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                     </div>
                 ) : !currentUserWithStatus ? (
                     <div className="relative z-[1] flex flex-1 items-center justify-center text-sm text-zinc-400">
-                        로그인 후 랭킹을 확인할 수 있습니다.
+                        {t('rankingQuick.loginRequired')}
                     </div>
                 ) : (
                     <div className="relative z-[1] flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
@@ -336,7 +336,7 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                         : 'border-white/12 bg-zinc-900/70 text-zinc-300 hover:border-amber-400/35 hover:text-amber-100'
                                 }`}
                             >
-                                게임랭킹
+                                {t('rankingQuick.gameRankingTab')}
                             </button>
                             <button
                                 type="button"
@@ -349,7 +349,7 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                         : 'border-white/12 bg-zinc-900/70 text-zinc-300 hover:border-emerald-400/35 hover:text-emerald-100'
                                 }`}
                             >
-                                바둑랭킹
+                                {t('rankingQuick.badukRankingTab')}
                             </button>
                         </div>
 

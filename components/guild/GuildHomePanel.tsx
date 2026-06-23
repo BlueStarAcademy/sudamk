@@ -446,7 +446,7 @@ export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember |
 
     const activeMessages = activeTab === 'global'
         ? globalChatMessages
-        : (guild.chatHistory ?? []).map((msg) => guildChatHistoryEntryToChatMessage(msg, allUsers));
+        : (guild.chatHistory ?? []).map((msg) => guildChatHistoryEntryToChatMessage(msg, allUsers, t));
 
     return (
         <div

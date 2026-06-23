@@ -145,7 +145,7 @@ const VipInlineCompactSlot: React.FC<{ locked: boolean }> = ({ locked }) => {
               locked ? 'text-amber-50' : 'text-fuchsia-50'
             }`}
           >
-            보상
+            {tx('game:preGame.rewards')}
           </span>
         </div>
       </div>
@@ -381,7 +381,7 @@ export const AiPregameRewardVisualStrip: React.FC<{
     return (
       <div className="mt-2.5 w-full rounded-lg border border-violet-400/18 bg-black/25 p-2 ring-1 ring-inset ring-white/[0.04] sm:mt-3 sm:p-2.5">
         <h3 className="mb-1.5 block shrink-0 whitespace-nowrap border-b border-violet-400/18 pb-1 text-[0.7rem] font-bold leading-none text-violet-100/95 sm:mb-2 sm:pb-1.5 sm:text-xs">
-          획득 가능한 보상
+          {tx('game:preGame.availableRewards')}
         </h3>
         <div className="overflow-x-auto overflow-y-visible pb-0.5 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]">
           <div className="flex w-max min-w-full flex-nowrap items-stretch gap-1.5 pr-0.5 sm:gap-2">
@@ -448,7 +448,7 @@ export const AiPregameRewardVisualStrip: React.FC<{
   return (
     <div className="mb-3 mt-4 rounded-xl border border-violet-400/22 bg-zinc-950/45 p-3 shadow-inner ring-1 ring-inset ring-white/[0.04] sm:mb-4 sm:mt-5 sm:p-4">
       <h3 className="mb-2.5 flex items-center gap-2 border-b border-violet-400/18 pb-2 text-sm font-bold text-violet-100/95 sm:text-base">
-        획득 가능한 보상
+        {tx('game:preGame.availableRewards')}
       </h3>
       <div className="flex flex-wrap items-end justify-center gap-x-3 gap-y-4 sm:gap-x-4 sm:gap-y-5">
         {displaySlots.map((s, i) => renderSlot(s, i, isMobileSheet, 'card', onVipLockedClick))}

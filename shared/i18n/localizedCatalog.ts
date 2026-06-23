@@ -15,6 +15,32 @@ import {
     translateItemGrade,
 } from './runtimeText.js';
 import { translateShopItem, useLocalizedShopItem } from './shopItemText.js';
+import {
+    translateInventoryItemName,
+    translateInventoryItemDescription,
+    translateCoreStatName,
+    translateSpecialStatName,
+    translateMythicStatAbbrev,
+    translateMythicStatName,
+    formatLocalizedBagOptionLabel,
+    formatLocalizedBagOptionRangeTrailing,
+} from './inventoryItemText.js';
+import {
+    resolveLocalizedItemDescriptionText,
+    resolveLocalizedBagItemAcquireLines,
+    resolveLocalizedMaterialBagUsageLines,
+    resolveLocalizedBagConsumableUsageHint,
+    resolveLocalizedItemObtainUsageLines,
+    resolveLocalizedPurchaseModalUsageLines,
+    resolveLocalizedPetTabEggOrSoulUsageLines,
+    resolveLocalizedPetTabEggOrSoulAcquireLines,
+    resolveLocalizedSoulStoneAcquireFallbackLines,
+} from './inventoryItemMeta.js';
+import {
+    translatePairPetName,
+    translatePairTrainingSlotName,
+    translatePairHatcheryUpgradeTierLabel,
+} from './pairPetText.js';
 
 export {
     GAME_MODE_SLUG,
@@ -25,7 +51,65 @@ export {
     translateShopItem,
     useLocalizedShopItem,
     tx,
+    translateInventoryItemName,
+    translateInventoryItemDescription,
+    translateCoreStatName,
+    translateSpecialStatName,
+    translateMythicStatAbbrev,
+    translateMythicStatName,
+    formatLocalizedBagOptionLabel,
+    formatLocalizedBagOptionRangeTrailing,
 };
+
+export function useLocalizedInventoryItemName() {
+    const { t, i18n } = useTranslation(['inventory', 'profile']);
+    return useCallback((name: string | undefined) => translateInventoryItemName(name, t), [t, i18n.language]);
+}
+
+export function useLocalizedInventoryItemDescription() {
+    const { t, i18n } = useTranslation(['inventory', 'profile']);
+    return useCallback(
+        (name: string | undefined, description?: string) => translateInventoryItemDescription(name, description, t),
+        [t, i18n.language],
+    );
+}
+
+export function useLocalizedPairPetText() {
+    const { t, i18n } = useTranslation('pair');
+    return useMemo(
+        () => ({
+            localizePetName: (item: Parameters<typeof translatePairPetName>[0]) => translatePairPetName(item, t),
+            localizeTrainingSlot: (slotIndex: number) => translatePairTrainingSlotName(slotIndex, t),
+            localizeHatcheryUpgradeTier: (tierIndex: number) => translatePairHatcheryUpgradeTierLabel(tierIndex, t),
+        }),
+        [t, i18n.language],
+    );
+}
+
+export function useLocalizedInventoryItemMeta() {
+    const { t, i18n } = useTranslation(['inventory', 'profile', 'exchange']);
+    return useMemo(
+        () => ({
+            resolveDescription: (item: Parameters<typeof resolveLocalizedItemDescriptionText>[0]) =>
+                resolveLocalizedItemDescriptionText(item, t),
+            resolveAcquireLines: (item: Parameters<typeof resolveLocalizedBagItemAcquireLines>[0]) =>
+                resolveLocalizedBagItemAcquireLines(item, t),
+            resolveMaterialUsageLines: (materialName: string) => resolveLocalizedMaterialBagUsageLines(materialName, t),
+            resolveConsumableUsageHint: (name: string) => resolveLocalizedBagConsumableUsageHint(name, t),
+            resolveObtainUsageLines: (item: Parameters<typeof resolveLocalizedItemObtainUsageLines>[0]) =>
+                resolveLocalizedItemObtainUsageLines(item, t),
+            resolvePurchaseUsageLines: (params: Parameters<typeof resolveLocalizedPurchaseModalUsageLines>[0]) =>
+                resolveLocalizedPurchaseModalUsageLines(params, t),
+            resolvePetUsageLines: (item: Parameters<typeof resolveLocalizedPetTabEggOrSoulUsageLines>[0]) =>
+                resolveLocalizedPetTabEggOrSoulUsageLines(item, t),
+            resolvePetAcquireLines: (item: Parameters<typeof resolveLocalizedPetTabEggOrSoulAcquireLines>[0]) =>
+                resolveLocalizedPetTabEggOrSoulAcquireLines(item, t),
+            resolveSoulStoneAcquireFallbackLines: (item: Parameters<typeof resolveLocalizedSoulStoneAcquireFallbackLines>[0]) =>
+                resolveLocalizedSoulStoneAcquireFallbackLines(item, t),
+        }),
+        [t, i18n.language],
+    );
+}
 
 export function useLocalizedGameMode() {
     const { t } = useTranslation('gameModes');

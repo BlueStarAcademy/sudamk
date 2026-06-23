@@ -3,12 +3,12 @@ import { useTranslation } from 'react-i18next';
 import Avatar from '../Avatar.js';
 import type { User } from '../../types.js';
 import { ItemGrade } from '../../types/enums.js';
-import { getPairPetDefinition, getPairPetDisplayName } from '../../shared/constants/petLobby.js';
+import { getPairPetDefinition } from '../../shared/constants/petLobby.js';
 import { effectivePairPetGradeFromRow, PAIR_PET_MAX_LEVEL } from '../../shared/constants/pairPetGrade.js';
 import { getEquippedPairPetInventoryRow } from '../../shared/utils/pairEquippedPet.js';
 import { resolvePairPetMetaFromInventoryRow } from '../../shared/utils/pairPetRoll.js';
 import { computePairPetBadukTotalPower } from './PairPetCoreStatsGrid.js';
-import { useLocalizedItemGrade } from '../../shared/i18n/localizedCatalog.js';
+import { useLocalizedItemGrade, useLocalizedPairPetText } from '../../shared/i18n/localizedCatalog.js';
 import { gradeStyles } from '../../shared/constants/items.js';
 
 /** 한 줄 안에 들어가도록 줄이는 최소·최대 글자 크기(px) */
@@ -67,6 +67,7 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
 }) => {
     const { t } = useTranslation(['pair', 'profile']);
     const localizedGrade = useLocalizedItemGrade();
+    const { localizePetName } = useLocalizedPairPetText();
     const lineFontMax =
         profileHomeBannerAside
             ? 11.5
@@ -123,7 +124,11 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
 
     const petAvatarUrl = equippedDef?.image ?? null;
     const emptyTitle = t('pet.noEquippedPet');
-    const displayName = equippedItem ? getPairPetDisplayName(equippedItem) : (equippedDef?.displayName ?? emptyTitle);
+    const displayName = equippedItem
+        ? localizePetName(equippedItem)
+        : equippedDef
+          ? localizePetName({ templateId: equippedDef.templateId, name: equippedDef.displayName })
+          : emptyTitle;
     const levelSafe =
         petMeta != null ? Math.min(PAIR_PET_MAX_LEVEL, Math.max(1, Math.floor(petMeta.level) || 1)) : null;
 

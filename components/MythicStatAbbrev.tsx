@@ -3,6 +3,13 @@ import { MythicStat } from '../types/enums.js';
 import { ItemOption } from '../types.js';
 import { MYTHIC_STATS_DATA } from '../constants';
 import { PortalHoverBubble } from './PortalHoverBubble.js';
+import { useTranslation } from 'react-i18next';
+import {
+    translateMythicStatAbbrev,
+    translateMythicStatDescription,
+    translateMythicStatName,
+    translateMythicStatShortDescription,
+} from '../shared/i18n/inventoryItemText.js';
 
 const MYTHIC_SET = new Set<string>(Object.values(MythicStat));
 
@@ -30,7 +37,12 @@ export const MythicStatAbbrev: React.FC<{
     textClassName?: string;
     bubbleSide?: 'top' | 'right';
 }> = ({ stat, textClassName = '', bubbleSide = 'top' }) => {
+    const { t } = useTranslation(['inventory', 'profile']);
     const data = MYTHIC_STATS_DATA[stat];
+    const displayAbbrev = translateMythicStatAbbrev(stat, t);
+    const displayName = translateMythicStatName(stat, t);
+    const displayDescription = translateMythicStatDescription(stat, t);
+    const displayShort = translateMythicStatShortDescription(stat, t);
     const [open, setOpen] = useState(false);
     const anchorRef = useRef<HTMLSpanElement>(null);
     const bubbleMountRef = useRef<HTMLDivElement | null>(null);
@@ -66,7 +78,7 @@ export const MythicStatAbbrev: React.FC<{
                 role="button"
                 tabIndex={0}
                 aria-expanded={open}
-                aria-label={`${data.name} 상세`}
+                aria-label={`${displayName} detail`}
                 className={`cursor-pointer select-none border-b border-dotted border-current/40 underline-offset-2 ${textClassName}`}
                 onClick={toggle}
                 onKeyDown={(e) => {
@@ -76,7 +88,7 @@ export const MythicStatAbbrev: React.FC<{
                     }
                 }}
             >
-                {data.abbrevLabel}
+                {displayAbbrev}
             </span>
             <PortalHoverBubble
                 show={open}
@@ -86,10 +98,10 @@ export const MythicStatAbbrev: React.FC<{
                 bubbleMountRef={bubbleMountRef}
             >
                 <div className={bubbleShell}>
-                    <span className="mb-1 block text-xs font-bold text-red-200">{data.name}</span>
-                    <span className="block text-[11px] leading-snug text-gray-100">{data.description}</span>
-                    {data.shortDescription ? (
-                        <span className="mt-1.5 block text-[10px] leading-snug text-gray-400">{data.shortDescription}</span>
+                    <span className="mb-1 block text-xs font-bold text-red-200">{displayName}</span>
+                    <span className="block text-[11px] leading-snug text-gray-100">{displayDescription}</span>
+                    {displayShort ? (
+                        <span className="mt-1.5 block text-[10px] leading-snug text-gray-400">{displayShort}</span>
                     ) : null}
                     {bubbleSide === 'top' ? (
                         <>

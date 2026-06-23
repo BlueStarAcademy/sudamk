@@ -237,7 +237,7 @@ const PreGameColorRoulette: React.FC<PreGameColorRouletteProps> = ({
                     {isFinished ? (
                         <div className="flex flex-col items-center gap-0.5 px-1 text-center">
                             <span className="rounded border border-emerald-500/35 bg-emerald-950/60 px-2 py-0.5 text-[0.65rem] font-bold tracking-wide text-emerald-200 sm:text-xs">
-                                배정 완료
+                                {t('preGameColor.assignmentComplete')}
                             </span>
                             <span className="text-[0.7rem] font-semibold text-stone-400 sm:text-xs">{t('preGameColor.rouletteEnd')}</span>
                         </div>
@@ -247,7 +247,7 @@ const PreGameColorRoulette: React.FC<PreGameColorRouletteProps> = ({
                             className="flex h-full w-full flex-col items-center justify-center gap-0.5 rounded-[10px] border border-amber-500/30 bg-black/50 px-1 py-1"
                         >
                             <span className="text-[0.6rem] font-semibold tracking-wide text-amber-200/90 sm:text-[0.65rem]">
-                                선공(흑) 후보
+                                {t('preGameColor.blackCandidate')}
                             </span>
                             <span className="max-w-[95%] truncate text-center text-[0.7rem] font-bold text-white sm:text-xs">
                                 {leftIsBlack ? leftSeat.nickname : rightSeat.nickname}

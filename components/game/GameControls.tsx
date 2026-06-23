@@ -1368,6 +1368,8 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
     const isStrategic = SPECIAL_GAME_MODES.some(m => m.mode === mode);
     const hasCaptureRule = modeIncludesCaptureRule(mode, session.settings);
     const isPairGame = Boolean(session.settings.pairGame?.turnOrder?.length);
+    /** 페어 4인 유저 PVP에서만 통과 버튼 노출 */
+    const isPairHumanPvp = isPairHumanHumanPvpForTeamResign(session);
     /** 펫·2인 페어 AI전: `isAiGame`이 false일 수 있어 `pairMode === 'ai'`로 구분 (summaryService와 동일) */
     const isPairAiAutoScoringMatch = Boolean(isPairGame && session.settings?.pairGame?.pairMode === 'ai');
     const hidePassForFixedScoringTurnLimit = pvpHasFixedScoringTurnLimit(session);
@@ -2493,8 +2495,9 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                     {isStrategic &&
                         !hasCaptureRule &&
                         session.mode !== GameMode.Castle &&
-                        (!isAiLobbyGame || isPairGame) &&
+                        (!isAiLobbyGame || isPairHumanPvp) &&
                         !isPairAiAutoScoringMatch &&
+                        (!isPairGame || isPairHumanPvp) &&
                         !hidePassForFixedScoringTurnLimit &&
                         session.gameCategory !== 'adventure' && (
                         <LabeledControlButton

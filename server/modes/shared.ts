@@ -296,6 +296,37 @@ export const startColorConfirmation = (
     }
 };
 
+/** 현재 턴의 남은 제한시간(초)을 계산한다. */
+export const computePausedTurnTimeLeft = (game: types.LiveGameSession, now: number): number => {
+    if (isSpeedPerMoveTimeControl(game) && typeof game.turnStartTime === 'number') {
+        const currentPlayerTimeKey =
+            game.currentPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+        const elapsed = Math.max(0, (now - game.turnStartTime) / 1000);
+        return Math.max(0, Number(game[currentPlayerTimeKey] ?? 0) - elapsed);
+    }
+    if (game.turnDeadline) {
+        return Math.max(0, (game.turnDeadline - now) / 1000);
+    }
+    if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
+        const currentPlayerTimeKey =
+            game.currentPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+        return game[currentPlayerTimeKey] ?? 0;
+    }
+    return game.pausedTurnTimeLeft ?? 0;
+};
+
+/**
+ * 아이템 연출(히든 공개 등) 중 메인 제한시간만 멈춘다. itemUseDeadline은 설정하지 않는다.
+ */
+export const freezeMainTurnClock = (game: types.LiveGameSession, now: number): number => {
+    const pausedTimeLeft = computePausedTurnTimeLeft(game, now);
+    game.pausedTurnTimeLeft = pausedTimeLeft;
+    game.turnDeadline = undefined;
+    game.turnStartTime = undefined;
+    game.itemUseDeadline = undefined;
+    return pausedTimeLeft;
+};
+
 /**
  * 게임 타이머를 일시정지하고 아이템 사용 시간을 부여합니다.
  * 히든/미사일/스캔 아이템 사용 시 호출됩니다.
@@ -305,21 +336,8 @@ export const startColorConfirmation = (
  * @returns 일시정지된 시간 (초)
  */
 export const pauseGameTimer = (game: types.LiveGameSession, now: number, itemUseDurationMs: number = 30000): number => {
-    // 현재 턴의 남은 시간 저장
-    let pausedTimeLeft = 0;
-    if (isSpeedPerMoveTimeControl(game) && typeof game.turnStartTime === 'number') {
-        const currentPlayerTimeKey =
-            game.currentPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-        const elapsed = Math.max(0, (now - game.turnStartTime) / 1000);
-        pausedTimeLeft = Math.max(0, Number(game[currentPlayerTimeKey] ?? 0) - elapsed);
-    } else if (game.turnDeadline) {
-        pausedTimeLeft = Math.max(0, (game.turnDeadline - now) / 1000);
-    } else if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
-        // turnDeadline이 없으면 현재 플레이어의 남은 시간 사용
-        const currentPlayerTimeKey = game.currentPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-        pausedTimeLeft = game[currentPlayerTimeKey] ?? 0;
-    }
-    
+    const pausedTimeLeft = computePausedTurnTimeLeft(game, now);
+
     game.pausedTurnTimeLeft = pausedTimeLeft;
     game.turnDeadline = undefined;
     game.turnStartTime = undefined;

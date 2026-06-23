@@ -35,7 +35,7 @@ import {
   waitingLobbyPairAlignedMobileTabButtonClass,
 } from './waitingLobbyHomePanelStyles.js';
 import { WaitingLobbyAnnouncementBoard, WAITING_LOBBY_PANEL_GLASS } from './WaitingLobbyAnnouncementBoard.js';
-import { userInUnifiedArenaLobbyUserList } from './aggregateWaitingLobbyUserFilter.js';
+import { userInUnifiedArenaLobbyUserList, normalizeStaleArenaLobbyUserStatus } from './aggregateWaitingLobbyUserFilter.js';
 import { sumLobbyAiMatchRecordFromStats } from '../../shared/utils/lobbyAiMatchRecord.js';
 import { mergeWaitingRoomPublicChatMessages } from '../../shared/utils/waitingRoomGlobalChatMerge.js';
 import { useTranslation } from 'react-i18next';
@@ -104,6 +104,10 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
     }
     
     if (currentUserWithStatus && mode && !hasEnteredWaitingRoom.current) {
+      if (currentUserWithStatus.status === UserStatus.InGame && currentUserWithStatus.gameId) {
+        hasEnteredWaitingRoom.current = true;
+        return;
+      }
       // 현재 유저가 이미 대기실에 있는지 확인
       const isAlreadyInWaitingRoom = currentUserWithStatus.status === UserStatus.Waiting || currentUserWithStatus.status === UserStatus.Resting;
       // 전략/놀이바둑 대기실의 경우 mode 매칭 체크를 다르게 처리
@@ -225,12 +229,14 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
         const isPlayfulLobby = mode === 'playful';
 
         // 전략/놀이 집계 대기실: 전략·놀이·페어 대국실 연동 유저 풀 공통
-        const all = onlineUsers.filter((u) => {
+        const all = onlineUsers
+            .filter((u) => {
             if (isStrategicLobby || isPlayfulLobby) {
                 return userInUnifiedArenaLobbyUserList(u);
             }
             return u.mode === mode;
-        });
+        })
+            .map(normalizeStaleArenaLobbyUserStatus);
         
         // 현재 유저가 목록에 없으면 추가 (대기실에 입장했지만 아직 상태가 업데이트되지 않은 경우)
         const me = all.find(u => u.id === currentUserWithStatus.id);
@@ -239,7 +245,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
             // 전략/놀이바둑 대기실의 경우 mode는 strategic/playful로 설정
             // 단일 게임 모드 대기실의 경우 mode를 그대로 사용
             const { waitingLobby: _wlDrop, mode: _modeDrop, ...userBase } = currentUserWithStatus;
-            const currentUserInRoom: UserWithStatus =
+            const currentUserInRoom: UserWithStatus = normalizeStaleArenaLobbyUserStatus(
                 isStrategicLobby || isPlayfulLobby
                     ? {
                           ...userBase,
@@ -250,11 +256,12 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                           ...userBase,
                           status: UserStatus.Waiting,
                           mode: mode as GameMode,
-                      };
+                      },
+            );
             return [currentUserInRoom, ...all];
         }
         
-        return [me, ...all.filter(u => u.id !== currentUserWithStatus.id)];
+        return [normalizeStaleArenaLobbyUserStatus(me), ...all.filter(u => u.id !== currentUserWithStatus.id)];
   }, [onlineUsers, mode, currentUserWithStatus]);
 
   const friendIdsSet = useMemo(

@@ -2457,7 +2457,6 @@ export async function makeGoAiBotMove(
         pairClassicGame &&
         !captureRuleGame &&
         Number((game.settings as any)?.scoringTurnLimit ?? 0) > 0;
-    const pairPassRequiresAllSeats = pairClassicGame && arenaPolicy.matchAxis === 'pvp';
     if (process.env.NODE_ENV === 'development') {
         console.log(
             `[makeGoAiBotMove] game=${game.id} category=${(game as any).gameCategory ?? 'normal'} stage=${(game as any).stageId ?? '-'} floor=${(game as any).towerFloor ?? '-'} profileStep=${goAiProfileLevel} configuredKata=${configuredKataLevel ?? 'none'} resolvedKata=${resolvedKataLevel} pairSeat=${pairCurrentSeat?.participantId ?? 'none'} pairPhase=${pairKataPhase ?? 'none'} pairPly=${pairCurrentSeat ? pairValidPlyForNextMove : 'none'} pairFixed=${Number.isFinite(pairFixedKataLevel) ? Number(pairFixedKataLevel) : 'none'}`,
@@ -2753,12 +2752,7 @@ export async function makeGoAiBotMove(
                     );
                 }
                 if (legalFb.length === 0) {
-                    if (pairPassRequiresAllSeats && pairCurrentSeat) {
-                        selectedMove = { x: -1, y: -1 };
-                        console.warn(
-                            `[makeGoAiBotMove] pair PVP (no Kata): no legal moves → seat PASS, game=${game.id}`,
-                        );
-                    } else if (pairHasFixedScoringTurnLimit && pairCurrentSeat) {
+                    if (pairHasFixedScoringTurnLimit && pairCurrentSeat) {
                         const totalTurns = getProgressTurnCount(game);
                         console.warn(
                             `[makeGoAiBotMove] pair fixed-turn (no Kata): no legal moves → scoring, game=${game.id}, turns=${totalTurns}`,
@@ -2808,12 +2802,18 @@ export async function makeGoAiBotMove(
                     console.warn(
                         `[makeGoAiBotMove] Kata-only exhausted; using server-scored legal move (${fallbackMove.x},${fallbackMove.y}), game=${game.id}`,
                     );
-                } else if (pairPassRequiresAllSeats && pairCurrentSeat) {
-                    selectedMove = { x: -1, y: -1 };
-                    pendingPairPetKataGameChat = null;
+                } else if (pairHasFixedScoringTurnLimit && pairCurrentSeat) {
+                    const totalTurns = getProgressTurnCount(game);
                     console.warn(
-                        `[makeGoAiBotMove] pair PVP: Kata exhausted and no legal move → seat PASS, game=${game.id}`,
+                        `[makeGoAiBotMove] Kata-only exhausted; pair fixed-turn → scoring, game=${game.id}, turns=${totalTurns}`,
                     );
+                    game.totalTurns = totalTurns;
+                    await broadcastPlayingSnapshotBeforeScoring(game);
+                    game.gameStatus = 'scoring';
+                    await db.saveGame(game);
+                    const { getGameResult } = await import('./gameModes.js');
+                    await getGameResult(game);
+                    return;
                 } else {
                     const totalTurns = getProgressTurnCount(game);
                     console.warn(
@@ -2973,7 +2973,7 @@ export async function makeGoAiBotMove(
         }
     }
 
-    if (selectedMove.x === -1 && selectedMove.y === -1 && pairCurrentSeat && arenaPolicy.matchAxis !== 'pvp') {
+    if (selectedMove.x === -1 && selectedMove.y === -1 && pairCurrentSeat) {
         const fallbackMove = pickServerScoredLegalMove(
             game,
             aiPlayerEnum,
@@ -2981,8 +2981,21 @@ export async function makeGoAiBotMove(
             goAiProfileLevel,
         );
         if (!fallbackMove) {
+            if (pairHasFixedScoringTurnLimit) {
+                const totalTurnsEnd = getProgressTurnCount(game);
+                console.warn(
+                    `[makeGoAiBotMove] pair blocked AI PASS (no legal) → scoring, game=${game.id}, turns=${totalTurnsEnd}`,
+                );
+                game.totalTurns = totalTurnsEnd;
+                await broadcastPlayingSnapshotBeforeScoring(game);
+                game.gameStatus = 'scoring';
+                await db.saveGame(game);
+                const { getGameResult } = await import('./gameModes.js');
+                await getGameResult(game);
+                return;
+            }
             console.warn(
-                `[makeGoAiBotMove] pair PVE blocked AI PASS but found no legal move; AI resigns, game=${game.id}`,
+                `[makeGoAiBotMove] pair blocked AI PASS but found no legal move; AI resigns, game=${game.id}`,
             );
             await summaryService.endGame(game, opponentPlayerEnum, 'resign');
             return;
@@ -2990,36 +3003,8 @@ export async function makeGoAiBotMove(
         selectedMove = { x: fallbackMove.x, y: fallbackMove.y };
         pendingPairPetKataGameChat = null;
         console.warn(
-            `[makeGoAiBotMove] pair PVE blocked AI PASS → server legal move (${selectedMove.x},${selectedMove.y}), game=${game.id}`,
+            `[makeGoAiBotMove] pair blocked AI PASS → server legal move (${selectedMove.x},${selectedMove.y}), game=${game.id}`,
         );
-    }
-
-    if (selectedMove.x === -1 && selectedMove.y === -1 && pairCurrentSeat) {
-        game.koInfo = null;
-        game.passCount++;
-        game.lastMove = { x: -1, y: -1 };
-        game.lastTurnStones = null;
-        game.moveHistory.push({
-            player: aiPlayerEnum,
-            x: -1,
-            y: -1,
-            actorId: pairCurrentSeat.participantId,
-            pairSeatId: pairCurrentSeat.seatId,
-        });
-        const allPassed = markPairSeatPassed(game.settings, pairCurrentSeat);
-        if (allPassed) {
-            await broadcastPlayingSnapshotBeforeScoring(game);
-            game.gameStatus = 'scoring';
-            await db.saveGame(game);
-            const { getGameResult } = await import('./gameModes.js');
-            await getGameResult(game);
-            return;
-        }
-        const nextSeat = advancePairTurn(game.settings);
-        game.currentPlayer = nextSeat?.player ?? opponentPlayerEnum;
-        const { schedulePairAiTurnIfNeeded } = await import('./utils/pairAiTurnSchedule.js');
-        schedulePairAiTurnIfNeeded(game, now);
-        return;
     }
 
     // 히든 규칙: 유저의 미공개 히든 돌 위에 착점 시 공개 애니메이션 후 Kata 재질의.

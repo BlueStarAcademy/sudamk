@@ -1,7 +1,7 @@
 import * as types from '../../types/index.js';
 import * as db from '../db.js';
 import { getGameResult } from '../gameModes.js';
-import { pauseGameTimer, resumeGameTimer, shouldEnforceTimeControl } from './shared.js';
+import { pauseGameTimer, shouldEnforceTimeControl, freezeMainTurnClock } from './shared.js';
 import { isFischerStyleTimeControl, getFischerIncrementSeconds } from '../../shared/utils/gameTimeControl.js';
 import {
     consumeOpponentPatternStoneIfAny,
@@ -418,17 +418,20 @@ export const handleHiddenAction = (volatileState: types.VolatileState, game: typ
             game.gameStatus = 'scanning_animating';
             // 아이템 사용 직후에는 현재 플레이어를 사용한 유저로 고정하여 턴 정지 버그를 방지한다.
             game.currentPlayer = myPlayerEnum;
-
-            // After using the item, restore my time, reset timers and KEEP THE TURN
-            const scanResumeOk = resumeGameTimer(game, now, myPlayerEnum);
-            if (!scanResumeOk) {
+            // 스캔 연출 중에도 메인 제한시간은 멈춘 채 유지 — playing 복귀 시 finalizeScanItemPhase에서 재개
+            if (shouldEnforceTimeControl(game)) {
+                if (game.pausedTurnTimeLeft === undefined) {
+                    freezeMainTurnClock(game, now);
+                } else {
+                    game.turnDeadline = undefined;
+                    game.turnStartTime = undefined;
+                    game.itemUseDeadline = undefined;
+                }
+            } else {
                 game.itemUseDeadline = undefined;
-                game.pausedTurnTimeLeft = undefined;
             }
 
             markItemPhaseStateChanged(game);
-            // The `updateHiddenState` will transition from 'scanning_animating' to 'playing'
-            // after the animation, but the timer is already correctly running for the current player.
             return { clientResponse: { gameUpdated: true } };
     }
 

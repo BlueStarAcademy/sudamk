@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLocalizedItemGrade, useLocalizedEquipmentSlot } from '../../shared/i18n/localizedCatalog.js';
+import { useLocalizedItemGrade, useLocalizedEquipmentSlot, useLocalizedInventoryItemMeta, useLocalizedInventoryItemName } from '../../shared/i18n/localizedCatalog.js';
 import { InventoryItem, InventoryItemType, EquipmentSlot, ItemGrade, MythicStat } from '../../types.js';
 import {
     EQUIPMENT_POOL,
@@ -30,12 +30,6 @@ import {
     PAIR_WELCOME_EGG_MATERIAL_NAME,
     PAIR_SOULSTONE_NAMES,
 } from '../../shared/constants/petLobby.js';
-import { getMaterialBagUsageLines, getBagConsumableUsageHint } from '../../shared/utils/bagItemDetailHelpers.js';
-import {
-    resolveBagItemAcquireLines,
-    resolvePetTabEggOrSoulAcquireLines,
-    resolvePetTabEggOrSoulUsageLines,
-} from '../../shared/utils/itemAcquireSourceLines.js';
 import {
     MYTHIC_GRADE_SPECIAL_OPTION_STATS,
     TRANSCENDENT_GRADE_SPECIAL_OPTION_STATS,
@@ -242,6 +236,8 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
     const { t } = useTranslation('inventory');
     const localizedGrade = useLocalizedItemGrade();
     const localizedSlot = useLocalizedEquipmentSlot();
+    const localizedItemName = useLocalizedInventoryItemName();
+    const itemMeta = useLocalizedInventoryItemMeta();
     const { isNativeMobile, isNarrowViewport } = useNativeMobileShell();
     /** 모바일: 목록 → 아이템 클릭 시 패널 전체를 상세 화면으로 전환(말풍선 뷰포트 없음) */
     const useMobileItemDetailScreen = isNativeMobile || isNarrowViewport;
@@ -863,25 +859,22 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
                         ? t('encyclopedia.consumable')
                         : item.type;
 
-        const materialUsageLines = mainTab === 'material' ? getMaterialBagUsageLines(item.name) : [];
-        const materialAcquireLines =
-            mainTab === 'material' ? resolveBagItemAcquireLines(encyclopediaItemAsInventoryPreview(item)) : [];
+        const inventoryPreview = encyclopediaItemAsInventoryPreview(item);
+        const materialUsageLines = mainTab === 'material' ? itemMeta.resolveMaterialUsageLines(item.name) : [];
+        const materialAcquireLines = mainTab === 'material' ? itemMeta.resolveAcquireLines(inventoryPreview) : [];
         const consumableUsageLines =
             mainTab === 'consumable'
-                ? (() => {
-                      const hint = getBagConsumableUsageHint(item.name);
-                      return [hint ?? t('encyclopedia.inventoryHint')];
-                  })()
+                ? [itemMeta.resolveConsumableUsageHint(item.name) ?? t('encyclopedia.inventoryHint')]
                 : [];
-        const consumableAcquireLines =
-            mainTab === 'consumable' ? resolveBagItemAcquireLines(encyclopediaItemAsInventoryPreview(item)) : [];
+        const consumableAcquireLines = mainTab === 'consumable' ? itemMeta.resolveAcquireLines(inventoryPreview) : [];
+        const displayDescription = itemMeta.resolveDescription(inventoryPreview);
 
         const headerCard = (
             <div className={`${viewerHeaderCardClass} ${isDenseEquipViewer ? '!p-2.5 sm:!p-3' : ''}`}>
                 <div className={`flex items-start ${isDenseEquipViewer ? 'gap-2.5 sm:gap-3' : 'gap-3 sm:gap-3.5'}`}>
                     <EncyclopediaItemThumb item={item} size="md" />
                     <div className="min-w-0 flex-1">
-                        <h3 className={`${viewerTitleClass} ${gradeColorByGrade[item.grade]}`}>{item.name}</h3>
+                        <h3 className={`${viewerTitleClass} ${gradeColorByGrade[item.grade]}`}>{localizedItemName(item.name)}</h3>
                         <div className="mt-1.5 flex flex-wrap items-center gap-1.5 sm:mt-2 sm:gap-2">
                             <span className={`${viewerChipClass} border-white/15 bg-black/35 text-slate-100`}>{kindLabel}</span>
                             <span className={`${viewerChipClass} ${encyclopediaGradeChipClass(item.grade)}`}>
@@ -900,7 +893,7 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
                                 isDenseEquipViewer ? 'line-clamp-2 !mt-1.5 !py-1.5 sm:!mt-2 sm:!py-2' : ''
                             }`}
                         >
-                            {item.description}
+                            {displayDescription}
                         </p>
                     </div>
                 </div>
@@ -912,9 +905,9 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
         if (mainTab === 'equipment' && isEquipmentDetail) {
             footer = <div className="min-h-0 min-w-0">{renderEquipmentSubOptions(item, encyclopediaEquipStars)}</div>;
         } else if (mainTab === 'pet' && isPetTabEggOrSoulStoneItem(item)) {
-            const petPreview = encyclopediaItemAsInventoryPreview(item);
-            const petUsageLines = resolvePetTabEggOrSoulUsageLines(petPreview);
-            const petAcquireLines = resolvePetTabEggOrSoulAcquireLines(petPreview);
+            const petPreview = inventoryPreview;
+            const petUsageLines = itemMeta.resolvePetUsageLines(petPreview);
+            const petAcquireLines = itemMeta.resolvePetAcquireLines(petPreview);
             footer = (
                 <div className="space-y-3">
                     {renderViewerSection(

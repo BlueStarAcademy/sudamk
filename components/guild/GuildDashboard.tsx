@@ -47,6 +47,8 @@ import {
 import { useModalStackLayer } from '../../hooks/useModalStackLayer.js';
 import { SHOP_IMAGE_DESC_POPOVER_Z } from '../shopImageDescriptionPopover.js';
 import { useTranslation } from 'react-i18next';
+import { translateGuildBossName } from '../../shared/utils/translateGuildBossName.js';
+import { translateGuildDisplayName } from '../../shared/utils/guildDisplayName.js';
 // 고급 버튼 스타일 (길드 패널용)
 const guildPanelBtnBase =
     'inline-flex items-center justify-center gap-1.5 rounded-xl border px-4 py-2 text-sm font-semibold tracking-wide transition-all duration-200';
@@ -962,6 +964,10 @@ const BossPanel: React.FC<{
         if (!guild.guildBossState) return GUILD_BOSSES[0];
         return GUILD_BOSSES.find(b => b.id === guild.guildBossState!.currentBossId) || GUILD_BOSSES[0];
     }, [guild.guildBossState]);
+    const translatedBossName = useMemo(
+        () => translateGuildBossName(currentBoss.id, currentBoss.name, t),
+        [currentBoss.id, currentBoss.name, t],
+    );
 
     const bossDifficultyStage = useMemo(
         () => getCurrentGuildBossStage(guild.guildBossState, currentBoss.id),
@@ -1120,7 +1126,7 @@ const BossPanel: React.FC<{
                 </div>
                 <div className={`flex flex-col ${isMobile || isCompact ? 'mb-1' : 'mb-2'} flex-shrink-0`}>
                     <p className={`${isMobile ? 'text-xs' : isCompact ? 'text-xs' : 'text-base'} font-bold text-highlight ${isMobile || isCompact ? 'mb-0.5' : 'mb-2'} text-center`}>
-                        {currentBoss.name}
+                        {translatedBossName}
                         <span className={`tabular-nums text-amber-200/95 ${isMobile ? 'text-[11px] ml-1' : isCompact ? 'text-[10px] ml-1' : 'text-sm ml-1.5'}`}>· {t('boss.stage', { stage: bossDifficultyStage })}</span>
                     </p>
                 </div>
@@ -1133,7 +1139,7 @@ const BossPanel: React.FC<{
                                     <div className="relative inline-block max-h-full max-w-full">
                                         <img
                                             src={currentBoss.image}
-                                            alt={currentBoss.name}
+                                            alt={translatedBossName}
                                             className="block h-auto w-auto max-h-full max-w-full object-contain object-center drop-shadow-lg"
                                         />
                                         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/45" />
@@ -1239,7 +1245,7 @@ const BossPanel: React.FC<{
                             <div className={`flex min-h-0 flex-col rounded-xl border border-stone-600/50 bg-black/20 ${isCompact ? 'p-1.5' : 'p-2'}`}>
                                 <div className="flex min-h-0 flex-col items-center">
                                     <div className={`relative flex w-full items-center justify-center bg-gradient-to-br from-stone-700/50 to-stone-800/40 rounded-xl border border-stone-600/50 shadow-lg overflow-hidden ${isCompact ? 'h-24 w-24' : 'h-full max-h-[19rem] w-full max-w-[19rem] flex-1 min-h-0'}`}>
-                                        <img src={currentBoss.image} alt={currentBoss.name} className={`drop-shadow-lg object-contain ${isCompact ? 'h-20 w-20' : 'h-[92%] w-[92%]'}`} />
+                                        <img src={currentBoss.image} alt={translatedBossName} className={`drop-shadow-lg object-contain ${isCompact ? 'h-20 w-20' : 'h-[92%] w-[92%]'}`} />
                                         <div className={`absolute inset-x-0 bottom-0 flex flex-col items-stretch gap-1 px-2 pb-2 pt-8 bg-gradient-to-t from-black/75 via-black/45 to-transparent`}>
                                             <div className={`text-center font-bold tabular-nums text-white text-[12px] drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]`} style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>
                                                 {formatHpWithK(remainingHp)} / {formatHpWithK(maxHp)} ({clampedHpPercent.toFixed(1)}%)
@@ -1955,6 +1961,10 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                   leaderId: opponentGuildIdForDisplay,
               }
             : null);
+    const displayOpponentGuildName = React.useMemo(
+        () => (displayOpponent ? translateGuildDisplayName(displayOpponent, t) : ''),
+        [displayOpponent, t],
+    );
     const isMobile = forceDesktopPanelLayout ? false : isNativeMobile;
     const isCompact = compact && !isMobile;
     const showOpponentWarPanel = !!(activeWar && !isMatching && displayOpponent);
@@ -2028,9 +2038,9 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                                     <>
                                         <p
                                             className={`truncate text-center font-bold text-stone-100 ${isMobile ? 'text-xs' : 'text-sm'}`}
-                                            title={displayOpponent!.name}
+                                            title={displayOpponentGuildName}
                                         >
-                                            {displayOpponent!.name || t('war.opponentGuild')}
+                                            {displayOpponentGuildName || t('war.opponentGuild')}
                                         </p>
                                         <GuildWarUnifiedScoreboard
                                             variant="embedded"
@@ -2250,6 +2260,10 @@ const GuildBossGuideModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
     const { t } = useTranslation(['guild', 'common']);
     const { isNativeMobile } = useNativeMobileShell();
     const [selectedBoss, setSelectedBoss] = useState<GuildBossInfo>(GUILD_BOSSES[0]);
+    const selectedBossDisplayName = useMemo(
+        () => translateGuildBossName(selectedBoss.id, selectedBoss.name, t),
+        [selectedBoss.id, selectedBoss.name, t],
+    );
 
     const getBossTheme = (bossId: string) => {
         switch (bossId) {
@@ -2267,6 +2281,7 @@ const GuildBossGuideModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
     const bossList = GUILD_BOSSES.map(boss => {
         const bossTheme = getBossTheme(boss.id);
         const isSelected = selectedBoss.id === boss.id;
+        const bossDisplayName = translateGuildBossName(boss.id, boss.name, t);
         return (
             <button
                 key={boss.id}
@@ -2283,9 +2298,9 @@ const GuildBossGuideModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
                     <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-transparent pointer-events-none"></div>
                 )}
                 <div className={`bg-gradient-to-br ${isSelected ? 'from-white/20 to-white/10' : 'from-stone-800/80 to-stone-900/80'} rounded-lg flex items-center justify-center border-2 ${isSelected ? 'border-white/30' : 'border-stone-600/60'} shadow-lg flex-shrink-0 relative z-10 ${isNativeMobile ? 'w-11 h-11' : 'w-12 h-12'}`}>
-                    <img src={boss.image} alt={boss.name} className={`object-contain drop-shadow-xl ${isNativeMobile ? 'w-9 h-9' : 'w-10 h-10'}`} />
+                    <img src={boss.image} alt={bossDisplayName} className={`object-contain drop-shadow-xl ${isNativeMobile ? 'w-9 h-9' : 'w-10 h-10'}`} />
                 </div>
-                <span className={`font-bold relative z-10 ${isSelected ? 'text-white' : 'text-stone-300'} ${isNativeMobile ? 'text-center text-[10px] max-w-[4.5rem] line-clamp-2 leading-tight' : 'text-sm truncate'}`}>{boss.name}</span>
+                <span className={`font-bold relative z-10 ${isSelected ? 'text-white' : 'text-stone-300'} ${isNativeMobile ? 'text-center text-[10px] max-w-[4.5rem] line-clamp-2 leading-tight' : 'text-sm truncate'}`}>{bossDisplayName}</span>
             </button>
         );
     });
@@ -2297,10 +2312,10 @@ const GuildBossGuideModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
                 <div className={`flex border-b-2 border-stone-700/60 ${isNativeMobile ? 'flex-col items-center text-center gap-2 mb-3 pb-3' : 'items-center gap-4 mb-4 pb-4'}`}>
                     <div className={`bg-gradient-to-br ${theme.color} rounded-xl flex items-center justify-center border-2 ${theme.border} shadow-xl relative overflow-hidden flex-shrink-0 ${isNativeMobile ? 'w-[4.5rem] h-[4.5rem]' : 'w-24 h-24'}`}>
                         <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-transparent pointer-events-none"></div>
-                        <img src={selectedBoss.image} alt={selectedBoss.name} className={`object-contain drop-shadow-xl relative z-10 ${isNativeMobile ? 'w-[3.75rem] h-[3.75rem]' : 'w-20 h-20'}`} />
+                        <img src={selectedBoss.image} alt={selectedBossDisplayName} className={`object-contain drop-shadow-xl relative z-10 ${isNativeMobile ? 'w-[3.75rem] h-[3.75rem]' : 'w-20 h-20'}`} />
                     </div>
                     <div className="flex-grow min-w-0">
-                        <h3 className={`font-bold text-white drop-shadow-lg ${isNativeMobile ? 'text-lg mb-1' : 'text-xl mb-1 truncate'}`}>{selectedBoss.name}</h3>
+                        <h3 className={`font-bold text-white drop-shadow-lg ${isNativeMobile ? 'text-lg mb-1' : 'text-xl mb-1 truncate'}`}>{selectedBossDisplayName}</h3>
                         <p className={`text-stone-300 leading-relaxed ${isNativeMobile ? 'text-xs line-clamp-3' : 'text-sm line-clamp-2'}`}>{selectedBoss.description}</p>
                     </div>
                 </div>

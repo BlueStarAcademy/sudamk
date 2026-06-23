@@ -5,8 +5,8 @@ import { RANKING_TIERS } from '../../constants';
 import { RANKING_MODAL_SLIM_SCROLL_Y } from '../../shared/constants/rankingModalScrollbar.js';
 import { useRanking } from '../../hooks/useRanking.js';
 import { pickChampionshipVersusSeasonRankingStats } from '../../shared/utils/championshipVersusElo.js';
-import { getCurrentSeason } from '../../shared/utils/timeUtils.js';
 import SeasonalBadukRankingRow from './SeasonalBadukRankingRow.js';
+import { formatCurrentSeasonLabel } from '../../shared/utils/rankingSeasonDisplay.js';
 
 const CHAMPIONSHIP_TOP = 100;
 const INITIAL_DISPLAY = 30;
@@ -230,7 +230,7 @@ const ChampionshipRankingList: React.FC<ChampionshipRankingListProps> = ({
                                 panelTight ? 'text-xs sm:text-sm' : 'text-sm lg:text-base'
                             }`}
                         >
-                            {getCurrentSeason().name}
+                            {formatCurrentSeasonLabel(t)}
                         </p>
                     </div>
                 </div>

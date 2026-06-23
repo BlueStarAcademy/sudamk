@@ -75,6 +75,11 @@ import { isRoomKindAllowedForLobby } from '../../shared/utils/arenaLobbyDestinat
 import { isPairRoomVisibleInLobbyIntent } from '../../shared/utils/arenaLobbyDestination.js';
 import { enrichPairRoomsForClientPayload, isPairAiDuoInviteOnlyRoom } from '../utils/pairRoomClientPayload.js';
 import {
+    pairRoomHumanMemberIdSet,
+    resetPairRoomAfterGame,
+    restorePairRoomMemberLobbyStatuses,
+} from '../utils/pairRoomPostGameReset.js';
+import {
     clearPairOwnerStartDeadline,
     pairOwnerStartDeadlineExpired,
     pickFirstJoinedPairRoomGuestSuccessor,
@@ -1135,34 +1140,46 @@ const refreshPairRoomTeams = (room: types.PairRoomState): types.PairRoomState =>
     return room;
 };
 
-function restoreEndedPairRoomShellsIfNeeded(volatileState: VolatileState, game: types.LiveGameSession): boolean {
+/** 종료된 대국과 연결된 페어 방 껍데기를 대기실로 되돌린다(전략 duo 2인 친선 등 `pairGame` 없는 대국 포함). */
+export function restorePairRoomsAfterEndedGame(
+    volatileState: VolatileState,
+    game: types.LiveGameSession,
+): boolean {
     if (!volatileState.pairRooms) return false;
     if (game.gameStatus !== 'ended' && game.gameStatus !== 'no_contest') return false;
 
     const payloadRoomId = typeof game.settings?.pairGame?.roomId === 'string' ? game.settings.pairGame.roomId : '';
-    const playerIds = new Set<string>([game.player1.id, game.player2.id].filter(Boolean));
+    const playerIds = new Set<string>();
+    if (game.player1?.id) playerIds.add(game.player1.id);
+    if (game.player2?.id) playerIds.add(game.player2.id);
+    for (const seat of game.settings?.pairGame?.turnOrder ?? []) {
+        if (seat?.kind === 'user' && typeof seat.participantId === 'string') {
+            playerIds.add(seat.participantId);
+        }
+    }
+
     let changed = false;
-
     for (const room of Object.values(volatileState.pairRooms)) {
-        if (!room || room.phase !== 'in_game') continue;
+        if (!room) continue;
+        const roomMemberIds = pairRoomHumanMemberIdSet(room);
+        const hasAnyPlayer = [...playerIds].some((id) => roomMemberIds.has(id));
+        const shellRoomIdMatch =
+            Boolean(payloadRoomId) &&
+            (payloadRoomId === room.id || payloadRoomId.includes(room.id));
+        if (!shellRoomIdMatch && !hasAnyPlayer) continue;
+        if (room.phase !== 'in_game' && !room.matchStartedAt) continue;
 
-        const roomMemberIds = new Set<string>([
-            room.ownerId,
-            room.partnerId,
-            ...(room.extraPairMembers ?? []).map((m) => m.id),
-        ].filter((id): id is string => Boolean(id) && !isPetAiId(id)));
-        const hasAnyPlayer = Array.from(playerIds).some((id) => roomMemberIds.has(id));
-        const idMatched =
-            (payloadRoomId && (payloadRoomId === room.id || payloadRoomId.includes(room.id))) ||
-            hasAnyPlayer;
-        if (!idMatched) continue;
-
-        room.matchStartedAt = undefined;
+        resetPairRoomAfterGame(room);
         refreshPairRoomTeams(room);
+        if (restorePairRoomMemberLobbyStatuses(volatileState, room)) changed = true;
         changed = true;
     }
 
     return changed;
+}
+
+function restoreEndedPairRoomShellsIfNeeded(volatileState: VolatileState, game: types.LiveGameSession): boolean {
+    return restorePairRoomsAfterEndedGame(volatileState, game);
 }
 
 /** 페어 경기장에서 방을 만들지 않고 펫 페어 AI 대전만 시작할 때 — volatileState에 넣지 않는 일회용 스냅샷 */
@@ -1818,19 +1835,50 @@ export async function clearPvpDisconnectOnPlayerReconnect(
     return true;
 }
 
-/** userStatuses의 in-game gameId로 clearPvpDisconnectOnPlayerReconnect 호출 */
+/** PVP 접속 끊김 처리 대상(종료·계가 제외) */
+const TERMINAL_PVP_DISCONNECT_GAME_STATUSES = new Set(['ended', 'no_contest', 'scoring']);
+
+function isActiveGameForPvpDisconnect(game: types.LiveGameSession | null | undefined): game is types.LiveGameSession {
+    if (!game) return false;
+    return !TERMINAL_PVP_DISCONNECT_GAME_STATUSES.has(String(game.gameStatus));
+}
+
+/** userStatuses.gameId·게임 캐시에서 진행 중 PVP 세션을 찾는다(대기실 입장으로 status가 덮인 경우 대비). */
+async function resolveLiveGameForPvpDisconnect(
+    volatileState: VolatileState,
+    userId: string,
+): Promise<types.LiveGameSession | null> {
+    const statusGameId = volatileState.userStatuses[userId]?.gameId;
+    if (statusGameId) {
+        const fromStatus = await db.getLiveGame(statusGameId);
+        if (
+            isActiveGameForPvpDisconnect(fromStatus) &&
+            (fromStatus.player1?.id === userId || fromStatus.player2?.id === userId)
+        ) {
+            return fromStatus;
+        }
+    }
+    const cache = volatileState.gameCache;
+    if (!cache) return null;
+    for (const entry of cache.values()) {
+        const g = entry?.game;
+        if (!isActiveGameForPvpDisconnect(g)) continue;
+        if (g.player1?.id !== userId && g.player2?.id !== userId) continue;
+        const { isPveSessionAbandonOnLeave } = await import('../utils/pveAbandonOnDisconnect.js');
+        if (isPveSessionAbandonOnLeave(g)) continue;
+        return g;
+    }
+    return null;
+}
+
+/** userStatuses·게임 캐시 기준 clearPvpDisconnectOnPlayerReconnect 호출 */
 export async function clearPvpDisconnectOnPlayerReconnectByStatus(
     volatileState: VolatileState,
     userId: string,
 ): Promise<boolean> {
-    const userStatus = volatileState.userStatuses[userId];
-    if (userStatus?.status !== UserStatus.InGame || !userStatus.gameId) {
-        return false;
-    }
-    const game = await db.getLiveGame(userStatus.gameId);
-    if (!game) {
-        return false;
-    }
+    const game = await resolveLiveGameForPvpDisconnect(volatileState, userId);
+    if (!game) return false;
+    setInGameUserStatusForArena(volatileState, userId, game);
     return clearPvpDisconnectOnPlayerReconnect(game, userId);
 }
 
@@ -1840,19 +1888,15 @@ export async function clearPvpDisconnectOnPlayerReconnectByStatus(
  * @returns 접속 끊김 처리에 들어갔으면 true (호출측에서 userConnections 정리 등에 사용)
  */
 export async function applyPvpInGameDisconnect(volatileState: VolatileState, disconnectedUserId: string): Promise<boolean> {
-    const userStatus = volatileState.userStatuses[disconnectedUserId];
-    const activeGameId = userStatus?.gameId;
-    if (userStatus?.status !== UserStatus.InGame || !activeGameId) return false;
-
-    const game = await db.getLiveGame(activeGameId);
-    if (!game || game.gameStatus === 'ended' || game.gameStatus === 'no_contest' || game.gameStatus === 'scoring') {
-        return false;
-    }
+    const game = await resolveLiveGameForPvpDisconnect(volatileState, disconnectedUserId);
+    if (!game) return false;
 
     const { isPveSessionAbandonOnLeave } = await import('../utils/pveAbandonOnDisconnect.js');
     if (isPveSessionAbandonOnLeave(game)) return false;
 
     if (game.disconnectionState) return false;
+
+    setInGameUserStatusForArena(volatileState, disconnectedUserId, game);
 
     if (!game.disconnectionCounts) game.disconnectionCounts = {};
     const now = Date.now();
@@ -1870,6 +1914,7 @@ export async function applyPvpInGameDisconnect(volatileState: VolatileState, dis
         await db.saveGame(game);
         const { broadcastToGameParticipants } = await import('../socket.js');
         broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+        broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
     }
     return true;
 }
@@ -2607,6 +2652,17 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 if (!gate.ok) return { error: gate.error };
             }
             const currentStatus = volatileState.userStatuses[user.id];
+
+            // 진행 중 PVP 대국 중에는 대기실 입장 요청으로 in-game·gameId를 덮어쓰지 않는다(튕김 후 재입장·상대 연결끊김 UI).
+            if (currentStatus?.status === UserStatus.InGame && currentStatus.gameId) {
+                const liveGame = await db.getLiveGame(currentStatus.gameId);
+                if (isActiveGameForPvpDisconnect(liveGame)) {
+                    const { isPveSessionAbandonOnLeave } = await import('../utils/pveAbandonOnDisconnect.js');
+                    if (!isPveSessionAbandonOnLeave(liveGame)) {
+                        return {};
+                    }
+                }
+            }
             
             // 이미 같은 상태로 대기실에 있으면 중복 요청 무시
             if (currentStatus && 
@@ -2710,6 +2766,11 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 const restoredPairRoom = restoreEndedPairRoomShellsIfNeeded(volatileState, game);
                 if (restoredPairRoom) {
                     broadcastPairRooms(volatileState);
+                    try {
+                        broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
+                    } catch {
+                        /* ignore */
+                    }
                 }
                 const leaveArenaChannel = arenaChannelForGameSession(game);
                 const isPairGameLeave = leaveArenaChannel === 'pair';
@@ -3214,15 +3275,28 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                     ...(volatileState.pairLobbyScreenClients[user.id] || {}),
                     [normalizedClientId]: Date.now(),
                 };
-                volatileState.userStatuses[user.id] = {
+                let keepInGame = false;
+                if (base.status === UserStatus.InGame && base.gameId) {
+                    const liveGame = await db.getLiveGame(base.gameId);
+                    if (liveGame && isActiveGameForPvpDisconnect(liveGame)) {
+                        keepInGame = true;
+                    }
+                }
+                const next: UserStatusInfo = {
                     ...base,
-                    inPairLobby: screenChannel === 'pair',
                     arenaChannel: screenChannel,
                     lobbyIntent,
+                    inPairLobby: screenChannel === 'pair',
                     ...(screenChannel === 'strategic' || screenChannel === 'playful'
                         ? { waitingLobby: screenChannel }
                         : {}),
                 };
+                if (!keepInGame) {
+                    next.status = UserStatus.Waiting;
+                    delete next.gameId;
+                    delete next.spectatingGameId;
+                }
+                volatileState.userStatuses[user.id] = next;
             } else {
                 delete volatileState.pairLobbyScreenClients[user.id]?.[normalizedClientId];
                 prunePairLobbyScreenClients(volatileState, user.id);

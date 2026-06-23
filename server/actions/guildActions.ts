@@ -398,20 +398,35 @@ function appendGuildWarParticipationSystemChat(
                 : '이'
             : '이';
     let content: string;
+    let i18nKey: string;
+    let i18nParams: Record<string, string | number>;
     if (!createdWar || createdWar.status !== 'active') {
         content = `[${user.nickname}]${nicknameEnding} 길드 전쟁에 참여했습니다. 매칭을 진행합니다.`;
+        i18nKey = 'guild:homeChat.systemMessages.warJoinMatching';
+        i18nParams = { nickname: user.nickname, subjectParticle: nicknameEnding };
     } else if ((createdWar as any).isBotGuild) {
         content = `[${user.nickname}]${nicknameEnding} 길드 전쟁에 참여했습니다. 홀수 대기로 시스템 봇 길드와 매칭되었습니다.`;
+        i18nKey = 'guild:homeChat.systemMessages.warJoinBotMatch';
+        i18nParams = { nickname: user.nickname, subjectParticle: nicknameEnding };
     } else {
         const oid = createdWar.guild1Id === guildId ? createdWar.guild2Id : createdWar.guild1Id;
         const oname = (guildsMap[oid]?.name as string | undefined)?.trim() || '상대 길드';
         content = `[${user.nickname}]${nicknameEnding} 길드 전쟁에 참여했습니다. 상대: 「${oname}」`;
+        i18nKey = 'guild:homeChat.systemMessages.warJoinOpponent';
+        i18nParams = {
+            nickname: user.nickname,
+            subjectParticle: nicknameEnding,
+            opponentGuildId: oid,
+            opponentGuildName: oname,
+        };
     }
     const systemMessage: any = {
         id: `msg-guild-war-${randomUUID()}`,
         guildId: g.id,
         authorId: 'system',
         content,
+        i18nKey,
+        i18nParams,
         createdAt: Date.now(),
         system: true,
     };
@@ -2386,6 +2401,8 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 guildId: guild.id,
                 authorId: 'system',
                 content: `[${user.nickname}]${nicknameEnding} 길드 전쟁 매칭을 취소했습니다.`,
+                i18nKey: 'guild:homeChat.systemMessages.warCancelMatching',
+                i18nParams: { nickname: user.nickname, subjectParticle: nicknameEnding },
                 createdAt: now,
                 system: true,
             };
@@ -3870,6 +3887,14 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     guildId: guild.id,
                     authorId: 'system',
                     content: `[${freshUser.nickname}]${nicknameEnding} ${currentBoss.name}에게 ${result.damageDealt}의 피해를 입혔습니다.`,
+                    i18nKey: 'guild:homeChat.systemMessages.bossDamage',
+                    i18nParams: {
+                        nickname: freshUser.nickname,
+                        subjectParticle: nicknameEnding,
+                        bossId: currentBoss.id,
+                        bossName: currentBoss.name,
+                        damage: result.damageDealt,
+                    },
                     createdAt: Date.now(),
                 };
                 if (!guild.chatHistory) guild.chatHistory = [];

@@ -233,6 +233,17 @@ const PVE_AI_STUCK_RECOVERABLE_STATUSES = new Set<GameStatus>([
     'dice_start_confirmation',
 ]);
 
+/** 미사일·히idden 등 아이템 연출 중 AI 착수/복구 요청 차단 */
+const STRATEGIC_ITEM_PHASE_AI_BLOCK_STATUSES = new Set<GameStatus>([
+    'missile_selecting',
+    'missile_animating',
+    'hidden_placing',
+    'scanning',
+    'scanning_animating',
+    'hidden_reveal_animating',
+    'hidden_final_reveal',
+]);
+
 /** 놀이바둑 AI: processGame과 동일하게 playing 외 status에서도 클라 트리거 허용 */
 const PLAYFUL_AI_CLIENT_TRIGGER_STATUSES = new Set<GameStatus>([
     'playing',
@@ -1124,6 +1135,19 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         if (isSpectator) return false;
         return whitePlayerId === currentUser.id;
     });
+
+    /** 베이스 등: 덤·색 확정 후 `whitePlayerId`가 채워질 때 백 좌석 유저 보드 180° 회전(초기 마운트만으로는 null이라 미적용되던 경우) */
+    useEffect(() => {
+        if (isSpectator) return;
+        const effectiveWhiteId =
+            typeof whitePlayerId === 'string' && whitePlayerId.length > 0
+                ? whitePlayerId
+                : typeof session.playingLockedWhitePlayerId === 'string' && session.playingLockedWhitePlayerId.length > 0
+                  ? session.playingLockedWhitePlayerId
+                  : null;
+        if (!effectiveWhiteId) return;
+        setIsBoardRotated(effectiveWhiteId === currentUser.id);
+    }, [isSpectator, whitePlayerId, session.playingLockedWhitePlayerId, currentUser.id]);
     
     const prevGameStatus = usePrevious(gameStatus);
 
@@ -4736,16 +4760,21 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         const isAdventureGame = sessionPolicy.kind === 'adventure';
         const isPlayfulAiGame = session.isAiGame && PLAYFUL_GAME_MODES.some(m => m.mode === mode);
         const isPlayfulModeForAiTrigger = PLAYFUL_GAME_MODES.some(m => m.mode === mode);
+        const missileFlightAnimType = (session.animation as { type?: string } | undefined)?.type;
+        const isMissileFlightPresentationActive =
+            missileFlightAnimType === 'missile' || missileFlightAnimType === 'hidden_missile';
         const gameStatusAllowsAiTrigger = isPlayfulModeForAiTrigger
             ? PLAYFUL_AI_CLIENT_TRIGGER_STATUSES.has(gameStatus)
-            : gameStatus === 'playing';
+            : gameStatus === 'playing' && !STRATEGIC_ITEM_PHASE_AI_BLOCK_STATUSES.has(gameStatus);
         // 게임이 종료되었거나 일시정지되었거나 플레이 중이 아니면 AI 수를 보내지 않음
         // 놀이바둑 AI 게임도 클라이언트에서 처리
         // 모험: 서버 큐만 기대하면 AI 턴이 영구 정지할 수 있어 타워·길드전과 같이 REQUEST_SERVER_AI_MOVE 복구 경로에 포함
         if (
             !(isSinglePlayer || isTower || isGuildWarGame || isPlayfulAiGame || isAdventureGame) ||
             isPaused ||
-            !gameStatusAllowsAiTrigger
+            !gameStatusAllowsAiTrigger ||
+            STRATEGIC_ITEM_PHASE_AI_BLOCK_STATUSES.has(gameStatus) ||
+            isMissileFlightPresentationActive
         ) {
             lastAiMoveRef.current = null;
             return;
@@ -4895,8 +4924,15 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     });
                     return;
                 }
-                // 3초 이상 지났으면 초기화하고 재시도
+                // 3초 이상 지났으면 초기화하고 재시도 (미사일·히idden 연출 중에는 서버 대기 상태이므로 재시도하지 않음)
                 if (timeSinceLastMove > 3000) {
+                    const blockedByItemPhase =
+                        STRATEGIC_ITEM_PHASE_AI_BLOCK_STATUSES.has(session.gameStatus) ||
+                        session.animation?.type === 'missile' ||
+                        session.animation?.type === 'hidden_missile';
+                    if (blockedByItemPhase) {
+                        return;
+                    }
                     console.log('[Game] lastAiMoveRef timeout, resetting and retrying:', {
                         gameId: session.id,
                         lastMove: lastAiMoveRef.current,

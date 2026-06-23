@@ -3,13 +3,12 @@ import { useTranslation } from 'react-i18next';
 import { tx } from '../../shared/i18n/runtimeText.js';
 import type { InventoryItem } from '../../types.js';
 import { ItemGrade } from '../../types/enums.js';
-import { useLocalizedItemGrade } from '../../shared/i18n/localizedCatalog.js';
+import { useLocalizedItemGrade, useLocalizedInventoryItemMeta, useLocalizedInventoryItemName } from '../../shared/i18n/localizedCatalog.js';
 import { gradeBackgrounds, gradeStyles } from '../../shared/constants/items.js';
 import { PAIR_PET_GRADE_ORDER, pairPetSoulStoneTierGradeUpgradeUsage } from '../../shared/constants/pairPetGrade.js';
 import { PAIR_PET_SHOP_SKUS, isPairPetShopSkuUnlimitedDaily } from '../../shared/constants/petLobby.js';
 import { PAIR_TRAINING_SLOT_DEFS } from '../../shared/constants/pairTraining.js';
 import { pairPetSoulConvertMaterialNameForGrade } from '../../shared/utils/pairPetSoulConvert.js';
-import { resolveBagItemAcquireLines } from '../../shared/utils/itemAcquireSourceLines.js';
 import { formatGoldAmountKoG, formatWalletDiamonds } from '../../shared/utils/walletAmountDisplay.js';
 import {
     PET_PANEL_BADGE,
@@ -106,6 +105,8 @@ const PairPetLobbySoulStoneViewer: React.FC<PairPetLobbySoulStoneViewerProps> = 
 }) => {
     const { t } = useTranslation('pair');
     const localizedGrade = useLocalizedItemGrade();
+    const localizedItemName = useLocalizedInventoryItemName();
+    const itemMeta = useLocalizedInventoryItemMeta();
     const grade = itemGradeSafe(item.grade);
     const gradeStyle = gradeStyles[grade] ?? gradeStyles[ItemGrade.Normal];
     const gradeLabel = localizedGrade(grade);
@@ -124,10 +125,10 @@ const PairPetLobbySoulStoneViewer: React.FC<PairPetLobbySoulStoneViewerProps> = 
         };
     }, [item.templateId, item.name]);
 
-    const acquireFallbackLines = useMemo(() => {
-        const lines = resolveBagItemAcquireLines(item);
-        return lines.filter((line) => !line.includes('사용'));
-    }, [item]);
+    const acquireFallbackLines = useMemo(
+        () => itemMeta.resolveSoulStoneAcquireFallbackLines(item),
+        [item, itemMeta],
+    );
 
     return (
         <div
@@ -152,14 +153,16 @@ const PairPetLobbySoulStoneViewer: React.FC<PairPetLobbySoulStoneViewerProps> = 
                         <div className="flex min-w-0 flex-nowrap items-center gap-0.5">
                             <span className={`${PET_PANEL_BADGE} ${gradeStyle.color} bg-black/45`}>{gradeLabel}</span>
                         </div>
-                        <h3 className={PET_PANEL_NAME}>{item.name}</h3>
+                        <h3 className={PET_PANEL_NAME}>{localizedItemName(item.name)}</h3>
                         <div className={`flex min-w-0 justify-end ${PET_PANEL_EXP}`}>
                             <span className="font-mono font-semibold tabular-nums text-amber-200">
 {t('soulStone.ownedQty', { qty: qty.toLocaleString() })}
                             </span>
                         </div>
-                        {item.description ? (
-                            <p className={`${soulTraitBody} text-slate-200/95 line-clamp-3`}>{item.description}</p>
+                        {item.description || itemMeta.resolveDescription(item) ? (
+                            <p className={`${soulTraitBody} text-slate-200/95 line-clamp-3`}>
+                                {itemMeta.resolveDescription(item)}
+                            </p>
                         ) : null}
                     </div>
                 </div>

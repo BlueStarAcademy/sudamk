@@ -19,6 +19,10 @@ import type { ChessPieceState, ChessPieceType, ChessLastMoveMarker } from '../sh
 import { CHESS_GO_BOARD_SIZE, normalizeChessGoSession } from '../shared/utils/chessGoRules.js';
 import { buildBoardCellStoneLookup } from '../utils/boardCellLookup.js';
 import { tx } from '../shared/i18n/runtimeText.js';
+import {
+    isBasePlacementHoverPositionValid,
+    resolveBasePlacementPreviewPlayer,
+} from '../shared/utils/basePlacementCanPlaceMore.js';
 
 /** 따내기/보너스 점수 플로트: mid(5~9) 기준 폰트 배율 */
 const CAPTURE_SCORE_FLOAT_BASE_EM = 0.92;
@@ -801,8 +805,10 @@ interface GoBoardProps {
   isPairBasePlacementHost?: boolean;
   baseStonesP1Player?: Player;
   baseStonesP2Player?: Player;
-  /** @deprecated 베이스 배치 단계에서는 호버 미리보기를 사용하지 않음 — 하위 호환용 */
+  /** 베이스 배치 단계: 뷰어가 아직 더 둘 수 있을 때만 호버 미리보기 */
   canPlaceMoreBaseStones?: boolean;
+  /** 베이스 배치 단계: `settings.baseStones` 목표 개수 */
+  basePlacementTargetCount?: number;
   /** 아이템 안내 등 바둑판 중앙 오버레이 문구 */
   boardRuleFlashMessage?: string | null;
   /** 일색 바둑: 모든 돌을 이 색으로 표시(실제 흑/백 규칙과 별개) */
@@ -848,6 +854,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         strategicPetHintRewardAnimation = null,
         isPairBasePlacementHost = false,
         canPlaceMoreBaseStones,
+        basePlacementTargetCount = 4,
         boardRuleFlashMessage = null,
         uniformStoneDisplayColor = null,
     } = props;
@@ -1857,15 +1864,43 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
     
     const isGameFinished = gameStatus === 'ended' || gameStatus === 'no_contest';
 
-    const basePlacementHoverAllowed = gameStatus !== 'base_placement';
+    const isBasePlacementPhase = gameStatus === 'base_placement';
 
-    const showHoverPreview =
-        basePlacementHoverAllowed &&
-        hoverPos &&
-        !isBoardDisabled &&
-        gameStatus !== 'scanning' &&
-        !isMissileSelectingActive &&
-        (displayBoardState[hoverPos.y][hoverPos.x] === Player.None || isOpponentHiddenStoneAtPos(hoverPos));
+    const basePlacementHoverValid = Boolean(
+        isBasePlacementPhase &&
+            canPlaceMoreBaseStones &&
+            hoverPos &&
+            !isBoardDisabled &&
+            isBasePlacementHoverPositionValid(
+                hoverPos,
+                baseStones_p1,
+                baseStones_p2,
+                displayBoardState[hoverPos.y]?.[hoverPos.x] ?? Player.None,
+            ),
+    );
+
+    const basePlacementPreviewPlayer = basePlacementHoverValid
+        ? resolveBasePlacementPreviewPlayer({
+              isPairBasePlacementHost,
+              baseStonesP1: baseStones_p1,
+              baseStonesP2: baseStones_p2,
+              basePlacementTarget: basePlacementTargetCount,
+              baseStonesP1Player,
+              baseStonesP2Player,
+              viewerStoneColor: stoneColor,
+          })
+        : null;
+
+    const showNormalHoverPreview = Boolean(
+        !isBasePlacementPhase &&
+            hoverPos &&
+            !isBoardDisabled &&
+            gameStatus !== 'scanning' &&
+            !isMissileSelectingActive &&
+            (displayBoardState[hoverPos.y][hoverPos.x] === Player.None || isOpponentHiddenStoneAtPos(hoverPos)),
+    );
+
+    const showHoverPreview = showNormalHoverPreview || (basePlacementHoverValid && basePlacementPreviewPlayer != null);
     
     const renderCastleConfirmedTerritoryMarkers = () => {
         if (!liveCastleConfirmedTerritory) return null;
@@ -2605,12 +2640,13 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 {showHoverPreview && hoverPos && (
                     <g style={{ pointerEvents: 'none' }}>
                         <Stone
-                            player={stoneColor}
+                            player={basePlacementPreviewPlayer ?? stoneColor}
                             uniformDisplayColor={activeUniformStoneDisplayColor}
                             cx={toSvgCoords(hoverPos).cx}
                             cy={toSvgCoords(hoverPos).cy}
                             radius={stone_radius}
                             isPlacementPreview
+                            isBaseStone={basePlacementHoverValid}
                         />
                     </g>
                 )}
@@ -2902,6 +2938,11 @@ function areGoBoardPropsEqual(prev: GoBoardProps, next: GoBoardProps): boolean {
         prev.permanentlyRevealedStones === next.permanentlyRevealedStones &&
         prev.hiddenMoves === next.hiddenMoves &&
         prev.baseStones === next.baseStones &&
+        prev.baseStones_p1 === next.baseStones_p1 &&
+        prev.baseStones_p2 === next.baseStones_p2 &&
+        prev.canPlaceMoreBaseStones === next.canPlaceMoreBaseStones &&
+        prev.basePlacementTargetCount === next.basePlacementTargetCount &&
+        prev.isPairBasePlacementHost === next.isPairBasePlacementHost &&
         prev.isBoardDisabled === next.isBoardDisabled &&
         prev.showTerritoryOverlay === next.showTerritoryOverlay &&
         prev.showHintOverlay === next.showHintOverlay &&

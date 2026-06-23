@@ -8,10 +8,15 @@ import {
 import { formatDiceGoSpecialDiceSummary } from '../shared/utils/diceGoSettings.js';
 import { formatThiefSpecialDiceSummary } from '../shared/utils/thiefGoSettings.js';
 import { countTowerLobbyItems, getTowerSessionFloor } from './towerPreGameDisplay.js';
+import { SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT } from '../shared/constants/speedTimePressure.js';
 import {
-  SPEED_GO_PVP_SPECIAL_HIGHLIGHT,
-  SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT,
-} from '../shared/constants/speedTimePressure.js';
+  pg,
+  pgItem,
+  pgNone,
+  pgJoin,
+  pgSpeedPvpHighlight,
+  translateGameMode,
+} from '../shared/i18n/preGameSummaryText.js';
 
 export type PreGameSpecialHighlight = {
   img: string;
@@ -64,13 +69,24 @@ export type PreGameSummaryFour = {
   itemSlots: PreGameItemSlot[];
 };
 
-const NONE = '없음';
+function loseTerritory(): string {
+  return pg('loseTerritory', { defaultValue: '계가(종합 점수)에서 집이 적거나, 동점·무승부 규칙에 따라 불리하면 패배' });
+}
 
-const LOSE_TERRITORY = '계가(종합 점수)에서 집이 적거나, 동점·무승부 규칙에 따라 불리하면 패배';
-const LOSE_TERRITORY_AUTO = (auto: string) => `${LOSE_TERRITORY} · ${auto}에 못 이기면 패배`;
-const LOSE_CAPTURE_RACE = (t: number) =>
-  `상대가 ${t}점을 먼저 따내면 패배 · 아니면 계가에서 집이 적으면 패배`;
-const LOSE_MIX = '종료 시 따내기·계가 등에서 상대가 승리 조건을 먼저 충족하거나 불리하면 패배';
+function loseTerritoryAuto(auto: string): string {
+  return pg('loseTerritoryAuto', {
+    base: loseTerritory(),
+    auto,
+    defaultValue: `${loseTerritory()} · ${auto}에 못 이기면 패배`,
+  });
+}
+
+function loseCaptureRace(t: number): string {
+  return pg('loseCaptureRace', {
+    t,
+    defaultValue: `상대가 ${t}점을 먼저 따내면 패배 · 아니면 계가에서 집이 적으면 패배`,
+  });
+}
 
 /** 바둑판 문양돌과 동일 스프라이트(`GoBoard` 흑 문양) — 게임 설명 모달 하이라이트 */
 const PATTERN_STONE_HIGHLIGHT_IMG = '/images/single/BlackDouble.webp';
@@ -78,8 +94,14 @@ const PATTERN_STONE_HIGHLIGHT_IMG = '/images/single/BlackDouble.webp';
 /** 게임 설명 모달「특수 규칙」— 베이스 모드는 짧은 두 줄로 표시 */
 function baseModePregameHighlights(): PreGameSpecialHighlight[] {
   return [
-    { img: '/images/simbols/simbol4.webp', text: '베이스돌 배치 공개 후 형세분석' },
-    { img: '/images/simbols/simbol4.webp', text: '상대에게 줄 덤 설정 · 원하는 돌 선택' },
+    {
+      img: '/images/simbols/simbol4.webp',
+      text: pg('basePlacementAnalysis', { defaultValue: '베이스돌 배치 공개 후 형세분석' }),
+    },
+    {
+      img: '/images/simbols/simbol4.webp',
+      text: pg('baseKomiSelect', { defaultValue: '상대에게 줄 덤 설정 · 원하는 돌 선택' }),
+    },
   ];
 }
 
@@ -110,9 +132,15 @@ function autoScoringLine(settings: GameSettings, mode: GameMode, mix: GameMode[]
   if (typeof n !== 'number' || !Number.isFinite(n) || n <= 0) return null;
   if (!usesTerritoryScoring(mode, mix)) return null;
   if (mode === GameMode.Capture || hasMix(mix, GameMode.Capture)) {
-    return `${n}턴(수) 도달 시 자동 계가 진행`;
+    return pg('autoScoringCaptureTurn', {
+      n,
+      defaultValue: `${n}턴(수) 도달 시 자동 계가 진행`,
+    });
   }
-  return `${n}수(턴) 후 자동 계가에서 승리하기`;
+  return pg('autoScoringTerritoryWin', {
+    n,
+    defaultValue: `${n}수(턴) 후 자동 계가에서 승리하기`,
+  });
 }
 
 /** `autoScoringLine`과 짝 — 딱따로(표준·스피드·베이스 등) 자동 계가 시 패배 한 줄 */
@@ -123,61 +151,109 @@ function autoScoringLoseLine(settings: GameSettings, mode: GameMode, mix: GameMo
   if (mode === GameMode.Capture || hasMix(mix, GameMode.Capture)) {
     return null;
   }
-  return `${n}수(턴) 후 자동 계가에서 패배`;
+  return pg('autoScoringTerritoryLose', {
+    n,
+    defaultValue: `${n}수(턴) 후 자동 계가에서 패배`,
+  });
 }
 
 function timeLine(settings: GameSettings, mode: GameMode, mix: GameMode[]): string {
-  if ([GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Thief].includes(mode)) return NONE;
+  if ([GameMode.Alkkagi, GameMode.Curling, GameMode.Dice, GameMode.Thief].includes(mode)) return pgNone();
   if (
     mode === GameMode.Mix &&
     !hasMix(mix, GameMode.Speed) &&
     mix.every((x) => ![GameMode.Standard, GameMode.Base, GameMode.Hidden, GameMode.Missile, GameMode.Speed].includes(x))
   ) {
-    return NONE;
+    return pgNone();
   }
   const byoyomiCount = settings.byoyomiCount ?? 0;
   const byoyomiTime = settings.byoyomiTime ?? 30;
   const timeIncrement = settings.timeIncrement ?? 0;
   if (!settings.timeLimit || settings.timeLimit <= 0) {
     if (timeIncrement > 0) {
-      return `피셔 ${timeIncrement}초`;
+      return pg('fischerOnly', {
+        sec: timeIncrement,
+        defaultValue: `피셔 ${timeIncrement}초`,
+      });
     }
     if (byoyomiCount > 0 && byoyomiTime > 0) {
-      return `초읽기만 · ${byoyomiTime}초×${byoyomiCount}회`;
+      return pg('byoyomiOnly', {
+        time: byoyomiTime,
+        count: byoyomiCount,
+        defaultValue: `초읽기만 · ${byoyomiTime}초×${byoyomiCount}회`,
+      });
     }
-    return '시간 제한 없음';
+    return pg('noTimeLimit', { defaultValue: '시간 제한 없음' });
   }
   if (timeIncrement > 0) {
-    return `제한 ${settings.timeLimit}분 · 피셔 ${timeIncrement}초`;
+    return pg('limitFischer', {
+      min: settings.timeLimit,
+      sec: timeIncrement,
+      defaultValue: `제한 ${settings.timeLimit}분 · 피셔 ${timeIncrement}초`,
+    });
   }
   if (byoyomiCount > 0 && byoyomiTime > 0) {
-    return `제한 ${settings.timeLimit}분 · 초읽기 ${byoyomiTime}초×${byoyomiCount}회`;
+    return pg('limitByoyomi', {
+      min: settings.timeLimit,
+      time: byoyomiTime,
+      count: byoyomiCount,
+      defaultValue: `제한 ${settings.timeLimit}분 · 초읽기 ${byoyomiTime}초×${byoyomiCount}회`,
+    });
   }
-  return `제한 ${settings.timeLimit}분 (초읽기 없음)`;
+  return pg('limitNoByoyomi', {
+    min: settings.timeLimit,
+    defaultValue: `제한 ${settings.timeLimit}분 (초읽기 없음)`,
+  });
 }
 
 function territoryScoreParts(settings: GameSettings, mode: GameMode, mix: GameMode[]): string[] {
-  const parts: string[] = ['영토', '따낸 돌', '사석', '덤(백)'];
+  const parts: string[] = [
+    pg('factorTerritory', { defaultValue: '영토' }),
+    pg('factorCaptured', { defaultValue: '따낸 돌' }),
+    pg('factorDead', { defaultValue: '사석' }),
+    pg('factorKomi', { defaultValue: '덤(백)' }),
+  ];
   const em = effectiveModesForRules(mode, mix);
-  if (em.includes(GameMode.Base)) parts.push('베이스 보너스');
-  if (em.includes(GameMode.Hidden)) parts.push('히든 보너스');
-  if (em.includes(GameMode.Speed)) parts.push(`수당 ${SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT}초 초과→상대 +1`);
-  if (em.includes(GameMode.Missile)) parts.push('미사일 연출 반영');
+  if (em.includes(GameMode.Base)) {
+    parts.push(pg('factorBaseBonus', { defaultValue: '베이스 보너스' }));
+  }
+  if (em.includes(GameMode.Hidden)) {
+    parts.push(pg('factorHiddenBonus', { defaultValue: '히든 보너스' }));
+  }
+  if (em.includes(GameMode.Speed)) {
+    parts.push(
+      pg('factorSpeedBonus', {
+        sec: SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT,
+        defaultValue: `수당 ${SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT}초 초과→상대 +1`,
+      }),
+    );
+  }
+  if (em.includes(GameMode.Missile)) {
+    parts.push(pg('factorMissileEffect', { defaultValue: '미사일 연출 반영' }));
+  }
   return parts;
 }
 
 /** 모험 경기 안내 모달: 한 줄·짧은 토큰 (줄바꿈 최소화) */
 function adventureScoreFactorsShort(mode: GameMode, mix: GameMode[]): string {
   if (mode === GameMode.Capture) {
-    return '따내기 · 문양 2점';
+    return pg('factorAdventureCaptureShort', { defaultValue: '따내기 · 문양 2점' });
   }
-  const parts: string[] = ['기본 계가'];
+  const parts: string[] = [pg('factorAdventureBase', { defaultValue: '기본 계가' })];
   const em = effectiveModesForRules(mode, mix);
-  if (em.includes(GameMode.Base)) parts.push('베이스돌 5점');
-  if (em.includes(GameMode.Hidden)) parts.push('히든');
-  if (em.includes(GameMode.Speed)) parts.push('시간');
-  if (em.includes(GameMode.Missile)) parts.push('미사일');
-  return parts.join(' · ');
+  if (em.includes(GameMode.Base)) {
+    parts.push(pg('factorAdventureBaseStone5', { defaultValue: '베이스돌 5점' }));
+  }
+  if (em.includes(GameMode.Hidden)) {
+    parts.push(pg('factorAdventureHidden', { defaultValue: '히든' }));
+  }
+  if (em.includes(GameMode.Speed)) {
+    parts.push(pg('factorAdventureSpeed', { defaultValue: '시간' }));
+  }
+  if (em.includes(GameMode.Missile)) {
+    parts.push(pg('factorAdventureMissile', { defaultValue: '미사일' }));
+  }
+  return pgJoin(parts);
 }
 
 /**
@@ -192,40 +268,74 @@ function itemLine(settings: GameSettings, mode: GameMode, mix: GameMode[]): stri
   if (effectiveModes.includes(GameMode.Hidden)) {
     const h = settings.hiddenStoneCount ?? 0;
     const s = settings.scanCount ?? 0;
-    if (h > 0) chunks.push(`히든 ${h}개`);
-    if (s > 0) chunks.push(`스캔 ${s}개`);
+    if (h > 0) {
+      chunks.push(pg('itemHidden', { n: h, defaultValue: `히든 ${h}개` }));
+    }
+    if (s > 0) {
+      chunks.push(pg('itemScan', { n: s, defaultValue: `스캔 ${s}개` }));
+    }
   }
   if (effectiveModes.includes(GameMode.Missile)) {
     const n = settings.missileCount ?? 0;
-    if (n > 0) chunks.push(`미사일 ${n}개`);
+    if (n > 0) {
+      chunks.push(pg('itemMissile', { n, defaultValue: `미사일 ${n}개` }));
+    }
   }
   if (effectiveModes.includes(GameMode.Dice)) {
     const o = settings.oddDiceCount ?? 0;
     const e = settings.evenDiceCount ?? 0;
     const l = settings.lowDiceCount ?? 0;
     const h = settings.highDiceCount ?? 0;
-    if (o + e + l + h > 0) chunks.push(`특수주사위 ${formatDiceGoSpecialDiceSummary(settings)}`);
+    if (o + e + l + h > 0) {
+      const summary = formatDiceGoSpecialDiceSummary(settings);
+      chunks.push(
+        pg('itemSpecialDice', {
+          summary,
+          defaultValue: `특수주사위 ${summary}`,
+        }),
+      );
+    }
   }
   if (effectiveModes.includes(GameMode.Thief)) {
     const th = settings.thiefHigh36ItemCount ?? 0;
     const tn = settings.thiefNoOneItemCount ?? 0;
-    if (th + tn > 0) chunks.push(`특수주사위 ${formatThiefSpecialDiceSummary(settings)}`);
+    if (th + tn > 0) {
+      const summary = formatThiefSpecialDiceSummary(settings);
+      chunks.push(
+        pg('itemSpecialDice', {
+          summary,
+          defaultValue: `특수주사위 ${summary}`,
+        }),
+      );
+    }
   }
   if (effectiveModes.includes(GameMode.Alkkagi)) {
     const slow = settings.alkkagiSlowItemCount ?? 0;
     const aim = settings.alkkagiAimingLineItemCount ?? 0;
     if (slow > 0 || aim > 0) {
-      chunks.push(`슬로우 ${slow} · 조준 ${aim}`);
+      chunks.push(
+        pg('itemSlowAim', {
+          slow,
+          aim,
+          defaultValue: `슬로우 ${slow} · 조준 ${aim}`,
+        }),
+      );
     }
   }
   if (effectiveModes.includes(GameMode.Curling)) {
     const slow = settings.curlingSlowItemCount ?? 0;
     const aim = settings.curlingAimingLineItemCount ?? 0;
     if (slow > 0 || aim > 0) {
-      chunks.push(`슬로우 ${slow} · 조준 ${aim}`);
+      chunks.push(
+        pg('itemSlowAim', {
+          slow,
+          aim,
+          defaultValue: `슬로우 ${slow} · 조준 ${aim}`,
+        }),
+      );
     }
   }
-  return chunks.length ? chunks.join(' · ') : NONE;
+  return chunks.length ? pgJoin(chunks) : pgNone();
 }
 
 function buildItemSlots(settings: GameSettings, mode: GameMode, mix: GameMode[]): PreGameItemSlot[] {
@@ -235,12 +345,33 @@ function buildItemSlots(settings: GameSettings, mode: GameMode, mix: GameMode[])
   if (effectiveModes.includes(GameMode.Hidden)) {
     const h = settings.hiddenStoneCount ?? 0;
     const s = settings.scanCount ?? 0;
-    if (h > 0) slots.push({ key: 'hidden', img: '/images/button/hidden.webp', count: h, title: '히든 돌' });
-    if (s > 0) slots.push({ key: 'scan', img: '/images/button/scan.webp', count: s, title: '스캔' });
+    if (h > 0) {
+      slots.push({
+        key: 'hidden',
+        img: '/images/button/hidden.webp',
+        count: h,
+        title: pgItem('hiddenStone', { defaultValue: '히든 돌' }),
+      });
+    }
+    if (s > 0) {
+      slots.push({
+        key: 'scan',
+        img: '/images/button/scan.webp',
+        count: s,
+        title: pgItem('scan', { defaultValue: '스캔' }),
+      });
+    }
   }
   if (effectiveModes.includes(GameMode.Missile)) {
     const n = settings.missileCount ?? 0;
-    if (n > 0) slots.push({ key: 'missile', img: '/images/button/missile.webp', count: n, title: '미사일' });
+    if (n > 0) {
+      slots.push({
+        key: 'missile',
+        img: '/images/button/missile.webp',
+        count: n,
+        title: pgItem('missile', { defaultValue: '미사일' }),
+      });
+    }
   }
   if (effectiveModes.includes(GameMode.Dice)) {
     const o = settings.oddDiceCount ?? 0;
@@ -248,22 +379,78 @@ function buildItemSlots(settings: GameSettings, mode: GameMode, mix: GameMode[])
     const l = settings.lowDiceCount ?? 0;
     const h = settings.highDiceCount ?? 0;
     const diceImg = '/images/simbols/simbolp1.webp';
-    if (o > 0) slots.push({ key: 'dice-odd', img: diceImg, count: o, title: '홀수 주사위 아이템' });
-    if (e > 0) slots.push({ key: 'dice-even', img: diceImg, count: e, title: '짝수 주사위 아이템' });
-    if (l > 0) slots.push({ key: 'dice-low', img: diceImg, count: l, title: '낮은 수(1~3) 주사위 아이템' });
-    if (h > 0) slots.push({ key: 'dice-high', img: diceImg, count: h, title: '높은 수(4~6) 주사위 아이템' });
+    if (o > 0) {
+      slots.push({
+        key: 'dice-odd',
+        img: diceImg,
+        count: o,
+        title: pgItem('diceOdd', { defaultValue: '홀수 주사위 아이템' }),
+      });
+    }
+    if (e > 0) {
+      slots.push({
+        key: 'dice-even',
+        img: diceImg,
+        count: e,
+        title: pgItem('diceEven', { defaultValue: '짝수 주사위 아이템' }),
+      });
+    }
+    if (l > 0) {
+      slots.push({
+        key: 'dice-low',
+        img: diceImg,
+        count: l,
+        title: pgItem('diceLow', { defaultValue: '낮은 수(1~3) 주사위 아이템' }),
+      });
+    }
+    if (h > 0) {
+      slots.push({
+        key: 'dice-high',
+        img: diceImg,
+        count: h,
+        title: pgItem('diceHigh', { defaultValue: '높은 수(4~6) 주사위 아이템' }),
+      });
+    }
   }
   if (effectiveModes.includes(GameMode.Alkkagi)) {
     const slow = settings.alkkagiSlowItemCount ?? 0;
     const aim = settings.alkkagiAimingLineItemCount ?? 0;
-    if (slow > 0) slots.push({ key: 'alk-slow', img: '/images/button/slow.webp', count: slow, title: '슬로우' });
-    if (aim > 0) slots.push({ key: 'alk-aim', img: '/images/button/target.webp', count: aim, title: '조준선' });
+    if (slow > 0) {
+      slots.push({
+        key: 'alk-slow',
+        img: '/images/button/slow.webp',
+        count: slow,
+        title: pgItem('slow', { defaultValue: '슬로우' }),
+      });
+    }
+    if (aim > 0) {
+      slots.push({
+        key: 'alk-aim',
+        img: '/images/button/target.webp',
+        count: aim,
+        title: pgItem('aimLine', { defaultValue: '조준선' }),
+      });
+    }
   }
   if (effectiveModes.includes(GameMode.Curling)) {
     const slow = settings.curlingSlowItemCount ?? 0;
     const aim = settings.curlingAimingLineItemCount ?? 0;
-    if (slow > 0) slots.push({ key: 'curl-slow', img: '/images/button/slow.webp', count: slow, title: '슬로우' });
-    if (aim > 0) slots.push({ key: 'curl-aim', img: '/images/button/target.webp', count: aim, title: '조준선' });
+    if (slow > 0) {
+      slots.push({
+        key: 'curl-slow',
+        img: '/images/button/slow.webp',
+        count: slow,
+        title: pgItem('slow', { defaultValue: '슬로우' }),
+      });
+    }
+    if (aim > 0) {
+      slots.push({
+        key: 'curl-aim',
+        img: '/images/button/target.webp',
+        count: aim,
+        title: pgItem('aimLine', { defaultValue: '조준선' }),
+      });
+    }
   }
   return slots;
 }
@@ -301,7 +488,7 @@ function buildSinglePlayerStageItemSlots(
       key: 'turn-add',
       img: '/images/button/addturn.webp',
       count: owned ? owned.turnAdd : 0,
-      title: '턴 추가',
+      title: pgItem('turnAdd', { defaultValue: '턴 추가' }),
       inventoryBadgeMode: true,
       towerShopOnZero: shopZero,
     });
@@ -311,7 +498,7 @@ function buildSinglePlayerStageItemSlots(
       key: 'missile',
       img: '/images/button/missile.webp',
       count: owned ? owned.missile : sm,
-      title: '미사일',
+      title: pgItem('missile', { defaultValue: '미사일' }),
       inventoryBadgeMode: !!owned,
       towerShopOnZero: shopZero,
     });
@@ -321,7 +508,7 @@ function buildSinglePlayerStageItemSlots(
       key: 'hidden',
       img: '/images/button/hidden.webp',
       count: owned ? owned.hidden : sh,
-      title: '히든 돌',
+      title: pgItem('hiddenStone', { defaultValue: '히든 돌' }),
       inventoryBadgeMode: !!owned,
       towerShopOnZero: shopZero,
     });
@@ -331,7 +518,7 @@ function buildSinglePlayerStageItemSlots(
       key: 'scan',
       img: '/images/button/scan.webp',
       count: owned ? owned.scan : ss,
-      title: '스캔',
+      title: pgItem('scan', { defaultValue: '스캔' }),
       inventoryBadgeMode: !!owned,
       towerShopOnZero: shopZero,
     });
@@ -345,18 +532,39 @@ function mixWinGoal(settings: GameSettings, mix: GameMode[]): string {
   const tail = mix.filter((m) => m !== GameMode.Standard);
   if (cap) {
     const t = settings.captureTarget ?? 20;
-    const base = `따내기 ${t}점 선달성 시 즉시 승리 · 미달성 시 계가 후 집 비교`;
-    return auto ? `${base} · ${auto}` : base;
+    const base = pg('mixCaptureWin', {
+      t,
+      defaultValue: `따내기 ${t}점 선달성 시 즉시 승리 · 미달성 시 계가 후 집 비교`,
+    });
+    return auto
+      ? pg('mixCaptureWinWithAuto', {
+          t,
+          auto,
+          defaultValue: `${base} · ${auto}`,
+        })
+      : base;
   }
   if (auto) {
-    return `${auto} — 집이 많은 쪽 승리`;
+    return pg('mixAutoTerritoryWin', {
+      auto,
+      defaultValue: `${auto} — 집이 많은 쪽 승리`,
+    });
   }
-  return tail.length ? `조합(${tail.join(', ')}) — 종료 시 규칙에 따라 승패 결정` : '종료 시 규칙에 따라 승패 결정';
+  if (tail.length) {
+    const modes = tail.map((m) => translateGameMode(m)).join(', ');
+    return pg('mixComboTail', {
+      modes,
+      defaultValue: `조합(${modes}) — 종료 시 규칙에 따라 승패 결정`,
+    });
+  }
+  return pg('mixDefaultEnd', { defaultValue: '종료 시 규칙에 따라 승패 결정' });
 }
 
 function mixScoreFactors(settings: GameSettings, mix: GameMode[]): string {
   const parts: string[] = [];
-  if (hasMix(mix, GameMode.Capture)) parts.push('따내기 점수');
+  if (hasMix(mix, GameMode.Capture)) {
+    parts.push(pg('factorCaptureScore', { defaultValue: '따내기 점수' }));
+  }
   const terr =
     hasMix(mix, GameMode.Standard) ||
     hasMix(mix, GameMode.Speed) ||
@@ -367,7 +575,7 @@ function mixScoreFactors(settings: GameSettings, mix: GameMode[]): string {
     parts.push(...territoryScoreParts(settings, GameMode.Mix, mix));
   }
   const dedup = [...new Set(parts)];
-  return dedup.length ? dedup.join(' · ') : '모드 조합에 따름';
+  return dedup.length ? pgJoin(dedup) : pg('factorMixFallback', { defaultValue: '모드 조합에 따름' });
 }
 
 function mixSpecialHighlights(
@@ -377,19 +585,28 @@ function mixSpecialHighlights(
 ): PreGameSpecialHighlight[] {
   const h: PreGameSpecialHighlight[] = [];
   if (hasMix(mix, GameMode.Capture)) {
-    h.push({ img: PATTERN_STONE_HIGHLIGHT_IMG, text: '문양돌 따내기 2점' });
+    h.push({
+      img: PATTERN_STONE_HIGHLIGHT_IMG,
+      text: pg('highlightPatternStone2', { defaultValue: '문양돌 따내기 2점' }),
+    });
   }
   if (hasMix(mix, GameMode.Base)) {
     h.push(...baseModePregameHighlights());
   }
   if (hasMix(mix, GameMode.Hidden)) {
-    h.push({ img: '/images/button/hidden.webp', text: '히든 착수 · 스캔으로 탐색' });
+    h.push({
+      img: '/images/button/hidden.webp',
+      text: pg('highlightHiddenScan', { defaultValue: '히든 착수 · 스캔으로 탐색' }),
+    });
   }
   if (hasMix(mix, GameMode.Missile)) {
-    h.push({ img: '/images/button/missile.webp', text: '미사일로 돌 직선 이동' });
+    h.push({
+      img: '/images/button/missile.webp',
+      text: pg('highlightMissileMove', { defaultValue: '미사일로 돌 직선 이동' }),
+    });
   }
   if (hasMix(mix, GameMode.Speed) && includeFischerGuide) {
-    h.push({ img: '/images/icon/timer.webp', text: SPEED_GO_PVP_SPECIAL_HIGHLIGHT });
+    h.push({ img: '/images/icon/timer.webp', text: pgSpeedPvpHighlight() });
   }
   const auto = autoScoringLine(settings, GameMode.Mix, mix);
   if (auto) {
@@ -407,11 +624,18 @@ function singlePlayerStageTimeRules(
   if (isSpeedMode) {
     const mainMin = settings?.timeLimit ?? 0;
     if (mainMin > 0) {
-      return `메인 ${mainMin}분 · 수당 ${SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT}초 초읽기`;
+      return pg('spTimeMainFischer', {
+        min: mainMin,
+        sec: SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT,
+        defaultValue: `메인 ${mainMin}분 · 수당 ${SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT}초 초읽기`,
+      });
     }
-    return `수당 ${SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT}초 초읽기`;
+    return pg('spTimeFischerOnly', {
+      sec: SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT,
+      defaultValue: `수당 ${SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT}초 초읽기`,
+    });
   }
-  return '제한없음';
+  return pg('spTimeUnlimited', { defaultValue: '제한없음' });
 }
 
 function singlePlayerStageHighlights(
@@ -434,7 +658,10 @@ function singlePlayerStageHighlights(
     (stage.placements.blackPattern > 0 || stage.placements.whitePattern > 0) &&
     (isCaptureMode || isSurvivalRules)
   ) {
-    h.push({ img: PATTERN_STONE_HIGHLIGHT_IMG, text: '문양돌 따내기 2점' });
+    h.push({
+      img: PATTERN_STONE_HIGHLIGHT_IMG,
+      text: pg('highlightPatternStone2', { defaultValue: '문양돌 따내기 2점' }),
+    });
   }
   if (session.mode === GameMode.Base || em.includes(GameMode.Base)) {
     h.push(...baseModePregameHighlights());
@@ -444,7 +671,10 @@ function singlePlayerStageHighlights(
     const survN = settingsSurv > 0 ? settingsSurv : resolveSinglePlayerSurvivalTurnCount(stage);
     h.push({
       img: '/images/simbols/simbol1.webp',
-      text: `살리기 바둑 · 백 ${survN}턴 내 목표 점수`,
+      text: pg('highlightSurvival', {
+        n: survN,
+        defaultValue: `살리기 바둑 · 백 ${survN}턴 내 목표 점수`,
+      }),
     });
   }
   if (
@@ -453,25 +683,53 @@ function singlePlayerStageHighlights(
     !isCaptureMode &&
     usesTerritoryScoring(session.mode, mix)
   ) {
-    h.push({ img: '/images/simbols/simbol7.webp', text: `${stage.autoScoringTurns}수 후 자동 계가` });
+    h.push({
+      img: '/images/simbols/simbol7.webp',
+      text: pg('highlightAutoScoring', {
+        n: stage.autoScoringTurns,
+        defaultValue: `${stage.autoScoringTurns}수 후 자동 계가`,
+      }),
+    });
   }
   if (stage.blackTurnLimit && !isSurvivalRules) {
-    h.push({ img: '/images/icon/timer.webp', text: `흑 ${stage.blackTurnLimit}턴 제한` });
+    h.push({
+      img: '/images/icon/timer.webp',
+      text: pg('highlightBlackTurnLimit', {
+        n: stage.blackTurnLimit,
+        defaultValue: `흑 ${stage.blackTurnLimit}턴 제한`,
+      }),
+    });
   }
   const missileN = disp.missile;
   const hiddenN = disp.hidden;
   const scanN = disp.scan;
   const turnAddN = disp.turnAdd;
   if (typeof turnAddN === 'number' && turnAddN > 0) {
-    h.push({ img: '/images/button/addturn.webp', text: `턴 추가 ${turnAddN}개` });
+    h.push({
+      img: '/images/button/addturn.webp',
+      text: pg('highlightTurnAdd', {
+        n: turnAddN,
+        defaultValue: `턴 추가 ${turnAddN}개`,
+      }),
+    });
   }
   if (em.includes(GameMode.Missile) && missileN > 0) {
-    h.push({ img: '/images/button/missile.webp', text: `미사일 ${missileN}개` });
+    h.push({
+      img: '/images/button/missile.webp',
+      text: pg('highlightMissile', {
+        n: missileN,
+        defaultValue: `미사일 ${missileN}개`,
+      }),
+    });
   }
   if (em.includes(GameMode.Hidden) && (hiddenN > 0 || scanN > 0)) {
     h.push({
       img: '/images/button/hidden.webp',
-      text: `히든 ${hiddenN}개 · 스캔 ${scanN}개`,
+      text: pg('highlightHiddenScanCounts', {
+        hidden: hiddenN,
+        scan: scanN,
+        defaultValue: `히든 ${hiddenN}개 · 스캔 ${scanN}개`,
+      }),
     });
   }
   return h;
@@ -492,13 +750,16 @@ function singlePlayerGoalVisuals(
     return {
       win: {
         img: '/images/simbols/simbol1.webp',
-        label: '백 막기',
-        helper: `${survN}턴 동안 백 목표를 막기`,
+        label: pg('goalSurvivalWinLabel', { defaultValue: '백 막기' }),
+        helper: pg('goalSurvivalWinHelper', {
+          n: survN,
+          defaultValue: `${survN}턴 동안 백 목표를 막기`,
+        }),
       },
       lose: {
         img: PATTERN_STONE_HIGHLIGHT_IMG,
-        label: '백 성공',
-        helper: '백이 목표를 만들면 실패',
+        label: pg('goalSurvivalLoseLabel', { defaultValue: '백 성공' }),
+        helper: pg('goalSurvivalLoseHelper', { defaultValue: '백이 목표를 만들면 실패' }),
       },
     };
   }
@@ -507,15 +768,20 @@ function singlePlayerGoalVisuals(
     return {
       win: {
         img: PATTERN_STONE_HIGHLIGHT_IMG,
-        label: '따내기',
-        helper: '상대 돌을 둘러싸면 점수',
+        label: pg('goalCaptureWinLabel', { defaultValue: '따내기' }),
+        helper: pg('goalCaptureWinHelper', { defaultValue: '상대 돌을 둘러싸면 점수' }),
       },
       lose: {
         img: stage.blackTurnLimit ? '/images/icon/timer.webp' : '/images/simbols/simbol2.webp',
-        label: stage.blackTurnLimit ? '턴 초과' : '상대 선취',
+        label: stage.blackTurnLimit
+          ? pg('goalCaptureLoseTurnLabel', { defaultValue: '턴 초과' })
+          : pg('goalCaptureLoseFirstLabel', { defaultValue: '상대 선취' }),
         helper: stage.blackTurnLimit
-          ? `${stage.blackTurnLimit}턴 안에 못 하면 실패`
-          : '상대가 먼저 따내면 실패',
+          ? pg('goalCaptureLoseTurnHelper', {
+              n: stage.blackTurnLimit,
+              defaultValue: `${stage.blackTurnLimit}턴 안에 못 하면 실패`,
+            })
+          : pg('goalCaptureLoseFirstHelper', { defaultValue: '상대가 먼저 따내면 실패' }),
       },
     };
   }
@@ -524,13 +790,13 @@ function singlePlayerGoalVisuals(
     return {
       win: {
         img: '/images/icon/timer.webp',
-        label: '빠르게',
-        helper: '시간을 지키며 집 만들기',
+        label: pg('goalSpeedWinLabel', { defaultValue: '빠르게' }),
+        helper: pg('goalSpeedWinHelper', { defaultValue: '시간을 지키며 집 만들기' }),
       },
       lose: {
         img: '/images/simbols/simbol7.webp',
-        label: '점수 열세',
-        helper: '집이 적으면 실패',
+        label: pg('goalSpeedLoseLabel', { defaultValue: '점수 열세' }),
+        helper: pg('goalSpeedLoseHelper', { defaultValue: '집이 적으면 실패' }),
       },
     };
   }
@@ -539,13 +805,19 @@ function singlePlayerGoalVisuals(
     return {
       win: {
         img: '/images/simbols/simbol7.webp',
-        label: '집 많이',
-        helper: `${stage.autoScoringTurns}수 후 집 계산`,
+        label: pg('goalAutoWinLabel', { defaultValue: '집 많이' }),
+        helper: pg('goalAutoWinHelper', {
+          n: stage.autoScoringTurns,
+          defaultValue: `${stage.autoScoringTurns}수 후 집 계산`,
+        }),
       },
       lose: {
         img: '/images/icon/timer.webp',
-        label: '집 부족',
-        helper: `${stage.autoScoringTurns}수 때 불리하면 실패`,
+        label: pg('goalAutoLoseLabel', { defaultValue: '집 부족' }),
+        helper: pg('goalAutoLoseHelper', {
+          n: stage.autoScoringTurns,
+          defaultValue: `${stage.autoScoringTurns}수 때 불리하면 실패`,
+        }),
       },
     };
   }
@@ -553,13 +825,13 @@ function singlePlayerGoalVisuals(
   return {
     win: {
       img: '/images/simbols/simbol1.webp',
-      label: '집 만들기',
-      helper: '영역을 둘러 집을 만들기',
+      label: pg('goalDefaultWinLabel', { defaultValue: '집 만들기' }),
+      helper: pg('goalDefaultWinHelper', { defaultValue: '영역을 둘러 집을 만들기' }),
     },
     lose: {
       img: '/images/simbols/simbol7.webp',
-      label: '집 부족',
-      helper: '집이 적으면 실패',
+      label: pg('goalDefaultLoseLabel', { defaultValue: '집 부족' }),
+      helper: pg('goalDefaultLoseHelper', { defaultValue: '집이 적으면 실패' }),
     },
   };
 }
@@ -585,8 +857,11 @@ function singlePlayerRuleGuides(
     add({
       key: 'turn-limit',
       img: '/images/icon/timer.webp',
-      title: '턴 제한',
-      body: `${stage.blackTurnLimit}턴 안에 끝내기`,
+      title: pg('guideTurnLimitTitle', { defaultValue: '턴 제한' }),
+      body: pg('guideTurnLimitBody', {
+        n: stage.blackTurnLimit,
+        defaultValue: `${stage.blackTurnLimit}턴 안에 끝내기`,
+      }),
     });
   }
 
@@ -596,8 +871,11 @@ function singlePlayerRuleGuides(
     add({
       key: 'survival',
       img: '/images/simbols/simbol1.webp',
-      title: '막기',
-      body: `${survN}턴 동안 백 목표 막기`,
+      title: pg('guideSurvivalTitle', { defaultValue: '막기' }),
+      body: pg('guideSurvivalBody', {
+        n: survN,
+        defaultValue: `${survN}턴 동안 백 목표 막기`,
+      }),
     });
   }
 
@@ -610,8 +888,11 @@ function singlePlayerRuleGuides(
     add({
       key: 'auto-scoring',
       img: '/images/simbols/simbol7.webp',
-      title: '계가',
-      body: `${stage.autoScoringTurns}수 후 집 계산`,
+      title: pg('guideAutoScoringTitle', { defaultValue: '계가' }),
+      body: pg('guideAutoScoringBody', {
+        n: stage.autoScoringTurns,
+        defaultValue: `${stage.autoScoringTurns}수 후 집 계산`,
+      }),
     });
   }
 
@@ -622,8 +903,8 @@ function singlePlayerRuleGuides(
     add({
       key: 'pattern-stone',
       img: PATTERN_STONE_HIGHLIGHT_IMG,
-      title: '문양돌',
-      body: '따내면 2점',
+      title: pg('guidePatternStoneTitle', { defaultValue: '문양돌' }),
+      body: pg('guidePatternStoneBody', { defaultValue: '따내면 2점' }),
     });
   }
 
@@ -631,8 +912,8 @@ function singlePlayerRuleGuides(
     add({
       key: 'speed',
       img: '/images/icon/timer.webp',
-      title: '스피드',
-      body: '늦게 두면 상대 +1점',
+      title: pg('guideSpeedTitle', { defaultValue: '스피드' }),
+      body: pg('guideSpeedBody', { defaultValue: '늦게 두면 상대 +1점' }),
     });
   }
 
@@ -640,8 +921,8 @@ function singlePlayerRuleGuides(
     add({
       key: 'turn-add',
       img: '/images/button/addturn.webp',
-      title: '턴 추가',
-      body: '제한 턴 늘리기',
+      title: pg('guideTurnAddTitle', { defaultValue: '턴 추가' }),
+      body: pg('guideTurnAddBody', { defaultValue: '제한 턴 늘리기' }),
     });
   }
 
@@ -649,8 +930,8 @@ function singlePlayerRuleGuides(
     add({
       key: 'missile',
       img: '/images/button/missile.webp',
-      title: '미사일',
-      body: '돌을 골라 직선 밀기',
+      title: pg('guideMissileTitle', { defaultValue: '미사일' }),
+      body: pg('guideMissileBody', { defaultValue: '돌을 골라 직선 밀기' }),
     });
   }
 
@@ -658,8 +939,12 @@ function singlePlayerRuleGuides(
     add({
       key: 'hidden-scan',
       img: '/images/button/hidden.webp',
-      title: '히든 · 스캔',
-      body: `숨기기 ${disp.hidden} · 찾기 ${disp.scan}`,
+      title: pg('guideHiddenScanTitle', { defaultValue: '히든 · 스캔' }),
+      body: pg('guideHiddenScanBody', {
+        hidden: disp.hidden,
+        scan: disp.scan,
+        defaultValue: `숨기기 ${disp.hidden} · 찾기 ${disp.scan}`,
+      }),
     });
   }
 
@@ -671,12 +956,15 @@ function buildAdventurePreGameSummary(session: LiveGameSession): PreGameSummaryF
   const mix = mixedList(settings);
   const bs = settings.boardSize ?? session.adventureBoardSize ?? 9;
   const mins = getAdventureEncounterCountdownMinutes(bs);
-  const timeRules = `${mins}분 제한`;
+  const timeRules = pg('advTimeLimit', {
+    mins,
+    defaultValue: `${mins}분 제한`,
+  });
 
   if (mode === GameMode.Capture) {
     return {
-      winGoal: '따내기 승리',
-      loseGoal: '따내기 패배 · 시간 초과',
+      winGoal: pg('advCaptureWin', { defaultValue: '따내기 승리' }),
+      loseGoal: pg('advCaptureLose', { defaultValue: '따내기 패배 · 시간 초과' }),
       scoreFactors: adventureScoreFactorsShort(mode, mix),
       timeRules,
       specialHighlights: [],
@@ -687,8 +975,13 @@ function buildAdventurePreGameSummary(session: LiveGameSession): PreGameSummaryF
 
   const limit = settings.scoringTurnLimit;
   const hasAuto = typeof limit === 'number' && limit > 0;
-  const winGoal = hasAuto ? `계가 승리 · ${limit}수 자동` : '계가 승리';
-  const loseGoal = '계가 패배 · 시간 초과';
+  const winGoal = hasAuto
+    ? pg('advTerritoryWinAuto', {
+        n: limit,
+        defaultValue: `계가 승리 · ${limit}수 자동`,
+      })
+    : pg('advTerritoryWin', { defaultValue: '계가 승리' });
+  const loseGoal = pg('advTerritoryLose', { defaultValue: '계가 패배 · 시간 초과' });
   const scoreFactors = adventureScoreFactorsShort(mode, mix);
 
   return {
@@ -732,21 +1025,40 @@ export function getPreGameSummaryFour(
     if (mode === GameMode.Capture) {
       return {
         ...base,
-        winGoal: hasAuto ? `${cap}점 선취 또는 ${limit}턴 계가 승` : `${cap}점 먼저 따내면 승리`,
-        loseGoal: `상대 ${cap}점 선취`,
+        winGoal: hasAuto
+          ? pg('gwCaptureWinAuto', {
+              cap,
+              limit,
+              defaultValue: `${cap}점 선취 또는 ${limit}턴 계가 승`,
+            })
+          : pg('gwCaptureWin', {
+              cap,
+              defaultValue: `${cap}점 먼저 따내면 승리`,
+            }),
+        loseGoal: pg('gwCaptureLose', {
+          cap,
+          defaultValue: `상대 ${cap}점 선취`,
+        }),
       };
     }
     return {
       ...base,
-      winGoal: hasAuto ? `계가 집 다수 승 · ${limit}수 자동 계가` : '계가에서 집이 많으면 승리',
-      loseGoal: '계가 열세 · 시간 초과',
+      winGoal: hasAuto
+        ? pg('gwTerritoryWinAuto', {
+            limit,
+            defaultValue: `계가 집 다수 승 · ${limit}수 자동 계가`,
+          })
+        : pg('gwTerritoryWin', { defaultValue: '계가에서 집이 많으면 승리' }),
+      loseGoal: pg('gwTerritoryLose', { defaultValue: '계가 열세 · 시간 초과' }),
     };
   }
 
   if (mode === GameMode.Mix) {
     return {
       winGoal: mixWinGoal(settings, mix),
-      loseGoal: LOSE_MIX,
+      loseGoal: pg('loseMix', {
+        defaultValue: '종료 시 따내기·계가 등에서 상대가 승리 조건을 먼저 충족하거나 불리하면 패배',
+      }),
       scoreFactors: mixScoreFactors(settings, mix),
       timeRules: timeLine(settings, mode, mix),
       specialHighlights: mixSpecialHighlights(settings, mix, !session.isAiGame),
@@ -759,12 +1071,26 @@ export function getPreGameSummaryFour(
     const t = settings.captureTarget ?? 20;
     const auto = autoScoringLine(settings, mode, mix);
     return {
-      winGoal: auto ? `상대 돌 ${t}점 먼저 따내기 · ${auto}` : `상대 돌 ${t}점 먼저 따내기`,
-      loseGoal: LOSE_CAPTURE_RACE(t),
-      scoreFactors: '따내기 점수(집 계산 없음)',
+      winGoal: auto
+        ? pg('captureWinWithAuto', {
+            t,
+            auto,
+            defaultValue: `상대 돌 ${t}점 먼저 따내기 · ${auto}`,
+          })
+        : pg('captureWin', {
+            t,
+            defaultValue: `상대 돌 ${t}점 먼저 따내기`,
+          }),
+      loseGoal: loseCaptureRace(t),
+      scoreFactors: pg('factorCaptureNoTerritory', { defaultValue: '따내기 점수(집 계산 없음)' }),
       timeRules: timeLine(settings, mode, mix),
-      specialHighlights: [{ img: PATTERN_STONE_HIGHLIGHT_IMG, text: '문양돌 따내기 2점' }],
-      items: NONE,
+      specialHighlights: [
+        {
+          img: PATTERN_STONE_HIGHLIGHT_IMG,
+          text: pg('highlightPatternStone2', { defaultValue: '문양돌 따내기 2점' }),
+        },
+      ],
+      items: pgNone(),
       itemSlots: [],
     };
   }
@@ -773,14 +1099,18 @@ export function getPreGameSummaryFour(
     const auto = autoScoringLine(settings, mode, mix);
     const autoLose = autoScoringLoseLine(settings, mode, mix);
     return {
-      winGoal: auto ?? '계가 후 종합 점수가 높은 쪽 승리',
-      loseGoal: autoLose ?? (auto ? LOSE_TERRITORY_AUTO(auto) : '계가 후 종합 점수가 낮으면 패배'),
-      scoreFactors: territoryScoreParts(settings, mode, mix).join(' · '),
+      winGoal: auto ?? pg('speedTerritoryWinDefault', { defaultValue: '계가 후 종합 점수가 높은 쪽 승리' }),
+      loseGoal:
+        autoLose ??
+        (auto
+          ? loseTerritoryAuto(auto)
+          : pg('speedTerritoryLoseDefault', { defaultValue: '계가 후 종합 점수가 낮으면 패배' })),
+      scoreFactors: pgJoin(territoryScoreParts(settings, mode, mix)),
       timeRules: timeLine(settings, mode, mix),
       specialHighlights: session.isAiGame
         ? []
-        : [{ img: '/images/icon/timer.webp', text: SPEED_GO_PVP_SPECIAL_HIGHLIGHT }],
-      items: NONE,
+        : [{ img: '/images/icon/timer.webp', text: pgSpeedPvpHighlight() }],
+      items: pgNone(),
       itemSlots: [],
     };
   }
@@ -789,12 +1119,12 @@ export function getPreGameSummaryFour(
     const auto = autoScoringLine(settings, mode, mix);
     const autoLose = autoScoringLoseLine(settings, mode, mix);
     return {
-      winGoal: auto ?? '계가 후 집이 많은 쪽 승리',
-      loseGoal: autoLose ?? (auto ? LOSE_TERRITORY_AUTO(auto) : LOSE_TERRITORY),
-      scoreFactors: territoryScoreParts(settings, mode, mix).join(' · '),
+      winGoal: auto ?? pg('territoryWinDefault', { defaultValue: '계가 후 집이 많은 쪽 승리' }),
+      loseGoal: autoLose ?? (auto ? loseTerritoryAuto(auto) : loseTerritory()),
+      scoreFactors: pgJoin(territoryScoreParts(settings, mode, mix)),
       timeRules: timeLine(settings, mode, mix),
       specialHighlights: baseModePregameHighlights(),
-      items: NONE,
+      items: pgNone(),
       itemSlots: [],
     };
   }
@@ -803,11 +1133,16 @@ export function getPreGameSummaryFour(
     const auto = autoScoringLine(settings, mode, mix);
     const autoLose = autoScoringLoseLine(settings, mode, mix);
     return {
-      winGoal: auto ?? '계가 후 집이 많은 쪽 승리',
-      loseGoal: autoLose ?? (auto ? LOSE_TERRITORY_AUTO(auto) : LOSE_TERRITORY),
-      scoreFactors: territoryScoreParts(settings, mode, mix).join(' · '),
+      winGoal: auto ?? pg('territoryWinDefault', { defaultValue: '계가 후 집이 많은 쪽 승리' }),
+      loseGoal: autoLose ?? (auto ? loseTerritoryAuto(auto) : loseTerritory()),
+      scoreFactors: pgJoin(territoryScoreParts(settings, mode, mix)),
       timeRules: timeLine(settings, mode, mix),
-      specialHighlights: [{ img: '/images/button/hidden.webp', text: '히든 착수 · 스캔으로 탐색' }],
+      specialHighlights: [
+        {
+          img: '/images/button/hidden.webp',
+          text: pg('highlightHiddenScan', { defaultValue: '히든 착수 · 스캔으로 탐색' }),
+        },
+      ],
       items: itemLine(settings, mode, mix),
       itemSlots: buildItemSlots(settings, GameMode.Hidden, mix),
     };
@@ -817,11 +1152,16 @@ export function getPreGameSummaryFour(
     const auto = autoScoringLine(settings, mode, mix);
     const autoLose = autoScoringLoseLine(settings, mode, mix);
     return {
-      winGoal: auto ?? '계가 후 집이 많은 쪽 승리',
-      loseGoal: autoLose ?? (auto ? LOSE_TERRITORY_AUTO(auto) : LOSE_TERRITORY),
-      scoreFactors: territoryScoreParts(settings, mode, mix).join(' · '),
+      winGoal: auto ?? pg('territoryWinDefault', { defaultValue: '계가 후 집이 많은 쪽 승리' }),
+      loseGoal: autoLose ?? (auto ? loseTerritoryAuto(auto) : loseTerritory()),
+      scoreFactors: pgJoin(territoryScoreParts(settings, mode, mix)),
       timeRules: timeLine(settings, mode, mix),
-      specialHighlights: [{ img: '/images/button/missile.webp', text: '미사일로 돌 직선 이동' }],
+      specialHighlights: [
+        {
+          img: '/images/button/missile.webp',
+          text: pg('highlightMissileMove', { defaultValue: '미사일로 돌 직선 이동' }),
+        },
+      ],
       items: itemLine(settings, mode, mix),
       itemSlots: buildItemSlots(settings, GameMode.Missile, mix),
     };
@@ -831,12 +1171,12 @@ export function getPreGameSummaryFour(
     const auto = autoScoringLine(settings, mode, mix);
     const autoLose = autoScoringLoseLine(settings, mode, mix);
     return {
-      winGoal: auto ?? '계가 후 집이 많은 쪽 승리',
-      loseGoal: autoLose ?? (auto ? LOSE_TERRITORY_AUTO(auto) : LOSE_TERRITORY),
-      scoreFactors: territoryScoreParts(settings, mode, mix).join(' · '),
+      winGoal: auto ?? pg('territoryWinDefault', { defaultValue: '계가 후 집이 많은 쪽 승리' }),
+      loseGoal: autoLose ?? (auto ? loseTerritoryAuto(auto) : loseTerritory()),
+      scoreFactors: pgJoin(territoryScoreParts(settings, mode, mix)),
       timeRules: timeLine(settings, mode, mix),
       specialHighlights: auto ? [{ img: '/images/simbols/simbol7.webp', text: auto }] : [],
-      items: NONE,
+      items: pgNone(),
       itemSlots: [],
     };
   }
@@ -844,15 +1184,28 @@ export function getPreGameSummaryFour(
   if (mode === GameMode.Castle) {
     const castles = settings.castleCount ?? 1;
     return {
-      winGoal: '상대 돌 1개 이상 따내면 즉시 승리 · 유효수 없으면 영토 계가',
-      loseGoal: '상대에게 1돌이라도 잡히면 패배 · 계가에서 집이 적으면 패배',
-      scoreFactors: '확정 영토 · 따낸 돌 · 덤(백)',
+      winGoal: pg('castleWin', {
+        defaultValue: '상대 돌 1개 이상 따내면 즉시 승리 · 유효수 없으면 영토 계가',
+      }),
+      loseGoal: pg('castleLose', {
+        defaultValue: '상대에게 1돌이라도 잡히면 패배 · 계가에서 집이 적으면 패배',
+      }),
+      scoreFactors: pg('factorCastle', { defaultValue: '확정 영토 · 따낸 돌 · 덤(백)' }),
       timeRules: timeLine(settings, mode, mix),
       specialHighlights: [
-        { img: '/images/simbols/simbol4.webp', text: `캐슬 ${castles}개 · 완성 영토 진입 불가` },
-        { img: '/images/simbols/simbol2.webp', text: '1돌 포획 시 즉시 승리' },
+        {
+          img: '/images/simbols/simbol4.webp',
+          text: pg('castleHighlightCount', {
+            castles,
+            defaultValue: `캐슬 ${castles}개 · 완성 영토 진입 불가`,
+          }),
+        },
+        {
+          img: '/images/simbols/simbol2.webp',
+          text: pg('castleHighlightCapture', { defaultValue: '1돌 포획 시 즉시 승리' }),
+        },
       ],
-      items: NONE,
+      items: pgNone(),
       itemSlots: [],
     };
   }
@@ -860,53 +1213,78 @@ export function getPreGameSummaryFour(
   if (mode === GameMode.Chess) {
     const budget = settings.chessPieceTotalScore ?? (settings.boardSize === 9 ? 9 : 15);
     return {
-      winGoal: '정해진 수순 후 계가',
-      loseGoal: '계가에서 패배 · 킹 포획 시 즉시 패배',
-      scoreFactors: '영토 · 따낸 돌 · 사석 · 기물 포획 · 덤(백)',
+      winGoal: pg('chessWin', { defaultValue: '정해진 수순 후 계가' }),
+      loseGoal: pg('chessLose', { defaultValue: '계가에서 패배 · 킹 포획 시 즉시 패배' }),
+      scoreFactors: pg('factorChess', { defaultValue: '영토 · 따낸 돌 · 사석 · 기물 포획 · 덤(백)' }),
       timeRules: timeLine(settings, mode, mix),
       specialHighlights: [
         {
           img: '/images/simbols/simbol9.webp',
-          text: `기물 총점수 ${budget}점 예산 내 직접 배치(킹 2번째 줄 중앙 고정)`,
+          text: pg('chessHighlightBudget', {
+            budget,
+            defaultValue: `기물 총점수 ${budget}점 예산 내 직접 배치(킹 2번째 줄 중앙 고정)`,
+          }),
         },
         {
           img: '/images/simbols/simbol9.webp',
-          text: '기물돌을 체스의 움직임으로 매 턴 1회씩 움직일 수 있음(횟수 제한)',
+          text: pg('chessHighlightMovement', {
+            defaultValue: '기물돌을 체스의 움직임으로 매 턴 1회씩 움직일 수 있음(횟수 제한)',
+          }),
         },
       ],
-      items: NONE,
+      items: pgNone(),
       itemSlots: [],
     };
   }
 
   if (mode === GameMode.Omok) {
-    const f33 = settings.has33Forbidden ? '쌍삼 금지' : '쌍삼 허용';
-    const fo = settings.hasOverlineForbidden ? '장목 금지' : '장목 허용';
+    const f33 = settings.has33Forbidden
+      ? pg('omok33Forbidden', { defaultValue: '쌍삼 금지' })
+      : pg('omok33Allowed', { defaultValue: '쌍삼 허용' });
+    const fo = settings.hasOverlineForbidden
+      ? pg('omokOverlineForbidden', { defaultValue: '장목 금지' })
+      : pg('omokOverlineAllowed', { defaultValue: '장목 허용' });
     return {
-      winGoal: '가로·세로·대각 5목 먼저 완성',
-      loseGoal: '상대가 먼저 5목을 완성하면 패배',
-      scoreFactors: '목(승부) — 집 계산 없음',
-      timeRules: NONE,
-      specialHighlights: [{ img: '/images/simbols/simbolp2.webp', text: `${f33} · ${fo}` }],
-      items: NONE,
+      winGoal: pg('omokWin', { defaultValue: '가로·세로·대각 5목 먼저 완성' }),
+      loseGoal: pg('omokLose', { defaultValue: '상대가 먼저 5목을 완성하면 패배' }),
+      scoreFactors: pg('factorOmok', { defaultValue: '목(승부) — 집 계산 없음' }),
+      timeRules: pgNone(),
+      specialHighlights: [{ img: '/images/simbols/simbolp2.webp', text: pgJoin([f33, fo]) }],
+      items: pgNone(),
       itemSlots: [],
     };
   }
 
   if (mode === GameMode.Ttamok) {
     const cap = settings.captureTarget ?? 5;
-    const f33 = settings.has33Forbidden ? '쌍삼 금지' : '쌍삼 허용';
-    const fo = settings.hasOverlineForbidden ? '장목 금지' : '장목 허용';
+    const f33 = settings.has33Forbidden
+      ? pg('omok33Forbidden', { defaultValue: '쌍삼 금지' })
+      : pg('omok33Allowed', { defaultValue: '쌍삼 허용' });
+    const fo = settings.hasOverlineForbidden
+      ? pg('omokOverlineForbidden', { defaultValue: '장목 금지' })
+      : pg('omokOverlineAllowed', { defaultValue: '장목 허용' });
     return {
-      winGoal: `5목 선완성 또는 따내기 ${cap}점 선달성`,
-      loseGoal: `상대가 먼저 5목을 완성하거나 따내기 ${cap}점을 먼저 달성하면 패배`,
-      scoreFactors: '목 승리 또는 따내기 점수',
-      timeRules: NONE,
+      winGoal: pg('ttamokWin', {
+        cap,
+        defaultValue: `5목 선완성 또는 따내기 ${cap}점 선달성`,
+      }),
+      loseGoal: pg('ttamokLose', {
+        cap,
+        defaultValue: `상대가 먼저 5목을 완성하거나 따내기 ${cap}점을 먼저 달성하면 패배`,
+      }),
+      scoreFactors: pg('factorTtamok', { defaultValue: '목 승리 또는 따내기 점수' }),
+      timeRules: pgNone(),
       specialHighlights: [
-        { img: '/images/simbols/simbolp2.webp', text: `${f33} · ${fo}` },
-        { img: '/images/simbols/simbol2.webp', text: `따내기 ${cap}점 선달성 시 승리` },
+        { img: '/images/simbols/simbolp2.webp', text: pgJoin([f33, fo]) },
+        {
+          img: '/images/simbols/simbol2.webp',
+          text: pg('ttamokHighlightCapture', {
+            cap,
+            defaultValue: `따내기 ${cap}점 선달성 시 승리`,
+          }),
+        },
       ],
-      items: NONE,
+      items: pgNone(),
       itemSlots: [],
     };
   }
@@ -914,11 +1292,24 @@ export function getPreGameSummaryFour(
   if (mode === GameMode.Dice) {
     const r = settings.diceGoRounds ?? 3;
     return {
-      winGoal: `${r}라운드 후 누적 점수가 높은 쪽 승리`,
-      loseGoal: `${r}라운드 종료 후 누적 점수가 낮으면 패배`,
-      scoreFactors: '라운드별 백돌 따내기 점수 · 마지막 따내기 보너스',
-      timeRules: NONE,
-      specialHighlights: [{ img: '/images/simbols/simbolp1.webp', text: '주사위 눈만큼 흑 착수 · 백은 활로에만 배치' }],
+      winGoal: pg('diceWin', {
+        r,
+        defaultValue: `${r}라운드 후 누적 점수가 높은 쪽 승리`,
+      }),
+      loseGoal: pg('diceLose', {
+        r,
+        defaultValue: `${r}라운드 종료 후 누적 점수가 낮으면 패배`,
+      }),
+      scoreFactors: pg('factorDice', {
+        defaultValue: '라운드별 백돌 따내기 점수 · 마지막 따내기 보너스',
+      }),
+      timeRules: pgNone(),
+      specialHighlights: [
+        {
+          img: '/images/simbols/simbolp1.webp',
+          text: pg('diceHighlightRules', { defaultValue: '주사위 눈만큼 흑 착수 · 백은 활로에만 배치' }),
+        },
+      ],
       items: itemLine(settings, mode, mix),
       itemSlots: buildItemSlots(settings, GameMode.Dice, mix),
     };
@@ -926,23 +1317,33 @@ export function getPreGameSummaryFour(
 
   if (mode === GameMode.Thief) {
     return {
-      winGoal: '5턴×라운드 진행 후 총점이 높은 쪽 승리',
-      loseGoal: '라운드 종료 후 총점이 낮으면 패배',
-      scoreFactors: '라운드별 획득 점수 합산',
-      timeRules: NONE,
-      specialHighlights: [{ img: '/images/simbols/simbolp4.webp', text: '도둑(흑)·경찰(백) 역할 교대' }],
-      items: NONE,
+      winGoal: pg('thiefWin', { defaultValue: '5턴×라운드 진행 후 총점이 높은 쪽 승리' }),
+      loseGoal: pg('thiefLose', { defaultValue: '라운드 종료 후 총점이 낮으면 패배' }),
+      scoreFactors: pg('factorThief', { defaultValue: '라운드별 획득 점수 합산' }),
+      timeRules: pgNone(),
+      specialHighlights: [
+        {
+          img: '/images/simbols/simbolp4.webp',
+          text: pg('thiefHighlightRoles', { defaultValue: '도둑(흑)·경찰(백) 역할 교대' }),
+        },
+      ],
+      items: pgNone(),
       itemSlots: [],
     };
   }
 
   if (mode === GameMode.Alkkagi) {
     return {
-      winGoal: '상대 돌 모두 넉아웃',
-      loseGoal: '내 돌 모두 넉아웃',
-      scoreFactors: '판 밖으로 나간 상대 돌 수',
-      timeRules: NONE,
-      specialHighlights: [{ img: '/images/simbols/simbolp5.webp', text: '게이지로 힘 조절 · 벽 반사' }],
+      winGoal: pg('alkkagiWin', { defaultValue: '상대 돌 모두 넉아웃' }),
+      loseGoal: pg('alkkagiLose', { defaultValue: '내 돌 모두 넉아웃' }),
+      scoreFactors: pg('factorAlkkagi', { defaultValue: '판 밖으로 나간 상대 돌 수' }),
+      timeRules: pgNone(),
+      specialHighlights: [
+        {
+          img: '/images/simbols/simbolp5.webp',
+          text: pg('alkkagiHighlightGauge', { defaultValue: '게이지로 힘 조절 · 벽 반사' }),
+        },
+      ],
       items: itemLine(settings, mode, mix),
       itemSlots: buildItemSlots(settings, GameMode.Alkkagi, mix),
     };
@@ -950,23 +1351,28 @@ export function getPreGameSummaryFour(
 
   if (mode === GameMode.Curling) {
     return {
-      winGoal: '라운드 합산 점수가 높은 쪽 승리',
-      loseGoal: '합산 점수가 낮으면 패배',
-      scoreFactors: '하우스(목표)에 가까운 스톤 점수',
-      timeRules: NONE,
-      specialHighlights: [{ img: '/images/simbols/simbolp6.webp', text: '스톤 미끄러뜨리기 · 라운드제' }],
+      winGoal: pg('curlingWin', { defaultValue: '라운드 합산 점수가 높은 쪽 승리' }),
+      loseGoal: pg('curlingLose', { defaultValue: '합산 점수가 낮으면 패배' }),
+      scoreFactors: pg('factorCurling', { defaultValue: '하우스(목표)에 가까운 스톤 점수' }),
+      timeRules: pgNone(),
+      specialHighlights: [
+        {
+          img: '/images/simbols/simbolp6.webp',
+          text: pg('curlingHighlightRules', { defaultValue: '스톤 미끄러뜨리기 · 라운드제' }),
+        },
+      ],
       items: itemLine(settings, mode, mix),
       itemSlots: buildItemSlots(settings, GameMode.Curling, mix),
     };
   }
 
   return {
-    winGoal: '대국 진행에 따라 승패 결정',
-    loseGoal: '대국 진행에 따라 패배가 결정되면 패배',
-    scoreFactors: '모드 안내 참고',
-    timeRules: NONE,
+    winGoal: pg('fallbackWin', { defaultValue: '대국 진행에 따라 승패 결정' }),
+    loseGoal: pg('fallbackLose', { defaultValue: '대국 진행에 따라 패배가 결정되면 패배' }),
+    scoreFactors: pg('factorFallback', { defaultValue: '모드 안내 참고' }),
+    timeRules: pgNone(),
     specialHighlights: [],
-    items: NONE,
+    items: pgNone(),
     itemSlots: [],
   };
 }
@@ -991,67 +1397,126 @@ function getSinglePlayerStageSummary(
   const isSpeedMode = !isCaptureMode && !isSurvivalRules && stage.timeControl.type === 'fischer';
 
   /** 싱글/탑: 플레이어는 항상 흑 — 짧은 문구 + 유저(흑) 시점 */
-  let winGoal = '스테이지 조건 충족 시 승리';
-  let loseGoal = '조건 미달 시 패배';
+  let winGoal = pg('spDefaultWin', { defaultValue: '스테이지 조건 충족 시 승리' });
+  let loseGoal = pg('spDefaultLose', { defaultValue: '조건 미달 시 패배' });
   if (isSurvivalRules) {
     const settingsSurv = Number((session.settings as any)?.survivalTurns ?? 0);
     const survN =
       settingsSurv > 0 ? settingsSurv : resolveSinglePlayerSurvivalTurnCount(stage);
     const tgt = stage.targetScore.black;
-    winGoal = `${survN}턴 내 백 ${tgt}점 미달성`;
-    loseGoal = `${survN}턴 내 백 ${tgt}점 달성`;
+    winGoal = pg('spSurvivalWin', {
+      n: survN,
+      tgt,
+      defaultValue: `${survN}턴 내 백 ${tgt}점 미달성`,
+    });
+    loseGoal = pg('spSurvivalLose', {
+      n: survN,
+      tgt,
+      defaultValue: `${survN}턴 내 백 ${tgt}점 달성`,
+    });
   } else if (isCaptureMode) {
     if (stage.blackTurnLimit && typeof blackTarget === 'number' && blackTarget !== 999) {
       if (typeof whiteTarget === 'number' && whiteTarget !== 999) {
-        winGoal = `${stage.blackTurnLimit}턴 내 ${blackTarget}점 획득`;
-        loseGoal = `${stage.blackTurnLimit}턴 초과 / 백 ${whiteTarget}점 획득`;
+        winGoal = pg('spCaptureTurnWin', {
+          limit: stage.blackTurnLimit,
+          target: blackTarget,
+          defaultValue: `${stage.blackTurnLimit}턴 내 ${blackTarget}점 획득`,
+        });
+        loseGoal = pg('spCaptureTurnLoseBoth', {
+          limit: stage.blackTurnLimit,
+          target: whiteTarget,
+          defaultValue: `${stage.blackTurnLimit}턴 초과 / 백 ${whiteTarget}점 획득`,
+        });
       } else {
-        winGoal = `${stage.blackTurnLimit}턴 내 ${blackTarget}점 획득`;
-        loseGoal = `${stage.blackTurnLimit}턴 내 목표 미달`;
+        winGoal = pg('spCaptureTurnWin', {
+          limit: stage.blackTurnLimit,
+          target: blackTarget,
+          defaultValue: `${stage.blackTurnLimit}턴 내 ${blackTarget}점 획득`,
+        });
+        loseGoal = pg('spCaptureTurnLoseMiss', {
+          limit: stage.blackTurnLimit,
+          defaultValue: `${stage.blackTurnLimit}턴 내 목표 미달`,
+        });
       }
     } else if (typeof blackTarget === 'number' && blackTarget !== 999 && typeof whiteTarget === 'number' && whiteTarget !== 999) {
-      winGoal = `${blackTarget}점 먼저 획득`;
-      loseGoal = `백 ${whiteTarget}점 먼저 획득`;
+      winGoal = pg('spCaptureRaceWin', {
+        target: blackTarget,
+        defaultValue: `${blackTarget}점 먼저 획득`,
+      });
+      loseGoal = pg('spCaptureRaceLose', {
+        target: whiteTarget,
+        defaultValue: `백 ${whiteTarget}점 먼저 획득`,
+      });
     } else if (typeof session.settings.captureTarget === 'number') {
       const cap = session.settings.captureTarget;
-      winGoal = `${cap}점 먼저 획득`;
-      loseGoal = `백이 ${cap}점 먼저 획득`;
+      winGoal = pg('spCaptureCapWin', {
+        cap,
+        defaultValue: `${cap}점 먼저 획득`,
+      });
+      loseGoal = pg('spCaptureCapLose', {
+        cap,
+        defaultValue: `백이 ${cap}점 먼저 획득`,
+      });
     } else {
-      winGoal = '목표점수 달성';
-      loseGoal = '백이 목표 먼저 달성';
+      winGoal = pg('spCaptureGoalWin', { defaultValue: '목표점수 달성' });
+      loseGoal = pg('spCaptureGoalLose', { defaultValue: '백이 목표 먼저 달성' });
     }
   } else if (isSpeedMode) {
-    winGoal = '계가 종합점수에서 승리';
-    loseGoal = '계가에서 패배';
+    winGoal = pg('spSpeedWin', { defaultValue: '계가 종합점수에서 승리' });
+    loseGoal = pg('spSpeedLose', { defaultValue: '계가에서 패배' });
   } else if (
     stage.autoScoringTurns &&
     stage.autoScoringTurns > 0 &&
     usesTerritoryScoring(session.mode, sessionMix)
   ) {
-    winGoal = `${stage.autoScoringTurns}수 계가 후 승리`;
-    loseGoal = `${stage.autoScoringTurns}수 계가 후 패배`;
+    winGoal = pg('spAutoScoringWin', {
+      n: stage.autoScoringTurns,
+      defaultValue: `${stage.autoScoringTurns}수 계가 후 승리`,
+    });
+    loseGoal = pg('spAutoScoringLose', {
+      n: stage.autoScoringTurns,
+      defaultValue: `${stage.autoScoringTurns}수 계가 후 패배`,
+    });
   } else if (isLegacyRuleInference && stage.blackTurnLimit && stage.targetScore.black > 0) {
-    winGoal = `${stage.blackTurnLimit}턴 내 ${stage.targetScore.black}점 이상`;
-    loseGoal = `${stage.blackTurnLimit}턴 내 목표 미달`;
+    winGoal = pg('spLegacyTurnWin', {
+      limit: stage.blackTurnLimit,
+      target: stage.targetScore.black,
+      defaultValue: `${stage.blackTurnLimit}턴 내 ${stage.targetScore.black}점 이상`,
+    });
+    loseGoal = pg('spLegacyTurnLose', {
+      limit: stage.blackTurnLimit,
+      defaultValue: `${stage.blackTurnLimit}턴 내 목표 미달`,
+    });
   } else if (isLegacyRuleInference && stage.targetScore.black > 0 && stage.targetScore.white > 0) {
-    winGoal = `계가 흑 ${stage.targetScore.black}집+ · 백 ${stage.targetScore.white}집+`;
-    loseGoal = '목표 집수 미달';
+    winGoal = pg('spLegacyTerritoryWin', {
+      black: stage.targetScore.black,
+      white: stage.targetScore.white,
+      defaultValue: `계가 흑 ${stage.targetScore.black}집+ · 백 ${stage.targetScore.white}집+`,
+    });
+    loseGoal = pg('spLegacyTerritoryLose', { defaultValue: '목표 집수 미달' });
   } else {
-    winGoal = '계가 시 집이 더 많으면 승';
-    loseGoal = '계가에서 열세';
+    winGoal = pg('spTerritoryWin', { defaultValue: '계가 시 집이 더 많으면 승' });
+    loseGoal = pg('spTerritoryLose', { defaultValue: '계가에서 열세' });
   }
 
-  let scoreFactors = '스테이지·모드에 따름';
+  let scoreFactors = pg('factorStageDefault', { defaultValue: '스테이지·모드에 따름' });
   if (isCaptureMode || isSurvivalRules) {
     const hasPatternStone =
       (stage.placements.blackPattern ?? 0) > 0 || (stage.placements.whitePattern ?? 0) > 0;
-    scoreFactors = hasPatternStone ? '따내기 점수\n문양돌 2점' : '따내기 점수';
+    scoreFactors = hasPatternStone
+      ? pg('factorStageCapturePattern', { defaultValue: '따내기 점수\n문양돌 2점' })
+      : pg('factorStageCapture', { defaultValue: '따내기 점수' });
   } else if (isSpeedMode) {
-    scoreFactors = '영토 · 따낸 돌 · 사석 · 덤\n시간 보너스';
+    scoreFactors = pg('factorStageSpeed', { defaultValue: '영토 · 따낸 돌 · 사석 · 덤\n시간 보너스' });
   } else if (session.mode === GameMode.Capture) {
-    scoreFactors = '따내기 점수';
+    scoreFactors = pg('factorStageCapture', { defaultValue: '따내기 점수' });
   } else {
-    scoreFactors = '영토 · 따낸 돌 · 사석 · 덤(백)';
+    scoreFactors = pgJoin([
+      pg('factorTerritory', { defaultValue: '영토' }),
+      pg('factorCaptured', { defaultValue: '따낸 돌' }),
+      pg('factorDead', { defaultValue: '사석' }),
+      pg('factorKomi', { defaultValue: '덤(백)' }),
+    ], ' · ');
   }
 
   const towerOwned =
@@ -1070,10 +1535,38 @@ function getSinglePlayerStageSummary(
   const mDisp = sessionEm.includes(GameMode.Missile) ? mBase : 0;
   const hDisp = sessionEm.includes(GameMode.Hidden) ? hBase : 0;
   const sDisp = sessionEm.includes(GameMode.Hidden) ? sBase : 0;
-  if (typeof turnAddDisp === 'number' && turnAddDisp > 0) itemBits.push(`턴 추가 ${turnAddDisp}개`);
-  if (mDisp > 0) itemBits.push(`미사일 ${mDisp}개`);
-  if (hDisp > 0) itemBits.push(`히든 ${hDisp}개`);
-  if (sDisp > 0) itemBits.push(`스캔 ${sDisp}개`);
+  if (typeof turnAddDisp === 'number' && turnAddDisp > 0) {
+    itemBits.push(
+      pg('highlightTurnAdd', {
+        n: turnAddDisp,
+        defaultValue: `턴 추가 ${turnAddDisp}개`,
+      }),
+    );
+  }
+  if (mDisp > 0) {
+    itemBits.push(
+      pg('itemMissile', {
+        n: mDisp,
+        defaultValue: `미사일 ${mDisp}개`,
+      }),
+    );
+  }
+  if (hDisp > 0) {
+    itemBits.push(
+      pg('itemHidden', {
+        n: hDisp,
+        defaultValue: `히든 ${hDisp}개`,
+      }),
+    );
+  }
+  if (sDisp > 0) {
+    itemBits.push(
+      pg('itemScan', {
+        n: sDisp,
+        defaultValue: `스캔 ${sDisp}개`,
+      }),
+    );
+  }
 
   const specialHighlights = singlePlayerStageHighlights(session, stage, {
     missile: mDisp,
@@ -1097,7 +1590,7 @@ function getSinglePlayerStageSummary(
     specialHighlights,
     goalVisuals: singlePlayerGoalVisuals(session, stage, stageRuleFlags),
     ruleGuides: singlePlayerRuleGuides(session, stage, stageRuleDisplay, stageRuleFlags),
-    items: itemBits.length ? itemBits.join(' · ') : NONE,
+    items: itemBits.length ? pgJoin(itemBits) : pgNone(),
     itemSlots: buildSinglePlayerStageItemSlots(stage, {
       session,
       towerOwned,

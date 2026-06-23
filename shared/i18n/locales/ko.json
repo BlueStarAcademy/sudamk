@@ -1176,7 +1176,11 @@
       "scoringTurnValue": "{{turns}}턴",
       "forbidden": "금지",
       "allowed": "가능",
-      "speedNormal": "보통"
+      "speedNormal": "보통",
+      "confirm": "확인",
+      "gaugeSpeedSlow": "x1 (느림)",
+      "gaugeSpeedNormal": "x2 (보통)",
+      "gaugeSpeedFast": "x3 (빠름)"
     },
     "challengeModal": {
       "rejected": "거부중",
@@ -1382,7 +1386,203 @@
       "curling": "컬링",
       "thiefPolice": "도둑과경찰",
       "classic": "클래식",
-      "mix": "믹스"
+      "mix": "믹스",
+      "specialRules": "특수 규칙",
+      "loseCondition": "패배 조건",
+      "rulesAndGuide": "게임 규칙 · 플레이 안내",
+      "rewards": "보상",
+      "availableRewards": "획득 가능한 보상",
+      "summary": {
+        "loseTerritory": "계가(종합 점수)에서 집이 적거나, 동점·무승부 규칙에 따라 불리하면 패배",
+        "loseTerritoryAuto": "{{base}} · {{auto}}에 못 이기면 패배",
+        "loseCaptureRace": "상대가 {{t}}점을 먼저 따내면 패배 · 아니면 계가에서 집이 적으면 패배",
+        "loseMix": "종료 시 따내기·계가 등에서 상대가 승리 조건을 먼저 충족하거나 불리하면 패배",
+        "basePlacementAnalysis": "베이스돌 배치 공개 후 형세분석",
+        "baseKomiSelect": "상대에게 줄 덤 설정 · 원하는 돌 선택",
+        "autoScoringCaptureTurn": "{{n}}턴(수) 도달 시 자동 계가 진행",
+        "autoScoringTerritoryWin": "{{n}}수(턴) 후 자동 계가에서 승리하기",
+        "autoScoringTerritoryLose": "{{n}}수(턴) 후 자동 계가에서 패배",
+        "fischerOnly": "피셔 {{sec}}초",
+        "byoyomiOnly": "초읽기만 · {{time}}초×{{count}}회",
+        "noTimeLimit": "시간 제한 없음",
+        "limitFischer": "제한 {{min}}분 · 피셔 {{sec}}초",
+        "limitByoyomi": "제한 {{min}}분 · 초읽기 {{time}}초×{{count}}회",
+        "limitNoByoyomi": "제한 {{min}}분 (초읽기 없음)",
+        "factorTerritory": "영토",
+        "factorCaptured": "따낸 돌",
+        "factorDead": "사석",
+        "factorKomi": "덤(백)",
+        "factorBaseBonus": "베이스 보너스",
+        "factorHiddenBonus": "히든 보너스",
+        "factorSpeedBonus": "수당 {{sec}}초 초과→상대 +1",
+        "factorMissileEffect": "미사일 연출 반영",
+        "factorCaptureScore": "따내기 점수",
+        "factorMixFallback": "모드 조합에 따름",
+        "factorCaptureNoTerritory": "따내기 점수(집 계산 없음)",
+        "factorCastle": "확정 영토 · 따낸 돌 · 덤(백)",
+        "factorChess": "영토 · 따낸 돌 · 사석 · 기물 포획 · 덤(백)",
+        "factorOmok": "목(승부) — 집 계산 없음",
+        "factorTtamok": "목 승리 또는 따내기 점수",
+        "factorDice": "라운드별 백돌 따내기 점수 · 마지막 따내기 보너스",
+        "factorThief": "라운드별 획득 점수 합산",
+        "factorAlkkagi": "판 밖으로 나간 상대 돌 수",
+        "factorCurling": "하우스(목표)에 가까운 스톤 점수",
+        "factorFallback": "모드 안내 참고",
+        "factorStageDefault": "스테이지·모드에 따름",
+        "factorStageCapture": "따내기 점수",
+        "factorStageCapturePattern": "따내기 점수\n문양돌 2점",
+        "factorStageSpeed": "영토 · 따낸 돌 · 사석 · 덤\n시간 보너스",
+        "factorAdventureCaptureShort": "따내기 · 문양 2점",
+        "factorAdventureBase": "기본 계가",
+        "factorAdventureBaseStone5": "베이스돌 5점",
+        "factorAdventureHidden": "히든",
+        "factorAdventureSpeed": "시간",
+        "factorAdventureMissile": "미사일",
+        "itemHidden": "히든 {{n}}개",
+        "itemScan": "스캔 {{n}}개",
+        "itemMissile": "미사일 {{n}}개",
+        "itemSpecialDice": "특수주사위 {{summary}}",
+        "itemSlowAim": "슬로우 {{slow}} · 조준 {{aim}}",
+        "mixCaptureWin": "따내기 {{t}}점 선달성 시 즉시 승리 · 미달성 시 계가 후 집 비교",
+        "mixCaptureWinWithAuto": "따내기 {{t}}점 선달성 시 즉시 승리 · 미달성 시 계가 후 집 비교 · {{auto}}",
+        "mixAutoTerritoryWin": "{{auto}} — 집이 많은 쪽 승리",
+        "mixComboTail": "조합({{modes}}) — 종료 시 규칙에 따라 승패 결정",
+        "mixDefaultEnd": "종료 시 규칙에 따라 승패 결정",
+        "highlightPatternStone2": "문양돌 따내기 2점",
+        "highlightHiddenScan": "히든 착수 · 스캔으로 탐색",
+        "highlightMissileMove": "미사일로 돌 직선 이동",
+        "speedPvpHighlight": "수당 10초 초읽기 · 10초 초과마다 상대 +1점 · 메인 시간 소진 시 시간패",
+        "highlightSurvival": "살리기 바둑 · 백 {{n}}턴 내 목표 점수",
+        "highlightAutoScoring": "{{n}}수 후 자동 계가",
+        "highlightBlackTurnLimit": "흑 {{n}}턴 제한",
+        "highlightTurnAdd": "턴 추가 {{n}}개",
+        "highlightMissile": "미사일 {{n}}개",
+        "highlightHiddenScanCounts": "히든 {{hidden}}개 · 스캔 {{scan}}개",
+        "spTimeMainFischer": "메인 {{min}}분 · 수당 {{sec}}초 초읽기",
+        "spTimeFischerOnly": "수당 {{sec}}초 초읽기",
+        "spTimeUnlimited": "제한없음",
+        "goalSurvivalWinLabel": "백 막기",
+        "goalSurvivalWinHelper": "{{n}}턴 동안 백 목표를 막기",
+        "goalSurvivalLoseLabel": "백 성공",
+        "goalSurvivalLoseHelper": "백이 목표를 만들면 실패",
+        "goalCaptureWinLabel": "따내기",
+        "goalCaptureWinHelper": "상대 돌을 둘러싸면 점수",
+        "goalCaptureLoseTurnLabel": "턴 초과",
+        "goalCaptureLoseTurnHelper": "{{n}}턴 안에 못 하면 실패",
+        "goalCaptureLoseFirstLabel": "상대 선취",
+        "goalCaptureLoseFirstHelper": "상대가 먼저 따내면 실패",
+        "goalSpeedWinLabel": "빠르게",
+        "goalSpeedWinHelper": "시간을 지키며 집 만들기",
+        "goalSpeedLoseLabel": "점수 열세",
+        "goalSpeedLoseHelper": "집이 적으면 실패",
+        "goalAutoWinLabel": "집 많이",
+        "goalAutoWinHelper": "{{n}}수 후 집 계산",
+        "goalAutoLoseLabel": "집 부족",
+        "goalAutoLoseHelper": "{{n}}수 때 불리하면 실패",
+        "goalDefaultWinLabel": "집 만들기",
+        "goalDefaultWinHelper": "영역을 둘러 집을 만들기",
+        "goalDefaultLoseLabel": "집 부족",
+        "goalDefaultLoseHelper": "집이 적으면 실패",
+        "guideTurnLimitTitle": "턴 제한",
+        "guideTurnLimitBody": "{{n}}턴 안에 끝내기",
+        "guideSurvivalTitle": "막기",
+        "guideSurvivalBody": "{{n}}턴 동안 백 목표 막기",
+        "guideAutoScoringTitle": "계가",
+        "guideAutoScoringBody": "{{n}}수 후 집 계산",
+        "guidePatternStoneTitle": "문양돌",
+        "guidePatternStoneBody": "따내면 2점",
+        "guideSpeedTitle": "스피드",
+        "guideSpeedBody": "늦게 두면 상대 +1점",
+        "guideTurnAddTitle": "턴 추가",
+        "guideTurnAddBody": "제한 턴 늘리기",
+        "guideMissileTitle": "미사일",
+        "guideMissileBody": "돌을 골라 직선 밀기",
+        "guideHiddenScanTitle": "히든 · 스캔",
+        "guideHiddenScanBody": "숨기기 {{hidden}} · 찾기 {{scan}}",
+        "advCaptureWin": "따내기 승리",
+        "advCaptureLose": "따내기 패배 · 시간 초과",
+        "advTerritoryWin": "계가 승리",
+        "advTerritoryWinAuto": "계가 승리 · {{n}}수 자동",
+        "advTerritoryLose": "계가 패배 · 시간 초과",
+        "advTimeLimit": "{{mins}}분 제한",
+        "gwCaptureWinAuto": "{{cap}}점 선취 또는 {{limit}}턴 계가 승",
+        "gwCaptureWin": "{{cap}}점 먼저 따내면 승리",
+        "gwCaptureLose": "상대 {{cap}}점 선취",
+        "gwTerritoryWinAuto": "계가 집 다수 승 · {{limit}}수 자동 계가",
+        "gwTerritoryWin": "계가에서 집이 많으면 승리",
+        "gwTerritoryLose": "계가 열세 · 시간 초과",
+        "captureWin": "상대 돌 {{t}}점 먼저 따내기",
+        "captureWinWithAuto": "상대 돌 {{t}}점 먼저 따내기 · {{auto}}",
+        "territoryWinDefault": "계가 후 집이 많은 쪽 승리",
+        "speedTerritoryWinDefault": "계가 후 종합 점수가 높은 쪽 승리",
+        "speedTerritoryLoseDefault": "계가 후 종합 점수가 낮으면 패배",
+        "castleWin": "상대 돌 1개 이상 따내면 즉시 승리 · 유효수 없으면 영토 계가",
+        "castleLose": "상대에게 1돌이라도 잡히면 패배 · 계가에서 집이 적으면 패배",
+        "castleHighlightCount": "캐슬 {{castles}}개 · 완성 영토 진입 불가",
+        "castleHighlightCapture": "1돌 포획 시 즉시 승리",
+        "chessWin": "정해진 수순 후 계가",
+        "chessLose": "계가에서 패배 · 킹 포획 시 즉시 패배",
+        "chessHighlightBudget": "기물 총점수 {{budget}}점 예산 내 직접 배치(킹 2번째 줄 중앙 고정)",
+        "chessHighlightMovement": "기물돌을 체스의 움직임으로 매 턴 1회씩 움직일 수 있음(횟수 제한)",
+        "omokWin": "가로·세로·대각 5목 먼저 완성",
+        "omokLose": "상대가 먼저 5목을 완성하면 패배",
+        "omok33Forbidden": "쌍삼 금지",
+        "omok33Allowed": "쌍삼 허용",
+        "omokOverlineForbidden": "장목 금지",
+        "omokOverlineAllowed": "장목 허용",
+        "ttamokWin": "5목 선완성 또는 따내기 {{cap}}점 선달성",
+        "ttamokLose": "상대가 먼저 5목을 완성하거나 따내기 {{cap}}점을 먼저 달성하면 패배",
+        "ttamokHighlightCapture": "따내기 {{cap}}점 선달성 시 승리",
+        "diceWin": "{{r}}라운드 후 누적 점수가 높은 쪽 승리",
+        "diceLose": "{{r}}라운드 종료 후 누적 점수가 낮으면 패배",
+        "diceHighlightRules": "주사위 눈만큼 흑 착수 · 백은 활로에만 배치",
+        "thiefWin": "5턴×라운드 진행 후 총점이 높은 쪽 승리",
+        "thiefLose": "라운드 종료 후 총점이 낮으면 패배",
+        "thiefHighlightRoles": "도둑(흑)·경찰(백) 역할 교대",
+        "alkkagiWin": "상대 돌 모두 넉아웃",
+        "alkkagiLose": "내 돌 모두 넉아웃",
+        "alkkagiHighlightGauge": "게이지로 힘 조절 · 벽 반사",
+        "curlingWin": "라운드 합산 점수가 높은 쪽 승리",
+        "curlingLose": "합산 점수가 낮으면 패배",
+        "curlingHighlightRules": "스톤 미끄러뜨리기 · 라운드제",
+        "fallbackWin": "대국 진행에 따라 승패 결정",
+        "fallbackLose": "대국 진행에 따라 패배가 결정되면 패배",
+        "spDefaultWin": "스테이지 조건 충족 시 승리",
+        "spDefaultLose": "조건 미달 시 패배",
+        "spSurvivalWin": "{{n}}턴 내 백 {{tgt}}점 미달성",
+        "spSurvivalLose": "{{n}}턴 내 백 {{tgt}}점 달성",
+        "spCaptureTurnWin": "{{limit}}턴 내 {{target}}점 획득",
+        "spCaptureTurnLoseBoth": "{{limit}}턴 초과 / 백 {{target}}점 획득",
+        "spCaptureTurnLoseMiss": "{{limit}}턴 내 목표 미달",
+        "spCaptureRaceWin": "{{target}}점 먼저 획득",
+        "spCaptureRaceLose": "백 {{target}}점 먼저 획득",
+        "spCaptureCapWin": "{{cap}}점 먼저 획득",
+        "spCaptureCapLose": "백이 {{cap}}점 먼저 획득",
+        "spCaptureGoalWin": "목표점수 달성",
+        "spCaptureGoalLose": "백이 목표 먼저 달성",
+        "spSpeedWin": "계가 종합점수에서 승리",
+        "spSpeedLose": "계가에서 패배",
+        "spAutoScoringWin": "{{n}}수 계가 후 승리",
+        "spAutoScoringLose": "{{n}}수 계가 후 패배",
+        "spLegacyTurnWin": "{{limit}}턴 내 {{target}}점 이상",
+        "spLegacyTurnLose": "{{limit}}턴 내 목표 미달",
+        "spLegacyTerritoryWin": "계가 흑 {{black}}집+ · 백 {{white}}집+",
+        "spLegacyTerritoryLose": "목표 집수 미달",
+        "spTerritoryWin": "계가 시 집이 더 많으면 승",
+        "spTerritoryLose": "계가에서 열세"
+      },
+      "itemSlot": {
+        "hiddenStone": "히든 돌",
+        "scan": "스캔",
+        "missile": "미사일",
+        "diceOdd": "홀수 주사위 아이템",
+        "diceEven": "짝수 주사위 아이템",
+        "diceLow": "낮은 수(1~3) 주사위 아이템",
+        "diceHigh": "높은 수(4~6) 주사위 아이템",
+        "slow": "슬로우",
+        "aimLine": "조준선",
+        "turnAdd": "턴 추가"
+      }
     },
     "singlePlayerInfo": {
       "close": "닫기",
@@ -1662,7 +1862,10 @@
       "baseRule": "베이스",
       "whiteTargetLabel": "백 목표",
       "firstBlackRole": "선(흑)",
-      "meBadge": "나"
+      "meBadge": "나",
+      "captureBidResultTitle": "따내기 점수 제시 결과",
+      "komiBidFinalRound": "덤 입찰(최종 라운드)",
+      "pressStartPrompt": "준비가 끝나면 시작하기를 눌러 대국을 시작해 주세요."
     },
     "baseStoneChoice": {
       "hostPick": "방장이 왼쪽 색상 판을 선택합니다.",
@@ -1693,7 +1896,9 @@
       "whiteRole": "후공 · 백",
       "finalCardAlt": "좌우 카드에 최종 선공·후공이 표시됩니다.",
       "fastFlashAlt": "두 칸의 흑·백 표시가 바뀌다가 잠시 뒤 최종 배치로 고정됩니다.",
-      "smoothEndAlt": "흑과 백이 빠르게 바뀌며 무작위로 멈춥니다."
+      "smoothEndAlt": "흑과 백이 빠르게 바뀌며 무작위로 멈춥니다.",
+      "assignmentComplete": "배정 완료",
+      "blackCandidate": "선공(흑) 후보"
     },
     "uniformColor": {
       "blackStone": "흑돌",
@@ -1729,7 +1934,8 @@
       "autoRouletteShort": "가위바위보 대신 자동 룰렛으로 흑과 백이 배정됩니다.",
       "checkingRoulette": "룰렛 결과 확인 중...",
       "waitingConfirm": "상대방 확인 대기 중...",
-      "startCountdown": "대국 시작 ({{count}})"
+      "startCountdown": "대국 시작 ({{count}})",
+      "autoStartHint": "대국 시작을 누르거나, 30초가 지나면 자동으로 시작됩니다."
     },
     "diceGo": {
       "winner": "주사위 결과 {{name}}님이 승리하여 선공/후공이 결정되었습니다.",
@@ -2757,8 +2963,8 @@
       "classBarRewardNeedClear": "{{milestone}} 스테이지 클리어 필요",
       "classBarRewardAria": "{{milestone}}점 보상",
       "cleared": "클리어 완료",
-      "enterStage": "승리 시 ⚡{{cost}}",
-      "enterStageTitle": "승리 시 행동력 {{cost}}",
+      "enterStage": "도전 ⚡{{cost}}",
+      "enterStageTitle": "도전 행동력 {{cost}}",
       "locked": "잠김",
       "unlockRequired": "{{stageId}} 필요",
       "claimAll": "일괄 수령 ({{count}})",
@@ -3181,6 +3387,8 @@
     "mannerRank": {
       "title": "매너 등급 정보",
       "grade": "매너 등급",
+      "effectsByGrade": "등급별 효과",
+      "currentBadge": "현재",
       "rangeHint": "점수 구간별로 적용되는 혜택·페널티입니다.",
       "allStatsPlus10": "모든 능력치 +10",
       "disassembleJackpot": "분해 대박 확률 +20%",
@@ -3195,7 +3403,19 @@
       "scoreAbove": "{{min}}점 이상",
       "scoreRange": "{{min}}~{{max}}점",
       "zeroScore": "0점",
-      "mannerPointsTitle": "{{score}}점 ({{rank}})"
+      "mannerPointsTitle": "{{score}}점 ({{rank}})",
+      "grades": {
+        "worst": "최악",
+        "veryBad": "매우 나쁨",
+        "bad": "나쁨",
+        "caution": "주의",
+        "normal": "보통",
+        "good": "좋음",
+        "veryGood": "매우 좋음",
+        "dignified": "품격",
+        "pro": "프로",
+        "master": "마스터"
+      }
     },
     "statAllocation": {
       "resetFailAlert": "능력치 초기화 조건을 충족하지 못했습니다. 골드가 부족하거나 일일 초기화 횟수를 초과했습니다.",
@@ -4302,6 +4522,17 @@
       "noTier": "티어없음"
     },
     "tierInfo": {
+      "names": {
+        "champion": "챌린저",
+        "master": "마스터",
+        "diamond": "다이아",
+        "platinum": "플래티넘",
+        "gold": "골드",
+        "silver": "실버",
+        "bronze": "브론즈",
+        "iron": "루키",
+        "unranked": "새싹"
+      },
       "champion": "최소 점수 3500 이상 & 상위 100명 한정",
       "master": "최소 점수 3000 이상",
       "diamond": "최소 점수 2400 이상",
@@ -4340,6 +4571,554 @@
       "stayLine": "잔류: {{ranges}}",
       "demoteLine": "강등: {{ranges}}",
       "rankHintShort": "순위 경쟁 기반 티어 (승급·잔류·강등 조건은 아래 보상표 참고)"
+    },
+    "items": {
+      "box_diabox1": {
+        "name": "다이아 꾸러미 I",
+        "description": "1 ~ 20 다이아 획득"
+      },
+      "box_diabox2": {
+        "name": "다이아 꾸러미 II",
+        "description": "10 ~ 30 다이아 획득"
+      },
+      "box_diabox3": {
+        "name": "다이아 꾸러미 III",
+        "description": "20 ~ 50 다이아 획득"
+      },
+      "box_diabox4": {
+        "name": "다이아 꾸러미 IV",
+        "description": "30 ~ 100 다이아 획득"
+      },
+      "box_goldbox1": {
+        "name": "골드 꾸러미 I",
+        "description": "10 ~ 500 골드 획득"
+      },
+      "box_goldbox2": {
+        "name": "골드 꾸러미 II",
+        "description": "100 ~ 1,000 골드 획득"
+      },
+      "box_goldbox3": {
+        "name": "골드 꾸러미 III",
+        "description": "500 ~ 3,000 골드 획득"
+      },
+      "box_goldbox4": {
+        "name": "골드 꾸러미 IV",
+        "description": "1,000 ~ 10,000 골드 획득"
+      },
+      "btn_addturn": {
+        "name": "턴 추가",
+        "description": "도전의 탑에서 사용할 수 있는 턴 추가 아이템입니다."
+      },
+      "btn_hidden": {
+        "name": "히든",
+        "description": "도전의 탑에서 사용할 수 있는 히든 아이템입니다."
+      },
+      "btn_missile": {
+        "name": "미사일",
+        "description": "도전의 탑에서 사용할 수 있는 미사일 아이템입니다."
+      },
+      "btn_reflesh": {
+        "name": "배치변경",
+        "description": "도전의 탑에서 사용할 수 있는 배치변경 아이템입니다."
+      },
+      "btn_scan": {
+        "name": "스캔",
+        "description": "도전의 탑에서 사용할 수 있는 스캔 아이템입니다."
+      },
+      "eq_board1": {
+        "name": "새싹 바둑판",
+        "description": "초심자들이 사용하기 좋은 가벼운 오동나무 바둑판입니다."
+      },
+      "eq_board2": {
+        "name": "단풍결 바둑판",
+        "description": "아름다운 결을 가진 비자나무로 만든 고급 바둑판입니다."
+      },
+      "eq_board3": {
+        "name": "산호결 바둑판",
+        "description": "최고급 신비자 나무로 만들어져 돌을 놓는 소리가 청아합니다."
+      },
+      "eq_board4": {
+        "name": "흑단 바둑판",
+        "description": "뜨거운 열정으로 다듬어진 화산암 바둑판입니다."
+      },
+      "eq_board5": {
+        "name": "용문 바둑판",
+        "description": "천 년의 세월을 간직한 금강송으로 만들어진 전설의 바둑판입니다."
+      },
+      "eq_board7": {
+        "name": "신룡 바둑판",
+        "description": "별자리의 궤적이 새겨져, 한 수마다 승리의 길을 열어 주는 초월의 바둑판입니다."
+      },
+      "eq_bottom1": {
+        "name": "봄빛 도복 하의",
+        "description": "움직임이 편한 수련용 바지입니다."
+      },
+      "eq_bottom2": {
+        "name": "여름빛 도복 하의",
+        "description": "쉽게 닳지 않는 튼튼한 재질의 바지입니다."
+      },
+      "eq_bottom3": {
+        "name": "가을빛 도복 하의",
+        "description": "도포와 한 벌을 이루는 고급 비단 바지입니다."
+      },
+      "eq_bottom4": {
+        "name": "겨울빛 도복 하의",
+        "description": "어떠한 움직임에도 방해받지 않는 검객의 하의입니다."
+      },
+      "eq_bottom5": {
+        "name": "용비 도복 하의",
+        "description": "용포와 한 벌을 이루는 최고급 비단으로 만들어졌습니다."
+      },
+      "eq_bottom7": {
+        "name": "신룡 도복 하의",
+        "description": "폭풍 속에서도 균형을 잃지 않게 하는, 신룡의 의지가 깃든 초월의 도복 하의입니다."
+      },
+      "eq_fan1": {
+        "name": "푸른 바람 부채",
+        "description": "가볍고 실용적인 대나무 부채입니다."
+      },
+      "eq_fan2": {
+        "name": "은결 바람 부채",
+        "description": "부드러운 비단으로 만들어져 손에 잘 감깁니다."
+      },
+      "eq_fan3": {
+        "name": "화염 바람 부채",
+        "description": "학의 날개처럼 우아하게 펼쳐지는 명인의 부채입니다."
+      },
+      "eq_fan4": {
+        "name": "서리 바람 부채",
+        "description": "묵직한 강철로 만들어져 위급 시 무기로도 사용할 수 있습니다."
+      },
+      "eq_fan5": {
+        "name": "용비 바람 부채",
+        "description": "백 개의 하얀 깃털로 만들어진 전설적인 부채입니다."
+      },
+      "eq_fan7": {
+        "name": "신룡 바람 부채",
+        "description": "하늘을 가르는 신룡의 숨결을 담아, 전장의 흐름마저 뒤집는 초월의 부채입니다."
+      },
+      "eq_stone1": {
+        "name": "흑백 새싹돌",
+        "description": "가볍고 저렴한 플라스틱 바둑돌입니다."
+      },
+      "eq_stone2": {
+        "name": "은빛 결돌",
+        "description": "강가에서 주운 매끄러운 조약돌로 만든 바둑돌입니다."
+      },
+      "eq_stone3": {
+        "name": "홍옥 바둑돌",
+        "description": "차가운 빛을 내는 흑요석으로 정교하게 깎아 만들었습니다."
+      },
+      "eq_stone4": {
+        "name": "백옥 바둑돌",
+        "description": "영롱한 빛을 내는 청옥과 백옥으로 만들어진 바둑돌입니다."
+      },
+      "eq_stone5": {
+        "name": "용안 바둑돌",
+        "description": "해와 달, 별의 기운을 담아 벼려낸 전설적인 바둑돌입니다."
+      },
+      "eq_stone7": {
+        "name": "신룡 바둑돌",
+        "description": "새벽별의 파편을 벼려 만들어, 단 한 수로도 판세를 지배하는 초월의 바둑돌입니다."
+      },
+      "eq_stonebox1": {
+        "name": "가벼운 나무통",
+        "description": "가볍고 저렴한 플라스틱 바둑통입니다."
+      },
+      "eq_stonebox2": {
+        "name": "단단한 대나무통",
+        "description": "은은한 향이 나는 대추나무로 만든 바둑통입니다."
+      },
+      "eq_stonebox3": {
+        "name": "홍목 바둑통",
+        "description": "아름다운 붉은 빛을 띠는 장미목으로 만들어졌습니다."
+      },
+      "eq_stonebox4": {
+        "name": "흑단 바둑통",
+        "description": "기이하고 아름다운 무늬를 가진 괴목으로 만든 희귀한 바둑통입니다."
+      },
+      "eq_stonebox5": {
+        "name": "용린 바둑통",
+        "description": "용이 섬세하게 조각된 최고급 자단목 바둑통입니다."
+      },
+      "eq_stonebox7": {
+        "name": "신룡 바둑통",
+        "description": "고대 전장의 기운을 봉인해, 꺼내는 돌마다 위압을 더하는 초월의 바둑통입니다."
+      },
+      "eq_top1": {
+        "name": "봄빛 도복 상의",
+        "description": "수련에 집중하기 좋은 편안한 상의입니다."
+      },
+      "eq_top2": {
+        "name": "여름빛 도복 상의",
+        "description": "오랜 수련에도 해지지 않는 질긴 도복입니다."
+      },
+      "eq_top3": {
+        "name": "가을빛 도복 상의",
+        "description": "고요한 기품이 느껴지는 선비의 도포입니다."
+      },
+      "eq_top4": {
+        "name": "겨울빛 도복 상의",
+        "description": "날카로운 승부를 위해 만들어진 검객의 복장입니다."
+      },
+      "eq_top5": {
+        "name": "용비 도복 상의",
+        "description": "황제의 위엄을 상징하는 용무늬가 수놓아져 있습니다."
+      },
+      "eq_top7": {
+        "name": "신룡 도복 상의",
+        "description": "신룡의 비늘빛으로 직조되어, 흔들림 없는 집중을 부여하는 초월의 도복 상의입니다."
+      },
+      "mat_materials1": {
+        "name": "하급 강화석",
+        "description": "장비 강화에 사용되는 기본 재료."
+      },
+      "mat_materials2": {
+        "name": "중급 강화석",
+        "description": "장비 강화에 사용되는 상급 재료."
+      },
+      "mat_materials3": {
+        "name": "상급 강화석",
+        "description": "장비 강화에 사용되는 최상급 재료."
+      },
+      "mat_materials4": {
+        "name": "최상급 강화석",
+        "description": "장비 강화에 사용되는 희귀 재료."
+      },
+      "mat_materials5": {
+        "name": "신비의 강화석",
+        "description": "장비 강화에 사용되는 고대 재료."
+      },
+      "pet_egg": {
+        "name": "신비로운알",
+        "description": "부화장에서 사용하면 무작위 AI 펫을 획득합니다."
+      },
+      "pet_soulstone1": {
+        "name": "새싹영혼석",
+        "description": "일반 등급 펫을 고급 등급으로 올릴 때 필요한 재료입니다. 펫 Lv.10 이상부터 사용할 수 있습니다."
+      },
+      "pet_soulstone2": {
+        "name": "파동영혼석",
+        "description": "고급 등급 펫을 희귀 등급으로 올릴 때 필요한 재료입니다. 펫 Lv.20 이상부터 사용할 수 있습니다."
+      },
+      "pet_soulstone3": {
+        "name": "심연영혼석",
+        "description": "희귀 등급 펫을 에픽 등급으로 올릴 때 필요한 재료입니다. 펫 Lv.30 이상부터 사용할 수 있습니다."
+      },
+      "pet_soulstone4": {
+        "name": "화염영혼석",
+        "description": "에픽 등급 펫을 전설 등급으로 올릴 때 필요한 재료입니다. 펫 Lv.40 이상부터 사용할 수 있습니다."
+      },
+      "pet_soulstone5": {
+        "name": "천광영혼석",
+        "description": "전설 등급 펫을 신화 등급으로 올릴 때 필요한 재료입니다. 펫 Lv.50에서 사용할 수 있습니다."
+      },
+      "shop_action_point_10": {
+        "name": "행동력 회복제(+10)",
+        "description": "뭔가 하고싶은 의욕이 생긴다."
+      },
+      "shop_action_point_20": {
+        "name": "행동력 회복제(+20)",
+        "description": "뭔가 해야 할 것 같다."
+      },
+      "shop_action_point_30": {
+        "name": "행동력 회복제(+30)",
+        "description": "바로 경기를 하러 가자."
+      },
+      "shop_condition_potion_large": {
+        "name": "컨디션회복제(대)",
+        "description": "오늘의 대회를 성공적으로 치를 것 같은 컨디션 회복제"
+      },
+      "shop_condition_potion_medium": {
+        "name": "컨디션회복제(중)",
+        "description": "머리가 맑아지는 느낌의 컨디션 회복제"
+      },
+      "shop_condition_potion_small": {
+        "name": "컨디션회복제(소)",
+        "description": "긴장감을 완화시켜주는 컨디션 회복제"
+      },
+      "shop_equipment_box_1": {
+        "name": "장비 상자 I",
+        "description": "일반~희귀 등급 장비 획득"
+      },
+      "shop_equipment_box_2": {
+        "name": "장비 상자 II",
+        "description": "일반~에픽 등급 장비 획득"
+      },
+      "shop_equipment_box_3": {
+        "name": "장비 상자 III",
+        "description": "고급~전설 등급 장비 획득"
+      },
+      "shop_equipment_box_4": {
+        "name": "장비 상자 IV",
+        "description": "희귀~신화 등급 장비 획득"
+      },
+      "shop_equipment_box_5": {
+        "name": "장비 상자 V",
+        "description": "에픽~신화 등급 장비 획득"
+      },
+      "shop_equipment_box_6": {
+        "name": "장비 상자 VI",
+        "description": "전설~신화 등급 장비 획득"
+      },
+      "shop_equipment_unbind_ticket": {
+        "name": "귀속 해제권",
+        "description": "귀속 장비 거래가능 상태로 변경"
+      },
+      "shop_material_box_1": {
+        "name": "재료 상자 I",
+        "description": "하급 ~ 상급 강화석 5개 획득"
+      },
+      "shop_material_box_2": {
+        "name": "재료 상자 II",
+        "description": "하급 ~ 상급 강화석 5개 획득"
+      },
+      "shop_material_box_3": {
+        "name": "재료 상자 III",
+        "description": "하급 ~ 상급 강화석 5개 획득"
+      },
+      "shop_material_box_4": {
+        "name": "재료 상자 IV",
+        "description": "중급 ~ 최상급 강화석 5개 획득"
+      },
+      "shop_material_box_5": {
+        "name": "재료 상자 V",
+        "description": "상급 ~ 신비의 강화석 5개 획득"
+      },
+      "shop_material_box_6": {
+        "name": "재료 상자 VI",
+        "description": "상급 ~ 신비의 강화석 5개 획득"
+      },
+      "shop_mythic_option_change_ticket": {
+        "name": "스페셜 옵션 변경권",
+        "description": "신화 또는 초월 장비의 스페셜 옵션을 다른 스페셜 옵션으로 변경할 수 있는 아이템입니다."
+      },
+      "shop_option_type_change_ticket": {
+        "name": "옵션 종류 변경권",
+        "description": "장비의 주옵션, 부옵션, 특수옵션 중 하나를 다른 종류의 옵션으로 변경할 수 있는 아이템입니다."
+      },
+      "shop_option_value_change_ticket": {
+        "name": "옵션 수치 변경권",
+        "description": "장비의 부옵션 또는 특수옵션 중 하나의 수치를 변경할 수 있는 아이템입니다."
+      },
+      "shop_refinement_charm": {
+        "name": "제련의 부적",
+        "description": "제련불가 장비 제련 횟수 1회 추가"
+      },
+      "use_allowtrade": {
+        "name": "거래 등록권",
+        "description": "거래소에 판매 물품 1개를 등록할 수 있는 특별 허가권입니다."
+      }
+    },
+    "stats": {
+      "mythic": {
+        "GuildBossRewardGradeUp": {
+          "name": "길드 보스전 보상업",
+          "abbrev": "보스 보상등급",
+          "short": "길드보스 보상등급 +1",
+          "description": "길드 보스전 결과에서 보상 등급이 한 단계 올라갑니다. (최대 SSS) 신화 스페셜 옵션 1번이며, 초월 1번 「보스 보상추가」와는 동시에 적용될 수 있습니다."
+        },
+        "GuildBossExtraDamage5": {
+          "name": "길드 보스전 추가피해 5%",
+          "abbrev": "보스 피해5%",
+          "short": "길드보스 피해 +5%",
+          "description": "길드 보스를 공격할 때 최종 피해가 5% 추가로 적용됩니다. (초월 스페셜 옵션과 중복불가)"
+        },
+        "TowerApMinus1Floors1to35": {
+          "name": "도전의 탑(1~35층) 필요행동력 -1",
+          "abbrev": "탑 AP(1~35)",
+          "short": "탑 1~35층 AP -1",
+          "description": "도전의 탑 1~35층 입장에 필요한 행동력이 1 감소합니다. (초월 스페셜 옵션과 중복불가)"
+        },
+        "ApRegenMinus30s": {
+          "name": "행동력 회복시간 -30초",
+          "abbrev": "AP회복 -30s",
+          "short": "행동력 회복 -30초",
+          "description": "행동력이 1 회복되기까지 걸리는 시간이 30초 줄어듭니다. (초월 스페셜 옵션과 중복불가)"
+        },
+        "AdventureScanPlus1": {
+          "name": "모험 스캔 +1",
+          "abbrev": "모험 스캔+1",
+          "short": "모험 스캔 +1",
+          "description": "모험(몬스터 대전) 시작 시 스캔 아이템이 1개 추가로 지급됩니다. (초월 스페셜 옵션과 중복불가)"
+        },
+        "AdventureMissilePlus1": {
+          "name": "모험 미사일 +1",
+          "abbrev": "모험 미사일+1",
+          "short": "모험 미사일 +1",
+          "description": "모험 시작 시 미사일 아이템이 1개 추가로 지급됩니다. (초월 스페셜 옵션과 중복불가)"
+        },
+        "AdventureGoldBonus15": {
+          "name": "모험 골드 보상 +15%",
+          "abbrev": "모험 골드15%",
+          "short": "모험 골드 +15%",
+          "description": "모험 승리 시 획득 골드가 15% 증가합니다. (도감·이해도 보너스와 별도 합산) (초월 스페셜 옵션과 중복불가)"
+        },
+        "GuildBossExtraRewardDuplicate": {
+          "name": "길드 보스전 보상추가",
+          "abbrev": "보스 보상추가",
+          "short": "길드보스 보상 1종 복제(누적 가능)",
+          "description": "길드 보스전 결과 보상 중 하나를 한 번 더 받습니다. 초월 장비에 이 옵션이 여러 줄(여러 장비)로 있으면 그만큼 반복 적용됩니다. 다른 스페셜 옵션과 함께 적용될 수 있습니다. 초월 스페셜 옵션 1번이며, 신화 1번 「보스 보상등급」과는 동시에 적용될 수 있습니다."
+        },
+        "GuildBossExtraDamage10": {
+          "name": "길드 보스전 추가피해 10%",
+          "abbrev": "보스 피해10%",
+          "short": "길드보스 피해 +10%",
+          "description": "길드 보스를 공격할 때 최종 피해가 10% 추가로 적용됩니다. (신화 스페셜 옵션과 중복불가)"
+        },
+        "TowerApMinus1AllFloors": {
+          "name": "도전의 탑 필요행동력 -1",
+          "abbrev": "탑 AP 전층",
+          "short": "탑 전층 AP -1",
+          "description": "모든 도전의 탑 층 입장에 필요한 행동력이 1 감소합니다. (신화 스페셜 옵션과 중복불가)"
+        },
+        "ApRegenMinus60s": {
+          "name": "행동력 회복시간 -60초",
+          "abbrev": "AP회복 -60s",
+          "short": "행동력 회복 -60초",
+          "description": "행동력이 1 회복되기까지 걸리는 시간이 60초 줄어듭니다. (신화 스페셜 옵션과 중복불가)"
+        },
+        "AdventureScanTranscendent": {
+          "name": "모험 스캔 +1",
+          "abbrev": "모험 스캔+1",
+          "short": "모험 스캔 +2(초월)",
+          "description": "모험(몬스터 대전)에서 스캔 아이템이 2개 추가로 지급됩니다. (신화 스페셜 옵션과 중복불가)"
+        },
+        "AdventureMissilePlus2": {
+          "name": "모험 미사일 +2",
+          "abbrev": "모험 미사일+2",
+          "short": "모험 미사일 +2",
+          "description": "모험 시작 시 미사일 아이템이 2개 추가로 지급됩니다. (신화 스페셜 옵션과 중복불가)"
+        },
+        "AdventureGoldBonus20": {
+          "name": "모험 골드 보상 +20%",
+          "abbrev": "모험 골드20%",
+          "short": "모험 골드 +20%",
+          "description": "모험 승리 시 획득 골드가 20% 증가합니다. (신화 스페셜 옵션과 중복불가)"
+        }
+      }
+    },
+    "optionValueLine": "{{stat}} +{{value}}{{suffix}}",
+    "optionRange": "[{{lo}}~{{hi}}{{suffix}}]",
+    "optionEnhancement": "({{count}}강화)",
+    "meta": {
+      "description": {
+        "gold": "바둑계 전역에서 사용되는 대표 화폐입니다.",
+        "diamond": "특별한 구매·확장 등에 사용되는 프리미엄 재화입니다."
+      },
+      "usage": {
+        "goldSpend": "상점, 강화·제작, 입장료 등 골드 소비처에서 사용됩니다.",
+        "diamondSpend": "다이아 상점, 가방 슬롯 확장 등에서 사용됩니다.",
+        "unbindTicket": "[가방]-[장비선택]-[귀속해제]",
+        "refinementCharm": "[대장간]-[장비제련] 제련불가 장비 선택",
+        "refinementTicket": {
+          "optionType": "[대장간 - 장비제련] 옵션 종류변경",
+          "optionValue": "[대장간 - 장비제련] 옵션 수치변경",
+          "specialOption": "[대장간 - 장비제련] 스페셜 옵션변경",
+          "mythicOption": "[대장간 - 장비제련] 신화 옵션변경",
+          "generic": "[대장간 - 장비제련] 옵션 변경"
+        },
+        "conditionPotion": "[챔피언십] 경기시작 전 컨디션 {{lo}}~{{hi}}회복",
+        "actionPointInstant": "[즉시사용] 행동력 회복 +{{amount}}",
+        "actionPointInstantGeneric": "[즉시사용] 행동력 회복",
+        "openBoxInBag": "가방에서 사용하면 보상을 획득합니다.",
+        "equipmentBoxOpen": "가방에서 상자를 사용하면 장비를 획득할 수 있습니다.",
+        "enhancementMaterial": {
+          "single": "[{{gradeLabel}}] 장비 : {{rangeLabel}}",
+          "range": "[{{gradeLabel}}] 장비 : {{rangeLabel}}"
+        },
+        "pet": {
+          "soulGradeUpgrade": "[펫 · 등급 강화] {{fromGrade}}→{{toGrade}} (펫 Lv.{{minLevel}} 이상)",
+          "soulGradeUpgradeGeneric": "[펫 · 등급 강화] 페어 경기장 동료 AI 펫의 등급 상승에 사용",
+          "eggHatchRandom": "[펫 · 부화장] 슬롯에 배치해 무작위 종류의 AI 펫으로 부화",
+          "welcomeEggHatch": "[펫 · 부화장] 슬롯에 배치 — 부화 시간 1분, 부화 시 레벨 5 AI 펫"
+        }
+      },
+      "enhanceRange": {
+        "single": "{{stars}}강화",
+        "range": "{{minStars}}~{{maxStars}}강화"
+      },
+      "acquire": {
+        "gold": {
+          "line1": "[경기·콘텐츠] 바둑 대국, 싱글플레이, 던전·리그 등",
+          "line2": "[퀘스트·모험] 일일·주간·월간 퀘스트, 보물상자, VIP 슬롯",
+          "line3": "[거래·분해] 거래소 판매 정산, 장비 분해, 일부 상점 판매"
+        },
+        "diamond": {
+          "line1": "[상점] 다이아 패키지·소모품·재료 탭",
+          "line2": "[결제·이벤트] 충전, 운영·프로모션 우편",
+          "line3": "[기능] 가방 슬롯 확장 등 일부 프리미엄 기능"
+        },
+        "tower": {
+          "line1": "[도전의 탑] 경기 정보의 아이템 상점(골드)에서 구매",
+          "line2": "[도전의 탑] 입장·클리어 보상, VIP 보상 등 일부 경로에서 획득"
+        },
+        "actionPoint": {
+          "line1": "[상점] 골드 상점 — 행동력 회복제(+10/+20/+30), 일일 한도·단계 가격",
+          "line2": "[우편·이벤트] 운영 보상·프로모션 지급",
+          "line3": "[기능 VIP] 활성 시 매일 행동력 회복제 III 우편 지급"
+        },
+        "condition": {
+          "line1": "[상점] 다이아 상점(소모품) 또는 관련 패키지",
+          "line2": "[퀘스트·이벤트] 일부 보상"
+        },
+        "guildEquipBox": {
+          "line1": "[길드 상점] 길드 코인으로만 구매 가능",
+          "line2": "[상점·퀘스트] 일반 장비 상자와 유사하게 가방에서 사용해 장비 획득"
+        },
+        "equipBox": {
+          "line1": "[상점] 골드 상점(장비 탭), 광고 보상, 일부 현금 패키지",
+          "line2": "[퀘스트·VIP] 일일·주간·월간 퀘스트, 보상 VIP 슬롯 등",
+          "line3": "[모험·길드] 보물상자, 길드 보스전 결과 보상 등"
+        },
+        "materialBox": {
+          "line1": "[상점] 골드·다이아 상점(재료 탭), 광고 보상, 일부 패키지",
+          "line2": "[퀘스트·VIP] 일일·주간·월간 퀘스트, 보상 VIP 슬롯 등"
+        },
+        "goldBundle": {
+          "line1": "[상점] 다이아 상점(소모품), 광고 보상",
+          "line2": "[퀘스트·모험] 각종 보상·보물상자"
+        },
+        "diamondBundle": {
+          "line1": "[상점] 다이아 상점(소모품), 광고 보상",
+          "line2": "[퀘스트·이벤트] 일부 보상"
+        },
+        "bonusStat": {
+          "line1": "[길드 상점] 길드 코인으로 구매(계정 한도)",
+          "line2": "[성장] 전략·놀이 레벨 상승 시 일부 지급"
+        },
+        "enhancementStone": {
+          "line1": "[길드 상점] 길드 코인으로 하급~신비의 강화석 교환 가능",
+          "line2": "[재료 상자] 상점·퀘스트·VIP 등에서 얻는 재료 상자",
+          "line3": "[대장간] 재료 합성·분해, 장비 강화 비용",
+          "line4": "[모험·랭크·길드] 승리·탑·보스전 등 보상"
+        },
+        "material": {
+          "line1": "[상점] 골드·다이아 상점(재료), 길드 상점(일부)",
+          "line2": "[퀘스트·모험·이벤트] 일일·주간·월간, 보물상자, 운영 보상",
+          "line3": "[우편] 합성·강화 결과, 이벤트 지급"
+        },
+        "equipment": {
+          "line1": "[장비 상자] 가방에서 상자 사용 시 획득",
+          "line2": "[모험] 스테이지·보스전 클리어 보상",
+          "line3": "[거래소] 다른 유저의 등록 물품 구매",
+          "line4": "[합성·제작] 대장간 합성·초월 장비 제작 등"
+        },
+        "consumableGeneric": "[상점·퀘스트·우편] 일반 상점·이벤트·운영 보상",
+        "pet": {
+          "soulTraining": "[펫 · 수련 보상] 슬롯 {{slots}}",
+          "soulConvert": "[펫 · 영혼 변환] {{grades}} 펫 분해 시 획득 가능",
+          "soulShopDiamond": "[펫 · 펫 상점] 다이아 {{amount}}",
+          "soulShopGold": "[펫 · 펫 상점] 골드 {{amount}}",
+          "soulShopDiamondDaily": "[펫 · 펫 상점] 다이아 {{amount}}, 일일 {{limit}}회",
+          "soulShopGoldDaily": "[펫 · 펫 상점] 골드 {{amount}}, 일일 {{limit}}회",
+          "soulFallback": "[펫] 페어 경기장·부화장 관련 콘텐츠에서 획득·교환할 수 있습니다.",
+          "eggShop": "[펫 · 펫 상점] 골드·다이아로 구매 가능(일일 한도)",
+          "eggRewards": "[펫 · 수련·이벤트] 일부 보상으로 획득",
+          "welcomeEggMail": "[우편] 신규 환영·운영 지급 등으로 획득할 수 있습니다.",
+          "welcomeEggShop": "[펫 · 펫 상점] 다이아로 구매 가능(일일 1개)"
+        }
+      }
     }
   },
   "exchange": {
@@ -4843,7 +5622,13 @@
       "championship": "챔피언십",
       "scrollGuideTitle": "스크롤 가이드",
       "categoryAria": "랭킹 카테고리",
-      "title": "랭킹"
+      "title": "랭킹",
+      "gameRankingTab": "게임랭킹",
+      "badukRankingTab": "바둑랭킹",
+      "loginRequired": "로그인 후 랭킹을 확인할 수 있습니다.",
+      "championshipLoginHint": "로그인 후 챔피언십 랭킹을 확인할 수 있습니다.",
+      "guideClose": "가이드 닫기",
+      "championshipNoGuide": "챔피언십 랭킹은 별도 스코어 가이드가 준비되어 있지 않습니다."
     },
     "round16": "16강",
     "center": "중앙",
@@ -5171,7 +5956,10 @@
       "remainingTime": "남은 시간",
       "diamondsUsed": "사용 다이아",
       "ownedLabel": "보유",
-      "mysteriousEgg": "신비로운알 ×1"
+      "mysteriousEgg": "신비로운알 ×1",
+      "upgradeTier1": "강화 I",
+      "upgradeTier2": "강화 II",
+      "upgradeTier3": "강화 III"
     },
     "lobby": {
       "infoTab": "정보",
@@ -5510,6 +6298,100 @@
       "navigatePairArena": "페어 경기장으로 이동",
       "leaveRoomOnNavigate": "다른 경기장으로 이동하면 참여 중인 방에서 나가집니다. 계속하시겠습니까?",
       "leaveRoomConfirm": "참여한 방에서 나가집니다. 계속하시겠습니까?"
+    },
+    "pets": {
+      "pair-pet-1": {
+        "name": "루미폭스"
+      },
+      "pair-pet-2": {
+        "name": "아이스냥"
+      },
+      "pair-pet-3": {
+        "name": "골디냥"
+      },
+      "pair-pet-4": {
+        "name": "스노우판다"
+      },
+      "pair-pet-5": {
+        "name": "펭키"
+      },
+      "pair-pet-6": {
+        "name": "썬버드"
+      },
+      "pair-pet-7": {
+        "name": "바니루"
+      },
+      "pair-pet-8": {
+        "name": "허니베어"
+      },
+      "pair-pet-9": {
+        "name": "리프캣"
+      },
+      "pair-pet-10": {
+        "name": "스프라우트"
+      },
+      "pair-pet-11": {
+        "name": "바이올냥"
+      },
+      "pair-pet-12": {
+        "name": "썬키"
+      },
+      "pair-pet-13": {
+        "name": "앰버폭스"
+      },
+      "pair-pet-14": {
+        "name": "크림냥"
+      },
+      "pair-pet-15": {
+        "name": "윙키트"
+      },
+      "pair-pet-16": {
+        "name": "마스크독"
+      },
+      "pair-pet-17": {
+        "name": "아이보리베어"
+      },
+      "pair-pet-18": {
+        "name": "스노우펫"
+      },
+      "pair-pet-19": {
+        "name": "치키"
+      },
+      "pair-pet-20": {
+        "name": "섀도울프"
+      },
+      "pair-pet-21": {
+        "name": "윙바니"
+      },
+      "pair-pet-22": {
+        "name": "골드치키"
+      },
+      "pair-pet-23": {
+        "name": "팬더링"
+      },
+      "pair-pet-24": {
+        "name": "젤리프로그"
+      }
+    },
+    "trainingSlots": {
+      "0": {
+        "name": "기술수련"
+      },
+      "1": {
+        "name": "사활수련"
+      },
+      "2": {
+        "name": "수상전수련"
+      },
+      "3": {
+        "name": "정석수련"
+      },
+      "4": {
+        "name": "기보수련"
+      },
+      "5": {
+        "name": "수담수련"
+      }
     }
   },
   "blacksmith": {
@@ -6020,16 +6902,16 @@
       "noApplications": "가입 신청이 없습니다."
     },
     "missions": {
-      "title": "주간 길드 미션",
-      "achieved": "달성",
-      "guildXp": "길드 XP +{{amount}}",
-      "expired": "만료됨",
-      "rewardClaimed": "보상 완료",
-      "claimReward": "보상 받기",
-      "inProgress": "진행 중",
-      "resetCountdown": "{{days}}일 {{hours}}:{{minutes}} 후 갱신",
-      "unclaimedHint": "수령 가능한 보상이 있습니다. 잊지 말고 받아 가세요.",
-      "empty": "표시할 주간 미션이 없습니다."
+      "titles": {
+        "checkIns": "길드출석 50회",
+        "guildDonations": "길드 기부 누적 50회",
+        "bossAttempts": "길드 보스전 참여 30회",
+        "strategicWins": "전략바둑 승리 30회",
+        "playfulWins": "놀이바둑 승리 30회",
+        "equipmentEnhancements": "강화시도 50회",
+        "epicGearAcquisitions": "에픽등급이상 장비획득 20회",
+        "diamondsSpent": "3000다이아 소모"
+      }
     },
     "research": {
       "title": "길드 연구소",
@@ -6107,7 +6989,18 @@
       "quickChat": "빠른 채팅",
       "send": "전송",
       "sendTitle": "보내기",
-      "locationHome": "[홈]"
+      "locationHome": "[홈]",
+      "systemMessages": {
+        "missionComplete": "주간 임무 [{{missionTitle}}]을(를) 달성했습니다! 길드 활동 > 길드 미션 탭에서 보상을 수령하세요.",
+        "bossWeeklySettlement": "주간 길드 보스 정산({{bossName}}, {{status}}): 길드 경험치 +{{guildXp}}, 연구 포인트 +{{researchPoints}}이 길드에 적립되었습니다.",
+        "bossWeeklySettlementDefeated": "격파",
+        "bossWeeklySettlementRemainingHp": "잔여 체력 {{percent}}%",
+        "warJoinMatching": "[{{nickname}}]{{subjectParticle}} 길드 전쟁에 참여했습니다. 매칭을 진행합니다.",
+        "warJoinBotMatch": "[{{nickname}}]{{subjectParticle}} 길드 전쟁에 참여했습니다. 홀수 대기로 시스템 봇 길드와 매칭되었습니다.",
+        "warJoinOpponent": "[{{nickname}}]{{subjectParticle}} 길드 전쟁에 참여했습니다. 상대: 「{{opponentGuildName}}」",
+        "warCancelMatching": "[{{nickname}}]{{subjectParticle}} 길드 전쟁 매칭을 취소했습니다.",
+        "bossDamage": "[{{nickname}}]{{subjectParticle}} {{bossName}}에게 {{damage}}의 피해를 입혔습니다."
+      }
     },
     "war": {
       "title": "길드 전쟁",
@@ -6267,6 +7160,13 @@
     },
     "boss": {
       "title": "길드 보스전",
+      "names": {
+        "boss_1": "청해",
+        "boss_2": "홍염",
+        "boss_3": "녹수",
+        "boss_4": "현묘",
+        "boss_5": "백광"
+      },
       "guide": "보스 도감",
       "guideTitle": "길드 보스 도감",
       "stage": "{{stage}}단계",

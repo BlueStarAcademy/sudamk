@@ -97,24 +97,6 @@ import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.
 import { resolveLiveArenaPhaseGoldXpMultiplier } from '../shared/utils/liveArenaPhaseGoldXpMultiplier.js';
 import { effectivePvpEntryApCostForUser } from '../shared/utils/pairPetArenaApDiscount.js';
 
-function resetPairRoomAfterGame(room: any): void {
-    room.matchStartedAt = undefined;
-    room.phase = 'waiting';
-    room.ownerReady = false;
-    room.partnerReady = room.pairMode === 'ai' || room.roomKind === 'friendly_4p';
-    for (const team of [room.teamA, room.teamB]) {
-        for (const member of team?.members ?? []) {
-            if (member.id === room.ownerId) {
-                member.ready = false;
-            } else if (member.id === room.partnerId) {
-                member.ready = room.partnerReady;
-            } else if (member.kind === 'ai' || member.kind === 'pet') {
-                member.ready = true;
-            }
-        }
-    }
-}
-
 /** `adventureCodexGoldBonusPercent` = 도감·보스 + 지역 이해도 골드% 합산 — 표시·정산 분리용 */
 function splitAdventureGoldBonusPercents(
     effects: effectService.CalculatedEffects,
@@ -820,38 +802,30 @@ export const endGame = async (game: LiveGameSession, winner: Player, winReason: 
     // PVP 종료 시 진행중인 대국 목록에서 제거되도록 전체에 경량 업데이트
     if (!freshGame.isAiGame) broadcastLiveGameToList(freshGame);
 
-    const pairShellRoomId = freshGame.settings?.pairGame?.roomId;
-    if (typeof pairShellRoomId === 'string' && pairShellRoomId) {
-        try {
-            const { volatileState } = await import('./state.js');
-            const { broadcast } = await import('./socket.js');
-            const roomsToRestore = Object.values(volatileState.pairRooms || {}).filter((room: any) => {
-                if (!room) return false;
-                if (room.id === pairShellRoomId) return true;
-                return freshGame.settings?.pairGame?.turnOrder?.some(
-                    (seat: any) => seat.kind === 'user' && (seat.participantId === room.ownerId || seat.participantId === room.partnerId),
-                );
-            });
-            if (roomsToRestore.length > 0) {
-                if (volatileState.pairPartnerInvites) {
-                    for (const key of Object.keys(volatileState.pairPartnerInvites)) {
-                        if (roomsToRestore.some((room: any) => volatileState.pairPartnerInvites?.[key]?.roomId === room.id)) {
-                            delete volatileState.pairPartnerInvites[key];
-                        }
+    try {
+        const { volatileState } = await import('./state.js');
+        const { broadcast } = await import('./socket.js');
+        const { restorePairRoomsAfterEndedGame } = await import('./actions/socialActions.js');
+        const { enrichPairRoomsForClientPayload } = await import('./utils/pairRoomClientPayload.js');
+        const restored = restorePairRoomsAfterEndedGame(volatileState, freshGame);
+        if (restored) {
+            if (volatileState.pairPartnerInvites) {
+                for (const key of Object.keys(volatileState.pairPartnerInvites)) {
+                    const inviteRoomId = volatileState.pairPartnerInvites[key]?.roomId;
+                    if (inviteRoomId && volatileState.pairRooms?.[inviteRoomId]?.phase === 'waiting') {
+                        delete volatileState.pairPartnerInvites[key];
                     }
                 }
-                for (const room of roomsToRestore) {
-                    resetPairRoomAfterGame(room);
-                }
-                broadcast({
-                    type: 'PAIR_ROOM_UPDATE',
-                    payload: { rooms: enrichPairRoomsForClientPayload(volatileState.pairRooms) },
-                });
-                broadcast({ type: 'PAIR_PARTNER_INVITE_UPDATE', payload: { invites: volatileState.pairPartnerInvites || {} } });
             }
-        } catch (e: any) {
-            console.warn('[endGame] pair shell room cleanup failed:', e?.message);
+            broadcast({
+                type: 'PAIR_ROOM_UPDATE',
+                payload: { rooms: enrichPairRoomsForClientPayload(volatileState.pairRooms) },
+            });
+            broadcast({ type: 'PAIR_PARTNER_INVITE_UPDATE', payload: { invites: volatileState.pairPartnerInvites || {} } });
+            broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
         }
+    } catch (e: any) {
+        console.warn('[endGame] pair shell room cleanup failed:', e?.message);
     }
 };
 

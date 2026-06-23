@@ -562,7 +562,7 @@ export function PreGameSummaryGrid({
               : 'text-[0.62rem] font-bold uppercase tracking-[0.1em] text-amber-200/85 sm:text-[0.7rem]'
         }
       >
-        특수 규칙
+        {tx('game:preGame.specialRules')}
       </div>
       {summary.specialHighlights.length === 0 ? (
         <p
@@ -756,7 +756,7 @@ export function PreGameWinGoalCard({
             <span className="flex h-6 min-w-[1.75rem] items-center justify-center rounded border border-amber-400/40 bg-black/40 px-1 text-[0.6rem] font-black italic text-amber-100 shadow-inner">
               WIN
             </span>
-            승리 조건
+            {tx('game:preGame.winCondition')}
           </div>
           <p className={bodyClass}>{winLine}</p>
         </div>
@@ -765,7 +765,7 @@ export function PreGameWinGoalCard({
             <span className="flex h-6 min-w-[1.75rem] items-center justify-center rounded border border-rose-400/40 bg-black/40 px-1 text-[0.6rem] font-black italic text-rose-100 shadow-inner">
               LOSE
             </span>
-            패배 조건
+            {tx('game:preGame.loseCondition')}
           </div>
           <p className={loseClass}>{loseLine}</p>
         </div>
@@ -858,7 +858,7 @@ export function PreGameRuleSections({ sections }: { sections: MatchPlayGuideSect
     <div className="space-y-5">
       <h3 className="flex items-center gap-2 border-b border-white/10 pb-2 text-lg font-bold text-sky-200/95">
         <img src="/images/icon/timer.webp" alt="" className="h-5 w-5 object-contain opacity-80" />
-        게임 규칙 · 플레이 안내
+        {tx('game:preGame.rulesAndGuide')}
       </h3>
       {sections.map((section) => (
         <section key={section.subtitle}>

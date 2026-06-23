@@ -58,7 +58,7 @@ const StageClearRewardPreview: React.FC<{
 
     return (
         <div
-            className={`flex w-full flex-wrap items-center justify-center gap-1 overflow-hidden font-semibold ${textClass} ${textSize}`}
+            className={`flex w-full flex-wrap items-center justify-center gap-x-1 gap-y-0.5 font-semibold ${textClass} ${textSize} ${tabShelf ? 'min-h-[2.25rem]' : ''}`}
         >
             {hasGold && (
                 <span className="inline-flex min-w-0 items-center gap-0.5">
@@ -210,7 +210,7 @@ const StageGrid: React.FC<StageGridProps> = ({
                               ? 'repeat(auto-fill, minmax(108px, 1fr))'
                               : 'repeat(auto-fill, minmax(140px, 1fr))',
                         gridAutoRows: tabShelf
-                            ? 'minmax(148px, auto)'
+                            ? 'minmax(168px, auto)'
                             : isMobile
                               ? 'minmax(158px, auto)'
                               : 'minmax(180px, auto)'
@@ -226,7 +226,7 @@ const StageGrid: React.FC<StageGridProps> = ({
                         const cardSurface = usePremiumDesktop
                             ? 'relative flex min-h-0 min-w-0 flex-col items-center justify-between overflow-hidden rounded-2xl border border-emerald-500/30 bg-gradient-to-b from-zinc-800/95 via-zinc-900 to-black/95 px-2.5 py-3 shadow-[0_14px_34px_-18px_rgba(0,0,0,0.88)] ring-1 ring-white/[0.06]'
                             : tabShelf
-                              ? 'relative flex min-h-0 min-w-0 flex-col items-center justify-between overflow-hidden rounded-md border border-color/40 bg-tertiary/90 px-1.5 py-2'
+                              ? 'relative flex min-h-0 min-w-0 flex-col items-center justify-between overflow-visible rounded-md border border-color/40 bg-tertiary/90 px-1.5 py-2'
                               : 'relative flex min-h-0 min-w-0 flex-col items-center justify-between overflow-hidden rounded-lg border border-color/40 bg-tertiary/90 px-2.5 py-3';
 
                         return (
@@ -292,16 +292,16 @@ const StageGrid: React.FC<StageGridProps> = ({
                                     )}
                                 </div>
 
-                                <div className="mb-1.5 w-full">
+                                <div className={`w-full ${tabShelf ? 'mb-1' : 'mb-1.5'}`}>
                                     <div
                                         className={`shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${
                                             isCleared
                                                 ? usePremiumDesktop
                                                     ? 'rounded-full border border-stone-600/45 bg-black/30 px-2.5 py-1'
-                                                    : 'rounded-md border border-stone-600/40 bg-gradient-to-b from-stone-800/70 to-stone-900/80 px-2 py-1'
+                                                    : `rounded-md border border-stone-600/40 bg-gradient-to-b from-stone-800/70 to-stone-900/80 ${tabShelf ? 'px-1.5 py-1' : 'px-2 py-1'}`
                                                 : usePremiumDesktop
                                                   ? 'rounded-full border border-amber-400/40 bg-black/35 px-2.5 py-1'
-                                                  : 'rounded-md border border-amber-500/35 bg-gradient-to-b from-gray-700/85 to-gray-800/90 px-2 py-1'
+                                                  : `rounded-md border border-amber-500/35 bg-gradient-to-b from-gray-700/85 to-gray-800/90 ${tabShelf ? 'px-1.5 py-1' : 'px-2 py-1'}`
                                         }`}
                                     >
                                         <StageClearRewardPreview

@@ -1,5 +1,10 @@
 import React from 'react';
-import { useLocalizedItemGrade } from '../shared/i18n/localizedCatalog.js';
+import {
+    useLocalizedItemGrade,
+    useLocalizedInventoryItemDescription,
+    useLocalizedInventoryItemMeta,
+    useLocalizedInventoryItemName,
+} from '../shared/i18n/localizedCatalog.js';
 import { useTranslation } from 'react-i18next';
 import { InventoryItem, ItemGrade } from '../types.js';
 import { useAppContext } from '../hooks/useAppContext.js';
@@ -12,11 +17,8 @@ import {
     AP_CONSUMABLE_PLUS_FONT_SIZE_CQ,
     apConsumableLightningEmojiPx,
     apConsumableLightningPlusLabelPx,
-    getBagConsumableUsageHint,
-    getMaterialBagUsageLines,
     resolveBagItemDetailImagePath,
 } from '../shared/utils/bagItemDetailHelpers.js';
-import { resolveBagItemAcquireLines } from '../shared/utils/itemAcquireSourceLines.js';
 
 /** ItemDetailModal과 동일 — 등급별 프레임·배경 (구매 모달 등에서 재사용 가능) */
 export const equipmentDetailGradeStyles: Record<ItemGrade, { color: string; background: string; frame: string }> = {
@@ -177,6 +179,11 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
     const { t } = useTranslation('profile');
     const { t: tCommon } = useTranslation('common');
     const localizedGrade = useLocalizedItemGrade();
+    const localizedItemName = useLocalizedInventoryItemName();
+    const localizedItemDescription = useLocalizedInventoryItemDescription();
+    const itemMeta = useLocalizedInventoryItemMeta();
+    const displayItemName = localizedItemName(item.name);
+    const displayItemDescription = itemMeta.resolveDescription(item) || localizedItemDescription(item.name, item.description);
     const { currentUserWithStatus } = useAppContext();
     const styles = equipmentDetailGradeStyles[item.grade];
     const typo = getDetailTypography(comfortableTypography, enlargedTypography);
@@ -187,17 +194,17 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
 
     const refinementCount = (item as { refinementCount?: number }).refinementCount ?? 0;
     const isTranscendent = item.grade === ItemGrade.Transcendent;
-    const nameLength = (item.name ?? '').length;
+    const nameLength = (displayItemName ?? '').length;
 
     /** 소모품·재료: 장비와 동일 상단 카드 + 하단(부옵션 자리)에 설명·사용처 */
     if (item.type === 'consumable' || item.type === 'material') {
         const imagePath = resolveBagItemDetailImagePath(item);
-        const usageLines = item.type === 'material' ? getMaterialBagUsageLines(item.name) : [];
-        const usageHint = item.type === 'consumable' ? getBagConsumableUsageHint(item.name) : null;
+        const usageLines = item.type === 'material' ? itemMeta.resolveMaterialUsageLines(item.name) : [];
+        const usageHint = item.type === 'consumable' ? itemMeta.resolveConsumableUsageHint(item.name) : null;
         const usageFallback =
             item.type === 'consumable' ? t('equipmentDetail.inventoryUse') : t('equipmentDetail.noMaterialUse');
         const typeLabel = item.type === 'consumable' ? t('equipmentDetail.typeConsumable') : t('equipmentDetail.typeMaterial');
-        const acquireLines = showAcquireSources ? resolveBagItemAcquireLines(item) : [];
+        const acquireLines = showAcquireSources ? itemMeta.resolveAcquireLines(item) : [];
 
         const mainBodyPx = typo.mainBodyPx;
         const computedNameFontPx = Math.max(
@@ -268,7 +275,7 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
                                 ) : imagePath ? (
                                     <img
                                         src={imagePath}
-                                        alt={item.name}
+                                        alt={displayItemName}
                                         className="relative z-[2] object-contain p-2"
                                         style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
                                     />
@@ -279,13 +286,13 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
                             <div className="flex items-baseline justify-end gap-1">
                                 <h3
                                     className={`max-w-full whitespace-nowrap text-right font-bold leading-tight tracking-tight ${styles.color}`}
-                                    title={item.name}
+                                    title={displayItemName}
                                     style={{
-                                        fontSize: `${resolveNoWrapTextFontPx(item.name, bagNamePx, 8, 9, 0.62)}px`,
+                                        fontSize: `${resolveNoWrapTextFontPx(displayItemName, bagNamePx, 8, 9, 0.62)}px`,
                                         letterSpacing: '-0.02em',
                                     }}
                                 >
-                                    {item.name}
+                                    {displayItemName}
                                 </h3>
                             </div>
                             <p className={`${metaText} text-slate-400`}>{typeLabel}</p>
@@ -311,7 +318,7 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
                             {descriptionSlot != null ? (
                                 <div className={`mt-1 ${metaText} text-slate-200/95`}>{descriptionSlot}</div>
                             ) : (
-                                <p className="mt-1 text-slate-200/95">{item.description?.trim() ? item.description : '—'}</p>
+                                <p className="mt-1 text-slate-200/95">{displayItemDescription?.trim() ? displayItemDescription : '—'}</p>
                             )}
                         </div>
                         <div className="my-2 h-px w-full shrink-0 bg-gradient-to-r from-transparent via-white/12 to-transparent" aria-hidden />
@@ -368,7 +375,7 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
     const tradeStatusBadgeClass = typo.tradeBadge;
     const tradeStatusLineClass = typo.tradeLine;
     const equipSectionLabelClass = typo.sectionLabel;
-    const acquireEquipLines = showAcquireSources ? resolveBagItemAcquireLines(item) : [];
+    const acquireEquipLines = showAcquireSources ? itemMeta.resolveAcquireLines(item) : [];
 
     const optionsSectionClass = optionsScrollable
         ? 'min-h-0 flex-1 overflow-y-auto rounded-xl border border-white/[0.08] bg-gradient-to-b from-zinc-900/80 to-zinc-950/90 p-2 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] ring-1 ring-inset ring-black/30'
@@ -412,7 +419,7 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
                             ) : item.image ? (
                                 <img
                                     src={item.image}
-                                    alt={item.name}
+                                    alt={displayItemName}
                                     className="relative z-[2] object-contain p-2"
                                     style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
                                 />
@@ -436,11 +443,11 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
                             <h3
                                 className={`max-w-full whitespace-nowrap text-right font-bold leading-tight tracking-tight ${styles.color}`}
                                 style={{
-                                    fontSize: `${resolveNoWrapTextFontPx(item.name, equipNamePx, 8, 9, 0.62)}px`,
+                                    fontSize: `${resolveNoWrapTextFontPx(displayItemName, equipNamePx, 8, 9, 0.62)}px`,
                                     letterSpacing: '-0.02em',
                                 }}
                             >
-                                {item.name}
+                                {displayItemName}
                             </h3>
                         </div>
                         <p className={`${metaText} ${styles.color}`}>[{localizedGrade(item.grade)}]</p>
@@ -497,7 +504,7 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
                         <div className="mt-2 border-t border-white/10 pt-2">
                             <p className={equipSectionLabelClass}>{tCommon('description')}</p>
                             <p className={`mt-1 text-slate-200/95 ${typo.bodyLeading}`}>
-                                {item.description.trim()}
+                                {displayItemDescription.trim()}
                             </p>
                         </div>
                     ) : null}

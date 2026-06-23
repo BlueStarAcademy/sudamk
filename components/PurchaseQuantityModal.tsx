@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useLocalizedItemGrade } from '../shared/i18n/localizedCatalog.js';
+import { useLocalizedItemGrade, useLocalizedInventoryItemMeta } from '../shared/i18n/localizedCatalog.js';
 import i18n from '../shared/i18n/config.js';
 const invT = (key: string, opts?: Record<string, unknown>) => i18n.t(`inventory:${key}`, opts);
 
@@ -8,15 +8,7 @@ import DraggableWindow from './DraggableWindow.js';
 import { UserWithStatus, InventoryItemType, InventoryItem, ItemGrade } from '../types.js';
 import { BASE_SLOTS_PER_CATEGORY } from '../constants/items.js';
 import { isActionPointConsumable } from '../constants/items.js';
-import { buildInventoryItemPreviewForPurchase } from '../shared/utils/bagItemDetailHelpers.js';
-import {
-    getBagConsumableUsageHint,
-    getMaterialBagUsageLines,
-    resolveBagItemDetailImagePath,
-    apConsumableLightningEmojiPx,
-    apConsumableLightningPlusLabelPx,
-} from '../shared/utils/bagItemDetailHelpers.js';
-import { resolveBagItemAcquireLines } from '../shared/utils/itemAcquireSourceLines.js';
+import { buildInventoryItemPreviewForPurchase, resolveBagItemDetailImagePath, apConsumableLightningEmojiPx, apConsumableLightningPlusLabelPx } from '../shared/utils/bagItemDetailHelpers.js';
 import { equipmentDetailGradeStyles } from './EquipmentDetailPanel.js';
 import { MAX_GAME_INTEGER_INPUT } from '../shared/constants/numericLimits.js';
 import { clampGameInt } from '../shared/utils/gameIntegerField.js';
@@ -58,13 +50,13 @@ function typeLabelKo(it: InventoryItem): string {
     return invT('purchase.material');
 }
 
-function usageBlocks(it: InventoryItem): string[] {
+function usageBlocks(it: InventoryItem, itemMeta: ReturnType<typeof useLocalizedInventoryItemMeta>): string[] {
     if (it.type === 'material') {
-        const lines = getMaterialBagUsageLines(it.name);
+        const lines = itemMeta.resolveMaterialUsageLines(it.name);
         return lines.length > 0 ? lines : [invT('purchase.noMaterialUse')];
     }
     if (it.type === 'consumable') {
-        const hint = getBagConsumableUsageHint(it.name);
+        const hint = itemMeta.resolveConsumableUsageHint(it.name);
         return [hint ?? invT('encyclopedia.inventoryHint')];
     }
     return [invT('purchase.characterGrowth')];
@@ -73,12 +65,13 @@ function usageBlocks(it: InventoryItem): string[] {
 const PurchaseModalItemShowcase: React.FC<{ preview: InventoryItem; shopBadge?: string }> = ({ preview, shopBadge }) => {
     const { t } = useTranslation('inventory');
     const localizedGrade = useLocalizedItemGrade();
+    const itemMeta = useLocalizedInventoryItemMeta();
     const styles = equipmentDetailGradeStyles[preview.grade];
     const isTranscendent = preview.grade === ItemGrade.Transcendent;
     const imagePath = preview.type === 'equipment' ? preview.image : resolveBagItemDetailImagePath(preview);
-    const acquireLines = resolveBagItemAcquireLines(preview);
-    const usageLines = usageBlocks(preview);
-    const desc = (preview.description || '').trim() || '—';
+    const acquireLines = itemMeta.resolveAcquireLines(preview);
+    const usageLines = usageBlocks(preview, itemMeta);
+    const desc = itemMeta.resolveDescription(preview).trim() || '—';
 
     const apMatch = isActionPointConsumable(preview.name) ? preview.name.match(/\+(\d+)/) : null;
     const apValue = apMatch?.[1];

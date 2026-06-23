@@ -350,6 +350,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                     highlightedPoints={intro1TutorialHighlight ? [intro1TutorialHighlight] : undefined}
                     highlightStyle="ring"
                     canPlaceMoreBaseStones={canPlaceMoreBaseStones}
+                    basePlacementTargetCount={session.settings.baseStones ?? 4}
                     strategicPetHintOverlay={strategicPetHintDotOverlay}
                     strategicPetHintRewardAnimation={strategicPetHintRewardAnimation}
                     boardRuleFlashMessage={boardRuleFlashMessage}

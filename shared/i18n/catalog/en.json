@@ -1211,7 +1211,11 @@
       "scoringTurnValue": "{{turns}} turns",
       "forbidden": "Forbidden",
       "allowed": "Allowed",
-      "speedNormal": "Normal"
+      "speedNormal": "Normal",
+      "confirm": "OK",
+      "gaugeSpeedSlow": "x1 (Slow)",
+      "gaugeSpeedNormal": "x2 (Normal)",
+      "gaugeSpeedFast": "x3 (Fast)"
     },
     "challengeModal": {
       "rejected": "Rejected",
@@ -1416,7 +1420,203 @@
       "curling": "Curling",
       "thiefPolice": "Thief & police",
       "classic": "Classic",
-      "mix": "Mix"
+      "mix": "Mix",
+      "specialRules": "Special rules",
+      "loseCondition": "Lose condition",
+      "rulesAndGuide": "Rules & how to play",
+      "rewards": "Rewards",
+      "availableRewards": "Possible rewards",
+      "summary": {
+        "loseTerritory": "Lose if territory is lower at scoring (or tie rules favor opponent)",
+        "loseTerritoryAuto": "{{base}} · lose if you cannot win by {{auto}}",
+        "loseCaptureRace": "Lose if opponent reaches {{t}} capture points first · otherwise lose if territory is lower at scoring",
+        "loseMix": "Lose if opponent meets win conditions first or you are worse off when capture/scoring ends",
+        "basePlacementAnalysis": "Base stones revealed, then position analysis",
+        "baseKomiSelect": "Set komi for opponent · choose your stones",
+        "autoScoringCaptureTurn": "Auto scoring at {{n}} turns (moves)",
+        "autoScoringTerritoryWin": "Win by scoring after {{n}} moves (turns)",
+        "autoScoringTerritoryLose": "Lose at auto scoring after {{n}} moves (turns)",
+        "fischerOnly": "Fischer {{sec}}s",
+        "byoyomiOnly": "Byoyomi only · {{time}}s×{{count}}",
+        "noTimeLimit": "No time limit",
+        "limitFischer": "{{min}} min limit · Fischer {{sec}}s",
+        "limitByoyomi": "{{min}} min limit · byoyomi {{time}}s×{{count}}",
+        "limitNoByoyomi": "{{min}} min limit (no byoyomi)",
+        "factorTerritory": "Territory",
+        "factorCaptured": "Captured stones",
+        "factorDead": "Dead stones",
+        "factorKomi": "Komi (White)",
+        "factorBaseBonus": "Base bonus",
+        "factorHiddenBonus": "Hidden bonus",
+        "factorSpeedBonus": "Over {{sec}}s per move → opponent +1",
+        "factorMissileEffect": "Missile effect",
+        "factorCaptureScore": "Capture score",
+        "factorMixFallback": "Depends on mode mix",
+        "factorCaptureNoTerritory": "Capture score (no territory scoring)",
+        "factorCastle": "Fixed territory · captures · komi (White)",
+        "factorChess": "Territory · captures · dead stones · piece captures · komi (White)",
+        "factorOmok": "Five in a row — no territory scoring",
+        "factorTtamok": "Five in a row or capture score",
+        "factorDice": "Per-round White capture score · last-capture bonus",
+        "factorThief": "Sum of per-round scores",
+        "factorAlkkagi": "Opponent stones knocked off the board",
+        "factorCurling": "Stones closer to the house score",
+        "factorFallback": "See mode guide",
+        "factorStageDefault": "Depends on stage and mode",
+        "factorStageCapture": "Capture score",
+        "factorStageCapturePattern": "Capture score\nPattern stones 2 pts",
+        "factorStageSpeed": "Territory · captures · dead stones · komi\nTime bonus",
+        "factorAdventureCaptureShort": "Capture · pattern 2 pts",
+        "factorAdventureBase": "Standard scoring",
+        "factorAdventureBaseStone5": "Base stones 5 pts",
+        "factorAdventureHidden": "Hidden",
+        "factorAdventureSpeed": "Time",
+        "factorAdventureMissile": "Missile",
+        "itemHidden": "Hidden {{n}}",
+        "itemScan": "Scan {{n}}",
+        "itemMissile": "Missile {{n}}",
+        "itemSpecialDice": "Special dice {{summary}}",
+        "itemSlowAim": "Slow {{slow}} · Aim {{aim}}",
+        "mixCaptureWin": "Instant win at {{t}} capture points · else compare territory after scoring",
+        "mixCaptureWinWithAuto": "Instant win at {{t}} capture points · else compare territory after scoring · {{auto}}",
+        "mixAutoTerritoryWin": "{{auto}} — more territory wins",
+        "mixComboTail": "Mix ({{modes}}) — outcome by combined rules at end",
+        "mixDefaultEnd": "Outcome decided by rules at end",
+        "highlightPatternStone2": "Pattern stone capture worth 2",
+        "highlightHiddenScan": "Hidden moves · scan to find",
+        "highlightMissileMove": "Move a stone in a straight line with missile",
+        "speedPvpHighlight": "10s per move byoyomi · opponent +1 per 10s over · time forfeit when main time runs out",
+        "highlightSurvival": "Survival go · block White goal within {{n}} turns",
+        "highlightAutoScoring": "Auto scoring after {{n}} moves",
+        "highlightBlackTurnLimit": "Black limited to {{n}} turns",
+        "highlightTurnAdd": "Turn add {{n}}",
+        "highlightMissile": "Missile {{n}}",
+        "highlightHiddenScanCounts": "Hidden {{hidden}} · Scan {{scan}}",
+        "spTimeMainFischer": "Main {{min}} min · {{sec}}s per-move byoyomi",
+        "spTimeFischerOnly": "{{sec}}s per-move byoyomi",
+        "spTimeUnlimited": "No limit",
+        "goalSurvivalWinLabel": "Block White",
+        "goalSurvivalWinHelper": "Stop White goal for {{n}} turns",
+        "goalSurvivalLoseLabel": "White succeeds",
+        "goalSurvivalLoseHelper": "Fail if White reaches the goal",
+        "goalCaptureWinLabel": "Capture",
+        "goalCaptureWinHelper": "Surround opponent stones for points",
+        "goalCaptureLoseTurnLabel": "Turn limit",
+        "goalCaptureLoseTurnHelper": "Fail if not done within {{n}} turns",
+        "goalCaptureLoseFirstLabel": "Opponent first",
+        "goalCaptureLoseFirstHelper": "Fail if opponent captures first",
+        "goalSpeedWinLabel": "Play fast",
+        "goalSpeedWinHelper": "Build territory while keeping time",
+        "goalSpeedLoseLabel": "Score behind",
+        "goalSpeedLoseHelper": "Fail if territory is too low",
+        "goalAutoWinLabel": "More territory",
+        "goalAutoWinHelper": "Territory counted after {{n}} moves",
+        "goalAutoLoseLabel": "Not enough territory",
+        "goalAutoLoseHelper": "Fail if behind at {{n}} moves",
+        "goalDefaultWinLabel": "Build territory",
+        "goalDefaultWinHelper": "Enclose areas to make territory",
+        "goalDefaultLoseLabel": "Not enough territory",
+        "goalDefaultLoseHelper": "Fail if territory is too low",
+        "guideTurnLimitTitle": "Turn limit",
+        "guideTurnLimitBody": "Finish within {{n}} turns",
+        "guideSurvivalTitle": "Block",
+        "guideSurvivalBody": "Block White goal for {{n}} turns",
+        "guideAutoScoringTitle": "Scoring",
+        "guideAutoScoringBody": "Territory counted after {{n}} moves",
+        "guidePatternStoneTitle": "Pattern stone",
+        "guidePatternStoneBody": "Worth 2 when captured",
+        "guideSpeedTitle": "Speed",
+        "guideSpeedBody": "Late moves give opponent +1",
+        "guideTurnAddTitle": "Turn add",
+        "guideTurnAddBody": "Extend turn limit",
+        "guideMissileTitle": "Missile",
+        "guideMissileBody": "Pick a stone and push in a line",
+        "guideHiddenScanTitle": "Hidden · Scan",
+        "guideHiddenScanBody": "Hide {{hidden}} · Find {{scan}}",
+        "advCaptureWin": "Win by capture",
+        "advCaptureLose": "Lose by capture · time out",
+        "advTerritoryWin": "Win by scoring",
+        "advTerritoryWinAuto": "Win by scoring · auto at {{n}} moves",
+        "advTerritoryLose": "Lose by scoring · time out",
+        "advTimeLimit": "{{mins}} min limit",
+        "gwCaptureWinAuto": "First to {{cap}} pts or win scoring at {{limit}} turns",
+        "gwCaptureWin": "First to {{cap}} capture points wins",
+        "gwCaptureLose": "Opponent reaches {{cap}} first",
+        "gwTerritoryWinAuto": "Win scoring with more territory · auto at {{limit}} moves",
+        "gwTerritoryWin": "Win if you have more territory at scoring",
+        "gwTerritoryLose": "Lose scoring · time out",
+        "captureWin": "Capture {{t}} opponent points first",
+        "captureWinWithAuto": "Capture {{t}} opponent points first · {{auto}}",
+        "territoryWinDefault": "More territory wins after scoring",
+        "speedTerritoryWinDefault": "Higher total score wins after scoring",
+        "speedTerritoryLoseDefault": "Lose if total score is lower after scoring",
+        "castleWin": "Instant win capturing ≥1 opponent stone · else territory scoring if no valid move",
+        "castleLose": "Lose if any stone is captured · or lower territory at scoring",
+        "castleHighlightCount": "{{castles}} castles · completed territory cannot be entered",
+        "castleHighlightCapture": "Instant win on 1-stone capture",
+        "chessWin": "Scoring after set sequence",
+        "chessLose": "Lose at scoring · instant loss if king is captured",
+        "chessHighlightBudget": "Place pieces within {{budget}} total points (king fixed center on 2nd rank)",
+        "chessHighlightMovement": "Move piece stones like chess once per turn (limited uses)",
+        "omokWin": "First five in a row (horizontal, vertical, diagonal)",
+        "omokLose": "Lose if opponent completes five first",
+        "omok33Forbidden": "Double-three forbidden",
+        "omok33Allowed": "Double-three allowed",
+        "omokOverlineForbidden": "Overline forbidden",
+        "omokOverlineAllowed": "Overline allowed",
+        "ttamokWin": "Five in a row or first to {{cap}} capture points",
+        "ttamokLose": "Lose if opponent gets five first or {{cap}} capture points first",
+        "ttamokHighlightCapture": "Win at {{cap}} capture points",
+        "diceWin": "Higher total score after {{r}} rounds",
+        "diceLose": "Lose if total score is lower after {{r}} rounds",
+        "diceHighlightRules": "Black plays dice count · White only on marked points",
+        "thiefWin": "Higher total after 5 turns × rounds",
+        "thiefLose": "Lose if total score is lower after rounds",
+        "thiefHighlightRoles": "Thief (Black) and police (White) roles alternate",
+        "alkkagiWin": "Knock all opponent stones off",
+        "alkkagiLose": "Lose if all your stones are knocked off",
+        "alkkagiHighlightGauge": "Gauge power · wall bounce",
+        "curlingWin": "Higher combined round score wins",
+        "curlingLose": "Lose if combined score is lower",
+        "curlingHighlightRules": "Slide stones · round-based",
+        "fallbackWin": "Outcome follows match progress",
+        "fallbackLose": "Lose when match rules declare defeat",
+        "spDefaultWin": "Win when stage conditions are met",
+        "spDefaultLose": "Lose if conditions are not met",
+        "spSurvivalWin": "White under {{tgt}} pts within {{n}} turns",
+        "spSurvivalLose": "White reaches {{tgt}} pts within {{n}} turns",
+        "spCaptureTurnWin": "Reach {{target}} pts within {{limit}} turns",
+        "spCaptureTurnLoseBoth": "Over {{limit}} turns / White reaches {{target}} pts",
+        "spCaptureTurnLoseMiss": "Miss goal within {{limit}} turns",
+        "spCaptureRaceWin": "Reach {{target}} pts first",
+        "spCaptureRaceLose": "White reaches {{target}} pts first",
+        "spCaptureCapWin": "Reach {{cap}} pts first",
+        "spCaptureCapLose": "White reaches {{cap}} pts first",
+        "spCaptureGoalWin": "Reach target score",
+        "spCaptureGoalLose": "White reaches target first",
+        "spSpeedWin": "Win total score at scoring",
+        "spSpeedLose": "Lose at scoring",
+        "spAutoScoringWin": "Win after scoring at {{n}} moves",
+        "spAutoScoringLose": "Lose after scoring at {{n}} moves",
+        "spLegacyTurnWin": "At least {{target}} pts within {{limit}} turns",
+        "spLegacyTurnLose": "Miss goal within {{limit}} turns",
+        "spLegacyTerritoryWin": "Scoring: Black {{black}}+ · White {{white}}+",
+        "spLegacyTerritoryLose": "Below target territory",
+        "spTerritoryWin": "Win if you have more territory at scoring",
+        "spTerritoryLose": "Lose at scoring"
+      },
+      "itemSlot": {
+        "hiddenStone": "Hidden stone",
+        "scan": "Scan",
+        "missile": "Missile",
+        "diceOdd": "Odd dice item",
+        "diceEven": "Even dice item",
+        "diceLow": "Low (1–3) dice item",
+        "diceHigh": "High (4–6) dice item",
+        "slow": "Slow",
+        "aimLine": "Aiming line",
+        "turnAdd": "Turn add"
+      }
     },
     "singlePlayerInfo": {
       "close": "Close",
@@ -1618,7 +1818,10 @@
       "baseRule": "Base",
       "whiteTargetLabel": "White target",
       "firstBlackRole": "First (black)",
-      "meBadge": "Me"
+      "meBadge": "Me",
+      "captureBidResultTitle": "Capture bid result",
+      "komiBidFinalRound": "Komi bid (final round)",
+      "pressStartPrompt": "When ready, press Start to begin the match."
     },
     "baseStoneChoice": {
       "hostPick": "Host picks the left color panel.",
@@ -1647,7 +1850,9 @@
       "whiteRole": "Second · White",
       "finalCardAlt": "Final first/second shown on left and right cards.",
       "fastFlashAlt": "Black/white flash in each slot, then lock to final layout.",
-      "smoothEndAlt": "Black and white flash quickly until random stop."
+      "smoothEndAlt": "Black and white flash quickly until random stop.",
+      "assignmentComplete": "Assignment complete",
+      "blackCandidate": "First (black) candidate"
     },
     "uniformColor": {
       "blackStone": "Black stone",
@@ -1681,7 +1886,8 @@
       "autoRouletteShort": "Auto roulette instead of RPS assigns Black and White.",
       "checkingRoulette": "Checking roulette…",
       "waitingConfirm": "Waiting for opponent…",
-      "startCountdown": "Start ({{count}})"
+      "startCountdown": "Start ({{count}})",
+      "autoStartHint": "Press Start or the game begins automatically after 30 seconds."
     },
     "diceGo": {
       "winner": "Dice: {{name}} won and chooses first/second.",
@@ -2458,8 +2664,8 @@
       "classBarRewardNeedClear": "Clear {{milestone}} stages",
       "classBarRewardAria": "{{milestone}}-point reward",
       "cleared": "Cleared",
-      "enterStage": "Win ⚡{{cost}}",
-      "enterStageTitle": "On win · {{cost}} AP",
+      "enterStage": "Challenge ⚡{{cost}}",
+      "enterStageTitle": "Challenge · {{cost}} AP",
       "locked": "Locked",
       "unlockRequired": "Requires {{stageId}}",
       "claimAll": "Claim all ({{count}})",
@@ -3103,6 +3309,8 @@
     "mannerRank": {
       "title": "Manner grade info",
       "grade": "Manner grade",
+      "effectsByGrade": "Effects by grade",
+      "currentBadge": "Current",
       "rangeHint": "Benefits and penalties by score range.",
       "allStatsPlus10": "All stats +10",
       "disassembleJackpot": "Disassembly jackpot +20%",
@@ -3117,7 +3325,19 @@
       "scoreAbove": "{{min}}+ pts",
       "scoreRange": "{{min}}–{{max}} pts",
       "zeroScore": "0 pts",
-      "mannerPointsTitle": "{{score}} pts ({{rank}})"
+      "mannerPointsTitle": "{{score}} pts ({{rank}})",
+      "grades": {
+        "worst": "Worst",
+        "veryBad": "Very Poor",
+        "bad": "Poor",
+        "caution": "Caution",
+        "normal": "Average",
+        "good": "Good",
+        "veryGood": "Very Good",
+        "dignified": "Dignified",
+        "pro": "Pro",
+        "master": "Master"
+      }
     },
     "statAllocation": {
       "resetFailAlert": "Reset conditions not met. Not enough gold or daily resets exceeded.",
@@ -3712,18 +3932,54 @@
       "remove_ads_2": "Same shop ad rewards without watching ads (daily limit applies)"
     },
     "items": {
-      "equipment_box_1": { "name": "Equipment Box I", "description": "Random gear: Normal–Rare" },
-      "equipment_box_2": { "name": "Equipment Box II", "description": "Random gear: Normal–Epic" },
-      "equipment_box_3": { "name": "Equipment Box III", "description": "Random gear: Advanced–Legendary" },
-      "equipment_box_4": { "name": "Equipment Box IV", "description": "Random gear: Rare–Mythic" },
-      "equipment_box_5": { "name": "Equipment Box V", "description": "Random gear: Epic–Mythic" },
-      "equipment_box_6": { "name": "Equipment Box VI", "description": "Random gear: Legendary–Mythic" },
-      "material_box_1": { "name": "Material Box I", "description": "5 stones: Low–High grade" },
-      "material_box_2": { "name": "Material Box II", "description": "5 stones: Low–High grade" },
-      "material_box_3": { "name": "Material Box III", "description": "5 stones: Low–High grade" },
-      "material_box_4": { "name": "Material Box IV", "description": "5 stones: Mid–Top grade" },
-      "material_box_5": { "name": "Material Box V", "description": "5 stones: High–Mystic grade" },
-      "material_box_6": { "name": "Material Box VI", "description": "5 stones: High–Mystic grade" },
+      "equipment_box_1": {
+        "name": "Equipment Box I",
+        "description": "Random gear: Normal–Rare"
+      },
+      "equipment_box_2": {
+        "name": "Equipment Box II",
+        "description": "Random gear: Normal–Epic"
+      },
+      "equipment_box_3": {
+        "name": "Equipment Box III",
+        "description": "Random gear: Advanced–Legendary"
+      },
+      "equipment_box_4": {
+        "name": "Equipment Box IV",
+        "description": "Random gear: Rare–Mythic"
+      },
+      "equipment_box_5": {
+        "name": "Equipment Box V",
+        "description": "Random gear: Epic–Mythic"
+      },
+      "equipment_box_6": {
+        "name": "Equipment Box VI",
+        "description": "Random gear: Legendary–Mythic"
+      },
+      "material_box_1": {
+        "name": "Material Box I",
+        "description": "5 stones: Low–High grade"
+      },
+      "material_box_2": {
+        "name": "Material Box II",
+        "description": "5 stones: Low–High grade"
+      },
+      "material_box_3": {
+        "name": "Material Box III",
+        "description": "5 stones: Low–High grade"
+      },
+      "material_box_4": {
+        "name": "Material Box IV",
+        "description": "5 stones: Mid–Top grade"
+      },
+      "material_box_5": {
+        "name": "Material Box V",
+        "description": "5 stones: High–Mystic grade"
+      },
+      "material_box_6": {
+        "name": "Material Box VI",
+        "description": "5 stones: High–Mystic grade"
+      },
       "equipment_unbind_ticket": {
         "name": "Unbind ticket",
         "description": "Makes bound equipment tradable."
@@ -4188,6 +4444,17 @@
       "noTier": "No tier"
     },
     "tierInfo": {
+      "names": {
+        "champion": "Challenger",
+        "master": "Master",
+        "diamond": "Diamond",
+        "platinum": "Platinum",
+        "gold": "Gold",
+        "silver": "Silver",
+        "bronze": "Bronze",
+        "iron": "Rookie",
+        "unranked": "Sprout"
+      },
       "champion": "Min 3500 pts & top 100",
       "master": "Min 3000 pts",
       "diamond": "Min 2400 pts",
@@ -4226,6 +4493,554 @@
       "stayLine": "Stay: {{ranges}}",
       "demoteLine": "Demote: {{ranges}}",
       "rankHintShort": "Rank-based tiers (see rewards for promote/stay/demote rules)"
+    },
+    "items": {
+      "box_diabox1": {
+        "name": "다이아 꾸러미 I",
+        "description": "1 ~ 20 다이아 획득"
+      },
+      "box_diabox2": {
+        "name": "다이아 꾸러미 II",
+        "description": "10 ~ 30 다이아 획득"
+      },
+      "box_diabox3": {
+        "name": "다이아 꾸러미 III",
+        "description": "20 ~ 50 다이아 획득"
+      },
+      "box_diabox4": {
+        "name": "다이아 꾸러미 IV",
+        "description": "30 ~ 100 다이아 획득"
+      },
+      "box_goldbox1": {
+        "name": "골드 꾸러미 I",
+        "description": "10 ~ 500 골드 획득"
+      },
+      "box_goldbox2": {
+        "name": "골드 꾸러미 II",
+        "description": "100 ~ 1,000 골드 획득"
+      },
+      "box_goldbox3": {
+        "name": "골드 꾸러미 III",
+        "description": "500 ~ 3,000 골드 획득"
+      },
+      "box_goldbox4": {
+        "name": "골드 꾸러미 IV",
+        "description": "1,000 ~ 10,000 골드 획득"
+      },
+      "btn_addturn": {
+        "name": "Extra Turn",
+        "description": "Adds an extra turn in Tower of Challenge."
+      },
+      "btn_hidden": {
+        "name": "Hidden",
+        "description": "Hidden stone item for Tower of Challenge."
+      },
+      "btn_missile": {
+        "name": "Missile",
+        "description": "Missile item for Tower of Challenge."
+      },
+      "btn_reflesh": {
+        "name": "Reposition",
+        "description": "Reposition item for Tower of Challenge."
+      },
+      "btn_scan": {
+        "name": "Scan",
+        "description": "Scan item for Tower of Challenge."
+      },
+      "eq_board1": {
+        "name": "Sprout Board",
+        "description": "A light paulownia board ideal for beginners."
+      },
+      "eq_board2": {
+        "name": "Maple Grain Board",
+        "description": "A premium board of beautiful persimmon wood grain."
+      },
+      "eq_board3": {
+        "name": "Coral Grain Board",
+        "description": "A top-grade shinigi board with a clear stone placement sound."
+      },
+      "eq_board4": {
+        "name": "Ebony Board",
+        "description": "A volcanic stone board shaped with burning passion."
+      },
+      "eq_board5": {
+        "name": "Dragon Gate Board",
+        "description": "A legendary board of thousand-year golden pine."
+      },
+      "eq_board7": {
+        "name": "Divine Dragon Board",
+        "description": "A transcendent board that opens a path to victory with every move."
+      },
+      "eq_bottom1": {
+        "name": "Spring Gi Bottom",
+        "description": "Training pants that allow easy movement."
+      },
+      "eq_bottom2": {
+        "name": "Summer Gi Bottom",
+        "description": "Sturdy pants that resist wear."
+      },
+      "eq_bottom3": {
+        "name": "Autumn Gi Bottom",
+        "description": "Fine silk pants paired with the scholar's robe."
+      },
+      "eq_bottom4": {
+        "name": "Winter Gi Bottom",
+        "description": "Bottom wear that never hinders a swordsman's movement."
+      },
+      "eq_bottom5": {
+        "name": "Dragon Robe Bottom",
+        "description": "Finest silk bottoms paired with the dragon robe."
+      },
+      "eq_bottom7": {
+        "name": "Divine Dragon Gi Bottom",
+        "description": "Transcendent bottoms imbued with a dragon's will for balance in any storm."
+      },
+      "eq_fan1": {
+        "name": "Blue Wind Fan",
+        "description": "A light, practical bamboo fan."
+      },
+      "eq_fan2": {
+        "name": "Silver Wind Fan",
+        "description": "A soft silk fan that fits comfortably in your hand."
+      },
+      "eq_fan3": {
+        "name": "Flame Wind Fan",
+        "description": "A master's fan that spreads gracefully like a crane's wings."
+      },
+      "eq_fan4": {
+        "name": "Frost Wind Fan",
+        "description": "Forged from heavy steel; can serve as a weapon in a pinch."
+      },
+      "eq_fan5": {
+        "name": "Dragon Feather Fan",
+        "description": "A legendary fan made from a hundred white feathers."
+      },
+      "eq_fan7": {
+        "name": "Divine Dragon Fan",
+        "description": "A transcendent fan holding the breath of a sky-splitting dragon."
+      },
+      "eq_stone1": {
+        "name": "Sprout Stones",
+        "description": "Light, inexpensive plastic go stones."
+      },
+      "eq_stone2": {
+        "name": "Silver Grain Stones",
+        "description": "Go stones polished from smooth river pebbles."
+      },
+      "eq_stone3": {
+        "name": "Ruby Go Stones",
+        "description": "Precisely cut obsidian stones with a cold gleam."
+      },
+      "eq_stone4": {
+        "name": "Jade Go Stones",
+        "description": "Stones of blue and white jade with a luminous glow."
+      },
+      "eq_stone5": {
+        "name": "Dragon Eye Stones",
+        "description": "Legendary stones forged with the energy of sun, moon, and stars."
+      },
+      "eq_stone7": {
+        "name": "Divine Dragon Stones",
+        "description": "Transcendent stones forged from dawn-star fragments to dominate the board in a single move."
+      },
+      "eq_stonebox1": {
+        "name": "Light Wood Bowl",
+        "description": "A light, inexpensive plastic go bowl."
+      },
+      "eq_stonebox2": {
+        "name": "Sturdy Bamboo Bowl",
+        "description": "A go bowl of jujube wood with a subtle fragrance."
+      },
+      "eq_stonebox3": {
+        "name": "Rosewood Bowl",
+        "description": "Crafted from rosewood with a beautiful red hue."
+      },
+      "eq_stonebox4": {
+        "name": "Ebony Bowl",
+        "description": "A rare bowl of exotic wood with striking patterns."
+      },
+      "eq_stonebox5": {
+        "name": "Dragon Scale Bowl",
+        "description": "A finest red sandalwood bowl delicately carved with dragons."
+      },
+      "eq_stonebox7": {
+        "name": "Divine Dragon Bowl",
+        "description": "A transcendent bowl that seals battlefield aura into every stone drawn."
+      },
+      "eq_top1": {
+        "name": "Spring Gi Top",
+        "description": "Comfortable top wear suited for focused training."
+      },
+      "eq_top2": {
+        "name": "Summer Gi Top",
+        "description": "Durable gi that withstands long practice sessions."
+      },
+      "eq_top3": {
+        "name": "Autumn Gi Top",
+        "description": "A scholar's robe with quiet dignity."
+      },
+      "eq_top4": {
+        "name": "Winter Gi Top",
+        "description": "Attire of a swordsman crafted for sharp matches."
+      },
+      "eq_top5": {
+        "name": "Dragon Robe Top",
+        "description": "Embroidered with dragon motifs symbolizing imperial majesty."
+      },
+      "eq_top7": {
+        "name": "Divine Dragon Gi Top",
+        "description": "Transcendent top wear woven with dragon-scale light for unwavering focus."
+      },
+      "mat_materials1": {
+        "name": "Low Enhancement Stone",
+        "description": "Basic material for gear enhancement."
+      },
+      "mat_materials2": {
+        "name": "Mid Enhancement Stone",
+        "description": "Mid-tier material for gear enhancement."
+      },
+      "mat_materials3": {
+        "name": "High Enhancement Stone",
+        "description": "High-tier material for gear enhancement."
+      },
+      "mat_materials4": {
+        "name": "Superior Enhancement Stone",
+        "description": "Rare material for gear enhancement."
+      },
+      "mat_materials5": {
+        "name": "Mystic Enhancement Stone",
+        "description": "Ancient material for gear enhancement."
+      },
+      "pet_egg": {
+        "name": "Mysterious Egg",
+        "description": "Hatch a random AI pet in the incubator."
+      },
+      "pet_soulstone1": {
+        "name": "Sprout Soul Stone",
+        "description": "Soul stone material for pair pets."
+      },
+      "pet_soulstone2": {
+        "name": "Pulse Soul Stone",
+        "description": "Soul stone material for pair pets."
+      },
+      "pet_soulstone3": {
+        "name": "Abyss Soul Stone",
+        "description": "Soul stone material for pair pets."
+      },
+      "pet_soulstone4": {
+        "name": "Flame Soul Stone",
+        "description": "Soul stone material for pair pets."
+      },
+      "pet_soulstone5": {
+        "name": "Celestial Soul Stone",
+        "description": "Soul stone material for pair pets."
+      },
+      "shop_action_point_10": {
+        "name": "AP recovery (+10)",
+        "description": "You feel motivated to do something."
+      },
+      "shop_action_point_20": {
+        "name": "AP recovery (+20)",
+        "description": "You feel like you should do something."
+      },
+      "shop_action_point_30": {
+        "name": "AP recovery (+30)",
+        "description": "Time to play a match!"
+      },
+      "shop_condition_potion_large": {
+        "name": "Condition potion (L)",
+        "description": "Restores condition for a big match today."
+      },
+      "shop_condition_potion_medium": {
+        "name": "Condition potion (M)",
+        "description": "Clears your head and restores condition."
+      },
+      "shop_condition_potion_small": {
+        "name": "Condition potion (S)",
+        "description": "Eases tension and restores condition."
+      },
+      "shop_equipment_box_1": {
+        "name": "Equipment Box I",
+        "description": "Random gear: Normal–Rare"
+      },
+      "shop_equipment_box_2": {
+        "name": "Equipment Box II",
+        "description": "Random gear: Normal–Epic"
+      },
+      "shop_equipment_box_3": {
+        "name": "Equipment Box III",
+        "description": "Random gear: Advanced–Legendary"
+      },
+      "shop_equipment_box_4": {
+        "name": "Equipment Box IV",
+        "description": "Random gear: Rare–Mythic"
+      },
+      "shop_equipment_box_5": {
+        "name": "Equipment Box V",
+        "description": "Random gear: Epic–Mythic"
+      },
+      "shop_equipment_box_6": {
+        "name": "Equipment Box VI",
+        "description": "Random gear: Legendary–Mythic"
+      },
+      "shop_equipment_unbind_ticket": {
+        "name": "Unbind ticket",
+        "description": "Makes bound equipment tradable."
+      },
+      "shop_material_box_1": {
+        "name": "Material Box I",
+        "description": "5 stones: Low–High grade"
+      },
+      "shop_material_box_2": {
+        "name": "Material Box II",
+        "description": "5 stones: Low–High grade"
+      },
+      "shop_material_box_3": {
+        "name": "Material Box III",
+        "description": "5 stones: Low–High grade"
+      },
+      "shop_material_box_4": {
+        "name": "Material Box IV",
+        "description": "5 stones: Mid–Top grade"
+      },
+      "shop_material_box_5": {
+        "name": "Material Box V",
+        "description": "5 stones: High–Mystic grade"
+      },
+      "shop_material_box_6": {
+        "name": "Material Box VI",
+        "description": "5 stones: High–Mystic grade"
+      },
+      "shop_mythic_option_change_ticket": {
+        "name": "Special option change ticket",
+        "description": "Changes a mythic or transcendent special option to another special option."
+      },
+      "shop_option_type_change_ticket": {
+        "name": "Option type change ticket",
+        "description": "Changes one main, sub, or special option to a different option type."
+      },
+      "shop_option_value_change_ticket": {
+        "name": "Option value change ticket",
+        "description": "Rerolls the value of one sub or special option."
+      },
+      "shop_refinement_charm": {
+        "name": "Refinement Charm",
+        "description": "Adds one refinement attempt to gear that cannot be refined."
+      },
+      "use_allowtrade": {
+        "name": "Trade Listing Ticket",
+        "description": "Special permit to list one item on the exchange."
+      }
+    },
+    "stats": {
+      "mythic": {
+        "GuildBossRewardGradeUp": {
+          "name": "Guild boss reward tier up",
+          "abbrev": "Boss reward tier",
+          "short": "Guild boss reward grade +1",
+          "description": "Raises guild boss battle reward tier by one step (max SSS)."
+        },
+        "GuildBossExtraDamage5": {
+          "name": "Guild boss bonus damage 5%",
+          "abbrev": "Boss dmg 5%",
+          "short": "Guild boss damage +5%",
+          "description": "Adds 5% final damage against guild bosses."
+        },
+        "TowerApMinus1Floors1to35": {
+          "name": "Tower (1–35F) AP cost -1",
+          "abbrev": "Tower AP (1–35)",
+          "short": "Tower 1–35F AP -1",
+          "description": "Reduces AP required to enter Tower floors 1–35 by 1."
+        },
+        "ApRegenMinus30s": {
+          "name": "AP recovery time -30s",
+          "abbrev": "AP regen -30s",
+          "short": "AP recovery -30s",
+          "description": "Reduces time to recover 1 AP by 30 seconds."
+        },
+        "AdventureScanPlus1": {
+          "name": "Adventure scan +1",
+          "abbrev": "Adv. scan +1",
+          "short": "Adventure scan +1",
+          "description": "Grants 1 extra scan item at adventure start."
+        },
+        "AdventureMissilePlus1": {
+          "name": "Adventure missile +1",
+          "abbrev": "Adv. missile +1",
+          "short": "Adventure missile +1",
+          "description": "Grants 1 extra missile item at adventure start."
+        },
+        "AdventureGoldBonus15": {
+          "name": "Adventure gold reward +15%",
+          "abbrev": "Adv. gold 15%",
+          "short": "Adventure gold +15%",
+          "description": "Increases adventure victory gold by 15%."
+        },
+        "GuildBossExtraRewardDuplicate": {
+          "name": "Guild boss bonus reward",
+          "abbrev": "Boss reward extra",
+          "short": "Duplicate one guild boss reward",
+          "description": "Receive one additional guild boss reward (stacks across gear)."
+        },
+        "GuildBossExtraDamage10": {
+          "name": "Guild boss bonus damage 10%",
+          "abbrev": "Boss dmg 10%",
+          "short": "Guild boss damage +10%",
+          "description": "Adds 10% final damage against guild bosses."
+        },
+        "TowerApMinus1AllFloors": {
+          "name": "Tower AP cost -1",
+          "abbrev": "Tower AP all",
+          "short": "All tower floors AP -1",
+          "description": "Reduces AP required for all tower floors by 1."
+        },
+        "ApRegenMinus60s": {
+          "name": "AP recovery time -60s",
+          "abbrev": "AP regen -60s",
+          "short": "AP recovery -60s",
+          "description": "Reduces time to recover 1 AP by 60 seconds."
+        },
+        "AdventureScanTranscendent": {
+          "name": "Adventure scan +1",
+          "abbrev": "Adv. scan +1",
+          "short": "Adventure scan +2 (transcendent)",
+          "description": "Grants 2 extra scan items in adventure."
+        },
+        "AdventureMissilePlus2": {
+          "name": "Adventure missile +2",
+          "abbrev": "Adv. missile +2",
+          "short": "Adventure missile +2",
+          "description": "Grants 2 extra missile items at adventure start."
+        },
+        "AdventureGoldBonus20": {
+          "name": "Adventure gold reward +20%",
+          "abbrev": "Adv. gold 20%",
+          "short": "Adventure gold +20%",
+          "description": "Increases adventure victory gold by 20%."
+        }
+      }
+    },
+    "optionValueLine": "{{stat}} +{{value}}{{suffix}}",
+    "optionRange": "[{{lo}}~{{hi}}{{suffix}}]",
+    "optionEnhancement": "({{count}} enhance)",
+    "meta": {
+      "description": {
+        "gold": "The main currency used across the Go world.",
+        "diamond": "Premium currency for special purchases and expansions."
+      },
+      "usage": {
+        "goldSpend": "Spent at shops, enhancement, crafting, entry fees, and more.",
+        "diamondSpend": "Used in the diamond shop, bag expansion, and similar features.",
+        "unbindTicket": "[Bag] → [Select gear] → [Unbind]",
+        "refinementCharm": "[Blacksmith] → [Refinement] — select gear that cannot be refined",
+        "refinementTicket": {
+          "optionType": "[Blacksmith — Refinement] Change option type",
+          "optionValue": "[Blacksmith — Refinement] Reroll option value",
+          "specialOption": "[Blacksmith — Refinement] Change special option",
+          "mythicOption": "[Blacksmith — Refinement] Change mythic option",
+          "generic": "[Blacksmith — Refinement] Change option"
+        },
+        "conditionPotion": "[Championship] Restore {{lo}}–{{hi}} condition before a match",
+        "actionPointInstant": "[Use now] Restore +{{amount}} AP",
+        "actionPointInstantGeneric": "[Use now] Restore AP",
+        "openBoxInBag": "Use from your bag to receive rewards.",
+        "equipmentBoxOpen": "Open the box from your bag to obtain gear.",
+        "enhancementMaterial": {
+          "single": "[{{gradeLabel}}] Gear: {{rangeLabel}}",
+          "range": "[{{gradeLabel}}] Gear: {{rangeLabel}}"
+        },
+        "pet": {
+          "soulGradeUpgrade": "[Pet · Grade up] {{fromGrade}}→{{toGrade}} (Pet Lv.{{minLevel}}+)",
+          "soulGradeUpgradeGeneric": "[Pet · Grade up] Used to raise pair arena AI pet grade",
+          "eggHatchRandom": "[Pet · Incubator] Place in a slot to hatch a random AI pet",
+          "welcomeEggHatch": "[Pet · Incubator] 1 min hatch — level 5 AI pet"
+        }
+      },
+      "enhanceRange": {
+        "single": "+{{stars}} enhance",
+        "range": "+{{minStars}}~{{maxStars}} enhance"
+      },
+      "acquire": {
+        "gold": {
+          "line1": "[Matches · Content] PvP, singleplayer, dungeons, leagues, etc.",
+          "line2": "[Quests · Adventure] Daily/weekly/monthly quests, treasure boxes, VIP slots",
+          "line3": "[Trade · Disassembly] Exchange sales, gear disassembly, some shop sales"
+        },
+        "diamond": {
+          "line1": "[Shop] Diamond packages, consumables, materials tabs",
+          "line2": "[Payment · Events] Top-ups, promo mail from operations",
+          "line3": "[Features] Bag expansion and other premium features"
+        },
+        "tower": {
+          "line1": "[Tower] Item shop on the match info screen (gold)",
+          "line2": "[Tower] Entry/clear rewards, VIP rewards, and more"
+        },
+        "actionPoint": {
+          "line1": "[Shop] Gold shop — AP potions (+10/+20/+30), daily limits",
+          "line2": "[Mail · Events] Operations rewards and promotions",
+          "line3": "[Function VIP] Daily AP potion III mail while active"
+        },
+        "condition": {
+          "line1": "[Shop] Diamond shop (consumables) or related packages",
+          "line2": "[Quests · Events] Some reward sources"
+        },
+        "guildEquipBox": {
+          "line1": "[Guild shop] Guild coins only",
+          "line2": "[Shop · Quests] Use from bag like normal equipment boxes"
+        },
+        "equipBox": {
+          "line1": "[Shop] Gold shop (gear), ad rewards, some cash packages",
+          "line2": "[Quests · VIP] Daily/weekly/monthly quests, reward VIP slots",
+          "line3": "[Adventure · Guild] Treasure boxes, guild boss rewards, etc."
+        },
+        "materialBox": {
+          "line1": "[Shop] Gold/diamond shops (materials), ads, packages",
+          "line2": "[Quests · VIP] Daily/weekly/monthly quests, reward VIP slots"
+        },
+        "goldBundle": {
+          "line1": "[Shop] Diamond shop (consumables), ad rewards",
+          "line2": "[Quests · Adventure] Various rewards and treasure boxes"
+        },
+        "diamondBundle": {
+          "line1": "[Shop] Diamond shop (consumables), ad rewards",
+          "line2": "[Quests · Events] Some rewards"
+        },
+        "bonusStat": {
+          "line1": "[Guild shop] Guild coins (account limit)",
+          "line2": "[Growth] Some grants on strategy/play level-ups"
+        },
+        "enhancementStone": {
+          "line1": "[Guild shop] Exchange low–mystic enhancement stones",
+          "line2": "[Material boxes] From shops, quests, VIP, etc.",
+          "line3": "[Blacksmith] Synthesis, disassembly, enhancement costs",
+          "line4": "[Adventure · Rank · Guild] Wins, tower, boss war rewards"
+        },
+        "material": {
+          "line1": "[Shop] Gold/diamond material shops, guild shop (some)",
+          "line2": "[Quests · Adventure · Events] Daily/weekly/monthly, boxes, ops rewards",
+          "line3": "[Mail] Crafting/enhancement results, event grants"
+        },
+        "equipment": {
+          "line1": "[Equipment boxes] Open boxes from your bag",
+          "line2": "[Adventure] Stage and boss clear rewards",
+          "line3": "[Exchange] Buy listed items from other players",
+          "line4": "[Crafting] Blacksmith combine, transcendent crafting, etc."
+        },
+        "consumableGeneric": "[Shop · Quests · Mail] Shops, events, operations rewards",
+        "pet": {
+          "soulTraining": "[Pet · Training rewards] Slots {{slots}}",
+          "soulConvert": "[Pet · Soul convert] From disassembling {{grades}} pets",
+          "soulShopDiamond": "[Pet · Pet shop] {{amount}} diamonds",
+          "soulShopGold": "[Pet · Pet shop] {{amount}} gold",
+          "soulShopDiamondDaily": "[Pet · Pet shop] {{amount}} diamonds, {{limit}}/day",
+          "soulShopGoldDaily": "[Pet · Pet shop] {{amount}} gold, {{limit}}/day",
+          "soulFallback": "[Pet] Pair arena and incubator content",
+          "eggShop": "[Pet · Pet shop] Buy with gold/diamonds (daily limit)",
+          "eggRewards": "[Pet · Training · Events] Some reward sources",
+          "welcomeEggMail": "[Mail] Welcome grants, operations mail, etc.",
+          "welcomeEggShop": "[Pet · Pet shop] Diamonds (1/day)"
+        }
+      }
     }
   },
   "exchange": {
@@ -4729,7 +5544,13 @@
       "championship": "Championship",
       "scrollGuideTitle": "Scroll guide",
       "categoryAria": "Ranking categories",
-      "title": "Ranking"
+      "title": "Ranking",
+      "gameRankingTab": "Game ranking",
+      "badukRankingTab": "Go ranking",
+      "loginRequired": "Log in to view rankings.",
+      "championshipLoginHint": "Log in to view championship rankings.",
+      "guideClose": "Close guide",
+      "championshipNoGuide": "No score guide is available for championship rankings yet."
     },
     "round16": "Round of 16",
     "center": "Center",
@@ -5058,7 +5879,10 @@
       "remainingTime": "Time remaining",
       "diamondsUsed": "Diamonds to use",
       "ownedLabel": "Owned",
-      "mysteriousEgg": "Mysterious egg ×1"
+      "mysteriousEgg": "Mysterious egg ×1",
+      "upgradeTier1": "Upgrade I",
+      "upgradeTier2": "Upgrade II",
+      "upgradeTier3": "Upgrade III"
     },
     "lobby": {
       "infoTab": "Info",
@@ -5397,6 +6221,100 @@
       "navigatePairArena": "Go to pair arena",
       "leaveRoomOnNavigate": "Switching arenas will leave your current room. Continue?",
       "leaveRoomConfirm": "You will leave the room. Continue?"
+    },
+    "pets": {
+      "pair-pet-1": {
+        "name": "LumiFox"
+      },
+      "pair-pet-2": {
+        "name": "Ice Nyang"
+      },
+      "pair-pet-3": {
+        "name": "Goldie Nyang"
+      },
+      "pair-pet-4": {
+        "name": "Snow Panda"
+      },
+      "pair-pet-5": {
+        "name": "Pengkie"
+      },
+      "pair-pet-6": {
+        "name": "Sunbird"
+      },
+      "pair-pet-7": {
+        "name": "Bunniru"
+      },
+      "pair-pet-8": {
+        "name": "Honey Bear"
+      },
+      "pair-pet-9": {
+        "name": "Leaf Cat"
+      },
+      "pair-pet-10": {
+        "name": "Sprout"
+      },
+      "pair-pet-11": {
+        "name": "Viol Nyang"
+      },
+      "pair-pet-12": {
+        "name": "Sunny"
+      },
+      "pair-pet-13": {
+        "name": "Amber Fox"
+      },
+      "pair-pet-14": {
+        "name": "Cream Nyang"
+      },
+      "pair-pet-15": {
+        "name": "Wingy Cat"
+      },
+      "pair-pet-16": {
+        "name": "Mask Dog"
+      },
+      "pair-pet-17": {
+        "name": "Ivory Bear"
+      },
+      "pair-pet-18": {
+        "name": "Snow Pet"
+      },
+      "pair-pet-19": {
+        "name": "Chicky"
+      },
+      "pair-pet-20": {
+        "name": "Shadow Wolf"
+      },
+      "pair-pet-21": {
+        "name": "Wing Bunny"
+      },
+      "pair-pet-22": {
+        "name": "Gold Chicky"
+      },
+      "pair-pet-23": {
+        "name": "Pandaring"
+      },
+      "pair-pet-24": {
+        "name": "Jelly Frog"
+      }
+    },
+    "trainingSlots": {
+      "0": {
+        "name": "Technique Training"
+      },
+      "1": {
+        "name": "Life & Death Training"
+      },
+      "2": {
+        "name": "Capture Training"
+      },
+      "3": {
+        "name": "Joseki Training"
+      },
+      "4": {
+        "name": "Game Record Training"
+      },
+      "5": {
+        "name": "Endgame Training"
+      }
     }
   },
   "blacksmith": {
@@ -5907,16 +6825,16 @@
       "noApplications": "No join applications."
     },
     "missions": {
-      "title": "Weekly Guild Missions",
-      "achieved": "Complete",
-      "guildXp": "Guild XP +{{amount}}",
-      "expired": "Expired",
-      "rewardClaimed": "Claimed",
-      "claimReward": "Claim reward",
-      "inProgress": "In progress",
-      "resetCountdown": "Resets in {{days}}d {{hours}}:{{minutes}}",
-      "unclaimedHint": "You have unclaimed rewards. Don't forget to collect them.",
-      "empty": "No weekly missions to show."
+      "titles": {
+        "checkIns": "50 guild check-ins",
+        "guildDonations": "50 guild donations",
+        "bossAttempts": "30 guild boss attempts",
+        "strategicWins": "30 strategic Go wins",
+        "playfulWins": "30 playful Go wins",
+        "equipmentEnhancements": "50 equipment enhancements",
+        "epicGearAcquisitions": "20 epic+ gear drops",
+        "diamondsSpent": "Spend 3,000 diamonds"
+      }
     },
     "research": {
       "title": "Guild Lab",
@@ -5994,7 +6912,18 @@
       "quickChat": "Quick chat",
       "send": "Send",
       "sendTitle": "Send",
-      "locationHome": "[Home]"
+      "locationHome": "[Home]",
+      "systemMessages": {
+        "missionComplete": "Weekly mission [{{missionTitle}}] completed! Claim rewards in Guild Activity > Missions.",
+        "bossWeeklySettlement": "Weekly guild boss settlement ({{bossName}}, {{status}}): +{{guildXp}} guild XP and +{{researchPoints}} research points added to the guild.",
+        "bossWeeklySettlementDefeated": "defeated",
+        "bossWeeklySettlementRemainingHp": "{{percent}}% HP remaining",
+        "warJoinMatching": "[{{nickname}}] joined guild war. Matching in progress.",
+        "warJoinBotMatch": "[{{nickname}}] joined guild war. Matched with the system bot guild (odd queue).",
+        "warJoinOpponent": "[{{nickname}}] joined guild war. Opponent: 「{{opponentGuildName}}」",
+        "warCancelMatching": "[{{nickname}}] cancelled guild war matching.",
+        "bossDamage": "[{{nickname}}] dealt {{damage}} damage to {{bossName}}."
+      }
     },
     "war": {
       "title": "Guild War",
@@ -6154,6 +7083,13 @@
     },
     "boss": {
       "title": "Guild Boss",
+      "names": {
+        "boss_1": "Cheonghae",
+        "boss_2": "Hongyeom",
+        "boss_3": "Noksu",
+        "boss_4": "Hyeonmyo",
+        "boss_5": "Baekgwang"
+      },
       "guide": "Boss guide",
       "guideTitle": "Guild Boss Guide",
       "stage": "Stage {{stage}}",

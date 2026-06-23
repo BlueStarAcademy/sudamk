@@ -21,6 +21,7 @@ const startPanelShell =
 /** 베이스: 흑·백·덤 확정 + 양측 프로필 — 푸터에는 두지 않고 모달 전용 */
 export const BaseStartConfirmationContent: React.FC<BaseStartConfirmationModalProps> = ({ session, currentUser, onAction }) => {
     const { t } = useTranslation('game');
+    const { t: tCommon } = useTranslation('common');
     const {
         id: gameId,
         player1,
@@ -96,7 +97,7 @@ export const BaseStartConfirmationContent: React.FC<BaseStartConfirmationModalPr
                     {isBaseCaptureMix ? (
                         <div className="space-y-2">
                             <p className="text-center text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-500">
-                                따내기 점수 제시 결과
+                                {t('captureTiebreaker.captureBidResultTitle')}
                             </p>
                             <div className="grid grid-cols-3 gap-2 text-center">
                                 <div className="rounded-lg border border-white/10 bg-white/[0.03] px-2 py-2">
@@ -120,7 +121,7 @@ export const BaseStartConfirmationContent: React.FC<BaseStartConfirmationModalPr
                     ) : baseKomiBidsSnapshot?.[player1.id] && baseKomiBidsSnapshot?.[player2.id] ? (
                         <div className="space-y-1.5">
                             <p className="text-center text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-500">
-                                덤 입찰(최종 라운드)
+                                {t('captureTiebreaker.komiBidFinalRound')}
                             </p>
                             {[player1, player2].map((pl) => {
                                 const bid = baseKomiBidsSnapshot[pl.id]!;
@@ -143,7 +144,7 @@ export const BaseStartConfirmationContent: React.FC<BaseStartConfirmationModalPr
                 </div>
             </div>
             <p className="text-center text-xs leading-relaxed text-stone-400">
-                준비가 끝나면 시작하기를 눌러 대국을 시작해 주세요.
+                {t('captureTiebreaker.pressStartPrompt')}
             </p>
             <Button
                 onClick={() =>

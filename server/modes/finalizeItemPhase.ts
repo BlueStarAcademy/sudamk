@@ -210,11 +210,12 @@ export function finalizeScanItemPhase(
 
     clearItemPhasePresentationFields(game);
     game.gameStatus = 'playing';
-    game.itemUseDeadline = undefined;
-    game.pausedTurnTimeLeft = undefined;
     const cur = game.currentPlayer;
     if (cur !== types.Player.None) {
         resumePlayingTimerAfterItemPhase(game, now, cur);
+    } else {
+        game.itemUseDeadline = undefined;
+        game.pausedTurnTimeLeft = undefined;
     }
     markItemPhaseStateChanged(game);
     return true;

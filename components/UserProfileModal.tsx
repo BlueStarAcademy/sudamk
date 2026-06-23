@@ -6,6 +6,7 @@ import DraggableWindow from './DraggableWindow.js';
 import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../shared/constants/pcShellLayout.js';
 import { AVATAR_POOL, BORDER_POOL, emptySlotImages, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, RANKING_TIERS, CORE_STATS_DATA } from '../constants';
 import { getMannerScore, getMannerRank, getMannerStyle } from '../services/manner.js';
+import { translateMannerRankLabel } from '../shared/utils/translateMannerRankLabel.js';
 import { calculateTotalStats } from '../services/statService.js';
 import MbtiComparisonModal from './MbtiComparisonModal.js';
 import { useAppContext } from '../hooks/useAppContext.js';
@@ -531,6 +532,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
     const totalMannerScore = getMannerScore(user);
     const mannerRank = getMannerRank(totalMannerScore);
     const mannerStyle = getMannerStyle(totalMannerScore);
+    const translatedMannerRank = translateMannerRankLabel(t, mannerRank.rankId);
     const totalStats = calculateTotalStats(user);
 
     const combinedLevel = user.userLevel ?? 1;
@@ -662,7 +664,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                                 <div className="mb-0.5 flex items-center justify-between text-[0.7rem] text-slate-400">
                                     <span className="font-semibold tracking-tight text-slate-300">{t('userModal.mannerGrade')}</span>
                                     <span className={`font-semibold tabular-nums ${mannerRank.color}`}>
-                                        {t('userModal.mannerPoints', { score: totalMannerScore, rank: mannerRank.rank })}
+                                        {t('userModal.mannerPoints', { score: totalMannerScore, rank: translatedMannerRank })}
                                     </span>
                                 </div>
                                 <div className="relative h-1.5 w-full overflow-hidden rounded-full border border-black/50 bg-black/45 shadow-inner ring-1 ring-inset ring-white/[0.04]">

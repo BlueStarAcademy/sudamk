@@ -116,7 +116,7 @@ const SinglePlayerLobby: React.FC = () => {
             {compactSpLobby ? (
                 <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden px-0.5 pb-0.5">
                     <AcademyLobbyHeaderPanel onBack={onBackToProfile} title={lobbyTitle} compact />
-                    <div className="min-h-0 max-h-[min(30dvh,280px)] shrink-0 overflow-hidden rounded-xl sm:max-h-[min(32dvh,300px)]">
+                    <div className="min-h-0 max-h-[min(24dvh,232px)] shrink-0 overflow-hidden rounded-xl sm:max-h-[min(26dvh,252px)]">
                         <ClassNavigationPanel
                             selectedClass={selectedClass}
                             onClassSelect={setOverrideClass}
@@ -125,7 +125,7 @@ const SinglePlayerLobby: React.FC = () => {
                             lobbyMobileTop
                         />
                     </div>
-                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-emerald-500/20 bg-black/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:rounded-xl">
+                    <div className="flex min-h-0 min-w-0 flex-[1.15] flex-col overflow-hidden rounded-lg border border-emerald-500/20 bg-black/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:rounded-xl">
                         <div
                             className="flex shrink-0 gap-0.5 border-b border-white/10 px-1 py-0.5"
                             role="tablist"

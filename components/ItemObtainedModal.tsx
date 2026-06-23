@@ -1,5 +1,5 @@
 
-import { useLocalizedItemGrade } from '../shared/i18n/localizedCatalog.js';
+import { useLocalizedItemGrade, useLocalizedInventoryItemMeta, useLocalizedInventoryItemName } from '../shared/i18n/localizedCatalog.js';
 import { useTranslation } from 'react-i18next';
 import React, { useEffect } from 'react';
 import DraggableWindow, {
@@ -13,8 +13,6 @@ import { isActionPointConsumable, MATERIAL_ITEMS } from '../constants/items.js';
 import { EquipmentDetailPanel } from './EquipmentDetailPanel.js';
 import { RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS, RESULT_MODAL_BOX_GOLD_CLASS, RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS } from './game/ResultModalRewardSlot.js';
 import { ITEM_OBTAIN_COUNT_BADGE_CLASS, SingleItemObtainCard } from './game/ItemObtainModalShared.js';
-import { resolveItemObtainDescription, resolveItemObtainUsageLines } from '../shared/utils/bagItemDetailHelpers.js';
-import { resolveBagItemAcquireLines } from '../shared/utils/itemAcquireSourceLines.js';
 import { isPairPetMaterial } from '../shared/constants/petLobby.js';
 import {
     MOBILE_EQUIPMENT_DETAIL_BODY_PADDING_CLASS,
@@ -62,6 +60,9 @@ const getStarDisplayInfo = (stars: number) => {
 const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, isTopmost }) => {
     const { t } = useTranslation('inventory');
     const localizedGrade = useLocalizedItemGrade();
+    const localizedItemName = useLocalizedInventoryItemName();
+    const itemMeta = useLocalizedInventoryItemMeta();
+    const displayItemName = localizedItemName(item.name);
     const styles = gradeStyles[item.grade];
     const starInfo = getStarDisplayInfo(item.stars);
     const borderClass = item.grade === ItemGrade.Transcendent ? undefined : gradeBorderStyles[item.grade];
@@ -196,9 +197,9 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
     const COMPACT_CURRENCY_IMG_CLASS =
         'h-7 w-7 min-[360px]:h-8 min-[360px]:w-8 min-[400px]:h-9 min-[400px]:w-9 object-contain p-0.5 drop-shadow-[0_2px_8px_rgba(0,0,0,0.4)] sm:h-9 sm:w-9';
 
-    const obtainDescription = resolveItemObtainDescription(item);
-    const obtainUsageLines = resolveItemObtainUsageLines(item);
-    const obtainAcquireLines = resolveBagItemAcquireLines(item);
+    const obtainDescription = itemMeta.resolveDescription(item);
+    const obtainUsageLines = itemMeta.resolveObtainUsageLines(item);
+    const obtainAcquireLines = itemMeta.resolveAcquireLines(item);
     const stackQty =
         typeof item.quantity === 'number' && Number.isFinite(item.quantity) && item.quantity > 0 ? Math.floor(item.quantity) : 1;
 
@@ -290,7 +291,7 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
                 }
                 name={
                     <span className={`font-black tracking-tight ${starInfo.colorClass} ${textGlowClass}`}>
-                        {item.name}
+                        {displayItemName}
                         {item.stars > 0 ? (
                             <span className={`font-bold ${starInfo.colorClass} ${textGlowClass}`}> {starInfo.text}</span>
                         ) : null}

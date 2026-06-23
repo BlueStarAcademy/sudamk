@@ -1,5 +1,5 @@
 import React, { useLayoutEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { tx } from '../shared/i18n/runtimeText.js';
+import { tx, translateGameMode } from '../shared/i18n/runtimeText.js';
 import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import Button from './Button.js';
@@ -20,6 +20,7 @@ import {
   PRE_GAME_MODAL_FOOTER_CLASS,
   PRE_GAME_MODAL_PRIMARY_BTN_CLASS,
 } from './game/PreGameDescriptionLayout.js';
+import { translateGaugeSpeedLabel } from '../shared/i18n/gaugeSpeedLabels.js';
 import { NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH, NATIVE_MOBILE_MODAL_MAX_WIDTH_VW } from '../constants/ads.js';
 
 interface Props {
@@ -111,20 +112,26 @@ const getSettingsRows = (session: LiveGameSession, t: (k: string, o?: Record<str
     rows.push({ label: t('sidebar.settings.specialDice'), value: formatDiceGoSpecialDiceSummary(settings) });
   }
   if (mode === GameMode.Alkkagi) {
-    const speedLabel = ALKKAGI_GAUGE_SPEEDS.find((x) => x.value === settings.alkkagiGaugeSpeed)?.label || t('sidebar.settings.speedNormal');
+    const speedLabel = ALKKAGI_GAUGE_SPEEDS.find((x) => x.value === settings.alkkagiGaugeSpeed)?.label;
     rows.push({ label: t('sidebar.settings.round'), value: t('aiDescription.roundValue', { round: settings.alkkagiRounds }) });
     rows.push({ label: t('sidebar.settings.stoneCount'), value: t('aiDescription.countUnit', { count: settings.alkkagiStoneCount }) });
     rows.push({ label: t('sidebar.settings.placementType'), value: String(settings.alkkagiPlacementType ?? '-') });
     rows.push({ label: t('sidebar.settings.placementField'), value: String(settings.alkkagiLayout ?? '-') });
-    rows.push({ label: t('sidebar.settings.gaugeSpeed'), value: speedLabel });
+    rows.push({
+      label: t('sidebar.settings.gaugeSpeed'),
+      value: translateGaugeSpeedLabel(settings.alkkagiGaugeSpeed ?? 700, speedLabel),
+    });
     rows.push({ label: t('sidebar.settings.slow'), value: t('aiDescription.countUnit', { count: settings.alkkagiSlowItemCount }) });
     rows.push({ label: t('sidebar.settings.aimingLine'), value: t('aiDescription.countUnit', { count: settings.alkkagiAimingLineItemCount }) });
   }
   if (mode === GameMode.Curling) {
-    const speedLabel = CURLING_GAUGE_SPEEDS.find((x) => x.value === settings.curlingGaugeSpeed)?.label || t('sidebar.settings.speedNormal');
+    const speedLabel = CURLING_GAUGE_SPEEDS.find((x) => x.value === settings.curlingGaugeSpeed)?.label;
     rows.push({ label: t('sidebar.settings.curlingStoneCount'), value: t('aiDescription.countUnit', { count: settings.curlingStoneCount }) });
     rows.push({ label: t('sidebar.settings.round'), value: t('aiDescription.roundValue', { round: settings.curlingRounds }) });
-    rows.push({ label: t('sidebar.settings.gaugeSpeed'), value: speedLabel });
+    rows.push({
+      label: t('sidebar.settings.gaugeSpeed'),
+      value: translateGaugeSpeedLabel(settings.curlingGaugeSpeed ?? 700, speedLabel),
+    });
     rows.push({ label: t('sidebar.settings.slow'), value: t('aiDescription.countUnit', { count: settings.curlingSlowItemCount }) });
     rows.push({ label: t('sidebar.settings.aimingLine'), value: t('aiDescription.countUnit', { count: settings.curlingAimingLineItemCount }) });
   }
@@ -135,14 +142,14 @@ const getSettingsRows = (session: LiveGameSession, t: (k: string, o?: Record<str
 const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction, readOnly = false, onClose, currentUser }) => {
   const [isStarting, setIsStarting] = useState(false);
   const startInFlightRef = useRef(false);
-  const { t } = useTranslation('game');
+  const { t, i18n } = useTranslation('game');
   const { modalLayerUsesDesignPixels, handlers } = useAppContext();
   const isHandheld = useIsHandheldDevice(1025);
   const { isNativeMobile } = useNativeMobileShell();
   /** 스케일 캔버스 밖에서도 보이도록: 터치 기기·네이티브는 풀폭 시트 + 본문 스크롤 */
   const isMobileSheet = isHandheld || isNativeMobile;
   const meta = useMemo(() => getModeMeta(session.mode), [session.mode]);
-  const summaryFour = useMemo(() => getPreGameSummaryFour(session), [session]);
+  const summaryFour = useMemo(() => getPreGameSummaryFour(session), [session, i18n.language]);
   const rewardVisual = useMemo(() => buildAiPregameRewardVisual(session, currentUser), [session, currentUser]);
   const isAdventure = String(session.gameCategory ?? '') === 'adventure';
   /** AI 대기실 입장 모달·인게임 경기방법: 설정 표는 생략(요약 그리드만) */
@@ -289,7 +296,7 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction, readOnly =
                     : 'min-w-0 max-w-full whitespace-nowrap text-[clamp(0.85rem,1.9vw,1.65rem)] font-black leading-none tracking-tight text-white drop-shadow-sm sm:text-[clamp(0.9rem,1.65vw,1.875rem)]'
                 }
               >
-                {meta?.name ?? session.mode}
+                {translateGameMode(session.mode)}
               </h2>
               <span className="shrink-0 rounded-full border border-amber-400/45 bg-gradient-to-r from-amber-950/80 to-zinc-900/90 px-2.5 py-1 text-xs font-bold tracking-wide text-amber-100/95 shadow-sm ring-1 ring-amber-500/25 sm:px-3.5 sm:py-1.5 sm:text-sm">
                 {sessionBadgeLabel}
@@ -323,7 +330,7 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction, readOnly =
         {meta?.image ? (
           <img src={meta.image} alt="" className="h-7 w-7 object-contain opacity-95 drop-shadow sm:h-8 sm:w-8 md:h-9 md:w-9" />
         ) : null}
-        이번 대국 설정
+        {t('aiDescription.matchSettings')}
       </h3>
       <div className="overflow-hidden rounded-lg border border-amber-500/15 bg-black/30">
         {isMobileSheet ? (
@@ -361,7 +368,7 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction, readOnly =
         colorScheme="purple"
         className={`min-w-0 px-8 py-3 text-base sm:px-10 ${PRE_GAME_MODAL_PRIMARY_BTN_CLASS} !w-auto shrink-0 !min-w-[10rem]`}
       >
-        확인
+        {t('aiDescription.confirm')}
       </Button>
     </div>
   ) : (

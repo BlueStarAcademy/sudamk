@@ -5,13 +5,12 @@ import type { InventoryItem, PairPetMeta, User } from '../../types.js';
 import { ItemGrade } from '../../types/enums.js';
 import { getPairPetXpRequirementForLevel } from '../../shared/utils/strategyLevelXp.js';
 import { resolvePairPetMetaFromInventoryRow } from '../../shared/utils/pairPetRoll.js';
-import { getPairPetDisplayName } from '../../shared/constants/petLobby.js';
 import {
     effectivePairPetGradeFromRow,
     PAIR_PET_MAX_LEVEL,
     pairPetXpGainBlockedByGrade,
 } from '../../shared/constants/pairPetGrade.js';
-import { useLocalizedItemGrade } from '../../shared/i18n/localizedCatalog.js';
+import { useLocalizedItemGrade, useLocalizedPairPetText } from '../../shared/i18n/localizedCatalog.js';
 import { gradeBackgrounds, gradeStyles } from '../../shared/constants/items.js';
 import PairPetBadukPhaseStripAndCoreGrid from './PairPetBadukPhaseStripAndCoreGrid.js';
 import PairPetRpsBadge from './PairPetRpsBadge.js';
@@ -198,6 +197,7 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
 }) => {
     const { t } = useTranslation(['pair', 'game']);
     const localizedGrade = useLocalizedItemGrade();
+    const { localizePetName } = useLocalizedPairPetText();
     const meta = useMemo(() => resolvePairPetMetaFromInventoryRow(item), [item]);
     const rpsAttr = useMemo(
         () => resolvePairPetRpsAttributeFromMeta(meta, item.id, item.createdAt ?? Date.now()),
@@ -209,7 +209,7 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
     const gradeStyle = gradeStyles[petGrade];
     const gradeLabel = localizedGrade(petGrade);
 
-    const displayName = useMemo(() => getPairPetDisplayName(item), [item]);
+    const displayName = useMemo(() => localizePetName(item), [item, localizePetName]);
     const levelSafe = Math.min(PAIR_PET_MAX_LEVEL, Math.max(1, Math.floor(meta.level) || 1));
     const xpBlocked = pairPetXpGainBlockedByGrade(petGrade, levelSafe);
     const maxXp = xpBlocked ? 0 : getPairPetXpRequirementForLevel(levelSafe);

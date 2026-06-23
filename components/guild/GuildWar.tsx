@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import BackButton from '../BackButton.js';
 import Button from '../Button.js';
@@ -48,6 +48,7 @@ import { GUILD_WAR_BOT_GUILD_ID } from '../../shared/constants/auth.js';
 import { SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT } from '../../shared/constants/speedTimePressure.js';
 import { GuildWarUnifiedScoreboard } from './GuildWarUnifiedScoreboard.js';
 import { useTranslation } from 'react-i18next';
+import { translateGuildDisplayName } from '../../shared/utils/guildDisplayName.js';
 
 const GUILD_WAR_PERSONAL_DAILY_LIMIT = GUILD_WAR_PERSONAL_DAILY_ATTEMPTS;
 
@@ -800,6 +801,14 @@ const GuildWar = () => {
 
     const visualBlueGuild = weAreVisualBlue ? myGuild : opponentGuild;
     const visualRedGuild = weAreVisualBlue ? opponentGuild : myGuild;
+    const visualBlueGuildName = useMemo(
+        () => translateGuildDisplayName(visualBlueGuild, t),
+        [visualBlueGuild, t],
+    );
+    const visualRedGuildName = useMemo(
+        () => translateGuildDisplayName(visualRedGuild, t),
+        [visualRedGuild, t],
+    );
 
     /** 상황판 선택 맵: 우리 길드 vs 상대 집점(보드별) */
     const houseForSituationBoard = ((): { ours: number; theirs: number } => {
@@ -1430,7 +1439,7 @@ const GuildWar = () => {
                                     alt=""
                                     className="h-10 w-10 shrink-0 rounded-md object-contain ring-1 ring-blue-400/40"
                                 />
-                                <span className="mt-0.5 max-w-full truncate text-center text-[11px] font-bold">{visualBlueGuild.name}</span>
+                                <span className="mt-0.5 max-w-full truncate text-center text-[11px] font-bold">{visualBlueGuildName}</span>
                             </div>
                             <div className="min-w-0 flex-[1.35] pb-0.5">
                                 <GuildWarUnifiedScoreboard
@@ -1447,7 +1456,7 @@ const GuildWar = () => {
                                     alt=""
                                     className="h-10 w-10 shrink-0 rounded-md object-contain ring-1 ring-red-400/40"
                                 />
-                                <span className="mt-0.5 max-w-full truncate text-center text-[11px] font-bold">{visualRedGuild.name}</span>
+                                <span className="mt-0.5 max-w-full truncate text-center text-[11px] font-bold">{visualRedGuildName}</span>
                                 {weAreVisualBlue ? (
                                     <div className="mt-1 flex w-full max-w-[7.25rem] flex-col items-center gap-0.5 rounded-md border border-red-800/55 bg-red-950/45 px-1 py-1">
                                         <span className="text-[9px] font-semibold text-red-200/90">{t('war.totalAttempts')}</span>
@@ -1514,7 +1523,7 @@ const GuildWar = () => {
                                         />
                                     </div>
                                     <div className="z-10 -mt-5 rounded-md bg-black/60 px-3 py-1.5 shadow-lg">
-                                        <span className="block max-w-[10rem] truncate text-center text-base font-bold text-white">{visualBlueGuild.name}</span>
+                                        <span className="block max-w-[10rem] truncate text-center text-base font-bold text-white">{visualBlueGuildName}</span>
                                     </div>
                                 </div>
                             </div>
@@ -1543,7 +1552,7 @@ const GuildWar = () => {
                                         />
                                     </div>
                                     <div className="z-10 -mt-5 rounded-md bg-black/60 px-3 py-1.5 shadow-lg">
-                                        <span className="block max-w-[10rem] truncate text-center text-base font-bold text-white">{visualRedGuild.name}</span>
+                                        <span className="block max-w-[10rem] truncate text-center text-base font-bold text-white">{visualRedGuildName}</span>
                                     </div>
                                 </div>
                                 {weAreVisualBlue ? (

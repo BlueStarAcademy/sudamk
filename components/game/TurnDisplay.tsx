@@ -12,7 +12,7 @@ import {
 import { audioService } from '../../services/audioService.js';
 import { arenaGameRoomTurnDisplayBgClass } from './arenaGameRoomStyles.js';
 import { getSessionPlayerDisplayName } from '../../utils/gameDisplayNames.js';
-import { getCurrentPairTurnSeat } from '../../shared/utils/pairGameTurn.js';
+import { getCurrentPairTurnSeat, getPairUserPassSeats } from '../../shared/utils/pairGameTurn.js';
 import { formatPairTurnTickerMessage } from '../../shared/utils/pairTurnTickerDisplay.js';
 import { getEffectivePairLobbyOwnerId } from '../../shared/utils/effectivePairLobbyOwnerId.js';
 import { modeIncludesBaseCaptureMix } from '../../shared/utils/liveSessionArenaKind.js';
@@ -104,8 +104,11 @@ const getGameStatusText = (session: LiveGameSession): string => {
     
     if (pairGame) {
         const passCountPair = pairGame.passSeatIds?.length ?? 0;
+        const userPassSeatTotal = getPairUserPassSeats(session.settings).length;
         if (gameStatus === 'scoring') {
-            return passCountPair >= 4 ? t('pairScoringAllPassed') : t('scoring');
+            return userPassSeatTotal > 0 && passCountPair >= userPassSeatTotal
+                ? t('pairScoringAllPassed')
+                : t('scoring');
         }
         if (gameStatus !== 'ended' && passCountPair > 0 && lastMoveInHistory?.x === -1) {
             return t('pairPassCount', { count: passCountPair });

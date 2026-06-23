@@ -4,8 +4,7 @@ import Button from '../Button.js';
 import DraggableWindow from '../DraggableWindow.js';
 import type { InventoryItem } from '../../types.js';
 import { MATERIAL_ITEMS, gradeBackgrounds, gradeStyles } from '../../shared/constants/items.js';
-import { useLocalizedItemGrade } from '../../shared/i18n/localizedCatalog.js';
-import { getPairPetDisplayName } from '../../shared/constants/petLobby.js';
+import { useLocalizedItemGrade, useLocalizedPairPetText } from '../../shared/i18n/localizedCatalog.js';
 import { ItemGrade } from '../../types/enums.js';
 import { effectivePairPetGradeFromRow, PAIR_PET_MAX_LEVEL } from '../../shared/constants/pairPetGrade.js';
 import { getPairPetSoulConvertPreview } from '../../shared/utils/pairPetSoulConvert.js';
@@ -35,6 +34,7 @@ const PairPetSoulConvertModal: React.FC<PairPetSoulConvertModalProps> = ({
     const { t } = useTranslation(['pair', 'common']);
     const { t: tCommon } = useTranslation('common');
     const localizedGrade = useLocalizedItemGrade();
+    const { localizePetName } = useLocalizedPairPetText();
     const displayGrade = effectivePairPetGradeFromRow(item);
     const petMeta = useMemo(() => resolvePairPetMetaFromInventoryRow(item), [item]);
     const preview = useMemo(() => getPairPetSoulConvertPreview(item), [item]);
@@ -42,7 +42,7 @@ const PairPetSoulConvertModal: React.FC<PairPetSoulConvertModalProps> = ({
         preview.materialName in MATERIAL_ITEMS
             ? MATERIAL_ITEMS[preview.materialName as keyof typeof MATERIAL_ITEMS]
             : null;
-    const petLabel = getPairPetDisplayName(item);
+    const petLabel = localizePetName(item);
     const gradeKo = localizedGrade(displayGrade);
     const petLevel = Math.min(PAIR_PET_MAX_LEVEL, Math.max(1, Math.floor(petMeta.level) || 1));
     const petSt = gradeStyles[displayGrade] ?? gradeStyles[ItemGrade.Normal];

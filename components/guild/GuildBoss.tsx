@@ -34,6 +34,7 @@ import GuildBossBattleResultModal from './GuildBossBattleResultModal.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import { LOBBY_MOBILE_BTN_PRIMARY_CLASS, PRE_GAME_MODAL_PRIMARY_BTN_CLASS } from '../game/PreGameDescriptionLayout.js';
 import { useTranslation } from 'react-i18next';
+import { translateGuildBossName } from '../../shared/utils/translateGuildBossName.js';
 import type { TFunction } from 'i18next';
 
 /** 모바일 보스전: 보스 이미지 | 우측 누적피해 Top3 + 전투중계 */
@@ -509,6 +510,10 @@ const BossPanel: React.FC<BossPanelProps> = ({
     fillAvailableHeight = false,
 }) => {
     const { t } = useTranslation(['guild', 'common']);
+    const bossDisplayName = useMemo(
+        () => translateGuildBossName(boss.id, boss.name, t),
+        [boss.id, boss.name, t],
+    );
     const hpPercent = maxHp > 0 ? (hp / maxHp) * 100 : 0;
     const desktopFitFill = fitContentWidth && fillAvailableHeight && !compact;
 
@@ -537,7 +542,7 @@ const BossPanel: React.FC<BossPanelProps> = ({
             >
                 <img
                     src={boss.image}
-                    alt={boss.name}
+                    alt={bossDisplayName}
                     className={`rounded-lg object-contain ${
                         compact
                             ? 'mx-auto h-full w-auto max-w-full min-h-0'
@@ -572,7 +577,7 @@ const BossPanel: React.FC<BossPanelProps> = ({
                         className={`pointer-events-none text-center font-bold tabular-nums text-white/95 ${compact ? 'text-[10px] leading-tight' : 'text-xs sm:text-sm'}`}
                         style={{ textShadow: '1px 1px 2px black' }}
                     >
-                        {boss.name} · {t('boss.stage', { stage: difficultyStage })}
+                        {bossDisplayName} · {t('boss.stage', { stage: difficultyStage })}
                     </p>
                 </div>
                 
@@ -1078,7 +1083,7 @@ const GuildBoss: React.FC = () => {
             rankUserId,
             preBattleGuildHp: preGuildHp,
             bossId: currentBoss.id,
-            bossName: currentBoss.name,
+            bossName: translateGuildBossName(currentBoss.id, currentBoss.name, t),
             guildId,
         };
 
@@ -1118,7 +1123,7 @@ const GuildBoss: React.FC = () => {
 
             const modalResult: GuildBossBattleModalResult = {
                 ...serverResult,
-                bossName: currentBoss.name,
+                bossName: translateGuildBossName(currentBoss.id, currentBoss.name, t),
                 previousRank: prevRank > 0 ? prevRank : null,
                 currentRank: newRank > 0 ? newRank : null,
             };

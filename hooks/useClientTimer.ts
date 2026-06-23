@@ -31,6 +31,30 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
 
         const isAnimating = session.animation !== null && session.animation !== undefined;
         const isAnimationStatus = ['missile_animating', 'scanning_animating', 'hidden_reveal_animating', 'curling_animating', 'alkkagi_animating'].includes(session.gameStatus);
+        const isStrategicItemPhaseStatus = [
+            'hidden_placing',
+            'scanning',
+            'missile_selecting',
+            'missile_animating',
+            'scanning_animating',
+            'hidden_reveal_animating',
+        ].includes(session.gameStatus);
+        const shouldFreezeMainClockForItemPhase =
+            isStrategicItemPhaseStatus &&
+            session.pausedTurnTimeLeft !== undefined &&
+            !session.turnDeadline &&
+            (session.currentPlayer === Player.Black || session.currentPlayer === Player.White);
+
+        if (shouldFreezeMainClockForItemPhase) {
+            deadlineRef.current = null;
+            byoyomiDeadlineRef.current = null;
+            setClientTimes(prev =>
+                session.currentPlayer === Player.Black
+                    ? { black: session.pausedTurnTimeLeft!, white: prev.white }
+                    : { black: prev.black, white: session.pausedTurnTimeLeft! },
+            );
+            return;
+        }
         
         if (isAnimating || isAnimationStatus) {
             // 애니메이션 중에는 pausedTurnTimeLeft를 사용하여 시간을 멈춤
@@ -53,7 +77,7 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
             return;
         }
 
-        const playingStatuses = ['playing', 'hidden_placing'];
+        const playingStatuses = ['playing'];
         const now = Date.now();
         const curPlayer = session.currentPlayer;
 

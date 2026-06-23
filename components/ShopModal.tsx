@@ -97,7 +97,7 @@ const SHOP_DIAMOND_ICON = '/images/icon/Zem.webp';
 /** 현금 다이아 탭 — 합계는 그대로, “더 주는” 느낌으로 구간만 시각 분할 */
 function getCashDiamondShopSegments(total: number): readonly [number, number] | null {
     if (total === 1250) return [1000, 250] as const;
-    if (total === 3000) return [2000, 1000] as const;
+    if (total === 2250) return [1500, 750] as const;
     return null;
 }
 
@@ -1159,7 +1159,7 @@ const ShopModal: React.FC<ShopModalProps> = ({
             id: 'reward_vip',
             name: t('vipProducts.reward_vip.name'),
             duration: t('duration30Days'),
-            priceKRW: 9900,
+            priceKRW: 10900,
             benefits: ['0', '1', '2', '3', '4', '5', '6', '7'].map((k) => t(`vipProducts.reward_vip.benefits.${k}`)),
             benefitFooter: t('vipProducts.reward_vip.benefitFooter'),
         },
@@ -1167,14 +1167,14 @@ const ShopModal: React.FC<ShopModalProps> = ({
             id: 'function_vip',
             name: t('vipProducts.function_vip.name'),
             duration: t('duration30Days'),
-            priceKRW: 9900,
+            priceKRW: 10900,
             benefits: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'].map((k) => t(`vipProducts.function_vip.benefits.${k}`)),
         },
         {
             id: 'vvip',
             name: t('vipProducts.vvip.name'),
             duration: t('duration30Days'),
-            priceKRW: 15900,
+            priceKRW: 17900,
             benefits: [t('vipProducts.vvip.benefits.0')],
         },
     ], [t]);
@@ -1290,8 +1290,8 @@ const ShopModal: React.FC<ShopModalProps> = ({
     );
     const diamondProducts = [
         { id: 'diamond_500', diamonds: 500, priceKRW: 10900 },
-        { id: 'diamond_1250', diamonds: 1250, priceKRW: 21900 },
-        { id: 'diamond_3000', diamonds: 3000, priceKRW: 45900 },
+        { id: 'diamond_1250', diamonds: 1250, priceKRW: 19900 },
+        { id: 'diamond_2250', diamonds: 2250, priceKRW: 29900 },
     ] as const;
 
     const handleClaimShopAdReward = (tab: ShopAdRewardTab) => {

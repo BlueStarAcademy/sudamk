@@ -10,6 +10,7 @@ import { useAppContext } from '../../hooks/useAppContext.js';
 import { useRanking } from '../../hooks/useRanking.js';
 import Button from '../Button.js';
 import SeasonalBadukRankingRow from './SeasonalBadukRankingRow.js';
+import { formatCurrentSeasonLabel } from '../../shared/utils/rankingSeasonDisplay.js';
 
 interface RankingListProps {
     currentUser: UserWithStatus;
@@ -35,18 +36,7 @@ const getTier = (score: number, rank: number, totalGames: number) => {
     return RANKING_TIERS[RANKING_TIERS.length - 1];
 };
 
-const getCurrentSeasonName = (t: (key: string, opts?: Record<string, unknown>) => string) => {
-    const now = new Date();
-    const year = now.getFullYear().toString().slice(-2);
-    const month = now.getMonth();
-    let season;
-    if (month < 3) season = 1;
-    else if (month < 6) season = 2;
-    else if (month < 9) season = 3;
-    else season = 4;
-    return t('ranked.seasonSuffix', { year, season });
-};
-
+const getCurrentSeasonName = formatCurrentSeasonLabel;
 
 const RankingList: React.FC<RankingListProps> = ({
     currentUser,

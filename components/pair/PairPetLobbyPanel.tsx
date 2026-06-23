@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 import { tx } from '../../shared/i18n/runtimeText.js';
-import { useLocalizedItemGrade } from '../../shared/i18n/localizedCatalog.js';
+import { useLocalizedItemGrade, useLocalizedPairPetText } from '../../shared/i18n/localizedCatalog.js';
 import { flushSync } from 'react-dom';
 import Button from '../Button.js';
 import DraggableWindow from '../DraggableWindow.js';
@@ -119,7 +119,6 @@ import {
     PAIR_WELCOME_EGG_TEMPLATE_ID,
     PAIR_SOULSTONE_TEMPLATE_IDS,
     findFirstHatchablePairEgg,
-    getPairPetDefinition,
     isPairEggItem,
     isPairWelcomeEggItem,
     isPairPetMaterial,
@@ -138,7 +137,6 @@ import {
 } from '../../shared/constants/pairPetModal.js';
 import {
     PAIR_TRAINING_SLOT_DEFS,
-    getPairTrainingSlotDisplayName,
     getPairTrainingSlotUnlockProgress,
     getPairWins,
     isItemIdInPairTraining,
@@ -665,6 +663,7 @@ export interface PairPetLobbyPanelProps {
 const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, currentUserId, isBusy, applyPetAction }) => {
     const { t } = useTranslation(['pair', 'common']);
     const { t: tCommon } = useTranslation('common');
+    const { localizePetName, localizeTrainingSlot, localizeHatcheryUpgradeTier } = useLocalizedPairPetText();
     const { handlers } = useAppContext();
     const { isNativeMobile, isNarrowViewport, pcLikeMobileLayout } = useNativeMobileShell();
     /** 터치·좁은 화면: 드롭 대신 슬롯 탭 → 펫 탭 */
@@ -1237,9 +1236,9 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
             ) : (
                 <span className={`inline-flex min-w-0 items-center gap-1 ${PET_MGMT_XBOLD} tabular-nums text-fuchsia-200/85`}>
                     <span>#1</span>
-                    {mainEffective.upgradeLabel ? (
+                    {mainEffective.upgradeTier > 0 ? (
                         <span className="truncate rounded border border-fuchsia-400/35 bg-fuchsia-950/50 px-1 py-px text-[0.6rem] font-bold text-fuchsia-100/95">
-                            {mainEffective.upgradeLabel}
+                            {localizeHatcheryUpgradeTier(mainEffective.upgradeTier)}
                         </span>
                     ) : null}
                 </span>
@@ -1488,7 +1487,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                     }`}
                 >
                     <div className="flex items-center justify-between gap-1">
-                        <span className={`${PET_MGMT_XBOLD} text-fuchsia-200/90`}>{tierDef.displayLabel}</span>
+                        <span className={`${PET_MGMT_XBOLD} text-fuchsia-200/90`}>{localizeHatcheryUpgradeTier(tierIndex)}</span>
                         {tierUnlocked ? (
                             <span
                                 className={`rounded px-1 py-px ${PET_MGMT_CAPTION} font-bold ${
@@ -1971,7 +1970,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                             </span>
                                         ) : null}
                                         <span className={`min-w-0 flex-1 text-center ${PET_MGMT_SEMI} leading-none`}>
-                                            {getPairTrainingSlotDisplayName(i)}
+                                            {localizeTrainingSlot(i)}
                                         </span>
                                     </span>
                                     <div
@@ -2762,10 +2761,8 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                     {(() => {
                         const { slotIndex, itemId } = trainingStartConfirm;
                         const petRow = inventory.find((x) => x.id === itemId);
-                        const slotLabel = getPairTrainingSlotDisplayName(slotIndex);
-                        const petName = petRow
-                            ? getPairPetDefinition(petRow.templateId!)?.displayName ?? petRow.name
-                            : t('pet.defaultName');
+                        const slotLabel = localizeTrainingSlot(slotIndex);
+                        const petName = petRow ? localizePetName(petRow) : t('pet.defaultName');
                         const repPet = getEquippedPairPetInventoryRow(currentUser);
                         return (
                             <div className="relative flex h-full min-h-0 flex-col overflow-hidden">
@@ -2912,7 +2909,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                             <p className="mx-auto mt-1.5 max-w-sm text-[0.6rem] leading-relaxed text-slate-500 sm:mt-2 sm:text-xs">
                                 {t('training.slotLabel')}:{' '}
                                 <span className="font-bold text-violet-200/95">
-                                    {getPairTrainingSlotDisplayName(trainingCancelConfirmSlotIndex)}
+                                    {localizeTrainingSlot(trainingCancelConfirmSlotIndex)}
                                 </span>
                             </p>
                             <div className="mx-auto mt-4 flex max-w-sm flex-row items-stretch justify-center gap-2 sm:mt-5 sm:gap-3">
@@ -2943,7 +2940,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                 <PairTrainingRewardModal
                     key={`ptr-${trainingRewardModal.slotIndex}-${trainingRewardModal.petItem.id}`}
                     slotIndex={trainingRewardModal.slotIndex}
-                    slotLabel={getPairTrainingSlotDisplayName(trainingRewardModal.slotIndex)}
+                    slotLabel={localizeTrainingSlot(trainingRewardModal.slotIndex)}
                     petItem={trainingRewardModal.petItem}
                     claimSummary={trainingRewardModal.claimSummary}
                     autoClaimOnMount={trainingRewardModal.claimViaServer}

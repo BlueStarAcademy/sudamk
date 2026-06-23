@@ -1836,6 +1836,8 @@ export type GuildMessage = {
   system?: boolean;
   timestamp?: number;
   text?: string;
+  i18nKey?: string;
+  i18nParams?: Record<string, string | number | boolean | undefined>;
 };
 
 export type GuildMission = {

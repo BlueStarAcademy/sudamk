@@ -4,40 +4,23 @@ import { User } from '../types/index.js';
 import * as types from '../types/index.js';
 import * as db from './db.js';
 import { regenerateActionPoints } from './effectService.js';
+import {
+    MANNER_RANK_DEFINITIONS,
+    MANNER_RANK_COLORS,
+    resolveMannerRankFromScore,
+} from '../shared/constants/mannerRanks.js';
 
-export const MANNER_RANKS = [
-    { name: '최악', min: 0, max: 0 },
-    { name: '매우 나쁨', min: 1, max: 49 },
-    { name: '나쁨', min: 50, max: 99 },
-    { name: '주의', min: 100, max: 199 },
-    { name: '보통', min: 200, max: 399 },
-    { name: '좋음', min: 400, max: 799 },
-    { name: '매우 좋음', min: 800, max: 1199 },
-    { name: '품격', min: 1200, max: 1599 },
-    { name: '프로', min: 1600, max: 1999 },
-    { name: '마스터', min: 2000, max: Infinity },
-];
+export const MANNER_RANKS = MANNER_RANK_DEFINITIONS;
 
 export const getMannerScore = (user: User): number => {
     return user.mannerScore ?? 200;
 };
 
-const RANK_COLORS: Record<string, string> = {
-    '최악': 'text-red-700',
-    '매우 나쁨': 'text-red-500',
-    '나쁨': 'text-orange-400',
-    '주의': 'text-yellow-400',
-    '보통': 'text-gray-300',
-    '좋음': 'text-green-400',
-    '매우 좋음': 'text-teal-400',
-    '품격': 'text-cyan-400',
-    '프로': 'text-blue-400',
-    '마스터': 'text-purple-400',
-};
+const RANK_COLORS = MANNER_RANK_COLORS;
 
 export const getMannerRank = (score: number): { rank: string, color: string } => {
-    const rank = [...MANNER_RANKS].reverse().find(tier => score >= tier.min) ?? MANNER_RANKS[0];
-    return { rank: rank.name, color: RANK_COLORS[rank.name] ?? 'text-gray-300' };
+    const tier = resolveMannerRankFromScore(score);
+    return { rank: tier.name, color: RANK_COLORS[tier.id] ?? 'text-gray-300' };
 };
 
 export const getMannerStyle = (score: number): { percentage: number, colorClass: string } => {
@@ -68,7 +51,7 @@ export const applyMannerRankChange = async (user: types.User, oldMannerScore: nu
 
     const newMannerScore = getMannerScore(user);
     const newRank = getMannerRank(newMannerScore).rank;
-    user.mannerMasteryApplied = newRank === '마스터';
+    user.mannerMasteryApplied = resolveMannerRankFromScore(newMannerScore).id === 'master';
 
     // Recalculate with the NEW manner score so that higher-tier 보너스/페널티가 즉시 반영되도록 함
     const refreshedUser = await regenerateActionPoints(user as User);

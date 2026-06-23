@@ -2,7 +2,7 @@ import * as types from '../../types/index.js';
 import { MISSILE_FLIGHT_DURATION_MS } from '../../shared/constants/gameSettings.js';
 import * as db from '../db.js';
 import { processMove } from '../goLogic.js';
-import { enforceBaseSeatLockIfDriftedDuringPlay, resumeGameTimer, pauseGameTimer } from './shared.js';
+import { enforceBaseSeatLockIfDriftedDuringPlay, resumeGameTimer, pauseGameTimer, freezeMainTurnClock } from './shared.js';
 import { applyMissileCaptureProcessResult } from '../../shared/utils/missileLandingCapture.js';
 import { recordPatternStoneConsumed, stripPatternStonesAtConsumedIntersections } from '../../shared/utils/patternStoneConsume.js';
 import { findLatestMoveIndexAtExcludingRecordedBaseStones } from '../../shared/utils/baseHiddenMoveIndex.js';
@@ -1070,9 +1070,7 @@ export const handleSinglePlayerMissileAction = async (game: types.LiveGameSessio
             
             // 아이템 사용 시간 일시 정지 (애니메이션 중)
             game.itemUseDeadline = undefined;
-            
-            // 턴 시간 복원 (애니메이션 중에도 턴이 유지되도록)
-            resumeGameTimer(game, now, myPlayerEnum);
+            freezeMainTurnClock(game, now);
             
             // 미사일 아이템은 턴을 사용하는 행동이 아니므로 totalTurns를 증가시키지 않음
             // totalTurns는 유지되어야 함 (자동계가까지 남은 턴이 초기화되지 않도록)

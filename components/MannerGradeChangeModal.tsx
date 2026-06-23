@@ -6,6 +6,7 @@ import { UserWithStatus } from '../types.js';
 import type { MannerGradeChangePayload } from '../types/mannerGradeChangeModal.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants.js';
 import { getMannerRank } from '../services/manner.js';
+import { translateMannerRankLabel } from '../shared/utils/translateMannerRankLabel.js';
 import Avatar from './Avatar.js';
 import Button from './Button.js';
 
@@ -24,6 +25,8 @@ const MannerGradeChangeModal: React.FC<MannerGradeChangeModalProps> = ({ user, p
 
     const prevStyle = getMannerRank(payload.previousScore);
     const nextStyle = getMannerRank(payload.newScore);
+    const translatedPreviousRank = translateMannerRankLabel(t, payload.previousRank);
+    const translatedNewRank = translateMannerRankLabel(t, payload.newRank);
     const delta = payload.newScore - payload.previousScore;
     const isUp = payload.direction === 'up';
 
@@ -131,7 +134,7 @@ const MannerGradeChangeModal: React.FC<MannerGradeChangeModalProps> = ({ user, p
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-stretch sm:gap-2">
                                 <div className={`rounded-2xl border bg-black/35 p-4 text-center ring-1 ring-inset sm:p-4 ${chrome.scorePanel}`}>
                                     <p className="text-[0.65rem] font-bold uppercase tracking-[0.2em] text-slate-500">{t('previous', { ns: 'common' })}</p>
-                                    <p className={`mt-2 text-lg font-black tracking-tight sm:text-xl ${prevStyle.color}`}>{payload.previousRank}</p>
+                                    <p className={`mt-2 text-lg font-black tracking-tight sm:text-xl ${prevStyle.color}`}>{translatedPreviousRank}</p>
                                 </div>
 
                                 <div className="hidden items-center justify-center sm:flex" aria-hidden>
@@ -145,7 +148,7 @@ const MannerGradeChangeModal: React.FC<MannerGradeChangeModalProps> = ({ user, p
 
                                 <div className={`rounded-2xl border bg-black/35 p-4 text-center ring-1 ring-inset sm:p-4 ${chrome.scorePanel}`}>
                                     <p className="text-[0.65rem] font-bold uppercase tracking-[0.2em] text-slate-500">{t('current', { ns: 'common' })}</p>
-                                    <p className={`mt-2 text-lg font-black tracking-tight sm:text-xl ${nextStyle.color}`}>{payload.newRank}</p>
+                                    <p className={`mt-2 text-lg font-black tracking-tight sm:text-xl ${nextStyle.color}`}>{translatedNewRank}</p>
                                 </div>
                             </div>
 

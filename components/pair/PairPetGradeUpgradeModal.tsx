@@ -9,7 +9,7 @@ import {
     gradeStyles,
     MATERIAL_ITEMS,
 } from '../../shared/constants/items.js';
-import { useLocalizedItemGrade } from '../../shared/i18n/localizedCatalog.js';
+import { useLocalizedItemGrade, useLocalizedPairPetText } from '../../shared/i18n/localizedCatalog.js';
 import {
     isPairPetUpgradeableGrade,
     nextPairPetGrade,
@@ -20,7 +20,7 @@ import {
     pairPetLevelUpStatBudget,
     pairPetMinLevelForNextGrade,
 } from '../../shared/constants/pairPetGrade.js';
-import { getPairPetDisplayName, isPairSoulStoneItem } from '../../shared/constants/petLobby.js';
+import { isPairSoulStoneItem } from '../../shared/constants/petLobby.js';
 import {
     bumpPairPetDispositionPctOnGradeUpgrade,
     resolvePairPetMetaFromInventoryRow,
@@ -54,6 +54,7 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
     const { t } = useTranslation(['pair', 'common']);
     const { t: tCommon } = useTranslation('common');
     const localizedGrade = useLocalizedItemGrade();
+    const { localizePetName } = useLocalizedPairPetText();
     const mainGradeStored = mainItem.grade ?? ItemGrade.Normal;
     const nextG = nextPairPetGrade(mainGradeStored);
     const meta = useMemo(() => resolvePairPetMetaFromInventoryRow(mainItem), [mainItem]);
@@ -171,7 +172,7 @@ const PairPetGradeUpgradeModal: React.FC<PairPetGradeUpgradeModalProps> = ({
                                     className={`break-words text-base font-black leading-snug tracking-tight sm:text-lg ${mainSt.color}`}
                                 >
                                     <span className="mr-1.5 font-black tabular-nums text-amber-200">Lv.{levelSafe}</span>
-                                    {getPairPetDisplayName(mainItem)}
+                                    {localizePetName(mainItem)}
                                 </p>
                                 {levelSafe < needLv ? (
                                     <p className="mt-1 text-xs font-semibold text-amber-300/95 sm:text-sm">{t('gradeUpgrade.untilLevel', { level: needLv })}</p>

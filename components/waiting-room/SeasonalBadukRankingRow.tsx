@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AVATAR_POOL, BORDER_POOL } from '../../constants';
 import Avatar from '../Avatar.js';
+import { translateRankingTierName } from '../../shared/i18n/rankingTierText.js';
 
 export interface SeasonalBadukRankingRowUser {
     id: string;
@@ -45,6 +46,7 @@ const SeasonalBadukRankingRow: React.FC<SeasonalBadukRankingRowProps> = ({
     currentUserLevel,
 }) => {
     const { t } = useTranslation('lobby');
+    const tierDisplayName = translateRankingTierName(tier.name);
     const wins = user.wins || 0;
     const losses = user.losses || 0;
     const winRate = wins + losses > 0 ? Math.round((wins / (wins + losses)) * 100) : 0;
@@ -166,9 +168,9 @@ const SeasonalBadukRankingRow: React.FC<SeasonalBadukRankingRowProps> = ({
                 <div className="relative flex justify-center">
                     <img
                         src={tier.icon}
-                        alt={tier.name}
+                        alt={tierDisplayName}
                         className={`flex-shrink-0 object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)] transition-transform duration-300 group-hover:scale-105 ${tierIconCls}`}
-                        title={tier.name}
+                        title={tierDisplayName}
                     />
                     {(isTopThree || isMyRankDisplay) && (
                         <div className="pointer-events-none absolute inset-0 rounded-lg bg-gradient-to-br from-white/20 to-transparent blur-sm" />
@@ -179,7 +181,7 @@ const SeasonalBadukRankingRow: React.FC<SeasonalBadukRankingRowProps> = ({
                         rankSmall ? 'text-[9px] sm:text-[10px]' : 'text-[10px] sm:text-xs'
                     }`}
                 >
-                    {tier.name}
+                    {tierDisplayName}
                 </span>
             </div>
             <Avatar

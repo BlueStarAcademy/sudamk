@@ -95,6 +95,7 @@ import {
 } from '../shared/utils/pairPetQuickClaimNotification.js';
 import { stampObtainedItemsBulk } from '../shared/utils/obtainedItemsBulk.js';
 import { advancePairTurn, getCurrentPairTurnSeat, isPairAiSeat, isPairClassicGame, normalizePairTurnIndex, resetPairPasses } from '../shared/utils/pairGameTurn.js';
+import { buildBoardFromMoves } from '../utils/sgfBoardLogic.js';
 import { mergePairPetTrainingSlotsPreserveRecentRestart } from '../shared/utils/pairPetTrainingSlotsClientMerge.js';
 import { pairTrainingClaimCompletedBySlotIndex, PAIR_TRAINING_CLAIM_ALREADY_CLAIMED_ERROR } from '../components/pair/pairTrainingClaimInFlight.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
@@ -636,6 +637,72 @@ function drainNextPairAiMoveReveal(
     }, delayMs);
 }
 
+function isPairAiMoveInHistory(
+    move: { actorId?: string; pairSeatId?: string; player?: Player } | null | undefined,
+    pairTurnOrder: Array<{ participantId?: string; seatId?: string; kind?: string }>,
+): boolean {
+    if (!move) return false;
+    const lastPairSeat = pairTurnOrder.find(
+        (seat) =>
+            seat &&
+            ((move.actorId && seat.participantId === move.actorId) ||
+                (move.pairSeatId && seat.seatId === move.pairSeatId)),
+    );
+    if (lastPairSeat) return isPairAiSeat(lastPairSeat as any);
+    const actorId = move.actorId;
+    return (
+        typeof actorId === 'string' &&
+        (actorId.startsWith('pair-') || actorId.startsWith('pet-ai-'))
+    );
+}
+
+function buildIncrementalPairAiRevealSnapshots(
+    target: LiveGameSession,
+    fromMoveCount: number,
+): LiveGameSession[] {
+    const history = target.moveHistory ?? [];
+    const end = history.length;
+    if (end <= fromMoveCount) return [];
+
+    const order = target.settings?.pairGame?.turnOrder ?? [];
+    const len = order.length || 4;
+    const boardSize = target.settings?.boardSize ?? target.boardState?.length ?? 19;
+    const snapshots: LiveGameSession[] = [];
+
+    for (let i = fromMoveCount + 1; i <= end; i++) {
+        const partialHistory = history.slice(0, i);
+        const last = partialHistory[i - 1] as { x?: number; y?: number; player?: Player } | undefined;
+        const turnIndex = i % len;
+        const nextSeat = order[turnIndex];
+        const boardState = buildBoardFromMoves(
+            boardSize,
+            partialHistory as Array<{ player: Player; x: number; y: number }>,
+            i,
+        ).map((row) => [...row]);
+
+        snapshots.push({
+            ...target,
+            moveHistory: partialHistory,
+            boardState,
+            lastMove:
+                last && typeof last.x === 'number' && typeof last.y === 'number'
+                    ? { x: last.x, y: last.y }
+                    : target.lastMove,
+            currentPlayer: nextSeat?.player ?? target.currentPlayer,
+            settings: {
+                ...target.settings,
+                pairGame: target.settings?.pairGame
+                    ? {
+                          ...target.settings.pairGame,
+                          currentTurnIndex: turnIndex,
+                      }
+                    : target.settings?.pairGame,
+            },
+        });
+    }
+    return snapshots;
+}
+
 function enqueuePairAiMoveReveal(
     gameId: string,
     snapshot: LiveGameSession,
@@ -659,7 +726,13 @@ function enqueuePairAiMoveReveal(
             : baselineMoveCount;
     if (incomingMoves <= lastQueuedMoves) return;
 
-    q.snapshots.push(snapshot);
+    const incrementalSnapshots =
+        incomingMoves - lastQueuedMoves > 1
+            ? buildIncrementalPairAiRevealSnapshots(snapshot, lastQueuedMoves)
+            : [snapshot];
+    for (const partial of incrementalSnapshots) {
+        q.snapshots.push(partial);
+    }
     if (q.drainTimerId == null) {
         drainNextPairAiMoveReveal(gameId, delayMs, queuesRef, applySnapshot);
     }
@@ -4375,10 +4448,12 @@ export const useApp = () => {
             setSinglePlayerGames(applyMissileAnimationCompletion);
             setTowerGames(applyMissileAnimationCompletion);
 
-            // 도전의 탑: LAUNCH는 서버 처리, 애니 완료는 클라만 반영되면 서버가 missile_animating에 남아 다음 START가 400
+            // LAUNCH는 서버 처리, 애니 완료는 클라만 반영되면 서버가 missile_animating에 남아
+            // REQUEST_SERVER_AI_MOVE·상태 동기화가 반복된다(탑·바둑학원 공통).
             const isTowerMissileGame = Boolean(towerGamesRef.current[gameId]);
+            const isSinglePlayerMissileGame = Boolean(singlePlayerGamesRef.current[gameId]);
             const uid = currentUserRef.current?.id;
-            if (isTowerMissileGame && uid) {
+            if ((isTowerMissileGame || isSinglePlayerMissileGame) && uid) {
                 void (async () => {
                     try {
                         const res = await fetch(getApiUrl('/api/action'), {
@@ -4397,22 +4472,26 @@ export const useApp = () => {
                             (result?.game as LiveGameSession | undefined) ??
                             (result?.clientResponse?.game as LiveGameSession | undefined);
                         if (!serverGame?.id) return;
-                        setTowerGames((currentGames) => {
+                        const mergeServerMissileComplete = (
+                            currentGames: Record<string, LiveGameSession>,
+                        ) => {
                             const prev = currentGames[gameId];
                             if (!prev) return currentGames;
                             return {
                                 ...currentGames,
-                                [gameId]: mergeGameWithMonotonicCounters(
-                                    prev,
-                                    serverGame,
-                                    gameId,
-                                ),
+                                [gameId]: mergeGameWithMonotonicCounters(prev, serverGame, gameId),
                             };
-                        });
+                        };
+                        if (isTowerMissileGame) {
+                            setTowerGames(mergeServerMissileComplete);
+                        }
+                        if (isSinglePlayerMissileGame) {
+                            setSinglePlayerGames(mergeServerMissileComplete);
+                        }
                     } catch (e) {
                         if (process.env.NODE_ENV === 'development') {
                             console.warn(
-                                '[handleAction] tower MISSILE_ANIMATION_COMPLETE sync failed:',
+                                '[handleAction] MISSILE_ANIMATION_COMPLETE server sync failed:',
                                 e,
                             );
                         }
@@ -4783,6 +4862,34 @@ export const useApp = () => {
                     if (uid === g.blackPlayerId) currentPlayer = Player.Black;
                     else if (uid === g.whitePlayerId) currentPlayer = Player.White;
                 }
+                const hasTimeControl =
+                    (g.settings?.timeLimit ?? 0) > 0 ||
+                    ((g.settings?.byoyomiCount ?? 0) > 0 && (g.settings?.byoyomiTime ?? 0) > 0);
+                const buildTurnDeadline = (player: Player) => {
+                    if (!hasTimeControl) {
+                        return { turnDeadline: undefined as number | undefined, turnStartTime: undefined as number | undefined };
+                    }
+                    const timeLeft =
+                        g.pausedTurnTimeLeft ??
+                        (player === Player.Black ? g.blackTimeLeft : g.whiteTimeLeft);
+                    const byoyomiLeft =
+                        player === Player.Black
+                            ? (g.blackByoyomiPeriodsLeft ?? 0)
+                            : (g.whiteByoyomiPeriodsLeft ?? 0);
+                    const byoyomiTime = g.settings?.byoyomiTime ?? 0;
+                    if ((timeLeft ?? 0) <= 0 && byoyomiLeft > 0 && byoyomiTime > 0) {
+                        return { turnDeadline: now + byoyomiTime * 1000, turnStartTime: now };
+                    }
+                    if ((timeLeft ?? 0) > 0) {
+                        return { turnDeadline: now + (timeLeft ?? 0) * 1000, turnStartTime: now };
+                    }
+                    return { turnDeadline: undefined, turnStartTime: hasTimeControl ? now : undefined };
+                };
+                const deadline = buildTurnDeadline(currentPlayer);
+                const timeKey = currentPlayer === Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+                const restoredTimeLeft =
+                    g.pausedTurnTimeLeft ??
+                    (currentPlayer === Player.Black ? g.blackTimeLeft : g.whiteTimeLeft);
                 return {
                     ...prev,
                     [gameId]: {
@@ -4790,6 +4897,10 @@ export const useApp = () => {
                         gameStatus: 'playing' as const,
                         animation: null,
                         currentPlayer,
+                        itemUseDeadline: undefined,
+                        pausedTurnTimeLeft: undefined,
+                        ...(typeof restoredTimeLeft === 'number' ? { [timeKey]: restoredTimeLeft } : {}),
+                        ...deadline,
                     },
                 };
             });
@@ -10351,6 +10462,13 @@ export const useApp = () => {
                                             const isItemMode = incomingItemPhase || localRevealClockLive;
                                             // 미사일 애니메이션 중에는 서버가 따낸 돌을 반영한 boardState를 적용해야 함
                                             const isMissileAnimating = game.gameStatus === 'missile_animating';
+                                            const hiddenRevealResolved =
+                                                existingGame?.gameStatus === 'hidden_reveal_animating' &&
+                                                game.gameStatus === 'playing' &&
+                                                !game.pendingCapture;
+                                            const isHiddenRevealItemPhase =
+                                                game.gameStatus === 'hidden_reveal_animating' ||
+                                                existingGame?.gameStatus === 'hidden_reveal_animating';
                                             
                                             // 애니메이션 중에는 totalTurns와 captures를 보존해야 함
                                             const isAnimating = game.animation !== null && game.animation !== undefined;
@@ -10410,20 +10528,36 @@ export const useApp = () => {
                                                 const existingMhLen = existingMoveHistoryValid ? existingGame.moveHistory.length : 0;
                                                 /** 서버가 이미 한 수 이상 앞선 패킷(히든 공개 직후 등)이면 수순·보드를 서버 기준으로 맞춘다. 기존만 고르면 착수가 사라진 것처럼 보인다. */
                                                 const serverMoveHistoryAhead = serverMhLen > existingMhLen;
+                                                const preferServerBoardForHiddenReveal =
+                                                    serverBoardStateValid &&
+                                                    isHiddenRevealItemPhase &&
+                                                    (serverMoveHistoryAhead ||
+                                                        !!game.pendingCapture ||
+                                                        hiddenRevealResolved);
 
-                                                // missile_animating일 때는 서버의 boardState/captures 적용 (미사일로 따낸 돌이 즉시 반영되도록)
-                                                const finalBoardState = isMissileAnimating && serverBoardStateValid
-                                                    ? game.boardState
-                                                    : serverMoveHistoryAhead && serverBoardStateValid
-                                                      ? game.boardState
-                                                      : existingBoardStateValid && !isMissileAnimating
-                                                        ? existingGame.boardState
-                                                        : serverBoardStateValid
+                                                // missile_animating / hidden_reveal: 서버 boardState·captures 적용
+                                                const finalBoardState =
+                                                    (isMissileAnimating || preferServerBoardForHiddenReveal) &&
+                                                    serverBoardStateValid
+                                                        ? game.boardState
+                                                        : serverMoveHistoryAhead && serverBoardStateValid
                                                           ? game.boardState
-                                                          : existingGame?.boardState;
-                                                const finalCapturesForItemMode = isMissileAnimating && game.captures && typeof game.captures === 'object' && Object.keys(game.captures).length > 0
-                                                    ? game.captures
-                                                    : preservedCaptures;
+                                                          : existingBoardStateValid && !isMissileAnimating
+                                                            ? existingGame.boardState
+                                                            : serverBoardStateValid
+                                                              ? game.boardState
+                                                              : existingGame?.boardState;
+                                                const finalCapturesForItemMode =
+                                                    (isMissileAnimating ||
+                                                        (hiddenRevealResolved &&
+                                                            game.captures &&
+                                                            typeof game.captures === 'object' &&
+                                                            Object.keys(game.captures).length > 0)) &&
+                                                    game.captures &&
+                                                    typeof game.captures === 'object' &&
+                                                    Object.keys(game.captures).length > 0
+                                                        ? game.captures
+                                                        : preservedCaptures;
 
                                                 // moveHistory: 미사일은 수순 길이가 같고 중간 좌표만 바뀌므로, 애니 중에는 반드시 서버 수순을 써야 보드·마커·히든 인덱스가 일치함
                                                 const finalMoveHistory =
@@ -11815,17 +11949,11 @@ export const useApp = () => {
                                         const pairTurnOrder = Array.isArray(game.settings?.pairGame?.turnOrder)
                                             ? game.settings.pairGame.turnOrder
                                             : [];
-                                        const lastPairSeat = pairTurnOrder.find((seat: any) =>
-                                            seat &&
-                                            (
-                                                (lastMove?.actorId && seat.participantId === lastMove.actorId) ||
-                                                (lastMove?.pairSeatId && seat.seatId === lastMove.pairSeatId)
-                                            )
-                                        );
                                         const isNewPairAiMoveLive =
                                             hasNewMoves &&
+                                            isPairClassicGame(game.settings, game.mode) &&
                                             pairTurnOrder.length > 0 &&
-                                            isPairAiSeat(lastPairSeat as any);
+                                            isPairAiMoveInHistory(lastMove, pairTurnOrder);
                                         // 체스 바둑: 서버가 기물 이동 후 2초 뒤 돌을 반영하므로 클라에서 또 미루면 간격이 2배가 된다.
                                         const isChessGoStoneAfterPieceMove =
                                             game.mode === GameMode.Chess &&
@@ -12565,10 +12693,27 @@ export const useApp = () => {
      * 의존성은 userId·gameId만 둠: onlineUsers·타 유저 게임 갱신으로 타이머가 계속 리셋되는 것을 막기 위함.
      * 스토어에 이미 들어왔는지는 타이머 시점에 ref로 확인.
      */
-    const inGameRecoveryGameId =
-        currentUser && currentUserWithStatus?.status === 'in-game' && currentUserWithStatus.gameId
-            ? currentUserWithStatus.gameId
-            : '';
+    const inGameRecoveryGameId = useMemo(() => {
+        if (!currentUser?.id) return '';
+        if (currentUserWithStatus?.status === 'in-game' && currentUserWithStatus.gameId) {
+            return currentUserWithStatus.gameId;
+        }
+        if (currentRoute?.view === 'game') return '';
+        const uid = currentUser.id;
+        for (const g of Object.values(liveGames)) {
+            if (!g || isSessionPveArena(g)) continue;
+            const st = g.gameStatus || '';
+            if (['ended', 'no_contest', 'scoring', 'rematch_pending'].includes(st)) continue;
+            if (g.player1?.id === uid || g.player2?.id === uid) return g.id;
+        }
+        return '';
+    }, [
+        currentUser?.id,
+        currentUserWithStatus?.status,
+        currentUserWithStatus?.gameId,
+        currentRoute?.view,
+        liveGames,
+    ]);
 
     useEffect(() => {
         if (!inGameRecoveryGameId) return;

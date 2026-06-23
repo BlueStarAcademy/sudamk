@@ -1,11 +1,11 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { ItemOption, MythicStat } from '../../types.js';
 import { MythicOptionAbbrev } from '../MythicStatAbbrev.js';
 import {
-    bagOptionLabelText,
-    formatBagOptionRangeTrailing,
-    stripOptionDisplayRange,
-} from '../../shared/utils/bagEquipmentOptionDisplay.js';
+    formatLocalizedBagOptionLabel,
+    formatLocalizedBagOptionRangeTrailing,
+} from '../../shared/i18n/inventoryItemText.js';
 import { coerceSpecialStatType } from '../../shared/utils/specialStatMilestones.js';
 
 export function resolveEquipmentOptionColorClass(type: ItemOption['type']): string {
@@ -31,9 +31,11 @@ export const EquipmentBagStyleOptionRow: React.FC<EquipmentBagStyleOptionRowProp
     isMain = false,
     rangeMetaClassName = 'text-stone-400',
 }) => {
+    const { t } = useTranslation(['inventory', 'profile']);
     const isMythic = Object.values(MythicStat).includes(opt.type as MythicStat);
     const resolvedColor = colorClass ?? (isMain ? 'text-yellow-300' : resolveEquipmentOptionColorClass(opt.type));
-    const rangeTrailing = formatBagOptionRangeTrailing(opt, itemStars);
+    const rangeTrailing = formatLocalizedBagOptionRangeTrailing(opt, itemStars, t);
+    const mainLabel = isMain ? formatLocalizedBagOptionLabel(opt, itemStars, t) : null;
 
     return (
         <p
@@ -41,14 +43,14 @@ export const EquipmentBagStyleOptionRow: React.FC<EquipmentBagStyleOptionRowProp
         >
             <span className="min-w-0 shrink whitespace-nowrap">
                 {isMain ? (
-                    stripOptionDisplayRange(opt.display)
+                    mainLabel
                 ) : isMythic ? (
                     <>
                         <MythicOptionAbbrev option={opt} textClassName={resolvedColor} />
                         <span className="ml-0.5">{`+${opt.value}${opt.isPercentage ? '%' : ''}`}</span>
                     </>
                 ) : (
-                    bagOptionLabelText(opt, itemStars)
+                    formatLocalizedBagOptionLabel(opt, itemStars, t)
                 )}
             </span>
             {rangeTrailing ? (

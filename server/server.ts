@@ -2198,21 +2198,8 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                                         'connection_timeout',
                                     );
                                 } else {
-                                    // PVP: 접속 끊김 카운트 및 disconnectionState
-                                    if (!activeGame.disconnectionCounts) activeGame.disconnectionCounts = {};
-                                    activeGame.disconnectionCounts[userId] = (activeGame.disconnectionCounts[userId] || 0) + 1;
-                                    if (activeGame.disconnectionCounts[userId] >= 3) {
-                                        const winner = activeGame.blackPlayerId === userId ? types.Player.White : types.Player.Black;
-                                        await endGame(activeGame, winner, 'disconnect');
-                                    } else {
-                                        activeGame.disconnectionState = { disconnectedPlayerId: userId, timerStartedAt: now };
-                                        if (activeGame.moveHistory.length < NO_CONTEST_MOVE_THRESHOLD) {
-                                            const otherPlayerId = activeGame.player1.id === userId ? activeGame.player2.id : activeGame.player1.id;
-                                            if (!activeGame.canRequestNoContest) activeGame.canRequestNoContest = {};
-                                            activeGame.canRequestNoContest[otherPlayerId] = true;
-                                        }
-                                        await db.saveGame(activeGame);
-                                    }
+                                    const { applyPvpInGameDisconnect } = await import('./actions/socialActions.js');
+                                    await applyPvpInGameDisconnect(volatileState, userId);
                                 }
                             }
                         } else if (userStatus?.status === types.UserStatus.Waiting) {

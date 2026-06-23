@@ -9,10 +9,10 @@ import {
     gradeBackgrounds,
     gradeStyles,
 } from '../../shared/constants/items.js';
-import { useLocalizedItemGrade } from '../../shared/i18n/localizedCatalog.js';
+import { useLocalizedItemGrade, useLocalizedPairPetText } from '../../shared/i18n/localizedCatalog.js';
 import { pairPetKataAbilityScore, type PairPetKataPhase } from '../../shared/constants/pairArena.js';
 import { PAIR_PET_MAX_LEVEL, pairPetLevelUpStatBudget } from '../../shared/constants/pairPetGrade.js';
-import { getPairPetDisplayName, getPairPetDefinition } from '../../shared/constants/petLobby.js';
+import { getPairPetDefinition } from '../../shared/constants/petLobby.js';
 import { resolvePairPetMetaFromInventoryRow } from '../../shared/utils/pairPetRoll.js';
 import { computePairPetKataCoreStatsSixFromMeta } from '../../shared/utils/pairPetKataStatsFromMeta.js';
 import {
@@ -46,6 +46,7 @@ const PairPetGradeUpgradeResultModal: React.FC<PairPetGradeUpgradeResultModalPro
     const { t } = useTranslation(['pair', 'common', 'profile', 'game']);
     const { t: tCommon } = useTranslation('common');
     const localizedGrade = useLocalizedItemGrade();
+    const { localizePetName } = useLocalizedPairPetText();
     const phaseDefs = useMemo(
         () =>
             [
@@ -162,7 +163,7 @@ const PairPetGradeUpgradeResultModal: React.FC<PairPetGradeUpgradeResultModalPro
                             <div className="min-w-0 flex-1 text-left">
                                 <p className="break-words text-sm font-black leading-snug tracking-tight text-fuchsia-100 sm:text-base">
                                     <span className="mr-1.5 font-black tabular-nums text-amber-200">Lv.{levelSafe}</span>
-                                    {getPairPetDisplayName(itemAfter)}
+                                    {localizePetName(itemAfter)}
                                 </p>
                             </div>
                         </div>

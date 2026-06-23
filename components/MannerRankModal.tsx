@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { User } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
 import { getMannerScore, getMannerRank, getMannerStyle, MANNER_RANKS } from '../services/manner.js';
+import { translateMannerRankLabel } from '../shared/utils/translateMannerRankLabel.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 
 interface MannerRankModalProps {
@@ -18,6 +19,7 @@ const MannerRankModal: React.FC<MannerRankModalProps> = ({ user, onClose, isTopm
     const totalMannerScore = getMannerScore(user);
     const mannerRank = getMannerRank(totalMannerScore);
     const mannerStyle = getMannerStyle(totalMannerScore);
+    const translatedMannerRank = translateMannerRankLabel(t, mannerRank.rankId);
 
     const rankListRef = useRef<HTMLDivElement>(null);
     const activeRankRef = useRef<HTMLDivElement>(null);
@@ -64,9 +66,9 @@ const MannerRankModal: React.FC<MannerRankModalProps> = ({ user, onClose, isTopm
                             <span className="shrink-0 font-bold text-amber-100/95 text-sm sm:text-base">{t('mannerRank.grade')}</span>
                             <span
                                 className={`min-w-0 shrink truncate font-bold tabular-nums text-sm sm:text-base ${mannerRank.color}`}
-                                title={t('mannerRank.mannerPointsTitle', { score: totalMannerScore, rank: mannerRank.rank })}
+                                title={t('mannerRank.mannerPointsTitle', { score: totalMannerScore, rank: translatedMannerRank })}
                             >
-                                {totalMannerScore}점 ({mannerRank.rank})
+                                {t('mannerRank.mannerPointsTitle', { score: totalMannerScore, rank: translatedMannerRank })}
                             </span>
                         </div>
                         <div className="w-full rounded-full border border-color bg-tertiary/50 h-2 sm:h-2">
@@ -120,7 +122,9 @@ const MannerRankModal: React.FC<MannerRankModalProps> = ({ user, onClose, isTopm
                                         )}
                                         <div className={`flex flex-wrap items-center justify-between gap-2 ${isActive ? 'pl-1 sm:pl-1.5' : ''}`}>
                                             <div className="flex min-w-0 flex-wrap items-center gap-2">
-                                                <span className={`min-w-0 ${typo.cardTitle} ${rankColor}`}>{rank.name}</span>
+                                                <span className={`min-w-0 ${typo.cardTitle} ${rankColor}`}>
+                                                    {translateMannerRankLabel(t, rank.id)}
+                                                </span>
                                                 {isActive ? <span className={typo.badge}>{t('mannerRank.currentBadge')}</span> : null}
                                             </div>
                                             <span

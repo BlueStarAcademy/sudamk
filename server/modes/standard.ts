@@ -41,6 +41,7 @@ import {
     hasTimeControl,
     shouldEnforceTimeControl,
     enforceBaseSeatLockIfDriftedDuringPlay,
+    freezeMainTurnClock,
 } from './shared.js';
 import { isFischerStyleTimeControl, getFischerIncrementSeconds, isSpeedPerMoveTimeControl } from '../../shared/utils/gameTimeControl.js';
 import {
@@ -54,6 +55,7 @@ import {
     getCurrentPairTurnSeat,
     isPairAiSeat,
     isPairClassicGame,
+    canPairHumanDeclarePass,
     markPairSeatPassed,
     pairOrderRevealNeedsConfirmation,
     resetPairPasses,
@@ -1581,12 +1583,9 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                     }
                 });
             
-                if (game.turnDeadline) {
-                    game.pausedTurnTimeLeft = (game.turnDeadline - now) / 1000;
-                    game.turnDeadline = undefined;
-                    game.turnStartTime = undefined;
+                if (shouldEnforceTimeControl(game)) {
+                    freezeMainTurnClock(game, now);
                 }
-                game.itemUseDeadline = undefined;
                 return petHintBonusResult ?? {};
             }
 
@@ -1927,12 +1926,8 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             if (modeIncludesCaptureRule(game)) {
                 return { error: '따내기 규칙이 포함된 대국에서는 통과할 수 없습니다.' };
             }
-            if (
-                pairClassicGame &&
-                sessionPolicy.matchAxis !== 'pvp' &&
-                !modeIncludesCaptureRule(game)
-            ) {
-                return { error: '페어 AI 대국에서는 통과할 수 없습니다. 가능한 위치에 착수해야 합니다.' };
+            if (pairClassicGame && pairCurrentSeat && !canPairHumanDeclarePass(game.settings, pairCurrentSeat)) {
+                return { error: '페어 대국에서는 통과할 수 없습니다. PVP 4인 대국에서만 유저가 통과할 수 있습니다.' };
             }
             // 수순 고정 모드에서는 제한 수순 종료 후 PASS도 엄격 차단한다.
             {

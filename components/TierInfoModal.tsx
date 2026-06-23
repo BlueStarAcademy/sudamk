@@ -4,6 +4,7 @@ import DraggableWindow from './DraggableWindow.js';
 import { RANKING_TIERS, SEASONAL_TIER_REWARDS, CONSUMABLE_ITEMS } from '../constants';
 import { QuestReward } from '../types.js';
 import { RANKING_MODAL_SLIM_SCROLL_Y } from '../shared/constants/rankingModalScrollbar.js';
+import { translateRankingTierName } from '../shared/i18n/rankingTierText.js';
 
 interface TierInfoModalProps {
     onClose: () => void;
@@ -89,7 +90,7 @@ const TierInfoModal: React.FC<TierInfoModalProps> = ({ onClose }) => {
                             <div className="flex items-center">
                                 <img src={tier.icon} alt={tier.name} className="w-12 h-12 mr-4 flex-shrink-0" />
                                 <div className="flex-grow">
-                                    <p className={`font-bold text-lg ${tier.color}`}>{tier.name}</p>
+                                    <p className={`font-bold text-lg ${tier.color}`}>{translateRankingTierName(tier.name)}</p>
                                     <p className="text-sm text-gray-400">{tierRequirement(tier.name)}</p>
                                 </div>
                             </div>

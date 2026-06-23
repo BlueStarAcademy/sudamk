@@ -375,13 +375,31 @@ export function resetPairPasses(settings: Pick<GameSettings, 'pairGame'> | undef
     if (settings?.pairGame) settings.pairGame.passSeatIds = [];
 }
 
+/** 페어 PVP(4인 유저)에서만 유저 좌석이 통과를 선언할 수 있다. AI·펫·AI전은 불가. */
+export function canPairHumanDeclarePass(
+    settings: Pick<GameSettings, 'pairGame'> | undefined,
+    seat: PairGameTurnSeat | null | undefined,
+): boolean {
+    if (!settings?.pairGame || settings.pairGame.pairMode !== 'pvp' || !seat) return false;
+    return seat.kind === 'user';
+}
+
+export function getPairUserPassSeats(
+    settings: Pick<GameSettings, 'pairGame'> | undefined,
+): PairGameTurnSeat[] {
+    return settings?.pairGame?.turnOrder?.filter((s) => s.kind === 'user') ?? [];
+}
+
 export function markPairSeatPassed(settings: Pick<GameSettings, 'pairGame'> | undefined, seat: PairGameTurnSeat): boolean {
     const pairGame = settings?.pairGame;
     if (!pairGame?.turnOrder?.length) return false;
+    if (!canPairHumanDeclarePass(settings, seat)) return false;
+    const userPassSeats = getPairUserPassSeats(settings);
+    if (userPassSeats.length === 0) return false;
     const prev = new Set(pairGame.passSeatIds ?? []);
     prev.add(seat.seatId);
     pairGame.passSeatIds = [...prev];
-    return pairGame.turnOrder.every((s) => prev.has(s.seatId));
+    return userPassSeats.every((s) => prev.has(s.seatId));
 }
 
 export function getPairHumanParticipantIds(pairGame: NonNullable<GameSettings['pairGame']>): string[] {

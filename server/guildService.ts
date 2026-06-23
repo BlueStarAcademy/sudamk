@@ -174,6 +174,11 @@ export const updateGuildMissionProgress = async (guildId: string, missionType: s
                     user: { id: 'system', nickname: '시스템' },
                     system: true,
                     text: `주간 임무 [${mission.title}]을(를) 달성했습니다! 길드 활동 > 길드 미션 탭에서 보상을 수령하세요.`,
+                    i18nKey: 'guild:homeChat.systemMessages.missionComplete',
+                    i18nParams: {
+                        missionProgressKey: mission.progressKey,
+                        missionTitle: mission.title,
+                    },
                     timestamp: Date.now(),
                 };
                 guild.chatHistory.push(message as any);
@@ -263,6 +268,15 @@ export const resetWeeklyGuildMissions = async (guild: Guild, now: number) => {
                 user: { id: 'system', nickname: '시스템' },
                 system: true,
                 text: `주간 길드 보스 정산(${prevBossTemplate.name}, ${statusLabel}): 길드 경험치 +${settlement.guildXp.toLocaleString()}, 연구 포인트 +${settlement.researchPoints.toLocaleString()}이 길드에 적립되었습니다.`,
+                i18nKey: 'guild:homeChat.systemMessages.bossWeeklySettlement',
+                i18nParams: {
+                    bossId: prevBossTemplate.id,
+                    bossName: prevBossTemplate.name,
+                    statusKey: wasDefeatedWithinWeek ? 'defeated' : 'remainingHp',
+                    statusPercent: Math.round(prevRatio * 100),
+                    guildXp: settlement.guildXp,
+                    researchPoints: settlement.researchPoints,
+                },
                 timestamp: now,
             };
             guild.chatHistory.push(chatMessage as any);

@@ -73,7 +73,7 @@ const AlkkagiStartConfirmationModal: React.FC<AlkkagiStartConfirmationModalProps
                     subtitle={t('startConfirm.autoRouletteShort')}
                 />
                 <p className="mt-5 text-center text-sm leading-relaxed text-stone-400">
-                    대국 시작을 누르거나, 30초가 지나면 자동으로 시작됩니다.
+                    {t('startConfirm.autoStartHint')}
                 </p>
                 <RoundCountdownIndicator
                     deadline={revealEndTime}

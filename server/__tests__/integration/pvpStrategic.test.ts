@@ -563,6 +563,9 @@ describe('PVP Strategic mode', () => {
             game.hiddenMoves = { 0: true };
             game.boardState[4][4] = Player.White;
             game.currentPlayer = Player.Black;
+            game.turnDeadline = Date.now() + 120_000;
+            game.pausedTurnTimeLeft = 120;
+            game.itemUseDeadline = Date.now() + 30_000;
             const { handleStrategicGameAction } = await import('../../modes/standard.js');
             const res = await handleStrategicGameAction(volatileState, game, {
                 type: 'SCAN_BOARD',
@@ -574,10 +577,13 @@ describe('PVP Strategic mode', () => {
             expect(game.scans_p1).toBe(1);
             expect(game.animation?.type).toBe('scan');
             expect(game.gameStatus).toBe('scanning_animating');
+            expect(game.turnDeadline).toBeUndefined();
+            expect(game.pausedTurnTimeLeft).toBe(120);
             const anim = game.animation as { startTime: number; duration: number };
             const { updateHiddenState } = await import('../../modes/hidden.js');
             await updateHiddenState(game, anim.startTime + anim.duration + 1);
             expect(game.gameStatus).toBe('playing');
+            expect(game.turnDeadline).toBeDefined();
         });
     });
 

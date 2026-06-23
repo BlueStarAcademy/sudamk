@@ -47,6 +47,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     arenaPremium = false,
 }) => {
     const { t } = useTranslation('lobby');
+    const { t: tGuild } = useTranslation('guild');
     const chatBodyRef = useRef<HTMLDivElement>(null);
     const quickChatRef = useRef<HTMLDivElement>(null);
     const [chatInput, setChatInput] = useState('');
@@ -166,10 +167,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     const hasGuildChatAccess = hasGuild && guildChatUnlocked;
     const displayedMessages = useMemo(() => {
         if (activeTab === 'guild') {
-            return guildMessages.map((msg) => guildChatHistoryEntryToChatMessage(msg, allUsers));
+            return guildMessages.map((msg) => guildChatHistoryEntryToChatMessage(msg, allUsers, tGuild));
         }
         return messages;
-    }, [activeTab, guildMessages, messages, allUsers]);
+    }, [activeTab, guildMessages, messages, allUsers, tGuild]);
 
     useEffect(() => {
         if (!hasGuildChatAccess && activeTab === 'guild') setActiveTab('global');

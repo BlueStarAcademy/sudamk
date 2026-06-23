@@ -10,11 +10,16 @@ vi.mock('../../db.js', () => ({
 }));
 vi.mock('../../socket.js', () => ({
     broadcastToGameParticipants: vi.fn(),
+    broadcast: vi.fn(),
+}));
+vi.mock('../../summaryService.js', () => ({
+    endGame: vi.fn().mockResolvedValue(undefined),
 }));
 
 import * as db from '../../db.js';
-import { broadcastToGameParticipants } from '../../socket.js';
+import { broadcast, broadcastToGameParticipants } from '../../socket.js';
 import {
+    applyPvpInGameDisconnect,
     clearPvpDisconnectOnPlayerReconnect,
     clearPvpDisconnectOnPlayerReconnectByStatus,
 } from '../../actions/socialActions.js';
@@ -90,5 +95,30 @@ describe('clearPvpDisconnectOnPlayerReconnectByStatus', () => {
         const cleared = await clearPvpDisconnectOnPlayerReconnectByStatus(volatileState, 'p2-id');
         expect(cleared).toBe(true);
         expect(game.disconnectionState).toBeNull();
+    });
+});
+
+describe('applyPvpInGameDisconnect', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('sets disconnectionState when waiting-room entry overwrote in-game status', async () => {
+        const game = makePvpGame('p2-id');
+        game.disconnectionState = null;
+        const volatileState = {
+            userStatuses: {
+                'p2-id': { status: UserStatus.Waiting, waitingLobby: 'strategic' },
+            },
+            gameCache: new Map([['game-1', { game, lastUpdated: Date.now() }]]),
+        } as VolatileState;
+
+        const handled = await applyPvpInGameDisconnect(volatileState, 'p2-id');
+        expect(handled).toBe(true);
+        expect(game.disconnectionState?.disconnectedPlayerId).toBe('p2-id');
+        expect(volatileState.userStatuses['p2-id']?.status).toBe(UserStatus.InGame);
+        expect(volatileState.userStatuses['p2-id']?.gameId).toBe('game-1');
+        expect(broadcastToGameParticipants).toHaveBeenCalled();
+        expect(broadcast).toHaveBeenCalled();
     });
 });
