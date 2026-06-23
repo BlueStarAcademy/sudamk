@@ -67,12 +67,13 @@
     "test:unit": "vitest run server/__tests__/unit",
     "test:integration": "vitest run server/__tests__/integration",
     "test:e2e": "playwright test",
-    "test:ci": "npm run typecheck && npm run test:unit && npm run test:integration && npm run test:e2e",
+    "test:ci": "npm run typecheck && npm run validate:client-imports && npm run test:unit && npm run test:integration && npm run test:e2e",
     "i18n:sync": "node scripts/i18n/sync-locales.mjs",
     "i18n:translate": "node scripts/i18n/auto-translate-locales.mjs",
     "i18n:build": "node scripts/i18n/auto-translate-locales.mjs && node scripts/i18n/sync-locales.mjs",
     "i18n:build-pregame-summary": "npx tsx scripts/i18n/build-pregame-summary-catalog.ts",
-    "i18n:validate": "node scripts/i18n/validate-key-refs.mjs && node scripts/i18n/validate-colon-keys.mjs"
+    "i18n:validate": "node scripts/i18n/validate-key-refs.mjs && node scripts/i18n/validate-colon-keys.mjs && node scripts/i18n/validate-react-i18next-imports.mjs",
+    "validate:client-imports": "node scripts/validate-client-util-imports.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-ses": "^3.936.0",

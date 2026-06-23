@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocalizedInventoryItemName } from '../shared/i18n/localizedCatalog.js';
 import { InventoryItem } from '../types.js';
 import { ItemGrade } from '../types/enums.js';
