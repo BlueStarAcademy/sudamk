@@ -956,9 +956,11 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             playfulAiPauseHeldSecRef.current = null;
             return;
         }
-        // 계가 중이면 타이머 정지: 서버에서 내려준 endTime 기준으로만 표시
-        if (isEnded || (isScoring && scoringEndTime != null)) {
-            const endMs = isEnded ? (session.turnStartTime ?? Date.now()) : scoringEndTime!;
+        // 계가 중이면 타이머 정지: endTime이 있으면 그 시각 기준, 없으면 계가 진입 직전 경과값 고정
+        if (isEnded || isScoring) {
+            const endMs = isEnded
+                ? (session.turnStartTime ?? Date.now())
+                : (scoringEndTime ?? Date.now());
             setElapsedSec(Math.max(0, Math.floor((endMs - gameStart) / 1000)));
             displayElapsedOriginMs.current = undefined;
             playfulAiPauseActiveRef.current = false;

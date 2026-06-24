@@ -2402,6 +2402,8 @@
       "forceLogout": "강제 퇴장",
       "forceLogoutConfirm": "[{{nickname}}]님을 강제로 접속 종료하시겠습니까?",
       "invite": "초대하기",
+      "challenge": "대국 신청",
+      "challengeUnavailable": "상대방이 대국 신청을 받을 수 있는 상태가 아닙니다.",
       "blockInvites": "초대금지",
       "blockInvitesTitle": "켜면 다른 플레이어가 페어 경기장에서 나를 파트너로 초대할 수 없습니다.",
       "statusInPairRoom": "페어 방에 있을 때는 상태를 바꿀 수 없습니다.",

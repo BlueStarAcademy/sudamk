@@ -359,6 +359,7 @@ async function finalizePveHiddenPlacementFromAuthoritativeClient(
         const genericTrigger =
             !isRankedFixedTurnScoringSession(game) && game.totalTurns >= autoScoringTurns;
         if (rankedTrigger || genericTrigger) {
+            if (game.endTime == null) game.endTime = Date.now();
             game.gameStatus = 'scoring';
             await db.saveGame(game);
             const { broadcastToGameParticipants } = await import('../socket.js');
@@ -1121,6 +1122,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                     return {};
                 }
                 
+                if (game.endTime == null) game.endTime = Date.now();
                 game.gameStatus = 'scoring';
                 await db.saveGame(game);
                 console.log(`[handleStandardAction] Game ${game.id} set to scoring state (0/N reached), calling getGameResult...`);
@@ -1858,6 +1860,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                             const { broadcastPlayingSnapshotBeforeScoring } = await import('../utils/broadcastPlayingBeforeScoring.js');
                             await broadcastPlayingSnapshotBeforeScoring(game);
                         }
+                        if (game.endTime == null) game.endTime = Date.now();
                         game.gameStatus = 'scoring';
                         await db.saveGame(game);
                         const { broadcastToGameParticipants } = await import('../socket.js');

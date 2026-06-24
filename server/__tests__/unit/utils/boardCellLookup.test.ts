@@ -19,4 +19,16 @@ describe('boardCellLookup', () => {
         expect(lookup.has('1,1')).toBe(true);
         expect(lookup.has('1,0')).toBe(false);
     });
+
+    it('marks own hidden move from hiddenMoves even when humanHiddenStonePoints is stale', () => {
+        const board = [[Player.Black]];
+        const lookup = buildBoardCellStoneLookup(board, {
+            moveHistory: [{ x: 0, y: 0, player: Player.Black }],
+            hiddenMoves: { 0: true },
+            humanHiddenStonePoints: [{ x: 1, y: 1, player: Player.Black }],
+            myPlayerEnum: Player.Black,
+            baseHiddenMoveCtx: null,
+        });
+        expect(lookup.get('0,0')?.isHiddenMove).toBe(true);
+    });
 });

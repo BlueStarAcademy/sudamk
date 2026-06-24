@@ -29,6 +29,7 @@ const isTowerAiSeatTurn = (game: types.LiveGameSession): boolean => {
 };
 
 const persistAndBroadcastTowerScoringState = async (game: types.LiveGameSession): Promise<void> => {
+    if (game.endTime == null) game.endTime = Date.now();
     const { updateGameCache } = await import('../gameCache.js');
     const { broadcastToGameParticipants } = await import('../socket.js');
     updateGameCache(game);

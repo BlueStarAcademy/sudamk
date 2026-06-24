@@ -2258,6 +2258,19 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         [handlers.handleAction, isMyTurn, isSinglePlayer, isTower, myPlayerEnum, session],
     );
 
+    const tryPvpOpponentHiddenRevealOnClick = useCallback(
+        (boardStateToUse: Player[][], x: number, y: number): boolean => {
+            if (sessionPolicy.matchAxis !== 'pvp' || !isMyTurn || myPlayerEnum === Player.None) return false;
+            if (!isUnrevealedOpponentHiddenStoneAt(boardStateToUse, session, x, y, myPlayerEnum)) return false;
+            handlers.handleAction({
+                type: 'REVEAL_OPPONENT_HIDDEN',
+                payload: { gameId, x, y },
+            } as ServerAction);
+            return true;
+        },
+        [sessionPolicy.matchAxis, isMyTurn, myPlayerEnum, session, handlers.handleAction, gameId],
+    );
+
     const chessHighlightPoints = useMemo(() => {
         if (!usesChessGo || gameStatus !== 'playing' || !isMyTurn) return [];
         if (!selectedChessPieceId || myPlayerEnum === Player.None) return [];
@@ -3143,6 +3156,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         audioService.unlockFromUserGesture();
         audioService.stopTimerWarning();
         if (isSpectator || gameStatus === 'missile_animating') return;
+        if (gameStatus === 'missile_selecting') return;
         if (gameStatus === 'ended' || gameStatus === 'no_contest' || gameStatus === 'scoring') {
             setPendingMove(null);
             return;
@@ -3637,6 +3651,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 boardStateForOnline &&
                 (gameStatus === 'playing' || gameStatus === 'hidden_placing') &&
                 !usesChessGo &&
+                tryPvpOpponentHiddenRevealOnClick(boardStateForOnline, x, y)
+            ) {
+                return;
+            }
+            if (
+                boardStateForOnline &&
+                (gameStatus === 'playing' || gameStatus === 'hidden_placing') &&
+                !usesChessGo &&
                 getPlacementOccupancyBlockReason(boardStateForOnline, session, x, y, myPlayerEnum)
             ) {
                 return;
@@ -4117,6 +4139,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                 isHidden: true,
                                 boardState: payload.newBoardState,
                                 moveHistory: [...(session.moveHistory || []), { x, y, player: myPlayerEnum }],
+                                hiddenMoves: {
+                                    ...(session.hiddenMoves || {}),
+                                    [session.moveHistory?.length ?? 0]: true,
+                                },
+                                humanHiddenStonePoints: [
+                                    ...((session as any).humanHiddenStonePoints || []),
+                                    { x, y, player: myPlayerEnum },
+                                ],
                             },
                         } as ServerAction);
                     }
@@ -4505,6 +4535,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     useEffect(() => {
         if (!isTower) return;
         if (gameStatus !== 'playing' && gameStatus !== 'hidden_placing') return;
+        if (
+            (session as { startTime?: number | null }).startTime == null &&
+            (session as { gameStartTime?: number | null }).gameStartTime == null
+        ) {
+            return;
+        }
         const autoScoringTurns = Number((sessionWithRestoredPatternStones.settings as any)?.autoScoringTurns);
         if (!Number.isFinite(autoScoringTurns) || autoScoringTurns <= 0) return;
 
@@ -4512,6 +4548,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         const validMoves = moveHistory.filter((m) => m && m.x !== -1 && m.y !== -1);
         const totalTurns = validMoves.length;
         if (totalTurns < autoScoringTurns) return;
+        const serverValidMoves =
+            (session.moveHistory || []).filter((m) => m && m.x !== -1 && m.y !== -1).length ?? 0;
+        if (serverValidMoves === 0 && totalTurns >= autoScoringTurns) return;
 
         const boardState = restoredBoardState || sessionWithRestoredPatternStones.boardState;
         const boardSize = sessionWithRestoredPatternStones.settings?.boardSize || 9;
@@ -5016,12 +5055,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             if (process.env.NODE_ENV === 'development') {
                                 console.warn('[Game] PVE server AI: missing clientSync', { gameId: currentGameId });
                             }
-                            // 새로고침 직후 등으로 로컬 스냅샷이 비어 clientSync를 못 만들면
-                            // 즉시 서버 상태를 당겨와 다음 tick에서 AI 착수 요청이 재개되게 한다.
-                            void handlers.handleAction({
-                                type: 'REQUEST_GAME_STATE_SYNC',
-                                payload: { gameId: currentGameId },
-                            } as ServerAction);
+                            if (!isTower && !isSinglePlayer && !isAdventureGame) {
+                                void handlers.handleAction({
+                                    type: 'REQUEST_GAME_STATE_SYNC',
+                                    payload: { gameId: currentGameId },
+                                } as ServerAction);
+                            }
                             lastAiMoveRef.current = null;
                             aiMoveTimeoutRef.current = null;
                             return;
@@ -5398,10 +5437,57 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 return;
             }
             console.log('[Game] handleStartGame: Sending CONFIRM_TOWER_GAME_START', { gameId: confirmGameId, gameStatus, isTower });
-            handlers.handleAction({
-                type: 'CONFIRM_TOWER_GAME_START',
-                payload: { gameId: confirmGameId },
-            } as ServerAction);
+            startConfirmInFlightRef.current = true;
+            try {
+                const result = (await handlers.handleAction({
+                    type: 'CONFIRM_TOWER_GAME_START',
+                    payload: { gameId: confirmGameId },
+                } as ServerAction)) as
+                    | {
+                          error?: string;
+                          staleGame?: boolean;
+                          clientResponse?: {
+                              staleGame?: boolean;
+                              success?: boolean;
+                              error?: string;
+                              game?: LiveGameSession;
+                              alreadyStarted?: boolean;
+                          };
+                          game?: LiveGameSession;
+                      }
+                    | void
+                    | undefined;
+                const err =
+                    (result && typeof result === 'object' && 'error' in result && result.error) ||
+                    result?.clientResponse?.error;
+                const isAlreadyStartedErr =
+                    typeof err === 'string' && isGameAlreadyStartedError(err);
+                const stale =
+                    (result && typeof result === 'object' && 'staleGame' in result && result.staleGame) ||
+                    result?.clientResponse?.staleGame;
+                const confirmGame =
+                    result?.clientResponse?.game ?? result?.game;
+                const confirmSucceeded =
+                    !!confirmGame &&
+                    !isPveAwaitingStartConfirmModal(confirmGame) &&
+                    (result?.clientResponse?.success !== false || result?.clientResponse?.alreadyStarted);
+                if (confirmSucceeded) {
+                    return;
+                }
+                if (isAlreadyStartedErr) {
+                    return;
+                }
+                if (err) {
+                    window.alert(String(err));
+                } else if (stale || result?.clientResponse?.success === false) {
+                    window.alert(tx('game:alerts.sessionExpired'));
+                }
+            } catch (err) {
+                console.error('[Game] handleStartGame: CONFIRM_TOWER_GAME_START failed', err);
+                window.alert(tx('game:alerts.startFailed'));
+            } finally {
+                startConfirmInFlightRef.current = false;
+            }
         }
     }, [handlers.handleAction, isSinglePlayer, isTower, session.id, gameStatus]);
 

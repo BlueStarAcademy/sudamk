@@ -857,6 +857,62 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
         }
     });
 
+    /** Playwright E2E: 계정 AP·active 게임 리셋 (개발/테스트 전용) */
+    app.post('/api/e2e/refill-accounts', async (_req, res) => {
+        if (process.env.NODE_ENV === 'production' && process.env.ALLOW_E2E_REFILL !== '1') {
+            return res.status(404).json({ error: 'Not found' });
+        }
+        try {
+            const { refillE2eAccountsForTests } = await import('./db.js');
+            await refillE2eAccountsForTests();
+            res.json({ ok: true });
+        } catch (error: any) {
+            console.error('[E2E] refill-accounts failed:', error);
+            res.status(500).json({ error: error?.message || 'refill failed' });
+        }
+    });
+
+    /** Playwright E2E: 랭킹 매칭 제안 조회 (E2E 계정 전용) */
+    app.post('/api/e2e/ranked-proposal-for-user', async (req, res) => {
+        if (process.env.NODE_ENV === 'production' && process.env.ALLOW_E2E_REFILL !== '1') {
+            return res.status(404).json({ error: 'Not found' });
+        }
+        try {
+            const { E2E_TEST_ACCOUNTS } = await import('../shared/constants/e2eTestAccount.js');
+            const userId = String(req.body?.userId ?? '').trim();
+            if (!userId) {
+                return res.status(400).json({ error: 'userId required' });
+            }
+            const dbMod = await import('./db.js');
+            let isE2eAccount = false;
+            for (const seed of E2E_TEST_ACCOUNTS) {
+                const creds = await dbMod.getUserCredentialByUsername(seed.loginUsername);
+                if (creds?.userId === userId) {
+                    isE2eAccount = true;
+                    break;
+                }
+            }
+            if (!isE2eAccount) {
+                return res.status(403).json({ error: 'E2E account required' });
+            }
+            const props = volatileState.rankedMatchProposals ?? {};
+            for (const [proposalId, prop] of Object.entries(props)) {
+                if (prop.user1Id === userId || prop.user2Id === userId) {
+                    return res.json({
+                        proposalId,
+                        user1Id: prop.user1Id,
+                        user2Id: prop.user2Id,
+                        selectedMode: prop.selectedMode,
+                    });
+                }
+            }
+            res.json({ proposalId: null });
+        } catch (error: any) {
+            console.error('[E2E] ranked-proposal-for-user failed:', error);
+            res.status(500).json({ error: error?.message || 'lookup failed' });
+        }
+    });
+
     /** 관리자 부하 모니터 — 파일 하단보다 먼저 등록해 라우트 누락·호환 포트(4000) 이슈를 피함 */
     const handleAdminServerMetrics: express.RequestHandler = async (req, res) => {
         try {
@@ -2406,10 +2462,18 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             for (const game of updatedGames) {
                 try {
                     // scoring 상태의 게임은 연결 끊김으로 처리하지 않음 (자동계가 진행 중)
-                    if (game.isAiGame || game.gameStatus === 'ended' || game.gameStatus === 'no_contest' || game.gameStatus === 'scoring' || game.disconnectionState) continue;
+                    if (game.isAiGame || game.gameStatus === 'ended' || game.gameStatus === 'no_contest' || game.gameStatus === 'scoring') continue;
 
+                    const { getPairHumanParticipantIds } = await import('../shared/utils/pairGameTurn.js');
+                    const humanParticipantIds =
+                        game.settings?.pairGame?.turnOrder?.length
+                            ? getPairHumanParticipantIds(game.settings.pairGame)
+                            : [game.player1?.id, game.player2?.id].filter((id): id is string => Boolean(id));
                     const p1Online = onlineUserIds.includes(game.player1.id);
                     const p2Online = onlineUserIds.includes(game.player2.id);
+                    const allHumansOffline =
+                        humanParticipantIds.length > 0 &&
+                        humanParticipantIds.every((id) => !onlineUserIds.includes(id));
                     
                     const isSpectatorPresent = Object.keys(volatileState.userStatuses).some(spectatorId => {
                         return onlineUserIds.includes(spectatorId) &&
@@ -2417,7 +2481,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                                volatileState.userStatuses[spectatorId].spectatingGameId === game.id;
                     });
 
-                    if (!p1Online && !p2Online && !isSpectatorPresent) {
+                    if (allHumansOffline && !isSpectatorPresent) {
                         console.log(`[Game ${game.id}] Both players disconnected and no spectators. ${game.isRankedGame ? 'Settling ranked game as no contest.' : 'Deleting game and notifying on reconnect.'}`);
                             try {
                                 const p1Id = game.player1?.id;

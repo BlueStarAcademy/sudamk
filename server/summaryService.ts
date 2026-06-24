@@ -1572,17 +1572,13 @@ const processPlayerSummary = async (
             ? resolveLiveArenaPhaseGoldXpMultiplier(game)
             : null;
     /** 휴먼 vs 휴먼 PVP에서 기권한 쪽만 골드·아이템·경험치·VIP 슬롯 등 대국 보상 없음(승자는 정상 지급, 랭킹·전적은 유지) */
+    const pvpArenaPolicy = resolveArenaSessionPolicy(game as any);
     const isPvpHumanResignLoser =
         !isNoContest &&
         !isDraw &&
         !isWinner &&
         winReason === 'resign' &&
-        !isAiGame &&
-        !isGuildWarMatch &&
-        !isAdventureGame &&
-        !game.isSinglePlayer &&
-        (game.gameCategory as string) !== 'tower' &&
-        (game.gameCategory as string) !== 'singleplayer' &&
+        pvpArenaPolicy.matchAxis === 'pvp' &&
         (isStrategic || isPlayful);
 
     let xpGain = isNoContest ? 0 : (isWinner ? 100 : (isDraw ? 0 : 25)); // Strategic defaults
@@ -1986,10 +1982,7 @@ const processPlayerSummary = async (
     // 전략/놀이 PVP 경기 재화 추가 수치 (관리자 보상 설정)
     const isPvpRewardTarget =
         !isNoContest &&
-        !isAiGame &&
-        !game.isSinglePlayer &&
-        game.gameCategory !== 'tower' &&
-        game.gameCategory !== 'adventure' &&
+        pvpArenaPolicy.matchAxis === 'pvp' &&
         (isStrategic || isPlayful);
     if (isPvpRewardTarget && !isDraw) {
         if (isStrategic) {

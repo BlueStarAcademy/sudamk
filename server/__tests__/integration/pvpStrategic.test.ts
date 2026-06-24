@@ -364,6 +364,84 @@ describe('PVP Strategic mode', () => {
             expect(game.boardState[y][x]).toBe(opponent);
         });
 
+        it('REVEAL_OPPONENT_HIDDEN reveals without placing stone and keeps turn', async () => {
+            const game = makePvpStrategicGame();
+            const x = 4;
+            const y = 4;
+            game.boardState[y][x] = Player.White;
+            game.moveHistory = [{ player: Player.White, x, y }];
+            game.hiddenMoves = { 0: true };
+            game.currentPlayer = Player.Black;
+            const { handleStrategicGameAction } = await import('../../modes/standard.js');
+            const { updateHiddenState } = await import('../../modes/hidden.js');
+            const res = await handleStrategicGameAction(volatileState, game, {
+                type: 'REVEAL_OPPONENT_HIDDEN',
+                payload: { x, y },
+                userId: p1.id,
+            } as any, p1);
+            expect(res?.error).toBeUndefined();
+            expect(game.gameStatus).toBe('hidden_reveal_animating');
+            expect(game.moveHistory.length).toBe(1);
+            expect(game.currentPlayer).toBe(Player.Black);
+            await updateHiddenState(game, (game.revealAnimationEndTime ?? Date.now()) + 1);
+            expect(game.gameStatus).toBe('playing');
+            expect(game.currentPlayer).toBe(Player.Black);
+            expect(game.permanentlyRevealedStones?.some((p) => p.x === x && p.y === y)).toBe(true);
+        });
+
+        it('hidden_reveal_animating pendingCapture resolves capture after animation (PVP)', async () => {
+            const game = makePvpStrategicGame();
+            const capX = 4;
+            const capY = 4;
+            game.boardState[capY][capX] = Player.White;
+            game.moveHistory = [
+                { player: Player.White, x: capX, y: capY },
+                { player: Player.Black, x: 3, y: capY },
+            ];
+            game.hiddenMoves = { 0: true };
+            game.gameStatus = 'hidden_reveal_animating';
+            game.revealAnimationEndTime = Date.now() - 100;
+            game.currentPlayer = Player.Black;
+            game.pendingCapture = {
+                move: { player: Player.Black, x: 3, y: capY },
+                stones: [{ x: capX, y: capY }],
+                hiddenContributors: [{ x: capX, y: capY }],
+                capturedHiddenStones: [{ x: capX, y: capY }],
+            };
+            const { updateHiddenState } = await import('../../modes/hidden.js');
+            await updateHiddenState(game, Date.now());
+            expect(game.gameStatus).toBe('playing');
+            expect(game.boardState[capY][capX]).toBe(Player.None);
+            expect(game.pendingCapture).toBeNull();
+            expect(game.captures[Player.Black]).toBeGreaterThan(0);
+        });
+
+        it('REVEAL_OPPONENT_HIDDEN during hidden_placing returns to hidden_placing', async () => {
+            const game = makePvpStrategicGame({
+                gameStatus: 'hidden_placing',
+                hidden_stones_p1: 2,
+                itemPhaseActingPlayer: Player.Black,
+                itemUseDeadline: Date.now() + 20000,
+            });
+            const x = 4;
+            const y = 4;
+            game.boardState[y][x] = Player.White;
+            game.moveHistory = [{ player: Player.White, x, y }];
+            game.hiddenMoves = { 0: true };
+            game.currentPlayer = Player.Black;
+            const { handleStrategicGameAction } = await import('../../modes/standard.js');
+            const { updateHiddenState } = await import('../../modes/hidden.js');
+            const res = await handleStrategicGameAction(volatileState, game, {
+                type: 'REVEAL_OPPONENT_HIDDEN',
+                payload: { x, y },
+                userId: p1.id,
+            } as any, p1);
+            expect(res?.error).toBeUndefined();
+            await updateHiddenState(game, (game.revealAnimationEndTime ?? Date.now()) + 1);
+            expect(game.gameStatus).toBe('hidden_placing');
+            expect(game.hidden_stones_p1).toBe(2);
+        });
+
         it('rejects hidden_placing on opponent hidden stone without consuming hidden item', async () => {
             const game = makePvpStrategicGame({
                 currentPlayer: Player.Black,
@@ -585,6 +663,42 @@ describe('PVP Strategic mode', () => {
             expect(game.gameStatus).toBe('playing');
             expect(game.turnDeadline).toBeDefined();
         });
+
+        it('SCAN_BOARD miss still consumes scan and returns to playing', async () => {
+            const game = makePvpStrategicGame();
+            game.gameStatus = 'scanning';
+            game.scans_p1 = 2;
+            game.currentPlayer = Player.Black;
+            game.itemUseDeadline = Date.now() + 30_000;
+            const { handleStrategicGameAction } = await import('../../modes/standard.js');
+            const { updateHiddenState } = await import('../../modes/hidden.js');
+            const res = await handleStrategicGameAction(volatileState, game, {
+                type: 'SCAN_BOARD',
+                payload: { x: 0, y: 0 },
+                userId: p1.id,
+            } as any, p1);
+            expect(res?.error).toBeUndefined();
+            expect(game.scans_p1).toBe(1);
+            expect(game.gameStatus).toBe('scanning_animating');
+            const anim = game.animation as { startTime: number; duration: number };
+            await updateHiddenState(game, anim.startTime + anim.duration + 1);
+            expect(game.gameStatus).toBe('playing');
+        });
+
+        it('scanning itemUseDeadline expiry returns to playing and consumes one scan', async () => {
+            const game = makePvpStrategicGame();
+            game.gameStatus = 'scanning';
+            game.scans_p1 = 2;
+            game.currentPlayer = Player.Black;
+            game.itemUseDeadline = Date.now() - 1000;
+            game.pausedTurnTimeLeft = 88;
+            const { updateHiddenState } = await import('../../modes/hidden.js');
+            const changed = await updateHiddenState(game, Date.now());
+            expect(changed).toBe(true);
+            expect(game.gameStatus).toBe('playing');
+            expect(game.scans_p1).toBe(1);
+            expect(game.turnDeadline).toBeDefined();
+        });
     });
 
     describe('missile item', () => {
@@ -755,6 +869,47 @@ describe('PVP Strategic mode', () => {
             expect(res?.error).toBeUndefined();
             expect(game.moveHistory.length).toBe(1);
             expect(game.totalTurns).toBe(1);
+        });
+    });
+
+    describe('hidden_final_reveal on mutual pass', () => {
+        it('enters hidden_final_reveal when unrevealed hidden stones remain', async () => {
+            const game = makePvpStrategicGame({
+                mode: GameMode.Hidden,
+                settings: {
+                    boardSize: 9,
+                    komi: 6.5,
+                    timeLimit: 5,
+                    byoyomiCount: 3,
+                    byoyomiTime: 30,
+                    hiddenStoneCount: 2,
+                    scanCount: 2,
+                },
+            });
+            game.hidden_stones_p1 = 2;
+            game.hidden_stones_p2 = 2;
+            game.hiddenMoves = { 0: true };
+            game.moveHistory = [{ player: Player.Black, x: 2, y: 2 }];
+            game.boardState[2][2] = Player.Black;
+            game.passCount = 0;
+
+            const { handleStrategicGameAction } = await import('../../modes/standard.js');
+            await handleStrategicGameAction(volatileState, game, {
+                type: 'PASS_TURN',
+                payload: {},
+                userId: p1.id,
+            } as any, p1);
+            expect(game.passCount).toBe(1);
+
+            await handleStrategicGameAction(volatileState, game, {
+                type: 'PASS_TURN',
+                payload: {},
+                userId: p2.id,
+            } as any, p2);
+
+            expect(game.gameStatus).toBe('hidden_final_reveal');
+            expect(game.animation?.type).toBe('hidden_reveal');
+            expect(game.revealAnimationEndTime).toBeDefined();
         });
     });
 });

@@ -74,8 +74,12 @@ export function modeIncludesSpeedRule(mode: unknown, settings: Pick<GameSettings
     return mixGoOrPureModeIncludes(mode, settings?.mixedModes, GameMode.Speed);
 }
 
-export function modeIncludesMissileRule(mode: unknown, settings: Pick<GameSettings, 'mixedModes'> | null | undefined): boolean {
-    return mixGoOrPureModeIncludes(mode, settings?.mixedModes, GameMode.Missile);
+export function modeIncludesMissileRule(
+    mode: unknown,
+    settings: Pick<GameSettings, 'mixedModes' | 'missileCount'> | null | undefined,
+): boolean {
+    if (mixGoOrPureModeIncludes(mode, settings?.mixedModes, GameMode.Missile)) return true;
+    return (settings?.missileCount ?? 0) > 0;
 }
 
 export function modeIncludesStandardRule(mode: unknown, settings: Pick<GameSettings, 'mixedModes'> | null | undefined): boolean {
@@ -302,7 +306,13 @@ export function resolveArenaSessionPolicy(session: SessionLike | null | undefine
         masksHumanHiddenFromAi: hiddenRule && matchAxis === 'pve',
         requiresClientSyncBeforeAction: isPveLike,
         usesAutomaticBaseStonePlacement: baseRule && matchAxis !== 'pvp',
-        itemConsumptionModel: kind === GameCategory.Normal && !isPairGame ? 'inventory' : isPveLike ? 'sessionCounter' : 'inventory',
+        // 전략 아이템(히든/스캔/미사일)은 협상 설정 기반 세션 카운터. 타워만 인벤토리 연동.
+        itemConsumptionModel:
+            kind === GameCategory.Tower && hiddenRule
+                ? 'inventory'
+                : hiddenRule || modeIncludesMissileRule(session?.mode, settings)
+                  ? 'sessionCounter'
+                  : 'none',
         resultDisplayModel,
         resultRewardModel,
     };

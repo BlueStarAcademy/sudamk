@@ -592,6 +592,35 @@ export async function saveGame(game: LiveGameSession): Promise<void> {
  * ⚠️ MainLoop에서 호출 시 반드시 onlineUserIds.length === 0 일 때만 호출할 것.
  *    (접속 중인 유저가 있으면 진행 중인 대국이 삭제될 수 있음)
  */
+/** E2E 테스트 계정 등 특정 플레이어의 미종료 liveGame 행 삭제 */
+export async function deleteActiveGamesForPlayer(playerId: string): Promise<number> {
+  try {
+    await ensurePrismaEngineReady();
+    const rows = await prisma.liveGame.findMany({
+      where: { isEnded: false },
+      select: { id: true, data: true },
+      orderBy: { updatedAt: 'desc' },
+      take: 100,
+    });
+    const idsToDelete: string[] = [];
+    for (const row of rows) {
+      const game = mapRowToGame(row);
+      if (game && (game.player1?.id === playerId || game.player2?.id === playerId)) {
+        idsToDelete.push(row.id);
+      }
+    }
+    if (idsToDelete.length === 0) return 0;
+    const result = await prisma.liveGame.deleteMany({ where: { id: { in: idsToDelete } } });
+    if (result.count > 0) {
+      console.log(`[gameService] deleteActiveGamesForPlayer(${playerId}): deleted ${result.count} games`);
+    }
+    return result.count;
+  } catch (error: any) {
+    console.error('[gameService] deleteActiveGamesForPlayer error:', error?.message || error);
+    return 0;
+  }
+}
+
 export async function cleanupOrphanedGamesInDb(): Promise<number> {
   try {
     await ensurePrismaEngineReady();

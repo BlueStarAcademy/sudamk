@@ -226,6 +226,78 @@ export function augmentPveFromSessionStorageSnapshot(
     return coerceClassicPveHumanBlackSeatsIfSwapped(out);
 }
 
+const LIVE_TERMINAL_GAME_STATUSES = new Set([
+    'ended',
+    'no_contest',
+    'scoring',
+    'rematch_pending',
+    'hidden_final_reveal',
+]);
+
+/**
+ * liveGames(PVP·mixed_pair): storage가 서버보다 앞선 낙관적 상태만 병합.
+ * terminal incoming·gameStatus 역행(pending 복귀)은 하지 않는다.
+ */
+export function augmentLiveSessionFromSessionStorageSnapshot(
+    incoming: LiveGameSession,
+    parsed: Record<string, unknown> | null | undefined,
+): LiveGameSession {
+    if (!parsed || (parsed as { gameId?: string }).gameId !== incoming.id) return incoming;
+    if (incoming.mode === GameMode.Chess) return incoming;
+
+    const policy = resolveArenaSessionPolicy(incoming);
+    if (policy.matchAxis === 'pve') {
+        return augmentPveFromSessionStorageSnapshot(incoming, parsed);
+    }
+
+    if (LIVE_TERMINAL_GAME_STATUSES.has(String(incoming.gameStatus || ''))) {
+        return incoming;
+    }
+
+    const stMoves = Array.isArray((parsed as { moveHistory?: unknown }).moveHistory)
+        ? ((parsed as { moveHistory: unknown[] }).moveHistory?.length ?? 0)
+        : 0;
+    const incMoves = Array.isArray(incoming.moveHistory) ? incoming.moveHistory.length : 0;
+    const stTotalRaw = (parsed as { totalTurns?: unknown }).totalTurns;
+    const stTotal = typeof stTotalRaw === 'number' && Number.isFinite(stTotalRaw) ? stTotalRaw : 0;
+    const incTotal = incoming.totalTurns ?? 0;
+
+    const storageAheadOnMoves = stMoves > incMoves;
+    const storageAheadOnTurns =
+        stTotal > incTotal && (incoming.settings?.scoringTurnLimit ?? 0) > 0;
+
+    if (!storageAheadOnMoves && !storageAheadOnTurns) {
+        return incoming;
+    }
+
+    const out: LiveGameSession = { ...incoming };
+
+    if (storageAheadOnMoves) {
+        const pm = (parsed as { moveHistory?: LiveGameSession['moveHistory'] }).moveHistory;
+        if (Array.isArray(pm)) out.moveHistory = pm;
+        const pb = (parsed as { boardState?: LiveGameSession['boardState'] }).boardState;
+        if (
+            Array.isArray(pb) &&
+            pb.length > 0 &&
+            Array.isArray(pb[0]) &&
+            (pb[0] as unknown[]).length > 0 &&
+            boardGridHasAnyStones(pb)
+        ) {
+            out.boardState = pb;
+        }
+        const cp = (parsed as { currentPlayer?: unknown }).currentPlayer;
+        if (typeof cp === 'number') out.currentPlayer = cp as Player;
+        const cap = (parsed as { captures?: Record<number, number> }).captures;
+        if (cap && typeof cap === 'object') out.captures = cap as LiveGameSession['captures'];
+    }
+
+    if (storageAheadOnTurns) {
+        (out as { totalTurns?: number }).totalTurns = stTotal;
+    }
+
+    return out;
+}
+
 function parseSessionStorageSnapshot(gameId: string): Record<string, unknown> | null {
     if (typeof sessionStorage === 'undefined') return null;
     try {

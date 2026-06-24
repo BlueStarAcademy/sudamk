@@ -298,9 +298,10 @@ export function finalizeHiddenRevealPresentationCleanup(
     game: types.LiveGameSession,
     now: number,
     playerForTimer: types.Player,
+    resumeGameStatus: types.LiveGameSession['gameStatus'] = 'playing',
 ): void {
     clearItemPhasePresentationFields(game, { clearRevealClock: true });
-    game.gameStatus = 'playing';
+    game.gameStatus = resumeGameStatus;
     game.pendingCapture = null;
     (game as any).pendingAiMoveAfterUserHiddenFullReveal = undefined;
     if (game.pausedTurnTimeLeft !== undefined) {

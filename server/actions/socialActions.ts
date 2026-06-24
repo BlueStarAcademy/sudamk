@@ -3140,6 +3140,8 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             // 즉시 매칭 시도
             await tryMatchPlayers(volatileState, 'strategic');
             
+            const matchedProposal = findRankedMatchProposalForUser(volatileState, user.id);
+            
             // HTTP 응답에 매칭 정보 포함 (즉시 상태 업데이트를 위해)
             return { 
                 clientResponse: { 
@@ -3148,7 +3150,8 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                         startTime: now,
                         lobbyType: 'strategic' as const,
                         selectedModes
-                    }
+                    },
+                    rankedProposalId: matchedProposal?.proposalId ?? null,
                 } 
             };
         }

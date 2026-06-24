@@ -39,12 +39,24 @@ describe('isScoringResultContentReady', () => {
         },
     };
 
-    it('is false while still scoring or before analysis', () => {
+    it('is true during scoring when analysis is already available (PVE overlay path)', () => {
         expect(
             isScoringResultContentReady({
                 gameStatus: 'scoring',
                 winReason: 'score',
                 analysisResult: scoreAnalysis,
+                resultModalWaitSummary: false,
+                hasMyGameSummary: false,
+            }),
+        ).toBe(true);
+    });
+
+    it('is false while scoring before analysis', () => {
+        expect(
+            isScoringResultContentReady({
+                gameStatus: 'scoring',
+                winReason: 'score',
+                analysisResult: null,
                 resultModalWaitSummary: false,
                 hasMyGameSummary: false,
             }),
@@ -275,7 +287,7 @@ describe('shouldOpenResultModalByPolicy', () => {
         ).toBe(true);
     });
 
-    it('does not open result after overlay during scoring even with analysis', () => {
+    it('opens result after overlay during scoring when analysis is ready (PVE stuck-ended race)', () => {
         expect(
             shouldOpenResultModalAfterScoringOverlay({
                 isScoreBasedPresentation: true,
@@ -284,7 +296,7 @@ describe('shouldOpenResultModalByPolicy', () => {
                 postGameSummaryAcknowledged: false,
                 hasAnalysisResult: true,
             }),
-        ).toBe(false);
+        ).toBe(true);
     });
 
     it('does not open result after overlay when summary is still missing', () => {

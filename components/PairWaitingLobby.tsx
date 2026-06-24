@@ -42,10 +42,12 @@ import PairPartnerInviteModal from './pair/PairPartnerInviteModal.js';
 import PairPetRankedMatchOfferModal from './pair/PairPetRankedMatchOfferModal.js';
 import PairPetRankedMatchModeModal, { resolveMyPairRankedTierForPairArena } from './pair/PairPetRankedMatchModeModal.js';
 import AiChallengeModal, { type AiLobbyPreferredGameSettingsBucket } from './waiting-room/AiChallengeModal.js';
+import ChallengeSelectionModal from './ChallengeSelectionModal.js';
 import RankedMatchPanel from './waiting-room/RankedMatchPanel.js';
 import ChatWindow from './waiting-room/ChatWindow.js';
 import { mergeWaitingRoomPublicChatMessages } from '../shared/utils/waitingRoomGlobalChatMerge.js';
 import { GameMode, type GameSettings, type ServerAction } from '../types.js';
+import { submitPvpChallengeFromLobby } from '../utils/pvpChallengeSubmit.js';
 import {
     AVATAR_POOL,
     BORDER_POOL,
@@ -1177,6 +1179,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         arenaEntranceAvailability,
         arenaEntranceFromServer,
         waitingRoomChats,
+        negotiations,
     } = useAppContext();
     const currentUserId = currentUserWithStatus?.id || '';
     const mergedPublicChatMessages = useMemo(
@@ -1189,6 +1192,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
     const [joinPasswordModal, setJoinPasswordModal] = useState<JoinPasswordModal | null>(null);
     const [joinPasswordDraft, setJoinPasswordDraft] = useState('');
     const [userTab, setUserTab] = useState<'users' | 'friends' | 'guild'>('users');
+    const [pvpChallengeOpponent, setPvpChallengeOpponent] = useState<UserWithStatus | null>(null);
     const [pairLobbyMobileTab, setPairLobbyMobileTab] = useState<
         'rooms' | 'room' | 'users' | 'ranked' | 'ai' | 'rankedAi'
     >('rooms');
@@ -1750,6 +1754,26 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
     const showHandheldMyRoomTab = useMemo(
         () => showHandheldPairLobbyMyRoomTab(myRoomForUsersColumnChrome, lobbyIntent, lobbyChannel),
         [myRoomForUsersColumnChrome, lobbyIntent, lobbyChannel],
+    );
+
+    const showPvpUserChallenge =
+        lobbyIntent === 'pvp' &&
+        (aggregateLobbyMode === 'strategic' || aggregateLobbyMode === 'playful') &&
+        !myRoom;
+
+    const handlePvpChallengeSubmit = useCallback(
+        async (gameMode: GameMode, settings: GameSettings) => {
+            if (!currentUserWithStatus || !pvpChallengeOpponent) return;
+            await submitPvpChallengeFromLobby(
+                handlers.handleAction,
+                negotiations || {},
+                pvpChallengeOpponent.id,
+                currentUserWithStatus.id,
+                gameMode,
+                settings,
+            );
+        },
+        [currentUserWithStatus, pvpChallengeOpponent, handlers.handleAction, negotiations],
     );
 
     /** 활성 쿨다운이 있을 때만 500ms 틱 — 전략 AI 대기실(방 없음) 등에서는 전체 로비 리렌더 방지 */
@@ -4248,6 +4272,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                     onAction={handlers.handleAction}
                     currentUser={currentUserWithStatus}
                     onViewUser={handlers.openViewingUser}
+                    onChallengeUser={showPvpUserChallenge ? setPvpChallengeOpponent : undefined}
                     lobbyType={aggregateLobbyMode === 'playful' ? 'playful' : 'strategic'}
                     userCount={playersForLobbyUserList.length}
                     disableStatusSelect={Boolean(myRoom)}
@@ -6755,6 +6780,16 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                     guideId="pvpArena"
                     onClose={pvpArenaScreenGuide.close}
                     onDismissForever={pvpArenaScreenGuide.dismissForever}
+                />
+            )}
+            {pvpChallengeOpponent && currentUserWithStatus && showPvpUserChallenge && (
+                <ChallengeSelectionModal
+                    opponent={pvpChallengeOpponent}
+                    onClose={() => setPvpChallengeOpponent(null)}
+                    negotiations={Object.values(negotiations || {})}
+                    currentUser={currentUserWithStatus}
+                    lobbyType={aggregateLobbyMode === 'playful' ? 'playful' : 'strategic'}
+                    onChallenge={handlePvpChallengeSubmit}
                 />
             )}
         </div>

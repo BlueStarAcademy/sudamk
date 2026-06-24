@@ -969,10 +969,7 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
                 return;
             }
             
-            const isOnlinePvpStrategic =
-                !game.isSinglePlayer &&
-                game.gameCategory !== 'tower' &&
-                game.gameCategory !== 'singleplayer';
+            const isOnlinePvpStrategic = resolveArenaSessionPolicy(freshGame).matchAxis === 'pvp';
 
             // 게임 상태가 playing으로 되돌아갔으면 scoring 복구 (PVE 스테이지 루프·PVP 상호통과 후 레이스)
             const shouldRestoreScoringFromPlaying =
@@ -1103,10 +1100,7 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
             savedPreservedGameState as Record<string, unknown>,
         );
 
-        const isOnlinePvpStrategic =
-            !game.isSinglePlayer &&
-            game.gameCategory !== 'tower' &&
-            game.gameCategory !== 'singleplayer';
+        const isOnlinePvpStrategic = resolveArenaSessionPolicy(freshGame ?? game).matchAxis === 'pvp';
 
         if (
             freshGame &&
@@ -1775,13 +1769,27 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
 
         try {
             // PVP 전용: AI/싱글/탑 등에서는 disconnectionState를 쓰지 않으며, 버그·구버전으로 남아 있어도 시간패로 끝내지 않는다.
+            const arenaPolicy = resolveArenaSessionPolicy(game);
             const isPvpDisconnectRecovery =
-                !game.isSinglePlayer &&
-                !game.isAiGame &&
-                game.gameCategory !== 'tower' &&
-                game.gameCategory !== 'singleplayer' &&
-                game.gameCategory !== 'adventure';
+                arenaPolicy.matchAxis === 'pvp' || arenaPolicy.matchAxis === 'mixed_pair';
             if (
+                isPvpDisconnectRecovery &&
+                (game as any)._disconnectEndGamePending &&
+                game.gameStatus === 'ended' &&
+                !game.statsUpdated
+            ) {
+                const END_GAME_DEADLINE_MS = 1000;
+                const endGameTimeout = new Promise<void>((resolve) => setTimeout(resolve, END_GAME_DEADLINE_MS));
+                await Promise.race([
+                    endGame(game, game.winner!, game.winReason ?? 'timeout'),
+                    endGameTimeout,
+                ]).catch((error: any) => {
+                    console.error(`[processGame] Retry endGame failed for ${game.id}:`, error?.message || error);
+                });
+                if (game.statsUpdated) {
+                    (game as any)._disconnectEndGamePending = false;
+                }
+            } else if (
                 isPvpDisconnectRecovery &&
                 game.disconnectionState &&
                 now - game.disconnectionState.timerStartedAt > PVP_DISCONNECT_REJOIN_GRACE_MS
@@ -1800,6 +1808,9 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                 ]).catch((error: any) => {
                     console.error(`[processGame] Error ending game ${game.id}:`, error?.message || error);
                 });
+                if (game.gameStatus === 'ended' && !game.statsUpdated) {
+                    (game as any)._disconnectEndGamePending = true;
+                }
             } else if (!isPvpDisconnectRecovery && game.disconnectionState) {
                 game.disconnectionState = null;
             }

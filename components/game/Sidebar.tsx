@@ -643,7 +643,8 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
                                                     'rare': 'text-blue-400',
                                                     'epic': 'text-purple-400',
                                                     'legendary': 'text-red-500',
-                                                    'mythic': 'text-orange-400'
+                                                    'mythic': 'text-orange-400',
+                                                    'transcendent': 'text-cyan-300',
                                                 };
                                                 const itemGrade = msg.itemLink.itemGrade || 'normal';
                                                 const gradeColor = gradeColorMap[itemGrade] || 'text-gray-300';

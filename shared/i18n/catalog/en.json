@@ -2351,6 +2351,8 @@
       "forceLogout": "Force logout",
       "forceLogoutConfirm": "Force {{nickname}} to disconnect?",
       "invite": "Invite",
+      "challenge": "Challenge",
+      "challengeUnavailable": "This player cannot receive a challenge right now.",
       "blockInvites": "Block invites",
       "blockInvitesTitle": "When enabled, other players cannot invite you as a pair partner.",
       "statusInPairRoom": "You cannot change status while in a pair room.",

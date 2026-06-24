@@ -9,6 +9,7 @@ const ITEM_GRADE_COLOR_MAP: Record<string, string> = {
     epic: 'text-purple-400',
     legendary: 'text-red-500',
     mythic: 'text-orange-400',
+    transcendent: 'text-cyan-300',
 };
 
 export type ChatInlineMessageRowProps = {

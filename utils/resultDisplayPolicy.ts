@@ -46,9 +46,9 @@ export function isScoringResultContentReady(params: {
     hasMyGameSummary: boolean;
 }): boolean {
     const { gameStatus, winReason, analysisResult, resultModalWaitSummary, hasMyGameSummary } = params;
-    if (gameStatus !== 'ended') return false;
+    if (gameStatus !== 'ended' && gameStatus !== 'scoring') return false;
     if (resultModalWaitSummary && !hasMyGameSummary) return false;
-    if (winReason === 'score') {
+    if (winReason === 'score' || gameStatus === 'scoring') {
         return Boolean(analysisResult);
     }
     return true;
@@ -92,7 +92,7 @@ export function shouldOpenResultModalAfterScoringOverlay(params: {
         !postGameSummaryAcknowledged &&
         hasAnalysisResult &&
         summaryReady &&
-        gameStatus === 'ended'
+        (gameStatus === 'ended' || gameStatus === 'scoring')
     );
 }
 

@@ -59,7 +59,6 @@ function computeCellFlags(
         baseHiddenMoveCtx,
         baseStones,
         consumedPatternIntersections,
-        humanHiddenStonePoints,
         aiInitialHiddenStone,
         permanentlyRevealedStones,
         myRevealedMoveIndices,
@@ -69,9 +68,6 @@ function computeCellFlags(
         whitePatternStones,
         revealAnimationStones,
     } = input;
-
-    const hasHumanHiddenPointMarkers =
-        Array.isArray(humanHiddenStonePoints) && humanHiddenStonePoints.length > 0;
 
     const atRecordedBaseStone = baseStones?.some((bs) => bs.x === x && bs.y === y) ?? false;
     const isPlainStoneReuseIntersection =
@@ -90,23 +86,8 @@ function computeCellFlags(
 
     const histMove = moveIndex >= 0 && moveHistory ? moveHistory[moveIndex] : undefined;
 
-    const isHumanHiddenPointMarker =
-        hasHumanHiddenPointMarkers &&
-        humanHiddenStonePoints!.some(
-            (point) =>
-                point.x === x &&
-                point.y === y &&
-                (point.player === undefined || point.player === actualPlayer),
-        );
-
     const isHiddenMoveByHistory = !!hiddenMoves && moveIndex !== -1 && !!hiddenMoves[moveIndex];
-    const isHiddenMove =
-        !isPlainStoneReuseIntersection &&
-        !!histMove &&
-        isHiddenMoveByHistory &&
-        (actualPlayer !== myPlayerEnum ||
-            !hasHumanHiddenPointMarkers ||
-            !!isHumanHiddenPointMarker);
+    const isHiddenMove = !isPlainStoneReuseIntersection && !!histMove && isHiddenMoveByHistory;
 
     const isInRevealAnimation = revealAnimationStones
         ? hasPoint(revealAnimationStones, x, y)

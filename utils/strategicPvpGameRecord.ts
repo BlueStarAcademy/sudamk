@@ -1,6 +1,6 @@
 import { GameMode } from '../types/index.js';
 import type { GameRecord, LiveGameSession } from '../types/index.js';
-import { GameCategory } from '../types/enums.js';
+import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
 
 /** 해당 대국(gameId)이 이미 기보 목록에 있으면 중복 저장 방지·버튼 비활성화에 사용 */
 export function userHasSavedGameRecordForGameId(
@@ -28,18 +28,7 @@ export type SessionLikeForGameRecord = {
 
 /** 사람 vs 사람 PVP 대국(전략·놀이·페어). AI·PVE·모험·탑·길드전 제외 */
 export function isPvpHumanGameRecordEligible(session: SessionLikeForGameRecord): boolean {
-    if (session.isSinglePlayer) return false;
-    if (session.isAiGame) return false;
-    const cat = session.gameCategory;
-    if (
-        cat === GameCategory.SinglePlayer ||
-        cat === GameCategory.Tower ||
-        cat === GameCategory.Adventure ||
-        cat === GameCategory.GuildWar
-    ) {
-        return false;
-    }
-    return true;
+    return resolveArenaSessionPolicy(session as LiveGameSession).matchAxis === 'pvp';
 }
 
 /** @deprecated 이름 유지 — `isPvpHumanGameRecordEligible`와 동일 */

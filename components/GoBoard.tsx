@@ -898,7 +898,9 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         gameStatus === 'hidden_reveal_animating' || gameStatus === 'hidden_final_reveal';
     const effectiveNewlyRevealed = isHiddenRevealStatus ? newlyRevealed : undefined;
     const isMissileSupportedMode = modeIncludesMissileRule(mode, { mixedModes });
-    const isMissileSelectingActive = isMissileSupportedMode && gameStatus === 'missile_selecting';
+    // 서버가 missile_selecting으로 전환했으면 mixedModes 유실 등으로 모드 판별이 실패해도 발사 UI·입력을 켠다.
+    const isMissileSelectingActive =
+        gameStatus === 'missile_selecting' && (isMissileSupportedMode || typeof onMissileLaunch === 'function');
     const [captureScoreFloats, setCaptureScoreFloats] = useState<
         { id: string; point: Point; label: string; points: number }[]
     >([]);
@@ -1772,6 +1774,20 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 }
             }
         } else if (!isBoardDisabled && boardPos) {
+            // 미사일: pointerDown 레이스·터치 등으로 isDraggingMissile 없이 pointerUp만 오면 착수 오류로 오인되지 않게 한다.
+            if (isMissileSelectingActive && onMissileLaunch) {
+                const actualPlayerAtPos =
+                    boardState?.[boardPos.y]?.[boardPos.x] ?? displayBoardState[boardPos.y]?.[boardPos.x];
+                if (actualPlayerAtPos === myPlayerEnum) {
+                    setSelectedMissileStone(boardPos);
+                    return;
+                }
+                if (actualPlayerAtPos !== Player.None && actualPlayerAtPos !== myPlayerEnum) {
+                    return;
+                }
+                return;
+            }
+
             // 스캔: 교차점만 지정하면 되므로 돌이 있는 자리(구석 등)도 클릭 허용 — isOpponentHiddenStoneAtPos는 playing/hidden_placing 전용이라 여기서는 항상 false였음
             if (gameStatus === 'scanning') {
                 onBoardClick(boardPos.x, boardPos.y);

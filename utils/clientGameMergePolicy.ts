@@ -899,6 +899,20 @@ export function mergeGameUpdateByArena(
     const incomingWithLock = preserveExistingBaseSeatLockAgainstSlimDrop(incoming, existing);
     let merged = existing ? ({ ...existing, ...incomingWithLock } as LiveGameSession) : incomingWithLock;
     merged = preservePveAiHiddenPresentationOnMerge(merged, existing);
+    if (
+        existing &&
+        incomingWithLock.gameStatus === 'playing' &&
+        isItemPhasePresentationStillActive(existing) &&
+        (existing.animation as { type?: string } | null | undefined)?.type === 'hidden_reveal'
+    ) {
+        merged = {
+            ...merged,
+            gameStatus: 'hidden_reveal_animating',
+            animation: existing.animation ?? merged.animation,
+            revealAnimationEndTime: existing.revealAnimationEndTime ?? merged.revealAnimationEndTime,
+            pendingCapture: existing.pendingCapture ?? merged.pendingCapture,
+        };
+    }
     merged = stripStaleJustCapturedOnMerge(merged, existing);
     merged = mergeStrategicItemInventoryMonotonic(merged, existing);
     if (shouldClearItemPhaseAnimationOnPlayingMerge(existing, incoming)) {

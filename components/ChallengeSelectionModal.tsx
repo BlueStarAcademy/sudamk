@@ -55,7 +55,7 @@ import {
 
 interface ChallengeSelectionModalProps {
   opponent: UserWithStatus;
-  onChallenge: (mode: GameMode, settings?: GameSettings) => void;
+  onChallenge: (mode: GameMode, settings?: GameSettings) => void | Promise<void>;
   onClose: () => void;
   lobbyType: 'strategic' | 'playful';
   negotiations?: Negotiation[];
@@ -502,13 +502,13 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
           payload: { mode: lobbyType === 'strategic' ? 'strategic' : 'playful' } 
         });
         await new Promise(resolve => setTimeout(resolve, 200));
-        onChallenge(selectedMode, finalSettings);
+        await Promise.resolve(onChallenge(selectedMode, finalSettings));
       } catch (error) {
         console.error('Failed to enter waiting room:', error);
-        onChallenge(selectedMode, finalSettings);
+        await Promise.resolve(onChallenge(selectedMode, finalSettings));
       }
     } else {
-      onChallenge(selectedMode, finalSettings);
+      await Promise.resolve(onChallenge(selectedMode, finalSettings));
     }
   };
 

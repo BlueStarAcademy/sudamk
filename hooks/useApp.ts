@@ -96,10 +96,10 @@ import {
 import { stampObtainedItemsBulk } from '../shared/utils/obtainedItemsBulk.js';
 import { advancePairTurn, getCurrentPairTurnSeat, isPairAiSeat, isPairClassicGame, normalizePairTurnIndex, resetPairPasses } from '../shared/utils/pairGameTurn.js';
 import { buildBoardFromMoves } from '../utils/sgfBoardLogic.js';
-import { computeGameSessionFingerprint } from '../utils/gameSessionFingerprint.js';
 import { mergePairPetTrainingSlotsPreserveRecentRestart } from '../shared/utils/pairPetTrainingSlotsClientMerge.js';
 import { pairTrainingClaimCompletedBySlotIndex, PAIR_TRAINING_CLAIM_ALREADY_CLAIMED_ERROR } from '../components/pair/pairTrainingClaimInFlight.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
+import { preservePairTurnIfExistingAhead } from '../utils/preservePairTurnOnMerge.js';
 import {
     countConditionPotionsInInventory,
     stripInventoryIfFewerConditionPotions,
@@ -176,11 +176,13 @@ import {
     shouldClearMissileFlightAnimationOnPlayingMerge,
     shouldIgnoreStaleLiveTerminalGameUpdate,
     shouldIgnoreStalePendingPveStartRegression,
+    isPvePostStartConfirmPrePlayPhase,
     shouldIgnoreStalePendingAiLobbyStartRegression,
     buildOptimisticAiLobbyStartSession,
 } from '../utils/clientGameMergePolicy.js';
 import {
     augmentPveFromSessionStorageSnapshot,
+    augmentLiveSessionFromSessionStorageSnapshot,
     boardGridHasAnyStones,
     getArenaStoreBucketForSession,
     isSessionPveArena,
@@ -193,6 +195,7 @@ import {
 } from '../utils/endedPvpSessionStorage.js';
 import { BOARD_SETTLE_BEFORE_SCORING_MS } from '../shared/constants/boardSettleTiming.js';
 import { markPveBoardSettledForScoring } from '../shared/utils/pveScoringBoardSettleSignal.js';
+import { computeGameSessionFingerprint } from '../utils/gameSessionFingerprint.js';
 
 const pveAutoScoringScheduledStorageKey = (gameId: string) => `pveAutoScoringScheduled:${gameId}`;
 import {
@@ -406,6 +409,9 @@ function mergeTowerServerGameWithClientBoardIfStale(
         clientGame,
         serverGame,
     );
+    const preserveClientHiddenRevealPresentation =
+        clientGame.gameStatus === 'hidden_reveal_animating' &&
+        isItemPhasePresentationStillActive(clientGame);
     return {
         ...serverGame,
         // 서버 페이로드에 settings 키가 덜 실릴 때 클라이언트 값(kataServerLevel 등)을 보존한 뒤 서버가 준 필드로 덮음.
@@ -457,6 +463,17 @@ function mergeTowerServerGameWithClientBoardIfStale(
                   pausedTurnTimeLeft: clientGame.pausedTurnTimeLeft,
                   turnDeadline: clientGame.turnDeadline,
                   turnStartTime: clientGame.turnStartTime,
+              }
+            : {}),
+        ...(preserveClientHiddenRevealPresentation
+            ? {
+                  gameStatus: clientGame.gameStatus,
+                  animation: clientGame.animation,
+                  revealAnimationEndTime: clientGame.revealAnimationEndTime,
+                  pendingCapture: clientGame.pendingCapture,
+                  currentPlayer: clientGame.currentPlayer,
+                  permanentlyRevealedStones:
+                      clientGame.permanentlyRevealedStones ?? serverGame.permanentlyRevealedStones,
               }
             : {}),
     };
@@ -1236,7 +1253,8 @@ function preserveLiveStrategicMainClockOnMerge(
     incoming: LiveGameSession,
 ): LiveGameSession {
     if (!existing) return merged;
-    if (resolveArenaSessionPolicy(merged as any).matchAxis !== 'pve') return merged;
+    const matchAxis = resolveArenaSessionPolicy(merged as any).matchAxis;
+    if (matchAxis !== 'pve' && matchAxis !== 'pvp') return merged;
 
     const pickMainTime = (key: 'blackTimeLeft' | 'whiteTimeLeft'): number | undefined => {
         const inc = incoming[key];
@@ -1261,80 +1279,6 @@ function preserveLiveStrategicMainClockOnMerge(
                 ? incoming.turnDeadline
                 : merged.turnDeadline,
     };
-}
-
-/** 페어 4인 수순: 낡은 GAME_UPDATE가 currentTurnIndex·currentPlayer를 되돌리면 유저 턴만 반복되는 버그 */
-function preservePairTurnIfExistingAhead(
-    existing: LiveGameSession | undefined,
-    merged: LiveGameSession,
-): LiveGameSession {
-    if (!existing || !isPairClassicGame(merged.settings, merged.mode)) return merged;
-    const epg = existing.settings?.pairGame;
-    const mpg = merged.settings?.pairGame;
-    if (!epg?.turnOrder?.length || !mpg?.turnOrder?.length) return merged;
-
-    const em = existing.moveHistory?.length ?? 0;
-    const mm = merged.moveHistory?.length ?? 0;
-    if (em > mm) {
-        const serverMoves = merged.moveHistory ?? [];
-        const clientMoves = existing.moveHistory ?? [];
-        const prefixMatches =
-            mm === 0 ||
-            serverMoves.every(
-                (m, i) =>
-                    (m as { x?: number; y?: number; player?: Player }).x ===
-                        (clientMoves[i] as { x?: number; y?: number; player?: Player })?.x &&
-                    (m as { x?: number; y?: number; player?: Player }).y ===
-                        (clientMoves[i] as { x?: number; y?: number; player?: Player })?.y &&
-                    (m as { x?: number; y?: number; player?: Player }).player ===
-                        (clientMoves[i] as { x?: number; y?: number; player?: Player })?.player,
-            );
-        if (!prefixMatches) return merged;
-
-        return {
-            ...merged,
-            settings: {
-                ...merged.settings,
-                pairGame: {
-                    ...mpg,
-                    ...epg,
-                    turnOrder: epg.turnOrder,
-                    currentTurnIndex: epg.currentTurnIndex,
-                    passSeatIds: epg.passSeatIds,
-                },
-            },
-            boardState: existing.boardState,
-            moveHistory: existing.moveHistory,
-            currentPlayer: existing.currentPlayer,
-            captures: existing.captures ?? merged.captures,
-            koInfo: existing.koInfo ?? merged.koInfo,
-            lastMove: existing.lastMove ?? merged.lastMove,
-        };
-    }
-    if (em !== mm) return merged;
-
-    const eIdx = normalizePairTurnIndex(epg);
-    const mIdx = normalizePairTurnIndex(mpg);
-    if (eIdx === mIdx) return merged;
-
-    const len = epg.turnOrder.length;
-    const expectedIdx = len > 0 ? em % len : 0;
-    if (eIdx === expectedIdx && mIdx !== expectedIdx) {
-        return {
-            ...merged,
-            settings: {
-                ...merged.settings,
-                pairGame: {
-                    ...mpg,
-                    currentTurnIndex: eIdx,
-                    turnOrder: epg.turnOrder,
-                    passSeatIds: epg.passSeatIds,
-                },
-            },
-            currentPlayer: existing.currentPlayer,
-        };
-    }
-    return merged;
 }
 
 function shouldDropStaleStrategicGameUpdate(
@@ -5498,7 +5442,15 @@ export const useApp = () => {
                                 const g = prev[gameId];
                                 if (!g) return prev;
                                 if (g.gameStatus === 'scoring') return prev;
-                                return { ...prev, [gameId]: { ...g, gameStatus: 'scoring' as const } };
+                                const scoringEndTime = (g as { endTime?: number }).endTime ?? Date.now();
+                                return {
+                                    ...prev,
+                                    [gameId]: {
+                                        ...g,
+                                        gameStatus: 'scoring' as const,
+                                        endTime: scoringEndTime,
+                                    },
+                                };
                             });
                         }
                         console.log(`[handleAction] Sending PLACE_STONE action to server for auto-scoring:`, { ...autoScoringAction, payload: { ...autoScoringAction.payload, moveHistory: `[${moveHistory.length} moves]` } });
@@ -5667,7 +5619,12 @@ export const useApp = () => {
                 }
                 
                 // 안전장치: checkInfo 비생성/지연 상황에서도 따낸돌 목표 달성 시 즉시 종료를 보장한다.
-                if ((gameType === 'singleplayer' || gameType === 'tower') && game.gameStatus === 'playing') {
+                // 히든 포획 공개 연출 중에는 pendingCapture 정산 전 종료로 애니메이션이 끊기지 않게 한다.
+                if (
+                    (gameType === 'singleplayer' || gameType === 'tower') &&
+                    game.gameStatus === 'playing' &&
+                    updateResult.updatedGame.gameStatus !== 'hidden_reveal_animating'
+                ) {
                     const blackTargetRaw = Number(updateResult.updatedGame.effectiveCaptureTargets?.[Player.Black] ?? game.effectiveCaptureTargets?.[Player.Black]);
                     const whiteTargetRaw = Number(updateResult.updatedGame.effectiveCaptureTargets?.[Player.White] ?? game.effectiveCaptureTargets?.[Player.White]);
                     const hasBlackTarget = Number.isFinite(blackTargetRaw) && blackTargetRaw > 0 && blackTargetRaw !== 999;
@@ -5971,6 +5928,13 @@ export const useApp = () => {
             }
         };
 
+        const revertAiLobbyStartOptimistic = () => {
+            const entry = aiLobbyStartRevertRef.current;
+            if (!entry) return;
+            aiLobbyStartRevertRef.current = null;
+            setLiveGames((c) => (c[entry.gameId] ? { ...c, [entry.gameId]: entry.snapshot } : c));
+        };
+
         try {
             // 도전의 탑 턴 추가: 서버 응답 전에 클라가 턴 제한 패배를 판정하지 않도록 보너스를 즉시 반영
             if (action.type === 'TOWER_ADD_TURNS') {
@@ -6040,13 +6004,6 @@ export const useApp = () => {
                 } else {
                     setTowerGames((c) => (c[gameId] ? { ...c, [gameId]: snapshot } : c));
                 }
-            };
-
-            const revertAiLobbyStartOptimistic = () => {
-                const entry = aiLobbyStartRevertRef.current;
-                if (!entry) return;
-                aiLobbyStartRevertRef.current = null;
-                setLiveGames((c) => (c[entry.gameId] ? { ...c, [entry.gameId]: entry.snapshot } : c));
             };
 
             if (dicePlaceGameId && action.type === 'DICE_PLACE_STONE') {
@@ -6536,10 +6493,19 @@ export const useApp = () => {
                 if (action.type === 'PLACE_STONE' && res.status === 400) {
                     const syncGameId = (action.payload as { gameId?: string })?.gameId;
                     if (typeof syncGameId === 'string' && syncGameId.length > 0) {
-                        void handleAction({
-                            type: 'REQUEST_GAME_STATE_SYNC',
-                            payload: { gameId: syncGameId },
-                        } as ServerAction);
+                        const syncSession =
+                            towerGamesRef.current[syncGameId] ??
+                            singlePlayerGamesRef.current[syncGameId] ??
+                            liveGamesRef.current[syncGameId];
+                        const syncKind = syncSession
+                            ? resolveArenaSessionPolicy(syncSession as any).kind
+                            : undefined;
+                        if (syncKind !== 'tower' && syncKind !== 'singleplayer') {
+                            void handleAction({
+                                type: 'REQUEST_GAME_STATE_SYNC',
+                                payload: { gameId: syncGameId },
+                            } as ServerAction);
+                        }
                     }
                 }
 
@@ -7033,6 +6999,10 @@ export const useApp = () => {
                     }
                     const gid = g?.id;
                     if (gid && g) {
+                        const prevG =
+                            towerGamesRef.current[gid] ??
+                            singlePlayerGamesRef.current[gid] ??
+                            liveGamesRef.current[gid];
                         const boardClone =
                             g.boardState && Array.isArray(g.boardState)
                                 ? (g.boardState as number[][]).map((row) => [...row])
@@ -7089,10 +7059,17 @@ export const useApp = () => {
                         if (cat === 'tower') {
                             setTowerGames((prev) => {
                                 const prevG = prev[gid];
-                                const next = ensureAiHttpRevisionAdvances(
+                                let next = ensureAiHttpRevisionAdvances(
                                     prevG,
                                     mergePveHttpActionGameResponse(merged, prevG, action.type),
                                 );
+                                if (
+                                    action.type === 'PLACE_STONE' &&
+                                    !!(action.payload as { isHidden?: boolean })?.isHidden &&
+                                    prevG
+                                ) {
+                                    next = mergeTowerServerGameWithClientBoardIfStale(next, prevG);
+                                }
                                 return { ...prev, [gid]: { ...(prevG || ({} as LiveGameSession)), ...next } };
                             });
                         } else if (cat === 'singleplayer' || getSessionArenaKind(g) === 'singleplayer') {
@@ -8019,7 +7996,7 @@ export const useApp = () => {
                                     /* ignore */
                                 }
                             }
-                            setTowerGames(currentGames => {
+                            const towerStoreUpdater = (currentGames: Record<string, LiveGameSession>) => {
                                 // CONFIRM·배치변경·턴 추가·스캔/히든 아이템 사용 시 게임 상태가 바뀌었으므로 업데이트
                                 if (
                                     action.type === 'CONFIRM_TOWER_GAME_START' ||
@@ -8074,7 +8051,18 @@ export const useApp = () => {
                                     return { ...currentGames, [effectiveGameId]: nextGame };
                                 }
                                 return currentGames;
-                            });
+                            };
+                            if (action.type === 'CONFIRM_TOWER_GAME_START') {
+                                try {
+                                    sessionStorage.removeItem(`gameState_${effectiveGameId}`);
+                                    sessionStorage.removeItem(pveAutoScoringScheduledStorageKey(effectiveGameId));
+                                } catch {
+                                    /* ignore */
+                                }
+                                flushSync(() => setTowerGames(towerStoreUpdater));
+                            } else {
+                                setTowerGames(towerStoreUpdater);
+                            }
                         } else {
                             const applyLiveGameHttpMerge = (currentGames: Record<string, LiveGameSession>) => {
                                 const mergeId =
@@ -8423,6 +8411,7 @@ export const useApp = () => {
                     result.guild || 
                     result.game ||
                     result.gameId ||
+                    (result as any).negotiationId ||
                     (result as any).pairRooms ||
                     result.donationResult ||
                     result.clientResponse?.donationResult ||
@@ -9024,7 +9013,7 @@ export const useApp = () => {
                                             ? sessionStorage.getItem(`gameState_${id}`)
                                             : null;
                                     if (storedLive) {
-                                        mergedLive = augmentPveFromSessionStorageSnapshot(
+                                        mergedLive = augmentLiveSessionFromSessionStorageSnapshot(
                                             mergedLive,
                                             JSON.parse(storedLive),
                                         );
@@ -11176,8 +11165,11 @@ export const useApp = () => {
                                             const isServerMissileAnimating = game.gameStatus === 'missile_animating';
                                             // 서버가 미사일/스캔 애니메이션 종료 후 playing으로 복귀한 경우 항상 반영 (애니메이션 멈춤·게임 재개)
                                             const isServerExitingAnimation = (existingGame.gameStatus === 'missile_animating' || existingGame.gameStatus === 'scanning' || existingGame.gameStatus === 'scanning_animating') && game.gameStatus === 'playing';
-                                            // 클라이언트가 더 많은 수를 두었거나, 같은 수를 두었지만 클라이언트의 serverRevision이 더 크면 무시 (단, 계가/공개/종료/아이템모드/애니종료 전환은 제외)
-                                            if (!isServerScoringOrReveal && !isServerEndedOrNoContest && !isServerItemMode && !isServerMissileAnimating && !isServerExitingAnimation && (localMoveHistoryLength > serverMoveHistoryLength || 
+                                            const isServerPveStartConfirmProgress =
+                                                existingGame.gameStatus === 'pending' &&
+                                                isPvePostStartConfirmPrePlayPhase(game);
+                                            // 클라이언트가 더 많은 수를 두었거나, 같은 수를 두었지만 클라이언트의 serverRevision이 더 크면 무시 (단, 계가/공개/종료/아이템모드/애니종료·시작확정 전환은 제외)
+                                            if (!isServerScoringOrReveal && !isServerEndedOrNoContest && !isServerItemMode && !isServerMissileAnimating && !isServerExitingAnimation && !isServerPveStartConfirmProgress && (localMoveHistoryLength > serverMoveHistoryLength || 
                                                 (localMoveHistoryLength === serverMoveHistoryLength && localServerRevision >= serverRevision))) {
                                                 // 턴 추가(TOWER_ADD_TURNS) 등: 서버만 알고 있는 필드는 병합 (전체 패킷 무시 시 보너스·리비전 유실 방지)
                                                 const srvRaw = (game as any).blackTurnLimitBonus;
@@ -12856,6 +12848,8 @@ export const useApp = () => {
         }
         if (rejoinRequestedRef.current.has(gameId)) return;
         rejoinRequestedRef.current.add(gameId);
+        const rejoinDelayMs =
+            gameInStore && resolveArenaSessionPolicy(gameInStore as any).matchAxis === 'pvp' ? 500 : 2500;
         const t = setTimeout(async () => {
             try {
                 const res = await fetch(getApiUrl('/api/game/rejoin'), {
@@ -12943,7 +12937,7 @@ export const useApp = () => {
             } finally {
                 rejoinRequestedRef.current.delete(gameId);
             }
-        }, 2500);
+        }, rejoinDelayMs);
         return () => clearTimeout(t);
     }, [currentUser, currentRoute?.view, currentRoute?.params?.id, liveGames, singlePlayerGames, towerGames, gameRejoinRetryNonce, markConnectionRestored, setConnectionNotice, recoverPveGameFromSessionStorage]);
 

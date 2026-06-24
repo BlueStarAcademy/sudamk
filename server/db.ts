@@ -1,6 +1,10 @@
 import { User, LiveGameSession, AppState, UserCredentials, AdminLog, Announcement, OverrideAnnouncement, GameMode, HomeBoardPost } from '../types.ts';
 import { ADMIN_LOGIN_USERNAME } from '../shared/constants/auth.js';
 import { PG_TEST_LOGIN_USERNAME, PG_TEST_DEFAULT_PASSWORD } from '../shared/constants/pgTestAccount.js';
+import {
+    E2E_TEST_DEFAULT_PASSWORD,
+    E2E_TEST_ACCOUNTS,
+} from '../shared/constants/e2eTestAccount.js';
 import { applyPgTestUserProfile, createPgTestUser } from './pgTestAccountService.ts';
 import { hashPassword } from './utils/passwordUtils.js';
 import { deepClone } from './utils/cloneHelper.js';
@@ -180,6 +184,103 @@ const ensureAdminAccount = async () => {
     }
 };
 
+async function cleanupE2eTestUserGamesInDb(userId: string): Promise<void> {
+    const { deleteActiveGamesForPlayer } = await import('./prisma/gameService.js');
+    await deleteActiveGamesForPlayer(userId);
+}
+
+async function refillE2eUserActionPointsInDb(userId: string): Promise<void> {
+    const user = await prismaGetUserById(userId);
+    if (!user) return;
+    const max = user.actionPoints?.max ?? 30;
+    const refilled = { ...user, actionPoints: { current: max, max } };
+    await updateUser(refilled);
+}
+
+/** E2E: active 게임 DB 정리 + 액션 포인트 보충 (테스트 간 상태 오염 방지) */
+export async function refillE2eAccountsForTests(): Promise<void> {
+    for (const seed of E2E_TEST_ACCOUNTS) {
+        const creds = await getUserCredentialByUsername(seed.loginUsername);
+        if (!creds?.userId) continue;
+        await cleanupE2eTestUserGamesInDb(creds.userId);
+        await refillE2eUserActionPointsInDb(creds.userId);
+    }
+}
+
+type E2eAccountSeed = {
+    userId: string;
+    loginUsername: string;
+    nickname: string;
+};
+
+async function ensureSingleE2eAccount(seed: E2eAccountSeed, passwordHash: string): Promise<string | null> {
+    const { userId, loginUsername, nickname } = seed;
+    const existingCreds = await getUserCredentialByUsername(loginUsername);
+    let resolvedUserId: string | null = null;
+
+    if (existingCreds) {
+        const user = await prismaGetUserById(existingCreds.userId);
+        if (!user) {
+            console.error(`[DB] E2E credentials exist but user row is missing (${loginUsername})`);
+            return null;
+        }
+        resolvedUserId = user.id;
+        await updateUserCredential(user.id, { passwordHash });
+        console.log(`[DB] E2E test account refreshed: ${loginUsername}`);
+    } else {
+        const userByNickname = await prismaGetUserByNickname(nickname);
+        if (userByNickname) {
+            resolvedUserId = userByNickname.id;
+            const credsByUserId = await getUserCredentialByUserId(userByNickname.id);
+            if (credsByUserId) {
+                await updateUserCredential(userByNickname.id, { passwordHash });
+                console.log(`[DB] E2E test account password refreshed for nickname ${nickname}`);
+            } else {
+                await createUserCredential(loginUsername, passwordHash, userByNickname.id);
+                console.log(`[DB] Created E2E credentials for existing user nickname ${nickname}`);
+            }
+        } else {
+            const initialState = getInitialState();
+            const e2eUser = initialState.users[userId];
+            if (!e2eUser) {
+                console.error(`[DB] E2E test user missing from initial state: ${userId}`);
+                return null;
+            }
+            resolvedUserId = e2eUser.id;
+            console.log(`[DB] Creating E2E test account: ${loginUsername}`);
+            const existingUser = await prismaGetUserById(e2eUser.id);
+            if (!existingUser) {
+                await prismaCreateUser(e2eUser);
+            }
+            try {
+                await createUserCredential(loginUsername, passwordHash, e2eUser.id);
+                console.log(`[DB] Created E2E test account: ${loginUsername}`);
+            } catch (error: any) {
+                if (error.message?.includes('UNIQUE constraint')) {
+                    console.log(`[DB] E2E test account already exists (detected by constraint): ${loginUsername}`);
+                } else {
+                    console.error(`[DB] Error creating E2E test account (${loginUsername}):`, error);
+                    throw error;
+                }
+            }
+        }
+    }
+
+    return resolvedUserId;
+}
+
+/** Playwright E2E 계정(푸른별·노란별 / 1217)이 항상 존재하고 비밀번호가 일치하도록 보장 */
+export const ensureE2eTestAccount = async () => {
+    const passwordHash = await hashPassword(E2E_TEST_DEFAULT_PASSWORD);
+    for (const seed of E2E_TEST_ACCOUNTS) {
+        const userId = await ensureSingleE2eAccount(seed, passwordHash);
+        if (userId) {
+            await cleanupE2eTestUserGamesInDb(userId);
+            await refillE2eUserActionPointsInDb(userId);
+        }
+    }
+};
+
 /** PG사 검수용 테스트 계정이 항상 존재하고 제한 없이 이용 가능하도록 보장 */
 const ensurePgTestAccount = async () => {
     const existingCreds = await getUserCredentialByUsername(PG_TEST_LOGIN_USERNAME);
@@ -302,10 +403,12 @@ export const initializeDatabase = async () => {
             const existingUsers = await listUsers();
             if (existingUsers.length === 0) {
                 await seedInitialData();
+                await ensureE2eTestAccount();
                 await ensurePgTestAccount();
             } else {
-                // 사용자가 있더라도 관리자·PG 검수 계정이 항상 존재하도록 보장
+                // 사용자가 있더라도 관리자·E2E·PG 검수 계정이 항상 존재하도록 보장
                 await ensureAdminAccount();
+                await ensureE2eTestAccount();
                 await ensurePgTestAccount();
             }
             isInitialized = true;

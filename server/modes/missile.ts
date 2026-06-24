@@ -715,7 +715,7 @@ export const handleMissileAction = async (game: types.LiveGameSession, action: t
                     gc === 'singleplayer' ||
                     game.isSinglePlayer === true;
                 if (
-                    (pveLike || policy.isPairGame) &&
+                    (pveLike || policy.isPairGame || policy.matchAxis === 'pvp') &&
                     missileAnimDupOkStatuses.has(String(game.gameStatus))
                 ) {
                     return { clientResponse: { gameUpdated: true } };

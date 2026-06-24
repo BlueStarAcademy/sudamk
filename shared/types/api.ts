@@ -481,6 +481,7 @@ export type ServerAction =
     | { type: 'START_HIDDEN_PLACEMENT', payload: { gameId: string; clientSync?: PveItemActionClientSync } }
     | { type: 'START_SCANNING', payload: { gameId: string; clientSync?: PveItemActionClientSync } }
     | { type: 'SCAN_BOARD', payload: { gameId: string; x: number; y: number; clientSync?: PveItemActionClientSync } }
+    | { type: 'REVEAL_OPPONENT_HIDDEN', payload: { gameId: string; x: number; y: number } }
     // Missile Go
     | { type: 'START_MISSILE_SELECTION', payload: { gameId: string; clientSync?: PveItemActionClientSync } }
     // Scoring (PVE games only)

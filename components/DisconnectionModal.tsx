@@ -1,6 +1,9 @@
 import { useTranslation } from 'react-i18next';
 import React, { useState, useEffect } from 'react';
 import { LiveGameSession, User } from '../types.js';
+import { PVP_DISCONNECT_REJOIN_GRACE_MS } from '../shared/utils/pvpDisconnectPolicy.js';
+
+const DISCONNECT_GRACE_SECONDS = Math.floor(PVP_DISCONNECT_REJOIN_GRACE_MS / 1000);
 
 interface DisconnectionModalProps {
     session: LiveGameSession;
@@ -10,14 +13,14 @@ interface DisconnectionModalProps {
 const DisconnectionModal: React.FC<DisconnectionModalProps> = ({ session, currentUser }) => {
     const { t } = useTranslation('game');
     const { disconnectionState, player1, player2, disconnectionCounts, gameStatus } = session;
-    const [timeLeft, setTimeLeft] = useState(90);
+    const [timeLeft, setTimeLeft] = useState(DISCONNECT_GRACE_SECONDS);
 
     useEffect(() => {
         if (!disconnectionState) return;
 
         const updateTimer = () => {
             const elapsed = (Date.now() - disconnectionState.timerStartedAt) / 1000;
-            const remaining = Math.max(0, 90 - Math.floor(elapsed));
+            const remaining = Math.max(0, DISCONNECT_GRACE_SECONDS - Math.floor(elapsed));
             setTimeLeft(remaining);
         };
 
@@ -35,7 +38,7 @@ const DisconnectionModal: React.FC<DisconnectionModalProps> = ({ session, curren
     const count = disconnectionCounts?.[disconnectedPlayer.id] || 1;
     
     // 원형 프로그레스 계산
-    const totalTime = 90;
+    const totalTime = DISCONNECT_GRACE_SECONDS;
     const progress = ((totalTime - timeLeft) / totalTime) * 100;
     const circumference = 2 * Math.PI * 45; // 반지름 45
     const strokeDashoffset = circumference - (progress / 100) * circumference;
