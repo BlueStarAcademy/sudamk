@@ -21,6 +21,7 @@ export const STRATEGIC_CLASSIC_SPEED_BOARD_SIZES = [9, 13, 19] as const;
 export const STRATEGIC_SPECIAL_BOARD_SIZES = [9, 11, 13] as const;
 export const CASTLE_BOARD_SIZES = [9, 13] as const;
 export const CHESS_BOARD_SIZES = [9, 13] as const;
+export const UNIFORM_BOARD_SIZES = [9, 13] as const;
 export const CHESS_PIECE_PLACEMENT_TIME_LIMIT_SEC = 60;
 
 /** 9줄=9점 고정, 13줄=9~23 */
@@ -116,7 +117,8 @@ export function clampCastleCount(value: unknown, boardSize?: number): CastleCoun
 export const getStrategicBoardSizesByMode = (mode: GameMode): readonly number[] => {
   if (mode === GameMode.Castle) return CASTLE_BOARD_SIZES;
   if (mode === GameMode.Chess) return CHESS_BOARD_SIZES;
-  if (mode === GameMode.Standard || mode === GameMode.Speed || mode === GameMode.Uniform) return STRATEGIC_CLASSIC_SPEED_BOARD_SIZES;
+  if (mode === GameMode.Uniform) return UNIFORM_BOARD_SIZES;
+  if (mode === GameMode.Standard || mode === GameMode.Speed) return STRATEGIC_CLASSIC_SPEED_BOARD_SIZES;
   if (
     mode === GameMode.Capture ||
     mode === GameMode.Base ||

@@ -797,7 +797,7 @@ function mergeChessSessionFieldsOnMerge(
         merged = {
             ...merged,
             chessPieces: existing!.chessPieces,
-            chessPieceMovedThisTurn: existing!.chessPieceMovedThisTurn ?? merged.chessPieceMovedThisTurn,
+            chessPieceMovedThisTurn: merged.chessPieceMovedThisTurn ?? existing!.chessPieceMovedThisTurn,
             chessCaptureScore: existing!.chessCaptureScore ?? merged.chessCaptureScore,
         };
     }

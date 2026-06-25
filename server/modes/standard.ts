@@ -288,6 +288,9 @@ function advancePairTurnAfterAction(game: types.LiveGameSession, now: number): v
     const nextSeat = advancePairTurn(game.settings);
     if (nextSeat) {
         game.currentPlayer = nextSeat.player;
+        if (sessionUsesChessGo(game)) {
+            game.chessPieceMovedThisTurn = false;
+        }
         schedulePairAiTurnIfNeeded(game, now);
     }
 }

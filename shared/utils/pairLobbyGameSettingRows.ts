@@ -459,6 +459,8 @@ export function pairLobbyDraftBoardSizeOptions(
             GameMode.Hidden,
             GameMode.Missile,
             GameMode.Castle,
+            GameMode.Chess,
+            GameMode.Uniform,
             GameMode.Mix,
         ];
         if (restrictedStrategicModes.includes(mode)) return [9, 13];
@@ -472,6 +474,7 @@ export function pairLobbyDraftBoardSizeOptions(
     if (mode === GameMode.Speed) return [7, 9, 11, 13, 19];
     if (mode === GameMode.Castle) return [9, 13];
     if (mode === GameMode.Chess) return [13];
+    if (mode === GameMode.Uniform) return [9, 13];
     if (mode === GameMode.Standard) return [9, 13, 19];
     return [19, 13, 9];
 }

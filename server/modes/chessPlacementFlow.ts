@@ -19,9 +19,26 @@ import {
 import {
     resolvePairChessSetupDraftKey,
     resolvePairChessSetupPlayerColor,
+    resolvePairChessSideDraftKeys,
 } from '../../shared/utils/pairChessSetup.js';
+import { getEffectivePairLobbyOwnerId } from '../../shared/utils/effectivePairLobbyOwnerId.js';
 
 const CHESS_PLACEMENT_MS = CHESS_PIECE_PLACEMENT_TIME_LIMIT_SEC * 1000;
+
+function isPairCooperativeAiChessPlacement(game: types.LiveGameSession): boolean {
+    if (!game.isAiGame || !isPairClassicGame(game.settings, game.mode)) return false;
+    const pairMode = game.settings?.pairGame?.pairMode;
+    const hasOpponentAiSeat = game.settings?.pairGame?.teamB?.members?.some(
+        (m) => m.id === 'pair-opponent-ai',
+    );
+    return pairMode === 'ai' || Boolean(hasOpponentAiSeat);
+}
+
+function resolvePairCoopHumanTeamDraftKey(game: types.LiveGameSession): string | null {
+    const ownerId = getEffectivePairLobbyOwnerId(game);
+    if (!ownerId) return null;
+    return resolvePairChessSetupDraftKey(game, ownerId);
+}
 
 function resolveAiParticipantId(game: types.LiveGameSession): string | null {
     if (!game.isAiGame) return null;
@@ -70,6 +87,13 @@ function getChessDraftKey(game: types.LiveGameSession, userId: string): string |
     return null;
 }
 
+function getChessSideDraftKeys(game: types.LiveGameSession): { blackKey: string; whiteKey: string } | null {
+    const pairKeys = resolvePairChessSideDraftKeys(game);
+    if (pairKeys) return pairKeys;
+    if (!game.blackPlayerId || !game.whitePlayerId) return null;
+    return { blackKey: game.blackPlayerId, whiteKey: game.whitePlayerId };
+}
+
 function isPairDraftHolderAiOrPet(game: types.LiveGameSession, draftKey: string): boolean {
     const seat = game.settings?.pairGame?.turnOrder?.find((s) => s.participantId === draftKey);
     return Boolean(seat && isPairAiSeat(seat));
@@ -78,12 +102,15 @@ function isPairDraftHolderAiOrPet(game: types.LiveGameSession, draftKey: string)
 function ensurePairAiPetChessPlacementReady(game: types.LiveGameSession): void {
     if (!isPairClassicGame(game.settings, game.mode)) return;
     ensureChessPlacementState(game);
+    const sideKeys = getChessSideDraftKeys(game);
+    if (!sideKeys) return;
     const boardSize = game.settings.boardSize ?? 13;
     const budget = getChessBudget(game);
-    for (const draftKey of [game.blackPlayerId, game.whitePlayerId]) {
-        if (!draftKey || !isPairDraftHolderAiOrPet(game, draftKey)) continue;
-        const color =
-            draftKey === game.blackPlayerId ? Player.Black : Player.White;
+    for (const [draftKey, color] of [
+        [sideKeys.blackKey, Player.Black],
+        [sideKeys.whiteKey, Player.White],
+    ] as const) {
+        if (!isPairDraftHolderAiOrPet(game, draftKey)) continue;
         let draft = game.chessPiecePlacementDraft?.[draftKey] ?? [];
         if (!validateChessPlacementDraft(draft, color, boardSize, budget).ok) {
             draft = [];
@@ -131,14 +158,13 @@ function prepareChessPlacementDrafts(game: types.LiveGameSession, deadlinePassed
     ensureChessPlacementState(game);
     const boardSize = game.settings.boardSize ?? 13;
     const budget = getChessBudget(game);
-    const blackId = game.blackPlayerId;
-    const whiteId = game.whitePlayerId;
+    const sideKeys = getChessSideDraftKeys(game);
+    if (!sideKeys) return;
 
     for (const [participantId, color] of [
-        [blackId, Player.Black],
-        [whiteId, Player.White],
+        [sideKeys.blackKey, Player.Black],
+        [sideKeys.whiteKey, Player.White],
     ] as const) {
-        if (!participantId) continue;
         const isReady = game.chessPiecePlacementReady?.[participantId] ?? false;
         if (deadlinePassed && !isReady) {
             const existing = game.chessPiecePlacementDraft?.[participantId] ?? [];
@@ -152,21 +178,21 @@ function prepareChessPlacementDrafts(game: types.LiveGameSession, deadlinePassed
         }
     }
 
-    ensureAiChessPlacementReady(game);
+    if (!isPairCooperativeAiChessPlacement(game)) {
+        ensureAiChessPlacementReady(game);
+    }
     ensurePairAiPetChessPlacementReady(game);
 }
 
 function placementPiecesForRender(game: types.LiveGameSession): types.ChessPieceState[] {
     const boardSize = game.settings.boardSize ?? 13;
     const pieces: types.ChessPieceState[] = [];
-    if (game.blackPlayerId) {
-        const blackDraft = game.chessPiecePlacementDraft?.[game.blackPlayerId] ?? [];
-        pieces.push(...draftToChessPieceStates(blackDraft, Player.Black, boardSize));
-    }
-    if (game.whitePlayerId) {
-        const whiteDraft = game.chessPiecePlacementDraft?.[game.whitePlayerId] ?? [];
-        pieces.push(...draftToChessPieceStates(whiteDraft, Player.White, boardSize));
-    }
+    const sideKeys = getChessSideDraftKeys(game);
+    if (!sideKeys) return pieces;
+    const blackDraft = game.chessPiecePlacementDraft?.[sideKeys.blackKey] ?? [];
+    const whiteDraft = game.chessPiecePlacementDraft?.[sideKeys.whiteKey] ?? [];
+    pieces.push(...draftToChessPieceStates(blackDraft, Player.Black, boardSize));
+    pieces.push(...draftToChessPieceStates(whiteDraft, Player.White, boardSize));
     return pieces;
 }
 
@@ -197,16 +223,23 @@ export function enterChessPiecePlacement(game: types.LiveGameSession, now: numbe
     game.moveHistory = [];
     game.passCount = 0;
 
-    const blackId = game.blackPlayerId;
-    const whiteId = game.whitePlayerId;
-    if (!blackId || !whiteId) return;
+    const sideKeys = getChessSideDraftKeys(game);
+    if (!sideKeys) return;
 
-    game.chessPiecePlacementReady = { [blackId]: false, [whiteId]: false };
-    game.chessPiecePlacementDraft = { [blackId]: [], [whiteId]: [] };
+    game.chessPiecePlacementReady = {
+        [sideKeys.blackKey]: false,
+        [sideKeys.whiteKey]: false,
+    };
+    game.chessPiecePlacementDraft = {
+        [sideKeys.blackKey]: [],
+        [sideKeys.whiteKey]: [],
+    };
 
     if (game.isAiGame) {
         game.chessPiecePlacementDeadline = undefined;
-        ensureAiChessPlacementReady(game);
+        if (!isPairCooperativeAiChessPlacement(game)) {
+            ensureAiChessPlacementReady(game);
+        }
     } else {
         game.chessPiecePlacementDeadline = now + CHESS_PLACEMENT_MS;
     }
@@ -217,12 +250,11 @@ export function enterChessPiecePlacement(game: types.LiveGameSession, now: numbe
 
 export function resolveChessPlacementAndTransition(game: types.LiveGameSession, now: number): boolean {
     if (game.gameStatus !== 'chess_piece_placement') return false;
-    const blackId = game.blackPlayerId;
-    const whiteId = game.whitePlayerId;
-    if (!blackId || !whiteId) return false;
+    const sideKeys = getChessSideDraftKeys(game);
+    if (!sideKeys) return false;
+    const blackId = sideKeys.blackKey;
+    const whiteId = sideKeys.whiteKey;
 
-    const p1Id = game.player1.id;
-    const p2Id = game.player2.id;
     const humanId = resolveHumanParticipantId(game);
     const deadlinePassed =
         !game.isAiGame &&
@@ -233,7 +265,23 @@ export function resolveChessPlacementAndTransition(game: types.LiveGameSession, 
         (game.chessPiecePlacementReady?.[blackId] ?? false) &&
         (game.chessPiecePlacementReady?.[whiteId] ?? false);
     const humanReady = humanId ? (game.chessPiecePlacementReady?.[humanId] ?? false) : false;
-    const canTransition = game.isAiGame ? humanReady : deadlinePassed || pvpBothReady;
+    const pairCoopHumanDraftKey = isPairCooperativeAiChessPlacement(game)
+        ? resolvePairCoopHumanTeamDraftKey(game)
+        : null;
+    const pairCoopHumanReady = pairCoopHumanDraftKey
+        ? (game.chessPiecePlacementReady?.[pairCoopHumanDraftKey] ?? false)
+        : false;
+    const pairHumanPlacerReady =
+        isPairClassicGame(game.settings, game.mode) && !isPairCooperativeAiChessPlacement(game)
+            ? pvpBothReady
+            : false;
+    const canTransition = pairCoopHumanDraftKey
+        ? pairCoopHumanReady
+        : pairHumanPlacerReady
+          ? true
+          : game.isAiGame
+            ? humanReady
+            : deadlinePassed || pvpBothReady;
     if (!canTransition) return false;
 
     prepareChessPlacementDrafts(game, deadlinePassed);

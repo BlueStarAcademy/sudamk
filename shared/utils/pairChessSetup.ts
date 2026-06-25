@@ -18,17 +18,52 @@ function pairTeamOwnerUserId(
     return firstUser?.id ?? null;
 }
 
+function teamHasHumanMember(
+    pairGame: NonNullable<GameSettings['pairGame']>,
+    teamId: 'teamA' | 'teamB',
+): boolean {
+    const team = teamId === 'teamA' ? pairGame.teamA : pairGame.teamB;
+    return team.members.some((m) => m.kind === 'user');
+}
+
 function teamDraftKeyForColor(
     session: PairChessSetupSession,
     teamId: 'teamA' | 'teamB',
 ): string | null {
     const pairGame = session.settings?.pairGame;
     if (!pairGame) return null;
+
+    if (teamHasHumanMember(pairGame, teamId)) {
+        if (isPairCooperativeChessSetup(session)) {
+            const owner = getEffectivePairLobbyOwnerId(session);
+            if (owner && pairTeamIdForUserId(session.settings, owner) === teamId) {
+                return owner;
+            }
+        }
+        return pairTeamOwnerUserId(pairGame, teamId);
+    }
+
     const black1 = pairGame.turnOrder?.find((s) => s.seatId === 'black1');
     const white1 = pairGame.turnOrder?.find((s) => s.seatId === 'white1');
     if (black1?.teamId === teamId && session.blackPlayerId) return session.blackPlayerId;
     if (white1?.teamId === teamId && session.whitePlayerId) return session.whitePlayerId;
     return null;
+}
+
+/** 페어 체스바둑: 흑·백 진영별 draft 맵 키 (인간 팀은 유저 id, AI/펫 팀은 black1/white1 좌석 id) */
+export function resolvePairChessSideDraftKeys(
+    session: PairChessSetupSession,
+): { blackKey: string; whiteKey: string } | null {
+    if (!isPairClassicGame(session.settings, session.mode)) return null;
+    const pairGame = session.settings?.pairGame;
+    if (!pairGame) return null;
+    const black1 = pairGame.turnOrder?.find((s) => s.seatId === 'black1');
+    const white1 = pairGame.turnOrder?.find((s) => s.seatId === 'white1');
+    if (!black1?.teamId || !white1?.teamId) return null;
+    const blackKey = teamDraftKeyForColor(session, black1.teamId);
+    const whiteKey = teamDraftKeyForColor(session, white1.teamId);
+    if (!blackKey || !whiteKey) return null;
+    return { blackKey, whiteKey };
 }
 
 /** 페어 AI 협동전: 방장만 팀 기물을 배치하고 팀원은 대기 */
@@ -77,8 +112,10 @@ export function resolvePairChessSetupPlayerColor(
 ): Player.Black | Player.White | null {
     const draftKey = resolvePairChessSetupDraftKey(session, userId);
     if (!draftKey) return null;
-    if (draftKey === session.blackPlayerId) return Player.Black;
-    if (draftKey === session.whitePlayerId) return Player.White;
+    const sides = resolvePairChessSideDraftKeys(session);
+    if (!sides) return null;
+    if (draftKey === sides.blackKey) return Player.Black;
+    if (draftKey === sides.whiteKey) return Player.White;
     return null;
 }
 

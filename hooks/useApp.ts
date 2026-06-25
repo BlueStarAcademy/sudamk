@@ -1147,13 +1147,15 @@ function overlayChessPlayingFieldsFromExisting(
     existing: LiveGameSession,
 ): LiveGameSession {
     if (merged.mode !== GameMode.Chess) return merged;
+    const mergedHasPieces = (merged.chessPieces?.length ?? 0) > 0;
     return {
         ...merged,
-        chessPieces: existing.chessPieces,
-        chessGoRemovedPoints: existing.chessGoRemovedPoints,
-        lastChessMove: existing.lastChessMove,
-        chessPieceMovedThisTurn: existing.chessPieceMovedThisTurn,
-        chessCaptureScore: existing.chessCaptureScore,
+        chessPieces: mergedHasPieces ? merged.chessPieces : existing.chessPieces,
+        chessGoRemovedPoints: merged.chessGoRemovedPoints ?? existing.chessGoRemovedPoints,
+        lastChessMove: merged.lastChessMove ?? existing.lastChessMove,
+        chessPieceMovedThisTurn:
+            merged.chessPieceMovedThisTurn ?? existing.chessPieceMovedThisTurn,
+        chessCaptureScore: merged.chessCaptureScore ?? existing.chessCaptureScore,
     };
 }
 
@@ -3842,12 +3844,17 @@ export const useApp = () => {
             ) {
                 const chessMoveMutate = (game: LiveGameSession): LiveGameSession | null => {
                     if (game.mode !== GameMode.Chess || game.gameStatus !== 'playing') return null;
-                    const myPlayer =
-                        uid === game.blackPlayerId
-                            ? Player.Black
-                            : uid === game.whitePlayerId
-                              ? Player.White
-                              : null;
+                    let myPlayer: Player | null = null;
+                    if (isPairClassicGame(game.settings, game.mode)) {
+                        const seat = getCurrentPairTurnSeat(game.settings);
+                        if (seat?.kind === 'user' && seat.participantId === uid) {
+                            myPlayer = seat.player;
+                        }
+                    } else if (uid === game.blackPlayerId) {
+                        myPlayer = Player.Black;
+                    } else if (uid === game.whitePlayerId) {
+                        myPlayer = Player.White;
+                    }
                     if (myPlayer == null || game.currentPlayer !== myPlayer || game.chessPieceMovedThisTurn) {
                         return null;
                     }

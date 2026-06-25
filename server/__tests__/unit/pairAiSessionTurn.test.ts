@@ -5,7 +5,7 @@ import {
     finishAiProcessing,
     shouldProcessAiTurn,
 } from '../../aiSessionManager.js';
-import { buildPairAiSchedulingKey, resolvePairUserPlayerEnum } from '../../../shared/utils/pairGameTurn.js';
+import { buildPairAiSchedulingKey, buildPairAiSchedulingKeyForChessGo, resolvePairUserPlayerEnum } from '../../../shared/utils/pairGameTurn.js';
 
 const pairSettings: any = {
     pairGame: {
@@ -105,6 +105,16 @@ describe('pair AI session turn scheduling', () => {
         expect(shouldProcessAiTurn(gameId, 2, key)).toBe(false);
         clearAiSession(gameId);
         expect(shouldProcessAiTurn(gameId, 2, key)).toBe(true);
+    });
+
+    it('chess go: piece phase and stone phase share moveCount but use distinct keys', () => {
+        const pieceKey = buildPairAiSchedulingKeyForChessGo(pairSettings, 3, { phase: 'piece' })!;
+        const stoneKey = buildPairAiSchedulingKeyForChessGo(pairSettings, 3, { phase: 'stone' })!;
+        expect(pieceKey).not.toBe(stoneKey);
+        expect(shouldProcessAiTurn(gameId, 3, pieceKey)).toBe(true);
+        finishAiProcessing(gameId, 3, pieceKey);
+        expect(shouldProcessAiTurn(gameId, 3, pieceKey)).toBe(false);
+        expect(shouldProcessAiTurn(gameId, 3, stoneKey)).toBe(true);
     });
 });
 

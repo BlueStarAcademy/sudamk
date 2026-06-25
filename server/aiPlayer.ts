@@ -24,6 +24,7 @@ import { towerKataLevelFromSnapshot } from '../shared/utils/kataServerRuntimeRes
 import { getKataServerRuntimeSnapshot } from './kataServerRuntimeStore.js';
 import {
     buildPairAiSchedulingKey,
+    buildPairAiSchedulingKeyForChessGo,
     getCurrentPairTurnSeat,
     isPairAiSeat,
     isPairClassicGame,
@@ -1281,8 +1282,13 @@ export const makeAiMove = async (game: LiveGameSession) => {
     }
 
     const initialMoveCount = game.moveHistory?.length ?? 0;
+    const isChessGo = game.mode === types.GameMode.Chess;
     const pairSchedulingKeyBefore = pairClassic
-        ? buildPairAiSchedulingKey(game.settings, initialMoveCount)
+        ? isChessGo
+            ? buildPairAiSchedulingKeyForChessGo(game.settings, initialMoveCount, {
+                  phase: game.chessPieceMovedThisTurn ? 'stone' : 'piece',
+              })
+            : buildPairAiSchedulingKey(game.settings, initialMoveCount)
         : null;
 
     if (!shouldProcessAiTurn(game.id, initialMoveCount, pairSchedulingKeyBefore)) {
@@ -1471,9 +1477,30 @@ export const makeAiMove = async (game: LiveGameSession) => {
         /** 방금 수를 둔 좌석(턴 인덱스는 advance 전) — 다음 좌석 키를 저장하면 연속 AI 턴이 영구 스킵됨 */
         const pairSchedulingKeyCompleted =
             pairClassic && moveHistoryAdvanced && pairTurnIndexBefore != null
-                ? buildPairAiSchedulingKey(game.settings, finalMoveCount, pairTurnIndexBefore)
+                ? isChessGo
+                    ? buildPairAiSchedulingKeyForChessGo(game.settings, finalMoveCount, {
+                          turnIndexOverride: pairTurnIndexBefore,
+                          phase: 'stone',
+                      })
+                    : buildPairAiSchedulingKey(game.settings, finalMoveCount, pairTurnIndexBefore)
                 : null;
-        if (useMoveCountForSession && !moveHistoryAdvanced) {
+        const chessAwaitingStoneAfterPiece =
+            isChessGo &&
+            useMoveCountForSession &&
+            !moveHistoryAdvanced &&
+            game.chessPieceMovedThisTurn === true &&
+            pairClassic &&
+            pairTurnIndexBefore != null;
+        if (chessAwaitingStoneAfterPiece) {
+            finishAiProcessing(
+                game.id,
+                finalMoveCount,
+                buildPairAiSchedulingKeyForChessGo(game.settings, initialMoveCount, {
+                    turnIndexOverride: pairTurnIndexBefore,
+                    phase: 'piece',
+                }),
+            );
+        } else if (useMoveCountForSession && !moveHistoryAdvanced) {
             cancelAiProcessing(game.id);
         } else if (pairClassic && moveHistoryAdvanced && !pairTurnAdvanced) {
             // 따내기/히든 공개 연출 등: 수는 기록됐지만 pair turnIndex는 유지 → 같은 좌석 재시도 허용

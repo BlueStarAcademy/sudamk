@@ -5,6 +5,7 @@ import {
     isPairChessSetupWaitingGuest,
     resolvePairChessSetupDraftKey,
     resolvePairChessSetupPlayerColor,
+    resolvePairChessSideDraftKeys,
 } from '../../../shared/utils/pairChessSetup.js';
 import { aiUserId } from '../../aiPlayer.js';
 
@@ -176,5 +177,82 @@ describe('pairChessSetup', () => {
         expect(resolvePairChessSetupDraftKey(session, 'owner-a')).toBe('owner-a');
         expect(resolvePairChessSetupDraftKey(session, 'partner-a')).toBeNull();
         expect(isPairChessSetupWaitingGuest(session, 'partner-a')).toBe(true);
+    });
+
+    it('black1 pet + black2 user: human team draft key is user id, not pet seat id', () => {
+        const session = makePairChessSession({
+            blackPlayerId: 'pet-ai-owner-a',
+            whitePlayerId: 'owner-b',
+            settings: {
+                boardSize: 13,
+                komi: 6.5,
+                pairGame: {
+                    roomId: 'room-pet-black1',
+                    pairMode: 'pvp',
+                    pairLobbyOwnerId: 'owner-a',
+                    teamA: {
+                        name: 'A팀',
+                        members: [
+                            { id: 'owner-a', name: 'A', kind: 'user', slot: 'owner' },
+                            { id: 'pet-ai-owner-a', name: '펫', kind: 'pet', slot: 'ownerPet' },
+                        ],
+                    },
+                    teamB: {
+                        name: 'B팀',
+                        members: [
+                            { id: 'owner-b', name: 'B', kind: 'user', slot: 'owner' },
+                            { id: 'partner-b', name: 'B2', kind: 'user', slot: 'partner' },
+                        ],
+                    },
+                    turnOrder: [
+                        {
+                            seatId: 'black1',
+                            player: Player.Black,
+                            order: 1,
+                            participantId: 'pet-ai-owner-a',
+                            name: '펫',
+                            kind: 'pet',
+                            teamId: 'teamA',
+                            slot: 'ownerPet',
+                        },
+                        {
+                            seatId: 'white1',
+                            player: Player.White,
+                            order: 1,
+                            participantId: 'owner-b',
+                            name: 'B',
+                            kind: 'user',
+                            teamId: 'teamB',
+                            slot: 'owner',
+                        },
+                        {
+                            seatId: 'black2',
+                            player: Player.Black,
+                            order: 2,
+                            participantId: 'owner-a',
+                            name: 'A',
+                            kind: 'user',
+                            teamId: 'teamA',
+                            slot: 'owner',
+                        },
+                        {
+                            seatId: 'white2',
+                            player: Player.White,
+                            order: 2,
+                            participantId: 'partner-b',
+                            name: 'B2',
+                            kind: 'user',
+                            teamId: 'teamB',
+                            slot: 'partner',
+                        },
+                    ],
+                },
+            },
+        });
+        const sides = resolvePairChessSideDraftKeys(session);
+        expect(sides?.blackKey).toBe('owner-a');
+        expect(sides?.whiteKey).toBe('owner-b');
+        expect(resolvePairChessSetupDraftKey(session, 'owner-a')).toBe('owner-a');
+        expect(resolvePairChessSetupPlayerColor(session, 'owner-a')).toBe(Player.Black);
     });
 });

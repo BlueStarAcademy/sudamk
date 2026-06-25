@@ -72,15 +72,20 @@ export function initializeChessGame(game: types.LiveGameSession, neg: types.Nego
     const p2 = game.player2;
 
     if (game.isAiGame) {
-        const humanPlayerColor = resolveStrategicAiHumanColor(game, neg);
-        if (humanPlayerColor === types.Player.Black) {
-            game.blackPlayerId = p1.id;
-            game.whitePlayerId = p2.id;
+        if (isPairClassicGame(game.settings, game.mode)) {
+            // configurePairClassicGameStart가 black1/white1 좌석 id를 설정 — 1v1 AI 색 배정으로 덮어쓰지 않음
+            // pair_order_reveal → updatePairOrderRevealState → enterChessPiecePlacement
         } else {
-            game.whitePlayerId = p1.id;
-            game.blackPlayerId = p2.id;
+            const humanPlayerColor = resolveStrategicAiHumanColor(game, neg);
+            if (humanPlayerColor === types.Player.Black) {
+                game.blackPlayerId = p1.id;
+                game.whitePlayerId = p2.id;
+            } else {
+                game.whitePlayerId = p1.id;
+                game.blackPlayerId = p2.id;
+            }
+            enterChessPiecePlacement(game, now);
         }
-        enterChessPiecePlacement(game, now);
     } else if (isPairClassicGame(game.settings, game.mode)) {
         // configurePairClassicGameStart → pair_order_reveal → chess_piece_placement
     } else {

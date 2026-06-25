@@ -353,6 +353,19 @@ export function buildPairAiSchedulingKey(
     return `${moveCount}:${idx}:${seat.participantId}`;
 }
 
+/** 체스 바둑: 같은 moveCount·좌석에서 기물 이동(:piece)과 바둑 착수(:stone)를 AI 세션 키로 구분 */
+export type PairChessGoAiSchedulingPhase = 'piece' | 'stone';
+
+export function buildPairAiSchedulingKeyForChessGo(
+    settings: Pick<GameSettings, 'pairGame'> | undefined,
+    moveCount: number,
+    options?: { turnIndexOverride?: number; phase?: PairChessGoAiSchedulingPhase },
+): string | null {
+    const base = buildPairAiSchedulingKey(settings, moveCount, options?.turnIndexOverride);
+    if (!base || !options?.phase) return base;
+    return `${base}:${options.phase}`;
+}
+
 export function getPairTurnSeatByParticipantId(
     settings: Pick<GameSettings, 'pairGame'> | undefined,
     participantId: string

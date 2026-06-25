@@ -184,4 +184,153 @@ describe('chessPlacementFlow', () => {
         expect(resolveChessPlacementAndTransition(game, Date.now())).toBe(true);
         expect(game.gameStatus).toBe('playing');
     });
+
+    it('pair AI coop: only lobby owner places human team; AI side auto-ready on opponent seat', () => {
+        const ownerA = makeUser('owner-a');
+        const ai = makeUser(aiUserId);
+        const game = makeChessSession({
+            isAiGame: true,
+            player1: ownerA,
+            player2: ai,
+            blackPlayerId: ownerA.id,
+            whitePlayerId: 'pair-opponent-ai',
+            settings: {
+                boardSize: 13,
+                chessPieceTotalScore: 15,
+                komi: 6.5,
+                pairGame: {
+                    roomId: 'room-ai',
+                    pairMode: 'ai',
+                    pairLobbyOwnerId: ownerA.id,
+                    teamA: {
+                        name: '우리',
+                        members: [
+                            { id: ownerA.id, name: 'A', kind: 'user', slot: 'owner' },
+                            { id: 'partner-a', name: 'A2', kind: 'user', slot: 'partner' },
+                        ],
+                    },
+                    teamB: {
+                        name: 'AI',
+                        members: [
+                            { id: 'pair-opponent-ai', name: 'AI', kind: 'ai', slot: 'opponentAi' },
+                            { id: 'pair-opponent-pet', name: 'Pet', kind: 'pet', slot: 'opponentPet' },
+                        ],
+                    },
+                    turnOrder: [
+                        {
+                            seatId: 'black1',
+                            player: Player.Black,
+                            order: 1,
+                            participantId: ownerA.id,
+                            name: 'A',
+                            kind: 'user',
+                            teamId: 'teamA',
+                            slot: 'owner',
+                        },
+                        {
+                            seatId: 'white1',
+                            player: Player.White,
+                            order: 1,
+                            participantId: 'pair-opponent-ai',
+                            name: 'AI',
+                            kind: 'ai',
+                            teamId: 'teamB',
+                            slot: 'opponentAi',
+                        },
+                    ],
+                },
+            },
+        });
+        enterChessPiecePlacement(game, Date.now());
+
+        expect(game.chessPiecePlacementDraft?.[ownerA.id] ?? []).toHaveLength(0);
+        expect(game.chessPiecePlacementReady?.[ownerA.id]).toBe(false);
+        expect(game.chessPiecePlacementReady?.['pair-opponent-ai']).toBe(true);
+        expect((game.chessPiecePlacementDraft?.['pair-opponent-ai'] ?? []).length).toBeGreaterThan(0);
+        expect(game.chessPiecePlacementDraft?.[aiUserId]).toBeUndefined();
+
+        expect(resolveChessPlacementAndTransition(game, Date.now())).toBe(false);
+        game.chessPiecePlacementReady![ownerA.id] = true;
+        expect(resolveChessPlacementAndTransition(game, Date.now())).toBe(true);
+        expect(game.gameStatus).toBe('playing');
+        expect(game.chessPieces?.some((p) => p.owner === Player.Black && p.type !== 'king')).toBe(false);
+        expect(game.chessPieces?.some((p) => p.owner === Player.White && p.type !== 'king')).toBe(true);
+    });
+
+    it('pair PVP black1 pet + black2 user: user places black pieces, pet is not auto-ready', () => {
+        const ownerA = makeUser('owner-a');
+        const ownerB = makeUser('owner-b');
+        const petId = 'pet-ai-owner-a';
+        const game = makeChessSession({
+            isAiGame: false,
+            player1: ownerA,
+            player2: ownerB,
+            blackPlayerId: petId,
+            whitePlayerId: ownerB.id,
+            settings: {
+                boardSize: 13,
+                chessPieceTotalScore: 15,
+                komi: 6.5,
+                pairGame: {
+                    roomId: 'room-pet-black1',
+                    pairMode: 'pvp',
+                    pairLobbyOwnerId: ownerA.id,
+                    teamA: {
+                        name: 'A',
+                        members: [
+                            { id: ownerA.id, name: 'A', kind: 'user', slot: 'owner' },
+                            { id: petId, name: 'Pet', kind: 'pet', slot: 'ownerPet' },
+                        ],
+                    },
+                    teamB: {
+                        name: 'B',
+                        members: [{ id: ownerB.id, name: 'B', kind: 'user', slot: 'owner' }],
+                    },
+                    turnOrder: [
+                        {
+                            seatId: 'black1',
+                            player: Player.Black,
+                            order: 1,
+                            participantId: petId,
+                            name: 'Pet',
+                            kind: 'pet',
+                            teamId: 'teamA',
+                            slot: 'ownerPet',
+                        },
+                        {
+                            seatId: 'white1',
+                            player: Player.White,
+                            order: 1,
+                            participantId: ownerB.id,
+                            name: 'B',
+                            kind: 'user',
+                            teamId: 'teamB',
+                            slot: 'owner',
+                        },
+                        {
+                            seatId: 'black2',
+                            player: Player.Black,
+                            order: 2,
+                            participantId: ownerA.id,
+                            name: 'A',
+                            kind: 'user',
+                            teamId: 'teamA',
+                            slot: 'owner',
+                        },
+                    ],
+                },
+            },
+        });
+        enterChessPiecePlacement(game, Date.now());
+
+        expect(game.chessPiecePlacementDraft?.[petId]).toBeUndefined();
+        expect(game.chessPiecePlacementReady?.[petId]).toBeUndefined();
+        expect(game.chessPiecePlacementReady?.[ownerA.id]).toBe(false);
+        expect(getChessDraftKey(game, ownerA.id)).toBe(ownerA.id);
+
+        game.chessPiecePlacementReady![ownerA.id] = true;
+        game.chessPiecePlacementReady![ownerB.id] = true;
+        expect(resolveChessPlacementAndTransition(game, Date.now())).toBe(true);
+        expect(game.gameStatus).toBe('playing');
+    });
 });

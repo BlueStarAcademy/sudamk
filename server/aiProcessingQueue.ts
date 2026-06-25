@@ -295,12 +295,6 @@ class AiProcessingQueue {
                 pairClassic &&
                 afterMoveCount > beforeMoveCount &&
                 game.gameStatus === 'hidden_reveal_animating';
-            /** 상대 AI가 두고 턴이 펫/다음 AI로 넘어갈 때 makeGoAiBotMove 안에서 enqueue가 processing 때문에 무시되는 경우 */
-            const consecutivePairAiSeat =
-                pairClassic &&
-                afterMoveCount > beforeMoveCount &&
-                isAiControlledTurn(game) &&
-                AI_GO_STALL_RETRY_STATUSES.has(String(game.gameStatus));
             const chessGoAwaitingStoneAfterPieceMove =
                 game.mode === GameMode.Chess &&
                 game.chessPieceMovedThisTurn === true &&
@@ -323,9 +317,6 @@ class AiProcessingQueue {
             } else if (pairHiddenRevealFollowUp) {
                 const retryDelayMs = getAnimationRetryDelayMs(game) ?? 500;
                 setTimeout(() => this.enqueue(gameId), retryDelayMs);
-            } else if (consecutivePairAiSeat) {
-                // schedulePairAiTurnIfNeeded가 PAIR_AI_MOVE_REVEAL_DELAY_MS 후 enqueue — 이중 딜레이 방지
-                setTimeout(() => this.enqueue(gameId, undefined, { deferIfProcessing: true }), 0);
             } else {
                 this.retryCounts.delete(gameId);
             }
