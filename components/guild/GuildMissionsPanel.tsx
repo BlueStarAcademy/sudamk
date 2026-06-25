@@ -45,6 +45,13 @@ const MissionItem: React.FC<{
     };
 
     const finalXp = calculateGuildMissionXp(mission.guildReward?.guildXp ?? 0, guildLevel);
+    const missionTitle = mission.progressKey
+        ? t(`missions.titles.${mission.progressKey}`, { defaultValue: mission.title ?? mission.progressKey })
+        : (mission.title ?? '');
+    const missionDescription =
+        mission.progressKey && mission.description
+            ? t(`missions.descriptions.${mission.progressKey}`, { defaultValue: mission.description })
+            : mission.description;
 
     return (
         <div
@@ -70,7 +77,7 @@ const MissionItem: React.FC<{
                                     className="min-w-0 flex-1 text-[12px] font-bold leading-snug text-amber-50/95"
                                     style={{ textShadow: '0 1px 2px rgba(0,0,0,0.45)' }}
                                 >
-                                    {mission.title}
+                                    {missionTitle}
                                 </h4>
                                 {isComplete && !isClaimed && !isExpired && (
                                     <span className="shrink-0 rounded-full border border-emerald-400/40 bg-emerald-950/50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-200/95">
@@ -78,8 +85,8 @@ const MissionItem: React.FC<{
                                     </span>
                                 )}
                             </div>
-                            {mission.description ? (
-                                <p className="text-[10px] leading-snug text-stone-400">{mission.description}</p>
+                            {missionDescription ? (
+                                <p className="text-[10px] leading-snug text-stone-400">{missionDescription}</p>
                             ) : null}
                         </div>
                     </div>
@@ -135,7 +142,7 @@ const MissionItem: React.FC<{
                                 className="text-sm font-bold leading-snug text-amber-50/95 sm:text-[15px]"
                                 style={{ textShadow: '0 1px 2px rgba(0,0,0,0.45)' }}
                             >
-                                {mission.title}
+                                {missionTitle}
                             </h4>
                             {isComplete && !isClaimed && !isExpired && (
                                 <span className="shrink-0 rounded-full border border-emerald-400/40 bg-emerald-950/50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-200/95">
@@ -143,8 +150,8 @@ const MissionItem: React.FC<{
                                 </span>
                             )}
                         </div>
-                        {mission.description ? (
-                            <p className="mb-2.5 text-xs leading-relaxed text-stone-400 line-clamp-2 sm:text-sm">{mission.description}</p>
+                        {missionDescription ? (
+                            <p className="mb-2.5 text-xs leading-relaxed text-stone-400 line-clamp-2 sm:text-sm">{missionDescription}</p>
                         ) : null}
 
                         <div className="mb-1 h-2.5 w-full overflow-hidden rounded-full border border-stone-700/60 bg-black/40 sm:mb-1.5">
@@ -203,20 +210,26 @@ const GuildMissionsPanel: React.FC<GuildMissionsPanelProps> = ({ guild, onClose 
     const now = Date.now();
     const isExpired = guild.lastMissionReset && isDifferentWeekKST(guild.lastMissionReset, now);
 
-    const [resetCountdown, setResetCountdown] = useState('');
+    const formatResetCountdown = () => {
+        const ms = getTimeUntilNextMondayKST();
+        const days = Math.floor(ms / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((ms % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
+        return t('missions.resetCountdown', {
+            days,
+            hours: String(hours).padStart(2, '0'),
+            minutes: String(minutes).padStart(2, '0'),
+        });
+    };
+
+    const [resetCountdown, setResetCountdown] = useState(formatResetCountdown);
 
     useEffect(() => {
-        const tick = () => {
-            const ms = getTimeUntilNextMondayKST();
-            const days = Math.floor(ms / (1000 * 60 * 60 * 24));
-            const hours = Math.floor((ms % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
-            setResetCountdown(t('missions.resetCountdown', { days, hours: String(hours).padStart(2, '0'), minutes: String(minutes).padStart(2, '0') }));
-        };
+        const tick = () => setResetCountdown(formatResetCountdown());
         tick();
         const id = window.setInterval(tick, 60_000);
         return () => window.clearInterval(id);
-    }, []);
+    }, [t]);
 
     const hasUnclaimedRewards = useMemo(() => {
         if (!currentUserWithStatus || !guild.weeklyMissions) return false;

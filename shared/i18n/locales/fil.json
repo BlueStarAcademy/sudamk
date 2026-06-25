@@ -5717,7 +5717,27 @@
       "inProgress": "Isinasagawa",
       "resetCountdown": "I-renew pagkatapos ng {{days}} araw {{hours}}:{{minutes}}",
       "unclaimedHint": "May mga reward na matatanggap mo. Huwag kalimutang kunin ito.",
-      "empty": "Walang mga lingguhang misyon na ipapakita."
+      "empty": "Walang mga lingguhang misyon na ipapakita.",
+      "titles": {
+        "checkIns": "50 guild check-ins",
+        "guildDonations": "50 guild donations",
+        "bossAttempts": "30 guild boss attempts",
+        "strategicWins": "30 strategic Go wins",
+        "playfulWins": "30 playful Go wins",
+        "equipmentEnhancements": "50 equipment enhancements",
+        "epicGearAcquisitions": "20 epic+ gear drops",
+        "diamondsSpent": "Spend 3,000 diamonds"
+      },
+      "descriptions": {
+        "checkIns": "Guild members check in 50 times total",
+        "guildDonations": "Guild members donate gold or diamonds 50 times total",
+        "bossAttempts": "Guild members participate in guild boss battles 30 times total",
+        "strategicWins": "Guild members win 30 strategic Go games total (lobby AI and normal matches included)",
+        "playfulWins": "Guild members win 30 playful Go games total (lobby AI and normal matches included)",
+        "equipmentEnhancements": "Guild members attempt equipment enhancement 50 times total",
+        "epicGearAcquisitions": "Guild members acquire epic-grade or higher equipment 20 times total",
+        "diamondsSpent": "Guild members spend 3,000 diamonds total in the shop and elsewhere"
+      }
     },
     "research": {
       "title": "Guild Lab",

@@ -5717,7 +5717,27 @@
       "inProgress": "प्रगति पर है",
       "resetCountdown": "{{दिन}} दिन {{घंटे}}:{{मिनट}} के बाद नवीनीकृत करें",
       "unclaimedHint": "ऐसे पुरस्कार हैं जो आप प्राप्त कर सकते हैं। इसे लेना मत भूलना.",
-      "empty": "प्रदर्शित करने के लिए कोई साप्ताहिक मिशन नहीं हैं।"
+      "empty": "प्रदर्शित करने के लिए कोई साप्ताहिक मिशन नहीं हैं।",
+      "titles": {
+        "checkIns": "50 guild check-ins",
+        "guildDonations": "50 guild donations",
+        "bossAttempts": "30 guild boss attempts",
+        "strategicWins": "30 strategic Go wins",
+        "playfulWins": "30 playful Go wins",
+        "equipmentEnhancements": "50 equipment enhancements",
+        "epicGearAcquisitions": "20 epic+ gear drops",
+        "diamondsSpent": "Spend 3,000 diamonds"
+      },
+      "descriptions": {
+        "checkIns": "Guild members check in 50 times total",
+        "guildDonations": "Guild members donate gold or diamonds 50 times total",
+        "bossAttempts": "Guild members participate in guild boss battles 30 times total",
+        "strategicWins": "Guild members win 30 strategic Go games total (lobby AI and normal matches included)",
+        "playfulWins": "Guild members win 30 playful Go games total (lobby AI and normal matches included)",
+        "equipmentEnhancements": "Guild members attempt equipment enhancement 50 times total",
+        "epicGearAcquisitions": "Guild members acquire epic-grade or higher equipment 20 times total",
+        "diamondsSpent": "Guild members spend 3,000 diamonds total in the shop and elsewhere"
+      }
     },
     "research": {
       "title": "गिल्ड लैब",

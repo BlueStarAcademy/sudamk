@@ -54,6 +54,11 @@ export const PAIR_GO_GAME_MODES: readonly GameMode[] = [
     GameMode.Mix,
 ];
 
+/** 2인 페어 정산(`processPairGoGameSummary`) 대상 모드 — Uniform은 페어 대국만 지원하고 별도 보상 밴드 없음 */
+export const PAIR_GO_REWARD_GAME_MODES: readonly GameMode[] = PAIR_GO_GAME_MODES.filter(
+    (mode) => mode !== GameMode.Uniform,
+);
+
 export type PairGameTurnSeat = {
     seatId: PairGameTurnSeatId;
     player: Player.Black | Player.White;

@@ -68,6 +68,7 @@ import {
 import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig, type RewardConfig } from '../shared/constants/rewardConfig.js';
 import { getAdventureBaseStrategyXp, getAdventureMonsterLevelXpBonus } from '../shared/constants/adventureStrategyXp.js';
 import { PAIR_GO_REWARD_BANDS } from '../shared/constants/pairGoRewardBands.js';
+import { PAIR_GO_REWARD_GAME_MODES } from '../shared/utils/pairGameTurn.js';
 import { isRewardVipActive } from '../shared/utils/rewardVip.js';
 import { rollVipPlayRewardOutcome, rollVipPlayRewardOutcomeGoldOnly } from '../shared/utils/rewardVipPlayRoll.js';
 import { isAdventureChapterBossCodexId } from '../constants/adventureMonstersCodex.js';
@@ -664,10 +665,26 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
 };
 
 export const endGame = async (game: LiveGameSession, winner: Player, winReason: WinReason): Promise<void> => {
-    if (game.gameStatus === 'ended' || game.gameStatus === 'no_contest') {
-        return; // Game already ended, do nothing
-    }
-    
+    const pairHumanIdsForSummary = isPairGoRewardGame(game) ? getPairGoHumanParticipantIds(game) : [];
+    const summaryParticipantIds =
+        pairHumanIdsForSummary.length > 0
+            ? pairHumanIdsForSummary
+            : [game.player1?.id, game.player2?.id].filter((id): id is string => typeof id === 'string');
+    const humanSummaryIds = summaryParticipantIds.filter((id) => id !== aiUserId);
+    const hasAllHumanSummaries = humanSummaryIds.every((id) => !!game.summary?.[id]);
+    const alreadyTerminal = game.gameStatus === 'ended' || game.gameStatus === 'no_contest';
+
+    if (alreadyTerminal) {
+        if (hasAllHumanSummaries && game.statsUpdated) {
+            return;
+        }
+        if (game.winner == null && winner !== Player.None) {
+            game.winner = winner;
+        }
+        if (!game.winReason) {
+            game.winReason = winReason;
+        }
+    } else {
     const now = Date.now();
     const gameStartTime = game.gameStartTime || game.createdAt || now;
     const gameDuration = now - gameStartTime;
@@ -714,6 +731,7 @@ export const endGame = async (game: LiveGameSession, winner: Player, winReason: 
     console.log(`[endGame] Game ${game.id} ended: winner=${winner === Player.Black ? 'Black' : winner === Player.White ? 'White' : 'None'}, winReason=${winReason}, finalScores=${JSON.stringify(game.finalScores)}`);
     game.isEarlyTermination = isEarlyTermination; // 조기 종료 플래그
     game.badMannerPlayerId = badMannerPlayerId ?? undefined; // 비매너 행동자 ID
+    }
 
     // 도전의 탑 게임 처리는 processTowerGameSummary에서만 수행 (중복 업데이트 방지)
     if (game.gameCategory === 'tower') {
@@ -737,18 +755,12 @@ export const endGame = async (game: LiveGameSession, winner: Player, winReason: 
         }
     }
 
-    const pairHumanParticipantIds = isPairGoRewardGame(game) ? getPairGoHumanParticipantIds(game) : [];
-    const participantIds =
-        pairHumanParticipantIds.length > 0
-            ? pairHumanParticipantIds
-            : [game.player1?.id, game.player2?.id].filter((id): id is string => typeof id === 'string');
-    const humanParticipantIds = participantIds.filter((id) => id !== aiUserId);
-    const hasAllHumanSummaries = humanParticipantIds.every((id) => !!game.summary?.[id]);
-    game.statsUpdated = hasAllHumanSummaries;
-    if (!hasAllHumanSummaries) {
+    const summariesComplete = humanSummaryIds.every((id) => !!game.summary?.[id]);
+    game.statsUpdated = summariesComplete;
+    if (!summariesComplete) {
         console.warn(
             `[endGame] Summary missing for one or more human players in game ${game.id}. ` +
-            `humanIds=${JSON.stringify(humanParticipantIds)}, summaryKeys=${JSON.stringify(Object.keys(game.summary || {}))}`
+            `humanIds=${JSON.stringify(humanSummaryIds)}, summaryKeys=${JSON.stringify(Object.keys(game.summary || {}))}`
         );
     }
     game.resultContract = buildLiveSessionResultContract(game);
@@ -1068,16 +1080,9 @@ const rollInclusive = ([min, max]: [number, number]): number => {
 };
 
 function isPairGoRewardGame(game: LiveGameSession): boolean {
-    const pairModes: GameMode[] = [
-        GameMode.Standard,
-        GameMode.Capture,
-        GameMode.Speed,
-        GameMode.Base,
-        GameMode.Hidden,
-        GameMode.Missile,
-        GameMode.Mix,
-    ];
-    return Boolean(game.settings?.pairGame?.turnOrder?.length && pairModes.includes(game.mode));
+    return Boolean(
+        game.settings?.pairGame?.turnOrder?.length && PAIR_GO_REWARD_GAME_MODES.includes(game.mode),
+    );
 }
 
 function getPairGoHumanParticipantIds(game: LiveGameSession): string[] {

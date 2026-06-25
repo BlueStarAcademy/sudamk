@@ -13,7 +13,11 @@ import { modeIncludesBaseCaptureMix } from '../../shared/utils/liveSessionArenaK
 import { CHESS_GO_BOARD_SIZE, normalizeChessGoSession, sessionUsesChessGo } from '../../shared/utils/chessGoRules.js';
 import { getChessGoPlacementSlots } from '../../shared/utils/chessGoPlacement.js';
 import ChessPiecePlacementPanel from '../game/ChessPiecePlacementPanel.js';
-import { resolvePairChessSetupDraftKey } from '../../shared/utils/pairChessSetup.js';
+import {
+    resolvePairChessSetupDraftKey,
+    resolvePairChessSetupPlayerColor,
+    shouldMaskChessPlacementOpponentHalf,
+} from '../../shared/utils/pairChessSetup.js';
 import { isPairClassicGame } from '../../shared/utils/pairGameTurn.js';
 
 interface GoGameArenaProps extends GameProps {
@@ -153,28 +157,46 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
         !props.isSpectator &&
         pairChessSetupDraftKey != null;
 
+    /** 배치 조작 색 — 좌석 색(`myPlayerEnum`)과 다를 수 있어 배치 UI는 draft 진영 기준 */
+    const chessPlacementColor = useMemo((): Player.Black | Player.White | null => {
+        if (!isChessPlacementPhase) return null;
+        if (isPairClassicGame(session.settings, session.mode)) {
+            return resolvePairChessSetupPlayerColor(session, props.currentUser.id);
+        }
+        if (props.currentUser.id === blackPlayerId) return Player.Black;
+        if (props.currentUser.id === whitePlayerId) return Player.White;
+        return myPlayerEnum === Player.Black || myPlayerEnum === Player.White ? myPlayerEnum : null;
+    }, [
+        isChessPlacementPhase,
+        session,
+        props.currentUser.id,
+        blackPlayerId,
+        whitePlayerId,
+        myPlayerEnum,
+    ]);
+
     /** 배치 단계: 상대 기물은 보드·기물 목록에서 제외 */
     const chessPlacementBoardState = useMemo(() => {
-        if (!isChessPlacementPhase || myPlayerEnum === Player.None || !boardStateForDisplay?.length) {
+        if (!isChessPlacementPhase || chessPlacementColor == null || !boardStateForDisplay?.length) {
             return boardStateForDisplay;
         }
         return boardStateForDisplay.map((row, y) =>
-            row.map((cell, x) => (cell === myPlayerEnum ? cell : Player.None)),
+            row.map((cell, x) => (cell === chessPlacementColor ? cell : Player.None)),
         );
-    }, [isChessPlacementPhase, myPlayerEnum, boardStateForDisplay]);
+    }, [isChessPlacementPhase, chessPlacementColor, boardStateForDisplay]);
 
     const chessPlacementPieces = useMemo(() => {
-        if (!isChessPlacementPhase || myPlayerEnum === Player.None) {
+        if (!isChessPlacementPhase || chessPlacementColor == null) {
             return displaySession.chessPieces;
         }
-        return displaySession.chessPieces?.filter((p) => p.owner === myPlayerEnum) ?? [];
-    }, [isChessPlacementPhase, myPlayerEnum, displaySession.chessPieces]);
+        return displaySession.chessPieces?.filter((p) => p.owner === chessPlacementColor) ?? [];
+    }, [isChessPlacementPhase, chessPlacementColor, displaySession.chessPieces]);
 
     const chessSetupHighlightPoints = useMemo(() => {
-        if (!isChessPlacementPhase || !selectedSetupPieceType || myPlayerEnum === Player.None) {
+        if (!isChessPlacementPhase || !selectedSetupPieceType || chessPlacementColor == null) {
             return [];
         }
-        const { majorSlots, pawnSlots } = getChessGoPlacementSlots(boardSizeForDisplay, myPlayerEnum);
+        const { majorSlots, pawnSlots } = getChessGoPlacementSlots(boardSizeForDisplay, chessPlacementColor);
         const slots = selectedSetupPieceType === 'pawn' ? pawnSlots : majorSlots;
         const myDraftKey = pairChessSetupDraftKey ?? props.currentUser.id;
         const myDraft = session.chessPiecePlacementDraft?.[myDraftKey] ?? [];
@@ -183,7 +205,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
     }, [
         isChessPlacementPhase,
         selectedSetupPieceType,
-        myPlayerEnum,
+        chessPlacementColor,
         boardSizeForDisplay,
         session.chessPiecePlacementDraft,
         props.currentUser.id,
@@ -449,7 +471,11 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 }
                 highlightStyle={isChessPlacementPhase && selectedSetupPieceType ? 'green-dot' : 'ring'}
                 chessSetupSelectionToken={selectedSetupPieceType ?? ''}
-                chessPlacementMaskOpponentHalf={isChessPlacementPhase && myPlayerEnum !== Player.None}
+                chessPlacementMaskOpponentHalf={
+                    isChessPlacementPhase &&
+                    chessPlacementColor != null &&
+                    shouldMaskChessPlacementOpponentHalf(session)
+                }
                 chessPieces={chessPlacementPieces ?? displaySession.chessPieces}
                 chessGoRemovedPoints={displaySession.chessGoRemovedPoints}
                 chessPieceMovedThisTurn={displaySession.chessPieceMovedThisTurn}

@@ -73,6 +73,16 @@ function isPairCooperativeChessSetup(session: PairChessSetupSession): boolean {
 }
 
 /**
+ * 체스 바둑 배치 단계에서 상대 진영 반쪽 마스크(「상대 배치 중」) 표시 여부.
+ * 인간 상대와 동시 배치하는 PVP에서만 사용 — AI·페어 AI는 서버가 상대 진영을 자동 채운다.
+ */
+export function shouldMaskChessPlacementOpponentHalf(session: PairChessSetupSession): boolean {
+    if (session.isAiGame) return false;
+    if (isPairCooperativeChessSetup(session)) return false;
+    return true;
+}
+
+/**
  * 페어 체스바둑 기물 배치 — 이 유저가 조작할 draft 키(`blackPlayerId`/`whitePlayerId`).
  * 방장(또는 PVP 팀 방장)만 팀 색 기물을 설정하고, 팀원은 null(대기).
  */

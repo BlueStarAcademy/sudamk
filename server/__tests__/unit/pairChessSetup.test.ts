@@ -6,8 +6,21 @@ import {
     resolvePairChessSetupDraftKey,
     resolvePairChessSetupPlayerColor,
     resolvePairChessSideDraftKeys,
+    shouldMaskChessPlacementOpponentHalf,
 } from '../../../shared/utils/pairChessSetup.js';
+import { PAIR_GO_REWARD_GAME_MODES } from '../../../shared/utils/pairGameTurn.js';
 import { aiUserId } from '../../aiPlayer.js';
+
+describe('PAIR_GO_REWARD_GAME_MODES', () => {
+    it('includes pair chess and castle for board-size reward settlement', () => {
+        expect(PAIR_GO_REWARD_GAME_MODES).toContain(GameMode.Chess);
+        expect(PAIR_GO_REWARD_GAME_MODES).toContain(GameMode.Castle);
+    });
+
+    it('excludes uniform (pair play only, no reward band)', () => {
+        expect(PAIR_GO_REWARD_GAME_MODES).not.toContain(GameMode.Uniform);
+    });
+});
 
 function makePairChessSession(overrides: Partial<LiveGameSession> = {}): LiveGameSession {
     return {
@@ -177,6 +190,24 @@ describe('pairChessSetup', () => {
         expect(resolvePairChessSetupDraftKey(session, 'owner-a')).toBe('owner-a');
         expect(resolvePairChessSetupDraftKey(session, 'partner-a')).toBeNull();
         expect(isPairChessSetupWaitingGuest(session, 'partner-a')).toBe(true);
+        expect(shouldMaskChessPlacementOpponentHalf(session)).toBe(false);
+    });
+
+    it('pair PVP: mask opponent half while both team owners place', () => {
+        const session = makePairChessSession();
+        expect(shouldMaskChessPlacementOpponentHalf(session)).toBe(true);
+    });
+
+    it('1v1 AI chess: no opponent-half mask (AI auto-places)', () => {
+        const session = makePairChessSession({
+            isAiGame: true,
+            player2: { id: aiUserId, username: 'ai', nickname: 'AI' },
+            settings: {
+                boardSize: 13,
+                komi: 6.5,
+            },
+        });
+        expect(shouldMaskChessPlacementOpponentHalf(session)).toBe(false);
     });
 
     it('black1 pet + black2 user: human team draft key is user id, not pet seat id', () => {
