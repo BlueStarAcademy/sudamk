@@ -15,30 +15,10 @@ import {
     E2E_SHARED_PASSWORD,
     loginPage,
     enterStrategicPvpLobby,
+    startRankedMatchingFromLobby,
+    acceptRankedMatchModal,
 } from './two-client.helpers.js';
 import { leaveActiveGameQuick } from './dismissBlockingGame.js';
-
-async function dismissOtherDeviceLoginIfNeeded(page: Page): Promise<void> {
-    const elsewhere = page.getByText(/Signed in elsewhere|다른 기기/i).first();
-    if (await elsewhere.isVisible().catch(() => false)) {
-        await page.getByRole('button', { name: /^확인$|^OK$|^Confirm$/i }).click();
-        await page.waitForTimeout(800);
-    }
-}
-
-async function startRankedMatchingFromLobby(page: Page): Promise<void> {
-    await dismissOtherDeviceLoginIfNeeded(page);
-    await page.getByRole('button', { name: /Start ranked match|랭킹전 시작/i }).first().click();
-    await page.getByRole('button', { name: /Join queue|매칭 대기/i }).click();
-    await page.waitForTimeout(800);
-}
-
-async function acceptRankedMatchModal(page: Page): Promise<void> {
-    await expect(
-        page.getByText(/Match found|매칭이 되었습니다|Ranked matchmaking/i).first(),
-    ).toBeVisible({ timeout: 120000 });
-    await page.getByRole('button', { name: /^Accept$|^수락$/i }).click();
-}
 
 async function tryRankedMatchViaUi(
     pageA: Page,
@@ -65,7 +45,7 @@ async function tryRankedMatchViaUi(
     return { gameId, userAId, userBId };
 }
 
-test.describe('PVP ranked match E2E', () => {
+test.describe('PVP ranked match E2E', { tag: '@full' }, () => {
     test.setTimeout(360000);
 
     test.beforeEach(async ({ request }) => {

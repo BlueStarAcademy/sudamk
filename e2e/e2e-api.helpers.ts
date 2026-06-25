@@ -29,6 +29,7 @@ export async function waitForE2eBackendReady(
                 if (!res.ok()) continue;
                 const body = (await res.json().catch(() => null)) as { status?: string; ready?: boolean } | null;
                 if (body?.status === 'ok' && body.ready !== false) {
+                    await probeE2eFeatureRoutes(request);
                     return;
                 }
             } catch {
@@ -38,6 +39,25 @@ export async function waitForE2eBackendReady(
         await new Promise((resolve) => setTimeout(resolve, 500));
     }
     throw new Error('E2E: /api/health not ready — npm run start(API 4000) 상태를 확인하세요.');
+}
+
+/** reuseExistingServer 시 오래된 API(404) 감지 — ranked E2E 헬퍼와 1:1 매핑 */
+async function probeE2eFeatureRoutes(request: APIRequestContext): Promise<void> {
+    const api = e2eApiBaseUrl().replace(/\/$/, '');
+    try {
+        const res = await request.post(`${api}/api/e2e/ranked-proposal-for-user`, {
+            data: {},
+            timeout: 4000,
+        });
+        if (res.status() === 404) {
+            console.warn(
+                '[E2E] /api/e2e/ranked-proposal-for-user → 404. API 서버(4000)를 재시작하세요. ' +
+                    'reuseExistingServer=true 이면 npm run start를 다시 실행해야 새 라우트가 반영됩니다.',
+            );
+        }
+    } catch {
+        // non-fatal probe
+    }
 }
 
 export type E2eApiLoginResult = {

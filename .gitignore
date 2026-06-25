@@ -20,8 +20,9 @@ katago/
 public/gnugo/dist/
 public/gnugo/local/
 
-# Logs and temporary files
-*.log
+# KataGo test/analysis logs (integration/E2E artifacts)
+server/katago_home/katago_analysis_log.txt
+
 *.tmp
 *.cache
 *.map

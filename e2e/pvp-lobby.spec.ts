@@ -7,7 +7,7 @@ import { test as base, expect } from '@playwright/test';
 import { test as authTest, expect as authExpect } from './auth.fixture.js';
 import { E2E_TEXT, goToAppHashFromStableProfile } from './navigation.helpers.js';
 
-authTest.describe('PVP lobby E2E', () => {
+authTest.describe('PVP lobby E2E', { tag: '@smoke' }, () => {
     authTest.setTimeout(120000);
 
     authTest('strategic PVP lobby loads', async ({ page, authenticatedPage }) => {
@@ -27,7 +27,7 @@ authTest.describe('PVP lobby E2E', () => {
     });
 });
 
-base.describe('PVP two clients (unauthenticated smoke)', () => {
+base.describe('PVP two clients (unauthenticated smoke)', { tag: '@smoke' }, () => {
     base('two contexts load concurrently', async ({ page, browser }) => {
         const context2 = await browser.newContext();
         const page2 = await context2.newPage();

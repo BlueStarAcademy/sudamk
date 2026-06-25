@@ -6,7 +6,7 @@ import {
     E2E_TEST_DEFAULT_PASSWORD,
     E2E_TEST_NICKNAME_2,
 } from '../shared/constants/e2eTestAccount.js';
-import { waitForE2eBackendReady } from './e2e-api.helpers.js';
+import { waitForE2eBackendReady, confirmColorStartViaApi } from './e2e-api.helpers.js';
 import { dismissBlockingLiveGameIfNeeded } from './dismissBlockingGame.js';
 import { dismissGuideModalIfNeeded, goToAppHashFromStableProfile } from './navigation.helpers.js';
 
@@ -57,6 +57,7 @@ export async function loginPage(
     username: string = E2E_USER_A,
     password: string = E2E_SHARED_PASSWORD,
     request?: APIRequestContext,
+    options?: { preserveActiveGame?: boolean },
 ): Promise<void> {
     if (request) {
         await waitForE2eBackendReady(request);
@@ -79,7 +80,9 @@ export async function loginPage(
         throw new Error(`E2E: 로그인 실패 (${username})`);
     }
 
-    await Promise.race([dismissBlockingLiveGameIfNeeded(page), page.waitForTimeout(8000)]);
+    if (!options?.preserveActiveGame) {
+        await Promise.race([dismissBlockingLiveGameIfNeeded(page), page.waitForTimeout(8000)]);
+    }
 }
 
 export async function enterStrategicPvpLobby(page: Page): Promise<void> {
@@ -98,6 +101,33 @@ export async function waitForPvpLobbyOpponent(
     const challengeBtn = row.first().getByRole('button', { name: /대국 신청|Challenge/i });
     await expect(challengeBtn).toBeVisible({ timeout: 10000 });
     await expect(challengeBtn).toBeEnabled({ timeout: timeoutMs });
+}
+
+/** nigiri_reveal이면 API·UI 확인, 이미 playing이면 무시 */
+export async function ensurePvpGamePlaying(
+    request: APIRequestContext,
+    userIds: string[],
+    gameId: string,
+    pages: Page[] = [],
+): Promise<void> {
+    for (const userId of userIds) {
+        try {
+            await confirmColorStartViaApi(request, userId, gameId);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            if (!message.includes('Not in confirmation phase')) {
+                throw error;
+            }
+        }
+    }
+    for (const page of pages) {
+        await confirmNigiriStart(page);
+    }
+    if (pages[0]) {
+        await pages[0].waitForTimeout(2500);
+    } else {
+        await new Promise((resolve) => setTimeout(resolve, 2500));
+    }
 }
 
 /** 흑·백 확인(nigiri_reveal) 후 대국 시작 */
@@ -167,5 +197,64 @@ export async function mutualPassUntilScoring(pages: Page[], maxRounds = 8): Prom
             return;
         }
     }
+}
+
+/** 다른 기기 로그인 알림 모달이 있으면 닫기 */
+export async function dismissOtherDeviceLoginIfNeeded(page: Page): Promise<void> {
+    const elsewhere = page.getByText(/Signed in elsewhere|다른 기기/i).first();
+    if (await elsewhere.isVisible().catch(() => false)) {
+        await page.getByRole('button', { name: /^확인$|^OK$|^Confirm$/i }).click();
+        await page.waitForTimeout(800);
+    }
+}
+
+export async function startRankedMatchingFromLobby(page: Page): Promise<void> {
+    await dismissOtherDeviceLoginIfNeeded(page);
+    await page.getByRole('button', { name: /Start ranked match|랭킹전 시작/i }).first().click();
+    await page.getByRole('button', { name: /Join queue|매칭 대기/i }).click();
+    await page.waitForTimeout(800);
+}
+
+export async function acceptRankedMatchModal(page: Page): Promise<void> {
+    await expect(
+        page.getByText(/Match found|매칭이 되었습니다|Ranked matchmaking/i).first(),
+    ).toBeVisible({ timeout: 120000 });
+    await page.getByRole('button', { name: /^Accept$|^수락$/i }).click();
+}
+
+/** 게임 화면: 보드(canvas/svg) + 패스 또는 기권(랭킹 턴제는 패스 숨김) */
+export async function expectBoardVisible(page: Page): Promise<void> {
+    await expect(page.locator('canvas, [class*="board"], svg').first()).toBeVisible({ timeout: 20000 });
+    await expect(
+        page
+            .getByRole('button', { name: /^Pass$|^패스$/i })
+            .or(page.locator('button:has(img[alt="Pass"]), button:has(img[alt="패스"])'))
+            .or(page.getByRole('button', { name: /Resign|기권/i }))
+            .or(page.locator('button:has(img[alt="Resign"]), button:has(img[alt="기권"])'))
+            .first(),
+    ).toBeVisible({ timeout: 25000 });
+}
+
+/** 믹스(히idden+스캔+미사일) 아이템 컨트롤 버튼 표시 */
+export async function expectMixItemControlButtons(page: Page): Promise<void> {
+    await expect(page.getByRole('button', { name: /Hidden|히든/i }).first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('button', { name: /^Scan$|^스캔$/i }).first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('button', { name: /^Missile$|^미사일$/i }).first()).toBeVisible({ timeout: 15000 });
+}
+
+export async function expectDisconnectionModal(
+    page: Page,
+    disconnectedNickname: string,
+): Promise<void> {
+    await expect(page.locator('#disconnection-modal-title')).toBeVisible({ timeout: 45000 });
+    await expect(page.getByText(/disconnected|연결이 끊/i).first()).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(disconnectedNickname).first()).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(/Waiting for reconnect|재접속을 기다/i).first()).toBeVisible({
+        timeout: 5000,
+    });
+}
+
+export async function expectDisconnectionModalHidden(page: Page): Promise<void> {
+    await expect(page.locator('#disconnection-modal-title')).toBeHidden({ timeout: 30000 });
 }
 

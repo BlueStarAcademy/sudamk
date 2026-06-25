@@ -18,7 +18,7 @@ import {
 } from './two-client.helpers.js';
 import { leaveActiveGameQuick } from './dismissBlockingGame.js';
 
-test.describe('PVP two clients match E2E', () => {
+test.describe('PVP two clients match E2E', { tag: '@smoke' }, () => {
     test.setTimeout(240000);
 
     test.beforeEach(async ({ request }) => {

@@ -21,10 +21,12 @@ import {
     E2E_SHARED_PASSWORD,
     loginPage,
     enterStrategicPvpLobby,
+    expectBoardVisible,
+    expectMixItemControlButtons,
 } from './two-client.helpers.js';
 import { leaveActiveGameQuick } from './dismissBlockingGame.js';
 
-test.describe('PVP scan miss & missile E2E', () => {
+test.describe('PVP scan miss & missile E2E', { tag: '@full' }, () => {
     test.setTimeout(240000);
 
     test.beforeEach(async ({ request }) => {
@@ -36,6 +38,74 @@ test.describe('PVP scan miss & missile E2E', () => {
     });
 
     test('scan miss: opponent hidden stone → scan empty cell → game resumes', async ({
+        browser,
+        request,
+    }) => {
+        const contextA = await browser.newContext();
+        const contextB = await browser.newContext();
+        const pageA = await contextA.newPage();
+        const pageB = await contextB.newPage();
+
+        try {
+            await loginPage(pageA, E2E_USER_A, E2E_SHARED_PASSWORD);
+            await loginPage(pageB, E2E_USER_B, E2E_SHARED_PASSWORD);
+            await enterStrategicPvpLobby(pageA);
+            await enterStrategicPvpLobby(pageB);
+
+            const { gameId, challengerId, opponentId } = await startMixItemPvpGameViaApi(
+                request,
+                E2E_USER_A,
+                E2E_USER_B,
+                E2E_SHARED_PASSWORD,
+            );
+
+            await Promise.all([
+                navigateToGameHash(pageA, gameId),
+                navigateToGameHash(pageB, gameId),
+            ]);
+
+            await confirmColorStartViaApi(request, challengerId, gameId);
+            await confirmColorStartViaApi(request, opponentId, gameId);
+            await pageA.waitForTimeout(2000);
+
+            await expectBoardVisible(pageA);
+            await expectBoardVisible(pageB);
+            await expectMixItemControlButtons(pageA);
+            await expectMixItemControlButtons(pageB);
+
+            await placeStoneForEitherPlayerViaApi(request, [challengerId, opponentId], gameId, 2, 2);
+            await placeHiddenStoneForEitherPlayerViaApi(request, [opponentId, challengerId], gameId, 4, 4);
+
+            const scannerId = await (async () => {
+                for (const userId of [challengerId, opponentId]) {
+                    try {
+                        await startScanningViaApi(request, userId, gameId);
+                        return userId;
+                    } catch (error) {
+                        const message = error instanceof Error ? error.message : String(error);
+                        if (message.includes('Not your turn') || message.includes('내 차례')) continue;
+                        throw error;
+                    }
+                }
+                throw new Error('E2E: neither player could start scanning');
+            })();
+            await scanBoardViaApi(request, scannerId, gameId, 0, 0);
+
+            await pageA.waitForTimeout(6000);
+            await pageB.waitForTimeout(3000);
+
+            await expect(pageA).toHaveURL(new RegExp(`#/game/${gameId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
+            await expect(pageB).toHaveURL(new RegExp(`#/game/${gameId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
+
+            await leaveActiveGameQuick(pageA);
+            await leaveActiveGameQuick(pageB);
+        } finally {
+            await contextA.close();
+            await contextB.close();
+        }
+    });
+
+    test('scan hit: opponent hidden stone → reveal animation → game resumes', async ({
         browser,
         request,
     }) => {
@@ -82,13 +152,15 @@ test.describe('PVP scan miss & missile E2E', () => {
                 }
                 throw new Error('E2E: neither player could start scanning');
             })();
-            await scanBoardViaApi(request, scannerId, gameId, 0, 0);
+            await scanBoardViaApi(request, scannerId, gameId, 4, 4);
 
-            await pageA.waitForTimeout(6000);
-            await pageB.waitForTimeout(3000);
+            await pageA.waitForTimeout(8000);
+            await pageB.waitForTimeout(5000);
 
             await expect(pageA).toHaveURL(new RegExp(`#/game/${gameId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
             await expect(pageB).toHaveURL(new RegExp(`#/game/${gameId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
+            await expectBoardVisible(pageA);
+            await expectBoardVisible(pageB);
 
             await leaveActiveGameQuick(pageA);
             await leaveActiveGameQuick(pageB);
