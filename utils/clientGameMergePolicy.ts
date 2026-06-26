@@ -22,7 +22,11 @@ import {
     isItemPhaseTransientAnimationType,
     wasItemPhaseAnimatingStatus,
 } from '../shared/utils/itemPhaseAnimationTypes.js';
-import { resolvePveScoringBoardAndMoveHistory, resolveStrategicPlayingBoardAndMoveHistory } from './deferredWsBoardSnapshot.js';
+import {
+    resolveChessPvePlayingSession,
+    resolvePveScoringBoardAndMoveHistory,
+    resolveStrategicPlayingBoardAndMoveHistory,
+} from './deferredWsBoardSnapshot.js';
 
 /**
  * 베이스 세션 본경기 단계의 좌석 잠금 보호:
@@ -822,6 +826,27 @@ export function mergeLiveRejoinResponseWithExistingBoard(
     existing: LiveGameSession | undefined,
     incoming: LiveGameSession,
 ): LiveGameSession {
+    if (incoming.mode === GameMode.Chess && incoming.gameStatus === 'playing') {
+        const chessResolved = resolveChessPvePlayingSession(incoming, existing ?? incoming);
+        let merged: LiveGameSession = chessResolved;
+        if (existing) {
+            merged = preserveTerminalAnalysisResultOnMerge(merged, existing);
+            merged = preserveCastleSessionFieldsOnMerge(merged, existing);
+            merged = mergeChessSessionFieldsOnMerge(merged, existing);
+            const incomingSummaryKeys =
+                merged.summary && typeof merged.summary === 'object' ? Object.keys(merged.summary as object) : [];
+            if (
+                (merged.gameStatus === 'ended' || merged.gameStatus === 'no_contest') &&
+                incomingSummaryKeys.length === 0 &&
+                existing.summary &&
+                typeof existing.summary === 'object' &&
+                Object.keys(existing.summary as object).length > 0
+            ) {
+                merged = { ...merged, summary: existing.summary };
+            }
+        }
+        return merged;
+    }
     if (!existing) {
         if (incoming.gameStatus === 'playing' && (incoming.moveHistory?.length ?? 0) > 0) {
             const resolved = resolveStrategicPlayingBoardAndMoveHistory(incoming, incoming);

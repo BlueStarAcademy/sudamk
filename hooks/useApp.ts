@@ -1764,6 +1764,16 @@ function hasHydratedBoardGridForRejoin(game: LiveGameSession | undefined): boole
     return Array.isArray(row0) && row0.length > 0;
 }
 
+/**
+ * 체스 바둑: sessionStorage·INITIAL_STATE가 오프닝 격자만 채우면 rejoin을 건너뛰어
+ * chessPieces·수순이 서버와 어긋난 판이 고착된다. 격자만 있으면 rejoin 스킵하지 않는다.
+ */
+function shouldSkipRejoinBecauseBoardHydrated(game: LiveGameSession | undefined): boolean {
+    if (!hasHydratedBoardGridForRejoin(game)) return false;
+    if (game?.mode === GameMode.Chess) return false;
+    return true;
+}
+
 /** 격자 행렬만 있고 돌이 하나도 없는 패킷(종료·슬림 WS)을 "유효한 서버 보드"로 취급하지 않기 위함 */
 function boardGridHasAnyStones(board: LiveGameSession['boardState'] | undefined): boolean {
     const b = board;
@@ -1802,7 +1812,15 @@ function mergePveRejoinResponseWithExistingBoard(
     existing: LiveGameSession | undefined,
     incoming: LiveGameSession,
 ): LiveGameSession {
-    if (!existing) return incoming;
+    if (!existing) {
+        if (incoming.mode === GameMode.Chess) {
+            return normalizeChessGoSession(incoming);
+        }
+        return incoming;
+    }
+    if (incoming.mode === GameMode.Chess && incoming.gameStatus === 'playing') {
+        return mergeLiveRejoinResponseWithExistingBoard(existing, incoming);
+    }
     const isPve = isSessionPveArena(incoming);
     if (!isPve) return incoming;
     const terminal = incoming.gameStatus === 'ended' || incoming.gameStatus === 'no_contest';
@@ -8772,7 +8790,7 @@ export const useApp = () => {
                             const strategicAiLike = isSessionStrategicAiLike(g);
                             const needsRestore = (isTurnLimitGame || strategicAiLike) && (g.totalTurns == null || g.totalTurns === 0);
                             const needsCurrentPlayerRestore = isTurnLimitGame || strategicAiLike;
-                            if (needsRestore || needsCurrentPlayerRestore) {
+                            if ((needsRestore || needsCurrentPlayerRestore) && g.mode !== GameMode.Chess) {
                                 try {
                                     const stored = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(`gameState_${id}`) : null;
                                     if (stored) {
@@ -8825,7 +8843,7 @@ export const useApp = () => {
                                 } catch { /* ignore */ }
                             }
                             // 온라인 AI 대국: INITIAL_STATE는 boardState를 보내지 않음. rejoin 전 빈 판·턴 표시를 막기 위해 sessionStorage 판·시간 정보 병합
-                            if (strategicAiLike) {
+                            if (strategicAiLike && g.mode !== GameMode.Chess) {
                                 const cur = next[id];
                                 if (!cur) continue;
                                 const b = cur.boardState;
@@ -8935,7 +8953,7 @@ export const useApp = () => {
                                     }
                                 }
                                 const curMerged = next[id];
-                                if (curMerged && isSessionStrategicAiLike(curMerged)) {
+                                if (curMerged && isSessionStrategicAiLike(curMerged) && curMerged.mode !== GameMode.Chess) {
                                     const lim =
                                         (curMerged.settings as any)?.scoringTurnLimit ??
                                         (curMerged.settings as any)?.autoScoringTurns;
@@ -12742,7 +12760,7 @@ export const useApp = () => {
                 currentGame.gameStatus || '',
             );
         // INITIAL_STATE는 boardState를 보내지 않으므로, 스토어에만 있고 판이 비면 rejoin이 필요하다.
-        if (isCurrentlyViewingSameGame && isLiveMatchNow && hasHydratedBoardGridForRejoin(currentGame)) return;
+        if (isCurrentlyViewingSameGame && isLiveMatchNow && shouldSkipRejoinBecauseBoardHydrated(currentGame)) return;
 
         const gid = inGameRecoveryGameId;
         if (rejoinRequestedRef.current.has(gid)) return;
@@ -12760,7 +12778,7 @@ export const useApp = () => {
                 if (inStore && isSessionSingleOrTower(inStore) && (inStore.gameStatus === 'ended' || inStore.gameStatus === 'no_contest')) {
                     return;
                 }
-                if (inStore && hasHydratedBoardGridForRejoin(inStore)) return;
+                if (inStore && shouldSkipRejoinBecauseBoardHydrated(inStore)) return;
 
                 const res = await fetch(getApiUrl('/api/game/rejoin'), {
                     method: 'POST',
@@ -12845,11 +12863,11 @@ export const useApp = () => {
             return;
         }
         // 경기 중이어도 INITIAL_STATE는 boardState가 없을 수 있어, 격자가 채워진 뒤에만 rejoin 스킵한다.
-        if (isLiveMatchNow && hasHydratedBoardGridForRejoin(gameInStore)) {
+        if (isLiveMatchNow && shouldSkipRejoinBecauseBoardHydrated(gameInStore)) {
             setGameRejoinFailure(prev => (prev?.gameId === gameId ? null : prev));
             return;
         }
-        if (gameInStore && hasHydratedBoardGridForRejoin(gameInStore)) {
+        if (gameInStore && shouldSkipRejoinBecauseBoardHydrated(gameInStore)) {
             setGameRejoinFailure(prev => (prev?.gameId === gameId ? null : prev));
             return;
         }

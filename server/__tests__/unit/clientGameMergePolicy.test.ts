@@ -19,6 +19,7 @@ import type { LiveGameSession } from '../../../shared/types/index.js';
 import {
     applyChessMoveToSession,
     generateChessGoInitialPieces,
+    CHESS_GO_BOARD_SIZE,
 } from '../../../shared/utils/chessGoRules.js';
 
 const minimalSession = (overrides: Partial<LiveGameSession>): LiveGameSession =>
@@ -560,6 +561,48 @@ describe('mergeLiveRejoinResponseWithExistingBoard', () => {
         const merged = mergeLiveRejoinResponseWithExistingBoard(existing, incoming);
         expect(merged.boardState?.[3]?.[3]).toBe(Player.Black);
         expect(merged.moveHistory?.length).toBe(1);
+    });
+
+    it('chess-go playing: prefers server chessPieces and rebuilds board from pieces + moves', () => {
+        const pieces = generateChessGoInitialPieces(CHESS_GO_BOARD_SIZE);
+        const movedPiece = pieces.find((p) => p.owner === Player.Black && p.type !== 'pawn');
+        expect(movedPiece).toBeTruthy();
+        movedPiece!.x = 4;
+        movedPiece!.y = 4;
+
+        const staleBoard = Array.from({ length: CHESS_GO_BOARD_SIZE }, () =>
+            Array(CHESS_GO_BOARD_SIZE).fill(Player.None),
+        );
+        for (const p of pieces) {
+            if (p.x !== movedPiece!.x || p.y !== movedPiece!.y) {
+                staleBoard[p.y]![p.x] = p.owner;
+            }
+        }
+        staleBoard[3]![3] = Player.Black;
+
+        const existing = minimalSession({
+            mode: GameMode.Chess,
+            isAiGame: true,
+            gameStatus: 'playing',
+            chessPieces: pieces.map((p) => ({ ...p })),
+            moveHistory: [{ x: 3, y: 3, player: Player.Black }],
+            boardState: staleBoard,
+        });
+
+        const serverPieces = pieces.map((p) => ({ ...p }));
+        const incoming = minimalSession({
+            mode: GameMode.Chess,
+            isAiGame: true,
+            gameStatus: 'playing',
+            chessPieces: serverPieces,
+            moveHistory: [{ x: 3, y: 3, player: Player.Black }],
+            boardState: staleBoard,
+        });
+
+        const merged = mergeLiveRejoinResponseWithExistingBoard(existing, incoming);
+        expect(merged.chessPieces?.find((p) => p.id === movedPiece!.id)?.x).toBe(4);
+        expect(merged.boardState?.[4]?.[4]).toBe(Player.Black);
+        expect(merged.boardState?.[3]?.[3]).toBe(Player.Black);
     });
 });
 
