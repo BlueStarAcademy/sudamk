@@ -8,6 +8,7 @@ import {
     mergeResolvedRoundsPreserveChampionshipPlayback,
     repairTournamentSimulatingPointer,
     recoverStuckChampionshipRoundInProgress,
+    prepareTournamentStateForMatchStart,
 } from '../../../shared/utils/championshipTournamentPreserve.js';
 
 const mkMatch = (id: string, extra: Partial<Match> = {}): Match => ({
@@ -256,6 +257,54 @@ describe('championshipTournamentPreserve', () => {
         );
         const { tournament, recovered } = recoverStuckChampionshipRoundInProgress(state, 'u1');
         expect(recovered).toBe(true);
+        expect(tournament.status).toBe('bracket_ready');
+        expect(tournament.currentSimulatingMatch).toBeNull();
+    });
+
+    it('prepareTournamentStateForMatchStart syncs when same match already has kata', () => {
+        const state = mkState(
+            [
+                {
+                    id: 1,
+                    name: '8강',
+                    matches: [
+                        mkMatch('m2', {
+                            isFinished: false,
+                            players: [{ id: 'u1', nickname: 'u1' } as any, { id: 'b1', nickname: 'b1' } as any],
+                            championshipRealGame: { moves: [{ x: 0, y: 0, player: 1 }], currentPly: 0 } as any,
+                        }),
+                    ],
+                },
+            ],
+            { roundIndex: 0, matchIndex: 0 },
+        );
+        state.status = 'round_in_progress';
+        const { tournament, shouldSyncOnly } = prepareTournamentStateForMatchStart(state, 'u1', 'm2');
+        expect(shouldSyncOnly).toBe(true);
+        expect(tournament.status).toBe('round_in_progress');
+    });
+
+    it('prepareTournamentStateForMatchStart unlocks stale round_in_progress for next match', () => {
+        const state = mkState(
+            [
+                {
+                    id: 1,
+                    name: '8강',
+                    matches: [
+                        mkMatch('m1', {
+                            isFinished: true,
+                            winner: { id: 'u1' } as any,
+                            championshipRealGame: { moves: [{ x: 0, y: 0, player: 1 }], currentPly: 1 } as any,
+                        }),
+                        mkMatch('m2', { isFinished: false }),
+                    ],
+                },
+            ],
+            { roundIndex: 0, matchIndex: 0 },
+        );
+        state.status = 'round_in_progress';
+        const { tournament, shouldSyncOnly } = prepareTournamentStateForMatchStart(state, 'u1', 'm2');
+        expect(shouldSyncOnly).toBe(false);
         expect(tournament.status).toBe('bracket_ready');
         expect(tournament.currentSimulatingMatch).toBeNull();
     });

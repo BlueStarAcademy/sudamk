@@ -179,6 +179,7 @@ import {
     isPvePostStartConfirmPrePlayPhase,
     shouldIgnoreStalePendingAiLobbyStartRegression,
     buildOptimisticAiLobbyStartSession,
+    buildOptimisticPveStartConfirmSession,
 } from '../utils/clientGameMergePolicy.js';
 import {
     augmentPveFromSessionStorageSnapshot,
@@ -6303,6 +6304,34 @@ export const useApp = () => {
                         }));
                     }
                 });
+            }
+
+            const confirmPveStartGameId =
+                action.type === 'CONFIRM_TOWER_GAME_START' || action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START'
+                    ? ((action.payload as { gameId?: string } | undefined)?.gameId ?? null)
+                    : null;
+            if (confirmPveStartGameId) {
+                const isTowerConfirm = action.type === 'CONFIRM_TOWER_GAME_START';
+                const existingPveGame = isTowerConfirm
+                    ? towerGamesRef.current[confirmPveStartGameId]
+                    : singlePlayerGamesRef.current[confirmPveStartGameId];
+                const optimisticPveStart =
+                    existingPveGame && buildOptimisticPveStartConfirmSession(existingPveGame);
+                if (optimisticPveStart) {
+                    flushSync(() => {
+                        if (isTowerConfirm) {
+                            setTowerGames((current) => ({
+                                ...current,
+                                [confirmPveStartGameId]: optimisticPveStart,
+                            }));
+                        } else {
+                            setSinglePlayerGames((current) => ({
+                                ...current,
+                                [confirmPveStartGameId]: optimisticPveStart,
+                            }));
+                        }
+                    });
+                }
             }
 
             if (action.type === 'USE_CONDITION_POTION') {

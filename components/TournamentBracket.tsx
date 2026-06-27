@@ -6630,7 +6630,8 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
     useEffect(() => {
         if (!championshipAwaitingKataLoad) return;
-        const rg = matchForDisplay?.championshipRealGame;
+        const nextUserMatch = safeRounds.flatMap((r) => r.matches).find((m) => m.isUserMatch && !m.isFinished);
+        const rg = nextUserMatch?.championshipRealGame;
         if (rg?.moves?.length && tournament?.status === 'round_in_progress') {
             championshipMatchStartLockRef.current = false;
             setChampionshipAwaitingKataLoad(false);
@@ -6640,10 +6641,10 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         const timeoutId = window.setTimeout(() => {
             championshipMatchStartLockRef.current = false;
             setChampionshipAwaitingKataLoad(false);
-        }, 45000);
+        }, 120000);
 
         return () => window.clearTimeout(timeoutId);
-    }, [championshipAwaitingKataLoad, matchForDisplay?.championshipRealGame, tournament?.status]);
+    }, [championshipAwaitingKataLoad, safeRounds, tournament?.status]);
 
     // 유저의 다음 경기 찾기 (경기 시작 전 상태 확인용)
     const upcomingUserMatch = useMemo(() => {

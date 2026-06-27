@@ -435,6 +435,74 @@ export function buildOptimisticAiLobbyStartSession(
     };
 }
 
+/**
+ * CONFIRM_SINGLE_PLAYER_GAME_START / CONFIRM_TOWER_GAME_START HTTP 왕복 전 시작 모달을 즉시 내린다.
+ * 서버와 어긋날 수 있는 세부 상태(21층+ 소모품 등)는 HTTP/WS 병합으로 덮어쓴다.
+ */
+export function buildOptimisticPveStartConfirmSession(
+    session: LiveGameSession,
+    now: number = Date.now(),
+): LiveGameSession | null {
+    if (resolveArenaSessionPolicy(session as any).matchAxis !== 'pve') return null;
+    if (session.gameStatus !== 'pending') return null;
+    if ((session as { startTime?: number | null }).startTime != null) return null;
+    const moves = session.moveHistory?.filter((m) => m.x !== -1 && m.y !== -1).length ?? 0;
+    if (moves > 0) return null;
+
+    const p1Id = session.player1?.id;
+    const p2Id = session.player2?.id;
+    if (!p1Id || !p2Id) return null;
+
+    if (session.mode === GameMode.Base || modeIncludesBaseRule(session.mode, session.settings)) {
+        return {
+            ...session,
+            gameStatus: 'base_placement',
+            startTime: now,
+            gameStartTime: undefined,
+            baseStones_p1: session.baseStones_p1 ?? [],
+            baseStones_p2: session.baseStones_p2 ?? [],
+            basePlacementReady: session.basePlacementReady ?? { [p1Id]: false, [p2Id]: false },
+        };
+    }
+
+    if (session.mode === GameMode.Capture) {
+        const st = session.settings as {
+            captureTarget?: number;
+            captureTargetBlack?: number;
+            captureTargetWhite?: number;
+        };
+        const eff = (session as { effectiveCaptureTargets?: Record<Player, number> }).effectiveCaptureTargets;
+        const blackTarget =
+            eff?.[Player.Black] ??
+            (typeof st.captureTargetBlack === 'number' ? st.captureTargetBlack : (st.captureTarget ?? 20));
+        const whiteTarget =
+            eff?.[Player.White] ??
+            (typeof st.captureTargetWhite === 'number' ? st.captureTargetWhite : (st.captureTarget ?? 20));
+        return {
+            ...session,
+            gameStatus: 'playing',
+            currentPlayer: Player.Black,
+            startTime: now,
+            gameStartTime: now,
+            turnStartTime: now,
+            effectiveCaptureTargets: {
+                [Player.None]: 0,
+                [Player.Black]: blackTarget,
+                [Player.White]: whiteTarget,
+            },
+        };
+    }
+
+    return {
+        ...session,
+        gameStatus: 'playing',
+        currentPlayer: Player.Black,
+        startTime: now,
+        gameStartTime: now,
+        turnStartTime: now,
+    };
+}
+
 /** CONFIRM 직후 낙관 playing/사전단계인데 늦은 pending WS/HTTP가 덮는 것 방지 (로비 AI) */
 export function shouldIgnoreStalePendingAiLobbyStartRegression(
     incoming: LiveGameSession,

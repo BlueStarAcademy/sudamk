@@ -31,7 +31,7 @@ import { getCachedUser, updateUserCache } from '../gameCache.js';
 import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
 import { isFunctionVipActive } from '../../shared/utils/rewardVip.js';
 import { assignChampionshipCondition, generateChampionshipRealMatch } from '../championshipRealMatchService.js';
-import { recoverStuckChampionshipRoundInProgress } from '../../shared/utils/championshipTournamentPreserve.js';
+import { recoverStuckChampionshipRoundInProgress, prepareTournamentStateForMatchStart } from '../../shared/utils/championshipTournamentPreserve.js';
 import { syncTournamentUserPlayerConditionFromSnapshot } from '../../shared/utils/championshipConditionDisplay.js';
 import {
     DEFAULT_CHAMPIONSHIP_REAL_MATCH_RULES,
@@ -40,8 +40,14 @@ import {
 import { buildChampionshipResultContract } from '../utils/resultContract.js';
 import { hasPersistedVersusDuelTicketsByVenue } from '../../shared/utils/championshipVersusDuelTickets.js';
 
+/** 동일 유저·매치에 대한 START_TOURNAMENT_MATCH 기보 생성 중복 방지 */
+const championshipMatchGenerationInFlight = new Set<string>();
 
-type HandleActionResult = { 
+function championshipMatchGenerationKey(userId: string, type: TournamentType, matchId: string): string {
+    return `${userId}|${type}|${matchId}`;
+}
+
+type HandleActionResult = {
     clientResponse?: any;
     error?: string;
 };
@@ -909,7 +915,7 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             // 캐시도 최신 정보로 업데이트
             updateUserCache(freshUser);
 
-            const tournamentState = (freshUser as any)[stateKey] as types.TournamentState | null;
+            let tournamentState = (freshUser as any)[stateKey] as types.TournamentState | null;
             if (!tournamentState) return { error: '토너먼트 정보를 찾을 수 없습니다.' };
 
             // 던전 모드와 일반 토너먼트 모두 첫 경기 시작 이후 자동 진행 활성화
@@ -960,8 +966,17 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 return { error: '시작할 유저 경기를 찾을 수 없습니다.' };
             }
 
-            // 이미 경기 진행 중이면 클라이언트 상태 동기화만 (이전 요청이 적용됐는데 UI가 갱신 안 된 경우 등)
-            if (tournamentState.status === 'round_in_progress') {
+            const generationKey = championshipMatchGenerationKey(freshUser.id, type, userMatch.id);
+            if (championshipMatchGenerationInFlight.has(generationKey)) {
+                const updatedUserCopy = JSON.parse(JSON.stringify(freshUser));
+                return { clientResponse: { redirectToTournament: type, updatedUser: updatedUserCopy } };
+            }
+
+            const prepared = prepareTournamentStateForMatchStart(tournamentState, freshUser.id, userMatch.id);
+            tournamentState = prepared.tournament;
+            (freshUser as any)[stateKey] = tournamentState;
+
+            if (prepared.shouldSyncOnly) {
                 const updatedUserCopy = JSON.parse(JSON.stringify(freshUser));
                 return { clientResponse: { redirectToTournament: type, updatedUser: updatedUserCopy } };
             }
@@ -1029,8 +1044,12 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 dungeonStage != null && dungeonStage >= 1
                     ? resolveChampionshipDungeonRulesFromStage(dungeonStage)
                     : DEFAULT_CHAMPIONSHIP_REAL_MATCH_RULES;
+            const preferHeuristicMoves = dungeonStage != null && dungeonStage >= 1;
+            championshipMatchGenerationInFlight.add(generationKey);
             try {
-                const realMatch = await generateChampionshipRealMatch(match, tournamentState.players, freshUser, champRules);
+                const realMatch = await generateChampionshipRealMatch(match, tournamentState.players, freshUser, champRules, {
+                    preferHeuristicMoves,
+                });
                 match.championshipRealGame = realMatch.game;
                 tournamentState.currentMatchScores = {
                     player1: realMatch.scorePercent.player1,
@@ -1047,6 +1066,8 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 return {
                     error: err?.message || '기보를 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.',
                 };
+            } finally {
+                championshipMatchGenerationInFlight.delete(generationKey);
             }
             
             // 개발 모드에서만 상세 로그 출력

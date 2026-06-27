@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
 import { MATERIAL_ITEMS } from '../constants';
+import { useLocalizedInventoryItemName } from '../shared/i18n/localizedCatalog.js';
 
 interface CraftingResultModalProps {
     result: {
@@ -17,7 +18,8 @@ interface CraftingResultModalProps {
 }
 
 const CraftingResultModal: React.FC<CraftingResultModalProps> = ({ result, onClose, isTopmost }) => {
-    const { t } = useTranslation(['blacksmith', 'common']);
+    const { t } = useTranslation(['inventory', 'common']);
+    const localizedItemName = useLocalizedInventoryItemName();
     const { gained, used, craftType, jackpot } = result;
 
     const title = jackpot
@@ -42,20 +44,20 @@ const CraftingResultModal: React.FC<CraftingResultModalProps> = ({ result, onClo
 
                 <div className="flex items-center justify-around text-center mb-4 bg-gray-900/50 p-4 rounded-lg">
                     <div className="flex flex-col items-center">
-                        {usedTemplate?.image && <img src={usedTemplate.image} alt={usedItem.name} className="w-16 h-16" />}
-                        <span className="font-semibold">{usedItem.name}</span>
+                        {usedTemplate?.image && <img src={usedTemplate.image} alt={localizedItemName(usedItem.name)} className="w-16 h-16" />}
+                        <span className="font-semibold">{localizedItemName(usedItem.name)}</span>
                         <span className="text-sm text-red-400 mt-1">-{usedItem.amount.toLocaleString()}{t('craftingResult.quantityUnit')}</span>
                     </div>
                     <div className="text-4xl font-bold text-yellow-400 mx-4">→</div>
                     <div className="flex flex-col items-center">
-                        {gainedTemplate?.image && <img src={gainedTemplate.image} alt={gainedItem.name} className="w-16 h-16" />}
-                        <span className="font-semibold">{gainedItem.name}</span>
+                        {gainedTemplate?.image && <img src={gainedTemplate.image} alt={localizedItemName(gainedItem.name)} className="w-16 h-16" />}
+                        <span className="font-semibold">{localizedItemName(gainedItem.name)}</span>
                         <span className={`text-sm mt-1 ${jackpot ? 'text-yellow-400 font-bold' : 'text-green-400'}`}>
                             +{gainedItem.amount.toLocaleString()}{t('craftingResult.quantityUnit')}
                         </span>
                     </div>
                 </div>
-                
+
                 <Button onClick={onClose} className="w-full mt-6 py-2.5">{t('common:actions.ok')}</Button>
             </div>
         </DraggableWindow>

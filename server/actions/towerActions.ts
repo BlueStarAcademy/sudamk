@@ -305,9 +305,10 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             const { updateGameCache } = await import('../gameCache.js');
             updateGameCache(game);
             
-            // forceSave=true로 설정하여 pending 상태의 타워 게임도 DB에 저장
-            // 이렇게 하면 CONFIRM_TOWER_GAME_START에서 캐시를 찾지 못해도 DB에서 찾을 수 있음
-            await db.saveGame(game, true);
+            // forceSave=true로 pending 타워 게임도 DB에 저장(캐시 미스 시 CONFIRM 폴백). HTTP 응답은 캐시·브로드캐스트 후 즉시 반환.
+            void db.saveGame(game, true).catch((err) => {
+                console.error(`[START_TOWER_GAME] Failed to save game ${game.id}:`, err);
+            });
             
             volatileState.userStatuses[game.player1.id] = { status: UserStatus.InGame, mode: game.mode, gameId: game.id, gameCategory: 'tower' as GameCategory };
             // AI 플레이어는 userStatuses에 포함하지 않음 (실제 유저가 아니므로)
@@ -416,10 +417,18 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 game.startTime = now;
                 (game as any).gameStartTime = undefined;
                 updateGameCache(game);
-                await db.saveGame(game);
+                void db.saveGame(game).catch((err) => {
+                    console.error(`[CONFIRM_TOWER_GAME_START] Failed to save base-flow game ${gameId}:`, err);
+                });
                 const { broadcastToGameParticipants } = await import('../socket.js');
                 broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
-                return { clientResponse: { gameId: game.id, game } };
+                let baseFlowGameCopy: LiveGameSession;
+                try {
+                    baseFlowGameCopy = JSON.parse(JSON.stringify(game));
+                } catch {
+                    baseFlowGameCopy = game;
+                }
+                return { clientResponse: { gameId: game.id, game: baseFlowGameCopy } };
             }
             
             game.gameStatus = 'playing';
@@ -456,43 +465,49 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 clearTowerNonSpeedClock(game, now);
             }
             
-            const { seedStrategicPetHintBonusPresetsForGame } = await import('../strategicPetHintAction.js');
-            await seedStrategicPetHintBonusPresetsForGame(game);
+            updateQuestProgress(user, 'tower_challenge', undefined, 1);
 
-            // 게임 캐시 업데이트 (다음 요청에서 빠른 응답)
+            const { getSelectiveUserUpdate } = await import('../utils/userUpdateHelper.js');
+            const { broadcastUserUpdate, broadcastToGameParticipants } = await import('../socket.js');
+            const updatedUser = getSelectiveUserUpdate(user, 'CONFIRM_TOWER_GAME_START');
+
+            // 게임 캐시·브로드캐스트 후 즉시 HTTP 응답 (DB·펫힌트 시드는 비동기)
             updateGameCache(game);
-            
-            // DB 저장을 여기서 완료까지 대기 (TOWER_ADD_TURNS 등 직후 요청에서 캐시 만료 시에도 DB에서 'playing' 상태를 읽을 수 있도록)
-            await db.saveGame(game).catch(err => {
+            volatileState.userStatuses[game.player1.id] = { status: UserStatus.InGame, mode: game.mode, gameId: game.id, gameCategory: 'tower' as GameCategory };
+            broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+            broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
+
+            void import('../strategicPetHintAction.js')
+                .then(({ seedStrategicPetHintBonusPresetsForGame }) => seedStrategicPetHintBonusPresetsForGame(game))
+                .then(() => updateGameCache(game))
+                .catch((err) =>
+                    console.warn(
+                        '[CONFIRM_TOWER_GAME_START] seedStrategicPetHintBonusPresetsForGame',
+                        err instanceof Error ? err.message : err,
+                    ),
+                );
+            void db.saveGame(game).catch((err) => {
                 console.error(`[CONFIRM_TOWER_GAME_START] Failed to save game ${gameId}:`, err);
             });
+            void db
+                .updateUser(user)
+                .then(() => broadcastUserUpdate(user, ['quests', 'actionPoints']))
+                .catch((err) => {
+                    console.error(`[CONFIRM_TOWER_GAME_START] Failed to save user ${user.id}:`, err);
+                });
 
-            updateQuestProgress(user, 'tower_challenge', undefined, 1);
-            
-            const { getSelectiveUserUpdate } = await import('../utils/userUpdateHelper.js');
-            const { broadcastUserUpdate } = await import('../socket.js');
-            const updatedUser = getSelectiveUserUpdate(user, 'CONFIRM_TOWER_GAME_START');
-            await db.updateUser(user).catch(err => {
-                console.error(`[CONFIRM_TOWER_GAME_START] Failed to save user ${user.id}:`, err);
-            });
-            broadcastUserUpdate(user, ['quests', 'actionPoints']);
-            
-            // 사용자 상태 업데이트
-            volatileState.userStatuses[game.player1.id] = { status: UserStatus.InGame, mode: game.mode, gameId: game.id, gameCategory: 'tower' as GameCategory };
-            
-            // 게임 업데이트 먼저 브로드캐스트 (게임 참가자에게만 전송)
-            const { broadcastToGameParticipants } = await import('../socket.js');
-            broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
-            // 그 다음 사용자 상태 브로드캐스트
-            broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
-            
-            // 게임 객체를 응답에 포함하여 클라이언트가 즉시 업데이트할 수 있도록 함
+            let gameCopy: LiveGameSession;
+            try {
+                gameCopy = JSON.parse(JSON.stringify(game));
+            } catch {
+                gameCopy = game;
+            }
             return {
                 clientResponse: {
                     gameId: game.id,
-                    game: game,
+                    game: gameCopy,
                     updatedUser,
-                }
+                },
             };
         }
         case 'TOWER_REFRESH_PLACEMENT': {

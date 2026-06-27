@@ -10,6 +10,7 @@ import {
     shouldIgnoreStaleLiveTerminalGameUpdate,
     shouldIgnoreStalePendingPveStartRegression,
     buildOptimisticAiLobbyStartSession,
+    buildOptimisticPveStartConfirmSession,
     resolveAiLobbyHumanPlayerColor,
     shouldIgnoreStalePendingAiLobbyStartRegression,
 } from '../../../utils/clientGameMergePolicy.js';
@@ -675,6 +676,38 @@ describe('buildOptimisticAiLobbyStartSession', () => {
         const optimistic = buildOptimisticAiLobbyStartSession(pending);
         expect(optimistic?.gameStatus).toBe('chess_piece_placement');
         expect(optimistic?.boardState?.length).toBe(13);
+    });
+});
+
+describe('buildOptimisticPveStartConfirmSession', () => {
+    it('transitions tower pending to playing for standard start confirm', () => {
+        const pending = minimalSession({
+            gameCategory: 'tower',
+            gameStatus: 'pending',
+            mode: GameMode.Speed,
+            player1: { id: 'human-1', username: 'h', nickname: 'h' } as any,
+            player2: { id: 'ai-player-01', username: 'ai', nickname: 'ai' } as any,
+            blackPlayerId: 'human-1',
+            whitePlayerId: 'ai-player-01',
+        });
+        const optimistic = buildOptimisticPveStartConfirmSession(pending, 2_000);
+        expect(optimistic?.gameStatus).toBe('playing');
+        expect(optimistic?.currentPlayer).toBe(Player.Black);
+        expect(optimistic?.startTime).toBe(2_000);
+        expect(optimistic?.gameStartTime).toBe(2_000);
+    });
+
+    it('uses base_placement for tower base stages', () => {
+        const pending = minimalSession({
+            gameCategory: 'tower',
+            gameStatus: 'pending',
+            mode: GameMode.Base,
+            player1: { id: 'human-1', username: 'h', nickname: 'h' } as any,
+            player2: { id: 'ai-player-01', username: 'ai', nickname: 'ai' } as any,
+        });
+        const optimistic = buildOptimisticPveStartConfirmSession(pending);
+        expect(optimistic?.gameStatus).toBe('base_placement');
+        expect(optimistic?.startTime).toBeDefined();
     });
 });
 

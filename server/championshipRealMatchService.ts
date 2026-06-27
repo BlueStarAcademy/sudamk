@@ -244,6 +244,8 @@ export type GenerateChampionshipRealMatchOptions = {
     } | null;
     /** 유저/펫 KATA 사다리 분리 — 미지정 시 유저(관리자) 사다리만 적용 */
     kataConfig?: ChampionshipVersusKataConfig;
+    /** PVE 던전 등 HTTP 응답 전 전체 기보를 만들 때 — 수마다 KataGo를 돌리지 않고 휴리스틱만 사용 */
+    preferHeuristicMoves?: boolean;
 };
 
 export async function generateChampionshipRealMatch(
@@ -317,17 +319,18 @@ export async function generateChampionshipRealMatch(
             seat: usePairSeats ? seat : null,
         });
         const candidates = legalCandidates(boardState, color, koInfo, moves.length);
-        let chosen =
-            (await chooseMoveByKataServer({
-                boardState,
-                color,
-                koInfo,
-                moves,
-                boardSize,
-                kataLevel: levelInfo.kataLevel,
-                matchId: match.id,
-                ply,
-            })) ?? chooseMoveByKataLevel(candidates, levelInfo.kataLevel);
+        let chosen = options?.preferHeuristicMoves
+            ? chooseMoveByKataLevel(candidates, levelInfo.kataLevel)
+            : (await chooseMoveByKataServer({
+                  boardState,
+                  color,
+                  koInfo,
+                  moves,
+                  boardSize,
+                  kataLevel: levelInfo.kataLevel,
+                  matchId: match.id,
+                  ply,
+              })) ?? chooseMoveByKataLevel(candidates, levelInfo.kataLevel);
         // KataGo 응답이 막혀 있고 휴리스틱 후보까지 비었을 때만 종료. 후보가 남아 있다면
         // maxPly 끝까지 두는 것을 보장하기 위해 첫 번째 합법 후보를 임시로 사용한다.
         if (!chosen) {

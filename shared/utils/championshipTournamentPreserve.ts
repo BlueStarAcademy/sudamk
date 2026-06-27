@@ -41,6 +41,44 @@ export function repairTournamentSimulatingPointer(
 }
 
 /**
+ * START_TOURNAMENT_MATCH 직전: 멈춘 round_in_progress를 풀고, 이미 기보가 붙은 동일 경기면 동기화만 한다.
+ */
+export function prepareTournamentStateForMatchStart(
+    tournament: TournamentState,
+    userId: string,
+    nextUserMatchId: string,
+): { tournament: TournamentState; shouldSyncOnly: boolean } {
+    const { tournament: recovered } = recoverStuckChampionshipRoundInProgress(tournament, userId);
+    let state = recovered;
+
+    if (state.status !== 'round_in_progress') {
+        return { tournament: state, shouldSyncOnly: false };
+    }
+
+    const sim = state.currentSimulatingMatch;
+    const active = sim ? state.rounds[sim.roundIndex]?.matches[sim.matchIndex] : null;
+    if (
+        active &&
+        active.id === nextUserMatchId &&
+        !active.isFinished &&
+        (active.championshipRealGame?.moves?.length ?? 0) > 0
+    ) {
+        return { tournament: state, shouldSyncOnly: true };
+    }
+
+    return {
+        tournament: {
+            ...state,
+            currentSimulatingMatch: null,
+            status: 'bracket_ready',
+            timeElapsed: 0,
+            nextRoundStartTime: null,
+        },
+        shouldSyncOnly: false,
+    };
+}
+
+/**
  * `round_in_progress`인데 기보 생성·COMPLETE 처리가 끊긴 스냅샷을 bracket_ready/complete 등으로 복구한다.
  */
 export function recoverStuckChampionshipRoundInProgress(
