@@ -2293,7 +2293,7 @@ export async function processTowerRankingRewards(): Promise<void> {
     const getRewardForFloor = (floor: number): { gold: number; diamonds: number; items: { itemId: string; quantity: number }[] } | null => {
         if (floor >= 100) {
             return {
-                gold: 50_000,
+                gold: 150_000,
                 diamonds: 150,
                 items: [
                     { itemId: '장비상자6', quantity: 1 },
@@ -2302,13 +2302,13 @@ export async function processTowerRankingRewards(): Promise<void> {
             };
         } else if (floor >= 90) {
             return {
-                gold: 35_000,
+                gold: 125_000,
                 diamonds: 100,
                 items: [{ itemId: '장비상자5', quantity: 2 }]
             };
         } else if (floor >= 80) {
             return {
-                gold: 30_000,
+                gold: 100_000,
                 diamonds: 75,
                 items: [
                     { itemId: '장비상자5', quantity: 1 },
@@ -2317,31 +2317,31 @@ export async function processTowerRankingRewards(): Promise<void> {
             };
         } else if (floor >= 65) {
             return {
-                gold: 20_000,
+                gold: 75_000,
                 diamonds: 50,
                 items: [{ itemId: '장비상자4', quantity: 2 }]
             };
         } else if (floor >= 50) {
             return {
-                gold: 15_000,
+                gold: 50_000,
                 diamonds: 35,
                 items: [{ itemId: '장비상자4', quantity: 1 }]
             };
         } else if (floor >= 35) {
             return {
-                gold: 10_000,
+                gold: 30_000,
                 diamonds: 25,
                 items: [{ itemId: '장비상자3', quantity: 1 }]
             };
         } else if (floor >= 20) {
             return {
-                gold: 5_000,
+                gold: 20_000,
                 diamonds: 15,
                 items: [{ itemId: '장비상자2', quantity: 1 }]
             };
         } else if (floor >= 10) {
             return {
-                gold: 3_000,
+                gold: 10_000,
                 diamonds: 10,
                 items: [{ itemId: '장비상자1', quantity: 1 }]
             };

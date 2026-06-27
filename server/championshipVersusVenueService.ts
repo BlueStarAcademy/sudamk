@@ -12,6 +12,7 @@ import { LeagueTier } from '../types/enums.js';
 import * as db from './db.js';
 import { updateUserCache } from './gameCache.js';
 import {
+    applyVersusGoldRewardVenueMultiplier,
     champCoinsForVersusLoss,
     champCoinsForVersusWin,
     computeEloPairAfterMatch,
@@ -453,7 +454,7 @@ function opponentUserChampionshipSnapshot(u: User): Pick<
     'totalGoPower' | 'coreStats' | 'openingAbility' | 'midgameAbility' | 'endgameAbility'
 > {
     const stats = calculateTotalStats(u, 'championshipVenue') as Record<string, number>;
-    return championshipVersusAbilitySnapshotFromCoreStats(stats);
+    return championshipVersusAbilitySnapshotFromCoreStats(stats, getChampionshipAbilityKataLadder());
 }
 
 function representativePetSnapshotFromUser(u: User): ChampionshipVersusRepresentativePetSnapshot | null {
@@ -598,7 +599,7 @@ export async function buildChampionshipVersusOpponentList(
             listSnap = championshipVersusAbilitySnapshotFromPairPetCoreStats(rep.coreStats);
         } else if (venue === 'petpair' && rep) {
             const merged = mergeChampionshipVersusPairUserPetCoreStats(userSnap.coreStats, rep.coreStats);
-            listSnap = championshipVersusAbilitySnapshotFromCoreStats(merged);
+            listSnap = championshipVersusAbilitySnapshotFromCoreStats(merged, getChampionshipAbilityKataLadder());
             base.userPairAnchor = {
                 coreStats: { ...userSnap.coreStats },
                 openingAbility: userSnap.openingAbility,
@@ -637,9 +638,15 @@ async function grantVersusEconomyRewardsForParticipants(
     roBefore: number,
     now: number,
 ): Promise<{ actorPayload: VersusKataActorRewardClientPayload }> {
-    const actorGoldDelta = actorWon ? rollVersusGoldWinFromRating(raBefore) : rollVersusGoldLossFromRating(raBefore);
+    const actorGoldDelta = applyVersusGoldRewardVenueMultiplier(
+        actorWon ? rollVersusGoldWinFromRating(raBefore) : rollVersusGoldLossFromRating(raBefore),
+        venue,
+    );
     const oppWon = !actorWon;
-    const oppGoldDelta = oppWon ? rollVersusGoldWinFromRating(roBefore) : rollVersusGoldLossFromRating(roBefore);
+    const oppGoldDelta = applyVersusGoldRewardVenueMultiplier(
+        oppWon ? rollVersusGoldWinFromRating(roBefore) : rollVersusGoldLossFromRating(roBefore),
+        venue,
+    );
 
     const actorXpPool = actorWon ? rollVersusUserXpWinPoolFromRating(raBefore) : rollVersusUserXpLossPoolFromRating(raBefore);
     const oppXpPool = oppWon ? rollVersusUserXpWinPoolFromRating(roBefore) : rollVersusUserXpLossPoolFromRating(roBefore);

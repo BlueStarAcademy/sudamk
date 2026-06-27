@@ -80,7 +80,7 @@ import {
     type ArenaEntranceKey,
 } from '../constants/arenaEntrance.js';
 import { translateArenaEntranceClosed, tx } from '../shared/i18n/runtimeText.js';
-import { shouldSuppressKoPlaceStoneClientError, isGameAlreadyStartedError, isBaseStoneColorChoiceBenignError, isInsufficientActionPointsServerError, isGameNotFoundServerError, isInventoryFullServerError } from '../shared/utils/serverErrorMatch.js';
+import { shouldSuppressKoPlaceStoneClientError, isGameAlreadyStartedError, isBaseStoneColorChoiceBenignError, isInsufficientActionPointsServerError, isGameNotFoundServerError, isGameAlreadyEndedServerError, isInventoryFullServerError } from '../shared/utils/serverErrorMatch.js';
 import { PAIR_HATCHERY_PET_INVENTORY_FULL_MESSAGE } from '../shared/constants/pairHatchery.js';
 import {
     pairArenaLobbyHash,
@@ -6413,6 +6413,65 @@ export const useApp = () => {
                         rollbackTowerAddTurnOptimistic();
                         revertPveResignOptimistic();
                         return { error: errorMessage } as HandleActionResult;
+                    }
+                    const isBenignPostGameAiOrResignHttp400 =
+                        res.status === 400 &&
+                        typeof errorMessage === 'string' &&
+                        (action.type === 'REQUEST_SERVER_AI_MOVE' || action.type === 'RESIGN_GAME') &&
+                        (isGameAlreadyEndedServerError(errorMessage) || isGameNotFoundServerError(errorMessage));
+                    if (isBenignPostGameAiOrResignHttp400) {
+                        if (import.meta.env.DEV) {
+                            console.debug(
+                                `[handleAction] ${action.type} benign HTTP 400 (game ended or removed on server)`,
+                                errorMessage,
+                            );
+                        }
+                        if (typeof actionGameId === 'string' && actionGameId.length > 0) {
+                            const gid = actionGameId;
+                            const localGame =
+                                towerGamesRef.current[gid] ??
+                                singlePlayerGamesRef.current[gid] ??
+                                liveGamesRef.current[gid];
+                            if (localGame && isGameNotFoundServerError(errorMessage)) {
+                                flushSync(() => {
+                                    setTowerGames((c) => {
+                                        if (!c[gid]) return c;
+                                        const next = { ...c };
+                                        delete next[gid];
+                                        return next;
+                                    });
+                                    setSinglePlayerGames((c) => {
+                                        if (!c[gid]) return c;
+                                        const next = { ...c };
+                                        delete next[gid];
+                                        return next;
+                                    });
+                                    setLiveGames((c) => {
+                                        if (!c[gid]) return c;
+                                        const next = { ...c };
+                                        delete next[gid];
+                                        return next;
+                                    });
+                                });
+                            } else if (
+                                localGame &&
+                                isGameAlreadyEndedServerError(errorMessage) &&
+                                localGame.gameStatus !== 'ended' &&
+                                localGame.gameStatus !== 'no_contest' &&
+                                localGame.gameStatus !== 'scoring'
+                            ) {
+                                void handleAction({
+                                    type: 'REQUEST_GAME_STATE_SYNC',
+                                    payload: { gameId: gid },
+                                } as ServerAction);
+                            }
+                        }
+                        revertPvpDicePlaceSnapshot();
+                        revertPvpPlaceStoneSnapshot();
+                        rollbackTowerAddTurnOptimistic();
+                        revertPveResignOptimistic();
+                        revertAiLobbyStartOptimistic();
+                        return {} as HandleActionResult;
                     }
                     // 장시간 유휴 후 주사위/도둑 상태가 어긋난 경우:
                     // 굴림 400을 받으면 서버 상태를 1회 동기화한 뒤 자동 재시도한다.
@@ -13091,6 +13150,8 @@ export const useApp = () => {
         const statusInfo = Array.isArray(onlineUsers) ? onlineUsers.find((u) => u && u.id === userId) : null;
         const withOnlineStatus = (u: UserWithStatus): UserWithStatus => ({
             ...u,
+            equipment: u.equipment || {},
+            inventory: u.inventory || [],
             ...(statusInfo || { status: UserStatus.Online }),
         });
         const showUserInViewport = (user: UserWithStatus, pushStack = true) => {
@@ -13125,11 +13186,9 @@ export const useApp = () => {
             const userData = await response.json();
             const merged = withOnlineStatus({
                 ...userData,
-                equipment: userData.equipment || {},
-                inventory: userData.inventory || [],
             } as UserWithStatus);
             showUserInViewport(merged, !cached);
-            setUsersMap((prev) => ({ ...prev, [userId]: userData }));
+            setUsersMap((prev) => ({ ...prev, [userId]: merged }));
             setUserBriefCache((prev) => ({
                 ...prev,
                 [userId]: {

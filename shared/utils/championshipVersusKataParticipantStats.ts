@@ -1,6 +1,7 @@
 import { CoreStat } from '../types/enums.js';
 import type { PairPetCoreStatsSix } from '../constants/pairArena.js';
 import { pairPetKataAbilityScore } from '../constants/pairArena.js';
+import type { ChampionshipAbilityKataLadderRow } from '../constants/championshipRealMatch.js';
 import {
     CHAMPIONSHIP_ABILITY_KATA_LADDER,
     championshipKataLevelForPly,
@@ -70,14 +71,17 @@ export function championshipVersusAbilitySnapshotFromPairPetCoreStats(
     };
 }
 
-export function championshipVersusAbilitySnapshotFromCoreStats(stats: Record<string, number>): ChampionshipVersusAbilitySnapshot {
+export function championshipVersusAbilitySnapshotFromCoreStats(
+    stats: Record<string, number>,
+    userAbilityKataLadder: readonly ChampionshipAbilityKataLadderRow[] = CHAMPIONSHIP_ABILITY_KATA_LADDER,
+): ChampionshipVersusAbilitySnapshot {
     const rules = CHAMPIONSHIP_REAL_MATCH_RULES_19;
     const oPly = rules.phasePly.opening.to;
     const mPly = rules.phasePly.midgame.to;
     const ePly = rules.phasePly.endgame.to;
-    const opening = championshipKataLevelForPly(oPly, stats as any, undefined, CHAMPIONSHIP_ABILITY_KATA_LADDER);
-    const midgame = championshipKataLevelForPly(mPly, stats as any, undefined, CHAMPIONSHIP_ABILITY_KATA_LADDER);
-    const endgame = championshipKataLevelForPly(ePly, stats as any, undefined, CHAMPIONSHIP_ABILITY_KATA_LADDER);
+    const opening = championshipKataLevelForPly(oPly, stats as any, undefined, userAbilityKataLadder);
+    const midgame = championshipKataLevelForPly(mPly, stats as any, undefined, userAbilityKataLadder);
+    const endgame = championshipKataLevelForPly(ePly, stats as any, undefined, userAbilityKataLadder);
     let sum = 0;
     for (const k of Object.keys(stats)) {
         sum += Number(stats[k]) || 0;

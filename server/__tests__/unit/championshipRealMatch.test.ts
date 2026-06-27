@@ -107,19 +107,24 @@ describe('championship real match policy', () => {
         expect(userTurn.kataLevel).not.toBe(petTurn.kataLevel);
     });
 
-    it('maps ability score boundaries without level zero', () => {
+    it('maps ability score boundaries including level one at 980', () => {
         const cases: Array<[number, number]> = [
             [199, -30],
             [200, -30],
-            [219, -29],
-            [220, -28],
-            [1000, -1],
-            [1019, -1],
-            [1020, 1],
-            [1250, 5],
-            [1320, 6],
-            [1590, 8],
-            [1600, 9],
+            [209, -30],
+            [210, -29],
+            [939, -2],
+            [940, -1],
+            [979, -1],
+            [980, 1],
+            [1019, 1],
+            [1020, 2],
+            [1059, 2],
+            [1060, 3],
+            [1150, 5],
+            [1250, 7],
+            [1349, 8],
+            [1350, 9],
         ];
 
         for (const [ability, level] of cases) {

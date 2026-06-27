@@ -77,7 +77,7 @@ export async function applyAdventureMonsterDefeatToProfile(
     /** 지역 이해도: 기본 + 해당 몬스터 도감 이해도 레벨(승리 후)만큼 추가 — 도감과 영구 연동 */
     const codexLevelAfter = getAdventureCodexComprehensionLevel(counts[codexId] ?? 0);
     const understandingXpBefore = uxp[stageId] ?? 0;
-    uxp[stageId] = understandingXpBefore + 12 + codexLevelAfter;
+    uxp[stageId] = understandingXpBefore + 24 + codexLevelAfter * 2;
     const understandingXpAfter = uxp[stageId]!;
 
     const parsedMonsterLevel =

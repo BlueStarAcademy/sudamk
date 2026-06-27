@@ -22,5 +22,12 @@ export const CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX = 5;
 /** 결투권 1개 회복 간격 (ms) */
 export const CHAMPIONSHIP_VERSUS_DUEL_TICKET_REGEN_MS = 2 * 60 * 60 * 1000;
 
+/** 유저 챔피언십(PVP) 대국 골드 보상 배율 — 기본 산식(랭킹×10~15%) 대비 */
+export const CHAMPIONSHIP_VERSUS_PVP_GOLD_REWARD_MULTIPLIER = 10;
+/** 펫 챔피언십 대국 골드 보상 배율 — 기본 산식 대비 */
+export const CHAMPIONSHIP_VERSUS_PET_GOLD_REWARD_MULTIPLIER = 10;
+/** 페어 챔피언십 대국 골드 보상 배율 — 기본 산식 대비 */
+export const CHAMPIONSHIP_VERSUS_PETPAIR_GOLD_REWARD_MULTIPLIER = 15;
+
 /** 챔피언십 결투장 `경기 시작` 시 이 값 이하(1~100)이면 실수·신의 한수에 영향을 주므로 경고 모달을 띄운다. */
 export const CHAMPIONSHIP_VERSUS_LOW_CONDITION_START_WARN_AT = 50;

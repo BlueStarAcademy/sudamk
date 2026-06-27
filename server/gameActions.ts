@@ -993,6 +993,16 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         // 전략바둑 AI 대국: 클라이언트 복구/타임아웃 시 서버에서 makeAiMove(goAiBot → Kata)로 해당 국면 수 계산
         if (type === 'REQUEST_SERVER_AI_MOVE') {
             return runGameActionSerial(game.id, async () => {
+            const terminalAiMoveStatuses = new Set(['ended', 'no_contest', 'scoring']);
+            if (terminalAiMoveStatuses.has(String(game.gameStatus))) {
+                return {
+                    clientResponse: {
+                        serverAiMoveDone: false,
+                        skippedReason: 'GAME_TERMINAL_STATE',
+                        game,
+                    },
+                };
+            }
             const goModesForServerAi: GameMode[] = [
                 GameMode.Standard,
                 GameMode.Capture,

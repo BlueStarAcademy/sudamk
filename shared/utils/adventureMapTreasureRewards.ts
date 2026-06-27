@@ -39,8 +39,8 @@ export function adventureTreasureMaterialBoxName(roman: string): string {
 
 const CHAPTER_REWARDS: Record<number, AdventureTreasureChapterRewardDef> = {
     1: {
-        goldMin: 100,
-        goldMax: 1000,
+        goldMin: 200,
+        goldMax: 2000,
         actionPoints: 10,
         equipmentTiers: [
             { roman: 'I', weight: 60 },
@@ -54,8 +54,8 @@ const CHAPTER_REWARDS: Record<number, AdventureTreasureChapterRewardDef> = {
         ],
     },
     2: {
-        goldMin: 500,
-        goldMax: 2000,
+        goldMin: 1000,
+        goldMax: 4000,
         actionPoints: 15,
         equipmentTiers: [
             { roman: 'I', weight: 45 },
@@ -69,8 +69,8 @@ const CHAPTER_REWARDS: Record<number, AdventureTreasureChapterRewardDef> = {
         ],
     },
     3: {
-        goldMin: 1000,
-        goldMax: 3000,
+        goldMin: 2000,
+        goldMax: 6000,
         actionPoints: 20,
         equipmentTiers: [
             { roman: 'I', weight: 34 },
@@ -86,8 +86,8 @@ const CHAPTER_REWARDS: Record<number, AdventureTreasureChapterRewardDef> = {
         ],
     },
     4: {
-        goldMin: 1500,
-        goldMax: 4000,
+        goldMin: 3000,
+        goldMax: 8000,
         actionPoints: 25,
         equipmentTiers: [
             { roman: 'II', weight: 65 },
@@ -101,8 +101,8 @@ const CHAPTER_REWARDS: Record<number, AdventureTreasureChapterRewardDef> = {
         ],
     },
     5: {
-        goldMin: 2000,
-        goldMax: 5000,
+        goldMin: 4000,
+        goldMax: 10000,
         actionPoints: 30,
         equipmentTiers: [
             { roman: 'II', weight: 49 },

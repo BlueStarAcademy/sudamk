@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     CHAMPIONSHIP_VERSUS_ELO_DEFAULT,
+    applyVersusGoldRewardVenueMultiplier,
     computeEloPairAfterMatch,
     champCoinsForVersusLoss,
     champCoinsForVersusWin,
@@ -17,5 +18,11 @@ describe('championshipVersusElo', () => {
         expect(champCoinsForVersusWin(1200)).toBe(45);
         expect(champCoinsForVersusLoss(1200)).toBe(9);
         expect(champCoinsForVersusWin(CHAMPIONSHIP_VERSUS_ELO_DEFAULT)).toBe(45);
+    });
+
+    it('applies venue-specific gold multipliers', () => {
+        expect(applyVersusGoldRewardVenueMultiplier(120, 'pvp')).toBe(1200);
+        expect(applyVersusGoldRewardVenueMultiplier(120, 'pet')).toBe(1200);
+        expect(applyVersusGoldRewardVenueMultiplier(120, 'petpair')).toBe(1800);
     });
 });

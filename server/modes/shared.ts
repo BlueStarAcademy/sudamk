@@ -886,7 +886,8 @@ export const handleSharedAction = async (volatileState: VolatileState, game: Liv
 
         case 'RESIGN_GAME': {
             if (game.gameStatus === 'ended' || game.gameStatus === 'no_contest') {
-                return { error: 'Game has already ended.' };
+                const freshGame = await db.getLiveGame(game.id);
+                return { clientResponse: { game: freshGame || game, alreadyEnded: true } };
             }
 
             if (game.gameStatus === 'missile_animating' || game.gameStatus === 'missile_selecting') {

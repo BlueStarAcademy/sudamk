@@ -1,4 +1,9 @@
 import type { ChampionshipVersusVenueKind, ChampionshipVersusVenueRatingEntry, User } from '../types/entities.js';
+import {
+    CHAMPIONSHIP_VERSUS_PET_GOLD_REWARD_MULTIPLIER,
+    CHAMPIONSHIP_VERSUS_PETPAIR_GOLD_REWARD_MULTIPLIER,
+    CHAMPIONSHIP_VERSUS_PVP_GOLD_REWARD_MULTIPLIER,
+} from '../constants/championshipVersusVenue.js';
 import { RANKED_ELO_BASE_SCORE } from '../constants/rules.js';
 import { getCurrentSeason } from './timeUtils.js';
 
@@ -119,6 +124,24 @@ export function rollVersusGoldWinFromRating(ratingBefore: number): number {
 /** 패배: 동일 산식 승리분의 50% 수준(독립 랜덤 후 절반) */
 export function rollVersusGoldLossFromRating(ratingBefore: number): number {
     return Math.max(0, Math.floor(rollVersusGoldWinFromRating(ratingBefore) * 0.5));
+}
+
+/** 경기장별 골드 보상 배율 적용 — 유저(PVP)·펫·페어 챔피언십 상향 */
+export function applyVersusGoldRewardVenueMultiplier(
+    baseGold: number,
+    venue: ChampionshipVersusVenueKind,
+): number {
+    const base = Math.max(0, Math.floor(baseGold));
+    const multiplier =
+        venue === 'pvp'
+            ? CHAMPIONSHIP_VERSUS_PVP_GOLD_REWARD_MULTIPLIER
+            : venue === 'pet'
+              ? CHAMPIONSHIP_VERSUS_PET_GOLD_REWARD_MULTIPLIER
+              : venue === 'petpair'
+                ? CHAMPIONSHIP_VERSUS_PETPAIR_GOLD_REWARD_MULTIPLIER
+                : 1;
+    if (multiplier === 1) return base;
+    return Math.max(0, Math.floor(base * multiplier));
 }
 
 /** 승리: 랭킹점수 × 5~10% (내림) — 장별로 유저/펫에 분배 */

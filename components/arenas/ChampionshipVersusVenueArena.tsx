@@ -9,6 +9,7 @@ import { getChampionshipArenaBackgroundUrl } from '../../shared/constants/tourna
 import {
     CHAMPIONSHIP_ABILITY_KATA_LADDER,
     resolveChampionshipVersusPlaybackSpeedChoices,
+    type ChampionshipAbilityKataLadderRow,
 } from '../../shared/constants/championshipRealMatch.js';
 import { DEFAULT_PAIR_PET_ABILITY_KATA_LADDER } from '../../shared/constants/pairArena.js';
 import { resolveChampionshipVersusPhaseAbilityDisplay } from '../../shared/utils/championshipVersusKataResolve.js';
@@ -157,8 +158,12 @@ function stubCoreStats(seed: number): Record<CoreStat, number> {
 function buildDemoOpponentRow(
     base: Omit<OpponentRow, 'totalGoPower' | 'coreStats' | 'openingAbility' | 'midgameAbility' | 'endgameAbility'>,
     seed: number,
+    userAbilityKataLadder: readonly ChampionshipAbilityKataLadderRow[],
 ): OpponentRow {
-    const snap = championshipVersusAbilitySnapshotFromCoreStats(stubCoreStats(seed) as Record<string, number>);
+    const snap = championshipVersusAbilitySnapshotFromCoreStats(
+        stubCoreStats(seed) as Record<string, number>,
+        userAbilityKataLadder,
+    );
     return {
         ...base,
         totalGoPower: snap.totalGoPower,
@@ -230,14 +235,17 @@ const DEMO_OPPONENT_BASES: Omit<
     },
 ];
 
-function makeDemoOpponentRows(venue: ChampionshipVersusVenueKind): OpponentRow[] {
+function makeDemoOpponentRows(
+    venue: ChampionshipVersusVenueKind,
+    userAbilityKataLadder: readonly ChampionshipAbilityKataLadderRow[],
+): OpponentRow[] {
     return DEMO_OPPONENT_BASES.map((base, i) => {
         const seed = i + 1;
-        if (venue === 'pvp') return buildDemoOpponentRow(base, seed);
+        if (venue === 'pvp') return buildDemoOpponentRow(base, seed, userAbilityKataLadder);
         const userStats = stubCoreStats(seed) as Record<string, number>;
         const petStats = stubCoreStats(seed + 20) as Record<string, number>;
-        const userSnap = championshipVersusAbilitySnapshotFromCoreStats(userStats);
-        const petSnap = championshipVersusAbilitySnapshotFromCoreStats(petStats);
+        const userSnap = championshipVersusAbilitySnapshotFromCoreStats(userStats, userAbilityKataLadder);
+        const petSnap = championshipVersusAbilitySnapshotFromCoreStats(petStats, userAbilityKataLadder);
         const rep = {
             displayName: `데모펫_${seed}`,
             image: null as string | null,
@@ -259,7 +267,7 @@ function makeDemoOpponentRows(venue: ChampionshipVersusVenueKind): OpponentRow[]
             };
         }
         const merged = mergeChampionshipVersusPairUserPetCoreStats(userSnap.coreStats, petSnap.coreStats);
-        const listSnap = championshipVersusAbilitySnapshotFromCoreStats(merged);
+        const listSnap = championshipVersusAbilitySnapshotFromCoreStats(merged, userAbilityKataLadder);
         return {
             ...base,
             totalGoPower: listSnap.totalGoPower,
@@ -1271,7 +1279,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
 
     const refreshOpponents = React.useCallback(async (opts?: { force?: boolean }) => {
         if (!CHAMPIONSHIP_VERSUS_VENUE_USE_LIVE_OPPONENT_LIST) {
-            setOpponents(makeDemoOpponentRows(venue));
+            setOpponents(makeDemoOpponentRows(venue, versusUserAbilityKataLadder));
             setMyRating(RANKED_ELO_BASE_SCORE);
             setMyGlobalRank(1);
             setRatingSeasonKey(getCurrentSeason().name);
@@ -1389,7 +1397,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
         } finally {
             setLoading(false);
         }
-    }, [venue, currentUserWithStatus?.id, tCv]);
+    }, [venue, currentUserWithStatus?.id, tCv, versusUserAbilityKataLadder]);
 
     React.useEffect(() => {
         void refreshOpponents();

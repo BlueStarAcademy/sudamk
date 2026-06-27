@@ -46,7 +46,11 @@ import { getKataServerRuntimeSnapshot } from './kataServerRuntimeStore.js';
 import { createItemInstancesFromReward, addItemsToInventory } from '../utils/inventoryUtils.js';
 import { finalizeRewardEquipmentInstances } from './finalizeRewardEquipmentInstances.js';
 import * as guildService from './guildService.js';
-import { adventureMonsterGoldLevelMultiplier } from '../constants/adventureConstants.js';
+import {
+    ADVENTURE_BATTLE_GOLD_MULTIPLIER,
+    ADVENTURE_BATTLE_XP_MULTIPLIER,
+    adventureMonsterGoldLevelMultiplier,
+} from '../constants/adventureConstants.js';
 import {
     getAdventureChapterDirectLootDefinition,
     resolveAdventureChapterIndexForLoot,
@@ -1438,8 +1442,12 @@ function calculateAdventureMonsterBattleRewards(
     const totalBonusPercent =
         globalGoldPercent + effects.winGoldBonusPercent + codexOnlyPercent + understandingPercent + regGoldPct;
     const totalBonusGold = Math.round(baseRewardBeforeBuffs * (totalBonusPercent / 100));
-    const goldReward = Math.max(0, baseRewardBeforeBuffs + totalBonusGold);
-    const understandingGoldBonus = Math.max(0, Math.round(baseRewardBeforeBuffs * (understandingPercent / 100)));
+    const goldBeforeAdventureMul = Math.max(0, baseRewardBeforeBuffs + totalBonusGold);
+    const goldReward = Math.round(goldBeforeAdventureMul * ADVENTURE_BATTLE_GOLD_MULTIPLIER);
+    const understandingGoldBonus = Math.max(
+        0,
+        Math.round(baseRewardBeforeBuffs * (understandingPercent / 100) * ADVENTURE_BATTLE_GOLD_MULTIPLIER),
+    );
 
     const items: InventoryItem[] = [];
 
@@ -1590,7 +1598,9 @@ const processPlayerSummary = async (
     // 모험은 `isWaitingRoomAiGame`에서 제외되지만, 분기 순서상 모험을 먼저 고정해 대기실 AI EXP와 겹치지 않게 한다.
     if (!isNoContest && isAdventureGame) {
         if (isWinner) {
-            xpGain = getAdventureBaseStrategyXp(adventureBoardSize) + getAdventureMonsterLevelXpBonus(game.adventureMonsterLevel);
+            const baseAdventureXp =
+                getAdventureBaseStrategyXp(adventureBoardSize) + getAdventureMonsterLevelXpBonus(game.adventureMonsterLevel);
+            xpGain = Math.round(baseAdventureXp * ADVENTURE_BATTLE_XP_MULTIPLIER);
         } else {
             xpGain = 0;
         }

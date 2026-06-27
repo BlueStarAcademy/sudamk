@@ -46,28 +46,28 @@ import ScreenGuideModal from './ScreenGuideModal.js';
 const TOWER_MONTHLY_REWARD_TIERS = [
     {
         floor: 100,
-        gold: 50_000,
+        gold: 150_000,
         diamonds: 150,
         items: [
             { itemId: '\uC7A5\uBE44\uC0C1\uC7906', quantity: 1 },
             { itemId: '\uC7A5\uBE44\uC0C1\uC7905', quantity: 1 }
         ]
     },
-    { floor: 90, gold: 35_000, diamonds: 100, items: [{ itemId: '\uC7A5\uBE44\uC0C1\uC7905', quantity: 2 }] },
+    { floor: 90, gold: 125_000, diamonds: 100, items: [{ itemId: '\uC7A5\uBE44\uC0C1\uC7905', quantity: 2 }] },
     {
         floor: 80,
-        gold: 30_000,
+        gold: 100_000,
         diamonds: 75,
         items: [
             { itemId: '\uC7A5\uBE44\uC0C1\uC7905', quantity: 1 },
             { itemId: '\uC7A5\uBE44\uC0C1\uC7904', quantity: 1 }
         ]
     },
-    { floor: 65, gold: 20_000, diamonds: 50, items: [{ itemId: '\uC7A5\uBE44\uC0C1\uC7904', quantity: 2 }] },
-    { floor: 50, gold: 15_000, diamonds: 35, items: [{ itemId: '\uC7A5\uBE44\uC0C1\uC7904', quantity: 1 }] },
-    { floor: 35, gold: 10_000, diamonds: 25, items: [{ itemId: '\uC7A5\uBE44\uC0C1\uC7903', quantity: 1 }] },
-    { floor: 20, gold: 5_000, diamonds: 15, items: [{ itemId: '\uC7A5\uBE44\uC0C1\uC7902', quantity: 1 }] },
-    { floor: 10, gold: 3_000, diamonds: 10, items: [{ itemId: '\uC7A5\uBE44\uC0C1\uC7901', quantity: 1 }] },
+    { floor: 65, gold: 75_000, diamonds: 50, items: [{ itemId: '\uC7A5\uBE44\uC0C1\uC7904', quantity: 2 }] },
+    { floor: 50, gold: 50_000, diamonds: 35, items: [{ itemId: '\uC7A5\uBE44\uC0C1\uC7904', quantity: 1 }] },
+    { floor: 35, gold: 30_000, diamonds: 25, items: [{ itemId: '\uC7A5\uBE44\uC0C1\uC7903', quantity: 1 }] },
+    { floor: 20, gold: 20_000, diamonds: 15, items: [{ itemId: '\uC7A5\uBE44\uC0C1\uC7902', quantity: 1 }] },
+    { floor: 10, gold: 10_000, diamonds: 10, items: [{ itemId: '\uC7A5\uBE44\uC0C1\uC7901', quantity: 1 }] },
 ] as const;
 
 /** 보상정보 모달 층 라벨 색 (TOWER_MONTHLY_REWARD_TIERS 순서와 동일) */

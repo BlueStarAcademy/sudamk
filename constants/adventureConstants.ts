@@ -53,6 +53,12 @@ export function adventureMonsterGoldLevelMultiplier(level: number): number {
     return 0.4 + (lv / 50) * 0.75;
 }
 
+/** 모험 몬스터 승리 프로필 EXP 배율 (전략 AI 대기실 등 다른 모드와 분리) */
+export const ADVENTURE_BATTLE_XP_MULTIPLIER = 2.0;
+
+/** 모험 몬스터 승리 골드 배율 (특수 전략 모드 PVP/PVE 골드 테이블과 분리) */
+export const ADVENTURE_BATTLE_GOLD_MULTIPLIER = 2.0;
+
 /** 모험 스테이지 입장 카드 (맵 webp — 로비·맵 화면·인게임 배경 공용) */
 export const ADVENTURE_STAGES = [
     {
