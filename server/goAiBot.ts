@@ -2252,6 +2252,13 @@ export async function makeGoAiBotMove(
         return;
     }
 
+    {
+        const { maybeEnterPveAutoScoringAtTurnCap } = await import('./utils/pveAutoScoringTurnCap.js');
+        if (await maybeEnterPveAutoScoringAtTurnCap(game, 'goAiBot-preMove')) {
+            return;
+        }
+    }
+
     try {
     // AI 히든 아이템 연출 종료 후 실제 히든 수 두기
     if (game.aiHiddenItemAnimationEndTime != null && now >= game.aiHiddenItemAnimationEndTime) {

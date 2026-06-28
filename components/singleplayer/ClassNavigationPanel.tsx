@@ -103,7 +103,7 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({
             }`}
         >
             <div
-                className={`flex min-h-0 flex-1 flex-col justify-center ${topShelf ? 'gap-1' : isMobile ? 'gap-1.5' : 'gap-2'}`}
+                className={`flex min-h-0 flex-1 flex-col justify-center ${topShelf ? 'gap-0.5' : isMobile ? 'gap-1.5' : 'gap-2'}`}
             >
             <h2
                 className={`shrink-0 ${academySectionHeadingClass} ${
@@ -117,22 +117,22 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({
                 {t('singleplayer.classSelect')}
             </h2>
 
-            <div className={`flex shrink-0 flex-col ${topShelf ? 'gap-1' : isMobile ? 'gap-1.5' : 'gap-2'}`}>
+            <div className={`flex shrink-0 flex-col ${topShelf ? 'gap-0.5' : isMobile ? 'gap-1.5' : 'gap-2'}`}>
                 {/* 단계 타이틀 + 좌우 화살표 */}
                 <div
-                    className={`flex shrink-0 items-center justify-center ${topShelf ? 'gap-1' : isMobile ? 'gap-1.5' : 'gap-2.5'}`}
+                    className={`flex shrink-0 items-center justify-center ${topShelf ? 'gap-0.5' : isMobile ? 'gap-1.5' : 'gap-2.5'}`}
                 >
                     <button
                         onClick={handlePrevious}
                         disabled={currentIndex === 0}
                         className={`
-                            shrink-0 ${topShelf ? 'h-7 w-7' : isMobile ? 'h-9 w-9' : 'h-11 w-11'} ${navBtnBase}
+                            shrink-0 ${topShelf ? 'h-6 w-6' : isMobile ? 'h-9 w-9' : 'h-11 w-11'} ${navBtnBase}
                             ${currentIndex === 0 ? navBtnDisabled : navBtnActive}
                         `}
                         aria-label={t('singleplayer.previousClass')}
                     >
                         <svg
-                            className={`${topShelf ? 'h-3.5 w-3.5' : isMobile ? 'h-4 w-4' : 'h-5 w-5'} drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]`}
+                            className={`${topShelf ? 'h-3 w-3' : isMobile ? 'h-4 w-4' : 'h-5 w-5'} drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]`}
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -142,7 +142,7 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({
                     </button>
                     <div
                         className={`min-w-0 flex-1 text-center font-black leading-tight tracking-tight text-emerald-50 [text-shadow:0_1px_0_rgba(255,255,255,0.1),0_2px_10px_rgba(0,0,0,0.85),0_0_14px_rgba(52,211,153,0.32)] ${
-                            topShelf ? 'text-sm' : isMobile ? 'text-xl' : 'text-2xl lg:text-3xl'
+                            topShelf ? 'text-xs' : isMobile ? 'text-xl' : 'text-2xl lg:text-3xl'
                         }`}
                     >
                         {currentClassName}
@@ -151,13 +151,13 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({
                         onClick={handleNext}
                         disabled={currentIndex === CLASS_INFO.length - 1}
                         className={`
-                            shrink-0 ${topShelf ? 'h-7 w-7' : isMobile ? 'h-9 w-9' : 'h-11 w-11'} ${navBtnBase}
+                            shrink-0 ${topShelf ? 'h-6 w-6' : isMobile ? 'h-9 w-9' : 'h-11 w-11'} ${navBtnBase}
                             ${currentIndex === CLASS_INFO.length - 1 ? navBtnDisabled : navBtnActive}
                         `}
                         aria-label={t('singleplayer.nextClass')}
                     >
                         <svg
-                            className={`${topShelf ? 'h-3.5 w-3.5' : isMobile ? 'h-4 w-4' : 'h-5 w-5'} drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]`}
+                            className={`${topShelf ? 'h-3 w-3' : isMobile ? 'h-4 w-4' : 'h-5 w-5'} drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]`}
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -171,7 +171,7 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({
                 <div
                     className={`relative w-full min-w-0 overflow-hidden rounded-xl border-2 border-emerald-500/35 shadow-[0_0_24px_rgba(16,185,129,0.18),0_6px_20px_rgba(0,0,0,0.45)] ring-1 ring-emerald-400/15 ${
                         topShelf
-                            ? 'aspect-[16/9] max-h-[min(11dvh,96px)] sm:max-h-[min(12dvh,108px)]'
+                            ? 'aspect-[16/9] max-h-[min(9dvh,76px)] sm:max-h-[min(10dvh,84px)]'
                             : isMobile
                               ? 'aspect-[16/10] max-h-[min(52dvh,380px)] min-h-[min(28dvh,200px)]'
                               : 'aspect-[16/10] min-h-[140px] max-h-[min(42dvh,320px)] lg:max-h-[360px]'
@@ -191,7 +191,7 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({
                         }}
                     />
                     <div
-                        className={`pointer-events-none absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/88 via-black/55 to-transparent text-center ${topShelf ? 'px-1.5 py-1' : isMobile ? 'px-2 py-2' : 'px-4 py-3'}`}
+                        className={`pointer-events-none absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/88 via-black/55 to-transparent text-center ${topShelf ? 'px-1 py-0.5' : isMobile ? 'px-2 py-2' : 'px-4 py-3'}`}
                     >
                         <div
                             className={`font-semibold tabular-nums text-emerald-100/90 ${topShelf ? 'text-[10px]' : isMobile ? 'text-xs' : 'text-sm'}`}
@@ -226,7 +226,7 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({
                 </div>
 
                 <div
-                    className={`shrink-0 border-t border-emerald-500/20 ${topShelf ? 'pt-1' : isMobile ? 'pt-1.5' : 'pt-2'}`}
+                    className={`shrink-0 border-t border-emerald-500/20 ${topShelf ? 'pt-0.5' : isMobile ? 'pt-1.5' : 'pt-2'}`}
                     aria-hidden
                 />
 
@@ -234,7 +234,7 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({
                     <SinglePlayerClassBarRewardsPanel
                         selectedClass={selectedClass}
                         currentUser={currentUser}
-                        density={isMobile ? 'compact' : 'desktop'}
+                        density={topShelf ? 'topShelf' : isMobile ? 'compact' : 'desktop'}
                     />
                 </div>
             </div>

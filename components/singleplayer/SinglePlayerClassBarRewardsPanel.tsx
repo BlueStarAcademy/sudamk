@@ -24,7 +24,7 @@ const classBarApBadge = (itemId: string): string | null => {
     return m ? `+${m[1]}` : null;
 };
 
-export type SinglePlayerClassBarRewardsDensity = 'desktop' | 'compact';
+export type SinglePlayerClassBarRewardsDensity = 'desktop' | 'compact' | 'topShelf';
 
 export interface SinglePlayerClassBarRewardsPanelProps {
     selectedClass: SinglePlayerLevel;
@@ -51,7 +51,8 @@ const SinglePlayerClassBarRewardsPanel: React.FC<SinglePlayerClassBarRewardsPane
 }) => {
     const { t } = useTranslation(['lobby', 'profile']);
     const { handlers, singlePlayerStagesListRevision } = useAppContext();
-    const isCompact = density === 'compact';
+    const isTopShelf = density === 'topShelf';
+    const isCompact = density === 'compact' || isTopShelf;
 
     const stages = useMemo(() => {
         return getSinglePlayerStages()
@@ -109,22 +110,34 @@ const SinglePlayerClassBarRewardsPanel: React.FC<SinglePlayerClassBarRewardsPane
 
     const classLabel = t(`profile:stageLabels.${CLASS_STAGE_KEYS[selectedClass]}`);
 
-    const shellClass = isCompact
-        ? 'flex w-full min-w-0 flex-col gap-0.5 rounded-md border border-emerald-500/30 bg-gradient-to-r from-emerald-950/40 via-zinc-900/50 to-amber-950/30 px-1.5 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:rounded-lg sm:px-2 sm:py-1.5'
-        : 'flex w-full min-w-0 flex-col gap-1.5 rounded-xl border border-emerald-500/25 bg-gradient-to-r from-emerald-950/35 via-zinc-900/45 to-amber-950/25 px-2 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:px-2.5';
+    const shellClass = isTopShelf
+        ? 'flex w-full min-w-0 flex-col gap-0 rounded-md border border-emerald-500/30 bg-gradient-to-r from-emerald-950/40 via-zinc-900/50 to-amber-950/30 px-1 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'
+        : isCompact
+          ? 'flex w-full min-w-0 flex-col gap-0.5 rounded-md border border-emerald-500/30 bg-gradient-to-r from-emerald-950/40 via-zinc-900/50 to-amber-950/30 px-1.5 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:rounded-lg sm:px-2 sm:py-1.5'
+          : 'flex w-full min-w-0 flex-col gap-1.5 rounded-xl border border-emerald-500/25 bg-gradient-to-r from-emerald-950/35 via-zinc-900/45 to-amber-950/25 px-2 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:px-2.5';
 
-    const titleRowClass = isCompact
-        ? 'flex items-center justify-between gap-1 text-[9px] font-semibold tracking-tight text-slate-200/95 sm:text-[10px]'
-        : 'flex items-center justify-between gap-2 text-xs font-semibold tracking-tight text-slate-200/95 sm:text-[13px]';
+    const titleRowClass = isTopShelf
+        ? 'flex items-center justify-between gap-0.5 text-[8px] font-semibold tracking-tight text-slate-200/95'
+        : isCompact
+          ? 'flex items-center justify-between gap-1 text-[9px] font-semibold tracking-tight text-slate-200/95 sm:text-[10px]'
+          : 'flex items-center justify-between gap-2 text-xs font-semibold tracking-tight text-slate-200/95 sm:text-[13px]';
 
-    const barTrackClass = isCompact
-        ? 'relative h-4 w-full overflow-hidden rounded-full border border-slate-700/50 shadow-[inset_0_2px_6px_rgba(0,0,0,0.55)] sm:h-[1.125rem]'
-        : 'relative h-6 w-full overflow-hidden rounded-full border border-slate-700/50 shadow-[inset_0_2px_10px_rgba(0,0,0,0.55)] sm:h-7';
+    const barTrackClass = isTopShelf
+        ? 'relative h-3 w-full overflow-hidden rounded-full border border-slate-700/50 shadow-[inset_0_2px_5px_rgba(0,0,0,0.55)]'
+        : isCompact
+          ? 'relative h-4 w-full overflow-hidden rounded-full border border-slate-700/50 shadow-[inset_0_2px_6px_rgba(0,0,0,0.55)] sm:h-[1.125rem]'
+          : 'relative h-6 w-full overflow-hidden rounded-full border border-slate-700/50 shadow-[inset_0_2px_10px_rgba(0,0,0,0.55)] sm:h-7';
 
-    const rewardRowClass = isCompact ? 'relative h-9 w-full sm:h-10' : 'relative h-10 w-full sm:h-11';
-    const rewardBtnClass = isCompact
-        ? 'relative h-6 w-6 rounded border border-slate-500/35 bg-gradient-to-b from-slate-800/90 to-slate-950/90 p-px shadow-md transition-transform hover:scale-105 disabled:cursor-not-allowed sm:h-7 sm:w-7 sm:rounded-md sm:p-0.5'
-        : 'relative h-7 w-7 rounded-md border border-slate-500/35 bg-gradient-to-b from-slate-800/90 to-slate-950/90 p-0.5 shadow-md transition-transform hover:scale-105 disabled:cursor-not-allowed';
+    const rewardRowClass = isTopShelf
+        ? 'relative h-7 w-full'
+        : isCompact
+          ? 'relative h-9 w-full sm:h-10'
+          : 'relative h-10 w-full sm:h-11';
+    const rewardBtnClass = isTopShelf
+        ? 'relative h-5 w-5 rounded border border-slate-500/35 bg-gradient-to-b from-slate-800/90 to-slate-950/90 p-px shadow-md transition-transform hover:scale-105 disabled:cursor-not-allowed'
+        : isCompact
+          ? 'relative h-6 w-6 rounded border border-slate-500/35 bg-gradient-to-b from-slate-800/90 to-slate-950/90 p-px shadow-md transition-transform hover:scale-105 disabled:cursor-not-allowed sm:h-7 sm:w-7 sm:rounded-md sm:p-0.5'
+          : 'relative h-7 w-7 rounded-md border border-slate-500/35 bg-gradient-to-b from-slate-800/90 to-slate-950/90 p-0.5 shadow-md transition-transform hover:scale-105 disabled:cursor-not-allowed';
 
     return (
         <div className={shellClass}>
@@ -177,7 +190,7 @@ const SinglePlayerClassBarRewardsPanel: React.FC<SinglePlayerClassBarRewardsPane
                     </div>
                 </div>
                 <div
-                    className={`flex justify-between px-0.5 leading-none text-slate-500 ${isCompact ? 'pt-0 text-[7px] font-bold tabular-nums sm:text-[8px]' : 'pt-0 text-[9px] font-bold tabular-nums'}`}
+                    className={`flex justify-between px-0.5 leading-none text-slate-500 ${isTopShelf ? 'pt-0 text-[6px] font-bold tabular-nums' : isCompact ? 'pt-0 text-[7px] font-bold tabular-nums sm:text-[8px]' : 'pt-0 text-[9px] font-bold tabular-nums'}`}
                 >
                     <span className="w-4 text-left text-slate-400">0</span>
                     <span className="flex-1 text-center text-slate-400">10</span>
@@ -218,7 +231,7 @@ const SinglePlayerClassBarRewardsPanel: React.FC<SinglePlayerClassBarRewardsPane
                                     >
                                         {apBadge ? (
                                             <span
-                                                className={`flex h-full w-full items-center justify-center leading-none drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)] ${isCompact ? 'text-base sm:text-[1.1rem]' : 'text-[1.35rem]'}`}
+                                                className={`flex h-full w-full items-center justify-center leading-none drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)] ${isTopShelf ? 'text-sm' : isCompact ? 'text-base sm:text-[1.1rem]' : 'text-[1.35rem]'}`}
                                                 aria-hidden
                                             >
                                                 ⚡
@@ -243,7 +256,7 @@ const SinglePlayerClassBarRewardsPanel: React.FC<SinglePlayerClassBarRewardsPane
                                 <span
                                     className={`mt-0 font-bold tabular-nums leading-none ${
                                         progressMet ? 'text-amber-200' : 'text-slate-500'
-                                    } ${isCompact ? 'text-[8px] sm:text-[9px]' : 'text-[10px]'}`}
+                                    } ${isTopShelf ? 'text-[7px]' : isCompact ? 'text-[8px] sm:text-[9px]' : 'text-[10px]'}`}
                                 >
                                     {milestone}
                                 </span>

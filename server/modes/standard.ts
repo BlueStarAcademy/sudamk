@@ -1026,29 +1026,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             return {};
         }
         case 'PLACE_STONE': {
-            // 계가까지 수순이 고정된 모드에서는 제한 수순이 이미 채워졌다면 추가 착수를 차단한다.
-            const { fixedScoringTurnLimit, currentTurnCount } = await resolveFixedScoringTurnState();
-            if (fixedScoringTurnLimit != null && fixedScoringTurnLimit > 0) {
-                if (currentTurnCount >= fixedScoringTurnLimit) {
-                    game.totalTurns = currentTurnCount;
-                    if ((game.gameStatus as string) !== 'scoring' && (game.gameStatus as string) !== 'ended') {
-                        game.gameStatus = 'scoring';
-                        await db.saveGame(game);
-                        try {
-                            if (arenaUsesClientAuthoritativeScoringSnapshot(game)) {
-                                deferGetGameResultForScoringOverlay(game.id, 'blockExtraMoveOverTurnLimit');
-                            } else {
-                                await getGameResult(game);
-                            }
-                        } catch (e: any) {
-                            console.error(`[handleStandardAction] Failed to auto-trigger scoring while blocking extra move, game ${game.id}:`, e?.message);
-                        }
-                    }
-                    return { error: '정해진 수순이 모두 완료되어 더 이상 돌을 놓을 수 없습니다.' };
-                }
-            }
-
-            // triggerAutoScoring 플래그가 있으면 계가를 트리거
+            // triggerAutoScoring은 0/N 도달 후 클라이언트가 보내는 계가 요청 — 차단 분기보다 먼저 처리
             if (payload.triggerAutoScoring) {
                 if (pairClassicGame) {
                     const pairTurnLimit = await resolveArenaFixedScoringTurnLimit(game);
@@ -1187,6 +1165,28 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 }
                 await db.saveGame(game);
                 return {};
+            }
+
+            // 계가까지 수순이 고정된 모드에서는 제한 수순이 이미 채워졌다면 추가 착수를 차단한다.
+            const { fixedScoringTurnLimit, currentTurnCount } = await resolveFixedScoringTurnState();
+            if (fixedScoringTurnLimit != null && fixedScoringTurnLimit > 0) {
+                if (currentTurnCount >= fixedScoringTurnLimit) {
+                    game.totalTurns = currentTurnCount;
+                    if ((game.gameStatus as string) !== 'scoring' && (game.gameStatus as string) !== 'ended') {
+                        game.gameStatus = 'scoring';
+                        await db.saveGame(game);
+                        try {
+                            if (arenaUsesClientAuthoritativeScoringSnapshot(game)) {
+                                deferGetGameResultForScoringOverlay(game.id, 'blockExtraMoveOverTurnLimit');
+                            } else {
+                                await getGameResult(game);
+                            }
+                        } catch (e: any) {
+                            console.error(`[handleStandardAction] Failed to auto-trigger scoring while blocking extra move, game ${game.id}:`, e?.message);
+                        }
+                    }
+                    return { error: '정해진 수순이 모두 완료되어 더 이상 돌을 놓을 수 없습니다.' };
+                }
             }
 
             if (payload.clientSideAiMove) {

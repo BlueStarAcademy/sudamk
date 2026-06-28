@@ -1053,6 +1053,18 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     game.pausedTurnTimeLeft = undefined;
                 }
             }
+            const { maybeEnterPveAutoScoringAtTurnCap } = await import('./utils/pveAutoScoringTurnCap.js');
+            if (await maybeEnterPveAutoScoringAtTurnCap(game, 'requestServerAiMove-postSync')) {
+                updateGameCache(game);
+                await db.saveGame(game);
+                return {
+                    clientResponse: {
+                        serverAiMoveDone: false,
+                        skippedReason: 'AUTO_SCORING_TURN_CAP_REACHED',
+                        game,
+                    },
+                };
+            }
             const uid = userData.id;
             if (game.player1.id !== uid && game.player2.id !== uid) {
                 return { error: '해당 경기 참가자가 아닙니다.' };
