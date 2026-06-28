@@ -241,6 +241,31 @@ describe('championshipTournamentPreserve', () => {
         expect(tournament.currentSimulatingMatch).toBeNull();
     });
 
+    it('recoverStuckChampionshipRoundInProgress keeps generating match in round_in_progress', () => {
+        const state = mkState(
+            [{ id: 1, name: '8강', matches: [mkMatch('m1', { isFinished: false })] }],
+            { roundIndex: 0, matchIndex: 0 },
+        );
+        state.championshipMatchGeneratingMatchId = 'm1';
+        const { tournament, recovered } = recoverStuckChampionshipRoundInProgress(state, 'u1');
+        expect(recovered).toBe(false);
+        expect(tournament.status).toBe('round_in_progress');
+        expect(tournament.currentSimulatingMatch).toEqual({ roundIndex: 0, matchIndex: 0 });
+    });
+
+    it('prepareTournamentStateForMatchStart syncs while kata generation is in flight', () => {
+        const state = mkState(
+            [{ id: 1, name: '8강', matches: [mkMatch('m2', { isFinished: false })] }],
+            { roundIndex: 0, matchIndex: 0 },
+        );
+        state.status = 'round_in_progress';
+        state.championshipMatchGeneratingMatchId = 'm2';
+        const { tournament, shouldSyncOnly } = prepareTournamentStateForMatchStart(state, 'u1', 'm2');
+        expect(shouldSyncOnly).toBe(true);
+        expect(tournament.status).toBe('round_in_progress');
+        expect(tournament.championshipMatchGeneratingMatchId).toBe('m2');
+    });
+
     it('recoverStuckChampionshipRoundInProgress clears finished sim pointer to bracket_ready', () => {
         const state = mkState(
             [

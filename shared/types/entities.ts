@@ -382,6 +382,8 @@ export type TournamentState = {
     }>;
     dailyStageAttempts?: Record<number, number>; // 일일 단계별 시도 횟수 (리셋용)
     currentStageAttempt?: number; // 현재 진행 중인 단계
+    /** Kata 기보 생성 중인 유저 매치 id — 완료·실패 시 null */
+    championshipMatchGeneratingMatchId?: string | null;
     autoAdvanceEnabled?: boolean; // 첫 경기 시작 후 자동 진행 여부
     claimedRewardSummary?: {
         stage: number;

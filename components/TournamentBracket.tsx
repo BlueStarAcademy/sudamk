@@ -714,11 +714,13 @@ export const ChampionshipMatchResultPanel: React.FC<{
     );
 };
 
-/** 네이티브 셸 고정 패널: `Header` + 하단 독·광고(`ChampionshipVersusVenueArena`와 동일 계열) */
+const CHAMPIONSHIP_MOBILE_SIDEBAR_TAB_WIDTH = '2.75rem';
+const CHAMPIONSHIP_MOBILE_SIDEBAR_PANEL_WIDTH = 'min(22rem, calc(100vw - 2.75rem))';
 const CHAMPIONSHIP_MOBILE_OVERLAY_DRAWER_TOP =
     'calc(env(safe-area-inset-top, 0px) + clamp(3.5rem, calc(2.85rem + 2vw), 4.85rem))';
 const CHAMPIONSHIP_MOBILE_OVERLAY_DRAWER_BOTTOM = 'calc(env(safe-area-inset-bottom, 0px) + 7.5rem)';
-const CHAMPIONSHIP_MOBILE_SIDEBAR_OPEN_TAB_BOTTOM = 'calc(env(safe-area-inset-bottom, 0px) + 7.5rem + 0.25rem)';
+const championshipMobileSidebarToggleBtn =
+    'flex h-[2.75rem] min-w-[2.75rem] shrink-0 items-center justify-center rounded-l-lg rounded-r-none border-2 border-r-0 border-amber-200/75 bg-gradient-to-b from-amber-400/95 via-amber-600/92 to-slate-950 text-base font-black tracking-tight text-white shadow-[0_4px_18px_-4px_rgba(245,158,11,0.55),inset_0_1px_0_rgba(255,255,255,0.35)] ring-1 ring-amber-300/35 active:scale-[0.98]';
 
 const CHAMPIONSHIP_PHASE_META = [
     { key: 'opening' as const, labelKey: 'phases.opening', ply19: 1, ply13: 1, ply9: 1 },
@@ -5513,7 +5515,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         try {
             const res = (await Promise.resolve(
                 onAction({ type: 'START_TOURNAMENT_MATCH', payload: { type } }),
-            )) as { error?: string } | void;
+            )) as { error?: string; championshipMatchGenerating?: boolean; clientResponse?: { championshipMatchGenerating?: boolean } } | void;
             if (res?.error) {
                 championshipMatchStartLockRef.current = false;
                 setChampionshipAwaitingKataLoad(false);
@@ -6638,13 +6640,34 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             return;
         }
 
+        if (
+            championshipAwaitingKataLoad &&
+            (tournament?.status === 'bracket_ready' || tournament?.status === 'round_complete')
+        ) {
+            championshipMatchStartLockRef.current = false;
+            setChampionshipAwaitingKataLoad(false);
+            return;
+        }
+
         const timeoutId = window.setTimeout(() => {
             championshipMatchStartLockRef.current = false;
             setChampionshipAwaitingKataLoad(false);
-        }, 120000);
+        }, 300000);
 
         return () => window.clearTimeout(timeoutId);
     }, [championshipAwaitingKataLoad, safeRounds, tournament?.status]);
+
+    useEffect(() => {
+        if (tournament?.status !== 'round_in_progress') return;
+        const nextUserMatch = safeRounds.flatMap((r) => r.matches).find((m) => m.isUserMatch && !m.isFinished);
+        if (!nextUserMatch) return;
+        const generating =
+            tournament.championshipMatchGeneratingMatchId === nextUserMatch.id ||
+            !nextUserMatch.championshipRealGame?.moves?.length;
+        if (generating) {
+            setChampionshipAwaitingKataLoad(true);
+        }
+    }, [tournament?.status, tournament?.championshipMatchGeneratingMatchId, safeRounds]);
 
     // 유저의 다음 경기 찾기 (경기 시작 전 상태 확인용)
     const upcomingUserMatch = useMemo(() => {
@@ -6867,7 +6890,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         const vipOk = functionVipActive;
         const canClick = vipOk && championshipDungeonSkipUi.canAttempt;
         return (
-            <div className="flex flex-col items-center gap-0.5">
+            <div className={isMobile ? 'flex min-w-0 flex-[1.25] flex-1 basis-0 flex-col justify-center' : 'flex flex-col items-center gap-0.5'}>
                 <Button
                     type="button"
                     onClick={() => {
@@ -6876,7 +6899,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     }}
                     disabled={!canClick}
                     colorScheme="none"
-                    className={`${vipOk && canClick ? championshipFooterSecondaryButton : championshipFooterMutedButton} ${fb} ${!vipOk ? 'opacity-80' : ''}`}
+                    className={`${vipOk && canClick ? championshipFooterSecondaryButton : championshipFooterMutedButton} ${fb} ${isMobile ? '!w-full !min-w-[5.5rem]' : ''} ${!vipOk ? 'opacity-80' : ''}`}
                     title={
                         !vipOk
                             ? tt('vipSkipRequiresFunctionVip')
@@ -7240,7 +7263,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             !isMobile ? { intent: 'start' } : undefined,
         );
         if (!action) return null;
-        return <div className="flex flex-col items-center gap-0.5">{action}</div>;
+        return <div className={isMobile ? 'flex min-w-0 flex-1 basis-0 flex-col justify-center' : 'flex flex-col items-center gap-0.5'}>{action}</div>;
     };
     
     const isChampionshipMatchInProgress = tournament?.status === 'round_in_progress';
@@ -7262,8 +7285,11 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         </div>
     ) : null;
 
+    const mobileChampionshipToolbarBtn =
+        '!text-[10px] !py-1.5 !px-3 !w-full !flex-1 !min-w-0 !min-h-[2.25rem] whitespace-nowrap';
+
     const desktopNextMatchSlot = !isMobile ? renderChampionshipNextMatchFooterSlot('!text-sm !py-2 !px-4') : null;
-    const mobileNextMatchSlot = isMobile ? renderChampionshipNextMatchFooterSlot('!text-xs !py-1.5 !px-3') : null;
+    const mobileNextMatchSlot = isMobile ? renderChampionshipNextMatchFooterSlot(mobileChampionshipToolbarBtn) : null;
     const hasChampionshipStartOrNextMatchSlot = !!(desktopNextMatchSlot || mobileNextMatchSlot);
 
     const renderChampionshipSkipOrClaimSlot = (fb: string) => {
@@ -7284,7 +7310,8 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         if (!isDungeonChampionshipVenue || championshipFinished) return null;
         const noRealGame = !matchForDisplay?.championshipRealGame;
         if (!noRealGame) return null;
-        if (championshipAwaitingKataLoad) return 'players_entering';
+        if (championshipAwaitingKataLoad || tournament.championshipMatchGeneratingMatchId) return 'players_entering';
+        if (tournament.status === 'round_in_progress') return 'players_entering';
         if (tournament.status === 'bracket_ready' || tournament.status === 'round_complete') return 'deep_breath';
         return null;
     }, [
@@ -7292,6 +7319,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         championshipFinished,
         matchForDisplay?.championshipRealGame,
         tournament.status,
+        tournament.championshipMatchGeneratingMatchId,
         championshipAwaitingKataLoad,
     ]);
 
@@ -7354,12 +7382,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
     const mobileDungeonFooterStatusMessage = useMemo(() => {
         if (!isMobile || !isDungeonChampionshipVenue) return null;
-        if (championshipAwaitingKataLoad && !lastFinishedUserMatch) return null;
-        if (championshipAwaitingKataLoad) {
-            return (
-                <p className="mb-1.5 text-center text-[10px] font-bold leading-snug text-cyan-300">{tt('matchPreparing')}</p>
-            );
-        }
+        if (tournament.status === 'round_in_progress' || championshipAwaitingKataLoad) return null;
         if (autoNextCountdown !== null) {
             return (
                 <p className="mb-1.5 text-center text-[10px] font-bold leading-snug text-yellow-400">
@@ -7371,9 +7394,9 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     }, [
         isMobile,
         isDungeonChampionshipVenue,
+        tournament.status,
         championshipAwaitingKataLoad,
         autoNextCountdown,
-        lastFinishedUserMatch,
     ]);
 
     const dismissMobileChampionshipResultModal = useCallback(() => {
@@ -7424,17 +7447,17 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 aria-hidden={showChampionshipMatchResultPanel}
             >
                 <div className="flex min-h-[3.5rem] flex-1 items-center justify-center">
-                    {isChampionshipMatchInProgress ? (
+                    {isChampionshipMatchInProgress && !isDungeonChampionshipVenue ? (
                         <span
                             className={`text-center font-bold text-blue-400 ${isMobile ? 'text-xs leading-tight' : 'text-sm sm:text-base'}`}
                         >
                             {tt('matchInProgress')}
                         </span>
-                    ) : (
+                    ) : !isChampionshipMatchInProgress ? (
                         <span className={`text-center text-slate-500 ${isMobile ? 'text-[10px]' : 'text-xs'}`}>
                             경기 종료 후 결과가 표시됩니다
                         </span>
-                    )}
+                    ) : null}
                 </div>
                 {isMobile && !isDungeonChampionshipVenue && championshipResultPanelActionSlot ? (
                     <div className="mt-1.5 w-full shrink-0 border-t border-slate-600/40 pt-1.5">
@@ -7484,15 +7507,19 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             </Button>
         ) : null;
 
-    const mobileChampionshipSkipSlot = isMobile ? renderChampionshipSkipOrClaimSlot('!text-xs !py-1.5 !px-3') : null;
-    const mobileChampionshipSkipOnlySlot = isMobile ? renderChampionshipSkipButton('!text-xs !py-1.5 !px-3') : null;
+    const mobileChampionshipSkipSlot = isMobile
+        ? renderChampionshipSkipOrClaimSlot(`${mobileChampionshipToolbarBtn} !min-w-[5.5rem] !flex-[1.25]`)
+        : null;
+    const mobileChampionshipSkipOnlySlot = isMobile
+        ? renderChampionshipSkipButton(`${mobileChampionshipToolbarBtn} !min-w-[5.5rem] !flex-[1.25]`)
+        : null;
     const mobileChampionshipExitSlot =
         isMobile && championshipDungeonExitVisible ? (
             <Button
                 type="button"
                 onClick={handleChampionshipArenaExitClick}
                 colorScheme="none"
-                className={`${championshipFooterExitButton} !text-xs !py-1.5 !px-3`}
+                className={`${championshipFooterExitButton} ${mobileChampionshipToolbarBtn}`}
                                 title={
                     tournament.status === 'round_in_progress'
                         ? tt('canResumeFromLobby')
@@ -7556,7 +7583,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                         <div className={`text-center font-bold text-emerald-200 ${isMobile ? 'text-xs' : 'text-sm'}`}>
                             모든 경기가 종료되었습니다.
                         </div>
-                        <div className="flex w-full flex-wrap items-stretch justify-center gap-2">
+                        <div className={`flex w-full items-stretch gap-1.5 ${isMobile ? 'flex-nowrap' : 'flex-wrap justify-center gap-2'}`}>
                             {isMobile ? mobileNextMatchSlot : desktopNextMatchSlot}
                             {isMobile ? mobileChampionshipSkipSlot : desktopSkipSlot}
                             {isMobile ? mobileChampionshipExitSlot : desktopExitSlot}
@@ -7576,7 +7603,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                 다음 자동 대국을 준비 중입니다.
                             </div>
                         ) : null}
-                        <div className="flex w-full flex-wrap items-stretch justify-center gap-2">
+                        <div className={`flex w-full items-stretch gap-1.5 ${isMobile ? 'flex-nowrap' : 'flex-wrap justify-center gap-2'}`}>
                             {isMobile ? mobileNextMatchSlot : desktopNextMatchSlot}
                             {isMobile ? mobileChampionshipSkipSlot : desktopSkipSlot}
                             {isMobile ? mobileChampionshipExitSlot : desktopExitSlot}
@@ -7587,12 +7614,138 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         </section>
     );
 
-    /** 모바일 던전: 컴팩트 하단 툴바 (보상·결과는 모달, 경기 시작은 바둑판 중앙) */
-    const renderMobileChampionshipDungeonFooterButtonPanel = () => {
-        const mobileBtn = '!text-[10px] !py-2 !px-1 min-h-[2.25rem] w-full whitespace-nowrap';
+    /** 챔피언십 던전: 보상·스킵·나가기 툴바 (경기 시작은 바둑판 중앙). 모바일은 우측 사이드바 하단. */
+    const renderChampionshipDungeonFooterButtonPanel = (options?: { placement?: 'main' | 'sidebar' }) => {
+        const inMobileSidebar = isMobile && options?.placement === 'sidebar';
+        const dungeonBtn = isMobile
+            ? '!text-[10px] !py-2 !px-2.5 min-h-[2.25rem] flex-1 min-w-0 basis-0 whitespace-nowrap !w-full'
+            : '!text-xs !py-2 !px-2 min-h-[2.5rem] flex-1 min-w-0 basis-0 whitespace-nowrap';
+        const dungeonSkipBtn = isMobile ? `${dungeonBtn} !min-w-[5.5rem] !flex-[1.25]` : dungeonBtn;
         const skipVisible = Boolean(championshipDungeonSkipUi.visible && tournament);
         const vipOk = functionVipActive;
         const skipCanClick = vipOk && championshipDungeonSkipUi.canAttempt;
+
+        const stageAttempt = resolveDungeonStageAttempt(displayTournament, currentUser, displayTournament.type);
+        const rewardClaimedKey = `${displayTournament.type}RewardClaimed` as keyof User;
+        const isRewardClaimed = !!currentUser[rewardClaimedKey];
+        const canClaimDungeonReward =
+            isMobile &&
+            championshipFinished &&
+            !isRewardClaimed &&
+            !dungeonStageRewardRequested &&
+            stageAttempt >= 1;
+        const showDungeonRewardClaimedSlot =
+            isMobile &&
+            championshipFinished &&
+            (isRewardClaimed || dungeonStageRewardRequested) &&
+            stageAttempt >= 1;
+
+        const handleDungeonFooterRewardClaim = () => {
+            if (mobileRewardClaimBusy || !canClaimDungeonReward) return;
+            setMobileRewardClaimBusy(true);
+            audioService.claimReward();
+            handleCompleteDungeon();
+            setTimeout(() => setMobileRewardClaimBusy(false), 3000);
+        };
+
+        const middleFooterAction =
+            canClaimDungeonReward ? (
+                <Button
+                    type="button"
+                    bare
+                    onClick={handleDungeonFooterRewardClaim}
+                    disabled={mobileRewardClaimBusy}
+                    colorScheme="none"
+                    className={`${championshipFooterPrimaryButton} ${dungeonBtn}`}
+                >
+                    {mobileRewardClaimBusy ? tt('claiming') : tt('claimReward')}
+                </Button>
+            ) : showDungeonRewardClaimedSlot ? (
+                !isRewardClaimed ? (
+                    <Button
+                        type="button"
+                        bare
+                        onClick={() => {
+                            if (mobileRewardClaimBusy) return;
+                            setMobileRewardClaimBusy(true);
+                            handleCompleteDungeon();
+                            setTimeout(() => setMobileRewardClaimBusy(false), 3000);
+                        }}
+                        disabled={mobileRewardClaimBusy}
+                        colorScheme="none"
+                        className={`${championshipFooterPrimaryButton} ${dungeonBtn}`}
+                    >
+                        {mobileRewardClaimBusy ? tt('processing') : tt('rewardComplete')}
+                    </Button>
+                ) : (
+                    <div
+                        className={`flex items-center justify-center ${championshipFooterMutedButton} ${dungeonBtn}`}
+                    >
+                        보상완료
+                    </div>
+                )
+            ) : (
+                <Button
+                    type="button"
+                    bare
+                    onClick={() => {
+                        if (!skipCanClick || !tournament) return;
+                        onAction({ type: 'SKIP_CHAMPIONSHIP_MATCH', payload: { type: tournament.type } });
+                    }}
+                    disabled={!skipVisible || !skipCanClick}
+                    colorScheme="none"
+                    className={`${skipVisible && skipCanClick ? championshipFooterSecondaryButton : championshipFooterMutedButton} ${dungeonSkipBtn} ${!vipOk && skipVisible ? 'opacity-80' : ''}`}
+                    title={
+                        !skipVisible
+                            ? undefined
+                            : !vipOk
+                              ? tt('vipSkipRequiresFunctionVip')
+                              : !championshipDungeonSkipUi.canAttempt
+                                ? tt('preparingOpponentInfo')
+                                : tt('skipAllRoundsHint')
+                    }
+                >
+                    {tt('skipAll')}
+                </Button>
+            );
+
+        const rewardInfoButton = (
+            <button
+                type="button"
+                onClick={() => setShowMobileChampionshipRewardModal(true)}
+                className={`${championshipFooterSecondaryButton} ${dungeonBtn}`}
+            >
+                보상정보
+            </button>
+        );
+
+        const exitButton = (
+            <Button
+                type="button"
+                bare
+                onClick={handleChampionshipArenaExitClick}
+                colorScheme="none"
+                className={`${championshipFooterExitButton} ${dungeonBtn}`}
+                title={
+                    tournament.status === 'round_in_progress'
+                        ? tt('canResumeFromLobby')
+                        : tt('leaveArena')
+                }
+            >
+                {tt('exit')}
+            </Button>
+        );
+
+        const matchResultButton = (
+            <button
+                type="button"
+                onClick={() => setShowMobileChampionshipResultModal(true)}
+                disabled={!canReopenMobileChampionshipResultModal}
+                className={`${canReopenMobileChampionshipResultModal ? `${championshipFooterPrimaryButton} animate-pulse` : championshipFooterMutedButton} ${dungeonBtn} disabled:cursor-not-allowed disabled:opacity-50`}
+            >
+                {tt('matchResult')}
+            </button>
+        );
 
         return (
             <section className="w-full shrink-0 rounded-xl border border-cyan-400/30 bg-[#0c1018]/95 px-2 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
@@ -7601,8 +7754,8 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                         모든 경기가 종료되었습니다.
                     </p>
                 ) : null}
-                {mobileDungeonFooterStatusMessage}
-                {canReopenMobileChampionshipResultModal ? (
+                {isMobile ? mobileDungeonFooterStatusMessage : null}
+                {!inMobileSidebar && isMobile && canReopenMobileChampionshipResultModal ? (
                     <button
                         type="button"
                         onClick={() => setShowMobileChampionshipResultModal(true)}
@@ -7612,51 +7765,24 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     </button>
                 ) : null}
                 {championshipPlaybackSpeedSelector}
-                <div className="grid grid-cols-3 gap-1.5">
-                    <button
-                        type="button"
-                        onClick={() => setShowMobileChampionshipRewardModal(true)}
-                        className={`${championshipFooterSecondaryButton} ${mobileBtn}`}
-                    >
-                        보상정보
-                    </button>
-                    <Button
-                        type="button"
-                        bare
-                        onClick={() => {
-                            if (!skipCanClick || !tournament) return;
-                            onAction({ type: 'SKIP_CHAMPIONSHIP_MATCH', payload: { type: tournament.type } });
-                        }}
-                        disabled={!skipVisible || !skipCanClick}
-                        colorScheme="none"
-                        className={`${skipVisible && skipCanClick ? championshipFooterSecondaryButton : championshipFooterMutedButton} ${mobileBtn} ${!vipOk && skipVisible ? 'opacity-80' : ''}`}
-                        title={
-                            !skipVisible
-                                ? undefined
-                                : !vipOk
-                                  ? tt('vipSkipRequiresFunctionVip')
-                                  : !championshipDungeonSkipUi.canAttempt
-                                    ? tt('preparingOpponentInfo')
-                                    : tt('skipAllRoundsHint')
-                        }
-                    >
-                        {tt('skipAll')}
-                    </Button>
-                    <Button
-                        type="button"
-                        bare
-                        onClick={handleChampionshipArenaExitClick}
-                        colorScheme="none"
-                        className={`${championshipFooterExitButton} ${mobileBtn}`}
-                        title={
-                            tournament.status === 'round_in_progress'
-                                ? tt('canResumeFromLobby')
-                                : tt('leaveArena')
-                        }
-                    >
-                        {tt('exit')}
-                    </Button>
-                </div>
+                {inMobileSidebar ? (
+                    <div className="flex w-full flex-col gap-1.5">
+                        <div className="flex w-full flex-nowrap items-stretch gap-1.5">
+                            {rewardInfoButton}
+                            {middleFooterAction}
+                        </div>
+                        <div className="flex w-full flex-nowrap items-stretch gap-1.5">
+                            {matchResultButton}
+                            {exitButton}
+                        </div>
+                    </div>
+                ) : (
+                    <div className="flex w-full flex-nowrap items-stretch gap-1.5">
+                        {rewardInfoButton}
+                        {middleFooterAction}
+                        {exitButton}
+                    </div>
+                )}
             </section>
         );
     };
@@ -7806,10 +7932,17 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
     const sgfShowLastMoveOnly = !isSimulating && (tournament.status === 'round_complete' || tournament.status === 'complete' || tournament.status === 'eliminated');
 
-    const renderSidebarContent = (compact: boolean) => (
+    const renderSidebarContent = (compact: boolean, options?: { stackWithMobileFooter?: boolean }) => (
         <div
-            className={`h-full w-full flex flex-col rounded-2xl bg-gradient-to-b from-[#1b2230] via-[#0d121c] to-[#05070b] ring-1 ring-inset ring-slate-500/20 ${compact ? 'gap-1 p-1' : 'gap-2 p-2'}`}
-            style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}
+            className={`${compact && options?.stackWithMobileFooter ? 'min-h-0 flex-1' : 'h-full'} w-full flex flex-col rounded-2xl bg-gradient-to-b from-[#1b2230] via-[#0d121c] to-[#05070b] ring-1 ring-inset ring-slate-500/20 ${compact ? 'gap-1 p-1' : 'gap-2 p-2'}`}
+            style={{
+                height: compact && options?.stackWithMobileFooter ? undefined : '100%',
+                width: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                minHeight: 0,
+                overflow: 'hidden',
+            }}
         >
             <div
                 className={`shrink-0 rounded-xl border border-amber-400/45 bg-gradient-to-br from-[#3a2810] via-[#1c2330] to-[#07090d] shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_14px_36px_-18px_rgba(0,0,0,0.85)] ring-1 ring-inset ring-amber-300/18 ${compact ? 'p-2' : 'p-3'}`}
@@ -8163,10 +8296,10 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     const championshipBoardHostClipClass = 'overflow-hidden';
 
     const championshipFooterControls = (
-        <div className="flex-shrink-0 w-full flex flex-col gap-1">
+            <div className="flex-shrink-0 w-full flex flex-col gap-1">
             <div className="rounded-2xl border border-amber-400/25 bg-gradient-to-b from-[#2a3d56] via-[#141c2b] to-[#070a10] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_18px_52px_-18px_rgba(0,0,0,0.96)] ring-1 ring-inset ring-amber-300/12">
-                {isMobile && isDungeonChampionshipVenue ? (
-                    renderMobileChampionshipDungeonFooterButtonPanel()
+                {isDungeonChampionshipVenue ? (
+                    renderChampionshipDungeonFooterButtonPanel()
                 ) : (
                     <div
                         className={`grid min-h-[136px] gap-2 overflow-hidden ${
@@ -8532,7 +8665,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 {mobileChampionshipScoreCountdownRow}
                 {mobileChampionshipBoardSection}
                 {isDungeonChampionshipVenue ? (
-                    championshipFooterControls
+                    !isMobile ? championshipFooterControls : null
                 ) : (
                     <>
                         <div className="w-full shrink-0 min-h-0 max-h-[min(30vh,280px)] overflow-y-auto overflow-x-hidden">
@@ -8765,8 +8898,66 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 }}
                 aria-hidden
             />
-            <div className={`relative z-10 flex min-h-0 flex-1 flex-row gap-2 ${championshipBoardHostClipClass}`}>
-                {isMobile ? mobileChampionshipMainGameRoom : championshipMainGameRoom}
+            <div className={`relative z-10 flex min-h-0 min-w-0 flex-1 flex-row gap-2 ${championshipBoardHostClipClass}`}>
+                <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                    {isMobile ? mobileChampionshipMainGameRoom : championshipMainGameRoom}
+
+                    {isMobile && (
+                        <>
+                            <div
+                                className="fixed right-0 z-50 flex flex-row items-stretch transition-transform duration-300 ease-in-out"
+                                style={{
+                                    top: CHAMPIONSHIP_MOBILE_OVERLAY_DRAWER_TOP,
+                                    bottom: CHAMPIONSHIP_MOBILE_OVERLAY_DRAWER_BOTTOM,
+                                    transform: isMobileSidebarOpen
+                                        ? 'translateX(0)'
+                                        : `translateX(calc(100% - ${CHAMPIONSHIP_MOBILE_SIDEBAR_TAB_WIDTH}))`,
+                                }}
+                            >
+                                <button
+                                    type="button"
+                                    onClick={() => setIsMobileSidebarOpen((prev) => !prev)}
+                                    className={`${championshipMobileSidebarToggleBtn} self-end mb-[max(0.35rem,env(safe-area-inset-bottom,0px))]`}
+                                    aria-label={isMobileSidebarOpen ? i18n.t('common:actions.close') : tt('openRightPanel')}
+                                    title={isMobileSidebarOpen ? i18n.t('common:actions.close') : tt('openRightPanel')}
+                                >
+                                    {isMobileSidebarOpen ? '>>' : '<<'}
+                                </button>
+                                <div
+                                    className="flex min-h-0 flex-col overflow-hidden border-l border-amber-500/38 bg-gradient-to-b from-[#222b3b] via-[#111827] to-[#050608] shadow-2xl"
+                                    style={{ width: CHAMPIONSHIP_MOBILE_SIDEBAR_PANEL_WIDTH }}
+                                >
+                                    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden p-1">
+                                        <span className="sr-only">{tt('sidebarExtraPanel')}</span>
+                                        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                                            {renderSidebarContent(true, {
+                                                stackWithMobileFooter: isDungeonChampionshipVenue,
+                                            })}
+                                        </div>
+                                        {isDungeonChampionshipVenue ? (
+                                            <div className="shrink-0 border-t border-white/10 pt-1.5">
+                                                {renderChampionshipDungeonFooterButtonPanel({ placement: 'sidebar' })}
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                </div>
+                            </div>
+                            {isMobileSidebarOpen && (
+                                <div
+                                    className="fixed z-40 bg-black/60"
+                                    style={{
+                                        top: CHAMPIONSHIP_MOBILE_OVERLAY_DRAWER_TOP,
+                                        bottom: CHAMPIONSHIP_MOBILE_OVERLAY_DRAWER_BOTTOM,
+                                        left: 0,
+                                        right: 0,
+                                    }}
+                                    onClick={() => setIsMobileSidebarOpen(false)}
+                                    aria-hidden
+                                />
+                            )}
+                        </>
+                    )}
+                </div>
 
                 {!isMobile && (
                     <div
@@ -8789,48 +8980,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                         />
                     </div>
                 )}
-
-                {isMobile && (
-                    <>
-                        <div
-                            className={`fixed right-0 z-50 flex w-[280px] flex-col overflow-hidden bg-gradient-to-b from-[#222b3b] via-[#111827] to-[#050608] shadow-2xl transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}
-                            style={{
-                                top: CHAMPIONSHIP_MOBILE_OVERLAY_DRAWER_TOP,
-                                bottom: CHAMPIONSHIP_MOBILE_OVERLAY_DRAWER_BOTTOM,
-                            }}
-                        >
-                            <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
-                                <div className="flex shrink-0 items-center justify-end border-b border-slate-700 bg-slate-950 px-3 py-2">
-                                    <span className="sr-only">{tt('sidebarExtraPanel')}</span>
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsMobileSidebarOpen(false)}
-                                        className="rounded-md border border-slate-600 px-2 py-1 text-xs text-slate-200"
-                                    >
-                                        닫기
-                                    </button>
-                                </div>
-                                {renderSidebarContent(true)}
-                            </div>
-                        </div>
-                        {isMobileSidebarOpen && <div className="fixed inset-0 z-40 bg-black/60" onClick={() => setIsMobileSidebarOpen(false)} />}
-                    </>
-                )}
             </div>
-
-            {isMobile && !isMobileSidebarOpen && (
-                <button
-                    type="button"
-                    onClick={() => setIsMobileSidebarOpen(true)}
-                    className="fixed right-0 z-30 flex h-[6.25rem] w-[2.65rem] flex-col items-center justify-center gap-1 rounded-l-2xl border-2 border-r-0 border-amber-200/75 bg-gradient-to-b from-amber-400/95 via-amber-600/92 to-slate-950 text-white shadow-[0_6px_28px_-4px_rgba(245,158,11,0.55),inset_0_1px_0_rgba(255,255,255,0.35)] ring-2 ring-amber-300/35 active:translate-x-0.5"
-                    style={{ bottom: CHAMPIONSHIP_MOBILE_SIDEBAR_OPEN_TAB_BOTTOM }}
-                    aria-label={tt('openRightPanel')}
-                    title={tt('openRightPanel')}
-                >
-                    <span className="text-2xl font-black leading-none tracking-tight text-white drop-shadow-md">‹</span>
-                    <span className="h-8 w-1 rounded-full bg-white/90 shadow-[0_0_8px_rgba(255,255,255,0.55)]" aria-hidden />
-                </button>
-            )}
 
             {showConditionPotionModal && userPlayer && tournament && canUseConditionPotion && (
                 <ConditionPotionModal
@@ -8882,7 +9032,6 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     document.body
                 )}
             {showMobileChampionshipRewardModal &&
-                isMobile &&
                 isDungeonChampionshipVenue &&
                 typeof document !== 'undefined' &&
                 createPortal(
@@ -8925,7 +9074,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                     dungeonRewardAlreadyRequested={dungeonStageRewardRequested}
                                     onDungeonRewardRequested={() => setDungeonStageRewardRequested(true)}
                                     onOpenRewardHistory={handleOpenRewardHistory}
-                                    layoutVariant="mobileTab"
+                                    layoutVariant={isMobile ? 'mobileTab' : 'sidebar'}
                                     suppressBottomActions
                                     suppressClaimActions
                                     suppressSideActionButtons

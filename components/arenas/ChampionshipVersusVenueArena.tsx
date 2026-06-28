@@ -41,7 +41,7 @@ import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
 import { ChampionshipAbilityPlayerPanel, ChampionshipRealGoBoard } from '../TournamentBracket.js';
 import GameSummaryModal from '../GameSummaryModal.js';
 import ConditionPotionModal from '../ConditionPotionModal.js';
-import { buildChampionshipVersusKataSummarySession, type VersusKataActorRewardClientPayload } from '../../utils/buildChampionshipVersusKataSummarySession.js';
+import { buildChampionshipVersusKataSummarySession, type VersusKataActorRewardClientPayload, type VersusKataSummaryRosterInput } from '../../utils/buildChampionshipVersusKataSummarySession.js';
 import { CHAMPIONSHIP_VERSUS_VENUE_USE_LIVE_OPPONENT_LIST } from './championshipVersusVenueUiConfig.js';
 import ChampionshipVersusDuelHistoryModal from '../ChampionshipVersusDuelHistoryModal.js';
 import { resourceIcons, specialResourceIcons } from '../resourceIcons.js';
@@ -129,12 +129,12 @@ const championshipFooterMutedButton = `${championshipFooterButtonBase} border-sl
 const championshipVersusStartMatchButtonFooterClass = `${championshipFooterPrimaryButton} !flex min-h-[42px] w-[10.5rem] shrink-0 items-center justify-center !px-3 !py-2.5 sm:min-h-[44px] sm:w-[11.5rem]`;
 const championshipVersusExitButtonFooterClass = `${championshipFooterButtonBase} !flex min-h-[42px] w-[6.5rem] shrink-0 items-center justify-center border-rose-400/45 bg-gradient-to-b from-rose-600/88 via-rose-800/90 to-rose-950/95 !px-3 !py-2.5 text-rose-50 hover:brightness-110 focus-visible:ring-rose-400/55 sm:min-h-[44px] sm:w-[7rem]`;
 
-/** 네이티브 셸 고정 패널: `Header` 모바일 min-h(`clamp(3.5rem,…,4.85rem)`)와 동일 계열 */
+const VERSUS_MOBILE_SIDEBAR_TAB_WIDTH = '2.75rem';
+const VERSUS_MOBILE_SIDEBAR_PANEL_WIDTH = 'min(22rem, calc(100vw - 2.75rem))';
 const VERSUS_MOBILE_DRAWER_TOP = 'calc(env(safe-area-inset-top, 0px) + clamp(3.5rem, calc(2.85rem + 2vw), 4.85rem))';
-/** `NativeMobileDock`(h-11+테두리) + 하단 광고(~50px)·여유 — 하단 독·광고에 가리지 않도록 */
 const VERSUS_MOBILE_DRAWER_BOTTOM = 'calc(env(safe-area-inset-bottom, 0px) + 7.5rem)';
-/** 모바일 사이드 열기 탭: 퀵 독 바로 위(드로어 하단 inset + 소간격) */
-const VERSUS_MOBILE_SIDEBAR_OPEN_TAB_BOTTOM = 'calc(env(safe-area-inset-bottom, 0px) + 7.5rem + 0.25rem)';
+const versusMobileSidebarToggleBtn =
+    'flex h-[2.75rem] min-w-[2.75rem] shrink-0 items-center justify-center rounded-l-lg rounded-r-none border-2 border-r-0 border-amber-200/75 bg-gradient-to-b from-amber-400/95 via-amber-600/92 to-slate-950 text-base font-black tracking-tight text-white shadow-[0_4px_18px_-4px_rgba(245,158,11,0.55),inset_0_1px_0_rgba(255,255,255,0.35)] ring-1 ring-amber-300/35 active:scale-[0.98]';
 
 function resolveVersusPetPortraitPublicUrl(image: string | null | undefined, templateId?: string | null): string | null {
     if (typeof image === 'string' && image.trim().length > 0) return resolvePublicUrl(image);
@@ -473,6 +473,30 @@ function opponentRowToTournamentPlayer(row: OpponentRow, venue: ChampionshipVers
         losses: row.losses,
         /** 실제 값은 결투 시 서버 스냅샷으로만 확정 — 목록에서는 미표시 */
         condition: 1000,
+    };
+}
+
+function buildVersusKataSummaryRosterInput(
+    actor: UserWithStatus,
+    opponent: OpponentRow,
+): VersusKataSummaryRosterInput {
+    const actorUserLevel = Math.max(1, Math.floor(Number(actor.userLevel) || 1));
+    const opponentUserLevel = Math.max(1, Math.floor(Number(opponent.userLevel) || 1));
+    const actorPetRow = getEquippedPairPetInventoryRow(actor);
+    const actorPetLevel = actorPetRow ? resolvePairPetMetaFromInventoryRow(actorPetRow).level : undefined;
+    const opponentPetLevel =
+        typeof opponent.representativePet?.level === 'number' &&
+        Number.isFinite(opponent.representativePet.level) &&
+        opponent.representativePet.level >= 1
+            ? Math.floor(opponent.representativePet.level)
+            : undefined;
+    return {
+        actorUserId: actor.id,
+        actorUserLevel,
+        actorPetLevel,
+        opponentUserId: opponent.userId,
+        opponentUserLevel,
+        opponentPetLevel,
     };
 }
 
@@ -1092,6 +1116,10 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                         actorVenueRatingDelta: payload?.actorVenueRatingDelta ?? 0,
                         champCoinsDelta: payload?.champCoinsDelta ?? 0,
                         rewards,
+                        roster:
+                            selectedRowRef.current != null
+                                ? buildVersusKataSummaryRosterInput(cu, selectedRowRef.current)
+                                : undefined,
                     }),
                 );
                 if (pendingUserUpdate && pendingUserUpdate.id === cu.id) {
@@ -1480,6 +1508,8 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
         if (!selectedId || opponents.length === 0) return null;
         return opponents.find((o) => o.userId === selectedId) ?? null;
     }, [opponents, selectedId]);
+    const selectedRowRef = React.useRef(selectedRow);
+    selectedRowRef.current = selectedRow;
 
     /** 상대만 바꿀 때는 직전 대국 판면을 유지한다. 초기화는 `runVersusKataDuel` 시작 또는 경기장(`venue`) 변경 시에만 수행한다. */
     React.useEffect(() => {
@@ -1632,11 +1662,6 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
         ],
     );
     const versusPanelScoreKind = versusPanelScores?.kind ?? null;
-
-    React.useEffect(() => {
-        if (!isMobile) return;
-        if (versusMobileSessionActive) setIsMobileSidebarOpen(false);
-    }, [isMobile, versusMobileSessionActive]);
 
     const versusBoardCenterMode =
         matchForBoard?.championshipRealGame != null ? null : kataBusy ? ('players_entering' as const) : null;
@@ -1923,6 +1948,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                             actorVenueRatingDelta: resultPayload.actorVenueRatingDelta,
                             champCoinsDelta: resultPayload.champCoinsDelta,
                             rewards: resultPayload.rewards,
+                            roster: buildVersusKataSummaryRosterInput(cu, selectedRow),
                         }),
                     );
                     const pendingUserUpdate = versusKataPendingUserUpdateRef.current;
@@ -2116,6 +2142,127 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
         (CHAMPIONSHIP_VERSUS_VENUE_USE_LIVE_OPPONENT_LIST &&
             Boolean(selectedRow && beatenOpponentIds.includes(selectedRow.userId)));
 
+    const versusMobileOpponentActionBtn =
+        '!flex !min-h-[2.75rem] !flex-1 !min-w-0 !basis-0 !items-center !justify-center gap-1 !rounded-lg !px-2 !py-2.5 !text-[10px] !font-bold !leading-snug';
+
+    const renderVersusStartMatchButton = (className: string, compact = false) => (
+        <Button
+            type="button"
+            bare
+            onClick={() => {
+                openVersusKataDuelStartFlow();
+            }}
+            disabled={versusStartMatchDisabled}
+            colorScheme="none"
+            className={className}
+        >
+            {kataBusy ? (
+                <span className="inline-flex items-center gap-1.5">
+                    <span className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-emerald-950/30 border-t-emerald-950" />
+                    {tCv('startMatch')}
+                </span>
+            ) : compact ? (
+                <span className="inline-flex min-w-0 flex-col items-center gap-0.5 leading-none">
+                    <span className="inline-flex items-center gap-0.5">
+                        <img
+                            src={CHAMPIONSHIP_VERSUS_ENTRY_TICKET_IMAGE[venue]}
+                            alt=""
+                            className="h-3 w-3 shrink-0 object-contain"
+                        />
+                        <span className="text-[10px] font-black tabular-nums">
+                            {duelTickets}/{CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX}
+                        </span>
+                    </span>
+                    <span>{tCv('startMatch')}</span>
+                </span>
+            ) : (
+                <span className="inline-flex flex-col items-center gap-0.5 sm:flex-row sm:gap-2">
+                    <span className="inline-flex items-center gap-1 leading-none">
+                        <img
+                            src={CHAMPIONSHIP_VERSUS_ENTRY_TICKET_IMAGE[venue]}
+                            alt=""
+                            className="h-3.5 w-3.5 shrink-0 object-contain"
+                        />
+                        <span className="text-[11px] font-black tabular-nums sm:text-xs">
+                            {duelTickets}/{CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX}
+                        </span>
+                        <ChampionshipVersusDuelTicketCountdown
+                            current={duelTickets}
+                            max={CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX}
+                            nextAt={duelTicketNextAt}
+                            className="text-[9px] font-mono font-bold tabular-nums text-emerald-950/80"
+                        />
+                    </span>
+                    <span>{tCv('startMatch')}</span>
+                </span>
+            )}
+        </Button>
+    );
+
+    const renderVersusSkipReplayButton = (
+        className: string,
+        options?: { alwaysVisible?: boolean; showVipHint?: boolean },
+    ) => {
+        const skipCanUse = functionVipActive && versusReplayActive;
+        const skipVisible = versusReplayActive || options?.alwaysVisible;
+        if (!skipVisible) return null;
+        return (
+            <div className={options?.alwaysVisible ? 'flex min-w-0 flex-[1.25] flex-1 basis-0 flex-col justify-center' : 'flex flex-col items-center gap-0.5'}>
+                <Button
+                    type="button"
+                    bare
+                    onClick={skipVersusKataReplay}
+                    disabled={!skipCanUse}
+                    colorScheme="none"
+                    className={`${skipCanUse ? championshipFooterSecondaryButton : championshipFooterMutedButton} ${className} ${options?.alwaysVisible ? '!w-full' : ''} ${!functionVipActive ? 'opacity-80' : ''}`}
+                    title={functionVipActive ? tCv('skipReplayHint') : tTournament('vipSkipRequiresFunctionVip')}
+                >
+                    {tCv('skipReplay')}
+                </Button>
+                {!functionVipActive && options?.showVipHint !== false ? (
+                    <span className="max-w-[10rem] text-center text-[10px] font-semibold leading-tight text-amber-400">
+                        {tTournament('vipSkipRequiresFunctionVip')}
+                    </span>
+                ) : null}
+            </div>
+        );
+    };
+
+    const renderVersusRefreshOpponentsButton = (className: string, compact = false) => (
+        <Button
+            type="button"
+            colorScheme="none"
+            disabled={loading || versusMobileSessionActive}
+            onClick={() => void refreshOpponents({ force: true })}
+            className={className}
+        >
+            <span className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border border-amber-300/40 text-[9px] leading-none text-amber-200">
+                ↻
+            </span>
+            <span>{tCommon('actions.refresh')}</span>
+            {!compact && !CHAMPIONSHIP_VERSUS_VENUE_USE_LIVE_OPPONENT_LIST ? (
+                <span className="tabular-nums text-amber-200/80">
+                    ({CHAMPIONSHIP_VERSUS_OPP_REFRESH_FREE_PER_DAY}/{CHAMPIONSHIP_VERSUS_OPP_REFRESH_FREE_PER_DAY})
+                </span>
+            ) : !compact && oppRefreshUsesDiamond ? (
+                <span className="flex items-center gap-1 font-mono tabular-nums text-sky-200/95">
+                    <img src={resourceIcons.diamonds} alt="" className="h-3.5 w-3.5 object-contain" />
+                    {CHAMPIONSHIP_VERSUS_OPP_REFRESH_DIAMONDS}
+                </span>
+            ) : !compact ? (
+                <span className="tabular-nums text-amber-200/85">
+                    ({oppRefreshFreeRemaining}/{CHAMPIONSHIP_VERSUS_OPP_REFRESH_FREE_PER_DAY})
+                </span>
+            ) : null}
+        </Button>
+    );
+
+    const showVersusStartInMatchControl = true;
+    const versusMatchControlButtonsOneRow = true;
+    const versusSidebarToolbarBtn =
+        '!flex !min-h-[2.35rem] !w-full !flex-1 !min-w-0 !basis-0 !items-center !justify-center !px-2.5 !py-2 !text-[10px] !font-bold !whitespace-nowrap';
+    const versusSkipToolbarBtn = `${versusSidebarToolbarBtn} !flex-[1.25] !min-w-[5.5rem]`;
+
     const versusChampionshipPlaybackSpeedSelector = (
         <div className="mb-1.5 flex flex-wrap items-center justify-center gap-1.5">
             <span className="text-[10px] font-semibold tracking-wider text-cyan-100">{tCv('playbackSpeed')}</span>
@@ -2143,98 +2290,62 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
 
     const versusChampionshipBoardFooterPanel = (
         <section
-            className={`flex min-h-0 flex-col justify-center rounded-2xl border border-cyan-400/35 bg-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_16px_36px_-24px_rgba(0,0,0,0.95)] ring-1 ring-inset ring-cyan-400/20 ${
+            className={`flex min-h-0 w-full flex-col justify-center rounded-2xl border border-cyan-400/35 bg-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_16px_36px_-24px_rgba(0,0,0,0.95)] ring-1 ring-inset ring-cyan-400/20 ${
                 isMobile
                     ? 'bg-gradient-to-br from-[#2a3d56] via-[#141c2b] to-[#070a10] p-2'
-                    : 'bg-gradient-to-br from-[#2a3d56] via-[#141c2b] to-[#070a10] p-2.5'
+                    : 'bg-gradient-to-br from-[#2a3d56] via-[#141c2b] to-[#070a10] p-2'
             }`}
             aria-label={tCv('matchControlAria')}
         >
             <div
-                className={`text-center font-black tracking-[0.22em] text-cyan-100 ${isMobile ? 'mb-1 text-[9px]' : 'mb-1.5 text-[10px]'}`}
+                className={`text-center font-black tracking-[0.22em] text-cyan-100 ${isMobile ? 'mb-1 text-[9px]' : 'mb-1 text-[9px]'}`}
             >
                 MATCH CONTROL
             </div>
             <div
-                className={`flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-600/50 bg-[#0c1018] shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ${
-                    isMobile ? 'min-h-0 px-2 py-2' : 'min-h-[3.7rem] px-2.5 py-2.5'
+                className={`flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-slate-600/50 bg-[#0c1018] shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ${
+                    isMobile ? 'min-h-0 px-2 py-2' : 'min-h-0 px-2 py-2'
                 }`}
             >
                 {versusChampionshipPlaybackSpeedSelector}
-                <div className="flex flex-wrap items-center justify-center gap-2">
-                    {versusReplayActive ? (
-                        <div className="flex flex-col items-center gap-0.5">
-                            <Button
-                                type="button"
-                                bare
-                                onClick={skipVersusKataReplay}
-                                disabled={!functionVipActive}
-                                colorScheme="none"
-                                className={`${functionVipActive ? championshipFooterSecondaryButton : championshipFooterMutedButton} !flex min-h-[42px] w-[6.5rem] shrink-0 items-center justify-center !px-3 !py-2.5 sm:min-h-[44px] sm:w-[7rem] ${!functionVipActive ? 'opacity-80' : ''}`}
-                                title={
-                                    functionVipActive ? tCv('skipReplayHint') : tTournament('vipSkipRequiresFunctionVip')
-                                }
-                            >
-                                {tCv('skipReplay')}
-                            </Button>
-                            {!functionVipActive ? (
-                                <span className="max-w-[10rem] text-center text-[10px] font-semibold leading-tight text-amber-400">
-                                    {tTournament('vipSkipRequiresFunctionVip')}
-                                </span>
-                            ) : null}
-                        </div>
-                    ) : null}
-                    <Button
-                        type="button"
-                        bare
-                        onClick={() => {
-                            openVersusKataDuelStartFlow();
-                        }}
-                        disabled={versusStartMatchDisabled}
-                        colorScheme="none"
-                        className={championshipVersusStartMatchButtonFooterClass}
-                    >
-                        {kataBusy ? (
-                            <span className="inline-flex items-center gap-2">
-                                <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-emerald-950/30 border-t-emerald-950" />
-                                {tCv('startMatch')}
-                            </span>
-                        ) : (
-                            <span className="inline-flex flex-col items-center gap-0.5 sm:flex-row sm:gap-2">
-                                <span className="inline-flex items-center gap-1 leading-none">
-                                    <img
-                                        src={CHAMPIONSHIP_VERSUS_ENTRY_TICKET_IMAGE[venue]}
-                                        alt=""
-                                        className="h-3.5 w-3.5 shrink-0 object-contain"
-                                    />
-                                    <span className="text-[11px] font-black tabular-nums sm:text-xs">
-                                        {duelTickets}/{CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX}
-                                    </span>
-                                    <ChampionshipVersusDuelTicketCountdown
-                                        current={duelTickets}
-                                        max={CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX}
-                                        nextAt={duelTicketNextAt}
-                                        className="text-[9px] font-mono font-bold tabular-nums text-emerald-950/80"
-                                    />
-                                </span>
-                                <span>{tCv('startMatch')}</span>
-                            </span>
-                        )}
-                    </Button>
+                <div
+                    className={
+                        versusMatchControlButtonsOneRow
+                            ? 'flex w-full flex-nowrap items-stretch gap-1.5'
+                            : 'flex flex-wrap items-center justify-center gap-2'
+                    }
+                >
+                    {renderVersusSkipReplayButton(
+                        versusMatchControlButtonsOneRow
+                            ? versusSkipToolbarBtn
+                            : '!flex min-h-[42px] w-[7.5rem] shrink-0 items-center justify-center !px-3 !py-2.5 sm:min-h-[44px] sm:w-[8rem]',
+                        {
+                            alwaysVisible: versusMatchControlButtonsOneRow,
+                            showVipHint: !versusMatchControlButtonsOneRow,
+                        },
+                    )}
+                    {showVersusStartInMatchControl
+                        ? renderVersusStartMatchButton(
+                              versusMatchControlButtonsOneRow
+                                  ? `${championshipFooterPrimaryButton} ${versusSidebarToolbarBtn}`
+                                  : championshipVersusStartMatchButtonFooterClass,
+                              versusMatchControlButtonsOneRow,
+                          )
+                        : null}
                     <button
                         type="button"
                         onClick={() => replaceAppHash('#/tournament')}
-                        className={championshipVersusExitButtonFooterClass}
+                        className={
+                            versusMatchControlButtonsOneRow
+                                ? `${championshipVersusExitButtonFooterClass} ${versusSidebarToolbarBtn}`
+                                : championshipVersusExitButtonFooterClass
+                        }
                     >
                         {tCv('exit')}
                     </button>
                 </div>
             </div>
         </section>
-    );
-
-    const versusChampionshipFooterControls = (
-        <div className="w-full shrink-0 px-1 pb-1 pt-0.5 lg:px-0 lg:pb-0">{versusChampionshipBoardFooterPanel}</div>
     );
 
     /** 우측 사이드바 상단: 시즌·내 정보·티어·점수·승패 코인 */
@@ -2403,7 +2514,6 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                         </div>
                     </div>
                 </div>
-                {versusChampionshipFooterControls}
             </div>
         </main>
     );
@@ -2667,9 +2777,6 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                 {mobileChampionshipAbilityRow}
                 {mobileChampionshipScoreCountdownRow}
                 {mobileChampionshipBoardSection}
-                <div className="w-full shrink-0 min-h-0 max-h-[min(30vh,280px)] overflow-y-auto overflow-x-hidden pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]">
-                    {versusChampionshipBoardFooterPanel}
-                </div>
             </div>
         </main>
     );
@@ -2816,37 +2923,18 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                         )}
 
                         <div className="mt-2 flex w-full shrink-0 justify-center border-t border-white/10 pt-2">
-                            <Button
-                                type="button"
-                                colorScheme="none"
-                                disabled={loading || disableOpponentControls}
-                                onClick={() => void refreshOpponents({ force: true })}
-                                className="!flex !w-auto !min-w-[8.5rem] !max-w-[11.5rem] !items-center !justify-center gap-1.5 !rounded-lg !border !border-amber-400/45 !bg-gradient-to-b !from-slate-600 !via-slate-900 !to-black !px-4 !py-3 !text-[11px] !font-bold !leading-snug !text-amber-50 !shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_6px_20px_-12px_rgba(0,0,0,0.85)] !ring-1 !ring-inset !ring-white/10 transition hover:!border-amber-300/60 hover:!brightness-110 active:!scale-[0.99] disabled:!opacity-45 sm:!min-h-[44px] sm:!text-xs"
-                            >
-                                <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border border-amber-300/40 text-[9px] leading-none text-amber-200">
-                                    ↻
-                                </span>
-                                <span>{tCommon('actions.refresh')}</span>
-                                {!CHAMPIONSHIP_VERSUS_VENUE_USE_LIVE_OPPONENT_LIST ? (
-                                    <span className="tabular-nums text-amber-200/80">
-                                        ({CHAMPIONSHIP_VERSUS_OPP_REFRESH_FREE_PER_DAY}/{CHAMPIONSHIP_VERSUS_OPP_REFRESH_FREE_PER_DAY})
-                                    </span>
-                                ) : oppRefreshUsesDiamond ? (
-                                    <span className="flex items-center gap-1 font-mono tabular-nums text-sky-200/95">
-                                        <img src={resourceIcons.diamonds} alt="" className="h-3.5 w-3.5 object-contain" />
-                                        {CHAMPIONSHIP_VERSUS_OPP_REFRESH_DIAMONDS}
-                                    </span>
-                                ) : (
-                                    <span className="tabular-nums text-amber-200/85">
-                                        ({oppRefreshFreeRemaining}/{CHAMPIONSHIP_VERSUS_OPP_REFRESH_FREE_PER_DAY})
-                                    </span>
-                                )}
-                            </Button>
+                            {renderVersusRefreshOpponentsButton(
+                                isMobile
+                                    ? `${versusMobileOpponentActionBtn} !border !border-amber-400/45 !bg-gradient-to-b !from-slate-600 !via-slate-900 !to-black !text-amber-50 !shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_6px_20px_-12px_rgba(0,0,0,0.85)] !ring-1 !ring-inset !ring-white/10 transition hover:!border-amber-300/60 hover:!brightness-110 active:!scale-[0.99] disabled:!opacity-45`
+                                    : '!flex !w-auto !min-w-[8.5rem] !max-w-[11.5rem] !items-center !justify-center gap-1.5 !rounded-lg !border !border-amber-400/45 !bg-gradient-to-b !from-slate-600 !via-slate-900 !to-black !px-4 !py-3 !text-[11px] !font-bold !leading-snug !text-amber-50 !shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_6px_20px_-12px_rgba(0,0,0,0.85)] !ring-1 !ring-inset !ring-white/10 transition hover:!border-amber-300/60 hover:!brightness-110 active:!scale-[0.99] disabled:!opacity-45 sm:!min-h-[44px] sm:!text-xs',
+                                isMobile,
+                            )}
                         </div>
                     </div>
                 </div>
             </div>
 
+            <div className="shrink-0 border-t border-white/10 pt-1.5">{versusChampionshipBoardFooterPanel}</div>
         </div>
     );
 
@@ -2859,8 +2947,56 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                 }}
                 aria-hidden
             />
-            <div className={`relative z-10 flex min-h-0 flex-1 flex-row gap-2 ${championshipBoardHostClipClass}`}>
-                {isMobile ? mobileChampionshipMainGameRoom : championshipMainGameRoom}
+            <div className={`relative z-10 flex min-h-0 min-w-0 flex-1 flex-row gap-2 ${championshipBoardHostClipClass}`}>
+                <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                    {isMobile ? mobileChampionshipMainGameRoom : championshipMainGameRoom}
+
+                    {isMobile && (
+                        <>
+                            <div
+                                className="fixed right-0 z-50 flex flex-row items-stretch transition-transform duration-300 ease-in-out"
+                                style={{
+                                    top: VERSUS_MOBILE_DRAWER_TOP,
+                                    bottom: VERSUS_MOBILE_DRAWER_BOTTOM,
+                                    transform: isMobileSidebarOpen
+                                        ? 'translateX(0)'
+                                        : `translateX(calc(100% - ${VERSUS_MOBILE_SIDEBAR_TAB_WIDTH}))`,
+                                }}
+                            >
+                                <button
+                                    type="button"
+                                    onClick={() => setIsMobileSidebarOpen((prev) => !prev)}
+                                    className={`${versusMobileSidebarToggleBtn} self-end mb-[max(0.35rem,env(safe-area-inset-bottom,0px))]`}
+                                    aria-label={isMobileSidebarOpen ? tCommon('actions.close') : tCv('openRightPanel')}
+                                    title={isMobileSidebarOpen ? tCommon('actions.close') : tCv('openRightPanel')}
+                                >
+                                    {isMobileSidebarOpen ? '>>' : '<<'}
+                                </button>
+                                <div
+                                    className="relative isolate flex min-h-0 flex-col overflow-hidden border-l border-amber-400/55 bg-gradient-to-b from-slate-800 via-[#1a2436] to-zinc-950 shadow-2xl before:pointer-events-none before:absolute before:inset-0 before:z-0 before:bg-[radial-gradient(120%_90%_at_100%_0%,rgba(251,191,36,0.12),transparent_55%)]"
+                                    style={{ width: VERSUS_MOBILE_SIDEBAR_PANEL_WIDTH }}
+                                >
+                                    <div className="relative z-10 flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+                                        {opponentSidebarInner}
+                                    </div>
+                                </div>
+                            </div>
+                            {isMobileSidebarOpen && (
+                                <div
+                                    className="fixed z-40 bg-black/60"
+                                    style={{
+                                        top: VERSUS_MOBILE_DRAWER_TOP,
+                                        bottom: VERSUS_MOBILE_DRAWER_BOTTOM,
+                                        left: 0,
+                                        right: 0,
+                                    }}
+                                    onClick={() => setIsMobileSidebarOpen(false)}
+                                    aria-hidden
+                                />
+                            )}
+                        </>
+                    )}
+                </div>
 
                 {!isMobile && (
                     <div
@@ -2884,48 +3020,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                         />
                     </div>
                 )}
-
-                {isMobile && (
-                    <>
-                        <div
-                            className={`fixed right-0 z-50 isolate flex w-[min(19.5rem,calc(100vw-3rem))] flex-col overflow-hidden border-l border-amber-400/55 bg-gradient-to-b from-slate-800 via-[#1a2436] to-zinc-950 shadow-2xl transition-transform duration-300 ease-in-out before:pointer-events-none before:absolute before:inset-0 before:z-0 before:bg-[radial-gradient(120%_90%_at_100%_0%,rgba(251,191,36,0.12),transparent_55%)] ${isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}
-                            style={{
-                                top: VERSUS_MOBILE_DRAWER_TOP,
-                                bottom: VERSUS_MOBILE_DRAWER_BOTTOM,
-                            }}
-                        >
-                            <div className="relative z-10 flex h-full min-h-0 flex-1 flex-col overflow-hidden">
-                                <div className="flex shrink-0 items-center justify-end border-b border-slate-600/80 bg-slate-900/95 px-2.5 py-2">
-                                    <span className="sr-only">{tCv('extraPanelSr')}</span>
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsMobileSidebarOpen(false)}
-                                        className="rounded-lg border border-slate-500/70 bg-slate-800/90 px-2.5 py-1.5 text-xs font-bold text-slate-100 shadow-sm transition hover:border-slate-400 hover:bg-slate-700/90 active:scale-[0.98]"
-                                    >
-                                        {tCommon('actions.close')}
-                                    </button>
-                                </div>
-                                {opponentSidebarInner}
-                            </div>
-                        </div>
-                        {isMobileSidebarOpen && <div className="fixed inset-0 z-40 bg-black/60" onClick={() => setIsMobileSidebarOpen(false)} />}
-                    </>
-                )}
             </div>
-
-            {isMobile && !isMobileSidebarOpen && (
-                <button
-                    type="button"
-                    onClick={() => setIsMobileSidebarOpen(true)}
-                    className="fixed right-0 z-[36] flex h-[6.25rem] w-[2.65rem] flex-col items-center justify-center gap-1 rounded-l-2xl border-2 border-r-0 border-amber-200/75 bg-gradient-to-b from-amber-400/95 via-amber-600/92 to-slate-950 text-white shadow-[0_6px_28px_-4px_rgba(245,158,11,0.55),inset_0_1px_0_rgba(255,255,255,0.35)] ring-2 ring-amber-300/35 active:translate-x-0.5"
-                    style={{ bottom: VERSUS_MOBILE_SIDEBAR_OPEN_TAB_BOTTOM }}
-                    aria-label={tCv('openRightPanel')}
-                    title={tCv('openRightPanel')}
-                >
-                    <span className="text-2xl font-black leading-none tracking-tight text-white drop-shadow-md">‹</span>
-                    <span className="h-8 w-1 rounded-full bg-white/90 shadow-[0_0_8px_rgba(255,255,255,0.55)]" aria-hidden />
-                </button>
-            )}
             {duelModalOpen &&
                 typeof document !== 'undefined' &&
                 createPortal(

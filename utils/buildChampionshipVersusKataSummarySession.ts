@@ -34,7 +34,36 @@ export type VersusKataActorRewardClientPayload = {
     vipPlayRewardSlot: NonNullable<GameSummary['vipPlayRewardSlot']>;
 };
 
-function seatUserFromTournament(template: UserWithStatus, seat: PlayerForTournament): User {
+export type VersusKataSummaryRosterInput = {
+    actorUserId: string;
+    actorUserLevel: number;
+    actorPetLevel?: number;
+    opponentUserId: string;
+    opponentUserLevel: number;
+    opponentPetLevel?: number;
+};
+
+export function resolveVersusKataSummaryRosterLevelByPlayerId(
+    venue: ChampionshipVersusVenueKind,
+    roster: VersusKataSummaryRosterInput,
+): Record<string, number> {
+    if (venue === 'pet') {
+        return {
+            [roster.actorUserId]: roster.actorPetLevel ?? roster.actorUserLevel,
+            [roster.opponentUserId]: roster.opponentPetLevel ?? roster.opponentUserLevel,
+        };
+    }
+    return {
+        [roster.actorUserId]: roster.actorUserLevel,
+        [roster.opponentUserId]: roster.opponentUserLevel,
+    };
+}
+
+function seatUserFromTournament(
+    template: UserWithStatus,
+    seat: PlayerForTournament,
+    rosterLevel?: number,
+): User {
     return {
         ...template,
         id: seat.id,
@@ -42,6 +71,7 @@ function seatUserFromTournament(template: UserWithStatus, seat: PlayerForTournam
         avatarId: seat.avatarId,
         borderId: seat.borderId,
         league: seat.league,
+        userLevel: rosterLevel ?? template.userLevel,
     } as User;
 }
 
@@ -85,15 +115,17 @@ export function buildChampionshipVersusKataSummarySession(params: {
     actorVenueRatingDelta: number;
     champCoinsDelta: number;
     rewards: VersusKataActorRewardClientPayload;
+    roster?: VersusKataSummaryRosterInput;
 }): LiveGameSession {
-    const { match, analysis, currentUser, venue, actorVenueRatingBefore, actorVenueRatingAfter, actorVenueRatingDelta, champCoinsDelta, rewards } =
+    const { match, analysis, currentUser, venue, actorVenueRatingBefore, actorVenueRatingAfter, actorVenueRatingDelta, champCoinsDelta, rewards, roster } =
         params;
     const rg = match.championshipRealGame!;
     const moves = Array.isArray(rg.moves) ? rg.moves : [];
     const p1 = match.players[0]!;
     const p2 = match.players[1]!;
-    const player1 = seatUserFromTournament(currentUser, p1);
-    const player2 = seatUserFromTournament(currentUser, p2);
+    const rosterLevelByPlayerId = roster ? resolveVersusKataSummaryRosterLevelByPlayerId(venue, roster) : null;
+    const player1 = seatUserFromTournament(currentUser, p1, rosterLevelByPlayerId?.[p1.id]);
+    const player2 = seatUserFromTournament(currentUser, p2, rosterLevelByPlayerId?.[p2.id]);
     const now = Date.now();
     const settings = { ...DEFAULT_GAME_SETTINGS, boardSize: rg.boardSize };
     const winner = mapWinnerEnum(match);

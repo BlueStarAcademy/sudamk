@@ -51,6 +51,13 @@ export function prepareTournamentStateForMatchStart(
     const { tournament: recovered } = recoverStuckChampionshipRoundInProgress(tournament, userId);
     let state = recovered;
 
+    if (
+        state.status === 'round_in_progress' &&
+        state.championshipMatchGeneratingMatchId === nextUserMatchId
+    ) {
+        return { tournament: state, shouldSyncOnly: true };
+    }
+
     if (state.status !== 'round_in_progress') {
         return { tournament: state, shouldSyncOnly: false };
     }
@@ -99,6 +106,9 @@ export function recoverStuckChampionshipRoundInProgress(
             next.currentSimulatingMatch = null;
             recovered = true;
         } else if (match && !match.championshipRealGame?.moves?.length) {
+            if (next.championshipMatchGeneratingMatchId === match.id) {
+                return { tournament: next, recovered: false };
+            }
             next.currentSimulatingMatch = null;
             next.status = 'bracket_ready';
             next.timeElapsed = 0;
@@ -126,7 +136,7 @@ export function recoverStuckChampionshipRoundInProgress(
     const hasActiveRealMatch = !!findActiveChampionshipUserMatch(next, userId);
     if (!hasActiveRealMatch) {
         const hasUnfinishedUserMatch = matchesForProgress.some((m) => !m.isFinished);
-        if (hasUnfinishedUserMatch) {
+        if (hasUnfinishedUserMatch && !next.championshipMatchGeneratingMatchId) {
             next.currentSimulatingMatch = null;
             next.status = 'bracket_ready';
             next.timeElapsed = 0;

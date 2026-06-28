@@ -59,6 +59,7 @@ import { useTranslation } from 'react-i18next';
 import i18n from '../shared/i18n/config.js';
 import { translateGameMode } from '../shared/i18n/localizedCatalog.js';
 import { isChampionshipVersusKataSummaryDescription } from '../shared/constants/championshipVersusSummary.js';
+import { resolvePairPetMetaFromInventoryRow } from '../shared/utils/pairPetRoll.js';
 
 const gs = (key: string, opts?: Record<string, unknown>) => i18n.t(`game:summary.${key}`, opts);
 
@@ -1662,6 +1663,10 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
         if (!equippedPairPetRow) return '';
         return getPairPetDisplayName(equippedPairPetRow);
     }, [equippedPairPetRow]);
+    const equippedPetMetaLevel = useMemo(
+        () => (equippedPairPetRow ? resolvePairPetMetaFromInventoryRow(equippedPairPetRow).level : undefined),
+        [equippedPairPetRow],
+    );
     const pairPetSummaryReady =
         mySummary != null &&
         mySummary.pairPetLevel != null &&
@@ -2029,7 +2034,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                 <ResultModalIdentityRow
                     tone="pet"
                     displayName={pairPetDisplayName || '—'}
-                    level={mySummary?.pairPetLevel?.final ?? equippedPairPetRow?.level ?? '—'}
+                    level={mySummary?.pairPetLevel?.final ?? equippedPetMetaLevel ?? '—'}
                     hideLevelLine={showPetXpBarAside}
                     portrait={
                         <ResultModalPetPortrait
@@ -2574,18 +2579,22 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                             >
                                 {t('summary.gameContent')}
                             </h2>
-                            <p
-                                className="mb-1.5 w-full flex-shrink-0 text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400/90 min-[1024px]:text-xs"
-                                style={desktopSectionHeadStyle}
-                            >
-                                {translateGameMode(session.mode)}
-                            </p>
-                                        <p
-                                            className="mb-1 w-full flex-shrink-0 text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400/90"
-                                            style={mobileSectionTitleStyle}
-                                        >
-                                            {translateGameMode(session.mode)}
-                                        </p>
+                            {!isChampionshipVersusSummary ? (
+                                <>
+                                    <p
+                                        className="mb-1.5 w-full flex-shrink-0 text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400/90 min-[1024px]:text-xs"
+                                        style={desktopSectionHeadStyle}
+                                    >
+                                        {translateGameMode(session.mode)}
+                                    </p>
+                                    <p
+                                        className="mb-1 w-full flex-shrink-0 text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400/90"
+                                        style={mobileSectionTitleStyle}
+                                    >
+                                        {translateGameMode(session.mode)}
+                                    </p>
+                                </>
+                            ) : null}
                                         {isGuildWar ? (
                                             <div
                                                 className="mb-1 mt-1 flex flex-shrink-0 flex-col items-center gap-0.5"
@@ -2741,12 +2750,14 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                             >
                                 {t('summary.gameContent')}
                             </h2>
-                            <p
-                                className="mb-1.5 w-full flex-shrink-0 text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400/90 min-[1024px]:text-xs"
-                                style={desktopSectionHeadStyle}
-                            >
-                                {translateGameMode(session.mode)}
-                            </p>
+                            {!isChampionshipVersusSummary ? (
+                                <p
+                                    className="mb-1.5 w-full flex-shrink-0 text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400/90 min-[1024px]:text-xs"
+                                    style={desktopSectionHeadStyle}
+                                >
+                                    {translateGameMode(session.mode)}
+                                </p>
+                            ) : null}
                             {isGuildWar ? (
                                 <div className="mb-2 mt-1.5 flex flex-shrink-0 flex-col items-center gap-0.5" aria-label={t('summary.starsEarnedAria', { count: guildWarStars })}>
                                     <div className="flex items-center justify-center gap-1.5">

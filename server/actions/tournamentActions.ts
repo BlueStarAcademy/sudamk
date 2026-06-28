@@ -36,6 +36,7 @@ import { syncTournamentUserPlayerConditionFromSnapshot } from '../../shared/util
 import {
     DEFAULT_CHAMPIONSHIP_REAL_MATCH_RULES,
     resolveChampionshipDungeonRulesFromStage,
+    type ChampionshipRealMatchRules,
 } from '../../shared/constants/championshipRealMatch.js';
 import { buildChampionshipResultContract } from '../utils/resultContract.js';
 import { hasPersistedVersusDuelTicketsByVenue } from '../../shared/utils/championshipVersusDuelTickets.js';
@@ -45,6 +46,79 @@ const championshipMatchGenerationInFlight = new Set<string>();
 
 function championshipMatchGenerationKey(userId: string, type: TournamentType, matchId: string): string {
     return `${userId}|${type}|${matchId}`;
+}
+
+type ChampionshipMatchGenerationJob = {
+    freshUser: User;
+    stateKey: keyof User;
+    tournamentState: types.TournamentState;
+    match: types.Match;
+    roundIndex: number;
+    matchIndex: number;
+    champRules: ChampionshipRealMatchRules;
+    prevStatus: types.TournamentSimulationStatus;
+    accumulatedCommentary: types.CommentaryLine[];
+    generationKey: string;
+    volatileState: VolatileState;
+};
+
+async function runChampionshipMatchGenerationJob(job: ChampionshipMatchGenerationJob): Promise<void> {
+    const {
+        freshUser,
+        stateKey,
+        tournamentState,
+        match,
+        roundIndex,
+        matchIndex,
+        champRules,
+        prevStatus,
+        accumulatedCommentary,
+        generationKey,
+        volatileState,
+    } = job;
+
+    const persistAndBroadcast = async () => {
+        (freshUser as any)[stateKey] = tournamentState;
+        updateUserCache(freshUser);
+        await db.updateUser(freshUser);
+        if (!volatileState.activeTournaments) volatileState.activeTournaments = {};
+        volatileState.activeTournaments[freshUser.id] = tournamentState;
+        const updatedUserCopy = JSON.parse(JSON.stringify(freshUser));
+        broadcast({ type: 'USER_UPDATE', payload: { [freshUser.id]: updatedUserCopy } });
+    };
+
+    try {
+        const realMatch = await generateChampionshipRealMatch(match, tournamentState.players, freshUser, champRules);
+        match.championshipRealGame = realMatch.game;
+        tournamentState.currentMatchScores = {
+            player1: realMatch.scorePercent.player1,
+            player2: realMatch.scorePercent.player2,
+        };
+        tournamentState.currentMatchCommentary = [...accumulatedCommentary];
+        tournamentState.simulationSeed = undefined;
+        tournamentState.status = 'round_in_progress';
+        tournamentState.currentSimulatingMatch = { roundIndex, matchIndex };
+        tournamentState.championshipMatchGeneratingMatchId = null;
+        tournamentState.lastSimulationTime = Date.now();
+        await persistAndBroadcast();
+        if (process.env.NODE_ENV === 'development') {
+            console.log(
+                `[START_TOURNAMENT_MATCH] Async generation complete: match=${match.id} roundIndex=${roundIndex} matchIndex=${matchIndex}`,
+            );
+        }
+    } catch (err: any) {
+        console.error('[START_TOURNAMENT_MATCH] generateChampionshipRealMatch failed:', err);
+        tournamentState.status = prevStatus;
+        tournamentState.currentSimulatingMatch = null;
+        tournamentState.championshipMatchGeneratingMatchId = null;
+        try {
+            await persistAndBroadcast();
+        } catch (persistErr) {
+            console.error('[START_TOURNAMENT_MATCH] Failed to persist tournament after generation error:', persistErr);
+        }
+    } finally {
+        championshipMatchGenerationInFlight.delete(generationKey);
+    }
 }
 
 type HandleActionResult = {
@@ -969,7 +1043,13 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             const generationKey = championshipMatchGenerationKey(freshUser.id, type, userMatch.id);
             if (championshipMatchGenerationInFlight.has(generationKey)) {
                 const updatedUserCopy = JSON.parse(JSON.stringify(freshUser));
-                return { clientResponse: { redirectToTournament: type, updatedUser: updatedUserCopy } };
+                return {
+                    clientResponse: {
+                        redirectToTournament: type,
+                        updatedUser: updatedUserCopy,
+                        championshipMatchGenerating: true,
+                    },
+                };
             }
 
             const prepared = prepareTournamentStateForMatchStart(tournamentState, freshUser.id, userMatch.id);
@@ -1044,59 +1124,47 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 dungeonStage != null && dungeonStage >= 1
                     ? resolveChampionshipDungeonRulesFromStage(dungeonStage)
                     : DEFAULT_CHAMPIONSHIP_REAL_MATCH_RULES;
-            const preferHeuristicMoves = dungeonStage != null && dungeonStage >= 1;
-            championshipMatchGenerationInFlight.add(generationKey);
-            try {
-                const realMatch = await generateChampionshipRealMatch(match, tournamentState.players, freshUser, champRules, {
-                    preferHeuristicMoves,
-                });
-                match.championshipRealGame = realMatch.game;
-                tournamentState.currentMatchScores = {
-                    player1: realMatch.scorePercent.player1,
-                    player2: realMatch.scorePercent.player2,
-                };
-                tournamentState.currentMatchCommentary = [...accumulatedCommentary];
-                tournamentState.simulationSeed = undefined;
-                tournamentState.status = 'round_in_progress';
-                tournamentState.currentSimulatingMatch = { roundIndex, matchIndex };
-            } catch (err: any) {
-                console.error('[START_TOURNAMENT_MATCH] generateChampionshipRealMatch failed:', err);
-                tournamentState.status = prevStatus;
-                tournamentState.currentSimulatingMatch = null;
-                return {
-                    error: err?.message || '기보를 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.',
-                };
-            } finally {
-                championshipMatchGenerationInFlight.delete(generationKey);
-            }
-            
-            // 개발 모드에서만 상세 로그 출력
-            if (process.env.NODE_ENV === 'development') {
-                console.log(`[START_TOURNAMENT_MATCH] Match started: roundIndex=${roundIndex}, matchIndex=${matchIndex}`);
-            }
-            
-            // 첫 틱을 위한 시간 초기화 - 현재 시간으로 설정하여 클라이언트가 업데이트를 받을 때까지 시간이 점프되지 않도록 함
+
+            tournamentState.championshipMatchGeneratingMatchId = match.id;
+            tournamentState.status = 'round_in_progress';
+            tournamentState.currentSimulatingMatch = { roundIndex, matchIndex };
+            tournamentState.simulationSeed = undefined;
             const now = Date.now();
             tournamentState.lastSimulationTime = now;
 
-            // Save tournament state
-            // 사용자 캐시 업데이트
+            (freshUser as any)[stateKey] = tournamentState;
             updateUserCache(freshUser);
-            // DB 저장은 비동기로 처리하여 응답 지연 최소화
-            db.updateUser(freshUser).catch(err => {
-                console.error(`[TournamentActions] Failed to save user ${freshUser.id}:`, err);
+            db.updateUser(freshUser).catch((err) => {
+                console.error(`[TournamentActions] Failed to save user ${freshUser.id} before async kata generation:`, err);
             });
-            
-            // Update volatile state
             if (!volatileState.activeTournaments) volatileState.activeTournaments = {};
             volatileState.activeTournaments[freshUser.id] = tournamentState;
 
-            // WebSocket으로 사용자 업데이트 브로드캐스트
             const updatedUserCopy = JSON.parse(JSON.stringify(freshUser));
             broadcast({ type: 'USER_UPDATE', payload: { [freshUser.id]: updatedUserCopy } });
 
-            // 클라이언트가 즉시 경기 진행 상태를 반영할 수 있도록 updatedUser 반환 (경기 시작 버튼 반응 보장)
-            return { clientResponse: { redirectToTournament: type, updatedUser: updatedUserCopy } };
+            championshipMatchGenerationInFlight.add(generationKey);
+            void runChampionshipMatchGenerationJob({
+                freshUser,
+                stateKey,
+                tournamentState,
+                match,
+                roundIndex,
+                matchIndex,
+                champRules,
+                prevStatus,
+                accumulatedCommentary,
+                generationKey,
+                volatileState,
+            });
+
+            return {
+                clientResponse: {
+                    redirectToTournament: type,
+                    updatedUser: updatedUserCopy,
+                    championshipMatchGenerating: true,
+                },
+            };
         }
 
         case 'SKIP_CHAMPIONSHIP_MATCH': {
