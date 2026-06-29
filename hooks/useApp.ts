@@ -9812,9 +9812,10 @@ export const useApp = () => {
                                 const isPostExchangePurchaseInventoryWs =
                                     lastHttpActionType.current === 'PURCHASE_EXCHANGE_LISTING' &&
                                     Array.isArray(updatedCurrentUser.inventory);
-                                /** 거래소 등록·목록 저장 직후 WS — 디바운스로 isExchangeListed가 빠지면 가방에 그대로 보임 */
+                                /** 거래소 등록·회수·목록 저장 직후 WS — 디바운스로 isExchangeListed가 빠지면 가방에 그대로 보임 */
                                 const isPostExchangeListingInventoryWs =
                                     (lastHttpActionType.current === 'MARK_ITEM_EXCHANGE_LISTED' ||
+                                        lastHttpActionType.current === 'UNMARK_ITEM_EXCHANGE_LISTED' ||
                                         lastHttpActionType.current === 'SAVE_EXCHANGE_STATE') &&
                                     Array.isArray(updatedCurrentUser.inventory);
                                 const isPostCombineInventoryWs =

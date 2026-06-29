@@ -1196,6 +1196,10 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             if (!isMyTurn || (game.gameStatus !== 'playing' && game.gameStatus !== 'hidden_placing')) {
                 return { error: '내 차례가 아닙니다.' };
             }
+            if (myPlayerEnum === types.Player.None) {
+                return { error: '내 차례가 아닙니다.' };
+            }
+            const activePlayerEnum: types.Player.Black | types.Player.White = myPlayerEnum;
 
             const {
                 x,
@@ -1231,7 +1235,8 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 return { error: `보드 범위를 벗어난 위치입니다. (${x}, ${y})는 유효하지 않습니다.` };
             }
             
-            const opponentPlayerEnum = myPlayerEnum === types.Player.Black ? types.Player.White : (myPlayerEnum === types.Player.White ? types.Player.Black : types.Player.None);
+            const opponentPlayerEnum: types.Player.Black | types.Player.White =
+                activePlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
             
             // 싱글플레이/도전의탑/AI 게임에서는 서버의 실제 boardState를 기준으로 체크 (클라이언트 boardState를 신뢰하지 않음)
             // 전략바둑 AI 대국에서 돌이 사라지는 버그 방지: 서버가 단일 소스로 유지
@@ -1371,7 +1376,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             const move = {
                 x,
                 y,
-                player: myPlayerEnum,
+                player: activePlayerEnum,
                 ...(pairCurrentSeat ? { actorId: pairCurrentSeat.participantId, pairSeatId: pairCurrentSeat.seatId } : {}),
             };
             
@@ -1659,10 +1664,10 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                     const chessCapture = applyChessCaptureScoreForRemovedStones(
                         game,
                         result.capturedStones,
-                        myPlayerEnum,
+                        activePlayerEnum,
                     );
                     if (chessCapture.kingCaptured) {
-                        if (await tryEndChessOnKingCapture(game, myPlayerEnum)) {
+                        if (await tryEndChessOnKingCapture(game, activePlayerEnum)) {
                             return petHintBonusResult ?? {};
                         }
                     }
@@ -1938,22 +1943,25 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             // 수순 고정 모드에서는 제한 수순 종료 후 PASS도 엄격 차단한다.
             {
                 const { fixedScoringTurnLimit, currentTurnCount } = await resolveFixedScoringTurnState();
-                if (fixedScoringTurnLimit != null && fixedScoringTurnLimit > 0 && currentTurnCount >= fixedScoringTurnLimit) {
-                    game.totalTurns = currentTurnCount;
-                    if ((game.gameStatus as string) !== 'scoring' && (game.gameStatus as string) !== 'ended') {
-                        game.gameStatus = 'scoring';
-                        await db.saveGame(game);
-                        try {
-                            if (arenaUsesClientAuthoritativeScoringSnapshot(game)) {
-                                deferGetGameResultForScoringOverlay(game.id, 'blockExtraPassOverTurnLimit');
-                            } else {
-                                await getGameResult(game);
+                if (fixedScoringTurnLimit != null && fixedScoringTurnLimit > 0) {
+                    if (currentTurnCount >= fixedScoringTurnLimit) {
+                        game.totalTurns = currentTurnCount;
+                        if ((game.gameStatus as string) !== 'scoring' && (game.gameStatus as string) !== 'ended') {
+                            game.gameStatus = 'scoring';
+                            await db.saveGame(game);
+                            try {
+                                if (arenaUsesClientAuthoritativeScoringSnapshot(game)) {
+                                    deferGetGameResultForScoringOverlay(game.id, 'blockExtraPassOverTurnLimit');
+                                } else {
+                                    await getGameResult(game);
+                                }
+                            } catch (e: any) {
+                                console.error(`[handleStandardAction] Failed to auto-trigger scoring while blocking extra pass, game ${game.id}:`, e?.message);
                             }
-                        } catch (e: any) {
-                            console.error(`[handleStandardAction] Failed to auto-trigger scoring while blocking extra pass, game ${game.id}:`, e?.message);
                         }
+                        return { error: '정해진 수순이 모두 완료되어 더 이상 진행할 수 없습니다.' };
                     }
-                    return { error: '정해진 수순이 모두 완료되어 더 이상 진행할 수 없습니다.' };
+                    return { error: '계가까지 정해진 수순이 있는 대국에서는 통과할 수 없습니다.' };
                 }
             }
             {

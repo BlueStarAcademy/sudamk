@@ -1713,7 +1713,8 @@
       "aria": "Result tabs"
     },
     "speedPressure": {
-      "aria": "Bonus time {{sec}}s"
+      "aria": "Bonus time {{sec}}s",
+      "label": "10s speed bar"
     },
     "adventureResult": {
       "bossLine": "Boss: {{label}} +{{pct}}%",
@@ -2381,6 +2382,8 @@
       "invite": "Invite",
       "challenge": "Challenge",
       "challengeUnavailable": "This player cannot receive a challenge right now.",
+      "spectate": "Spectate",
+      "spectateUnavailable": "No spectatable game was found.",
       "blockInvites": "Block invites",
       "blockInvitesTitle": "When enabled, other players cannot invite you as a pair partner.",
       "statusInPairRoom": "You cannot change status while in a pair room.",
@@ -4859,7 +4862,7 @@
       },
       "use_allowtrade": {
         "name": "Trade Listing Ticket",
-        "description": "Special permit to list one item on the exchange."
+        "description": "Permit to register additional items for sale on the exchange."
       }
     },
     "stats": {
@@ -5170,9 +5173,9 @@
       "selectGear": "Select gear"
     },
     "alerts": {
-      "insufficientTicket": "Not enough listing tickets.",
+      "insufficientTicket": "Not enough listing tickets. Required for additional sell slots.",
       "vipListingLimit": "Function VIP can list up to 3 items.",
-      "ticketHint": "Not enough listing tickets. One ticket lists one item.",
+      "ticketHint": "A trade listing ticket is required to register additional sell slots.",
       "selectGearFromInventory": "Select gear from your inventory to sell.",
       "boundGear": "Bound gear cannot be sold. Use an unbinding ticket.",
       "minimumPrice": "Minimum price is {{price}}.",
@@ -6173,6 +6176,9 @@
       "matchInProgress": "Match in progress",
       "inMatch": "In match",
       "enter": "Enter",
+      "spectate": "Spectate",
+      "spectateMatch": "Spectate match",
+      "spectateUnavailable": "No spectatable game was found.",
       "orphanRooms": "Rooms outside slots 1–100",
       "roomKindFilter": "Room type filter",
       "gameModeFilter": "Game mode filter",

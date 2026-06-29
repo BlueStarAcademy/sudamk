@@ -107,6 +107,8 @@ interface PlayerListProps {
     lobbyType: 'strategic' | 'playful';
     /** 1:1 친선 대국 신청 (PVP 집계 대기실) */
     onChallengeUser?: (user: UserWithStatus) => void;
+    /** 친구 탭 등에서 대국 중인 유저의 경기를 관전 */
+    onSpectateUser?: (user: UserWithStatus) => void;
     userCount?: number;
     /** 네이티브 전략·놀이 대기실: 페어 경기장 모바일과 유사한 목록 글자 크기 */
     pairAlignedNativeCompact?: boolean;
@@ -136,6 +138,7 @@ const PlayerList: React.FC<PlayerListProps> = ({
     onViewUser,
     lobbyType,
     onChallengeUser,
+    onSpectateUser,
     userCount,
     pairAlignedNativeCompact = false,
     pairInvite,
@@ -303,6 +306,23 @@ const PlayerList: React.FC<PlayerListProps> = ({
                                     className="!text-[11px] !py-1.5 !px-2.5 whitespace-nowrap rounded-md border border-cyan-500/40 bg-cyan-950/50 font-bold text-cyan-100 disabled:cursor-not-allowed disabled:opacity-45 sm:!text-xs sm:!px-3"
                                 >
                                     {t('playerList.invite')}
+                                </Button>
+                            );
+                        })() : onSpectateUser && user.status === UserStatus.InGame ? (() => {
+                            const disabled = !user.gameId;
+                            return (
+                                <Button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onSpectateUser(user);
+                                    }}
+                                    disabled={disabled}
+                                    title={disabled ? t('playerList.spectateUnavailable') : undefined}
+                                    colorScheme="none"
+                                    data-testid={`player-spectate-${user.id}`}
+                                    className="!text-[11px] !py-1.5 !px-2.5 whitespace-nowrap rounded-md border border-violet-500/40 bg-violet-950/50 font-bold text-violet-100 disabled:cursor-not-allowed disabled:opacity-45 sm:!text-xs sm:!px-3"
+                                >
+                                    {t('playerList.spectate')}
                                 </Button>
                             );
                         })() : onChallengeUser ? (() => {

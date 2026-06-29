@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-    ADVENTURE_MONSTER_MODE_LABELS,
     getAdventureStageById,
     getAdventureStageLevelRange,
     type AdventureMonsterBattleMode,
@@ -10,6 +9,9 @@ import { isAdventureChapterBossCodexId } from '../../constants/adventureMonsters
 import {
     adventureMapMsUntilNextAppearance,
     adventureMapSuppressKey,
+    compareAdventureMapMonstersForSchedule,
+    getAdventureMapActiveDwellWindow,
+    resolveAdventureMapSpawnSlot,
     fnv1a32,
     type AdventureMapMonsterInstance,
 } from '../../shared/utils/adventureMapSchedule.js';
@@ -20,6 +22,7 @@ import {
 } from '../../shared/utils/adventureMapTreasureSchedule.js';
 import { getAdventureAllowedBattleModes, resolveAdventureBoardSize } from '../../shared/utils/adventureBattleBoard.js';
 import { formatAdventureRemainMs, getAdventureMonsterModeLabel } from './adventureI18nHelpers.js';
+import AdventureMapMonsterLabel from './AdventureMapMonsterLabel.js';
 
 export type AdventureChapterMonsterSituationListProps = {
     stageId: string;
@@ -30,15 +33,10 @@ export type AdventureChapterMonsterSituationListProps = {
     listClassName?: string;
     mapDwellMultiplier?: number;
     mapRespawnOffMultiplier?: number;
-    /** 이번 출현 창에서 수령·건너뛰기로 비활성(맵과 동일) */
     treasureHandledForCurrentWindow?: boolean;
-    /** 비활성일 때 목록 우측 문구 구분 */
     treasureHandledKind?: 'dismissed' | 'claimed' | null;
 };
 
-/**
- * 챕터별 몬스터 출현 중 / 다음 출현까지 시간 목록 (맵 오버레이·모달 공통).
- */
 const AdventureChapterMonsterSituationList: React.FC<AdventureChapterMonsterSituationListProps> = ({
     stageId,
     mapMonsters,
@@ -56,12 +54,7 @@ const AdventureChapterMonsterSituationList: React.FC<AdventureChapterMonsterSitu
 
     const rows = useMemo(() => {
         if (!stage) return [];
-        return [...stage.monsters].sort((a, b) => {
-            const ab = isAdventureChapterBossCodexId(a.codexId) ? 1 : 0;
-            const bb = isAdventureChapterBossCodexId(b.codexId) ? 1 : 0;
-            if (ab !== bb) return ab - bb;
-            return a.codexId.localeCompare(b.codexId);
-        });
+        return [...stage.monsters].sort(compareAdventureMapMonstersForSchedule);
     }, [stage]);
 
     const treasureStatusLabel = (active: boolean, handled: boolean, kind: 'dismissed' | 'claimed' | null) => {
@@ -127,6 +120,17 @@ const AdventureChapterMonsterSituationList: React.FC<AdventureChapterMonsterSitu
                 const mapMonster = mapMonsters.find((m) => m.codexId === row.codexId && m.expiresAt > nowMs);
                 const boss = isAdventureChapterBossCodexId(row.codexId);
                 const supK = adventureMapSuppressKey(stage.id, row.codexId);
+                const spawnSlot = resolveAdventureMapSpawnSlot(stage.monsters, row.codexId);
+                const dwellWindow = getAdventureMapActiveDwellWindow(
+                    nowMs,
+                    stage.id,
+                    row.codexId,
+                    boss,
+                    suppressRecord[supK],
+                    mapDwellMultiplier,
+                    mapRespawnOffMultiplier,
+                    spawnSlot,
+                );
                 const untilAppear = adventureMapMsUntilNextAppearance(
                     nowMs,
                     stage.id,
@@ -135,8 +139,13 @@ const AdventureChapterMonsterSituationList: React.FC<AdventureChapterMonsterSitu
                     suppressRecord[supK],
                     mapDwellMultiplier,
                     mapRespawnOffMultiplier,
+                    spawnSlot,
                 );
-                const rightSlot = mapMonster ? t('adventure.appearing') : formatAdventureRemainMs(t, untilAppear);
+                const disappearMs = dwellWindow ? Math.max(0, dwellWindow.windowEnd - nowMs) : 0;
+                const rightSlot =
+                    disappearMs > 0
+                        ? formatAdventureRemainMs(t, disappearMs)
+                        : formatAdventureRemainMs(t, untilAppear);
 
                 const boardSize = resolveAdventureBoardSize(stage.id, row.codexId, `chapter-situation-${row.codexId}`, {
                     monsterLevel: chapterMidLevel,
@@ -157,34 +166,20 @@ const AdventureChapterMonsterSituationList: React.FC<AdventureChapterMonsterSitu
                             className="flex w-full items-center gap-2 rounded-lg border border-white/10 bg-black/30 px-2.5 py-2 text-left transition hover:border-amber-400/35 hover:bg-black/45 active:scale-[0.99] sm:gap-2 sm:px-3 sm:py-2.5"
                             onClick={() => onPickRow(row.codexId)}
                         >
-                            <span className="min-w-0 flex-1 overflow-hidden whitespace-nowrap text-[10.5px] font-bold text-amber-50 sm:text-[11px]">
-                                <span className="flex min-w-0 max-w-full items-center gap-1 overflow-hidden">
-                                    {mapMonster ? (
-                                        <span
-                                            className="shrink-0 font-mono text-[11px] font-black tabular-nums text-emerald-200 sm:text-xs"
-                                            aria-label={t('adventure.levelAria', { level: mapMonster.level })}
-                                        >
-                                            Lv.{mapMonster.level}
-                                        </span>
-                                    ) : null}
-                                    <span className="min-w-0 truncate whitespace-nowrap">{row.name}</span>
-                                    <span
-                                        className="shrink-0 whitespace-nowrap rounded bg-violet-950/90 px-1 py-px text-[9px] font-bold leading-none text-fuchsia-100 shadow-sm sm:text-[10px]"
-                                        title={modeLabel}
-                                    >
-                                        {modeLabel}
-                                    </span>
-                                    {boss ? (
-                                        <span className="shrink-0 whitespace-nowrap rounded border border-amber-400/45 bg-amber-500/15 px-1 py-px text-[8px] font-black uppercase tracking-wider text-amber-100 sm:text-[9px]">
-                                            {t('adventure.boss')}
-                                        </span>
-                                    ) : null}
-                                </span>
+                            <span className="min-w-0 flex-1 overflow-hidden whitespace-nowrap">
+                                <AdventureMapMonsterLabel
+                                    variant="list"
+                                    level={mapMonster?.level}
+                                    name={row.name}
+                                    modeLabel={modeLabel}
+                                    boss={boss}
+                                    compact={false}
+                                />
                             </span>
                             <span
                                 className={[
                                     'shrink-0 whitespace-nowrap font-mono text-[10px] font-bold tabular-nums sm:text-[11px]',
-                                    mapMonster ? 'text-emerald-300' : 'text-amber-200',
+                                    disappearMs > 0 ? 'text-emerald-300' : 'text-amber-200',
                                 ].join(' ')}
                             >
                                 {rightSlot}

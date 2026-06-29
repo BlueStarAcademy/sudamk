@@ -627,6 +627,13 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                     }`}
                 >
                     <span
+                        className={`shrink-0 font-bold ${
+                            fluidTextLayout && isMobile ? 'text-[10px]' : isMobile ? 'text-[11px]' : 'text-xs'
+                        } ${panelType === 'white' ? 'text-amber-900' : 'text-amber-100/90'}`}
+                    >
+                        {t('speedPressure.label')}
+                    </span>
+                    <span
                         className={`shrink-0 font-semibold tabular-nums ${
                             fluidTextLayout && isMobile ? 'text-[11px]' : isMobile ? 'text-xs' : 'text-sm'
                         } ${panelType === 'white' ? 'text-amber-800' : 'text-amber-200'}`}

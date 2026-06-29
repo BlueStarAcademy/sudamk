@@ -20,7 +20,7 @@ export const QUICK_UTILITY_PANEL_TITLES: Record<QuickUtilityPanelKind, string> =
     blacksmith: '대장간',
     shop: '상점',
     inventory: '가방',
-    pet: '펫 관리',
+    pet: '펫',
     trainingQuest: '수련과제',
     detailedStats: 'PVP 경기장 상세 전적',
     monsterCodex: '몬스터 도감',
@@ -28,7 +28,7 @@ export const QUICK_UTILITY_PANEL_TITLES: Record<QuickUtilityPanelKind, string> =
     gameRecords: '기보',
     encyclopedia: '도감',
     announcements: '공지',
-    help: '도움말 센터',
+    help: '도움말',
 };
 
 export type QuickUtilityPanelChrome = {

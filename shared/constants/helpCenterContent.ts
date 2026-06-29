@@ -12,6 +12,7 @@ const PROFILE_EDIT_GUIDE_AVATAR = AVATAR_POOL.find((a) => a.id === 'profile_1') 
 const PROFILE_EDIT_GUIDE_BORDER =
     BORDER_POOL.find((b) => b.id === 'tier_ring_3') ??
     BORDER_POOL.find((b) => typeof b.url === 'string' && b.url.startsWith('/images'))!;
+const PROFILE_EDIT_GUIDE_BORDER_URL = PROFILE_EDIT_GUIDE_BORDER.url ?? '/images/button/help.webp';
 
 /** 도움말·홈 안내용 — `assets.ts`·로비 UI와 동일한 경로 */
 const ADVENTURE_HELP_IMAGE = '/images/adventure.png';
@@ -22,6 +23,7 @@ const CHAMPIONSHIP_ENTRY_IMAGE = '/images/championship/Champ1.webp';
 const STRATEGIC_LOBBY_IMAGE = '/images/RatingArena.webp';
 const PLAYFUL_LOBBY_IMAGE = '/images/PlayingArena.webp';
 const PAIR_LOBBY_IMAGE = '/images/2v2.webp';
+const PVP_HELP_IMAGE = '/images/bg/pvp.webp';
 const TOURNAMENT_LOBBY_IMAGE = '/images/Championship.webp';
 const HOME_BG_IMAGE = '/images/bg/mainbg.webp';
 const HELP_BUTTON_IMAGE = '/images/button/help.webp';
@@ -147,6 +149,89 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                 },
             },
             {
+                id: 'start-first-route',
+                label: '처음 추천 루트',
+                article: {
+                    id: 'start-first-route',
+                    title: '처음 시작하면 무엇을 할까요?',
+                    tagline: '처음 접속한 유저가 헤매지 않도록 가장 쉬운 순서로 안내합니다.',
+                    hero: { src: HOME_BG_IMAGE, alt: '처음 시작' },
+                    blocks: [
+                        {
+                            type: 'paragraph',
+                            text: '처음에는 모든 메뉴를 한 번에 이해하려고 하기보다, 홈 화면에서 내 상태를 확인하고 AI 연습으로 기본 조작을 익힌 뒤 PVP나 성장 콘텐츠로 넓혀가는 것이 좋습니다.',
+                        },
+                        { type: 'heading', text: '추천 순서', level: 3 },
+                        {
+                            type: 'bullets',
+                            items: [
+                                '1단계: 홈 프로필에서 닉네임, 레벨, 매너점수, 보유 재화를 확인합니다.',
+                                '2단계: 우편과 퀘스트 보상을 먼저 수령합니다. 시작 보상이나 일일 보상이 있을 수 있습니다.',
+                                '3단계: 바둑학원 또는 AI 대국으로 착수, 시간, 계가, 기권 위치를 익힙니다.',
+                                '4단계: 전략/놀이 대기실에서 친선 대국이나 관전으로 다른 유저의 진행 방식을 봅니다.',
+                                '5단계: 규칙과 시간 운영이 익숙해지면 랭크전, 페어, 모험, 도전의 탑, 챔피언십으로 목표를 넓힙니다.',
+                            ],
+                        },
+                        {
+                            type: 'imageRow',
+                            compact: true,
+                            images: [
+                                { src: SINGLE_PLAYER_ACADEMY_IMAGE, alt: '바둑학원', caption: 'AI로 연습' },
+                                { src: PVP_HELP_IMAGE, alt: 'PVP', caption: '친선·랭크' },
+                                { src: ADVENTURE_HELP_IMAGE, alt: '모험', caption: '성장 콘텐츠' },
+                                { src: '/images/quickmenu/quest.webp', alt: '퀘스트', caption: '보상 루틴' },
+                            ],
+                        },
+                        {
+                            type: 'callout',
+                            tone: 'tip',
+                            title: '초보자 팁',
+                            text: '처음부터 랭크전에 들어가기보다 관전과 AI 대국으로 UI를 익히면 시간패, PASS 착오, 접속 복귀 실수를 줄일 수 있습니다.',
+                        },
+                    ],
+                },
+            },
+            {
+                id: 'start-basic-terms',
+                label: '기본 용어',
+                article: {
+                    id: 'start-basic-terms',
+                    title: '기본 바둑 · 게임 용어',
+                    tagline: '도움말 전체에서 반복되는 단어를 먼저 정리합니다.',
+                    hero: { src: '/images/simbols/simbol1.webp', alt: '기본 용어' },
+                    blocks: [
+                        {
+                            type: 'paragraph',
+                            text: '수담R은 바둑 규칙을 바탕으로 여러 변형 모드를 더한 게임입니다. 아래 용어를 알고 있으면 대국 전 설정과 대국 중 안내를 훨씬 쉽게 이해할 수 있습니다.',
+                        },
+                        { type: 'heading', text: '바둑 기본', level: 3 },
+                        {
+                            type: 'bullets',
+                            items: [
+                                '착수: 내 차례에 바둑판 교차점에 돌을 하나 놓는 행동입니다.',
+                                '집: 내 돌로 둘러싼 빈 공간입니다. 클래식 계열에서는 집이 많을수록 유리합니다.',
+                                '따내기: 상대 돌의 활로를 모두 막아 판에서 제거하는 것입니다.',
+                                '덤: 후공인 백에게 주어지는 보정 점수입니다.',
+                                '계가: 대국 종료 후 집, 덤, 보너스 점수를 계산해 승패를 정하는 단계입니다.',
+                                'PASS: 더 둘 곳이 없다고 판단해 차례를 넘기는 행동입니다. 모든 모드에서 가능한 것은 아닙니다.',
+                            ],
+                        },
+                        { type: 'heading', text: '수담R에서 자주 보는 말', level: 3 },
+                        {
+                            type: 'bullets',
+                            items: [
+                                '친선: 부담 없이 유저와 두는 대국입니다. 설정을 서로 확인하고 시작합니다.',
+                                '랭크: 전적, 랭킹 점수, 시즌 보상에 반영되는 대국입니다.',
+                                '관전: 진행 중인 대국을 보는 기능입니다. 관전자는 비밀 정보와 채팅이 제한됩니다.',
+                                '메인 시계: 대국 전체에서 쓰는 제한시간입니다. 모두 쓰면 시간패가 될 수 있습니다.',
+                                '스피드바: 스피드 바둑에서 한 수마다 별도로 도는 10초 바입니다. 초과하면 상대 점수가 1점 오릅니다.',
+                                '접속장애: 대국 중 연결 끊김이 발생한 상태입니다. 90초 안에 돌아오지 못하거나 반복되면 패배할 수 있습니다.',
+                            ],
+                        },
+                    ],
+                },
+            },
+            {
                 id: 'start-settings',
                 label: '설정 · 계정',
                 article: {
@@ -193,7 +278,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                                     caption: '아바타',
                                 },
                                 {
-                                    src: PROFILE_EDIT_GUIDE_BORDER.url,
+                                    src: PROFILE_EDIT_GUIDE_BORDER_URL,
                                     alt: PROFILE_EDIT_GUIDE_BORDER.name,
                                     caption: '테두리',
                                 },
@@ -240,7 +325,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                                     caption: '아바타',
                                 },
                                 {
-                                    src: PROFILE_EDIT_GUIDE_BORDER.url,
+                                    src: PROFILE_EDIT_GUIDE_BORDER_URL,
                                     alt: PROFILE_EDIT_GUIDE_BORDER.name,
                                     caption: '테두리',
                                 },
@@ -394,7 +479,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                             images: [
                                 { src: SINGLE_PLAYER_ACADEMY_IMAGE, alt: '바둑학원', caption: '바둑학원' },
                                 { src: TOWER_ENTRY_IMAGE, alt: '도전의 탑', caption: '도전의 탑' },
-                                { src: STRATEGIC_LOBBY_IMAGE, alt: 'PVP', caption: 'PVP' },
+                                { src: PVP_HELP_IMAGE, alt: 'PVP', caption: 'PVP' },
                                 { src: '/images/championship/Champ1.webp', alt: '챔피언십', caption: '챔피언십' },
                                 { src: ADVENTURE_HOME_ENTRY_IMAGE, alt: '모험', caption: '모험' },
                             ],
@@ -567,7 +652,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
     {
         id: 'lobby',
         label: '대기실 · 매칭',
-        iconSrc: PLAYFUL_LOBBY_IMAGE,
+        iconSrc: PVP_HELP_IMAGE,
         accentClass: 'from-cyan-500/15 to-sky-600/10',
         subcategories: [
             {
@@ -577,19 +662,20 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                     id: 'lobby-common',
                     title: '전략 · 놀이 대기실',
                     tagline: '1:1 매칭·관전·랭크전이 있는 클래식 PVP 로비입니다.',
-                    hero: { src: PLAYFUL_LOBBY_IMAGE, alt: '대기실' },
+                    hero: { src: PVP_HELP_IMAGE, alt: 'PVP 대기실' },
                     blocks: [
                         {
                             type: 'paragraph',
-                            text: '전략·놀이 경기장 대기실에서는 접속 중인 플레이어 목록, 진행 중인 대국, 채팅, 랭킹 패널을 동시에 볼 수 있습니다. 상대에게 대국을 신청하거나 AI 봇과 연습할 수 있습니다.',
+                            text: '전략·놀이 경기장 대기실에서는 접속 중인 플레이어, 친구 탭, 진행 중인 대국, 채팅, 랭킹 패널을 함께 봅니다. 상대에게 대국을 신청하거나 AI 봇과 연습할 수 있고, 이미 진행 중인 대국은 관전으로 배울 수 있습니다.',
                         },
                         {
                             type: 'bullets',
                             items: [
-                                '플레이어를 선택해 대국을 신청하면 상대가 수락할 때 경기가 열립니다.',
-                                '진행 중인 방은 관전해 수읽기 학습에 활용할 수 있습니다.',
+                                '플레이어를 선택해 대국을 신청하면 상대가 수락할 때 경기가 열립니다. 상대가 대국 중이면 상태가 「대국 중」으로 표시됩니다.',
+                                '진행 중인 대국 목록이나 방 번호가 보이는 항목에서는 「관전」으로 들어가 수읽기와 운영을 볼 수 있습니다.',
+                                '대기실 채팅은 로비 대화이며, 실제 대국 관전자는 대국 채팅을 보낼 수 없습니다.',
                                 '우측 퀵 메뉴로 퀘스트·가방·상점·도움말 등을 그대로 이용합니다.',
-                                '각 게임 모드의 세부 규칙은 통합 도움말(퀵 메뉴의 도움말) 또는 아래 「페어 바둑」·「게임 모드」 항목에서 확인할 수 있습니다.',
+                                '각 게임 모드의 세부 규칙은 「게임 모드」 항목, 실시간 대국 중 시간·PASS·접속 규칙은 「실시간 PVP 대국」 항목에서 확인합니다.',
                             ],
                         },
                         {
@@ -610,12 +696,12 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                 article: {
                     id: 'lobby-pair',
                     title: '페어 바둑 경기장',
-                    tagline: '2인·4인 팀 대국과 펫 파트너가 함께하는 2v2 바둑입니다.',
+                    tagline: '2인·4인 팀 대국, AI·펫 파트너, 진행 중 방 관전이 있는 2v2 바둑입니다.',
                     hero: { src: PAIR_LOBBY_IMAGE, alt: '페어 바둑' },
                     blocks: [
                         {
                             type: 'paragraph',
-                            text: '페어 경기장은 흑·백 각 팀이 두 명씩 번갈아 한 수를 두는 2v2 바둑입니다. 방 번호 그리드에서 방을 만들거나 참가하고, 파트너·펫·AI 슬롯을 채운 뒤 대국을 시작합니다. 전략바둑 규칙(클래식·따내기·스피드·베이스·히든·미사일·믹스)을 선택할 수 있으며, 판 크기는 9·13·19줄 중 설정합니다.',
+                            text: '페어 경기장은 흑·백 각 팀이 두 명씩 번갈아 한 수를 두는 2v2 바둑입니다. 방 번호 그리드에서 방을 만들거나 참가하고, 파트너·펫·AI 슬롯을 채운 뒤 대국을 시작합니다. 진행 중인 방은 입장 대신 「관전」 버튼이 표시되며, 친구 탭에서 대국 중인 친구의 경기도 관전할 수 있습니다.',
                         },
                         {
                             type: 'heading',
@@ -625,11 +711,12 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                         {
                             type: 'bullets',
                             items: [
-                                '4인 친선: 네 명이 모두 유저인 친선 대국. 팀원과 번갈아 착수합니다.',
+                                '4인 친선: 네 명이 모두 유저인 친선 대국. 네 좌석이 정해진 순서대로 번갈아 착수합니다.',
                                 '2인 친선: 두 명이 한 팀으로 상대 팀(2인)과 대국합니다.',
                                 '2인 AI대전: 내 팀은 유저 2명, 상대 팀은 AI 2명과 대결합니다.',
                                 '펫 페어(AI와 대결): 내 펫·파트너 펫과 AI 펫이 좌석을 나눠 두는 연습·도전 형식입니다.',
                                 '페어 랭킹전: 펫 페어 또는 2인 페어 팀으로 매칭되는 랭크 대국(행동력 소모).',
+                                '관전: 진행 중인 방 또는 친구 탭의 관전 버튼으로 들어가며, 미공개 히든돌과 개인 스캔 정보는 보이지 않습니다.',
                             ],
                         },
                         {
@@ -652,7 +739,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                             type: 'callout',
                             tone: 'tip',
                             title: '참고',
-                            text: '놀이바둑(주사위·오목·알까기 등)은 페어 경기장 친선 방이 아닌 전략·놀이 1:1 대기실에서 플레이합니다. 페어 대국 중 펫은 KATA·힌트 등 팀 보조 기능이 적용될 수 있습니다.',
+                            text: '놀이바둑(주사위·오목·알까기 등)은 페어 경기장 친선 방이 아닌 전략·놀이 1:1 대기실에서 플레이합니다. 페어 대국의 실제 진행 규칙(PASS, 좌석 순서, AI 지연)은 「실시간 PVP 대국」의 페어 항목에서 확인하세요.',
                         },
                     ],
                 },
@@ -674,6 +761,263 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                             tone: 'info',
                             title: '시즌과 연동',
                             text: '시즌제·최소 대국 수(배치) 등은 「랭킹 · 시즌」 도움말 항목에서 자세히 설명합니다.',
+                        },
+                    ],
+                },
+            },
+        ],
+    },
+    {
+        id: 'pvp-live',
+        label: '실시간 PVP 대국',
+        iconSrc: PVP_HELP_IMAGE,
+        accentClass: 'from-red-500/15 via-amber-500/10 to-slate-900/10',
+        subcategories: [
+            {
+                id: 'pvp-overview',
+                label: '처음 PVP 시작',
+                article: {
+                    id: 'pvp-overview',
+                    title: 'PVP를 처음 시작할 때',
+                    tagline: '상대 신청부터 대국 진행, 관전, 재접속까지 한 흐름으로 이해합니다.',
+                    hero: { src: PVP_HELP_IMAGE, alt: 'PVP 경기장' },
+                    blocks: [
+                        {
+                            type: 'paragraph',
+                            text: 'PVP는 다른 유저와 실시간으로 두는 대국입니다. 전략 경기장, 놀이 경기장, 페어 경기장에서 각각 다른 방식으로 상대를 만나며, 랭크전은 전적과 보상에 더 직접적으로 반영됩니다.',
+                        },
+                        { type: 'heading', text: '기본 흐름', level: 3 },
+                        {
+                            type: 'bullets',
+                            items: [
+                                '대기실에서 유저를 선택하거나 방을 만들어 대국을 신청합니다.',
+                                '대국 시작 전 판 크기, 제한시간, 모드, 고정 수순, 따내기 목표 같은 조건을 확인합니다.',
+                                '대국 중에는 메인 시계와 특수 모드 UI를 함께 보며 차례에 맞춰 착수합니다.',
+                                '진행 중인 다른 대국은 관전할 수 있지만, 관전자는 채팅과 비밀 정보 확인이 제한됩니다.',
+                                '연결이 끊기면 90초 안에 복귀해야 하며, 반복 끊김은 패배와 매너 불이익으로 이어질 수 있습니다.',
+                            ],
+                        },
+                        {
+                            type: 'imageRow',
+                            compact: true,
+                            images: [
+                                { src: STRATEGIC_LOBBY_IMAGE, alt: '전략 경기장', caption: '전략 PVP' },
+                                { src: PLAYFUL_LOBBY_IMAGE, alt: '놀이 경기장', caption: '놀이 PVP' },
+                                { src: PAIR_LOBBY_IMAGE, alt: '페어 경기장', caption: '페어 PVP' },
+                            ],
+                        },
+                        {
+                            type: 'callout',
+                            tone: 'tip',
+                            title: '추천 순서',
+                            text: '처음이라면 AI 연습이나 친선 대국으로 모드 UI를 익힌 뒤 랭크전에 들어가세요. 특히 스피드, 히든, 페어는 시간·정보·좌석 규칙이 일반 바둑과 다릅니다.',
+                        },
+                    ],
+                },
+            },
+            {
+                id: 'pvp-spectating',
+                label: '관전하기',
+                article: {
+                    id: 'pvp-spectating',
+                    title: '관전하기',
+                    tagline: '진행 중인 대국을 보되, 승부에 영향을 줄 정보는 숨깁니다.',
+                    hero: { src: PVP_HELP_IMAGE, alt: 'PVP 관전' },
+                    blocks: [
+                        {
+                            type: 'paragraph',
+                            text: '관전은 다른 유저의 실시간 대국을 보는 기능입니다. 수읽기, 포석, 시간 운영을 배울 수 있지만 대국자에게 유리한 비밀 정보는 관전자에게도 보이지 않습니다.',
+                        },
+                        { type: 'heading', text: '어디서 관전하나요?', level: 3 },
+                        {
+                            type: 'bullets',
+                            items: [
+                                '전략·놀이 대기실: 진행 중인 대국 목록이나 방 번호 항목에서 「관전」을 누릅니다.',
+                                '페어 경기장: 방 목록에서 상태가 진행 중인 방은 「입장」 대신 「관전」 버튼이 표시됩니다.',
+                                '페어 친구 탭: 친구가 대국 중이면 우측에 「관전」 버튼이 표시될 수 있습니다.',
+                                '관전을 나가면 기존 대기실 또는 현재 화면으로 돌아옵니다.',
+                            ],
+                        },
+                        { type: 'heading', text: '관전자에게 보이지 않는 것', level: 3 },
+                        {
+                            type: 'bullets',
+                            items: [
+                                '히든돌은 전체 공개, 영구 공개, 계가/종료처럼 모두가 알아도 되는 시점이 되기 전까지 보이지 않습니다.',
+                                '스캔으로 알게 된 개인 정보, 유저별 공개 상태, 새로 공개된 히든 정보는 관전자에게 전달되지 않습니다.',
+                                '관전자는 대국 채팅을 보낼 수 없습니다. 대국자는 외부 조언 없이 직접 승부해야 합니다.',
+                            ],
+                        },
+                        {
+                            type: 'callout',
+                            tone: 'info',
+                            title: '공정성 원칙',
+                            text: '관전 화면은 학습용입니다. 부계정 관전으로 히든돌 위치나 스캔 결과를 알아내는 일이 없도록 서버에서 관전자용 대국 정보를 따로 만들어 보냅니다.',
+                        },
+                    ],
+                },
+            },
+            {
+                id: 'pvp-disconnect-rejoin',
+                label: '접속 끊김 · 재접속',
+                article: {
+                    id: 'pvp-disconnect-rejoin',
+                    title: '접속 끊김과 재접속',
+                    tagline: '실시간 대국에서는 연결 안정성과 복귀 시간이 승패에 직접 영향을 줍니다.',
+                    hero: { src: PVP_HELP_IMAGE, alt: '접속 끊김 안내' },
+                    blocks: [
+                        {
+                            type: 'paragraph',
+                            text: 'PVP 대국 중 브라우저 종료, 로그아웃, 네트워크 끊김이 발생하면 접속 끊김 상태로 처리됩니다. 이때 대국의 메인 제한시간은 멈추고, 복귀를 기다리는 90초 몰수 카운트만 진행됩니다.',
+                        },
+                        { type: 'heading', text: '끊김이 발생하면', level: 3 },
+                        {
+                            type: 'bullets',
+                            items: [
+                                '현재 차례의 메인 시계는 일시 정지됩니다. 상대가 기다리는 동안 시간패가 같이 흐르지 않습니다.',
+                                '대국 화면에는 접속 끊김 연출과 남은 복귀 시간이 표시됩니다.',
+                                '90초 안에 재접속하면 끊김 연출이 사라지고 멈췄던 메인 시계가 다시 이어집니다.',
+                                '재로그인 후에도 진행 중인 내 대국이 있으면 자동 복귀를 시도합니다.',
+                            ],
+                        },
+                        { type: 'heading', text: '몰수와 3회 접속장애', level: 3 },
+                        {
+                            type: 'bullets',
+                            items: [
+                                '90초 안에 돌아오지 못하면 해당 대국은 접속장애/시간 초과로 패배 처리될 수 있습니다.',
+                                '한 대국에서 접속 끊김이 반복되어 3회에 도달하면 즉시 접속장애 패배가 처리될 수 있습니다.',
+                                '승자는 기권승과 같은 정상 승리 보상을 받을 수 있고, 랭크 대국에서는 결과가 전적과 보상에 반영됩니다.',
+                                '랭크 PVP의 접속장애 패배는 매너 점수에도 큰 불이익이 있을 수 있습니다.',
+                            ],
+                        },
+                        {
+                            type: 'callout',
+                            tone: 'warn',
+                            title: '복귀 팁',
+                            text: '실수로 새로고침하거나 브라우저를 닫았다면 같은 계정으로 바로 다시 로그인하세요. 복귀 창은 길지 않으므로 다른 메뉴를 먼저 열지 말고 대국 복귀를 우선하세요.',
+                        },
+                    ],
+                },
+            },
+            {
+                id: 'pvp-pass-scoring',
+                label: '통과(PASS) · 계가',
+                article: {
+                    id: 'pvp-pass-scoring',
+                    title: '통과(PASS)와 계가',
+                    tagline: 'PASS 버튼이 보이는지는 대국 시작 전 정한 규칙에 따라 달라집니다.',
+                    hero: { src: STRATEGIC_LOBBY_IMAGE, alt: 'PASS와 계가' },
+                    blocks: [
+                        {
+                            type: 'paragraph',
+                            text: 'PASS는 더 둘 곳이 없다고 판단할 때 차례를 넘기는 행동입니다. 하지만 모든 대국에서 사용할 수 있는 것은 아닙니다. 목표 수순이나 따내기 목표가 정해진 대국은 그 조건으로 승패가 정해지므로 PASS가 표시되지 않습니다.',
+                        },
+                        { type: 'heading', text: 'PASS가 없는 경우', level: 3 },
+                        {
+                            type: 'bullets',
+                            items: [
+                                '계가까지 정해진 수순이 있는 대국: 정해진 수순까지 진행한 뒤 자동으로 계가합니다.',
+                                '따내기 목표 개수가 있는 대국: 목표 개수만큼 먼저 따내는 것이 승리 조건이므로 PASS하지 않습니다.',
+                                '따내기 규칙이 섞인 믹스 대국: 캡처 목표가 있으면 PASS 대신 목표 달성으로 승패를 봅니다.',
+                            ],
+                        },
+                        { type: 'heading', text: 'PASS가 있는 경우', level: 3 },
+                        {
+                            type: 'bullets',
+                            items: [
+                                '고정 수순이나 따내기 목표가 없는 클래식 계열 대국에서는 PASS 버튼이 표시됩니다.',
+                                '1:1 대국은 두 플레이어가 연속으로 PASS하면 계가 단계로 넘어갑니다.',
+                                '4인 페어 PVP는 네 좌석 모두 PASS해야 계가가 시작됩니다.',
+                                '히든 바둑은 계가 전에 아직 공개되지 않은 히든돌을 전체 공개하는 단계가 먼저 진행될 수 있습니다.',
+                            ],
+                        },
+                        {
+                            type: 'callout',
+                            tone: 'tip',
+                            title: '초보자 기준',
+                            text: 'PASS 버튼이 없다면 오류가 아니라 그 대국의 승리 조건이 다른 것입니다. 화면의 목표 수순, 따내기 목표, 자동계가 안내를 먼저 확인하세요.',
+                        },
+                    ],
+                },
+            },
+            {
+                id: 'pvp-timers-speed',
+                label: '시간 · 스피드 바둑',
+                article: {
+                    id: 'pvp-timers-speed',
+                    title: '시간과 스피드 바둑',
+                    tagline: '메인 시계와 스피드 10초 바는 서로 다른 의미를 가집니다.',
+                    hero: { src: STRATEGIC_LOBBY_IMAGE, alt: '스피드 바둑 시간' },
+                    blocks: [
+                        {
+                            type: 'paragraph',
+                            text: 'PVP 대국에는 기본 제한시간이 있습니다. 제한시간을 모두 사용하면 시간패가 될 수 있습니다. 스피드 바둑은 여기에 별도의 10초 스피드바가 추가되는 모드입니다.',
+                        },
+                        { type: 'heading', text: '메인 시계', level: 3 },
+                        {
+                            type: 'bullets',
+                            items: [
+                                '대국 전체에서 사용하는 기본 제한시간입니다.',
+                                '초읽기나 피셔 방식이 설정되어 있으면 화면의 메인 시계와 함께 표시됩니다.',
+                                '연결 끊김 상태에서는 이 메인 시계가 멈추고, 90초 복귀 카운트만 진행됩니다.',
+                                '메인 시계를 모두 쓰면 시간패가 될 수 있습니다.',
+                            ],
+                        },
+                        { type: 'heading', text: '10초 스피드바', level: 3 },
+                        {
+                            type: 'bullets',
+                            items: [
+                                '스피드 바둑에서 한 수마다 따로 표시되는 10초 압박 게이지입니다.',
+                                '10초 안에 두면 다음 수에 다시 10초부터 시작합니다.',
+                                '10초를 넘길 때마다 상대의 점수가 1점씩 올라갑니다.',
+                                '스피드바 초과는 곧바로 시간패가 아닙니다. 시간패는 메인 시계가 모두 소진될 때 발생합니다.',
+                            ],
+                        },
+                        {
+                            type: 'callout',
+                            tone: 'info',
+                            title: '구분해서 보기',
+                            text: '화면의 큰 시간 표시는 메인 제한시간, 별도로 표시되는 「10초 스피드바」는 상대 점수 +1 압박입니다. 둘을 같은 타이머로 보지 마세요.',
+                        },
+                    ],
+                },
+            },
+            {
+                id: 'pvp-pair-gameplay',
+                label: '페어 대국 진행',
+                article: {
+                    id: 'pvp-pair-gameplay',
+                    title: '페어 대국 진행 규칙',
+                    tagline: '팀 색은 같지만 좌석마다 차례가 따로 돌아갑니다.',
+                    hero: { src: PAIR_LOBBY_IMAGE, alt: '페어 대국 진행' },
+                    blocks: [
+                        {
+                            type: 'paragraph',
+                            text: '페어 대국은 흑 팀과 백 팀이 있고, 각 팀 안에 두 좌석이 있습니다. 팀원은 같은 색 돌을 두지만, 착수 순서는 좌석 단위로 돌아갑니다.',
+                        },
+                        { type: 'heading', text: '좌석과 차례', level: 3 },
+                        {
+                            type: 'bullets',
+                            items: [
+                                '4인 친선은 네 명이 정해진 좌석 순서대로 한 수씩 둡니다.',
+                                '2인/AI/펫 페어는 빈 좌석을 AI 또는 펫이 맡을 수 있습니다.',
+                                '현재 차례가 아닌 팀원은 대신 둘 수 없습니다. 같은 팀이어도 좌석 순서를 지켜야 합니다.',
+                                'AI 또는 펫 좌석은 사용자가 수순을 알아보기 쉽도록 약 1초 정도 생각한 뒤 착수합니다.',
+                            ],
+                        },
+                        { type: 'heading', text: '페어에서 PASS와 계가', level: 3 },
+                        {
+                            type: 'bullets',
+                            items: [
+                                '고정 수순이나 따내기 목표가 없는 4인 페어 PVP에서는 네 좌석이 모두 PASS해야 계가로 넘어갑니다.',
+                                '일부 AI/펫 페어 또는 목표형 대국은 PASS 대신 자동계가나 목표 달성으로 진행될 수 있습니다.',
+                                '팀 단위 기권, 연결 끊김, 관전 규칙은 일반 PVP와 같은 공정성 원칙을 따릅니다.',
+                            ],
+                        },
+                        {
+                            type: 'callout',
+                            tone: 'tip',
+                            title: '처음 할 때',
+                            text: '내가 어느 팀의 몇 번째 좌석인지 먼저 확인하세요. 팀 색이 같아도 내 차례가 아닐 때는 착수할 수 없습니다.',
                         },
                     ],
                 },
@@ -758,7 +1102,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                     blocks: [
                         {
                             type: 'paragraph',
-                            text: '전략 바둑은 정통 규칙과 변형 규칙을 바탕으로 한 모드 묶음입니다. 각 모드의 승리 조건·특수 규칙·아이템은 통합 도움말(퀵 메뉴의 도움말)에서 게임별로 확인하는 것이 가장 정확합니다.',
+                            text: '전략 바둑은 정통 규칙과 변형 규칙을 바탕으로 한 모드 묶음입니다. 각 모드의 승리 조건·특수 규칙·아이템을 먼저 확인하고, 실제 PVP에서의 시간·PASS·접속·관전 규칙은 「실시간 PVP 대국」 항목과 함께 보세요.',
                         },
                         { type: 'heading', text: '모드 아이콘', level: 3 },
                         {
@@ -771,6 +1115,12 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                             items: SPECIAL_GAME_MODES.map(
                                 (g) => `${g.name}: ${g.description}`,
                             ),
+                        },
+                        {
+                            type: 'callout',
+                            tone: 'info',
+                            title: 'PVP 공통 규칙',
+                            text: '모드 설명은 “무엇을 목표로 두는가”를 알려줍니다. PASS 버튼 표시, 90초 재접속, 스피드 10초 바, 관전 정보 보호처럼 실시간 대국에서 공통으로 적용되는 규칙은 별도 PVP 항목에서 확인하세요.',
                         },
                     ],
                 },
@@ -786,7 +1136,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                     blocks: [
                         {
                             type: 'paragraph',
-                            text: '페어 경기장·2인 페어 랭킹전에서 방을 만들 때 아래 전략 모드 중 하나를 고릅니다. 믹스 모드는 여러 규칙을 섞어 진행할 수 있습니다.',
+                            text: '페어 경기장·2인 페어 랭킹전에서 방을 만들 때 아래 전략 모드 중 하나를 고릅니다. 믹스 모드는 여러 규칙을 섞어 진행할 수 있습니다. 좌석 순서, 4인 PASS, 관전, AI/펫 착수 지연 같은 실제 진행 규칙은 「실시간 PVP 대국」의 페어 항목을 함께 확인하세요.',
                         },
                         { type: 'heading', text: '지원 모드', level: 3 },
                         {
@@ -799,6 +1149,11 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                             items: SPECIAL_GAME_MODES.filter((g) =>
                                 PAIR_GO_GAME_MODES.includes(g.mode),
                             ).map((g) => `${g.name}: ${g.description}`),
+                        },
+                        {
+                            type: 'callout',
+                            tone: 'tip',
+                            text: '페어에서도 고정 수순이나 따내기 목표가 있으면 PASS가 없고, 목표가 없는 4인 PVP에서는 네 좌석 모두 PASS해야 계가합니다.',
                         },
                     ],
                 },
@@ -814,7 +1169,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                     blocks: [
                         {
                             type: 'paragraph',
-                            text: '놀이 바둑은 바둑판과 돌을 활용한 캐주얼·파티 게임 성격의 모드입니다. 모드마다 턴 구조와 승패 판정이 다르므로, 첫 플레이 전에 통합 도움말(퀵 메뉴의 도움말)을 권장합니다.',
+                            text: '놀이 바둑은 바둑판과 돌을 활용한 캐주얼·파티 게임 성격의 모드입니다. 모드마다 턴 구조와 승패 판정이 다르므로, 첫 플레이 전에 통합 도움말(퀵 메뉴의 도움말)을 권장합니다. 실시간 대국의 접속 끊김·관전·시간 규칙은 전략 경기장과 같은 공정성 원칙을 따릅니다.',
                         },
                         { type: 'heading', text: '모드 아이콘', level: 3 },
                         {
@@ -1206,6 +1561,26 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                                 '최악 (0): 최대 행동력 감소',
                             ],
                         },
+                        {
+                            type: 'heading',
+                            text: 'PVP 접속장애와 매너',
+                            level: 3,
+                        },
+                        {
+                            type: 'bullets',
+                            items: [
+                                'PVP 대국 중 연결이 끊기면 메인 시계는 멈추지만 90초 복귀 카운트가 진행됩니다.',
+                                '복귀하지 못해 패배하거나 한 대국에서 3회 접속 끊김에 도달하면 접속장애 패배로 처리될 수 있습니다.',
+                                '랭크 PVP의 접속장애 패배는 일반 패배보다 매너 점수에 더 큰 불이익이 있을 수 있습니다.',
+                                '상대가 접속 끊김 상태일 때는 기다림 시간이 따로 표시되며, 무리한 새로고침보다 안정적인 재접속이 중요합니다.',
+                            ],
+                        },
+                        {
+                            type: 'callout',
+                            tone: 'warn',
+                            title: '주의',
+                            text: '실시간 PVP는 상대 유저의 시간도 함께 쓰는 콘텐츠입니다. 반복적인 종료·새로고침·네트워크 방치는 매너 등급과 보상 경험에 영향을 줄 수 있습니다.',
+                        },
                     ],
                 },
             },
@@ -1460,13 +1835,16 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                         {
                             type: 'bullets',
                             items: [
-                                '판매 등록은 기능 VIP가 활성화된 유저만 가능합니다. 구매는 누구나 가능합니다.',
+                                '판매 등록은 누구나 가능하며, 구매도 누구나 가능합니다.',
+                                '모든 유저는 거래 등록권 없이 1개 슬롯까지 무료로 판매 등록할 수 있습니다.',
+                                '2·3번째 슬롯 등록에는 거래 등록권이 필요합니다. 챔피언십 상점 등에서 구매할 수 있습니다.',
+                                '기능 VIP는 등록권 없이 최대 3개까지 동시 판매 등록할 수 있습니다.',
                                 '판매 등록 시 등록 금액의 10%가 등록 수수료로 즉시 차감됩니다.',
                                 '판매 완료 후 정산 수령 시 판매 금액의 10%가 판매 수수료로 차감됩니다.',
                                 '등록 수수료가 부족하면 판매 등록이 되지 않습니다.',
                                 '판매 재화는 골드/다이아 중 선택할 수 있습니다.',
                                 '최소 판매 가격은 100골드 또는 10다이아입니다.',
-                                '기능 VIP 기준 동시 등록 가능 수는 최대 3개이며, 판매 완료 후 빈 슬롯에 재등록할 수 있습니다.',
+                                '판매 완료 후 빈 슬롯에 재등록할 수 있습니다.',
                             ],
                         },
                     ],

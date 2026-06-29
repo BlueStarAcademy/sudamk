@@ -719,9 +719,15 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
     if (frozenSeedRef.current === undefined) {
         frozenSeedRef.current = seedFromSession;
     }
-    /** 임베드 방 만들기: 부모 시드 객체 참조가 매 렌더 바뀌어도 내용이 같으면 이펙트가 도지 않게 fingerprint 사용 */
+    /**
+     * 임베드 방 만들기: 부모 `onConfigureApply` 후 시드 참조만 바뀌면 자식이 다시 pull·push 루프에 들어간다.
+     * configureOnly 임베드는 자식 `settings`가 편집 출처 — 시드 ref는 마운트·모드 전환 시에만 갱신.
+     */
     const embeddedSeedLiveRef = useRef(seedFromSession);
-    embeddedSeedLiveRef.current = seedFromSession;
+    const configureOnlyEmbeddedDraft = embeddedPanel && configureOnly && !pairDuoRankedLobbyReadOnly;
+    if (!configureOnlyEmbeddedDraft) {
+        embeddedSeedLiveRef.current = seedFromSession;
+    }
     const embeddedParentDraftFingerprint =
         embeddedPanel && configureOnly
             ? `${seedFromSession?.mode ?? ''}\0${stableStringify(seedFromSession?.settings ?? {})}\0${stableStringify(seedFromSession?.settingsByMode ?? {})}`
@@ -857,7 +863,6 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
         pairDuoRankedLobbyReadOnly,
         embeddedPanel,
         configureOnly,
-        embeddedParentDraftFingerprint,
         transformSettingsBeforeStart,
         lobbyType,
         pairFriendlyHumanClock,
@@ -1109,6 +1114,14 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                     onConfigureApply(mode, canonical);
                     lastEmbeddedPushKeyRef.current = `${mode}\0${stableStringify(canonical)}`;
                     lastSyncedEmbeddedParentModeRef.current = mode;
+                    embeddedSeedLiveRef.current = {
+                        mode,
+                        settings: canonical,
+                        settingsByMode: {
+                            ...(embeddedSeedLiveRef.current?.settingsByMode ?? {}),
+                            [mode]: canonical,
+                        },
+                    };
                 }
                 return;
             }
@@ -1129,24 +1142,38 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
             lobbyGameModes,
         ],
     );
+    /** 임베드 방 옵션: 자식 `settings` 변경 시에만 부모 초안 갱신(디바운스). 즉시 push는 네이티브 `<select>` 드롭다운을 닫는다. */
     useEffect(() => {
         if (!embeddedPanel || !configureOnly || !onConfigureApply) return;
-        const built = buildFinalSettingsForApply();
-        if (!built) return;
-        const key = `${built.mode}\0${stableStringify(built.settings)}`;
-        if (key === lastEmbeddedPushKeyRef.current) return;
-        const live = embeddedSeedLiveRef.current;
-        const parentSlice =
-            live?.settingsByMode?.[built.mode] ??
-            (live?.mode === built.mode && live.settings ? live.settings : undefined);
-        if (parentSlice && stableStringify(parentSlice) === stableStringify(built.settings)) {
+        const handle = window.setTimeout(() => {
+            const built = buildFinalSettingsForApply();
+            if (!built) return;
+            const key = `${built.mode}\0${stableStringify(built.settings)}`;
+            if (key === lastEmbeddedPushKeyRef.current) return;
+            const live = embeddedSeedLiveRef.current;
+            const parentSlice =
+                live?.settingsByMode?.[built.mode] ??
+                (live?.mode === built.mode && live.settings ? live.settings : undefined);
+            if (parentSlice && stableStringify(parentSlice) === stableStringify(built.settings)) {
+                lastEmbeddedPushKeyRef.current = key;
+                return;
+            }
             lastEmbeddedPushKeyRef.current = key;
-            return;
-        }
-        lastEmbeddedPushKeyRef.current = key;
-        onConfigureApply(built.mode, built.settings);
-        lastSyncedEmbeddedParentModeRef.current = built.mode;
-    }, [embeddedPanel, configureOnly, onConfigureApply, buildFinalSettingsForApply, embeddedParentDraftFingerprint]);
+            onConfigureApply(built.mode, built.settings);
+            lastSyncedEmbeddedParentModeRef.current = built.mode;
+            if (configureOnlyEmbeddedDraft) {
+                embeddedSeedLiveRef.current = {
+                    mode: built.mode,
+                    settings: built.settings,
+                    settingsByMode: {
+                        ...(embeddedSeedLiveRef.current?.settingsByMode ?? {}),
+                        [built.mode]: built.settings,
+                    },
+                };
+            }
+        }, 120);
+        return () => window.clearTimeout(handle);
+    }, [embeddedPanel, configureOnly, configureOnlyEmbeddedDraft, onConfigureApply, buildFinalSettingsForApply]);
 
     const handleChallenge = () => {
         if (!selectedGameMode) return;
@@ -1402,6 +1429,8 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                               : denseSettingsGridClass
                         : 'flex h-full flex-col gap-2 overflow-y-auto pr-2'
                 }
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
             >
                 {showGoAiLevel && (
                     <div className={settingRowClass}>
@@ -2845,4 +2874,22 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
     );
 };
 
-export default AiChallengeModal;
+/** 방 만들기 임베드: 부모가 push 후 넘기는 `seedFromSession` 참조 변경만으로는 리렌더하지 않음 */
+function aiChallengeModalPropsAreEqual(
+    prev: Readonly<AiChallengeModalProps>,
+    next: Readonly<AiChallengeModalProps>,
+): boolean {
+    const skipSeed =
+        prev.configureOnly &&
+        prev.embeddedPanel &&
+        next.configureOnly &&
+        next.embeddedPanel;
+    const keys = Object.keys(next) as (keyof AiChallengeModalProps)[];
+    for (const key of keys) {
+        if (skipSeed && key === 'seedFromSession') continue;
+        if (!Object.is(prev[key], next[key])) return false;
+    }
+    return true;
+}
+
+export default React.memo(AiChallengeModal, aiChallengeModalPropsAreEqual);

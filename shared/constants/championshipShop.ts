@@ -149,12 +149,12 @@ export const CHAMPIONSHIP_SHOP_SPECIAL: readonly ChampionshipShopMaterialProduct
     {
         id: 'championship_special_trade',
         tab: 'special',
-        label: '거래소 등록권',
+        label: '거래 등록권',
         materialName: '거래 등록권',
-        champCoins: 3000,
+        champCoins: 1000,
         image: '/images/use/allowtrade.webp',
-        description: '거래소에 물품 1개 등록',
-        weeklyLimit: 1,
+        description: '거래소 추가 판매 등록 1회',
+        weeklyLimit: 3,
     },
 ] as const;
 

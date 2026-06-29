@@ -46,9 +46,9 @@ export const SCREEN_GUIDE_HELP_CONFIG: Record<ScreenGuideId, ScreenGuideHelpConf
         modalTitle: '도전의 탑 안내',
     },
     pvpArena: {
-        categoryId: 'lobby',
-        subId: 'lobby-pair',
-        categoryFilter: ['lobby', 'modes'],
+        categoryId: 'pvp-live',
+        subId: 'pvp-overview',
+        categoryFilter: ['lobby', 'pvp-live', 'modes'],
         modalTitle: 'PVP 경기장 안내',
     },
     championship: {

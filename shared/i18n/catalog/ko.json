@@ -354,7 +354,7 @@
       "blacksmith": "대장간",
       "shop": "상점",
       "inventory": "가방",
-      "pet": "펫 관리",
+      "pet": "펫",
       "trainingQuest": "수련과제",
       "detailedStats": "PVP 경기장 상세 전적",
       "monsterCodex": "몬스터 도감",
@@ -362,7 +362,7 @@
       "gameRecords": "기보",
       "encyclopedia": "도감",
       "announcements": "공지",
-      "help": "도움말 센터",
+      "help": "도움말",
       "menu1": "메뉴1",
       "menu2": "메뉴2"
     },
@@ -1728,7 +1728,8 @@
       "aria": "결과 탭"
     },
     "speedPressure": {
-      "aria": "수당 시간 {{sec}}초"
+      "aria": "수당 시간 {{sec}}초",
+      "label": "10초 스피드바"
     },
     "adventureResult": {
       "bossLine": "보스: {{label}} +{{pct}}%",
@@ -2404,6 +2405,8 @@
       "invite": "초대하기",
       "challenge": "대국 신청",
       "challengeUnavailable": "상대방이 대국 신청을 받을 수 있는 상태가 아닙니다.",
+      "spectate": "관전",
+      "spectateUnavailable": "관전할 수 있는 대국 정보를 찾을 수 없습니다.",
       "blockInvites": "초대금지",
       "blockInvitesTitle": "켜면 다른 플레이어가 페어 경기장에서 나를 파트너로 초대할 수 없습니다.",
       "statusInPairRoom": "페어 방에 있을 때는 상태를 바꿀 수 없습니다.",
@@ -4881,7 +4884,7 @@
       },
       "use_allowtrade": {
         "name": "거래 등록권",
-        "description": "거래소에 판매 물품 1개를 등록할 수 있는 특별 허가권입니다."
+        "description": "거래소에 판매 물품을 추가 등록할 수 있는 허가권입니다."
       }
     },
     "stats": {
@@ -5192,9 +5195,9 @@
       "selectGear": "장비 선택"
     },
     "alerts": {
-      "insufficientTicket": "거래 등록권이 부족합니다.",
+      "insufficientTicket": "거래 등록권이 부족합니다. 추가 판매 슬롯 등록에 필요합니다.",
       "vipListingLimit": "기능 VIP는 최대 3개 상품까지만 판매 등록할 수 있습니다.",
-      "ticketHint": "거래 등록권이 부족합니다. 등록권 1장으로 판매물품 1개를 등록할 수 있습니다.",
+      "ticketHint": "추가 판매 슬롯 등록에는 거래 등록권이 필요합니다.",
       "selectGearFromInventory": "인벤토리에서 판매할 장비를 선택해주세요.",
       "boundGear": "귀속된 장비는 판매할 수 없습니다. 귀속 해제권을 사용해주세요.",
       "minimumPrice": "최소 판매가는 {{price}}입니다.",
@@ -6194,6 +6197,9 @@
       "matchInProgress": "경기 진행 중",
       "inMatch": "경기중",
       "enter": "입장",
+      "spectate": "관전",
+      "spectateMatch": "대국 관전",
+      "spectateUnavailable": "관전할 수 있는 대국 정보를 찾을 수 없습니다.",
       "orphanRooms": "번호 1~100 밖의 방",
       "roomKindFilter": "방 종류 필터",
       "gameModeFilter": "게임 모드 필터",

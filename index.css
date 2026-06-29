@@ -2295,3 +2295,57 @@ input[type="range"]::-moz-range-thumb {
     transform: translateX(0);
   }
 }
+
+@keyframes adventure-map-monster-wander {
+  0%,
+  100% {
+    transform: translate3d(var(--w0x, 0px), var(--w0y, 0px), 0);
+  }
+  25% {
+    transform: translate3d(var(--w1x, 0px), var(--w1y, 0px), 0);
+  }
+  50% {
+    transform: translate3d(var(--w2x, 0px), var(--w2y, 0px), 0);
+  }
+  75% {
+    transform: translate3d(var(--w3x, 0px), var(--w3y, 0px), 0);
+  }
+}
+
+@keyframes adventure-map-monster-face {
+  0%,
+  24% {
+    transform: scaleX(var(--face0, 1));
+  }
+  25%,
+  49% {
+    transform: scaleX(var(--face1, 1));
+  }
+  50%,
+  74% {
+    transform: scaleX(var(--face2, 1));
+  }
+  75%,
+  100% {
+    transform: scaleX(var(--face3, 1));
+  }
+}
+
+.adventure-map-monster-wander {
+  animation: adventure-map-monster-wander ease-in-out infinite;
+  will-change: transform;
+}
+
+.adventure-map-monster-face {
+  animation: adventure-map-monster-face steps(1, end) infinite;
+  transform-origin: center bottom;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adventure-map-monster-wander,
+  .adventure-map-monster-face {
+    animation: none;
+    transform: none;
+  }
+}

@@ -219,7 +219,7 @@ class AiProcessingQueue {
                 const thinkDelayMs = 1000 + Math.floor(Math.random() * 1000);
                 await new Promise(resolve => setTimeout(resolve, thinkDelayMs));
             }
-            if (!isAdventureAiGame && !pairClassicAiTurn && game.currentPlayer === Player.White && !isPlacingStones) {
+            if (!isAdventureAiGame && !isPlacingStones && (pairClassicAiTurn || game.currentPlayer === Player.White)) {
                 const preActionDelayMs =
                     game.mode === GameMode.Dice || game.mode === GameMode.Thief
                         ? PLAYFUL_AI_QUEUE_PRE_ACTION_DELAY_MS

@@ -9,6 +9,14 @@ import {
     shouldTriggerRankedFixedTurnScoring,
 } from '../../../shared/utils/rankedFixedTurnScoring.js';
 
+const baseSettings = {
+    boardSize: 19 as const,
+    komi: 6.5,
+    timeLimit: 300,
+    byoyomiTime: 30,
+    byoyomiCount: 3,
+};
+
 describe('rankedFixedTurnScoring', () => {
     it('pvpHasFixedScoringTurnLimit mirrors arena pass policy', () => {
         expect(
@@ -17,7 +25,7 @@ describe('rankedFixedTurnScoring', () => {
                 isAiGame: false,
                 isSinglePlayer: false,
                 mode: GameMode.Standard,
-                settings: { scoringTurnLimit: 80 },
+                settings: { ...baseSettings, scoringTurnLimit: 80 },
                 gameCategory: 'normal' as any,
             }),
         ).toBe(true);
@@ -27,7 +35,7 @@ describe('rankedFixedTurnScoring', () => {
                 isAiGame: false,
                 isSinglePlayer: false,
                 mode: GameMode.Standard,
-                settings: { scoringTurnLimit: 0 },
+                settings: { ...baseSettings, scoringTurnLimit: 0 },
                 gameCategory: 'normal' as any,
             }),
         ).toBe(false);
@@ -38,8 +46,9 @@ describe('rankedFixedTurnScoring', () => {
                 isSinglePlayer: false,
                 mode: GameMode.Standard,
                 settings: {
+                    ...baseSettings,
                     scoringTurnLimit: 120,
-                    pairGame: { pairMode: 'pvp', turnOrder: [] },
+                    pairGame: { pairMode: 'pvp', turnOrder: [] } as any,
                 },
                 gameCategory: 'normal' as any,
             }),
@@ -51,8 +60,9 @@ describe('rankedFixedTurnScoring', () => {
                 isSinglePlayer: false,
                 mode: GameMode.Standard,
                 settings: {
+                    ...baseSettings,
                     scoringTurnLimit: 0,
-                    pairGame: { pairMode: 'pvp', turnOrder: [] },
+                    pairGame: { pairMode: 'pvp', turnOrder: [] } as any,
                 },
                 gameCategory: 'normal' as any,
             }),
@@ -65,7 +75,7 @@ describe('rankedFixedTurnScoring', () => {
                 isRankedGame: true,
                 isAiGame: false,
                 mode: GameMode.Uniform,
-                settings: { scoringTurnLimit: 80 },
+                settings: { ...baseSettings, scoringTurnLimit: 80 },
             }),
         ).toBe(true);
         expect(
@@ -73,7 +83,7 @@ describe('rankedFixedTurnScoring', () => {
                 isRankedGame: true,
                 isAiGame: false,
                 mode: GameMode.Capture,
-                settings: { scoringTurnLimit: 80, captureTarget: 20 },
+                settings: { ...baseSettings, scoringTurnLimit: 80, captureTarget: 20 },
             }),
         ).toBe(false);
     });

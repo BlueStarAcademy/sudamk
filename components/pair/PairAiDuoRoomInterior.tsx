@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import PairLobbyProposalCooldownButton from './PairLobbyProposalCooldownButton.js';
 import {
     type WaitingLobbyPanelTone,
     pairAggregateRoomInteriorActionBarClass,
@@ -43,6 +44,7 @@ export type PairAiDuoRoomInteriorProps = {
     onReadyToggle: () => void;
     onProposeChange: () => void;
     proposeChangeDisabled: boolean;
+    proposeChangeCooldownUntilMs?: number;
     proposeChangeTitle?: string;
     onLeave: () => void;
     onEditRoom?: () => void;
@@ -67,6 +69,7 @@ const PairAiDuoRoomInterior: React.FC<PairAiDuoRoomInteriorProps> = ({
     onReadyToggle,
     onProposeChange,
     proposeChangeDisabled,
+    proposeChangeCooldownUntilMs,
     proposeChangeTitle,
     onLeave,
     onEditRoom,
@@ -234,15 +237,15 @@ const PairAiDuoRoomInterior: React.FC<PairAiDuoRoomInteriorProps> = ({
                         ) : (
                             <span aria-hidden className="min-w-0" />
                         )}
-                        <button
-                            type="button"
+                        <PairLobbyProposalCooldownButton
+                            cooldownUntilMs={proposeChangeCooldownUntilMs}
                             disabled={isBusy || proposeChangeDisabled}
                             title={proposeChangeTitle}
                             onClick={onProposeChange}
                             className={proposeBtnClass}
                         >
                             {t('waitingLobby.proposeChange')}
-                        </button>
+                        </PairLobbyProposalCooldownButton>
                     </>
                 )}
                 <button type="button" disabled={isBusy} onClick={onLeave} className={leaveBtnClass}>

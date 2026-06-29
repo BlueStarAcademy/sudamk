@@ -30,7 +30,7 @@ function makePvpGame(disconnectedUserId: string): LiveGameSession {
     return {
         id: 'game-1',
         mode: GameMode.Standard,
-        settings: { boardSize: 9, komi: 0.5 },
+        settings: { boardSize: 9, komi: 0.5, timeLimit: 300, byoyomiTime: 30, byoyomiCount: 3 },
         player1: p1,
         player2: p2,
         blackPlayerId: p1.id,
@@ -40,6 +40,10 @@ function makePvpGame(disconnectedUserId: string): LiveGameSession {
         moveHistory: [],
         captures: { [Player.Black]: 0, [Player.White]: 0 },
         currentPlayer: Player.Black,
+        blackTimeLeft: 60,
+        whiteTimeLeft: 60,
+        blackByoyomiPeriodsLeft: 3,
+        whiteByoyomiPeriodsLeft: 3,
         disconnectionState: {
             disconnectedPlayerId: disconnectedUserId,
             timerStartedAt: Date.now() - 10_000,
@@ -55,9 +59,16 @@ describe('clearPvpDisconnectOnPlayerReconnect', () => {
 
     it('clears disconnectionState for the disconnected player within grace period', async () => {
         const game = makePvpGame('p2-id');
+        game.pausedTurnTimeLeft = 37;
+        game.turnDeadline = undefined;
+        game.turnStartTime = undefined;
         const cleared = await clearPvpDisconnectOnPlayerReconnect(game, 'p2-id');
         expect(cleared).toBe(true);
         expect(game.disconnectionState).toBeNull();
+        expect(game.blackTimeLeft).toBe(37);
+        expect(game.pausedTurnTimeLeft).toBeUndefined();
+        expect(game.turnDeadline).toBeGreaterThan(Date.now());
+        expect(game.turnStartTime).toBeGreaterThan(0);
         expect(db.saveGame).toHaveBeenCalledWith(game);
         expect(broadcastToGameParticipants).toHaveBeenCalled();
     });
@@ -106,6 +117,8 @@ describe('applyPvpInGameDisconnect', () => {
     it('sets disconnectionState when waiting-room entry overwrote in-game status', async () => {
         const game = makePvpGame('p2-id');
         game.disconnectionState = null;
+        game.turnDeadline = Date.now() + 45_000;
+        game.turnStartTime = Date.now() - 15_000;
         const volatileState = {
             userStatuses: {
                 'p2-id': { status: UserStatus.Waiting, waitingLobby: 'strategic' },
@@ -116,6 +129,10 @@ describe('applyPvpInGameDisconnect', () => {
         const handled = await applyPvpInGameDisconnect(volatileState, 'p2-id');
         expect(handled).toBe(true);
         expect(game.disconnectionState?.disconnectedPlayerId).toBe('p2-id');
+        expect(game.pausedTurnTimeLeft).toBeGreaterThanOrEqual(44);
+        expect(game.pausedTurnTimeLeft).toBeLessThanOrEqual(45);
+        expect(game.turnDeadline).toBeUndefined();
+        expect(game.turnStartTime).toBeUndefined();
         expect(volatileState.userStatuses['p2-id']?.status).toBe(UserStatus.InGame);
         expect(volatileState.userStatuses['p2-id']?.gameId).toBe('game-1');
         expect(broadcastToGameParticipants).toHaveBeenCalled();

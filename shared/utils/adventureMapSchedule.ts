@@ -28,12 +28,23 @@ export type AdventureMapMonsterInstance = {
     mode: AdventureMonsterBattleMode;
     xPct: number;
     yPct: number;
+    windowStartMs: number;
     expiresAt: number;
     spriteSheetWebp: string;
     speciesName: string;
     spriteCols: number;
     spriteRows: number;
     spriteFrameIndex: number;
+};
+
+export type AdventureMapSpawnSlot = {
+    spawnSlotIndex: number;
+    spawnSlotCount: number;
+};
+
+export type AdventureMapDwellWindow = {
+    windowStart: number;
+    windowEnd: number;
 };
 
 export type AdventureMapStageForSchedule = {
@@ -67,6 +78,44 @@ function posInCycle(nowMs: number, phaseMs: number, cycleMs: number): number {
     return (((nowMs + phaseMs) % c) + c) % c;
 }
 
+export function compareAdventureMapMonstersForSchedule(
+    a: { codexId: string },
+    b: { codexId: string },
+): number {
+    const ab = isAdventureChapterBossCodexId(a.codexId) ? 1 : 0;
+    const bb = isAdventureChapterBossCodexId(b.codexId) ? 1 : 0;
+    if (ab !== bb) return ab - bb;
+    return a.codexId.localeCompare(b.codexId);
+}
+
+export function resolveAdventureMapSpawnSlot(
+    monsters: readonly { codexId: string }[] | null | undefined,
+    codexId: string,
+): AdventureMapSpawnSlot {
+    if (!monsters || monsters.length === 0) {
+        return { spawnSlotIndex: 0, spawnSlotCount: 1 };
+    }
+    const sorted = [...monsters].sort(compareAdventureMapMonstersForSchedule);
+    const idx = sorted.findIndex((m) => m.codexId === codexId);
+    return { spawnSlotIndex: Math.max(0, idx), spawnSlotCount: sorted.length };
+}
+
+function adventureMapStaggeredPhase(
+    stageId: string,
+    codexId: string,
+    cycle: number,
+    dwell: number,
+    spawnSlot: AdventureMapSpawnSlot,
+): number {
+    if (spawnSlot.spawnSlotCount <= 1) {
+        return fnv1a32(`advMapPhase|${stageId}|${codexId}`) % cycle;
+    }
+    const jitterSpan = Math.max(1, cycle - dwell);
+    const jitter = fnv1a32(`advMapPhase|${stageId}|${codexId}`) % jitterSpan;
+    const stagger = Math.floor((cycle * spawnSlot.spawnSlotIndex) / spawnSlot.spawnSlotCount);
+    return (jitter + stagger) % cycle;
+}
+
 export function getAdventureMapCycleParams(
     stageId: string,
     codexId: string,
@@ -74,6 +123,7 @@ export function getAdventureMapCycleParams(
     dwellMultiplier = 1,
     /** 출현 대기 구간(off) 길이 배율 — 0.5~1 권장 */
     offMsMultiplier = 1,
+    spawnSlot: AdventureMapSpawnSlot = { spawnSlotIndex: 0, spawnSlotCount: 1 },
 ) {
     const mult = Math.max(1, dwellMultiplier);
     const dwell = Math.round(ADVENTURE_MONSTER_MAP_STAY_MS * mult);
@@ -84,7 +134,7 @@ export function getAdventureMapCycleParams(
               (ADVENTURE_MONSTER_RESPAWN_NORMAL_MAX_MS - ADVENTURE_MONSTER_RESPAWN_NORMAL_MIN_MS + 1));
     const offMs = Math.max(60_000, Math.round(offBase * Math.max(0.25, Math.min(1, offMsMultiplier))));
     const cycle = dwell + offMs;
-    const phase = fnv1a32(`advMapPhase|${stageId}|${codexId}`) % cycle;
+    const phase = adventureMapStaggeredPhase(stageId, codexId, cycle, dwell, spawnSlot);
     return { dwell, offMs, cycle, phase };
 }
 
@@ -96,8 +146,16 @@ export function adventureMapIsOnScheduleDwell(
     isBoss: boolean,
     dwellMultiplier = 1,
     offMsMultiplier = 1,
+    spawnSlot: AdventureMapSpawnSlot = { spawnSlotIndex: 0, spawnSlotCount: 1 },
 ): boolean {
-    const { dwell, cycle, phase } = getAdventureMapCycleParams(stageId, codexId, isBoss, dwellMultiplier, offMsMultiplier);
+    const { dwell, cycle, phase } = getAdventureMapCycleParams(
+        stageId,
+        codexId,
+        isBoss,
+        dwellMultiplier,
+        offMsMultiplier,
+        spawnSlot,
+    );
     return posInCycle(nowMs, phase, cycle) < dwell;
 }
 
@@ -109,8 +167,16 @@ export function getAdventureMapSuppressUntilAfterDefeat(
     isBoss: boolean,
     dwellMultiplier = 1,
     offMsMultiplier = 1,
+    spawnSlot: AdventureMapSpawnSlot = { spawnSlotIndex: 0, spawnSlotCount: 1 },
 ): number {
-    const { dwell, cycle, phase } = getAdventureMapCycleParams(stageId, codexId, isBoss, dwellMultiplier, offMsMultiplier);
+    const { dwell, cycle, phase } = getAdventureMapCycleParams(
+        stageId,
+        codexId,
+        isBoss,
+        dwellMultiplier,
+        offMsMultiplier,
+        spawnSlot,
+    );
     const local = posInCycle(defeatAtMs, phase, cycle);
     if (local < dwell) {
         return defeatAtMs - local + dwell + (cycle - dwell);
@@ -127,11 +193,83 @@ export function adventureMapIsEffectivelyVisible(
     suppressUntilMs: number | undefined,
     dwellMultiplier = 1,
     offMsMultiplier = 1,
+    spawnSlot: AdventureMapSpawnSlot = { spawnSlotIndex: 0, spawnSlotCount: 1 },
 ): boolean {
-    if (!adventureMapIsOnScheduleDwell(nowMs, stageId, codexId, isBoss, dwellMultiplier, offMsMultiplier))
+    if (
+        !adventureMapIsOnScheduleDwell(
+            nowMs,
+            stageId,
+            codexId,
+            isBoss,
+            dwellMultiplier,
+            offMsMultiplier,
+            spawnSlot,
+        )
+    )
         return false;
     if (suppressUntilMs != null && nowMs < suppressUntilMs) return false;
     return true;
+}
+
+export function getAdventureMapActiveDwellWindow(
+    nowMs: number,
+    stageId: string,
+    codexId: string,
+    isBoss: boolean,
+    suppressUntilMs: number | undefined,
+    dwellMultiplier = 1,
+    offMsMultiplier = 1,
+    spawnSlot: AdventureMapSpawnSlot = { spawnSlotIndex: 0, spawnSlotCount: 1 },
+): AdventureMapDwellWindow | null {
+    if (
+        !adventureMapIsEffectivelyVisible(
+            nowMs,
+            stageId,
+            codexId,
+            isBoss,
+            suppressUntilMs,
+            dwellMultiplier,
+            offMsMultiplier,
+            spawnSlot,
+        )
+    ) {
+        return null;
+    }
+    const { dwell, cycle, phase } = getAdventureMapCycleParams(
+        stageId,
+        codexId,
+        isBoss,
+        dwellMultiplier,
+        offMsMultiplier,
+        spawnSlot,
+    );
+    const local = posInCycle(nowMs, phase, cycle);
+    const windowStart = nowMs - local;
+    return { windowStart, windowEnd: windowStart + dwell };
+}
+
+export function adventureMapMsUntilDisappear(
+    nowMs: number,
+    stageId: string,
+    codexId: string,
+    isBoss: boolean,
+    suppressUntilMs: number | undefined,
+    dwellMultiplier = 1,
+    offMsMultiplier = 1,
+    spawnSlot: AdventureMapSpawnSlot = { spawnSlotIndex: 0, spawnSlotCount: 1 },
+): number {
+    const window = getAdventureMapActiveDwellWindow(
+        nowMs,
+        stageId,
+        codexId,
+        isBoss,
+        suppressUntilMs,
+        dwellMultiplier,
+        offMsMultiplier,
+        spawnSlot,
+    );
+    if (!window) return 0;
+    return Math.max(0, window.windowEnd - nowMs);
 }
 
 /**
@@ -146,8 +284,16 @@ export function adventureMapMsUntilNextAppearance(
     suppressUntilMs: number | undefined,
     dwellMultiplier = 1,
     offMsMultiplier = 1,
+    spawnSlot: AdventureMapSpawnSlot = { spawnSlotIndex: 0, spawnSlotCount: 1 },
 ): number {
-    const { dwell, cycle, phase } = getAdventureMapCycleParams(stageId, codexId, isBoss, dwellMultiplier, offMsMultiplier);
+    const { dwell, cycle, phase } = getAdventureMapCycleParams(
+        stageId,
+        codexId,
+        isBoss,
+        dwellMultiplier,
+        offMsMultiplier,
+        spawnSlot,
+    );
     const suppress = suppressUntilMs != null && suppressUntilMs > nowMs ? suppressUntilMs : nowMs;
 
     let t = suppress;
@@ -209,17 +355,15 @@ export function buildAdventureMapMonstersFromSchedule(
     mapRespawnOffMultiplierForStage = 1,
 ): AdventureMapMonsterInstance[] {
     const { min: lvMin, max: lvMax } = getAdventureStageLevelRange(stage.stageIndex);
-    const sorted = [...stage.monsters].sort((a, b) => {
-        const ab = isAdventureChapterBossCodexId(a.codexId) ? 1 : 0;
-        const bb = isAdventureChapterBossCodexId(b.codexId) ? 1 : 0;
-        if (ab !== bb) return ab - bb;
-        return a.codexId.localeCompare(b.codexId);
-    });
+    const sorted = [...stage.monsters].sort(compareAdventureMapMonstersForSchedule);
+    const spawnSlotCount = sorted.length;
     const placed: { xPct: number; yPct: number }[] = [];
     const out: AdventureMapMonsterInstance[] = [];
 
-    for (const row of sorted) {
+    for (let spawnSlotIndex = 0; spawnSlotIndex < sorted.length; spawnSlotIndex++) {
+        const row = sorted[spawnSlotIndex]!;
         const isBoss = isAdventureChapterBossCodexId(row.codexId);
+        const spawnSlot = { spawnSlotIndex, spawnSlotCount };
         const key = adventureMapSuppressKey(stage.id, row.codexId);
         const suppressUntil = suppressUntilByKey?.[key];
         if (
@@ -231,6 +375,7 @@ export function buildAdventureMapMonstersFromSchedule(
                 suppressUntil,
                 mapDwellMultiplierForStage,
                 mapRespawnOffMultiplierForStage,
+                spawnSlot,
             )
         )
             continue;
@@ -241,6 +386,7 @@ export function buildAdventureMapMonstersFromSchedule(
             isBoss,
             mapDwellMultiplierForStage,
             mapRespawnOffMultiplierForStage,
+            spawnSlot,
         );
         const local = posInCycle(nowMs, phase, cycle);
         const windowStart = nowMs - local;
@@ -271,6 +417,7 @@ export function buildAdventureMapMonstersFromSchedule(
             mode,
             xPct: pos.xPct,
             yPct: pos.yPct,
+            windowStartMs: windowStart,
             expiresAt: windowEnd,
             spriteSheetWebp: row.imageWebp,
             speciesName: row.name,

@@ -6,7 +6,6 @@ import { useAppContext } from '../../hooks/useAppContext.js';
 import {
     ADVENTURE_CODEX_CHAPTER_UI,
     ADVENTURE_MAP_THEMES,
-    ADVENTURE_MONSTER_MODE_BADGE_SHORT,
     ADVENTURE_STAGES,
     adventureBattleModeToGameMode,
     getAdventureUnderstandingTierFromXp,
@@ -21,6 +20,7 @@ import {
     resolveAdventureBoardSize,
 } from '../../shared/utils/adventureBattleBoard.js';
 import { AdventureMonsterSpriteFrame } from './AdventureMonsterSprite.js';
+import AdventureMapMonsterLabel from './AdventureMapMonsterLabel.js';
 import { replaceAppHash } from '../../utils/appUtils.js';
 import {
     getAdventureChapterUnlockBlockers,
@@ -33,8 +33,10 @@ import {
     adventureMapMsUntilNextAppearance,
     adventureMapSuppressKey,
     buildAdventureMapMonstersFromSchedule,
+    resolveAdventureMapSpawnSlot,
     type AdventureMapMonsterInstance,
 } from '../../shared/utils/adventureMapSchedule.js';
+import { buildAdventureMapMonsterWanderStyle } from '../../shared/utils/adventureMapMonsterWander.js';
 import {
     getRegionalMapMonsterDwellMultiplierForStage,
     getRegionalMapMonsterRespawnOffMultiplierForStage,
@@ -627,6 +629,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
         for (const row of stage.monsters) {
             const boss = isAdventureChapterBossCodexId(row.codexId);
             const key = adventureMapSuppressKey(stage.id, row.codexId);
+            const spawnSlot = resolveAdventureMapSpawnSlot(stage.monsters, row.codexId);
             const m = adventureMapMsUntilNextAppearance(
                 t,
                 stage.id,
@@ -635,6 +638,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                 suppressRecord[key],
                 mapDwellMult,
                 mapRespawnOffMult,
+                spawnSlot,
             );
             minM = Math.min(minM, m);
         }
@@ -748,6 +752,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
     } else if (rosterModalRow && stage) {
         const boss = isAdventureChapterBossCodexId(rosterModalRow.codexId);
         const supK = adventureMapSuppressKey(stage.id, rosterModalRow.codexId);
+        const spawnSlot = resolveAdventureMapSpawnSlot(stage.monsters, rosterModalRow.codexId);
         const until = adventureMapMsUntilNextAppearance(
             now,
             stage.id,
@@ -756,12 +761,16 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
             suppressRecord[supK],
             mapDwellMult,
             mapRespawnOffMult,
+            spawnSlot,
         );
-        if (rosterModalInstance) {
-            rosterModalRightSlot = t('adventure.appearing');
-            rosterModalRightClass = 'font-bold text-emerald-300';
+        const disappearMs = rosterModalInstance
+            ? Math.max(0, rosterModalInstance.expiresAt - now)
+            : 0;
+        if (disappearMs > 0) {
+            rosterModalRightSlot = formatAdventureRemainMs(t, disappearMs);
+            rosterModalRightClass = 'font-mono font-bold tabular-nums text-emerald-300';
         } else if (until > 0) {
-            rosterModalRightSlot = formatAdventureRemainMs(t,until);
+            rosterModalRightSlot = formatAdventureRemainMs(t, until);
             rosterModalRightClass = 'font-mono font-bold tabular-nums text-amber-200';
         }
     }
@@ -911,6 +920,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                 />
                                 {monsters.map((m) => {
                                     const sel = m.id === selectedId;
+                                    const wander = buildAdventureMapMonsterWanderStyle(m.id, mapBox.w, mapBox.h);
                                     return (
                                         <button
                                             key={m.id}
@@ -933,59 +943,54 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                         >
                                             <div
                                                 className={[
-                                                    'flex flex-col items-center rounded-md px-0.5 pb-0.5 pt-0',
+                                                    'adventure-map-monster-wander flex flex-col items-center rounded-md px-0.5 pb-0.5 pt-0',
                                                     sel ? 'ring-2 ring-amber-400/90 ring-offset-0' : '',
                                                 ].join(' ')}
+                                                style={wander.wanderStyle}
                                             >
                                                 <div
-                                                    className={[
-                                                        'relative flex items-end justify-center',
-                                                        mobileSpritePx != null
-                                                            ? ''
-                                                            : isNativeMobile
-                                                              ? 'h-[clamp(2.4rem,9vw,3.4rem)] w-[clamp(2.4rem,9vw,3.4rem)]'
-                                                              : 'h-[clamp(4.25rem,17.25vw,6.1rem)] w-[clamp(4.25rem,17.25vw,6.1rem)] sm:h-[6.75rem] sm:w-[6.75rem]',
-                                                    ].join(' ')}
-                                                    style={
-                                                        mobileSpritePx != null
-                                                            ? {
-                                                                  width: mobileSpritePx,
-                                                                  height: mobileSpritePx,
-                                                                  minWidth: mobileSpritePx,
-                                                                  minHeight: mobileSpritePx,
-                                                              }
-                                                            : undefined
-                                                    }
+                                                    className="adventure-map-monster-face"
+                                                    style={wander.faceStyle}
                                                 >
-                                                    <AdventureMonsterSpriteFrame
-                                                        sheetUrl={m.spriteSheetWebp}
-                                                        frameIndex={m.spriteFrameIndex}
-                                                        cols={m.spriteCols}
-                                                        rows={m.spriteRows}
-                                                        softBackdrop
-                                                        className="absolute inset-0 z-0 h-full w-full bg-transparent"
-                                                    />
-                                                    <span
-                                                        className={`pointer-events-none absolute right-0 top-0 z-10 rounded bg-violet-950/90 py-px font-mono font-bold leading-none text-fuchsia-100 shadow-sm ${
-                                                            isNativeMobile
-                                                                ? 'px-0.5 text-[9px] sm:px-1.5 sm:py-0.5 sm:text-sm'
-                                                                : 'px-1 text-xs sm:px-1.5 sm:py-0.5 sm:text-sm'
-                                                        }`}
-                                                        title={getAdventureMonsterModeLabel(t, m.mode)}
+                                                    <div
+                                                        className={[
+                                                            'relative flex items-end justify-center',
+                                                            mobileSpritePx != null
+                                                                ? ''
+                                                                : isNativeMobile
+                                                                  ? 'h-[clamp(2.4rem,9vw,3.4rem)] w-[clamp(2.4rem,9vw,3.4rem)]'
+                                                                  : 'h-[clamp(4.25rem,17.25vw,6.1rem)] w-[clamp(4.25rem,17.25vw,6.1rem)] sm:h-[6.75rem] sm:w-[6.75rem]',
+                                                        ].join(' ')}
+                                                        style={
+                                                            mobileSpritePx != null
+                                                                ? {
+                                                                      width: mobileSpritePx,
+                                                                      height: mobileSpritePx,
+                                                                      minWidth: mobileSpritePx,
+                                                                      minHeight: mobileSpritePx,
+                                                                  }
+                                                                : undefined
+                                                        }
                                                     >
-                                                        {ADVENTURE_MONSTER_MODE_BADGE_SHORT[m.mode]}
-                                                    </span>
+                                                        <AdventureMonsterSpriteFrame
+                                                            sheetUrl={m.spriteSheetWebp}
+                                                            frameIndex={m.spriteFrameIndex}
+                                                            cols={m.spriteCols}
+                                                            rows={m.spriteRows}
+                                                            softBackdrop
+                                                            className="absolute inset-0 z-0 h-full w-full bg-transparent"
+                                                        />
+                                                    </div>
                                                 </div>
-                                                <p
-                                                    className={`mt-1 flex items-center justify-center gap-1.5 whitespace-nowrap text-center font-bold leading-tight text-amber-50 drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] ${
-                                                        isNativeMobile
-                                                            ? 'max-w-[min(42vw,7rem)] gap-1 text-[9px]'
-                                                            : 'max-w-[11rem] gap-1.5 text-[11px] sm:max-w-[13rem] sm:gap-2 sm:text-xs'
-                                                    }`}
-                                                >
-                                                    <span className="shrink-0 font-mono font-black text-amber-200">LV{m.level}</span>
-                                                    <span className="min-w-0 truncate">{m.speciesName}</span>
-                                                </p>
+                                                <AdventureMapMonsterLabel
+                                                    variant="map"
+                                                    level={m.level}
+                                                    name={m.speciesName}
+                                                    boss={isAdventureChapterBossCodexId(m.codexId)}
+                                                    modeBadge={getAdventureMonsterModeLabel(t, m.mode)}
+                                                    remainingMs={Math.max(0, m.expiresAt - now)}
+                                                    compact={isNativeMobile}
+                                                />
                                             </div>
                                         </button>
                                     );

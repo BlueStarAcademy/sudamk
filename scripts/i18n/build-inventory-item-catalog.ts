@@ -78,7 +78,7 @@ const CONSUMABLE_EN: Record<string, { name: string; description: string }> = {
 
 const MATERIAL_EN: Record<string, { name: string; description: string }> = {
     '제련의 부적': { name: 'Refinement Charm', description: 'Adds one refinement attempt to gear that cannot be refined.' },
-    '거래 등록권': { name: 'Trade Listing Ticket', description: 'Special permit to list one item on the exchange.' },
+    '거래 등록권': { name: 'Trade Listing Ticket', description: 'Permit to register additional items for sale on the exchange.' },
     '하급 강화석': { name: 'Low Enhancement Stone', description: 'Basic material for gear enhancement.' },
     '중급 강화석': { name: 'Mid Enhancement Stone', description: 'Mid-tier material for gear enhancement.' },
     '상급 강화석': { name: 'High Enhancement Stone', description: 'High-tier material for gear enhancement.' },

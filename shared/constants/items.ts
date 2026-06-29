@@ -164,7 +164,7 @@ export const MATERIAL_ITEMS: Record<string, Omit<InventoryItem, 'id'|'createdAt'
         image: '/images/use/refine.webp',
         grade: ItemGrade.Legendary,
     },
-    '거래 등록권': { name: '거래 등록권', description: '거래소에 판매 물품 1개를 등록할 수 있는 특별 허가권입니다.', type: 'material', slot: null, image: '/images/use/allowtrade.webp', grade: ItemGrade.Rare },
+    '거래 등록권': { name: '거래 등록권', description: '거래소에 판매 물품을 추가 등록할 수 있는 허가권입니다.', type: 'material', slot: null, image: '/images/use/allowtrade.webp', grade: ItemGrade.Rare },
     '귀속 해제권': {
         name: '귀속 해제권',
         description: '귀속된 장비를 거래가능 상태로 변경',

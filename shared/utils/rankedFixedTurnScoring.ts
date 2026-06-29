@@ -1,4 +1,4 @@
-import type { LiveGameSession, BoardState, Point } from '../types/entities.js';
+import type { LiveGameSession, BoardState, Point } from '../types/index.js';
 import { GameCategory, Player } from '../types/enums.js';
 import { modeIncludesCaptureRule, resolveArenaSessionPolicy } from './liveSessionArenaKind.js';
 
@@ -106,7 +106,7 @@ export function pvpHasFixedScoringTurnLimit(
         !session.isSinglePlayer &&
         !policy.isPairGame
     ) {
-        return isRankedFixedTurnScoringSession(session);
+        return hasLimit;
     }
 
     if (policy.isPairGame && policy.matchAxis === 'pvp') {

@@ -38,7 +38,13 @@ import { maxExchangeListPrice } from '../shared/constants/numericLimits.js';
 import { clampDigitsOnlyInputString, clampGameInt, exchangeListingFeeFromPrice } from '../shared/utils/gameIntegerField.js';
 import { formatGoldAmountKoG, formatWalletCurrencyAmount, formatWalletDiamonds } from '../shared/utils/walletAmountDisplay.js';
 import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../shared/constants/pcShellLayout.js';
-import { countTradeListingTickets, TRADE_LISTING_TICKET_NAME } from '../shared/utils/tradeListingTicket.js';
+import {
+    countTradeListingTickets,
+    MAX_EXCHANGE_SELL_SLOTS,
+    resolveAllowedListingCount,
+    requiresTradeListingTicket,
+    TRADE_LISTING_TICKET_NAME,
+} from '../shared/utils/tradeListingTicket.js';
 import ExchangeTradeTicketBadge from './exchange/ExchangeTradeTicketBadge.js';
 
 type ExchangeTab = 'buy' | 'sell' | 'settlement' | 'history';
@@ -123,7 +129,6 @@ const mergeExchangeListingsPreferServer = (local: ExchangeListing[], server: Exc
     return [...byId.values()].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
 };
 
-const MAX_SELL_SLOTS = 3;
 const LISTING_MAX_DURATION_MS = 5 * 24 * 60 * 60 * 1000;
 const VERIFICATION_MS = 30 * 1000;
 /** 모달 최초 오픈 시 구매 목록 API와 동시에 보여줄 최소 대기 시간(ms) */
@@ -428,6 +433,8 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
     const [exchangeListingRecoverCooldownUntilMs, setExchangeListingRecoverCooldownUntilMs] = useState(0);
     const exchangeListingRecoverCooldownRef = useRef(false);
     const exchangeListingRecoverCooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    /** 회수·등록 취소 직후 서버 exchangeState가 아직 갱신되기 전 merge가 목록을 되살리지 않도록 */
+    const pendingListingRemovalIdsRef = useRef<Set<string>>(new Set());
 
     const functionVipActive = isFunctionVipActive(currentUser);
     const isAdminUser = Boolean(currentUser.isAdmin);
@@ -451,7 +458,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                     item.type === 'equipment' &&
                     !item.isEquipped &&
                     !item.isBound &&
-                    !item.isExchangeListed &&
+                    // 로컬 listings가 회수·취소 직후 source of truth — isExchangeListed는 HTTP/WS 동기화 전까지 stale할 수 있음
                     !myListedItemIds.has(item.id),
             ),
         [currentUser.inventory, myListedItemIds],
@@ -487,7 +494,12 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
         () => countTradeListingTickets(currentUser.inventory),
         [currentUser.inventory],
     );
-    const allowedListingCount = isAdminUser ? Number.POSITIVE_INFINITY : functionVipActive ? MAX_SELL_SLOTS : tradeListingTicketCount;
+    const allowedListingCount = resolveAllowedListingCount({
+        myListedCount,
+        ticketCount: tradeListingTicketCount,
+        functionVipActive,
+        isAdmin: isAdminUser,
+    });
     const maxSaleListPrice = maxExchangeListPrice(saleCurrency);
     const saleFee = exchangeListingFeeFromPrice(clampGameInt(Math.floor(Number(salePrice || 0)), { min: 0, max: maxSaleListPrice }));
     const minimumPrice = minPriceByCurrency[saleCurrency];
@@ -582,7 +594,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
     );
     const sellSlots = isAdminUser
         ? myActiveListings
-        : Array.from({ length: MAX_SELL_SLOTS }, (_, idx) => myActiveListings[idx] ?? null);
+        : Array.from({ length: MAX_EXCHANGE_SELL_SLOTS }, (_, idx) => myActiveListings[idx] ?? null);
     const selectedItemAlreadyListedByMe = Boolean(
         selectedItem &&
             listings.some(
@@ -653,7 +665,13 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
 
     React.useEffect(() => {
         skipInitialExchangePersist.current = true;
-        const serverListings = (currentUser.exchangeState?.listings as ExchangeListing[] | undefined) ?? [];
+        const serverListingsRaw = (currentUser.exchangeState?.listings as ExchangeListing[] | undefined) ?? [];
+        const pendingRemoved = pendingListingRemovalIdsRef.current;
+        for (const id of [...pendingRemoved]) {
+            const stillListed = serverListingsRaw.some((row) => row?.id === id && row.status === 'listed');
+            if (!stillListed) pendingRemoved.delete(id);
+        }
+        const serverListings = serverListingsRaw.filter((row) => row?.id && !pendingRemoved.has(row.id));
         const serverSettlements = (currentUser.exchangeState?.settlements as SettlementItem[] | undefined) ?? [];
         const serverHistory = (currentUser.exchangeState?.history as string[] | undefined) ?? [];
         const uid = currentUser.id;
@@ -841,7 +859,11 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
         setSellPickerOpen(false);
         setPendingRegistration({ item, price: parsedPrice, currency: saleCurrency, fee: saleFee });
     };
-    const requiresTradeListingTicket = !functionVipActive && !isAdminUser;
+    const needsTradeListingTicket = requiresTradeListingTicket({
+        myListedCount,
+        functionVipActive,
+        isAdmin: isAdminUser,
+    });
 
     const handleBuy = async (listingId: string) => {
         const listing = marketListings.find((entry) => entry.id === listingId);
@@ -967,6 +989,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
     const handleCancelListing = (listingId: string) => {
         const target = listings.find((entry) => entry.id === listingId);
         if (!target || target.status !== 'listed') return;
+        pendingListingRemovalIdsRef.current.add(listingId);
         setListings((prev) => prev.filter((entry) => entry.id !== listingId));
         void onAction?.({ type: 'UNMARK_ITEM_EXCHANGE_LISTED', payload: { itemId: target.itemId } });
     };
@@ -998,6 +1021,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
             exchangeListingRecoverCooldownRef.current = false;
             setExchangeListingRecoverCooldownUntilMs(0);
         }, EXCHANGE_LISTING_RECOVER_COOLDOWN_MS);
+        pendingListingRemovalIdsRef.current.add(listingId);
         setListings((prev) => prev.filter((entry) => entry.id !== listingId));
         void onAction?.({ type: 'UNMARK_ITEM_EXCHANGE_LISTED', payload: { itemId: target.itemId } });
     };
@@ -1629,7 +1653,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                             </Button>
                             <Button
                                 onClick={() => {
-                                    if (requiresTradeListingTicket) {
+                                    if (needsTradeListingTicket) {
                                         setPendingTicketUsageRegistration(pendingRegistration);
                                         setPendingRegistration(null);
                                         return;

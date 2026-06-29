@@ -9,6 +9,7 @@ import Button from './Button.js';
 import Avatar from './Avatar.js';
 import { AVATAR_POOL, BORDER_POOL, CONSUMABLE_ITEMS } from '../constants';
 import { TOWER_STAGES } from '../constants/towerConstants.js';
+import StageClearRewardPreview from './rewards/StageClearRewardPreview.js';
 import {
     resolveTowerCaptureBlackTarget,
     resolveTowerPlainBlackCount,
@@ -376,36 +377,24 @@ const TowerLobby: React.FC = () => {
                                     ? t('autoScoringShort', { turns: stage.autoScoringTurns })
                                     : null;
                             
-                            // 보상 정보
-                            const reward = stage.rewards.firstClear;
-                            const hasItemReward = reward.items && reward.items.length > 0;
-                            const rewardInfoContent = isCleared ? (
-                                <div className="flex items-center gap-1 flex-shrink-0">
-                                    <span className="text-xs sm:text-sm text-amber-300 font-semibold whitespace-nowrap">{t('rewardClaimed')}</span>
+                            const rewardInfoContent = (
+                                <div className="flex flex-col items-end gap-0.5">
+                                    <StageClearRewardPreview
+                                        reward={stage.rewards.firstClear}
+                                        claimed={isCleared}
+                                        tabShelf={false}
+                                        isMobile={isNativeMobile}
+                                        usePremiumDesktop={false}
+                                        align="end"
+                                        resolveItemImage={resolveTowerRewardImage}
+                                        resolveItemTitle={resolveTowerRewardDisplayName}
+                                    />
+                                    {isCleared && (
+                                        <span className="text-[10px] sm:text-xs font-semibold text-stone-400 whitespace-nowrap">
+                                            {t('rewardClaimed')}
+                                        </span>
+                                    )}
                                 </div>
-                            ) : (
-                                <>
-                                    {/* 첫 번째 줄: 골드 또는 아이템 */}
-                                    {reward.gold > 0 ? (
-                                        <div className="flex items-center gap-0.5 flex-shrink-0">
-                                            <img src="/images/icon/Gold.webp" alt={tCommon('resources.gold')} title={tCommon('resources.gold')} className="w-4 h-4 sm:w-5 sm:h-5" />
-                                            <span className="text-xs sm:text-sm text-yellow-300 font-semibold whitespace-nowrap">{reward.gold}</span>
-                                        </div>
-                                    ) : hasItemReward && reward.items ? (
-                                        <div className="flex items-center gap-1 flex-shrink-0">
-                                            {reward.items.map((item: any, idx: number) => {
-                                                const itemId = 'itemId' in item ? item.itemId : item.name || item.id;
-                                                const itemImage = resolveTowerRewardImage(itemId);
-                                                const itemDisplayName = resolveTowerRewardDisplayName(itemId);
-                                                return (
-                                                    <div key={idx} className="flex items-center gap-0.5">
-                                                        <img src={itemImage} alt={itemDisplayName} title={itemDisplayName} className="w-4 h-4 sm:w-5 sm:h-5" />
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    ) : null}
-                                </>
                             );
                             
                             const isCaptureMode = floor <= 20; // 1-20층: 따내기 바둑

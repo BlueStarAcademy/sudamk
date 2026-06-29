@@ -65,13 +65,13 @@ function lobbyHelpConfig(t: TFunction<'common'>): Record<
         strategic: {
             categoryId: 'lobby',
             subId: 'lobby-common',
-            categoryFilter: ['lobby', 'modes'],
+            categoryFilter: ['lobby', 'pvp-live', 'modes'],
             title: t('help.strategicLobby'),
         },
         playful: {
             categoryId: 'lobby',
             subId: 'lobby-common',
-            categoryFilter: ['lobby', 'modes'],
+            categoryFilter: ['lobby', 'pvp-live', 'modes'],
             title: t('help.playfulLobby'),
         },
         guild: {

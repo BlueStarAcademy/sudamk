@@ -37,12 +37,13 @@ import { handleUserAction } from './actions/userActions.js';
 import { handleSinglePlayerAction } from './actions/singlePlayerActions.js';
 import { handleTowerAction } from './actions/towerActions.js';
 import { handleGuildAction } from './actions/guildActions.js';
-import { broadcast } from './socket.js';
+import { broadcast, broadcastToGameParticipants } from './socket.js';
 import { applyPveItemActionClientSync } from './pveItemSync.js';
 import { updateQuestProgress } from './questService.js';
 import { getCurrentPairTurnSeat, isPairAiSeat, isPairClassicGame } from '../shared/utils/pairGameTurn.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
 import { isAiLobbyManualClockPause } from './modes/shared.js';
+import { isLiveGameHumanParticipant } from './utils/liveGameParticipants.js';
 
 export { updateQuestProgress } from './questService.js';
 
@@ -1066,7 +1067,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 };
             }
             const uid = userData.id;
-            if (game.player1.id !== uid && game.player2.id !== uid) {
+            if (!isLiveGameHumanParticipant(game, uid)) {
                 return { error: '해당 경기 참가자가 아닙니다.' };
             }
             const { aiUserId } = await import('./aiPlayer.js');
@@ -1275,7 +1276,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         if (type === 'REQUEST_GAME_STATE_SYNC') {
             return runGameActionSerial(game.id, async () => {
             const uid = userData.id;
-            if (game.player1.id !== uid && game.player2.id !== uid) {
+            if (!isLiveGameHumanParticipant(game, uid)) {
                 return { error: '해당 경기 참가자가 아닙니다.' };
             }
             const goModes: GameMode[] = [

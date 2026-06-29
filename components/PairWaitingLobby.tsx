@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from '../shared/i18n/config.js';
 
@@ -39,6 +39,7 @@ import PairRoomChatPanel, { type PairRoomChatScope } from './pair/PairRoomChatPa
 import type { PairLobbyPetSnapshot, PairRoomChatLine, ArenaLobbyIntent } from '../types/api.js';
 import type { InventoryItem } from '../types.js';
 import PairPartnerInviteModal from './pair/PairPartnerInviteModal.js';
+import PairLobbyProposalCooldownButton from './pair/PairLobbyProposalCooldownButton.js';
 import PairPetRankedMatchOfferModal from './pair/PairPetRankedMatchOfferModal.js';
 import PairPetRankedMatchModeModal, { resolveMyPairRankedTierForPairArena } from './pair/PairPetRankedMatchModeModal.js';
 import AiChallengeModal, { type AiLobbyPreferredGameSettingsBucket } from './waiting-room/AiChallengeModal.js';
@@ -1434,7 +1435,6 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
     const [delegateConfirmModal, setDelegateConfirmModal] = useState<{ userId: string; userName: string } | null>(null);
     const [delegateConfirmBusy, setDelegateConfirmBusy] = useState(false);
     const [localInviteCooldownUntilByInviteeId, setLocalInviteCooldownUntilByInviteeId] = useState<Record<string, number>>({});
-    const [cooldownUiTick, setCooldownUiTick] = useState(0);
     /** 뒤로가기 등으로 해시가 바뀐 뒤 복귀시킬 목적지(방 퇴장 확인용) */
     const [pairLeaveNavTargetHash, setPairLeaveNavTargetHash] = useState<string | null>(null);
     /** 방 참여 중 경기장 탭(전략/페어/놀이) 전환 시 — 해시 이동과 동일하게 나가기 확인 후 이동 */
@@ -1737,6 +1737,81 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         () => pairRoomsAllChannels.find((r) => userInPairRoomClient(r, currentUserId)) ?? null,
         [pairRoomsAllChannels, currentUserId],
     );
+    const spectatableLiveGames = useMemo(
+        () =>
+            Object.values(liveGames || {}).filter(
+                (game: any) => game && game.gameStatus !== 'ended' && game.gameStatus !== 'no_contest',
+            ),
+        [liveGames],
+    );
+    const getPairRoomHumanIdsForSpectate = useCallback((room: PairRoom): Set<string> => {
+        const ids = new Set<string>();
+        const collect = (members?: Array<{ id: string; kind: string }>) => {
+            for (const m of members ?? []) {
+                if (m?.kind === 'user' && m.id) ids.add(m.id);
+            }
+        };
+        collect(room.teamA?.members);
+        collect(room.teamB?.members);
+        if (ids.size === 0) {
+            if (room.ownerId) ids.add(room.ownerId);
+            if (room.partnerId && !room.partnerId.startsWith('pet-ai-')) ids.add(room.partnerId);
+            for (const m of room.extraPairMembers ?? []) {
+                if (m.id) ids.add(m.id);
+            }
+        }
+        return ids;
+    }, []);
+    const findSpectatableGameIdForRoom = useCallback(
+        (room: PairRoom): string | null => {
+            const direct = spectatableLiveGames.find((game: any) => {
+                const roomId = game?.settings?.pairGame?.roomId;
+                return typeof roomId === 'string' && (roomId === room.id || roomId.includes(room.id));
+            });
+            if (direct?.id) return direct.id;
+
+            const roomHumans = getPairRoomHumanIdsForSpectate(room);
+            if (roomHumans.size === 0) return null;
+            const byParticipants = spectatableLiveGames.find((game: any) => {
+                if (room.selectedGameMode && game.mode !== room.selectedGameMode) return false;
+                const gameIds = new Set<string>();
+                if (game.player1?.id) gameIds.add(game.player1.id);
+                if (game.player2?.id) gameIds.add(game.player2.id);
+                for (const seat of game.settings?.pairGame?.turnOrder ?? []) {
+                    if (seat?.kind === 'user' && seat.participantId) gameIds.add(seat.participantId);
+                }
+                return [...roomHumans].every((id) => gameIds.has(id));
+            });
+            return byParticipants?.id ?? null;
+        },
+        [getPairRoomHumanIdsForSpectate, spectatableLiveGames],
+    );
+    const spectateGameById = useCallback(
+        async (gameId: string | null | undefined) => {
+            if (!gameId) {
+                window.alert(pt('waitingLobby.spectateUnavailable'));
+                return;
+            }
+            setIsBusy(true);
+            try {
+                const result = await handlers.handleAction({
+                    type: 'SPECTATE_GAME',
+                    payload: { gameId },
+                } as ServerAction);
+                const error = (result as { error?: string } | undefined)?.error;
+                if (error) window.alert(error);
+            } finally {
+                setIsBusy(false);
+            }
+        },
+        [handlers, pt],
+    );
+    const spectateUserGame = useCallback(
+        (user: UserWithStatus) => {
+            void spectateGameById(user.gameId);
+        },
+        [spectateGameById],
+    );
     /** 솔로 모드에서 남은 2인 AI 초대 껍데기 방은 유저 열·모바일 방 탭에 노출하지 않음 */
     const myRoomForUsersColumnChrome = useMemo(() => {
         if (!myRoom) return null;
@@ -1762,8 +1837,8 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         !myRoom;
 
     const handlePvpChallengeSubmit = useCallback(
-        async (gameMode: GameMode, settings: GameSettings) => {
-            if (!currentUserWithStatus || !pvpChallengeOpponent) return;
+        async (gameMode: GameMode, settings?: GameSettings) => {
+            if (!currentUserWithStatus || !pvpChallengeOpponent || !settings) return;
             await submitPvpChallengeFromLobby(
                 handlers.handleAction,
                 negotiations || {},
@@ -1775,27 +1850,6 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         },
         [currentUserWithStatus, pvpChallengeOpponent, handlers.handleAction, negotiations],
     );
-
-    /** 활성 쿨다운이 있을 때만 500ms 틱 — 전략 AI 대기실(방 없음) 등에서는 전체 로비 리렌더 방지 */
-    useEffect(() => {
-        const lobbyChangeCooldownUntil = myRoom?.pairLobbySettingChangeCooldownUntil?.[currentUserId];
-        const lobbyChangeCooldownActive =
-            typeof lobbyChangeCooldownUntil === 'number' && lobbyChangeCooldownUntil > Date.now();
-        const inviteCooldownActive = Object.values({
-            ...pairInviteCooldownUntilByInviteeId,
-            ...localInviteCooldownUntilByInviteeId,
-        }).some((until) => until > Date.now());
-        if (!lobbyChangeCooldownActive && !inviteCooldownActive) {
-            return;
-        }
-        const id = window.setInterval(() => setCooldownUiTick((t) => t + 1), 500);
-        return () => window.clearInterval(id);
-    }, [
-        myRoom,
-        currentUserId,
-        pairInviteCooldownUntilByInviteeId,
-        localInviteCooldownUntilByInviteeId,
-    ]);
 
     /** 페어 펫 랭킹전 큐 껍데기로 매칭 대기 중 — 중앙 슬롯 목록에는 비표시, 포커스는 랭킹 패널(전략 경기장 랭킹전과 동일) */
     const isPairPetRankedQueueShellMatching = Boolean(
@@ -4273,6 +4327,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                     currentUser={currentUserWithStatus}
                     onViewUser={handlers.openViewingUser}
                     onChallengeUser={showPvpUserChallenge ? setPvpChallengeOpponent : undefined}
+                    onSpectateUser={userTab === 'friends' ? spectateUserGame : undefined}
                     lobbyType={aggregateLobbyMode === 'playful' ? 'playful' : 'strategic'}
                     userCount={playersForLobbyUserList.length}
                     disableStatusSelect={Boolean(myRoom)}
@@ -4388,9 +4443,8 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                         const listRoomKind = pairLobbyListDisplayRoomKind(room, lobbyChannel);
                         const arenaCh = pairRoomArenaChannelMeta(room, lobbyChannel);
                         const roomRowTone = waitingLobbyToneFromPairChannel(room.lobbyChannel ?? lobbyChannel);
-                        const roomInMatch =
-                            (room.phase ?? 'waiting') === 'in_game' || room.phase === 'match_pending';
                         const roomInLiveGame = (room.phase ?? 'waiting') === 'in_game';
+                        const spectateGameId = roomInLiveGame ? findSpectatableGameIdForRoom(room) : null;
                         const joinable = getPairLobbyJoinableFromListRoom(room);
                         const gameModeTitle = pairLobbyScheduledGameModeLabel(room.selectedGameMode) || pt('waitingLobby.undecided');
                         const visibilityBadgeClass =
@@ -4501,20 +4555,23 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                                     </div>
                                     <div className="flex shrink-0 flex-none items-center justify-center self-stretch py-0.5">
                                         {roomInLiveGame ? (
-                                            <div
+                                            <button
+                                                type="button"
+                                                disabled={isBusy || !spectateGameId}
+                                                onClick={() => void spectateGameById(spectateGameId)}
                                                 style={joinButtonBoxStyle}
-                                                className={pairLobbyRoomInGameJoinSlotClass(roomRowTone)}
+                                                className={spectateGameId ? pairLobbyRoomJoinButtonClass(roomRowTone, true) : pairLobbyRoomInGameJoinSlotClass(roomRowTone)}
                                                 aria-label={pt('waitingLobby.roomInMatchAria', { slot: slotNumber })}
-                                                title={pt('waitingLobby.matchInProgress')}
+                                                title={spectateGameId ? pt('waitingLobby.spectateMatch') : pt('waitingLobby.spectateUnavailable')}
                                             >
                                                 <span
-                                                    className={`${pairLobbyRoomInGameJoinSlotTextClass(roomRowTone)} ${
+                                                    className={`${spectateGameId ? '' : pairLobbyRoomInGameJoinSlotTextClass(roomRowTone)} ${
                                                         isHandheld ? 'text-[8px]' : 'text-[9px] sm:text-[10px]'
                                                     }`}
                                                 >
-                                                    경기중
+                                                    {pt('waitingLobby.spectate')}
                                                 </span>
-                                            </div>
+                                            </button>
                                         ) : (
                                             <button
                                                 type="button"
@@ -4555,11 +4612,15 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                             const orphanTone = waitingLobbyToneFromPairChannel(room.lobbyChannel ?? lobbyChannel);
                             const orphanInGame = (room.phase ?? 'waiting') === 'in_game';
                             if (orphanInGame) {
+                                const spectateGameId = findSpectatableGameIdForRoom(room);
                                 return (
-                                    <div
+                                    <button
                                         key={room.id}
-                                        className={pairLobbyOrphanRoomChipInGameClass(orphanTone)}
-                                        title={pt('waitingLobby.roomInMatchTitle', { title: room.title })}
+                                        type="button"
+                                        disabled={isBusy || !spectateGameId}
+                                        onClick={() => void spectateGameById(spectateGameId)}
+                                        className={spectateGameId ? pairLobbyOrphanRoomChipJoinableClass(orphanTone) : pairLobbyOrphanRoomChipInGameClass(orphanTone)}
+                                        title={spectateGameId ? pt('waitingLobby.spectateMatch') : pt('waitingLobby.roomInMatchTitle', { title: room.title })}
                                     >
                                         {!(lobbyChannel === 'playful' && orphanAc.short === pt('arenaBadges.playful')) ? (
                                             <span
@@ -4569,8 +4630,8 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                                             </span>
                                         ) : null}
                                         <span className="min-w-0 truncate">{room.title}</span>
-                                        <span className={pairLobbyOrphanInGamePillClass(orphanTone)}>{pt('waitingLobby.inMatch')}</span>
-                                    </div>
+                                        <span className={pairLobbyOrphanInGamePillClass(orphanTone)}>{pt('waitingLobby.spectate')}</span>
+                                    </button>
                                 );
                             }
                             return (
@@ -4730,9 +4791,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
     /** 방 내부 — `isHandheld`일 때 채팅·하단 액션 등 밀도 높은 UI */
     const renderPairLobbyRoomInteriorPanel = () => {
         if (!myRoom) return null;
-        void cooldownUiTick;
         const lobbyChangeCooldownMs = myRoom.pairLobbySettingChangeCooldownUntil?.[currentUserId];
-        const lobbyChangeOnCooldown = typeof lobbyChangeCooldownMs === 'number' && lobbyChangeCooldownMs > Date.now();
         const strategicLobbyChangeProposeDisabled =
             isBusy ||
             isPairRoomMatching ||
@@ -4741,13 +4800,10 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
             Boolean(myRoom.pairRankedPetProposal) ||
             Boolean(myRoom.pairDuoRankedLobbyProposal) ||
             Boolean(myRoom.pairLobbySettingChangeProposal) ||
-            lobbyChangeOnCooldown ||
             currentUserPairReady;
-        const strategicLobbyChangeProposeTitle = lobbyChangeOnCooldown
-            ? pt('alerts.proposalCooldown', { seconds: Math.max(0, Math.ceil(((lobbyChangeCooldownMs as number) - Date.now()) / 1000)) })
-            : myRoom.pairLobbySettingChangeProposal
-              ? pt('alerts.pendingProposal')
-              : currentUserPairReady
+        const strategicLobbyChangeProposeTitle = myRoom.pairLobbySettingChangeProposal
+            ? pt('alerts.pendingProposal')
+            : currentUserPairReady
                 ? pt('alerts.cannotProposeWhenReady')
                 : undefined;
         const useHandheldRoomChrome = isHandheld;
@@ -5077,8 +5133,8 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                                             방 변경
                                         </button>
                                     ) : lobbyChannel === 'strategic' || lobbyChannel === 'playful' || lobbyChannel === 'pair' ? (
-                                        <button
-                                            type="button"
+                                        <PairLobbyProposalCooldownButton
+                                            cooldownUntilMs={lobbyChangeCooldownMs}
                                             disabled={strategicLobbyChangeProposeDisabled}
                                             title={strategicLobbyChangeProposeTitle}
                                             onClick={() => openProposeLobbyChangeModal()}
@@ -5087,7 +5143,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                                             }`}
                                         >
                                             변경 제안
-                                        </button>
+                                        </PairLobbyProposalCooldownButton>
                                     ) : null}
                                     {isPairRoomMatching && (isPairPetRoom || isDuoArenaRanked) ? (
                                         <div
@@ -5335,16 +5391,12 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
         );
         const duoCanStartAiMatch = Boolean(
             duoIsOwner &&
-                !((lobbyChannel === 'playful' || lobbyChannel === 'strategic') && duoRoom.roomKind === 'duo_match') &&
                 pairLobbyHumanGuestsReadyForOwnerActions &&
                 duoPairAiPartnerReady &&
                 !isPairRoomMatching &&
                 !isPairRoomMatchPending,
         );
-        void cooldownUiTick;
         const lobbyChangeCooldownMs = duoRoom.pairLobbySettingChangeCooldownUntil?.[currentUserId];
-        const lobbyChangeOnCooldown =
-            typeof lobbyChangeCooldownMs === 'number' && lobbyChangeCooldownMs > Date.now();
         const proposeChangeDisabled =
             isBusy ||
             isPairRoomMatching ||
@@ -5353,17 +5405,12 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
             Boolean(duoRoom.pairRankedPetProposal) ||
             Boolean(duoRoom.pairDuoRankedLobbyProposal) ||
             Boolean(duoRoom.pairLobbySettingChangeProposal) ||
-            lobbyChangeOnCooldown ||
             duoCurrentUserPairReady;
-        const proposeChangeTitle = lobbyChangeOnCooldown
-            ? pt('alerts.proposalCooldown', {
-                  seconds: Math.max(0, Math.ceil(((lobbyChangeCooldownMs as number) - Date.now()) / 1000)),
-              })
-            : duoRoom.pairLobbySettingChangeProposal
-              ? pt('alerts.pendingProposal')
-              : duoCurrentUserPairReady
-                ? pt('alerts.cannotProposeWhenReady')
-                : undefined;
+        const proposeChangeTitle = duoRoom.pairLobbySettingChangeProposal
+            ? pt('alerts.pendingProposal')
+            : duoCurrentUserPairReady
+              ? pt('alerts.cannotProposeWhenReady')
+              : undefined;
         const editRoomDisabled =
             isBusy ||
             isPairRoomMatching ||
@@ -5410,7 +5457,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                         ? async (teamA, teamB) => {
                               const result = await handlers.handleAction({
                                   type: 'PAIR_SET_SEAT_ASSIGNMENTS',
-                                  payload: { teamA, teamB },
+                                  payload: { roomId: duoRoom.id, teamA, teamB },
                               });
                               const error = (result as { error?: string } | undefined)?.error;
                               if (error) window.alert(error);
@@ -5446,6 +5493,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                 onReadyToggle={() => void setReady(!duoCurrentUserPairReady)}
                 onProposeChange={openProposeLobbyChangeModal}
                 proposeChangeDisabled={proposeChangeDisabled}
+                proposeChangeCooldownUntilMs={lobbyChangeCooldownMs}
                 proposeChangeTitle={proposeChangeTitle}
                 onLeave={() => void leaveRoom()}
                 onEditRoom={openEditRoomModal}
@@ -5508,7 +5556,8 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                   ? pt('waitingLobby.createPlayfulRoom')
                   : pt('waitingLobby.createPairRoom');
 
-    const renderPairLobbyRoomFormAiChallengeModal = () => (
+    const pairLobbyRoomFormAiChallengeModal = useMemo(
+        () => (
         <AiChallengeModal
             key={
                 pairLobbyRoomForm === 'create'
@@ -5783,6 +5832,25 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                 </div>
             )}
         />
+        ),
+        [
+            pairLobbyRoomForm,
+            pairCreateRoomModalNonce,
+            createModalRoomKind,
+            myRoom?.id,
+            lobbyIntent,
+            lobbyChannel,
+            isBusy,
+            isHandheld,
+            createModalTitle,
+            createModalVisibility,
+            createModalPassword,
+            createModalPasswordFieldFocused,
+            hasEquippedPairPet,
+            pairLobbyProposeHasChanges,
+            handlePairDraftConfigureApply,
+            transformPairDraftLobbySettings,
+        ],
     );
 
     const renderPairLobbyCenterColumn = () => (
@@ -5794,7 +5862,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                     className={`mx-0.5 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden sm:mx-1 ${pairLobbyRoomListOuterShellClass(lobbyTone)}`}
                 >
                     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-1 sm:p-1.5">
-                        {renderPairLobbyRoomFormAiChallengeModal()}
+                        {pairLobbyRoomFormAiChallengeModal}
                     </div>
                 </div>
             ) : (
@@ -5965,7 +6033,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({ lobbyChannel = 'pai
                             </h2>
 
                             <div className="mt-3 flex min-h-0 min-w-0 flex-1 flex-col">
-                                {renderPairLobbyRoomFormAiChallengeModal()}
+                                {pairLobbyRoomFormAiChallengeModal}
                             </div>
                         </div>
                     </div>

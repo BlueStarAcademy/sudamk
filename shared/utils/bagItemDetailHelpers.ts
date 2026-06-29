@@ -84,6 +84,9 @@ export function getMaterialBagUsageLines(materialName: string): string[] {
     if (materialName === '귀속 해제권') {
         return ['[가방]-[장비선택]-[귀속해제]'];
     }
+    if (materialName === '거래 등록권') {
+        return ['거래소 - 판매 등록'];
+    }
     if (materialName === '제련의 부적') {
         return ['[대장간]-[장비제련] 제련불가 장비 선택'];
     }

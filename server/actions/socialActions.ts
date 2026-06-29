@@ -74,6 +74,14 @@ import {
 import { isRoomKindAllowedForLobby } from '../../shared/utils/arenaLobbyDestination.js';
 import { isPairRoomVisibleInLobbyIntent } from '../../shared/utils/arenaLobbyDestination.js';
 import { enrichPairRoomsForClientPayload, isPairAiDuoInviteOnlyRoom } from '../utils/pairRoomClientPayload.js';
+import { buildSpectatorGameView } from '../utils/spectatorGameView.js';
+import { freezeMainTurnClock, resumeGameTimer } from '../modes/shared.js';
+import {
+    getLiveGameHumanParticipantIds,
+    isLiveGameHumanParticipant,
+    resolveLiveGamePlayerEnumForUser,
+    resolveOpponentPlayerEnumForUser,
+} from '../utils/liveGameParticipants.js';
 import {
     pairRoomHumanMemberIdSet,
     resetPairRoomAfterGame,
@@ -1825,6 +1833,14 @@ export async function clearPvpDisconnectOnPlayerReconnect(
     }
 
     game.disconnectionState = null;
+    if (
+        game.gameStatus === 'playing' &&
+        game.pausedTurnTimeLeft !== undefined &&
+        !game.itemUseDeadline &&
+        (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)
+    ) {
+        resumeGameTimer(game, now);
+    }
     const otherPlayerId = game.player1?.id === userId ? game.player2?.id : game.player1?.id;
     if (otherPlayerId && game.canRequestNoContest?.[otherPlayerId]) {
         delete game.canRequestNoContest[otherPlayerId];
@@ -1853,7 +1869,7 @@ async function resolveLiveGameForPvpDisconnect(
         const fromStatus = await db.getLiveGame(statusGameId);
         if (
             isActiveGameForPvpDisconnect(fromStatus) &&
-            (fromStatus.player1?.id === userId || fromStatus.player2?.id === userId)
+            isLiveGameHumanParticipant(fromStatus, userId)
         ) {
             return fromStatus;
         }
@@ -1863,7 +1879,7 @@ async function resolveLiveGameForPvpDisconnect(
     for (const entry of cache.values()) {
         const g = entry?.game;
         if (!isActiveGameForPvpDisconnect(g)) continue;
-        if (g.player1?.id !== userId && g.player2?.id !== userId) continue;
+        if (!isLiveGameHumanParticipant(g, userId)) continue;
         const { isPveSessionAbandonOnLeave } = await import('../utils/pveAbandonOnDisconnect.js');
         if (isPveSessionAbandonOnLeave(g)) continue;
         return g;
@@ -1902,9 +1918,18 @@ export async function applyPvpInGameDisconnect(volatileState: VolatileState, dis
     const now = Date.now();
     game.disconnectionCounts[disconnectedUserId] = (game.disconnectionCounts[disconnectedUserId] || 0) + 1;
     if (game.disconnectionCounts[disconnectedUserId] >= 3) {
-        const winner = game.blackPlayerId === disconnectedUserId ? types.Player.White : types.Player.Black;
+        const winner = resolveOpponentPlayerEnumForUser(game, disconnectedUserId) ?? (
+            game.blackPlayerId === disconnectedUserId ? types.Player.White : types.Player.Black
+        );
         await summaryService.endGame(game, winner, 'disconnect');
     } else {
+        if (
+            game.gameStatus === 'playing' &&
+            game.pausedTurnTimeLeft === undefined &&
+            (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)
+        ) {
+            freezeMainTurnClock(game, now);
+        }
         game.disconnectionState = { disconnectedPlayerId: disconnectedUserId, timerStartedAt: now };
         if ((game.moveHistory?.length ?? 0) < NO_CONTEST_MOVE_THRESHOLD) {
             const otherPlayerId = game.player1.id === disconnectedUserId ? game.player2.id : game.player1.id;
@@ -2515,6 +2540,9 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             return {};
         }
         case 'SEND_CHAT_MESSAGE': {
+            if (volatileState.userStatuses[user.id]?.status === UserStatus.Spectating) {
+                return { error: '관전 중에는 채팅을 보낼 수 없습니다.' };
+            }
             if (user.chatBanUntil && user.chatBanUntil > now) {
                 const timeLeft = Math.ceil((user.chatBanUntil - now) / 1000 / 60);
                 return { error: `채팅이 금지되었습니다. (${timeLeft}분 남음)` };
@@ -2966,8 +2994,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 arenaChannel: arenaChannelForGameSession(game) ?? undefined,
             };
             broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
-            // 관전자가 게임 화면을 바로 볼 수 있도록 전체 게임 데이터 반환 (중립 관전)
-            return { clientResponse: { game } };
+            return { clientResponse: { game: buildSpectatorGameView(game) } };
         }
         case 'LEAVE_SPECTATING': {
             const userStatus = volatileState.userStatuses[user.id];
@@ -2982,12 +3009,12 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             if (leftGameId) {
                 const game = await db.getLiveGame(leftGameId);
                 if (game) {
-                    const p1Status = volatileState.userStatuses[game.player1.id];
-                    const p2Status = volatileState.userStatuses[game.player2.id];
-                    const p1Left = !p1Status || p1Status.gameId !== leftGameId;
-                    const p2Left = !p2Status || p2Status.gameId !== leftGameId;
+                    const allPlayersLeft = [...getLiveGameHumanParticipantIds(game)].every((participantId) => {
+                        const status = volatileState.userStatuses[participantId];
+                        return !status || status.gameId !== leftGameId;
+                    });
                     const hasSpectators = Object.values(volatileState.userStatuses).some(s => s.spectatingGameId === leftGameId);
-                    if (p1Left && p2Left && !hasSpectators) {
+                    if (allPlayersLeft && !hasSpectators) {
                         clearAiSession(leftGameId);
                         await db.deleteGame(leftGameId);
                         if (volatileState.gameChats) delete volatileState.gameChats[leftGameId];
@@ -3015,7 +3042,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             for (const game of allActiveGames) {
                 if (game.gameStatus === 'ended' || game.gameStatus === 'no_contest') continue;
                 
-                const isPlayer = game.player1.id === user.id || game.player2.id === user.id;
+                const isPlayer = isLiveGameHumanParticipant(game, user.id);
                 const isSpectator = userStatus?.status === types.UserStatus.Spectating && userStatus.spectatingGameId === game.id;
                 
                 if (isPlayer || isSpectator) {
@@ -3030,13 +3057,15 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 const game = await db.getLiveGame(gameId);
                 if (!game || game.gameStatus === 'ended' || game.gameStatus === 'no_contest') continue;
                 
-                const isPlayer = game.player1.id === user.id || game.player2.id === user.id;
+                const isPlayer = isLiveGameHumanParticipant(game, user.id);
                 const isSpectator = userStatus?.status === types.UserStatus.Spectating && userStatus.spectatingGameId === game.id;
                 
                 if (isPlayer) {
                     // PVP 경기장에서는 기권패 처리
                     if (!game.isSinglePlayer && !game.isAiGame) {
-                        const myPlayerEnum = game.player1.id === user.id ? types.Player.Black : types.Player.White;
+                        const myPlayerEnum =
+                            resolveLiveGamePlayerEnumForUser(game, user.id) ??
+                            (game.player1.id === user.id ? types.Player.Black : types.Player.White);
                         const winner = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
                         await summaryService.endGame(game, winner, 'resign');
                     } else {
@@ -6083,7 +6112,7 @@ const tryMatchPlayersUnlocked = async (volatileState: VolatileState, lobbyType: 
                 const olderStart = Math.min(entry1.startTime, entry2.startTime);
                 const pairMaxPriority = Math.max(entry1.matchPriority ?? 0, entry2.matchPriority ?? 0);
                 const bestOlderStart = bestMatch ? Math.min(bestMatch.player1.startTime, bestMatch.player2.startTime) : Infinity;
-                const bestMaxPriority = bestMatch?.pairMaxPriority ?? -1;
+                const bestMaxPriority: number = bestMatch?.pairMaxPriority ?? -1;
                 if (
                     !bestMatch ||
                     scoreDiff < bestMatch.scoreDiff ||

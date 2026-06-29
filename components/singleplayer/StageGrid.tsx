@@ -2,7 +2,6 @@ import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SinglePlayerLevel, UserWithStatus } from '../../types.js';
 import { getSinglePlayerStages } from '../../constants/singlePlayerConstants.js';
-import { CONSUMABLE_ITEMS } from '../../constants/index.js';
 import Button from '../Button.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import {
@@ -10,7 +9,7 @@ import {
     isSinglePlayerStageUnlocked,
     reconcileSinglePlayerProgress,
 } from '../../shared/utils/singlePlayerProgress.js';
-import type { SinglePlayerStageInfo } from '../../shared/types/entities.js';
+import StageClearRewardPreview from '../rewards/StageClearRewardPreview.js';
 
 const CLASS_STAGE_KEYS: Record<SinglePlayerLevel, 'intro' | 'beginner' | 'intermediate' | 'advanced' | 'master'> = {
     [SinglePlayerLevel.입문]: 'intro',
@@ -18,78 +17,6 @@ const CLASS_STAGE_KEYS: Record<SinglePlayerLevel, 'intro' | 'beginner' | 'interm
     [SinglePlayerLevel.중급]: 'intermediate',
     [SinglePlayerLevel.고급]: 'advanced',
     [SinglePlayerLevel.유단자]: 'master',
-};
-
-type StageClearReward = SinglePlayerStageInfo['rewards']['firstClear'];
-
-const StageClearRewardPreview: React.FC<{
-    reward: StageClearReward;
-    claimed: boolean;
-    tabShelf: boolean;
-    isMobile: boolean;
-    usePremiumDesktop: boolean;
-}> = ({ reward, claimed, tabShelf, isMobile, usePremiumDesktop }) => {
-    const { t } = useTranslation(['lobby', 'common']);
-    const textClass = claimed
-        ? 'text-stone-400/90'
-        : 'text-amber-200/95';
-    const iconClass = claimed ? 'opacity-55 grayscale' : '';
-    const textSize = tabShelf
-        ? 'text-[9px]'
-        : isMobile
-          ? 'text-[10px]'
-          : usePremiumDesktop
-            ? 'text-[10px]'
-            : 'text-[11px]';
-    const iconSize = tabShelf ? 'h-3 w-3' : 'h-3.5 w-3.5';
-
-    const hasGold = reward.gold > 0;
-    const hasExp = reward.exp > 0;
-    const hasItems = Array.isArray(reward.items) && reward.items.length > 0;
-    const hasBonus = typeof reward.bonus === 'string' && reward.bonus.length > 0;
-
-    if (!hasGold && !hasExp && !hasItems && !hasBonus) {
-        return (
-            <div className={`truncate text-center font-semibold ${textClass} ${textSize}`}>
-                —
-            </div>
-        );
-    }
-
-    return (
-        <div
-            className={`flex w-full flex-wrap items-center justify-center gap-x-1 gap-y-0.5 font-semibold ${textClass} ${textSize} ${tabShelf ? 'min-h-[2.25rem]' : ''}`}
-        >
-            {hasGold && (
-                <span className="inline-flex min-w-0 items-center gap-0.5">
-                    <img
-                        src="/images/icon/Gold.webp"
-                        alt={t('common:resources.gold')}
-                        className={`${iconSize} ${iconClass}`}
-                    />
-                    <span className="truncate">+{reward.gold}</span>
-                </span>
-            )}
-            {hasExp && <span className="truncate">+{reward.exp} XP</span>}
-            {hasItems &&
-                reward.items!.slice(0, 3).map((item, idx) => {
-                    const itemTemplate = CONSUMABLE_ITEMS.find((i) => i.name === item.itemId);
-                    return itemTemplate ? (
-                        <span key={`${item.itemId}-${idx}`} className="inline-flex min-w-0 items-center gap-0.5">
-                            <img
-                                src={itemTemplate.image}
-                                alt={item.itemId}
-                                className={`${iconSize} ${iconClass}`}
-                                title={item.itemId}
-                            />
-                            <span className="truncate">x{item.quantity}</span>
-                        </span>
-                    ) : null;
-                })}
-            {hasItems && reward.items!.length > 3 && <span>…</span>}
-            {hasBonus && <span className="truncate">{reward.bonus}</span>}
-        </div>
-    );
 };
 
 /** 싱글플레이 스테이지 입장: 앰버 메탈 + 글로우 (PC·모바일 공통) */

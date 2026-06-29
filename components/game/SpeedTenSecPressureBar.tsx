@@ -25,6 +25,9 @@ const SpeedTenSecPressureBar: React.FC<SpeedTenSecPressureBarProps> = ({
             aria-live="polite"
             aria-label={tx("game:speedPressure.aria", { sec: secToNextDrop })}
         >
+            <span className={`shrink-0 font-bold text-amber-100/90 ${compact ? 'text-[10px]' : 'text-xs'}`}>
+                {tx('game:speedPressure.label')}
+            </span>
             <span
                 className={`shrink-0 font-semibold tabular-nums text-amber-200 ${
                     compact ? 'text-xs' : 'text-sm'

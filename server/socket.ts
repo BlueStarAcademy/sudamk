@@ -9,6 +9,8 @@ import { isSyntheticOnlineUserId } from '../shared/utils/syntheticOnlineUserIds.
 import { PVP_WS_DISCONNECT_GRACE_MS } from '../shared/utils/pvpDisconnectPolicy.js';
 import { getArenaTurnCount } from './utils/arenaTurnPolicy.js';
 import { applyNormalizedChessGoInPlace } from '../shared/utils/chessGoRules.js';
+import { buildSpectatorGameView } from './utils/spectatorGameView.js';
+import { getLiveGameHumanParticipantIds } from './utils/liveGameParticipants.js';
 
 const pendingPvpDisconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
@@ -700,8 +702,9 @@ export const broadcastToGameParticipants = (gameId: string, message: any, game: 
         }
     }
     const participantIds = new Set<string>();
-    if (game.player1?.id) participantIds.add(game.player1.id);
-    if (game.player2?.id) participantIds.add(game.player2.id);
+    for (const userId of getLiveGameHumanParticipantIds(game)) {
+        participantIds.add(userId);
+    }
     if (game.blackPlayerId) participantIds.add(game.blackPlayerId);
     if (game.whitePlayerId) participantIds.add(game.whitePlayerId);
     Object.entries(volatileState.userStatuses).forEach(([userId, status]) => {
@@ -714,15 +717,19 @@ export const broadcastToGameParticipants = (gameId: string, message: any, game: 
         let payloadToSend = message;
         if (message?.type === 'GAME_UPDATE' && message.payload && typeof message.payload === 'object') {
             const filteredPayload: Record<string, any> = {};
+            const isSpectatorForGame =
+                volatileState.userStatuses[uid]?.status === 'spectating' &&
+                volatileState.userStatuses[uid]?.spectatingGameId === gameId;
             for (const [gid, g] of Object.entries(message.payload)) {
                 const gameObj = g as Record<string, any>;
-                let gameCopy = { ...gameObj };
+                let gameCopy = isSpectatorForGame ? buildSpectatorGameView(gameObj as any) : { ...gameObj };
                 if (gameCopy.revealedHiddenMoves && typeof gameCopy.revealedHiddenMoves === 'object') {
                     const myRevealed = gameCopy.revealedHiddenMoves[uid];
                     gameCopy = { ...gameCopy, revealedHiddenMoves: (myRevealed !== undefined && myRevealed !== null) ? { [uid]: myRevealed } : {} };
                 }
-                if (gameCopy.scannedAiInitialHiddenByUser && typeof gameCopy.scannedAiInitialHiddenByUser === 'object') {
-                    const myScanned = gameCopy.scannedAiInitialHiddenByUser[uid];
+                const scannedByUser = (gameCopy as { scannedAiInitialHiddenByUser?: Record<string, unknown> }).scannedAiInitialHiddenByUser;
+                if (scannedByUser && typeof scannedByUser === 'object') {
+                    const myScanned = scannedByUser[uid];
                     gameCopy = { ...gameCopy, scannedAiInitialHiddenByUser: (myScanned !== undefined && myScanned !== null) ? { [uid]: myScanned } : {} };
                 }
                 filteredPayload[gid] = gameCopy;

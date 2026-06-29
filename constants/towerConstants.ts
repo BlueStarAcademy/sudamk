@@ -1475,3 +1475,20 @@ applyTowerRangeOverride(91, 100, {
     clearRandomPlacements: true,
 });
 
+function getTowerFirstClearGold(floor: number): number {
+    if (floor <= 20) return 500;
+    if (floor <= 35) return 750;
+    if (floor <= 50) return 1000;
+    if (floor <= 65) return 1250;
+    if (floor <= 80) return 1500;
+    if (floor <= 90) return 2000;
+    return 2500;
+}
+
+for (const stage of TOWER_STAGES) {
+    const floor = parseInt(stage.id.replace('tower-', ''), 10);
+    if (!Number.isFinite(floor)) continue;
+    stage.rewards.firstClear.gold = getTowerFirstClearGold(floor);
+    stage.rewards.firstClear.exp = (stage.rewards.firstClear.exp || 0) * 2;
+}
+

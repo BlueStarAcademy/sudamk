@@ -71,6 +71,7 @@ import { getGoogleAuthUrl, getGoogleAccessToken, getGoogleUserInfo } from './ser
 import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig } from '../shared/constants/rewardConfig.js';
 import { PVP_DISCONNECT_REJOIN_GRACE_MS } from '../shared/utils/pvpDisconnectPolicy.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
+import { isLiveGameHumanParticipant } from './utils/liveGameParticipants.js';
 import {
     isAiControlledTurnForWatchdog,
     needsPveAiWatchdogTick,
@@ -3785,14 +3786,24 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                         try {
                             const { getAllCachedGames } = await import('./gameCache.js');
                             const cachedMatch = getAllCachedGames().find(
-                                (g) => g && (g.player1?.id === userForLogin.id || g.player2?.id === userForLogin.id)
+                                (g) => g && isLiveGameHumanParticipant(g, userForLogin.id)
                             );
                             if (cachedMatch) return cachedMatch;
                         } catch {
                             // 캐시 조회 실패 시 DB fallback
                         }
 
-                        // DB fallback: 사용자 ID로 활성 게임 검색
+                        // DB fallback: 페어 추가 좌석까지 포함해 활성 게임 검색
+                        try {
+                            const activeGames = await db.getAllActiveGames();
+                            const participantMatch = activeGames.find((g) =>
+                                g && isLiveGameHumanParticipant(g, userForLogin.id),
+                            );
+                            if (participantMatch) return participantMatch;
+                        } catch {
+                            // 제한 조회 fallback으로 계속 진행
+                        }
+
                         const { getLiveGameByPlayerId } = await import('./prisma/gameService.js');
                         return await getLiveGameByPlayerId(userForLogin.id);
                     }
