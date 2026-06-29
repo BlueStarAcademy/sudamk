@@ -2160,6 +2160,10 @@ export const useApp = () => {
 
     const applyUserUpdate = useCallback((updates: Partial<User>, source: string) => {
         const prevUser = currentUserRef.current;
+
+        if (isLoggingOut.current) {
+            return prevUser;
+        }
         
         // 보안: 다른 사용자의 ID가 포함된 업데이트는 무시 (다른 사용자로 로그인 변경 방지)
         if (prevUser && updates.id && updates.id !== prevUser.id) {
@@ -8632,21 +8636,42 @@ export const useApp = () => {
     handleActionRef.current = handleAction;
 
     const handleLogout = useCallback(async () => {
-        if (!currentUser) return;
+        if (!currentUser || isLoggingOut.current) return;
         isLoggingOut.current = true;
-        
-        const userId = currentUser.id; // 현재 사용자 ID 저장
-        
-        // 로그아웃 액션을 먼저 전송 (비동기 처리)
+
+        const userId = currentUser.id;
+
+        // 서버 LOGOUT 완료를 기다리기 전에 즉시 로컬 세션·라우트를 끊는다.
+        // (대기 중 Router가 임시 닉네임 계정을 #/set-nickname 으로 되돌리는 레이스 방지)
+        currentUserRef.current = null;
+        flushSync(() => {
+            setCurrentUser(null);
+            setCurrentRoute({ view: 'login', params: {} });
+        });
         try {
-            // currentUser가 null이 되기 전에 userId를 직접 사용
+            sessionStorage.removeItem('currentUser');
+        } catch {
+            // ignore
+        }
+        replaceAppHash('#/login');
+
+        setOnlineUsers([]);
+        setLiveGames({});
+        setSinglePlayerGames({});
+        setTowerGames({});
+        setNegotiations({});
+        setWaitingRoomChats({});
+        waitingRoomChatSessionStartRef.current = 0;
+        setGameChats({});
+
+        try {
             const res = await fetch(getApiUrl('/api/action'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
                 body: JSON.stringify({ type: 'LOGOUT', userId }),
             });
-            
+
             if (res.ok) {
                 const result = await res.json();
                 if (result.error) {
@@ -8657,24 +8682,9 @@ export const useApp = () => {
             }
         } catch (error) {
             console.error('[handleLogout] Error during logout action:', error);
+        } finally {
+            isLoggingOut.current = false;
         }
-        
-        // 상태 초기화 (WebSocket은 useEffect cleanup에서 자동으로 닫힘)
-        setCurrentUser(null);
-        sessionStorage.removeItem('currentUser');
-        
-        // 모든 상태 초기화
-        setOnlineUsers([]);
-        setLiveGames({});
-        setSinglePlayerGames({});
-        setTowerGames({});
-        setNegotiations({});
-        setWaitingRoomChats({});
-        waitingRoomChatSessionStartRef.current = 0;
-        setGameChats({});
-        
-        // 라우팅 초기화 (로그인 페이지로 이동)
-        window.location.hash = '';
     }, [currentUser]);
     
 
@@ -8805,7 +8815,7 @@ export const useApp = () => {
                 
                 // 현재 사용자의 데이터가 초기 상태에 포함되어 있으면 업데이트
                 const currentUserSnapshot = currentUserRef.current;
-                if (currentUserSnapshot && users[currentUserSnapshot.id]) {
+                if (currentUserSnapshot && users[currentUserSnapshot.id] && !isLoggingOut.current) {
                     const initialUserData = users[currentUserSnapshot.id];
                     if (initialUserData) {
                         try {
@@ -12634,7 +12644,10 @@ export const useApp = () => {
     useEffect(() => {
         if (!currentUser) {
             initialRedirectHandled.current = false;
-            if (window.location.hash && window.location.hash !== '#/register') window.location.hash = '';
+            const hash = window.location.hash;
+            if (hash && hash !== '#/register' && hash !== '#/login' && hash !== '#/kakao-callback' && !hash.startsWith('#/auth/')) {
+                replaceAppHash('#/login');
+            }
             return;
         }
         const currentHash = window.location.hash;
@@ -13934,14 +13947,20 @@ export const useApp = () => {
             showMutualDisconnectMessage: (msg: string) => setMutualDisconnectMessage(msg),
             closeMutualDisconnectModal: () => setMutualDisconnectMessage(null),
             confirmOtherDeviceLoginAndLogout: () => {
+                isLoggingOut.current = true;
+                currentUserRef.current = null;
                 try {
                     sessionStorage.removeItem('currentUser');
                 } catch {
                     // ignore
                 }
-                setCurrentUser(null);
+                flushSync(() => {
+                    setCurrentUser(null);
+                    setCurrentRoute({ view: 'login', params: {} });
+                });
                 setShowOtherDeviceLoginModal(false);
-                window.location.hash = '#/login';
+                replaceAppHash('#/login');
+                isLoggingOut.current = false;
             },
             openEquipmentEffectsModal: () => {
                 if (!replaceMobileViewport({ type: 'equipmentEffects' })) {
