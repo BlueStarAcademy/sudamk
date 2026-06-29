@@ -10,6 +10,7 @@ import {
     mergeDungeonConditionSnapshotRecords,
     syncDungeonConditionSnapshotToTournamentPlayers,
 } from '../shared/utils/championshipConditionDisplay.js';
+import { clearChampionshipDungeonClientSessionStorage } from '../shared/utils/championshipDungeonDailyReset.js';
 import { CHAMPIONSHIP_ABILITY_KATA_LADDER, type ChampionshipAbilityKataLadderRow } from '../shared/constants/championshipRealMatch.js';
 import { HandleActionResult, type PairRoomChatLine } from '../types/api.js';
 import { Point } from '../types/enums.js';
@@ -9574,6 +9575,7 @@ export const useApp = () => {
                         case 'SCHEDULER_MIDNIGHT_COMPLETE': {
                             // 0시 스케줄러 동작 완료 시 서버가 전송. 새로고침하여 일일 퀘스트/던전/랭킹 등 반영
                             console.log('[WebSocket] SCHEDULER_MIDNIGHT_COMPLETE received, refreshing page');
+                            clearChampionshipDungeonClientSessionStorage(currentUserRef.current?.id);
                             window.location.reload();
                             return;
                         }

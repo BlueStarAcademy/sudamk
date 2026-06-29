@@ -27,7 +27,7 @@
     },
     "languageSelect": {
       "label": "שָׂפָה",
-      "placeholder": "בחר את השפה שלך"
+      "placeholder": "אנא בחר שפה"
     },
     "connection": {
       "reconnecting": "מתחבר מחדש לשרת...",
@@ -66,7 +66,7 @@
     },
     "inAppBrowser": {
       "title": "פתח בדפדפן",
-      "body": "ייתכנו בעיות עם המסך מסתובב או מנותק בחלק העליון בתוך KakaoTalk או Messenger. נא לשחק בדפדפן ברירת המחדל שלך כגון Chrome או Safari.",
+      "body": "ייתכנו בעיות עם סיבוב המסך או מנותק בחלק העליון בתוך KakaoTalk או Messenger. נא לשחק בדפדפן ברירת המחדל שלך כגון Chrome או Safari.",
       "bodyStrong": "דפדפן ברירת מחדל",
       "openExternal": "פתח בדפדפן חיצוני",
       "menuHint": "אם הכפתור לא עובד, בחר \"פתח ב-Safari/Chrome\" מתפריט ⋯."
@@ -258,19 +258,19 @@
     "second": "הוגונג",
     "firstBlack": "התקפה ראשונה (שחור)",
     "secondWhite": "הוגונג (לבן)",
-    "chooseTurn": "בחר ללכת ראשון או אחרון.",
+    "chooseTurn": "בחר ללכת ראשון או שני.",
     "chooseTurnCountdown": "בחר ללכת ראשון או אחרון. ({{סְפִירָה לְאָחוֹר}})",
     "opponentChoosingSecond": "היריבה בוחרת לשחק שני...",
     "readyCountdown": "מוכן ({{ספירה לאחור}})",
-    "waitingOpponentRoll": "מחכה ליריב...",
+    "waitingOpponentRoll": "מחכה לצד השני...",
     "rollingDice": "לזרוק את הקוביות...",
     "tieReroll": "עֲנִיבָה! גלגל שוב לאחר זמן מה.",
     "rollToDecide": "לחץ על כפתור המוכן כדי להטיל את הקוביות. האדם עם המספר הגבוה ביותר בוחר ללכת ראשון/אחרון.",
-    "diceWin": "{{name}} זכה והוחלט מי יעבור ראשון/אחרון.",
+    "diceWin": "{{name}} זכה והוחלט ללכת ראשון/אחרון.",
     "diceAutoStart": "לחץ על כפתור ההתחלה למטה או שהמשחק יתחיל אוטומטית לאחר 30 שניות.",
     "colorRouletteTitle": "צבע באדוק",
     "uniformColorRoulette": "רולטה בצבע אחיד",
-    "thisGameColor": "צבע האבן עבור התאמה זו: {{color}}",
+    "thisGameColor": "צבע האבן עבור המשחק הזה: {{color}}",
     "colorRouletteHint": "האבנים השחורות והלבנות מהבהבות במהירות לסירוגין ונעצרות באקראי.",
     "colorRouletteEnd": "המשחק יתחיל אוטומטית לאחר סיום ההגרלה.",
     "colorRouletteProceed": "היא תתקיים אוטומטית לאחר סיום ההגרלה.",
@@ -288,7 +288,7 @@
     "reviewMode": "מצב התאוששות",
     "originalGame": "סימון מקורי",
     "rotateToWhite": "מבט מנקודת מבטו של לבן",
-    "rotateToBlack": "מבט מנקודת מבטו של בלאק",
+    "rotateToBlack": "מבט מנקודת המבט של בלאק",
     "closeViewer": "לִסְגוֹר",
     "replayFirst": "בפעם הראשונה",
     "replayBack5": "5 מהלכים אחורה",
@@ -341,11 +341,11 @@
         "adventure": "ההרפתקה סגורה זמנית."
       },
       "progressionBlocked": {
-        "tower": "אתה יכול להיכנס למגדל האתגר על ידי פינוי שלב 10 של כיתת מתחילים באקדמיית באדוק.",
+        "tower": "אתה יכול להיכנס למגדל האתגר על ידי פינוי שלב 10 של כיתת מתחילים באדוק באדוק.",
         "strategicLobby": "אתה יכול להיכנס לחדר ההמתנה האסטרטגי של Go מ-User Lv.{{level}}.",
         "playfulLobby": "אתה יכול להיכנס לחדר ההמתנה Go ב-User Lv. {{רָמָה}}.",
         "championship": "אתה יכול להיכנס לאליפות עם ציון יכולת Go של {{ability}} ומעלה.",
-        "adventure": "אתה יכול להיכנס להרפתקה על ידי פינוי שלב 20 של כיתת המתחילים באדוק באדוק."
+        "adventure": "אתה יכול להיכנס להרפתקה על ידי פינוי שלב 20 של כיתת מתחילים באדוק באדוק."
       }
     },
     "quickMenu": {
@@ -354,7 +354,7 @@
       "blacksmith": "נַפָּחִיָה",
       "shop": "חנות",
       "inventory": "תִיק",
-      "pet": "טיפול בחיות מחמד",
+      "pet": "לְלַטֵף",
       "trainingQuest": "משימת הדרכה",
       "detailedStats": "רשומות מפורטות של אצטדיון PVP",
       "monsterCodex": "אנציקלופדיית מפלצות",
@@ -362,7 +362,7 @@
       "gameRecords": "סִמוּן",
       "encyclopedia": "אֶנצִיקלוֹפֶּדִיָה",
       "announcements": "הוֹדָעָה",
-      "help": "מרכז העזרה",
+      "help": "עֶזרָה",
       "menu1": "תפריט 1",
       "menu2": "תפריט 2"
     },
@@ -421,15 +421,15 @@
     "nicknamePlaceholder": "נא להזין את הכינוי שלך",
     "continueWithSocial": "המשך עם החשבונות החברתיים שלך",
     "continueWithKakao": "התחל עם קקאו",
-    "continueWithGoogle": "התחל עם Google",
+    "continueWithGoogle": "התחל לעבוד עם Google",
     "kakao": "קקאו",
     "google": "גוגל",
     "ban": {
-      "title": "הגישה אסורה.",
+      "title": "החיבור אסור.",
       "reason": "סיבה: {{סיבה}}",
       "remainingMinutes": "משך הזמן שנותר: כ-{{minutes}} דקות",
       "expiresAt": "מתוכנן לצאת: {{תאריך}}",
-      "historyTitle": "פרטי הסנקציה",
+      "historyTitle": "פרטי סנקציה",
       "noReason": "אין סיבה",
       "adminDefault": "סנקציות מנהלים",
       "released": "מְבוּעָר"
@@ -443,7 +443,7 @@
       "jsonParseFailed": "שגיאת תגובת שרת: ניתוח JSON נכשל (סטטוס: {{status}})",
       "noUserInResponse": "שגיאת תגובת שרת: לא ניתן לקבל מידע משתמש.",
       "timeout": "אין תגובה מהשרת תוך 30 שניות. אנא נסה שוב מאוחר יותר.",
-      "networkError": "לא מצליח להתחבר לשרת. נסה שוב מאוחר יותר או בדוק את סטטוס שירות SUDAM-API.",
+      "networkError": "לא מצליח להתחבר לשרת. אנא נסה שוב מאוחר יותר או בדוק את סטטוס שירות SUDAM-API.",
       "genericResponseError": "אירעה שגיאת תגובת שרת. אנא נסה שוב מאוחר יותר.",
       "loginError": "אירעה שגיאה בעת הכניסה.",
       "kakaoUrlFailed": "לא ניתן לאחזר את כתובת האתר לכניסה של Kakao.",
@@ -492,7 +492,7 @@
     "registerErrors": {
       "fieldsRequired": "נא להזין את תעודת הזהות, האימייל והסיסמה שלך.",
       "invalidEmail": "נא להזין כתובת אימייל חוקית.",
-      "usernameLength": "הזן את המזהה עם לפחות {{min}} תווים ולא יותר מ-{{max}} תווים.",
+      "usernameLength": "אנא הזן את המזהה עם לפחות {{min}} תווים ולא יותר מ-{{max}} תווים.",
       "passwordMin": "הסיסמה חייבת להיות באורך 4 תווים לפחות.",
       "passwordMismatch": "הסיסמה לא תואמת.",
       "usernameProfanity": "המזהה שלך מכיל מילים לא הולמות.",
@@ -524,7 +524,7 @@
     "speed": "מהירות באדוק",
     "base": "בסיס באדוק",
     "hidden": "באדוק נסתר",
-    "missile": "באדוק טילים",
+    "missile": "טיל בדוק",
     "uniform": "אילסאק באדוק",
     "castle": "טירת באדוק",
     "chess": "בדוק שחמט",
@@ -539,8 +539,8 @@
     "descriptions": {
       "standard": "זהו באדוק קלאסי טיפוסי.",
       "capture": "במשחק באדוק מנצח האדם הראשון שמקבל מספר קבוע של אבנים.",
-      "speed": "אם תציב אותו תוך {{שניות}} שניות לכל תור, תחזיר {{שניות}} שניות. עבור כל {{שניות}} שניות, מתווספת נקודה אחת ליריב שלך.",
-      "base": "זהו משחק באדוק שבו אתה מסתכל על סידור אבני הבסיס, קובע בונוס ליריב, ומשתמש באבנים לבחירתך, ומתחרים על היכולת שלך לנתח את המצב.",
+      "speed": "אם תציב אותו תוך {{שניות}} שניות, תיצור מחדש {{שניות}} שניות. עבור כל {{שניות}} שניות, מתווספת נקודה אחת ליריב שלך.",
+      "base": "זהו משחק באדוק שבו אתה מסתכל על סידור אבני הבסיס, קובע בונוס ליריב, ומשתמש באבנים לבחירתך, ומתחרה על היכולת שלך לנתח את המצב.",
       "hidden": "קאמבק עם מהלך בלתי נראה ליריב! לוחמה פסיכולוגית וכישורי קריאה נדרשים באמצעות פריטים נסתרים וסרוקים.",
       "missile": "צור משתנה על ידי הזזת האבן שהונחה כפריט טיל.",
       "uniform": "Go הוא משחק שדורש זיכרון כדי לראות את כל האבנים בצבע אחד.",
@@ -548,11 +548,11 @@
       "chess": "זהו משחק אסטרטגי של באדוק המשלב כלי שחמט ובדוק. לאחר הזזת הכלי (אופציונלי), הניחו את אבן ה-Go כדי לסיים את התור.",
       "mix": "זהו משחק המשלב שני כללים מיוחדים או יותר.",
       "dice": "כל שחקן יכול להשתמש במספר אבנים שחורות כמו המספר שגולגל, והשחקן עם יותר אבנים לבנות מנצח.",
-      "thief": "זהו משחק קוביות אסטרטגי שבו אתה לוקח בתורו על עצמו את התפקיד של גנב (שחור) ושוטר (לבן), לוקח 5 סיבובים כל אחד, וניצחון או הפסד נקבע לפי הניקוד הכולל.",
+      "thief": "זהו משחק קוביות אסטרטגי שבו אתה לוקח בתורו את התפקיד של גנב (שחור) ושוטר (לבן), לוקח 5 סיבובים כל אחד, וניצחון או הפסד נקבע לפי הניקוד הכולל.",
       "omok": "זהו משחק קלאסי שבו אתה מנצח על ידי הנחת חמש אבנים ברציפות ראשון.",
       "ttamok": "אתה מנצח אם אתה עושה קעורה או מקבל ראשון את האבן של היריב.",
       "alkkagi": "זה משחק שבו אתה מכה באבנים עם האצבעות כדי לדחוף את האבנים של היריב מהלוח.",
-      "curling": "זהו משחק בו צוברים נקודות על ידי החלקת אבנים על לוח דמקה ושליחתן הכי קרוב למטרה (הבית)."
+      "curling": "זהו משחק שבו אתה צובר נקודות על ידי החלקת אבנים על לוח דמקה ושליחתן הכי קרוב למטרה (הבית)."
     }
   },
   "game": {
@@ -644,14 +644,14 @@
       "lowDiceUseBody": "השתמש בפריט קובייה אחד שמגיע רק עם מספרים נמוכים (1, 2, 3). האם אתה רוצה להמשיך?",
       "highDiceUseTitle": "השתמש בקוביות מספר גבוה",
       "highDiceUseBody": "השתמש בפריט קובייה אחד שמגיע רק עם מספרים גבוהים (4, 5, 6). האם אתה רוצה להמשיך?",
-      "oddDiceAria": "פריטי קוביות אי-זוגיות, נותר מספר {{count}}",
-      "oddDiceTitle": "פריטי קוביות מוזרים (1, 3, 5). ספירה שנותרה {{count}}",
+      "oddDiceAria": "פריטי קוביות אי-זוגיות, מספר שנותר {{count}}",
+      "oddDiceTitle": "פריטי קוביות מוזרים (1, 3, 5). הספירה שנותרה {{count}}",
       "evenDiceAria": "פריטי קוביות זוגיות, מספר שנותר {{count}}",
-      "evenDiceTitle": "פריטי קוביות אפילו (2, 4, 6). ספירה שנותרה {{count}}",
+      "evenDiceTitle": "פריטי קוביות אפילו (2, 4, 6). הספירה שנותרה {{count}}",
       "lowDiceAria": "מספר פריטי קוביות נמוך, מספר נותר {{count}}",
       "lowDiceTitle": "מספר נמוך (1·2·3) פריטי קוביות. הספירה שנותרה {{count}}",
-      "highDiceAria": "מספר רב של פריטי קוביות, נותר מספר {{count}}",
-      "highDiceTitle": "פריטי קוביות במספר גבוה (4, 5, 6). ספירה שנותרה {{count}}",
+      "highDiceAria": "מספר רב של פריטי קוביות, ספירה שנותרה {{count}}",
+      "highDiceTitle": "פריטי קוביות במספר גבוה (4, 5, 6). הספירה שנותרה {{count}}",
       "oddDiceUse": "השתמש בקוביות מוזרות",
       "evenDiceUse": "השתמש בקוביות אחידות",
       "lowDiceUse": "השתמש בקוביות מספר נמוך",
@@ -676,7 +676,7 @@
       "thiefNoOneUseBody": "השתמש בפריט קובייה אחד שיוצא רק 2, 3, 4 או 5 (1 לא אפשרי). אם זה תור משטרתי, שתי הקוביות נמצאות בטווח הזה. האם אתה רוצה להמשיך?"
     },
     "board": {
-      "rotateSpectatorBlack": "מבט מנקודת מבטו של בלאק",
+      "rotateSpectatorBlack": "מבט מנקודת המבט של בלאק",
       "rotateSpectatorWhite": "מבט מנקודת מבטו של לבן",
       "rotate180": "סיבוב לוח דמקה 180 מעלות",
       "paused": "לְהַפְרִיעַ",
@@ -703,7 +703,7 @@
       "uniformRoulette": "Ilsaek Baduk - רולטה בצבע אבן בתהליך...",
       "basePlacement": "מניחים אבני בסיס · {{count}} כל אחת",
       "baseStoneColorChoice": "בחר את האבן המועדפת עליך (שחור/לבן).",
-      "baseSameColorBid": "בחר את אותה האבן - החלט כמה נקודות תיתן ליריב שלך.",
+      "baseSameColorBid": "בחר את אותה האבן - החלט כמה נקודות תיתן ליריבך.",
       "baseGameStartConfirm": "כאשר אתה לוחץ על כפתור ההתחלה, המשחק מתחיל.",
       "captureBidTie": "העניבה המוצעת זהה. אם זה יהיה זהה הפעם, זה יוכרע באקראי.",
       "captureBidBase": "עיין בלוח שפורסם ואשר את הציון המוצע עבור שחור (טוב) בתחתית.",
@@ -715,15 +715,15 @@
       "hiddenFinalReveal": "אנו חושפים את כל האבנים הנסתרות ומתחילים לספור.",
       "autoScoringAdventure": "הנהלת חשבונות אוטומטית מתבצעת.",
       "autoScoringReached": "המערכת האוטומטית מגיעה לפרוצדורה ומתחילה לספור.",
-      "alkkagiRePlace": "מניחים שוב את האבנים. ({{round}} / {{total}} סיבוב)",
-      "alkkagiPlace": "מניחים את האבנים. ({{round}} / {{total}} סיבוב)",
-      "alkkagiPlayerTurn": "הגיע תורו של {{name}}. ({{round}} / {{total}} סיבוב)",
+      "alkkagiRePlace": "מניחים שוב את האבנים. ({{round}} / {{total}} סיבובים)",
+      "alkkagiPlace": "מניחים את האבנים. ({{round}} / {{total}} סיבובים)",
+      "alkkagiPlayerTurn": "הגיע תורו של {{name}}. ({{round}} / {{total}} סיבובים)",
       "alkkagiRoundEnd": "קצוות סיבובים - בדקו והמשיכו על השלט האלקטרוני למטה.",
       "diceRollTurn": "הגיע תורו של {{name}} להטיל את הקוביות.",
       "diceRollTurnGeneric": "הגיע הזמן להטיל את הקוביות",
       "tiebreakerDeciding": "מחליטים על ההזמנה הזוכה...",
       "tiebreakerPlaying": "המשחק מתבצע... (תורו של {{name}})",
-      "diceModeRound": "התחל לקוביות ({{round}} / {{total}} סיבובים)",
+      "diceModeRound": "קוביות ({{סיבוב}} / {{total}} סיבוב)",
       "thiefModeRound": "גנבים ושוטרים (סיבוב {{round}})",
       "preparing": "מכין משחק...",
       "timeoutFoul": "עבירה בזמן של {{name}}!",
@@ -733,9 +733,9 @@
       "timeoutFoulPassTurn": "התור עובר ליריב.",
       "timeoutFoulLoseStone": "אתה מאבד אבן אחת והתור שלך מסתיים.",
       "timeoutFoulDefault": "תקבל עונש על חריגה ממגבלת הזמן.",
-      "baseKomiGuide": "החליטו על האבנים והבונוסים שאתם רוצים להציב. אם תבחרו באותה האבן, מי שמעניקה לכם הכי הרבה בונוסים היא האבן שתרצו לשמור.",
-      "alkkagiPlaceHidden": "הנח את האבנים כך שהן לא יהיו גלויות ליריבך. ({{round}} / {{total}} סיבוב)",
-      "alkkagiPlaceMissing": "מניחים את האבנים החסרות. ({{round}} / {{total}} סיבוב)",
+      "baseKomiGuide": "החליטו אילו אבנים ובונוסים אתם רוצים למקם. אם תבחרו באותה האבן, מי שמעניקה לכם הכי הרבה בונוסים היא האבן שתרצו לשמור.",
+      "alkkagiPlaceHidden": "הנח את האבנים כך שהן לא יהיו גלויות ליריבך. ({{round}} / {{total}} סיבובים)",
+      "alkkagiPlaceMissing": "מניחים את האבנים החסרות. ({{round}} / {{total}} סיבובים)",
       "placementProgress": "הציב {{placed}}/{{target}}",
       "timeRemainingSec": "זמן שנותר: {{שניות}} שניות",
       "alkkagiRoundWin": "סיבוב {{סיבוב}} - {{name}} מנצח",
@@ -805,12 +805,12 @@
       "captureScore": "ציון לכידה:",
       "lastPileBonus": "בונוס דמה אחרון:",
       "finalScoreLabel": "ציון סופי",
-      "houseScoreGain": "נקודות שנצברו",
+      "houseScoreGain": "ציון שנצבר",
       "houseUnit": "בַּיִת",
       "playerWins": "{{name}} זוכה!",
       "cumulativeScore": "ציון מצטבר",
       "roundScores": "ניקוד לכל סיבוב",
-      "roundScoreBlackWhite": "ניקוד סיבוב (שחור:לבן)",
+      "roundScoreBlackWhite": "ניקוד עגול (שחור:לבן)",
       "house": "בַּיִת",
       "knockout": "נוקאאוט",
       "previousKnockout": "(בעבר: {{count}})",
@@ -843,7 +843,7 @@
       "resignWinMsg": "ניצחנו כי היריבה שלנו נמנעה.",
       "resignLossMsg": "נמנע והפסיד.",
       "turnLimitWinMsg": "ניצחת כי כל התורים המוגבלים של היריב שלך נוצלו.",
-      "turnLimitLossMsg": "הפסדתי כי מגבלת התור שלי נגמרה.",
+      "turnLimitLossMsg": "מספר הסיבובים היה מוגבל והפסדת.",
       "castleWinMsg": "זכיתי באבן של היריב וניצחתי מיד.",
       "castleLossMsg": "הפסדתי כי היריב שלי תפס את האבן.",
       "checkmateWinMsg": "זכיתי בשח-מט בכך שזכיתי במלך היריב.",
@@ -868,7 +868,7 @@
       "petGradeUpgradeNeeded": "יש לחזק את רמת חיית המחמד",
       "representativePet": "חיית מחמד ייצוגית",
       "addedStats": "נוספו יכולות",
-      "vipSlotReward": "תגמולים על משבצות VIP",
+      "vipSlotReward": "תגמולים על משבצת VIP",
       "winCondition": "נִצָחוֹן",
       "confirm": "לִבדוֹק",
       "guildWarRewards": "תגמול מלחמת הגילדה",
@@ -879,14 +879,14 @@
       "scoreDiffTier": "הפרש בית {{diff}}יותר מבית",
       "goldBundleSpaced": "חבילת זהב",
       "goldBundleCompact": "חבילת זהב",
-      "noRewardInfo": "אין מידע פיצוי זמין.",
+      "noRewardInfo": "אין מידע על פיצויים זמין.",
       "noRewardsEmpty": "אין פיצוי."
     },
     "sidebar": {
       "gameInfo": "מידע על התאמה",
       "howToPlay": "איך לשחק",
       "howToPlayTitle": "כללים והגדרות דומים לתיאור המשחק לפני ההתחלה",
-      "howToPlayAria": "פתח את המדריך כיצד לשחק",
+      "howToPlayAria": "פתח את המדריך איך לשחק",
       "userList": "רשימת משתמשים",
       "gameRoom": "חדר התאמה",
       "globalChat": "הכל בצ'אט",
@@ -905,7 +905,7 @@
       "itemDetail": "לחץ על {{name}} כדי לראות פרטים",
       "honorific": "אֲדוֹנִי",
       "spectator": "צופה",
-      "starConditions": "תנאים לקבלת כוכבים",
+      "starConditions": "תנאים להשגת כוכבים",
       "profanityBlocked": "לא ניתן לשלוח את ההודעה שלך כי היא מכילה מילים לא הולמות.",
       "locationTower": "[מגדל האתגרים]",
       "locationSingle": "[משחק יחיד]",
@@ -1136,7 +1136,7 @@
       "lockedTop3": "פתוח למקום 3 ומעלה",
       "alreadyOpen": "כבר נפתח",
       "unlocked": "מְבוּעָר",
-      "lockedTop3Full": "נעול (נפתח כאשר הוא מדורג במקום השלישי ומעלה)",
+      "lockedTop3Full": "נעול (נפתח כאשר מדורג במקום השלישי ומעלה)",
       "nextStageAlreadyOpen": "השלב הבא כבר פתוח.",
       "open": "לִפְתוֹחַ",
       "resultAria": "סיכום התוצאות",
@@ -1176,7 +1176,11 @@
       "scoringTurnValue": "{{turns}}סיבובים",
       "forbidden": "איסור",
       "allowed": "אֶפשָׁרִי",
-      "speedNormal": "בדרך כלל"
+      "speedNormal": "בדרך כלל",
+      "confirm": "לִבדוֹק",
+      "gaugeSpeedSlow": "x1 (איטי)",
+      "gaugeSpeedNormal": "x2 (רגיל)",
+      "gaugeSpeedFast": "x3 (מהיר)"
     },
     "challengeModal": {
       "rejected": "דוחה",
@@ -1184,12 +1188,12 @@
       "mixRulesMinAlert": "בבאדוק כלל מעורב, עליך לבחור שני חוקי שילוב או יותר.",
       "selectModePrompt": "בחר מצב משחק בצד שמאל",
       "mixRulesTitle": "שילוב כללים (2 או יותר)",
-      "mixRulesHint": "קלאסי באדוק כלול כסטנדרט. בחר כלל לשימוש יחד. לא ניתן לבחור זכייה וטירה בו-זמנית.",
+      "mixRulesHint": "באדוק קלאסי כלול כסטנדרט. בחר כלל לשימוש יחד. לא ניתן לבחור זכייה וטירה בו-זמנית.",
       "mixCaptureCastleConflict": "לא ניתן לבחור זכייה וטירה בו-זמנית.",
       "mixRulesMinHint": "אנא בחר לפחות שני כללים.",
       "boardKomiCapture": "לכו ללוח, חישוב, בונוס, זכייה",
       "boardSize": "לוּחַ שַׁחְמָט",
-      "boardLines": "{{גודל}}שורה",
+      "boardLines": "שורה {{גודל}}",
       "komiWhite": "בונוס (תיק)",
       "komiHalf": ".5 בית",
       "captureTarget": "ציון יעד",
@@ -1209,7 +1213,7 @@
       "hiddenItems": "פריט מוסתר",
       "scan": "לִסְרוֹק",
       "scanItems": "לסרוק פריט",
-      "missileGo": "באדוק טילים",
+      "missileGo": "טיל בדוק",
       "missileCount": "מספר הטילים",
       "diceGo": "קוביות באדוק",
       "round": "עִגוּל",
@@ -1266,7 +1270,7 @@
         "title": "חוסר פעולה",
         "rechargeMethods": "שיטת טעינה",
         "shopConsumables": "חנות · חומרים מתכלים",
-        "buyPotion": "רכישת שיקוי לשחזור פעולה",
+        "buyPotion": "קנה שיקוי התאוששות התנהגותי",
         "buyPotionLimit": "· 1 ליום לסוג",
         "diamondInstant": "יהלום נטען באופן מיידי",
         "diamondInstantHint": "אתה יכול למלא את כוח הפעולה שלך בדיוק מתי שאתה רוצה.",
@@ -1275,7 +1279,7 @@
         "selfHeading": "חסרה לי היכולת לפעול.",
         "selfDetail": "נדרש כוח פעולה (⚡) כדי להחיל ולקבל התאמה, או כדי להתחיל התאמה של AI. אנא טען ונסה שוב.",
         "opponentTitle": "הגש בקשה להתאמה",
-        "opponentMessage": "לא ניתן להגיש את הבקשה מאחר שלצד השני אין יכולת לפעול.",
+        "opponentMessage": "לא ניתן להגיש את הבקשה משום שלצד השני אין יכולת לפעול.",
         "opponentDetail": "ליריב חייב להיות מספיק כוח פעולה (⚡) כדי להמשיך במשחק. נסה שוב לאחר שהאדם השני יטען מחדש."
       }
     },
@@ -1290,13 +1294,13 @@
       "confirmed": "מְאוּשָׁר",
       "waitingOpponent": "מחכה שהיריב ישלים את הפריסה.",
       "confirmNextStep": "כשתסיים להציב, לחץ כדי להמשיך לשלב הבא.",
-      "placeAllFirst": "לאחר הנחת כל אבני הבסיס, לחץ עליהם.",
+      "placeAllFirst": "לאחר הנחת כל בובות הבסיס, לחץ עליהן.",
       "basePlacementTitle": "מיקום אבן בסיס",
       "basePlacementHint": "מניחים את בובת הבסיס. ({{placed}}/{{total}})",
       "confirmStart": "המשחק מתחיל",
       "confirmStartHint": "כאשר אתה לוחץ על כפתור ההתחלה, המשחק מתחיל.",
       "hostPlacesBoth": "המארח מניח את אבני הבסיס משני הצדדים.",
-      "basePlacementPhase": "זהו שלב הנחת בובות הבסיס.",
+      "basePlacementPhase": "זהו שלב הנחת בובת הבסיס.",
       "hostPlacementSide": "מיקום מוביל חדר: {{צד}} אבן בסיס צדדית",
       "confirmPlacementFull": "בובות הבסיס שנותרו (0/{{סך הכל}}) · לחץ על המיקום הושלם",
       "proceedingNext": "בובות בסיס שנותרו (0/{{סך הכל}}) · ממשיכים לשלב הבא...",
@@ -1382,7 +1386,203 @@
       "curling": "סִלְסוּל",
       "thiefPolice": "גנב ומשטרה",
       "classic": "קלַאסִי",
-      "mix": "לְעַרְבֵּב"
+      "mix": "לְעַרְבֵּב",
+      "specialRules": "כללים מיוחדים",
+      "loseCondition": "תנאי תבוסה",
+      "rulesAndGuide": "כללי משחק ומדריך משחק",
+      "rewards": "פיצוי",
+      "availableRewards": "תגמולים שניתן להשיג",
+      "summary": {
+        "loseTerritory": "אם הניקוד הכולל (הניקוד הכולל) נמוך או שהבית נמצא בנחיתות בגלל חוקי תיקו או תיקו, אתה מפסיד.",
+        "loseTerritoryAuto": "אם אתה לא יכול לנצח נגד {{base}} · {{auto}}, אתה מפסיד.",
+        "loseCaptureRace": "אם היריב קולע תחילה {{t}} נקודות, אתה מפסיד. אחרת, אם יש לך מעט בתים במשפחה, אתה מפסיד.",
+        "loseMix": "בסיום המשחק, אם היריב עומד קודם בתנאי הניצחון או נמצא בנחיתות, היריב מפסיד.",
+        "basePlacementAnalysis": "ניתוח מצב לאחר שחרור מיקום בובת הבסיס",
+        "baseKomiSelect": "הגדר את הבונוס לתת ליריב שלך · בחר את האבן שאתה רוצה",
+        "autoScoringCaptureTurn": "הספירה האוטומטית ממשיכה כאשר מגיעים ל-{{n}} תורות",
+        "autoScoringTerritoryWin": "זכה בספירה האוטומטית לאחר {{n}} סיבובים",
+        "autoScoringTerritoryLose": "תבוסה במשחק אוטומטי לאחר {{n}} תורות",
+        "fischerOnly": "פישר {{שניות}} שניות",
+        "byoyomiOnly": "ספירה לאחור בלבד · {{time}} שניות × {{count}} פעמים",
+        "noTimeLimit": "אין הגבלת זמן",
+        "limitFischer": "הגבל {{min}} דקות · פישר {{sek}} שניות",
+        "limitByoyomi": "הגבל {{min}} דקות · ספירה לאחור {{time}} שניות × {{count}} פעמים",
+        "limitNoByoyomi": "הגבל ל-{{min}} דקות (ללא ספירה לאחור)",
+        "factorTerritory": "שֶׁטַח",
+        "factorCaptured": "אבן שנאספה",
+        "factorDead": "riprap",
+        "factorKomi": "בונוס (תיק)",
+        "factorBaseBonus": "בונוס בסיס",
+        "factorHiddenBonus": "בונוס נסתר",
+        "factorSpeedBonus": "חריגה מהקצבה של {{sek}} שניות → יריב 1+",
+        "factorMissileEffect": "השתקפות של ייצור טילים",
+        "factorCaptureScore": "ניקוד מנצח",
+        "factorMixFallback": "תלוי בשילוב המצבים",
+        "factorCaptureNoTerritory": "ניקוד זכייה (ללא חישובי בית)",
+        "factorCastle": "טריטוריה מאושרת · אבן זכתה · בונוס (לבן)",
+        "factorChess": "טריטוריה · אבן שנאספה · אבן אבן · לכידת פריט · בונוס (100)",
+        "factorOmok": "ה' (זכייה) - אין חישובי בית",
+        "factorTtamok": "ניצחון צוואר או ניקוד ניצחון",
+        "factorDice": "ניקוד זכייה של 100 אבנים לסיבוב · בונוס זכייה סופי",
+        "factorThief": "סך הנקודות שנצברו בכל סיבוב",
+        "factorAlkkagi": "מספר המהלכים של היריב מחוץ ללוח",
+        "factorCurling": "סטון מבקיע קרוב לבית (גול)",
+        "factorFallback": "ראה מדריך מצבים",
+        "factorStageDefault": "תלוי במה/מצב",
+        "factorStageCapture": "ניקוד מנצח",
+        "factorStageCapturePattern": "ניקוד מנצח\n2 אבני דפוס",
+        "factorStageSpeed": "טריטוריה, אבן שנאספה, אבן קרע, בונוס\nבונוס זמן",
+        "factorAdventureCaptureShort": "בחר · סמל 2 נקודות",
+        "factorAdventureBase": "מחיר בסיסי",
+        "factorAdventureBaseStone5": "5 בובות בסיס",
+        "factorAdventureHidden": "מוּסתָר",
+        "factorAdventureSpeed": "שָׁעָה",
+        "factorAdventureMissile": "טִיל",
+        "itemHidden": "מוסתר {{n}}",
+        "itemScan": "{{n}} סריקות",
+        "itemMissile": "{{n}} טילים",
+        "itemSpecialDice": "קוביות מיוחדות {{תקציר}}",
+        "itemSlowAim": "איטי {{איטי}} · כוונו {{aim}}",
+        "mixCaptureWin": "אם הושגו תחילה {{t}} נקודות, זכה מיד. אם לא הושג, השווה בתים לאחר המחיר הזוכה.",
+        "mixCaptureWinWithAuto": "זכייה: אם הושגו תחילה {{t}} נקודות, זכה מיד · אם לא הושגה, השווה בתים אחרי המגבלה · {{אוטו}}",
+        "mixAutoTerritoryWin": "{{אוטו}} - מי שיש לו הכי הרבה בתים מנצח",
+        "mixComboTail": "שילובים ({{מצבים}}) - נצח או הפסד על סמך כללים בסוף",
+        "mixDefaultEnd": "בסוף, המנצח או המפסיד נקבע על פי הכללים.",
+        "highlightPatternStone2": "קטיף אבני דפוס 2 נקודות",
+        "highlightHiddenScan": "השקה נסתרת · חקור על ידי סריקה",
+        "highlightMissileMove": "הזיזו אבן בקו ישר עם טיל",
+        "speedPvpHighlight": "הקצבה ספירה לאחור של 10 שניות · יריב +1 נקודה עבור כל 10 שניות חריגה · אובדן זמן כאשר הזמן הראשי נגמר",
+        "highlightSurvival": "שמור באדוק · ציון יעד בתוך {{n}} תורות",
+        "highlightAutoScoring": "ספירה אוטומטית לאחר מספר {{n}}",
+        "highlightBlackTurnLimit": "מגבלת פניות של {{n}} שחורות",
+        "highlightTurnAdd": "{{n}} סיבובים נוספים",
+        "highlightMissile": "{{n}} טילים",
+        "highlightHiddenScanCounts": "{{מוסתר}} מוסתר · {{סרוק}} נסרק",
+        "spTimeMainFischer": "{{min}} דקות ראשיות · ספירה לאחור של {{sek}} שניות",
+        "spTimeFischerOnly": "ספירה לאחור לקצבה {{sek}} שניות",
+        "spTimeUnlimited": "אין גבול",
+        "goalSurvivalWinLabel": "לחסום בחזרה",
+        "goalSurvivalWinHelper": "חסום 100 יעדים עבור {{n}} פניות",
+        "goalSurvivalLoseLabel": "מאה הצלחה",
+        "goalSurvivalLoseHelper": "אם לבן יוצר גול, הוא נכשל.",
+        "goalCaptureWinLabel": "קטיף",
+        "goalCaptureWinHelper": "צבור נקודות על ידי הקפת האבנים של היריב.",
+        "goalCaptureLoseTurnLabel": "חרג מהסיבובים",
+        "goalCaptureLoseTurnHelper": "אם אתה לא עושה את זה בתוך {{n}} תורות, אתה נכשל.",
+        "goalCaptureLoseFirstLabel": "יריב ראשון",
+        "goalCaptureLoseFirstHelper": "אם היריב שלך מנצח ראשון, אתה נכשל.",
+        "goalSpeedWinLabel": "מָהִיר",
+        "goalSpeedWinHelper": "בניית בית בזמן",
+        "goalSpeedLoseLabel": "ציון שלוש עשרה",
+        "goalSpeedLoseHelper": "כישלון אם יש מעט בתים",
+        "goalAutoWinLabel": "הרבה בתים",
+        "goalAutoWinHelper": "חשב את הבית אחרי {{n}}",
+        "goalAutoLoseLabel": "חוסר בתים",
+        "goalAutoLoseHelper": "{{n}}אם אתה נמצא בנחיתות במהלך המעבר, אתה נכשל.",
+        "goalDefaultWinLabel": "לבנות בית",
+        "goalDefaultWinHelper": "בנה בית מסביב לאזור",
+        "goalDefaultLoseLabel": "חוסר בתים",
+        "goalDefaultLoseHelper": "כישלון אם יש מעט בתים",
+        "guideTurnLimitTitle": "מגבלת סיבוב",
+        "guideTurnLimitBody": "סיים ב-{{n}} פניות",
+        "guideSurvivalTitle": "גֶזַע",
+        "guideSurvivalBody": "חסום 100 יעדים עבור {{n}} פניות",
+        "guideAutoScoringTitle": "מחיר חישוב",
+        "guideAutoScoringBody": "חשב את הבית אחרי {{n}}",
+        "guidePatternStoneTitle": "אבן דפוס",
+        "guidePatternStoneBody": "2 נקודות אם תנצח",
+        "guideSpeedTitle": "מְהִירוּת",
+        "guideSpeedBody": "אם אתה עוזב את זה מאוחר, היריב שלך מקבל נקודה +1.",
+        "guideTurnAddTitle": "הוסף Turn",
+        "guideTurnAddBody": "הגדל את מגבלת הסיבוב",
+        "guideMissileTitle": "טִיל",
+        "guideMissileBody": "בחר אבן ודחף אותה בקו ישר",
+        "guideHiddenScanTitle": "מוסתר · סריקה",
+        "guideHiddenScanBody": "הסתר {{מוסתר}} · מצא את {{סרוק}}",
+        "advCaptureWin": "זְכִיָה",
+        "advCaptureLose": "לנצח, להפסיד, פסק זמן",
+        "advTerritoryWin": "גי מנצח",
+        "advTerritoryWinAuto": "ספירת ניצחונות · {{n}} זז אוטומטית",
+        "advTerritoryLose": "המערכת מובסת והזמן אוזל.",
+        "advTimeLimit": "מגבלה של {{דקות}} דקות",
+        "gwCaptureWinAuto": "{{cap}} נקודות ראשונות או {{limit}} תורות ניצחונות",
+        "gwCaptureWin": "אם אתה מקבל תחילה {{cap}} נקודות, אתה מנצח.",
+        "gwCaptureLose": "היריב {{cap}} נקודות ראשון",
+        "gwTerritoryWinAuto": "חישוב אוטומטי של מספר הזכיות {{limit}}",
+        "gwTerritoryWin": "אם למשפחה שלך יש יותר בתים, אתה מנצח.",
+        "gwTerritoryLose": "מספר גדול יותר, הזמן חורג",
+        "captureWin": "השג את אבן היריב {{t}} נקודות תחילה",
+        "captureWinWithAuto": "השג את אבן היריב {{t}} נקודות תחילה · {{אוטו}}",
+        "territoryWinDefault": "לאחר הספירה, הצד עם הכי הרבה בתים מנצח.",
+        "speedTerritoryWinDefault": "מי שיש לו את הציון הכללי הגבוה ביותר מנצח לאחר ספירה.",
+        "speedTerritoryLoseDefault": "אם הציון הכללי שלך נמוך לאחר הספירה, אתה מפסיד.",
+        "castleWin": "אם אתה זוכה באחת או יותר מאבנים של היריב, אתה מנצח מיד. אם אין מספרים אפקטיביים, הטריטוריה מחושבת.",
+        "castleLose": "אם היריב שלך תופס אפילו אבן אחת, אתה מפסיד. אם יש לך מעט בתים במשפחה שלך, אתה מפסיד.",
+        "castleHighlightCount": "{{טירות}} טירות · לא ניתן להיכנס לטריטוריה שהושלמה",
+        "castleHighlightCapture": "ניצחון מיידי עם לכידת אבן אחת",
+        "chessWin": "לאחר ההליך המיועד, החישוב",
+        "chessLose": "תבוסה ב-Gyejia · הפסד מיד עם לכידת המלך.",
+        "chessHighlightBudget": "מיקום ישיר של חלקים בתקציב של {{תקציב}} נקודות (המלך קבוע למרכז השורה השנייה)",
+        "chessHighlightMovement": "ניתן להזיז את הכלי עם מהלך שח פעם אחת בכל תור (מספר מוגבל של פעמים).",
+        "omokWin": "השלם תחילה 5 פריטים אופקיים, אנכיים ואלכסוניים",
+        "omokLose": "אם היריב שלך משלים את כל 5 הפריטים תחילה, אתה מפסיד.",
+        "omok33Forbidden": "בלי תאומים",
+        "omok33Allowed": "מותר לתאומים",
+        "omokOverlineForbidden": "ללא עץ בעץ",
+        "omokOverlineAllowed": "לוגווד מותר",
+        "ttamokWin": "השלם קודם את פריט 5 או השג {{cap}} נקודות ראשונות",
+        "ttamokLose": "אם היריב שלך משלים 5 פריטים ראשון או מגיע ראשון ל-{{cap}} נקודות זכייה, אתה מפסיד.",
+        "ttamokHighlightCapture": "זכה כאשר תגיע תחילה ל-{{cap}} נקודות.",
+        "diceWin": "הצד עם הניקוד המצטבר הגבוה ביותר לאחר סיבוב {{r}} מנצח.",
+        "diceLose": "{{r}}אם הציון המצטבר שלך נמוך בסוף הסיבוב, אתה מפסיד.",
+        "diceHighlightRules": "שחור נוחת כמו עיני הקוביות, והלבן ממוקם רק על שביל היציאה.",
+        "thiefWin": "לאחר 5 סיבובים x סיבובים, האדם עם הניקוד הכולל הגבוה ביותר מנצח.",
+        "thiefLose": "אם הציון הכולל שלך נמוך בסוף הסיבוב, אתה מפסיד.",
+        "thiefHighlightRoles": "חילופי תפקידים בין גנב (שחור) לשוטר (לבן)",
+        "alkkagiWin": "דפוק את כל האבנים של היריב",
+        "alkkagiLose": "תעיף את כל האבנים שלי",
+        "alkkagiHighlightGauge": "שליטה בכוח עם מד, השתקפות קיר",
+        "curlingWin": "מי שיש לו את הניקוד הכולל הגבוה ביותר בסיבוב מנצח",
+        "curlingLose": "אם הציון הכולל שלך נמוך, אתה מפסיד.",
+        "curlingHighlightRules": "מערכת הזזה/עגולה מאבן",
+        "fallbackWin": "ניצחון או הפסד נקבעים על סמך התקדמות המשחק.",
+        "fallbackLose": "אם התבוסה נקבעת על פי התקדמות המשחק, אתה מפסיד.",
+        "spDefaultWin": "נצח כאשר מתקיימים תנאי הבמה",
+        "spDefaultLose": "להפסיד אם התנאים לא מתקיימים",
+        "spSurvivalWin": "לא הצליח להשיג 100 {{tgt}} נקודות בתוך {{n}} תורות",
+        "spSurvivalLose": "השג 100 {{tgt}} נקודות בתוך {{n}} סיבובים",
+        "spCaptureTurnWin": "השג {{target}} נקודות בתוך {{limit}} פניות",
+        "spCaptureTurnLoseBoth": "חורג מ-{{limit}} תורות / צבר 100 {{target}} נקודות",
+        "spCaptureTurnLoseMiss": "לא הצליח להגיע ליעד תוך {{limit}} תור",
+        "spCaptureRaceWin": "קבל תחילה {{target}} נקודות",
+        "spCaptureRaceLose": "קבל תחילה 100 {{target}} נקודות",
+        "spCaptureCapWin": "תחילה קבל {{cap}} נקודות",
+        "spCaptureCapLose": "לבן מקבל תחילה {{cap}} נקודות",
+        "spCaptureGoalWin": "השגת ציון יעד",
+        "spCaptureGoalLose": "באק משיג את המטרה שלו ראשון",
+        "spSpeedWin": "הקבוצה מנצחת בתוצאה הכללית",
+        "spSpeedLose": "מובס בעולם",
+        "spAutoScoringWin": "{{n}}מנצח לאחר ספירה",
+        "spAutoScoringLose": "{{n}}מובס אחרי סוגיגה",
+        "spLegacyTurnWin": "{{target}} נקודות או יותר בתוך {{limit}} סיבוב",
+        "spLegacyTurnLose": "לא הצליח להגיע ליעד תוך {{limit}} תור",
+        "spLegacyTerritoryWin": "המשפחה השחורה {{שחור}} בית+ · לבן {{לבן}} בית+",
+        "spLegacyTerritoryLose": "היעד לא הושג",
+        "spTerritoryWin": "אם למשפחה יש יותר בתים, הם מנצחים.",
+        "spTerritoryLose": "שלוש עשרה בשושלת"
+      },
+      "itemSlot": {
+        "hiddenStone": "אבן נסתרת",
+        "scan": "לִסְרוֹק",
+        "missile": "טִיל",
+        "diceOdd": "פריטי קוביות מוזרים",
+        "diceEven": "אפילו פריטי קוביות",
+        "diceLow": "מספר נמוך (1-3) פריטי קוביות",
+        "diceHigh": "מספר גבוה (4-6) פריטי קוביות",
+        "slow": "לְהַאֵט",
+        "aimLine": "קו ראייה",
+        "turnAdd": "הוסף Turn"
+      }
     },
     "singlePlayerInfo": {
       "close": "לִסְגוֹר",
@@ -1436,7 +1636,7 @@
       "blackTargetHint": "אם שחור הופך לבן, המטרה היא {{target}} נקודות ({{base}} נקודות בסיסיות)"
     },
     "scoringOverlay": {
-      "analyzing": "AI מנתח את לוח הדמקה",
+      "analyzing": "בינה מלאכותית מנתחת את לוח הדמקה",
       "secondsLeft": "נותרו בערך {{sec}} שניות",
       "completingSoon": "בוצע בקרוב..."
     },
@@ -1463,7 +1663,7 @@
       "noChange": "ללא שינוי",
       "petXpSplit": "בסיסי +{{base}} (מתמחה +{{spec}})",
       "modeXpGain": "חוויית {{mode}} +{{amount}}",
-      "petGradeUpgradeNeeded": "יש לחזק את רמת חיית המחמד",
+      "petGradeUpgradeNeeded": "יש לחזק את מעמד חיות המחמד",
       "rewardVip": "תגמול VIP",
       "rewardLine": "פיצוי",
       "vipRewardLine": "תגמולי VIP",
@@ -1478,10 +1678,11 @@
       "aria": "כרטיסיית תוצאות"
     },
     "speedPressure": {
-      "aria": "זמן הקצבה {{שניות}} שניות"
+      "aria": "זמן הקצבה {{שניות}} שניות",
+      "label": "פס מהירות של 10 שניות"
     },
     "adventureResult": {
-      "bossLine": "בוס: {{תווית}} +{{pct}}%",
+      "bossLine": "בוס: {{label}} +{{pct}}%",
       "adventureLine": "הרפתקאות: {{label}} +{{pct}}%"
     },
     "strategicTimeControl": {
@@ -1556,9 +1757,9 @@
       "setupComplete": "ההגדרה הושלמה",
       "baseTargetIntro": "יעדי ברירת המחדל הם {{target}}.",
       "bidInstructionRich2": "הציעו מספר נקודות לתת ליריבכם כדי להביא שחור (שחקן).",
-      "aiAutoBidHint": "AI מציע אוטומטית בין 1 ל-5 נקודות. אתה יכול לבחור את הציון שלך ללא הגבלת זמן.",
+      "aiAutoBidHint": "AI מציע ציון אוטומטי בין 1 ל-5. אתה יכול לבחור את הציון שלך ללא הגבלת זמן.",
       "baseTargetLabel": "מטרה ראשית",
-      "waitingCaptain": "אנחנו ממתינים להצעת ראש הצוות.",
+      "waitingCaptain": "אנחנו מחכים להצעת ראש הצוות.",
       "titleRerollSuffix": "· סבב הימורים מחדש"
     },
     "captureTiebreaker": {
@@ -1573,7 +1774,7 @@
       "tiebreakerDesc": "ניגירי מוכרע ברולטה.",
       "basePlusKomiDesc": "בדוק את התנאים בכרטיס למטה.",
       "basePrepDesc": "בדוק את Nigiri·Dum למטה.",
-      "resultDesc": "{{name}} · Heukseung · Jessie {{bid}} נקודה",
+      "resultDesc": "{{name}} · Heukseung · ג'סי {{bid}} נקודה",
       "blackWinCondition": "תנאי ניצחון שחורים",
       "whiteWinCondition": "100 תנאי זכייה",
       "blackRole": "תפקיד שחור",
@@ -1612,10 +1813,13 @@
       "baseRule": "בָּסִיס",
       "whiteTargetLabel": "מאה שערים",
       "firstBlackRole": "קו (שחור)",
-      "meBadge": "לִי"
+      "meBadge": "לִי",
+      "captureBidResultTitle": "תוצאת מצגת ניקוד מנצח",
+      "komiBidFinalRound": "הצעת בונוס (סיבוב אחרון)",
+      "pressStartPrompt": "ברגע שאתה מוכן, לחץ על התחל כדי להתחיל לשחק."
     },
     "baseStoneChoice": {
-      "hostPick": "המארח בוחר את לוחית הצבע בצד שמאל.",
+      "hostPick": "המארח בוחר את לוח הצבעים בצד שמאל.",
       "wait": "אנא המתן לרגע.",
       "pairHost": "מארח: בחר את לוח הצבעים של חבר לקבוצה במקום זאת.",
       "pickPanel": "בחר את הגרסה שאתה אוהב.",
@@ -1642,8 +1846,10 @@
       "blackRole": "מכה ראשונה, שחור",
       "whiteRole": "Hugong · חזרה",
       "finalCardAlt": "המהלכים הראשונים והשניים האחרונים מוצגים על הקלפים השמאלי והימני.",
-      "fastFlashAlt": "התצוגה בשחור-לבן בשני החללים משתנה, אך לאחר זמן מה היא מקובעת לסידור הסופי.",
-      "smoothEndAlt": "שחור ולבן משתנה במהירות ועוצר באקראי."
+      "fastFlashAlt": "התצוגה בשחור-לבן בשני החללים משתנה, אך לאחר זמן מה היא מקובעת לפריסה הסופית.",
+      "smoothEndAlt": "שחור ולבן משתנה במהירות ועוצר באקראי.",
+      "assignmentComplete": "המשימה הושלמה",
+      "blackCandidate": "לך מועמד ראשון (שחור)."
     },
     "uniformColor": {
       "blackStone": "אבן שחורה",
@@ -1679,7 +1885,8 @@
       "autoRouletteShort": "במקום סלע, ​​נייר, מספריים, שחור ולבן מוקצים באמצעות רולטה אוטומטית.",
       "checkingRoulette": "בודק תוצאות רולטה...",
       "waitingConfirm": "ממתין לאישור מגורם אחר...",
-      "startCountdown": "התחל את המשחק ({{count}})"
+      "startCountdown": "התחל את המשחק ({{count}})",
+      "autoStartHint": "לחץ על התחל או שהמשחק יתחיל אוטומטית לאחר 30 שניות."
     },
     "diceGo": {
       "winner": "כתוצאה מהקוביות, {{name}} ניצח והתקבלה ההחלטה ללכת ראשון/אחרון.",
@@ -1774,7 +1981,7 @@
       "resetPairAll": "יהלום {{עלות}} - מצב אסטרטגיית צמד הכל"
     },
     "pairPet": {
-      "obtained": "רכוש חיית מחמד",
+      "obtained": "רכשו חיית מחמד",
       "equippedDetail": "מידע מייצג של חיית המחמד",
       "detail": "פרטי חיית המחמד"
     },
@@ -1813,9 +2020,78 @@
       "editStage": "עריכת שלב",
       "editOrder": "ערוך סדר",
       "cancel": "ביטול",
+      "exit": "יְצִיאָה",
       "start": "מתחילים",
       "singleStage": "שלב בודד",
-      "masterClass": "אדם בעל הסמכה"
+      "masterClass": "אדם בעל הסמכה",
+      "goalSection": "יַעַד",
+      "goalTurnCaption": "תור מוגבל",
+      "goalTurnUnit": "פִּנָה",
+      "goalMySide": "לִי",
+      "goalOpponentSide": "יָרִיב",
+      "goalCaptureUnit": "קטיף",
+      "goalSurvivalTurnCaption": "תְקוּפָה",
+      "goalSurvivalBlockCaption": "לחסום בחזרה",
+      "goalSurvivalPointUnit": "נְקוּדָה",
+      "turnLimit": "סיבובים מוגבלים: {{count}} סיבובים",
+      "autoScoringGoal": "ספירה אוטומטית לאחר {{count}} פניות",
+      "myCaptureGoal": "אני מנצח {{count}}",
+      "opponentCaptureGoal": "הבס {{count}} יריבים",
+      "vs": "לעומת",
+      "survivalGoal": "חסום {{target}} נקודות בתוך {{turns}} פניות",
+      "territoryGoal": "גי מנצח",
+      "modeTypeTabs": "סוג של באדוק",
+      "modeGuideTitle": "איך לשחק",
+      "modeGuide": {
+        "missile": {
+          "step1Title": "פריט טיל",
+          "step1Body": "בתורי, אני לוחץ על כפתור פריט הטיל.",
+          "step1BodyItem": "אתה יכול להשתמש ב-{{count}} טילים במשחק הזה. לחץ על כפתור הטיל בתורך.",
+          "step2Title": "בחירת אבנים",
+          "step2Body": "בחר את האבן שלי כדי להזיז.",
+          "step3Title": "תנועת קו ישר",
+          "step3Body": "דחוף את האבן לכיוון החלל הריק כדי לשנות את המצב."
+        },
+        "hidden": {
+          "step1Title": "פריט מוסתר",
+          "step1Body": "השתמש בכפתור הנסתר כדי לבצע מהלכים שאינם נראים ליריבך.",
+          "step1BodyItem": "{{count}} מוסתר מאפשר לך לבצע מהלכים שאינם נראים ליריבך.",
+          "step2Title": "לסרוק פריט",
+          "step2Body": "מצא אזורים חשודים מוסתרים עם כפתור הסריקה.",
+          "step2BodyItem": "{{count}} סריקות יכולות לעזור לך למצוא אזורים חשודים מוסתרים.",
+          "step3Title": "שימוש בפריטים",
+          "step3Body": "סריקות נסתרות מוגבלות במספרן, אז בחרו את התזמון שלכם בחוכמה."
+        },
+        "capture": {
+          "step1Title": "זְכִיָה",
+          "step1Body": "אתה מנצח אם אתה מקבל לראשונה את האבנים של היריב שוות לציון היעד.",
+          "step2Title": "אבן דפוס",
+          "step2Body": "אם אתה זוכה באבן דפוס, זה נחשב ל-2 נקודות."
+        },
+        "speed": {
+          "step1Title": "חוקי הזמן",
+          "step1Body": "אם לא תעשה זאת בזמן שנקבע, היריב שלך יקבל יותר נקודות.",
+          "step2Title": "מחיר חישוב",
+          "step2Body": "בסופו של דבר, המנצח או המפסיד נקבע על ידי הוספת בונוסי הבית והזמן."
+        },
+        "base": {
+          "step1Title": "בובת בסיס",
+          "step1Body": "קרא את המצב על ידי התבוננות במיקום אבן הבסיס.",
+          "step2Title": "הצעת בונוס",
+          "step2Body": "קבע בונוס לתת ליריב שלך והתחל את המשחק עם הצבע/אבן שאתה רוצה."
+        },
+        "classic": {
+          "step1Title": "לבנות בית",
+          "step1Body": "בנה בתים מסביב לשטח והבטח יותר בתים מאשר היריבים שלך.",
+          "step2Title": "מחיר חישוב",
+          "step2Body": "אם שני הצדדים עוברים, המנצח נקבע על ידי ספירה."
+        },
+        "survival": {
+          "tab": "הצילו את באדוק",
+          "step1Title": "לחסום בחזרה",
+          "step1Body": "מנע מלבן (יריב) להשיג את ציון היעד עבור מספר מוגדר של תורות."
+        }
+      }
     },
     "towerShop": {
       "closeAria": "רכישה סגורה של פריטים בלעדיים מובילים",
@@ -1862,18 +2138,18 @@
       "alkkagiTitle": "{{round}}מספר סיבובים",
       "curlingBlack": "אבן שחורה",
       "curlingWhite": "אבן לבנה",
-      "curlingTieTitle": "{{ סיבוב}} תוצאת סיבוב · תיקו",
+      "curlingTieTitle": "{{סיבוב}} תוצאת סיבוב · תיקו",
       "curlingTitle": "תוצאת סיבוב {{סיבוב}}",
       "diceTitle": "{{round}}מספר סיבובים",
       "deathmatchStart": "Deathmatch מתחיל",
       "viewFinal": "צפה בתוצאה הסופית",
-      "waitingConfirm": "מחכה לאישור היריב",
+      "waitingConfirm": "מחכה לאישור מהשותף",
       "dummyCapture": "{{שֵׁם}}",
       "previousRound": "סיבוב קודם",
       "previousKnockShort": "דפיקה קודמת",
       "detailScores": "ציון מפורט",
       "resultBoardTab": "לוח תוצאות",
-      "finalRoundTieBody": "הסיבוב האחרון שקול. לאחר האישור, המשחק ממשיך על ידי ירי אבנים נוספות מאותו לוח.",
+      "finalRoundTieBody": "הסיבוב האחרון שוות. לאחר האישור, המשחק ממשיך על ידי ירי אבנים נוספות מאותו לוח.",
       "stonesLeft": "אבנים שנותרו",
       "scoredFor": "צִיוּן",
       "scoredAgainst": "הודה",
@@ -1903,7 +2179,7 @@
     },
     "thiefDeathmatch": {
       "title": "Deathmatch Role Roulette",
-      "subtitle": "תפקידים נקבעים באמצעות רולטה.",
+      "subtitle": "התפקידים נקבעים באמצעות רולטה.",
       "subtitleRich": "גנב (שחור) ושוטר (לבן) מוקצים באקראי. הגלגול מתחיל מיד.",
       "autoProceed": "זה ימשיך אוטומטית לאחר סיום הייצור."
     }
@@ -1936,7 +2212,7 @@
       "categories": "שליטה מפורטת באפקטים קוליים",
       "categoriesList": {
         "stone": "קול נחיתה/התרסקות/נפילה",
-        "notification": "הודעת רכישה/עלייה ברמות",
+        "notification": "הודעת רכישה/עלייה ברמה",
         "item": "קולות של שימוש בפריט",
         "countdown": "צליל ספירה לאחור/ספירה לאחור",
         "turn": "צליל הודעת התור שלי"
@@ -1949,7 +2225,7 @@
       "lastMoveMarker": "להציג את המקום האחרון",
       "captureScoreAnimation": "אנימציית ניקוד מנצח",
       "screenGuideModals": "עזרה מודאלית",
-      "screenGuideModalsHint": "הדרכה בכניסה ראשונה למסך. אם כבוי, הוא ייפתח רק בתפריט המהיר \"עזרה\".",
+      "screenGuideModalsHint": "הדרכה בכניסה ראשונה למסך. אם הוא כבוי, הוא ייפתח רק בתפריט המהיר \"עזרה\".",
       "notifications": "אַזעָקָה",
       "questNotifications": "הודעה על השלמת משימה",
       "chatNotifications": "התראה על תוכן צ'אט (נקודה אדומה)",
@@ -1974,8 +2250,8 @@
       "withdraw": "ביטול חברות",
       "cancel": "ביטול",
       "withdrawTitle": "ביטול חברות",
-      "withdrawLine1": "לאחר הנסיגה, הנתונים נמחקים ולא ניתן לשחזר אותם.",
-      "withdrawLine2": "לא ניתן להירשם מחדש עם אותה כתובת אימייל למשך שבוע.",
+      "withdrawLine1": "הנתונים נמחקים עם הנסיגה ולא ניתן לשחזר אותם.",
+      "withdrawLine2": "לא ניתן להירשם מחדש עם אותה כתובת דוא\"ל למשך שבוע.",
       "withdrawPasswordConfirm": "לאמת את הסיסמה",
       "withdrawTextConfirm": "הזן טקסט אישור: \"בטל את החברות\"",
       "withdrawPlaceholder": "ביטול חברות",
@@ -1988,7 +2264,7 @@
         "withdrawConfirmMismatch": "טקסט האישור שגוי. אנא הזן את \"ביטול חברות\" במדויק.",
         "usernameChangeFailed": "אירעה שגיאה בעת החלפת מזהה.",
         "passwordChangeFailed": "אירעה שגיאה בעת שינוי הסיסמה שלך.",
-        "withdrawFailed": "אירעה שגיאה בעת ביטול החברות."
+        "withdrawFailed": "אירעה שגיאה בעת ביטול החברות שלך."
       },
       "alerts": {
         "usernameChanged": "תעודת הזהות שלך השתנתה.",
@@ -2034,21 +2310,21 @@
       "selectGame": "בחר את המשחק שאתה רוצה לשחק."
     },
     "waitingRoom": {
-      "strategic": "חדר המתנה באדוק אסטרטגי",
+      "strategic": "חדר המתנה אסטרטגי באדוק",
       "playful": "שחק חדר המתנה באדוק",
       "generic": "{{מצב}} חדר המתנה",
       "switchTitle": "מעבר לחדר המתנה",
       "switchAria": "אסטרטגיה Baduk ו-Play Baduk מעבר חדר המתנה",
       "strategicShort": "אִסטרָטֶגִיָה",
       "playfulShort": "לְשַׂחֵק",
-      "viewTabsAria": "נוף לחדר ההמתנה",
+      "viewTabsAria": "נוף לחדר המתנה",
       "quickMenuAria": "תפריט מהיר",
       "backAria": "לַחֲזוֹר"
     },
     "tabs": {
       "userList": "רשימת משתמשים",
       "aiMatch": "קרב בינה מלאכותית",
-      "gameRooms": "התאם את רשימת החדרים",
+      "gameRooms": "התאם רשימת חדרים",
       "ranked": "משחק דירוג",
       "rankingInfo": "מידע דירוג"
     },
@@ -2066,7 +2342,7 @@
     },
     "playfulNotice": {
       "title": "מדריך למשחק באדוק",
-      "body": "לא נעשה שימוש בדירוג משחקי דירוג ודירוג העונה באצטדיון Play Baduk. משחקי דירוג זמינים רק בחדר ההמתנה האסטרטגי באדוק."
+      "body": "ציוני דירוג משחקי דירוג ודירוג העונה אינם משמשים בזירת Play Baduk. משחקי דירוג זמינים רק בחדר ההמתנה האסטרטגי באדוק."
     },
     "rankedUnavailable": {
       "title": "אין משחקים מדורגים",
@@ -2097,7 +2373,7 @@
     "playerList": {
       "title": "רשימת משתמשים",
       "onlineCount": "({{count}} אנשים מחוברים)",
-      "viewProfile": "{{nickname}} הצג פרופיל",
+      "viewProfile": "{{nickname}} הצג את הפרופיל",
       "recordSummary": "{{wins}}ניצחונות{{losses}}הפסדים({{winRate}}%)",
       "scorePoints": "{{ציון}} נקודות",
       "noStats": "אין סטטיסטיקה",
@@ -2105,6 +2381,10 @@
       "forceLogout": "נאלץ לעזוב",
       "forceLogoutConfirm": "האם אתה רוצה לאלץ את [{{nickname}}] להתנתק?",
       "invite": "לְהַזמִין",
+      "challenge": "הגש בקשה להתאמה",
+      "challengeUnavailable": "הצד השני אינו מסוגל לקבל בקשות התאמה.",
+      "spectate": "צופה",
+      "spectateUnavailable": "אני לא מוצא שום מידע על התאמה לצפייה.",
       "blockInvites": "אין הזמנה",
       "blockInvitesTitle": "כאשר מופעל, שחקנים אחרים לא יוכלו להזמין אותך כשותף ב-Fair Arena.",
       "statusInPairRoom": "אתה לא יכול לשנות את הסטטוס שלך כשאתה בחדר זוגי.",
@@ -2162,7 +2442,7 @@
         "pairPvp": "זירת PVP הוגנת",
         "pairAi": "צמד AI Match",
         "playfulPvp": "שחקו באדוק PVP Stadium",
-        "playfulAi": "שחקו את Baduk AI Battle"
+        "playfulAi": "שחקו באדוק AI Battle"
       }
     },
     "gameList": {
@@ -2186,8 +2466,8 @@
       "roomContent": "תכולת החדר",
       "forceEnd": "עזוב בכוח",
       "editRoomContent": "צור/ערוך את תוכן החדר",
-      "forceDeleteRoom": "כפה על מחיקת החדר",
-      "batchForceEndSelected": "בחירה בכוח יציאה ({{count}})"
+      "forceDeleteRoom": "הכרח מחיקת חדר",
+      "batchForceEndSelected": "בחירה בכפייה ביציאה ({{count}})"
     },
     "ranked": {
       "start": "משחק הדירוג מתחיל",
@@ -2200,7 +2480,7 @@
       "selected": "✓ נבחר",
       "notSelected": "לא נבחר",
       "noDescription": "אין תיאור למשחק הנבחר.",
-      "matchTitle": "התאמת דירוג",
+      "matchTitle": "התאמה לדירוג",
       "matched": "תואם",
       "acceptPrompt": "קבל משחקים בזמן.",
       "timeLeft": "נותרו {{seconds}} שניות",
@@ -2226,7 +2506,7 @@
       "rulesTitle": "כללי יישום דירוג התאמה",
       "gameSettingsTitle": "הגדרות התאמה",
       "noRulesToShow": "אין כללים להציג.",
-      "pairRankedIntro": "במשחק דירוג של 2 שחקנים, <bold>2 משתמשים</bold> לכל קבוצה יוצרים קבוצה ומתואמים לקבוצה אחרת (2 משתמשים). הכללים שלהלן זהים ל<bold>הגדרות התאמת הדירוג הרשמיות</bold> עבור האירוע שנבחר ואינם ניתנים לשינוי.",
+      "pairRankedIntro": "במשחק דירוג של 2 שחקנים, <bold>2 משתמשים</bold> בכל קבוצה יוצרים קבוצה ומתואמים לקבוצה אחרת (2 משתמשים). הכללים שלהלן זהים ל<bold>הגדרות התאמת הדירוג הרשמי</bold> עבור האירוע הנבחר ולא ניתן לשנותם.",
       "scoringUntil": "עד למחיר הנוכחי",
       "timeIncrement": "להוסיף זמן",
       "hiddenItem": "פריט מוסתר",
@@ -2236,9 +2516,9 @@
       "rankingScore": "ציון דירוג",
       "matchFound": {
         "rankingLabel": "דירוג: {{rating}} נקודות",
-        "expectedDelta": "שינוי צפוי בציון",
+        "expectedDelta": "שינוי ציון צפוי",
         "winDelta": "ניצחון: +{{נקודות}}",
-        "lossDelta": "תבוסה: {{נקודות}} נקודות",
+        "lossDelta": "תבוסה: {{נקודות}}",
         "opponentRanking": "דירוג יריב",
         "opponentRating": "{{rating}}נקודות",
         "waitingPeer": "מחכה לקבלה של הצד השני...",
@@ -2278,7 +2558,7 @@
       "startMatching": "התחל התאמה (בחר {{count}})",
       "selectedBadge": "נִבחָר",
       "roundUnit": "{{count}} סיבובים",
-      "boardSizeValue": "{{גודל}}שורה",
+      "boardSizeValue": "שורה {{גודל}}",
       "scoringTurnValue": "{{count}}ספירה",
       "itemCountValue": "{{לִסְפּוֹר}}",
       "slowItem": "לְהַאֵט",
@@ -2299,7 +2579,7 @@
       "hintStrategic": "גודל לוח, זמן, קושי בינה מלאכותית וכו' מותאמים בהגדרות ההתאמה למטה.",
       "hintPlayful": "אפשרויות ההתאמה מותאמות בהגדרות למטה.",
       "selectModeLeft": "בחר מצב משחק בצד שמאל",
-      "selectModeTopStrategic": "בחר את מצב המשחק למעלה, ואז הגדר את גודל הלוח, זמן, קושי AI וכו' למטה.",
+      "selectModeTopStrategic": "בחר את מצב המשחק למעלה, ולאחר מכן הגדר את גודל הלוח, זמן, קושי AI וכו' למטה.",
       "selectModeTopPlayful": "בחר מצב משחק למעלה, ולאחר מכן הגדר את אפשרויות ההתאמה שלך למטה.",
       "selectModeLeftStrategic": "בחר מצב משחק בצד שמאל, ולאחר מכן הגדר את גודל הלוח, זמן, קושי AI וכו' למטה.",
       "selectModeLeftPlayful": "בחר מצב משחק בצד שמאל, ולאחר מכן הגדר את אפשרויות ההתאמה שלך למטה.",
@@ -2309,7 +2589,7 @@
       "order": "לְהַזמִין",
       "role": "תַפְקִיד",
       "random": "אַקרַאִי",
-      "firstMove": "להכות קודם",
+      "firstMove": "להכות ראשון",
       "secondMove": "הוגונג",
       "firstMoveBlack": "התקפה ראשונה (שחור)",
       "secondMoveWhite": "הוגונג (לבן)",
@@ -2319,7 +2599,7 @@
       "baseStone": "אבן בסיס",
       "captureGoal": "ללכוד יעד",
       "turnsUnit": "{{count}}ספירה",
-      "linesUnit": "{{גודל}}שורה",
+      "linesUnit": "שורה {{גודל}}",
       "pointsUnit": "{{ציון}} נקודות",
       "countUnit": "{{לִסְפּוֹר}}",
       "halfPoint": ".5 בית",
@@ -2404,7 +2684,7 @@
       "score": "ציון הרפתקאות",
       "myRank": "הדירוג שלי",
       "codexCompletion": "שלמות האנציקלופדיה",
-      "codexCompletionTitle": "שלמות אנציקלופדיית המפלצות",
+      "codexCompletionTitle": "שלמות אנציקלופדיית מפלצות",
       "monsterUnderstanding": "הבנת מפלצת",
       "adventureGold": "זהב הרפתקאות",
       "equipmentDrop": "לרכוש ציוד",
@@ -2434,7 +2714,7 @@
       "comprehension": "הֲבָנָה",
       "inactive": "לֹא פָּעִיל",
       "victoryCount": "{{מנצח}} ניצחונות",
-      "chapterBossBonus": "בוס פרק: {{תווית}} — +{{perLevel}}% לכל רמת הבנה (עד {{max}}%)",
+      "chapterBossBonus": "פרק בוס: {{תווית}} — +{{perLevel}}% לכל רמת הבנה (עד {{max}}%)",
       "currentBossBonusSum": "סך בונוס הבוס הנוכחי: +{{percent}}% ({{label}})",
       "comprehensionStatsCurrent": "יכולת הבנה (סה\"כ נוכחי)",
       "adventureExclusive": "הרפתקאות בלבד: {{label}} +{{percent}}%",
@@ -2479,7 +2759,7 @@
       "equipmentBoxGradeAria": "אחת מהשיעורים של {{count}} תיבת ציוד",
       "materialBox": "קופסת חומר",
       "materialBoxGradeAria": "אחד ממחלקת תיבת החומר {{count}} מינים",
-      "actionPointsRecovery": "התאוששות פעולה",
+      "actionPointsRecovery": "התאוששות של פעולה",
       "actionPointsRecoverAria": "משחזר את הפעולה {{נקודות}}",
       "recoverPoints": "שחזור {{נקודות}}",
       "treasureChest": "תיבת אוצר",
@@ -2489,11 +2769,11 @@
       "goldRewardViewAria": "הצג טווח תגמול זהב: {{range}}",
       "equipmentRewardViewAria": "הצג את טווח פיצוי הציוד: {{כיתה}}",
       "enhanceStoneRewardAria": "פרס אבן שיפור: {{line}}",
-      "goldWinRange": "ויקטורי זהב (הפניה) כ. {{min}}~{{max}}",
+      "goldWinRange": "ויקטורי זהב (רפרנס) כ. {{min}}~{{max}}",
       "goldBoss19Range": "כאשר אתה מנצח בוס בשורה 19, אתה מקבל בערך {{דקה}}~{{max}} זהב.",
       "equipmentGradeGrant": "ציון ציוד שהוצא: {{כיתה}}",
       "pickHintVip": "תגמול VIP: בחר שני חללים בעצמך, או בחר רק חלל אחד והחלל השני ייבחר באופן אקראי.",
-      "pickHintSingle": "בחר תיבה אחת לקבל ולחץ על סיום הבחירה.",
+      "pickHintSingle": "בחר תיבה אחת לקבלה ולחץ על סיום הבחירה.",
       "selectBoxes": "בחר תיבה ({{selected}}/{{pickSlots}})",
       "boxNumber": "תיבה {{num}}",
       "rouletteInProgress": "רולטה בתהליך...",
@@ -2532,7 +2812,7 @@
       "chapterRewardAria": "פרק תגמול מידע",
       "regionalKeyAria": "מפתח מקומי",
       "mapEmptyAria": "שטח ריק במפה",
-      "monsterAria": "{{name}} רמה {{רמה}} {{מצב}}",
+      "monsterAria": "{{name}} רמה {{level}} {{מצב}}",
       "treasureChestInfo": "מידע על תיבת האוצר",
       "monsterInfo": "מידע על מפלצות",
       "battle": "לְהַתְאִים",
@@ -2549,7 +2829,7 @@
       "noActiveRegionalEffect": "אין השפעות מקומיות בתוקף",
       "regionalEffectSheetTitle": "השפעה מקומית",
       "explorationTier": "רמת חקר",
-      "spawnLevel": "רמת מראה {{level}}",
+      "spawnLevel": "רמת מראה {{רמה}}",
       "attackApCost": "צורכת בעת תקיפת {{cost}}",
       "availableBattles": "התאמות אפשריות {{modes}}",
       "prevChapter": "הפרק הקודם",
@@ -2596,13 +2876,13 @@
         "compact": {
           "gold": "זהב +{{percent}}%{{suffix}}",
           "equipDrop": "רכישת ציוד +{{percent}}%{{suffix}}",
-          "materialDrop": "רכישת חומרים +{{percent}}%{{סיומת}}",
+          "materialDrop": "רכישת חומרים +{{percent}}%{{suffix}}",
           "captureTarget": "[באדוק מנצח] שער יריב+{{value}}{{סיומת}}",
           "timeLimit": "זמן קצוב +{{percent}}%{{סיומת}}",
           "respawnWait": "מחכה להופעה -{{percent}}%{{suffix}}",
           "monsterDwell": "מפלצת להישאר +{{percent}}%{{suffix}}",
           "hiddenScan": "[באדוק מוסתר] סריקה+{{value}}{{suffix}}",
-          "baseStartScore": "[בסיס באדוק] התחלה+{{value}}נקודת{{סיומת}}",
+          "baseStartScore": "[Base Baduk] Start+{{value}}נקודת{{סיומת}}",
           "classicStartScore": "[באדוק קלאסי] התחלה+{{value}}נקודת{{סיומת}}",
           "missile": "[טיל באדוק] טיל +1"
         }
@@ -2624,11 +2904,11 @@
       "classStageClear": "{{classLabel}} נקה שלב",
       "classBarRewardClaimed": "הקבלה הושלמה",
       "classBarRewardClaim": "קבלו פרס",
-      "classBarRewardNeedClear": "מצריך פינוי שלב של {{ אבן דרך}}",
-      "classBarRewardAria": "תגמול נקודות {{מייל}}",
+      "classBarRewardNeedClear": "דורש {{ אבן דרך}} שחרור שלב",
+      "classBarRewardAria": "{{milestone}}תגמול נקודות",
       "cleared": "נקה הושלם",
-      "enterStage": "כניסה ⚡{{cost}}",
-      "enterStageTitle": "כוח כניסה/פעולה {{cost}}",
+      "enterStage": "אתגר ⚡{{cost}}",
+      "enterStageTitle": "פעולת אתגר {{cost}}",
       "locked": "נָעוּל",
       "unlockRequired": "דורש {{stageId}}",
       "claimAll": "קבל בכמות גדולה ({{count}})",
@@ -2693,7 +2973,7 @@
       "rewardsTableSection": {
         "classBarBonus": "{{classLabel}} · תגמולים נוספים עבור סליקה (התקבלו מבר חדר ההמתנה)",
         "milestoneCount": "{{לִסְפּוֹר}}",
-        "stageIdColumn": "מזהה במה",
+        "stageIdColumn": "מזהה שלב",
         "firstClearColumn": "ברור ראשון (זהב, EXP, ציוד וכו')",
         "bonusStat": "סטטיסטיקות בונוס",
         "bonus": "מַעֲנָק"
@@ -2781,7 +3061,7 @@
     "currentFloor": "הקומה הנוכחית",
     "timeRemaining": "זמן שנותר",
     "currentRank": "הדירוג הנוכחי",
-    "floorUnit": "{{קומה}} קומה",
+    "floorUnit": "{{קומה}}קומה",
     "rankUnit": "{{דַרגָה}}",
     "strategicAiRecord": "שיא AI אסטרטגי",
     "playfulAiRecord": "נגן שיא בינה מלאכותית",
@@ -2889,7 +3169,7 @@
       "pairGo": "זוּג",
       "playfulGo": "לשחק באדוק",
       "rankedIntegrated": "סה\"כ משחק מדורג: {{wins}} ניצחונות {{losses}} הפסדים ({{winRate}}%)",
-      "pairAiRecord": "התאמה של AI זוג: {{wins}} ניצחונות {{losses}} הפסדים ({{winRate}}%)",
+      "pairAiRecord": "התאמה של AI: {{wins}} ניצחונות {{losses}} הפסדים ({{winRate}}%)",
       "modeRecord": "{{wins}} ניצחונות {{losses}} הפסדים ({{winRate}}%)",
       "pvpRecord": "שיא PVP: {{wins}} ניצחונות {{losses}} הפסדים ({{winRate}}%)",
       "aiRecordSuffix": "· AI {{wins}} מנצח {{losses}} הפסדים ({{winRate}}%)",
@@ -2951,7 +3231,7 @@
       "avatarSelect": "בחר את הדמות שלך",
       "tierRequired": "עונה קודמת {{tier}} דרושה שכבה",
       "levelSumRequired": "דורש סכום רמה {{level}}",
-      "goldPrice": "{{amount}} זהב",
+      "goldPrice": "{{כמות}} זהב",
       "diamondPrice": "{{amount}} יהלום",
       "borderPurchaseConfirm": "האם תרצה לרכוש את הגבול '{{name}}' עבור {{price}}?",
       "borderPurchaseHint": "לחץ לקנייה: {{תיאור}}",
@@ -2994,7 +3274,7 @@
         "basic": "בְּסִיסִי",
         "levelLocked": "מגבלת רמה",
         "shop": "גבול רכישה",
-        "seasonReward": "פרסים לכל העונה"
+        "seasonReward": "תגמול כל העונה"
       },
       "mbtiTypes": {
         "E": {
@@ -3020,7 +3300,7 @@
         "T": {
           "name": "תאונה (T)",
           "general": "קבל החלטות בצורה הגיונית, אנליטית ובהתבסס על עובדות אובייקטיביות. אנו מעריכים הוגנות ועקרונות.",
-          "goStyle": "זהו אתוס רציונלי של מציאת המהלך הטוב ביותר בהתבסס על קריאה קרירה. אל תיסחף על ידי רגשות ובסס את השיפוט שלך על המצב."
+          "goStyle": "זהו אתוס רציונלי של מציאת המהלך הטוב ביותר על סמך קריאה קרירה. אל תיסחף על ידי רגשות ובסס את השיפוט שלך על המצב."
         },
         "F": {
           "name": "רגש (ו)",
@@ -3051,6 +3331,8 @@
     "mannerRank": {
       "title": "מידע ברמת אופן",
       "grade": "שיעור אופן",
+      "effectsByGrade": "השפעה לפי כיתה",
+      "currentBadge": "הַיוֹם",
       "rangeHint": "אלו הטבות ועונשים המיושמים עבור כל טווח ניקוד.",
       "allStatsPlus10": "כל היכולות +10",
       "disassembleJackpot": "הסתברות לקופה לפירוק +20%",
@@ -3065,7 +3347,19 @@
       "scoreAbove": "{{min}} נקודות או יותר",
       "scoreRange": "{{min}}~{{max}} נקודות",
       "zeroScore": "0 נקודות",
-      "mannerPointsTitle": "{{score}}נקודות ({{rank}})"
+      "mannerPointsTitle": "{{score}}נקודות ({{rank}})",
+      "grades": {
+        "worst": "גָרוּעַ בִּיוֹתֵר",
+        "veryBad": "רע מאוד",
+        "bad": "רַע",
+        "caution": "זְהִירוּת",
+        "normal": "בדרך כלל",
+        "good": "טוֹב",
+        "veryGood": "טוב מאוד",
+        "dignified": "כָּבוֹד",
+        "pro": "מִקצוֹעָן",
+        "master": "לִשְׁלוֹט"
+      }
     },
     "statAllocation": {
       "resetFailAlert": "תנאי איפוס היכולת לא התקיימו. נגמר לך הזהב או שעברת את מספר האיפוסים היומי.",
@@ -3078,7 +3372,7 @@
       "bonus": "מַעֲנָק",
       "resetBtn": "אִתחוּל",
       "allocateTitle": "חלוקת נקודות יכולת",
-      "allocateAria": "התפלגות {{stat}}",
+      "allocateAria": "{{stat}} תפוצה",
       "statLabel": "יְכוֹלֶת",
       "remainingShort": "שְׁאֵרִית",
       "allocateToStat": "הפצה ליכולת זו"
@@ -3117,13 +3411,13 @@
       "esfjDesc": "חברותי, משתף פעולה, מתחשב",
       "enfjDesc": "כריזמה, השראה, מנהיגות",
       "entjDesc": "נחישות, מנהיגות, אסטרטג",
-      "mbtiExplain1": "ה-Myers-Briggs Type Indicator (MBTI) הוא כלי להבנת סוג האישיות על סמך העדפותיו של האדם.",
+      "mbtiExplain1": "MBTI (Myers-Briggs Type Indicator) הוא כלי להבנת סוג האישיות על סמך העדפותיו של האדם.",
       "mbtiExplain2": "זה יכול לעזור לך להבין את עצמך טוב יותר ולשפר את מערכות היחסים שלך עם אחרים.",
       "setupMbti": "הגדרת MBTI",
       "questionProgress": "שאלה {{נוכחי}} / {{סה\"כ}} · איסוף תשובות לכל ציר קובע את הסוג",
       "yourMbtiIs": "ה-MBTI שלך הוא {{mbti}}!",
       "setupAgain": "אִתחוּל",
-      "myMbtiLabel": "MBTI שלי:"
+      "myMbtiLabel": "ה-MBTI שלי:"
     },
     "mbtiComparison": {
       "opponentAnalysis": "ניתוח יחסי",
@@ -3131,7 +3425,7 @@
       "opponentGoStyle": "נטיית הבדוק של היריב",
       "strengths": "כּוֹחַ",
       "weaknesses": "חוּלשָׁה",
-      "setMbtiHint": "על ידי הגדרת ה-MBTI שלך, אתה יכול לראות את ניתוח התאימות עם השותף שלך.",
+      "setMbtiHint": "אם תגדיר את MBTI, תוכל לראות את ניתוח התאימות עם השותף שלך.",
       "title": "השוואת MBTI",
       "notSetBoth": "לאף אחד מהצדדים אין ערכת MBTI.",
       "opponentNotSet": "ה-MBTI של הצד השני לא נקבע.",
@@ -3144,7 +3438,7 @@
       "useWeaknesses": "נצל את החולשות של היריב שלך.",
       "differences": "הֶבדֵל",
       "similarities": "בסיס משותף",
-      "veryGood": "התאמה טובה מאוד",
+      "veryGood": "תאימות טובה מאוד",
       "good": "תאימות טובה",
       "normal": "תאימות ממוצעת",
       "poor": "תאימות גרועה",
@@ -3152,7 +3446,7 @@
       "types": {
         "ISTJ": {
           "style": "סיליפה מוצקה",
-          "playStyle": "אנו נאמנים לעקרונות וליסודות, ורודפים אחרי יתרונות מעשיים ברורים. מראה צד חזק בגימור."
+          "playStyle": "אנו נאמנים לעקרונות וליסודות, ורודפים אחר יתרונות מעשיים ברורים. מראה צד חזק בגימור."
         },
         "ISFJ": {
           "style": "סיליפה הגנתית",
@@ -3160,7 +3454,7 @@
         },
         "INFJ": {
           "style": "אינטואיציה אסטרטגית",
-          "playStyle": "חשבו על התמונה הכוללת ופתחו אסטרטגיות ארוכות טווח. היכולת לקרוא ולהגיב לכוונות של האחר היא מצוינת."
+          "playStyle": "חשבו על התמונה הגדולה ופתחו אסטרטגיות ארוכות טווח. היכולת לקרוא ולהגיב לכוונות של הזולת היא מצוינת."
         },
         "INTJ": {
           "style": "אסטרטג לוגי",
@@ -3237,7 +3531,7 @@
       "simE": "לשניהם יש אתוס פרואקטיבי",
       "simI": "לשניהם יש אתוס זהיר",
       "diffSReal": "אתה אדם מעשי, היריב שלך הוא אדם אינטואיטיבי.",
-      "diffNReal": "אתה אינטואיטיבי, היריב שלך מעשי.",
+      "diffNReal": "אתה אינטואיציוני, היריב שלך הוא אדם מעשי.",
       "simS": "שניהם תועלתניים",
       "simN": "שניהם מונעים על ידי אינטואיציה",
       "diffTLogic": "אתה אדם הגיוני, בן הזוג שלך הוא אדם רגשי.",
@@ -3248,13 +3542,13 @@
       "diffPPlan": "אתה גמיש, בן הזוג שלך מתכנן",
       "simJ": "שניהם מתוכננים",
       "simP": "שניהם גמישים",
-      "warnE": "היריבים מעדיפים התקפות אקטיביות. היזהרו לא להיקלע לריב.",
+      "warnE": "היריבים מעדיפים התקפות אקטיביות. היזהר לא להיקלע לריב.",
       "warnN": "היריבים עושים מהלכים יצירתיים ויוצאי דופן. היו מוכנים למספרים בלתי צפויים.",
       "warnT": "המתנגדים הגיוניים ומדוייקים בחישוביהם. היזהר לא ליפול בפח.",
       "warnJ": "המתנגדים חזקים בתכנון ובגימור. הימנע להיגרר למשחק ארוך.",
       "stratI": "האתוס של היריב זהיר. לסבך את המשחק על ידי התקפה אגרסיבית.",
       "stratS": "היריב מכוון לתועלת. תפוס את הטרנד עם מהלכים יוצאי דופן.",
-      "stratF": "האדם השני הוא רגשי. לחץ עם מספרים הגיוניים.",
+      "stratF": "האדם השני הוא רגשי. לחץ במספרים לוגיים.",
       "stratP": "היריב הוא אתוס גמיש. תכנן את זה ופעל עד שזה יסתיים."
     },
     "contentUnlock": {
@@ -3281,10 +3575,10 @@
       "noPatches": "אין היסטוריית תיקונים/עדכונים.",
       "homeBoardTitle": "לוח מודעות ביתי",
       "newPostBadge": "פוסט חדש",
-      "editedAt": "(ערוך: {{date}})"
+      "editedAt": "(ערוך: {{תאריך}})"
     },
     "equipmentDetail": {
-      "inventoryUse": "ניתן להשתמש בתיק.",
+      "inventoryUse": "אתה יכול להשתמש בו בתיק שלך.",
       "noMaterialUse": "חומר זה אינו משמש כעת לשיפור ציוד כלשהו.",
       "obtainedQty": "כמות נרכשת",
       "ownedQty": "כמות המוחזקת",
@@ -3481,20 +3775,20 @@
       "remove_ads": "להסיר מודעות"
     },
     "packageBenefits": {
-      "diamond_daily_50_350": "50 יהלומים משולמים בדואר בכל יום (סה\"כ 350 יהלומים)",
-      "diamond_daily_50_750": "50 יהלומים משולמים בדואר בכל יום (סה\"כ 750 יהלומים)",
-      "diamond_daily_50_1500": "50 יהלומים משולמים בדואר כל יום (סה\"כ 1500 יהלומים)",
-      "diamond_instant_100": "100 יהלומים שולמו מיד",
-      "diamond_instant_250": "תשלום מיידי של 250 יהלומים",
-      "diamond_instant_750": "תשלום מיידי של 750 יהלומים",
-      "equip_pkg1_boxes": "1 תיבת ציוד V",
-      "equip_pkg1_mat": "1 קופסת חומר VI",
+      "diamond_daily_50_350": "100 יהלומים משולמים בדואר כל יום (סה\"כ 700 יהלומים)",
+      "diamond_daily_50_750": "100 יהלומים משולמים בדואר כל יום (סה\"כ 1500 יהלומים)",
+      "diamond_daily_50_1500": "100 יהלומים משולמים בדואר כל יום (סה\"כ 3000 יהלומים)",
+      "diamond_instant_100": "תשלום מיידי של 200 יהלומים",
+      "diamond_instant_250": "תשלום מיידי של 500 יהלומים",
+      "diamond_instant_750": "תשלום מיידי של 1000 יהלומים",
+      "equip_pkg1_boxes": "3 קופסאות ציוד V",
+      "equip_pkg1_mat": "3 תיבת חומר VIs",
       "equip_pkg1_bonus": "+ \"Epic Equipment\" אישר תשלום",
-      "equip_pkg2_boxes": "2 קופסאות ציוד V",
-      "equip_pkg2_mat": "2 תיבת חומר VIs",
+      "equip_pkg2_boxes": "5 קופסאות ציוד",
+      "equip_pkg2_mat": "5 תיבת חומר VIs",
       "equip_pkg2_bonus": "+ \"ציוד אגדי\" מובטח תשלום",
       "equip_pkg3_boxes": "2 תיבת ציוד VI",
-      "equip_pkg3_mat": "5 תיבת חומר VIs",
+      "equip_pkg3_mat": "10 תיבת חומר VIs",
       "equip_pkg3_bonus": "+ \"ציוד מיתי\" אישר תשלום",
       "remove_ads_1": "הסתר באנרים במשחק ופרסומות בעמוד שלם כגון לובי ושידוכים",
       "remove_ads_2": "קבל את אותם התגמולים ללא מודעות מתגמלות בחנות (שמירה על מגבלה יומית)"
@@ -3562,11 +3856,11 @@
       },
       "option_value_change_ticket": {
         "name": "כרטיס שינוי ערך אופציה",
-        "description": "זהו פריט שיכול לשנות את הערך של אחת מתת-אפשרויות הציוד או אפשרויות מיוחדות."
+        "description": "זהו פריט שיכול לשנות את הערך של אחת מאפשרויות המשנה של הציוד או אפשרויות מיוחדות."
       },
       "mythic_option_change_ticket": {
         "name": "אפשרות מיוחדת שינוי כרטיס",
-        "description": "פריט זה מאפשר לך לשנות את האפשרויות המיוחדות של ציוד מיתי או טרנסצנדנטי לאפשרויות מיוחדות אחרות."
+        "description": "פריט זה מאפשר לך לשנות את האפשרויות המיוחדות של ציוד מיתי או טרנסנדנטלי לאפשרויות מיוחדות אחרות."
       },
       "condition_potion_small": {
         "name": "סוכן לשחזור מצב (קטן)",
@@ -3604,7 +3898,7 @@
     "claimExpired": "חלפה תקופת הפדיון ולא ניתן לקבל פיצוי. אתה יכול למחוק דואר זה במידת הצורך.",
     "actionPoints": "{{count}} כוח פעולה",
     "guildCoins": "{{count}} מטבע גילדה",
-    "gold": "{{amount}} זהב",
+    "gold": "{{כמות}} זהב",
     "diamonds": "{{amount}} יהלום",
     "packageLine": "חבילה {{name}} × {{quantity}}",
     "delete": "לִמְחוֹק",
@@ -3749,7 +4043,7 @@
     },
     "bindModal": {
       "line1": "הציוד כרוך ולא ניתן למכירה בבורסה.",
-      "line2": "כדי למכור בבורסה, עליך להשתמש בזכות לשחרר את הייחוס.",
+      "line2": "על מנת למכור בבורסה, עליך להשתמש בזכות הביטול.",
       "unbindDesc": "אם אתה פותח את הציוד, מכירתו בבורסה תתאפשר."
     },
     "presetSavedTitle": "שמור הגדרה מראש",
@@ -3786,14 +4080,14 @@
       "materialDetail": "פרטים מהותיים",
       "itemDetail": "פרטי פריט",
       "cannotRefine": "לא ניתן להתיך",
-      "goRefine": "עבור לכרטיסייה Forge Melting"
+      "goRefine": "עבור ללשונית Forge Melting"
     },
     "purchase": {
       "equipment": "צִיוּד",
       "consumable": "הוצאות מתכלה",
       "material": "מַרכִּיב",
       "noMaterialUse": "חומר זה אינו משמש כעת לשיפור ציוד כלשהו.",
-      "inventoryUse": "ניתן להשתמש בתיק.",
+      "inventoryUse": "אתה יכול להשתמש בו בתיק שלך.",
       "characterGrowth": "הוא משמש לצמיחת אופי, חיזוק, חידוד וכו'.",
       "selectQuantity": "בחר כמות",
       "productDetailAria": "רכישת פרטי מוצר",
@@ -3834,7 +4128,7 @@
       "sellAmount": "כמות מכירה",
       "unitPrice": "מחיר מכירה לאורח",
       "deleteOnly": "0 (מחיקה בלבד)",
-      "goldUnit": "{{amount}} זהב",
+      "goldUnit": "{{כמות}} זהב",
       "totalReceive": "סך הזהב שיתקבל",
       "deleteCheckout": "תשלום (מחק)",
       "noGoldHint": "זהב לא נכנס, ורק הכמות שנבחרה נעלמת.",
@@ -3870,7 +4164,7 @@
       "diamondsName": "יַהֲלוֹם"
     },
     "bulkObtained": {
-      "rewardClaim": "קבלו פרס",
+      "rewardClaim": "קבל פרס",
       "itemsObtained": "פריט נרכש",
       "rankScoreDelta": "שינוי ציון הדירוג",
       "noItems": "לא נרכשו פריטים.",
@@ -3886,7 +4180,7 @@
     },
     "disassemblyResult": {
       "title": "תוצאות פירוק",
-      "jackpotAll": "כל סכום רכישת החומר מוכפל.",
+      "jackpotAll": "כל כמות הרכישה החומרית מוכפלת.",
       "obtainedMaterials": "חומרים נרכשים",
       "noMaterials": "לא התקבלו חומרים",
       "complete": "פירוק הציוד הושלם",
@@ -3897,7 +4191,7 @@
     "craftingResult": {
       "upgradeJackpotTitle": "סינתזה זה מדהים!",
       "downgradeJackpotTitle": "פירוק זה מדהים!",
-      "upgradeTitle": "תוצאות סינתטיות",
+      "upgradeTitle": "תוצאות סינתזה",
       "downgradeTitle": "תוצאות פירוק",
       "jackpotHeading": "🎉 מדהים! 🎉",
       "jackpotBody": "הושג כפול חומרים!",
@@ -3921,7 +4215,7 @@
       "noSpecialActive": "אין אופציות מיוחדות בתוקף.",
       "noMythicActive": "אין אפשרויות מיתוס מיושמות.",
       "mythicCandidates": "Shinhwa אופציה מיוחדת",
-      "transcendentCandidates": "מועמד לאופציה מיוחדת טרנסצנדנטית",
+      "transcendentCandidates": "מועמד אופציה מיוחדת טרנסצנדנטית",
       "title": "אפקט סט ציוד",
       "summaryAtGlance": "במבט אחד",
       "mythicTab": "מְיוּחָד",
@@ -3970,7 +4264,7 @@
       "plusStars": "+{{כוכבים}}כוכבים",
       "mythicSub": "אפשרויות מיתיות ({{count}} חלקים אקראיים)",
       "mythicCandidates": "Shinhwa אופציה מיוחדת",
-      "transcendentCandidates": "מועמד לאופציה מיוחדת טרנסצנדנטית",
+      "transcendentCandidates": "מועמד אופציה מיוחדת טרנסצנדנטית",
       "equipmentTab": "צִיוּד",
       "soulTab": "אבן נשמה",
       "eggTab": "בֵּיצָה",
@@ -3995,7 +4289,7 @@
       "noMaterialUse": "חומר זה אינו משמש כעת לשיפור ציוד כלשהו.",
       "materialTab": "מַרכִּיב",
       "consumableTab": "הוצאות מתכלה",
-      "inventoryHint": "ניתן להשתמש בתיק.",
+      "inventoryHint": "אתה יכול להשתמש בו בתיק שלך.",
       "noGuide": "אין הוראות.",
       "tier1": "תִיק",
       "tier2": "סלעים",
@@ -4012,6 +4306,17 @@
       "noTier": "אין נדבך"
     },
     "tierInfo": {
+      "names": {
+        "champion": "מאתגר",
+        "master": "לִשְׁלוֹט",
+        "diamond": "יַהֲלוֹם",
+        "platinum": "פְּלָטִינָה",
+        "gold": "זָהָב",
+        "silver": "כֶּסֶף",
+        "bronze": "בְּרוֹנזָה",
+        "iron": "טִירוֹן",
+        "unranked": "נֶבֶט"
+      },
       "champion": "ציון מינימלי של 3500 ומעלה ומוגבל ל-100 האנשים המובילים",
       "master": "ציון מינימלי של 3000 ומעלה",
       "diamond": "ציון מינימלי של 2400 ומעלה",
@@ -4049,7 +4354,555 @@
       "diamondsAlt": "יַהֲלוֹם",
       "stayLine": "שארית: {{טווחים}}",
       "demoteLine": "ירידה ליגה: {{טווחים}}",
-      "rankHintShort": "דרג המבוסס על תחרות דירוג (עיין בטבלת התגמולים למטה לתנאי קידום, שימור והורדה בדרגה)"
+      "rankHintShort": "דרג מבוסס תחרות (עיין בטבלת התגמולים למטה לתנאי קידום, שימור והדחה)"
+    },
+    "items": {
+      "box_diabox1": {
+        "name": "חבילת יהלומים I",
+        "description": "השג 1 עד 20 יהלומים"
+      },
+      "box_diabox2": {
+        "name": "צרור יהלומים II",
+        "description": "השג 10 עד 30 יהלומים"
+      },
+      "box_diabox3": {
+        "name": "צרור יהלומים III",
+        "description": "השג 20 עד 50 יהלומים"
+      },
+      "box_diabox4": {
+        "name": "צרור יהלומים IV",
+        "description": "השג 30 עד 100 יהלומים"
+      },
+      "box_goldbox1": {
+        "name": "צרור זהב I",
+        "description": "להרוויח 10 עד 500 זהב"
+      },
+      "box_goldbox2": {
+        "name": "צרור זהב II",
+        "description": "להרוויח 100 עד 1,000 זהב"
+      },
+      "box_goldbox3": {
+        "name": "צרור זהב III",
+        "description": "להרוויח 500 עד 3,000 זהב"
+      },
+      "box_goldbox4": {
+        "name": "צרור זהב IV",
+        "description": "להרוויח 1,000 עד 10,000 זהב"
+      },
+      "btn_addturn": {
+        "name": "הוסף Turn",
+        "description": "זהו פריט תור נוסף שניתן להשתמש בו במגדל האתגר."
+      },
+      "btn_hidden": {
+        "name": "מוּסתָר",
+        "description": "זהו פריט נסתר שניתן להשתמש בו במגדל האתגר."
+      },
+      "btn_missile": {
+        "name": "טִיל",
+        "description": "זהו פריט טיל שניתן להשתמש בו במגדל האתגר."
+      },
+      "btn_reflesh": {
+        "name": "שינוי פריסה",
+        "description": "זהו פריט לשינוי מיקום שניתן להשתמש בו במגדל האתגר."
+      },
+      "btn_scan": {
+        "name": "לִסְרוֹק",
+        "description": "זהו פריט סריקה שניתן להשתמש בו במגדל האתגר."
+      },
+      "eq_board1": {
+        "name": "לוח דמקה נבט",
+        "description": "זהו לוח דמקה קל משקל מעץ פאולוניה שמתאים לשימוש מתחילים."
+      },
+      "eq_board2": {
+        "name": "לוח דמקה מייפל",
+        "description": "זהו לוח דמקה איכותי העשוי מעצי אגוז מוסקט עם גרגירים יפים."
+      },
+      "eq_board3": {
+        "name": "לוח דמקה אלמוגים",
+        "description": "הוא עשוי מעץ מיסטי באיכות הגבוהה ביותר, כך שצלילי האבנים הממוקמים הוא טהור."
+      },
+      "eq_board4": {
+        "name": "לוח דמקה הובנה",
+        "description": "זהו לוח דמקה סלע וולקני מלוטש בתשוקה רבה."
+      },
+      "eq_board5": {
+        "name": "לוח דמקה יונגמון",
+        "description": "זהו לוח דמקה אגדי עשוי אורן Geumgang שקיים כבר אלף שנים."
+      },
+      "eq_board7": {
+        "name": "לוח דמקה Shinryong",
+        "description": "זהו לוח דמקה של התעלות שעליו חקוקים מסלולי קבוצות הכוכבים, הפותח את הדרך לניצחון בכל מהלך."
+      },
+      "eq_bottom1": {
+        "name": "תחתונים אחידים בצבע אביב",
+        "description": "מכנסי אימון אלו נוחים לתנועה."
+      },
+      "eq_bottom2": {
+        "name": "תחתונים אחידים בצבע קיץ",
+        "description": "מכנסיים אלו עשויים מחומר עמיד שאינו מתבלה בקלות."
+      },
+      "eq_bottom3": {
+        "name": "תחתונים אחידים בצבע סתיו",
+        "description": "אלו מכנסי משי איכותיים המשולבים עם מעיל נשק."
+      },
+      "eq_bottom4": {
+        "name": "תחתונים אחידים בצבע חורף",
+        "description": "אלו מכנסי הסייף שאינם מפריעים לשום תנועה."
+      },
+      "eq_bottom5": {
+        "name": "Yongbi Dobok Bottoms",
+        "description": "הוא עשוי ממשי באיכות הגבוהה ביותר שהולך טוב עם גלימת הדרקון."
+      },
+      "eq_bottom7": {
+        "name": "תחתונים אחידים של שיריונג",
+        "description": "אלו מכנסי ג'י טרנסצנדנטליים חדורים ברצון של דרקון אלוהי שמונע ממך לאבד שיווי משקל גם בסערה."
+      },
+      "eq_fan1": {
+        "name": "מאוורר רוח כחול",
+        "description": "זהו מאוורר במבוק קל משקל ופרקטי."
+      },
+      "eq_fan2": {
+        "name": "מאוורר רוח eungyeol",
+        "description": "הוא עשוי משי רך ומרגיש טוב ביד."
+      },
+      "eq_fan3": {
+        "name": "מאוורר רוח להבה",
+        "description": "זהו מאוורר מאסטר שמתפרש בחן כמו כנפי מנוף."
+      },
+      "eq_fan4": {
+        "name": "מאוורר רוח כפור",
+        "description": "הוא עשוי מפלדה כבדה ויכול לשמש כנשק בשעת חירום."
+      },
+      "eq_fan5": {
+        "name": "מאוורר רוח yongbi",
+        "description": "מאוורר אגדי עשוי ממאה נוצות לבנות."
+      },
+      "eq_fan7": {
+        "name": "מאוורר רוח Shinryong",
+        "description": "זהו מניפת התעלות המכילה את נשימתו של הדרקון האלוהי שמבקע את השמים ומפנה את גאות שדה הקרב."
+      },
+      "eq_stone1": {
+        "name": "אבן נבט שחור ולבן",
+        "description": "אלו הן אבני בדוק מפלסטיק קלות משקל ולא יקרות."
+      },
+      "eq_stone2": {
+        "name": "אבן כסף",
+        "description": "זוהי אבן גו העשויה מחלוקי נחל חלקים שנאספו משפת הנהר."
+      },
+      "eq_stone3": {
+        "name": "אבן אודם",
+        "description": "הוא מגולף בצורה משוכללת מאובסידיאן שפולט זוהר קר."
+      },
+      "eq_stone4": {
+        "name": "אבן באדוק ירקן לבנה",
+        "description": "זוהי אבן באדוק עשויה ספיר וג'ייד לבן המפיצה אור מבריק."
+      },
+      "eq_stone5": {
+        "name": "אבן יונגן באדוק",
+        "description": "זוהי אבן באדוק אגדית המחושלת באנרגיה של השמש, הירח והכוכבים."
+      },
+      "eq_stone7": {
+        "name": "Shinryong Baduk Stone",
+        "description": "נוצר על ידי זיוף שברים של כוכב הבוקר, זוהי אבן Go טרנסצנדנטית השולטת במשחק עם מהלך בודד."
+      },
+      "eq_stonebox1": {
+        "name": "חבית עץ בהירה",
+        "description": "זוהי קופסת Go מפלסטיק קלת משקל וזולה."
+      },
+      "eq_stonebox2": {
+        "name": "חבית במבוק מוצקה",
+        "description": "זוהי קופסת Go עשויה מעץ שיזף בניחוח קלוש."
+      },
+      "eq_stonebox3": {
+        "name": "הונגמוק באדוקטונג",
+        "description": "הוא עשוי מעץ סיסם, צבע אדום יפהפה."
+      },
+      "eq_stonebox4": {
+        "name": "ebony go box",
+        "description": "זוהי קופסת באדוק נדירה עשויה עץ מוזר עם דוגמאות מוזרות ויפות."
+      },
+      "eq_stonebox5": {
+        "name": "יונגרין באדוקטונג",
+        "description": "זוהי קופסת Go מעץ סיסם איכותית עם דרקון מגולף בעדינות."
+      },
+      "eq_stonebox7": {
+        "name": "שינריונג באדוקטונג",
+        "description": "זוהי קופסת Go טרנסצנדנטית שחותמת את האנרגיה של שדה הקרב העתיק ומוסיפה להפחדה של כל אבן שהוצאה."
+      },
+      "eq_top1": {
+        "name": "חלק עליון אחיד בצבע אביב",
+        "description": "זהו טופ נוח שמתאים להתרכז באימונים שלך."
+      },
+      "eq_top2": {
+        "name": "חלק עליון אחיד בצבע קיץ",
+        "description": "זהו gi קשוח שלא נשחק גם לאחר אימון ארוך."
+      },
+      "eq_top3": {
+        "name": "חלק עליון אחיד בצבע סתיו",
+        "description": "זהו סמל מלומד עם אלגנטיות שקטה."
+      },
+      "eq_top4": {
+        "name": "חלק עליון אחיד בצבע חורף",
+        "description": "זהו תלבושת של סייף המיועדת ללחימה חריפה."
+      },
+      "eq_top5": {
+        "name": "יונגבי דובוק טופ",
+        "description": "הוא רקום בדוגמת דרקון המסמלת את מלכותו של הקיסר."
+      },
+      "eq_top7": {
+        "name": "חלק עליון אחיד שיריונג",
+        "description": "זהו חלק עליון אחיד טרנסצנדנטי השזור בצבע של קשקשי הדרקון האלוהי, המעניק מיקוד בלתי מעורער."
+      },
+      "mat_materials1": {
+        "name": "אבן קסם פחותה",
+        "description": "חומרים בסיסיים המשמשים לשיפור הציוד."
+      },
+      "mat_materials2": {
+        "name": "אבן שיפור ביניים",
+        "description": "חומר ברמה גבוהה המשמש לחיזוק ציוד."
+      },
+      "mat_materials3": {
+        "name": "אבן קסם מתקדמת",
+        "description": "חומרים איכותיים המשמשים לחיזוק ציוד."
+      },
+      "mat_materials4": {
+        "name": "אבן חיזוק ברמה הגבוהה ביותר",
+        "description": "חומר נדיר המשמש לחיזוק ציוד."
+      },
+      "mat_materials5": {
+        "name": "אבן חיזוק מסתורית",
+        "description": "חומר עתיק המשמש לחיזוק ציוד."
+      },
+      "pet_egg": {
+        "name": "ביצה מסתורית",
+        "description": "השג חיית מחמד אקראית בינה מלאכותית בעת שימוש במדגרה."
+      },
+      "pet_soulstone1": {
+        "name": "נבט אבן נשמה",
+        "description": "חומר זה נחוץ לשדרוג חיית מחמד רגילה לדרגה מתקדמת. ניתן להשתמש מ-Pet Lv.10 ומעלה."
+      },
+      "pet_soulstone2": {
+        "name": "גל אבן נשמה",
+        "description": "חומר זה נחוץ כדי להעלות חיית מחמד בדרגת פרימיום לדרגה נדירה. ניתן להשתמש מ-Pet Lv.20 ומעלה."
+      },
+      "pet_soulstone3": {
+        "name": "אבן נשמה תהום",
+        "description": "חומר זה נחוץ כדי להעלות חיית מחמד בדרגה נדירה לדרגה אפית. ניתן להשתמש מ-Pet Lv.30 ומעלה."
+      },
+      "pet_soulstone4": {
+        "name": "אבן נשמה להבה",
+        "description": "זהו חומר הדרוש לשדרוג חיית מחמד בדרגת אפי לדרגה אגדית. ניתן להשתמש מ-Pet Lv.40 ומעלה."
+      },
+      "pet_soulstone5": {
+        "name": "אבן נשמה אור שמימי",
+        "description": "חומר זה נחוץ כדי לשדרג חיית מחמד אגדית לדרגה מיתית. ניתן להשתמש ב-Pet Lv.50."
+      },
+      "shop_action_point_10": {
+        "name": "שיקוי שחזור פעולה (+10)",
+        "description": "אני מרגיש מוטיבציה לעשות משהו."
+      },
+      "shop_action_point_20": {
+        "name": "שיקוי שחזור פעולה (+20)",
+        "description": "אני מרגיש שאני חייב לעשות משהו."
+      },
+      "shop_action_point_30": {
+        "name": "שיקוי שחזור פעולה (+30)",
+        "description": "בוא נלך לשחק את המשחק מיד."
+      },
+      "shop_condition_potion_large": {
+        "name": "סוכן לשחזור מצב (גדול)",
+        "description": "סוכן לשחזור מצב שיעזור לך להתמודד בהצלחה היום."
+      },
+      "shop_condition_potion_medium": {
+        "name": "חומר לשחזור מצב (בינוני)",
+        "description": "חומר לשחזור מצב שגורם לראש שלך להרגיש ברור יותר."
+      },
+      "shop_condition_potion_small": {
+        "name": "סוכן לשחזור מצב (קטן)",
+        "description": "חומר לשחזור מצב המפיג מתחים"
+      },
+      "shop_equipment_box_1": {
+        "name": "תיבת ציוד I",
+        "description": "השג ציוד משותף עד נדיר"
+      },
+      "shop_equipment_box_2": {
+        "name": "תיבת ציוד II",
+        "description": "השג ציוד רגיל עד אפי"
+      },
+      "shop_equipment_box_3": {
+        "name": "תיבת ציוד III",
+        "description": "השג ציוד מתקדם עד אגדי"
+      },
+      "shop_equipment_box_4": {
+        "name": "תיבת ציוד IV",
+        "description": "רכוש ציוד נדיר עד מיתולוגי"
+      },
+      "shop_equipment_box_5": {
+        "name": "תיבת ציוד V",
+        "description": "רכוש ציוד אפי עד מיתולוגי"
+      },
+      "shop_equipment_box_6": {
+        "name": "תיבת ציוד VI",
+        "description": "רכוש ציוד אגדי עד מיתולוגי"
+      },
+      "shop_equipment_unbind_ticket": {
+        "name": "זכות לבטל ייחוס",
+        "description": "שנה את הסטטוס של ציוד כבול לסחיר."
+      },
+      "shop_material_box_1": {
+        "name": "תיבת חומר I",
+        "description": "רכשו 5 אבני שיפור נמוך עד גבוה"
+      },
+      "shop_material_box_2": {
+        "name": "תיבת חומר II",
+        "description": "רכשו 5 אבני שיפור נמוך עד גבוה"
+      },
+      "shop_material_box_3": {
+        "name": "תיבת חומר III",
+        "description": "רכשו 5 אבני שיפור נמוך עד גבוה"
+      },
+      "shop_material_box_4": {
+        "name": "תיבת חומר IV",
+        "description": "השג 5 אבני חיזוק ברמה בינונית עד הגבוהה ביותר"
+      },
+      "shop_material_box_5": {
+        "name": "תיבת חומר V",
+        "description": "מתקדם ~ רכוש 5 אבני שיפור מסתוריות"
+      },
+      "shop_material_box_6": {
+        "name": "תיבת חומר VI",
+        "description": "מתקדם ~ רכוש 5 אבני שיפור מסתוריות"
+      },
+      "shop_mythic_option_change_ticket": {
+        "name": "אפשרות מיוחדת שינוי כרטיס",
+        "description": "פריט זה מאפשר לך לשנות את האפשרויות המיוחדות של ציוד מיתי או טרנסנדנטלי לאפשרויות מיוחדות אחרות."
+      },
+      "shop_option_type_change_ticket": {
+        "name": "זכות לשנות את סוג האופציה",
+        "description": "זהו פריט שיכול לשנות את אחת האפשרויות העיקריות של הציוד, תת אופציות או אופציות מיוחדות לאופציה מסוג אחר."
+      },
+      "shop_option_value_change_ticket": {
+        "name": "כרטיס שינוי ערך אופציה",
+        "description": "זהו פריט שיכול לשנות את הערך של אחת מאפשרויות המשנה של הציוד או אפשרויות מיוחדות."
+      },
+      "shop_refinement_charm": {
+        "name": "קמע ההיתוך",
+        "description": "הוסף ספירת זיקוק נוספת אחת עבור ציוד שלא ניתן להתיך"
+      },
+      "use_allowtrade": {
+        "name": "זכויות רישום מסחר",
+        "description": "זוהי הרשאה לרשום בנוסף פריטים למכירה בבורסה."
+      }
+    },
+    "stats": {
+      "mythic": {
+        "GuildBossRewardGradeUp": {
+          "name": "גמול קרב בוס הגילדה למעלה",
+          "abbrev": "ציון תגמול בוס",
+          "short": "דרגת תגמול בוס הגילדה +1",
+          "description": "רמת התגמול עולה ברמה אחת מתוצאות קרב בוס הגילדה. (מקסימום SSS) זוהי אפשרות מיתוס מיוחדת מס' 1 וניתנת ליישום בו-זמנית עם התעלות מס' 1 \"תגמול בוס נוסף\"."
+        },
+        "GuildBossExtraDamage5": {
+          "name": "נזק נוסף במהלך קרבות בוס הגילדה: 5%",
+          "abbrev": "נזק לבוס 5%",
+          "short": "נזק לבוס הגילדה +5%",
+          "description": "כאשר תוקפים בוס של גילדה, מוחל נזק סופי נוסף של 5%. (לא ניתן לחפוף עם אפשרות מיוחדת להתעלות)"
+        },
+        "TowerApMinus1Floors1to35": {
+          "name": "מגדל האתגר (קומה 1 עד 35) פעולה נדרשת -1",
+          "abbrev": "AP העליון (1~35)",
+          "short": "מגדל 1~35 קומה AP -1",
+          "description": "הפעולה הנדרשת כדי להיכנס לקומות 1 עד 35 של מגדל האתגר מצטמצמת ב-1. (לא ניתן לחפוף עם אפשרות מיוחדת להתעלות)"
+        },
+        "ApRegenMinus30s": {
+          "name": "זמן התאוששות פעולה -30 שניות",
+          "abbrev": "שחזור AP -30 שניות",
+          "short": "שחזור פעולה -30 שניות",
+          "description": "הזמן שלוקח לשחזר נקודת פעולה אחת מצטמצם ב-30 שניות. (לא ניתן לחפוף עם אפשרות מיוחדת להתעלות)"
+        },
+        "AdventureScanPlus1": {
+          "name": "סריקת הרפתקאות +1",
+          "abbrev": "סריקת הרפתקאות+1",
+          "short": "סריקת הרפתקאות +1",
+          "description": "בתחילת ההרפתקה (קרב מפלצות), תקבל פריט סריקה אחד נוסף. (לא ניתן לחפוף עם אפשרות מיוחדת להתעלות)"
+        },
+        "AdventureMissilePlus1": {
+          "name": "טיל הרפתקאות +1",
+          "abbrev": "טיל הרפתקאות+1",
+          "short": "טיל הרפתקאות +1",
+          "description": "פריט טיל נוסף מסופק בתחילת ההרפתקה. (לא ניתן לחפוף עם אפשרות מיוחדת להתעלות)"
+        },
+        "AdventureGoldBonus15": {
+          "name": "פרס זהב הרפתקאות +15%",
+          "abbrev": "זהב הרפתקאות 15%",
+          "short": "Adventure Gold +15%",
+          "description": "הזהב שנצבר עם זכייה בהרפתקה גדל ב-15%. (בנפרד בשילוב עם אנציקלופדיה ובונוס הבנה) (לא ניתן לחפוף עם אפשרות מיוחדת להתעלות)"
+        },
+        "GuildBossExtraRewardDuplicate": {
+          "name": "תגמול קרב בוס הגילדה נוסף",
+          "abbrev": "פרס הבוס נוסף",
+          "short": "סוג אחד של עותק תגמול בוס הגילדה (מצטבר)",
+          "description": "תקבל את אחד מהתגמולים כתוצאה מקרב בוס הגילדה פעם נוספת. אם לאפשרות זו יש קווים מרובים (חלקי ציוד מרובים) על ציוד טרנסצנדנטי, היא תיושם שוב ושוב. ניתן ליישם בשילוב עם אפשרויות מיוחדות אחרות. זוהי אפשרות מיוחדת מס' 1 של התעלות, וניתנת ליישום בו-זמנית עם מיתוס מס' 1 \"דרגת תגמול בוס\"."
+        },
+        "GuildBossExtraDamage10": {
+          "name": "נזק נוסף של 10% בקרבות בוס הגילדה",
+          "abbrev": "נזק לבוס 10%",
+          "short": "נזק לבוס הגילדה +10%",
+          "description": "כאשר תוקפים בוס של גילדה, מוחל נזק סופי נוסף של 10%. (לא ניתן לחפוף עם אפשרות מיוחדת למיתוס)"
+        },
+        "TowerApMinus1AllFloors": {
+          "name": "מגדל האתגרים נדרשת פעולה -1",
+          "abbrev": "AP העליון בכל הקומות",
+          "short": "AP לכל הקומות של המגדל -1",
+          "description": "הפעולה הנדרשת כדי להיכנס לקומה העליונה של כל האתגרים מצטמצמת ב-1. (לא ניתן לחפוף עם אפשרות מיוחדת למיתוס)"
+        },
+        "ApRegenMinus60s": {
+          "name": "זמן התאוששות פעולה -60 שניות",
+          "abbrev": "שחזור AP -60",
+          "short": "שחזור פעולה -60 שניות",
+          "description": "הזמן שלוקח לשחזר נקודת פעולה אחת מצטמצם ב-60 שניות. (לא ניתן לחפוף עם אפשרות מיוחדת למיתוס)"
+        },
+        "AdventureScanTranscendent": {
+          "name": "סריקת הרפתקאות +1",
+          "abbrev": "סריקת הרפתקאות+1",
+          "short": "סריקת הרפתקאות +2 (התעלות)",
+          "description": "שני פריטי סריקה נוספים יסופקו בהרפתקה (קרב מפלצות). (לא ניתן לחפוף עם אפשרות מיוחדת למיתוס)"
+        },
+        "AdventureMissilePlus2": {
+          "name": "טיל הרפתקאות +2",
+          "abbrev": "טיל הרפתקאות+2",
+          "short": "טיל הרפתקאות +2",
+          "description": "שני פריטי טילים נוספים יסופקו בתחילת ההרפתקה. (לא ניתן לחפוף עם אפשרות מיוחדת למיתוס)"
+        },
+        "AdventureGoldBonus20": {
+          "name": "פרס זהב הרפתקאות +20%",
+          "abbrev": "זהב הרפתקאות 20%",
+          "short": "הרפתקאות זהב +20%",
+          "description": "הזהב שנצבר בעת זכייה בהרפתקה גדל ב-20%. (לא ניתן לחפוף עם אפשרות מיוחדת למיתוס)"
+        }
+      }
+    },
+    "optionValueLine": "{{stat}} +{{value}}{{סיומת}}",
+    "optionRange": "[{{lo}}~{{hi}}{{סיומת}}]",
+    "optionEnhancement": "({{count}}שיפור)",
+    "meta": {
+      "description": {
+        "gold": "זהו המטבע הייצוגי המשמש בכל העולם באדוק.",
+        "diamond": "זהו מצרך פרימיום המשמש לרכישות מיוחדות, הרחבות וכו'."
+      },
+      "usage": {
+        "goldSpend": "הוא משמש במקומות צריכת זהב כמו חנויות, חיזוק/יצירה ודמי כניסה.",
+        "diamondSpend": "משמש בחנויות יהלומים, הרחבת חריץ תיק וכו'.",
+        "unbindTicket": "[תיק]-[בחר ציוד]-[בטל קשר]",
+        "refinementCharm": "[נפח]-[זיקוק ציוד] בחר ציוד שלא ניתן להתיך",
+        "refinementTicket": {
+          "optionType": "[נפח - זיקוק ציוד] שינוי סוג האופציה",
+          "optionValue": "[נפח - זיקוק ציוד] שינוי ערך האופציה",
+          "specialOption": "[נפח - זיקוק ציוד] שינוי אופציה מיוחדת",
+          "mythicOption": "[נפח - זיקוק ציוד] שינוי אופציה מיתי",
+          "generic": "[נפח - זיקוק ציוד] שינוי אופציה"
+        },
+        "conditionPotion": "[אליפות] שחזור מצב {{lo}}~{{hi}} לפני תחילת המשחק",
+        "actionPointInstant": "[שימוש מיידי] שחזור פעולה +{{amount}}",
+        "actionPointInstantGeneric": "[שימוש מיידי] שחזור יכולת פעולה",
+        "openBoxInBag": "אם תשתמש בו מהתיק שלך, תקבל פרס.",
+        "equipmentBoxOpen": "אתה יכול להשיג ציוד באמצעות החזה שבתיק שלך.",
+        "enhancementMaterial": {
+          "single": "[{{gradeLabel}}] ציוד: {{rangeLabel}}",
+          "range": "[{{gradeLabel}}] ציוד: {{rangeLabel}}"
+        },
+        "pet": {
+          "soulGradeUpgrade": "[שיפור ציון חיות מחמד] {{fromGrade}}→{{toGrade}} (Pet Lv.{{minLevel}} ומעלה)",
+          "soulGradeUpgradeGeneric": "[שיפור דרגת חיות מחמד] משמש להגדלת הדרגה של חיות מחמד אחרות בבינה מלאכותית בזירת היריד.",
+          "eggHatchRandom": "[Pet · Hatchery] מניחים בחריץ ובקעו לסוג אקראי של חיית מחמד בינה מלאכותית.",
+          "welcomeEggHatch": "[חיית מחמד · מדגרה] ממוקמת בחריץ - זמן הבקיעה דקה אחת, חיית מחמד AI ברמה 5 כשהיא בקעה"
+        }
+      },
+      "enhanceRange": {
+        "single": "{{כוכבים}}שיפור",
+        "range": "{{minStars}}~{{maxStars}}שיפור"
+      },
+      "acquire": {
+        "gold": {
+          "line1": "[משחק/תוכן] משחק באדוק, משחק יחיד, צינוק/ליגה וכו'.",
+          "line2": "[קווסט/הרפתקה] משימות יומיות/שבועיות/חודשיות, תיבות אוצר, משבצות VIP",
+          "line3": "[עסקה/פירוק] הסדר מכירות חליפין, פירוק ציוד, מכירה בחלק מהחנויות"
+        },
+        "diamond": {
+          "line1": "[חנות] כרטיסיית חבילת יהלומים/חומרים מתכלים/חומרים",
+          "line2": "[תשלום/אירוע] טעינה, תפעול/דואר קידום מכירות",
+          "line3": "[פונקציה] כמה תכונות פרימיום כגון הרחבת חריץ תיק"
+        },
+        "tower": {
+          "line1": "[מגדל האתגר] רכישה מחנות הפריטים (זהב) בפרטי המשחק",
+          "line2": "[מגדל האתגר] הושג דרך כמה ערוצים, כגון תגמולי כניסה/ברור ותגמולי VIP."
+        },
+        "actionPoint": {
+          "line1": "[חנות] חנות זהב - שיקוי שיקום סיבולת (+10/+20/+30), מגבלה יומית/מחיר ברמה",
+          "line2": "[מייל·אירוע] פיצוי תפעולי/תשלום קידום",
+          "line3": "[פונקציה VIP] כאשר מופעלת, תקבלו Stamina Restoration III בדואר מדי יום."
+        },
+        "condition": {
+          "line1": "[חנות] חנות יהלומים (חומרים מתכלים) או חבילות קשורות",
+          "line2": "[קווסט/אירוע] תגמולים חלקיים"
+        },
+        "guildEquipBox": {
+          "line1": "[חנות גילדה] ניתן לרכישה רק עם מטבעות גילדה",
+          "line2": "[Shop/Quest] השג ציוד על ידי שימוש בתיק, בדומה לקופסת ציוד רגילה."
+        },
+        "equipBox": {
+          "line1": "[חנות] חנות זהב (כרטיסיית ציוד), תגמולי פרסום, כמה חבילות מזומן",
+          "line2": "[קווסט/VIP] משימות יומיות, שבועיות וחודשיות, משבצות VIP לתגמול וכו'.",
+          "line3": "[הרפתקה/גילדה] תיבת אוצר, תגמול תוצאות בקרב בוס הגילדה וכו'."
+        },
+        "materialBox": {
+          "line1": "[חנות] חנות זהב/יהלומים (כרטיסיית חומרים), פרסי פרסום, כמה חבילות",
+          "line2": "[קווסט/VIP] משימות יומיות, שבועיות וחודשיות, משבצות VIP לתגמול וכו'."
+        },
+        "goldBundle": {
+          "line1": "[חנות] חנות יהלומים (חומרים מתכלים), תגמולי פרסום",
+          "line2": "[שאילתה/הרפתקה] תגמולים/קופסאות אוצרות שונות"
+        },
+        "diamondBundle": {
+          "line1": "[חנות] חנות יהלומים (חומרים מתכלים), תגמולי פרסום",
+          "line2": "[קווסט/אירוע] תגמולים חלקיים"
+        },
+        "bonusStat": {
+          "line1": "[חנות גילדה] רכישה עם מטבעות גילדה (מגבלת חשבון)",
+          "line2": "[צמיחה] תשלום חלקי כאשר רמת האסטרטגיה/משחק עולה"
+        },
+        "enhancementStone": {
+          "line1": "[חנות גילדה] ניתן להחליף אבני שיפור מסתוריות ברמה נמוכה במטבעות גילדה",
+          "line2": "[קופסת חומר] קופסאות חומר המתקבלות מחנויות, קווסטים, VIP וכו'.",
+          "line3": "[נפח] סינתזת/פירוק חומרים, עלות חיזוק ציוד",
+          "line4": "[הרפתקה, דירוג, גילדה] תגמולים על ניצחון, מגדל, קרב בוס וכו'."
+        },
+        "material": {
+          "line1": "[חנות] חנות זהב/יהלומים (חומרים), חנות גילדה (חלקית)",
+          "line2": "[Quest·Adventure·Event] יומי, שבועי, חודשי, תיבת אוצר, תגמולים על מבצע",
+          "line3": "[מייל] תוצאות סינתזה/שיפור, תשלום לאירוע"
+        },
+        "equipment": {
+          "line1": "[קופסת ציוד] מושגת בעת שימוש בקופסה מהתיק.",
+          "line2": "[הרפתקה] תגמול ברור במה/קרב בוס",
+          "line3": "[החלפה] רכוש פריטים רשומים ממשתמשים אחרים",
+          "line4": "[סינתזה/הפקה] ייצור ציוד סינתזה/התעלות של נפח וכו'."
+        },
+        "consumableGeneric": "[חנות, קווסט, דואר] תגמולים בחנות כללית, אירוע, מבצע",
+        "pet": {
+          "soulTraining": "[תמורה לחיות מחמד/אימונים] משבצות {{משבצות}}",
+          "soulConvert": "[המרת חיית מחמד/נפש] {{דרגות}} ניתן לקבל בעת פירוק חיית מחמד",
+          "soulShopDiamond": "[חיות מחמד · חנות חיות מחמד] יהלום {{amount}}",
+          "soulShopGold": "[Pet · Pet Shop] זהב {{amount}}",
+          "soulShopDiamondDaily": "[Pet · Pet Store] יהלום {{amount}}, {{limit}} פעמים ביום",
+          "soulShopGoldDaily": "[Pet · Pet Shop] זהב {{amount}}, {{limit}} פעמים ביום",
+          "soulFallback": "[חיית מחמד] ניתן להשיג או להחליף בתכנים הקשורים לאצטדיון יריד/מדגרה.",
+          "eggShop": "[חנות חיות מחמד] ניתן לרכוש עם זהב ויהלומים (מגבלה יומית)",
+          "eggRewards": "[חיית מחמד/אימונים/אירוע] הושג כפרס חלקי",
+          "welcomeEggMail": "[מייל] ניתן להשיג באמצעות תשלומי קבלת פנים/תפעול חדשים וכו'.",
+          "welcomeEggShop": "[חיות מחמד · חנות חיות מחמד] ניתן לרכוש עם יהלומים (אחד ליום)"
+        }
+      }
     }
   },
   "exchange": {
@@ -4110,7 +4963,7 @@
       "newGearHint": "בחר ציוד חדש למכירה ב\"בחירת ציוד\". אנא בדוק את מצב הפריטים הרשומים ברשימה למעלה.",
       "myListing": "מכירות שנרשמו על ידי",
       "salePriceLabel": "מחיר מכירה",
-      "registrationFee": "דמי רישום (10%)",
+      "registrationFee": "דמי הרשמה (10%)",
       "purchaseComplete": "הרכישה הושלמה",
       "settlementReceived": "קבלת פשרה",
       "tradeTicket": "זכויות רישום מסחר",
@@ -4149,9 +5002,9 @@
       "selectGear": "בחירת ציוד"
     },
     "alerts": {
-      "insufficientTicket": "זכויות רישום עסקה לא מספקות.",
+      "insufficientTicket": "זכויות רישום עסקה לא מספקות. נדרש לרישום משבצות מכירה נוספות.",
       "vipListingLimit": "בעלי VIP יכולים להירשם למכירה רק עד 3 מוצרים.",
-      "ticketHint": "זכויות רישום עסקה לא מספקות. ניתן לרשום פריט מכירה אחד עם כרטיס רישום אחד.",
+      "ticketHint": "רישום נוסף למשבצת מכירות מחייב כרטיס רישום עסקה.",
       "selectGearFromInventory": "אנא בחר את הציוד שברצונך למכור מהמלאי שלך.",
       "boundGear": "לא ניתן למכור ציוד קשור. אנא השתמש בזכות לבטל ייחוס.",
       "minimumPrice": "מחיר המכירה המינימלי הוא {{price}}.",
@@ -4175,7 +5028,7 @@
       "waiting": "אַטמוֹספֵרָה"
     },
     "scoring": "מחשב...",
-    "allMatchesEnded": "כל המשחקים הסתיימו. טקס הענקת הפרסים מתקיים.",
+    "allMatchesEnded": "כל המשחקים להיום הסתיימו.",
     "breathing": "אני לוקח נשימה עמוקה כדי להשתתף בתחרות.",
     "playersEntering": "השחקנים נכנסים. אנא המתן לרגע.",
     "playerLoadError": "אירעה שגיאה בעת טעינת פרטי הנגן.",
@@ -4237,7 +5090,7 @@
       "phaseEndLabel": "משחק סיום",
       "phaseEarlyStart": "המחצית הראשונה של הקרב החלה. בואו נסתכל על הנחת האבנים ועל זרימת הקרב הראשון.",
       "phaseMidStart": "אמצע המשחק התחיל. הקרב במרכז והקרב על העמדה נעשים אינטנסיביים יותר.",
-      "phaseEndStart": "המשחק הסיום התחיל. חישובי בית ורווח והפסד מפורטים הופכים חשובים.",
+      "phaseEndStart": "המשחק הסיום התחיל. חישובי הבית ורווח והפסד מפורטים הופכים חשובים.",
       "defaultRound": "הסיבוב הנוכחי",
       "defaultPlayer1": "שחקן 1",
       "defaultPlayer2": "שחקן 2",
@@ -4307,7 +5160,7 @@
     },
     "definitions": {
       "neighborhood": {
-        "name": "ליגת בדוק שכונתית",
+        "name": "ליגת באדוק שכונתית",
         "description": "המשחק ישוחק במתכונת ליגה מלאה של 6 שחקנים. השג את מירב הזכיות!"
       },
       "national": {
@@ -4376,7 +5229,7 @@
         "lossGold": "{{דקה}}~{{max}} זהב כאשר מובס",
         "equipment": "צִיוּד",
         "changeTicket": "כרטיס החלפת ציוד",
-        "rewardRandom": "זמינות התשלום וכמותה עשויים להשתנות בהתאם לתוצאת המשחק (אקראי).",
+        "rewardRandom": "זמינות התשלום והכמות עשויים להשתנות בהתאם לתוצאת המשחק (אקראי).",
         "changeTicketMax": "עד {{count}} טווחים בכל שלב",
         "defaultReward": "תגמול בסיסי",
         "continueView": "המשך לקרוא",
@@ -4405,12 +5258,12 @@
       "help": {
         "title": "עזרה באליפות",
         "overview": "סקירת אליפות",
-        "unlockHint": "תנאים לעלייה לשלב הבא: אם תשיג את המקום 1 עד 3 בליגת בדוק השכונות, טורניר בדוק הארצי ואליפות העולם, תוכר כמפנה את השלב הזה והשלב הבא ייפתח.",
-        "neighborhood": "ליגת בדוק שכונתית",
+        "unlockHint": "תנאים לעלייה לשלב הבא: אם תשיג את המקום 1 עד 3 בליגת בדוק השכונתי, טורניר בדוק הארצי ואליפות העולם, תוכר כמפנה את השלב הזה והשלב הבא ייפתח.",
+        "neighborhood": "ליגת באדוק שכונתית",
         "national": "טורניר באדוק הלאומי",
         "world": "אליפות עולם",
-        "unlock3": "התקדם לשלב הבא אם תשיג מקום 3 ומעלה",
-        "commonFeatures": "תכונות נפוצות של האצטדיון",
+        "unlock3": "אם תשיגו מקום 3 ומעלה, תעברו לשלב הבא.",
+        "commonFeatures": "מאפיינים נפוצים של האצטדיון",
         "simulation": "משחק סימולציה",
         "condition": "מַצָב",
         "rewards": "פיצוי",
@@ -4425,7 +5278,7 @@
         "overviewBody1": "האליפות מופעלת באמצעות מערכת מבוכים. ישנם שלבים משלב 1 עד שלב 10 לכל אצטדיון (ליגת בדוק שכונתית, תחרות בדוק ארצית, אליפות עולם), ובכל שלב מתקיימת ליגה/טורניר עם בוטים לקביעת הדירוג.",
         "unlockHintRich": "תנאי נעילה ברמה הבאה:",
         "unlockHintBody": "אם תשיג את המקום 1 עד 3 בליגת באדוק השכונתי, טורניר באדוק הלאומי ואליפות העולם, תוכר כמנקה את השלב הזה והשלב הבא ייפתח.",
-        "rankUnlock": "פתח את הנעילה של הרמה הבאה כאשר תגיע למקום השלישי ומעלה",
+        "rankUnlock": "פתח את הנעילה של הרמה הבאה כאשר תגיע למקום 3 ומעלה",
         "simulationTitle": "משחק סימולציה",
         "conditionTitle": "מַצָב",
         "rewardsTitle": "פיצוי",
@@ -4480,7 +5333,7 @@
         "critical2": "נקודות נוספות מתקבלות כאשר מתרחשת פגיעה קריטית.",
         "critical3": "כוח לחימה וכוח חישוב משפיעים על נקודות נוספות",
         "condition1": "תנאי אקראי בין 40 ל-100 ניתן לפני כל משחק.",
-        "condition2": "ציוני היכולת אינם משתנים במהלך הסימולציה",
+        "condition2": "ציוני היכולת אינם משתנים במהלך הסימולציה.",
         "condition3": "ניתן לשחזר עם סוכן שחזור מצב (בשימוש רק לפני תחילת המשחק)"
       },
       "duelHistory": {
@@ -4495,7 +5348,7 @@
       },
       "points": {
         "neighborhood": "שְׁכוּנָה",
-        "neighborhoodTitle": "ליגת בדוק שכונתית",
+        "neighborhoodTitle": "ליגת באדוק שכונתית",
         "national": "בפריסה ארצית",
         "nationalTitle": "טורניר באדוק הלאומי",
         "world": "דַפנָה",
@@ -4529,7 +5382,13 @@
       "championship": "אַלִיפוּת",
       "scrollGuideTitle": "מדריך לגלילה",
       "categoryAria": "קטגוריית דירוג",
-      "title": "דירוג"
+      "title": "דירוג",
+      "gameRankingTab": "דירוג המשחק",
+      "badukRankingTab": "דירוג באדוק",
+      "loginRequired": "אתה יכול לבדוק את הדירוג שלך לאחר התחברות.",
+      "championshipLoginHint": "אתה יכול לבדוק את דירוג האליפות שלך לאחר התחברות.",
+      "guideClose": "מדריך סגור",
+      "championshipNoGuide": "אין מדריך ניקוד נפרד לדירוג האליפות."
     },
     "round16": "סיבוב ה-16",
     "center": "מֶרְכָּז",
@@ -4581,14 +5440,14 @@
     "matchRewardIndex": "התאמת תגמולים של {{index}}",
     "champCoinTimes": "Champ Coin ×{{amount}}",
     "champCoinPending": "Champ Coin {{תווית}} (אושר עם קבלה)",
-    "rankRewardTitle": "{{rank}}פרס בדרגה הגבוהה ביותר · {{item}} ×{{qty}}",
+    "rankRewardTitle": "{{rank}}פרס בדירוג הגבוה ביותר · {{item}} ×{{qty}}",
     "matchRoundResult": "{{סיבוב}} סיבוב {{תוצאה}}! ({{wins}} ניצחונות {{losses}} הפסדים)",
     "statusRecordRank": "{{מנצח}} מנצח {{הפסדים}} הפסדים! {{דַרגָה}}",
     "championTitle": "🏆 זכה!",
     "runnerUp": "סגן אלוף!",
     "thirdPlace": "מקום 3",
-    "fourthPlace": "מקום 4",
-    "eliminatedInRound": "הודח ב-{{סיבוב}}",
+    "fourthPlace": "מקום רביעי",
+    "eliminatedInRound": "הודח ב-{{round}}",
     "tournamentEliminated": "חיסול הטורניר",
     "roundAdvanceExclaim": "התקדם אל {{סיבוב}}!",
     "roundInProgress": "{{סיבוב}} בתהליך",
@@ -4695,13 +5554,13 @@
     "rewardFromFloor10Short": "אתה יכול לקבל פרס חודשי כשתפנה 10 קומות או יותר.",
     "stages": "שָׁלָב",
     "rankingTop100": "דירוג 100 המובילים",
-    "rewardTierLine": "פיצוי עבור חלקי קומה {{קומה}} · שולם בסילוק סוף החודש",
+    "rewardTierLine": "פיצוי עבור חלק קומה {{קומה}} · שולם בסוף החודש",
     "unranked": "מלבד דירוג",
     "noOtherRanked": "אין דירוגים אחרים ברשימת 100 המובילים.",
     "rewardModalTitle": "מידע על תגמול מגדל האתגרים",
     "settlementRemaining": "הזמן שנותר עד להסדר הפיצויים",
     "myCurrentReward": "הפרס הנוכחי שלי",
-    "floorTier": "{{קומה}} קומה",
+    "floorTier": "{{קומה}}קומה",
     "blackPatternAlt": "דפוס שחור",
     "goldAlt": "זָהָב",
     "diamondAlt": "יַהֲלוֹם",
@@ -4748,7 +5607,7 @@
       "gameSettings": "הגדרות התאמה",
       "noRules": "אין כללים להציג.",
       "selectGameMode": "בחר מצב משחק",
-      "mobilePickHint": "לחץ על פריט כדי לבחור בו ולבדוק את מידע הדירוג והכללים למטה.",
+      "mobilePickHint": "לחץ על פריט כדי לבחור אותו ובדוק את מידע הדירוג והכללים למטה.",
       "queueWithAp": "המתן להתאמה (⚡{{cost}})",
       "titleStrategic": "התאמת דירוג באדוק אסטרטגית",
       "titleDuo": "משחק דירוג של 2 אנשים",
@@ -4785,7 +5644,7 @@
       "preparingReturn": "חיית המחמד השלימה את הכשרתה ומתכוננת לחזור.",
       "pleaseWait": "אנא המתן לרגע.",
       "claimPrompt": "האם עלי לקבל תגמולי אימון?",
-      "claimReward": "קבלו פרס",
+      "claimReward": "קבל פרס",
       "rewardGranted": "תגמולי הכשרה שולמו.",
       "petXpBaseSpec": "בסיס ניסיון של חיות מחמד +{{base}} (התמחות +{{spec}})",
       "petXpGain": "חווית חיות מחמד +{{amount}}",
@@ -4795,7 +5654,7 @@
       "trainAgain": "אימון פעם נוספת",
       "confirmTitle": "בדוק אילוף חיות מחמד",
       "sendToSlot": "<pet>{{petName}}</pet> האם עלי לשלוח את חיית המחמד שלי אל <slot>{{slotLabel}}</slot>?",
-      "sendNotice": "בזמן שהאימונים מתנהלים, חיית המחמד הזו לא יכולה להתחרות ב-Pair Baduk. לא ניתן לשלוח לאילוף חיית מחמד המיועדת כחיית מחמד מייצגת, ולא ניתן לשנות אותה לחיית מחמד מייצגת במהלך האימון.",
+      "sendNotice": "בזמן שהאימונים מתקיימים, חיית המחמד הזו לא יכולה להתחרות ב-Pair Baduk. לא ניתן לשלוח לאילוף חיית מחמד המיועדת כחיית מחמד מייצגת, ולא ניתן לשנות אותה לחיית מחמד מייצגת במהלך האימון.",
       "sendTraining": "לשלוח אימון",
       "cancelTitle": "ביטול אימונים",
       "cancelWarning": "אם תבטל את האימון, <reset>הזמן המתמשך יאופס</reset> והמשבצת תהיה ריקה. חיית המחמד נשארת בתיק.",
@@ -4816,7 +5675,7 @@
       "fixedReward": "פיצוי מוגדר",
       "probOneKind": "הסתברות (סוג אחד)",
       "probReward": "פיצוי הסתברות",
-      "claimRewardAria": "קבל תגמולי אימון",
+      "claimRewardAria": "קבל תגמול אימון",
       "petDetailAria": "פרטי חיית המחמד",
       "remainingTimeAria": "הזמן שנותר {{time}}",
       "pickPet": "בחר חיית מחמד",
@@ -4836,7 +5695,7 @@
       "winsUnit": "לְנַצֵחַ"
     },
     "hatchery": {
-      "start": "הבקיעה מתחילה",
+      "start": "מתחילה הבקיעה",
       "instantComplete": "הושלם מיד",
       "claimPet": "קבל חיית מחמד",
       "invFullHint": "מלאי חיות המחמד מלא. לחץ להנחיות.",
@@ -4859,7 +5718,10 @@
       "remainingTime": "זמן שנותר",
       "diamondsUsed": "להשתמש ביהלום",
       "ownedLabel": "רְשׁוּת",
-      "mysteriousEgg": "ביצה מסתורית ×1"
+      "mysteriousEgg": "ביצה מסתורית ×1",
+      "upgradeTier1": "לחזק את אני",
+      "upgradeTier2": "לחזק את II",
+      "upgradeTier3": "לחזק את III"
     },
     "lobby": {
       "infoTab": "מֵידָע",
@@ -4908,7 +5770,7 @@
       "cannotWhileTrainingShort": "לא ניתן לשדרג חיות מחמד באימון.",
       "unequipRepFirst": "פתח את הנעילה של חיית מחמד ייצוגית",
       "equipRep": "מצויד בחיית מחמד ייצוגית",
-      "cannotSetRepWhileTraining": "לא ניתן להגדיר חיית מחמד בהכשרה כחיית מחמד ייצוגית. נא להגדיר לאחר סיום ההכשרה.",
+      "cannotSetRepWhileTraining": "לא ניתן להגדיר חיית מחמד בהכשרה כחיית מחמד ייצוגית. נא לייעד אותו לאחר סיום ההכשרה.",
       "soulConvert": "המרת נפש",
       "cannotSoulConvertTraining": "חיות מחמד באילוף אינן ניתנות להמרת נפש. אנא השתמש בו לאחר סיום ההכשרה.",
       "cannotSoulConvertRep": "חיות מחמד המצוידות כחיות מחמד ייצוגיות אינן ניתנות להמרת נפש. אנא השתמש בו לאחר השבתת חיית המחמד הנציגה.",
@@ -4977,7 +5839,7 @@
       "roomKindChecking": "בודקים את סוג החדר",
       "visibilityPrivate": "פְּרָטִי",
       "visibilityPublic": "לְשַׁחְרֵר",
-      "passwordSuffix": "· סיסמה",
+      "passwordSuffix": "· סיסמא",
       "roomLoading": "מידע החדר נטען או אינו מסונכרן.",
       "gameMode": "מצב משחק",
       "detailConditions": "תנאים מפורטים",
@@ -5078,13 +5940,13 @@
       "enterPassword": "נא להזין את הסיסמה שלך.",
       "leaveOtherRoomForRanked": "כדי להתחיל התאמה לדירוג הזוגות, אנא עזוב חדר זוג אחר.",
       "ownerOnlyRanked": "רק המארח יכול להתחיל לדרג את השידוכים.",
-      "ownerOnlyAi": "רק המארח יכול להתחיל משחק AI.",
+      "ownerOnlyAi": "רק המארח יכול להתחיל משחק בינה מלאכותית.",
       "equipPetForRanked": "כדי להשתמש ב-Pair Ranking Match, עליך לצייד חיית מחמד זוגית.",
       "equipPetForRoomKind": "כדי ליצור סוג חדר זה, עליך להצטייד ב-Fair Pet.",
       "strategicRoomTitle": "חדר באדוק האסטרטגי של {{name}}",
       "playfulRoomTitle": "חדר המשחק באדוק של {{name}}",
       "pairRoomTitle": "החדר הזוגי של {{name}}",
-      "aiStartRestricted": "ניתן להתחיל קרבות בינה מלאכותית רק בחדרי ה-Pet Pair (חדר רגיל), אסטרטגיה, משחק ידידותי (Duo), וחדרי בינה מלאכותית באצטדיון. צור חדר זוג חיות מחמד חדש ב-\"Pair AI Battle\" בראש רשימת המשתמשים.",
+      "aiStartRestricted": "ניתן להתחיל קרבות בינה מלאכותית רק בחדרי ה-Pet Pair (חדר רגיל), אסטרטגיה, משחק ידידותי (Duo), וחדרי בינה מלאכותית באצטדיון. צור חדר זוג חיות מחמד חדש ב\"Pair AI Battle\" בראש רשימת המשתמשים.",
       "alreadyInRoomForRanked": "יש כבר חדר משתתף. אנא התחל את התאמה לדירוג זוג חיות מחמד בראש רשימת המשתמשים לאחר עזיבת חדר זוג אחר."
     },
     "loading": "טְעִינָה...",
@@ -5098,7 +5960,7 @@
       "currentSeason": "העונה הנוכחית",
       "firstSeasonSuffix": "(עונה ראשונה)",
       "currentScore": "הציון הנוכחי",
-      "recordWinRate": "{{מנצח}} ניצחונות {{הפסדים}} הפסדים · שיעור ניצחונות",
+      "recordWinRate": "{{ניצחונות}} ניצחונות {{הפסדים}} הפסדים · שיעור ניצחונות",
       "seasonBest": "הטוב ביותר של העונה",
       "sameScoreSuffix": "(הִזדַהוּת)",
       "bestSeason": "העונה הטובה ביותר",
@@ -5117,9 +5979,12 @@
       "playfulArena": "שחקו באצטדיון באדוק",
       "pairArena": "אצטדיון הוגן",
       "host": "מנהל חדר",
-      "matchInProgress": "התאמה בעיצומה",
+      "matchInProgress": "התאמה מתבצעת",
       "inMatch": "במהלך המשחק",
       "enter": "מַצָב",
+      "spectate": "צופה",
+      "spectateMatch": "צפו במשחק",
+      "spectateUnavailable": "אני לא מוצא שום מידע על התאמה לצפייה.",
       "orphanRooms": "מספר 1~100 חדר חיצוני",
       "roomKindFilter": "מסנן מסוג חדר",
       "gameModeFilter": "מסנן מצב משחק",
@@ -5179,14 +6044,14 @@
       "userList": "רשימת משתמשים",
       "userListPairAi": "רשימת משתמשים · צמד AI Battle",
       "aiSettingsTitle": "הגדרות התאמת AI",
-      "rankedMatchTitle": "התאמת דירוג",
+      "rankedMatchTitle": "התאמה לדירוג",
       "pairMatchSettings": "צמד הגדרות התאמת Baduk"
     },
     "modals": {
       "delegateConfirm": "האם תרצה להאציל את תפקיד המארח ל-{{name}}?",
       "kickConfirm": "האם תרצה לשלוח את {{name}} מהחדר?",
       "joinRoom": "כניסה לחדר",
-      "privateRoomEnter": "זהו חדר פרטי. נא להזין את הסיסמה שלך.",
+      "privateRoomEnter": "זהו חדר פרטי. אנא הכנס את הסיסמה שלך.",
       "password": "סִיסמָה",
       "changeProposalReceived": "הוצעה הצעה לשנות את הגדרות המשחק.",
       "changeProposalTitle": "הצעה לשינוי הגדרות המשחק",
@@ -5198,6 +6063,100 @@
       "navigatePairArena": "לך לאצטדיון הוגן",
       "leaveRoomOnNavigate": "מעבר לזירה אחרת יוציא אותך מהחדר בו אתה משתתף. האם אתה רוצה להמשיך?",
       "leaveRoomConfirm": "תוסר מהחדר בו השתתפת. האם אתה רוצה להמשיך?"
+    },
+    "pets": {
+      "pair-pet-1": {
+        "name": "לומיפוקס"
+      },
+      "pair-pet-2": {
+        "name": "חתול קרח"
+      },
+      "pair-pet-3": {
+        "name": "גולדיניאן"
+      },
+      "pair-pet-4": {
+        "name": "פנדה שלג"
+      },
+      "pair-pet-5": {
+        "name": "פנקי"
+      },
+      "pair-pet-6": {
+        "name": "צוּפִית"
+      },
+      "pair-pet-7": {
+        "name": "בנירו"
+      },
+      "pair-pet-8": {
+        "name": "דבש דוב"
+      },
+      "pair-pet-9": {
+        "name": "חתול עלים"
+      },
+      "pair-pet-10": {
+        "name": "נֶבֶט"
+      },
+      "pair-pet-11": {
+        "name": "חתול סגול"
+      },
+      "pair-pet-12": {
+        "name": "Sunkey"
+      },
+      "pair-pet-13": {
+        "name": "אמבר פוקס"
+      },
+      "pair-pet-14": {
+        "name": "חתול שמנת"
+      },
+      "pair-pet-15": {
+        "name": "ערכת כנפיים"
+      },
+      "pair-pet-16": {
+        "name": "כלב מסכה"
+      },
+      "pair-pet-17": {
+        "name": "דוב שנהב"
+      },
+      "pair-pet-18": {
+        "name": "חיית מחמד שלג"
+      },
+      "pair-pet-19": {
+        "name": "צ'יקי"
+      },
+      "pair-pet-20": {
+        "name": "זאב הצללים"
+      },
+      "pair-pet-21": {
+        "name": "ארנב כנפיים"
+      },
+      "pair-pet-22": {
+        "name": "חצוף זהב"
+      },
+      "pair-pet-23": {
+        "name": "פדיחה"
+      },
+      "pair-pet-24": {
+        "name": "ג'ליפרג"
+      }
+    },
+    "trainingSlots": {
+      "0": {
+        "name": "הכשרה טכנית"
+      },
+      "1": {
+        "name": "אימון לחיים ומוות"
+      },
+      "2": {
+        "name": "הכשרה לפני פרס"
+      },
+      "3": {
+        "name": "אימון ג'ונגסוק"
+      },
+      "4": {
+        "name": "אימון ג'בו"
+      },
+      "5": {
+        "name": "אימון סכר מים"
+      }
     }
   },
   "blacksmith": {
@@ -5237,7 +6196,7 @@
       "default": "פתח את מסך המשימות"
     },
     "pickHints": {
-      "enhance": "בחר את הציוד לחיזוק במודאל ולאחר מכן לחץ על Selection Complete כדי לעבור למסך החיזוק.",
+      "enhance": "בחר את הציוד לחיזוק במודאל ולחץ על Complete Selection כדי לעבור למסך החיזוק.",
       "combine": "אם תניח 3 ציוד מאותו כיתה במודאל ולאחר מכן תלחץ על Selection Complete, תועבר למסך הסינתזה.",
       "disassemble": "בחר את הציוד לפירוק במודאל ולאחר מכן לחץ על Selection Complete כדי לעבור למסך הפירוק.",
       "refine": "לאחר בחירת הציוד להתכה במודאל ולחיצה על Complete Selection, תועברו למסך ההתכה."
@@ -5300,11 +6259,11 @@
       "pickHint": "בחר (סמן) את הציוד שברצונך לפרק ממלאי הציוד למטה.",
       "previewHint": "כאשר אתה בוחר ציוד, יוצגו חומרים צפויים.",
       "noReward": "אין חומרים להשיג בעת פירוק.",
-      "jackpotTitle": "להכפיל את החומרים שהושגו בעת פירוק הקופה.",
+      "jackpotTitle": "הכפל את החומרים המתקבלים בעת פירוק הקופה.",
       "disassembling": "מפרק...",
       "disassembleBtn": "פירוק ({{count}})",
       "autoSelectTitle": "בחירה אוטומטית של פירוק",
-      "gradeSelectHint": "בחר את סוג הציוד שברצונך לפרק. דרגים מיתיים אינם נכללים.",
+      "gradeSelectHint": "בחר את סוג הציוד שברצונך לפרק. דרגות מיתיות אינן נכללות.",
       "legendaryIncluded": "ציוד ברמה אגדית ומעלה",
       "highStarsIncluded": "ציוד משודרג ל-7 ומעלה",
       "confirmMixed": "מכיל {{סיבות}}. \nהאם אתה בטוח שאתה רוצה לפרק אותו?",
@@ -5324,7 +6283,7 @@
       "noSubOption": "אין אפשרויות משנה",
       "newSubOption": "צור אפשרות משנה חדשה",
       "subOptionUpgradeShort": "חיזוק אפשרויות משנה",
-      "pickGear": "אנא בחר את הציוד לחיזוק.",
+      "pickGear": "נא לבחור את הציוד לחיזוק.",
       "enhancing": "הִתחַזְקוּת...",
       "levelInsufficient": "לא מספיק רמה (דורש {{דרוש}})",
       "noInfo": "אין מידע חיזוק",
@@ -5364,7 +6323,7 @@
       "transcendentSpecial": "אפשרות מיוחדת טרנסנדנטית",
       "refinementCountLabel": "ניתן לחידוש: {{value}}",
       "requiredMaterials": "חומרים דרושים",
-      "selectMethodHint": "כאשר תבחר בשיטת התכה, החומרים יוצגו.",
+      "selectMethodHint": "כאשר תבחר בשיטת התכה, המרכיבים יוצגו.",
       "inProgress": "ההתכה בעיצומה",
       "countDepleted": "כל השכלולים האפשריים מוצו.",
       "ownedCharms": "החזקה: {{count}}",
@@ -5378,7 +6337,7 @@
       "selectOptionDesktop": "אנא בחר אפשרות בצד שמאל.",
       "selectedGearTitle": "ציוד נבחר",
       "refineInfoTitle": "מידע התכה",
-      "charmsAria": "הזכות לשנות אופציות שנשמרו",
+      "charmsAria": "הזכות לשנות אופציות שהוחזק",
       "specialOptionChange": "שנה אפשרויות מיוחדות",
       "specialTypeValue": "שינוי מיוחד/סוג/ערך",
       "specialType": "שינוי מיוחד/סוג",
@@ -5426,7 +6385,7 @@
     "casualTag": "משחק ידידות",
     "casualTitle": "משחק ידידות",
     "casualDesc": "המשחק הזה הוא משחק ידידות. אין שינוי בציון הדירוג.",
-    "actionPointNotice": "כאשר התאמה מאושרת, כוח הפעולה ⚡{{cost}} נצרך משני הצדדים. אם הקבלה/AI אינם מספיקים בעת ההפעלה, ייפתח חלון ניהול כוח התנהגותי.",
+    "actionPointNotice": "כאשר התאמה מאושרת, כוח הפעולה ⚡{{cost}} נצרך משני הצדדים. אם זה לא מספיק בעת קבלת/התחלת AI, ייפתח חלון ניהול כוח התנהגותי.",
     "titleAi": "{{prefix}}{{mode}} הגדרות התאמת AI",
     "titleRematch": "{{prefix}}הגדרות התאמה חוזרת ({{מצב}})",
     "titleDefault": "{{prefix}}הגדרות התאמה ({{mode}})",
@@ -5445,11 +6404,11 @@
     "record": "{{wins}} ניצחונות {{losses}} הפסדים ({{winRate}}%)",
     "manner": "נימוסים: {{ציון}} נקודות",
     "mixRulesTitle": "שילוב של כללי מיקס (בחר 2 או יותר)",
-    "mixRulesHint": "בחרו את הכללים שאתם רוצים ליישם ביחד. (באדוק קלאסי כלול כסטנדרט.) לא ניתן לבחור מנצח וטירה בו זמנית.",
+    "mixRulesHint": "בחרו את הכללים שאתם רוצים ליישם ביחד. (באדוק קלאסי כלול כסטנדרט.) לא ניתן לבחור מנצח וטירה בו-זמנית.",
     "mixRulesMinAlert": "כללי מיקס מחייבים לבחור שני כללים או יותר.",
     "mixCaptureCastleConflict": "לא ניתן לבחור זכייה וטירה בו-זמנית.",
     "countUnit": "{{לִסְפּוֹר}}",
-    "boardLines": "{{גודל}}שורה",
+    "boardLines": "שורה {{גודל}}",
     "pointsFixed": "9 נקודות (קבוע)",
     "pointsUnit": "{{ציון}} נקודות",
     "turnsUnit": "מספר {{limit}}",
@@ -5531,10 +6490,12 @@
       "3": "מהלך אחד תוך 0.5 שניות"
     },
     "matchControlAria": "שליטה במשחק",
+    "skipReplay": "לְדַלֵג",
+    "skipReplayHint": "דלג על הממסר ופשוט בדוק את התוצאות.",
     "startMatch": "המשחק מתחיל",
     "exit": "יְצִיאָה",
     "season": "עוֹנָה",
-    "matchInfo": "מידע על Daejeon",
+    "matchInfo": "מידע על דייג'ון",
     "rank": "דירוג",
     "rankUnit": "{{דַרגָה}}",
     "pairStats": "יכולות זוגיות",
@@ -5619,7 +6580,7 @@
       "failed": "התרומה נכשלה.",
       "ownedGold": "זהב מוחזק: {{amount}}",
       "noHistory": "אין היסטוריית תרומות.",
-      "goldUnit": "{{amount}} זהב",
+      "goldUnit": "{{כמות}} זהב",
       "error": "אירעה שגיאה במהלך התרומה.",
       "goldDonation": "תרומת זהב",
       "diamondDonation": "תרומת יהלומים",
@@ -5697,7 +6658,7 @@
       "joinMethod": "איך נרשמים",
       "applicationJoin": "החל הרשמה",
       "freeJoin": "הרשמה חינם",
-      "applicationJoinHint": "עליך לקבל אישור על ידי מנהיג הגילדה או סגן מנהיג הגילדה כדי להצטרף.",
+      "applicationJoinHint": "עליך לקבל אישור על ידי מנהיג הגילדה או עוזר מנהיג הגילדה כדי להצטרף.",
       "freeJoinHint": "אם יש מקום פנוי, תירשם אוטומטית.",
       "announcement": "הודעת הגילדה",
       "edit": "לַעֲרוֹך",
@@ -5710,14 +6671,34 @@
     "missions": {
       "title": "משימת הגילדה השבועית",
       "achieved": "הַשָׂגָה",
-      "guildXp": "Guild XP +{{amount}}",
+      "guildXp": "ניסיון באגודה +{{amount}}",
       "expired": "פג תוקף",
       "rewardClaimed": "התגמול הושלם",
       "claimReward": "קבל פרסים",
       "inProgress": "בתהליך",
       "resetCountdown": "חידוש לאחר {{days}} ימים {{שעות}}:{{דקות}}",
       "unclaimedHint": "יש פרסים שאתה יכול לקבל. אל תשכח לקחת את זה.",
-      "empty": "אין משימות שבועיות לתצוגה."
+      "empty": "אין משימות שבועיות לתצוגה.",
+      "titles": {
+        "checkIns": "נוכחות של הגילדה 50 פעמים",
+        "guildDonations": "צבר 50 תרומות לגילדה",
+        "bossAttempts": "השתתף בקרבות בוס הגילדה 30 פעמים",
+        "strategicWins": "באדוק אסטרטגי מנצח 30 פעמים",
+        "playfulWins": "שחק באדוק זוכה 30 פעמים",
+        "equipmentEnhancements": "50 ניסיונות חיזוק",
+        "epicGearAcquisitions": "רכשו ציוד בדרגה אפית ומעלה 20 פעמים",
+        "diamondsSpent": "צורכת 3000 יהלומים"
+      },
+      "descriptions": {
+        "checkIns": "חברי הגילדה משתתפים בסך הכל 50 פעמים",
+        "guildDonations": "בקש מחברי הגילדה לתרום זהב ויהלומים בסך הכל 50 פעמים.",
+        "bossAttempts": "בקש מחברי הגילדה להשתתף בסך הכל ב-30 קרבות בוס הגילדה.",
+        "strategicWins": "חברי הגילדה משיגים סך של 30 ניצחונות בבאדוק אסטרטגי (כולל AI בחדר המתנה ומשחקים כלליים)",
+        "playfulWins": "חברי הגילדה משיגים סך של 30 ניצחונות בבאדוק (כולל AI בחדר המתנה ומשחקים כלליים)",
+        "equipmentEnhancements": "בקש מחברי הגילדה לבצע בסך הכל 50 ניסיונות שיפור ציוד",
+        "epicGearAcquisitions": "בקש מחברי הגילדה לרכוש ציוד בדרגה אפית ומעלה 20 פעמים",
+        "diamondsSpent": "חברי הגילדה מוציאים סך של 3000 יהלומים בחנויות וכו'."
+      }
     },
     "research": {
       "title": "מעבדת הגילדה",
@@ -5737,7 +6718,7 @@
       "categoryStats": "יכולת מוגברת",
       "categoryRewards": "תגמולים מוגברים",
       "apRegenEffect": "זמן שחזור פעולה - {{sec}} שניות",
-      "apRegenBoost": "במהלך ההתאוששות הטבעית, המרווח מצטמצם בסך של {{שניות}} שניות לכל AP.",
+      "apRegenBoost": "במהלך התאוששות טבעית, המרווח מצטמצם בסך של {{שניות}} שניות לכל AP.",
       "statConcentration": "ריכוז +{{value}}%",
       "statThinkingSpeed": "מהירות חשיבה +{{value}}%",
       "statJudgment": "שיקול דעת +{{value}}%",
@@ -5795,7 +6776,18 @@
       "quickChat": "צ'אט מהיר",
       "send": "העברה",
       "sendTitle": "לִשְׁלוֹחַ",
-      "locationHome": "[בַּיִת]"
+      "locationHome": "[בַּיִת]",
+      "systemMessages": {
+        "missionComplete": "המשימה השבועית [{{missionTitle}}] הושלמה! קבל את התגמולים שלך בכרטיסייה פעילות הגילדה > משימת הגילדה.",
+        "bossWeeklySettlement": "הסדר שבועי של בוס הגילדה ({{bossName}}, {{status}}): ניסיון גילדה +{{guildXp}}, נקודות מחקר +{{researchPoints}} נצברו בגילדה.",
+        "bossWeeklySettlementDefeated": "לִהַבִיס",
+        "bossWeeklySettlementRemainingHp": "בריאות נותרת {{percent}}%",
+        "warJoinMatching": "[{{nickname}}]{{subjectParticle}} השתתפו במלחמת הגילדה. אנחנו ממשיכים בהתאמה.",
+        "warJoinBotMatch": "[{{nickname}}]{{subjectParticle}} השתתפו במלחמת הגילדה. מותאם לגילדת הבוטים של המערכת בתור מוזר.",
+        "warJoinOpponent": "[{{nickname}}]{{subjectParticle}} השתתפו במלחמת הגילדה. יריב: 「{{opponentGuildName}}」",
+        "warCancelMatching": "[{{nickname}}]{{subjectParticle}} התאמת מלחמת הגילדה בוטלה.",
+        "bossDamage": "[{{nickname}}]{{subjectParticle}} גרם נזק {{damage}} ל-{{bossName}}."
+      }
     },
     "war": {
       "title": "מלחמות הגילדות",
@@ -5805,7 +6797,7 @@
       "prepBlocked": "הכניסה לא אפשרית בין השעות 00:00-23:59 בימי שני וחמישי עקב זמן הכנה לקרב הגילדה הבא.",
       "nextApplicationDay": "תאריך הגשת הבקשה הבא: {{date}} (KST)",
       "periodLabel": "משך מלחמת הגילדה הזו",
-      "periodTueWed": "ג' 00:00 ~ רביעי 23:00",
+      "periodTueWed": "שלישי 0:00 ~ רביעי 23:00",
       "periodFriSun": "שישי 00:00 ~ א' 23:00",
       "victory": "ניצחון במלחמת הגילדה!",
       "victoryShort": "ניצחון מלחמת הגילדה",
@@ -5820,7 +6812,7 @@
       "guildXp": "ניסיון של גילדה",
       "researchPoints": "נקודות מחקר",
       "houseLabel": "בית {{ציון}}",
-      "dominanceTooltip": "דומיננטיות בצד שמאל בערך {{percent}}% (כוכב/נקודה)",
+      "dominanceTooltip": "דומיננטיות בצד שמאל: כ-{{percent}}% (כוכב/נקודה)",
       "loadingWarInfo": "טוען מידע על מלחמת הגילדה...",
       "noActiveWar": "אין מלחמות גילדות בעיצומה.",
       "notStartedYet": "מלחמת הגילדות עדיין לא התחילה. \nאתה יכול להיכנס מ-{{date}}(KST).",
@@ -5856,7 +6848,7 @@
       "findingOpponent": "אני מחפש יריב לקרב הגילדה הזה.",
       "entryFrom": "אתה יכול להיכנס מ-{{date}}(KST).",
       "scheduledAt": "זמן מתוכנן: {{תאריך}}",
-      "cancelDeadline": "ניתן לבטל את הבקשה: {{תאריך}}",
+      "cancelDeadline": "ניתן לבטל את הבקשה: {{date}}",
       "currentWarPlaceholder": "כאשר מלחמת הגילדות תתחיל, היא תוצג כאן.",
       "lastWar": "רגע לפני מלחמת הגילדות",
       "botWarResult": "תוצאות קרב גילדת AI Bot",
@@ -5865,8 +6857,8 @@
       "rewardAlreadyClaimed": "כבר קיבלת את הפרס מקרב הגילדה הקודם.",
       "rewardClaimHint": "קבל פרסים מקרב הגילדה הקודם. כאשר מלחמת הגילדות הבאה תסתיים, התגמולים הקודמים ייעלמו.",
       "rewardUnavailable": "אין פרס זמין או שהוא לא זמין באותו זמן. (משעה אחת לאחר תום המלחמה ועד תום מלחמת הגילדה הבאה)",
-      "rewardClaimedBtn": "פרס התקבל",
-      "claimRewardBtn": "קבלו פרס",
+      "rewardClaimedBtn": "השלמה התקבלה",
+      "claimRewardBtn": "קבל פרס",
       "noRecord": "אין תיעוד",
       "enter": "מַצָב",
       "warTicketAlt": "כרטיס תקיפה של גילדת קרב",
@@ -5889,7 +6881,7 @@
       "pointsUnit": "{{count}}נקודות",
       "mode": "מצב",
       "board": "לוּחַ שַׁחְמָט",
-      "boardLines": "{{גודל}}שורה",
+      "boardLines": "שורה {{גודל}}",
       "turnLimit": "מגבלת סיבוב",
       "turnsUnit": "{{count}} סיבובים",
       "scoringTurns": "{{count}} פונה לספירת מחיר",
@@ -5903,7 +6895,7 @@
       "hidden": "מוּסתָר",
       "scan": "לִסְרוֹק",
       "missile": "טִיל",
-      "speedPressureRule": "עבור כל {{שניה}} שנייה שהשעון שלך עולה, הניקוד של היריב שלך גדל בנקודה אחת. (מהירות PVE)",
+      "speedPressureRule": "עבור כל {{שניה}} שנייה שהשעון שלך עולה, הניקוד של היריב גדל בנקודה אחת. (מהירות PVE)",
       "baseStoneRule": "לאחר הצבת בסתר {{count}} אבני בסיס, היכנס למשחק הראשי עם הצעת בונוס.",
       "mapAttempts": "מספר אתגרי המפה",
       "attemptsExhausted": "מספר האתגרים מוצו",
@@ -5955,7 +6947,14 @@
     },
     "boss": {
       "title": "קרב בוס הגילדה",
-      "guide": "אנציקלופדיית בוס",
+      "names": {
+        "boss_1": "הַקשָׁבָה",
+        "boss_2": "בּוֹלְטוּת",
+        "boss_3": "מים ירוקים",
+        "boss_4": "עוֹמֶק",
+        "boss_5": "אור לבן"
+      },
+      "guide": "אנציקלופדיה בוס",
       "guideTitle": "אנציקלופדיית בוס הגילדה",
       "stage": "{{stage}}שלב",
       "bossSkillsAria": "מיומנות בוס",
@@ -5994,7 +6993,7 @@
       "challengeTicketAlt": "הזכות לאתגר",
       "simulating": "בקרב...",
       "challenge": "אתגר ({{left}}/{{max}})",
-      "recommendedStatsAria": "נתונים סטטיסטיים מומלצים של אסטרטגיית בוס: {{stats}}",
+      "recommendedStatsAria": "סטטיסטיקה מומלצת של אסטרטגיית בוס: {{stats}}",
       "inactive": "לֹא פָּעִיל",
       "presetName": "מוגדר מראש {{אינדקס}}",
       "battleResultTitle": "תוצאת קרב",
@@ -6047,7 +7046,7 @@
       "guildXp": "ניסיון של גילדה",
       "researchPoints": "נקודות מעבדה",
       "enhancementStoneLow": "אבן קסם פחותה",
-      "enhancementStoneMid": "אבן שיפור ביניים",
+      "enhancementStoneMid": "אבן חיזוק ביניים",
       "enhancementStoneHigh": "אבן קסם מתקדמת",
       "enhancementStoneTop": "אבן חיזוק ברמה הגבוהה ביותר",
       "enhancementStoneMystic": "אבן חיזוק מסתורית",
@@ -6065,7 +7064,7 @@
       "nameAvailable": "✓ זמין",
       "descriptionLabel": "הקדמה לגילדה",
       "descriptionOptionalHint": "(אופציונלי, 200 תווים)",
-      "descriptionPlaceholder": "אנא הצג את המטרות והמאפיינים של הגילדה...",
+      "descriptionPlaceholder": "נא להציג את המטרות והמאפיינים של הגילדה...",
       "descriptionPlaceholderAlt": "היכנסו למבוא הגילדה שלכם",
       "joinMethod": "איך נרשמים",
       "freeJoin": "הרשמה חינם",
@@ -6098,7 +7097,7 @@
       "searchLabel": "חפש לפי שם הגילדה",
       "searchPlaceholder": "אנא הכנס את שם הגילדה שלך",
       "search": "לְחַפֵּשׂ",
-      "loading": "טוען את רשימת הגילדות...",
+      "loading": "טוען רשימת גילדות...",
       "noResults": "אין תוצאות חיפוש.",
       "members": "מספר אנשים: {{current}}/{{max}}",
       "level": "רמה: {{רמה}}",
@@ -6113,7 +7112,7 @@
       "title": "משימת הגילדה",
       "create": "צור משימה",
       "createComingSoon": "תכונת יצירת משימה תתווסף בקרוב.",
-      "empty": "אין משימות מתמשכות.",
+      "empty": "אין משימות בתהליך.",
       "statusActive": "בתהליך",
       "statusCompleted": "לְהַשְׁלִים",
       "statusExpired": "פְּקִיעָה",
@@ -6168,7 +7167,7 @@
     "refundPolicy": {
       "title": "מדיניות ביטולים/החזרים",
       "eyebrow": "מדיניות החזר כספי",
-      "intro": "ברצוננו ליידע אותך לגבי ביטול והחזר כספי של תוכן בתשלום. תקנון זה נכתב בהתאם לחוקים ולתקנות הרלוונטיים, כגון חוק המסחר האלקטרוני."
+      "intro": "ברצוננו ליידע אותך לגבי ביטול והחזר כספי של תוכן בתשלום. תקנות אלו הוכנו בהתאם לחוקים ולתקנות הרלוונטיים כגון חוק המסחר האלקטרוני."
     },
     "purchaseConsent": {
       "title": "בדוק את התקדמות התשלום",
@@ -6176,7 +7175,7 @@
       "subscriptionNoticeBold": "זהו מוצר תשלום רגיל.",
       "subscriptionNotice": "אם אין בקשת ביטול נפרדת, התשלום מתבצע באופן אוטומטי כל 30 יום, וניתן לבטל בכל עת דרך הדף שלי או מרכז הלקוחות ({{טלפון}}).",
       "prePaymentTitle": "מידע לפני תשלום",
-      "prePaymentDigital": "מדובר בתוכן דיגיטלי המשולם מיד לאחר התשלום, וביטול המנוי מוגבל לאחר שימוש וצריכה.",
+      "prePaymentDigital": "מדובר בתוכן דיגיטלי המשולם מיד לאחר התשלום, וביטול מנוי מוגבל לאחר שימוש וצריכה.",
       "prePaymentUnused": "ניתן לבטל מוצרים שאינם בשימוש תוך 7 ימים ממועד התשלום.",
       "prePaymentRefundEmail": "נא לשלוח בקשה להחזר לאימייל של מרכז שירות הלקוחות ({{email}}).",
       "termsLink": "תנאי שימוש",

@@ -5208,6 +5208,7 @@
     "loadingTournament": "Loading tournament info…",
     "loadingUserInfo": "Loading user info…",
     "nextMatchPreparing": "Preparing next match… {{countdown}}",
+    "movingToNextMatch": "Moving to your seat for the next match.",
     "defaultPlayer": "Player",
     "me": "Me",
     "opponent": "Opponent",

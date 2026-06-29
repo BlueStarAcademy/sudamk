@@ -27,7 +27,7 @@
     },
     "languageSelect": {
       "label": "語言",
-      "placeholder": "選擇您的語言"
+      "placeholder": "請選擇語言"
     },
     "connection": {
       "reconnecting": "正在重新連接到伺服器...",
@@ -142,7 +142,7 @@
       "loggingOut": "您將被註銷。"
     },
     "autoProceed": "直到自動進度",
-    "autoProceedShort": "自動進度",
+    "autoProceedShort": "自動前進",
     "autoSelectUntil": "直到自動選擇",
     "autoSelectShort": "自動選擇",
     "nextRoundAuto": "直到下一輪自動開始",
@@ -242,7 +242,7 @@
     "bidConfirm": "提交的分數已確認",
     "bidSetting": "正在設定...",
     "bidConfirmBtn": "黑線分數呈現已確認",
-    "currentBid": "目前示範：{{score}} 分",
+    "currentBid": "目前演示：{{score}} 分",
     "rpsRock": "岩石",
     "rpsPaper": "紙",
     "rpsScissors": "剪刀",
@@ -250,19 +250,19 @@
     "rpsLose": "擊敗！",
     "rpsTie": "畫！",
     "rpsTieRetry": "畫！ 又來了！",
-    "rpsTieRandom": "畫！ 這是隨機決定的。",
+    "rpsTieRandom": "畫！ 是隨機決定的...",
     "rpsChoiceDone": "選型完成！",
-    "rpsWaitingOpponent": "等待{{name}}的選擇...",
+    "rpsWaitingOpponent": "我們正在等待 {{name}} 的選擇...",
     "rpsTieWarning": "如果這次出現平局，則隨機決定。",
     "first": "先發制人",
     "second": "胡公",
     "firstBlack": "先攻擊（黑）",
     "secondWhite": "胡紅（白）",
-    "chooseTurn": "選擇先走還是最後走。",
-    "chooseTurnCountdown": "選擇先走還是最後走。 （{{倒數}}）",
+    "chooseTurn": "選擇第一或第二。",
+    "chooseTurnCountdown": "選擇第一或第二。 ({{countdown}})",
     "opponentChoosingSecond": "對手選擇第二打.....",
-    "readyCountdown": "準備就緒（{{倒數}}）",
-    "waitingOpponentRoll": "等待著對方…",
+    "readyCountdown": "準備工作 ({{countdown}})",
+    "waitingOpponentRoll": "等待對手...",
     "rollingDice": "擲骰子...",
     "tieReroll": "領帶！ 過一會兒再滾一次。",
     "rollToDecide": "按下準備按鈕即可擲骰子。 數字最大的人選擇先走/最後走。",
@@ -270,7 +270,7 @@
     "diceAutoStart": "點擊下面的開始按鈕，否則比賽將在30秒後自動開始。",
     "colorRouletteTitle": "色圍棋",
     "uniformColorRoulette": "統一顏色輪盤",
-    "thisGameColor": "本遊戲的石頭顏色：{{color}}",
+    "thisGameColor": "本場比賽的寶石顏色：{{color}}",
     "colorRouletteHint": "黑色和白色的石頭快速交替閃爍，然後隨機停止。",
     "colorRouletteEnd": "抽籤結束後，比賽將自動開始。",
     "colorRouletteProceed": "抽獎結束後將自動保留。",
@@ -342,9 +342,9 @@
       },
       "progressionBlocked": {
         "tower": "透過圍棋學園初級班第10關即可進入挑戰之塔。",
-        "strategicLobby": "您可以從使用者Lv.{{level}}進入策略圍棋等候室。",
-        "playfulLobby": "從使用者等級{{level}}開始，玩家可以進入圍棋等候室。",
-        "championship": "您可以以 {{ability}} 或更高的圍棋能力得分進入錦標賽。",
+        "strategicLobby": "您可以從使用者等級{{level}}進入策略圍棋等候室。",
+        "playfulLobby": "您可以在使用者等級達到Go等候室。 {{等級}}。",
+        "championship": "您的圍棋能力得分為 {{ability}} 或更高即可參加錦標賽。",
         "adventure": "透過圍棋學院初級班的第20關即可進入冒險。"
       }
     },
@@ -354,7 +354,7 @@
       "blacksmith": "鐵匠鋪",
       "shop": "店鋪",
       "inventory": "包包",
-      "pet": "寵物護理",
+      "pet": "寵物",
       "trainingQuest": "訓練任務",
       "detailedStats": "PVP賽場詳細紀錄",
       "monsterCodex": "怪物百科",
@@ -362,7 +362,7 @@
       "gameRecords": "符號",
       "encyclopedia": "百科全書",
       "announcements": "通知",
-      "help": "幫助中心",
+      "help": "幫助",
       "menu1": "選單1",
       "menu2": "選單2"
     },
@@ -425,7 +425,7 @@
     "kakao": "可可",
     "google": "Google",
     "ban": {
-      "title": "禁止訪問。",
+      "title": "禁止連線。",
       "reason": "原因：{{原因}}",
       "remainingMinutes": "剩餘時間：約{{分鐘}}分鐘",
       "expiresAt": "預計發布：{{date}}",
@@ -539,8 +539,8 @@
     "descriptions": {
       "standard": "這是典型的經典圍棋。",
       "capture": "圍棋遊戲由最早獲得一定數量棋子的人獲勝。",
-      "speed": "如果您將其放置在每回合 {{seconds}} 秒內，您將重新獲得 {{seconds}} 秒。 每 {{seconds}} 秒，您的對手就會增加 1 分。",
-      "base": "這是一種圍棋遊戲，您可以查看基礎棋子的排列，為對手設定獎勵，並使用您選擇的棋子，並比拼您分析情況的能力。",
+      "speed": "如果您在 {{seconds}} 秒內放置它，您將重新生成 {{seconds}} 秒。 每 {{seconds}} 秒，您的對手就會增加 1 分。",
+      "base": "這是一種圍棋遊戲，您可以觀察基礎棋子的排列，為對手設置獎勵，並使用您選擇的棋子，並比拼您分析局勢的能力。",
       "hidden": "以對手看不見的招式翻盤！ 透過隱藏和掃描物品需要心理戰和閱讀技巧。",
       "missile": "透過移動作為導彈物品放置的石頭來創建變數。",
       "uniform": "圍棋是一種需要記憶力才能看到​​所有棋子都是一種顏色的遊戲。",
@@ -671,7 +671,7 @@
       "thiefNoOneAria": "封鎖 1 (2~5) 個骰子項目，剩餘數量 {{count}}",
       "thiefNoOneTitle": "沒有出現 1 的骰子（2、3、4、5）。 剩餘數量 {{count}}",
       "thiefHigh36UseTitle": "使用高數字（3-6）骰子",
-      "thiefHigh36UseBody": "使用一個只能出現 3、4、5 和 6 的骰子項目。 如果輪到警察，則兩個骰子都在此範圍內。 您想繼續嗎？",
+      "thiefHigh36UseBody": "使用一個只顯示 3、4、5 和 6 的骰子項目。 如果輪到警察，則兩個骰子都在此範圍內。 您想繼續嗎？",
       "thiefNoOneUseTitle": "使用 1 個預防骰子",
       "thiefNoOneUseBody": "使用一個骰子只能得到 2、3、4 或 5（不可能是 1）。 如果輪到警察，兩顆骰子都在這個範圍內。 您想繼續嗎？"
     },
@@ -715,7 +715,7 @@
       "hiddenFinalReveal": "我們揭示所有隱藏的石頭並開始計數。",
       "autoScoringAdventure": "進行自動記帳。",
       "autoScoringReached": "自動系統到達程式並開始計數。",
-      "alkkagiRePlace": "再次放置石頭。 ({{round}} / {{total}} 輪)",
+      "alkkagiRePlace": "再次放置石頭。 （{{round}} / {{total}} 輪）",
       "alkkagiPlace": "放置石頭。 （{{round}} / {{total}} 輪）",
       "alkkagiPlayerTurn": "輪到{{name}}了。 （{{round}} / {{total}} 輪）",
       "alkkagiRoundEnd": "回合結束 - 在下面的電子看板上檢查並繼續。",
@@ -733,7 +733,7 @@
       "timeoutFoulPassTurn": "回合傳給對手。",
       "timeoutFoulLoseStone": "您失去 1 顆石子，您的回合結束。",
       "timeoutFoulDefault": "如果超過時間限制，您將受到處罰。",
-      "baseKomiGuide": "決定您想要放置的寶石和獎金。 如果您選擇相同的寶石，那麼為您帶來最多獎勵的寶石就是您想要保留的寶石。",
+      "baseKomiGuide": "決定您想要放置哪些寶石和獎金。 如果您選擇相同的寶石，那麼為您帶來最多獎勵的寶石就是您想要保留的寶石。",
       "alkkagiPlaceHidden": "將棋子放置在對手看不到的地方。 ({{round}} / {{total}} 輪)",
       "alkkagiPlaceMissing": "放置缺失的石頭。 （{{round}} / {{total}} 輪）",
       "placementProgress": "已放置 {{placed}}/{{target}}",
@@ -805,7 +805,7 @@
       "captureScore": "捕捉分數：",
       "lastPileBonus": "最後的虛擬獎金：",
       "finalScoreLabel": "最終得分",
-      "houseScoreGain": "獲得積分",
+      "houseScoreGain": "獲得的分數",
       "houseUnit": "房子",
       "playerWins": "{{name}} 獲勝！",
       "cumulativeScore": "累積分數",
@@ -843,7 +843,7 @@
       "resignWinMsg": "我們贏了，因為我們的對手棄權了。",
       "resignLossMsg": "棄權並失敗。",
       "turnLimitWinMsg": "你贏了，因為對手的所有有限回合都用完了。",
-      "turnLimitLossMsg": "我輸了，因為我的回合限制已過。",
+      "turnLimitLossMsg": "回合數有限，你就輸了。",
       "castleWinMsg": "我拿下了對方的棋子，立刻就贏了。",
       "castleLossMsg": "我輸了，因為我的對手抓住了石頭。",
       "checkmateWinMsg": "我透過贏得對手的王而贏得了將死。",
@@ -893,24 +893,24 @@
       "noChatMessages": "沒有聊天訊息。",
       "quickChat": "快速聊天",
       "send": "傳送",
-      "chatBanned": "聊天已停用（剩下​​ {{minutes}} 分鐘）",
-      "chatCooldown": "（{{seconds}} 秒）",
+      "chatBanned": "聊天已停用（還剩 {{ 分鐘}} 分鐘）",
+      "chatCooldown": "（{{秒}}秒）",
       "chatPlaceholderBracket": "[輸入留言]",
       "manner": "禮儀",
       "system": "系統",
       "securityBot": "人工智慧警長機器人",
       "pairPetSuffix": "（公平寵物）",
-      "profileSanction": "{{name}} 查看個人資料/制裁",
-      "viewProfile": "{{name}} 查看個人資料",
-      "itemDetail": "{{name}} 點擊查看詳細信息",
+      "profileSanction": "查看 {{name}} 個人資料/制裁",
+      "viewProfile": "看{{name}}個人資料",
+      "itemDetail": "點擊{{name}}查看詳情",
       "honorific": "先生",
       "spectator": "觀看",
       "starConditions": "獲得星星的條件",
       "profanityBlocked": "您的訊息無法傳送，因為它包含不適當的字詞。",
       "locationTower": "【挑戰之塔】",
       "locationSingle": "[單人遊戲]",
-      "locationStrategic": "[策略：{{mode}}]",
-      "locationPlayful": "[播放：{{mode}}]",
+      "locationStrategic": "[策略：{{模式}}]",
+      "locationPlayful": "[播放：{{模式}}]",
       "strategicShort": "策略",
       "playfulShort": "玩",
       "settings": {
@@ -918,13 +918,13 @@
         "stage": "階段",
         "boardSize": "板材尺寸",
         "komi": "獎金",
-        "komiValue": "{{komi}}房子",
+        "komiValue": "{{科米}}房子",
         "timeLimit": "時限",
-        "timeLimitMin": "{{minutes}} 分鐘",
+        "timeLimitMin": "{{分鐘}}分鐘",
         "none": "不存在",
         "byoyomi": "倒數計時",
-        "byoyomiFischer": "{{seconds}}第二個漁夫",
-        "byoyomiCount": "{{seconds}} 秒 {{count}} 次",
+        "byoyomiFischer": "{{秒}}秒費雪",
+        "byoyomiCount": "{{count}} 次 {{seconds}} 秒",
         "mixRules": "組合規則",
         "forbid33": "沒有雙胞胎",
         "forbidOverline": "沒有原木",
@@ -986,7 +986,7 @@
       "stonesShort": "石頭{{左}}/{{總計}}",
       "thiefRoundAria": "回合 {{round}} / {{total}}。 {{暗示}}",
       "thiefRoundPlacements": "{{round}} 輪 / {{total}}，剩餘 {{count}} 輪",
-      "remainingPlacementsCount": "剩餘 {{count}} 次發射"
+      "remainingPlacementsCount": "剩餘 {{count}} 次啟動"
     },
     "messages": {
       "boardSyncLoading": "載入棋盤資訊。 請稍等",
@@ -1075,8 +1075,8 @@
       "winAlkkagi": "我贏了阿爾卡吉比賽。",
       "winCurling": "獲得冰壺總分。",
       "winGeneric": "你贏了。",
-      "petXp": "{{current}} / {{max}} 寵物 XP",
-      "petXpGain": "+{{gain}} 寵物 XP"
+      "petXp": "{{目前}} / {{最大}} 寵物 XP",
+      "petXpGain": "+{{取得}}寵物 XP"
     },
     "singlePlayerSummary": {
       "missionClear": "任務明確",
@@ -1135,7 +1135,7 @@
       "winRate": "獲勝的幾率",
       "lockedTop3": "公開爭奪第三名或更高名次",
       "alreadyOpen": "已經開放了",
-      "unlocked": "已清除",
+      "unlocked": "清除",
       "lockedTop3Full": "鎖定（排名第三或更高時開啟）",
       "nextStageAlreadyOpen": "下一步已經開啟。",
       "open": "打開",
@@ -1176,7 +1176,11 @@
       "scoringTurnValue": "{{轉}}轉",
       "forbidden": "禁止",
       "allowed": "可能的",
-      "speedNormal": "通常"
+      "speedNormal": "通常",
+      "confirm": "查看",
+      "gaugeSpeedSlow": "x1（慢）",
+      "gaugeSpeedNormal": "x2（正常）",
+      "gaugeSpeedFast": "x3（快）"
     },
     "challengeModal": {
       "rejected": "拒絕",
@@ -1234,20 +1238,20 @@
       "title": "申請比賽",
       "strategicShort": "策略",
       "playfulShort": "玩",
-      "level": "{{type}} 級 {{level}}",
+      "level": "{{type}} Lv.{{level}}",
       "modeRecord": "模式記錄",
       "winLoss": "贏或輸",
-      "winLossRecord": "{{wins}}贏 {{losses}}輸",
+      "winLossRecord": "{{wins}} 贏 {{losses}} 輸",
       "ranking": "排行",
       "rankingScore": "{{score}} 分",
-      "waitingResponse": "{{name}}님의 응답을 기다리는 중...",
-      "applyingTo": "我想向 {{name}} 發起一場比賽挑戰。",
+      "waitingResponse": "等待{{name}}的回覆...",
+      "applyingTo": "我想向 {{name}} 發起比賽挑戰。",
       "responseTimeLeft": "剩餘回覆時間",
-      "responseSeconds": "{{sec}} 秒",
+      "responseSeconds": "{{sec}}秒",
       "matchSettings": "比賽設定",
       "cancelApplication": "取消申請",
       "applying": "正在申請",
-      "applyWithCost": "申請配對 (⚡{{cost}})"
+      "applyWithCost": "申請比賽 (⚡{{cost}})"
     },
     "modals": {
       "noContest": {
@@ -1258,17 +1262,17 @@
       "disconnection": {
         "title": "玩家連線遺失（{{count}}/3 次）",
         "seconds": "蠟燭",
-        "playerDisconnected": "{{name}} 的連線已遺失。",
+        "playerDisconnected": "{{name}} 的連線已中斷。",
         "waitingReconnect": "等待重新連接...",
         "refreshHint": "刷新頁面即可重新連線。"
       },
       "insufficientAp": {
         "title": "缺乏行動",
-        "rechargeMethods": "충전 방법",
-        "shopConsumables": "상점 · 소모품",
+        "rechargeMethods": "充電方式",
+        "shopConsumables": "商店·消耗品",
         "buyPotion": "購買行動恢復藥水",
         "buyPotionLimit": "· 每種類型每天 1 次",
-        "diamondInstant": "鑽石立即充值",
+        "diamondInstant": "鑽石即時充值",
         "diamondInstantHint": "您可以在需要的時候充分發揮您的行動力量。",
         "goShopConsumables": "從商店購買治療藥水（消耗品）",
         "goDiamondRecharge": "立即儲值鑽石",
@@ -1290,7 +1294,7 @@
       "confirmed": "確認的",
       "waitingOpponent": "等待對方完成部署。",
       "confirmNextStep": "放置完成後，按一下以繼續下一步。",
-      "placeAllFirst": "放置完所有基石後，按下它們。",
+      "placeAllFirst": "放置完所有底座娃娃後，按下它們。",
       "basePlacementTitle": "基石放置",
       "basePlacementHint": "放置基礎娃娃。 ({{placed}}/{{total}})",
       "confirmStart": "比賽開始",
@@ -1299,11 +1303,11 @@
       "basePlacementPhase": "這是基礎娃娃放置階段。",
       "hostPlacementSide": "房間領袖放置：{{side}} 側基石",
       "confirmPlacementFull": "剩餘基礎娃娃 (0/{{total}}) · 點選放置完成",
-      "proceedingNext": "남은 베이스돌 (0/{{total}}) · 다음 단계로 진행 중…",
+      "proceedingNext": "剩餘的基礎娃娃 (0/{{total}}) · 繼續下一步...",
       "waitingOpponentShort": "剩餘基礎人偶 (0/{{total}}) · 等待對手確認...",
       "placeVisibleAdventure": "將基石放在棋盤上",
-      "placeHidden": "상대에게 보이지 않게 베이스돌을 바둑판에 놓으세요",
-      "timeRemainingSec": "剩餘時間 {{sec}} 秒"
+      "placeHidden": "將基石放在棋盤上，而不讓對手看到。",
+      "timeRemainingSec": "剩餘時間：{{sec}} 秒"
     },
     "placementRefresh": {
       "title": "佈局變更",
@@ -1344,14 +1348,14 @@
     },
     "alerts": {
       "noContestConfirm": "你想在不受懲罰的情況下使對手的薑戈無效並離開嗎？",
-      "cannotResignScoring": "點票過程中不允許棄權。",
+      "cannotResignScoring": "계가 집계 중에는 기권할 수 없습니다.",
       "sessionExpired": "您的遊戲會話已過期。 請在候診室重新選擇舞台。",
       "startFailed": "遊戲無法開始。 請再試一次。"
     },
     "preGame": {
       "none": "不存在",
       "quantity": "數量 {{count}}",
-      "quantityBuy": "購買{{標題}}",
+      "quantityBuy": "{{title}} 購買",
       "itemShop": "物品店",
       "itemShopAria": "{{a11y}}。 點擊即可開啟挑戰頂級物品商店",
       "goalTitle": "這個目標",
@@ -1382,7 +1386,203 @@
       "curling": "冰壺",
       "thiefPolice": "小偷和警察",
       "classic": "經典的",
-      "mix": "混合"
+      "mix": "混合",
+      "specialRules": "特別規則",
+      "loseCondition": "失敗條件",
+      "rulesAndGuide": "遊戲規則和遊戲指南",
+      "rewards": "賠償",
+      "availableRewards": "可獲得的獎勵",
+      "summary": {
+        "loseTerritory": "如果總分（總分）較低或因平局或平局規則而使莊家處於劣勢，則您輸。",
+        "loseTerritoryAuto": "如果你無法戰勝 {​​{base}} · {{auto}}，那麼你就輸了。",
+        "loseCaptureRace": "如果對手先拿 {{t}} 分，你就輸了。否則，如果你家裡房子很少，你就輸了。",
+        "loseMix": "比賽結束時，如果對手先滿足勝利條件或處於劣勢，則對方輸。",
+        "basePlacementAnalysis": "基地娃娃安置發布後狀況分析",
+        "baseKomiSelect": "設定給予對手的獎勵·選擇你想要的石頭",
+        "autoScoringCaptureTurn": "當達到 {{n}} 圈時自動計數",
+        "autoScoringTerritoryWin": "{{n}} 輪後自動計數獲勝",
+        "autoScoringTerritoryLose": "{{n}} 回合後自動遊戲失敗",
+        "fischerOnly": "費雪 {{sec}} 秒",
+        "byoyomiOnly": "僅倒數 · {{time}} 秒 × {{count}} 次",
+        "noTimeLimit": "無時間限制",
+        "limitFischer": "限制 {{min}} 分 · Fisher {{sec}} 秒",
+        "limitByoyomi": "限制{{min}}分鐘·倒數{{time}}秒×{{count}}次",
+        "limitNoByoyomi": "限制 {{min}} 分鐘（無倒數）",
+        "factorTerritory": "領土",
+        "factorCaptured": "石挑",
+        "factorDead": "亂石",
+        "factorKomi": "獎金（袋）",
+        "factorBaseBonus": "基本獎金",
+        "factorHiddenBonus": "隱藏獎金",
+        "factorSpeedBonus": "超過允許{{sec}}秒→對手+1",
+        "factorMissileEffect": "飛彈生產反思",
+        "factorCaptureScore": "獲勝分數",
+        "factorMixFallback": "取決於模式組合",
+        "factorCaptureNoTerritory": "獲勝分數（不計算房屋）",
+        "factorCastle": "確認領土·贏得石頭·獎金（白色）",
+        "factorChess": "領地·拾取的石頭·石頭·奪取物品·獎勵（100）",
+        "factorOmok": "週四（獲勝）—沒有房屋計算",
+        "factorTtamok": "頸部獲勝或獲勝分數",
+        "factorDice": "每輪100石獲勝分數·最終獲勝獎金",
+        "factorThief": "每輪獲得的總積分",
+        "factorAlkkagi": "對手在棋盤外的步數",
+        "factorCurling": "房子附近的石頭得分（球門）",
+        "factorFallback": "請參閱模式指南",
+        "factorStageDefault": "取決於階段/模式",
+        "factorStageCapture": "獲勝分數",
+        "factorStageCapturePattern": "獲勝分數\n2 塊有圖案的石頭",
+        "factorStageSpeed": "領地、拾取的石頭、拋石、獎勵\n時間獎金",
+        "factorAdventureCaptureShort": "選擇·徽章 2 點",
+        "factorAdventureBase": "基本價格",
+        "factorAdventureBaseStone5": "5個底座娃娃",
+        "factorAdventureHidden": "隱",
+        "factorAdventureSpeed": "小時",
+        "factorAdventureMissile": "飛彈",
+        "itemHidden": "隱藏的{{n}}",
+        "itemScan": "{{n}} 次掃描",
+        "itemMissile": "{{n}} 枚飛彈",
+        "itemSpecialDice": "特殊骰子 {{summary}}",
+        "itemSlowAim": "慢 {{slow}} · 瞄準 {{aim}}",
+        "mixCaptureWin": "如果先獲得 {{t}} 分，則立即獲勝。如果沒有達到，則在中標價格後比較房屋。",
+        "mixCaptureWinWithAuto": "獲勝：如果先達到{{t}}點，則立即獲勝·如果沒有達到，則比較限制後的房子·{{auto}}",
+        "mixAutoTerritoryWin": "{{auto}} — 擁有最多房屋的人獲勝",
+        "mixComboTail": "組合 ({{modes}}) — 根據最後的規則獲勝或失敗",
+        "mixDefaultEnd": "最後依規則決出勝負。",
+        "highlightPatternStone2": "挑選圖案石2分",
+        "highlightHiddenScan": "隱藏啟動·掃一掃探索",
+        "highlightMissileMove": "用導彈沿直線移動石頭",
+        "speedPvpHighlight": "允許10秒倒數計時·每超過10秒對手+1分·主要時間用完時損失時間",
+        "highlightSurvival": "儲存圍棋 · {{n}} 回合內得分",
+        "highlightAutoScoring": "{{n}}個數後自動計數",
+        "highlightBlackTurnLimit": "黑色 {{n}} 回合限制",
+        "highlightTurnAdd": "附加 {{n}} 圈",
+        "highlightMissile": "{{n}} 枚飛彈",
+        "highlightHiddenScanCounts": "{{hidden}} 隱藏 · {{scan}} 已掃描",
+        "spTimeMainFischer": "主{{min}}分鐘·餘量{{sec}}秒倒數計時",
+        "spTimeFischerOnly": "倒數計時 {{sec}} 秒",
+        "spTimeUnlimited": "無限制",
+        "goalSurvivalWinLabel": "阻擋",
+        "goalSurvivalWinHelper": "阻止 100 個目標 {{n}} 輪",
+        "goalSurvivalLoseLabel": "百成功",
+        "goalSurvivalLoseHelper": "如果白方創造了一個目標，那麼它就會失敗。",
+        "goalCaptureWinLabel": "採摘",
+        "goalCaptureWinHelper": "透過包圍對手的棋子來得分。",
+        "goalCaptureLoseTurnLabel": "超過圈數",
+        "goalCaptureLoseTurnHelper": "如果您沒有在 {{n}} 輪內完成，您就會失敗。",
+        "goalCaptureLoseFirstLabel": "對手優先",
+        "goalCaptureLoseFirstHelper": "如果你的對手先贏了，你就失敗了。",
+        "goalSpeedWinLabel": "快速地",
+        "goalSpeedWinHelper": "按時建造家園",
+        "goalSpeedLoseLabel": "分數十三",
+        "goalSpeedLoseHelper": "如果房子少的話就會失敗",
+        "goalAutoWinLabel": "很多房子",
+        "goalAutoWinHelper": "計算{{n}}後的房子",
+        "goalAutoLoseLabel": "缺乏房屋",
+        "goalAutoLoseHelper": "{{n}}如果你在移動過程中處於劣勢，你就會失敗。",
+        "goalDefaultWinLabel": "建造一座房子",
+        "goalDefaultWinHelper": "在該地區周圍建造房子",
+        "goalDefaultLoseLabel": "缺乏房屋",
+        "goalDefaultLoseHelper": "如果房子少的話就會失敗",
+        "guideTurnLimitTitle": "轉彎限制",
+        "guideTurnLimitBody": "在 {{n}} 回合內完成",
+        "guideSurvivalTitle": "幹",
+        "guideSurvivalBody": "阻止 100 個目標 {{n}} 輪",
+        "guideAutoScoringTitle": "計算價格",
+        "guideAutoScoringBody": "計算{{n}}後的房子",
+        "guidePatternStoneTitle": "圖案石",
+        "guidePatternStoneBody": "如果贏了就得2分",
+        "guideSpeedTitle": "速度",
+        "guideSpeedBody": "如果你遲到了，你的對手將獲得+1分。",
+        "guideTurnAddTitle": "添加轉​​彎",
+        "guideTurnAddBody": "增加轉彎限制",
+        "guideMissileTitle": "飛彈",
+        "guideMissileBody": "挑一塊石頭並沿直線推動",
+        "guideHiddenScanTitle": "隱藏·掃描",
+        "guideHiddenScanBody": "隱藏 {{hidden}} · 尋找 {{scan}}",
+        "advCaptureWin": "獲勝",
+        "advCaptureLose": "贏、輸、超時",
+        "advTerritoryWin": "桂勝",
+        "advTerritoryWinAuto": "計數勝利 · {{n}} 數量自動",
+        "advTerritoryLose": "系統被擊敗，時間耗盡。",
+        "advTimeLimit": "{{mins}}分鐘限制",
+        "gwCaptureWinAuto": "首先 {{cap}} 分或 {{limit}} 回合獲勝",
+        "gwCaptureWin": "如果您先獲得 {{cap}} 分，您就贏了。",
+        "gwCaptureLose": "對手先贏 {{cap}} 分",
+        "gwTerritoryWinAuto": "總戶數自動中獎·{{limit}}號。",
+        "gwTerritoryWin": "如果你的家人有更多的房子，你就贏了。",
+        "gwTerritoryLose": "人數超過，時間超出",
+        "captureWin": "首先獲得對手的石頭{{t}}分",
+        "captureWinWithAuto": "先獲得對手的石子 {{t}} 分 · {{auto}}",
+        "territoryWinDefault": "數完後，擁有最多房屋的一方獲勝。",
+        "speedTerritoryWinDefault": "統計後，誰的總分最高，誰就獲勝。",
+        "speedTerritoryLoseDefault": "如果統計後你的總分較低，你就輸了。",
+        "castleWin": "如果您贏得 1 個或多個對手的棋子，您立即獲勝。如果沒有有效數字，則計算領土。",
+        "castleLose": "如果你的對手抓住了哪怕 1 塊石頭，你就輸了。如果你家裡的房子很少，你就輸了。",
+        "castleHighlightCount": "{{castles}} 城堡 · 無法進入已完成的領土",
+        "castleHighlightCapture": "奪取 1 顆石頭後立即獲勝",
+        "chessWin": "經過指定程序後，計算",
+        "chessLose": "敗於結甲·擒王后即敗。",
+        "chessHighlightBudget": "總分：{{budget}} 分 直接置於預算範圍內（King 固定在第二排中央）",
+        "chessHighlightMovement": "每回合可透過棋步移動該棋子一次（次數有限）。",
+        "omokWin": "首先完成 5 項水平、垂直和對角線項目",
+        "omokLose": "如果你的對手先完成全部 5 項，你就輸了。",
+        "omok33Forbidden": "沒有雙胞胎",
+        "omok33Allowed": "允許雙胞胎",
+        "omokOverlineForbidden": "沒有原木",
+        "omokOverlineAllowed": "允許使用原木",
+        "ttamokWin": "先完成第 5 項或取得前 {{cap}} 分",
+        "ttamokLose": "如果您的對手先完成 5 項或先達到 {{cap}} 獲勝分數，您就輸了。",
+        "ttamokHighlightCapture": "當您先達到 {{cap}} 點時獲勝。",
+        "diceWin": "{{r}}輪後累積得分最高的一方獲勝。",
+        "diceLose": "{{r}}如果回合結束時您的累積分數較低，您就輸了。",
+        "diceHighlightRules": "黑色落在與骰子眼睛一樣多的位置，而白色僅放置在出口路徑上。",
+        "thiefWin": "經過5輪x輪後，總分最高的人獲勝。",
+        "thiefLose": "如果回合結束時你的總分較低，你就輸了。",
+        "thiefHighlightRoles": "小偷（黑）和警察（白）的角色交替",
+        "alkkagiWin": "擊掉對手的所有棋子",
+        "alkkagiLose": "敲掉我所有的石頭",
+        "alkkagiHighlightGauge": "透過儀表、牆壁反射進行力道控制",
+        "curlingWin": "誰的回合總分最高，誰就獲勝",
+        "curlingLose": "如果你的總分很低，你就輸了。",
+        "curlingHighlightRules": "石滑/輪系統",
+        "fallbackWin": "根據比賽的進度決定輸贏。",
+        "fallbackLose": "如果失敗是由遊戲的進度決定的，那你就輸了。",
+        "spDefaultWin": "滿足階段條件即可獲勝",
+        "spDefaultLose": "不符合條件則輸",
+        "spSurvivalWin": "未能在 {{n}} 圈內得到 100 {{tgt}} 點",
+        "spSurvivalLose": "在 {{n}} 回合內達到 100 {{tgt}} 點",
+        "spCaptureTurnWin": "在 {{limit}} 回合內獲得 {{target}} 分",
+        "spCaptureTurnLoseBoth": "超過 {{limit}} 圈/得 100 {{target}} 分",
+        "spCaptureTurnLoseMiss": "未能在 {{limit}} 圈內達到目標",
+        "spCaptureRaceWin": "首先得到 {{target}} 分",
+        "spCaptureRaceLose": "首先獲得 100 {{target}} 積分",
+        "spCaptureCapWin": "首先得到 {{cap}} 積分",
+        "spCaptureCapLose": "白方首先獲得 {{cap}} 點",
+        "spCaptureGoalWin": "達到目標分數",
+        "spCaptureGoalLose": "白首先實現了他的目標",
+        "spSpeedWin": "球隊以總分取勝",
+        "spSpeedLose": "敗於世",
+        "spAutoScoringWin": "計數後{{n}}獲勝",
+        "spAutoScoringLose": "{{n}}在蘇傑加之後被擊敗",
+        "spLegacyTurnWin": "{{limit}} 回合內 {{target}} 點或更多",
+        "spLegacyTurnLose": "未能在 {{limit}} 圈內達到目標",
+        "spLegacyTerritoryWin": "家庭黑{{black}}房子+·白{{white}}房子+",
+        "spLegacyTerritoryLose": "目標集水區未達",
+        "spTerritoryWin": "如果這個家庭有更多的房子，他們就贏了。",
+        "spTerritoryLose": "血統第十三"
+      },
+      "itemSlot": {
+        "hiddenStone": "隱藏的石頭",
+        "scan": "掃描",
+        "missile": "飛彈",
+        "diceOdd": "奇怪的骰子項目",
+        "diceEven": "甚至骰子物品",
+        "diceLow": "低數量 (1-3) 骰子項目",
+        "diceHigh": "高數量 (4-6) 骰子項目",
+        "slow": "慢的",
+        "aimLine": "視線",
+        "turnAdd": "添加轉​​彎"
+      }
     },
     "singlePlayerInfo": {
       "close": "關閉",
@@ -1403,7 +1603,7 @@
       "itemBonus": "物品",
       "aiHintTitle": "人工智慧建議",
       "noHint": "正在計算建議數量或沒有建議。",
-      "scoreLead": "{{玩家}} +{{金額}}",
+      "scoreLead": "{{player}} +{{amount}}",
       "winRate": "勝率：{{rate}}%"
     },
     "moveConfirm": {
@@ -1418,14 +1618,14 @@
       "round1": "第一次演講",
       "round2Suffix": "·第二名",
       "waitingBothBids": "我們正在等待雙方拿出黑（好）分數。",
-      "winnerLine": "{{name}}的{{bid}}點→黑色（線），白色目標{{target}}點",
+      "winnerLine": "{{name}} {{bid}} 點 → 黑色（線）、白色目標 {{target}} 點",
       "tieRandomBoth": "提議的領帶是相同的。 黑色和白色是隨機選擇的。",
       "tieRandom": "領帶 — 黑色和白色是隨機選擇的。",
       "tieRebid": "平局 — 移動以重新運行。",
       "pleaseWait": "請稍等...",
       "proceedingNext": "繼續下一步…",
-      "bidConfirmed": "簡報 {{bid}} 點已確認",
-      "waitingOpponentBid": "等待{{name}}呈現",
+      "bidConfirmed": "已提交 {{bid}} 點已確認",
+      "waitingOpponentBid": "等待 {{name}} 的演示",
       "defaultLabel": "基本的",
       "bidLabel": "提議",
       "unlimited": "無邊界的",
@@ -1433,11 +1633,11 @@
       "submitting": "轉發…",
       "hostBid": "主持人傑西",
       "confirmBid": "演示確認",
-      "blackTargetHint": "如果黑變白，目標是 {{target}} 分（基本 {{base}} 分）"
+      "blackTargetHint": "當黑變白時，目標是 {{target}} 分（預設 {{base}} 分）"
     },
     "scoringOverlay": {
       "analyzing": "AI正在分析棋盤",
-      "secondsLeft": "還剩約 {{sec}} 秒",
+      "secondsLeft": "약 {{sec}}초 남음",
       "completingSoon": "很快就完成了..."
     },
     "chessPlacement": {
@@ -1448,7 +1648,7 @@
       "queen": "女王",
       "pieceTitle": "{{label}} · {{移動}}次 · {{cost}}點",
       "hostPlacing": "主持人放置棋子",
-      "hostPlacingHint": "部署後，您將參與攻擊回合。",
+      "hostPlacingHint": "一旦部署，它就會參與攻擊回合。",
       "completeStarting": "放置完成 · 開始遊戲...",
       "completeWaiting": "部署完成·等待對手…",
       "secondsLeft": "{{sec}}秒",
@@ -1478,7 +1678,8 @@
       "aria": "結果選項卡"
     },
     "speedPressure": {
-      "aria": "允許時間 {{sec}} 秒"
+      "aria": "允許時間 {{sec}} 秒",
+      "label": "10秒速度條"
     },
     "adventureResult": {
       "bossLine": "頭目：{{label}} +{{pct}}%",
@@ -1488,7 +1689,7 @@
       "timeMode": "時間法",
       "byoyomiOption": "超時+倒數計時",
       "fischerOption": "暫停+費雪",
-      "mainTimeLimit": "主要超時",
+      "mainTimeLimit": "主要時限",
       "timeLimit": "時限",
       "byoyomi": "倒數計時",
       "fischerIncrement": "新增費雪"
@@ -1531,15 +1732,15 @@
     "captureBid": {
       "title": "取得黑線",
       "titleReroll": "黑線導入/搬遷回合",
-      "winnerBid": "{{name}} 建議 {{bid}} 點，該點變為黑色（線）。 白方的目標是 {{target}} 點。",
+      "winnerBid": "{{name}} 建議 {{bid}} 點，該點變成黑色（線）。 白方的目標是 {{target}} 點。",
       "tieReroll": "第二局是抽籤，是隨機決定的。",
       "tieReset": "這是平局，所以我們重置！",
       "switching": "立即切換到重置...",
       "startingSoon": "比賽馬上就要開始了…",
       "waitingBid": "正在等待 {{name}} 的設定...",
-      "baseTargetPieces": "基本目標是 {{target}}。",
+      "baseTargetPieces": "預設目標是 {{target}}。",
       "bidInstructionRich": "提供一定數量的分數給你的對手帶黑（玩家）。",
-      "bidHint": "分數較高的玩家成為黑方，白方的目標也相應降低。 最多可給予 {{max}} 分。",
+      "bidHint": "分數較高的玩家成為黑方，白方的目標也相應降低。 最多可以呈現 {{max}} 點。",
       "bidTimer": "投注計時器",
       "bidRound": "第 {{round}} 輪",
       "secondsShort": "蠟燭",
@@ -1548,7 +1749,7 @@
       "opponentPoints": "給予對手的分數",
       "pointsSuffix": "點",
       "piecesSuffix": "狗",
-      "whiteTargetIfWin": "若選擇黑棋，白棋的目標是：{{target}} 分。",
+      "whiteTargetIfWin": "若選擇黑棋，白棋的目標是： {{target}} 分",
       "currentBid": "目前演示：{{score}} 分",
       "setting": "正在設定...",
       "bidConfirmBtn": "黑線分數呈現已確認",
@@ -1573,7 +1774,7 @@
       "tiebreakerDesc": "握壽司是透過輪盤賭來決定的。",
       "basePlusKomiDesc": "檢查下面卡片上的條件。",
       "basePrepDesc": "看看下面的尼吉里·杜姆。",
-      "resultDesc": "{{name}}·Heukseung·Jessie {{bid}}點",
+      "resultDesc": "{{name}} · Heukseung · Jessie {{bid}} 分",
       "blackWinCondition": "黑色勝利條件",
       "whiteWinCondition": "100 獲勝條件",
       "blackRole": "黑人角色",
@@ -1582,7 +1783,7 @@
       "stonesUnit": "房子",
       "prepComplete": "準備開始遊戲",
       "checkingRoulette": "正在檢查輪盤賭結果...",
-      "startCountdown": "開始比賽 ({{count}})",
+      "startCountdown": "遊戲開始 ({{count}})",
       "startGame": "比賽開始",
       "basePrepTitle": "基礎遊戲準備",
       "colorRouletteTitle": "黑白決策（平手輪盤）",
@@ -1592,7 +1793,7 @@
       "basePrepTitle2": "基礎遊戲準備",
       "basePrepDesc2": "請參閱下面的黑色、白色和獎金。",
       "colorDecideTitle": "黑白晶體",
-      "colorDecideDesc": "{{name}} · 黑色（線） · 目前 {{bid}} 點",
+      "colorDecideDesc": "{{name}} · 黑色（線） · 贈送 {{bid}} 點",
       "blackFirstSuffix": "· 先走",
       "whiteSecondSuffix": "· 胡工",
       "myWinCondition": "我的獲勝條件",
@@ -1611,11 +1812,14 @@
       "rulesLabel": "規則",
       "baseRule": "根據",
       "whiteTargetLabel": "一百個目標",
-      "firstBlackRole": "線（黑）",
-      "meBadge": "我"
+      "firstBlackRole": "선(흑)",
+      "meBadge": "我",
+      "captureBidResultTitle": "獲勝分數呈現結果",
+      "komiBidFinalRound": "獎金競標（最後一輪）",
+      "pressStartPrompt": "準備好後，點擊“開始”即可開始遊戲。"
     },
     "baseStoneChoice": {
-      "hostPick": "主持人選擇左邊的色盤。",
+      "hostPick": "主持人選擇左邊的色板。",
       "wait": "請稍等。",
       "pairHost": "主持人：選擇隊友的色板。",
       "pickPanel": "選擇您喜歡的版本。",
@@ -1642,20 +1846,22 @@
       "blackRole": "第一擊，黑色",
       "whiteRole": "胡公·返回",
       "finalCardAlt": "最終的第一步和第二步棋顯示在左右卡片上。",
-      "fastFlashAlt": "兩個空間中的黑白顯示發生變化，但過了一段時間，就固定為最終的排列。",
-      "smoothEndAlt": "黑白快速變化並隨機停止。"
+      "fastFlashAlt": "兩個空間中的黑白顯示發生變化，但過了一段時間，就固定為最終的佈局。",
+      "smoothEndAlt": "黑白快速變化並隨機停止。",
+      "assignmentComplete": "作業完成",
+      "blackCandidate": "先走（黑人）候選人"
     },
     "uniformColor": {
       "blackStone": "黑石",
       "whiteStone": "白石",
       "title": "伊薩克·巴杜克",
       "uniformRoulette": "統一顏色輪盤",
-      "thisColor": "本場比賽的石頭顏色：{{color}}",
+      "thisColor": "本場比賽的寶石顏色：{{color}}",
       "flashHint": "黑色和白色的石頭快速交替閃爍，然後隨機停止。",
       "autoStart": "抽籤結束後，比賽將自動開始。",
       "stoneColorRoulette": "石色輪盤賭",
       "autoStartAfterEffect": "比賽結束後將自動開始。",
-      "flashHintAlt": "黑白石子快速變化，然後隨機停止。"
+      "flashHintAlt": "흑돌과 백돌이 빠르게 바뀌다가 무작위로 멈춥니다."
     },
     "conditionPotion": {
       "title": "有條件付款",
@@ -1679,15 +1885,16 @@
       "autoRouletteShort": "使用自動輪盤分配黑白，而不是石頭、剪刀、布。",
       "checkingRoulette": "正在檢查輪盤賭結果...",
       "waitingConfirm": "等待對方確認...",
-      "startCountdown": "開始比賽 ({{count}})"
+      "startCountdown": "遊戲開始 ({{count}})",
+      "autoStartHint": "按開始，否則比賽將在 30 秒後自動開始。"
     },
     "diceGo": {
-      "winner": "骰子的結果是，{{name}} 獲勝，並決定先走/最後走。",
+      "winner": "骰子結果是 {{name}} 獲勝，並決定第一/第二。",
       "autoStart": "點擊下面的開始按鈕，否則比賽將在30秒後自動開始。",
       "firstBlack": "先攻擊（黑）",
-      "secondWhite": "胡紅（白）",
+      "secondWhite": "胡公（後）",
       "resultRich": "骰子的結果是，<strong>{{name}}</strong> 獲勝，該隊獲得第一/第二。",
-      "startCountdownBtn": "比賽開始（{{倒數}}）",
+      "startCountdownBtn": "遊戲開始 ({{countdown}})",
       "waitingConfirmShort": "等待對方確認…"
     },
     "diceTurn": {
@@ -1697,7 +1904,7 @@
       "tie": "領帶！",
       "intro": "按下準備按鈕即可擲骰子。 數字最大的人選擇先走/最後走。",
       "tieReroll": "領帶！ 過一會兒再滾一次。",
-      "pickTurn": "選擇先走還是最後走。 （{{倒數}}）",
+      "pickTurn": "選擇第一或第二。 （{{倒數}}）",
       "firstBlackBtn": "先攻擊（黑）",
       "secondWhiteBtn": "胡紅（白）",
       "waitingOpponentPick": "對手選擇先走/後走...",
@@ -1851,7 +2058,7 @@
           "step1BodyItem": "隱藏的 {{count}} 讓您可以做出對手看不見的動作。",
           "step2Title": "掃描項目",
           "step2Body": "使用掃描按鈕尋找隱藏的可疑區域。",
-          "step2BodyItem": "{{count}} 掃描可以幫助您找到隱藏的可疑區域。",
+          "step2BodyItem": "{{count}} 次掃描可以幫助您找到隱藏的可疑區域。",
           "step3Title": "物品的使用",
           "step3Body": "隱藏掃描的數量有限，因此請明智地選擇時間。"
         },
@@ -1877,7 +2084,7 @@
           "step1Title": "建造一座房子",
           "step1Body": "在領土周圍建造房屋並獲得比對手更多的房屋。",
           "step2Title": "計算價格",
-          "step2Body": "如果雙方都通過，則透過計票決出勝負。"
+          "step2Body": "如果雙方都通過，則透過計數決出勝負。"
         },
         "survival": {
           "tab": "拯救圍棋",
@@ -1910,7 +2117,7 @@
       "winRole": "勝利！ 扮演你想要的角色。",
       "winStart": "勝利！ 它以 {{choice}} 開頭。",
       "lose": "擊敗！",
-      "loseSecond": "擊敗！ 這是一個小學生。",
+      "loseSecond": "擊敗！ 這就是胡公。",
       "loseRole": "擊敗！ 另一個人選擇一個角色。",
       "loseStart": "擊敗！ 你的對手以{{choice}}開始。",
       "first": "先發制人",
@@ -1936,23 +2143,23 @@
       "diceTitle": "{{round}}回合計分",
       "deathmatchStart": "死亡競賽開始",
       "viewFinal": "查看最終結果",
-      "waitingConfirm": "等待對手確認",
+      "waitingConfirm": "等待合作夥伴確認",
       "dummyCapture": "{{姓名}}",
       "previousRound": "上一輪",
       "previousKnockShort": "先前的敲門聲",
       "detailScores": "詳細分數",
       "resultBoardTab": "結果板",
-      "finalRoundTieBody": "最後一輪打平。 確認後，遊戲繼續從同一個棋盤上射出更多的石子。",
+      "finalRoundTieBody": "最後一輪打平。 確認後，遊戲繼續從同一個棋盤上一次射出更多的石子。",
       "stonesLeft": "剩餘的石頭",
       "scoredFor": "分數",
       "scoredAgainst": "失球",
-      "roundWinner": "第 {{round}} 回合 — {{name}} 獲勝",
+      "roundWinner": "{{round}} 回合 — {{name}} 獲勝",
       "noRolls": "無捲",
       "diceStats": "骰子統計",
-      "lastDummyBonus": "最後一堆+{{獎金}}",
+      "lastDummyBonus": "最後一堆 +{{bonus}}",
       "alkkagiKnockout": "昏死",
       "playerFallback": "玩家",
-      "waitingOpponentConfirm": "等待對手確認",
+      "waitingOpponentConfirm": "等待合作夥伴確認",
       "house": "房子",
       "knockout": "昏死",
       "roundResultBoard": "回合結果板"
@@ -1961,7 +2168,7 @@
       "waiting": "等待對方確認…",
       "start": "入門",
       "autoProgress": "直到自動進度",
-      "autoProgressShort": "自動進度"
+      "autoProgressShort": "自動前進"
     },
     "colorStart": {
       "title": "檢查握壽司"
@@ -2040,14 +2247,14 @@
       "passwordMinPlaceholder": "最少 6 個字符",
       "submitChange": "改變",
       "processing": "加工...",
-      "withdraw": "회원탈퇴",
+      "withdraw": "取消會員資格",
       "cancel": "消除",
-      "withdrawTitle": "회원탈퇴",
+      "withdrawTitle": "取消會員資格",
       "withdrawLine1": "退出後資料將被刪除且無法恢復。",
       "withdrawLine2": "您在 1 週內不能使用相同電子郵件地址重新註冊。",
       "withdrawPasswordConfirm": "驗證密碼",
       "withdrawTextConfirm": "輸入確認文字：“退出會員資格”",
-      "withdrawPlaceholder": "회원탈퇴",
+      "withdrawPlaceholder": "取消會員資格",
       "withdrawSubmit": "退訂",
       "errors": {
         "usernameRequired": "請輸入您的新 ID 和目前密碼。",
@@ -2157,26 +2364,30 @@
       "noMessages": "沒有聊天訊息。",
       "noGuildMessages": "沒有公會聊天訊息。",
       "placeholder": "[輸入留言]",
-      "banPlaceholder": "聊天已停用（剩下​​ {{minutes}} 分鐘）",
-      "cooldownPlaceholder": "（{{seconds}} 秒）",
+      "banPlaceholder": "聊天已停用（還剩 {{ 分鐘}} 分鐘）",
+      "cooldownPlaceholder": "（{{秒}}秒）",
       "profanityAlert": "您的訊息無法傳送，因為它包含不適當的字詞。",
       "quickChatTitle": "快速聊天",
       "sendTitle": "傳送"
     },
     "playerList": {
       "title": "使用者列表",
-      "onlineCount": "（{{count}} 人在線）",
-      "viewProfile": "{{nickname}} 프로필 보기",
-      "recordSummary": "{{wins}}獲利{{losses}}虧損 ({{winRate}}%)",
+      "onlineCount": "（{{count}} 人已連線）",
+      "viewProfile": "{{暱稱}} 查看個人資料",
+      "recordSummary": "{{獲勝}}獲勝{{損失}}損失({{winRate}}%)",
       "scorePoints": "{{score}} 分",
       "noStats": "沒有統計數據",
       "noOtherPlayers": "沒有其他玩家了。",
       "forceLogout": "被迫離開",
       "forceLogoutConfirm": "您想強制 [{{nickname}}] 斷開連線嗎？",
       "invite": "邀請",
+      "challenge": "申請比賽",
+      "challengeUnavailable": "另一方無法接收匹配請求。",
+      "spectate": "觀看",
+      "spectateUnavailable": "我找不到任何可以觀看的比賽資訊。",
       "blockInvites": "沒有邀請",
       "blockInvitesTitle": "開啟後，其他玩家將無法邀請您作為公平競技場的夥伴。",
-      "statusInPairRoom": "페어 방에 있을 때는 상태를 바꿀 수 없습니다.",
+      "statusInPairRoom": "在雙人房間中您無法變更您的狀態。",
       "arenaBadge": "{{label}} 體育場",
       "status": {
         "online": "在線的",
@@ -2201,7 +2412,7 @@
       "helpAlt": "幫助",
       "openUserRankingList": "打開用戶和排名列表",
       "listLabel": "存貨",
-      "playfulRankingUnavailable": "我們不提供遊戲模式的排名清單。"
+      "playfulRankingUnavailable": "我們不提供遊戲模式排名清單。"
     },
     "arenaLobby": {
       "back": "回去",
@@ -2307,7 +2518,7 @@
         "rankingLabel": "排名：{{ rating}}分",
         "expectedDelta": "預期分數變化",
         "winDelta": "勝利：+{{分數}}",
-        "lossDelta": "失敗：{{分}}",
+        "lossDelta": "失敗：{{points}}點",
         "opponentRanking": "對手排名",
         "opponentRating": "{{評分}}點",
         "waitingPeer": "等待對方的接受…",
@@ -2324,7 +2535,7 @@
       "currentScore": "目前分數",
       "seasonBest": "本賽季最好的",
       "notAggregated": "未計算在內",
-      "allTimeBestTier": "有史以來最高評級",
+      "allTimeBestTier": "有史以來最高評價",
       "firstSeasonNone": "第一季（無）",
       "winsLossesWinRate": "{{wins}} 贏 {{losses}} 輸 · 勝率",
       "scorePoints": "{{score}} 分",
@@ -2397,7 +2608,7 @@
       "pairAiFormAria": "配對AI匹配形式",
       "pairAiPetRequired": "要與配對人工智慧對戰，您必須裝備配對寵物。",
       "pairAiTitle": "與 AI 圍棋對戰",
-      "aiRecord": "AI 記錄：{{wins}} 獲勝 {{losses}} 損失 ({{winRate}}%)",
+      "aiRecord": "AI戰績 {{wins}} 勝 {{losses}} 負 ({{winRate}}%)",
       "botSuffix": "{{name}}機器人",
       "gameSettingsTitle": "比賽設定",
       "mixRulesMinAlert": "混合規則需要選擇兩個或更多規則。",
@@ -2412,7 +2623,7 @@
     },
     "challenge": {
       "title": "申請比賽",
-      "modeRejected": "對方已拒絕 {{mode}}。",
+      "modeRejected": "對方已拒絕{{mode}}。",
       "modeRejectedInline": "對方已拒絕<bold>{{mode}}</bold>。",
       "selectForDescription": "選擇一個遊戲以查看其描述。",
       "selectedGame": "所選遊戲：{{name}}",
@@ -2432,7 +2643,7 @@
       "goToAdventure": "去冒險",
       "strategicLobby": "戰略候診室",
       "pairLobby": "公平的大廳",
-      "gameAdventureHow": "모험 맵에서 몬스터를 처치할 때마다 해당 몬스터 레벨만큼 사냥 점수가 누적됩니다. 점수가 같으면 먼저 달성한 유저가 상위에 표시됩니다.",
+      "gameAdventureHow": "每次你殺死冒險地圖上的怪物，狩獵點都會累積等於怪物的等級。 如果分數相同，則先獲得分數的使用者將顯示在頂部。",
       "gameAdventureWhere": "冒險 → 戰勝當地地圖上的怪物。",
       "badukStrategicHow": "基於 1200 分的累積分數會根據您在策略圍棋排名賽 (PVP) 中的輸贏而變化。 如果你玩同一個模式超過10次，它就會反映在你的排名中，如果你擊敗了強大的對手，它會進一步增加。",
       "badukStrategicWhere": "在球場→戰略圍棋→候診室使用排名賽。",
@@ -2482,8 +2693,8 @@
       "highGradeMaterial": "先進材料",
       "topHuntedMonster": "最受追捕的怪物",
       "noHuntRecord": "還沒有狩獵記錄",
-      "winsCount": "獲勝 {{wins}} 次",
-      "codexLevel": "百科全書 Lv.{{level}}",
+      "winsCount": "{{wins}} 獲勝",
+      "codexLevel": "百科全書Lv.{{level}}",
       "monsterWindowTabsAria": "怪物窗分類",
       "monsterSituation": "怪物情況",
       "monsterSituationAria": "怪物情況",
@@ -2491,22 +2702,22 @@
       "comprehensionChapterTabsAria": "領悟篇",
       "comprehensionEffects": "怪物理解效果",
       "comprehensionGoldBonus": "冒險金幣 +{{percent}}%",
-      "comprehensionEquipBonus": "裝備獲取+{{percent}}%",
-      "comprehensionHighEquipBonus": "先進裝備+{{percent}}%",
+      "comprehensionEquipBonus": "裝備購置+{{percent}}%",
+      "comprehensionHighEquipBonus": "高級裝備+{{percent}}%",
       "comprehensionMaterialBonus": "材料取得+{{percent}}%",
       "comprehensionHighMaterialBonus": "先進材料 +{{percent}}%",
       "codexChapterTabsAria": "百科全書章節",
-      "speciesCount": "（{{count}} 物種）",
+      "speciesCount": "（{{count}} 種）",
       "comprehensionMax": "最大程度的理解",
-      "nextLevelWins": "贏得 {{wins}}/{{nextAt}} 進入下一級別",
+      "nextLevelWins": "{{wins}}/{{nextAt}} 進入下一個級別",
       "boss": "老闆",
       "comprehension": "理解",
       "inactive": "不活躍的",
-      "victoryCount": "獲勝 {{wins}} 次",
-      "chapterBossBonus": "章節首領：{{label}} — +{{perLevel}}% 每理解程度（最大 {{max}}%）",
-      "currentBossBonusSum": "目前老闆獎金總額：+{{percent}}% ({{label}})",
+      "victoryCount": "{{wins}} 獲勝",
+      "chapterBossBonus": "章節大佬：{{label}} — 每個理解等級 +{{perLevel}}%（最高 {{max}}%）",
+      "currentBossBonusSum": "現任老闆獎金總額：+{{percent}}% ({{label}})",
       "comprehensionStatsCurrent": "理解能力（當前總計）",
-      "adventureExclusive": "限冒險：{{label}} +{{percent}}%",
+      "adventureExclusive": "僅限冒險：{{label}} +{{percent}}%",
       "adventureGoldOnly": "（冒險勝利高盛）",
       "comprehensionXp": "了解經驗",
       "comprehensionXpMax": "最多獲勝 {{wins}} 場",
@@ -2542,28 +2753,28 @@
       "regionalEffectAria": "{{title}} 區域效果",
       "regionalEffectModalTitle": "CH.{{chapter}} {{title}} · 局部影響",
       "slotEffectsTitle": "插槽可能產生的效果",
-      "goldRewardRangeAria": "黃金覆蓋範圍",
+      "goldRewardRangeAria": "黃金覆蓋率",
       "gold": "金子",
       "equipmentBox": "裝置箱",
       "equipmentBoxGradeAria": "{{count}} 個裝置箱類別之一",
       "materialBox": "材料盒",
-      "materialBoxGradeAria": "材料盒類 {{count}} 種之一",
+      "materialBoxGradeAria": "料盒類{{count}}種之一",
       "actionPointsRecovery": "動作恢復",
-      "actionPointsRecoverAria": "恢復動作 {{point}}",
-      "recoverPoints": "{{point}} 恢復",
+      "actionPointsRecoverAria": "操作 {{points}} 恢復",
+      "recoverPoints": "{{points}} 恢復",
       "treasureChest": "寶箱",
       "treasureChestTitle": "寶箱-{{title}}",
       "claimableRewards": "可獲得的獎勵",
       "claimableRewardsAria": "可獲得的獎勵",
-      "goldRewardViewAria": "看黃金獎勵範圍：{{range}}",
-      "equipmentRewardViewAria": "查看裝備補償範圍：{{grade}}",
+      "goldRewardViewAria": "查看金幣獎勵範圍：{{range}}",
+      "equipmentRewardViewAria": "查看裝置覆蓋範圍：{{grade}}",
       "enhanceStoneRewardAria": "強化石獎勵：{{line}}",
-      "goldWinRange": "勝利金幣（參考）約。 {{最小}}~{{最大}}",
-      "goldBoss19Range": "當你在第 19 行贏得 Boss 時，你會獲得大約 {{min}}~{{max}} 塊金幣。",
-      "equipmentGradeGrant": "頒發的裝備等級：{{grade}}",
+      "goldWinRange": "勝利金幣（參考）約{{min}}~{{max}}",
+      "goldBoss19Range": "贏得第19線頭目時，大約{{min}}~{{max}}金幣",
+      "equipmentGradeGrant": "發布的裝備等級：{{grade}}",
       "pickHintVip": "獎勵VIP：自行選擇兩個空間，或只選擇一個空間，隨機選擇另一個空間。",
       "pickHintSingle": "選擇要接收的一個方塊並按一下“完成選擇”。",
-      "selectBoxes": "選擇一個框（{{selected}}/{{pickSlots}}）",
+      "selectBoxes": "請選取此方塊 ({{selected}}/{{pickSlots}})",
       "boxNumber": "盒子 {{num}}",
       "rouletteInProgress": "輪盤賭進行中...",
       "rewardApplying": "補償正在反映...",
@@ -2577,18 +2788,18 @@
       "receiveRewardBtn": "獲得補償",
       "cancelReceive": "取消收據",
       "processing": "加工…",
-      "equipmentBoxRoman": "裝備箱 {{roman}}",
-      "materialBoxRoman": "材料盒 {{roman}}",
+      "equipmentBoxRoman": "設備箱{{roman}}",
+      "materialBoxRoman": "材料盒{{roman}}",
       "adventureKeyAria": "冒險鑰匙",
       "regionalKey": "本機密鑰",
       "key": "鑰匙",
-      "keysCount": "{{持有}}/{{最大}}",
-      "keysCountAria": "{{hold}} / {{max}} 個鍵",
-      "keyFragmentProgressAria": "關鍵片段進展 {{prog}} / {{cap}}",
+      "keysCount": "{{held}}/{{max}}",
+      "keysCountAria": "{{held}} / {{max}} 鍵",
+      "keyFragmentProgressAria": "關鍵片段進度 {{prog}} / {{cap}}",
       "openWithKeyTitle": "用1把鑰匙打開寶箱",
       "open": "開幕",
       "noStageInfo": "沒有舞台資訊。",
-      "levelAria": "級別 {{級別}}",
+      "levelAria": "等級 {{level}}",
       "returningToLobby": "去大廳…",
       "appearing": "出現",
       "claimed": "收貨完成",
@@ -2608,8 +2819,8 @@
       "remainingTime": "剩餘時間",
       "comprehensionLevel": "理解程度",
       "comprehensionXpLabel": "了解經驗",
-      "comprehensionXpMaxShort": "麥克斯·{{勝利}}",
-      "actionPointsTitle": "行動{{成本}}",
+      "comprehensionXpMaxShort": "最大 · {{wins}}",
+      "actionPointsTitle": "行為 {{cost}}",
       "attack": "攻擊",
       "chapterMonsters": "章節怪物",
       "chapterMonstersAria": "第章怪物列表",
@@ -2618,19 +2829,19 @@
       "noActiveRegionalEffect": "沒有生效的局部效果",
       "regionalEffectSheetTitle": "局部效應",
       "explorationTier": "探索級",
-      "spawnLevel": "外觀等級{{level}}",
-      "attackApCost": "攻擊{{cost}}時消耗",
-      "availableBattles": "可能的匹配{{modes}}",
+      "spawnLevel": "外觀等級 {{level}}",
+      "attackApCost": "攻擊 {{cost}} 時消耗",
+      "availableBattles": "可能的匹配 {{modes}}",
       "prevChapter": "上一章",
       "nextChapter": "下一章",
-      "chapterNavLockedAria": "{{navLabel}}鎖",
-      "goToChapterTitle": "前往「{{標題}}」",
+      "chapterNavLockedAria": "{{navLabel}} 鎖",
+      "goToChapterTitle": "前往「{{title}}」",
       "time": {
         "zero": "0秒",
-        "seconds": "{{sec}}秒",
+        "seconds": "{{sec}} 秒",
         "minutes": "{{m}} 分鐘",
         "minutesSeconds": "{{m}} 分 {{s}} 秒",
-        "hoursMinutes": "{{h}}小時{{mm}}分鐘"
+        "hoursMinutes": "{{h}} 小時 {{mm}} 分鐘"
       },
       "monsterMode": {
         "classic": "經典的",
@@ -2651,16 +2862,16 @@
       },
       "regionalBuff": {
         "enhanceSuffix": "({{st}}/{{max}})",
-        "winGold": "金幣 +{{percent}}%{{suffix}} 勝利",
+        "winGold": "勝利後金幣 +{{percent}}%{{suffix}}",
         "equipDrop": "裝備獲取機率+{{percent}}%{{suffix}}",
-        "materialDrop": "材料取得機率+{{百分}}%{{後綴}}}",
-        "captureTarget": "[獲勝圍棋]對手目標分數+{{值}}{{後綴}}",
-        "timeLimit": "超時+{{百分}}%{{後綴}}",
-        "respawnWait": "怪物出現等待時間 -{{percent}}%{{suffix}}",
+        "materialDrop": "材料獲取機率+{{percent}}%{{suffix}}",
+        "captureTarget": "[獲勝圍棋]對手目標分數+{{value}}{{suffix}}",
+        "timeLimit": "逾時 +{{percent}}%{{suffix}}",
+        "respawnWait": "怪物出現等待時間-{{percent}}%{{suffix}}",
         "monsterDwell": "怪物停留時間+{{percent}}%{{suffix}}",
-        "hiddenScan": "[隱藏圍棋]掃描項目+{{值}}{{後綴}}",
-        "baseStartScore": "[基礎圍棋] +{{value}}點{{suffix}}開始",
-        "classicStartScore": "[經典圍棋] +{{value}}點{{suffix}}開始",
+        "hiddenScan": "[隱藏圍棋] 掃描項目 +{{value}}{{suffix}}",
+        "baseStartScore": "[基礎圍棋] 開始時，+{{value}} 分{{suffix}}",
+        "classicStartScore": "[經典圍棋] 開始時，+{{value}} 分{{suffix}}",
         "missile": "[Missile Go] 飛彈物品+1（無法強化）",
         "compact": {
           "gold": "黃金+{{百分}}%{{後綴}}",
@@ -2718,7 +2929,7 @@
       "productionRate": "生產 {{​​分鐘}} 分鐘 / {{金額}}",
       "productionRateTitle": "生產 {{​​分鐘}} 分鐘 / {{金額}}",
       "productionRateCompact": "{{分鐘}}分鐘/{{金額}}",
-      "productionRateMinutes": "{{分鐘}}分鐘",
+      "productionRateMinutes": "{{分鐘}} 分鐘",
       "productionAmount": "屈服",
       "storage": "節省",
       "experience": "經驗",
@@ -2754,7 +2965,7 @@
         "mission_attendance": "我去了一個有趣的圍棋學院並開始學習圍棋。",
         "mission_complete_game": "我終於有能力完成一輪圍棋了。 每天玩一場圍棋是培養智慧的好方法。",
         "mission_rival_match": "擁有競爭對手可以讓你有機會更努力工作。 進行友好的競爭。",
-        "mission_study_joseki": "我有了一個偉大的認識。 現在我開始了解圍棋的深層內容。",
+        "mission_study_joseki": "我有了一個偉大的認識。 現在我開始了解圍棋的深入內容。",
         "mission_league": "參加圍棋聯賽，了解比賽形式，並為圍棋錦標賽留下有趣的回憶。",
         "mission_ai_match": "我已經達到了專家的水平，現在正處於能夠感受和學習如何閱讀和應對人工智慧的階段。"
       },
@@ -2850,7 +3061,7 @@
     "currentFloor": "目前樓層",
     "timeRemaining": "剩餘時間",
     "currentRank": "目前排名",
-    "floorUnit": "{{樓}}樓",
+    "floorUnit": "{{地板}}地板",
     "rankUnit": "{{秩}}",
     "strategicAiRecord": "策略AI記錄",
     "playfulAiRecord": "播放AI錄音",
@@ -2876,7 +3087,7 @@
     "guildLevelHint": "您可以在高於{{level}}的層級使用公會主頁。",
     "guildLevelNotice": "公會可由使用者等級 {{level}} 或更高等級使用。 （當前等級{{當前}}）",
     "stageLabels": {
-      "intro": "入門班",
+      "intro": "入門課",
       "beginner": "初級班",
       "intermediate": "中級班",
       "advanced": "高級班",
@@ -2941,7 +3152,7 @@
     },
     "userModal": {
       "title": "{{name}} 的個人資料",
-      "adminTitle": "{{name}} — 管理員功能",
+      "adminTitle": "{{name}} — 管理者功能",
       "analyze": "分析",
       "private": "私人的",
       "removeFriend": "刪除好友",
@@ -2950,26 +3161,26 @@
       "guildMember": "公會隸屬關係",
       "noGuild": "沒有公會",
       "mannerGrade": "禮儀課",
-      "mannerPoints": "{{score}} 分 ({{rank}})",
+      "mannerPoints": "{{score}}分 ({{rank}})",
       "equipment": "裝置",
       "stats": "能力",
       "championshipVenue": "冠軍體育場",
       "strategicGo": "策略",
       "pairGo": "一對",
       "playfulGo": "圍棋",
-      "rankedIntegrated": "排名賽總計：{{wins}} 勝 {{losses}} 負 ({{winRate}}%)",
+      "rankedIntegrated": "排名總計：{{wins}} 勝 {{losses}} 負 ({{winRate}}%)",
       "pairAiRecord": "配對 AI 比賽：{{wins}} 勝 {{losses}} 負 ({{winRate}}%)",
-      "modeRecord": "{{wins}}贏 {{losses}} 輸 ({{winRate}}%)",
-      "pvpRecord": "PVP 記錄：{{wins}} 勝 {{losses}} 負 ({{winRate}}%)",
-      "aiRecordSuffix": "· AI {{wins}} 獲勝 {{losses}} 損失 ({{winRate}}%)",
-      "pvpModeRecord": "PVP {{wins}} 獲勝 {{losses}} 損失 ({{winRate}}%)",
-      "aiModeRecord": "AI {{wins}} 勝出 {{losses}} 損失 ({{winRate}}%)",
+      "modeRecord": "{{wins}} 贏得 {{losses}} 損失 ({{winRate}}%)",
+      "pvpRecord": "PVP戰績：{{wins}} 勝 {{losses}} 負 ({{winRate}}%)",
+      "aiRecordSuffix": "· AI {{wins}} 贏 {{losses}} 輸 ({{winRate}}%)",
+      "pvpModeRecord": "PVP {{wins}} 勝 {{losses}} 負 ({{winRate}}%)",
+      "aiModeRecord": "AI {{wins}} 贏得 {{losses}} 損失 ({{winRate}}%)",
       "adminPanel": "管理員功能",
       "connectionStatus": "連線狀態：",
       "connected": "正在連接",
       "offline": "離線",
       "forceLogout": "註銷處理",
-      "forceLogoutConfirm": "我們要立即退出 [{{name}}] 嗎？",
+      "forceLogoutConfirm": "我應該立即退出 [{{name}}] 嗎？",
       "applyChatBan": "已應用聊天禁令",
       "releaseChatBan": "解除聊天禁令",
       "applyConnectionBan": "申請訪問禁制令",
@@ -2983,7 +3194,7 @@
       "sanctionReleased": "/ 清除",
       "chatBanType": "不准聊天",
       "connectionBanType": "禁止訪問",
-      "currentStatus": "目前：聊天 {{chat}} / 訪問 {{connection}}",
+      "currentStatus": "目前：聊天 {{chat}} / 連接 {{connection}}",
       "statusBanned": "禁止",
       "statusNormal": "普通的",
       "sanctionReasons": {
@@ -3033,7 +3244,7 @@
       "changeCost": "改變成本",
       "ownedDiamonds": "持有鑽石",
       "mbtiWhatTitle": "什麼是 MBTI？",
-      "mbtiWhatDesc": "MBTI（邁爾斯-布里格斯類型指示器）是一種根據個人偏好了解性格類型的工具。 它可以幫助您更好地了解自己並改善與他人的關係。",
+      "mbtiWhatDesc": "邁爾斯-布里格斯類型指標 (MBTI) 是一種根據個人偏好來了解性格類型的工具。 它可以幫助您更好地了解自己並改善與他人的關係。",
       "goMbtiTitle": "圍棋MBTI",
       "goMbtiDesc": "MBTI 圍棋是使用 MBTI 概念來分析您的圍棋風格。 每種類型都有其獨特的遊戲風格，因此您可以找到適合您的風格。",
       "mbtiFirstReward": "初始設定後，您將收到 100 顆鑽石。",
@@ -3104,7 +3315,7 @@
         "P": {
           "name": "感知（P）",
           "general": "靈活應變，能視情況靈活應對。 他們重視自主權並對新體驗持開放態度。",
-          "goStyle": "這是一種善於根據情況隨機應變、靈活改變操作的精神。 我喜歡即興創作的感覺，而不是遵循既定的流程。"
+          "goStyle": "這是一種善於根據情境即興發揮、靈活改變行動的精神。 我喜歡即興創作的感覺，而不是遵循既定的流程。"
         }
       }
     },
@@ -3113,7 +3324,7 @@
       "downCaption": "態度評分下降",
       "upTitle": "禮儀等級提高",
       "downTitle": "行為評級被降級",
-      "upHint": "如果你保持良好的舉止，你的好處就會增加。 請繼續好好發揮。",
+      "upHint": "如果你保持良好的舉止，你的好處就會增加。 请继续好好发挥。",
       "downHint": "如果你的禮貌得分較低，你可能在獎勵和排名方面處於劣勢。 建議健康玩耍。",
       "pointsSuffix": "點"
     },
@@ -3136,7 +3347,19 @@
       "scoreAbove": "{{min}} 點或更多",
       "scoreRange": "{{min}}~{{max}} 點",
       "zeroScore": "0分",
-      "mannerPointsTitle": "{{score}}分 ({{rank}})"
+      "mannerPointsTitle": "{{score}}分 ({{rank}})",
+      "grades": {
+        "worst": "最糟糕的",
+        "veryBad": "非常糟糕",
+        "bad": "壞的",
+        "caution": "警告",
+        "normal": "通常",
+        "good": "出色地",
+        "veryGood": "非常好",
+        "dignified": "尊嚴",
+        "pro": "親",
+        "master": "掌握"
+      }
     },
     "statAllocation": {
       "resetFailAlert": "未滿足能力重置條件。 您的金幣已用完或已超過每日重置次數。",
@@ -3144,7 +3367,7 @@
       "combatPower": "戰鬥力",
       "remaining": "剩下的",
       "allocateHint": "分配給剩餘的能力",
-      "decreaseOne": "減少 1",
+      "decreaseOne": "1 減少",
       "increaseOne": "增加 1",
       "bonus": "獎金",
       "resetBtn": "重置",
@@ -3202,7 +3425,7 @@
       "opponentGoStyle": "對手的圍棋傾向",
       "strengths": "力量",
       "weaknesses": "弱點",
-      "setMbtiHint": "透過設定你的MBTI，你可以看到與你的伴侶的兼容性分析。",
+      "setMbtiHint": "如果您設定了MBTI，您可以看到與您的合作夥伴的相容性分析。",
       "title": "MBTI比較",
       "notSetBoth": "雙方都沒有設定 MBTI。",
       "opponentNotSet": "對方的MBTI尚未設定。",
@@ -3223,7 +3446,7 @@
       "types": {
         "ISTJ": {
           "style": "固體矽法",
-          "playStyle": "我們忠於原則和根本，追求明確的實際利益。 展現出終結能力強悍的一面。"
+          "playStyle": "我们忠于原则和根本，追求明确的实际利益。 展現出終結能力強悍的一面。"
         },
         "ISFJ": {
           "style": "防守西利法",
@@ -3254,7 +3477,7 @@
           "playStyle": "根據理論和邏輯分析數字。 享受並探索複雜的過程。"
         },
         "ESTP": {
-          "style": "積極行動組",
+          "style": "積極行動小組",
           "playStyle": "它們攻擊性強，喜歡打水仗。 做出自發而大膽的舉動。"
         },
         "ESFP": {
@@ -3283,7 +3506,7 @@
         },
         "ENTJ": {
           "style": "果斷的領導者",
-          "playStyle": "我們制定明確的策略並果斷地執行它。 這是一種領導精神。"
+          "playStyle": "我们制定明确的战略并果断地执行它。 這是一種領導精神。"
         }
       },
       "goStyleCompareTitle": "MBTI圍棋傾向比較",
@@ -3308,7 +3531,7 @@
       "simE": "兩人都有積極進取的精神",
       "simI": "兩人都有謹慎的性格",
       "diffSReal": "你是一個實際的人，你的對手是一個直覺的人。",
-      "diffNReal": "你是個直覺主義者，你的對手是個務實的人。",
+      "diffNReal": "你很直覺，你的對手很實際。",
       "simS": "兩者都是功利主義",
       "simN": "兩者都是直覺驅動的",
       "diffTLogic": "你是個邏輯人，你的伴侶是個感性的人。",
@@ -3349,7 +3572,7 @@
       "noticeBoardShort": "佈告欄",
       "closeNotice": "關閉佈告欄",
       "noNotices": "沒有公告。",
-      "noPatches": "沒有補丁/更新。",
+      "noPatches": "沒有補丁/更新歷史記錄。",
       "homeBoardTitle": "主頁公告板",
       "newPostBadge": "新貼文",
       "editedAt": "（編：{{日期}}）"
@@ -3629,7 +3852,7 @@
       },
       "option_type_change_ticket": {
         "name": "更改選項類型的權利",
-        "description": "此項目可讓您將裝置的主選項、子選項或特殊選項之一變更為不同類型的選項。"
+        "description": "這是一個可以將裝備的主選項、子選項或特殊選項之一變更為不同類型選項的項目。"
       },
       "option_value_change_ticket": {
         "name": "選擇權價值變更票",
@@ -3856,7 +4079,7 @@
       "consumableDetail": "耗材詳情",
       "materialDetail": "材質細節",
       "itemDetail": "項目詳情",
-      "cannotRefine": "無法熔煉",
+      "cannotRefine": "不能被熔煉",
       "goRefine": "轉到鍛造熔煉選項卡"
     },
     "purchase": {
@@ -3864,7 +4087,7 @@
       "consumable": "消耗品",
       "material": "成分",
       "noMaterialUse": "該材料目前不用於增強任何裝備。",
-      "inventoryUse": "可以裝在袋子裡使用。",
+      "inventoryUse": "您可以在包包裡使用它。",
       "characterGrowth": "用於角色成長、強化、精煉等。",
       "selectQuantity": "選擇數量",
       "productDetailAria": "購買產品詳情",
@@ -3873,10 +4096,10 @@
       "maxOwned": "您無法購買，因為庫存商品數量已達到上限。",
       "dailyLimit": "您今天已達到購買限額。",
       "maxPurchase": "最大購買量：{{count}}",
-      "dailyRemaining": "每日剩餘可購買數量：{{count}}",
+      "dailyRemaining": "每天剩餘可購買數量：{{count}}",
       "checkout": "支付",
       "bagFull": "包包裡沒有足夠的空間。 請清理您的包包並再次購買。",
-      "bagFullPartial": "包包裡沒有足夠的空間。 Currently, you can only purchase up to {{max}} units.",
+      "bagFullPartial": "包包裡沒有足夠的空間。 目前只能購買 {{max}} 單位。",
       "typeDivider": "類別·{{type}}",
       "gradeDivider": "年級 · {{grade}}",
       "purchaseQty": "購買數量",
@@ -3911,7 +4134,7 @@
       "noGoldHint": "金幣不會進來，只有選定的數量會消失。",
       "bulkSellTitle": "大量銷售",
       "pickAmount": "決定你想賣多少",
-      "sellCount": "{{count}}개 판매",
+      "sellCount": "{{count}} 已售出",
       "ownedTotalLine": "{{label}} · 總共持有 {{count}}",
       "unitPriceLabel": "每單位售價"
     },
@@ -3923,9 +4146,9 @@
       "ownedLabel": "擁有",
       "deleteOnlyFooter": "金幣不會增加，只是物品會消失。",
       "confirmSell": "銷售已確認",
-      "enhanceStars": "江華{{stars}}城堡",
-      "ownedQty": "{{數數}}",
-      "materialQty": "{{數數}}",
+      "enhanceStars": "加強{{stars}}",
+      "ownedQty": "{{count}}",
+      "materialQty": "{{count}}",
       "consumablePartial": "· 部分消耗品已售出。",
       "settlementNotice": "結算資訊",
       "receiveGold": "收到的金子",
@@ -3945,7 +4168,7 @@
       "itemsObtained": "獲得物品",
       "rankScoreDelta": "排名分數變化",
       "noItems": "沒有獲得任何物品。",
-      "percentIncrease": "增加 {{percent}}%",
+      "percentIncrease": "{{percent}}% 增加",
       "confirm": "查看"
     },
     "claimAll": {
@@ -3971,7 +4194,7 @@
       "upgradeTitle": "綜合結果",
       "downgradeTitle": "分解結果",
       "jackpotHeading": "🎉 太棒了！ 🎉",
-      "jackpotBody": "獲得雙倍材料！",
+      "jackpotBody": "獲得雙倍成分！",
       "convertedBody": "我轉換了該項目，如下所示。",
       "quantityUnit": "狗"
     },
@@ -4034,8 +4257,8 @@
       "slotBadge": "地區",
       "setBonusEffect": "設定獎勵效果",
       "randomPartial": "（部分隨機分配）",
-      "combatSub": "子選項（隨機 {{count}}）",
-      "specialSub": "特殊選項（隨機 {{count}}）",
+      "combatSub": "子選項（隨機 {{count}} 項）",
+      "specialSub": "特別選項（隨機 {{count}} 件）",
       "mainEnhanceSteps": "主選項強化階段",
       "base": "基本的",
       "plusStars": "+{{stars}}姓氏",
@@ -4055,8 +4278,8 @@
       "mainOptionShort": "主要選項",
       "mainEnhanceStepAria": "主要操作增強階段",
       "starsBase": "基本的",
-      "starsPlus": "+{{星星}}河",
-      "specialOptionRandom": "特別選項（隨機 {{count}} 件）",
+      "starsPlus": "+{{stars}}強",
+      "specialOptionRandom": "特殊選項（隨機 {{count}}）",
       "capturePoints": "挑選點",
       "orJoin": "或者",
       "hatchDisposition": "孵化時的趨勢",
@@ -4066,7 +4289,7 @@
       "noMaterialUse": "該材料目前不用於增強任何裝備。",
       "materialTab": "成分",
       "consumableTab": "消耗品",
-      "inventoryHint": "可以裝在袋子裡使用。",
+      "inventoryHint": "您可以在包包裡使用它。",
       "noGuide": "沒有說明。",
       "tier1": "包包",
       "tier2": "岩石",
@@ -4083,6 +4306,17 @@
       "noTier": "無等級"
     },
     "tierInfo": {
+      "names": {
+        "champion": "挑戰者",
+        "master": "掌握",
+        "diamond": "鑽石",
+        "platinum": "鉑",
+        "gold": "金子",
+        "silver": "銀",
+        "bronze": "青銅",
+        "iron": "新秀",
+        "unranked": "發芽"
+      },
       "champion": "最低分數3500或更高，僅限前100人",
       "master": "最低分數3000或更高",
       "diamond": "最低分數2400或更高",
@@ -4121,6 +4355,554 @@
       "stayLine": "殘差：{{範圍}}",
       "demoteLine": "降級：{{ranges}}",
       "rankHintShort": "基於排名競爭的等級（晉升、保留和降級條件請參閱下面的獎勵表）"
+    },
+    "items": {
+      "box_diabox1": {
+        "name": "鑽石套餐一",
+        "description": "獲得1到20顆鑽石"
+      },
+      "box_diabox2": {
+        "name": "鑽石捆綁包 II",
+        "description": "獲得10到30顆鑽石"
+      },
+      "box_diabox3": {
+        "name": "鑽石捆綁包 III",
+        "description": "獲得20到50顆鑽石"
+      },
+      "box_diabox4": {
+        "name": "鑽石套裝 IV",
+        "description": "獲得 30 到 100 顆鑽石"
+      },
+      "box_goldbox1": {
+        "name": "黃金捆綁包一",
+        "description": "賺取 10 到 500 金幣"
+      },
+      "box_goldbox2": {
+        "name": "黃金禮包 II",
+        "description": "賺取 100 到 1,000 金幣"
+      },
+      "box_goldbox3": {
+        "name": "黃金捆綁包 III",
+        "description": "賺取 500 至 3,000 金幣"
+      },
+      "box_goldbox4": {
+        "name": "黃金禮包 IV",
+        "description": "賺取 1,000 至 10,000 金幣"
+      },
+      "btn_addturn": {
+        "name": "添加轉​​彎",
+        "description": "這是可以在挑戰之塔中使用的額外回合物品。"
+      },
+      "btn_hidden": {
+        "name": "隱",
+        "description": "這是可以在挑戰之塔中使用的隱藏物品。"
+      },
+      "btn_missile": {
+        "name": "飛彈",
+        "description": "這是可以在挑戰之塔使用的導彈物品。"
+      },
+      "btn_reflesh": {
+        "name": "佈局變更",
+        "description": "這是可以在挑戰之塔使用的放置變更物品。"
+      },
+      "btn_scan": {
+        "name": "掃描",
+        "description": "這是可以在挑戰之塔上使用的掃描道具。"
+      },
+      "eq_board1": {
+        "name": "發芽棋盤",
+        "description": "這是一款輕盈的泡桐木棋盤，非常適合初學者使用。"
+      },
+      "eq_board2": {
+        "name": "楓木棋盤",
+        "description": "這是由肉荳蔻樹製成的高品質棋盤格，顆粒美麗。"
+      },
+      "eq_board3": {
+        "name": "珊瑚棋盤",
+        "description": "它由最優質的神秘木材製成，因此放置石頭的聲音是純淨的。"
+      },
+      "eq_board4": {
+        "name": "烏木棋盤",
+        "description": "這是一塊用極大熱情打磨而成的火山岩棋盤。"
+      },
+      "eq_board5": {
+        "name": "龍門棋盤",
+        "description": "這是由金剛松製成的棋盤，已有一千多年的歷史。"
+      },
+      "eq_board7": {
+        "name": "新龍棋盤",
+        "description": "這是一個超越的棋盤，上面刻有星座的軌跡，每一步都打開了勝利之路。"
+      },
+      "eq_bottom1": {
+        "name": "春天色的製服下裝",
+        "description": "這款訓練褲運動舒適。"
+      },
+      "eq_bottom2": {
+        "name": "夏季彩色制服下裝",
+        "description": "這些褲子由耐用材料製成，不易磨損。"
+      },
+      "eq_bottom3": {
+        "name": "秋季彩色制服下裝",
+        "description": "這些是與徽章搭配的高品質絲綢褲子。"
+      },
+      "eq_bottom4": {
+        "name": "冬季彩色制服下裝",
+        "description": "這是不妨礙任何動作的劍士褲子。"
+      },
+      "eq_bottom5": {
+        "name": "Yongbi Dobok 下裝",
+        "description": "它由最優質的絲綢製成，與龍袍相得益彰。"
+      },
+      "eq_bottom7": {
+        "name": "Shinryong Dobok 下裝",
+        "description": "這是一種超凡的道服褲，充滿了神龍的意志，即使在暴風雨中也能防止你失去平衡。"
+      },
+      "eq_fan1": {
+        "name": "藍色風扇",
+        "description": "這是一款輕便實用的竹扇。"
+      },
+      "eq_fan2": {
+        "name": "銀烈風扇",
+        "description": "它由柔軟的絲綢製成，手感良好。"
+      },
+      "eq_fan3": {
+        "name": "火焰風扇",
+        "description": "這是一把扇子大師，像鶴的翅膀一樣優雅地展開。"
+      },
+      "eq_fan4": {
+        "name": "霜風扇",
+        "description": "它由重鋼製成，可以在緊急情況下用作武器。"
+      },
+      "eq_fan5": {
+        "name": "永壁風扇",
+        "description": "傳說中的扇子，由一百根白色羽毛製成。"
+      },
+      "eq_fan7": {
+        "name": "神龍風扇",
+        "description": "那是一把蘊藏著裂天、力挽狂瀾的神龍氣息的超凡之扇。"
+      },
+      "eq_stone1": {
+        "name": "黑白發芽石",
+        "description": "這些是重量輕且便宜的塑膠圍棋石。"
+      },
+      "eq_stone2": {
+        "name": "銀石",
+        "description": "它是用從河邊撿來的光滑鵝卵石製成的圍棋棋子。"
+      },
+      "eq_stone3": {
+        "name": "紅寶石",
+        "description": "它是由散發著冰冷光芒的黑曜石精心雕刻而成。"
+      },
+      "eq_stone4": {
+        "name": "白玉圍棋石",
+        "description": "這是一塊由藍寶石和白玉製成的圍棋石，散發出燦爛的光芒。"
+      },
+      "eq_stone5": {
+        "name": "永安圍棋石",
+        "description": "這是一種傳說中的圍棋石，由太陽、月亮和星星的能量鍛造而成。"
+      },
+      "eq_stone7": {
+        "name": "新龍圍棋石",
+        "description": "它由晨星碎片鍛造而成，是一顆超凡的圍棋棋子，一招制霸棋局。"
+      },
+      "eq_stonebox1": {
+        "name": "輕木桶",
+        "description": "它是一種輕質且廉價的塑膠 Go 盒子。"
+      },
+      "eq_stonebox2": {
+        "name": "實心竹桶",
+        "description": "這是一個用棗木製成的Go盒子，帶有淡淡的香味。"
+      },
+      "eq_stonebox3": {
+        "name": "紅木八德堂",
+        "description": "它由紅木製成，顏色美麗。"
+      },
+      "eq_stonebox4": {
+        "name": "烏木走盒",
+        "description": "這是一種罕見的圍棋盒，由奇木製成，圖案奇異而美麗。"
+      },
+      "eq_stonebox5": {
+        "name": "龍林八德堂",
+        "description": "這是一款優質紅木圍棋盒，上面刻有精美的龍紋。"
+      },
+      "eq_stonebox7": {
+        "name": "新龍八德堂",
+        "description": "那是一個超凡的圍棋盒子，封印了遠古戰場的能量，每取出一顆棋子都增添了威懾力。"
+      },
+      "eq_top1": {
+        "name": "春季色制服上衣",
+        "description": "這是一款舒適的上衣，非常適合您專注於訓練。"
+      },
+      "eq_top2": {
+        "name": "夏季彩色制服上衣",
+        "description": "這是即使長時間訓練也不會磨損的堅韌道服。"
+      },
+      "eq_top3": {
+        "name": "秋季彩色制服上衣",
+        "description": "這是一位學者的紋章，帶著一種安靜的優雅。"
+      },
+      "eq_top4": {
+        "name": "冬季彩色制服上衣",
+        "description": "這是專為激烈戰鬥而設計的劍士服裝。"
+      },
+      "eq_top5": {
+        "name": "龍飛道福頂",
+        "description": "上面繡有像徵皇帝威嚴的龍紋。"
+      },
+      "eq_top7": {
+        "name": "Shinryong制服上衣",
+        "description": "這是一件超凡脫俗的製服上衣，上面編織著神龍鱗片的顏色，給人一種堅定不移的焦點。"
+      },
+      "mat_materials1": {
+        "name": "次級附魔石",
+        "description": "用於強化裝備的基礎材料。"
+      },
+      "mat_materials2": {
+        "name": "中級加固石",
+        "description": "用於強化裝備的高級材料。"
+      },
+      "mat_materials3": {
+        "name": "高級附魔石",
+        "description": "用於強化裝備的頂級材料。"
+      },
+      "mat_materials4": {
+        "name": "高級加固石",
+        "description": "用於強化裝備的稀有材料。"
+      },
+      "mat_materials5": {
+        "name": "神秘的強化石",
+        "description": "一種古老的材料，用來強化裝備。"
+      },
+      "pet_egg": {
+        "name": "神秘的蛋",
+        "description": "在孵化場使用時獲得隨機人工智慧寵物。"
+      },
+      "pet_soulstone1": {
+        "name": "萌芽靈魂石",
+        "description": "這是普通等級寵物升級到高級所需的材料。 寵物等級10以上可用。"
+      },
+      "pet_soulstone2": {
+        "name": "波魂石",
+        "description": "將高級寵物飼養到稀有等級需要這種材料。 寵物等級20以上可用。"
+      },
+      "pet_soulstone3": {
+        "name": "深淵靈魂石",
+        "description": "將稀有等級寵物提升至史詩等級需要此材料。 寵物Lv.30以上可以使用。"
+      },
+      "pet_soulstone4": {
+        "name": "炎魂石",
+        "description": "這是將史詩級寵物升級為傳奇級所需的材料。 寵物Lv.40以上可以使用。"
+      },
+      "pet_soulstone5": {
+        "name": "天光魂石",
+        "description": "將傳奇級寵物升級為神話級需要此材料。 寵物Lv.50時可以使用。"
+      },
+      "shop_action_point_10": {
+        "name": "行動恢復藥水（+10）",
+        "description": "我感到有動力去做某件事。"
+      },
+      "shop_action_point_20": {
+        "name": "行動恢復藥水（+20）",
+        "description": "我覺得我必須做點什麼。"
+      },
+      "shop_action_point_30": {
+        "name": "行動恢復藥水（+30）",
+        "description": "我們馬上去玩遊戲吧。"
+      },
+      "shop_condition_potion_large": {
+        "name": "狀態恢復劑（大）",
+        "description": "一種狀態恢復劑，將幫助您今天成功參加比賽。"
+      },
+      "shop_condition_potion_medium": {
+        "name": "狀態恢復劑（中）",
+        "description": "一種讓您的頭腦感覺更清醒的狀態恢復劑。"
+      },
+      "shop_condition_potion_small": {
+        "name": "狀態恢復劑（小）",
+        "description": "緩解緊張的狀態恢復劑"
+      },
+      "shop_equipment_box_1": {
+        "name": "裝備箱一",
+        "description": "獲得普通到稀有等級的裝備"
+      },
+      "shop_equipment_box_2": {
+        "name": "裝備箱二",
+        "description": "獲得普通到史詩級裝備"
+      },
+      "shop_equipment_box_3": {
+        "name": "裝備箱III",
+        "description": "獲得進階至傳奇等級裝備"
+      },
+      "shop_equipment_box_4": {
+        "name": "裝備箱IV",
+        "description": "獲得稀有到神話級的裝備"
+      },
+      "shop_equipment_box_5": {
+        "name": "裝備箱V",
+        "description": "獲得史詩級至神話級裝備"
+      },
+      "shop_equipment_box_6": {
+        "name": "裝備箱六",
+        "description": "獲得傳奇級至神話級裝備"
+      },
+      "shop_equipment_unbind_ticket": {
+        "name": "取消歸屬權",
+        "description": "將綁定裝備狀態改為可交易。"
+      },
+      "shop_material_box_1": {
+        "name": "材料盒一",
+        "description": "獲得 5 個從低到高的強化石"
+      },
+      "shop_material_box_2": {
+        "name": "材料盒二",
+        "description": "獲得 5 個從低到高的強化石"
+      },
+      "shop_material_box_3": {
+        "name": "材料盒三",
+        "description": "獲得 5 個從低到高的強化石"
+      },
+      "shop_material_box_4": {
+        "name": "材料盒四",
+        "description": "獲得5個中級至高級強化石"
+      },
+      "shop_material_box_5": {
+        "name": "材料盒五",
+        "description": "進階～獲得 5 顆神秘強化石"
+      },
+      "shop_material_box_6": {
+        "name": "材料盒六",
+        "description": "進階～獲得 5 顆神秘強化石"
+      },
+      "shop_mythic_option_change_ticket": {
+        "name": "特別選項變更票",
+        "description": "該項目允許您將神話或超凡裝備的特殊選項更改為其他特殊選項。"
+      },
+      "shop_option_type_change_ticket": {
+        "name": "更改選項類型的權利",
+        "description": "這是一個可以將裝備的主選項、子選項或特殊選項之一變更為不同類型選項的項目。"
+      },
+      "shop_option_value_change_ticket": {
+        "name": "選擇權價值變更票",
+        "description": "這是一個可以改變設備的子選項或特殊選項之一的值的項目。"
+      },
+      "shop_refinement_charm": {
+        "name": "熔煉護身符",
+        "description": "無法熔煉的裝備額外增加1個精煉次數"
+      },
+      "use_allowtrade": {
+        "name": "交易登記權",
+        "description": "這是允許在交易所額外註冊待售商品的許可。"
+      }
+    },
+    "stats": {
+      "mythic": {
+        "GuildBossRewardGradeUp": {
+          "name": "公會Boss戰獎勵提升",
+          "abbrev": "老闆獎勵等級",
+          "short": "公會老大獎勵等級+1",
+          "description": "獎勵等級依公會boss戰的結果增加一級。 （最大SSS）這是神話特殊選項1號，可以與超越1號「增加Boss獎勵」同時應用。"
+        },
+        "GuildBossExtraDamage5": {
+          "name": "公會boss戰時額外傷害：5%",
+          "abbrev": "首領傷害5%",
+          "short": "公會首領傷害+5%",
+          "description": "攻擊公會boss時，最終傷害額外增加5%。 （不能與超越特殊選項重疊）"
+        },
+        "TowerApMinus1Floors1to35": {
+          "name": "挑戰之塔（1 至 35 層） 所需行動 -1",
+          "abbrev": "頂級AP (1~35)",
+          "short": "1號塔~35層 AP -1",
+          "description": "進入挑戰之塔第1層到第35層所需的動作減少1。 （不能與超越特殊選項重疊）"
+        },
+        "ApRegenMinus30s": {
+          "name": "動作恢復時間-30秒",
+          "abbrev": "AP恢復-30秒",
+          "short": "動作恢復-30秒",
+          "description": "恢復 1 個行動點數所需的時間減少 30 秒。 （不能與超越特殊選項重疊）"
+        },
+        "AdventureScanPlus1": {
+          "name": "冒險掃描+1",
+          "abbrev": "冒險掃描+1",
+          "short": "冒險掃描+1",
+          "description": "在冒險（怪物戰鬥）開始時，您將收到一個額外的掃描物品。 （不能與超越特殊選項重疊）"
+        },
+        "AdventureMissilePlus1": {
+          "name": "冒險導彈+1",
+          "abbrev": "冒險導彈+1",
+          "short": "冒險導彈+1",
+          "description": "冒險開始時會提供一個額外的導彈物品。 （不能與超越特殊選項重疊）"
+        },
+        "AdventureGoldBonus15": {
+          "name": "冒險金幣獎勵 +15%",
+          "abbrev": "冒險金幣 15%",
+          "short": "冒險金幣+15%",
+          "description": "贏得冒險後獲得的金幣增加 15%。 （與百科全書和理解加成分別結合）（不能與超越特殊選項重疊）"
+        },
+        "GuildBossExtraRewardDuplicate": {
+          "name": "增加公會boss戰鬥獎勵",
+          "abbrev": "增加了Boss獎勵",
+          "short": "1種公會boss獎勵副本（累計）",
+          "description": "您將再次獲得公會首領戰鬥的獎勵之一。 如果該選項在超凡裝備上有多條線（多件裝備），則會重複應用。 可與其他特殊選項結合應用。 這是超越特殊選項1號，可以與神話1號「Boss獎勵等級」同時適用。"
+        },
+        "GuildBossExtraDamage10": {
+          "name": "公會boss戰傷害額外增加10%",
+          "abbrev": "首領傷害 10%",
+          "short": "公會首領傷害+10%",
+          "description": "攻擊公會boss時，最終傷害額外增加10%。 （不能與神話特殊選項重疊）"
+        },
+        "TowerApMinus1AllFloors": {
+          "name": "挑戰之塔所需行動-1",
+          "abbrev": "頂級 AP 所有樓層",
+          "short": "塔所有樓層的 AP -1",
+          "description": "所有挑戰進入頂層所需的動作減少1。 （不能與神話特殊選項重疊）"
+        },
+        "ApRegenMinus60s": {
+          "name": "動作恢復時間-60秒",
+          "abbrev": "AP恢復-60秒",
+          "short": "動作恢復-60秒",
+          "description": "恢復 1 個行動點數所需的時間減少 60 秒。 （不能與神話特殊選項重疊）"
+        },
+        "AdventureScanTranscendent": {
+          "name": "冒險掃描+1",
+          "abbrev": "冒險掃描+1",
+          "short": "冒險掃描+2（超越）",
+          "description": "冒險（怪物戰鬥）中將額外提供兩個掃描物品。 （不能與神話特殊選項重疊）"
+        },
+        "AdventureMissilePlus2": {
+          "name": "冒險飛彈+2",
+          "abbrev": "冒險飛彈+2",
+          "short": "冒險飛彈+2",
+          "description": "冒險開始時將提供兩個額外的導彈物品。 （不能與神話特殊選項重疊）"
+        },
+        "AdventureGoldBonus20": {
+          "name": "冒險金幣獎勵 +20%",
+          "abbrev": "冒險金幣 20%",
+          "short": "冒險金幣+20%",
+          "description": "贏得冒險時獲得的金幣增加 20%。 （不能與神話特殊選項重疊）"
+        }
+      }
+    },
+    "optionValueLine": "{{統計}} +{{值}}{{後綴}}}",
+    "optionRange": "[{{lo}}~{{hi}}{{後綴}}]",
+    "optionEnhancement": "（{{count}}增強）",
+    "meta": {
+      "description": {
+        "gold": "它是圍棋世界中使用的代表性貨幣。",
+        "diamond": "它是用於特殊購買、擴展等的優質商品。"
+      },
+      "usage": {
+        "goldSpend": "用於商店、強化/製作、入場費等黃金消費場所。",
+        "diamondSpend": "用於鑽石店、包槽擴充等。",
+        "unbindTicket": "[背包]-[選擇裝備]-[解綁]",
+        "refinementCharm": "[鐵匠]-[裝備精煉]選擇無法熔煉的裝備",
+        "refinementTicket": {
+          "optionType": "[鐵匠-裝備精煉]選項類型變更",
+          "optionValue": "[鐵匠-裝備精煉]選項值變更",
+          "specialOption": "[鐵匠-裝備精煉]特殊選項變更",
+          "mythicOption": "[鐵匠-裝備精煉]神話選項變更",
+          "generic": "【鐵匠-裝備精煉】選項變更"
+        },
+        "conditionPotion": "[冠軍] 恢復比賽開始前的狀態{{lo}}~{{hi}}",
+        "actionPointInstant": "[立即使用]動作恢復+{{金額}}",
+        "actionPointInstantGeneric": "【立即使用】行動能力恢復",
+        "openBoxInBag": "如果您從包裡使用它，您將獲得獎勵。",
+        "equipmentBoxOpen": "您可以透過使用包包裡的箱子來獲得裝備。",
+        "enhancementMaterial": {
+          "single": "[{{gradeLabel}}] 裝備：{{rangeLabel}}",
+          "range": "[{{gradeLabel}}] 裝備：{{rangeLabel}}"
+        },
+        "pet": {
+          "soulGradeUpgrade": "[寵物等級提升] {{fromGrade}}→{{toGrade}}（寵物Lv.{{minLevel}}或更高）",
+          "soulGradeUpgradeGeneric": "【寵物等級提升】用於提升公平競技場中其他AI寵物的等級。",
+          "eggHatchRandom": "【寵物·孵化場】放入槽位，孵化成隨機類型的AI寵物。",
+          "welcomeEggHatch": "【寵物·孵化場】放置槽位－孵化時間1分鐘，孵化後AI寵物等級5級"
+        }
+      },
+      "enhanceRange": {
+        "single": "{{stars}}增強",
+        "range": "{{minStars}}~{{maxStars}}增強"
+      },
+      "acquire": {
+        "gold": {
+          "line1": "[遊戲/內容] 圍棋比賽、單人遊戲、地下城/聯盟等",
+          "line2": "[任務/冒險]每日/每週/每月任務、寶箱、VIP插槽",
+          "line3": "【交易/拆解】換貨結算、裝備拆解、部分店舖出售"
+        },
+        "diamond": {
+          "line1": "[商店]鑽石包/消耗品/材料選項卡",
+          "line2": "[付款/活動] 儲值、營運/促銷郵件",
+          "line3": "[功能] 一些高級功能，例如包槽擴展"
+        },
+        "tower": {
+          "line1": "[挑戰之塔]從遊戲資訊中的物品商店（金幣）購買",
+          "line2": "【挑戰之塔】透過一些途徑獲得，如進入/通關獎勵、VIP獎勵等。"
+        },
+        "actionPoint": {
+          "line1": "【商店】金幣商店－體力恢復藥水（+10/+20/+30），每日限額/等級價格",
+          "line2": "[郵件·活動] 營運補償/促銷金",
+          "line3": "【VIP功能】啟動後，每天都會透過郵件收到體力恢復III。"
+        },
+        "condition": {
+          "line1": "[商店] 鑽石商店（消耗品）或相關禮包",
+          "line2": "[任務/活動]部分獎勵"
+        },
+        "guildEquipBox": {
+          "line1": "[公會商店] 只能用公會幣購買",
+          "line2": "[商店/任務] 透過使用背包中的裝備來獲取裝備，類似於普通的裝備箱。"
+        },
+        "equipBox": {
+          "line1": "【商店】金幣商店（裝備標籤）、廣告獎勵、部分現金禮包",
+          "line2": "【任務/VIP】每日、每週、每月任務，獎勵VIP插槽等。",
+          "line3": "【冒險/公會】寶箱、公會boss戰績獎勵等"
+        },
+        "materialBox": {
+          "line1": "[商店]金/鑽石商店（材料標籤）、廣告獎勵、一些禮包",
+          "line2": "【任務/VIP】每日、每週、每月任務，獎勵VIP插槽等。"
+        },
+        "goldBundle": {
+          "line1": "[商店]鑽石商店（消耗品）、廣告獎勵",
+          "line2": "[任務/冒險]各種獎勵/寶箱"
+        },
+        "diamondBundle": {
+          "line1": "[商店]鑽石商店（消耗品）、廣告獎勵",
+          "line2": "[任務/活動]部分獎勵"
+        },
+        "bonusStat": {
+          "line1": "[公會商店]使用公會幣購買（帳戶限制）",
+          "line2": "[成長]策略/玩法等級提升時部分支付"
+        },
+        "enhancementStone": {
+          "line1": "【公會商店】低級~神秘強化石可以用公會幣兌換",
+          "line2": "【材料箱】透過商店、任務、VIP等獲得的材料箱。",
+          "line3": "[鐵匠]材料合成/分解、裝備強化費用",
+          "line4": "【冒險、排名、公會】勝利、塔樓、boss戰等獎勵"
+        },
+        "material": {
+          "line1": "【商店】金鑽商店（材料）、公會商店（部分）",
+          "line2": "【任務·冒險·活動】每日、每週、每月、寶箱、操作獎勵",
+          "line3": "[郵件]合成/強化結果、活動付款"
+        },
+        "equipment": {
+          "line1": "[裝備箱] 使用袋子中的箱子時獲得。",
+          "line2": "[冒險]關卡/Boss戰通關獎勵",
+          "line3": "[兌換]向其他使用者購買註冊物品",
+          "line4": "【合成/製作】鐵匠合成/超越裝備製作等"
+        },
+        "consumableGeneric": "[商店、任務、郵件]綜合商店、活動、營運獎勵",
+        "pet": {
+          "soulTraining": "[寵物/訓練獎勵] 插槽 {{slots}}",
+          "soulConvert": "[寵物/靈魂轉化] {{等級}} 分解寵物時可獲得",
+          "soulShopDiamond": "[寵物·寵物店]鑽石{{數量}}",
+          "soulShopGold": "[寵物寵物店]金幣{{金額}}",
+          "soulShopDiamondDaily": "[寵物·寵物店]鑽石{{amount}}，每天{{limit}}次",
+          "soulShopGoldDaily": "[寵物·寵物店]金幣{{amount}}，每天{{limit}}次",
+          "soulFallback": "【寵物】可以在公平體育場/孵化場相關內容中取得或交換。",
+          "eggShop": "【寵物·寵物商店】可用金幣、鑽石購買（每日限量）",
+          "eggRewards": "[寵物/訓練/活動]作為部分獎勵獲得",
+          "welcomeEggMail": "【郵件】可以透過新歡迎/營運金等方式取得。",
+          "welcomeEggShop": "[寵物·寵物商店]可以用鑽石購買（每天1個）"
+        }
+      }
     }
   },
   "exchange": {
@@ -4220,9 +5002,9 @@
       "selectGear": "裝置選用"
     },
     "alerts": {
-      "insufficientTicket": "交易登記權不足。",
+      "insufficientTicket": "交易登記權不足。 註冊額外銷售時段所需。",
       "vipListingLimit": "特色 VIP 最多只能註冊銷售 3 件產品。",
-      "ticketHint": "交易登記權不足。 您可以使用一張登記票登記一件銷售商品。",
+      "ticketHint": "額外的銷售時段註冊需要交易登記票。",
       "selectGearFromInventory": "請從庫存中選擇您要出售的設備。",
       "boundGear": "綁定的裝備不能出售。 請使用取消歸屬的權利。",
       "minimumPrice": "最低售價為{{price}}。",
@@ -4246,7 +5028,7 @@
       "waiting": "氣氛"
     },
     "scoring": "正在計算...",
-    "allMatchesEnded": "所有比賽均已結束。 頒獎典禮正在舉行。",
+    "allMatchesEnded": "今天的所有比賽都已經結束。",
     "breathing": "我深吸一口氣，準備參加比賽。",
     "playersEntering": "球員們正在入場。 請稍等。",
     "playerLoadError": "載入玩家資訊時發生錯誤。",
@@ -4254,20 +5036,20 @@
     "playerLoadFailed": "無法載入玩家資訊。",
     "loadingTournament": "正在加載比賽資訊...",
     "loadingUserInfo": "正在載入用戶資訊...",
-    "nextMatchPreparing": "正在為下一場比賽做準備...{{countdown}}",
+    "nextMatchPreparing": "準備下一場比賽... {{倒數}}",
     "defaultPlayer": "玩家",
     "me": "我",
     "opponent": "對手",
     "black": "黑色的",
     "white": "百",
-    "rankSuffix": "以上 {{rank}}",
-    "recordWinsLosses": "{{wins}}승 {{losses}}패",
-    "tournamentRecord": "比賽 {{wins}} 獲勝 {{losses}} 失敗",
+    "rankSuffix": "{{秩}}",
+    "recordWinsLosses": "{{wins}} 贏 {{losses}} 輸",
+    "tournamentRecord": "比賽 {{wins}} 贏 {{losses}} 輸",
     "finalResult": "最終結果",
     "matchResult": "比賽結果",
     "victory": "勝利",
     "defeat": "擊敗",
-    "scoreLead": "{{points}}家用車",
+    "scoreLead": "{{point}}家用車",
     "jigo": "近戰",
     "condition": "狀況",
     "badukAbility": "圍棋能力",
@@ -4276,7 +5058,7 @@
     "championshipAbility": "冠軍統計",
     "userPetAbility": "使用者/寵物能力",
     "playerAbility": "{{name}} 能力",
-    "viewProfile": "{{name}} 查看個人資料",
+    "viewProfile": "看{{name}}個人資料",
     "equipment": "裝置",
     "changeTicket": "變更權",
     "rewardClaimed": "✓ 您已收到獎勵。",
@@ -4307,7 +5089,7 @@
       "phaseMidLabel": "遊戲中期",
       "phaseEndLabel": "殘局",
       "phaseEarlyStart": "上半場戰鬥已經開始。 我們先來看看首戰的鋪墊和流程。",
-      "phaseMidStart": "中期比賽開始了。 中路的爭奪和位置之爭變得更加激烈。",
+      "phaseMidStart": "半場比賽開始了。 中路的爭奪和位置之爭變得更加激烈。",
       "phaseEndStart": "殘局已經開始。 家庭計算和詳細的損益變得重要。",
       "defaultRound": "本輪",
       "defaultPlayer1": "玩家1",
@@ -4410,7 +5192,7 @@
       "timeBonus": "時間獎金",
       "shop": {
         "weeklyLimitUsed": "每週剩餘購買次數：0/{{limit}}（本週限制已用完）",
-        "weeklyLimit": "每週剩餘購買量 {{remaining}}/{{limit}}（本週購買 {{used}}）",
+        "weeklyLimit": "每週購買 {{remain}}/{{limit}} 次（本週購買 {{used}} 次）",
         "attempt": "審判",
         "insufficientCoins": "我的冠軍幣快用完了。",
         "purchaseFailed": "您購買失敗。 請稍後重試。",
@@ -4419,11 +5201,11 @@
         "changeTicket": "變更權",
         "special": "特別的",
         "limitLabel": "限制",
-        "weeklyCountShort": "（每週 {{remaining}}/{{limit}}）",
+        "weeklyCountShort": "（每週{{剩餘}}/{{限制}}）",
         "equipmentBoxInfoSuffix": "獲取設備。 必須包括特殊選項以提高冠軍能力"
       },
       "ranking": {
-        "viewProfile": "{{name}} 查看個人資料",
+        "viewProfile": "看{{name}}個人資料",
         "loading": "正在載入資料...",
         "loadFailed": "無法載入排名。",
         "title": "冠軍排名",
@@ -4437,10 +5219,10 @@
       },
       "venue": {
         "oneGame": "1場比賽（隨機）",
-        "grade": "評等：{{grade}}",
-        "gradeRange": "評級範圍：{{low}}~{{high}}",
-        "rankPlace": "{{rank}}위",
-        "rankRange": "以上 {{low}}~{{high}}",
+        "grade": "年級：{{年級}}",
+        "gradeRange": "評分範圍：{{低}}~{{高}}",
+        "rankPlace": "{{秩}}",
+        "rankRange": "{{低}}~{{高}}",
         "gold": "金子",
         "diamonds": "鑽石",
         "winGold": "勝利時{{min}}~{{max}}金幣",
@@ -4482,7 +5264,7 @@
         "world": "世界錦標賽",
         "unlock3": "如果您獲得第三名或更高名，則晉級下一階段",
         "commonFeatures": "體育場館共同特點",
-        "simulation": "시뮬레이션 경기",
+        "simulation": "模擬遊戲",
         "condition": "狀況",
         "rewards": "賠償",
         "basicReward": "基礎獎勵：每場比賽依等級自動獎勵金幣、強化石、裝備箱。",
@@ -4600,7 +5382,13 @@
       "championship": "錦標賽",
       "scrollGuideTitle": "滾動指南",
       "categoryAria": "排名類別",
-      "title": "排行"
+      "title": "排行",
+      "gameRankingTab": "遊戲排名",
+      "badukRankingTab": "圍棋排名",
+      "loginRequired": "登入後即可查看自己的排名。",
+      "championshipLoginHint": "登入後您可以查看自己的冠軍排名。",
+      "guideClose": "關閉指南",
+      "championshipNoGuide": "冠軍排名沒有單獨的得分指南。"
     },
     "round16": "16強",
     "center": "中心",
@@ -4668,7 +5456,7 @@
     "skipAllRoundsHint": "立即跳過所有剩餘回合（使用者比賽）並繼續比賽結束。",
     "matchPreparing": "準備比賽...",
     "forfeitConfirm": "您想放棄並離開錦標賽嗎？ 您今天將失去參與的機會。",
-    "roundRobinRound": "{{round}}회차",
+    "roundRobinRound": "{{round}} 輪",
     "dungeonRunRecordTitle": "本階段錦標賽紀錄",
     "sidebarExtraPanel": "附加資訊面板",
     "openRightPanel": "打開右側面板",
@@ -4689,22 +5477,22 @@
     "clearLowerFirst": "先清理下層",
     "rewardClaimed": "收到的補償",
     "board": "棋盤",
-    "boardSize": "棋盤 {{size}}×{{size}}",
+    "boardSize": "棋盤格 {{size}}×{{size}}",
     "goal": "目標",
     "limit": "限制",
     "scoring": "計算價格",
     "base": "根據",
-    "turnUnit": "{{count}}轉",
-    "blackCaptureGoal": "黑色 {{count}}",
-    "captureGoalTurnLimit": "흑 {{count}}개 따내기 ({{turns}}턴 제한)",
-    "autoScoringHint": "[{{turns}}number count] 如果您將其保留為相應的數字，則會自動計算計數。",
-    "autoScoringShort": "[{{turns}}水計數]",
+    "turnUnit": "{{count}} 圈",
+    "blackCaptureGoal": "黑色 {{count}} 隻狗",
+    "captureGoalTurnLimit": "贏得 {{count}} 個黑色棋子（限制 {{turns}} 回合）",
+    "autoScoringHint": "[{{turns}}計數] 如果您將其保留到該數字，則會自動計數。",
+    "autoScoringShort": "[{{轉}}計數]",
     "victory": "勝利",
     "challenge": "挑戰",
     "resetDone": "已初始化",
-    "timeDaysHoursMinutes": "{{days}} 天 {{hours}} 小時 {{minutes}} 分鐘",
-    "timeHoursMinutesSeconds": "{{hours}} 小時 {{minutes}} 分 {{seconds}} 秒",
-    "timeMinutesSeconds": "{{minutes}} 分 {{seconds}} 秒",
+    "timeDaysHoursMinutes": "{{天}}天{{小時}}小時{{分鐘}}分鐘",
+    "timeHoursMinutesSeconds": "{{小時}}小時{{分鐘}}分鐘{{秒}}秒",
+    "timeMinutesSeconds": "{{分鐘}} 分 {{秒}} 秒",
     "monthlyRewards": "每月獎勵",
     "rewardInfo": "獎勵訊息",
     "ranking": "排行",
@@ -4766,7 +5554,7 @@
     "rewardFromFloor10Short": "當您清除 10 層或更多樓層時，您可以獲得每月獎勵。",
     "stages": "階段",
     "rankingTop100": "排名前100名",
-    "rewardTierLine": "{{floor}}樓頭補償費 · 月底結算時支付",
+    "rewardTierLine": "{{floor}}樓頭補償款 · 月底結算時支付",
     "unranked": "除了排名之外",
     "noOtherRanked": "前100名中沒有列出其他排名。",
     "rewardModalTitle": "挑戰之塔獎勵訊息",
@@ -4930,7 +5718,10 @@
       "remainingTime": "剩餘時間",
       "diamondsUsed": "使用鑽石",
       "ownedLabel": "擁有",
-      "mysteriousEgg": "神秘蛋 ×1"
+      "mysteriousEgg": "神秘蛋 ×1",
+      "upgradeTier1": "強化我",
+      "upgradeTier2": "強化II",
+      "upgradeTier3": "強化Ⅲ"
     },
     "lobby": {
       "infoTab": "資訊",
@@ -4979,7 +5770,7 @@
       "cannotWhileTrainingShort": "訓練中的寵物無法升級。",
       "unequipRepFirst": "解鎖代表寵物",
       "equipRep": "配備代表寵物",
-      "cannotSetRepWhileTraining": "正在訓練的寵物不能被指定為代表寵物。 請完成培訓後指定。",
+      "cannotSetRepWhileTraining": "正在訓練的寵物不能被指定為代表寵物。 請在完成培訓後指定。",
       "soulConvert": "靈魂轉化",
       "cannotSoulConvertTraining": "訓練中的寵物無法進行靈魂轉化。 請完成培訓後使用。",
       "cannotSoulConvertRep": "代表寵物裝備的寵物不能進行靈魂轉化。 請在停用代表寵物後使用它。",
@@ -4988,7 +5779,7 @@
       "next": "下一個",
       "before": "前",
       "after": "自從",
-      "baseStatIncrease": "基礎能力提升",
+      "baseStatIncrease": "基礎能力增加",
       "percentTen": "+10%",
       "nextGradeLevelUpBudget": "在下一個年級部分升級寵物時自動分配能力",
       "dispositionBoost": "強化傾向",
@@ -5119,15 +5910,15 @@
       "noRepresentativePet": "沒有代表性的寵物",
       "levelUpCoreDeltaDefault": "提升能力",
       "dispositionAllStats": "所有能力+{{pct}}%",
-      "dispositionConvert": "{{從}} {{pct}}% → {{到}} (2×)",
+      "dispositionConvert": "{{from}} {{pct}}% → {{to}} (2×)",
       "dispositionSingle": "{{stat}} +{{pct}}%",
       "dispositionUpgradeAll": "所有能力 +{{from}}% → {{to}}%",
-      "dispositionUpgradeConvert": "{{從}}→{{到}} +{{fromPct}}% → {{toPct}}%",
-      "dispositionUpgradeSingle": "{{stat}} +{{從}}% → {{到}}%",
-      "specTrainingXp": "訓練經驗+{{pct}}%",
+      "dispositionUpgradeConvert": "{{from}}→{{to}} +{{fromPct}}% → {{toPct}}%",
+      "dispositionUpgradeSingle": "{{stat}} +{{from}}% → {{to}}%",
+      "specTrainingXp": "訓練經驗 +{{pct}}%",
       "specTrainingGold": "睡蓮金 +{{pct}}%",
       "specTrainingTime": "訓練時間 -{{pct}}%",
-      "specSoulDrop": "訓練靈魂石取得+{{pct}}%",
+      "specSoulDrop": "訓練靈魂石獲取量+{{pct}}%",
       "specSoulQtyPlusOne": "訓練靈魂石獲得數量+1",
       "specStrategicAp": "策略競技場需要行動-1",
       "specPairAp": "公平體育場需要採取行動 -1",
@@ -5138,7 +5929,7 @@
       "cannotChangeSettingsInMatch": "在配對或玩遊戲期間無法更改房間設定。",
       "cannotProposeInMatch": "在匹配/匹配期間不能提出更改。",
       "pendingProposal": "有一項變更提案正在處理中。",
-      "proposalCooldown": "拒絕後，您可以在 {{seconds}} 秒後重新提供。",
+      "proposalCooldown": "您可以在拒絕後 {{seconds}} 秒重新提供。",
       "cannotProposeWhenReady": "處於就緒狀態時您無法提出更改建議。",
       "privatePasswordLength": "請輸入4位字元的私人房間密碼。",
       "privatePasswordRequired": "更改至私人房間時，請輸入4位密碼。",
@@ -5153,10 +5944,10 @@
       "equipPetForRanked": "要使用配對排位賽，您必須裝備配對寵物。",
       "equipPetForRoomKind": "要創建此房間類型，您必須配備公平寵物。",
       "strategicRoomTitle": "{{name}} 的戰略圍棋室",
-      "playfulRoomTitle": "{{name}} 的圍棋室",
-      "pairRoomTitle": "{{name}}的雙人房",
+      "playfulRoomTitle": "{{name}} 玩圍棋棒",
+      "pairRoomTitle": "{{name}} 的雙人間",
       "aiStartRestricted": "AI戰鬥只能在寵物對戰（常規房間）、策略、友誼賽（雙人）和體育場AI房間中開始。 在使用者清單頂部的「配對AI對戰」中建立新的寵物配對房間。",
-      "alreadyInRoomForRanked": "已經有一個參與房間。 离开另一对房间后，请在用户列表顶部开始宠物对排位赛。"
+      "alreadyInRoomForRanked": "已經有一個參與房間。 離開另一對房間後，請在使用者清單頂部開始寵物對排位賽。"
     },
     "loading": "載入中...",
     "defaultUser": "遺作",
@@ -5169,14 +5960,14 @@
       "currentSeason": "目前季節",
       "firstSeasonSuffix": "（第一季）",
       "currentScore": "目前分數",
-      "recordWinRate": "{{wins}}獲勝 {{losses}}失敗 · 獲勝率",
+      "recordWinRate": "{{wins}} 贏 {{losses}} 輸 · 勝率",
       "seasonBest": "本賽季最好的",
       "sameScoreSuffix": "（鑑別）",
       "bestSeason": "最好的季節",
       "allTimeBestTier": "有史以來最高評級",
       "prefixStrategic": "[策略圍棋]",
       "prefixPlayful": "[圍棋]",
-      "prefixPair": "[페어바둑]",
+      "prefixPair": "[對圍棋]",
       "filterAll": "全部的",
       "filterFriends": "朋友",
       "filterGuild": "行會成員",
@@ -5191,6 +5982,9 @@
       "matchInProgress": "比賽進行中",
       "inMatch": "比賽期間",
       "enter": "位置",
+      "spectate": "觀看",
+      "spectateMatch": "觀看比賽",
+      "spectateUnavailable": "我找不到任何可以觀看的比賽資訊。",
       "orphanRooms": "房間外號碼 1~100",
       "roomKindFilter": "室型過濾器",
       "gameModeFilter": "遊戲模式濾鏡",
@@ -5220,11 +6014,11 @@
       "startShort": "開始",
       "rankedStart": "排名賽開始",
       "slotEmptyAria": "插槽 {{slot}}，沒有空間",
-      "roomInMatchAria": "在 {{slot}} 房間玩遊戲時",
-      "roomEnterAria": "進入房間 {{slot}}",
+      "roomInMatchAria": "當房間 {{slot}} 進行遊戲時",
+      "roomEnterAria": "進入房間{{slot}}",
       "roomInMatchTitle": "{{title}} — 比賽正在進行中",
       "cannotUnreadyWhileMatching": "排名匹配期間無法取消準備。",
-      "strategicRoomSettings": "전략바둑 방 설정",
+      "strategicRoomSettings": "策略性圍棋房間設置",
       "playfulRoomSettings": "圍棋房間設置",
       "pairRoomSettings": "雙人房設置",
       "strategicChangeProposal": "改變戰略圍棋條件的提議",
@@ -5269,6 +6063,100 @@
       "navigatePairArena": "前往公平體育場",
       "leaveRoomOnNavigate": "移動到另一個競技場將使您離開正在參與的房間。 您想繼續嗎？",
       "leaveRoomConfirm": "您將從您參與的房間中刪除。 您想繼續嗎？"
+    },
+    "pets": {
+      "pair-pet-1": {
+        "name": "盧米福克斯"
+      },
+      "pair-pet-2": {
+        "name": "冰貓"
+      },
+      "pair-pet-3": {
+        "name": "戈爾迪尼昂"
+      },
+      "pair-pet-4": {
+        "name": "雪貓熊"
+      },
+      "pair-pet-5": {
+        "name": "彭基"
+      },
+      "pair-pet-6": {
+        "name": "太陽鳥"
+      },
+      "pair-pet-7": {
+        "name": "巴尼魯"
+      },
+      "pair-pet-8": {
+        "name": "蜂蜜熊"
+      },
+      "pair-pet-9": {
+        "name": "葉貓"
+      },
+      "pair-pet-10": {
+        "name": "發芽"
+      },
+      "pair-pet-11": {
+        "name": "紫羅蘭貓"
+      },
+      "pair-pet-12": {
+        "name": "桑基"
+      },
+      "pair-pet-13": {
+        "name": "琥珀狐"
+      },
+      "pair-pet-14": {
+        "name": "奶油貓"
+      },
+      "pair-pet-15": {
+        "name": "機翼套件"
+      },
+      "pair-pet-16": {
+        "name": "面具狗"
+      },
+      "pair-pet-17": {
+        "name": "象牙熊"
+      },
+      "pair-pet-18": {
+        "name": "雪寵"
+      },
+      "pair-pet-19": {
+        "name": "小妞"
+      },
+      "pair-pet-20": {
+        "name": "暗影狼"
+      },
+      "pair-pet-21": {
+        "name": "翼兔"
+      },
+      "pair-pet-22": {
+        "name": "金厚臉皮"
+      },
+      "pair-pet-23": {
+        "name": "迎合"
+      },
+      "pair-pet-24": {
+        "name": "水母"
+      }
+    },
+    "trainingSlots": {
+      "0": {
+        "name": "技術訓練"
+      },
+      "1": {
+        "name": "生死訓練"
+      },
+      "2": {
+        "name": "授獎前培訓"
+      },
+      "3": {
+        "name": "正錫訓練"
+      },
+      "4": {
+        "name": "吉博培訓"
+      },
+      "5": {
+        "name": "水壩訓練"
+      }
     }
   },
   "blacksmith": {
@@ -5322,7 +6210,7 @@
       "removeMaterial": "減去成分",
       "removeMaterialAria": "減去{{name}}成分",
       "combineHint": "將3件同等級的裝備放入槽位，然後點選「完成選擇」。",
-      "disassembleHint": "您可以點擊要拆卸的設備來選擇/取消選擇。",
+      "disassembleHint": "您可以點選要拆卸的設備來選擇或取消選擇。",
       "enhanceTapHint": "點選想要強化或精煉的裝備，即可進入工作畫面。",
       "enhanceConfirmHint": "點選您想要強化或精煉的一件裝備，然後按下「完成選擇」。",
       "slots": {
@@ -5397,11 +6285,11 @@
       "subOptionUpgradeShort": "強化子選項",
       "pickGear": "請選擇要強化的裝備。",
       "enhancing": "強化...",
-      "levelInsufficient": "等級不夠（需要 {{required}}）",
+      "levelInsufficient": "等級不足（需要 {{required}}）",
       "noInfo": "無加固訊息",
       "goldInsufficient": "金幣不足（需要：{{cost}}）",
       "materialInsufficient": "物資短缺",
-      "enhanceBtn": "強化 (+{{stars}})",
+      "enhanceBtn": "增強 (+{{stars}})",
       "successRateTitle": "當強化成功時",
       "gradeLabel": "等級：",
       "mainOptionLabel": "主要選項",
@@ -5433,12 +6321,12 @@
       "combatPowerChange": "戰鬥力變化",
       "mythicSpecial": "神話特別選項",
       "transcendentSpecial": "超越特殊選項",
-      "refinementCountLabel": "可熔煉：{{value}}",
+      "refinementCountLabel": "可精煉：{{value}}",
       "requiredMaterials": "所需材料",
-      "selectMethodHint": "當你選擇熔煉方法時，就會顯示材料。",
+      "selectMethodHint": "當你選擇熔煉方法時，就會顯示成分。",
       "inProgress": "冶煉進行中",
       "countDepleted": "所有可能的改進都已用盡。",
-      "ownedCharms": "持有：{{count}}",
+      "ownedCharms": "保持：{{count}}",
       "selectedOption": "選定的選項",
       "typeChangeShort": "變更類型",
       "valueChangeShort": "改變數值",
@@ -5497,7 +6385,7 @@
     "casualTag": "友誼賽",
     "casualTitle": "友誼賽",
     "casualDesc": "本場比賽是一場友誼賽。 排名分數沒有變化。",
-    "actionPointNotice": "確認比賽時，雙方都會消耗行動力⚡{{cost}}。 如果啟動時接受度/AI 不足，則會開啟行為電源管理視窗。",
+    "actionPointNotice": "確認比賽時，雙方都會消耗行動力⚡{{cost}}。 如果接受/AI啟動時不夠，則會開啟行為電源管理視窗。",
     "titleAi": "{{prefix}}{{mode}} AI 匹配設定",
     "titleRematch": "{{prefix}}重賽設定（{{mode}}）",
     "titleDefault": "{{prefix}}匹配設定（{{mode}}）",
@@ -5757,7 +6645,7 @@
       "demoteConfirm": "您想解除{{name}}副公會會長的職務嗎？",
       "kickConfirm": "您要將 {{name}} 從公會踢出嗎？",
       "transferConfirm": "您真的要將公會會長的權限委託給{{name}}嗎？ 此操作是不可逆轉的。",
-      "leaderMustTransfer": "公會會長若想退出公會，必須先將會長職務委託給其他公會成員。",
+      "leaderMustTransfer": "如果公會會長想要離開公會，他必須先將公會會長的角色交給其他公會成員。",
       "lastMemberLeave": "我是公會的最後一名成員。 如果你離開公會，公會就會解散。 您確定要離開嗎？",
       "leaveConfirm": "您確定要離開公會嗎？",
       "leaveError": "離開公會時發生錯誤。"
@@ -5783,14 +6671,34 @@
     "missions": {
       "title": "每週公會任務",
       "achieved": "素養",
-      "guildXp": "公會 XP +{{金額}}",
+      "guildXp": "公會經驗 +{{amount}}",
       "expired": "已到期",
       "rewardClaimed": "獎勵完成",
       "claimReward": "獲得獎勵",
       "inProgress": "進行中",
       "resetCountdown": "{{days}}天{{小時}}後續訂：{{分鐘}}",
       "unclaimedHint": "您可以獲得獎勵。 別忘了拿走它。",
-      "empty": "沒有每週任務可顯示。"
+      "empty": "沒有每週任務可顯示。",
+      "titles": {
+        "checkIns": "公會出席次數50次",
+        "guildDonations": "累計50次公會捐款",
+        "bossAttempts": "參加公會boss戰30次",
+        "strategicWins": "策略圍棋獲勝 30 次",
+        "playfulWins": "圍棋獲勝 30 次",
+        "equipmentEnhancements": "50 次強化嘗試",
+        "epicGearAcquisitions": "獲得史詩級以上裝備20次",
+        "diamondsSpent": "消耗3000鑽石"
+      },
+      "descriptions": {
+        "checkIns": "公會成員累計參加50次",
+        "guildDonations": "有公會成員捐贈黃金和鑽石總計50次。",
+        "bossAttempts": "讓公會成員參加總共 30 場公會 Boss 戰。",
+        "strategicWins": "公會成員在策略圍棋中總共取得 30 場勝利（包括等候室 AI 和一般比賽）",
+        "playfulWins": "公會成員在圍棋比賽中總共取得 30 場勝利（包括等候室 AI 和一般比賽）",
+        "equipmentEnhancements": "讓公會成員進行總共50次裝備強化嘗試",
+        "epicGearAcquisitions": "讓公會成員獲得史詩級以上裝備20次",
+        "diamondsSpent": "公會成員在商店等總共花了3000鑽石。"
+      }
     },
     "research": {
       "title": "公會實驗室",
@@ -5868,7 +6776,18 @@
       "quickChat": "快速聊天",
       "send": "轉發",
       "sendTitle": "傳送",
-      "locationHome": "[家]"
+      "locationHome": "[家]",
+      "systemMessages": {
+        "missionComplete": "每週任務 [{{missionTitle}}] 已完成！ 在公會活動 > 公會任務標籤中領取獎勵。",
+        "bossWeeklySettlement": "每週公會Boss結算（{{bossName}}、{{status}}）：公會經驗+{{guildXp}}、研究點+{{researchPoints}}已在公會中累積。",
+        "bossWeeklySettlementDefeated": "擊敗",
+        "bossWeeklySettlementRemainingHp": "剩餘生命值 {{percent}}%",
+        "warJoinMatching": "[{{nickname}}]{{subjectParticle}}參與了公會戰。 我們繼續進行配對。",
+        "warJoinBotMatch": "[{{nickname}}]{{subjectParticle}}參與了公會戰。 與奇數隊列中的系統機器人公會配對。",
+        "warJoinOpponent": "[{{nickname}}]{{subjectParticle}}參與了公會戰。 對手：「{{opponentGuildName}}”",
+        "warCancelMatching": "[{{nickname}}]{{subjectParticle}} 公會戰匹配已取消。",
+        "bossDamage": "[{{nickname}}]{{subjectParticle}} 對 {{bossName}} 造成了 {{damage}} 傷害。"
+      }
     },
     "war": {
       "title": "激戰",
@@ -5878,7 +6797,7 @@
       "prepBlocked": "週一、週四 00:00 至 23:59 為下次公會戰準備時間，不可入場。",
       "nextApplicationDay": "下次申請日期：{{date}}（韓國時間）",
       "periodLabel": "本次公會戰持續時間",
-      "periodTueWed": "週二 00:00 ~ 週三 23:00",
+      "periodTueWed": "週二 0:00 ~ 週三 23:00",
       "periodFriSun": "週五 00:00 ~ 週日 23:00",
       "victory": "公會戰勝利！",
       "victoryShort": "公會戰勝利",
@@ -5890,7 +6809,7 @@
       "houseScoreSum": "總分",
       "rewardsEarned": "獲得的獎勵",
       "rewardTypes": "共5種",
-      "guildXp": "公會經驗",
+      "guildXp": "길드 경험치",
       "researchPoints": "研究點",
       "houseLabel": "首頁 {{score}}",
       "dominanceTooltip": "左側優勢約。 {{percent}}%（星/分）",
@@ -5900,7 +6819,7 @@
       "prepTimeAlert": "是時候為下一場公會戰做準備了。 \n您可以從 {{date}} (KST) 進入。",
       "prepTimeHint": "是時候為下一場公會戰做準備了。 您可以從 {{date}} (KST) 進入。",
       "beforeOpenHint": "這是在公會戰爭開始之前。 您可以從 {{date}} (KST) 進入。",
-      "goToWarScreen": "길드전 화면으로 이동합니다",
+      "goToWarScreen": "進入公會戰鬥畫面",
       "autoMatching": "自動匹配正在進行中。 完成後即可進入。",
       "autoMatchingHint": "沒有正在進行的公會戰爭。 公會戰期間，符合條件的公會自動配對。",
       "claimRewardFailed": "未能獲得獎勵。",
@@ -5913,7 +6832,7 @@
       "minutesSecondsAfter": "{{minutes}} 分鐘 {{seconds}} 秒後",
       "secondsAfter": "{{seconds}} 秒後",
       "hoursMinutesSuffix": "{{hours}} 小時 {{minutes}} 分鐘 {{suffix}}",
-      "minutesSecondsSuffix": "{{minutes}} 分 {{seconds}} 秒 {{suffix}}",
+      "minutesSecondsSuffix": "{{minutes}}分鐘{{seconds}}秒{{suffix}}",
       "secondsSuffix": "{{seconds}}秒{{suffix}}",
       "untilStartSuffix": "啟動後",
       "untilEnd": "直到最後",
@@ -5925,7 +6844,7 @@
       "contribution": "貢獻{{stars}}",
       "matchingInProgress": "配對進行中",
       "warPrep": "準備公會戰",
-      "startsIn": "開始{{時間}}",
+      "startsIn": "{{時間}}開始",
       "findingOpponent": "我正在尋找這次公會戰的對手。",
       "entryFrom": "您可以從 {{date}}(KST) 開始入場。",
       "scheduledAt": "預定時間：{{date}}",
@@ -5936,7 +6855,7 @@
       "victoryShort2": "勝利",
       "defeatShort2": "擊敗",
       "rewardAlreadyClaimed": "您已經收到了上次公會戰的獎勵。",
-      "rewardClaimHint": "獲得上次公會戰的獎勵。 下次公會戰結束時，先前的獎勵將會消失。",
+      "rewardClaimHint": "獲得上次公會戰的獎勵。 下次公会战结束时，之前的奖励将会消失。",
       "rewardUnavailable": "沒有可用獎勵或當時無法獲得。 (從戰爭結束後1小時起至下次公會戰結束為止)",
       "rewardClaimedBtn": "收到獎勵",
       "claimRewardBtn": "領取獎勵",
@@ -5995,7 +6914,7 @@
       "myArenaHint": "以下是太空在這場戰爭中結束比賽的總結。 正在進行的版本將在結束後反映在詳細清單中。",
       "boardPerformance": "按球場表現",
       "inProgress": "進行中",
-      "gameSummary": "結束 {{games}} 輪 · 獲勝 {{wins}} · 平手 {{draws}} · 失敗 {{losses}}{{stars}}",
+      "gameSummary": "結束 {{比賽}} · 獲勝 {{wins}} · 平手 {{平手}} · 輸球 {{losses}}{{stars}}",
       "starsEarnedSum": "· 收購總數 {{count}}",
       "noBoardRecord": "這場戰爭中沒有這個隔間的紀錄。",
       "finishedGamesDetail": "結束比賽詳情",
@@ -6028,6 +6947,13 @@
     },
     "boss": {
       "title": "公會Boss戰",
+      "names": {
+        "boss_1": "傾聽",
+        "boss_2": "突顯",
+        "boss_3": "綠水",
+        "boss_4": "深度",
+        "boss_5": "白光"
+      },
       "guide": "老闆百科",
       "guideTitle": "公會老大百科",
       "stage": "{{階段}}階段",
@@ -6063,35 +6989,35 @@
       "battleLog": "戰鬥轉播",
       "bossAttack": "老闆攻擊",
       "myAttack": "我的攻擊",
-      "turnLabel": "[{{turn}}轉]",
+      "turnLabel": "[{{轉}}轉]",
       "challengeTicketAlt": "挑戰權",
       "simulating": "戰鬥中...",
-      "challenge": "接受挑戰 ({{left}}/{{max}})",
-      "recommendedStatsAria": "Boss 攻擊推薦能力：{{stats}}",
+      "challenge": "挑戰（{{left}}/{{max}}）",
+      "recommendedStatsAria": "建議的老闆策略統計：{{stats}}",
       "inactive": "不活躍的",
       "presetName": "預設 {{index}}",
       "battleResultTitle": "戰鬥結果",
-      "battleResultHeading": "{{bossName}} 戰鬥結果",
-      "totalDamageDealt": "總傷害：{{damage}}",
+      "battleResultHeading": "{{bossName}}戰鬥結果",
+      "totalDamageDealt": "總傷害：{{傷害}}",
       "turnsSurvived": "生存回合：",
-      "turnsUnit": "{{count}} 轉",
+      "turnsUnit": "{{count}} 圈",
       "bossHpRemaining": "Boss 剩餘生命值 ({{percent}}%)",
       "cumulativeRank": "累積傷害排名",
       "previousRank": "前：",
       "noPreviousRank": "沒有記錄",
       "currentRankLabel": "今天：",
-      "gradeEquipment": "{{grade}} 級裝備",
-      "gradeSuffix": "{{label}}等級",
+      "gradeEquipment": "{{grade}}級裝備",
+      "gradeSuffix": "{{label}}評級",
       "gradeE": "E級",
       "serverReplayFailed": "我沒有收到伺服器戰報。",
       "researchHpIncrease": "生命值增加",
       "researchHealBlock": "不可能恢復",
       "researchRegen": "恢復",
       "researchIgnite": "點火",
-      "researchHealBlockDesc": "無恢復或恢復量減少 {{reduction}}%",
-      "researchRegenDesc": "回收，回收量+{{increase}}%",
-      "researchIgniteDesc": "固定傷害，傷害+{{damage}}%",
-      "placeAria": "以上 {{place}}",
+      "researchHealBlockDesc": "沒有恢復或恢復量減少了{{reduction}}%",
+      "researchRegenDesc": "恢復，恢復量+{{增加}}%",
+      "researchIgniteDesc": "固定傷害，傷害+{{傷害}}%",
+      "placeAria": "上方{{地點}}",
       "ticketResetCountdown": "{{天}}{{小時}}：{{分鐘}}"
     },
     "dashboard": {
@@ -6120,7 +7046,7 @@
       "guildXp": "公會經驗",
       "researchPoints": "實驗室點",
       "enhancementStoneLow": "次級附魔石",
-      "enhancementStoneMid": "中級加固石",
+      "enhancementStoneMid": "中級強化石",
       "enhancementStoneHigh": "高級附魔石",
       "enhancementStoneTop": "高級加固石",
       "enhancementStoneMystic": "神秘的強化石",
@@ -6160,7 +7086,7 @@
         "profanity": "含有不恰當的詞語。",
         "descriptionLength": "公會描述不得超過 200 個字元。",
         "nameRequired": "請輸入公會名稱。",
-        "insufficientDiamonds": "沒有足夠的鑽石。 （必需：{{required}}，擁有：{{owned}}）",
+        "insufficientDiamonds": "沒有足夠的鑽石。 （必：{{required}}，擁有：{{owned}}）",
         "invalidResponse": "公會建立回應格式不正確。",
         "createFailed": "公會創建失敗。"
       },
@@ -6173,8 +7099,8 @@
       "search": "搜尋",
       "loading": "正在載入公會列表...",
       "noResults": "沒有搜尋結果。",
-      "members": "人數：{{當前}}/{{最大}}",
-      "level": "等級：{{等級}}",
+      "members": "人員：{{current}}/{{max}}",
+      "level": "等級：{{level}}",
       "processing": "加工...",
       "full": "擠滿了人",
       "join": "加入",
@@ -6190,13 +7116,13 @@
       "statusActive": "進行中",
       "statusCompleted": "完全的",
       "statusExpired": "過期",
-      "target": "目標：{{目標}}",
-      "progress": "進度：{{進度}}"
+      "target": "目標：{{target}}",
+      "progress": "進度：{{progress}}"
     },
     "shopLegacy": {
       "empty": "沒有出售物品。",
-      "goldPrice": "{{價格}}黃金",
-      "stock": "庫存：{{剩餘}}/{{總計}}",
+      "goldPrice": "{{price}} 黃金",
+      "stock": "庫存：{{remaining}}/{{total}}",
       "purchase": "購買",
       "purchaseFailed": "您購買失敗。"
     },
@@ -6241,7 +7167,7 @@
     "refundPolicy": {
       "title": "取消/退款政策",
       "eyebrow": "退款政策",
-      "intro": "我們想通知您有關付費內容的取消和退款的資訊。 本規定是根據電子商務法等相關法律法規制定的。"
+      "intro": "我們想通知您有關付費內容的取消和退款的資訊。 根據電子商務法等有關法律、法規的規定，制定本規定。"
     },
     "purchaseConsent": {
       "title": "查看付款進度",

@@ -20,6 +20,11 @@ import { TOURNAMENT_DEFINITIONS, BASE_TOURNAMENT_REWARDS, CONSUMABLE_ITEMS, MATE
 import { updateQuestProgress } from '../questService.js';
 import { createItemFromTemplate, SHOP_ITEMS } from '../shop.js';
 import { isSameDayKST, getStartOfDayKST } from '../../utils/timeUtils.js';
+import {
+    clearStaleVolatileChampionshipDungeon,
+    invalidateStaleChampionshipDungeonRunsForUser,
+    isChampionshipDungeonRunStale,
+} from '../../shared/utils/championshipDungeonDailyReset.js';
 import * as tournamentService from '../tournamentService.js';
 import { addItemsToInventory, createItemInstancesFromReward, normalizeInventoryAfterLoad } from '../../utils/inventoryUtils.js';
 import { calculateTotalStats } from '../statService.js';
@@ -483,6 +488,17 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
     const now = Date.now();
 
     console.log(`[handleTournamentAction] Processing action: ${type}, userId: ${user.id}`);
+
+    const staleDungeonReset = invalidateStaleChampionshipDungeonRunsForUser(user, now);
+    if (staleDungeonReset.modified) {
+        updateUserCache(user);
+        db.updateUser(user).catch((err) => {
+            console.error(`[handleTournamentAction] Failed to persist stale dungeon reset for ${user.id}:`, err);
+        });
+    }
+    if (volatileState.activeTournaments) {
+        clearStaleVolatileChampionshipDungeon(volatileState.activeTournaments, user.id, user, now);
+    }
     
     try {
         switch (type) {
@@ -510,8 +526,15 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
 
             const activeTournament = volatileState.activeTournaments?.[user.id];
 
-            if (activeTournament && activeTournament.type === type) {
+            if (
+                activeTournament &&
+                activeTournament.type === type &&
+                !isChampionshipDungeonRunStale(user, type, activeTournament, now)
+            ) {
                 return { clientResponse: { redirectToTournament: type } };
+            }
+            if (activeTournament?.type === type) {
+                delete volatileState.activeTournaments![user.id];
             }
 
             const existingState = (user as any)[stateKey] as TournamentState | null;
@@ -523,7 +546,8 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 existingState.currentStageAttempt >= 1 &&
                 (existingState.status === 'round_in_progress' ||
                     existingState.status === 'bracket_ready' ||
-                    existingState.status === 'round_complete');
+                    existingState.status === 'round_complete') &&
+                !isChampionshipDungeonRunStale(user, type, existingState, now);
 
             if (canHydrateVolatileFromPersisted) {
                 if (!volatileState.activeTournaments) volatileState.activeTournaments = {};
@@ -741,6 +765,16 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
 
         case 'SAVE_TOURNAMENT_PROGRESS': {
             const { type, tournamentSnapshot } = payload as { type: TournamentType; tournamentSnapshot?: types.TournamentState };
+            if (
+                tournamentSnapshot &&
+                tournamentSnapshot.type === type &&
+                isChampionshipDungeonRunStale(user, type, tournamentSnapshot, now)
+            ) {
+                if (volatileState.activeTournaments?.[user.id]?.type === type) {
+                    delete volatileState.activeTournaments[user.id];
+                }
+                return {};
+            }
             if (tournamentSnapshot && tournamentSnapshot.type === type) {
                 if (!volatileState.activeTournaments) volatileState.activeTournaments = {};
                 volatileState.activeTournaments[user.id] = JSON.parse(JSON.stringify(tournamentSnapshot)) as types.TournamentState;
@@ -1948,7 +1982,8 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 persisted.type === dungeonType &&
                 persisted.currentStageAttempt === stage &&
                 persisted.status !== 'complete' &&
-                persisted.status !== 'eliminated';
+                persisted.status !== 'eliminated' &&
+                !isChampionshipDungeonRunStale(freshUser, dungeonType, persisted, now);
 
             if (resumable) {
                 if (!volatileState.activeTournaments) volatileState.activeTournaments = {};

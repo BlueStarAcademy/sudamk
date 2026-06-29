@@ -27,7 +27,7 @@
     },
     "languageSelect": {
       "label": "ngôn ngữ",
-      "placeholder": "Chọn ngôn ngữ của bạn"
+      "placeholder": "Vui lòng chọn một ngôn ngữ"
     },
     "connection": {
       "reconnecting": "Đang kết nối lại với máy chủ...",
@@ -134,7 +134,7 @@
     "timesUnit": "{{đếm}} lần",
     "quickMenuAria": "thực đơn nhanh",
     "helpCenter": "Trung tâm trợ giúp",
-    "helpCenterHint": "Bạn có thể xem lại nó bất kỳ lúc nào trong Trung tâm trợ giúp của chúng tôi.",
+    "helpCenterHint": "Bạn luôn có thể truy cập lại trong Trung tâm trợ giúp của chúng tôi.",
     "disconnectNotice": {
       "title": "Thông báo kết thúc trò chơi",
       "logoutTitle": "Hướng dẫn đăng xuất",
@@ -142,7 +142,7 @@
       "loggingOut": "Bạn sẽ bị đăng xuất."
     },
     "autoProceed": "Cho đến khi tiến trình tự động",
-    "autoProceedShort": "tiến trình tự động",
+    "autoProceedShort": "tự động tạm ứng",
     "autoSelectUntil": "Cho đến khi lựa chọn tự động",
     "autoSelectShort": "lựa chọn tự động",
     "nextRoundAuto": "Cho đến vòng tiếp theo tự động bắt đầu",
@@ -175,7 +175,7 @@
     "bound": "thuộc về",
     "tradable": "Có sẵn để giao dịch",
     "maxEnhance": "gia cố tối đa",
-    "notEnhanced": "(Không gia cố)",
+    "notEnhanced": "(Không được gia cố)",
     "owned": "chiếm hữu",
     "required": "cần thiết",
     "ownedSlashRequired": "Có / Cần",
@@ -262,11 +262,11 @@
     "chooseTurnCountdown": "Chọn đi đầu tiên hoặc cuối cùng. ({{đếm ngược}})",
     "opponentChoosingSecond": "Đối thủ đang chọn chơi thứ hai...",
     "readyCountdown": "Sẵn sàng ({{đếm ngược}})",
-    "waitingOpponentRoll": "Chờ đợi đối thủ...",
+    "waitingOpponentRoll": "Đang chờ đối phương...",
     "rollingDice": "Đổ xúc xắc...",
     "tieReroll": "cà vạt! Cuộn lại sau một thời gian.",
     "rollToDecide": "Nhấn nút sẵn sàng để tung xúc xắc. Người có số lượng cao nhất chọn đi đầu/cuối.",
-    "diceWin": "{{name}} đã thắng và đã quyết định ai sẽ về nhất/cuối cùng.",
+    "diceWin": "{{name}} đã thắng và quyết định về nhất/cuối cùng.",
     "diceAutoStart": "Hãy nhấp vào nút bắt đầu bên dưới nếu không trận đấu sẽ tự động bắt đầu sau 30 giây.",
     "colorRouletteTitle": "cờ màu",
     "uniformColorRoulette": "roulette màu đồng nhất",
@@ -288,7 +288,7 @@
     "reviewMode": "chế độ phục hồi",
     "originalGame": "Ký hiệu gốc",
     "rotateToWhite": "Nhìn từ quan điểm của White",
-    "rotateToBlack": "Nhìn từ góc nhìn của Đen",
+    "rotateToBlack": "Nhìn từ góc nhìn của Black",
     "closeViewer": "đóng",
     "replayFirst": "lần đầu tiên",
     "replayBack5": "5 bước lùi",
@@ -354,7 +354,7 @@
       "blacksmith": "lò rèn",
       "shop": "cửa hàng",
       "inventory": "cái túi",
-      "pet": "chăm sóc thú cưng",
+      "pet": "thú cưng",
       "trainingQuest": "Nhiệm vụ đào tạo",
       "detailedStats": "Hồ sơ chi tiết về sân vận động PVP",
       "monsterCodex": "Bách khoa toàn thư về quái vật",
@@ -362,7 +362,7 @@
       "gameRecords": "ký hiệu",
       "encyclopedia": "Bách khoa toàn thư",
       "announcements": "thông báo",
-      "help": "Trung tâm trợ giúp",
+      "help": "giúp đỡ",
       "menu1": "Thực đơn 1",
       "menu2": "Thực đơn 2"
     },
@@ -418,12 +418,12 @@
     "forgotPassword": "tìm mật khẩu",
     "setNickname": "Cài đặt biệt hiệu",
     "nickname": "biệt hiệu",
-    "nicknamePlaceholder": "Vui lòng nhập biệt hiệu của bạn",
+    "nicknamePlaceholder": "Vui lòng nhập biệt danh của bạn",
     "continueWithSocial": "Tiếp tục với tài khoản xã hội của bạn",
     "continueWithKakao": "Bắt đầu với Kakao",
     "continueWithGoogle": "Bắt đầu với Google",
     "kakao": "cacao",
-    "google": "google",
+    "google": "Google",
     "ban": {
       "title": "Truy cập bị cấm.",
       "reason": "Lý do: {{lý do}}",
@@ -537,9 +537,9 @@
     "curling": "quăn",
     "comingSoon": "Đang chuẩn bị cập nhật thêm",
     "descriptions": {
-      "standard": "Đây là trò chơi baduk cổ điển điển hình.",
+      "standard": "Đó là trò chơi cờ vây cổ điển điển hình.",
       "capture": "Trò chơi Baduk dành cho người đầu tiên có được một số quân cờ nhất định.",
-      "speed": "Nếu bạn đặt nó trong vòng {{seconds}} giây mỗi lượt, bạn sẽ lấy lại được {{seconds}} giây. Cứ sau {{seconds}} giây, đối thủ của bạn sẽ được cộng 1 điểm.",
+      "speed": "Nếu bạn đặt nó trong vòng {{seconds}} giây, bạn sẽ tạo lại {{seconds}} giây. Cứ sau {{seconds}} giây, đối thủ của bạn sẽ được cộng 1 điểm.",
       "base": "Đây là một trò chơi cờ vây trong đó bạn xem xét cách sắp xếp các viên đá cơ bản, đặt điểm thưởng cho đối thủ và sử dụng những viên đá bạn chọn cũng như thi đấu dựa trên khả năng phân tích tình huống của bạn.",
       "hidden": "Cuộc lội ngược dòng bằng một chiêu thức mà đối thủ không thể thấy được! Chiến tranh tâm lý và kỹ năng đọc được yêu cầu thông qua các vật phẩm ẩn và được quét.",
       "missile": "Tạo một biến bằng cách di chuyển viên đá được đặt làm vật phẩm tên lửa.",
@@ -676,7 +676,7 @@
       "thiefNoOneUseBody": "Sử dụng một viên xúc xắc chỉ ra 2, 3, 4 hoặc 5 (không thể ra 1). Nếu đến lượt cảnh sát, cả hai viên xúc xắc đều nằm trong phạm vi này. Bạn có muốn tiếp tục không?"
     },
     "board": {
-      "rotateSpectatorBlack": "Nhìn từ góc nhìn của Đen",
+      "rotateSpectatorBlack": "Nhìn từ góc nhìn của Black",
       "rotateSpectatorWhite": "Nhìn từ quan điểm của White",
       "rotate180": "bàn cờ xoay 180 độ",
       "paused": "ngắt",
@@ -715,18 +715,18 @@
       "hiddenFinalReveal": "Chúng tôi tiết lộ tất cả những viên đá ẩn và bắt đầu đếm.",
       "autoScoringAdventure": "Việc hạch toán tự động được thực hiện.",
       "autoScoringReached": "Hệ thống tự động đến quy trình và bắt đầu đếm.",
-      "alkkagiRePlace": "Đặt những viên đá lại. ({{vòng}} / {{total}} vòng)",
-      "alkkagiPlace": "Đặt những viên đá. ({{vòng}} / {{total}} vòng)",
-      "alkkagiPlayerTurn": "Đến lượt {{name}}. ({{vòng}} / {{total}} vòng)",
+      "alkkagiRePlace": "Đặt những viên đá lại. (vòng {{round}} / {{total}})",
+      "alkkagiPlace": "Đặt những viên đá. (vòng {{round}} / {{total}})",
+      "alkkagiPlayerTurn": "Đến lượt {{name}}. (vòng {{round}} / {{total}})",
       "alkkagiRoundEnd": "Kết thúc vòng - Kiểm tra và tiến hành trên biển báo điện tử bên dưới.",
       "diceRollTurn": "Đến lượt {{name}} tung xúc xắc.",
       "diceRollTurnGeneric": "Đã đến lúc tung xúc xắc",
       "tiebreakerDeciding": "Quyết định thứ tự chiến thắng...",
-      "tiebreakerPlaying": "Trận đấu đang diễn ra... (đến lượt của {{name}})",
-      "diceModeRound": "Xúc xắc ({{vòng}} / {{total}} vòng)",
-      "thiefModeRound": "Kẻ trộm và cảnh sát (vòng {{round}})",
+      "tiebreakerPlaying": "Trận đấu đang diễn ra... (đến lượt {{name}})",
+      "diceModeRound": "Xúc xắc ({{round}} / {{total}} vòng)",
+      "thiefModeRound": "Kẻ trộm và cảnh sát (Vòng{{round}})",
       "preparing": "Trò chơi chuẩn bị...",
-      "timeoutFoul": "{{name}} phạm lỗi hết thời gian!",
+      "timeoutFoul": "Lỗi hết giờ của {{name}}!",
       "timeoutFoulTitle": "Hết thời gian phạm lỗi!",
       "timeoutFoulAlkkagiPlacement": "Khi hết thời gian, những viên đá còn lại được đặt ngẫu nhiên.",
       "timeoutFoulAutoTurn": "Lượt của bạn sẽ tự động diễn ra.",
@@ -734,12 +734,12 @@
       "timeoutFoulLoseStone": "Bạn mất 1 viên đá và lượt của bạn kết thúc.",
       "timeoutFoulDefault": "Bạn sẽ bị phạt nếu vượt quá thời gian quy định.",
       "baseKomiGuide": "Quyết định những viên đá và phần thưởng bạn muốn đặt. Nếu bạn chọn cùng một viên đá, viên đá mang lại cho bạn nhiều tiền thưởng nhất là viên đá bạn muốn giữ.",
-      "alkkagiPlaceHidden": "Đặt những viên đá sao cho đối thủ của bạn không nhìn thấy chúng. ({{vòng}} / {{total}} vòng)",
-      "alkkagiPlaceMissing": "Đặt những viên đá còn thiếu. ({{vòng}} / {{total}} vòng)",
-      "placementProgress": "đã đặt {{placed}}/{{target}}",
-      "timeRemainingSec": "Thời gian còn lại: {{sec}} giây",
-      "alkkagiRoundWin": "Vòng {{vòng}} — {{name}} thắng",
-      "stonesRemaining": "Còn lại {{name}} {{count}} viên đá",
+      "alkkagiPlaceHidden": "Đặt những viên đá sao cho đối thủ của bạn không nhìn thấy chúng. (vòng {{round}} / {{total}})",
+      "alkkagiPlaceMissing": "Đặt những viên đá còn thiếu. (vòng {{round}} / {{total}})",
+      "placementProgress": "Vị trí {{placed}}/{{target}}",
+      "timeRemainingSec": "Thời gian còn lại {{sec}} giây",
+      "alkkagiRoundWin": "{{round}}Vòng — {{name}} thắng",
+      "stonesRemaining": "{{name}} {{count}} đá còn lại",
       "waitingOpponentConfirm": "Đang chờ xác nhận từ bên kia...",
       "confirmFinalResult": "Kiểm tra kết quả cuối cùng",
       "startNextRound": "Vòng tiếp theo bắt đầu",
@@ -766,7 +766,7 @@
       "hostSetting": "Chủ nhà ấn định điểm số (tiền thưởng).",
       "pleaseWait": "xin vui lòng chờ một lát.",
       "bothSubmitted": "Cả hai cài đặt điểm số đã được gửi",
-      "proceedingNext": "Chúng ta đang chuyển sang bước tiếp theo.",
+      "proceedingNext": "Chúng tôi đang chuyển sang bước tiếp theo.",
       "submitted": "Cài đặt điểm số của bạn đã được gửi",
       "waitingOpponent": "Đang chờ cài đặt đối tác.",
       "sameColorGuide": "Chúng tôi đã chọn những viên đá giống nhau. Bạn nên cho đối thủ của mình bao nhiêu điểm để giữ {{stone}}?",
@@ -876,7 +876,7 @@
       "starConditions": "Điều kiện để đạt được sao",
       "captureTier2": "Kiếm được {{min}} điểm chỉ trong một lần",
       "captureTier3": "Kiếm được {{min}} điểm chỉ trong một lần",
-      "scoreDiffTier": "Ngôi nhà khác biệt {{diff}}Hơn cả một ngôi nhà",
+      "scoreDiffTier": "Sự khác biệt của ngôi nhà {{diff}}Hơn cả một ngôi nhà",
       "goldBundleSpaced": "gói vàng",
       "goldBundleCompact": "Gói vàng",
       "noRewardInfo": "Không có thông tin bồi thường có sẵn.",
@@ -1176,7 +1176,11 @@
       "scoringTurnValue": "{{turns}}lượt",
       "forbidden": "sự cấm đoán",
       "allowed": "khả thi",
-      "speedNormal": "thông thường"
+      "speedNormal": "thông thường",
+      "confirm": "kiểm tra",
+      "gaugeSpeedSlow": "x1 (chậm)",
+      "gaugeSpeedNormal": "x2 (bình thường)",
+      "gaugeSpeedFast": "x3 (nhanh)"
     },
     "challengeModal": {
       "rejected": "Từ chối",
@@ -1189,7 +1193,7 @@
       "mixRulesMinHint": "Vui lòng chọn ít nhất hai quy tắc.",
       "boardKomiCapture": "Cờ vây, tính toán, thưởng, thắng",
       "boardSize": "bàn cờ",
-      "boardLines": "{{size}}dòng",
+      "boardLines": "dòng {{size}}",
       "komiWhite": "Tiền thưởng (túi)",
       "komiHalf": "nhà .5",
       "captureTarget": "điểm mục tiêu",
@@ -1268,7 +1272,7 @@
         "shopConsumables": "Cửa hàng · Vật tư tiêu hao",
         "buyPotion": "Mua thuốc phục hồi hành động",
         "buyPotionLimit": "· 1 mỗi ngày cho mỗi loại",
-        "diamondInstant": "Kim cương nạp lại ngay lập tức",
+        "diamondInstant": "Nạp kim cương ngay lập tức",
         "diamondInstantHint": "Bạn có thể lấp đầy sức mạnh hành động của mình ngay khi bạn muốn.",
         "goShopConsumables": "Mua thuốc chữa bệnh từ cửa hàng (vật tư tiêu hao)",
         "goDiamondRecharge": "Nạp tiền ngay lập tức bằng kim cương",
@@ -1290,7 +1294,7 @@
       "confirmed": "Đã xác nhận",
       "waitingOpponent": "Đang chờ đối phương triển khai xong.",
       "confirmNextStep": "Khi bạn đặt xong, nhấp vào để chuyển sang bước tiếp theo.",
-      "placeAllFirst": "Sau khi đặt tất cả các viên đá cơ bản, hãy nhấn chúng.",
+      "placeAllFirst": "Sau khi đặt tất cả các viên đá cơ bản, hãy ấn chúng lại.",
       "basePlacementTitle": "Vị trí đặt đá nền",
       "basePlacementHint": "Đặt con búp bê cơ sở. ({{đã đặt}}/{{total}})",
       "confirmStart": "Trận đấu bắt đầu",
@@ -1311,7 +1315,7 @@
       "missileFirstTurn": "Nếu bạn sử dụng tên lửa ở lượt đầu tiên, bạn không thể sử dụng Thay đổi triển khai.",
       "noRefreshesLeft": "Tất cả các di dời đã được sử dụng.",
       "waitForStart": "Bạn có thể thay đổi vị trí khi trò chơi bắt đầu.",
-      "beforeFirstMove": "Bạn chỉ có thể di dời trước khi thực hiện bước đi đầu tiên.",
+      "beforeFirstMove": "Bạn chỉ có thể định vị lại trước khi thực hiện bước đi đầu tiên.",
       "insufficientGold": "Tôi hết vàng rồi.",
       "paused": "Không thể định vị lại khi ở trạng thái tạm dừng.",
       "confirmPaid": "Bạn có muốn sử dụng {{vàng}} vàng để cải tổ lại lô không? (di dời còn lại {{remaining}}/5)",
@@ -1382,7 +1386,203 @@
       "curling": "quăn",
       "thiefPolice": "tên trộm và cảnh sát",
       "classic": "cổ điển",
-      "mix": "trộn"
+      "mix": "trộn",
+      "specialRules": "quy tắc đặc biệt",
+      "loseCondition": "Điều kiện đánh bại",
+      "rulesAndGuide": "Luật chơi và hướng dẫn chơi",
+      "rewards": "đền bù",
+      "availableRewards": "Phần thưởng có thể nhận được",
+      "summary": {
+        "loseTerritory": "Nếu tổng điểm (tổng điểm) thấp hoặc nhà cái gặp bất lợi do luật hòa hoặc hòa thì bạn thua.",
+        "loseTerritoryAuto": "Nếu bạn không thể thắng {{base}} · {{auto}}, bạn sẽ thua.",
+        "loseCaptureRace": "Nếu đối thủ ghi được {{t}} điểm trước, bạn sẽ thua. Ngược lại, nếu trong gia đình bạn có ít nhà thì bạn sẽ thua cuộc.",
+        "loseMix": "Khi kết thúc ván đấu, nếu đối thủ đáp ứng được điều kiện thắng trước hoặc gặp bất lợi thì đối thủ sẽ thua cuộc.",
+        "basePlacementAnalysis": "Phân tích tình hình sau khi phát hành vị trí búp bê cơ sở",
+        "baseKomiSelect": "Đặt phần thưởng để trao cho đối thủ · Chọn viên đá bạn muốn",
+        "autoScoringCaptureTurn": "Việc đếm tự động tiếp tục khi đạt đến {{n}} lượt",
+        "autoScoringTerritoryWin": "Giành được số lượt tự động sau {{n}} lượt",
+        "autoScoringTerritoryLose": "Thất bại trong trò chơi tự động sau {{n}} lượt",
+        "fischerOnly": "Fisher {{giây}} giây",
+        "byoyomiOnly": "Chỉ đếm ngược · {{time}} giây × {{count}} lần",
+        "noTimeLimit": "Không giới hạn thời gian",
+        "limitFischer": "Giới hạn {{min}} phút · Fisher {{sec}} giây",
+        "limitByoyomi": "Giới hạn {{min}} phút · Đếm ngược {{time}} giây × {{count}} lần",
+        "limitNoByoyomi": "Giới hạn {{min}} phút (không đếm ngược)",
+        "factorTerritory": "lãnh thổ",
+        "factorCaptured": "đá nhặt",
+        "factorDead": "riprap",
+        "factorKomi": "Tiền thưởng (túi)",
+        "factorBaseBonus": "tiền thưởng cơ bản",
+        "factorHiddenBonus": "Tiền thưởng ẩn",
+        "factorSpeedBonus": "Đã vượt quá giới hạn {{sec}} giây → Đối thủ +1",
+        "factorMissileEffect": "Phản ánh việc sản xuất tên lửa",
+        "factorCaptureScore": "điểm chiến thắng",
+        "factorMixFallback": "Tùy thuộc vào chế độ kết hợp",
+        "factorCaptureNoTerritory": "Điểm chiến thắng (không tính nhà cái)",
+        "factorCastle": "Lãnh thổ được xác nhận · Đá giành được · Tiền thưởng (màu trắng)",
+        "factorChess": "Lãnh thổ · Đá nhặt · Đá đá · Bắt được vật phẩm · Tiền thưởng (100)",
+        "factorOmok": "Thu (thắng) — không tính nhà cái",
+        "factorTtamok": "Thắng cổ hoặc thắng điểm",
+        "factorDice": "100 điểm chiến thắng mỗi vòng · Tiền thưởng chiến thắng cuối cùng",
+        "factorThief": "Tổng số điểm kiếm được mỗi vòng",
+        "factorAlkkagi": "Số nước đi của đối thủ ngoài bàn cờ",
+        "factorCurling": "Đá ghi bàn gần nhà (bàn thắng)",
+        "factorFallback": "Xem hướng dẫn chế độ",
+        "factorStageDefault": "Tùy thuộc vào giai đoạn/chế độ",
+        "factorStageCapture": "điểm chiến thắng",
+        "factorStageCapturePattern": "điểm chiến thắng\n2 mẫu đá",
+        "factorStageSpeed": "Lãnh thổ, đá nhặt, đá riprap, tiền thưởng\ntiền thưởng thời gian",
+        "factorAdventureCaptureShort": "Chọn · Biểu tượng 2 điểm",
+        "factorAdventureBase": "giá cơ bản",
+        "factorAdventureBaseStone5": "5 con búp bê cơ bản",
+        "factorAdventureHidden": "Ẩn giấu",
+        "factorAdventureSpeed": "giờ",
+        "factorAdventureMissile": "tên lửa",
+        "itemHidden": "Ẩn {{n}}",
+        "itemScan": "{{n}} lần quét",
+        "itemMissile": "{{n}} tên lửa",
+        "itemSpecialDice": "Xúc xắc đặc biệt {{tóm tắt}}",
+        "itemSlowAim": "Chậm {{slow}} · Nhắm mục tiêu {{aim}}",
+        "mixCaptureWin": "Nếu đạt được {{t}} điểm trước, hãy giành chiến thắng ngay lập tức. Nếu không đạt thì so sánh nhà sau giá trúng.",
+        "mixCaptureWinWithAuto": "Chiến thắng: Nếu đạt được {{t}} điểm đầu tiên, thắng ngay lập tức · Nếu không đạt được, so sánh các nhà sau giới hạn · {{auto}}",
+        "mixAutoTerritoryWin": "{{auto}} — Ai có nhiều nhà nhất sẽ thắng",
+        "mixComboTail": "Sự kết hợp ({{modes}}) — Thắng hoặc thua dựa trên các quy tắc ở cuối",
+        "mixDefaultEnd": "Cuối cùng, người thắng hay người thua được xác định theo quy luật.",
+        "highlightPatternStone2": "Chọn đá hoa văn 2 điểm",
+        "highlightHiddenScan": "Khởi chạy ẩn · Khám phá bằng cách quét",
+        "highlightMissileMove": "Di chuyển đá theo đường thẳng bằng tên lửa",
+        "speedPvpHighlight": "Phụ cấp đếm ngược 10 giây · Đối thủ +1 điểm cho mỗi 10 giây vượt quá · Mất thời gian khi hết thời gian chính",
+        "highlightSurvival": "Cứu Cờ vây · Ghi bàn trong vòng {{n}} lượt",
+        "highlightAutoScoring": "Tự động đếm sau số {{n}}",
+        "highlightBlackTurnLimit": "Giới hạn rẽ {{n}} màu đen",
+        "highlightTurnAdd": "{{n}} lượt bổ sung",
+        "highlightMissile": "{{n}} tên lửa",
+        "highlightHiddenScanCounts": "{{ẩn}} ẩn · Đã quét {{quét}}",
+        "spTimeMainFischer": "Chính {{min}} phút · Đếm ngược {{sec}} giây chính",
+        "spTimeFischerOnly": "Đếm ngược thời gian cho phép {{sec}} giây",
+        "spTimeUnlimited": "Không giới hạn",
+        "goalSurvivalWinLabel": "chặn lại",
+        "goalSurvivalWinHelper": "Chặn 100 mục tiêu trong {{n}} lượt",
+        "goalSurvivalLoseLabel": "trăm thành công",
+        "goalSurvivalLoseHelper": "Nếu Trắng tạo ra bàn thắng thì thất bại.",
+        "goalCaptureWinLabel": "hái",
+        "goalCaptureWinHelper": "Ghi điểm bằng cách bao quanh những viên đá của đối thủ.",
+        "goalCaptureLoseTurnLabel": "lượt vượt quá",
+        "goalCaptureLoseTurnHelper": "Nếu bạn không làm điều đó trong vòng {{n}} lượt, bạn sẽ thất bại.",
+        "goalCaptureLoseFirstLabel": "đối thủ đầu tiên",
+        "goalCaptureLoseFirstHelper": "Nếu đối thủ của bạn thắng trước, bạn thất bại.",
+        "goalSpeedWinLabel": "nhanh",
+        "goalSpeedWinHelper": "Xây nhà đúng thời hạn",
+        "goalSpeedLoseLabel": "Điểm mười ba",
+        "goalSpeedLoseHelper": "Thất bại nếu có ít nhà",
+        "goalAutoWinLabel": "rất nhiều ngôi nhà",
+        "goalAutoWinHelper": "Tính nhà sau {{n}}",
+        "goalAutoLoseLabel": "thiếu nhà",
+        "goalAutoLoseHelper": "{{n}}Nếu gặp bất lợi trong quá trình di chuyển, bạn sẽ thất bại.",
+        "goalDefaultWinLabel": "xây dựng một ngôi nhà",
+        "goalDefaultWinHelper": "Xây nhà xung quanh khu vực",
+        "goalDefaultLoseLabel": "thiếu nhà",
+        "goalDefaultLoseHelper": "Thất bại nếu có ít nhà",
+        "guideTurnLimitTitle": "giới hạn rẽ",
+        "guideTurnLimitBody": "Kết thúc sau {{n}} lượt",
+        "guideSurvivalTitle": "thân cây",
+        "guideSurvivalBody": "Chặn 100 mục tiêu trong {{n}} lượt",
+        "guideAutoScoringTitle": "Giá tính toán",
+        "guideAutoScoringBody": "Tính nhà sau {{n}}",
+        "guidePatternStoneTitle": "đá hoa văn",
+        "guidePatternStoneBody": "2 điểm nếu bạn thắng",
+        "guideSpeedTitle": "tốc độ",
+        "guideSpeedBody": "Nếu bạn để muộn, đối thủ của bạn sẽ được +1 điểm.",
+        "guideTurnAddTitle": "Thêm lượt",
+        "guideTurnAddBody": "Tăng giới hạn rẽ",
+        "guideMissileTitle": "tên lửa",
+        "guideMissileBody": "Chọn một hòn đá và đẩy nó theo một đường thẳng",
+        "guideHiddenScanTitle": "Ẩn · Quét",
+        "guideHiddenScanBody": "Ẩn {{hidden}} · Tìm {{scan}}",
+        "advCaptureWin": "chiến thắng",
+        "advCaptureLose": "Thắng, thua, hết thời gian",
+        "advTerritoryWin": "gye thắng",
+        "advTerritoryWinAuto": "Đếm số trận thắng · {{n}} nước đi tự động",
+        "advTerritoryLose": "Hệ thống bị đánh bại và thời gian không còn nhiều.",
+        "advTimeLimit": "giới hạn {{mins}} phút",
+        "gwCaptureWinAuto": "{{cap}} điểm đầu tiên hoặc {{limit}} số lượt thắng",
+        "gwCaptureWin": "Nếu bạn nhận được {{cap}} điểm trước, bạn sẽ thắng.",
+        "gwCaptureLose": "Đối thủ {{cap}} điểm đầu tiên",
+        "gwTerritoryWinAuto": "Tự động tính toán {{limit}} số trận thắng",
+        "gwTerritoryWin": "Nếu gia đình bạn có nhiều nhà hơn thì bạn thắng.",
+        "gwTerritoryLose": "Số lượng đông hơn, vượt quá thời gian",
+        "captureWin": "Lấy đá của đối phương {{t}} điểm trước",
+        "captureWinWithAuto": "Lấy đá của đối thủ {{t}} điểm trước · {{auto}}",
+        "territoryWinDefault": "Sau khi đếm, bên nào có nhiều nhà nhất sẽ thắng.",
+        "speedTerritoryWinDefault": "Ai có tổng điểm cao nhất sẽ thắng sau khi đếm.",
+        "speedTerritoryLoseDefault": "Nếu tổng điểm của bạn thấp sau khi đếm, bạn sẽ thua.",
+        "castleWin": "Nếu thắng được 1 hoặc nhiều quân của đối thủ thì bạn thắng ngay. Nếu không có con số hiệu quả thì lãnh thổ sẽ được tính toán.",
+        "castleLose": "Nếu đối thủ của bạn bắt được dù chỉ 1 viên đá, bạn sẽ thua. Nếu bạn có ít nhà trong gia đình, bạn sẽ thua.",
+        "castleHighlightCount": "{{castles}} lâu đài · Không thể vào lãnh thổ đã hoàn thành",
+        "castleHighlightCapture": "Thắng ngay khi bắt được 1 viên đá",
+        "chessWin": "Sau thủ tục được chỉ định, việc tính toán",
+        "chessLose": "Đánh bại ở Gyejia · Thua ngay khi bắt được nhà vua.",
+        "chessHighlightBudget": "Vị trí trực tiếp các quân cờ trong phạm vi ngân sách {{ngân sách}} điểm (Vua cố định ở giữa hàng thứ 2)",
+        "chessHighlightMovement": "Quân cờ có thể được di chuyển bằng nước cờ một lần mỗi lượt (có giới hạn số lần).",
+        "omokWin": "Hoàn thành 5 mục ngang, dọc và chéo trước",
+        "omokLose": "Nếu đối thủ của bạn hoàn thành cả 5 mục trước, bạn sẽ thua.",
+        "omok33Forbidden": "Không có anh em sinh đôi",
+        "omok33Allowed": "Cho phép sinh đôi",
+        "omokOverlineForbidden": "không có gỗ tròn",
+        "omokOverlineAllowed": "Cho phép gỗ tròn",
+        "ttamokWin": "Hoàn thành mục 5 trước hoặc đạt được {{cap}} điểm đầu tiên",
+        "ttamokLose": "Nếu đối thủ của bạn hoàn thành 5 mục trước hoặc đạt {{cap}} điểm chiến thắng trước, bạn sẽ thua.",
+        "ttamokHighlightCapture": "Giành chiến thắng khi bạn đạt được {{cap}} điểm đầu tiên.",
+        "diceWin": "Bên nào có số điểm tích lũy cao nhất sau vòng {{r}} sẽ thắng.",
+        "diceLose": "{{r}}Nếu điểm tích lũy của bạn thấp vào cuối vòng, bạn sẽ thua.",
+        "diceHighlightRules": "Vùng đất đen nhiều như mắt xúc xắc, còn màu trắng chỉ được đặt trên lối thoát.",
+        "thiefWin": "Sau 5 lượt x vòng, người có tổng điểm cao nhất sẽ thắng.",
+        "thiefLose": "Nếu tổng điểm của bạn thấp vào cuối vòng, bạn sẽ thua.",
+        "thiefHighlightRoles": "Vai trò luân phiên giữa tên trộm (đen) và cảnh sát (trắng)",
+        "alkkagiWin": "Hạ gục tất cả đá của đối thủ",
+        "alkkagiLose": "Đánh bật tất cả những viên đá của tôi",
+        "alkkagiHighlightGauge": "Kiểm soát lực bằng thước đo, phản xạ tường",
+        "curlingWin": "Ai có tổng điểm vòng đấu cao nhất sẽ thắng",
+        "curlingLose": "Nếu tổng điểm của bạn thấp, bạn sẽ thua.",
+        "curlingHighlightRules": "Hệ thống đá trượt/tròn",
+        "fallbackWin": "Thắng thua được quyết định dựa trên diễn biến của trận đấu.",
+        "fallbackLose": "Nếu thất bại được xác định bởi tiến trình của trò chơi, bạn sẽ thua.",
+        "spDefaultWin": "Giành chiến thắng khi đáp ứng đủ điều kiện sân khấu",
+        "spDefaultLose": "Thua nếu không đáp ứng được điều kiện",
+        "spSurvivalWin": "Không đạt được 100 {{tgt}} điểm trong vòng {{n}} lượt",
+        "spSurvivalLose": "Đạt được 100 {{tgt}} điểm trong vòng {{n}} lượt",
+        "spCaptureTurnWin": "Nhận được {{target}} điểm trong vòng {{limit}} lượt",
+        "spCaptureTurnLoseBoth": "Vượt quá {{limit}} lượt / ghi 100 {{target}} điểm",
+        "spCaptureTurnLoseMiss": "Không thể tiếp cận mục tiêu trong vòng {{limit}} lượt",
+        "spCaptureRaceWin": "Nhận được {{target}} điểm đầu tiên",
+        "spCaptureRaceLose": "Nhận 100 {{target}} điểm đầu tiên",
+        "spCaptureCapWin": "Nhận được {{cap}} điểm đầu tiên",
+        "spCaptureCapLose": "Trắng được {{cap}} điểm trước",
+        "spCaptureGoalWin": "Đạt được điểm mục tiêu",
+        "spCaptureGoalLose": "Baek đạt được mục tiêu của mình trước tiên",
+        "spSpeedWin": "Đội thắng về tổng điểm",
+        "spSpeedLose": "bị đánh bại trên thế giới",
+        "spAutoScoringWin": "{{n}}thắng sau khi đếm",
+        "spAutoScoringLose": "{{n}}Bị đánh bại sau Sugyega",
+        "spLegacyTurnWin": "{{target}} điểm trở lên trong vòng {{limit}} lượt",
+        "spLegacyTurnLose": "Không thể tiếp cận mục tiêu trong vòng {{limit}} lượt",
+        "spLegacyTerritoryWin": "Gia đình nhà {{đen}} màu đen+ · nhà {{trắng}} màu trắng+",
+        "spLegacyTerritoryLose": "lưu vực mục tiêu không đạt được",
+        "spTerritoryWin": "Nếu gia đình có nhiều nhà hơn thì họ thắng.",
+        "spTerritoryLose": "Dòng dõi thứ mười ba"
+      },
+      "itemSlot": {
+        "hiddenStone": "Đá ẩn",
+        "scan": "quét",
+        "missile": "tên lửa",
+        "diceOdd": "Vật phẩm xúc xắc lẻ",
+        "diceEven": "Ngay cả các vật phẩm xúc xắc",
+        "diceLow": "Vật phẩm xúc xắc có số lượng thấp (1-3)",
+        "diceHigh": "Các mặt hàng xúc xắc có số lượng cao (4-6)",
+        "slow": "chậm",
+        "aimLine": "đường ngắm",
+        "turnAdd": "Thêm lượt"
+      }
     },
     "singlePlayerInfo": {
       "close": "đóng",
@@ -1418,7 +1618,7 @@
       "round1": "bài thuyết trình đầu tiên",
       "round2Suffix": "· thứ 2",
       "waitingBothBids": "Chúng tôi đang chờ đợi cả hai bên đưa ra điểm đen (tốt).",
-      "winnerLine": "Điểm {{bid}} của {{name}} → Điểm đen (đường), mục tiêu trắng {{target}}",
+      "winnerLine": "Điểm {{bid}} của {{name}} → điểm đen (đường), mục tiêu trắng {{target}} điểm",
       "tieRandomBoth": "Cà vạt được đề xuất là như nhau. Màu đen và trắng được chọn ngẫu nhiên.",
       "tieRandom": "Cà vạt - Đen và Trắng được chọn ngẫu nhiên.",
       "tieRebid": "Tie — Di chuyển để chạy lại.",
@@ -1448,7 +1648,7 @@
       "queen": "nữ hoàng",
       "pieceTitle": "{{nhãn}} · {{di chuyển}} lần · {{chi phí}} điểm",
       "hostPlacing": "Chủ nhà đặt các mảnh",
-      "hostPlacingHint": "Sau khi triển khai, bạn tham gia vào một lượt tấn công.",
+      "hostPlacingHint": "Sau khi được triển khai, nó sẽ tham gia vào một lượt tấn công.",
       "completeStarting": "Vị trí hoàn tất · Bắt đầu trò chơi…",
       "completeWaiting": "Đã triển khai xong · Đang chờ đối thủ...",
       "secondsLeft": "{{giây}} giây",
@@ -1478,7 +1678,8 @@
       "aria": "tab kết quả"
     },
     "speedPressure": {
-      "aria": "Thời gian cho phép {{sec}} giây"
+      "aria": "Thời gian cho phép {{sec}} giây",
+      "label": "Thanh tốc độ 10 giây"
     },
     "adventureResult": {
       "bossLine": "Sếp: {{nhãn}} +{{pct}}%",
@@ -1488,7 +1689,7 @@
       "timeMode": "phương pháp thời gian",
       "byoyomiOption": "Hết giờ + Đếm ngược",
       "fischerOption": "Hết thời gian + Fisher",
-      "mainTimeLimit": "giới hạn thời gian chính",
+      "mainTimeLimit": "thời gian chờ chính",
       "timeLimit": "giới hạn thời gian",
       "byoyomi": "đếm ngược",
       "fischerIncrement": "Thêm Fisher"
@@ -1556,7 +1757,7 @@
       "setupComplete": "Thiết lập hoàn tất",
       "baseTargetIntro": "Mục tiêu mặc định là {{target}}.",
       "bidInstructionRich2": "Đưa ra một số điểm để đưa cho đối thủ mang quân đen (người chơi).",
-      "aiAutoBidHint": "AI tự động gợi ý từ 1 đến 5 điểm. Bạn có thể chọn điểm số của bạn mà không giới hạn thời gian.",
+      "aiAutoBidHint": "AI tự động đề xuất điểm từ 1 đến 5. Bạn có thể chọn điểm của mình mà không bị giới hạn thời gian.",
       "baseTargetLabel": "mục tiêu chính",
       "waitingCaptain": "Chúng tôi đang chờ giá thầu của trưởng nhóm.",
       "titleRerollSuffix": "· Vòng cược lại"
@@ -1612,7 +1813,10 @@
       "baseRule": "căn cứ",
       "whiteTargetLabel": "trăm bàn thắng",
       "firstBlackRole": "Đường (màu đen)",
-      "meBadge": "Tôi"
+      "meBadge": "Tôi",
+      "captureBidResultTitle": "Kết quả trình bày điểm chiến thắng",
+      "komiBidFinalRound": "Giá thầu tiền thưởng (Vòng cuối cùng)",
+      "pressStartPrompt": "Khi đã sẵn sàng, hãy nhấp vào Bắt đầu để bắt đầu chơi."
     },
     "baseStoneChoice": {
       "hostPick": "Người chủ trì chọn bảng màu bên trái.",
@@ -1642,8 +1846,10 @@
       "blackRole": "Cú đánh đầu tiên, màu đen",
       "whiteRole": "Huyng · Trở lại",
       "finalCardAlt": "Nước đi đầu tiên và thứ hai cuối cùng được hiển thị trên các thẻ bên trái và bên phải.",
-      "fastFlashAlt": "Màn hình đen trắng ở hai không gian thay đổi, nhưng sau một thời gian, nó đã được cố định theo cách sắp xếp cuối cùng.",
-      "smoothEndAlt": "Màu đen và trắng thay đổi nhanh chóng và dừng lại một cách ngẫu nhiên."
+      "fastFlashAlt": "Màn hình đen trắng ở hai không gian thay đổi, nhưng sau một thời gian, nó được cố định về bố cục cuối cùng.",
+      "smoothEndAlt": "Màu đen và trắng thay đổi nhanh chóng và dừng lại một cách ngẫu nhiên.",
+      "assignmentComplete": "Bài tập đã hoàn thành",
+      "blackCandidate": "Ứng cử viên đầu tiên (da đen)"
     },
     "uniformColor": {
       "blackStone": "đá đen",
@@ -1663,7 +1869,7 @@
       "expectedRecovery": "Tình trạng sau khi phục hồi dự kiến",
       "applying": "Đang áp dụng khôi phục...",
       "goShop": "Đi đến cửa hàng",
-      "usePotion": "dùng thuốc phục hồi",
+      "usePotion": "Dùng thuốc phục hồi",
       "recoveryTitle": "phục hồi tình trạng",
       "potionTitle": "{{name}} · Khôi phục {{min}}~{{max}} · Lưu giữ {{count}}",
       "currentLabel": "tình trạng hiện tại",
@@ -1679,7 +1885,8 @@
       "autoRouletteShort": "Thay vì đá, giấy, kéo, đen và trắng được chỉ định bằng roulette tự động.",
       "checkingRoulette": "Kiểm tra kết quả roulette...",
       "waitingConfirm": "Đang chờ xác nhận từ bên kia...",
-      "startCountdown": "Bắt đầu trận đấu ({{count}})"
+      "startCountdown": "Bắt đầu trận đấu ({{count}})",
+      "autoStartHint": "Nhấn Bắt đầu hoặc trận đấu sẽ tự động bắt đầu sau 30 giây."
     },
     "diceGo": {
       "winner": "Kết quả của viên xúc xắc là {{name}} đã thắng và quyết định đi đầu/cuối cùng được đưa ra.",
@@ -1697,7 +1904,7 @@
       "tie": "cà vạt!",
       "intro": "Nhấn nút sẵn sàng để tung xúc xắc. Người có số lượng cao nhất chọn đi đầu/cuối.",
       "tieReroll": "cà vạt! Cuộn lại sau một thời gian.",
-      "pickTurn": "Chọn đi đầu tiên hoặc cuối cùng. ({{đếm ngược}})",
+      "pickTurn": "Chọn đi đầu tiên hoặc thứ hai. ({{đếm ngược}})",
       "firstBlackBtn": "Tấn công trước (đen)",
       "secondWhiteBtn": "Hùng Vương (màu trắng)",
       "waitingOpponentPick": "Đối thủ đang chọn đi trước/thứ hai...",
@@ -1740,7 +1947,7 @@
       "tieDeathmatch": "Trận đấu tử thần tiếp tục với tỷ số hòa.",
       "swapRoles": "Đổi vai và tiến tới vòng tiếp theo.",
       "round2Tie": "Hiệp 2 kết thúc. Nếu tỷ số hòa thì đó là một trận đấu sinh tử.",
-      "waitingConfirm": "Đang chờ xác nhận của đối thủ",
+      "waitingConfirm": "Đang chờ xác nhận từ đối tác",
       "nextRound": "vòng tiếp theo",
       "piecesUnit": "chó"
     },
@@ -1813,9 +2020,78 @@
       "editStage": "Chỉnh sửa sân khấu",
       "editOrder": "Chỉnh sửa đơn hàng",
       "cancel": "hủy bỏ",
+      "exit": "Ra",
       "start": "Bắt đầu",
       "singleStage": "giai đoạn duy nhất",
-      "masterClass": "một người có trình độ chuyên môn"
+      "masterClass": "một người có trình độ chuyên môn",
+      "goalSection": "mục tiêu",
+      "goalTurnCaption": "Lượt rẽ hạn chế",
+      "goalTurnUnit": "xoay",
+      "goalMySide": "Tôi",
+      "goalOpponentSide": "đối thủ",
+      "goalCaptureUnit": "hái",
+      "goalSurvivalTurnCaption": "Giai đoạn",
+      "goalSurvivalBlockCaption": "chặn lại",
+      "goalSurvivalPointUnit": "dấu chấm",
+      "turnLimit": "Số lượt giới hạn: {{count}} lượt",
+      "autoScoringGoal": "Tự động đếm sau {{count}} lượt",
+      "myCaptureGoal": "Tôi thắng {{count}}",
+      "opponentCaptureGoal": "Đánh bại {{count}} đối thủ",
+      "vs": "vs",
+      "survivalGoal": "Chặn {{target}} điểm trong vòng {{turns}}lượt",
+      "territoryGoal": "gye thắng",
+      "modeTypeTabs": "loại baduk",
+      "modeGuideTitle": "Cách chơi",
+      "modeGuide": {
+        "missile": {
+          "step1Title": "vật phẩm tên lửa",
+          "step1Body": "Đến lượt mình, tôi nhấn nút vật phẩm tên lửa.",
+          "step1BodyItem": "Bạn có thể sử dụng tên lửa {{count}} trong trận đấu này. Nhấn nút tên lửa vào lượt của bạn.",
+          "step2Title": "lựa chọn đá",
+          "step2Body": "Chọn đá của tôi để di chuyển.",
+          "step3Title": "chuyển động đường thẳng",
+          "step3Body": "Đẩy hòn đá về phía chỗ trống để thay đổi tình thế."
+        },
+        "hidden": {
+          "step1Title": "Mục ẩn",
+          "step1Body": "Sử dụng nút ẩn để thực hiện các bước di chuyển mà đối thủ của bạn không thể nhìn thấy.",
+          "step1BodyItem": "{{count}} ẩn cho phép bạn thực hiện các bước di chuyển mà đối thủ của bạn không thể nhìn thấy được.",
+          "step2Title": "mục quét",
+          "step2Body": "Tìm các khu vực nghi ngờ ẩn bằng nút quét.",
+          "step2BodyItem": "Lần quét {{count}} có thể giúp bạn tìm ra các khu vực nghi ngờ ẩn giấu.",
+          "step3Title": "Sử dụng các vật phẩm",
+          "step3Body": "Các bản quét ẩn có số lượng hạn chế, vì vậy hãy chọn thời gian một cách khôn ngoan."
+        },
+        "capture": {
+          "step1Title": "chiến thắng",
+          "step1Body": "Bạn giành chiến thắng nếu lần đầu tiên bạn lấy được số đá của đối thủ bằng với số điểm mục tiêu.",
+          "step2Title": "đá hoa văn",
+          "step2Body": "Nếu bạn giành được một viên đá có hoa văn thì được tính là 2 điểm."
+        },
+        "speed": {
+          "step1Title": "quy tắc thời gian",
+          "step1Body": "Nếu bạn không làm điều đó trong thời gian quy định, đối thủ của bạn sẽ nhận được nhiều điểm hơn.",
+          "step2Title": "Giá tính toán",
+          "step2Body": "Cuối cùng, người thắng hay người thua được xác định bằng cách cộng tiền thưởng nhà cái và thời gian."
+        },
+        "base": {
+          "step1Title": "búp bê cơ sở",
+          "step1Body": "Đọc tình huống bằng cách nhìn vào vị trí đặt đá nền.",
+          "step2Title": "giá thầu tiền thưởng",
+          "step2Body": "Quyết định phần thưởng để trao cho đối thủ của bạn và bắt đầu trò chơi với màu/đá bạn muốn."
+        },
+        "classic": {
+          "step1Title": "xây dựng một ngôi nhà",
+          "step1Body": "Xây dựng nhà xung quanh lãnh thổ và bảo vệ nhiều nhà hơn đối thủ của bạn.",
+          "step2Title": "Giá tính toán",
+          "step2Body": "Nếu cả hai bên đều vượt qua, người chiến thắng sẽ được quyết định bằng cách đếm."
+        },
+        "survival": {
+          "tab": "Lưu Baduk",
+          "step1Title": "chặn lại",
+          "step1Body": "Ngăn cản Trắng (đối thủ) đạt được số điểm mục tiêu trong một số lượt đã định."
+        }
+      }
     },
     "towerShop": {
       "closeAria": "Đóng mua các mặt hàng độc quyền hàng đầu",
@@ -1867,7 +2143,7 @@
       "diceTitle": "{{round}}Kiểm đếm vòng",
       "deathmatchStart": "Trận tử chiến bắt đầu",
       "viewFinal": "Xem kết quả cuối cùng",
-      "waitingConfirm": "Đang chờ xác nhận của đối thủ",
+      "waitingConfirm": "Đang chờ xác nhận từ đối tác",
       "dummyCapture": "{{tên}}",
       "previousRound": "vòng trước",
       "previousKnockShort": "tiếng gõ cửa trước",
@@ -1883,7 +2159,7 @@
       "lastDummyBonus": "Cọc cuối cùng +{{tiền thưởng}}",
       "alkkagiKnockout": "hạ gục",
       "playerFallback": "người chơi",
-      "waitingOpponentConfirm": "Đang chờ xác nhận của đối thủ",
+      "waitingOpponentConfirm": "Đang chờ xác nhận từ đối tác",
       "house": "căn nhà",
       "knockout": "hạ gục",
       "roundResultBoard": "bảng kết quả vòng đấu"
@@ -1892,7 +2168,7 @@
       "waiting": "Đang chờ xác nhận từ bên kia...",
       "start": "Bắt đầu",
       "autoProgress": "Cho đến khi tiến trình tự động",
-      "autoProgressShort": "tiến trình tự động"
+      "autoProgressShort": "tự động tạm ứng"
     },
     "colorStart": {
       "title": "Kiểm tra Nigiri"
@@ -1974,7 +2250,7 @@
       "withdraw": "Rút tư cách thành viên",
       "cancel": "hủy bỏ",
       "withdrawTitle": "Rút tư cách thành viên",
-      "withdrawLine1": "Khi rút tiền, dữ liệu sẽ bị xóa và không thể phục hồi được.",
+      "withdrawLine1": "Dữ liệu sẽ bị xóa khi rút tiền và không thể phục hồi được.",
       "withdrawLine2": "Bạn không thể đăng ký lại bằng cùng một địa chỉ email trong 1 tuần.",
       "withdrawPasswordConfirm": "xác minh mật khẩu",
       "withdrawTextConfirm": "Nhập văn bản xác nhận: “Rút thành viên”",
@@ -1988,7 +2264,7 @@
         "withdrawConfirmMismatch": "Văn bản xác nhận không chính xác. Vui lòng nhập chính xác “Rút tư cách thành viên”.",
         "usernameChangeFailed": "Đã xảy ra lỗi khi thay đổi ID.",
         "passwordChangeFailed": "Đã xảy ra lỗi khi thay đổi mật khẩu của bạn.",
-        "withdrawFailed": "Đã xảy ra lỗi khi hủy tư cách thành viên."
+        "withdrawFailed": "Đã xảy ra lỗi khi hủy tư cách thành viên của bạn."
       },
       "alerts": {
         "usernameChanged": "ID của bạn đã thay đổi.",
@@ -2105,6 +2381,10 @@
       "forceLogout": "buộc phải rời đi",
       "forceLogoutConfirm": "Bạn có muốn buộc [{{nickname}}] ngắt kết nối không?",
       "invite": "Mời",
+      "challenge": "Đăng ký tham gia một trận đấu",
+      "challengeUnavailable": "Bên kia không có quyền nhận yêu cầu đối sánh.",
+      "spectate": "Đang xem",
+      "spectateUnavailable": "Tôi không thể tìm thấy bất kỳ thông tin trận đấu nào để xem.",
       "blockInvites": "Không có lời mời",
       "blockInvitesTitle": "Khi được bật, những người chơi khác sẽ không thể mời bạn làm đối tác trong Fair Arena.",
       "statusInPairRoom": "Bạn không thể thay đổi trạng thái của mình khi ở trong phòng đôi.",
@@ -2138,7 +2418,7 @@
       "back": "Quay lại",
       "switchArena": "chuyển tiếp sân vận động",
       "goToTitle": "Đi tới {{title}}",
-      "switchIntent": "Chuyển sang {{nhãn}}",
+      "switchIntent": "Chuyển sang {{label}}",
       "channelShort": {
         "strategic": "chiến lược",
         "pair": "đôi",
@@ -2171,7 +2451,7 @@
       "roomDescriptionTooLong": "Nội dung phòng không được vượt quá 50 ký tự.",
       "forceEndConfirm": "[{{player1}} vs {{player2}}] Bạn có muốn buộc trận đấu kết thúc không?",
       "selectGamesToEnd": "Vui lòng chọn trò chơi bạn muốn buộc thoát.",
-      "batchForceEndConfirm": "Bạn có muốn buộc thoát khỏi {{count}} kết quả đã chọn không?",
+      "batchForceEndConfirm": "Bạn có muốn buộc thoát khỏi {{count}} kết quả phù hợp đã chọn không?",
       "roomNumberPlaceholder": "số phòng",
       "adminSearchPlaceholder": "Tìm kiếm của quản trị viên: Biệt danh/Chế độ/ID trò chơi",
       "batchForceEndTitle": "Chọn Buộc thoát triển khai",
@@ -2232,7 +2512,7 @@
       "hiddenItem": "Mục ẩn",
       "scanItem": "mục quét",
       "missileItem": "vật phẩm tên lửa",
-      "stonePlacementCount": "Số lượng lô",
+      "stonePlacementCount": "số lượng lô",
       "rankingScore": "điểm xếp hạng",
       "matchFound": {
         "rankingLabel": "Xếp hạng: {{xếp hạng}} điểm",
@@ -2278,7 +2558,7 @@
       "startMatching": "Bắt đầu khớp (chọn {{count}})",
       "selectedBadge": "đã chọn",
       "roundUnit": "{{count}}vòng",
-      "boardSizeValue": "{{size}}dòng",
+      "boardSizeValue": "dòng {{size}}",
       "scoringTurnValue": "{{đếm}}đếm",
       "itemCountValue": "{{đếm}}",
       "slowItem": "chậm",
@@ -2319,7 +2599,7 @@
       "baseStone": "đá nền",
       "captureGoal": "bắt mục tiêu",
       "turnsUnit": "{{đếm}}đếm",
-      "linesUnit": "{{size}}dòng",
+      "linesUnit": "dòng {{size}}",
       "pointsUnit": "{{điểm}} điểm",
       "countUnit": "{{đếm}}",
       "halfPoint": "nhà .5",
@@ -2371,7 +2651,7 @@
       "badukPairWhere": "Sân vận động → Sử dụng trận đấu xếp hạng trong Đôi Baduk."
     },
     "chatInline": {
-      "honorific": "thưa ông",
+      "honorific": "thưa ngài",
       "securityBot": "Robot cảnh sát trưởng AI",
       "system": "hệ thống",
       "viewProfileSanction": "Xem hồ sơ của {{name}}/Các biện pháp trừng phạt",
@@ -2490,7 +2770,7 @@
       "equipmentRewardViewAria": "Xem phạm vi bù của thiết bị: {{grade}}",
       "enhanceStoneRewardAria": "Phần thưởng Đá Cường hóa: {{line}}",
       "goldWinRange": "Vàng Chiến thắng (tham khảo) xấp xỉ. {{min}}~{{max}}",
-      "goldBoss19Range": "Khi đánh bại được trùm ở dòng 19, bạn sẽ nhận được khoảng {{min}}~{{max}} vàng.",
+      "goldBoss19Range": "Khi bạn đánh bại được trùm ở dòng 19, bạn sẽ nhận được khoảng {{min}}~{{max}} vàng.",
       "equipmentGradeGrant": "Cấp thiết bị được cấp: {{grade}}",
       "pickHintVip": "Phần thưởng VIP: Tự mình chọn hai ô hoặc chỉ chọn một ô và ô còn lại sẽ được chọn ngẫu nhiên.",
       "pickHintSingle": "Chọn 1 ô cần nhận và nhấn Done Selection.",
@@ -2616,7 +2896,7 @@
       "stageSelect": "Lựa chọn giai đoạn",
       "previousClass": "các bước trước",
       "nextClass": "bước tiếp theo",
-      "stageListTitle": "giai đoạn {{classLabel}}",
+      "stageListTitle": "Giai đoạn {{classLabel}}",
       "rewardsTable": "bảng thưởng",
       "rewardsTableTitle": "Bảng phần thưởng hoàn thành giai đoạn",
       "rewardsTableAria": "Phần thưởng theo cấp độ",
@@ -2625,10 +2905,10 @@
       "classBarRewardClaimed": "Đã hoàn tất biên nhận",
       "classBarRewardClaim": "Nhận phần thưởng",
       "classBarRewardNeedClear": "Yêu cầu vượt qua giai đoạn {{milestone}}",
-      "classBarRewardAria": "Phần thưởng {{mốc}} điểm",
+      "classBarRewardAria": "{{milestone}}điểm thưởng",
       "cleared": "Xóa hoàn thành",
-      "enterStage": "Vé vào cửa ⚡{{chi phí}}",
-      "enterStageTitle": "Sức mạnh đầu vào/hành động {{cost}}",
+      "enterStage": "Thử thách ⚡{{chi phí}}",
+      "enterStageTitle": "Hành động thử thách {{cost}}",
       "locked": "bị khóa",
       "unlockRequired": "Yêu cầu {{stageId}}",
       "claimAll": "Nhận hàng loạt ({{count}})",
@@ -2740,7 +3020,7 @@
     "abilityRequired": "Tổng khả năng {{total}}+",
     "intro10Required": "Yêu cầu hoàn thành cấp độ giới thiệu 10",
     "intro20Required": "Yêu cầu hoàn thành cấp độ cơ bản 20",
-    "goSchool": "Học viện Baduk",
+    "goSchool": "học viện cờ vây",
     "challengeTower": "Tháp thử thách",
     "pvpArena": "Đấu trường PVP",
     "aiArena": "trận đấu AI",
@@ -2781,7 +3061,7 @@
     "currentFloor": "tầng hiện tại",
     "timeRemaining": "thời gian còn lại",
     "currentRank": "xếp hạng hiện tại",
-    "floorUnit": "tầng {{tầng}}",
+    "floorUnit": "{{tầng}}tầng",
     "rankUnit": "{{thứ hạng}}",
     "strategicAiRecord": "Bản ghi AI chiến lược",
     "playfulAiRecord": "Chơi bản ghi AI",
@@ -2920,7 +3200,7 @@
       "sanctionReasons": {
         "profanity": "Thô tục/vu khống",
         "spam": "Hình nền/Thư rác",
-        "cheat": "Chương trình bị nghi ngờ bất hợp pháp",
+        "cheat": "chương trình bị nghi ngờ bất hợp pháp",
         "profile": "Biệt danh/Hồ sơ không phù hợp",
         "other": "vân vân"
       },
@@ -2964,7 +3244,7 @@
       "changeCost": "chi phí thay đổi",
       "ownedDiamonds": "cầm kim cương",
       "mbtiWhatTitle": "MBTI là gì?",
-      "mbtiWhatDesc": "Chỉ báo loại Myers-Briggs (MBTI) là một công cụ để hiểu loại tính cách dựa trên sở thích của một cá nhân. Nó có thể giúp bạn hiểu bản thân mình hơn và cải thiện mối quan hệ của bạn với người khác.",
+      "mbtiWhatDesc": "MBTI (Chỉ báo loại Myers-Briggs) là một công cụ để hiểu loại tính cách dựa trên sở thích của một cá nhân. Nó có thể giúp bạn hiểu bản thân mình hơn và cải thiện mối quan hệ của bạn với người khác.",
       "goMbtiTitle": "MBTI Baduk",
       "goMbtiDesc": "Baduk MBTI là sự phân tích phong cách baduk của bạn bằng cách sử dụng các khái niệm MBTI. Mỗi loại có phong cách chơi riêng, vì vậy bạn có thể tìm thấy phong cách phù hợp với mình.",
       "mbtiFirstReward": "Khi thiết lập ban đầu, bạn sẽ nhận được 100 viên kim cương.",
@@ -3005,7 +3285,7 @@
         "I": {
           "name": "Hướng nội (tôi)",
           "general": "Họ thận trọng, im lặng và tập trung hơn vào thế giới nội tâm của mình. Họ thích những mối quan hệ sâu sắc và có được năng lượng từ thời gian ở một mình.",
-          "goStyle": "Đây là đặc tính của việc xây dựng một ngôi nhà vững chắc, chú trọng vào tính thực tế. Nó không dễ dàng đáp lại những hành động khiêu khích của đối thủ và lặng lẽ xoay chuyển tình thế có lợi cho mình."
+          "goStyle": "Đây là đặc tính của việc xây dựng một ngôi nhà vững chắc, chú trọng tính thực tế. Nó không dễ dàng đáp lại những hành động khiêu khích của đối thủ và lặng lẽ xoay chuyển tình thế có lợi cho mình."
         },
         "S": {
           "name": "Cảm giác (S)",
@@ -3041,7 +3321,7 @@
     },
     "mannerGradeChange": {
       "upCaption": "Trình độ cư xử đã tăng lên",
-      "downCaption": "Đánh giá về cách thức đã giảm",
+      "downCaption": "Đánh giá cách thức đã giảm",
       "upTitle": "Mức độ cách thức tăng lên",
       "downTitle": "Cách xếp hạng bị hạ cấp",
       "upHint": "Nếu bạn duy trì cách cư xử tốt, lợi ích của bạn sẽ tăng lên. Hãy tiếp tục chơi tốt nhé.",
@@ -3051,6 +3331,8 @@
     "mannerRank": {
       "title": "Thông tin cấp độ cách thức",
       "grade": "lớp học cách",
+      "effectsByGrade": "Hiệu ứng theo cấp độ",
+      "currentBadge": "Hôm nay",
       "rangeHint": "Đây là những lợi ích và hình phạt được áp dụng cho từng phạm vi điểm.",
       "allStatsPlus10": "Tất cả khả năng +10",
       "disassembleJackpot": "Xác suất giải độc đắc phân hủy +20%",
@@ -3065,7 +3347,19 @@
       "scoreAbove": "{{min}} điểm trở lên",
       "scoreRange": "{{min}}~{{max}} điểm",
       "zeroScore": "0 điểm",
-      "mannerPointsTitle": "{{score}}điểm ({{rank}})"
+      "mannerPointsTitle": "{{score}}điểm ({{rank}})",
+      "grades": {
+        "worst": "tồi tệ nhất",
+        "veryBad": "rất tệ",
+        "bad": "xấu",
+        "caution": "thận trọng",
+        "normal": "thông thường",
+        "good": "Tốt",
+        "veryGood": "rất tốt",
+        "dignified": "phẩm giá",
+        "pro": "chuyên nghiệp",
+        "master": "bậc thầy"
+      }
     },
     "statAllocation": {
       "resetFailAlert": "Các điều kiện thiết lập lại khả năng không được đáp ứng. Bạn đã hết vàng hoặc đã vượt quá số lần đặt lại hàng ngày.",
@@ -3073,12 +3367,12 @@
       "combatPower": "sức mạnh chiến đấu",
       "remaining": "còn sót lại",
       "allocateHint": "Phân phối cho các khả năng còn lại",
-      "decreaseOne": "giảm đi 1",
+      "decreaseOne": "giảm 1",
       "increaseOne": "tăng thêm 1",
       "bonus": "thưởng",
       "resetBtn": "cài lại",
       "allocateTitle": "Phân phối điểm khả năng",
-      "allocateAria": "phân phối {{stat}}",
+      "allocateAria": "{{stat}} Phân phối",
       "statLabel": "khả năng",
       "remainingShort": "phần còn lại",
       "allocateToStat": "Phân bổ cho khả năng này"
@@ -3111,13 +3405,13 @@
       "intpDesc": "Có trí tuệ tò mò, phân tích, sáng tạo",
       "estpDesc": "Năng động, thực tế, táo bạo",
       "esfpDesc": "Hòa đồng, lạc quan, tự phát",
-      "enfpDesc": "Nhiệt tình, giàu trí tưởng tượng, hòa đồng",
+      "enfpDesc": "Đam mê, giàu trí tưởng tượng, hòa đồng",
       "entpDesc": "Người gốc, hiểu biết, tranh luận",
       "estjDesc": "Có hệ thống, thực tế, lãnh đạo",
       "esfjDesc": "Hòa đồng, hợp tác, ân cần",
       "enfjDesc": "Uy tín, cảm hứng, khả năng lãnh đạo",
       "entjDesc": "Quyết tâm, lãnh đạo, chiến lược",
-      "mbtiExplain1": "Chỉ báo loại Myers-Briggs (MBTI) là một công cụ để hiểu loại tính cách dựa trên sở thích của một cá nhân.",
+      "mbtiExplain1": "MBTI (Chỉ báo loại Myers-Briggs) là một công cụ để hiểu loại tính cách dựa trên sở thích của một cá nhân.",
       "mbtiExplain2": "Nó có thể giúp bạn hiểu bản thân mình hơn và cải thiện mối quan hệ của bạn với người khác.",
       "setupMbti": "Thiết lập MBTI",
       "questionProgress": "Câu hỏi {{current}} / {{total}} · Thu thập câu trả lời cho từng trục xác định loại",
@@ -3131,7 +3425,7 @@
       "opponentGoStyle": "Xu hướng baduk của đối thủ",
       "strengths": "sức mạnh",
       "weaknesses": "điểm yếu",
-      "setMbtiHint": "Bằng cách thiết lập MBTI, bạn có thể xem phân tích khả năng tương thích với đối tác của mình.",
+      "setMbtiHint": "Nếu bạn thiết lập MBTI, bạn có thể xem phân tích khả năng tương thích với đối tác của mình.",
       "title": "So sánh MBTI",
       "notSetBoth": "Không bên nào có MBTI.",
       "opponentNotSet": "MBTI của bên kia chưa được thiết lập.",
@@ -3144,7 +3438,7 @@
       "useWeaknesses": "Tận dụng điểm yếu của đối thủ.",
       "differences": "sự khác biệt",
       "similarities": "điểm chung",
-      "veryGood": "trận đấu rất hay",
+      "veryGood": "khả năng tương thích rất tốt",
       "good": "khả năng tương thích tốt",
       "normal": "Khả năng tương thích trung bình",
       "poor": "khả năng tương thích kém",
@@ -3195,7 +3489,7 @@
           "playStyle": "Thực hiện những bước đi sáng tạo với niềm đam mê. Đó là một đặc tính thất thường và không thể đoán trước."
         },
         "ENTP": {
-          "style": "một nhà tranh luận đầy thử thách",
+          "style": "một nhà tranh luận đầy thách thức",
           "playStyle": "Tôi thích các cuộc tấn công đầy thử thách và hợp lý. Tôi thích những động tác khác thường và sáng tạo."
         },
         "ESTJ": {
@@ -3237,7 +3531,7 @@
       "simE": "Cả hai đều có đặc tính chủ động",
       "simI": "Cả hai đều có đặc tính thận trọng",
       "diffSReal": "Bạn là người thực tế, đối thủ của bạn là người trực quan.",
-      "diffNReal": "Bạn trực quan, đối thủ của bạn là thực tế.",
+      "diffNReal": "Bạn là người theo chủ nghĩa trực giác, đối thủ của bạn là người thực tế.",
       "simS": "Cả hai đều thực dụng",
       "simN": "cả hai đều được điều khiển bằng trực giác",
       "diffTLogic": "Bạn là người logic, đối tác của bạn là người giàu cảm xúc.",
@@ -3481,20 +3775,20 @@
       "remove_ads": "xóa quảng cáo"
     },
     "packageBenefits": {
-      "diamond_daily_50_350": "50 viên kim cương được thanh toán qua thư mỗi ngày (tổng cộng 350 viên kim cương)",
-      "diamond_daily_50_750": "50 viên kim cương được thanh toán qua thư mỗi ngày (tổng cộng 750 viên kim cương)",
-      "diamond_daily_50_1500": "50 viên kim cương được thanh toán qua thư mỗi ngày (tổng cộng 1500 viên kim cương)",
-      "diamond_instant_100": "100 viên kim cương thanh toán ngay",
-      "diamond_instant_250": "Thanh toán ngay 250 viên kim cương",
-      "diamond_instant_750": "Thanh toán ngay 750 viên kim cương",
-      "equip_pkg1_boxes": "1 hộp thiết bị V",
-      "equip_pkg1_mat": "1 hộp nguyên liệu VI",
+      "diamond_daily_50_350": "100 viên kim cương được thanh toán qua thư mỗi ngày (tổng cộng 700 viên kim cương)",
+      "diamond_daily_50_750": "100 viên kim cương được thanh toán qua thư mỗi ngày (tổng cộng 1500 viên kim cương)",
+      "diamond_daily_50_1500": "100 viên kim cương được thanh toán qua thư mỗi ngày (tổng cộng 3000 viên kim cương)",
+      "diamond_instant_100": "Thanh toán ngay 200 viên kim cương",
+      "diamond_instant_250": "Thanh toán ngay 500 viên kim cương",
+      "diamond_instant_750": "Thanh toán ngay 1000 viên kim cương",
+      "equip_pkg1_boxes": "3 hộp trang bị V",
+      "equip_pkg1_mat": "3 hộp vật liệu VI",
       "equip_pkg1_bonus": "+ Xác nhận thanh toán “Trang bị sử thi”",
-      "equip_pkg2_boxes": "2 hộp trang bị V",
-      "equip_pkg2_mat": "2 hộp vật liệu VI",
+      "equip_pkg2_boxes": "5 hộp thiết bị",
+      "equip_pkg2_mat": "5 hộp vật liệu VI",
       "equip_pkg2_bonus": "+ Đảm bảo thanh toán “Thiết bị huyền thoại”",
       "equip_pkg3_boxes": "2 Hộp Thiết Bị VI",
-      "equip_pkg3_mat": "5 hộp vật liệu VI",
+      "equip_pkg3_mat": "10 hộp vật liệu VI",
       "equip_pkg3_bonus": "+ Xác nhận thanh toán “Trang bị thần thoại”",
       "remove_ads_1": "Ẩn các biểu ngữ trong trò chơi và quảng cáo toàn trang như vận động hành lang và mai mối",
       "remove_ads_2": "Nhận phần thưởng tương tự mà không cần quảng cáo có tặng thưởng của cửa hàng (duy trì giới hạn hàng ngày)"
@@ -3644,13 +3938,13 @@
     },
     "activity": {
       "daily": "Buổi biểu diễn hôm nay",
-      "weekly": "Hoạt động hàng tuần",
+      "weekly": "hoạt động hàng tuần",
       "monthly": "Hoạt động hàng tháng",
       "points": "Hoạt động +{{điểm}}"
     },
     "achievements": {
       "all": "thành tựu trọn vẹn",
-      "compact": "thành tích",
+      "compact": "thành tựu",
       "prevAria": "các bước trước",
       "prev": "trước",
       "nextAria": "bước tiếp theo",
@@ -3749,7 +4043,7 @@
     },
     "bindModal": {
       "line1": "Thiết bị bị ràng buộc và không thể bán trên sàn giao dịch.",
-      "line2": "Để bán trên sàn giao dịch, bạn phải sử dụng quyền giải phóng thuộc tính.",
+      "line2": "Để bán trên sàn giao dịch, bạn phải sử dụng quyền ghi nợ.",
       "unbindDesc": "Nếu bạn mở khóa thiết bị, bạn có thể bán nó trên sàn giao dịch."
     },
     "presetSavedTitle": "Lưu giá trị đặt trước",
@@ -3785,7 +4079,7 @@
       "consumableDetail": "Chi tiết tiêu hao",
       "materialDetail": "Chi tiết vật liệu",
       "itemDetail": "Chi tiết mặt hàng",
-      "cannotRefine": "Không thể nấu chảy được",
+      "cannotRefine": "không thể nấu chảy được",
       "goRefine": "Chuyển đến tab Luyện kim"
     },
     "purchase": {
@@ -3841,7 +4135,7 @@
       "bulkSellTitle": "Bán với số lượng lớn",
       "pickAmount": "Quyết định số tiền bạn muốn bán",
       "sellCount": "Đã bán được {{count}} sản phẩm",
-      "ownedTotalLine": "{{label}} · Chứa tổng cộng {{count}}",
+      "ownedTotalLine": "{{nhãn}} · Chứa tổng cộng {{count}}",
       "unitPriceLabel": "Giá bán mỗi đơn vị"
     },
     "sellConfirm": {
@@ -3989,18 +4283,18 @@
       "capturePoints": "chọn các dấu chấm",
       "orJoin": "hoặc",
       "hatchDisposition": "Xu hướng nở",
-      "hatchSpecialization": "Chuyên môn ấp trứng",
+      "hatchSpecialization": "Chuyên môn ấp nở",
       "usageLabel": "Sử dụng ở đâu",
       "obtainLabel": "Lấy nó ở đâu",
       "noMaterialUse": "Vật liệu này hiện không được sử dụng để cường hóa bất kỳ thiết bị nào.",
       "materialTab": "nguyên liệu",
       "consumableTab": "đồ dùng cần thiết",
-      "inventoryHint": "Có thể sử dụng trong túi.",
+      "inventoryHint": "Bạn có thể sử dụng nó trong túi của bạn.",
       "noGuide": "Không có hướng dẫn.",
       "tier1": "cái túi",
       "tier2": "đá",
       "tier3": "buổi tiệc",
-      "index": "chỉ số"
+      "index": "chỉ mục"
     },
     "pastRankings": {
       "empty": "Không có thông tin xếp hạng mùa giải",
@@ -4012,6 +4306,17 @@
       "noTier": "Không có cấp độ"
     },
     "tierInfo": {
+      "names": {
+        "champion": "người thách thức",
+        "master": "bậc thầy",
+        "diamond": "kim cương",
+        "platinum": "bạch kim",
+        "gold": "vàng",
+        "silver": "bạc",
+        "bronze": "đồng",
+        "iron": "tân binh",
+        "unranked": "nảy mầm"
+      },
       "champion": "Điểm tối thiểu là 3500 trở lên và giới hạn ở 100 người hàng đầu",
       "master": "Điểm tối thiểu 3000 trở lên",
       "diamond": "Điểm tối thiểu 2400 trở lên",
@@ -4041,7 +4346,7 @@
       "rankHint": "Cấp bậc dựa trên cạnh tranh xếp hạng (tham khảo phần thưởng bên dưới để biết điều kiện thăng hạng/bảo trì/xuống hạng)",
       "weeklyReward": "phần thưởng hàng tuần",
       "titleRanking": "Thông tin xếp hạng giải đấu",
-      "intro": "Cấp độ của bạn được xác định bằng số điểm bạn kiếm được trong PVP xếp hạng baduk chiến lược. Vào cuối tuần, việc thăng hạng, giữ chân và giáng chức được áp dụng theo thứ hạng và bạn có thể nhận được phần thưởng cho mỗi bậc.",
+      "intro": "Cấp độ của bạn được xác định bằng số điểm bạn kiếm được trong PVP xếp hạng baduk chiến lược. Vào cuối tuần, việc thăng hạng, giữ chân và giáng chức được áp dụng theo thứ hạng và bạn có thể nhận được phần thưởng cho từng bậc.",
       "stay": "dư",
       "rankPlace": "{{thứ hạng}}",
       "rankRange": "Trên {{bắt đầu}}-{{end}}",
@@ -4050,6 +4355,554 @@
       "stayLine": "phần dư: {{phạm vi}}",
       "demoteLine": "Xuống hạng: {{ranges}}",
       "rankHintShort": "Cấp bậc dựa trên cạnh tranh xếp hạng (tham khảo bảng phần thưởng bên dưới để biết các điều kiện thăng hạng, giữ chân và giáng chức)"
+    },
+    "items": {
+      "box_diabox1": {
+        "name": "Gói Kim Cương I",
+        "description": "Nhận từ 1 đến 20 viên kim cương"
+      },
+      "box_diabox2": {
+        "name": "Gói kim cương II",
+        "description": "Nhận được 10 đến 30 viên kim cương"
+      },
+      "box_diabox3": {
+        "name": "Gói kim cương III",
+        "description": "Nhận 20 đến 50 viên kim cương"
+      },
+      "box_diabox4": {
+        "name": "Gói kim cương IV",
+        "description": "Nhận 30 đến 100 kim cương"
+      },
+      "box_goldbox1": {
+        "name": "Gói vàng I",
+        "description": "Kiếm 10 đến 500 vàng"
+      },
+      "box_goldbox2": {
+        "name": "Gói vàng II",
+        "description": "Kiếm 100 đến 1.000 vàng"
+      },
+      "box_goldbox3": {
+        "name": "Gói vàng III",
+        "description": "Kiếm 500 đến 3.000 vàng"
+      },
+      "box_goldbox4": {
+        "name": "Gói vàng IV",
+        "description": "Kiếm 1.000 đến 10.000 vàng"
+      },
+      "btn_addturn": {
+        "name": "Thêm lượt",
+        "description": "Đây là một vật phẩm lượt bổ sung có thể được sử dụng tại Tháp Thử thách."
+      },
+      "btn_hidden": {
+        "name": "Ẩn giấu",
+        "description": "Đây là một vật phẩm ẩn có thể được sử dụng trong Tháp Thử thách."
+      },
+      "btn_missile": {
+        "name": "tên lửa",
+        "description": "Đây là vật phẩm tên lửa có thể được sử dụng tại Tháp Thử thách."
+      },
+      "btn_reflesh": {
+        "name": "Thay đổi bố cục",
+        "description": "Đây là vật phẩm thay đổi vị trí có thể được sử dụng tại Tháp Thử thách."
+      },
+      "btn_scan": {
+        "name": "quét",
+        "description": "Đây là vật phẩm quét có thể được sử dụng tại Tháp Thử thách."
+      },
+      "eq_board1": {
+        "name": "bàn cờ nảy mầm",
+        "description": "Đây là bàn cờ đam bằng gỗ paulownia nhẹ rất phù hợp cho người mới bắt đầu sử dụng."
+      },
+      "eq_board2": {
+        "name": "bàn cờ phong",
+        "description": "Đây là bàn cờ chất lượng cao được làm từ cây nhục đậu khấu với những đường vân đẹp mắt."
+      },
+      "eq_board3": {
+        "name": "bàn cờ san hô",
+        "description": "Nó được làm bằng gỗ thần bí chất lượng cao nhất nên âm thanh của đá được đặt rất trong trẻo."
+      },
+      "eq_board4": {
+        "name": "bàn cờ gỗ mun",
+        "description": "Đó là một bàn cờ bằng đá núi lửa được đánh bóng bằng niềm đam mê lớn lao."
+      },
+      "eq_board5": {
+        "name": "Bàn cờ Yongmun",
+        "description": "Đây là bàn cờ huyền thoại được làm bằng gỗ thông Geumgang đã tồn tại hàng nghìn năm."
+      },
+      "eq_board7": {
+        "name": "Bàn cờ Shinryong",
+        "description": "Đó là một bàn cờ siêu việt với quỹ đạo của các chòm sao được khắc trên đó, mở ra con đường dẫn đến chiến thắng trong mỗi nước đi."
+      },
+      "eq_bottom1": {
+        "name": "Quần đồng phục màu mùa xuân",
+        "description": "Chiếc quần tập này thoải mái khi vận động."
+      },
+      "eq_bottom2": {
+        "name": "Quần đồng phục màu sắc mùa hè",
+        "description": "Những chiếc quần này được làm từ chất liệu bền, không dễ bị mòn."
+      },
+      "eq_bottom3": {
+        "name": "Quần đồng phục màu mùa thu",
+        "description": "Đây là những chiếc quần lụa cao cấp được kết hợp với áo khoác."
+      },
+      "eq_bottom4": {
+        "name": "Quần đồng phục màu mùa đông",
+        "description": "Đây là chiếc quần của kiếm sĩ không cản trở bất kỳ chuyển động nào."
+      },
+      "eq_bottom5": {
+        "name": "Quần lót Yongbi Dobok",
+        "description": "Nó được làm bằng loại lụa chất lượng cao nhất rất phù hợp với áo choàng rồng."
+      },
+      "eq_bottom7": {
+        "name": "Quần Shinryong Dobok",
+        "description": "Đây là chiếc quần gi siêu việt mang đậm ý chí của một con rồng thần thánh giúp bạn không bị mất thăng bằng ngay cả trong cơn bão."
+      },
+      "eq_fan1": {
+        "name": "quạt gió màu xanh",
+        "description": "Đây là một chiếc quạt tre nhẹ và thiết thực."
+      },
+      "eq_fan2": {
+        "name": "quạt gió eungyeol",
+        "description": "Nó được làm bằng lụa mềm và có cảm giác cầm trên tay rất tốt."
+      },
+      "eq_fan3": {
+        "name": "quạt gió ngọn lửa",
+        "description": "Đây là chiếc quạt bậc thầy xòe duyên dáng như cánh hạc."
+      },
+      "eq_fan4": {
+        "name": "quạt gió băng giá",
+        "description": "Nó được làm bằng thép nặng và có thể được sử dụng làm vũ khí trong trường hợp khẩn cấp."
+      },
+      "eq_fan5": {
+        "name": "quạt gió yongbi",
+        "description": "Chiếc quạt huyền thoại được làm từ trăm chiếc lông vũ màu trắng."
+      },
+      "eq_fan7": {
+        "name": "Quạt Gió Shinryong",
+        "description": "Đó là một chiếc quạt siêu việt chứa đựng hơi thở của thần long xẻ trời, lật ngược tình thế chiến trường."
+      },
+      "eq_stone1": {
+        "name": "đá mầm đen trắng",
+        "description": "Đây là những viên đá baduk bằng nhựa nhẹ và rẻ tiền."
+      },
+      "eq_stone2": {
+        "name": "đá bạc",
+        "description": "Đó là hòn đá cờ vây được làm từ những viên sỏi mịn được nhặt từ bờ sông."
+      },
+      "eq_stone3": {
+        "name": "đá hồng ngọc",
+        "description": "Nó được chạm khắc tinh xảo từ đá hắc thạch và phát ra ánh sáng lạnh lẽo."
+      },
+      "eq_stone4": {
+        "name": "đá baduk ngọc trắng",
+        "description": "Đó là một loại đá baduk làm bằng sapphire và ngọc trắng phát ra ánh sáng rực rỡ."
+      },
+      "eq_stone5": {
+        "name": "Đá Baduk Yongan",
+        "description": "Nó là một viên đá cờ vây huyền thoại được rèn bằng năng lượng của mặt trời, mặt trăng và các ngôi sao."
+      },
+      "eq_stone7": {
+        "name": "Đá Shinryong Baduk",
+        "description": "Được tạo ra bằng cách rèn các mảnh của Sao Mai, nó là một viên đá cờ vây siêu việt thống trị trò chơi chỉ bằng một nước đi."
+      },
+      "eq_stonebox1": {
+        "name": "thùng gỗ nhẹ",
+        "description": "Nó là một hộp Go bằng nhựa nhẹ và rẻ tiền."
+      },
+      "eq_stonebox2": {
+        "name": "thùng tre rắn",
+        "description": "Đây là hộp cờ vây được làm từ gỗ táo tàu có mùi thơm thoang thoảng."
+      },
+      "eq_stonebox3": {
+        "name": "Hongmok Baduktong",
+        "description": "Nó được làm từ gỗ hồng sắc, có màu đỏ rất đẹp."
+      },
+      "eq_stonebox4": {
+        "name": "hộp gỗ mun",
+        "description": "Đây là một hộp baduk hiếm có được làm bằng gỗ lạ với hoa văn lạ và đẹp."
+      },
+      "eq_stonebox5": {
+        "name": "Yongrin Baduktong",
+        "description": "Đây là hộp cờ vây bằng gỗ hồng sắc cao cấp có hình rồng được chạm khắc tinh xảo."
+      },
+      "eq_stonebox7": {
+        "name": "Shinryong Baduktong",
+        "description": "Đó là một chiếc hộp cờ vây siêu việt, phong ấn năng lượng của chiến trường cổ xưa và tăng thêm sự uy hiếp cho mỗi viên đá được lấy ra."
+      },
+      "eq_top1": {
+        "name": "Áo đồng phục màu mùa xuân",
+        "description": "Đây là chiếc áo thoải mái, rất phù hợp để bạn tập trung vào việc tập luyện."
+      },
+      "eq_top2": {
+        "name": "Áo đồng phục màu sắc mùa hè",
+        "description": "Đó là một chiếc gi bền và không bị mòn ngay cả khi tập luyện lâu dài."
+      },
+      "eq_top3": {
+        "name": "Áo đồng phục màu sắc mùa thu",
+        "description": "Đây là huy hiệu của một học giả với vẻ thanh lịch trầm lặng."
+      },
+      "eq_top4": {
+        "name": "Áo đồng phục màu mùa đông",
+        "description": "Đây là trang phục của kiếm sĩ được thiết kế để chiến đấu sắc bén."
+      },
+      "eq_top5": {
+        "name": "Yongbi Dobok hàng đầu",
+        "description": "Nó được thêu hình rồng tượng trưng cho sự uy nghiêm của hoàng đế."
+      },
+      "eq_top7": {
+        "name": "Áo đồng phục Shinryong",
+        "description": "Đây là một bộ đồng phục siêu việt được dệt bằng màu của vảy rồng thần thánh, mang lại sự tập trung vững chắc."
+      },
+      "mat_materials1": {
+        "name": "Đá bùa mê nhỏ hơn",
+        "description": "Vật liệu cơ bản dùng để cường hóa trang bị."
+      },
+      "mat_materials2": {
+        "name": "Đá gia cường trung gian",
+        "description": "Một vật liệu cao cấp được sử dụng để tăng cường thiết bị."
+      },
+      "mat_materials3": {
+        "name": "Đá bùa mê nâng cao",
+        "description": "Vật liệu chất lượng hàng đầu được sử dụng để tăng cường thiết bị."
+      },
+      "mat_materials4": {
+        "name": "Đá gia cố cao cấp",
+        "description": "Một loại vật liệu quý hiếm dùng để tăng cường sức mạnh cho thiết bị."
+      },
+      "mat_materials5": {
+        "name": "Đá gia cố bí ẩn",
+        "description": "Một vật liệu cổ xưa được sử dụng để tăng cường thiết bị."
+      },
+      "pet_egg": {
+        "name": "Quả trứng bí ẩn",
+        "description": "Nhận thú cưng AI ngẫu nhiên khi sử dụng tại trại giống."
+      },
+      "pet_soulstone1": {
+        "name": "Đá Linh Hồn Mầm",
+        "description": "Vật liệu này cần thiết để nâng cấp thú cưng cấp bình thường lên cấp cao cấp. Có thể sử dụng từ Pet Lv.10 trở lên."
+      },
+      "pet_soulstone2": {
+        "name": "Đá linh hồn sóng",
+        "description": "Vật liệu này cần thiết để nâng cấp thú cưng cao cấp lên cấp hiếm. Có thể sử dụng từ Pet Lv.20 trở lên."
+      },
+      "pet_soulstone3": {
+        "name": "Đá linh hồn vực thẳm",
+        "description": "Vật liệu này cần thiết để nuôi thú cưng cấp hiếm lên cấp sử thi. Có thể sử dụng từ Pet Lv.30 trở lên."
+      },
+      "pet_soulstone4": {
+        "name": "Đá linh hồn ngọn lửa",
+        "description": "Vật liệu này cần thiết để nâng cấp thú cưng cấp sử thi lên cấp huyền thoại. Có thể sử dụng từ Pet Lv.40 trở lên."
+      },
+      "pet_soulstone5": {
+        "name": "Đá linh hồn ánh sáng thiên đường",
+        "description": "Vật liệu này cần thiết để nâng cấp thú cưng cấp Huyền thoại lên cấp Thần thoại. Có thể sử dụng ở Pet Lv.50."
+      },
+      "shop_action_point_10": {
+        "name": "Thuốc phục hồi hành động (+10)",
+        "description": "Tôi cảm thấy có động lực để làm điều gì đó."
+      },
+      "shop_action_point_20": {
+        "name": "Thuốc phục hồi hành động (+20)",
+        "description": "Tôi cảm thấy như mình phải làm điều gì đó."
+      },
+      "shop_action_point_30": {
+        "name": "Thuốc phục hồi hành động (+30)",
+        "description": "Hãy vào chơi game ngay nhé."
+      },
+      "shop_condition_potion_large": {
+        "name": "Chất phục hồi tình trạng (lớn)",
+        "description": "Một tác nhân phục hồi tình trạng sẽ giúp bạn cạnh tranh thành công ngay hôm nay."
+      },
+      "shop_condition_potion_medium": {
+        "name": "Chất phục hồi tình trạng (trung bình)",
+        "description": "Một tác nhân phục hồi tình trạng giúp đầu bạn cảm thấy tỉnh táo hơn."
+      },
+      "shop_condition_potion_small": {
+        "name": "Chất phục hồi tình trạng (nhỏ)",
+        "description": "Chất phục hồi tình trạng làm giảm căng thẳng"
+      },
+      "shop_equipment_box_1": {
+        "name": "Hộp thiết bị I",
+        "description": "Nhận trang bị từ phổ thông đến hiếm"
+      },
+      "shop_equipment_box_2": {
+        "name": "Hộp thiết bị II",
+        "description": "Nhận trang bị cấp bình thường đến cấp sử thi"
+      },
+      "shop_equipment_box_3": {
+        "name": "Hộp trang bị III",
+        "description": "Nhận thiết bị cấp cao cấp đến huyền thoại"
+      },
+      "shop_equipment_box_4": {
+        "name": "Hộp trang bị IV",
+        "description": "Sở hữu trang bị cấp độ hiếm đến thần thoại"
+      },
+      "shop_equipment_box_5": {
+        "name": "Hộp thiết bị V",
+        "description": "Có được trang bị cấp sử thi đến thần thoại"
+      },
+      "shop_equipment_box_6": {
+        "name": "Hộp thiết bị VI",
+        "description": "Có được trang bị cấp huyền thoại đến huyền thoại"
+      },
+      "shop_equipment_unbind_ticket": {
+        "name": "Quyền hủy bỏ ghi công",
+        "description": "Thay đổi trạng thái của trang bị ràng buộc thành có thể giao dịch."
+      },
+      "shop_material_box_1": {
+        "name": "Hộp vật liệu I",
+        "description": "Nhận được 5 viên đá cường hóa từ thấp đến cao"
+      },
+      "shop_material_box_2": {
+        "name": "Hộp vật liệu II",
+        "description": "Nhận được 5 viên đá cường hóa từ thấp đến cao"
+      },
+      "shop_material_box_3": {
+        "name": "Hộp vật liệu III",
+        "description": "Nhận được 5 viên đá cường hóa từ thấp đến cao"
+      },
+      "shop_material_box_4": {
+        "name": "Hộp vật liệu IV",
+        "description": "Nhận 5 viên đá cường hóa cấp trung cấp đến cao nhất"
+      },
+      "shop_material_box_5": {
+        "name": "Hộp vật liệu V",
+        "description": "Nâng cao ~ Nhận được 5 viên đá cường hóa bí ẩn"
+      },
+      "shop_material_box_6": {
+        "name": "Hộp tài liệu VI",
+        "description": "Nâng cao ~ Nhận được 5 viên đá cường hóa bí ẩn"
+      },
+      "shop_mythic_option_change_ticket": {
+        "name": "Vé thay đổi tùy chọn đặc biệt",
+        "description": "Vật phẩm này cho phép bạn thay đổi các tùy chọn đặc biệt của trang bị thần thoại hoặc siêu việt sang các tùy chọn đặc biệt khác."
+      },
+      "shop_option_type_change_ticket": {
+        "name": "Quyền thay đổi loại tùy chọn",
+        "description": "Đây là vật phẩm có thể thay đổi một trong các tùy chọn chính, tùy chọn phụ hoặc tùy chọn đặc biệt của trang bị thành một loại tùy chọn khác."
+      },
+      "shop_option_value_change_ticket": {
+        "name": "Vé thay đổi giá trị tùy chọn",
+        "description": "Đây là vật phẩm có thể thay đổi giá trị của một trong các tùy chọn phụ hoặc tùy chọn đặc biệt của trang bị."
+      },
+      "shop_refinement_charm": {
+        "name": "Bùa luyện kim",
+        "description": "Thêm 1 lần tinh chế bổ sung cho thiết bị không thể nấu chảy"
+      },
+      "use_allowtrade": {
+        "name": "quyền đăng ký giao dịch",
+        "description": "Đây là quyền đăng ký bổ sung các mặt hàng để bán trên sàn giao dịch."
+      }
+    },
+    "stats": {
+      "mythic": {
+        "GuildBossRewardGradeUp": {
+          "name": "Phần thưởng trận chiến Boss bang hội",
+          "abbrev": "Cấp thưởng của Boss",
+          "short": "Phần thưởng của Boss bang hội +1",
+          "description": "Mức phần thưởng tăng thêm một cấp dựa trên kết quả của trận chiến với trùm bang hội. (SSS tối đa) Đây là Tùy chọn đặc biệt thần thoại số 1 và có thể được áp dụng cùng lúc với Siêu việt số 1 “Thêm phần thưởng ông chủ”."
+        },
+        "GuildBossExtraDamage5": {
+          "name": "Sát thương bổ sung trong các trận đấu trùm bang hội: 5%",
+          "abbrev": "Sát thương của ông chủ5%",
+          "short": "Sát thương của Boss Bang hội +5%",
+          "description": "Khi tấn công trùm bang hội, sát thương cuối cùng sẽ được áp dụng thêm 5%. (Không thể chồng chéo với tùy chọn đặc biệt siêu việt)"
+        },
+        "TowerApMinus1Floors1to35": {
+          "name": "Tháp Thử thách (Tầng 1 đến tầng 35) Hành động bắt buộc -1",
+          "abbrev": "AP hàng đầu (1~35)",
+          "short": "Tháp 1~tầng 35 AP -1",
+          "description": "Hành động cần thiết để vào tầng 1 đến tầng 35 của Tháp Thử thách giảm đi 1. (Không thể chồng chéo với tùy chọn đặc biệt siêu việt)"
+        },
+        "ApRegenMinus30s": {
+          "name": "Thời gian phục hồi hành động -30 giây",
+          "abbrev": "Hồi phục AP -30 giây",
+          "short": "Phục hồi hành động -30 giây",
+          "description": "Thời gian cần thiết để khôi phục 1 điểm hành động giảm đi 30 giây. (Không thể chồng chéo với tùy chọn đặc biệt siêu việt)"
+        },
+        "AdventureScanPlus1": {
+          "name": "Quét phiêu lưu +1",
+          "abbrev": "Quét cuộc phiêu lưu+1",
+          "short": "Quét phiêu lưu +1",
+          "description": "Khi bắt đầu cuộc phiêu lưu (trận chiến quái vật), bạn sẽ nhận được thêm một vật phẩm quét. (Không thể chồng chéo với tùy chọn đặc biệt siêu việt)"
+        },
+        "AdventureMissilePlus1": {
+          "name": "Tên lửa phiêu lưu +1",
+          "abbrev": "Tên Lửa Phiêu Lưu+1",
+          "short": "Tên lửa phiêu lưu +1",
+          "description": "Một vật phẩm tên lửa bổ sung được cung cấp khi bắt đầu cuộc phiêu lưu. (Không thể chồng chéo với tùy chọn đặc biệt siêu việt)"
+        },
+        "AdventureGoldBonus15": {
+          "name": "Phần thưởng Vàng Phiêu lưu +15%",
+          "abbrev": "Vàng phiêu lưu 15%",
+          "short": "Vàng phiêu lưu +15%",
+          "description": "Vàng kiếm được khi chiến thắng một cuộc phiêu lưu tăng 15%. (Kết hợp riêng với bách khoa toàn thư và phần thưởng hiểu biết) (Không thể chồng chéo với tùy chọn đặc biệt siêu việt)"
+        },
+        "GuildBossExtraRewardDuplicate": {
+          "name": "Đã thêm phần thưởng chiến đấu với trùm bang hội",
+          "abbrev": "Đã thêm phần thưởng ông chủ",
+          "short": "1 loại bản sao phần thưởng của ông chủ bang hội (tích lũy)",
+          "description": "Bạn sẽ nhận được một trong những phần thưởng sau trận chiến với trùm bang hội một lần nữa. Nếu tùy chọn này có nhiều dòng (nhiều trang bị) trên trang bị siêu việt thì sẽ được áp dụng nhiều lần. Có thể được áp dụng kết hợp với các tùy chọn đặc biệt khác. Đây là Tùy chọn Đặc biệt Siêu việt Số 1 và có thể được áp dụng đồng thời với Huyền thoại Số 1 “Cấp Phần thưởng Ông chủ”."
+        },
+        "GuildBossExtraDamage10": {
+          "name": "Sát thương bổ sung trong các trận đánh trùm bang hội: 10%",
+          "abbrev": "Sát thương của ông chủ 10%",
+          "short": "Sát thương của Boss Bang hội +10%",
+          "description": "Khi tấn công trùm bang hội, sát thương cuối cùng sẽ được áp dụng thêm 10%. (Không thể chồng chéo với Myth Special Option)"
+        },
+        "TowerApMinus1AllFloors": {
+          "name": "Tháp Thử thách Hành động bắt buộc -1",
+          "abbrev": "AP hàng đầu tất cả các tầng",
+          "short": "AP cho tất cả các tầng của tòa tháp -1",
+          "description": "Hành động cần thiết để vào tầng cao nhất của tất cả các thử thách giảm đi 1. (Không thể trùng lặp với Tùy chọn đặc biệt thần thoại)"
+        },
+        "ApRegenMinus60s": {
+          "name": "Thời gian phục hồi hành động -60 giây",
+          "abbrev": "Hồi phục AP -60s",
+          "short": "Phục hồi hành động -60 giây",
+          "description": "Thời gian cần thiết để khôi phục 1 điểm hành động giảm đi 60 giây. (Không thể chồng chéo với Myth Special Option)"
+        },
+        "AdventureScanTranscendent": {
+          "name": "Quét phiêu lưu +1",
+          "abbrev": "Quét cuộc phiêu lưu+1",
+          "short": "Quét phiêu lưu +2 (Siêu việt)",
+          "description": "Hai vật phẩm quét bổ sung sẽ được cung cấp trong cuộc phiêu lưu (trận chiến quái vật). (Không thể chồng chéo với Myth Special Option)"
+        },
+        "AdventureMissilePlus2": {
+          "name": "Tên lửa phiêu lưu +2",
+          "abbrev": "Tên Lửa Phiêu Lưu+2",
+          "short": "Tên lửa phiêu lưu +2",
+          "description": "Hai vật phẩm tên lửa bổ sung sẽ được cung cấp khi bắt đầu cuộc phiêu lưu. (Không thể chồng chéo với Myth Special Option)"
+        },
+        "AdventureGoldBonus20": {
+          "name": "Phần thưởng vàng phiêu lưu +20%",
+          "abbrev": "Vàng phiêu lưu 20%",
+          "short": "Vàng phiêu lưu +20%",
+          "description": "Vàng kiếm được khi chiến thắng một cuộc phiêu lưu tăng 20%. (Không thể chồng chéo với Myth Special Option)"
+        }
+      }
+    },
+    "optionValueLine": "{{stat}} +{{giá trị}}{{hậu tố}}",
+    "optionRange": "[{{lo}}~{{hi}}{{suffix}}]",
+    "optionEnhancement": "({{count}}Cải tiến)",
+    "meta": {
+      "description": {
+        "gold": "Nó là loại tiền tệ đại diện được sử dụng trên toàn thế giới Baduk.",
+        "diamond": "Nó là một mặt hàng cao cấp được sử dụng để mua hàng đặc biệt, mở rộng, v.v."
+      },
+      "usage": {
+        "goldSpend": "Nó được sử dụng ở những nơi tiêu thụ vàng như cửa hàng, gia cố/chế tạo và phí vào cửa.",
+        "diamondSpend": "Được sử dụng trong các cửa hàng kim cương, mở rộng khe túi, v.v.",
+        "unbindTicket": "[Túi]-[Chọn trang bị]-[Bỏ liên kết]",
+        "refinementCharm": "[Thợ rèn]-[Tinh luyện trang bị] Chọn trang bị không thể nấu chảy",
+        "refinementTicket": {
+          "optionType": "[Thợ rèn - Tinh chỉnh trang bị] Thay đổi loại tùy chọn",
+          "optionValue": "[Thợ rèn - Tinh chỉnh trang bị] Thay đổi giá trị tùy chọn",
+          "specialOption": "[Thợ rèn - Tinh luyện trang bị] Thay đổi tùy chọn đặc biệt",
+          "mythicOption": "[Thợ rèn - Tinh luyện trang bị] Thay đổi tùy chọn thần thoại",
+          "generic": "[Thợ rèn - Tinh luyện trang bị] Thay đổi tùy chọn"
+        },
+        "conditionPotion": "[Championship] Điều kiện phục hồi {{lo}}~{{hi}} trước khi bắt đầu trò chơi",
+        "actionPointInstant": "[Sử dụng ngay] Phục hồi hành động +{{amount}}",
+        "actionPointInstantGeneric": "[Sử dụng ngay] Phục hồi khả năng hành động",
+        "openBoxInBag": "Nếu bạn sử dụng nó từ túi của mình, bạn sẽ nhận được phần thưởng.",
+        "equipmentBoxOpen": "Bạn có thể nhận được thiết bị bằng cách sử dụng rương trong túi của mình.",
+        "enhancementMaterial": {
+          "single": "[{{gradeLabel}}] Trang bị: {{rangeLabel}}",
+          "range": "[{{gradeLabel}}] Trang bị: {{rangeLabel}}"
+        },
+        "pet": {
+          "soulGradeUpgrade": "[Nâng cấp cấp độ thú cưng] {{fromGrade}}→{{toGrade}} (Thú cưng cấp độ{{minLevel}} trở lên)",
+          "soulGradeUpgradeGeneric": "[Nâng cấp thú cưng] Được sử dụng để tăng thứ hạng của thú cưng AI đồng loại trong Đấu trường Công bằng.",
+          "eggHatchRandom": "[Thú cưng · Trại giống] Đặt vào một khe và nở thành một loại thú cưng AI ngẫu nhiên.",
+          "welcomeEggHatch": "[Thú cưng · Trại giống] Được đặt trong khe - thời gian nở 1 phút, thú cưng AI cấp 5 khi nở"
+        }
+      },
+      "enhanceRange": {
+        "single": "{{stars}}Nâng cao",
+        "range": "{{minStars}}~{{maxStars}}Nâng cao"
+      },
+      "acquire": {
+        "gold": {
+          "line1": "[Trò chơi/Nội dung] Trận đấu Baduk, chơi đơn, ngục tối/giải đấu, v.v.",
+          "line2": "[Nhiệm vụ/Phiêu lưu] Nhiệm vụ hàng ngày/hàng tuần/hàng tháng, rương kho báu, khe VIP",
+          "line3": "[Giao dịch/Tháo rời] Thanh toán mua bán trao đổi, tháo dỡ thiết bị, bán hàng tại một số cửa hàng"
+        },
+        "diamond": {
+          "line1": "[Cửa hàng] Gói kim cương/Vật tư tiêu hao/Vật liệu",
+          "line2": "[Thanh toán/Sự kiện] Tính phí, vận hành/thư quảng cáo",
+          "line3": "[Chức năng] Một số tính năng cao cấp như mở rộng khe cắm túi"
+        },
+        "tower": {
+          "line1": "[Tháp thử thách] Mua từ cửa hàng vật phẩm (vàng) trong thông tin trò chơi",
+          "line2": "[Tháp thử thách] Nhận được thông qua một số kênh, chẳng hạn như phần thưởng vào/xóa và phần thưởng VIP."
+        },
+        "actionPoint": {
+          "line1": "[Cửa hàng] Cửa hàng vàng — Thuốc phục hồi thể lực (+10/+20/+30), giá giới hạn/cấp hàng ngày",
+          "line2": "[Mail·Sự kiện] Bồi thường hoạt động/thanh toán khuyến mãi",
+          "line3": "[Chức năng VIP] Khi được kích hoạt, bạn sẽ nhận được Stamina Restoration III qua thư mỗi ngày."
+        },
+        "condition": {
+          "line1": "[Cửa hàng] Cửa hàng kim cương (Vật tư tiêu hao) hoặc các gói liên quan",
+          "line2": "[Nhiệm vụ/Sự kiện] Phần thưởng một phần"
+        },
+        "guildEquipBox": {
+          "line1": "[Cửa hàng bang hội] Chỉ có thể mua được bằng tiền bang hội",
+          "line2": "[Mua sắm/Nhiệm vụ] Nhận trang bị bằng cách sử dụng nó trong túi, tương tự như hộp trang bị thông thường."
+        },
+        "equipBox": {
+          "line1": "[Cửa hàng] Cửa hàng vàng (tab thiết bị), phần thưởng quảng cáo, một số gói tiền mặt",
+          "line2": "[Nhiệm vụ/VIP] Nhiệm vụ hàng ngày, hàng tuần và hàng tháng, thưởng các vị trí VIP, v.v.",
+          "line3": "[Phiêu lưu/Bang hội] Rương kho báu, phần thưởng kết quả trận đấu với trùm bang hội, v.v."
+        },
+        "materialBox": {
+          "line1": "[Cửa hàng] Cửa hàng Vàng/Kim cương (tab nguyên liệu), phần thưởng quảng cáo, một số gói",
+          "line2": "[Nhiệm vụ/VIP] Nhiệm vụ hàng ngày, hàng tuần và hàng tháng, thưởng các vị trí VIP, v.v."
+        },
+        "goldBundle": {
+          "line1": "[Cửa hàng] Cửa hàng kim cương (Vật tư tiêu hao), Phần thưởng quảng cáo",
+          "line2": "[Nhiệm vụ/Phiêu lưu] Nhiều phần thưởng/hộp kho báu"
+        },
+        "diamondBundle": {
+          "line1": "[Cửa hàng] Cửa hàng kim cương (Vật tư tiêu hao), Phần thưởng quảng cáo",
+          "line2": "[Nhiệm vụ/Sự kiện] Phần thưởng một phần"
+        },
+        "bonusStat": {
+          "line1": "[Cửa hàng bang hội] Mua bằng tiền bang hội (giới hạn tài khoản)",
+          "line2": "[Tăng trưởng] Thanh toán một phần khi chiến lược/cấp độ chơi tăng lên"
+        },
+        "enhancementStone": {
+          "line1": "[Cửa hàng bang hội] Đá cường hóa cấp thấp ~ bí ẩn có thể được trao đổi bằng tiền bang hội",
+          "line2": "[Hộp nguyên liệu] Hộp nguyên liệu thu được từ cửa hàng, nhiệm vụ, VIP, v.v.",
+          "line3": "[Thợ rèn] Tổng hợp/tháo rời vật liệu, chi phí gia cố thiết bị",
+          "line4": "[Phiêu lưu, Xếp hạng, Bang hội] Phần thưởng cho chiến thắng, tháp, trận đấu trùm, v.v."
+        },
+        "material": {
+          "line1": "[Cửa hàng] Cửa hàng vàng/kim cương (nguyên liệu), cửa hàng bang hội (một phần)",
+          "line2": "[Nhiệm vụ·Phiêu lưu·Sự kiện] Hàng ngày, hàng tuần, hàng tháng, rương kho báu, phần thưởng hoạt động",
+          "line3": "[Mail] Kết quả tổng hợp/nâng cao, thanh toán sự kiện"
+        },
+        "equipment": {
+          "line1": "[Hộp trang bị] Nhận được khi sử dụng hộp từ túi.",
+          "line2": "[Phiêu lưu] Phần thưởng hoàn thành giai đoạn/trận đấu trùm",
+          "line3": "[Trao đổi] Mua các mặt hàng đã đăng ký từ người dùng khác",
+          "line4": "[Tổng hợp/Sản xuất] Thợ rèn tổng hợp/sản xuất thiết bị siêu việt, v.v."
+        },
+        "consumableGeneric": "[Mua sắm, Nhiệm vụ, Thư] Phần thưởng cửa hàng tổng hợp, sự kiện, hoạt động",
+        "pet": {
+          "soulTraining": "[Phần thưởng thú cưng/huấn luyện] Slots {{slots}}",
+          "soulConvert": "[Chuyển đổi thú cưng/linh hồn] {{grades}} Có thể nhận được khi tháo rời thú cưng",
+          "soulShopDiamond": "[Thú cưng · Cửa hàng thú cưng] Kim cương {{amount}}",
+          "soulShopGold": "[Thú cưng · Cửa hàng thú cưng] Vàng {{amount}}",
+          "soulShopDiamondDaily": "[Thú cưng · Cửa hàng thú cưng] Kim cương {{amount}}, {{limit}} lần mỗi ngày",
+          "soulShopGoldDaily": "[Thú cưng · Cửa hàng thú cưng] Vàng {{amount}}, {{limit}} lần mỗi ngày",
+          "soulFallback": "[Thú cưng] Có thể nhận hoặc trao đổi trong nội dung liên quan đến Sân vận động Hội chợ/Trại ấp trứng.",
+          "eggShop": "[Thú cưng · Cửa hàng thú cưng] Có thể mua bằng vàng và kim cương (giới hạn hàng ngày)",
+          "eggRewards": "[Thú cưng/Huấn luyện/Sự kiện] Nhận được như một phần thưởng",
+          "welcomeEggMail": "[Thư] Có thể nhận được thông qua các khoản thanh toán chào mừng/hoạt động mới, v.v.",
+          "welcomeEggShop": "[Thú cưng · Cửa hàng thú cưng] Có thể mua bằng kim cương (1 kim cương mỗi ngày)"
+        }
+      }
     }
   },
   "exchange": {
@@ -4149,9 +5002,9 @@
       "selectGear": "Lựa chọn thiết bị"
     },
     "alerts": {
-      "insufficientTicket": "Quyền đăng ký giao dịch không đầy đủ.",
+      "insufficientTicket": "Quyền đăng ký giao dịch không đầy đủ. Cần thiết để đăng ký các vị trí bán hàng bổ sung.",
       "vipListingLimit": "Tính năng VIP chỉ được đăng ký bán tối đa 3 sản phẩm.",
-      "ticketHint": "Quyền đăng ký giao dịch không đầy đủ. Bạn có thể đăng ký một mặt hàng bán với một vé đăng ký.",
+      "ticketHint": "Đăng ký vị trí bán hàng bổ sung yêu cầu một vé đăng ký giao dịch.",
       "selectGearFromInventory": "Vui lòng chọn thiết bị bạn muốn bán từ kho của bạn.",
       "boundGear": "Thiết bị bị ràng buộc không thể được bán. Vui lòng sử dụng quyền hủy ghi công.",
       "minimumPrice": "Giá bán tối thiểu là {{price}}.",
@@ -4175,7 +5028,7 @@
       "waiting": "bầu không khí"
     },
     "scoring": "Đang tính...",
-    "allMatchesEnded": "Tất cả các trận đấu đã kết thúc. Lễ trao giải đang được tổ chức.",
+    "allMatchesEnded": "Tất cả các trận đấu ngày hôm nay đã kết thúc.",
     "breathing": "Tôi đang hít một hơi thật sâu để tham gia cuộc thi.",
     "playersEntering": "Các cầu thủ đang bước vào. xin vui lòng chờ một lát.",
     "playerLoadError": "Đã xảy ra lỗi khi tải thông tin người chơi.",
@@ -4236,7 +5089,7 @@
       "phaseMidLabel": "giữa trận đấu",
       "phaseEndLabel": "trò chơi kết thúc",
       "phaseEarlyStart": "Nửa đầu của trận chiến đã bắt đầu. Chúng ta hãy nhìn vào những viên đá được đặt và diễn biến của trận chiến đầu tiên.",
-      "phaseMidStart": "Trận đấu giữa trận đã bắt đầu. Cuộc chiến ở trung tâm và tranh giành vị trí ngày càng khốc liệt.",
+      "phaseMidStart": "Giữa trận đã bắt đầu. Cuộc chiến ở trung tâm và tranh giành vị trí ngày càng khốc liệt.",
       "phaseEndStart": "Trò chơi kết thúc đã bắt đầu. Tính toán nhà và lãi lỗ chi tiết trở nên quan trọng.",
       "defaultRound": "vòng hiện tại",
       "defaultPlayer1": "người chơi 1",
@@ -4409,7 +5262,7 @@
         "neighborhood": "Giải đấu Baduk lân cận",
         "national": "Giải đấu Cờ vây Quốc gia",
         "world": "Giải vô địch thế giới",
-        "unlock3": "Tiến tới giai đoạn tiếp theo nếu bạn đạt được vị trí thứ 3 trở lên",
+        "unlock3": "Nếu đạt được vị trí thứ 3 trở lên, bạn sẽ được chuyển sang giai đoạn tiếp theo.",
         "commonFeatures": "Đặc điểm chung của sân vận động",
         "simulation": "trò chơi mô phỏng",
         "condition": "tình trạng",
@@ -4462,7 +5315,7 @@
         "altEquipmentBox": "hộp thiết bị",
         "altCondition": "tình trạng",
         "rewardNeighborhood": "Giải đấu Baduk lân cận: Kiếm vàng",
-        "rewardNational": "Giải Cờ vây Quốc gia: Thu thập nguyên liệu (đá gia cố)",
+        "rewardNational": "Giải Cờ vây Quốc gia: Thu thập nguyên liệu (đá cường lực)",
         "rewardWorld": "Giải vô địch thế giới: Nhận hộp thiết bị",
         "fiftySeconds": "50 giây",
         "progressOpening": "Sớm (1-15 giây): Khả năng sớm rất quan trọng",
@@ -4480,7 +5333,7 @@
         "critical2": "Điểm bổ sung sẽ kiếm được khi một đòn chí mạng xảy ra.",
         "critical3": "Sức mạnh chiến đấu và sức mạnh tính toán ảnh hưởng đến điểm bổ sung",
         "condition1": "Một điều kiện ngẫu nhiên từ 40 đến 100 được đưa ra trước mỗi trận đấu.",
-        "condition2": "Điểm khả năng không thay đổi trong quá trình mô phỏng",
+        "condition2": "Điểm khả năng không thay đổi trong quá trình mô phỏng.",
         "condition3": "Có thể được phục hồi bằng tác nhân phục hồi điều kiện (chỉ được sử dụng trước khi bắt đầu trò chơi)"
       },
       "duelHistory": {
@@ -4529,7 +5382,13 @@
       "championship": "chức vô địch",
       "scrollGuideTitle": "hướng dẫn cuộn",
       "categoryAria": "Hạng mục xếp hạng",
-      "title": "Xếp hạng"
+      "title": "Xếp hạng",
+      "gameRankingTab": "Xếp hạng trò chơi",
+      "badukRankingTab": "Xếp hạng Baduk",
+      "loginRequired": "Bạn có thể kiểm tra thứ hạng của mình sau khi đăng nhập.",
+      "championshipLoginHint": "Bạn có thể kiểm tra thứ hạng vô địch của mình sau khi đăng nhập.",
+      "guideClose": "Đóng hướng dẫn",
+      "championshipNoGuide": "Không có hướng dẫn tính điểm riêng cho bảng xếp hạng vô địch."
     },
     "round16": "vòng 16",
     "center": "trung tâm",
@@ -4564,7 +5423,7 @@
     "preparingOpponent": "Chúng tôi đang chuẩn bị thông tin tương đối.",
     "preparingOpponentInfo": "Chúng tôi đang chuẩn bị thông tin tương đối.",
     "canReturnFromLobby": "Bạn có thể tiếp tục cuộc thi ngay cả khi bạn đi đến sảnh.",
-    "canResumeFromLobby": "Ngay cả khi bạn ra sảnh, bạn vẫn có thể lưu và tiếp tục.",
+    "canResumeFromLobby": "Ngay cả khi bạn đi đến sảnh, bạn vẫn có thể lưu và tiếp tục.",
     "leftArena": "Tôi rời sân vận động.",
     "leaveArena": "Rời khỏi sân vận động.",
     "loadingMatchInfo": "Đang tải thông tin trò chơi...",
@@ -4625,7 +5484,7 @@
     "base": "căn cứ",
     "turnUnit": "{{count}}lượt",
     "blackCaptureGoal": "{{count}} con chó đen",
-    "captureGoalTurnLimit": "Thắng được {{count}} quân đen (giới hạn {{turns}} lượt)",
+    "captureGoalTurnLimit": "Nhặt {{count}} quân đen (giới hạn {{lượt}} lượt)",
     "autoScoringHint": "[{{turns}}đếm số] Nếu bạn để số đó, việc đếm tự động sẽ diễn ra.",
     "autoScoringShort": "[{{turns}}đếm số]",
     "victory": "chiến thắng",
@@ -4695,13 +5554,13 @@
     "rewardFromFloor10Short": "Bạn có thể nhận được phần thưởng hàng tháng khi vượt qua 10 tầng trở lên.",
     "stages": "sân khấu",
     "rankingTop100": "Xếp hạng Top 100",
-    "rewardTierLine": "Bồi thường cho {{floor}} mặt bằng tầng · Trả khi quyết toán cuối tháng",
+    "rewardTierLine": "Bồi thường cho phần sàn {{floor}} sàn · Thanh toán vào cuối tháng",
     "unranked": "ngoài xếp hạng",
     "noOtherRanked": "Không có thứ hạng nào khác được liệt kê trong Top 100.",
     "rewardModalTitle": "Thông tin phần thưởng của Tháp Thử thách",
     "settlementRemaining": "Thời gian còn lại cho đến khi giải quyết bồi thường",
     "myCurrentReward": "phần thưởng hiện tại của tôi",
-    "floorTier": "tầng {{tầng}}",
+    "floorTier": "{{tầng}}tầng",
     "blackPatternAlt": "hoa văn màu đen",
     "goldAlt": "vàng",
     "diamondAlt": "kim cương",
@@ -4766,7 +5625,7 @@
       "teamAcceptStatus": "Trạng thái chấp nhận của nhóm",
       "ourOwner": "trưởng nhóm của chúng tôi",
       "partner": "cộng sự",
-      "theirOwner": "đội trưởng đối thủ",
+      "theirOwner": "đội trưởng đối phương",
       "accepted": "sự chấp nhận",
       "waiting": "bầu không khí",
       "waitingPeerAccept": "Chờ đối phương chấp nhận...",
@@ -4859,7 +5718,10 @@
       "remainingTime": "thời gian còn lại",
       "diamondsUsed": "sử dụng kim cương",
       "ownedLabel": "chiếm hữu",
-      "mysteriousEgg": "Quả trứng bí ẩn ×1"
+      "mysteriousEgg": "Quả trứng bí ẩn ×1",
+      "upgradeTier1": "Tăng cường tôi",
+      "upgradeTier2": "Tăng cường II",
+      "upgradeTier3": "Tăng cường III"
     },
     "lobby": {
       "infoTab": "thông tin",
@@ -4882,7 +5744,7 @@
       "expandInvQuestion": "Bạn có muốn mở rộng khoảng không quảng cáo {{category}} của mình không?",
       "expandSlotsHint": "Đã thêm khoảng trống {{bước}} (khoảng trống {{max}} tối đa)",
       "dailyLimit": "Giới hạn hàng ngày {{remaining}}/{{limit}}",
-      "specBadge": "Đặc biệt",
+      "specBadge": "đặc biệt",
       "tierActive": "Áp dụng",
       "tierUnlocked": "Đã mở khóa",
       "tierUpgrade": "Cường hóa ({{vàng}} G)",
@@ -4908,7 +5770,7 @@
       "cannotWhileTrainingShort": "Thú cưng đang huấn luyện không thể được nâng cấp.",
       "unequipRepFirst": "Mở khóa thú cưng đại diện",
       "equipRep": "Được trang bị thú cưng đại diện",
-      "cannotSetRepWhileTraining": "Thú cưng đang được huấn luyện không thể được chỉ định là thú cưng đại diện. Vui lòng chỉ định sau khi hoàn thành khóa đào tạo.",
+      "cannotSetRepWhileTraining": "Thú cưng đang được huấn luyện không thể được chỉ định là thú cưng đại diện. Vui lòng chỉ định nó sau khi hoàn thành đào tạo.",
       "soulConvert": "hoán cải tâm hồn",
       "cannotSoulConvertTraining": "Thú cưng đang được huấn luyện không thể chuyển đổi linh hồn. Vui lòng sử dụng nó sau khi hoàn thành đào tạo.",
       "cannotSoulConvertRep": "Thú cưng được trang bị làm thú cưng đại diện không thể chuyển đổi linh hồn. Vui lòng sử dụng nó sau khi vô hiệu hóa thú cưng đại diện.",
@@ -5039,7 +5901,7 @@
       "goToPetInventoryAria": "Chuyển đến tab Thông tin Kho thú cưng",
       "badukTotalTitle": "Tổng cộng 6 giá trị hiển thị cốt lõi và phần thưởng căn chỉnh",
       "coreStatsSumTitle": "Tổng cộng 6 khả năng cốt lõi",
-      "levelFormat": "Cấp độ thú cưng{{cấp độ}}",
+      "levelFormat": "Cấp độ thú cưng{{level}}",
       "levelRangeFormat": "Cấp thú cưng{{lo}}~{{hi}}",
       "levelTitle": "cấp độ {{cấp độ}}",
       "gradeUpgradeNeeded": "Đánh giá cần được tăng cường",
@@ -5120,6 +5982,9 @@
       "matchInProgress": "Trận đấu đang diễn ra",
       "inMatch": "Trong trò chơi",
       "enter": "chức vụ",
+      "spectate": "Đang xem",
+      "spectateMatch": "Xem trò chơi",
+      "spectateUnavailable": "Tôi không thể tìm thấy bất kỳ thông tin trận đấu nào để xem.",
       "orphanRooms": "Số 1~100 Phòng ngoài",
       "roomKindFilter": "Bộ lọc loại phòng",
       "gameModeFilter": "Bộ lọc chế độ trò chơi",
@@ -5198,6 +6063,100 @@
       "navigatePairArena": "Đến Sân vận động Hội chợ",
       "leaveRoomOnNavigate": "Việc chuyển sang đấu trường khác sẽ đưa bạn ra khỏi phòng đang tham gia. Bạn có muốn tiếp tục không?",
       "leaveRoomConfirm": "Bạn sẽ bị loại khỏi phòng bạn đã tham gia. Bạn có muốn tiếp tục không?"
+    },
+    "pets": {
+      "pair-pet-1": {
+        "name": "Lumifox"
+      },
+      "pair-pet-2": {
+        "name": "Mèo băng"
+      },
+      "pair-pet-3": {
+        "name": "Goldignan"
+      },
+      "pair-pet-4": {
+        "name": "gấu trúc tuyết"
+      },
+      "pair-pet-5": {
+        "name": "Penky"
+      },
+      "pair-pet-6": {
+        "name": "chim hút mật"
+      },
+      "pair-pet-7": {
+        "name": "baniru"
+      },
+      "pair-pet-8": {
+        "name": "Gấu mật ong"
+      },
+      "pair-pet-9": {
+        "name": "mèo lá"
+      },
+      "pair-pet-10": {
+        "name": "Mầm"
+      },
+      "pair-pet-11": {
+        "name": "mèo tím"
+      },
+      "pair-pet-12": {
+        "name": "Sunkey"
+      },
+      "pair-pet-13": {
+        "name": "Cáo hổ phách"
+      },
+      "pair-pet-14": {
+        "name": "Kem mèo"
+      },
+      "pair-pet-15": {
+        "name": "bộ cánh"
+      },
+      "pair-pet-16": {
+        "name": "mặt nạ chó"
+      },
+      "pair-pet-17": {
+        "name": "Gấu Ngà"
+      },
+      "pair-pet-18": {
+        "name": "thú cưng tuyết"
+      },
+      "pair-pet-19": {
+        "name": "trẻ con"
+      },
+      "pair-pet-20": {
+        "name": "Sói bóng tối"
+      },
+      "pair-pet-21": {
+        "name": "Thỏ cánh"
+      },
+      "pair-pet-22": {
+        "name": "vàng táo bạo"
+      },
+      "pair-pet-23": {
+        "name": "chiều chuộng"
+      },
+      "pair-pet-24": {
+        "name": "sứa"
+      }
+    },
+    "trainingSlots": {
+      "0": {
+        "name": "đào tạo kỹ thuật"
+      },
+      "1": {
+        "name": "huấn luyện sinh tử"
+      },
+      "2": {
+        "name": "Đào tạo trước khi trao giải"
+      },
+      "3": {
+        "name": "đào tạo Jeongseok"
+      },
+      "4": {
+        "name": "đào tạo gibo"
+      },
+      "5": {
+        "name": "đào tạo đập nước"
+      }
     }
   },
   "blacksmith": {
@@ -5237,7 +6196,7 @@
       "default": "Mở màn hình tác vụ"
     },
     "pickHints": {
-      "enhance": "Chọn trang bị cần cường hóa theo phương thức rồi nhấn Selection Complete để chuyển sang màn hình cường hóa.",
+      "enhance": "Chọn trang bị cần cường hóa theo phương thức và nhấn Complete Selection để chuyển sang màn hình cường hóa.",
       "combine": "Nếu bạn đặt 3 trang bị cùng loại vào phương thức rồi nhấn Lựa chọn Hoàn tất, bạn sẽ được đưa đến màn hình tổng hợp.",
       "disassemble": "Chọn thiết bị cần tháo theo phương thức rồi nhấn Selection Complete để chuyển sang màn hình tháo.",
       "refine": "Sau khi chọn thiết bị cần luyện theo phương thức và nhấp vào Complete Selection, bạn sẽ được đưa đến màn hình luyện kim."
@@ -5251,7 +6210,7 @@
       "removeMaterial": "Trừ các thành phần",
       "removeMaterialAria": "Trừ đi thành phần {{name}}",
       "combineHint": "Đặt 3 trang bị cùng cấp vào ô và bấm Hoàn thành lựa chọn.",
-      "disassembleHint": "Bạn có thể chọn/bỏ chọn thiết bị bạn muốn tháo rời bằng cách chạm vào nó.",
+      "disassembleHint": "Bạn có thể chọn hoặc bỏ chọn thiết bị bạn muốn tháo rời bằng cách chạm vào nó.",
       "enhanceTapHint": "Chạm vào trang bị bạn muốn cường hóa hoặc tinh chỉnh để chuyển đến màn hình làm việc.",
       "enhanceConfirmHint": "Chạm vào một trang bị bạn muốn cường hóa hoặc tinh chỉnh, sau đó nhấn Complete Selection.",
       "slots": {
@@ -5426,7 +6385,7 @@
     "casualTag": "trận giao hữu",
     "casualTitle": "trận giao hữu",
     "casualDesc": "Trận đấu này là một trận giao hữu. Không có thay đổi về điểm xếp hạng.",
-    "actionPointNotice": "Khi trận đấu được xác nhận, sức mạnh hành động ⚡{{cost}} sẽ được tiêu hao cho cả hai bên. Nếu mức độ chấp nhận/AI không đủ khi bắt đầu, một cửa sổ quản lý năng lượng hành vi sẽ mở ra.",
+    "actionPointNotice": "Khi trận đấu được xác nhận, sức mạnh hành động ⚡{{cost}} sẽ được tiêu hao cho cả hai bên. Nếu không đủ khi bắt đầu chấp nhận/AI, một cửa sổ quản lý năng lượng hành vi sẽ mở ra.",
     "titleAi": "Cài đặt đối sánh AI {{prefix}}{{mode}}",
     "titleRematch": "{{prefix}}Cài đặt trận đấu lại ({{mode}})",
     "titleDefault": "{{tiền tố}}cài đặt khớp ({{mode}})",
@@ -5449,7 +6408,7 @@
     "mixRulesMinAlert": "Quy tắc kết hợp yêu cầu hai hoặc nhiều quy tắc được chọn.",
     "mixCaptureCastleConflict": "Chiến thắng và Lâu đài không thể được chọn cùng một lúc.",
     "countUnit": "{{đếm}}",
-    "boardLines": "{{size}}dòng",
+    "boardLines": "dòng {{size}}",
     "pointsFixed": "9 điểm (cố định)",
     "pointsUnit": "{{điểm}} điểm",
     "turnsUnit": "{{giới hạn}}số",
@@ -5531,6 +6490,8 @@
       "3": "Một lần di chuyển trong 0,5 giây"
     },
     "matchControlAria": "điều khiển trò chơi",
+    "skipReplay": "NHẢY",
+    "skipReplayHint": "Bỏ qua rơle và chỉ kiểm tra kết quả.",
     "startMatch": "trò chơi bắt đầu",
     "exit": "Ra",
     "season": "mùa",
@@ -5679,12 +6640,12 @@
       "sortTotalContribution": "Theo thứ tự đóng góp tích lũy",
       "sortWeeklyContribution": "Thứ tự đóng góp hàng tuần",
       "sortLastLogin": "Được truy cập gần đây nhất",
-      "sortNickname": "Theo biệt danh",
+      "sortNickname": "Theo biệt hiệu",
       "promoteConfirm": "Bạn có muốn bổ nhiệm {{name}} làm phó lãnh đạo bang hội không?",
       "demoteConfirm": "Bạn có muốn bãi nhiệm {{name}} làm phó lãnh đạo bang hội không?",
       "kickConfirm": "Bạn có muốn đuổi {{name}} khỏi bang hội không?",
       "transferConfirm": "Bạn có thực sự muốn ủy quyền lãnh đạo bang hội cho {{name}} không? Hành động này là không thể đảo ngược.",
-      "leaderMustTransfer": "Nếu một thủ lĩnh bang hội muốn rời khỏi bang hội, trước tiên anh ta phải ủy quyền vai trò thủ lĩnh bang hội cho một thành viên bang hội khác.",
+      "leaderMustTransfer": "Nếu thủ lĩnh bang hội muốn rời khỏi bang hội, trước tiên anh ta phải giao vai trò lãnh đạo bang hội cho một thành viên bang hội khác.",
       "lastMemberLeave": "Tôi là thành viên cuối cùng của bang hội. Nếu bạn rời khỏi hội, hội sẽ bị giải tán. Bạn có chắc chắn muốn rời đi không?",
       "leaveConfirm": "Bạn có chắc chắn muốn rời khỏi guild không?",
       "leaveError": "Đã xảy ra lỗi khi rời khỏi bang hội."
@@ -5710,14 +6671,34 @@
     "missions": {
       "title": "Nhiệm vụ bang hội hàng tuần",
       "achieved": "sự đạt được",
-      "guildXp": "XP Bang hội +{{số tiền}}",
+      "guildXp": "Kinh nghiệm Bang hội +{{số tiền}}",
       "expired": "hết hạn",
       "rewardClaimed": "Phần thưởng đã hoàn thành",
       "claimReward": "Nhận phần thưởng",
       "inProgress": "Đang tiến hành",
       "resetCountdown": "Gia hạn sau {{days}} ngày {{hours}}:{{phút}}",
       "unclaimedHint": "Có những phần thưởng bạn có thể nhận được. Đừng quên lấy nó.",
-      "empty": "Không có nhiệm vụ hàng tuần để hiển thị."
+      "empty": "Không có nhiệm vụ hàng tuần để hiển thị.",
+      "titles": {
+        "checkIns": "Tham gia bang hội 50 lần",
+        "guildDonations": "Tích lũy được 50 quyên góp cho bang hội",
+        "bossAttempts": "Đã tham gia vào các trận đấu trùm bang hội 30 lần",
+        "strategicWins": "Baduk chiến lược thắng 30 lần",
+        "playfulWins": "Chơi Baduk thắng 30 lần",
+        "equipmentEnhancements": "50 lần tăng cường",
+        "epicGearAcquisitions": "Nhận trang bị cấp sử thi trở lên 20 lần",
+        "diamondsSpent": "Tiêu tốn 3000 kim cương"
+      },
+      "descriptions": {
+        "checkIns": "Thành viên bang hội tham dự tổng cộng 50 lần",
+        "guildDonations": "Yêu cầu các thành viên bang hội tặng vàng và kim cương tổng cộng 50 lần.",
+        "bossAttempts": "Yêu cầu các thành viên bang hội tham gia vào tổng cộng 30 trận đấu với trùm bang hội.",
+        "strategicWins": "Các thành viên bang hội đạt được tổng cộng 30 trận thắng trong cờ vây chiến lược (bao gồm AI phòng chờ và các trận đấu chung)",
+        "playfulWins": "Các thành viên bang hội đạt được tổng cộng 30 chiến thắng trong Cờ vây (bao gồm AI phòng chờ và các trận đấu chung)",
+        "equipmentEnhancements": "Yêu cầu các thành viên bang hội thực hiện tổng cộng 50 lần cường hóa trang bị",
+        "epicGearAcquisitions": "Yêu cầu các thành viên bang hội nhận được trang bị cấp sử thi trở lên 20 lần",
+        "diamondsSpent": "Các thành viên bang hội chi tổng cộng 3000 viên kim cương tại các cửa hàng, v.v."
+      }
     },
     "research": {
       "title": "Phòng thí nghiệm bang hội",
@@ -5733,7 +6714,7 @@
       "startConfirm": "Bạn có muốn bắt đầu nghiên cứu cấp độ [{{name}}] {{level}} không? \n\nĐiểm yêu cầu: {{cost}} RP\nThời gian dự kiến: {{time}}",
       "chancePrefix": "[{{cơ hội}}% xác suất]",
       "categoryDevelopment": "Sự thăng tiến của bang hội",
-      "categoryBoss": "trận đấu trùm",
+      "categoryBoss": "đánh trùm",
       "categoryStats": "Tăng khả năng",
       "categoryRewards": "Tăng phần thưởng",
       "apRegenEffect": "Thời gian khôi phục hành động -{{sec}} giây",
@@ -5795,7 +6776,18 @@
       "quickChat": "trò chuyện nhanh",
       "send": "chuyển tiếp",
       "sendTitle": "gửi",
-      "locationHome": "[trang chủ]"
+      "locationHome": "[trang chủ]",
+      "systemMessages": {
+        "missionComplete": "Nhiệm vụ hàng tuần [{{missionTitle}}] đã hoàn thành! Nhận phần thưởng của bạn trong tab Hoạt động Bang hội > Nhiệm vụ Bang hội.",
+        "bossWeeklySettlement": "Dàn xếp Boss Bang hội hàng tuần ({{bossName}}, {{status}}): Kinh nghiệm Bang hội +{{guildXp}}, Điểm Nghiên cứu +{{researchPoints}} đã được tích lũy trong bang hội.",
+        "bossWeeklySettlementDefeated": "đánh bại",
+        "bossWeeklySettlementRemainingHp": "Lượng máu còn lại {{percent}}%",
+        "warJoinMatching": "[{{nickname}}]{{subjectParticle}} đã tham gia vào cuộc chiến bang hội. Chúng tôi tiến hành khớp.",
+        "warJoinBotMatch": "[{{nickname}}]{{subjectParticle}} đã tham gia vào cuộc chiến bang hội. Phù hợp với bang hội bot hệ thống trong hàng lẻ.",
+        "warJoinOpponent": "[{{nickname}}]{{subjectParticle}} đã tham gia vào cuộc chiến bang hội. Đối thủ: 「{{đối thủGuildName}}」",
+        "warCancelMatching": "[{{nickname}}]{{subjectParticle}} Trận đấu chiến tranh bang hội đã bị hủy.",
+        "bossDamage": "[{{nickname}}]{{subjectParticle}} đã gây ra {{damage}} sát thương cho {{bossName}}."
+      }
     },
     "war": {
       "title": "cuộc chiến bang hội",
@@ -5889,11 +6881,11 @@
       "pointsUnit": "{{count}}điểm",
       "mode": "cách thức",
       "board": "bàn cờ",
-      "boardLines": "{{size}}dòng",
+      "boardLines": "dòng {{size}}",
       "turnLimit": "giới hạn rẽ",
       "turnsUnit": "{{count}}lượt",
       "scoringTurns": "{{count}} quay sang đếm giá",
-      "clock": "trận đấu đồng hồ",
+      "clock": "đồng hồ trận đấu",
       "clockMainByoyomi": "{{phút}} phút · cho phép 10 giây",
       "clockFischer": "{{phút}} phút (Fisher {{increment}} giây)",
       "starConditions": "Điều kiện để nhận sao",
@@ -5922,7 +6914,7 @@
       "myArenaHint": "Dưới đây là tổng hợp các trận đấu kết thúc của không gian trong cuộc chiến này. Các phiên bản đang thực hiện sẽ được phản ánh trong danh sách chi tiết sau khi chúng kết thúc.",
       "boardPerformance": "Thành tích theo sân vận động",
       "inProgress": "Đang tiến hành",
-      "gameSummary": "Kết thúc {{games}} · Thắng {{thắng}} · Hòa {{hòa}} · Thua {{thua}}{{stars}}",
+      "gameSummary": "Kết thúc {{games}} vòng · Thắng {{thắng}} · Hòa {{hòa}} · Thua {{thua}}{{stars}}",
       "starsEarnedSum": "· Tổng số theo việc mua lại {{count}}",
       "noBoardRecord": "Không có ghi chép nào về khoang này trong cuộc chiến này.",
       "finishedGamesDetail": "Chi tiết trận đấu kết thúc",
@@ -5949,30 +6941,37 @@
       "defaultGuildName": "bang hội",
       "daysHoursRemaining": "{{tiền tố}} {{ngày}} ngày {{hours}} giờ",
       "hoursMinutesRemaining": "{{tiền tố}} {{hours}} giờ {{phút}} phút",
-      "minutesRemaining": "{{tiền tố}} {{phút}} phút",
-      "mainTimeByoyomi": "{{phút}} phút · cho phép 10 giây",
-      "attemptsCount": "{{đếm}} lần"
+      "minutesRemaining": "{{prefix}} {{minutes}} phút",
+      "mainTimeByoyomi": "{{minutes}}phút · Cho phép 10 giây",
+      "attemptsCount": "{{count}} lần"
     },
     "boss": {
       "title": "Trận đấu trùm bang hội",
+      "names": {
+        "boss_1": "lắng nghe",
+        "boss_2": "sự nổi bật",
+        "boss_3": "nước xanh",
+        "boss_4": "không sâu",
+        "boss_5": "ánh sáng trắng"
+      },
       "guide": "Bách khoa toàn thư về ông chủ",
       "guideTitle": "Bách khoa toàn thư về Boss Bang hội",
-      "stage": "{{sân khấu}}sân khấu",
+      "stage": "{{stage}}bước",
       "bossSkillsAria": "Kỹ năng của ông chủ",
       "participants": "Thành viên bang hội tham gia",
       "myRecord": "hồ sơ của tôi",
       "ranking": "Xếp hạng",
-      "rankPlace": "{{thứ hạng}}",
+      "rankPlace": "{{rank}}ở trên",
       "totalDamage": "tổng thiệt hại",
       "currentRank": "Xếp hạng hiện tại",
-      "rankAmong": "{{rank}} trong số {{total}} người",
+      "rankAmong": "Xếp hạng {{rank}} trên tổng số {{total}} người",
       "allTimeBest": "Tốt nhất bao giờ hết",
       "allTimeBestRecord": "Kỷ lục mọi thời đại",
       "ticketAlt": "Vé trận đấu trùm",
       "enter": "chức vụ",
       "participantRecords": "Hồ sơ thành viên bang hội tham gia",
-      "rankNickname": "{{xếp hạng}} · {{biệt hiệu}}",
-      "noParticipantRecords": "Chưa có hồ sơ tham gia.",
+      "rankNickname": "{{rank}}Lên · {{nickname}}",
+      "noParticipantRecords": "Chưa có hồ sơ tham gia nào.",
       "strategyGuide": "Hướng dẫn chiến lược",
       "mainSkills": "kỹ năng chính",
       "recommendedStats": "Khả năng được đề xuất",
@@ -6078,7 +7077,7 @@
       "creationCost": "chi phí sáng tạo",
       "owned": "chiếm hữu",
       "shortage": "Sự thiếu hụt: {{count}}",
-      "insufficientDiamonds": "bộ lạc kim cương",
+      "insufficientDiamonds": "bộ tộc kim cương",
       "creating": "Đang tạo...",
       "createAction": "Tạo một bang hội",
       "errors": {
@@ -6122,7 +7121,7 @@
     },
     "shopLegacy": {
       "empty": "Không có mặt hàng nào để bán.",
-      "goldPrice": "{{giá}} Vàng",
+      "goldPrice": "{{giá}} vàng",
       "stock": "Khoảng không quảng cáo: {{remaining}}/{{total}}",
       "purchase": "mua",
       "purchaseFailed": "Việc mua hàng của bạn không thành công."
@@ -6144,7 +7143,7 @@
     "company": {
       "name": "Đá sinh thái",
       "representative": "Yoo Ho Jeong",
-      "address": "#715-A22, tầng 7, 677-10 Dongtan-daero, Hwaseong-si, Cảnh Phúc (Yeongcheon-dong)",
+      "address": "#715-A22, tầng 7, 677-10 Dongtan-daero, Hwaseong-si, Cảnh Phúc-do (Yeongcheon-dong)",
       "serviceName": "Sudam Baduk"
     },
     "common": {
@@ -6163,12 +7162,12 @@
     "privacyPolicy": {
       "title": "chính sách bảo mật",
       "eyebrow": "Chính sách bảo mật",
-      "intro": "{{companyName}} thiết lập và tiết lộ chính sách này để bảo vệ thông tin cá nhân của thành viên theo các luật và quy định có liên quan như Đạo luật bảo vệ thông tin cá nhân cũng như để xử lý kịp thời và suôn sẻ các khiếu nại liên quan đến vấn đề này."
+      "intro": "{{companyName}} thiết lập và tiết lộ chính sách này để bảo vệ thông tin cá nhân của thành viên theo luật và quy định có liên quan như Đạo luật bảo vệ thông tin cá nhân cũng như để xử lý kịp thời và suôn sẻ các khiếu nại liên quan đến vấn đề này."
     },
     "refundPolicy": {
       "title": "Chính sách hủy/hoàn tiền",
       "eyebrow": "Chính sách hoàn tiền",
-      "intro": "Chúng tôi muốn thông báo cho bạn về việc hủy và hoàn trả nội dung trả phí. Các quy định này được soạn thảo phù hợp với các luật và quy định có liên quan, chẳng hạn như Đạo luật Thương mại Điện tử."
+      "intro": "Chúng tôi muốn thông báo cho bạn về việc hủy và hoàn trả nội dung trả phí. Các quy định này đã được soạn thảo phù hợp với các luật và quy định có liên quan như Đạo luật Thương mại Điện tử."
     },
     "purchaseConsent": {
       "title": "Kiểm tra tiến độ thanh toán",

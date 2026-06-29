@@ -27,7 +27,7 @@
     },
     "languageSelect": {
       "label": "لغة",
-      "placeholder": "اختر لغتك"
+      "placeholder": "الرجاء تحديد لغة"
     },
     "connection": {
       "reconnecting": "جارٍ إعادة الاتصال بالخادم...",
@@ -142,7 +142,7 @@
       "loggingOut": "سيتم تسجيل خروجك."
     },
     "autoProceed": "حتى التقدم التلقائي",
-    "autoProceedShort": "التقدم التلقائي",
+    "autoProceedShort": "تقدم تلقائي",
     "autoSelectUntil": "حتى الاختيار التلقائي",
     "autoSelectShort": "الاختيار التلقائي",
     "nextRoundAuto": "حتى تبدأ الجولة التالية تلقائيًا",
@@ -259,14 +259,14 @@
     "firstBlack": "الهجوم الأول (أسود)",
     "secondWhite": "هوجونج (أبيض)",
     "chooseTurn": "اختر الذهاب أولاً أو أخيرًا.",
-    "chooseTurnCountdown": "اختر الذهاب أولاً أو أخيرًا. ({{العد التنازلي}})",
+    "chooseTurnCountdown": "اختر الذهاب أولاً أو ثانيًا. ({{العد التنازلي}})",
     "opponentChoosingSecond": "المنافس يختار اللعب في المركز الثاني..",
     "readyCountdown": "جاهز ({{العد التنازلي}})",
-    "waitingOpponentRoll": "في انتظار المنافس...",
+    "waitingOpponentRoll": "في انتظار الطرف الآخر..",
     "rollingDice": "رمي النرد...",
     "tieReroll": "رَابِطَة! لفة مرة أخرى بعد فترة من الوقت.",
     "rollToDecide": "اضغط على زر الاستعداد لرمي النرد. يختار الشخص صاحب الرقم الأعلى أن يذهب أولاً/أخيرًا.",
-    "diceWin": "فاز {{name}} وتم تحديد من سيفوز بالمركز الأول/الأخير.",
+    "diceWin": "فاز {{name}} وتقرر أن يكون الأول/الأخير.",
     "diceAutoStart": "انقر فوق زر البدء أدناه وإلا ستبدأ المباراة تلقائيًا بعد 30 ثانية.",
     "colorRouletteTitle": "لون بادوك",
     "uniformColorRoulette": "الروليت لون موحد",
@@ -312,7 +312,7 @@
       "home": "بيت",
       "singleplayer": "أكاديمية بادوك",
       "tower": "برج التحدي",
-      "arena": "ملعب",
+      "arena": "الملعب",
       "tournament": "بطولة",
       "adventure": "مفامرة"
     },
@@ -345,7 +345,7 @@
         "strategicLobby": "يمكنك الدخول إلى غرفة انتظار Go الإستراتيجية من مستوى المستخدم {{level}}.",
         "playfulLobby": "يمكنك الدخول إلى غرفة انتظار Go في مستوى المستخدم. {{مستوى}}.",
         "championship": "يمكنك الدخول إلى البطولة بدرجة قدرة Go تبلغ {{ability}} أو أعلى.",
-        "adventure": "يمكنك الدخول في المغامرة عن طريق إنهاء المرحلة 20 من فئة المبتدئين في أكاديمية Baduk."
+        "adventure": "يمكنك الدخول في المغامرة عن طريق إنهاء المرحلة 20 من فصل أكاديمية Baduk التمهيدية."
       }
     },
     "quickMenu": {
@@ -354,7 +354,7 @@
       "blacksmith": "حداد",
       "shop": "محل",
       "inventory": "شنطة",
-      "pet": "رعاية الحيوانات الأليفة",
+      "pet": "حيوان أليف",
       "trainingQuest": "مهمة التدريب",
       "detailedStats": "سجلات ملعب PVP التفصيلية",
       "monsterCodex": "موسوعة الوحش",
@@ -362,7 +362,7 @@
       "gameRecords": "تدوين",
       "encyclopedia": "موسوعة",
       "announcements": "إشعار",
-      "help": "مركز المساعدة",
+      "help": "يساعد",
       "menu1": "القائمة 1",
       "menu2": "القائمة 2"
     },
@@ -408,7 +408,7 @@
     "loggingIn": "تسجيل الدخول...",
     "register": "الانضمام إلى العضوية",
     "username": "بطاقة تعريف",
-    "usernamePlaceholder": "الرجاء إدخال معرفك",
+    "usernamePlaceholder": "الرجاء إدخال رقم التعريف الخاص بك",
     "email": "بريد إلكتروني",
     "password": "كلمة المرور",
     "passwordPlaceholder": "كلمة المرور",
@@ -425,7 +425,7 @@
     "kakao": "الكاكاو",
     "google": "جوجل",
     "ban": {
-      "title": "الوصول محظور.",
+      "title": "الاتصال محظور.",
       "reason": "السبب: {{سبب}}",
       "remainingMinutes": "المدة المتبقية: حوالي {{دقائق}} دقيقة",
       "expiresAt": "من المقرر إصداره: {{التاريخ}}",
@@ -480,7 +480,7 @@
       "length": "الرجاء إدخال اللقب الذي لا يقل عن {{min}} حرفًا ولا يزيد عن {{max}} حرفًا.",
       "profanity": "لقبك يحتوي على كلمات غير لائقة.",
       "taken": "هذا اللقب قيد الاستخدام بالفعل.",
-      "checkError": "حدث خطأ أثناء حل لقبك. يرجى المحاولة مرة أخرى في وقت لاحق.",
+      "checkError": "حدث خطأ أثناء حل لقبك. يرجى المحاولة مرة أخرى لاحقا.",
       "hint": "عند إدخال لقب، سيتم التحقق من الازدواجية والألفاظ النابية.",
       "checking": "جارٍ التحقق من التكرارات...",
       "available": "هذا هو اللقب الذي يمكنك استخدامه.",
@@ -537,10 +537,10 @@
     "curling": "الشباك",
     "comingSoon": "إعداد مزيد من التحديثات",
     "descriptions": {
-      "standard": "هذا هو البادوك الكلاسيكي النموذجي.",
+      "standard": "إنها بادوك كلاسيكية نموذجية.",
       "capture": "لعبة بادوك يفوز بها أول شخص يحصل على عدد محدد من الحجارة.",
-      "speed": "إذا قمت بوضعها خلال {{ثانية}} ثانية لكل دورة، فسوف تستعيد {{ثانية}} ثانية. لكل {{ثانية}} ثانية، تتم إضافة نقطة واحدة لخصمك.",
-      "base": "هي لعبة بادوك تنظر فيها إلى ترتيب أحجار الأساس، وتضع مكافأة لخصمك، وتستخدم الحجارة التي تختارها، وتتنافس على قدرتك على تحليل الموقف.",
+      "speed": "إذا قمت بوضعها خلال {{ثانية}} ثانية، فسوف تقوم بإعادة توليد {{ثانية}} ثانية. لكل {{ثانية}} ثانية، تتم إضافة نقطة واحدة لخصمك.",
+      "base": "هي لعبة بادوك حيث تنظر إلى ترتيب أحجار الأساس، وتضع مكافأة لخصمك، وتستخدم الحجارة التي تختارها، وتتنافس على قدرتك على تحليل الموقف.",
       "hidden": "عودة بحركة غير مرئية للخصم! الحرب النفسية ومهارات القراءة مطلوبة من خلال العناصر المخفية والممسوحة ضوئيًا.",
       "missile": "قم بإنشاء متغير عن طريق تحريك الحجر الموضوع كعنصر صاروخي.",
       "uniform": "Go هي لعبة تتطلب ذاكرة لرؤية كل الأحجار بلون واحد.",
@@ -617,7 +617,7 @@
       "phaseOpening": "الأيام الأولى",
       "phaseMidgame": "منتصف",
       "phaseEndgame": "النهاية",
-      "phaseMovesLeft": "{{المرحلة}} {{count}}الرقم",
+      "phaseMovesLeft": "{{المرحلة}} {{count}}رقم",
       "petHintEquipPet": "يمكنك استخدام التلميحات من خلال تجهيز الحيوان الأليف التمثيلي.",
       "petHintDuringGame": "يمكن استخدامه عندما تكون المباراة قيد التقدم.",
       "petHintMyTurnOnly": "يمكنك استخدامه فقط عند دورك.",
@@ -632,7 +632,7 @@
       "adminFeatures": "وظيفة المسؤول",
       "pauseMyTurnOnly": "يمكنك التوقف مؤقتًا فقط أثناء دورك",
       "resumeGame": "استئناف المباراة",
-      "resumeGameCountdown": "استئناف المباراة ({{count}})",
+      "resumeGameCountdown": "استئناف المطابقة ({{count}})",
       "pauseGame": "يقاطع",
       "pauseGameCountdown": "وقفة ({{عدد}})",
       "pauseGameAiTurn": "إيقاف مؤقت (دوران الذكاء الاصطناعي)",
@@ -686,7 +686,7 @@
     "turn": {
       "aiHiddenItem": "استخدم روبوت الذكاء الاصطناعي عنصرًا مخفيًا!",
       "monsterHiddenItem": "استخدم الوحش عنصرًا مخفيًا!",
-      "diceOvershotWithMax": "تجاوز! يجب أن يكون لديك {{maxDice}} أو أقل من النرد للفوز بالكومة النهائية.",
+      "diceOvershotWithMax": "تجاوز! لا يمكنك الفوز بالكومة الأخيرة إلا إذا كان حجم النرد الخاص بك هو {{maxDice}} أو أقل.",
       "diceOvershotNoLiberties": "تجاوز! في الوقت الحالي لا توجد أماكن صالحة للحقيبة، لذا لا يمكنك الفوز بالكومة الأخيرة. يرجى الانتظار للفة القادمة.",
       "lastCaptureBonus": "(المكافأة الوهمية الأخيرة + {{مكافأة}} نقطة)",
       "lastShowdown": "المباراة النهائية! {{count}} أرقام صحيحة",
@@ -715,15 +715,15 @@
       "hiddenFinalReveal": "نكشف عن جميع الحجارة المخفية ونبدأ في العد.",
       "autoScoringAdventure": "يتم إجراء المحاسبة التلقائية.",
       "autoScoringReached": "يصل النظام التلقائي إلى الإجراء ويبدأ العد.",
-      "alkkagiRePlace": "ضع الحجارة مرة أخرى. ({{جولة}} / {{المجموع}} جولة)",
-      "alkkagiPlace": "ضع الحجارة. ({{جولة}} / {{المجموع}} جولة)",
-      "alkkagiPlayerTurn": "إنه دور {{name}}. ({{جولة}} / {{المجموع}} جولة)",
+      "alkkagiRePlace": "ضع الحجارة مرة أخرى. ({{جولة}} / {{المجموع}} جولات)",
+      "alkkagiPlace": "ضع الحجارة. ({{جولة}} / {{المجموع}} جولات)",
+      "alkkagiPlayerTurn": "إنه دور {{name}}. ({{جولة}} / {{المجموع}} جولات)",
       "alkkagiRoundEnd": "النهايات الدائرية - قم بالتحقق والمتابعة على اللافتة الإلكترونية أدناه.",
       "diceRollTurn": "حان دور {{name}} لرمي النرد.",
       "diceRollTurnGeneric": "حان الوقت لرمي النرد",
       "tiebreakerDeciding": "تحديد ترتيب الفوز...",
       "tiebreakerPlaying": "المباراة جارية... (دور {{name}})",
-      "diceModeRound": "لعبة النرد ({{round}} / {{total}} جولات)",
+      "diceModeRound": "لعبة النرد ({{جولة}} / {{total}} جولة)",
       "thiefModeRound": "اللصوص ورجال الشرطة (جولة {{round}})",
       "preparing": "جاري تحضير اللعبة...",
       "timeoutFoul": "خطأ في الوقت بدل الضائع من {{name}}!",
@@ -734,8 +734,8 @@
       "timeoutFoulLoseStone": "تخسر حجرًا واحدًا وينتهي دورك.",
       "timeoutFoulDefault": "سيتم معاقبتك لتجاوز الحد الزمني.",
       "baseKomiGuide": "حدد الأحجار والمكافآت التي تريد وضعها. إذا اخترت نفس الحجر، فإن الحجر الذي يمنحك أكبر عدد من المكافآت هو الحجر الذي تريد الاحتفاظ به.",
-      "alkkagiPlaceHidden": "ضع الحجارة بحيث لا تكون مرئية لخصمك. ({{جولة}} / {{المجموع}} جولة)",
-      "alkkagiPlaceMissing": "ضع الحجارة المفقودة. ({{جولة}} / {{المجموع}} جولة)",
+      "alkkagiPlaceHidden": "ضع الحجارة بحيث لا تكون مرئية لخصمك. ({{جولة}} / {{المجموع}} جولات)",
+      "alkkagiPlaceMissing": "ضع الحجارة المفقودة. ({{جولة}} / {{المجموع}} جولات)",
       "placementProgress": "وضعت {{وضعت}}/{{الهدف}}",
       "timeRemainingSec": "الوقت المتبقي: {{sec}} ثانية",
       "alkkagiRoundWin": "الجولة {{round}} — فوز {{name}}.",
@@ -755,7 +755,7 @@
       "basePlacementSpectator": "وضع الحجارة الأساسية · أسود {{أسود}}/{{count}} · أبيض {{أبيض}}/{{count}}",
       "baseStonesRemaining": "الدمى الأساسية المتبقية ({{remaining}}/{{total}})",
       "timeRemainingShort": "· تبقى {{sec}} ثانية",
-      "confirmPlacement": "· انقر على إكمال النشر",
+      "confirmPlacement": "· انقر على استكمال النشر",
       "waitingOpponent": "· في انتظار تأكيد الخصم",
       "bothBasePlacing": "يتم وضع الحجارة الأساسية على كلا الجانبين"
     },
@@ -843,7 +843,7 @@
       "resignWinMsg": "لقد فزنا لأن خصمنا امتنع عن التصويت.",
       "resignLossMsg": "امتنع وخسر.",
       "turnLimitWinMsg": "لقد فزت لأن كل الأدوار المحدودة لخصمك قد استنفدت.",
-      "turnLimitLossMsg": "لقد خسرت لأن حد دوري قد انتهى.",
+      "turnLimitLossMsg": "كان عدد الأدوار محدودًا وخسرت.",
       "castleWinMsg": "لقد فزت بحجر الخصم وفازت على الفور.",
       "castleLossMsg": "لقد خسرت لأن خصمي أمسك بالحجر.",
       "checkmateWinMsg": "لقد فزت بكش ملك بفوزي بملك الخصم.",
@@ -1136,7 +1136,7 @@
       "lockedTop3": "مفتوح للمركز الثالث أو أعلى",
       "alreadyOpen": "فتح بالفعل",
       "unlocked": "مسح",
-      "lockedTop3Full": "مقفل (يفتح عندما يكون في المرتبة الثالثة أو أعلى)",
+      "lockedTop3Full": "مقفل (يفتح عند المرتبة الثالثة أو أعلى)",
       "nextStageAlreadyOpen": "الخطوة التالية مفتوحة بالفعل.",
       "open": "يفتح",
       "resultAria": "ملخص النتائج",
@@ -1176,7 +1176,11 @@
       "scoringTurnValue": "{{يدور}}يدور",
       "forbidden": "حظر",
       "allowed": "ممكن",
-      "speedNormal": "عادة"
+      "speedNormal": "عادة",
+      "confirm": "يفحص",
+      "gaugeSpeedSlow": "×1 (بطيء)",
+      "gaugeSpeedNormal": "×2 (عادي)",
+      "gaugeSpeedFast": "×3 (سريع)"
     },
     "challengeModal": {
       "rejected": "رفض",
@@ -1189,7 +1193,7 @@
       "mixRulesMinHint": "الرجاء تحديد قاعدتين على الأقل.",
       "boardKomiCapture": "الذهاب المجلس، والحساب، والمكافأة، والفوز",
       "boardSize": "رقعة الشطرنج",
-      "boardLines": "{{حجم}} خط",
+      "boardLines": "خط {{الحجم}}.",
       "komiWhite": "مكافأة (حقيبة)",
       "komiHalf": ".5 منزل",
       "captureTarget": "النتيجة المستهدفة",
@@ -1311,7 +1315,7 @@
       "missileFirstTurn": "إذا استخدمت صاروخًا في المنعطف الأول، فلن تتمكن من استخدام تغيير النشر.",
       "noRefreshesLeft": "تم استخدام جميع عمليات النقل.",
       "waitForStart": "يمكنك تغيير موضعك بمجرد بدء اللعبة.",
-      "beforeFirstMove": "لا يمكنك الانتقال إلا قبل إجراء الخطوة الأولى.",
+      "beforeFirstMove": "لا يمكنك تغيير موضعك إلا قبل إجراء الخطوة الأولى.",
       "insufficientGold": "لقد نفدت من الذهب.",
       "paused": "لا يمكن إعادة الوضع أثناء وجوده في حالة الإيقاف المؤقت.",
       "confirmPaid": "هل ترغب في استخدام {{gold}} الذهب لتعديل الدفعة؟ (الترحيل المتبقي {{remaining}}/5)",
@@ -1361,7 +1365,7 @@
       "timeRules": "قواعد الوقت",
       "items": "غرض",
       "noItems": "لا توجد عناصر",
-      "howToPlay": "كيف نفعل ذلك",
+      "howToPlay": "كيفية القيام بذلك",
       "stageKeyPoints": "مفتاح هذه المرحلة",
       "cautionPoints": "أشياء يجب الحذر منها",
       "patternStone2pts": "الحجر المنقوش يستحق نقطتين.",
@@ -1382,7 +1386,203 @@
       "curling": "الشباك",
       "thiefPolice": "اللص والشرطة",
       "classic": "كلاسيكي",
-      "mix": "مزج"
+      "mix": "مزج",
+      "specialRules": "قواعد خاصة",
+      "loseCondition": "شروط الهزيمة",
+      "rulesAndGuide": "قواعد اللعبة ودليل اللعب",
+      "rewards": "تعويض",
+      "availableRewards": "المكافآت التي يمكن الحصول عليها",
+      "summary": {
+        "loseTerritory": "إذا كانت النتيجة الإجمالية (النتيجة الإجمالية) منخفضة أو كان المنزل في وضع غير مؤات بسبب قواعد التعادل أو التعادل، فستخسر.",
+        "loseTerritoryAuto": "إذا لم تتمكن من الفوز على {{base}} · {{auto}}، فستخسر.",
+        "loseCaptureRace": "إذا سجل الخصم {{t}} نقطة أولاً، فستخسر. وإلا، إذا كان لديك عدد قليل من المنازل في الأسرة، فإنك تخسر.",
+        "loseMix": "في نهاية اللعبة، إذا استوفى الخصم شروط النصر أولاً أو كان في وضع غير مؤات، فإن الخصم يخسر.",
+        "basePlacementAnalysis": "تحليل الوضع بعد إطلاق وضع الدمية الأساسية",
+        "baseKomiSelect": "حدد المكافأة التي ستمنحها لخصمك · اختر الحجر الذي تريده",
+        "autoScoringCaptureTurn": "يستمر العد التلقائي عند الوصول إلى {{n}} دورة",
+        "autoScoringTerritoryWin": "اربح العد التلقائي بعد {{n}} من الأدوار",
+        "autoScoringTerritoryLose": "الهزيمة في اللعبة التلقائية بعد {{n}} دورة",
+        "fischerOnly": "فيشر {{sec}} ثانية",
+        "byoyomiOnly": "العد التنازلي فقط · {{time}} ثانية × {{count}} مرة",
+        "noTimeLimit": "لا يوجد حد زمني",
+        "limitFischer": "الحد {{دقيقة}} دقيقة · فيشر {{ثانية}} ثانية",
+        "limitByoyomi": "الحد {{دقيقة}} دقيقة · العد التنازلي {{time}} ثانية × {{count}} مرة",
+        "limitNoByoyomi": "الحد الأقصى {{min}} دقيقة (بدون العد التنازلي)",
+        "factorTerritory": "إِقلِيم",
+        "factorCaptured": "اختار الحجر",
+        "factorDead": "riprap",
+        "factorKomi": "مكافأة (حقيبة)",
+        "factorBaseBonus": "المكافأة الأساسية",
+        "factorHiddenBonus": "مكافأة مخفية",
+        "factorSpeedBonus": "تم تجاوز البدل {{sec}} ثانية → الخصم +1",
+        "factorMissileEffect": "انعكاس إنتاج الصواريخ",
+        "factorCaptureScore": "نتيجة الفوز",
+        "factorMixFallback": "اعتمادا على مجموعة الوضع",
+        "factorCaptureNoTerritory": "نتيجة الفوز (بدون حسابات منزلية)",
+        "factorCastle": "المنطقة المؤكدة · الحجر الفائز · المكافأة (بيضاء)",
+        "factorChess": "المنطقة · الحجر المختار · الحجر الحجري · الاستيلاء على العنصر · المكافأة (100)",
+        "factorOmok": "الخميس (الفوز) - لا توجد حسابات منزلية",
+        "factorTtamok": "فوز الرقبة أو نتيجة الفوز",
+        "factorDice": "100 حجر فائز في كل جولة · مكافأة الفوز النهائية",
+        "factorThief": "إجمالي النقاط المكتسبة في كل جولة",
+        "factorAlkkagi": "عدد تحركات الخصم خارج اللوحة",
+        "factorCurling": "عشرات الحجارة على مقربة من المنزل (هدف)",
+        "factorFallback": "انظر دليل الوضع",
+        "factorStageDefault": "اعتمادا على المرحلة/الوضع",
+        "factorStageCapture": "نتيجة الفوز",
+        "factorStageCapturePattern": "نتيجة الفوز\n2 أحجار نمطية",
+        "factorStageSpeed": "المنطقة، الحجر المختار، حجر ريبراب، المكافأة\nمكافأة الوقت",
+        "factorAdventureCaptureShort": "اختر · الشعار 2 نقطة",
+        "factorAdventureBase": "السعر الأساسي",
+        "factorAdventureBaseStone5": "5 دمى أساسية",
+        "factorAdventureHidden": "مختفي",
+        "factorAdventureSpeed": "ساعة",
+        "factorAdventureMissile": "صاروخ",
+        "itemHidden": "مخفي {{ن}}",
+        "itemScan": "{{n}} عمليات المسح",
+        "itemMissile": "{{ن}} صواريخ",
+        "itemSpecialDice": "النرد الخاص {{الملخص}}",
+        "itemSlowAim": "بطيء {{بطيء}} · الهدف {{الهدف}}",
+        "mixCaptureWin": "إذا تم تحقيق {{t}} نقطة أولاً، فز على الفور. إذا لم يتحقق، قارن بين المنازل بعد السعر الفائز.",
+        "mixCaptureWinWithAuto": "الفوز: إذا تم تحقيق {{t}} من النقاط أولاً، فائز على الفور · إذا لم يتم تحقيقها، قارن المنازل بعد الحد الأقصى · {{auto}}",
+        "mixAutoTerritoryWin": "{{auto}} — من لديه أكبر عدد من المنازل هو الفائز",
+        "mixComboTail": "المجموعات ({{الأوضاع}}) — الفوز أو الخسارة بناءً على القواعد الموجودة في النهاية",
+        "mixDefaultEnd": "في النهاية، يتم تحديد الفائز أو الخاسر وفقًا للقواعد.",
+        "highlightPatternStone2": "اختيار الحجارة نمط 2 نقطة",
+        "highlightHiddenScan": "إطلاق مخفي · البحث عن طريق المسح",
+        "highlightMissileMove": "تحريك الحجر في خط مستقيم بصاروخ",
+        "speedPvpHighlight": "العد التنازلي 10 ثوانٍ · الخصم +1 نقطة لكل 10 ثوانٍ يتم تجاوزها · خسارة الوقت عند انتهاء الوقت الرئيسي",
+        "highlightSurvival": "أنقذ بادوك · نتيجة الهدف خلال {{n}} دورة",
+        "highlightAutoScoring": "العد التلقائي بعد رقم {{n}}.",
+        "highlightBlackTurnLimit": "حد الدوران الأسود {{n}}",
+        "highlightTurnAdd": "{{n}} دورات إضافية",
+        "highlightMissile": "{{ن}} صواريخ",
+        "highlightHiddenScanCounts": "{{مخفي}} مخفي · {{مسح}} ممسوح",
+        "spTimeMainFischer": "الرئيسية {{دقيقة}} دقيقة · العد التنازلي المسموح به {{ثانية}} ثانية",
+        "spTimeFischerOnly": "العد التنازلي المسموح به {{sec}} ثانية",
+        "spTimeUnlimited": "لا يوجد حد",
+        "goalSurvivalWinLabel": "منع الظهر",
+        "goalSurvivalWinHelper": "قم بحظر 100 هدف لمدة {{n}} من الأدوار",
+        "goalSurvivalLoseLabel": "مائة نجاح",
+        "goalSurvivalLoseHelper": "إذا صنع الأبيض هدفًا، فإنه يفشل.",
+        "goalCaptureWinLabel": "اختيار",
+        "goalCaptureWinHelper": "تسجيل نقاط من خلال تطويق أحجار الخصم.",
+        "goalCaptureLoseTurnLabel": "تجاوزت المنعطفات",
+        "goalCaptureLoseTurnHelper": "إذا لم تقم بذلك خلال {{n}} من الأدوار، فستفشل.",
+        "goalCaptureLoseFirstLabel": "الخصم أولا",
+        "goalCaptureLoseFirstHelper": "إذا فاز خصمك أولاً، فأنت تفشل.",
+        "goalSpeedWinLabel": "سريع",
+        "goalSpeedWinHelper": "بناء منزل في الوقت المحدد",
+        "goalSpeedLoseLabel": "النتيجة ثلاثة عشر",
+        "goalSpeedLoseHelper": "الفشل إذا كان هناك عدد قليل من المنازل",
+        "goalAutoWinLabel": "الكثير من المنازل",
+        "goalAutoWinHelper": "احسب المنزل بعد {{n}}",
+        "goalAutoLoseLabel": "نقص المنازل",
+        "goalAutoLoseHelper": "{{n}}إذا كنت في وضع غير مؤات أثناء النقل، فستفشل.",
+        "goalDefaultWinLabel": "بناء منزل",
+        "goalDefaultWinHelper": "بناء منزل حول المنطقة",
+        "goalDefaultLoseLabel": "نقص المنازل",
+        "goalDefaultLoseHelper": "الفشل إذا كان هناك عدد قليل من المنازل",
+        "guideTurnLimitTitle": "حد بدوره",
+        "guideTurnLimitBody": "الانتهاء في {{n}} المنعطفات",
+        "guideSurvivalTitle": "ينبع",
+        "guideSurvivalBody": "قم بحظر 100 هدف لمدة {{n}} من الأدوار",
+        "guideAutoScoringTitle": "سعر الحساب",
+        "guideAutoScoringBody": "احسب المنزل بعد {{n}}",
+        "guidePatternStoneTitle": "حجر النمط",
+        "guidePatternStoneBody": "2 نقطة إذا فزت",
+        "guideSpeedTitle": "سرعة",
+        "guideSpeedBody": "إذا تركتها متأخرًا، سيحصل خصمك على +1 نقطة.",
+        "guideTurnAddTitle": "أضف بدوره",
+        "guideTurnAddBody": "زيادة حد الدوران",
+        "guideMissileTitle": "صاروخ",
+        "guideMissileBody": "اختر حجرًا وادفعه في خط مستقيم",
+        "guideHiddenScanTitle": "مخفي · المسح الضوئي",
+        "guideHiddenScanBody": "إخفاء {{مخفي}} · البحث عن {{مسح}}",
+        "advCaptureWin": "الفوز",
+        "advCaptureLose": "فوز، خسارة، وقت مستقطع",
+        "advTerritoryWin": "يفوز جاي",
+        "advTerritoryWinAuto": "العد يفوز · يتحرك {{n}} تلقائيًا",
+        "advTerritoryLose": "تم هزيمة النظام ونفاد الوقت.",
+        "advTimeLimit": "حد {{دقيقة}} دقيقة",
+        "gwCaptureWinAuto": "{{cap}} نقطة أولاً أو عدد مرات الفوز {{limit}}",
+        "gwCaptureWin": "إذا حصلت على {{cap}} نقطة أولاً، فستفوز.",
+        "gwCaptureLose": "نقاط الخصم {{cap}} أولاً",
+        "gwTerritoryWinAuto": "الحساب التلقائي لعدد {{limit}} من مرات الفوز",
+        "gwTerritoryWin": "إذا كان لدى عائلتك المزيد من المنازل، فستفوز.",
+        "gwTerritoryLose": "فاق العدد، تجاوز الوقت",
+        "captureWin": "احصل على نقاط حجر الخصم {{t}} أولاً",
+        "captureWinWithAuto": "احصل على نقاط حجر الخصم {{t}} أولاً · {{auto}}",
+        "territoryWinDefault": "بعد العد، الجانب الذي لديه أكبر عدد من المنازل هو الفائز.",
+        "speedTerritoryWinDefault": "من حصل على أعلى الدرجات الإجمالية يفوز بعد العد.",
+        "speedTerritoryLoseDefault": "إذا كانت نتيجتك الإجمالية منخفضة بعد العد، فستخسر.",
+        "castleWin": "إذا فزت بحجر واحد أو أكثر من أحجار الخصم، فستفوز على الفور. إذا لم تكن هناك أرقام فعالة، يتم حساب المنطقة.",
+        "castleLose": "إذا أمسك خصمك حتى بحجر واحد، فستخسر. إذا كان لديك عدد قليل من المنازل في عائلتك، فستخسر.",
+        "castleHighlightCount": "{{القلاع}} القلاع · لا يمكن دخول المنطقة المكتملة",
+        "castleHighlightCapture": "فوز فوري عند التقاط حجر واحد",
+        "chessWin": "بعد الإجراء المعين، الحساب",
+        "chessLose": "الهزيمة في جييجيا · الخسارة فور القبض على الملك.",
+        "chessHighlightBudget": "وضع مباشر للقطع ضمن ميزانية نقطة قدرها {{budget}} (تم تثبيت الملك في منتصف الصف الثاني)",
+        "chessHighlightMovement": "يمكن تحريك القطعة بحركة الشطرنج مرة واحدة في كل دور (عدد محدود من المرات).",
+        "omokWin": "أكمل 5 عناصر أفقية ورأسية وقطرية أولاً",
+        "omokLose": "إذا أكمل خصمك جميع العناصر الخمسة أولاً، فستخسر.",
+        "omok33Forbidden": "لا توأمان",
+        "omok33Allowed": "مسموح بالتوائم",
+        "omokOverlineForbidden": "لا يوجد خشب سجل",
+        "omokOverlineAllowed": "خشب الأخشاب مسموح به",
+        "ttamokWin": "أكمل العنصر 5 أولاً أو حقق أول {{cap}} من النقاط",
+        "ttamokLose": "إذا أكمل خصمك 5 عناصر أولاً أو وصل إلى {{cap}} من نقاط الفوز أولاً، فستخسر.",
+        "ttamokHighlightCapture": "اربح عندما تصل إلى {{cap}} نقطة أولاً.",
+        "diceWin": "الجانب الذي حصل على أعلى نتيجة تراكمية بعد الجولة {{r}} يفوز.",
+        "diceLose": "{{r}}إذا كانت درجاتك التراكمية منخفضة في نهاية الجولة، فستخسر.",
+        "diceHighlightRules": "يهبط اللون الأسود بعدد عيون النرد، ويتم وضع اللون الأبيض فقط على مسار الخروج.",
+        "thiefWin": "بعد 5 دورات × جولات، يفوز الشخص الذي حصل على أعلى مجموع نقاط.",
+        "thiefLose": "إذا كانت درجاتك الإجمالية منخفضة في نهاية الجولة، فستخسر.",
+        "thiefHighlightRoles": "تناوب الأدوار بين اللص (أسود) وضابط الشرطة (أبيض)",
+        "alkkagiWin": "ضرب جميع حجارة الخصم",
+        "alkkagiLose": "حطم كل أحجاري",
+        "alkkagiHighlightGauge": "التحكم في القوة باستخدام المقياس وانعكاس الجدار",
+        "curlingWin": "من حصل على أعلى مجموع نقاط في الجولة يفوز",
+        "curlingLose": "إذا كان مجموع درجاتك منخفضة، تخسر.",
+        "curlingHighlightRules": "نظام انزلاق / دائري للحجر",
+        "fallbackWin": "يتم تحديد الفوز أو الخسارة بناءً على تقدم المباراة.",
+        "fallbackLose": "إذا تم تحديد الهزيمة من خلال التقدم في اللعبة، فستخسر.",
+        "spDefaultWin": "الفوز عندما يتم استيفاء شروط المرحلة",
+        "spDefaultLose": "يخسر إذا لم يتم استيفاء الشروط",
+        "spSurvivalWin": "فشل في تحقيق 100 نقطة {{tgt}} خلال {{n}} دورة",
+        "spSurvivalLose": "حقق 100 نقطة {{tgt}} خلال {{n}} دورة",
+        "spCaptureTurnWin": "احصل على {{target}} نقطة خلال {{limit}} منعطفات",
+        "spCaptureTurnLoseBoth": "تجاوز {{الحد}} من الدورات / سجل 100 {{target}} نقطة",
+        "spCaptureTurnLoseMiss": "فشل في الوصول إلى الهدف خلال {{limit}} دورة",
+        "spCaptureRaceWin": "احصل على {{target}} نقطة أولاً",
+        "spCaptureRaceLose": "احصل على 100 نقطة {{target}} أولاً",
+        "spCaptureCapWin": "احصل على {{cap}} نقطة أولاً",
+        "spCaptureCapLose": "الأبيض يحصل على {{cap}} نقطة أولاً",
+        "spCaptureGoalWin": "تحقيق النتيجة المستهدفة",
+        "spCaptureGoalLose": "يحقق بايك هدفه أولاً",
+        "spSpeedWin": "يفوز الفريق على النتيجة الإجمالية",
+        "spSpeedLose": "هزم في العالم",
+        "spAutoScoringWin": "{{n}} يفوز بعد العد",
+        "spAutoScoringLose": "{{n}}هزم بعد سوغييغا",
+        "spLegacyTurnWin": "{{target}} نقطة أو أكثر خلال {{limit}} دورة",
+        "spLegacyTurnLose": "فشل في الوصول إلى الهدف خلال {{limit}} دورة",
+        "spLegacyTerritoryWin": "العائلة منزل أسود {{أسود}} + منزل أبيض {{أبيض}}+",
+        "spLegacyTerritoryLose": "لم يتم الوصول إلى مستجمع المياه المستهدف",
+        "spTerritoryWin": "إذا كان لدى الأسرة المزيد من المنازل، فإنها تفوز.",
+        "spTerritoryLose": "الثالث عشر في النسب"
+      },
+      "itemSlot": {
+        "hiddenStone": "الحجر المخفي",
+        "scan": "مسح",
+        "missile": "صاروخ",
+        "diceOdd": "عناصر النرد الفردية",
+        "diceEven": "حتى عناصر النرد",
+        "diceLow": "عدد قليل من عناصر النرد (1-3).",
+        "diceHigh": "عدد كبير من عناصر النرد (4-6).",
+        "slow": "بطيء",
+        "aimLine": "خط البصر",
+        "turnAdd": "أضف بدوره"
+      }
     },
     "singlePlayerInfo": {
       "close": "يغلق",
@@ -1463,7 +1663,7 @@
       "noChange": "لا تغيير",
       "petXpSplit": "أساسي +{{base}} (متخصص +{{spec}})",
       "modeXpGain": "{{الوضع}} الخبرة +{{المبلغ}}",
-      "petGradeUpgradeNeeded": "يحتاج مستوى الحيوانات الأليفة إلى تعزيز",
+      "petGradeUpgradeNeeded": "فئة الحيوانات الأليفة تحتاج إلى تعزيز",
       "rewardVip": "مكافأة VIP",
       "rewardLine": "تعويض",
       "vipRewardLine": "مكافآت كبار الشخصيات",
@@ -1478,7 +1678,8 @@
       "aria": "علامة تبويب النتائج"
     },
     "speedPressure": {
-      "aria": "الوقت المسموح به {{sec}} ثانية"
+      "aria": "الوقت المسموح به {{sec}} ثانية",
+      "label": "شريط سرعة 10 ثواني"
     },
     "adventureResult": {
       "bossLine": "الرئيس: {{label}} +{{pct}}%",
@@ -1495,7 +1696,7 @@
     },
     "towerSidebar": {
       "title": "برج التحدي",
-      "floor": "{{طابق}} طابق"
+      "floor": "{{الطابق}}الطابق"
     },
     "guildWarSidebar": {
       "title": "حروب النقابات"
@@ -1570,7 +1771,7 @@
       "basePlusKomi": "أضف قاعدة + مكافأة",
       "basePrep": "إعداد اللعبة الأساسية",
       "tiebreakerTitle": "قرار التعادل",
-      "tiebreakerDesc": "يتم تحديد نيجيري باستخدام لعبة الروليت.",
+      "tiebreakerDesc": "يتم تحديد النيجيري باستخدام لعبة الروليت.",
       "basePlusKomiDesc": "تحقق من الشروط الموجودة على البطاقة أدناه.",
       "basePrepDesc": "قم بإلقاء نظرة على Nigiri·Dum أدناه.",
       "resultDesc": "{{اسم}} · هيوكسونغ · جيسي {{عطاء}} نقطة",
@@ -1612,7 +1813,10 @@
       "baseRule": "قاعدة",
       "whiteTargetLabel": "مائة هدف",
       "firstBlackRole": "الخط (أسود)",
-      "meBadge": "أنا"
+      "meBadge": "أنا",
+      "captureBidResultTitle": "نتيجة عرض النتيجة الفائزة",
+      "komiBidFinalRound": "عرض المكافأة (الجولة النهائية)",
+      "pressStartPrompt": "بمجرد أن تصبح جاهزًا، انقر فوق ابدأ لبدء اللعب."
     },
     "baseStoneChoice": {
       "hostPick": "يختار المضيف لوحة الألوان الموجودة على اليسار.",
@@ -1642,15 +1846,17 @@
       "blackRole": "الضربة الأولى، أسود",
       "whiteRole": "هوجونج · العودة",
       "finalCardAlt": "يتم عرض التحركات الأولى والثانية النهائية على البطاقات اليسرى واليمنى.",
-      "fastFlashAlt": "يتغير العرض بالأبيض والأسود في المساحتين، ولكن بعد فترة يتم تثبيته على الترتيب النهائي.",
-      "smoothEndAlt": "يتغير اللون الأسود والأبيض بسرعة ويتوقف بشكل عشوائي."
+      "fastFlashAlt": "يتغير العرض بالأبيض والأسود في المساحتين، ولكن بعد فترة، يتم تثبيته على التخطيط النهائي.",
+      "smoothEndAlt": "يتغير اللون الأسود والأبيض بسرعة ويتوقف بشكل عشوائي.",
+      "assignmentComplete": "اكتملت المهمة",
+      "blackCandidate": "اذهب للمرشح الأول (الأسود)."
     },
     "uniformColor": {
       "blackStone": "الحجر الأسود",
       "whiteStone": "الحجر الأبيض",
       "title": "إلسايك بادوك",
       "uniformRoulette": "الروليت لون موحد",
-      "thisColor": "لون الحجر لهذا التطابق: {{color}}",
+      "thisColor": "لون الحجر لهذه اللعبة: {{color}}",
       "flashHint": "تومض الحجارة السوداء والبيضاء بسرعة بالتناوب وتتوقف بشكل عشوائي.",
       "autoStart": "ستبدأ المباراة تلقائيا بعد انتهاء القرعة.",
       "stoneColorRoulette": "الروليت لون الحجر",
@@ -1658,12 +1864,12 @@
       "flashHintAlt": "تتغير الحجارة السوداء والبيضاء بسرعة ثم تتوقف بشكل عشوائي."
     },
     "conditionPotion": {
-      "title": "دفع الشرط",
+      "title": "شرط الدفع",
       "currentCondition": "الحالة الحالية",
       "expectedRecovery": "الحالة بعد التعافي المتوقع",
       "applying": "جارٍ تطبيق الاسترداد...",
       "goShop": "اذهب إلى المتجر",
-      "usePotion": "استخدام الطب التصالحي",
+      "usePotion": "استخدم الطب التصالحي",
       "recoveryTitle": "استعادة الحالة",
       "potionTitle": "{{name}} · الاسترداد {{min}}~{{max}} · الاحتفاظ {{count}}",
       "currentLabel": "الحالة الحالية",
@@ -1679,7 +1885,8 @@
       "autoRouletteShort": "بدلاً من الحجر، يتم تخصيص الورق والمقص والأبيض والأسود باستخدام لعبة الروليت الأوتوماتيكية.",
       "checkingRoulette": "التحقق من نتائج الروليت...",
       "waitingConfirm": "في انتظار التأكيد من الطرف الآخر...",
-      "startCountdown": "بدء المباراة ({{count}})"
+      "startCountdown": "بدء المباراة ({{count}})",
+      "autoStartHint": "اضغط على ابدأ وإلا ستبدأ المباراة تلقائيًا بعد 30 ثانية."
     },
     "diceGo": {
       "winner": "نتيجة لرمي النرد، فاز {{name}} وتم اتخاذ القرار بالذهاب أولاً/أخيرًا.",
@@ -1740,7 +1947,7 @@
       "tieDeathmatch": "مباراة الموت تستمر بالتعادل.",
       "swapRoles": "قم بتبديل الأدوار وانتقل إلى الجولة التالية.",
       "round2Tie": "تنتهي الجولة الثانية. إذا كانت النتيجة متعادلة، فهي مباراة الموت.",
-      "waitingConfirm": "في انتظار تأكيد المنافس",
+      "waitingConfirm": "في انتظار التأكيد من الشريك",
       "nextRound": "الجولة القادمة",
       "piecesUnit": "كلب"
     },
@@ -1770,7 +1977,7 @@
       "modeResetNote": "سيتم إعادة تعيين السجلات الزوجية فقط لكل وضع. سيتم الحفاظ على مطابقة الترتيب وسجلات الذكاء الاصطناعي الزوجية.",
       "pairAll": "إقران بادوك الكل",
       "pairSeasonNote": "عند إعادة تعيين سجلات PVP، تتم أيضًا إعادة تعيين نتيجة تصنيف الموسم الزوجي.",
-      "resetPair": "الماس {{التكلفة}} وضع الإستراتيجية الزوجية الكل",
+      "resetPair": "الماس {{التكلفة}} زوج وضع الإستراتيجية الكل",
       "resetPairAll": "الماس {{التكلفة}} — إقران وضع الإستراتيجية الكل"
     },
     "pairPet": {
@@ -1813,9 +2020,78 @@
       "editStage": "تحرير المرحلة",
       "editOrder": "تحرير الطلب",
       "cancel": "إلغاء",
+      "exit": "مخرج",
       "start": "ابدء",
       "singleStage": "مرحلة واحدة",
-      "masterClass": "شخص ذو مؤهل"
+      "masterClass": "شخص ذو مؤهل",
+      "goalSection": "هدف",
+      "goalTurnCaption": "بدوره محدود",
+      "goalTurnUnit": "دور",
+      "goalMySide": "أنا",
+      "goalOpponentSide": "الخصم",
+      "goalCaptureUnit": "اختيار",
+      "goalSurvivalTurnCaption": "فترة",
+      "goalSurvivalBlockCaption": "منع الظهر",
+      "goalSurvivalPointUnit": "نقطة",
+      "turnLimit": "دورات محدودة: {{count}} دورة",
+      "autoScoringGoal": "العد التلقائي بعد {{count}} دورة",
+      "myCaptureGoal": "لقد فزت بـ {{count}}",
+      "opponentCaptureGoal": "اهزم {{count}} من المعارضين",
+      "vs": "مقابل",
+      "survivalGoal": "امنع {{target}} من النقاط خلال {{turns}} المنعطفات",
+      "territoryGoal": "يفوز جاي",
+      "modeTypeTabs": "نوع بادوك",
+      "modeGuideTitle": "كيف تلعب",
+      "modeGuide": {
+        "missile": {
+          "step1Title": "البند الصاروخي",
+          "step1Body": "في دوري، أضغط على زر عنصر الصاروخ.",
+          "step1BodyItem": "يمكنك استخدام {{count}} صواريخ في هذه المباراة. اضغط على زر الصاروخ عند دورك.",
+          "step2Title": "اختيار الحجر",
+          "step2Body": "حدد حجري للتحرك.",
+          "step3Title": "حركة خط مستقيم",
+          "step3Body": "ادفع الحجر في اتجاه المساحة الفارغة لتغيير الوضع."
+        },
+        "hidden": {
+          "step1Title": "العنصر المخفي",
+          "step1Body": "استخدم الزر المخفي للقيام بحركات غير مرئية لخصمك.",
+          "step1BodyItem": "يتيح لك {{count}} المخفي القيام بحركات غير مرئية لخصمك.",
+          "step2Title": "عنصر المسح",
+          "step2Body": "ابحث عن المناطق المشبوهة المخفية باستخدام زر المسح.",
+          "step2BodyItem": "يمكن أن تساعدك عمليات الفحص التي يبلغ عددها {{count}} في العثور على المناطق المخفية المشبوهة.",
+          "step3Title": "استخدام العناصر",
+          "step3Body": "عمليات الفحص المخفية محدودة العدد، لذا اختر توقيتك بحكمة."
+        },
+        "capture": {
+          "step1Title": "الفوز",
+          "step1Body": "ستفوز إذا حصلت أولاً على أحجار الخصم مساوية للنتيجة المستهدفة.",
+          "step2Title": "حجر النمط",
+          "step2Body": "إذا فزت بحجر نمط، فسيتم احتساب نقطتين."
+        },
+        "speed": {
+          "step1Title": "قواعد الوقت",
+          "step1Body": "إذا لم تقم بذلك خلال الوقت المحدد، سيحصل خصمك على المزيد من النقاط.",
+          "step2Title": "سعر الحساب",
+          "step2Body": "في النهاية، يتم تحديد الفائز أو الخاسر من خلال إضافة مكافآت المنزل والوقت."
+        },
+        "base": {
+          "step1Title": "دمية قاعدة",
+          "step1Body": "اقرأ الموقف من خلال النظر إلى موضع حجر الأساس.",
+          "step2Title": "عرض المكافأة",
+          "step2Body": "قرر مكافأة تقدمها لخصمك وابدأ اللعبة باللون/الحجر الذي تريده."
+        },
+        "classic": {
+          "step1Title": "بناء منزل",
+          "step1Body": "قم ببناء منازل حول المنطقة وقم بتأمين منازل أكثر من خصومك.",
+          "step2Title": "سعر الحساب",
+          "step2Body": "إذا نجح كلا الجانبين، يتم تحديد الفائز عن طريق العد."
+        },
+        "survival": {
+          "tab": "أنقذ بادوك",
+          "step1Title": "منع الظهر",
+          "step1Body": "منع الأبيض (الخصم) من تحقيق النتيجة المستهدفة لعدد محدد من الدورات."
+        }
+      }
     },
     "towerShop": {
       "closeAria": "إغلاق عملية شراء أفضل العناصر الحصرية",
@@ -1867,7 +2143,7 @@
       "diceTitle": "{{جولة}}حصيلة الجولة",
       "deathmatchStart": "تبدأ مباراة الموت",
       "viewFinal": "عرض النتيجة النهائية",
-      "waitingConfirm": "في انتظار تأكيد المنافس",
+      "waitingConfirm": "في انتظار التأكيد من الشريك",
       "dummyCapture": "{{اسم}}",
       "previousRound": "الجولة السابقة",
       "previousKnockShort": "ضربة سابقة",
@@ -1974,7 +2250,7 @@
       "withdraw": "سحب العضوية",
       "cancel": "إلغاء",
       "withdrawTitle": "سحب العضوية",
-      "withdrawLine1": "عند السحب، يتم حذف البيانات ولا يمكن استعادتها.",
+      "withdrawLine1": "يتم حذف البيانات عند السحب ولا يمكن استعادتها.",
       "withdrawLine2": "لا يمكنك إعادة التسجيل بنفس عنوان البريد الإلكتروني لمدة أسبوع واحد.",
       "withdrawPasswordConfirm": "التحقق من كلمة المرور",
       "withdrawTextConfirm": "أدخل نص التأكيد: \"سحب العضوية\"",
@@ -1988,7 +2264,7 @@
         "withdrawConfirmMismatch": "نص التأكيد غير صحيح. الرجاء إدخال \"سحب العضوية\" بدقة.",
         "usernameChangeFailed": "حدث خطأ أثناء تغيير المعرف.",
         "passwordChangeFailed": "حدث خطأ أثناء تغيير كلمة المرور الخاصة بك.",
-        "withdrawFailed": "حدث خطأ أثناء إلغاء العضوية."
+        "withdrawFailed": "حدث خطأ أثناء إلغاء عضويتك."
       },
       "alerts": {
         "usernameChanged": "لقد تغير هويتك.",
@@ -2066,12 +2342,12 @@
     },
     "playfulNotice": {
       "title": "دليل للعب بادوك",
-      "body": "لا يتم استخدام نتائج مباريات الترتيب وتصنيف الموسم في ملعب Play Baduk. مباريات التصنيف متاحة فقط في غرفة انتظار Baduk الإستراتيجية."
+      "body": "لا يتم استخدام نتائج مباريات الترتيب وتصنيف الموسم في ساحة Play Baduk. مباريات التصنيف متاحة فقط في غرفة انتظار Baduk الإستراتيجية."
     },
     "rankedUnavailable": {
       "title": "لا توجد مباريات مرتبة",
       "body": "مباريات التصنيف متاحة فقط في غرفة انتظار Baduk الإستراتيجية.",
-      "seasonRankingHint": "يمكن العثور على قائمة تصنيف الموسم في غرفة الانتظار الإستراتيجية في Baduk."
+      "seasonRankingHint": "يمكن العثور على قائمة تصنيف الموسم في غرفة انتظار Baduk الإستراتيجية."
     },
     "locationPrefix": {
       "strategic": "[إستراتيجية بادوك]",
@@ -2100,12 +2376,16 @@
       "viewProfile": "{{nickname}} عرض الملف الشخصي",
       "recordSummary": "{{فوز}}فوز{{خسائر}}خسائر({{winRate}}%)",
       "scorePoints": "{{النتيجة}} نقطة",
-      "noStats": "لا إحصاءات",
+      "noStats": "لا توجد إحصاءات",
       "noOtherPlayers": "لا يوجد لاعبين آخرين.",
       "forceLogout": "اضطر إلى المغادرة",
       "forceLogoutConfirm": "هل تريد إجبار [{{nickname}}] على قطع الاتصال؟",
       "invite": "يدعو",
-      "blockInvites": "لا توجد دعوة",
+      "challenge": "التقدم بطلب للحصول على المباراة",
+      "challengeUnavailable": "الطرف الآخر ليس في وضع يسمح له بتلقي طلبات المطابقة.",
+      "spectate": "مراقبة",
+      "spectateUnavailable": "لا أستطيع العثور على أي معلومات المباراة لمشاهدتها.",
+      "blockInvites": "لا دعوة",
       "blockInvitesTitle": "عند تشغيلها، لن يتمكن اللاعبون الآخرون من دعوتك كشريك في Fair Arena.",
       "statusInPairRoom": "لا يمكنك تغيير حالتك أثناء وجودك في غرفة زوجية.",
       "arenaBadge": "{{label}} الملعب",
@@ -2120,7 +2400,7 @@
       }
     },
     "announcement": {
-      "noneRegistered": "[لا توجد حاليًا أي إشعارات مسجلة.]",
+      "noneRegistered": "[لا توجد حاليا أي إشعارات مسجلة.]",
       "badge": "[إشعار]"
     },
     "legacyRoom": {
@@ -2278,7 +2558,7 @@
       "startMatching": "ابدأ المطابقة (حدد {{count}})",
       "selectedBadge": "مختارة",
       "roundUnit": "{{عدد}}جولة",
-      "boardSizeValue": "{{حجم}} خط",
+      "boardSizeValue": "خط {{الحجم}}.",
       "scoringTurnValue": "{{عدد}} عدد",
       "itemCountValue": "{{عدد}}",
       "slowItem": "بطيء",
@@ -2319,7 +2599,7 @@
       "baseStone": "حجر الأساس",
       "captureGoal": "التقاط الهدف",
       "turnsUnit": "{{عدد}} عدد",
-      "linesUnit": "{{حجم}} خط",
+      "linesUnit": "خط {{الحجم}}.",
       "pointsUnit": "{{النتيجة}} نقطة",
       "countUnit": "{{عدد}}",
       "halfPoint": ".5 منزل",
@@ -2469,14 +2749,14 @@
       "cannotEnhanceEffect": "لا يمكن تعزيز هذا التأثير",
       "insufficientEnhancePoints": "لا توجد نقاط تعزيز كافية",
       "confirmChangeEnhanced": "إذا قمت بتغيير التأثير المحسن، فسوف يعود إلى تأثير المستوى 1، وسيتم إرجاع نقاط التحسين المستخدمة لهذا التأثير. هل نستمر؟",
-      "regionalEffect": "تأثير محلي",
+      "regionalEffect": "التأثير المحلي",
       "regionalEffectAria": "{{title}} تأثيرات المنطقة",
       "regionalEffectModalTitle": "CH.{{فصل}} {{عنوان}} · التأثيرات المحلية",
       "slotEffectsTitle": "التأثيرات التي يمكن أن تأتي من فتحات",
       "goldRewardRangeAria": "تغطية الذهب",
       "gold": "ذهب",
       "equipmentBox": "صندوق المعدات",
-      "equipmentBoxGradeAria": "إحدى فئات صندوق المعدات {{count}}.",
+      "equipmentBoxGradeAria": "واحدة من {{count}} فئات صندوق المعدات",
       "materialBox": "صندوق المواد",
       "materialBoxGradeAria": "أحد أنواع فئة صندوق المواد {{count}}.",
       "actionPointsRecovery": "استعادة العمل",
@@ -2489,8 +2769,8 @@
       "goldRewardViewAria": "عرض نطاق المكافأة الذهبية: {{range}}",
       "equipmentRewardViewAria": "عرض نطاق تعويض المعدات: {{grade}}",
       "enhanceStoneRewardAria": "مكافأة حجر التحسين: {{line}}",
-      "goldWinRange": "النصر الذهبي (المرجع) تقريبا. {{دقيقة}}~{{حد أقصى}}",
-      "goldBoss19Range": "عندما تفوز بزعيم في السطر 19، تحصل على حوالي {{min}}~{{max}} من الذهب.",
+      "goldWinRange": "النصر الذهبي (المرجع) تقريبًا. {{دقيقة}}~{{حد أقصى}}",
+      "goldBoss19Range": "عندما تفوز بزعيم في السطر 19، تحصل على {{min}}~{{max}} تقريبًا من الذهب.",
       "equipmentGradeGrant": "درجة المعدات الصادرة: {{grade}}",
       "pickHintVip": "مكافأة VIP: اختر مساحتين بنفسك، أو اختر مساحة واحدة فقط وسيتم اختيار المساحة الأخرى بشكل عشوائي.",
       "pickHintSingle": "حدد مربعًا واحدًا لتلقيه وانقر فوق \"تم التحديد\".",
@@ -2520,7 +2800,7 @@
       "open": "افتتاح",
       "noStageInfo": "لا توجد معلومات المرحلة.",
       "levelAria": "المستوى {{المستوى}}",
-      "returningToLobby": "اذهب إلى الردهة…",
+      "returningToLobby": "اذهب إلى الردهة ...",
       "appearing": "الظهور",
       "claimed": "اكتمل الاستلام",
       "skipped": "يتخطى",
@@ -2547,14 +2827,14 @@
       "regionalExplorationEffectAria": "تأثير الاستكشاف المحلي",
       "slot1LockedRegionOpen": "الفتحة 1 مقفلة - المنطقة مفتوحة",
       "noActiveRegionalEffect": "لا توجد تأثيرات محلية سارية المفعول",
-      "regionalEffectSheetTitle": "تأثير محلي",
+      "regionalEffectSheetTitle": "التأثير المحلي",
       "explorationTier": "مستوى الاستكشاف",
       "spawnLevel": "مستوى المظهر {{مستوى}}",
       "attackApCost": "يستهلك عند مهاجمة {{cost}}",
       "availableBattles": "التطابقات المحتملة {{modes}}",
       "prevChapter": "الفصل السابق",
       "nextChapter": "الفصل التالي",
-      "chapterNavLockedAria": "قفل {{navLabel}}.",
+      "chapterNavLockedAria": "قفل {{navLabel}}",
       "goToChapterTitle": "انتقل إلى 「{{العنوان}}」",
       "time": {
         "zero": "0 ثانية",
@@ -2592,7 +2872,7 @@
         "hiddenScan": "[بادوك مخفي] عنصر المسح +{{قيمة}}{{suffix}}",
         "baseStartScore": "[قاعدة بادوك] +{{قيمة}}نقاط{{لاحقة}} في البداية",
         "classicStartScore": "[بادوك الكلاسيكية] +{{قيمة}}نقاط{{لاحقة}} في البداية",
-        "missile": "[Missile Go] عنصر الصاروخ +1 (لا يمكن تعزيزه)",
+        "missile": "[Missile Go] عنصر الصاروخ +1 (لا يمكن تحسينه)",
         "compact": {
           "gold": "الذهب +{{نسبة مئوية}}%{{suffix}}",
           "equipDrop": "الحصول على المعدات +{{percent}}%{{suffix}}",
@@ -2618,17 +2898,17 @@
       "nextClass": "الخطوات التالية",
       "stageListTitle": "مرحلة {{classLabel}}.",
       "rewardsTable": "جدول المكافأة",
-      "rewardsTableTitle": "مرحلة جدول المكافآت واضحة",
+      "rewardsTableTitle": "المرحلة واضحة جدول المكافآت",
       "rewardsTableAria": "المكافآت المتدرجة",
       "openRewardsTableAria": "مرحلة مفتوحة جدول مكافآت واضح",
       "classStageClear": "{{classLabel}} المرحلة واضحة",
       "classBarRewardClaimed": "اكتمل الاستلام",
       "classBarRewardClaim": "الحصول على مكافأة",
       "classBarRewardNeedClear": "يتطلب {{milestone}} مرحلة واضحة",
-      "classBarRewardAria": "{{الإنجاز المهم}} مكافآت النقاط",
+      "classBarRewardAria": "{{معلم}}نقطة مكافأة",
       "cleared": "اكتمل المسح",
-      "enterStage": "القبول ⚡{{التكلفة}}",
-      "enterStageTitle": "قوة الدخول/الإجراء {{التكلفة}}",
+      "enterStage": "التحدي ⚡{{التكلفة}}",
+      "enterStageTitle": "إجراء التحدي {{التكلفة}}",
       "locked": "مغلق",
       "unlockRequired": "يتطلب {{stageId}}",
       "claimAll": "تلقي بكميات كبيرة ({{count}})",
@@ -2679,7 +2959,7 @@
       "alerts": {
         "insufficientXp": "ليس لدي الخبرة الكافية.",
         "insufficientGold": "لقد نفدت من الذهب.",
-        "enhanceAfterClear": "يمكنك تقويتها بعد مسح {{stageId}}."
+        "enhanceAfterClear": "يمكنك تقويته بعد مسح {{stageId}}."
       },
       "startMessages": {
         "mission_attendance": "ذهبت إلى أكاديمية بادوك الممتعة وبدأت في تعلم البادوك.",
@@ -2795,7 +3075,7 @@
     "editProfile": "تحرير الملف الشخصي",
     "mbtiUnset": "لم يتم ضبطه",
     "mbtiTitle": "مبتي: {{القيمة}}",
-    "mbtiUnsetTitle": "MBTI: لم يتم ضبطه",
+    "mbtiUnsetTitle": "MBTI: غير محدد",
     "guildEnter": "دخول النقابة",
     "guildHome": "عرض منزل النقابة",
     "guildLeave": "اترك النقابة",
@@ -2857,7 +3137,7 @@
     "equipmentDetailTitle": "{{name}} ({{level}}) - انقر لعرض التفاصيل",
     "tabs": {
       "ranking": "تصنيف",
-      "arena": "ملعب"
+      "arena": "الملعب"
     },
     "coreStatsTotal": "مجموع 6 القدرات الأساسية",
     "adventureUnlockModal": "مغامرة إفتح مشروط",
@@ -2946,7 +3226,7 @@
       "profanityAlert": "لقبك يحتوي على كلمات غير لائقة.",
       "nicknameChangeConfirm": "هل ترغب في تغيير لقبك إلى '{{name}}' مقابل {{cost}} ألماس؟",
       "avatarListAria": "قائمة الصور الرمزية",
-      "avatarAria": "الصورة الرمزية: {{اسم}}",
+      "avatarAria": "الصورة الرمزية: {{الاسم}}",
       "avatarDefaultAria": "الصورة الرمزية",
       "avatarSelect": "اختر الصورة الرمزية الخاصة بك",
       "tierRequired": "مطلوب مستوى {{tier}} للموسم السابق",
@@ -3035,7 +3315,7 @@
         "P": {
           "name": "الإدراك (ف)",
           "general": "مرنة وقابلة للتكيف، والاستجابة بمرونة للمواقف. إنهم يقدرون الاستقلالية ومنفتحون على تجارب جديدة.",
-          "goStyle": "إنها روح ماهرة في الارتجال وتغيير العمليات بمرونة حسب الموقف. أنا أستمتع بإحساس الارتجال بدلاً من اتباع عملية محددة."
+          "goStyle": "إنها روح ماهرة في الارتجال وتغيير العمليات بمرونة وفقًا للموقف. أنا أستمتع بإحساس الارتجال بدلاً من اتباع عملية محددة."
         }
       }
     },
@@ -3051,6 +3331,8 @@
     "mannerRank": {
       "title": "معلومات مستوى الطريقة",
       "grade": "فئة الطريقة",
+      "effectsByGrade": "التأثير حسب الدرجة",
+      "currentBadge": "اليوم",
       "rangeHint": "هذه هي المزايا والعقوبات المطبقة على كل نطاق من النقاط.",
       "allStatsPlus10": "جميع القدرات +10",
       "disassembleJackpot": "احتمال الفوز بالجائزة الكبرى للتحلل +20%",
@@ -3065,7 +3347,19 @@
       "scoreAbove": "{{دقيقة}} نقطة أو أكثر",
       "scoreRange": "{{دقيقة}}~{{حد أقصى}} نقطة",
       "zeroScore": "0 نقطة",
-      "mannerPointsTitle": "{{النتيجة}}النقاط ({{رتبة}})"
+      "mannerPointsTitle": "{{النتيجة}}النقاط ({{رتبة}})",
+      "grades": {
+        "worst": "أسوأ",
+        "veryBad": "سيئة للغاية",
+        "bad": "سيء",
+        "caution": "حذر",
+        "normal": "عادة",
+        "good": "حسنًا",
+        "veryGood": "جيد جدًا",
+        "dignified": "كرامة",
+        "pro": "الموالية",
+        "master": "يتقن"
+      }
     },
     "statAllocation": {
       "resetFailAlert": "لم يتم استيفاء شروط إعادة تعيين القدرة. لقد نفد الذهب منك أو تجاوزت عدد عمليات إعادة التعيين اليومية.",
@@ -3078,7 +3372,7 @@
       "bonus": "علاوة",
       "resetBtn": "إعادة ضبط",
       "allocateTitle": "توزيع نقاط القدرة",
-      "allocateAria": "توزيع {{stat}}.",
+      "allocateAria": "{{stat}} التوزيع",
       "statLabel": "قدرة",
       "remainingShort": "الباقي",
       "allocateToStat": "التوزيع على هذه القدرة"
@@ -3131,7 +3425,7 @@
       "opponentGoStyle": "ميل الخصم بادوك",
       "strengths": "قوة",
       "weaknesses": "ضعف",
-      "setMbtiHint": "من خلال إعداد MBTI الخاص بك، يمكنك رؤية تحليل التوافق مع شريكك.",
+      "setMbtiHint": "إذا قمت بإعداد MBTI، يمكنك رؤية تحليل التوافق مع شريكك.",
       "title": "مقارنة MBTI",
       "notSetBoth": "لا يوجد لدى أي من الطرفين مجموعة MBTI.",
       "opponentNotSet": "لم يتم تعيين MBTI للطرف الآخر.",
@@ -3144,7 +3438,7 @@
       "useWeaknesses": "الاستفادة من نقاط الضعف لدى خصمك.",
       "differences": "اختلاف",
       "similarities": "أرضية مشتركة",
-      "veryGood": "مباراة جيدة جدا",
+      "veryGood": "توافق جيد جدًا",
       "good": "التوافق الجيد",
       "normal": "متوسط ​​التوافق",
       "poor": "التوافق السيئ",
@@ -3239,7 +3533,7 @@
       "diffSReal": "أنت شخص عملي، وخصمك شخص بديهي.",
       "diffNReal": "أنت بديهي، وخصمك عملي.",
       "simS": "كلاهما نفعي",
-      "simN": "كلاهما مدفوع بالحدس",
+      "simN": "كلاهما يحركهما الحدس",
       "diffTLogic": "أنت شخص منطقي، وشريكك شخص عاطفي.",
       "diffFLogic": "أنت عاطفي، وشريكك منطقي.",
       "simT": "كلاهما منطقي",
@@ -3266,7 +3560,7 @@
       "adventureHint": "يمكنك الدخول إلى المغامرة مباشرة من الشاشة الرئيسية."
     },
     "levelUp": {
-      "gained": "ارتفع مستوى {{gain}} دفعة واحدة.",
+      "gained": "ارتفع مستوى {{الكسب}} دفعة واحدة.",
       "title": "مستوى المستخدم"
     },
     "homeBoard": {
@@ -3284,7 +3578,7 @@
       "editedAt": "(تم التعديل: {{التاريخ}})"
     },
     "equipmentDetail": {
-      "inventoryUse": "يمكن استخدامها في الحقيبة.",
+      "inventoryUse": "يمكنك استخدامه في حقيبتك.",
       "noMaterialUse": "لا يتم استخدام هذه المادة حاليًا لتعزيز أي معدات.",
       "obtainedQty": "الكمية المكتسبة",
       "ownedQty": "الكمية المحتفظ بها",
@@ -3359,7 +3653,7 @@
       "hint": "يمكنك إعادة شحنه على الفور باستخدام وكيل الاسترداد أو باستخدام الماس.",
       "ownedPotions": "عامل استرداد العمل",
       "noPotions": "لا يوجد مرممون للقدرة على التحمل في حقيبتك.",
-      "ownedCount": "يملك: {{عدد}}",
+      "ownedCount": "يحمل: {{عدد}}",
       "useButton": "يستخدم",
       "diamondRecharge": "أعد شحن مهاراتك في العمل بالماس",
       "exceedMaxHint": "حتى لو تم تجاوز الحد الأقصى، يتم تحصيل الرسوم على الفور.",
@@ -3481,20 +3775,20 @@
       "remove_ads": "إزالة الإعلانات"
     },
     "packageBenefits": {
-      "diamond_daily_50_350": "50 ماسة تُدفع عن طريق البريد كل يوم (إجمالي 350 ماسة)",
-      "diamond_daily_50_750": "50 ماسة تُدفع عن طريق البريد كل يوم (إجمالي 750 ماسة)",
-      "diamond_daily_50_1500": "50 جوهرة تدفع عن طريق البريد كل يوم (إجمالي 1500 جوهرة)",
-      "diamond_instant_100": "100 الماسة تدفع على الفور",
-      "diamond_instant_250": "دفعة فورية بقيمة 250 جوهرة",
-      "diamond_instant_750": "دفعة فورية بقيمة 750 جوهرة",
-      "equip_pkg1_boxes": "1 صندوق المعدات V",
-      "equip_pkg1_mat": "1 صندوق مواد السادس",
+      "diamond_daily_50_350": "100 جوهرة تدفع عن طريق البريد كل يوم (إجمالي 700 جوهرة)",
+      "diamond_daily_50_750": "100 جوهرة تدفع عن طريق البريد كل يوم (إجمالي 1500 جوهرة)",
+      "diamond_daily_50_1500": "100 جوهرة تدفع عن طريق البريد كل يوم (إجمالي 3000 جوهرة)",
+      "diamond_instant_100": "دفعة فورية بقيمة 200 جوهرة",
+      "diamond_instant_250": "دفعة فورية بقيمة 500 جوهرة",
+      "diamond_instant_750": "دفعت على الفور 1000 الماس",
+      "equip_pkg1_boxes": "3 صناديق المعدات V",
+      "equip_pkg1_mat": "3 صندوق مواد VIS",
       "equip_pkg1_bonus": "+ تأكيد الدفع لـ \"Epic Equipment\".",
-      "equip_pkg2_boxes": "2 صناديق المعدات V",
-      "equip_pkg2_mat": "2 صندوق مواد VIS",
+      "equip_pkg2_boxes": "5 صناديق المعدات",
+      "equip_pkg2_mat": "5 مواد مربع السادس",
       "equip_pkg2_bonus": "+ الدفع المضمون لـ \"المعدات الأسطورية\".",
       "equip_pkg3_boxes": "2 صندوق المعدات السادس",
-      "equip_pkg3_mat": "5 مواد مربع السادس",
+      "equip_pkg3_mat": "10 صندوق مواد VIS",
       "equip_pkg3_bonus": "+ تأكيد الدفع لـ \"المعدات الأسطورية\".",
       "remove_ads_1": "إخفاء اللافتات داخل اللعبة وإعلانات الصفحة الكاملة مثل الردهة والتوفيق بين اللاعبين",
       "remove_ads_2": "احصل على نفس المكافآت بدون إعلانات المتجر بمكافأة (مع الحفاظ على الحد اليومي)"
@@ -3502,7 +3796,7 @@
     "items": {
       "equipment_box_1": {
         "name": "صندوق المعدات I",
-        "description": "احصل على معدات من الدرجة النادرة"
+        "description": "احصل على معدات ذات درجة مشتركة ونادرة"
       },
       "equipment_box_2": {
         "name": "صندوق المعدات II",
@@ -3718,7 +4012,7 @@
     "refinementAvailable": "يمكن صهرها",
     "refinementUnavailable": "لا يمكن صهرها",
     "refinementCount": "{{عدد}} مرة",
-    "enhanceLevel": "أرقام التعزيز",
+    "enhanceLevel": "أرقام معززة",
     "noOptions": "لا توجد خيارات",
     "noGear": "لا توجد معدات",
     "bound": "الانتماء",
@@ -3749,7 +4043,7 @@
     },
     "bindModal": {
       "line1": "المعدات مقيدة ولا يمكن بيعها في البورصة.",
-      "line2": "من أجل البيع في البورصة، يجب عليك استخدام الحق في الإفراج عن الإسناد.",
+      "line2": "من أجل البيع في البورصة، يجب عليك استخدام حق إلغاء الربط.",
       "unbindDesc": "إذا قمت بفتح المعدات، يصبح من الممكن بيعها في البورصة."
     },
     "presetSavedTitle": "حفظ الإعداد المسبق",
@@ -3793,7 +4087,7 @@
       "consumable": "المستهلكة",
       "material": "المكون",
       "noMaterialUse": "لا يتم استخدام هذه المادة حاليًا لتعزيز أي معدات.",
-      "inventoryUse": "يمكن استخدامها في الحقيبة.",
+      "inventoryUse": "يمكنك استخدامه في حقيبتك.",
       "characterGrowth": "يتم استخدامه لنمو الشخصية وتقويتها وصقلها وما إلى ذلك.",
       "selectQuantity": "حدد الكمية",
       "productDetailAria": "شراء تفاصيل المنتج",
@@ -3985,7 +4279,7 @@
       "mainEnhanceStepAria": "مرحلة تعزيز العملية الرئيسية",
       "starsBase": "أساسي",
       "starsPlus": "+{{نجوم}}نهر",
-      "specialOptionRandom": "خيارات خاصة (قطع {{count}} عشوائية)",
+      "specialOptionRandom": "خيارات خاصة ({{count}} قطعة عشوائية)",
       "capturePoints": "اختر النقاط",
       "orJoin": "أو",
       "hatchDisposition": "الميل إلى الفقس",
@@ -4012,6 +4306,17 @@
       "noTier": "لا الطبقة"
     },
     "tierInfo": {
+      "names": {
+        "champion": "منافس",
+        "master": "يتقن",
+        "diamond": "الماس",
+        "platinum": "البلاتين",
+        "gold": "ذهب",
+        "silver": "فضي",
+        "bronze": "برونزية",
+        "iron": "مبتدئ",
+        "unranked": "برعم"
+      },
       "champion": "الحد الأدنى من الدرجات 3500 أو أعلى ويقتصر على أفضل 100 شخص",
       "master": "الحد الأدنى من الدرجة 3000 أو أعلى",
       "diamond": "الحد الأدنى للدرجة 2400 أو أعلى",
@@ -4050,6 +4355,554 @@
       "stayLine": "المتبقية: {{نطاقات}}",
       "demoteLine": "الهبوط: {{نطاقات}}",
       "rankHintShort": "يعتمد المستوى على منافسة التصنيف (راجع جدول المكافآت أدناه لمعرفة شروط الترقية والاحتفاظ وخفض الرتبة)"
+    },
+    "items": {
+      "box_diabox1": {
+        "name": "الحزمة الماسية I",
+        "description": "احصل على 1 إلى 20 ماسة"
+      },
+      "box_diabox2": {
+        "name": "الحزمة الماسية الثانية",
+        "description": "احصل على 10 إلى 30 ماسة"
+      },
+      "box_diabox3": {
+        "name": "الحزمة الماسية III",
+        "description": "احصل على 20 إلى 50 ماسة"
+      },
+      "box_diabox4": {
+        "name": "الحزمة الماسية IV",
+        "description": "احصل على 30 إلى 100 ماسة"
+      },
+      "box_goldbox1": {
+        "name": "الحزمة الذهبية I",
+        "description": "اربح من 10 إلى 500 قطعة ذهبية"
+      },
+      "box_goldbox2": {
+        "name": "الحزمة الذهبية الثانية",
+        "description": "احصل على 100 إلى 1000 قطعة ذهبية"
+      },
+      "box_goldbox3": {
+        "name": "الحزمة الذهبية III",
+        "description": "اربح من 500 إلى 3000 قطعة ذهبية"
+      },
+      "box_goldbox4": {
+        "name": "الحزمة الذهبية IV",
+        "description": "احصل على 1000 إلى 10000 قطعة ذهبية"
+      },
+      "btn_addturn": {
+        "name": "أضف بدوره",
+        "description": "هذا عنصر دوران إضافي يمكن استخدامه في برج التحدي."
+      },
+      "btn_hidden": {
+        "name": "مختفي",
+        "description": "هذا عنصر مخفي يمكن استخدامه في برج التحدي."
+      },
+      "btn_missile": {
+        "name": "صاروخ",
+        "description": "هذا عنصر صاروخي يمكن استخدامه في برج التحدي."
+      },
+      "btn_reflesh": {
+        "name": "تغيير التخطيط",
+        "description": "هذا عنصر تغيير الموضع الذي يمكن استخدامه في برج التحدي."
+      },
+      "btn_scan": {
+        "name": "مسح",
+        "description": "هذا هو عنصر المسح الذي يمكن استخدامه في برج التحدي."
+      },
+      "eq_board1": {
+        "name": "تنبت رقعة الشطرنج",
+        "description": "هذه رقعة شطرنج من خشب الباولونيا خفيفة الوزن وهي رائعة للمبتدئين في الاستخدام."
+      },
+      "eq_board2": {
+        "name": "رقعة الشطرنج القيقب",
+        "description": "إنها رقعة شطرنج عالية الجودة مصنوعة من أشجار جوزة الطيب مع الحبوب الجميلة."
+      },
+      "eq_board3": {
+        "name": "رقعة الشطرنج المرجانية",
+        "description": "إنها مصنوعة من الخشب الصوفي عالي الجودة، لذا فإن صوت الحجارة التي يتم وضعها نقي."
+      },
+      "eq_board4": {
+        "name": "رقعة الشطرنج الأبنوس",
+        "description": "إنها رقعة شطرنج من الصخور البركانية مصقولة بشغف كبير."
+      },
+      "eq_board5": {
+        "name": "رقعة الشطرنج يونغ مون",
+        "description": "هذه رقعة شطرنج أسطورية مصنوعة من خشب الصنوبر جيومجانج والتي كانت موجودة منذ ألف عام."
+      },
+      "eq_board7": {
+        "name": "رقعة الشطرنج شينريونج",
+        "description": "إنها رقعة شطرنج للتعالي منقوشة عليها مسارات الأبراج، مما يفتح الطريق نحو النصر مع كل حركة."
+      },
+      "eq_bottom1": {
+        "name": "قيعان موحدة ملونة الربيع",
+        "description": "بنطال التدريب هذا مريح للحركة."
+      },
+      "eq_bottom2": {
+        "name": "قيعان موحدة ملونة الصيف",
+        "description": "هذه السراويل مصنوعة من مادة متينة لا تبلى بسهولة."
+      },
+      "eq_bottom3": {
+        "name": "قيعان موحدة الخريف الملونة",
+        "description": "هذه سراويل حريرية عالية الجودة مقترنة بشعار النبالة."
+      },
+      "eq_bottom4": {
+        "name": "قيعان موحدة ملونة في فصل الشتاء",
+        "description": "هذه هي سراويل المبارز التي لا تتعارض مع أي حركة."
+      },
+      "eq_bottom5": {
+        "name": "يونغبي دوبوك قيعان",
+        "description": "إنه مصنوع من الحرير عالي الجودة الذي يتناسب بشكل جيد مع رداء التنين."
+      },
+      "eq_bottom7": {
+        "name": "قيعان شينريونج دوبوك",
+        "description": "هذه هي السراويل المتسامية المشبعة بإرادة التنين الإلهي التي تمنعك من فقدان توازنك حتى في العاصفة."
+      },
+      "eq_fan1": {
+        "name": "مروحة الرياح الزرقاء",
+        "description": "هذه مروحة من الخيزران خفيفة الوزن وعملية."
+      },
+      "eq_fan2": {
+        "name": "مروحة الرياح اونجيول",
+        "description": "إنه مصنوع من الحرير الناعم ويشعر بالارتياح في اليد."
+      },
+      "eq_fan3": {
+        "name": "مروحة الرياح اللهب",
+        "description": "هذه هي المروحة الرئيسية التي تنتشر برشاقة مثل أجنحة الرافعة."
+      },
+      "eq_fan4": {
+        "name": "مروحة رياح الصقيع",
+        "description": "وهي مصنوعة من الفولاذ الثقيل ويمكن استخدامها كسلاح في حالات الطوارئ."
+      },
+      "eq_fan5": {
+        "name": "يونغبي مروحة الرياح",
+        "description": "مروحة أسطورية مصنوعة من مائة ريشة بيضاء."
+      },
+      "eq_fan7": {
+        "name": "مروحة الرياح شينريونج",
+        "description": "إنها مروحة التعالي التي تحتوي على أنفاس التنين الإلهي الذي يقسم السماء ويقلب مجرى ساحة المعركة."
+      },
+      "eq_stone1": {
+        "name": "حجر تنبت أبيض وأسود",
+        "description": "هذه أحجار بادوك بلاستيكية خفيفة الوزن وغير مكلفة."
+      },
+      "eq_stone2": {
+        "name": "حجر فضي",
+        "description": "إنه حجر Go مصنوع من الحصى الملساء الملتقطة من ضفة النهر."
+      },
+      "eq_stone3": {
+        "name": "حجر روبي",
+        "description": "إنه منحوت بشكل متقن من حجر السج الذي ينبعث منه توهج بارد."
+      },
+      "eq_stone4": {
+        "name": "حجر اليشم الأبيض بادوك",
+        "description": "وهو حجر بادوك مصنوع من الياقوت واليشم الأبيض الذي ينبعث منه ضوء ساطع."
+      },
+      "eq_stone5": {
+        "name": "حجر يونغان بادوك",
+        "description": "إنه حجر بادوك أسطوري مصنوع من طاقة الشمس والقمر والنجوم."
+      },
+      "eq_stone7": {
+        "name": "شينريونج بادوك ستون",
+        "description": "تم تصنيعه عن طريق تزوير أجزاء من Morning Star، وهو عبارة عن حجر Go متعالٍ يهيمن على اللعبة بحركة واحدة."
+      },
+      "eq_stonebox1": {
+        "name": "برميل خشبي خفيف",
+        "description": "إنه صندوق بلاستيكي خفيف الوزن وغير مكلف."
+      },
+      "eq_stonebox2": {
+        "name": "برميل الخيزران الصلب",
+        "description": "هذا صندوق Go مصنوع من خشب العناب برائحة باهتة."
+      },
+      "eq_stonebox3": {
+        "name": "هونغموك بادوكتونج",
+        "description": "مصنوع من خشب الورد، ذو اللون الأحمر الجميل."
+      },
+      "eq_stonebox4": {
+        "name": "الأبنوس الذهاب مربع",
+        "description": "هذا صندوق بادوك نادر مصنوع من الخشب الغريب بأنماط غريبة وجميلة."
+      },
+      "eq_stonebox5": {
+        "name": "يونجرين بادوكتونج",
+        "description": "هذا صندوق خشبي عالي الجودة من خشب الورد مع تنين منحوت بدقة."
+      },
+      "eq_stonebox7": {
+        "name": "شينريونج بادوكتونج",
+        "description": "إنه صندوق Go المتسامي الذي يحبس طاقة ساحة المعركة القديمة ويضيف إلى تخويف كل حجر يتم إخراجه."
+      },
+      "eq_top1": {
+        "name": "قمة موحدة بلون الربيع",
+        "description": "هذه السترة مريحة ورائعة للتركيز على تدريبك."
+      },
+      "eq_top2": {
+        "name": "أعلى موحدة اللون الصيف",
+        "description": "إنها أداة قوية لا تبلى حتى بعد التدريب الطويل."
+      },
+      "eq_top3": {
+        "name": "قمة موحدة اللون الخريف",
+        "description": "هذا شعار النبالة الخاص بالباحث بأناقة هادئة."
+      },
+      "eq_top4": {
+        "name": "قمة موحدة ملونة في فصل الشتاء",
+        "description": "هذا هو زي المبارز المصمم للقتال العنيف."
+      },
+      "eq_top5": {
+        "name": "يونغبي دوبوك توب",
+        "description": "وهو مطرز بنمط التنين الذي يرمز إلى جلالة الإمبراطور."
+      },
+      "eq_top7": {
+        "name": "قمة Shinryong الموحدة",
+        "description": "هذه قمة موحدة متسامية منسوجة بلون حراشف التنين الإلهي، مما يمنح تركيزًا لا يتزعزع."
+      },
+      "mat_materials1": {
+        "name": "حجر سحر أصغر",
+        "description": "المواد الأساسية المستخدمة لتعزيز المعدات."
+      },
+      "mat_materials2": {
+        "name": "حجر التسليح المتوسط",
+        "description": "مادة عالية الجودة تستخدم لتقوية المعدات."
+      },
+      "mat_materials3": {
+        "name": "حجر السحر المتقدم",
+        "description": "مواد عالية الجودة تستخدم لتقوية المعدات."
+      },
+      "mat_materials4": {
+        "name": "حجر التسليح من الدرجة الأولى",
+        "description": "مادة نادرة تستخدم لتقوية المعدات."
+      },
+      "mat_materials5": {
+        "name": "حجر التعزيز الغامض",
+        "description": "مادة قديمة تستخدم لتقوية المعدات."
+      },
+      "pet_egg": {
+        "name": "البيضة الغامضة",
+        "description": "احصل على حيوان أليف عشوائي يعمل بالذكاء الاصطناعي عند استخدامه في المفرخ."
+      },
+      "pet_soulstone1": {
+        "name": "تنبت حجر الروح",
+        "description": "هذه مادة مطلوبة لترقية حيوان أليف من الدرجة العادية إلى درجة متقدمة. يمكن استخدامها من مستوى الحيوانات الأليفة 10 أو أعلى."
+      },
+      "pet_soulstone2": {
+        "name": "موجة الروح الحجر",
+        "description": "هذه المادة ضرورية لرفع مستوى الحيوانات الأليفة من الدرجة الممتازة إلى الدرجة النادرة. يمكن استخدامها من مستوى الحيوانات الأليفة 20 أو أعلى."
+      },
+      "pet_soulstone3": {
+        "name": "الهاوية حجر الروح",
+        "description": "هذه المادة ضرورية لرفع مستوى حيوان أليف نادر إلى مستوى أسطوري. يمكن استخدامها من مستوى الحيوانات الأليفة 30 أو أعلى."
+      },
+      "pet_soulstone4": {
+        "name": "حجر روح اللهب",
+        "description": "هذه مادة مطلوبة لترقية حيوان أليف من الدرجة الملحمية إلى الدرجة الأسطورية. يمكن استخدامها من مستوى الحيوان الأليف 40 أو أعلى."
+      },
+      "pet_soulstone5": {
+        "name": "حجر الروح السماوي الخفيف",
+        "description": "هذه المادة ضرورية لترقية حيوان أليف من الدرجة الأسطورية إلى الدرجة الأسطورية. يمكن استخدامه عند مستوى الحيوانات الأليفة Lv.50."
+      },
+      "shop_action_point_10": {
+        "name": "جرعة استعادة العمل (+10)",
+        "description": "أشعر بالدافع لفعل شيء ما."
+      },
+      "shop_action_point_20": {
+        "name": "جرعة استعادة العمل (+20)",
+        "description": "أشعر أنني يجب أن أفعل شيئا."
+      },
+      "shop_action_point_30": {
+        "name": "جرعة استعادة العمل (+30)",
+        "description": "دعنا نذهب للعب اللعبة على الفور."
+      },
+      "shop_condition_potion_large": {
+        "name": "عامل استعادة الحالة (كبير)",
+        "description": "عامل استعادة الحالة الذي سيساعدك على المنافسة بنجاح اليوم."
+      },
+      "shop_condition_potion_medium": {
+        "name": "عامل استعادة الحالة (متوسط)",
+        "description": "عامل استعادة الحالة الذي يجعل رأسك يشعر بالوضوح."
+      },
+      "shop_condition_potion_small": {
+        "name": "عامل استعادة الحالة (صغير)",
+        "description": "عامل استعادة الحالة الذي يخفف التوتر"
+      },
+      "shop_equipment_box_1": {
+        "name": "صندوق المعدات I",
+        "description": "احصل على معدات ذات درجة مشتركة ونادرة"
+      },
+      "shop_equipment_box_2": {
+        "name": "صندوق المعدات II",
+        "description": "احصل على معدات من المستوى العادي إلى الملحمي"
+      },
+      "shop_equipment_box_3": {
+        "name": "صندوق المعدات III",
+        "description": "احصل على معدات متقدمة إلى الدرجة الأسطورية"
+      },
+      "shop_equipment_box_4": {
+        "name": "صندوق المعدات الرابع",
+        "description": "احصل على معدات نادرة إلى أسطورية"
+      },
+      "shop_equipment_box_5": {
+        "name": "صندوق المعدات V",
+        "description": "احصل على معدات ملحمية إلى درجة أسطورية"
+      },
+      "shop_equipment_box_6": {
+        "name": "صندوق المعدات السادس",
+        "description": "احصل على معدات أسطورية إلى أسطورية"
+      },
+      "shop_equipment_unbind_ticket": {
+        "name": "الحق في إلغاء الإسناد",
+        "description": "تغيير حالة المعدات المقيدة إلى قابلة للتداول."
+      },
+      "shop_material_box_1": {
+        "name": "صندوق المواد I",
+        "description": "احصل على 5 أحجار تعزيز منخفضة إلى عالية"
+      },
+      "shop_material_box_2": {
+        "name": "صندوق المواد II",
+        "description": "احصل على 5 أحجار تعزيز منخفضة إلى عالية"
+      },
+      "shop_material_box_3": {
+        "name": "صندوق المواد III",
+        "description": "احصل على 5 أحجار تعزيز منخفضة إلى عالية"
+      },
+      "shop_material_box_4": {
+        "name": "صندوق المواد الرابع",
+        "description": "احصل على 5 أحجار تعزيز من المستوى المتوسط ​​إلى الأعلى"
+      },
+      "shop_material_box_5": {
+        "name": "صندوق المواد V",
+        "description": "متقدم ~ احصل على 5 أحجار تعزيز غامضة"
+      },
+      "shop_material_box_6": {
+        "name": "صندوق المواد السادس",
+        "description": "متقدم ~ احصل على 5 أحجار تعزيز غامضة"
+      },
+      "shop_mythic_option_change_ticket": {
+        "name": "تذكرة تغيير الخيار الخاص",
+        "description": "يتيح لك هذا العنصر تغيير الخيارات الخاصة للمعدات الأسطورية أو المتعالية إلى خيارات خاصة أخرى."
+      },
+      "shop_option_type_change_ticket": {
+        "name": "الحق في تغيير نوع الخيار",
+        "description": "يتيح لك هذا العنصر تغيير أحد الخيارات الرئيسية أو الخيارات الفرعية أو الخيارات الخاصة للمعدات إلى نوع مختلف من الخيارات."
+      },
+      "shop_option_value_change_ticket": {
+        "name": "تذكرة تغيير قيمة الخيار",
+        "description": "هذا هو العنصر الذي يمكنه تغيير قيمة أحد الخيارات الفرعية أو الخيارات الخاصة للمعدات."
+      },
+      "shop_refinement_charm": {
+        "name": "تميمة الصهر",
+        "description": "أضف عدد تكرير إضافي واحد للمعدات التي لا يمكن صهرها"
+      },
+      "use_allowtrade": {
+        "name": "حقوق تسجيل التداول",
+        "description": "هذا إذن لتسجيل العناصر المعروضة للبيع في البورصة بشكل إضافي."
+      }
+    },
+    "stats": {
+      "mythic": {
+        "GuildBossRewardGradeUp": {
+          "name": "مكافأة معركة زعيم النقابة تصل",
+          "abbrev": "درجة مكافأة الزعيم",
+          "short": "درجة مكافأة زعيم النقابة +1",
+          "description": "يزداد مستوى المكافأة بمستوى واحد من نتائج معركة زعيم النقابة. (الحد الأقصى لـ SSS) هذا هو الخيار الخاص الأسطوري رقم 1 ويمكن تطبيقه في نفس الوقت مع التفوق رقم 1 \"تمت إضافة مكافأة الزعيم\"."
+        },
+        "GuildBossExtraDamage5": {
+          "name": "الضرر الإضافي أثناء معارك زعماء النقابة: 5%",
+          "abbrev": "ضرر الزعيم5%",
+          "short": "ضرر زعيم النقابة +5%",
+          "description": "عند مهاجمة زعيم النقابة، يتم تطبيق ضرر نهائي إضافي بنسبة 5٪. (لا يمكن أن يتداخل مع خيار التعالي الخاص)"
+        },
+        "TowerApMinus1Floors1to35": {
+          "name": "برج التحدي (من الطابق الأول إلى الطابق 35) الإجراء المطلوب -1",
+          "abbrev": "أعلى نقطة الوصول (1~35)",
+          "short": "البرج 1~الطابق 35 AP -1",
+          "description": "تم تقليل الإجراء المطلوب لدخول الطوابق من الأول إلى الطابق 35 من برج التحدي بمقدار 1. (لا يمكن تداخله مع خيار التعالي الخاص)"
+        },
+        "ApRegenMinus30s": {
+          "name": "وقت استرداد العمل -30 ثانية",
+          "abbrev": "استرداد AP -30 ثانية",
+          "short": "استعادة العمل -30 ثانية",
+          "description": "يتم تقليل الوقت المستغرق لاستعادة نقطة عمل واحدة بمقدار 30 ثانية. (لا يمكن أن يتداخل مع خيار التعالي الخاص)"
+        },
+        "AdventureScanPlus1": {
+          "name": "مغامرة المسح +1",
+          "abbrev": "مغامرة المسح+1",
+          "short": "مغامرة المسح +1",
+          "description": "في بداية المغامرة (معركة الوحوش)، سوف تتلقى عنصر مسح إضافيًا واحدًا. (لا يمكن أن يتداخل مع خيار التعالي الخاص)"
+        },
+        "AdventureMissilePlus1": {
+          "name": "مغامرة الصاروخ +1",
+          "abbrev": "مغامرة الصاروخ+1",
+          "short": "مغامرة الصاروخ +1",
+          "description": "يتم توفير عنصر صاروخي إضافي في بداية المغامرة. (لا يمكن أن يتداخل مع خيار التعالي الخاص)"
+        },
+        "AdventureGoldBonus15": {
+          "name": "جوائز المغامرة الذهبية +15%",
+          "abbrev": "المغامرة الذهبية 15%",
+          "short": "المغامرة الذهبية +15%",
+          "description": "يزداد الذهب المكتسب عند الفوز بمغامرة بنسبة 15%. (مدمج بشكل منفصل مع الموسوعة ومكافأة الفهم) (لا يمكن أن يتداخل مع خيار التعالي الخاص)"
+        },
+        "GuildBossExtraRewardDuplicate": {
+          "name": "تمت إضافة مكافأة معركة زعيم النقابة",
+          "abbrev": "تمت إضافة مكافأة الزعيم",
+          "short": "نوع واحد من نسخة مكافأة رئيس النقابة (تراكمية)",
+          "description": "سوف تحصل على إحدى المكافآت نتيجة لمعركة زعيم النقابة مرة أخرى. إذا كان هذا الخيار يحتوي على خطوط متعددة (قطع متعددة من المعدات) على المعدات المتعالية، فسيتم تطبيقه بشكل متكرر. يمكن تطبيقه مع خيارات خاصة أخرى. هذا هو خيار التعالي الخاص رقم 1، ويمكن تطبيقه بالتزامن مع الأسطورة رقم 1 \"درجة مكافأة الزعيم\"."
+        },
+        "GuildBossExtraDamage10": {
+          "name": "ضرر إضافي بنسبة 10% في معارك زعماء النقابة",
+          "abbrev": "ضرر الزعيم 10%",
+          "short": "ضرر زعيم النقابة +10%",
+          "description": "عند مهاجمة زعيم النقابة، يتم تطبيق ضرر نهائي إضافي بنسبة 10%. (لا يمكن أن يتداخل مع الخيار الخاص الأسطوري)"
+        },
+        "TowerApMinus1AllFloors": {
+          "name": "برج التحدي الإجراء المطلوب -1",
+          "abbrev": "أعلى AP جميع الطوابق",
+          "short": "نقطة الوصول لجميع طوابق البرج -1",
+          "description": "تم تقليل الإجراء المطلوب للدخول إلى الطابق العلوي لجميع التحديات بمقدار 1. (لا يمكن أن يتداخل مع خيار الأسطورة الخاص)"
+        },
+        "ApRegenMinus60s": {
+          "name": "وقت استرداد العمل -60 ثانية",
+          "abbrev": "استرداد AP -60 ثانية",
+          "short": "استعادة العمل -60 ثانية",
+          "description": "تم تقليل الوقت المستغرق لاستعادة نقطة عمل واحدة بمقدار 60 ثانية. (لا يمكن أن يتداخل مع الخيار الخاص الأسطوري)"
+        },
+        "AdventureScanTranscendent": {
+          "name": "مغامرة المسح +1",
+          "abbrev": "مغامرة المسح+1",
+          "short": "مسح المغامرة +2 (التعالي)",
+          "description": "سيتم توفير عنصري مسح إضافيين في المغامرة (معركة الوحوش). (لا يمكن أن يتداخل مع الخيار الخاص الأسطوري)"
+        },
+        "AdventureMissilePlus2": {
+          "name": "مغامرة الصاروخ +2",
+          "abbrev": "مغامرة الصاروخ+2",
+          "short": "مغامرة الصاروخ +2",
+          "description": "سيتم توفير عنصرين صاروخيين إضافيين في بداية المغامرة. (لا يمكن أن يتداخل مع الخيار الخاص الأسطوري)"
+        },
+        "AdventureGoldBonus20": {
+          "name": "جائزة المغامرة الذهبية +20%",
+          "abbrev": "المغامرة الذهبية 20%",
+          "short": "المغامرة الذهبية +20%",
+          "description": "يزداد الذهب المكتسب عند الفوز بمغامرة بنسبة 20%. (لا يمكن أن يتداخل مع الخيار الخاص الأسطوري)"
+        }
+      }
+    },
+    "optionValueLine": "{{stat}} +{{قيمة}}{{suffix}}",
+    "optionRange": "[{{لو}}~{{مرحبا}}{{لاحقة}}]",
+    "optionEnhancement": "({{عدد}}التحسين)",
+    "meta": {
+      "description": {
+        "gold": "إنها العملة التمثيلية المستخدمة في جميع أنحاء عالم Baduk.",
+        "diamond": "إنها سلعة متميزة تستخدم في عمليات الشراء الخاصة والتوسعات وما إلى ذلك."
+      },
+      "usage": {
+        "goldSpend": "يتم استخدامه في أماكن استهلاك الذهب مثل المتاجر والتسليح/الصياغة ورسوم الدخول.",
+        "diamondSpend": "تستخدم في محلات الماس، وتوسيع فتحة الحقيبة، وما إلى ذلك.",
+        "unbindTicket": "[الحقيبة]-[حدد المعدات]-[فك الارتباط]",
+        "refinementCharm": "[الحداد]-[تكرير المعدات] حدد المعدات التي لا يمكن صهرها",
+        "refinementTicket": {
+          "optionType": "[الحداد - تكرير المعدات] تغيير نوع الخيار",
+          "optionValue": "[الحداد - تكرير المعدات] تغيير قيمة الخيار",
+          "specialOption": "[الحداد - تكرير المعدات] تغيير الخيار الخاص",
+          "mythicOption": "[الحداد - تكرير المعدات] تغيير الخيار الأسطوري",
+          "generic": "[الحداد - تكرير المعدات] تغيير الخيار"
+        },
+        "conditionPotion": "[البطولة] تعافي الحالة {{lo}}~{{hi}} قبل بدء المباراة",
+        "actionPointInstant": "[الاستخدام الفوري] استرداد الإجراء +{{المبلغ}}",
+        "actionPointInstantGeneric": "[الاستخدام الفوري] استعادة القدرة على العمل",
+        "openBoxInBag": "إذا استخدمته من حقيبتك، سوف تحصل على مكافأة.",
+        "equipmentBoxOpen": "يمكنك الحصول على المعدات باستخدام الصندوق الموجود في حقيبتك.",
+        "enhancementMaterial": {
+          "single": "[{{gradeLabel}}] المعدات: {{rangeLabel}}",
+          "range": "[{{gradeLabel}}] المعدات: {{rangeLabel}}"
+        },
+        "pet": {
+          "soulGradeUpgrade": "[تحسين درجة الحيوانات الأليفة] {{fromGrade}}→{{toGrade}} (المستوى المفضل {{minLevel}} أو أعلى)",
+          "soulGradeUpgradeGeneric": "[تحسين درجة الحيوانات الأليفة] يُستخدم لزيادة تصنيف الحيوانات الأليفة التي تعمل بالذكاء الاصطناعي في ساحة المعارض.",
+          "eggHatchRandom": "[الحيوان الأليف · المفرخ] ضعه في فتحة وتفقس في نوع عشوائي من الحيوانات الأليفة التي تعمل بالذكاء الاصطناعي.",
+          "welcomeEggHatch": "[الحيوان الأليف · المفرخ] تم وضعه في الفتحة — وقت الفقس دقيقة واحدة، الحيوانات الأليفة ذات الذكاء الاصطناعي من المستوى 5 عند الفقس"
+        }
+      },
+      "enhanceRange": {
+        "single": "{{نجوم}}تعزيز",
+        "range": "{{minStars}}~{{maxStars}}تحسين"
+      },
+      "acquire": {
+        "gold": {
+          "line1": "[اللعبة/المحتوى] مباراة Baduk، اللعب الفردي، الزنزانة/الدوري، إلخ.",
+          "line2": "[مهمة/مغامرة] مهام يومية/أسبوعية/شهرية، وصناديق الكنوز، وفتحات VIP",
+          "line3": "[معاملة/تفكيك] تسوية مبيعات الصرف، وتفكيك المعدات، والبيع في بعض المتاجر"
+        },
+        "diamond": {
+          "line1": "[المتجر] علامة تبويب الحزمة الماسية/المواد الاستهلاكية/المواد",
+          "line2": "[الدفع/الحدث] الشحن والتشغيل/البريد الترويجي",
+          "line3": "[الوظيفة] بعض الميزات المتميزة مثل توسيع فتحة الحقيبة"
+        },
+        "tower": {
+          "line1": "[برج التحدي] الشراء من متجر العناصر (الذهب) الموجود في معلومات اللعبة",
+          "line2": "[برج التحدي] يتم الحصول عليه من خلال بعض القنوات، مثل مكافآت الدخول/المسح ومكافآت VIP."
+        },
+        "actionPoint": {
+          "line1": "[المتجر] متجر الذهب — جرعة استعادة القدرة على التحمل (+10/+20/+30)، الحد اليومي/سعر المستوى",
+          "line2": "[البريد · الحدث] دفع التعويضات التشغيلية/الترقية",
+          "line3": "[وظيفة VIP] عند التنشيط، ستتلقى Stamina Restoration III عبر البريد كل يوم."
+        },
+        "condition": {
+          "line1": "[المتجر] متجر الماس (المواد الاستهلاكية) أو الحزم ذات الصلة",
+          "line2": "[المهمة/الحدث] مكافآت جزئية"
+        },
+        "guildEquipBox": {
+          "line1": "[متجر النقابة] لا يمكن شراؤه إلا بعملات النقابة",
+          "line2": "[المتجر/المهمة] احصل على المعدات باستخدامها في الحقيبة، على غرار صندوق المعدات العادي."
+        },
+        "equipBox": {
+          "line1": "[المتجر] متجر الذهب (علامة تبويب المعدات)، مكافآت إعلانية، بعض الحزم النقدية",
+          "line2": "[Quest/VIP] المهام اليومية والأسبوعية والشهرية، ومكافأة فتحات VIP، وما إلى ذلك.",
+          "line3": "[مغامرة/نقابة] صندوق الكنز، ومكافآت نتيجة معركة زعيم النقابة، وما إلى ذلك."
+        },
+        "materialBox": {
+          "line1": "[المتجر] متجر الذهب/الماس (علامة تبويب المواد)، مكافآت إعلانية، بعض الحزم",
+          "line2": "[Quest/VIP] المهام اليومية والأسبوعية والشهرية، ومكافأة فتحات VIP، وما إلى ذلك."
+        },
+        "goldBundle": {
+          "line1": "[المتجر] متجر الماس (المواد الاستهلاكية)، مكافآت الإعلانات",
+          "line2": "[مهمة/مغامرة] مكافآت/صناديق كنز متنوعة"
+        },
+        "diamondBundle": {
+          "line1": "[المتجر] متجر الماس (المواد الاستهلاكية)، مكافآت الإعلانات",
+          "line2": "[المهمة/الحدث] مكافآت جزئية"
+        },
+        "bonusStat": {
+          "line1": "[متجر النقابة] الشراء بعملات النقابة (حد الحساب)",
+          "line2": "[النمو] الدفع الجزئي عند زيادة مستوى الإستراتيجية/اللعب"
+        },
+        "enhancementStone": {
+          "line1": "[متجر النقابة] يمكن استبدال أحجار التعزيز الغامضة ذات المستوى المنخفض بعملات النقابة",
+          "line2": "[صندوق المواد] صناديق المواد التي تم الحصول عليها من المتاجر، والمهام، وكبار الشخصيات، وما إلى ذلك.",
+          "line3": "[الحداد] تركيب/تفكيك المواد، تكلفة تعزيز المعدات",
+          "line4": "[مغامرة، رتبة، نقابة] مكافآت مقابل النصر، البرج، معركة الزعماء، إلخ."
+        },
+        "material": {
+          "line1": "[المتجر] متجر الذهب/الماس (المواد)، متجر النقابة (جزئيًا)",
+          "line2": "[مهمة · مغامرة · حدث] يومي، أسبوعي، شهري، صندوق الكنز، مكافآت العملية",
+          "line3": "[البريد] نتائج التوليف/التعزيز، دفع الحدث"
+        },
+        "equipment": {
+          "line1": "[صندوق المعدات] يتم الحصول عليه عند استخدام صندوق من الحقيبة.",
+          "line2": "[مغامرة] مكافأة واضحة في معركة المسرح/الزعيم",
+          "line3": "[تبادل] شراء العناصر المسجلة من مستخدمين آخرين",
+          "line4": "[التوليف/الإنتاج] إنتاج معدات التوليف/التسامي للحدادة، وما إلى ذلك."
+        },
+        "consumableGeneric": "[متجر، مهمة، بريد] المتجر العام، الحدث، مكافآت العملية",
+        "pet": {
+          "soulTraining": "[مكافأة الحيوانات الأليفة/التدريب] فتحات {{slots}}",
+          "soulConvert": "[تحويل الحيوان الأليف/الروح] {{الدرجات}} يمكن الحصول عليها عند تفكيك حيوان أليف",
+          "soulShopDiamond": "[متجر الحيوانات الأليفة · متجر الحيوانات الأليفة] الماس {{الكمية}}",
+          "soulShopGold": "[متجر الحيوانات الأليفة · متجر الحيوانات الأليفة] الذهب {{المبلغ}}",
+          "soulShopDiamondDaily": "[متجر الحيوانات الأليفة · متجر الحيوانات الأليفة] الماس {{الكمية}}، {{الحد}} مرات يوميًا",
+          "soulShopGoldDaily": "[متجر الحيوانات الأليفة · متجر الحيوانات الأليفة] الذهب {{المبلغ}}، {{الحد}} مرة في اليوم",
+          "soulFallback": "[حيوان أليف] يمكن الحصول عليه أو استبداله في المحتوى المتعلق بالملعب العادل/المفرخ.",
+          "eggShop": "[متجر الحيوانات الأليفة · متجر الحيوانات الأليفة] يمكن شراؤه بالذهب والماس (الحد اليومي)",
+          "eggRewards": "[الحيوان الأليف/التدريب/الحدث] تم الحصول عليه كمكافأة جزئية",
+          "welcomeEggMail": "[البريد] يمكن الحصول عليه من خلال مدفوعات الترحيب/التشغيل الجديدة، وما إلى ذلك.",
+          "welcomeEggShop": "[متجر الحيوانات الأليفة · متجر الحيوانات الأليفة] يمكن شراؤه بالماس (1 يوميًا)"
+        }
+      }
     }
   },
   "exchange": {
@@ -4149,9 +5002,9 @@
       "selectGear": "اختيار المعدات"
     },
     "alerts": {
-      "insufficientTicket": "حقوق تسجيل المعاملات غير كافية.",
+      "insufficientTicket": "حقوق تسجيل المعاملات غير كافية. مطلوب لتسجيل فتحات مبيعات إضافية.",
       "vipListingLimit": "يمكن لكبار الشخصيات المميزة التسجيل للبيع حتى 3 منتجات فقط.",
-      "ticketHint": "حقوق تسجيل المعاملات غير كافية. يمكنك تسجيل سلعة بيع واحدة بتذكرة تسجيل واحدة.",
+      "ticketHint": "يتطلب تسجيل فتحة المبيعات الإضافية وجود تذكرة تسجيل معاملة.",
       "selectGearFromInventory": "يرجى تحديد المعدات التي تريد بيعها من المخزون الخاص بك.",
       "boundGear": "لا يمكن بيع المعدات المربوطة. الرجاء استخدام الحق في إلغاء الإسناد.",
       "minimumPrice": "الحد الأدنى لسعر البيع هو {{price}}.",
@@ -4175,7 +5028,7 @@
       "waiting": "أَجواء"
     },
     "scoring": "جارٍ الحساب...",
-    "allMatchesEnded": "انتهت جميع المباريات. يقام حفل توزيع الجوائز.",
+    "allMatchesEnded": "لقد انتهت جميع المباريات لهذا اليوم.",
     "breathing": "أنا أتنفس بعمق للمشاركة في المسابقة.",
     "playersEntering": "اللاعبون يدخلون. يرجى الانتظار للحظة.",
     "playerLoadError": "حدث خطأ أثناء تحميل معلومات اللاعب.",
@@ -4236,7 +5089,7 @@
       "phaseMidLabel": "منتصف اللعبة",
       "phaseEndLabel": "نهاية اللعبة",
       "phaseEarlyStart": "لقد بدأ النصف الأول من المعركة. دعونا نلقي نظرة على وضع الحجارة وتدفق المعركة الأولى.",
-      "phaseMidStart": "بدأت مباراة منتصف المباراة. أصبح القتال في المركز والمعركة على المركز أكثر حدة.",
+      "phaseMidStart": "بدأت منتصف اللعبة. أصبح القتال في المركز والمعركة على المركز أكثر حدة.",
       "phaseEndStart": "لقد بدأت لعبة النهاية. تصبح الحسابات المنزلية والأرباح والخسائر التفصيلية مهمة.",
       "defaultRound": "الجولة الحالية",
       "defaultPlayer1": "لاعب 1",
@@ -4529,7 +5382,13 @@
       "championship": "بطولة",
       "scrollGuideTitle": "دليل التمرير",
       "categoryAria": "فئة الترتيب",
-      "title": "تصنيف"
+      "title": "تصنيف",
+      "gameRankingTab": "ترتيب اللعبة",
+      "badukRankingTab": "تصنيف بادوك",
+      "loginRequired": "يمكنك التحقق من رتبتك بعد تسجيل الدخول.",
+      "championshipLoginHint": "يمكنك التحقق من تصنيف البطولة الخاصة بك بعد تسجيل الدخول.",
+      "guideClose": "إغلاق الدليل",
+      "championshipNoGuide": "لا يوجد دليل نتائج منفصل لتصنيفات البطولة."
     },
     "round16": "دور الـ16",
     "center": "مركز",
@@ -4615,8 +5474,8 @@
     "title": "برج التحدي",
     "floorUnit": "أرضية",
     "locked": "قفل",
-    "clearLowerFirst": "قم بإخلاء الطابق السفلي أولاً",
-    "rewardClaimed": "تم الحصول على التعويض",
+    "clearLowerFirst": "قم بمسح الطابق السفلي أولاً",
+    "rewardClaimed": "تم استلام التعويض",
     "board": "رقعة الشطرنج",
     "boardSize": "رقعة الشطرنج {{الحجم}}×{{الحجم}}",
     "goal": "هدف",
@@ -4625,7 +5484,7 @@
     "base": "قاعدة",
     "turnUnit": "{{عدد}} دورة",
     "blackCaptureGoal": "كلاب سوداء {{عدد}}.",
-    "captureGoalTurnLimit": "فز بعدد {{count}} من القطع السوداء (بحد {{turns}} عدد الدورات)",
+    "captureGoalTurnLimit": "التقط {{count}} قطعة سوداء (الحد {{turns}} دورة)",
     "autoScoringHint": "[{{turns}}counting number] إذا تركت الأمر حتى هذا الرقم، فسيتم العد التلقائي.",
     "autoScoringShort": "[{{منعطفات}}رقم العد]",
     "victory": "انتصار",
@@ -4701,7 +5560,7 @@
     "rewardModalTitle": "معلومات مكافأة برج التحدي",
     "settlementRemaining": "الوقت المتبقي حتى تسوية التعويضات",
     "myCurrentReward": "مكافأتي الحالية",
-    "floorTier": "{{طابق}} طابق",
+    "floorTier": "{{الطابق}}الطابق",
     "blackPatternAlt": "نمط أسود",
     "goldAlt": "ذهب",
     "diamondAlt": "الماس",
@@ -4795,7 +5654,7 @@
       "trainAgain": "التدريب مرة أخرى",
       "confirmTitle": "تحقق من تدريب الحيوانات الأليفة",
       "sendToSlot": "<pet>{{petName}}</pet> هل يجب أن أرسل حيواني الأليف إلى <slot>{{slotLabel}}</slot>؟",
-      "sendNotice": "أثناء التدريب، لا يمكن لهذا الحيوان الأليف التنافس في زوج بادوك. لا يمكن إرسال الحيوان الأليف المعين كحيوان أليف تمثيلي إلى التدريب، ولا يمكن تغييره إلى حيوان أليف تمثيلي أثناء التدريب.",
+      "sendNotice": "أثناء التدريب، لا يمكن لهذا الحيوان الأليف التنافس في زوج بادوك. لا يمكن إرسال الحيوان الأليف المعين كحيوان أليف تمثيلي إلى التدريب ولا يمكن تغييره إلى حيوان أليف تمثيلي أثناء التدريب.",
       "sendTraining": "إرسال التدريب",
       "cancelTitle": "إلغاء التدريب",
       "cancelWarning": "إذا قمت بإلغاء التدريب، <reset>ستتم إعادة ضبط الوقت المستمر</reset> وستكون الفتحة فارغة. يبقى الحيوان الأليف في الحقيبة.",
@@ -4816,7 +5675,7 @@
       "fixedReward": "التعويض المحدد",
       "probOneKind": "الاحتمالية (نوع واحد)",
       "probReward": "التعويض الاحتمالي",
-      "claimRewardAria": "الحصول على مكافآت التدريب",
+      "claimRewardAria": "الحصول على مكافأة التدريب",
       "petDetailAria": "تفاصيل الحيوانات الأليفة",
       "remainingTimeAria": "الوقت المتبقي {{time}}",
       "pickPet": "اختر حيوانًا أليفًا",
@@ -4830,7 +5689,7 @@
       "noConditions": "لا توجد شروط",
       "winsRequired": "زوج {{count}} يفوز",
       "winsRequiredShort": "مطلوب زوج {{count}} من الانتصارات",
-      "petLevelMin": "مستوى الحيوان الأليف {{المستوى}}+",
+      "petLevelMin": "مستوى الحيوانات الأليفة {{المستوى}}+",
       "functionVip": "ميزةVIP",
       "functionVipActive": "وظيفة تفعيل VIP",
       "winsUnit": "يفوز"
@@ -4859,7 +5718,10 @@
       "remainingTime": "الوقت المتبقي",
       "diamondsUsed": "استخدم الماس",
       "ownedLabel": "تملُّك",
-      "mysteriousEgg": "بيضة غامضة ×1"
+      "mysteriousEgg": "بيضة غامضة ×1",
+      "upgradeTier1": "تعزيز أنا",
+      "upgradeTier2": "تعزيز الثاني",
+      "upgradeTier3": "تعزيز الثالث"
     },
     "lobby": {
       "infoTab": "معلومة",
@@ -4908,7 +5770,7 @@
       "cannotWhileTrainingShort": "لا يمكن ترقية الحيوانات الأليفة في التدريب.",
       "unequipRepFirst": "فتح الحيوانات الأليفة التمثيلية",
       "equipRep": "مجهزة بحيوان أليف تمثيلي",
-      "cannotSetRepWhileTraining": "لا يمكن تعيين حيوان أليف قيد التدريب كحيوان أليف تمثيلي. يرجى التعيين بعد الانتهاء من التدريب.",
+      "cannotSetRepWhileTraining": "لا يمكن تعيين حيوان أليف قيد التدريب كحيوان أليف تمثيلي. يرجى تعيينه بعد الانتهاء من التدريب.",
       "soulConvert": "تحويل الروح",
       "cannotSoulConvertTraining": "الحيوانات الأليفة في التدريب لا يمكن أن تتحول روحها. يرجى استخدامه بعد الانتهاء من التدريب.",
       "cannotSoulConvertRep": "لا يمكن تحويل الحيوانات الأليفة المجهزة كحيوانات أليفة تمثيلية إلى روح. يرجى استخدامه بعد إلغاء تنشيط الحيوان الأليف الممثل.",
@@ -4917,7 +5779,7 @@
       "next": "التالي",
       "before": "قبل",
       "after": "منذ",
-      "baseStatIncrease": "زادت القدرة الأساسية",
+      "baseStatIncrease": "زيادة القدرة الأساسية",
       "percentTen": "+10%",
       "nextGradeLevelUpBudget": "يتم توزيع القدرات تلقائيًا عند رفع مستوى الحيوان الأليف في قسم الصف التالي",
       "dispositionBoost": "تعزيز الاتجاهات",
@@ -4986,7 +5848,7 @@
       "responseWaiting": "انتظر الرد سيتم الإلغاء تلقائيًا بعد {{ثانية}} ثانية"
     },
     "room": {
-      "hostAria": "استضافته",
+      "hostAria": "يستضيفه",
       "readyAria": "مستعد",
       "readyBadge": "مستعد",
       "waiting": "أَجواء",
@@ -5084,7 +5946,7 @@
       "strategicRoomTitle": "غرفة Baduk الإستراتيجية لـ {{name}}",
       "playfulRoomTitle": "غرفة اللعب في {{name}}",
       "pairRoomTitle": "غرفة {{name}} الزوجية",
-      "aiStartRestricted": "لا يمكن بدء معارك الذكاء الاصطناعي إلا في غرف الحيوانات الأليفة (الغرفة التقليدية)، والاستراتيجية، واللعب الودي (الثنائي)، وغرف الذكاء الاصطناعي للملعب. أنشئ غرفة زوجية جديدة للحيوانات الأليفة في \"Pair AI Battle\" في أعلى قائمة المستخدمين.",
+      "aiStartRestricted": "لا يمكن بدء معارك الذكاء الاصطناعي إلا في غرف الحيوانات الأليفة (الغرفة التقليدية)، والاستراتيجية، واللعب الودي (الثنائي)، وغرف الذكاء الاصطناعي للملعب. قم بإنشاء غرفة زوجية جديدة للحيوانات الأليفة في \"Pair AI Battle\" في أعلى قائمة المستخدمين.",
       "alreadyInRoomForRanked": "هناك بالفعل غرفة مشاركة. يرجى بدء مباراة تصنيف أزواج الحيوانات الأليفة في أعلى قائمة المستخدمين بعد مغادرة غرفة زوجية أخرى."
     },
     "loading": "تحميل...",
@@ -5120,6 +5982,9 @@
       "matchInProgress": "المباراة قيد التقدم",
       "inMatch": "خلال المباراة",
       "enter": "موضع",
+      "spectate": "مراقبة",
+      "spectateMatch": "شاهد اللعبة",
+      "spectateUnavailable": "لا أستطيع العثور على أي معلومات المباراة لمشاهدتها.",
       "orphanRooms": "رقم 1~100 غرفة خارجية",
       "roomKindFilter": "مرشح نوع الغرفة",
       "gameModeFilter": "مرشح وضع اللعبة",
@@ -5198,6 +6063,100 @@
       "navigatePairArena": "الذهاب إلى ملعب عادل",
       "leaveRoomOnNavigate": "الانتقال إلى ساحة أخرى سيخرجك من الغرفة التي تشارك فيها. هل تريد الاستمرار؟",
       "leaveRoomConfirm": "سيتم إزالتك من الغرفة التي شاركت فيها. هل تريد المتابعة؟"
+    },
+    "pets": {
+      "pair-pet-1": {
+        "name": "لوميفوكس"
+      },
+      "pair-pet-2": {
+        "name": "قطة الجليد"
+      },
+      "pair-pet-3": {
+        "name": "جولديجنان"
+      },
+      "pair-pet-4": {
+        "name": "الباندا الثلجية"
+      },
+      "pair-pet-5": {
+        "name": "بينكي"
+      },
+      "pair-pet-6": {
+        "name": "طائر الشمس"
+      },
+      "pair-pet-7": {
+        "name": "بانيرو"
+      },
+      "pair-pet-8": {
+        "name": "الدب العسل"
+      },
+      "pair-pet-9": {
+        "name": "ليفكات"
+      },
+      "pair-pet-10": {
+        "name": "برعم"
+      },
+      "pair-pet-11": {
+        "name": "القطة البنفسجية"
+      },
+      "pair-pet-12": {
+        "name": "سانكي"
+      },
+      "pair-pet-13": {
+        "name": "العنبر فوكس"
+      },
+      "pair-pet-14": {
+        "name": "قطة كريم"
+      },
+      "pair-pet-15": {
+        "name": "طقم الجناح"
+      },
+      "pair-pet-16": {
+        "name": "كلب قناع"
+      },
+      "pair-pet-17": {
+        "name": "الدب العاجي"
+      },
+      "pair-pet-18": {
+        "name": "حيوان ثلجي أليف"
+      },
+      "pair-pet-19": {
+        "name": "تشيكي"
+      },
+      "pair-pet-20": {
+        "name": "ذئب الظل"
+      },
+      "pair-pet-21": {
+        "name": "الأرنب الجناح"
+      },
+      "pair-pet-22": {
+        "name": "صفيق الذهب"
+      },
+      "pair-pet-23": {
+        "name": "القوادة"
+      },
+      "pair-pet-24": {
+        "name": "com.jellyfrog"
+      }
+    },
+    "trainingSlots": {
+      "0": {
+        "name": "التدريب الفني"
+      },
+      "1": {
+        "name": "التدريب على الحياة والموت"
+      },
+      "2": {
+        "name": "تدريب ما قبل الجائزة"
+      },
+      "3": {
+        "name": "تدريب جونغسوك"
+      },
+      "4": {
+        "name": "تدريب الجيبو"
+      },
+      "5": {
+        "name": "التدريب على سد المياه"
+      }
     }
   },
   "blacksmith": {
@@ -5364,7 +6323,7 @@
       "transcendentSpecial": "خيار خاص متعال",
       "refinementCountLabel": "قابلة للتكرير: {{القيمة}}",
       "requiredMaterials": "المواد اللازمة",
-      "selectMethodHint": "عند تحديد طريقة الصهر، سيتم عرض المواد.",
+      "selectMethodHint": "عند تحديد طريقة الصهر، سيتم عرض المكونات.",
       "inProgress": "الصهر قيد التقدم",
       "countDepleted": "تم استنفاد جميع التحسينات الممكنة.",
       "ownedCharms": "عقد: {{عدد}}",
@@ -5426,7 +6385,7 @@
     "casualTag": "مباراة ودية",
     "casualTitle": "مباراة ودية",
     "casualDesc": "هذه المباراة هي مباراة ودية. لا يوجد أي تغيير في درجة الترتيب.",
-    "actionPointNotice": "عندما يتم تأكيد المباراة، يتم استهلاك قوة الإجراء ⚡{{التكلفة}} على كلا الجانبين. إذا كان القبول/الذكاء الاصطناعي غير كاف عند البدء، فسيتم فتح نافذة إدارة الطاقة السلوكية.",
+    "actionPointNotice": "عندما يتم تأكيد المباراة، يتم استهلاك قوة الإجراء ⚡{{التكلفة}} على كلا الجانبين. إذا لم يكن كافيًا عند بدء القبول/الذكاء الاصطناعي، فسيتم فتح نافذة إدارة الطاقة السلوكية.",
     "titleAi": "{{prefix}}{{mode}} إعدادات مطابقة الذكاء الاصطناعي",
     "titleRematch": "{{prefix}}إعدادات إعادة المباراة ({{mode}})",
     "titleDefault": "{{prefix}}إعدادات المطابقة ({{mode}})",
@@ -5449,7 +6408,7 @@
     "mixRulesMinAlert": "تتطلب قواعد المزيج تحديد قاعدتين أو أكثر.",
     "mixCaptureCastleConflict": "لا يمكن اختيار الفوز والقلعة في نفس الوقت.",
     "countUnit": "{{عدد}}",
-    "boardLines": "{{حجم}} خط",
+    "boardLines": "خط {{الحجم}}.",
     "pointsFixed": "9 نقاط (ثابتة)",
     "pointsUnit": "{{النتيجة}} نقطة",
     "turnsUnit": "{{الحد}}الرقم",
@@ -5500,7 +6459,7 @@
     "loadFailed": "فشل التحميل.",
     "applyResultFailed": "فشل في عكس النتائج.",
     "invalidResponse": "تنسيق الرد غير صحيح.",
-    "loadGameFailed": "لا يمكن تحميل بيانات اللعبة. يرجى المحاولة مرة أخرى في وقت لاحق.",
+    "loadGameFailed": "لا يمكن تحميل بيانات اللعبة. يرجى المحاولة مرة أخرى لاحقا.",
     "startFailed": "فشل في بدء المباراة.",
     "representativePet": "حيوان أليف ممثل",
     "viewUserProfile": "عرض ملف تعريف المستخدم",
@@ -5531,6 +6490,8 @@
       "3": "حركة واحدة في 0.5 ثانية"
     },
     "matchControlAria": "التحكم في اللعبة",
+    "skipReplay": "يتخطى",
+    "skipReplayHint": "تخطي التتابع وتحقق فقط من النتائج.",
     "startMatch": "تبدأ اللعبة",
     "exit": "مخرج",
     "season": "موسم",
@@ -5697,7 +6658,7 @@
       "joinMethod": "كيفية الاشتراك",
       "applicationJoin": "تطبيق الاشتراك",
       "freeJoin": "تسجيل مجاني",
-      "applicationJoinHint": "يجب أن تتم الموافقة عليك من قبل زعيم النقابة أو نائب زعيم النقابة للانضمام.",
+      "applicationJoinHint": "يجب أن تتم الموافقة عليك من قبل قائد النقابة أو مساعد قائد النقابة للانضمام.",
       "freeJoinHint": "إذا كان هناك منصب شاغر، فسيتم تسجيلك تلقائيًا.",
       "announcement": "إشعار النقابة",
       "edit": "يحرر",
@@ -5717,7 +6678,27 @@
       "inProgress": "في تَقَدم",
       "resetCountdown": "التجديد بعد {{days}} يوم {{ساعات}}:{{دقائق}}",
       "unclaimedHint": "هناك مكافآت يمكنك الحصول عليها. لا تنسى أن تأخذ ذلك.",
-      "empty": "لا توجد مهمات أسبوعية لعرضها."
+      "empty": "لا توجد مهمات أسبوعية لعرضها.",
+      "titles": {
+        "checkIns": "حضور النقابة 50 مرة",
+        "guildDonations": "جمعت 50 تبرعات النقابة",
+        "bossAttempts": "شارك في معارك زعماء النقابة 30 مرة",
+        "strategicWins": "بادوك الاستراتيجي يفوز 30 مرة",
+        "playfulWins": "لعب Baduk يفوز 30 مرة",
+        "equipmentEnhancements": "50 محاولة تعزيز",
+        "epicGearAcquisitions": "احصل على معدات ملحمية أو أعلى 20 مرة",
+        "diamondsSpent": "تستهلك 3000 الماسة"
+      },
+      "descriptions": {
+        "checkIns": "يحضر أعضاء النقابة ما مجموعه 50 مرة",
+        "guildDonations": "اطلب من أعضاء النقابة التبرع بالذهب والماس بإجمالي 50 مرة.",
+        "bossAttempts": "اطلب من أعضاء النقابة أن يشاركوا في إجمالي 30 معركة بين زعماء النقابة.",
+        "strategicWins": "يحقق أعضاء النقابة إجمالي 30 فوزًا في لعبة بادوك الإستراتيجية (بما في ذلك الذكاء الاصطناعي في غرفة الانتظار والمباريات العامة)",
+        "playfulWins": "يحقق أعضاء النقابة إجمالي 30 فوزًا في Baduk (بما في ذلك الذكاء الاصطناعي في غرفة الانتظار والمباريات العامة)",
+        "equipmentEnhancements": "اطلب من أعضاء النقابة إجراء إجمالي 50 محاولة لتحسين المعدات",
+        "epicGearAcquisitions": "اطلب من أعضاء النقابة الحصول على معدات ملحمية أو أعلى 20 مرة",
+        "diamondsSpent": "ينفق أعضاء النقابة إجمالي 3000 ماسة في المتاجر وما إلى ذلك."
+      }
     },
     "research": {
       "title": "مختبر النقابة",
@@ -5733,7 +6714,7 @@
       "startConfirm": "هل ترغب في البدء بالبحث عن المستوى [{{name}}] {{level}}؟ \n\nالنقاط المطلوبة: {{cost}} RP\nالوقت المقدر: {{time}}",
       "chancePrefix": "[{{فرصة}}% احتمال]",
       "categoryDevelopment": "تقدم النقابة",
-      "categoryBoss": "معركة رئيسه",
+      "categoryBoss": "قتال رئيسه",
       "categoryStats": "زيادة القدرة",
       "categoryRewards": "زيادة المكافآت",
       "apRegenEffect": "وقت استرداد الإجراء - {{sec}} ثانية",
@@ -5795,7 +6776,18 @@
       "quickChat": "دردشة سريعة",
       "send": "إعادة توجيه",
       "sendTitle": "يرسل",
-      "locationHome": "[بيت]"
+      "locationHome": "[بيت]",
+      "systemMessages": {
+        "missionComplete": "تم إنجاز المهمة الأسبوعية [{{missionTitle}}]! احصل على مكافآتك في نشاط النقابة > علامة تبويب مهمة النقابة.",
+        "bossWeeklySettlement": "تسوية زعيم النقابة الأسبوعية ({{bossName}}، {{status}}): تم تجميع خبرة النقابة + {{guildXp}}، نقاط البحث + {{researchPoints}} في النقابة.",
+        "bossWeeklySettlementDefeated": "هزيمة",
+        "bossWeeklySettlementRemainingHp": "الصحة المتبقية {{percent}}%",
+        "warJoinMatching": "شارك [{{nickname}}]{{subjectParticle}} في حرب النقابة. نمضي قدما في المطابقة.",
+        "warJoinBotMatch": "شارك [{{nickname}}]{{subjectParticle}} في حرب النقابة. متطابق مع نقابة روبوت النظام في قائمة الانتظار الفردية.",
+        "warJoinOpponent": "شارك [{{nickname}}]{{subjectParticle}} في حرب النقابة. الخصم: 「{{opponentGuildName}}」",
+        "warCancelMatching": "[{{nickname}}]{{subjectParticle}} تم إلغاء مطابقة حرب النقابات.",
+        "bossDamage": "[{{nickname}}] {{subjectParticle}} ألحق {{ضرر}} ضررًا بـ {{bossName}}."
+      }
     },
     "war": {
       "title": "حروب النقابات",
@@ -5820,7 +6812,7 @@
       "guildXp": "تجربة النقابة",
       "researchPoints": "نقاط البحث",
       "houseLabel": "منزل {{نتيجة}}",
-      "dominanceTooltip": "سيطرة الجانب الأيسر تقريبًا {{percent}}% (نجمة/نقطة)",
+      "dominanceTooltip": "سيطرة الجانب الأيسر: حوالي {{percent}}% (نجمة/نقطة)",
       "loadingWarInfo": "جارٍ تحميل معلومات حرب النقابات...",
       "noActiveWar": "لا توجد حروب النقابات في التقدم.",
       "notStartedYet": "حرب النقابة لم تبدأ بعد. \nيمكنك الدخول من {{date}}(KST).",
@@ -5883,13 +6875,13 @@
       "currentOccupier": "المحتل الحالي",
       "none": "غير موجود",
       "capturesCount": "{{عدد}} الحجارة الفائزة",
-      "scoreDiff": "فرق البيت {{count}}منزل",
+      "scoreDiff": "فرق المنزل {{count}}منزل",
       "scoreDiffShort": "الفرق {{count}}منزل",
       "targetScore": "النتيجة المستهدفة",
       "pointsUnit": "{{عدد}} نقطة",
       "mode": "وضع",
       "board": "رقعة الشطرنج",
-      "boardLines": "{{حجم}} خط",
+      "boardLines": "خط {{الحجم}}.",
       "turnLimit": "حد بدوره",
       "turnsUnit": "{{عدد}} دورة",
       "scoringTurns": "{{count}} يتحول إلى سعر العد",
@@ -5924,7 +6916,7 @@
       "inProgress": "في تَقَدم",
       "gameSummary": "نهاية {{المباريات}} الجولات · الانتصارات {{انتصارات}} · التعادل {{تعادلات}} · الخسائر {{الخسائر}}{{النجوم}}",
       "starsEarnedSum": "· الإجمالي حسب الاستحواذ {{count}}",
-      "noBoardRecord": "لا يوجد سجل لهذه المقصورة في هذه الحرب.",
+      "noBoardRecord": "لا توجد سجلات لهذه المقصورة في هذه الحرب.",
       "finishedGamesDetail": "تفاصيل المباراة النهائية",
       "noFinishedGames": "لا توجد معارك النقابة التي انتهت بعد.",
       "inProgressHint": "سيتم عرض الإصدارات قيد التقدم هنا بعد الانتهاء منها.",
@@ -5955,6 +6947,13 @@
     },
     "boss": {
       "title": "معركة زعماء النقابة",
+      "names": {
+        "boss_1": "الاستماع",
+        "boss_2": "بروز",
+        "boss_3": "المياه الخضراء",
+        "boss_4": "عمق",
+        "boss_5": "الضوء الأبيض"
+      },
       "guide": "موسوعة بوس",
       "guideTitle": "موسوعة جيلد بوس",
       "stage": "{{مرحلة}}مرحلة",
@@ -5982,7 +6981,7 @@
       "researchSkills": "مهارات المختبر",
       "researchSkillEffects": "تأثير المهارات المخبرية",
       "damageTop3": "أعلى 3 أضرار تراكمية",
-      "damageRankingTop3": "ترتيب الأضرار التراكمية الأعلى 3",
+      "damageRankingTop3": "ترتيب الأضرار التراكمية أعلى 3",
       "noRecords": "لا يوجد سجل",
       "me": "(أنا)",
       "battleDamage": "هذه المعركة:",
@@ -6047,7 +7046,7 @@
       "guildXp": "تجربة النقابة",
       "researchPoints": "نقاط المختبر",
       "enhancementStoneLow": "حجر سحر أصغر",
-      "enhancementStoneMid": "حجر التعزيز المتوسط",
+      "enhancementStoneMid": "حجر التسليح المتوسط",
       "enhancementStoneHigh": "حجر السحر المتقدم",
       "enhancementStoneTop": "حجر التسليح من الدرجة الأولى",
       "enhancementStoneMystic": "حجر التعزيز الغامض",
@@ -6113,7 +7112,7 @@
       "title": "مهمة النقابة",
       "create": "إنشاء مهمة",
       "createComingSoon": "سيتم إضافة ميزة إنشاء المهمة قريبًا.",
-      "empty": "لا توجد مهمات مستمرة.",
+      "empty": "لا توجد بعثات في التقدم.",
       "statusActive": "في تَقَدم",
       "statusCompleted": "مكتمل",
       "statusExpired": "انتهاء",

@@ -5258,6 +5258,7 @@
     "loadingTournament": "토너먼트 정보를 불러오는 중입니다...",
     "loadingUserInfo": "사용자 정보를 불러오는 중입니다...",
     "nextMatchPreparing": "다음 경기 준비중... {{countdown}}",
+    "movingToNextMatch": "다음 경기를 위해 자리를 이동중입니다.",
     "defaultPlayer": "선수",
     "me": "나",
     "opponent": "상대",

@@ -27,7 +27,7 @@
     },
     "languageSelect": {
       "label": "limbă",
-      "placeholder": "Alegeți limba dvs"
+      "placeholder": "Vă rugăm să selectați o limbă"
     },
     "connection": {
       "reconnecting": "Se reconecta la server...",
@@ -142,7 +142,7 @@
       "loggingOut": "Veți fi deconectat."
     },
     "autoProceed": "Până la progresul automat",
-    "autoProceedShort": "progres automat",
+    "autoProceedShort": "avans automat",
     "autoSelectUntil": "Până la selecția automată",
     "autoSelectShort": "selectie automata",
     "nextRoundAuto": "Până la pornirea automată a rundei următoare",
@@ -179,7 +179,7 @@
     "owned": "deţinere",
     "required": "necesar",
     "ownedSlashRequired": "Au / Nevoie",
-    "expected": "așteptare",
+    "expected": "asteptare",
     "stage": "pas",
     "round": "rundă",
     "roundResult": "rezultat rotund",
@@ -262,11 +262,11 @@
     "chooseTurnCountdown": "Alege să mergi primul sau ultimul. ({{numărătoare inversă}})",
     "opponentChoosingSecond": "Adversarul alege să joace al doilea...",
     "readyCountdown": "Gata ({{countdown}})",
-    "waitingOpponentRoll": "În așteptarea adversarului...",
+    "waitingOpponentRoll": "Așteptând cealaltă parte...",
     "rollingDice": "Arunca zarurile...",
     "tieReroll": "cravată! Rotiți din nou după un timp.",
     "rollToDecide": "Apăsați butonul gata pentru a arunca zarurile. Persoana cu cel mai mare număr alege să meargă primul/ultimul.",
-    "diceWin": "{{name}} a câștigat și s-a decis cine va merge primul/ultimul.",
+    "diceWin": "{{name}} a câștigat și s-a decis să meargă primul/ultimul.",
     "diceAutoStart": "Faceți clic pe butonul de pornire de mai jos sau meciul va începe automat după 30 de secunde.",
     "colorRouletteTitle": "culoare baduk",
     "uniformColorRoulette": "ruleta de culoare uniformă",
@@ -288,7 +288,7 @@
     "reviewMode": "modul de recuperare",
     "originalGame": "Notație originală",
     "rotateToWhite": "Vedere din punctul de vedere al lui White",
-    "rotateToBlack": "Vedere din punctul de vedere al lui Black",
+    "rotateToBlack": "Vedere din perspectiva lui Black",
     "closeViewer": "aproape",
     "replayFirst": "pentru prima dată",
     "replayBack5": "5 mutari inapoi",
@@ -297,7 +297,7 @@
     "replayForward5": "5 miscari inainte",
     "replayLast": "in sfarsit",
     "timeBonus": "Timp+{{bonus}}",
-    "baseBonus": "Baza+{{bonus}}",
+    "baseBonus": "Bază+{{bonus}}",
     "hiddenBonus": "Ascuns+{{bonus}}",
     "itemBonus": "Articol+{{bonus}}",
     "scoreLine": "{{label}} {{score}} puncte",
@@ -333,7 +333,7 @@
       "arenaProgression": "După ce îndepliniți cerințele privind nivelul de integrare, puteți accesa fila Stadion.",
       "entranceClosed": {
         "singleplayer": "Intrarea unui singur jucător este închisă temporar.",
-        "tower": "Intrarea în Turnul Provocării este temporar închisă.",
+        "tower": "Intrarea în Turnul Provocărilor este temporar închisă.",
         "strategicLobby": "Sala de așteptare Strategic Baduk este închisă temporar.",
         "playfulLobby": "Sala de așteptare Play Baduk este închisă temporar.",
         "pairLobby": "Intrarea pe Stadionul Târgului este temporar închisă.",
@@ -345,7 +345,7 @@
         "strategicLobby": "Puteți intra în sala de așteptare Go strategică de la nivelul utilizatorului {{level}}.",
         "playfulLobby": "Puteți intra în sala de așteptare Go la User Lv. {{nivel}}.",
         "championship": "Puteți intra în campionat cu un scor de abilitate Go de {{abilitate}} sau mai mare.",
-        "adventure": "Poți intra în aventură trecând etapa 20 din clasa de începători ai Academiei Baduk."
+        "adventure": "Poți intra în aventură trecând etapa 20 din clasa Introductory Baduk Academy."
       }
     },
     "quickMenu": {
@@ -354,7 +354,7 @@
       "blacksmith": "fierărie",
       "shop": "magazin",
       "inventory": "sac",
-      "pet": "îngrijirea animalelor de companie",
+      "pet": "animal de companie",
       "trainingQuest": "Sarcina de formare",
       "detailedStats": "Înregistrări detaliate ale stadionului PVP",
       "monsterCodex": "Monster Enciclopedia",
@@ -362,7 +362,7 @@
       "gameRecords": "notaţie",
       "encyclopedia": "Enciclopedie",
       "announcements": "notificare",
-      "help": "Centrul de ajutor",
+      "help": "Ajutor",
       "menu1": "Meniul 1",
       "menu2": "Meniul 2"
     },
@@ -381,7 +381,7 @@
       "pvpSubtitle": "Alegeți tipul de bătălie între Strategie, Pereche și Joacă.",
       "aiSubtitle": "Alegeți tipul de bătălie pe care doriți să o jucați împotriva AI: Strategie, Pereche sau Joacă.",
       "backToArena": "întoarcere la stadion",
-      "enterAria": "{{label}} {{intent}} intrare",
+      "enterAria": "{{label}} {{intenție}} intrare",
       "entryBlockedAlert": "{{label}} Nicio intrare: {{motiv}}"
     },
     "router": {
@@ -425,7 +425,7 @@
     "kakao": "cacao",
     "google": "google",
     "ban": {
-      "title": "Accesul este interzis.",
+      "title": "Conectarea este interzisă.",
       "reason": "Motiv: {{motiv}}",
       "remainingMinutes": "Durata rămasă: aproximativ {{minute}} minute",
       "expiresAt": "Lansare programată: {{date}}",
@@ -438,7 +438,7 @@
       "credentialsRequired": "Vă rugăm să introduceți atât ID-ul, cât și parola.",
       "backendUnavailable": "Nu se poate conecta la serverul backend. Vă rugăm să verificați dacă serverul rulează.",
       "unexpectedResponse": "Eroare de răspuns server: a fost primit un format de răspuns neașteptat. (starea: {{status}})",
-      "server502": "Serverul nu răspunde temporar (502). Încercați din nou mai târziu sau verificați jurnalele de backend din tabloul de bord Railway.",
+      "server502": "Serverul nu răspunde temporar (502). Vă rugăm să încercați din nou mai târziu sau să verificați jurnalele backend din tabloul de bord Railway.",
       "loginFailed": "Conectarea nu a reușit ({{statusText}})",
       "jsonParseFailed": "Eroare de răspuns a serverului: analizarea JSON a eșuat (starea: {{status}})",
       "noUserInResponse": "Eroare de răspuns server: Nu se pot primi informații despre utilizator.",
@@ -470,7 +470,7 @@
     "startGame": "Noțiuni de bază",
     "finalConfirm": "confirmare finală",
     "startSudam": "Începeți SUDAM.",
-    "enjoyYourTime": "Distracție plăcută!",
+    "enjoyYourTime": "Distreaza-te de minune!",
     "selectedProfile": "profilul selectat",
     "creating": "generaţie",
     "processing": "Prelucrare…",
@@ -479,9 +479,9 @@
     "nicknameValidation": {
       "length": "Introduceți porecla cu cel puțin {{min}} caractere și nu mai mult de {{max}} caractere.",
       "profanity": "Porecla ta conține cuvinte nepotrivite.",
-      "taken": "Această poreclă este deja utilizată.",
+      "taken": "Acest pseudonim este deja folosit.",
       "checkError": "A apărut o eroare la rezolvarea poreclei dvs. Vă rugăm să încercați din nou mai târziu.",
-      "hint": "Când introduceți o poreclă, aceasta va fi verificată pentru duplicarea și blasfemia.",
+      "hint": "Când introduceți o poreclă, acesta va fi verificat pentru duplicare și blasfemie.",
       "checking": "Se verifică dubluri...",
       "available": "Acesta este un pseudonim pe care îl puteți folosi.",
       "required": "Vă rugăm să introduceți porecla.",
@@ -521,7 +521,7 @@
   "gameModes": {
     "standard": "baduk clasic",
     "capture": "învingător baduk",
-    "speed": "viteza baduk",
+    "speed": "viteză baduk",
     "base": "baza baduk",
     "hidden": "Baduk ascuns",
     "missile": "rachetă baduk",
@@ -537,10 +537,10 @@
     "curling": "curling",
     "comingSoon": "Pregătirea actualizărilor ulterioare",
     "descriptions": {
-      "standard": "Acesta este tipic clasic baduk.",
+      "standard": "Este tipic baduk clasic.",
       "capture": "Jocul Baduk este câștigat de prima persoană care obține un număr stabilit de pietre.",
-      "speed": "Dacă îl plasați în {{secunde}} secunde pe tură, veți recăpăta {{secunde}} secunde. Pentru fiecare {{secunde}} secunde, 1 punct este adăugat adversarului tău.",
-      "base": "Este un joc de baduk în care te uiți la aranjamentul pietrelor de bază, stabilești un bonus pentru adversarul tău și folosești pietrele la alegere și concurezi pe capacitatea ta de a analiza situația.",
+      "speed": "Dacă îl plasați în {{secunde}} secunde, veți regenera {{secunde}} secunde. Pentru fiecare {{secunde}} secunde, 1 punct este adăugat adversarului tău.",
+      "base": "Este un joc de baduk în care te uiți la aranjamentul pietrelor de bază, stabilești un bonus pentru adversarul tău și folosești pietrele la alegere și concurezi pe baza capacității tale de a analiza situația.",
       "hidden": "O revenire cu o mișcare invizibilă pentru adversar! Războiul psihologic și abilitățile de citire sunt necesare prin elemente ascunse și scanate.",
       "missile": "Creați o variabilă mutând piatra plasată ca element de rachetă.",
       "uniform": "Go este un joc care necesită memorie pentru a vedea toate pietrele într-o singură culoare.",
@@ -574,9 +574,9 @@
       "passTitle": "ia o pauză",
       "resignTitle": "abține-te",
       "cannotResignDuringScoring": "Abținerea nu este permisă în timpul procesului de numărare.",
-      "gameFeatures": "Funcția de potrivire",
+      "gameFeatures": "funcția de potrivire",
       "playfulFeatures": "funcția de redare",
-      "mannerAction": "acţiunea manierelor",
+      "mannerAction": "acțiunea manierelor",
       "mannerActionPvpOnly": "Butonul de acțiune mod este creat numai în modul PVP.",
       "noFeaturesAvailable": "Nu există funcții disponibile",
       "viewResult": "Vedeți rezultatele",
@@ -632,14 +632,14 @@
       "adminFeatures": "Funcția de administrator",
       "pauseMyTurnOnly": "Puteți face o pauză doar în timpul rândului dvs",
       "resumeGame": "Reluarea meciului",
-      "resumeGameCountdown": "Reluarea meciului ({{count}})",
+      "resumeGameCountdown": "Reluați potrivirea ({{count}})",
       "pauseGame": "întrerupe",
       "pauseGameCountdown": "pauză ({{count}})",
       "pauseGameAiTurn": "Pauză (întors AI)",
       "oddDiceUseTitle": "Folosește zaruri impare",
       "oddDiceUseBody": "Folosește un articol de zar cu doar numere impare (1, 3, 5). Vrei să continui?",
       "evenDiceUseTitle": "Folosește zaruri chiar",
-      "evenDiceUseBody": "Folosiți un zar care vine doar cu numere pare (2, 4, 6). Vrei să continui?",
+      "evenDiceUseBody": "Folosește un zar care vine doar cu numere pare (2, 4, 6). Vrei să continui?",
       "lowDiceUseTitle": "Folosiți zaruri cu număr mic",
       "lowDiceUseBody": "Folosiți un element de zar care vine doar cu numere mici (1, 2, 3). Vrei să continui?",
       "highDiceUseTitle": "Folosește zaruri cu număr mare",
@@ -650,12 +650,12 @@
       "evenDiceTitle": "Chiar (2, 4, 6) articole de zaruri. Număr rămas {{count}}",
       "lowDiceAria": "Articole cu zaruri cu număr redus, numărul rămas {{count}}",
       "lowDiceTitle": "Articole cu zaruri cu număr redus (1·2·3). Număr rămas {{count}}",
-      "highDiceAria": "Articole cu zaruri cu număr mare, numărul rămas {{count}}",
+      "highDiceAria": "Articole cu zaruri cu număr mare, număr rămas {{count}}",
       "highDiceTitle": "Articole cu zaruri cu număr mare (4, 5, 6). Număr rămas {{count}}",
       "oddDiceUse": "Folosește zaruri impare",
       "evenDiceUse": "Folosește zaruri chiar",
       "lowDiceUse": "Folosiți zaruri cu număr mic",
-      "highDiceUse": "Folosește zaruri cu număr mare",
+      "highDiceUse": "Folosiți zaruri cu număr mare",
       "specialFeatures": "caracteristici speciale",
       "resign": "abţinere",
       "resignAlt": "abţinere",
@@ -666,17 +666,17 @@
       "stoneRefreshTitle": "mutare de piatra",
       "rematch": "revanșa",
       "rematchApplying": "Aplicarea",
-      "thiefHigh36Aria": "Număr mare (3-6) articole de zaruri, număr rămas {{count}}",
+      "thiefHigh36Aria": "Articole cu zaruri cu număr mare (3-6), numărul rămas {{count}}",
       "thiefHigh36Title": "Un zar care arată doar numere mari (3, 4, 5, 6). Număr rămas {{count}}",
       "thiefNoOneAria": "Preveniți 1 (2~5) zaruri, numărul rămas {{count}}",
       "thiefNoOneTitle": "Zarurile care nu vin cu 1 (2, 3, 4, 5). Număr rămas {{count}}",
       "thiefHigh36UseTitle": "Folosiți zaruri cu număr mare (3-6).",
-      "thiefHigh36UseBody": "Folosiți un zar care iese doar 3, 4, 5 și 6. Dacă este rândul poliției, ambele zaruri sunt în acest interval. Vrei să continui?",
+      "thiefHigh36UseBody": "Folosiți un zar care arată doar 3, 4, 5 și 6. Dacă este rândul poliției, ambele zaruri sunt în acest interval. Vrei să continui?",
       "thiefNoOneUseTitle": "Utilizați 1 zar de prevenire",
       "thiefNoOneUseBody": "Folosiți un zar care iese doar 2, 3, 4 sau 5 (1 nu este posibil). Dacă este rândul poliției, ambele zaruri sunt în acest interval. Vrei să continui?"
     },
     "board": {
-      "rotateSpectatorBlack": "Vedere din punctul de vedere al lui Black",
+      "rotateSpectatorBlack": "Vedere din perspectiva lui Black",
       "rotateSpectatorWhite": "Vedere din punctul de vedere al lui White",
       "rotate180": "rotire table de șah 180 de grade",
       "paused": "întrerupe",
@@ -686,7 +686,7 @@
     "turn": {
       "aiHiddenItem": "Botul AI a folosit un element ascuns!",
       "monsterHiddenItem": "Monstrul a folosit un obiect ascuns!",
-      "diceOvershotWithMax": "Depășire! Trebuie să ai {{maxDice}} sau mai puține zaruri pentru a câștiga teancul final.",
+      "diceOvershotWithMax": "Depășire! Poți câștiga ultima grămadă numai dacă zarurile tale sunt {{maxDice}} sau mai puțin.",
       "diceOvershotNoLiberties": "Depășire! Momentan nu există locuri valide pentru geantă, așa că nu poți câștiga ultima grămadă. Vă rugăm să așteptați următoarea rolă.",
       "lastCaptureBonus": "(Ultimul bonus inactiv +{{bonus}} puncte)",
       "lastShowdown": "Meciul final! {{count}} cifre valide",
@@ -694,7 +694,7 @@
       "pairScoringAllPassed": "Trec toate cele 4 persoane și continuăm cu numărătoarea.",
       "scoring": "Continuăm cu calculul.",
       "pairPassCount": "Treceți {{count}}/4",
-      "bothPassedScoring": "Trec ambele părți și începe numărătoarea.",
+      "bothPassedScoring": "Ambele părți trec și începe numărătoarea.",
       "playerPassed": "{{name}} a trecut.",
       "playerTurn": "Este rândul lui {{name}}.",
       "gameInProgress": "Meci în desfășurare",
@@ -715,15 +715,15 @@
       "hiddenFinalReveal": "Dezvăluim toate pietrele ascunse și începem să numărăm.",
       "autoScoringAdventure": "Contabilitatea automată se efectuează.",
       "autoScoringReached": "Sistemul automat ajunge la procedură și începe numărarea.",
-      "alkkagiRePlace": "Așezați din nou pietrele. ({{round}} / {{total}} rundă)",
-      "alkkagiPlace": "Așezați pietrele. ({{round}} / {{total}} rundă)",
-      "alkkagiPlayerTurn": "Este rândul lui {{name}}. ({{round}} / {{total}} rundă)",
+      "alkkagiRePlace": "Așezați din nou pietrele. ({{round}} / {{total}} runde)",
+      "alkkagiPlace": "Așezați pietrele. ({{round}} / {{total}} runde)",
+      "alkkagiPlayerTurn": "Este rândul lui {{name}}. ({{round}} / {{total}} runde)",
       "alkkagiRoundEnd": "Capetele rotunde - Verificați și continuați pe panoul electronic de mai jos.",
       "diceRollTurn": "Este rândul lui {{name}} să arunce zarurile.",
       "diceRollTurnGeneric": "Este timpul să aruncăm zarurile",
       "tiebreakerDeciding": "Decizi asupra comenzii câștigătoare...",
       "tiebreakerPlaying": "Meci în desfășurare... (rândul lui {{name}})",
-      "diceModeRound": "Dice Go ({{round}} / {{total}} runde)",
+      "diceModeRound": "Dice Baduk ({{round}} / {{total}} runda)",
       "thiefModeRound": "Hoți și polițiști (runda de {{round}})",
       "preparing": "Se pregateste jocul...",
       "timeoutFoul": "Fault de timp de la {{name}}!",
@@ -732,10 +732,10 @@
       "timeoutFoulAutoTurn": "Rândul tău va continua automat.",
       "timeoutFoulPassTurn": "Rândul îi trece adversarului.",
       "timeoutFoulLoseStone": "Pierzi 1 piatră și ți se termină rândul.",
-      "timeoutFoulDefault": "Veți fi penalizat pentru depășirea termenului limită.",
-      "baseKomiGuide": "Decideți asupra pietrelor și bonusurilor pe care doriți să le plasați. Dacă alegeți aceeași piatră, cea care vă oferă cele mai multe bonusuri este piatra pe care doriți să o păstrați.",
-      "alkkagiPlaceHidden": "Așezați pietrele astfel încât să nu fie vizibile pentru adversarul dvs. ({{round}} / {{total}} rundă)",
-      "alkkagiPlaceMissing": "Puneți pietrele lipsă. ({{round}} / {{total}} rundă)",
+      "timeoutFoulDefault": "Veți fi penalizat pentru depășirea limitei de timp.",
+      "baseKomiGuide": "Decideți ce pietre și bonusuri doriți să plasați. Dacă alegeți aceeași piatră, cea care vă oferă cele mai multe bonusuri este piatra pe care doriți să o păstrați.",
+      "alkkagiPlaceHidden": "Așezați pietrele astfel încât să nu fie vizibile pentru adversarul dvs. ({{round}} / {{total}} runde)",
+      "alkkagiPlaceMissing": "Puneți pietrele lipsă. ({{round}} / {{total}} runde)",
       "placementProgress": "plasat {{plasat}}/{{target}}",
       "timeRemainingSec": "Timp rămas: {{sec}} secunde",
       "alkkagiRoundWin": "Runda {{round}} — {{name}} câștigă",
@@ -805,7 +805,7 @@
       "captureScore": "Scor de captură:",
       "lastPileBonus": "Ultimul bonus manechin:",
       "finalScoreLabel": "scorul final",
-      "houseScoreGain": "Puncte câștigate",
+      "houseScoreGain": "Scor obținut",
       "houseUnit": "casa",
       "playerWins": "{{name}} câștigă!",
       "cumulativeScore": "scor cumulat",
@@ -843,7 +843,7 @@
       "resignWinMsg": "Am câștigat pentru că adversarul nostru s-a abținut.",
       "resignLossMsg": "S-a abținut și a pierdut.",
       "turnLimitWinMsg": "Ai câștigat pentru că toate turele limitate ale adversarului tău au fost epuizate.",
-      "turnLimitLossMsg": "Am pierdut pentru că mi-a trecut limita de viraj.",
+      "turnLimitLossMsg": "Numărul de ture a fost limitat și ai pierdut.",
       "castleWinMsg": "Am câștigat piatra adversarului și am câștigat imediat.",
       "castleLossMsg": "Am pierdut pentru că adversarul meu a prins piatra.",
       "checkmateWinMsg": "Am câștigat șah-mat câștigând regele adversarului.",
@@ -853,7 +853,7 @@
       "monsterFledLoss": "Monstrul a fugit.",
       "monsterFledWin": "Timpul limită a expirat și meciul s-a încheiat.",
       "monsterFledDraw": "Limita de timp a trecut și monstrul a fugit.",
-      "omokWin": "Completare concavă",
+      "omokWin": "Finalizare concavă",
       "omokLoss": "Completare concavă oponent",
       "captureGoalWin": "Gol câștigat îndeplinit",
       "captureGoalLoss": "Finalizarea câștigării golului adversarului",
@@ -865,7 +865,7 @@
       "mannerRank": "clasă de manieră",
       "starsEarned": "câștigând stele",
       "starsEarnedAria": "{{count}} stele câștigate",
-      "petGradeUpgradeNeeded": "Nivelul animalelor de companie trebuie întărit",
+      "petGradeUpgradeNeeded": "Clasa de animale de companie trebuie consolidată",
       "representativePet": "animal de companie reprezentativ",
       "addedStats": "Abilitati adaugate",
       "vipSlotReward": "Recompense pentru sloturi VIP",
@@ -889,7 +889,7 @@
       "howToPlayAria": "Deschide Ghidul Cum se joacă",
       "userList": "Lista de utilizatori",
       "gameRoom": "camera de chibrituri",
-      "globalChat": "Tot chatul",
+      "globalChat": "Tot chat",
       "noChatMessages": "Nu există mesaje de chat.",
       "quickChat": "chat rapid",
       "send": "trimite",
@@ -983,7 +983,7 @@
       "thief": "hoţ",
       "police": "poliţie",
       "roundShort": "Runda {{current}}/{{total}}",
-      "stonesShort": "Piatră {{stânga}}/{{total}}",
+      "stonesShort": "Piatra {{stânga}}/{{total}}",
       "thiefRoundAria": "Runda {{round}} / {{total}}. {{aluzie}}",
       "thiefRoundPlacements": "Runda {{round}} / {{total}}, {{count}} runde rămase",
       "remainingPlacementsCount": "Au mai rămas {{count}} lansări"
@@ -1052,7 +1052,7 @@
       "failScoring": "Ca urmare a calculului, adversarul a luat mai multe case.",
       "failResign": "Te-ai abținut și ți s-a încheiat podeaua.",
       "failDisconnect": "Stratul a eșuat din cauza unei conexiuni pierdute.",
-      "failTotalScore": "Am pierdut în total puncte în fața adversarului nostru.",
+      "failTotalScore": "Am pierdut în totalul de puncte în fața adversarului nostru.",
       "failDice": "Am rămas în urmă la scorurile de zaruri.",
       "failFoul": "Limita de fault a fost depășită.",
       "failThiefCaught": "Toți hoții au fost prinși.",
@@ -1069,7 +1069,7 @@
       "winTotalScore": "Câștigat cu totalul de puncte.",
       "winDice": "Câștigi la punctele de zaruri.",
       "winFoul": "Adversarul a depășit limita de fault.",
-      "winThiefCaught": "A prins toate pietrele hoțului.",
+      "winThiefCaught": "Am prins toate pietrele hoțului.",
       "winPoliceScore": "Câștigați mai multe puncte ca ofițer de poliție.",
       "winOmok": "Mai întâi, am completat cele cinci rânduri.",
       "winAlkkagi": "Am câștigat concursul de alkagi.",
@@ -1087,13 +1087,13 @@
       "moreItems": "Alte {{count}} articole",
       "whiteTargetScore": "Sute de goluri/puncte câștigate:",
       "failTurnLimit": "Misiunea a eșuat din cauza virajelor insuficiente.",
-      "failTimeLimit": "Misiunea a eșuat deoarece timpul limită a fost depășit.",
+      "failTimeLimit": "Misiunea a eșuat pentru că a fost depășit timpul limită.",
       "failSurvival": "Albul a eșuat misiunea pentru că a durat toate turele desemnate.",
       "failCaptureTarget": "Adversarul a atins primul scorul țintă.",
       "failScoring": "Ca urmare a calculului, adversarul a luat mai multe case.",
       "failResign": "Te-ai abținut.",
       "failDisconnect": "Misiunea a eșuat din cauza unei conexiuni pierdute.",
-      "failTotalScore": "Am pierdut în total puncte în fața adversarului nostru.",
+      "failTotalScore": "Am pierdut în totalul de puncte în fața adversarului nostru.",
       "failDice": "Am rămas în urmă la scorurile de zaruri.",
       "failFoul": "Limita de fault a fost depășită.",
       "failThiefCaught": "Toți hoții au fost prinși.",
@@ -1104,19 +1104,19 @@
       "winSurvival": "Ne-am păstrat scorul bine cu viraje limitate.",
       "winCaptureTarget": "Ați atins scorul țintă.",
       "winScoring": "Echipa a ajuns să câștige.",
-      "winTime": "Este un card de time-out.",
+      "winTime": "Acesta este un card de time-out.",
       "winResign": "Cealaltă parte s-a abținut.",
       "winDisconnect": "Cealaltă parte este deconectată.",
       "winTotalScore": "Câștigat cu totalul de puncte.",
       "winDice": "Câștigi la punctele de zaruri.",
       "winFoul": "Adversarul a depășit limita de fault.",
-      "winThiefCaught": "A prins toate pietrele hoțului.",
+      "winThiefCaught": "Am prins toate pietrele hoțului.",
       "winPoliceScore": "Câștigați mai multe puncte ca ofițer de poliție.",
       "winOmok": "Mai întâi, am completat cele cinci rânduri.",
       "winAlkkagi": "Am câștigat concursul de alkagi.",
       "winCurling": "A câștigat scorul total de curling.",
       "winGeneric": "Ai câștigat.",
-      "capturesLabel": "Pietre alese:",
+      "capturesLabel": "Pietre culese:",
       "territoryLabel": "teritoriu:",
       "deadStonesLabel": "riprap:",
       "komiLabel": "Bonus:",
@@ -1136,7 +1136,7 @@
       "lockedTop3": "Deschis pentru locul 3 sau mai mare",
       "alreadyOpen": "deja deschis",
       "unlocked": "degajat",
-      "lockedTop3Full": "Blocat (se deschide când sunteți pe locul 3 sau mai sus)",
+      "lockedTop3Full": "Blocat (se deschide când este clasat pe locul 3 sau mai sus)",
       "nextStageAlreadyOpen": "Următorul pas este deja deschis.",
       "open": "deschide",
       "resultAria": "Rezumatul rezultatelor",
@@ -1169,14 +1169,18 @@
       "timeNone": "nu exista",
       "timeFischer": "{{minute}} minute · Fisher {{increment}} secunde",
       "timeByoyomi": "{{minute}} minute · numărătoare inversă {{byoyomi}} secunde × {{count}} ori",
-      "boardSizeValue": "{{size}}x{{size}}",
+      "boardSizeValue": "{{dimensiune}}x{{dimensiune}}",
       "komiValue": "{{komi}}casa",
       "countUnit": "{{conta}}",
       "roundValue": "{{round}}R",
       "scoringTurnValue": "{{turns}}turns",
       "forbidden": "interdicţie",
       "allowed": "posibil",
-      "speedNormal": "în mod obișnuit"
+      "speedNormal": "în mod obișnuit",
+      "confirm": "verifica",
+      "gaugeSpeedSlow": "x1 (lent)",
+      "gaugeSpeedNormal": "x2 (normal)",
+      "gaugeSpeedFast": "x3 (rapid)"
     },
     "challengeModal": {
       "rejected": "Respingând",
@@ -1189,7 +1193,7 @@
       "mixRulesMinHint": "Vă rugăm să selectați cel puțin două reguli.",
       "boardKomiCapture": "Du-te la bord, calcul, bonus, câștig",
       "boardSize": "tablă de șah",
-      "boardLines": "{{size}}linie",
+      "boardLines": "{{size}} rând",
       "komiWhite": "Bonus (geanta)",
       "komiHalf": ".5 casa",
       "captureTarget": "scorul țintă",
@@ -1252,7 +1256,7 @@
     "modals": {
       "noContest": {
         "title": "potrivire nevalidă",
-        "body": "Într-un joc cu mai puțin de 10 mutări, există o solicitare de abținere sau numărare.\nMeciul a fost invalidat.",
+        "body": "Într-un joc cu mai puțin de 10 mutări, există o cerere de abținere sau numărare.\nMeciul a fost invalidat.",
         "warning": "AVERTISMENT: Dacă faceți în mod repetat meciuri nevalide, se poate aplica o penalizare."
       },
       "disconnection": {
@@ -1266,9 +1270,9 @@
         "title": "lipsa de actiune",
         "rechargeMethods": "Metoda de încărcare",
         "shopConsumables": "Magazin · Consumabile",
-        "buyPotion": "Achiziționați poțiune de recuperare a acțiunii",
+        "buyPotion": "Cumpărați poțiune de recuperare comportamentală",
         "buyPotionLimit": "· 1 pe zi pe tip",
-        "diamondInstant": "Diamond se reîncarcă instantaneu",
+        "diamondInstant": "Reîncărcare instant Diamond",
         "diamondInstantHint": "Vă puteți umple puterea de acțiune chiar când doriți.",
         "goShopConsumables": "Cumpărați poțiuni vindecătoare din magazin (consumabile)",
         "goDiamondRecharge": "Reîncărcați instantaneu cu diamante",
@@ -1290,7 +1294,7 @@
       "confirmed": "Confirmat",
       "waitingOpponent": "Se așteaptă ca adversarul să finalizeze desfășurarea.",
       "confirmNextStep": "Când ați terminat de plasat, faceți clic pentru a trece la pasul următor.",
-      "placeAllFirst": "După ce ați plasat toate pietrele de bază, apăsați-le.",
+      "placeAllFirst": "După ce ați plasat toate păpușile de bază, apăsați-le.",
       "basePlacementTitle": "Amplasarea pietrei de bază",
       "basePlacementHint": "Așezați păpușa de bază. ({{plasat}}/{{total}})",
       "confirmStart": "Începe meciul",
@@ -1356,7 +1360,7 @@
       "itemShopAria": "{{a11y}}. Atingeți pentru a deschide Magazinul de articole Top Challenge",
       "goalTitle": "acest scop",
       "winCondition": "Condiții de victorie",
-      "failConditionTitle": "Condiții de eșec la care trebuie să fii atent",
+      "failConditionTitle": "Condiții de eșec la care trebuie să aveți grijă",
       "scoreFactors": "factor de scor",
       "timeRules": "reguli de timp",
       "items": "articol",
@@ -1368,7 +1372,7 @@
       "goalAchievement": "atinge-ți obiectivul",
       "finishWord": "renunta",
       "missilePush": "împinge cu racheta",
-      "turnAddUse": "Folosiți ture suplimentare",
+      "turnAddUse": "Utilizați ture suplimentare",
       "lowTerritoryFail": "Eșec dacă sunt puține case",
       "capture": "cules",
       "speed": "viteză",
@@ -1382,7 +1386,203 @@
       "curling": "curling",
       "thiefPolice": "hoț și polițist",
       "classic": "clasic",
-      "mix": "amesteca"
+      "mix": "amesteca",
+      "specialRules": "reguli speciale",
+      "loseCondition": "Condiții de înfrângere",
+      "rulesAndGuide": "Reguli de joc și ghid de joc",
+      "rewards": "compensare",
+      "availableRewards": "Recompense obținute",
+      "summary": {
+        "loseTerritory": "Dacă scorul total (scorul total) este scăzut sau casa este în dezavantaj din cauza regulilor de egalitate sau egalitate, pierzi.",
+        "loseTerritoryAuto": "Dacă nu poți câștiga împotriva {{base}} · {{auto}}, pierzi.",
+        "loseCaptureRace": "Dacă adversarul înscrie primul {{t}} puncte, pierzi. Altfel, dacă ai puține case în familie, pierzi.",
+        "loseMix": "La sfârșitul jocului, dacă adversarul îndeplinește primul condițiile de victorie sau este în dezavantaj, adversarul pierde.",
+        "basePlacementAnalysis": "Analiza situației după eliberarea plasării păpușii de bază",
+        "baseKomiSelect": "Setează bonusul pe care să-l oferi adversarului tău · Selectează piatra pe care o dorești",
+        "autoScoringCaptureTurn": "Numărarea automată continuă când sunt atinse {{n}} ture",
+        "autoScoringTerritoryWin": "Câștigă numărul automat după {{n}} ture",
+        "autoScoringTerritoryLose": "Înfrângerea în jocul automat după {{n}} ture",
+        "fischerOnly": "Fisher {{sec}} secunde",
+        "byoyomiOnly": "Numărătoare inversă numai · {{time}} secunde × {{count}} ori",
+        "noTimeLimit": "Fără limită de timp",
+        "limitFischer": "Limitați {{min}} minute · Fisher {{sec}} secunde",
+        "limitByoyomi": "Limitați {{min}} minute · Numărătoare inversă de {{time}} secunde × {{count}} ori",
+        "limitNoByoyomi": "Limitați {{min}} minute (fără numărătoare inversă)",
+        "factorTerritory": "teritoriu",
+        "factorCaptured": "piatra culesa",
+        "factorDead": "riprap",
+        "factorKomi": "Bonus (geanta)",
+        "factorBaseBonus": "bonus de bază",
+        "factorHiddenBonus": "Bonus ascuns",
+        "factorSpeedBonus": "S-a depășit {{sec}} secunde → Adversarul +1",
+        "factorMissileEffect": "Reflectarea producției de rachete",
+        "factorCaptureScore": "scor câștigător",
+        "factorMixFallback": "În funcție de combinația de moduri",
+        "factorCaptureNoTerritory": "Scor câștigător (fără calcule casei)",
+        "factorCastle": "Teritoriu confirmat · Piatră câștigată · Bonus (alb)",
+        "factorChess": "Teritoriu · Piatră aleasă · Piatră de piatră · Capturarea obiectului · Bonus (100)",
+        "factorOmok": "Thu (win) — fără calcule de casă",
+        "factorTtamok": "Câștig de gât sau scor câștigător",
+        "factorDice": "Scor câștigător de 100 de pietre pe rundă · Bonus final de câștig",
+        "factorThief": "Total de puncte câștigate pe rundă",
+        "factorAlkkagi": "Numărul de mișcări ale adversarului în afara tablei",
+        "factorCurling": "Stone marchează aproape de casă (gol)",
+        "factorFallback": "Consultați ghidul de mod",
+        "factorStageDefault": "În funcție de stadiu/mod",
+        "factorStageCapture": "scor câștigător",
+        "factorStageCapturePattern": "scor câștigător\n2 pietre model",
+        "factorStageSpeed": "Teritoriu, piatra culesa, piatra de riprap, bonus\nbonus de timp",
+        "factorAdventureCaptureShort": "Alege · Emblema 2 puncte",
+        "factorAdventureBase": "pret de baza",
+        "factorAdventureBaseStone5": "5 păpuși de bază",
+        "factorAdventureHidden": "Ascuns",
+        "factorAdventureSpeed": "oră",
+        "factorAdventureMissile": "rachetă",
+        "itemHidden": "Ascuns {{n}}",
+        "itemScan": "{{n}} scanări",
+        "itemMissile": "{{n}} rachete",
+        "itemSpecialDice": "Zaruri speciale {{rezumat}}",
+        "itemSlowAim": "Încet {{încet}} · Țintește {{aim}}",
+        "mixCaptureWin": "Dacă {{t}} puncte sunt obținute primul, câștigați imediat. Dacă nu este atins, comparați casele după prețul câștigător.",
+        "mixCaptureWinWithAuto": "Câștigător: dacă {{t}} puncte sunt obținute mai întâi, câștigați imediat · Dacă nu ați obținut, comparați casele după limită · {{auto}}",
+        "mixAutoTerritoryWin": "{{auto}} — Cine are cele mai multe case câștigă",
+        "mixComboTail": "Combinații ({{moduri}}) — Câștigă sau pierde în funcție de regulile de la sfârșit",
+        "mixDefaultEnd": "La final, câștigătorul sau învinsul este stabilit conform regulilor.",
+        "highlightPatternStone2": "Alegerea pietrelor cu model 2 puncte",
+        "highlightHiddenScan": "Lansare ascunsă · Explorați prin scanare",
+        "highlightMissileMove": "Mutați piatra în linie dreaptă cu o rachetă",
+        "speedPvpHighlight": "Numărătoare inversă de 10 secunde permisă · Adversarul +1 punct pentru fiecare 10 secunde depășite · Pierdere de timp la expirarea timpului principal",
+        "highlightSurvival": "Salvați Baduk · Scorul țintă în {{n}} ture",
+        "highlightAutoScoring": "Numărătoare automată după {{n}} număr",
+        "highlightBlackTurnLimit": "Limită neagră de viraj {{n}}",
+        "highlightTurnAdd": "{{n}} ture suplimentare",
+        "highlightMissile": "{{n}} rachete",
+        "highlightHiddenScanCounts": "{{ascuns}} ascuns · {{scanare}} scanat",
+        "spTimeMainFischer": "{{min}} minute principale · Numărătoare inversă de {{sec}} secunde",
+        "spTimeFischerOnly": "Numărătoare inversă până la {{sec}} secunde",
+        "spTimeUnlimited": "Fără limită",
+        "goalSurvivalWinLabel": "blocați înapoi",
+        "goalSurvivalWinHelper": "Blocați 100 de ținte pentru {{n}} ture",
+        "goalSurvivalLoseLabel": "o sută de succes",
+        "goalSurvivalLoseHelper": "Dacă Albul creează un gol, acesta eșuează.",
+        "goalCaptureWinLabel": "cules",
+        "goalCaptureWinHelper": "Obține puncte înconjurând pietrele adversarului.",
+        "goalCaptureLoseTurnLabel": "ture depășite",
+        "goalCaptureLoseTurnHelper": "Dacă nu o faci în {{n}} ture, eșuezi.",
+        "goalCaptureLoseFirstLabel": "adversarul mai întâi",
+        "goalCaptureLoseFirstHelper": "Dacă adversarul tău câștigă primul, eșuezi.",
+        "goalSpeedWinLabel": "rapid",
+        "goalSpeedWinHelper": "Construirea unei case la timp",
+        "goalSpeedLoseLabel": "Scor treisprezece",
+        "goalSpeedLoseHelper": "Eșec dacă sunt puține case",
+        "goalAutoWinLabel": "o multime de case",
+        "goalAutoWinHelper": "Calculați casa după {{n}}",
+        "goalAutoLoseLabel": "lipsa caselor",
+        "goalAutoLoseHelper": "{{n}}Dacă ești dezavantajat în timpul mutării, eșuezi.",
+        "goalDefaultWinLabel": "construirea unei case",
+        "goalDefaultWinHelper": "Construiește o casă în jurul zonei",
+        "goalDefaultLoseLabel": "lipsa caselor",
+        "goalDefaultLoseHelper": "Eșec dacă sunt puține case",
+        "guideTurnLimitTitle": "limita de viraj",
+        "guideTurnLimitBody": "Terminați în {{n}} ture",
+        "guideSurvivalTitle": "tulpina",
+        "guideSurvivalBody": "Blocați 100 de ținte pentru {{n}} ture",
+        "guideAutoScoringTitle": "Pretul de calcul",
+        "guideAutoScoringBody": "Calculați casa după {{n}}",
+        "guidePatternStoneTitle": "piatră de model",
+        "guidePatternStoneBody": "2 puncte dacă câștigi",
+        "guideSpeedTitle": "viteză",
+        "guideSpeedBody": "Dacă pleci târziu, adversarul tău primește +1 punct.",
+        "guideTurnAddTitle": "Adăugați Turn",
+        "guideTurnAddBody": "Măriți limita de viraj",
+        "guideMissileTitle": "rachetă",
+        "guideMissileBody": "Alegeți o piatră și împingeți-o în linie dreaptă",
+        "guideHiddenScanTitle": "Ascuns · Scanare",
+        "guideHiddenScanBody": "Ascunde {{ascuns}} · Găsiți {{scanare}}",
+        "advCaptureWin": "învingătoare",
+        "advCaptureLose": "Câștigă, pierde, expiră",
+        "advTerritoryWin": "gye câștigă",
+        "advTerritoryWinAuto": "Numărați câștigurile · {{n}} se mută automat",
+        "advTerritoryLose": "Sistemul este învins și timpul expiră.",
+        "advTimeLimit": "Limită de {{mins}} minute",
+        "gwCaptureWinAuto": "Primul {{cap}} puncte sau {{limit}} victorii pentru numărul de ture",
+        "gwCaptureWin": "Dacă primești mai întâi {{cap}} puncte, câștigi.",
+        "gwCaptureLose": "Adversarul {{cap}} puncte primul",
+        "gwTerritoryWinAuto": "Calcul automat al numărului de {{limit}} de câștiguri",
+        "gwTerritoryWin": "Dacă familia ta are mai multe case, câștigi.",
+        "gwTerritoryLose": "Depășit numeric, timpul depășit",
+        "captureWin": "Obțineți mai întâi piatra adversarului {{t}} puncte",
+        "captureWinWithAuto": "Primește piatra adversarului {{t}} puncte mai întâi · {{auto}}",
+        "territoryWinDefault": "După numărare, partea cu cele mai multe case câștigă.",
+        "speedTerritoryWinDefault": "Cine are cel mai mare scor general câștigă după numărare.",
+        "speedTerritoryLoseDefault": "Dacă scorul tău general este scăzut după numărare, pierzi.",
+        "castleWin": "Dacă câștigi 1 sau mai multe pietre ale adversarului, câștigi imediat. Dacă nu există numere efective, se calculează teritoriul.",
+        "castleLose": "Dacă adversarul tău prinde chiar și 1 piatră, pierzi. Dacă ai puține case în familie, pierzi.",
+        "castleHighlightCount": "{{castele}} castele · Nu se poate intra pe teritoriul finalizat",
+        "castleHighlightCapture": "Victorie imediată la capturarea 1 piatră",
+        "chessWin": "După procedura desemnată, calculul",
+        "chessLose": "Înfrângere la Gyejia · Pierde imediat după capturarea regelui.",
+        "chessHighlightBudget": "Amplasarea directă a pieselor în limita bugetului de {{buget}} puncte (Regele fixat în centrul celui de-al doilea rând)",
+        "chessHighlightMovement": "Piesa poate fi mutată cu o mișcare de șah o dată pe tură (număr limitat de ori).",
+        "omokWin": "Completați mai întâi 5 elemente orizontale, verticale și diagonale",
+        "omokLose": "Dacă adversarul tău completează mai întâi toate cele 5 elemente, pierzi.",
+        "omok33Forbidden": "Fără gemeni",
+        "omok33Allowed": "Permis gemeni",
+        "omokOverlineForbidden": "fara busteni",
+        "omokOverlineAllowed": "Lemn de lemn permis",
+        "ttamokWin": "Completați mai întâi elementul 5 sau obțineți primele {{cap}} puncte",
+        "ttamokLose": "Dacă adversarul tău completează mai întâi 5 articole sau atinge mai întâi {{cap}} puncte câștigătoare, pierzi.",
+        "ttamokHighlightCapture": "Câștigă atunci când ajungi mai întâi la {{cap}} puncte.",
+        "diceWin": "Câștigă partea cu cel mai mare scor cumulat după runda {{r}}.",
+        "diceLose": "{{r}}Dacă scorul tău cumulat este scăzut la sfârșitul rundei, pierzi.",
+        "diceHighlightRules": "Negrul aterizează la fel de mulți ca ochii zarurilor, iar albul este plasat doar pe calea de ieșire.",
+        "thiefWin": "După 5 ture x runde, persoana cu cel mai mare punctaj total câștigă.",
+        "thiefLose": "Dacă scorul tău total este scăzut la sfârșitul rundei, pierzi.",
+        "thiefHighlightRoles": "Alternarea rolurilor între hoț (negru) și ofițer de poliție (alb)",
+        "alkkagiWin": "Doarce toate pietrele adversarului",
+        "alkkagiLose": "Dă-mi toate pietrele",
+        "alkkagiHighlightGauge": "Controlul forței cu manometru, reflexie pe perete",
+        "curlingWin": "Cine are cel mai mare scor total în rundă câștigă",
+        "curlingLose": "Dacă scorul total este scăzut, pierzi.",
+        "curlingHighlightRules": "Sistem de alunecare / rotund din piatra",
+        "fallbackWin": "Câștigul sau pierderea se decide în funcție de evoluția meciului.",
+        "fallbackLose": "Dacă înfrângerea este determinată de progresul jocului, pierzi.",
+        "spDefaultWin": "Câștigă când sunt îndeplinite condițiile de etapă",
+        "spDefaultLose": "Pierdeți dacă nu sunt îndeplinite condițiile",
+        "spSurvivalWin": "Nu s-au obținut 100 de {{tgt}} puncte în {{n}} ture",
+        "spSurvivalLose": "Obțineți 100 de {{tgt}} puncte în {{n}} ture",
+        "spCaptureTurnWin": "Obțineți {{target}} puncte în {{limit}} ture",
+        "spCaptureTurnLoseBoth": "Depășește {{limit}} ture / înscrie 100 {{țintă}} puncte",
+        "spCaptureTurnLoseMiss": "Nu s-a atins ținta în {{limit}} rând",
+        "spCaptureRaceWin": "Obțineți mai întâi {{target}} puncte",
+        "spCaptureRaceLose": "Obțineți mai întâi 100 de {{target}} puncte",
+        "spCaptureCapWin": "Obțineți mai întâi {{cap}} puncte",
+        "spCaptureCapLose": "Albul primește primul {{cap}} puncte",
+        "spCaptureGoalWin": "Atingerea punctajului țintă",
+        "spCaptureGoalLose": "Baek își atinge primul obiectiv",
+        "spSpeedWin": "Echipa câștigă la scorul general",
+        "spSpeedLose": "învins în lume",
+        "spAutoScoringWin": "{{n}}câștigă după numărare",
+        "spAutoScoringLose": "{{n}}Învins după Sugyega",
+        "spLegacyTurnWin": "{{target}} puncte sau mai multe în {{limit}} turn",
+        "spLegacyTurnLose": "Nu s-a atins ținta în {{limit}} rând",
+        "spLegacyTerritoryWin": "Familia neagră {{negru}} casă+ · albă {{alb}} casă+",
+        "spLegacyTerritoryLose": "captarea țintă nu a fost atinsă",
+        "spTerritoryWin": "Dacă familia are mai multe case, câștigă.",
+        "spTerritoryLose": "Al treisprezecelea în descendență"
+      },
+      "itemSlot": {
+        "hiddenStone": "Piatra Ascunsa",
+        "scan": "scanează",
+        "missile": "rachetă",
+        "diceOdd": "Obiecte de zaruri ciudate",
+        "diceEven": "Chiar și articole de zaruri",
+        "diceLow": "Articole cu zaruri cu număr redus (1-3).",
+        "diceHigh": "Articole cu zaruri cu număr mare (4-6).",
+        "slow": "lent",
+        "aimLine": "linia de vedere",
+        "turnAdd": "Adăugați Turn"
+      }
     },
     "singlePlayerInfo": {
       "close": "aproape",
@@ -1407,7 +1607,7 @@
       "winRate": "Rata de câștig: {{rate}}%"
     },
     "moveConfirm": {
-      "modeOff": "Modul butonul de pornire este OPRIT.",
+      "modeOff": "Modul butonul de pornire este OFF.",
       "confirmTitle": "Început confirmat",
       "pickPoint": "Faceți clic pe tablă pentru a selecta un punct",
       "modeAria": "modul butonul de lansare",
@@ -1418,12 +1618,12 @@
       "round1": "1-a prezentare",
       "round2Suffix": "· al 2-lea",
       "waitingBothBids": "Așteptăm ca ambele părți să prezinte scoruri negre (bune).",
-      "winnerLine": "Punctul {{bid}} al lui {{name}} → Negru (linie), punct țintă alb {{țintă}}",
+      "winnerLine": "Punctul {{bid}} al lui {{name}} → negru (linie), punctul țintă alb {{țintă}}",
       "tieRandomBoth": "Cravata propusă este aceeași. Alb-negru sunt selectate aleatoriu.",
       "tieRandom": "Cravată — Alb și negru sunt selectate aleatoriu.",
       "tieRebid": "Tie — Mută ​​pentru a relua.",
       "pleaseWait": "va rog asteptati o clipa...",
-      "proceedingNext": "Trecem la pasul următor...",
+      "proceedingNext": "Trecem la pasul următor…",
       "bidConfirmed": "Prezentarea {{bid}} punct confirmată",
       "waitingOpponentBid": "Se așteaptă prezentarea {{name}}",
       "defaultLabel": "de bază",
@@ -1478,7 +1678,8 @@
       "aria": "Fila Rezultate"
     },
     "speedPressure": {
-      "aria": "Timp permis {{sec}} secunde"
+      "aria": "Timp permis {{sec}} secunde",
+      "label": "Bară de viteză de 10 secunde"
     },
     "adventureResult": {
       "bossLine": "Sef: {{label}} +{{pct}}%",
@@ -1507,7 +1708,7 @@
       "resignConfirmButton": "abţinere"
     },
     "resultModalGold": {
-      "totalTitle": "Total aur câștigat {{total}} (de bază {{bază}}, specializat +{{bonus}})",
+      "totalTitle": "Total de aur câștigat {{total}} (de bază {{bază}}, specializat +{{bonus}})",
       "earnedTitle": "Aur a câștigat {{amount}}",
       "withBonusTitle": "Aur {{amount}} (înțelegere/efect de aventură +{{bonus}})",
       "plainTitle": "Aur {{amount}}"
@@ -1523,7 +1724,7 @@
       "result": "rezultat"
     },
     "gameApplication": {
-      "title": "Aplica pentru joc",
+      "title": "Aplicație de joc",
       "modeHeading": "modul de joc",
       "applyTitle": "aplicație {{mode}}",
       "selectMode": "Vă rugăm să selectați un joc."
@@ -1541,7 +1742,7 @@
       "bidInstructionRich": "Oferă un număr de puncte pentru a le oferi adversarului tău pentru a aduce negru (jucător).",
       "bidHint": "Jucătorul cu scorul mai mare devine negru, iar golul albului este coborât corespunzător. Pot fi prezentate până la {{max}} puncte.",
       "bidTimer": "cronometru pentru pariuri",
-      "bidRound": "round {{round}}",
+      "bidRound": "runda {{round}}",
       "secondsShort": "lumânare",
       "timeRemainingBidShort": "Pariuri confirmate în timpul rămas",
       "aiUnlimitedTitle": "Prezentarea nelimitată a jocurilor AI",
@@ -1612,10 +1813,13 @@
       "baseRule": "baza",
       "whiteTargetLabel": "o sută de goluri",
       "firstBlackRole": "Linie (negru)",
-      "meBadge": "eu"
+      "meBadge": "eu",
+      "captureBidResultTitle": "Rezultatul prezentării scorului câștigător",
+      "komiBidFinalRound": "Oferta bonus (runda finală)",
+      "pressStartPrompt": "După ce sunteți gata, faceți clic pe Start pentru a începe să jucați."
     },
     "baseStoneChoice": {
-      "hostPick": "Gazda selectează placa de culoare din stânga.",
+      "hostPick": "Gazda selectează panoul de culori din stânga.",
       "wait": "va rog asteptati o clipa.",
       "pairHost": "Gazdă: alegeți în schimb tabla de culori a unui coechipier.",
       "pickPanel": "Alegeți versiunea care vă place.",
@@ -1642,15 +1846,17 @@
       "blackRole": "Prima lovitură, negru",
       "whiteRole": "Hugong · Înapoi",
       "finalCardAlt": "Prima și a doua mișcare finală sunt afișate pe cărțile din stânga și din dreapta.",
-      "fastFlashAlt": "Afișajul alb-negru din cele două spații se schimbă, dar după un timp, se fixează la aranjamentul final.",
-      "smoothEndAlt": "Alb-negru se schimbă rapid și se oprește aleatoriu."
+      "fastFlashAlt": "Afișajul alb-negru din cele două spații se schimbă, dar după un timp, se fixează la aspectul final.",
+      "smoothEndAlt": "Alb-negru se schimbă rapid și se oprește aleatoriu.",
+      "assignmentComplete": "Sarcina finalizată",
+      "blackCandidate": "Mergeți primul candidat (negru)."
     },
     "uniformColor": {
       "blackStone": "piatra neagra",
       "whiteStone": "piatra alba",
       "title": "Ilsaek Baduk",
       "uniformRoulette": "ruleta de culoare uniformă",
-      "thisColor": "Culoarea pietrei pentru acest meci: {{color}}",
+      "thisColor": "Culoarea pietrei pentru acest joc: {{color}}",
       "flashHint": "Pietrele albe și negre clipesc rapid alternativ și se opresc aleatoriu.",
       "autoStart": "Meciul va începe automat după încheierea tragerii la sorți.",
       "stoneColorRoulette": "ruleta de culoarea pietrei",
@@ -1658,12 +1864,12 @@
       "flashHintAlt": "Pietrele albe și negre se schimbă rapid și apoi se opresc la întâmplare."
     },
     "conditionPotion": {
-      "title": "Condiție de plată",
+      "title": "conditie plata",
       "currentCondition": "starea actuală",
       "expectedRecovery": "Stare după recuperarea așteptată",
       "applying": "Se aplică recuperarea...",
       "goShop": "Du-te la magazin",
-      "usePotion": "utilizați medicina restaurativă",
+      "usePotion": "Folosiți medicina restaurativă",
       "recoveryTitle": "recuperarea stării",
       "potionTitle": "{{name}} · Recuperare {{min}}~{{max}} · Reținere {{count}}",
       "currentLabel": "starea actuală",
@@ -1679,7 +1885,8 @@
       "autoRouletteShort": "În loc de piatră, hârtie, foarfece, alb și negru sunt alocate folosind ruleta automată.",
       "checkingRoulette": "Se verifică rezultatele ruletei...",
       "waitingConfirm": "Se așteaptă confirmarea celeilalte părți...",
-      "startCountdown": "Începe meciul ({{count}})"
+      "startCountdown": "Începe meciul ({{count}})",
+      "autoStartHint": "Apăsați Start sau meciul va începe automat după 30 de secunde."
     },
     "diceGo": {
       "winner": "Ca rezultat al zarurilor, {{name}} a câștigat și s-a luat decizia de a merge primul/ultimul.",
@@ -1740,7 +1947,7 @@
       "tieDeathmatch": "Meciul morții continuă cu egalitate.",
       "swapRoles": "Schimbați rolurile și treceți la runda următoare.",
       "round2Tie": "Runda 2 se termină. Dacă scorul este egal, este un meci de moarte.",
-      "waitingConfirm": "Se așteaptă confirmarea adversarului",
+      "waitingConfirm": "Se așteaptă confirmarea partenerului",
       "nextRound": "runda urmatoare",
       "piecesUnit": "câine"
     },
@@ -1813,9 +2020,78 @@
       "editStage": "Etapa Editare",
       "editOrder": "Editați comanda",
       "cancel": "anulare",
+      "exit": "Ieșire",
       "start": "Noțiuni de bază",
       "singleStage": "o singură etapă",
-      "masterClass": "o persoană cu calificare"
+      "masterClass": "o persoană cu calificare",
+      "goalSection": "ţintă",
+      "goalTurnCaption": "Turn limitat",
+      "goalTurnUnit": "întoarce",
+      "goalMySide": "eu",
+      "goalOpponentSide": "adversar",
+      "goalCaptureUnit": "cules",
+      "goalSurvivalTurnCaption": "perioadă",
+      "goalSurvivalBlockCaption": "blocați înapoi",
+      "goalSurvivalPointUnit": "punct",
+      "turnLimit": "Turnuri limitate: {{count}} ture",
+      "autoScoringGoal": "Numărătoare automată după {{count}} ture",
+      "myCaptureGoal": "Câștig {{count}}",
+      "opponentCaptureGoal": "Învinge {{count}} adversari",
+      "vs": "vs",
+      "survivalGoal": "Blocați {{țintă}} puncte în {{turns}}ture",
+      "territoryGoal": "gye câștigă",
+      "modeTypeTabs": "tip de baduk",
+      "modeGuideTitle": "Cum să joci",
+      "modeGuide": {
+        "missile": {
+          "step1Title": "articol de rachetă",
+          "step1Body": "La rândul meu, apăs pe butonul articolului rachetă.",
+          "step1BodyItem": "Puteți folosi {{count}} rachete în acest meci. Apăsați butonul de rachetă la rândul dvs.",
+          "step2Title": "selecția pietrei",
+          "step2Body": "Alege-mi piatra pentru a mișca.",
+          "step3Title": "mișcare în linie dreaptă",
+          "step3Body": "Împingeți piatra în direcția spațiului gol pentru a schimba situația."
+        },
+        "hidden": {
+          "step1Title": "Articol ascuns",
+          "step1Body": "Folosește butonul ascuns pentru a face mișcări care sunt invizibile pentru adversarul tău.",
+          "step1BodyItem": "{{count}} ascuns îți permite să faci mișcări care sunt invizibile pentru adversarul tău.",
+          "step2Title": "scanează elementul",
+          "step2Body": "Găsiți zone suspecte ascunse cu butonul de scanare.",
+          "step2BodyItem": "{{count}} scanări vă pot ajuta să găsiți zone suspecte ascunse.",
+          "step3Title": "Utilizarea articolelor",
+          "step3Body": "Scanările ascunse sunt limitate ca număr, așa că alegeți cu înțelepciune momentul."
+        },
+        "capture": {
+          "step1Title": "învingătoare",
+          "step1Body": "Câștigi dacă primești mai întâi pietrele adversarului egale cu scorul țintă.",
+          "step2Title": "piatră de model",
+          "step2Body": "Dacă câștigi o piatră de model, aceasta contează ca 2 puncte."
+        },
+        "speed": {
+          "step1Title": "reguli de timp",
+          "step1Body": "Dacă nu o faci în timpul stabilit, adversarul tău va primi mai multe puncte.",
+          "step2Title": "Pretul de calcul",
+          "step2Body": "În cele din urmă, câștigătorul este determinat prin adunarea bonusurilor de casă și de timp."
+        },
+        "base": {
+          "step1Title": "păpușă de bază",
+          "step1Body": "Citiți situația uitându-vă la plasarea pietrei de bază.",
+          "step2Title": "oferta bonus",
+          "step2Body": "Decideți un bonus pe care să-l acordați adversarului și începeți jocul cu culoarea/piatra dorită."
+        },
+        "classic": {
+          "step1Title": "construirea unei case",
+          "step1Body": "Construiește case în jurul teritoriului și asigură mai multe case decât adversarii tăi.",
+          "step2Title": "Pretul de calcul",
+          "step2Body": "Dacă ambele părți trec, câștigătorul este decis prin numărare."
+        },
+        "survival": {
+          "tab": "Salvează-l pe Baduk",
+          "step1Title": "blocați înapoi",
+          "step1Body": "Împiedicați Albul (adversarul) să atingă scorul țintă pentru un număr stabilit de ture."
+        }
+      }
     },
     "towerShop": {
       "closeAria": "Achiziționare aproape de articole exclusive de top",
@@ -1867,13 +2143,13 @@
       "diceTitle": "{{round}}Număr de runde",
       "deathmatchStart": "Deathmatch începe",
       "viewFinal": "Vezi rezultatul final",
-      "waitingConfirm": "Se așteaptă confirmarea adversarului",
+      "waitingConfirm": "Se așteaptă confirmarea partenerului",
       "dummyCapture": "{{nume}}",
       "previousRound": "runda anterioară",
       "previousKnockShort": "lovitură anterioară",
       "detailScores": "scor detaliat",
       "resultBoardTab": "panoul de rezultate",
-      "finalRoundTieBody": "Runda finală este la egalitate. După confirmare, jocul continuă trăgând mai multe pietre de pe aceeași tablă.",
+      "finalRoundTieBody": "Runda finală este egală. După confirmare, jocul continuă trăgând mai multe pietre de pe aceeași tablă.",
       "stonesLeft": "pietre rămase",
       "scoredFor": "Scor",
       "scoredAgainst": "a recunoscut",
@@ -1883,7 +2159,7 @@
       "lastDummyBonus": "Ultima grămadă +{{bonus}}",
       "alkkagiKnockout": "făcut praf",
       "playerFallback": "player",
-      "waitingOpponentConfirm": "Se așteaptă confirmarea adversarului",
+      "waitingOpponentConfirm": "Se așteaptă confirmarea partenerului",
       "house": "casa",
       "knockout": "făcut praf",
       "roundResultBoard": "panou rotund de rezultate"
@@ -1892,7 +2168,7 @@
       "waiting": "Se așteaptă confirmarea celeilalte părți...",
       "start": "Noțiuni de bază",
       "autoProgress": "Până la progresul automat",
-      "autoProgressShort": "progres automat"
+      "autoProgressShort": "avans automat"
     },
     "colorStart": {
       "title": "Verificați Nigiri"
@@ -1944,7 +2220,7 @@
     },
     "features": {
       "gameplay": "jocul",
-      "moveConfirmButton": "Folosiți butonul de lansare",
+      "moveConfirmButton": "Utilizați butonul de lansare",
       "stonePreview": "Previzualizarea pietrei (pasarea mouse-ului)",
       "lastMoveMarker": "afișați ultimul loc",
       "captureScoreAnimation": "Animație cu scor câștigător",
@@ -1974,7 +2250,7 @@
       "withdraw": "Retragerea calității de membru",
       "cancel": "anulare",
       "withdrawTitle": "Retragerea calității de membru",
-      "withdrawLine1": "La retragere, datele sunt șterse și nu pot fi recuperate.",
+      "withdrawLine1": "Datele sunt șterse la retragere și nu pot fi recuperate.",
       "withdrawLine2": "Nu vă puteți reînregistra cu aceeași adresă de e-mail timp de 1 săptămână.",
       "withdrawPasswordConfirm": "verifica parola",
       "withdrawTextConfirm": "Introduceți textul de confirmare: „Retrageți calitatea de membru”",
@@ -2031,7 +2307,7 @@
       "strategicTitle": "joc de strategie",
       "playfulTitle": "juca jocuri",
       "lobbySuffix": "lobby",
-      "selectGame": "Selectați jocul pe care doriți să îl jucați."
+      "selectGame": "Alegeți jocul pe care doriți să îl jucați."
     },
     "waitingRoom": {
       "strategic": "Sala de așteptare Baduk strategică",
@@ -2071,7 +2347,7 @@
     "rankedUnavailable": {
       "title": "Fără meciuri clasate",
       "body": "Meciurile de clasare sunt disponibile numai în sala de așteptare Strategic Baduk.",
-      "seasonRankingHint": "Lista de clasament a sezonului poate fi găsită în sala de așteptare Strategic Baduk."
+      "seasonRankingHint": "Clasamentul sezonului poate fi găsit în sala de așteptare Strategic Baduk."
     },
     "locationPrefix": {
       "strategic": "[Strategia Baduk]",
@@ -2105,9 +2381,13 @@
       "forceLogout": "forțat să plece",
       "forceLogoutConfirm": "Doriți să forțați [{{nickname}}] să se deconecteze?",
       "invite": "Invita",
+      "challenge": "Aplica pentru un meci",
+      "challengeUnavailable": "Cealaltă parte nu este în măsură să primească cereri de potrivire.",
+      "spectate": "Privind",
+      "spectateUnavailable": "Nu găsesc informații despre meci de urmărit.",
       "blockInvites": "Nicio invitație",
       "blockInvitesTitle": "Când este activat, alți jucători nu vă vor putea invita ca partener în Fair Arena.",
-      "statusInPairRoom": "Nu vă puteți schimba starea în timp ce vă aflați într-o cameră pereche.",
+      "statusInPairRoom": "Nu vă puteți schimba starea când vă aflați într-o cameră pereche.",
       "arenaBadge": "Stadionul {{label}}",
       "status": {
         "online": "online",
@@ -2160,7 +2440,7 @@
         "strategicPvp": "Stadionul strategic Baduk PVP",
         "strategicAi": "Bătălia strategică Baduk AI",
         "pairPvp": "Târg PVP Arena",
-        "pairAi": "Asociați AI Match",
+        "pairAi": "Pereche AI ​​Match",
         "playfulPvp": "Joacă Baduk PVP Stadium",
         "playfulAi": "Joacă Baduk AI Battle"
       }
@@ -2202,7 +2482,7 @@
       "noDescription": "Nu există nicio descriere pentru jocul selectat.",
       "matchTitle": "Potrivirea meciului de clasament",
       "matched": "Potriviți",
-      "acceptPrompt": "Acceptați meciurile la timp.",
+      "acceptPrompt": "Accepta meciurile la timp.",
       "timeLeft": "Au mai rămas {{secunde}} secunde",
       "acceptExpired": "Timpul de acceptare a trecut",
       "accepted": "Acceptat",
@@ -2232,19 +2512,19 @@
       "hiddenItem": "Articol ascuns",
       "scanItem": "scanează elementul",
       "missileItem": "articol de rachetă",
-      "stonePlacementCount": "Număr de loturi",
+      "stonePlacementCount": "numărul de loturi",
       "rankingScore": "scor de clasare",
       "matchFound": {
         "rankingLabel": "Clasament: {{rating}} puncte",
         "expectedDelta": "Schimbare așteptată a scorului",
         "winDelta": "Victorie: +{{puncte}}",
-        "lossDelta": "Înfrângere: {{puncte}} puncte",
+        "lossDelta": "Înfrângere: {{puncte}}",
         "opponentRanking": "Clasamentul adversarului",
         "opponentRating": "{{evaluare}}puncte",
         "waitingPeer": "În așteptarea acceptării celeilalte părți...",
         "peerAcceptedPleaseAccept": "Cealaltă parte a acceptat. Vă rugăm să acceptați.",
         "reject": "refuz",
-        "cancelHint": "Dacă refuzi sau nu accepți la timp, meciul tău va fi anulat.",
+        "cancelHint": "Dacă refuzi sau nu accepti la timp, meciul tău va fi anulat.",
         "priorityHint": "Dacă ați acceptat deja, starea de așteptare și prioritatea potrivite vor fi menținute dacă cealaltă persoană respinge sau expiră."
       },
       "panelTitle": "Meci de clasament",
@@ -2278,7 +2558,7 @@
       "startMatching": "Începeți potrivirea (selectați {{count}})",
       "selectedBadge": "selectat",
       "roundUnit": "{{count}}runde",
-      "boardSizeValue": "{{size}}linie",
+      "boardSizeValue": "{{size}} rând",
       "scoringTurnValue": "{{count}}număr",
       "itemCountValue": "{{conta}}",
       "slowItem": "lent",
@@ -2314,16 +2594,16 @@
       "firstMoveBlack": "Atacul primul (negru)",
       "secondMoveWhite": "Hugong (alb)",
       "mixRulesShort": "regula amestecului",
-      "hiddenItem": "Element ascuns",
+      "hiddenItem": "Articol ascuns",
       "scanItem": "scanează elementul",
       "baseStone": "piatra de baza",
       "captureGoal": "ținta de capturare",
       "turnsUnit": "{{count}}număr",
-      "linesUnit": "{{size}}linie",
+      "linesUnit": "{{size}} rând",
       "pointsUnit": "{{score}} puncte",
       "countUnit": "{{conta}}",
       "halfPoint": ".5 casa",
-      "startAiDuel": "Începe să lupți împotriva AI",
+      "startAiDuel": "Începeți să luptați împotriva AI",
       "startAiGame": "Începeți să jucați împotriva AI",
       "pairAiFormAria": "Formular de potrivire AI",
       "pairAiPetRequired": "Pentru a juca împotriva Pair AI, trebuie să echipați un animal de companie Pair.",
@@ -2331,7 +2611,7 @@
       "aiRecord": "Record AI de {{wins}} victorii {{loses}} pierderi ({{winRate}}%)",
       "botSuffix": "{{name}}bot",
       "gameSettingsTitle": "Potriviți setările",
-      "mixRulesMinAlert": "Regulile de mixare necesită selectarea a două sau mai multe reguli.",
+      "mixRulesMinAlert": "Regulile de amestecare necesită selectarea a două sau mai multe reguli.",
       "selectGameModePrompt": "Alegeți un mod de joc",
       "mixRulesTitle": "regula amestecului",
       "placementField": "câmpul de luptă de desfășurare",
@@ -2365,7 +2645,7 @@
       "pairLobby": "hol târg",
       "gameAdventureHow": "De fiecare dată când ucizi un monstru pe harta aventurii, punctele de vânătoare se acumulează egale cu nivelul monstrului. Dacă scorurile sunt aceleași, utilizatorul care l-a obținut primul va fi afișat în partea de sus.",
       "gameAdventureWhere": "Aventură → Câștigă împotriva monștrilor de pe harta locală.",
-      "badukStrategicHow": "Scorul cumulat bazat pe 1200 de modificări, în funcție de dacă câștigi sau pierzi într-un meci de clasare strategic baduk (PVP). Dacă joci același mod de mai mult de 10 ori, se va reflecta în clasamentul tău, iar dacă învingi un adversar puternic, acesta va crește și mai mult.",
+      "badukStrategicHow": "Scorul cumulat bazat pe 1200 de modificări, în funcție de dacă câștigi sau pierzi într-un meci de clasare strategic baduk (PVP). Dacă joci același mod de mai mult de 10 ori, acesta se va reflecta în clasamentul tău, iar dacă învingi un adversar puternic, acesta va crește și mai mult.",
       "badukStrategicWhere": "Utilizați meciul de clasare la Stadion → Baduk strategic → Sala de așteptare.",
       "badukPairHow": "Scorul cumulat bazat pe 1200 de modificări în funcție de victoria sau pierderea meciului de clasare PVP (PVP). Dacă îndeplinești numărul minim de meciuri, clasamentul tău se va reflecta, iar dacă învingi un adversar puternic, clasamentul tău va crește și mai mult.",
       "badukPairWhere": "Stadion → Utilizați meciul de clasare în Pair Baduk."
@@ -2455,7 +2735,7 @@
       "enhancePointsCount": "Puncte de întărire {{remaining}} / {{grant}}",
       "slot1LockedChapterOpen": "Slot 1 blocat · Capitolul{{stageIndex}} deschis",
       "slotLockedTier": "Slot {{slot}} blocat · {{tier}} sau mai mare",
-      "effectSelecting": "Se selectează efectele...",
+      "effectSelecting": "Se selectează efecte...",
       "applying": "Se aplică…",
       "slotAvailable": "🔓 DISPONIBIL",
       "gainEffect": "Obțineți efectul",
@@ -2600,7 +2880,7 @@
           "captureTarget": "[Winning Baduk] Golul adversarului+{{valoare}}{{sufix}}",
           "timeLimit": "Timeout +{{percent}}%{{sufix}}",
           "respawnWait": "Se așteaptă apariția - {{percent}}%{{sufix}}",
-          "monsterDwell": "Sejur monstru +{{percent}}%{{sufix}}",
+          "monsterDwell": "Monster stay +{{percent}}%{{sufx}}",
           "hiddenScan": "[Baduk ascuns] Scanare+{{valoare}}{{sufix}}",
           "baseStartScore": "[Base Baduk] Start+{{value}}punct{{sufix}}",
           "classicStartScore": "[Classic Baduk] Start+{{value}}punct{{sufix}}",
@@ -2625,10 +2905,10 @@
       "classBarRewardClaimed": "Chitanța completată",
       "classBarRewardClaim": "Primiți recompensă",
       "classBarRewardNeedClear": "Necesită o etapă de {{milestone}}",
-      "classBarRewardAria": "{{milestone}} puncte recompense",
+      "classBarRewardAria": "recompense de {{milestone}}puncte",
       "cleared": "Ștergere finalizată",
-      "enterStage": "Admitere ⚡{{cost}}",
-      "enterStageTitle": "Puterea de intrare/acțiune {{cost}}",
+      "enterStage": "Provocare ⚡{{cost}}",
+      "enterStageTitle": "Acțiune de provocare {{cost}}",
       "locked": "încuiat",
       "unlockRequired": "Necesită {{stageId}}",
       "claimAll": "Primiți în vrac ({{count}})",
@@ -2731,7 +3011,7 @@
     "enterAria": "{{title}} intrare",
     "strategicLobbyEnter": "Intrarea în sala de așteptare strategică Go",
     "strategicLobbyAlt": "Sala de așteptare Strategy Go",
-    "pairArenaEnter": "Intrarea la Stadionul Târgului",
+    "pairArenaEnter": "Intrarea pe stadionul târgului",
     "pairArenaAlt": "stadionul târgului",
     "unknownSpecialStat": "Opțiune specială necunoscută",
     "none": "Nu se aplică",
@@ -2751,7 +3031,7 @@
       "playfulTitle": "Redați Baduk Detailed Records",
       "strategicAll": "Strategie Baduk Toate",
       "playfulAll": "play baduk full",
-      "seasonResetNote": "Când vă resetați înregistrările PVP, scorul de clasament al sezonului va fi, de asemenea, resetat.",
+      "seasonResetNote": "Când vă resetați înregistrările PVP, scorul de clasament al sezonului va fi de asemenea resetat.",
       "noPairRanking": "Nu există un sistem de clasare pentru a juca Baduk.",
       "integrated": "integrare",
       "winLoss": "{{wins}} câștigă {{loses}} pierderi ({{winRate}}%)",
@@ -2769,7 +3049,7 @@
       "pointsUnit": "punct",
       "winSuffix": "câştiga",
       "lossSuffix": "grup",
-      "pvpWinLoss": "{{wins}} câștigă {{loses}} pierderi ({{winRate}}%)",
+      "pvpWinLoss": "{{wins}} victorii {{loses}} pierderi ({{winRate}}%)",
       "aiWinLoss": "AI {{wins}} câștigă {{loses}} pierderi ({{winRate}}%)"
     },
     "trainingQuest": "Sarcina de formare",
@@ -2781,7 +3061,7 @@
     "currentFloor": "etajul actual",
     "timeRemaining": "timpul rămas",
     "currentRank": "clasamentul actual",
-    "floorUnit": "etaj {{floor}}",
+    "floorUnit": "{{floor}}etaj",
     "rankUnit": "{{rang}}",
     "strategicAiRecord": "Înregistrare AI de strategie",
     "playfulAiRecord": "Redați înregistrarea AI",
@@ -2828,7 +3108,7 @@
     "vipTypes": "tip VIP",
     "rewardVip": "Recompensa VIP",
     "functionVip": "Caracteristică VIP",
-    "removeAds": "eliminați reclamele",
+    "removeAds": "elimina reclamele",
     "diamondPackage": "pachet de diamante",
     "packageRoman": "pachet {{roman}}",
     "modalPreview": "Confirmare modală",
@@ -2866,7 +3146,7 @@
     "playGoSuffix": "Baduk",
     "notEnhanced": "Nefortificat",
     "avatarStatus": {
-      "vipInactive": "Dezactivați VIP",
+      "vipInactive": "Dezactivează VIP",
       "diamondPackageInactive": "Dezactivați pachetul dia",
       "diamondPackageActive": "Pachet diamant {{roman}}"
     },
@@ -2890,7 +3170,7 @@
       "playfulGo": "juca baduk",
       "rankedIntegrated": "Total meci clasat: {{wins}} victorii {{loses}} înfrângeri ({{winRate}}%)",
       "pairAiRecord": "Pereche AI: {{wins}} victorii {{loses}} pierderi ({{winRate}}%)",
-      "modeRecord": "{{wins}} câștigă {{loses}} pierderi ({{winRate}}%)",
+      "modeRecord": "{{wins}} victorii {{loses}} pierderi ({{winRate}}%)",
       "pvpRecord": "Record PVP: {{wins}} victorii {{loses}} pierderi ({{winRate}}%)",
       "aiRecordSuffix": "· AI {{wins}} câștigă {{loses}} pierderi ({{winRate}}%)",
       "pvpModeRecord": "PVP {{wins}} câștigă {{loses}} pierderi ({{winRate}}%)",
@@ -2920,7 +3200,7 @@
       "sanctionReasons": {
         "profanity": "Blasfemie/calomnie",
         "spam": "Imagine de fundal/Spam",
-        "cheat": "Program ilegal suspectat",
+        "cheat": "program ilegal suspectat",
         "profile": "Pseudonim/Profil neadecvat",
         "other": "etc"
       },
@@ -2951,10 +3231,10 @@
       "avatarSelect": "Alegeți-vă avatarul",
       "tierRequired": "Nivelul {{tier}} din sezonul precedent este obligatoriu",
       "levelSumRequired": "Necesită suma nivelului {{level}}",
-      "goldPrice": "{{amount}} Aur",
+      "goldPrice": "{{amount}} aur",
       "diamondPrice": "{{amount}} diamant",
       "borderPurchaseConfirm": "Doriți să cumpărați chenarul „{{name}}” la {{price}}?",
-      "borderPurchaseHint": "Click pentru a cumpăra: {{description}}",
+      "borderPurchaseHint": "Faceți clic pentru a cumpăra: {{description}}",
       "levelSumShort": "Suma nivelului {{level}}",
       "tierShort": "Nivelul {{tier}}",
       "borderCategoryAria": "tipul de chenar",
@@ -2964,7 +3244,7 @@
       "changeCost": "costul schimbării",
       "ownedDiamonds": "ținând diamant",
       "mbtiWhatTitle": "Ce este MBTI?",
-      "mbtiWhatDesc": "Indicatorul de tip Myers-Briggs (MBTI) este un instrument de înțelegere a tipului de personalitate pe baza preferințelor unui individ. Vă poate ajuta să vă înțelegeți mai bine și să vă îmbunătățiți relațiile cu ceilalți.",
+      "mbtiWhatDesc": "MBTI (Myers-Briggs Type Indicator) este un instrument de înțelegere a tipului de personalitate pe baza preferințelor unui individ. Vă poate ajuta să vă înțelegeți mai bine și să vă îmbunătățiți relațiile cu ceilalți.",
       "goMbtiTitle": "Baduk MBTI",
       "goMbtiDesc": "Baduk MBTI este o analiză a stilului tău baduk folosind concepte MBTI. Fiecare tip are propriul stil de joc unic, așa că puteți găsi un stil care vi se potrivește.",
       "mbtiFirstReward": "La configurarea inițială, veți primi 100 de diamante.",
@@ -3024,7 +3304,7 @@
         },
         "F": {
           "name": "Emoție (F)",
-          "general": "Au o mare empatie și o relație de valoare cu oamenii. Luați decizii bazate pe armonie și cooperare și luați în considerare sentimentele celorlalți.",
+          "general": "Au o mare empatie și prețuiesc relațiile cu oamenii. Luați decizii bazate pe armonie și cooperare și luați în considerare sentimentele celorlalți.",
           "goStyle": "Este un etos emoțional care este influențat de impulsul sau de psihologia celeilalte persoane. Uneori facem mișcări îndrăznețe care par nerezonabile."
         },
         "J": {
@@ -3051,6 +3331,8 @@
     "mannerRank": {
       "title": "Informații la nivel de manieră",
       "grade": "clasă de manieră",
+      "effectsByGrade": "Efect după grad",
+      "currentBadge": "astăzi",
       "rangeHint": "Acestea sunt beneficii și penalități aplicate pentru fiecare interval de scor.",
       "allStatsPlus10": "Toate abilitățile +10",
       "disassembleJackpot": "Probabilitate de jackpot de descompunere +20%",
@@ -3065,7 +3347,19 @@
       "scoreAbove": "{{min}} puncte sau mai mult",
       "scoreRange": "{{min}}~{{max}} puncte",
       "zeroScore": "0 puncte",
-      "mannerPointsTitle": "{{score}}puncte ({{rank}})"
+      "mannerPointsTitle": "{{score}}puncte ({{rank}})",
+      "grades": {
+        "worst": "cel mai rău",
+        "veryBad": "foarte rău",
+        "bad": "rău",
+        "caution": "Atenţie",
+        "normal": "în mod obișnuit",
+        "good": "bine",
+        "veryGood": "foarte bun",
+        "dignified": "demnitate",
+        "pro": "pro",
+        "master": "maestru"
+      }
     },
     "statAllocation": {
       "resetFailAlert": "Condițiile de resetare a capacității nu au fost îndeplinite. Nu aveți aur sau ați depășit numărul de resetări zilnice.",
@@ -3078,7 +3372,7 @@
       "bonus": "bonus",
       "resetBtn": "resetare",
       "allocateTitle": "Distribuția punctelor de abilitate",
-      "allocateAria": "Distribuție {{stat}}",
+      "allocateAria": "{{stat}} Distribuție",
       "statLabel": "abilitate",
       "remainingShort": "rest",
       "allocateToStat": "Distribuție la această abilitate"
@@ -3101,7 +3395,7 @@
       "yourMbti": "MBTI-ul dvs. este {{mbti}}.",
       "rewardObtained": "Obțineți 100 de diamante!",
       "answerAll": "Vă rugăm să răspundeți la toate întrebările.",
-      "istjDesc": "Realist, responsabil, prudent",
+      "istjDesc": "Realist, responsabil, precaut",
       "isfjDesc": "Dedicat, blând, delicat",
       "infjDesc": "perspicacitate, idealism, profunzime",
       "intjDesc": "Strategic, independent, logic",
@@ -3116,7 +3410,7 @@
       "estjDesc": "Sistematic, realist, leadership",
       "esfjDesc": "Sociabil, cooperant, grijuliu",
       "enfjDesc": "Carisma, inspirație, leadership",
-      "entjDesc": "Determinare, leadership, strateg",
+      "entjDesc": "Determinare, conducere, strateg",
       "mbtiExplain1": "Indicatorul de tip Myers-Briggs (MBTI) este un instrument de înțelegere a tipului de personalitate pe baza preferințelor unui individ.",
       "mbtiExplain2": "Vă poate ajuta să vă înțelegeți mai bine și să vă îmbunătățiți relațiile cu ceilalți.",
       "setupMbti": "Configurarea MBTI",
@@ -3131,7 +3425,7 @@
       "opponentGoStyle": "Tendința de baduk a adversarului",
       "strengths": "rezistenţă",
       "weaknesses": "slăbiciune",
-      "setMbtiHint": "Configurați MBTI, puteți vedea analiza de compatibilitate cu partenerul dvs.",
+      "setMbtiHint": "Dacă ați configurat MBTI, puteți vedea analiza de compatibilitate cu partenerul dvs.",
       "title": "Comparație MBTI",
       "notSetBoth": "Niciuna dintre părți nu are un set MBTI.",
       "opponentNotSet": "MBTI-ul celeilalte părți nu a fost setat.",
@@ -3144,7 +3438,7 @@
       "useWeaknesses": "Profită de slăbiciunile adversarului tău.",
       "differences": "diferenţă",
       "similarities": "teren comun",
-      "veryGood": "meci foarte bun",
+      "veryGood": "compatibilitate foarte buna",
       "good": "compatibilitate bună",
       "normal": "Compatibilitate medie",
       "poor": "compatibilitate proasta",
@@ -3171,7 +3465,7 @@
           "playStyle": "Găsiți cea mai bună mișcare pentru situația actuală. Este un etos pragmatic și flexibil."
         },
         "ISFP": {
-          "style": "o persoană senzuală liberă",
+          "style": "o persoană liberă senzuală",
           "playStyle": "Este un ethos care se bazează pe simțuri și le lasă libere. Uneori facem mișcări neașteptate."
         },
         "INFP": {
@@ -3237,7 +3531,7 @@
       "simE": "Ambele au un etos proactiv",
       "simI": "Ambele au un etos prudent",
       "diffSReal": "Ești o persoană practică, adversarul tău este o persoană intuitivă.",
-      "diffNReal": "Ești intuitiv, adversarul tău este practic.",
+      "diffNReal": "Ești un intuiționist, adversarul tău este o persoană practică.",
       "simS": "Ambele sunt utilitare",
       "simN": "ambele sunt conduse de intuiție",
       "diffTLogic": "Ești o persoană logică, partenerul tău este o persoană emoțională.",
@@ -3254,7 +3548,7 @@
       "warnJ": "Oponenții sunt puternici la planificare și finisare. Evitați să fiți târât într-un joc lung.",
       "stratI": "Etosul adversarului este precaut. Complicați jocul atacând agresiv.",
       "stratS": "Adversarul este orientat spre utilitate. Prindeți tendința cu mișcări neobișnuite.",
-      "stratF": "Cealaltă persoană este emoțională. Presiune cu numere logice.",
+      "stratF": "Cealaltă persoană este emoțională. Presiunea în numere logice.",
       "stratP": "Adversarul este un etos flexibil. Planificați-l și urmați-l până când este terminat."
     },
     "contentUnlock": {
@@ -3284,7 +3578,7 @@
       "editedAt": "(Editat: {{data}})"
     },
     "equipmentDetail": {
-      "inventoryUse": "Poate fi folosit in geanta.",
+      "inventoryUse": "Îl poți folosi în geantă.",
       "noMaterialUse": "Acest material nu este utilizat în prezent pentru a îmbunătăți niciun echipament.",
       "obtainedQty": "Cantitatea Dobândită",
       "ownedQty": "Cantitate deținută",
@@ -3301,7 +3595,7 @@
       "bonusPoints": "Bonus: {{puncte}}P",
       "statBreakdown": "Bază {{bază}} → Afișat {{prezentat}} (Echipament·Bonus +{{bonus}})",
       "statBaseOnly": "De bază {{bază}} · Echipament · Reflecție bonus",
-      "phaseScoreAria": "Scoruri de abilități pentru fiecare fază de campionat",
+      "phaseScoreAria": "Scoruri de abilitate pentru fiecare fază de campionat",
       "equipmentEffects": "efectul echipamentului",
       "allocate": "distributie",
       "opening": "primele zile",
@@ -3442,7 +3736,7 @@
           "2": "Perechea Baduk câștig recompensa dublată",
           "3": "Play Baduk win recompensa dublată",
           "4": "Recompensa monedei breslei s-a dublat",
-          "5": "Dublează recompensele de misiuni zilnice/săptămânale/lunare",
+          "5": "Recompensele duble pentru misiuni zilnice/săptămânale/lunare",
           "6": "Recompensa pentru activitatea de misiune s-a dublat",
           "7": "Deschide 2 cufere de comori de aventură"
         }
@@ -3458,7 +3752,7 @@
           "5": "Rata de succes a jackpotului de sinteză a echipamentelor +10%",
           "6": "Probabilitate de jackpot de dezasamblare a echipamentului +10%",
           "7": "Probabilitatea jackpot-ului de descompunere/sinteză a materialului +10%",
-          "8": "Posibilă înregistrare a produsului schimb (3 articole)",
+          "8": "Posibil înregistrare de schimb de produse (3 articole)",
           "9": "Slotul de antrenament VIP pentru animale de companie este deschis",
           "10": "Slotul pentru incubație VIP pentru animale de companie este deschis",
           "11": "Funcția SKIP meciul de campionat"
@@ -3467,7 +3761,7 @@
       "vvip": {
         "name": "VVIP",
         "benefits": {
-          "0": "Recompensa VIP + Beneficii integrate VIP"
+          "0": "Recompensa VIP + Caracteristică beneficii integrate VIP"
         }
       }
     },
@@ -3478,23 +3772,23 @@
       "equipment_package_1": "Pachetul cutie de echipamente I",
       "equipment_package_2": "Pachetul cutie de echipamente II",
       "equipment_package_3": "Pachetul cutie de echipamente III",
-      "remove_ads": "eliminați reclamele"
+      "remove_ads": "elimina reclamele"
     },
     "packageBenefits": {
-      "diamond_daily_50_350": "50 de diamante plătite prin poștă în fiecare zi (în total 350 de diamante)",
-      "diamond_daily_50_750": "50 de diamante plătite prin poștă în fiecare zi (total 750 de diamante)",
-      "diamond_daily_50_1500": "50 de diamante plătite prin poștă în fiecare zi (total 1500 de diamante)",
-      "diamond_instant_100": "100 de diamante plătite imediat",
-      "diamond_instant_250": "Plata imediata a 250 de diamante",
-      "diamond_instant_750": "Plata imediată a 750 de diamante",
-      "equip_pkg1_boxes": "1 cutie echipament V",
-      "equip_pkg1_mat": "1 cutie material VI",
+      "diamond_daily_50_350": "100 de diamante plătite prin poștă în fiecare zi (total 700 de diamante)",
+      "diamond_daily_50_750": "100 de diamante plătite prin poștă în fiecare zi (total 1500 de diamante)",
+      "diamond_daily_50_1500": "100 de diamante plătite prin poștă în fiecare zi (total 3000 de diamante)",
+      "diamond_instant_100": "Plata imediata a 200 de diamante",
+      "diamond_instant_250": "Plata imediata a 500 de diamante",
+      "diamond_instant_750": "Plata imediata a 1000 de diamante",
+      "equip_pkg1_boxes": "3 cutii de echipamente V",
+      "equip_pkg1_mat": "3 casete de materiale VI",
       "equip_pkg1_bonus": "+ Plată confirmată „Echipament epic”.",
-      "equip_pkg2_boxes": "2 cutii de echipamente V",
-      "equip_pkg2_mat": "2 casete de material VI",
+      "equip_pkg2_boxes": "5 cutii de echipamente",
+      "equip_pkg2_mat": "5 casete de materiale VI",
       "equip_pkg2_bonus": "+ Plată garantată „Echipament legendar”.",
       "equip_pkg3_boxes": "2 Cutia de echipamente VI",
-      "equip_pkg3_mat": "5 casete de materiale VI",
+      "equip_pkg3_mat": "10 casete de materiale VI",
       "equip_pkg3_bonus": "+ Plată confirmată „Echipament Mitic”.",
       "remove_ads_1": "Ascundeți bannere în joc și reclame pe pagină completă, cum ar fi lobby și matchmaking",
       "remove_ads_2": "Primiți aceleași recompense fără anunțuri cu recompensă în magazin (menținând limita zilnică)"
@@ -3574,7 +3868,7 @@
       },
       "condition_potion_medium": {
         "name": "Agent de recuperare a stării (medie)",
-        "description": "Un agent de recuperare a stării care vă face să vă simțiți mai limpede."
+        "description": "Un agent de recuperare a stării care vă face capul să vă simțiți mai limpede."
       },
       "condition_potion_large": {
         "name": "Agent de recuperare a stării (mare)",
@@ -3604,7 +3898,7 @@
     "claimExpired": "Perioada de răscumpărare a expirat și nu puteți primi compensații. Puteți șterge acest e-mail dacă este necesar.",
     "actionPoints": "{{count}} Putere de acțiune",
     "guildCoins": "{{count}} monedă de breaslă",
-    "gold": "{{amount}} Aur",
+    "gold": "{{amount}} aur",
     "diamonds": "{{amount}} diamant",
     "packageLine": "Pachet {{nume}} × {{cantitate}}",
     "delete": "şterge",
@@ -3643,8 +3937,8 @@
       "achievements": "realizări"
     },
     "activity": {
-      "daily": "Performanța de astăzi",
-      "weekly": "Activitate săptămânală",
+      "daily": "Performanța de azi",
+      "weekly": "activitate săptămânală",
       "monthly": "Activitate lunară",
       "points": "Activitate +{{puncte}}"
     },
@@ -3671,7 +3965,7 @@
       "claimedTitle": "Chitanța completată",
       "claimRewardTitle": "Primiți recompensă",
       "activityRequired": "{{milestone}} este, de asemenea, necesară",
-      "activityReward": "{{milestone}} Recompensă pentru activitate",
+      "activityReward": "{{milestone}} recompense de activitate",
       "activityRewardAp": "{{milestone}} Activitate Recompensă Acțiune Restaurare"
     },
     "rewards": {
@@ -3744,12 +4038,12 @@
     "detailClick": "{{name}} ({{level}}) - Faceți clic pentru a vedea detalii",
     "alerts": {
       "insufficientDiamonds": "Nu sunt suficiente diamante.",
-      "equipLevelInsufficient": "Nivelul de uzură este insuficient. (Necesar: {{obligatoriu}}, curent: Lv.{{curent}})",
+      "equipLevelInsufficient": "Nivelul de uzură este insuficient. (Obligatoriu: {{obligatoriu}}, curent: Niv.{{curent}})",
       "insufficientUnbindTickets": "Există o lipsă a dreptului de a anula atribuirea."
     },
     "bindModal": {
       "line1": "Echipamentul este legat și nu poate fi vândut la schimb.",
-      "line2": "Pentru a vinde pe bursă, trebuie să utilizați dreptul de a elibera atribuirea.",
+      "line2": "Pentru a vinde la bursă, trebuie să utilizați dreptul de delegare.",
       "unbindDesc": "Dacă deblocați echipamentul, devine posibilă vânzarea acestuia la schimb."
     },
     "presetSavedTitle": "Salvați presetarea",
@@ -3785,7 +4079,7 @@
       "consumableDetail": "Detalii consumabile",
       "materialDetail": "Detalii materiale",
       "itemDetail": "Detalii articol",
-      "cannotRefine": "Nu poate fi topit",
+      "cannotRefine": "nu poate fi topit",
       "goRefine": "Accesați fila Forge Smelting"
     },
     "purchase": {
@@ -3793,7 +4087,7 @@
       "consumable": "consumabile",
       "material": "ingredient",
       "noMaterialUse": "Acest material nu este utilizat în prezent pentru a îmbunătăți niciun echipament.",
-      "inventoryUse": "Poate fi folosit in geanta.",
+      "inventoryUse": "Îl poți folosi în geantă.",
       "characterGrowth": "Este folosit pentru creșterea caracterului, întărirea, rafinarea etc.",
       "selectQuantity": "Selectați cantitatea",
       "productDetailAria": "Achiziționați detalii despre produs",
@@ -3834,7 +4128,7 @@
       "sellAmount": "Cantitatea de vânzări",
       "unitPrice": "Preț de vânzare per oaspete",
       "deleteOnly": "0 (doar ștergeți)",
-      "goldUnit": "{{amount}} Aur",
+      "goldUnit": "{{amount}} aur",
       "totalReceive": "aur total de primit",
       "deleteCheckout": "Plată (Șterge)",
       "noGoldHint": "Aurul nu intră și dispare doar suma selectată.",
@@ -3897,7 +4191,7 @@
     "craftingResult": {
       "upgradeJackpotTitle": "Sinteza este grozavă!",
       "downgradeJackpotTitle": "Dezasamblarea este minunată!",
-      "upgradeTitle": "rezultate sintetice",
+      "upgradeTitle": "rezultatele sintezei",
       "downgradeTitle": "Rezultate descompunere",
       "jackpotHeading": "🎉 Minunat! 🎉",
       "jackpotBody": "Obținut dublu material!",
@@ -3963,7 +4257,7 @@
       "slotBadge": "regiune",
       "setBonusEffect": "Setați efectul bonus",
       "randomPartial": "(alocare aleatorie parțială)",
-      "combatSub": "Sub-opțiuni ({{count}} elemente aleatoare)",
+      "combatSub": "Sub-opțiuni ({{count}} articole aleatoare)",
       "specialSub": "Opțiuni speciale ({{count}} bucăți aleatoriu)",
       "mainEnhanceSteps": "Etapa de consolidare a opțiunii principale",
       "base": "de bază",
@@ -3995,7 +4289,7 @@
       "noMaterialUse": "Acest material nu este utilizat în prezent pentru a îmbunătăți niciun echipament.",
       "materialTab": "ingredient",
       "consumableTab": "consumabile",
-      "inventoryHint": "Poate fi folosit in geanta.",
+      "inventoryHint": "Îl poți folosi în geantă.",
       "noGuide": "Nu există instrucțiuni.",
       "tier1": "sac",
       "tier2": "stânci",
@@ -4012,6 +4306,17 @@
       "noTier": "Fără nivel"
     },
     "tierInfo": {
+      "names": {
+        "champion": "provocator",
+        "master": "maestru",
+        "diamond": "diamant",
+        "platinum": "platină",
+        "gold": "aur",
+        "silver": "argint",
+        "bronze": "bronz",
+        "iron": "Recrut",
+        "unranked": "încolți"
+      },
       "champion": "Scor minim de 3500 sau mai mare și limitat la primele 100 de persoane",
       "master": "Scor minim de 3000 sau mai mare",
       "diamond": "Scor minim de 2400 sau mai mare",
@@ -4049,7 +4354,555 @@
       "diamondsAlt": "diamant",
       "stayLine": "rezidual: {{intervalele}}",
       "demoteLine": "Retrogradare: {{ranges}}",
-      "rankHintShort": "Nivelul bazat pe competiția de clasare (consultați tabelul cu recompense de mai jos pentru condițiile de promovare, păstrare și retrogradare)"
+      "rankHintShort": "Nivelul de clasare bazat pe competiție (consultați tabelul cu recompense de mai jos pentru condițiile de promovare, păstrare și retrogradare)"
+    },
+    "items": {
+      "box_diabox1": {
+        "name": "Pachetul diamant I",
+        "description": "Obțineți 1 până la 20 de diamante"
+      },
+      "box_diabox2": {
+        "name": "Pachetul de diamant II",
+        "description": "Obțineți 10 până la 30 de diamante"
+      },
+      "box_diabox3": {
+        "name": "Pachetul de diamante III",
+        "description": "Obțineți 20 până la 50 de diamante"
+      },
+      "box_diabox4": {
+        "name": "Pachetul de diamante IV",
+        "description": "Obțineți 30 până la 100 de diamante"
+      },
+      "box_goldbox1": {
+        "name": "Pachetul de aur I",
+        "description": "Câștigă de la 10 la 500 de aur"
+      },
+      "box_goldbox2": {
+        "name": "Pachetul de aur II",
+        "description": "Câștigă între 100 și 1.000 de aur"
+      },
+      "box_goldbox3": {
+        "name": "Pachetul de aur III",
+        "description": "Câștigă între 500 și 3.000 de aur"
+      },
+      "box_goldbox4": {
+        "name": "Pachetul de aur IV",
+        "description": "Câștigă între 1.000 și 10.000 de aur"
+      },
+      "btn_addturn": {
+        "name": "Adăugați Turn",
+        "description": "Acesta este un articol suplimentar de turnare care poate fi folosit la Turnul Provocării."
+      },
+      "btn_hidden": {
+        "name": "Ascuns",
+        "description": "Acesta este un element ascuns care poate fi folosit în Turnul Provocării."
+      },
+      "btn_missile": {
+        "name": "rachetă",
+        "description": "Acesta este un articol de rachetă care poate fi folosit la Turnul Provocării."
+      },
+      "btn_reflesh": {
+        "name": "Schimbarea aspectului",
+        "description": "Acesta este un element de schimbare a plasării care poate fi folosit la Turnul Provocării."
+      },
+      "btn_scan": {
+        "name": "scanează",
+        "description": "Acesta este un element de scanare care poate fi folosit la Turnul Provocării."
+      },
+      "eq_board1": {
+        "name": "tablă de șah încolțit",
+        "description": "Aceasta este o tablă ușoară din lemn de paulownia, care este excelentă pentru începători."
+      },
+      "eq_board2": {
+        "name": "table de șah de arțar",
+        "description": "Aceasta este o tablă de șah de înaltă calitate făcută din arbori de nucșoară cu boabe frumoase."
+      },
+      "eq_board3": {
+        "name": "tablă de șah coral",
+        "description": "Este realizat din lemn mistic de cea mai înaltă calitate, astfel încât sunetul pietrelor plasate este pur."
+      },
+      "eq_board4": {
+        "name": "tablă de șah de abanos",
+        "description": "Este o tablă de șah de rocă vulcanică lustruită cu mare pasiune."
+      },
+      "eq_board5": {
+        "name": "tablă de șah Yongmun",
+        "description": "Aceasta este o tablă de șah legendară făcută din pin Geumgang, care există de o mie de ani."
+      },
+      "eq_board7": {
+        "name": "Tablă de șah Shinryong",
+        "description": "Este o tablă de șah a transcendenței cu traiectorii constelațiilor gravate pe ea, deschizând calea victoriei cu fiecare mișcare."
+      },
+      "eq_bottom1": {
+        "name": "Funduri uniforme colorate de primăvară",
+        "description": "Acești pantaloni de antrenament sunt confortabili pentru mișcare."
+      },
+      "eq_bottom2": {
+        "name": "Funduri uniforme colorate de vară",
+        "description": "Acești pantaloni sunt confecționați din material rezistent, care nu se uzează ușor."
+      },
+      "eq_bottom3": {
+        "name": "Funduri uniforme colorate de toamnă",
+        "description": "Aceștia sunt pantaloni de mătase de înaltă calitate care sunt asociați cu o stemă."
+      },
+      "eq_bottom4": {
+        "name": "Funduri uniforme colorate iarna",
+        "description": "Aceștia sunt pantalonii spadasinului care nu interferează cu nicio mișcare."
+      },
+      "eq_bottom5": {
+        "name": "Pantaloni Yongbi Dobok",
+        "description": "Este realizat din mătase de cea mai bună calitate, care se potrivește bine cu halatul dragonului."
+      },
+      "eq_bottom7": {
+        "name": "Shinryong fund uniform",
+        "description": "Aceștia sunt niște pantaloni gi transcendentali impregnați de voința unui dragon divin care te împiedică să-ți pierzi echilibrul chiar și într-o furtună."
+      },
+      "eq_fan1": {
+        "name": "ventilator albastru",
+        "description": "Acesta este un ventilator de bambus ușor și practic."
+      },
+      "eq_fan2": {
+        "name": "ventilator eungyeol",
+        "description": "Este confectionat din matase moale si se simte bine in mana."
+      },
+      "eq_fan3": {
+        "name": "ventilator cu flacără",
+        "description": "Acesta este un evantai maestru care se întinde grațios ca aripile unei macarale."
+      },
+      "eq_fan4": {
+        "name": "ventilator de îngheț",
+        "description": "Este fabricat din oțel greu și poate fi folosit ca armă în caz de urgență."
+      },
+      "eq_fan5": {
+        "name": "ventilator yongbi",
+        "description": "Un evantai legendar format din o sută de pene albe."
+      },
+      "eq_fan7": {
+        "name": "Ventilator Shinryong",
+        "description": "Este un fan al transcendenței care conține suflarea dragonului divin care desparte cerul și schimbă valul câmpului de luptă."
+      },
+      "eq_stone1": {
+        "name": "piatra de varza alb-negru",
+        "description": "Acestea sunt pietre de baduk din plastic ușoare și ieftine."
+      },
+      "eq_stone2": {
+        "name": "piatra de argint",
+        "description": "Este o piatră Go făcută din pietricele netede culese de pe malul râului."
+      },
+      "eq_stone3": {
+        "name": "piatra de rubin",
+        "description": "Este sculptat din obsidian care emite o strălucire rece."
+      },
+      "eq_stone4": {
+        "name": "piatra baduk de jad alb",
+        "description": "Este o piatra baduk din safir si jad alb care emite o lumina stralucitoare."
+      },
+      "eq_stone5": {
+        "name": "Piatra Yongan Baduk",
+        "description": "Este o piatră legendară baduk forjată cu energia soarelui, a lunii și a stelelor."
+      },
+      "eq_stone7": {
+        "name": "Piatra Shinryong Baduk",
+        "description": "Fabricat prin forjarea fragmentelor din Steaua Dimineții, este o piatră Go transcendentă care domină jocul cu o singură mișcare."
+      },
+      "eq_stonebox1": {
+        "name": "butoi de lemn ușor",
+        "description": "Este o cutie de plastic Go ușoară și ieftină."
+      },
+      "eq_stonebox2": {
+        "name": "butoi din bambus solid",
+        "description": "Aceasta este o cutie Go făcută din lemn de jujube cu un parfum slab."
+      },
+      "eq_stonebox3": {
+        "name": "Hongmok Baduktong",
+        "description": "Este realizat din lemn de trandafir, o culoare roșie frumoasă."
+      },
+      "eq_stonebox4": {
+        "name": "cutie de abanos",
+        "description": "Aceasta este o cutie de baduk rară din lemn ciudat, cu modele ciudate și frumoase."
+      },
+      "eq_stonebox5": {
+        "name": "Yongrin Baduktong",
+        "description": "Aceasta este o cutie Go din lemn de trandafir de înaltă calitate, cu un dragon sculptat delicat."
+      },
+      "eq_stonebox7": {
+        "name": "Shinryong Baduktong",
+        "description": "Este o cutie Go transcendentă care sigilează energia câmpului de luptă antic și adaugă la intimidarea fiecărei pietre scoase."
+      },
+      "eq_top1": {
+        "name": "Top uniform de culoare primavara",
+        "description": "Acesta este un top confortabil, excelent pentru a vă concentra asupra antrenamentului."
+      },
+      "eq_top2": {
+        "name": "Top uniform de culoarea verii",
+        "description": "Este un gi dur care nu se uzează nici după un antrenament lung."
+      },
+      "eq_top3": {
+        "name": "Top uniform colorat toamna",
+        "description": "Aceasta este stema unui savant cu o eleganță liniștită."
+      },
+      "eq_top4": {
+        "name": "Top uniform colorat iarna",
+        "description": "Aceasta este o ținută de spadasin făcută pentru lupte ascuțite."
+      },
+      "eq_top5": {
+        "name": "Top Yongbi Dobok",
+        "description": "Este brodat cu un model de dragon care simbolizează măreția împăratului."
+      },
+      "eq_top7": {
+        "name": "Top uniform Shinryong",
+        "description": "Acesta este un top uniform transcendent țesut cu culoarea solzilor dragonului divin, oferind o focalizare neclintită."
+      },
+      "mat_materials1": {
+        "name": "Piatra de descântec mai mică",
+        "description": "Materiale de bază utilizate pentru îmbunătățirea echipamentelor."
+      },
+      "mat_materials2": {
+        "name": "Piatra de imbunatatire intermediara",
+        "description": "Un material de înaltă calitate folosit pentru întărirea echipamentelor."
+      },
+      "mat_materials3": {
+        "name": "Piatra descântec avansată",
+        "description": "Materiale de înaltă calitate utilizate pentru întărirea echipamentelor."
+      },
+      "mat_materials4": {
+        "name": "Piatra de armare de calitate superioara",
+        "description": "Un material rar folosit pentru întărirea echipamentelor."
+      },
+      "mat_materials5": {
+        "name": "Piatra de armare misterioasă",
+        "description": "Un material străvechi folosit pentru întărirea echipamentelor."
+      },
+      "pet_egg": {
+        "name": "Ou misterios",
+        "description": "Obțineți un animal de companie AI aleatoriu atunci când este folosit la incubator."
+      },
+      "pet_soulstone1": {
+        "name": "Sprout Soul Stone",
+        "description": "Acesta este un material necesar pentru a actualiza un animal de companie de grad normal la un grad avansat. Poate fi folosit de la Pet Lv.10 sau mai mare."
+      },
+      "pet_soulstone2": {
+        "name": "Piatra sufletului val",
+        "description": "Acest material este necesar pentru a crește un animal de companie de calitate premium la un grad rar. Poate fi folosit de la Pet Lv.20 sau mai mare."
+      },
+      "pet_soulstone3": {
+        "name": "Piatra sufletului abisului",
+        "description": "Acest material este necesar pentru a crește un animal de companie de calitate rar la gradul epic. Poate fi folosit de la Pet Lv.30 sau mai mare."
+      },
+      "pet_soulstone4": {
+        "name": "Piatra Sufletului Flacără",
+        "description": "Acesta este un material necesar pentru a actualiza un animal de companie de gradul Epic la gradul Legendar. Poate fi folosit de la Pet Lv.40 sau mai mare."
+      },
+      "pet_soulstone5": {
+        "name": "Piatra sufletului luminii cerești",
+        "description": "Acest material este necesar pentru a actualiza un animal de companie legendar la gradul mitic. Poate fi folosit la Pet Lv.50."
+      },
+      "shop_action_point_10": {
+        "name": "Poțiune de recuperare de acțiune (+10)",
+        "description": "Mă simt motivat să fac ceva."
+      },
+      "shop_action_point_20": {
+        "name": "Poțiune de recuperare de acțiune (+20)",
+        "description": "Simt că trebuie să fac ceva."
+      },
+      "shop_action_point_30": {
+        "name": "Poțiune de recuperare de acțiune (+30)",
+        "description": "Hai să ne jucăm imediat."
+      },
+      "shop_condition_potion_large": {
+        "name": "Agent de recuperare a stării (mare)",
+        "description": "Un agent de recuperare a stării care te va ajuta să concurezi cu succes astăzi."
+      },
+      "shop_condition_potion_medium": {
+        "name": "Agent de recuperare a stării (medie)",
+        "description": "Un agent de recuperare a stării care vă face capul să vă simțiți mai limpede."
+      },
+      "shop_condition_potion_small": {
+        "name": "Agent de recuperare a stării (mic)",
+        "description": "Agent de recuperare a stării care ameliorează tensiunea"
+      },
+      "shop_equipment_box_1": {
+        "name": "Cutia de echipamente I",
+        "description": "Obțineți echipamente de calitate comună până la rare"
+      },
+      "shop_equipment_box_2": {
+        "name": "Cutia de echipamente II",
+        "description": "Obțineți echipament de grad normal până la epic"
+      },
+      "shop_equipment_box_3": {
+        "name": "Cutia de echipamente III",
+        "description": "Obține echipamente avansate la nivel legendar"
+      },
+      "shop_equipment_box_4": {
+        "name": "Cutia de echipamente IV",
+        "description": "Achiziționați echipamente rare până la mitice"
+      },
+      "shop_equipment_box_5": {
+        "name": "Cutia de echipamente V",
+        "description": "Achiziționați echipament epic până la mitic"
+      },
+      "shop_equipment_box_6": {
+        "name": "Cutia de echipamente VI",
+        "description": "Achiziționați echipamente legendare până la cele mitice"
+      },
+      "shop_equipment_unbind_ticket": {
+        "name": "Dreptul de a anula atribuirea",
+        "description": "Schimbați starea echipamentului legat la tranzacționabil."
+      },
+      "shop_material_box_1": {
+        "name": "Cutia de materiale I",
+        "description": "Obțineți 5 pietre de îmbunătățire scăzute până la înalte"
+      },
+      "shop_material_box_2": {
+        "name": "Caseta de materiale II",
+        "description": "Obțineți 5 pietre de îmbunătățire scăzute până la înalte"
+      },
+      "shop_material_box_3": {
+        "name": "Caseta de materiale III",
+        "description": "Obțineți 5 pietre de îmbunătățire scăzute până la înalte"
+      },
+      "shop_material_box_4": {
+        "name": "Caseta de materiale IV",
+        "description": "Obțineți 5 pietre de armare de nivel mediu până la cel mai înalt"
+      },
+      "shop_material_box_5": {
+        "name": "Cutia de materiale V",
+        "description": "Avansat ~ Obțineți 5 pietre de îmbunătățire misterioase"
+      },
+      "shop_material_box_6": {
+        "name": "Caseta de materiale VI",
+        "description": "Avansat ~ Obțineți 5 pietre de îmbunătățire misterioase"
+      },
+      "shop_mythic_option_change_ticket": {
+        "name": "Bilet de schimbare a opțiunii speciale",
+        "description": "Acest articol vă permite să schimbați opțiunile speciale ale echipamentelor mitice sau transcendentale cu alte opțiuni speciale."
+      },
+      "shop_option_type_change_ticket": {
+        "name": "Dreptul de a schimba tipul de opțiune",
+        "description": "Acest element vă permite să schimbați una dintre opțiunile principale, subopțiunile sau opțiunile speciale ale echipamentului într-un alt tip de opțiune."
+      },
+      "shop_option_value_change_ticket": {
+        "name": "Tichet de schimbare a valorii opțiunii",
+        "description": "Acesta este un articol care poate modifica valoarea uneia dintre subopțiunile sau opțiunile speciale ale echipamentului."
+      },
+      "shop_refinement_charm": {
+        "name": "Amuleta de topire",
+        "description": "Adăugați 1 număr suplimentar de rafinare pentru echipamentele care nu pot fi topite"
+      },
+      "use_allowtrade": {
+        "name": "drepturi de înregistrare a tranzacționării",
+        "description": "Aceasta este permisiunea de a înregistra suplimentar articole pentru vânzare în schimb."
+      }
+    },
+    "stats": {
+      "mythic": {
+        "GuildBossRewardGradeUp": {
+          "name": "Recompensa de luptă pentru șeful breslei",
+          "abbrev": "Gradul de recompensă pentru șef",
+          "short": "Recompensa șefului breslei Grad +1",
+          "description": "Nivelul recompensei crește cu un nivel din rezultatele bătăliei cu șefii breslei. (SSS maxim) Aceasta este Opțiunea specială nr. 1 pentru mit și poate fi aplicată în același timp cu Transcendența nr. 1 „Recompensa pentru șef adăugată”."
+        },
+        "GuildBossExtraDamage5": {
+          "name": "Daune suplimentare în timpul luptei cu șefii breslei: 5%",
+          "abbrev": "Daune șefului5%",
+          "short": "Daune șeful breslei +5%",
+          "description": "Când ataci un șef de breaslă, se aplică o daune finală suplimentară de 5%. (Nu poate fi suprapus cu opțiunea specială de transcendență)"
+        },
+        "TowerApMinus1Floors1to35": {
+          "name": "Turnul Provocării (etajele 1-35) Acțiune necesară -1",
+          "abbrev": "Top AP (1~35)",
+          "short": "Turnul 1~ etajul 35 AP -1",
+          "description": "Acțiunea necesară pentru a intra la etajele 1 până la 35 din Turnul Provocării este redusă cu 1. (Nu poate fi suprapusă cu opțiunea specială de transcendență)"
+        },
+        "ApRegenMinus30s": {
+          "name": "Timp de recuperare a acțiunii -30 secunde",
+          "abbrev": "Recuperare AP -30s",
+          "short": "Recuperare acțiune -30 de secunde",
+          "description": "Timpul necesar pentru a recupera 1 punct de acțiune este redus cu 30 de secunde. (Nu poate fi suprapus cu opțiunea specială de transcendență)"
+        },
+        "AdventureScanPlus1": {
+          "name": "Scanare aventură +1",
+          "abbrev": "Scanare aventură+1",
+          "short": "Scanare aventură +1",
+          "description": "La începutul aventurii (luptă cu monștri), veți primi un element de scanare suplimentar. (Nu poate fi suprapus cu opțiunea specială de transcendență)"
+        },
+        "AdventureMissilePlus1": {
+          "name": "Rachetă de aventură +1",
+          "abbrev": "Rachetă de aventură+1",
+          "short": "Rachetă de aventură +1",
+          "description": "Un articol suplimentar de rachetă este furnizat la începutul aventurii. (Nu poate fi suprapus cu opțiunea specială de transcendență)"
+        },
+        "AdventureGoldBonus15": {
+          "name": "Recompensele Adventure Gold +15%",
+          "abbrev": "Adventure Gold 15%",
+          "short": "Adventure Gold +15%",
+          "description": "Aurul câștigat la câștigarea unei aventuri crește cu 15%. (Combinat separat cu enciclopedie și bonus de înțelegere) (Nu poate fi suprapus cu opțiunea specială de transcendență)"
+        },
+        "GuildBossExtraRewardDuplicate": {
+          "name": "A fost adăugată recompensa de luptă pentru șeful breslei",
+          "abbrev": "A fost adăugată recompensa șefului",
+          "short": "1 tip de copie a recompensei șefului breslei (acumulativ)",
+          "description": "Veți primi una dintre recompense ca rezultat al luptei cu șefii breslei din nou. Dacă această opțiune are mai multe linii (mai multe piese de echipament) pe echipamentul transcendental, va fi aplicată în mod repetat. Poate fi aplicat împreună cu alte opțiuni speciale. Aceasta este opțiunea specială nr. 1 pentru transcendență și poate fi aplicată simultan cu mitul nr. 1 „Nota recompensă pentru șef”."
+        },
+        "GuildBossExtraDamage10": {
+          "name": "Daune suplimentare de 10% în luptele cu șefii breslei",
+          "abbrev": "Daune șefului 10%",
+          "short": "Daune șeful breslei +10%",
+          "description": "Când atacați un șef de breaslă, se aplică o daune finală suplimentară de 10%. (Nu poate fi suprapus cu opțiunea specială Myth)"
+        },
+        "TowerApMinus1AllFloors": {
+          "name": "Turnul provocării Acțiune necesară -1",
+          "abbrev": "Top AP toate etajele",
+          "short": "AP pentru toate etajele turnului -1",
+          "description": "Acțiunea necesară pentru a intra la ultimul etaj al tuturor provocărilor este redusă cu 1. (Nu poate fi suprapusă cu opțiunea specială Myth)"
+        },
+        "ApRegenMinus60s": {
+          "name": "Timp de recuperare a acțiunii -60 de secunde",
+          "abbrev": "Recuperare AP -60s",
+          "short": "Recuperare acțiune -60 de secunde",
+          "description": "Timpul necesar pentru a recupera 1 punct de acțiune este redus cu 60 de secunde. (Nu poate fi suprapus cu opțiunea specială Myth)"
+        },
+        "AdventureScanTranscendent": {
+          "name": "Scanare aventură +1",
+          "abbrev": "Scanare aventură+1",
+          "short": "Scanare aventură +2 (Transcendență)",
+          "description": "Două articole de scanare suplimentare vor fi furnizate în aventură (luptă cu monștri). (Nu poate fi suprapus cu opțiunea specială Myth)"
+        },
+        "AdventureMissilePlus2": {
+          "name": "Rachetă de aventură +2",
+          "abbrev": "Rachetă de aventură+2",
+          "short": "Rachetă de aventură +2",
+          "description": "Două articole de rachetă suplimentare vor fi furnizate la începutul aventurii. (Nu poate fi suprapus cu opțiunea specială Myth)"
+        },
+        "AdventureGoldBonus20": {
+          "name": "Recompensă Adventure Gold +20%",
+          "abbrev": "Adventure Gold 20%",
+          "short": "Adventure Gold +20%",
+          "description": "Aurul câștigat când câștigi o aventură crește cu 20%. (Nu poate fi suprapus cu opțiunea specială Myth)"
+        }
+      }
+    },
+    "optionValueLine": "{{stat}} +{{valoare}}{{sufix}}",
+    "optionRange": "[{{lo}}~{{hi}}{{sufix}}]",
+    "optionEnhancement": "({{count}}Îmbunătățire)",
+    "meta": {
+      "description": {
+        "gold": "Este moneda reprezentativă folosită în întreaga lume Baduk.",
+        "diamond": "Este o marfă premium folosită pentru achiziții speciale, extinderi etc."
+      },
+      "usage": {
+        "goldSpend": "Este folosit în locuri de consum de aur, cum ar fi magazine, întărire/artisanat și taxe de intrare.",
+        "diamondSpend": "Folosit în magazinele de diamante, extinderea slotului pentru pungi etc.",
+        "unbindTicket": "[Gantă]-[Selectați echipament]-[Dezlegați]",
+        "refinementCharm": "[Fierarul]-[Rafinarea echipamentului] Selectați echipamente care nu pot fi topite",
+        "refinementTicket": {
+          "optionType": "[Fierarul - Rafinarea echipamentului] Modificarea tipului de opțiune",
+          "optionValue": "[Fierarul - Rafinarea echipamentului] Modificarea valorii opțiunii",
+          "specialOption": "[Fierarul - Rafinarea echipamentului] Schimbare specială a opțiunii",
+          "mythicOption": "[Fierarul - Rafinarea echipamentului] Modificare mitică a opțiunii",
+          "generic": "[Fierarul - Rafinarea echipamentului] Schimbarea opțiunii"
+        },
+        "conditionPotion": "[Campionat] Recuperarea condiției {{lo}}~{{hi}} înainte de începerea jocului",
+        "actionPointInstant": "[Utilizare imediată] Recuperare acțiune +{{amount}}",
+        "actionPointInstantGeneric": "[Utilizare imediată] Recuperarea capacității de acțiune",
+        "openBoxInBag": "Dacă îl folosești din geantă, vei primi o recompensă.",
+        "equipmentBoxOpen": "Puteți obține echipament folosind cufărul din geantă.",
+        "enhancementMaterial": {
+          "single": "[{{gradeLabel}}] Echipament: {{rangeLabel}}",
+          "range": "[{{gradeLabel}}] Echipament: {{rangeLabel}}"
+        },
+        "pet": {
+          "soulGradeUpgrade": "[Îmbunătățirea gradului pentru animale de companie] {{fromGrade}}→{{toGrade}} (Nivel animal de companie{{minLevel}} sau mai mare)",
+          "soulGradeUpgradeGeneric": "[Îmbunătățirea gradului de companie] Folosit pentru a crește rangul altor animale de companie AI din Arena Târgului.",
+          "eggHatchRandom": "[Pet · Hatchery] Așezați într-un slot și deschideți un tip aleatoriu de animal de companie AI.",
+          "welcomeEggHatch": "[Pet · Hatchery] Plasat în slot — timp de clocire 1 minut, nivel 5 AI animal de companie când eclozionat"
+        }
+      },
+      "enhanceRange": {
+        "single": "{{stars}}Îmbunătățire",
+        "range": "{{minStars}}~{{maxStars}}Îmbunătățire"
+      },
+      "acquire": {
+        "gold": {
+          "line1": "[Joc/Conținut] Meci Baduk, joc simplu, temniță/liga etc.",
+          "line2": "[Misiuni/Aventură] Misiuni zilnice/săptămânale/lunare, cufere cu comori, sloturi VIP",
+          "line3": "[Tranzacție/Dezasamblare] Decontare vânzări la schimb, dezasamblare echipamente, vânzare în unele magazine"
+        },
+        "diamond": {
+          "line1": "[Magazin] Fila Pachet diamant/Consumabile/Materiale",
+          "line2": "[Plată/Eveniment] Încărcare, operare/poștă promoțională",
+          "line3": "[Funcție] Unele funcții premium, cum ar fi extinderea slotului pentru pungă"
+        },
+        "tower": {
+          "line1": "[Tower of Challenge] Cumpărați din magazinul de articole (aur) din informațiile jocului",
+          "line2": "[Tower of Challenge] Obținut prin anumite canale, cum ar fi recompense de intrare/eliminare și recompense VIP."
+        },
+        "actionPoint": {
+          "line1": "[Magazin] Magazin de aur — Poțiune de restabilire a rezistenței (+10/+20/+30), preț limită/nivel zilnic",
+          "line2": "[Mail·Event] Compensație operațională/plată de promovare",
+          "line3": "[Funcția VIP] Când este activată, veți primi Stamina Restoration III prin poștă în fiecare zi."
+        },
+        "condition": {
+          "line1": "[Magazin] Diamond Store (Consumabile) sau pachete aferente",
+          "line2": "[Mistare/Eveniment] Recompense parțiale"
+        },
+        "guildEquipBox": {
+          "line1": "[Guild Shop] Se poate cumpăra numai cu monede de breslă",
+          "line2": "[Magazin/Mistare] Obțineți echipament folosindu-l în geantă, similar cu o cutie de echipamente obișnuită."
+        },
+        "equipBox": {
+          "line1": "[Magazin] Magazin de aur (fila de echipamente), recompense de publicitate, unele pachete în numerar",
+          "line2": "[Misiuni/VIP] Misiuni zilnice, săptămânale și lunare, sloturi VIP cu recompensă etc.",
+          "line3": "[Aventură/Breaslă] Cufăr de comori, recompense pentru rezultatul luptei pentru șefii breslei etc."
+        },
+        "materialBox": {
+          "line1": "[Magazin] Magazin Gold/Diamond (fila de materiale), recompense publicitare, unele pachete",
+          "line2": "[Misiuni/VIP] Misiuni zilnice, săptămânale și lunare, sloturi VIP cu recompensă etc."
+        },
+        "goldBundle": {
+          "line1": "[Magazin] Diamond Shop (Consumabile), Recompense de publicitate",
+          "line2": "[Mistare/Aventură] Diverse recompense/cutii de comori"
+        },
+        "diamondBundle": {
+          "line1": "[Magazin] Diamond Shop (Consumabile), Recompense de publicitate",
+          "line2": "[Mistare/Eveniment] Recompense parțiale"
+        },
+        "bonusStat": {
+          "line1": "[Guild Shop] Cumpărați cu monede de breaslă (limită de cont)",
+          "line2": "[Creștere] Plată parțială atunci când strategia/nivelul de joc crește"
+        },
+        "enhancementStone": {
+          "line1": "[Guild Shop] Pietrele de îmbunătățire de nivel scăzut ~ misterioase pot fi schimbate cu monede de breslă",
+          "line2": "[Material Box] Cutii de materiale obținute din magazine, quest-uri, VIP-uri etc.",
+          "line3": "[Fierarul] Sinteza/demontarea materialelor, cost armare echipament",
+          "line4": "[Aventură, rang, breaslă] Recompense pentru victorie, turn, bătălie cu șefi etc."
+        },
+        "material": {
+          "line1": "[Magazin] Magazin de aur/diamant (materiale), magazin de bresle (parțial)",
+          "line2": "[Quest·Adventure·Event] Zilnic, săptămânal, lunar, cufăr de comori, recompense pentru operații",
+          "line3": "[Mail] Rezultate de sinteză/îmbunătățire, plata evenimentului"
+        },
+        "equipment": {
+          "line1": "[Cutie de echipamente] Obținut la utilizarea unei cutii din geantă.",
+          "line2": "[Aventură] Etapă/seful luptă recompensă clară",
+          "line3": "[Schimb] Cumpărați articole înregistrate de la alți utilizatori",
+          "line4": "[Sinteză/Producție] Producția de echipamente de sinteză/transcendență pentru fierar etc."
+        },
+        "consumableGeneric": "[Magazin, Quest, Mail] Magazin general, eveniment, recompense pentru operațiuni",
+        "pet": {
+          "soulTraining": "[Recompensa pentru animale de companie/antrenament] Sloturi {{slots}}",
+          "soulConvert": "[Conversie animală/suflet] {{clase}} Se poate obține la dezasamblarea unui animal de companie",
+          "soulShopDiamond": "[Pet · Magazin de animale] Diamond {{amount}}",
+          "soulShopGold": "[Pet · Pet Shop] Aur {{amount}}",
+          "soulShopDiamondDaily": "[Pet · Pet Store] Diamond {{amount}}, de {{limit}} ori pe zi",
+          "soulShopGoldDaily": "[Pet · Pet Shop] Gold {{amount}}, de {{limit}} ori pe zi",
+          "soulFallback": "[Pet] Poate fi obținut sau schimbat în conținut legat de Fair Stadium/Hatchery.",
+          "eggShop": "[Pet · Pet Store] Poate fi achiziționat cu aur și diamante (limită zilnică)",
+          "eggRewards": "[Pet/Training/Eveniment] Obținut ca recompensă parțială",
+          "welcomeEggMail": "[Mail] Poate fi obținut prin plăți noi de bun venit/operație etc.",
+          "welcomeEggShop": "[Pet · Pet Store] Poate fi achiziționat cu diamante (1 pe zi)"
+        }
+      }
     }
   },
   "exchange": {
@@ -4146,12 +4999,12 @@
       "cancelSaleConfirm": "Confirmați anularea vânzării",
       "purchaseConfirm": "Confirmați achiziția",
       "purchase": "cumpărare",
-      "selectGear": "Alegerea echipamentelor"
+      "selectGear": "Selectia echipamentelor"
     },
     "alerts": {
-      "insufficientTicket": "Drepturi de înregistrare a tranzacțiilor insuficiente.",
+      "insufficientTicket": "Drepturi de înregistrare a tranzacțiilor insuficiente. Necesar pentru înregistrarea sloturilor suplimentare de vânzare.",
       "vipListingLimit": "VIP-urile cu caracteristici se pot înregistra pentru vânzare numai până la 3 produse.",
-      "ticketHint": "Drepturi de înregistrare a tranzacțiilor insuficiente. Puteți înregistra un articol de vânzare cu un singur bilet de înregistrare.",
+      "ticketHint": "Înregistrarea suplimentară a sloturilor de vânzări necesită un bilet de înregistrare a tranzacției.",
       "selectGearFromInventory": "Vă rugăm să selectați echipamentul pe care doriți să îl vindeți din inventarul dvs.",
       "boundGear": "Echipamentul legat nu poate fi vândut. Vă rugăm să folosiți dreptul de a anula atribuirea.",
       "minimumPrice": "Prețul minim de vânzare este {{price}}.",
@@ -4175,7 +5028,7 @@
       "waiting": "atmosferă"
     },
     "scoring": "De calculat...",
-    "allMatchesEnded": "Toate meciurile s-au încheiat. Ceremonia de premiere are loc.",
+    "allMatchesEnded": "Toate meciurile de astăzi s-au încheiat.",
     "breathing": "Respir adânc pentru a participa la competiție.",
     "playersEntering": "Jucătorii intră. va rog asteptati o clipa.",
     "playerLoadError": "A apărut o eroare la încărcarea informațiilor despre jucător.",
@@ -4285,7 +5138,7 @@
       "recommendedStage": "Etape de recomandare",
       "highestStageShort": "cea mai înaltă treaptă de {{stage}}",
       "participationViewResult": "Vedeți rezultatele",
-      "participationReward": "Recompensa finalizată",
+      "participationReward": "Recompensa a fost finalizată",
       "participationAvailable": "Participare posibilă",
       "enterAndRewardAria": "{{name}} Informații despre intrare și recompensă",
       "participationStatusAria": "Starea de participare: {{status}}",
@@ -4331,7 +5184,7 @@
       "midgameShort": "mijlocul",
       "endgameShort": "final",
       "commentaryTitle": "transmisie în direct",
-      "simulating": "Joc in curs...",
+      "simulating": "Joc in desfasurare...",
       "waitingStart": "Aștept să înceapă jocul..."
     },
     "championship": {
@@ -4366,7 +5219,7 @@
       },
       "venue": {
         "oneGame": "1 joc (aleatoriu)",
-        "grade": "Nota: {{notă}}",
+        "grade": "Nota: {{grade}}",
         "gradeRange": "Interval de evaluare: {{low}}~{{high}}",
         "rankPlace": "{{rang}}",
         "rankRange": "{{low}}~{{high}}",
@@ -4389,7 +5242,7 @@
         "enter": "Intră",
         "oneGamePerMatch": "1/joc (aleatoriu)",
         "changeTicketShort": "dreptul la schimbare",
-        "rankWorld9_16": "Locul 9 ~ 16",
+        "rankWorld9_16": "Locul 9~16",
         "rankWorld4_8": "Locul 4~8",
         "stageLabel": "pas",
         "stageUnit": "{{stage}}etapă",
@@ -4409,7 +5262,7 @@
         "neighborhood": "Liga Baduk de cartier",
         "national": "Turneul Național de Baduk",
         "world": "Campionatul Mondial",
-        "unlock3": "Treceți la următoarea etapă dacă obțineți locul 3 sau mai mare",
+        "unlock3": "Dacă ajungi pe locul 3 sau mai mare, vei trece la etapa următoare.",
         "commonFeatures": "Caracteristici comune ale stadionului",
         "simulation": "joc de simulare",
         "condition": "stare",
@@ -4462,7 +5315,7 @@
         "altEquipmentBox": "cutie de echipamente",
         "altCondition": "stare",
         "rewardNeighborhood": "Liga Baduk de vecinătate: Câștigă aur",
-        "rewardNational": "Turneul Național Baduk: Obținerea materialelor (pietre de armare)",
+        "rewardNational": "Turneul național Baduk: Obținerea materialelor (pietre de armare)",
         "rewardWorld": "Campionatul Mondial: Achiziționați cutia de echipamente",
         "fiftySeconds": "50 de secunde",
         "progressOpening": "Devreme (1-15 secunde): abilitățile timpurii sunt importante",
@@ -4477,10 +5330,10 @@
         "randomEvent3": "Cu cât capacitatea este mai mare, cu atât probabilitatea evenimentelor pozitive este mai mare.",
         "randomEvent4": "Scorul se modifică cu 2-10% din scorul total actual",
         "critical1": "Judecata afectează probabilitatea unei lovituri critice",
-        "critical2": "Se câștigă puncte suplimentare atunci când are loc o lovitură critică.",
+        "critical2": "Puncte suplimentare sunt câștigate atunci când are loc o lovitură critică.",
         "critical3": "Puterea de luptă și puterea de calcul afectează puncte suplimentare",
         "condition1": "O condiție aleatorie între 40 și 100 este dată înainte de fiecare meci.",
-        "condition2": "Scorurile de abilitate nu se modifică în timpul simulării",
+        "condition2": "Scorurile de abilitate nu se modifică în timpul simulării.",
         "condition3": "Poate fi recuperat cu agentul de recuperare a stării (utilizat numai înainte de începerea jocului)"
       },
       "duelHistory": {
@@ -4529,14 +5382,20 @@
       "championship": "campionat",
       "scrollGuideTitle": "ghid de defilare",
       "categoryAria": "Categoria de clasare",
-      "title": "Clasament"
+      "title": "Clasament",
+      "gameRankingTab": "Clasamentul jocului",
+      "badukRankingTab": "Clasamentul Baduk",
+      "loginRequired": "Vă puteți verifica clasamentul după ce vă autentificați.",
+      "championshipLoginHint": "Puteți verifica clasamentul în campionat după ce vă autentificați.",
+      "guideClose": "Închideți ghidul",
+      "championshipNoGuide": "Nu există un ghid de scor separat pentru clasamentul campionatului."
     },
     "round16": "turul de 16",
     "center": "centru",
     "randomEquipment": "echipament aleatoriu",
     "randomChangeTicket": "Biletul de schimbare aleatorie",
     "randomChangeTicketHint": "Bilet de schimbare aleatorie · Plătit în funcție de rezultatele meciului · Până la {{count}} per etapă",
-    "matchInProgress": "Joc in curs...",
+    "matchInProgress": "Joc in desfasurare...",
     "waitingForMatchStart": "Aștept să înceapă jocul...",
     "processing": "Prelucrare...",
     "rewardComplete": "Recompensa finalizată",
@@ -4581,7 +5440,7 @@
     "matchRewardIndex": "Potriviți {{index}} recompense",
     "champCoinTimes": "Monedă Champ ×{{amount}}",
     "champCoinPending": "Champ Coin {{label}} (confirmat la primire)",
-    "rankRewardTitle": "{{rank}}recompensă cu cel mai înalt rang · {{item}} ×{{qty}}",
+    "rankRewardTitle": "{{rank}}recompensă cu cea mai înaltă clasare · {{item}} ×{{qty}}",
     "matchRoundResult": "{{round}} runda {{rezultat}}! ({{wins}} câștigă {{loses}} pierderi)",
     "statusRecordRank": "{{wins}} câștigă {{loses}} pierderi! {{rang}}",
     "championTitle": "🏆 Câștigă!",
@@ -4691,17 +5550,17 @@
     "currentFloorLabel": "Numărul actual al etajului",
     "monthlyBest": "Cel mai înalt etaj luna aceasta",
     "expectedReward": "recompensa asteptata",
-    "rewardFromFloor10": "Compensația se plătește de la numărul curent de etaj de 10 sau mai mare.",
+    "rewardFromFloor10": "Compensația se plătește de la numărul de etaj actual de 10 sau mai mare.",
     "rewardFromFloor10Short": "Puteți primi o recompensă lunară atunci când curățați 10 sau mai multe etaje.",
     "stages": "etapă",
     "rankingTop100": "Clasamentul Top 100",
-    "rewardTierLine": "Compensație pentru {{etaj}} secțiuni de etaj · Plătită la decontarea la sfârșitul lunii",
-    "unranked": "în afară de clasament",
+    "rewardTierLine": "Compensație pentru secțiunea de etaj {{floor}} · Achitată la sfârșitul lunii",
+    "unranked": "altele decât clasamentul",
     "noOtherRanked": "Nu există alte clasamente listate în Top 100.",
     "rewardModalTitle": "Tower of Challenge Informații despre recompense",
     "settlementRemaining": "Timp rămas până la decontarea compensației",
     "myCurrentReward": "recompensa mea actuală",
-    "floorTier": "etaj {{floor}}",
+    "floorTier": "{{floor}}etaj",
     "blackPatternAlt": "model negru",
     "goldAlt": "aur",
     "diamondAlt": "diamant",
@@ -4715,7 +5574,7 @@
     "equippedPet": "Animal de companie echipat",
     "roomKinds": {
       "friendly4p": "prietenos cu 4 persoane",
-      "friendly2p": "2 persoane prietenos",
+      "friendly2p": "prietenos cu 2 persoane",
       "duoAi": "Luptă cu IA pentru 2 persoane",
       "friendly": "meci amical",
       "arenaAi": "Luptă împotriva AI",
@@ -4743,7 +5602,7 @@
       "briefFallbackDefault": "După ce ați ales un articol, verificați informațiile de clasare și regulile oficiale și începeți să așteptați potrivirea.",
       "selectMode": "Alegeți un mod",
       "selectModePeriod": "Vă rugăm să selectați un mod.",
-      "matchQueue": "în așteptarea potrivirii",
+      "matchQueue": "așteaptă potrivirea",
       "rankedRules": "Regulile de aplicare a meciului de clasare",
       "gameSettings": "Potriviți setările",
       "noRules": "Nu există reguli de afișat.",
@@ -4780,7 +5639,7 @@
     },
     "training": {
       "rewardTitle": "recompensa de antrenament",
-      "completeTitle": "Antrenament finalizat",
+      "completeTitle": "Antrenamentul finalizat",
       "rewardLoadFailed": "Nu s-au încărcat informațiile despre recompensă.",
       "preparingReturn": "Animalul de companie și-a încheiat antrenamentul și se pregătește să revină.",
       "pleaseWait": "va rog asteptati o clipa.",
@@ -4794,7 +5653,7 @@
       "trainAgainBusy": "Începe antrenamentul...",
       "trainAgain": "Antrenează încă o dată",
       "confirmTitle": "Verificați dresajul animalelor de companie",
-      "sendToSlot": "<pet>{{petName}}</pet> Ar trebui să-mi trimit animalul meu de companie la <slot>{{slotLabel}}</slot>?",
+      "sendToSlot": "<pet>{{petName}}</pet> Ar trebui să-mi trimit animalul de companie la <slot>{{slotLabel}}</slot>?",
       "sendNotice": "În timp ce antrenamentul este în desfășurare, acest animal de companie nu poate concura în Pair Baduk. Un animal de companie desemnat ca animal de companie reprezentativ nu poate fi trimis la antrenament și nu poate fi schimbat cu un animal de companie reprezentativ în timpul antrenamentului.",
       "sendTraining": "trimite antrenament",
       "cancelTitle": "anularea antrenamentului",
@@ -4802,7 +5661,7 @@
       "slotLabel": "slot",
       "keep": "menţine",
       "inProgress": "La antrenament",
-      "claimReady": "Antrenament finalizat",
+      "claimReady": "Antrenamentul finalizat",
       "claimReadyBadge": "Antrenament complet - primiți recompense de la sloturi",
       "completeViewerHint": "Antrenament finalizat — informații detaliate în vizualizatorul din stânga",
       "inProgressViewerHint": "În antrenament — informații detaliate în vizualizatorul din stânga",
@@ -4816,7 +5675,7 @@
       "fixedReward": "Compensație definită",
       "probOneKind": "Probabilitate (1 tip)",
       "probReward": "Compensarea probabilității",
-      "claimRewardAria": "Primiți recompense de formare",
+      "claimRewardAria": "Primiți recompensă de antrenament",
       "petDetailAria": "Detalii despre animalele de companie",
       "remainingTimeAria": "Timp rămas {{time}}",
       "pickPet": "Selectați animalul de companie",
@@ -4859,7 +5718,10 @@
       "remainingTime": "timpul rămas",
       "diamondsUsed": "folosiți diamant",
       "ownedLabel": "deţinere",
-      "mysteriousEgg": "Ou misterios × 1"
+      "mysteriousEgg": "Ou misterios × 1",
+      "upgradeTier1": "Întărește eu",
+      "upgradeTier2": "Întărirea II",
+      "upgradeTier3": "Întărirea III"
     },
     "lobby": {
       "infoTab": "informaţii",
@@ -4876,13 +5738,13 @@
       "sortPetLevel": "După nivelul animalului de companie",
       "sortGradeHigh": "Cel mai înalt nivel",
       "sortPetNumber": "Sortați după tip",
-      "hiddenInvCount": "{{count}} sloturi în afara",
+      "hiddenInvCount": "{{count}} sloturi externe",
       "expandSlots": "extinderea slotului",
       "expandInvTitle": "{{category}} Extinderea inventarului",
       "expandInvQuestion": "Doriți să vă extindeți inventarul {{category}}?",
       "expandSlotsHint": "+{{pas}} spațiu adăugat (maximum {{max}} spațiu)",
       "dailyLimit": "Limită zilnică {{remaining}}/{{limit}}",
-      "specBadge": "Special",
+      "specBadge": "special",
       "tierActive": "Aplicarea",
       "tierUnlocked": "Deblocat",
       "tierUpgrade": "Îmbunătățiți ({{gold}} G)",
@@ -4899,7 +5761,7 @@
       "noHigherGrade": "Nu există alte niveluri disponibile.",
       "levelInsufficient": "Nivelul animalelor de companie este insuficient. Necesită Lv.{{need}} (actual Lv.{{current}})",
       "conditionsUnknown": "Condițiile pentru creșterea nivelului nu pot fi confirmate.",
-      "soulInsufficient": "{{name}} insuficient. {{need}} necesar (deține {{posedat}})",
+      "soulInsufficient": "{{name}} insuficient. Este necesar {{need}} (deține {{posedat}})",
       "soulInsufficientShort": "{{name}} insuficient. (nevoie de {{nevoie}}, deține {{posedat}})",
       "soulStoneFallback": "piatra de suflet",
       "soulCostTitle": "Consumați {{name}} {{count}} unități · Creștere de nivel",
@@ -4950,7 +5812,7 @@
       "noMatchingSlot": "Nu există un astfel de slot",
       "usedForGradeUpgrade": "Folosit pentru a spori nota",
       "petLevelMin": "· Animal de companie Niv.{{level}} sau mai mare",
-      "noMatchingGrade": "Nu există o evaluare disponibilă",
+      "noMatchingGrade": "Nicio evaluare disponibilă",
       "notSold": "fara vanzari",
       "sell": "vânzare",
       "bulkSell": "Vinde în vrac",
@@ -4968,9 +5830,9 @@
       "targetResting": "Utilizatorii care se odihnesc nu pot fi invitați.",
       "targetBusy": "Utilizatorii care se află într-un meci sau într-o negociere nu pot fi invitați.",
       "cooldown": "Puteți invita din nou după un timp (10 secunde)",
-      "lobbyOnly": "Doar utilizatorii care stau în sala de jocuri Strategie/Joacă/Pereche pot fi invitați.",
+      "lobbyOnly": "Numai utilizatorii care stau în sala de jocuri Strategie/Joacă/Pereche pot fi invitați.",
       "inviterLabel": "Utilizator invitat",
-      "arenaInviteStrategic": "Stadionul strategic Baduk",
+      "arenaInviteStrategic": "Stadionul Baduk strategic",
       "arenaInvitePlayful": "Joacă Baduk Stadium",
       "arenaInvitePair": "stadionul târgului",
       "arenaInviteSuffix": "invita",
@@ -5069,15 +5931,15 @@
       "pendingProposal": "Există o propunere de modificare în curs de procesare.",
       "proposalCooldown": "După respingere, puteți reoferi {{secunde}} secunde mai târziu.",
       "cannotProposeWhenReady": "Nu puteți sugera modificări în starea Gata.",
-      "privatePasswordLength": "Vă rugăm să introduceți 4 caractere pentru parola camerei private.",
-      "privatePasswordRequired": "Când treceți la o cameră privată, vă rugăm să introduceți o parolă de 4 caractere.",
+      "privatePasswordLength": "Introduceți 4 caractere pentru parola camerei private.",
+      "privatePasswordRequired": "Când treceți la o cameră privată, introduceți o parolă de 4 caractere.",
       "cannotJoinInProgress": "Nu poți intra în camera în care se desfășoară jocul.",
       "cannotJoinMatching": "Nu puteți intra în camera care este potrivită.",
       "privateRoom": "cameră privată",
       "enterRoomNumber": "Vă rugăm să introduceți numărul camerei dvs.",
       "enterPassword": "Vă rugăm să introduceți parola.",
-      "leaveOtherRoomForRanked": "Pentru a începe un meci de clasare a perechilor, vă rugăm să părăsiți o altă cameră de pereche.",
-      "ownerOnlyRanked": "Doar gazda poate începe să clasifice matchmaking.",
+      "leaveOtherRoomForRanked": "Pentru a începe un meci de clasare a perechii, vă rugăm să părăsiți o altă cameră de pereche.",
+      "ownerOnlyRanked": "Doar gazda poate începe clasarea matchmaking-ului.",
       "ownerOnlyAi": "Doar gazda poate începe un meci AI.",
       "equipPetForRanked": "Pentru a utiliza Pair Ranking Match, trebuie să echipați un Pair Pet.",
       "equipPetForRoomKind": "Pentru a crea acest tip de cameră, trebuie să aveți echipat Fair Pet.",
@@ -5113,13 +5975,16 @@
       "private": "privat",
       "public": "eliberare",
       "password": "parolă",
-      "strategicArena": "Stadionul strategic Baduk",
+      "strategicArena": "Stadionul Baduk strategic",
       "playfulArena": "Joacă Baduk Stadium",
       "pairArena": "stadionul târgului",
       "host": "manager de cameră",
       "matchInProgress": "Meci în desfășurare",
       "inMatch": "În timpul jocului",
       "enter": "poziţie",
+      "spectate": "Privind",
+      "spectateMatch": "Urmărește jocul",
+      "spectateUnavailable": "Nu găsesc informații despre meci de urmărit.",
       "orphanRooms": "Numărul 1~100 În afara camerei",
       "roomKindFilter": "Filtru tip camera",
       "gameModeFilter": "Filtru modul de joc",
@@ -5198,6 +6063,100 @@
       "navigatePairArena": "Du-te la Fair Stadium",
       "leaveRoomOnNavigate": "Mutarea într-o altă arenă vă va scoate din camera în care participați. Doriți să continuați?",
       "leaveRoomConfirm": "Veți fi eliminat din sala la care ați participat. Doriți să continuați?"
+    },
+    "pets": {
+      "pair-pet-1": {
+        "name": "Lumifox"
+      },
+      "pair-pet-2": {
+        "name": "Pisica de gheață"
+      },
+      "pair-pet-3": {
+        "name": "Goldignan"
+      },
+      "pair-pet-4": {
+        "name": "panda de zăpadă"
+      },
+      "pair-pet-5": {
+        "name": "Penky"
+      },
+      "pair-pet-6": {
+        "name": "sunbird"
+      },
+      "pair-pet-7": {
+        "name": "Baniru"
+      },
+      "pair-pet-8": {
+        "name": "Ursul de miere"
+      },
+      "pair-pet-9": {
+        "name": "Leafcat"
+      },
+      "pair-pet-10": {
+        "name": "Încolțiți"
+      },
+      "pair-pet-11": {
+        "name": "pisica violeta"
+      },
+      "pair-pet-12": {
+        "name": "Sunkey"
+      },
+      "pair-pet-13": {
+        "name": "Amber Fox"
+      },
+      "pair-pet-14": {
+        "name": "Pisica crema"
+      },
+      "pair-pet-15": {
+        "name": "trusa de aripi"
+      },
+      "pair-pet-16": {
+        "name": "masca caine"
+      },
+      "pair-pet-17": {
+        "name": "Ursul de Fildeș"
+      },
+      "pair-pet-18": {
+        "name": "animal de companie de zăpadă"
+      },
+      "pair-pet-19": {
+        "name": "pui"
+      },
+      "pair-pet-20": {
+        "name": "Lupul din umbră"
+      },
+      "pair-pet-21": {
+        "name": "Wing Bunny"
+      },
+      "pair-pet-22": {
+        "name": "Gold Cheeky"
+      },
+      "pair-pet-23": {
+        "name": "gălăgie"
+      },
+      "pair-pet-24": {
+        "name": "jellybrog"
+      }
+    },
+    "trainingSlots": {
+      "0": {
+        "name": "pregătire tehnică"
+      },
+      "1": {
+        "name": "antrenament pe viață și pe moarte"
+      },
+      "2": {
+        "name": "Training pre-premiere"
+      },
+      "3": {
+        "name": "Antrenamentul Jeongseok"
+      },
+      "4": {
+        "name": "Antrenamentul Gibo"
+      },
+      "5": {
+        "name": "antrenament baraj de apă"
+      }
     }
   },
   "blacksmith": {
@@ -5214,7 +6173,7 @@
     "effects": "Efectul Forge",
     "effectsAria": "Vedeți efectele forjei",
     "functionsAria": "functia de fierar",
-    "selectGear": "Alegerea echipamentelor",
+    "selectGear": "Selectia echipamentelor",
     "reselectGear": "← Reselectați echipamentul",
     "inProgressHint": "Progres în panoul de activități. Dacă ați închis fereastra, o puteți redeschide cu butonul de mai jos.",
     "openWorkHint": "Faceți clic pe butonul de mai jos pentru a deschide ecranul de lucru.",
@@ -5237,13 +6196,13 @@
       "default": "Deschideți ecranul de activitate"
     },
     "pickHints": {
-      "enhance": "Selectați echipamentul care urmează să fie consolidat în modal și apoi apăsați Selecție finalizată pentru a trece la ecranul de armare.",
-      "combine": "Dacă plasați 3 echipamente de aceeași calitate în mod și apoi apăsați Selecție finalizată, veți fi dus la ecranul de sinteză.",
+      "enhance": "Selectați echipamentul care urmează să fie consolidat în modal și faceți clic pe Complete Selection pentru a trece la ecranul de întărire.",
+      "combine": "Dacă plasați 3 echipamente de aceeași clasă în mod și apoi apăsați Selecție finalizată, veți fi dus la ecranul de sinteză.",
       "disassemble": "Selectați echipamentul care urmează să fie dezasamblat în modal și apoi apăsați Selection Complete pentru a trece la ecranul de dezasamblare.",
       "refine": "După ce ați selectat echipamentul de topit în modal și ați făcut clic pe Complete Selection, veți fi dus la ecranul de topire."
     },
     "picker": {
-      "selectGear": "Alegerea echipamentelor",
+      "selectGear": "Selectia echipamentelor",
       "autoSelect": "selectie automata",
       "selectComplete": "Selecția finalizată",
       "emptyMaterial": "ingredient",
@@ -5304,7 +6263,7 @@
       "disassembling": "Se dezasambla...",
       "disassembleBtn": "descompunere({{count}})",
       "autoSelectTitle": "Selectarea automată a dezasamblarii",
-      "gradeSelectHint": "Selectați clasa de echipamente pe care doriți să o dezasamblați. Sunt excluse rangurile mitice.",
+      "gradeSelectHint": "Selectați clasa de echipament pe care doriți să o dezasamblați. Sunt excluse rangurile mitice.",
       "legendaryIncluded": "Echipament de nivel legendar sau superior",
       "highStarsIncluded": "Echipament actualizat la 7 sau mai mare",
       "confirmMixed": "Conține {{motive}}. \nEști sigur că vrei să-l demontați?",
@@ -5426,7 +6385,7 @@
     "casualTag": "meci amical",
     "casualTitle": "meci amical",
     "casualDesc": "Acest meci este un meci amical. Nu există nicio modificare a scorului de clasare.",
-    "actionPointNotice": "Când o potrivire este confirmată, puterea de acțiune ⚡{{cost}} este consumată de ambele părți. Dacă acceptarea/AI este insuficientă la pornire, se va deschide o fereastră de gestionare a puterii comportamentale.",
+    "actionPointNotice": "Când o potrivire este confirmată, puterea de acțiune ⚡{{cost}} este consumată de ambele părți. Dacă este insuficientă la acceptarea/AI începe, se va deschide o fereastră de gestionare a puterii comportamentale.",
     "titleAi": "{{prefix}}{{mode}} setări de potrivire AI",
     "titleRematch": "{{prefix}}Setări pentru revanșa ({{mode}})",
     "titleDefault": "{{prefix}}setări de potrivire ({{mode}})",
@@ -5446,10 +6405,10 @@
     "manner": "Maniere: {{scor}} puncte",
     "mixRulesTitle": "Combinație de reguli de amestec (selectați 2 sau mai multe)",
     "mixRulesHint": "Alegeți regulile pe care doriți să le aplicați împreună. (Baduk clasic este inclus ca standard.) Câștigătorul și Castelul nu pot fi selectate în același timp.",
-    "mixRulesMinAlert": "Regulile de mixare necesită selectarea a două sau mai multe reguli.",
+    "mixRulesMinAlert": "Regulile de amestecare necesită selectarea a două sau mai multe reguli.",
     "mixCaptureCastleConflict": "Câștigătorul și Castelul nu pot fi selectate în același timp.",
     "countUnit": "{{conta}}",
-    "boardLines": "{{size}}linie",
+    "boardLines": "{{size}} rând",
     "pointsFixed": "9 puncte (fix)",
     "pointsUnit": "{{score}} puncte",
     "turnsUnit": "{{limit}}număr",
@@ -5465,9 +6424,9 @@
       "scanCount": "Numărul de scanări",
       "missileCount": "numărul de rachete",
       "captureTarget": "scorul țintă",
-      "castle": "Castel",
+      "castle": "castel",
       "boardSize": "dimensiunea plăcii",
-      "totalScore": "scorul total al piesei",
+      "totalScore": "punctaj total al piesei",
       "scoringTurns": "Întoarce-te la limită",
       "komiWhite": "Bonus (geanta)",
       "startRole": "rol de pornire",
@@ -5531,6 +6490,8 @@
       "3": "O mișcare în 0,5 secunde"
     },
     "matchControlAria": "controlul jocului",
+    "skipReplay": "SARE",
+    "skipReplayHint": "Sari peste releu si doar verifica rezultatele.",
     "startMatch": "începe jocul",
     "exit": "Ieșire",
     "season": "sezon",
@@ -5619,7 +6580,7 @@
       "failed": "Donația a eșuat.",
       "ownedGold": "Aur deținut: {{amount}}",
       "noHistory": "Nu există istoric de donații.",
-      "goldUnit": "{{amount}} Aur",
+      "goldUnit": "{{amount}} aur",
       "error": "A apărut o eroare la donare.",
       "goldDonation": "donatie de aur",
       "diamondDonation": "donarea de diamante",
@@ -5652,7 +6613,7 @@
     },
     "members": {
       "title": "membru al breslei",
-      "manageTitle": "Managementul membrilor breslei",
+      "manageTitle": "Conducerea membrilor breslei",
       "sortLabel": "matrice",
       "sortAria": "Sortați lista membrilor breslei",
       "leave": "secesiune",
@@ -5684,7 +6645,7 @@
       "demoteConfirm": "Doriți să-l revocați pe {{name}} din funcția de lider adjunct al breslei?",
       "kickConfirm": "Vrei să-l dai cu piciorul pe {{name}} din breaslă?",
       "transferConfirm": "Chiar doriți să delegeți autoritatea liderului breslei lui {{name}}? Această acțiune este ireversibilă.",
-      "leaderMustTransfer": "Dacă un lider de breaslă dorește să părăsească breasla, mai întâi trebuie să delege rolul de lider al breslei unui alt membru al breslei.",
+      "leaderMustTransfer": "Dacă un lider de breaslă dorește să părăsească breasla, el sau ea trebuie să delege mai întâi rolul de lider al breslei unui alt membru al breslei.",
       "lastMemberLeave": "Sunt ultimul membru al breslei. Dacă părăsești breasla, breasla va fi desființată. Ești sigur că vrei să pleci?",
       "leaveConfirm": "Ești sigur că vrei să părăsești breasla?",
       "leaveError": "A apărut o eroare la părăsirea breaslei."
@@ -5699,7 +6660,7 @@
       "freeJoin": "Înregistrare gratuită",
       "applicationJoinHint": "Trebuie să fii aprobat de liderul breslei sau vice-liderul breslei pentru a te alătura.",
       "freeJoinHint": "Dacă există un post vacant, veți fi înscris automat.",
-      "announcement": "Anunțul breslei",
+      "announcement": "Avizul breslei",
       "edit": "edita",
       "noAnnouncement": "Nu există anunțuri înregistrate.",
       "applications": "Aplicați pentru calitatea de membru",
@@ -5710,14 +6671,34 @@
     "missions": {
       "title": "Misiune săptămânală de breaslă",
       "achieved": "realizare",
-      "guildXp": "XP de breaslă +{{amount}}",
+      "guildXp": "Experiență de breaslă +{{amount}}",
       "expired": "expirat",
       "rewardClaimed": "Recompensa finalizată",
       "claimReward": "Obțineți recompense",
       "inProgress": "În curs",
       "resetCountdown": "Reînnoiește după {{days}} zile {{hours}}:{{minute}}",
       "unclaimedHint": "Există recompense pe care le puteți primi. Nu uita să-l iei.",
-      "empty": "Nu există misiuni săptămânale de afișat."
+      "empty": "Nu există misiuni săptămânale de afișat.",
+      "titles": {
+        "checkIns": "Prezența breslei de 50 de ori",
+        "guildDonations": "S-au acumulat 50 de donații ale breslei",
+        "bossAttempts": "A participat la bătăliile cu șefii breslei de 30 de ori",
+        "strategicWins": "Strategic Baduk câștigă de 30 de ori",
+        "playfulWins": "Joacă Baduk câștigă de 30 de ori",
+        "equipmentEnhancements": "50 de încercări de întărire",
+        "epicGearAcquisitions": "Obțineți echipament de grad epic sau mai mare de 20 de ori",
+        "diamondsSpent": "Consumă 3000 de diamante"
+      },
+      "descriptions": {
+        "checkIns": "Membrii breslei participă în total de 50 de ori",
+        "guildDonations": "Rugați membrii breslei să doneze aur și diamante de 50 de ori.",
+        "bossAttempts": "Pune membrii breslei să participe la un total de 30 de bătălii cu șefii breslei.",
+        "strategicWins": "Membrii breslei obțin un total de 30 de victorii în baduk strategic (inclusiv AI din sala de așteptare și meciuri generale)",
+        "playfulWins": "Membrii breslei obțin un total de 30 de victorii în Baduk (inclusiv AI din sala de așteptare și meciuri generale)",
+        "equipmentEnhancements": "Rugați membrii breslei să efectueze un total de 50 de încercări de îmbunătățire a echipamentului",
+        "epicGearAcquisitions": "Rugați membrii breslei să dobândească echipament de grad epic sau mai mare de 20 de ori",
+        "diamondsSpent": "Membrii breslei cheltuiesc un total de 3000 de diamante la magazine etc."
+      }
     },
     "research": {
       "title": "Laboratorul breslei",
@@ -5780,7 +6761,7 @@
       "coinEarnedBody": "Ca recompensă pentru că am ajuns astăzi la {{attendeeCount}} persoane prezenți, am primit {{amount}} monede de breaslă."
     },
     "homeChat": {
-      "globalTab": "Tot chatul",
+      "globalTab": "Tot chat",
       "guildTab": "Chat de breaslă",
       "securityBanner": "Botul de securitate AI detectează utilizarea necorespunzătoare a limbajului. 🚓",
       "noGuildMessages": "Nu există mesaje de chat de breaslă.",
@@ -5795,7 +6776,18 @@
       "quickChat": "chat rapid",
       "send": "expediere",
       "sendTitle": "trimite",
-      "locationHome": "[acasă]"
+      "locationHome": "[acasă]",
+      "systemMessages": {
+        "missionComplete": "Misiunea săptămânală [{{missionTitle}}] îndeplinită! Primiți recompensele dvs. în fila Activitate breaslă > Misiune breslă.",
+        "bossWeeklySettlement": "Acordul săptămânal al șefilor de breaslă ({{bossName}}, {{status}}): Experiența breaslei +{{guildXp}}, Puncte de cercetare +{{Puncte de cercetare}} au fost acumulate în breaslă.",
+        "bossWeeklySettlementDefeated": "învinge",
+        "bossWeeklySettlementRemainingHp": "Sănătate rămasă {{percent}}%",
+        "warJoinMatching": "[{{nickname}}]{{subjectParticle}} a participat la războiul breslelor. Continuăm cu potrivirea.",
+        "warJoinBotMatch": "[{{nickname}}]{{subjectParticle}} a participat la războiul breslelor. Se potrivește cu breasla de bot de sistem în coada impară.",
+        "warJoinOpponent": "[{{nickname}}]{{subjectParticle}} a participat la războiul breslelor. Adversar: 「{{opponentGuildName}}」",
+        "warCancelMatching": "[{{nickname}}]{{subjectParticle}} Potrivirea războiului breslelor a fost anulată.",
+        "bossDamage": "[{{nickname}}]{{subjectParticle}} a provocat {{damage}} daune lui {{bossName}}."
+      }
     },
     "war": {
       "title": "războaiele breslelor",
@@ -5808,7 +6800,7 @@
       "periodTueWed": "Marți 00:00 ~ Miercuri 23:00",
       "periodFriSun": "Vineri 00:00 ~ Duminică 23:00",
       "victory": "Victoria războiului breslelor!",
-      "victoryShort": "Victoria războiului breslelor",
+      "victoryShort": "Victorie în războiul breslelor",
       "defeat": "Înfrângerea războiului breslelor",
       "rewardPaid": "S-au plătit compensații de război",
       "warResult": "rezultat al războiului",
@@ -5820,13 +6812,13 @@
       "guildXp": "Experiență de breaslă",
       "researchPoints": "puncte de cercetare",
       "houseLabel": "casa {{score}}",
-      "dominanceTooltip": "Dominanța pe partea stângă aproximativ {{percent}}% (stea/punct)",
+      "dominanceTooltip": "Dominanța pe partea stângă: aproximativ {{percent}}% (stea/punct)",
       "loadingWarInfo": "Se încarcă informații despre războiul breslelor...",
       "noActiveWar": "Nu există războaie de bresle în desfășurare.",
       "notStartedYet": "Războiul breslelor nu a început încă. \nPuteți intra de la {{date}}(KST).",
       "prepTimeAlert": "Este timpul să ne pregătim pentru următoarea bătălie de bresle. \nPuteți intra de la {{date}}(KST).",
       "prepTimeHint": "Este timpul să ne pregătim pentru următoarea bătălie de bresle. Puteți intra de la {{date}}(KST).",
-      "beforeOpenHint": "Asta înainte de a începe războiul breslelor. Puteți intra de la {{date}}(KST).",
+      "beforeOpenHint": "Asta înainte să înceapă războiul breslelor. Puteți intra de la {{date}}(KST).",
       "goToWarScreen": "Accesați ecranul de luptă al breslei",
       "autoMatching": "Potrivirea automată este în curs. Odată finalizat, puteți intra.",
       "autoMatchingHint": "Nu există războaie de bresle în desfășurare. Breslele care îndeplinesc condițiile sunt egalate automat în perioada războiului breslelor.",
@@ -5848,11 +6840,11 @@
       "loss": "grup",
       "winRate": "șansele de câștig",
       "currentWar": "Acest război al breslelor",
-      "opponentGuild": "Breasla Adversară",
+      "opponentGuild": "Breasla adversară",
       "contribution": "Contribuție {{stele}}",
       "matchingInProgress": "Potrivire în curs",
       "warPrep": "Pregătirea pentru războiul breslelor",
-      "startsIn": "Începeți la {{time}}",
+      "startsIn": "Începe la {{time}}",
       "findingOpponent": "Caut un adversar pentru această bătălie de bresle.",
       "entryFrom": "Puteți intra de la {{date}}(KST).",
       "scheduledAt": "Ora programată: {{date}}",
@@ -5883,13 +6875,13 @@
       "currentOccupier": "ocupant actual",
       "none": "nu exista",
       "capturesCount": "{{count}} pietre câștigătoare",
-      "scoreDiff": "Casa Diferența {{count}}Casa",
+      "scoreDiff": "Diferența casei {{count}}Casa",
       "scoreDiffShort": "diferenta {{count}}casa",
       "targetScore": "scorul țintă",
       "pointsUnit": "{{count}}puncte",
       "mode": "modul",
       "board": "tablă de șah",
-      "boardLines": "{{size}}linie",
+      "boardLines": "{{size}} rând",
       "turnLimit": "limita de viraj",
       "turnsUnit": "{{count}}viruri",
       "scoringTurns": "{{count}} trece la numărarea prețului",
@@ -5922,9 +6914,9 @@
       "myArenaHint": "Mai jos este un rezumat al meciurilor finale jucate de spațiu în acest război. Edițiile în curs vor fi reflectate în lista detaliată după încheierea lor.",
       "boardPerformance": "Performanță pe stadion",
       "inProgress": "În curs",
-      "gameSummary": "Încheierea rundelor de {{games}} · Câștigări {{victorie}} · Remize {{remize}} · Înfrângeri {{pierderi}}{{stele}}",
+      "gameSummary": "Se termină {{jocuri}} · Câștigări {{ victorii }} · Remiză {{ remize }} · Înfrângeri {{ pierderi }}{{stele}}",
       "starsEarnedSum": "· Total după achiziție {{count}}",
-      "noBoardRecord": "Nu există nicio înregistrare a acestui compartiment în acest război.",
+      "noBoardRecord": "Nu există înregistrări ale acestui compartiment în acest război.",
       "finishedGamesDetail": "Detalii de final de meci",
       "noFinishedGames": "Nu există bătălii între bresle care să se fi încheiat încă.",
       "inProgressHint": "Edițiile în curs vor fi afișate aici după ce sunt terminate.",
@@ -5955,6 +6947,13 @@
     },
     "boss": {
       "title": "Bătălia șefilor breslei",
+      "names": {
+        "boss_1": "ascultare",
+        "boss_2": "proeminenţă",
+        "boss_3": "apă verde",
+        "boss_4": "adâncime",
+        "boss_5": "lumină albă"
+      },
       "guide": "Enciclopedia Boss",
       "guideTitle": "Enciclopedia șefilor breslei",
       "stage": "{{stage}}etapă",
@@ -6047,7 +7046,7 @@
       "guildXp": "Experiență de breaslă",
       "researchPoints": "Puncte de laborator",
       "enhancementStoneLow": "Piatra de descântec mai mică",
-      "enhancementStoneMid": "Piatra de imbunatatire intermediara",
+      "enhancementStoneMid": "Piatra de armare intermediara",
       "enhancementStoneHigh": "Piatra descântec avansată",
       "enhancementStoneTop": "Piatra de armare de calitate superioara",
       "enhancementStoneMystic": "Piatra de armare misterioasă",
@@ -6113,7 +7112,7 @@
       "title": "misiunea breslei",
       "create": "Creați o misiune",
       "createComingSoon": "Funcția de creare a misiunilor va fi adăugată în curând.",
-      "empty": "Nu există misiuni în derulare.",
+      "empty": "Nu există misiuni în desfășurare.",
       "statusActive": "în curs",
       "statusCompleted": "complet",
       "statusExpired": "expirare",
@@ -6122,7 +7121,7 @@
     },
     "shopLegacy": {
       "empty": "Nu există articole de vânzare.",
-      "goldPrice": "{{price}} Aur",
+      "goldPrice": "{{price}} aur",
       "stock": "Inventar: {{remaining}}/{{total}}",
       "purchase": "cumpărare",
       "purchaseFailed": "Achiziția dvs. nu a reușit."
@@ -6168,7 +7167,7 @@
     "refundPolicy": {
       "title": "Politica de anulare/rambursare",
       "eyebrow": "Politica de rambursare",
-      "intro": "Dorim să vă informăm despre anularea și rambursarea conținutului plătit. Aceste reglementări au fost redactate în conformitate cu legile și reglementările relevante, cum ar fi Legea comerțului electronic."
+      "intro": "Dorim să vă informăm despre anularea și rambursarea conținutului plătit. Aceste reglementări au fost elaborate în conformitate cu legile și reglementările relevante, cum ar fi Legea comerțului electronic."
     },
     "purchaseConsent": {
       "title": "Verificați progresul plății",

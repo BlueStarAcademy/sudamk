@@ -27,7 +27,7 @@
     },
     "languageSelect": {
       "label": "bahasa",
-      "placeholder": "Pilih bahasa anda"
+      "placeholder": "Sila pilih bahasa"
     },
     "connection": {
       "reconnecting": "Menyambung semula ke pelayan...",
@@ -134,7 +134,7 @@
     "timesUnit": "{{count}} kali",
     "quickMenuAria": "menu cepat",
     "helpCenter": "Pusat Bantuan",
-    "helpCenterHint": "Anda boleh melawatnya semula pada bila-bila masa di Pusat Bantuan kami.",
+    "helpCenterHint": "Anda sentiasa boleh melawati semula dalam Pusat Bantuan kami.",
     "disconnectNotice": {
       "title": "Notis Tamat Permainan",
       "logoutTitle": "Arahan log keluar",
@@ -142,7 +142,7 @@
       "loggingOut": "Anda akan dilog keluar."
     },
     "autoProceed": "Sehingga kemajuan automatik",
-    "autoProceedShort": "kemajuan auto",
+    "autoProceedShort": "pendahuluan auto",
     "autoSelectUntil": "Sehingga pemilihan automatik",
     "autoSelectShort": "pemilihan automatik",
     "nextRoundAuto": "Sehingga pusingan seterusnya auto start",
@@ -262,11 +262,11 @@
     "chooseTurnCountdown": "Pilih untuk pergi dahulu atau terakhir. ({{countdown}})",
     "opponentChoosingSecond": "Pihak lawan memilih untuk bermain kedua...",
     "readyCountdown": "Sedia ({{countdown}})",
-    "waitingOpponentRoll": "Menunggu lawan...",
+    "waitingOpponentRoll": "Menunggu pihak lain...",
     "rollingDice": "gulung dadu...",
     "tieReroll": "tali leher! Gulung semula selepas beberapa ketika.",
     "rollToDecide": "Tekan butang sedia untuk membaling dadu. Orang yang mempunyai bilangan tertinggi memilih untuk pergi dahulu/terakhir.",
-    "diceWin": "{{name}} menang dan telah diputuskan siapa yang akan pergi dahulu/terakhir.",
+    "diceWin": "{{name}} menang dan diputuskan untuk pergi dahulu/terakhir.",
     "diceAutoStart": "Klik butang mula di bawah atau perlawanan akan bermula secara automatik selepas 30 saat.",
     "colorRouletteTitle": "warna baduk",
     "uniformColorRoulette": "rolet warna seragam",
@@ -287,11 +287,11 @@
     "baseConfirm": "Periksa anak patung asas",
     "reviewMode": "mod pemulihan",
     "originalGame": "Notasi asal",
-    "rotateToWhite": "Pandangan dari sudut White",
-    "rotateToBlack": "Pandangan dari sudut pandangan Black",
+    "rotateToWhite": "Pandangan dari sudut pandangan White",
+    "rotateToBlack": "Pandangan dari perspektif Black",
     "closeViewer": "dekat",
     "replayFirst": "buat pertama kali",
-    "replayBack5": "5 gerak ke belakang",
+    "replayBack5": "5 bergerak ke belakang",
     "replayBack1": "satu langkah ke belakang",
     "replayForward1": "satu langkah ke hadapan",
     "replayForward5": "5 langkah ke hadapan",
@@ -310,7 +310,7 @@
       "ariaLabel": "menu utama",
       "entranceClosedTitle": "Kemasukan ditutup",
       "home": "rumah",
-      "singleplayer": "Akademi Baduk",
+      "singleplayer": "akademi Baduk",
       "tower": "Menara Cabaran",
       "arena": "stadium",
       "tournament": "kejuaraan",
@@ -342,7 +342,7 @@
       },
       "progressionBlocked": {
         "tower": "Anda boleh memasuki Menara Cabaran dengan membersihkan peringkat 10 kelas pemula Akademi Baduk.",
-        "strategicLobby": "Anda boleh memasuki bilik menunggu Go yang strategik dari Lv Pengguna.{{level}}.",
+        "strategicLobby": "Anda boleh memasuki bilik menunggu Go yang strategik daripada Lv Pengguna.{{level}}.",
         "playfulLobby": "Anda boleh memasuki ruang menunggu Go di User Lv. {{peringkat}}.",
         "championship": "Anda boleh menyertai kejohanan dengan skor keupayaan Go sebanyak {{ability}} atau lebih tinggi.",
         "adventure": "Anda boleh memasuki pengembaraan dengan membersihkan peringkat 20 kelas pemula Akademi Baduk."
@@ -354,7 +354,7 @@
       "blacksmith": "pandai besi",
       "shop": "kedai",
       "inventory": "beg",
-      "pet": "penjagaan haiwan peliharaan",
+      "pet": "haiwan peliharaan",
       "trainingQuest": "Tugas latihan",
       "detailedStats": "Rekod Terperinci Stadium PVP",
       "monsterCodex": "Ensiklopedia Raksasa",
@@ -362,7 +362,7 @@
       "gameRecords": "tatatanda",
       "encyclopedia": "Ensiklopedia",
       "announcements": "pemberitahuan",
-      "help": "Pusat Bantuan",
+      "help": "membantu",
       "menu1": "Menu 1",
       "menu2": "Menu 2"
     },
@@ -425,7 +425,7 @@
     "kakao": "koko",
     "google": "google",
     "ban": {
-      "title": "Akses adalah dilarang.",
+      "title": "Sambungan adalah dilarang.",
       "reason": "Sebab: {{sebab}}",
       "remainingMinutes": "Tempoh yang tinggal: lebih kurang {{minit}} minit",
       "expiresAt": "Dijadualkan untuk dikeluarkan: {{date}}",
@@ -539,7 +539,7 @@
     "descriptions": {
       "standard": "Ini adalah baduk klasik yang tipikal.",
       "capture": "Permainan Baduk dimenangi oleh orang pertama yang mendapat set bilangan batu.",
-      "speed": "Jika anda meletakkannya dalam {{saat}} saat setiap pusingan, anda akan memperoleh semula {{saat}} saat. Untuk setiap {{saat}} saat, 1 mata ditambah kepada lawan anda.",
+      "speed": "Jika anda meletakkannya dalam {{saat}} saat, anda akan menjana semula {{saat}} saat. Untuk setiap {{saat}} saat, 1 mata ditambah kepada lawan anda.",
       "base": "Ia adalah permainan baduk di mana anda melihat susunan batu asas, menetapkan bonus untuk lawan anda, dan menggunakan batu pilihan anda, dan bersaing dengan keupayaan anda untuk menganalisis keadaan.",
       "hidden": "Kemunculan semula dengan gerakan yang tidak dapat dilihat oleh pihak lawan! Peperangan psikologi dan kemahiran membaca diperlukan melalui item tersembunyi dan diimbas.",
       "missile": "Buat pembolehubah dengan menggerakkan batu yang diletakkan sebagai item peluru berpandu.",
@@ -574,12 +574,12 @@
       "passTitle": "berehat sebentar",
       "resignTitle": "berpantang",
       "cannotResignDuringScoring": "Pantang tidak dibenarkan semasa proses pengiraan.",
-      "gameFeatures": "Fungsi padan",
+      "gameFeatures": "fungsi perlawanan",
       "playfulFeatures": "fungsi main",
       "mannerAction": "tindakan adab",
       "mannerActionPvpOnly": "Butang tindakan cara dibuat hanya dalam mod PVP.",
       "noFeaturesAvailable": "Tiada ciri tersedia",
-      "viewResult": "Lihat keputusan",
+      "viewResult": "Lihat hasil",
       "returnToLobby": "Ke ruang menunggu",
       "endSpectating": "Tontonan tamat",
       "goToMap": "Pergi ke peta",
@@ -622,8 +622,8 @@
       "petHintDuringGame": "Ia boleh digunakan apabila perlawanan sedang berlangsung.",
       "petHintMyTurnOnly": "Anda hanya boleh menggunakannya pada giliran anda.",
       "petHintPhaseUsed": "Saya sudah menggunakan pembayang dalam bahagian {{fasa}}.",
-      "petHintPhaseOnce": "Sekali dalam {{fasa}} — wakil haiwan peliharaan menandakan tempat yang baik.",
-      "petHintPhaseRemaining": "{{fasa}} {{count}} lagi — {{body}}",
+      "petHintPhaseOnce": "Sekali dalam {{fasa}} — wakil haiwan peliharaan menandakan tempat yang bagus.",
+      "petHintPhaseRemaining": "{{fasa}} {{count}} baki — {{body}}",
       "petHintAria": "Petua Haiwan Peliharaan {{label}}",
       "petHintAriaNoPet": "Petunjuk haiwan peliharaan {{label}} (wakil haiwan peliharaan tidak dilengkapi)",
       "slowTitle": "Perlahan: Mengurangkan kelajuan graf kawalan daya. Bilangan yang tinggal: {{count}}",
@@ -666,18 +666,18 @@
       "stoneRefreshTitle": "penempatan semula batu",
       "rematch": "perlawanan semula",
       "rematchApplying": "Memohon",
-      "thiefHigh36Aria": "Kiraan tinggi (3-6) item dadu, baki kiraan {{count}}",
+      "thiefHigh36Aria": "Item dadu nombor tinggi (3-6), baki nombor {{count}}",
       "thiefHigh36Title": "Dadu yang hanya menunjukkan nombor tinggi (3, 4, 5, 6). Kiraan Baki {{count}}",
       "thiefNoOneAria": "Cegah 1 (2~5) item dadu, bilangan yang tinggal {{count}}",
       "thiefNoOneTitle": "Dadu yang tidak menghasilkan 1 (2, 3, 4, 5). Kiraan Baki {{count}}",
       "thiefHigh36UseTitle": "Gunakan dadu nombor tinggi (3-6).",
-      "thiefHigh36UseBody": "Gunakan satu item dadu yang hanya keluar 3, 4, 5 dan 6. Jika giliran polis, kedua-dua dadu berada dalam julat ini. Adakah anda mahu meneruskan?",
+      "thiefHigh36UseBody": "Gunakan satu item dadu yang hanya menunjukkan 3, 4, 5 dan 6. Jika giliran polis, kedua-dua dadu berada dalam julat ini. Adakah anda mahu meneruskan?",
       "thiefNoOneUseTitle": "Gunakan 1 Dadu Pencegahan",
       "thiefNoOneUseBody": "Gunakan satu item dadu yang hanya keluar 2, 3, 4 atau 5 (1 tidak mungkin). Jika giliran polis, kedua-dua dadu berada dalam julat ini. Adakah anda mahu meneruskan?"
     },
     "board": {
-      "rotateSpectatorBlack": "Pandangan dari sudut pandangan Black",
-      "rotateSpectatorWhite": "Pandangan dari sudut White",
+      "rotateSpectatorBlack": "Pandangan dari perspektif Black",
+      "rotateSpectatorWhite": "Pandangan dari sudut pandangan White",
       "rotate180": "papan dam putaran 180 darjah",
       "paused": "menyampuk",
       "resumeIn": "{{saat}} saat sehingga penyambungan semula boleh dilakukan",
@@ -707,7 +707,7 @@
       "baseGameStartConfirm": "Apabila anda menekan butang mula, perlawanan bermula.",
       "captureBidTie": "Seri yang dicadangkan adalah sama. Jika kali ini sama, ia akan diputuskan secara rawak.",
       "captureBidBase": "Lihat papan yang diterbitkan dan sahkan markah yang dicadangkan untuk Hitam (Baik) di bahagian bawah.",
-      "captureBid": "Ini adalah peringkat di mana markah hitam (garisan) dibentangkan.",
+      "captureBid": "Ini adalah peringkat penyampaian skor hitam (garisan).",
       "gameEnded": "Perlawanan tamat",
       "noContest": "padanan tidak sah",
       "rematchPending": "Menunggu perlawanan semula...",
@@ -723,7 +723,7 @@
       "diceRollTurnGeneric": "Sudah tiba masanya untuk membaling dadu",
       "tiebreakerDeciding": "Memutuskan urutan kemenangan...",
       "tiebreakerPlaying": "Perlawanan sedang berlangsung... (giliran {{nama}})",
-      "diceModeRound": "Dice Go ({{pusingan}} / {{total}} pusingan)",
+      "diceModeRound": "Dadu Baduk ({{pusingan}} / {{total}} pusingan)",
       "thiefModeRound": "Pencuri dan Polis ({{pusingan}} pusingan)",
       "preparing": "Menyediakan permainan...",
       "timeoutFoul": "Pelanggaran tamat masa oleh {{name}}!",
@@ -733,7 +733,7 @@
       "timeoutFoulPassTurn": "Giliran berlalu kepada pihak lawan.",
       "timeoutFoulLoseStone": "Anda kehilangan 1 batu dan giliran anda tamat.",
       "timeoutFoulDefault": "Anda akan dihukum kerana melebihi had masa.",
-      "baseKomiGuide": "Tentukan batu dan bonus yang anda ingin letakkan. Jika anda memilih batu yang sama, batu yang memberi anda paling banyak bonus ialah batu yang anda ingin simpan.",
+      "baseKomiGuide": "Tentukan batu dan bonus yang ingin anda letakkan. Jika anda memilih batu yang sama, batu yang memberi anda paling banyak bonus ialah batu yang anda ingin simpan.",
       "alkkagiPlaceHidden": "Letakkan batu supaya ia tidak kelihatan kepada pihak lawan. ({{pusingan}} / {{total}} pusingan)",
       "alkkagiPlaceMissing": "Letakkan batu yang hilang. ({{pusingan}} / {{total}} pusingan)",
       "placementProgress": "diletakkan {{diletakkan}}/{{target}}",
@@ -805,7 +805,7 @@
       "captureScore": "Skor Tangkap:",
       "lastPileBonus": "Bonus dummy terakhir:",
       "finalScoreLabel": "markah akhir",
-      "houseScoreGain": "Mata diperolehi",
+      "houseScoreGain": "Markah diperoleh",
       "houseUnit": "rumah",
       "playerWins": "{{nama}} menang!",
       "cumulativeScore": "skor kumulatif",
@@ -843,7 +843,7 @@
       "resignWinMsg": "Kami menang kerana lawan kami berkecuali.",
       "resignLossMsg": "Berpantang dan sesat.",
       "turnLimitWinMsg": "Anda menang kerana semua pusingan terhad lawan anda telah digunakan.",
-      "turnLimitLossMsg": "Saya kalah kerana had giliran saya sudah tamat.",
+      "turnLimitLossMsg": "Bilangan pusingan adalah terhad dan anda kalah.",
       "castleWinMsg": "Saya memenangi batu lawan dan menang serta-merta.",
       "castleLossMsg": "Saya kalah kerana lawan saya tangkap batu.",
       "checkmateWinMsg": "Saya menang checkmate dengan memenangi raja lawan.",
@@ -856,7 +856,7 @@
       "omokWin": "Penyiapan cekung",
       "omokLoss": "Penyempurnaan cekung lawan",
       "captureGoalWin": "Gol yang dimenangi selesai",
-      "captureGoalLoss": "Selesai memenangi gol lawan",
+      "captureGoalLoss": "Mendapatkan gol lawan selesai",
       "rankingScore": "markah kedudukan",
       "mannerScore": "skor cara",
       "noChange": "tiada perubahan",
@@ -1101,7 +1101,7 @@
       "failOmok": "Lawan anda menyelesaikan lima baris terlebih dahulu.",
       "failAlkkagi": "Saya ketinggalan dalam pertandingan sotong telur.",
       "failCurling": "Kami ketinggalan di belakang lawan dalam jumlah mata lencong.",
-      "winSurvival": "Kami mengekalkan skor kami dengan baik dengan giliran yang terhad.",
+      "winSurvival": "Kami mengekalkan skor kami dengan baik dengan giliran terhad.",
       "winCaptureTarget": "Anda telah mencapai markah sasaran anda.",
       "winScoring": "Pasukan itu akhirnya menang.",
       "winTime": "Ia adalah kad tamat masa.",
@@ -1176,7 +1176,11 @@
       "scoringTurnValue": "{{pusing}}pusing",
       "forbidden": "larangan",
       "allowed": "mungkin",
-      "speedNormal": "lazimnya"
+      "speedNormal": "lazimnya",
+      "confirm": "semak",
+      "gaugeSpeedSlow": "x1 (lambat)",
+      "gaugeSpeedNormal": "x2 (biasa)",
+      "gaugeSpeedFast": "x3 (cepat)"
     },
     "challengeModal": {
       "rejected": "Menolak",
@@ -1189,7 +1193,7 @@
       "mixRulesMinHint": "Sila pilih sekurang-kurangnya dua peraturan.",
       "boardKomiCapture": "Pergi papan, pengiraan, bonus, menang",
       "boardSize": "papan dam",
-      "boardLines": "{{saiz}}garisan",
+      "boardLines": "{{saiz}} baris",
       "komiWhite": "Bonus (beg)",
       "komiHalf": ".5 rumah",
       "captureTarget": "markah sasaran",
@@ -1200,7 +1204,7 @@
       "baseGo": "dasar baduk",
       "baseStones": "batu asas",
       "castleGo": "Istana Baduk",
-      "castleShort": "Istana",
+      "castleShort": "istana",
       "timeLimit": "had masa",
       "byoyomi": "kira detik",
       "byoyomiSeconds": "{{sec}} saat",
@@ -1266,16 +1270,16 @@
         "title": "kurang tindakan",
         "rechargeMethods": "Kaedah pengecasan",
         "shopConsumables": "Kedai · Bahan habis pakai",
-        "buyPotion": "Beli ramuan pemulihan tindakan",
+        "buyPotion": "Beli ramuan pemulihan tingkah laku",
         "buyPotionLimit": "· 1 sehari setiap jenis",
-        "diamondInstant": "Berlian mengecas semula serta-merta",
+        "diamondInstant": "Caj semula segera berlian",
         "diamondInstantHint": "Anda boleh mengisi kuasa tindakan anda tepat apabila anda mahu.",
         "goShopConsumables": "Beli ramuan penyembuhan dari kedai (bahan habis pakai)",
         "goDiamondRecharge": "Segera isi semula dengan berlian",
         "selfHeading": "Saya tidak mempunyai keupayaan untuk mengambil tindakan.",
         "selfDetail": "Kuasa tindakan (⚡) diperlukan untuk memohon dan menerima perlawanan, atau untuk memulakan perlawanan AI. Sila cas dan cuba lagi.",
         "opponentTitle": "Memohon perlawanan",
-        "opponentMessage": "Permohonan tidak boleh dibuat kerana pihak lain tidak mempunyai keupayaan untuk bertindak.",
+        "opponentMessage": "Permohonan tidak boleh dibuat kerana pihak satu lagi tidak mempunyai keupayaan untuk bertindak.",
         "opponentDetail": "Pihak lawan juga mesti mempunyai kuasa aksi (⚡) yang cukup untuk meneruskan perlawanan. Sila cuba lagi selepas orang lain mengecas semula."
       }
     },
@@ -1295,14 +1299,14 @@
       "basePlacementHint": "Letakkan anak patung asas. ({{diletakkan}}/{{total}})",
       "confirmStart": "Perlawanan bermula",
       "confirmStartHint": "Apabila anda menekan butang mula, perlawanan bermula.",
-      "hostPlacesBoth": "Tuan rumah meletakkan batu asas pada kedua-dua belah pihak.",
+      "hostPlacesBoth": "Tuan rumah meletakkan batu asas di kedua-dua belah pihak.",
       "basePlacementPhase": "Ini ialah peringkat penempatan anak patung asas.",
       "hostPlacementSide": "Peletakan ketua bilik: {{sebelah}} batu tapak sisi",
       "confirmPlacementFull": "Baki anak patung asas (0/{{total}}) · Klik Peletakan Selesai",
       "proceedingNext": "Baki anak patung asas (0/{{total}}) · Teruskan ke langkah seterusnya...",
       "waitingOpponentShort": "Baki anak patung asas (0/{{total}}) · Menunggu pengesahan lawan...",
       "placeVisibleAdventure": "Letakkan batu asas pada papan dam",
-      "placeHidden": "Letakkan batu asas pada papan dam tanpa kelihatan oleh pihak lawan anda.",
+      "placeHidden": "Letakkan batu asas pada papan dam tanpa kelihatan kepada pihak lawan anda.",
       "timeRemainingSec": "Masa yang tinggal: {{sec}} saat"
     },
     "placementRefresh": {
@@ -1313,7 +1317,7 @@
       "waitForStart": "Anda boleh meletakkan semula apabila permainan bermula.",
       "beforeFirstMove": "Anda hanya boleh berpindah sebelum langkah pertama dibuat.",
       "insufficientGold": "Saya kehabisan emas.",
-      "paused": "Kedudukan semula tidak boleh dilakukan semasa dalam keadaan dijeda.",
+      "paused": "Penempatan semula tidak boleh dilakukan semasa dalam keadaan dijeda.",
       "confirmPaid": "Adakah anda ingin menggunakan emas {{gold}} untuk merombak kumpulan? (baki penempatan semula {{baki}}/5)",
       "confirmFree": "Perpindahan pertama anda adalah percuma. Adakah anda ingin merombak kumpulan?",
       "priceLine": "Harga: {{harga}}",
@@ -1329,7 +1333,7 @@
       "towerShopHint": "Beli dari kedai item Top of Challenge",
       "towerRefreshActive": "Segar Batch",
       "turnAddTitle": "Tambah Giliran",
-      "turnAddActive": "Tinggal 3 pusingan tambahan",
+      "turnAddActive": "3 pusingan tambahan berbaki",
       "turnAddMessage": "Adakah anda ingin menggunakan 1 item pusingan tambahan untuk meningkatkan had giliran Hitam sebanyak 3 pusingan? Ia akan digunakan serta-merta selepas pengesahan.",
       "passConfirmTitle": "Sahkan lulus",
       "passConfirmBoth": "Jika kedua-dua belah pihak lulus berturut-turut, harga akan dikira. Adakah anda mahu lulus?",
@@ -1382,7 +1386,203 @@
       "curling": "kerinting",
       "thiefPolice": "pencuri dan polis",
       "classic": "klasik",
-      "mix": "campurkan"
+      "mix": "campurkan",
+      "specialRules": "peraturan khas",
+      "loseCondition": "Syarat Kekalahan",
+      "rulesAndGuide": "Peraturan permainan dan panduan bermain",
+      "rewards": "pampasan",
+      "availableRewards": "Ganjaran Boleh Diperolehi",
+      "summary": {
+        "loseTerritory": "Jika jumlah markah (total score) rendah atau rumah berada pada kedudukan yang kurang baik kerana peraturan seri atau seri, anda kalah.",
+        "loseTerritoryAuto": "Jika anda tidak boleh menang menentang {{base}} · {{auto}}, anda kalah.",
+        "loseCaptureRace": "Jika pihak lawan mendapat {{t}} mata terlebih dahulu, anda kalah. Jika tidak, jika anda mempunyai sedikit rumah dalam keluarga, anda rugi.",
+        "loseMix": "Pada penghujung permainan, jika pihak lawan memenuhi syarat kemenangan terlebih dahulu atau berada dalam keadaan yang kurang menguntungkan, pihak lawan kalah.",
+        "basePlacementAnalysis": "Analisis keadaan selepas pelepasan peletakan anak patung asas",
+        "baseKomiSelect": "Tetapkan bonus untuk diberikan kepada lawan anda · Pilih batu yang anda mahu",
+        "autoScoringCaptureTurn": "Pengiraan automatik diteruskan apabila {{n}} pusingan dicapai",
+        "autoScoringTerritoryWin": "Menangi kiraan automatik selepas {{n}} pusingan",
+        "autoScoringTerritoryLose": "Kalah dalam permainan automatik selepas {{n}} pusingan",
+        "fischerOnly": "Fisher {{sec}} saat",
+        "byoyomiOnly": "Kira detik sahaja · {{time}} saat × {{count}} kali",
+        "noTimeLimit": "Tiada had masa",
+        "limitFischer": "Hadkan {{min}} minit · Fisher {{sec}} saat",
+        "limitByoyomi": "Hadkan {{min}} minit · Undur {{time}} saat × {{count}} kali",
+        "limitNoByoyomi": "Hadkan {{min}} minit (tiada kira detik)",
+        "factorTerritory": "wilayah",
+        "factorCaptured": "batu dipetik",
+        "factorDead": "riprap",
+        "factorKomi": "Bonus (beg)",
+        "factorBaseBonus": "bonus asas",
+        "factorHiddenBonus": "Bonus Tersembunyi",
+        "factorSpeedBonus": "Elaun {{sec}} saat melebihi → Lawan +1",
+        "factorMissileEffect": "Refleksi pengeluaran peluru berpandu",
+        "factorCaptureScore": "skor kemenangan",
+        "factorMixFallback": "Bergantung pada kombinasi mod",
+        "factorCaptureNoTerritory": "Markah Kemenangan (tiada pengiraan rumah)",
+        "factorCastle": "Wilayah yang disahkan · Menang batu · Bonus (putih)",
+        "factorChess": "Wilayah · Batu terpilih · Batu batu · Tangkapan item · Bonus (100)",
+        "factorOmok": "Kha (menang) — tiada pengiraan rumah",
+        "factorTtamok": "Leher menang atau skor kemenangan",
+        "factorDice": "100 markah kemenangan batu setiap pusingan · Bonus kemenangan akhir",
+        "factorThief": "Jumlah mata yang diperolehi setiap pusingan",
+        "factorAlkkagi": "Bilangan pergerakan lawan di luar papan",
+        "factorCurling": "Stone menjaringkan gol hampir dengan rumah (gol)",
+        "factorFallback": "Lihat panduan mod",
+        "factorStageDefault": "Bergantung pada pentas/mod",
+        "factorStageCapture": "skor kemenangan",
+        "factorStageCapturePattern": "skor kemenangan\n2 batu corak",
+        "factorStageSpeed": "Wilayah, batu petik, batu riprap, bonus\nbonus masa",
+        "factorAdventureCaptureShort": "Pilih · Lambang 2 mata",
+        "factorAdventureBase": "harga asas",
+        "factorAdventureBaseStone5": "5 anak patung asas",
+        "factorAdventureHidden": "Tersembunyi",
+        "factorAdventureSpeed": "jam",
+        "factorAdventureMissile": "peluru berpandu",
+        "itemHidden": "Tersembunyi {{n}}",
+        "itemScan": "{{n}} imbasan",
+        "itemMissile": "{{n}} peluru berpandu",
+        "itemSpecialDice": "Dadu istimewa {{ringkasan}}",
+        "itemSlowAim": "Perlahan {{perlahan}} · Matlamat {{tujuan}}",
+        "mixCaptureWin": "Jika {{t}} mata dicapai dahulu, menang serta-merta. Jika tidak tercapai, bandingkan rumah selepas harga menang.",
+        "mixCaptureWinWithAuto": "Kemenangan: Jika {{t}} mata dicapai dahulu, menang serta-merta · Jika tidak tercapai, bandingkan rumah selepas had · {{auto}}",
+        "mixAutoTerritoryWin": "{{auto}} — Sesiapa yang mempunyai rumah terbanyak menang",
+        "mixComboTail": "Gabungan ({{modes}}) — Menang atau kalah berdasarkan peraturan pada akhirnya",
+        "mixDefaultEnd": "Pada akhirnya, pemenang atau kalah ditentukan mengikut peraturan.",
+        "highlightPatternStone2": "Memilih batu corak 2 mata",
+        "highlightHiddenScan": "Pelancaran tersembunyi · Teroka dengan mengimbas",
+        "highlightMissileMove": "Gerakkan batu dalam garis lurus dengan peluru berpandu",
+        "speedPvpHighlight": "Elaun kira detik 10 saat · Lawan +1 mata untuk setiap 10 saat melebihi · Kehilangan masa apabila masa utama tamat",
+        "highlightSurvival": "Simpan Baduk · Skor sasaran dalam {{n}} pusingan",
+        "highlightAutoScoring": "Pengiraan automatik selepas nombor {{n}}.",
+        "highlightBlackTurnLimit": "Had pusingan {{n}} hitam",
+        "highlightTurnAdd": "{{n}} pusingan tambahan",
+        "highlightMissile": "{{n}} peluru berpandu",
+        "highlightHiddenScanCounts": "{{hidden}} tersembunyi · {{scan}} diimbas",
+        "spTimeMainFischer": "{{min}} minit utama · Elaun {{sec}} saat undur",
+        "spTimeFischerOnly": "Undur ke elaun {{sec}} saat",
+        "spTimeUnlimited": "Tiada had",
+        "goalSurvivalWinLabel": "sekat belakang",
+        "goalSurvivalWinHelper": "Sekat 100 sasaran untuk {{n}} pusingan",
+        "goalSurvivalLoseLabel": "ratus kejayaan",
+        "goalSurvivalLoseHelper": "Jika Putih mencipta matlamat, ia gagal.",
+        "goalCaptureWinLabel": "memetik",
+        "goalCaptureWinHelper": "Menjaringkan mata dengan mengelilingi batu lawan.",
+        "goalCaptureLoseTurnLabel": "pusingan melebihi",
+        "goalCaptureLoseTurnHelper": "Jika anda tidak melakukannya dalam {{n}} pusingan, anda gagal.",
+        "goalCaptureLoseFirstLabel": "lawan dulu",
+        "goalCaptureLoseFirstHelper": "Jika lawan anda menang dahulu, anda gagal.",
+        "goalSpeedWinLabel": "cepat",
+        "goalSpeedWinHelper": "Membina rumah tepat pada masanya",
+        "goalSpeedLoseLabel": "Markah tiga belas",
+        "goalSpeedLoseHelper": "Kegagalan jika terdapat sedikit rumah",
+        "goalAutoWinLabel": "banyak rumah",
+        "goalAutoWinHelper": "Kira rumah selepas {{n}}",
+        "goalAutoLoseLabel": "kekurangan rumah",
+        "goalAutoLoseHelper": "{{n}}Jika anda berada dalam keadaan yang kurang baik semasa bergerak, anda gagal.",
+        "goalDefaultWinLabel": "membina rumah",
+        "goalDefaultWinHelper": "Bina rumah di sekitar kawasan itu",
+        "goalDefaultLoseLabel": "kekurangan rumah",
+        "goalDefaultLoseHelper": "Kegagalan jika terdapat sedikit rumah",
+        "guideTurnLimitTitle": "had giliran",
+        "guideTurnLimitBody": "Selesai dalam {{n}} giliran",
+        "guideSurvivalTitle": "batang",
+        "guideSurvivalBody": "Sekat 100 sasaran untuk {{n}} pusingan",
+        "guideAutoScoringTitle": "Harga pengiraan",
+        "guideAutoScoringBody": "Kira rumah selepas {{n}}",
+        "guidePatternStoneTitle": "batu corak",
+        "guidePatternStoneBody": "2 mata jika anda menang",
+        "guideSpeedTitle": "kelajuan",
+        "guideSpeedBody": "Jika anda meninggalkannya lewat, lawan anda mendapat +1 mata.",
+        "guideTurnAddTitle": "Tambah Giliran",
+        "guideTurnAddBody": "Tingkatkan had giliran",
+        "guideMissileTitle": "peluru berpandu",
+        "guideMissileBody": "Pilih batu dan tolak dalam garis lurus",
+        "guideHiddenScanTitle": "Tersembunyi · Imbas",
+        "guideHiddenScanBody": "Sembunyikan {{hidden}} · Cari {{scan}}",
+        "advCaptureWin": "menang",
+        "advCaptureLose": "Menang, kalah, tamat masa",
+        "advTerritoryWin": "gye menang",
+        "advTerritoryWinAuto": "Kira kemenangan · {{n}} bergerak secara automatik",
+        "advTerritoryLose": "Sistem dikalahkan dan masa kesuntukan.",
+        "advTimeLimit": "{{minit}} had minit",
+        "gwCaptureWinAuto": "{{cap}} mata dahulu atau {{limit}} kiraan giliran menang",
+        "gwCaptureWin": "Jika anda mendapat {{cap}} mata dahulu, anda menang.",
+        "gwCaptureLose": "{{cap}} mata lawan dahulu",
+        "gwTerritoryWinAuto": "Pengiraan automatik {{limit}} bilangan kemenangan",
+        "gwTerritoryWin": "Jika keluarga anda mempunyai lebih banyak rumah, anda menang.",
+        "gwTerritoryLose": "Berlebihan, melebihi masa",
+        "captureWin": "Dapatkan mata {{t}} batu lawan dahulu",
+        "captureWinWithAuto": "Dapatkan mata {{t}} batu lawan dahulu · {{auto}}",
+        "territoryWinDefault": "Selepas mengira, pihak yang mempunyai rumah terbanyak menang.",
+        "speedTerritoryWinDefault": "Sesiapa yang mempunyai markah keseluruhan tertinggi menang selepas mengira.",
+        "speedTerritoryLoseDefault": "Jika markah keseluruhan anda rendah selepas mengira, anda kalah.",
+        "castleWin": "Jika anda memenangi 1 atau lebih batu lawan, anda menang serta-merta. Jika tiada nombor berkesan, wilayah dikira.",
+        "castleLose": "Jika lawan anda menangkap walaupun 1 batu, anda kalah. Jika anda mempunyai sedikit rumah dalam keluarga anda, anda rugi.",
+        "castleHighlightCount": "{{istana}} istana · Tidak boleh memasuki wilayah yang telah siap",
+        "castleHighlightCapture": "Kemenangan serta merta apabila berjaya menawan 1 batu",
+        "chessWin": "Selepas prosedur yang ditetapkan, pengiraan",
+        "chessLose": "Kalah di Gyejia · Kalah serta merta selepas menawan raja.",
+        "chessHighlightBudget": "Peletakan langsung kepingan dalam {{bajet}} belanjawan mata (Raja ditetapkan di tengah baris ke-2)",
+        "chessHighlightMovement": "Sekeping boleh digerakkan dengan gerakan catur sekali setiap pusingan (bilangan kali terhad).",
+        "omokWin": "Lengkapkan 5 item mendatar, menegak dan menyerong dahulu",
+        "omokLose": "Jika lawan anda melengkapkan kesemua 5 item dahulu, anda kalah.",
+        "omok33Forbidden": "Tiada kembar",
+        "omok33Allowed": "Kembar dibenarkan",
+        "omokOverlineForbidden": "tiada kayu balak",
+        "omokOverlineAllowed": "Logwood dibenarkan",
+        "ttamokWin": "Lengkapkan item 5 dahulu atau capai {{cap}} mata pertama",
+        "ttamokLose": "Jika lawan anda melengkapkan 5 item dahulu atau mencapai {{cap}} mata kemenangan dahulu, anda kalah.",
+        "ttamokHighlightCapture": "Menang apabila anda mencapai {{cap}} mata dahulu.",
+        "diceWin": "Pihak dengan markah terkumpul tertinggi selepas pusingan {{r}} menang.",
+        "diceLose": "{{r}}Jika markah terkumpul anda rendah pada penghujung pusingan, anda kalah.",
+        "diceHighlightRules": "Tanah hitam sebanyak mata dadu, dan putih diletakkan hanya di laluan keluar.",
+        "thiefWin": "Selepas 5 pusingan x pusingan, orang yang mempunyai jumlah markah tertinggi menang.",
+        "thiefLose": "Jika jumlah markah anda rendah pada penghujung pusingan, anda kalah.",
+        "thiefHighlightRoles": "Peranan silih berganti antara pencuri (hitam) dan pegawai polis (putih)",
+        "alkkagiWin": "Kalahkan semua batu lawan",
+        "alkkagiLose": "Tumbangkan semua batu saya",
+        "alkkagiHighlightGauge": "Kawalan daya dengan tolok, pantulan dinding",
+        "curlingWin": "Sesiapa yang mempunyai jumlah markah pusingan tertinggi menang",
+        "curlingLose": "Jika jumlah markah anda rendah, anda kalah.",
+        "curlingHighlightRules": "Sistem gelongsor batu / bulat",
+        "fallbackWin": "Menang atau kalah ditentukan berdasarkan kemajuan perlawanan.",
+        "fallbackLose": "Jika kekalahan ditentukan oleh kemajuan permainan, anda kalah.",
+        "spDefaultWin": "Menang apabila syarat pentas dipenuhi",
+        "spDefaultLose": "Rugi jika syarat tidak dipenuhi",
+        "spSurvivalWin": "Gagal mencapai 100 {{tgt}} mata dalam {{n}} pusingan",
+        "spSurvivalLose": "Capai 100 {{tgt}} mata dalam {{n}} pusingan",
+        "spCaptureTurnWin": "Dapatkan {{target}} mata dalam {{limit}} pusingan",
+        "spCaptureTurnLoseBoth": "Melebihi {{had}} pusingan / skor 100 {{target}} mata",
+        "spCaptureTurnLoseMiss": "Gagal mencapai sasaran dalam {{limit}} pusingan",
+        "spCaptureRaceWin": "Dapatkan {{target}} mata dahulu",
+        "spCaptureRaceLose": "Dapatkan 100 {{target}} mata dahulu",
+        "spCaptureCapWin": "Dapatkan {{cap}} mata dahulu",
+        "spCaptureCapLose": "Putih mendapat {{cap}} mata dahulu",
+        "spCaptureGoalWin": "Mencapai markah sasaran",
+        "spCaptureGoalLose": "Baek mencapai matlamatnya dahulu",
+        "spSpeedWin": "Pasukan menang pada skor keseluruhan",
+        "spSpeedLose": "kalah di dunia",
+        "spAutoScoringWin": "{{n}}menang selepas mengira",
+        "spAutoScoringLose": "{{n}}Kalah selepas Sugyega",
+        "spLegacyTurnWin": "{{target}} mata atau lebih dalam {{limit}} pusingan",
+        "spLegacyTurnLose": "Gagal mencapai sasaran dalam {{limit}} pusingan",
+        "spLegacyTerritoryWin": "Rumah hitam {{hitam}} keluarga+ · rumah {{putih}} putih+",
+        "spLegacyTerritoryLose": "tadahan sasaran tidak tercapai",
+        "spTerritoryWin": "Jika keluarga mempunyai lebih banyak rumah, mereka menang.",
+        "spTerritoryLose": "Ketiga belas dalam keturunan"
+      },
+      "itemSlot": {
+        "hiddenStone": "Batu Tersembunyi",
+        "scan": "imbasan",
+        "missile": "peluru berpandu",
+        "diceOdd": "Item Dadu Ganjil",
+        "diceEven": "Item Dadu Pun",
+        "diceLow": "Item dadu nombor rendah (1-3).",
+        "diceHigh": "Item dadu nombor tinggi (4-6).",
+        "slow": "lambat",
+        "aimLine": "garis penglihatan",
+        "turnAdd": "Tambah Giliran"
+      }
     },
     "singlePlayerInfo": {
       "close": "dekat",
@@ -1418,7 +1618,7 @@
       "round1": "pembentangan pertama",
       "round2Suffix": "· ke-2",
       "waitingBothBids": "Kami sedang menunggu kedua-dua pihak membentangkan skor hitam (baik).",
-      "winnerLine": "Titik {{nama}} → Hitam (garisan), titik sasaran {{target}} putih",
+      "winnerLine": "Titik {{nama}} {{bid}} → hitam (garisan), titik sasaran {{target}} putih",
       "tieRandomBoth": "Seri yang dicadangkan adalah sama. Hitam dan putih dipilih secara rawak.",
       "tieRandom": "Tali leher — Hitam dan Putih dipilih secara rawak.",
       "tieRebid": "Ikat — Bergerak untuk menjalankan semula.",
@@ -1433,7 +1633,7 @@
       "submitting": "memajukan…",
       "hostBid": "Hos Jessie",
       "confirmBid": "Pembentangan disahkan",
-      "blackTargetHint": "Jika hitam menjadi putih, matlamat ialah {{target}} mata (asas {{base}} mata)"
+      "blackTargetHint": "Jika hitam menjadi putih, matlamatnya ialah {{target}} mata (asas {{base}} mata)"
     },
     "scoringOverlay": {
       "analyzing": "AI sedang menganalisis papan dam",
@@ -1478,7 +1678,8 @@
       "aria": "Tab keputusan"
     },
     "speedPressure": {
-      "aria": "Masa elaun {{sec}} saat"
+      "aria": "Masa elaun {{sec}} saat",
+      "label": "Bar kelajuan 10 saat"
     },
     "adventureResult": {
       "bossLine": "Bos: {{label}} +{{pct}}%",
@@ -1502,7 +1703,7 @@
     },
     "gameModals": {
       "resignConfirmTitle": "Pengesahan berpantang",
-      "resignConfirmLead": "Adakah anda ingin meninggalkan permainan?",
+      "resignConfirmLead": "Adakah anda ingin melepaskan permainan ini?",
       "resignConfirmDetail": "Perlawanan tamat serta-merta dan dianggap sebagai kalah.",
       "resignConfirmButton": "berpantang"
     },
@@ -1523,7 +1724,7 @@
       "result": "hasil"
     },
     "gameApplication": {
-      "title": "Memohon untuk permainan",
+      "title": "Aplikasi permainan",
       "modeHeading": "mod permainan",
       "applyTitle": "{{mod}} aplikasi",
       "selectMode": "Sila pilih permainan."
@@ -1612,7 +1813,10 @@
       "baseRule": "asas",
       "whiteTargetLabel": "ratus gol",
       "firstBlackRole": "Garisan (hitam)",
-      "meBadge": "saya"
+      "meBadge": "saya",
+      "captureBidResultTitle": "Keputusan pembentangan markah kemenangan",
+      "komiBidFinalRound": "Tawaran Bonus (Pusingan Akhir)",
+      "pressStartPrompt": "Setelah anda bersedia, klik Mula untuk mula bermain."
     },
     "baseStoneChoice": {
       "hostPick": "Hos memilih plat warna di sebelah kiri.",
@@ -1642,8 +1846,10 @@
       "blackRole": "Mogok pertama, hitam",
       "whiteRole": "Hugong · Belakang",
       "finalCardAlt": "Pergerakan pertama dan kedua terakhir dipaparkan pada kad kiri dan kanan.",
-      "fastFlashAlt": "Paparan hitam dan putih dalam dua ruang berubah, tetapi selepas beberapa ketika, ia ditetapkan pada susunan terakhir.",
-      "smoothEndAlt": "Hitam dan putih berubah dengan cepat dan berhenti secara rawak."
+      "fastFlashAlt": "Paparan hitam dan putih dalam dua ruang berubah, tetapi selepas beberapa ketika, ia ditetapkan pada reka letak akhir.",
+      "smoothEndAlt": "Hitam dan putih berubah dengan cepat dan berhenti secara rawak.",
+      "assignmentComplete": "Tugasan selesai",
+      "blackCandidate": "Pergi dulu calon (hitam)."
     },
     "uniformColor": {
       "blackStone": "batu hitam",
@@ -1658,12 +1864,12 @@
       "flashHintAlt": "Batu hitam dan putih berubah dengan cepat dan kemudian berhenti secara rawak."
     },
     "conditionPotion": {
-      "title": "Bayaran syarat",
+      "title": "bayaran syarat",
       "currentCondition": "keadaan semasa",
       "expectedRecovery": "Keadaan selepas jangkaan pemulihan",
       "applying": "Memohon pemulihan...",
       "goShop": "Pergi ke kedai",
-      "usePotion": "menggunakan ubat pemulihan",
+      "usePotion": "Gunakan ubat pemulihan",
       "recoveryTitle": "pemulihan keadaan",
       "potionTitle": "{{nama}} · Pemulihan {{min}}~{{maks}} · Pengekalan {{count}}",
       "currentLabel": "keadaan semasa",
@@ -1679,7 +1885,8 @@
       "autoRouletteShort": "Daripada batu, kertas, gunting, hitam dan putih diberikan menggunakan rolet automatik.",
       "checkingRoulette": "Menyemak keputusan rolet...",
       "waitingConfirm": "Menunggu pengesahan dari pihak lain...",
-      "startCountdown": "Mulakan perlawanan ({{count}})"
+      "startCountdown": "Mulakan perlawanan ({{count}})",
+      "autoStartHint": "Tekan Mula atau perlawanan akan bermula secara automatik selepas 30 saat."
     },
     "diceGo": {
       "winner": "Hasil daripada dadu, {{name}} menang dan keputusan dibuat untuk pergi dahulu/terakhir.",
@@ -1697,7 +1904,7 @@
       "tie": "tali leher!",
       "intro": "Tekan butang sedia untuk membaling dadu. Orang yang mempunyai bilangan tertinggi memilih untuk pergi dahulu/terakhir.",
       "tieReroll": "tali leher! Gulung semula selepas beberapa ketika.",
-      "pickTurn": "Pilih untuk pergi dahulu atau terakhir. ({{countdown}})",
+      "pickTurn": "Pilih untuk pergi pertama atau kedua. ({{countdown}})",
       "firstBlackBtn": "Serang dahulu (hitam)",
       "secondWhiteBtn": "Hugong (putih)",
       "waitingOpponentPick": "Pihak lawan memilih untuk pergi pertama/kedua...",
@@ -1740,7 +1947,7 @@
       "tieDeathmatch": "Perlawanan maut diteruskan dengan seri.",
       "swapRoles": "Tukar peranan dan teruskan ke pusingan seterusnya.",
       "round2Tie": "Pusingan 2 tamat. Jika skor seri, ia adalah perlawanan maut.",
-      "waitingConfirm": "Menunggu pengesahan pihak lawan",
+      "waitingConfirm": "Menunggu pengesahan daripada rakan kongsi",
       "nextRound": "pusingan seterusnya",
       "piecesUnit": "anjing"
     },
@@ -1797,7 +2004,7 @@
       "advanced": "Kelas lanjutan",
       "master": "Danban tinggi",
       "tower": "Menara Cabaran",
-      "academy": "Akademi Baduk",
+      "academy": "akademi Baduk",
       "stage": "Peringkat {{nombor}}",
       "returnLobby": "pergi balik",
       "currentStage": "peringkat semasa",
@@ -1813,9 +2020,78 @@
       "editStage": "Suntingan Peringkat",
       "editOrder": "Edit pesanan",
       "cancel": "pembatalan",
+      "exit": "Keluar",
       "start": "Bermula",
       "singleStage": "satu peringkat",
-      "masterClass": "seorang yang mempunyai kelayakan"
+      "masterClass": "seorang yang mempunyai kelayakan",
+      "goalSection": "sasaran",
+      "goalTurnCaption": "Giliran terhad",
+      "goalTurnUnit": "pusing",
+      "goalMySide": "saya",
+      "goalOpponentSide": "lawan",
+      "goalCaptureUnit": "memetik",
+      "goalSurvivalTurnCaption": "tempoh",
+      "goalSurvivalBlockCaption": "sekat belakang",
+      "goalSurvivalPointUnit": "titik",
+      "turnLimit": "Giliran terhad: {{count}} pusingan",
+      "autoScoringGoal": "Pengiraan automatik selepas {{count}} pusingan",
+      "myCaptureGoal": "Saya menang {{count}}",
+      "opponentCaptureGoal": "Kalahkan {{count}} lawan",
+      "vs": "lwn",
+      "survivalGoal": "Sekat {{target}} mata dalam {{turns}}turns",
+      "territoryGoal": "gye menang",
+      "modeTypeTabs": "jenis baduk",
+      "modeGuideTitle": "Cara bermain",
+      "modeGuide": {
+        "missile": {
+          "step1Title": "item peluru berpandu",
+          "step1Body": "Pada giliran saya, saya menekan butang item peluru berpandu.",
+          "step1BodyItem": "Anda boleh menggunakan {{count}} peluru berpandu dalam perlawanan ini. Tekan butang peluru berpandu pada giliran anda.",
+          "step2Title": "pemilihan batu",
+          "step2Body": "Pilih batu saya untuk bergerak.",
+          "step3Title": "pergerakan garis lurus",
+          "step3Body": "Tolak batu ke arah ruang kosong untuk mengubah keadaan."
+        },
+        "hidden": {
+          "step1Title": "Item Tersembunyi",
+          "step1Body": "Gunakan butang tersembunyi untuk membuat gerakan yang tidak dapat dilihat oleh lawan anda.",
+          "step1BodyItem": "{{count}} tersembunyi membolehkan anda membuat gerakan yang tidak dapat dilihat oleh lawan anda.",
+          "step2Title": "item imbasan",
+          "step2Body": "Cari kawasan suspek tersembunyi dengan butang imbasan.",
+          "step2BodyItem": "Imbasan {{count}} boleh membantu anda mencari kawasan yang disyaki tersembunyi.",
+          "step3Title": "Penggunaan barang",
+          "step3Body": "Imbasan tersembunyi adalah terhad dalam bilangan, jadi pilih masa anda dengan bijak."
+        },
+        "capture": {
+          "step1Title": "menang",
+          "step1Body": "Anda menang jika anda pertama kali mendapat batu lawan sama dengan markah sasaran.",
+          "step2Title": "batu corak",
+          "step2Body": "Jika anda memenangi batu corak, ia dikira sebagai 2 mata."
+        },
+        "speed": {
+          "step1Title": "peraturan masa",
+          "step1Body": "Jika anda tidak melakukannya dalam masa yang ditetapkan, lawan anda akan mendapat lebih mata.",
+          "step2Title": "Harga pengiraan",
+          "step2Body": "Akhirnya, pemenang atau kalah ditentukan dengan menjumlahkan rumah dan bonus masa."
+        },
+        "base": {
+          "step1Title": "anak patung asas",
+          "step1Body": "Baca situasi dengan melihat perletakan batu asas.",
+          "step2Title": "tawaran bonus",
+          "step2Body": "Tentukan bonus untuk diberikan kepada lawan anda dan mulakan permainan dengan warna/batu yang anda inginkan."
+        },
+        "classic": {
+          "step1Title": "membina rumah",
+          "step1Body": "Bina rumah di sekitar wilayah dan selamatkan lebih banyak rumah daripada lawan anda.",
+          "step2Title": "Harga pengiraan",
+          "step2Body": "Jika kedua-dua pihak lulus, pemenang ditentukan dengan mengira."
+        },
+        "survival": {
+          "tab": "Selamatkan Baduk",
+          "step1Title": "sekat belakang",
+          "step1Body": "Halang Putih (lawan) daripada mencapai skor sasaran untuk bilangan pusingan yang ditetapkan."
+        }
+      }
     },
     "towerShop": {
       "closeAria": "Tutup pembelian barangan eksklusif teratas",
@@ -1867,7 +2143,7 @@
       "diceTitle": "{{pusingan}}Penjumlahan bulat",
       "deathmatchStart": "Perlawanan maut bermula",
       "viewFinal": "Lihat keputusan akhir",
-      "waitingConfirm": "Menunggu pengesahan pihak lawan",
+      "waitingConfirm": "Menunggu pengesahan daripada rakan kongsi",
       "dummyCapture": "{{nama}}",
       "previousRound": "pusingan sebelumnya",
       "previousKnockShort": "ketukan sebelumnya",
@@ -1883,7 +2159,7 @@
       "lastDummyBonus": "Longgokan terakhir +{{bonus}}",
       "alkkagiKnockout": "kalah mati",
       "playerFallback": "pemain",
-      "waitingOpponentConfirm": "Menunggu pengesahan pihak lawan",
+      "waitingOpponentConfirm": "Menunggu pengesahan daripada rakan kongsi",
       "house": "rumah",
       "knockout": "kalah mati",
       "roundResultBoard": "papan keputusan bulat"
@@ -1974,7 +2250,7 @@
       "withdraw": "Penarikan diri keahlian",
       "cancel": "pembatalan",
       "withdrawTitle": "Penarikan diri keahlian",
-      "withdrawLine1": "Selepas pengeluaran, data dipadamkan dan tidak boleh dipulihkan.",
+      "withdrawLine1": "Data dipadamkan apabila ditarik balik dan tidak boleh dipulihkan.",
       "withdrawLine2": "Anda tidak boleh mendaftar semula dengan alamat e-mel yang sama selama 1 minggu.",
       "withdrawPasswordConfirm": "mengesahkan kata laluan",
       "withdrawTextConfirm": "Masukkan teks pengesahan: “Tarik balik keahlian”",
@@ -1988,7 +2264,7 @@
         "withdrawConfirmMismatch": "Teks pengesahan tidak betul. Sila masukkan \"Pengeluaran Keahlian\" dengan tepat.",
         "usernameChangeFailed": "Ralat berlaku semasa menukar ID.",
         "passwordChangeFailed": "Ralat berlaku semasa menukar kata laluan anda.",
-        "withdrawFailed": "Ralat berlaku semasa membatalkan keahlian."
+        "withdrawFailed": "Ralat berlaku semasa membatalkan keahlian anda."
       },
       "alerts": {
         "usernameChanged": "ID anda telah berubah.",
@@ -2066,7 +2342,7 @@
     },
     "playfulNotice": {
       "title": "Panduan bermain baduk",
-      "body": "Kedudukan perlawanan dan markah kedudukan musim tidak digunakan di stadium Play Baduk. Perlawanan ranking hanya tersedia di ruang menunggu Baduk Strategik."
+      "body": "Kedudukan perlawanan dan markah kedudukan musim tidak digunakan dalam arena Play Baduk. Perlawanan ranking hanya tersedia di ruang menunggu Baduk Strategik."
     },
     "rankedUnavailable": {
       "title": "Tiada perlawanan berperingkat",
@@ -2105,6 +2381,10 @@
       "forceLogout": "terpaksa pergi",
       "forceLogoutConfirm": "Adakah anda mahu memaksa [{{nama panggilan}}] untuk memutuskan sambungan?",
       "invite": "Jemput",
+      "challenge": "Memohon perlawanan",
+      "challengeUnavailable": "Pihak yang satu lagi tidak berada dalam kedudukan untuk menerima permintaan perlawanan.",
+      "spectate": "Menonton",
+      "spectateUnavailable": "Saya tidak menemui sebarang maklumat perlawanan untuk ditonton.",
       "blockInvites": "Tiada jemputan",
       "blockInvitesTitle": "Apabila dihidupkan, pemain lain tidak akan dapat menjemput anda sebagai rakan kongsi dalam Fair Arena.",
       "statusInPairRoom": "Anda tidak boleh menukar status anda semasa berada dalam bilik berpasangan.",
@@ -2238,7 +2518,7 @@
         "rankingLabel": "Kedudukan: {{rating}} mata",
         "expectedDelta": "Perubahan Skor Jangkaan",
         "winDelta": "Kemenangan: +{{mata}}",
-        "lossDelta": "Kekalahan: {{points}} mata",
+        "lossDelta": "Kekalahan: {{mata}}",
         "opponentRanking": "Kedudukan Lawan",
         "opponentRating": "{{rating}}mata",
         "waitingPeer": "Menunggu penerimaan pihak lain...",
@@ -2278,7 +2558,7 @@
       "startMatching": "Mula memadankan (pilih {{count}})",
       "selectedBadge": "dipilih",
       "roundUnit": "{{count}}pusingan",
-      "boardSizeValue": "{{saiz}}garisan",
+      "boardSizeValue": "{{saiz}} baris",
       "scoringTurnValue": "{{count}}count",
       "itemCountValue": "{{count}}",
       "slowItem": "lambat",
@@ -2319,7 +2599,7 @@
       "baseStone": "batu asas",
       "captureGoal": "tangkap sasaran",
       "turnsUnit": "{{count}}count",
-      "linesUnit": "{{saiz}}garisan",
+      "linesUnit": "{{saiz}} baris",
       "pointsUnit": "{{skor}} mata",
       "countUnit": "{{count}}",
       "halfPoint": ".5 rumah",
@@ -2449,7 +2729,7 @@
       "regionalExploration": "Penerokaan tempatan",
       "effectInfo": "Maklumat kesan",
       "effectInfoOpenAria": "Maklumat kesan penerokaan kawasan terbuka",
-      "effectInfoTitle": "Maklumat kesan",
+      "effectInfoTitle": "Maklumat Kesan",
       "regionalExplorationTabsAria": "Tab Penerokaan Setempat",
       "enhancePoints": "titik pengukuhan",
       "enhancePointsCount": "Mata Pengukuhan {{baki}} / {{geran}}",
@@ -2490,7 +2770,7 @@
       "equipmentRewardViewAria": "Lihat julat pampasan peralatan: {{gred}}",
       "enhanceStoneRewardAria": "Ganjaran Batu Peningkatan: {{line}}",
       "goldWinRange": "Emas Kemenangan (rujukan) lebih kurang. {{min}}~{{maks}}",
-      "goldBoss19Range": "Apabila anda memenangi bos dalam barisan 19, anda mendapat kira-kira {{min}}~{{maks}} emas.",
+      "goldBoss19Range": "Apabila anda memenangi bos dalam baris 19, anda mendapat lebih kurang {{min}}~{{maks}} emas.",
       "equipmentGradeGrant": "Gred peralatan dikeluarkan: {{gred}}",
       "pickHintVip": "Ganjaran VIP: Pilih dua ruang sendiri, atau pilih hanya satu ruang dan ruang lain akan dipilih secara rawak.",
       "pickHintSingle": "Pilih satu kotak untuk menerima dan klik Selesai Pemilihan.",
@@ -2625,10 +2905,10 @@
       "classBarRewardClaimed": "Resit selesai",
       "classBarRewardClaim": "Terima ganjaran",
       "classBarRewardNeedClear": "Memerlukan tahap {{milestone}} yang jelas",
-      "classBarRewardAria": "{{milestone}} ganjaran mata",
+      "classBarRewardAria": "{{milestone}}ganjaran mata",
       "cleared": "Kosongkan selesai",
-      "enterStage": "Kemasukan ⚡{{kos}}",
-      "enterStageTitle": "Kuasa Kemasukan/Tindakan {{kos}}",
+      "enterStage": "Cabaran ⚡{{kos}}",
+      "enterStageTitle": "Tindakan Cabaran {{kos}}",
       "locked": "terkunci",
       "unlockRequired": "Memerlukan {{stageId}}",
       "claimAll": "Terima secara pukal ({{count}})",
@@ -2683,7 +2963,7 @@
       },
       "startMessages": {
         "mission_attendance": "Saya pergi ke akademi baduk yang menyeronokkan dan mula belajar baduk.",
-        "mission_complete_game": "Saya akhirnya mempunyai kemahiran untuk melengkapkan pusingan baduk. Bermain satu permainan baduk sehari adalah cara yang bagus untuk membina kecerdasan anda.",
+        "mission_complete_game": "Saya akhirnya mempunyai kemahiran untuk melengkapkan pusingan baduk. Bermain satu permainan baduk sehari adalah cara yang baik untuk membina kecerdasan anda.",
         "mission_rival_match": "Mempunyai saingan memberi anda peluang untuk bekerja lebih keras. Mempunyai persaingan yang mesra.",
         "mission_study_joseki": "Terdapat kesedaran yang hebat. Kini saya mula memahami isi kandungan Baduk yang mendalam.",
         "mission_league": "Sertai perlawanan liga Baduk, pelajari format permainan, dan bina kenangan yang menyeronokkan tentang kejohanan Baduk.",
@@ -2740,7 +3020,7 @@
     "abilityRequired": "Jumlah kebolehan {{total}}+",
     "intro10Required": "Memerlukan mengosongkan tahap pengenalan 10",
     "intro20Required": "Memerlukan penyelesaian tahap pengenalan 20",
-    "goSchool": "Akademi Baduk",
+    "goSchool": "akademi Baduk",
     "challengeTower": "Menara Cabaran",
     "pvpArena": "Arena PVP",
     "aiArena": "Perlawanan AI",
@@ -2836,7 +3116,7 @@
     "levelUpModal": "Tingkatkan modal",
     "mannerGradeModal": "Modal tahap cara",
     "towerUnlockModal": "Mod buka kunci teratas",
-    "statBaseDisplay": "Pangkalan {{base}} → Paparan {{paparan}} (peralatan·bonus +{{bonus}})",
+    "statBaseDisplay": "Pangkalan {{asas}} → Paparan {{paparan}} (peralatan·bonus +{{bonus}})",
     "statBaseOnly": "Asas {{base}} · Peralatan · Refleksi bonus",
     "presetDefault": "Pratetap {{indeks}}",
     "coreStats": {
@@ -2920,7 +3200,7 @@
       "sanctionReasons": {
         "profanity": "Cacian/fitnah",
         "spam": "Kertas dinding/Spam",
-        "cheat": "Program yang disyaki haram",
+        "cheat": "program yang disyaki haram",
         "profile": "Nama Panggilan/Profil yang tidak sesuai",
         "other": "dll"
       },
@@ -2951,7 +3231,7 @@
       "avatarSelect": "Pilih avatar anda",
       "tierRequired": "Tahap {{tier}} musim sebelumnya diperlukan",
       "levelSumRequired": "Memerlukan jumlah tahap {{level}}",
-      "goldPrice": "{{jumlah}} Emas",
+      "goldPrice": "{{jumlah}} emas",
       "diamondPrice": "{{jumlah}} berlian",
       "borderPurchaseConfirm": "Adakah anda ingin membeli sempadan '{{name}}' untuk {{price}}?",
       "borderPurchaseHint": "Klik untuk Membeli: {{penerangan}}",
@@ -3035,7 +3315,7 @@
         "P": {
           "name": "Persepsi (P)",
           "general": "Fleksibel dan boleh disesuaikan, bertindak balas secara fleksibel kepada situasi. Mereka menghargai autonomi dan terbuka kepada pengalaman baharu.",
-          "goStyle": "Ia adalah etos yang mahir membuat improvisasi dan mengubah operasi secara fleksibel bergantung pada situasi. Saya suka mempunyai rasa penambahbaikan daripada mengikuti proses yang ditetapkan."
+          "goStyle": "Ia adalah etos yang mahir membuat improvisasi dan fleksibel mengubah operasi mengikut situasi. Saya suka mempunyai rasa penambahbaikan daripada mengikuti proses yang ditetapkan."
         }
       }
     },
@@ -3051,6 +3331,8 @@
     "mannerRank": {
       "title": "Maklumat Tahap Cara",
       "grade": "kelas cara",
+      "effectsByGrade": "Kesan mengikut gred",
+      "currentBadge": "hari ini",
       "rangeHint": "Ini adalah faedah dan penalti yang dikenakan untuk setiap julat skor.",
       "allStatsPlus10": "Semua kebolehan +10",
       "disassembleJackpot": "Kebarangkalian jackpot penguraian +20%",
@@ -3065,7 +3347,19 @@
       "scoreAbove": "{{min}} mata atau lebih",
       "scoreRange": "{{min}}~{{maks}} mata",
       "zeroScore": "0 mata",
-      "mannerPointsTitle": "{{skor}}mata ({{pangkat}})"
+      "mannerPointsTitle": "{{skor}}mata ({{pangkat}})",
+      "grades": {
+        "worst": "paling teruk",
+        "veryBad": "sangat teruk",
+        "bad": "teruk",
+        "caution": "berhati-hati",
+        "normal": "lazimnya",
+        "good": "baiklah",
+        "veryGood": "sangat baik",
+        "dignified": "maruah",
+        "pro": "pro",
+        "master": "tuan"
+      }
     },
     "statAllocation": {
       "resetFailAlert": "Syarat set semula keupayaan tidak dipenuhi. Anda kehabisan emas atau telah melebihi bilangan tetapan semula harian.",
@@ -3078,7 +3372,7 @@
       "bonus": "bonus",
       "resetBtn": "set semula",
       "allocateTitle": "Pengagihan mata keupayaan",
-      "allocateAria": "pengedaran {{stat}}.",
+      "allocateAria": "{{stat}} Pengagihan",
       "statLabel": "kebolehan",
       "remainingShort": "baki",
       "allocateToStat": "Pengagihan kepada keupayaan ini"
@@ -3087,7 +3381,7 @@
       "title": "Tetapkan semula rekod",
       "willReset": "Tetapkan semula rekod di bawah.",
       "noPvp": "Tiada keputusan PVP direkodkan",
-      "noAi": "Tiada sejarah AI yang direkodkan",
+      "noAi": "Tiada sejarah AI direkodkan",
       "scope": "julat permulaan",
       "scopeLabel": "{{skop}} dimulakan.",
       "resetBtn": "set semula"
@@ -3117,7 +3411,7 @@
       "esfjDesc": "Bersosial, bekerjasama, bertimbang rasa",
       "enfjDesc": "Karisma, inspirasi, kepimpinan",
       "entjDesc": "Keazaman, kepimpinan, ahli strategi",
-      "mbtiExplain1": "Myers-Briggs Type Indicator (MBTI) ialah alat untuk memahami jenis personaliti berdasarkan keutamaan individu.",
+      "mbtiExplain1": "MBTI (Myers-Briggs Type Indicator) ialah alat untuk memahami jenis personaliti berdasarkan keutamaan individu.",
       "mbtiExplain2": "Ia boleh membantu anda memahami diri anda dengan lebih baik dan meningkatkan hubungan anda dengan orang lain.",
       "setupMbti": "Menyediakan MBTI",
       "questionProgress": "Soalan {{semasa}} / {{total}} · Mengumpul jawapan untuk setiap paksi menentukan jenis",
@@ -3131,7 +3425,7 @@
       "opponentGoStyle": "Kecenderungan baduk lawan",
       "strengths": "kekuatan",
       "weaknesses": "kelemahan",
-      "setMbtiHint": "Dengan menyediakan MBTI anda, anda boleh melihat analisis keserasian dengan pasangan anda.",
+      "setMbtiHint": "Jika anda menyediakan MBTI, anda boleh melihat analisis keserasian dengan pasangan anda.",
       "title": "Perbandingan MBTI",
       "notSetBoth": "Mana-mana pihak tidak mempunyai set MBTI.",
       "opponentNotSet": "MBTI pihak satu lagi belum ditetapkan.",
@@ -3140,11 +3434,11 @@
       "myMbti": "MBTI saya",
       "opponentMbtiLabel": "Lawan MBTI",
       "opponentGoStyleTitle": "Kecenderungan Lawan Go",
-      "opponentStrengths": "Beri perhatian kepada kekuatan lawan anda.",
+      "opponentStrengths": "Perhatikan kekuatan lawan anda.",
       "useWeaknesses": "Manfaatkan kelemahan lawan.",
       "differences": "perbezaan",
       "similarities": "titik persamaan",
-      "veryGood": "perlawanan yang sangat baik",
+      "veryGood": "keserasian yang sangat baik",
       "good": "keserasian yang baik",
       "normal": "Keserasian purata",
       "poor": "keserasian yang tidak baik",
@@ -3156,7 +3450,7 @@
         },
         "ISFJ": {
           "style": "Silifa pertahanan",
-          "playStyle": "Fokus untuk membina rumah yang stabil dan menyekat serangan lawan dengan baik. Ia adalah etos yang berhati-hati dan berhati-hati."
+          "playStyle": "Fokus untuk membina rumah yang stabil dan menyekat serangan pihak lawan dengan baik. Ia adalah etos yang berhati-hati dan berhati-hati."
         },
         "INFJ": {
           "style": "gerak hati strategik",
@@ -3204,7 +3498,7 @@
         },
         "ESFJ": {
           "style": "puak kestabilan koperasi",
-          "playStyle": "Lebih suka bergerak stabil dan bekerjasama. Inilah etos membina rumah dengan berhati-hati."
+          "playStyle": "Lebih suka bergerak stabil dan bekerjasama. Ini adalah etos membina rumah dengan berhati-hati."
         },
         "ENFJ": {
           "style": "Ahli Strategi Inspirasi",
@@ -3237,7 +3531,7 @@
       "simE": "Kedua-duanya mempunyai etos proaktif",
       "simI": "Kedua-duanya mempunyai etos yang berhati-hati",
       "diffSReal": "Anda seorang yang praktikal, lawan anda adalah seorang yang intuitif.",
-      "diffNReal": "Anda intuitif, lawan anda praktikal.",
+      "diffNReal": "Anda seorang ahli intuisi, lawan anda adalah orang yang praktikal.",
       "simS": "Kedua-duanya adalah utilitarian",
       "simN": "kedua-duanya didorong oleh intuisi",
       "diffTLogic": "Anda seorang yang logik, pasangan anda seorang yang emosi.",
@@ -3254,7 +3548,7 @@
       "warnJ": "Lawan kuat dalam perancangan dan penyudah. Elakkan daripada terseret ke dalam permainan yang panjang.",
       "stratI": "Etos pihak lawan adalah berhati-hati. Rumitkan permainan dengan menyerang secara agresif.",
       "stratS": "Pihak lawan adalah berorientasikan utiliti. Tangkap trend dengan pergerakan yang luar biasa.",
-      "stratF": "Orang lain emosi. Tekanan dengan nombor logik.",
+      "stratF": "Orang lain emosi. Tekanan dalam nombor logik.",
       "stratP": "Pihak lawan adalah etos yang fleksibel. Rancang dan ikuti sehingga selesai."
     },
     "contentUnlock": {
@@ -3284,7 +3578,7 @@
       "editedAt": "(Diedit: {{tarikh}})"
     },
     "equipmentDetail": {
-      "inventoryUse": "Boleh guna dalam beg.",
+      "inventoryUse": "Anda boleh menggunakannya dalam beg anda.",
       "noMaterialUse": "Bahan ini tidak digunakan pada masa ini untuk meningkatkan sebarang peralatan.",
       "obtainedQty": "Kuantiti Diperolehi",
       "ownedQty": "Kuantiti dipegang",
@@ -3481,20 +3775,20 @@
       "remove_ads": "keluarkan iklan"
     },
     "packageBenefits": {
-      "diamond_daily_50_350": "50 berlian dibayar melalui pos setiap hari (jumlah 350 berlian)",
-      "diamond_daily_50_750": "50 berlian dibayar melalui pos setiap hari (jumlah 750 berlian)",
-      "diamond_daily_50_1500": "50 berlian dibayar melalui pos setiap hari (jumlah 1500 berlian)",
-      "diamond_instant_100": "100 berlian dibayar serta-merta",
-      "diamond_instant_250": "Bayaran segera 250 berlian",
-      "diamond_instant_750": "Bayaran segera 750 berlian",
-      "equip_pkg1_boxes": "1 kotak peralatan V",
-      "equip_pkg1_mat": "1 kotak bahan VI",
+      "diamond_daily_50_350": "100 berlian dibayar melalui pos setiap hari (jumlah 700 berlian)",
+      "diamond_daily_50_750": "100 berlian dibayar melalui pos setiap hari (jumlah 1500 berlian)",
+      "diamond_daily_50_1500": "100 berlian dibayar melalui pos setiap hari (jumlah 3000 berlian)",
+      "diamond_instant_100": "Bayaran segera 200 berlian",
+      "diamond_instant_250": "Bayaran segera 500 berlian",
+      "diamond_instant_750": "Bayaran segera 1000 berlian",
+      "equip_pkg1_boxes": "3 kotak peralatan V",
+      "equip_pkg1_mat": "3 kotak bahan VI",
       "equip_pkg1_bonus": "+ \"Epic Equipment\" mengesahkan pembayaran",
-      "equip_pkg2_boxes": "2 kotak peralatan V",
-      "equip_pkg2_mat": "2 kotak bahan VI",
+      "equip_pkg2_boxes": "5 kotak peralatan",
+      "equip_pkg2_mat": "5 kotak bahan VI",
       "equip_pkg2_bonus": "+ Pembayaran terjamin \"Peralatan Legendaris\".",
       "equip_pkg3_boxes": "2 Kotak Peralatan VI",
-      "equip_pkg3_mat": "5 kotak bahan VI",
+      "equip_pkg3_mat": "10 kotak bahan VI",
       "equip_pkg3_bonus": "+ \"Peralatan Mitos\" mengesahkan pembayaran",
       "remove_ads_1": "Sembunyikan sepanduk dalam permainan dan iklan halaman penuh seperti lobi dan mencari jodoh",
       "remove_ads_2": "Terima ganjaran yang sama tanpa iklan ganjaran kedai (mengekalkan had harian)"
@@ -3558,7 +3852,7 @@
       },
       "option_type_change_ticket": {
         "name": "Hak untuk menukar jenis pilihan",
-        "description": "Ini ialah item yang boleh menukar salah satu daripada pilihan utama peralatan, sub-pilihan atau pilihan khas kepada jenis pilihan yang berbeza."
+        "description": "Item ini membolehkan anda menukar salah satu daripada pilihan utama peralatan, sub-pilihan atau pilihan khas kepada jenis pilihan yang berbeza."
       },
       "option_value_change_ticket": {
         "name": "Tiket perubahan nilai pilihan",
@@ -3604,7 +3898,7 @@
     "claimExpired": "Tempoh penebusan telah tamat dan anda tidak boleh menerima pampasan. Anda boleh memadamkan mel ini jika perlu.",
     "actionPoints": "{{count}} Kuasa Tindakan",
     "guildCoins": "{{count}} Syiling Persekutuan",
-    "gold": "{{jumlah}} Emas",
+    "gold": "{{jumlah}} emas",
     "diamonds": "{{jumlah}} berlian",
     "packageLine": "Pakej {{nama}} × {{kuantiti}}",
     "delete": "padam",
@@ -3644,7 +3938,7 @@
     },
     "activity": {
       "daily": "Persembahan hari ini",
-      "weekly": "Aktiviti Mingguan",
+      "weekly": "aktiviti mingguan",
       "monthly": "Aktiviti Bulanan",
       "points": "Aktiviti +{{points}}"
     },
@@ -3749,7 +4043,7 @@
     },
     "bindModal": {
       "line1": "Peralatan terikat dan tidak boleh dijual di bursa.",
-      "line2": "Untuk menjual di bursa, anda mesti menggunakan hak untuk melepaskan atribusi.",
+      "line2": "Untuk menjual di bursa, anda mesti menggunakan hak menyahikat.",
       "unbindDesc": "Jika anda membuka kunci peralatan, menjualnya di bursa menjadi mungkin."
     },
     "presetSavedTitle": "Simpan pratetap",
@@ -3770,7 +4064,7 @@
       "previousSelection": "Pemilihan sebelumnya",
       "equippedGearCompact": "Peralatan pemasangan",
       "selectItemHint": "Sila pilih item",
-      "compareStatChange": "Keupayaan Baduk berubah apabila diganti",
+      "compareStatChange": "Tukar keupayaan Go apabila diganti",
       "refinementAvailableColon": "Boleh dileburkan: {{value}}",
       "expandQuestion": "{{tab}} Adakah anda mahu mengembangkan beg?",
       "slotCount": "{{count}} ruang",
@@ -3785,7 +4079,7 @@
       "consumableDetail": "Butiran boleh guna",
       "materialDetail": "Butiran bahan",
       "itemDetail": "Butiran Item",
-      "cannotRefine": "Tidak boleh dilebur",
+      "cannotRefine": "tidak boleh dilebur",
       "goRefine": "Pergi ke tab Forge Smelting"
     },
     "purchase": {
@@ -3793,7 +4087,7 @@
       "consumable": "boleh dibelanjakan",
       "material": "bahan",
       "noMaterialUse": "Bahan ini tidak digunakan pada masa ini untuk meningkatkan sebarang peralatan.",
-      "inventoryUse": "Boleh guna dalam beg.",
+      "inventoryUse": "Anda boleh menggunakannya dalam beg anda.",
       "characterGrowth": "Ia digunakan untuk pertumbuhan watak, pengukuhan, penghalusan, dsb.",
       "selectQuantity": "Pilih kuantiti",
       "productDetailAria": "Beli butiran produk",
@@ -3834,7 +4128,7 @@
       "sellAmount": "Kuantiti Jualan",
       "unitPrice": "Harga jualan setiap tetamu",
       "deleteOnly": "0 (padam sahaja)",
-      "goldUnit": "{{jumlah}} Emas",
+      "goldUnit": "{{jumlah}} emas",
       "totalReceive": "jumlah emas yang akan diterima",
       "deleteCheckout": "Pembayaran (Padam)",
       "noGoldHint": "Emas tidak masuk, dan hanya jumlah yang dipilih hilang.",
@@ -3897,7 +4191,7 @@
     "craftingResult": {
       "upgradeJackpotTitle": "Sintesis adalah hebat!",
       "downgradeJackpotTitle": "Pembongkaran adalah hebat!",
-      "upgradeTitle": "hasil sintetik",
+      "upgradeTitle": "hasil sintesis",
       "downgradeTitle": "Hasil penguraian",
       "jackpotHeading": "🎉 Hebat! 🎉",
       "jackpotBody": "Mendapat dua kali ganda bahan!",
@@ -3995,7 +4289,7 @@
       "noMaterialUse": "Bahan ini tidak digunakan pada masa ini untuk meningkatkan sebarang peralatan.",
       "materialTab": "bahan",
       "consumableTab": "boleh dibelanjakan",
-      "inventoryHint": "Boleh guna dalam beg.",
+      "inventoryHint": "Anda boleh menggunakannya dalam beg anda.",
       "noGuide": "Tiada arahan.",
       "tier1": "beg",
       "tier2": "batu",
@@ -4012,6 +4306,17 @@
       "noTier": "Tiada peringkat"
     },
     "tierInfo": {
+      "names": {
+        "champion": "pencabar",
+        "master": "tuan",
+        "diamond": "berlian",
+        "platinum": "platinum",
+        "gold": "emas",
+        "silver": "perak",
+        "bronze": "gangsa",
+        "iron": "Rookie",
+        "unranked": "bercambah"
+      },
       "champion": "Skor minimum 3500 atau lebih tinggi & terhad kepada 100 orang teratas",
       "master": "Skor minimum 3000 atau lebih tinggi",
       "diamond": "Skor minimum 2400 atau lebih tinggi",
@@ -4050,6 +4355,554 @@
       "stayLine": "baki: {{julat}}",
       "demoteLine": "Penyingkiran: {{julat}}",
       "rankHintShort": "Peringkat berdasarkan persaingan kedudukan (rujuk jadual ganjaran di bawah untuk syarat kenaikan pangkat, pengekalan dan penurunan pangkat)"
+    },
+    "items": {
+      "box_diabox1": {
+        "name": "Pakej Berlian I",
+        "description": "Dapatkan 1 hingga 20 berlian"
+      },
+      "box_diabox2": {
+        "name": "Ikatan Berlian II",
+        "description": "Dapatkan 10 hingga 30 berlian"
+      },
+      "box_diabox3": {
+        "name": "Ikatan Berlian III",
+        "description": "Dapatkan 20 hingga 50 berlian"
+      },
+      "box_diabox4": {
+        "name": "Ikatan Berlian IV",
+        "description": "Dapatkan 30 hingga 100 berlian"
+      },
+      "box_goldbox1": {
+        "name": "Ikatan Emas I",
+        "description": "Dapatkan 10 hingga 500 emas"
+      },
+      "box_goldbox2": {
+        "name": "Ikatan Emas II",
+        "description": "Dapatkan 100 hingga 1,000 emas"
+      },
+      "box_goldbox3": {
+        "name": "Ikatan Emas III",
+        "description": "Dapatkan 500 hingga 3,000 emas"
+      },
+      "box_goldbox4": {
+        "name": "Ikatan Emas IV",
+        "description": "Dapatkan 1,000 hingga 10,000 emas"
+      },
+      "btn_addturn": {
+        "name": "Tambah Giliran",
+        "description": "Ini adalah item giliran tambahan yang boleh digunakan di Menara Cabaran."
+      },
+      "btn_hidden": {
+        "name": "Tersembunyi",
+        "description": "Ini adalah item tersembunyi yang boleh digunakan dalam Menara Cabaran."
+      },
+      "btn_missile": {
+        "name": "peluru berpandu",
+        "description": "Ini adalah item peluru berpandu yang boleh digunakan di Menara Cabaran."
+      },
+      "btn_reflesh": {
+        "name": "Perubahan reka letak",
+        "description": "Ini ialah item perubahan peletakan yang boleh digunakan di Menara Cabaran."
+      },
+      "btn_scan": {
+        "name": "imbasan",
+        "description": "Ini adalah item imbasan yang boleh digunakan di Menara Cabaran."
+      },
+      "eq_board1": {
+        "name": "papan dam bercambah",
+        "description": "Ini ialah papan dam kayu paulownia ringan yang bagus untuk digunakan oleh pemula."
+      },
+      "eq_board2": {
+        "name": "papan dam maple",
+        "description": "Ini adalah papan dam berkualiti tinggi yang diperbuat daripada pokok pala dengan bijirin yang cantik."
+      },
+      "eq_board3": {
+        "name": "papan dam karang",
+        "description": "Ia diperbuat daripada kayu mistik berkualiti tinggi, jadi bunyi batu yang diletakkan adalah tulen."
+      },
+      "eq_board4": {
+        "name": "papan dam kayu hitam",
+        "description": "Ia adalah papan dam batu gunung berapi yang digilap dengan penuh semangat."
+      },
+      "eq_board5": {
+        "name": "Papan dam Yongmun",
+        "description": "Ini adalah papan dam legenda yang diperbuat daripada pain Geumgang yang telah wujud selama seribu tahun."
+      },
+      "eq_board7": {
+        "name": "Papan dam Shinryong",
+        "description": "Ia adalah papan dam transendensi dengan trajektori buruj terukir di atasnya, membuka laluan kepada kemenangan dengan setiap langkah."
+      },
+      "eq_bottom1": {
+        "name": "Seluar seragam berwarna musim bunga",
+        "description": "Seluar latihan ini selesa untuk bergerak."
+      },
+      "eq_bottom2": {
+        "name": "Seluar seragam berwarna musim panas",
+        "description": "Seluar ini diperbuat daripada bahan tahan lasak yang tidak mudah haus."
+      },
+      "eq_bottom3": {
+        "name": "Seluar seragam berwarna musim luruh",
+        "description": "Ini adalah seluar sutera berkualiti tinggi yang dipadankan dengan jata."
+      },
+      "eq_bottom4": {
+        "name": "Seluar seragam berwarna musim sejuk",
+        "description": "Ini adalah seluar pendekar yang tidak mengganggu sebarang pergerakan."
+      },
+      "eq_bottom5": {
+        "name": "Yongbi Dobok Bottoms",
+        "description": "Ia diperbuat daripada sutera berkualiti tinggi yang sesuai dengan jubah naga."
+      },
+      "eq_bottom7": {
+        "name": "Seluar seragam Shinryong",
+        "description": "Ini adalah seluar gi transendental yang disemai dengan kehendak naga ilahi yang menghalang anda daripada kehilangan keseimbangan walaupun dalam ribut."
+      },
+      "eq_fan1": {
+        "name": "kipas angin biru",
+        "description": "Ini adalah kipas buluh yang ringan dan praktikal."
+      },
+      "eq_fan2": {
+        "name": "kipas angin eungyeol",
+        "description": "Ia diperbuat daripada sutera lembut dan terasa enak di tangan."
+      },
+      "eq_fan3": {
+        "name": "kipas angin api",
+        "description": "Ini adalah kipas induk yang melebar dengan anggun seperti sayap kren."
+      },
+      "eq_fan4": {
+        "name": "kipas angin frost",
+        "description": "Ia diperbuat daripada keluli berat dan boleh digunakan sebagai senjata semasa kecemasan."
+      },
+      "eq_fan5": {
+        "name": "kipas angin yongbi",
+        "description": "Kipas legenda yang diperbuat daripada seratus bulu putih."
+      },
+      "eq_fan7": {
+        "name": "Kipas Angin Shinryong",
+        "description": "Ia adalah peminat transendensi yang mengandungi nafas naga ketuhanan yang membelah langit dan mengubah arus medan perang."
+      },
+      "eq_stone1": {
+        "name": "batu bercambah hitam dan putih",
+        "description": "Ini adalah batu baduk plastik yang ringan dan murah."
+      },
+      "eq_stone2": {
+        "name": "batu perak",
+        "description": "Ia adalah batu Go yang diperbuat daripada kerikil licin yang diambil dari tepi sungai."
+      },
+      "eq_stone3": {
+        "name": "batu delima",
+        "description": "Ia diukir dengan teliti daripada obsidian yang mengeluarkan cahaya sejuk."
+      },
+      "eq_stone4": {
+        "name": "batu baduk jed putih",
+        "description": "Ia adalah batu baduk yang diperbuat daripada nilam dan jed putih yang memancarkan cahaya yang cemerlang."
+      },
+      "eq_stone5": {
+        "name": "Batu Yongan Baduk",
+        "description": "Ia adalah batu baduk legenda yang ditempa dengan tenaga matahari, bulan, dan bintang."
+      },
+      "eq_stone7": {
+        "name": "Batu Shinryong Baduk",
+        "description": "Dibuat dengan menempa serpihan Bintang Kejora, ia adalah batu Go transenden yang mendominasi permainan dengan satu gerakan."
+      },
+      "eq_stonebox1": {
+        "name": "tong kayu ringan",
+        "description": "Ia adalah kotak plastik Go yang ringan dan murah."
+      },
+      "eq_stonebox2": {
+        "name": "tong buluh padat",
+        "description": "Ini adalah kotak Go yang diperbuat daripada kayu jujube dengan bau yang harum."
+      },
+      "eq_stonebox3": {
+        "name": "Hongmok Baduktong",
+        "description": "Ia diperbuat daripada rosewood, warna merah yang cantik."
+      },
+      "eq_stonebox4": {
+        "name": "kotak kayu hitam",
+        "description": "Ini adalah kotak baduk yang jarang ditemui diperbuat daripada kayu ganjil dengan corak yang pelik dan cantik."
+      },
+      "eq_stonebox5": {
+        "name": "Yongrin Baduktong",
+        "description": "Ini adalah kotak Go kayu rosewood berkualiti tinggi dengan naga yang diukir halus."
+      },
+      "eq_stonebox7": {
+        "name": "Shinryong Baduktong",
+        "description": "Ia adalah kotak Go transenden yang menutup tenaga medan perang purba dan menambah ketakutan setiap batu yang dibawa keluar."
+      },
+      "eq_top1": {
+        "name": "Baju atasan seragam berwarna musim bunga",
+        "description": "Ini adalah bahagian atas yang selesa yang bagus untuk menumpukan perhatian pada latihan anda."
+      },
+      "eq_top2": {
+        "name": "Pakaian seragam berwarna musim panas",
+        "description": "Ia adalah gi yang sukar yang tidak haus walaupun selepas latihan yang lama."
+      },
+      "eq_top3": {
+        "name": "Baju atasan seragam berwarna musim luruh",
+        "description": "Ini adalah jata seorang ulama dengan keanggunan yang tenang."
+      },
+      "eq_top4": {
+        "name": "Baju atas seragam berwarna musim sejuk",
+        "description": "Ini adalah pakaian pendekar yang dibuat untuk pertempuran tajam."
+      },
+      "eq_top5": {
+        "name": "Yongbi Dobok Top",
+        "description": "Ia disulam dengan corak naga yang melambangkan keagungan maharaja."
+      },
+      "eq_top7": {
+        "name": "Baju atasan seragam Shinryong",
+        "description": "Ini adalah bahagian atas seragam transenden yang ditenun dengan warna sisik naga ketuhanan, memberikan tumpuan yang tidak berbelah bahagi."
+      },
+      "mat_materials1": {
+        "name": "Batu Pesona Kecil",
+        "description": "Bahan asas yang digunakan untuk meningkatkan peralatan."
+      },
+      "mat_materials2": {
+        "name": "Batu tetulang perantaraan",
+        "description": "Bahan gred tinggi yang digunakan untuk mengukuhkan peralatan."
+      },
+      "mat_materials3": {
+        "name": "Batu Pesona Termaju",
+        "description": "Bahan berkualiti tinggi yang digunakan untuk mengukuhkan peralatan."
+      },
+      "mat_materials4": {
+        "name": "Batu tetulang gred atas",
+        "description": "Bahan yang jarang digunakan untuk menguatkan peralatan."
+      },
+      "mat_materials5": {
+        "name": "Batu Tetulang Misteri",
+        "description": "Bahan kuno yang digunakan untuk mengukuhkan peralatan."
+      },
+      "pet_egg": {
+        "name": "Telur Misteri",
+        "description": "Dapatkan haiwan peliharaan AI rawak apabila digunakan di tempat penetasan."
+      },
+      "pet_soulstone1": {
+        "name": "Batu Jiwa Tumbuh",
+        "description": "Bahan ini diperlukan untuk menaik taraf haiwan peliharaan gred biasa kepada gred lanjutan. Boleh digunakan dari Pet Lv.10 atau lebih tinggi."
+      },
+      "pet_soulstone2": {
+        "name": "Batu Jiwa Gelombang",
+        "description": "Bahan ini diperlukan untuk menaikkan haiwan peliharaan gred premium kepada gred jarang. Boleh digunakan dari Pet Lv.20 atau lebih tinggi."
+      },
+      "pet_soulstone3": {
+        "name": "Batu Jiwa Abyss",
+        "description": "Bahan ini diperlukan untuk menaikkan haiwan peliharaan gred jarang kepada gred epik. Boleh digunakan dari Pet Lv.30 atau lebih tinggi."
+      },
+      "pet_soulstone4": {
+        "name": "Batu Jiwa Api",
+        "description": "Ini adalah bahan yang diperlukan untuk menaik taraf haiwan peliharaan gred Epik kepada gred Legenda. Boleh digunakan dari Pet Lv.40 atau lebih tinggi."
+      },
+      "pet_soulstone5": {
+        "name": "Batu Jiwa Cahaya Syurgawi",
+        "description": "Bahan ini diperlukan untuk menaik taraf haiwan peliharaan gred legenda kepada gred mitos. Boleh digunakan di Pet Lv.50."
+      },
+      "shop_action_point_10": {
+        "name": "Ramuan pemulihan tindakan (+10)",
+        "description": "Saya berasa bermotivasi untuk melakukan sesuatu."
+      },
+      "shop_action_point_20": {
+        "name": "Ramuan pemulihan tindakan (+20)",
+        "description": "Saya rasa saya perlu melakukan sesuatu."
+      },
+      "shop_action_point_30": {
+        "name": "Ramuan pemulihan tindakan (+30)",
+        "description": "Mari kita bermain permainan dengan segera."
+      },
+      "shop_condition_potion_large": {
+        "name": "Ejen pemulihan keadaan (besar)",
+        "description": "Ejen pemulihan keadaan yang akan membantu anda berjaya bersaing hari ini."
+      },
+      "shop_condition_potion_medium": {
+        "name": "Ejen pemulihan keadaan (sederhana)",
+        "description": "Ejen pemulihan keadaan yang membuatkan kepala anda berasa lebih jelas."
+      },
+      "shop_condition_potion_small": {
+        "name": "Ejen pemulihan keadaan (kecil)",
+        "description": "Ejen pemulihan keadaan yang melegakan ketegangan"
+      },
+      "shop_equipment_box_1": {
+        "name": "Kotak Peralatan I",
+        "description": "Dapatkan peralatan gred biasa yang jarang ditemui"
+      },
+      "shop_equipment_box_2": {
+        "name": "Kotak Peralatan II",
+        "description": "Dapatkan peralatan gred biasa kepada epik"
+      },
+      "shop_equipment_box_3": {
+        "name": "Kotak Peralatan III",
+        "description": "Dapatkan peralatan gred lanjutan kepada legenda"
+      },
+      "shop_equipment_box_4": {
+        "name": "Kotak Peralatan IV",
+        "description": "Dapatkan peralatan gred yang jarang berlaku kepada mitos"
+      },
+      "shop_equipment_box_5": {
+        "name": "Kotak Peralatan V",
+        "description": "Dapatkan peralatan gred epik hingga mitos"
+      },
+      "shop_equipment_box_6": {
+        "name": "Kotak Peralatan VI",
+        "description": "Dapatkan peralatan gred legenda hingga mitos"
+      },
+      "shop_equipment_unbind_ticket": {
+        "name": "Hak untuk membatalkan atribusi",
+        "description": "Tukar status peralatan terikat kepada boleh didagangkan."
+      },
+      "shop_material_box_1": {
+        "name": "Kotak Bahan I",
+        "description": "Dapatkan 5 batu peningkatan rendah hingga tinggi"
+      },
+      "shop_material_box_2": {
+        "name": "Kotak Bahan II",
+        "description": "Dapatkan 5 batu peningkatan rendah hingga tinggi"
+      },
+      "shop_material_box_3": {
+        "name": "Kotak Bahan III",
+        "description": "Dapatkan 5 batu peningkatan rendah hingga tinggi"
+      },
+      "shop_material_box_4": {
+        "name": "Kotak Bahan IV",
+        "description": "Dapatkan 5 batu tetulang peringkat pertengahan hingga tertinggi"
+      },
+      "shop_material_box_5": {
+        "name": "Kotak Bahan V",
+        "description": "Maju ~ Memperoleh 5 Batu Peningkatan Misteri"
+      },
+      "shop_material_box_6": {
+        "name": "Kotak Bahan VI",
+        "description": "Maju ~ Memperoleh 5 Batu Peningkatan Misteri"
+      },
+      "shop_mythic_option_change_ticket": {
+        "name": "Tiket pertukaran pilihan khas",
+        "description": "Item ini membolehkan anda menukar pilihan khas peralatan mitos atau transendental kepada pilihan istimewa lain."
+      },
+      "shop_option_type_change_ticket": {
+        "name": "Hak untuk menukar jenis pilihan",
+        "description": "Ini ialah item yang boleh menukar salah satu daripada pilihan utama peralatan, sub-pilihan atau pilihan khas kepada jenis pilihan yang berbeza."
+      },
+      "shop_option_value_change_ticket": {
+        "name": "Tiket perubahan nilai pilihan",
+        "description": "Ini ialah item yang boleh mengubah nilai salah satu sub-pilihan peralatan atau pilihan khas."
+      },
+      "shop_refinement_charm": {
+        "name": "Azimat Peleburan",
+        "description": "Tambah 1 kiraan penapisan tambahan untuk peralatan yang tidak boleh dilebur"
+      },
+      "use_allowtrade": {
+        "name": "hak pendaftaran perdagangan",
+        "description": "Ini adalah kebenaran untuk mendaftarkan item untuk dijual di bursa."
+      }
+    },
+    "stats": {
+      "mythic": {
+        "GuildBossRewardGradeUp": {
+          "name": "Ganjaran Pertempuran Boss Guild",
+          "abbrev": "Gred Ganjaran Boss",
+          "short": "Gred Ganjaran Boss Guild +1",
+          "description": "Tahap ganjaran meningkat satu tahap daripada keputusan pertempuran bos persatuan. (SSS Maksimum) Ini adalah Pilihan Khas Mitos No. 1 dan boleh digunakan pada masa yang sama dengan Transendensi No. 1 \"Ganjaran Boss Ditambah.\""
+        },
+        "GuildBossExtraDamage5": {
+          "name": "Kerosakan tambahan semasa pertempuran bos guild: 5%",
+          "abbrev": "Kerosakan bos5%",
+          "short": "Kerosakan Boss Guild +5%",
+          "description": "Apabila menyerang ketua persatuan, tambahan 5% kerosakan akhir dikenakan. (Tidak boleh bertindih dengan pilihan istimewa transendensi)"
+        },
+        "TowerApMinus1Floors1to35": {
+          "name": "Menara Cabaran (tingkat 1 hingga 35) Tindakan yang diperlukan -1",
+          "abbrev": "AP Atas (1~35)",
+          "short": "Menara 1~35 tingkat AP -1",
+          "description": "Tindakan yang diperlukan untuk memasuki tingkat 1 hingga 35 Menara Cabaran dikurangkan sebanyak 1. (Tidak boleh bertindih dengan pilihan istimewa transendensi)"
+        },
+        "ApRegenMinus30s": {
+          "name": "Masa pemulihan tindakan -30 saat",
+          "abbrev": "Pemulihan AP -30s",
+          "short": "Pemulihan tindakan -30 saat",
+          "description": "Masa yang diperlukan untuk memulihkan 1 titik tindakan dikurangkan sebanyak 30 saat. (Tidak boleh bertindih dengan pilihan istimewa transendensi)"
+        },
+        "AdventureScanPlus1": {
+          "name": "Imbasan Pengembaraan +1",
+          "abbrev": "Imbasan Pengembaraan+1",
+          "short": "Imbasan Pengembaraan +1",
+          "description": "Pada permulaan pengembaraan (pertempuran raksasa), anda akan menerima satu item imbasan tambahan. (Tidak boleh bertindih dengan pilihan istimewa transendensi)"
+        },
+        "AdventureMissilePlus1": {
+          "name": "Peluru Berpandu Pengembaraan +1",
+          "abbrev": "Peluru Berpandu Pengembaraan+1",
+          "short": "Peluru Berpandu Pengembaraan +1",
+          "description": "Satu item peluru berpandu tambahan disediakan pada permulaan pengembaraan. (Tidak boleh bertindih dengan pilihan istimewa transendensi)"
+        },
+        "AdventureGoldBonus15": {
+          "name": "Ganjaran Emas Pengembaraan +15%",
+          "abbrev": "Emas Pengembaraan 15%",
+          "short": "Emas Pengembaraan +15%",
+          "description": "Emas yang diperolehi apabila memenangi pengembaraan meningkat sebanyak 15%. (Digabungkan secara berasingan dengan ensiklopedia dan bonus pemahaman) (Tidak boleh bertindih dengan pilihan istimewa transendensi)"
+        },
+        "GuildBossExtraRewardDuplicate": {
+          "name": "Ganjaran pertempuran bos persatuan ditambah",
+          "abbrev": "Ganjaran bos ditambah",
+          "short": "1 jenis salinan ganjaran ketua persatuan (terkumpul)",
+          "description": "Anda akan menerima salah satu ganjaran hasil daripada pertempuran bos persatuan sekali lagi. Jika pilihan ini mempunyai berbilang baris (berbilang keping peralatan) pada peralatan transendental, ia akan digunakan berulang kali. Boleh digunakan bersama dengan pilihan istimewa lain. Ini adalah Pilihan Khas Transendensi No. 1, dan boleh digunakan serentak dengan Mitos No. 1 \"Gred Ganjaran Boss.\""
+        },
+        "GuildBossExtraDamage10": {
+          "name": "Kerosakan tambahan dalam pertempuran bos persatuan: 10%",
+          "abbrev": "Kerosakan bos 10%",
+          "short": "Kerosakan Boss Guild +10%",
+          "description": "Apabila menyerang ketua persatuan, tambahan 10% kerosakan akhir dikenakan. (Tidak boleh bertindih dengan Pilihan Khas Mitos)"
+        },
+        "TowerApMinus1AllFloors": {
+          "name": "Menara Cabaran Tindakan Diperlukan -1",
+          "abbrev": "AP atas semua tingkat",
+          "short": "AP untuk semua tingkat menara -1",
+          "description": "Tindakan yang diperlukan untuk memasuki tingkat atas semua cabaran dikurangkan sebanyak 1. (Tidak boleh bertindih dengan Pilihan Khas Mitos)"
+        },
+        "ApRegenMinus60s": {
+          "name": "Masa pemulihan tindakan -60 saat",
+          "abbrev": "Pemulihan AP -60s",
+          "short": "Pemulihan tindakan -60 saat",
+          "description": "Masa yang diperlukan untuk memulihkan 1 titik tindakan dikurangkan sebanyak 60 saat. (Tidak boleh bertindih dengan Pilihan Khas Mitos)"
+        },
+        "AdventureScanTranscendent": {
+          "name": "Imbasan Pengembaraan +1",
+          "abbrev": "Imbasan Pengembaraan+1",
+          "short": "Imbasan Pengembaraan +2 (Transendensi)",
+          "description": "Dua item imbasan tambahan akan disediakan dalam pengembaraan (pertempuran raksasa). (Tidak boleh bertindih dengan Pilihan Khas Mitos)"
+        },
+        "AdventureMissilePlus2": {
+          "name": "Peluru Berpandu Pengembaraan +2",
+          "abbrev": "Peluru Berpandu Pengembaraan+2",
+          "short": "Peluru Berpandu Pengembaraan +2",
+          "description": "Dua item peluru berpandu tambahan akan disediakan pada permulaan pengembaraan. (Tidak boleh bertindih dengan Pilihan Khas Mitos)"
+        },
+        "AdventureGoldBonus20": {
+          "name": "Ganjaran Emas Pengembaraan +20%",
+          "abbrev": "Emas Pengembaraan 20%",
+          "short": "Emas Pengembaraan +20%",
+          "description": "Emas yang diperoleh apabila memenangi pengembaraan meningkat sebanyak 20%. (Tidak boleh bertindih dengan Pilihan Khas Mitos)"
+        }
+      }
+    },
+    "optionValueLine": "{{stat}} +{{nilai}}{{akhiran}}",
+    "optionRange": "[{{lo}}~{{hi}}{{akhiran}}]",
+    "optionEnhancement": "({{count}}Peningkatan)",
+    "meta": {
+      "description": {
+        "gold": "Ia adalah mata wang wakil yang digunakan di seluruh dunia Baduk.",
+        "diamond": "Ia adalah komoditi premium yang digunakan untuk pembelian khas, pengembangan, dsb."
+      },
+      "usage": {
+        "goldSpend": "Ia digunakan di tempat penggunaan emas seperti kedai, tetulang/kerajinan, dan bayaran masuk.",
+        "diamondSpend": "Digunakan di kedai berlian, pengembangan slot beg, dsb.",
+        "unbindTicket": "[Beg]-[Pilih Peralatan]-[Lepaskan]",
+        "refinementCharm": "[Pandai besi]-[Pemurnian Peralatan] Pilih peralatan yang tidak boleh dilebur",
+        "refinementTicket": {
+          "optionType": "[Blacksmith - Penapisan Peralatan] Perubahan jenis pilihan",
+          "optionValue": "[Blacksmith - Penapisan Peralatan] Perubahan nilai pilihan",
+          "specialOption": "[Blacksmith - Penapisan Peralatan] Tukar pilihan khas",
+          "mythicOption": "[Blacksmith - Penapisan Peralatan] Perubahan pilihan mitos",
+          "generic": "[Blacksmith - Penapisan Peralatan] Tukar Pilihan"
+        },
+        "conditionPotion": "[Kejuaraan] Pulihkan keadaan {{lo}}~{{hi}} sebelum permulaan permainan",
+        "actionPointInstant": "[Penggunaan segera] Pemulihan tindakan +{{jumlah}}",
+        "actionPointInstantGeneric": "[Penggunaan segera] Pemulihan keupayaan tindakan",
+        "openBoxInBag": "Jika anda menggunakannya dari beg anda, anda akan menerima ganjaran.",
+        "equipmentBoxOpen": "Anda boleh mendapatkan peralatan dengan menggunakan dada di dalam beg anda.",
+        "enhancementMaterial": {
+          "single": "[{{gradeLabel}}] Peralatan: {{rangeLabel}}",
+          "range": "[{{gradeLabel}}] Peralatan: {{rangeLabel}}"
+        },
+        "pet": {
+          "soulGradeUpgrade": "[Peningkatan Gred Haiwan Peliharaan] {{fromGrade}}→{{toGrade}} (Lv. Haiwan Peliharaan{{minLevel}} atau lebih tinggi)",
+          "soulGradeUpgradeGeneric": "[Peningkatan Gred Haiwan Kesayangan] Digunakan untuk meningkatkan pangkat sesama haiwan peliharaan AI di Arena Pameran.",
+          "eggHatchRandom": "[Pet · Hatchery] Letakkan dalam slot dan menetas ke dalam jenis rawak haiwan peliharaan AI.",
+          "welcomeEggHatch": "[Pet · Hatchery] Diletakkan dalam slot — masa penetasan 1 minit, tahap 5 AI haiwan peliharaan apabila ditetas"
+        }
+      },
+      "enhanceRange": {
+        "single": "{{stars}}Peningkatan",
+        "range": "{{minStars}}~{{maxStars}}Peningkatan"
+      },
+      "acquire": {
+        "gold": {
+          "line1": "[Permainan/Kandungan] Perlawanan Baduk, permainan tunggal, penjara/liga, dsb.",
+          "line2": "[Quest/Adventure] Pencarian harian/mingguan/bulanan, peti harta karun, slot VIP",
+          "line3": "[Transaksi/Pembubaran] Penyelesaian jualan pertukaran, pembongkaran peralatan, penjualan di beberapa kedai"
+        },
+        "diamond": {
+          "line1": "[Kedai] Tab Pakej Berlian/Bahan Habis/Bahan",
+          "line2": "[Pembayaran/Acara] Mengecas, mel operasi/promosi",
+          "line3": "[Fungsi] Beberapa ciri premium seperti pengembangan slot beg"
+        },
+        "tower": {
+          "line1": "[Menara Cabaran] Beli dari kedai item (emas) dalam maklumat permainan",
+          "line2": "[Menara Cabaran] Diperolehi melalui beberapa saluran, seperti ganjaran penyertaan/jelas dan ganjaran VIP."
+        },
+        "actionPoint": {
+          "line1": "[Kedai] Kedai Emas — Ramuan Pemulihan Stamina (+10/+20/+30), harga had/tahap harian",
+          "line2": "[Mail·Acara] Bayaran pampasan/promosi operasi",
+          "line3": "[Fungsi VIP] Apabila diaktifkan, anda akan menerima Pemulihan Stamina III melalui pos setiap hari."
+        },
+        "condition": {
+          "line1": "[Kedai] Kedai Berlian (Bahan Habis) atau pakej yang berkaitan",
+          "line2": "[Pencarian/Acara] Ganjaran Separa"
+        },
+        "guildEquipBox": {
+          "line1": "[Guild Shop] Boleh dibeli hanya dengan syiling persatuan",
+          "line2": "[Kedai/Pencarian] Dapatkan peralatan dengan menggunakannya di dalam beg, sama seperti kotak peralatan biasa."
+        },
+        "equipBox": {
+          "line1": "[Kedai] Kedai emas (tab peralatan), ganjaran pengiklanan, beberapa pakej tunai",
+          "line2": "[Quest/VIP] Pencarian harian, mingguan dan bulanan, ganjaran slot VIP, dsb.",
+          "line3": "[Pengembaraan/Persatuan] Peti harta karun, ganjaran keputusan pertempuran bos persatuan, dsb."
+        },
+        "materialBox": {
+          "line1": "[Kedai] Kedai Emas/Berlian (tab bahan), ganjaran pengiklanan, beberapa pakej",
+          "line2": "[Quest/VIP] Pencarian harian, mingguan dan bulanan, ganjaran slot VIP, dsb."
+        },
+        "goldBundle": {
+          "line1": "[Kedai] Kedai Berlian (Bahan Habis), Ganjaran Pengiklanan",
+          "line2": "[Quest/Adventure] Pelbagai kotak ganjaran/harta karun"
+        },
+        "diamondBundle": {
+          "line1": "[Kedai] Kedai Berlian (Bahan Habis), Ganjaran Pengiklanan",
+          "line2": "[Pencarian/Acara] Ganjaran Separa"
+        },
+        "bonusStat": {
+          "line1": "[Guild Shop] Beli dengan syiling persatuan (had akaun)",
+          "line2": "[Pertumbuhan] Pembayaran separa apabila tahap strategi/permainan meningkat"
+        },
+        "enhancementStone": {
+          "line1": "[Kedai Guild] Batu peningkatan tahap rendah~misteri boleh ditukar dengan syiling persatuan",
+          "line2": "[Kotak Bahan] Kotak bahan yang diperoleh daripada kedai, pencarian, VIP, dsb.",
+          "line3": "[Blacksmith] Sintesis/pembukaan bahan, kos pengukuhan peralatan",
+          "line4": "[Pengembaraan, Kedudukan, Persatuan] Ganjaran untuk kemenangan, menara, pertempuran bos, dsb."
+        },
+        "material": {
+          "line1": "[Kedai] Kedai Emas/Berlian (bahan), kedai persatuan (sebahagian)",
+          "line2": "[Quest·Adventure·Acara] Harian, mingguan, bulanan, peti harta karun, ganjaran operasi",
+          "line3": "[Mail] Keputusan sintesis/peningkatan, pembayaran acara"
+        },
+        "equipment": {
+          "line1": "[Kotak Peralatan] Diperolehi apabila menggunakan kotak dari beg.",
+          "line2": "[Pengembaraan] Hadiah jelas pertempuran peringkat/bos",
+          "line3": "[Exchange] Beli item berdaftar daripada pengguna lain",
+          "line4": "[Sintesis/Pengeluaran] Pengeluaran peralatan sintesis/transendensi tukang besi, dsb."
+        },
+        "consumableGeneric": "[Kedai, Pencarian, Mel] Kedai am, acara, ganjaran operasi",
+        "pet": {
+          "soulTraining": "[Ganjaran Haiwan Peliharaan/Latihan] Slot {{slot}}",
+          "soulConvert": "[Penukaran Haiwan Kesayangan/Jiwa] {{gred}} Boleh diperoleh apabila membuka haiwan peliharaan",
+          "soulShopDiamond": "[Haiwan Peliharaan · Kedai Haiwan Peliharaan] Berlian {{jumlah}}",
+          "soulShopGold": "[Pet · Kedai Haiwan Kesayangan] Emas {{jumlah}}",
+          "soulShopDiamondDaily": "[Pet · Pet Store] Diamond {{amount}}, {{limit}} kali sehari",
+          "soulShopGoldDaily": "[Pet · Pet Shop] Emas {{amount}}, {{limit}} kali sehari",
+          "soulFallback": "[Haiwan Peliharaan] Boleh diperolehi atau ditukar dalam kandungan berkaitan Stadium Fair/Hatchery.",
+          "eggShop": "[Pet · Pet Store] Boleh dibeli dengan emas dan berlian (had harian)",
+          "eggRewards": "[Pet/Latihan/Acara] Diperolehi sebagai sebahagian ganjaran",
+          "welcomeEggMail": "[Mail] Boleh diperoleh melalui pembayaran alu-aluan/operasi baharu, dsb.",
+          "welcomeEggShop": "[Pet · Pet Store] Boleh dibeli dengan berlian (1 sehari)"
+        }
+      }
     }
   },
   "exchange": {
@@ -4090,7 +4943,7 @@
       "sellPriceInput": "Masukkan harga jualan",
       "currentLowest": "Harga terendah semasa",
       "feePercent": "Komisen (10%)",
-      "registerSale": "Pendaftaran Jualan",
+      "registerSale": "Pendaftaran jualan",
       "name": "nama",
       "salePrice": "harga jualan",
       "fee": "caj",
@@ -4146,12 +4999,12 @@
       "cancelSaleConfirm": "Sahkan pembatalan jualan",
       "purchaseConfirm": "Sahkan pembelian",
       "purchase": "pembelian",
-      "selectGear": "Pemilihan peralatan"
+      "selectGear": "Pemilihan Peralatan"
     },
     "alerts": {
-      "insufficientTicket": "Hak pendaftaran transaksi tidak mencukupi.",
+      "insufficientTicket": "Hak pendaftaran transaksi tidak mencukupi. Diperlukan untuk pendaftaran slot jualan tambahan.",
       "vipListingLimit": "VIP ciri hanya boleh mendaftar untuk jualan sehingga 3 produk.",
-      "ticketHint": "Hak pendaftaran transaksi tidak mencukupi. Anda boleh mendaftar satu item jualan dengan satu tiket pendaftaran.",
+      "ticketHint": "Pendaftaran slot jualan tambahan memerlukan tiket pendaftaran transaksi.",
       "selectGearFromInventory": "Sila pilih peralatan yang anda ingin jual daripada inventori anda.",
       "boundGear": "Peralatan yang diikat tidak boleh dijual. Sila gunakan hak untuk membatalkan atribusi.",
       "minimumPrice": "Harga jualan minimum ialah {{price}}.",
@@ -4164,7 +5017,7 @@
     "fallbackGear": "peralatan",
     "loading": {
       "items": "Memuatkan maklumat item perdagangan…",
-      "wait": "Sila tunggu sementara kami mendapatkan senarai terkini daripada pelayan."
+      "wait": "Sila tunggu sementara kami mendapatkan semula senarai terkini daripada pelayan."
     }
   },
   "tournament": {
@@ -4175,7 +5028,7 @@
       "waiting": "suasana"
     },
     "scoring": "Mengira...",
-    "allMatchesEnded": "Semua perlawanan telah tamat. Majlis anugerah sedang diadakan.",
+    "allMatchesEnded": "Semua perlawanan untuk hari ini telah tamat.",
     "breathing": "Saya menarik nafas panjang untuk menyertai pertandingan itu.",
     "playersEntering": "Pemain sedang masuk. sila tunggu sekejap.",
     "playerLoadError": "Ralat berlaku semasa memuatkan maklumat pemain.",
@@ -4265,7 +5118,7 @@
     "bracketTitle": "kurungan",
     "roundFinal": "peringkat akhir",
     "roundThirdPlace": "Perlawanan tempat ke-3 dan ke-4",
-    "roundSemi": "Separuh akhir",
+    "roundSemi": "separuh akhir",
     "roundQuarter": "Suku akhir",
     "tabSemifinal": "separuh akhir",
     "tabFinalThird": "Perlawanan tempat akhir & tempat ke-3/4",
@@ -4284,8 +5137,8 @@
       "highestStage": "langkah teratas",
       "recommendedStage": "Langkah-langkah cadangan",
       "highestStageShort": "peringkat {{peringkat}} tertinggi",
-      "participationViewResult": "Lihat keputusan",
-      "participationReward": "Ganjaran Selesai",
+      "participationViewResult": "Lihat hasil",
+      "participationReward": "Ganjaran selesai",
       "participationAvailable": "Penyertaan mungkin",
       "enterAndRewardAria": "{{nama}} Maklumat Kemasukan dan Ganjaran",
       "participationStatusAria": "Status penyertaan: {{status}}",
@@ -4380,7 +5233,7 @@
         "changeTicketMax": "Sehingga {{count}} julat setiap langkah",
         "defaultReward": "ganjaran asas",
         "continueView": "Teruskan membaca",
-        "viewResult": "Lihat keputusan",
+        "viewResult": "Lihat hasil",
         "inProgressToday": "Ada permainan yang dimainkan hari ini. Semak keputusan.",
         "inProgress": "Ada perlawanan sedang berlangsung.",
         "stageSelect": "Pemilihan Langkah",
@@ -4409,7 +5262,7 @@
         "neighborhood": "Liga Baduk Kejiranan",
         "national": "Kejohanan Baduk Kebangsaan",
         "world": "Kejohanan Dunia",
-        "unlock3": "Maju ke peringkat seterusnya jika anda mencapai tempat ke-3 atau lebih tinggi",
+        "unlock3": "Jika anda mencapai tempat ke-3 atau lebih tinggi, anda akan mara ke peringkat seterusnya.",
         "commonFeatures": "Ciri umum stadium",
         "simulation": "permainan simulasi",
         "condition": "syarat",
@@ -4480,7 +5333,7 @@
         "critical2": "Mata tambahan diperoleh apabila pukulan kritikal berlaku.",
         "critical3": "Kuasa tempur dan kuasa pengiraan menjejaskan mata tambahan",
         "condition1": "Keadaan rawak antara 40 dan 100 diberikan sebelum setiap perlawanan.",
-        "condition2": "Markah kebolehan tidak berubah semasa simulasi",
+        "condition2": "Markah kebolehan tidak berubah semasa simulasi.",
         "condition3": "Boleh dipulihkan dengan agen pemulihan keadaan (hanya digunakan sebelum permulaan permainan)"
       },
       "duelHistory": {
@@ -4529,7 +5382,13 @@
       "championship": "kejuaraan",
       "scrollGuideTitle": "panduan tatal",
       "categoryAria": "Kategori Kedudukan",
-      "title": "Kedudukan"
+      "title": "Kedudukan",
+      "gameRankingTab": "Kedudukan permainan",
+      "badukRankingTab": "Baduk ranking",
+      "loginRequired": "Anda boleh menyemak kedudukan anda selepas log masuk.",
+      "championshipLoginHint": "Anda boleh menyemak kedudukan kejuaraan anda selepas log masuk.",
+      "guideClose": "Tutup panduan",
+      "championshipNoGuide": "Tiada panduan skor berasingan untuk kedudukan kejuaraan."
     },
     "round16": "pusingan 16",
     "center": "pusat",
@@ -4581,7 +5440,7 @@
     "matchRewardIndex": "Padankan {{index}} Ganjaran",
     "champCoinTimes": "Syiling Champ ×{{jumlah}}",
     "champCoinPending": "Champ Coin {{label}} (disahkan setelah diterima)",
-    "rankRewardTitle": "{{pangkat}}ganjaran pangkat tertinggi · {{item}} ×{{qty}}",
+    "rankRewardTitle": "{{pangkat}}ganjaran kedudukan tertinggi · {{item}} ×{{qty}}",
     "matchRoundResult": "{{pusingan}} pusingan {{hasil}}! ({{menang}} menang {{kalah}} kalah)",
     "statusRecordRank": "{{menang}} menang {{kalah}} kalah! {{pangkat}}",
     "championTitle": "🏆 Menang!",
@@ -4596,7 +5455,7 @@
     "skipAll": "Langkau semua",
     "skipAllRoundsHint": "Langkau semua baki pusingan (perlawanan pengguna) sekali gus dan teruskan ke penghujung pertandingan.",
     "matchPreparing": "Bersedia untuk permainan...",
-    "forfeitConfirm": "Adakah anda ingin berputus asa dan meninggalkan kejohanan? Peluang anda untuk menyertai hari ini akan hilang.",
+    "forfeitConfirm": "Adakah anda sanggup berputus asa dan meninggalkan kejohanan? Peluang anda untuk menyertai hari ini akan hilang.",
     "roundRobinRound": "{{pusingan}} bulat",
     "dungeonRunRecordTitle": "Rekod pada peringkat Kejohanan ini",
     "sidebarExtraPanel": "Panel maklumat tambahan",
@@ -4701,7 +5560,7 @@
     "rewardModalTitle": "Maklumat Ganjaran Menara Cabaran",
     "settlementRemaining": "Baki masa sehingga penyelesaian pampasan",
     "myCurrentReward": "ganjaran semasa saya",
-    "floorTier": "{{floor}} lantai",
+    "floorTier": "{{floor}}floor",
     "blackPatternAlt": "corak hitam",
     "goldAlt": "emas",
     "diamondAlt": "berlian",
@@ -4752,7 +5611,7 @@
       "queueWithAp": "Tunggu padanan (⚡{{kos}})",
       "titleStrategic": "Padanan kedudukan Baduk strategik",
       "titleDuo": "Perlawanan kedudukan pasangan 2 orang",
-      "titlePet": "Padanan Kedudukan Haiwan Kesayangan yang Adil"
+      "titlePet": "Padanan Kedudukan Haiwan Kesayangan Adil"
     },
     "rankedOffer": {
       "titlePet": "Padankan Kedudukan Haiwan Kesayangan",
@@ -4859,7 +5718,10 @@
       "remainingTime": "masa yang tinggal",
       "diamondsUsed": "guna berlian",
       "ownedLabel": "milikan",
-      "mysteriousEgg": "Telur Misterius ×1"
+      "mysteriousEgg": "Telur Misterius ×1",
+      "upgradeTier1": "Kuatkan I",
+      "upgradeTier2": "Mengukuhkan II",
+      "upgradeTier3": "Mengukuhkan III"
     },
     "lobby": {
       "infoTab": "maklumat",
@@ -4882,7 +5744,7 @@
       "expandInvQuestion": "Adakah anda ingin mengembangkan inventori {{category}} anda?",
       "expandSlotsHint": "+{{step}} ruang ditambah (maksimum {{maks}} ruang)",
       "dailyLimit": "Had harian {{baki}}/{{had}}",
-      "specBadge": "Istimewa",
+      "specBadge": "istimewa",
       "tierActive": "Memohon",
       "tierUnlocked": "Dibuka kunci",
       "tierUpgrade": "Tingkatkan ({{emas}} G)",
@@ -4932,7 +5794,7 @@
       "farewell": "Lepaskan haiwan peliharaan anda",
       "warningTitle": "Nota: Transformasi jiwa tidak boleh dibatalkan atau dipulihkan.",
       "warningDelete": "Haiwan peliharaan yang dipilih akan dipadamkan secara kekal daripada inventori anda.",
-      "warningLoseProgress": "Semua maklumat peringkat, pengalaman, pelupusan dan bonus teras akan hilang.",
+      "warningLoseProgress": "Semua tahap, pengalaman, pelupusan dan maklumat bonus teras akan hilang.",
       "warningImmediate": "Apabila anda menekan butang penukaran jiwa, ia akan ditukar serta-merta.",
       "rewardOnConvert": "Bayar semasa penukaran",
       "fixedQty": "Anda akan menerima <qty>{{qty}}</qty>. (disahkan)",
@@ -4968,7 +5830,7 @@
       "targetResting": "Pengguna yang berehat tidak boleh dijemput.",
       "targetBusy": "Pengguna yang berada dalam perlawanan atau rundingan tidak boleh dijemput.",
       "cooldown": "Anda boleh menjemput lagi selepas beberapa ketika (10 saat)",
-      "lobbyOnly": "Hanya pengguna yang tinggal di bilik permainan Strategi/Main/Pair boleh dijemput.",
+      "lobbyOnly": "Hanya pengguna yang menginap di bilik permainan Strategi/Main/Pair boleh dijemput.",
       "inviterLabel": "Pengguna jemputan",
       "arenaInviteStrategic": "Stadium Baduk yang strategik",
       "arenaInvitePlayful": "Main Stadium Baduk",
@@ -5031,7 +5893,7 @@
       "representativePet": "haiwan peliharaan wakil",
       "representativePetBadge": "haiwan peliharaan wakil",
       "noEquippedPet": "Tiada haiwan peliharaan dilengkapi",
-      "setRepresentativePrompt": "Sila nyatakan haiwan peliharaan yang mewakili.",
+      "setRepresentativePrompt": "Sila nyatakan haiwan kesayangan yang mewakili.",
       "detailShort": "khususnya",
       "detailInfo": "Butiran",
       "viewDetail": "Lihat butiran",
@@ -5081,9 +5943,9 @@
       "ownerOnlyAi": "Hanya hos boleh memulakan perlawanan AI.",
       "equipPetForRanked": "Untuk menggunakan Pair Ranking Match, anda mesti melengkapkan Pair Pet.",
       "equipPetForRoomKind": "Untuk membuat jenis bilik ini, anda mesti mempunyai Fair Pet dilengkapi.",
-      "strategicRoomTitle": "Bilik Baduk Strategik {{name}}",
-      "playfulRoomTitle": "{{name}}'s Play Badukbang",
-      "pairRoomTitle": "Bilik pasangan {{name}}",
+      "strategicRoomTitle": "Bilik Baduk Strategik {{name}}.",
+      "playfulRoomTitle": "Bilik permainan baduk {{name}}.",
+      "pairRoomTitle": "Bilik pasangan {{name}}.",
       "aiStartRestricted": "Pertempuran AI hanya boleh dimulakan di Bilik Binatang Kesayangan (bilik konvensional), Strategi, Mesra Bermain (Duo) dan Bilik AI Stadium. Buat bilik pasangan haiwan peliharaan baharu dalam \"Pair AI Battle\" di bahagian atas senarai pengguna.",
       "alreadyInRoomForRanked": "Sudah ada bilik yang mengambil bahagian. Sila mulakan Padanan Kedudukan Pasangan Haiwan Kesayangan di bahagian atas senarai pengguna selepas meninggalkan bilik pasangan yang lain."
     },
@@ -5098,7 +5960,7 @@
       "currentSeason": "musim semasa",
       "firstSeasonSuffix": "(musim pertama)",
       "currentScore": "markah semasa",
-      "recordWinRate": "{{wins}}Menang {{losses}}Kalah · Kadar Menang",
+      "recordWinRate": "{{menang}} menang {{kalah}} kerugian · kadar kemenangan",
       "seasonBest": "terbaik musim ini",
       "sameScoreSuffix": "(pengenalan)",
       "bestSeason": "musim terbaik",
@@ -5120,6 +5982,9 @@
       "matchInProgress": "Perlawanan sedang berlangsung",
       "inMatch": "Semasa permainan",
       "enter": "kedudukan",
+      "spectate": "Menonton",
+      "spectateMatch": "Tonton permainan",
+      "spectateUnavailable": "Saya tidak menemui sebarang maklumat perlawanan untuk ditonton.",
       "orphanRooms": "Nombor 1~100 Luar bilik",
       "roomKindFilter": "Penapis jenis bilik",
       "gameModeFilter": "Penapis Mod Permainan",
@@ -5152,7 +6017,7 @@
       "roomInMatchAria": "Semasa permainan dalam bilik {{slot}}",
       "roomEnterAria": "Masuk bilik {{slot}}",
       "roomInMatchTitle": "{{title}} — Perlawanan sedang berlangsung",
-      "cannotUnreadyWhileMatching": "Anda tidak boleh membatalkan persediaan semasa mencari jodoh kedudukan.",
+      "cannotUnreadyWhileMatching": "Anda tidak boleh membatalkan persediaan semasa mencari kedudukan.",
       "strategicRoomSettings": "Tetapan bilik Baduk yang strategik",
       "playfulRoomSettings": "Main tetapan bilik Baduk",
       "pairRoomSettings": "Persediaan bilik pasangan",
@@ -5198,6 +6063,100 @@
       "navigatePairArena": "Pergi ke Stadium Fair",
       "leaveRoomOnNavigate": "Bergerak ke arena lain akan membawa anda keluar dari bilik yang anda sertai. Adakah anda mahu meneruskan?",
       "leaveRoomConfirm": "Anda akan dialih keluar dari bilik yang anda sertai. Adakah anda mahu teruskan?"
+    },
+    "pets": {
+      "pair-pet-1": {
+        "name": "Lumifox"
+      },
+      "pair-pet-2": {
+        "name": "Kucing ais"
+      },
+      "pair-pet-3": {
+        "name": "Goldignan"
+      },
+      "pair-pet-4": {
+        "name": "panda salji"
+      },
+      "pair-pet-5": {
+        "name": "Penky"
+      },
+      "pair-pet-6": {
+        "name": "burung matahari"
+      },
+      "pair-pet-7": {
+        "name": "Baniru"
+      },
+      "pair-pet-8": {
+        "name": "Beruang Madu"
+      },
+      "pair-pet-9": {
+        "name": "Kucing daun"
+      },
+      "pair-pet-10": {
+        "name": "Bercambah"
+      },
+      "pair-pet-11": {
+        "name": "kucing violet"
+      },
+      "pair-pet-12": {
+        "name": "Sunkey"
+      },
+      "pair-pet-13": {
+        "name": "Amber Fox"
+      },
+      "pair-pet-14": {
+        "name": "Kucing krim"
+      },
+      "pair-pet-15": {
+        "name": "kit sayap"
+      },
+      "pair-pet-16": {
+        "name": "anjing topeng"
+      },
+      "pair-pet-17": {
+        "name": "Beruang gading"
+      },
+      "pair-pet-18": {
+        "name": "haiwan peliharaan salji"
+      },
+      "pair-pet-19": {
+        "name": "anak ayam"
+      },
+      "pair-pet-20": {
+        "name": "Serigala Bayangan"
+      },
+      "pair-pet-21": {
+        "name": "Kelinci Sayap"
+      },
+      "pair-pet-22": {
+        "name": "Nakal Emas"
+      },
+      "pair-pet-23": {
+        "name": "pandering"
+      },
+      "pair-pet-24": {
+        "name": "jellyfrog"
+      }
+    },
+    "trainingSlots": {
+      "0": {
+        "name": "latihan teknikal"
+      },
+      "1": {
+        "name": "latihan hidup dan mati"
+      },
+      "2": {
+        "name": "Latihan pra-anugerah"
+      },
+      "3": {
+        "name": "Latihan Jeongseok"
+      },
+      "4": {
+        "name": "Latihan Gibo"
+      },
+      "5": {
+        "name": "latihan empangan air"
+      }
     }
   },
   "blacksmith": {
@@ -5237,13 +6196,13 @@
       "default": "Buka skrin tugas"
     },
     "pickHints": {
-      "enhance": "Pilih peralatan untuk diperkukuh dalam modal dan kemudian tekan Selesai Selesai untuk beralih ke skrin pengukuhan.",
+      "enhance": "Pilih peralatan untuk diperkukuh dalam modal dan klik Selesaikan Pemilihan untuk beralih ke skrin pengukuhan.",
       "combine": "Jika anda meletakkan 3 keping peralatan gred yang sama dalam modal dan kemudian tekan Selesai Pemilihan, anda akan dibawa ke skrin sintesis.",
       "disassemble": "Pilih peralatan untuk dibongkar dalam modal dan kemudian tekan Selesai Selesai untuk beralih ke skrin pembongkaran.",
       "refine": "Selepas memilih peralatan untuk dilebur dalam modal dan mengklik Selesaikan Pemilihan, anda akan dibawa ke skrin peleburan."
     },
     "picker": {
-      "selectGear": "Pemilihan peralatan",
+      "selectGear": "Pemilihan Peralatan",
       "autoSelect": "pemilihan automatik",
       "selectComplete": "Selesai pemilihan",
       "emptyMaterial": "bahan",
@@ -5251,9 +6210,9 @@
       "removeMaterial": "Tolak bahan",
       "removeMaterialAria": "Tolak bahan-bahan {{name}}.",
       "combineHint": "Letakkan 3 keping peralatan gred yang sama ke dalam slot dan klik Selesaikan Pemilihan.",
-      "disassembleHint": "Anda boleh memilih/nyahpilih peralatan yang anda ingin buka dengan mengetik padanya.",
-      "enhanceTapHint": "Ketik pada peralatan yang ingin anda perkukuhkan atau perhalusi untuk pergi ke skrin kerja.",
-      "enhanceConfirmHint": "Ketik pada satu peralatan yang ingin anda perkukuhkan atau perhalusi, kemudian tekan Selesaikan Pemilihan.",
+      "disassembleHint": "Anda boleh memilih/nyahpilih peralatan yang ingin anda buka dengan mengetik padanya.",
+      "enhanceTapHint": "Ketik pada peralatan yang ingin anda kuatkan atau perhalusi untuk pergi ke skrin kerja.",
+      "enhanceConfirmHint": "Ketik pada satu peralatan yang ingin anda kuatkan atau perhalusi, kemudian tekan Selesaikan Pemilihan.",
       "slots": {
         "fan": "kipas",
         "board": "papan dam",
@@ -5426,7 +6385,7 @@
     "casualTag": "perlawanan persahabatan",
     "casualTitle": "perlawanan persahabatan",
     "casualDesc": "Perlawanan ini adalah perlawanan persahabatan. Tiada perubahan dalam skor kedudukan.",
-    "actionPointNotice": "Apabila perlawanan disahkan, kuasa tindakan ⚡{{kos}} digunakan pada kedua-dua belah pihak. Jika penerimaan/AI tidak mencukupi semasa memulakan, tetingkap pengurusan kuasa tingkah laku akan dibuka.",
+    "actionPointNotice": "Apabila perlawanan disahkan, kuasa tindakan ⚡{{kos}} digunakan pada kedua-dua belah pihak. Jika ia tidak mencukupi semasa menerima/AI bermula, tetingkap pengurusan kuasa tingkah laku akan dibuka.",
     "titleAi": "{{prefix}}{{mode}} tetapan padanan AI",
     "titleRematch": "{{prefix}}Tetapan perlawanan semula ({{mod}})",
     "titleDefault": "{{prefix}}tetapan padanan ({{mod}})",
@@ -5449,7 +6408,7 @@
     "mixRulesMinAlert": "Peraturan campuran memerlukan dua atau lebih peraturan untuk dipilih.",
     "mixCaptureCastleConflict": "Menang dan Istana tidak boleh dipilih pada masa yang sama.",
     "countUnit": "{{count}}",
-    "boardLines": "{{saiz}}garisan",
+    "boardLines": "{{saiz}} baris",
     "pointsFixed": "9 mata (tetap)",
     "pointsUnit": "{{skor}} mata",
     "turnsUnit": "{{had}}nombor",
@@ -5531,6 +6490,8 @@
       "3": "Satu pergerakan dalam 0.5 saat"
     },
     "matchControlAria": "kawalan permainan",
+    "skipReplay": "SKIP",
+    "skipReplayHint": "Langkau geganti dan semak sahaja keputusannya.",
     "startMatch": "permainan bermula",
     "exit": "Keluar",
     "season": "musim",
@@ -5619,7 +6580,7 @@
       "failed": "Derma gagal.",
       "ownedGold": "Emas dipegang: {{jumlah}}",
       "noHistory": "Tiada sejarah derma.",
-      "goldUnit": "{{jumlah}} Emas",
+      "goldUnit": "{{jumlah}} emas",
       "error": "Ralat berlaku semasa menderma.",
       "goldDonation": "sumbangan emas",
       "diamondDonation": "derma berlian",
@@ -5684,7 +6645,7 @@
       "demoteConfirm": "Adakah anda mahu memecat {{nama}} sebagai timbalan ketua persatuan?",
       "kickConfirm": "Adakah anda mahu menendang {{name}} daripada persatuan?",
       "transferConfirm": "Adakah anda benar-benar mahu mewakilkan kuasa ketua persatuan kepada {{nama}}? Tindakan ini tidak dapat dipulihkan.",
-      "leaderMustTransfer": "Jika ketua persatuan ingin meninggalkan persatuan, dia mesti mewakilkan peranan ketua persatuan kepada ahli persatuan yang lain terlebih dahulu.",
+      "leaderMustTransfer": "Jika seorang ketua persatuan ingin meninggalkan persatuan, dia mesti terlebih dahulu mewakilkan peranan ketua persatuan kepada ahli persatuan yang lain.",
       "lastMemberLeave": "Saya adalah ahli terakhir persatuan. Jika anda meninggalkan persatuan, persatuan akan dibubarkan. Adakah anda pasti mahu pergi?",
       "leaveConfirm": "Adakah anda pasti mahu meninggalkan persatuan?",
       "leaveError": "Ralat berlaku semasa meninggalkan persatuan."
@@ -5697,7 +6658,7 @@
       "joinMethod": "Bagaimana untuk mendaftar",
       "applicationJoin": "Mohon Daftar",
       "freeJoin": "Daftar percuma",
-      "applicationJoinHint": "Anda mesti diluluskan oleh ketua persatuan atau naib ketua persatuan untuk menyertai.",
+      "applicationJoinHint": "Anda mesti diluluskan oleh ketua persatuan atau penolong ketua persatuan untuk menyertai.",
       "freeJoinHint": "Sekiranya terdapat kekosongan, anda akan didaftarkan secara automatik.",
       "announcement": "Notis Persatuan",
       "edit": "edit",
@@ -5705,19 +6666,39 @@
       "applications": "Mohon keahlian",
       "approve": "kelulusan",
       "reject": "penolakan",
-      "noApplications": "Tiada permohonan keahlian."
+      "noApplications": "Tiada permohonan untuk menjadi ahli."
     },
     "missions": {
       "title": "Misi Guild Mingguan",
       "achieved": "pencapaian",
-      "guildXp": "Guild XP +{{jumlah}}",
+      "guildXp": "Pengalaman Persatuan +{{jumlah}}",
       "expired": "tamat tempoh",
       "rewardClaimed": "Ganjaran Selesai",
       "claimReward": "Dapatkan Ganjaran",
       "inProgress": "Sedang berlangsung",
       "resetCountdown": "Baharui selepas {{hari}} hari {{jam}}:{{minit}}",
       "unclaimedHint": "Terdapat ganjaran yang anda boleh terima. Jangan lupa ambil.",
-      "empty": "Tiada misi mingguan untuk dipaparkan."
+      "empty": "Tiada misi mingguan untuk dipaparkan.",
+      "titles": {
+        "checkIns": "Kehadiran persatuan 50 kali",
+        "guildDonations": "Terkumpul 50 sumbangan persatuan",
+        "bossAttempts": "Mengambil bahagian dalam pertempuran bos persatuan sebanyak 30 kali",
+        "strategicWins": "Baduk strategik menang 30 kali",
+        "playfulWins": "Main Baduk menang 30 kali",
+        "equipmentEnhancements": "50 percubaan pengukuhan",
+        "epicGearAcquisitions": "Dapatkan gred epik atau peralatan yang lebih tinggi 20 kali",
+        "diamondsSpent": "Menggunakan 3000 berlian"
+      },
+      "descriptions": {
+        "checkIns": "Ahli persatuan hadir sebanyak 50 kali",
+        "guildDonations": "Minta ahli persatuan menderma emas dan berlian sebanyak 50 kali.",
+        "bossAttempts": "Minta ahli persatuan mengambil bahagian dalam sejumlah 30 pertempuran bos persatuan.",
+        "strategicWins": "Ahli kesatuan mencapai sejumlah 30 kemenangan dalam baduk strategik (termasuk ruang menunggu AI dan perlawanan umum)",
+        "playfulWins": "Ahli kesatuan mencapai sejumlah 30 kemenangan di Baduk (termasuk ruang menunggu AI dan perlawanan umum)",
+        "equipmentEnhancements": "Minta ahli persatuan melakukan sebanyak 50 percubaan peningkatan peralatan",
+        "epicGearAcquisitions": "Minta ahli persatuan memperoleh gred epik atau peralatan yang lebih tinggi 20 kali",
+        "diamondsSpent": "Ahli persatuan membelanjakan sejumlah 3000 berlian di kedai, dsb."
+      }
     },
     "research": {
       "title": "Makmal Persatuan",
@@ -5733,7 +6714,7 @@
       "startConfirm": "Adakah anda ingin memulakan penyelidikan tahap [{{name}}] {{level}}? \n\nMata Diperlukan: {{kos}} RP\nAnggaran masa: {{masa}}",
       "chancePrefix": "[{{peluang}}% kebarangkalian]",
       "categoryDevelopment": "Kemajuan Guild",
-      "categoryBoss": "pertempuran bos",
+      "categoryBoss": "bergaduh bos",
       "categoryStats": "Peningkatan keupayaan",
       "categoryRewards": "Bertambah Ganjaran",
       "apRegenEffect": "Masa pemulihan tindakan -{{sec}} saat",
@@ -5795,12 +6776,23 @@
       "quickChat": "sembang cepat",
       "send": "pemajuan",
       "sendTitle": "hantar",
-      "locationHome": "[rumah]"
+      "locationHome": "[rumah]",
+      "systemMessages": {
+        "missionComplete": "Misi mingguan [{{missionTitle}}] tercapai! Terima ganjaran anda dalam tab Aktiviti Persatuan > Misi Persatuan.",
+        "bossWeeklySettlement": "Penyelesaian Bos Persatuan Mingguan ({{Nama bos}}, {{status}}): Pengalaman Persatuan +{{guildXp}}, Mata Penyelidikan +{{researchPoints}} telah terkumpul dalam persatuan.",
+        "bossWeeklySettlementDefeated": "kekalahan",
+        "bossWeeklySettlementRemainingHp": "Baki kesihatan {{peratus}}%",
+        "warJoinMatching": "[{{nama panggilan}}]{{subjectParticle}} menyertai perang persatuan. Kami meneruskan dengan padanan.",
+        "warJoinBotMatch": "[{{nama panggilan}}]{{subjectParticle}} menyertai perang persatuan. Dipadankan dengan persatuan bot sistem dalam baris gilir ganjil.",
+        "warJoinOpponent": "[{{nama panggilan}}]{{subjectParticle}} menyertai perang persatuan. Lawan: 「{{opponentGuildName}}」",
+        "warCancelMatching": "[{{nama panggilan}}]{{subjectParticle}} Padanan perang persatuan telah dibatalkan.",
+        "bossDamage": "[{{nama panggilan}}]{{subjectParticle}} telah menyebabkan {{damage}} kerosakan kepada {{bossName}}."
+      }
     },
     "war": {
       "title": "perang persatuan",
       "applicationTitle": "Memohon untuk menyertai perang persatuan",
-      "nextPrepTitle": "Masa persediaan untuk pertempuran guild seterusnya",
+      "nextPrepTitle": "Masa persediaan untuk pertempuran persatuan seterusnya",
       "scheduleIntro": "Anda boleh menyertai perang persatuan dari 00:00 pada hari Selasa dan 00:00 pada hari Jumaat (KST).",
       "prepBlocked": "Kemasukan tidak boleh dilakukan dari 00:00 hingga 23:59 pada hari Isnin dan Khamis kerana masa persediaan untuk pertempuran guild seterusnya.",
       "nextApplicationDay": "Tarikh permohonan seterusnya: {{tarikh}} (KST)",
@@ -5820,7 +6812,7 @@
       "guildXp": "Pengalaman Guild",
       "researchPoints": "titik kajian",
       "houseLabel": "rumah {{skor}}",
-      "dominanceTooltip": "Penguasaan sebelah kiri lebih kurang {{peratus}}% (bintang/titik)",
+      "dominanceTooltip": "Penguasaan sebelah kiri: lebih kurang {{peratus}}% (bintang/titik)",
       "loadingWarInfo": "Memuatkan maklumat perang persatuan...",
       "noActiveWar": "Tiada perang persatuan sedang berlangsung.",
       "notStartedYet": "Perang persatuan belum bermula lagi. \nAnda boleh masuk dari {{tarikh}}(KST).",
@@ -5848,7 +6840,7 @@
       "loss": "kumpulan",
       "winRate": "kemungkinan menang",
       "currentWar": "Perang persatuan ini",
-      "opponentGuild": "Persatuan Lawan",
+      "opponentGuild": "Persatuan lawan",
       "contribution": "Sumbangan {{bintang}}",
       "matchingInProgress": "Pemadanan sedang dijalankan",
       "warPrep": "Bersedia untuk perang persatuan",
@@ -5865,7 +6857,7 @@
       "rewardAlreadyClaimed": "Anda telah menerima ganjaran daripada pertempuran persatuan sebelumnya.",
       "rewardClaimHint": "Terima ganjaran daripada pertempuran persatuan sebelumnya. Apabila perang persatuan seterusnya tamat, ganjaran sebelumnya akan hilang.",
       "rewardUnavailable": "Tiada ganjaran tersedia atau ia tidak tersedia pada masa itu. (Dari 1 jam selepas tamat perang sehingga tamat perang guild seterusnya)",
-      "rewardClaimedBtn": "Ganjaran diterima",
+      "rewardClaimedBtn": "Penyelesaian diterima",
       "claimRewardBtn": "Terima ganjaran",
       "noRecord": "tiada rekod",
       "enter": "kedudukan",
@@ -5883,13 +6875,13 @@
       "currentOccupier": "penduduk semasa",
       "none": "tidak wujud",
       "capturesCount": "{{count}} memenangi batu",
-      "scoreDiff": "Perbezaan Rumah {{count}}Rumah",
+      "scoreDiff": "perbezaan rumah {{count}}rumah",
       "scoreDiffShort": "perbezaan {{count}}rumah",
       "targetScore": "markah sasaran",
       "pointsUnit": "{{count}}mata",
       "mode": "mod",
       "board": "papan dam",
-      "boardLines": "{{saiz}}garisan",
+      "boardLines": "{{saiz}} baris",
       "turnLimit": "had giliran",
       "turnsUnit": "{{count}}belok",
       "scoringTurns": "{{count}} bertukar kepada mengira harga",
@@ -5903,7 +6895,7 @@
       "hidden": "Tersembunyi",
       "scan": "imbasan",
       "missile": "peluru berpandu",
-      "speedPressureRule": "Untuk setiap {{saat}} saat jam anda meningkat, markah lawan anda meningkat sebanyak 1 mata. (Kelajuan PVE)",
+      "speedPressureRule": "Untuk setiap {{saat}} jam anda meningkat, markah lawan anda meningkat sebanyak 1 mata. (kelajuan PVE)",
       "baseStoneRule": "Selepas secara rahsia meletakkan {{count}} batu asas, masukkan permainan utama dengan bida bonus.",
       "mapAttempts": "Bilangan cabaran peta",
       "attemptsExhausted": "Bilangan cabaran yang habis",
@@ -5955,6 +6947,13 @@
     },
     "boss": {
       "title": "Pertempuran Bos Persekutuan",
+      "names": {
+        "boss_1": "mendengar",
+        "boss_2": "menonjol",
+        "boss_3": "air hijau",
+        "boss_4": "kedalaman",
+        "boss_5": "cahaya putih"
+      },
       "guide": "Ensiklopedia Bos",
       "guideTitle": "Ensiklopedia Bos Persekutuan",
       "stage": "{{stage}}stage",
@@ -6047,7 +7046,7 @@
       "guildXp": "Pengalaman Guild",
       "researchPoints": "Mata Lab",
       "enhancementStoneLow": "Batu Pesona Kecil",
-      "enhancementStoneMid": "Batu Peningkatan Perantaraan",
+      "enhancementStoneMid": "Batu tetulang perantaraan",
       "enhancementStoneHigh": "Batu Pesona Termaju",
       "enhancementStoneTop": "Batu tetulang gred atas",
       "enhancementStoneMystic": "Batu Tetulang Misteri",
@@ -6166,9 +7165,9 @@
       "intro": "{{companyName}} menetapkan dan mendedahkan dasar ini untuk melindungi maklumat peribadi ahli mengikut undang-undang dan peraturan yang berkaitan seperti Akta Perlindungan Maklumat Peribadi, dan untuk mengendalikan aduan yang berkaitan dengan perkara ini dengan segera dan lancar."
     },
     "refundPolicy": {
-      "title": "Dasar pembatalan/bayaran balik",
+      "title": "Polisi pembatalan/bayaran balik",
       "eyebrow": "Polisi Bayaran Balik",
-      "intro": "Kami ingin memaklumkan anda tentang pembatalan dan bayaran balik kandungan berbayar. Peraturan ini telah ditulis mengikut undang-undang dan peraturan yang berkaitan, seperti Akta Perdagangan Elektronik."
+      "intro": "Kami ingin memaklumkan anda tentang pembatalan dan bayaran balik kandungan berbayar. Peraturan ini telah disediakan mengikut undang-undang dan peraturan yang berkaitan seperti Akta Perdagangan Elektronik."
     },
     "purchaseConsent": {
       "title": "Semak kemajuan pembayaran",
@@ -6183,7 +7182,7 @@
       "and": "dan",
       "privacyLink": "dasar privasi",
       "termsAgree": "saya periksa. (penting)",
-      "refundLink": "Dasar pembatalan/bayaran balik",
+      "refundLink": "Polisi pembatalan/bayaran balik",
       "refundAgree": "Saya telah mengesahkan dan bersetuju dengan sekatan pembatalan di atas. (penting)",
       "subscriptionAgreePrefix": "Pembayaran automatik setiap 30 hari",
       "subscriptionProduct": "Produk bayaran tetap",

@@ -4,7 +4,8 @@ import * as db from './db.js';
 import { type ServerAction, type User, type VolatileState, InventoryItem, Quest, QuestLog, Negotiation, Player, LeagueTier, TournamentType, GameMode } from '../shared/types/index.js';
 import * as types from '../shared/types/index.js';
 import { volatileState } from './state.js';
-import { isDifferentDayKST, isDifferentWeekKST, isDifferentMonthKST, getStartOfDayKST, isSameDayKST } from '../shared/utils/timeUtils.js';
+import { isDifferentDayKST, isDifferentWeekKST, isDifferentMonthKST, getStartOfDayKST } from '../shared/utils/timeUtils.js';
+import { invalidateStaleChampionshipDungeonRunsForUser } from '../shared/utils/championshipDungeonDailyReset.js';
 import * as effectService from './effectService.js';
 import { regenerateActionPoints } from './effectService.js';
 import { updateGameStates } from './gameModes.js';
@@ -404,30 +405,14 @@ export const resetAndGenerateQuests = async (user: User): Promise<User> => {
         }
 
         // 입장일(컨디션 스냅샷)이 바뀐 날: 일일 입장이 리셋된 것과 동일 → 진행 중 던전 런만 무효
-        const snap = updatedUser.dungeonConditionSnapshot?.[type];
-        const snapDay = snap?.dateStartOfDayKST;
-        if (snapDay && !isSameDayKST(snapDay, now)) {
-            const ts = (updatedUser as any)[tournamentKey] as types.TournamentState | null | undefined;
-            const rewardClaimed = !!(updatedUser as any)[rewardClaimedKey];
-            const midRun =
-                ts &&
-                ts.currentStageAttempt != null &&
-                ts.currentStageAttempt >= 1 &&
-                ts.type === type &&
-                ts.status !== 'complete' &&
-                ts.status !== 'eliminated';
-            if (midRun) {
-                (updatedUser as any)[tournamentKey] = null;
-                modified = true;
-                typesClearedVolatile.add(type);
-            }
-            if (updatedUser.dungeonConditionSnapshot?.[type]) {
-                delete updatedUser.dungeonConditionSnapshot[type];
-                if (Object.keys(updatedUser.dungeonConditionSnapshot).length === 0) {
-                    updatedUser.dungeonConditionSnapshot = undefined;
-                }
-                modified = true;
-            }
+        // (상세 판정은 invalidateStaleChampionshipDungeonRunsForUser에서 일괄 처리)
+    }
+
+    const dungeonDailyReset = invalidateStaleChampionshipDungeonRunsForUser(updatedUser, now);
+    if (dungeonDailyReset.modified) {
+        modified = true;
+        for (const clearedType of dungeonDailyReset.clearedTypes) {
+            typesClearedVolatile.add(clearedType);
         }
     }
 

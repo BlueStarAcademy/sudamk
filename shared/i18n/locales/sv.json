@@ -27,7 +27,7 @@
     },
     "languageSelect": {
       "label": "språk",
-      "placeholder": "Välj ditt språk"
+      "placeholder": "Välj ett språk"
     },
     "connection": {
       "reconnecting": "Återansluter till servern...",
@@ -91,7 +91,7 @@
     "help": {
       "title": "hjälp",
       "gameRules": "spelregler",
-      "modeHowTo": "{{mode}} Hur man spelar",
+      "modeHowTo": "{{läge}} Hur man spelar",
       "modeRulesSummary": "Sammanfattning av regler efter läge",
       "strategicLobby": "Strategisk Baduk Väntrum Hjälp",
       "playfulLobby": "Spela Baduk Waiting Room Help",
@@ -126,15 +126,15 @@
     "quantity": "kvantitet",
     "description": "förklaring",
     "usage": "Var att använda",
-    "obtain": "Var kan man få tag på det",
+    "obtain": "Var kan man få tag i det",
     "noGuide": "Det finns inga instruktioner.",
     "countUnit": "{{räkna}}",
     "piecesUnit": "{{räkna}}",
-    "pointsUnit": "{{count}}poäng",
+    "pointsUnit": "{{count}} poäng",
     "timesUnit": "{{count}} gånger",
     "quickMenuAria": "snabbmeny",
     "helpCenter": "Hjälpcenter",
-    "helpCenterHint": "Du kan besöka den igen när som helst i vårt hjälpcenter.",
+    "helpCenterHint": "Du kan alltid besöka den igen i vårt hjälpcenter.",
     "disconnectNotice": {
       "title": "Meddelande om spelslut",
       "logoutTitle": "Logga ut instruktioner",
@@ -142,7 +142,7 @@
       "loggingOut": "Du kommer att loggas ut."
     },
     "autoProceed": "Tills automatisk förlopp",
-    "autoProceedShort": "automatiska framsteg",
+    "autoProceedShort": "automatisk förflyttning",
     "autoSelectUntil": "Tills automatiskt val",
     "autoSelectShort": "automatiskt val",
     "nextRoundAuto": "Tills nästa omgång autostart",
@@ -175,7 +175,7 @@
     "bound": "tillhörighet",
     "tradable": "Tillgänglig för handel",
     "maxEnhance": "maximal förstärkning",
-    "notEnhanced": "(Oförstärkt)",
+    "notEnhanced": "(Inte förstärkt)",
     "owned": "besittning",
     "required": "nödvändig",
     "ownedSlashRequired": "Har / Behöver",
@@ -262,15 +262,15 @@
     "chooseTurnCountdown": "Välj att gå först eller sist. ({{nedräkning}})",
     "opponentChoosingSecond": "Motståndaren väljer att spela tvåa...",
     "readyCountdown": "Klar ({{countdown}})",
-    "waitingOpponentRoll": "Väntar på motståndare...",
+    "waitingOpponentRoll": "Väntar på den andra parten...",
     "rollingDice": "Kasta tärningen...",
     "tieReroll": "slips! Rulla igen efter ett tag.",
     "rollToDecide": "Tryck på redo-knappen för att kasta tärningen. Personen med högst nummer väljer att gå först/sist.",
-    "diceWin": "{{name}} vann och det avgjordes vem som skulle gå först/sist.",
-    "diceAutoStart": "Klicka på startknappen nedan, annars startar matchen automatiskt efter 30 sekunder.",
+    "diceWin": "{{name}} vann och det beslutades att gå först/sist.",
+    "diceAutoStart": "Klicka på startknappen nedan annars startar matchen automatiskt efter 30 sekunder.",
     "colorRouletteTitle": "färg baduk",
     "uniformColorRoulette": "enhetlig färg roulette",
-    "thisGameColor": "Stenfärg för denna match: {{color}}",
+    "thisGameColor": "Stenfärg för detta spel: {{color}}",
     "colorRouletteHint": "De svarta och vita stenarna blinkar snabbt omväxlande och stannar slumpmässigt.",
     "colorRouletteEnd": "Matchen startar automatiskt efter att lottningen är slut.",
     "colorRouletteProceed": "Det kommer att hållas automatiskt efter att lotteriet avslutats.",
@@ -279,7 +279,7 @@
     "deathmatchRoleTitle": "Deathmatch Roll",
     "deathmatchRoleSubtitle": "En tjuv (svart) och en polis (vit) tilldelas slumpmässigt. Vi börjar med sten, papper, sax.",
     "roleDecidedTitle": "Rollbeslut klart",
-    "roleDecidedSubtitle": "Rollen som svart och gå först/tvåa avgjordes genom roulette. Tjuven tilldelas automatiskt till svart (spelar först), och polisen tilldelas automatiskt till vit (spelar tvåa).",
+    "roleDecidedSubtitle": "Rollen som svart och att gå först/tvåa avgjordes genom roulette. Tjuven tilldelas automatiskt svart (spelar först), och polisen tilldelas automatiskt vit (spelar tvåa).",
     "rouletteDecided": "Att gå etta/tvåa avgjordes av roulette.",
     "rouletteSubtitle": "Svart och vitt tilldelas genom automatisk roulette, vilket är snabbare än sten-papper-sax.",
     "gameStartConfirm": "Bekräfta starten av matchen",
@@ -288,7 +288,7 @@
     "reviewMode": "återställningsläge",
     "originalGame": "Originalnotation",
     "rotateToWhite": "Utsikt från Whites synvinkel",
-    "rotateToBlack": "Utsikt från svarts synvinkel",
+    "rotateToBlack": "Vy från svarts perspektiv",
     "closeViewer": "nära",
     "replayFirst": "för första gången",
     "replayBack5": "5 drag tillbaka",
@@ -310,7 +310,7 @@
       "ariaLabel": "huvudmenyn",
       "entranceClosedTitle": "Inträdet är stängt",
       "home": "hem",
-      "singleplayer": "Baduk Academy",
+      "singleplayer": "Baduk akademi",
       "tower": "Utmaningens torn",
       "arena": "stadion",
       "tournament": "mästerskap",
@@ -330,7 +330,7 @@
     },
     "alerts": {
       "arenaBothClosed": "Inträde till både strategi- och spelarenor är stängd.",
-      "arenaProgression": "När du uppfyller kraven på integrationsnivå kan du komma åt fliken Stadium.",
+      "arenaProgression": "När du uppfyller kraven på integrationsnivån kan du komma åt fliken Stadium.",
       "entranceClosed": {
         "singleplayer": "Enspelares inträde är tillfälligt stängt.",
         "tower": "Inträdet till Tower of Challenge är tillfälligt stängt.",
@@ -345,7 +345,7 @@
         "strategicLobby": "Du kan gå in i det strategiska Go-väntrummet från User Lv.{{level}}.",
         "playfulLobby": "Du kan gå in i Go-väntrummet på User Lv. {{nivå}}.",
         "championship": "Du kan delta i mästerskapet med en Go-förmåga på {{ability}} eller högre.",
-        "adventure": "Du kan komma in i äventyret genom att rensa steg 20 i Baduk Academy nybörjarklassen."
+        "adventure": "Du kan gå in i äventyret genom att klara steg 20 i Baduk Academy nybörjarklassen."
       }
     },
     "quickMenu": {
@@ -354,15 +354,15 @@
       "blacksmith": "smedja",
       "shop": "lagra",
       "inventory": "väska",
-      "pet": "djurvård",
+      "pet": "sällskapsdjur",
       "trainingQuest": "Utbildningsuppgift",
-      "detailedStats": "Detaljerade rekord för PVP Stadium",
+      "detailedStats": "PVP Stadium detaljerade rekord",
       "monsterCodex": "Monster Encyclopedia",
       "ranking": "Ranking",
       "gameRecords": "notation",
       "encyclopedia": "Encyklopedi",
       "announcements": "underrättelse",
-      "help": "Hjälpcenter",
+      "help": "hjälp",
       "menu1": "Meny 1",
       "menu2": "Meny 2"
     },
@@ -425,7 +425,7 @@
     "kakao": "kakao",
     "google": "google",
     "ban": {
-      "title": "Tillträde är förbjudet.",
+      "title": "Anslutning är förbjuden.",
       "reason": "Orsak: {{reason}}",
       "remainingMinutes": "Återstående varaktighet: cirka {{minutes}} minuter",
       "expiresAt": "Planerad att släppas: {{date}}",
@@ -491,7 +491,7 @@
     },
     "registerErrors": {
       "fieldsRequired": "Ange ditt ID, e-postadress och lösenord.",
-      "invalidEmail": "Ange en giltig e-postadress.",
+      "invalidEmail": "Vänligen ange en giltig e-postadress.",
       "usernameLength": "Ange ID:t med minst {{min}} tecken och högst {{max}} tecken.",
       "passwordMin": "Lösenordet måste vara minst 4 tecken långt.",
       "passwordMismatch": "Lösenordet matchar inte.",
@@ -511,7 +511,7 @@
     "siteInfo": "Webbplatsinformation",
     "terms": "Användarvillkor",
     "privacy": "sekretesspolicy",
-    "refund": "Avbokning/återbetalningsregler",
+    "refund": "Avbokning/återbetalningspolicy",
     "support": "kundtjänstcenter",
     "representative": "representant",
     "businessNumber": "Företagsregistreringsnummer",
@@ -521,7 +521,7 @@
   "gameModes": {
     "standard": "klassisk baduk",
     "capture": "vinnande baduk",
-    "speed": "hastighet baduk",
+    "speed": "speed baduk",
     "base": "bas baduk",
     "hidden": "Dold Baduk",
     "missile": "missil baduk",
@@ -529,7 +529,7 @@
     "castle": "Slottet Baduk",
     "chess": "schackbaduk",
     "mix": "blanda baduk",
-    "dice": "tärningsbaduk",
+    "dice": "tärning baduk",
     "omok": "konkav",
     "ttamok": "Tamok",
     "thief": "tjuv och polis",
@@ -539,8 +539,8 @@
     "descriptions": {
       "standard": "Detta är typisk klassisk baduk.",
       "capture": "Spelet Baduk vinner den första personen som får ett visst antal stenar.",
-      "speed": "Om du placerar den inom {{seconds}} sekunder per tur, kommer du att få tillbaka {{seconds}} sekunder. För varje {{seconds}} sekund läggs 1 poäng till din motståndare.",
-      "base": "Det är ett badukspel där du tittar på arrangemanget av basstenarna, sätter en bonus för din motståndare och använder de stenar du väljer, och tävlar om din förmåga att analysera situationen.",
+      "speed": "Om du placerar den inom {{seconds}} sekunder, kommer du att återskapa {{seconds}} sekunder. För varje {{seconds}} sekund läggs 1 poäng till din motståndare.",
+      "base": "Det är ett spel baduk där du tittar på arrangemanget av basstenarna, sätter en bonus för din motståndare och använder stenarna du väljer och tävlar om din förmåga att analysera situationen.",
       "hidden": "En comeback med ett drag som är osynligt för motståndaren! Psykologisk krigföring och läsförmåga krävs genom dolda och skannade föremål.",
       "missile": "Skapa en variabel genom att flytta stenen placerad som ett missilobjekt.",
       "uniform": "Go är ett spel som kräver minne för att se alla stenar i en färg.",
@@ -574,7 +574,7 @@
       "passTitle": "ta en paus",
       "resignTitle": "Avstå",
       "cannotResignDuringScoring": "Avstå är inte tillåtet under räkningsprocessen.",
-      "gameFeatures": "Matchfunktion",
+      "gameFeatures": "matchningsfunktion",
       "playfulFeatures": "spelfunktion",
       "mannerAction": "seder handling",
       "mannerActionPvpOnly": "Åtgärdsknappen skapas endast i PVP-läge.",
@@ -637,7 +637,7 @@
       "pauseGameCountdown": "pausa ({{count}})",
       "pauseGameAiTurn": "Paus (AI-sväng)",
       "oddDiceUseTitle": "Använd udda tärningar",
-      "oddDiceUseBody": "Använd ett tärningsobjekt med endast udda nummer (1, 3, 5). Vill du fortsätta?",
+      "oddDiceUseBody": "Använd en tärningsobjekt med endast udda nummer (1, 3, 5). Vill du fortsätta?",
       "evenDiceUseTitle": "Använd jämna tärningar",
       "evenDiceUseBody": "Använd ett tärningsobjekt som bara kommer med jämna nummer (2, 4, 6). Vill du fortsätta?",
       "lowDiceUseTitle": "Använd låga tärningar",
@@ -650,7 +650,7 @@
       "evenDiceTitle": "Jämna (2, 4, 6) tärningsobjekt. Återstående antal {{count}}",
       "lowDiceAria": "Lågt antal tärningar, antal kvar {{count}}",
       "lowDiceTitle": "Lågt antal (1·2·3) tärningsobjekt. Återstående antal {{count}}",
-      "highDiceAria": "Högt antal tärningar, antal återstående {{count}}",
+      "highDiceAria": "Högt antal tärningar, återstående antal {{count}}",
       "highDiceTitle": "Högt antal (4, 5, 6) tärningsobjekt. Återstående antal {{count}}",
       "oddDiceUse": "Använd udda tärningar",
       "evenDiceUse": "Använd jämna tärningar",
@@ -671,12 +671,12 @@
       "thiefNoOneAria": "Förhindra 1 (2~5) tärningsobjekt, antal kvar {{count}}",
       "thiefNoOneTitle": "Tärningar som inte får en 1 (2, 3, 4, 5). Återstående antal {{count}}",
       "thiefHigh36UseTitle": "Använd tärningar med högt antal (3-6).",
-      "thiefHigh36UseBody": "Använd en tärningsföremål som bara kommer ut 3, 4, 5 och 6. Om det är en polistur är båda tärningarna inom detta intervall. Vill du fortsätta?",
+      "thiefHigh36UseBody": "Använd ett tärningsobjekt som bara visar 3, 4, 5 och 6. Om det är en polistur är båda tärningarna inom detta intervall. Vill du fortsätta?",
       "thiefNoOneUseTitle": "Använd 1 förebyggande tärning",
-      "thiefNoOneUseBody": "Använd en tärningsföremål som bara kommer ut 2, 3, 4 eller 5 (1 är inte möjligt). Om det är en polistur ligger båda tärningarna inom detta intervall. Vill du fortsätta?"
+      "thiefNoOneUseBody": "Använd ett tärningsobjekt som bara kommer ut 2, 3, 4 eller 5 (1 är inte möjligt). Om det är en polistur ligger båda tärningarna inom detta intervall. Vill du fortsätta?"
     },
     "board": {
-      "rotateSpectatorBlack": "Utsikt från svarts synvinkel",
+      "rotateSpectatorBlack": "Vy från svarts perspektiv",
       "rotateSpectatorWhite": "Utsikt från Whites synvinkel",
       "rotate180": "schackbräde rotation 180 grader",
       "paused": "avbryta",
@@ -707,7 +707,7 @@
       "baseGameStartConfirm": "När du trycker på startknappen börjar matchen.",
       "captureBidTie": "Den föreslagna slipsningen är densamma. Om det är likadant denna gång avgörs det slumpmässigt.",
       "captureBidBase": "Titta på den publicerade tavlan och bekräfta den föreslagna poängen för Svart (Bra) längst ner.",
-      "captureBid": "Detta är scenen där svarta (linje) poäng presenteras.",
+      "captureBid": "Detta är scenen för att presentera svarta (linje) poäng.",
       "gameEnded": "Matchen slutar",
       "noContest": "ogiltig matchning",
       "rematchPending": "Väntar på revansch...",
@@ -715,15 +715,15 @@
       "hiddenFinalReveal": "Vi avslöjar alla gömda stenar och börjar räkna.",
       "autoScoringAdventure": "Automatisk bokföring utförs.",
       "autoScoringReached": "Det automatiska systemet når proceduren och börjar räkna.",
-      "alkkagiRePlace": "Placera stenarna igen. ({{round}} / {{total}} runda)",
-      "alkkagiPlace": "Placera stenarna. ({{round}} / {{total}} runda)",
-      "alkkagiPlayerTurn": "Det är {{name}}s tur. ({{round}} / {{total}} runda)",
+      "alkkagiRePlace": "Placera stenarna igen. ({{round}} / {{total}} omgångar)",
+      "alkkagiPlace": "Placera stenarna. ({{round}} / {{total}} omgångar)",
+      "alkkagiPlayerTurn": "Det är {{name}}s tur. ({{round}} / {{total}} omgångar)",
       "alkkagiRoundEnd": "Runda slutar - Kontrollera och fortsätt på den elektroniska skylten nedan.",
       "diceRollTurn": "Det är {{name}}s tur att slå tärningen.",
       "diceRollTurnGeneric": "Det är dags att slå tärningen",
       "tiebreakerDeciding": "Beslutar om vinnande order...",
       "tiebreakerPlaying": "Match pågår... ({{name}}s tur)",
-      "diceModeRound": "Dice Go ({{round}} / {{total}} varv)",
+      "diceModeRound": "Dice Baduk ({{round}} / {{total}} runda)",
       "thiefModeRound": "Tjuvar och poliser ({{round}} runda)",
       "preparing": "Förbereder spel...",
       "timeoutFoul": "Time-over-fel av {{name}}!",
@@ -733,9 +733,9 @@
       "timeoutFoulPassTurn": "Turen går över till motståndaren.",
       "timeoutFoulLoseStone": "Du förlorar 1 sten och din tur slutar.",
       "timeoutFoulDefault": "Du kommer att bli straffad för att överskrida tidsgränsen.",
-      "baseKomiGuide": "Bestäm vilka stenar och bonusar du vill placera. Om du väljer samma sten är den som ger dig flest bonusar den sten du vill behålla.",
-      "alkkagiPlaceHidden": "Placera stenarna så att de inte är synliga för din motståndare. ({{round}} / {{total}} runda)",
-      "alkkagiPlaceMissing": "Placera de saknade stenarna. ({{round}} / {{total}} runda)",
+      "baseKomiGuide": "Bestäm vilka stenar och bonusar du vill behålla. Om du väljer samma sten är den som ger dig flest bonusar den sten du vill behålla.",
+      "alkkagiPlaceHidden": "Placera stenarna så att de inte är synliga för din motståndare. ({{round}} / {{total}} omgångar)",
+      "alkkagiPlaceMissing": "Placera de saknade stenarna. ({{round}} / {{total}} omgångar)",
       "placementProgress": "placerade {{placed}}/{{target}}",
       "timeRemainingSec": "Återstående tid: {{sek}} sekunder",
       "alkkagiRoundWin": "Omgången {{runda}} — {{namn}} vinner",
@@ -843,7 +843,7 @@
       "resignWinMsg": "Vi vann eftersom vår motståndare avstod.",
       "resignLossMsg": "Avstod från att rösta och förlorade.",
       "turnLimitWinMsg": "Du vann eftersom alla dina motståndares begränsade varv var förbrukade.",
-      "turnLimitLossMsg": "Jag förlorade eftersom min turgräns var över.",
+      "turnLimitLossMsg": "Antalet varv var begränsat och du förlorade.",
       "castleWinMsg": "Jag vann motståndarens sten och vann direkt.",
       "castleLossMsg": "Jag förlorade för att min motståndare fångade stenen.",
       "checkmateWinMsg": "Jag vann schackmatt genom att vinna motståndarens kung.",
@@ -856,7 +856,7 @@
       "omokWin": "Konkav komplettering",
       "omokLoss": "Motståndarens konkav avslutning",
       "captureGoalWin": "Mål vunnet avklarat",
-      "captureGoalLoss": "Slutförande av att vinna motståndarens mål",
+      "captureGoalLoss": "Att uppnå motståndarens mål klar",
       "rankingScore": "rankingpoäng",
       "mannerScore": "sätt poäng",
       "noChange": "ingen förändring",
@@ -893,7 +893,7 @@
       "noChatMessages": "Det finns inga chattmeddelanden.",
       "quickChat": "snabb chatt",
       "send": "skicka",
-      "chatBanned": "Chatt inaktiverad ({{minutes}} minuter kvar)",
+      "chatBanned": "Chatten inaktiverad ({{minutes}} minuter kvar)",
       "chatCooldown": "({{seconds}} sekunder)",
       "chatPlaceholderBracket": "[Ange meddelande]",
       "manner": "seder",
@@ -934,7 +934,7 @@
         "captureTargetCount": "{{räkna}}",
         "captureTargetBoth": "Svart: {{svart}} / Vit: {{vit}}",
         "captureTargetPending": "{{count}} (svart/vit beslutas)",
-        "castle": "Slott",
+        "castle": "slott",
         "castleCount": "{{räkna}}",
         "baseStones": "basdocka",
         "hiddenStones": "Dold sten",
@@ -996,7 +996,7 @@
       "scanTargetDelay": "Ta en bild av platsen där motståndarens dolda sten sannolikt finns.",
       "chessPieceAlreadyMoved": "En pjäs kan bara röra sig en gång per varv.",
       "chessPieceMoveHint": "Du kan flytta en schackpjäs en gång per tur. Spelet slutar när kungpjäsen är fångad eller fångad.",
-      "invalidPlacement": "Detta är en position som inte kan lämnas ifred.",
+      "invalidPlacement": "Detta är en position som inte kan lämnas ensam.",
       "invalidBasePlacement": "Denna plats kan inte placeras.",
       "loadingPlayers": "Laddar spelarinformation...",
       "petAttributeAria": "Husdjursegenskaper (sten, papper, sax)",
@@ -1060,10 +1060,10 @@
       "failOmok": "Din motståndare slutförde fem rader först.",
       "failAlkkagi": "Jag hamnade på efterkälken i äggbläckfisktävlingen.",
       "failCurling": "Vi föll efter vår motståndare i totala curlingpoäng.",
-      "winSurvival": "Vit höll ut alla angivna svängar.",
+      "winSurvival": "Vit höll ut alla de angivna svängarna.",
       "winCaptureTarget": "Du har uppnått din målpoäng.",
       "winScoring": "Det slutade med att laget vann.",
-      "winTime": "Det är ett timeout-kort.",
+      "winTime": "Detta är ett timeout-kort.",
       "winResign": "Motparten avstod från att rösta.",
       "winDisconnect": "Den andra parten kopplas bort.",
       "winTotalScore": "Vann med totalt poäng totalt.",
@@ -1176,7 +1176,11 @@
       "scoringTurnValue": "{{turns}}svängar",
       "forbidden": "förbud",
       "allowed": "möjlig",
-      "speedNormal": "allmänt"
+      "speedNormal": "allmänt",
+      "confirm": "kontrollera",
+      "gaugeSpeedSlow": "x1 (långsam)",
+      "gaugeSpeedNormal": "x2 (normal)",
+      "gaugeSpeedFast": "x3 (snabb)"
     },
     "challengeModal": {
       "rejected": "Avvisande",
@@ -1189,7 +1193,7 @@
       "mixRulesMinHint": "Välj minst två regler.",
       "boardKomiCapture": "Gå ombord, beräkning, bonus, vinst",
       "boardSize": "schackbräde",
-      "boardLines": "{{storlek}}rad",
+      "boardLines": "{{storlek}} rad",
       "komiWhite": "Bonus (påse)",
       "komiHalf": ".5 hus",
       "captureTarget": "målpoäng",
@@ -1211,7 +1215,7 @@
       "scanItems": "skanna objekt",
       "missileGo": "missil baduk",
       "missileCount": "antal missiler",
-      "diceGo": "tärningsbaduk",
+      "diceGo": "tärning baduk",
       "round": "runda",
       "roundCount": "{{count}}omgångar",
       "oddDice": "udda tärningar",
@@ -1247,7 +1251,7 @@
       "matchSettings": "Matchinställningar",
       "cancelApplication": "Avbryt ansökan",
       "applying": "Ansöker",
-      "applyWithCost": "Ansök om en matchning (⚡{{cost}})"
+      "applyWithCost": "Ansök om matchning (⚡{{cost}})"
     },
     "modals": {
       "noContest": {
@@ -1270,13 +1274,13 @@
         "buyPotionLimit": "· 1 per dag per typ",
         "diamondInstant": "Diamond laddas omedelbart",
         "diamondInstantHint": "Du kan fylla din handlingskraft precis när du vill.",
-        "goShopConsumables": "Köp läkande drycker från butiken (förbrukningsvaror)",
+        "goShopConsumables": "Köp helande drycker från butiken (förbrukningsvaror)",
         "goDiamondRecharge": "Ladda omedelbart med diamanter",
         "selfHeading": "Jag saknar förmågan att agera.",
         "selfDetail": "Handlingskraft (⚡) krävs för att tillämpa och acceptera en matchning, eller för att starta en AI-match. Ladda och försök igen.",
         "opponentTitle": "Ansök om match",
         "opponentMessage": "Ansökan kan inte göras eftersom motparten saknar handlingsförmåga.",
-        "opponentDetail": "Motståndaren måste också ha tillräckligt med handlingskraft (⚡) för att fortsätta med matchen. Försök igen efter att den andra personen har laddat om."
+        "opponentDetail": "Motståndaren måste också ha tillräckligt med handlingskraft (⚡) för att fortsätta med matchen. Försök igen efter att den andra personen laddat."
       }
     },
     "baseFooter": {
@@ -1311,7 +1315,7 @@
       "missileFirstTurn": "Om du använder en missil vid första svängen kan du inte använda Deployment Change.",
       "noRefreshesLeft": "Alla omplaceringar har använts.",
       "waitForStart": "Du kan flytta om när spelet börjar.",
-      "beforeFirstMove": "Du kan bara flytta innan det första draget görs.",
+      "beforeFirstMove": "Du kan bara flytta om innan det första draget görs.",
       "insufficientGold": "Jag har slut på guld.",
       "paused": "Ompositionering är inte möjlig i pausat läge.",
       "confirmPaid": "Vill du använda {{gold}} guld för att blanda om partiet? (återstående flytt {{remaining}}/5)",
@@ -1330,7 +1334,7 @@
       "towerRefreshActive": "Batch Refresh",
       "turnAddTitle": "Lägg till Turn",
       "turnAddActive": "3 ytterligare varv kvar",
-      "turnAddMessage": "Vill du använda 1 extra varv för att öka svarts turgräns med 3 varv? Den kommer att tillämpas omedelbart efter bekräftelse.",
+      "turnAddMessage": "Vill du använda 1 extra varv för att öka svarts turgräns med 3 varv? Det kommer att tillämpas omedelbart efter bekräftelse.",
       "passConfirmTitle": "Bekräfta godkänt",
       "passConfirmBoth": "Om båda sidor passerar i följd kommer priset att beräknas. Vill du passera?",
       "passConfirmSingle": "Vill du ta en paus? Om du passerar går turen över till motståndaren (AI).",
@@ -1382,7 +1386,203 @@
       "curling": "curling",
       "thiefPolice": "tjuv och polis",
       "classic": "klassisk",
-      "mix": "blanda"
+      "mix": "blanda",
+      "specialRules": "särskilda regler",
+      "loseCondition": "Nederlagsvillkor",
+      "rulesAndGuide": "Spelregler och spelguide",
+      "rewards": "ersättning",
+      "availableRewards": "Erhållbara belöningar",
+      "summary": {
+        "loseTerritory": "Om den totala poängen (totalpoängen) är låg eller huset är i underläge på grund av oavgjort eller oavgjort regler, förlorar du.",
+        "loseTerritoryAuto": "Om du inte kan vinna mot {{base}} · {{auto}}, förlorar du.",
+        "loseCaptureRace": "Om motståndaren får {{t}} poäng först, förlorar du. Annars, om du har få hus i familjen, förlorar du.",
+        "loseMix": "I slutet av spelet, om motståndaren uppfyller segervillkoren först eller är i underläge, förlorar motståndaren.",
+        "basePlacementAnalysis": "Analys av situationen efter frisättning av basdockans placering",
+        "baseKomiSelect": "Ställ in bonusen att ge din motståndare · Välj den sten du vill ha",
+        "autoScoringCaptureTurn": "Automatisk räkning fortsätter när {{n}} varv uppnås",
+        "autoScoringTerritoryWin": "Vinn den automatiska räkningen efter {{n}} varv",
+        "autoScoringTerritoryLose": "Nederlag i automatiskt spel efter {{n}} vändningar",
+        "fischerOnly": "Fisher {{sek}} sekunder",
+        "byoyomiOnly": "Endast nedräkning · {{time}} sekunder × {{count}} gånger",
+        "noTimeLimit": "Ingen tidsgräns",
+        "limitFischer": "Begränsa {{min}} minuter · Fisher {{sek}} sekunder",
+        "limitByoyomi": "Begränsa {{min}} minuter · Nedräkning {{time}} sekunder × {{count}} gånger",
+        "limitNoByoyomi": "Begränsa {{min}} minuter (ingen nedräkning)",
+        "factorTerritory": "territorium",
+        "factorCaptured": "sten plockad",
+        "factorDead": "riprap",
+        "factorKomi": "Bonus (påse)",
+        "factorBaseBonus": "grundbonus",
+        "factorHiddenBonus": "Dold bonus",
+        "factorSpeedBonus": "Tillåten {{sek}} sekunder har överskridits → Motståndaren +1",
+        "factorMissileEffect": "Reflektion av missilproduktion",
+        "factorCaptureScore": "vinnande poäng",
+        "factorMixFallback": "Beroende på lägeskombination",
+        "factorCaptureNoTerritory": "Vinstpoäng (inga husberäkningar)",
+        "factorCastle": "Bekräftat territorium · Vann sten · Bonus (vit)",
+        "factorChess": "Territorium · Plockad sten · Stensten · Fångst av föremål · Bonus (100)",
+        "factorOmok": "Tors (vinst) — inga husberäkningar",
+        "factorTtamok": "Halsvinst eller vinnande poäng",
+        "factorDice": "Vinstpoäng på 100 stenar per omgång · Slutlig vinstbonus",
+        "factorThief": "Totalt intjänade poäng per omgång",
+        "factorAlkkagi": "Antal motståndares drag utanför spelplanen",
+        "factorCurling": "Sten gör mål nära huset (mål)",
+        "factorFallback": "Se lägesguide",
+        "factorStageDefault": "Beroende på scen/läge",
+        "factorStageCapture": "vinnande poäng",
+        "factorStageCapturePattern": "vinnande poäng\n2 mönsterstenar",
+        "factorStageSpeed": "Territorium, plockad sten, riprap sten, bonus\ntidsbonus",
+        "factorAdventureCaptureShort": "Välj · Emblem 2 poäng",
+        "factorAdventureBase": "grundpris",
+        "factorAdventureBaseStone5": "5 basdockor",
+        "factorAdventureHidden": "Dold",
+        "factorAdventureSpeed": "timme",
+        "factorAdventureMissile": "missil",
+        "itemHidden": "Dolt {{n}}",
+        "itemScan": "{{n}} skannar",
+        "itemMissile": "{{n}} missiler",
+        "itemSpecialDice": "Specialtärningar {{sammanfattning}}",
+        "itemSlowAim": "Långsamt {{långsamt}} · Sikta {{aim}}",
+        "mixCaptureWin": "Om {{t}} poäng uppnås först, vinn omedelbart. Om det inte uppnås, jämför husen efter det vinnande priset.",
+        "mixCaptureWinWithAuto": "Vinnande: Om {{t}} poäng uppnås först, vinn omedelbart · Om inte uppnås, jämför hus efter gränsen · {{auto}}",
+        "mixAutoTerritoryWin": "{{auto}} — Den som har flest hus vinner",
+        "mixComboTail": "Kombinationer ({{modes}}) — Vinn eller förlora baserat på reglerna i slutet",
+        "mixDefaultEnd": "I slutet avgörs vinnaren eller förloraren enligt reglerna.",
+        "highlightPatternStone2": "Plocka mönsterstenar 2 poäng",
+        "highlightHiddenScan": "Dold start · Utforska genom att skanna",
+        "highlightMissileMove": "Flytta sten i en rak linje med en missil",
+        "speedPvpHighlight": "Tillåtelse 10 sekunders nedräkning · Motståndare +1 poäng för var 10:e sekund som överskrids · Tidsförlust när huvudtiden går ut",
+        "highlightSurvival": "Spara Baduk · Målpoäng inom {{n}} varv",
+        "highlightAutoScoring": "Automatisk räkning efter {{n}} nummer",
+        "highlightBlackTurnLimit": "Svart {{n}} varvgräns",
+        "highlightTurnAdd": "{{n}} ytterligare varv",
+        "highlightMissile": "{{n}} missiler",
+        "highlightHiddenScanCounts": "{{hidden}} dolda · {{scan}} skannade",
+        "spTimeMainFischer": "Huvud {{min}} minuter · Tillåtelse {{sek}} sekunders nedräkning",
+        "spTimeFischerOnly": "Nedräkning till ersättning {{sek}} sekunder",
+        "spTimeUnlimited": "Ingen gräns",
+        "goalSurvivalWinLabel": "blockera tillbaka",
+        "goalSurvivalWinHelper": "Blockera 100 mål för {{n}} vändningar",
+        "goalSurvivalLoseLabel": "hundra framgång",
+        "goalSurvivalLoseHelper": "Om vit skapar ett mål misslyckas det.",
+        "goalCaptureWinLabel": "plockning",
+        "goalCaptureWinHelper": "Få poäng genom att omge motståndarens stenar.",
+        "goalCaptureLoseTurnLabel": "varv överskridits",
+        "goalCaptureLoseTurnHelper": "Om du inte gör det inom {{n}} varv misslyckas du.",
+        "goalCaptureLoseFirstLabel": "motståndaren först",
+        "goalCaptureLoseFirstHelper": "Om din motståndare vinner först, misslyckas du.",
+        "goalSpeedWinLabel": "snabb",
+        "goalSpeedWinHelper": "Bygger ett hem i tid",
+        "goalSpeedLoseLabel": "Poäng tretton",
+        "goalSpeedLoseHelper": "Misslyckande om det finns få hus",
+        "goalAutoWinLabel": "många hus",
+        "goalAutoWinHelper": "Beräkna huset efter {{n}}",
+        "goalAutoLoseLabel": "brist på hus",
+        "goalAutoLoseHelper": "{{n}}Om du är i underläge under flytten misslyckas du.",
+        "goalDefaultWinLabel": "bygga ett hus",
+        "goalDefaultWinHelper": "Bygg ett hus runt området",
+        "goalDefaultLoseLabel": "brist på hus",
+        "goalDefaultLoseHelper": "Misslyckande om det finns få hus",
+        "guideTurnLimitTitle": "svänggräns",
+        "guideTurnLimitBody": "Avsluta i {{n}} varv",
+        "guideSurvivalTitle": "stam",
+        "guideSurvivalBody": "Blockera 100 mål för {{n}} vändningar",
+        "guideAutoScoringTitle": "Beräkningspris",
+        "guideAutoScoringBody": "Beräkna huset efter {{n}}",
+        "guidePatternStoneTitle": "mönster sten",
+        "guidePatternStoneBody": "2 poäng om du vinner",
+        "guideSpeedTitle": "hastighet",
+        "guideSpeedBody": "Om du lämnar det sent får din motståndare +1 poäng.",
+        "guideTurnAddTitle": "Lägg till Turn",
+        "guideTurnAddBody": "Öka svänggränsen",
+        "guideMissileTitle": "missil",
+        "guideMissileBody": "Välj en sten och tryck den i en rak linje",
+        "guideHiddenScanTitle": "Dold · Skanna",
+        "guideHiddenScanBody": "Dölj {{hidden}} · Hitta {{scan}}",
+        "advCaptureWin": "vinnande",
+        "advCaptureLose": "Vinn, förlora, time-out",
+        "advTerritoryWin": "gye vinner",
+        "advTerritoryWinAuto": "Räkna vinster · {{n}} flyttas automatiskt",
+        "advTerritoryLose": "Systemet är besegrat och tiden rinner ut.",
+        "advTimeLimit": "{{mins}} minuters gräns",
+        "gwCaptureWinAuto": "{{cap}} poäng först eller {{limit}} vinster",
+        "gwCaptureWin": "Om du först får {{cap}} poäng vinner du.",
+        "gwCaptureLose": "Motståndaren {{cap}} poäng först",
+        "gwTerritoryWinAuto": "Automatisk beräkning av {{limit}} antal vinster",
+        "gwTerritoryWin": "Om din familj har fler hus vinner du.",
+        "gwTerritoryLose": "Under många, tiden har överskridits",
+        "captureWin": "Få motståndarens sten {{t}} poäng först",
+        "captureWinWithAuto": "Få motståndarens sten {{t}} poäng först · {{auto}}",
+        "territoryWinDefault": "Efter räkning vinner sidan med flest hus.",
+        "speedTerritoryWinDefault": "Den som har högst totalpoäng vinner efter räkning.",
+        "speedTerritoryLoseDefault": "Om din totala poäng är låg efter räkning, förlorar du.",
+        "castleWin": "Om du vinner 1 eller fler av motståndarens stenar vinner du direkt. Om det inte finns några effektiva siffror beräknas territoriet.",
+        "castleLose": "Om din motståndare fångar ens en sten förlorar du. Om du har få hus i din familj förlorar du.",
+        "castleHighlightCount": "{{slott}} slott · Kan inte gå in i färdigt territorium",
+        "castleHighlightCapture": "Omedelbar seger efter att ha tagit 1 sten",
+        "chessWin": "Efter det angivna förfarandet, beräkningen",
+        "chessLose": "Nederlag vid Gyejia · Förlora omedelbart efter att ha fångat kungen.",
+        "chessHighlightBudget": "Direkt placering av bitar inom {{budget}} poängbudget (Kung fast i mitten av andra raden)",
+        "chessHighlightMovement": "Pjäsen kan flyttas med ett schackdrag en gång per tur (begränsat antal gånger).",
+        "omokWin": "Slutför 5 horisontella, vertikala och diagonala objekt först",
+        "omokLose": "Om din motståndare slutför alla 5 objekt först, förlorar du.",
+        "omok33Forbidden": "Inga tvillingar",
+        "omok33Allowed": "Tvillingar tillåtna",
+        "omokOverlineForbidden": "inget timmerved",
+        "omokOverlineAllowed": "Ved tillåtet",
+        "ttamokWin": "Slutför punkt 5 först eller uppnå första {{cap}} poäng",
+        "ttamokLose": "Om din motståndare slutför 5 objekt först eller når {{cap}} vinstpoäng först, förlorar du.",
+        "ttamokHighlightCapture": "Vinn när du når {{cap}} poäng först.",
+        "diceWin": "Sidan med högst kumulativ poäng efter {{r}} omgång vinner.",
+        "diceLose": "{{r}}Om din kumulativa poäng är låg i slutet av omgången, förlorar du.",
+        "diceHighlightRules": "Svart landar lika många som tärningarnas ögon, och vitt placeras bara på utgångsvägen.",
+        "thiefWin": "Efter 5 varv x varv vinner den person med högst totalpoäng.",
+        "thiefLose": "Om din totala poäng är låg i slutet av omgången, förlorar du.",
+        "thiefHighlightRoles": "Rollväxling mellan tjuv (svart) och polis (vit)",
+        "alkkagiWin": "Slå ut alla motståndarens stenar",
+        "alkkagiLose": "Slå ut alla mina stenar",
+        "alkkagiHighlightGauge": "Kraftkontroll med mätare, väggreflektion",
+        "curlingWin": "Den som har högst totalpoäng för rundan vinner",
+        "curlingLose": "Om din totala poäng är låg förlorar du.",
+        "curlingHighlightRules": "Sten glidande/runda system",
+        "fallbackWin": "Vinst eller förlust avgörs baserat på matchens framsteg.",
+        "fallbackLose": "Om nederlaget bestäms av spelets framsteg, förlorar du.",
+        "spDefaultWin": "Vinn när etappvillkoren är uppfyllda",
+        "spDefaultLose": "Förlora om villkoren inte uppfylls",
+        "spSurvivalWin": "Det gick inte att uppnå 100 {{tgt}} poäng inom {{n}} varv",
+        "spSurvivalLose": "Få 100 {{tgt}} poäng inom {{n}} varv",
+        "spCaptureTurnWin": "Få {{target}} poäng inom {{limit}} varv",
+        "spCaptureTurnLoseBoth": "Överskrid {{limit}} vändningar / få 100 {{target}} poäng",
+        "spCaptureTurnLoseMiss": "Det gick inte att nå målet inom {{limit}} varv",
+        "spCaptureRaceWin": "Få {{target}} poäng först",
+        "spCaptureRaceLose": "Få 100 {{target}} poäng först",
+        "spCaptureCapWin": "Få {{cap}} poäng först",
+        "spCaptureCapLose": "Vit får {{cap}} poäng först",
+        "spCaptureGoalWin": "Att uppnå målpoäng",
+        "spCaptureGoalLose": "Baek når sitt mål först",
+        "spSpeedWin": "Lag vinner på totalpoäng",
+        "spSpeedLose": "besegrade i världen",
+        "spAutoScoringWin": "{{n}}vinner efter räkning",
+        "spAutoScoringLose": "{{n}}Besegrad efter Sugyega",
+        "spLegacyTurnWin": "{{target}} poäng eller mer inom {{limit}} varv",
+        "spLegacyTurnLose": "Det gick inte att nå målet inom {{limit}} varv",
+        "spLegacyTerritoryWin": "Familjen svart {{svart}} hus+ · vit {{vit}} hus+",
+        "spLegacyTerritoryLose": "målupptagningsområdet inte nått",
+        "spTerritoryWin": "Om familjen har fler hus vinner de.",
+        "spTerritoryLose": "Trettonde i släktet"
+      },
+      "itemSlot": {
+        "hiddenStone": "Dold sten",
+        "scan": "avsöka",
+        "missile": "missil",
+        "diceOdd": "Udda tärningsföremål",
+        "diceEven": "Även tärningsföremål",
+        "diceLow": "Lågt antal (1-3) tärningar",
+        "diceHigh": "Högt antal (4-6) tärningar",
+        "slow": "långsam",
+        "aimLine": "siktlinje",
+        "turnAdd": "Lägg till Turn"
+      }
     },
     "singlePlayerInfo": {
       "close": "nära",
@@ -1411,14 +1611,14 @@
       "confirmTitle": "Starten bekräftad",
       "pickPoint": "Klicka på schackbrädet för att välja en punkt",
       "modeAria": "startknappsläge",
-      "dragAria": "Justera position genom att dra landningspanelen",
+      "dragAria": "Justera positionen genom att dra landningspanelen",
       "dragTitle": "Justera position genom att dra"
     },
     "baseCaptureMix": {
       "round1": "1:a presentationen",
       "round2Suffix": "· 2:a",
       "waitingBothBids": "Vi väntar på att båda sidor ska presentera svarta (bra) poäng.",
-      "winnerLine": "{{name}}s {{bid}} punkt → Svart (linje), vit mål {{target}} punkt",
+      "winnerLine": "{{name}}s {{bid}} punkt → svart (linje), vit mål {{target}} punkt",
       "tieRandomBoth": "Den föreslagna slipsningen är densamma. Svart och vitt väljs slumpmässigt.",
       "tieRandom": "Slips — Svart och vitt väljs slumpmässigt.",
       "tieRebid": "Oavgjort — Flytta för att köra om.",
@@ -1478,7 +1678,8 @@
       "aria": "Fliken Resultat"
     },
     "speedPressure": {
-      "aria": "Ersättningstid {{sek}} sekunder"
+      "aria": "Ersättningstid {{sek}} sekunder",
+      "label": "10 sekunders hastighetsbar"
     },
     "adventureResult": {
       "bossLine": "Chef: {{label}} +{{pct}}%",
@@ -1488,14 +1689,14 @@
       "timeMode": "tidsmetod",
       "byoyomiOption": "Timeout + Nedräkning",
       "fischerOption": "Timeout + Fisher",
-      "mainTimeLimit": "huvudsakliga tidsgräns",
+      "mainTimeLimit": "huvudsaklig timeout",
       "timeLimit": "tidsgräns",
       "byoyomi": "nedräkning",
       "fischerIncrement": "Lägg till Fisher"
     },
     "towerSidebar": {
       "title": "Utmaningens torn",
-      "floor": "{{floor}} våning"
+      "floor": "{{floor}}våning"
     },
     "guildWarSidebar": {
       "title": "skråkrig"
@@ -1592,7 +1793,7 @@
       "basePrepTitle2": "Förberedelse för grundspel",
       "basePrepDesc2": "Kolla in svart, vitt och bonus nedan.",
       "colorDecideTitle": "svarta och vita kristaller",
-      "colorDecideDesc": "{{namn}} · Svart (linje) · Presentera {{bud}} punkt",
+      "colorDecideDesc": "{{namn}} · Svart (linje) · Presentation {{bud}} punkt",
       "blackFirstSuffix": "· Gå först",
       "whiteSecondSuffix": "· Hugong",
       "myWinCondition": "mina vinstvillkor",
@@ -1612,10 +1813,13 @@
       "baseRule": "bas",
       "whiteTargetLabel": "hundra mål",
       "firstBlackRole": "Linje (svart)",
-      "meBadge": "mig"
+      "meBadge": "mig",
+      "captureBidResultTitle": "Vinnande resultat presentationsresultat",
+      "komiBidFinalRound": "Bonusbud (sistomgång)",
+      "pressStartPrompt": "När du är redo klickar du på Start för att börja spela."
     },
     "baseStoneChoice": {
-      "hostPick": "Värden väljer färgplattan till vänster.",
+      "hostPick": "Värden väljer färgtavlan till vänster.",
       "wait": "snälla vänta ett ögonblick.",
       "pairHost": "Värd: Välj en lagkamrats färgtavla istället.",
       "pickPanel": "Välj den version du gillar.",
@@ -1642,8 +1846,10 @@
       "blackRole": "Första slag, svart",
       "whiteRole": "Hugong · Tillbaka",
       "finalCardAlt": "Det sista första och andra draget visas på vänster och höger kort.",
-      "fastFlashAlt": "Den svartvita displayen i de två utrymmena ändras, men efter ett tag är den fixerad till det slutliga arrangemanget.",
-      "smoothEndAlt": "Svart och vitt ändras snabbt och stannar slumpmässigt."
+      "fastFlashAlt": "Den svartvita displayen i de två utrymmena ändras, men efter ett tag fixeras den till den slutliga layouten.",
+      "smoothEndAlt": "Svartvitt ändras snabbt och stannar slumpmässigt.",
+      "assignmentComplete": "Uppdraget avslutat",
+      "blackCandidate": "Gå första (svarta) kandidaten"
     },
     "uniformColor": {
       "blackStone": "svart sten",
@@ -1669,7 +1875,7 @@
       "currentLabel": "nuvarande tillstånd",
       "expectedLabel": "Efter förväntad återhämtning",
       "expectedMobile": "Efter återhämtning (förväntat)",
-      "expectedDesktop": "Skick efter förväntad återhämtning"
+      "expectedDesktop": "Tillstånd efter förväntad återhämtning"
     },
     "startConfirm": {
       "title": "Bekräfta starten av matchen",
@@ -1679,11 +1885,12 @@
       "autoRouletteShort": "Istället för sten, papper, sax, svart och vitt tilldelas med automatisk roulette.",
       "checkingRoulette": "Kontrollerar rouletteresultat...",
       "waitingConfirm": "Väntar på bekräftelse från den andra parten...",
-      "startCountdown": "Starta matchen ({{count}})"
+      "startCountdown": "Starta matchen ({{count}})",
+      "autoStartHint": "Tryck på Start annars startar matchen automatiskt efter 30 sekunder."
     },
     "diceGo": {
       "winner": "Som ett resultat av tärningarna vann {{name}} och beslutet togs att gå först/sist.",
-      "autoStart": "Klicka på startknappen nedan, annars startar matchen automatiskt efter 30 sekunder.",
+      "autoStart": "Klicka på startknappen nedan annars startar matchen automatiskt efter 30 sekunder.",
       "firstBlack": "Attackera först (svart)",
       "secondWhite": "Hugong (vit)",
       "resultRich": "Som ett resultat av tärningarna vann <strong>{{name}}</strong> och laget gick etta/tvåa.",
@@ -1740,7 +1947,7 @@
       "tieDeathmatch": "Dödsmatchen fortsätter med oavgjort.",
       "swapRoles": "Byt roller och fortsätt till nästa omgång.",
       "round2Tie": "Omgång 2 slutar. Om poängen är oavgjord är det en dödsmatch.",
-      "waitingConfirm": "Väntar på motståndarens bekräftelse",
+      "waitingConfirm": "Väntar på bekräftelse från partner",
       "nextRound": "nästa omgång",
       "piecesUnit": "hund"
     },
@@ -1797,7 +2004,7 @@
       "advanced": "Avancerad klass",
       "master": "Hög Danban",
       "tower": "Utmaningens torn",
-      "academy": "Baduk Academy",
+      "academy": "Baduk akademi",
       "stage": "Steg {{num}}",
       "returnLobby": "Gå tillbaka",
       "currentStage": "nuvarande skede",
@@ -1813,9 +2020,78 @@
       "editStage": "Scenredigering",
       "editOrder": "Redigera beställning",
       "cancel": "annullering",
+      "exit": "Utgång",
       "start": "Komma igång",
       "singleStage": "enstegs",
-      "masterClass": "en person med kvalifikationer"
+      "masterClass": "en person med kvalifikationer",
+      "goalSection": "mål",
+      "goalTurnCaption": "Begränsad tur",
+      "goalTurnUnit": "sväng",
+      "goalMySide": "mig",
+      "goalOpponentSide": "motståndare",
+      "goalCaptureUnit": "plockning",
+      "goalSurvivalTurnCaption": "period",
+      "goalSurvivalBlockCaption": "blockera tillbaka",
+      "goalSurvivalPointUnit": "punkt",
+      "turnLimit": "Begränsade varv: {{count}} varv",
+      "autoScoringGoal": "Automatisk räkning efter {{count}} varv",
+      "myCaptureGoal": "Jag vinner {{count}}",
+      "opponentCaptureGoal": "Besegra {{count}} motståndare",
+      "vs": "mot",
+      "survivalGoal": "Blockera {{target}} punkter inom {{turns}} svängar",
+      "territoryGoal": "gye vinner",
+      "modeTypeTabs": "typ av baduk",
+      "modeGuideTitle": "Hur man spelar",
+      "modeGuide": {
+        "missile": {
+          "step1Title": "missilobjekt",
+          "step1Body": "På min tur trycker jag på knappen för missilobjekt.",
+          "step1BodyItem": "Du kan använda {{count}} missiler i den här matchen. Tryck på missilknappen på din tur.",
+          "step2Title": "val av sten",
+          "step2Body": "Välj min sten att flytta.",
+          "step3Title": "rak linje rörelse",
+          "step3Body": "Tryck stenen i riktning mot det tomma utrymmet för att ändra situationen."
+        },
+        "hidden": {
+          "step1Title": "Dolt föremål",
+          "step1Body": "Använd den dolda knappen för att göra rörelser som är osynliga för din motståndare.",
+          "step1BodyItem": "Dolda {{count}} låter dig göra drag som är osynliga för din motståndare.",
+          "step2Title": "skanna objekt",
+          "step2Body": "Hitta dolda misstänkta områden med skanningsknappen.",
+          "step2BodyItem": "{{count}} skanningar kan hjälpa dig att hitta dolda misstänkta områden.",
+          "step3Title": "Användning av föremål",
+          "step3Body": "Dolda skanningar är begränsade i antal, så välj din timing klokt."
+        },
+        "capture": {
+          "step1Title": "vinnande",
+          "step1Body": "Du vinner om du först får motståndarens stenar lika med målpoängen.",
+          "step2Title": "mönster sten",
+          "step2Body": "Om du vinner en mönstersten räknas den som 2 poäng."
+        },
+        "speed": {
+          "step1Title": "tidsregler",
+          "step1Body": "Om du inte gör det inom den angivna tiden kommer din motståndare att få fler poäng.",
+          "step2Title": "Beräkningspris",
+          "step2Body": "I slutändan bestäms vinnaren genom att lägga ihop hus- och tidsbonusarna."
+        },
+        "base": {
+          "step1Title": "basdocka",
+          "step1Body": "Läs situationen genom att titta på basstenens placering.",
+          "step2Title": "bonusbud",
+          "step2Body": "Bestäm en bonus att ge din motståndare och börja spelet med den färg/sten du vill ha."
+        },
+        "classic": {
+          "step1Title": "bygga ett hus",
+          "step1Body": "Bygg hus runt territoriet och säkra fler hus än dina motståndare.",
+          "step2Title": "Beräkningspris",
+          "step2Body": "Om båda sidor passerar avgörs vinnaren genom räkning."
+        },
+        "survival": {
+          "tab": "Rädda Baduk",
+          "step1Title": "blockera tillbaka",
+          "step1Body": "Förhindra vit (motståndare) från att uppnå målpoängen för ett visst antal varv."
+        }
+      }
     },
     "towerShop": {
       "closeAria": "Nära köp av exklusiva toppartiklar",
@@ -1823,7 +2099,7 @@
       "ownedLimit": "Lagringsgränsen uppnådd",
       "dailyLimit": "Daglig köpgräns nådd",
       "ownedCap": "Lagringsgränser:",
-      "purchaseCap": "Inköpsbegränsningar:",
+      "purchaseCap": "Köpbegränsningar:",
       "maxOwnedBuy": "Du kan inte köpa den eftersom du har maximalt antal varor i lager.",
       "dailyLimitReached": "Du har nått din köpgräns idag.",
       "totalPrice": "totalpris"
@@ -1867,13 +2143,13 @@
       "diceTitle": "{{round}}Runda",
       "deathmatchStart": "Deathmatch börjar",
       "viewFinal": "Se slutresultatet",
-      "waitingConfirm": "Väntar på motståndarens bekräftelse",
+      "waitingConfirm": "Väntar på bekräftelse från partner",
       "dummyCapture": "{{namn}}",
       "previousRound": "föregående omgång",
       "previousKnockShort": "föregående knackning",
       "detailScores": "detaljerad poäng",
       "resultBoardTab": "resultattavla",
-      "finalRoundTieBody": "Sista omgången är oavgjord. Efter bekräftelse fortsätter spelet genom att skjuta fler stenar från samma bräda.",
+      "finalRoundTieBody": "Sista omgången är oavgjord. Efter bekräftelse fortsätter spelet genom att skjuta fler stenar åt gången från samma bräda.",
       "stonesLeft": "kvarvarande stenar",
       "scoredFor": "göra",
       "scoredAgainst": "medgett",
@@ -1892,7 +2168,7 @@
       "waiting": "Väntar på bekräftelse från den andra parten...",
       "start": "Komma igång",
       "autoProgress": "Tills automatisk förlopp",
-      "autoProgressShort": "automatiska framsteg"
+      "autoProgressShort": "automatisk förflyttning"
     },
     "colorStart": {
       "title": "Kolla Nigiri"
@@ -1974,7 +2250,7 @@
       "withdraw": "Uttag av medlemskap",
       "cancel": "annullering",
       "withdrawTitle": "Uttag av medlemskap",
-      "withdrawLine1": "Vid återkallelse raderas data och kan inte återställas.",
+      "withdrawLine1": "Data raderas vid uttag och kan inte återställas.",
       "withdrawLine2": "Du kan inte omregistrera dig med samma e-postadress under 1 vecka.",
       "withdrawPasswordConfirm": "verifiera lösenordet",
       "withdrawTextConfirm": "Ange bekräftelsetext: \"Ta ur medlemskap\"",
@@ -1985,10 +2261,10 @@
         "passwordRequired": "Vänligen ange ditt nuvarande lösenord och nya lösenord.",
         "passwordTooShort": "Ditt nya lösenord måste vara minst 6 tecken långt.",
         "withdrawRequired": "Vänligen ange ditt lösenord och bekräftelsefras.",
-        "withdrawConfirmMismatch": "Bekräftelsetexten är felaktig. Ange \"Uttag av medlemskap\" korrekt.",
+        "withdrawConfirmMismatch": "Bekräftelsetexten är felaktig. Vänligen ange \"Uttag av medlemskap\" korrekt.",
         "usernameChangeFailed": "Ett fel uppstod vid ändring av ID.",
         "passwordChangeFailed": "Ett fel uppstod när ditt lösenord skulle ändras.",
-        "withdrawFailed": "Ett fel uppstod när medlemskapet avslutades."
+        "withdrawFailed": "Ett fel uppstod när ditt medlemskap avslutades."
       },
       "alerts": {
         "usernameChanged": "Ditt ID har ändrats.",
@@ -2066,12 +2342,12 @@
     },
     "playfulNotice": {
       "title": "Guide för att spela baduk",
-      "body": "Rankingmatcher och säsongsrankingresultat används inte på Play Baduk-stadion. Rankingmatcher är endast tillgängliga i Strategic Baduk-väntrummet."
+      "body": "Rankingmatcher och säsongsrankingresultat används inte i Play Baduk-arenan. Rankingmatcher är endast tillgängliga i Strategic Baduk-väntrummet."
     },
     "rankedUnavailable": {
       "title": "Inga rankade matcher",
       "body": "Rankingmatcher är endast tillgängliga i Strategic Baduk-väntrummet.",
-      "seasonRankingHint": "Säsongsrankinglistan finns i Strategic Baduk väntrum."
+      "seasonRankingHint": "Säsongsrankinglistan finns i väntrummet Strategic Baduk."
     },
     "locationPrefix": {
       "strategic": "[Strategi Baduk]",
@@ -2088,7 +2364,7 @@
       "noMessages": "Det finns inga chattmeddelanden.",
       "noGuildMessages": "Det finns inga guildchattmeddelanden.",
       "placeholder": "[Ange meddelande]",
-      "banPlaceholder": "Chatt inaktiverad ({{minutes}} minuter kvar)",
+      "banPlaceholder": "Chatten inaktiverad ({{minutes}} minuter kvar)",
       "cooldownPlaceholder": "({{seconds}} sekunder)",
       "profanityAlert": "Ditt meddelande kan inte skickas eftersom det innehåller olämpliga ord.",
       "quickChatTitle": "snabb chatt",
@@ -2105,6 +2381,10 @@
       "forceLogout": "tvingas lämna",
       "forceLogoutConfirm": "Vill du tvinga [{{smeknamn}}] att koppla från?",
       "invite": "Bjuda",
+      "challenge": "Ansök om match",
+      "challengeUnavailable": "Den andra parten har inte möjlighet att ta emot förfrågningar om matchning.",
+      "spectate": "Tittar på",
+      "spectateUnavailable": "Jag kan inte hitta någon matchinformation att titta på.",
       "blockInvites": "Ingen inbjudan",
       "blockInvitesTitle": "När den är aktiverad kommer andra spelare inte att kunna bjuda in dig som partner i Fair Arena.",
       "statusInPairRoom": "Du kan inte ändra din status när du är i ett parrum.",
@@ -2126,7 +2406,7 @@
     "legacyRoom": {
       "strategicTitle": "Strategi Go Väntrum",
       "playfulTitle": "spela baduk väntrum",
-      "strategicSubtitle": "Taktisk kraftcenter",
+      "strategicSubtitle": "Taktisk kraftcentrum",
       "playfulSubtitle": "Casual matchcentrerad",
       "howToPlay": "Se hur du spelar",
       "helpAlt": "hjälp",
@@ -2238,7 +2518,7 @@
         "rankingLabel": "Ranking: {{rating}} poäng",
         "expectedDelta": "Förväntad resultatförändring",
         "winDelta": "Seger: +{{poäng}}",
-        "lossDelta": "Nederlag: {{points}} poäng",
+        "lossDelta": "Nederlag: {{poäng}}",
         "opponentRanking": "Motståndarranking",
         "opponentRating": "{{rating}}poäng",
         "waitingPeer": "Väntar på den andra partens acceptans...",
@@ -2247,7 +2527,7 @@
         "cancelHint": "Om du tackar nej eller inte accepterar i tid kommer din match att ställas in.",
         "priorityHint": "Om du redan har accepterat, kommer matchande väntestatus och prioritet att bibehållas om den andra personen avvisar eller timeout."
       },
-      "panelTitle": "Rankingmatch",
+      "panelTitle": "Ranking match",
       "matching": "Motsvarande...",
       "waitTime": "väntan",
       "currentSeason": "nuvarande säsong",
@@ -2272,13 +2552,13 @@
       "multiSelectTitle": "Välj spelläge (flera val möjliga)",
       "selectedCount": "Spel valda: {{count}}",
       "priorityTitle": "Vald spelprioritet (1:a prioritet är högst)",
-      "priorityAdjustTip": "💡 Prioriteten kan justeras med upp- och nedknapparna, eller tas bort genom att avmarkera (×).",
+      "priorityAdjustTip": "💡 Prioriteten kan justeras med upp- och nerknapparna, eller tas bort genom att avmarkera (×).",
       "gameDescription": "Spelbeskrivning",
       "selectModeLeftPrompt": "Välj ett spelläge till vänster.",
       "startMatching": "Börja matcha (välj {{count}})",
       "selectedBadge": "vald",
       "roundUnit": "{{count}}omgångar",
-      "boardSizeValue": "{{storlek}}rad",
+      "boardSizeValue": "{{storlek}} rad",
       "scoringTurnValue": "{{count}}räkning",
       "itemCountValue": "{{räkna}}",
       "slowItem": "långsam",
@@ -2319,7 +2599,7 @@
       "baseStone": "bassten",
       "captureGoal": "fånga mål",
       "turnsUnit": "{{count}}räkning",
-      "linesUnit": "{{storlek}}rad",
+      "linesUnit": "{{storlek}} rad",
       "pointsUnit": "{{score}} poäng",
       "countUnit": "{{räkna}}",
       "halfPoint": ".5 hus",
@@ -2367,7 +2647,7 @@
       "gameAdventureWhere": "Äventyr → Vinn mot monster på den lokala kartan.",
       "badukStrategicHow": "Den kumulativa poängen baserad på 1200 ändras beroende på om du vinner eller förlorar i en strategisk baduk ranking match (PVP). Om du spelar samma läge mer än 10 gånger kommer det att återspeglas i din ranking, och om du slår en stark motståndare kommer det att öka ytterligare.",
       "badukStrategicWhere": "Använd rankningsmatch på Stadium → Strategisk Baduk → Väntrum.",
-      "badukPairHow": "Den kumulativa poängen baserad på 1200 förändringar beroende på vinst eller förlust av PVP ranking match (PVP). Om du uppfyller det minsta antalet matcher kommer din ranking att återspeglas, och om du slår en stark motståndare kommer din ranking att öka ytterligare.",
+      "badukPairHow": "Den kumulativa poängen baserad på 1200 förändringar beroende på vinst eller förlust av PVP-rankingmatchen (PVP). Om du uppfyller det minsta antalet matcher kommer din ranking att återspeglas, och om du slår en stark motståndare kommer din ranking att öka ytterligare.",
       "badukPairWhere": "Stadion → Använd rankningsmatch i Pair Baduk."
     },
     "chatInline": {
@@ -2442,7 +2722,7 @@
       "comprehensionXp": "Förstå erfarenhet",
       "comprehensionXpMax": "Maximalt {{wins}} vinster",
       "firstLevelWins": "Första Lv {{wins}}/1 vinst",
-      "nextLevelProgress": "Nästa vinster för {{wins}}/{{nextAt}}",
+      "nextLevelProgress": "Nästa vinster från {{wins}}/{{nextAt}}",
       "thresholdRange": "({{from}}~)",
       "adventureMonsters": "äventyrsmonster",
       "adventureMonsterCodex": "Adventure Monster Encyclopedia",
@@ -2453,7 +2733,7 @@
       "regionalExplorationTabsAria": "Fliken Lokal utforskning",
       "enhancePoints": "förstärkningspunkter",
       "enhancePointsCount": "Förstärkningspunkter {{resterande}} / {{grant}}",
-      "slot1LockedChapterOpen": "Slot 1 låst · Kapitel{{stageIndex}} är öppet",
+      "slot1LockedChapterOpen": "Fack 1 låst · Kapitel{{stageIndex}} öppet",
       "slotLockedTier": "Slot {{slot}} låst · {{tier}} eller högre",
       "effectSelecting": "Väljer effekter...",
       "applying": "Ansöker...",
@@ -2589,7 +2869,7 @@
         "timeLimit": "Timeout +{{percent}}%{{suffix}}",
         "respawnWait": "Väntetid för monsterframträdanden -{{percent}}%{{suffix}}",
         "monsterDwell": "Monstervistelsetid +{{percent}}%{{suffix}}",
-        "hiddenScan": "[Hidden Baduk] Skanna objekt +{{value}}{{suffix}}",
+        "hiddenScan": "[Dold Baduk] Skanna objekt +{{value}}{{suffix}}",
         "baseStartScore": "[Bas Baduk] +{{value}}poäng{{suffix}} vid start",
         "classicStartScore": "[Classic Baduk] +{{value}}poäng{{suffix}} vid start",
         "missile": "[Missile Go] Missilobjekt +1 (kan inte förbättras)",
@@ -2619,16 +2899,16 @@
       "stageListTitle": "{{classLabel}} steg",
       "rewardsTable": "belöningstabell",
       "rewardsTableTitle": "Steg tydlig belöningstabell",
-      "rewardsTableAria": "Tiered belöningar",
+      "rewardsTableAria": "Nivåbelöningar",
       "openRewardsTableAria": "Öppna scenen tydlig belöningstabell",
       "classStageClear": "{{classLabel}} Stage Clear",
       "classBarRewardClaimed": "Kvitto färdigt",
       "classBarRewardClaim": "Ta emot belöning",
-      "classBarRewardNeedClear": "Kräver {{milestone}} etappfrigång",
-      "classBarRewardAria": "{{milstolpe}} poängbelöningar",
+      "classBarRewardNeedClear": "Kräver {{milestone}} frigång",
+      "classBarRewardAria": "{{milestone}}poängbelöning",
       "cleared": "Rensa klar",
-      "enterStage": "Inträde ⚡{{cost}}",
-      "enterStageTitle": "Entry/Action Power {{cost}}",
+      "enterStage": "Utmaning ⚡{{cost}}",
+      "enterStageTitle": "Utmaningsåtgärd {{cost}}",
       "locked": "låst",
       "unlockRequired": "Kräver {{stageId}}",
       "claimAll": "Ta emot i bulk ({{count}})",
@@ -2715,7 +2995,7 @@
     "viewAll": "Se alla",
     "totalRecord": "totalt rekord",
     "totalRecordCompact": "{{wins}}Vinster{{losses}}Förluster {{winRate}} %",
-    "totalRecordFull": "Totalt rekord: {{wins}} vinster {{losses}} förluster ({{winRate}}%)",
+    "totalRecordFull": "Totalt rekord: {{vinster}} vinster {{förluster}} förluster ({{winRate}}%)",
     "winShort": "vinna",
     "loseShort": "grupp",
     "winRate": "oddsen att vinna",
@@ -2740,13 +3020,13 @@
     "abilityRequired": "Summan av förmågor {{total}}+",
     "intro10Required": "Kräver clearing introduktionsnivå 10",
     "intro20Required": "Kräver genomgång av introduktionsnivå 20",
-    "goSchool": "Baduk Academy",
+    "goSchool": "Baduk akademi",
     "challengeTower": "Utmaningens torn",
     "pvpArena": "PVP Arena",
     "aiArena": "AI-match",
     "detailedStats": {
       "diamondsAria": "Diamant {{amount}}",
-      "pvpTitle": "Detaljerade rekord för PVP Stadium",
+      "pvpTitle": "PVP Stadium detaljerade rekord",
       "strategicTitle": "Strategi Go Detailed Records",
       "playfulTitle": "Spela Baduk Detailed Records",
       "strategicAll": "Strategi Baduk Alla",
@@ -2762,7 +3042,7 @@
       "tabStrategic": "strategi",
       "tabPlayful": "spela",
       "tabPair": "par",
-      "panelAria": "Detaljerade rekord för PVP Stadium",
+      "panelAria": "PVP Stadium detaljerade rekord",
       "resetAll": "Full återställning",
       "resetBtn": "återställa",
       "totalShort": "total",
@@ -2781,7 +3061,7 @@
     "currentFloor": "nuvarande våning",
     "timeRemaining": "tid kvar",
     "currentRank": "nuvarande ranking",
-    "floorUnit": "{{floor}} våning",
+    "floorUnit": "{{floor}}våning",
     "rankUnit": "{{rang}}",
     "strategicAiRecord": "Strategi AI-rekord",
     "playfulAiRecord": "Spela AI-rekord",
@@ -2794,7 +3074,7 @@
     "effects": "effekt",
     "editProfile": "Redigera profil",
     "mbtiUnset": "Inte inställt",
-    "mbtiTitle": "MBTI: {{värde}}",
+    "mbtiTitle": "MBTI: {{value}}",
     "mbtiUnsetTitle": "MBTI: Inte inställt",
     "guildEnter": "Guild inträde",
     "guildHome": "Se guild hem",
@@ -2920,7 +3200,7 @@
       "sanctionReasons": {
         "profanity": "Svordomar/förtal",
         "spam": "Bakgrund/Spam",
-        "cheat": "Misstänkt olagligt program",
+        "cheat": "misstänkt olagligt program",
         "profile": "Olämpligt smeknamn/profil",
         "other": "etc"
       },
@@ -2951,7 +3231,7 @@
       "avatarSelect": "Välj din avatar",
       "tierRequired": "Föregående säsong {{tier}} nivå krävs",
       "levelSumRequired": "Kräver nivåsumma {{level}}",
-      "goldPrice": "{{amount}} Guld",
+      "goldPrice": "{{amount}} guld",
       "diamondPrice": "{{amount}} diamant",
       "borderPurchaseConfirm": "Vill du köpa \"{{name}}\"-kanten för {{price}}?",
       "borderPurchaseHint": "Klicka för att köpa: {{description}}",
@@ -2964,7 +3244,7 @@
       "changeCost": "kostnad för förändring",
       "ownedDiamonds": "håller diamant",
       "mbtiWhatTitle": "Vad är MBTI?",
-      "mbtiWhatDesc": "Myers-Briggs Type Indicator (MBTI) är ett verktyg för att förstå personlighetstyp baserat på en individs preferenser. Det kan hjälpa dig att förstå dig själv bättre och förbättra dina relationer med andra.",
+      "mbtiWhatDesc": "MBTI (Myers-Briggs Type Indicator) är ett verktyg för att förstå personlighetstyp baserat på en individs preferenser. Det kan hjälpa dig att förstå dig själv bättre och förbättra dina relationer med andra.",
       "goMbtiTitle": "Baduk MBTI",
       "goMbtiDesc": "Baduk MBTI är en analys av din baduk-stil med MBTI-koncept. Varje typ har sin egen unika spelstil, så du kan hitta en stil som passar dig.",
       "mbtiFirstReward": "Vid den första installationen kommer du att få 100 diamanter.",
@@ -3051,6 +3331,8 @@
     "mannerRank": {
       "title": "Information om sättnivå",
       "grade": "sätt klass",
+      "effectsByGrade": "Effekt efter betyg",
+      "currentBadge": "i dag",
       "rangeHint": "Dessa är förmåner och påföljder som tillämpas för varje poängintervall.",
       "allStatsPlus10": "Alla förmågor +10",
       "disassembleJackpot": "Sannolikhet för nedbrytning av jackpott +20 %",
@@ -3065,7 +3347,19 @@
       "scoreAbove": "{{min}} poäng eller mer",
       "scoreRange": "{{min}}~{{max}} poäng",
       "zeroScore": "0 poäng",
-      "mannerPointsTitle": "{{score}}poäng ({{rank}})"
+      "mannerPointsTitle": "{{score}}poäng ({{rank}})",
+      "grades": {
+        "worst": "värst",
+        "veryBad": "mycket dåligt",
+        "bad": "dålig",
+        "caution": "försiktighet",
+        "normal": "allmänt",
+        "good": "väl",
+        "veryGood": "mycket bra",
+        "dignified": "värdighet",
+        "pro": "pro",
+        "master": "bemästra"
+      }
     },
     "statAllocation": {
       "resetFailAlert": "Villkoren för återställning av förmågan uppfylldes inte. Du har slut på guld eller har överskridit antalet dagliga återställningar.",
@@ -3077,8 +3371,8 @@
       "increaseOne": "öka med 1",
       "bonus": "bonus",
       "resetBtn": "återställa",
-      "allocateTitle": "Förmåga poängfördelning",
-      "allocateAria": "{{stat}} distribution",
+      "allocateTitle": "Fördelning av förmågaspoäng",
+      "allocateAria": "{{stat}} Distribution",
       "statLabel": "förmåga",
       "remainingShort": "återstoden",
       "allocateToStat": "Distribution till denna förmåga"
@@ -3114,13 +3408,13 @@
       "enfpDesc": "Passionerad, fantasifull, sällskaplig",
       "entpDesc": "Original, kunnig, debattör",
       "estjDesc": "Systematisk, realistisk, ledarskap",
-      "esfjDesc": "Sällskaplig, samarbetsvillig, hänsynsfull",
+      "esfjDesc": "Sällskaplig, samarbetsvillig, omtänksam",
       "enfjDesc": "Karisma, inspiration, ledarskap",
       "entjDesc": "Beslutsamhet, ledarskap, strateg",
-      "mbtiExplain1": "Myers-Briggs Type Indicator (MBTI) är ett verktyg för att förstå personlighetstyp baserat på en individs preferenser.",
+      "mbtiExplain1": "MBTI (Myers-Briggs Type Indicator) är ett verktyg för att förstå personlighetstyp baserat på en individs preferenser.",
       "mbtiExplain2": "Det kan hjälpa dig att förstå dig själv bättre och förbättra dina relationer med andra.",
       "setupMbti": "Konfigurera MBTI",
-      "questionProgress": "Fråga {{nuvarande}} / {{totalt}} · Att samla in svar för varje axel bestämmer typen",
+      "questionProgress": "Fråga {{current}} / {{totalt}} · Att samla in svar för varje axel avgör typen",
       "yourMbtiIs": "Din MBTI är {{mbti}}!",
       "setupAgain": "återställa",
       "myMbtiLabel": "Min MBTI:"
@@ -3131,7 +3425,7 @@
       "opponentGoStyle": "Motståndarens baduk-tendens",
       "strengths": "styrka",
       "weaknesses": "svaghet",
-      "setMbtiHint": "Genom att ställa in din MBTI kan du se kompatibilitetsanalysen med din partner.",
+      "setMbtiHint": "Om du ställer in MBTI kan du se kompatibilitetsanalysen med din partner.",
       "title": "MBTI-jämförelse",
       "notSetBoth": "Ingen av parterna har en MBTI-uppsättning.",
       "opponentNotSet": "Den andra partens MBTI har inte satts.",
@@ -3184,7 +3478,7 @@
         },
         "ESTP": {
           "style": "aktiv aktionsgrupp",
-          "playStyle": "De attackerar aggressivt och tycker om vattenstrider. Gör spontana och djärva rörelser."
+          "playStyle": "De attackerar aggressivt och tycker om vattenstrider. Gör spontana och djärva drag."
         },
         "ESFP": {
           "style": "aktiva sensoriska vågor",
@@ -3237,7 +3531,7 @@
       "simE": "Båda har en proaktiv etik",
       "simI": "Båda har en försiktig etos",
       "diffSReal": "Du är en praktisk person, din motståndare är en intuitiv person.",
-      "diffNReal": "Du är intuitiv, din motståndare är praktisk.",
+      "diffNReal": "Du är en intuitionist, din motståndare är en praktisk person.",
       "simS": "Båda är utilitaristiska",
       "simN": "båda är intuitionsdrivna",
       "diffTLogic": "Du är en logisk person, din partner är en känslomänniska.",
@@ -3254,7 +3548,7 @@
       "warnJ": "Motståndarna är starka på att planera och avsluta. Undvik att dras in i ett långt spel.",
       "stratI": "Motståndarens etos är försiktigt. Komplicera spelet genom att attackera aggressivt.",
       "stratS": "Motståndaren är bruksorienterad. Fånga trenden med ovanliga rörelser.",
-      "stratF": "Den andra personen är känslomässig. Tryck med logiska siffror.",
+      "stratF": "Den andra personen är känslomässig. Tryck i logiska siffror.",
       "stratP": "Motståndaren är en flexibel etos. Planera det och följ tills det är klart."
     },
     "contentUnlock": {
@@ -3272,7 +3566,7 @@
     "homeBoard": {
       "editPost": "Redigera inlägg",
       "newPost": "Skapa ett nytt inlägg",
-      "enterTitleContent": "Ange titel och innehåll.",
+      "enterTitleContent": "Vänligen ange titel och innehåll.",
       "deleteConfirm": "Är du säker på att du vill ta bort det här inlägget?",
       "noticeBoard": "anslagstavla",
       "noticeBoardShort": "anslagstavla",
@@ -3284,7 +3578,7 @@
       "editedAt": "(Redigerad: {{date}})"
     },
     "equipmentDetail": {
-      "inventoryUse": "Kan användas i väska.",
+      "inventoryUse": "Du kan använda den i din väska.",
       "noMaterialUse": "Detta material används för närvarande inte för att förbättra någon utrustning.",
       "obtainedQty": "Förvärvad kvantitet",
       "ownedQty": "Kvantitet som hålls",
@@ -3361,7 +3655,7 @@
       "noPotions": "Det finns inga uthållighetsåterställare i din väska.",
       "ownedCount": "Äger: {{count}}",
       "useButton": "Använda",
-      "diamondRecharge": "Ladda om dina actionfärdigheter med diamanter",
+      "diamondRecharge": "Ladda upp dina actionfärdigheter med diamanter",
       "exceedMaxHint": "Även om maxgränsen överskrids debiteras den omedelbart.",
       "diamondAlt": "diamant"
     },
@@ -3451,7 +3745,7 @@
         "name": "Funktion VIP",
         "benefits": {
           "0": "Maximal aktionskraft +20",
-          "1": "Åtgärdsåterställningshastigheten ökade med 50 %",
+          "1": "Återhämtningshastigheten ökade med 50 %",
           "2": "Åtgärd Restoration III ges dagligen",
           "3": "Smedserfarenhet får +50 %",
           "4": "Framgångsfrekvens för utrustningsförbättring +10 %",
@@ -3459,8 +3753,8 @@
           "6": "Demontering av utrustning jackpot sannolikhet +10%",
           "7": "Materialnedbrytning/syntes jackpotsannolikhet +10 %",
           "8": "Bytesproduktregistrering möjlig (3 artiklar)",
-          "9": "Pet VIP-träningsplats öppen",
-          "10": "Pet VIP kläckningsfack öppen",
+          "9": "Pet VIP träningsplats öppen",
+          "10": "Pet VIP kläckning lucka öppen",
           "11": "Mästerskapsmatch SKIP-funktion"
         }
       },
@@ -3481,21 +3775,21 @@
       "remove_ads": "ta bort annonser"
     },
     "packageBenefits": {
-      "diamond_daily_50_350": "50 diamanter betalas per post varje dag (totalt 350 diamanter)",
-      "diamond_daily_50_750": "50 diamanter betalas per post varje dag (totalt 750 diamanter)",
-      "diamond_daily_50_1500": "50 diamanter betalas per post varje dag (totalt 1500 diamanter)",
-      "diamond_instant_100": "100 diamanter betalas omedelbart",
-      "diamond_instant_250": "Omedelbar betalning av 250 diamanter",
-      "diamond_instant_750": "Omedelbar betalning av 750 diamanter",
-      "equip_pkg1_boxes": "1 utrustningslåda V",
-      "equip_pkg1_mat": "1 materiallåda VI",
+      "diamond_daily_50_350": "100 diamanter betalas med post varje dag (totalt 700 diamanter)",
+      "diamond_daily_50_750": "100 diamanter betalas med post varje dag (totalt 1500 diamanter)",
+      "diamond_daily_50_1500": "100 diamanter betalas med post varje dag (totalt 3000 diamanter)",
+      "diamond_instant_100": "Omedelbar betalning av 200 diamanter",
+      "diamond_instant_250": "Omedelbar betalning av 500 diamanter",
+      "diamond_instant_750": "Omedelbar betalning av 1000 diamanter",
+      "equip_pkg1_boxes": "3 utrustningslådor V",
+      "equip_pkg1_mat": "3 materialbox VI",
       "equip_pkg1_bonus": "+ \"Epic Equipment\" bekräftad betalning",
-      "equip_pkg2_boxes": "2 utrustningslådor V",
-      "equip_pkg2_mat": "2 materialbox VI",
+      "equip_pkg2_boxes": "5 utrustningslådor",
+      "equip_pkg2_mat": "5 materialbox VI",
       "equip_pkg2_bonus": "+ \"Legendary Equipment\" garanterad betalning",
       "equip_pkg3_boxes": "2 Utrustningslåda VI",
-      "equip_pkg3_mat": "5 materialbox VI",
-      "equip_pkg3_bonus": "+ \"Mythic Equipment\" bekräftade betalningen",
+      "equip_pkg3_mat": "10 materialbox VI",
+      "equip_pkg3_bonus": "+ “Mythic Equipment” bekräftade betalningen",
       "remove_ads_1": "Dölj banners och helsidesannonser i spelet som lobby och matchmaking",
       "remove_ads_2": "Få samma belöningar utan butiksbelönade annonser (bibehåll daglig gräns)"
     },
@@ -3558,14 +3852,14 @@
       },
       "option_type_change_ticket": {
         "name": "Rätt att ändra alternativtyp",
-        "description": "Detta är ett objekt som kan ändra ett av utrustningens huvudalternativ, underalternativ eller specialtillval till en annan typ av tillval."
+        "description": "Det här alternativet låter dig ändra ett av utrustningens huvudalternativ, underalternativ eller specialtillval till en annan typ av tillval."
       },
       "option_value_change_ticket": {
         "name": "Alternativ värde ändra biljett",
         "description": "Detta är en artikel som kan ändra värdet på en av utrustningens underalternativ eller specialtillval."
       },
       "mythic_option_change_ticket": {
-        "name": "Särskilt alternativ ändra biljett",
+        "name": "Specialalternativ byte biljett",
         "description": "Detta objekt låter dig ändra specialalternativen för mytisk eller transcendental utrustning till andra specialalternativ."
       },
       "condition_potion_small": {
@@ -3604,7 +3898,7 @@
     "claimExpired": "Lösentiden har gått ut och du kan inte få ersättning. Du kan radera detta mail om det behövs.",
     "actionPoints": "{{count}} Action Power",
     "guildCoins": "{{count}} skråmynt",
-    "gold": "{{amount}} Guld",
+    "gold": "{{amount}} guld",
     "diamonds": "{{amount}} diamant",
     "packageLine": "Paket {{name}} × {{quantity}}",
     "delete": "radera",
@@ -3644,7 +3938,7 @@
     },
     "activity": {
       "daily": "Dagens prestation",
-      "weekly": "Veckoaktivitet",
+      "weekly": "veckoaktivitet",
       "monthly": "Månadsaktivitet",
       "points": "Aktivitet +{{poäng}}"
     },
@@ -3671,7 +3965,7 @@
       "claimedTitle": "Kvitto färdigt",
       "claimRewardTitle": "Ta emot belöning",
       "activityRequired": "{{milestone}} aktivitet krävs också",
-      "activityReward": "{{milestone}} Aktivitetsbelöning",
+      "activityReward": "{{milestone}} Aktivitetsbelöningar",
       "activityRewardAp": "{{milestone}} Aktivitetsbelöning Åtgärdsåterställning"
     },
     "rewards": {
@@ -3679,9 +3973,9 @@
     },
     "empty": "Det finns inga tillgängliga uppdrag.",
     "close": "nära",
-    "actionPointRecovery": "Action recovery potion (+{{amount}})",
+    "actionPointRecovery": "Åtgärdsåterställningsdryck (+{{amount}})",
     "titleAliases": {
-      "championshipComplete": "Mästerskapsmatchen avslutad",
+      "championshipComplete": "Mästerskapsmatchen avklarad",
       "dailyActivity100x3": "Få 100 belöningar för daglig uppdragsaktivitet (3 gånger)",
       "weeklyActivity100x2": "Få 100 belöningar för veckouppdragsaktivitet (2 gånger)"
     }
@@ -3744,12 +4038,12 @@
     "detailClick": "{{name}} ({{level}}) - Klicka för att se detaljer",
     "alerts": {
       "insufficientDiamonds": "Det finns inte tillräckligt med diamanter.",
-      "equipLevelInsufficient": "Slitagenivån är otillräcklig. (Obligatoriskt: {{required}}, Ström: Lv.{{current}})",
+      "equipLevelInsufficient": "Slitagenivån är otillräcklig. (Obligatoriskt: {{required}}, nuvarande: Lv.{{current}})",
       "insufficientUnbindTickets": "Det saknas rätt att häva tillskrivning."
     },
     "bindModal": {
       "line1": "Utrustningen är bunden och kan inte säljas på börsen.",
-      "line2": "För att sälja på börsen måste du använda rätten att släppa tillskrivningen.",
+      "line2": "För att sälja på börsen måste du använda avbindningsrätten.",
       "unbindDesc": "Om du låser upp utrustningen blir det möjligt att sälja den på börsen."
     },
     "presetSavedTitle": "Spara förinställning",
@@ -3785,7 +4079,7 @@
       "consumableDetail": "Förbrukningsdetaljer",
       "materialDetail": "Materialdetaljer",
       "itemDetail": "Artikeldetaljer",
-      "cannotRefine": "Kan inte smältas",
+      "cannotRefine": "kan inte smältas",
       "goRefine": "Gå till fliken Forge Smelting"
     },
     "purchase": {
@@ -3793,8 +4087,8 @@
       "consumable": "förbrukningsartiklar",
       "material": "ingrediens",
       "noMaterialUse": "Detta material används för närvarande inte för att förbättra någon utrustning.",
-      "inventoryUse": "Kan användas i väska.",
-      "characterGrowth": "Den används för karaktärstillväxt, förstärkning, förfining etc.",
+      "inventoryUse": "Du kan använda den i din väska.",
+      "characterGrowth": "Det används för karaktärstillväxt, förstärkning, förfining etc.",
       "selectQuantity": "Välj kvantitet",
       "productDetailAria": "Köp produktinformation",
       "decreaseAria": "Minska ett värde",
@@ -3834,8 +4128,8 @@
       "sellAmount": "Försäljningsmängd",
       "unitPrice": "Försäljningspris per gäst",
       "deleteOnly": "0 (endast radera)",
-      "goldUnit": "{{amount}} Guld",
-      "totalReceive": "totalt guld som ska erhållas",
+      "goldUnit": "{{amount}} guld",
+      "totalReceive": "totalt guld att erhållas",
       "deleteCheckout": "Betalning (Ta bort)",
       "noGoldHint": "Guld kommer inte in, och endast det valda beloppet försvinner.",
       "bulkSellTitle": "Sälj i bulk",
@@ -3851,7 +4145,7 @@
       "body": "När den har bekräftats försvinner den från din väska och du får guld motsvarande beloppet nedan.",
       "ownedLabel": "besittning",
       "deleteOnlyFooter": "Guld ökar inte, bara föremål försvinner.",
-      "confirmSell": "Försäljningen bekräftad",
+      "confirmSell": "Försäljning bekräftad",
       "enhanceStars": "Ganghwa {{stjärnor}} slott",
       "ownedQty": "{{räkna}}",
       "materialQty": "{{räkna}}",
@@ -3878,7 +4172,7 @@
       "confirm": "kontrollera"
     },
     "claimAll": {
-      "title": "Masskvittoresultat",
+      "title": "Resultat av masskvittot",
       "allClaimed": "Du har fått alla belöningar nedan!"
     },
     "rewardSummary": {
@@ -3900,7 +4194,7 @@
       "upgradeTitle": "syntetiska resultat",
       "downgradeTitle": "Nedbrytningsresultat",
       "jackpotHeading": "🎉 Fantastiskt! 🎉",
-      "jackpotBody": "Fick dubbla material!",
+      "jackpotBody": "Fick dubbla ingredienserna!",
       "convertedBody": "Jag konverterade objektet som visas nedan.",
       "quantityUnit": "hund"
     },
@@ -3962,7 +4256,7 @@
       "badgeEgg": "ägg",
       "slotBadge": "område",
       "setBonusEffect": "Ställ in bonuseffekt",
-      "randomPartial": "(Delvis slumpmässig tilldelning)",
+      "randomPartial": "(Delvis slumpmässig uppgift)",
       "combatSub": "Underalternativ (slumpmässiga {{count}} objekt)",
       "specialSub": "Specialalternativ (slumpmässiga {{count}} stycken)",
       "mainEnhanceSteps": "Huvudalternativ förstärkning skede",
@@ -3991,11 +4285,11 @@
       "hatchDisposition": "Tendens till kläckning",
       "hatchSpecialization": "Specialisering på kläckning",
       "usageLabel": "Var att använda",
-      "obtainLabel": "Var kan man få tag på det",
+      "obtainLabel": "Var kan man få tag i det",
       "noMaterialUse": "Detta material används för närvarande inte för att förbättra någon utrustning.",
       "materialTab": "ingrediens",
       "consumableTab": "förbrukningsartiklar",
-      "inventoryHint": "Kan användas i väska.",
+      "inventoryHint": "Du kan använda den i din väska.",
       "noGuide": "Det finns inga instruktioner.",
       "tier1": "väska",
       "tier2": "stenar",
@@ -4012,7 +4306,18 @@
       "noTier": "Ingen nivå"
     },
     "tierInfo": {
-      "champion": "Minsta poäng på 3500 eller högre och begränsat till topp 100 personer",
+      "names": {
+        "champion": "utmanare",
+        "master": "bemästra",
+        "diamond": "diamant",
+        "platinum": "platina",
+        "gold": "guld",
+        "silver": "silver",
+        "bronze": "brons",
+        "iron": "Nybörjare",
+        "unranked": "gro"
+      },
+      "champion": "Minsta poäng på 3500 eller högre & begränsad till topp 100 personer",
       "master": "Minsta poäng på 3000 eller högre",
       "diamond": "Minsta poäng på 2400 eller högre",
       "platinum": "Minsta poäng på 2000 eller högre",
@@ -4049,7 +4354,555 @@
       "diamondsAlt": "diamant",
       "stayLine": "återstående: {{ranges}}",
       "demoteLine": "Nedflyttning: {{ranges}}",
-      "rankHintShort": "Nivå baserad på rankingtävling (se belöningstabellen nedan för villkor för befordran, kvarhållande och degradering)"
+      "rankHintShort": "Nivå baserad på rankingtävling (se belöningstabellen nedan för befordran, behålla och degraderingsvillkor)"
+    },
+    "items": {
+      "box_diabox1": {
+        "name": "Diamantpaket I",
+        "description": "Skaffa 1 till 20 diamanter"
+      },
+      "box_diabox2": {
+        "name": "Diamantpaket II",
+        "description": "Skaffa 10 till 30 diamanter"
+      },
+      "box_diabox3": {
+        "name": "Diamantpaket III",
+        "description": "Få 20 till 50 diamanter"
+      },
+      "box_diabox4": {
+        "name": "Diamantpaket IV",
+        "description": "Få 30 till 100 diamanter"
+      },
+      "box_goldbox1": {
+        "name": "Guldpaket I",
+        "description": "Tjäna 10 till 500 guld"
+      },
+      "box_goldbox2": {
+        "name": "Guldpaket II",
+        "description": "Tjäna 100 till 1 000 guld"
+      },
+      "box_goldbox3": {
+        "name": "Guldpaket III",
+        "description": "Tjäna 500 till 3 000 guld"
+      },
+      "box_goldbox4": {
+        "name": "Guldpaket IV",
+        "description": "Tjäna 1 000 till 10 000 guld"
+      },
+      "btn_addturn": {
+        "name": "Lägg till Turn",
+        "description": "Detta är ett extra turföremål som kan användas i Tower of Challenge."
+      },
+      "btn_hidden": {
+        "name": "Dold",
+        "description": "Detta är ett gömt föremål som kan användas i Tower of Challenge."
+      },
+      "btn_missile": {
+        "name": "missil",
+        "description": "Detta är ett missilobjekt som kan användas i Tower of Challenge."
+      },
+      "btn_reflesh": {
+        "name": "Byte av layout",
+        "description": "Detta är en placeringsbyte som kan användas i Tower of Challenge."
+      },
+      "btn_scan": {
+        "name": "avsöka",
+        "description": "Detta är ett skanningsobjekt som kan användas i Tower of Challenge."
+      },
+      "eq_board1": {
+        "name": "groddruta",
+        "description": "Detta är ett lätt schackbräde i paulownia trä som är bra för nybörjare att använda."
+      },
+      "eq_board2": {
+        "name": "lönn schackbräde",
+        "description": "Detta är en högkvalitativ schackbräde gjord av muskotträd med vackra korn."
+      },
+      "eq_board3": {
+        "name": "korall schackbräda",
+        "description": "Den är gjord av mystiskt trä av högsta kvalitet, så ljudet av stenar som placeras är rent."
+      },
+      "eq_board4": {
+        "name": "ebenholts schackbräda",
+        "description": "Det är en rutbräda av vulkansten polerad med stor passion."
+      },
+      "eq_board5": {
+        "name": "Yongmun schackbräde",
+        "description": "Detta är en legendarisk schackbräde gjord av Geumgang-furu som har funnits i tusen år."
+      },
+      "eq_board7": {
+        "name": "Shinryong schackbräde",
+        "description": "Det är en rutbräda av transcendens med konstellationernas banor ingraverade på den, vilket öppnar vägen till seger med varje drag."
+      },
+      "eq_bottom1": {
+        "name": "Vårfärgade uniformsbottnar",
+        "description": "Dessa träningsbyxor är bekväma för rörelse."
+      },
+      "eq_bottom2": {
+        "name": "Sommarfärgade uniformsbottnar",
+        "description": "Dessa byxor är gjorda av slitstarkt material som inte slits lätt."
+      },
+      "eq_bottom3": {
+        "name": "Höstfärgade uniformsbottnar",
+        "description": "Dessa är högkvalitativa sidenbyxor som är ihopkopplade med en dopo."
+      },
+      "eq_bottom4": {
+        "name": "Vinterfärgade uniformsbottnar",
+        "description": "Det här är svärdsmannens byxor som inte stör någon rörelse."
+      },
+      "eq_bottom5": {
+        "name": "Yongbi Dobok Bottom",
+        "description": "Den är gjord av silke av högsta kvalitet som passar bra till drakrocken."
+      },
+      "eq_bottom7": {
+        "name": "Shinryong uniformsbottnar",
+        "description": "Dessa är transcendentala gi-byxor genomsyrade av viljan från en gudomlig drake som hindrar dig från att tappa balansen även i en storm."
+      },
+      "eq_fan1": {
+        "name": "blå vindfläkt",
+        "description": "Detta är en lätt och praktisk bambufläkt."
+      },
+      "eq_fan2": {
+        "name": "eungyeol vindfläkt",
+        "description": "Den är gjord av mjukt siden och ligger bra i handen."
+      },
+      "eq_fan3": {
+        "name": "flamma vindfläkt",
+        "description": "Detta är en mästarfläkt som sprider sig graciöst som vingarna på en kran."
+      },
+      "eq_fan4": {
+        "name": "frost vindfläkt",
+        "description": "Den är gjord av kraftigt stål och kan användas som ett vapen i en nödsituation."
+      },
+      "eq_fan5": {
+        "name": "yongbi vindfläkt",
+        "description": "En legendarisk fläkt gjord av hundra vita fjädrar."
+      },
+      "eq_fan7": {
+        "name": "Shinryong vindfläkt",
+        "description": "Det är ett fan av transcendens som innehåller andedräkten från den gudomliga draken som delar himlen och vänder slagfältet."
+      },
+      "eq_stone1": {
+        "name": "svartvit groddsten",
+        "description": "Dessa är lätta och billiga badukstenar av plast."
+      },
+      "eq_stone2": {
+        "name": "silver sten",
+        "description": "Det är en Go-sten gjord av släta småsten som plockats upp från floden."
+      },
+      "eq_stone3": {
+        "name": "rubinsten",
+        "description": "Den är omsorgsfullt skuren av obsidian som avger ett kallt sken."
+      },
+      "eq_stone4": {
+        "name": "vit jade baduk sten",
+        "description": "Det är en baduksten gjord av safir och vit jade som avger ett strålande ljus."
+      },
+      "eq_stone5": {
+        "name": "Yongan Baduk sten",
+        "description": "Det är en legendarisk baduksten smidd med energin från solen, månen och stjärnorna."
+      },
+      "eq_stone7": {
+        "name": "Shinryong Baduk sten",
+        "description": "Tillverkad genom att smida fragment av Morning Star, det är en transcendent Go-sten som dominerar spelet med ett enda drag."
+      },
+      "eq_stonebox1": {
+        "name": "ljus trätunna",
+        "description": "Det är en lätt och billig Go-låda i plast."
+      },
+      "eq_stonebox2": {
+        "name": "solid bambu fat",
+        "description": "Detta är en Go-låda gjord av jujube-trä med svag doft."
+      },
+      "eq_stonebox3": {
+        "name": "Hongmok Baduktong",
+        "description": "Den är gjord av rosenträ, en vacker röd färg."
+      },
+      "eq_stonebox4": {
+        "name": "ebenholts go box",
+        "description": "Det här är en sällsynt baduklåda gjord av udda trä med konstiga och vackra mönster."
+      },
+      "eq_stonebox5": {
+        "name": "Yongrin Baduktong",
+        "description": "Detta är en Go-låda av högkvalitativ rosenträ med en delikat snidad drake."
+      },
+      "eq_stonebox7": {
+        "name": "Shinryong Baduktong",
+        "description": "Det är en transcendent Go-låda som förseglar energin från det antika slagfältet och lägger till skrämseln för varje sten som tas ut."
+      },
+      "eq_top1": {
+        "name": "Vårfärgad enhetlig topp",
+        "description": "Detta är en bekväm topp som är bra för att koncentrera dig på din träning."
+      },
+      "eq_top2": {
+        "name": "Sommarfärgad uniformstopp",
+        "description": "Det är en tuff gi som inte slits ut även efter lång träning."
+      },
+      "eq_top3": {
+        "name": "Höstfärgad enhetlig topp",
+        "description": "Detta är en forskarvapen med en tyst elegans."
+      },
+      "eq_top4": {
+        "name": "Vinterfärgad uniformstopp",
+        "description": "Detta är en svärdsmans outfit gjord för skarpa strider."
+      },
+      "eq_top5": {
+        "name": "Yongbi Dobok Topp",
+        "description": "Den är broderad med ett drakmönster som symboliserar kejsarens majestät."
+      },
+      "eq_top7": {
+        "name": "Shinryong uniform topp",
+        "description": "Detta är en transcendent enhetlig topp vävd med färgen på den gudomliga drakens fjäll, vilket ger orubbligt fokus."
+      },
+      "mat_materials1": {
+        "name": "Mindre förtrollningssten",
+        "description": "Grundmaterial som används för att förbättra utrustning."
+      },
+      "mat_materials2": {
+        "name": "Mellanarmeringssten",
+        "description": "Ett högkvalitativt material som används för att stärka utrustning."
+      },
+      "mat_materials3": {
+        "name": "Avancerad förtrollningssten",
+        "description": "Material av högsta kvalitet som används för att stärka utrustning."
+      },
+      "mat_materials4": {
+        "name": "Förstärkningssten av högsta kvalitet",
+        "description": "Ett sällsynt material som används för att förstärka utrustning."
+      },
+      "mat_materials5": {
+        "name": "Mystisk förstärkningssten",
+        "description": "Ett gammalt material som används för att stärka utrustning."
+      },
+      "pet_egg": {
+        "name": "Mystiskt ägg",
+        "description": "Skaffa ett slumpmässigt AI-husdjur när det används på kläckeriet."
+      },
+      "pet_soulstone1": {
+        "name": "Grodd Soul Stone",
+        "description": "Detta är ett material som behövs för att uppgradera ett husdjur av normal kvalitet till en avancerad klass. Kan användas från Pet Lv.10 eller högre."
+      },
+      "pet_soulstone2": {
+        "name": "Wave Soul Stone",
+        "description": "Detta material behövs för att höja ett premiumklass husdjur till sällsynt kvalitet. Kan användas från Pet Lv.20 eller högre."
+      },
+      "pet_soulstone3": {
+        "name": "Abyss Soul Stone",
+        "description": "Detta material behövs för att höja ett sällsynt husdjur till episk klass. Kan användas från Pet Lv.30 eller högre."
+      },
+      "pet_soulstone4": {
+        "name": "Flame Soul Stone",
+        "description": "Detta är ett material som behövs för att uppgradera ett Epic-klass husdjur till legendarisk klass. Kan användas från Pet Lv.40 eller högre."
+      },
+      "pet_soulstone5": {
+        "name": "Himmelsk ljus själssten",
+        "description": "Detta material behövs för att uppgradera ett legendariskt husdjur till mytisk klass. Kan användas på Pet Lv.50."
+      },
+      "shop_action_point_10": {
+        "name": "Action recovery potion (+10)",
+        "description": "Jag känner mig motiverad att göra något."
+      },
+      "shop_action_point_20": {
+        "name": "Action recovery potion (+20)",
+        "description": "Jag känner att jag måste göra något."
+      },
+      "shop_action_point_30": {
+        "name": "Action recovery potion (+30)",
+        "description": "Låt oss spela spelet direkt."
+      },
+      "shop_condition_potion_large": {
+        "name": "Tillståndsåterställande medel (stor)",
+        "description": "Ett tillståndsåterställande medel som hjälper dig att framgångsrikt tävla idag."
+      },
+      "shop_condition_potion_medium": {
+        "name": "Tillståndsåterställande medel (medium)",
+        "description": "Ett tillståndsåterställande medel som får ditt huvud att kännas klarare."
+      },
+      "shop_condition_potion_small": {
+        "name": "Tillståndsåterställande medel (liten)",
+        "description": "Tillståndsåterställande medel som lindrar spänningar"
+      },
+      "shop_equipment_box_1": {
+        "name": "Utrustningslåda I",
+        "description": "Skaffa gemensam till sällsynt utrustning"
+      },
+      "shop_equipment_box_2": {
+        "name": "Utrustningslåda II",
+        "description": "Skaffa utrustning av normal till episk kvalitet"
+      },
+      "shop_equipment_box_3": {
+        "name": "Utrustningslåda III",
+        "description": "Skaffa avancerad till legendarisk utrustning"
+      },
+      "shop_equipment_box_4": {
+        "name": "Utrustningslåda IV",
+        "description": "Skaffa sällsynt till mytisk utrustning"
+      },
+      "shop_equipment_box_5": {
+        "name": "Utrustningslåda V",
+        "description": "Skaffa episk till mytisk utrustning"
+      },
+      "shop_equipment_box_6": {
+        "name": "Utrustningslåda VI",
+        "description": "Skaffa legendarisk till mytisk utrustning"
+      },
+      "shop_equipment_unbind_ticket": {
+        "name": "Rätt att häva tillskrivning",
+        "description": "Ändra statusen för bunden utrustning till säljbar."
+      },
+      "shop_material_box_1": {
+        "name": "Materiallåda I",
+        "description": "Skaffa 5 låga till höga förbättringsstenar"
+      },
+      "shop_material_box_2": {
+        "name": "Materiallåda II",
+        "description": "Skaffa 5 låga till höga förbättringsstenar"
+      },
+      "shop_material_box_3": {
+        "name": "Materiallåda III",
+        "description": "Skaffa 5 låga till höga förbättringsstenar"
+      },
+      "shop_material_box_4": {
+        "name": "Materiallåda IV",
+        "description": "Skaffa 5 mellanliggande till högsta nivå förstärkningsstenar"
+      },
+      "shop_material_box_5": {
+        "name": "Materiallåda V",
+        "description": "Avancerat ~ Skaffa 5 mystiska förbättringsstenar"
+      },
+      "shop_material_box_6": {
+        "name": "Materiallåda VI",
+        "description": "Avancerat ~ Skaffa 5 mystiska förbättringsstenar"
+      },
+      "shop_mythic_option_change_ticket": {
+        "name": "Specialalternativ byte biljett",
+        "description": "Detta objekt låter dig ändra specialalternativen för mytisk eller transcendental utrustning till andra specialalternativ."
+      },
+      "shop_option_type_change_ticket": {
+        "name": "Rätt att ändra alternativtyp",
+        "description": "Detta är ett objekt som kan ändra ett av utrustningens huvudalternativ, underalternativ eller specialtillval till en annan typ av tillval."
+      },
+      "shop_option_value_change_ticket": {
+        "name": "Alternativ värde ändra biljett",
+        "description": "Detta är en artikel som kan ändra värdet på en av utrustningens underalternativ eller specialtillval."
+      },
+      "shop_refinement_charm": {
+        "name": "Smältningens amulett",
+        "description": "Lägg till 1 extra raffineringsräkning för utrustning som inte kan smältas"
+      },
+      "use_allowtrade": {
+        "name": "handelsregistreringsrättigheter",
+        "description": "Detta är tillåtelse att ytterligare registrera föremål för försäljning på börsen."
+      }
+    },
+    "stats": {
+      "mythic": {
+        "GuildBossRewardGradeUp": {
+          "name": "Guild Boss Battle Belöning upp",
+          "abbrev": "Boss Reward-betyg",
+          "short": "Guild Boss Reward Betyg +1",
+          "description": "Belöningsnivån ökar med en nivå från resultatet av guildbossstriden. (Maximum SSS) Detta är Myth Special Alternativ nr 1 och kan tillämpas samtidigt som Transcendence No. 1 \"Boss Reward Added.\""
+        },
+        "GuildBossExtraDamage5": {
+          "name": "Ytterligare skada under guild boss-strider: 5%",
+          "abbrev": "Boss skada 5 %",
+          "short": "Guild Boss Skada +5 %",
+          "description": "När du attackerar en guildboss, tillförs ytterligare 5 % slutskada. (Kan inte överlappas med specialalternativ för transcendens)"
+        },
+        "TowerApMinus1Floors1to35": {
+          "name": "Tower of Challenge (1:a till 35:e våningen) Nödvändig åtgärd -1",
+          "abbrev": "Top AP (1~35)",
+          "short": "Torn 1~35:e våningen AP -1",
+          "description": "Åtgärden som krävs för att gå in på 1:a till 35:e våningen i Tower of Challenge reduceras med 1. (Kan inte överlappas med specialalternativ för transcendens)"
+        },
+        "ApRegenMinus30s": {
+          "name": "Åtgärdstid -30 sekunder",
+          "abbrev": "AP-återställning -30s",
+          "short": "Åtgärdsåterställning -30 sekunder",
+          "description": "Tiden det tar att återställa 1 åtgärdspunkt reduceras med 30 sekunder. (Kan inte överlappas med specialalternativ för transcendens)"
+        },
+        "AdventureScanPlus1": {
+          "name": "Adventure Scan +1",
+          "abbrev": "Adventure Scan+1",
+          "short": "Adventure Scan +1",
+          "description": "I början av äventyret (monsterstrid) får du ytterligare ett skanningsobjekt. (Kan inte överlappas med specialalternativ för transcendens)"
+        },
+        "AdventureMissilePlus1": {
+          "name": "Äventyrsmissil +1",
+          "abbrev": "Äventyrsmissil+1",
+          "short": "Äventyrsmissil +1",
+          "description": "Ett extra missilobjekt tillhandahålls i början av äventyret. (Kan inte överlappas med specialalternativ för transcendens)"
+        },
+        "AdventureGoldBonus15": {
+          "name": "Äventyrsguldbelöning +15 %",
+          "abbrev": "Äventyrsguld 15 %",
+          "short": "Äventyrsguld +15 %",
+          "description": "Guld som tjänas när man vinner ett äventyr ökar med 15 %. (Separat kombinerat med uppslagsverk och förståelsebonus) (Kan inte överlappas med specialalternativ för transcendens)"
+        },
+        "GuildBossExtraRewardDuplicate": {
+          "name": "Guild boss battle belöning tillagd",
+          "abbrev": "Boss belöning tillagd",
+          "short": "1 typ av guild boss belöningskopia (ackumulerande)",
+          "description": "Du kommer att få en av belöningarna som ett resultat av guild boss-striden ännu en gång. Om det här alternativet har flera rader (flera utrustningsdelar) på transcendental utrustning kommer det att tillämpas upprepade gånger. Kan appliceras i kombination med andra specialalternativ. Detta är Transcendence Special Option nr 1, och kan tillämpas samtidigt med Myt nr 1 \"Boss Reward Grade\"."
+        },
+        "GuildBossExtraDamage10": {
+          "name": "Ytterligare skada i guild boss-strider: 10%",
+          "abbrev": "Boss skada 10%",
+          "short": "Guild Boss Skada +10 %",
+          "description": "När du attackerar en guildboss tillförs ytterligare 10 % slutskada. (Kan inte överlappas med Myth Special Option)"
+        },
+        "TowerApMinus1AllFloors": {
+          "name": "Tower of Challenge Krävs åtgärd -1",
+          "abbrev": "Top AP alla våningar",
+          "short": "AP för alla våningar i tornet -1",
+          "description": "Åtgärden som krävs för att komma in på översta våningen i alla utmaningar minskas med 1. (Kan inte överlappas med Myth Special Option)"
+        },
+        "ApRegenMinus60s": {
+          "name": "Åtgärdstid -60 sekunder",
+          "abbrev": "AP-återställning -60s",
+          "short": "Åtgärdsåterställning -60 sekunder",
+          "description": "Tiden det tar att återställa 1 åtgärdspunkt reduceras med 60 sekunder. (Kan inte överlappas med Myth Special Option)"
+        },
+        "AdventureScanTranscendent": {
+          "name": "Adventure Scan +1",
+          "abbrev": "Adventure Scan+1",
+          "short": "Adventure Scan +2 (Transcendens)",
+          "description": "Två ytterligare skanningsobjekt kommer att tillhandahållas i äventyr (monsterstrid). (Kan inte överlappas med Myth Special Option)"
+        },
+        "AdventureMissilePlus2": {
+          "name": "Äventyrsmissil +2",
+          "abbrev": "Äventyrsmissil+2",
+          "short": "Äventyrsmissil +2",
+          "description": "Två ytterligare missilföremål kommer att tillhandahållas i början av äventyret. (Kan inte överlappas med Myth Special Option)"
+        },
+        "AdventureGoldBonus20": {
+          "name": "Äventyrsguld belöning +20 %",
+          "abbrev": "Äventyrsguld 20 %",
+          "short": "Äventyrsguld +20 %",
+          "description": "Guld som tjänas när man vinner ett äventyr ökar med 20 %. (Kan inte överlappas med Myth Special Option)"
+        }
+      }
+    },
+    "optionValueLine": "{{stat}} +{{value}}{{suffix}}",
+    "optionRange": "[{{lo}}~{{hej}}{{suffix}}]",
+    "optionEnhancement": "({{count}}Förbättring)",
+    "meta": {
+      "description": {
+        "gold": "Det är den representativa valutan som används i hela Baduk-världen.",
+        "diamond": "Det är en premiumvara som används för speciella inköp, expansioner etc."
+      },
+      "usage": {
+        "goldSpend": "Det används på guldkonsumtionsställen som butiker, förstärkning/hantverk och entréavgifter.",
+        "diamondSpend": "Används i diamantaffärer, expansion av väskor etc.",
+        "unbindTicket": "[Väska]-[Välj utrustning]-[Unbind]",
+        "refinementCharm": "[Blacksmith]-[Equipment Refining] Välj utrustning som inte kan smältas",
+        "refinementTicket": {
+          "optionType": "[Blacksmith - Equipment Refining] Ändring av alternativtyp",
+          "optionValue": "[Blacksmith - Equipment Refining] Ändring av alternativvärde",
+          "specialOption": "[Blacksmith - Equipment Refining] Specialtillvalsändring",
+          "mythicOption": "[Blacksmith - Equipment Refining] Mytisk alternativändring",
+          "generic": "[Blacksmith - Equipment Refining] Alternativändring"
+        },
+        "conditionPotion": "[Championship] Återställ tillståndet {{lo}}~{{hi}} innan spelets början",
+        "actionPointInstant": "[Omedelbar användning] Åtgärdsåterställning +{{amount}}",
+        "actionPointInstantGeneric": "[Omedelbar användning] Återhämtning av handlingsförmåga",
+        "openBoxInBag": "Om du använder den från din väska får du en belöning.",
+        "equipmentBoxOpen": "Du kan skaffa utrustning genom att använda bröstet i din väska.",
+        "enhancementMaterial": {
+          "single": "[{{gradeLabel}}] Utrustning: {{rangeLabel}}",
+          "range": "[{{gradeLabel}}] Utrustning: {{rangeLabel}}"
+        },
+        "pet": {
+          "soulGradeUpgrade": "[Pet Grade Enhancement] {{fromGrade}}→{{toGrade}} (Pet Lv.{{minLevel}} eller högre)",
+          "soulGradeUpgradeGeneric": "[Förbättring av husdjursgrad] Används för att öka rankningen av andra AI-husdjur i mässarenan.",
+          "eggHatchRandom": "[Pet · Hatchery] Placera i en springa och kläcks in i en slumpmässig typ av AI-husdjur.",
+          "welcomeEggHatch": "[Sällskapsdjur · Kläckningsanläggning] Placeras i luckan — kläckningstid 1 minut, nivå 5 AI husdjur när det kläcks"
+        }
+      },
+      "enhanceRange": {
+        "single": "{{stars}}Förbättring",
+        "range": "{{minStars}}~{{maxStars}}Förbättring"
+      },
+      "acquire": {
+        "gold": {
+          "line1": "[Spel/innehåll] Baduk-match, singelspel, fängelsehåla/liga, etc.",
+          "line2": "[Uppdrag/äventyr] Dagliga/veckovisa/månatliga uppdrag, skattkistor, VIP-slots",
+          "line3": "[Transaktion/Demontering] Bytesförsäljningsavräkning, demontering av utrustning, försäljning i vissa butiker"
+        },
+        "diamond": {
+          "line1": "[Butik] Diamantpaket/Förbrukningsvaror/Material Tab",
+          "line2": "[Betalning/Event] Laddning, drift/reklampost",
+          "line3": "[Funktion] Vissa premiumfunktioner som väskfackutbyggnad"
+        },
+        "tower": {
+          "line1": "[Tower of Challenge] Köp från varubutiken (guld) i spelinformationen",
+          "line2": "[Tower of Challenge] Erhålls genom vissa kanaler, såsom inträde/klara belöningar och VIP-belöningar."
+        },
+        "actionPoint": {
+          "line1": "[Shop] Gold Shop — Stamina Restoration Potion (+10/+20/+30), daglig gräns/nivåpris",
+          "line2": "[Mail·Event] Driftsersättning/kampanjersättning",
+          "line3": "[Funktion VIP] När den är aktiverad kommer du att få Stamina Restoration III med post varje dag."
+        },
+        "condition": {
+          "line1": "[Shop] Diamond Store (förbrukningsvaror) eller relaterade paket",
+          "line2": "[Uppdrag/Event] Partiella belöningar"
+        },
+        "guildEquipBox": {
+          "line1": "[Guild Shop] Kan endast köpas med guild-mynt",
+          "line2": "[Shop/Quest] Skaffa utrustning genom att använda den i väskan, liknande en vanlig utrustningslåda."
+        },
+        "equipBox": {
+          "line1": "[Shop] Guldbutik (fliken utrustning), reklambelöningar, några kontantpaket",
+          "line2": "[Uppdrag/VIP] Dagliga, veckovisa och månatliga uppdrag, belöna VIP-slots, etc.",
+          "line3": "[Äventyr/skrå] Skattkista, belöningar för resultat av guildbossslag, etc."
+        },
+        "materialBox": {
+          "line1": "[Shop] Guld-/diamantbutik (materialfliken), reklambelöningar, vissa paket",
+          "line2": "[Uppdrag/VIP] Dagliga, veckovisa och månatliga uppdrag, belöna VIP-slots, etc."
+        },
+        "goldBundle": {
+          "line1": "[Shop] Diamond Shop (förbrukningsvaror), reklambelöningar",
+          "line2": "[Quest/äventyr] Olika belöningar/skattlådor"
+        },
+        "diamondBundle": {
+          "line1": "[Shop] Diamond Shop (förbrukningsartiklar), reklambelöningar",
+          "line2": "[Uppdrag/Event] Partiella belöningar"
+        },
+        "bonusStat": {
+          "line1": "[Guild Shop] Köp med guild-mynt (kontogräns)",
+          "line2": "[Tillväxt] Delbetalning när strategi/spelnivå ökar"
+        },
+        "enhancementStone": {
+          "line1": "[Guild Shop] Mystiska förbättringsstenar på låg nivå kan bytas ut mot skråmynt",
+          "line2": "[Materialbox] Materiallådor erhållna från butiker, uppdrag, VIPs, etc.",
+          "line3": "[Smed] Materialsyntes/demontering, kostnad för förstärkning av utrustning",
+          "line4": "[Äventyr, Rank, Guild] Belöningar för seger, torn, bossstrid, etc."
+        },
+        "material": {
+          "line1": "[Shop] Guld/diamantbutik (material), guildbutik (delvis)",
+          "line2": "[Quest·Äventyr·Event] Dagligen, veckovis, månadsvis, skattkista, operationsbelöningar",
+          "line3": "[Mail] Syntes/förbättringsresultat, betalning av evenemang"
+        },
+        "equipment": {
+          "line1": "[Equipment Box] Erhålls när du använder en låda från väskan.",
+          "line2": "[Äventyr] Klar belöning för scen/bosskamp",
+          "line3": "[Byte] Köp registrerade föremål från andra användare",
+          "line4": "[Syntes/produktion] Tillverkning av smedsyntes/transcendensutrustning, etc."
+        },
+        "consumableGeneric": "[Shop, Quest, Mail] Allmän butik, evenemang, operationsbelöningar",
+        "pet": {
+          "soulTraining": "[Pet/Training Reward] Slots {{slots}}",
+          "soulConvert": "[Pet/Soul Conversion] {{betyg}} Kan erhållas när du tar isär ett husdjur",
+          "soulShopDiamond": "[Djur · Djuraffär] Diamant {{amount}}",
+          "soulShopGold": "[Djur · Djuraffär] Guld {{amount}}",
+          "soulShopDiamondDaily": "[Djur · Djuraffär] Diamond {{amount}}, {{limit}} gånger per dag",
+          "soulShopGoldDaily": "[Djur · Pet Shop] Guld {{amount}}, {{limit}} gånger per dag",
+          "soulFallback": "[Pet] Kan erhållas eller bytas i Fair Stadium/Kläckeri-relaterat innehåll.",
+          "eggShop": "[Djur · Djuraffär] Kan köpas med guld och diamanter (daglig gräns)",
+          "eggRewards": "[Husdjur/Träning/Event] Erhålls som en partiell belöning",
+          "welcomeEggMail": "[Mail] Kan erhållas genom nya välkomst-/driftsbetalningar m.m.",
+          "welcomeEggShop": "[Djur · Djuraffär] Kan köpas med diamanter (1 per dag)"
+        }
+      }
     }
   },
   "exchange": {
@@ -4110,7 +4963,7 @@
       "newGearHint": "Välj ny utrustning att sälja i \"Utrustningsval\". Kontrollera statusen för registrerade föremål i listan ovan.",
       "myListing": "Försäljning registrerad av mig",
       "salePriceLabel": "försäljningspris",
-      "registrationFee": "Anmälningsavgift (10%)",
+      "registrationFee": "Registreringsavgift (10%)",
       "purchaseComplete": "Köpet genomfört",
       "settlementReceived": "Mottagande av avräkning",
       "tradeTicket": "handelsregistreringsrättigheter",
@@ -4149,9 +5002,9 @@
       "selectGear": "Utrustningsval"
     },
     "alerts": {
-      "insufficientTicket": "Otillräckliga transaktionsregistreringsrättigheter.",
-      "vipListingLimit": "Funktions-VIP:er kan endast registrera för försäljning upp till 3 produkter.",
-      "ticketHint": "Otillräckliga transaktionsregistreringsrättigheter. Du kan registrera en försäljningsvara med en registreringsbiljett.",
+      "insufficientTicket": "Otillräckliga transaktionsregistreringsrättigheter. Krävs för registrering av ytterligare försäljningsslots.",
+      "vipListingLimit": "Funktions-VIP:er kan endast registrera sig för försäljning upp till 3 produkter.",
+      "ticketHint": "Ytterligare registrering av försäljningsslots kräver en transaktionsregistreringsbiljett.",
       "selectGearFromInventory": "Välj den utrustning du vill sälja från ditt lager.",
       "boundGear": "Inbunden utrustning kan inte säljas. Använd rätten att avbryta tillskrivningen.",
       "minimumPrice": "Lägsta försäljningspris är {{price}}.",
@@ -4175,7 +5028,7 @@
       "waiting": "atmosfär"
     },
     "scoring": "Beräknande...",
-    "allMatchesEnded": "Alla matcher är avslutade. Prisutdelningen hålls.",
+    "allMatchesEnded": "Alla matcher för idag är avslutade.",
     "breathing": "Jag tar ett djupt andetag för att delta i tävlingen.",
     "playersEntering": "Spelarna går in. snälla vänta ett ögonblick.",
     "playerLoadError": "Ett fel uppstod när spelarinformation laddades.",
@@ -4197,7 +5050,7 @@
     "victory": "seger",
     "defeat": "besegra",
     "scoreLead": "{{points}}hembil",
-    "jigo": "närstrid",
+    "jigo": "närkamp",
     "condition": "skick",
     "badukAbility": "Baduk förmåga",
     "winRate": "oddsen att vinna",
@@ -4236,7 +5089,7 @@
       "phaseMidLabel": "mitt i spelet",
       "phaseEndLabel": "slutspel",
       "phaseEarlyStart": "Första halvan av striden har börjat. Låt oss ta en titt på stenläggningen och flödet av den första striden.",
-      "phaseMidStart": "Mittspelet har börjat. Kampen i centrum och kampen om positionen blir mer intensiv.",
+      "phaseMidStart": "Mittspelsmatchen har börjat. Kampen i centrum och kampen om positionen blir mer intensiv.",
       "phaseEndStart": "Slutspelet har börjat. Hemberäkningar och detaljerad vinst och förlust blir viktiga.",
       "defaultRound": "nuvarande omgång",
       "defaultPlayer1": "spelare 1",
@@ -4268,7 +5121,7 @@
     "roundSemi": "Semifinaler",
     "roundQuarter": "Kvartsfinal",
     "tabSemifinal": "semifinaler",
-    "tabFinalThird": "Finaler & 3:e/4:e platsmatch",
+    "tabFinalThird": "Finaler & 3:e/4:e plats match",
     "lobby": {
       "title": "mästerskap",
       "loadingLobby": "Laddar lobbyinformation...",
@@ -4409,7 +5262,7 @@
         "neighborhood": "Neighborhood Baduk League",
         "national": "Nationella Baduk-turneringen",
         "world": "Världsmästerskap",
-        "unlock3": "Gå vidare till nästa steg om du uppnår 3:e plats eller högre",
+        "unlock3": "Om du uppnår 3:e plats eller högre går du vidare till nästa steg.",
         "commonFeatures": "Stadion gemensamma funktioner",
         "simulation": "simuleringsspel",
         "condition": "skick",
@@ -4424,7 +5277,7 @@
         "altChampionship": "mästerskap",
         "overviewBody1": "Mästerskapet drivs med hjälp av ett fängelsehålssystem. Det finns etapper från steg 1 till steg 10 för varje stadion (grandbadukligan, nationell baduktävling, världsmästerskap), och i varje etapp hålls en liga/turnering med bots för att bestämma rankingen.",
         "unlockHintRich": "Upplåsningsvillkor för nästa nivå:",
-        "unlockHintBody": "Om du uppnår 1:a till 3:e plats i Neighborhood Baduk League, National Baduk Tournament och World Championship, kommer du att ses som att du klarat den etappen och nästa etapp öppnas.",
+        "unlockHintBody": "Om du uppnår 1:a till 3:e plats i Neighborhood Baduk League, National Baduk Tournament och World Championship, kommer du att bli erkänd som att ha klarat den etappen och nästa etapp öppnas.",
         "rankUnlock": "Lås upp nästa nivå när du når 3:e plats eller högre",
         "simulationTitle": "simuleringsspel",
         "conditionTitle": "skick",
@@ -4455,7 +5308,7 @@
         "randomEvent": "slumpmässig händelse",
         "critical": "Kritisk",
         "conditionTitle": "skick",
-        "overviewBody": "Detta är en automatisk match baserad på spelarens förmågor och kondition. Matchen pågår i 50 sekunder och är uppdelad i tidig/mitten/slut.",
+        "overviewBody": "Detta är en automatisk match baserad på spelarens förmågor och kondition. Matchen varar i 50 sekunder och är uppdelad i tidig/mitten/slut.",
         "altSimulation": "simuleringsspel",
         "altGold": "guld",
         "altMaterial": "ingrediens",
@@ -4480,8 +5333,8 @@
         "critical2": "Ytterligare poäng tjänas när en kritisk träff inträffar.",
         "critical3": "Stridskraft och räknekraft påverkar ytterligare poäng",
         "condition1": "Ett slumpmässigt villkor mellan 40 och 100 ges före varje match.",
-        "condition2": "Förmågaspoäng ändras inte under simulering",
-        "condition3": "Kan återställas med tillståndsåterställningsmedel (används endast före spelets början)"
+        "condition2": "Förmågaspoäng ändras inte under simulering.",
+        "condition3": "Kan återställas med tillståndsåterställningsmedel (används endast före spelets start)"
       },
       "duelHistory": {
         "title": "Daejeon rekord",
@@ -4529,7 +5382,13 @@
       "championship": "mästerskap",
       "scrollGuideTitle": "rullningsguide",
       "categoryAria": "Ranking Kategori",
-      "title": "Ranking"
+      "title": "Ranking",
+      "gameRankingTab": "Spelranking",
+      "badukRankingTab": "Baduk ranking",
+      "loginRequired": "Du kan kontrollera din ranking efter att ha loggat in.",
+      "championshipLoginHint": "Du kan kontrollera din mästerskapsranking efter att ha loggat in.",
+      "guideClose": "Stäng guide",
+      "championshipNoGuide": "Det finns ingen separat poängguide för mästerskapsrankingen."
     },
     "round16": "åttondelsfinal",
     "center": "centrum",
@@ -4539,7 +5398,7 @@
     "matchInProgress": "Spelet pågår...",
     "waitingForMatchStart": "Väntar på att spelet ska börja...",
     "processing": "Bearbetar...",
-    "rewardComplete": "Belöning avklarad",
+    "rewardComplete": "Belöning avslutad",
     "claiming": "Mottagande...",
     "claimReward": "Bli belönad",
     "claimAfterMatchEnd": "Kan hämtas efter matchens slut",
@@ -4553,7 +5412,7 @@
     "liveCommentary": "direktsändning",
     "playerWaitingShort": "spelare väntar",
     "nextMatch": "nästa match",
-    "startMatch": "spelet startar",
+    "startMatch": "spelet börjar",
     "matchSummary": "Matchsammanfattning",
     "roundTab": "runda",
     "playerOne": "spelare 1",
@@ -4581,7 +5440,7 @@
     "matchRewardIndex": "Matcha {{index}} belöningar",
     "champCoinTimes": "Champ Coin ×{{amount}}",
     "champCoinPending": "Champ Coin {{label}} (bekräftas vid mottagandet)",
-    "rankRewardTitle": "{{rank}}högsta rankade belöning · {{item}} ×{{qty}}",
+    "rankRewardTitle": "{{rank}}högst rankade belöning · {{item}} ×{{qty}}",
     "matchRoundResult": "{{runda}} omgång {{resultat}}! ({{wins}} vinner {{losses}} förluster)",
     "statusRecordRank": "{{wins}} vinner {{förluster}} förluster! {{rang}}",
     "championTitle": "🏆 Vinn!",
@@ -4591,12 +5450,12 @@
     "eliminatedInRound": "Utslagen i {{runda}}",
     "tournamentEliminated": "Utslagning av turneringen",
     "roundAdvanceExclaim": "Avancera till {{runda}}!",
-    "roundInProgress": "{{round}} pågår",
+    "roundInProgress": "{{runda}} pågår",
     "tournamentPreparing": "Förbereder för tävling",
     "skipAll": "Hoppa över allt",
     "skipAllRoundsHint": "Hoppa över alla återstående omgångar (användarmatcher) på en gång och fortsätt till slutet av tävlingen.",
     "matchPreparing": "Förbereder för matchen...",
-    "forfeitConfirm": "Vill du ge upp och lämna turneringen? Din möjlighet att delta idag kommer att gå förlorad.",
+    "forfeitConfirm": "Är du villig att ge upp och lämna turneringen? Din möjlighet att delta idag kommer att gå förlorad.",
     "roundRobinRound": "{{runda}} runda",
     "dungeonRunRecordTitle": "Rekord i detta skede av mästerskapet",
     "sidebarExtraPanel": "Panel för ytterligare information",
@@ -4625,7 +5484,7 @@
     "base": "bas",
     "turnUnit": "{{count}} varv",
     "blackCaptureGoal": "Svarta {{count}} hundar",
-    "captureGoalTurnLimit": "Vinn {{count}} svarta pjäser (begränsa {{turns}} varv)",
+    "captureGoalTurnLimit": "Plocka upp {{count}} svarta pjäser (begränsa {{turns}} varv)",
     "autoScoringHint": "[{{turns}}räknetal] Om du lämnar det upp till det numret kommer automatisk räkning att ske.",
     "autoScoringShort": "[{{turns}}räkna antal]",
     "victory": "seger",
@@ -4695,13 +5554,13 @@
     "rewardFromFloor10Short": "Du kan få en månatlig belöning när du klarar 10 eller fler våningar.",
     "stages": "etapp",
     "rankingTop100": "Ranking topp 100",
-    "rewardTierLine": "Ersättning för {{floor}} golvsektioner · Utbetalas vid månadsskiftet",
+    "rewardTierLine": "Ersättning för {{floor}} våningsdel · Betalas vid månadsavräkning",
     "unranked": "annat än ranking",
-    "noOtherRanked": "Det finns inga andra rankningar listade i topp 100.",
+    "noOtherRanked": "Det finns inga andra rankningar i topp 100.",
     "rewardModalTitle": "Tower of Challenge Belöningsinformation",
     "settlementRemaining": "Tid kvar till ersättningsavräkning",
     "myCurrentReward": "min nuvarande belöning",
-    "floorTier": "{{floor}} våning",
+    "floorTier": "{{floor}}våning",
     "blackPatternAlt": "svart mönster",
     "goldAlt": "guld",
     "diamondAlt": "diamant",
@@ -4752,7 +5611,7 @@
       "queueWithAp": "Vänta på matchning (⚡{{cost}})",
       "titleStrategic": "Strategisk Baduk ranking matchning",
       "titleDuo": "2-personers par rankingmatch",
-      "titlePet": "Fair Pet Ranking Matching"
+      "titlePet": "Rättvis matchning för husdjursrankning"
     },
     "rankedOffer": {
       "titlePet": "Par Pet Rank Matchning",
@@ -4787,7 +5646,7 @@
       "claimPrompt": "Ska jag få utbildningsbelöningar?",
       "claimReward": "Ta emot belöning",
       "rewardGranted": "Träningsbelöningar har betalats ut.",
-      "petXpBaseSpec": "Djurupplevelsebas +{{base}} (specialisering +{{spec}})",
+      "petXpBaseSpec": "Erfarenhetsbas för husdjur +{{base}} (specialisering +{{spec}})",
       "petXpGain": "Husdjursupplevelse +{{amount}}",
       "petXpNoChange": "Ingen förändring i husdjursupplevelse",
       "petGrowth": "husdjurs tillväxt",
@@ -4816,7 +5675,7 @@
       "fixedReward": "Definierad ersättning",
       "probOneKind": "Sannolikhet (1 typ)",
       "probReward": "Sannolikhetsersättning",
-      "claimRewardAria": "Få träningsbelöningar",
+      "claimRewardAria": "Få träningsbelöning",
       "petDetailAria": "Husdjursdetaljer",
       "remainingTimeAria": "Återstående tid {{tid}}",
       "pickPet": "Välj husdjur",
@@ -4828,7 +5687,7 @@
       "tabTitle": "utbildning",
       "tabTitleClaimReady": "Du kan få träningsbelöningar",
       "noConditions": "inga villkor",
-      "winsRequired": "Paret {{count}} vinner",
+      "winsRequired": "Par {{count}} vinner",
       "winsRequiredShort": "Par {{count}} vinster krävs",
       "petLevelMin": "Pet Lv.{{level}}+",
       "functionVip": "FeatureVIP",
@@ -4839,7 +5698,7 @@
       "start": "kläckningen börjar",
       "instantComplete": "Klart omedelbart",
       "claimPet": "Skaffa ett husdjur",
-      "invFullHint": "Husdjursförrådet är fullt. Klicka för instruktioner.",
+      "invFullHint": "Djurlagret är fullt. Klicka för instruktioner.",
       "insufficientDiamonds": "Det finns inte tillräckligt med diamanter.",
       "complete": "Kläckningen klar",
       "inProgress": "skuggning",
@@ -4859,7 +5718,10 @@
       "remainingTime": "tid kvar",
       "diamondsUsed": "använd diamant",
       "ownedLabel": "besittning",
-      "mysteriousEgg": "Mystiskt ägg ×1"
+      "mysteriousEgg": "Mystiskt ägg ×1",
+      "upgradeTier1": "Stärka jag",
+      "upgradeTier2": "Stärk II",
+      "upgradeTier3": "Stärka III"
     },
     "lobby": {
       "infoTab": "information",
@@ -4882,14 +5744,14 @@
       "expandInvQuestion": "Vill du utöka ditt {{category}}-lager?",
       "expandSlotsHint": "+{{step}} utrymme har lagts till (max {{max}} utrymme)",
       "dailyLimit": "Daglig gräns {{remaining}}/{{limit}}",
-      "specBadge": "Särskild",
+      "specBadge": "särskild",
       "tierActive": "Ansöker",
       "tierUnlocked": "Olåst",
       "tierUpgrade": "Förbättra ({{gold}} G)",
       "unsupportedCategory": "Det här objektet stöds inte i den här kategorin.",
       "warningTitle": "varning",
       "makeInvSpace": "Frigör utrymme i ditt lager",
-      "soulInfoTitle": "Soul Stone Information",
+      "soulInfoTitle": "Information om själssten",
       "noticeTitle": "guide"
     },
     "gradeUpgrade": {
@@ -4899,7 +5761,7 @@
       "noHigherGrade": "Det finns inga ytterligare nivåer tillgängliga.",
       "levelInsufficient": "Husdjursnivån är otillräcklig. Kräver Lv.{{behöver}} (nuvarande Lv.{{current}})",
       "conditionsUnknown": "Villkoren för nivåhöjning kan inte bekräftas.",
-      "soulInsufficient": "Otillräckligt med {{namn}}. {{need}} behövs (har {{owned}})",
+      "soulInsufficient": "Otillräckligt med {{namn}}. {{behöver}} behövs (har {{ägt}})",
       "soulInsufficientShort": "Otillräckligt med {{namn}}. (behöver {{behöver}}, äga {{ägt}})",
       "soulStoneFallback": "själssten",
       "soulCostTitle": "Konsumera {{name}} {{count}} enheter · Nivåhöjning",
@@ -4917,7 +5779,7 @@
       "next": "nästa",
       "before": "före",
       "after": "sedan",
-      "baseStatIncrease": "Basförmågan ökade",
+      "baseStatIncrease": "Basförmåga ökar",
       "percentTen": "+10 %",
       "nextGradeLevelUpBudget": "Automatiskt fördelade förmågor när du höjer husdjuret i nästa klass avsnitt",
       "dispositionBoost": "stärkande tendenser",
@@ -4941,11 +5803,11 @@
     "soulStone": {
       "ownedQty": "Håll ned ×{{kvantitet}}",
       "usage": "Var att använda",
-      "acquire": "Var kan man få tag på det",
+      "acquire": "Var kan man få tag i det",
       "petTag": "[Sällskapsdjur]",
       "gradeUpgradeTag": "[Nivåförbättring]",
       "trainingRewardTag": "[Träningsbelöning]",
-      "soulConvertTag": "[Själasomvandling]",
+      "soulConvertTag": "[Själakonvertering]",
       "petShopTag": "[Djuraffär]",
       "noMatchingSlot": "Ingen sådan lucka",
       "usedForGradeUpgrade": "Används för att förbättra betyget",
@@ -5037,7 +5899,7 @@
       "viewDetail": "Visa detaljer",
       "viewDetailAria": "Visa husdjursdetaljer",
       "goToPetInventoryAria": "Gå till Info-fliken Husdjursinventering",
-      "badukTotalTitle": "Totalt 6 visningsvärden och anpassningsbonusar",
+      "badukTotalTitle": "Totalt 6 centrala visningsvärden och inriktningsbonusar",
       "coreStatsSumTitle": "Totalt 6 kärnförmågor",
       "levelFormat": "Pet Lv.{{level}}",
       "levelRangeFormat": "Pet Lv.{{lo}}~{{hej}}",
@@ -5060,7 +5922,7 @@
       "specSoulQtyPlusOne": "Utbildning Soulstone förvärv kvantitet +1",
       "specStrategicAp": "Strategi Arena kräver åtgärd -1",
       "specPairAp": "Fair Stadium kräver åtgärd -1",
-      "specPlayfulAp": "Spelarena kräver åtgärd -1"
+      "specPlayfulAp": "Spelarena kräver handling -1"
     },
     "alerts": {
       "alreadyInAnyRoom": "Det finns redan ett deltagande rum.",
@@ -5079,7 +5941,7 @@
       "leaveOtherRoomForRanked": "För att starta en parrankningsmatch, lämna ett annat parrum.",
       "ownerOnlyRanked": "Endast värden kan börja rangordna matchmaking.",
       "ownerOnlyAi": "Endast värden kan starta en AI-match.",
-      "equipPetForRanked": "För att använda Pair Ranking Match måste du utrusta ett Pair Pet.",
+      "equipPetForRanked": "För att använda parrankningsmatchen måste du utrusta ett parhusdjur.",
       "equipPetForRoomKind": "För att skapa denna rumstyp måste du ha Fair Pet utrustad.",
       "strategicRoomTitle": "{{name}}s strategiska badukrum",
       "playfulRoomTitle": "{{name}}s lekbadukrum",
@@ -5120,6 +5982,9 @@
       "matchInProgress": "Match pågår",
       "inMatch": "Under spelets gång",
       "enter": "placera",
+      "spectate": "Tittar på",
+      "spectateMatch": "Titta på matchen",
+      "spectateUnavailable": "Jag kan inte hitta någon matchinformation att titta på.",
       "orphanRooms": "Nummer 1~100 Uterummet",
       "roomKindFilter": "Filter för rumstyp",
       "gameModeFilter": "Spellägesfilter",
@@ -5140,7 +6005,7 @@
       "cancelMatch": "Avbryt matchning",
       "cancelProposal": "avbryta erbjudandet",
       "startAi": "AI-striden börjar",
-      "startMatch": "spelet startar",
+      "startMatch": "spelet börjar",
       "startMatching": "Matchningen börjar",
       "preparingAiRoom": "Vi förbereder ett AI-rum för två personer.",
       "openingAiRoom": "Vi öppnar ett 2-personers AI-rum.",
@@ -5156,7 +6021,7 @@
       "strategicRoomSettings": "Strategiska Baduk rumsinställningar",
       "playfulRoomSettings": "Spela Baduk rumsinställningar",
       "pairRoomSettings": "Parrumsinställning",
-      "strategicChangeProposal": "Förslag om att ändra strategiska badukförhållanden",
+      "strategicChangeProposal": "Förslag att ändra strategiska badukförhållanden",
       "playfulChangeProposal": "Förslag om ändrade villkor för att spela baduk",
       "matchChangeProposal": "Förslag om ändrade matchvillkor",
       "createStrategicRoom": "Skapa ett strategiskt badukrum",
@@ -5198,6 +6063,100 @@
       "navigatePairArena": "Gå till Fair Stadium",
       "leaveRoomOnNavigate": "Att flytta till en annan arena tar dig ut ur rummet du deltar i. Vill du fortsätta?",
       "leaveRoomConfirm": "Du kommer att tas bort från rummet du deltog i. Vill du fortsätta?"
+    },
+    "pets": {
+      "pair-pet-1": {
+        "name": "Lumifox"
+      },
+      "pair-pet-2": {
+        "name": "Iskatt"
+      },
+      "pair-pet-3": {
+        "name": "Goldignan"
+      },
+      "pair-pet-4": {
+        "name": "snöpanda"
+      },
+      "pair-pet-5": {
+        "name": "Penky"
+      },
+      "pair-pet-6": {
+        "name": "solfågel"
+      },
+      "pair-pet-7": {
+        "name": "Baniru"
+      },
+      "pair-pet-8": {
+        "name": "Honung Björn"
+      },
+      "pair-pet-9": {
+        "name": "Lövkatt"
+      },
+      "pair-pet-10": {
+        "name": "Gro"
+      },
+      "pair-pet-11": {
+        "name": "violett katt"
+      },
+      "pair-pet-12": {
+        "name": "Sunkey"
+      },
+      "pair-pet-13": {
+        "name": "Amber Fox"
+      },
+      "pair-pet-14": {
+        "name": "Grädde katt"
+      },
+      "pair-pet-15": {
+        "name": "vingsats"
+      },
+      "pair-pet-16": {
+        "name": "mask hund"
+      },
+      "pair-pet-17": {
+        "name": "Elfenbensbjörn"
+      },
+      "pair-pet-18": {
+        "name": "snö husdjur"
+      },
+      "pair-pet-19": {
+        "name": "chicky"
+      },
+      "pair-pet-20": {
+        "name": "Skuggvarg"
+      },
+      "pair-pet-21": {
+        "name": "Wing Bunny"
+      },
+      "pair-pet-22": {
+        "name": "Guld Cheeky"
+      },
+      "pair-pet-23": {
+        "name": "smädande"
+      },
+      "pair-pet-24": {
+        "name": "gelégroda"
+      }
+    },
+    "trainingSlots": {
+      "0": {
+        "name": "teknisk utbildning"
+      },
+      "1": {
+        "name": "liv och död träning"
+      },
+      "2": {
+        "name": "Utbildning före prisutdelning"
+      },
+      "3": {
+        "name": "Jeongseok träning"
+      },
+      "4": {
+        "name": "Gibo träning"
+      },
+      "5": {
+        "name": "vattendamsträning"
+      }
     }
   },
   "blacksmith": {
@@ -5237,7 +6196,7 @@
       "default": "Öppna uppgiftsskärmen"
     },
     "pickHints": {
-      "enhance": "Välj den utrustning som ska förstärkas i modalen och tryck sedan på Selection Complete för att gå till förstärkningsskärmen.",
+      "enhance": "Välj den utrustning som ska förstärkas i modalen och klicka på Slutför val för att gå till förstärkningsskärmen.",
       "combine": "Om du placerar 3 stycken utrustning av samma kvalitet i modalen och sedan trycker på Selection Complete, kommer du till syntesskärmen.",
       "disassemble": "Välj utrustningen som ska demonteras i modalen och tryck sedan på Selection Complete för att gå till demonteringsskärmen.",
       "refine": "Efter att ha valt den utrustning som ska smältas i modalen och klicka på Komplett urval kommer du till smältskärmen."
@@ -5270,7 +6229,7 @@
       "removeMaterialAria": "Subtrahera {{name}} ingredienser",
       "slotFallback": "etc",
       "resultSlotProb": "Utfallstyp Sannolikhet",
-      "resultGradeProb": "Utfallsgrad Sannolikhet",
+      "resultGradeProb": "Utfall Betyg Sannolikhet",
       "greatSuccess": "stor framgång:",
       "randomCombine": "Ta emot helt slumpmässiga typer",
       "combining": "Komponerar...",
@@ -5364,7 +6323,7 @@
       "transcendentSpecial": "Transcendent specialalternativ",
       "refinementCountLabel": "Refinable: {{value}}",
       "requiredMaterials": "Material som behövs",
-      "selectMethodHint": "När du väljer en smältmetod kommer materialen att visas.",
+      "selectMethodHint": "När du väljer en smältmetod kommer ingredienserna att visas.",
       "inProgress": "Smältning pågår",
       "countDepleted": "Alla möjliga förbättringar har uttömts.",
       "ownedCharms": "Håll: {{count}}",
@@ -5389,7 +6348,7 @@
       "specialChangeShort": "Ändra specialalternativ",
       "selectedGearShort": "utvald utrustning",
       "refineBtn": "smältning",
-      "charmUsageHint": "Lägger till 1 till antalet gånger som utrustning som inte kan smältas kan smältas. Användningsområde: [Blacksmith]-[Utrustningsraffinering] Välj utrustning som inte kan förfinas.",
+      "charmUsageHint": "Lägger till 1 till antalet gånger som utrustning som inte kan smältas kan smältas. Användning: [Blacksmith]-[Utrustning förfining] Välj utrustning som inte kan förfinas.",
       "useBtn": "Använda",
       "selectMethodEmpty": "Välj din smältmetod.",
       "stepSelectOption": "① Välj alternativ",
@@ -5426,17 +6385,17 @@
     "casualTag": "vänskapsmatch",
     "casualTitle": "vänskapsmatch",
     "casualDesc": "Den här matchen är en vänskapsmatch. Det finns ingen förändring i rankingpoängen.",
-    "actionPointNotice": "När en matchning har bekräftats förbrukas handlingskraften ⚡{{cost}} på båda sidor. Om acceptansen/AI inte är tillräcklig vid start öppnas ett beteendestyrt energihanteringsfönster.",
+    "actionPointNotice": "När en matchning har bekräftats förbrukas handlingskraften ⚡{{cost}} på båda sidor. Om det är otillräckligt när accepterande/AI startar, öppnas ett beteendestyrt energihanteringsfönster.",
     "titleAi": "{{prefix}}{{mode}} AI-matchningsinställningar",
     "titleRematch": "{{prefix}}Ommatchningsinställningar ({{läge}})",
     "titleDefault": "{{prefix}}matchningsinställningar ({{mode}})",
     "cancel": "annullering",
     "start": "Kom igång (⚡{{cost}})",
-    "request": "Ansök om en matchning (⚡{{cost}})",
+    "request": "Ansök om matchning (⚡{{cost}})",
     "reject": "vägran",
     "counter": "Ändringsförslag",
     "accept": "Acceptera (⚡{{cost}})",
-    "statusAi": "Kontrollera AI-matchningsinställningarna.",
+    "statusAi": "Kontrollera inställningarna för AI-matchning.",
     "statusDraft": "Kontrollera matchningsinställningarna och tryck på knappen [Ansök om match].",
     "statusRespond": "[Acceptera] eller [Föreslå ändringar] av den andra partens förslag.",
     "statusWaiting": "Väntar på svar från den andra parten ({{name}})...",
@@ -5449,7 +6408,7 @@
     "mixRulesMinAlert": "Blandningsregler kräver att två eller flera regler väljs.",
     "mixCaptureCastleConflict": "Winning och Castle kan inte väljas samtidigt.",
     "countUnit": "{{räkna}}",
-    "boardLines": "{{storlek}}rad",
+    "boardLines": "{{storlek}} rad",
     "pointsFixed": "9 poäng (fast)",
     "pointsUnit": "{{score}} poäng",
     "turnsUnit": "{{limit}}nummer",
@@ -5531,7 +6490,9 @@
       "3": "Ett drag på 0,5 sekunder"
     },
     "matchControlAria": "spelkontroll",
-    "startMatch": "spelet startar",
+    "skipReplay": "HOPPA",
+    "skipReplayHint": "Hoppa över stafetten och kolla bara resultatet.",
+    "startMatch": "spelet börjar",
     "exit": "Utgång",
     "season": "säsong",
     "matchInfo": "Daejeon Information",
@@ -5619,7 +6580,7 @@
       "failed": "Donationen misslyckades.",
       "ownedGold": "Guldinnehav: {{amount}}",
       "noHistory": "Det finns ingen donationshistorik.",
-      "goldUnit": "{{amount}} Guld",
+      "goldUnit": "{{amount}} guld",
       "error": "Ett fel uppstod när du donerade.",
       "goldDonation": "gulddonation",
       "diamondDonation": "diamantdonation",
@@ -5684,9 +6645,9 @@
       "demoteConfirm": "Vill du avsätta {{name}} som biträdande guildledare?",
       "kickConfirm": "Vill du sparka {{name}} från guilden?",
       "transferConfirm": "Vill du verkligen delegera guildledarbefogenheter till {{name}}? Denna åtgärd är oåterkallelig.",
-      "leaderMustTransfer": "Om en guildledare vill lämna guildet måste han först delegera guildledarrollen till en annan guildmedlem.",
-      "lastMemberLeave": "Jag är den sista medlemmen i guilden. Om du lämnar skrået kommer skrået att upplösas. Är du säker på att du vill lämna?",
-      "leaveConfirm": "Är du säker på att du vill lämna guilden?",
+      "leaderMustTransfer": "Om guildledaren vill lämna guildet måste han först delegera guildledarrollen till en annan guildmedlem.",
+      "lastMemberLeave": "Jag är den sista medlemmen i guilden. Om du lämnar skrået kommer guildet att upplösas. Är du säker på att du vill lämna?",
+      "leaveConfirm": "Är du säker på att du vill lämna guildet?",
       "leaveError": "Ett fel uppstod när du lämnade guilden."
     },
     "management": {
@@ -5710,14 +6671,34 @@
     "missions": {
       "title": "Weekly Guild Mission",
       "achieved": "uppnående",
-      "guildXp": "Guild XP +{{amount}}",
+      "guildXp": "Guild Experience +{{amount}}",
       "expired": "gått ut",
-      "rewardClaimed": "Belöning avklarad",
+      "rewardClaimed": "Belöning avslutad",
       "claimReward": "Få belöningar",
       "inProgress": "Pågår",
       "resetCountdown": "Förnya efter {{days}} dagar {{hours}}:{{minutes}}",
       "unclaimedHint": "Det finns belöningar du kan få. Glöm inte att ta det.",
-      "empty": "Det finns inga veckouppdrag att visa."
+      "empty": "Det finns inga veckouppdrag att visa.",
+      "titles": {
+        "checkIns": "Guild närvaro 50 gånger",
+        "guildDonations": "Samlade 50 guilddonationer",
+        "bossAttempts": "Deltagit i guild boss battles 30 gånger",
+        "strategicWins": "Strategisk Baduk vinner 30 gånger",
+        "playfulWins": "Spela Baduk vinner 30 gånger",
+        "equipmentEnhancements": "50 förstärkningsförsök",
+        "epicGearAcquisitions": "Skaffa episk utrustning eller högre utrustning 20 gånger",
+        "diamondsSpent": "Förbrukar 3000 diamanter"
+      },
+      "descriptions": {
+        "checkIns": "Guildmedlemmar deltar totalt 50 gånger",
+        "guildDonations": "Låt guildmedlemmar donera guld och diamanter totalt 50 gånger.",
+        "bossAttempts": "Låt guildmedlemmar delta i totalt 30 guild boss-strider.",
+        "strategicWins": "Guildmedlemmar uppnår totalt 30 vinster i strategisk baduk (inklusive väntrums AI och allmänna matcher)",
+        "playfulWins": "Guildmedlemmar uppnår totalt 30 vinster i Baduk (inklusive väntrums AI och allmänna matcher)",
+        "equipmentEnhancements": "Låt guildmedlemmar utföra totalt 50 utrustningsförsök",
+        "epicGearAcquisitions": "Låt guildmedlemmar skaffa episk utrustning eller högre utrustning 20 gånger",
+        "diamondsSpent": "Guildmedlemmar spenderar totalt 3000 diamanter i butiker osv."
+      }
     },
     "research": {
       "title": "Guild Lab",
@@ -5733,11 +6714,11 @@
       "startConfirm": "Vill du börja undersöka nivå [{{name}}] {{level}}? \n\nPoäng som krävs: {{cost}} RP\nBeräknad tid: {{time}}",
       "chancePrefix": "[{{chance}}% sannolikhet]",
       "categoryDevelopment": "Guild Advancement",
-      "categoryBoss": "boss strid",
+      "categoryBoss": "bosskamp",
       "categoryStats": "Ökad förmåga",
       "categoryRewards": "Ökade belöningar",
       "apRegenEffect": "Åtgärdsåterställningstid -{{sek}} sekunder",
-      "apRegenBoost": "Under naturlig återhämtning minskas intervallet med totalt {{sek}} sekunder per AP.",
+      "apRegenBoost": "Under naturlig återhämtning reduceras intervallet med totalt {{sek}} sekunder per AP.",
       "statConcentration": "Koncentration +{{value}}%",
       "statThinkingSpeed": "Tankehastighet +{{value}}%",
       "statJudgment": "Bedömning +{{value}}%",
@@ -5785,7 +6766,7 @@
       "securityBanner": "AI-säkerhetsbot upptäcker olämplig språkanvändning. 🚓",
       "noGuildMessages": "Det finns inga guildchattmeddelanden.",
       "noGlobalMessages": "Det finns inga fullständiga chattmeddelanden.",
-      "banPlaceholder": "Chatt inaktiverad ({{minutes}} minuter kvar)",
+      "banPlaceholder": "Chatten inaktiverad ({{minutes}} minuter kvar)",
       "cooldownPlaceholder": "({{seconds}} sekunder)",
       "inputPlaceholder": "[Ange meddelande]",
       "messagePlaceholder": "Vänligen ange ditt meddelande...",
@@ -5795,7 +6776,18 @@
       "quickChat": "snabb chatt",
       "send": "spedition",
       "sendTitle": "skicka",
-      "locationHome": "[hem]"
+      "locationHome": "[hem]",
+      "systemMessages": {
+        "missionComplete": "Veckouppdraget [{{missionTitle}}] genomfört! Ta emot dina belöningar på fliken Guild-aktivitet > Guild-uppdrag.",
+        "bossWeeklySettlement": "Weekly Guild Boss Settlement ({{bossName}}, {{status}}): Guild Experience +{{guildXp}}, Research Points +{{researchPoints}} har samlats i guilden.",
+        "bossWeeklySettlementDefeated": "besegra",
+        "bossWeeklySettlementRemainingHp": "Återstående hälsa {{percent}} %",
+        "warJoinMatching": "[{{nickname}}]{{subjectParticle}} deltog i skråkriget. Vi fortsätter med matchning.",
+        "warJoinBotMatch": "[{{nickname}}]{{subjectParticle}} deltog i skråkriget. Matchat med systembot-guild i udda kö.",
+        "warJoinOpponent": "[{{nickname}}]{{subjectParticle}} deltog i skråkriget. Motståndare: 「{{opponentGuildName}}」",
+        "warCancelMatching": "[{{nickname}}]{{subjectParticle}} Guild-krigsmatchning har avbrutits.",
+        "bossDamage": "[{{smeknamn}}]{{subjectParticle}} tillfogade {{skada}} skada till {{bossName}}."
+      }
     },
     "war": {
       "title": "skråkrig",
@@ -5820,13 +6812,13 @@
       "guildXp": "Guild Experience",
       "researchPoints": "forskningspunkter",
       "houseLabel": "hus {{poäng}}",
-      "dominanceTooltip": "Vänsterdominans cirka {{percent}} % (stjärna/punkt)",
+      "dominanceTooltip": "Vänsterdominans: ungefär {{percent}}% (stjärna/punkt)",
       "loadingWarInfo": "Läser in guild war information...",
       "noActiveWar": "Det pågår inga skråkrig.",
-      "notStartedYet": "Skråkriget har inte börjat än. \nDu kan delta från {{date}}(KST).",
-      "prepTimeAlert": "Det är dags att förbereda sig för nästa skråstrid. \nDu kan delta från {{date}}(KST).",
-      "prepTimeHint": "Det är dags att förbereda sig för nästa skråstrid. Du kan delta från {{date}}(KST).",
-      "beforeOpenHint": "Detta är innan skråkriget börjar. Du kan delta från {{date}}(KST).",
+      "notStartedYet": "Skråkriget har inte börjat än. \nDu kan gå in från {{date}}(KST).",
+      "prepTimeAlert": "Det är dags att förbereda sig för nästa skråstrid. \nDu kan gå in från {{date}}(KST).",
+      "prepTimeHint": "Det är dags att förbereda sig för nästa skråstrid. Du kan gå in från {{date}}(KST).",
+      "beforeOpenHint": "Detta är innan skråkriget börjar. Du kan gå in från {{date}}(KST).",
       "goToWarScreen": "Gå till guild battle-skärmen",
       "autoMatching": "Automatisk matchning pågår. När du är klar kan du gå in.",
       "autoMatchingHint": "Det pågår inga skråkrig. Gilden som uppfyller villkoren matchas automatiskt under skråkrigsperioden.",
@@ -5839,7 +6831,7 @@
       "hoursMinutesAfter": "{{hours}} timmar {{minutes}} minuter senare",
       "minutesSecondsAfter": "Efter {{minutes}} minuter {{seconds}} sekunder",
       "secondsAfter": "Efter {{seconds}} sekunder",
-      "hoursMinutesSuffix": "{{hours}}timmar {{minutes}}minuter{{suffix}}",
+      "hoursMinutesSuffix": "{{hours}}timmar {{minutes}}minutes{{suffix}}",
       "minutesSecondsSuffix": "{{minutes}}minutes {{seconds}}seconds{{suffix}}",
       "secondsSuffix": "{{seconds}}seconds{{suffix}}",
       "untilStartSuffix": "Efter start",
@@ -5848,13 +6840,13 @@
       "loss": "grupp",
       "winRate": "oddsen att vinna",
       "currentWar": "Detta skråkrig",
-      "opponentGuild": "Opponent Guild",
+      "opponentGuild": "Motståndarens skrå",
       "contribution": "Bidrag {{stjärnor}}",
       "matchingInProgress": "Matchning pågår",
       "warPrep": "Förbereder sig för skråkrig",
       "startsIn": "Starta {{tid}}",
       "findingOpponent": "Jag letar efter en motståndare till denna guild-strid.",
-      "entryFrom": "Du kan delta från {{date}}(KST).",
+      "entryFrom": "Du kan gå in från {{date}}(KST).",
       "scheduledAt": "Schemalagd tid: {{date}}",
       "cancelDeadline": "Ansökan kan avbrytas: {{date}}",
       "currentWarPlaceholder": "När detta skråkrig startar kommer det att visas här.",
@@ -5865,7 +6857,7 @@
       "rewardAlreadyClaimed": "Du har redan fått belöningen från den tidigare guildstriden.",
       "rewardClaimHint": "Få belöningar från den tidigare guild-striden. När nästa skråkrig tar slut kommer tidigare belöningar att försvinna.",
       "rewardUnavailable": "Det finns ingen belöning tillgänglig eller så är den inte tillgänglig för tillfället. (Från 1 timme efter krigets slut till slutet av nästa skråkrig)",
-      "rewardClaimedBtn": "Belöning mottagen",
+      "rewardClaimedBtn": "Slutförande mottagen",
       "claimRewardBtn": "Ta emot belöning",
       "noRecord": "inget rekord",
       "enter": "placera",
@@ -5883,13 +6875,13 @@
       "currentOccupier": "nuvarande ockupant",
       "none": "finns inte",
       "capturesCount": "{{count}} vinnande stenar",
-      "scoreDiff": "Husskillnad {{count}}Hus",
+      "scoreDiff": "husskillnad {{count}}hus",
       "scoreDiffShort": "skillnad {{count}}hus",
       "targetScore": "målpoäng",
       "pointsUnit": "{{count}}poäng",
       "mode": "läge",
       "board": "schackbräde",
-      "boardLines": "{{storlek}}rad",
+      "boardLines": "{{storlek}} rad",
       "turnLimit": "svänggräns",
       "turnsUnit": "{{count}} varv",
       "scoringTurns": "{{count}} övergår till att räkna pris",
@@ -5903,7 +6895,7 @@
       "hidden": "Dold",
       "scan": "avsöka",
       "missile": "missil",
-      "speedPressureRule": "För varje {{second}} sekund som din klocka går upp ökar din motståndares poäng med 1 poäng. (PVE-hastighet)",
+      "speedPressureRule": "För varje {{second}} sekund som din klocka går upp ökar din motståndares poäng med 1 poäng. (PVE hastighet)",
       "baseStoneRule": "Efter att ha placerat {{count}} basstenar i hemlighet, gå in i huvudspelet med ett bonusbud.",
       "mapAttempts": "Antal kartutmaningar",
       "attemptsExhausted": "Antalet utmaningar är slut",
@@ -5922,7 +6914,7 @@
       "myArenaHint": "Nedan är en sammanfattning av de avslutande matcherna som spelades av rymden i det här kriget. Pågående upplagor kommer att återspeglas i den detaljerade listan efter att de är slut.",
       "boardPerformance": "Uppträdande per stadion",
       "inProgress": "Pågår",
-      "gameSummary": "Avsluta {{games}} omgångar · Vinster {{vinster}} · Oavgjort {{oavgjort}} · Förluster {{förluster}}{{stjärnor}}",
+      "gameSummary": "Avsluta {{games}}Beat · Vinst {{wins}} · Oavgjort {{draws}} · Förlust {{losses}}{{stars}}",
       "starsEarnedSum": "· Totalt per förvärv {{count}}",
       "noBoardRecord": "Det finns inga uppgifter om denna avdelning i detta krig.",
       "finishedGamesDetail": "Slutmatchdetaljer",
@@ -5955,6 +6947,13 @@
     },
     "boss": {
       "title": "Guild Boss Battle",
+      "names": {
+        "boss_1": "lyssnande",
+        "boss_2": "framträdande plats",
+        "boss_3": "grönt vatten",
+        "boss_4": "djup",
+        "boss_5": "vitt ljus"
+      },
       "guide": "Boss Encyclopedia",
       "guideTitle": "Guild Boss Encyclopedia",
       "stage": "{{stage}}scen",
@@ -6047,7 +7046,7 @@
       "guildXp": "Guild Experience",
       "researchPoints": "Labpoäng",
       "enhancementStoneLow": "Mindre förtrollningssten",
-      "enhancementStoneMid": "Intermediate Enhancement Stone",
+      "enhancementStoneMid": "Mellanarmeringssten",
       "enhancementStoneHigh": "Avancerad förtrollningssten",
       "enhancementStoneTop": "Förstärkningssten av högsta kvalitet",
       "enhancementStoneMystic": "Mystisk förstärkningssten",
@@ -6158,7 +7157,7 @@
     "termsOfService": {
       "title": "Användarvillkor",
       "eyebrow": "Användarvillkor",
-      "intro": "Tack för att du använder vår tjänst {{serviceName}}. Dessa villkor fastställer rättigheter, skyldigheter och skyldigheter mellan medlemmar och företaget."
+      "intro": "Tack för att du använder vår tjänst {{serviceName}}. Dessa villkor fastställer rättigheterna, skyldigheterna och skyldigheterna mellan medlemmarna och företaget."
     },
     "privacyPolicy": {
       "title": "sekretesspolicy",
@@ -6166,7 +7165,7 @@
       "intro": "{{companyName}} upprättar och avslöjar denna policy för att skydda medlemmars personliga information i enlighet med relevanta lagar och förordningar, såsom lagen om skydd av personuppgifter, och för att snabbt och smidigt hantera klagomål relaterade till detta."
     },
     "refundPolicy": {
-      "title": "Avbokning/återbetalningsregler",
+      "title": "Avbokning/återbetalningspolicy",
       "eyebrow": "Återbetalningspolicy",
       "intro": "Vi vill informera dig om avbokning och återbetalning av betalt innehåll. Dessa regler har skrivits i enlighet med relevanta lagar och förordningar, såsom lagen om elektronisk handel."
     },
@@ -6183,7 +7182,7 @@
       "and": "och",
       "privacyLink": "sekretesspolicy",
       "termsAgree": "Jag kollade. (grundläggande)",
-      "refundLink": "Avbokning/återbetalningsregler",
+      "refundLink": "Avbokning/återbetalningspolicy",
       "refundAgree": "Jag har bekräftat och godkänner ovanstående avbokningsbegränsningar. (grundläggande)",
       "subscriptionAgreePrefix": "Automatisk betalning var 30:e dag",
       "subscriptionProduct": "Vanlig betalningsprodukt",

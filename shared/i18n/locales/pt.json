@@ -27,7 +27,7 @@
     },
     "languageSelect": {
       "label": "linguagem",
-      "placeholder": "Escolha seu idioma"
+      "placeholder": "Selecione um idioma"
     },
     "connection": {
       "reconnecting": "Reconectando ao servidor...",
@@ -96,7 +96,7 @@
       "strategicLobby": "Ajuda estratégica na sala de espera do Baduk",
       "playfulLobby": "Jogar Ajuda da sala de espera do Baduk",
       "guild": "Ajuda da Guilda",
-      "guildBoss": "Ajuda para Batalha do Chefe da Guilda"
+      "guildBoss": "Ajuda para a Batalha do Chefe da Guilda"
     },
     "gold": "ouro",
     "diamonds": "diamante",
@@ -142,7 +142,7 @@
       "loggingOut": "Você será desconectado."
     },
     "autoProceed": "Até o progresso automático",
-    "autoProceedShort": "progresso automático",
+    "autoProceedShort": "avanço automático",
     "autoSelectUntil": "Até seleção automática",
     "autoSelectShort": "seleção automática",
     "nextRoundAuto": "Até a próxima rodada, início automático",
@@ -258,11 +258,11 @@
     "second": "Hugong",
     "firstBlack": "Atacar primeiro (preto)",
     "secondWhite": "Hugong (branco)",
-    "chooseTurn": "Escolha ir primeiro ou segundo.",
+    "chooseTurn": "Escolha ir primeiro ou último.",
     "chooseTurnCountdown": "Escolha ir primeiro ou segundo. ({{contagem regressiva}})",
     "opponentChoosingSecond": "O adversário está escolhendo jogar em segundo lugar...",
     "readyCountdown": "Pronto ({{contagem regressiva}})",
-    "waitingOpponentRoll": "Esperando pelo oponente...",
+    "waitingOpponentRoll": "Esperando pela outra parte...",
     "rollingDice": "Jogue os dados...",
     "tieReroll": "gravata! Role novamente depois de um tempo.",
     "rollToDecide": "Pressione o botão pronto para lançar os dados. A pessoa com o maior número escolhe ir primeiro/último.",
@@ -270,7 +270,7 @@
     "diceAutoStart": "Clique no botão Iniciar abaixo ou a partida começará automaticamente após 30 segundos.",
     "colorRouletteTitle": "cor baduk",
     "uniformColorRoulette": "roleta de cores uniformes",
-    "thisGameColor": "Cor da pedra para este jogo: {{color}}",
+    "thisGameColor": "Cor da pedra para esta partida: {{color}}",
     "colorRouletteHint": "As pedras pretas e brancas piscam rapidamente alternadamente e param aleatoriamente.",
     "colorRouletteEnd": "A partida começará automaticamente após o término do sorteio.",
     "colorRouletteProceed": "Será realizado automaticamente após o término do sorteio.",
@@ -279,7 +279,7 @@
     "deathmatchRoleTitle": "Papel no Combate Mortal",
     "deathmatchRoleSubtitle": "Um ladrão (preto) e um policial (branco) são designados aleatoriamente. Começamos com pedra, papel e tesoura.",
     "roleDecidedTitle": "Decisão de função concluída",
-    "roleDecidedSubtitle": "O papel das pretas e o primeiro/segundo lugar foram decididos na roleta. O ladrão é automaticamente atribuído às pretas (jogando primeiro) e a polícia é automaticamente atribuída às brancas (jogando em segundo lugar).",
+    "roleDecidedSubtitle": "O papel das pretas e o primeiro/segundo foram decididos através da roleta. O ladrão é automaticamente atribuído às pretas (jogando primeiro) e a polícia é automaticamente atribuída às brancas (jogando em segundo lugar).",
     "rouletteDecided": "Ir em primeiro/segundo foi decidido na roleta.",
     "rouletteSubtitle": "Preto e branco são atribuídos através de roleta automática, que é mais rápida que pedra-papel-tesoura.",
     "gameStartConfirm": "Confirme o início da partida",
@@ -287,7 +287,7 @@
     "baseConfirm": "Verifique a boneca base",
     "reviewMode": "modo de recuperação",
     "originalGame": "Notação original",
-    "rotateToWhite": "Vista do ponto de vista de White",
+    "rotateToWhite": "Vista da perspectiva de White",
     "rotateToBlack": "Vista do ponto de vista das pretas",
     "closeViewer": "fechar",
     "replayFirst": "pela primeira vez",
@@ -324,7 +324,7 @@
       "logoutConfirm": "Você quer sair?",
       "actionPointRechargeShop": "Recarga de Ação (Loja)",
       "actionPointRecharge": "Recarga de ação",
-      "participationTickets": "Direitos de participação na Guilda/Campeonato",
+      "participationTickets": "Direitos de participação na guilda/campeonato",
       "guildChampCoins": "Moeda da Guilda/Moeda do Campeão",
       "admin": "gerente"
     },
@@ -354,7 +354,7 @@
       "blacksmith": "forja",
       "shop": "loja",
       "inventory": "bolsa",
-      "pet": "cuidados com animais de estimação",
+      "pet": "bicho de estimação",
       "trainingQuest": "Tarefa de treinamento",
       "detailedStats": "Registros detalhados do estádio PVP",
       "monsterCodex": "Enciclopédia de Monstros",
@@ -362,7 +362,7 @@
       "gameRecords": "notação",
       "encyclopedia": "Enciclopédia",
       "announcements": "notificação",
-      "help": "Central de Ajuda",
+      "help": "ajuda",
       "menu1": "Cardápio 1",
       "menu2": "Cardápio 2"
     },
@@ -425,13 +425,13 @@
     "kakao": "cacau",
     "google": "Google",
     "ban": {
-      "title": "O acesso é proibido.",
+      "title": "A conexão é proibida.",
       "reason": "Motivo: {{motivo}}",
       "remainingMinutes": "Duração restante: aproximadamente {{minutos}} minutos",
       "expiresAt": "Programado para lançamento: {{date}}",
       "historyTitle": "Detalhes da Sanção",
       "noReason": "sem motivo",
-      "adminDefault": "Sanções do administrador",
+      "adminDefault": "Sanções do Administrador",
       "released": "limpo"
     },
     "errors": {
@@ -520,7 +520,7 @@
   },
   "gameModes": {
     "standard": "baduk clássico",
-    "capture": "vencendo baduk",
+    "capture": "ganhando baduk",
     "speed": "velocidade ruim",
     "base": "base baduk",
     "hidden": "Baduk escondido",
@@ -537,7 +537,7 @@
     "curling": "ondulação",
     "comingSoon": "Preparando novas atualizações",
     "descriptions": {
-      "standard": "Este é o típico baduk clássico.",
+      "standard": "É o típico baduk clássico.",
       "capture": "O jogo de Baduk é vencido pela primeira pessoa que conseguir um determinado número de pedras.",
       "speed": "Se você colocá-lo dentro de {{seconds}} segundos, você irá regenerar {{seconds}} segundos. A cada {{seconds}} segundos, 1 ponto é adicionado ao seu oponente.",
       "base": "É um jogo de baduk onde você observa a disposição das pedras base, define um bônus para o seu oponente, usa as pedras de sua escolha e compete pela sua capacidade de analisar a situação.",
@@ -574,7 +574,7 @@
       "passTitle": "faça uma pausa",
       "resignTitle": "Abster-se",
       "cannotResignDuringScoring": "Não é permitida a abstenção durante o processo de contagem.",
-      "gameFeatures": "Função de correspondência",
+      "gameFeatures": "função de correspondência",
       "playfulFeatures": "função de jogo",
       "mannerAction": "ação de boas maneiras",
       "mannerActionPvpOnly": "O botão de ação do modo é criado apenas no modo PVP.",
@@ -613,7 +613,7 @@
       "cannotResignWhilePaused": "Você não pode se abster durante uma pausa.",
       "cannotResignBeforeStart": "Você só pode sacar após o início do jogo.",
       "confirmResign": "Você gostaria de desistir do jogo?",
-      "confirmPairTeamResign": "Envie uma solicitação de saque ao seu colega de equipe. Somente se os seus colegas concordarem, você terá que se abster. Você só pode fazer esse pedido uma vez neste turno. Do you want to proceed?",
+      "confirmPairTeamResign": "Envie uma solicitação de saque ao seu colega de equipe. Somente se os seus colegas concordarem, você terá que se abster. Você só pode fazer esse pedido uma vez neste turno. Você quer prosseguir?",
       "phaseOpening": "primeiros dias",
       "phaseMidgame": "meio",
       "phaseEndgame": "final",
@@ -632,7 +632,7 @@
       "adminFeatures": "Função de administrador",
       "pauseMyTurnOnly": "Você só pode pausar durante o seu turno",
       "resumeGame": "Retomada da partida",
-      "resumeGameCountdown": "Reinício da partida ({{count}})",
+      "resumeGameCountdown": "Retomar correspondência ({{count}})",
       "pauseGame": "interromper",
       "pauseGameCountdown": "pausa ({{contagem}})",
       "pauseGameAiTurn": "Pausa (viragem da IA)",
@@ -650,7 +650,7 @@
       "evenDiceTitle": "Itens de dados pares (2, 4, 6). Contagem restante {{count}}",
       "lowDiceAria": "Itens de dados com baixo número, número restante {{count}}",
       "lowDiceTitle": "Itens de dados com baixo número (1·2·3). Contagem restante {{count}}",
-      "highDiceAria": "Itens de dados com número alto, número restante {{count}}",
+      "highDiceAria": "Itens de dados com números altos, número restante {{count}}",
       "highDiceTitle": "Itens de dados com alto número (4, 5, 6). Contagem restante {{count}}",
       "oddDiceUse": "Use dados ímpares",
       "evenDiceUse": "Use dados pares",
@@ -670,13 +670,13 @@
       "thiefHigh36Title": "Um dado que mostra apenas números altos (3, 4, 5, 6). Contagem restante {{count}}",
       "thiefNoOneAria": "Evite 1 (2~5) itens de dados, número restante {{count}}",
       "thiefNoOneTitle": "Dados que não resultam em 1 (2, 3, 4, 5). Contagem restante {{count}}",
-      "thiefHigh36UseTitle": "Use dados de número alto (3-6)",
+      "thiefHigh36UseTitle": "Use dados de números altos (3-6)",
       "thiefHigh36UseBody": "Use um item de dado que resulte apenas em 3, 4, 5 e 6. Se for um turno da polícia, ambos os dados estarão nesta faixa. Você quer continuar?",
       "thiefNoOneUseTitle": "Use 1 dado de prevenção",
       "thiefNoOneUseBody": "Use um item de dado que só dê 2, 3, 4 ou 5 (1 não é possível). Se for a vez da polícia, ambos os dados estão nesta faixa. Você quer continuar?"
     },
     "board": {
-      "rotateSpectatorBlack": "Vista do ponto de vista das pretas",
+      "rotateSpectatorBlack": "Vista da perspectiva das pretas",
       "rotateSpectatorWhite": "Vista do ponto de vista de White",
       "rotate180": "rotação do tabuleiro de xadrez 180 graus",
       "paused": "interromper",
@@ -715,15 +715,15 @@
       "hiddenFinalReveal": "Revelamos todas as pedras escondidas e começamos a contar.",
       "autoScoringAdventure": "A contabilidade automática é executada.",
       "autoScoringReached": "O sistema automático chega ao procedimento e inicia a contagem.",
-      "alkkagiRePlace": "Coloque as pedras novamente. ({{rodada}} / {{total}} rodadas)",
-      "alkkagiPlace": "Coloque as pedras. ({{rodada}} / {{total}} rodadas)",
-      "alkkagiPlayerTurn": "É a vez de {{name}}. ({{rodada}} / {{total}} rodada)",
+      "alkkagiRePlace": "Coloque as pedras novamente. ({{rodada}} / {{total}} rodada)",
+      "alkkagiPlace": "Coloque as pedras. ({{rodada}} / {{total}} rodada)",
+      "alkkagiPlayerTurn": "É a vez de {{name}}. ({{rodada}} / {{total}} rodadas)",
       "alkkagiRoundEnd": "Fim da rodada - Confira e prossiga no letreiro eletrônico abaixo.",
       "diceRollTurn": "É a vez de {{name}} lançar os dados.",
       "diceRollTurnGeneric": "É hora de jogar os dados",
       "tiebreakerDeciding": "Decidindo a ordem vencedora...",
       "tiebreakerPlaying": "Partida em andamento... (é a vez de {{name}})",
-      "diceModeRound": "Dice Go ({{rodada}} / {{total}} rodadas)",
+      "diceModeRound": "Dados Baduk ({{rodada}} / {{total}} rodada)",
       "thiefModeRound": "Ladrões e Policiais ({{round}} rodada)",
       "preparing": "Preparando jogo...",
       "timeoutFoul": "Falta de tempo de {{name}}!",
@@ -733,7 +733,7 @@
       "timeoutFoulPassTurn": "A vez passa para o adversário.",
       "timeoutFoulLoseStone": "Você perde 1 pedra e seu turno termina.",
       "timeoutFoulDefault": "Você será penalizado por exceder o limite de tempo.",
-      "baseKomiGuide": "Decida quais pedras e bônus você deseja manter. Se você escolher a mesma pedra, aquela que lhe dá mais bônus é a pedra que você deseja manter.",
+      "baseKomiGuide": "Decida quais pedras e bônus você deseja colocar. Se você escolher a mesma pedra, aquela que lhe dá mais bônus é a pedra que você deseja manter.",
       "alkkagiPlaceHidden": "Coloque as pedras de forma que não fiquem visíveis para o seu oponente. ({{rodada}} / {{total}} rodadas)",
       "alkkagiPlaceMissing": "Coloque as pedras que faltam. ({{rodada}} / {{total}} rodadas)",
       "placementProgress": "colocado {{colocado}}/{{alvo}}",
@@ -756,7 +756,7 @@
       "baseStonesRemaining": "Bonecos base restantes ({{remaining}}/{{total}})",
       "timeRemainingShort": "· {{sec}} segundos restantes",
       "confirmPlacement": "· Clique em Concluir implantação",
-      "waitingOpponent": "· Aguardando confirmação do adversário",
+      "waitingOpponent": "· Aguardando confirmação do oponente",
       "bothBasePlacing": "Pedras de base estão sendo colocadas em ambos os lados"
     },
     "baseSameColorPoints": {
@@ -769,8 +769,8 @@
       "proceedingNext": "Estamos passando para a próxima etapa.",
       "submitted": "Suas configurações de pontuação foram enviadas",
       "waitingOpponent": "Aguardando configurações do parceiro.",
-      "sameColorGuide": "Escolhemos as mesmas pedras um do outro. Quantos pontos você deve dar ao seu oponente para manter {{stone}}?",
-      "sameColorGuideGeneric": "Você escolheu a mesma pedra que seu oponente. Decida a pontuação que você gostaria de apresentar.",
+      "sameColorGuide": "Escolhemos as mesmas pedras um do outro. How many points should you give your opponent to keep {{stone}}?",
+      "sameColorGuideGeneric": "Você escolheu a mesma pedra que seu oponente. Decida a partitura que você gostaria de apresentar.",
       "playerBid": "Pontuação atual para {{nickname}}",
       "pointsUnit": "casa",
       "reset": "reiniciar",
@@ -803,9 +803,9 @@
       "capturedStones": "pedra pega",
       "finalScore": "pontuação final",
       "captureScore": "Pontuação de captura:",
-      "lastPileBonus": "Bônus fictício final:",
+      "lastPileBonus": "Último bônus fictício:",
       "finalScoreLabel": "pontuação final",
-      "houseScoreGain": "Pontos ganhos",
+      "houseScoreGain": "Pontuação obtida",
       "houseUnit": "casa",
       "playerWins": "{{nome}} vence!",
       "cumulativeScore": "pontuação cumulativa",
@@ -865,7 +865,7 @@
       "mannerRank": "classe de maneira",
       "starsEarned": "ganhando estrelas",
       "starsEarnedAria": "{{count}} estrelas ganhas",
-      "petGradeUpgradeNeeded": "O nível do animal de estimação precisa ser fortalecido",
+      "petGradeUpgradeNeeded": "A classe pet precisa ser fortalecida",
       "representativePet": "animal de estimação representativo",
       "addedStats": "Habilidades adicionadas",
       "vipSlotReward": "Recompensas de slots VIP",
@@ -962,7 +962,7 @@
       "adminResignConfirm": "Você deseja processar a vitória de {{loser}} (vencedor: {{winner}})?",
       "expand": "Expandir barra lateral",
       "collapse": "Recolher barra lateral",
-      "adminForceResignWin": "{{name}} ganha por retirada"
+      "adminForceResignWin": "{{name}} ganhou por retirada"
     },
     "playerPanel": {
       "captures": "pedra escolhida",
@@ -1048,7 +1048,7 @@
       "failTurnLimit": "O piso falhou devido a curvas insuficientes.",
       "failTimeLimit": "O piso falhou porque o período de tempo limite foi excedido.",
       "failSurvival": "As brancas resistiram todos os turnos designados e falharam.",
-      "failCaptureTarget": "O adversário atingiu a meta de pontuação primeiro.",
+      "failCaptureTarget": "O adversário atingiu a pontuação desejada primeiro.",
       "failScoring": "Como resultado do cálculo, o adversário ficou com mais casas.",
       "failResign": "Você se absteve e sua palavra terminou.",
       "failDisconnect": "A camada falhou devido a uma conexão perdida.",
@@ -1167,7 +1167,7 @@
       "myColor": "minha cor",
       "time": "hora",
       "timeNone": "não existe",
-      "timeFischer": "{{minutos}} minutos · Fisher {{incremento}} segundos",
+      "timeFischer": "{{minutos}} minutos · Fisher {{increment}} segundos",
       "timeByoyomi": "{{minutos}} minutos · contagem regressiva {{byoyomi}} segundos × {{count}} vezes",
       "boardSizeValue": "{{tamanho}}x{{tamanho}}",
       "komiValue": "{{komi}}casa",
@@ -1176,7 +1176,11 @@
       "scoringTurnValue": "{{voltas}}voltas",
       "forbidden": "proibição",
       "allowed": "possível",
-      "speedNormal": "comumente"
+      "speedNormal": "comumente",
+      "confirm": "verificar",
+      "gaugeSpeedSlow": "x1 (lento)",
+      "gaugeSpeedNormal": "x2 (normal)",
+      "gaugeSpeedFast": "x3 (rápido)"
     },
     "challengeModal": {
       "rejected": "Rejeitando",
@@ -1198,9 +1202,9 @@
       "speedTimeRules": "regras de tempo de velocidade",
       "timeByoyomi": "Limite de tempo/contagem regressiva",
       "baseGo": "base baduk",
-      "baseStones": "pedra base",
+      "baseStones": "pedra básica",
       "castleGo": "Castelo Baduk",
-      "castleShort": "castelo",
+      "castleShort": "Castelo",
       "timeLimit": "limite de tempo",
       "byoyomi": "contagem regressiva",
       "byoyomiSeconds": "{{seg}} segundos",
@@ -1268,10 +1272,10 @@
         "shopConsumables": "Loja · Consumíveis",
         "buyPotion": "Compre poção de recuperação de ação",
         "buyPotionLimit": "· 1 por dia por tipo",
-        "diamondInstant": "Recarga instantânea de diamante",
+        "diamondInstant": "Diamante recarrega instantaneamente",
         "diamondInstantHint": "Você pode preencher seu poder de ação quando quiser.",
         "goShopConsumables": "Compre poções de cura na loja (consumíveis)",
-        "goDiamondRecharge": "Recarregue imediatamente com diamantes",
+        "goDiamondRecharge": "Recarregue instantaneamente com diamantes",
         "selfHeading": "Não tenho a capacidade de agir.",
         "selfDetail": "O poder de ação (⚡) é necessário para aplicar e aceitar uma partida ou para iniciar uma partida de IA. Carregue e tente novamente.",
         "opponentTitle": "Inscreva-se para uma partida",
@@ -1292,7 +1296,7 @@
       "confirmNextStep": "Quando terminar de colocar, clique para prosseguir para a próxima etapa.",
       "placeAllFirst": "Após colocar todas as pedras de base, pressione-as.",
       "basePlacementTitle": "Colocação da pedra base",
-      "basePlacementHint": "Coloque a boneca base. ({{placed}}/{{total}})",
+      "basePlacementHint": "Coloque a boneca base. ({{colocados}}/{{total}})",
       "confirmStart": "A partida começa",
       "confirmStartHint": "Quando você pressiona o botão Iniciar, a partida começa.",
       "hostPlacesBoth": "O anfitrião coloca as pedras de base em ambos os lados.",
@@ -1303,7 +1307,7 @@
       "waitingOpponentShort": "Bonecos base restantes (0/{{total}}) · Aguardando confirmação do oponente...",
       "placeVisibleAdventure": "Coloque a pedra base no tabuleiro de xadrez",
       "placeHidden": "Coloque a pedra base no tabuleiro de xadrez sem ser visível para o seu oponente.",
-      "timeRemainingSec": "Tempo restante {{sec}} segundos"
+      "timeRemainingSec": "Tempo restante: {{sec}} segundos"
     },
     "placementRefresh": {
       "title": "Mudança de layout",
@@ -1311,7 +1315,7 @@
       "missileFirstTurn": "Se você usar um míssil no primeiro turno, não poderá usar Mudança de implantação.",
       "noRefreshesLeft": "Todas as realocações foram usadas.",
       "waitForStart": "Você pode reposicionar assim que o jogo começar.",
-      "beforeFirstMove": "Você só pode se mudar antes de o primeiro movimento ser feito.",
+      "beforeFirstMove": "Você só pode se reposicionar antes do primeiro movimento ser feito.",
       "insufficientGold": "Estou sem ouro.",
       "paused": "O reposicionamento não é possível durante o estado de pausa.",
       "confirmPaid": "Você gostaria de usar {{gold}} ouro para reorganizar o lote? (relocação restante {{remaining}}/5)",
@@ -1382,7 +1386,203 @@
       "curling": "ondulação",
       "thiefPolice": "ladrão e polícia",
       "classic": "clássico",
-      "mix": "mistura"
+      "mix": "mistura",
+      "specialRules": "regras especiais",
+      "loseCondition": "Condições de derrota",
+      "rulesAndGuide": "Regras do jogo e guia de jogo",
+      "rewards": "compensação",
+      "availableRewards": "Recompensas obtidas",
+      "summary": {
+        "loseTerritory": "Se a pontuação total (pontuação total) for baixa ou a casa estiver em desvantagem devido às regras de empate ou empate, você perde.",
+        "loseTerritoryAuto": "Se você não conseguir vencer {{base}} · {{auto}}, você perde.",
+        "loseCaptureRace": "Se o oponente marcar {{t}} pontos primeiro, você perde. Caso contrário, se tiver poucas casas na família, você perde.",
+        "loseMix": "No final do jogo, se o adversário cumprir primeiro as condições de vitória ou estiver em desvantagem, o adversário perde.",
+        "basePlacementAnalysis": "Análise da situação após liberação da colocação do boneco base",
+        "baseKomiSelect": "Defina o bônus para dar ao seu oponente · Selecione a pedra que deseja",
+        "autoScoringCaptureTurn": "A contagem automática prossegue quando {{n}} turnos são alcançados",
+        "autoScoringTerritoryWin": "Vença a contagem automática após {{n}} turnos",
+        "autoScoringTerritoryLose": "Derrote no jogo automático após {{n}} turnos",
+        "fischerOnly": "Fisher {{seg}} segundos",
+        "byoyomiOnly": "Somente contagem regressiva · {{time}} segundos × {{count}} vezes",
+        "noTimeLimit": "Sem limite de tempo",
+        "limitFischer": "Limite de {{min}} minutos · Fisher {{sec}} segundos",
+        "limitByoyomi": "Limite de {{min}} minutos · Contagem regressiva de {{time}} segundos × {{count}} vezes",
+        "limitNoByoyomi": "Limite de {{min}} minutos (sem contagem regressiva)",
+        "factorTerritory": "território",
+        "factorCaptured": "pedra escolhida",
+        "factorDead": "enrocamento",
+        "factorKomi": "Bônus (bolsa)",
+        "factorBaseBonus": "bônus base",
+        "factorHiddenBonus": "Bônus Oculto",
+        "factorSpeedBonus": "Limite de {{sec}} segundos excedido → Oponente +1",
+        "factorMissileEffect": "Reflexo da produção de mísseis",
+        "factorCaptureScore": "pontuação vencedora",
+        "factorMixFallback": "Dependendo da combinação de modo",
+        "factorCaptureNoTerritory": "Pontuação vencedora (sem cálculos da casa)",
+        "factorCastle": "Território confirmado · Pedra ganha · Bônus (branco)",
+        "factorChess": "Território · Pedra escolhida · Pedra de pedra · Captura de item · Bônus (100)",
+        "factorOmok": "Qui (vitória) — sem cálculos da casa",
+        "factorTtamok": "Vitória no pescoço ou pontuação vencedora",
+        "factorDice": "Pontuação vencedora de 100 pedras por rodada · Bônus de vitória final",
+        "factorThief": "Total de pontos ganhos por rodada",
+        "factorAlkkagi": "Número de movimentos do oponente fora do tabuleiro",
+        "factorCurling": "Stone marca perto da casa (gol)",
+        "factorFallback": "Consulte o guia de modo",
+        "factorStageDefault": "Dependendo do estágio/modo",
+        "factorStageCapture": "pontuação vencedora",
+        "factorStageCapturePattern": "pontuação vencedora\n2 pedras padrão",
+        "factorStageSpeed": "Território, pedra escolhida, pedra riprap, bônus\nbônus de tempo",
+        "factorAdventureCaptureShort": "Escolha · Emblema 2 pontos",
+        "factorAdventureBase": "preço básico",
+        "factorAdventureBaseStone5": "5 bonecos básicos",
+        "factorAdventureHidden": "Escondido",
+        "factorAdventureSpeed": "hora",
+        "factorAdventureMissile": "míssil",
+        "itemHidden": "Oculto {{n}}",
+        "itemScan": "{{n}} verificações",
+        "itemMissile": "{{n}} mísseis",
+        "itemSpecialDice": "Dados especiais {{summary}}",
+        "itemSlowAim": "Lento {{lento}} · Mirar {{aim}}",
+        "mixCaptureWin": "Se {{t}} pontos forem alcançados primeiro, ganhe imediatamente. Se não conseguir, compare as casas após o preço vencedor.",
+        "mixCaptureWinWithAuto": "Ganhar: Se {{t}} pontos forem alcançados primeiro, ganhe imediatamente · Se não conseguir, compare as casas após o limite · {{auto}}",
+        "mixAutoTerritoryWin": "{{auto}} — Quem tiver mais casas vence",
+        "mixComboTail": "Combinações ({{modes}}) — Ganhe ou perca com base nas regras no final",
+        "mixDefaultEnd": "No final, o vencedor ou perdedor é determinado de acordo com as regras.",
+        "highlightPatternStone2": "Escolhendo pedras padrão 2 pontos",
+        "highlightHiddenScan": "Lançamento oculto · Explorar digitalizando",
+        "highlightMissileMove": "Mova a pedra em linha reta com um míssil",
+        "speedPvpHighlight": "Contagem regressiva permitida de 10 segundos · Oponente +1 ponto para cada 10 segundos excedidos · Perda de tempo quando o tempo principal acabar",
+        "highlightSurvival": "Salve Baduk · Pontuação desejada em {{n}} turnos",
+        "highlightAutoScoring": "Contagem automática após {{n}} número",
+        "highlightBlackTurnLimit": "Limite de giro preto {{n}}",
+        "highlightTurnAdd": "{{n}} turnos adicionais",
+        "highlightMissile": "{{n}} mísseis",
+        "highlightHiddenScanCounts": "{{hidden}} oculto · {{scan}} digitalizado",
+        "spTimeMainFischer": "Principais {{min}} minutos · Contagem regressiva permitida de {{sec}} segundos",
+        "spTimeFischerOnly": "Contagem regressiva para o limite de {{sec}} segundos",
+        "spTimeUnlimited": "Sem limite",
+        "goalSurvivalWinLabel": "bloquear de volta",
+        "goalSurvivalWinHelper": "Bloqueie 100 alvos por {{n}} turnos",
+        "goalSurvivalLoseLabel": "cem sucesso",
+        "goalSurvivalLoseHelper": "Se as brancas criarem um gol, ele falhará.",
+        "goalCaptureWinLabel": "escolhendo",
+        "goalCaptureWinHelper": "Marque pontos cercando as pedras do oponente.",
+        "goalCaptureLoseTurnLabel": "voltas excedidas",
+        "goalCaptureLoseTurnHelper": "Se você não fizer isso em {{n}} turnos, você falhará.",
+        "goalCaptureLoseFirstLabel": "oponente primeiro",
+        "goalCaptureLoseFirstHelper": "Se o seu oponente vencer primeiro, você falha.",
+        "goalSpeedWinLabel": "rápido",
+        "goalSpeedWinHelper": "Construindo uma casa na hora certa",
+        "goalSpeedLoseLabel": "Pontuação treze",
+        "goalSpeedLoseHelper": "Falha se houver poucas casas",
+        "goalAutoWinLabel": "muitas casas",
+        "goalAutoWinHelper": "Calcule a casa depois de {{n}}",
+        "goalAutoLoseLabel": "falta de casas",
+        "goalAutoLoseHelper": "{{n}}Se você estiver em desvantagem durante o movimento, você falha.",
+        "goalDefaultWinLabel": "construindo uma casa",
+        "goalDefaultWinHelper": "Construa uma casa ao redor da área",
+        "goalDefaultLoseLabel": "falta de casas",
+        "goalDefaultLoseHelper": "Falha se houver poucas casas",
+        "guideTurnLimitTitle": "limite de giro",
+        "guideTurnLimitBody": "Termine em {{n}} turnos",
+        "guideSurvivalTitle": "tronco",
+        "guideSurvivalBody": "Bloqueie 100 alvos por {{n}} turnos",
+        "guideAutoScoringTitle": "Preço de cálculo",
+        "guideAutoScoringBody": "Calcule a casa depois de {{n}}",
+        "guidePatternStoneTitle": "pedra padrão",
+        "guidePatternStoneBody": "2 pontos se você ganhar",
+        "guideSpeedTitle": "velocidade",
+        "guideSpeedBody": "Se você atrasar, seu oponente ganha +1 ponto.",
+        "guideTurnAddTitle": "Adicionar turno",
+        "guideTurnAddBody": "Aumentar o limite de giro",
+        "guideMissileTitle": "míssil",
+        "guideMissileBody": "Escolha uma pedra e empurre-a em linha reta",
+        "guideHiddenScanTitle": "Oculto · Digitalizar",
+        "guideHiddenScanBody": "Ocultar {{oculto}} · Encontrar {{scan}}",
+        "advCaptureWin": "vencendo",
+        "advCaptureLose": "Ganhe, perca, tempo limite",
+        "advTerritoryWin": "Gye vence",
+        "advTerritoryWinAuto": "Contar vitórias · {{n}} movimentos automaticamente",
+        "advTerritoryLose": "O sistema é derrotado e o tempo acaba.",
+        "advTimeLimit": "Limite de {{mins}} minutos",
+        "gwCaptureWinAuto": "{{cap}} pontos primeiro ou {{limit}} vitórias na contagem de turnos",
+        "gwCaptureWin": "Se você conseguir {{cap}} pontos primeiro, você ganha.",
+        "gwCaptureLose": "O oponente {{cap}} aponta primeiro",
+        "gwTerritoryWinAuto": "Cálculo automático de {{limit}} número de vitórias",
+        "gwTerritoryWin": "Se sua família tiver mais casas, você ganha.",
+        "gwTerritoryLose": "Em menor número, tempo excedido",
+        "captureWin": "Obtenha a pedra do oponente {{t}} pontos primeiro",
+        "captureWinWithAuto": "Obtenha a pedra do oponente {{t}} pontos primeiro · {{auto}}",
+        "territoryWinDefault": "Após a contagem, vence o lado com mais casas.",
+        "speedTerritoryWinDefault": "Quem tiver a maior pontuação geral vence após a contagem.",
+        "speedTerritoryLoseDefault": "Se sua pontuação geral for baixa após a contagem, você perde.",
+        "castleWin": "Se você ganhar 1 ou mais pedras do oponente, você ganha imediatamente. Se não houver números efetivos, o território é calculado.",
+        "castleLose": "Se o seu oponente pegar pelo menos 1 pedra, você perde. Se você tem poucas casas na família, você perde.",
+        "castleHighlightCount": "{{castles}} castelos · Não é possível entrar em território concluído",
+        "castleHighlightCapture": "Vitória imediata ao capturar 1 pedra",
+        "chessWin": "Após o procedimento designado, o cálculo",
+        "chessLose": "Derrota em Gyejia · Perde imediatamente após capturar o rei.",
+        "chessHighlightBudget": "Colocação direta de peças dentro do orçamento de {{budget}} pontos (Rei fixado no centro da 2ª linha)",
+        "chessHighlightMovement": "A peça pode ser movida com um movimento de xadrez uma vez por turno (número limitado de vezes).",
+        "omokWin": "Complete primeiro 5 itens horizontais, verticais e diagonais",
+        "omokLose": "Se o seu oponente completar todos os 5 itens primeiro, você perde.",
+        "omok33Forbidden": "Sem gêmeos",
+        "omok33Allowed": "Gêmeos permitidos",
+        "omokOverlineForbidden": "sem madeira",
+        "omokOverlineAllowed": "Madeira permitida",
+        "ttamokWin": "Conclua o item 5 primeiro ou obtenha os primeiros {{cap}} pontos",
+        "ttamokLose": "Se o seu oponente completar 5 itens primeiro ou alcançar {{cap}} pontos ganhando primeiro, você perde.",
+        "ttamokHighlightCapture": "Ganhe quando alcançar {{cap}} pontos primeiro.",
+        "diceWin": "O lado com a maior pontuação acumulada após {{r}} rodada vence.",
+        "diceLose": "{{r}}Se sua pontuação cumulativa for baixa no final da rodada, você perde.",
+        "diceHighlightRules": "As pretas pousam tantos quantos os olhos dos dados e as brancas são colocadas apenas no caminho de saída.",
+        "thiefWin": "Após 5 turnos x rodadas, a pessoa com a maior pontuação total vence.",
+        "thiefLose": "Se a sua pontuação total for baixa no final da rodada, você perde.",
+        "thiefHighlightRoles": "Alternância de papéis entre ladrão (preto) e policial (branco)",
+        "alkkagiWin": "Derrube todas as pedras do oponente",
+        "alkkagiLose": "Derrube todas as minhas pedras",
+        "alkkagiHighlightGauge": "Controle de força com medidor, reflexão de parede",
+        "curlingWin": "Quem tiver a maior pontuação total na rodada vence",
+        "curlingLose": "Se sua pontuação total for baixa, você perde.",
+        "curlingHighlightRules": "Sistema deslizante / redondo de pedra",
+        "fallbackWin": "A vitória ou a derrota são decididas com base no andamento da partida.",
+        "fallbackLose": "Se a derrota for determinada pelo andamento do jogo, você perde.",
+        "spDefaultWin": "Ganhe quando as condições da etapa forem atendidas",
+        "spDefaultLose": "Perder se as condições não forem atendidas",
+        "spSurvivalWin": "Não conseguiu atingir 100 {{tgt}} pontos em {{n}} turnos",
+        "spSurvivalLose": "Alcance 100 {{tgt}} pontos em {{n}} turnos",
+        "spCaptureTurnWin": "Obtenha {{target}} pontos em {{limit}} turnos",
+        "spCaptureTurnLoseBoth": "Exceda {{limit}} turnos / marque 100 {{target}} pontos",
+        "spCaptureTurnLoseMiss": "Falha ao atingir o alvo em {{limit}} turno",
+        "spCaptureRaceWin": "Ganhe {{target}} pontos primeiro",
+        "spCaptureRaceLose": "Obtenha 100 {{target}} pontos primeiro",
+        "spCaptureCapWin": "Ganhe {{cap}} pontos primeiro",
+        "spCaptureCapLose": "As brancas ganham {{cap}} pontos primeiro",
+        "spCaptureGoalWin": "Atingindo a pontuação desejada",
+        "spCaptureGoalLose": "Baek atinge seu objetivo primeiro",
+        "spSpeedWin": "Equipe vence na pontuação geral",
+        "spSpeedLose": "derrotado no mundo",
+        "spAutoScoringWin": "{{n}}ganha após contar",
+        "spAutoScoringLose": "{{n}}Derrotado após Sugyega",
+        "spLegacyTurnWin": "{{target}} pontos ou mais em {{limit}} turno",
+        "spLegacyTurnLose": "Falha ao atingir o alvo em {{limit}} turno",
+        "spLegacyTerritoryWin": "A família casa negra {{preta}}+ · casa branca {{branca}}+",
+        "spLegacyTerritoryLose": "captação alvo não alcançada",
+        "spTerritoryWin": "Se a família tiver mais casas, eles ganham.",
+        "spTerritoryLose": "Décimo terceiro na linhagem"
+      },
+      "itemSlot": {
+        "hiddenStone": "Pedra Escondida",
+        "scan": "digitalizar",
+        "missile": "míssil",
+        "diceOdd": "Itens de dados ímpares",
+        "diceEven": "Itens pares de dados",
+        "diceLow": "Itens de dados com baixo número (1-3)",
+        "diceHigh": "Itens de dados com número alto (4-6)",
+        "slow": "lento",
+        "aimLine": "linha de visão",
+        "turnAdd": "Adicionar turno"
+      }
     },
     "singlePlayerInfo": {
       "close": "fechar",
@@ -1418,7 +1618,7 @@
       "round1": "1ª apresentação",
       "round2Suffix": "· 2º",
       "waitingBothBids": "Esperamos que ambos os lados apresentem pontuações pretas (boas).",
-      "winnerLine": "Ponto {{bid}} de {{name}} → Ponto preto (linha), alvo branco {{target}}",
+      "winnerLine": "Ponto {{bid}} de {{name}} → ponto preto (linha), alvo branco {{target}}",
       "tieRandomBoth": "O empate proposto é o mesmo. Preto e branco são selecionados aleatoriamente.",
       "tieRandom": "Gravata — Preto e Branco são selecionados aleatoriamente.",
       "tieRebid": "Empate — Mova para executar novamente.",
@@ -1448,7 +1648,7 @@
       "queen": "rainha",
       "pieceTitle": "{{label}} · {{moves}} vezes · {{cost}} pontos",
       "hostPlacing": "O anfitrião coloca as peças",
-      "hostPlacingHint": "Uma vez implantado, você participa de um turno de ataque.",
+      "hostPlacingHint": "Uma vez implantado, ele participa de um turno de ataque.",
       "completeStarting": "Colocação concluída · Comece o jogo…",
       "completeWaiting": "Implantação concluída · Aguardando oponente...",
       "secondsLeft": "{{seg}} segundos",
@@ -1478,7 +1678,8 @@
       "aria": "Guia Resultados"
     },
     "speedPressure": {
-      "aria": "Tempo permitido {{sec}} segundos"
+      "aria": "Tempo permitido {{sec}} segundos",
+      "label": "Barra de velocidade de 10 segundos"
     },
     "adventureResult": {
       "bossLine": "Chefe: {{label}} +{{pct}}%",
@@ -1495,7 +1696,7 @@
     },
     "towerSidebar": {
       "title": "Torre do Desafio",
-      "floor": "{{andar}} andar"
+      "floor": "{{floor}}andar"
     },
     "guildWarSidebar": {
       "title": "guerras de guildas"
@@ -1523,7 +1724,7 @@
       "result": "resultado"
     },
     "gameApplication": {
-      "title": "Inscreva-se para o jogo",
+      "title": "Aplicativo de jogo",
       "modeHeading": "modo de jogo",
       "applyTitle": "aplicativo {{modo}}",
       "selectMode": "Selecione um jogo."
@@ -1531,30 +1732,30 @@
     "captureBid": {
       "title": "Pegue a linha preta",
       "titleReroll": "Rodada de importação/relocação de linha preta",
-      "winnerBid": "{{name}} sugere ponto {{bid}}, que fica preto (linha). A meta das brancas é {{target}} pontos.",
+      "winnerBid": "{{name}} sugere o ponto {{bid}}, que fica preto (linha). O alvo das brancas é de {{target}} pontos.",
       "tieReroll": "Na segunda há empate e é decidido de forma aleatória.",
       "tieReset": "Está um empate, então zeramos!",
       "switching": "Muda imediatamente para reiniciar...",
       "startingSoon": "A partida começará em um momento...",
       "waitingBid": "Aguardando as configurações de {{name}}...",
-      "baseTargetPieces": "O objetivo básico é {{target}}.",
+      "baseTargetPieces": "Os alvos padrão são {{target}}.",
       "bidInstructionRich": "Ofereça um número de pontos para dar ao seu oponente para trazer o preto (jogador).",
-      "bidHint": "O jogador com a pontuação mais alta torna-se preto e o gol das brancas é reduzido de acordo. Podem ser atribuídos até {{max}} pontos.",
+      "bidHint": "O jogador com a pontuação mais alta torna-se preto e o gol das brancas é reduzido de acordo. Até {{max}} pontos podem ser apresentados.",
       "bidTimer": "cronômetro de apostas",
-      "bidRound": "Rodada {{round}}",
+      "bidRound": "rodada {{rodada}}",
       "secondsShort": "vela",
       "timeRemainingBidShort": "Apostas confirmadas dentro do tempo restante",
       "aiUnlimitedTitle": "Apresentação ilimitada de jogos de IA",
       "opponentPoints": "pontuação dada ao adversário",
       "pointsSuffix": "ponto",
       "piecesSuffix": "cachorro",
-      "whiteTargetIfWin": "Se as Pretas forem escolhidas, o objetivo das Brancas é: {{target}} pontos.",
+      "whiteTargetIfWin": "Ao escolher alvo preto e branco: {{target}} pontos",
       "currentBid": "Apresentação atual: {{score}} pontos",
       "setting": "Configurando...",
       "bidConfirmBtn": "Apresentação da pontuação da linha preta confirmada",
       "bidResultBadge": "Resultados de apostas na linha preta",
       "setupComplete": "Configuração concluída",
-      "baseTargetIntro": "O objetivo básico é {{target}}.",
+      "baseTargetIntro": "Os alvos padrão são {{target}}.",
       "bidInstructionRich2": "Ofereça um número de pontos para dar ao seu oponente para trazer o preto (jogador).",
       "aiAutoBidHint": "A IA sugere automaticamente entre 1 e 5 pontos. Você pode escolher sua pontuação sem limite de tempo.",
       "baseTargetLabel": "objetivo principal",
@@ -1612,7 +1813,10 @@
       "baseRule": "base",
       "whiteTargetLabel": "cem gols",
       "firstBlackRole": "Linha (preta)",
-      "meBadge": "meu"
+      "meBadge": "meu",
+      "captureBidResultTitle": "Resultado da apresentação da pontuação vencedora",
+      "komiBidFinalRound": "Lance de bônus (rodada final)",
+      "pressStartPrompt": "Quando estiver pronto, clique em Iniciar para começar a jogar."
     },
     "baseStoneChoice": {
       "hostPick": "O anfitrião seleciona a placa colorida à esquerda.",
@@ -1642,15 +1846,17 @@
       "blackRole": "Primeiro ataque, preto",
       "whiteRole": "Hugong · Voltar",
       "finalCardAlt": "O primeiro e o segundo movimentos finais são exibidos nas cartas esquerda e direita.",
-      "fastFlashAlt": "O display preto e branco nos dois espaços muda, mas depois de um tempo fica fixo na disposição final.",
-      "smoothEndAlt": "Preto e branco mudam rapidamente e param aleatoriamente."
+      "fastFlashAlt": "A exibição em preto e branco nos dois espaços muda, mas depois de um tempo fica fixada no layout final.",
+      "smoothEndAlt": "Preto e branco mudam rapidamente e param aleatoriamente.",
+      "assignmentComplete": "Tarefa concluída",
+      "blackCandidate": "Vá primeiro candidato (preto)"
     },
     "uniformColor": {
       "blackStone": "pedra negra",
       "whiteStone": "pedra branca",
       "title": "Ilsaek Baduk",
       "uniformRoulette": "roleta de cores uniformes",
-      "thisColor": "Cor da pedra para este jogo: {{color}}",
+      "thisColor": "Cor da pedra para esta partida: {{color}}",
       "flashHint": "As pedras pretas e brancas piscam rapidamente alternadamente e param aleatoriamente.",
       "autoStart": "A partida começará automaticamente após o término do sorteio.",
       "stoneColorRoulette": "roleta de cor de pedra",
@@ -1663,7 +1869,7 @@
       "expectedRecovery": "Condição após recuperação esperada",
       "applying": "Aplicando recuperação...",
       "goShop": "Vá para a loja",
-      "usePotion": "Use medicina restauradora",
+      "usePotion": "usar medicina restauradora",
       "recoveryTitle": "recuperação da condição",
       "potionTitle": "{{name}} · Recuperação {{min}}~{{max}} · Retenção {{count}}",
       "currentLabel": "condição atual",
@@ -1679,7 +1885,8 @@
       "autoRouletteShort": "Em vez de pedra, papel, tesoura, preto e branco são atribuídos por meio de roleta automática.",
       "checkingRoulette": "Verificando os resultados da roleta...",
       "waitingConfirm": "Aguardando confirmação de outra parte...",
-      "startCountdown": "Comece a partida ({{count}})"
+      "startCountdown": "Comece a partida ({{count}})",
+      "autoStartHint": "Pressione Iniciar ou a partida começará automaticamente após 30 segundos."
     },
     "diceGo": {
       "winner": "Como resultado dos dados, {{name}} ganhou e foi tomada a decisão de jogar primeiro/último.",
@@ -1740,7 +1947,7 @@
       "tieDeathmatch": "A partida mortal continua empatada.",
       "swapRoles": "Troque de papéis e prossiga para a próxima rodada.",
       "round2Tie": "A rodada 2 termina. Se o placar estiver empatado, é uma partida mortal.",
-      "waitingConfirm": "Aguardando confirmação do oponente",
+      "waitingConfirm": "Aguardando confirmação do adversário",
       "nextRound": "próxima rodada",
       "piecesUnit": "cachorro"
     },
@@ -1865,7 +2072,7 @@
           "step1Title": "regras de tempo",
           "step1Body": "Se você não fizer isso dentro do tempo definido, seu oponente ganhará mais pontos.",
           "step2Title": "Preço de cálculo",
-          "step2Body": "Em última análise, o vencedor ou perdedor é determinado pela soma dos bônus da casa e do tempo."
+          "step2Body": "Em última análise, o vencedor é determinado somando os bônus da casa e do tempo."
         },
         "base": {
           "step1Title": "boneca base",
@@ -1877,7 +2084,7 @@
           "step1Title": "construindo uma casa",
           "step1Body": "Construa casas ao redor do território e proteja mais casas que seus oponentes.",
           "step2Title": "Preço de cálculo",
-          "step2Body": "Se ambos os lados passarem, o vencedor será determinado por contagem."
+          "step2Body": "Se ambos os lados passarem, o vencedor será decidido por contagem."
         },
         "survival": {
           "tab": "Salve Baduk",
@@ -1936,20 +2143,20 @@
       "diceTitle": "{{round}}Contagem redonda",
       "deathmatchStart": "O combate mortal começa",
       "viewFinal": "Ver resultado final",
-      "waitingConfirm": "Aguardando confirmação do oponente",
+      "waitingConfirm": "Aguardando confirmação do parceiro",
       "dummyCapture": "{{nome}}",
       "previousRound": "rodada anterior",
       "previousKnockShort": "batida anterior",
       "detailScores": "pontuação detalhada",
       "resultBoardTab": "quadro de resultados",
-      "finalRoundTieBody": "A rodada final está empatada. Após a confirmação, o jogo continua atirando mais pedras do mesmo tabuleiro.",
+      "finalRoundTieBody": "A rodada final está empatada. Após a confirmação, o jogo continua atirando mais pedras de cada vez do mesmo tabuleiro.",
       "stonesLeft": "pedras restantes",
       "scoredFor": "pontuação",
       "scoredAgainst": "concedido",
-      "roundWinner": "Rodada {{round}} — {{name}} vitórias",
+      "roundWinner": "{{round}}Rodada — {{name}} vitórias",
       "noRolls": "Sem rolo",
       "diceStats": "estatísticas de dados",
-      "lastDummyBonus": "Última pilha +{{bônus}}",
+      "lastDummyBonus": "Última pilha +{{bonus}}",
       "alkkagiKnockout": "suprimir",
       "playerFallback": "jogador",
       "waitingOpponentConfirm": "Aguardando confirmação do oponente",
@@ -1999,7 +2206,7 @@
       }
     },
     "sound": {
-      "output": "saída de energia",
+      "output": "saída de potência",
       "masterVolume": "volume mestre",
       "masterEffects": "Todos os efeitos sonoros",
       "categories": "Controle detalhado de efeitos sonoros",
@@ -2103,7 +2310,7 @@
       "selectGame": "Selecione o jogo que deseja jogar."
     },
     "waitingRoom": {
-      "strategic": "Sala de espera estratégica do Baduk",
+      "strategic": "Sala de espera estratégica de Baduk",
       "playful": "Jogar sala de espera Baduk",
       "generic": "{{mode}} sala de espera",
       "switchTitle": "Transição da sala de espera",
@@ -2135,10 +2342,10 @@
     },
     "playfulNotice": {
       "title": "Guia para jogar baduk",
-      "body": "As pontuações da partida e da classificação da temporada não são usadas no estádio Play Baduk. As partidas de classificação estão disponíveis apenas na sala de espera do Strategic Baduk."
+      "body": "As pontuações da partida de classificação e da classificação da temporada não são usadas na arena Play Baduk. As partidas de classificação estão disponíveis apenas na sala de espera do Strategic Baduk."
     },
     "rankedUnavailable": {
-      "title": "Nenhuma partida classificada",
+      "title": "Nenhuma partida ranqueada",
       "body": "As partidas de classificação estão disponíveis apenas na sala de espera do Strategic Baduk.",
       "seasonRankingHint": "A lista de classificação da temporada pode ser encontrada na sala de espera do Strategic Baduk."
     },
@@ -2157,23 +2364,27 @@
       "noMessages": "Não há mensagens de bate-papo.",
       "noGuildMessages": "Não há mensagens no chat da guilda.",
       "placeholder": "[Insira a mensagem]",
-      "banPlaceholder": "Bate-papo desativado ({{minutes}} minutos restantes)",
-      "cooldownPlaceholder": "({{seconds}} segundos)",
+      "banPlaceholder": "Bate-papo desativado ({{minutos}} minutos restantes)",
+      "cooldownPlaceholder": "({{segundos}} segundos)",
       "profanityAlert": "Sua mensagem não pode ser enviada porque contém palavras inadequadas.",
       "quickChatTitle": "bate-papo rápido",
       "sendTitle": "enviar"
     },
     "playerList": {
       "title": "Lista de usuários",
-      "onlineCount": "({{count}} pessoas estão on-line)",
-      "viewProfile": "{{nickname}} Ver perfil",
-      "recordSummary": "{{wins}}Ganhos{{losses}}Perdas ({{winRate}}%)",
-      "scorePoints": "{{score}}pontos",
+      "onlineCount": "({{count}} pessoas conectadas)",
+      "viewProfile": "{{apelido}} Ver perfil",
+      "recordSummary": "{{vitórias}}Vitórias{{derrotas}}Perdas({{winRate}}%)",
+      "scorePoints": "{{pontuação}} pontos",
       "noStats": "sem estatísticas",
       "noOtherPlayers": "Não há outros jogadores.",
       "forceLogout": "forçado a sair",
-      "forceLogoutConfirm": "Deseja forçar [{{nickname}}] a desconectar?",
+      "forceLogoutConfirm": "Quer forçar [{{nickname}}] a desconectar?",
       "invite": "Convidar",
+      "challenge": "Inscreva-se para uma partida",
+      "challengeUnavailable": "A outra parte não está em condições de receber solicitações de correspondência.",
+      "spectate": "Assistindo",
+      "spectateUnavailable": "Não consigo encontrar nenhuma informação da partida para assistir.",
       "blockInvites": "Sem convite",
       "blockInvitesTitle": "Quando ativado, outros jogadores não poderão convidar você como parceiro na Fair Arena.",
       "statusInPairRoom": "Você não pode alterar seu status enquanto estiver em uma sala dupla.",
@@ -2227,7 +2438,7 @@
       },
       "destinationTitle": {
         "strategicPvp": "Estádio Estratégico Baduk PVP",
-        "strategicAi": "Batalha Estratégica de IA de Baduk",
+        "strategicAi": "Batalha estratégica de IA de Baduk",
         "pairPvp": "Arena PVP justa",
         "pairAi": "Par de correspondência de IA",
         "playfulPvp": "Jogar Baduk PVP Stadium",
@@ -2307,7 +2518,7 @@
         "rankingLabel": "Classificação: {{rating}} pontos",
         "expectedDelta": "Mudança de pontuação esperada",
         "winDelta": "Vitória: +{{pontos}}",
-        "lossDelta": "Derrota: {{pontos}}",
+        "lossDelta": "Derrota: {{points}} pontos",
         "opponentRanking": "Classificação do oponente",
         "opponentRating": "{{avaliação}}pontos",
         "waitingPeer": "Esperando a aceitação da outra parte...",
@@ -2395,7 +2606,7 @@
       "startAiDuel": "Comece a lutar contra a IA",
       "startAiGame": "Comece a jogar contra a IA",
       "pairAiFormAria": "Formulário de correspondência de IA em pares",
-      "pairAiPetRequired": "Para jogar contra Pair AI, você deve equipar um Pair Pet.",
+      "pairAiPetRequired": "Para jogar contra Pair AI, você deve equipar um animal de estimação Pair.",
       "pairAiTitle": "Jogue contra Pair Baduk AI",
       "aiRecord": "Registro de IA {{wins}} vitórias {{losses}} derrotas ({{winRate}}%)",
       "botSuffix": "{{nome}}bot",
@@ -2435,7 +2646,7 @@
       "gameAdventureHow": "Cada vez que você mata um monstro no mapa de aventura, pontos de caça são acumulados iguais ao nível do monstro. Se as pontuações forem iguais, o usuário que alcançou primeiro será exibido no topo.",
       "gameAdventureWhere": "Aventura → Ganhe contra monstros no mapa local.",
       "badukStrategicHow": "A pontuação cumulativa baseada em 1200 muda dependendo se você ganha ou perde em uma partida estratégica de classificação baduk (PVP). Se você jogar o mesmo modo mais de 10 vezes, isso se refletirá na sua classificação e, se vencer um adversário forte, aumentará ainda mais.",
-      "badukStrategicWhere": "Use a partida de classificação em Estádio → Baduk Estratégico → Sala de Espera.",
+      "badukStrategicWhere": "Use a partida de classificação em Estádio → Baduk estratégico → Sala de espera.",
       "badukPairHow": "A pontuação cumulativa baseada em 1200 alterações depende da vitória ou derrota da partida de classificação PVP (PVP). Se você atingir o número mínimo de partidas, sua classificação será refletida e, se vencer um adversário forte, sua classificação aumentará ainda mais.",
       "badukPairWhere": "Estádio → Use a partida de classificação em Pair Baduk."
     },
@@ -2503,7 +2714,7 @@
       "comprehension": "entendimento",
       "inactive": "inativo",
       "victoryCount": "{{vitórias}} vitórias",
-      "chapterBossBonus": "Chefe do Capítulo: {{label}} — +{{perLevel}}% por nível de compreensão (até {{max}}%)",
+      "chapterBossBonus": "Chefe do capítulo: {{label}} — +{{perLevel}}% por nível de compreensão (até {{max}}%)",
       "currentBossBonusSum": "Total de bônus do chefe atual: +{{percent}}% ({{label}})",
       "comprehensionStatsCurrent": "Capacidade de compreensão (total atual)",
       "adventureExclusive": "Somente aventura: {{label}} +{{percent}}%",
@@ -2559,7 +2770,7 @@
       "equipmentRewardViewAria": "Ver faixa de compensação do equipamento: {{grade}}",
       "enhanceStoneRewardAria": "Recompensa de Pedra de Aprimoramento: {{line}}",
       "goldWinRange": "Victory Gold (referência) aprox. {{min}}~{{máx}}",
-      "goldBoss19Range": "Ao vencer um chefe na linha 19, você ganha cerca de {{min}}~{{max}} de ouro.",
+      "goldBoss19Range": "Ao vencer um chefe na linha 19, você ganha aproximadamente {{min}}~{{max}} de ouro.",
       "equipmentGradeGrant": "Nota do equipamento emitida: {{grade}}",
       "pickHintVip": "Recompensa VIP: Escolha você mesmo dois espaços ou escolha apenas um espaço e o outro espaço será escolhido aleatoriamente.",
       "pickHintSingle": "Selecione uma caixa para receber e clique em Seleção Concluída.",
@@ -2582,7 +2793,7 @@
       "adventureKeyAria": "chave de aventura",
       "regionalKey": "chave local",
       "key": "chave",
-      "keysCount": "{{realizado}}/{{max}}",
+      "keysCount": "{{retido}}/{{max}}",
       "keysCountAria": "Teclas {{hold}} / {{max}}",
       "keyFragmentProgressAria": "Progressão do fragmento chave {{prog}} / {{cap}}",
       "openWithKeyTitle": "Abra o baú do tesouro com 1 chave",
@@ -2665,14 +2876,14 @@
         "compact": {
           "gold": "Ouro +{{percent}}%{{suffix}}",
           "equipDrop": "Aquisição de equipamentos +{{percent}}%{{suffix}}",
-          "materialDrop": "Aquisição de materiais +{{percent}}%{{suffix}}",
-          "captureTarget": "[Vencendo Baduk] Gol do oponente+{{value}}{{suffix}}",
+          "materialDrop": "Adquirir materiais +{{percent}}%{{suffix}}",
+          "captureTarget": "[Picking Go] Gol do oponente+{{value}}{{suffix}}",
           "timeLimit": "Tempo limite +{{percent}}%{{suffix}}",
           "respawnWait": "Aguardando aparição -{{percent}}%{{suffix}}",
-          "monsterDwell": "Estada de monstro +{{percent}}%{{suffix}}",
-          "hiddenScan": "[Baduk oculto] Digitalizar +{{valor}}{{sufixo}}",
-          "baseStartScore": "[Base Baduk] Início+{{valor}}ponto{{sufixo}}",
-          "classicStartScore": "[Baduk clássico] Início+{{valor}}ponto{{sufixo}}",
+          "monsterDwell": "Estadia Monstro +{{percent}}%{{suffix}}",
+          "hiddenScan": "[Baduk oculto] Digitalizar +{{value}}{{suffix}}",
+          "baseStartScore": "[Base Baduk] Início+{{value}}ponto{{suffix}}",
+          "classicStartScore": "[Baduk Clássico] Início+{{value}}pontos{{suffix}}",
           "missile": "[Míssil Baduk] Míssil +1"
         }
       }
@@ -2685,21 +2896,21 @@
       "stageSelect": "Seleção de palco",
       "previousClass": "etapas anteriores",
       "nextClass": "próximos passos",
-      "stageListTitle": "Estágio {{classLabel}}",
+      "stageListTitle": "{{classLabel}} Estágio",
       "rewardsTable": "tabela de recompensas",
       "rewardsTableTitle": "Tabela de recompensas de conclusão de estágio",
       "rewardsTableAria": "Recompensas em níveis",
       "openRewardsTableAria": "Tabela de recompensas claras de fase aberta",
-      "classStageClear": "{{classLabel}} Fase concluída",
+      "classStageClear": "{{classLabel}} Etapa concluída",
       "classBarRewardClaimed": "Recibo concluído",
       "classBarRewardClaim": "Receba recompensa",
-      "classBarRewardNeedClear": "Requer {{milestone}} conclusão de estágio",
-      "classBarRewardAria": "{{milestone}}recompensa de pontos",
+      "classBarRewardNeedClear": "{{milestone}} Limpeza de estágio necessária",
+      "classBarRewardAria": "{{milestone}} pontos de recompensa",
       "cleared": "Limpeza concluída",
-      "enterStage": "Desafio ⚡{{custo}}",
-      "enterStageTitle": "Ação de desafio {{cost}}",
+      "enterStage": "Desafio ⚡{{cost}}",
+      "enterStageTitle": "Poder de Ação de Desafio {{cost}}",
       "locked": "bloqueado",
-      "unlockRequired": "Requer {{stageId}}",
+      "unlockRequired": "{{stageId}} obrigatório",
       "claimAll": "Receba em massa ({{count}})",
       "claiming": "Recebendo...",
       "claim": "recibo",
@@ -2818,7 +3029,7 @@
       "pvpTitle": "Registros detalhados do estádio PVP",
       "strategicTitle": "Estratégia Go Registros Detalhados",
       "playfulTitle": "Reproduzir registros detalhados do Baduk",
-      "strategicAll": "Estratégia Vá com tudo",
+      "strategicAll": "Estratégia Baduk Tudo",
       "playfulAll": "jogar baduk completo",
       "seasonResetNote": "Ao redefinir seus registros de PVP, sua pontuação no ranking da temporada também será zerada.",
       "noPairRanking": "Não existe um sistema de classificação para jogar Baduk.",
@@ -2876,7 +3087,7 @@
     "guildLevelHint": "Você pode usar a casa da guilda em um nível superior a {{level}}.",
     "guildLevelNotice": "As guildas podem ser usadas por usuários de nível {{level}} ou superior. (Nível Atual{{atual}})",
     "stageLabels": {
-      "intro": "Aula introdutória",
+      "intro": "aula introdutória",
       "beginner": "Aula iniciante",
       "intermediate": "Classe intermediária",
       "advanced": "Aula avançada",
@@ -2931,7 +3142,7 @@
     "coreStatsTotal": "Total de 6 habilidades principais",
     "adventureUnlockModal": "Modal de desbloqueio de aventura",
     "gameResultDemo": "Demonstração de resultados de jogos",
-    "quickMenuAria": "cardápio rápido",
+    "quickMenuAria": "menu rápido",
     "playGoSuffix": "Baduk",
     "notEnhanced": "Não fortificado",
     "avatarStatus": {
@@ -2960,7 +3171,7 @@
       "rankedIntegrated": "Total da partida classificada: {{vitórias}} vitórias {{derrotas}} derrotas ({{winRate}}%)",
       "pairAiRecord": "Partida de par AI: {{wins}} vitórias {{losses}} derrotas ({{winRate}}%)",
       "modeRecord": "{{vitórias}} vitórias, {{derrotas}} derrotas ({{winRate}}%)",
-      "pvpRecord": "Registro PVP: {{wins}} vitórias {{losses}} derrotas ({{winRate}}%)",
+      "pvpRecord": "Registro PVP: {{vitórias}} vitórias {{perdas}} derrotas ({{winRate}}%)",
       "aiRecordSuffix": "· IA {{vitórias}} vitórias {{perdas}} derrotas ({{winRate}}%)",
       "pvpModeRecord": "PVP {{wins}} vitórias {{losses}} derrotas ({{winRate}}%)",
       "aiModeRecord": "IA {{wins}} vence {{losses}} derrotas ({{winRate}}%)",
@@ -3019,7 +3230,7 @@
       "avatarDefaultAria": "avatar",
       "avatarSelect": "Escolha seu avatar",
       "tierRequired": "Nível {{tier}} da temporada anterior necessário",
-      "levelSumRequired": "Requer soma de nível {{level}}",
+      "levelSumRequired": "Requer soma de níveis {{level}}",
       "goldPrice": "{{quantidade}} ouro",
       "diamondPrice": "{{quantidade}} diamante",
       "borderPurchaseConfirm": "Você gostaria de comprar a borda '{{name}}' por {{price}}?",
@@ -3057,7 +3268,7 @@
       "expired": "expirado",
       "remaining": "{{duração}} restante",
       "durationDays": "{{dias}}dias",
-      "durationHours": "{{horas}} horas",
+      "durationHours": "{{horas}}horas",
       "durationMinutes": "{{minutos}} minutos",
       "borderCategories": {
         "basic": "básico",
@@ -3104,7 +3315,7 @@
         "P": {
           "name": "Percepção (P)",
           "general": "Flexível e adaptável, respondendo com flexibilidade às situações. Valorizam a autonomia e estão abertos a novas experiências.",
-          "goStyle": "É um ethos adepto da improvisação e da mudança flexível de operações, dependendo da situação. Gosto de ter uma sensação de improvisação em vez de seguir um processo definido."
+          "goStyle": "É um espírito adepto da improvisação e da mudança flexível de operações, dependendo da situação. Gosto de ter uma sensação de improvisação em vez de seguir um processo definido."
         }
       }
     },
@@ -3129,14 +3340,26 @@
       "winGoldBonus": "Chance de Vitória em Ouro +20%",
       "maxApPlus10": "Ação máxima +10",
       "maxApMinus20": "Ação máxima -20",
-      "apRegenBoost": "Maior tempo de pagamento da ação",
+      "apRegenBoost": "Aumento do tempo de pagamento da ação",
       "winGoldPenalty": "Recompensa de Ouro da Vitória -50%",
       "winItemPenalty": "Chance de ganhar itens -50%",
       "noEffect": "Efeito básico (sem efeito)",
       "scoreAbove": "{{min}} pontos ou mais",
       "scoreRange": "{{min}}~{{max}} pontos",
       "zeroScore": "0 pontos",
-      "mannerPointsTitle": "{{score}}pontos ({{classificação}})"
+      "mannerPointsTitle": "{{score}}pontos ({{classificação}})",
+      "grades": {
+        "worst": "pior",
+        "veryBad": "muito ruim",
+        "bad": "ruim",
+        "caution": "Cuidado",
+        "normal": "comumente",
+        "good": "bem",
+        "veryGood": "muito bom",
+        "dignified": "dignidade",
+        "pro": "pró",
+        "master": "mestre"
+      }
     },
     "statAllocation": {
       "resetFailAlert": "As condições de reinicialização da habilidade não foram atendidas. Você está sem ouro ou excedeu o número de reinicializações diárias.",
@@ -3144,12 +3367,12 @@
       "combatPower": "poder de combate",
       "remaining": "sobras",
       "allocateHint": "Distribuir para habilidades restantes",
-      "decreaseOne": "1 diminuição",
+      "decreaseOne": "diminuir em 1",
       "increaseOne": "aumentar em 1",
       "bonus": "bônus",
       "resetBtn": "reiniciar",
       "allocateTitle": "Distribuição de pontos de habilidade",
-      "allocateAria": "distribuição {{stat}}",
+      "allocateAria": "{{stat}} Distribuição",
       "statLabel": "habilidade",
       "remainingShort": "restante",
       "allocateToStat": "Distribuição para esta habilidade"
@@ -3215,7 +3438,7 @@
       "useWeaknesses": "Aproveite as fraquezas do seu oponente.",
       "differences": "diferença",
       "similarities": "terreno comum",
-      "veryGood": "combinação muito boa",
+      "veryGood": "compatibilidade muito boa",
       "good": "boa compatibilidade",
       "normal": "Compatibilidade média",
       "poor": "compatibilidade ruim",
@@ -3325,7 +3548,7 @@
       "warnJ": "Os adversários são fortes no planejamento e na finalização. Evite ser arrastado para um jogo longo.",
       "stratI": "O espírito do oponente é cauteloso. Complicar o jogo atacando agressivamente.",
       "stratS": "O oponente é orientado para a utilidade. Acompanhe a tendência com movimentos incomuns.",
-      "stratF": "A outra pessoa é emocional. Pressão em números lógicos.",
+      "stratF": "A outra pessoa é emocional. Pressão com números lógicos.",
       "stratP": "O oponente é um ethos flexível. Planeje e siga até terminar."
     },
     "contentUnlock": {
@@ -3349,13 +3572,13 @@
       "noticeBoardShort": "quadro de avisos",
       "closeNotice": "Fechar quadro de avisos",
       "noNotices": "Não há anúncios.",
-      "noPatches": "Não há patches/atualizações.",
+      "noPatches": "Não há histórico de patches/atualizações.",
       "homeBoardTitle": "Quadro de avisos inicial",
       "newPostBadge": "nova postagem",
       "editedAt": "(Editado: {{data}})"
     },
     "equipmentDetail": {
-      "inventoryUse": "Pode ser usado em bolsa.",
+      "inventoryUse": "Você pode usá-lo em sua bolsa.",
       "noMaterialUse": "Este material não é usado atualmente para aprimorar nenhum equipamento.",
       "obtainedQty": "Quantidade adquirida",
       "ownedQty": "Quantidade retida",
@@ -3715,7 +3938,7 @@
     },
     "activity": {
       "daily": "Desempenho de hoje",
-      "weekly": "Atividade Semanal",
+      "weekly": "atividade semanal",
       "monthly": "Atividade Mensal",
       "points": "Atividade +{{pontos}}"
     },
@@ -3816,7 +4039,7 @@
     "alerts": {
       "insufficientDiamonds": "Não há diamantes suficientes.",
       "equipLevelInsufficient": "O nível de desgaste é insuficiente. (Obrigatório: {{obrigatório}}, Atual: Nv.{{atual}})",
-      "insufficientUnbindTickets": "Não há direito de cancelar a atribuição."
+      "insufficientUnbindTickets": "Falta o direito de cancelar a atribuição."
     },
     "bindModal": {
       "line1": "O equipamento é vinculado e não pode ser vendido em bolsa.",
@@ -3854,7 +4077,7 @@
     "itemDetail": {
       "equipmentDetail": "Detalhes do equipamento",
       "consumableDetail": "Detalhes consumíveis",
-      "materialDetail": "Detalhes materiais",
+      "materialDetail": "Detalhes do material",
       "itemDetail": "Detalhes do item",
       "cannotRefine": "Não pode ser fundido",
       "goRefine": "Vá para a aba Forja Fundição"
@@ -3968,7 +4191,7 @@
     "craftingResult": {
       "upgradeJackpotTitle": "A síntese é incrível!",
       "downgradeJackpotTitle": "A desmontagem é incrível!",
-      "upgradeTitle": "resultados sintéticos",
+      "upgradeTitle": "resultados de síntese",
       "downgradeTitle": "Resultados de decomposição",
       "jackpotHeading": "🎉 Incrível! 🎉",
       "jackpotBody": "Obteve o dobro dos materiais!",
@@ -3982,7 +4205,7 @@
     "equipmentEffects": {
       "summary": "total",
       "main": "Opção principal",
-      "combat": "Subopções de combate",
+      "combat": "Subopção de combate",
       "special": "especial",
       "mythic": "mito",
       "unknownMythic": "Opção de mito desconhecido",
@@ -4066,7 +4289,7 @@
       "noMaterialUse": "Este material não é usado atualmente para aprimorar nenhum equipamento.",
       "materialTab": "ingrediente",
       "consumableTab": "dispensáveis",
-      "inventoryHint": "Pode ser usado em bolsa.",
+      "inventoryHint": "Você pode usá-lo em sua bolsa.",
       "noGuide": "Não há instruções.",
       "tier1": "bolsa",
       "tier2": "pedras",
@@ -4083,6 +4306,17 @@
       "noTier": "Sem nível"
     },
     "tierInfo": {
+      "names": {
+        "champion": "desafiador",
+        "master": "mestre",
+        "diamond": "diamante",
+        "platinum": "platina",
+        "gold": "ouro",
+        "silver": "prata",
+        "bronze": "bronze",
+        "iron": "Novato",
+        "unranked": "brotar"
+      },
       "champion": "Pontuação mínima de 3.500 ou superior e limitada às 100 melhores pessoas",
       "master": "Pontuação mínima de 3.000 ou superior",
       "diamond": "Pontuação mínima de 2.400 ou superior",
@@ -4121,6 +4355,554 @@
       "stayLine": "residual: {{intervalos}}",
       "demoteLine": "Rebaixamento: {{ranges}}",
       "rankHintShort": "Nível baseado na competição de classificação (consulte a tabela de recompensas abaixo para condições de promoção, retenção e rebaixamento)"
+    },
+    "items": {
+      "box_diabox1": {
+        "name": "Pacote Diamante I",
+        "description": "Obtenha de 1 a 20 diamantes"
+      },
+      "box_diabox2": {
+        "name": "Pacote Diamante II",
+        "description": "Obtenha de 10 a 30 diamantes"
+      },
+      "box_diabox3": {
+        "name": "Pacote Diamante III",
+        "description": "Obtenha de 20 a 50 diamantes"
+      },
+      "box_diabox4": {
+        "name": "Pacote Diamante IV",
+        "description": "Obtenha de 30 a 100 diamantes"
+      },
+      "box_goldbox1": {
+        "name": "Pacote Ouro I",
+        "description": "Ganhe de 10 a 500 ouro"
+      },
+      "box_goldbox2": {
+        "name": "Pacote Ouro II",
+        "description": "Ganhe de 100 a 1.000 ouro"
+      },
+      "box_goldbox3": {
+        "name": "Pacote Ouro III",
+        "description": "Ganhe de 500 a 3.000 ouro"
+      },
+      "box_goldbox4": {
+        "name": "Pacote Ouro IV",
+        "description": "Ganhe de 1.000 a 10.000 ouro"
+      },
+      "btn_addturn": {
+        "name": "Adicionar turno",
+        "description": "Este é um item de turno adicional que pode ser usado na Torre do Desafio."
+      },
+      "btn_hidden": {
+        "name": "Escondido",
+        "description": "Este é um item oculto que pode ser usado na Torre do Desafio."
+      },
+      "btn_missile": {
+        "name": "míssil",
+        "description": "Este é um item de míssil que pode ser usado na Torre do Desafio."
+      },
+      "btn_reflesh": {
+        "name": "Mudança de layout",
+        "description": "Este é um item de mudança de posicionamento que pode ser usado na Torre do Desafio."
+      },
+      "btn_scan": {
+        "name": "digitalizar",
+        "description": "Este é um item de digitalização que pode ser usado na Torre do Desafio."
+      },
+      "eq_board1": {
+        "name": "tabuleiro de xadrez de broto",
+        "description": "Este é um tabuleiro de xadrez leve de madeira paulownia que é ótimo para iniciantes."
+      },
+      "eq_board2": {
+        "name": "tabuleiro de xadrez de bordo",
+        "description": "Este é um tabuleiro de xadrez de alta qualidade feito de árvores de noz-moscada com lindos grãos."
+      },
+      "eq_board3": {
+        "name": "tabuleiro de xadrez coral",
+        "description": "É feito de madeira mística da mais alta qualidade, por isso o som das pedras colocadas é puro."
+      },
+      "eq_board4": {
+        "name": "tabuleiro de xadrez de ébano",
+        "description": "É um tabuleiro de xadrez de rocha vulcânica polido com grande paixão."
+      },
+      "eq_board5": {
+        "name": "Tabuleiro de damas de Yongmun",
+        "description": "Este é um lendário tabuleiro de xadrez feito de pinho Geumgang que existe há mil anos."
+      },
+      "eq_board7": {
+        "name": "Tabuleiro de damas Shinryong",
+        "description": "É um tabuleiro de xadrez de transcendência com as trajetórias das constelações gravadas nele, abrindo o caminho para a vitória a cada movimento."
+      },
+      "eq_bottom1": {
+        "name": "Calças uniformes coloridas de primavera",
+        "description": "Estas calças de treino são confortáveis ​​para os movimentos."
+      },
+      "eq_bottom2": {
+        "name": "Calças uniformes coloridas de verão",
+        "description": "Estas calças são feitas de material durável que não se desgasta facilmente."
+      },
+      "eq_bottom3": {
+        "name": "Calças uniformes coloridas de outono",
+        "description": "Estas são calças de seda de alta qualidade combinadas com um dopo."
+      },
+      "eq_bottom4": {
+        "name": "Calças uniformes coloridas de inverno",
+        "description": "São as calças do espadachim que não atrapalham nenhum movimento."
+      },
+      "eq_bottom5": {
+        "name": "Calças Yongbi Dobok",
+        "description": "É feito de seda da mais alta qualidade que combina bem com o manto do dragão."
+      },
+      "eq_bottom7": {
+        "name": "Calças Shinryong Dobok",
+        "description": "São calças de kimono transcendentais imbuídas da vontade de um dragão divino que evita que você perca o equilíbrio mesmo em uma tempestade."
+      },
+      "eq_fan1": {
+        "name": "ventilador de vento azul",
+        "description": "Este é um leque de bambu leve e prático."
+      },
+      "eq_fan2": {
+        "name": "ventilador de vento eungyeol",
+        "description": "É feito de seda macia e fica bem na mão."
+      },
+      "eq_fan3": {
+        "name": "ventilador de vento de chama",
+        "description": "Este é um leque mestre que se abre graciosamente como as asas de um guindaste."
+      },
+      "eq_fan4": {
+        "name": "ventilador de vento gelado",
+        "description": "É feito de aço pesado e pode ser usado como arma em caso de emergência."
+      },
+      "eq_fan5": {
+        "name": "ventilador de vento yongbi",
+        "description": "Um leque lendário feito de cem penas brancas."
+      },
+      "eq_fan7": {
+        "name": "Ventilador de Vento Shinryong",
+        "description": "É um leque de transcendência que contém o sopro do dragão divino que divide o céu e muda a maré do campo de batalha."
+      },
+      "eq_stone1": {
+        "name": "pedra de broto preto e branco",
+        "description": "Estas são pedras baduk de plástico leves e baratas."
+      },
+      "eq_stone2": {
+        "name": "pedra de prata",
+        "description": "É uma pedra Go feita de seixos lisos recolhidos à beira do rio."
+      },
+      "eq_stone3": {
+        "name": "pedra rubi",
+        "description": "É elaboradamente esculpido em obsidiana que emite um brilho frio."
+      },
+      "eq_stone4": {
+        "name": "pedra de jade branco baduk",
+        "description": "É uma pedra baduk feita de safira e jade branco que emite uma luz brilhante."
+      },
+      "eq_stone5": {
+        "name": "Pedra Yongan Baduk",
+        "description": "É uma lendária pedra baduk forjada com a energia do sol, da lua e das estrelas."
+      },
+      "eq_stone7": {
+        "name": "Pedra Shinryong Baduk",
+        "description": "Feita pela forja de fragmentos da Estrela da Manhã, é uma pedra Go transcendente que domina o jogo com um único movimento."
+      },
+      "eq_stonebox1": {
+        "name": "barril de madeira leve",
+        "description": "É uma caixa Go de plástico leve e barata."
+      },
+      "eq_stonebox2": {
+        "name": "barril de bambu sólido",
+        "description": "Esta é uma caixa Go feita de madeira de jujuba com um leve perfume."
+      },
+      "eq_stonebox3": {
+        "name": "Hongmok Baduktong",
+        "description": "É feito de jacarandá, uma linda cor vermelha."
+      },
+      "eq_stonebox4": {
+        "name": "caixa de ébano",
+        "description": "Esta é uma caixa baduk rara feita de madeira estranha com padrões estranhos e bonitos."
+      },
+      "eq_stonebox5": {
+        "name": "Yongrin Baduktong",
+        "description": "Esta é uma caixa Go de madeira de jacarandá de alta qualidade com um dragão delicadamente esculpido."
+      },
+      "eq_stonebox7": {
+        "name": "Shinryong Baduktong",
+        "description": "É uma caixa Go transcendente que sela a energia do antigo campo de batalha e aumenta a intimidação de cada pedra retirada."
+      },
+      "eq_top1": {
+        "name": "Top de uniforme colorido primavera",
+        "description": "Este é um top confortável que é ótimo para se concentrar no treino."
+      },
+      "eq_top2": {
+        "name": "Top de uniforme colorido de verão",
+        "description": "É um kimono resistente que não desgasta mesmo após longos treinos."
+      },
+      "eq_top3": {
+        "name": "Top uniforme colorido outono",
+        "description": "Este é o brasão de um estudioso com uma elegância tranquila."
+      },
+      "eq_top4": {
+        "name": "Top de uniforme colorido de inverno",
+        "description": "Esta é uma roupa de espadachim feita para combates violentos."
+      },
+      "eq_top5": {
+        "name": "Top Yongbi Dobok",
+        "description": "É bordado com um padrão de dragão que simboliza a majestade do imperador."
+      },
+      "eq_top7": {
+        "name": "Top do uniforme Shinryong",
+        "description": "Este é um top uniforme transcendente tecido com a cor das escamas do dragão divino, garantindo um foco inabalável."
+      },
+      "mat_materials1": {
+        "name": "Pedra de Encantamento Menor",
+        "description": "Materiais básicos usados ​​para aprimorar equipamentos."
+      },
+      "mat_materials2": {
+        "name": "Pedra de Aprimoramento Intermediário",
+        "description": "Um material de alta qualidade usado para fortalecer equipamentos."
+      },
+      "mat_materials3": {
+        "name": "Pedra de Encantamento Avançado",
+        "description": "Materiais de primeira qualidade utilizados para fortalecer equipamentos."
+      },
+      "mat_materials4": {
+        "name": "Pedra de reforço de primeira qualidade",
+        "description": "Um material raro usado para fortalecer equipamentos."
+      },
+      "mat_materials5": {
+        "name": "Pedra de Reforço Misteriosa",
+        "description": "Um material antigo usado para fortalecer equipamentos."
+      },
+      "pet_egg": {
+        "name": "Ovo Misterioso",
+        "description": "Obtenha um animal de estimação AI aleatório quando usado no incubatório."
+      },
+      "pet_soulstone1": {
+        "name": "Pedra da Alma do Broto",
+        "description": "Este material é necessário para atualizar um animal de estimação de grau normal para um grau avançado. Pode ser usado a partir de Pet Lv.10 ou superior."
+      },
+      "pet_soulstone2": {
+        "name": "Pedra da Alma Onda",
+        "description": "Este material é necessário para elevar um animal de estimação de qualidade premium a um grau raro. Pode ser usado a partir de Pet Lv.20 ou superior."
+      },
+      "pet_soulstone3": {
+        "name": "Pedra da Alma do Abismo",
+        "description": "Este material é necessário para elevar um animal de estimação de grau raro ao grau épico. Pode ser usado a partir de Pet Lv.30 ou superior."
+      },
+      "pet_soulstone4": {
+        "name": "Pedra da Alma Flamejante",
+        "description": "Este é um material necessário para atualizar um animal de estimação de grau Épico para o grau Lendário. Pode ser usado a partir de Pet Lv.40 ou superior."
+      },
+      "pet_soulstone5": {
+        "name": "Pedra da Alma da Luz Celestial",
+        "description": "Este material é necessário para atualizar um animal de estimação Lendário para Mítico. Pode ser usado em Pet Lv.50."
+      },
+      "shop_action_point_10": {
+        "name": "Poção de recuperação de ação (+10)",
+        "description": "Sinto-me motivado para fazer algo."
+      },
+      "shop_action_point_20": {
+        "name": "Poção de recuperação de ação (+20)",
+        "description": "Sinto que tenho que fazer alguma coisa."
+      },
+      "shop_action_point_30": {
+        "name": "Poção de recuperação de ação (+30)",
+        "description": "Vamos jogar imediatamente."
+      },
+      "shop_condition_potion_large": {
+        "name": "Agente de recuperação de condição (grande)",
+        "description": "Um agente de recuperação de condição que o ajudará a competir com sucesso hoje."
+      },
+      "shop_condition_potion_medium": {
+        "name": "Agente de recuperação de condição (médio)",
+        "description": "Um agente de recuperação de condição que deixa sua cabeça mais clara."
+      },
+      "shop_condition_potion_small": {
+        "name": "Agente de recuperação de condição (pequeno)",
+        "description": "Agente de recuperação de condição que alivia a tensão"
+      },
+      "shop_equipment_box_1": {
+        "name": "Caixa de Equipamento I",
+        "description": "Obtenha equipamentos de grau comum a raro"
+      },
+      "shop_equipment_box_2": {
+        "name": "Caixa de Equipamento II",
+        "description": "Obtenha equipamentos de nível normal a épico"
+      },
+      "shop_equipment_box_3": {
+        "name": "Caixa de Equipamento III",
+        "description": "Obtenha equipamentos de nível avançado a lendário"
+      },
+      "shop_equipment_box_4": {
+        "name": "Caixa de Equipamento IV",
+        "description": "Adquira equipamentos de nível raro a mítico"
+      },
+      "shop_equipment_box_5": {
+        "name": "Caixa de Equipamento V",
+        "description": "Adquira equipamentos de nível épico a mítico"
+      },
+      "shop_equipment_box_6": {
+        "name": "Caixa de Equipamento VI",
+        "description": "Adquira equipamentos de nível lendário a mítico"
+      },
+      "shop_equipment_unbind_ticket": {
+        "name": "Direito de cancelar a atribuição",
+        "description": "Altere o status do equipamento vinculado para negociável."
+      },
+      "shop_material_box_1": {
+        "name": "Caixa de Materiais I",
+        "description": "Adquira 5 pedras de aprimoramento baixo a alto"
+      },
+      "shop_material_box_2": {
+        "name": "Caixa de Materiais II",
+        "description": "Adquira 5 pedras de aprimoramento baixo a alto"
+      },
+      "shop_material_box_3": {
+        "name": "Caixa de Materiais III",
+        "description": "Adquira 5 pedras de aprimoramento baixo a alto"
+      },
+      "shop_material_box_4": {
+        "name": "Caixa de Materiais IV",
+        "description": "Obtenha 5 pedras de reforço de nível intermediário ao mais alto"
+      },
+      "shop_material_box_5": {
+        "name": "Caixa de Materiais V",
+        "description": "Avançado ~ Adquira 5 Pedras de Aprimoramento Misteriosas"
+      },
+      "shop_material_box_6": {
+        "name": "Caixa de Materiais VI",
+        "description": "Avançado ~ Adquira 5 Pedras de Aprimoramento Misteriosas"
+      },
+      "shop_mythic_option_change_ticket": {
+        "name": "Opção especial de alteração de ticket",
+        "description": "Este item permite alterar as opções especiais de equipamentos míticos ou transcendentais para outras opções especiais."
+      },
+      "shop_option_type_change_ticket": {
+        "name": "Direito de alterar o tipo de opção",
+        "description": "Este item permite alterar uma das opções principais, subopções ou opções especiais do equipamento para um tipo diferente de opção."
+      },
+      "shop_option_value_change_ticket": {
+        "name": "Ticket de alteração de valor da opção",
+        "description": "Este é um item que pode alterar o valor de uma das subopções ou opções especiais do equipamento."
+      },
+      "shop_refinement_charm": {
+        "name": "Amuleto de Fundição",
+        "description": "Adicione 1 contagem de refino adicional para equipamentos que não podem ser fundidos"
+      },
+      "use_allowtrade": {
+        "name": "direitos de registro comercial",
+        "description": "Esta é uma permissão para registrar adicionalmente itens à venda na bolsa."
+      }
+    },
+    "stats": {
+      "mythic": {
+        "GuildBossRewardGradeUp": {
+          "name": "Recompensa da Batalha do Chefe da Guilda",
+          "abbrev": "Nota de recompensa do chefe",
+          "short": "Nota de recompensa do chefe da guilda +1",
+          "description": "O nível de recompensa aumenta em um nível em relação aos resultados da batalha contra o chefe da guilda. (SSS máximo) Esta é a Opção Especial do Mito nº 1 e pode ser aplicada ao mesmo tempo que a Transcendência nº 1 “Recompensa do Chefe Adicionada”."
+        },
+        "GuildBossExtraDamage5": {
+          "name": "Dano adicional durante batalhas contra chefes de guilda: 5%",
+          "abbrev": "Dano do chefe5%",
+          "short": "Dano do Chefe da Guilda +5%",
+          "description": "Ao atacar um chefe de guilda, um dano final adicional de 5% é aplicado. (Não pode ser sobreposto à opção especial de transcendência)"
+        },
+        "TowerApMinus1Floors1to35": {
+          "name": "Torre do Desafio (1º ao 35º andar) Ação necessária -1",
+          "abbrev": "AP superior (1~35)",
+          "short": "Torre 1~35º andar AP -1",
+          "description": "A ação necessária para entrar do 1º ao 35º andar da Torre do Desafio é reduzida em 1. (Não pode ser sobreposta à opção especial de transcendência)"
+        },
+        "ApRegenMinus30s": {
+          "name": "Tempo de recuperação da ação -30 segundos",
+          "abbrev": "Recuperação de AP -30s",
+          "short": "Recuperação de ação -30 segundos",
+          "description": "O tempo necessário para recuperar 1 ponto de ação é reduzido em 30 segundos. (Não pode ser sobreposto à opção especial de transcendência)"
+        },
+        "AdventureScanPlus1": {
+          "name": "Verificação de aventura +1",
+          "abbrev": "Varredura de aventura + 1",
+          "short": "Verificação de aventura +1",
+          "description": "No início da aventura (batalha de monstros), você receberá um item de digitalização adicional. (Não pode ser sobreposto à opção especial de transcendência)"
+        },
+        "AdventureMissilePlus1": {
+          "name": "Míssil de Aventura +1",
+          "abbrev": "Míssil de Aventura+1",
+          "short": "Míssil de Aventura +1",
+          "description": "Um item de míssil adicional é fornecido no início da aventura. (Não pode ser sobreposto à opção especial de transcendência)"
+        },
+        "AdventureGoldBonus15": {
+          "name": "Recompensas de Ouro de Aventura +15%",
+          "abbrev": "Ouro de Aventura 15%",
+          "short": "Ouro de Aventura +15%",
+          "description": "O ouro ganho ao vencer uma aventura aumenta em 15%. (Combinado separadamente com enciclopédia e bônus de compreensão) (Não pode ser sobreposto à opção especial de transcendência)"
+        },
+        "GuildBossExtraRewardDuplicate": {
+          "name": "Recompensa de batalha do chefe da guilda adicionada",
+          "abbrev": "Recompensa do chefe adicionada",
+          "short": "1 tipo de cópia de recompensa do chefe da guilda (acumulativa)",
+          "description": "Você receberá uma das recompensas como resultado da batalha contra o chefe da guilda mais uma vez. Se esta opção tiver múltiplas linhas (múltiplos equipamentos) em equipamentos transcendentais, ela será aplicada repetidamente. Pode ser aplicado em conjunto com outras opções especiais. Esta é a Opção Especial de Transcendência nº 1 e pode ser aplicada simultaneamente com o Mito nº 1 “Grau de Recompensa do Chefe”."
+        },
+        "GuildBossExtraDamage10": {
+          "name": "Dano adicional de 10% em batalhas contra chefes de guilda",
+          "abbrev": "Dano do chefe 10%",
+          "short": "Dano do Chefe da Guilda +10%",
+          "description": "Ao atacar um chefe de guilda, um dano final adicional de 10% é aplicado. (Não pode ser sobreposto à Opção Especial do Mito)"
+        },
+        "TowerApMinus1AllFloors": {
+          "name": "Ação necessária da Torre do Desafio -1",
+          "abbrev": "AP superior todos os andares",
+          "short": "AP para todos os pisos da torre -1",
+          "description": "A ação necessária para entrar no último andar de todos os desafios é reduzida em 1. (Não pode ser sobreposta à Opção Especial do Mito)"
+        },
+        "ApRegenMinus60s": {
+          "name": "Tempo de recuperação da ação -60 segundos",
+          "abbrev": "Recuperação de AP -60s",
+          "short": "Recuperação de ação -60 segundos",
+          "description": "O tempo necessário para recuperar 1 ponto de ação é reduzido em 60 segundos. (Não pode ser sobreposto à Opção Especial do Mito)"
+        },
+        "AdventureScanTranscendent": {
+          "name": "Verificação de aventura +1",
+          "abbrev": "Varredura de aventura + 1",
+          "short": "Varredura de Aventura +2 (Transcendência)",
+          "description": "Dois itens de digitalização adicionais serão fornecidos na aventura (batalha de monstros). (Não pode ser sobreposto à Opção Especial do Mito)"
+        },
+        "AdventureMissilePlus2": {
+          "name": "Míssil de Aventura +2",
+          "abbrev": "Míssil de Aventura+2",
+          "short": "Míssil de Aventura +2",
+          "description": "Dois itens adicionais de mísseis serão fornecidos no início da aventura. (Não pode ser sobreposto à Opção Especial do Mito)"
+        },
+        "AdventureGoldBonus20": {
+          "name": "Recompensa de Ouro de Aventura +20%",
+          "abbrev": "Ouro de Aventura 20%",
+          "short": "Ouro de Aventura +20%",
+          "description": "O ouro ganho ao vencer uma aventura aumenta em 20%. (Não pode ser sobreposto à Opção Especial do Mito)"
+        }
+      }
+    },
+    "optionValueLine": "{{stat}} +{{valor}}{{sufixo}}",
+    "optionRange": "[{{lo}}~{{hi}}{{sufixo}}]",
+    "optionEnhancement": "({{count}}Aprimoramento)",
+    "meta": {
+      "description": {
+        "gold": "É a moeda representativa utilizada em todo o mundo Baduk.",
+        "diamond": "É uma mercadoria premium usada para compras especiais, expansões, etc."
+      },
+      "usage": {
+        "goldSpend": "É usado em locais de consumo de ouro, como lojas, reforço/fabricação e taxas de entrada.",
+        "diamondSpend": "Usado em lojas de diamantes, expansão de slots de bolsas, etc.",
+        "unbindTicket": "[Bolsa]-[Selecionar Equipamento]-[Desvincular]",
+        "refinementCharm": "[Ferreiro]-[Refinamento de Equipamento] Selecione equipamentos que não podem ser fundidos",
+        "refinementTicket": {
+          "optionType": "[Ferreiro - Refino de Equipamento] Mudança de tipo de opção",
+          "optionValue": "[Ferreiro - Refino de Equipamento] Alteração no valor da opção",
+          "specialOption": "[Ferreiro - Refino de Equipamento] Mudança de opção especial",
+          "mythicOption": "[Ferreiro - Refino de Equipamento] Mudança de opção mítica",
+          "generic": "[Ferreiro - Refino de Equipamento] Mudança de Opção"
+        },
+        "conditionPotion": "[Campeonato] Condição {{lo}}~{{hi}} recuperação antes do jogo começar",
+        "actionPointInstant": "[Uso imediato] Recuperação de ação +{{amount}}",
+        "actionPointInstantGeneric": "[Uso imediato] Recuperação da capacidade de ação",
+        "openBoxInBag": "Se você usá-lo em sua bolsa, receberá uma recompensa.",
+        "equipmentBoxOpen": "Você pode obter equipamentos usando o baú em sua bolsa.",
+        "enhancementMaterial": {
+          "single": "[{{gradeLabel}}] Equipamento: {{rangeLabel}}",
+          "range": "[{{gradeLabel}}] Equipamento: {{rangeLabel}}"
+        },
+        "pet": {
+          "soulGradeUpgrade": "[Melhoria de classificação do animal de estimação] {{fromGrade}}→{{toGrade}} (Pet Lv.{{minLevel}} ou superior)",
+          "soulGradeUpgradeGeneric": "[Aprimoramento de classificação de animal de estimação] Usado para aumentar a classificação de outros animais de estimação de IA na Fair Arena.",
+          "eggHatchRandom": "[Animal de estimação · Incubatório] Coloque em um slot e crie um tipo aleatório de animal de estimação AI.",
+          "welcomeEggHatch": "[Animal de estimação · Incubatório] Colocado no slot - tempo de eclosão de 1 minuto, animal de estimação de IA de nível 5 quando chocado"
+        }
+      },
+      "enhanceRange": {
+        "single": "{{stars}}Aprimoramento",
+        "range": "{{minStars}}~{{maxStars}}Aprimoramento"
+      },
+      "acquire": {
+        "gold": {
+          "line1": "[Jogo/Conteúdo] Partida de Baduk, jogo único, masmorra/liga, etc.",
+          "line2": "[Missão/Aventura] Missões diárias/semanais/mensais, baús de tesouro, slots VIP",
+          "line3": "[Transação/Desmontagem] Liquidação de troca de vendas, desmontagem de equipamentos, venda em algumas lojas"
+        },
+        "diamond": {
+          "line1": "[Loja] Aba Pacote de Diamantes/Consumíveis/Materiais",
+          "line2": "[Pagamento/Evento] Cobrança, operação/correio promocional",
+          "line3": "[Função] Alguns recursos premium, como expansão de slot de bolsa"
+        },
+        "tower": {
+          "line1": "[Torre do Desafio] Compre na loja de itens (ouro) nas informações do jogo",
+          "line2": "[Torre do Desafio] Obtido através de alguns canais, como recompensas de entrada/liberação e recompensas VIP."
+        },
+        "actionPoint": {
+          "line1": "[Loja] Loja de Ouro — Poção de Restauração de Vigor (+10/+20/+30), limite diário/preço de nível",
+          "line2": "[Correio·Evento] Pagamento de remuneração/promoção operacional",
+          "line3": "[Função VIP] Quando ativado, você receberá Stamina Restoration III por correio todos os dias."
+        },
+        "condition": {
+          "line1": "[Loja] Loja de Diamantes (Consumíveis) ou pacotes relacionados",
+          "line2": "[Missão/Evento] Recompensas Parciais"
+        },
+        "guildEquipBox": {
+          "line1": "[Loja da Guilda] Adquirível apenas com moedas da guilda",
+          "line2": "[Loja/Missão] Obtenha o equipamento usando-o na bolsa, semelhante a uma caixa de equipamento normal."
+        },
+        "equipBox": {
+          "line1": "[Loja] Loja de ouro (guia de equipamentos), recompensas publicitárias, alguns pacotes em dinheiro",
+          "line2": "[Missão/VIP] Missões diárias, semanais e mensais, slots VIP de recompensa, etc.",
+          "line3": "[Aventura/Guilda] Baú de tesouro, recompensas de resultados de batalha do chefe da guilda, etc."
+        },
+        "materialBox": {
+          "line1": "[Loja] Loja de Ouro/Diamante (aba de materiais), recompensas publicitárias, alguns pacotes",
+          "line2": "[Missão/VIP] Missões diárias, semanais e mensais, slots VIP de recompensa, etc."
+        },
+        "goldBundle": {
+          "line1": "[Loja] Loja de diamantes (consumíveis), recompensas de publicidade",
+          "line2": "[Missão/Aventura] Várias recompensas/caixas de tesouro"
+        },
+        "diamondBundle": {
+          "line1": "[Loja] Loja de diamantes (consumíveis), recompensas de publicidade",
+          "line2": "[Missão/Evento] Recompensas Parciais"
+        },
+        "bonusStat": {
+          "line1": "[Loja da Guilda] Compra com moedas da guilda (limite da conta)",
+          "line2": "[Crescimento] Pagamento parcial quando o nível de estratégia/jogo aumenta"
+        },
+        "enhancementStone": {
+          "line1": "[Loja da Guilda] Pedras de aprimoramento misteriosas de baixo nível podem ser trocadas por moedas da guilda",
+          "line2": "[Caixa de Materiais] Caixas de materiais obtidas em lojas, missões, VIPs, etc.",
+          "line3": "[Ferreiro] Síntese/desmontagem de materiais, custo de reforço de equipamentos",
+          "line4": "[Aventura, Classificação, Guilda] Recompensas por vitória, torre, batalha contra chefe, etc."
+        },
+        "material": {
+          "line1": "[Loja] Loja de ouro/diamantes (materiais), loja da guilda (parcialmente)",
+          "line2": "[Missão · Aventura · Evento] Diariamente, semanalmente, mensalmente, baú de tesouro, recompensas de operação",
+          "line3": "[Correio] Resultados de síntese/aprimoramento, pagamento de evento"
+        },
+        "equipment": {
+          "line1": "[Caixa de Equipamento] Obtida ao usar uma caixa da bolsa.",
+          "line2": "[Aventura] Recompensa de conclusão da batalha de palco/chefe",
+          "line3": "[Troca] Compre itens registrados de outros usuários",
+          "line4": "[Síntese/Produção] Produção de equipamento de síntese/transcendência de ferreiro, etc."
+        },
+        "consumableGeneric": "[Loja, Missão, Correio] Loja geral, evento, recompensas de operação",
+        "pet": {
+          "soulTraining": "[Animal de estimação/recompensa de treinamento] Slots {{slots}}",
+          "soulConvert": "[Conversão de animal de estimação/alma] {{grades}} Pode ser obtido ao desmontar um animal de estimação",
+          "soulShopDiamond": "[Pet · Pet Store] Diamante {{amount}}",
+          "soulShopGold": "[Pet · Pet Shop] Ouro {{amount}}",
+          "soulShopDiamondDaily": "[Pet · Pet Store] Diamante {{amount}}, {{limit}} vezes por dia",
+          "soulShopGoldDaily": "[Pet · Pet Shop] Ouro {{amount}}, {{limit}} vezes por dia",
+          "soulFallback": "[Animal de estimação] Pode ser obtido ou trocado em conteúdo relacionado ao Fair Stadium/Incubatório.",
+          "eggShop": "[Pet · Pet Store] Pode ser comprado com ouro e diamantes (limite diário)",
+          "eggRewards": "[Animal de estimação/Treinamento/Evento] Obtido como recompensa parcial",
+          "welcomeEggMail": "[Correio] Pode ser obtido através de novos pagamentos de boas-vindas/operações, etc.",
+          "welcomeEggShop": "[Pet · Pet Store] Pode ser comprado com diamantes (1 por dia)"
+        }
+      }
     }
   },
   "exchange": {
@@ -4161,7 +4943,7 @@
       "sellPriceInput": "Insira o preço de venda",
       "currentLowest": "Preço mais baixo atual",
       "feePercent": "Comissão (10%)",
-      "registerSale": "Cadastro de vendas",
+      "registerSale": "Cadastro de Vendas",
       "name": "nome",
       "salePrice": "preço de venda",
       "fee": "cobrar",
@@ -4220,9 +5002,9 @@
       "selectGear": "Seleção de equipamentos"
     },
     "alerts": {
-      "insufficientTicket": "Direitos de registro de transação insuficientes.",
+      "insufficientTicket": "Direitos de registro de transação insuficientes. Necessário para registro de slots de vendas adicionais.",
       "vipListingLimit": "Os VIPs de recursos só podem se registrar para venda de até 3 produtos.",
-      "ticketHint": "Direitos de registro de transação insuficientes. Você pode registrar um item de venda com um ticket de registro.",
+      "ticketHint": "O registro de slots de vendas adicionais requer um tíquete de registro de transação.",
       "selectGearFromInventory": "Selecione o equipamento que deseja vender em seu inventário.",
       "boundGear": "Equipamentos vinculados não podem ser vendidos. Use o direito de cancelar a atribuição.",
       "minimumPrice": "O preço mínimo de venda é {{price}}.",
@@ -4246,7 +5028,7 @@
       "waiting": "atmosfera"
     },
     "scoring": "Calculando...",
-    "allMatchesEnded": "Todas as partidas terminaram. A cerimônia de premiação está sendo realizada.",
+    "allMatchesEnded": "Todas as partidas de hoje terminaram.",
     "breathing": "Estou respirando fundo para participar da competição.",
     "playersEntering": "Os jogadores estão entrando. por favor espere um momento.",
     "playerLoadError": "Ocorreu um erro ao carregar as informações do jogador.",
@@ -4373,7 +5155,7 @@
       "statsPanelAria": "Painel de estatísticas",
       "userTab": "trabalho póstumo",
       "petTab": "bicho de estimação",
-      "quickMenuAria": "menu rápido",
+      "quickMenuAria": "cardápio rápido",
       "presetName": "Predefinição {{índice}}"
     },
     "definitions": {
@@ -4455,7 +5237,7 @@
         "inProgressToday": "Há um jogo disputado hoje. Confira os resultados.",
         "inProgress": "Há uma partida em andamento.",
         "stageSelect": "Seleção de etapas",
-        "vsOpponent": "Eu vs oponente (referência)",
+        "vsOpponent": "Eu vs adversário (referência)",
         "none": "não existe",
         "enter": "Digitar",
         "oneGamePerMatch": "1/jogo (aleatório)",
@@ -4480,7 +5262,7 @@
         "neighborhood": "Liga Baduk do Bairro",
         "national": "Torneio Nacional de Baduk",
         "world": "Campeonato Mundial",
-        "unlock3": "Avance para a próxima fase se conseguir o 3º lugar ou superior",
+        "unlock3": "Se você alcançar o 3º lugar ou superior, avançará para a próxima fase.",
         "commonFeatures": "Características comuns do estádio",
         "simulation": "jogo de simulação",
         "condition": "doença",
@@ -4493,7 +5275,7 @@
         "dailyScore": "Pontuação Diária: Ganhe pontos de campeonato somando pontuações básicas e bônus de classificação para cada etapa.",
         "titleKo": "Ajuda do Campeonato",
         "altChampionship": "campeonato",
-        "overviewBody1": "O campeonato é operado em sistema de masmorras. Existem etapas do estágio 1 ao estágio 10 para cada estádio (liga baduk do bairro, competição nacional de baduk, campeonato mundial) e em cada etapa é realizada uma liga/torneio com bots para determinar a classificação.",
+        "overviewBody1": "O campeonato é operado em sistema de masmorras. Existem etapas do estágio 1 ao estágio 10 para cada estádio (liga baduk do bairro, competição nacional de baduk, campeonato mundial), e em cada etapa é realizada uma liga/torneio com bots para determinar a classificação.",
         "unlockHintRich": "Condições de desbloqueio do próximo nível:",
         "unlockHintBody": "Se você alcançar o 1º ao 3º lugar na Liga Neighborhood Baduk, no Torneio Nacional Baduk e no Campeonato Mundial, você será reconhecido por ter concluído essa fase e a próxima fase será aberta.",
         "rankUnlock": "Desbloqueie o próximo nível quando chegar ao 3º lugar ou superior",
@@ -4514,7 +5296,7 @@
         "dailyScoreDesc": "Ganhe pontos de campeonato somando pontos base e bônus de classificação para cada etapa."
       },
       "simulationHelp": {
-        "title": "Ajuda do Estádio de Simulação",
+        "title": "Ajuda do Simulation Stadium",
         "overview": "Visão geral do estádio de simulação",
         "rewardGuide": "Informações sobre remuneração",
         "fiftyTurns": "50 voltas",
@@ -4551,7 +5333,7 @@
         "critical2": "Pontos adicionais são ganhos quando ocorre um acerto crítico.",
         "critical3": "O poder de combate e o poder de cálculo afetam pontos adicionais",
         "condition1": "Uma condição aleatória entre 40 e 100 é fornecida antes de cada partida.",
-        "condition2": "Os valores de habilidade não mudam durante a simulação",
+        "condition2": "Os valores de habilidade não mudam durante a simulação.",
         "condition3": "Pode ser recuperado com agente de recuperação de condição (usado apenas antes do início do jogo)"
       },
       "duelHistory": {
@@ -4600,7 +5382,13 @@
       "championship": "campeonato",
       "scrollGuideTitle": "guia de rolagem",
       "categoryAria": "Categoria de classificação",
-      "title": "Classificação"
+      "title": "Classificação",
+      "gameRankingTab": "Classificação do jogo",
+      "badukRankingTab": "Classificação Baduk",
+      "loginRequired": "Você pode verificar sua classificação após fazer login.",
+      "championshipLoginHint": "Você pode verificar a classificação do seu campeonato após fazer login.",
+      "guideClose": "Fechar guia",
+      "championshipNoGuide": "Não existe um guia de pontuação separado para as classificações do campeonato."
     },
     "round16": "oitavas de final",
     "center": "centro",
@@ -4696,7 +5484,7 @@
     "base": "base",
     "turnUnit": "{{count}}voltas",
     "blackCaptureGoal": "{{count}} cachorros pretos",
-    "captureGoalTurnLimit": "Ganhe {{count}} peças pretas (limite {{turns}} turnos)",
+    "captureGoalTurnLimit": "Pegue {{count}} peças pretas (limite {{turns}} turnos)",
     "autoScoringHint": "[{{turns}}número de contagem] Se você deixar até esse número, a contagem automática ocorrerá.",
     "autoScoringShort": "[{{turnos}}número de contagem]",
     "victory": "vitória",
@@ -4766,13 +5554,13 @@
     "rewardFromFloor10Short": "Você pode receber uma recompensa mensal ao concluir 10 ou mais andares.",
     "stages": "estágio",
     "rankingTop100": "Classificação dos 100 melhores",
-    "rewardTierLine": "Compensação por {{floor}} seções de piso · Paga na liquidação do final do mês",
+    "rewardTierLine": "Compensação pela seção de piso {{floor}} · Paga no final do mês",
     "unranked": "além da classificação",
     "noOtherRanked": "Não há outras classificações listadas no Top 100.",
     "rewardModalTitle": "Informações sobre recompensas da Torre do Desafio",
     "settlementRemaining": "Tempo restante até a liquidação da compensação",
     "myCurrentReward": "minha recompensa atual",
-    "floorTier": "{{andar}} andar",
+    "floorTier": "{{floor}}andar",
     "blackPatternAlt": "padrão preto",
     "goldAlt": "ouro",
     "diamondAlt": "diamante",
@@ -4852,7 +5640,7 @@
     "training": {
       "rewardTitle": "recompensa de treinamento",
       "completeTitle": "Treinamento concluído",
-      "rewardLoadFailed": "Falha ao carregar informações de recompensa.",
+      "rewardLoadFailed": "Falha ao carregar as informações da recompensa.",
       "preparingReturn": "O animal completou o treinamento e se prepara para retornar.",
       "pleaseWait": "por favor espere um momento.",
       "claimPrompt": "Devo receber recompensas de treinamento?",
@@ -4862,7 +5650,7 @@
       "petXpGain": "Experiência com animais de estimação +{{amount}}",
       "petXpNoChange": "Nenhuma mudança na experiência do animal de estimação",
       "petGrowth": "crescimento do animal de estimação",
-      "trainAgainBusy": "Treino começando...",
+      "trainAgainBusy": "Treinamento começando...",
       "trainAgain": "Treinando mais uma vez",
       "confirmTitle": "Verifique o treinamento do animal de estimação",
       "sendToSlot": "<pet>{{petName}}</pet> Devo enviar meu animal de estimação para <slot>{{slotLabel}}</slot>?",
@@ -4930,7 +5718,10 @@
       "remainingTime": "tempo restante",
       "diamondsUsed": "usar diamante",
       "ownedLabel": "posse",
-      "mysteriousEgg": "Ovo Misterioso ×1"
+      "mysteriousEgg": "Ovo Misterioso ×1",
+      "upgradeTier1": "Fortalecer eu",
+      "upgradeTier2": "Fortalecer II",
+      "upgradeTier3": "Fortalecer III"
     },
     "lobby": {
       "infoTab": "Informação",
@@ -4983,12 +5774,12 @@
       "soulConvert": "conversão de alma",
       "cannotSoulConvertTraining": "Animais de estimação em treinamento não podem ser convertidos em alma. Use-o após concluir o treinamento.",
       "cannotSoulConvertRep": "Animais de estimação equipados como animais de estimação representativos não podem ser convertidos em alma. Por favor, use-o após desativar o animal de estimação representativo.",
-      "untilLevel": "Até o nível de aprimoramento Lv.{{level}}",
+      "untilLevel": "Até o aprimoramento de nível Lv.{{level}}",
       "current": "hoje",
       "next": "próximo",
       "before": "antes",
       "after": "desde",
-      "baseStatIncrease": "Habilidade básica aumentada",
+      "baseStatIncrease": "Aumento da habilidade base",
       "percentTen": "+10%",
       "nextGradeLevelUpBudget": "Habilidades distribuídas automaticamente ao aumentar o nível do animal de estimação na próxima seção de classificação",
       "dispositionBoost": "fortalecendo tendências",
@@ -5004,7 +5795,7 @@
       "warningTitle": "Nota: A transformação da alma não pode ser cancelada ou restaurada.",
       "warningDelete": "O animal de estimação selecionado será excluído permanentemente do seu inventário.",
       "warningLoseProgress": "Todas as informações de nível, experiência, disposição e bônus principais serão perdidas.",
-      "warningImmediate": "Quando você pressiona o botão de conversão de alma, ela será convertida imediatamente.",
+      "warningImmediate": "Se você pressionar o botão de conversão de alma, ela será convertida imediatamente.",
       "rewardOnConvert": "Pague na conversão",
       "fixedQty": "Você receberá <qty>{{qty}}</qty>. (confirmado)",
       "randomQty": "Você receberá <range>{{min}}~{{max}}</range> aleatoriamente. O número real é determinado no momento da conversão."
@@ -5039,7 +5830,7 @@
       "targetResting": "Usuários em repouso não podem ser convidados.",
       "targetBusy": "Os usuários que estão em uma partida ou negociação não podem ser convidados.",
       "cooldown": "Você pode convidar novamente depois de um tempo (10 segundos)",
-      "lobbyOnly": "Somente usuários hospedados na sala de jogos Estratégia/Jogo/Par poderão ser convidados.",
+      "lobbyOnly": "Somente usuários hospedados na sala de jogos Estratégia/Jogo/Par podem ser convidados.",
       "inviterLabel": "Usuário convidado",
       "arenaInviteStrategic": "Estádio Estratégico Baduk",
       "arenaInvitePlayful": "Jogar no Estádio Baduk",
@@ -5191,6 +5982,9 @@
       "matchInProgress": "Partida em andamento",
       "inMatch": "Durante o jogo",
       "enter": "posição",
+      "spectate": "Assistindo",
+      "spectateMatch": "Assista ao jogo",
+      "spectateUnavailable": "Não consigo encontrar nenhuma informação da partida para assistir.",
       "orphanRooms": "Número 1 ~ 100 Sala externa",
       "roomKindFilter": "Filtro de tipo de quarto",
       "gameModeFilter": "Filtro de modo de jogo",
@@ -5203,7 +5997,7 @@
       "aiTabHint": "As configurações e o início do jogo são feitos na aba IA.",
       "roomKind": "tipo de quarto",
       "changeRoom": "vestiário",
-      "proposeChange": "sugestão de alteração",
+      "proposeChange": "sugestão de mudança",
       "leaveRoom": "sair do quarto",
       "matchingShort": "Correspondência",
       "unready": "despreparado",
@@ -5267,8 +6061,102 @@
       "navigateStrategicArena": "Vá para o Estádio Estratégico Baduk",
       "navigatePlayfulArena": "Vá para o Estádio Play Baduk",
       "navigatePairArena": "Vá para o Estádio da Feira",
-      "leaveRoomOnNavigate": "Mudar para uma arena diferente o levará para fora da sala em que está participando. Quer continuar?",
+      "leaveRoomOnNavigate": "Mudar para outra arena o levará para fora da sala em que está participando. Quer continuar?",
       "leaveRoomConfirm": "Você será removido da sala em que participou. Quer continuar?"
+    },
+    "pets": {
+      "pair-pet-1": {
+        "name": "Lumifox"
+      },
+      "pair-pet-2": {
+        "name": "Gato de gelo"
+      },
+      "pair-pet-3": {
+        "name": "Goldignan"
+      },
+      "pair-pet-4": {
+        "name": "panda da neve"
+      },
+      "pair-pet-5": {
+        "name": "Penky"
+      },
+      "pair-pet-6": {
+        "name": "pássaro solar"
+      },
+      "pair-pet-7": {
+        "name": "Baniru"
+      },
+      "pair-pet-8": {
+        "name": "Mel Urso"
+      },
+      "pair-pet-9": {
+        "name": "Gato-folha"
+      },
+      "pair-pet-10": {
+        "name": "Brotar"
+      },
+      "pair-pet-11": {
+        "name": "gato violeta"
+      },
+      "pair-pet-12": {
+        "name": "Sunkey"
+      },
+      "pair-pet-13": {
+        "name": "Âmbar Raposa"
+      },
+      "pair-pet-14": {
+        "name": "Gato creme"
+      },
+      "pair-pet-15": {
+        "name": "kit de asa"
+      },
+      "pair-pet-16": {
+        "name": "cachorro mascarado"
+      },
+      "pair-pet-17": {
+        "name": "Urso Marfim"
+      },
+      "pair-pet-18": {
+        "name": "animal de estimação da neve"
+      },
+      "pair-pet-19": {
+        "name": "pintinho"
+      },
+      "pair-pet-20": {
+        "name": "Lobo das Sombras"
+      },
+      "pair-pet-21": {
+        "name": "Coelhinho Asa"
+      },
+      "pair-pet-22": {
+        "name": "Ouro atrevido"
+      },
+      "pair-pet-23": {
+        "name": "bajulando"
+      },
+      "pair-pet-24": {
+        "name": "sapo-geleia"
+      }
+    },
+    "trainingSlots": {
+      "0": {
+        "name": "treinamento técnico"
+      },
+      "1": {
+        "name": "treinamento de vida e morte"
+      },
+      "2": {
+        "name": "Treinamento pré-premiação"
+      },
+      "3": {
+        "name": "Treinamento Jeongseok"
+      },
+      "4": {
+        "name": "Treinamento Gibo"
+      },
+      "5": {
+        "name": "treinamento em barragens de água"
+      }
     }
   },
   "blacksmith": {
@@ -5285,7 +6173,7 @@
     "effects": "Efeito Forja",
     "effectsAria": "Veja os efeitos da forja",
     "functionsAria": "função de ferreiro",
-    "selectGear": "Seleção de equipamentos",
+    "selectGear": "Seleção de Equipamentos",
     "reselectGear": "← Selecionar novamente o equipamento",
     "inProgressHint": "Progresso no painel de tarefas. Se você fechou a janela, poderá reabri-la com o botão abaixo.",
     "openWorkHint": "Clique no botão abaixo para abrir a tela de trabalho.",
@@ -5390,7 +6278,7 @@
       "changes": "mudanças",
       "mainOption": "Principais opções:",
       "subOptionAdd": "Adicionar subopção:",
-      "subOptionUpgrade": "Aprimoramentos de opções menores:",
+      "subOptionUpgrade": "Pequenas melhorias nas opções:",
       "maxPreview": "reforço máximo",
       "noSubOption": "Sem subopções",
       "newSubOption": "Criar nova subopção",
@@ -5527,7 +6415,7 @@
     "komiHalf": "0,5 casa",
     "roundUnit": "{{count}}rodadas",
     "roles": {
-      "thiefBlack": "ladrão (preto)",
+      "thiefBlack": "Ladrão (preto)",
       "policeWhite": "polícia (branco)"
     },
     "settings": {
@@ -5611,7 +6499,7 @@
     "rank": "classificação",
     "rankUnit": "{{classificação}}",
     "pairStats": "habilidades de par",
-    "championshipStats": "Estatísticas do campeonato",
+    "championshipStats": "Estatísticas do Campeonato",
     "user": "trabalho póstumo",
     "petStats": "habilidades de animais de estimação",
     "opponentStatsAria": "Habilidade do oponente",
@@ -5757,9 +6645,9 @@
       "demoteConfirm": "Você deseja demitir {{name}} do cargo de vice-líder da guilda?",
       "kickConfirm": "Você quer expulsar {{name}} da guilda?",
       "transferConfirm": "Você realmente deseja delegar autoridade de líder de guilda a {{name}}? Esta ação é irreversível.",
-      "leaderMustTransfer": "Se o líder da guilda quiser deixar a guilda, ele deve primeiro delegar a função de líder da guilda a outro membro da guilda.",
+      "leaderMustTransfer": "Se um líder de guilda quiser deixar a guilda, ele ou ela deve primeiro delegar a função de líder da guilda a outro membro da guilda.",
       "lastMemberLeave": "Eu sou o último membro da guilda. Se você sair da guilda, a guilda será dissolvida. Tem certeza de que deseja sair?",
-      "leaveConfirm": "Tem certeza que deseja sair da guilda?",
+      "leaveConfirm": "Tem certeza de que deseja sair da guilda?",
       "leaveError": "Ocorreu um erro ao sair da guilda."
     },
     "management": {
@@ -5770,7 +6658,7 @@
       "joinMethod": "Como se inscrever",
       "applicationJoin": "Aplicar Inscrever-se",
       "freeJoin": "Inscreva-se gratuitamente",
-      "applicationJoinHint": "Você deve ser aprovado pelo líder ou vice-líder da guilda para ingressar.",
+      "applicationJoinHint": "Você deve ser aprovado pelo líder da guilda ou líder assistente da guilda para ingressar.",
       "freeJoinHint": "Caso haja vaga, você estará automaticamente inscrito.",
       "announcement": "Aviso da Guilda",
       "edit": "editar",
@@ -5783,14 +6671,34 @@
     "missions": {
       "title": "Missão Semanal da Guilda",
       "achieved": "realização",
-      "guildXp": "EXP da Guilda +{{quantidade}}",
+      "guildXp": "Experiência de Guilda +{{amount}}",
       "expired": "expirado",
       "rewardClaimed": "Recompensa concluída",
       "claimReward": "Obtenha recompensas",
       "inProgress": "Em andamento",
       "resetCountdown": "Renovar após {{dias}} dias {{horas}}:{{minutos}}",
       "unclaimedHint": "Existem recompensas que você pode receber. Não se esqueça de levar.",
-      "empty": "Não há missões semanais para exibir."
+      "empty": "Não há missões semanais para exibir.",
+      "titles": {
+        "checkIns": "Participação da guilda 50 vezes",
+        "guildDonations": "Acumulou 50 doações de guilda",
+        "bossAttempts": "Participou de batalhas contra chefes de guilda 30 vezes",
+        "strategicWins": "Baduk estratégico vence 30 vezes",
+        "playfulWins": "Jogue Baduk vence 30 vezes",
+        "equipmentEnhancements": "50 tentativas de reforço",
+        "epicGearAcquisitions": "Adquira equipamento de grau épico ou superior 20 vezes",
+        "diamondsSpent": "Consome 3.000 diamantes"
+      },
+      "descriptions": {
+        "checkIns": "Os membros da guilda comparecem um total de 50 vezes",
+        "guildDonations": "Faça com que os membros da guilda doem ouro e diamantes um total de 50 vezes.",
+        "bossAttempts": "Faça com que os membros da guilda participem de um total de 30 batalhas contra chefes de guilda.",
+        "strategicWins": "Os membros da guilda alcançam um total de 30 vitórias em baduk estratégico (incluindo IA da sala de espera e partidas gerais)",
+        "playfulWins": "Os membros da guilda alcançam um total de 30 vitórias em Baduk (incluindo IA da sala de espera e partidas gerais)",
+        "equipmentEnhancements": "Faça com que os membros da guilda realizem um total de 50 tentativas de aprimoramento de equipamento",
+        "epicGearAcquisitions": "Faça com que os membros da guilda adquiram equipamentos de grau épico ou superior 20 vezes",
+        "diamondsSpent": "Os membros da guilda gastam um total de 3.000 diamantes em lojas, etc."
+      }
     },
     "research": {
       "title": "Laboratório da Guilda",
@@ -5812,7 +6720,7 @@
       "apRegenEffect": "Tempo de recuperação da ação –{{sec}} segundos",
       "apRegenBoost": "Durante a recuperação natural, o intervalo é reduzido em um total de {{sec}} segundos por AP.",
       "statConcentration": "Concentração +{{value}}%",
-      "statThinkingSpeed": "Velocidade de pensamento +{{value}}%",
+      "statThinkingSpeed": "Velocidade de raciocínio +{{value}}%",
       "statJudgment": "Julgamento +{{value}}%",
       "statCalculation": "Poder de cálculo +{{value}}%",
       "statCombatPower": "Poder de combate +{{value}}%",
@@ -5868,7 +6776,18 @@
       "quickChat": "bate-papo rápido",
       "send": "encaminhamento",
       "sendTitle": "enviar",
-      "locationHome": "[lar]"
+      "locationHome": "[lar]",
+      "systemMessages": {
+        "missionComplete": "Missão semanal [{{missionTitle}}] cumprida! Receba suas recompensas na aba Atividade da Guilda > Missão da Guilda.",
+        "bossWeeklySettlement": "Assentamento Semanal do Chefe da Guilda ({{bossName}}, {{status}}): Experiência da Guilda +{{guildXp}}, Pontos de Pesquisa +{{researchPoints}} foram acumulados na guilda.",
+        "bossWeeklySettlementDefeated": "derrota",
+        "bossWeeklySettlementRemainingHp": "Saúde restante {{percent}}%",
+        "warJoinMatching": "[{{nickname}}]{{subjectParticle}} participou da guerra de guildas. Prosseguimos com a correspondência.",
+        "warJoinBotMatch": "[{{nickname}}]{{subjectParticle}} participou da guerra de guildas. Combinado com a guilda de bots do sistema em fila ímpar.",
+        "warJoinOpponent": "[{{nickname}}]{{subjectParticle}} participou da guerra de guildas. Oponente: 「{{opponentGuildName}}」",
+        "warCancelMatching": "[{{nickname}}]{{subjectParticle}} A correspondência de guerra de guilda foi cancelada.",
+        "bossDamage": "[{{nickname}}]{{subjectParticle}} infligiu {{damage}} de dano a {{bossName}}."
+      }
     },
     "war": {
       "title": "guerras de guildas",
@@ -5893,7 +6812,7 @@
       "guildXp": "Experiência de Guilda",
       "researchPoints": "pontos de pesquisa",
       "houseLabel": "casa {{pontuação}}",
-      "dominanceTooltip": "Dominância do lado esquerdo aproximadamente {{percent}}% (estrela/ponto)",
+      "dominanceTooltip": "Dominância do lado esquerdo: aproximadamente {{percent}}% (estrela/ponto)",
       "loadingWarInfo": "Carregando informações da guerra de guildas...",
       "noActiveWar": "Não há guerras de guildas em andamento.",
       "notStartedYet": "A guerra de guildas ainda não começou. \nVocê pode entrar a partir de {{data}}(KST).",
@@ -5921,14 +6840,14 @@
       "loss": "grupo",
       "winRate": "chances de ganhar",
       "currentWar": "Esta guerra de guildas",
-      "opponentGuild": "Guilda Oponente",
+      "opponentGuild": "Guilda oponente",
       "contribution": "Contribuição {{estrelas}}",
       "matchingInProgress": "Correspondência em andamento",
       "warPrep": "Preparando-se para a guerra de guildas",
       "startsIn": "Início {{hora}}",
       "findingOpponent": "Estou procurando um oponente para esta batalha de guildas.",
       "entryFrom": "Você pode entrar a partir de {{data}}(KST).",
-      "scheduledAt": "Horário agendado: {{date}}",
+      "scheduledAt": "Horário agendado: {{data}}",
       "cancelDeadline": "A inscrição pode ser cancelada: {{date}}",
       "currentWarPlaceholder": "Quando esta guerra de guildas começar, ela será exibida aqui.",
       "lastWar": "Pouco antes da guerra de guildas",
@@ -5962,13 +6881,13 @@
       "pointsUnit": "{{count}}pontos",
       "mode": "modo",
       "board": "tabuleiro de damas",
-      "boardLines": "{{tamanho}}linha",
+      "boardLines": "{{tamanho}} linha",
       "turnLimit": "limite de giro",
       "turnsUnit": "{{count}}voltas",
       "scoringTurns": "{{count}} passa a contar o preço",
       "clock": "relógio de jogo",
       "clockMainByoyomi": "{{minutos}} minutos · subsídio de 10 segundos",
-      "clockFischer": "{{minutos}} minutos (Fisher {{incremento}} segundos)",
+      "clockFischer": "{{minutos}} minutos (Fisher {{increment}} segundos)",
       "starConditions": "Condições para obtenção de estrelas",
       "initialStonesAria": "Posicionamento inicial: preto {{blackPlain}}, branco {{whitePlain}}, glifo preto {{blackMarked}}, glifo branco {{whiteMarked}}",
       "itemsOrRules": "item",
@@ -5995,7 +6914,7 @@
       "myArenaHint": "Abaixo está um resumo das partidas finais disputadas pelo espaço nesta guerra. As edições em andamento serão refletidas na lista detalhada após seu término.",
       "boardPerformance": "Desempenho por estádio",
       "inProgress": "Em andamento",
-      "gameSummary": "Terminar rodadas de {{jogos}} · Vitórias {{vitórias}} · Empates {{empates}} · Derrotas {{derrotas}}{{estrelas}}",
+      "gameSummary": "Termina {{jogos}} · Vitórias {{vitórias}} · Empates {{empates}} · Derrotas {{derrotas}}{{estrelas}}",
       "starsEarnedSum": "· Total por aquisição {{count}}",
       "noBoardRecord": "Não há registro deste compartimento nesta guerra.",
       "finishedGamesDetail": "Detalhes da partida final",
@@ -6022,29 +6941,36 @@
       "defaultGuildName": "guilda",
       "daysHoursRemaining": "{{prefixo}} {{dias}} dias {{horas}} horas",
       "hoursMinutesRemaining": "{{prefixo}} {{horas}} horas {{minutos}} minutos",
-      "minutesRemaining": "{{prefixo}} {{minutos}} minutos",
-      "mainTimeByoyomi": "{{minutos}} minutos · subsídio de 10 segundos",
-      "attemptsCount": "{{contar}} vezes"
+      "minutesRemaining": "{{prefix}} {{minutes}}분",
+      "mainTimeByoyomi": "{{minutes}}min · Permissão de 10 segundos",
+      "attemptsCount": "{{count}} vezes"
     },
     "boss": {
       "title": "Batalha do Chefe da Guilda",
+      "names": {
+        "boss_1": "audição",
+        "boss_2": "proeminência",
+        "boss_3": "água verde",
+        "boss_4": "profundidade",
+        "boss_5": "luz branca"
+      },
       "guide": "Enciclopédia do Chefe",
       "guideTitle": "Enciclopédia do Chefe da Guilda",
-      "stage": "{{estágio}}estágio",
+      "stage": "{{stage}}etapa",
       "bossSkillsAria": "Habilidade do chefe",
       "participants": "Membro participante da guilda",
       "myRecord": "meus registros",
       "ranking": "Classificação",
-      "rankPlace": "{{classificação}}",
+      "rankPlace": "{{rank}}acima",
       "totalDamage": "dano total",
       "currentRank": "Classificação atual",
-      "rankAmong": "{{rank}} de {{total}} pessoas",
+      "rankAmong": "Classificado em {{rank}} entre {{total}} pessoas",
       "allTimeBest": "Melhor de todos",
       "allTimeBestRecord": "Recorde de todos os tempos",
       "ticketAlt": "Bilhete de Batalha contra Chefe",
       "enter": "posição",
       "participantRecords": "Registros de membros da guilda participantes",
-      "rankNickname": "{{classificação}} · {{apelido}}",
+      "rankNickname": "{{rank}}Acima · {{nickname}}",
       "noParticipantRecords": "Ainda não há registros de participação.",
       "strategyGuide": "Guia de estratégia",
       "mainSkills": "principais habilidades",
@@ -6120,7 +7046,7 @@
       "guildXp": "Experiência de Guilda",
       "researchPoints": "Pontos de laboratório",
       "enhancementStoneLow": "Pedra de Encantamento Menor",
-      "enhancementStoneMid": "Pedra de reforço intermediário",
+      "enhancementStoneMid": "Pedra de Aprimoramento Intermediário",
       "enhancementStoneHigh": "Pedra de Encantamento Avançado",
       "enhancementStoneTop": "Pedra de reforço de primeira qualidade",
       "enhancementStoneMystic": "Pedra de Reforço Misteriosa",
@@ -6130,7 +7056,7 @@
       "materialBox4": "Caixa de Materiais IV"
     },
     "createModal": {
-      "title": "Criação de Guilda",
+      "title": "criação de guilda",
       "nameLabel": "nome da guilda",
       "nameLengthHint": "(2~6 caracteres)",
       "namePlaceholder": "Exemplo: Guilda Myeongwol",
@@ -6241,7 +7167,7 @@
     "refundPolicy": {
       "title": "Política de cancelamento/reembolso",
       "eyebrow": "Política de Reembolso",
-      "intro": "Gostaríamos de informá-lo sobre cancelamento e reembolso de conteúdo pago. Estes regulamentos foram escritos de acordo com as leis e regulamentos relevantes, como a Lei do Comércio Eletrônico."
+      "intro": "Gostaríamos de informá-lo sobre cancelamento e reembolso de conteúdo pago. Estes regulamentos foram preparados de acordo com as leis e regulamentos relevantes, como a Lei do Comércio Eletrônico."
     },
     "purchaseConsent": {
       "title": "Verifique o andamento do pagamento",

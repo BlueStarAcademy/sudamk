@@ -25,6 +25,7 @@ import { CHAMPIONSHIP_VERSUS_VENUE_KINDS } from '../shared/constants/championshi
 import { RANKED_ELO_BASE_SCORE } from '../shared/constants/rules.js';
 import { randomUUID } from 'crypto';
 import { getKSTDate, getCurrentSeason, getPreviousSeason, SeasonInfo, isDifferentWeekKST, isSameDayKST, getStartOfDayKST, isDifferentDayKST, isDifferentMonthKST, getKSTDay, getKSTHours, getKSTMinutes, getKSTFullYear, getKSTMonth, getKSTDate_UTC, getNextGuildWarMatchDate, getTodayKSTDateString } from '../shared/utils/timeUtils.js';
+import { clearChampionshipDungeonDailyEntryFields } from '../shared/utils/championshipDungeonDailyReset.js';
 import { DEMO_GUILD_WAR, GUILD_WAR_BOT_GUILD_ID } from '../shared/constants/auth.js';
 import {
     GUILD_WAR_MONTHLY_PARTICIPATION_LIMIT,
@@ -2053,6 +2054,7 @@ export async function processDailyQuestReset(): Promise<void> {
         (copy as any).lastNeighborhoodTournament = null;
         (copy as any).lastNationalTournament = null;
         (copy as any).lastWorldTournament = null;
+        clearChampionshipDungeonDailyEntryFields(copy);
         await db.updateUser(copy);
         venueClearedCount++;
     }

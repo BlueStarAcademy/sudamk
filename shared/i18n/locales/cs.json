@@ -27,7 +27,7 @@
     },
     "languageSelect": {
       "label": "jazyk",
-      "placeholder": "Vyberte si jazyk"
+      "placeholder": "Vyberte jazyk"
     },
     "connection": {
       "reconnecting": "Opětovné připojení k serveru...",
@@ -103,7 +103,7 @@
     "diamondsAlt": "diamant",
     "actionPoints": "akce",
     "guildCoin": "cechovní mince",
-    "blacksmithExp": "Kovářská zkušenost",
+    "blacksmithExp": "Zkušenosti s kovářem",
     "closeBg": "zavřít pozadí",
     "change": "přeměna",
     "previous": "před",
@@ -134,7 +134,7 @@
     "timesUnit": "{{count}}krát",
     "quickMenuAria": "rychlé menu",
     "helpCenter": "Centrum nápovědy",
-    "helpCenterHint": "Můžete se k němu kdykoli vrátit v našem centru nápovědy.",
+    "helpCenterHint": "Vždy se k němu můžete vrátit v našem centru nápovědy.",
     "disconnectNotice": {
       "title": "Upozornění na konec hry",
       "logoutTitle": "Pokyny k odhlášení",
@@ -220,7 +220,7 @@
     "editedAt": "(Upraveno: {{date}})",
     "emergencyNotice": "nouzové informace",
     "noAnnouncements": "Nejsou žádná registrovaná oznámení.",
-    "announcementsTitle": "Oznámení/Platch Notes",
+    "announcementsTitle": "Oznámení/opravné poznámky",
     "allModes": "celý",
     "house": "dům",
     "knockout": "knokaut",
@@ -258,15 +258,15 @@
     "second": "Hugong",
     "firstBlack": "Zaútoč jako první (černý)",
     "secondWhite": "Hugong (bílá)",
-    "chooseTurn": "Vyberte, zda chcete jít první nebo poslední.",
+    "chooseTurn": "Vyberte si první nebo druhý.",
     "chooseTurnCountdown": "Vyberte, zda chcete jít první nebo poslední. ({{odpočítávání}})",
     "opponentChoosingSecond": "Soupeř se rozhodl hrát jako druhý...",
     "readyCountdown": "Připraveno ({{countdown}})",
-    "waitingOpponentRoll": "Čekání na soupeře...",
+    "waitingOpponentRoll": "Čekání na druhou stranu...",
     "rollingDice": "Hoď kostkou...",
     "tieReroll": "uvázat! Po chvíli znovu rolujte.",
     "rollToDecide": "Stisknutím tlačítka Připraveno hodíte kostkou. Osoba s nejvyšším číslem se rozhodne jít první/poslední.",
-    "diceWin": "{{name}} vyhrál a bylo rozhodnuto, kdo půjde první/poslední.",
+    "diceWin": "{{name}} vyhrál a bylo rozhodnuto, že půjde první/poslední.",
     "diceAutoStart": "Klikněte na tlačítko Start níže, nebo se zápas spustí automaticky po 30 sekundách.",
     "colorRouletteTitle": "barva baduk",
     "uniformColorRoulette": "ruleta jednotné barvy",
@@ -288,7 +288,7 @@
     "reviewMode": "režim obnovy",
     "originalGame": "Původní zápis",
     "rotateToWhite": "Pohled z pohledu Whitea",
-    "rotateToBlack": "Pohled z Blackova pohledu",
+    "rotateToBlack": "Pohled z Blackovy perspektivy",
     "closeViewer": "blízko",
     "replayFirst": "poprvé",
     "replayBack5": "5 tahů zpět",
@@ -310,7 +310,7 @@
       "ariaLabel": "hlavní menu",
       "entranceClosedTitle": "Vstup je uzavřen",
       "home": "domov",
-      "singleplayer": "Baduk akademie",
+      "singleplayer": "Badukova akademie",
       "tower": "Věž výzvy",
       "arena": "stadión",
       "tournament": "mistrovství",
@@ -325,7 +325,7 @@
       "actionPointRechargeShop": "Akční dobíjení (obchod)",
       "actionPointRecharge": "Akční dobíjení",
       "participationTickets": "Práva účasti v cechu/mistrovství",
-      "guildChampCoins": "Cechová mince/Mince šampiona",
+      "guildChampCoins": "Cechovní mince / Champ Coin",
       "admin": "manažer"
     },
     "alerts": {
@@ -354,15 +354,15 @@
       "blacksmith": "kovárna",
       "shop": "obchod",
       "inventory": "taška",
-      "pet": "péče o domácí mazlíčky",
+      "pet": "mazlíček",
       "trainingQuest": "Tréninkový úkol",
       "detailedStats": "Podrobné záznamy stadionu PVP",
       "monsterCodex": "Encyklopedie monster",
       "ranking": "Pořadí",
-      "gameRecords": "zápis",
+      "gameRecords": "notový zápis",
       "encyclopedia": "Encyklopedie",
       "announcements": "oznámení",
-      "help": "Centrum nápovědy",
+      "help": "pomoc",
       "menu1": "Nabídka 1",
       "menu2": "Nabídka 2"
     },
@@ -416,7 +416,7 @@
     "rememberMe": "Zůstaňte přihlášeni",
     "autoLogin": "automatické přihlášení",
     "forgotPassword": "najít heslo",
-    "setNickname": "Nastavení přezdívky",
+    "setNickname": "Nastavení přezdívek",
     "nickname": "přezdívka",
     "nicknamePlaceholder": "Zadejte svou přezdívku",
     "continueWithSocial": "Pokračujte se svými sociálními účty",
@@ -425,7 +425,7 @@
     "kakao": "kakao",
     "google": "google",
     "ban": {
-      "title": "Přístup je zakázán.",
+      "title": "Připojení je zakázáno.",
       "reason": "Důvod: {{reason}}",
       "remainingMinutes": "Zbývající doba: přibližně {{minutes}} minut",
       "expiresAt": "Plánované vydání: {{date}}",
@@ -435,7 +435,7 @@
       "released": "vyčištěno"
     },
     "errors": {
-      "credentialsRequired": "Zadejte prosím ID i heslo.",
+      "credentialsRequired": "Zadejte ID i heslo.",
       "backendUnavailable": "Nelze se připojit k serveru backend. Zkontrolujte, zda server běží.",
       "unexpectedResponse": "Chyba odezvy serveru: Byl přijat neočekávaný formát odpovědi. (stav: {{status}})",
       "server502": "Server dočasně neodpovídá (502). Zkuste to prosím znovu později nebo zkontrolujte backendové protokoly na vašem železničním řídicím panelu.",
@@ -481,7 +481,7 @@
       "profanity": "Vaše přezdívka obsahuje nevhodná slova.",
       "taken": "Tato přezdívka se již používá.",
       "checkError": "Při řešení vaší přezdívky došlo k chybě. Zkuste to znovu později.",
-      "hint": "Když zadáte přezdívku, bude zkontrolována její duplicita a vulgární výrazy.",
+      "hint": "Když zadáte přezdívku, bude zkontrolována, zda neobsahuje duplicitu a vulgární výrazy.",
       "checking": "Kontrola duplikátů...",
       "available": "Toto je přezdívka, kterou můžete použít.",
       "required": "Zadejte svou přezdívku.",
@@ -537,19 +537,19 @@
     "curling": "curling",
     "comingSoon": "Příprava dalších aktualizací",
     "descriptions": {
-      "standard": "Toto je typický klasický baduk.",
+      "standard": "Je to typický klasický baduk.",
       "capture": "Hru Baduk vyhrává ten, kdo jako první získá stanovený počet kamenů.",
-      "speed": "Pokud jej umístíte do {{seconds}} sekund za kolo, získáte zpět {{seconds}} sekund. Za každých {{seconds}} sekund se soupeři přičte 1 bod.",
-      "base": "Je to hra baduk, ve které se podíváte na uspořádání základních kamenů, nastavíte bonus pro svého soupeře a použijete kameny dle vlastního výběru a soutěžíte o svou schopnost analyzovat situaci.",
-      "hidden": "Comeback s pohybem, který je pro soupeře neviditelný! Psychologická válka a dovednosti čtení jsou vyžadovány prostřednictvím skrytých a naskenovaných předmětů.",
+      "speed": "Pokud jej umístíte do {{seconds}} sekund, obnovíte {{seconds}} sekund. Za každých {{seconds}} sekund se soupeři přičte 1 bod.",
+      "base": "Je to hra baduk, kde se podíváte na uspořádání základních kamenů, nastavíte bonus pro svého soupeře a použijete kameny dle svého výběru a soutěžíte o svou schopnost analyzovat situaci.",
+      "hidden": "Comeback s pohybem, který je pro soupeře neviditelný! Prostřednictvím skrytých a naskenovaných předmětů je vyžadována psychologická válka a dovednosti čtení.",
       "missile": "Vytvořte proměnnou pohybem kamene umístěného jako předmět střely.",
       "uniform": "Go je hra, která vyžaduje paměť, abyste viděli všechny kameny v jedné barvě.",
       "castle": "Jedná se o strategickou hru Go, kde zajišťujete území pomocí náhodně umístěných hradů a vyhráváte zajmutím jediného kamene.",
       "chess": "Je to strategická hra Baduk, která kombinuje šachové figurky a Baduk. Po přesunutí figurky (volitelně) položte kámen Go pro ukončení tahu.",
       "mix": "Je to hra, která kombinuje dvě nebo více speciálních pravidel.",
       "dice": "Každý hráč může použít tolik černých kamenů, kolik je hozené číslo, a hráč s více bílými kameny vyhrává.",
-      "thief": "Jedná se o strategickou kostkovou hru, kde se střídáte v roli zloděje (černý) a policisty (bílý), každý po 5 tahech a výhra nebo prohra je určena celkovým skóre.",
-      "omok": "Jedná se o klasickou hru, kde vyhráváte tak, že nejprve položíte pět kamenů v řadě.",
+      "thief": "Jedná se o strategickou kostkovou hru, ve které se střídáte v roli zloděje (černý) a policisty (bílý), přičemž každý střídá 5 tahů a výhra nebo prohra je určena celkovým skóre.",
+      "omok": "Jedná se o klasickou hru, kde vyhráváte položením pěti kamenů v řadě jako první.",
       "ttamok": "Vyhrajete, pokud uděláte konkávní nebo jako první získáte soupeřův kámen.",
       "alkkagi": "Jedná se o hru, kdy údery do kamenů prsty vytlačíte soupeřovy kameny z hrací plochy.",
       "curling": "Jedná se o hru, ve které získáváte body posouváním kamenů po šachovnici a jejich posíláním nejblíže k cíli (domu)."
@@ -557,7 +557,7 @@
   },
   "game": {
     "pass": "Odpočiňte si",
-    "resign": "zdržení se hlasování",
+    "resign": "zdržení se",
     "confirmMove": "start",
     "yourTurn": "jsem na řadě",
     "opponentTurn": "soupeřova řada",
@@ -573,8 +573,8 @@
       "passLabel": "míjení",
       "passTitle": "dát si pauzu",
       "resignTitle": "zdržet se hlasování",
-      "cannotResignDuringScoring": "Během procesu počítání není povoleno zdržet se hlasování.",
-      "gameFeatures": "Funkce zápasu",
+      "cannotResignDuringScoring": "Během procesu počítání není dovoleno zdržet se hlasování.",
+      "gameFeatures": "funkce zápas",
       "playfulFeatures": "funkce přehrávání",
       "mannerAction": "jednání chování",
       "mannerActionPvpOnly": "Akční tlačítko způsobu se vytváří pouze v režimu PVP.",
@@ -606,7 +606,7 @@
       "waitingNextAction": "Čekání na další akci",
       "adminForceResign": "{{name}} vyhrál výběrem",
       "adminForceResignConfirm": "Chcete propadnout {{name}}?",
-      "openMenu": "Otevřete nabídku",
+      "openMenu": "Otevřít nabídku",
       "menu": "menu",
       "remainingPlacements": "zbytek podniku",
       "mannerActionError": "Při zpracování akce způsobu došlo k chybě. Zkuste to znovu později.",
@@ -632,7 +632,7 @@
       "adminFeatures": "Funkce správce",
       "pauseMyTurnOnly": "Pozastavit se můžete pouze během vašeho tahu",
       "resumeGame": "Obnovení zápasu",
-      "resumeGameCountdown": "Obnovení zápasu ({{count}})",
+      "resumeGameCountdown": "Obnovit shodu ({{count}})",
       "pauseGame": "přerušit",
       "pauseGameCountdown": "pauza ({{count}})",
       "pauseGameAiTurn": "Pauza (otočka AI)",
@@ -657,8 +657,8 @@
       "lowDiceUse": "Použijte kostky s nízkým počtem",
       "highDiceUse": "Použijte kostky s vysokým počtem",
       "specialFeatures": "speciální funkce",
-      "resign": "zdržení se hlasování",
-      "resignAlt": "zdržení se hlasování",
+      "resign": "zdržení se",
+      "resignAlt": "zdržení se",
       "goldAlt": "zlato",
       "hiddenPlaceTitle": "Skryté umístění kamene",
       "scanDetectTitle": "Detekce skrytých kamenů protivníka",
@@ -671,12 +671,12 @@
       "thiefNoOneAria": "Zabránit 1 (2~5) kostkám, zbývající počet {{count}}",
       "thiefNoOneTitle": "Kostky, které nemají 1 (2, 3, 4, 5). Zbývající počet {{count}}",
       "thiefHigh36UseTitle": "Použijte kostky s vysokým počtem (3-6).",
-      "thiefHigh36UseBody": "Použijte jednu kostku, která vyjde pouze 3, 4, 5 a 6. Pokud je na řadě policie, obě kostky jsou v tomto rozmezí. Chcete pokračovat?",
+      "thiefHigh36UseBody": "Použijte jednu kostku, která ukazuje pouze 3, 4, 5 a 6. Pokud je na řadě policie, obě kostky jsou v tomto rozsahu. Chcete pokračovat?",
       "thiefNoOneUseTitle": "Použijte 1 preventivní kostku",
       "thiefNoOneUseBody": "Použijte jednu kostku, která vyjde pouze 2, 3, 4 nebo 5 (1 není možná). Pokud je na řadě policie, obě kostky jsou v tomto rozmezí. Chcete pokračovat?"
     },
     "board": {
-      "rotateSpectatorBlack": "Pohled z Blackova pohledu",
+      "rotateSpectatorBlack": "Pohled z Blackovy perspektivy",
       "rotateSpectatorWhite": "Pohled z pohledu Whitea",
       "rotate180": "rotace šachovnice o 180 stupňů",
       "paused": "přerušit",
@@ -707,7 +707,7 @@
       "baseGameStartConfirm": "Když stisknete tlačítko start, zápas začne.",
       "captureBidTie": "Navrhovaná kravata je stejná. Pokud to bude stejné i tentokrát, bude rozhodnuto náhodně.",
       "captureBidBase": "Podívejte se na zveřejněnou nástěnku a potvrďte navrhované skóre pro černou (dobrou) ve spodní části.",
-      "captureBid": "Toto je fáze, kde jsou prezentovány černé (čárové) skóre.",
+      "captureBid": "Toto je fáze prezentace černých (čárových) skóre.",
       "gameEnded": "Zápas končí",
       "noContest": "neplatná shoda",
       "rematchPending": "Čekání na odvetu...",
@@ -715,15 +715,15 @@
       "hiddenFinalReveal": "Odhalíme všechny skryté kameny a začneme počítat.",
       "autoScoringAdventure": "Provádí se automatické účtování.",
       "autoScoringReached": "Automatický systém dosáhne procedury a začne počítat.",
-      "alkkagiRePlace": "Položte kameny znovu. ({{round}} / {{total}} kolo)",
-      "alkkagiPlace": "Umístěte kameny. ({{round}} / {{total}} kolo)",
-      "alkkagiPlayerTurn": "Je na řadě {{name}}. ({{round}} / {{total}} kolo)",
+      "alkkagiRePlace": "Položte kameny znovu. ({{round}} / {{total}} kol)",
+      "alkkagiPlace": "Umístěte kameny. ({{round}} / {{total}} kol)",
+      "alkkagiPlayerTurn": "Je na řadě {{name}}. ({{round}} / {{total}} kol)",
       "alkkagiRoundEnd": "Kulaté konce - Zkontrolujte a pokračujte na elektronickém štítku níže.",
-      "diceRollTurn": "Na řadě je {{name}} hodit kostkou.",
+      "diceRollTurn": "Je na řadě {{name}} hodit kostkou.",
       "diceRollTurnGeneric": "Je čas hodit kostkou",
       "tiebreakerDeciding": "Rozhodování o vítězném pořadí...",
       "tiebreakerPlaying": "Zápas probíhá... (na tahu je {{name}})",
-      "diceModeRound": "Kostky Go ({{round}} / {{total}} kol)",
+      "diceModeRound": "Kostky Go ({{round}} / {{total}} kolo)",
       "thiefModeRound": "Zloději a policajti ({{round}} kolo)",
       "preparing": "Příprava hry...",
       "timeoutFoul": "Time-over faul od {{name}}!",
@@ -733,13 +733,13 @@
       "timeoutFoulPassTurn": "Obrat přechází na soupeře.",
       "timeoutFoulLoseStone": "Ztratíte 1 kámen a váš tah končí.",
       "timeoutFoulDefault": "Za překročení časového limitu budete penalizováni.",
-      "baseKomiGuide": "Rozhodněte se o kamenech a bonusech, které chcete umístit. Pokud si vyberete stejný kámen, ten, který vám dá nejvíce bonusů, je kámen, který si chcete ponechat.",
-      "alkkagiPlaceHidden": "Umístěte kameny tak, aby je váš soupeř neviděl. ({{round}} / {{total}} kolo)",
-      "alkkagiPlaceMissing": "Umístěte chybějící kameny. ({{round}} / {{total}} kolo)",
+      "baseKomiGuide": "Rozhodněte se, jaké kameny a bonusy chcete umístit. Pokud si vyberete stejný kámen, ten, který vám dá nejvíce bonusů, je kámen, který si chcete ponechat.",
+      "alkkagiPlaceHidden": "Umístěte kameny tak, aby je váš soupeř neviděl. ({{round}} / {{total}} kol)",
+      "alkkagiPlaceMissing": "Umístěte chybějící kameny. ({{round}} / {{total}} kol)",
       "placementProgress": "umístěno {{placed}}/{{target}}",
       "timeRemainingSec": "Zbývající čas: {{sec}} sekund",
       "alkkagiRoundWin": "Kolo {{round}} — {{name}} vyhrává",
-      "stonesRemaining": "Zbývající kameny: {{name}} {{count}}",
+      "stonesRemaining": "Zbývá {{name}} {{count}} kamenů",
       "waitingOpponentConfirm": "Čekání na potvrzení od druhé strany...",
       "confirmFinalResult": "Zkontrolujte konečný výsledek",
       "startNextRound": "Začíná další kolo",
@@ -805,12 +805,12 @@
       "captureScore": "Skóre zachycení:",
       "lastPileBonus": "Poslední fiktivní bonus:",
       "finalScoreLabel": "konečné skóre",
-      "houseScoreGain": "Získané body",
+      "houseScoreGain": "Získané skóre",
       "houseUnit": "dům",
       "playerWins": "{{name}} vyhrává!",
       "cumulativeScore": "kumulativní skóre",
       "roundScores": "Skóre za kolo",
-      "roundScoreBlackWhite": "Skóre kola (černá:bílá)",
+      "roundScoreBlackWhite": "Kulaté skóre (černá:bílá)",
       "house": "dům",
       "knockout": "knokaut",
       "previousKnockout": "(Dříve: {{count}})",
@@ -843,7 +843,7 @@
       "resignWinMsg": "Vyhráli jsme, protože se soupeř zdržel.",
       "resignLossMsg": "Zdržel se a prohrál.",
       "turnLimitWinMsg": "Vyhráli jste, protože všechny soupeřovy omezené tahy byly vyčerpány.",
-      "turnLimitLossMsg": "Prohrál jsem, protože můj limit tahů byl překročen.",
+      "turnLimitLossMsg": "Počet zatáček byl omezen a prohráli jste.",
       "castleWinMsg": "Vyhrál jsem soupeřův kámen a hned vyhrál.",
       "castleLossMsg": "Prohrál jsem, protože můj soupeř chytil kámen.",
       "checkmateWinMsg": "Vyhrál jsem mat výhrou soupeřova krále.",
@@ -868,7 +868,7 @@
       "petGradeUpgradeNeeded": "Úroveň domácích mazlíčků je třeba posílit",
       "representativePet": "reprezentativní mazlíček",
       "addedStats": "Přidané schopnosti",
-      "vipSlotReward": "VIP odměny do slotů",
+      "vipSlotReward": "VIP odměny do slotu",
       "winCondition": "vítězství",
       "confirm": "kontrola",
       "guildWarRewards": "Odměny Guild War",
@@ -934,7 +934,7 @@
         "captureTargetCount": "{{počítat}}",
         "captureTargetBoth": "Černá: {{black}} / bílá: {{bílá}}",
         "captureTargetPending": "{{count}} (rozhoduje se o černé/bílé)",
-        "castle": "Hrad",
+        "castle": "hrad",
         "castleCount": "{{počítat}}",
         "baseStones": "základní panenka",
         "hiddenStones": "Skrytý kámen",
@@ -1038,7 +1038,7 @@
       "challengeFail": "výzva se nezdařila",
       "gameResult": "výsledky hry",
       "matchResult": "výsledek zápasu",
-      "totalElapsed": "Celkový čas:",
+      "totalElapsed": "Celkový čas strávený:",
       "noScoringResult": "Nejsou žádné výsledky.",
       "myInfo": "moje informace",
       "scoring": "Počítání...",
@@ -1063,7 +1063,7 @@
       "winSurvival": "Bílá vydržela všechny určené tahy.",
       "winCaptureTarget": "Dosáhli jste svého cílového skóre.",
       "winScoring": "Tým nakonec vyhrál.",
-      "winTime": "Je to karta časového limitu.",
+      "winTime": "Toto je karta časového limitu.",
       "winResign": "Druhá strana se zdržela hlasování.",
       "winDisconnect": "Druhá strana je odpojena.",
       "winTotalScore": "Vyhrál celkovým počtem bodů.",
@@ -1104,7 +1104,7 @@
       "winSurvival": "Udrželi jsme si skóre dobře s omezenými otáčkami.",
       "winCaptureTarget": "Dosáhli jste svého cílového skóre.",
       "winScoring": "Tým nakonec vyhrál.",
-      "winTime": "Je to karta časového limitu.",
+      "winTime": "Toto je karta časového limitu.",
       "winResign": "Druhá strana se zdržela hlasování.",
       "winDisconnect": "Druhá strana je odpojena.",
       "winTotalScore": "Vyhrál celkovým počtem bodů.",
@@ -1176,7 +1176,11 @@
       "scoringTurnValue": "{{turns}}otočí",
       "forbidden": "zákaz",
       "allowed": "možné",
-      "speedNormal": "běžně"
+      "speedNormal": "běžně",
+      "confirm": "kontrola",
+      "gaugeSpeedSlow": "x1 (pomalé)",
+      "gaugeSpeedNormal": "x2 (normální)",
+      "gaugeSpeedFast": "x3 (rychle)"
     },
     "challengeModal": {
       "rejected": "Odmítnutí",
@@ -1200,7 +1204,7 @@
       "baseGo": "základna baduk",
       "baseStones": "základní kámen",
       "castleGo": "Hrad Baduk",
-      "castleShort": "Hrad",
+      "castleShort": "hrad",
       "timeLimit": "časový limit",
       "byoyomi": "odpočítávání",
       "byoyomiSeconds": "{{sec}} sekund",
@@ -1219,7 +1223,7 @@
       "highDice": "(vysoké) kostky",
       "lowDice": "(nízké) kostky",
       "thiefGo": "zloděj baduk",
-      "blockDice": "anti-kostky",
+      "blockDice": "proti kostkám",
       "omokTtamok": "konkávní a dvojitý krk",
       "forbid33": "Žádná dvojčata",
       "forbidOverline": "žádné polenové dřevo",
@@ -1271,7 +1275,7 @@
         "diamondInstant": "Diamant se okamžitě nabíjí",
         "diamondInstantHint": "Svou akční sílu můžete naplnit, kdykoli budete chtít.",
         "goShopConsumables": "Nákup léčivých lektvarů v obchodě (spotřební materiál)",
-        "goDiamondRecharge": "Okamžitě dobíjejte diamanty",
+        "goDiamondRecharge": "Okamžitě nabijte diamanty",
         "selfHeading": "Chybí mi akceschopnost.",
         "selfDetail": "Akční síla (⚡) je nutná k použití a přijetí zápasu nebo k zahájení zápasu AI. Nabijte prosím a zkuste to znovu.",
         "opponentTitle": "Přihlaste se na zápas",
@@ -1343,8 +1347,8 @@
       "resignConfirmTitle": "Potvrzení zdržení se"
     },
     "alerts": {
-      "noContestConfirm": "Chtěli byste beztrestně zneplatnit soupeřova Djanga a odejít?",
-      "cannotResignScoring": "Během procesu počítání není povoleno zdržet se hlasování.",
+      "noContestConfirm": "Chtěli byste bez penalizace zneplatnit soupeřova Djanga a odejít?",
+      "cannotResignScoring": "Během procesu počítání není dovoleno zdržet se hlasování.",
       "sessionExpired": "Vaše herní relace vypršela. Vyberte prosím jeviště znovu v čekárně.",
       "startFailed": "Hru se nepodařilo spustit. Zkuste to prosím znovu."
     },
@@ -1382,11 +1386,207 @@
       "curling": "curling",
       "thiefPolice": "zloděj a policie",
       "classic": "klasický",
-      "mix": "směs"
+      "mix": "směs",
+      "specialRules": "zvláštní pravidla",
+      "loseCondition": "Podmínky porážky",
+      "rulesAndGuide": "Pravidla hry a průvodce hrou",
+      "rewards": "kompenzace",
+      "availableRewards": "Získatelné odměny",
+      "summary": {
+        "loseTerritory": "Pokud je celkové skóre (celkové skóre) nízké nebo je dům v nevýhodě kvůli pravidlům remízy nebo remízy, prohráváte.",
+        "loseTerritoryAuto": "Pokud nemůžete vyhrát proti {{base}} · {{auto}}, prohráváte.",
+        "loseCaptureRace": "Pokud soupeř získá {{t}} bodů jako první, prohráváte. V opačném případě, pokud máte v rodině málo domů, prohráváte.",
+        "loseMix": "Na konci hry, pokud soupeř splní podmínky vítězství jako první nebo je v nevýhodě, prohrává.",
+        "basePlacementAnalysis": "Analýza situace po uvolnění umístění základní panenky",
+        "baseKomiSelect": "Nastavte bonus, který chcete dát soupeři · Vyberte kámen, který chcete",
+        "autoScoringCaptureTurn": "Automatické počítání pokračuje po dosažení {{n}} tahů",
+        "autoScoringTerritoryWin": "Vyhrajte automatické počítání po {{n}} kolech",
+        "autoScoringTerritoryLose": "Porazte v automatické hře po {{n}} kolech",
+        "fischerOnly": "Fisher {{sec}} sekund",
+        "byoyomiOnly": "Pouze odpočítávání · {{time}} sekund × {{count}}krát",
+        "noTimeLimit": "Bez časového omezení",
+        "limitFischer": "Limit {{min}} minut · Fisher {{sec}} sekund",
+        "limitByoyomi": "Limit {{min}} minut · Odpočítávání {{time}} sekund × {{count}}krát",
+        "limitNoByoyomi": "Limit {{min}} minut (bez odpočítávání)",
+        "factorTerritory": "území",
+        "factorCaptured": "kámen vybrán",
+        "factorDead": "riprap",
+        "factorKomi": "Bonus (taška)",
+        "factorBaseBonus": "základní bonus",
+        "factorHiddenBonus": "Skrytý bonus",
+        "factorSpeedBonus": "Překročena povolená hodnota {{sec}} sekund → Soupeř +1",
+        "factorMissileEffect": "Odraz výroby raket",
+        "factorCaptureScore": "vítězné skóre",
+        "factorMixFallback": "V závislosti na kombinaci režimů",
+        "factorCaptureNoTerritory": "Vítězné skóre (žádné domácí výpočty)",
+        "factorCastle": "Potvrzené území · Vyhraný kámen · Bonus (bílý)",
+        "factorChess": "Území · Vybraný kámen · Kamenný kámen · Zachycení předmětu · Bonus (100)",
+        "factorOmok": "Čt (výhra) — žádné výpočty domu",
+        "factorTtamok": "Výhra krku nebo vítězné skóre",
+        "factorDice": "100 výherních bodů za kolo · Bonus za konečnou výhru",
+        "factorThief": "Celkový počet bodů získaných za kolo",
+        "factorAlkkagi": "Počet soupeřových tahů mimo šachovnici",
+        "factorCurling": "Kámen skóruje blízko domu (gól)",
+        "factorFallback": "Viz průvodce režimem",
+        "factorStageDefault": "V závislosti na fázi/režimu",
+        "factorStageCapture": "vítězné skóre",
+        "factorStageCapturePattern": "vítězné skóre\n2 kameny se vzorem",
+        "factorStageSpeed": "Území, vybraný kámen, riprap kámen, bonus\nčasový bonus",
+        "factorAdventureCaptureShort": "Vyberte · Emblém 2 body",
+        "factorAdventureBase": "základní cena",
+        "factorAdventureBaseStone5": "5 základních panenek",
+        "factorAdventureHidden": "Skrytý",
+        "factorAdventureSpeed": "hodina",
+        "factorAdventureMissile": "střela",
+        "itemHidden": "Skryté {{n}}",
+        "itemScan": "{{n}} skenů",
+        "itemMissile": "{{n}} raket",
+        "itemSpecialDice": "Speciální kostky {{summary}}",
+        "itemSlowAim": "Pomalu {{slow}} · Zamiřte {{aim}}",
+        "mixCaptureWin": "Pokud jako první dosáhnete {{t}} bodů, okamžitě vyhrajte. Pokud toho nedosáhnete, porovnejte domy po vítězné ceně.",
+        "mixCaptureWinWithAuto": "Vítězství: Pokud jako první dosáhnete {{t}} bodů, vyhrajte okamžitě · Pokud nedosáhnete, porovnejte domy po limitu · {{auto}}",
+        "mixAutoTerritoryWin": "{{auto}} — Kdo má nejvíce domů, vyhrává",
+        "mixComboTail": "Kombinace ({{modes}}) — Vyhrajte nebo prohrajte na základě pravidel na konci",
+        "mixDefaultEnd": "Na konci se podle pravidel určí vítěz nebo poražený.",
+        "highlightPatternStone2": "Sbírání vzorových kamenů 2 body",
+        "highlightHiddenScan": "Skryté spuštění · Prozkoumejte skenováním",
+        "highlightMissileMove": "Přesuňte kámen v přímé linii pomocí střely",
+        "speedPvpHighlight": "Povoleno 10 sekund odpočítávání · Soupeř +1 bod za každých překročených 10 sekund · Ztráta času, když vyprší hlavní čas",
+        "highlightSurvival": "Uložit Baduka · Cílové skóre do {{n}} tahů",
+        "highlightAutoScoring": "Automatické počítání po {{n}} čísle",
+        "highlightBlackTurnLimit": "Černý {{n}} limit odbočení",
+        "highlightTurnAdd": "{{n}} dalších zatáček",
+        "highlightMissile": "{{n}} raket",
+        "highlightHiddenScanCounts": "{{hidden}} skryté · {{scan}} naskenováno",
+        "spTimeMainFischer": "Hlavní {{min}} minut · Odpočítávání povolených {{sec}} sekund",
+        "spTimeFischerOnly": "Odpočítávání do limitu {{sec}} sekund",
+        "spTimeUnlimited": "Bez omezení",
+        "goalSurvivalWinLabel": "zablokovat zpět",
+        "goalSurvivalWinHelper": "Blokujte 100 cílů na {{n}} tahů",
+        "goalSurvivalLoseLabel": "sto úspěchů",
+        "goalSurvivalLoseHelper": "Pokud bílý vytvoří cíl, selže.",
+        "goalCaptureWinLabel": "vybírání",
+        "goalCaptureWinHelper": "Získejte body obklíčením soupeřových kamenů.",
+        "goalCaptureLoseTurnLabel": "otáčky překročeny",
+        "goalCaptureLoseTurnHelper": "Pokud to neuděláte do {{n}} tahů, neuspějete.",
+        "goalCaptureLoseFirstLabel": "nejprve soupeř",
+        "goalCaptureLoseFirstHelper": "Pokud váš soupeř vyhraje jako první, neuspějete.",
+        "goalSpeedWinLabel": "rychle",
+        "goalSpeedWinHelper": "Stavba domu včas",
+        "goalSpeedLoseLabel": "Skóre třináct",
+        "goalSpeedLoseHelper": "Selhání, pokud je domů málo",
+        "goalAutoWinLabel": "hodně domů",
+        "goalAutoWinHelper": "Vypočítejte dům po {{n}}",
+        "goalAutoLoseLabel": "nedostatek domů",
+        "goalAutoLoseHelper": "{{n}}Pokud jste během přesunu v nevýhodě, neuspějete.",
+        "goalDefaultWinLabel": "stavba domu",
+        "goalDefaultWinHelper": "Postavte v okolí dům",
+        "goalDefaultLoseLabel": "nedostatek domů",
+        "goalDefaultLoseHelper": "Selhání, pokud je domů málo",
+        "guideTurnLimitTitle": "limit obratu",
+        "guideTurnLimitBody": "Dokončete za {{n}} zatáček",
+        "guideSurvivalTitle": "zastavit",
+        "guideSurvivalBody": "Blokujte 100 cílů na {{n}} tahů",
+        "guideAutoScoringTitle": "Kalkulační cena",
+        "guideAutoScoringBody": "Vypočítejte dům po {{n}}",
+        "guidePatternStoneTitle": "vzor kámen",
+        "guidePatternStoneBody": "2 body, pokud vyhrajete",
+        "guideSpeedTitle": "rychlost",
+        "guideSpeedBody": "Pokud odejdete pozdě, váš soupeř dostane +1 bod.",
+        "guideTurnAddTitle": "Přidat odbočku",
+        "guideTurnAddBody": "Zvyšte limit otáčení",
+        "guideMissileTitle": "střela",
+        "guideMissileBody": "Vyberte kámen a zatlačte jej v přímé linii",
+        "guideHiddenScanTitle": "Skryté · Skenovat",
+        "guideHiddenScanBody": "Skrýt {{hidden}} · Najít {{scan}}",
+        "advCaptureWin": "vítězný",
+        "advCaptureLose": "Vyhrát, prohrát, vypršet",
+        "advTerritoryWin": "gye vyhrává",
+        "advTerritoryWinAuto": "Počítat výhry · {{n}} se pohybuje automaticky",
+        "advTerritoryLose": "Systém je poražen a čas vyprší.",
+        "advTimeLimit": "Limit {{mins}} minut",
+        "gwCaptureWinAuto": "První počet bodů: {{cap}} nebo počet výher v počtu {{limit}}",
+        "gwCaptureWin": "Pokud jako první získáte {{cap}} bodů, vyhráváte.",
+        "gwCaptureLose": "Soupeř {{cap}} body jako první",
+        "gwTerritoryWinAuto": "Automatický výpočet {{limit}} počtu výher",
+        "gwTerritoryWin": "Pokud má vaše rodina více domů, vyhráváte.",
+        "gwTerritoryLose": "Přesila, čas překročen",
+        "captureWin": "Nejprve získejte soupeřův kámen {{t}} bodů",
+        "captureWinWithAuto": "Získejte nejprve soupeřův kámen {{t}} bodů · {{auto}}",
+        "territoryWinDefault": "Po započítání vyhrává strana s nejvíce domy.",
+        "speedTerritoryWinDefault": "Kdo má nejvyšší celkové skóre, vyhrává po započítání.",
+        "speedTerritoryLoseDefault": "Pokud je vaše celkové skóre po započítání nízké, prohráváte.",
+        "castleWin": "Pokud vyhrajete 1 nebo více soupeřových kamenů, vyhráváte okamžitě. Pokud neexistují žádná efektivní čísla, vypočítá se území.",
+        "castleLose": "Pokud váš soupeř chytí byť jen 1 kámen, prohráváte. Pokud máte v rodině málo domů, prohráváte.",
+        "castleHighlightCount": "{{hrady}} hrady · Nelze vstoupit do dokončeného území",
+        "castleHighlightCapture": "Okamžité vítězství po zajetí 1 kamene",
+        "chessWin": "Po určeném postupu výpočet",
+        "chessLose": "Porážka u Gyejie · Prohraj ihned po zajetí krále.",
+        "chessHighlightBudget": "Přímé umístění kusů v rámci {{budget}} bodového rozpočtu (King fixován na střed 2. řady)",
+        "chessHighlightMovement": "Figurka může být přesunuta šachovým tahem jednou za kolo (omezený počet opakování).",
+        "omokWin": "Nejprve vyplňte 5 horizontálních, vertikálních a diagonálních položek",
+        "omokLose": "Pokud váš soupeř dokončí všech 5 položek jako první, prohráváte.",
+        "omok33Forbidden": "Žádná dvojčata",
+        "omok33Allowed": "Dvojčata povolena",
+        "omokOverlineForbidden": "žádné polenové dřevo",
+        "omokOverlineAllowed": "Dřevo povoleno",
+        "ttamokWin": "Nejprve dokončete položku 5 nebo získejte prvních {{cap}} bodů",
+        "ttamokLose": "Pokud váš soupeř jako první dokončí 5 položek nebo jako první dosáhne {{cap}} vítězných bodů, prohráváte.",
+        "ttamokHighlightCapture": "Vyhrajte, když jako první dosáhnete {{cap}} bodů.",
+        "diceWin": "Strana s nejvyšším kumulativním skóre po {{r}} kole vyhrává.",
+        "diceLose": "{{r}}Pokud je vaše kumulativní skóre na konci kola nízké, prohráváte.",
+        "diceHighlightRules": "Černá přistane tolik, kolik je kostkových očí, a bílá je umístěna pouze na výstupní cestě.",
+        "thiefWin": "Po 5 kolech x vyhrává osoba s nejvyšším celkovým skóre.",
+        "thiefLose": "Pokud je vaše celkové skóre na konci kola nízké, prohráváte.",
+        "thiefHighlightRoles": "Střídání rolí mezi zlodějem (černý) a policistou (bílý)",
+        "alkkagiWin": "Vyrazte všechny soupeřovy kameny",
+        "alkkagiLose": "Vytlučte všechny mé kameny",
+        "alkkagiHighlightGauge": "Ovládání síly pomocí měřidla, odraz od stěny",
+        "curlingWin": "Vyhrává ten, kdo má nejvyšší celkové skóre kola",
+        "curlingLose": "Pokud je vaše celkové skóre nízké, prohráváte.",
+        "curlingHighlightRules": "Kamenný posuvný / kulatý systém",
+        "fallbackWin": "O výhře či prohře se rozhoduje na základě průběhu zápasu.",
+        "fallbackLose": "Pokud je porážka určena postupem hry, prohráváte.",
+        "spDefaultWin": "Vyhrajte, když jsou splněny podmínky etapy",
+        "spDefaultLose": "Prohrát, pokud nejsou splněny podmínky",
+        "spSurvivalWin": "Nepodařilo se dosáhnout 100 {{tgt}} bodů během {{n}} tahů",
+        "spSurvivalLose": "Dosáhněte 100 {{tgt}} bodů během {{n}} tahů",
+        "spCaptureTurnWin": "Získejte {{target}} bodů během {{limit}} tahů",
+        "spCaptureTurnLoseBoth": "Překročte {{limit}} otáček / získejte 100 {{target}} bodů",
+        "spCaptureTurnLoseMiss": "Nepodařilo se dosáhnout cíle během {{limit}} kola",
+        "spCaptureRaceWin": "Nejprve získejte {{target}} bodů",
+        "spCaptureRaceLose": "Nejprve získejte 100 {{target}} bodů",
+        "spCaptureCapWin": "Získejte nejprve {{cap}} bodů",
+        "spCaptureCapLose": "Bílý získá {{cap}} bodů jako první",
+        "spCaptureGoalWin": "Dosažení cílového skóre",
+        "spCaptureGoalLose": "Baek dosáhne svého cíle jako první",
+        "spSpeedWin": "Tým vyhrává v celkovém skóre",
+        "spSpeedLose": "poražený ve světě",
+        "spAutoScoringWin": "{{n}}vyhrává po započítání",
+        "spAutoScoringLose": "{{n}}Poražen po Sugyegovi",
+        "spLegacyTurnWin": "{{target}} bodů nebo více v {{limit}} tahu",
+        "spLegacyTurnLose": "Nepodařilo se dosáhnout cíle během {{limit}} kola",
+        "spLegacyTerritoryWin": "Rodina černý {{black}} dům+ · bílý {{bílý}} dům+",
+        "spLegacyTerritoryLose": "cílové povodí nebylo dosaženo",
+        "spTerritoryWin": "Pokud má rodina více domů, vyhrává.",
+        "spTerritoryLose": "Třináctý v linii"
+      },
+      "itemSlot": {
+        "hiddenStone": "Skrytý kámen",
+        "scan": "skenovat",
+        "missile": "střela",
+        "diceOdd": "Položky lichých kostek",
+        "diceEven": "Dokonce i kostkové předměty",
+        "diceLow": "Nízký počet (1-3) kostek",
+        "diceHigh": "Vysoký počet (4-6) kostek",
+        "slow": "pomalý",
+        "aimLine": "zorné pole",
+        "turnAdd": "Přidat odbočku"
+      }
     },
     "singlePlayerInfo": {
       "close": "blízko",
-      "proverbsTitle": "Badukové přísloví"
+      "proverbsTitle": "Badukské přísloví"
     },
     "analysis": {
       "title": "analyzovat",
@@ -1448,7 +1648,7 @@
       "queen": "královna",
       "pieceTitle": "{{štítek}} · {{pohybů}}krát · {{cost}} bodů",
       "hostPlacing": "Hostitel umístí figurky",
-      "hostPlacingHint": "Po nasazení se zúčastníte tahu útoku.",
+      "hostPlacingHint": "Po nasazení se účastníte tahu útoku.",
       "completeStarting": "Umístění dokončeno · Spusťte hru…",
       "completeWaiting": "Rozmístění dokončeno · Čekání na soupeře...",
       "secondsLeft": "{{sec}} sekund",
@@ -1478,7 +1678,8 @@
       "aria": "Záložka Výsledky"
     },
     "speedPressure": {
-      "aria": "Čas povolení {{sec}} sekund"
+      "aria": "Čas povolení {{sec}} sekund",
+      "label": "10 sekundová rychlostní lišta"
     },
     "adventureResult": {
       "bossLine": "Šéf: {{label}} +{{pct}}%",
@@ -1495,7 +1696,7 @@
     },
     "towerSidebar": {
       "title": "Věž výzvy",
-      "floor": "{{patro}} patro"
+      "floor": "{{floor}}patro"
     },
     "guildWarSidebar": {
       "title": "cechovní války"
@@ -1504,7 +1705,7 @@
       "resignConfirmTitle": "Potvrzení zdržení se",
       "resignConfirmLead": "Chtěli byste hru vzdát?",
       "resignConfirmDetail": "Zápas okamžitě končí a je považován za kontumační.",
-      "resignConfirmButton": "zdržení se hlasování"
+      "resignConfirmButton": "zdržení se"
     },
     "resultModalGold": {
       "totalTitle": "Celkem vydělané zlato {{total}} (základní {{base}}, specializované +{{bonus}})",
@@ -1523,7 +1724,7 @@
       "result": "výsledek"
     },
     "gameApplication": {
-      "title": "Přihlaste se do hry",
+      "title": "Herní aplikace",
       "modeHeading": "herní režim",
       "applyTitle": "{{mode}} aplikace",
       "selectMode": "Vyberte hru."
@@ -1556,7 +1757,7 @@
       "setupComplete": "Nastavení dokončeno",
       "baseTargetIntro": "Výchozí cíle jsou {{target}}.",
       "bidInstructionRich2": "Nabídněte počet bodů, které dáte svému soupeři, aby přinesl černého (hráče).",
-      "aiAutoBidHint": "AI automaticky navrhuje mezi 1 a 5 body. Své skóre si můžete vybrat bez časového omezení.",
+      "aiAutoBidHint": "AI automaticky navrhuje skóre mezi 1 a 5. Své skóre si můžete vybrat bez časového omezení.",
       "baseTargetLabel": "primární cíl",
       "waitingCaptain": "Čekáme na nabídku vedoucího týmu.",
       "titleRerollSuffix": "· Kolo opětovného sázení"
@@ -1612,7 +1813,10 @@
       "baseRule": "báze",
       "whiteTargetLabel": "sto gólů",
       "firstBlackRole": "Linka (černá)",
-      "meBadge": "mě"
+      "meBadge": "mě",
+      "captureBidResultTitle": "Výsledek prezentace vítězného skóre",
+      "komiBidFinalRound": "Bonusová nabídka (konečné kolo)",
+      "pressStartPrompt": "Jakmile budete připraveni, klikněte na Start a začněte hrát."
     },
     "baseStoneChoice": {
       "hostPick": "Hostitel vybere barevný štítek vlevo.",
@@ -1642,8 +1846,10 @@
       "blackRole": "První úder, černá",
       "whiteRole": "Hugong · Zpět",
       "finalCardAlt": "Poslední první a druhý tah jsou zobrazeny na levé a pravé kartě.",
-      "fastFlashAlt": "Černobílé zobrazení ve dvou prostorech se změní, ale po chvíli se zafixuje do finálního uspořádání.",
-      "smoothEndAlt": "Černá a bílá se rychle mění a zastavuje se náhodně."
+      "fastFlashAlt": "Černobílé zobrazení ve dvou prostorech se změní, ale po chvíli se zafixuje do finálního rozložení.",
+      "smoothEndAlt": "Černá a bílá se rychle mění a zastavuje se náhodně.",
+      "assignmentComplete": "Úkol dokončen",
+      "blackCandidate": "Jděte jako první (černý) kandidát"
     },
     "uniformColor": {
       "blackStone": "černý kámen",
@@ -1663,7 +1869,7 @@
       "expectedRecovery": "Stav po očekávaném zotavení",
       "applying": "Používá se obnovení...",
       "goShop": "Přejít do obchodu",
-      "usePotion": "používat restorativní medicínu",
+      "usePotion": "Používejte regenerační léky",
       "recoveryTitle": "obnovení stavu",
       "potionTitle": "{{name}} · Obnova {{min}}~{{max}} · Retence {{count}}",
       "currentLabel": "aktuální stav",
@@ -1679,7 +1885,8 @@
       "autoRouletteShort": "Místo kamene se pomocí automatické rulety přiřazuje papír, nůžky, černá a bílá.",
       "checkingRoulette": "Kontrola výsledků rulety...",
       "waitingConfirm": "Čekání na potvrzení od druhé strany...",
-      "startCountdown": "Zahájit zápas ({{count}})"
+      "startCountdown": "Zahájit zápas ({{count}})",
+      "autoStartHint": "Stiskněte Start nebo se zápas automaticky spustí po 30 sekundách."
     },
     "diceGo": {
       "winner": "V důsledku kostek vyhrál {{name}} a bylo rozhodnuto jít první/poslední.",
@@ -1735,12 +1942,12 @@
       "police": "POLICIE",
       "survive": "živobytí",
       "arrest": "zatknout",
-      "deathmatchEnd": "Deathmatch {{round}} končí",
-      "roundSummary": "{{round}}Kulatá součet",
+      "deathmatchEnd": "Deathmatch {{round}} Konec",
+      "roundSummary": "{{round}}Kulatý výsledek",
       "tieDeathmatch": "Zápas na smrt pokračuje nerozhodným výsledkem.",
       "swapRoles": "Vyměňte si role a pokračujte do dalšího kola.",
-      "round2Tie": "2. kolo končí. Pokud je skóre nerozhodné, jedná se o zápas na smrt.",
-      "waitingConfirm": "Čekání na potvrzení soupeře",
+      "round2Tie": "2. kolo končí. If the score is tied, it is a death match.",
+      "waitingConfirm": "Čekání na potvrzení od partnera",
       "nextRound": "další kolo",
       "piecesUnit": "pes"
     },
@@ -1770,8 +1977,8 @@
       "modeResetNote": "Resetují se pouze záznamy párů pro každý režim. Záznamy AI v žebříčku a párech budou zachovány.",
       "pairAll": "Pár Baduk All",
       "pairSeasonNote": "Když se vynulují záznamy PVP, vynuluje se také skóre párové sezóny.",
-      "resetPair": "Diamond {{cost}} režim párové strategie vše",
-      "resetPairAll": "Diamond {{cost}} — Párovat režim strategie vše"
+      "resetPair": "Diamond {{cost}} Párovat režim strategie vše",
+      "resetPairAll": "Diamond {{cost}} — Spárovat režim strategie vše"
     },
     "pairPet": {
       "obtained": "Pořiďte si domácího mazlíčka",
@@ -1792,12 +1999,12 @@
     },
     "singlePlayerDesc": {
       "intro": "úvodní třída",
-      "beginner": "Třída pro začátečníky",
+      "beginner": "Začátečnická třída",
       "intermediate": "Střední třída",
       "advanced": "Pokročilá třída",
       "master": "Vysoký Danban",
       "tower": "Věž výzvy",
-      "academy": "Baduk akademie",
+      "academy": "Badukova akademie",
       "stage": "Fáze {{num}}",
       "returnLobby": "Vraťte se",
       "currentStage": "aktuální fázi",
@@ -1813,9 +2020,78 @@
       "editStage": "Stage Edit",
       "editOrder": "Upravit objednávku",
       "cancel": "zrušení",
+      "exit": "Výstup",
       "start": "Začínáme",
       "singleStage": "jednostupňové",
-      "masterClass": "člověk s kvalifikací"
+      "masterClass": "člověk s kvalifikací",
+      "goalSection": "cíl",
+      "goalTurnCaption": "Omezený obrat",
+      "goalTurnUnit": "zatočit",
+      "goalMySide": "mě",
+      "goalOpponentSide": "oponent",
+      "goalCaptureUnit": "vybírání",
+      "goalSurvivalTurnCaption": "období",
+      "goalSurvivalBlockCaption": "zablokovat zpět",
+      "goalSurvivalPointUnit": "tečka",
+      "turnLimit": "Omezený počet otáček: {{count}} otáček",
+      "autoScoringGoal": "Automatické počítání po {{count}} kolech",
+      "myCaptureGoal": "Vyhrávám {{count}}",
+      "opponentCaptureGoal": "Porazte {{count}} protivníků",
+      "vs": "vs",
+      "survivalGoal": "Blokujte {{target}} bodů v rámci {{turns}} tahů",
+      "territoryGoal": "gye vyhrává",
+      "modeTypeTabs": "typ baduk",
+      "modeGuideTitle": "Jak hrát",
+      "modeGuide": {
+        "missile": {
+          "step1Title": "raketový předmět",
+          "step1Body": "Když jsem na řadě, stisknu tlačítko střely.",
+          "step1BodyItem": "V tomto zápase můžete použít {{count}} raket. Stiskněte tlačítko rakety ve vašem tahu.",
+          "step2Title": "výběr kamene",
+          "step2Body": "Vyberte můj kámen k pohybu.",
+          "step3Title": "přímkový pohyb",
+          "step3Body": "Zatlačte kámen ve směru prázdného prostoru, abyste změnili situaci."
+        },
+        "hidden": {
+          "step1Title": "Skrytá položka",
+          "step1Body": "Pomocí skrytého tlačítka provádějte pohyby, které jsou pro soupeře neviditelné.",
+          "step1BodyItem": "Hidden {{count}} vám umožňuje provádět pohyby, které jsou pro vašeho soupeře neviditelné.",
+          "step2Title": "skenovat položku",
+          "step2Body": "Najděte skryté podezřelé oblasti pomocí tlačítka skenování.",
+          "step2BodyItem": "{{count}} skenů vám může pomoci najít skryté podezřelé oblasti.",
+          "step3Title": "Použití předmětů",
+          "step3Body": "Počet skrytých skenů je omezený, proto volte načasování moudře."
+        },
+        "capture": {
+          "step1Title": "vítězný",
+          "step1Body": "Vyhrajete, pokud nejprve dostanete soupeřovy kameny rovné cílovému skóre.",
+          "step2Title": "vzor kámen",
+          "step2Body": "Pokud vyhrajete kámen se vzorem, počítá se to za 2 body."
+        },
+        "speed": {
+          "step1Title": "časová pravidla",
+          "step1Body": "Pokud to nestihnete v nastaveném čase, váš soupeř získá více bodů.",
+          "step2Title": "Kalkulační cena",
+          "step2Body": "Nakonec je vítěz určen sečtením bonusů za dům a čas."
+        },
+        "base": {
+          "step1Title": "základní panenka",
+          "step1Body": "Přečtěte si situaci podle umístění základního kamene.",
+          "step2Title": "bonusová nabídka",
+          "step2Body": "Rozhodněte se, jaký bonus dáte svému soupeři, a začněte hru s barvou/kamenem, které chcete."
+        },
+        "classic": {
+          "step1Title": "stavba domu",
+          "step1Body": "Postavte domy po celém území a zajistěte více domů než vaši protivníci.",
+          "step2Title": "Kalkulační cena",
+          "step2Body": "Pokud obě strany projdou, o vítězi se rozhodne počítáním."
+        },
+        "survival": {
+          "tab": "Zachraňte Baduka",
+          "step1Title": "zablokovat zpět",
+          "step1Body": "Zabraňte bílému (soupeři) v dosažení cílového skóre po stanovený počet kol."
+        }
+      }
     },
     "towerShop": {
       "closeAria": "Uzavřete nákup top exkluzivních položek",
@@ -1873,7 +2149,7 @@
       "previousKnockShort": "předchozí zaklepání",
       "detailScores": "podrobné skóre",
       "resultBoardTab": "výsledková tabule",
-      "finalRoundTieBody": "Finálové kolo je nerozhodné. Po potvrzení hra pokračuje střílením dalších kamenů ze stejné desky.",
+      "finalRoundTieBody": "Finálové kolo je nerozhodné. Po potvrzení hra pokračuje střílením více kamenů najednou ze stejné desky.",
       "stonesLeft": "zbývající kameny",
       "scoredFor": "skóre",
       "scoredAgainst": "připustil",
@@ -1974,7 +2250,7 @@
       "withdraw": "Odebrání členství",
       "cancel": "zrušení",
       "withdrawTitle": "Odebrání členství",
-      "withdrawLine1": "Po stažení jsou data vymazána a nelze je obnovit.",
+      "withdrawLine1": "Data jsou po stažení vymazána a nelze je obnovit.",
       "withdrawLine2": "Nemůžete se znovu zaregistrovat se stejnou e-mailovou adresou po dobu 1 týdne.",
       "withdrawPasswordConfirm": "ověřit heslo",
       "withdrawTextConfirm": "Zadejte potvrzovací text: „Zrušit členství“",
@@ -1988,7 +2264,7 @@
         "withdrawConfirmMismatch": "Text potvrzení je nesprávný. Zadejte prosím přesně „Odvolání členství“.",
         "usernameChangeFailed": "Při změně ID došlo k chybě.",
         "passwordChangeFailed": "Při změně hesla došlo k chybě.",
-        "withdrawFailed": "Při rušení členství došlo k chybě."
+        "withdrawFailed": "Při rušení vašeho členství došlo k chybě."
       },
       "alerts": {
         "usernameChanged": "Vaše ID se změnilo.",
@@ -2084,7 +2360,7 @@
     "chat": {
       "global": "Celý chat",
       "guild": "Cechovní chat",
-      "securityBanner": "Bezpečnostní robot AI detekuje použití nevhodného jazyka. 🚓",
+      "securityBanner": "Bezpečnostní robot AI zjišťuje použití nevhodného jazyka. 🚓",
       "noMessages": "Nejsou žádné chatové zprávy.",
       "noGuildMessages": "Nejsou zde žádné zprávy cechovního chatu.",
       "placeholder": "[Zadejte zprávu]",
@@ -2105,6 +2381,10 @@
       "forceLogout": "nuceni odejít",
       "forceLogoutConfirm": "Chcete donutit [{{nickname}}] k odpojení?",
       "invite": "Pozvat",
+      "challenge": "Přihlaste se na zápas",
+      "challengeUnavailable": "Druhá strana není schopna přijímat žádosti o shodu.",
+      "spectate": "Sledování",
+      "spectateUnavailable": "Nemohu najít žádné informace o zápase, které bych mohl sledovat.",
       "blockInvites": "Žádná pozvánka",
       "blockInvitesTitle": "Po zapnutí vás ostatní hráči nebudou moci pozvat jako partnera do Fair Areny.",
       "statusInPairRoom": "V párové místnosti nemůžete změnit svůj stav.",
@@ -2225,14 +2505,14 @@
       "gaugeFast": "Rychlý ×{{speed}}",
       "rulesTitle": "Pravidla aplikace pro hodnocení zápasů",
       "gameSettingsTitle": "Nastavení shody",
-      "noRulesToShow": "Neexistují žádná pravidla k zobrazení.",
+      "noRulesToShow": "Nejsou zde žádná pravidla k zobrazení.",
       "pairRankedIntro": "V utkání o hodnocení 2 hráčů tvoří <bold>2 uživatelé</bold> na tým tým a jsou spojeni s jiným týmem (2 uživatelé). Níže uvedená pravidla jsou stejná jako <bold>Oficiální nastavení shody hodnocení</bold> pro vybranou událost a nelze je změnit.",
       "scoringUntil": "Až do aktuální ceny",
       "timeIncrement": "přidat čas",
       "hiddenItem": "Skrytá položka",
       "scanItem": "skenovat položku",
       "missileItem": "raketový předmět",
-      "stonePlacementCount": "Počet šarží",
+      "stonePlacementCount": "počet šarží",
       "rankingScore": "skóre v žebříčku",
       "matchFound": {
         "rankingLabel": "Hodnocení: {{rating}} bodů",
@@ -2255,7 +2535,7 @@
       "currentScore": "aktuální skóre",
       "seasonBest": "nejlepší v sezóně",
       "notAggregated": "Nepočítá se",
-      "allTimeBestTier": "Vůbec nejvyšší hodnocení",
+      "allTimeBestTier": "Nejvyšší hodnocení vůbec",
       "firstSeasonNone": "První sezóna (žádná)",
       "winsLossesWinRate": "{{wins}} vyhraje {{losses}} proher · míra vítězství",
       "scorePoints": "{{skóre}} bodů",
@@ -2278,7 +2558,7 @@
       "startMatching": "Zahájit párování (vyberte {{count}})",
       "selectedBadge": "vybraný",
       "roundUnit": "{{count}}kol",
-      "boardSizeValue": "{{size}} řádek",
+      "boardSizeValue": "řádek {{size}}",
       "scoringTurnValue": "{{count}}počítat",
       "itemCountValue": "{{počítat}}",
       "slowItem": "pomalý",
@@ -2420,7 +2700,7 @@
       "monsterSituationAria": "monstrózní situace",
       "appearWaitTime": "Vzhled/doba čekání",
       "comprehensionChapterTabsAria": "Kapitola porozumění",
-      "comprehensionEffects": "Efekt porozumění netvorům",
+      "comprehensionEffects": "Efekt porozumění monster",
       "comprehensionGoldBonus": "Dobrodružné zlato +{{percent}} %",
       "comprehensionEquipBonus": "Pořízení vybavení + {{percent}} %",
       "comprehensionHighEquipBonus": "Pokročilé vybavení + {{percent}} %",
@@ -2492,7 +2772,7 @@
       "goldWinRange": "Victory Gold (referenční) cca. {{min}}~{{max}}",
       "goldBoss19Range": "Když vyhrajete bosse v řadě 19, získáte asi {{min}}~{{max}} zlatých.",
       "equipmentGradeGrant": "Vydaný stupeň vybavení: {{grade}}",
-      "pickHintVip": "Odměna VIP: Vyberte si dvě pole sami, nebo vyberte pouze jedno pole a druhé bude vybráno náhodně.",
+      "pickHintVip": "Odměna VIP: Vyberte si dvě pole sami, nebo si vyberte pouze jedno pole a druhé bude vybráno náhodně.",
       "pickHintSingle": "Vyberte jedno pole, které chcete přijmout, a klikněte na Hotovo výběr.",
       "selectBoxes": "Vyberte pole ({{selected}}/{{pickSlots}})",
       "boxNumber": "pole {{num}}",
@@ -2504,12 +2784,12 @@
       "receiveReward": "Získejte odměny",
       "pleaseWait": "prosím chvíli počkejte",
       "cancelConfirmTitle": "Opravdu chcete zrušit?",
-      "cancelConfirmDesc": "Pokud bude zrušena, tato truhla se již v tomto vzhledu neobjeví. Klíče zůstávají stejné.",
+      "cancelConfirmDesc": "Pokud bude zrušena, tato truhla s pokladem se již v tomto vzhledu neobjeví. Klíče zůstávají stejné.",
       "receiveRewardBtn": "Získejte náhradu",
       "cancelReceive": "Zrušit příjem",
       "processing": "Zpracovává se…",
       "equipmentBoxRoman": "Truhla na vybavení {{roman}}",
-      "materialBoxRoman": "Krabice s materiálem {{roman}}",
+      "materialBoxRoman": "Krabice na materiál {{roman}}",
       "adventureKeyAria": "dobrodružný klíč",
       "regionalKey": "místní klíč",
       "key": "klíč",
@@ -2554,14 +2834,14 @@
       "availableBattles": "Možné shody {{modes}}",
       "prevChapter": "předchozí kapitola",
       "nextChapter": "další kapitola",
-      "chapterNavLockedAria": "Zámek {{navLabel}}",
+      "chapterNavLockedAria": "{{navLabel}} zámek",
       "goToChapterTitle": "Přejít na 「{{title}}」",
       "time": {
         "zero": "0 sekund",
         "seconds": "{{sec}} sekund",
         "minutes": "{{m}} minut",
         "minutesSeconds": "{{m}} minut {{s}} sekund",
-        "hoursMinutes": "{{h}}h {{mm}}min"
+        "hoursMinutes": "{{h}}hodiny {{mm}}minuty"
       },
       "monsterMode": {
         "classic": "klasický",
@@ -2576,7 +2856,7 @@
           "adventureGold": "dobrodružné vítězství zlato",
           "itemDrop": "Získejte krabici s dobrodružným vybavením",
           "materialDrop": "Získejte krabici s dobrodružným materiálem",
-          "highGradeEquipment": "Dobrodružná krabice na pokročilé vybavení",
+          "highGradeEquipment": "Adventure Box na pokročilé vybavení",
           "highGradeMaterial": "Adventure Advanced Material Box"
         }
       },
@@ -2625,10 +2905,10 @@
       "classBarRewardClaimed": "Účtenka dokončena",
       "classBarRewardClaim": "Získejte odměnu",
       "classBarRewardNeedClear": "Vyžaduje {{milestone}} etapu čisté",
-      "classBarRewardAria": "{{milestone}} bodové odměny",
+      "classBarRewardAria": "{{milestone}}bodová odměna",
       "cleared": "Vymazání dokončeno",
-      "enterStage": "Vstupné ⚡{{cost}}",
-      "enterStageTitle": "Vstupní/akční síla {{cost}}",
+      "enterStage": "Výzva ⚡{{cost}}",
+      "enterStageTitle": "Akce výzvy {{cost}}",
       "locked": "uzamčeno",
       "unlockRequired": "Vyžaduje {{stageId}}",
       "claimAll": "Hromadný příjem ({{count}})",
@@ -2657,7 +2937,7 @@
       "timerPlaceholder": "Časovač --:--",
       "nextLevelEffects": "Efekt další úrovně (Lv.{{level}}).",
       "nextLevelEffectsCompact": "Efekt Lv.{{level}}",
-      "enhanceAfterClear": "Zesílit po vyčištění {{stageId}}",
+      "enhanceAfterClear": "Posílit po vyčištění {{stageId}}",
       "enhanceAfterClearFull": "Musíte vymazat fázi {{stageId}}.",
       "enhanceTitle": "{{missionName}} · Vylepšení",
       "enhanceTitlePc": "Vylepšit {{missionName}}",
@@ -2707,7 +2987,7 @@
   "profile": {
     "lock": "zámek",
     "locked": "uzamčeno",
-    "tapToEnter": "Klepnutím vstoupíte",
+    "tapToEnter": "Vstupte klepnutím",
     "comingSoon": "Naplánováno otevření",
     "entryBlocked": "VSTUP ZAKÁZÁN",
     "viewStats": "Zobrazit podrobné záznamy",
@@ -2740,7 +3020,7 @@
     "abilityRequired": "Součet schopností {{total}}+",
     "intro10Required": "Vyžaduje vymazání úvodní úrovně 10",
     "intro20Required": "Vyžaduje dokončení úvodní úrovně 20",
-    "goSchool": "Baduk akademie",
+    "goSchool": "Badukova akademie",
     "challengeTower": "Věž výzvy",
     "pvpArena": "PVP Aréna",
     "aiArena": "AI zápas",
@@ -2781,10 +3061,10 @@
     "currentFloor": "aktuální patro",
     "timeRemaining": "zbývající čas",
     "currentRank": "aktuální pořadí",
-    "floorUnit": "{{patro}} patro",
+    "floorUnit": "{{floor}}patro",
     "rankUnit": "{{pořadí}}",
     "strategicAiRecord": "Záznam strategie AI",
-    "playfulAiRecord": "Přehrajte záznam AI",
+    "playfulAiRecord": "Přehrát záznam AI",
     "pairAiRecord": "Spárovat záznam AI",
     "badukAbility": "Badukova schopnost",
     "bonus": "bonus",
@@ -2798,17 +3078,17 @@
     "mbtiUnsetTitle": "MBTI: Nenastaveno",
     "guildEnter": "Vstup do cechu",
     "guildHome": "Zobrazit cechovní dům",
-    "guildLeave": "Opusťte cech",
+    "guildLeave": "Opustit cech",
     "guildLeaveConfirm": "Chtěli byste opustit cech?",
     "guildCreate": "Tvorba cechu",
     "guildJoin": "Přidejte se k cechu",
     "guildLocked": "cechu",
     "guildLockedLevel": "[Guilda] 🔒 {{level}}úroveň",
     "guildLevelHint": "Cechovní domov můžete používat na vyšší úrovni než {{level}}.",
-    "guildLevelNotice": "Cechy může používat uživatelská úroveň {{level}} nebo vyšší. (Aktuální Lv.{{current}})",
+    "guildLevelNotice": "Cechy mohou používat uživatelé úrovně {{level}} nebo vyšší. (Aktuální Lv.{{current}})",
     "stageLabels": {
       "intro": "úvodní třída",
-      "beginner": "Třída pro začátečníky",
+      "beginner": "Začátečnická třída",
       "intermediate": "Střední třída",
       "advanced": "Pokročilá třída",
       "master": "člověk s kvalifikací"
@@ -2920,7 +3200,7 @@
       "sanctionReasons": {
         "profanity": "Vulgarismy/pomluvy",
         "spam": "Tapeta/Spam",
-        "cheat": "Podezření na nelegální program",
+        "cheat": "podezření na nelegální program",
         "profile": "Nevhodná přezdívka/profil",
         "other": "atd"
       },
@@ -2944,14 +3224,14 @@
       "diamondPackage": "diamantový balíček",
       "diamondPackageNamed": "Diamantový balíček {{roman}}",
       "profanityAlert": "Vaše přezdívka obsahuje nevhodná slova.",
-      "nicknameChangeConfirm": "Chcete změnit svou přezdívku na '{{name}}' pro diamanty {{cost}}?",
+      "nicknameChangeConfirm": "Chcete změnit svou přezdívku na '{{name}}' pro {{cost}} diamanty?",
       "avatarListAria": "Seznam avatarů",
       "avatarAria": "Avatar: {{name}}",
       "avatarDefaultAria": "avatar",
       "avatarSelect": "Vyberte si svého avatara",
       "tierRequired": "Je vyžadována úroveň {{tier}} předchozí sezóny",
       "levelSumRequired": "Vyžaduje součet úrovně {{level}}",
-      "goldPrice": "{{částka}} Zlato",
+      "goldPrice": "{{částka}} zlata",
       "diamondPrice": "{{amount}} diamant",
       "borderPurchaseConfirm": "Chtěli byste zakoupit okraj '{{name}}' za {{price}}?",
       "borderPurchaseHint": "Kliknutím zakoupíte: {{description}}",
@@ -3035,7 +3315,7 @@
         "P": {
           "name": "Vnímání (P)",
           "general": "Flexibilní a adaptabilní, pružně reagující na situace. Cení si autonomie a jsou otevření novým zkušenostem.",
-          "goStyle": "Je to étos, který umí improvizovat a flexibilně měnit operace v závislosti na situaci. Baví mě mít smysl pro improvizaci, spíše než následovat stanovený proces."
+          "goStyle": "Je to étos, který umí improvizovat a flexibilně měnit operace podle situace. Baví mě mít smysl pro improvizaci, spíše než následovat stanovený proces."
         }
       }
     },
@@ -3051,6 +3331,8 @@
     "mannerRank": {
       "title": "Informace na úrovni chování",
       "grade": "třída způsobu",
+      "effectsByGrade": "Efekt podle stupně",
+      "currentBadge": "dnes",
       "rangeHint": "Jedná se o výhody a sankce uplatňované pro každý rozsah skóre.",
       "allStatsPlus10": "Všechny schopnosti +10",
       "disassembleJackpot": "Pravděpodobnost rozkladného jackpotu +20 %",
@@ -3065,7 +3347,19 @@
       "scoreAbove": "{{min}} bodů nebo více",
       "scoreRange": "{{min}}~{{max}} bodů",
       "zeroScore": "0 bodů",
-      "mannerPointsTitle": "{{score}}body ({{rank}})"
+      "mannerPointsTitle": "{{score}}body ({{rank}})",
+      "grades": {
+        "worst": "nejhorší",
+        "veryBad": "velmi špatné",
+        "bad": "špatný",
+        "caution": "Pozor",
+        "normal": "běžně",
+        "good": "dobře",
+        "veryGood": "velmi dobré",
+        "dignified": "důstojnost",
+        "pro": "pro",
+        "master": "zvládnout"
+      }
     },
     "statAllocation": {
       "resetFailAlert": "Podmínky resetování schopnosti nebyly splněny. Došly vám zlato nebo jste překročili počet denních resetů.",
@@ -3078,7 +3372,7 @@
       "bonus": "bonus",
       "resetBtn": "resetovat",
       "allocateTitle": "Rozdělení bodů schopností",
-      "allocateAria": "{{stat}} distribuce",
+      "allocateAria": "{{stat}} Distribuce",
       "statLabel": "schopnost",
       "remainingShort": "zbytek",
       "allocateToStat": "Distribuce k této schopnosti"
@@ -3131,7 +3425,7 @@
       "opponentGoStyle": "Badukova tendence soupeře",
       "strengths": "pevnost",
       "weaknesses": "slabost",
-      "setMbtiHint": "Nastavením MBTI si můžete prohlédnout analýzu kompatibility se svým partnerem.",
+      "setMbtiHint": "Pokud nastavíte MBTI, můžete si prohlédnout analýzu kompatibility se svým partnerem.",
       "title": "MBTI srovnání",
       "notSetBoth": "Žádná ze stran nemá nastavený MBTI.",
       "opponentNotSet": "MBTI druhé strany nebylo nastaveno.",
@@ -3144,14 +3438,14 @@
       "useWeaknesses": "Využijte slabiny soupeře.",
       "differences": "rozdíl",
       "similarities": "společný základ",
-      "veryGood": "velmi dobrý zápas",
+      "veryGood": "velmi dobrá kompatibilita",
       "good": "dobrá kompatibilita",
       "normal": "Průměrná kompatibilita",
       "poor": "špatná kompatibilita",
       "veryPoor": "velmi špatná kompatibilita",
       "types": {
         "ISTJ": {
-          "style": "pevný silifa",
+          "style": "pevná silipa",
           "playStyle": "Jsme věrni zásadám a základům a usilujeme o jasné praktické výhody. Ukazuje silnou stránku v dokončování."
         },
         "ISFJ": {
@@ -3237,7 +3531,7 @@
       "simE": "Oba mají proaktivní étos",
       "simI": "Oba mají opatrný étos",
       "diffSReal": "Vy jste praktický člověk, váš protivník je intuitivní člověk.",
-      "diffNReal": "Jste intuitivní, váš protivník je praktický.",
+      "diffNReal": "Vy jste intuicionista, váš oponent je praktický člověk.",
       "simS": "Oba jsou utilitární",
       "simN": "oba jsou řízeni intuicí",
       "diffTLogic": "Jste logický člověk, váš partner je emocionální člověk.",
@@ -3248,14 +3542,14 @@
       "diffPPlan": "Jste flexibilní, partner plánuje",
       "simJ": "obojí je v plánu",
       "simP": "oba jsou flexibilní",
-      "warnE": "Odpůrci preferují aktivní útoky. Dávejte pozor, abyste se nedostali do boje.",
+      "warnE": "Odpůrci preferují aktivní útoky. Dávejte pozor, abyste se nenechali chytit v boji.",
       "warnN": "Protivníci dělají kreativní a neobvyklé pohyby. Buďte připraveni na nečekaná čísla.",
       "warnT": "Protivníci jsou ve svých výpočtech logičtí a přesní. Dávejte pozor, abyste se nedostali do pasti.",
       "warnJ": "Soupeři jsou silní v plánování a dokončování. Vyvarujte se vtažení do dlouhé hry.",
       "stratI": "Oponentův étos je opatrný. Komplikujte hru agresivním napadáním.",
       "stratS": "Oponent je orientovaný na užitek. Zachyťte trend neobvyklými pohyby.",
-      "stratF": "Druhá osoba je emocionální. Tlak s logickými čísly.",
-      "stratP": "Oponent je flexibilní étos. Naplánujte si to a postupujte, dokud to nebude hotové."
+      "stratF": "Druhá osoba je emocionální. Tlak v logických číslech.",
+      "stratP": "Odpůrce je flexibilní étos. Naplánujte si to a postupujte, dokud to nebude hotové."
     },
     "contentUnlock": {
       "towerTitle": "Vrchol Challenge Open",
@@ -3284,7 +3578,7 @@
       "editedAt": "(Upraveno: {{date}})"
     },
     "equipmentDetail": {
-      "inventoryUse": "Lze použít v tašce.",
+      "inventoryUse": "Můžete jej použít v tašce.",
       "noMaterialUse": "Tento materiál se v současné době nepoužívá k vylepšení žádného vybavení.",
       "obtainedQty": "Získané množství",
       "ownedQty": "Držené množství",
@@ -3359,7 +3653,7 @@
       "hint": "Můžete jej okamžitě dobít pomocí regeneračního prostředku nebo diamantů.",
       "ownedPotions": "Akční agent obnovy",
       "noPotions": "Ve vaší tašce nejsou žádné obnovovače výdrže.",
-      "ownedCount": "Vlastní: {{count}}",
+      "ownedCount": "Drží: {{count}}",
       "useButton": "Použití",
       "diamondRecharge": "Dobijte své akční schopnosti diamanty",
       "exceedMaxHint": "I při překročení maximálního limitu je ihned účtován.",
@@ -3442,7 +3736,7 @@
           "2": "Odměna za výhru dvojice Baduk se zdvojnásobila",
           "3": "Play Baduk vyhrál odměnu zdvojnásobil",
           "4": "Odměna cechovních mincí zdvojnásobena",
-          "5": "Dvojité denní/týdenní/měsíční odměny za questy",
+          "5": "Dvojité denní/týdenní/měsíční odměny za úkoly",
           "6": "Odměna za aktivitu při hledání se zdvojnásobila",
           "7": "Otevřete 2 dobrodružné truhly s pokladem"
         }
@@ -3481,20 +3775,20 @@
       "remove_ads": "odstranit reklamy"
     },
     "packageBenefits": {
-      "diamond_daily_50_350": "50 diamantů placených poštou každý den (celkem 350 diamantů)",
-      "diamond_daily_50_750": "50 diamantů placených poštou každý den (celkem 750 diamantů)",
-      "diamond_daily_50_1500": "50 diamantů placených poštou každý den (celkem 1500 diamantů)",
-      "diamond_instant_100": "100 diamantů zaplaceno okamžitě",
-      "diamond_instant_250": "Okamžitá platba 250 diamantů",
-      "diamond_instant_750": "Okamžitá platba 750 diamantů",
-      "equip_pkg1_boxes": "1 krabice vybavení V",
-      "equip_pkg1_mat": "1 krabice na materiál VI",
+      "diamond_daily_50_350": "100 diamantů zaplacených poštou každý den (celkem 700 diamantů)",
+      "diamond_daily_50_750": "100 diamantů zaplacených poštou každý den (celkem 1500 diamantů)",
+      "diamond_daily_50_1500": "100 diamantů zaplacených poštou každý den (celkem 3000 diamantů)",
+      "diamond_instant_100": "Okamžitá platba 200 diamantů",
+      "diamond_instant_250": "Okamžitá platba 500 diamantů",
+      "diamond_instant_750": "Okamžitá platba 1000 diamantů",
+      "equip_pkg1_boxes": "3 boxy na vybavení V",
+      "equip_pkg1_mat": "3 krabice na materiál VI",
       "equip_pkg1_bonus": "+ „Epic Equipment“ potvrzená platba",
-      "equip_pkg2_boxes": "2 boxy na vybavení V",
-      "equip_pkg2_mat": "2 krabice na materiál VI",
+      "equip_pkg2_boxes": "5 boxů na vybavení",
+      "equip_pkg2_mat": "5 krabic na materiál VI",
       "equip_pkg2_bonus": "+ Garantovaná platba za „Legendární vybavení“.",
       "equip_pkg3_boxes": "2 Box vybavení VI",
-      "equip_pkg3_mat": "5 krabic na materiál VI",
+      "equip_pkg3_mat": "10 krabic na materiál VI",
       "equip_pkg3_bonus": "+ „Mythic Equipment“ potvrzená platba",
       "remove_ads_1": "Skryjte bannery ve hře a celostránkové reklamy, jako je lobby a dohazování",
       "remove_ads_2": "Získejte stejné odměny bez reklam s odměnou v obchodě (zachování denního limitu)"
@@ -3505,7 +3799,7 @@
         "description": "Získejte běžné vybavení pro vzácné druhy"
       },
       "equipment_box_2": {
-        "name": "Box vybavení II",
+        "name": "Box na vybavení II",
         "description": "Získejte normální až epické vybavení"
       },
       "equipment_box_3": {
@@ -3538,7 +3832,7 @@
       },
       "material_box_4": {
         "name": "Materiál box IV",
-        "description": "Získejte 5 výztužných kamenů střední až nejvyšší úrovně"
+        "description": "Získejte 5 kamenů vylepšení střední až nejvyšší úrovně"
       },
       "material_box_5": {
         "name": "Materiál krabice V",
@@ -3558,7 +3852,7 @@
       },
       "option_type_change_ticket": {
         "name": "Právo na změnu typu volby",
-        "description": "Jedná se o položku, která může změnit jednu z hlavních možností vybavení, dílčích možností nebo speciálních možností na jiný typ možnosti."
+        "description": "Tato položka vám umožňuje změnit jednu z hlavních možností vybavení, dílčích možností nebo speciálních možností na jiný typ možnosti."
       },
       "option_value_change_ticket": {
         "name": "Možnost změny hodnoty lístku",
@@ -3604,7 +3898,7 @@
     "claimExpired": "Lhůta pro odkup vypršela a nemůžete obdržet náhradu. V případě potřeby můžete tento e-mail smazat.",
     "actionPoints": "{{count}} Akční síla",
     "guildCoins": "{{count}} cechovní mince",
-    "gold": "{{částka}} Zlato",
+    "gold": "{{částka}} zlata",
     "diamonds": "{{amount}} diamant",
     "packageLine": "Balíček {{name}} × {{quantity}}",
     "delete": "vymazat",
@@ -3644,7 +3938,7 @@
     },
     "activity": {
       "daily": "Dnešní výkon",
-      "weekly": "Týdenní aktivita",
+      "weekly": "týdenní aktivita",
       "monthly": "Měsíční aktivita",
       "points": "Aktivita + {{points}}"
     },
@@ -3671,7 +3965,7 @@
       "claimedTitle": "Účtenka dokončena",
       "claimRewardTitle": "Získejte odměnu",
       "activityRequired": "Je také vyžadována aktivita {{milestone}}",
-      "activityReward": "{{milestone}} Odměna za aktivitu",
+      "activityReward": "{{milestone}} Odměny za aktivitu",
       "activityRewardAp": "{{milestone}} Obnovení akce odměny za aktivitu"
     },
     "rewards": {
@@ -3688,7 +3982,7 @@
   },
   "inventory": {
     "title": "taška",
-    "boxRewardSentToMail": "V tašce (vybavení) bylo málo místa, tak jsem poslal poštou odměnu za krabici. \nVyzvedněte si ho prosím ze své poštovní schránky.",
+    "boxRewardSentToMail": "V tašce (vybavení) nebylo dost místa, tak jsem poslal poštou odměnu za krabici. \nVyzvedněte si ho prosím ze své poštovní schránky.",
     "tabs": {
       "all": "celý",
       "equipment": "zařízení",
@@ -3718,7 +4012,7 @@
     "refinementAvailable": "Dá se tavit",
     "refinementUnavailable": "Nelze tavit",
     "refinementCount": "{{count}}krát",
-    "enhanceLevel": "Postavy pro vylepšení",
+    "enhanceLevel": "Postavy vylepšení",
     "noOptions": "Žádné možnosti",
     "noGear": "žádné vybavení",
     "bound": "patřící",
@@ -3749,7 +4043,7 @@
     },
     "bindModal": {
       "line1": "Zařízení je vázáno a nelze jej prodat na burze.",
-      "line2": "Abyste mohli prodávat na burze, musíte využít právo uvolnit přiřazení.",
+      "line2": "Abyste mohli prodávat na burze, musíte využít právo debinace.",
       "unbindDesc": "Pokud zařízení odemknete, bude možné jej prodat na burze."
     },
     "presetSavedTitle": "Uložit předvolbu",
@@ -3785,7 +4079,7 @@
       "consumableDetail": "Podrobnosti o spotřebním materiálu",
       "materialDetail": "Detaily materiálu",
       "itemDetail": "Podrobnosti o položce",
-      "cannotRefine": "Nelze tavit",
+      "cannotRefine": "nelze tavit",
       "goRefine": "Přejděte na kartu Forge Tavení"
     },
     "purchase": {
@@ -3793,10 +4087,10 @@
       "consumable": "postradatelné",
       "material": "přísada",
       "noMaterialUse": "Tento materiál se v současné době nepoužívá k vylepšení žádného vybavení.",
-      "inventoryUse": "Lze použít v tašce.",
+      "inventoryUse": "Můžete jej použít v tašce.",
       "characterGrowth": "Používá se pro růst postavy, posílení, zjemnění atd.",
       "selectQuantity": "Vyberte množství",
-      "productDetailAria": "Nákup podrobností o produktu",
+      "productDetailAria": "Koupit podrobnosti o produktu",
       "decreaseAria": "Snížit jednu hodnotu",
       "increaseAria": "zvýšit o jednu hodnotu",
       "maxOwned": "Nemůžete jej zakoupit, protože máte na skladě maximální počet položek.",
@@ -3834,7 +4128,7 @@
       "sellAmount": "Prodejní množství",
       "unitPrice": "Prodejní cena za hosta",
       "deleteOnly": "0 (pouze smazat)",
-      "goldUnit": "{{částka}} Zlato",
+      "goldUnit": "{{částka}} zlata",
       "totalReceive": "celkové zlato, které má být přijato",
       "deleteCheckout": "Platba (smazat)",
       "noGoldHint": "Zlato nepřijde a pouze vybrané množství zmizí.",
@@ -3892,7 +4186,7 @@
       "complete": "Demontáž zařízení dokončena",
       "jackpot": "můj bože!",
       "confirm": "kontrola",
-      "blacksmithExp": "Kovářská zkušenost"
+      "blacksmithExp": "Zkušenosti s kovářem"
     },
     "craftingResult": {
       "upgradeJackpotTitle": "Syntéza je úžasná!",
@@ -3900,7 +4194,7 @@
       "upgradeTitle": "syntetické výsledky",
       "downgradeTitle": "Výsledky rozkladu",
       "jackpotHeading": "🎉 Skvělé! 🎉",
-      "jackpotBody": "Získáte dvojnásobný materiál!",
+      "jackpotBody": "Získáte dvojnásobné ingredience!",
       "convertedBody": "Převedl jsem položku, jak je uvedeno níže.",
       "quantityUnit": "pes"
     },
@@ -3995,7 +4289,7 @@
       "noMaterialUse": "Tento materiál se v současné době nepoužívá k vylepšení žádného vybavení.",
       "materialTab": "přísada",
       "consumableTab": "postradatelné",
-      "inventoryHint": "Lze použít v tašce.",
+      "inventoryHint": "Můžete jej použít v tašce.",
       "noGuide": "Neexistují žádné pokyny.",
       "tier1": "taška",
       "tier2": "skály",
@@ -4012,6 +4306,17 @@
       "noTier": "Žádná úroveň"
     },
     "tierInfo": {
+      "names": {
+        "champion": "vyzyvatel",
+        "master": "zvládnout",
+        "diamond": "diamant",
+        "platinum": "platina",
+        "gold": "zlato",
+        "silver": "stříbro",
+        "bronze": "bronz",
+        "iron": "Nováček",
+        "unranked": "výhonek"
+      },
       "champion": "Minimální skóre 3500 nebo vyšší a omezeno na 100 nejlepších lidí",
       "master": "Minimální skóre 3000 nebo vyšší",
       "diamond": "Minimální skóre 2400 nebo vyšší",
@@ -4049,7 +4354,555 @@
       "diamondsAlt": "diamant",
       "stayLine": "zbytkový: {{rozsah}}",
       "demoteLine": "Sestup: {{ranges}}",
-      "rankHintShort": "Úroveň podle hodnocení soutěže (podmínky povýšení, udržení a snížení úrovně najdete v tabulce odměn níže)"
+      "rankHintShort": "Úroveň hodnocení založená na soutěži (podmínky povýšení, udržení a snížení úrovně najdete v tabulce odměn níže)"
+    },
+    "items": {
+      "box_diabox1": {
+        "name": "Diamantový balíček I",
+        "description": "Získejte 1 až 20 diamantů"
+      },
+      "box_diabox2": {
+        "name": "Diamantový balíček II",
+        "description": "Získejte 10 až 30 diamantů"
+      },
+      "box_diabox3": {
+        "name": "Diamantový balíček III",
+        "description": "Získejte 20 až 50 diamantů"
+      },
+      "box_diabox4": {
+        "name": "Diamantový balíček IV",
+        "description": "Získejte 30 až 100 diamantů"
+      },
+      "box_goldbox1": {
+        "name": "Zlatý balíček I",
+        "description": "Vydělejte 10 až 500 zlatých"
+      },
+      "box_goldbox2": {
+        "name": "Zlatý balíček II",
+        "description": "Vydělejte 100 až 1 000 zlatých"
+      },
+      "box_goldbox3": {
+        "name": "Zlatý balíček III",
+        "description": "Získejte 500 až 3 000 zlatých"
+      },
+      "box_goldbox4": {
+        "name": "Zlatý balíček IV",
+        "description": "Vydělejte 1 000 až 10 000 zlatých"
+      },
+      "btn_addturn": {
+        "name": "Přidat odbočku",
+        "description": "Toto je další tahový předmět, který lze použít ve věži výzev."
+      },
+      "btn_hidden": {
+        "name": "Skrytý",
+        "description": "Toto je skrytý předmět, který lze použít ve věži výzev."
+      },
+      "btn_missile": {
+        "name": "střela",
+        "description": "Jedná se o raketový předmět, který lze použít ve Tower of Challenge."
+      },
+      "btn_reflesh": {
+        "name": "Změna rozložení",
+        "description": "Toto je položka pro změnu umístění, kterou lze použít ve Tower of Challenge."
+      },
+      "btn_scan": {
+        "name": "skenovat",
+        "description": "Toto je skenovací předmět, který lze použít ve Tower of Challenge."
+      },
+      "eq_board1": {
+        "name": "klíčit šachovnice",
+        "description": "Jedná se o lehkou šachovnici ze dřeva paulovnie, která je skvělá pro začátečníky."
+      },
+      "eq_board2": {
+        "name": "javorová šachovnice",
+        "description": "Jedná se o vysoce kvalitní šachovnici vyrobenou z muškátových stromů s krásnou kresbou."
+      },
+      "eq_board3": {
+        "name": "korálová šachovnice",
+        "description": "Je vyrobena z nejkvalitnějšího mystického dřeva, takže zvuk umisťovaných kamenů je čistý."
+      },
+      "eq_board4": {
+        "name": "ebenová šachovnice",
+        "description": "Je to šachovnice ze sopečného kamene leštěná s velkou vášní."
+      },
+      "eq_board5": {
+        "name": "Šachovnice Yongmun",
+        "description": "Jedná se o legendární šachovnici z borovice Geumgang, která existuje již tisíc let."
+      },
+      "eq_board7": {
+        "name": "Šachovnice Shinryong",
+        "description": "Je to šachovnice transcendence s vyrytými trajektoriemi souhvězdí, která každým pohybem otevírá cestu k vítězství."
+      },
+      "eq_bottom1": {
+        "name": "Jednotné spodky jarní barvy",
+        "description": "Tyto tréninkové kalhoty jsou pohodlné pro pohyb."
+      },
+      "eq_bottom2": {
+        "name": "Jednotné kalhotky letní barvy",
+        "description": "Tyto kalhoty jsou vyrobeny z odolného materiálu, který se snadno neopotřebuje."
+      },
+      "eq_bottom3": {
+        "name": "Jednotné spodky podzimních barev",
+        "description": "Jedná se o vysoce kvalitní hedvábné kalhoty, které jsou spárovány s erbem."
+      },
+      "eq_bottom4": {
+        "name": "Jednotné kalhotky zimní barvy",
+        "description": "Jsou to šermířské kalhoty, které nepřekáží při žádném pohybu."
+      },
+      "eq_bottom5": {
+        "name": "Dno Yongbi Dobok",
+        "description": "Je vyrobena z nejkvalitnějšího hedvábí, které se hodí k dračí róbě."
+      },
+      "eq_bottom7": {
+        "name": "Uniforma Shinryong",
+        "description": "Jedná se o transcendentální gi kalhoty prodchnuté vůlí božského draka, které zabrání ztrátě rovnováhy i v bouři."
+      },
+      "eq_fan1": {
+        "name": "modrý větrný ventilátor",
+        "description": "Jedná se o lehký a praktický bambusový ventilátor."
+      },
+      "eq_fan2": {
+        "name": "větrný ventilátor eungyeol",
+        "description": "Je vyrobena z měkkého hedvábí a dobře se drží v ruce."
+      },
+      "eq_fan3": {
+        "name": "plamenný větrný ventilátor",
+        "description": "Jedná se o mistrovský ventilátor, který se ladně rozprostírá jako křídla jeřábu."
+      },
+      "eq_fan4": {
+        "name": "mrazivý větrný ventilátor",
+        "description": "Je vyrobena z těžké oceli a lze ji v nouzi použít jako zbraň."
+      },
+      "eq_fan5": {
+        "name": "větrný ventilátor yongbi",
+        "description": "Legendární vějíř vyrobený ze sta bílých peříček."
+      },
+      "eq_fan7": {
+        "name": "Větrný ventilátor Shinryong",
+        "description": "Je to vějíř transcendence, který obsahuje dech božského draka, který rozděluje oblohu a obrací příliv bitevního pole."
+      },
+      "eq_stone1": {
+        "name": "černý a bílý klíční kámen",
+        "description": "Jedná se o lehké a levné plastové baduk kameny."
+      },
+      "eq_stone2": {
+        "name": "stříbrný kámen",
+        "description": "Je to kámen Go vyrobený z hladkých oblázků sebraných z břehu řeky."
+      },
+      "eq_stone3": {
+        "name": "rubínový kámen",
+        "description": "Je důmyslně vyřezán z obsidiánu, který vyzařuje chladnou záři."
+      },
+      "eq_stone4": {
+        "name": "bílý nefrit baduk kámen",
+        "description": "Je to kámen baduk vyrobený ze safíru a bílého nefritu, který vyzařuje zářivé světlo."
+      },
+      "eq_stone5": {
+        "name": "Kámen Yongan Baduk",
+        "description": "Jedná se o legendární kámen baduk ukovaný energií slunce, měsíce a hvězd."
+      },
+      "eq_stone7": {
+        "name": "Kámen Shinryong Baduk",
+        "description": "Je to transcendentní kámen Go, vyrobený kováním fragmentů Jitřenky, který ovládá hru jediným pohybem."
+      },
+      "eq_stonebox1": {
+        "name": "lehký dřevěný sud",
+        "description": "Jedná se o lehký a levný plastový Go box."
+      },
+      "eq_stonebox2": {
+        "name": "masivní bambusový sud",
+        "description": "Jedná se o Go box vyrobený z jujubového dřeva se slabou vůní."
+      },
+      "eq_stonebox3": {
+        "name": "Hongmok Baduktong",
+        "description": "Je vyrobena z růžového dřeva, krásné červené barvy."
+      },
+      "eq_stonebox4": {
+        "name": "ebenová krabička",
+        "description": "Jedná se o vzácnou badukovou krabici vyrobenou ze zvláštního dřeva s podivnými a krásnými vzory."
+      },
+      "eq_stonebox5": {
+        "name": "Yongrin Baduktong",
+        "description": "Jedná se o kvalitní palisandrovou dřevěnou Go krabici s jemně vyřezávaným drakem."
+      },
+      "eq_stonebox7": {
+        "name": "Shinryong Baduktong",
+        "description": "Je to transcendentní Go box, který zapečeťuje energii starověkého bojiště a přidává na zastrašování každého vyjmutého kamene."
+      },
+      "eq_top1": {
+        "name": "Jednotný top jarní barvy",
+        "description": "Jedná se o pohodlný top, který je skvělý pro soustředění na trénink."
+      },
+      "eq_top2": {
+        "name": "Jednotný top letní barvy",
+        "description": "Je to tvrdý gi, který se neopotřebuje ani po dlouhém tréninku."
+      },
+      "eq_top3": {
+        "name": "Jednotný top v podzimních barvách",
+        "description": "Toto je erb učenců s tichou elegancí."
+      },
+      "eq_top4": {
+        "name": "Jednotný top v zimní barvě",
+        "description": "Toto je oblečení šermíře jako stvořené pro ostré boje."
+      },
+      "eq_top5": {
+        "name": "Top Yongbi Dobok",
+        "description": "Je vyšívaný dračím vzorem symbolizujícím císařův majestát."
+      },
+      "eq_top7": {
+        "name": "Top uniformy Shinryong",
+        "description": "Toto je transcendentní uniformní top protkaný barvou šupin božského draka, který poskytuje neochvějnou pozornost."
+      },
+      "mat_materials1": {
+        "name": "Menší kámen kouzel",
+        "description": "Základní materiály používané k vylepšení vybavení."
+      },
+      "mat_materials2": {
+        "name": "Mezivýztužný kámen",
+        "description": "Vysoce kvalitní materiál používaný ke zpevnění vybavení."
+      },
+      "mat_materials3": {
+        "name": "Pokročilý kouzelný kámen",
+        "description": "Špičkové materiály používané k posílení vybavení."
+      },
+      "mat_materials4": {
+        "name": "Špičkový výztužný kámen",
+        "description": "Vzácný materiál používaný ke zpevnění vybavení."
+      },
+      "mat_materials5": {
+        "name": "Tajemný posilovací kámen",
+        "description": "Starověký materiál používaný k posílení vybavení."
+      },
+      "pet_egg": {
+        "name": "Tajemné vejce",
+        "description": "Získejte náhodného AI mazlíčka při použití v líhni."
+      },
+      "pet_soulstone1": {
+        "name": "Kámen duše",
+        "description": "Tento materiál je potřeba k upgradu běžného mazlíčka na vyšší stupeň. Lze použít od Pet Lv.10 nebo vyšší."
+      },
+      "pet_soulstone2": {
+        "name": "Kámen duše vlny",
+        "description": "Tento materiál je potřebný k povýšení prémiového mazlíčka na vzácnou. Lze použít od Pet Lv.20 nebo vyšší."
+      },
+      "pet_soulstone3": {
+        "name": "Abyss Soul Stone",
+        "description": "Tento materiál je potřebný k povýšení vzácného mazlíčka na epický stupeň. Lze použít od Pet Lv.30 nebo vyšší."
+      },
+      "pet_soulstone4": {
+        "name": "Plamenný kámen duše",
+        "description": "Toto je materiál potřebný k upgradu zvířátka Epického stupně na Legendární stupeň. Lze použít od Pet Lv.40 nebo vyšší."
+      },
+      "pet_soulstone5": {
+        "name": "Nebeský lehký kámen duše",
+        "description": "Tento materiál je potřeba k upgradu zvířátka legendární třídy na mýtickou. Lze použít na Pet Lv.50."
+      },
+      "shop_action_point_10": {
+        "name": "Akční lektvar obnovy (+10)",
+        "description": "Cítím motivaci něco udělat."
+      },
+      "shop_action_point_20": {
+        "name": "Akční lektvar obnovy (+20)",
+        "description": "Mám pocit, že musím něco udělat."
+      },
+      "shop_action_point_30": {
+        "name": "Akční lektvar obnovy (+30)",
+        "description": "Pojďme si hned zahrát hru."
+      },
+      "shop_condition_potion_large": {
+        "name": "Agent pro obnovu stavu (velký)",
+        "description": "Agent pro obnovu stavu, který vám dnes pomůže úspěšně soutěžit."
+      },
+      "shop_condition_potion_medium": {
+        "name": "Prostředek pro obnovu stavu (střední)",
+        "description": "Prostředek pro obnovu stavu, díky kterému se budete cítit čistěji."
+      },
+      "shop_condition_potion_small": {
+        "name": "Agent pro obnovu stavu (malý)",
+        "description": "Prostředek pro obnovu kondice, který uvolňuje napětí"
+      },
+      "shop_equipment_box_1": {
+        "name": "Skříň s vybavením I",
+        "description": "Získejte běžné vybavení pro vzácné druhy"
+      },
+      "shop_equipment_box_2": {
+        "name": "Box na vybavení II",
+        "description": "Získejte normální až epické vybavení"
+      },
+      "shop_equipment_box_3": {
+        "name": "Box vybavení III",
+        "description": "Získejte pokročilé až legendární vybavení"
+      },
+      "shop_equipment_box_4": {
+        "name": "Box vybavení IV",
+        "description": "Získejte vzácné až mýtické vybavení"
+      },
+      "shop_equipment_box_5": {
+        "name": "Box na vybavení V",
+        "description": "Získejte epické až mýtické vybavení"
+      },
+      "shop_equipment_box_6": {
+        "name": "Zařízení Box VI",
+        "description": "Získejte legendární až mýtické vybavení"
+      },
+      "shop_equipment_unbind_ticket": {
+        "name": "Právo zrušit přiřazení",
+        "description": "Změňte stav vázaného vybavení na obchodovatelné."
+      },
+      "shop_material_box_1": {
+        "name": "Materiál box I",
+        "description": "Získejte 5 nízkých až vysokých kamenů vylepšení"
+      },
+      "shop_material_box_2": {
+        "name": "Materiál box II",
+        "description": "Získejte 5 nízkých až vysokých kamenů vylepšení"
+      },
+      "shop_material_box_3": {
+        "name": "Materiál box III",
+        "description": "Získejte 5 nízkých až vysokých kamenů vylepšení"
+      },
+      "shop_material_box_4": {
+        "name": "Materiál box IV",
+        "description": "Získejte 5 výztužných kamenů střední až nejvyšší úrovně"
+      },
+      "shop_material_box_5": {
+        "name": "Materiál krabice V",
+        "description": "Pokročilí ~ Získejte 5 tajemných kamenů vylepšení"
+      },
+      "shop_material_box_6": {
+        "name": "Materiál box VI",
+        "description": "Pokročilí ~ Získejte 5 tajemných kamenů vylepšení"
+      },
+      "shop_mythic_option_change_ticket": {
+        "name": "Speciální možnost změny lístku",
+        "description": "Tato položka vám umožňuje změnit speciální možnosti mýtického nebo transcendentálního vybavení na jiné speciální možnosti."
+      },
+      "shop_option_type_change_ticket": {
+        "name": "Právo na změnu typu volby",
+        "description": "Tato položka vám umožňuje změnit jednu z hlavních možností vybavení, dílčích možností nebo speciálních možností na jiný typ možnosti."
+      },
+      "shop_option_value_change_ticket": {
+        "name": "Možnost změny hodnoty lístku",
+        "description": "Jedná se o položku, která může změnit hodnotu jedné z dílčích nebo speciálních možností vybavení."
+      },
+      "shop_refinement_charm": {
+        "name": "Amulet tavení",
+        "description": "Přidejte 1 další počet rafinací pro zařízení, které nelze tavit"
+      },
+      "use_allowtrade": {
+        "name": "obchodní registrační práva",
+        "description": "Toto je povolení k dodatečné registraci položek k prodeji na burze."
+      }
+    },
+    "stats": {
+      "mythic": {
+        "GuildBossRewardGradeUp": {
+          "name": "Odměna bitvy cechovního šéfa nahoru",
+          "abbrev": "Odměna za šéfa",
+          "short": "Stupeň odměny cechovního šéfa +1",
+          "description": "Úroveň odměny se zvyšuje o jednu úroveň z výsledků bitvy s cechovním bossem. (Maximum SSS) Toto je mýtická speciální možnost č. 1 a lze ji použít ve stejnou dobu jako Transcendence č. 1 „Boss Reward Added“."
+        },
+        "GuildBossExtraDamage5": {
+          "name": "Další poškození během bitev s cechovními bossy: 5 %",
+          "abbrev": "Poškození šéfa 5 %",
+          "short": "Poškození cechovního šéfa + 5 %",
+          "description": "Při útoku na cechovní bosse je aplikováno dodatečné 5% konečné poškození. (Nelze překrývat se speciální možností transcendence)"
+        },
+        "TowerApMinus1Floors1to35": {
+          "name": "Tower of Challenge (1. až 35. patro) Požadovaná akce -1",
+          "abbrev": "Nejlepší přístupový bod (1~35)",
+          "short": "Věž 1~35. patro AP -1",
+          "description": "Akce potřebná pro vstup do 1. až 35. patra Věže výzvy je snížena o 1. (Nelze překrýt speciální možností transcendence)"
+        },
+        "ApRegenMinus30s": {
+          "name": "Doba zotavení akce -30 sekund",
+          "abbrev": "Obnova AP -30s",
+          "short": "Obnova akce -30 sekund",
+          "description": "Doba potřebná k obnovení 1 akčního bodu se zkrátí o 30 sekund. (Nelze překrývat se speciální možností transcendence)"
+        },
+        "AdventureScanPlus1": {
+          "name": "Dobrodružné skenování +1",
+          "abbrev": "Dobrodružné skenování+1",
+          "short": "Dobrodružné skenování +1",
+          "description": "Na začátku dobrodružství (bitva s příšerami) obdržíte jeden předmět skenování navíc. (Nelze překrývat se speciální možností transcendence)"
+        },
+        "AdventureMissilePlus1": {
+          "name": "Dobrodružná střela +1",
+          "abbrev": "Dobrodružná střela+1",
+          "short": "Dobrodružná střela +1",
+          "description": "Na začátku dobrodružství je k dispozici jedna další raketa. (Nelze překrývat se speciální možností transcendence)"
+        },
+        "AdventureGoldBonus15": {
+          "name": "Dobrodružné zlaté odměny +15 %",
+          "abbrev": "Dobrodružné zlato 15 %",
+          "short": "Dobrodružné zlato +15 %",
+          "description": "Zlato získané za vítězství v dobrodružství se zvyšuje o 15 %. (Samostatně v kombinaci s encyklopedií a bonusem za porozumění) (Nelze překrývat se speciální možností transcendence)"
+        },
+        "GuildBossExtraRewardDuplicate": {
+          "name": "Přidána odměna za bitvu šéfa cechu",
+          "abbrev": "Přidána odměna šéfovi",
+          "short": "1 typ kopie odměny šéfa cechu (kumulativní)",
+          "description": "Získáte jednu z odměn jako výsledek bitvy s cechovním bossem ještě jednou. Pokud má tato možnost více řádků (více kusů zařízení) na transcendentálním zařízení, bude použita opakovaně. Lze použít ve spojení s dalšími speciálními možnostmi. Toto je speciální možnost Transcendence č. 1 a lze ji použít současně s mýtem č. 1 „Stupeň odměny šéfa“."
+        },
+        "GuildBossExtraDamage10": {
+          "name": "Další poškození v bitvách cechovních bossů: 10 %",
+          "abbrev": "Poškození šéfa 10%",
+          "short": "Poškození cechovního šéfa +10 %",
+          "description": "Při útoku na gildového bosse je aplikováno dodatečné 10% konečné poškození. (Nelze překrývat se speciální možností mýtu)"
+        },
+        "TowerApMinus1AllFloors": {
+          "name": "Tower of Challenge Vyžaduje akci -1",
+          "abbrev": "Top AP všechna patra",
+          "short": "AP pro všechna podlaží věže -1",
+          "description": "Akce potřebná pro vstup do nejvyššího patra všech výzev je snížena o 1. (Nelze překrývat se speciální možností Mýtus)"
+        },
+        "ApRegenMinus60s": {
+          "name": "Doba zotavení akce -60 sekund",
+          "abbrev": "Obnova AP -60s",
+          "short": "Obnova akce -60 sekund",
+          "description": "Doba potřebná k obnovení 1 akčního bodu se zkrátí o 60 sekund. (Nelze překrývat se speciální možností mýtu)"
+        },
+        "AdventureScanTranscendent": {
+          "name": "Dobrodružné skenování +1",
+          "abbrev": "Dobrodružné skenování+1",
+          "short": "Dobrodružný sken +2 (Transcendence)",
+          "description": "V dobrodružství (bitvě s příšerami) budou poskytnuty dva další skenovací položky. (Nelze překrývat se speciální možností mýtu)"
+        },
+        "AdventureMissilePlus2": {
+          "name": "Dobrodružná střela +2",
+          "abbrev": "Dobrodružná střela+2",
+          "short": "Dobrodružná střela +2",
+          "description": "Na začátku dobrodružství budou poskytnuty dvě další raketové předměty. (Nelze překrývat se speciální možností mýtu)"
+        },
+        "AdventureGoldBonus20": {
+          "name": "Dobrodružná zlatá odměna +20 %",
+          "abbrev": "Dobrodružné zlato 20 %",
+          "short": "Dobrodružné zlato + 20 %",
+          "description": "Zlato získané za vítězství v dobrodružství se zvyšuje o 20 %. (Nelze překrývat se speciální možností mýtu)"
+        }
+      }
+    },
+    "optionValueLine": "{{stat}} +{{value}}{{suffix}}",
+    "optionRange": "[{{lo}}~{{hi}}{{suffix}}]",
+    "optionEnhancement": "({{count}}Vylepšení)",
+    "meta": {
+      "description": {
+        "gold": "Je to reprezentativní měna používaná v celém světě Baduku.",
+        "diamond": "Jedná se o prémiovou komoditu používanou pro speciální nákupy, expanze atd."
+      },
+      "usage": {
+        "goldSpend": "Používá se v místech spotřeby zlata, jako jsou obchody, posilování/craftění a vstupné.",
+        "diamondSpend": "Používá se v diamantových obchodech, rozšíření slotu na tašky atd.",
+        "unbindTicket": "[Taška]-[Vyberte vybavení]-[Odvázat]",
+        "refinementCharm": "[Kovář]-[Zušlechťování zařízení] Vyberte zařízení, které nelze vytavit",
+        "refinementTicket": {
+          "optionType": "[Kovář - Zušlechťování zařízení] Změna typu možnosti",
+          "optionValue": "[Kovář - Zušlechťování zařízení] Změna hodnoty opce",
+          "specialOption": "[Kovář – Zušlechťování zařízení] Změna speciální možnosti",
+          "mythicOption": "[Kovář – Zušlechťování vybavení] Mýtická změna možnosti",
+          "generic": "[Kovář – rafinace zařízení] Změna možnosti"
+        },
+        "conditionPotion": "[Šampionát] Obnovte stav {{lo}}~{{hi}} před začátkem hry",
+        "actionPointInstant": "[Okamžité použití] Obnovení akce +{{amount}}",
+        "actionPointInstantGeneric": "[Okamžité použití] Obnovení akční schopnosti",
+        "openBoxInBag": "Pokud jej použijete z tašky, dostanete odměnu.",
+        "equipmentBoxOpen": "Vybavení můžete získat pomocí truhly v tašce.",
+        "enhancementMaterial": {
+          "single": "[{{gradeLabel}}] Vybavení: {{rangeLabel}}",
+          "range": "[{{gradeLabel}}] Vybavení: {{rangeLabel}}"
+        },
+        "pet": {
+          "soulGradeUpgrade": "[Vylepšení stupně pro domácí mazlíčky] {{fromGrade}}→{{toGrade}} (Pet Lv.{{minLevel}} nebo vyšší)",
+          "soulGradeUpgradeGeneric": "[Pet Grade Enhancement] Používá se ke zvýšení hodnosti ostatních AI mazlíčků ve Fair Areně.",
+          "eggHatchRandom": "[Pet · Líheň] Umístěte do otvoru a vylíhněte náhodný typ AI mazlíčka.",
+          "welcomeEggHatch": "[Pet · Líheň] Umístěno do slotu – doba líhnutí 1 minuta, AI zvířátko úrovně 5 při vylíhnutí"
+        }
+      },
+      "enhanceRange": {
+        "single": "{{stars}}Vylepšení",
+        "range": "{{minStars}}~{{maxStars}}Vylepšení"
+      },
+      "acquire": {
+        "gold": {
+          "line1": "[Hra/Obsah] Baduk zápas, single play, dungeon/liga atd.",
+          "line2": "[Quest/Adventure] Denní/týdenní/měsíční úkoly, truhly s poklady, VIP sloty",
+          "line3": "[Transakce/Demontáž] Vypořádání burzovního prodeje, demontáž zařízení, prodej v některých prodejnách"
+        },
+        "diamond": {
+          "line1": "[Obchod] Diamantový balíček/Spotřební materiál/Materiály Tab",
+          "line2": "[Platba/Událost] Účtování, provoz/propagační pošta",
+          "line3": "[Funkce] Některé prémiové funkce, jako je rozšíření slotu na brašnu"
+        },
+        "tower": {
+          "line1": "[Tower of Challenge] Nákup v obchodě s předměty (zlato) v informacích o hře",
+          "line2": "[Tower of Challenge] Získává se prostřednictvím některých kanálů, jako jsou vstupní/jasné odměny a VIP odměny."
+        },
+        "actionPoint": {
+          "line1": "[Obchod] Gold Shop — Stamina Restoration Potion (+10/+20/+30), denní limit/cena na úrovni",
+          "line2": "[Mail·Událost] Platba provozní kompenzace/propagace",
+          "line3": "[Funkce VIP] Po aktivaci obdržíte Stamina Restoration III poštou každý den."
+        },
+        "condition": {
+          "line1": "[Obchod] Diamond Store (spotřební materiál) nebo související balíčky",
+          "line2": "[Úkol/Událost] Částečné odměny"
+        },
+        "guildEquipBox": {
+          "line1": "[Guild Shop] Lze zakoupit pouze za cechovní mince",
+          "line2": "[Obchod/Quest] Získejte vybavení jeho používáním v tašce, podobně jako běžná krabice s vybavením."
+        },
+        "equipBox": {
+          "line1": "[Obchod] Prodejna zlata (záložka vybavení), reklamní odměny, některé balíčky v hotovosti",
+          "line2": "[Quest/VIP] Denní, týdenní a měsíční questy, bonusové VIP sloty atd.",
+          "line3": "[Dobrodružství/Guilda] Truhla s pokladem, odměny za výsledek bitvy cechovního bosse atd."
+        },
+        "materialBox": {
+          "line1": "[Obchod] Prodejna zlata/diamantů (záložka materiál), reklamní odměny, některé balíčky",
+          "line2": "[Quest/VIP] Denní, týdenní a měsíční questy, bonusové VIP sloty atd."
+        },
+        "goldBundle": {
+          "line1": "[Obchod] Diamond Shop (spotřební materiál), odměny za reklamu",
+          "line2": "[Quest/Adventure] Různé krabičky odměn/pokladů"
+        },
+        "diamondBundle": {
+          "line1": "[Obchod] Diamond Shop (spotřební zboží), odměny za reklamu",
+          "line2": "[Úkol/Událost] Částečné odměny"
+        },
+        "bonusStat": {
+          "line1": "[Guild Shop] Nákup za cechovní mince (limit účtu)",
+          "line2": "[Růst] Částečná platba, když se zvýší strategie/úroveň hry"
+        },
+        "enhancementStone": {
+          "line1": "[Guild Shop] Nízkoúrovňové ~ tajemné vylepšovací kameny lze vyměnit za gildovní mince",
+          "line2": "[Material Box] Materiálové krabice získané z obchodů, questů, VIP atd.",
+          "line3": "[Kovář] Syntéza/demontáž materiálu, náklady na posílení zařízení",
+          "line4": "[Adventure, Rank, Guild] Odměny za vítězství, věž, bitvu s bossem atd."
+        },
+        "material": {
+          "line1": "[Obchod] Zlato/Diamantový obchod (materiály), cechovní obchod (částečně)",
+          "line2": "[Quest·Adventure·Event] Denní, týdenní, měsíční, truhla s pokladem, odměny za operace",
+          "line3": "[Mail] Výsledky syntézy/vylepšení, platba za událost"
+        },
+        "equipment": {
+          "line1": "[Krabice na vybavení] Získá se při použití krabice ze sáčku.",
+          "line2": "[Dobrodružství] Jeviště/boj s bossem jasná odměna",
+          "line3": "[Výměna] Kupujte registrované položky od jiných uživatelů",
+          "line4": "[Syntéza/Výroba] Výroba zařízení pro kovářské syntézy/transcendence atd."
+        },
+        "consumableGeneric": "[Obchod, hledání, pošta] Obchod se smíšeným zbožím, akce, odměny za provoz",
+        "pet": {
+          "soulTraining": "[Odměna za domácího mazlíčka/školení] Automaty {{slots}}",
+          "soulConvert": "[Pet/Soul Conversion] {{grades}} Lze získat při rozebírání domácího mazlíčka",
+          "soulShopDiamond": "[Pet · Pet Store] Diamond {{amount}}",
+          "soulShopGold": "[Pet · Pet Shop] Zlato {{částka}}",
+          "soulShopDiamondDaily": "[Pet · Pet Store] Diamond {{amount}}, {{limit}}krát za den",
+          "soulShopGoldDaily": "[Pet · Pet Shop] Zlato {{amount}}, {{limit}}krát za den",
+          "soulFallback": "[Pet] Lze získat nebo vyměnit v obsahu souvisejícím s Fair Stadium/líhní.",
+          "eggShop": "[Pet · Pet Store] Lze zakoupit se zlatem a diamanty (denní limit)",
+          "eggRewards": "[Pet/Training/Event] Získáno jako částečná odměna",
+          "welcomeEggMail": "[Mail] Lze získat prostřednictvím nových uvítacích/operačních plateb atd.",
+          "welcomeEggShop": "[Pet · Pet Store] Lze zakoupit s diamanty (1 za den)"
+        }
+      }
     }
   },
   "exchange": {
@@ -4149,9 +5002,9 @@
       "selectGear": "Výběr vybavení"
     },
     "alerts": {
-      "insufficientTicket": "Nedostatečná práva na registraci transakce.",
+      "insufficientTicket": "Nedostatečná práva na registraci transakce. Vyžadováno pro registraci dalších prodejních slotů.",
       "vipListingLimit": "Funkce VIP se mohou zaregistrovat k prodeji pouze 3 produktů.",
-      "ticketHint": "Nedostatečná práva na registraci transakce. S jedním registračním lístkem můžete zaregistrovat jednu akční položku.",
+      "ticketHint": "Další registrace prodejního slotu vyžaduje registrační lístek transakce.",
       "selectGearFromInventory": "Vyberte prosím ze svého inventáře zařízení, které chcete prodat.",
       "boundGear": "Vázané vybavení nelze prodat. Využijte prosím právo zrušit přiřazení.",
       "minimumPrice": "Minimální prodejní cena je {{price}}.",
@@ -4175,7 +5028,7 @@
       "waiting": "atmosféra"
     },
     "scoring": "Počítání...",
-    "allMatchesEnded": "Všechny zápasy skončily. Slavnostní předávání cen se koná.",
+    "allMatchesEnded": "Všechny dnešní zápasy skončily.",
     "breathing": "Zhluboka se nadechuji, abych se zúčastnil soutěže.",
     "playersEntering": "Hráči vstupují. prosím chvíli počkejte.",
     "playerLoadError": "Při načítání informací o hráči došlo k chybě.",
@@ -4409,7 +5262,7 @@
         "neighborhood": "Sousedská liga Baduk",
         "national": "Národní turnaj v Baduku",
         "world": "mistrovství světa",
-        "unlock3": "Postup do další fáze, pokud dosáhnete 3. místa nebo výše",
+        "unlock3": "Pokud dosáhnete 3. místa nebo výše, postoupíte do další fáze.",
         "commonFeatures": "Společné rysy stadionu",
         "simulation": "simulační hra",
         "condition": "stav",
@@ -4424,7 +5277,7 @@
         "altChampionship": "mistrovství",
         "overviewBody1": "Šampionát je provozován pomocí dungeon systému. Pro každý stadion existují fáze od fáze 1 do fáze 10 (sousedská liga v baduku, národní soutěž v baduku, mistrovství světa) a v každé fázi se koná liga/turnaj s roboty, kteří určí pořadí.",
         "unlockHintRich": "Podmínky odemknutí další úrovně:",
-        "unlockHintBody": "Pokud dosáhnete 1. až 3. místa v Neighborhood Baduk League, National Baduk Tournament a World Championship, bude vám uznáno, že jste vyrovnali tuto fázi a otevře se další fáze.",
+        "unlockHintBody": "Pokud dosáhnete 1. až 3. místa v Neighborhood Baduk League, National Baduk Tournament a World Championship, bude vám uznáno, že jste v této fázi postupovali a další fáze se otevře.",
         "rankUnlock": "Odemkněte další úroveň, když se dostanete na 3. místo nebo vyšší",
         "simulationTitle": "simulační hra",
         "conditionTitle": "stav",
@@ -4467,7 +5320,7 @@
         "fiftySeconds": "50 sekund",
         "progressOpening": "Rané (1-15 sekund): Rané schopnosti jsou důležité",
         "progressMidgame": "Střední (16-35 sekund): Statistiky střední úrovně jsou důležité",
-        "progressEndgame": "Konec hry (36-50 sekund): Statistiky konce hry jsou důležité",
+        "progressEndgame": "Konec hry (36–50 sekund): Statistiky konce hry jsou důležité",
         "progressScoring": "Sbírejte body podle odpovídajících schopností v každé fázi",
         "openingFormula": "Raná fáze: Koncentrace × 0,4 + Rychlost myšlení × 0,3 + Úsudek × 0,4 + Výpočet × 0,3 + Bojová síla × 0,1 + Stabilita × 0,5",
         "midgameFormula": "Střed: Koncentrace × 0,3 + Rychlost myšlení × 0,3 + Úsudek × 0,4 + Výpočet × 0,1 + Bojová síla × 0,8 + Stabilita × 0,1",
@@ -4480,7 +5333,7 @@
         "critical2": "Další body se získávají, když dojde ke kritickému zásahu.",
         "critical3": "Bojová síla a výpočetní síla ovlivňují další body",
         "condition1": "Před každým zápasem je dán náhodný stav mezi 40 a 100.",
-        "condition2": "Skóre schopností se během simulace nemění",
+        "condition2": "Skóre schopností se během simulace nemění.",
         "condition3": "Lze obnovit pomocí agenta na obnovu stavu (používá se pouze před začátkem hry)"
       },
       "duelHistory": {
@@ -4529,7 +5382,13 @@
       "championship": "mistrovství",
       "scrollGuideTitle": "rolovací průvodce",
       "categoryAria": "Kategorie hodnocení",
-      "title": "Pořadí"
+      "title": "Pořadí",
+      "gameRankingTab": "Hodnocení hry",
+      "badukRankingTab": "Baduk žebříček",
+      "loginRequired": "Své umístění si můžete zkontrolovat po přihlášení.",
+      "championshipLoginHint": "Po přihlášení si můžete zkontrolovat umístění v šampionátu.",
+      "guideClose": "Zavřít průvodce",
+      "championshipNoGuide": "Neexistuje žádný samostatný bodový průvodce pro pořadí šampionátu."
     },
     "round16": "16. kolo",
     "center": "centrum",
@@ -4581,7 +5440,7 @@
     "matchRewardIndex": "Zápas {{index}} odměn",
     "champCoinTimes": "Mistrovská mince ×{{amount}}",
     "champCoinPending": "Champ Coin {{label}} (potvrzeno po obdržení)",
-    "rankRewardTitle": "{{rank}}odměna s nejvyšší hodností · {{item}} ×{{qty}}",
+    "rankRewardTitle": "{{rank}}odměna s nejvyšším hodnocením · {{item}} ×{{qty}}",
     "matchRoundResult": "{{round}} kolo {{outcome}}! ({{wins}} vyhraje {{losses}} proher)",
     "statusRecordRank": "{{wins}} vyhrává {{losses}} proher! {{pořadí}}",
     "championTitle": "🏆 Vyhrajte!",
@@ -4596,7 +5455,7 @@
     "skipAll": "Přeskočit vše",
     "skipAllRoundsHint": "Přeskočte všechna zbývající kola (zápasy uživatelů) najednou a pokračujte do konce soutěže.",
     "matchPreparing": "Příprava na hru...",
-    "forfeitConfirm": "Chtěli byste to vzdát a opustit turnaj? Vaše možnost zúčastnit se dnes bude ztracena.",
+    "forfeitConfirm": "Jste ochoten se vzdát a opustit turnaj? Vaše možnost zúčastnit se dnes bude ztracena.",
     "roundRobinRound": "{{round}} kolo",
     "dungeonRunRecordTitle": "Rekordy v této fázi šampionátu",
     "sidebarExtraPanel": "Další informační panel",
@@ -4624,8 +5483,8 @@
     "scoring": "Kalkulační cena",
     "base": "báze",
     "turnUnit": "{{count}}otočky",
-    "blackCaptureGoal": "Černí {{count}} psi",
-    "captureGoalTurnLimit": "Vyhrajte {{count}} černých figurek (limit {{turns}} tahů)",
+    "blackCaptureGoal": "Černých {{count}} psů",
+    "captureGoalTurnLimit": "Seberte {{count}} černých figurek (limit {{turns}} tahů)",
     "autoScoringHint": "[{{turns}}počítací číslo] Pokud ponecháte toto číslo, dojde k automatickému počítání.",
     "autoScoringShort": "[{{turns}}číslo počtu]",
     "victory": "vítězství",
@@ -4663,7 +5522,7 @@
     },
     "rewardItems": {
       "equipmentBox1": "Skříň s vybavením I",
-      "equipmentBox2": "Box vybavení II",
+      "equipmentBox2": "Box na vybavení II",
       "equipmentBox3": "Box vybavení III",
       "equipmentBox4": "Box vybavení IV",
       "equipmentBox5": "Box na vybavení V",
@@ -4695,13 +5554,13 @@
     "rewardFromFloor10Short": "Když vyčistíte 10 a více pater, můžete získat měsíční odměnu.",
     "stages": "fáze",
     "rankingTop100": "Žebříček 100 nejlepších",
-    "rewardTierLine": "Kompenzace za {{floor}} podlahové části · Vyplacena na konci měsíce",
+    "rewardTierLine": "Kompenzace za sekci {{floor}} patra · Vyplacena na konci měsíce",
     "unranked": "jiné než pořadí",
     "noOtherRanked": "V Top 100 nejsou uvedeny žádné další žebříčky.",
     "rewardModalTitle": "Informace o odměně Tower of Challenge",
     "settlementRemaining": "Zbývající čas do vyrovnání odškodnění",
     "myCurrentReward": "moje aktuální odměna",
-    "floorTier": "{{patro}} patro",
+    "floorTier": "{{floor}}patro",
     "blackPatternAlt": "černý vzor",
     "goldAlt": "zlato",
     "diamondAlt": "diamant",
@@ -4746,7 +5605,7 @@
       "matchQueue": "čekání na spárování",
       "rankedRules": "Pravidla aplikace pro hodnocení zápasů",
       "gameSettings": "Nastavení shody",
-      "noRules": "Neexistují žádná pravidla k zobrazení.",
+      "noRules": "Nejsou zde žádná pravidla k zobrazení.",
       "selectGameMode": "Vyberte herní režim",
       "mobilePickHint": "Klikněte na položku, vyberte ji a zkontrolujte informace o hodnocení a pravidla níže.",
       "queueWithAp": "Počkejte na shodu (⚡{{cost}})",
@@ -4816,21 +5675,21 @@
       "fixedReward": "Definovaná kompenzace",
       "probOneKind": "Pravděpodobnost (1 typ)",
       "probReward": "Pravděpodobnostní kompenzace",
-      "claimRewardAria": "Získejte odměny za školení",
+      "claimRewardAria": "Získejte odměnu za školení",
       "petDetailAria": "Detaily domácího mazlíčka",
       "remainingTimeAria": "Zbývající čas {{time}}",
       "pickPet": "Vyberte domácí zvíře",
       "tap": "dotek",
       "dragPet": "táhnout mazlíčka",
       "cancelTraining": "zrušení tréninku",
-      "durationAria": "Požadované školení {{duration}}",
+      "durationAria": "Vyžaduje se školení {{duration}}",
       "pickFromInvBelow": "Vyberte si domácího mazlíčka nebo kámen duše z níže uvedeného inventáře",
       "tabTitle": "výcvik",
       "tabTitleClaimReady": "Můžete získat odměny za školení",
       "noConditions": "žádné podmínky",
       "winsRequired": "Pár {{count}} vyhrává",
-      "winsRequiredShort": "Je vyžadován pár {{count}} výher",
-      "petLevelMin": "Pet Lv.{{level}}+",
+      "winsRequiredShort": "Je vyžadováno párování {{count}} win",
+      "petLevelMin": "Domácí mazlíček Lv.{{level}}+",
       "functionVip": "Funkce VIP",
       "functionVipActive": "Aktivace funkce VIP",
       "winsUnit": "vyhrát"
@@ -4843,7 +5702,7 @@
       "insufficientDiamonds": "Diamantů je málo.",
       "complete": "Líhnutí dokončeno",
       "inProgress": "líhnutí",
-      "available": "líhnoucí se",
+      "available": "líhnoucí",
       "ownedEggs": "drží vejce",
       "onePerHatch": "1 při vylíhnutí",
       "totalEggs": "Celkem {{count}}",
@@ -4859,7 +5718,10 @@
       "remainingTime": "zbývající čas",
       "diamondsUsed": "použít diamant",
       "ownedLabel": "majetek",
-      "mysteriousEgg": "Tajemné vejce ×1"
+      "mysteriousEgg": "Tajemné vejce ×1",
+      "upgradeTier1": "Posílit I",
+      "upgradeTier2": "Posílit II",
+      "upgradeTier3": "Posílit III"
     },
     "lobby": {
       "infoTab": "informace",
@@ -4908,7 +5770,7 @@
       "cannotWhileTrainingShort": "Zvířata ve výcviku nelze upgradovat.",
       "unequipRepFirst": "Odemkněte reprezentativního mazlíčka",
       "equipRep": "Vybaven reprezentativním mazlíčkem",
-      "cannotSetRepWhileTraining": "Domácí zvíře ve výcviku nemůže být označeno jako reprezentativní zvíře. Prosím označte po absolvování školení.",
+      "cannotSetRepWhileTraining": "Domácí zvíře ve výcviku nemůže být označeno jako reprezentativní zvíře. Označte prosím po absolvování školení.",
       "soulConvert": "obrácení duše",
       "cannotSoulConvertTraining": "Domácí mazlíčci ve výcviku nemohou být přeměněni na duši. Použijte jej po absolvování školení.",
       "cannotSoulConvertRep": "Domácí mazlíčci vybavení jako reprezentativní mazlíčci nemohou být přeměněni na duši. Použijte jej po deaktivaci reprezentativního mazlíčka.",
@@ -4917,7 +5779,7 @@
       "next": "další",
       "before": "před",
       "after": "od",
-      "baseStatIncrease": "Základní schopnost zvýšena",
+      "baseStatIncrease": "Zvýšení základní schopnosti",
       "percentTen": "+10 %",
       "nextGradeLevelUpBudget": "Automaticky distribuované schopnosti při zvyšování úrovně zvířete v sekci další třídy",
       "dispositionBoost": "posilující tendence",
@@ -4932,8 +5794,8 @@
       "farewell": "Pusťte svého mazlíčka",
       "warningTitle": "Poznámka: Transformaci duše nelze zrušit ani obnovit.",
       "warningDelete": "Vybraný mazlíček bude trvale smazán z vašeho inventáře.",
-      "warningLoseProgress": "Všechny informace o úrovních, zkušenostech, dispozicích a základních bonusech budou ztraceny.",
-      "warningImmediate": "Když stisknete tlačítko pro konverzi duše, bude okamžitě převedena.",
+      "warningLoseProgress": "Všechny úrovně, zkušenosti, dispozice a základní bonusové informace budou ztraceny.",
+      "warningImmediate": "Pokud stisknete tlačítko pro konverzi duše, bude okamžitě převedena.",
       "rewardOnConvert": "Platba při konverzi",
       "fixedQty": "Obdržíte <qty>{{qty}}</qty>. (potvrzeno)",
       "randomQty": "Náhodně obdržíte <range>{{min}}~{{max}}</range>. Skutečný počet je určen v době převodu."
@@ -5072,7 +5934,7 @@
       "privatePasswordLength": "Zadejte prosím 4 znaky pro heslo soukromé místnosti.",
       "privatePasswordRequired": "Při změně na soukromou místnost zadejte 4místné heslo.",
       "cannotJoinInProgress": "Nemůžete vstoupit do místnosti, kde probíhá hra.",
-      "cannotJoinMatching": "Nemůžete vstoupit do spárované místnosti.",
+      "cannotJoinMatching": "Do spárované místnosti nemůžete vstoupit.",
       "privateRoom": "soukromý pokoj",
       "enterRoomNumber": "Zadejte prosím číslo svého pokoje.",
       "enterPassword": "Zadejte prosím své heslo.",
@@ -5084,8 +5946,8 @@
       "strategicRoomTitle": "Strategická badukská místnost {{name}}",
       "playfulRoomTitle": "{{name}} hraje baduk místnost",
       "pairRoomTitle": "Místnost pro páry {{name}}",
-      "aiStartRestricted": "Bitvy s umělou inteligencí lze zahájit pouze v místnostech pro umělou inteligenci Pet Pair (konvenční místnost), strategie, přátelské hry (Duo) a stadionu. Vytvořte novou místnost pro mazlíčky v „Pair AI Battle“ v horní části seznamu uživatelů.",
-      "alreadyInRoomForRanked": "Účastnická místnost již existuje. Poté, co opustíte jinou místnost pro páry, zahajte prosím hodnocení párů domácích mazlíčků v horní části seznamu uživatelů."
+      "aiStartRestricted": "Bitvy s umělou inteligencí lze zahájit pouze v místnostech pro umělou inteligenci Pet Pair (konvenční místnost), strategie, přátelské hry (Duo) a stadionu. Vytvořte si novou místnost pro mazlíčky v „Pair AI Battle“ v horní části seznamu uživatelů.",
+      "alreadyInRoomForRanked": "Účastnická místnost již existuje. Poté, co opustíte jinou místnost pro páry, začněte zápas hodnocení párů mazlíčků v horní části seznamu uživatelů."
     },
     "loading": "Načítání...",
     "defaultUser": "posmrtné dílo",
@@ -5102,7 +5964,7 @@
       "seasonBest": "nejlepší v sezóně",
       "sameScoreSuffix": "(identifikace)",
       "bestSeason": "nejlepší sezóna",
-      "allTimeBestTier": "Vůbec nejvyšší hodnocení",
+      "allTimeBestTier": "Nejvyšší hodnocení vůbec",
       "prefixStrategic": "[Strategie Baduk]",
       "prefixPlayful": "[Přehrát Baduk]",
       "prefixPair": "[Pár Baduk]",
@@ -5120,11 +5982,14 @@
       "matchInProgress": "Utkání probíhá",
       "inMatch": "Během hry",
       "enter": "pozice",
+      "spectate": "Sledování",
+      "spectateMatch": "Sledujte hru",
+      "spectateUnavailable": "Nemohu najít žádné informace o zápase, které bych mohl sledovat.",
       "orphanRooms": "Číslo 1~100 Venkovní místnost",
       "roomKindFilter": "Filtr typu místnosti",
       "gameModeFilter": "Filtr herního režimu",
       "roomNumberPlaceholder": "číslo pokoje",
-      "createRoom": "Vytvoření pokoje",
+      "createRoom": "Dělat pokoj",
       "matchSettings": "Nastavení shody",
       "gameMode": "herní režim",
       "detailConditions": "Podrobné podmínky",
@@ -5198,6 +6063,100 @@
       "navigatePairArena": "Jděte na Fair Stadium",
       "leaveRoomOnNavigate": "Přesunutím do jiné arény se dostanete z místnosti, které se účastníte. Chcete pokračovat?",
       "leaveRoomConfirm": "Budete odebráni z místnosti, ve které jste se účastnili. Chcete pokračovat?"
+    },
+    "pets": {
+      "pair-pet-1": {
+        "name": "Lumifox"
+      },
+      "pair-pet-2": {
+        "name": "Ledová kočka"
+      },
+      "pair-pet-3": {
+        "name": "Goldignan"
+      },
+      "pair-pet-4": {
+        "name": "sněžná panda"
+      },
+      "pair-pet-5": {
+        "name": "Penky"
+      },
+      "pair-pet-6": {
+        "name": "sluneční pták"
+      },
+      "pair-pet-7": {
+        "name": "Baniru"
+      },
+      "pair-pet-8": {
+        "name": "Medvídek"
+      },
+      "pair-pet-9": {
+        "name": "Kočka listová"
+      },
+      "pair-pet-10": {
+        "name": "Výhonek"
+      },
+      "pair-pet-11": {
+        "name": "fialová kočka"
+      },
+      "pair-pet-12": {
+        "name": "Sunkey"
+      },
+      "pair-pet-13": {
+        "name": "Amber Fox"
+      },
+      "pair-pet-14": {
+        "name": "Krémová kočka"
+      },
+      "pair-pet-15": {
+        "name": "sada křídel"
+      },
+      "pair-pet-16": {
+        "name": "maskový pes"
+      },
+      "pair-pet-17": {
+        "name": "Medvěd slonovinové"
+      },
+      "pair-pet-18": {
+        "name": "sněhový mazlíček"
+      },
+      "pair-pet-19": {
+        "name": "chicky"
+      },
+      "pair-pet-20": {
+        "name": "Stínový vlk"
+      },
+      "pair-pet-21": {
+        "name": "Wing Bunny"
+      },
+      "pair-pet-22": {
+        "name": "Zlatý drzý"
+      },
+      "pair-pet-23": {
+        "name": "podbízení"
+      },
+      "pair-pet-24": {
+        "name": "medúza"
+      }
+    },
+    "trainingSlots": {
+      "0": {
+        "name": "technické školení"
+      },
+      "1": {
+        "name": "výcvik na život a na smrt"
+      },
+      "2": {
+        "name": "Školení před udělením ceny"
+      },
+      "3": {
+        "name": "Trénink Jeongseok"
+      },
+      "4": {
+        "name": "Gibo trénink"
+      },
+      "5": {
+        "name": "trénink vodní přehrady"
+      }
     }
   },
   "blacksmith": {
@@ -5237,7 +6196,7 @@
       "default": "Otevřete obrazovku úkolu"
     },
     "pickHints": {
-      "enhance": "Vyberte vybavení, které chcete posílit v modalu, a poté stiskněte Selection Complete, abyste se přesunuli na obrazovku zesílení.",
+      "enhance": "Vyberte vybavení, které má být posíleno v modalu, a kliknutím na Dokončit výběr přejděte na obrazovku zesílení.",
       "combine": "Pokud do modu umístíte 3 kusy vybavení stejné třídy a poté stisknete Selection Complete, dostanete se na obrazovku syntézy.",
       "disassemble": "Vyberte zařízení, které chcete demontovat v modalu a poté stiskněte Selection Complete, abyste se přesunuli na obrazovku demontáže.",
       "refine": "Po výběru zařízení k tavení v modalu a klepnutí na tlačítko Dokončit výběr se dostanete na obrazovku tavení."
@@ -5403,7 +6362,7 @@
       "refinementPrefix": "Lze tavit:",
       "greatSuccess": "Syntetický jackpot!",
       "success": "úspěch syntézy",
-      "expGain": "Kovářská zkušenost",
+      "expGain": "Zkušenosti s kovářem",
       "expGainLabel": "Zkušenosti z kovárny:",
       "refinementTimes": "{{count}}krát"
     },
@@ -5426,7 +6385,7 @@
     "casualTag": "přátelský zápas",
     "casualTitle": "přátelský zápas",
     "casualDesc": "Tento zápas je přátelský. Skóre v žebříčku se nemění.",
-    "actionPointNotice": "Když je shoda potvrzena, akční síla ⚡{{cost}} je spotřebována na obou stranách. Pokud je akceptace/AI při spuštění nedostatečná, otevře se okno správy napájení podle chování.",
+    "actionPointNotice": "Když je shoda potvrzena, akční síla ⚡{{cost}} je spotřebována na obou stranách. Pokud je při přijímání/spouštění AI nedostatečná, otevře se okno správy napájení podle chování.",
     "titleAi": "{{prefix}}{{mode}} Nastavení shody AI",
     "titleRematch": "{{prefix}}Nastavení rematch ({{mode}})",
     "titleDefault": "{{prefix}}nastavení shody ({{mode}})",
@@ -5449,7 +6408,7 @@
     "mixRulesMinAlert": "Pravidla mixu vyžadují výběr dvou nebo více pravidel.",
     "mixCaptureCastleConflict": "Vítězství a hrad nelze vybrat současně.",
     "countUnit": "{{počítat}}",
-    "boardLines": "{{size}} řádek",
+    "boardLines": "řádek {{size}}",
     "pointsFixed": "9 bodů (pevné)",
     "pointsUnit": "{{skóre}} bodů",
     "turnsUnit": "{{limit}}číslo",
@@ -5531,6 +6490,8 @@
       "3": "Jeden pohyb za 0,5 sekundy"
     },
     "matchControlAria": "ovládání hry",
+    "skipReplay": "PŘESKOČIT",
+    "skipReplayHint": "Přeskočte štafetu a jen zkontrolujte výsledky.",
     "startMatch": "hra začíná",
     "exit": "Výstup",
     "season": "sezóna",
@@ -5579,7 +6540,7 @@
       "userInfo": "Načítání informací o uživateli...",
       "loginCheck": "Ověřování přihlašovacích údajů...",
       "guildInfo": "Načítání informací o cechu...",
-      "warInfo": "Načítání informací o válce cechu...",
+      "warInfo": "Načítání informací o válce cechů...",
       "currentWarInfo": "Informace o válce cechů se načítají.",
       "checking": "Kontrola...",
       "calculating": "Počítání...",
@@ -5619,7 +6580,7 @@
       "failed": "Darování se nezdařilo.",
       "ownedGold": "Držené zlato: {{amount}}",
       "noHistory": "Neexistuje žádná historie dárcovství.",
-      "goldUnit": "{{částka}} Zlato",
+      "goldUnit": "{{částka}} zlata",
       "error": "Při darování došlo k chybě.",
       "goldDonation": "zlatý dar",
       "diamondDonation": "darování diamantů",
@@ -5697,7 +6658,7 @@
       "joinMethod": "Jak se přihlásit",
       "applicationJoin": "Použít registraci",
       "freeJoin": "Zaregistrujte se zdarma",
-      "applicationJoinHint": "Chcete-li se připojit, musíte být schváleni vůdcem cechu nebo zástupcem vůdce cechu.",
+      "applicationJoinHint": "Abyste se mohli připojit, musíte být schváleni vedoucím cechu nebo jeho asistentem.",
       "freeJoinHint": "Pokud se uvolní místo, budete automaticky přihlášeni.",
       "announcement": "Oznámení cechu",
       "edit": "upravit",
@@ -5710,14 +6671,34 @@
     "missions": {
       "title": "Týdenní cechovní mise",
       "achieved": "dosažení",
-      "guildXp": "Guild XP + {{amount}}",
+      "guildXp": "Zkušenost s cechem +{{amount}}",
       "expired": "platnost vypršela",
       "rewardClaimed": "Odměna dokončena",
       "claimReward": "Získejte odměny",
       "inProgress": "Probíhá",
       "resetCountdown": "Obnovit po {{days}} dnech {{hours}}:{{minutes}}",
       "unclaimedHint": "Existují odměny, které můžete získat. Nezapomeňte si to vzít.",
-      "empty": "Nejsou zde žádné týdenní mise k zobrazení."
+      "empty": "Nejsou zde žádné týdenní mise k zobrazení.",
+      "titles": {
+        "checkIns": "Účast cechu 50x",
+        "guildDonations": "Nashromážděno 50 cechovních darů",
+        "bossAttempts": "Účastnil se 30x bitev cechovních bossů",
+        "strategicWins": "Strategic Baduk vyhrál 30krát",
+        "playfulWins": "Hrát Baduk vyhraje 30krát",
+        "equipmentEnhancements": "50 pokusů o posílení",
+        "epicGearAcquisitions": "Získejte 20krát vybavení epické úrovně nebo vyšší",
+        "diamondsSpent": "Spotřebuje 3000 diamantů"
+      },
+      "descriptions": {
+        "checkIns": "Členové cechu se účastní celkem 50x",
+        "guildDonations": "Nechte členy cechu darovat zlato a diamanty celkem 50krát.",
+        "bossAttempts": "Požádejte členy cechu, aby se zúčastnili celkem 30 bitev s bossy cechu.",
+        "strategicWins": "Členové cechu dosáhnou celkem 30 výher ve strategickém baduku (včetně AI čekárny a obecných zápasů)",
+        "playfulWins": "Členové cechu dosáhnou v Baduku celkem 30 výher (včetně AI čekárny a obecných zápasů)",
+        "equipmentEnhancements": "Nechte členy cechu provést celkem 50 pokusů o vylepšení vybavení",
+        "epicGearAcquisitions": "Požádejte členy cechu, aby 20krát získali epické nebo vyšší vybavení",
+        "diamondsSpent": "Členové cechu utratí celkem 3000 diamantů v obchodech atd."
+      }
     },
     "research": {
       "title": "Cechovní laboratoř",
@@ -5733,7 +6714,7 @@
       "startConfirm": "Chcete začít zkoumat úroveň [{{name}}] {{level}}? \n\nPožadované body: {{cost}} RP\nOdhadovaný čas: {{time}}",
       "chancePrefix": "[{{chance}}% pravděpodobnost]",
       "categoryDevelopment": "Povýšení cechu",
-      "categoryBoss": "boss bitva",
+      "categoryBoss": "boj s bossem",
       "categoryStats": "Zvýšená schopnost",
       "categoryRewards": "Zvýšené odměny",
       "apRegenEffect": "Doba zotavení akce -{{sec}} sekund",
@@ -5782,9 +6763,9 @@
     "homeChat": {
       "globalTab": "Celý chat",
       "guildTab": "Cechovní chat",
-      "securityBanner": "Bezpečnostní robot AI detekuje použití nevhodného jazyka. 🚓",
+      "securityBanner": "Bezpečnostní robot AI zjišťuje použití nevhodného jazyka. 🚓",
       "noGuildMessages": "Nejsou zde žádné zprávy cechovního chatu.",
-      "noGlobalMessages": "Nejsou k dispozici žádné úplné chatové zprávy.",
+      "noGlobalMessages": "Neexistují žádné úplné chatové zprávy.",
       "banPlaceholder": "Chat zakázán (zbývá {{minutes}} minut)",
       "cooldownPlaceholder": "({{seconds}} sekund)",
       "inputPlaceholder": "[Zadejte zprávu]",
@@ -5795,7 +6776,18 @@
       "quickChat": "rychlý chat",
       "send": "přeposílání",
       "sendTitle": "poslat",
-      "locationHome": "[domov]"
+      "locationHome": "[domov]",
+      "systemMessages": {
+        "missionComplete": "Týdenní mise [{{missionTitle}}] splněna! Získejte své odměny na kartě Aktivita cechu > Mise cechu.",
+        "bossWeeklySettlement": "Týdenní vyrovnání cechovního šéfa ({{bossName}}, {{status}}): V cechu byly nashromážděny zkušenosti cechu +{{guildXp}}, body výzkumu +{{researchPoints}}.",
+        "bossWeeklySettlementDefeated": "porazit",
+        "bossWeeklySettlementRemainingHp": "Zbývající zdraví {{percent}} %",
+        "warJoinMatching": "[{{nickname}}]{{subjectParticle}} se účastnil cechovní války. Pokračujeme ve spárování.",
+        "warJoinBotMatch": "[{{nickname}}]{{subjectParticle}} se účastnil cechovní války. Spojeno s cechem systémových botů v liché frontě.",
+        "warJoinOpponent": "[{{nickname}}]{{subjectParticle}} se účastnil cechovní války. Oponent: 「{{opponentGuildName}}」",
+        "warCancelMatching": "[{{nickname}}]{{subjectParticle}} Porovnání cechovní války bylo zrušeno.",
+        "bossDamage": "[{{nickname}}]{{subjectParticle}} způsobil {{damage}} poškození {{bossName}}."
+      }
     },
     "war": {
       "title": "cechovní války",
@@ -5805,7 +6797,7 @@
       "prepBlocked": "Vstup není možný od 00:00 do 23:59 v pondělí a čtvrtek z důvodu příprav na další cechovní bitvu.",
       "nextApplicationDay": "Datum příští přihlášky: {{date}} (KST)",
       "periodLabel": "Doba trvání této cechovní války",
-      "periodTueWed": "Út 00:00 ~ St 23:00",
+      "periodTueWed": "Út 0:00 ~ ST 23:00",
       "periodFriSun": "Pá 00:00 ~ Ne 23:00",
       "victory": "Vítězství cechovní války!",
       "victoryShort": "Vítězství cechovní války",
@@ -5820,8 +6812,8 @@
       "guildXp": "Zkušenosti s cechem",
       "researchPoints": "výzkumné body",
       "houseLabel": "dům {{skóre}}",
-      "dominanceTooltip": "Dominance na levé straně přibližně {{percent}} % (hvězda/bod)",
-      "loadingWarInfo": "Načítání informací o válce cechu...",
+      "dominanceTooltip": "Dominance na levé straně: přibližně {{percent}} % (hvězda/bod)",
+      "loadingWarInfo": "Načítání informací o válce cechů...",
       "noActiveWar": "Neprobíhají žádné cechovní války.",
       "notStartedYet": "Válka cechů ještě nezačala. \nMůžete vstoupit od {{date}} (KST).",
       "prepTimeAlert": "Je čas připravit se na další cechovní bitvu. \nMůžete vstoupit od {{date}} (KST).",
@@ -5865,7 +6857,7 @@
       "rewardAlreadyClaimed": "Již jste obdrželi odměnu z předchozí cechovní bitvy.",
       "rewardClaimHint": "Získejte odměny z předchozí cechovní bitvy. Když příští cechovní válka skončí, předchozí odměny zmizí.",
       "rewardUnavailable": "Odměna není k dispozici nebo není v daný okamžik k dispozici. (Od 1 hodiny po skončení války do konce další cechovní války)",
-      "rewardClaimedBtn": "Obdržená odměna",
+      "rewardClaimedBtn": "Dokončení přijato",
       "claimRewardBtn": "Získejte odměnu",
       "noRecord": "žádný záznam",
       "enter": "pozice",
@@ -5883,14 +6875,14 @@
       "currentOccupier": "současný okupant",
       "none": "neexistuje",
       "capturesCount": "{{count}} výherních kamenů",
-      "scoreDiff": "Rozdíl v domě {{count}}Dům",
-      "scoreDiffShort": "rozdíl {{count}}domu",
+      "scoreDiff": "dům rozdíl {{count}}dům",
+      "scoreDiffShort": "rozdíl {{count}}dům",
       "targetScore": "cílové skóre",
       "pointsUnit": "{{count}}bodů",
       "mode": "režimu",
       "board": "šachovnice",
       "boardLines": "{{size}} řádek",
-      "turnLimit": "limit zatáčky",
+      "turnLimit": "limit obratu",
       "turnsUnit": "{{count}}otočky",
       "scoringTurns": "{{count}} se změní na počítání ceny",
       "clock": "zápasové hodiny",
@@ -5924,7 +6916,7 @@
       "inProgress": "Probíhá",
       "gameSummary": "Ukončit {{games}} kola · Výhry {{wins}} · Remízy {{remízy}} · Prohry {{losses}}{{stars}}",
       "starsEarnedSum": "· Celkem podle akvizice {{count}}",
-      "noBoardRecord": "O tomto oddělení v této válce není žádný záznam.",
+      "noBoardRecord": "O tomto oddělení v této válce nejsou žádné záznamy.",
       "finishedGamesDetail": "Ukončit podrobnosti zápasu",
       "noFinishedGames": "Neexistují žádné cechovní bitvy, které by ještě skončily.",
       "inProgressHint": "Po dokončení se zde zobrazí probíhající edice.",
@@ -5955,10 +6947,17 @@
     },
     "boss": {
       "title": "Bitva Guild Boss",
+      "names": {
+        "boss_1": "naslouchání",
+        "boss_2": "výtečnost",
+        "boss_3": "zelená voda",
+        "boss_4": "hloubka",
+        "boss_5": "bílé světlo"
+      },
       "guide": "Šéf encyklopedie",
       "guideTitle": "Encyklopedie Guild Boss",
       "stage": "{{stage}}etapa",
-      "bossSkillsAria": "Dovednost šéfa",
+      "bossSkillsAria": "Schopnost šéfa",
       "participants": "Zúčastněný člen cechu",
       "myRecord": "moje záznamy",
       "ranking": "Pořadí",
@@ -6000,7 +6999,7 @@
       "battleResultTitle": "výsledek bitvy",
       "battleResultHeading": "Výsledky bitvy {{bossName}}",
       "totalDamageDealt": "Celková škoda: {{damage}}",
-      "turnsSurvived": "Zatáčky přežití:",
+      "turnsSurvived": "Obraty přežití:",
       "turnsUnit": "{{count}} otočení",
       "bossHpRemaining": "Zbývající zdraví šéfa ({{percent}} %)",
       "cumulativeRank": "Hodnocení kumulativního poškození",
@@ -6047,11 +7046,11 @@
       "guildXp": "Zkušenosti s cechem",
       "researchPoints": "Laboratorní body",
       "enhancementStoneLow": "Menší kámen kouzel",
-      "enhancementStoneMid": "Středně pokročilý kámen",
+      "enhancementStoneMid": "Mezivýztužný kámen",
       "enhancementStoneHigh": "Pokročilý kouzelný kámen",
       "enhancementStoneTop": "Špičkový výztužný kámen",
       "enhancementStoneMystic": "Tajemný posilovací kámen",
-      "materialBox1": "Materiál krabice I",
+      "materialBox1": "Materiál box I",
       "materialBox2": "Materiál box II",
       "materialBox3": "Materiál box III",
       "materialBox4": "Materiál box IV"
@@ -6122,7 +7121,7 @@
     },
     "shopLegacy": {
       "empty": "Nejsou žádné položky na prodej.",
-      "goldPrice": "{{price}} Zlato",
+      "goldPrice": "{{price}} zlato",
       "stock": "Inventář: {{remaining}}/{{total}}",
       "purchase": "nákup",
       "purchaseFailed": "Váš nákup se nezdařil."
@@ -6168,7 +7167,7 @@
     "refundPolicy": {
       "title": "Zásady zrušení/vrácení peněz",
       "eyebrow": "Zásady vrácení peněz",
-      "intro": "Rádi bychom vás informovali o zrušení a vrácení zaplaceného obsahu. Tyto předpisy byly sepsány v souladu s příslušnými zákony a předpisy, jako je například zákon o elektronickém obchodu."
+      "intro": "Rádi bychom vás informovali o zrušení a vrácení zaplaceného obsahu. Tyto předpisy byly sepsány v souladu s příslušnými zákony a předpisy, jako je zákon o elektronickém obchodu."
     },
     "purchaseConsent": {
       "title": "Zkontrolujte průběh platby",

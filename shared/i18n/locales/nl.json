@@ -27,7 +27,7 @@
     },
     "languageSelect": {
       "label": "taal",
-      "placeholder": "Kies uw taal"
+      "placeholder": "Selecteer een taal"
     },
     "connection": {
       "reconnecting": "Opnieuw verbinding maken met de server...",
@@ -134,7 +134,7 @@
     "timesUnit": "{{count}} keer",
     "quickMenuAria": "snelmenu",
     "helpCenter": "Helpcentrum",
-    "helpCenterHint": "U kunt deze op elk gewenst moment opnieuw bekijken in ons Helpcentrum.",
+    "helpCenterHint": "Je kunt het altijd opnieuw bekijken in ons Helpcentrum.",
     "disconnectNotice": {
       "title": "Kennisgeving einde spel",
       "logoutTitle": "Uitloginstructies",
@@ -142,7 +142,7 @@
       "loggingOut": "U wordt uitgelogd."
     },
     "autoProceed": "Tot automatische voortgang",
-    "autoProceedShort": "automatische voortgang",
+    "autoProceedShort": "automatisch vooruit",
     "autoSelectUntil": "Tot automatische selectie",
     "autoSelectShort": "automatische selectie",
     "nextRoundAuto": "Tot volgende ronde automatische start",
@@ -258,15 +258,15 @@
     "second": "Hugong",
     "firstBlack": "Eerst aanvallen (zwart)",
     "secondWhite": "Hugong (wit)",
-    "chooseTurn": "Kies ervoor om als eerste of als laatste te gaan.",
+    "chooseTurn": "Kies ervoor om als eerste of als tweede te gaan.",
     "chooseTurnCountdown": "Kies ervoor om als eerste of als laatste te gaan. ({{aftellen}})",
     "opponentChoosingSecond": "De tegenstander kiest ervoor om als tweede te spelen...",
     "readyCountdown": "Klaar ({{countdown}})",
-    "waitingOpponentRoll": "Wachten op tegenstander...",
+    "waitingOpponentRoll": "Wachten op de andere partij...",
     "rollingDice": "Gooi de dobbelstenen...",
     "tieReroll": "stropdas! Rol na een tijdje opnieuw.",
     "rollToDecide": "Druk op de klaar-knop om met de dobbelstenen te gooien. De persoon met het hoogste nummer kiest ervoor om als eerste/laatste te gaan.",
-    "diceWin": "{{name}} won en er werd besloten wie als eerste/laatste zou gaan.",
+    "diceWin": "{{name}} heeft gewonnen en er werd besloten om als eerste/laatste te gaan.",
     "diceAutoStart": "Klik op de startknop hieronder, anders start de wedstrijd na 30 seconden automatisch.",
     "colorRouletteTitle": "kleur baduk",
     "uniformColorRoulette": "uniforme kleurenroulette",
@@ -287,8 +287,8 @@
     "baseConfirm": "Controleer de basispop",
     "reviewMode": "herstelmodus",
     "originalGame": "Originele notatie",
-    "rotateToWhite": "Uitzicht vanuit het standpunt van Wit",
-    "rotateToBlack": "Uitzicht vanuit het standpunt van zwart",
+    "rotateToWhite": "Uitzicht vanuit het perspectief van Wit",
+    "rotateToBlack": "Uitzicht vanuit het perspectief van zwart",
     "closeViewer": "dichtbij",
     "replayFirst": "voor de eerste keer",
     "replayBack5": "5 zetten terug",
@@ -310,7 +310,7 @@
       "ariaLabel": "hoofdmenu",
       "entranceClosedTitle": "De toegang is gesloten",
       "home": "thuis",
-      "singleplayer": "Baduk Academie",
+      "singleplayer": "Baduk-academie",
       "tower": "Toren van uitdaging",
       "arena": "stadion",
       "tournament": "kampioenschap",
@@ -324,7 +324,7 @@
       "logoutConfirm": "Wilt u uitloggen?",
       "actionPointRechargeShop": "Actie Opwaarderen (Winkel)",
       "actionPointRecharge": "Actie opladen",
-      "participationTickets": "Deelnamerechten voor gilden/kampioenschappen",
+      "participationTickets": "Deelnamerechten voor gilde/kampioenschap",
       "guildChampCoins": "Gildemunt/Champ-munt",
       "admin": "manager"
     },
@@ -354,7 +354,7 @@
       "blacksmith": "smederij",
       "shop": "winkel",
       "inventory": "tas",
-      "pet": "verzorging van huisdieren",
+      "pet": "huisdier",
       "trainingQuest": "Trainingstaak",
       "detailedStats": "Gedetailleerde gegevens van het PVP-stadion",
       "monsterCodex": "Monster-encyclopedie",
@@ -362,7 +362,7 @@
       "gameRecords": "notatie",
       "encyclopedia": "Encyclopedie",
       "announcements": "kennisgeving",
-      "help": "Helpcentrum",
+      "help": "hulp",
       "menu1": "Menu 1",
       "menu2": "Menu 2"
     },
@@ -425,7 +425,7 @@
     "kakao": "cacao",
     "google": "googlen",
     "ban": {
-      "title": "Toegang is verboden.",
+      "title": "Verbinding is verboden.",
       "reason": "Reden: {{reden}}",
       "remainingMinutes": "Resterende duur: ongeveer {{minutes}} minuten",
       "expiresAt": "Geplande release: {{date}}",
@@ -501,7 +501,7 @@
     "callback": {
       "noAuthCode": "Ik kan geen verificatiecode ontvangen.",
       "kakaoProcessing": "Kakao-inlogverwerking...",
-      "kakaoProcessError": "Er is een fout opgetreden tijdens het verwerken van de Kakao-aanmelding.",
+      "kakaoProcessError": "Er is een fout opgetreden bij het verwerken van de Kakao-aanmelding.",
       "googleProcessing": "Google-aanmelding verwerken...",
       "googleProcessError": "Er is een fout opgetreden tijdens het verwerken van Google-aanmelding.",
       "backToLogin": "Keer terug naar de inlogpagina"
@@ -539,15 +539,15 @@
     "descriptions": {
       "standard": "Dit is een typische klassieke baduk.",
       "capture": "Het spel Baduk wordt gewonnen door de eerste persoon die een bepaald aantal stenen krijgt.",
-      "speed": "Als je hem binnen {{seconds}} seconden per beurt plaatst, krijg je {{seconds}} seconden terug. Voor elke {{seconds}} seconden wordt 1 punt toegevoegd aan je tegenstander.",
-      "base": "Het is een baduk-spel waarbij je kijkt naar de rangschikking van de basisstenen, een bonus voor je tegenstander instelt, de stenen van je keuze gebruikt en strijdt op basis van je vermogen om de situatie te analyseren.",
+      "speed": "Als u deze binnen {{seconds}} seconden plaatst, genereert u {{seconds}} seconden opnieuw. Voor elke {{seconds}} seconden wordt 1 punt toegevoegd aan je tegenstander.",
+      "base": "Het is een baduk-spel waarbij je kijkt naar de rangschikking van de basisstenen, een bonus voor je tegenstander instelt, de stenen van je keuze gebruikt en concurreert op basis van je vermogen om de situatie te analyseren.",
       "hidden": "Een comeback met een zet die onzichtbaar is voor de tegenstander! Psychologische oorlogsvoering en leesvaardigheid zijn vereist via verborgen en gescande items.",
       "missile": "Creëer een variabele door de steen te verplaatsen die als raketitem is geplaatst.",
       "uniform": "Go is een spel waarbij geheugen nodig is om alle stenen in één kleur te zien.",
       "castle": "Het is een strategisch Go-spel waarin je territorium veiligstelt met behulp van willekeurig geplaatste kastelen en wint door slechts één steen te veroveren.",
       "chess": "Het is een strategisch spel van Baduk dat schaakstukken en Baduk combineert. Nadat je het stuk hebt verplaatst (optioneel), plaats je de Go-steen om de beurt te beëindigen.",
       "mix": "Het is een spel dat twee of meer speciale regels combineert.",
-      "dice": "Elke speler kan zoveel zwarte stenen gebruiken als het aantal gegooide getallen, en de speler met de meeste witte stenen wint.",
+      "dice": "Elke speler kan net zoveel zwarte stenen gebruiken als het aantal gegooide getallen, en de speler met de meeste witte stenen wint.",
       "thief": "Het is een strategisch dobbelspel waarbij je om de beurt de rol van een dief (zwart) en een politieagent (wit) op je neemt, waarbij je elk 5 beurten neemt, en winnen of verliezen wordt bepaald door de totaalscore.",
       "omok": "Dit is een klassiek spel waarbij je wint door als eerste vijf stenen op een rij te plaatsen.",
       "ttamok": "Je wint als je een concave maakt of als eerste de steen van de tegenstander krijgt.",
@@ -568,7 +568,7 @@
     "lose": "verlies",
     "score": "scoren",
     "timeLeft": "resterende tijd",
-    "chatPlaceholder": "Voer uw bericht in...",
+    "chatPlaceholder": "Voer uw bericht in…",
     "controls": {
       "passLabel": "passeren",
       "passTitle": "neem een ​​pauze",
@@ -588,7 +588,7 @@
       "recordAlreadySaved": "Al opgeslagen",
       "manageRecords": "Notatiebeheer",
       "hidden": "Verborgen",
-      "hiddenTitle": "Verborgen: Maak een zet zolang deze niet zichtbaar is voor de tegenstander.",
+      "hiddenTitle": "Verborgen: maak een zet zolang deze niet zichtbaar is voor de tegenstander.",
       "scan": "scannen",
       "scanTitle": "Scannen: Vind de verborgen stenen van de tegenstander.",
       "missile": "raket",
@@ -620,7 +620,7 @@
       "phaseMovesLeft": "{{fase}} {{count}}nummer",
       "petHintEquipPet": "Je kunt hints gebruiken door het representatieve huisdier uit te rusten.",
       "petHintDuringGame": "Het kan worden gebruikt als er een wedstrijd bezig is.",
-      "petHintMyTurnOnly": "Je kunt het alleen tijdens je beurt gebruiken.",
+      "petHintMyTurnOnly": "Je kunt het alleen gebruiken als je aan de beurt bent.",
       "petHintPhaseUsed": "Ik heb de hint in de sectie {{phase}} al gebruikt.",
       "petHintPhaseOnce": "Eenmaal in {{phase}} markeert het representatieve huisdier een goede plek.",
       "petHintPhaseRemaining": "{{phase}} {{count}} resterend — {{body}}",
@@ -650,7 +650,7 @@
       "evenDiceTitle": "Zelfs (2, 4, 6) dobbelstenen. Resterende telling {{count}}",
       "lowDiceAria": "Laag aantal dobbelstenen, aantal resterend {{count}}",
       "lowDiceTitle": "Laag aantal (1·2·3) dobbelsteenitems. Resterende telling {{count}}",
-      "highDiceAria": "Hoog aantal dobbelstenen, aantal resterend {{count}}",
+      "highDiceAria": "Hoog aantal dobbelsteenitems, resterende telling {{count}}",
       "highDiceTitle": "Hoog aantal (4, 5, 6) dobbelsteenitems. Resterende telling {{count}}",
       "oddDiceUse": "Gebruik oneven dobbelstenen",
       "evenDiceUse": "Gebruik gelijkmatige dobbelstenen",
@@ -666,17 +666,17 @@
       "stoneRefreshTitle": "stenen verhuizing",
       "rematch": "herkansing",
       "rematchApplying": "Toepassen",
-      "thiefHigh36Aria": "Hoog aantal (3-6) dobbelsteenitems, resterende telling {{count}}",
+      "thiefHigh36Aria": "Hoog aantal (3-6) dobbelstenen, aantal resterend {{count}}",
       "thiefHigh36Title": "Een dobbelsteen die alleen hoge cijfers laat zien (3, 4, 5, 6). Resterende telling {{count}}",
       "thiefNoOneAria": "Voorkom 1 (2~5) dobbelstenen, aantal resterend {{count}}",
       "thiefNoOneTitle": "Dobbelstenen die geen 1 (2, 3, 4, 5) opleveren. Resterende telling {{count}}",
       "thiefHigh36UseTitle": "Gebruik dobbelstenen met een hoog aantal (3-6).",
-      "thiefHigh36UseBody": "Gebruik één dobbelsteenitem dat slechts 3, 4, 5 en 6 oplevert. Als de politie aan de beurt is, liggen beide dobbelstenen binnen dit bereik. Wil je doorgaan?",
+      "thiefHigh36UseBody": "Gebruik één dobbelsteenitem waarop alleen 3, 4, 5 en 6 staan. Als de politie aan de beurt is, liggen beide dobbelstenen binnen dit bereik. Wil je doorgaan?",
       "thiefNoOneUseTitle": "Gebruik 1 preventiedobbelsteen",
       "thiefNoOneUseBody": "Gebruik één dobbelsteenitem dat slechts 2, 3, 4 of 5 oplevert (1 is niet mogelijk). Als de politie aan de beurt is, liggen beide dobbelstenen binnen dit bereik. Wil je doorgaan?"
     },
     "board": {
-      "rotateSpectatorBlack": "Uitzicht vanuit het standpunt van zwart",
+      "rotateSpectatorBlack": "Uitzicht vanuit het perspectief van zwart",
       "rotateSpectatorWhite": "Uitzicht vanuit het standpunt van Wit",
       "rotate180": "dambordrotatie 180 graden",
       "paused": "onderbreken",
@@ -715,15 +715,15 @@
       "hiddenFinalReveal": "We onthullen alle verborgen stenen en beginnen met tellen.",
       "autoScoringAdventure": "Automatische boekhouding wordt uitgevoerd.",
       "autoScoringReached": "Het automatische systeem bereikt de procedure en begint met tellen.",
-      "alkkagiRePlace": "Plaats de stenen opnieuw. ({{ronde}} / {{totaal}} ronde)",
-      "alkkagiPlace": "Plaats de stenen. ({{ronde}} / {{totaal}} ronde)",
-      "alkkagiPlayerTurn": "Het is de beurt aan {{naam}}. ({{ronde}} / {{totaal}} ronde)",
+      "alkkagiRePlace": "Plaats de stenen opnieuw. ({{ronde}} / {{totaal}} rondes)",
+      "alkkagiPlace": "Plaats de stenen. ({{ronde}} / {{totaal}} rondes)",
+      "alkkagiPlayerTurn": "Het is de beurt aan {{naam}}. ({{ronde}} / {{totaal}} rondes)",
       "alkkagiRoundEnd": "Ronde uiteinden - Controleer en ga verder op het elektronische bord hieronder.",
       "diceRollTurn": "Het is de beurt van {{name}} om met de dobbelstenen te gooien.",
       "diceRollTurnGeneric": "Het is tijd om met de dobbelstenen te gooien",
       "tiebreakerDeciding": "Beslissen over de winnende bestelling...",
       "tiebreakerPlaying": "Wedstrijd bezig... (de beurt van {{name}})",
-      "diceModeRound": "Dice Go ({{ronde}} / {{total}} rondes)",
+      "diceModeRound": "Dobbelsteen Baduk ({{ronde}} / {{totaal}} ronde)",
       "thiefModeRound": "Dieven en politie ({{round}} ronde)",
       "preparing": "Spel voorbereiden...",
       "timeoutFoul": "Time-over-fout van {{name}}!",
@@ -733,9 +733,9 @@
       "timeoutFoulPassTurn": "De beurt gaat naar de tegenstander.",
       "timeoutFoulLoseStone": "Je verliest 1 steen en je beurt eindigt.",
       "timeoutFoulDefault": "Als u de tijdslimiet overschrijdt, wordt u bestraft.",
-      "baseKomiGuide": "Bepaal welke stenen en bonussen je wilt plaatsen. Als je dezelfde steen kiest, is degene die je de meeste bonussen oplevert de steen die je wilt behouden.",
-      "alkkagiPlaceHidden": "Plaats de stenen zo dat ze niet zichtbaar zijn voor je tegenstander. ({{ronde}} / {{totaal}} ronde)",
-      "alkkagiPlaceMissing": "Plaats de ontbrekende stenen. ({{ronde}} / {{totaal}} ronde)",
+      "baseKomiGuide": "Bepaal welke stenen en bonussen je wilt behouden. Als je dezelfde steen kiest, is degene die je de meeste bonussen oplevert de steen die je wilt behouden.",
+      "alkkagiPlaceHidden": "Plaats de stenen zo dat ze niet zichtbaar zijn voor je tegenstander. ({{ronde}} / {{totaal}} rondes)",
+      "alkkagiPlaceMissing": "Plaats de ontbrekende stenen. ({{ronde}} / {{totaal}} rondes)",
       "placementProgress": "geplaatst {{geplaatst}}/{{target}}",
       "timeRemainingSec": "Resterende tijd: {{sec}} seconden",
       "alkkagiRoundWin": "Ronde {{round}} — {{name}} wint",
@@ -805,7 +805,7 @@
       "captureScore": "Vangscore:",
       "lastPileBonus": "Laatste dummybonus:",
       "finalScoreLabel": "eindscore",
-      "houseScoreGain": "Punten verdiend",
+      "houseScoreGain": "Score verdiend",
       "houseUnit": "huis",
       "playerWins": "{{naam}} wint!",
       "cumulativeScore": "cumulatieve score",
@@ -843,7 +843,7 @@
       "resignWinMsg": "Wij hebben gewonnen omdat onze tegenstander zich van stemming onthield.",
       "resignLossMsg": "Onthield zich van stemming en verloor.",
       "turnLimitWinMsg": "Je hebt gewonnen omdat alle beperkte beurten van je tegenstander opgebruikt waren.",
-      "turnLimitLossMsg": "Ik verloor omdat mijn beurtlimiet voorbij was.",
+      "turnLimitLossMsg": "Het aantal beurten was beperkt en je verloor.",
       "castleWinMsg": "Ik won de steen van de tegenstander en won onmiddellijk.",
       "castleLossMsg": "Ik verloor omdat mijn tegenstander de steen ving.",
       "checkmateWinMsg": "Ik won schaakmat door de koning van de tegenstander te winnen.",
@@ -856,7 +856,7 @@
       "omokWin": "Concave voltooiing",
       "omokLoss": "Concave voltooiing van de tegenstander",
       "captureGoalWin": "Gewonnen doelpunt voltooid",
-      "captureGoalLoss": "Voltooiing van het winnen van het doelpunt van de tegenstander",
+      "captureGoalLoss": "Het bereiken van het doel van de tegenstander is voltooid",
       "rankingScore": "rangschikkingsscore",
       "mannerScore": "manier scoren",
       "noChange": "geen verandering",
@@ -865,7 +865,7 @@
       "mannerRank": "wijze klasse",
       "starsEarned": "sterren verdienen",
       "starsEarnedAria": "{{count}} sterren verdiend",
-      "petGradeUpgradeNeeded": "Het huisdierniveau moet worden versterkt",
+      "petGradeUpgradeNeeded": "De huisdierenklasse moet worden versterkt",
       "representativePet": "representatief huisdier",
       "addedStats": "Toegevoegde vaardigheden",
       "vipSlotReward": "VIP-slotbeloningen",
@@ -924,7 +924,7 @@
         "none": "bestaat niet",
         "byoyomi": "aftellen",
         "byoyomiFischer": "{{seconden}} seconden Visser",
-        "byoyomiCount": "{{count}} keer {{seconden}} seconden",
+        "byoyomiCount": "{{count}} maal {{seconden}} seconden",
         "mixRules": "combinatie regels",
         "forbid33": "Geen tweeling",
         "forbidOverline": "geen blokhout",
@@ -934,7 +934,7 @@
         "captureTargetCount": "{{graaf}}",
         "captureTargetBoth": "Zwart: {{zwart}} / Wit: {{wit}}",
         "captureTargetPending": "{{count}} (zwart/wit wordt beslist)",
-        "castle": "Kasteel",
+        "castle": "kasteel",
         "castleCount": "{{graaf}}",
         "baseStones": "basis pop",
         "hiddenStones": "Verborgen steen",
@@ -960,7 +960,7 @@
       "mannerPrefix": "manieren",
       "honorificSuffix": "meneer",
       "adminResignConfirm": "Wil je de overwinning van {{loser}} (winnaar: {{winner}}) verwerken?",
-      "expand": "Zijbalk uitvouwen",
+      "expand": "Vouw zijbalk uit",
       "collapse": "Zijbalk samenvouwen",
       "adminForceResignWin": "{{name}} gewonnen door opname"
     },
@@ -1010,7 +1010,7 @@
       "movesCount": "{{count}}tel",
       "roundLabel": "ronde",
       "roundOf": "Ronde {{huidige}}/{{totaal}}",
-      "roundOfSegment": "Ronde {{current}} / {{total}}",
+      "roundOfSegment": "Ronde {{current}} / {{totaal}}",
       "remainingPlacements": "Er zijn nog {{count}} lanceringen over",
       "remainingStones": "resterende stenen",
       "diceRollAriaHint": "Het gooien van de dobbelstenen. Het aantal resterende stenen wordt weergegeven nadat de worp is voltooid.",
@@ -1176,7 +1176,11 @@
       "scoringTurnValue": "{{bochten}}beurten",
       "forbidden": "verbod",
       "allowed": "mogelijk",
-      "speedNormal": "algemeen"
+      "speedNormal": "algemeen",
+      "confirm": "rekening",
+      "gaugeSpeedSlow": "x1 (langzaam)",
+      "gaugeSpeedNormal": "x2 (normaal)",
+      "gaugeSpeedFast": "x3 (snel)"
     },
     "challengeModal": {
       "rejected": "Afwijzen",
@@ -1189,7 +1193,7 @@
       "mixRulesMinHint": "Selecteer minimaal twee regels.",
       "boardKomiCapture": "Ga aan boord, berekening, bonus, winnen",
       "boardSize": "schaakbord",
-      "boardLines": "{{size}}lijn",
+      "boardLines": "Regel {{maat}}",
       "komiWhite": "Bonus (zak)",
       "komiHalf": ".5 huis",
       "captureTarget": "doelscore",
@@ -1266,7 +1270,7 @@
         "title": "gebrek aan actie",
         "rechargeMethods": "Oplaadmethode",
         "shopConsumables": "Winkel · Verbruiksartikelen",
-        "buyPotion": "Koop een actiehersteldrankje",
+        "buyPotion": "Koop een gedragshersteldrankje",
         "buyPotionLimit": "· 1 per dag per type",
         "diamondInstant": "Diamond laadt onmiddellijk op",
         "diamondInstantHint": "Je kunt je actiekracht op elk gewenst moment aanvullen.",
@@ -1311,7 +1315,7 @@
       "missileFirstTurn": "Als je in de eerste beurt een raket gebruikt, kun je Deployment Change niet gebruiken.",
       "noRefreshesLeft": "Van alle verplaatsingen is gebruik gemaakt.",
       "waitForStart": "Je kunt opnieuw positioneren zodra het spel begint.",
-      "beforeFirstMove": "U kunt alleen verhuizen voordat de eerste verhuizing heeft plaatsgevonden.",
+      "beforeFirstMove": "Je kunt alleen herpositioneren voordat de eerste zet is gedaan.",
       "insufficientGold": "Ik heb geen goud meer.",
       "paused": "Herpositionering is niet mogelijk in de gepauzeerde toestand.",
       "confirmPaid": "Wil je {{gold}} goud gebruiken om de batch opnieuw te schudden? (resterende verhuizing {{resterend}}/5)",
@@ -1324,7 +1328,7 @@
       "confirmModalTitle": "Wijziging in indeling",
       "confirmModalMessagePaid": "{{priceLine}}\n\nWil je {{gold}} goud gebruiken om de batch opnieuw te schudden? (resterende verhuizing {{resterend}}/5)",
       "confirmModalMessageFree": "{{priceLine}}\n\nUw eerste verhuizing is gratis. Wilt u de batch opnieuw rangschikken?",
-      "towerRefreshTitle": "Wijziging in indeling",
+      "towerRefreshTitle": "Indelingswijziging",
       "towerRefreshMessage": "Beschikbare prijs: 1 batchvernieuwing\n\nWilt u de batch opnieuw rangschikken?",
       "towerShopHint": "Koop in de Top of Challenge-itemwinkel",
       "towerRefreshActive": "Batch vernieuwen",
@@ -1382,7 +1386,203 @@
       "curling": "krullen",
       "thiefPolice": "dief en politie",
       "classic": "klassiek",
-      "mix": "mengen"
+      "mix": "mengen",
+      "specialRules": "speciale regels",
+      "loseCondition": "Versla de omstandigheden",
+      "rulesAndGuide": "Spelregels en spelgids",
+      "rewards": "compensatie",
+      "availableRewards": "Verkrijgbare beloningen",
+      "summary": {
+        "loseTerritory": "Als de totaalscore (totaalscore) laag is of het huis in het nadeel is vanwege gelijkspel- of gelijkspelregels, verlies je.",
+        "loseTerritoryAuto": "Als je niet kunt winnen van {{base}} · {{auto}}, verlies je.",
+        "loseCaptureRace": "Als de tegenstander als eerste {{t}} punten scoort, verlies je. Anders verlies je als je weinig huizen in de familie hebt.",
+        "loseMix": "Als de tegenstander aan het einde van het spel als eerste aan de overwinningsvoorwaarden voldoet of in het nadeel is, verliest de tegenstander.",
+        "basePlacementAnalysis": "Analyse van de situatie na het vrijgeven van de plaatsing van de basispop",
+        "baseKomiSelect": "Stel de bonus in die je aan je tegenstander wilt geven · Selecteer de gewenste steen",
+        "autoScoringCaptureTurn": "Het automatisch tellen gaat verder wanneer {{n}} beurten zijn bereikt",
+        "autoScoringTerritoryWin": "Win de automatische telling na {{n}} beurten",
+        "autoScoringTerritoryLose": "Versla in automatisch spel na {{n}} beurten",
+        "fischerOnly": "Visser {{sec}} seconden",
+        "byoyomiOnly": "Alleen aftellen · {{time}} seconden × {{count}} keer",
+        "noTimeLimit": "Geen tijdslimiet",
+        "limitFischer": "Beperk {{min}} minuten · Fisher {{sec}} seconden",
+        "limitByoyomi": "Beperk {{min}} minuten · Aftellen {{time}} seconden × {{count}} keer",
+        "limitNoByoyomi": "Limiet {{min}} minuten (geen aftelling)",
+        "factorTerritory": "grondgebied",
+        "factorCaptured": "steen geplukt",
+        "factorDead": "riprap",
+        "factorKomi": "Bonus (zak)",
+        "factorBaseBonus": "basisbonus",
+        "factorHiddenBonus": "Verborgen bonus",
+        "factorSpeedBonus": "Toegestaan ​​{{sec}} seconden overschreden → Tegenstander +1",
+        "factorMissileEffect": "Weerspiegeling van de raketproductie",
+        "factorCaptureScore": "winnende score",
+        "factorMixFallback": "Afhankelijk van de moduscombinatie",
+        "factorCaptureNoTerritory": "Winnende score (geen huisberekeningen)",
+        "factorCastle": "Bevestigd gebied · Gewonnen steen · Bonus (wit)",
+        "factorChess": "Territorium · Geplukte steen · Steensteen · Verovering van item · Bonus (100)",
+        "factorOmok": "Do (winnen) — geen huisberekeningen",
+        "factorTtamok": "Nekwinst of winnende score",
+        "factorDice": "Winstscore van 100 stenen per ronde · Laatste winnende bonus",
+        "factorThief": "Totaal aantal punten verdiend per ronde",
+        "factorAlkkagi": "Aantal zetten van de tegenstander buiten het bord",
+        "factorCurling": "Stone scoort dichtbij het huis (doelpunt)",
+        "factorFallback": "Zie modusgids",
+        "factorStageDefault": "Afhankelijk van fase/modus",
+        "factorStageCapture": "winnende score",
+        "factorStageCapturePattern": "winnende score\n2 patroonstenen",
+        "factorStageSpeed": "Grondgebied, geplukte steen, riprap-steen, bonus\ntijd bonus",
+        "factorAdventureCaptureShort": "Kies · Embleem 2 punten",
+        "factorAdventureBase": "basis prijs",
+        "factorAdventureBaseStone5": "5 basispoppen",
+        "factorAdventureHidden": "Verborgen",
+        "factorAdventureSpeed": "uur",
+        "factorAdventureMissile": "raket",
+        "itemHidden": "Verborgen {{n}}",
+        "itemScan": "{{n}} scans",
+        "itemMissile": "{{n}} raketten",
+        "itemSpecialDice": "Speciale dobbelstenen {{samenvatting}}",
+        "itemSlowAim": "Langzaam {{langzaam}} · Richt {{aim}}",
+        "mixCaptureWin": "Als er als eerste {{t}} punten worden behaald, win dan onmiddellijk. Als dit niet lukt, vergelijk dan huizen na de winnende prijs.",
+        "mixCaptureWinWithAuto": "Winnen: als er als eerste {{t}} punten worden behaald, win dan onmiddellijk · Indien niet behaald, vergelijk huizen na de limiet · {{auto}}",
+        "mixAutoTerritoryWin": "{{auto}} — Wie de meeste huizen heeft, wint",
+        "mixComboTail": "Combinaties ({{modes}}) — Win of verlies op basis van regels aan het einde",
+        "mixDefaultEnd": "Aan het einde wordt de winnaar of verliezer bepaald volgens de regels.",
+        "highlightPatternStone2": "Patroonstenen plukken 2 punten",
+        "highlightHiddenScan": "Verborgen lancering · Ontdek door te scannen",
+        "highlightMissileMove": "Verplaats de steen in een rechte lijn met een raket",
+        "speedPvpHighlight": "Toegestane aftelling van 10 seconden · Tegenstander +1 punt voor elke overschreden 10 seconden · Tijdverlies als de hoofdtijd om is",
+        "highlightSurvival": "Red Baduk · Doelscore binnen {{n}} beurten",
+        "highlightAutoScoring": "Automatisch tellen na {{n}} nummer",
+        "highlightBlackTurnLimit": "Zwart {{n}} beurtlimiet",
+        "highlightTurnAdd": "{{n}} extra beurten",
+        "highlightMissile": "{{n}} raketten",
+        "highlightHiddenScanCounts": "{{verborgen}} verborgen · {{scan}} gescand",
+        "spTimeMainFischer": "Belangrijkste {{min}} minuten · Toegestane aftelling van {{sec}} seconden",
+        "spTimeFischerOnly": "Aftellen tot toegestane {{sec}} seconden",
+        "spTimeUnlimited": "Geen limiet",
+        "goalSurvivalWinLabel": "blokkeer terug",
+        "goalSurvivalWinHelper": "Blokkeer 100 doelen gedurende {{n}} beurten",
+        "goalSurvivalLoseLabel": "honderd succes",
+        "goalSurvivalLoseHelper": "Als wit een doelpunt maakt, mislukt het.",
+        "goalCaptureWinLabel": "plukken",
+        "goalCaptureWinHelper": "Scoor punten door de stenen van de tegenstander te omsingelen.",
+        "goalCaptureLoseTurnLabel": "beurten overschreden",
+        "goalCaptureLoseTurnHelper": "Als je dit niet binnen {{n}} beurten doet, faal je.",
+        "goalCaptureLoseFirstLabel": "tegenstander eerst",
+        "goalCaptureLoseFirstHelper": "Als je tegenstander als eerste wint, faal je.",
+        "goalSpeedWinLabel": "snel",
+        "goalSpeedWinHelper": "Op tijd een huis bouwen",
+        "goalSpeedLoseLabel": "Score dertien",
+        "goalSpeedLoseHelper": "Mislukking als er weinig huizen zijn",
+        "goalAutoWinLabel": "veel huizen",
+        "goalAutoWinHelper": "Bereken het huis na {{n}}",
+        "goalAutoLoseLabel": "gebrek aan huizen",
+        "goalAutoLoseHelper": "{{n}}Als je tijdens de zet in het nadeel bent, faal je.",
+        "goalDefaultWinLabel": "een huis bouwen",
+        "goalDefaultWinHelper": "Bouw een huis in de omgeving",
+        "goalDefaultLoseLabel": "gebrek aan huizen",
+        "goalDefaultLoseHelper": "Mislukking als er weinig huizen zijn",
+        "guideTurnLimitTitle": "draailimiet",
+        "guideTurnLimitBody": "Eindig over {{n}} beurten",
+        "guideSurvivalTitle": "stang",
+        "guideSurvivalBody": "Blokkeer 100 doelen gedurende {{n}} beurten",
+        "guideAutoScoringTitle": "Berekening prijs",
+        "guideAutoScoringBody": "Bereken het huis na {{n}}",
+        "guidePatternStoneTitle": "patroon steen",
+        "guidePatternStoneBody": "2 punten als je wint",
+        "guideSpeedTitle": "snelheid",
+        "guideSpeedBody": "Als je het te laat laat, krijgt je tegenstander +1 punt.",
+        "guideTurnAddTitle": "Voeg beurt toe",
+        "guideTurnAddBody": "Verhoog de draailimiet",
+        "guideMissileTitle": "raket",
+        "guideMissileBody": "Kies een steen en duw deze in een rechte lijn",
+        "guideHiddenScanTitle": "Verborgen · Scannen",
+        "guideHiddenScanBody": "Verberg {{hidden}} · Zoek {{scan}}",
+        "advCaptureWin": "winnen",
+        "advCaptureLose": "Winnen, verliezen, time-out",
+        "advTerritoryWin": "Gy wint",
+        "advTerritoryWinAuto": "Tel overwinningen · {{n}} beweegt automatisch",
+        "advTerritoryLose": "Het systeem wordt verslagen en de tijd raakt op.",
+        "advTimeLimit": "Limiet van {{mins}} minuten",
+        "gwCaptureWinAuto": "{{cap}} punten eerst of {{limit}} beurttelling wint",
+        "gwCaptureWin": "Als u als eerste {{cap}} punten behaalt, wint u.",
+        "gwCaptureLose": "Tegenstander {{cap}} wijst als eerste",
+        "gwTerritoryWinAuto": "Automatische berekening van {{limit}} aantal overwinningen",
+        "gwTerritoryWin": "Als jouw familie meer huizen heeft, win jij.",
+        "gwTerritoryLose": "In de minderheid, de tijd overschreden",
+        "captureWin": "Verkrijg eerst de steen van de tegenstander {{t}} punten",
+        "captureWinWithAuto": "Verkrijg de steen van de tegenstander {{t}} punten eerst · {{auto}}",
+        "territoryWinDefault": "Na het tellen wint de kant met de meeste huizen.",
+        "speedTerritoryWinDefault": "Wie de hoogste totaalscore heeft, wint na het tellen.",
+        "speedTerritoryLoseDefault": "Als uw totaalscore na het tellen laag is, verliest u.",
+        "castleWin": "Als je 1 of meer stenen van de tegenstander wint, win je onmiddellijk. Als er geen effectieve cijfers zijn, wordt het territorium berekend.",
+        "castleLose": "Als je tegenstander ook maar één steen vangt, verlies je. Als je weinig huizen in je familie hebt, verlies je.",
+        "castleHighlightCount": "{{kastelen}} kastelen · Kan voltooid gebied niet betreden",
+        "castleHighlightCapture": "Onmiddellijke overwinning na het veroveren van 1 steen",
+        "chessWin": "Na de aangegeven procedure volgt de berekening",
+        "chessLose": "Nederlaag bij Gyejia · Verlies onmiddellijk na het veroveren van de koning.",
+        "chessHighlightBudget": "Directe plaatsing van stukken binnen het puntenbudget van {{budget}} (koning vastgezet in het midden van de 2e rij)",
+        "chessHighlightMovement": "Het stuk kan één keer per beurt (beperkt aantal keren) met een schaakzet worden verplaatst.",
+        "omokWin": "Voltooi eerst vijf horizontale, verticale en diagonale items",
+        "omokLose": "Als je tegenstander als eerste alle vijf de items voltooit, verlies je.",
+        "omok33Forbidden": "Geen tweeling",
+        "omok33Allowed": "Tweelingen toegestaan",
+        "omokOverlineForbidden": "geen blokhout",
+        "omokOverlineAllowed": "Hout toegestaan",
+        "ttamokWin": "Voltooi eerst item 5 of behaal de eerste {{cap}} punten",
+        "ttamokLose": "Als je tegenstander als eerste 5 items voltooit of als eerste {{cap}} winnende punten bereikt, verlies je.",
+        "ttamokHighlightCapture": "Win als je als eerste {{cap}} punten behaalt.",
+        "diceWin": "De partij met de hoogste cumulatieve score na {{r}} ronde wint.",
+        "diceLose": "{{r}}Als je cumulatieve score aan het einde van de ronde laag is, verlies je.",
+        "diceHighlightRules": "Zwart landt evenveel als de ogen van de dobbelstenen, en wit wordt alleen op het uitgangspad geplaatst.",
+        "thiefWin": "Na 5 beurten x rondes wint de persoon met de hoogste totaalscore.",
+        "thiefLose": "Als je totaalscore aan het einde van de ronde laag is, verlies je.",
+        "thiefHighlightRoles": "Rolwisseling tussen dief (zwart) en politieagent (wit)",
+        "alkkagiWin": "Schakel alle stenen van de tegenstander uit",
+        "alkkagiLose": "Sla al mijn stenen eruit",
+        "alkkagiHighlightGauge": "Krachtcontrole met meter, muurreflectie",
+        "curlingWin": "Degene die de hoogste totale rondescore heeft, wint",
+        "curlingLose": "Als uw totaalscore laag is, verliest u.",
+        "curlingHighlightRules": "Steenschuif/rond systeem",
+        "fallbackWin": "Winst of verlies wordt bepaald op basis van de voortgang van de wedstrijd.",
+        "fallbackLose": "Als de nederlaag wordt bepaald door de voortgang van het spel, verlies je.",
+        "spDefaultWin": "Win wanneer aan de fasevoorwaarden is voldaan",
+        "spDefaultLose": "Verlies als niet aan de voorwaarden wordt voldaan",
+        "spSurvivalWin": "Het is niet gelukt om 100 {{tgt}} punten te behalen binnen {{n}} beurten",
+        "spSurvivalLose": "Behaal 100 {{tgt}} punten binnen {{n}} beurten",
+        "spCaptureTurnWin": "Verdien {{target}} punten binnen {{limit}} beurten",
+        "spCaptureTurnLoseBoth": "Overschrijd {{limit}} beurten / scoor 100 {{target}} punten",
+        "spCaptureTurnLoseMiss": "Kan doel niet bereiken binnen {{limit}} beurt",
+        "spCaptureRaceWin": "Ontvang eerst {{target}} punten",
+        "spCaptureRaceLose": "Ontvang eerst 100 {{target}} punten",
+        "spCaptureCapWin": "Ontvang eerst {{cap}} punten",
+        "spCaptureCapLose": "Wit krijgt eerst {{cap}} punten",
+        "spCaptureGoalWin": "Doelscore behalen",
+        "spCaptureGoalLose": "Baek bereikt als eerste zijn doel",
+        "spSpeedWin": "Team wint op totaalscore",
+        "spSpeedLose": "verslagen in de wereld",
+        "spAutoScoringWin": "{{n}}overwinningen na tellen",
+        "spAutoScoringLose": "{{n}}Verslagen na Sugyega",
+        "spLegacyTurnWin": "{{target}} punten of meer binnen een beurt van {{limit}}",
+        "spLegacyTurnLose": "Kan doel niet bereiken binnen {{limit}} beurt",
+        "spLegacyTerritoryWin": "De familie zwart {{zwart}} huis+ · wit {{wit}} huis+",
+        "spLegacyTerritoryLose": "doelgebied niet bereikt",
+        "spTerritoryWin": "Als de familie meer huizen heeft, winnen ze.",
+        "spTerritoryLose": "Dertiende in lijn"
+      },
+      "itemSlot": {
+        "hiddenStone": "Verborgen steen",
+        "scan": "scannen",
+        "missile": "raket",
+        "diceOdd": "Vreemde dobbelsteenitems",
+        "diceEven": "Zelfs dobbelstenen",
+        "diceLow": "Laag aantal (1-3) dobbelsteenitems",
+        "diceHigh": "Hoog aantal (4-6) dobbelsteenitems",
+        "slow": "langzaam",
+        "aimLine": "zichtlijn",
+        "turnAdd": "Voeg beurt toe"
+      }
     },
     "singlePlayerInfo": {
       "close": "dichtbij",
@@ -1418,7 +1618,7 @@
       "round1": "1e presentatie",
       "round2Suffix": "· 2e",
       "waitingBothBids": "We wachten tot beide partijen zwarte (goede) scores presenteren.",
-      "winnerLine": "{{name}}'s {{bid}} punt → Zwart (lijn), wit doel {{target}} punt",
+      "winnerLine": "{{name}}'s {{bid}} punt → zwart (lijn), wit doel {{target}} punt",
       "tieRandomBoth": "Het voorgestelde gelijkspel is hetzelfde. Zwart en wit worden willekeurig geselecteerd.",
       "tieRandom": "Gelijkspel — Zwart en wit worden willekeurig geselecteerd.",
       "tieRebid": "Gelijkspel — Verplaats om opnieuw uit te voeren.",
@@ -1478,7 +1678,8 @@
       "aria": "Tabblad Resultaten"
     },
     "speedPressure": {
-      "aria": "Toegestane tijd {{sec}} seconden"
+      "aria": "Toegestane tijd {{sec}} seconden",
+      "label": "Snelheidsbalk van 10 seconden"
     },
     "adventureResult": {
       "bossLine": "Baas: {{label}} +{{pct}}%",
@@ -1488,7 +1689,7 @@
       "timeMode": "tijd methode",
       "byoyomiOption": "Time-out + aftellen",
       "fischerOption": "Time-out + Visser",
-      "mainTimeLimit": "belangrijkste tijdslimiet",
+      "mainTimeLimit": "belangrijkste time-out",
       "timeLimit": "tijdslimiet",
       "byoyomi": "aftellen",
       "fischerIncrement": "Visser toevoegen"
@@ -1592,7 +1793,7 @@
       "basePrepTitle2": "Voorbereiding van het basisspel",
       "basePrepDesc2": "Bekijk hieronder zwart, wit en bonus.",
       "colorDecideTitle": "zwarte en witte kristallen",
-      "colorDecideDesc": "{{name}} · Zwart (lijn) · Huidig ​​punt van {{bid}}",
+      "colorDecideDesc": "{{name}} · Zwart (lijn) · Presentatie {{bid}} punt",
       "blackFirstSuffix": "· Ga eerst",
       "whiteSecondSuffix": "· Hugong",
       "myWinCondition": "mijn winvoorwaarden",
@@ -1612,7 +1813,10 @@
       "baseRule": "baseren",
       "whiteTargetLabel": "honderd doelpunten",
       "firstBlackRole": "Lijn (zwart)",
-      "meBadge": "mij"
+      "meBadge": "mij",
+      "captureBidResultTitle": "Resultaat van de winnende scorepresentatie",
+      "komiBidFinalRound": "Bonusbod (laatste ronde)",
+      "pressStartPrompt": "Zodra je klaar bent, klik je op Start om te beginnen met spelen."
     },
     "baseStoneChoice": {
       "hostPick": "De gastheer selecteert de kleurenplaat aan de linkerkant.",
@@ -1622,7 +1826,7 @@
       "teammate1": "(teamlid 1)",
       "teammate2": "(teamlid 2)",
       "sentWaiting": "Uw selectie is verzonden. Wacht tot je tegenstander is geselecteerd.",
-      "sent": "Verzonden de linkerselectie.",
+      "sent": "Verzonden de linker selectie.",
       "hostPickBothStones": "De gastheer kiest beide voorkeursstenen.",
       "sentBoth": "Ik heb beide keuzes verzonden.",
       "pairHostStones": "Gastheer: Kies om de beurt de voorkeurssteen van elke deelnemer.",
@@ -1642,8 +1846,10 @@
       "blackRole": "Eerste slag, zwart",
       "whiteRole": "Hugong · Terug",
       "finalCardAlt": "De laatste eerste en tweede zet worden weergegeven op de linker- en rechterkaart.",
-      "fastFlashAlt": "De zwart-witweergave in de twee ruimtes verandert, maar ligt na verloop van tijd vast aan de uiteindelijke opstelling.",
-      "smoothEndAlt": "Zwart-wit verandert snel en stopt willekeurig."
+      "fastFlashAlt": "De zwart-witweergave in de twee ruimtes verandert, maar ligt na verloop van tijd vast aan de uiteindelijke indeling.",
+      "smoothEndAlt": "Zwart-wit verandert snel en stopt willekeurig.",
+      "assignmentComplete": "Opdracht voltooid",
+      "blackCandidate": "Ga als eerste (zwarte) kandidaat"
     },
     "uniformColor": {
       "blackStone": "zwarte steen",
@@ -1658,7 +1864,7 @@
       "flashHintAlt": "De zwart-witte stenen veranderen snel en stoppen dan willekeurig."
     },
     "conditionPotion": {
-      "title": "Conditie betaling",
+      "title": "voorwaarde betaling",
       "currentCondition": "huidige toestand",
       "expectedRecovery": "Conditie na verwacht herstel",
       "applying": "Herstel toepassen...",
@@ -1679,7 +1885,8 @@
       "autoRouletteShort": "In plaats van steen worden papier, schaar, zwart en wit toegewezen met behulp van automatische roulette.",
       "checkingRoulette": "Rouletteresultaten controleren...",
       "waitingConfirm": "Wachten op bevestiging van andere partij...",
-      "startCountdown": "Start de wedstrijd ({{count}})"
+      "startCountdown": "Start de wedstrijd ({{count}})",
+      "autoStartHint": "Druk op Start, anders begint de wedstrijd na 30 seconden automatisch."
     },
     "diceGo": {
       "winner": "Als resultaat van de dobbelstenen won {{name}} en werd besloten om als eerste/laatste te gaan.",
@@ -1740,7 +1947,7 @@
       "tieDeathmatch": "De deathmatch gaat verder met een gelijkspel.",
       "swapRoles": "Wissel van rol en ga door naar de volgende ronde.",
       "round2Tie": "Ronde 2 eindigt. Als de score gelijk is, is het een deathmatch.",
-      "waitingConfirm": "Wachten op bevestiging van de tegenstander",
+      "waitingConfirm": "Wachten op bevestiging van partner",
       "nextRound": "volgende ronde",
       "piecesUnit": "hond"
     },
@@ -1797,7 +2004,7 @@
       "advanced": "Gevorderde klasse",
       "master": "Hoge Danban",
       "tower": "Toren van uitdaging",
-      "academy": "Baduk Academie",
+      "academy": "Baduk-academie",
       "stage": "Fase {{num}}",
       "returnLobby": "Ga terug",
       "currentStage": "huidige stadium",
@@ -1813,9 +2020,78 @@
       "editStage": "Fase bewerken",
       "editOrder": "Bestelling bewerken",
       "cancel": "annulering",
+      "exit": "Uitgang",
       "start": "Aan de slag",
       "singleStage": "enkele fase",
-      "masterClass": "een persoon met een kwalificatie"
+      "masterClass": "een persoon met een kwalificatie",
+      "goalSection": "doel",
+      "goalTurnCaption": "Beperkte beurt",
+      "goalTurnUnit": "draai",
+      "goalMySide": "mij",
+      "goalOpponentSide": "tegenstander",
+      "goalCaptureUnit": "plukken",
+      "goalSurvivalTurnCaption": "periode",
+      "goalSurvivalBlockCaption": "blokkeer terug",
+      "goalSurvivalPointUnit": "punt",
+      "turnLimit": "Beperkte beurten: {{count}} beurten",
+      "autoScoringGoal": "Automatisch tellen na {{count}} beurten",
+      "myCaptureGoal": "ik win {{count}}",
+      "opponentCaptureGoal": "Versla {{count}} tegenstanders",
+      "vs": "versus",
+      "survivalGoal": "Blokkeer {{target}} punten binnen {{turns}}beurten",
+      "territoryGoal": "Gy wint",
+      "modeTypeTabs": "soort baduk",
+      "modeGuideTitle": "Hoe te spelen",
+      "modeGuide": {
+        "missile": {
+          "step1Title": "raket voorwerp",
+          "step1Body": "Als ik aan de beurt ben, druk ik op de raketitemknop.",
+          "step1BodyItem": "Je kunt {{count}} raketten gebruiken in deze wedstrijd. Druk tijdens je beurt op de raketknop.",
+          "step2Title": "steen selectie",
+          "step2Body": "Selecteer mijn steen om te verplaatsen.",
+          "step3Title": "rechtlijnige beweging",
+          "step3Body": "Duw de steen in de richting van de lege ruimte om de situatie te veranderen."
+        },
+        "hidden": {
+          "step1Title": "Verborgen voorwerp",
+          "step1Body": "Gebruik de verborgen knop om bewegingen te maken die onzichtbaar zijn voor je tegenstander.",
+          "step1BodyItem": "Met Verborgen {{count}} kun je bewegingen maken die onzichtbaar zijn voor je tegenstander.",
+          "step2Title": "item scannen",
+          "step2Body": "Vind verborgen verdachte gebieden met de scanknop.",
+          "step2BodyItem": "Met {{count}} scans kunt u verborgen verdachte gebieden vinden.",
+          "step3Title": "Gebruik van artikelen",
+          "step3Body": "Verborgen scans zijn beperkt in aantal, dus kies verstandig uw timing."
+        },
+        "capture": {
+          "step1Title": "winnen",
+          "step1Body": "Je wint als je eerst de stenen van de tegenstander gelijk krijgt aan de doelscore.",
+          "step2Title": "patroon steen",
+          "step2Body": "Als je een patroonsteen wint, telt deze als 2 punten."
+        },
+        "speed": {
+          "step1Title": "tijd regels",
+          "step1Body": "Als je het niet binnen de gestelde tijd doet, krijgt je tegenstander meer punten.",
+          "step2Title": "Berekening prijs",
+          "step2Body": "Uiteindelijk wordt de winnaar of verliezer bepaald door de huis- en tijdbonussen bij elkaar op te tellen."
+        },
+        "base": {
+          "step1Title": "basis pop",
+          "step1Body": "Lees de situatie door naar de plaatsing van de basissteen te kijken.",
+          "step2Title": "bonus bod",
+          "step2Body": "Bepaal welke bonus je aan je tegenstander wilt geven en start het spel met de gewenste kleur/steen."
+        },
+        "classic": {
+          "step1Title": "een huis bouwen",
+          "step1Body": "Bouw huizen rond het gebied en beveilig meer huizen dan je tegenstanders.",
+          "step2Title": "Berekening prijs",
+          "step2Body": "Als beide partijen passen, wordt de winnaar bepaald door te tellen."
+        },
+        "survival": {
+          "tab": "Red Baduk",
+          "step1Title": "blokkeer terug",
+          "step1Body": "Voorkom dat wit (tegenstander) gedurende een bepaald aantal beurten de doelscore behaalt."
+        }
+      }
     },
     "towerShop": {
       "closeAria": "Sluit de aankoop van exclusieve topartikelen",
@@ -1841,7 +2117,7 @@
       "winRole": "overwinning! Neem de rol die jij wilt.",
       "winStart": "overwinning! Het begint met {{choice}}.",
       "lose": "verlies!",
-      "loseSecond": "verlies! Dit is een junior.",
+      "loseSecond": "verlies! Dit is Hugong.",
       "loseRole": "verlies! De ander kiest een rol.",
       "loseStart": "verlies! Je tegenstander begint met {{choice}}.",
       "first": "eerst toeslaan",
@@ -1867,7 +2143,7 @@
       "diceTitle": "{{round}}Ronde telling",
       "deathmatchStart": "Deathmatch begint",
       "viewFinal": "Bekijk eindresultaat",
-      "waitingConfirm": "Wachten op bevestiging van de tegenstander",
+      "waitingConfirm": "Wachten op bevestiging van partner",
       "dummyCapture": "{{naam}}",
       "previousRound": "vorige ronde",
       "previousKnockShort": "vorige klop",
@@ -1883,7 +2159,7 @@
       "lastDummyBonus": "Laatste stapel +{{bonus}}",
       "alkkagiKnockout": "knock-out",
       "playerFallback": "speler",
-      "waitingOpponentConfirm": "Wachten op bevestiging van de tegenstander",
+      "waitingOpponentConfirm": "Wachten op bevestiging van partner",
       "house": "huis",
       "knockout": "knock-out",
       "roundResultBoard": "ronde uitslagbord"
@@ -1892,7 +2168,7 @@
       "waiting": "Wachten op bevestiging van de andere partij...",
       "start": "Aan de slag",
       "autoProgress": "Tot automatische voortgang",
-      "autoProgressShort": "automatische voortgang"
+      "autoProgressShort": "automatisch vooruit"
     },
     "colorStart": {
       "title": "Controleer Nigiri"
@@ -1947,7 +2223,7 @@
       "moveConfirmButton": "Gebruik de startknop",
       "stonePreview": "Steenvoorbeeld (muisbeweging)",
       "lastMoveMarker": "laatste plaats weergeven",
-      "captureScoreAnimation": "Winnende score-animatie",
+      "captureScoreAnimation": "Animatie van de winnende score",
       "screenGuideModals": "hulp modaal",
       "screenGuideModalsHint": "Begeleiding bij eerste binnenkomst op het scherm. Indien uitgeschakeld, wordt het alleen geopend in het snelmenu “Help”.",
       "notifications": "alarm",
@@ -1974,7 +2250,7 @@
       "withdraw": "Opzegging van het lidmaatschap",
       "cancel": "annulering",
       "withdrawTitle": "Opzegging van het lidmaatschap",
-      "withdrawLine1": "Bij intrekking worden de gegevens verwijderd en kunnen deze niet worden hersteld.",
+      "withdrawLine1": "Gegevens worden bij intrekking verwijderd en kunnen niet worden hersteld.",
       "withdrawLine2": "Je kunt je gedurende 1 week niet opnieuw registreren met hetzelfde e-mailadres.",
       "withdrawPasswordConfirm": "wachtwoord verifiëren",
       "withdrawTextConfirm": "Voer de bevestigingstekst in: “Lidmaatschap opzeggen”",
@@ -1988,7 +2264,7 @@
         "withdrawConfirmMismatch": "De bevestigingstekst is onjuist. Vul ‘Lidmaatschap intrekken’ nauwkeurig in.",
         "usernameChangeFailed": "Er is een fout opgetreden bij het wijzigen van de ID.",
         "passwordChangeFailed": "Er is een fout opgetreden bij het wijzigen van uw wachtwoord.",
-        "withdrawFailed": "Er is een fout opgetreden bij het opzeggen van het lidmaatschap."
+        "withdrawFailed": "Er is een fout opgetreden bij het opzeggen van uw lidmaatschap."
       },
       "alerts": {
         "usernameChanged": "Uw identiteitsbewijs is gewijzigd.",
@@ -2066,7 +2342,7 @@
     },
     "playfulNotice": {
       "title": "Gids voor het spelen van baduk",
-      "body": "Rankingwedstrijden en seizoensscores worden niet gebruikt in het Play Baduk-stadion. Rangschikkingswedstrijden zijn alleen beschikbaar in de wachtkamer van Strategic Baduk."
+      "body": "Ranking-wedstrijd- en seizoensrankingsscores worden niet gebruikt in de Play Baduk-arena. Rangschikkingswedstrijden zijn alleen beschikbaar in de wachtkamer van Strategic Baduk."
     },
     "rankedUnavailable": {
       "title": "Geen gerangschikte wedstrijden",
@@ -2105,6 +2381,10 @@
       "forceLogout": "gedwongen te vertrekken",
       "forceLogoutConfirm": "Wil je [{{nickname}}] dwingen de verbinding te verbreken?",
       "invite": "Uitnodiging",
+      "challenge": "Een wedstrijd aanvragen",
+      "challengeUnavailable": "De andere partij is niet in staat matchverzoeken te ontvangen.",
+      "spectate": "Kijken",
+      "spectateUnavailable": "Ik kan geen wedstrijdinformatie vinden om te bekijken.",
       "blockInvites": "Geen uitnodiging",
       "blockInvitesTitle": "Indien ingeschakeld, kunnen andere spelers je niet uitnodigen als partner in Fair Arena.",
       "statusInPairRoom": "Je kunt je status niet wijzigen als je in een tweepersoonskamer bent.",
@@ -2278,7 +2558,7 @@
       "startMatching": "Begin met matchen (selecteer {{count}})",
       "selectedBadge": "gekozen",
       "roundUnit": "{{count}}rondes",
-      "boardSizeValue": "{{size}}lijn",
+      "boardSizeValue": "Regel {{maat}}",
       "scoringTurnValue": "{{count}}tel",
       "itemCountValue": "{{graaf}}",
       "slowItem": "langzaam",
@@ -2319,7 +2599,7 @@
       "baseStone": "basissteen",
       "captureGoal": "doel vastleggen",
       "turnsUnit": "{{count}}tel",
-      "linesUnit": "{{size}}lijn",
+      "linesUnit": "Regel {{maat}}",
       "pointsUnit": "{{score}} punten",
       "countUnit": "{{graaf}}",
       "halfPoint": ".5 huis",
@@ -2358,7 +2638,7 @@
     "rankingGuide": {
       "heading": "Scoregids",
       "howToRaise": "Hoe u uw score kunt verhogen",
-      "whereScoresRise": "Waar uw score omhoog gaat",
+      "whereScoresRise": "Waar je score omhoog gaat",
       "goToArena": "naar het stadion",
       "goToAdventure": "naar avontuur",
       "strategicLobby": "strategie wachtkamer",
@@ -2625,10 +2905,10 @@
       "classBarRewardClaimed": "Ontvangst voltooid",
       "classBarRewardClaim": "Ontvang beloning",
       "classBarRewardNeedClear": "Vereist {{mijlpaal}} etappe vrij",
-      "classBarRewardAria": "{{mijlpaal}} puntenbeloningen",
+      "classBarRewardAria": "{{mijlpaal}}puntbeloningen",
       "cleared": "Duidelijk voltooid",
-      "enterStage": "Toegang ⚡{{kosten}}",
-      "enterStageTitle": "Instap-/actiekracht {{cost}}",
+      "enterStage": "Uitdaging ⚡{{kosten}}",
+      "enterStageTitle": "Uitdagingsactie {{kosten}}",
       "locked": "vergrendeld",
       "unlockRequired": "Vereist {{stageId}}",
       "claimAll": "Bulk ontvangen ({{count}})",
@@ -2740,7 +3020,7 @@
     "abilityRequired": "Som van vaardigheden {{total}}+",
     "intro10Required": "Vereist clearing inleidend niveau 10",
     "intro20Required": "Vereist voltooiing van introductieniveau 20",
-    "goSchool": "Baduk Academie",
+    "goSchool": "Baduk-academie",
     "challengeTower": "Toren van uitdaging",
     "pvpArena": "PVP-Arena",
     "aiArena": "AI-wedstrijd",
@@ -2790,7 +3070,7 @@
     "bonus": "bonus",
     "bonusPoints": "Bonus {{punten}}P",
     "allocate": "verdeling",
-    "equipmentEffects": "apparatuur effect",
+    "equipmentEffects": "apparatuureffect",
     "effects": "effect",
     "editProfile": "Profiel bewerken",
     "mbtiUnset": "Niet ingesteld",
@@ -2920,7 +3200,7 @@
       "sanctionReasons": {
         "profanity": "Godslastering/laster",
         "spam": "Achtergrond/Spam",
-        "cheat": "Vermoedelijk illegaal programma",
+        "cheat": "vermoedelijk illegaal programma",
         "profile": "Ongepaste bijnaam/profiel",
         "other": "enz"
       },
@@ -2951,12 +3231,12 @@
       "avatarSelect": "Kies je avatar",
       "tierRequired": "Niveau {{tier}} van vorig seizoen vereist",
       "levelSumRequired": "Vereist niveausom {{level}}",
-      "goldPrice": "{{bedrag}} Goud",
+      "goldPrice": "{{bedrag}} goud",
       "diamondPrice": "{{bedrag}} diamant",
       "borderPurchaseConfirm": "Wilt u de '{{name}}' rand kopen voor {{price}}?",
       "borderPurchaseHint": "Klik om te kopen: {{description}}",
       "levelSumShort": "Niveausom {{level}}",
-      "tierShort": "{{niveau}} niveau",
+      "tierShort": "{{tier}} niveau",
       "borderCategoryAria": "soort rand",
       "newNickname": "nieuwe bijnaam",
       "nicknameHint": "2~6 karakters · Geen godslastering · Bij het wisselen worden diamanten verbruikt",
@@ -3024,7 +3304,7 @@
         },
         "F": {
           "name": "Emotie (F)",
-          "general": "Ze hebben een groot empathie en waarderen relaties met mensen. Neem beslissingen op basis van harmonie en samenwerking, en houd rekening met de gevoelens van anderen.",
+          "general": "Ze hebben een groot empathisch vermogen en waarderen relaties met mensen. Neem beslissingen op basis van harmonie en samenwerking, en houd rekening met de gevoelens van anderen.",
           "goStyle": "Het is een emotioneel ethos dat wordt beïnvloed door het momentum of de psychologie van de ander. Soms maken we gedurfde stappen die onredelijk lijken."
         },
         "J": {
@@ -3035,7 +3315,7 @@
         "P": {
           "name": "Perceptie (P)",
           "general": "Flexibel en aanpasbaar, flexibel reagerend op situaties. Ze waarderen autonomie en staan ​​open voor nieuwe ervaringen.",
-          "goStyle": "Het is een ethos dat bedreven is in het improviseren en het flexibel veranderen van activiteiten, afhankelijk van de situatie. Ik houd ervan om te improviseren in plaats van een vast proces te volgen."
+          "goStyle": "Het is een ethos dat bedreven is in het improviseren en het flexibel veranderen van activiteiten afhankelijk van de situatie. Ik houd ervan om te improviseren in plaats van een vast proces te volgen."
         }
       }
     },
@@ -3051,6 +3331,8 @@
     "mannerRank": {
       "title": "Informatie op manierniveau",
       "grade": "wijze klasse",
+      "effectsByGrade": "Effect per graad",
+      "currentBadge": "Vandaag",
       "rangeHint": "Dit zijn voordelen en straffen die voor elk scorebereik worden toegepast.",
       "allStatsPlus10": "Alle vaardigheden +10",
       "disassembleJackpot": "Ontbinding jackpotkans +20%",
@@ -3065,7 +3347,19 @@
       "scoreAbove": "{{min}} punten of meer",
       "scoreRange": "{{min}}~{{max}} punten",
       "zeroScore": "0 punten",
-      "mannerPointsTitle": "{{score}}punten ({{rang}})"
+      "mannerPointsTitle": "{{score}}punten ({{rang}})",
+      "grades": {
+        "worst": "slechtst",
+        "veryBad": "heel slecht",
+        "bad": "slecht",
+        "caution": "voorzichtigheid",
+        "normal": "algemeen",
+        "good": "Goed",
+        "veryGood": "erg goed",
+        "dignified": "waardigheid",
+        "pro": "pro",
+        "master": "meester"
+      }
     },
     "statAllocation": {
       "resetFailAlert": "Er is niet voldaan aan de voorwaarden voor het resetten van de mogelijkheid. Je goud is op of je hebt het aantal dagelijkse resets overschreden.",
@@ -3078,7 +3372,7 @@
       "bonus": "bonus",
       "resetBtn": "opnieuw instellen",
       "allocateTitle": "Vaardigheidspuntenverdeling",
-      "allocateAria": "{{stat}} distributie",
+      "allocateAria": "{{stat}} Distributie",
       "statLabel": "vaardigheid",
       "remainingShort": "rest",
       "allocateToStat": "Distributie naar dit vermogen"
@@ -3131,7 +3425,7 @@
       "opponentGoStyle": "De baduk-neiging van de tegenstander",
       "strengths": "kracht",
       "weaknesses": "zwakte",
-      "setMbtiHint": "Door uw MBTI in te stellen, kunt u de compatibiliteitsanalyse met uw partner bekijken.",
+      "setMbtiHint": "Als u MBTI instelt, kunt u de compatibiliteitsanalyse met uw partner bekijken.",
       "title": "MBTI-vergelijking",
       "notSetBoth": "Geen van beide partijen heeft een MBTI-set.",
       "opponentNotSet": "De MBTI van de andere partij is niet ingesteld.",
@@ -3144,7 +3438,7 @@
       "useWeaknesses": "Profiteer van de zwakke punten van je tegenstander.",
       "differences": "verschil",
       "similarities": "gemeenschappelijke grond",
-      "veryGood": "zeer goede wedstrijd",
+      "veryGood": "zeer goede compatibiliteit",
       "good": "goede compatibiliteit",
       "normal": "Gemiddelde compatibiliteit",
       "poor": "slechte compatibiliteit",
@@ -3152,7 +3446,7 @@
       "types": {
         "ISTJ": {
           "style": "stevige silifa",
-          "playStyle": "Wij zijn trouw aan de principes en fundamenten en streven duidelijke praktische voordelen na. Toont een sterke kant in afwerking."
+          "playStyle": "We zijn trouw aan de principes en fundamenten en streven duidelijke praktische voordelen na. Toont een sterke kant in afwerking."
         },
         "ISFJ": {
           "style": "Defensieve Silifa",
@@ -3196,7 +3490,7 @@
         },
         "ENTP": {
           "style": "een uitdagende debater",
-          "playStyle": "Ik geef de voorkeur aan uitdagende en logische aanvallen. Ik houd van ongebruikelijke en creatieve bewegingen."
+          "playStyle": "Ik geef de voorkeur aan uitdagende en logische aanvallen. Ik houd van ongebruikelijke en creatieve moves."
         },
         "ESTJ": {
           "style": "Systematische Silipa",
@@ -3237,7 +3531,7 @@
       "simE": "Beiden hebben een proactieve instelling",
       "simI": "Beiden hebben een voorzichtig karakter",
       "diffSReal": "Jij bent een praktisch persoon, je tegenstander is een intuïtief persoon.",
-      "diffNReal": "Je bent intuïtief, je tegenstander is praktisch.",
+      "diffNReal": "Je bent een intuïtionist, je tegenstander is een praktisch mens.",
       "simS": "Beide zijn utilitair",
       "simN": "beide zijn intuïtiegestuurd",
       "diffTLogic": "Jij bent een logisch persoon, je partner is een emotioneel persoon.",
@@ -3254,7 +3548,7 @@
       "warnJ": "Tegenstanders zijn sterk in plannen en afwerken. Zorg ervoor dat je niet meegesleurd wordt in een lang spel.",
       "stratI": "Het ethos van de tegenstander is voorzichtig. Maak het spel ingewikkelder door agressief aan te vallen.",
       "stratS": "De tegenstander is nutsgericht. Volg de trend met ongebruikelijke bewegingen.",
-      "stratF": "De ander is emotioneel. Druk met logische cijfers.",
+      "stratF": "De ander is emotioneel. Druk in logische cijfers.",
       "stratP": "De tegenstander is een flexibel ethos. Plan het uit en volg het totdat het klaar is."
     },
     "contentUnlock": {
@@ -3266,7 +3560,7 @@
       "adventureHint": "Je kunt het avontuur rechtstreeks vanuit het startscherm betreden."
     },
     "levelUp": {
-      "gained": "Het niveau van {{gain}} is in één keer verhoogd.",
+      "gained": "Het niveau van {{gain}} is in één keer gestegen.",
       "title": "gebruikersniveau"
     },
     "homeBoard": {
@@ -3284,7 +3578,7 @@
       "editedAt": "(Bewerkt: {{date}})"
     },
     "equipmentDetail": {
-      "inventoryUse": "Kan in tas gebruikt worden.",
+      "inventoryUse": "Je kunt hem in je tas gebruiken.",
       "noMaterialUse": "Dit materiaal wordt momenteel niet gebruikt om apparatuur te verbeteren.",
       "obtainedQty": "Verworven hoeveelheid",
       "ownedQty": "Hoeveelheid vastgehouden",
@@ -3302,7 +3596,7 @@
       "statBreakdown": "Basis {{basis}} → Getoond {{getoond}} (Uitrusting·Bonus +{{bonus}})",
       "statBaseOnly": "Basis {{base}} · Uitrusting · Bonusreflectie",
       "phaseScoreAria": "Vaardigheidsscores voor elke kampioenschapsfase",
-      "equipmentEffects": "apparatuur effect",
+      "equipmentEffects": "apparatuureffect",
       "allocate": "verdeling",
       "opening": "vroege dagen",
       "midgame": "midden",
@@ -3377,7 +3671,7 @@
     "limit": {
       "daily": "dagelijks",
       "weekly": "wekelijks",
-      "limitLine": "{{periode}} limiet {{resterende}}/{{limiet}}"
+      "limitLine": "{{periode}} limiet {{resterend}}/{{limiet}}"
     },
     "notImplemented": "Nog niet geïmplementeerd.",
     "ownedRemoveAds": "We hebben al een advertentievrij product.",
@@ -3481,20 +3775,20 @@
       "remove_ads": "advertenties verwijderen"
     },
     "packageBenefits": {
-      "diamond_daily_50_350": "50 diamanten per dag betaald per post (totaal 350 diamanten)",
-      "diamond_daily_50_750": "50 diamanten per dag betaald per post (totaal 750 diamanten)",
-      "diamond_daily_50_1500": "50 diamanten per dag betaald per post (totaal 1500 diamanten)",
-      "diamond_instant_100": "100 diamanten onmiddellijk betaald",
-      "diamond_instant_250": "Onmiddellijke betaling van 250 diamanten",
-      "diamond_instant_750": "Onmiddellijke betaling van 750 diamanten",
-      "equip_pkg1_boxes": "1 uitrustingsdoos V",
-      "equip_pkg1_mat": "1 materiaaldoos VI",
+      "diamond_daily_50_350": "100 diamanten per dag betaald per post (totaal 700 diamanten)",
+      "diamond_daily_50_750": "100 diamanten per dag betaald per post (totaal 1500 diamanten)",
+      "diamond_daily_50_1500": "100 diamanten per dag betaald per post (totaal 3000 diamanten)",
+      "diamond_instant_100": "Onmiddellijke betaling van 200 diamanten",
+      "diamond_instant_250": "Onmiddellijke betaling van 500 diamanten",
+      "diamond_instant_750": "Onmiddellijke betaling van 1000 diamanten",
+      "equip_pkg1_boxes": "3 apparatuurboxen V",
+      "equip_pkg1_mat": "3 materiaalbox VI's",
       "equip_pkg1_bonus": "+ “Epic Equipment” bevestigde betaling",
-      "equip_pkg2_boxes": "2 uitrustingsboxen V",
-      "equip_pkg2_mat": "2 materiaalbox VI's",
+      "equip_pkg2_boxes": "5 uitrustingsdozen",
+      "equip_pkg2_mat": "5 materiaalbox VI's",
       "equip_pkg2_bonus": "+ “Legendarische uitrusting” gegarandeerde betaling",
       "equip_pkg3_boxes": "2 Uitrustingsdoos VI",
-      "equip_pkg3_mat": "5 materiaalbox VI's",
+      "equip_pkg3_mat": "10 materiaalbox VI's",
       "equip_pkg3_bonus": "+ “Mythic Equipment” bevestigde betaling",
       "remove_ads_1": "Verberg in-game banners en paginagrote advertenties zoals lobby en matchmaking",
       "remove_ads_2": "Ontvang dezelfde beloningen zonder door de winkel beloonde advertenties (met behoud van de daglimiet)"
@@ -3513,7 +3807,7 @@
         "description": "Verkrijg geavanceerde tot legendarische uitrusting"
       },
       "equipment_box_4": {
-        "name": "Uitrustingsdoos IV",
+        "name": "Uitrustingsbox IV",
         "description": "Schaf zeldzame tot mythische apparatuur aan"
       },
       "equipment_box_5": {
@@ -3538,7 +3832,7 @@
       },
       "material_box_4": {
         "name": "Materiaaldoos IV",
-        "description": "Verkrijg 5 versterkingsstenen van gemiddeld tot hoogste niveau"
+        "description": "Verkrijg 5 verbeteringsstenen van gemiddeld tot hoogste niveau"
       },
       "material_box_5": {
         "name": "Materiaal doos V",
@@ -3549,7 +3843,7 @@
         "description": "Geavanceerd ~ Verkrijg 5 mysterieuze verbeteringsstenen"
       },
       "equipment_unbind_ticket": {
-        "name": "Recht om toeschrijving te annuleren",
+        "name": "Recht om de toeschrijving te annuleren",
         "description": "Wijzig de status van gebonden uitrusting naar verhandelbaar."
       },
       "refinement_charm": {
@@ -3565,7 +3859,7 @@
         "description": "Dit is een item dat de waarde van een van de subopties of speciale opties van de uitrusting kan veranderen."
       },
       "mythic_option_change_ticket": {
-        "name": "Speciale optie wisselticket",
+        "name": "Speciale optie wijzigingsticket",
         "description": "Met dit item kun je de speciale opties van mythische of transcendentale uitrusting wijzigen in andere speciale opties."
       },
       "condition_potion_small": {
@@ -3604,7 +3898,7 @@
     "claimExpired": "De inwisseltermijn is verstreken en u kunt geen compensatie ontvangen. Indien nodig kunt u deze mail verwijderen.",
     "actionPoints": "{{count}} Actiekracht",
     "guildCoins": "{{count}} Gildemunt",
-    "gold": "{{bedrag}} Goud",
+    "gold": "{{bedrag}} goud",
     "diamonds": "{{bedrag}} diamant",
     "packageLine": "Pakket {{naam}} × {{hoeveelheid}}",
     "delete": "verwijderen",
@@ -3644,7 +3938,7 @@
     },
     "activity": {
       "daily": "De prestaties van vandaag",
-      "weekly": "Wekelijkse activiteit",
+      "weekly": "wekelijkse activiteit",
       "monthly": "Maandelijkse activiteit",
       "points": "Activiteit +{{punten}}"
     },
@@ -3671,7 +3965,7 @@
       "claimedTitle": "Ontvangst voltooid",
       "claimRewardTitle": "Ontvang beloning",
       "activityRequired": "{{mijlpaal}} activiteit is ook vereist",
-      "activityReward": "{{mijlpaal}} Activiteitsbeloning",
+      "activityReward": "{{mijlpaal}} Activiteitsbeloningen",
       "activityRewardAp": "{{mijlpaal}} Herstel van activiteitbeloningsactie"
     },
     "rewards": {
@@ -3679,9 +3973,9 @@
     },
     "empty": "Er zijn geen speurtochten beschikbaar.",
     "close": "dichtbij",
-    "actionPointRecovery": "Actiehersteldrank (+{{amount}})",
+    "actionPointRecovery": "Actiehersteldrankje (+{{amount}})",
     "titleAliases": {
-      "championshipComplete": "Kampioenswedstrijd voltooid",
+      "championshipComplete": "Kampioenschapswedstrijd voltooid",
       "dailyActivity100x3": "Ontvang 100 beloningen voor dagelijkse missieactiviteit (3 keer)",
       "weeklyActivity100x2": "Ontvang 100 beloningen voor wekelijkse missieactiviteit (2 keer)"
     }
@@ -3707,7 +4001,7 @@
     "enhance": "afdwingen",
     "maxEnhance": "maximale versteviging",
     "maxShort": "maximaal",
-    "expandBag": "uitbreiding van de zak",
+    "expandBag": "uitbreiding van de tas",
     "expandBagWithCost": "Zakuitbreiding ({{cost}} diamanten)",
     "itemInfo": "Artikelinformatie",
     "compareGear": "Apparatuurvergelijking",
@@ -3718,7 +4012,7 @@
     "refinementAvailable": "Kan worden gesmolten",
     "refinementUnavailable": "Kan niet worden gesmolten",
     "refinementCount": "{{count}} keer",
-    "enhanceLevel": "Verbeteringscijfers",
+    "enhanceLevel": "Versterkte figuren",
     "noOptions": "Geen opties",
     "noGear": "geen apparatuur",
     "bound": "behoren",
@@ -3749,7 +4043,7 @@
     },
     "bindModal": {
       "line1": "De apparatuur is gebonden en kan niet op de beurs worden verkocht.",
-      "line2": "Om op de beurs te kunnen verkopen, moet u gebruik maken van het recht om de toeschrijving vrij te geven.",
+      "line2": "Om op de beurs te kunnen verkopen, moet u gebruik maken van het ontbindingsrecht.",
       "unbindDesc": "Als u de apparatuur ontgrendelt, wordt verkoop op de beurs mogelijk."
     },
     "presetSavedTitle": "Voorinstelling opslaan",
@@ -3782,10 +4076,10 @@
     },
     "itemDetail": {
       "equipmentDetail": "Uitrustingsdetails",
-      "consumableDetail": "Gegevens over verbruiksartikelen",
+      "consumableDetail": "Verbruiksgegevens",
       "materialDetail": "Materiaaldetails",
       "itemDetail": "Artikeldetails",
-      "cannotRefine": "Kan niet worden gesmolten",
+      "cannotRefine": "kan niet worden gesmolten",
       "goRefine": "Ga naar het tabblad Forge Smelting"
     },
     "purchase": {
@@ -3793,7 +4087,7 @@
       "consumable": "verbruiksartikelen",
       "material": "ingrediënt",
       "noMaterialUse": "Dit materiaal wordt momenteel niet gebruikt om apparatuur te verbeteren.",
-      "inventoryUse": "Kan in tas gebruikt worden.",
+      "inventoryUse": "Je kunt hem in je tas gebruiken.",
       "characterGrowth": "Het wordt gebruikt voor karaktergroei, versterking, verfijning, enz.",
       "selectQuantity": "Selecteer hoeveelheid",
       "productDetailAria": "Productdetails kopen",
@@ -3834,7 +4128,7 @@
       "sellAmount": "Verkoophoeveelheid",
       "unitPrice": "Verkoopprijs per gast",
       "deleteOnly": "0 (alleen verwijderen)",
-      "goldUnit": "{{bedrag}} Goud",
+      "goldUnit": "{{bedrag}} goud",
       "totalReceive": "totaal te ontvangen goud",
       "deleteCheckout": "Betaling (Verwijderen)",
       "noGoldHint": "Goud komt niet binnen en alleen het geselecteerde bedrag verdwijnt.",
@@ -3900,7 +4194,7 @@
       "upgradeTitle": "synthetische resultaten",
       "downgradeTitle": "Ontledingsresultaten",
       "jackpotHeading": "🎉 Geweldig! 🎉",
-      "jackpotBody": "Dubbel zoveel materialen verkregen!",
+      "jackpotBody": "Het dubbele van de ingrediënten verkregen!",
       "convertedBody": "Ik heb het item omgezet zoals hieronder weergegeven.",
       "quantityUnit": "hond"
     },
@@ -3914,13 +4208,13 @@
       "combat": "Combat-suboptie",
       "special": "speciaal",
       "mythic": "mythe",
-      "unknownMythic": "Onbekende mythe-optie",
+      "unknownMythic": "Onbekende mytheoptie",
       "setBonus": "uitwerking instellen",
       "mainOptionTitle": "Belangrijkste optie",
       "subOptionTitle": "Suboptie",
       "noSpecialActive": "Er zijn geen speciale opties van kracht.",
       "noMythicActive": "Er worden geen mytheopties toegepast.",
-      "mythicCandidates": "Kandidaat voor de speciale optie Shinhwa",
+      "mythicCandidates": "Kandidaat voor speciale optie Shinhwa",
       "transcendentCandidates": "Transcendente Speciale Optie Kandidaat",
       "title": "Apparatuur ingesteld effect",
       "summaryAtGlance": "In één oogopslag",
@@ -3969,7 +4263,7 @@
       "base": "eenvoudig",
       "plusStars": "+{{stars}}sterren",
       "mythicSub": "Mythische opties (willekeurige {{count}} stukjes)",
-      "mythicCandidates": "Kandidaat voor de speciale optie Shinhwa",
+      "mythicCandidates": "Kandidaat voor speciale optie Shinhwa",
       "transcendentCandidates": "Transcendente Speciale Optie Kandidaat",
       "equipmentTab": "apparatuur",
       "soulTab": "ziel steen",
@@ -3980,7 +4274,7 @@
       "itemInfo": "Artikelinformatie",
       "encyclopediaTitle": "Encyclopedie",
       "hatchAttribute": "Attributen bij het uitkomen",
-      "hatchRandomPartial": "(Willekeurig gegeven bij het uitkomen)",
+      "hatchRandomPartial": "(willekeurig gegeven bij het uitkomen)",
       "mainOptionShort": "Belangrijkste optie",
       "mainEnhanceStepAria": "Belangrijkste fase van verbetering van de operatie",
       "starsBase": "eenvoudig",
@@ -3995,7 +4289,7 @@
       "noMaterialUse": "Dit materiaal wordt momenteel niet gebruikt om apparatuur te verbeteren.",
       "materialTab": "ingrediënt",
       "consumableTab": "verbruiksartikelen",
-      "inventoryHint": "Kan in tas gebruikt worden.",
+      "inventoryHint": "Je kunt hem in je tas gebruiken.",
       "noGuide": "Er zijn geen instructies.",
       "tier1": "tas",
       "tier2": "rotsen",
@@ -4012,6 +4306,17 @@
       "noTier": "Geen niveau"
     },
     "tierInfo": {
+      "names": {
+        "champion": "uitdager",
+        "master": "meester",
+        "diamond": "diamant",
+        "platinum": "platina",
+        "gold": "goud",
+        "silver": "zilver",
+        "bronze": "bronzen",
+        "iron": "Rookie",
+        "unranked": "spruit"
+      },
       "champion": "Minimale score van 3500 of hoger en beperkt tot de top 100 personen",
       "master": "Minimale score van 3000 of hoger",
       "diamond": "Minimale score van 2400 of hoger",
@@ -4029,7 +4334,7 @@
       "season3": "Seizoen 3: 1 juli - 30 september",
       "season4": "Seizoen 4: 1 oktober - 31 december",
       "endReward": "Eindeseizoensbeloningen",
-      "intro": "Je seizoensniveau wordt bepaald door je rankingscore in elke spelmodus. Niveaus worden bevestigd op basis van de rangschikking aan het einde van het seizoen en er worden beloningen uitbetaald.",
+      "intro": "Je seizoensniveau wordt bepaald door je rankingscore in elke spelmodus. Niveaus worden bevestigd op basis van de rangschikking aan het einde van het seizoen, en er worden beloningen uitbetaald.",
       "seasonResetDesc": "Aan het einde van elk seizoen worden de ranglijsten opnieuw ingesteld en worden beloningen uitbetaald."
     },
     "leagueTier": {
@@ -4041,7 +4346,7 @@
       "rankHint": "Niveau gebaseerd op rankingcompetitie (zie beloningen hieronder voor promotie-/onderhouds-/degradatievoorwaarden)",
       "weeklyReward": "wekelijkse beloningen",
       "titleRanking": "Informatie over de ranglijst van de competitie",
-      "intro": "Je niveau wordt bepaald door de score die je verdient in de strategische baduk-ranking PVP. Aan het einde van de week worden promotie, retentie en degradatie toegepast op basis van de rangorde, en kun je voor elk niveau beloningen ontvangen.",
+      "intro": "Je niveau wordt bepaald door de score die je verdient in de strategische baduk-ranking PVP. Aan het einde van de week worden promotie, retentie en degradatie toegepast op basis van rangschikking, en kunt u voor elk niveau beloningen ontvangen.",
       "stay": "residu",
       "rankPlace": "{{rang}}",
       "rankRange": "Boven {{start}}-{{end}}",
@@ -4050,6 +4355,554 @@
       "stayLine": "resterend: {{bereiken}}",
       "demoteLine": "Degradatie: {{reeksen}}",
       "rankHintShort": "Niveau gebaseerd op rangschikkingscompetitie (raadpleeg de beloningstabel hieronder voor promotie-, retentie- en degradatievoorwaarden)"
+    },
+    "items": {
+      "box_diabox1": {
+        "name": "Diamantpakket I",
+        "description": "Verkrijg 1 tot 20 diamanten"
+      },
+      "box_diabox2": {
+        "name": "Diamantbundel II",
+        "description": "Verkrijg 10 tot 30 diamanten"
+      },
+      "box_diabox3": {
+        "name": "Diamantbundel III",
+        "description": "Verkrijg 20 tot 50 diamanten"
+      },
+      "box_diabox4": {
+        "name": "Diamantbundel IV",
+        "description": "Verkrijg 30 tot 100 diamanten"
+      },
+      "box_goldbox1": {
+        "name": "Gouden bundel I",
+        "description": "Verdien 10 tot 500 goud"
+      },
+      "box_goldbox2": {
+        "name": "Gouden bundel II",
+        "description": "Verdien 100 tot 1.000 goud"
+      },
+      "box_goldbox3": {
+        "name": "Gouden bundel III",
+        "description": "Verdien 500 tot 3.000 goud"
+      },
+      "box_goldbox4": {
+        "name": "Gouden bundel IV",
+        "description": "Verdien 1.000 tot 10.000 goud"
+      },
+      "btn_addturn": {
+        "name": "Voeg beurt toe",
+        "description": "Dit is een extra beurtitem dat kan worden gebruikt bij de Tower of Challenge."
+      },
+      "btn_hidden": {
+        "name": "Verborgen",
+        "description": "Dit is een verborgen item dat kan worden gebruikt in de Tower of Challenge."
+      },
+      "btn_missile": {
+        "name": "raket",
+        "description": "Dit is een raketitem dat kan worden gebruikt bij de Tower of Challenge."
+      },
+      "btn_reflesh": {
+        "name": "Wijziging in indeling",
+        "description": "Dit is een plaatsingswijzigingsitem dat kan worden gebruikt bij de Tower of Challenge."
+      },
+      "btn_scan": {
+        "name": "scannen",
+        "description": "Dit is een scanitem dat gebruikt kan worden bij de Tower of Challenge."
+      },
+      "eq_board1": {
+        "name": "spruit schaakbord",
+        "description": "Dit is een lichtgewicht schaakbord van paulowniahout dat geweldig is voor beginners."
+      },
+      "eq_board2": {
+        "name": "esdoorn schaakbord",
+        "description": "Dit is een hoogwaardig schaakbord gemaakt van nootmuskaatbomen met prachtige nerven."
+      },
+      "eq_board3": {
+        "name": "koraal schaakbord",
+        "description": "Het is gemaakt van mystiek hout van de hoogste kwaliteit, dus het geluid van geplaatste stenen is puur."
+      },
+      "eq_board4": {
+        "name": "ebbenhouten dambord",
+        "description": "Het is een vulkanisch gesteente met grote passie gepolijst."
+      },
+      "eq_board5": {
+        "name": "Yongmun-schaakbord",
+        "description": "Dit is een legendarisch dambord van Geumgang-den dat al duizend jaar bestaat."
+      },
+      "eq_board7": {
+        "name": "Shinryong-schaakbord",
+        "description": "Het is een schaakbord van transcendentie met de trajecten van de sterrenbeelden erop gegraveerd, waardoor bij elke beweging de weg naar de overwinning wordt geopend."
+      },
+      "eq_bottom1": {
+        "name": "Lentekleurige uniformbroekjes",
+        "description": "Deze trainingsbroek is comfortabel voor beweging."
+      },
+      "eq_bottom2": {
+        "name": "Zomerkleurig uniformbroekje",
+        "description": "Deze broek is gemaakt van duurzaam materiaal dat niet snel verslijt."
+      },
+      "eq_bottom3": {
+        "name": "Herfstkleurig uniformbroekje",
+        "description": "Dit is een zijden broek van hoge kwaliteit die wordt gecombineerd met een dopo."
+      },
+      "eq_bottom4": {
+        "name": "Winterkleurige uniformbroek",
+        "description": "Dit is de broek van de zwaardvechter die geen enkele beweging hindert."
+      },
+      "eq_bottom5": {
+        "name": "Yongbi Dobok-broek",
+        "description": "Het is gemaakt van zijde van de hoogste kwaliteit en past goed bij de drakengewaad."
+      },
+      "eq_bottom7": {
+        "name": "Shinryong-uniformbroeken",
+        "description": "Dit is een transcendentale gi-broek doordrenkt met de wil van een goddelijke draak die voorkomt dat je zelfs tijdens een storm je evenwicht verliest."
+      },
+      "eq_fan1": {
+        "name": "blauwe windventilator",
+        "description": "Dit is een lichtgewicht en praktische bamboeventilator."
+      },
+      "eq_fan2": {
+        "name": "eungyeol windventilator",
+        "description": "Het is gemaakt van zachte zijde en ligt lekker in de hand."
+      },
+      "eq_fan3": {
+        "name": "vlam wind ventilator",
+        "description": "Dit is een meesterwaaier die zich sierlijk spreidt als de vleugels van een kraanvogel."
+      },
+      "eq_fan4": {
+        "name": "vorst wind ventilator",
+        "description": "Het is gemaakt van zwaar staal en kan in geval van nood als wapen worden gebruikt."
+      },
+      "eq_fan5": {
+        "name": "Yongbi windventilator",
+        "description": "Een legendarische waaier gemaakt van honderd witte veren."
+      },
+      "eq_fan7": {
+        "name": "Shinryong-windventilator",
+        "description": "Het is een waaier van transcendentie die de adem bevat van de goddelijke draak die de lucht splijt en het tij van het slagveld doet keren."
+      },
+      "eq_stone1": {
+        "name": "zwart-witte spruitsteen",
+        "description": "Dit zijn lichtgewicht en goedkope plastic badukstenen."
+      },
+      "eq_stone2": {
+        "name": "zilveren steen",
+        "description": "Het is een Go-steen gemaakt van gladde kiezelstenen die uit de rivier zijn gehaald."
+      },
+      "eq_stone3": {
+        "name": "robijnrode steen",
+        "description": "Het is uitvoerig gesneden uit obsidiaan dat een koude gloed uitstraalt."
+      },
+      "eq_stone4": {
+        "name": "witte jade baduksteen",
+        "description": "Het is een baduk-steen gemaakt van saffier en witte jade die een schitterend licht uitstraalt."
+      },
+      "eq_stone5": {
+        "name": "Yongan Baduk-steen",
+        "description": "Het is een legendarische baduk-steen gesmeed met de energie van de zon, de maan en de sterren."
+      },
+      "eq_stone7": {
+        "name": "Shinryong Baduk-steen",
+        "description": "Gemaakt door fragmenten van de Morning Star te smeden, is het een transcendente Go-steen die het spel met één enkele beweging domineert."
+      },
+      "eq_stonebox1": {
+        "name": "licht houten vat",
+        "description": "Het is een lichtgewicht en goedkope plastic Go-box."
+      },
+      "eq_stonebox2": {
+        "name": "massief bamboe vat",
+        "description": "Dit is een Go-box gemaakt van jujubehout met een zwakke geur."
+      },
+      "eq_stonebox3": {
+        "name": "Hongmok Baduktong",
+        "description": "Hij is gemaakt van palissanderhout, een prachtige rode kleur."
+      },
+      "eq_stonebox4": {
+        "name": "ebbenhouten gobox",
+        "description": "Dit is een zeldzame baduk-doos gemaakt van vreemd hout met vreemde en mooie patronen."
+      },
+      "eq_stonebox5": {
+        "name": "Yongrin Baduktong",
+        "description": "Dit is een hoogwaardige houten Go-box van palissanderhout met een subtiel uitgesneden draak."
+      },
+      "eq_stonebox7": {
+        "name": "Shinryong Baduktong",
+        "description": "Het is een transcendente Go-box die de energie van het eeuwenoude slagveld verzegelt en bijdraagt ​​aan de intimidatie van elke eruit gehaalde steen."
+      },
+      "eq_top1": {
+        "name": "Lentekleurig uniformtopje",
+        "description": "Dit is een comfortabele top waarmee u zich uitstekend kunt concentreren op uw training."
+      },
+      "eq_top2": {
+        "name": "Zomerkleurig uniformtopje",
+        "description": "Het is een stoere gi die zelfs na lang trainen niet verslijt."
+      },
+      "eq_top3": {
+        "name": "Herfstkleurige uniformtop",
+        "description": "Dit is het wapen van een geleerde met een rustige elegantie."
+      },
+      "eq_top4": {
+        "name": "Winterkleurig uniformtopje",
+        "description": "Dit is een zwaardvechtersoutfit gemaakt voor scherpe gevechten."
+      },
+      "eq_top5": {
+        "name": "Yongbi Dobok-topje",
+        "description": "Het is geborduurd met een drakenpatroon dat de majesteit van de keizer symboliseert."
+      },
+      "eq_top7": {
+        "name": "Shinryong-uniformtopje",
+        "description": "Dit is een transcendente uniforme top geweven met de kleur van de schubben van de goddelijke draak, waardoor een onwrikbare focus ontstaat."
+      },
+      "mat_materials1": {
+        "name": "Kleinere betoveringssteen",
+        "description": "Basismaterialen die worden gebruikt om apparatuur te verbeteren."
+      },
+      "mat_materials2": {
+        "name": "Tussenliggende verbeteringssteen",
+        "description": "Een hoogwaardig materiaal dat wordt gebruikt om apparatuur te versterken."
+      },
+      "mat_materials3": {
+        "name": "Geavanceerde betoveringssteen",
+        "description": "Materialen van topkwaliteit die worden gebruikt om apparatuur te versterken."
+      },
+      "mat_materials4": {
+        "name": "Hoogwaardige wapeningssteen",
+        "description": "Een zeldzaam materiaal dat wordt gebruikt om apparatuur te versterken."
+      },
+      "mat_materials5": {
+        "name": "Mysterieuze versterkingssteen",
+        "description": "Een oud materiaal dat wordt gebruikt om apparatuur te versterken."
+      },
+      "pet_egg": {
+        "name": "Mysterieus ei",
+        "description": "Verkrijg een willekeurig AI-huisdier wanneer je het in de broederij gebruikt."
+      },
+      "pet_soulstone1": {
+        "name": "Ontspruit zielensteen",
+        "description": "Dit materiaal is nodig om een ​​huisdier van normale kwaliteit te upgraden naar een gevorderd niveau. Kan worden gebruikt vanaf huisdierniveau 10 of hoger."
+      },
+      "pet_soulstone2": {
+        "name": "Zwaai zielsteen",
+        "description": "Dit materiaal is nodig om een ​​huisdier van topkwaliteit tot een zeldzaam niveau te verheffen. Kan worden gebruikt vanaf huisdierniveau 20 of hoger."
+      },
+      "pet_soulstone3": {
+        "name": "Afgrond Zielsteen",
+        "description": "Dit materiaal is nodig om een ​​zeldzaam huisdier tot een episch niveau te verheffen. Kan worden gebruikt vanaf huisdierniveau 30 of hoger."
+      },
+      "pet_soulstone4": {
+        "name": "Vlam ziel steen",
+        "description": "Dit is een materiaal dat nodig is om een ​​huisdier van epische kwaliteit te upgraden naar legendarische kwaliteit. Kan worden gebruikt vanaf huisdierniveau 40 of hoger."
+      },
+      "pet_soulstone5": {
+        "name": "Hemelse lichte zielsteen",
+        "description": "Dit materiaal is nodig om een ​​legendarisch huisdier te upgraden naar een mythisch huisdier. Kan gebruikt worden bij Pet Lv.50."
+      },
+      "shop_action_point_10": {
+        "name": "Actie hersteldrankje (+10)",
+        "description": "Ik voel mij gemotiveerd om iets te doen."
+      },
+      "shop_action_point_20": {
+        "name": "Actie hersteldrankje (+20)",
+        "description": "Ik heb het gevoel dat ik iets moet doen."
+      },
+      "shop_action_point_30": {
+        "name": "Actie hersteldrankje (+30)",
+        "description": "Laten we het spel meteen gaan spelen."
+      },
+      "shop_condition_potion_large": {
+        "name": "Conditieherstelmiddel (groot)",
+        "description": "Een conditieherstelmiddel waarmee u vandaag succesvol kunt concurreren."
+      },
+      "shop_condition_potion_medium": {
+        "name": "Conditieherstelmiddel (medium)",
+        "description": "Een conditieherstelmiddel waardoor uw hoofd helderder wordt."
+      },
+      "shop_condition_potion_small": {
+        "name": "Conditieherstelmiddel (klein)",
+        "description": "Conditieherstelmiddel dat spanning verlicht"
+      },
+      "shop_equipment_box_1": {
+        "name": "Uitrustingsdoos I",
+        "description": "Verkrijg gewone tot zeldzame apparatuur"
+      },
+      "shop_equipment_box_2": {
+        "name": "Uitrustingsdoos II",
+        "description": "Verkrijg apparatuur van normale tot epische kwaliteit"
+      },
+      "shop_equipment_box_3": {
+        "name": "Uitrustingsdoos III",
+        "description": "Verkrijg geavanceerde tot legendarische uitrusting"
+      },
+      "shop_equipment_box_4": {
+        "name": "Uitrustingsdoos IV",
+        "description": "Schaf zeldzame tot mythische apparatuur aan"
+      },
+      "shop_equipment_box_5": {
+        "name": "Uitrustingsdoos V",
+        "description": "Schaf apparatuur van epische tot mythische kwaliteit aan"
+      },
+      "shop_equipment_box_6": {
+        "name": "Uitrustingsdoos VI",
+        "description": "Schaf legendarische tot mythische uitrusting aan"
+      },
+      "shop_equipment_unbind_ticket": {
+        "name": "Recht om de toeschrijving te annuleren",
+        "description": "Wijzig de status van gebonden uitrusting naar verhandelbaar."
+      },
+      "shop_material_box_1": {
+        "name": "Materiaaldoos I",
+        "description": "Verkrijg 5 lage tot hoge verbeteringsstenen"
+      },
+      "shop_material_box_2": {
+        "name": "Materiaaldoos II",
+        "description": "Verkrijg 5 lage tot hoge verbeteringsstenen"
+      },
+      "shop_material_box_3": {
+        "name": "Materiaaldoos III",
+        "description": "Verkrijg 5 lage tot hoge verbeteringsstenen"
+      },
+      "shop_material_box_4": {
+        "name": "Materiaaldoos IV",
+        "description": "Verkrijg 5 versterkingsstenen van gemiddeld tot hoogste niveau"
+      },
+      "shop_material_box_5": {
+        "name": "Materiaal doos V",
+        "description": "Geavanceerd ~ Verkrijg 5 mysterieuze verbeteringsstenen"
+      },
+      "shop_material_box_6": {
+        "name": "Materiaaldoos VI",
+        "description": "Geavanceerd ~ Verkrijg 5 mysterieuze verbeteringsstenen"
+      },
+      "shop_mythic_option_change_ticket": {
+        "name": "Speciale optie wijzigingsticket",
+        "description": "Met dit item kun je de speciale opties van mythische of transcendentale uitrusting wijzigen in andere speciale opties."
+      },
+      "shop_option_type_change_ticket": {
+        "name": "Recht om het optietype te wijzigen",
+        "description": "Dit is een item dat een van de hoofdopties, subopties of speciale opties van het apparaat kan veranderen in een ander type optie."
+      },
+      "shop_option_value_change_ticket": {
+        "name": "Optiewaardewijzigingsticket",
+        "description": "Dit is een item dat de waarde van een van de subopties of speciale opties van de uitrusting kan veranderen."
+      },
+      "shop_refinement_charm": {
+        "name": "Amulet van smelten",
+        "description": "Voeg 1 extra raffinagetelling toe voor apparatuur die niet kan worden gesmolten"
+      },
+      "use_allowtrade": {
+        "name": "handelsregistratierechten",
+        "description": "Dit is toestemming om artikelen extra te registreren voor verkoop op de beurs."
+      }
+    },
+    "stats": {
+      "mythic": {
+        "GuildBossRewardGradeUp": {
+          "name": "Gildebaasgevecht Beloning omhoog",
+          "abbrev": "Baas beloningsgraad",
+          "short": "Gildebaas Beloningsgraad +1",
+          "description": "Het beloningsniveau stijgt met één niveau op basis van de resultaten van het gildebaasgevecht. (Maximale SSS) Dit is Myth Special Option No. 1 en kan tegelijkertijd worden toegepast met Transcendence No. 1 “Boss Reward Added.”"
+        },
+        "GuildBossExtraDamage5": {
+          "name": "Extra schade tijdens gildebaasgevechten: 5%",
+          "abbrev": "Baasschade5%",
+          "short": "Schade aan gildebaas +5%",
+          "description": "Bij het aanvallen van een gildebaas wordt 5% extra eindschade toegepast. (Kan niet worden overlapt met de speciale optie Transcendence)"
+        },
+        "TowerApMinus1Floors1to35": {
+          "name": "Tower of Challenge (1e tot 35e verdieping) Vereiste actie -1",
+          "abbrev": "Bovenste AP (1~35)",
+          "short": "Toren 1~35e verdieping AP -1",
+          "description": "De actie die nodig is om de 1e tot en met de 35e verdieping van de Tower of Challenge te betreden, wordt met 1 verminderd. (Kan niet worden overlapt met de speciale optie Transcendentie)"
+        },
+        "ApRegenMinus30s": {
+          "name": "Actiehersteltijd -30 seconden",
+          "abbrev": "AP-herstel -30s",
+          "short": "Actieherstel -30 seconden",
+          "description": "De tijd die nodig is om 1 actiepunt te herstellen wordt met 30 seconden verkort. (Kan niet worden overlapt met de speciale optie Transcendence)"
+        },
+        "AdventureScanPlus1": {
+          "name": "Avontuurscan +1",
+          "abbrev": "Avontuurscan+1",
+          "short": "Avontuurscan +1",
+          "description": "Aan het begin van het avontuur (monstergevecht) ontvang je één extra scanitem. (Kan niet worden overlapt met de speciale optie Transcendence)"
+        },
+        "AdventureMissilePlus1": {
+          "name": "Avontuurlijke raket +1",
+          "abbrev": "Avontuurlijke raket+1",
+          "short": "Avontuurlijke raket +1",
+          "description": "Aan het begin van het avontuur wordt één extra raketitem verstrekt. (Kan niet worden overlapt met de speciale optie Transcendence)"
+        },
+        "AdventureGoldBonus15": {
+          "name": "Avontuur Goud Beloningen +15%",
+          "abbrev": "Avontuur Goud 15%",
+          "short": "Avontuur Goud +15%",
+          "description": "Goud verdiend bij het winnen van een avontuur stijgt met 15%. (Afzonderlijk gecombineerd met encyclopedie en begripsbonus) (Kan niet worden overlapt met de speciale optie Transcendentie)"
+        },
+        "GuildBossExtraRewardDuplicate": {
+          "name": "Gildebaasgevechtbeloning toegevoegd",
+          "abbrev": "Baasbeloning toegevoegd",
+          "short": "1 type gildebaas-beloningskopie (cumulatief)",
+          "description": "Je ontvangt opnieuw een van de beloningen als gevolg van het gevecht met de gildebaas. Als deze optie meerdere lijnen (meerdere apparaten) op transcendentale apparatuur heeft, wordt deze herhaaldelijk toegepast. Kan worden toegepast in combinatie met andere speciale opties. Dit is Transcendence Speciale Optie nr. 1 en kan gelijktijdig worden toegepast met Mythe nr. 1 ‘Boss Reward Grade’."
+        },
+        "GuildBossExtraDamage10": {
+          "name": "Extra 10% schade in gildebaasgevechten",
+          "abbrev": "Baasschade 10%",
+          "short": "Gildebaasschade +10%",
+          "description": "Bij het aanvallen van een gildebaas wordt 10% extra eindschade toegepast. (Kan niet worden overlapt met Myth Special Option)"
+        },
+        "TowerApMinus1AllFloors": {
+          "name": "Toren van uitdaging Vereiste actie -1",
+          "abbrev": "Top AP alle verdiepingen",
+          "short": "AP voor alle verdiepingen van de toren -1",
+          "description": "De actie die nodig is om de bovenste verdieping van alle uitdagingen te betreden, wordt met 1 verminderd. (Kan niet worden overlapt met Myth Special Option)"
+        },
+        "ApRegenMinus60s": {
+          "name": "Actiehersteltijd -60 seconden",
+          "abbrev": "AP-herstel -60s",
+          "short": "Actieherstel -60 seconden",
+          "description": "De tijd die nodig is om 1 actiepunt te herstellen wordt met 60 seconden verkort. (Kan niet worden overlapt met Myth Special Option)"
+        },
+        "AdventureScanTranscendent": {
+          "name": "Avontuurscan +1",
+          "abbrev": "Avontuurscan+1",
+          "short": "Avontuurscan +2 (Transcendentie)",
+          "description": "Er worden twee extra scanitems geleverd in Adventure (monstergevecht). (Kan niet worden overlapt met Myth Special Option)"
+        },
+        "AdventureMissilePlus2": {
+          "name": "Avontuurlijke raket +2",
+          "abbrev": "Avontuurlijke raket+2",
+          "short": "Avontuurlijke raket +2",
+          "description": "Aan het begin van het avontuur worden twee extra raketitems verstrekt. (Kan niet worden overlapt met Myth Special Option)"
+        },
+        "AdventureGoldBonus20": {
+          "name": "Avontuur Goud Beloning +20%",
+          "abbrev": "Avontuur Goud 20%",
+          "short": "Avontuur Goud +20%",
+          "description": "Het goud dat je verdient bij het winnen van een avontuur wordt met 20% verhoogd. (Kan niet worden overlapt met Myth Special Option)"
+        }
+      }
+    },
+    "optionValueLine": "{{stat}} +{{waarde}}{{achtervoegsel}}",
+    "optionRange": "[{{lo}}~{{hi}}{{achtervoegsel}}]",
+    "optionEnhancement": "({{count}}Verbeteringen)",
+    "meta": {
+      "description": {
+        "gold": "Het is de representatieve munteenheid die in de hele Baduk-wereld wordt gebruikt.",
+        "diamond": "Het is een premiumartikel dat wordt gebruikt voor speciale aankopen, uitbreidingen, enz."
+      },
+      "usage": {
+        "goldSpend": "Het wordt gebruikt op plaatsen waar goud wordt geconsumeerd, zoals winkels, versterking/bewerking en toegangsprijzen.",
+        "diamondSpend": "Gebruikt in diamantwinkels, uitbreiding van zakkengleuven, enz.",
+        "unbindTicket": "[Zak]-[Selecteer uitrusting]-[Ontbinden]",
+        "refinementCharm": "[Smid]-[Equipment Refining] Selecteer uitrusting die niet kan worden gesmolten",
+        "refinementTicket": {
+          "optionType": "[Smid - Apparatuurverfijning] Wijziging van optietype",
+          "optionValue": "[Smid - Apparatuurverfijning] Wijziging van optiewaarde",
+          "specialOption": "[Smid - Apparatuurverfijning] Speciale optiewijziging",
+          "mythicOption": "[Smid - Apparatuurverfijning] Mythische optiewijziging",
+          "generic": "[Smid - Apparatuurverfijning] Optiewijziging"
+        },
+        "conditionPotion": "[Kampioenschap] Conditie {{lo}}~{{hi}} herstel voordat de wedstrijd begint",
+        "actionPointInstant": "[Onmiddellijk gebruik] Actie herstel +{{amount}}",
+        "actionPointInstantGeneric": "[Onmiddellijk gebruik] Herstel van actievermogen",
+        "openBoxInBag": "Als je hem uit je tas gebruikt, ontvang je een beloning.",
+        "equipmentBoxOpen": "Je kunt uitrusting verkrijgen door de kist in je tas te gebruiken.",
+        "enhancementMaterial": {
+          "single": "[{{gradeLabel}}] Uitrusting: {{rangeLabel}}",
+          "range": "[{{gradeLabel}}] Uitrusting: {{rangeLabel}}"
+        },
+        "pet": {
+          "soulGradeUpgrade": "[Verbetering huisdierniveau] {{fromGrade}} →{{toGrade}} (Huisdierniveau {{minLevel}} of hoger)",
+          "soulGradeUpgradeGeneric": "[Verhoging van huisdierkwaliteit] Wordt gebruikt om de rang van mede-AI-huisdieren in de Fair Arena te verhogen.",
+          "eggHatchRandom": "[Huisdier · Broederij] Plaats het in een sleuf en kom uit in een willekeurig type AI-huisdier.",
+          "welcomeEggHatch": "[Huisdier · Broederij] Geplaatst in slot — broedtijd 1 minuut, AI-huisdier van niveau 5 wanneer het uitkomt"
+        }
+      },
+      "enhanceRange": {
+        "single": "{{stars}}Verbetering",
+        "range": "{{minStars}}~{{maxStars}}Verbeteringen"
+      },
+      "acquire": {
+        "gold": {
+          "line1": "[Spel/Inhoud] Baduk-wedstrijd, single play, kerker/competitie, etc.",
+          "line2": "[Quest/Avontuur] Dagelijkse/wekelijkse/maandelijkse speurtochten, schatkisten, VIP-slots",
+          "line3": "[Transactie/demontage] Afwikkeling van ruilverkopen, demontage van apparatuur, verkoop in sommige winkels"
+        },
+        "diamond": {
+          "line1": "[Winkel] Diamantpakket/Verbruiksartikelen/Materialen Tab",
+          "line2": "[Betaling/evenement] Opladen, bediening/promotiepost",
+          "line3": "[Functie] Enkele premiumfuncties, zoals uitbreiding van tassenvakken"
+        },
+        "tower": {
+          "line1": "[Tower of Challenge] Koop in de itemwinkel (goud) in de spelinformatie",
+          "line2": "[Tower of Challenge] Verkregen via bepaalde kanalen, zoals toegangs-/vrijgavebeloningen en VIP-beloningen."
+        },
+        "actionPoint": {
+          "line1": "[Winkel] Goudwinkel — Stamina Restoration Potion (+10/+20/+30), dagelijkse limiet/niveauprijs",
+          "line2": "[Mail·Event] Operationele compensatie/promotiebetaling",
+          "line3": "[Functie VIP] Indien geactiveerd, ontvang je Stamina Restoration III elke dag per post."
+        },
+        "condition": {
+          "line1": "[Winkel] Diamond Store (Verbruiksartikelen) of gerelateerde pakketten",
+          "line2": "[Quest/Event] Gedeeltelijke beloningen"
+        },
+        "guildEquipBox": {
+          "line1": "[Guild Shop] Kan alleen worden gekocht met gildemunten",
+          "line2": "[Winkel/Quest] Verkrijg uitrusting door deze in de tas te gebruiken, vergelijkbaar met een gewone uitrustingsdoos."
+        },
+        "equipBox": {
+          "line1": "[Winkel] Goudwinkel (tabblad Uitrusting), advertentiebeloningen, enkele geldpakketten",
+          "line2": "[Quest/VIP] Dagelijkse, wekelijkse en maandelijkse speurtochten, VIP-slots belonen, enz.",
+          "line3": "[Avontuur/Guild] Schatkist, beloningen voor gevechtsresultaten van gildebaas, etc."
+        },
+        "materialBox": {
+          "line1": "[Winkel] Goud-/diamantenwinkel (tabblad Materiaal), reclamebeloningen, sommige pakketten",
+          "line2": "[Quest/VIP] Dagelijkse, wekelijkse en maandelijkse speurtochten, VIP-slots belonen, enz."
+        },
+        "goldBundle": {
+          "line1": "[Winkel] Diamond Shop (Verbruiksartikelen), Advertentiebeloningen",
+          "line2": "[Quest/Avontuur] Verschillende beloningen/schatkisten"
+        },
+        "diamondBundle": {
+          "line1": "[Winkel] Diamond Shop (Verbruiksartikelen), Advertentiebeloningen",
+          "line2": "[Quest/Event] Gedeeltelijke beloningen"
+        },
+        "bonusStat": {
+          "line1": "[Guild Shop] Aankoop met gildemunten (accountlimiet)",
+          "line2": "[Groei] Gedeeltelijke betaling wanneer de strategie/het spelniveau toeneemt"
+        },
+        "enhancementStone": {
+          "line1": "[Guild Shop] Laag-niveau ~ mysterieuze verbeteringsstenen kunnen worden ingewisseld voor gildemunten",
+          "line2": "[Materiaaldoos] Materiaaldozen verkregen uit winkels, speurtochten, VIP's, enz.",
+          "line3": "[Smid] Materiaalsynthese/demontage, kosten voor versterking van apparatuur",
+          "line4": "[Avontuur, Rang, Gilde] Beloningen voor overwinning, toren, baasgevecht, enz."
+        },
+        "material": {
+          "line1": "[Winkel] Goud-/Diamantwinkel (materialen), Gildewinkel (gedeeltelijk)",
+          "line2": "[Quest·Avontuur·Event] Dagelijks, wekelijks, maandelijks, schatkist, operatiebeloningen",
+          "line3": "[Mail] Synthese/verbeteringsresultaten, betaling van evenementen"
+        },
+        "equipment": {
+          "line1": "[Uitrustingsdoos] Verkregen bij gebruik van een doos uit de tas.",
+          "line2": "[Avontuur] Podium-/baasgevecht, duidelijke beloning",
+          "line3": "[Exchange] Koop geregistreerde artikelen van andere gebruikers",
+          "line4": "[Synthese/productie] Productie van smidsynthese/transcendentieapparatuur, enz."
+        },
+        "consumableGeneric": "[Winkel, Quest, Mail] Winkel-, evenement-, operatiebeloningen",
+        "pet": {
+          "soulTraining": "[Huisdier/Trainingbeloning] Slots {{slots}}",
+          "soulConvert": "[Huisdier/Ziel-conversie] {{grades}} Kan worden verkregen door een huisdier uit elkaar te halen",
+          "soulShopDiamond": "[Huisdier · Dierenwinkel] Diamant {{amount}}",
+          "soulShopGold": "[Huisdier · Dierenwinkel] Goud {{amount}}",
+          "soulShopDiamondDaily": "[Huisdier · Dierenwinkel] Diamant {{amount}}, {{limit}} keer per dag",
+          "soulShopGoldDaily": "[Huisdier · Dierenwinkel] Goud {{amount}}, {{limit}} keer per dag",
+          "soulFallback": "[Huisdier] Kan worden verkregen of geruild in Fair Stadium/Bratchery-gerelateerde inhoud.",
+          "eggShop": "[Huisdier · Dierenwinkel] Kan worden gekocht met goud en diamanten (dagelijkse limiet)",
+          "eggRewards": "[Huisdier/Training/Event] Verkregen als gedeeltelijke beloning",
+          "welcomeEggMail": "[Mail] Kan worden verkregen via nieuwe welkomst-/operatiebetalingen, enz.",
+          "welcomeEggShop": "[Huisdier · Dierenwinkel] Kan worden gekocht met diamanten (1 per dag)"
+        }
+      }
     }
   },
   "exchange": {
@@ -4149,9 +5002,9 @@
       "selectGear": "Uitrusting selectie"
     },
     "alerts": {
-      "insufficientTicket": "Onvoldoende transactieregistratierechten.",
+      "insufficientTicket": "Onvoldoende transactieregistratierechten. Vereist voor registratie van extra verkoopslots.",
       "vipListingLimit": "Feature VIP's kunnen zich slechts voor maximaal 3 producten registreren voor de verkoop.",
-      "ticketHint": "Onvoldoende transactieregistratierechten. Met één registratieticket kunt u één verkoopartikel registreren.",
+      "ticketHint": "Voor extra verkoopslotregistratie is een transactieregistratieticket vereist.",
       "selectGearFromInventory": "Selecteer uit uw inventaris de apparatuur die u wilt verkopen.",
       "boundGear": "Gebonden apparatuur kan niet worden verkocht. Maak gebruik van het recht om de toeschrijving te annuleren.",
       "minimumPrice": "Minimale verkoopprijs is {{price}}.",
@@ -4175,7 +5028,7 @@
       "waiting": "sfeer"
     },
     "scoring": "Berekenen...",
-    "allMatchesEnded": "Alle wedstrijden zijn afgelopen. De prijsuitreiking vindt plaats.",
+    "allMatchesEnded": "Alle wedstrijden van vandaag zijn afgelopen.",
     "breathing": "Ik haal diep adem om deel te nemen aan de wedstrijd.",
     "playersEntering": "De spelers komen binnen. Wacht even.",
     "playerLoadError": "Er is een fout opgetreden bij het laden van spelerinformatie.",
@@ -4312,7 +5165,7 @@
       },
       "national": {
         "name": "Nationaal Baduk-toernooi",
-        "description": "Na de voorronden wordt er een kwartfinaletoernooi gehouden om de sterkste speler te bepalen."
+        "description": "Na de voorrondes wordt er een kwartfinaletoernooi gehouden om de sterkste speler te bepalen."
       },
       "world": {
         "name": "Wereldkampioenschap",
@@ -4409,7 +5262,7 @@
         "neighborhood": "Buurt Baduk Liga",
         "national": "Nationaal Baduk-toernooi",
         "world": "Wereldkampioenschap",
-        "unlock3": "Ga door naar de volgende fase als je de 3e plaats of hoger behaalt",
+        "unlock3": "Als je de 3e plaats of hoger behaalt, ga je door naar de volgende fase.",
         "commonFeatures": "Gemeenschappelijke kenmerken van het stadion",
         "simulation": "simulatie spel",
         "condition": "voorwaarde",
@@ -4480,7 +5333,7 @@
         "critical2": "Er worden extra punten verdiend als er een kritieke treffer plaatsvindt.",
         "critical3": "Gevechtskracht en rekenkracht hebben invloed op extra punten",
         "condition1": "Vóór elke wedstrijd wordt een willekeurige voorwaarde tussen 40 en 100 gegeven.",
-        "condition2": "Vaardigheidsscores veranderen niet tijdens de simulatie",
+        "condition2": "Vaardigheidsscores veranderen niet tijdens de simulatie.",
         "condition3": "Kan worden hersteld met condition recovery agent (alleen gebruikt vóór aanvang van het spel)"
       },
       "duelHistory": {
@@ -4527,9 +5380,15 @@
       "strategic": "Strategie Baduk",
       "pair": "Koppel Baduk",
       "championship": "kampioenschap",
-      "scrollGuideTitle": "scroll gids",
-      "categoryAria": "Rangschikking Categorie",
-      "title": "Ranglijst"
+      "scrollGuideTitle": "scroll-gids",
+      "categoryAria": "Categorie rangschikking",
+      "title": "Ranglijst",
+      "gameRankingTab": "Spelrangschikking",
+      "badukRankingTab": "Baduk-ranglijst",
+      "loginRequired": "Nadat u bent ingelogd, kunt u uw ranking bekijken.",
+      "championshipLoginHint": "Nadat u bent ingelogd, kunt u uw kampioenschapsrangschikking bekijken.",
+      "guideClose": "Gids sluiten",
+      "championshipNoGuide": "Er is geen aparte scoregids voor het kampioenschapsklassement."
     },
     "round16": "ronde van 16",
     "center": "centrum",
@@ -4581,8 +5440,8 @@
     "matchRewardIndex": "Match {{index}} beloningen",
     "champCoinTimes": "Champ Coin ×{{bedrag}}",
     "champCoinPending": "Champ Coin {{label}} (bevestigd bij ontvangst)",
-    "rankRewardTitle": "{{rank}}hoogste rangbeloning · {{item}} ×{{qty}}",
-    "matchRoundResult": "{{ronde}} ronde {{uitkomst}}! ({{winsten}} overwinningen {{verliezen}} verliezen)",
+    "rankRewardTitle": "{{rank}}hoogste ranking beloning · {{item}} ×{{qty}}",
+    "matchRoundResult": "{{ronde}} ronde {{uitkomst}}! ({{overwinningen}} overwinningen {{verliezen}} verliezen)",
     "statusRecordRank": "{{overwinningen}} overwinningen {{verliezen}} verliezen! {{rang}}",
     "championTitle": "🏆Winnen!",
     "runnerUp": "Tweede!",
@@ -4659,7 +5518,7 @@
       "missile": "raket",
       "hidden": "Verborgen",
       "scan": "scannen",
-      "refresh": "Wijziging in indeling"
+      "refresh": "Indelingswijziging"
     },
     "rewardItems": {
       "equipmentBox1": "Uitrustingsdoos I",
@@ -4695,7 +5554,7 @@
     "rewardFromFloor10Short": "Je kunt een maandelijkse beloning ontvangen als je 10 of meer verdiepingen voltooit.",
     "stages": "fase",
     "rankingTop100": "Ranglijst Top 100",
-    "rewardTierLine": "Compensatie voor {{floor}} vloerdelen · Uitbetaald aan het einde van de maand",
+    "rewardTierLine": "Vergoeding voor {{floor}} vloerdelen · Uitbetaald aan het einde van de maand",
     "unranked": "anders dan rangschikking",
     "noOtherRanked": "Er zijn geen andere ranglijsten vermeld in de Top 100.",
     "rewardModalTitle": "Tower of Challenge-beloningsinformatie",
@@ -4715,7 +5574,7 @@
     "equippedPet": "Uitgerust huisdier",
     "roomKinds": {
       "friendly4p": "4-persoons vriendelijk",
-      "friendly2p": "2 persoonsvriendelijk",
+      "friendly2p": "2 persoons vriendelijk",
       "duoAi": "2-persoons AI-gevecht",
       "friendly": "vriendschappelijke wedstrijd",
       "arenaAi": "Vecht tegen AI",
@@ -4751,7 +5610,7 @@
       "mobilePickHint": "Klik op een item om het te selecteren en bekijk de rangschikkingsinformatie en regels hieronder.",
       "queueWithAp": "Wacht op matching (⚡{{cost}})",
       "titleStrategic": "Strategische Baduk-ranking-matchmatching",
-      "titleDuo": "2-persoons rankingwedstrijd voor paren",
+      "titleDuo": "2-persoonspaarrangschikkingswedstrijd",
       "titlePet": "Eerlijke huisdierrangschikking Match Matching"
     },
     "rankedOffer": {
@@ -4816,7 +5675,7 @@
       "fixedReward": "Gedefinieerde compensatie",
       "probOneKind": "Waarschijnlijkheid (1 type)",
       "probReward": "Waarschijnlijkheidscompensatie",
-      "claimRewardAria": "Ontvang trainingsbeloningen",
+      "claimRewardAria": "Ontvang een trainingsbeloning",
       "petDetailAria": "Huisdierdetails",
       "remainingTimeAria": "Resterende tijd {{time}}",
       "pickPet": "Selecteer huisdier",
@@ -4859,7 +5718,10 @@
       "remainingTime": "resterende tijd",
       "diamondsUsed": "gebruik diamant",
       "ownedLabel": "bezit",
-      "mysteriousEgg": "Mysterieus ei ×1"
+      "mysteriousEgg": "Mysterieus ei ×1",
+      "upgradeTier1": "Versterk ik",
+      "upgradeTier2": "Versterk II",
+      "upgradeTier3": "Versterk III"
     },
     "lobby": {
       "infoTab": "informatie",
@@ -4882,7 +5744,7 @@
       "expandInvQuestion": "Wilt u uw voorraad van {{category}} uitbreiden?",
       "expandSlotsHint": "+{{step}} ruimte toegevoegd (maximaal {{max}} ruimte)",
       "dailyLimit": "Dagelijkse limiet {{resterende}}/{{limiet}}",
-      "specBadge": "Speciaal",
+      "specBadge": "speciaal",
       "tierActive": "Toepassen",
       "tierUnlocked": "Ontgrendeld",
       "tierUpgrade": "Verbeteren ({{gold}} G)",
@@ -4967,7 +5829,7 @@
       "invitesBlocked": "U hebt de andere partij zo ingesteld dat deze geen uitnodigingen ontvangt.",
       "targetResting": "Rustende gebruikers kunnen niet worden uitgenodigd.",
       "targetBusy": "Gebruikers die in een match of onderhandeling zitten, kunnen niet worden uitgenodigd.",
-      "cooldown": "Je kunt na een tijdje (10 seconden) opnieuw uitnodigen",
+      "cooldown": "Na een tijdje (10 seconden) kun je opnieuw uitnodigen",
       "lobbyOnly": "Alleen gebruikers die in de Strategie-/Speel-/Koppelkamer verblijven, kunnen worden uitgenodigd.",
       "inviterLabel": "Uitgenodigde gebruiker",
       "arenaInviteStrategic": "Strategisch Baduk-stadion",
@@ -5072,7 +5934,7 @@
       "privatePasswordLength": "Voer 4 tekens in voor het wachtwoord voor de privékamer.",
       "privatePasswordRequired": "Wanneer u overschakelt naar een privékamer, dient u een wachtwoord van 4 tekens in te voeren.",
       "cannotJoinInProgress": "Je kunt de kamer waar het spel bezig is niet betreden.",
-      "cannotJoinMatching": "Je kunt de gematchte kamer niet betreden.",
+      "cannotJoinMatching": "U kunt de gematchte kamer niet betreden.",
       "privateRoom": "privé kamer",
       "enterRoomNumber": "Voer uw kamernummer in.",
       "enterPassword": "Voer uw wachtwoord in.",
@@ -5084,7 +5946,7 @@
       "strategicRoomTitle": "De strategische Baduk-kamer van {{name}}",
       "playfulRoomTitle": "De speelbadukkamer van {{name}}",
       "pairRoomTitle": "De tweepersoonskamer van {{name}}",
-      "aiStartRestricted": "AI-gevechten kunnen alleen worden gestart in de AI-kamers met huisdierpaar (conventionele kamer), Strategie, Speelvriendelijk (Duo) en Stadion. Maak een nieuwe huisdierpaarkamer in 'Pair AI Battle' bovenaan de gebruikerslijst.",
+      "aiStartRestricted": "AI-gevechten kunnen alleen worden gestart in de AI-kamers met huisdierenpaar (conventionele kamer), Strategie, Speelvriendelijk (Duo) en Stadion. Maak een nieuwe huisdierpaarkamer in 'Pair AI Battle' bovenaan de gebruikerslijst.",
       "alreadyInRoomForRanked": "Er is al een deelnemende kamer. Start de Pet Pair Ranking Match bovenaan de gebruikerslijst nadat je een andere paarkamer hebt verlaten."
     },
     "loading": "Laden...",
@@ -5120,6 +5982,9 @@
       "matchInProgress": "Wedstrijd bezig",
       "inMatch": "Tijdens het spel",
       "enter": "positie",
+      "spectate": "Kijken",
+      "spectateMatch": "Bekijk het spel",
+      "spectateUnavailable": "Ik kan geen wedstrijdinformatie vinden om te bekijken.",
       "orphanRooms": "Nummer 1~100 Buitenkamer",
       "roomKindFilter": "Kamertypefilter",
       "gameModeFilter": "Spelmodusfilter",
@@ -5129,7 +5994,7 @@
       "gameMode": "spelmodus",
       "detailConditions": "Gedetailleerde voorwaarden",
       "noDetailSettings": "Er zijn geen gedetailleerde instellingen om weer te geven.",
-      "aiTabHint": "Spelinstellingen en starten doe je op het AI-tabblad.",
+      "aiTabHint": "Spelinstellingen en starten doe je op het tabblad AI.",
       "roomKind": "kamertype",
       "changeRoom": "kleedkamer",
       "proposeChange": "suggestie wijzigen",
@@ -5142,7 +6007,7 @@
       "startAi": "AI-gevecht begint",
       "startMatch": "spel begint",
       "startMatching": "Het matchen begint",
-      "preparingAiRoom": "Wij zijn een tweepersoons AI-kamer aan het voorbereiden.",
+      "preparingAiRoom": "Wij zijn een AI-kamer voor twee personen aan het voorbereiden.",
       "openingAiRoom": "We openen een AI-kamer voor 2 personen.",
       "invitePartnerHint": "Nodig een partner uit het linkerpaneel uit.",
       "waitPartnerReady": "Wacht tot uw partner klaar is.",
@@ -5172,14 +6037,14 @@
       "passwordFourChars": "Wachtwoord 4 tekens",
       "passwordFourCharsHint": "(Wachtwoord 4 tekens)",
       "privatePasswordAria": "Wachtwoord voor privékamer 4 tekens",
-      "playfulRoomList": "Speel de Baduk-kamerlijst",
+      "playfulRoomList": "Speel Baduk-kamerlijst",
       "strategicRoomList": "Strategische Baduk-kamerlijst",
       "pairRoomList": "Eerlijke kamerlijst",
       "onlineUserList": "Lijst met momenteel verbonden gebruikers",
       "userList": "Gebruikerslijst",
       "userListPairAi": "Gebruikerslijst · Koppel AI Battle",
       "aiSettingsTitle": "AI-wedstrijdinstellingen",
-      "rankedMatchTitle": "Match-matching van de ranking",
+      "rankedMatchTitle": "Match-matching van rangschikking",
       "pairMatchSettings": "Koppel Baduk-wedstrijdinstellingen"
     },
     "modals": {
@@ -5198,6 +6063,100 @@
       "navigatePairArena": "Ga naar het Fairstadion",
       "leaveRoomOnNavigate": "Als u naar een andere arena gaat, verlaat u de kamer waaraan u deelneemt. Wilt u doorgaan?",
       "leaveRoomConfirm": "Je wordt verwijderd uit de kamer waaraan je hebt deelgenomen. Wil je doorgaan?"
+    },
+    "pets": {
+      "pair-pet-1": {
+        "name": "Lumifox"
+      },
+      "pair-pet-2": {
+        "name": "IJs kat"
+      },
+      "pair-pet-3": {
+        "name": "Goldignan"
+      },
+      "pair-pet-4": {
+        "name": "sneeuwpanda"
+      },
+      "pair-pet-5": {
+        "name": "Penky"
+      },
+      "pair-pet-6": {
+        "name": "zonnevogel"
+      },
+      "pair-pet-7": {
+        "name": "Baniru"
+      },
+      "pair-pet-8": {
+        "name": "Honing Beer"
+      },
+      "pair-pet-9": {
+        "name": "Bladkat"
+      },
+      "pair-pet-10": {
+        "name": "Spruit"
+      },
+      "pair-pet-11": {
+        "name": "violette kat"
+      },
+      "pair-pet-12": {
+        "name": "Zonnetje"
+      },
+      "pair-pet-13": {
+        "name": "Amber Vos"
+      },
+      "pair-pet-14": {
+        "name": "Crème kat"
+      },
+      "pair-pet-15": {
+        "name": "vleugel kit"
+      },
+      "pair-pet-16": {
+        "name": "masker hond"
+      },
+      "pair-pet-17": {
+        "name": "Ivoren beer"
+      },
+      "pair-pet-18": {
+        "name": "sneeuw huisdier"
+      },
+      "pair-pet-19": {
+        "name": "meid"
+      },
+      "pair-pet-20": {
+        "name": "Schaduwwolf"
+      },
+      "pair-pet-21": {
+        "name": "Vleugel konijntje"
+      },
+      "pair-pet-22": {
+        "name": "Goud brutaal"
+      },
+      "pair-pet-23": {
+        "name": "toegeven"
+      },
+      "pair-pet-24": {
+        "name": "kwalkikker"
+      }
+    },
+    "trainingSlots": {
+      "0": {
+        "name": "technische opleiding"
+      },
+      "1": {
+        "name": "opleiding op leven en dood"
+      },
+      "2": {
+        "name": "Opleiding vooraf"
+      },
+      "3": {
+        "name": "Jeongseok-training"
+      },
+      "4": {
+        "name": "Gibo-training"
+      },
+      "5": {
+        "name": "opleiding waterdam"
+      }
     }
   },
   "blacksmith": {
@@ -5214,7 +6173,7 @@
     "effects": "Smeedeffect",
     "effectsAria": "Bekijk de effecten van de smederij",
     "functionsAria": "smid functie",
-    "selectGear": "Uitrusting selectie",
+    "selectGear": "Apparatuurselectie",
     "reselectGear": "← Apparatuur opnieuw selecteren",
     "inProgressHint": "Voortgang in het taakvenster. Als u het venster heeft gesloten, kunt u het opnieuw openen met de onderstaande knop.",
     "openWorkHint": "Klik op onderstaande knop om het werkscherm te openen.",
@@ -5237,13 +6196,13 @@
       "default": "Open het taakscherm"
     },
     "pickHints": {
-      "enhance": "Selecteer de uitrusting die moet worden versterkt in het modaal en druk vervolgens op Selectie voltooid om naar het versterkingsscherm te gaan.",
+      "enhance": "Selecteer het te versterken materieel in de modal en klik op Selectie voltooien om naar het wapeningsscherm te gaan.",
       "combine": "Als u 3 apparaten van dezelfde kwaliteit in de modal plaatst en vervolgens op Selectie voltooid drukt, wordt u naar het synthesescherm gebracht.",
-      "disassemble": "Selecteer in het modaal het te demonteren apparaat en druk vervolgens op Selectie voltooid om naar het demontagescherm te gaan.",
+      "disassemble": "Selecteer het te demonteren apparaat in het modal en druk vervolgens op Selectie voltooid om naar het demontagescherm te gaan.",
       "refine": "Nadat u in de modal de te smelten apparatuur hebt geselecteerd en op Selectie voltooien hebt geklikt, wordt u naar het smeltscherm geleid."
     },
     "picker": {
-      "selectGear": "Uitrusting selectie",
+      "selectGear": "Apparatuurselectie",
       "autoSelect": "automatische selectie",
       "selectComplete": "Selectie voltooid",
       "emptyMaterial": "ingrediënt",
@@ -5251,7 +6210,7 @@
       "removeMaterial": "Ingrediënten aftrekken",
       "removeMaterialAria": "Trek {{name}} ingrediënten af",
       "combineHint": "Plaats 3 uitrustingsstukken van dezelfde kwaliteit in de gleuf en klik op Selectie voltooien.",
-      "disassembleHint": "U kunt de apparatuur die u wilt demonteren selecteren/deselecteren door erop te tikken.",
+      "disassembleHint": "U kunt de apparatuur die u wilt demonteren selecteren of deselecteren door erop te tikken.",
       "enhanceTapHint": "Tik op de uitrusting die je wilt versterken of verfijnen om naar het werkscherm te gaan.",
       "enhanceConfirmHint": "Tik op een apparaat dat je wilt versterken of verfijnen en druk vervolgens op Selectie voltooien.",
       "slots": {
@@ -5295,7 +6254,7 @@
       "deselect": "Deselecteer",
       "deselectAria": "Deselecteer {{naam}}",
       "selectedGear": "geselecteerde apparatuur",
-      "jackpotHint": "{{rate}}% kans op het winnen van de jackpot (verdubbel de ingrediënten)",
+      "jackpotHint": "{{rate}}% kans om de jackpot te winnen (verdubbel de ingrediënten)",
       "reopenHint": "Selecteer opnieuw de smid om de modal te openen en selecteer de uitrusting die je wilt demonteren.",
       "pickHint": "Selecteer (vink) de apparatuur aan die u wilt demonteren uit de onderstaande apparatuurinventaris.",
       "previewHint": "Wanneer u een uitrustingsstuk selecteert, worden de verwachte materialen weergegeven.",
@@ -5353,7 +6312,7 @@
       "mythicOptionChange": "Verander mythe-opties",
       "mythicTypeValue": "Mythe/Type/Nummerverandering",
       "mythicType": "Mythe/typeverandering",
-      "mythicValue": "Mythe-/aantalwijzigingen",
+      "mythicValue": "Mythe-/nummerveranderingen",
       "refinementCountSlot": "Aantal verfijningen mogelijk",
       "oneDecrease": "Eén keer consumeren",
       "countTimes": "{{count}} keer",
@@ -5426,7 +6385,7 @@
     "casualTag": "vriendschappelijke wedstrijd",
     "casualTitle": "vriendschappelijke wedstrijd",
     "casualDesc": "Deze wedstrijd is een vriendschappelijke wedstrijd. Er is geen verandering in de rankingscore.",
-    "actionPointNotice": "Wanneer een match wordt bevestigd, wordt aan beide kanten actiekracht ⚡{{cost}} verbruikt. Als acceptatie/AI onvoldoende is bij het starten, wordt een venster voor gedragsenergiebeheer geopend.",
+    "actionPointNotice": "Wanneer een match wordt bevestigd, wordt aan beide kanten actiekracht ⚡{{cost}} verbruikt. Als dit onvoldoende is wanneer de acceptatie/AI start, wordt er een venster voor gedragsenergiebeheer geopend.",
     "titleAi": "{{prefix}}{{mode}} AI-matchinstellingen",
     "titleRematch": "{{prefix}}Instellingen voor opnieuw matchen ({{mode}})",
     "titleDefault": "{{prefix}}overeenkomstinstellingen ({{mode}})",
@@ -5438,7 +6397,7 @@
     "accept": "Accepteren (⚡{{kosten}})",
     "statusAi": "Controleer de AI-matchinstellingen.",
     "statusDraft": "Controleer de matchinstellingen en druk op de knop [Apply for match].",
-    "statusRespond": "[Accepteer] of [Stel wijzigingen voor] op het voorstel van de andere partij.",
+    "statusRespond": "[Accepteren] of [Wijzigingen voorstellen] op het voorstel van de andere partij.",
     "statusWaiting": "Wachten op een reactie van de andere partij ({{name}})...",
     "statusChecking": "Instellingen controleren...",
     "userLevel": "postuum werk",
@@ -5449,7 +6408,7 @@
     "mixRulesMinAlert": "Voor mixregels moeten twee of meer regels worden geselecteerd.",
     "mixCaptureCastleConflict": "Winnen en Kasteel kunnen niet tegelijkertijd worden geselecteerd.",
     "countUnit": "{{graaf}}",
-    "boardLines": "{{size}}lijn",
+    "boardLines": "Regel {{maat}}",
     "pointsFixed": "9 punten (vast)",
     "pointsUnit": "{{score}} punten",
     "turnsUnit": "{{limit}}aantal",
@@ -5531,6 +6490,8 @@
       "3": "Eén beweging in 0,5 seconde"
     },
     "matchControlAria": "spelcontrole",
+    "skipReplay": "OVERSLAAN",
+    "skipReplayHint": "Sla de estafette over en controleer gewoon de resultaten.",
     "startMatch": "spel begint",
     "exit": "Uitgang",
     "season": "seizoen",
@@ -5555,7 +6516,7 @@
     "matchResult": "wedstrijd resultaat",
     "lowConditionTitle": "conditie laag",
     "currentCondition": "huidige toestand",
-    "lowConditionBody": "nee zie. Als uw toestand slecht is",
+    "lowConditionBody": "nee zie. Als uw toestand laag is",
     "mistakeChance": "fout",
     "mistakeChanceSuffix": "De kans op een coming-out neemt toe",
     "brilliantMove": "Gods zet",
@@ -5587,7 +6548,7 @@
     },
     "lobby": {
       "title": "Zoek een gilde",
-      "createGuild": "gilde creatie",
+      "createGuild": "oprichting van een gilde",
       "searchPlaceholder": "Gildenaam zoeken...",
       "pending": "Toepassen",
       "joinInstant": "Meld u nu aan",
@@ -5611,7 +6572,7 @@
     "donation": {
       "title": "Gilde donatie",
       "donateSection": "Doneer",
-      "historySection": "Donatiegeschiedenis",
+      "historySection": "Donatie geschiedenis",
       "placeholder": "goud om te doneren",
       "donate": "donatie",
       "enterAmount": "Vul het goud in dat u wilt doneren.",
@@ -5619,7 +6580,7 @@
       "failed": "Donatie mislukt.",
       "ownedGold": "Goud aangehouden: {{amount}}",
       "noHistory": "Er is geen donatiegeschiedenis.",
-      "goldUnit": "{{bedrag}} Goud",
+      "goldUnit": "{{bedrag}} goud",
       "error": "Er is een fout opgetreden tijdens het doneren.",
       "goldDonation": "gouden donatie",
       "diamondDonation": "diamant donatie",
@@ -5684,8 +6645,8 @@
       "demoteConfirm": "Wil je {{name}} ontslaan als plaatsvervangend gildeleider?",
       "kickConfirm": "Wil je {{name}} uit de gilde schoppen?",
       "transferConfirm": "Wil je echt de autoriteit van de gildeleider delegeren aan {{name}}? Deze actie is onomkeerbaar.",
-      "leaderMustTransfer": "Als een gildeleider het gilde wil verlaten, moet hij eerst de rol van gildeleider delegeren aan een ander gildelid.",
-      "lastMemberLeave": "Ik ben het laatste lid van het gilde. Als je het gilde verlaat, wordt het gilde ontbonden. Weet je zeker dat je weg wilt?",
+      "leaderMustTransfer": "Als de gildeleider het gilde wil verlaten, moet hij eerst de rol van gildeleider delegeren aan een ander gildelid.",
+      "lastMemberLeave": "Ik ben het laatste lid van het gilde. Als je de gilde verlaat, wordt de gilde ontbonden. Weet je zeker dat je weg wilt?",
       "leaveConfirm": "Weet je zeker dat je het gilde wilt verlaten?",
       "leaveError": "Er is een fout opgetreden bij het verlaten van het gilde."
     },
@@ -5710,14 +6671,34 @@
     "missions": {
       "title": "Wekelijkse gildemissie",
       "achieved": "bereiken",
-      "guildXp": "Gilde XP +{{bedrag}}",
+      "guildXp": "Gilde-ervaring +{{amount}}",
       "expired": "verlopen",
       "rewardClaimed": "Beloning voltooid",
       "claimReward": "Ontvang beloningen",
       "inProgress": "In uitvoering",
       "resetCountdown": "Verlengen na {{days}} dagen {{hours}}:{{minutes}}",
       "unclaimedHint": "Er zijn beloningen die je kunt ontvangen. Vergeet het niet in te nemen.",
-      "empty": "Er zijn geen wekelijkse missies om weer te geven."
+      "empty": "Er zijn geen wekelijkse missies om weer te geven.",
+      "titles": {
+        "checkIns": "Gildebezoek 50 keer",
+        "guildDonations": "Er zijn 50 gildedonaties verzameld",
+        "bossAttempts": "30 keer deelgenomen aan gildebaasgevechten",
+        "strategicWins": "Strategische Baduk wint 30 keer",
+        "playfulWins": "Speel Baduk wint 30 keer",
+        "equipmentEnhancements": "50 versterkingspogingen",
+        "epicGearAcquisitions": "Verkrijg 20 keer uitrusting van epische kwaliteit of hoger",
+        "diamondsSpent": "Verbruikt 3000 diamanten"
+      },
+      "descriptions": {
+        "checkIns": "Gildeleden komen in totaal 50 keer langs",
+        "guildDonations": "Laat gildeleden in totaal 50 keer goud en diamanten doneren.",
+        "bossAttempts": "Laat gildeleden deelnemen aan in totaal 30 gildebaasgevechten.",
+        "strategicWins": "Gildeleden behalen in totaal 30 overwinningen in strategische baduk (inclusief wachtkamer-AI en algemene wedstrijden)",
+        "playfulWins": "Gildeleden behalen in totaal 30 overwinningen in Baduk (inclusief wachtkamer-AI en algemene wedstrijden)",
+        "equipmentEnhancements": "Laat gildeleden in totaal 50 pogingen tot uitrustingsverbetering uitvoeren",
+        "epicGearAcquisitions": "Laat gildeleden 20 keer apparatuur van epische kwaliteit of hoger aanschaffen",
+        "diamondsSpent": "Gildeleden geven in totaal 3000 diamanten uit in winkels, enz."
+      }
     },
     "research": {
       "title": "Gilde Lab",
@@ -5745,8 +6726,8 @@
       "statCombatPower": "Gevechtskracht +{{value}}%",
       "statStability": "Stabiliteit +{{value}}%",
       "bossHpIncrease": "[{{value}}% stijging]",
-      "bossHealBlock": "[{{kans}}%]waarschijnlijkheid / terugvorderingsbedrag [-{{reductie}}%]",
-      "bossRegen": "[{{chance}}%]waarschijnlijkheid/herstelbedrag[+{{toename}}%]",
+      "bossHealBlock": "[{{chance}}%]waarschijnlijkheid / terugvorderingsbedrag [-{{reductie}}%]",
+      "bossRegen": "[{{kans}}%]waarschijnlijkheid/herstelbedrag[+{{toename}}%]",
       "bossIgnite": "[{{chance}}%]Kanslijkheid/schade[+{{schade}}%]"
     },
     "effects": {
@@ -5777,7 +6758,7 @@
       "claiming": "Verwerking",
       "done": "compleet",
       "coinEarnedTitle": "Verkrijg gildemunten",
-      "coinEarnedBody": "Als beloning voor het bereiken van {{attendeeCount}} aanwezigen vandaag heb ik {{amount}} gildemunten ontvangen."
+      "coinEarnedBody": "Als beloning voor het bereiken van {{attendeeCount}} mensen die vandaag aanwezig waren, ontving ik {{amount}} gildemunten."
     },
     "homeChat": {
       "globalTab": "Allemaal chatten",
@@ -5795,7 +6776,18 @@
       "quickChat": "snelle babbel",
       "send": "doorsturen",
       "sendTitle": "versturen",
-      "locationHome": "[thuis]"
+      "locationHome": "[thuis]",
+      "systemMessages": {
+        "missionComplete": "Wekelijkse missie [{{missionTitle}}] volbracht! Ontvang je beloningen op het tabblad Gildeactiviteit > Gildemissie.",
+        "bossWeeklySettlement": "Wekelijkse gildebaasafrekening ({{bossName}}, {{status}}): Gildeervaring +{{guildXp}}, onderzoekspunten +{{researchPoints}} zijn verzameld in de gilde.",
+        "bossWeeklySettlementDefeated": "verlies",
+        "bossWeeklySettlementRemainingHp": "Resterende gezondheid {{percent}}%",
+        "warJoinMatching": "[{{nickname}}]{{subjectParticle}} nam deel aan de gildeoorlog. We gaan verder met matchen.",
+        "warJoinBotMatch": "[{{nickname}}]{{subjectParticle}} nam deel aan de gildeoorlog. Matched met systeembotgilde in oneven wachtrij.",
+        "warJoinOpponent": "[{{nickname}}]{{subjectParticle}} nam deel aan de gildeoorlog. Tegenstander: 「{{tegenstanderGuildName}}」",
+        "warCancelMatching": "[{{nickname}}]{{subjectParticle}} Gildeoorlogmatches zijn geannuleerd.",
+        "bossDamage": "[{{nickname}}]{{subjectParticle}} heeft {{damage}} schade toegebracht aan {{bossName}}."
+      }
     },
     "war": {
       "title": "gilde oorlogen",
@@ -5820,7 +6812,7 @@
       "guildXp": "Gilde ervaring",
       "researchPoints": "onderzoekspunten",
       "houseLabel": "huis {{score}}",
-      "dominanceTooltip": "Dominantie aan de linkerkant ongeveer {{percent}}% (ster/punt)",
+      "dominanceTooltip": "Dominantie aan de linkerkant: ongeveer {{percent}}% (ster/punt)",
       "loadingWarInfo": "Gildeoorloginformatie laden...",
       "noActiveWar": "Er zijn geen gildeoorlogen gaande.",
       "notStartedYet": "De gildeoorlog is nog niet begonnen. \nJe kunt meedoen vanaf {{date}}(KST).",
@@ -5830,7 +6822,7 @@
       "goToWarScreen": "Ga naar het gildegevechtsscherm",
       "autoMatching": "Automatische matching is bezig. Als je klaar bent, kun je naar binnen.",
       "autoMatchingHint": "Er zijn geen gildeoorlogen gaande. Gilden die aan de voorwaarden voldoen, worden tijdens de gildeoorlogsperiode automatisch gematcht.",
-      "claimRewardFailed": "Kan beloning niet ontvangen.",
+      "claimRewardFailed": "Kan geen beloning ontvangen.",
       "participationChangeFailed": "Kan de instellingen voor oorlogsdeelname niet wijzigen.",
       "remainingTime": "resterende tijd",
       "matching": "Bijpassend...",
@@ -5865,11 +6857,11 @@
       "rewardAlreadyClaimed": "Je hebt de beloning van het vorige gildegevecht al ontvangen.",
       "rewardClaimHint": "Ontvang beloningen van de vorige gildestrijd. Wanneer de volgende gildeoorlog eindigt, verdwijnen eerdere beloningen.",
       "rewardUnavailable": "Er is geen beloning beschikbaar of deze is op dat moment niet beschikbaar. (Vanaf 1 uur na het einde van de oorlog tot het einde van de volgende gildeoorlog)",
-      "rewardClaimedBtn": "Beloning ontvangen",
+      "rewardClaimedBtn": "Voltooiing ontvangen",
       "claimRewardBtn": "Ontvang beloning",
       "noRecord": "geen record",
       "enter": "positie",
-      "warTicketAlt": "Gildegevecht-aanvalsticket",
+      "warTicketAlt": "Aanvalsticket voor gildegevechten",
       "systemAiGuild": "[Systeem] Gildegevecht AI",
       "schedule": "Gildeoorlogsschema",
       "demoMode": "demo-modus",
@@ -5883,14 +6875,14 @@
       "currentOccupier": "huidige bewoner",
       "none": "bestaat niet",
       "capturesCount": "{{count}} winnende stenen",
-      "scoreDiff": "Huisverschil {{count}}Huis",
+      "scoreDiff": "huisverschil {{count}}huis",
       "scoreDiffShort": "verschil {{count}}huis",
       "targetScore": "doelscore",
       "pointsUnit": "{{count}}punten",
       "mode": "modus",
       "board": "schaakbord",
-      "boardLines": "{{size}}lijn",
-      "turnLimit": "draailimiet",
+      "boardLines": "Regel {{maat}}",
+      "turnLimit": "limiet draaien",
       "turnsUnit": "{{count}} beurten",
       "scoringTurns": "{{count}} gaat over op het tellen van de prijs",
       "clock": "wedstrijd klok",
@@ -5955,6 +6947,13 @@
     },
     "boss": {
       "title": "Gildebaasgevecht",
+      "names": {
+        "boss_1": "luisteren",
+        "boss_2": "bekendheid",
+        "boss_3": "groen water",
+        "boss_4": "diepte",
+        "boss_5": "wit licht"
+      },
       "guide": "Baas Encyclopedie",
       "guideTitle": "Gildebaas-encyclopedie",
       "stage": "{{stage}}fase",
@@ -5982,7 +6981,7 @@
       "researchSkills": "Laboratoriumvaardigheden",
       "researchSkillEffects": "Lab-vaardigheidseffect",
       "damageTop3": "Top 3 cumulatieve schade",
-      "damageRankingTop3": "Cumulatieve schaderangschikking Top 3",
+      "damageRankingTop3": "Cumulatieve schaderanglijst Top 3",
       "noRecords": "geen record",
       "me": "(mij)",
       "battleDamage": "Deze strijd:",
@@ -6045,7 +7044,7 @@
     "rewards": {
       "guildCoins": "gilde munt",
       "guildXp": "Gilde ervaring",
-      "researchPoints": "Lab-punten",
+      "researchPoints": "Laboratoriumpunten",
       "enhancementStoneLow": "Kleinere betoveringssteen",
       "enhancementStoneMid": "Tussenliggende verbeteringssteen",
       "enhancementStoneHigh": "Geavanceerde betoveringssteen",
@@ -6057,7 +7056,7 @@
       "materialBox4": "Materiaaldoos IV"
     },
     "createModal": {
-      "title": "gilde creatie",
+      "title": "oprichting van een gilde",
       "nameLabel": "gilde naam",
       "nameLengthHint": "(2~6 tekens)",
       "namePlaceholder": "Voorbeeld: Myeongwol-gilde",
@@ -6122,7 +7121,7 @@
     },
     "shopLegacy": {
       "empty": "Er zijn geen artikelen te koop.",
-      "goldPrice": "{{prijs}} Goud",
+      "goldPrice": "{{price}} Goud",
       "stock": "Voorraad: {{resterend}}/{{totaal}}",
       "purchase": "aankoop",
       "purchaseFailed": "Uw aankoop is mislukt."
@@ -6152,7 +7151,7 @@
       "closeAria": "{{title}} Sluiten",
       "effectiveDate": "Ingangsdatum: {{date}}",
       "articleHeading": "Artikel {{num}} Artikel {{title}}",
-      "footerRepresentative": "Vertegenwoordiger {{representative}} · Bedrijfsregistratienummer {{businessNumber}} · Postorderbedrijfsrapport {{mailOrderNumber}}",
+      "footerRepresentative": "Vertegenwoordiger {{representative}} · Bedrijfsregistratienummer {{businessNumber}} · Bedrijfsrapport postorderbedrijf {{mailOrderNumber}}",
       "footerContact": "{{adres}} · Klantencentrum {{phone}} · {{email}}"
     },
     "termsOfService": {
@@ -6168,7 +7167,7 @@
     "refundPolicy": {
       "title": "Annulerings-/restitutiebeleid",
       "eyebrow": "Terugbetalingsbeleid",
-      "intro": "Wij willen u graag informeren over de annulering en terugbetaling van betaalde inhoud. Deze regelgeving is opgesteld in overeenstemming met relevante wet- en regelgeving, zoals de Wet op de Elektronische Handel."
+      "intro": "Wij willen u graag informeren over de annulering en terugbetaling van betaalde inhoud. Deze regelgeving is opgesteld in overeenstemming met relevante wet- en regelgeving, zoals de Electronic Commerce Act."
     },
     "purchaseConsent": {
       "title": "Controleer de voortgang van de betaling",

@@ -1,7 +1,7 @@
 import { TournamentState, PlayerForTournament, CoreStat, CommentaryLine, Match, User, Round, TournamentType, TournamentSimulationStatus, EquipmentSlot } from '../shared/types/index.js';
 import { calculateTotalStats } from './statService.js';
 import { randomUUID } from 'crypto';
-import { TOURNAMENT_DEFINITIONS, NEIGHBORHOOD_MATCH_REWARDS, NATIONAL_MATCH_REWARDS, WORLD_MATCH_REWARDS, DUNGEON_STAGE_BOT_STATS, DUNGEON_STAGE_BASE_REWARDS_GOLD, DUNGEON_STAGE_BASE_REWARDS_MATERIAL, DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT, getDungeonMatchGoldReward, getDungeonMatchMaterialReward, getDungeonMatchEquipmentGrade } from '../shared/constants';
+import { TOURNAMENT_DEFINITIONS, NEIGHBORHOOD_MATCH_REWARDS, NATIONAL_MATCH_REWARDS, WORLD_MATCH_REWARDS, DUNGEON_STAGE_BOT_STATS, DUNGEON_STAGE_BASE_REWARDS_GOLD, DUNGEON_STAGE_BASE_REWARDS_MATERIAL, DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT, getDungeonMatchGoldReward, getDungeonMatchMaterialReward, getDungeonMatchEquipmentGrade, DUNGEON_AUTO_NEXT_MATCH_COUNTDOWN_MS } from '../shared/constants';
 import { ItemGrade } from '../shared/types/enums.js';
 import { generateNewItem } from './actions/inventoryActions.js';
 import { assignChampionshipCondition } from './championshipRealMatchService.js';
@@ -311,14 +311,22 @@ const startNextMatchAutomatically = async (
             }
         }
 
-        // 챔피언십 던전: 매 경기 결과를 충분히 확인할 수 있도록 자동 카운트다운을 두지 않고,
-        // 유저가 "다음 경기" 버튼을 직접 눌러서 진행하도록 한다. 상태만 bracket_ready로 둔다.
-        state.nextRoundStartTime = null;
-        state.status = 'bracket_ready'; // 다음 경기 수동 시작 대기
+        state.status = 'bracket_ready';
 
-        // 경기 정보는 아직 설정하지 않음 (유저의 START_TOURNAMENT_MATCH 액션에서 설정)
+        if (state.currentStageAttempt != null) {
+            // 챔피언십 던전: 결과 확인 후 10초 카운트다운 → 클라이언트가 자동으로 다음 경기 시작
+            state.nextRoundStartTime = Date.now() + DUNGEON_AUTO_NEXT_MATCH_COUNTDOWN_MS;
+            console.log(
+                `[startNextMatchAutomatically] Dungeon auto-next countdown: roundIndex=${roundIndex}, matchIndex=${matchIndex}, nextRoundStartTime=${state.nextRoundStartTime}`,
+            );
+        } else {
+            state.nextRoundStartTime = null;
+            console.log(
+                `[startNextMatchAutomatically] Awaiting manual start: roundIndex=${roundIndex}, matchIndex=${matchIndex}, status=bracket_ready`,
+            );
+        }
 
-        console.log(`[startNextMatchAutomatically] Awaiting user "다음 경기" tap for next match: roundIndex=${roundIndex}, matchIndex=${matchIndex}, status=bracket_ready`);
+        // 경기 정보는 아직 설정하지 않음 (START_TOURNAMENT_MATCH 액션에서 설정)
         return true;
     } catch (error: any) {
         console.error(`[startNextMatchAutomatically] Error auto-starting match:`, error);

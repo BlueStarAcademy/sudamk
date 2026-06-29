@@ -11,6 +11,10 @@ import { TOURNAMENT_DEFINITIONS } from '../../constants';
 import { replaceAppHash } from '../../utils/appUtils.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
+import {
+    clearChampionshipDungeonClientSessionStorage,
+    isChampionshipDungeonTournamentFromToday,
+} from '../../shared/utils/championshipDungeonDailyReset.js';
 
 interface TournamentArenaProps {
     type: TournamentType | ChampionshipVersusVenueKind;
@@ -49,11 +53,17 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
         try {
             const raw = sessionStorage.getItem(`pendingDungeon_${type}`);
             if (!raw) return null;
-            return JSON.parse(raw) as any;
+            const parsed = JSON.parse(raw) as any;
+            const snapDay = currentUserWithStatus?.dungeonConditionSnapshot?.[type]?.dateStartOfDayKST;
+            if (!isChampionshipDungeonTournamentFromToday(parsed, snapDay)) {
+                sessionStorage.removeItem(`pendingDungeon_${type}`);
+                return null;
+            }
+            return parsed;
         } catch {
             return null;
         }
-    }, [type, tournamentStateFromContext, isChampionshipDungeon]);
+    }, [type, tournamentStateFromContext, isChampionshipDungeon, currentUserWithStatus?.dungeonConditionSnapshot]);
     const tournamentState = tournamentStateFromContext ?? pendingDungeonState ?? null;
     const latestTournamentStateRef = React.useRef<typeof tournamentState | null>(tournamentState ?? null);
 
@@ -76,6 +86,15 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
     useEffect(() => {
         handlersRef.current = handlers;
     }, [handlers]);
+
+    React.useEffect(() => {
+        if (!isChampionshipDungeon || !currentUserWithStatus) return;
+        const serverState = currentUserWithStatus[stateKey] as any;
+        const snapDay = currentUserWithStatus.dungeonConditionSnapshot?.[type]?.dateStartOfDayKST;
+        if (serverState && !isChampionshipDungeonTournamentFromToday(serverState, snapDay)) {
+            clearChampionshipDungeonClientSessionStorage(currentUserWithStatus.id);
+        }
+    }, [isChampionshipDungeon, currentUserWithStatus, stateKey, type]);
 
     // 컨텍스트에 반영되면 sessionStorage의 pending 던전 상태 제거 (다음 입장 시 혼선 방지)
     React.useEffect(() => {
