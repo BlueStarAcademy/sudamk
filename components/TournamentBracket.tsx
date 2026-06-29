@@ -4714,8 +4714,8 @@ const RoundRobinDisplay: React.FC<{
     /** 모바일 대진표 탭 등 좁은 화면 */
     compact?: boolean;
 }> = ({ tournamentState, currentUser, nextRoundStartTime, pendingRoundSwitchTo, compact = false }) => {
-    const [activeTab, setActiveTab] = useState<'round' | 'ranking'>('round');
     const { players, rounds, status, currentRoundRobinRound, type: tournamentType } = tournamentState;
+    const [activeTab, setActiveTab] = useState<'round' | 'ranking'>(status === 'complete' ? 'ranking' : 'round');
     
     // 경기가 완료된 경우 마지막 회차(5회차)를 초기값으로 설정
     const initialRound = status === 'complete' ? 5 : (currentRoundRobinRound || 1);
@@ -5425,7 +5425,13 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     const [mobileChampionshipTab, setMobileChampionshipTab] = useState<'players' | 'board' | 'live' | 'bracket' | 'rewards'>('players');
     const [championshipSidebarTab, setChampionshipSidebarTab] = useState<'commentary' | 'bracket'>('bracket');
     const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(false);
-    const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+    const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(
+        () =>
+            isMobile &&
+            (tournament.status === 'complete' ||
+                tournament.status === 'eliminated' ||
+                tournament.rounds.every((r) => r.matches.every((m) => m.isFinished))),
+    );
     const [dungeonStageSummaryData, setDungeonStageSummaryData] = useState<{
         dungeonType: TournamentType;
         stage: number;
@@ -7306,6 +7312,14 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         displayTournament.status === 'eliminated' ||
         (championshipAllMatchesFinished && displayTournament.status !== 'round_in_progress');
 
+    useEffect(() => {
+        if (!championshipFinished) return;
+        setChampionshipSidebarTab('bracket');
+        if (isMobile) {
+            setIsMobileSidebarOpen(true);
+        }
+    }, [championshipFinished, isMobile]);
+
     const championshipDungeonBoardCenterMode = useMemo((): 'deep_breath' | 'players_entering' | null => {
         if (!isDungeonChampionshipVenue || championshipFinished) return null;
         const noRealGame = !matchForDisplay?.championshipRealGame;
@@ -7365,14 +7379,6 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                   }
                   return null;
               })();
-
-    const mobileBoardCenterMatchAction =
-        isMobile && isDungeonChampionshipVenue && !showChampionshipMatchResultPanel
-            ? renderChampionshipStartOrNextMatchAction(
-                  '!text-sm !py-3 !px-8 min-w-[9.5rem] shadow-lg',
-                  { intent: 'any', allowDuringResultPanel: true },
-              )
-            : null;
 
     const canReopenMobileChampionshipResultModal =
         isMobile &&
@@ -7581,7 +7587,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 {championshipFinished ? (
                     <>
                         <div className={`text-center font-bold text-emerald-200 ${isMobile ? 'text-xs' : 'text-sm'}`}>
-                            모든 경기가 종료되었습니다.
+                            {tt('allMatchesEnded')}
                         </div>
                         <div className={`flex w-full items-stretch gap-1.5 ${isMobile ? 'flex-nowrap' : 'flex-wrap justify-center gap-2'}`}>
                             {isMobile ? mobileNextMatchSlot : desktopNextMatchSlot}
@@ -7614,7 +7620,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         </section>
     );
 
-    /** 챔피언십 던전: 보상·스킵·나가기 툴바 (경기 시작은 바둑판 중앙). 모바일은 우측 사이드바 하단. */
+    /** 챔피언십 던전: 보상·스킵·경기 시작·나가기 툴바. 모바일은 메인 하단 + 우측 사이드바 하단. */
     const renderChampionshipDungeonFooterButtonPanel = (options?: { placement?: 'main' | 'sidebar' }) => {
         const inMobileSidebar = isMobile && options?.placement === 'sidebar';
         const dungeonBtn = isMobile
@@ -7747,11 +7753,17 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             </button>
         );
 
+        const dungeonStartOrNextMatchAction = !championshipFinished
+            ? renderChampionshipStartOrNextMatchAction(`${championshipFooterPrimaryButton} ${dungeonBtn}`, {
+                  intent: 'any',
+              })
+            : null;
+
         return (
             <section className="w-full shrink-0 rounded-xl border border-cyan-400/30 bg-[#0c1018]/95 px-2 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
                 {championshipFinished ? (
                     <p className="mb-1.5 text-center text-[10px] font-bold leading-snug text-emerald-200">
-                        모든 경기가 종료되었습니다.
+                        {tt('allMatchesEnded')}
                     </p>
                 ) : null}
                 {isMobile ? mobileDungeonFooterStatusMessage : null}
@@ -7763,6 +7775,9 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     >
                         {tt('matchResult')}
                     </button>
+                ) : null}
+                {dungeonStartOrNextMatchAction ? (
+                    <div className="mb-1.5 w-full">{dungeonStartOrNextMatchAction}</div>
                 ) : null}
                 {championshipPlaybackSpeedSelector}
                 {inMobileSidebar ? (
@@ -8639,17 +8654,6 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 dungeonBoardCenterMode={championshipDungeonBoardCenterMode}
                 territoryAnalysis={championshipDungeonTerritoryAnalysis}
             />
-            {mobileBoardCenterMatchAction ? (
-                <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
-                    <div
-                        className={`pointer-events-auto px-2 ${
-                            championshipDungeonBoardCenterMode === 'deep_breath' ? 'translate-y-10' : ''
-                        }`}
-                    >
-                        {mobileBoardCenterMatchAction}
-                    </div>
-                </div>
-            ) : null}
         </div>
     );
 
@@ -8665,7 +8669,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 {mobileChampionshipScoreCountdownRow}
                 {mobileChampionshipBoardSection}
                 {isDungeonChampionshipVenue ? (
-                    !isMobile ? championshipFooterControls : null
+                    championshipFooterControls
                 ) : (
                     <>
                         <div className="w-full shrink-0 min-h-0 max-h-[min(30vh,280px)] overflow-y-auto overflow-x-hidden">
@@ -8934,11 +8938,6 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                                 stackWithMobileFooter: isDungeonChampionshipVenue,
                                             })}
                                         </div>
-                                        {isDungeonChampionshipVenue ? (
-                                            <div className="shrink-0 border-t border-white/10 pt-1.5">
-                                                {renderChampionshipDungeonFooterButtonPanel({ placement: 'sidebar' })}
-                                            </div>
-                                        ) : null}
                                     </div>
                                 </div>
                             </div>

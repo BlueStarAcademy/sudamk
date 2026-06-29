@@ -5218,7 +5218,7 @@
       "waiting": "대기"
     },
     "scoring": "계가 중...",
-    "allMatchesEnded": "경기가 모두 종료되었습니다. 시상식이 치뤄지고 있습니다.",
+    "allMatchesEnded": "오늘의 경기가 모두 종료되었습니다.",
     "breathing": "대회에 참가하기 위해 심호흡을 하고있습니다.",
     "playersEntering": "선수들이 입장하고 있습니다. 잠시만 기다려주세요.",
     "playerLoadError": "선수 정보를 불러오는 중 오류가 발생했습니다.",
