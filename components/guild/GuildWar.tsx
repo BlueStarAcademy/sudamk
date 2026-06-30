@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import BackButton from '../BackButton.js';
 import Button from '../Button.js';
@@ -801,14 +801,8 @@ const GuildWar = () => {
 
     const visualBlueGuild = weAreVisualBlue ? myGuild : opponentGuild;
     const visualRedGuild = weAreVisualBlue ? opponentGuild : myGuild;
-    const visualBlueGuildName = useMemo(
-        () => translateGuildDisplayName(visualBlueGuild, t),
-        [visualBlueGuild, t],
-    );
-    const visualRedGuildName = useMemo(
-        () => translateGuildDisplayName(visualRedGuild, t),
-        [visualRedGuild, t],
-    );
+    const visualBlueGuildName = translateGuildDisplayName(visualBlueGuild, t);
+    const visualRedGuildName = translateGuildDisplayName(visualRedGuild, t);
 
     /** 상황판 선택 맵: 우리 길드 vs 상대 집점(보드별) */
     const houseForSituationBoard = ((): { ours: number; theirs: number } => {

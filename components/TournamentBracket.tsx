@@ -5583,6 +5583,8 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     const prefetchTriggeredForStartTimeRef = useRef<number | null>(null);
     /** 기보 미준비 시 카운트다운 연장 횟수 */
     const countdownExtendCountRef = useRef(0);
+    /** 2회차~ 자동 전환: 결과·막대 연출 중에는 기보 선생성 UI가 보드를 가리지 않게 */
+    const dungeonAutoNextResultReviewRef = useRef(false);
     /** 카운트다운 0 시 먼저 다음 회차 탭으로 전환한 뒤 시합 시작 (순서: 대진표 탭 이동 → 대국자 표시 → 시합 시작) */
     const [pendingRoundSwitchTo, setPendingRoundSwitchTo] = useState<number | null>(null);
     const pendingMatchStartRef = useRef<{ type: TournamentType } | null>(null);
@@ -5617,10 +5619,12 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         isChampionshipDungeonVenueForPotion,
     ]);
 
-    const finalizeChampionshipDungeonMatchStart = useCallback(async () => {
+    const finalizeChampionshipDungeonMatchStart = useCallback(async (options?: { silentPrefetch?: boolean }) => {
         if (!championshipMatchStartLockRef.current) {
             championshipMatchStartLockRef.current = true;
-            flushSync(() => setChampionshipAwaitingKataLoad(true));
+            if (!options?.silentPrefetch && !dungeonAutoNextResultReviewRef.current) {
+                flushSync(() => setChampionshipAwaitingKataLoad(true));
+            }
         }
         if (championshipMatchStartRequestSentRef.current) return;
         championshipMatchStartRequestSentRef.current = true;
@@ -6068,6 +6072,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             hasTriggeredStartForTimeRef.current = null;
             prefetchTriggeredForStartTimeRef.current = null;
             countdownExtendCountRef.current = 0;
+            dungeonAutoNextResultReviewRef.current = false;
             return;
         }
 
@@ -6089,18 +6094,6 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         countdownExtendCountRef.current = 0;
         const savedTournamentType = tournament?.type;
         const savedCurrentRound = tournament?.currentRoundRobinRound;
-
-        // 2회차 이후: 카운트다운·결과 연출과 동시에 다음 경기 기보 선생성
-        const snapshotRounds = tournament?.rounds ?? [];
-        const finishedUserMatchCount = countFinishedUserMatches(snapshotRounds);
-        if (
-            finishedUserMatchCount >= 1 &&
-            tournament?.currentStageAttempt != null &&
-            prefetchTriggeredForStartTimeRef.current !== nextRoundStartTime
-        ) {
-            prefetchTriggeredForStartTimeRef.current = nextRoundStartTime;
-            void finalizeChampionshipDungeonMatchStartRef.current?.();
-        }
 
         const updateCountdown = () => {
             // savedStartTimeRef를 사용하여 타이머가 중단되지 않도록 함
@@ -6176,6 +6169,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 }
                 autoStartTimeRef.current = null;
                 savedStartTimeRef.current = null;
+                dungeonAutoNextResultReviewRef.current = false;
 
                 const skipStartRequest =
                     recordReady && currentTournament?.status === 'round_in_progress';
@@ -6227,13 +6221,25 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         // 즉시 한 번 실행하고 타이머 시작
         const timeUntilStart = savedStartTimeRef.current - Date.now();
         console.log(`[TournamentBracket] nextRoundStartTime detected: ${savedStartTimeRef.current}, current time: ${Date.now()}, time until start: ${timeUntilStart}ms, status: ${status}`);
+
+        updateCountdown();
+
+        // 2회차 이후: 결과·막대 연출이 보이는 동안 백그라운드로 다음 경기 기보 선생성
+        const snapshotRounds = tournament?.rounds ?? [];
+        const finishedUserMatchCount = countFinishedUserMatches(snapshotRounds);
+        if (finishedUserMatchCount >= 1 && tournament?.currentStageAttempt != null) {
+            dungeonAutoNextResultReviewRef.current = true;
+            if (prefetchTriggeredForStartTimeRef.current !== nextRoundStartTime) {
+                prefetchTriggeredForStartTimeRef.current = nextRoundStartTime;
+                void finalizeChampionshipDungeonMatchStartRef.current?.({ silentPrefetch: true });
+            }
+        }
         
         // 이미 시간이 지나간 경우 즉시 시작
         if (timeUntilStart <= 0) {
             console.log(`[TournamentBracket] nextRoundStartTime already passed, starting match immediately`);
             updateCountdown(); // 이 함수 내에서 자동 시작 처리
         } else {
-            updateCountdown();
             // 100ms마다 업데이트하여 정확한 카운트다운 유지
             autoNextTimerRef.current = setInterval(updateCountdown, 100);
         }
@@ -6243,23 +6249,6 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             // 하지만 savedStartTimeRef를 사용하므로 타이머는 계속 실행됨
         };
     }, [tournament?.nextRoundStartTime]); // nextRoundStartTime만 의존성으로 사용하여 타이머가 중단되지 않도록 함
-
-    /** 2회차~: 기보 선생성이 카운트다운 종료 전에 끝나면 연출을 조기 마무리해 재생을 바로 시작 */
-    useEffect(() => {
-        if (autoNextCountdown === null) return;
-        if (countFinishedUserMatches(safeRounds) < 1) return;
-        const located = findNextUnfinishedUserMatch(
-            safeRounds,
-            tournament.type,
-            tournament.currentRoundRobinRound,
-        );
-        const live = located?.match ? findMatchInRounds(safeRounds, located.match.id) : undefined;
-        if (!isChampionshipRealGameRecordReady(live ?? located?.match)) return;
-        if (tournament.status !== 'round_in_progress') return;
-        if (savedStartTimeRef.current != null && savedStartTimeRef.current > Date.now()) {
-            savedStartTimeRef.current = Date.now();
-        }
-    }, [autoNextCountdown, tournament.status, tournament.type, tournament.currentRoundRobinRound, safeRounds]);
 
     // 다음 회차 탭 전환 후 시합 자동 시작 (동네: 기보 선생성 완료 시 START 생략)
     useEffect(() => {
@@ -6715,11 +6704,18 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     const lastFinishedUserMatch = useMemo(() => {
         return [...safeRounds].reverse().flatMap(r => r.matches).find(m => m.isUserMatch && m.isFinished);
     }, [safeRounds]);
+
+    /** 2회차~: 바둑판·대국 결과·막대 연출을 유지하는 자동 전환 구간 */
+    const dungeonAutoNextResultReviewActive = useMemo(() => {
+        if (countFinishedUserMatches(safeRounds) < 1) return false;
+        if (!lastFinishedUserMatch) return false;
+        return autoNextCountdown !== null || tournament.nextRoundStartTime != null;
+    }, [safeRounds, lastFinishedUserMatch, autoNextCountdown, tournament.nextRoundStartTime]);
     
     // 경기 종료 화면 유지 로직
     const matchForDisplay = useMemo(() => {
         // 다음 경기 카운트다운·기보 선생성 중에는 직전 경기 결과 화면을 유지한다.
-        if (autoNextCountdown !== null && lastFinishedUserMatch) {
+        if (dungeonAutoNextResultReviewActive && lastFinishedUserMatch) {
             return lastFinishedUserMatch;
         }
 
@@ -6792,7 +6788,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             return anyUserMatch;
         }
         return safeRounds[0]?.matches[0] || null;
-    }, [isSimulating, currentSimMatch, displayTournament, currentUser?.id, tournament.status, tournament.nextRoundStartTime, tournament.type, safeRounds, lastFinishedUserMatch, pendingRoundSwitchTo, autoNextCountdown]);
+    }, [isSimulating, currentSimMatch, displayTournament, currentUser?.id, tournament.status, tournament.nextRoundStartTime, tournament.type, safeRounds, lastFinishedUserMatch, pendingRoundSwitchTo, autoNextCountdown, dungeonAutoNextResultReviewActive]);
 
     useChampionshipReplayPlaceStoneSound(
         matchForDisplay?.championshipRealGame?.currentPly,
@@ -6802,6 +6798,10 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
     useEffect(() => {
         if (!championshipAwaitingKataLoad) return;
+        if (dungeonAutoNextResultReviewRef.current) {
+            setChampionshipAwaitingKataLoad(false);
+            return;
+        }
         const nextUserMatch = safeRounds.flatMap((r) => r.matches).find((m) => m.isUserMatch && !m.isFinished);
         const rg = nextUserMatch?.championshipRealGame;
         if (rg?.moves?.length && tournament?.status === 'round_in_progress') {
@@ -6832,6 +6832,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
     useEffect(() => {
         if (tournament?.status !== 'round_in_progress') return;
+        if (dungeonAutoNextResultReviewActive) return;
         const nextUserMatch = safeRounds.flatMap((r) => r.matches).find((m) => m.isUserMatch && !m.isFinished);
         if (!nextUserMatch) return;
         const generating =
@@ -6840,7 +6841,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         if (generating) {
             setChampionshipAwaitingKataLoad(true);
         }
-    }, [tournament?.status, tournament?.championshipMatchGeneratingMatchId, safeRounds]);
+    }, [tournament?.status, tournament?.championshipMatchGeneratingMatchId, safeRounds, dungeonAutoNextResultReviewActive]);
 
     // 유저의 다음 경기 찾기 (경기 시작 전 상태 확인용)
     const upcomingUserMatch = useMemo(() => {
@@ -7442,7 +7443,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     const isChampionshipMatchInProgress = tournament?.status === 'round_in_progress';
 
     // 자동 다음 경기 카운트다운 표시 (경기 진행 중은 경기 결과 패널에서 표시)
-    const countdownDisplay = championshipAwaitingKataLoad ? (
+    const countdownDisplay = championshipAwaitingKataLoad && !dungeonAutoNextResultReviewActive ? (
         <div
             className={`flex items-center justify-center font-bold text-cyan-300 ${isMobile ? 'gap-1 text-center text-xs leading-tight' : 'gap-2 text-lg'}`}
         >
@@ -7489,6 +7490,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
     const championshipDungeonBoardCenterMode = useMemo((): 'deep_breath' | 'players_entering' | null => {
         if (!isDungeonChampionshipVenue || championshipFinished) return null;
+        if (dungeonAutoNextResultReviewActive) return null;
         if (championshipAwaitingKataLoad || tournament.championshipMatchGeneratingMatchId) return 'players_entering';
         const noRealGame = !matchForDisplay?.championshipRealGame;
         if (!noRealGame) return null;
@@ -7502,12 +7504,14 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         tournament.status,
         tournament.championshipMatchGeneratingMatchId,
         championshipAwaitingKataLoad,
+        dungeonAutoNextResultReviewActive,
     ]);
 
     const championshipDungeonBoardProps = {
         dungeonBoardCenterMode: championshipDungeonBoardCenterMode,
         dungeonPlayersEnteringHint: championshipAwaitingKataLoad ? tt('matchPreparing') : undefined,
-        dungeonMatchPreparingOverlay: isDungeonChampionshipVenue && championshipAwaitingKataLoad,
+        dungeonMatchPreparingOverlay:
+            isDungeonChampionshipVenue && championshipAwaitingKataLoad && !dungeonAutoNextResultReviewActive,
         dungeonAutoNextCenterOverlay:
             showDungeonAutoNextTransitionOverlay && matchForDisplay
                 ? (
