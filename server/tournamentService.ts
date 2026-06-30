@@ -350,7 +350,18 @@ export const applyTournamentCompleteStatus = (state: TournamentState) => {
     state.nextRoundStartTime = null;
 };
 
-export const processMatchCompletion = async (state: TournamentState, user: User, completedMatch: Match, roundIndex: number) => {
+export type ProcessMatchCompletionOptions = {
+    /** true면 다음 경기 카운트다운/자동 시작 없이 라운드 진행만 반영 (중도 포기 일괄 처리용) */
+    suppressAutoAdvance?: boolean;
+};
+
+export const processMatchCompletion = async (
+    state: TournamentState,
+    user: User,
+    completedMatch: Match,
+    roundIndex: number,
+    options?: ProcessMatchCompletionOptions,
+) => {
     console.log(`[processMatchCompletion] Called for user ${user.id}, tournament type: ${state.type}, roundIndex: ${roundIndex}, matchId: ${completedMatch.id}`);
     console.log(`[processMatchCompletion] Tournament status: ${state.status}, isDungeonMode: ${!!state.currentStageAttempt}, currentRoundRobinRound: ${state.currentRoundRobinRound}`);
     
@@ -592,12 +603,17 @@ export const processMatchCompletion = async (state: TournamentState, user: User,
                 // 다음 회차의 유저 경기 찾기
                 const nextUserMatch = nextRoundObj.matches.find(m => m.isUserMatch && !m.isFinished);
                 if (nextUserMatch) {
-                    const started = await startNextMatchAutomatically(state, user, nextRoundObj, nextUserMatch);
-                    if (!started) {
-                        console.error(`[processMatchCompletion] Failed to start next match automatically for round ${nextRoundNum}회차`);
-                        applyTournamentCompleteStatus(state);
+                    if (options?.suppressAutoAdvance) {
+                        state.status = 'bracket_ready';
+                        console.log(`[processMatchCompletion] Dungeon mode: Suppressed auto-advance after round ${currentRoundNum}회차 (batch forfeit)`);
                     } else {
-                        console.log(`[processMatchCompletion] Dungeon mode: Set countdown for next round (${nextRoundNum}회차) match`);
+                        const started = await startNextMatchAutomatically(state, user, nextRoundObj, nextUserMatch);
+                        if (!started) {
+                            console.error(`[processMatchCompletion] Failed to start next match automatically for round ${nextRoundNum}회차`);
+                            applyTournamentCompleteStatus(state);
+                        } else {
+                            console.log(`[processMatchCompletion] Dungeon mode: Set countdown for next round (${nextRoundNum}회차) match`);
+                        }
                     }
                 } else {
                     applyTournamentCompleteStatus(state);
@@ -633,13 +649,17 @@ export const processMatchCompletion = async (state: TournamentState, user: User,
             // 현재 라운드가 아직 끝나지 않았으면 다음 유저 경기 자동 시작
             const nextUserMatchInRound = currentRound.matches.find(m => m.isUserMatch && !m.isFinished);
             if (nextUserMatchInRound) {
-                // 5초 카운트다운 후 경기 시작
-                const started = await startNextMatchAutomatically(state, user, currentRound, nextUserMatchInRound);
-                if (!started) {
-                    console.error(`[processMatchCompletion] Failed to start next match automatically in same round`);
+                if (options?.suppressAutoAdvance) {
                     state.status = 'bracket_ready';
                 } else {
-                    console.log(`[processMatchCompletion] Dungeon mode: Set countdown for next match in same round: roundIndex=${roundIndex}`);
+                    // 5초 카운트다운 후 경기 시작
+                    const started = await startNextMatchAutomatically(state, user, currentRound, nextUserMatchInRound);
+                    if (!started) {
+                        console.error(`[processMatchCompletion] Failed to start next match automatically in same round`);
+                        state.status = 'bracket_ready';
+                    } else {
+                        console.log(`[processMatchCompletion] Dungeon mode: Set countdown for next match in same round: roundIndex=${roundIndex}`);
+                    }
                 }
             } else {
                 // 현재 라운드에 유저 경기가 없으면 대기 (다른 경기 완료 대기)
@@ -1141,6 +1161,61 @@ export const forfeitTournament = (state: TournamentState, userId: string) => {
     });
 
     state.status = 'eliminated';
+};
+
+const findNextUnfinishedUserMatch = (state: TournamentState): { match: Match; roundIndex: number } | null => {
+    for (let roundIndex = 0; roundIndex < state.rounds.length; roundIndex++) {
+        for (const match of state.rounds[roundIndex].matches) {
+            if (match.isUserMatch && !match.isFinished) {
+                return { match, roundIndex };
+            }
+        }
+    }
+    return null;
+};
+
+/**
+ * 동네바둑리그(풀리그) 던전: 중도 포기 시 남은 유저 경기를 모두 패배 처리하고
+ * 경기별 보상을 누적한 뒤 complete 상태로 만든다.
+ */
+export const forfeitRemainingNeighborhoodLeagueMatches = async (
+    state: TournamentState,
+    user: User,
+): Promise<void> => {
+    if (state.type !== 'neighborhood') return;
+    if (state.status === 'complete' || state.status === 'eliminated') return;
+    if (state.currentStageAttempt == null) return;
+
+    state.nextRoundStartTime = null;
+
+    if (state.status === 'round_in_progress' && state.currentSimulatingMatch) {
+        const { roundIndex, matchIndex } = state.currentSimulatingMatch;
+        const match = state.rounds[roundIndex]?.matches[matchIndex];
+        if (match && !match.isFinished && match.players.some(p => p?.id === user.id)) {
+            match.isFinished = true;
+            match.winner = match.players.find(p => p && p.id !== user.id) || null;
+            await processMatchCompletion(state, user, match, roundIndex, { suppressAutoAdvance: true });
+        } else {
+            state.currentSimulatingMatch = null;
+        }
+    }
+
+    let safety = 0;
+    while (safety < 10) {
+        safety++;
+        const next = findNextUnfinishedUserMatch(state);
+        if (!next) break;
+
+        next.match.isFinished = true;
+        next.match.winner = next.match.players.find(p => p && p.id !== user.id) || null;
+        await processMatchCompletion(state, user, next.match, next.roundIndex, { suppressAutoAdvance: true });
+    }
+
+    if (state.status !== 'complete') {
+        applyTournamentCompleteStatus(state);
+    }
+    state.currentSimulatingMatch = null;
+    state.nextRoundStartTime = null;
 };
 
 export const forfeitCurrentMatch = async (state: TournamentState, user: User) => {

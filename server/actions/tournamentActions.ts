@@ -706,7 +706,14 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             }
             
             if (tournamentState) {
-                tournamentService.forfeitTournament(tournamentState, user.id);
+                if (
+                    tournamentState.type === 'neighborhood' &&
+                    tournamentState.currentStageAttempt != null
+                ) {
+                    await tournamentService.forfeitRemainingNeighborhoodLeagueMatches(tournamentState, user);
+                } else {
+                    tournamentService.forfeitTournament(tournamentState, user.id);
+                }
             
                 (user as any)[stateKey] = tournamentState;
                 // 해당 경기장 컨디션 스냅샷 삭제 (다음 참가 시 새 컨디션 부여)
@@ -1838,26 +1845,52 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
 
         case 'LEAVE_TOURNAMENT_VIEW': {
             const volatileTs = volatileState.activeTournaments?.[user.id];
-            if (volatileTs && volatileTs.status === 'round_in_progress') {
-                let sk: keyof User;
-                switch (volatileTs.type) {
-                    case 'neighborhood':
-                        sk = 'lastNeighborhoodTournament';
-                        break;
-                    case 'national':
-                        sk = 'lastNationalTournament';
-                        break;
-                    case 'world':
-                        sk = 'lastWorldTournament';
-                        break;
-                    default:
-                        return {};
+            if (volatileTs) {
+                let neighborhoodForfeited = false;
+                if (
+                    volatileTs.type === 'neighborhood' &&
+                    volatileTs.currentStageAttempt != null &&
+                    volatileTs.status !== 'complete' &&
+                    volatileTs.status !== 'eliminated'
+                ) {
+                    const hasUnfinishedUserMatch = volatileTs.rounds?.some((round) =>
+                        round.matches?.some((match) => match.isUserMatch && !match.isFinished),
+                    );
+                    if (hasUnfinishedUserMatch || volatileTs.status === 'round_in_progress') {
+                        await tournamentService.forfeitRemainingNeighborhoodLeagueMatches(volatileTs, user);
+                        neighborhoodForfeited = true;
+                    }
                 }
-                (user as any)[sk] = JSON.parse(JSON.stringify(volatileTs)) as types.TournamentState;
-                updateUserCache(user);
-                db.updateUser(user).catch(err => {
-                    console.error(`[LEAVE_TOURNAMENT_VIEW] Failed to save user ${user.id}:`, err);
-                });
+
+                const shouldPersist =
+                    volatileTs.status === 'round_in_progress' ||
+                    (neighborhoodForfeited && volatileTs.status === 'complete');
+                if (shouldPersist) {
+                    let sk: keyof User;
+                    switch (volatileTs.type) {
+                        case 'neighborhood':
+                            sk = 'lastNeighborhoodTournament';
+                            break;
+                        case 'national':
+                            sk = 'lastNationalTournament';
+                            break;
+                        case 'world':
+                            sk = 'lastWorldTournament';
+                            break;
+                        default:
+                            return {};
+                    }
+                    (user as any)[sk] = JSON.parse(JSON.stringify(volatileTs)) as types.TournamentState;
+                    updateUserCache(user);
+                    const persist = neighborhoodForfeited
+                        ? db.updateUser(user)
+                        : db.updateUser(user).catch((err) => {
+                              console.error(`[LEAVE_TOURNAMENT_VIEW] Failed to save user ${user.id}:`, err);
+                          });
+                    if (neighborhoodForfeited) {
+                        await persist;
+                    }
+                }
             }
             return {};
         }

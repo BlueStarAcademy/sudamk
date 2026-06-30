@@ -2482,7 +2482,14 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             const activeTournament = volatileState.activeTournaments?.[user.id];
             if (activeTournament) {
                 console.log(`[Logout] User ${user.nickname} has an active tournament. Forfeiting.`);
-                tournamentService.forfeitTournament(activeTournament, user.id);
+                if (
+                    activeTournament.type === 'neighborhood' &&
+                    activeTournament.currentStageAttempt != null
+                ) {
+                    await tournamentService.forfeitRemainingNeighborhoodLeagueMatches(activeTournament, user);
+                } else {
+                    tournamentService.forfeitTournament(activeTournament, user.id);
+                }
                 
                 let stateKey: keyof User;
                 switch (activeTournament.type) {
