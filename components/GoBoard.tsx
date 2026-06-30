@@ -2881,8 +2881,8 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                             </g>
                         );
                     })()}
-                {chessPlacementMaskOpponentHalf && myPlayerEnum !== Player.None && (() => {
-                    const maskTop = myPlayerEnum === Player.Black;
+                {chessPlacementMaskOpponentHalf && stoneColor !== Player.None && (() => {
+                    const maskTop = stoneColor === Player.Black;
                     const maskY = maskTop ? 0 : boardSizePx / 2;
                     const maskH = boardSizePx / 2;
                     const labelY = maskY + maskH / 2;

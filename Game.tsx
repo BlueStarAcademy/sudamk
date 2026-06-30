@@ -2158,6 +2158,25 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         session.basePlacementBlackPlayerId,
     ]);
 
+    /**
+     * 체스 바둑: 서버 좌표상 백 기물은 상단(1~2줄), 흑은 하단에 배치된다.
+     * 백 좌석 유저는 보드를 180° 돌려 본인 진영·기물이 항상 화면 하단에 오게 한다(수동 토글·sessionStorage보다 우선).
+     */
+    const effectiveBoardRotated = useMemo(() => {
+        if (isSpectator) return isBoardRotated;
+        if (usesChessGo) {
+            if (myPlayerEnum === Player.White) return true;
+            if (myPlayerEnum === Player.Black) return false;
+        }
+        return isBoardRotated;
+    }, [isSpectator, usesChessGo, myPlayerEnum, isBoardRotated]);
+
+    useEffect(() => {
+        if (isSpectator || !usesChessGo) return;
+        if (myPlayerEnum === Player.White) setIsBoardRotated(true);
+        else if (myPlayerEnum === Player.Black) setIsBoardRotated(false);
+    }, [isSpectator, usesChessGo, myPlayerEnum]);
+
     const rejectInvalidChessGoStonePlacement = useCallback((x: number, y: number): boolean => {
         if (!usesChessGo || gameStatus !== 'playing' || myPlayerEnum === Player.None) {
             return false;
@@ -5690,7 +5709,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         showBoardGlow={boardGlowForHiddenScanItem}
                                         resumeCountdown={resumeCountdown}
                                         isBoardLocked={isBoardLocked}
-                                        isBoardRotated={isBoardRotated}
+                                        isBoardRotated={effectiveBoardRotated}
                                         onToggleBoardRotation={() => setIsBoardRotated((prev: boolean) => !prev)}
                                         strategicPetHintBoardOverlay={strategicPetHintBoardOverlay}
                                         strategicPetHintRewardAnimation={strategicPetHintRewardAnimation}
@@ -5861,6 +5880,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         showBoardGlow={boardGlowForHiddenScanItem}
                                         resumeCountdown={resumeCountdown}
                                         isBoardLocked={isBoardLocked}
+                                        isBoardRotated={effectiveBoardRotated}
+                                        onToggleBoardRotation={() => setIsBoardRotated((prev: boolean) => !prev)}
                                         strategicPetHintBoardOverlay={strategicPetHintBoardOverlay}
                                         strategicPetHintRewardAnimation={strategicPetHintRewardAnimation}
                                         boardRuleFlashMessage={boardRuleFlashMessage}
@@ -6131,7 +6152,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                                         myRevealedMoves={session.revealedHiddenMoves?.[currentUser.id] || []}
                                                         showLastMoveMarker={settings.features.lastMoveMarker}
                                                         captureScoreFloatMinPoints={settings.features.captureScoreAnimation ? 1 : 2}
-                                                        isBoardRotated={isBoardRotated}
+                                                        isBoardRotated={effectiveBoardRotated}
                                                         onToggleBoardRotation={() => setIsBoardRotated((prev: boolean) => !prev)}
                                                         showBoardGlow={boardGlowForHiddenScanItem}
                                                         strategicPetHintBoardOverlay={strategicPetHintBoardOverlay}
@@ -6162,7 +6183,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                                 captureScoreFloatMinPoints={settings.features.captureScoreAnimation ? 1 : 2}
                                                 strategicPetHintBoardOverlay={strategicPetHintBoardOverlay}
                                                 strategicPetHintRewardAnimation={strategicPetHintRewardAnimation}
-                                                isBoardRotated={isBoardRotated}
+                                                isBoardRotated={effectiveBoardRotated}
                                                 onToggleBoardRotation={() => setIsBoardRotated((prev: boolean) => !prev)}
                                                 showBoardGlow={boardGlowForHiddenScanItem}
                                                 boardRuleFlashMessage={boardRuleFlashMessage}

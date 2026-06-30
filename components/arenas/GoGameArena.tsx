@@ -388,8 +388,8 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 isAdventureBoardLayout ? 'min-h-0 min-w-0 overflow-hidden' : ''
             }`}
         >
-            {/* 회전 버튼: 흑/백 입장 전환 (이모지로 표현) */}
-            {onToggleBoardRotation && (
+            {/* 회전 버튼: 흑/백 입장 전환 (체스 바둑 참가자는 좌석 색에 따라 자동 회전) */}
+            {onToggleBoardRotation && !(usesChessGo && !props.isSpectator) && (
                 <button
                     onClick={onToggleBoardRotation}
                     className={`absolute top-2 right-2 z-10 bg-gray-800/80 hover:bg-gray-700/80 border border-gray-600 transition-all ${
@@ -449,7 +449,11 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                         gameStatus !== 'chess_piece_placement') ||
                     isBoardDisabledDueToTurnLimit
                 }
-                stoneColor={myPlayerEnum}
+                stoneColor={
+                    isChessPlacementPhase && chessPlacementColor != null
+                        ? chessPlacementColor
+                        : myPlayerEnum
+                }
                 winningLine={session.winningLine}
                 mode={session.mode}
                 mixedModes={session.settings.mixedModes}
