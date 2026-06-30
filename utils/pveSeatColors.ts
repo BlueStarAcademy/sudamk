@@ -30,3 +30,50 @@ export function resolvePveSeatColors(
     return { myPlayerEnum, opponentPlayerEnum };
 }
 
+/** 서버 `scanInventoryKeyForPlayer`와 동일 — PVE 세션 잔여 스캔 키 */
+export function pveScanKeyForPlayer(player: Player): 'scans_p1' | 'scans_p2' {
+    return player === Player.White ? 'scans_p2' : 'scans_p1';
+}
+
+export function pveHiddenKeyForPlayer(player: Player): 'hidden_stones_p1' | 'hidden_stones_p2' {
+    return player === Player.White ? 'hidden_stones_p2' : 'hidden_stones_p1';
+}
+
+export function pveMissileKeyForPlayer(player: Player): 'missiles_p1' | 'missiles_p2' {
+    return player === Player.White ? 'missiles_p2' : 'missiles_p1';
+}
+
+type PveItemInventorySession = PveSeatSession & {
+    scans_p1?: number;
+    scans_p2?: number;
+    hidden_stones_p1?: number;
+    hidden_stones_p2?: number;
+    missiles_p1?: number;
+    missiles_p2?: number;
+};
+
+/** PVE(싱글/탑) 경기 중 아이템 배지: 본인 좌석(p1=흑, p2=백) 기준 잔여 수 */
+export function resolvePveItemCountFromSession(
+    session: PveItemInventorySession,
+    viewerUserId: string | null | undefined,
+    kind: 'scan' | 'hidden' | 'missile',
+    fallback: number,
+): number {
+    const { myPlayerEnum } = resolvePveSeatColors(session, viewerUserId);
+    const key =
+        myPlayerEnum === Player.White
+            ? kind === 'scan'
+                ? 'scans_p2'
+                : kind === 'hidden'
+                  ? 'hidden_stones_p2'
+                  : 'missiles_p2'
+            : kind === 'scan'
+              ? 'scans_p1'
+              : kind === 'hidden'
+                ? 'hidden_stones_p1'
+                : 'missiles_p1';
+    const n = Number((session as Record<string, unknown>)[key]);
+    if (Number.isFinite(n)) return Math.max(0, n);
+    return Math.max(0, fallback);
+}
+

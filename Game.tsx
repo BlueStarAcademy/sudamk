@@ -1581,6 +1581,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     hiddenMoves: session.hiddenMoves || {},
                     hidden_stones_p1: (session as any).hidden_stones_p1,
                     hidden_stones_p2: (session as any).hidden_stones_p2,
+                    scans_p1: (session as any).scans_p1,
+                    scans_p2: (session as any).scans_p2,
+                    missiles_p1: (session as any).missiles_p1,
+                    missiles_p2: (session as any).missiles_p2,
                     aiInitialHiddenStone: (session as any).aiInitialHiddenStone,
                     aiInitialHiddenStoneIsPrePlaced: (session as any).aiInitialHiddenStoneIsPrePlaced,
                     totalTurns: totalTurnsToSave,
@@ -1647,7 +1651,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 }
             }
         }
-    }, [restoredBoardState, session.moveHistory, session.captures, session.gameStatus, session.currentPlayer, session.itemUseDeadline, session.pausedTurnTimeLeft, session.turnDeadline, session.turnStartTime, session.revealAnimationEndTime, session.animation, (session as any).aiHiddenItemAnimationEndTime, session.pendingCapture, session.newlyRevealed, session.revealedHiddenMoves, session.baseStoneCaptures, session.hiddenStoneCaptures, session.permanentlyRevealedStones, session.blackPatternStones, session.whitePatternStones, (session as any).consumedPatternIntersections, session.hiddenMoves, (session as any).humanHiddenStonePoints, session.castleStonePoints, session.confirmedTerritoryOwnerByPoint, session.totalTurns, session.round, gameId, gameStatus, isSinglePlayer, session.gameCategory, useRefreshSessionStorageMerge, session.gameStartTime, session.blackTimeLeft, session.whiteTimeLeft, (session as any).adventureEncounterDeadlineMs, (session as any).adventureEncounterFrozenHumanMsRemaining, (session as any).hidden_stones_p1, (session as any).hidden_stones_p2, (session as any).aiInitialHiddenStone, (session as any).aiInitialHiddenStoneIsPrePlaced, (session as any).blackTurnLimitBonus, isBoardRotated, session.isAiGame, session.settings?.pairGame?.roomId, session.settings?.pairGame?.lobbyChannel]);
+    }, [restoredBoardState, session.moveHistory, session.captures, session.gameStatus, session.currentPlayer, session.itemUseDeadline, session.pausedTurnTimeLeft, session.turnDeadline, session.turnStartTime, session.revealAnimationEndTime, session.animation, (session as any).aiHiddenItemAnimationEndTime, session.pendingCapture, session.newlyRevealed, session.revealedHiddenMoves, session.baseStoneCaptures, session.hiddenStoneCaptures, session.permanentlyRevealedStones, session.blackPatternStones, session.whitePatternStones, (session as any).consumedPatternIntersections, session.hiddenMoves, (session as any).humanHiddenStonePoints, session.castleStonePoints, session.confirmedTerritoryOwnerByPoint, session.totalTurns, session.round, gameId, gameStatus, isSinglePlayer, session.gameCategory, useRefreshSessionStorageMerge, session.gameStartTime, session.blackTimeLeft, session.whiteTimeLeft, (session as any).adventureEncounterDeadlineMs, (session as any).adventureEncounterFrozenHumanMsRemaining, (session as any).hidden_stones_p1, (session as any).hidden_stones_p2, (session as any).scans_p1, (session as any).scans_p2, (session as any).missiles_p1, (session as any).missiles_p2, (session as any).aiInitialHiddenStone, (session as any).aiInitialHiddenStoneIsPrePlaced, (session as any).blackTurnLimitBonus, isBoardRotated, session.isAiGame, session.settings?.pairGame?.roomId, session.settings?.pairGame?.lobbyChannel]);
     
     // 도전의 탑/싱글/전략바둑 수순 제한: 새로고침 후 서버 페이로드에 문양돌·totalTurns·moveHistory가 없을 수 있으므로 sessionStorage에서 복원해 표시
     const sessionWithRestoredPatternStones = useMemo(() => {
@@ -1868,6 +1872,18 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     }
                     if ((next as any).hidden_stones_p2 == null && typeof parsed.hidden_stones_p2 === 'number') {
                         next = { ...next, hidden_stones_p2: parsed.hidden_stones_p2 } as any;
+                    }
+                    if ((next as any).scans_p1 == null && typeof parsed.scans_p1 === 'number') {
+                        next = { ...next, scans_p1: parsed.scans_p1 } as any;
+                    }
+                    if ((next as any).scans_p2 == null && typeof parsed.scans_p2 === 'number') {
+                        next = { ...next, scans_p2: parsed.scans_p2 } as any;
+                    }
+                    if ((next as any).missiles_p1 == null && typeof parsed.missiles_p1 === 'number') {
+                        next = { ...next, missiles_p1: parsed.missiles_p1 } as any;
+                    }
+                    if ((next as any).missiles_p2 == null && typeof parsed.missiles_p2 === 'number') {
+                        next = { ...next, missiles_p2: parsed.missiles_p2 } as any;
                     }
                     // 도전의 탑: 턴 추가 보너스 — towerGames 세션이 있으면 우선(낙관+스토리지 max로 UI만 +6 되는 것 방지). 없을 때만 스토리지.
                     if (isTower) {

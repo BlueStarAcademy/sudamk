@@ -7744,15 +7744,20 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         const stageAttempt = resolveDungeonStageAttempt(displayTournament, currentUser, displayTournament.type);
         const rewardClaimedKey = `${displayTournament.type}RewardClaimed` as keyof User;
         const isRewardClaimed = !!currentUser[rewardClaimedKey];
+        const isUserEliminatedForReward = displayTournament.status === 'eliminated';
+        const allDungeonMatchesDone = displayTournament.rounds.every((r) =>
+            r.matches.every((m) => m.isFinished),
+        );
+        const isDungeonFullyCompleteForReward =
+            displayTournament.status === 'complete' ||
+            (allDungeonMatchesDone && displayTournament.status !== 'round_in_progress');
         const canClaimDungeonReward =
-            isMobile &&
-            championshipFinished &&
+            (isDungeonFullyCompleteForReward || isUserEliminatedForReward) &&
             !isRewardClaimed &&
             !dungeonStageRewardRequested &&
             stageAttempt >= 1;
         const showDungeonRewardClaimedSlot =
-            isMobile &&
-            championshipFinished &&
+            (isDungeonFullyCompleteForReward || isUserEliminatedForReward) &&
             (isRewardClaimed || dungeonStageRewardRequested) &&
             stageAttempt >= 1;
 
@@ -7800,7 +7805,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                         보상완료
                     </div>
                 )
-            ) : (
+            ) : skipVisible ? (
                 <Button
                     type="button"
                     bare
@@ -7808,22 +7813,20 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                         if (dungeonButtonsLocked || !skipCanClick || !tournament) return;
                         onAction({ type: 'SKIP_CHAMPIONSHIP_MATCH', payload: { type: tournament.type } });
                     }}
-                    disabled={dungeonButtonsLocked || !skipVisible || !skipCanClick}
+                    disabled={dungeonButtonsLocked || !skipCanClick}
                     colorScheme="none"
-                    className={`${skipVisible && skipCanClick ? championshipFooterSecondaryButton : championshipFooterMutedButton} ${dungeonSkipBtn} ${!vipOk && skipVisible ? 'opacity-80' : ''}`}
+                    className={`${skipCanClick ? championshipFooterSecondaryButton : championshipFooterMutedButton} ${dungeonSkipBtn} ${!vipOk ? 'opacity-80' : ''}`}
                     title={
-                        !skipVisible
-                            ? undefined
-                            : !vipOk
-                              ? tt('vipSkipRequiresFunctionVip')
-                              : !championshipDungeonSkipUi.canAttempt
-                                ? tt('preparingOpponentInfo')
-                                : tt('skipAllRoundsHint')
+                        !vipOk
+                            ? tt('vipSkipRequiresFunctionVip')
+                            : !championshipDungeonSkipUi.canAttempt
+                              ? tt('preparingOpponentInfo')
+                              : tt('skipAllRoundsHint')
                     }
                 >
                     {tt('skipAll')}
                 </Button>
-            );
+            ) : null;
 
         const rewardInfoButton = (
             <button

@@ -1600,9 +1600,13 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const rightPanelStoneCaptureDisplay = stabilizeSpeedCaptureDisplay(rightPlayerEnum, rightPanelStoneCaptureDisplayRaw);
 
     const turnDuration = getTurnDuration(mode, session.gameStatus, settings);
-    const blackRemainingMonotonicRef = useRef<{ gameId: string; value: number | null }>({ gameId: '', value: null });
+    const blackRemainingMonotonicRef = useRef<{
+        gameId: string;
+        value: number | null;
+        totalLimit: number | null;
+    }>({ gameId: '', value: null, totalLimit: null });
     if (blackRemainingMonotonicRef.current.gameId !== session.id) {
-        blackRemainingMonotonicRef.current = { gameId: session.id, value: null };
+        blackRemainingMonotonicRef.current = { gameId: session.id, value: null, totalLimit: null };
     }
     /**
      * 히든 공개·계가 연출 등으로 moveHistory/totalTurns가 한 틱 줄어들 때
@@ -1681,12 +1685,19 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         if (!strategicLobbyTurnInfoRaw) return strategicLobbyTurnInfoRaw;
         if (strategicLobbyTurnInfoRaw.type !== 'capture_limit') return strategicLobbyTurnInfoRaw;
         const next = Math.max(0, strategicLobbyTurnInfoRaw.current);
+        const nextTotal = strategicLobbyTurnInfoRaw.total;
         if (session.gameStatus !== 'playing') {
+            blackRemainingMonotonicRef.current.value = null;
+            blackRemainingMonotonicRef.current.totalLimit = null;
             return { ...strategicLobbyTurnInfoRaw, current: next };
         }
         const prev = blackRemainingMonotonicRef.current.value;
-        const clamped = prev == null ? next : Math.min(prev, next);
+        const prevTotal = blackRemainingMonotonicRef.current.totalLimit;
+        // 턴 추가 등으로 제한(total)이 올라가면 남은 턴도 즉시 반영 (단조 감소만 적용)
+        const clamped =
+            prev == null || prevTotal == null || nextTotal > prevTotal ? next : Math.min(prev, next);
         blackRemainingMonotonicRef.current.value = clamped;
+        blackRemainingMonotonicRef.current.totalLimit = nextTotal;
         return { ...strategicLobbyTurnInfoRaw, current: clamped };
     }, [strategicLobbyTurnInfoRaw, session.gameStatus]);
 
@@ -1813,13 +1824,19 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         if (!turnInfoRaw) return turnInfoRaw;
         if (turnInfoRaw.type !== 'capture') return turnInfoRaw;
         const next = Math.max(0, turnInfoRaw.remaining);
+        const nextTotal = turnInfoRaw.total;
         if (session.gameStatus !== 'playing') {
             blackRemainingMonotonicRef.current.value = null;
+            blackRemainingMonotonicRef.current.totalLimit = null;
             return { ...turnInfoRaw, remaining: next };
         }
         const prev = blackRemainingMonotonicRef.current.value;
-        const clamped = prev == null ? next : Math.min(prev, next);
+        const prevTotal = blackRemainingMonotonicRef.current.totalLimit;
+        // 도전의 탑 턴 추가: blackTurnLimitBonus로 total만 먼저 오르면 remaining이 갱신되지 않던 UI 버그 방지
+        const clamped =
+            prev == null || prevTotal == null || nextTotal > prevTotal ? next : Math.min(prev, next);
         blackRemainingMonotonicRef.current.value = clamped;
+        blackRemainingMonotonicRef.current.totalLimit = nextTotal;
         return { ...turnInfoRaw, remaining: clamped };
     }, [turnInfoRaw, session.gameStatus]);
     

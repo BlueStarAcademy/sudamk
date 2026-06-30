@@ -33,7 +33,7 @@ import { resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKi
 import { pairPetKataPhaseFromTotalPly, pairPetKataPliesRemainingInCurrentPhase } from '../../shared/constants/pairArena.js';
 import { getEquippedPairPetInventoryRow } from '../../shared/utils/pairEquippedPet.js';
 import { getPairPetDefinition } from '../../shared/constants/petLobby.js';
-import { resolvePveSeatColors } from '../../utils/pveSeatColors.js';
+import { resolvePveItemCountFromSession, resolvePveSeatColors } from '../../utils/pveSeatColors.js';
 
 interface SinglePlayerControlsProps extends Pick<GameProps, 'session' | 'onAction' | 'currentUser' | 'isSpectator'> {
     showResultModal?: boolean;
@@ -191,12 +191,12 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
     const isMissileMode = isSinglePlayerArena && isMissileModeByRule;
     const isMissileOnlyMode = isMissileMode && hiddenCountSetting === 0 && scanCountSetting === 0;
     const moveCount = session.moveHistory?.length ?? 0;
-    const resolvePveItemCount = (sessionValue: unknown, fallback: number): number => {
-        const n = Number(sessionValue);
-        if (Number.isFinite(n)) return Math.max(0, n);
-        return Math.max(0, fallback);
-    };
-    const myMissilesLeftForRefresh = resolvePveItemCount(session.missiles_p1, missileCountSetting);
+    const myMissilesLeftForRefresh = resolvePveItemCountFromSession(
+        session as any,
+        myUserId,
+        'missile',
+        missileCountSetting,
+    );
     const usedMissileBeforeFirstMove = isMissileOnlyMode && moveCount === 0 && (missileCountSetting - myMissilesLeftForRefresh) > 0;
 
     // 베이스 덤 이후 유저가 백이 되는 케이스를 포함해 PVE 좌석(본인/상대 색)을 공통 규칙으로 계산한다.
@@ -209,8 +209,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
     const gameStatus = session.gameStatus;
     
     // 히든 재고는 본대국 색상 기준(p1=흑, p2=백)이다. 베이스바둑 후 유저가 백이면 p2를 보여줘야 한다.
-    const myHiddenRaw = myPlayerEnum === Player.White ? session.hidden_stones_p2 : session.hidden_stones_p1;
-    const hiddenLeft = resolvePveItemCount(myHiddenRaw, hiddenCountSetting);
+    const hiddenLeft = resolvePveItemCountFromSession(session as any, myUserId, 'hidden', hiddenCountSetting);
     const hiddenDisabled = isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || gameStatus !== 'playing' || hiddenLeft <= 0;
     
     const handleUseHidden = React.useCallback(() => {
@@ -224,7 +223,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
     
     // 스캔 아이템: 상대(AI)에 미공개 히든돌이 1개라도 있을 때만 활성화
     // 베이스 싱글에서 유저가 백이 되면 상대 AI가 흑이므로 색 비교에 `opponentPlayerEnum`을 사용해야 한다.
-    const myScansLeft = resolvePveItemCount(session.scans_p1, scanCountSetting);
+    const myScansLeft = resolvePveItemCountFromSession(session as any, myUserId, 'scan', scanCountSetting);
     const canScan = React.useMemo(() => {
         const board = session.boardState;
         if (!Array.isArray(board) || board.length === 0) return false;
@@ -289,7 +288,12 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
     }, [session, gameStatus, onAction, isMoveInFlight, isBoardLocked, hasPendingRevealResolution, isMyTurn]);
     
     // 미사일 아이템
-    const myMissilesLeft = resolvePveItemCount(session.missiles_p1, missileCountSetting);
+    const myMissilesLeft = resolvePveItemCountFromSession(
+        session as any,
+        myUserId,
+        'missile',
+        missileCountSetting,
+    );
     
     const canUseMissile = isMyTurn;
     

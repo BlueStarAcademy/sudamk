@@ -65,7 +65,7 @@ import {
     resolveLiveSessionSinglePlayerStageRow,
     resolveSinglePlayerAutoScoringCapForClientSession,
 } from '../shared/utils/liveSessionSinglePlayerStage.js';
-import { TOWER_STAGES } from '../constants/towerConstants.js';
+import { resolvePveSeatColors, pveScanKeyForPlayer } from '../utils/pveSeatColors.js';
 import { calculateUserEffects } from '../services/effectService.js';
 import { coerceSpecialStatType } from '../shared/utils/specialStatMilestones.js';
 import { ACTION_POINT_REGEN_INTERVAL_MS } from '../constants/rules.js';
@@ -2582,6 +2582,8 @@ export const useApp = () => {
     const pvpPlaceStoneRevertRef = useRef<Record<string, LiveGameSession>>({});
     /** TOWER_ADD_TURNS: fetch 전 낙관 보너스(+3) 적용분 — 실패 시 롤백 */
     const towerAddTurnOptimisticPendingByGameRef = useRef<Record<string, number>>({});
+    /** SCAN_BOARD(싱글): fetch 전 낙관 -1 — 실패 시 롤백 */
+    const pveScanOptimisticPendingByGameRef = useRef<Record<string, 'scans_p1' | 'scans_p2'>>({});
     /** 싱글/탑 기권: 서버 정산(processSinglePlayerGameSummary 등) 지연 동안 즉시 ended 반영 후 실패 시 롤백 */
     const pveResignOptimisticRevertRef = useRef<{
         gameId: string;
@@ -5959,6 +5961,23 @@ export const useApp = () => {
             }
         };
 
+        const rollbackPveScanOptimistic = () => {
+            if (action.type !== 'SCAN_BOARD') return;
+            const gid = (action.payload as { gameId?: string })?.gameId;
+            if (!gid) return;
+            const key = pveScanOptimisticPendingByGameRef.current[gid];
+            delete pveScanOptimisticPendingByGameRef.current[gid];
+            if (!key) return;
+            flushSync(() => {
+                setSinglePlayerGames((c) => {
+                    const g = c[gid];
+                    if (!g) return c;
+                    const cur = Number((g as any)[key]) || 0;
+                    return { ...c, [gid]: { ...g, [key]: cur + 1 } };
+                });
+            });
+        };
+
         const revertAiLobbyStartOptimistic = () => {
             const entry = aiLobbyStartRevertRef.current;
             if (!entry) return;
@@ -5985,6 +6004,32 @@ export const useApp = () => {
                         });
                         // sessionStorage는 여기서 +3 하지 않음 — Game.tsx 저장분과 max 병합 시 이중 누적·UI+6 버그가 난다.
                         // 성공 응답에서 서버 보너스로 한 번에 맞춘다.
+                    }
+                }
+            }
+
+            // 싱글플레이 스캔: 서버 응답 전 배지 즉시 -1 (베이스바둑 등 백 좌석 scans_p2 반영)
+            if (action.type === 'SCAN_BOARD') {
+                const gid = (action.payload as { gameId?: string })?.gameId;
+                const uid = currentUserRef.current?.id;
+                if (gid && uid) {
+                    const gSnap = singlePlayerGamesRef.current[gid];
+                    if (gSnap && getSessionArenaKind(gSnap) === 'singleplayer') {
+                        const { myPlayerEnum } = resolvePveSeatColors(gSnap as LiveGameSession, uid);
+                        if (myPlayerEnum !== Player.None) {
+                            const key = pveScanKeyForPlayer(myPlayerEnum);
+                            const prev = Number((gSnap as any)[key]) || 0;
+                            if (prev > 0) {
+                                pveScanOptimisticPendingByGameRef.current[gid] = key;
+                                flushSync(() => {
+                                    setSinglePlayerGames((current) => {
+                                        const g = current[gid];
+                                        if (!g) return current;
+                                        return { ...current, [gid]: { ...g, [key]: prev - 1 } };
+                                    });
+                                });
+                            }
+                        }
                     }
                 }
             }
@@ -6416,6 +6461,7 @@ export const useApp = () => {
                         revertPvpDicePlaceSnapshot();
                         revertPvpPlaceStoneSnapshot();
                         rollbackTowerAddTurnOptimistic();
+            rollbackPveScanOptimistic();
                         revertPveResignOptimistic();
                         return { error: errorMessage } as HandleActionResult;
                     }
@@ -6474,6 +6520,7 @@ export const useApp = () => {
                         revertPvpDicePlaceSnapshot();
                         revertPvpPlaceStoneSnapshot();
                         rollbackTowerAddTurnOptimistic();
+            rollbackPveScanOptimistic();
                         revertPveResignOptimistic();
                         revertAiLobbyStartOptimistic();
                         return {} as HandleActionResult;
@@ -6517,6 +6564,7 @@ export const useApp = () => {
                                         revertPvpDicePlaceSnapshot();
                                         revertPvpPlaceStoneSnapshot();
                                         rollbackTowerAddTurnOptimistic();
+            rollbackPveScanOptimistic();
                                         revertPveResignOptimistic();
                                         return await handleAction({
                                             ...action,
@@ -6550,6 +6598,7 @@ export const useApp = () => {
                     revertPvpDicePlaceSnapshot();
                     revertPvpPlaceStoneSnapshot();
                     rollbackTowerAddTurnOptimistic();
+            rollbackPveScanOptimistic();
                     revertPveResignOptimistic();
                     revertAiLobbyStartOptimistic();
                     return {} as HandleActionResult;
@@ -6567,6 +6616,7 @@ export const useApp = () => {
                     revertPvpDicePlaceSnapshot();
                     revertPvpPlaceStoneSnapshot();
                     rollbackTowerAddTurnOptimistic();
+            rollbackPveScanOptimistic();
                     revertPveResignOptimistic();
                     revertAiLobbyStartOptimistic();
                     return;
@@ -6605,6 +6655,7 @@ export const useApp = () => {
                 revertPvpDicePlaceSnapshot();
                 revertPvpPlaceStoneSnapshot();
                 rollbackTowerAddTurnOptimistic();
+            rollbackPveScanOptimistic();
                 revertPveResignOptimistic();
                 revertAiLobbyStartOptimistic();
 
@@ -6740,6 +6791,7 @@ export const useApp = () => {
                     revertPvpDicePlaceSnapshot();
                     revertPvpPlaceStoneSnapshot();
                     rollbackTowerAddTurnOptimistic();
+            rollbackPveScanOptimistic();
                     revertPveResignOptimistic();
                     revertAiLobbyStartOptimistic();
                     return { error: errorMessage } as HandleActionResult;
@@ -6796,6 +6848,35 @@ export const useApp = () => {
                                         parsed.timestamp = Date.now();
                                         sessionStorage.setItem(key, JSON.stringify(parsed));
                                     }
+                                }
+                            }
+                        } catch {
+                            /* ignore */
+                        }
+                    }
+                }
+                if (action.type === 'SCAN_BOARD') {
+                    const gidOk = (action.payload as { gameId?: string })?.gameId;
+                    if (gidOk) delete pveScanOptimisticPendingByGameRef.current[gidOk];
+                    const authGame = (result as any)?.clientResponse?.game as
+                        | { id?: string; scans_p1?: unknown; scans_p2?: unknown }
+                        | undefined;
+                    const gidAuth = authGame?.id || gidOk;
+                    if (gidAuth && authGame && typeof sessionStorage !== 'undefined') {
+                        try {
+                            const key = `gameState_${gidAuth}`;
+                            const raw = sessionStorage.getItem(key);
+                            if (raw) {
+                                const parsed = JSON.parse(raw) as Record<string, unknown>;
+                                if (parsed && parsed.gameId === gidAuth) {
+                                    if (authGame.scans_p1 !== undefined && authGame.scans_p1 !== null) {
+                                        parsed.scans_p1 = Number(authGame.scans_p1) || 0;
+                                    }
+                                    if (authGame.scans_p2 !== undefined && authGame.scans_p2 !== null) {
+                                        parsed.scans_p2 = Number(authGame.scans_p2) || 0;
+                                    }
+                                    parsed.timestamp = Date.now();
+                                    sessionStorage.setItem(key, JSON.stringify(parsed));
                                 }
                             }
                         } catch {
@@ -8592,6 +8673,7 @@ export const useApp = () => {
                 }
             }
             rollbackTowerAddTurnOptimistic();
+            rollbackPveScanOptimistic();
             revertAiLobbyStartOptimistic();
             console.error(`[handleAction] ${action.type} - Exception:`, err);
             console.error(`[handleAction] Error stack:`, err.stack);
