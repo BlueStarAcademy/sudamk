@@ -6813,9 +6813,9 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
         if (
             championshipAwaitingKataLoad &&
-            (tournament?.status === 'bracket_ready' || tournament?.status === 'round_complete')
+            (tournament?.status === 'bracket_ready' || tournament?.status === 'round_complete') &&
+            !championshipMatchStartLockRef.current
         ) {
-            championshipMatchStartLockRef.current = false;
             championshipMatchStartRequestSentRef.current = false;
             setChampionshipAwaitingKataLoad(false);
             return;
@@ -7390,7 +7390,11 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         const buttonLabel = tt('startMatch');
 
         if (championshipAwaitingKataLoad) {
-            return null;
+            return (
+                <button type="button" disabled className={`${championshipFooterMutedButton} ${fb}`}>
+                    {tt('matchPreparing')}
+                </button>
+            );
         }
 
         return (
