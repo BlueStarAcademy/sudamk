@@ -603,6 +603,17 @@ export const useTournamentSimulation = (
         localTournament?.rounds,
     ]);
 
+    // PVE 던전: round_in_progress 직후 matchKey는 `real:`로 고정되지만 kata 기보는 비동기로 붙는다.
+    // moves.length를 deps에 넣지 않으면 effect가 한 번 early-return 후 재실행되지 않아 빈 바둑판에서 멈춘다.
+    const activeSimRealGameMoveCount = (() => {
+        const sim = localTournament?.currentSimulatingMatch;
+        if (!sim || !localTournament?.rounds) return 0;
+        return (
+            localTournament.rounds[sim.roundIndex]?.matches[sim.matchIndex]?.championshipRealGame?.moves
+                ?.length ?? 0
+        );
+    })();
+
     // Main simulation effect
     useEffect(() => {
         if (!localTournament || !currentUser) {
@@ -1268,7 +1279,12 @@ export const useTournamentSimulation = (
             }
             isSimulatingRef.current = false;
         };
-    }, [getChampionshipSimulationMatchKey(localTournament), localTournament?.status, currentUser?.id]);
+    }, [
+        getChampionshipSimulationMatchKey(localTournament),
+        localTournament?.status,
+        activeSimRealGameMoveCount,
+        currentUser?.id,
+    ]);
 
     // 실대국 재생·계가가 끝났는데 COMPLETE가 유실된 경우 서버 상태가 round_in_progress에 멈추지 않게 재전송한다.
     useEffect(() => {

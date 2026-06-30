@@ -7882,15 +7882,6 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     </p>
                 ) : null}
                 {isMobile ? mobileDungeonFooterStatusMessage : null}
-                {!inMobileSidebar && !inDesktopSidebar && isMobile && canReopenMobileChampionshipResultModal ? (
-                    <button
-                        type="button"
-                        onClick={() => setShowMobileChampionshipResultModal(true)}
-                        className={`mb-1.5 w-full ${championshipFooterPrimaryButton} !text-[11px] !py-2 !px-2 animate-pulse`}
-                    >
-                        {tt('matchResult')}
-                    </button>
-                ) : null}
                 {!inDesktopSidebar && !inMobileSidebar && dungeonStartOrNextMatchAction ? (
                     <div className="mb-1.5 w-full">{dungeonStartOrNextMatchAction}</div>
                 ) : null}
@@ -7919,7 +7910,8 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                         </div>
                     </div>
                 ) : (
-                    <div className="flex w-full flex-nowrap items-stretch gap-1.5">
+                    <div className="flex w-full flex-nowrap items-stretch gap-1">
+                        {showChampionshipMatchResultInSidebar ? matchResultButton : null}
                         {rewardInfoButton}
                         {middleFooterAction}
                         {exitButton}
