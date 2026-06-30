@@ -13,6 +13,7 @@ export type UseConditionPotionActionDeps = {
     lastHttpActionTypeRef: { current: string | null };
     lastHttpUpdateTimeRef: { current: number };
     lastHttpHadUpdatedUserRef: { current: boolean };
+    useCommittedAtRef: { current: number | null };
 };
 
 export type UseConditionPotionActionResult = { error?: string } | void;
@@ -37,6 +38,7 @@ export async function executeUseConditionPotionAction(
     const revertUser = JSON.parse(JSON.stringify(currentUser)) as User;
     const optimisticPatch = buildOptimisticConditionPotionPatch(currentUser, payload);
     if (optimisticPatch) {
+        deps.useCommittedAtRef.current = Date.now();
         deps.applyUserUpdate(optimisticPatch, 'USE_CONDITION_POTION-optimistic');
     }
     deps.lastHttpActionTypeRef.current = 'USE_CONDITION_POTION';
@@ -58,6 +60,7 @@ export async function executeUseConditionPotionAction(
                 /* ignore */
             }
             deps.applyUserUpdate(revertUser, 'USE_CONDITION_POTION-revert');
+            deps.useCommittedAtRef.current = null;
             deps.showError(typeof errorMessage === 'string' ? errorMessage : tx('tournament:conditionPotionAction.useFailed'));
             return { error: errorMessage };
         }
@@ -70,6 +73,7 @@ export async function executeUseConditionPotionAction(
         if (isHttpBodyError) {
             const errorMessage = result.message || result.error || tx('common:errors.serverError');
             deps.applyUserUpdate(revertUser, 'USE_CONDITION_POTION-revert');
+            deps.useCommittedAtRef.current = null;
             deps.showError(errorMessage);
             return { error: errorMessage };
         }
@@ -84,6 +88,7 @@ export async function executeUseConditionPotionAction(
         return undefined;
     } catch (err: unknown) {
         deps.applyUserUpdate(revertUser, 'USE_CONDITION_POTION-revert');
+        deps.useCommittedAtRef.current = null;
         const message = err instanceof Error ? err.message : tx('tournament:conditionPotionAction.useError');
         deps.showError(message);
         return { error: message };

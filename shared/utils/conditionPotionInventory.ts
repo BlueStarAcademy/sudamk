@@ -29,8 +29,11 @@ export function countConditionPotionsInInventory(inv: InventoryItem[] | undefine
     for (const row of inv) {
         if (row?.type !== 'consumable' || !isConditionPotionConsumable(row.name)) continue;
         const q = row.quantity;
-        total +=
-            typeof q === 'number' && Number.isFinite(q) && q > 0 ? Math.floor(q) : 1;
+        if (typeof q === 'number' && Number.isFinite(q)) {
+            if (q > 0) total += Math.floor(q);
+        } else {
+            total += 1;
+        }
     }
     return total;
 }

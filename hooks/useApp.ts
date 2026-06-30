@@ -2170,8 +2170,19 @@ export const useApp = () => {
             console.warn(`[applyUserUpdate] Rejected update from ${source}: ID mismatch (prev: ${prevUser.id}, update: ${updates.id})`);
             return prevUser;
         }
+
+        const effectiveUpdates =
+            prevUser != null
+                ? sanitizeConditionPotionUserUpdatePatch(updates, {
+                      lastHttpActionType: lastHttpActionType.current,
+                      useInFlight: useConditionPotionInFlightRef.current,
+                      prevInventory: prevUser.inventory,
+                      useCommittedAt: conditionPotionUseCommittedAtRef.current,
+                      updateSource: source,
+                  })
+                : updates;
         
-        const mergedUser = mergeUserState(prevUser, updates);
+        const mergedUser = mergeUserState(prevUser, effectiveUpdates);
         
         // 추가 보안: 병합 후에도 ID가 변경되지 않았는지 확인
         if (prevUser && mergedUser.id !== prevUser.id) {
@@ -2574,6 +2585,7 @@ export const useApp = () => {
     // 배포 환경 고지연에서 동일 착수 요청이 중복 전송되는 경우(더블탭/재전송) 방지
     const inFlightPlaceStoneActionRef = useRef<Set<string>>(new Set());
     const useConditionPotionInFlightRef = useRef(false);
+    const conditionPotionUseCommittedAtRef = useRef<number | null>(null);
     /** PVP 주사위 바둑: 연타 시 낙관 착수는 첫 번째 요청만, inFlight는 요청마다 증가 */
     const pvpDicePlaceInFlightRef = useRef<Record<string, number>>({});
     /** 낙관 착수 실패 시 복구용 스냅샷 (해당 gameId당 1개) */
@@ -6402,6 +6414,7 @@ export const useApp = () => {
                         lastHttpActionTypeRef: lastHttpActionType,
                         lastHttpUpdateTimeRef: lastHttpUpdateTime,
                         lastHttpHadUpdatedUserRef: lastHttpHadUpdatedUser,
+                        useCommittedAtRef: conditionPotionUseCommittedAtRef,
                     },
                     potionPayload ?? {},
                 )) as HandleActionResult;
@@ -9933,6 +9946,7 @@ export const useApp = () => {
                                     {
                                         lastHttpActionType: lastHttpActionType.current,
                                         useInFlight: useConditionPotionInFlightRef.current,
+                                        useCommittedAt: conditionPotionUseCommittedAtRef.current,
                                     },
                                 );
 
@@ -9985,6 +9999,8 @@ export const useApp = () => {
                                         lastHttpActionType: lastHttpActionType.current,
                                         useInFlight: useConditionPotionInFlightRef.current,
                                         prevInventory: currentUserRef.current?.inventory,
+                                        useCommittedAt: conditionPotionUseCommittedAtRef.current,
+                                        updateSource: 'USER_UPDATE-websocket',
                                     },
                                 );
                                 if (userUpdatePatch !== updatedCurrentUser) {
