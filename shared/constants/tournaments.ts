@@ -6,6 +6,9 @@ import { LeagueTier } from '../types/enums.js';
 export const DUNGEON_AUTO_NEXT_MATCH_COUNTDOWN_SECONDS = 10;
 export const DUNGEON_AUTO_NEXT_MATCH_COUNTDOWN_MS =
     DUNGEON_AUTO_NEXT_MATCH_COUNTDOWN_SECONDS * 1000;
+/** 기보 선생성이 카운트다운 내에 끝나지 않을 때 연출을 이 간격만큼 연장(최대 횟수까지) */
+export const DUNGEON_AUTO_NEXT_COUNTDOWN_EXTEND_MS = 2500;
+export const DUNGEON_AUTO_NEXT_COUNTDOWN_MAX_EXTENDS = 30;
 
 export const TOURNAMENT_DEFINITIONS: Record<TournamentType, TournamentDefinition> = {
     neighborhood: { id: 'neighborhood', name: '동네바둑리그', description: '6인 풀리그 방식으로 진행됩니다. 가장 많은 승리를 거두세요!', format: 'round-robin', players: 6, image: '/images/championship/Champ1.webp' },

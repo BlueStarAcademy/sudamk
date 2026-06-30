@@ -22,6 +22,45 @@ const displayBracketTabName = (name: string): string => {
     if (name === TB_TAB_FINAL_THIRD || name === TB_TAB_FINAL_THIRD_ALT) return tt('tabFinalThird');
     return name;
 };
+
+function countFinishedUserMatches(rounds: Round[]): number {
+    return rounds.flatMap((r) => r.matches ?? []).filter((m) => m.isUserMatch && m.isFinished).length;
+}
+
+function findNextUnfinishedUserMatch(
+    rounds: Round[],
+    tournamentType: TournamentType,
+    currentRoundRobinRound?: number | null,
+): { match: Match; roundNumForTab: number | null } | null {
+    if (tournamentType === 'neighborhood') {
+        const currentRound = currentRoundRobinRound || 1;
+        const currentRoundObj = rounds.find((r) => r.name === `${currentRound}${TB_ROUND_SUFFIX}`);
+        const fromCurrent = currentRoundObj?.matches.find((m) => m.isUserMatch && !m.isFinished);
+        if (fromCurrent) return { match: fromCurrent, roundNumForTab: currentRound };
+        for (const round of rounds) {
+            const match = round.matches.find((m) => m.isUserMatch && !m.isFinished);
+            if (match) {
+                const parsed = parseInt(round.name.replace(TB_ROUND_SUFFIX, ''), 10);
+                return { match, roundNumForTab: Number.isNaN(parsed) ? null : parsed };
+            }
+        }
+        return null;
+    }
+    const match = rounds.flatMap((r) => r.matches).find((m) => m.isUserMatch && !m.isFinished);
+    return match ? { match, roundNumForTab: null } : null;
+}
+
+function findMatchInRounds(rounds: Round[], matchId: string): Match | undefined {
+    for (const round of rounds) {
+        const found = round.matches.find((m) => m.id === matchId);
+        if (found) return found;
+    }
+    return undefined;
+}
+
+function isChampionshipRealGameRecordReady(match: Match | null | undefined): boolean {
+    return (match?.championshipRealGame?.moves?.length ?? 0) > 0;
+}
 import { tx } from '../shared/i18n/runtimeText.js';
 import { useLocalizedItemGrade } from '../shared/i18n/localizedCatalog.js';
 import { createPortal, flushSync } from 'react-dom';
@@ -73,6 +112,8 @@ import {
     DUNGEON_STAGE_MATERIAL_ROLLS,
     DUNGEON_STAGE_EQUIPMENT_DROP,
     DUNGEON_AUTO_NEXT_MATCH_COUNTDOWN_SECONDS,
+    DUNGEON_AUTO_NEXT_COUNTDOWN_EXTEND_MS,
+    DUNGEON_AUTO_NEXT_COUNTDOWN_MAX_EXTENDS,
     getDungeonBasicRewardRangeGold,
     getDungeonRankRewardForDisplay,
     getDungeonRankRewardRangeForDisplay,
@@ -5538,6 +5579,10 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     const savedStartTimeRef = useRef<number | null>(null); // nextRoundStartTime을 저장하는 ref
     /** 동일 nextRoundStartTime에 대해 START_TOURNAMENT_MATCH를 한 번만 보내기 (무한 재요청 방지) */
     const hasTriggeredStartForTimeRef = useRef<number | null>(null);
+    /** 카운트다운 시작 시점에 기보 선생성(2회차~) 요청을 한 번만 보냄 */
+    const prefetchTriggeredForStartTimeRef = useRef<number | null>(null);
+    /** 기보 미준비 시 카운트다운 연장 횟수 */
+    const countdownExtendCountRef = useRef(0);
     /** 카운트다운 0 시 먼저 다음 회차 탭으로 전환한 뒤 시합 시작 (순서: 대진표 탭 이동 → 대국자 표시 → 시합 시작) */
     const [pendingRoundSwitchTo, setPendingRoundSwitchTo] = useState<number | null>(null);
     const pendingMatchStartRef = useRef<{ type: TournamentType } | null>(null);
@@ -6021,6 +6066,8 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             autoStartTimeRef.current = null;
             savedStartTimeRef.current = null;
             hasTriggeredStartForTimeRef.current = null;
+            prefetchTriggeredForStartTimeRef.current = null;
+            countdownExtendCountRef.current = 0;
             return;
         }
 
@@ -6039,8 +6086,21 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         savedStartTimeRef.current = nextRoundStartTime;
         autoStartTimeRef.current = nextRoundStartTime;
         hasTriggeredStartForTimeRef.current = null;
+        countdownExtendCountRef.current = 0;
         const savedTournamentType = tournament?.type;
         const savedCurrentRound = tournament?.currentRoundRobinRound;
+
+        // 2회차 이후: 카운트다운·결과 연출과 동시에 다음 경기 기보 선생성
+        const snapshotRounds = tournament?.rounds ?? [];
+        const finishedUserMatchCount = countFinishedUserMatches(snapshotRounds);
+        if (
+            finishedUserMatchCount >= 1 &&
+            tournament?.currentStageAttempt != null &&
+            prefetchTriggeredForStartTimeRef.current !== nextRoundStartTime
+        ) {
+            prefetchTriggeredForStartTimeRef.current = nextRoundStartTime;
+            void finalizeChampionshipDungeonMatchStartRef.current?.();
+        }
 
         const updateCountdown = () => {
             // savedStartTimeRef를 사용하여 타이머가 중단되지 않도록 함
@@ -6073,9 +6133,41 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 }
             }
 
-            // 시간이 지났거나 0에 도달했을 때 경기 시작
+            // 시간이 지났거나 0에 도달했을 때 경기 시작(2회차~: 기보 선생성 완료 시 즉시, 미완료 시 연출 연장)
             if (timeUntilStart <= 0) {
-                // 카운트다운이 끝났으면 바로 경기 시작
+                const currentTournament = tournamentRef.current;
+                const rounds = currentTournament?.rounds || [];
+                const tournamentType = currentTournament?.type || savedTournamentType;
+                const currentRound = currentTournament?.currentRoundRobinRound || savedCurrentRound;
+
+                const located = findNextUnfinishedUserMatch(
+                    rounds,
+                    tournamentType ?? 'neighborhood',
+                    currentRound,
+                );
+                const nextMatch = located?.match;
+                const roundNumForTab = located?.roundNumForTab ?? currentRound ?? null;
+
+                const finishedUserMatchCount = countFinishedUserMatches(rounds);
+                const isSubsequentMatch = finishedUserMatchCount >= 1;
+                const liveNextMatch = nextMatch ? findMatchInRounds(rounds, nextMatch.id) : undefined;
+                const recordReady = isChampionshipRealGameRecordReady(liveNextMatch ?? nextMatch);
+
+                if (isSubsequentMatch && !recordReady) {
+                    if (countdownExtendCountRef.current < DUNGEON_AUTO_NEXT_COUNTDOWN_MAX_EXTENDS) {
+                        countdownExtendCountRef.current += 1;
+                        const newStart = Date.now() + DUNGEON_AUTO_NEXT_COUNTDOWN_EXTEND_MS;
+                        savedStartTimeRef.current = newStart;
+                        setAutoNextCountdown(Math.ceil(DUNGEON_AUTO_NEXT_COUNTDOWN_EXTEND_MS / 1000));
+                        return;
+                    }
+                }
+
+                if (hasTriggeredStartForTimeRef.current === startTime) {
+                    return;
+                }
+                hasTriggeredStartForTimeRef.current = startTime;
+
                 setAutoNextCountdown(null);
                 countdownRef.current = 0;
                 if (autoNextTimerRef.current) {
@@ -6084,58 +6176,24 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 }
                 autoStartTimeRef.current = null;
                 savedStartTimeRef.current = null;
-                
-                // 다음 경기 찾기 - tournamentRef.current를 사용하여 최신 상태 확인
-                const currentTournament = tournamentRef.current;
-                const rounds = currentTournament?.rounds || [];
-                let nextMatch: Match | undefined = undefined;
-                const tournamentType = currentTournament?.type || savedTournamentType;
-                const currentRound = currentTournament?.currentRoundRobinRound || savedCurrentRound;
-                
-                let roundNumForTab: number | null = currentRound ?? null;
-                if (tournamentType === 'neighborhood') {
-                    // currentRoundRobinRound가 있으면 사용
-                    if (currentRound) {
-                        const currentRoundObj = rounds.find(r => r.name === `${currentRound}${TB_ROUND_SUFFIX}`);
-                        if (currentRoundObj) {
-                            nextMatch = currentRoundObj.matches.find(m => m.isUserMatch && !m.isFinished);
-                        }
-                    }
-                    // currentRoundRobinRound가 없거나 경기를 찾지 못한 경우 모든 라운드에서 찾기
-                    if (!nextMatch) {
-                        for (const round of rounds) {
-                            const match = round.matches.find(m => m.isUserMatch && !m.isFinished);
-                            if (match) {
-                                nextMatch = match;
-                                const parsed = parseInt(round.name.replace(TB_ROUND_SUFFIX, ''), 10);
-                                roundNumForTab = Number.isNaN(parsed) ? null : parsed;
-                                break;
-                            }
-                        }
-                    }
-                } else {
-                    // 전국/월드챔피언십: 다음 경기 찾기
-                    nextMatch = rounds
-                        .flatMap(r => r.matches)
-                        .find(m => m.isUserMatch && !m.isFinished);
-                }
 
-                // 경기를 찾았으면: 동일 startTime에 대해 한 번만 전송 (무한 재요청/무한루프 방지)
+                const skipStartRequest =
+                    recordReady && currentTournament?.status === 'round_in_progress';
+
                 if (nextMatch) {
-                    if (hasTriggeredStartForTimeRef.current === startTime) {
-                        return; // 이미 이 시각에 대해 시작 요청 보냄 → 중복 전송 방지
-                    }
-                    hasTriggeredStartForTimeRef.current = startTime;
                     console.log('[TournamentBracket] Auto-starting match after countdown', {
                         nextMatch: nextMatch.id,
                         status: currentTournament?.status,
                         type: tournamentType,
-                        roundNumForTab
+                        roundNumForTab,
+                        skipStartRequest,
+                        recordReady,
                     });
                     if (tournamentType === 'neighborhood' && roundNumForTab != null) {
-                        // 순서: 1) 다음 회차 탭 이동 요청 → 2) 2회차 대국자 갱신 및 바둑판 초기화 → 3) 150ms 후 시합 시작
                         setPendingRoundSwitchTo(roundNumForTab);
-                        pendingMatchStartRef.current = { type: 'neighborhood' as TournamentType };
+                        pendingMatchStartRef.current = skipStartRequest
+                            ? null
+                            : { type: 'neighborhood' as TournamentType };
                         setLastUserMatchSgfIndex(null);
                         const players = currentTournament?.players;
                         if (Array.isArray(players)) {
@@ -6152,7 +6210,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                             });
                             initialMatchPlayersSetRef.current = true;
                         }
-                    } else {
+                    } else if (!skipStartRequest) {
                         triggerDungeonAutoMatchStart();
                     }
                 } else {
@@ -6185,21 +6243,42 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             // 하지만 savedStartTimeRef를 사용하므로 타이머는 계속 실행됨
         };
     }, [tournament?.nextRoundStartTime]); // nextRoundStartTime만 의존성으로 사용하여 타이머가 중단되지 않도록 함
-    
-    // 다음 회차 탭 전환 후 시합 자동 시작 (동네 챔피언십 순서 보장)
+
+    /** 2회차~: 기보 선생성이 카운트다운 종료 전에 끝나면 연출을 조기 마무리해 재생을 바로 시작 */
     useEffect(() => {
-        if (pendingRoundSwitchTo == null || !pendingMatchStartRef.current) return;
+        if (autoNextCountdown === null) return;
+        if (countFinishedUserMatches(safeRounds) < 1) return;
+        const located = findNextUnfinishedUserMatch(
+            safeRounds,
+            tournament.type,
+            tournament.currentRoundRobinRound,
+        );
+        const live = located?.match ? findMatchInRounds(safeRounds, located.match.id) : undefined;
+        if (!isChampionshipRealGameRecordReady(live ?? located?.match)) return;
+        if (tournament.status !== 'round_in_progress') return;
+        if (savedStartTimeRef.current != null && savedStartTimeRef.current > Date.now()) {
+            savedStartTimeRef.current = Date.now();
+        }
+    }, [autoNextCountdown, tournament.status, tournament.type, tournament.currentRoundRobinRound, safeRounds]);
+
+    // 다음 회차 탭 전환 후 시합 자동 시작 (동네: 기보 선생성 완료 시 START 생략)
+    useEffect(() => {
+        if (pendingRoundSwitchTo == null) return;
         const payload = pendingMatchStartRef.current;
         const t = setTimeout(() => {
             const currentTournament = tournamentRef.current;
-            if (currentTournament?.currentStageAttempt != null) {
-                void finalizeChampionshipDungeonMatchStartRef.current?.();
-            } else {
-                setChampionshipSidebarTab('commentary');
-                onActionRef.current({
-                    type: 'START_TOURNAMENT_MATCH',
-                    payload: { type: payload.type },
-                });
+            const needsStart =
+                payload != null && currentTournament?.status !== 'round_in_progress';
+            if (needsStart) {
+                if (currentTournament?.currentStageAttempt != null) {
+                    void finalizeChampionshipDungeonMatchStartRef.current?.();
+                } else {
+                    setChampionshipSidebarTab('commentary');
+                    onActionRef.current({
+                        type: 'START_TOURNAMENT_MATCH',
+                        payload: { type: payload.type },
+                    });
+                }
             }
             pendingMatchStartRef.current = null;
             // pendingRoundSwitchTo는 서버가 round_in_progress로 바꿀 때만 초기화 (아래 useEffect).
@@ -6639,6 +6718,11 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     
     // 경기 종료 화면 유지 로직
     const matchForDisplay = useMemo(() => {
+        // 다음 경기 카운트다운·기보 선생성 중에는 직전 경기 결과 화면을 유지한다.
+        if (autoNextCountdown !== null && lastFinishedUserMatch) {
+            return lastFinishedUserMatch;
+        }
+
         if (isSimulating) {
             if (currentSimMatch) return currentSimMatch;
             return findActiveChampionshipUserMatch(displayTournament, currentUser?.id);
@@ -6708,7 +6792,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             return anyUserMatch;
         }
         return safeRounds[0]?.matches[0] || null;
-    }, [isSimulating, currentSimMatch, displayTournament, currentUser?.id, tournament.status, tournament.nextRoundStartTime, tournament.type, safeRounds, lastFinishedUserMatch, pendingRoundSwitchTo]);
+    }, [isSimulating, currentSimMatch, displayTournament, currentUser?.id, tournament.status, tournament.nextRoundStartTime, tournament.type, safeRounds, lastFinishedUserMatch, pendingRoundSwitchTo, autoNextCountdown]);
 
     useChampionshipReplayPlaceStoneSound(
         matchForDisplay?.championshipRealGame?.currentPly,
