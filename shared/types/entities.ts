@@ -668,6 +668,10 @@ export type User = {
   }>;
   /** 경기장별·오늘자 컨디션 스냅샷. 뒤로 나갔다 재입장해도 같은 컨디션 유지, 회복제 반영 유지. 완료/포기 시 삭제 */
   dungeonConditionSnapshot?: Partial<Record<TournamentType, { condition: number; dateStartOfDayKST: number }>>;
+  /** PVE 챔피언십 던전 일일 입장(기본 1회 + 광고 보너스 1회) */
+  championshipDungeonDailyEntry?: Partial<
+      Record<TournamentType, { dateStartOfDayKST: number; entriesUsed: number; adBonusGranted: boolean }>
+  >;
   dailyDungeonScore?: number; // 일일 획득 점수 (리셋용)
   mbti?: string | null;
   rejectedGameModes?: GameMode[];

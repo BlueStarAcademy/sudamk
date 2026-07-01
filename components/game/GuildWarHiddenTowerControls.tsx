@@ -1,9 +1,9 @@
 /**
-import { tx } from '../../shared/i18n/runtimeText.js';
  * 길드 전쟁 — 히든 바둑 전용 하단 컨트롤.
  * 도전의 탑 21층+ 히든·스캔 UI와 동일한 형태이며, 탑 전용 파일과 분리됨.
  */
 import React, { useMemo } from 'react';
+import { tx } from '../../shared/i18n/runtimeText.js';
 import { GameProps, Player, Point, AppSettings } from '../../types.js';
 import Button from '../Button.js';
 import { replaceAppHash } from '../../utils/appUtils.js';

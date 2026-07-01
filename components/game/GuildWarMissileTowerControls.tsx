@@ -1,9 +1,9 @@
 /**
-import { tx } from '../../shared/i18n/runtimeText.js';
  * 길드 전쟁 — 미사일 바둑 전용 하단 컨트롤.
  * 도전의 탑 21층+ 미사일 UI(이미지 버튼·배치)와 동일한 형태이며, 탑 전용 로직·파일과 분리됨.
  */
 import React from 'react';
+import { tx } from '../../shared/i18n/runtimeText.js';
 import { GameProps, Player, Point, AppSettings } from '../../types.js';
 import Button from '../Button.js';
 import { replaceAppHash } from '../../utils/appUtils.js';

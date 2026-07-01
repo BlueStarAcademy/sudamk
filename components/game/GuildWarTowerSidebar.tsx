@@ -1,9 +1,9 @@
 /**
-import { tx } from '../../shared/i18n/runtimeText.js';
  * 길드 전쟁 — 미사일/히든 대국용 우측 사이드바.
  * 도전의 탑 사이드바와 동일 구성(정보 패널·채팅·일시정지)이며, 탑 전용 파일과 분리됨.
  */
 import React from 'react';
+import { tx } from '../../shared/i18n/runtimeText.js';
 import { LiveGameSession, GameProps } from '../../types.js';
 import { GameInfoPanel, ChatPanel } from './Sidebar.js';
 import Button from '../Button.js';

@@ -30,6 +30,9 @@ import {
 } from '../shared/constants/tournaments.js';
 import { normalizeDungeonProgress, isStageCleared } from '../utils/championshipDungeonProgress.js';
 import { isSameDayKST } from '../utils/timeUtils.js';
+import { getChampionshipDungeonDailyEntryState } from '../shared/utils/championshipDungeonDailyEntry.js';
+import { useAppContext } from '../hooks/useAppContext.js';
+import { useAdContext } from './ads/AdProvider.js';
 import {
     getChampionshipRewardItemGrade,
     getChampionshipRewardItemImageUrl,
@@ -655,6 +658,9 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
     isTopmost,
 }) => {
     const { t } = useTranslation('tournament');
+    const { handlers } = useAppContext();
+    const { showShopAdRewardInterstitial, isAdFree } = useAdContext();
+    const [adClaimPending, setAdClaimPending] = useState(false);
     const definition = TOURNAMENT_DEFINITIONS[type];
     const venueLobbyBg = CHAMPIONSHIP_VENUE_LOBBY_BG_IMAGE[type];
     const isHandheld = useIsHandheldDevice(1025);
@@ -773,7 +779,28 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
     const myAvgStat = useMemo(() => Math.round(myBadukAbilityTotal / 6), [myBadukAbilityTotal]);
 
     const isUnlocked = dungeonProgress.unlockedStages.includes(selectedStage);
-    const canEnterFresh = !showContinueFlow && isUnlocked;
+    const dailyEntryState = useMemo(
+        () => getChampionshipDungeonDailyEntryState(currentUser, type, now),
+        [currentUser, type, now],
+    );
+    const canEnterFresh = !showContinueFlow && isUnlocked && dailyEntryState.remaining > 0;
+    const showAdEntryButton = !showContinueFlow && dailyEntryState.canWatchAd;
+
+    const handleClaimAdEntry = () => {
+        if (adClaimPending) return;
+        const runClaim = () => {
+            setAdClaimPending(true);
+            void handlers
+                .handleAction({ type: 'CLAIM_CHAMPIONSHIP_DUNGEON_AD_ENTRY', payload: { dungeonType: type } })
+                .then((result) => {
+                    if (result && typeof result === 'object' && 'error' in result && result.error) {
+                        window.alert(String(result.error));
+                    }
+                })
+                .finally(() => setAdClaimPending(false));
+        };
+        showShopAdRewardInterstitial(runClaim);
+    };
 
     if (!isOpen) return null;
 
@@ -815,12 +842,20 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                                 {definition.name}
                             </span>
                         </div>
-                        <div className="relative z-[1] flex items-center pr-1.5 sm:pr-3 md:pr-4">
-                            <div className="rounded-md bg-black/55 px-1.5 py-0.5 ring-1 ring-amber-400/30 backdrop-blur-sm sm:rounded-lg sm:px-3 sm:py-1.5">
-                                <span className="block text-center text-[8px] font-semibold uppercase tracking-wide text-amber-200/85 sm:text-[10px] md:text-xs">
+                        <div className="relative z-[1] flex items-center gap-1 pr-1.5 sm:gap-1.5 sm:pr-3 md:pr-4">
+                            <div className="rounded-md bg-black/55 px-1.5 py-0.5 ring-1 ring-cyan-400/30 backdrop-blur-sm sm:rounded-lg sm:px-2.5 sm:py-1">
+                                <span className="block text-center text-[8px] font-semibold uppercase tracking-wide text-cyan-200/85 sm:text-[10px]">
+                                    {t('championship.venue.dailyEntryLabel')}
+                                </span>
+                                <span className="block text-center text-sm font-black tabular-nums leading-none text-white sm:text-xl md:text-2xl">
+                                    ({dailyEntryState.remaining}/{dailyEntryState.max})
+                                </span>
+                            </div>
+                            <div className="rounded-md bg-black/55 px-1.5 py-0.5 ring-1 ring-amber-400/30 backdrop-blur-sm sm:rounded-lg sm:px-2.5 sm:py-1">
+                                <span className="block text-center text-[8px] font-semibold uppercase tracking-wide text-amber-200/85 sm:text-[10px]">
                                     {t('championship.venue.stageLabel')}
                                 </span>
-                                <span className="block text-center text-lg font-black tabular-nums leading-none text-white sm:text-2xl md:text-3xl">
+                                <span className="block text-center text-sm font-black tabular-nums leading-none text-white sm:text-xl md:text-2xl">
                                     {selectedStage}
                                 </span>
                             </div>
@@ -1014,6 +1049,22 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
 
                     {!showContinueFlow && (
                         <div className="relative z-10 flex shrink-0 flex-col items-center gap-1 border-t border-white/10 bg-[#07080c]/95 pt-1.5 pb-[max(0.25rem,env(safe-area-inset-bottom,0px))] backdrop-blur-[2px] sm:gap-1.5 sm:pt-2.5 md:gap-2 md:pt-3">
+                            {showAdEntryButton ? (
+                                <button
+                                    type="button"
+                                    onClick={handleClaimAdEntry}
+                                    disabled={adClaimPending}
+                                    className="group relative mx-auto w-auto min-w-[10.5rem] max-w-[min(17rem,92vw)] overflow-hidden rounded-full border border-emerald-300/45 bg-gradient-to-b from-emerald-500 via-teal-600 to-emerald-950 px-5 py-2 text-xs font-bold text-white shadow-[0_10px_36px_-10px_rgba(16,185,129,0.55),inset_0_1px_0_rgba(255,255,255,0.22)] transition-all hover:border-emerald-200/50 disabled:pointer-events-none disabled:opacity-50 sm:min-w-[13rem] sm:px-9 sm:py-3 sm:text-base md:min-w-[14.5rem] md:px-11 md:py-3.5 md:text-lg"
+                                >
+                                    <span className="relative tracking-wide">
+                                        {adClaimPending
+                                            ? t('championship.venue.adEntryClaiming')
+                                            : isAdFree
+                                              ? t('championship.venue.extraEntry')
+                                              : t('championship.venue.watchAdForEntry')}
+                                    </span>
+                                </button>
+                            ) : (
                             <button
                                 type="button"
                                 onClick={() => {
@@ -1036,9 +1087,15 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                                     </span>
                                 </span>
                             </button>
+                            )}
                             {!isUnlocked && (
                                 <p className="text-center text-[10px] leading-tight text-red-300/90 sm:text-sm md:text-base">
                                     {t('championship.venue.stageLocked')}
+                                </p>
+                            )}
+                            {!showAdEntryButton && isUnlocked && dailyEntryState.remaining <= 0 && (
+                                <p className="text-center text-[10px] leading-tight text-amber-200/80 sm:text-sm">
+                                    {t('championship.venue.dailyEntryExhausted')}
                                 </p>
                             )}
                         </div>

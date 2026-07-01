@@ -539,6 +539,10 @@ const applyDefaults = (
       user.exchangeState ?? (status?.serializedUser as User | undefined)?.exchangeState ?? undefined,
     dungeonProgress: user.dungeonProgress ?? (status?.serializedUser as User | undefined)?.dungeonProgress ?? undefined,
     dungeonConditionSnapshot: user.dungeonConditionSnapshot ?? (status?.serializedUser as User | undefined)?.dungeonConditionSnapshot ?? undefined,
+    championshipDungeonDailyEntry:
+        user.championshipDungeonDailyEntry ??
+        (status?.serializedUser as User | undefined)?.championshipDungeonDailyEntry ??
+        undefined,
     championshipVersusConditionSnapshot:
         user.championshipVersusConditionSnapshot ??
         (status?.serializedUser as User | undefined)?.championshipVersusConditionSnapshot ??

@@ -1,5 +1,6 @@
 import type { TournamentState, TournamentType, User } from '../types/index.js';
 import { getStartOfDayKST, isSameDayKST } from './timeUtils.js';
+import { clearChampionshipDungeonDailyEntryRecords } from './championshipDungeonDailyEntry.js';
 
 export const CHAMPIONSHIP_DUNGEON_TYPES = ['neighborhood', 'national', 'world'] as const satisfies readonly TournamentType[];
 
@@ -145,6 +146,7 @@ export const invalidateStaleChampionshipDungeonRunsForUser = (
 
 /** 매일 0시: 던전 일일 입장·진행 스냅샷 전부 초기화 (last*Tournament null은 호출 측에서 처리 가능) */
 export const clearChampionshipDungeonDailyEntryFields = (user: User): void => {
+    clearChampionshipDungeonDailyEntryRecords(user);
     user.dungeonConditionSnapshot = undefined;
 
     if (user.dungeonProgress) {

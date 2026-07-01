@@ -2235,6 +2235,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         type === 'START_DUNGEON_STAGE' ||
         type === 'COMPLETE_DUNGEON_STAGE' ||
         type === 'CLAIM_DUNGEON_REWARD' ||
+        type === 'CLAIM_CHAMPIONSHIP_DUNGEON_AD_ENTRY' ||
         type === 'GET_CHAMPIONSHIP_VERSUS_VENUE_STATE' ||
         type === 'REFRESH_CHAMPIONSHIP_VERSUS_OPPONENT_LIST' ||
         type === 'REPORT_CHAMPIONSHIP_VERSUS_DUEL_RESULT' ||

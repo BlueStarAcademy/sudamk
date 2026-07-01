@@ -145,7 +145,8 @@ export function getSelectiveUserUpdate(
         'ADMIN_RESET_ALL_USERS_CHAMPIONSHIP': [],
         'ADMIN_RESET_ALL_USERS_STRATEGIC_RANKING_TO_BASE': [],
         'CLAIM_TOURNAMENT_REWARD': ['inventory', 'gold', 'diamonds', 'tournamentScore', 'cumulativeTournamentScore', 'neighborhoodRewardClaimed', 'nationalRewardClaimed', 'worldRewardClaimed', 'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament', 'dungeonProgress', 'quests'],
-        'START_DUNGEON_STAGE': ['dungeonProgress', 'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament'],
+        'START_DUNGEON_STAGE': ['dungeonProgress', 'dungeonConditionSnapshot', 'championshipDungeonDailyEntry', 'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament'],
+        'CLAIM_CHAMPIONSHIP_DUNGEON_AD_ENTRY': ['championshipDungeonDailyEntry'],
         'COMPLETE_DUNGEON_STAGE': ['dungeonProgress', 'inventory', 'gold', 'diamonds', 'champCoins', 'tournamentScore', 'cumulativeTournamentScore', 'dailyDungeonScore', 'quests', 'neighborhoodRewardClaimed', 'nationalRewardClaimed', 'worldRewardClaimed', 'lastNeighborhoodPlayedDate', 'lastNationalPlayedDate', 'lastWorldPlayedDate', 'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament'],
         
         // 싱글플레이어 관련

@@ -25,6 +25,11 @@ import {
     invalidateStaleChampionshipDungeonRunsForUser,
     isChampionshipDungeonRunStale,
 } from '../../shared/utils/championshipDungeonDailyReset.js';
+import {
+    consumeChampionshipDungeonEntry,
+    getChampionshipDungeonDailyEntryState,
+    grantChampionshipDungeonAdBonusEntry,
+} from '../../shared/utils/championshipDungeonDailyEntry.js';
 import * as tournamentService from '../tournamentService.js';
 import { addItemsToInventory, createItemInstancesFromReward, normalizeInventoryAfterLoad } from '../../utils/inventoryUtils.js';
 import { calculateTotalStats } from '../statService.js';
@@ -2024,6 +2029,12 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 updateUserCache(freshUser);
                 return { clientResponse: { dungeonState: persisted, updatedUser: freshUser } };
             }
+
+            const entryState = getChampionshipDungeonDailyEntryState(freshUser, dungeonType, now);
+            if (entryState.remaining <= 0) {
+                return { error: '오늘 입장 횟수를 모두 사용했습니다. 광고 시청으로 추가 입장이 가능합니다.' };
+            }
+            consumeChampionshipDungeonEntry(freshUser, dungeonType, now);
             
             // 전체 토너먼트 생성 (유저 + 봇들)
             const definition = TOURNAMENT_DEFINITIONS[dungeonType];
@@ -2096,6 +2107,26 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             volatileState.activeTournaments[freshUser.id] = dungeonState;
             
             return { clientResponse: { dungeonState, updatedUser: freshUser } };
+        }
+
+        case 'CLAIM_CHAMPIONSHIP_DUNGEON_AD_ENTRY': {
+            const { dungeonType } = (payload || {}) as { dungeonType?: TournamentType };
+            if (!dungeonType || !['neighborhood', 'national', 'world'].includes(dungeonType)) {
+                return { error: '유효하지 않은 던전 타입입니다.' };
+            }
+
+            const freshUser = (await getCachedUser(user.id)) || (await db.getUser(user.id));
+            if (!freshUser) return { error: '사용자를 찾을 수 없습니다.' };
+
+            const grant = grantChampionshipDungeonAdBonusEntry(freshUser, dungeonType, now);
+            if (!grant.ok) return { error: grant.error };
+
+            await db.updateUser(freshUser);
+            updateUserCache(freshUser);
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(freshUser, ['championshipDungeonDailyEntry']);
+
+            return { clientResponse: { updatedUser: freshUser } };
         }
 
         case 'COMPLETE_DUNGEON_STAGE': {

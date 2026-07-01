@@ -693,6 +693,7 @@ export type ServerAction =
     | { type: 'LEAVE_TOURNAMENT_VIEW', payload?: never }
     // Dungeon
     | { type: 'START_DUNGEON_STAGE', payload: { dungeonType: TournamentType; stage: number } }
+    | { type: 'CLAIM_CHAMPIONSHIP_DUNGEON_AD_ENTRY', payload: { dungeonType: TournamentType } }
     | { type: 'COMPLETE_DUNGEON_STAGE', payload: { dungeonType: TournamentType; stage: number } }
     | { type: 'CLAIM_DUNGEON_REWARD', payload: { dungeonType: TournamentType; stage: number } }
     | { type: 'GET_CHAMPIONSHIP_VERSUS_VENUE_STATE', payload: { venue: ChampionshipVersusVenueKind; economyOnly?: boolean } }

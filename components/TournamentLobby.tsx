@@ -24,6 +24,7 @@ import { championshipVersusDuelVenueModeLabelKo } from '../shared/utils/champion
 import ChampionshipVersusDuelTicketCountdown from './ChampionshipVersusDuelTicketCountdown.js';
 import Avatar from './Avatar.js';
 import { isSameDayKST } from '../utils/timeUtils.js';
+import { getChampionshipDungeonDailyEntryState } from '../shared/utils/championshipDungeonDailyEntry.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import LeagueTierInfoModal from './LeagueTierInfoModal.js';
 import QuickAccessSidebar from './QuickAccessSidebar.js';
@@ -721,8 +722,11 @@ const TournamentCard: React.FC<{
     }
     const lastPlayedDate = currentUser[playedDateKey as keyof UserWithStatus] as number | null | undefined;
     const hasPlayedToday = lastPlayedDate && isSameDayKST(lastPlayedDate, now);
-    // 하루 1회 참여: 표시용 (N/1) = 오늘 참여 횟수/1
-    const playedCountToday = hasPlayedToday ? 1 : 0;
+    const dailyEntryState = useMemo(
+        () => getChampionshipDungeonDailyEntryState(currentUser, type, now),
+        [currentUser, type, now],
+    );
+    const remainingEntries = dailyEntryState.remaining;
     // 오늘 경기 완료 여부 (경기를 시작했고 완료/탈락 상태인 경우)
     const isCompletedToday = Boolean(hasPlayedToday && hasResultToView);
 
@@ -743,9 +747,9 @@ const TournamentCard: React.FC<{
         return getHighestDungeonStageWhereUserAvgExceedsBot(userDungeonCoreStatAverage);
     }, [userDungeonCoreStatAverage]);
 
-    /** 모바일 입장 카드: 오늘 아직 참여 전이면 (0/1) — 남은 일일 입장이 있을 때 */
+    /** 모바일 입장 카드: 남은 일일 입장 (1/1 → 0/1) */
     const hasRemainingDailyEntry =
-        !isCompletedToday && !isPausedInProgress && playedCountToday === 0;
+        !isCompletedToday && !isPausedInProgress && remainingEntries > 0;
     const participationBadge = hasResultToView ? t('lobby.participationViewResult') : hasUnclaimedReward ? t('lobby.participationReward') : t('lobby.participationAvailable');
     const participationBadgeTone = hasResultToView
         ? 'border-amber-300/60 bg-amber-500/90 text-amber-950'
@@ -917,7 +921,7 @@ const TournamentCard: React.FC<{
                                         ) : isPausedInProgress ? (
                                             <span className="text-amber-300">{compact || compactInline ? '..' : t('lobby.inProgress')}</span>
                                         ) : (
-                                            <span className="text-white/95">({playedCountToday}/1)</span>
+                                            <span className="text-white/95">({remainingEntries}/{dailyEntryState.max})</span>
                                         )}
                                     </div>
                                 </div>
@@ -955,7 +959,7 @@ const TournamentCard: React.FC<{
                                 ) : isPausedInProgress ? (
                                     <span className="text-amber-300">{compact || compactInline ? '..' : t('lobby.inProgress')}</span>
                                 ) : (
-                                    <span className="text-white/95">({playedCountToday}/1)</span>
+                                    <span className="text-white/95">({remainingEntries}/{dailyEntryState.max})</span>
                                 )}
                             </div>
                         </div>

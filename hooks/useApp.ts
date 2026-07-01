@@ -2116,6 +2116,10 @@ export const useApp = () => {
                 patch.dungeonConditionSnapshot !== undefined
                     ? mergeDungeonConditionSnapshotRecords(base.dungeonConditionSnapshot, patch.dungeonConditionSnapshot)
                     : base.dungeonConditionSnapshot,
+            championshipDungeonDailyEntry:
+                patch.championshipDungeonDailyEntry !== undefined
+                    ? { ...(base.championshipDungeonDailyEntry ?? {}), ...patch.championshipDungeonDailyEntry }
+                    : base.championshipDungeonDailyEntry,
             championshipVersusConditionSnapshot:
                 patch.championshipVersusConditionSnapshot !== undefined
                     ? mergeChampionshipVersusConditionSnapshotRecords(
